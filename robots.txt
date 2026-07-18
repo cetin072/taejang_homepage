@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://taejang-homepage.netlify.app/sitemap.xml
