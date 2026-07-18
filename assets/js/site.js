@@ -3,16 +3,25 @@
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
   if(menuBtn && mobileNav){
-    menuBtn.addEventListener('click', function(){
-      const open = mobileNav.classList.toggle('open');
+    function setMenu(open){
+      mobileNav.classList.toggle('open', open);
       document.body.classList.toggle('nav-open', open);
       menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
+    }
+
+    menuBtn.addEventListener('click', function(){
+      setMenu(!mobileNav.classList.contains('open'));
     });
     mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', function(){
-      mobileNav.classList.remove('open');
-      document.body.classList.remove('nav-open');
-      menuBtn.setAttribute('aria-expanded','false');
+      setMenu(false);
     }));
+    document.addEventListener('keydown', function(event){
+      if(event.key === 'Escape' && mobileNav.classList.contains('open')){
+        setMenu(false);
+        menuBtn.focus();
+      }
+    });
   }
 
   document.querySelectorAll('[data-faq-button]').forEach(btn => {
