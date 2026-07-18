@@ -61,6 +61,8 @@ button{cursor:pointer}
 .btn.light{background:#fff;color:var(--green-deep)}
 .btn.line{background:transparent;color:var(--green);border-color:var(--green)}
 .btn.line:hover{color:#fff}
+.btn.hero-secondary{background:rgba(27,67,50,.18);color:#fff;border-color:rgba(255,255,255,.82)}
+.btn.hero-secondary:hover{background:#fff;color:var(--green-deep)}
 .btns{display:flex;gap:12px;flex-wrap:wrap}
 .tag{
   display:inline-block;padding:5px 10px;background:var(--green);color:#fff;
@@ -100,16 +102,16 @@ button{cursor:pointer}
   background:linear-gradient(90deg,rgba(18,55,40,.87) 0%,rgba(18,55,40,.63) 52%,rgba(18,55,40,.35) 100%);
 }
 .hero-content{position:relative;z-index:1;color:#fff;padding:86px 0;max-width:760px}
-.hero h1{margin:0 0 20px;font:800 clamp(34px,5.7vw,58px)/1.35 var(--myeongjo)}
-.hero p{font-size:18px;color:rgba(255,255,255,.92);max-width:720px}
+.hero h1{margin:0 0 20px;font:800 clamp(34px,5.7vw,58px)/1.35 var(--myeongjo);letter-spacing:-.025em;text-shadow:0 2px 18px rgba(8,28,20,.5)}
+.hero p{font-size:clamp(16px,1.7vw,19px);color:rgba(255,255,255,.98);max-width:650px;font-weight:700;text-shadow:0 2px 14px rgba(8,28,20,.48)}
 .badges{display:flex;gap:10px;flex-wrap:wrap;margin:28px 0 34px}
 .badge{padding:7px 12px;border:1px solid rgba(255,255,255,.45);font-size:12.5px;background:rgba(255,255,255,.09)}
 
 /* Facts */
-.facts{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
-.fact{text-align:center;padding:34px 20px;border-right:1px solid var(--line)}
+.facts{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line)}
+.fact{text-align:center;padding:32px 20px;border-right:1px solid var(--line)}
 .fact:last-child{border-right:0}
-.fact strong{display:block;font:800 27px var(--myeongjo);color:var(--green-deep)}
+.fact strong{display:block;font:800 clamp(22px,2vw,28px) var(--myeongjo);color:var(--green-deep);letter-spacing:-.02em}
 .fact span{font-size:13px;color:var(--ink-soft)}
 
 /* Layouts */
@@ -286,6 +288,10 @@ button{cursor:pointer}
   :root{--section:76px}
   .desktop-nav{display:none}
   .menu-btn{display:block}
+  .facts{grid-template-columns:repeat(2,1fr)}
+  .fact{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .fact:nth-child(2n){border-right:0}
+  .fact:nth-last-child(-n+2){border-bottom:0}
   .business-grid,.benefits{grid-template-columns:1fr 1fr}
   .business-item:nth-child(2),.benefit:nth-child(2){border-right:0}
   .business-item:nth-child(-n+2),.benefit:nth-child(-n+2){border-bottom:1px solid var(--line)}
@@ -297,9 +303,14 @@ button{cursor:pointer}
   .container{width:min(100% - 36px,var(--container))}
   .hero{min-height:590px}
   .hero-media::after{background:linear-gradient(180deg,rgba(18,55,40,.55),rgba(18,55,40,.92))}
-  .facts,.grid-2,.grid-3,.grid-4,.greeting,.principles,.compare,.contact-layout,.contact-form,.article-list{grid-template-columns:1fr}
-  .fact{border-right:0;border-bottom:1px solid var(--line)}
-  .fact:last-child{border-bottom:0}
+  .grid-2,.grid-3,.grid-4,.greeting,.principles,.compare,.contact-layout,.contact-form,.article-list{grid-template-columns:1fr}
+  .hero-content{padding:72px 0 96px}
+  .hero h1{font-size:clamp(32px,10vw,42px);line-height:1.32}
+  .hero p{max-width:32rem;line-height:1.7}
+  .facts{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fact{padding:26px 14px}
+  .fact strong{font-size:clamp(20px,6.2vw,26px)}
+  .fact span{display:block;line-height:1.55}
   .section-head{align-items:start;flex-direction:column}
   .business-grid,.benefits,.partner-strip,.safety-grid{grid-template-columns:1fr}
   .business-item,.benefit,.partner,.safety-item{border-right:0!important;border-bottom:1px solid var(--line)}
@@ -328,7 +339,7 @@ button{cursor:pointer}
 }
 .hero-overlay{
   position:absolute;inset:0;z-index:1;
-  background:linear-gradient(90deg,rgba(18,55,40,.87) 0%,rgba(18,55,40,.63) 52%,rgba(18,55,40,.35) 100%);
+  background:linear-gradient(90deg,rgba(18,55,40,.92) 0%,rgba(18,55,40,.72) 55%,rgba(18,55,40,.4) 100%);
 }
 .hero-slider .hero-content{z-index:2}
 .hero-control{
@@ -376,7 +387,7 @@ button{cursor:pointer}
 }
 
 @media (max-width:760px){
-  .hero-overlay{background:linear-gradient(180deg,rgba(18,55,40,.55),rgba(18,55,40,.92))}
+  .hero-overlay{background:linear-gradient(180deg,rgba(18,55,40,.66),rgba(18,55,40,.94))}
   .hero-control{width:42px;height:42px;font-size:30px}
   .hero-prev{left:12px}
   .hero-next{right:12px}
