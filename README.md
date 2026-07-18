@@ -39,6 +39,14 @@ python3 -m http.server 8000
 
 세부 기준은 [AGENTS.md](AGENTS.md)와 `docs/` 문서를 따릅니다.
 
+## 운영 기준
+
+- [자산 관리 기준](docs/operations/ASSET_POLICY.md)
+- [Codex 작업 흐름](docs/operations/CODEX_WORKFLOW.md)
+- [반복 명령 템플릿](docs/operations/COMMAND_LIBRARY.md)
+- [성능 원칙](docs/operations/PERFORMANCE_POLICY.md)
+- [프로젝트 폴더 구조](docs/operations/PROJECT_STRUCTURE.md)
+
 ## 콘텐츠 주의 사항
 
 공개 저장소에는 민감정보, 주주명부, 주민등록번호, 비공개 계약 자료, 초상권 확인 전 사진을 올리지 않습니다. 태장 공식 정보와 대외 표현은 별도 기준 문서를 기준으로 검토합니다.
