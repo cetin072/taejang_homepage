@@ -35,6 +35,8 @@
 - [관리자 보안 계획](ADMIN_SECURITY_PLAN.md)
 - [관리자 도입 의사결정](ADMIN_DECISION_LOG.md)
 
+계정 발급·일시 정지·퇴사 처리·복구·재배정의 기능 기준은 관리자 시스템 요구사항을 우선합니다. 화면은 화면 명세, 필드와 관계는 데이터 모델, Auth·RLS·Storage 차단은 보안 계획, 확정된 운영 판단은 의사결정 문서에서 관리합니다.
+
 ## 도메인·검색
 
 - [SEO·운영 도메인 체크리스트](SEO_DOMAIN_CHECKLIST.md)
