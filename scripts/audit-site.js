@@ -25,6 +25,7 @@ const PRESERVED_UNUSED_IMAGES = new Set([
   'assets/images/partners/samhyun.jpg',
   'assets/images/partners/cheungwoo-bj.png'
 ]);
+const B2B_PUBLIC_PAGES = ['partnership.html', 'resources.html'];
 const LEGACY_UNSUITABLE_PACKING_2_SHA256 = '3f56e0285804ec587f0fa5adb7541dcc06927906cb2608b7263a9a2c02781523';
 
 function walk(directory) {
@@ -56,6 +57,7 @@ function createResult(options = {}) {
     placeholderCommentCount: 0,
     canonicalUrls: [],
     openGraphUrls: [],
+    sitemapEntries: [],
     publicReady: Boolean(options.publicReady)
   };
 }
@@ -121,6 +123,10 @@ function inspectHtml(result, source, filePath, rootDir) {
 
   for (const match of source.matchAll(/\bhref=["']([^"']+)["']/gi)) {
     const href = match[1];
+    if (!href || href === '#') {
+      result.errors.push(`${sourceName}: 빈 링크 ${href || '(빈 값)'}`);
+      continue;
+    }
     if (!href || href.startsWith('#') || /^(?:https?:|mailto:|tel:|javascript:)/i.test(href)) continue;
     const target = href.split('#')[0].split('?')[0];
     if (!target) continue;
@@ -138,6 +144,31 @@ function inspectHtml(result, source, filePath, rootDir) {
   const ogUrl = source.match(/<meta\b[^>]*property=["']og:url["'][^>]*content=["']([^"']+)["']/i)
     || source.match(/<meta\b[^>]*content=["']([^"']+)["'][^>]*property=["']og:url["']/i);
   if (ogUrl) result.openGraphUrls.push({ file: sourceName, url: ogUrl[1] });
+}
+
+function inspectB2bPage(result, source, filePath, rootDir) {
+  const sourceName = relative(rootDir, filePath);
+  if (!/<title>[^<]+<\/title>/i.test(source)) result.errors.push(`${sourceName}: title이 없습니다.`);
+  if (!/<meta\b[^>]*name=["']description["'][^>]*content=["'][^"']+["]/i.test(source)) {
+    result.errors.push(`${sourceName}: meta description이 없습니다.`);
+  }
+}
+
+function inspectSitemap(result, rootDir) {
+  const existingB2bPages = B2B_PUBLIC_PAGES.filter(page => fs.existsSync(path.join(rootDir, page)));
+  if (!existingB2bPages.length) return;
+  const sitemapPath = path.join(rootDir, 'sitemap.xml');
+  if (!fs.existsSync(sitemapPath)) {
+    result.errors.push('sitemap.xml: 공개 페이지 경로를 확인할 수 없습니다.');
+    return;
+  }
+  const source = fs.readFileSync(sitemapPath, 'utf8');
+  result.sitemapEntries = [...source.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
+  existingB2bPages.forEach(page => {
+    if (!result.sitemapEntries.some(entry => entry.endsWith(`/${page}`))) {
+      result.errors.push(`sitemap.xml: ${page} 경로가 없습니다.`);
+    }
+  });
 }
 
 function checkLegacyPackingReference(result, rootDir, options) {
@@ -170,7 +201,10 @@ function auditRepository(rootDir = ROOT_DIR, options = {}) {
     const sourceName = relative(rootDir, filePath);
     const source = fs.readFileSync(filePath, 'utf8');
     extractImageReferences(source, filePath, rootDir).forEach(imagePath => addReference(result, imagePath, sourceName));
-    if (path.extname(filePath).toLowerCase() === '.html') inspectHtml(result, source, filePath, rootDir);
+    if (path.extname(filePath).toLowerCase() === '.html') {
+      inspectHtml(result, source, filePath, rootDir);
+      if (B2B_PUBLIC_PAGES.includes(sourceName)) inspectB2bPage(result, source, filePath, rootDir);
+    }
 
     LEGACY_PHOTO_FILENAMES.forEach(filename => {
       if (source.includes(filename)) result.errors.push(`${sourceName}: 과거 긴 사진 파일명 ${filename}`);
@@ -179,6 +213,8 @@ function auditRepository(rootDir = ROOT_DIR, options = {}) {
       result.warnings.push(`${sourceName}: 임시 로컬 URL ${match[0]}`);
     }
   });
+
+  inspectSitemap(result, rootDir);
 
   result.imageReferences.forEach((sources, imagePath) => {
     if (!fs.existsSync(path.join(rootDir, imagePath))) {
@@ -208,6 +244,7 @@ function auditRepository(rootDir = ROOT_DIR, options = {}) {
   if (result.preservedUnusedImages.length) result.passes.push(`보존 미참조 공식 자산 ${result.preservedUnusedImages.length}개`);
   result.passes.push(`공개 준비 모드: ${result.publicReady ? '예' : '아니오'}`);
   if (htmlFiles.length) result.passes.push(`HTML ${htmlFiles.length}개 검사`);
+  if (result.sitemapEntries.length) result.passes.push(`sitemap 경로 ${result.sitemapEntries.length}개 검사`);
   return result;
 }
 
@@ -242,6 +279,7 @@ module.exports = {
   LEGACY_PHOTO_FILENAMES,
   LEGACY_UNSUITABLE_PACKING_2_SHA256,
   PRESERVED_UNUSED_IMAGES,
+  B2B_PUBLIC_PAGES,
   auditRepository,
   extractImageReferences,
   localPathFromReference

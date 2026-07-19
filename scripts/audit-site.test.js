@@ -81,4 +81,21 @@ withFixture({
   assert.ok(result.errors.some(message => message.includes('과거 공개 부적합 파일')));
 });
 
+withFixture({
+  'index.html': '<a href="#">비어 있는 링크</a>',
+  'sitemap.xml': '<urlset></urlset>'
+}, {}, result => {
+  assert.ok(result.errors.some(message => message.includes('빈 링크')));
+});
+
+withFixture({
+  'index.html': '<main></main>',
+  'partnership.html': '<title>기업 협력</title><meta name="description" content="협력 안내"><main id="partnership"></main>',
+  'resources.html': '<title>자료실</title><meta name="description" content="자료 안내"><main id="resources"></main>',
+  'sitemap.xml': '<urlset><loc>https://example.test/partnership.html</loc><loc>https://example.test/resources.html</loc></urlset>'
+}, {}, result => {
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.sitemapEntries.length, 2);
+});
+
 console.log('audit-site tests: all cases passed');

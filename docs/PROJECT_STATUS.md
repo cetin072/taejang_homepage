@@ -11,7 +11,7 @@
 - 운영 배포: 저장소 루트를 사용하는 Netlify 정적 배포
 - 패키지 관리자·build command: 없음
 - 콘텐츠: `assets/js/content.js` 기반의 일터·활동 목록·상세
-- 현재 운영 준비: PR #10은 `main`에 반영되었고, 정리 Draft PR은 `codex/site-cleanup-remediation`
+- 현재 운영 준비: PR #11 정리 작업이 `main`에 반영되었고, PR #12 B2B 콘텐츠 보강 작업은 구조·기능 기반만 임시 승인된 상태로 후속 재검토가 필요합니다.
 
 ## 완료
 
@@ -23,11 +23,11 @@
 - 콘텐츠 작성·사진 촬영·교체·개소 전환·공개 검수·게시 절차
 - `validate-content.js` 콘텐츠 자동 검증과 기본 테스트
 - `audit-site.js` 코드·자산 참조 감사와 기본 테스트
+- 과거 자산·문의 폼 잔여 코드·과거 문서 정리와 메인 미리보기 단일 데이터 원천 전환
 
 ## 진행 중
 
-- 오래된 미참조 자산·문의 폼 잔여 코드·과거 문서를 정리하고 메인 미리보기를 `content.js` 단일 원천으로 전환하는 Draft PR 검토
-- B2B 필수 콘텐츠·자료·페이지 우선순위 기획
+- B2B 기업 협력 상세·FAQ·자료실의 콘텐츠·정보 구성 재검토
 - 직원용 관리자 시스템 역할·상태·화면·데이터·보안 요구사항 설계
 - 퇴사·장기 부재 계정의 즉시 차단, 세션 회수, 이력 보존, 담당자 재배정 설계
 
@@ -37,16 +37,17 @@
 - 2026.08.12 개소 후 문구·초대장·사진 전환
 - 운영 도메인 확정과 canonical·OG·sitemap·robots 실제 적용
 - 회사소개서·인증서 공개본과 실제 협력 사례
+- PR #12의 `partnership.html`·`resources.html` 콘텐츠 최종 재설계
 - Supabase 관리자 시스템 구현과 데이터 이전
 
 ## 현재 주요 파일
 
-- 공개 화면: `index.html`, `workplace.html`, `activities.html`
+- 공개 화면: `index.html`, `workplace.html`, `activities.html`, `partnership.html`, `resources.html`
 - 공통 코드: `assets/css/styles.css`, `assets/js/site.js`, `assets/js/listing.js`
 - 콘텐츠 원본: `assets/js/content.js`
 - 이미지: `images/`, 승인 전 파트너 로고: `assets/images/partners/`
 - 현황·감사: `docs/PROJECT_STATUS.md`, `docs/SITE_AUDIT.md`
-- B2B 계획: `docs/B2B_CONTENT_PLAN.md`
+- B2B 계획: `docs/B2B_CONTENT_PLAN.md`, `docs/B2B_CONTENT_INVENTORY.md`
 - 관리자 설계: `docs/ADMIN_SYSTEM_REQUIREMENTS.md`와 관련 명세
 
 ## 공동 개발·정보 원칙
@@ -59,8 +60,8 @@
 
 ## 다음 우선순위
 
-1. 정리 Draft PR 검토 후 실제 사진·공개 승인 자료 수령 및 공개 전 교체
+1. 실제 사진·공개 승인 자료 수령 및 공개 전 교체
 2. 개소 전·후 문구 전환 책임자와 기준일 확인
 3. 운영 도메인 확정 후 SEO·검색 등록 PR
-4. B2B P0·P1 자료 수령과 필수 콘텐츠 구현
+4. 실제 사진·회사소개서·인증 공개본·협력 사례 수령 후 B2B 콘텐츠 재설계
 5. 관리자 Phase 0 의사결정 후 Phase 1 MVP 기반 구축
