@@ -4,156 +4,118 @@
 
 | 항목 | 기준 |
 | --- | --- |
-| 기준 브랜치 | `codex/content-operations-readiness` |
-| 원격 기준 커밋 | `74dff32623cc10665a2265ef69ccfceb5aa41e52` |
-| 기준 `main` | `a33f2a01732feb8b9148fa636dbe4b0bb7a00935` |
+| 기준 브랜치 | `codex/site-cleanup-remediation` |
+| 기준 `main` | `c6616b1a4642a75ec8c62339ab19d971ae0c5b9d` (PR #10 병합본) |
 | 감사 일자 | 2026.07.19 |
-| 감사 대상 | 루트 HTML 7개, CSS 1개, 공개 사이트 JavaScript 3개, 검증 스크립트, 이미지·로고 15개, Netlify·SEO 설정, 루트 및 `docs/` 문서 |
-| 실제 수정 여부 | 이번 감사에서는 사이트 화면·이미지·배포 설정을 수정하지 않고 문서와 감사 스크립트만 추가·갱신 |
+| 감사 대상 | HTML 6개, CSS 1개, 공개 JavaScript 4개, 검증 스크립트, 이미지·로고, Netlify·SEO 설정, 루트 및 `docs/` 문서 |
+| 실제 수정 여부 | 오래된 미참조 파일·문의 폼 잔여 CSS를 제거하고, 미리보기와 감사 스크립트를 보완함 |
 
-감사는 정적 코드 검색, 파일 존재 여부, 해상도·용량, 해시, Node.js 검증을 기준으로 했습니다. 정적 검색만으로 동적 클래스나 실제 사진의 권리 상태를 확정하지 않습니다.
+정적 검색과 파일 존재 여부, 이미지 해시, Node.js 검증을 사용했습니다. 정적 검색만으로 실제 사진의 권리·사실관계·화면 품질을 확정하지 않습니다.
 
 ## 2. 현재 기술 구조
 
-- 순수 HTML/CSS/JavaScript 정적 사이트입니다.
-- `assets/js/content.js`의 `workplace`, `activities` 배열을 `assets/js/listing.js`가 목록·필터·상세 화면으로 렌더링합니다.
-- URL의 `?id=`로 기존 공개 콘텐츠 6개를 엽니다.
-- Netlify가 저장소 루트 `.`을 별도 build command 없이 배포합니다.
+- 순수 HTML/CSS/JavaScript 정적 사이트이며 Netlify가 저장소 루트를 별도 build command 없이 배포합니다.
+- `assets/js/content.js`의 `workplace`, `activities` 배열이 목록·상세 및 메인 미리보기의 단일 콘텐츠 원천입니다.
+- `assets/js/listing.js`는 목록·필터·상세·관련 글을, `assets/js/home-previews.js`는 메인 미리보기를 안정적인 최신순으로 렌더링합니다.
 - 관리자 시스템, 로그인, 데이터베이스, Storage 연동은 없습니다.
-- `scripts/validate-content.js`가 콘텐츠 ID·날짜·카테고리·사진 안내·미리보기 링크를 검사합니다.
-- `scripts/audit-site.js`가 사이트 이미지·내부 링크·중복 ID·개발 안내·canonical/OG 현황을 검사합니다.
-- `package.json`과 패키지 설치 과정은 없습니다. 검증 명령은 `node`로 직접 실행합니다.
+- `scripts/validate-content.js`는 공개 ID·날짜·카테고리·사진 안내와 메인 미리보기 컨테이너를 검사합니다.
+- `scripts/audit-site.js`는 이미지 참조·내부 링크·중복 ID·개발 안내·canonical/OG 현황을 검사합니다.
 
 ## 3. 정상 유지 항목
 
-| 항목 | 판단 근거 | 권고 |
+| 항목 | 근거 | 권고 |
 | --- | --- | --- |
-| 가벼운 정적 구조 | 런타임 서버·DB 없이 핵심 페이지 제공 | 관리자 도입 전까지 유지 |
-| 목록·상세 구조 | 기존 공개 ID 6개, 잘못된 ID 안내, 목록 복귀 구현 | 유지 |
-| 최신순 정렬 | 원본 배열을 변경하지 않는 안정 정렬 | 유지 |
-| 관련 글 | 같은 콘텐츠 유형에서 현재 글 제외, 최대 2개 | 유지 |
-| 필터 | 데이터 카테고리 기반 자동 생성, `aria-pressed` 반영 | 유지 |
-| 접근성 기본 | skip link, 키보드 포커스, 모바일 메뉴 상태, reduced motion, 상세 `h1` 구현 | 회귀 검사 유지 |
-| 콘텐츠 검증 | ERROR/WARNING/PASS와 종료 코드 구분 | 새 콘텐츠마다 실행 |
-| 히어로 이미지 | `minhwa-wide.jpg`, `coaching.jpg` 2개만 승인된 현재 참조 | 실제 대체 사진 승인 전 유지 |
+| 가벼운 정적 구조 | 서버·DB 없이 핵심 페이지 제공 | 관리자 도입 전까지 유지 |
+| 목록·상세·필터 | 기존 공개 ID 6개, 잘못된 ID 안내, 목록 복귀 | 유지 |
+| 최신순·관련 글 | 원본 배열을 변경하지 않는 안정 정렬 | 유지 |
+| 메인 미리보기 | `content.js` 기반 자동 생성, 실패 시 목록 링크 안내 | 콘텐츠 수정 뒤 검증 실행 |
+| 접근성 기본 | skip link, 키보드 포커스, 모바일 메뉴, reduced motion | 회귀 검사 유지 |
+| 승인된 히어로 | `minhwa-wide.jpg`, `coaching.jpg`만 사용 | 승인 전 교체 금지 |
 
-## 4. 중복 구조
+## 4. 중복 구조와 기술 부채
 
-| 위치 | 현재 문제 | 영향 | 지금 수정 여부 | 권장 개선 시점 |
-| --- | --- | --- | --- | --- |
-| `index.html` 미리보기와 `content.js` | 제목·날짜·요약·링크가 이중 관리됨 | 한쪽만 바꾸면 불일치 | 수정 안 함, 검증 경고로 방어 | 콘텐츠 증가 전 또는 관리자 Phase 1 |
-| 3개 주요 페이지 헤더 | 메뉴 구조가 HTML에 반복됨 | 메뉴 변경 시 3곳 수정 | 수정 안 함 | 다음 구조 정리 PR |
-| 3개 주요 페이지 푸터 | `workplace.html`과 `activities.html`은 동일, `index.html`도 같은 정보 반복 | 회사정보 변경 누락 위험 | 수정 안 함 | 관리자 회사정보 기능 전 |
-| 페이지별 meta | canonical·OG·공유 이미지가 각 파일에 반복됨 | 도메인 변경 시 누락 위험 | 도메인 확정 전 수정 금지 | 도메인 확정 별도 PR |
-| 사진 안내 | 메인 HTML과 `content.js` 안내 데이터가 각각 존재 | 파일명·주의 문구 불일치 가능 | 짧은 통제 파일명과 검증으로 방어 | 관리자 미디어 기능 도입 시 통합 |
-| 문서 규칙 | 공개·사진·게시 기준이 목적별로 일부 반복됨 | 신규 담당자가 우선 문서를 혼동할 수 있음 | 색인과 상호 링크로 역할 구분 | 분기별 문서 점검 |
-| `styles.css` | 493줄 단일 파일, 동일 선택자의 반응형 재정의가 여러 위치에 존재 | 삭제·수정 영향 추적이 어려움 | 수정 안 함 | 화면 개편이 안정된 뒤 |
-| JavaScript | 공통 DOM 처리와 목록 렌더링은 분리되어 있으며 고신뢰 중복 없음 | 현재 영향 낮음 | 유지 | 관리자 연동 구조 결정 후 재평가 |
+| 항목 | 영향 | 상태 | 권장 시점 |
+| --- | --- | --- | --- |
+| 주요 페이지 헤더·푸터 반복 | 메뉴·회사정보 변경 누락 위험 | 유지 | 구조 정리 PR 또는 관리자 도입 전 |
+| 페이지별 메타 태그 | 운영 도메인 전환 시 누락 위험 | 도메인 변경 금지 범위로 유지 | 도메인 확정 별도 PR |
+| 사진 안내의 HTML·데이터 분산 | 안내 교체 누락 가능 | 메인 미리보기는 데이터화 완료 | 실제 사진 수령 시 |
+| 단일 CSS 파일 | 영향 추적이 어려움 | 493줄에서 463줄로 고신뢰 잔여 코드만 정리 | 화면 안정 후 |
+| 전역 콘텐츠 스크립트 | DB 전환 시 어댑터 필요 | 유지 | 관리자 개발 전 |
+| 정적 사이트와 향후 DB 발행 | 콘텐츠 원천 이중화 위험 | 미설계 | 관리자 Phase 0 |
 
-## 5. 미사용 코드 후보
+## 5. 미사용 코드 정리 결과
 
-정적 검색에서 CSS 클래스 149개 중 14개가 직접 참조되지 않는 후보로 나왔습니다. 동적으로 생성되는 `dev-photo-placeholder--card`, `dev-photo-placeholder--detail`은 **사용 확인**입니다.
-
-| 분류 | 후보 | 근거와 조치 |
+| 분류 | 처리 | 근거 |
 | --- | --- | --- |
-| 사용 확인 | 모바일 메뉴 `open`, FAQ `open`, 슬라이드 `active`, 사진 안내 카드·상세 변형 | JavaScript가 동적으로 적용하므로 삭제 금지 |
-| 미사용 가능성 높음 | `contact-form`, `contact-layout`, `contact-panel`, `field`, `full`, `check` | 문의 폼 제거 전 스타일로 보임. 다음 CSS 정리 PR에서 화면 회귀 후 제거 검토 |
-| 미사용 가능성 높음 | `article-notice-media`, `hero-media` | 현재 HTML·렌더링 코드 직접 참조 없음. 과거 구조 여부 확인 후 결정 |
-| 추가 확인 필요 | `grid-4`, `light`, `narrow`, `stack` | 일반 유틸리티 클래스일 수 있어 정적 검색만으로 삭제 확정 금지 |
-| 삭제 금지 | `focus-visible`, `aria` 상태와 연결된 선택자, 미디어쿼리 안의 재정의 | 접근성·반응형 회귀 위험 |
+| 문의 폼 CSS | 제거 | `contact-form`, `contact-layout`, `contact-panel`, `field`, `full`, `check`은 HTML·JavaScript에서 사용되지 않음 |
+| 과거 히어로 CSS | 제거 | `hero-media`는 현재 2장 슬라이드 구조에서 사용되지 않음 |
+| 과거 상세 공지 CSS | 제거 | `article-notice-media`는 현재 렌더러에서 사용되지 않음 |
+| 미사용 유틸리티 | 제거 | `grid-4`, `light`, `narrow`, `stack`의 사이트 참조가 없음 |
+| 동적·접근성 상태 | 유지 | `open`, `active`, `hidden`, 포커스·사진 안내 관련 규칙은 동적 또는 현재 사용 중 |
 
-`site.js`와 `listing.js`의 함수는 현재 초기화·이벤트·렌더링 흐름에서 모두 호출됩니다. 고신뢰 미사용 JavaScript 함수는 발견하지 못했습니다. 동일 선택자 반복은 대부분 미디어쿼리별 의도된 덮어쓰기이며 단순 중복 삭제 대상이 아닙니다.
+JavaScript의 초기화·이벤트·목록 렌더링 함수는 현재 흐름에서 사용 확인되어 제거하지 않았습니다.
 
 ## 6. 이미지·자산 감사
 
-### 실제 파일 15개
+### 현재 파일 10개
 
-| 파일명 | 형식·해상도 | 용량 | 참조 위치 | 분류 | 현재 용도 | 권고 |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `images/coaching.jpg` | JPG 1050×1400 | 226.7KB | `index.html` | A·F | 포장 작업 히어로 | 유지, 실제 대체 사진 승인 전 삭제 금지 |
-| `images/minhwa-wide.jpg` | JPG 1200×1408 | 333.0KB | `index.html` | A·F | 민화 작업 히어로 | 유지 |
-| `images/favicon.png` | PNG 180×180 | 45.1KB | HTML 7개 | B·F | favicon·Apple icon | 유지 |
-| `images/logo.png` | PNG 536×151 | 104.9KB | 주요 페이지 헤더 | B·F | 태장 기본 로고 | 유지 |
-| `images/logo-white.png` | PNG 536×151 | 40.3KB | 주요 페이지 푸터 | B·F | 어두운 배경용 로고 | 유지 |
-| `images/og-taejang.png` | PNG 1200×630 | 178.3KB | 주요 페이지 OG/Twitter | B·F | 공유 이미지 | 운영 도메인 확정 후 URL만 별도 점검 |
-| `images/business-premium-stilllife.webp` | WebP 1800×771 | 181.2KB | 미참조 | D | 과거 v11 사업 이미지 후보 | 다음 자산 정리 PR에서 필요성 확인 |
-| `images/minhwa-color.jpg` | JPG 1200×1408 | 231.8KB | 미참조 | D·E | 과거 민화 작업 사진 | 권리·장면 적합성 확인 전 재사용 금지 |
-| `images/minhwa-line.jpg` | JPG 1200×1408 | 244.5KB | 미참조 | D·E | 과거 민화 작업 사진 | 동일 |
-| `images/packing-1.jpg` | JPG 1050×1400 | 240.0KB | 미참조 | D·E | 과거 포장 작업 사진 | 신규 촬영 예정 `packing-1.jpg` 정책과 이름 충돌 여부를 정리 후 사용 |
-| `images/packing-2.jpg` | JPG 1200×1600 | 311.6KB | 미참조 | E·F | 과거 공개 부적합 사진 | 사이트 연결 금지. 신규 촬영 예정 파일명 표시와 실제 기존 파일을 반드시 구분 |
-| `assets/images/partners/bumhan.svg` | SVG 933×240 | 13.7KB | 사이트 미참조 | E·F | 등록된 웹용 파트너 로고 | 공개 승인 전 화면 적용 금지, 자산 목록 유지 |
-| `assets/images/partners/bumhan.png` | PNG 1600×411 | 36.0KB | 사이트 미참조 | E·F | SVG 래스터 대체본 | 의도된 포맷 대체본으로 즉시 중복 삭제 금지 |
-| `assets/images/partners/samhyun.jpg` | JPG 2048×304 | 47.7KB | 사이트 미참조 | E·F | 등록된 파트너 로고 | 공식 벡터 확보 전 보존 |
-| `assets/images/partners/cheungwoo-bj.png` | PNG 417×241 | 70.0KB | 사이트 미참조 | E·F | 등록된 파트너 로고 | 공식 고해상도 원본 확보 전 보존 |
+| 파일 | 분류 | 참조·용도 | 권고 |
+| --- | --- | --- | --- |
+| `images/coaching.jpg` | A 현재 사용 | 포장 작업 히어로 | 유지 |
+| `images/minhwa-wide.jpg` | A 현재 사용 | 민화 작업 히어로 | 유지 |
+| `images/favicon.png` | B 아이콘 | favicon·Apple icon | 유지 |
+| `images/logo.png` | B 공식 로고 | 헤더 | 유지 |
+| `images/logo-white.png` | B 공식 로고 | 푸터 | 유지 |
+| `images/og-taejang.png` | B 공유 자산 | OG·Twitter 이미지 | 유지 |
+| `assets/images/partners/bumhan.svg` | D 공식 등록 자산 | 현재 미참조 | 보존 |
+| `assets/images/partners/bumhan.png` | D 공식 등록 자산 | SVG 대체본, 현재 미참조 | 보존 |
+| `assets/images/partners/samhyun.jpg` | D 공식 등록 자산 | 현재 미참조 | 보존 |
+| `assets/images/partners/cheungwoo-bj.png` | D 공식 등록 자산 | 현재 미참조 | 보존 |
 
-분류: A 현재 사용 중, B SEO·공유·아이콘용, C 실제 사진 교체 예정, D 미사용 후보, E 용도·권리 확인 필요, F 삭제 금지.
+분류: A 현재 사용 중, B favicon·OG·공유·공식 로고, D 협력사·인증·공식 등록 자산.
 
-촬영 예정 파일 `office-1.jpg`, `office-2.jpg`, `minhwa-1.jpg`, `minhwa-2.jpg`, `packing-1.jpg`, `packing-2.jpg`, `packing-3.jpg`, `partner-1.jpg`, `activity-1.jpg`는 안내 데이터일 뿐 아직 실제 파일이 아닙니다. 현재 파일 해시는 모두 달라 정확히 동일한 바이너리 중복은 없습니다. 범한 SVG·PNG와 일반·흰색 태장 로고는 용도가 다른 변형입니다.
+### 삭제한 과거 자산
 
-파일 검사에서 촬영기기 EXIF나 위치정보가 확인되지는 않았으나, 메타데이터가 없다고 공개 승인이 확보된 것은 아닙니다. 새 사진 수령 시 EXIF·위치·작성자 메모와 화면에 보이는 개인정보를 별도로 확인해야 합니다.
+`business-premium-stilllife.webp`, `minhwa-color.jpg`, `minhwa-line.jpg`, `packing-1.jpg`, `packing-2.jpg`는 사이트·문서에서 현재 참조되지 않고, 공개 승인·역할 확인이 없으며, 일부는 새 촬영 예정 파일명과 충돌했습니다. 실제 사진 원본은 공개 저장소 밖의 내부 보관 여부를 회사가 별도로 관리해야 합니다.
 
-## 7. 문서 감사
+과거 `images/packing-2.jpg`는 공개 부적합 판정 파일이므로 삭제했습니다. 새 촬영 예정 파일명 `packing-2.jpg` 정책은 유지하며, 실제 승인 사진이 들어오기 전에는 `img src`로 연결하지 않습니다. 감사 스크립트는 과거 파일 해시가 다시 공개 참조되는 경우 오류로 처리합니다.
 
-| 문서 | 상태 | 판단·권고 |
+협력사 로고 4개는 현재 화면 미참조이지만, 승인된 웹용 공식 자산으로 의도적으로 보존합니다. 공개 배치는 회사의 로고 사용 승인 후에만 가능합니다.
+
+## 7. 문서·유틸리티 페이지 정리
+
+| 항목 | 처리 | 근거 |
 | --- | --- | --- |
-| `AGENTS.md`, `docs/operations/*` | 유지 기준 | 브랜치·보안·자산·성능 원칙의 최상위 운영 기준 |
-| `docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md` | 유지 기준 | 공개 문구의 우선 기준 |
-| `docs/PHOTO_GUIDE.md`, 콘텐츠·게시 문서 | 최신 | PR #10 코드와 짧은 파일명 정책이 일치 |
-| `docs/PROJECT_STATUS.md` | 오래됨 | 최근 화면·검증·운영 준비와 관리자 설계 상태 반영 필요 |
-| `docs/ADMIN_ROADMAP.md` | 개요만 존재 | Phase 0~4와 이번 요구사항 문서로 연결 필요 |
-| `README.txt` | 오래된 이력 문서 | FormSubmit 유지, 히어로 3장, v11 사업 이미지 적용 등 현재 코드와 불일치. 삭제하지 말고 다음 정리 PR에서 보관·통합 결정 |
-| `EDIT-GUIDE.txt` | 부분 유효 | 간단 요청 예시는 유용하나 새 운영 문서와 기능이 겹침. `docs/README.md` 기준으로 통합 검토 |
-| `thanks.html` | 미사용 가능성 높음 | 문의 폼이 제거되어 현재 진입 링크 없음. 삭제는 별도 승인 후 결정 |
-| `privacy.html` | 확인 필요 | 현재 문의는 전화·이메일인데 문의 폼 수집을 전제로 한 내용이 남아 있음. 법적 문구는 담당 확인 후 별도 수정 |
-| `privacy.html`, `terms.html`, `thanks.html`, `404.html` | 명백한 메타 중복 | `index, follow`와 `noindex`가 동시에 존재. robots 정책 변경 금지 범위이므로 이번에는 기록만 하고 별도 승인 후 정리 |
+| `README.txt` | 삭제 | FormSubmit, 3장 히어로, 이전 이미지 구조 등 현재 코드와 불일치하며 최신 `README.md`와 `docs/`에 대체됨 |
+| `EDIT-GUIDE.txt` | 삭제 | `CONTENT_UPDATE_GUIDE.md`, `PUBLISH_WORKFLOW.md`, `PHOTO_GUIDE.md`와 역할이 중복되고 참조되지 않음 |
+| `thanks.html` | 삭제 | 문의 폼·FormSubmit·redirect·sitemap·내부 링크에서 사용되지 않음 |
+| `privacy.html` | 갱신 | 실제 문의 방식인 전화·이메일과 맞게 웹 폼 수집 표현을 제거 |
 
-## 8. 공개 전 제거 대상
+`privacy.html`, `terms.html`, `404.html`의 robots 메타 중복은 운영 도메인·robots 정책 변경 금지 범위이므로 이번 정리에서 변경하지 않았습니다.
 
-| 항목 | 현재 수량·위치 | 분류 | 전환 조건 |
-| --- | --- | --- | --- |
-| `.dev-photo-placeholder` 화면 안내 | 메인 8곳, 목록·상세는 데이터 기반 생성 | 실제 사진 수령 후 교체 | 승인 사진·alt·경로 적용 후 해당 안내 제거 |
-| `DEV-PHOTO-PLACEHOLDER` 주석 | 메인 8곳 | 공개 전 반드시 제거 또는 운영 주석으로 전환 | 사진 교체 완료 확인 후 |
-| `개발 검토용 · 사진자료 필요` | 메인과 동적 목록·상세 | 실제 사진 수령 후 교체 | 공개 도메인 전환 전 P0 |
-| 신규 사업장 초대장 링크 | 주요 페이지 상단 | 개소 후 전환 | 실제 개소·행사 종료·기록 유지 여부 확인 |
-| 개소 예정 시제 | 공지·미리보기·연혁·상단 공지 | 개소 후 전환 | 2026.08.12 실제 상태 확인 |
-| canonical·OG·sitemap·robots 주소 | Netlify 기본 주소 | 도메인 확정 후 전환 | 운영 도메인 확정 후 별도 PR |
-| 테스트용 외부 링크 | 발견 없음 | 계속 유지 가능 | 새 콘텐츠마다 자동 감사 |
+## 8. 공개 전 제거·전환 대상
 
-## 9. 구조적 기술 부채
+| 항목 | 분류 | 전환 조건 |
+| --- | --- | --- |
+| `.dev-photo-placeholder`와 교체 주석 | 실제 사진 수령 후 교체 | 승인 사진·alt·경로 적용 후 제거 |
+| 신규 사업장 초대장 링크·예정 시제 | 개소 후 전환 | 실제 개소 상태와 공개 승인 확인 |
+| canonical·OG·sitemap·robots 주소 | 도메인 확정 후 전환 | 운영 도메인 확정 별도 PR |
 
-| 항목 | 심각도 | 긴급도 | 이유 |
-| --- | --- | --- | --- |
-| 메인 미리보기 하드코딩 | 보통 | 콘텐츠 증가 전 | `content.js`와 이중 수정 |
-| 헤더·푸터 반복 | 보통 | 관리자 개발 전 | 회사정보·메뉴 변경 누락 가능 |
-| 단일 대형 CSS | 낮음 | 나중에 처리 가능 | 현재 493줄로 관리 가능하지만 후보 정리 필요 |
-| 콘텐츠와 렌더링의 전역 스크립트 결합 | 보통 | 관리자 개발 전 | DB 전환 시 데이터 어댑터 필요 |
-| 사진 안내가 HTML·데이터로 분산 | 보통 | 공개 전 | 공개용 안내 제거 누락 위험 |
-| 정적 사이트와 향후 DB 콘텐츠 중복 | 높음 | 관리자 개발 전 | 단일 원본과 발행 방식 결정 필요 |
-| 개인정보처리방침과 실제 문의 방식 불일치 가능성 | 높음 | 공개 전 | 실제 수집 경로·보유 정책 확인 필요 |
-| 유틸리티 페이지 robots 메타 충돌 | 보통 | 공개 전 | 검색엔진 해석이 불명확 |
+`node scripts/audit-site.js`는 개발 안내를 WARNING으로, `node scripts/audit-site.js --public-ready`는 ERROR로 처리합니다. 이 차이는 의도된 공개 전 게이트입니다.
 
-## 10. 정리 권고안
-
-### 즉시 수정 권장
-
-- 공개 전 사진 안내 8곳의 실제 사진 수령·승인·교체 계획 확정
-- 개소 전·후 시제와 초대장 링크 전환 책임자 지정
-- 개인정보처리방침의 실제 문의 방식과 보유 절차 확인
-- 유틸리티 페이지 robots 메타 충돌을 도메인·SEO 별도 PR에서 정리
-- `validate-content.js`와 `audit-site.js`를 모든 콘텐츠 PR에서 실행
+## 9. 정리 권고안
 
 ### 다음 PR에서 정리
 
-- 감사 결과 승인 후 미사용 이미지와 `thanks.html`, `README.txt`, `EDIT-GUIDE.txt`의 보존·삭제·통합 결정
-- 고신뢰 미사용 CSS 후보 제거와 반응형 회귀 검사
-- 메인 미리보기를 콘텐츠 단일 원본에서 생성하도록 개선
-- 반복 헤더·푸터의 유지 방식 결정
+- 실제 사진 수령·승인 후 안내박스를 이미지와 실제 alt로 교체
+- 개소 후 시제·초대장 링크를 확인해 전환
+- 도메인 확정 후 canonical·OG·sitemap·robots를 별도 SEO PR에서 검토
+- 반복 헤더·푸터의 안전한 공통화 방식 결정
 
 ### 관리자 시스템 개발 시 함께 변경
 
-- 콘텐츠 저장 원본을 DB로 이전하고 정적 발행 형식을 정의
-- 공개 이미지·비공개 원본·첨부파일 Storage 경계를 분리
-- 공개 페이지 렌더링을 데이터 어댑터로 분리
-- 인증·역할·승인·revision·감사 로그·휴지통 구조를 함께 도입
+- DB를 콘텐츠 원천으로 전환하고 정적 발행 방식 결정
+- 공개 이미지·비공개 원본·첨부파일 Storage 경계 분리
+- 공개 페이지 데이터 어댑터, 인증·권한·승인·revision·감사 로그 도입
 
-관련 실행 명령: `node scripts/audit-site.js`, `node scripts/audit-site.test.js`
+관련 명령: `node scripts/validate-content.js`, `node scripts/audit-site.js`, `node scripts/audit-site.js --public-ready`
