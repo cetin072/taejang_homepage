@@ -576,7 +576,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   current_approval text;
   publication_id uuid;
@@ -603,7 +603,7 @@ begin
   perform public.append_audit('publication_request', 'revision', p_revision_id::text, 'success', 'approved revision requested');
   return jsonb_build_object('ok', true, 'code', 'PUBLICATION_REQUESTED', 'publication_id', publication_id);
 end;
-$;
+$$;
 
 -- Explicit function grants are intentionally omitted. Phase 1B must choose the exact
 -- trusted server role/API boundary, then grant only those functions to that boundary
@@ -611,7 +611,7 @@ $;
 revoke all on function public.change_profile_status(uuid, public.admin_account_status, text) from public;
 revoke all on function public.record_review_decision(uuid, text, text) from public;
 revoke all on function public.request_publication(uuid) from public;
-do $
+do $$
 declare
   role_name text;
 begin
@@ -623,4 +623,4 @@ begin
     end if;
   end loop;
 end;
-$;
+$$;
