@@ -35,6 +35,15 @@ const draft = {
   internalNote: 'must never be public'
 };
 
+function approvedVariant(overrides) {
+  return {
+    ...approved,
+    ...overrides,
+    approvalStatus: 'approved',
+    body: { blocks: [{ type: 'paragraph', text: 'Public body' }] }
+  };
+}
+
 test('only approved revisions become public and internal fields are excluded', () => {
   const candidate = buildCandidate([approved, draft], '2026-07-19T00:00:00.000Z');
   assert.equal(candidate.entries.length, 1);
@@ -61,22 +70,17 @@ test('failed validation leaves the existing public fixture unchanged', async () 
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'admin-phase1a-'));
   const sourcePath = path.join(temp, 'source.json');
   const publicPath = path.join(temp, 'public.json');
-  await fs.writeFile(sourcePath, JSON.stringify({ revisions: [approved] }), 'utf8');
+  const badSource = { revisions: [approvedVariant({ contentId: '' })] };
+  await fs.writeFile(sourcePath, JSON.stringify(badSource), 'utf8');
   await fs.writeFile(publicPath, 'existing-public-fixture\n', 'utf8');
 
-  const original = validateCandidate;
   try {
-    const modulePath = require.resolve('../scripts/admin-phase1a-publish.js');
-    const publisher = require(modulePath);
-    const badSource = { revisions: [{ ...approved, contentId: '', approvalStatus: 'approved' }] };
-    await fs.writeFile(sourcePath, JSON.stringify(badSource), 'utf8');
     await assert.rejects(
-      publisher.publishFixture({ sourcePath, publicPath, generatedAt: '2026-07-19T00:00:00.000Z' }),
+      publishFixture({ sourcePath, publicPath, generatedAt: '2026-07-19T00:00:00.000Z' }),
       /contentId/
     );
     assert.equal(await fs.readFile(publicPath, 'utf8'), 'existing-public-fixture\n');
   } finally {
-    void original;
     await fs.rm(temp, { recursive: true, force: true });
   }
 });
@@ -96,4 +100,45 @@ test('rollback atomically restores a valid previous approved snapshot', async ()
   } finally {
     await fs.rm(temp, { recursive: true, force: true });
   }
+});
+
+test('two approved revisions for one contentId fail publication validation', () => {
+  const second = approvedVariant({ revisionId: 'revision-approved-2', slug: 'notice-approved-2' });
+  assert.throws(
+    () => buildCandidate([approved, second], '2026-07-19T00:00:00.000Z'),
+    /contentId is duplicated/
+  );
+});
+
+test('two content IDs with one slug fail publication validation', () => {
+  const second = approvedVariant({ contentId: 'content-2', revisionId: 'revision-approved-2' });
+  assert.throws(
+    () => buildCandidate([approved, second], '2026-07-19T00:00:00.000Z'),
+    /slug is duplicated/
+  );
+});
+
+test('duplicated requested revision IDs fail before publication', () => {
+  assert.throws(
+    () => buildCandidate([approved], '2026-07-19T00:00:00.000Z', ['revision-approved', 'revision-approved']),
+    /Requested revision ID is duplicated/
+  );
+});
+
+test('empty contentId or slug fails publication validation', () => {
+  assert.throws(
+    () => buildCandidate([approvedVariant({ contentId: '' })], '2026-07-19T00:00:00.000Z'),
+    /contentId/
+  );
+  assert.throws(
+    () => buildCandidate([approvedVariant({ slug: '' })], '2026-07-19T00:00:00.000Z'),
+    /slug/
+  );
+});
+
+test('an invalid generatedAt value fails before publication', () => {
+  assert.throws(
+    () => buildCandidate([approved], 'not-a-timestamp'),
+    /generatedAt/
+  );
 });
