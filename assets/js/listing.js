@@ -1,95 +1,117 @@
-
 (function(){
   const type = document.body.dataset.contentType;
   const data = window.TAEJANG_CONTENT?.[type] || [];
   const list = document.querySelector('[data-list]');
   const filters = document.querySelector('[data-filters]');
-  if(!list) return;
+  const listing = document.querySelector('[data-listing]');
+  const detail = document.querySelector('[data-detail]');
+  const pageHero = document.querySelector('[data-page-hero]');
+  const page = type === 'workplace' ? 'workplace.html' : 'activities.html';
+  const detailTarget = detail?.querySelector('.container') || detail;
 
-  function cardMedia(item){
-    if(!item.thumb){
-      return `<div class="card-media card-media--notice"><span class="tag">${item.category}</span><span class="notice-media-label">공식 공지</span></div>`;
-    }
-    return `<div class="card-media">
-      <span class="tag">${item.category}</span>
-      <img src="${item.thumb}" alt="${item.alt?.thumb || item.title}" loading="lazy">
+  if(!list || !listing || !detail || !detailTarget) return;
+
+  function photoPlaceholder(photo, variant='card'){
+    if(!photo) return '';
+    const note = variant === 'detail' && photo.note ? `<p class="dev-photo-note">${photo.note}</p>` : '';
+    return `<div class="dev-photo-placeholder dev-photo-placeholder--${variant}" role="note">
+      <span class="dev-review-badge">개발 검토용 · 사진자료 필요</span>
+      <strong>${photo.title}</strong>
+      <p><code>${photo.filename}</code> · ${photo.orientation}</p>
+      ${note}
     </div>`;
   }
 
+  function cardMedia(item){
+    if(item.thumb){
+      return `<div class="card-media"><img src="${item.thumb}" alt="${item.alt?.thumb || item.title}" loading="lazy"></div>`;
+    }
+    return photoPlaceholder(item.listingPhoto || item.photo, 'card') || `<div class="card-media card-media--notice"><span class="notice-media-label">공식 소식</span></div>`;
+  }
+
   function card(item){
-    const page = type === 'workplace' ? 'workplace.html' : 'activities.html';
-    return `
-      <article class="card" data-category="${item.category}">
-        <a href="${page}?id=${encodeURIComponent(item.id)}">
-          ${cardMedia(item)}
-          <div class="card-body">
-            <div class="card-date">${item.date}</div>
-            <h3>${item.title}</h3>
-            <p>${item.summary}</p>
-            <span class="text-link">글 읽기 →</span>
-          </div>
-        </a>
-      </article>`;
+    return `<article class="card" data-category="${item.category}">
+      <a class="card-link" href="${page}?id=${encodeURIComponent(item.id)}">
+        ${cardMedia(item)}
+        <div class="card-body">
+          <span class="tag tag--subtle">${item.category}</span>
+          <time class="card-date" datetime="${item.date}">${item.date}</time>
+          <h2>${item.title}</h2>
+          <p>${item.summary}</p>
+          <span class="text-link">자세히 보기 →</span>
+        </div>
+      </a>
+    </article>`;
+  }
+
+  function setFilterState(active){
+    filters?.querySelectorAll('[data-filter]').forEach(button => {
+      const selected = button.dataset.filter === active;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
   }
 
   function render(filter='전체'){
-    list.innerHTML = data
-      .filter(x => filter === '전체' || x.category === filter)
-      .map(card).join('');
+    const items = data.filter(item => filter === '전체' || item.category === filter);
+    list.innerHTML = items.length
+      ? items.map(card).join('')
+      : '<p class="listing-empty">선택한 분류의 게시물이 없습니다.</p>';
+    setFilterState(filter);
   }
 
-  const categories = ['전체', ...new Set(data.map(x => x.category))];
+  const categories = ['전체', ...new Set(data.map(item => item.category))];
   if(filters){
-    filters.innerHTML = categories.map((cat,i) =>
-      `<button class="filter-btn ${i===0?'active':''}" type="button" data-filter="${cat}">${cat}</button>`
+    filters.innerHTML = categories.map((category, index) =>
+      `<button class="filter-btn ${index === 0 ? 'active' : ''}" type="button" data-filter="${category}" aria-pressed="${index === 0 ? 'true' : 'false'}">${category}</button>`
     ).join('');
-    filters.addEventListener('click', e => {
-      const btn = e.target.closest('[data-filter]');
-      if(!btn) return;
-      filters.querySelectorAll('.filter-btn').forEach(x => x.classList.remove('active'));
-      btn.classList.add('active');
-      render(btn.dataset.filter);
+    filters.addEventListener('click', event => {
+      const button = event.target.closest('[data-filter]');
+      if(!button) return;
+      render(button.dataset.filter);
     });
   }
   render();
 
   const params = new URLSearchParams(location.search);
   const id = params.get('id');
-  const detail = document.querySelector('[data-detail]');
-  const listing = document.querySelector('[data-listing]');
-  if(id && detail && listing){
-    const item = data.find(x => x.id === id);
-    if(item){
-      listing.hidden = true;
-      detail.hidden = false;
-      document.title = `${item.title} | 태장`;
-      const detailTarget = detail.querySelector('.container') || detail;
-      const detailMedia = item.hero
-        ? `<figure>
-              <img src="${item.hero}" alt="${item.alt?.hero || item.title}">
-              <figcaption>${item.title}</figcaption>
-            </figure>`
-        : `<div class="article-notice-media" role="img" aria-label="${item.title} 공식 공지">
-              <span>공식 공지</span>
-              <strong>${item.title}</strong>
-            </div>`;
-      const gallery = item.gallery?.length
-        ? `<div class="article-gallery">${item.gallery.map((src, index) => `<img src="${src}" alt="${item.alt?.gallery?.[index] || item.title}" loading="lazy">`).join('')}</div>`
-        : '';
-      detailTarget.innerHTML = `
-        <a class="back-link" href="${type === 'workplace' ? 'workplace.html' : 'activities.html'}">← 목록으로 돌아가기</a>
-        <article class="article">
-          <header class="article-header">
-            <div class="article-meta"><span class="tag">${item.category}</span><span>${item.date}</span></div>
-            <h1>${item.title}</h1>
-            <p class="lead">${item.summary}</p>
-          </header>
-          <div class="article-body">
-            ${detailMedia}
-            ${item.body.map((p,i) => i===1 ? `<h2>태장이 일하는 방식</h2><p>${p}</p>` : `<p>${p}</p>`).join('')}
-            ${gallery}
-          </div>
-        </article>`;
-    }
+  if(!id) return;
+
+  listing.hidden = true;
+  detail.hidden = false;
+  if(pageHero) pageHero.hidden = true;
+
+  const item = data.find(entry => entry.id === id);
+  if(!item){
+    document.title = `글을 찾을 수 없습니다 | 태장`;
+    detailTarget.innerHTML = `<article class="article article-empty">
+      <h1>요청한 글을 찾을 수 없습니다</h1>
+      <p>주소가 변경되었거나 존재하지 않는 게시물입니다.</p>
+      <a class="btn line" href="${page}">목록으로 돌아가기</a>
+    </article>`;
+    return;
   }
+
+  document.title = `${item.title} | 태장`;
+  const detailMedia = item.hero
+    ? `<figure><img src="${item.hero}" alt="${item.alt?.hero || item.title}"></figure>`
+    : photoPlaceholder(item.photo, 'detail');
+  const gallery = item.gallery?.length
+    ? `<div class="article-gallery">${item.gallery.map((src, index) => `<img src="${src}" alt="${item.alt?.gallery?.[index] || item.title}" loading="lazy">`).join('')}</div>`
+    : '';
+  const body = item.body.map((paragraph, index) => {
+    const heading = index === 1 && item.bodyHeading ? `<h2>${item.bodyHeading}</h2>` : '';
+    return `${heading}<p>${paragraph}</p>`;
+  }).join('');
+
+  detailTarget.innerHTML = `<a class="back-link" href="${page}">← 목록으로 돌아가기</a>
+    <article class="article">
+      <header class="article-header">
+        <div class="article-meta"><span class="tag">${item.category}</span><time datetime="${item.date}">${item.date}</time></div>
+        <h1>${item.title}</h1>
+        <p class="lead">${item.summary}</p>
+      </header>
+      <div class="article-body">${detailMedia}${body}${gallery}</div>
+      <a class="back-link back-link--bottom" href="${page}">← 목록으로 돌아가기</a>
+    </article>`;
 })();
