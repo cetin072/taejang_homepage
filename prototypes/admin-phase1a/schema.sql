@@ -571,14 +571,56 @@ begin
 end;
 $$;
 
--- Publication requests must go through a trusted function/server API that checks
--- revision_approval_states.status = approved. A later approval_revoked row updates
--- that single authoritative state and makes a new request ineligible.
--- Phase 1B must add the matching request_publication function and assert that:
--- approved -> approval_revoked -> publication request returns APPROVAL_NOT_CURRENT.
+create or replace function public.request_publication(p_revision_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  current_approval text;
+  publication_id uuid;
+begin
+  if not (public.current_user_has_role('admin') or public.current_user_has_role('super_admin')) then
+    perform public.append_audit('publication_request', 'revision', p_revision_id::text, 'denied', 'insufficient role');
+    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
+  end if;
+
+  select status into current_approval
+  from public.revision_approval_states
+  where revision_id = p_revision_id
+  for share;
+
+  if current_approval is distinct from 'approved' then
+    perform public.append_audit('publication_request', 'revision', p_revision_id::text, 'denied', 'approval is not current');
+    return jsonb_build_object('ok', false, 'code', 'APPROVAL_NOT_CURRENT');
+  end if;
+
+  insert into public.publication_jobs (revision_id, requested_by, status)
+  values (p_revision_id, auth.uid(), 'requested')
+  returning id into publication_id;
+
+  perform public.append_audit('publication_request', 'revision', p_revision_id::text, 'success', 'approved revision requested');
+  return jsonb_build_object('ok', true, 'code', 'PUBLICATION_REQUESTED', 'publication_id', publication_id);
+end;
+$;
 
 -- Explicit function grants are intentionally omitted. Phase 1B must choose the exact
 -- trusted server role/API boundary, then grant only those functions to that boundary
 -- and keep public/anon/authenticated direct execution revoked.
 revoke all on function public.change_profile_status(uuid, public.admin_account_status, text) from public;
 revoke all on function public.record_review_decision(uuid, text, text) from public;
+revoke all on function public.request_publication(uuid) from public;
+do $
+declare
+  role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format('revoke all on function public.change_profile_status(uuid, public.admin_account_status, text) from %I', role_name);
+      execute format('revoke all on function public.record_review_decision(uuid, text, text) from %I', role_name);
+      execute format('revoke all on function public.request_publication(uuid) from %I', role_name);
+    end if;
+  end loop;
+end;
+$;
