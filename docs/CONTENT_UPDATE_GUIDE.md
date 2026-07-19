@@ -78,10 +78,12 @@ alt: {
 
 1. `node scripts/validate-content.js`
 2. `node scripts/validate-content.test.js`
-3. `git diff --check`
-4. `node --check assets/js/content.js`와 `node --check assets/js/listing.js`
-5. 정적 페이지 실행과 목록·필터·기존 상세 ID·잘못된 ID·관련 글 확인
-6. Draft PR의 Deploy Preview 확인
+3. `node scripts/audit-site.js`
+4. `node scripts/audit-site.test.js`
+5. `git diff --check`
+6. `node --check assets/js/content.js`와 `node --check assets/js/listing.js`
+7. 정적 페이지 실행과 목록·필터·기존 상세 ID·잘못된 ID·관련 글 확인
+8. Draft PR의 Deploy Preview 확인
 
 ### 자동 검증이 확인하는 항목
 
@@ -90,6 +92,7 @@ alt: {
 - 사진 안내 파일명과 실제 이미지 경로
 - 과거 긴 사진 파일명 재사용
 - 메인 미리보기의 상세 링크 ID
+- 로컬 이미지·내부 링크·중복 ID와 미사용 이미지 후보
 
 ### 사람이 확인해야 하는 항목
 
