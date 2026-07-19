@@ -136,16 +136,16 @@ button{cursor:pointer}
 .dev-review-note{margin-top:28px;padding:15px 16px;border:1px dashed #c7b87e;background:#fbf8eb;color:#655f4e}
 .dev-review-badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;color:#806d31}
 .dev-review-note p{margin:7px 0 0;font-size:13px;line-height:1.65}
-.dev-photo-placeholder{display:flex;min-width:0;min-height:300px;flex-direction:column;justify-content:center;gap:7px;padding:24px;border:1px dashed #c7b87e;background:#fbf8eb;color:#655f4e;text-align:left}
-.dev-photo-placeholder strong{color:var(--green-deep);font:700 19px var(--myeongjo)}
-.dev-photo-placeholder p{margin:0;font-size:13px;line-height:1.6}
+.dev-photo-placeholder{display:flex;min-width:0;min-height:200px;flex-direction:column;justify-content:center;gap:5px;padding:14px 16px;border:1px dashed #c7b87e;background:#fbf8eb;color:#655f4e;text-align:left}
+.dev-photo-placeholder strong{color:var(--green-deep);font:700 16px var(--myeongjo)}
+.dev-photo-placeholder p{margin:0;font-size:12.5px;line-height:1.45}
 .dev-photo-placeholder b{color:#806d31;font-size:11px;letter-spacing:.04em}
 .dev-photo-placeholder code{overflow-wrap:anywhere;color:var(--green-deep);font:700 12px var(--sans)}
 .dev-photo-placeholder .dev-review-badge{margin-bottom:2px}
 .dev-review-note.dev-photo-placeholder{margin-top:0}
-.dev-photo-placeholder--compact{min-height:0;margin-top:18px;padding:15px 16px}
+.dev-photo-placeholder--compact{min-height:0;margin-top:12px;padding:12px 14px}
 .dev-photo-placeholder--compact strong{font-size:16px}
-.dev-photo-placeholder--greeting{aspect-ratio:4/3}
+.dev-photo-placeholder--greeting{aspect-ratio:16/9;min-height:200px}
 .name-section .title{margin-bottom:28px}
 .name-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line)}
 .name-grid > div{text-align:center;padding:28px;background:#fff}
@@ -218,7 +218,7 @@ button{cursor:pointer}
 .partnership-step h3{margin:12px 0 8px;color:var(--green-deep);font:700 20px var(--myeongjo)}
 .partnership-step p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.7}
 .partnership-bottom{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:24px;margin-top:24px;align-items:stretch}
-.partnership-photo-placeholder{min-height:290px}
+.partnership-photo-placeholder{min-height:210px}
 .partnership-emphasis{display:flex;flex-direction:column;justify-content:center;padding:30px;background:var(--green-deep);color:#fff}
 .partnership-emphasis p{margin:0;color:#fff;font:700 20px/1.8 var(--myeongjo)}
 .partnership-emphasis .btn{align-self:flex-start;margin-top:24px;background:#fff;color:var(--green-deep)}
@@ -229,6 +229,7 @@ button{cursor:pointer}
 .location-card:nth-child(2) h3{background:var(--green)}
 .location-card .body{padding:28px}
 .location-card ul{margin:15px 0 0;padding-left:20px;color:var(--ink-soft);font-size:14px}
+.location-details{margin-top:42px}
 
 /* Timeline */
 .timeline{border-left:2px solid var(--line);padding-left:32px;margin-top:36px}
@@ -436,8 +437,9 @@ button{cursor:pointer}
   .fact strong{margin-bottom:3px}
   .fact span{font-size:12.5px;line-height:1.5}
   .contact-simple{grid-template-columns:1fr}
-  .dev-photo-placeholder{min-height:280px;padding:20px}
-  .dev-photo-placeholder--compact{min-height:0;padding:15px 16px}
+  .dev-photo-placeholder{min-height:190px;padding:13px 14px}
+  .dev-photo-placeholder--compact{min-height:0;padding:12px 14px}
+  .dev-photo-placeholder--greeting{min-height:190px}
   .partnership-emphasis{padding:26px 22px}
   .partnership-emphasis p{font-size:18px}
   .partnership-emphasis .btn{align-self:stretch}
