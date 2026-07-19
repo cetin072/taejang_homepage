@@ -45,11 +45,18 @@ function assertApprovedRevision(revision) {
   }
 }
 
-function buildCandidate(revisions, generatedAt) {
+function buildCandidate(revisions, generatedAt, requestedRevisionIds = null) {
   if (!Array.isArray(revisions)) throw new Error('revisions must be an array.');
 
-  const entries = revisions
-    .filter((revision) => revision.approvalStatus === 'approved')
+  const selected = requestedRevisionIds === null
+    ? revisions.filter((revision) => revision.approvalStatus === 'approved')
+    : requestedRevisionIds.map((revisionId) => {
+      const revision = revisions.find((item) => item.revisionId === revisionId);
+      if (!revision) throw new Error('Requested revision was not found: ' + revisionId);
+      return revision;
+    });
+
+  const entries = selected
     .map((revision) => {
       assertApprovedRevision(revision);
       return toPublicRevision(revision);
