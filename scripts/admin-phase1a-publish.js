@@ -59,10 +59,14 @@ function assertApprovedRevision(revision) {
   }
 }
 
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function compareEntries(left, right) {
-  return String(left.slug).localeCompare(String(right.slug), 'en', { sensitivity: 'variant' })
-    || String(left.contentId).localeCompare(String(right.contentId), 'en', { sensitivity: 'variant' })
-    || String(left.revisionId).localeCompare(String(right.revisionId), 'en', { sensitivity: 'variant' });
+  return compareText(String(left.slug), String(right.slug))
+    || compareText(String(left.contentId), String(right.contentId))
+    || compareText(String(left.revisionId), String(right.revisionId));
 }
 
 function buildCandidate(revisions, generatedAt, requestedRevisionIds = null) {
