@@ -337,3 +337,248 @@ for select using (public.current_user_has_role('super_admin'));
 -- 4) list work, reassign only to active profiles, and audit unassigned count;
 -- 5) publication function accepts exactly one approved revision and writes to a staged location;
 -- 6) validate checksum and public allowlist before replacing an existing public artifact.
+
+
+-- ---------------------------------------------------------------------------
+-- Phase 1A hardening amendment: direct writes, audit authority, current approval
+-- ---------------------------------------------------------------------------
+-- This remains a non-operational SQL draft. Verify every statement in a local
+-- Supabase/PostgreSQL environment before selecting a final service or role model.
+
+alter table public.review_decisions
+  add column decision_sequence bigint generated always as identity unique;
+
+create table public.revision_approval_states (
+  revision_id uuid primary key references public.content_revisions(id) on delete restrict,
+  current_decision_sequence bigint not null unique,
+  status text not null check (status in ('unreviewed', 'approved', 'revoked')),
+  changed_by uuid not null references public.profiles(id) on delete restrict,
+  changed_at timestamptz not null default now()
+);
+
+comment on table public.revision_approval_states is
+  'One authoritative current approval state per revision. Do not infer publication rights from historical review_decisions.';
+
+-- Replace the historical-approved policy with the authoritative current state.
+drop policy if exists review_active_reviewer on public.review_decisions;
+drop policy if exists publication_active_authorized_role on public.publication_jobs;
+
+create policy publication_active_authorized_role on public.publication_jobs
+for insert with check (
+  public.current_profile_is_active()
+  and (public.current_user_has_role('admin')
+       or public.current_user_has_role('super_admin'))
+  and exists (
+    select 1 from public.revision_approval_states approval_state
+    where approval_state.revision_id = publication_jobs.revision_id
+      and approval_state.status = 'approved'
+  )
+);
+
+-- Direct writes to these security-sensitive tables are not part of the client API.
+-- RLS deny-first alone is insufficient: explicitly revoke direct data privileges.
+revoke all privileges on table
+  public.profiles,
+  public.user_roles,
+  public.review_decisions,
+  public.revision_approval_states,
+  public.publication_jobs,
+  public.audit_logs
+from public;
+
+-- Supabase normally defines anon and authenticated. The conditional form keeps this
+-- draft parseable in a plain PostgreSQL test database where those roles do not exist.
+do $$
+declare
+  role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format(
+        'revoke all privileges on table public.profiles, public.user_roles, public.review_decisions, public.revision_approval_states, public.publication_jobs, public.audit_logs from %I',
+        role_name
+      );
+    end if;
+  end loop;
+end;
+$$;
+
+-- append_audit is only an internal building block for trusted server functions and
+-- triggers. It is intentionally not granted to public, anon, or authenticated.
+create or replace function public.append_audit(
+  p_action text,
+  p_target_type text,
+  p_target_id text,
+  p_outcome text,
+  p_reason_summary text default null,
+  p_metadata jsonb default '{}'::jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  if p_outcome not in ('success', 'denied', 'failed') then
+    raise exception using errcode = '22023', message = 'invalid audit outcome';
+  end if;
+  if p_metadata is null then
+    p_metadata := '{}'::jsonb;
+  end if;
+  if jsonb_typeof(p_metadata) <> 'object'
+     or octet_length(p_metadata::text) > 4096
+     or exists (
+       select 1
+       from jsonb_object_keys(p_metadata) as key_name(key)
+       where lower(key_name.key) ~ '(password|token|secret|api[_-]?key|refresh)'
+     ) then
+    raise exception using errcode = '22023', message = 'unsafe audit metadata';
+  end if;
+  if char_length(coalesce(p_reason_summary, '')) > 300 then
+    raise exception using errcode = '22023', message = 'audit reason is too long';
+  end if;
+
+  insert into public.audit_logs (
+    actor_profile_id, action, target_type, target_id, outcome, reason_summary, metadata
+  ) values (
+    auth.uid(), p_action, p_target_type, p_target_id, p_outcome, p_reason_summary, p_metadata
+  );
+end;
+$$;
+
+revoke all on function public.append_audit(text, text, text, text, text, jsonb) from public;
+do $$
+declare
+  role_name text;
+begin
+  foreach role_name in array array['anon', 'authenticated'] loop
+    if exists (select 1 from pg_roles where rolname = role_name) then
+      execute format(
+        'revoke all on function public.append_audit(text, text, text, text, text, jsonb) from %I',
+        role_name
+      );
+    end if;
+  end loop;
+end;
+$$;
+
+-- Do not grant append_audit directly to general login roles. If the approved final
+-- platform uses a dedicated internal server role, grant only that role after Phase 1B
+-- tests and keep ordinary browser/API roles revoked.
+
+create or replace function public.change_profile_status(
+  p_target_profile_id uuid,
+  p_new_status public.admin_account_status,
+  p_reason_summary text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  target_profile public.profiles%rowtype;
+  active_super_admins integer;
+begin
+  if not (public.current_user_has_role('admin') or public.current_user_has_role('super_admin')) then
+    perform public.append_audit('account_status_change', 'profile', p_target_profile_id::text, 'denied', 'insufficient role');
+    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
+  end if;
+
+  perform pg_advisory_xact_lock(77134001);
+  select * into target_profile from public.profiles where id = p_target_profile_id for update;
+  if not found then
+    perform public.append_audit('account_status_change', 'profile', p_target_profile_id::text, 'denied', 'unknown profile');
+    return jsonb_build_object('ok', false, 'code', 'PROFILE_NOT_FOUND');
+  end if;
+
+  if target_profile.status = 'active' and p_new_status <> 'active'
+     and exists (
+       select 1 from public.user_roles
+       where profile_id = p_target_profile_id and role = 'super_admin' and is_current = true
+     ) then
+    select count(*) into active_super_admins
+    from public.profiles profile
+    join public.user_roles role on role.profile_id = profile.id
+    where profile.status = 'active' and role.role = 'super_admin' and role.is_current = true;
+
+    if active_super_admins <= 1 then
+      perform public.append_audit(
+        'last_super_admin_change_denied', 'profile', p_target_profile_id::text, 'denied',
+        'last active super_admin must remain'
+      );
+      return jsonb_build_object('ok', false, 'code', 'LAST_ACTIVE_SUPER_ADMIN_PROTECTED');
+    end if;
+  end if;
+
+  update public.profiles
+  set status = p_new_status,
+      status_reason = left(coalesce(p_reason_summary, ''), 300),
+      status_changed_by = auth.uid(),
+      status_changed_at = now()
+  where id = p_target_profile_id;
+
+  perform public.append_audit('account_status_change', 'profile', p_target_profile_id::text, 'success', left(coalesce(p_reason_summary, ''), 300));
+  return jsonb_build_object('ok', true, 'code', 'STATUS_CHANGED');
+end;
+$$;
+
+create or replace function public.record_review_decision(
+  p_revision_id uuid,
+  p_decision text,
+  p_reason_summary text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  next_sequence bigint;
+  next_status text;
+begin
+  if p_decision not in ('requested', 'changes_requested', 'approved', 'approval_revoked') then
+    return jsonb_build_object('ok', false, 'code', 'INVALID_DECISION');
+  end if;
+  if not (public.current_user_has_role('reviewer')
+          or public.current_user_has_role('admin')
+          or public.current_user_has_role('super_admin')) then
+    perform public.append_audit('review_decision', 'revision', p_revision_id::text, 'denied', 'insufficient role');
+    return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
+  end if;
+
+  insert into public.review_decisions (revision_id, decision, decided_by, reason)
+  values (p_revision_id, p_decision, auth.uid(), left(coalesce(p_reason_summary, ''), 300))
+  returning decision_sequence into next_sequence;
+
+  next_status := case
+    when p_decision = 'approved' then 'approved'
+    when p_decision = 'approval_revoked' then 'revoked'
+    else 'unreviewed'
+  end;
+
+  insert into public.revision_approval_states (
+    revision_id, current_decision_sequence, status, changed_by, changed_at
+  ) values (p_revision_id, next_sequence, next_status, auth.uid(), now())
+  on conflict (revision_id) do update
+  set current_decision_sequence = excluded.current_decision_sequence,
+      status = excluded.status,
+      changed_by = excluded.changed_by,
+      changed_at = excluded.changed_at;
+
+  perform public.append_audit('review_decision', 'revision', p_revision_id::text, 'success', p_decision);
+  return jsonb_build_object('ok', true, 'code', 'DECISION_RECORDED', 'decision_sequence', next_sequence, 'approval_status', next_status);
+end;
+$$;
+
+-- Publication requests must go through a trusted function/server API that checks
+-- revision_approval_states.status = approved. A later approval_revoked row updates
+-- that single authoritative state and makes a new request ineligible.
+-- Phase 1B must add the matching request_publication function and assert that:
+-- approved -> approval_revoked -> publication request returns APPROVAL_NOT_CURRENT.
+
+-- Explicit function grants are intentionally omitted. Phase 1B must choose the exact
+-- trusted server role/API boundary, then grant only those functions to that boundary
+-- and keep public/anon/authenticated direct execution revoked.
+revoke all on function public.change_profile_status(uuid, public.admin_account_status, text) from public;
+revoke all on function public.record_review_decision(uuid, text, text) from public;
