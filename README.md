@@ -39,6 +39,8 @@ python3 -m http.server 8000
 
 세부 기준은 [AGENTS.md](AGENTS.md)와 `docs/` 문서를 따릅니다.
 
+현재 현황·콘텐츠 운영·B2B 기획·관리자 시스템 설계 문서는 [docs 문서 색인](docs/README.md)에서 확인합니다.
+
 ## 운영 기준
 
 - [자산 관리 기준](docs/operations/ASSET_POLICY.md)

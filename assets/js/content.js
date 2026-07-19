@@ -12,12 +12,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "민화 작업 과정",
-        filename: "taejang-minhwa-work-01.jpg",
+        filename: "minhwa-1.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
         title: "민화 작업 과정",
-        filename: "taejang-minhwa-work-02.jpg",
+        filename: "minhwa-2.jpg",
         orientation: "가로형 또는 정방형",
         note: "얼굴 공개 동의가 불분명하면 손과 작업물을 중심으로 촬영"
       },
@@ -55,12 +55,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "포장·검수 작업",
-        filename: "taejang-packing-work-01.jpg",
+        filename: "packing-1.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
         title: "포장·검수 작업",
-        filename: "taejang-packing-work-02.jpg",
+        filename: "packing-2.jpg",
         orientation: "가로형",
         note: "송장·주소·주문정보가 보이지 않는 안전한 작업 장면"
       },
@@ -98,12 +98,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "팔용동 본점·실무공간",
-        filename: "taejang-palyong-workplace-01.jpg",
+        filename: "office-2.jpg",
         orientation: "가로형"
       },
       photo: {
         title: "팔용동 본점·실무공간",
-        filename: "taejang-palyong-workplace-01.jpg",
+        filename: "office-2.jpg",
         orientation: "가로형",
         note: "개인정보와 문서가 보이지 않는 정돈된 작업공간"
       },
@@ -131,7 +131,7 @@ window.TAEJANG_CONTENT = {
     }
   ],
   activities: [
-    // 운영 메모: 2026.08.12 이후 실제 개소 상태와 사진 공개 승인을 확인해 문구를 갱신합니다.
+    // 운영 메모: 2026.08.12 이후 실제 개소 상태와 office-1.jpg 공개 승인을 확인해 문구를 갱신합니다.
     {
       id: "new-workplace-opening",
       category: "공지",
@@ -144,12 +144,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "신규 사업장 또는 개소식 사진",
-        filename: "taejang-palyong-exterior-01.jpg",
+        filename: "office-1.jpg",
         orientation: "가로형"
       },
       photo: {
         title: "신규 사업장 또는 개소식 사진",
-        filename: "taejang-palyong-exterior-01.jpg",
+        filename: "office-1.jpg",
         orientation: "가로형",
         note: "개소식 사진 또는 개인정보·문서가 보이지 않는 사업장 외부 전경"
       },
@@ -185,12 +185,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "민화 작업 과정",
-        filename: "taejang-minhwa-work-02.jpg",
+        filename: "minhwa-2.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
         title: "민화 작업 과정",
-        filename: "taejang-minhwa-work-02.jpg",
+        filename: "minhwa-2.jpg",
         orientation: "가로형 또는 정방형",
         note: "얼굴 공개 동의가 불분명하면 손과 작업물을 중심으로 촬영"
       },
@@ -226,12 +226,12 @@ window.TAEJANG_CONTENT = {
       photoRequired: true,
       listingPhoto: {
         title: "포장·검수 작업",
-        filename: "taejang-packing-work-03.jpg",
+        filename: "packing-3.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
         title: "포장·검수 작업",
-        filename: "taejang-packing-work-03.jpg",
+        filename: "packing-3.jpg",
         orientation: "가로형 또는 정방형",
         note: "송장·주소·주문정보가 보이지 않는 정돈된 작업 장면"
       },
