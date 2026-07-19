@@ -43,7 +43,7 @@ Node.js가 있는 환경에서는 정적 발행 프로토타입을 다음 명령
 node --test tests/admin-phase1a-publish.test.js
 ```
 
-이번 PR에서 위 명령과 같은 테스트를 실행했으며, 정적 발행 안전성 테스트 **5개가 모두 통과**했습니다. 이 결과는 fixture publisher에 한정되며, DB·RLS·Auth·Storage·동시성 테스트가 통과했다는 뜻은 아닙니다.
+이번 PR에서 위 명령과 같은 테스트를 실행했으며, 정적 발행 안전성 테스트 **10개가 모두 통과**했습니다. 이 결과는 fixture publisher에 한정되며, DB·RLS·Auth·Storage·동시성 테스트가 통과했다는 뜻은 아닙니다.
 
 ## 3. DB 모델 초안
 
