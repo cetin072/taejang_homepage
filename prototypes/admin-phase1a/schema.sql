@@ -32,9 +32,12 @@ create table public.user_roles (
   granted_at timestamptz not null default now(),
   granted_by uuid references public.profiles(id) on delete restrict,
   revoked_at timestamptz,
-  revoked_by uuid references public.profiles(id) on delete restrict,
-  unique (profile_id, role, is_current)
+  revoked_by uuid references public.profiles(id) on delete restrict
 );
+
+create unique index user_roles_one_current_role
+  on public.user_roles (profile_id, role)
+  where is_current;
 
 create table public.contents (
   id uuid primary key default gen_random_uuid(),
@@ -236,8 +239,12 @@ create trigger profiles_guard_last_active_super_admin
 before update of status on public.profiles
 for each row execute function public.guard_last_active_super_admin();
 
-create trigger roles_guard_last_active_super_admin
-before update of role, is_current or delete on public.user_roles
+create trigger roles_guard_last_active_super_admin_update
+before update of role, is_current on public.user_roles
+for each row execute function public.guard_last_active_super_admin();
+
+create trigger roles_guard_last_active_super_admin_delete
+before delete on public.user_roles
 for each row execute function public.guard_last_active_super_admin();
 
 -- RLS is deny-first. Policies below are the minimum pattern, not a complete product policy.
