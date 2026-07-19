@@ -136,6 +136,16 @@ button{cursor:pointer}
 .dev-review-note{margin-top:28px;padding:15px 16px;border:1px dashed #c7b87e;background:#fbf8eb;color:#655f4e}
 .dev-review-badge{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;color:#806d31}
 .dev-review-note p{margin:7px 0 0;font-size:13px;line-height:1.65}
+.dev-photo-placeholder{display:flex;min-width:0;min-height:300px;flex-direction:column;justify-content:center;gap:7px;padding:24px;border:1px dashed #c7b87e;background:#fbf8eb;color:#655f4e;text-align:left}
+.dev-photo-placeholder strong{color:var(--green-deep);font:700 19px var(--myeongjo)}
+.dev-photo-placeholder p{margin:0;font-size:13px;line-height:1.6}
+.dev-photo-placeholder b{color:#806d31;font-size:11px;letter-spacing:.04em}
+.dev-photo-placeholder code{overflow-wrap:anywhere;color:var(--green-deep);font:700 12px var(--sans)}
+.dev-photo-placeholder .dev-review-badge{margin-bottom:2px}
+.dev-review-note.dev-photo-placeholder{margin-top:0}
+.dev-photo-placeholder--compact{min-height:0;margin-top:18px;padding:15px 16px}
+.dev-photo-placeholder--compact strong{font-size:16px}
+.dev-photo-placeholder--greeting{aspect-ratio:4/3}
 .name-section .title{margin-bottom:28px}
 .name-grid{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line)}
 .name-grid > div{text-align:center;padding:28px;background:#fff}
@@ -390,6 +400,7 @@ button{cursor:pointer}
 .hero-dots button.active{background:#fff}
 
 /* Simple contact */
+#contact{scroll-margin-top:110px}
 .contact-simple{
   display:grid;grid-template-columns:1fr 1fr;gap:42px;align-items:start
 }
@@ -432,6 +443,8 @@ button{cursor:pointer}
   .fact strong{margin-bottom:3px}
   .fact span{font-size:12.5px;line-height:1.5}
   .contact-simple{grid-template-columns:1fr}
+  .dev-photo-placeholder{min-height:280px;padding:20px}
+  .dev-photo-placeholder--compact{min-height:0;padding:15px 16px}
 }
 @media (prefers-reduced-motion:reduce){
   .hero-slide{transition:none}
