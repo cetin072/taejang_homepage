@@ -31,6 +31,20 @@ function checksum(value) {
   return crypto.createHash('sha256').update(canonicalJson(value)).digest('hex');
 }
 
+function assertNonEmptyString(value, label) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new Error(label + ' must be a non-empty string.');
+  }
+}
+
+function assertIsoTimestamp(value, label) {
+  assertNonEmptyString(value, label);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)
+      || Number.isNaN(Date.parse(value))) {
+    throw new Error(label + ' must be a valid ISO-8601 UTC timestamp.');
+  }
+}
+
 function toPublicRevision(revision) {
   const output = {};
   for (const field of PUBLIC_REVISION_FIELDS) {
@@ -45,40 +59,63 @@ function assertApprovedRevision(revision) {
   }
 }
 
+function compareEntries(left, right) {
+  return String(left.slug).localeCompare(String(right.slug), 'en', { sensitivity: 'variant' })
+    || String(left.contentId).localeCompare(String(right.contentId), 'en', { sensitivity: 'variant' })
+    || String(left.revisionId).localeCompare(String(right.revisionId), 'en', { sensitivity: 'variant' });
+}
+
 function buildCandidate(revisions, generatedAt, requestedRevisionIds = null) {
   if (!Array.isArray(revisions)) throw new Error('revisions must be an array.');
+  assertIsoTimestamp(generatedAt, 'generatedAt');
 
-  const selected = requestedRevisionIds === null
-    ? revisions.filter((revision) => revision.approvalStatus === 'approved')
-    : requestedRevisionIds.map((revisionId) => {
+  let selected;
+  if (requestedRevisionIds === null) {
+    selected = revisions.filter((revision) => revision.approvalStatus === 'approved');
+  } else {
+    if (!Array.isArray(requestedRevisionIds)) {
+      throw new Error('requestedRevisionIds must be an array or null.');
+    }
+    const requestedIds = new Set();
+    for (const revisionId of requestedRevisionIds) {
+      assertNonEmptyString(revisionId, 'requested revision ID');
+      if (requestedIds.has(revisionId)) {
+        throw new Error('Requested revision ID is duplicated: ' + revisionId);
+      }
+      requestedIds.add(revisionId);
+    }
+    selected = requestedRevisionIds.map((revisionId) => {
       const revision = revisions.find((item) => item.revisionId === revisionId);
       if (!revision) throw new Error('Requested revision was not found: ' + revisionId);
       return revision;
     });
+  }
 
   const entries = selected
     .map((revision) => {
       assertApprovedRevision(revision);
       return toPublicRevision(revision);
     })
-    .sort((left, right) => String(left.slug).localeCompare(String(right.slug)));
+    .sort(compareEntries);
 
   const publication = {
     schemaVersion: 1,
     generatedAt,
     entries
   };
-
-  return {
+  const candidate = {
     ...publication,
     checksum: checksum(publication)
   };
+  validateCandidate(candidate);
+  return candidate;
 }
 
 function validateCandidate(candidate) {
   if (!candidate || candidate.schemaVersion !== 1 || !Array.isArray(candidate.entries)) {
     throw new Error('Publication has an invalid structure.');
   }
+  assertIsoTimestamp(candidate.generatedAt, 'generatedAt');
 
   const expectedChecksum = checksum({
     schemaVersion: candidate.schemaVersion,
@@ -90,10 +127,30 @@ function validateCandidate(candidate) {
   }
 
   const publicFieldSet = new Set([...PUBLIC_REVISION_FIELDS]);
+  const contentIds = new Set();
+  const slugs = new Set();
+  const revisionIds = new Set();
+
   for (const entry of candidate.entries) {
-    if (!entry.revisionId || !entry.contentId || !entry.slug) {
-      throw new Error('Published entries require contentId, revisionId, and slug.');
+    assertNonEmptyString(entry.contentId, 'contentId');
+    assertNonEmptyString(entry.revisionId, 'revisionId');
+    assertNonEmptyString(entry.slug, 'slug');
+    assertNonEmptyString(entry.title, 'title');
+    if (!entry.body || typeof entry.body !== 'object' || Array.isArray(entry.body)) {
+      throw new Error('body must be a non-array object.');
     }
+    if (entry.summary !== undefined) assertNonEmptyString(entry.summary, 'summary');
+    if (entry.publishedAt !== undefined) assertIsoTimestamp(entry.publishedAt, 'publishedAt');
+    if (entry.media !== undefined && !Array.isArray(entry.media)) {
+      throw new Error('media must be an array when present.');
+    }
+    if (contentIds.has(entry.contentId)) throw new Error('contentId is duplicated: ' + entry.contentId);
+    if (slugs.has(entry.slug)) throw new Error('slug is duplicated: ' + entry.slug);
+    if (revisionIds.has(entry.revisionId)) throw new Error('revisionId is duplicated: ' + entry.revisionId);
+    contentIds.add(entry.contentId);
+    slugs.add(entry.slug);
+    revisionIds.add(entry.revisionId);
+
     for (const key of Object.keys(entry)) {
       if (!publicFieldSet.has(key)) {
         throw new Error('Non-public field found in publication: ' + key);
