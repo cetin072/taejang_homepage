@@ -104,6 +104,7 @@ button{cursor:pointer}
 }
 .hero-content{position:relative;z-index:1;color:#fff;padding:86px 0;max-width:760px}
 .hero h1{margin:0 0 20px;font:800 clamp(34px,5.7vw,58px)/1.35 var(--myeongjo);letter-spacing:-.025em;text-shadow:0 2px 18px rgba(8,28,20,.5)}
+.hero-title-brand{white-space:nowrap}
 .hero p{font-size:clamp(16px,1.7vw,19px);color:rgba(255,255,255,.98);max-width:650px;font-weight:700;text-shadow:0 2px 14px rgba(8,28,20,.48)}
 .badges{display:flex;gap:10px;flex-wrap:wrap;margin:28px 0 34px}
 .badge{padding:7px 12px;border:1px solid rgba(255,255,255,.45);font-size:12.5px;background:rgba(255,255,255,.09)}
@@ -397,10 +398,21 @@ button{cursor:pointer}
   .hero-overlay{background:linear-gradient(180deg,rgba(18,55,40,.66),rgba(18,55,40,.94))}
   .hero-slide--minhwa img{object-position:center 28%}
   .hero-slide--packing img{object-position:center 52%}
-  .hero-control{width:42px;height:42px;font-size:30px}
-  .hero-prev{left:12px}
-  .hero-next{right:12px}
-  .hero-dots{bottom:16px}
+  .hero{min-height:550px}
+  .hero-content{padding:56px 0 78px}
+  .hero h1{margin-bottom:14px;font-size:clamp(30px,9.4vw,38px);line-height:1.3}
+  .hero p{margin:0;font-size:15px;line-height:1.65}
+  .badges{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:18px 0 22px}
+  .badge{min-width:0;padding:6px 10px;font-size:12px;line-height:1.5}
+  .btns{gap:10px}
+  .hero .btn{min-height:44px;padding:10px 18px;font-size:14px;white-space:nowrap}
+  .hero-control{top:auto;bottom:12px;width:42px;height:42px;font-size:28px;transform:none}
+  .hero-prev{left:10px}
+  .hero-next{right:10px}
+  .hero-dots{bottom:27px}
+  .fact{min-width:0;padding:22px 12px}
+  .fact strong{margin-bottom:3px}
+  .fact span{font-size:12.5px;line-height:1.5}
   .contact-simple{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
