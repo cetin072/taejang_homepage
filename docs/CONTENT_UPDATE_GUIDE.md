@@ -2,6 +2,8 @@
 
 `workplace.html`과 `activities.html`의 목록·상세 콘텐츠는 `assets/js/content.js`의 데이터와 `assets/js/listing.js`의 공통 렌더링으로 관리합니다. 메인 홈페이지의 우리의 일터·태장의 활동 미리보기도 `assets/js/home-previews.js`가 같은 데이터를 최신순으로 표시합니다. HTML에 같은 글을 따로 복사하지 않습니다.
 
+`partnership.html`, `resources.html`처럼 회사 소개·협력 기준·FAQ·공개 자료 상태를 안내하는 정적 B2B 페이지는 `content.js`의 게시물 데이터와 분리해 HTML에서 관리합니다. 실제 사례·보도자료·PDF가 늘어나면 관리자 시스템 설계와 함께 데이터 관리 범위를 다시 검토합니다.
+
 ## content.js 구조
 
 각 글은 다음 필드를 사용합니다.

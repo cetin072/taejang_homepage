@@ -17,6 +17,8 @@
 - `index.html`: 메인 홈페이지
 - `workplace.html`: 우리의 일터 목록·상세
 - `activities.html`: 태장의 활동 목록·상세
+- `partnership.html`: 기업 협력 분야·상담 준비 정보·FAQ
+- `resources.html`: 공식 자료의 공개 상태 안내
 - `privacy.html`, `terms.html`, `404.html`: 안내·정책 페이지
 
 ## 로컬 확인

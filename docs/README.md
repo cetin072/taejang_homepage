@@ -24,6 +24,7 @@
 ## B2B 콘텐츠
 
 - [B2B 홈페이지 콘텐츠 계획](B2B_CONTENT_PLAN.md)
+- [B2B 공개 콘텐츠 인벤토리](B2B_CONTENT_INVENTORY.md)
 - [공개 홈페이지 콘텐츠 기준](reference/TAEJANG_PUBLIC_WEB_BRIEF.md)
 
 ## 관리자 시스템
