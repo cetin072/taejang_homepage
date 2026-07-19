@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -42,6 +43,7 @@ const LEGACY_PHOTO_FILENAMES = [
   'taejang-company-cooperation-01.jpg',
   'taejang-environment-activity-01.jpg'
 ];
+const LEGACY_UNSUITABLE_PACKING_2_SHA256 = '3f56e0285804ec587f0fa5adb7541dcc06927906cb2608b7263a9a2c02781523';
 
 function createResult() {
   return { errors: [], warnings: [], passes: [] };
@@ -77,6 +79,10 @@ function dateAtUtcStart(value) {
 
 function containsHtml(value) {
   return /<\/?[a-z][^>]*>/i.test(value);
+}
+
+function fileSha256(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
 function loadContentFromFile(filePath = CONTENT_FILE) {
@@ -164,12 +170,11 @@ function validatePhotoGuide(result, item, type, rootDir = ROOT_DIR) {
         return;
       }
       const normalizedPath = imagePath.replace(/\\/g, '/');
-      if (normalizedPath === 'images/packing-2.jpg') {
-        addError(result, `${label}: ${field}에 과거 공개 부적합 이미지 images/packing-2.jpg를 연결할 수 없습니다.`);
-      }
       const localPath = path.resolve(rootDir, normalizedPath);
       if (!localPath.startsWith(rootDir + path.sep) || !fs.existsSync(localPath)) {
         addError(result, `${label}: ${field} 이미지 경로 ${imagePath}가 실제 파일을 가리키지 않습니다.`);
+      } else if (normalizedPath === 'images/packing-2.jpg' && fileSha256(localPath) === LEGACY_UNSUITABLE_PACKING_2_SHA256) {
+        addError(result, `${label}: ${field}에 과거 공개 부적합 images/packing-2.jpg 파일을 연결할 수 없습니다.`);
       }
     });
 
@@ -294,6 +299,20 @@ function stripTags(value) {
 
 function validateIndexPreviews(indexSource, content) {
   const result = createResult();
+  const dynamicContainers = [...indexSource.matchAll(/data-home-preview=["'](workplace|activities)["'][^>]*data-home-preview-count=["'](\d+)["']/g)];
+  const dynamicTypes = new Set();
+  dynamicContainers.forEach(([, type, count]) => {
+    dynamicTypes.add(type);
+    if (Number(count) < 1) addError(result, `index.html: ${type} 메인 미리보기 수가 올바르지 않습니다.`);
+    if (!Array.isArray(content?.[type]) || !content[type].length) {
+      addError(result, `index.html: ${type} 메인 미리보기에 사용할 콘텐츠가 없습니다.`);
+    }
+  });
+  ['workplace', 'activities'].forEach(type => {
+    const count = dynamicContainers.filter(([, containerType]) => containerType === type).length;
+    if (count > 1) addError(result, `index.html: ${type} 메인 미리보기 컨테이너가 중복됩니다.`);
+  });
+
   const links = [...indexSource.matchAll(/<a\b[^>]*href="(workplace|activities)\.html\?id=([a-z0-9-]+)"[^>]*>([\s\S]*?)<\/a>/g)];
   links.forEach(([, type, id, body]) => {
     const items = content?.[type] || [];
@@ -307,7 +326,9 @@ function validateIndexPreviews(indexSource, content) {
       addWarning(result, `index.html: ${type}.html?id=${id} 카드 제목이 콘텐츠 제목과 다릅니다.`);
     }
   });
-  if (!result.errors.length) addPass(result, '메인 미리보기 링크');
+  if (!result.errors.length) {
+    addPass(result, dynamicTypes.size ? '메인 미리보기 데이터 컨테이너' : '메인 미리보기 링크');
+  }
   return result;
 }
 
@@ -343,6 +364,7 @@ if (require.main === module) run();
 module.exports = {
   ALLOWED_CATEGORIES,
   LEGACY_PHOTO_FILENAMES,
+  LEGACY_UNSUITABLE_PACKING_2_SHA256,
   PLANNED_PHOTO_FILENAMES,
   REQUIRED_IDS,
   isValidDate,

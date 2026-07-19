@@ -22,3 +22,7 @@
 ## Publication control
 
 Possession of a logo file does not by itself prove publication approval. Partner logos should be displayed publicly only after the company confirms that the selected version and use are authorized.
+
+## Current repository status
+
+The four partner logo files are intentionally retained as approved web assets even though the current public pages do not reference them. They are reserved for a future company or partnership page after the company confirms the public placement and selected logo variant. They must not be treated as disposable unused images by automated audits or cleanup work.

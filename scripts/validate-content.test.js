@@ -3,6 +3,7 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const {
   loadContentFromFile,
@@ -50,6 +51,18 @@ const plannedPhotoOnly = clone(content);
 plannedPhotoOnly.workplace[0].listingPhoto.filename = 'packing-2.jpg';
 plannedPhotoOnly.workplace[0].photo.filename = 'packing-2.jpg';
 assert.deepStrictEqual(errorsFor(plannedPhotoOnly), []);
+
+const approvedPackingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'taejang-content-'));
+try {
+  fs.mkdirSync(path.join(approvedPackingRoot, 'images'));
+  fs.writeFileSync(path.join(approvedPackingRoot, 'images/packing-2.jpg'), 'approved replacement photo');
+  const approvedPackingImage = clone(content);
+  approvedPackingImage.workplace[0].thumb = 'images/packing-2.jpg';
+  approvedPackingImage.workplace[0].alt = { thumb: '승인된 포장 작업 장면' };
+  assert.deepStrictEqual(validateContent(approvedPackingImage, { now: NOW, rootDir: approvedPackingRoot }).errors, []);
+} finally {
+  fs.rmSync(approvedPackingRoot, { recursive: true, force: true });
+}
 
 const missingImage = clone(content);
 missingImage.workplace[0].thumb = 'images/not-found.jpg';

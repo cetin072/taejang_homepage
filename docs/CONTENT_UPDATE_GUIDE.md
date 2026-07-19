@@ -1,6 +1,6 @@
 # 콘텐츠 업데이트 가이드
 
-`workplace.html`과 `activities.html`의 목록·상세 콘텐츠는 `assets/js/content.js`의 데이터와 `assets/js/listing.js`의 공통 렌더링으로 관리합니다. HTML에 같은 글을 따로 복사하지 않습니다.
+`workplace.html`과 `activities.html`의 목록·상세 콘텐츠는 `assets/js/content.js`의 데이터와 `assets/js/listing.js`의 공통 렌더링으로 관리합니다. 메인 홈페이지의 우리의 일터·태장의 활동 미리보기도 `assets/js/home-previews.js`가 같은 데이터를 최신순으로 표시합니다. HTML에 같은 글을 따로 복사하지 않습니다.
 
 ## content.js 구조
 
@@ -91,7 +91,7 @@ alt: {
 - 기존 공개 ID 유지
 - 사진 안내 파일명과 실제 이미지 경로
 - 과거 긴 사진 파일명 재사용
-- 메인 미리보기의 상세 링크 ID
+- 메인 미리보기의 데이터 컨테이너와 상세 링크 ID
 - 로컬 이미지·내부 링크·중복 ID와 미사용 이미지 후보
 
 ### 사람이 확인해야 하는 항목

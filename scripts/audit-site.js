@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -18,6 +19,13 @@ const LEGACY_PHOTO_FILENAMES = [
   'taejang-company-cooperation-01.jpg',
   'taejang-environment-activity-01.jpg'
 ];
+const PRESERVED_UNUSED_IMAGES = new Set([
+  'assets/images/partners/bumhan.svg',
+  'assets/images/partners/bumhan.png',
+  'assets/images/partners/samhyun.jpg',
+  'assets/images/partners/cheungwoo-bj.png'
+]);
+const LEGACY_UNSUITABLE_PACKING_2_SHA256 = '3f56e0285804ec587f0fa5adb7541dcc06927906cb2608b7263a9a2c02781523';
 
 function walk(directory) {
   if (!fs.existsSync(directory)) return [];
@@ -31,7 +39,11 @@ function relative(rootDir, filePath) {
   return path.relative(rootDir, filePath).split(path.sep).join('/');
 }
 
-function createResult() {
+function sha256(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function createResult(options = {}) {
   return {
     errors: [],
     warnings: [],
@@ -39,10 +51,12 @@ function createResult() {
     imageFiles: [],
     imageReferences: new Map(),
     unusedImages: [],
+    preservedUnusedImages: [],
     placeholderCount: 0,
     placeholderCommentCount: 0,
     canonicalUrls: [],
-    openGraphUrls: []
+    openGraphUrls: [],
+    publicReady: Boolean(options.publicReady)
   };
 }
 
@@ -58,8 +72,7 @@ function localPathFromReference(reference, sourceFile, rootDir) {
   let pathname = cleanReference.split('#')[0].split('?')[0];
   if (/^https?:\/\//i.test(pathname)) {
     try {
-      const url = new URL(pathname);
-      pathname = url.pathname.replace(/^\//, '');
+      pathname = new URL(pathname).pathname.replace(/^\//, '');
     } catch {
       return null;
     }
@@ -127,8 +140,20 @@ function inspectHtml(result, source, filePath, rootDir) {
   if (ogUrl) result.openGraphUrls.push({ file: sourceName, url: ogUrl[1] });
 }
 
-function auditRepository(rootDir = ROOT_DIR) {
-  const result = createResult();
+function checkLegacyPackingReference(result, rootDir, options) {
+  const imagePath = 'images/packing-2.jpg';
+  if (!result.imageReferences.has(imagePath)) return;
+  const localPath = path.join(rootDir, imagePath);
+  if (!fs.existsSync(localPath)) return;
+  const legacyHash = options.legacyPacking2Hash || LEGACY_UNSUITABLE_PACKING_2_SHA256;
+  if (sha256(localPath) === legacyHash) {
+    result.errors.push(`${imagePath}: 과거 공개 부적합 파일이 사이트 코드에서 다시 참조됩니다.`);
+  }
+}
+
+function auditRepository(rootDir = ROOT_DIR, options = {}) {
+  const result = createResult(options);
+  const preservedUnusedImages = options.preservedUnusedImages || PRESERVED_UNUSED_IMAGES;
   const siteFiles = walk(rootDir).filter(filePath => {
     const name = relative(rootDir, filePath);
     if (name.startsWith('.git/') || name.startsWith('docs/') || name.startsWith('scripts/')) return false;
@@ -160,16 +185,28 @@ function auditRepository(rootDir = ROOT_DIR) {
       result.errors.push(`${imagePath}: 참조됐지만 파일이 없습니다. 참조: ${[...sources].join(', ')}`);
     }
   });
+  checkLegacyPackingReference(result, rootDir, options);
+
   result.unusedImages = result.imageFiles.filter(imagePath => !result.imageReferences.has(imagePath));
-  result.unusedImages.forEach(imagePath => result.warnings.push(`${imagePath}: 사이트 코드에서 참조되지 않는 이미지 후보`));
+  result.unusedImages.forEach(imagePath => {
+    if (preservedUnusedImages.has(imagePath)) result.preservedUnusedImages.push(imagePath);
+    else result.warnings.push(`${imagePath}: 사이트 코드에서 참조되지 않는 이미지 후보`);
+  });
+
+  if (result.placeholderCount || result.placeholderCommentCount) {
+    const message = `개발 사진 안내 ${result.placeholderCount}개 · 교체 주석 ${result.placeholderCommentCount}개`;
+    if (result.publicReady) result.errors.push(`${message}: 공개 준비 모드에서는 모두 제거 또는 실제 사진으로 교체해야 합니다.`);
+    else result.warnings.push(`${message}: 개발 모드에서는 허용되지만 공개 전 교체가 필요합니다.`);
+  }
 
   if (!result.errors.some(message => message.includes('참조됐지만') || message.includes('내부 링크'))) {
     result.passes.push('깨진 로컬 이미지·내부 링크 없음');
   }
   if (!result.errors.some(message => message.includes('중복 id'))) result.passes.push('HTML 중복 id 없음');
   if (!result.errors.some(message => message.includes('과거 긴 사진 파일명'))) result.passes.push('사이트 코드에 과거 긴 사진 파일명 없음');
-  result.passes.push(`사이트 이미지 ${result.imageFiles.length}개 · 참조 이미지 ${result.imageReferences.size}개`);
-  result.passes.push(`사진 안내 ${result.placeholderCount}개 · 교체 주석 ${result.placeholderCommentCount}개`);
+  result.passes.push(`사이트 이미지 ${result.imageFiles.length}개 · 실제 참조 ${result.imageReferences.size}개 · 미참조 후보 ${result.unusedImages.length - result.preservedUnusedImages.length}개`);
+  if (result.preservedUnusedImages.length) result.passes.push(`보존 미참조 공식 자산 ${result.preservedUnusedImages.length}개`);
+  result.passes.push(`공개 준비 모드: ${result.publicReady ? '예' : '아니오'}`);
   if (htmlFiles.length) result.passes.push(`HTML ${htmlFiles.length}개 검사`);
   return result;
 }
@@ -179,6 +216,10 @@ function printResult(result) {
   result.warnings.forEach(message => console.log(`[WARNING] ${message}`));
   result.errors.forEach(message => console.error(`[ERROR] ${message}`));
 
+  if (result.preservedUnusedImages.length) {
+    console.log('\n[INFO] 보존 미참조 자산');
+    result.preservedUnusedImages.forEach(imagePath => console.log(`  - ${imagePath}`));
+  }
   if (result.canonicalUrls.length) {
     console.log('\n[INFO] canonical');
     result.canonicalUrls.forEach(item => console.log(`  - ${item.file}: ${item.url}`));
@@ -191,7 +232,7 @@ function printResult(result) {
 }
 
 if (require.main === module) {
-  const result = auditRepository();
+  const result = auditRepository(ROOT_DIR, { publicReady: process.argv.includes('--public-ready') });
   printResult(result);
   if (result.errors.length) process.exitCode = 1;
 }
@@ -199,6 +240,8 @@ if (require.main === module) {
 module.exports = {
   IMAGE_EXTENSIONS,
   LEGACY_PHOTO_FILENAMES,
+  LEGACY_UNSUITABLE_PACKING_2_SHA256,
+  PRESERVED_UNUSED_IMAGES,
   auditRepository,
   extractImageReferences,
   localPathFromReference
