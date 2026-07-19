@@ -74,9 +74,29 @@ alt: {
 
 ## 테스트와 게시 절차
 
-1. `node --check assets/js/content.js`와 `node --check assets/js/listing.js`를 실행합니다.
-2. 목록·필터·기존 상세 ID·잘못된 ID·관련 글을 확인합니다.
-3. 사진을 추가했다면 경로, alt, 개인정보·사용 승인, 모바일 줄바꿈을 확인합니다.
-4. `git diff --check`와 주요 페이지 HTTP 응답을 확인합니다.
-5. 작업 브랜치에 커밋하고 Draft PR을 생성합니다.
-6. Deploy Preview에서 목록·상세·이미지·모바일 화면을 검토하고 사용자 승인 후 병합합니다.
+콘텐츠 수정 후에는 다음 순서로 확인합니다.
+
+1. `node scripts/validate-content.js`
+2. `node scripts/validate-content.test.js`
+3. `git diff --check`
+4. `node --check assets/js/content.js`와 `node --check assets/js/listing.js`
+5. 정적 페이지 실행과 목록·필터·기존 상세 ID·잘못된 ID·관련 글 확인
+6. Draft PR의 Deploy Preview 확인
+
+### 자동 검증이 확인하는 항목
+
+- ID·날짜·카테고리·필수 필드
+- 기존 공개 ID 유지
+- 사진 안내 파일명과 실제 이미지 경로
+- 과거 긴 사진 파일명 재사용
+- 메인 미리보기의 상세 링크 ID
+
+### 사람이 확인해야 하는 항목
+
+- 실제 사진 내용과 얼굴 공개 동의
+- 기업 로고·상호 공개 승인
+- 문장의 사실관계와 공개 적합성
+- 모바일에서의 실제 시각 품질
+- 외부 링크 목적지의 최신 상태
+
+자동 검증을 통과해도 [홈페이지 공개 전 최종 검수 체크리스트](PUBLISH_CHECKLIST.md)를 완료하고 [공개 운영 절차](PUBLISH_WORKFLOW.md)에 따라 승인받아야 합니다.

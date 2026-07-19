@@ -1,12 +1,27 @@
 # 태장 홈페이지 문서 색인
 
-## 운영 준비 문서
+## 콘텐츠 작성
+
+- [콘텐츠 작성 양식](CONTENT_SUBMISSION_TEMPLATE.md)
+
+## 사진 운영
 
 - [사진 운영 가이드](PHOTO_GUIDE.md)
-- [신규 사업장 개소 콘텐츠 체크리스트](OPENING_CONTENT_CHECKLIST.md)
-- [콘텐츠 작성 양식](CONTENT_SUBMISSION_TEMPLATE.md)
+
+## 홈페이지 반영
+
 - [콘텐츠 업데이트 가이드](CONTENT_UPDATE_GUIDE.md)
+- [공개 운영 절차](PUBLISH_WORKFLOW.md)
+
+## 공개 전 확인
+
+- [홈페이지 공개 전 최종 검수 체크리스트](PUBLISH_CHECKLIST.md)
+- [신규 사업장 개소 콘텐츠 체크리스트](OPENING_CONTENT_CHECKLIST.md)
+
+## 도메인·검색
+
 - [SEO·운영 도메인 체크리스트](SEO_DOMAIN_CHECKLIST.md)
+- 현재 상태: 운영 도메인 확정 대기
 
 ## 공통 기준 문서
 

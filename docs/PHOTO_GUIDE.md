@@ -88,3 +88,5 @@
 | 해당 안내박스를 제거했는가 | ☐ |
 | 메인·목록·상세에서 역할이 맞는가 | ☐ |
 | Draft PR Preview에서 확인했는가 | ☐ |
+
+관련 문서: [콘텐츠 작성 양식](CONTENT_SUBMISSION_TEMPLATE.md), [콘텐츠 업데이트 가이드](CONTENT_UPDATE_GUIDE.md), [홈페이지 공개 전 최종 검수 체크리스트](PUBLISH_CHECKLIST.md)
