@@ -30,6 +30,7 @@
 ## 관리자 시스템
 
 - [관리자 시스템 로드맵](ADMIN_ROADMAP.md)
+- [Phase 0 기술 설계](ADMIN_PHASE0_TECHNICAL_ARCHITECTURE.md)
 - [직원용 관리자 시스템 요구사항](ADMIN_SYSTEM_REQUIREMENTS.md)
 - [관리자 화면 명세](ADMIN_SCREEN_SPEC.md)
 - [관리자 데이터 모델](ADMIN_DATA_MODEL.md)
