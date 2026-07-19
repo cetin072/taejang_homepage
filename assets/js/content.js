@@ -9,7 +9,12 @@ window.TAEJANG_CONTENT = {
       summary: "밑그림과 채색을 거쳐 한 작품을 정성스럽게 완성합니다.",
       thumb: "images/minhwa-color.jpg",
       hero: "images/minhwa-wide.jpg",
-      gallery: ["images/minhwa-line.jpg","images/minhwa-color.jpg","images/coaching.jpg"],
+      gallery: ["images/minhwa-line.jpg","images/minhwa-color.jpg"],
+      alt: {
+        thumb: "작업대에서 민화 도안을 그리는 모습",
+        hero: "여러 사람이 작업대에서 민화 작업을 함께 하는 모습",
+        gallery: ["작업대에서 민화 밑그림을 살피는 모습", "작업대에서 민화 도안을 그리는 모습"]
+      },
       body: [
         "태장의 민화 작업은 밑그림에서 시작합니다. 세필로 선을 그리고, 색의 농도를 맞추며 한 단계씩 작품을 완성합니다.",
         "담당자는 근로자의 작업 과정을 살피고 필요한 부분을 함께 조정합니다. 각자의 강점과 집중력을 살릴 수 있도록 작업 속도와 방법을 존중합니다.",
@@ -23,8 +28,13 @@ window.TAEJANG_CONTENT = {
       title: "정확하고 꼼꼼한 소포장 작업",
       summary: "박스 접기와 라벨 부착, 검수까지 정해진 순서에 따라 작업합니다.",
       thumb: "images/packing-1.jpg",
-      hero: "images/packing-2.jpg",
-      gallery: ["images/packing-1.jpg","images/packing-2.jpg"],
+      hero: "images/coaching.jpg",
+      gallery: ["images/packing-1.jpg"],
+      alt: {
+        thumb: "작업대에서 상자를 포장하는 모습",
+        hero: "작업대에서 상자와 자재를 정리하는 소포장 작업 모습",
+        gallery: ["작업대에서 상자를 포장하는 모습"]
+      },
       body: [
         "소포장 작업은 제품을 안전하게 전달하기 위한 중요한 과정입니다. 박스를 접고, 제품을 넣고, 라벨을 확인하는 작업을 순서대로 진행합니다.",
         "작업 전에는 필요한 도구와 자재를 정리하고, 작업 중에는 수량과 포장 상태를 함께 확인합니다.",
@@ -33,17 +43,22 @@ window.TAEJANG_CONTENT = {
     },
     {
       id: "work-together",
-      category: "함께 작업",
+      category: "소포장 작업",
       date: "2026.07.09",
-      title: "같은 자리에서 함께 배우고 일합니다",
-      summary: "담당자와 근로자가 같은 공간에서 작업하며 필요한 도움을 나눕니다.",
+      title: "작업대에서 이어지는 소포장 작업",
+      summary: "자재를 정리하고 정해진 순서에 따라 포장 작업을 진행합니다.",
       thumb: "images/coaching.jpg",
-      hero: "images/coaching.jpg",
-      gallery: ["images/coaching.jpg","images/minhwa-wide.jpg"],
+      hero: "images/packing-1.jpg",
+      gallery: [],
+      alt: {
+        thumb: "작업대에서 상자와 자재를 정리하는 모습",
+        hero: "작업대에서 상자를 포장하는 모습",
+        gallery: []
+      },
       body: [
-        "태장은 지시만 전달하는 방식보다 같은 자리에서 함께 작업하는 방식을 중요하게 생각합니다.",
-        "담당자는 작업 과정을 살피고, 근로자가 어려움을 느끼는 부분을 바로 지원합니다. 익숙해진 일은 스스로 해낼 수 있도록 기다리고 격려합니다.",
-        "이러한 과정은 작업의 완성도뿐 아니라 근무 적응과 자신감을 높이는 데에도 도움이 됩니다."
+        "소포장 작업은 필요한 자재를 정리하고 작업 순서를 확인하는 것에서 시작합니다.",
+        "상자와 라벨, 도구를 작업대 가까이에 배치하고 정해진 순서에 따라 포장 작업을 진행합니다.",
+        "작업 환경과 순서를 꾸준히 점검해 안정적인 업무 흐름을 만들어갑니다."
       ]
     }
   ],
@@ -54,9 +69,9 @@ window.TAEJANG_CONTENT = {
       date: "2026.08.12",
       title: "태장의 새로운 사업장이 문을 엽니다",
       summary: "신화 더 플렉스시티에서 태장의 새로운 출발을 알립니다.",
-      thumb: "images/logo.png",
-      hero: "images/minhwa-wide.jpg",
-      gallery: ["images/minhwa-wide.jpg","images/packing-2.jpg"],
+      thumb: null,
+      hero: null,
+      gallery: [],
       body: [
         "태장이 창원 신화 더 플렉스시티에 새로운 사업장을 마련했습니다.",
         "새 사업장은 민화와 굿즈 제작, 소포장 등 장애인 근로자의 주요 작업이 이루어지는 공간입니다.",
@@ -68,10 +83,15 @@ window.TAEJANG_CONTENT = {
       category: "일터",
       date: "2026.07.09",
       title: "민화 작업을 시작했습니다",
-      summary: "도안과 채색을 익히며 문화상품 제작을 준비합니다.",
+      summary: "민화 도안을 그리고 작업 과정을 익히고 있습니다.",
       thumb: "images/minhwa-line.jpg",
       hero: "images/minhwa-color.jpg",
-      gallery: ["images/minhwa-line.jpg","images/minhwa-color.jpg","images/minhwa-wide.jpg"],
+      gallery: ["images/minhwa-line.jpg","images/minhwa-wide.jpg"],
+      alt: {
+        thumb: "작업대에서 민화 밑그림을 살피는 모습",
+        hero: "작업대에서 민화 도안을 그리는 모습",
+        gallery: ["작업대에서 민화 밑그림을 살피는 모습", "여러 사람이 작업대에서 민화 작업을 함께 하는 모습"]
+      },
       body: [
         "태장 근로자들이 민화 도안과 채색 작업을 시작했습니다.",
         "처음에는 붓 사용법과 색을 섞는 방법부터 익히고, 점차 한 작품을 완성하는 과정으로 나아갑니다.",
@@ -84,9 +104,14 @@ window.TAEJANG_CONTENT = {
       date: "2026.07.02",
       title: "소포장 작업을 준비합니다",
       summary: "정리된 작업공간에서 포장과 검수 업무를 진행합니다.",
-      thumb: "images/packing-2.jpg",
+      thumb: "images/coaching.jpg",
       hero: "images/packing-1.jpg",
-      gallery: ["images/packing-1.jpg","images/packing-2.jpg"],
+      gallery: [],
+      alt: {
+        thumb: "작업대에서 상자와 자재를 정리하는 소포장 작업 모습",
+        hero: "작업대에서 상자를 포장하는 모습",
+        gallery: []
+      },
       body: [
         "태장의 소포장 작업은 작업 준비, 포장, 라벨 확인, 최종 검수 순서로 진행됩니다.",
         "근로자가 안전하고 편리하게 작업할 수 있도록 자재와 도구를 가까운 위치에 배치하고 작업 순서를 단순하게 정리했습니다.",

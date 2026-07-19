@@ -145,6 +145,8 @@ button{cursor:pointer}
 .card-media{aspect-ratio:4/3;overflow:hidden;background:var(--beige);position:relative}
 .card-media img{width:100%;height:100%;object-fit:cover;transition:.35s ease}
 .card:hover .card-media img{transform:scale(1.035)}
+.card-media--notice{display:grid;place-items:center;align-content:center;gap:10px;padding:22px;background:var(--green-soft);color:var(--green-deep);text-align:center}
+.notice-media-label{font:700 22px var(--myeongjo)}
 .card-body{padding:22px}
 .card-date{font-size:12px;color:var(--green);font-weight:800;letter-spacing:.07em}
 .card h3,.card h4{margin:7px 0 8px;font:700 19px/1.55 var(--myeongjo);color:var(--green-deep)}
@@ -273,6 +275,9 @@ button{cursor:pointer}
 .article-body figure{margin:34px 0}
 .article-body figure img{width:100%;border:1px solid var(--line)}
 .article-body figcaption{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:9px}
+.article-notice-media{display:grid;min-height:260px;place-items:center;align-content:center;gap:12px;padding:36px;background:var(--green-soft);border:1px solid var(--line);color:var(--green-deep);text-align:center}
+.article-notice-media span{font-size:12px;font-weight:800;letter-spacing:.12em}
+.article-notice-media strong{font:700 clamp(24px,4vw,38px)/1.45 var(--myeongjo)}
 .article-gallery{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .article-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}
 .back-link{display:inline-block;margin-bottom:26px;color:var(--green);font-weight:800}
@@ -337,6 +342,8 @@ button{cursor:pointer}
 .hero-slide img{
   width:100%;height:100%;object-fit:cover;object-position:center 40%;
 }
+.hero-slide--minhwa img{object-position:center 36%}
+.hero-slide--packing img{object-position:center 55%}
 .hero-overlay{
   position:absolute;inset:0;z-index:1;
   background:linear-gradient(90deg,rgba(18,55,40,.92) 0%,rgba(18,55,40,.72) 55%,rgba(18,55,40,.4) 100%);
@@ -388,6 +395,8 @@ button{cursor:pointer}
 
 @media (max-width:760px){
   .hero-overlay{background:linear-gradient(180deg,rgba(18,55,40,.66),rgba(18,55,40,.94))}
+  .hero-slide--minhwa img{object-position:center 28%}
+  .hero-slide--packing img{object-position:center 52%}
   .hero-control{width:42px;height:42px;font-size:30px}
   .hero-prev{left:12px}
   .hero-next{right:12px}
