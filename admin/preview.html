@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>미리보기 · 태장 관리자</title>
+    <link rel="stylesheet" href="assets/admin.css">
+  </head>
+  <body data-page="preview">
+    <div class="prototype-banner">미리보기 · 아직 공개 홈페이지에 게시되지 않았습니다</div>
+    <header class="admin-header">
+      <a class="brand" href="index.html">태장 <span>콘텐츠 운영</span>
+    </a>
+    <nav>
+      <a href="content-list.html">콘텐츠 목록</a>
+      <a class="quiet" href="../index.html">공개 홈페이지</a>
+    </nav>
+  </header>
+  <main class="shell">
+    <div class="page-title">
+      <div>
+        <p class="eyebrow">게시 전 확인</p>
+        <h1>콘텐츠 미리보기</h1>
+        <p>모바일과 데스크톱에서 공개될 모습을 확인합니다.</p>
+      </div>
+      <div class="toggle" role="group" aria-label="미리보기 폭">
+        <button class="active" data-width="desktop">데스크톱</button>
+        <button data-width="mobile">모바일</button>
+      </div>
+    </div>
+    <section class="preview-stage">
+      <div class="preview-frame" id="preview-frame">
+        <article id="post-preview" class="public-post">
+          <div class="placeholder-image">대표 이미지 미리보기</div>
+          <p class="post-meta">태장소식 · 2026.07.24</p>
+          <h2>지역사회와 함께 만드는 태장의 기록</h2>
+          <p class="lead">태장의 일상과 현장 이야기를 홈페이지에서 자세히 소개합니다.</p>
+          <p>태장 근로자 직무교육 현장의 모습과 지역사회 연계 프로그램 진행 소식을 전합니다. 이 영역은 실제 게시 전 확인을 위한 샘플 본문입니다.</p>
+          <div class="attachment">첨부파일 · 안내자료.pdf</div>
+          <div class="prev-next">
+            <span>← 이전 글</span>
+            <span>다음 글 →</span>
+          </div>
+        </article>
+        <article id="external-preview" class="external-card-preview" hidden>
+          <div class="card-media">썸네일 미리보기</div>
+          <span class="tag external">네이버 블로그</span>
+          <h2>태장 근로자 직무교육 현장</h2>
+          <p>교육 현장의 이야기와 사진을 원문에서 확인해 보세요.</p>
+          <div class="card-meta">2026.07.20 · 장애인 일자리</div>
+          <a class="button" href="https://blog.naver.com/" target="_blank" rel="noreferrer">원문 보기 ↗</a>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script src="assets/admin.js">
+  </script>
+</body>
+</html>

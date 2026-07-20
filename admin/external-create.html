@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>외부 콘텐츠 등록 · 태장 관리자</title>
+    <link rel="stylesheet" href="assets/admin.css">
+  </head>
+  <body data-page="external">
+    <div class="prototype-banner">정적 프로토타입 · 외부 사이트 자동 수집·API 호출 없음</div>
+    <header class="admin-header">
+      <a class="brand" href="index.html">태장 <span>콘텐츠 운영</span>
+    </a>
+    <nav>
+      <a href="content-list.html">콘텐츠 목록</a>
+      <a class="quiet" href="../index.html">공개 홈페이지</a>
+    </nav>
+  </header>
+  <main class="shell narrow">
+    <div class="page-title">
+      <div>
+        <p class="eyebrow">외부 콘텐츠 카드</p>
+        <h1>원문을 카드로 소개</h1>
+        <p>네이버 블로그·인스타그램·유튜브·기사의 원문으로 연결되는 소개 카드입니다.</p>
+      </div>
+      <span class="save-state" id="save-state">저장됨</span>
+    </div>
+    <form id="external-form" class="editor-form">
+      <section class="panel form-section">
+        <h2>원문 정보</h2>
+        <div class="form-grid">
+          <label>출처<select name="source" required>
+            <option value="">선택하세요</option>
+            <option>네이버 블로그</option>
+            <option>인스타그램</option>
+            <option>유튜브</option>
+            <option>언론기사</option>
+            <option>X</option>
+            <option>기타</option>
+          </select>
+        </label>
+        <label>카테고리<select name="category" required>
+          <option value="">선택하세요</option>
+          <option>회사소식</option>
+          <option>장애인 일자리</option>
+          <option>교육·행사</option>
+          <option>ESG·사회공헌</option>
+          <option>농업·현장</option>
+          <option>채용</option>
+          <option>언론보도</option>
+          <option>영상</option>
+        </select>
+      </label>
+      <label class="full">원문 링크<input id="external-url" name="url" required type="url" placeholder="https://">
+    </label>
+    <div class="suggestion full" id="suggestion">
+      <strong>자동 제안 미리보기</strong>
+      <span>링크를 입력하면 제목과 썸네지를 제안하는 것처럼 보입니다. 실제 크롤링은 하지 않습니다.</span>
+      <button type="button" id="use-suggestion">제안값 사용</button>
+    </div>
+    <label class="full">제목<input name="title" required placeholder="카드 제목">
+  </label>
+  <label class="full">요약문<textarea name="summary" rows="3" placeholder="카드에 보여줄 간단한 설명">
+  </textarea>
+</label>
+</div>
+</section>
+<section class="panel form-section">
+  <h2>노출 설정</h2>
+  <div class="form-grid">
+    <label>원문 게시일<input type="date" name="sourceDate">
+  </label>
+  <label>홈페이지 노출일<input type="date" name="publishDate">
+</label>
+<label>공개 상태<select name="visibility">
+  <option>작성 중</option>
+  <option>게시 요청</option>
+  <option>숨김</option>
+</select>
+</label>
+<label class="check">
+  <input type="checkbox" name="pinned"> 상단 고정</label>
+</div>
+<label class="upload-box single">썸네일<input type="file" accept="image/*">
+<span>＋ 카드 이미지 선택</span>
+</label>
+</section>
+<div class="form-actions">
+  <a class="button secondary" href="content-list.html">취소</a>
+  <button class="button secondary" type="button" id="save-external">임시저장</button>
+  <a class="button secondary" href="preview.html?type=external">미리보기</a>
+  <button class="button" type="submit">게시 요청</button>
+</div>
+</form>
+</main>
+<script src="assets/admin.js">
+</script>
+</body>
+</html>
