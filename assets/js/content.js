@@ -255,6 +255,193 @@ window.TAEJANG_CONTENT = {
           ]
         }
       ]
+    },
+    {
+      id: "recruitment-notice",
+      category: "채용",
+      date: "2026.07.25",
+      title: "신규 채용 공고",
+      summary: "태장과 함께할 구성원을 찾기 위한 채용 안내입니다.",
+      thumb: "images/coaching.jpg",
+      hero: "images/coaching.jpg",
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 장애인 근로자가 안정적으로 일할 수 있는 환경을 함께 만들어갈 구성원을 찾고 있습니다."
+          ]
+        },
+        {
+          heading: "지원 안내",
+          paragraphs: [
+            "모집 분야와 일정은 공식 안내를 통해 확인해 주세요. 세부 조건은 문의 과정에서 안내합니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "community-program",
+      category: "지역사회 활동",
+      date: "2026.07.22",
+      title: "지역사회 연계 프로그램 진행",
+      summary: "지역사회와 함께하는 활동의 준비와 진행 과정을 기록합니다.",
+      thumb: "images/minhwa-wide.jpg",
+      hero: "images/minhwa-wide.jpg",
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 지역사회와 연결되는 활동을 통해 근로자와 지역이 함께 참여할 수 있는 기회를 만들어갑니다."
+          ]
+        },
+        {
+          heading: "함께 만드는 활동",
+          paragraphs: [
+            "활동 내용과 참여 방식은 공개 가능한 범위에서 사실관계를 확인한 뒤 차분히 기록합니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "standard-workplace-news",
+      category: "회사소식",
+      date: "2026.07.18",
+      title: "자회사형 장애인 표준사업장 관련 소식",
+      summary: "태장이 안정적인 일터를 만들기 위해 이어가는 운영 방향을 소개합니다.",
+      thumb: "images/coaching.jpg",
+      hero: "images/coaching.jpg",
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 자회사형 장애인 표준사업장으로서 장애인 근로자가 안정적으로 일하고 성장할 수 있는 환경을 만들어갑니다."
+          ]
+        },
+        {
+          heading: "지속 가능한 일터",
+          paragraphs: [
+            "업무 환경과 직무를 차분히 정리하고, 기업과 지역사회가 함께할 수 있는 협력 기반을 단계적으로 넓혀갑니다."
+          ]
+        }
+      ]
+    }
+  ],
+  hub: [
+    {
+      id: "internal-opening",
+      type: "internal",
+      source: "homepage",
+      category: "회사소식",
+      title: "태장 개소식 안내",
+      summary: "태장의 새로운 사업장과 개소 관련 안내를 홈페이지에서 확인해 주세요.",
+      thumbnail: "images/minhwa-wide.jpg",
+      publishedAt: "2026-08-12",
+      featured: true,
+      status: "published",
+      detailUrl: "activities.html?id=new-workplace-opening",
+      attachments: []
+    },
+    {
+      id: "internal-recruitment",
+      type: "internal",
+      source: "homepage",
+      category: "채용",
+      title: "신규 채용 공고",
+      summary: "태장과 함께할 구성원을 찾기 위한 공식 채용 안내입니다.",
+      thumbnail: "images/coaching.jpg",
+      publishedAt: "2026-07-25",
+      featured: true,
+      status: "published",
+      detailUrl: "activities.html?id=recruitment-notice",
+      attachments: []
+    },
+    {
+      id: "internal-community",
+      type: "internal",
+      source: "homepage",
+      category: "교육·행사",
+      title: "지역사회 연계 프로그램 진행",
+      summary: "지역사회와 함께하는 활동의 준비와 진행 과정을 기록합니다.",
+      thumbnail: "images/minhwa-wide.jpg",
+      publishedAt: "2026-07-22",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=community-program",
+      attachments: []
+    },
+    {
+      id: "internal-standard-workplace",
+      type: "internal",
+      source: "homepage",
+      category: "장애인 일자리",
+      title: "자회사형 장애인 표준사업장 관련 소식",
+      summary: "안정적인 일터를 만들기 위해 이어가는 태장의 운영 방향을 소개합니다.",
+      thumbnail: "images/coaching.jpg",
+      publishedAt: "2026-07-18",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=standard-workplace-news",
+      attachments: []
+    },
+    {
+      id: "external-blog-training",
+      type: "external",
+      source: "naver-blog",
+      category: "교육·행사",
+      title: "태장 근로자 직무교육 현장",
+      summary: "직무교육 현장의 이야기와 사진을 카드로 소개합니다.",
+      thumbnail: "images/minhwa-wide.jpg",
+      publishedAt: "2026-07-20",
+      featured: false,
+      status: "published",
+      externalUrl: "https://example.com/taejang-blog-training",
+      externalLabel: "블로그 원문 보기",
+      openInNewTab: true
+    },
+    {
+      id: "external-instagram-farm",
+      type: "external",
+      source: "instagram",
+      category: "농업·현장",
+      title: "오늘의 농장 현장",
+      summary: "농장 현장의 짧은 기록을 인스타그램 원문에서 확인합니다.",
+      thumbnail: "images/coaching.jpg",
+      publishedAt: "2026-07-19",
+      featured: false,
+      status: "published",
+      externalUrl: "https://example.com/taejang-instagram-farm",
+      externalLabel: "인스타그램에서 보기",
+      openInNewTab: true
+    },
+    {
+      id: "external-youtube-intro",
+      type: "external",
+      source: "youtube",
+      category: "영상",
+      title: "태장 회사 소개 영상",
+      summary: "태장의 일터와 운영 방향을 영상으로 소개합니다.",
+      thumbnail: "images/minhwa-wide.jpg",
+      publishedAt: "2026-07-17",
+      featured: false,
+      status: "published",
+      externalUrl: "https://example.com/taejang-youtube-intro",
+      externalLabel: "영상 보기",
+      openInNewTab: true
+    },
+    {
+      id: "external-press-community",
+      type: "external",
+      source: "press",
+      category: "언론보도",
+      title: "지역사회 일자리 관련 보도",
+      summary: "태장과 지역사회 일자리에 관한 언론 보도를 카드로 소개합니다.",
+      thumbnail: "images/coaching.jpg",
+      publishedAt: "2026-07-16",
+      featured: false,
+      status: "published",
+      externalUrl: "https://example.com/taejang-press-community",
+      externalLabel: "기사 원문 보기",
+      openInNewTab: true
     }
   ]
 };

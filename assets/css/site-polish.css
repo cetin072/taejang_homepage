@@ -1,0 +1,66 @@
+:root {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}
+
+.btn,
+.nav-cta,
+.filter-btn,
+.archive-load-more,
+.content-filter-buttons button,
+input,
+select,
+textarea,
+.contact-action,
+.business-item,
+.card,
+.map,
+.dev-review-note,
+.dev-photo-placeholder {
+  border-radius: var(--radius-sm);
+}
+
+.card,
+.business-item,
+.contact-action,
+.map {
+  overflow: hidden;
+}
+
+input,
+select,
+textarea {
+  transition: border-color .2s ease, box-shadow .2s ease, background-color .2s ease;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, .12);
+}
+
+.btn,
+.nav-cta,
+.filter-btn,
+.archive-load-more,
+.content-filter-buttons button {
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease, transform .2s ease;
+}
+
+.source-badge {
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  input,
+  select,
+  textarea,
+  .btn,
+  .nav-cta,
+  .filter-btn,
+  .archive-load-more,
+  .content-filter-buttons button {
+    transition: none;
+  }
+}
