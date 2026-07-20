@@ -1,5 +1,13 @@
 
 (function(){
+  const polishHref = 'assets/css/site-polish.css';
+  if (!document.querySelector(`link[href="${polishHref}"]`)) {
+    const polishLink = document.createElement('link');
+    polishLink.rel = 'stylesheet';
+    polishLink.href = polishHref;
+    document.head.append(polishLink);
+  }
+
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
   if(menuBtn && mobileNav){
