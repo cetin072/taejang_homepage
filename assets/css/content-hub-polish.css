@@ -1,0 +1,16 @@
+.source-badge {
+  border-radius: 999px !important;
+  padding: 5px 10px !important;
+  letter-spacing: .045em !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .44);
+}
+
+.source-badge--homepage {
+  color: #315d4b !important;
+  border-color: #8fb2a1 !important;
+  background: #eef5f1 !important;
+}
+
+.source-badge--naver-blog {
+  color: #397051 !important;
+  border-color:
