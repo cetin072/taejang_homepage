@@ -1,17 +1,121 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>태장 관리자 · 콘텐츠 운영</title>
-  <link rel="stylesheet" href="assets/admin.css">
-</head>
-<body data-page="home">
-  <div class="prototype-banner">정적 프로토타입 · 샘플 데이터만 사용합니다 · 실제 로그인/DB/업로드 없음</div>
-  <header class="admin-header"><a class="brand" href="index.html">태장 <span>콘텐츠 운영</span></a><nav aria-label="관리자 메뉴"><a href="content-list.html">콘텐츠 목록</a><a class="quiet" href="../index.html">공개 홈페이지</a></nav></header>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>태장 관리자 · 콘텐츠 운영</title>
+    <link rel="stylesheet" href="assets/admin.css">
+  </head>
+  <body data-page="home">
+    <div class="prototype-banner">정적 프로토타입 · 샘플 데이터만 사용합니다 · 실제 로그인/DB/업로드 없음</div>
+    <header class="admin-header">
+      <a class="brand" href="index.html">태장 <span>콘텐츠 운영</span>
+    </a>
+    <nav aria-label="관리자 메뉴">
+      <a href="content-list.html">콘텐츠 목록</a>
+      <a class="quiet" href="../index.html">공개 홈페이지</a>
+    </nav>
+  </header>
   <main class="shell">
-    <section class="welcome"><div><p class="eyebrow">홍보팀 작업 공간</p><h1>오늘의 콘텐츠를<br>쉽게 관리하세요.</h1><p>홈페이지 글과 외부 콘텐츠 카드를 한곳에서 작성하고 게시 요청할 수 있습니다.</p></div><div class="quick-actions"><a class="action-card primary" href="external-create.html"><span class="icon">↗</span><strong>외부 콘텐츠 등록</strong><small>블로그·인스타그램·유튜브·기사</small></a><a class="action-card" href="content-create.html"><span class="icon">＋</span><strong>홈페이지 글 작성</strong><small>공지·소식·행사·채용·보도자료</small></a></div></section>
-    <section class="notice"><strong>저장 상태 안내</strong><span>이 화면의 임시저장은 현재 브라우저에만 저장되는 데모입니다.</span><a href="content-list.html">콘텐츠 목록 보기 →</a></section>
-    <section class="dashboard-grid"><div class="panel"><div class="panel-head"><h2>임시저장 글</h2><a href="content-list.html?status=draft">전체 보기</a></div><ul class="task-list"><li><span class="status draft">작성 중</span><div><strong>지역사회 연계 프로그램 진행</strong><small>홈페이지 글 · 마지막 저장 14:32</small></div><a href="content-create.html">열기</a></li><li><span class="status draft">작성 중</span><div><strong>농장 현장 활동 기록</strong><small>홈페이지 글 · 마지막 저장 어제</small></div><a href="content-create.html">열기</a></li></ul></div><div class="panel"><div class="panel-head"><h2>게시 요청</h2><a href="content-list.html?status=requested">검토하기</a></div><ul class="task-list"><li><span class="status requested">검토 대기</span><div><strong>신규 채용 공고</strong><small>홈페이지 글 · 홍보팀</small></div><a href="preview.html?type=post">미리보기</a></li><li><span class="status requested">검토 대기</span><div><strong>태장 근로자 직무교육 현장</strong><small>외부 콘텐츠 · 네이버 블로그</small></div><a href="preview.html?type=external">미리보기</a></li></ul></div></section>
-    <section class="panel"><div class="panel-head"><h2>최근 게시물</h2><a href="content-list.html?status=published">더 보기</a></div><div class="mini-cards"><article><span class="tag own">홈페이지 글</span><h3>태장 개소식 안내</h3><p>게시됨 · 2026.07.24</p></article><article><span class="tag external">유튜브</span><h3>태장 회사 소개 영상</h3><p>게시됨 · 2026.07.20</p></article><article><span class="tag external">인스타그램</span><h3>농장 현장 한 장</h3><p>게시됨 · 2026.07.18</p></article></div></section>
-  </main><script src="assets/admin.js"></script>
-</body></html>
+    <section class="welcome">
+      <div>
+        <p class="eyebrow">홍보팀 작업 공간</p>
+        <h1>오늘의 콘텐츠를<br>쉽게 관리하세요.</h1>
+        <p>홈페이지 글과 외부 콘텐츠 카드를 한곳에서 작성하고 게시 요청할 수 있습니다.</p>
+      </div>
+      <div class="quick-actions">
+        <a class="action-card primary" href="external-create.html">
+          <span class="icon">↗</span>
+          <strong>외부 콘텐츠 등록</strong>
+          <small>블로그·인스타그램·유튜브·기사</small>
+        </a>
+        <a class="action-card" href="content-create.html">
+          <span class="icon">＋</span>
+          <strong>홈페이지 글 작성</strong>
+          <small>공지·소식·행사·채용·보도자료</small>
+        </a>
+      </div>
+    </section>
+    <section class="notice">
+      <strong>저장 상태 안내</strong>
+      <span>이 화면의 임시저장은 현재 브라우저에만 저장되는 데모입니다.</span>
+      <a href="content-list.html">콘텐츠 목록 보기 →</a>
+    </section>
+    <section class="dashboard-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>임시저장 글</h2>
+          <a href="content-list.html?status=draft">전체 보기</a>
+        </div>
+        <ul class="task-list">
+          <li>
+            <span class="status draft">작성 중</span>
+            <div>
+              <strong>지역사회 연계 프로그램 진행</strong>
+              <small>홈페이지 글 · 마지막 저장 14:32</small>
+            </div>
+            <a href="content-create.html">열기</a>
+          </li>
+          <li>
+            <span class="status draft">작성 중</span>
+            <div>
+              <strong>농장 현장 활동 기록</strong>
+              <small>홈페이지 글 · 마지막 저장 어제</small>
+            </div>
+            <a href="content-create.html">열기</a>
+          </li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>게시 요청</h2>
+          <a href="content-list.html?status=requested">검토하기</a>
+        </div>
+        <ul class="task-list">
+          <li>
+            <span class="status requested">검토 대기</span>
+            <div>
+              <strong>신규 채용 공고</strong>
+              <small>홈페이지 글 · 홍보팀</small>
+            </div>
+            <a href="preview.html?type=post">미리보기</a>
+          </li>
+          <li>
+            <span class="status requested">검토 대기</span>
+            <div>
+              <strong>태장 근로자 직무교육 현장</strong>
+              <small>외부 콘텐츠 · 네이버 블로그</small>
+            </div>
+            <a href="preview.html?type=external">미리보기</a>
+          </li>
+        </ul>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>최근 게시물</h2>
+        <a href="content-list.html?status=published">더 보기</a>
+      </div>
+      <div class="mini-cards">
+        <article>
+          <span class="tag own">홈페이지 글</span>
+          <h3>태장 개소식 안내</h3>
+          <p>게시됨 · 2026.07.24</p>
+        </article>
+        <article>
+          <span class="tag external">유튜브</span>
+          <h3>태장 회사 소개 영상</h3>
+          <p>게시됨 · 2026.07.20</p>
+        </article>
+        <article>
+          <span class="tag external">인스타그램</span>
+          <h3>농장 현장 한 장</h3>
+          <p>게시됨 · 2026.07.18</p>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script src="assets/admin.js">
+  </script>
+</body>
+</html>
