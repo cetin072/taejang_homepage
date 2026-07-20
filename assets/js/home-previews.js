@@ -13,8 +13,17 @@
     'naver-blog': 'NAVER BLOG',
     instagram: 'INSTAGRAM',
     youtube: 'YOUTUBE',
+    x: 'X',
     press: '언론보도'
   };
+
+  function ensurePolishStyles() {
+    if (document.querySelector('link[href="assets/css/content-hub-polish.css"]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'assets/css/content-hub-polish.css';
+    document.head.append(link);
+  }
 
   function stableLatestFirst(items) {
     return items
@@ -81,6 +90,7 @@
   function createHubCard(item) {
     const article = document.createElement('article');
     article.className = 'card card--hub';
+    article.dataset.source = item.source;
     const link = document.createElement('a');
     link.className = 'card-link';
     const external = item.type === 'external';
@@ -125,6 +135,8 @@
     article.append(link);
     return article;
   }
+
+  ensurePolishStyles();
 
   document.querySelectorAll('[data-home-preview]').forEach((container) => {
     const type = container.dataset.homePreview;
