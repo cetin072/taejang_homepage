@@ -12,6 +12,7 @@
 - [태장 조직 및 역할·보고 체계 v1](planning/TAEJANG_ORGANIZATION_ROLES_V1.md)
 - [태장 현재 조직·대시보드·접근 방식 v1](planning/ORGANIZATION_DASHBOARD_ACCESS_V1.md)
 - [태장 1차 목표 인원 구성 v1](planning/EXPECTED_STAFFING_V1.md)
+- [태장 모바일 업무 대시보드 v1](planning/MOBILE_TASK_DASHBOARD_V1.md)
 - [홍보직원 대시보드 v1 확정 기획](planning/PROMOTION_EMPLOYEE_DASHBOARD_V1.md)
 - [홍보 채널 운영 전략 및 콘텐츠 파생 구조 v1](planning/PROMOTION_CHANNEL_STRATEGY_V1.md)
 - [운영총괄 홍보 대시보드 및 승인 업무 v1](planning/PROMOTION_OPERATIONS_MANAGER_DASHBOARD_V1.md)
