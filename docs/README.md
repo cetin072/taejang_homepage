@@ -14,6 +14,7 @@
 - [홍보 채널 운영 전략 및 콘텐츠 파생 구조 v1](planning/PROMOTION_CHANNEL_STRATEGY_V1.md)
 - [운영총괄 홍보 대시보드 및 승인 업무 v1](planning/PROMOTION_OPERATIONS_MANAGER_DASHBOARD_V1.md)
 - [근로자지원·고용유지 모듈 v1](planning/WORKER_SUPPORT_EMPLOYMENT_RETENTION_V1.md)
+- [인사 최소 기능 및 문서 다운로드 v1](planning/HR_MINIMUM_SCOPE_AND_EXPORTS_V1.md)
 
 대화에서 확정된 모듈별 기획은 `docs/planning/`에 기록합니다. 개발 작업과 PR은 해당 확정 기획을 기준으로 구현 여부를 대조해야 합니다.
 
