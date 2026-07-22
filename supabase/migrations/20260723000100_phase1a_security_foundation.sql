@@ -647,7 +647,7 @@ declare
   target_status public.account_status;
   normalized_roles text[];
   active_super_admin_count integer;
-  current_role record;
+  role_to_revoke record;
   requested_role record;
 begin
   if not public.current_user_has_role('super_admin') then
@@ -696,7 +696,7 @@ begin
     end if;
   end if;
 
-  for current_role in
+  for role_to_revoke in
     select assignment.id, role.code
     from public.profile_roles assignment
     join public.roles role on role.id = assignment.role_id
@@ -706,10 +706,10 @@ begin
   loop
     update public.profile_roles
     set revoked_at = now(), revoked_by = actor_id
-    where id = current_role.id;
+    where id = role_to_revoke.id;
     perform public.private_append_audit(
       actor_id, 'role_revoked', 'profile', p_target_profile_id::text, 'success',
-      left(p_reason_summary, 300), jsonb_build_object('role_code', current_role.code)
+      left(p_reason_summary, 300), jsonb_build_object('role_code', role_to_revoke.code)
     );
   end loop;
 
