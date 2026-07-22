@@ -22,6 +22,12 @@
 - [근로자지원·고용유지 모듈 v1](planning/WORKER_SUPPORT_EMPLOYMENT_RETENTION_V1.md)
 - [인사 최소 기능 및 문서 다운로드 v1](planning/HR_MINIMUM_SCOPE_AND_EXPORTS_V1.md)
 - [계정 가입·직책·역할 배정 기준 v1](planning/ACCOUNT_ROLE_ASSIGNMENT_POLICY_V1.md)
+- [결재·승인·대표 상신 체계 v1](planning/APPROVAL_AND_ESCALATION_V1.md)
+- [외부 지도자 제한 접근 및 업무 화면 v1](planning/EXTERNAL_GUIDE_LIMITED_ACCESS_V1.md)
+- [자료·문서·파일 연결 MVP v1](planning/FILE_LINK_MVP_V1.md)
+- [Google Workspace 연동 원칙 v1](planning/GOOGLE_WORKSPACE_INTEGRATION_V1.md)
+- [직책별 업무 가이드 제공 원칙 v1](planning/ROLE_BASED_WORK_GUIDES_V1.md)
+- [홍보팀장 전략·사업기획 역할 v1](planning/PROMOTION_TEAM_LEAD_STRATEGIC_ROLE_V1.md)
 
 ## MVP 최종 기준
 
@@ -29,6 +35,9 @@
 - [태장 업무플랫폼 MVP 최종 기능명세서 v1](planning/MVP_FUNCTIONAL_SPECIFICATION_V1.md)
 - [태장 업무플랫폼 역할별 권한표 v1](planning/ROLE_PERMISSION_MATRIX_V1.md)
 - [태장 업무플랫폼 역할별 화면 목록·이동도 v1](planning/ROLE_SCREEN_MAP_AND_NAVIGATION_V1.md)
+
+## Phase 1A 설계·구현계획
+
 - [태장 업무플랫폼 Phase 1A 데이터 모델 v1](planning/PHASE1A_DATA_MODEL_V1.md)
 - [태장 업무플랫폼 Phase 1A 접근권한·RLS 기준 v1](planning/PHASE1A_ACCESS_RLS_V1.md)
 - [태장 업무플랫폼 Phase 1A 구현계획 v1](planning/PHASE1A_IMPLEMENTATION_PLAN_V1.md)
@@ -36,6 +45,12 @@
 - [Codex 전달용 Phase 1A 보안 기반 작업지시문 v1](planning/CODEX_PHASE1A_SECURITY_FOUNDATION_PROMPT_V1.md)
 
 기획 종료 점검표와 최종 기능명세서가 승인된 이후에는 새로운 주요 기능을 추가하기보다 화면명세, 데이터 모델, RLS, 개발단계와 검수기준을 구체화합니다.
+
+## 후속 확장 전략
+
+- [장애인 친화 업무 플랫폼의 지원사업·출품 전략](planning/DISABILITY_INCLUSIVE_PLATFORM_FUNDING_STRATEGY.md)
+
+지원사업·출품 전략은 태장 현장 MVP를 복잡하게 만들지 않는 후속 활용 기준이며 Phase 1A 구현범위가 아닙니다.
 
 ## 프로젝트 현황
 
@@ -64,7 +79,7 @@
 - [B2B 공개 콘텐츠 인벤토리](B2B_CONTENT_INVENTORY.md)
 - [공개 홈페이지 콘텐츠 기준](reference/TAEJANG_PUBLIC_WEB_BRIEF.md)
 
-## 관리자·업무 플랫폼
+## 기존 관리자 시스템 기술문서
 
 - [관리자 시스템 로드맵](ADMIN_ROADMAP.md)
 - [Phase 0 기술 설계](ADMIN_PHASE0_TECHNICAL_ARCHITECTURE.md)
@@ -75,7 +90,9 @@
 - [관리자 보안 계획](ADMIN_SECURITY_PLAN.md)
 - [관리자 도입 의사결정](ADMIN_DECISION_LOG.md)
 
-계정 발급·일시 정지·퇴사 처리·복구·재배정의 기능 기준은 관리자 시스템 요구사항을 우선합니다. 화면은 화면 명세, 필드와 관계는 데이터 모델, Auth·RLS·Storage 차단은 보안 계획, 확정된 운영 판단은 의사결정 문서에서 관리합니다.
+공개 콘텐츠 관리자 안에서 화면은 화면 명세, 콘텐츠 필드와 관계는 데이터 모델, 파일·발행 보안은 보안 계획, 기존 운영 판단은 의사결정 문서에서 관리합니다.
+
+위 기존 관리자 문서는 공개 콘텐츠 관리 기술기준으로 유지합니다. 태장 업무플랫폼의 가입 승인, 조직·역할, 일반 근로자 화면과 Phase 1A 구현은 앞의 확정 기획·MVP 최종 기준·Phase 1A 문서를 우선합니다.
 
 ## 도메인·검색
 
