@@ -1,5 +1,9 @@
 # 관리자 시스템 논리 데이터 모델
 
+상태: **기존 공개 콘텐츠 관리자 데이터 초안 — Phase 1A 업무플랫폼 모델로 대체됨**
+
+신규 구현은 `planning/PHASE1A_DATA_MODEL_V1.md`를 우선한다. 아래 콘텐츠·revision·미디어 모델은 공개 콘텐츠 관리자 영역의 참고 기준으로 유지한다.
+
 이 문서는 SQL이 아닌 엔터티·필드·관계 초안입니다. 실제 migration은 Phase 0 결정과 보안 검토 후 별도 작업합니다.
 
 ## 1. 엔터티 관계
@@ -45,9 +49,11 @@ MVP: `notice`, `workplace`, `activity`. 후속: `press_release`, `recruitment`, 
 
 `author`, `reviewer`, `publisher`, `super_admin`, `developer`. 역할과 권한을 코드에 하드코딩할지 DB 권한표로 관리할지는 Phase 0에서 결정하되, DB RLS는 신뢰 가능한 역할 claim 또는 서버 검증을 사용합니다.
 
+위 역할은 기존 콘텐츠 관리자 역할의 부분집합이다. 업무플랫폼 전체 역할과 다중 역할·범위 관계는 `planning/PHASE1A_DATA_MODEL_V1.md`의 `roles`, `profile_roles`를 사용한다.
+
 ### 계정 상태
 
-`active`, `suspended`, `departed`, `deleted`. 일반 퇴사는 `departed`, 일시 정지는 `suspended`를 사용하고 `deleted`는 예외적인 영구삭제 절차가 끝난 뒤에만 사용합니다. 복구는 기존 세션을 되살리지 않고 `active`로 새 상태 전환을 기록합니다.
+`pending`, `active`, `suspended`, `departed`, `deleted`. `pending`은 회원가입 후 승인 전 상태로 내부자료 접근을 차단합니다. 일반 퇴사는 `departed`, 일시 정지는 `suspended`를 사용하고 `deleted`는 예외적인 영구삭제 절차가 끝난 뒤에만 사용합니다. 복구는 기존 세션을 되살리지 않고 `active`로 새 상태 전환을 기록합니다.
 
 ### 공개 범위
 

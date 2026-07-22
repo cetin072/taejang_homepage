@@ -3,6 +3,8 @@
 > 상태: **비운영 보안 프로토타입**
 >
 > 이 문서는 Phase 1 전체 구현이나 Supabase 채택 결정이 아닙니다. 실제 Supabase 프로젝트, 직원 계정, 운영 데이터, Netlify 설정, GitHub Actions, Build Hook, 비밀키, 운영 배포는 만들거나 변경하지 않습니다.
+>
+> 이 과거 프로토타입의 `profiles` 상태 초안에는 가입 승인 전 `pending`이 없다. 신규 migration이나 RLS의 기준으로 재사용하지 말고, `planning/PHASE1A_DATA_MODEL_V1.md`와 `planning/PHASE1A_ACCESS_RLS_V1.md`의 5개 상태와 승인 대기 차단을 적용한다.
 
 ## 1. 목적과 범위
 
@@ -51,7 +53,7 @@ node --test tests/admin-phase1a-publish.test.js
 
 | 개념 | 초안 테이블 | 핵심 원칙 |
 | --- | --- | --- |
-| 업무 프로필·상태 | `profiles` | `active/suspended/departed/deleted`; Auth 사용자와 분리 |
+| 업무 프로필·상태 | `profiles` | 과거 초안은 `active/suspended/departed/deleted`만 포함; 신규 구현은 `pending`을 포함한 확정 모델 사용 |
 | 역할 이력 | `user_roles` | `staff/reviewer/admin/super_admin`; 현재 역할 표시와 보존 |
 | 콘텐츠 | `contents` | 담당자·상태·공개 revision 참조 |
 | 콘텐츠 revision | `content_revisions` | 본문 변경은 revision 단위, 작성자 참조 보존 |

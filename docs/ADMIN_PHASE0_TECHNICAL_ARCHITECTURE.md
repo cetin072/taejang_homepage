@@ -3,6 +3,8 @@
 > 상태: **설계안 — 사용자 승인 전 미확정**
 >
 > 이 문서는 직원용 관리자 시스템의 Phase 1 구현 전에 결정해야 할 기술·보안·운영 구조를 정리합니다. 관리자 화면, Supabase 프로젝트, 데이터베이스, 로그인, 업로드, GitHub Actions, Netlify 설정 및 공개 홈페이지 코드는 이 문서로 구현하거나 변경하지 않습니다.
+>
+> 계정상태·역할·Phase 1A 범위는 이후 확정된 `planning/PHASE1A_DATA_MODEL_V1.md`, `planning/PHASE1A_ACCESS_RLS_V1.md`, `planning/PHASE1A_IMPLEMENTATION_PLAN_V1.md`로 대체되었습니다. 이 문서는 공개 콘텐츠 관리자와 정적 발행의 기존 기술 배경으로 유지합니다.
 
 ## 1. 목적과 범위
 
@@ -216,6 +218,7 @@ stateDiagram-v2
 
 | 상태 | 로그인 | 기존 세션·토큰 | 콘텐츠·검토·발행 | 업로드 | 기록 보존 |
 | --- | --- | --- | --- | --- | --- |
+| `pending` | 승인 대기 안내만 허용 | 제한 세션 | 전부 차단 | 전부 차단 | 가입·승인 이력 보존 |
 | `active` | 허용 | 정상 정책 적용 | 역할 범위에서 허용 | 역할 범위에서 허용 | 보존 |
 | `suspended` | 차단 | 즉시 무효화 | 전부 차단 | 전부 차단 | 보존 |
 | `departed` | 차단 | 즉시 무효화 | 전부 차단 | 전부 차단 | 보존 |
@@ -363,7 +366,7 @@ Phase 1 후보로는 **Supabase 기반 비공개 관리자 + 승인 콘텐츠의
 ### 포함
 
 - 관리자 로그인과 역할별 접근 통제
-- 개별 직원 계정 생성, `active`·`suspended`·`departed`·`deleted` 상태 모델
+- 회원가입·승인 대기, `pending`·`active`·`suspended`·`departed`·`deleted` 상태 모델
 - `suspended`·`departed` 시 로그인·기존 세션·작성·수정·삭제·검토·승인·발행·업로드 차단
 - 마지막 active 최고관리자 보호
 - 담당 콘텐츠 재배정과 원 작성자·revision·감사 기록 보존
@@ -422,7 +425,7 @@ Phase 1 후보로는 **Supabase 기반 비공개 관리자 + 승인 콘텐츠의
 
 - [ ] 백엔드와 관리형 인증 후보의 공식 문서·비용·장애 정책 검토
 - [ ] 상태 변경 시 세션·refresh token·API·RLS·Storage 차단의 실제 구현 가능성 확인
-- [ ] `active`·`suspended`·`departed`·`deleted` 상태 전환 표와 권한 매트릭스 승인
+- [x] `pending`·`active`·`suspended`·`departed`·`deleted` 상태 전환과 권한 기준은 후속 확정 문서로 대체
 - [ ] 마지막 active 최고관리자 보호의 서버·DB 검증 방식 확정
 - [ ] 콘텐츠 유형, revision, 승인 권한, 공개 allowlist 확정
 - [ ] 발행 방식·저장소 구조·GitHub 권한·Netlify 배포 영향 승인
