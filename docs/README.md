@@ -14,6 +14,7 @@
 - [태장 1차 목표 인원 구성 v1](planning/EXPECTED_STAFFING_V1.md)
 - [일반 장애인 근로자용 정보게시판 기준 v1](planning/GENERAL_WORKER_INFORMATION_BOARD_V1.md)
 - [현장 관리자·반장 운영기록 기준 v1](planning/FIELD_LEAD_OPERATION_RECORDS_V1.md)
+- [업무유형별 기록 수준 기준 v1](planning/WORK_RECORD_DEPTH_POLICY_V1.md)
 - [태장 일반 근로자용 장애인 친화 업무안내 화면 v1](planning/MOBILE_TASK_DASHBOARD_V1.md) — 상세 화면 기준
 - [홍보직원 대시보드 v1 확정 기획](planning/PROMOTION_EMPLOYEE_DASHBOARD_V1.md)
 - [홍보 채널 운영 전략 및 콘텐츠 파생 구조 v1](planning/PROMOTION_CHANNEL_STRATEGY_V1.md)
@@ -21,7 +22,11 @@
 - [근로자지원·고용유지 모듈 v1](planning/WORKER_SUPPORT_EMPLOYMENT_RETENTION_V1.md)
 - [인사 최소 기능 및 문서 다운로드 v1](planning/HR_MINIMUM_SCOPE_AND_EXPORTS_V1.md)
 
-대화에서 확정된 모듈별 기획은 `docs/planning/`에 기록합니다. 개발 작업과 PR은 해당 확정 기획을 기준으로 구현 여부를 대조해야 합니다.
+## 기획 종료 점검
+
+- [태장 업무플랫폼 MVP 기획 종료 점검표 v1](planning/MVP_PLANNING_CLOSURE_CHECKLIST_V1.md)
+
+대화에서 확정된 모듈별 기획은 `docs/planning/`에 기록합니다. 개발 작업과 PR은 해당 확정 기획을 기준으로 구현 여부를 대조해야 합니다. 기획 종료 점검표가 승인되면 새로운 주요 기능 논의보다 MVP 기능명세와 기술설계 단계로 이동합니다.
 
 ## 프로젝트 현황
 
