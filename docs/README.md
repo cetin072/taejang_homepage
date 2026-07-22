@@ -28,6 +28,7 @@
 - [태장 업무플랫폼 MVP 기획 종료 점검표 v1](planning/MVP_PLANNING_CLOSURE_CHECKLIST_V1.md)
 - [태장 업무플랫폼 MVP 최종 기능명세서 v1](planning/MVP_FUNCTIONAL_SPECIFICATION_V1.md)
 - [태장 업무플랫폼 역할별 권한표 v1](planning/ROLE_PERMISSION_MATRIX_V1.md)
+- [태장 업무플랫폼 역할별 화면 목록·이동도 v1](planning/ROLE_SCREEN_MAP_AND_NAVIGATION_V1.md)
 
 기획 종료 점검표와 최종 기능명세서가 승인된 이후에는 새로운 주요 기능을 추가하기보다 화면명세, 데이터 모델, RLS, 개발단계와 검수기준을 구체화합니다.
 
