@@ -50,7 +50,12 @@ select is((select count(*)::integer from public.departments), 0, 'pending user c
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
-select is((select count(*)::integer from public.departments), 0, 'anonymous user cannot read internal tables');
+select throws_ok(
+  $$select count(*) from public.departments$$,
+  '42501',
+  'permission denied for table departments',
+  'anonymous user cannot read internal tables'
+);
 
 reset role;
 select is(
