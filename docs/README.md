@@ -32,6 +32,8 @@
 - [태장 업무플랫폼 Phase 1A 데이터 모델 v1](planning/PHASE1A_DATA_MODEL_V1.md)
 - [태장 업무플랫폼 Phase 1A 접근권한·RLS 기준 v1](planning/PHASE1A_ACCESS_RLS_V1.md)
 - [태장 업무플랫폼 Phase 1A 구현계획 v1](planning/PHASE1A_IMPLEMENTATION_PLAN_V1.md)
+- [PR #17 최종 정리·개발 인계 기준 v1](planning/PR17_FINALIZATION_AND_HANDOFF_V1.md)
+- [Codex 전달용 Phase 1A 보안 기반 작업지시문 v1](planning/CODEX_PHASE1A_SECURITY_FOUNDATION_PROMPT_V1.md)
 
 기획 종료 점검표와 최종 기능명세서가 승인된 이후에는 새로운 주요 기능을 추가하기보다 화면명세, 데이터 모델, RLS, 개발단계와 검수기준을 구체화합니다.
 
