@@ -186,10 +186,115 @@ node scripts/validate-content.test.js
 
 운영 Supabase에 바로 migration을 붙이지 않는다. 먼저 로컬 또는 별도 비운영 프로젝트에서 DB reset, pgTAP, 실제 회원가입, 승인, 정지·퇴사 후 기존 세션 요청, Security Advisor를 확인한다.
 
-## 12. 실제 적용 전 점검
+### 11.1 GitHub Actions 자동 통합검증
+
+`.github/workflows/phase1a-supabase-integration.yml`은 PR이 `supabase/**` 또는 Phase 1A 테스트를 바꿀 때 다음을 자동 실행한다.
+
+1. 고정 버전 Supabase CLI 준비
+2. GitHub 임시 Ubuntu 러너의 Docker에서 로컬 Supabase 시작
+3. 깨끗한 DB에 migration 재적용
+4. DB lint
+5. pgTAP 데이터베이스 보안 테스트
+6. 실제 로컬 Auth 회원가입과 Data API/RPC/RLS 테스트
+7. 성공·실패와 관계없이 로컬 컨테이너 종료
+
+이 CI는 `supabase link`, 운영 프로젝트, GitHub Secrets, 외부 DB 비밀번호를 사용하지 않는다. 로컬 스택이 실행 중 생성한 키는 러너의 `/tmp` 환경파일에서만 읽고 작업 종료와 함께 폐기한다.
+
+## 12. 별도 비운영 Supabase 프로젝트 검증 체크리스트
+
+로컬 Docker를 사용할 수 없거나 실제 Supabase Dashboard까지 확인하려면 운영 프로젝트와 완전히 분리된 테스트 프로젝트를 사용한다. 운영 DB에서 계정 정지·퇴사·역할 회수와 migration 재실행을 시험하면 실제 직원의 로그인과 데이터에 영향을 줄 수 있으므로 운영 프로젝트에 직접 시험하지 않는다.
+
+### 12.1 비운영 프로젝트 만들기
+
+1. Supabase Dashboard에 로그인한다.
+2. 태장이 사용하는 Organization을 선택한다.
+3. **New project**를 누른다.
+4. 프로젝트 이름을 `taejang-phase1a-test`처럼 운영과 분명히 구별한다.
+5. 새 DB 비밀번호를 만들고 비밀번호 관리자에 보관한다. GitHub·카카오톡·문서에는 기록하지 않는다.
+6. 운영 프로젝트와 같은 지역을 선택하되, 화면 상단 프로젝트 이름이 항상 `test`인지 확인한다.
+7. 프로젝트 준비가 끝날 때까지 기다린다.
+8. **Authentication → Providers → Email**에서 테스트 중에는 이메일 확인을 끈다. 테스트 종료 후 프로젝트를 폐기하므로 실제 메일주소는 사용하지 않는다.
+
+> 실제 김형철 계정, 실제 직원 이메일, 전화번호, 장애·건강·상담·인사정보를 입력하지 않는다. `phase1a-admin@example.test`, `phase1a-worker@example.test`처럼 명백한 가상 테스트 정보만 사용한다.
+
+### 12.2 Project URL과 Publishable key 확인
+
+1. 비운영 프로젝트에서 **Connect**를 연다.
+2. Project URL을 복사한다. 형식은 `https://프로젝트참조값.supabase.co`이다.
+3. **Settings → API Keys → Publishable and secret API keys**로 이동한다.
+4. **Publishable key**만 복사한다. `sb_publishable_...` 형식이다.
+5. Secret key, legacy `service_role`, DB 연결문자열은 브라우저 설정에 복사하지 않는다.
+
+로컬 수동 확인은 Git에서 제외되는 `.env`에 다음 두 값만 넣는다.
+
+```dotenv
+SUPABASE_URL=https://TEST_PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_TEST_VALUE
+```
+
+Netlify Deploy Preview로 확인할 때는 **Site configuration → Environment variables**에 같은 이름을 만들고, 가능하면 배포 범위를 **Deploy Previews** 또는 PR #19 브랜치로 제한한다. 운영 배포 범위에는 아직 넣지 않는다.
+
+### 12.3 Migration 적용
+
+Docker 없이도 원격 비운영 프로젝트에는 CLI로 migration을 적용할 수 있다. 저장소 루트에서 실행한다.
+
+```bash
+npx supabase@2.109.1 login
+npx supabase@2.109.1 link --project-ref TEST_PROJECT_REF
+npx supabase@2.109.1 db push --dry-run
+npx supabase@2.109.1 db push
+npx supabase@2.109.1 migration list
+```
+
+- `TEST_PROJECT_REF`는 Project URL에서 `https://`와 `.supabase.co` 사이의 값이다.
+- 로그인용 Supabase Personal Access Token과 DB 비밀번호는 터미널 프롬프트에만 입력한다.
+- `--dry-run`에서 적용 대상이 `20260723000100_phase1a_security_foundation.sql` 하나인지 먼저 확인한다.
+- `migration list`에서 해당 migration이 Local과 Remote 모두 적용된 것으로 표시되면 성공이다.
+- `db push`가 실패하면 migration의 `begin`~`commit` 트랜잭션이 전체 변경을 되돌린다. 같은 프로젝트에서 임의 SQL로 일부만 고치지 말고 오류를 수정한 뒤 새 비운영 프로젝트에서 다시 검증한다.
+
+SQL Editor를 대안으로 사용할 때는 migration 파일 전체를 처음부터 끝까지 한 번만 실행한다. 일부 구간만 나누어 실행하지 않는다.
+
+### 12.4 테스트 계정과 테스트 최고관리자
+
+1. PR #19 Deploy Preview의 `/staff/`에서 `phase1a-admin@example.test` 가상 계정을 가입한다.
+2. **Authentication → Users**에서 이 테스트 계정이 생성됐는지 확인하고 UUID를 복사한다.
+3. **Table Editor → profiles**에서 `account_status = pending`인지 확인한다.
+4. SQL Editor에서 실제 김형철 계정 대신 이 가상 UUID로 1회 bootstrap한다.
+
+```sql
+select public.bootstrap_super_admin('TEST_ADMIN_AUTH_UUID'::uuid);
+```
+
+5. 결과가 `SUPER_ADMIN_BOOTSTRAPPED`인지 확인한다.
+6. 같은 방식으로 `phase1a-worker@example.test`를 가입한다.
+7. 테스트 최고관리자로 로그인해 일반 테스트 계정을 부서 `운영`, 직책 `담당자`, 역할 `일반 사무직원`으로 승인한다.
+
+### 12.5 승인·정지·퇴사·보호 검증
+
+- 승인 전: 일반 테스트 계정은 승인 대기 화면만 보이고 부서·역할·다른 사용자 데이터는 보이지 않아야 한다.
+- 승인 후: `active`가 되고 허용된 기준정보만 조회되어야 한다.
+- 일반 사용자: 본인이나 다른 사용자의 상태·역할을 바꾸려 하면 `FORBIDDEN`이어야 한다.
+- 정지: 일반 사용자의 브라우저를 로그인 상태로 둔 채 최고관리자가 `suspended`로 바꾼다. 새로고침하지 않은 기존 access token 요청도 내부 데이터 0건 또는 접근 거부여야 한다.
+- 재활성화 후 퇴사: 다시 `active`로 바꾼 다음 `departed`로 바꾼다. 같은 기존 token의 내부 요청이 즉시 막혀야 한다.
+- 마지막 최고관리자: 최고관리자가 한 명일 때 정지와 `super_admin` 회수 결과가 `LAST_ACTIVE_SUPER_ADMIN_PROTECTED`여야 한다.
+- 두 명 보호: 일반 테스트 계정을 `active + super_admin`으로 만든 뒤 첫 번째 최고관리자의 역할을 회수하면 성공하고 활성 최고관리자가 정확히 한 명 남아야 한다.
+- 감사로그: 가입·승인·상태·역할 변경이 기록되고, 일반 사용자의 직접 insert/update/delete는 실패해야 한다.
+- Bootstrap API: 로그인한 브라우저에서 `bootstrap_super_admin` RPC를 직접 호출해도 권한 오류가 나야 한다.
+
+성공 판정은 migration 적용, pgTAP 전부 PASS, 실제 Auth 가입, 상태별 RLS, 기존 token 차단, 마지막 최고관리자 보호, 감사로그 불변성이 모두 확인된 경우다.
+
+### 12.6 실패 복구와 테스트 프로젝트 폐기
+
+- migration 실패: 오류 전문을 저장하고 운영 프로젝트에는 아무 작업도 하지 않는다. 새 비운영 프로젝트를 만들어 수정 migration을 처음부터 재검증한다.
+- 계정/RLS 실패: 테스트를 중단하고 PR을 병합하지 않는다. 실패한 상태와 access token은 실제 개인정보 없이 기록한다.
+- 초기화가 필요할 때: 연결된 프로젝트 이름과 Project Ref가 `taejang-phase1a-test`인지 두 번 확인한다. 초보자에게는 원격 `db reset --linked`보다 테스트 프로젝트 삭제 후 새로 만드는 방식을 권장한다.
+- 폐기: Supabase의 비운영 프로젝트 **Settings**에서 프로젝트 삭제를 선택하고 정확한 테스트 프로젝트 이름을 확인한다. 삭제하면 DB·Auth·백업이 복구되지 않으므로 운영 프로젝트 이름이면 즉시 취소한다.
+- 폐기 후: Netlify의 Deploy Preview용 `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`를 삭제하고 로컬 `.env`도 삭제한다. GitHub 저장소에는 키가 없어야 한다.
+
+## 13. 실제 적용 전 점검
 
 - [ ] Supabase CLI·Docker 환경에서 migration 성공
-- [ ] pgTAP 44개 검증 통과
+- [ ] pgTAP 60개 검증 통과
 - [ ] 이메일 확인 on/off 각각 회원가입 확인
 - [ ] `pending` 기존 세션으로 내부 select/insert/update/delete 거부
 - [ ] `suspended`, `departed`, `deleted` 기존 access token 요청 거부
@@ -200,16 +305,16 @@ node scripts/validate-content.test.js
 - [ ] 실제 개인정보 대신 가상 테스트 계정만 사용
 - [ ] 공개 홈페이지 회귀 검사 기준선 오류를 별도 PR에서 정리
 
-## 13. 알려진 위험과 후속 작업
+## 14. 알려진 위험과 후속 작업
 
-- 현재 환경에는 Supabase CLI, Docker, PostgreSQL이 없어 migration·RLS·Auth 통합 테스트를 실행하지 못했다.
+- 현재 Codex 작업환경에서는 Supabase CLI를 임시 `npm exec`로 실행할 수 있지만 Docker socket 권한과 PostgreSQL 클라이언트가 없어 로컬 stack을 실행할 수 없다. GitHub Actions에서 동일 검증을 수행한다.
 - 최소 화면은 보안 흐름 검증용이며 완성형 PWA가 아니다.
 - 브라우저 세션은 이 단계에서 `sessionStorage`를 사용한다. 장기 로그인, PKCE, 보안 쿠키와 PWA 세션 정책은 후속 앱 구조에서 다시 결정한다.
 - 계정 상태 변경 뒤 DB 차단은 즉시 적용되지만 Auth refresh session 자동 폐기는 아직 연결되지 않았다.
 - 파일 업로드·Storage가 범위 밖이므로 업로드 차단 정책은 후속 migration이 필요하다.
 - 기존 공개 홈페이지 기준선에는 콘텐츠 검증과 사이트 감사 오류가 남아 있다. 이번 PR이 만든 회귀는 아니며 공개 콘텐츠 파일을 범위 밖에서 수정하지 않는다.
 
-## 14. 공식 기술 참고자료
+## 15. 공식 기술 참고자료
 
 - [Supabase User sessions](https://supabase.com/docs/guides/auth/sessions)
 - [Supabase Signing out](https://supabase.com/docs/guides/auth/signout)

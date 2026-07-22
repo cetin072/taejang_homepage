@@ -32,6 +32,28 @@ test('migration contains the minimum organization and audit tables', () => {
   }
 });
 
+test('migration is atomic and pins security-definer ownership', () => {
+  assert.match(SQL, /^\s*--[\s\S]*?\bbegin;/i);
+  assert.match(SQL, /commit;\s*$/i);
+  for (const signature of [
+    'current_profile_is_active\\(\\)',
+    'current_user_has_role\\(text\\)',
+    'private_append_audit\\(uuid, text, text, text, text, text, jsonb\\)',
+    'handle_new_auth_user\\(\\)',
+    'get_my_access_context\\(\\)',
+    'list_pending_profiles\\(\\)',
+    'approve_pending_user\\(uuid, uuid, uuid, text\\[\\], text\\)',
+    'record_pending_decision\\(uuid, text, text\\)',
+    'change_account_status\\(uuid, public\\.account_status, text\\)',
+    'assign_profile_organization\\(uuid, uuid, uuid, text\\)',
+    'set_profile_roles\\(uuid, text\\[\\], text\\)',
+    'bootstrap_super_admin\\(uuid\\)',
+    'guard_last_active_super_admin_direct_write\\(\\)',
+  ]) {
+    assert.match(SQL, new RegExp(`alter function public\\.${signature} owner to postgres`, 'i'));
+  }
+});
+
 test('new Auth users are created pending', () => {
   assert.match(SQL, /after insert on auth\.users/i);
   assert.match(SQL, /values \(new\.id,[\s\S]*'pending'\)/i);
@@ -72,6 +94,19 @@ test('audit and status history are append-only for browser roles', () => {
   assert.doesNotMatch(SQL, /create policy[\s\S]*audit_logs[\s\S]*for (insert|update|delete)/i);
 });
 
+test('audit guard rejects nested sensitive keys and secret-shaped reason text', () => {
+  assert.match(SQL, /UNSAFE_AUDIT_METADATA_KEY/);
+  assert.match(SQL, /UNSAFE_AUDIT_REASON/);
+  assert.match(SQL, /sb_secret_/);
+  assert.match(SQL, /access\[ _-\]\?token/);
+});
+
+test('inactive access context omits display name, organization and roles', () => {
+  assert.match(SQL, /when profile\.account_status in \('pending', 'active'\) then profile\.display_name/i);
+  assert.match(SQL, /when profile\.account_status <> 'active' or department\.id is null then null/i);
+  assert.match(SQL, /when profile\.account_status <> 'active' then '\[\]'::jsonb/i);
+});
+
 test('browser files contain no service-role secret or key-shaped literal', () => {
   const browserFiles = [...filesUnder('staff'), ...filesUnder('admin'), ...filesUnder('assets')];
   for (const relative of browserFiles) {
@@ -103,4 +138,32 @@ test('staff code routes pending and blocked accounts away from internal panel', 
   assert.match(source, /account_status !== 'active'/);
   assert.match(source, /show\('pending-panel'\)/);
   assert.match(source, /show\('blocked-panel'\)/);
+});
+
+test('local integration workflow uses no hosted project or repository secrets', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/phase1a-supabase-integration.yml'), 'utf8');
+  const config = fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8');
+  assert.match(workflow, /supabase\/setup-cli@v1/);
+  assert.match(workflow, /supabase start/);
+  assert.match(workflow, /supabase db reset/);
+  assert.match(workflow, /supabase test db/);
+  assert.match(workflow, /phase1a-auth-integration\.mjs/);
+  assert.doesNotMatch(workflow, /secrets\.|supabase link|db push/i);
+  assert.doesNotMatch(config, /project_ref|access_token|service_role|sb_secret_|eyJ/i);
+});
+
+test('real Auth integration covers the required state and super-admin scenarios', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'tests/phase1a-auth-integration.mjs'), 'utf8');
+  for (const marker of [
+    '/auth/v1/signup',
+    'ACCOUNT_APPROVED',
+    'FORBIDDEN',
+    "p_new_status: 'suspended'",
+    "p_new_status: 'departed'",
+    'LAST_ACTIVE_SUPER_ADMIN_PROTECTED',
+    'a second active super admin can be granted',
+    'one super admin role can be revoked when two are active',
+  ]) {
+    assert.ok(source.includes(marker), `missing integration scenario: ${marker}`);
+  }
 });

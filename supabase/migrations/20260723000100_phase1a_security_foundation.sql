@@ -1,6 +1,8 @@
 -- Taejang Work Platform Phase 1A security foundation.
 -- Apply to a local or non-production Supabase project before any production use.
 
+begin;
+
 create extension if not exists pgcrypto;
 
 create type public.account_status as enum (
@@ -209,8 +211,6 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
-declare
-  metadata_key text;
 begin
   if p_outcome not in ('success', 'denied', 'failed') then
     raise exception using errcode = '22023', message = 'INVALID_AUDIT_OUTCOME';
@@ -218,12 +218,14 @@ begin
   if p_metadata is null or jsonb_typeof(p_metadata) <> 'object' or octet_length(p_metadata::text) > 4096 then
     raise exception using errcode = '22023', message = 'INVALID_AUDIT_METADATA';
   end if;
-  for metadata_key in select jsonb_object_keys(p_metadata)
-  loop
-    if lower(metadata_key) ~ '(password|token|secret|api[_-]?key|refresh|health|disability|consultation)' then
-      raise exception using errcode = '22023', message = 'UNSAFE_AUDIT_METADATA_KEY';
-    end if;
-  end loop;
+  -- Inspect the serialized object so sensitive key names are rejected at every
+  -- nesting level, not only at the top level.
+  if p_metadata::text ~* '"[^"]*(password|token|secret|api[_-]?key|refresh|health|disability|consultation|비밀번호|토큰|비밀키|건강|장애|상담)[^"]*"[[:space:]]*:' then
+    raise exception using errcode = '22023', message = 'UNSAFE_AUDIT_METADATA_KEY';
+  end if;
+  if coalesce(p_reason_summary, '') ~* '(password|access[ _-]?token|refresh[ _-]?token|service[ _-]?role|secret[ _-]?key|api[ _-]?key|sb_secret_|eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}|비밀번호|접근[ ]?토큰|새로고침[ ]?토큰|서비스[ ]?키|비밀키|건강[ ]?상세|장애[ ]?상세|상담[ ]?원문)' then
+    raise exception using errcode = '22023', message = 'UNSAFE_AUDIT_REASON';
+  end if;
 
   insert into public.audit_logs (
     actor_profile_id,
@@ -302,7 +304,10 @@ set search_path = ''
 as $$
   select jsonb_build_object(
     'id', profile.id,
-    'display_name', profile.display_name,
+    'display_name', case
+      when profile.account_status in ('pending', 'active') then profile.display_name
+      else null
+    end,
     'account_status', profile.account_status,
     'department', case
       when profile.account_status <> 'active' or department.id is null then null
@@ -858,6 +863,23 @@ alter table public.profile_roles enable row level security;
 alter table public.account_status_history enable row level security;
 alter table public.audit_logs enable row level security;
 
+-- Supabase migrations run as postgres. Keep every SECURITY DEFINER function
+-- owned by that non-login database owner so an application role cannot replace
+-- the function body and inherit elevated access.
+alter function public.current_profile_is_active() owner to postgres;
+alter function public.current_user_has_role(text) owner to postgres;
+alter function public.private_append_audit(uuid, text, text, text, text, text, jsonb) owner to postgres;
+alter function public.handle_new_auth_user() owner to postgres;
+alter function public.get_my_access_context() owner to postgres;
+alter function public.list_pending_profiles() owner to postgres;
+alter function public.approve_pending_user(uuid, uuid, uuid, text[], text) owner to postgres;
+alter function public.record_pending_decision(uuid, text, text) owner to postgres;
+alter function public.change_account_status(uuid, public.account_status, text) owner to postgres;
+alter function public.assign_profile_organization(uuid, uuid, uuid, text) owner to postgres;
+alter function public.set_profile_roles(uuid, text[], text) owner to postgres;
+alter function public.bootstrap_super_admin(uuid) owner to postgres;
+alter function public.guard_last_active_super_admin_direct_write() owner to postgres;
+
 create policy departments_active_read on public.departments
 for select to authenticated
 using ((select public.current_profile_is_active()) and active);
@@ -935,4 +957,7 @@ grant execute on function public.set_profile_roles(uuid, text[], text) to authen
 
 -- Prevent newly added functions from being callable by browser roles unless a later
 -- reviewed migration grants them explicitly.
-alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
+alter default privileges for role postgres in schema public
+  revoke execute on functions from public, anon, authenticated;
+
+commit;

@@ -1,0 +1,61 @@
+name: Phase 1A Supabase Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/phase1a-supabase-integration.yml"
+      - "supabase/**"
+      - "tests/phase1a-auth-integration.mjs"
+      - "tests/phase1a-security-foundation.test.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase1a-supabase-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: Migration, pgTAP, Auth and RLS
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Run static security checks
+        run: node --test tests/phase1a-security-foundation.test.js
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Reapply migrations from a clean database
+        run: supabase db reset
+
+      - name: Lint database schema
+        run: supabase db lint --level error
+
+      - name: Run pgTAP security tests
+        run: supabase test db supabase/tests/database/*.test.sql
+
+      - name: Run real Auth and Data API integration
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/taejang-supabase.env
+          set -a
+          source /tmp/taejang-supabase.env
+          set +a
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
