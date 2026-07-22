@@ -21,12 +21,15 @@
 - [운영총괄 홍보 대시보드 및 승인 업무 v1](planning/PROMOTION_OPERATIONS_MANAGER_DASHBOARD_V1.md)
 - [근로자지원·고용유지 모듈 v1](planning/WORKER_SUPPORT_EMPLOYMENT_RETENTION_V1.md)
 - [인사 최소 기능 및 문서 다운로드 v1](planning/HR_MINIMUM_SCOPE_AND_EXPORTS_V1.md)
+- [계정 가입·직책·역할 배정 기준 v1](planning/ACCOUNT_ROLE_ASSIGNMENT_POLICY_V1.md)
 
-## 기획 종료 점검
+## MVP 최종 기준
 
 - [태장 업무플랫폼 MVP 기획 종료 점검표 v1](planning/MVP_PLANNING_CLOSURE_CHECKLIST_V1.md)
+- [태장 업무플랫폼 MVP 최종 기능명세서 v1](planning/MVP_FUNCTIONAL_SPECIFICATION_V1.md)
+- [태장 업무플랫폼 역할별 권한표 v1](planning/ROLE_PERMISSION_MATRIX_V1.md)
 
-대화에서 확정된 모듈별 기획은 `docs/planning/`에 기록합니다. 개발 작업과 PR은 해당 확정 기획을 기준으로 구현 여부를 대조해야 합니다. 기획 종료 점검표가 승인되면 새로운 주요 기능 논의보다 MVP 기능명세와 기술설계 단계로 이동합니다.
+기획 종료 점검표와 최종 기능명세서가 승인된 이후에는 새로운 주요 기능을 추가하기보다 화면명세, 데이터 모델, RLS, 개발단계와 검수기준을 구체화합니다.
 
 ## 프로젝트 현황
 
