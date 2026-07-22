@@ -1,6 +1,10 @@
 -- Phase 1A security spike only. Do NOT apply to production.
 -- Intended for a future Supabase local environment or a PostgreSQL test database.
 -- It creates no cloud project, users, tokens, storage bucket, or deployment.
+-- This is the historical public-content administrator prototype from PR #14.
+-- The work-platform account foundation now lives in
+-- supabase/migrations/20260723000100_phase1a_security_foundation.sql.
+-- Do not apply both schemas to one fresh database: their profiles and role types conflict.
 
 create extension if not exists pgcrypto;
 
