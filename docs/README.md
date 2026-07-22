@@ -102,6 +102,7 @@
 
 ## 개발·운영 기준
 
+- [Phase 1A 인증·계정·권한 보안 기반 구현](PHASE1A_SECURITY_FOUNDATION_IMPLEMENTATION.md)
 - [자산 관리 기준](operations/ASSET_POLICY.md)
 - [Codex 작업 흐름](operations/CODEX_WORKFLOW.md)
 - [반복 명령 템플릿](operations/COMMAND_LIBRARY.md)
