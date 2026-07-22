@@ -22,6 +22,7 @@
 - [근로자지원·고용유지 모듈 v1](planning/WORKER_SUPPORT_EMPLOYMENT_RETENTION_V1.md)
 - [인사 최소 기능 및 문서 다운로드 v1](planning/HR_MINIMUM_SCOPE_AND_EXPORTS_V1.md)
 - [계정 가입·직책·역할 배정 기준 v1](planning/ACCOUNT_ROLE_ASSIGNMENT_POLICY_V1.md)
+- [태장 임직원 업무앱 진입·설치 기준 v1](planning/STAFF_PWA_ENTRY_AND_INSTALLATION_V1.md)
 - [결재·승인·대표 상신 체계 v1](planning/APPROVAL_AND_ESCALATION_V1.md)
 - [외부 지도자 제한 접근 및 업무 화면 v1](planning/EXTERNAL_GUIDE_LIMITED_ACCESS_V1.md)
 - [자료·문서·파일 연결 MVP v1](planning/FILE_LINK_MVP_V1.md)
