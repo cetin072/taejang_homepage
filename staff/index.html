@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>태장 업무앱</title>
+  <link rel="stylesheet" href="assets/staff.css">
+</head>
+<body>
+  <main class="staff-shell">
+    <header class="staff-header">
+      <a href="../index.html" class="staff-brand" aria-label="태장 공개 홈페이지로 이동">태장</a>
+      <button id="logout-button" class="button button-quiet" type="button" hidden>로그아웃</button>
+    </header>
+
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">임직원 전용</p>
+      <h1 id="page-title">태장 업무앱</h1>
+      <p>로그인하거나 처음 사용하는 직원은 회원가입을 신청하세요.</p>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+
+    <section id="setup-panel" class="panel" hidden>
+      <h2>연결 설정이 필요합니다</h2>
+      <p>Supabase 공개 연결값이 아직 설정되지 않았습니다. 운영 담당자에게 알려주세요.</p>
+    </section>
+
+    <section id="auth-panel" class="auth-grid" hidden>
+      <form id="login-form" class="panel">
+        <h2>로그인</h2>
+        <label>업무용 이메일
+          <input name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>비밀번호
+          <input name="password" type="password" autocomplete="current-password" minlength="8" required>
+        </label>
+        <button class="button" type="submit">로그인</button>
+      </form>
+
+      <form id="signup-form" class="panel">
+        <h2>처음 사용하는 직원</h2>
+        <p class="help">가입 후 최고관리자가 소속과 역할을 확인할 때까지 내부자료를 볼 수 없습니다.</p>
+        <label>이름
+          <input name="display_name" type="text" autocomplete="name" maxlength="80" required>
+        </label>
+        <label>업무용 이메일
+          <input name="email" type="email" autocomplete="email" required>
+        </label>
+        <label>비밀번호
+          <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <button class="button button-secondary" type="submit">회원가입 신청</button>
+      </form>
+    </section>
+
+    <section id="pending-panel" class="panel state-panel" hidden>
+      <span class="state-icon" aria-hidden="true">⏳</span>
+      <h2>가입 승인을 기다리고 있습니다</h2>
+      <p>신원과 소속 확인 후 사용할 수 있습니다. 잠시 후 다시 로그인하거나 담당자에게 문의하세요.</p>
+    </section>
+
+    <section id="blocked-panel" class="panel state-panel" hidden>
+      <span class="state-icon" aria-hidden="true">🔒</span>
+      <h2>현재 업무앱을 사용할 수 없습니다</h2>
+      <p id="blocked-copy">계정 상태를 담당자에게 확인하세요.</p>
+    </section>
+
+    <section id="app-panel" class="panel" hidden>
+      <p class="eyebrow">보안 기반 확인 화면</p>
+      <h2><span id="profile-name"></span>님, 로그인되었습니다</h2>
+      <dl class="profile-summary">
+        <div><dt>계정 상태</dt><dd id="profile-status"></dd></div>
+        <div><dt>부서</dt><dd id="profile-department"></dd></div>
+        <div><dt>직책</dt><dd id="profile-position"></dd></div>
+        <div><dt>역할</dt><dd id="profile-roles"></dd></div>
+      </dl>
+      <p class="help">이번 단계에서는 로그인·권한 차단만 확인합니다. 실제 오늘의 업무와 작업방법은 후속 개발에서 제공됩니다.</p>
+    </section>
+
+    <section id="admin-panel" class="panel" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">시스템 최고관리자</p>
+          <h2>가입 승인 대기</h2>
+        </div>
+        <button id="refresh-pending" class="button button-quiet" type="button">새로고침</button>
+      </div>
+      <p class="help">실제 소속을 확인한 사람만 부서·직책·역할을 배정하고 승인하세요.</p>
+      <div id="pending-list" class="account-list"></div>
+    </section>
+  </main>
+  <script src="assets/staff.js" defer></script>
+</body>
+</html>
