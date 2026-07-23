@@ -17,6 +17,7 @@
 - [일반 근로자 일정·중요공지 구현](STAFF_SCHEDULES_AND_NOTICES_IMPLEMENTATION.md)
 - [역할별 대시보드·공통 앱 셸 구현](ROLE_BASED_DASHBOARD_SHELLS_IMPLEMENTATION.md)
 - [일반 근로자 자주 보는 안내 구현](FREQUENT_STAFF_GUIDANCE_IMPLEMENTATION.md)
+- [Phase 1 통합 검수·시범운영 준비](PHASE1_INTEGRATED_READINESS_REVIEW.md)
 - [현장 관리자·반장 운영기록 기준 v1](planning/FIELD_LEAD_OPERATION_RECORDS_V1.md)
 - [업무유형별 기록 수준 기준 v1](planning/WORK_RECORD_DEPTH_POLICY_V1.md)
 - [태장 일반 근로자용 장애인 친화 업무안내 화면 v1](planning/MOBILE_TASK_DASHBOARD_V1.md) — 상세 화면 기준
@@ -108,6 +109,9 @@
 
 - [Phase 1A 인증·계정·권한 보안 기반 구현](PHASE1A_SECURITY_FOUNDATION_IMPLEMENTATION.md)
 - [일반 근로자 ‘오늘’ 정보게시판 구현](GENERAL_WORKER_TODAY_BOARD_IMPLEMENTATION.md)
+- [Phase 1 수동 검수 체크리스트](operations/PHASE1_MANUAL_QA_CHECKLIST.md)
+- [Phase 1 비운영 샘플 데이터 가이드](operations/PHASE1_STAGING_DATA_GUIDE.md)
+- [Phase 1 운영 적용 전 체크리스트](operations/PHASE1_PRODUCTION_READINESS_CHECKLIST.md)
 - [자산 관리 기준](operations/ASSET_POLICY.md)
 - [Codex 작업 흐름](operations/CODEX_WORKFLOW.md)
 - [반복 명령 템플릿](operations/COMMAND_LIBRARY.md)
