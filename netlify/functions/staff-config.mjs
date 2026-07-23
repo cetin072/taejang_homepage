@@ -15,7 +15,9 @@ export default async () => {
     });
   }
 
-  return new Response(JSON.stringify({ url, publishableKey }), {
+  const isStaging = process.env.APP_ENV === 'staging';
+  const environmentLabel = isStaging ? (process.env.APP_ENV_LABEL || '비운영 검수환경') : null;
+  return new Response(JSON.stringify({ url, publishableKey, environmentLabel }), {
     status: 200,
     headers: JSON_HEADERS
   });

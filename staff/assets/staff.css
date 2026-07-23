@@ -98,6 +98,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .task-meta dt { color: var(--muted); font-weight: 700; }
 .task-meta dd { margin: 0; font-weight: 750; line-height: 1.55; white-space: pre-line; }
 .guide-button { width: 100%; min-height: 54px; }
+.environment-label { margin: 0; padding: 7px 10px; border: 2px solid #9a5a00; border-radius: 999px; background: #fff4d6; color: #5d3600; font-size: .9rem; font-weight: 900; }
 .home-menu-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .guide-panel { border: 2px solid var(--brand); scroll-margin-top: 16px; }
 .work-guide-screen { display: grid; gap: 20px; }

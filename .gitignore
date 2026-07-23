@@ -1,5 +1,7 @@
 .env
 .env.*
 !.env.example
+!.env.staging.example
+scripts/staging/.qa-manifest.json
 .supabase/
 node_modules/

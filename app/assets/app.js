@@ -36,6 +36,13 @@
     return config;
   }
 
+  function showEnvironmentLabel(config) {
+    const label = element('nonproduction-label');
+    const text = typeof config.environmentLabel === 'string' ? config.environmentLabel.trim() : '';
+    label.hidden = !text;
+    label.textContent = text;
+  }
+
   function clearSession() {
     state.session = null;
     sessionStorage.removeItem(SESSION_KEY);
@@ -712,6 +719,7 @@
   (async () => {
     try {
       state.config = await loadConfig();
+      showEnvironmentLabel(state.config);
       await verify();
     } catch {
       sendToStaff('setup');
