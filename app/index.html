@@ -68,12 +68,53 @@
         <div id="information-list" class="card-list"></div>
       </section>
 
+      <section class="today-section" aria-labelledby="guide-menu-title">
+        <h2 id="guide-menu-title">작업방법</h2>
+        <p class="help">작업 순서와 완성 모습을 다시 확인할 수 있습니다.</p>
+        <button id="open-work-guide-list" class="button guide-button" type="button">작업방법 목록 보기</button>
+      </section>
+
       <section id="work-guide-panel" class="today-section guide-panel" hidden aria-labelledby="work-guide-title">
         <div class="section-heading">
           <h2 id="work-guide-title">작업방법</h2>
           <button id="close-work-guide" class="button button-quiet" type="button">닫기</button>
         </div>
         <div id="work-guide-content"></div>
+      </section>
+    </section>
+
+    <section id="work-guide-screen" class="work-guide-screen" hidden aria-live="polite">
+      <section id="work-guide-list-view" class="today-section" aria-labelledby="work-guide-list-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">작업방법</p><h1 id="work-guide-list-title">작업방법 목록</h1></div>
+          <button id="back-to-today" class="button button-quiet" type="button">오늘 업무로</button>
+        </div>
+        <p class="help">큰 분류를 누르고 필요한 작업방법을 고르세요.</p>
+        <div id="work-guide-filters" class="guide-filters" aria-label="작업방법 분류">
+          <button class="button button-quiet" type="button" data-filter="all" aria-pressed="true">전체</button>
+          <button class="button button-quiet" type="button" data-filter="today" aria-pressed="false">오늘 하는 작업</button>
+          <button class="button button-quiet" type="button" data-filter="featured" aria-pressed="false">자주 보는 작업</button>
+          <button class="button button-quiet" type="button" data-filter="packing" aria-pressed="false">포장</button>
+          <button class="button button-quiet" type="button" data-filter="inspection" aria-pressed="false">검수</button>
+          <button class="button button-quiet" type="button" data-filter="organization" aria-pressed="false">정리</button>
+          <button class="button button-quiet" type="button" data-filter="safety" aria-pressed="false">안전</button>
+          <button class="button button-quiet" type="button" data-filter="company_life" aria-pressed="false">회사생활</button>
+        </div>
+        <p id="work-guide-message" class="message" role="status" hidden></p>
+        <div id="work-guide-list" class="guide-list"></div>
+      </section>
+
+      <section id="work-guide-detail-view" class="today-section" hidden aria-labelledby="work-guide-detail-title">
+        <div class="section-heading"><div><p class="eyebrow">작업방법 상세</p><h1 id="work-guide-detail-title"></h1></div></div>
+        <p id="work-guide-detail-message" class="message" role="status" hidden></p>
+        <div id="work-guide-intro"></div>
+        <section class="guide-step-section" aria-labelledby="guide-step-status">
+          <div class="section-heading"><p id="guide-step-status" class="step-status" aria-live="polite"></p><button id="guide-restart" class="button button-quiet" type="button">처음부터 보기</button></div>
+          <div id="work-guide-step"></div>
+          <div class="step-actions"><button id="guide-prev" class="button button-quiet" type="button">이전 단계</button><button id="guide-next" class="button" type="button">다음 단계</button></div>
+        </section>
+        <div id="work-guide-final" class="guide-final"></div>
+        <div class="form-actions"><button id="back-from-detail-today" class="button" type="button">오늘 업무로 돌아가기</button><button id="back-to-guide-list" class="button button-quiet" type="button">작업방법 목록으로</button></div>
       </section>
     </section>
 
@@ -169,33 +210,63 @@
       </details>
 
       <details class="editor-card">
-        <summary>작업방법 연결 자리 만들기</summary>
+        <summary>작업방법 기본정보 등록·수정</summary>
         <form id="guide-form">
           <input id="guide-id" type="hidden">
           <div class="form-grid">
             <label>부서<select id="guide-department" required></select></label>
             <label>작업방법 이름<input id="guide-title-input" type="text" maxlength="120" required></label>
+            <label>분류<select id="guide-category"><option value="packing">포장</option><option value="inspection">검수</option><option value="organization">정리</option><option value="safety">안전</option><option value="company_life">회사생활</option><option value="other">기타</option></select></label>
+            <label>자료 유형<select id="guide-format"><option value="procedure">작업순서 안내 (3~7단계)</option><option value="reference">안내 자료 (1~7단계)</option></select></label>
+            <label>공개 범위<select id="guide-audience-scope"><option value="department">부서</option><option value="company">전체 직원</option></select></label>
+            <label id="guide-audience-department-wrap">공개 부서<select id="guide-audience-department"></select></label>
             <label>상태<select id="guide-status" required>
-              <option value="published">사용 중</option>
               <option value="draft">작성 중</option>
+              <option value="published">게시</option>
               <option value="inactive">사용 중지</option>
             </select></label>
+            <label class="check-label"><input id="guide-featured" type="checkbox"> 자주 보는 작업으로 표시</label>
           </div>
-          <label>간단한 설명<textarea id="guide-summary" maxlength="500" rows="2"></textarea></label>
+          <p class="easy-writing-help">한 문장에는 한 행동만 적으세요. 어려운 단어 대신 현장에서 쓰는 말을 적으세요. 사진만 보고 판단해야 하는 중요한 내용은 글로도 적으세요. 주의사항은 구체적인 행동으로 적으세요.</p>
+          <label>간단한 설명<textarea id="guide-summary" maxlength="500" rows="2" data-easy-text></textarea></label>
           <label>준비물<textarea id="guide-materials" maxlength="1000" rows="2"></textarea></label>
-          <label>주의사항<textarea id="guide-caution" maxlength="1000" rows="2"></textarea></label>
+          <label>핵심 주의사항<textarea id="guide-caution" maxlength="1000" rows="2" data-easy-text></textarea></label>
+          <label>자주 하는 실수<textarea id="guide-common-mistakes" maxlength="1200" rows="2" data-easy-text></textarea></label>
+          <label>올바른 완성 모습<textarea id="guide-completion" maxlength="1200" rows="2" data-easy-text></textarea></label>
+          <label>담당 부서 또는 반장<input id="guide-contact" type="text" maxlength="160"></label>
+          <label>대표 이미지 URL (선택)<input id="guide-cover-url" type="url" maxlength="2000" placeholder="https://..."></label>
+          <label>대표 이미지 설명<input id="guide-cover-alt" type="text" maxlength="240" placeholder="이미지를 올리면 설명도 적으세요."></label>
           <label>변경 사유<input id="guide-reason" type="text" maxlength="300" required></label>
           <div class="form-actions">
-            <button class="button" type="submit">작업방법 자리 저장</button>
+            <button class="button" type="submit">기본정보 저장</button>
             <button id="reset-guide-form" class="button button-quiet" type="button">새 작업방법 작성</button>
           </div>
         </form>
-        <p class="help">대표사진과 3~7단계 상세 작업순서는 후속 PR에서 연결합니다.</p>
       </details>
+
+      <details id="guide-step-editor" class="editor-card">
+        <summary>작업순서 등록·수정</summary>
+        <p class="help">먼저 기본정보를 저장한 뒤 단계를 추가하세요. 게시할 작업순서 자료는 3~7단계가 필요합니다. 안전·회사생활 안내 자료는 1~7단계로 게시할 수 있습니다.</p>
+        <div id="guide-step-list" class="card-list"></div>
+        <form id="guide-step-form">
+          <input id="guide-step-id" type="hidden"><input id="guide-step-guide-id" type="hidden">
+          <div class="form-grid"><label>단계 번호<input id="guide-step-order" type="number" min="1" max="7" required></label><label>단계 제목<input id="guide-step-title" type="text" maxlength="120" required></label><label>상태<select id="guide-step-status"><option value="draft">작성 중</option><option value="published">게시</option><option value="inactive">사용 중지</option></select></label></div>
+          <label>쉬운 설명<textarea id="guide-step-easy-text" maxlength="500" rows="2" required data-easy-text></textarea></label>
+          <label>단계 이미지 URL (선택)<input id="guide-step-image-url" type="url" maxlength="2000"></label>
+          <label>단계 이미지 설명<input id="guide-step-image-alt" type="text" maxlength="240"></label>
+          <label>단계별 주의사항<textarea id="guide-step-caution" maxlength="500" rows="2" data-easy-text></textarea></label>
+          <label>변경 사유<input id="guide-step-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions"><button class="button" type="submit">작업순서 저장</button><button id="reset-guide-step-form" class="button button-quiet" type="button">새 단계 작성</button></div>
+        </form>
+      </details>
+      <details class="editor-card"><summary>일반 근로자 화면 미리보기</summary><div id="guide-preview" class="guide-preview"></div></details>
     </section>
   </main>
   <script src="../staff/assets/auth-routing.js"></script>
   <script src="assets/today-board.js"></script>
+  <script src="assets/app-ui.js"></script>
   <script src="assets/app.js" defer></script>
+  <script src="assets/work-guide-worker.js" defer></script>
+  <script src="assets/work-guide-admin.js" defer></script>
 </body>
 </html>
