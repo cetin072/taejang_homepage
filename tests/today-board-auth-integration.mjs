@@ -112,6 +112,18 @@ async function saveInformation(token, overrides = {}) {
   });
 }
 
+async function saveGuide(token, overrides = {}) {
+  return rpc('save_work_guide', token, {
+    p_work_guide_id: null, p_department_id: departmentId('production'), p_title: 'CI 포장 작업방법',
+    p_category: 'packing', p_guide_format: 'procedure', p_audience_scope: 'department',
+    p_audience_department_id: departmentId('production'), p_summary_text: '포장 순서를 확인합니다.',
+    p_materials_text: '상자와 테이프', p_caution_text: '손을 조심합니다.',
+    p_common_mistakes_text: '순서를 건너뛰지 않습니다.', p_completion_text: '테이프가 잘 붙은 상자입니다.',
+    p_contact_label: '테스트 현장 반장', p_cover_image_url: null, p_cover_image_alt: null,
+    p_is_featured: true, p_status: 'draft', p_change_reason: '작업방법 CI 기본정보', ...overrides,
+  });
+}
+
 const anonymous = await api('/rest/v1/daily_work_assignments?select=id');
 check(!anonymous.ok || anonymous.data?.length === 0, 'anonymous user cannot read Today board data');
 
@@ -175,17 +187,18 @@ for (const [group, userId, memberType] of [
   equal(membership.data?.code, 'WORK_GROUP_MEMBER_SAVED', `membership failed for ${userId}`);
 }
 
-const guide = await rpc('save_work_guide_stub', adminToken, {
-  p_work_guide_id: null,
-  p_department_id: departmentId('production'),
-  p_title: 'CI 포장 작업방법',
-  p_summary_text: '포장 순서를 확인합니다.',
-  p_materials_text: '상자와 테이프',
-  p_caution_text: '손을 조심합니다.',
-  p_status: 'published',
-  p_change_reason: '오늘 게시판 CI 작업방법 연결',
-});
-equal(guide.data?.code, 'WORK_GUIDE_SAVED', 'manager creates a published minimal work guide');
+const guide = await saveGuide(adminToken);
+equal(guide.data?.code, 'WORK_GUIDE_SAVED', 'manager creates a draft work guide');
+for (const step of [1, 2, 3]) {
+  const savedStep = await rpc('save_work_guide_step', adminToken, {
+    p_step_id: null, p_work_guide_id: guide.data.id, p_step_order: step, p_title: `${step}단계`,
+    p_easy_text: `${step}단계 작업을 합니다.`, p_image_url: null, p_image_alt: null,
+    p_caution_text: null, p_status: 'published', p_change_reason: '작업방법 CI 단계 추가',
+  });
+  equal(savedStep.data?.code, 'WORK_GUIDE_STEP_SAVED', `manager creates guide step ${step}`);
+}
+const publishedGuide = await saveGuide(adminToken, { p_work_guide_id: guide.data.id, p_status: 'published', p_change_reason: '오늘 업무 연결 전 게시' });
+equal(publishedGuide.data?.code, 'WORK_GUIDE_SAVED', 'manager publishes a guide with three steps');
 
 const departmentTask = await saveTask(departmentLead.token, {
   p_title: '생산부 공통 업무',

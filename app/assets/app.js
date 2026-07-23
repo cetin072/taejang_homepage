@@ -165,6 +165,10 @@
   }
 
   function openWorkGuide(guide) {
+    if (guide?.id && window.TaejangWorkGuides?.openDetail) {
+      window.TaejangWorkGuides.openDetail(guide.id, { fromToday: true });
+      return;
+    }
     const panel = element('work-guide-panel');
     const content = element('work-guide-content');
     content.replaceChildren();
@@ -328,7 +332,7 @@
       updateTargetSelect(`${prefix}-scope`, `${prefix}-target`);
     }
     fillSelect(element('task-lead'), state.adminOptions.profiles, { emptyLabel: '선택하지 않음' });
-    fillSelect(element('task-guide'), state.adminOptions.work_guides, { emptyLabel: '연결하지 않음' });
+    fillSelect(element('task-guide'), state.adminOptions.work_guides.filter(guide => guide.status === 'published'), { emptyLabel: '연결하지 않음' });
     fillSelect(element('guide-department'), state.adminOptions.departments);
   }
 
@@ -544,17 +548,28 @@
 
   async function submitGuide(event) {
     event.preventDefault();
-    const saved = await saveForm(event.currentTarget, 'save_work_guide_stub', {
+    const audienceScope = element('guide-audience-scope').value;
+    const saved = await saveForm(event.currentTarget, 'save_work_guide', {
       p_work_guide_id: element('guide-id').value || null,
       p_department_id: element('guide-department').value,
       p_title: element('guide-title-input').value,
+      p_category: element('guide-category').value,
+      p_guide_format: element('guide-format').value,
+      p_audience_scope: audienceScope,
+      p_audience_department_id: audienceScope === 'department' ? element('guide-audience-department').value : null,
       p_summary_text: element('guide-summary').value,
       p_materials_text: element('guide-materials').value,
       p_caution_text: element('guide-caution').value,
+      p_common_mistakes_text: element('guide-common-mistakes').value,
+      p_completion_text: element('guide-completion').value,
+      p_contact_label: element('guide-contact').value,
+      p_cover_image_url: element('guide-cover-url').value,
+      p_cover_image_alt: element('guide-cover-alt').value,
+      p_is_featured: element('guide-featured').checked,
       p_status: element('guide-status').value,
       p_change_reason: element('guide-reason').value
     });
-    if (saved) resetGuideForm();
+    if (saved) document.dispatchEvent(new CustomEvent('taejang-work-guide-saved', { detail: { id: element('guide-id').value || null } }));
   }
 
   function renderEntry(current, route) {
@@ -575,6 +590,17 @@
     element('task-date').value = state.boardDate;
     element('information-date').value = state.boardDate;
     window.history.replaceState(null, '', `?home=${encodeURIComponent(route.home)}`);
+    window.TaejangApp = {
+      rpc,
+      isTodayManager,
+      roleCodes,
+      getContext: () => state.context,
+      getBoardDate: () => state.boardDate,
+      refreshToday: loadTodayBoard,
+      refreshAdmin: loadAdminData,
+      friendlyError
+    };
+    document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code } }));
   }
 
   async function verify() {

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(48);
 
 select has_table('public', 'work_groups', 'work_groups table exists');
 select has_table('public', 'work_group_members', 'work_group_members table exists');
@@ -206,19 +206,20 @@ select set_config(
   true
 );
 select is(
-  (public.save_work_guide_stub(
-    null,
-    (select id from public.departments where code = 'production'),
-    '포장 작업방법',
-    '포장 전에 준비물을 확인합니다.',
-    '상자와 테이프',
-    '손이 끼이지 않게 천천히 작업합니다.',
-    'published',
-    '오늘 업무 연결용 최소 자료'
+  (public.save_work_guide(
+    null, (select id from public.departments where code = 'production'), '포장 작업방법',
+    'packing', 'procedure', 'department', (select id from public.departments where code = 'production'),
+    '포장 전에 준비물을 확인합니다.', '상자와 테이프', '손이 끼이지 않게 천천히 작업합니다.',
+    null, '테이프가 잘 붙어 있습니다.', '테스트 반장', null, null, false,
+    'draft', '오늘 업무 연결용 기본 자료'
   ) ->> 'code'),
   'WORK_GUIDE_SAVED',
-  'authorized manager publishes a minimal work-guide reference'
+  'authorized manager creates a draft work guide'
 );
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 1::smallint, '첫 단계', '첫 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds first guide step');
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 2::smallint, '둘째 단계', '둘째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds second guide step');
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 3::smallint, '셋째 단계', '셋째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds third guide step');
+select is((public.save_work_guide((select id from public.work_guides where title = '포장 작업방법'), (select id from public.departments where code = 'production'), '포장 작업방법', 'packing', 'procedure', 'department', (select id from public.departments where code = 'production'), '포장 전에 준비물을 확인합니다.', '상자와 테이프', '손이 끼이지 않게 천천히 작업합니다.', null, '테이프가 잘 붙어 있습니다.', '테스트 반장', null, null, false, 'published', '단계 검증 뒤 게시') ->> 'code'), 'WORK_GUIDE_SAVED', 'manager publishes guide with three valid steps');
 select is(
   (public.save_daily_work_assignment(
     null,

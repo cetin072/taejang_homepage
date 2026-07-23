@@ -118,3 +118,26 @@ test('CI runs migrations, pgTAP, legacy Auth tests, and Today Auth/Data API test
   assert.match(workflow, /today-board-auth-integration\.mjs/);
   assert.doesNotMatch(workflow, /secrets\.|supabase link|db push/i);
 });
+
+test('work guide experience is modular, read-only, and has accessible step controls', () => {
+  const migration = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20260723000300_accessible_work_guides.sql'), 'utf8');
+  const worker = fs.readFileSync(path.join(ROOT, 'app/assets/work-guide-worker.js'), 'utf8');
+  const admin = fs.readFileSync(path.join(ROOT, 'app/assets/work-guide-admin.js'), 'utf8');
+  assert.match(migration, /create table public\.work_guide_steps/i);
+  assert.match(migration, /unique \(work_guide_id, step_order\)/i);
+  assert.match(migration, /INVALID_PUBLISHED_STEP_COUNT/);
+  assert.match(migration, /get_my_work_guide_list/);
+  assert.match(migration, /get_my_work_guide_detail/);
+  assert.match(migration, /status = 'published'/);
+  assert.match(migration, /WORK_GUIDE_LEGACY_SAVE_DISABLED/);
+  assert.match(HTML, /id="open-work-guide-list"/);
+  assert.match(HTML, /id="guide-step-status"[^>]*aria-live="polite"/);
+  assert.match(HTML, /id="guide-prev"/);
+  assert.match(HTML, /id="guide-next"/);
+  assert.match(HTML, /id="back-from-detail-today"/);
+  assert.match(worker, /get_my_work_guide_detail/);
+  assert.match(worker, /imageOrNotice/);
+  assert.match(admin, /save_work_guide_step/);
+  assert.match(admin, /reorder_work_guide_steps/);
+  assert.doesNotMatch(worker, /완료|진행률|평가|점수/);
+});
