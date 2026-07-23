@@ -98,6 +98,17 @@ select is((public.save_work_group(
   '일정 테스트 B반', true, '일정 테스트 다른 작업반 생성'
 ) ->> 'code'), 'WORK_GROUP_SAVED', 'manager creates work group B');
 
+select set_config(
+  'test.schedule_group_a_id',
+  (select id::text from public.work_groups where name = '일정 테스트 A반'),
+  false
+);
+select set_config(
+  'test.schedule_group_b_id',
+  (select id::text from public.work_groups where name = '일정 테스트 B반'),
+  false
+);
+
 select is((public.set_work_group_member(
   (select id from public.work_groups where name = '일정 테스트 A반'),
   '61000000-0000-0000-0000-000000000003', 'lead', current_date, null, '일정 테스트 반장 배정'
@@ -316,13 +327,13 @@ select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-0000000
 select is((public.save_schedule_item(
   null, 'work', '범위 밖 작업반 일정', now() + interval '1 day', null, false,
   '다른 반 장소', null, null, null, null, '담당 범위 밖 일정입니다.',
-  'work_group', null, (select id from public.work_groups where name = '일정 테스트 B반'), null,
+  'work_group', null, current_setting('test.schedule_group_b_id')::uuid, null,
   'published', '범위 밖 작업반 시도', null, null, null, 'none'
 ) ->> 'code'), 'FORBIDDEN', 'field lead cannot create outside assigned work group');
 select is((public.save_schedule_item(
   null, 'work', '담당 작업반 추가 일정', now() + interval '5 days', null, false,
   'A반 장소', null, null, null, null, '담당 작업반 일정입니다.',
-  'work_group', null, (select id from public.work_groups where name = '일정 테스트 A반'), null,
+  'work_group', null, current_setting('test.schedule_group_a_id')::uuid, null,
   'published', '담당 작업반 일정 생성', null, null, null, 'none'
 ) ->> 'code'), 'SCHEDULE_SAVED', 'field lead creates schedule inside assigned work group');
 
