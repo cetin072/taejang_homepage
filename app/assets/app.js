@@ -238,6 +238,10 @@
   }
 
   function renderInformation(items) {
+    if (window.TaejangStaffTodayInformation) {
+      window.TaejangStaffTodayInformation.render(items);
+      return;
+    }
     const list = element('information-list');
     list.replaceChildren();
     const information = boardTools.sortByTime(items).sort((left, right) => Number(right.important) - Number(left.important));
@@ -457,6 +461,9 @@
       state.adminRecords = records;
       renderAdminOptions();
       renderAdminRecords();
+      document.dispatchEvent(new CustomEvent('taejang-admin-options-ready', {
+        detail: { options }
+      }));
       if (!element('task-date').value) element('task-date').value = element('admin-board-date').value;
       if (!element('information-date').value) element('information-date').value = element('admin-board-date').value;
     } catch (error) {
@@ -580,6 +587,8 @@
     element('app-panel').hidden = route.code === 'general_worker';
     element('general-worker-board').hidden = route.code !== 'general_worker';
     element('today-admin-panel').hidden = !isTodayManager();
+    element('schedule-admin-panel').hidden = !isTodayManager();
+    element('notice-admin-panel').hidden = !isTodayManager();
     element('home-title').textContent = `${route.label} 화면`;
     element('profile-name').textContent = current.display_name || '확인됨';
     element('profile-department').textContent = current.department?.name || '미배정';
@@ -598,6 +607,7 @@
       getBoardDate: () => state.boardDate,
       refreshToday: loadTodayBoard,
       refreshAdmin: loadAdminData,
+      getAdminOptions: () => state.adminOptions,
       friendlyError
     };
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code } }));

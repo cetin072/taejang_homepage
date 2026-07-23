@@ -98,6 +98,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .task-meta dt { color: var(--muted); font-weight: 700; }
 .task-meta dd { margin: 0; font-weight: 750; line-height: 1.55; white-space: pre-line; }
 .guide-button { width: 100%; min-height: 54px; }
+.home-menu-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
 .guide-panel { border: 2px solid var(--brand); scroll-margin-top: 16px; }
 .work-guide-screen { display: grid; gap: 20px; }
 .guide-filters { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
@@ -128,6 +129,28 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .check-label { display: flex; align-items: center; align-self: end; min-height: 48px; gap: 10px; }
 .check-label input { width: 22px; min-height: 22px; }
 .admin-record-card .button { margin-top: 8px; }
+.schedule-groups, .notice-list { display: grid; gap: 24px; }
+.schedule-group { display: grid; gap: 12px; }
+.schedule-group h2 { margin: 0; padding-bottom: 8px; border-bottom: 2px solid var(--brand); }
+.schedule-card, .notice-card { border: 1px solid var(--line); border-radius: 16px; padding: 20px; background: #fff; }
+.schedule-card h3, .notice-card h2 { margin: 6px 0 10px; font-size: 1.3rem; }
+.schedule-card .button, .notice-card .button { margin-top: 14px; }
+.schedule-card.is-cancelled { border: 2px solid var(--danger); background: #fff6f6; }
+.notice-card.importance-important, .importance-important { border: 2px solid #b98200; background: #fffaf0; }
+.notice-card.importance-urgent, .importance-urgent { border: 3px solid var(--danger); background: #fff2f2; }
+.status-text { margin: 12px 0 0; color: #703d00; font-weight: 900; }
+.status-banner { margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: #fff4d6; border: 2px solid #b98200; font-weight: 900; }
+.detail-content { display: grid; gap: 18px; }
+.detail-list { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--line); }
+.detail-row { display: grid; grid-template-columns: minmax(110px, .35fr) 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.detail-row dt { font-weight: 900; color: var(--brand-dark); }
+.detail-row dd { margin: 0; line-height: 1.65; white-space: pre-wrap; }
+.notice-body { margin: 0; font-size: 1.14rem; line-height: 1.8; white-space: pre-wrap; }
+.acknowledgement-slot { display: grid; gap: 12px; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); }
+.acknowledgement-slot .button { min-height: 56px; font-size: 1.08rem; }
+.external-link-box { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--soft); }
+.external-link-box .button { justify-self: start; }
+.link-address { margin: 0; color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
 [hidden] { display: none !important; }
 
 @media (max-width: 720px) {
@@ -141,6 +164,8 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   .today-heading .button { min-width: 110px; }
   .form-grid, .guide-list { grid-template-columns: 1fr; }
   .form-actions .button { width: 100%; }
+  .home-menu-actions { grid-template-columns: 1fr; }
+  .detail-row { grid-template-columns: 1fr; gap: 4px; }
   .task-meta-row { grid-template-columns: 1fr; gap: 4px; }
   .guide-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .guide-filters .button { min-height: 52px; padding-inline: 8px; }

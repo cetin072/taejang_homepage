@@ -16,6 +16,8 @@ on:
       - "tests/phase1a-security-foundation.test.js"
       - "tests/staff-entry-routing.test.js"
       - "tests/general-worker-today-board.test.js"
+      - "tests/staff-schedules-notices.test.js"
+      - "tests/staff-schedules-notices-auth-integration.mjs"
   workflow_dispatch:
 
 permissions:
@@ -41,7 +43,7 @@ jobs:
           version: 2.109.1
 
       - name: Run static security checks
-        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/general-worker-today-board.test.js
+        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/general-worker-today-board.test.js tests/staff-schedules-notices.test.js
 
       - name: Start isolated local Supabase
         run: supabase start
@@ -64,6 +66,7 @@ jobs:
           set +a
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/today-board-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/staff-schedules-notices-auth-integration.mjs
 
       - name: Stop local Supabase
         if: always()

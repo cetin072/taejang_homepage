@@ -13,6 +13,10 @@
   function showScreen(name) {
     ui().element('general-worker-board').hidden = name !== 'today';
     ui().element('work-guide-screen').hidden = name === 'today';
+    ['schedule-screen', 'notice-screen'].forEach(id => {
+      const screen = document.getElementById(id);
+      if (screen) screen.hidden = true;
+    });
     ui().element('work-guide-list-view').hidden = name !== 'list';
     ui().element('work-guide-detail-view').hidden = name !== 'detail';
     if (name !== 'today') window.scrollTo({ top: 0, behavior: 'smooth' });
