@@ -6,6 +6,7 @@
 
 - [ ] 운영 Supabase 백업·복구 담당자와 절차 확인
 - [ ] 운영·비운영·Deploy Preview 프로젝트와 URL 재확인
+- [ ] 비운영 도구의 allow-list·차단목록·`STAGING` 확인문구 검토, Production context 미변경 확인
 - [ ] migration 목록과 migration history 대조
 - [ ] 비운영 `db push --dry-run`, clean migration, DB lint, pgTAP, Auth/Data API 성공
 - [ ] Netlify `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` 확인

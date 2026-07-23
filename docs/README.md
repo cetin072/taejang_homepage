@@ -18,6 +18,8 @@
 - [역할별 대시보드·공통 앱 셸 구현](ROLE_BASED_DASHBOARD_SHELLS_IMPLEMENTATION.md)
 - [일반 근로자 자주 보는 안내 구현](FREQUENT_STAFF_GUIDANCE_IMPLEMENTATION.md)
 - [Phase 1 통합 검수·시범운영 준비](PHASE1_INTEGRATED_READINESS_REVIEW.md)
+- [Phase 1 비운영 시범환경 단계별 준비](operations/PHASE1_STAGING_SETUP_STEP_BY_STEP.md)
+- [Phase 1 비운영 QA 결과 기록지](operations/PHASE1_STAGING_QA_RESULT_TEMPLATE.md)
 - [현장 관리자·반장 운영기록 기준 v1](planning/FIELD_LEAD_OPERATION_RECORDS_V1.md)
 - [업무유형별 기록 수준 기준 v1](planning/WORK_RECORD_DEPTH_POLICY_V1.md)
 - [태장 일반 근로자용 장애인 친화 업무안내 화면 v1](planning/MOBILE_TASK_DASHBOARD_V1.md) — 상세 화면 기준
