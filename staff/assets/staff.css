@@ -27,6 +27,12 @@ button, input, select { min-height: 48px; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: clamp(20px, 4vw, 32px); box-shadow: 0 12px 34px rgba(22, 53, 38, .06); }
 .panel + .panel, .auth-grid + .panel { margin-top: 20px; }
 .panel h2 { margin: 4px 0 18px; font-size: 1.45rem; }
+.start-panel { max-width: 620px; }
+.action-stack { display: grid; gap: 12px; margin-top: 24px; }
+.action-stack.compact { max-width: 420px; margin-inline: auto; }
+.action-stack .button { min-height: 56px; font-size: 1.06rem; }
+.install-note { margin: 8px 0 0; padding: 12px 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; }
+.text-button { display: inline-flex; min-height: 44px; align-items: center; padding: 4px 0; border: 0; background: transparent; color: var(--brand-dark); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .auth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 label { display: grid; gap: 8px; margin: 16px 0; font-weight: 700; }
 input, select { width: 100%; border: 1px solid #aebbb3; border-radius: 10px; padding: 10px 12px; background: #fff; color: var(--ink); }
@@ -38,6 +44,9 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px 
 .button-quiet { background: #e8efe9; color: var(--brand-dark); }
 .button-danger { background: var(--danger); }
 .help { color: var(--muted); line-height: 1.6; }
+.field-error { margin: -8px 0 12px; color: #8d2929; font-size: .92rem; font-weight: 700; line-height: 1.5; }
+.consent-row { grid-template-columns: 24px minmax(0, 1fr); align-items: start; font-weight: 600; line-height: 1.55; }
+.consent-row input { width: 20px; min-height: 20px; margin-top: 3px; }
 .message { margin: 0 0 18px; padding: 14px 16px; border-radius: 12px; background: #e8f3ec; border: 1px solid #b9d5c4; }
 .message.error { background: #fff0f0; border-color: #e4bcbc; color: #7f2424; }
 .state-panel { text-align: center; padding-block: 50px; }
@@ -56,6 +65,9 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px 
 .role-option input { width: 22px; min-height: 22px; }
 .account-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .empty { padding: 20px; background: var(--soft); border-radius: 12px; color: var(--muted); }
+.future-menu { margin-top: 22px; padding: 20px; border: 1px dashed var(--line); border-radius: 14px; background: var(--soft); }
+.future-menu h2 { margin: 0 0 10px; font-size: 1.15rem; }
+.future-menu ul { display: grid; gap: 8px; margin: 12px 0; padding-left: 22px; }
 [hidden] { display: none !important; }
 
 @media (max-width: 720px) {

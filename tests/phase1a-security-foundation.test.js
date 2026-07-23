@@ -108,7 +108,7 @@ test('inactive access context omits display name, organization and roles', () =>
 });
 
 test('browser files contain no service-role secret or key-shaped literal', () => {
-  const browserFiles = [...filesUnder('staff'), ...filesUnder('admin'), ...filesUnder('assets')];
+  const browserFiles = [...filesUnder('staff'), ...filesUnder('app'), ...filesUnder('admin'), ...filesUnder('assets')];
   for (const relative of browserFiles) {
     const source = fs.readFileSync(path.join(ROOT, relative), 'utf8');
     assert.doesNotMatch(source, /SUPABASE_SERVICE_ROLE_KEY|service_role/i, `${relative} mentions a service role`);
@@ -124,20 +124,22 @@ test('Netlify config endpoint exposes only public Supabase connection values', (
   assert.doesNotMatch(source, /SERVICE_ROLE|SECRET_KEY|PRIVATE_KEY/);
 });
 
-test('staff screen includes every allowed minimal security state', () => {
+test('staff screen includes every allowed staff entry and account state', () => {
   const html = fs.readFileSync(path.join(ROOT, 'staff/index.html'), 'utf8');
-  for (const id of ['login-form', 'signup-form', 'pending-panel', 'blocked-panel', 'app-panel', 'admin-panel']) {
+  for (const id of ['start-panel', 'login-form', 'signup-form', 'pending-panel', 'blocked-panel', 'unassigned-panel', 'admin-panel']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /viewport/);
 });
 
-test('staff code routes pending and blocked accounts away from internal panel', () => {
+test('staff code routes pending and blocked accounts away from internal app', () => {
   const source = fs.readFileSync(path.join(ROOT, 'staff/assets/staff.js'), 'utf8');
-  assert.match(source, /account_status === 'pending'/);
-  assert.match(source, /account_status !== 'active'/);
+  assert.match(source, /accessDestination\(context\)/);
+  assert.match(source, /destination\.kind === 'pending'/);
+  assert.match(source, /destination\.kind === 'blocked'/);
   assert.match(source, /show\('pending-panel'\)/);
   assert.match(source, /show\('blocked-panel'\)/);
+  assert.match(source, /window\.location\.replace\('\.\.\/app\/'\)/);
 });
 
 test('local integration workflow uses no hosted project or repository secrets', () => {

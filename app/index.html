@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>태장 업무앱</title>
+  <link rel="stylesheet" href="../staff/assets/staff.css">
+</head>
+<body>
+  <main class="staff-shell">
+    <header class="staff-header">
+      <a href="../index.html" class="staff-brand" aria-label="태장 공개 홈페이지로 이동">태장</a>
+      <button id="logout-button" class="button button-quiet" type="button">로그아웃</button>
+    </header>
+
+    <section id="loading-panel" class="panel state-panel" aria-live="polite">
+      <h1>업무 화면을 확인하고 있습니다</h1>
+      <p>잠시만 기다려주세요.</p>
+    </section>
+
+    <section id="app-panel" class="panel" hidden>
+      <p class="eyebrow">안전한 업무앱 진입</p>
+      <h1 id="home-title">업무 화면</h1>
+      <p id="home-copy" class="help">업무 기능은 다음 단계에서 연결됩니다.</p>
+      <dl class="profile-summary" aria-label="내 정보 요약">
+        <div><dt>이름</dt><dd id="profile-name"></dd></div>
+        <div><dt>부서</dt><dd id="profile-department"></dd></div>
+        <div><dt>직책</dt><dd id="profile-position"></dd></div>
+        <div><dt>역할</dt><dd id="profile-roles"></dd></div>
+      </dl>
+      <section id="general-worker-slots" class="future-menu" hidden aria-labelledby="future-menu-title">
+        <h2 id="future-menu-title">준비 중인 메뉴</h2>
+        <ul>
+          <li>오늘의 업무</li>
+          <li>작업방법</li>
+          <li>내 일정</li>
+          <li>중요공지</li>
+          <li>자주 보는 안내</li>
+        </ul>
+        <p class="help">아직 선택하거나 입력하는 기능은 제공하지 않습니다.</p>
+      </section>
+      <section id="super-admin-slot" class="future-menu" hidden aria-labelledby="super-admin-title">
+        <h2 id="super-admin-title">시스템 관리</h2>
+        <p class="help">가입 승인과 역할 배정은 보호된 관리 화면에서 처리합니다.</p>
+        <a class="button" href="../staff/?admin=1">가입 승인 관리 열기</a>
+      </section>
+    </section>
+  </main>
+  <script src="../staff/assets/auth-routing.js"></script>
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

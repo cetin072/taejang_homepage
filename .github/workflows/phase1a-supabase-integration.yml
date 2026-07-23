@@ -6,8 +6,14 @@ on:
     paths:
       - ".github/workflows/phase1a-supabase-integration.yml"
       - "supabase/**"
+      - "staff/**"
+      - "app/**"
+      - "admin/index.html"
+      - "assets/css/styles.css"
+      - "index.html"
       - "tests/phase1a-auth-integration.mjs"
       - "tests/phase1a-security-foundation.test.js"
+      - "tests/staff-entry-routing.test.js"
   workflow_dispatch:
 
 permissions:
@@ -33,7 +39,7 @@ jobs:
           version: 2.109.1
 
       - name: Run static security checks
-        run: node --test tests/phase1a-security-foundation.test.js
+        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js
 
       - name: Start isolated local Supabase
         run: supabase start
