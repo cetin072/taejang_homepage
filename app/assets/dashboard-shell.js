@@ -24,7 +24,7 @@
     const nav = el('app-nav'); nav.replaceChildren();
     const items = [{ label: '대시보드', run: () => { document.dispatchEvent(new Event('taejang-dashboard-refresh')); window.TaejangDashboard.render(); }, current: true }];
     if (managerRoles.has(route)) items.push({ label: '오늘 관리', run: () => openPanel('today-admin-panel') });
-    if (managerRoles.has(route)) items.push({ label: '일정 관리', run: () => openPanel('schedule-admin-panel') }, { label: '공지 관리', run: () => openPanel('notice-admin-panel') }, { label: '작업방법 관리', run: () => openPanel('today-admin-panel') });
+    if (managerRoles.has(route)) items.push({ label: '일정 관리', run: () => openPanel('schedule-admin-panel') }, { label: '공지 관리', run: () => openPanel('notice-admin-panel') }, { label: '안내 관리', run: () => openPanel('guidance-admin-panel') }, { label: '작업방법 관리', run: () => openPanel('today-admin-panel') });
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
     items.forEach(item => { const node = item.href ? document.createElement('a') : document.createElement('button'); if (item.href) { node.href = item.href; node.className = 'button button-quiet'; node.textContent = item.label; } else { node.type = 'button'; node.textContent = item.label; node.addEventListener('click', item.run); } if (item.current) node.setAttribute('aria-current', 'page'); nav.append(node); });
   }
@@ -53,7 +53,7 @@
     if (['promotion_lead', 'promotion_staff'].includes(route)) grid.append(card('홍보 업무', '홍보 모듈이 준비되면 이 위치에서 연결합니다.', { preparing: true }));
     main.append(grid);
     const quick = document.createElement('section'); quick.className = 'dashboard-section'; quick.append(text('h2', '빠른 이동')); const links = document.createElement('div'); links.className = 'quick-links';
-    if (managerRoles.has(route)) { links.append(button('오늘 관리', () => openPanel('today-admin-panel')), button('일정 관리', () => openPanel('schedule-admin-panel')), button('공지 관리', () => openPanel('notice-admin-panel'))); }
+    if (managerRoles.has(route)) { links.append(button('오늘 관리', () => openPanel('today-admin-panel')), button('일정 관리', () => openPanel('schedule-admin-panel')), button('공지 관리', () => openPanel('notice-admin-panel')), button('안내 관리', () => openPanel('guidance-admin-panel'))); }
     if (route === 'super_admin') links.append(button('가입 승인', () => { window.location.href = '../staff/?admin=1'; }));
     if (links.childElementCount) { quick.append(links); main.append(quick); }
   }
