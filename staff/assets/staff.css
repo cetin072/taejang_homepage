@@ -35,8 +35,9 @@ button, input, select { min-height: 48px; }
 .text-button { display: inline-flex; min-height: 44px; align-items: center; padding: 4px 0; border: 0; background: transparent; color: var(--brand-dark); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .auth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 label { display: grid; gap: 8px; margin: 16px 0; font-weight: 700; }
-input, select { width: 100%; border: 1px solid #aebbb3; border-radius: 10px; padding: 10px 12px; background: #fff; color: var(--ink); }
-input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+input, select, textarea { width: 100%; border: 1px solid #aebbb3; border-radius: 10px; padding: 10px 12px; background: #fff; color: var(--ink); }
+textarea { resize: vertical; line-height: 1.6; }
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .button { border: 0; border-radius: 12px; padding: 12px 18px; background: var(--brand); color: #fff; font-weight: 800; cursor: pointer; }
 .button:hover { background: var(--brand-dark); }
 .button:disabled { opacity: .55; cursor: wait; }
@@ -68,6 +69,47 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px 
 .future-menu { margin-top: 22px; padding: 20px; border: 1px dashed var(--line); border-radius: 14px; background: var(--soft); }
 .future-menu h2 { margin: 0 0 10px; font-size: 1.15rem; }
 .future-menu ul { display: grid; gap: 8px; margin: 12px 0; padding-left: 22px; }
+.today-board { display: grid; gap: 20px; }
+.today-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px 4px 0; }
+.today-heading h1 { margin: 4px 0 8px; font-size: clamp(2rem, 7vw, 3.2rem); letter-spacing: -.04em; }
+.today-date { margin: 0; color: var(--muted); font-size: 1.08rem; font-weight: 700; }
+.today-section { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: clamp(20px, 4vw, 30px); box-shadow: 0 12px 34px rgba(22, 53, 38, .05); }
+.today-section h2 { margin: 0 0 18px; font-size: 1.45rem; }
+.worker-name { margin: 0; font-size: clamp(1.7rem, 6vw, 2.4rem); font-weight: 900; }
+.card-list { display: grid; gap: 14px; }
+.today-card, .admin-record-card { border: 1px solid var(--line); border-radius: 15px; padding: 18px; background: #fff; }
+.today-card h3, .admin-record-card h4 { margin: 4px 0 10px; font-size: 1.22rem; }
+.card-primary { margin: 0; color: var(--brand-dark); font-size: 1.2rem; font-weight: 900; }
+.card-kicker { margin: 0; color: var(--brand); font-size: .84rem; font-weight: 900; }
+.card-location, .card-body { margin: 8px 0 0; line-height: 1.65; }
+.information-card.is-important { border-width: 2px; border-color: #d59d00; background: #fffaf0; }
+.is-cancelled { border-color: #d3a9a9; background: #fff7f7; }
+.cancel-note { margin: 14px 0 0; padding: 12px 14px; border-radius: 10px; background: #f7e6e6; color: #772828; font-weight: 800; line-height: 1.55; }
+.task-card { padding: 0; overflow: clip; }
+.task-card summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 76px; padding: 16px 18px; cursor: pointer; list-style: none; }
+.task-card summary::-webkit-details-marker { display: none; }
+.task-summary-main { display: grid; gap: 5px; }
+.task-time { color: var(--brand); font-weight: 900; }
+.task-title { font-size: 1.2rem; font-weight: 900; }
+.task-toggle { flex: 0 0 auto; color: var(--muted); font-weight: 800; }
+.task-detail { padding: 0 18px 18px; border-top: 1px solid var(--line); }
+.task-meta { display: grid; margin: 0 0 16px; }
+.task-meta-row { display: grid; grid-template-columns: minmax(90px, .35fr) 1fr; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); }
+.task-meta dt { color: var(--muted); font-weight: 700; }
+.task-meta dd { margin: 0; font-weight: 750; line-height: 1.55; white-space: pre-line; }
+.guide-button { width: 100%; min-height: 54px; }
+.guide-panel { border: 2px solid var(--brand); scroll-margin-top: 16px; }
+.admin-today { margin-top: 20px; }
+.admin-today h2, .admin-today h3 { margin: 4px 0 10px; }
+.admin-records { margin: 24px 0; }
+.editor-card { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; overflow: clip; }
+.editor-card > summary { padding: 18px; background: var(--soft); font-size: 1.08rem; font-weight: 900; cursor: pointer; }
+.editor-card > form, .editor-card > .help { margin: 0; padding: 4px 18px 18px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.check-label { display: flex; align-items: center; align-self: end; min-height: 48px; gap: 10px; }
+.check-label input { width: 22px; min-height: 22px; }
+.admin-record-card .button { margin-top: 8px; }
 [hidden] { display: none !important; }
 
 @media (max-width: 720px) {
@@ -77,4 +119,9 @@ input:focus, select:focus, button:focus-visible, a:focus-visible { outline: 3px 
   .role-grid { grid-template-columns: 1fr; }
   .section-heading { align-items: flex-start; }
   .account-actions .button { width: 100%; }
+  .today-heading { align-items: flex-start; }
+  .today-heading .button { min-width: 110px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-actions .button { width: 100%; }
+  .task-meta-row { grid-template-columns: 1fr; gap: 4px; }
 }

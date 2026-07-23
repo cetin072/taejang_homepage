@@ -334,3 +334,11 @@ select public.bootstrap_super_admin('TEST_ADMIN_AUTH_UUID'::uuid);
 - [Supabase Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
 - [Supabase Database Functions](https://supabase.com/docs/guides/database/functions)
 - [Supabase Testing Overview](https://supabase.com/docs/guides/local-development/testing/overview)
+
+## 16. 후속 구현
+
+PR #20의 임직원 진입·역할 자동 라우팅 이후 일반 근로자 첫 화면은 별도 migration과 구현 문서로 이어진다.
+
+- [`GENERAL_WORKER_TODAY_BOARD_IMPLEMENTATION.md`](GENERAL_WORKER_TODAY_BOARD_IMPLEMENTATION.md)
+
+기존 보안 기반의 계정상태·역할·감사함수와 로컬 Supabase CI를 재사용하며, 일반 근로자 업무 시작·완료·실적·출퇴근 입력은 추가하지 않는다.

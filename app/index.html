@@ -19,7 +19,7 @@
       <p>잠시만 기다려주세요.</p>
     </section>
 
-    <section id="app-panel" class="panel" hidden>
+    <section id="app-panel" class="panel app-intro" hidden>
       <p class="eyebrow">안전한 업무앱 진입</p>
       <h1 id="home-title">업무 화면</h1>
       <p id="home-copy" class="help">업무 기능은 다음 단계에서 연결됩니다.</p>
@@ -29,25 +29,173 @@
         <div><dt>직책</dt><dd id="profile-position"></dd></div>
         <div><dt>역할</dt><dd id="profile-roles"></dd></div>
       </dl>
-      <section id="general-worker-slots" class="future-menu" hidden aria-labelledby="future-menu-title">
-        <h2 id="future-menu-title">준비 중인 메뉴</h2>
-        <ul>
-          <li>오늘의 업무</li>
-          <li>작업방법</li>
-          <li>내 일정</li>
-          <li>중요공지</li>
-          <li>자주 보는 안내</li>
-        </ul>
-        <p class="help">아직 선택하거나 입력하는 기능은 제공하지 않습니다.</p>
-      </section>
       <section id="super-admin-slot" class="future-menu" hidden aria-labelledby="super-admin-title">
         <h2 id="super-admin-title">시스템 관리</h2>
         <p class="help">가입 승인과 역할 배정은 보호된 관리 화면에서 처리합니다.</p>
         <a class="button" href="../staff/?admin=1">가입 승인 관리 열기</a>
       </section>
     </section>
+
+    <section id="general-worker-board" class="today-board" hidden aria-labelledby="today-title">
+      <header class="today-heading">
+        <div>
+          <p class="eyebrow">오늘</p>
+          <h1 id="today-title">오늘 필요한 정보</h1>
+          <p id="today-date" class="today-date"></p>
+        </div>
+        <button id="refresh-board" class="button button-quiet" type="button">새로고침</button>
+      </header>
+
+      <p id="board-message" class="message" role="status" aria-live="polite" hidden></p>
+
+      <section class="today-section" aria-labelledby="worker-name-title">
+        <h2 id="worker-name-title">내 정보</h2>
+        <p id="today-worker-name" class="worker-name"></p>
+      </section>
+
+      <section class="today-section" aria-labelledby="work-hours-title">
+        <h2 id="work-hours-title">오늘 근무시간</h2>
+        <div id="work-hours-list" class="card-list"></div>
+      </section>
+
+      <section class="today-section" aria-labelledby="tasks-title">
+        <h2 id="tasks-title">오늘의 업무</h2>
+        <div id="task-list" class="card-list"></div>
+      </section>
+
+      <section class="today-section" aria-labelledby="information-title">
+        <h2 id="information-title">중요한 일정·공지</h2>
+        <div id="information-list" class="card-list"></div>
+      </section>
+
+      <section id="work-guide-panel" class="today-section guide-panel" hidden aria-labelledby="work-guide-title">
+        <div class="section-heading">
+          <h2 id="work-guide-title">작업방법</h2>
+          <button id="close-work-guide" class="button button-quiet" type="button">닫기</button>
+        </div>
+        <div id="work-guide-content"></div>
+      </section>
+    </section>
+
+    <section id="today-admin-panel" class="panel admin-today" hidden aria-labelledby="today-admin-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">관리자 검증 화면</p>
+          <h2 id="today-admin-title">오늘 정보 등록·수정</h2>
+        </div>
+        <button id="refresh-admin" class="button button-quiet" type="button">목록 새로고침</button>
+      </div>
+      <p class="help">일반 근로자는 이 화면을 볼 수 없습니다. 삭제 대신 취소 또는 사용 중지를 선택하세요.</p>
+      <label for="admin-board-date">확인할 날짜
+        <input id="admin-board-date" type="date">
+      </label>
+      <p id="admin-message" class="message" role="status" aria-live="polite" hidden></p>
+
+      <section class="admin-records" aria-labelledby="admin-records-title">
+        <h3 id="admin-records-title">등록된 오늘 정보</h3>
+        <div id="admin-record-list" class="card-list"></div>
+      </section>
+
+      <details class="editor-card" open>
+        <summary>오늘 업무 등록·수정</summary>
+        <form id="task-form">
+          <input id="task-id" type="hidden">
+          <div class="form-grid">
+            <label>날짜<input id="task-date" type="date" required></label>
+            <label>업무명<input id="task-title-input" type="text" maxlength="120" required></label>
+            <label>시작시간<input id="task-start" type="time"></label>
+            <label>종료시간<input id="task-end" type="time"></label>
+            <label>작업장소<input id="task-location" type="text" maxlength="200" required></label>
+            <label>담당 반장<select id="task-lead"><option value="">선택하지 않음</option></select></label>
+            <label>대상 범위<select id="task-scope" required></select></label>
+            <label>대상<select id="task-target"></select></label>
+            <label>작업방법<select id="task-guide"><option value="">연결하지 않음</option></select></label>
+            <label>상태<select id="task-status" required>
+              <option value="published">사용 중</option>
+              <option value="draft">작성 중</option>
+              <option value="cancelled">취소</option>
+              <option value="inactive">사용 중지</option>
+            </select></label>
+          </div>
+          <label>준비물<textarea id="task-preparation" maxlength="1000" rows="3"></textarea></label>
+          <label>쉬운 주의사항<textarea id="task-caution" maxlength="1000" rows="3"></textarea></label>
+          <label>변경 사유<input id="task-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">업무 저장</button>
+            <button id="reset-task-form" class="button button-quiet" type="button">새 업무 작성</button>
+          </div>
+        </form>
+      </details>
+
+      <details class="editor-card">
+        <summary>근무시간·일정·공지 등록·수정</summary>
+        <form id="information-form">
+          <input id="information-id" type="hidden">
+          <div class="form-grid">
+            <label>날짜<input id="information-date" type="date" required></label>
+            <label>종류<select id="information-kind" required>
+              <option value="work_hours">근무시간</option>
+              <option value="training">교육</option>
+              <option value="external_activity">외부활동</option>
+              <option value="holiday">휴무</option>
+              <option value="location_change">근무장소 변경</option>
+              <option value="event">특별행사</option>
+              <option value="transport">차량·이동</option>
+              <option value="notice">중요공지</option>
+              <option value="safety">안전 안내</option>
+            </select></label>
+            <label>제목<input id="information-title-input" type="text" maxlength="120" required></label>
+            <label>장소<input id="information-location" type="text" maxlength="200"></label>
+            <label>시작시간<input id="information-start" type="time"></label>
+            <label>종료시간<input id="information-end" type="time"></label>
+            <label>대상 범위<select id="information-scope" required></select></label>
+            <label>대상<select id="information-target"></select></label>
+            <label>상태<select id="information-status" required>
+              <option value="published">사용 중</option>
+              <option value="draft">작성 중</option>
+              <option value="cancelled">취소</option>
+              <option value="inactive">사용 중지</option>
+            </select></label>
+            <label class="check-label"><input id="information-important" type="checkbox"> 중요하게 표시</label>
+          </div>
+          <label>쉬운 안내문<textarea id="information-body" maxlength="1000" rows="3"></textarea></label>
+          <label>준비물<textarea id="information-preparation" maxlength="1000" rows="3"></textarea></label>
+          <label>변경 사유<input id="information-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">일정·공지 저장</button>
+            <button id="reset-information-form" class="button button-quiet" type="button">새 일정·공지 작성</button>
+          </div>
+        </form>
+      </details>
+
+      <details class="editor-card">
+        <summary>작업방법 연결 자리 만들기</summary>
+        <form id="guide-form">
+          <input id="guide-id" type="hidden">
+          <div class="form-grid">
+            <label>부서<select id="guide-department" required></select></label>
+            <label>작업방법 이름<input id="guide-title-input" type="text" maxlength="120" required></label>
+            <label>상태<select id="guide-status" required>
+              <option value="published">사용 중</option>
+              <option value="draft">작성 중</option>
+              <option value="inactive">사용 중지</option>
+            </select></label>
+          </div>
+          <label>간단한 설명<textarea id="guide-summary" maxlength="500" rows="2"></textarea></label>
+          <label>준비물<textarea id="guide-materials" maxlength="1000" rows="2"></textarea></label>
+          <label>주의사항<textarea id="guide-caution" maxlength="1000" rows="2"></textarea></label>
+          <label>변경 사유<input id="guide-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">작업방법 자리 저장</button>
+            <button id="reset-guide-form" class="button button-quiet" type="button">새 작업방법 작성</button>
+          </div>
+        </form>
+        <p class="help">대표사진과 3~7단계 상세 작업순서는 후속 PR에서 연결합니다.</p>
+      </details>
+    </section>
   </main>
   <script src="../staff/assets/auth-routing.js"></script>
+  <script src="assets/today-board.js"></script>
   <script src="assets/app.js" defer></script>
 </body>
 </html>
