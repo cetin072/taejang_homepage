@@ -66,6 +66,10 @@
       <section class="today-section" aria-labelledby="information-title">
         <h2 id="information-title">중요한 일정·공지</h2>
         <div id="information-list" class="card-list"></div>
+        <div class="home-menu-actions" aria-label="일정과 공지 전체 보기">
+          <button id="open-schedule-list" class="button guide-button" type="button">내 일정 전체 보기</button>
+          <button id="open-notice-list" class="button button-quiet guide-button" type="button">중요공지 전체 보기</button>
+        </div>
       </section>
 
       <section class="today-section" aria-labelledby="guide-menu-title">
@@ -80,6 +84,55 @@
           <button id="close-work-guide" class="button button-quiet" type="button">닫기</button>
         </div>
         <div id="work-guide-content"></div>
+      </section>
+    </section>
+
+    <section id="schedule-screen" class="work-guide-screen" hidden aria-live="polite">
+      <section id="schedule-list-view" class="today-section" aria-labelledby="schedule-list-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">내 일정</p><h1 id="schedule-list-title" tabindex="-1">가까운 일정</h1></div>
+          <button id="schedule-back-today" class="button button-quiet" type="button">오늘 화면으로</button>
+        </div>
+        <p class="help">오늘부터 가까운 일정을 날짜 순서로 확인하세요.</p>
+        <p id="schedule-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="schedule-list" class="schedule-groups"></div>
+      </section>
+
+      <section id="schedule-detail-view" class="today-section" hidden aria-labelledby="schedule-detail-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">일정 상세</p><h1 id="schedule-detail-title" tabindex="-1"></h1></div>
+        </div>
+        <p id="schedule-detail-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="schedule-detail-content" class="detail-content"></div>
+        <div class="form-actions">
+          <button id="schedule-detail-back" class="button" type="button">일정 목록으로</button>
+          <button id="schedule-detail-today" class="button button-quiet" type="button">오늘 화면으로</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="notice-screen" class="work-guide-screen" hidden aria-live="polite">
+      <section id="notice-list-view" class="today-section" aria-labelledby="notice-list-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">중요공지</p><h1 id="notice-list-title" tabindex="-1">현재 확인할 공지</h1></div>
+          <button id="notice-back-today" class="button button-quiet" type="button">오늘 화면으로</button>
+        </div>
+        <p class="help">현재 게시 중이고 나에게 필요한 공지만 표시합니다.</p>
+        <p id="notice-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="notice-list" class="notice-list"></div>
+      </section>
+
+      <section id="notice-detail-view" class="today-section" hidden aria-labelledby="notice-detail-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">공지 상세</p><h1 id="notice-detail-title" tabindex="-1"></h1></div>
+        </div>
+        <p id="notice-detail-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="notice-detail-content" class="detail-content"></div>
+        <div id="notice-ack-slot" class="acknowledgement-slot"></div>
+        <div class="form-actions">
+          <button id="notice-detail-back" class="button" type="button">공지 목록으로</button>
+          <button id="notice-detail-today" class="button button-quiet" type="button">오늘 화면으로</button>
+        </div>
       </section>
     </section>
 
@@ -261,12 +314,126 @@
       </details>
       <details class="editor-card"><summary>일반 근로자 화면 미리보기</summary><div id="guide-preview" class="guide-preview"></div></details>
     </section>
+
+    <section id="schedule-admin-panel" class="panel admin-today" hidden aria-labelledby="schedule-admin-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">관리자 일정</p><h2 id="schedule-admin-title">일정 등록·수정</h2></div>
+        <button id="refresh-schedule-admin" class="button button-quiet" type="button">일정 새로고침</button>
+      </div>
+      <p class="easy-writing-help">한 문장에 한 행동만 적으세요. 시간과 장소를 빠뜨리지 마세요. 차량 이동이 있으면 출발시간을 적으세요. 변경·취소 이유는 짧게 적으세요.</p>
+      <p id="schedule-admin-message" class="message" role="status" aria-live="polite" hidden></p>
+      <div id="schedule-admin-list" class="card-list"></div>
+      <details class="editor-card" open>
+        <summary>일정 작성·수정</summary>
+        <form id="schedule-form">
+          <input id="schedule-id" type="hidden">
+          <div class="form-grid">
+            <label>일정 종류<select id="schedule-type" required>
+              <option value="work">근무</option><option value="training">교육</option>
+              <option value="external_activity">외부활동</option><option value="holiday">휴무</option>
+              <option value="location_change">근무장소 변경</option><option value="special_event">특별행사</option>
+              <option value="transport">차량·이동</option><option value="other">기타 안내</option>
+            </select></label>
+            <label>일정명<input id="schedule-title-input" type="text" maxlength="120" required></label>
+            <label>시작 날짜<input id="schedule-start-date" type="date" required></label>
+            <label>시작 시간<input id="schedule-start-time" type="time" required></label>
+            <label>종료 날짜<input id="schedule-end-date" type="date"></label>
+            <label>종료 시간<input id="schedule-end-time" type="time"></label>
+            <label class="check-label"><input id="schedule-all-day" type="checkbox"> 하루 종일</label>
+            <label>장소<input id="schedule-location" type="text" maxlength="200"></label>
+            <label>담당자<input id="schedule-manager" type="text" maxlength="160"></label>
+            <label>차량 출발 날짜<input id="schedule-vehicle-date" type="date"></label>
+            <label>차량 출발 시간<input id="schedule-vehicle-time" type="time"></label>
+            <label>대상 범위<select id="schedule-scope" required></select></label>
+            <label>대상<select id="schedule-target"></select></label>
+            <label>상태<select id="schedule-status" required>
+              <option value="draft">작성 중</option><option value="published">게시</option>
+              <option value="cancelled">취소</option><option value="inactive">사용 중지</option>
+            </select></label>
+          </div>
+          <label>준비물<textarea id="schedule-materials" maxlength="1000" rows="2"></textarea></label>
+          <label>이동방법<textarea id="schedule-transport" maxlength="500" rows="2"></textarea></label>
+          <label>쉬운 안내문<textarea id="schedule-easy-text" maxlength="2000" rows="3" required data-easy-text></textarea></label>
+          <label>변경·취소 사유<input id="schedule-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">일정 저장</button>
+            <button id="reset-schedule-form" class="button button-quiet" type="button">새 일정 작성</button>
+          </div>
+        </form>
+      </details>
+      <details class="editor-card"><summary>일반 근로자 일정 미리보기</summary><div id="schedule-preview" class="guide-preview"></div></details>
+    </section>
+
+    <section id="notice-admin-panel" class="panel admin-today" hidden aria-labelledby="notice-admin-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">관리자 공지</p><h2 id="notice-admin-title">중요공지 등록·수정</h2></div>
+        <button id="refresh-notice-admin" class="button button-quiet" type="button">공지 새로고침</button>
+      </div>
+      <p class="easy-writing-help">한 문장에 한 행동만 적으세요. 쉬운 단어를 사용하세요. 시간과 장소, 준비물을 빠뜨리지 마세요.</p>
+      <p id="notice-admin-message" class="message" role="status" aria-live="polite" hidden></p>
+      <div id="notice-admin-list" class="card-list"></div>
+      <details class="editor-card" open>
+        <summary>공지 작성·수정</summary>
+        <form id="notice-form">
+          <input id="notice-id" type="hidden">
+          <div class="form-grid">
+            <label>공지 종류<select id="notice-kind" required>
+              <option value="safety">안전</option><option value="working_hours">근무시간</option>
+              <option value="work_location">근무장소</option><option value="training">교육</option>
+              <option value="external_activity">외부활동</option><option value="holiday">휴무</option>
+              <option value="transport">차량·이동</option><option value="materials">준비물</option>
+              <option value="clothing">복장</option><option value="company_life">회사생활</option>
+              <option value="general">일반공지</option>
+            </select></label>
+            <label>중요도<select id="notice-importance" required>
+              <option value="normal">일반</option><option value="important">중요</option><option value="urgent">긴급</option>
+            </select></label>
+            <label>제목<input id="notice-title-input" type="text" maxlength="120" required></label>
+            <label>게시 시작 날짜<input id="notice-publish-start-date" type="date" required></label>
+            <label>게시 시작 시간<input id="notice-publish-start-time" type="time" required></label>
+            <label>게시 종료 날짜<input id="notice-publish-end-date" type="date"></label>
+            <label>게시 종료 시간<input id="notice-publish-end-time" type="time"></label>
+            <label>적용 시작일<input id="notice-effective-start" type="date"></label>
+            <label>적용 종료일<input id="notice-effective-end" type="date"></label>
+            <label>장소<input id="notice-location" type="text" maxlength="200"></label>
+            <label>관련 일정<select id="notice-related-schedule"><option value="">연결하지 않음</option></select></label>
+            <label>관련 작업방법<select id="notice-related-guide"><option value="">연결하지 않음</option></select></label>
+            <label>대상 범위<select id="notice-scope" required></select></label>
+            <label>대상<select id="notice-target"></select></label>
+            <label>상태<select id="notice-status" required>
+              <option value="draft">작성 중</option><option value="published">게시</option>
+              <option value="cancelled">취소</option><option value="inactive">사용 중지</option>
+            </select></label>
+            <label class="check-label"><input id="notice-requires-ack" type="checkbox"> 내용 확인 필요</label>
+          </div>
+          <label>쉬운 안내문<textarea id="notice-body" maxlength="3000" rows="4" required data-easy-text></textarea></label>
+          <label>준비물<textarea id="notice-materials" maxlength="1000" rows="2"></textarea></label>
+          <div class="form-grid">
+            <label>관련 링크 표시명<input id="notice-link-label" type="text" maxlength="160"></label>
+            <label>관련 HTTPS 주소<input id="notice-link-url" type="url" maxlength="2000" placeholder="https://..."></label>
+          </div>
+          <label>변경·사용중지 사유<input id="notice-reason" type="text" maxlength="300" required></label>
+          <div class="form-actions">
+            <button class="button" type="submit">공지 저장</button>
+            <button id="reset-notice-form" class="button button-quiet" type="button">새 공지 작성</button>
+          </div>
+        </form>
+      </details>
+      <details class="editor-card"><summary>일반 근로자 공지 미리보기</summary><div id="notice-preview" class="guide-preview"></div></details>
+    </section>
   </main>
   <script src="../staff/assets/auth-routing.js"></script>
   <script src="assets/today-board.js"></script>
   <script src="assets/app-ui.js"></script>
+  <script src="assets/staff-information-ui.js"></script>
+  <script src="assets/staff-information-today.js"></script>
   <script src="assets/app.js" defer></script>
   <script src="assets/work-guide-worker.js" defer></script>
   <script src="assets/work-guide-admin.js" defer></script>
+  <script src="assets/schedule-worker.js" defer></script>
+  <script src="assets/notice-acknowledgement.js" defer></script>
+  <script src="assets/notice-worker.js" defer></script>
+  <script src="assets/schedule-admin.js" defer></script>
+  <script src="assets/notice-admin.js" defer></script>
 </body>
 </html>
