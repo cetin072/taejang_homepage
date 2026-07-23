@@ -58,7 +58,7 @@ test('manager UI is loaded only after the active server context is verified', ()
 
 test('protected management panels are opened only for existing manager roles', () => {
   assert.match(app, /if \(!isTodayManager\(\)\) return/);
-  assert.match(app, /new Set\(\['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel'\]\)/);
+  assert.match(app, /new Set\(\['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel'\]\)/);
   assert.match(shell, /managerRoles/);
   assert.doesNotMatch(shell, /role=/);
 });
