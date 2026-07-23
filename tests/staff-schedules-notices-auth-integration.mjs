@@ -75,6 +75,7 @@ const day = (offset, hour = 9, minute = 0) => {
   return `${date}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+09:00`;
 };
 const currentDate = kstDate(new Date());
+const workGroupFixtureStartDate = '2020-01-01';
 
 function target(scope, id = null) {
   return {
@@ -193,7 +194,7 @@ for (const [group, profile, memberType] of [
     p_work_group_id: group,
     p_profile_id: profile,
     p_member_type: memberType,
-    p_start_date: currentDate,
+    p_start_date: workGroupFixtureStartDate,
     p_end_date: null,
     p_change_reason: '일정 공지 API 작업반 배정'
   });

@@ -46,9 +46,13 @@ test('schedule, notice, acknowledgement, admin, and common concerns are separate
   const html = read('app/index.html');
   for (const file of [
     'staff-information-ui.js', 'staff-information-today.js', 'schedule-worker.js',
-    'notice-worker.js', 'notice-acknowledgement.js', 'schedule-admin.js', 'notice-admin.js'
+    'notice-worker.js', 'notice-acknowledgement.js'
   ]) {
     assert.match(html, new RegExp(`assets/${file}`));
+    assert.ok(fs.existsSync(path.join(root, 'app/assets', file)));
+  }
+  for (const file of ['schedule-admin.js', 'notice-admin.js']) {
+    assert.match(read('app/assets/app.js'), new RegExp(`loadScript\\('assets/${file.replace('.', '\\.')}\\'\\)`));
     assert.ok(fs.existsSync(path.join(root, 'app/assets', file)));
   }
   const app = read('app/assets/app.js');

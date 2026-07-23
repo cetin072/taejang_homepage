@@ -11,7 +11,8 @@
     boardDate: null,
     adminOptions: null,
     adminRecords: { tasks: [], information: [] },
-    verifying: false
+    verifying: false,
+    managerModulesLoaded: false
   };
   const boardTools = window.TaejangTodayBoard;
   const element = id => document.getElementById(id);
@@ -102,6 +103,25 @@
 
   function isTodayManager() {
     return [...roleCodes()].some(code => MANAGER_ROLES.has(code));
+  }
+
+  function loadScript(source) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = source;
+      script.defer = true;
+      script.addEventListener('load', resolve, { once: true });
+      script.addEventListener('error', reject, { once: true });
+      document.body.append(script);
+    });
+  }
+
+  async function loadManagerModules() {
+    if (!isTodayManager() || state.managerModulesLoaded) return;
+    await loadScript('assets/work-guide-admin.js');
+    await loadScript('assets/schedule-admin.js');
+    await loadScript('assets/notice-admin.js');
+    state.managerModulesLoaded = true;
   }
 
   function friendlyError(error) {
@@ -579,16 +599,18 @@
     if (saved) document.dispatchEvent(new CustomEvent('taejang-work-guide-saved', { detail: { id: element('guide-id').value || null } }));
   }
 
-  function renderEntry(current, route) {
+  async function renderEntry(current, route) {
     state.context = current;
     state.route = route;
     state.boardDate = koreanToday();
     element('loading-panel').hidden = true;
-    element('app-panel').hidden = route.code === 'general_worker';
+    document.body.classList.toggle('general-worker-mode', route.code === 'general_worker');
+    element('desktop-app-shell').hidden = route.code === 'general_worker';
+    element('app-panel').hidden = true;
     element('general-worker-board').hidden = route.code !== 'general_worker';
-    element('today-admin-panel').hidden = !isTodayManager();
-    element('schedule-admin-panel').hidden = !isTodayManager();
-    element('notice-admin-panel').hidden = !isTodayManager();
+    element('today-admin-panel').hidden = true;
+    element('schedule-admin-panel').hidden = true;
+    element('notice-admin-panel').hidden = true;
     element('home-title').textContent = `${route.label} 화면`;
     element('profile-name').textContent = current.display_name || '확인됨';
     element('profile-department').textContent = current.department?.name || '미배정';
@@ -598,11 +620,12 @@
     element('admin-board-date').value = state.boardDate;
     element('task-date').value = state.boardDate;
     element('information-date').value = state.boardDate;
-    window.history.replaceState(null, '', `?home=${encodeURIComponent(route.home)}`);
+    window.history.replaceState(null, '', window.location.pathname);
     window.TaejangApp = {
       rpc,
       isTodayManager,
       roleCodes,
+      getRoute: () => state.route?.code,
       getContext: () => state.context,
       getBoardDate: () => state.boardDate,
       refreshToday: loadTodayBoard,
@@ -610,7 +633,8 @@
       getAdminOptions: () => state.adminOptions,
       friendlyError
     };
-    document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code } }));
+    await loadManagerModules();
+    document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
   }
 
   async function verify() {
@@ -631,7 +655,7 @@
         state.verifying = false;
         return sendToStaff(destination.kind, { clear: destination.kind === 'signin' });
       }
-      renderEntry(current, destination.route);
+      await renderEntry(current, destination.route);
       if (destination.route.code === 'general_worker') await loadTodayBoard();
       if (isTodayManager()) await loadAdminData();
     } catch {
@@ -652,6 +676,21 @@
   element('refresh-board').addEventListener('click', loadTodayBoard);
   element('close-work-guide').addEventListener('click', () => { element('work-guide-panel').hidden = true; });
   element('refresh-admin').addEventListener('click', loadAdminData);
+
+  document.addEventListener('taejang-open-app-panel', event => {
+    if (!isTodayManager()) return;
+    const id = event.detail?.id;
+    const allowed = new Set(['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel']);
+    if (!allowed.has(id)) return;
+    element('dashboard-main').hidden = true;
+    for (const panelId of allowed) element(panelId).hidden = panelId !== id;
+    element(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    element(id).querySelector('h2')?.focus?.();
+  });
+  document.addEventListener('taejang-dashboard-refresh', () => {
+    element('dashboard-main').hidden = false;
+    for (const panelId of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel']) element(panelId).hidden = true;
+  });
   element('admin-board-date').addEventListener('change', () => {
     element('task-date').value = element('admin-board-date').value;
     element('information-date').value = element('admin-board-date').value;

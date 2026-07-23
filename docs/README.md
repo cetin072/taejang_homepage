@@ -15,6 +15,7 @@
 - [일반 장애인 근로자용 정보게시판 기준 v1](planning/GENERAL_WORKER_INFORMATION_BOARD_V1.md)
 - [일반 근로자 작업방법 구현](GENERAL_WORKER_WORK_GUIDES_IMPLEMENTATION.md)
 - [일반 근로자 일정·중요공지 구현](STAFF_SCHEDULES_AND_NOTICES_IMPLEMENTATION.md)
+- [역할별 대시보드·공통 앱 셸 구현](ROLE_BASED_DASHBOARD_SHELLS_IMPLEMENTATION.md)
 - [현장 관리자·반장 운영기록 기준 v1](planning/FIELD_LEAD_OPERATION_RECORDS_V1.md)
 - [업무유형별 기록 수준 기준 v1](planning/WORK_RECORD_DEPTH_POLICY_V1.md)
 - [태장 일반 근로자용 장애인 친화 업무안내 화면 v1](planning/MOBILE_TASK_DASHBOARD_V1.md) — 상세 화면 기준
