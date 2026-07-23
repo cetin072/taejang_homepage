@@ -11,5 +11,15 @@ select ok(has_function_privilege('authenticated', 'public.get_my_staff_guidance_
 select ok(not has_function_privilege('anon', 'public.save_staff_guidance(uuid,public.staff_guidance_category,text,text,text,text,text,text,uuid,uuid,text,text,public.today_target_scope,uuid,uuid,uuid,integer,boolean,public.board_record_status,date,date,text)', 'EXECUTE'), 'anonymous users cannot save guidance');
 select ok(public.is_safe_https_url('https://example.test/guidance'), 'safe HTTPS guidance link is accepted');
 select ok(not public.is_safe_https_url('javascript:alert(1)'), 'unsafe guidance link is rejected');
+select has_function('public', 'korea_current_date', array[]::text[], 'KST calendar-date helper exists');
+select is(
+  public.korea_current_date(),
+  (now() at time zone 'Asia/Seoul')::date,
+  'KST calendar-date helper is independent of the database session timezone'
+);
+select ok(
+  has_function_privilege('authenticated', 'public.korea_current_date()', 'EXECUTE'),
+  'authenticated schedule callers can resolve the guarded KST default'
+);
 select * from finish();
 rollback;
