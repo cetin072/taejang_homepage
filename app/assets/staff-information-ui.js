@@ -17,6 +17,11 @@
     company_life: '회사생활', general: '일반공지'
   });
   const IMPORTANCE = Object.freeze({ normal: '일반', important: '중요', urgent: '긴급' });
+  const GUIDANCE_CATEGORIES = Object.freeze({
+    working_hours: '근무시간', breaks_meals: '휴게·식사', places: '장소안내', safety: '안전',
+    clothing_supplies: '복장·준비물', absence_contact: '지각·결근', pay_documents: '급여·서류',
+    help_request: '도움요청', company_life: '회사생활', other: '기타'
+  });
   const STATUS = Object.freeze({ draft: '작성 중', published: '게시', cancelled: '취소', inactive: '사용 중지' });
   const GROUP_ORDER = ['today', 'tomorrow', 'week', 'later'];
   const GROUP_LABELS = Object.freeze({ today: '오늘', tomorrow: '내일', week: '이번 주', later: '그 이후 예정' });
@@ -110,7 +115,7 @@
   }
 
   function setWorkerScreen(name) {
-    for (const id of ['general-worker-board', 'work-guide-screen', 'schedule-screen', 'notice-screen']) {
+    for (const id of ['general-worker-board', 'work-guide-screen', 'schedule-screen', 'notice-screen', 'guidance-screen']) {
       const node = element(id);
       if (node) node.hidden = id !== name;
     }
@@ -192,7 +197,7 @@
   }
 
   return {
-    SCHEDULE_TYPES, NOTICE_KINDS, IMPORTANCE, STATUS, GROUP_ORDER, GROUP_LABELS,
+    SCHEDULE_TYPES, NOTICE_KINDS, IMPORTANCE, GUIDANCE_CATEGORIES, STATUS, GROUP_ORDER, GROUP_LABELS,
     element, array, text, message, formatDate, formatTime, formatDateTime, formatRange,
     kstDate, kstTime, toKstIso, scheduleGroup, setWorkerScreen, fillSelect,
     fillScopeSelect, fillTargetSelect, targetPayload, targetId, safeHttpsUrl, appendDetail

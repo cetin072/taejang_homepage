@@ -121,6 +121,7 @@
     await loadScript('assets/work-guide-admin.js');
     await loadScript('assets/schedule-admin.js');
     await loadScript('assets/notice-admin.js');
+    await loadScript('assets/guidance-admin.js');
     state.managerModulesLoaded = true;
   }
 
@@ -611,6 +612,7 @@
     element('today-admin-panel').hidden = true;
     element('schedule-admin-panel').hidden = true;
     element('notice-admin-panel').hidden = true;
+    element('guidance-admin-panel').hidden = true;
     element('home-title').textContent = `${route.label} 화면`;
     element('profile-name').textContent = current.display_name || '확인됨';
     element('profile-department').textContent = current.department?.name || '미배정';
@@ -680,7 +682,7 @@
   document.addEventListener('taejang-open-app-panel', event => {
     if (!isTodayManager()) return;
     const id = event.detail?.id;
-    const allowed = new Set(['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel']);
+    const allowed = new Set(['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']);
     if (!allowed.has(id)) return;
     element('dashboard-main').hidden = true;
     for (const panelId of allowed) element(panelId).hidden = panelId !== id;
@@ -689,7 +691,7 @@
   });
   document.addEventListener('taejang-dashboard-refresh', () => {
     element('dashboard-main').hidden = false;
-    for (const panelId of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel']) element(panelId).hidden = true;
+    for (const panelId of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) element(panelId).hidden = true;
   });
   element('admin-board-date').addEventListener('change', () => {
     element('task-date').value = element('admin-board-date').value;

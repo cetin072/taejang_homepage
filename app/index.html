@@ -94,12 +94,36 @@
         <button id="open-work-guide-list" class="button guide-button" type="button">작업방법 목록 보기</button>
       </section>
 
+      <section class="today-section" aria-labelledby="guidance-menu-title">
+        <h2 id="guidance-menu-title">자주 보는 안내</h2>
+        <p class="help">회사생활 중 자주 확인하는 내용을 모았습니다.</p>
+        <button id="open-guidance-list" class="button guide-button" type="button">자주 보는 안내 보기</button>
+      </section>
+
       <section id="work-guide-panel" class="today-section guide-panel" hidden aria-labelledby="work-guide-title">
         <div class="section-heading">
           <h2 id="work-guide-title">작업방법</h2>
           <button id="close-work-guide" class="button button-quiet" type="button">닫기</button>
         </div>
         <div id="work-guide-content"></div>
+      </section>
+    </section>
+
+    <section id="guidance-screen" class="work-guide-screen" hidden aria-live="polite">
+      <section id="guidance-list-view" class="today-section" aria-labelledby="guidance-list-title">
+        <div class="section-heading"><div><p class="eyebrow">자주 보는 안내</p><h1 id="guidance-list-title" tabindex="-1">자주 보는 안내</h1></div><button id="guidance-back-today" class="button button-quiet" type="button">오늘 화면으로</button></div>
+        <p class="help">회사생활 중 자주 확인하는 내용을 모았습니다.</p>
+        <label class="guidance-search-label" for="guidance-search">제목이나 짧은 설명으로 찾기<input id="guidance-search" type="search" placeholder="예: 휴게시간"></label>
+        <div id="guidance-filters" class="guide-filters" aria-label="자주 보는 안내 분류"></div>
+        <p id="guidance-filter-status" class="help" aria-live="polite"></p>
+        <p id="guidance-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="guidance-list" class="guidance-list"></div>
+      </section>
+      <section id="guidance-detail-view" class="today-section" hidden aria-labelledby="guidance-detail-title">
+        <div class="section-heading"><div><p id="guidance-detail-category" class="eyebrow"></p><h1 id="guidance-detail-title" tabindex="-1"></h1></div></div>
+        <p id="guidance-detail-message" class="message" role="status" aria-live="polite" hidden></p>
+        <div id="guidance-detail-content" class="detail-content"></div>
+        <div class="form-actions"><button id="guidance-detail-back" class="button" type="button">안내 목록으로</button><button id="guidance-detail-today" class="button button-quiet" type="button">오늘 화면으로</button></div>
       </section>
     </section>
 
@@ -437,6 +461,29 @@
       </details>
       <details class="editor-card"><summary>일반 근로자 공지 미리보기</summary><div id="notice-preview" class="guide-preview"></div></details>
     </section>
+
+    <section id="guidance-admin-panel" class="panel admin-today" hidden aria-labelledby="guidance-admin-title">
+      <div class="section-heading"><div><p class="eyebrow">안내 관리</p><h2 id="guidance-admin-title">자주 보는 안내 등록·수정</h2></div><button id="refresh-guidance-admin" class="button button-quiet" type="button">안내 새로고침</button></div>
+      <p class="easy-writing-help">중요공지에는 지금 바뀐 내용만, 이 화면에는 평소 반복해서 확인할 내용을 적으세요. 개인 상담·질병·근태·평가 정보는 적지 마세요.</p>
+      <p id="guidance-admin-message" class="message" role="status" aria-live="polite" hidden></p>
+      <div id="guidance-admin-list" class="card-list"></div>
+      <details class="editor-card" open><summary>안내 작성·수정</summary><form id="guidance-form">
+        <input id="guidance-id" type="hidden"><div class="form-grid">
+          <label>분류<select id="guidance-category" required></select></label><label>제목<input id="guidance-title-input" type="text" maxlength="120" required></label>
+          <label>대상 범위<select id="guidance-scope" required></select></label><label>대상<select id="guidance-target"></select></label>
+          <label>표시 순서<input id="guidance-display-order" type="number" min="-100000" max="100000" value="0" required></label><label>상태<select id="guidance-status" required><option value="draft">작성 중</option><option value="published">게시</option><option value="inactive">사용 중지</option></select></label>
+          <label>적용 시작일<input id="guidance-effective-from" type="date"></label><label>적용 종료일<input id="guidance-effective-until" type="date"></label>
+          <label>관련 작업방법<select id="guidance-related-guide"><option value="">연결하지 않음</option></select></label><label>관련 일정<select id="guidance-related-schedule"><option value="">연결하지 않음</option></select></label>
+          <label class="check-label"><input id="guidance-featured" type="checkbox"> 상단에 먼저 표시</label>
+        </div>
+        <label>짧고 쉬운 설명<textarea id="guidance-summary" maxlength="500" rows="2" required data-easy-text></textarea></label><label>안내 내용<textarea id="guidance-body" maxlength="3000" rows="5" required data-easy-text></textarea></label>
+        <div class="form-grid"><label>관련 장소<input id="guidance-location" type="text" maxlength="200"></label><label>문의 담당자 표시명<input id="guidance-help-contact" type="text" maxlength="160"></label></div>
+        <label>문의 또는 도움 요청 방법<textarea id="guidance-help-method" maxlength="1000" rows="2" data-easy-text></textarea></label>
+        <div class="form-grid"><label>관련 링크 표시명<input id="guidance-link-label" type="text" maxlength="160"></label><label>관련 HTTPS 주소<input id="guidance-link-url" type="url" maxlength="2000" placeholder="https://..."></label></div>
+        <label>변경·사용중지 사유<input id="guidance-reason" type="text" maxlength="300" required></label><div class="form-actions"><button class="button" type="submit">안내 저장</button><button id="reset-guidance-form" class="button button-quiet" type="button">새 안내 작성</button></div>
+      </form></details>
+      <details class="editor-card"><summary>일반 근로자 화면 미리보기</summary><div id="guidance-preview" class="guide-preview"></div></details>
+    </section>
   </main>
   <script src="../staff/assets/auth-routing.js"></script>
   <script src="assets/today-board.js"></script>
@@ -449,5 +496,6 @@
   <script src="assets/schedule-worker.js" defer></script>
   <script src="assets/notice-acknowledgement.js" defer></script>
   <script src="assets/notice-worker.js" defer></script>
+  <script src="assets/guidance-worker.js" defer></script>
 </body>
 </html>
