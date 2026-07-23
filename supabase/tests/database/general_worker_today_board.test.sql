@@ -216,9 +216,9 @@ select is(
   'WORK_GUIDE_SAVED',
   'authorized manager creates a draft work guide'
 );
-select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 1, '첫 단계', '첫 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds first guide step');
-select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 2, '둘째 단계', '둘째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds second guide step');
-select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 3, '셋째 단계', '셋째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds third guide step');
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 1::smallint, '첫 단계', '첫 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds first guide step');
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 2::smallint, '둘째 단계', '둘째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds second guide step');
+select is((public.save_work_guide_step(null, (select id from public.work_guides where title = '포장 작업방법'), 3::smallint, '셋째 단계', '셋째 단계를 합니다.', null, null, null, 'published', '단계 추가') ->> 'code'), 'WORK_GUIDE_STEP_SAVED', 'manager adds third guide step');
 select is((public.save_work_guide((select id from public.work_guides where title = '포장 작업방법'), (select id from public.departments where code = 'production'), '포장 작업방법', 'packing', 'procedure', 'department', (select id from public.departments where code = 'production'), '포장 전에 준비물을 확인합니다.', '상자와 테이프', '손이 끼이지 않게 천천히 작업합니다.', null, '테이프가 잘 붙어 있습니다.', '테스트 반장', null, null, false, 'published', '단계 검증 뒤 게시') ->> 'code'), 'WORK_GUIDE_SAVED', 'manager publishes guide with three valid steps');
 select is(
   (public.save_daily_work_assignment(
