@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>태장 업무앱</title>
   <link rel="stylesheet" href="../staff/assets/staff.css">
+  <link rel="stylesheet" href="assets/dashboard-shell.css">
 </head>
 <body>
   <main class="staff-shell">
@@ -13,6 +14,21 @@
       <a href="../index.html" class="staff-brand" aria-label="태장 공개 홈페이지로 이동">태장</a>
       <button id="logout-button" class="button button-quiet" type="button">로그아웃</button>
     </header>
+
+    <section id="desktop-app-shell" class="desktop-app-shell" hidden aria-label="태장 업무플랫폼">
+      <aside id="app-sidebar" class="app-sidebar" aria-label="업무 메뉴">
+        <a href="../index.html" class="app-logo" aria-label="태장 공개 홈페이지로 이동">태장 <span>업무플랫폼</span></a>
+        <nav id="app-nav" class="app-nav" aria-label="주요 메뉴"></nav>
+      </aside>
+      <div class="app-workspace">
+        <header class="app-topbar">
+          <button id="sidebar-toggle" class="icon-button" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button>
+          <div><p id="desktop-role-label" class="eyebrow"></p><h1 id="desktop-page-title">업무 대시보드</h1></div>
+          <div class="app-user-actions"><span id="desktop-user-label" class="app-user-label"></span><button id="desktop-logout-button" class="button button-quiet" type="button">로그아웃</button></div>
+        </header>
+        <main id="dashboard-main" class="dashboard-main" tabindex="-1" aria-live="polite"></main>
+      </div>
+    </section>
 
     <section id="loading-panel" class="panel state-panel" aria-live="polite">
       <h1>업무 화면을 확인하고 있습니다</h1>
@@ -428,12 +444,10 @@
   <script src="assets/staff-information-ui.js"></script>
   <script src="assets/staff-information-today.js"></script>
   <script src="assets/app.js" defer></script>
+  <script src="assets/dashboard-shell.js" defer></script>
   <script src="assets/work-guide-worker.js" defer></script>
-  <script src="assets/work-guide-admin.js" defer></script>
   <script src="assets/schedule-worker.js" defer></script>
   <script src="assets/notice-acknowledgement.js" defer></script>
   <script src="assets/notice-worker.js" defer></script>
-  <script src="assets/schedule-admin.js" defer></script>
-  <script src="assets/notice-admin.js" defer></script>
 </body>
 </html>
