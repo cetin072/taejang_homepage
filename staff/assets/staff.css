@@ -151,6 +151,13 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .external-link-box { display: grid; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--soft); }
 .external-link-box .button { justify-self: start; }
 .link-address { margin: 0; color: var(--muted); font-size: .88rem; overflow-wrap: anywhere; }
+.guidance-search-label { display: grid; gap: 8px; margin: 18px 0; font-weight: 800; }
+.guidance-search-label input { min-height: 48px; }
+.guidance-list { display: grid; gap: 16px; }
+.guidance-card { border: 1px solid var(--line); border-radius: 16px; padding: 20px; background: #fff; }
+.guidance-card.is-featured { border: 2px solid var(--brand); }
+.guidance-card h2 { margin: 6px 0 10px; font-size: 1.3rem; }
+.guidance-card .button { margin-top: 14px; }
 [hidden] { display: none !important; }
 
 @media (max-width: 720px) {
