@@ -258,13 +258,25 @@ window.TAEJANG_CONTENT = {
     },
     {
       id: "recruitment-notice",
-      category: "채용",
+      category: "공지",
       date: "2026.07.25",
       title: "신규 채용 공고",
       summary: "태장과 함께할 구성원을 찾기 위한 채용 안내입니다.",
-      thumb: "images/coaching.jpg",
-      hero: "images/coaching.jpg",
+      thumb: null,
+      hero: null,
       gallery: [],
+      photoRequired: true,
+      listingPhoto: {
+        title: "채용 안내 또는 업무공간 사진",
+        filename: "activity-1.jpg",
+        orientation: "가로형 또는 정방형"
+      },
+      photo: {
+        title: "채용 안내 또는 업무공간 사진",
+        filename: "activity-1.jpg",
+        orientation: "가로형 또는 정방형",
+        note: "지원자 개인정보와 문서가 보이지 않는 안내 장면"
+      },
       sections: [
         {
           paragraphs: [
@@ -281,13 +293,25 @@ window.TAEJANG_CONTENT = {
     },
     {
       id: "community-program",
-      category: "지역사회 활동",
+      category: "기업·지역 협력",
       date: "2026.07.22",
       title: "지역사회 연계 프로그램 진행",
       summary: "지역사회와 함께하는 활동의 준비와 진행 과정을 기록합니다.",
-      thumb: "images/minhwa-wide.jpg",
-      hero: "images/minhwa-wide.jpg",
+      thumb: null,
+      hero: null,
       gallery: [],
+      photoRequired: true,
+      listingPhoto: {
+        title: "지역사회 연계 활동",
+        filename: "activity-1.jpg",
+        orientation: "가로형 또는 정방형"
+      },
+      photo: {
+        title: "지역사회 연계 활동",
+        filename: "activity-1.jpg",
+        orientation: "가로형 또는 정방형",
+        note: "참여자 초상권과 개인정보를 확인한 활동 장면"
+      },
       sections: [
         {
           paragraphs: [
@@ -304,13 +328,25 @@ window.TAEJANG_CONTENT = {
     },
     {
       id: "standard-workplace-news",
-      category: "회사소식",
+      category: "일터 소식",
       date: "2026.07.18",
       title: "자회사형 장애인 표준사업장 관련 소식",
       summary: "태장이 안정적인 일터를 만들기 위해 이어가는 운영 방향을 소개합니다.",
-      thumb: "images/coaching.jpg",
-      hero: "images/coaching.jpg",
+      thumb: null,
+      hero: null,
       gallery: [],
+      photoRequired: true,
+      listingPhoto: {
+        title: "안정적인 일터 운영",
+        filename: "partner-1.jpg",
+        orientation: "가로형 또는 정방형"
+      },
+      photo: {
+        title: "안정적인 일터 운영",
+        filename: "partner-1.jpg",
+        orientation: "가로형 또는 정방형",
+        note: "개인정보와 민감한 문서가 보이지 않는 업무공간 또는 협력 장면"
+      },
       sections: [
         {
           paragraphs: [
