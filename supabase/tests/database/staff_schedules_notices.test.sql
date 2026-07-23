@@ -174,7 +174,11 @@ select is((public.save_notice(
   null, 'safety', 'urgent', '긴급 안전공지', '안전 공지를 확인합니다.',
   now() - interval '1 hour', now() + interval '3 days',
   current_date, current_date + 1, '교육실', '필기도구',
-  (select id from public.schedule_items where title = '전체 안전교육'), null,
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.list_manageable_schedules(true, 200)) item
+    where item ->> 'title' = '전체 안전교육'
+  ), null,
   'https://example.test/safety', '안전 안내 원문', true,
   'company', null, null, null, 'published', '긴급 안전공지 게시'
 ) ->> 'code'), 'NOTICE_SAVED', 'manager publishes acknowledgement-required urgent notice');
@@ -244,12 +248,24 @@ select ok(
 );
 select is(jsonb_array_length(public.get_my_notice_list(100)), 2, 'worker sees only current applicable published notices');
 select is(public.get_my_notice_list(100) #>> '{0,title}', '긴급 안전공지', 'urgent notice sorts before current normal notice');
-select is(public.get_my_notice_detail((select id from public.notices where title = '긴급 안전공지')) ->> 'related_link_url', 'https://example.test/safety', 'safe HTTPS link is returned by detail RPC');
+select is(public.get_my_notice_detail((
+  select (item ->> 'id')::uuid
+  from jsonb_array_elements(public.get_my_notice_list(100)) item
+  where item ->> 'title' = '긴급 안전공지'
+)) ->> 'related_link_url', 'https://example.test/safety', 'safe HTTPS link is returned by detail RPC');
 select is((public.acknowledge_notice(
-  (select id from public.notices where title = '긴급 안전공지'), 1
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.get_my_notice_list(100)) item
+    where item ->> 'title' = '긴급 안전공지'
+  ), 1
 ) ->> 'code'), 'NOTICE_ACKNOWLEDGED', 'worker acknowledges own required notice');
 select is((public.acknowledge_notice(
-  (select id from public.notices where title = '긴급 안전공지'), 1
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.get_my_notice_list(100)) item
+    where item ->> 'title' = '긴급 안전공지'
+  ), 1
 ) ->> 'code'), 'NOTICE_ACKNOWLEDGED', 'duplicate acknowledgement keeps one latest row');
 
 reset role;
@@ -265,7 +281,11 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000004","role":"authenticated"}', true);
 select is((public.acknowledge_notice(
-  (select id from public.notices where title = '일반 생활공지'), 1
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.get_my_notice_list(100)) item
+    where item ->> 'title' = '일반 생활공지'
+  ), 1
 ) ->> 'code'), 'ACKNOWLEDGEMENT_NOT_REQUIRED', 'notice without acknowledgement requirement cannot be acknowledged');
 select is((public.save_schedule_item(
   null, 'work', '권한 없는 일정', now(), now() + interval '1 hour', false,
@@ -310,16 +330,28 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 select is((public.save_notice(
-  (select id from public.notices where title = '긴급 안전공지'),
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.list_manageable_notices(200)) item
+    where item ->> 'title' = '긴급 안전공지'
+  ),
   'safety', 'urgent', '긴급 안전공지', '안전 공지가 변경되었습니다.',
   now() - interval '1 hour', now() + interval '4 days',
   current_date, current_date + 1, '교육실', '필기도구',
-  (select id from public.schedule_items where title = '전체 안전교육'), null,
+  (
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.list_manageable_schedules(true, 200)) item
+    where item ->> 'title' = '전체 안전교육'
+  ), null,
   'https://example.test/safety', '안전 안내 원문', true,
   'company', null, null, null, 'published', '공지 내용 변경과 재확인'
 ) ->> 'version_no'), '2', 'notice update increments explicit version');
 select is(
-  (public.get_notice_ack_summary((select id from public.notices where title = '긴급 안전공지')) ->> 'acknowledged_count'),
+  (public.get_notice_ack_summary((
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.list_manageable_notices(200)) item
+    where item ->> 'title' = '긴급 안전공지'
+  )) ->> 'acknowledged_count'),
   '0',
   'new notice version requires acknowledgement again'
 );
@@ -338,7 +370,11 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000004","role":"authenticated"}', true);
 select is(
-  public.get_my_notice_detail((select id from public.notices where title = '긴급 안전공지')) ->> 'acknowledged',
+  public.get_my_notice_detail((
+    select (item ->> 'id')::uuid
+    from jsonb_array_elements(public.get_my_notice_list(100)) item
+    where item ->> 'title' = '긴급 안전공지'
+  )) ->> 'acknowledged',
   'false',
   'worker detail shows new version as unacknowledged'
 );
