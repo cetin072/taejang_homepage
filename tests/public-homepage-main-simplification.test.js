@@ -12,6 +12,9 @@ const index = read('index.html');
 const about = read('about.html');
 const previews = read('assets/js/home-previews.js');
 const sitemap = read('sitemap.xml');
+const styles = read('assets/css/styles.css');
+const polish = read('assets/css/site-polish.css');
+const site = read('assets/js/site.js');
 
 const sections = [...index.matchAll(/<section\b([^>]*)>/g)].map(match => match[1]);
 assert.equal(sections.length, 7, '메인은 7개 섹션으로 구성되어야 합니다');
@@ -45,6 +48,12 @@ assert.match(about, /class="site-header"/);
 assert.match(about, /data-mobile-nav/);
 assert.match(about, /class="footer"/);
 assert.match(sitemap, /https:\/\/taejang-homepage\.netlify\.app\/about\.html/);
+
+assert.equal((styles.match(/^\.photo-slot\{/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
+assert.match(polish, /--sans:\s*var\(--gothic\)/, '공통 산세리프 글꼴 호환 변수를 정의합니다');
+assert.doesNotMatch(site, /photo-slots\.css/, '사진 슬롯 스타일을 별도 파일로 중복 로드하지 않습니다');
+assert.doesNotMatch(site, /data-hero-slider|hero-slide/, '사용하지 않는 히어로 슬라이더 코드를 남기지 않습니다');
+assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false, '중복 사진 슬롯 스타일 파일을 두지 않습니다');
 
 function createPreviewFixture(content) {
   class Element {

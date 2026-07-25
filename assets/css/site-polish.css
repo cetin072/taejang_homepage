@@ -1,6 +1,7 @@
 :root {
   --radius-sm: 6px;
   --radius-md: 10px;
+  --sans: var(--gothic);
 }
 
 .btn,

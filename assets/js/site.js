@@ -1,117 +1,54 @@
+(function () {
+  'use strict';
 
-(function(){
-  const stylesheets = ['assets/css/site-polish.css', 'assets/css/photo-slots.css'];
-  stylesheets.forEach(href => {
-    if (!document.querySelector(`link[href="${href}"]`)) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.append(link);
-    }
-  });
+  const polishHref = 'assets/css/site-polish.css';
+  if (!document.querySelector(`link[href="${polishHref}"]`)) {
+    const polishLink = document.createElement('link');
+    polishLink.rel = 'stylesheet';
+    polishLink.href = polishHref;
+    document.head.append(polishLink);
+  }
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
-  if(menuBtn && mobileNav){
-    function setMenu(open){
+  if (menuBtn && mobileNav) {
+    function setMenu(open) {
       mobileNav.classList.toggle('open', open);
       document.body.classList.toggle('nav-open', open);
       menuBtn.setAttribute('aria-expanded', String(open));
       menuBtn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
     }
 
-    menuBtn.addEventListener('click', function(){
+    menuBtn.addEventListener('click', function () {
       setMenu(!mobileNav.classList.contains('open'));
     });
-    mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', function(){
+    mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', function () {
       setMenu(false);
     }));
-    document.addEventListener('keydown', function(event){
-      if(event.key === 'Escape' && mobileNav.classList.contains('open')){
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && mobileNav.classList.contains('open')) {
         setMenu(false);
         menuBtn.focus();
       }
     });
   }
 
-  document.querySelectorAll('[data-faq-button]').forEach(btn => {
-    btn.addEventListener('click', function(){
-      const item = btn.closest('.faq-item');
+  document.querySelectorAll('[data-faq-button]').forEach(button => {
+    button.addEventListener('click', function () {
+      const item = button.closest('.faq-item');
       const wasOpen = item.classList.contains('open');
-      document.querySelectorAll('.faq-item').forEach(x => {
-        x.classList.remove('open');
-        const q = x.querySelector('[data-faq-button]');
-        if(q) q.setAttribute('aria-expanded','false');
+      document.querySelectorAll('.faq-item').forEach(candidate => {
+        candidate.classList.remove('open');
+        const question = candidate.querySelector('[data-faq-button]');
+        if (question) question.setAttribute('aria-expanded', 'false');
       });
-      if(!wasOpen){
+      if (!wasOpen) {
         item.classList.add('open');
-        btn.setAttribute('aria-expanded','true');
+        button.setAttribute('aria-expanded', 'true');
       }
     });
   });
 
   const year = document.querySelector('[data-current-year]');
-  if(year) year.textContent = new Date().getFullYear();
-
-  const slider = document.querySelector('[data-hero-slider]');
-  if(slider){
-    const slides = Array.from(slider.querySelectorAll('.hero-slide'));
-    const dots = Array.from(document.querySelectorAll('[data-hero-dot]'));
-    const prev = document.querySelector('[data-hero-prev]');
-    const next = document.querySelector('[data-hero-next]');
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let index = 0;
-    let timer = null;
-
-    function showSlide(nextIndex){
-      index = (nextIndex + slides.length) % slides.length;
-      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
-      dots.forEach((dot, i) => {
-        const active = i === index;
-        dot.classList.toggle('active', active);
-        dot.setAttribute('aria-selected', String(active));
-      });
-    }
-
-    function stopAuto(){
-      if(timer){
-        clearInterval(timer);
-        timer = null;
-      }
-    }
-
-    function startAuto(){
-      stopAuto();
-      if(!reduceMotion){
-        timer = setInterval(() => showSlide(index + 1), 6000);
-      }
-    }
-
-    prev?.addEventListener('click', () => {
-      showSlide(index - 1);
-      startAuto();
-    });
-
-    next?.addEventListener('click', () => {
-      showSlide(index + 1);
-      startAuto();
-    });
-
-    dots.forEach(dot => {
-      dot.addEventListener('click', () => {
-        showSlide(Number(dot.dataset.heroDot));
-        startAuto();
-      });
-    });
-
-    const hero = slider.closest('.hero-slider');
-    hero?.addEventListener('mouseenter', stopAuto);
-    hero?.addEventListener('mouseleave', startAuto);
-    hero?.addEventListener('focusin', stopAuto);
-    hero?.addEventListener('focusout', startAuto);
-
-    showSlide(0);
-    startAuto();
-  }
-
-})();
+  if (year) year.textContent = new Date().getFullYear();
+}());
