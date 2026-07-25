@@ -2,12 +2,6 @@
   'use strict';
 
   const content = window.TAEJANG_CONTENT;
-  if (!content) return;
-
-  const pageByType = {
-    workplace: 'workplace.html',
-    activities: 'activities.html'
-  };
   const sourceLabels = {
     homepage: '홈페이지',
     'naver-blog': 'NAVER BLOG',
@@ -16,14 +10,6 @@
     x: 'X',
     press: '언론보도'
   };
-
-  function ensurePolishStyles() {
-    if (document.querySelector('link[href="assets/css/content-hub-polish.css"]')) return;
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'assets/css/content-hub-polish.css';
-    document.head.append(link);
-  }
 
   function stableLatestFirst(items) {
     return items
@@ -48,49 +34,9 @@
     return element;
   }
 
-  function createLegacyMedia(item) {
-    if (item.thumb) {
-      const media = document.createElement('div');
-      media.className = 'card-media';
-      const image = document.createElement('img');
-      image.src = item.thumb;
-      image.alt = item.alt?.thumb || '';
-      image.loading = 'lazy';
-      media.append(image);
-      return media;
-    }
-
-    const media = document.createElement('div');
-    media.className = 'card-media card-media--notice';
-    appendText(media, 'span', item.category, 'tag');
-    appendText(media, 'span', '공식 소식', 'notice-media-label');
-    return media;
-  }
-
-  function createLegacyCard(item, type) {
+  function createActivityCard(item) {
     const article = document.createElement('article');
-    article.className = 'card';
-    const link = document.createElement('a');
-    link.className = 'card-link';
-    link.href = `${pageByType[type]}?id=${encodeURIComponent(item.id)}`;
-    link.append(createLegacyMedia(item));
-
-    const body = document.createElement('div');
-    body.className = 'card-body';
-    appendText(body, 'span', item.category, 'tag tag--subtle');
-    appendText(body, 'div', item.date, 'card-date');
-    appendText(body, 'h3', item.title);
-    appendText(body, 'p', item.summary);
-    appendText(body, 'span', '글 읽기 →', 'text-link');
-    link.append(body);
-    article.append(link);
-    return article;
-  }
-
-  function createHubCard(item) {
-    const article = document.createElement('article');
-    article.className = 'card card--hub';
-    article.dataset.source = item.source;
+    article.className = 'card recent-activity-card';
     const link = document.createElement('a');
     link.className = 'card-link';
     const external = item.type === 'external';
@@ -99,11 +45,11 @@
     if (external) {
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.setAttribute('aria-label', `${item.externalLabel}: ${item.title} (새 탭에서 열림)`);
+      link.setAttribute('aria-label', `${item.externalLabel || '원문 보기'}: ${item.title} (새 탭에서 열림)`);
     }
 
     const media = document.createElement('div');
-    media.className = 'card-media card-media--hub';
+    media.className = 'card-media recent-activity-media';
     if (item.thumbnail) {
       const image = document.createElement('img');
       image.src = item.thumbnail;
@@ -111,45 +57,61 @@
       image.loading = 'lazy';
       media.append(image);
     } else {
-      appendText(media, 'span', sourceLabels[item.source] || item.source, 'notice-media-label');
+      media.classList.add('recent-activity-media--neutral');
+      media.setAttribute('role', 'img');
+      media.setAttribute('aria-label', `${item.title} 이미지`);
     }
     link.append(media);
 
     const body = document.createElement('div');
-    body.className = 'card-body';
-    const meta = document.createElement('div');
-    meta.className = 'content-card-meta';
-    appendText(meta, 'span', sourceLabels[item.source] || item.source, `source-badge source-badge--${item.source}`);
-    appendText(meta, 'span', item.category, 'tag tag--subtle');
-    body.append(meta);
+    body.className = 'card-body recent-activity-body';
+    appendText(body, 'span', item.category || sourceLabels[item.source] || '활동', 'tag tag--subtle');
 
     const date = document.createElement('time');
     date.className = 'card-date';
-    date.dateTime = item.publishedAt;
-    date.textContent = item.publishedAt.replaceAll('-', '.');
+    date.dateTime = item.publishedAt || '';
+    date.textContent = (item.publishedAt || '').replaceAll('-', '.');
     body.append(date);
     appendText(body, 'h3', item.title);
-    appendText(body, 'p', item.summary);
-    appendText(body, 'span', external ? `${item.externalLabel} ↗` : '자세히 보기', 'text-link');
     link.append(body);
     article.append(link);
     return article;
   }
 
-  ensurePolishStyles();
+  function hideRecentActivities() {
+    document.querySelectorAll('[data-recent-activities]').forEach((section) => {
+      section.hidden = true;
+    });
+  }
 
-  document.querySelectorAll('[data-home-preview]').forEach((container) => {
-    const type = container.dataset.homePreview;
-    const count = Number.parseInt(container.dataset.homePreviewCount, 10) || 3;
+  function renderRecentActivities() {
+    const containers = document.querySelectorAll('[data-home-preview="hub"]');
+    if (!containers.length) return;
 
-    if (type === 'hub' && Array.isArray(content.hub)) {
-      const items = stableLatestFirst(content.hub.filter((item) => item.status === 'published')).slice(0, count);
-      if (items.length) container.replaceChildren(...items.map(createHubCard));
+    if (!content || !Array.isArray(content.hub)) {
+      console.warn('최근 활동 콘텐츠 데이터를 사용할 수 없습니다.');
+      hideRecentActivities();
       return;
     }
 
-    if (!pageByType[type] || !Array.isArray(content[type])) return;
-    const items = stableLatestFirst(content[type]).slice(0, count);
-    if (items.length) container.replaceChildren(...items.map((item) => createLegacyCard(item, type)));
-  });
+    try {
+      const items = stableLatestFirst(content.hub.filter((item) => item && item.status === 'published'));
+      containers.forEach((container) => {
+        const count = Number.parseInt(container.dataset.homePreviewCount, 10) || 3;
+        const visibleItems = items.slice(0, Math.min(count, 3));
+        const section = container.closest('[data-recent-activities]');
+        if (!visibleItems.length) {
+          if (section) section.hidden = true;
+          return;
+        }
+        container.replaceChildren(...visibleItems.map(createActivityCard));
+        if (section) section.hidden = false;
+      });
+    } catch (error) {
+      console.warn('최근 활동을 표시하지 않았습니다.', error);
+      hideRecentActivities();
+    }
+  }
+
+  renderRecentActivities();
 }());
