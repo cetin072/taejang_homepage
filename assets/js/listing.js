@@ -45,14 +45,11 @@
 
   const orderedData = latestFirst(data);
 
-  function photoPlaceholder(photo, variant='card'){
-    if(!photo) return '';
-    const note = variant === 'detail' && photo.note ? `<p class="dev-photo-note">${photo.note}</p>` : '';
-    return `<div class="dev-photo-placeholder dev-photo-placeholder--${variant}" role="note">
-      <span class="dev-review-badge">개발 검토용 · 사진자료 필요</span>
-      <strong>${photo.title}</strong>
-      <p><code>${photo.filename}</code> · ${photo.orientation}</p>
-      ${note}
+  function contentPhoto(item, variant='card'){
+    const title = item.photo?.title || item.listingPhoto?.title || item.title;
+    return `<div class="content-photo-slot content-photo-slot--${variant}" role="img" aria-label="CONTENT PHOTO: ${title}">
+      <span class="content-photo-slot-label">CONTENT PHOTO</span>
+      <strong>${title}</strong>
     </div>`;
   }
 
@@ -60,7 +57,7 @@
     if(item.thumb){
       return `<div class="card-media"><img src="${item.thumb}" alt="${item.alt?.thumb || item.title}" loading="lazy"></div>`;
     }
-    return photoPlaceholder(item.listingPhoto || item.photo, 'card') || `<div class="card-media card-media--notice"><span class="notice-media-label">공식 소식</span></div>`;
+    return `<div class="card-media">${contentPhoto(item, 'card')}</div>`;
   }
 
   function card(item){
@@ -189,7 +186,7 @@
   document.title = `${item.title} | 태장`;
   const detailMedia = item.hero
     ? `<figure><img src="${item.hero}" alt="${item.alt?.hero || item.title}"></figure>`
-    : photoPlaceholder(item.photo, 'detail');
+    : contentPhoto(item, 'detail');
   const gallery = item.gallery?.length
     ? `<div class="article-gallery">${item.gallery.map((src, index) => `<img src="${src}" alt="${item.alt?.gallery?.[index] || item.title}" loading="lazy">`).join('')}</div>`
     : '';

@@ -34,7 +34,21 @@
     return element;
   }
 
-  function createActivityCard(item) {
+  function createPhotoSlot(item, slotNumber) {
+    const slot = document.createElement('div');
+    const label = String(slotNumber).padStart(2, '0');
+    slot.className = 'photo-slot photo-slot--4-3';
+    slot.dataset.photoSlot = label;
+    slot.setAttribute('role', 'img');
+    slot.setAttribute('aria-label', `PHOTO ${label} 최근 활동 대표사진: ${item.title}, 권장 비율 4:3`);
+    appendText(slot, 'span', `PHOTO ${label}`, 'photo-slot-number');
+    appendText(slot, 'strong', '최근 활동 대표사진');
+    appendText(slot, 'span', item.title);
+    appendText(slot, 'small', '권장 비율 4:3');
+    return slot;
+  }
+
+  function createActivityCard(item, index) {
     const article = document.createElement('article');
     article.className = 'card recent-activity-card';
     const link = document.createElement('a');
@@ -50,17 +64,7 @@
 
     const media = document.createElement('div');
     media.className = 'card-media recent-activity-media';
-    if (item.thumbnail) {
-      const image = document.createElement('img');
-      image.src = item.thumbnail;
-      image.alt = item.thumbnailAlt || `${item.title} 썸네일`;
-      image.loading = 'lazy';
-      media.append(image);
-    } else {
-      media.classList.add('recent-activity-media--neutral');
-      media.setAttribute('role', 'img');
-      media.setAttribute('aria-label', `${item.title} 이미지`);
-    }
+    media.append(createPhotoSlot(item, 9 + index));
     link.append(media);
 
     const body = document.createElement('div');

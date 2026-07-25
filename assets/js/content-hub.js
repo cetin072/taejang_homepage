@@ -10,7 +10,7 @@
     category: '회사소식',
     title: '태장 현장의 짧은 소식',
     summary: '태장의 현장 소식과 간단한 안내를 X 원문에서 확인합니다.',
-    thumbnail: 'images/coaching.jpg',
+    thumbnail: null,
     publishedAt: '2026-07-15',
     featured: false,
     status: 'published',
@@ -109,7 +109,13 @@
       image.loading = 'lazy';
       media.append(image);
     } else {
-      appendText(media, 'span', item.type === 'external' ? sourceLabels[item.source] : '공식 소식', 'notice-media-label');
+      const slot = document.createElement('div');
+      slot.className = 'content-photo-slot';
+      slot.setAttribute('role', 'img');
+      slot.setAttribute('aria-label', `CONTENT PHOTO: ${item.title}`);
+      appendText(slot, 'span', 'CONTENT PHOTO', 'content-photo-slot-label');
+      appendText(slot, 'strong', item.title);
+      media.append(slot);
     }
     return media;
   }

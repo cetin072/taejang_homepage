@@ -1,12 +1,14 @@
 
 (function(){
-  const polishHref = 'assets/css/site-polish.css';
-  if (!document.querySelector(`link[href="${polishHref}"]`)) {
-    const polishLink = document.createElement('link');
-    polishLink.rel = 'stylesheet';
-    polishLink.href = polishHref;
-    document.head.append(polishLink);
-  }
+  const stylesheets = ['assets/css/site-polish.css', 'assets/css/photo-slots.css'];
+  stylesheets.forEach(href => {
+    if (!document.querySelector(`link[href="${href}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.append(link);
+    }
+  });
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');

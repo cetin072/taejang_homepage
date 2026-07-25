@@ -23,11 +23,19 @@ assert.match(index, /href="about\.html"[^>]*>태장 자세히 보기/);
 assert.match(index, /data-home-preview-count="3"/);
 assert.match(index, /data-recent-activities hidden/);
 assert.doesNotMatch(index, /개발 검토용|사진자료 필요|콘텐츠를 불러오지 못했습니다|이미지 준비 중/);
+assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
+assert.equal((index.match(/지속 가능한/g) || []).length, 1, '지속 가능한 표현은 메인 히어로에만 사용합니다');
+for (const slot of ['01', '02', '03', '04', '05', '06', '07', '08']) {
+  const page = Number(slot) < 7 ? index : about;
+  assert.match(page, new RegExp(`data-photo-slot="${slot}"`), `PHOTO ${slot} 슬롯을 유지합니다`);
+}
 assert.match(previews, /Math\.min\(count, 3\)/);
 assert.match(previews, /hideRecentActivities\(\)/);
 assert.match(previews, /console\.warn\(/);
+assert.match(previews, /dataset\.photoSlot = label/);
+assert.match(previews, /9 \+ index/);
 
-for (const required of ['태장을 소개합니다', '평안함, 바름, 넉넉함', '펼치다, 확장하다', '대표이사 <strong>이영희</strong>', '사람에게 맞는 직무', '지속 가능한 사업', '기업·지역사회와의 협력']) {
+for (const required of ['좋은 일자리를 사업으로 이어갑니다', '평안함, 바름, 넉넉함', '펼치다, 확장하다', '대표이사 <strong>이영희</strong>', '대표 인사말', '태장이 일하는 기준', '사업 준비 시작']) {
   assert.match(about, new RegExp(required));
 }
 for (const required of ['<link rel="canonical" href="https://taejang-homepage.netlify.app/about.html">', 'property="og:url" content="https://taejang-homepage.netlify.app/about.html"', 'name="twitter:card"']) {
@@ -78,6 +86,7 @@ const visiblePreview = createPreviewFixture({
 });
 assert.equal(visiblePreview.section.hidden, false, '표시할 활동이 있으면 최근 활동 섹션을 표시합니다');
 assert.equal(visiblePreview.container.children.length, 3, '최근 활동은 최대 3개만 표시합니다');
+assert.deepEqual(visiblePreview.container.children.map(card => card.children[0].children[0].children[0].children[0].textContent), ['PHOTO 09', 'PHOTO 10', 'PHOTO 11'], '최근 활동 카드 순서에 맞춰 PHOTO 09~11을 표시합니다');
 assert.equal(createPreviewFixture(undefined).section.hidden, true, '콘텐츠 스크립트가 없으면 최근 활동 섹션을 숨깁니다');
 assert.equal(createPreviewFixture({ hub: [] }).section.hidden, true, '표시할 활동이 없으면 최근 활동 섹션을 숨깁니다');
 
