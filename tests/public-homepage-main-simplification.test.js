@@ -10,6 +10,9 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const index = read('index.html');
 const about = read('about.html');
+const partnership = read('partnership.html');
+const resources = read('resources.html');
+const staff = read('staff/index.html');
 const previews = read('assets/js/home-previews.js');
 const sitemap = read('sitemap.xml');
 const styles = read('assets/css/styles.css');
@@ -28,6 +31,9 @@ assert.match(index, /data-recent-activities hidden/);
 assert.doesNotMatch(index, /개발 검토용|사진자료 필요|콘텐츠를 불러오지 못했습니다|이미지 준비 중/);
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.equal((index.match(/지속 가능한/g) || []).length, 1, '지속 가능한 표현은 메인 히어로에만 사용합니다');
+assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/, '메인 연혁은 최신순으로 표시합니다');
+assert.match(index, /민화 작업을 이어가며 달력·카드 등 문화상품을 준비합니다/);
+assert.match(index, /태장과 함께할 기업을 찾습니다/);
 for (const slot of ['01', '02', '03', '04', '05', '06', '07', '08']) {
   const page = Number(slot) < 7 ? index : about;
   assert.match(page, new RegExp(`data-photo-slot="${slot}"`), `PHOTO ${slot} 슬롯을 유지합니다`);
@@ -48,6 +54,16 @@ assert.match(about, /class="site-header"/);
 assert.match(about, /data-mobile-nav/);
 assert.match(about, /class="footer"/);
 assert.match(sitemap, /https:\/\/taejang-homepage\.netlify\.app\/about\.html/);
+
+assert.match(partnership, /태장과 함께할<br>기업을 찾습니다/);
+assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 3, '기업 협력 페이지는 세 개의 시각 카드로 간소화합니다');
+assert.doesNotMatch(partnership, /PARTNERSHIP FAQ|상담 전에 준비하면 좋은 정보|GENERAL PROCESS|resources\.html/);
+assert.match(resources, /name="robots" content="noindex,nofollow"/);
+assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
+assert.doesNotMatch(sitemap, /resources\.html/);
+assert.match(staff, /<h1 id="login-title">임직원 로그인<\/h1>/);
+assert.doesNotMatch(staff, /태장 업무앱|업무 플랫폼/);
+assert.match(site, /임직원 로그인/);
 
 assert.equal((polish.match(/^\.photo-slot,/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
 assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m, '기본 스타일 파일에 사진 슬롯 스타일을 중복 정의하지 않습니다');
