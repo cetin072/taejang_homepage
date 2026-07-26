@@ -140,8 +140,13 @@
     if (href.includes(LEGACY_PUBLIC_EMAIL)) {
       link.setAttribute('href', href.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL));
     }
-    if ((link.textContent || '').includes(LEGACY_PUBLIC_EMAIL)) {
-      link.textContent = link.textContent.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL);
+
+    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const textNode = walker.currentNode;
+      if (textNode.nodeValue?.includes(LEGACY_PUBLIC_EMAIL)) {
+        textNode.nodeValue = textNode.nodeValue.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL);
+      }
     }
   });
 
