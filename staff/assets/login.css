@@ -1,0 +1,80 @@
+body {
+  min-height: 100vh;
+  background: #f7f8f6;
+}
+
+.staff-header,
+.auth-panel,
+#message,
+#setup-panel,
+#pending-panel,
+#blocked-panel,
+#unassigned-panel {
+  width: min(100%, 560px);
+  margin-inline: auto;
+}
+
+.staff-header {
+  min-height: 88px;
+}
+
+.staff-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staff-brand::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.auth-panel {
+  margin-top: 56px;
+}
+
+.auth-panel h1,
+.auth-panel h2 {
+  margin: 0 0 28px;
+  color: var(--brand-dark);
+  font-size: clamp(1.8rem, 6vw, 2.4rem);
+}
+
+.auth-panel form {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-panel .button {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.auth-links {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.auth-links .text-button {
+  font-size: .95rem;
+  text-decoration: none;
+}
+
+.start-panel-trigger {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .staff-shell {
+    width: min(100% - 28px, 560px);
+  }
+
+  .auth-panel {
+    margin-top: 28px;
+    padding: 24px 20px;
+  }
+}
