@@ -8,6 +8,7 @@ const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+
 const index = read('index.html');
 const about = read('about.html');
 const greeting = read('greeting.html');
@@ -31,6 +32,30 @@ const photoMode = read('assets/css/photo-mode.css');
 const site = read('assets/js/site.js');
 const photoFolderGuide = read('images/homepage/README.md');
 
+const indexedPages = [
+  ['index.html', index, 'https://taejang-homepage.netlify.app/'],
+  ['about.html', about, 'https://taejang-homepage.netlify.app/about.html'],
+  ['greeting.html', greeting, 'https://taejang-homepage.netlify.app/greeting.html'],
+  ['why-minhwa.html', minhwa, 'https://taejang-homepage.netlify.app/why-minhwa.html'],
+  ['workplace.html', workplace, 'https://taejang-homepage.netlify.app/workplace.html'],
+  ['activities.html', activities, 'https://taejang-homepage.netlify.app/activities.html'],
+  ['archive.html', archive, 'https://taejang-homepage.netlify.app/archive.html'],
+  ['partnership.html', partnership, 'https://taejang-homepage.netlify.app/partnership.html']
+];
+
+const publicShellPages = indexedPages.concat([['resources.html', resources, null]]);
+
+function duplicateIds(html) {
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+  return ids.filter((id, indexOfId) => ids.indexOf(id) !== indexOfId);
+}
+
+function assertSafeBlankTargets(filename, html) {
+  for (const tag of html.match(/<a\b[^>]*target="_blank"[^>]*>/g) || []) {
+    assert.match(tag, /rel="[^"]*noopener[^"]*"/, `${filename} 새 탭 링크는 noopener를 사용합니다`);
+  }
+}
+
 const sections = [...index.matchAll(/<section\b([^>]*)>/g)].map(match => match[1]);
 assert.equal(sections.length, 7, '메인은 7개 섹션으로 구성되어야 합니다');
 for (const id of ['about', 'business', 'contact']) {
@@ -50,6 +75,7 @@ assert.match(index, /태장과 함께할 기업을 찾습니다/);
 assert.match(index, /소식·기록 전체 보기/);
 assert.match(index, /<strong>info@taejang\.co\.kr<\/strong>/);
 assert.match(index, /home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/, '최근 활동 생성 뒤 사진 슬롯을 연결합니다');
+
 for (const slot of ['01', '02', '03', '04', '05', '06', '07', '08']) {
   const page = Number(slot) < 7 ? index : about;
   assert.match(page, new RegExp(`data-photo-slot="${slot}"`), `PHOTO ${slot} 슬롯을 유지합니다`);
@@ -64,12 +90,6 @@ assert.match(previews, /9 \+ index/);
 for (const required of ['좋은 일자리를 사업으로 이어갑니다', '평안함, 바름, 넉넉함', '펼치다, 확장하다', '대표이사 <strong>이영희</strong>', '인사말 전문 보기', '태장이 일하는 기준', '사업 준비 시작']) {
   assert.match(about, new RegExp(required));
 }
-for (const required of ['<link rel="canonical" href="https://taejang-homepage.netlify.app/about.html">', 'property="og:url" content="https://taejang-homepage.netlify.app/about.html"', 'name="twitter:card"']) {
-  assert.match(about, new RegExp(required));
-}
-assert.match(about, /class="site-header"/);
-assert.match(about, /data-mobile-nav/);
-assert.match(about, /class="footer"/);
 
 assert.match(greeting, /한 사람이 오래 일할 수 있는<br>자리를 만들겠습니다/);
 assert.match(greeting, /범한메카텍, 삼현, 청우비제이, 현대비앤지스틸/);
@@ -100,6 +120,33 @@ assert.doesNotMatch(archive, /콘텐츠 소식/);
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
 
+for (const [filename, page] of publicShellPages) {
+  assert.doesNotMatch(page, /taejang2025@naver\.com/, `${filename} 원본에 이전 이메일을 남기지 않습니다`);
+  assert.doesNotMatch(page, /콘텐츠 소식/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
+  assert.doesNotMatch(page, /href="staff\//, `${filename} 원본에서 임직원 진입을 숨깁니다`);
+  assert.doesNotMatch(page, /class="staff-nav"/, `${filename} 원본에서 임직원 메뉴 클래스를 숨깁니다`);
+  assert.doesNotMatch(page, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실 링크를 숨깁니다`);
+  assert.match(page, /소식·기록/, `${filename} 공개 메뉴는 소식·기록 명칭을 사용합니다`);
+  assertSafeBlankTargets(filename, page);
+}
+
+for (const [filename, page, canonical] of indexedPages) {
+  assert.match(page, /<title>[^<]+\|?[^<]*<\/title>/, `${filename} 제목을 제공합니다`);
+  assert.match(page, /<meta name="description" content="[^"]+">/, `${filename} 검색 설명을 제공합니다`);
+  assert.match(page, new RegExp(`<link rel="canonical" href="${canonical.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">`), `${filename} canonical 주소를 제공합니다`);
+  for (const property of ['og:title', 'og:description', 'og:url', 'og:image', 'og:image:secure_url', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt']) {
+    assert.match(page, new RegExp(`<meta property="${property}" content="[^"]+">`), `${filename} ${property} 정보를 제공합니다`);
+  }
+  for (const name of ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) {
+    assert.match(page, new RegExp(`<meta name="${name}" content="[^"]+">`), `${filename} ${name} 정보를 제공합니다`);
+  }
+  assert.equal((page.match(/<main\b/g) || []).length, 1, `${filename} main 영역은 하나입니다`);
+  assert.equal((page.match(/<h1\b/g) || []).length, 1, `${filename} 최상위 제목은 하나입니다`);
+  assert.deepEqual(duplicateIds(page), [], `${filename}에 중복 id가 없어야 합니다`);
+}
+
+assert.equal(new Set(indexedPages.map(([, page]) => page.match(/<title>([^<]+)<\/title>/)?.[1])).size, indexedPages.length, '공개 핵심 페이지는 서로 구분되는 제목을 사용합니다');
+
 for (const page of [privacy, terms]) {
   assert.equal((page.match(/<meta name="robots"/g) || []).length, 1, '법적 안내 페이지의 robots 메타는 한 번만 선언합니다');
   assert.match(page, /name="robots" content="noindex,follow"/);
@@ -114,30 +161,6 @@ assert.equal((notFound.match(/<meta name="robots"/g) || []).length, 1, '404 페�
 assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html"/);
 assert.match(notFound, /href="index\.html#contact"/);
-
-const indexedPages = [
-  ['index.html', index, 'https://taejang-homepage.netlify.app/'],
-  ['about.html', about, 'https://taejang-homepage.netlify.app/about.html'],
-  ['greeting.html', greeting, 'https://taejang-homepage.netlify.app/greeting.html'],
-  ['why-minhwa.html', minhwa, 'https://taejang-homepage.netlify.app/why-minhwa.html'],
-  ['workplace.html', workplace, 'https://taejang-homepage.netlify.app/workplace.html'],
-  ['activities.html', activities, 'https://taejang-homepage.netlify.app/activities.html'],
-  ['archive.html', archive, 'https://taejang-homepage.netlify.app/archive.html'],
-  ['partnership.html', partnership, 'https://taejang-homepage.netlify.app/partnership.html']
-];
-
-for (const [filename, page, canonical] of indexedPages) {
-  assert.match(page, /<title>[^<]+\|?[^<]*<\/title>/, `${filename} 제목을 제공합니다`);
-  assert.match(page, /<meta name="description" content="[^"]+">/, `${filename} 검색 설명을 제공합니다`);
-  assert.match(page, new RegExp(`<link rel="canonical" href="${canonical.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">`), `${filename} canonical 주소를 제공합니다`);
-  for (const property of ['og:title', 'og:description', 'og:url', 'og:image']) {
-    assert.match(page, new RegExp(`<meta property="${property}" content="[^"]+">`), `${filename} ${property} 정보를 제공합니다`);
-  }
-  for (const name of ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) {
-    assert.match(page, new RegExp(`<meta name="${name}" content="[^"]+">`), `${filename} ${name} 정보를 제공합니다`);
-  }
-}
-assert.equal(new Set(indexedPages.map(([, page]) => page.match(/<title>([^<]+)<\/title>/)?.[1])).size, indexedPages.length, '공개 핵심 페이지는 서로 구분되는 제목을 사용합니다');
 
 for (const excluded of ['resources.html', 'privacy.html', 'terms.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(excluded.replace('.', '\\.')));
