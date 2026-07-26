@@ -26,7 +26,6 @@
     ['index.html#about', '태장 소개'],
     ['index.html#business', '사업과 역량'],
     ['workplace.html', '우리의 일터'],
-    ['activities.html', '태장의 활동'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '기업 협력'],
     ['index.html#contact', '문의하기', 'nav-cta']
@@ -36,7 +35,6 @@
     ['about.html', '태장 자세히 보기'],
     ['workplace.html', '우리의 일터'],
     ['index.html#business', '사업과 역량'],
-    ['activities.html', '태장의 활동'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '기업 협력'],
     ['index.html#contact', '문의하기']
