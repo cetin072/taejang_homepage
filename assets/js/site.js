@@ -1,13 +1,18 @@
 (function () {
   'use strict';
 
-  const polishHref = 'assets/css/site-polish.css';
-  if (!document.querySelector(`link[href="${polishHref}"]`)) {
-    const polishLink = document.createElement('link');
-    polishLink.rel = 'stylesheet';
-    polishLink.href = polishHref;
-    document.head.append(polishLink);
-  }
+  const sharedStyleHrefs = [
+    'assets/css/site-polish.css',
+    'assets/css/mobile-layout-fixes.css'
+  ];
+
+  sharedStyleHrefs.forEach(href => {
+    if (document.querySelector(`link[href="${href}"]`)) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.append(link);
+  });
 
   const SHOW_EMPLOYEE_ENTRY = false;
   const PUBLIC_EMAIL = 'info@taejang.co.kr';
