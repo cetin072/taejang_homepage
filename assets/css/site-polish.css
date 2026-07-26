@@ -228,6 +228,25 @@ textarea:focus-visible {
   margin-bottom: 18px;
 }
 
+/* Keep the partnership bullet icon visually separate from its label. */
+.partnership-types {
+  list-style: none;
+  padding-left: 0;
+}
+
+.partnership-types li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: start;
+}
+
+.partnership-types li::before {
+  position: static;
+  width: auto;
+  content: "–";
+}
+
 @media (max-width: 760px) {
   .photo-slot {
     gap: 7px;
