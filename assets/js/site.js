@@ -12,6 +12,36 @@
   const SHOW_EMPLOYEE_ENTRY = false;
   const PUBLIC_EMAIL = 'info@taejang.co.kr';
   const LEGACY_PUBLIC_EMAIL = 'taejang2025@naver.com';
+  const OPENING_DATE = '2026-08-12';
+  const OPENING_HIDDEN_FROM = '2026-08-13';
+  const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
+
+  function getSeoulDateKey(date) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type)?.value || '';
+    return `${value('year')}-${value('month')}-${value('day')}`;
+  }
+
+  const announcement = document.querySelector('.announcement');
+  if (announcement) {
+    if (getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
+      announcement.hidden = true;
+    } else {
+      const date = document.createElement('strong');
+      date.textContent = OPENING_DATE.replaceAll('-', '.');
+      const invitation = document.createElement('a');
+      invitation.href = OPENING_INVITATION_URL;
+      invitation.target = '_blank';
+      invitation.rel = 'noopener';
+      invitation.textContent = '초대장 보기';
+      announcement.replaceChildren(date, document.createTextNode(' 태장 신규 사업장 개소식 · '), invitation);
+    }
+  }
 
   document.querySelectorAll('a[href^="mailto:"]').forEach(link => {
     const href = link.getAttribute('href') || '';
