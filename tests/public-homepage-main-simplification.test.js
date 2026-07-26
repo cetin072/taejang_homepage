@@ -22,11 +22,14 @@ const terms = read('terms.html');
 const notFound = read('404.html');
 const staff = read('staff/index.html');
 const previews = read('assets/js/home-previews.js');
+const photoSlots = read('assets/js/photo-slots.js');
 const sitemap = read('sitemap.xml');
 const robots = read('robots.txt');
 const styles = read('assets/css/styles.css');
 const polish = read('assets/css/site-polish.css');
+const photoMode = read('assets/css/photo-mode.css');
 const site = read('assets/js/site.js');
+const photoFolderGuide = read('images/homepage/README.md');
 
 const sections = [...index.matchAll(/<section\b([^>]*)>/g)].map(match => match[1]);
 assert.equal(sections.length, 7, '메인은 7개 섹션으로 구성되어야 합니다');
@@ -44,10 +47,14 @@ assert.equal((index.match(/지속 가능한/g) || []).length, 1, '지속 가능�
 assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/, '메인 연혁은 최신순으로 표시합니다');
 assert.match(index, /선 하나에서 시작한 민화 작업이 달력과 카드, 기념품으로 이어집니다/);
 assert.match(index, /태장과 함께할 기업을 찾습니다/);
+assert.match(index, /소식·기록 전체 보기/);
+assert.match(index, /<strong>info@taejang\.co\.kr<\/strong>/);
+assert.match(index, /home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/, '최근 활동 생성 뒤 사진 슬롯을 연결합니다');
 for (const slot of ['01', '02', '03', '04', '05', '06', '07', '08']) {
   const page = Number(slot) < 7 ? index : about;
   assert.match(page, new RegExp(`data-photo-slot="${slot}"`), `PHOTO ${slot} 슬롯을 유지합니다`);
 }
+assert.match(about, /photo-slots\.js[\s\S]*site\.js/, '회사소개 사진 슬롯 스크립트를 연결합니다');
 assert.match(previews, /Math\.min\(count, 3\)/);
 assert.match(previews, /hideRecentActivities\(\)/);
 assert.match(previews, /console\.warn\(/);
@@ -83,6 +90,12 @@ assert.match(partnership, /태장과 함께할<br>기업을 찾습니다/);
 assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 3, '기업 협력 페이지는 세 개의 시각 카드로 간소화합니다');
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/, '참여 기업은 가나다순으로 표시합니다');
 assert.doesNotMatch(partnership, /PARTNERSHIP FAQ|상담 전에 준비하면 좋은 정보|GENERAL PROCESS|resources\.html/);
+
+assert.match(archive, /<title>태장의 소식과 기록 \| 농업회사법인 태장 주식회사<\/title>/);
+assert.match(archive, /<div class="eyebrow">TAEJANG ARCHIVE<\/div>/);
+assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
+assert.match(archive, /태장의 일터와 활동, 공식 소식을 한곳에 모았습니다/);
+assert.doesNotMatch(archive, /콘텐츠 소식/);
 
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
@@ -161,6 +174,8 @@ assert.match(site, /const FOOTER_LINKS =/);
 assert.match(site, /function ensureContentHubLink/);
 assert.match(site, /function normalizeFooter/);
 assert.match(site, /장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다/);
+assert.equal((site.match(/\['archive\.html', '소식·기록'\]/g) || []).length, 2, '상단과 푸터에서 소식·기록 명칭을 사용합니다');
+assert.match(site, /assets\/css\/photo-mode\.css/);
 
 assert.equal((polish.match(/^\.photo-slot,/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
 assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m, '기본 스타일 파일에 사진 슬롯 스타일을 중복 정의하지 않습니다');
@@ -170,6 +185,17 @@ assert.match(polish, /\.partnership-types li\s*\{[\s\S]*column-gap:\s*18px;/, '�
 assert.doesNotMatch(site, /photo-slots\.css/, '사진 슬롯 스타일을 별도 파일로 중복 로드하지 않습니다');
 assert.doesNotMatch(site, /data-hero-slider|hero-slide/, '사용하지 않는 히어로 슬라이더 코드를 남기지 않습니다');
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false, '중복 사진 슬롯 스타일 파일을 두지 않습니다');
+
+assert.match(photoSlots, /const PHOTO_REVIEW_MODE = true/);
+assert.match(photoSlots, /const PHOTO_BASE_PATH = 'images\/homepage\/'/);
+assert.equal((photoSlots.match(/file: 'photo-\d{2}\.webp'/g) || []).length, 11, 'PHOTO 01~11의 고정 파일명을 정의합니다');
+assert.match(photoSlots, /mobileObjectPosition/);
+assert.match(photoSlots, /slot\.prepend\(image\)/);
+assert.match(photoMode, /\.photo-review-mode \.photo-slot--has-image \.photo-slot-number/);
+assert.match(photoMode, /\.photo-public-mode \.photo-slot--has-image > :not\(img\)/);
+assert.match(photoMode, /--photo-position-mobile/);
+assert.match(photoFolderGuide, /photo-01\.webp[\s\S]*photo-11\.webp/);
+assert.match(photoFolderGuide, /원본 사진, 공개동의서, 동의 관리대장/);
 
 function createPreviewFixture(content) {
   class Element {
