@@ -3,7 +3,8 @@
 
   const sharedStyleHrefs = [
     'assets/css/site-polish.css',
-    'assets/css/mobile-layout-fixes.css'
+    'assets/css/mobile-layout-fixes.css',
+    'assets/css/listing-polish.css'
   ];
 
   sharedStyleHrefs.forEach(href => {
