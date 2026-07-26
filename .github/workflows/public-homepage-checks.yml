@@ -37,4 +37,25 @@ jobs:
           node-version: 24
 
       - name: Run public homepage checks
-        run: node tests/public-homepage-main-simplification.test.js
+        id: public-checks
+        shell: bash
+        run: |
+          set +e
+          node tests/public-homepage-main-simplification.test.js > public-homepage-checks.log 2>&1
+          status=$?
+          cat public-homepage-checks.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload failure log
+        if: steps.public-checks.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-homepage-checks-log
+          path: public-homepage-checks.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report failed checks
+        if: steps.public-checks.outputs.status != '0'
+        run: exit 1
