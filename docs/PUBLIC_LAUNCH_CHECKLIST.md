@@ -60,10 +60,18 @@
 
 촬영 현장에서는 [`PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md`](PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md)를 사용합니다.
 
+공개동의, 직원 안내, 촬영 당일 점검과 철회 처리는 [`PUBLIC_PHOTO_CONSENT_AND_SHOOT_DAY_GUIDE.md`](PUBLIC_PHOTO_CONSENT_AND_SHOOT_DAY_GUIDE.md)를 사용합니다.
+
 - 사진은 처음에 넉넉하게 수집하고 시험 배치 후 줄이기
 - PHOTO 번호는 편집 식별자로 유지
 - 공식 공개 직전 PHOTO 번호와 제작 안내 숨김 여부 확인
+- 촬영 동의와 홈페이지 공개 동의를 별도로 확인
 - 대표·근로자·외부인 사진 공개 동의 확인
+- 홈페이지·SNS·보도자료 사용 범위를 채널별로 확인
+- 공개 거부 또는 얼굴 제외 요청에 불이익이 없음을 안내
+- 미확인 사진은 Deploy Preview에도 업로드하지 않기
+- 공개동의서와 사진 파일을 분리 보관하고 접근 권한 최소화
+- 동의 철회 요청을 받을 연락처와 처리 기록 준비
 - 모바일·PC 자르기 위치와 이미지 용량 확인
 - 원본은 공유 드라이브에 보관하고 공개 승인된 변환본만 GitHub 저장소에 반영
 - 기업 로고는 네 기업의 공식 원본과 사용 범위가 모두 확인된 뒤 일괄 적용
