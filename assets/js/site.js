@@ -63,6 +63,15 @@
     return href;
   }
 
+  function ensureContentHubLink(nav) {
+    if (!nav) return;
+    const contentLinks = [...nav.querySelectorAll('a')].filter(link => {
+      const href = (link.getAttribute('href') || '').split(/[?#]/)[0].replace(/^\.\//, '');
+      return href === 'archive.html';
+    });
+    contentLinks.slice(1).forEach(link => link.remove());
+  }
+
   function normalizeHeaderNavigation() {
     const page = currentPageName();
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
@@ -81,6 +90,7 @@
         }
         nav.appendChild(link);
       });
+      ensureContentHubLink(nav);
     });
   }
 
