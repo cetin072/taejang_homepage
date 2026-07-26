@@ -15,6 +15,16 @@
   const OPENING_DATE = '2026-08-12';
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
+  const FOOTER_LINKS = [
+    ['index.html#about', '태장 소개'],
+    ['about.html', '태장 자세히 보기'],
+    ['workplace.html', '우리의 일터'],
+    ['index.html#business', '사업과 역량'],
+    ['activities.html', '태장의 활동'],
+    ['archive.html', '콘텐츠 소식'],
+    ['partnership.html', '기업 협력'],
+    ['index.html#contact', '문의하기']
+  ];
 
   function getSeoulDateKey(date) {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -25,6 +35,44 @@
     }).formatToParts(date);
     const value = type => parts.find(part => part.type === type)?.value || '';
     return `${value('year')}-${value('month')}-${value('day')}`;
+  }
+
+  function currentPageName() {
+    const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
+    return path.endsWith('.html') ? path : 'index.html';
+  }
+
+  function ensureContentHubLink(nav) {
+    if (!nav || nav.querySelector('a[href="archive.html"]')) return;
+    const link = document.createElement('a');
+    link.href = 'archive.html';
+    link.textContent = '콘텐츠 소식';
+    const partnership = nav.querySelector('a[href="partnership.html"]');
+    nav.insertBefore(link, partnership || null);
+  }
+
+  function normalizeFooter() {
+    const page = currentPageName();
+    document.querySelectorAll('.footer').forEach(footer => {
+      const columns = footer.querySelectorAll('.footer-top > div');
+      const summary = columns[0]?.querySelector('p');
+      if (summary) {
+        summary.textContent = '장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다.';
+      }
+
+      const shortcuts = columns[1];
+      if (shortcuts) {
+        shortcuts.querySelectorAll('a').forEach(link => link.remove());
+        FOOTER_LINKS.forEach(([href, label]) => {
+          const link = document.createElement('a');
+          link.href = href;
+          link.textContent = label;
+          const targetPage = href.split('#')[0] || 'index.html';
+          if (targetPage === page && !href.includes('#')) link.setAttribute('aria-current', 'page');
+          shortcuts.appendChild(link);
+        });
+      }
+    });
   }
 
   const announcement = document.querySelector('.announcement');
@@ -52,6 +100,8 @@
       link.textContent = link.textContent.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL);
     }
   });
+
+  document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(ensureContentHubLink);
 
   if (SHOW_EMPLOYEE_ENTRY) {
     const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
@@ -84,6 +134,7 @@
   }
 
   document.querySelectorAll('a[href="resources.html"]').forEach(link => link.remove());
+  normalizeFooter();
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
