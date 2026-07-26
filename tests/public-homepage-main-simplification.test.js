@@ -14,9 +14,13 @@ const greeting = read('greeting.html');
 const minhwa = read('why-minhwa.html');
 const partnership = read('partnership.html');
 const resources = read('resources.html');
+const privacy = read('privacy.html');
+const terms = read('terms.html');
+const notFound = read('404.html');
 const staff = read('staff/index.html');
 const previews = read('assets/js/home-previews.js');
 const sitemap = read('sitemap.xml');
+const robots = read('robots.txt');
 const styles = read('assets/css/styles.css');
 const polish = read('assets/css/site-polish.css');
 const site = read('assets/js/site.js');
@@ -76,10 +80,33 @@ assert.match(partnership, /태장과 함께할<br>기업을 찾습니다/);
 assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 3, '기업 협력 페이지는 세 개의 시각 카드로 간소화합니다');
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/, '참여 기업은 가나다순으로 표시합니다');
 assert.doesNotMatch(partnership, /PARTNERSHIP FAQ|상담 전에 준비하면 좋은 정보|GENERAL PROCESS|resources\.html/);
+
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
-assert.doesNotMatch(sitemap, /resources\.html/);
+
+for (const page of [privacy, terms]) {
+  assert.equal((page.match(/<meta name="robots"/g) || []).length, 1, '법적 안내 페이지의 robots 메타는 한 번만 선언합니다');
+  assert.match(page, /name="robots" content="noindex,follow"/);
+  assert.match(page, /info@taejang\.co\.kr/);
+  assert.doesNotMatch(page, /taejang2025@naver\.com/);
+}
+assert.match(privacy, /회원가입이나 문의 입력 양식이 없습니다/);
+assert.match(privacy, /방문자 분석 도구나 광고 추적 기능을 운영하지 않습니다/);
+assert.match(terms, /외부 링크/);
+assert.match(terms, /지식재산권/);
+assert.equal((notFound.match(/<meta name="robots"/g) || []).length, 1, '404 페이지의 robots 메타는 한 번만 선언합니다');
+assert.match(notFound, /name="robots" content="noindex,nofollow"/);
+assert.match(notFound, /href="index\.html"/);
+assert.match(notFound, /href="index\.html#contact"/);
+
+for (const excluded of ['resources.html', 'privacy.html', 'terms.html', '404.html', 'staff/']) {
+  assert.doesNotMatch(sitemap, new RegExp(excluded.replace('.', '\\.')));
+}
 for (const page of ['about.html', 'greeting.html', 'why-minhwa.html', 'partnership.html']) assert.match(sitemap, new RegExp(page.replace('.', '\\.')));
+assert.match(robots, /^User-agent: \*$/m);
+assert.match(robots, /^Allow: \/$/m);
+assert.match(robots, /^Sitemap: https:\/\/taejang-homepage\.netlify\.app\/sitemap\.xml$/m);
+
 assert.match(staff, /<h1 id="login-title">임직원 로그인<\/h1>/);
 assert.doesNotMatch(staff, /태장 업무앱|업무 플랫폼/);
 assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
