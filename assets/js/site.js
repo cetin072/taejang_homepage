@@ -63,6 +63,12 @@
     return href;
   }
 
+  function isCurrentNavigationTarget(page, targetPage, href) {
+    if (href.includes('#')) return false;
+    if (targetPage === page) return true;
+    return page === 'activities.html' && targetPage === 'archive.html';
+  }
+
   function ensureContentHubLink(nav) {
     if (!nav) return;
     const contentLinks = [...nav.querySelectorAll('a')].filter(link => {
@@ -85,7 +91,7 @@
         if (isDesktop && className) link.classList.add(className);
 
         const targetPage = href.split('#')[0] || 'index.html';
-        if (!href.includes('#') && targetPage === page) {
+        if (isCurrentNavigationTarget(page, targetPage, href)) {
           link.setAttribute('aria-current', 'page');
         }
         nav.appendChild(link);
@@ -111,7 +117,7 @@
           link.href = hrefForCurrentPage(href, page);
           link.textContent = label;
           const targetPage = href.split('#')[0] || 'index.html';
-          if (targetPage === page && !href.includes('#')) link.setAttribute('aria-current', 'page');
+          if (isCurrentNavigationTarget(page, targetPage, href)) link.setAttribute('aria-current', 'page');
           shortcuts.appendChild(link);
         });
       }
