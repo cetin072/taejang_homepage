@@ -1,6 +1,8 @@
 # 공개 홈페이지 사진 슬롯
 
-실제 촬영·수집·공개동의·파일명·모바일 크롭 기준은 [`PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md`](PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md)를 사용합니다.
+촬영·수집·파일명·모바일 크롭 기준은 [`PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md`](PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md)를 사용합니다.
+
+사진 공개동의서, 직원 안내문, 촬영 담당자 체크리스트와 철회 처리는 [`PUBLIC_PHOTO_CONSENT_AND_SHOOT_DAY_GUIDE.md`](PUBLIC_PHOTO_CONSENT_AND_SHOOT_DAY_GUIDE.md)를 사용합니다.
 
 ## 운영 원칙
 
