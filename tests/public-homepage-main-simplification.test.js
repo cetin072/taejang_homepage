@@ -58,7 +58,7 @@ assert.match(about, /data-mobile-nav/);
 assert.match(about, /class="footer"/);
 
 assert.match(greeting, /한 사람이 오래 일할 수 있는<br>자리를 만들겠습니다/);
-assert.match(greeting, /현대비앤지스틸, 범한메카텍, 삼현, 청우비제이/);
+assert.match(greeting, /범한메카텍, 삼현, 청우비제이, 현대비앤지스틸/);
 assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟/);
 assert.doesNotMatch(greeting, /창원 진전면의 과수원에서 시작했습니다/);
 assert.doesNotMatch(greeting, /지속 가능한|검토합니다/);
@@ -74,7 +74,7 @@ assert.doesNotMatch(minhwa, /그리는 일이 어려운 분은|앉아 있기 어
 
 assert.match(partnership, /태장과 함께할<br>기업을 찾습니다/);
 assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 3, '기업 협력 페이지는 세 개의 시각 카드로 간소화합니다');
-for (const company of ['현대비앤지스틸', '범한메카텍', '삼현', '청우비제이']) assert.match(partnership, new RegExp(company));
+assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/, '참여 기업은 가나다순으로 표시합니다');
 assert.doesNotMatch(partnership, /PARTNERSHIP FAQ|상담 전에 준비하면 좋은 정보|GENERAL PROCESS|resources\.html/);
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
@@ -88,6 +88,7 @@ assert.equal((polish.match(/^\.photo-slot,/gm) || []).length, 1, '사진 슬롯 
 assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m, '기본 스타일 파일에 사진 슬롯 스타일을 중복 정의하지 않습니다');
 assert.match(polish, /--sans:\s*var\(--gothic\)/, '공통 산세리프 글꼴 호환 변수를 정의합니다');
 assert.match(polish, /\.workplace-gallery\s*\{\s*grid-template-columns:\s*1fr;/s, '모바일 일터 사진은 한 열로 표시합니다');
+assert.match(polish, /\.partnership-types li\s*\{[\s\S]*column-gap:\s*14px;/, '협력 항목 아이콘과 글자 사이에 간격을 둡니다');
 assert.doesNotMatch(site, /photo-slots\.css/, '사진 슬롯 스타일을 별도 파일로 중복 로드하지 않습니다');
 assert.doesNotMatch(site, /data-hero-slider|hero-slide/, '사용하지 않는 히어로 슬라이더 코드를 남기지 않습니다');
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false, '중복 사진 슬롯 스타일 파일을 두지 않습니다');
