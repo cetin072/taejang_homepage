@@ -1,0 +1,99 @@
+.partnership-compact-hero .container {
+  max-width: 860px;
+}
+
+.partnership-compact-hero .lead {
+  max-width: 720px;
+}
+
+.partnership-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.partnership-visual-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.partnership-visual-media {
+  display: flex;
+  min-height: 230px;
+  align-items: flex-end;
+  padding: 22px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0)),
+    linear-gradient(135deg, #1d4d39 0%, #3f7a5d 58%, #dce7df 58%, #dce7df 100%);
+}
+
+.partnership-visual-card:nth-child(2) .partnership-visual-media {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0)),
+    linear-gradient(135deg, #365c4c 0%, #72907f 58%, #e9e3d8 58%, #e9e3d8 100%);
+}
+
+.partnership-visual-card:nth-child(3) .partnership-visual-media {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, 0)),
+    linear-gradient(135deg, #6d5b3f 0%, #9b835d 58%, #eee5d7 58%, #eee5d7 100%);
+}
+
+.partnership-visual-media span {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.partnership-visual-body {
+  padding: 24px;
+}
+
+.partnership-visual-body h2 {
+  margin: 0 0 10px;
+  color: var(--green-deep);
+  font: 700 clamp(21px, 2.5vw, 28px)/1.4 var(--myeongjo);
+}
+
+.partnership-visual-body p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.75;
+}
+
+.partnership-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.partnership-summary .lead {
+  margin-bottom: 0;
+}
+
+.partnership-contact-actions {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .partnership-visual-grid,
+  .partnership-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .partnership-visual-grid {
+    gap: 16px;
+  }
+
+  .partnership-visual-media {
+    min-height: 180px;
+  }
+
+  .partnership-visual-body {
+    padding: 20px;
+  }
+}
