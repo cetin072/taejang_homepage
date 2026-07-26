@@ -4,7 +4,8 @@
   const sharedStyleHrefs = [
     'assets/css/site-polish.css',
     'assets/css/mobile-layout-fixes.css',
-    'assets/css/listing-polish.css'
+    'assets/css/listing-polish.css',
+    'assets/css/photo-mode.css'
   ];
 
   sharedStyleHrefs.forEach(href => {
@@ -26,7 +27,7 @@
     ['index.html#business', '사업과 역량'],
     ['workplace.html', '우리의 일터'],
     ['activities.html', '태장의 활동'],
-    ['archive.html', '콘텐츠 소식'],
+    ['archive.html', '소식·기록'],
     ['partnership.html', '기업 협력'],
     ['index.html#contact', '문의하기', 'nav-cta']
   ];
@@ -36,7 +37,7 @@
     ['workplace.html', '우리의 일터'],
     ['index.html#business', '사업과 역량'],
     ['activities.html', '태장의 활동'],
-    ['archive.html', '콘텐츠 소식'],
+    ['archive.html', '소식·기록'],
     ['partnership.html', '기업 협력'],
     ['index.html#contact', '문의하기']
   ];
