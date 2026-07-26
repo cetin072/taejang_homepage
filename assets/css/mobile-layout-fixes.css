@@ -1,0 +1,88 @@
+/* Mobile navigation and compact-section spacing fixes */
+.mobile-nav {
+  max-height: calc(100dvh - 112px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-nav.open {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mobile-nav a {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.partnership-types {
+  margin-bottom: 0;
+}
+
+.partnership-types li {
+  min-width: 0;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.partnership-details > .btns {
+  margin-top: 28px;
+}
+
+.partnership-contact-actions,
+.contact-actions,
+.page-hero-actions {
+  row-gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .mobile-nav {
+    padding-top: 8px;
+    padding-bottom: 16px;
+  }
+
+  .mobile-nav a {
+    min-height: 58px;
+    padding: 14px 0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .partnership-simple {
+    row-gap: 32px;
+  }
+
+  .partnership-details {
+    padding: 24px 22px;
+  }
+
+  .partnership-types {
+    gap: 12px;
+  }
+
+  .partnership-types li {
+    min-height: 30px;
+    font-size: 17px;
+    line-height: 1.65;
+  }
+
+  .partnership-details > .btns {
+    margin-top: 30px;
+    gap: 12px;
+  }
+
+  .partnership-details > .btns .btn {
+    min-height: 52px;
+  }
+
+  .partnership-contact-actions,
+  .contact-actions,
+  .page-hero-actions,
+  .b2b-contact-actions {
+    gap: 12px;
+  }
+}
