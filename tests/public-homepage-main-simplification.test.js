@@ -12,6 +12,9 @@ const index = read('index.html');
 const about = read('about.html');
 const greeting = read('greeting.html');
 const minhwa = read('why-minhwa.html');
+const workplace = read('workplace.html');
+const activities = read('activities.html');
+const archive = read('archive.html');
 const partnership = read('partnership.html');
 const resources = read('resources.html');
 const privacy = read('privacy.html');
@@ -99,13 +102,53 @@ assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html"/);
 assert.match(notFound, /href="index\.html#contact"/);
 
+const indexedPages = [
+  ['index.html', index, 'https://taejang-homepage.netlify.app/'],
+  ['about.html', about, 'https://taejang-homepage.netlify.app/about.html'],
+  ['greeting.html', greeting, 'https://taejang-homepage.netlify.app/greeting.html'],
+  ['why-minhwa.html', minhwa, 'https://taejang-homepage.netlify.app/why-minhwa.html'],
+  ['workplace.html', workplace, 'https://taejang-homepage.netlify.app/workplace.html'],
+  ['activities.html', activities, 'https://taejang-homepage.netlify.app/activities.html'],
+  ['archive.html', archive, 'https://taejang-homepage.netlify.app/archive.html'],
+  ['partnership.html', partnership, 'https://taejang-homepage.netlify.app/partnership.html']
+];
+
+for (const [filename, page, canonical] of indexedPages) {
+  assert.match(page, /<title>[^<]+\|?[^<]*<\/title>/, `${filename} 제목을 제공합니다`);
+  assert.match(page, /<meta name="description" content="[^"]+">/, `${filename} 검색 설명을 제공합니다`);
+  assert.match(page, new RegExp(`<link rel="canonical" href="${canonical.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">`), `${filename} canonical 주소를 제공합니다`);
+  for (const property of ['og:title', 'og:description', 'og:url', 'og:image']) {
+    assert.match(page, new RegExp(`<meta property="${property}" content="[^"]+">`), `${filename} ${property} 정보를 제공합니다`);
+  }
+  for (const name of ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) {
+    assert.match(page, new RegExp(`<meta name="${name}" content="[^"]+">`), `${filename} ${name} 정보를 제공합니다`);
+  }
+}
+assert.equal(new Set(indexedPages.map(([, page]) => page.match(/<title>([^<]+)<\/title>/)?.[1])).size, indexedPages.length, '공개 핵심 페이지는 서로 구분되는 제목을 사용합니다');
+
 for (const excluded of ['resources.html', 'privacy.html', 'terms.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(excluded.replace('.', '\\.')));
 }
-for (const page of ['about.html', 'greeting.html', 'why-minhwa.html', 'partnership.html']) assert.match(sitemap, new RegExp(page.replace('.', '\\.')));
+for (const [filename] of indexedPages.slice(1)) assert.match(sitemap, new RegExp(filename.replace('.', '\\.')));
 assert.match(robots, /^User-agent: \*$/m);
 assert.match(robots, /^Allow: \/$/m);
 assert.match(robots, /^Sitemap: https:\/\/taejang-homepage\.netlify\.app\/sitemap\.xml$/m);
+
+const localLinkPages = indexedPages.map(([filename, page]) => [filename, page]).concat([
+  ['privacy.html', privacy],
+  ['terms.html', terms],
+  ['404.html', notFound]
+]);
+for (const [filename, page] of localLinkPages) {
+  for (const match of page.matchAll(/href="([^"]+)"/g)) {
+    const href = match[1];
+    if (/^(?:https?:|mailto:|tel:|#)/.test(href)) continue;
+    const localPath = href.split(/[?#]/)[0];
+    if (!localPath) continue;
+    const resolved = localPath.endsWith('/') ? `${localPath}index.html` : localPath;
+    assert.equal(fs.existsSync(path.join(root, resolved)), true, `${filename}의 내부 링크 ${href} 대상이 존재해야 합니다`);
+  }
+}
 
 assert.match(staff, /<h1 id="login-title">임직원 로그인<\/h1>/);
 assert.doesNotMatch(staff, /태장 업무앱|업무 플랫폼/);
@@ -114,6 +157,10 @@ assert.match(site, /const PUBLIC_EMAIL = 'info@taejang\.co\.kr'/);
 assert.match(site, /const OPENING_DATE = '2026-08-12'/);
 assert.match(site, /const OPENING_HIDDEN_FROM = '2026-08-13'/);
 assert.match(site, /태장 신규 사업장 개소식/);
+assert.match(site, /const FOOTER_LINKS =/);
+assert.match(site, /function ensureContentHubLink/);
+assert.match(site, /function normalizeFooter/);
+assert.match(site, /장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다/);
 
 assert.equal((polish.match(/^\.photo-slot,/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
 assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m, '기본 스타일 파일에 사진 슬롯 스타일을 중복 정의하지 않습니다');
