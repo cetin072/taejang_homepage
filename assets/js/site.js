@@ -15,6 +15,15 @@
   const OPENING_DATE = '2026-08-12';
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
+  const PUBLIC_NAV_LINKS = [
+    ['index.html#about', '태장 소개'],
+    ['index.html#business', '사업과 역량'],
+    ['workplace.html', '우리의 일터'],
+    ['activities.html', '태장의 활동'],
+    ['archive.html', '콘텐츠 소식'],
+    ['partnership.html', '기업 협력'],
+    ['index.html#contact', '문의하기', 'nav-cta']
+  ];
   const FOOTER_LINKS = [
     ['index.html#about', '태장 소개'],
     ['about.html', '태장 자세히 보기'],
@@ -42,13 +51,32 @@
     return path.endsWith('.html') ? path : 'index.html';
   }
 
-  function ensureContentHubLink(nav) {
-    if (!nav || nav.querySelector('a[href="archive.html"]')) return;
-    const link = document.createElement('a');
-    link.href = 'archive.html';
-    link.textContent = '콘텐츠 소식';
-    const partnership = nav.querySelector('a[href="partnership.html"]');
-    nav.insertBefore(link, partnership || null);
+  function hrefForCurrentPage(href, page) {
+    if (page === 'index.html' && href.startsWith('index.html#')) {
+      return href.slice('index.html'.length);
+    }
+    return href;
+  }
+
+  function normalizeHeaderNavigation() {
+    const page = currentPageName();
+    document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
+      const isDesktop = nav.classList.contains('desktop-nav');
+      nav.replaceChildren();
+
+      PUBLIC_NAV_LINKS.forEach(([href, label, className]) => {
+        const link = document.createElement('a');
+        link.href = hrefForCurrentPage(href, page);
+        link.textContent = label;
+        if (isDesktop && className) link.classList.add(className);
+
+        const targetPage = href.split('#')[0] || 'index.html';
+        if (!href.includes('#') && targetPage === page) {
+          link.setAttribute('aria-current', 'page');
+        }
+        nav.appendChild(link);
+      });
+    });
   }
 
   function normalizeFooter() {
@@ -65,7 +93,7 @@
         shortcuts.querySelectorAll('a').forEach(link => link.remove());
         FOOTER_LINKS.forEach(([href, label]) => {
           const link = document.createElement('a');
-          link.href = href;
+          link.href = hrefForCurrentPage(href, page);
           link.textContent = label;
           const targetPage = href.split('#')[0] || 'index.html';
           if (targetPage === page && !href.includes('#')) link.setAttribute('aria-current', 'page');
@@ -101,7 +129,7 @@
     }
   });
 
-  document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(ensureContentHubLink);
+  normalizeHeaderNavigation();
 
   if (SHOW_EMPLOYEE_ENTRY) {
     const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
