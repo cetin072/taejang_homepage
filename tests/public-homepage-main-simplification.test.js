@@ -49,8 +49,10 @@ assert.match(about, /data-mobile-nav/);
 assert.match(about, /class="footer"/);
 assert.match(sitemap, /https:\/\/taejang-homepage\.netlify\.app\/about\.html/);
 
-assert.equal((styles.match(/^\.photo-slot\{/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
+assert.equal((polish.match(/^\.photo-slot,/gm) || []).length, 1, '사진 슬롯 기본 스타일은 한 번만 정의합니다');
+assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m, '기본 스타일 파일에 사진 슬롯 스타일을 중복 정의하지 않습니다');
 assert.match(polish, /--sans:\s*var\(--gothic\)/, '공통 산세리프 글꼴 호환 변수를 정의합니다');
+assert.match(polish, /\.workplace-gallery\s*\{\s*grid-template-columns:\s*1fr;/s, '모바일 일터 사진은 한 열로 표시합니다');
 assert.doesNotMatch(site, /photo-slots\.css/, '사진 슬롯 스타일을 별도 파일로 중복 로드하지 않습니다');
 assert.doesNotMatch(site, /data-hero-slider|hero-slide/, '사용하지 않는 히어로 슬라이더 코드를 남기지 않습니다');
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false, '중복 사진 슬롯 스타일 파일을 두지 않습니다');
