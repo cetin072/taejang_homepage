@@ -1,5 +1,7 @@
 # 공개 홈페이지 사진 슬롯
 
+실제 촬영·수집·공개동의·파일명·모바일 크롭 기준은 [`PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md`](PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md)를 사용합니다.
+
 ## 운영 원칙
 
 사진 후보는 처음부터 PHOTO 01~11에 맞춰 제한하지 않습니다. 촬영·수집 단계에서는 가능한 한 많이 확보하고, 실제 홈페이지에 여러 후보를 시험 배치한 뒤 결과를 보면서 줄입니다.
