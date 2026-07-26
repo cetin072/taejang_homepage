@@ -10,6 +10,8 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const index = read('index.html');
 const about = read('about.html');
+const greeting = read('greeting.html');
+const minhwa = read('why-minhwa.html');
 const partnership = read('partnership.html');
 const resources = read('resources.html');
 const staff = read('staff/index.html');
@@ -26,13 +28,14 @@ for (const id of ['about', 'business', 'contact']) {
 }
 
 assert.match(index, /href="about\.html"[^>]*>태장 자세히 보기/);
+assert.match(index, /href="why-minhwa\.html"[^>]*>왜 민화인가/);
 assert.match(index, /data-home-preview-count="3"/);
 assert.match(index, /data-recent-activities hidden/);
 assert.doesNotMatch(index, /개발 검토용|사진자료 필요|콘텐츠를 불러오지 못했습니다|이미지 준비 중/);
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.equal((index.match(/지속 가능한/g) || []).length, 1, '지속 가능한 표현은 메인 히어로에만 사용합니다');
 assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/, '메인 연혁은 최신순으로 표시합니다');
-assert.match(index, /민화 작업을 이어가며 달력·카드 등 문화상품을 준비합니다/);
+assert.match(index, /선 하나에서 시작한 민화 작업이 달력과 카드, 기념품으로 이어집니다/);
 assert.match(index, /태장과 함께할 기업을 찾습니다/);
 for (const slot of ['01', '02', '03', '04', '05', '06', '07', '08']) {
   const page = Number(slot) < 7 ? index : about;
@@ -44,7 +47,7 @@ assert.match(previews, /console\.warn\(/);
 assert.match(previews, /dataset\.photoSlot = label/);
 assert.match(previews, /9 \+ index/);
 
-for (const required of ['좋은 일자리를 사업으로 이어갑니다', '평안함, 바름, 넉넉함', '펼치다, 확장하다', '대표이사 <strong>이영희</strong>', '대표 인사말', '태장이 일하는 기준', '사업 준비 시작']) {
+for (const required of ['좋은 일자리를 사업으로 이어갑니다', '평안함, 바름, 넉넉함', '펼치다, 확장하다', '대표이사 <strong>이영희</strong>', '인사말 전문 보기', '태장이 일하는 기준', '사업 준비 시작']) {
   assert.match(about, new RegExp(required));
 }
 for (const required of ['<link rel="canonical" href="https://taejang-homepage.netlify.app/about.html">', 'property="og:url" content="https://taejang-homepage.netlify.app/about.html"', 'name="twitter:card"']) {
@@ -53,14 +56,30 @@ for (const required of ['<link rel="canonical" href="https://taejang-homepage.ne
 assert.match(about, /class="site-header"/);
 assert.match(about, /data-mobile-nav/);
 assert.match(about, /class="footer"/);
-assert.match(sitemap, /https:\/\/taejang-homepage\.netlify\.app\/about\.html/);
+
+assert.match(greeting, /한 사람이 오래 일할 수 있는<br>자리를 만들겠습니다/);
+assert.match(greeting, /현대비앤지스틸, 범한메카텍, 삼현, 청우비제이/);
+assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟/);
+assert.doesNotMatch(greeting, /창원 진전면의 과수원에서 시작했습니다/);
+assert.doesNotMatch(greeting, /지속 가능한|검토합니다/);
+assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
+
+assert.match(minhwa, /<h1 class="title">한 획에서 시작합니다<\/h1>/);
+assert.equal((minhwa.match(/class="story-chapter"/g) || []).length, 4, '민화 이야기는 네 단계로 구성합니다');
+assert.match(minhwa, /우리 근로자들이 잘할 수 있는 일이 무엇인가/);
+assert.match(minhwa, /열두 달을 담을 작품/);
+assert.match(minhwa, /좋은 뜻으로 사 주시는 물건이 아니라, 좋아서 고르는 물건이 되도록/);
+assert.doesNotMatch(minhwa, /열세 장|지속 가능한|검토합니다/);
+assert.doesNotMatch(minhwa, /그리는 일이 어려운 분은|앉아 있기 어려운 분은/);
 
 assert.match(partnership, /태장과 함께할<br>기업을 찾습니다/);
 assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 3, '기업 협력 페이지는 세 개의 시각 카드로 간소화합니다');
+for (const company of ['현대비앤지스틸', '범한메카텍', '삼현', '청우비제이']) assert.match(partnership, new RegExp(company));
 assert.doesNotMatch(partnership, /PARTNERSHIP FAQ|상담 전에 준비하면 좋은 정보|GENERAL PROCESS|resources\.html/);
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.match(resources, /회사 자료는 공개 여부를 확인한 뒤 필요한 경우 개별 안내합니다/);
 assert.doesNotMatch(sitemap, /resources\.html/);
+for (const page of ['about.html', 'greeting.html', 'why-minhwa.html', 'partnership.html']) assert.match(sitemap, new RegExp(page.replace('.', '\\.')));
 assert.match(staff, /<h1 id="login-title">임직원 로그인<\/h1>/);
 assert.doesNotMatch(staff, /태장 업무앱|업무 플랫폼/);
 assert.match(site, /임직원 로그인/);
