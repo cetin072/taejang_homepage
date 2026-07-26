@@ -58,11 +58,14 @@
 
 ## 사진과 로고
 
+촬영 현장에서는 [`PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md`](PUBLIC_HOMEPAGE_PHOTO_SHOOTING_CHECKLIST.md)를 사용합니다.
+
 - 사진은 처음에 넉넉하게 수집하고 시험 배치 후 줄이기
 - PHOTO 번호는 편집 식별자로 유지
 - 공식 공개 직전 PHOTO 번호와 제작 안내 숨김 여부 확인
 - 대표·근로자·외부인 사진 공개 동의 확인
 - 모바일·PC 자르기 위치와 이미지 용량 확인
+- 원본은 공유 드라이브에 보관하고 공개 승인된 변환본만 GitHub 저장소에 반영
 - 기업 로고는 네 기업의 공식 원본과 사용 범위가 모두 확인된 뒤 일괄 적용
 
 ## 최종 기능 점검
