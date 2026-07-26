@@ -9,6 +9,34 @@
     document.head.append(polishLink);
   }
 
+  const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
+  document.querySelectorAll('.desktop-nav').forEach(nav => {
+    let link = nav.querySelector('.staff-nav, a[href="staff/"]');
+    if (!link) {
+      link = document.createElement('a');
+      link.href = 'staff/';
+      const contact = nav.querySelector('.nav-cta');
+      nav.insertBefore(link, contact || null);
+    }
+    link.classList.add('staff-nav');
+    link.setAttribute('aria-label', '임직원 로그인');
+    link.innerHTML = employeeIcon;
+  });
+
+  document.querySelectorAll('[data-mobile-nav]').forEach(nav => {
+    let link = nav.querySelector('a[href="staff/"]');
+    if (!link) {
+      link = document.createElement('a');
+      link.href = 'staff/';
+      const contact = [...nav.querySelectorAll('a')].find(candidate => candidate.getAttribute('href')?.includes('#contact'));
+      nav.insertBefore(link, contact || null);
+    }
+    link.setAttribute('aria-label', '임직원 로그인');
+    link.innerHTML = employeeIcon;
+  });
+
+  document.querySelectorAll('a[href="resources.html"]').forEach(link => link.remove());
+
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
   if (menuBtn && mobileNav) {
