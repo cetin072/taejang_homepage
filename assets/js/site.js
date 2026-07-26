@@ -5,7 +5,8 @@
     'assets/css/site-polish.css',
     'assets/css/mobile-layout-fixes.css',
     'assets/css/listing-polish.css',
-    'assets/css/photo-mode.css'
+    'assets/css/photo-mode.css',
+    'assets/css/engagement-polish.css'
   ];
 
   sharedStyleHrefs.forEach(href => {
@@ -23,20 +24,19 @@
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
   const PUBLIC_NAV_LINKS = [
-    ['index.html#about', '태장 소개'],
-    ['index.html#business', '사업과 역량'],
+    ['about.html', '태장 소개'],
+    ['index.html#business', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '기업 협력'],
+    ['partnership.html', '협력·참여'],
     ['index.html#contact', '문의하기', 'nav-cta']
   ];
   const FOOTER_LINKS = [
-    ['index.html#about', '태장 소개'],
-    ['about.html', '태장 자세히 보기'],
+    ['about.html', '태장 소개'],
+    ['index.html#business', '하는 일'],
     ['workplace.html', '우리의 일터'],
-    ['index.html#business', '사업과 역량'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '기업 협력'],
+    ['partnership.html', '협력·참여'],
     ['index.html#contact', '문의하기']
   ];
 
@@ -134,7 +134,7 @@
       const invitation = document.createElement('a');
       invitation.href = OPENING_INVITATION_URL;
       invitation.target = '_blank';
-      invitation.rel = 'noopener';
+      invitation.rel = 'noopener noreferrer';
       invitation.textContent = '초대장 보기';
       announcement.replaceChildren(date, document.createTextNode(' 태장 신규 사업장 개소식 · '), invitation);
     }
