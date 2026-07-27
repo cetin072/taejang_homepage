@@ -7,11 +7,13 @@ on:
       - "*.html"
       - "assets/css/**"
       - "assets/js/**"
+      - "assets/images/archive/**"
       - "images/homepage/**"
       - "sitemap.xml"
       - "robots.txt"
       - "tests/public-homepage-main-simplification.test.js"
       - "tests/public-navigation-consolidation.test.js"
+      - "tests/public-external-content.test.js"
       - ".github/workflows/public-homepage-checks.yml"
   workflow_dispatch:
 
@@ -45,6 +47,7 @@ jobs:
           status=0
           node tests/public-homepage-main-simplification.test.js > public-homepage-checks.log 2>&1 || status=$?
           node tests/public-navigation-consolidation.test.js >> public-homepage-checks.log 2>&1 || status=$?
+          node tests/public-external-content.test.js >> public-homepage-checks.log 2>&1 || status=$?
           cat public-homepage-checks.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
