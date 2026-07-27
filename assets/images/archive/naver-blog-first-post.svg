@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">태장 네이버 블로그 첫 기록</title>
+  <desc id="desc">태장 아카이브에서 사용하는 네이버 블로그 게시글 시험용 썸네일</desc>
+  <rect width="1200" height="675" fill="#eaf3ee"/>
+  <rect x="64" y="64" width="1072" height="547" rx="8" fill="#ffffff" stroke="#d8e5dd" stroke-width="2"/>
+  <rect x="64" y="64" width="16" height="547" fill="#2d6a4f"/>
+  <text x="130" y="175" fill="#2d6a4f" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="5">TAEJANG ARCHIVE</text>
+  <text x="130" y="285" fill="#1b4332" font-family="Arial, sans-serif" font-size="72" font-weight="700">NAVER BLOG</text>
+  <text x="130" y="390" fill="#30332f" font-family="Arial, sans-serif" font-size="48" font-weight="700">태장의 첫 블로그 기록</text>
+  <line x1="130" y1="445" x2="790" y2="445" stroke="#c9d8cf" stroke-width="2"/>
+  <text x="130" y="515" fill="#676a64" font-family="Arial, sans-serif" font-size="30">카드를 누르면 원문이 새 탭에서 열립니다</text>
+  <circle cx="1005" cy="495" r="70" fill="#2d6a4f"/>
+  <path d="M975 515 L1035 455 M995 455 H1035 V495" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
