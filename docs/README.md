@@ -39,10 +39,13 @@
 
 ## MVP 최종 기준
 
+- [태장 업무플랫폼 MVP 1차 빠른 완성 범위 v1](planning/MVP_V1_FAST_TRACK_FINAL_SCOPE_V1.md) — 현재 제작과 시범운영의 최우선 기준
 - [태장 업무플랫폼 MVP 기획 종료 점검표 v1](planning/MVP_PLANNING_CLOSURE_CHECKLIST_V1.md)
 - [태장 업무플랫폼 MVP 최종 기능명세서 v1](planning/MVP_FUNCTIONAL_SPECIFICATION_V1.md)
 - [태장 업무플랫폼 역할별 권한표 v1](planning/ROLE_PERMISSION_MATRIX_V1.md)
 - [태장 업무플랫폼 역할별 화면 목록·이동도 v1](planning/ROLE_SCREEN_MAP_AND_NAVIGATION_V1.md)
+
+전체 장기 기능명세는 유지하되, 첫 시범운영이 완료될 때까지는 `MVP_V1_FAST_TRACK_FINAL_SCOPE_V1.md`의 범위와 완료 기준을 우선 적용합니다.
 
 ## Phase 1A 설계·구현계획
 
