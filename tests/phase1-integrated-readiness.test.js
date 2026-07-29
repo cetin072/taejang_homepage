@@ -31,9 +31,13 @@ test('worker screens send an explicit KST board date and retain their five read-
 
 test('all audited public activity cards use an approved category without unverified imagery', () => {
   const content = read('assets/js/content.js');
-  for (const id of ['recruitment-notice', 'community-program', 'standard-workplace-news']) {
+  const expectedCategories = {
+    'environment-cleanup-first': '환경·사회공헌',
+    'standard-workplace-certification': '회사 소식'
+  };
+  for (const id of Object.keys(expectedCategories)) {
     const record = content.slice(content.indexOf(`id: "${id}"`), content.indexOf('\n    },', content.indexOf(`id: "${id}"`)));
-    assert.match(record, /category: "(공지|기업·지역 협력|일터 소식)"/);
+    assert.match(record, new RegExp(`category: "${expectedCategories[id]}"`));
     assert.match(record, /thumb: null/);
     assert.match(record, /hero: null/);
     assert.match(record, /listingPhoto: \{/);

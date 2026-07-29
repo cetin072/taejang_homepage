@@ -55,7 +55,7 @@ for (const filename of publicPages) {
 }
 
 const index = read('index.html');
-assert.match(index, /href="partnership\.html#environment-service">환경정비 의뢰 보기/);
+assert.match(index, /href="partnership\.html#environment-service">환경정비 협력 안내/);
 assert.doesNotMatch(index, /href="activities\.html">태장의 활동 보기/);
 assert.ok(index.indexOf('data-recent-activities') < index.indexOf('PARTNERSHIP & PARTICIPATION'));
 assert.match(index, /name="taejang-inquiry"/);

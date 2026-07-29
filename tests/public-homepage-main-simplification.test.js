@@ -102,7 +102,7 @@ assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/);
 assert.match(index, /소식·기록 전체 보기/);
 assert.ok(index.indexOf('data-recent-activities') < index.indexOf('PARTNERSHIP & PARTICIPATION'), '최근 기록을 협력 제안보다 먼저 보여줍니다');
 assert.match(index, /환경정비·ESG 현장 운영/);
-assert.match(index, /기업·기관의 의뢰를 받아 사전 준비부터 현장 수행과 활동 기록까지 운영합니다/);
+assert.match(index, /기업·기관과 협의해 사전 준비부터 현장 수행과 활동 기록까지 운영합니다\./);
 assert.match(index, /href="partnership\.html#environment-service"/);
 assert.match(index, /<strong>info@taejang\.co\.kr<\/strong>/);
 assert.match(index, /home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/);
