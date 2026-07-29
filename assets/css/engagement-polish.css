@@ -371,3 +371,25 @@
     padding:36px 22px;
   }
 }
+
+/* PR #29 readability refinement */
+.lead { font-size: 18px; }
+
+.card p,
+.business-feature-body p,
+.business-supports p { font-size: 16px; }
+
+.desktop-nav a { font-size: 15px; }
+.btn { font-size: 15px; }
+.business-status { font-size: 12.5px; }
+.eyebrow { font-size: 13px; }
+.workplace-principles strong { font-size: 16px; }
+
+.site-footer,
+.site-footer a { font-size: 14px; }
+
+@media (max-width: 768px) {
+  .hero-kicker,
+  .hero-facts strong,
+  .hero-facts span { font-size: 13px; }
+}

@@ -218,18 +218,18 @@ window.TAEJANG_CONTENT = {
       status: "published",
       category: "회사 소식",
       date: "2026.07.09",
-      title: "자회사형 장애인 표준사업장 인증을 받았습니다",
-      summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증을 받았습니다.",
+      title: "자회사형 장애인 장애인 표준사업장 인증을 받았습니다",
+      summary: "태장은 2026년 7월 9일 자회사형 장애인 장애인 표준사업장 인증을 받았습니다.",
       thumb: null,
       hero: null,
       gallery: [],
       listingPhoto: {
-        title: "표준사업장 인증 안내",
+        title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
-        title: "표준사업장 인증 안내",
+        title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
         orientation: "가로형",
         note: "인증서 원본을 게시할 경우 공개 가능한 항목만 보이도록 확인"
@@ -237,7 +237,7 @@ window.TAEJANG_CONTENT = {
       sections: [
         {
           paragraphs: [
-            "농업회사법인 태장 주식회사는 2026년 7월 9일 자회사형 장애인 표준사업장 인증을 받았습니다. 인증번호는 제2026-049호입니다."
+            "농업회사법인 태장 주식회사는 2026년 7월 9일 자회사형 장애인 장애인 표준사업장 인증을 받았습니다. 인증번호는 제2026-049호입니다."
           ]
         },
         {
@@ -364,8 +364,8 @@ window.TAEJANG_CONTENT = {
       type: "internal",
       source: "homepage",
       category: "장애인 일자리",
-      title: "자회사형 장애인 표준사업장 인증",
-      summary: "2026년 7월 9일 받은 표준사업장 인증과 앞으로의 운영 방향을 안내합니다.",
+      title: "자회사형 장애인 장애인 표준사업장 인증",
+      summary: "2026년 7월 9일 받은 장애인 표준사업장 인증과 앞으로의 운영 방향을 안내합니다.",
       thumbnail: null,
       publishedAt: "2026-07-09",
       featured: false,
