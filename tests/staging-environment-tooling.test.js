@@ -32,14 +32,14 @@ test('remote staging scripts require an allow-list, ref/URL match, and explicit 
   assert.match(cleanup, /never force-deletes/);
 });
 
-test('seed specification remains virtual, includes two super admins, two departments, two work groups and worker QA content', () => {
+test('seed specification defaults to two TEST accounts and keeps the full nine-account matrix behind a second confirmation', () => {
   const seed = read('scripts/staging/seed-phase1.mjs');
-  for (const name of ['검수 최고관리자 1', '검수 최고관리자 2', '검수 대표', '검수 운영총괄', '검수 팀장', '검수 현장책임자', '검수 사무직', '검수 근로자 1', '검수 근로자 2']) assert.match(seed, new RegExp(name));
-  assert.match(seed, /staging_qa_operations/);
-  assert.match(seed, /staging_qa_field/);
-  assert.match(seed, /\$\{PREFIX\} 현장 A반/);
-  assert.match(seed, /\$\{PREFIX\} 운영 B반/);
-  for (const label of ['오늘 업무', '전사 일정', '중요공지', '긴급공지', '초안 자료', '사용 중지 자료', '미래 적용 자료', '종료 자료']) assert.match(seed, new RegExp(label));
+  const spec = read('scripts/staging/seed-spec.mjs');
+  for (const name of ['[TEST] 시험 관리자', '[TEST] 시험 근로자']) assert.match(spec, new RegExp(name.replace(/[\[\]]/g, '\\$&')));
+  for (const name of ['검수 최고관리자 1', '검수 최고관리자 2', '검수 대표', '검수 운영총괄', '검수 팀장', '검수 현장책임자', '검수 사무직', '검수 근로자 1', '검수 근로자 2']) assert.match(spec, new RegExp(name));
+  assert.match(spec, /STAGING_FULL_QA_CONFIRM/);
+  assert.match(spec, /FULL_QA/);
+  for (const label of ['오늘 업무', '일정', '중요공지', '포장 작업방법', '자주 보는 안내']) assert.match(seed, new RegExp(label));
   assert.match(read('scripts/staging/shared.mjs'), /staging\.invalid/);
   assert.doesNotMatch(seed, /@taejang\.co\.kr/i);
 });
