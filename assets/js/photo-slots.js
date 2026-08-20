@@ -15,81 +15,81 @@
   const PHOTO_SLOTS = {
     '01': {
       file: 'photo-01.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장 직원과 작업 현장이 함께 보이는 사업장 전경',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center',
+      objectPosition: 'center 50%',
+      mobileObjectPosition: 'center 50%',
       priority: true
     },
     '02': {
       file: 'photo-02.webp',
-      enabled: false,
+      enabled: true,
       alt: '민화 도안을 채색하는 손과 작업물',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '48% 54%',
+      mobileObjectPosition: '48% 52%'
     },
     '03': {
       file: 'photo-03.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장 임직원이 함께하는 환경·사회공헌 활동',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '44% 52%',
+      mobileObjectPosition: '42% 52%'
     },
     '04': {
       file: 'photo-04.webp',
-      enabled: false,
+      enabled: true,
       alt: '여러 직원이 함께 작업하는 태장 일터 전경',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '50% 52%',
+      mobileObjectPosition: '50% 50%'
     },
     '05': {
       file: 'photo-05.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장 작업 현장의 손과 도구 및 재료',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '52% 46%',
+      mobileObjectPosition: '52% 44%'
     },
     '06': {
       file: 'photo-06.webp',
-      enabled: false,
+      enabled: true,
       alt: '작업 방법을 함께 확인하는 태장 직원들',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '54% 52%',
+      mobileObjectPosition: '54% 50%'
     },
     '07': {
       file: 'photo-07.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장 회사소개를 위한 사업장 또는 구성원 전경',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '50% 50%',
+      mobileObjectPosition: '50% 50%'
     },
     '08': {
       file: 'photo-08.webp',
-      enabled: false,
+      enabled: true,
       alt: '농업회사법인 태장 주식회사 대표이사 이영희',
-      objectPosition: 'center top',
-      mobileObjectPosition: 'center 28%'
+      objectPosition: '50% 42%',
+      mobileObjectPosition: '50% 38%'
     },
     '09': {
       file: 'photo-09.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장의 최근 활동을 보여주는 첫 번째 대표사진',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '50% 50%',
+      mobileObjectPosition: '50% 50%'
     },
     '10': {
       file: 'photo-10.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장의 최근 활동을 보여주는 두 번째 대표사진',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '50% 50%',
+      mobileObjectPosition: '50% 50%'
     },
     '11': {
       file: 'photo-11.webp',
-      enabled: false,
+      enabled: true,
       alt: '태장의 최근 활동을 보여주는 세 번째 대표사진',
-      objectPosition: 'center center',
-      mobileObjectPosition: 'center center'
+      objectPosition: '50% 50%',
+      mobileObjectPosition: '50% 50%'
     }
   };
 
