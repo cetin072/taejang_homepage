@@ -1,0 +1,99 @@
+name: Staging First Super Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "dry_run verifies only; apply_bootstrap applies migration then runs the one-time official RPC"
+        required: true
+        type: choice
+        options: [dry_run, apply_bootstrap]
+      target_user_id:
+        description: "Target Supabase Auth UUID (not written to repository)"
+        required: true
+        type: string
+      approval:
+        description: "For apply_bootstrap, type APPLY_STAGING_BOOTSTRAP exactly"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-phase1-staging-first-super-admin
+  cancel-in-progress: false
+
+jobs:
+  staging-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-first-super-admin
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      TARGET_USER_ID: ${{ inputs.target_user_id }}
+      ACTION: ${{ inputs.action }}
+      APPROVAL: ${{ inputs.approval }}
+      # This is an allow-list, not a configurable target.
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Verify staging target and credentials exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP: staging allow-list mismatch"; exit 1; }
+          [[ "$STAGING_PROJECT_REF" != *prod* && "$STAGING_PROJECT_REF" != *live* ]] || { echo "STOP: production-looking ref"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$STAGING_DB_PASSWORD" ]] || { echo "STOP: required staging secrets missing"; exit 1; }
+          [[ "$TARGET_USER_ID" =~ ^[0-9a-fA-F-]{36}$ ]] || { echo "STOP: target must be a UUID"; exit 1; }
+          echo "::add-mask::$TARGET_USER_ID"
+          echo "Target: approved staging allow-list only."
+      - name: Migration dry-run
+        run: supabase db push --project-ref "$STAGING_PROJECT_REF" --dry-run
+      - name: Verify bootstrap preconditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$STAGING_DB_PASSWORD"
+          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 -v target_id="$TARGET_USER_ID" <<'SQL'
+          \set QUIET 1
+          select set_config('app.target_id', :'target_id', true);
+          do $$
+          declare target uuid := current_setting('app.target_id')::uuid;
+          begin
+            if not exists (select 1 from auth.users where id = target) then raise exception 'STOP_AUTH_USER_NOT_FOUND'; end if;
+            if not exists (select 1 from auth.users where id = target and email_confirmed_at is not null) then raise exception 'STOP_EMAIL_NOT_CONFIRMED'; end if;
+            if not exists (select 1 from public.profiles where id = target and account_status = 'pending') then raise exception 'STOP_PROFILE_NOT_PENDING'; end if;
+            if exists (select 1 from public.profiles p join public.profile_roles pr on pr.profile_id=p.id and pr.revoked_at is null join public.roles r on r.id=pr.role_id and r.code='super_admin' where p.account_status='active') then raise exception 'STOP_ACTIVE_SUPER_ADMIN_EXISTS'; end if;
+          end $$;
+          select 'PASS bootstrap preconditions';
+          SQL
+      - name: Apply staging migration
+        if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
+        run: supabase db push --project-ref "$STAGING_PROJECT_REF"
+      - name: Official one-time bootstrap and verification
+        if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$STAGING_DB_PASSWORD"
+          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 -v target_id="$TARGET_USER_ID" <<'SQL'
+          begin;
+          select set_config('app.target_id', :'target_id', true);
+          do $$ declare result jsonb; begin result := public.bootstrap_super_admin(current_setting('app.target_id')::uuid); if result->>'code' <> 'SUPER_ADMIN_BOOTSTRAPPED' then raise exception 'STOP_BOOTSTRAP_%', result->>'code'; end if; end $$;
+          do $$ declare target uuid := current_setting('app.target_id')::uuid; begin
+            if not exists (select 1 from public.profiles p join public.departments d on d.id=p.department_id and d.code='operations' join public.positions po on po.id=p.position_id and po.code='operations_manager' where p.id=target and p.account_status='active') then raise exception 'STOP_PROFILE_VERIFICATION_FAILED'; end if;
+            if (select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id=target and pr.revoked_at is null and r.code in ('super_admin','operations_manager')) <> 2 then raise exception 'STOP_ROLE_VERIFICATION_FAILED'; end if;
+            if not exists (select 1 from public.account_status_history where profile_id=target and previous_status='pending' and new_status='active') then raise exception 'STOP_STATUS_HISTORY_MISSING'; end if;
+            if (select count(*) from public.audit_logs where target_id=target::text and action in ('organization_assignment_changed','role_granted','super_admin_bootstrapped') and outcome='success') < 4 then raise exception 'STOP_AUDIT_VERIFICATION_FAILED'; end if;
+          end $$;
+          commit;
+          select 'PASS bootstrap and post-verification';
+          SQL
+      - name: Require explicit apply phrase
+        if: inputs.action == 'apply_bootstrap' && inputs.approval != 'APPLY_STAGING_BOOTSTRAP'
+        run: 'echo "STOP: apply_bootstrap requires the exact approval phrase" && exit 1'

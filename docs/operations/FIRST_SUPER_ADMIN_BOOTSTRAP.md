@@ -30,6 +30,12 @@
 
 모두 충족하지 않으면 실행하지 않는다. `profiles` 또는 `profile_roles` 직접 수정은 금지한다.
 
+## GitHub Actions 자동 실행 방식
+
+`.github/workflows/staging-first-super-admin.yml`은 `workflow_dispatch` 전용이다. 대상 ref는 staging allow-list에 코드로 고정되며, `dry_run`은 검사만 하고, `apply_bootstrap`은 정확한 승인문구가 있어야 migration 적용 뒤 공식 RPC를 실행한다. QA seed·DB reset·Netlify 설정은 포함하지 않는다.
+
+GitHub Actions Secrets에는 `SUPABASE_ACCESS_TOKEN`, `STAGING_DB_PASSWORD`만 등록한다. 대상 Auth UUID는 workflow 실행 입력값으로만 사용하고 로그에서 마스킹한다.
+
 ## 안전한 실행 방식
 
 1. Work에서 staging allow-list·production 차단 검사를 통과시킨다.
