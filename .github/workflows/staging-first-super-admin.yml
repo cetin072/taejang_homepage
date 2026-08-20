@@ -1,0 +1,95 @@
+name: Staging First Super Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "dry_run verifies only; apply_bootstrap applies migration then runs the one-time official RPC"
+        required: true
+        type: choice
+        options: [dry_run, apply_bootstrap]
+      approval:
+        description: "For apply_bootstrap, type APPLY_STAGING_BOOTSTRAP exactly"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-phase1-staging-first-super-admin
+  cancel-in-progress: false
+
+jobs:
+  staging-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-first-super-admin
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      ACTION: ${{ inputs.action }}
+      APPROVAL: ${{ inputs.approval }}
+      # This is an allow-list, not a configurable target.
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Verify staging target and credentials exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP: staging allow-list mismatch"; exit 1; }
+          [[ "$STAGING_PROJECT_REF" != *prod* && "$STAGING_PROJECT_REF" != *live* ]] || { echo "STOP: production-looking ref"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$STAGING_DB_PASSWORD" ]] || { echo "STOP: required staging secrets missing"; exit 1; }
+          echo "Target: approved staging allow-list only."
+      - name: Migration dry-run
+        run: supabase db push --project-ref "$STAGING_PROJECT_REF" --dry-run
+      - name: Discover and verify exactly one bootstrap candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$STAGING_DB_PASSWORD"
+          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          \set QUIET 1
+          do $$
+          declare candidate_count integer; active_admin_count integer;
+          begin
+            select count(*) into candidate_count from auth.users u join public.profiles p on p.id=u.id where u.email_confirmed_at is not null and p.account_status='pending';
+            select count(distinct p.id) into active_admin_count from public.profiles p join public.profile_roles pr on pr.profile_id=p.id and pr.revoked_at is null join public.roles r on r.id=pr.role_id and r.code='super_admin' where p.account_status='active';
+            if active_admin_count <> 0 then raise exception 'STOP_ACTIVE_SUPER_ADMIN_EXISTS'; end if;
+            if candidate_count = 0 then raise exception 'STOP_NO_BOOTSTRAP_CANDIDATE'; end if;
+            if candidate_count > 1 then raise exception 'STOP_MULTIPLE_BOOTSTRAP_CANDIDATES'; end if;
+          end $$;
+          select 'PASS exactly one bootstrap candidate; identity withheld';
+          SQL
+      - name: Apply staging migration
+        if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
+        run: supabase db push --project-ref "$STAGING_PROJECT_REF"
+      - name: Official one-time bootstrap and verification
+        if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PGPASSWORD="$STAGING_DB_PASSWORD"
+          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 <<'SQL'
+          begin;
+          do $$ declare target uuid; result jsonb; candidate_count integer; begin
+            select count(*) into candidate_count from auth.users u join public.profiles p on p.id=u.id where u.email_confirmed_at is not null and p.account_status='pending';
+            if candidate_count <> 1 then raise exception 'STOP_CANDIDATE_COUNT_CHANGED'; end if;
+            select u.id into target from auth.users u join public.profiles p on p.id=u.id where u.email_confirmed_at is not null and p.account_status='pending';
+            if exists (select 1 from public.profiles p join public.profile_roles pr on pr.profile_id=p.id and pr.revoked_at is null join public.roles r on r.id=pr.role_id and r.code='super_admin' where p.account_status='active') then raise exception 'STOP_ACTIVE_SUPER_ADMIN_EXISTS'; end if;
+            result := public.bootstrap_super_admin(target); if result->>'code' <> 'SUPER_ADMIN_BOOTSTRAPPED' then raise exception 'STOP_BOOTSTRAP_%', result->>'code'; end if;
+            if not exists (select 1 from public.profiles p join public.departments d on d.id=p.department_id and d.code='operations' join public.positions po on po.id=p.position_id and po.code='operations_manager' where p.id=target and p.account_status='active') then raise exception 'STOP_PROFILE_VERIFICATION_FAILED'; end if;
+            if (select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id=target and pr.revoked_at is null and r.code in ('super_admin','operations_manager')) <> 2 then raise exception 'STOP_ROLE_VERIFICATION_FAILED'; end if;
+            if not exists (select 1 from public.account_status_history where profile_id=target and previous_status='pending' and new_status='active') then raise exception 'STOP_STATUS_HISTORY_MISSING'; end if;
+            if (select count(*) from public.audit_logs where target_id=target::text and action in ('organization_assignment_changed','role_granted','super_admin_bootstrapped') and outcome='success') < 4 then raise exception 'STOP_AUDIT_VERIFICATION_FAILED'; end if;
+          end $$;
+          commit;
+          select 'PASS bootstrap and post-verification';
+          SQL
+      - name: Require explicit apply phrase
+        if: inputs.action == 'apply_bootstrap' && inputs.approval != 'APPLY_STAGING_BOOTSTRAP'
+        run: 'echo "STOP: apply_bootstrap requires the exact approval phrase" && exit 1'
