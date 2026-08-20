@@ -16,7 +16,8 @@
 - Supabase: `taejang-phase1-staging` 전용. production 연결·migration 적용 금지.
 - 최초 `dry_run` 1회 실패: `supabase db push`에 더 이상 지원되지 않는 `--project-ref`를 전달해 CLI가 중단됨. staging DB migration·계정·QA 시드는 변경되지 않음.
 - 수정 진행: PR #31 workflow는 `supabase link --project-ref` 후 `supabase db push`를 사용하고, 조건 확인·bootstrap 검증은 공식 Supabase Management API SQL endpoint로 전환한다. 직접 DB IPv6 접속과 pooler 주소 하드코딩은 사용하지 않는다.
-- 김형철 bootstrap 성공 뒤 첫 실제 로그인에서 프론트 라우팅 회귀가 발견됨: `super_admin`을 `/app/`으로 보낸 뒤 앱 초기화 예외를 로그인 실패로 처리하면서 유효 세션까지 삭제했다. PR #31에서 최고관리자는 보호된 staff 최고관리자 화면으로 직접 보내고, 앱 초기화 오류는 세션을 유지한 채 이해 가능한 안내로 표시하도록 수정 완료했다. 계정·역할·bootstrap은 재실행하거나 수정하지 않는다.
+- 김형철 bootstrap과 실제 로그인 재검증은 성공 확정: `active`, `super_admin`, `operations_manager`이며 보호된 staff 최고관리자 화면과 가입 승인 대기 화면이 정상이다. 계정·역할·bootstrap은 재실행하거나 수정하지 않는다.
+- 그 재검증 중 과거 `?notice=app-error`가 성공한 관리자 화면에도 남는 stale 안내를 확인했다. PR #31에서 처리한 notice를 URL에서 소비하고, 검증된 최고관리자 화면에는 과거 `app-error`·`setup`을 다시 표시하지 않도록 수정 중이다. `/app/`의 관리자 보조 모듈 동적 로딩은 실패해도 핵심 대시보드·세션을 유지하고 제한된 안내만 표시하도록 분리 중이다.
 - 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준)
 - Netlify Deploy Preview #31: `/staff/` 정상 연결 확인됨
 - 시험계정·샘플 데이터: 미생성
@@ -37,10 +38,8 @@
 
 ## 다음 작업
 
-1. PR #31 수정본으로 staging `dry_run`을 다시 검증한다.
-2. 사용자 최종 승인 뒤 staging에만 migration을 적용한다.
-3. 이메일 확인 완료·`pending`·활성 최고관리자 0명을 재확인한 뒤 김형철 계정을 공식 RPC로 한 번만 활성화한다.
-4. 즉시 역할·조직·상태 이력·감사로그·`/staff/` 접근을 검증하고 이 문서를 갱신한다.
+1. PR #31 Deploy Preview에서 최고관리자 계정으로 `/app/` 업무 대시보드와 보조 관리 도구의 상태를 확인한다.
+2. staging QA 시드 없이 실제 운영 흐름에서 발견된 UI 오류만 작은 PR 단위로 수정·검증한다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 

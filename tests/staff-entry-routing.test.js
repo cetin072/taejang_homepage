@@ -61,7 +61,7 @@ test('protected app rechecks access context on direct entry, refresh, and naviga
   assert.match(source, /sendToStaff\('setup', \{ clear: false \}\)/);
 });
 
-test('super admin is kept on the protected staff admin screen and app failures retain a valid session', () => {
+test('super admin is kept on the protected staff admin screen and return notices are consumed', () => {
   const staff = read('staff/assets/staff.js');
   const html = read('staff/index.html');
   assert.match(staff, /staffDestination\(context\)/);
@@ -69,9 +69,23 @@ test('super admin is kept on the protected staff admin screen and app failures r
   assert.match(staff, /query\.set\('admin', '1'\)/);
   assert.match(staff, /'app-error'/);
   assert.match(staff, /showIssue\('app-error'\)/);
+  assert.match(staff, /function consumeNotice\(\)/);
+  assert.match(staff, /url\.searchParams\.delete\('notice'\)/);
+  assert.match(staff, /if \(!detail\.issue\) message\(detail\.text, detail\.error\)/);
   assert.match(html, /id="issue-panel"/);
   assert.match(html, /id="retry-app"/);
   assert.match(html, /href="\.\.\/app\/"/);
+});
+
+test('manager add-on loading cannot invalidate a verified app session', () => {
+  const app = read('app/assets/app.js');
+  const html = read('app/index.html');
+  assert.match(app, /Promise\.allSettled\(modules\.map\(loadScript\)\)/);
+  assert.match(app, /managerModuleFailures/);
+  assert.match(app, /핵심 대시보드와 로그인 상태는 계속 사용할 수 있습니다/);
+  assert.match(html, /id="app-status-message"/);
+  assert.match(app, /sendToStaff\('session-expired', \{ clear: true \}\)/);
+  assert.match(app, /sendToStaff\('app-error', \{ clear: false \}\)/);
 });
 
 test('inactive access panels do not render profile fields', () => {

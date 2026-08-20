@@ -117,6 +117,14 @@
 
   function currentNotice() { return new URLSearchParams(window.location.search).get('notice'); }
 
+  function consumeNotice() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('notice')) return;
+    url.searchParams.delete('notice');
+    const query = url.searchParams.toString();
+    window.history.replaceState(null, '', `${url.pathname}${query ? `?${query}` : ''}${url.hash}`);
+  }
+
   function showIssue(notice) {
     const detail = noticeDetails(notice) || noticeDetails('app-error');
     element('issue-title').textContent = detail.title || '업무 화면을 열 수 없습니다';
@@ -143,14 +151,23 @@
     const notice = currentNotice();
     const detail = noticeDetails(notice);
     const stored = sessionStorage.getItem(SESSION_KEY);
-    if (!stored) { show('start-panel'); if (detail) message(detail.text, detail.error); return; }
+    if (!stored) {
+      show('start-panel');
+      if (detail) { message(detail.text, detail.error); consumeNotice(); }
+      return;
+    }
     try { state.session = JSON.parse(stored); } catch { storeSession(null); return show('start-panel'); }
     element('logout-button').hidden = false;
     try {
       const context = await rpc('get_my_access_context');
       const destination = window.TaejangAuthRouting.staffDestination(context);
-      if (detail?.issue && destination.kind === 'app') { state.context = context; return showIssue(notice); }
-      if (detail) message(detail.text, detail.error);
+      if (detail?.issue && destination.kind === 'app') { state.context = context; showIssue(notice); consumeNotice(); return; }
+      // A verified destination is newer and more authoritative than a prior return notice.
+      // Do not let an old app/setup error appear on a working protected screen.
+      if (detail) {
+        if (!detail.issue) message(detail.text, detail.error);
+        consumeNotice();
+      }
       renderContext(context, { allowAdmin: new URLSearchParams(window.location.search).get('admin') === '1' });
     } catch (error) {
       if (error.status === 401 && await refreshSession()) {

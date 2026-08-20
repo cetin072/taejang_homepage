@@ -54,6 +54,8 @@ test('manager UI is loaded only after the active server context is verified', ()
   assert.doesNotMatch(html, /src="assets\/(work-guide-admin|schedule-admin|notice-admin)\.js"/);
   assert.match(app, /get_my_access_context/);
   assert.match(app, /window\.history\.replaceState\(null, '', window\.location\.pathname\)/);
+  assert.match(app, /Promise\.allSettled\(modules\.map\(loadScript\)\)/);
+  assert.match(html, /id="app-status-message"/);
 });
 
 test('protected management panels are opened only for existing manager roles', () => {
