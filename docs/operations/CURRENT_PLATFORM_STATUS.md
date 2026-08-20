@@ -17,7 +17,7 @@
 - 최초 `dry_run` 1회 실패: `supabase db push`에 더 이상 지원되지 않는 `--project-ref`를 전달해 CLI가 중단됨. staging DB migration·계정·QA 시드는 변경되지 않음.
 - 수정 진행: PR #31 workflow는 `supabase link --project-ref` 후 `supabase db push`를 사용하고, 조건 확인·bootstrap 검증은 공식 Supabase Management API SQL endpoint로 전환한다. 직접 DB IPv6 접속과 pooler 주소 하드코딩은 사용하지 않는다.
 - 김형철 bootstrap과 실제 로그인 재검증은 성공 확정: `active`, `super_admin`, `operations_manager`이며 보호된 staff 최고관리자 화면과 가입 승인 대기 화면이 정상이다. 계정·역할·bootstrap은 재실행하거나 수정하지 않는다.
-- 그 재검증 중 과거 `?notice=app-error`가 성공한 관리자 화면에도 남는 stale 안내를 확인했다. PR #31에서 처리한 notice를 URL에서 소비하고, 검증된 최고관리자 화면에는 과거 `app-error`·`setup`을 다시 표시하지 않도록 수정 중이다. `/app/`의 관리자 보조 모듈 동적 로딩은 실패해도 핵심 대시보드·세션을 유지하고 제한된 안내만 표시하도록 분리 중이다.
+- 그 재검증 중 과거 `?notice=app-error`가 성공한 관리자 화면에도 남는 stale 안내를 확인했다. PR #31에서 처리한 notice를 URL에서 소비하고, 검증된 최고관리자 화면에는 과거 `app-error`·`setup`을 다시 표시하지 않도록 수정했다. 과거 `/app/`의 원본 예외는 넓은 catch가 버려 정확한 모듈까지 소급 식별할 수 없지만, 관리자 보조 모듈 동적 로딩은 실패해도 핵심 대시보드·세션을 유지하고 제한된 안내만 표시하도록 분리했다.
 - 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준)
 - Netlify Deploy Preview #31: `/staff/` 정상 연결 확인됨
 - 시험계정·샘플 데이터: 미생성
