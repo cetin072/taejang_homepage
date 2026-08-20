@@ -1,6 +1,6 @@
 # 태장 업무플랫폼 현재 운영 상태
 
-마지막 확인일: **2026-08-07 (KST)**
+마지막 확인일: **2026-08-20 (KST)**
 
 이 문서는 다음 Work가 현재 상태를 빠르게 복구하기 위한 운영 기록이다. 플랫폼 관련 작업을 완료·중단·배포 확인·실제 계정 상태 변경한 경우, 비밀정보 없이 이 문서를 함께 갱신한다.
 
@@ -14,6 +14,8 @@
 ## staging·Netlify 상태
 
 - Supabase: `taejang-phase1-staging` 전용. production 연결·migration 적용 금지.
+- 최초 `dry_run` 1회 실패: `supabase db push`에 더 이상 지원되지 않는 `--project-ref`를 전달해 CLI가 중단됨. staging DB migration·계정·QA 시드는 변경되지 않음.
+- 수정 진행: PR #31 workflow는 `supabase link --project-ref` 후 `supabase db push`를 사용하고, 조건 확인·bootstrap 검증은 공식 Supabase Management API SQL endpoint로 전환한다. 직접 DB IPv6 접속과 pooler 주소 하드코딩은 사용하지 않는다.
 - 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준)
 - Netlify Deploy Preview #31: `/staff/` 정상 연결 확인됨
 - 시험계정·샘플 데이터: 미생성
@@ -34,7 +36,7 @@
 
 ## 다음 작업
 
-1. 이 PR의 강화된 `bootstrap_super_admin` migration을 staging에서 dry-run 검증한다.
+1. PR #31 수정본으로 staging `dry_run`을 다시 검증한다.
 2. 사용자 최종 승인 뒤 staging에만 migration을 적용한다.
 3. 이메일 확인 완료·`pending`·활성 최고관리자 0명을 재확인한 뒤 김형철 계정을 공식 RPC로 한 번만 활성화한다.
 4. 즉시 역할·조직·상태 이력·감사로그·`/staff/` 접근을 검증하고 이 문서를 갱신한다.
