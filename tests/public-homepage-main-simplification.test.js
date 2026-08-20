@@ -29,6 +29,7 @@ const contentData = read('assets/js/content.js');
 const externalContent = read('assets/js/external-content.js');
 const site = read('assets/js/site.js');
 const previews = read('assets/js/home-previews.js');
+const heroVideo = read('assets/js/hero-video.js');
 const contentHub = read('assets/js/content-hub.js');
 const photoSlots = read('assets/js/photo-slots.js');
 const styles = read('assets/css/styles.css');
@@ -108,7 +109,11 @@ assert.match(index, /환경정비·ESG 현장 운영/);
 assert.match(index, /기업·기관과 협의해 사전 준비부터 현장 수행과 활동 기록까지 운영합니다\./);
 assert.match(index, /href="partnership\.html#environment-service"/);
 assert.match(index, /<strong>info@taejang\.co\.kr<\/strong>/);
-assert.match(index, /external-content\.js[\s\S]*content-hub\.js[\s\S]*home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/);
+assert.match(index, /external-content\.js[\s\S]*content-hub\.js[\s\S]*home-previews\.js[\s\S]*photo-slots\.js[\s\S]*hero-video\.js[\s\S]*site\.js/);
+assert.doesNotMatch(index, /data-photo-slot="01"/);
+assert.match(index, /data-youtube-video="FbEOcteBSJ4"/);
+assert.match(index, /i\.ytimg\.com\/vi\/FbEOcteBSJ4\/hqdefault\.jpg/);
+assert.match(index, /data-youtube-play[^>]*aria-label="태장 공식 소개영상 재생"/);
 
 assert.match(index, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
 assert.match(index, /action="\/thanks\.html"/);
@@ -120,7 +125,7 @@ assert.match(index, /name="privacy-consent"[^>]*required/);
 assert.match(index, /주민등록번호, 장애·건강정보 등 민감한 개인정보는 입력하지 마세요/);
 assert.match(index, /문의 처리 완료 후 6개월/);
 
-for (const slot of ['01', '02', '03', '04', '05', '06']) assert.match(index, new RegExp(`data-photo-slot="${slot}"`));
+for (const slot of ['02', '03', '04', '05', '06']) assert.match(index, new RegExp(`data-photo-slot="${slot}"`));
 for (const slot of ['07', '08']) assert.match(about, new RegExp(`data-photo-slot="${slot}"`));
 assert.match(about, /태장 한눈에 보기/);
 assert.equal((about.match(/class="glance-grid"/g) || []).length, 1);
@@ -229,6 +234,12 @@ assert.doesNotMatch(contentHub, /Number\(right\.featured\)/);
 assert.match(previews, /contentHub\.orderedItems\(content\.hub\)/);
 assert.match(previews, /contentHub\.createMedia\(item, 'card-media recent-activity-media'\)/);
 assert.doesNotMatch(previews, /createPhotoSlot|data\.photoSlot|PHOTO 0(?:9|10|11)/);
+assert.match(heroVideo, /youtube-nocookie\.com\/embed/);
+assert.match(heroVideo, /autoplay=1/);
+assert.match(heroVideo, /playsinline=1/);
+assert.match(heroVideo, /iframe\.title = title/);
+assert.match(heroVideo, /setAttribute\('allowfullscreen'/);
+assert.doesNotMatch(heroVideo, /data-photo-slot|photo-0(?:1|9|10|11)/);
 
 function createHubApi(content) {
   class Element {
