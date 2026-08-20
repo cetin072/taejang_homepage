@@ -55,6 +55,31 @@ textarea:focus-visible {
   border-radius: 999px;
 }
 
+.recent-activities-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.recent-activity-media {
+  aspect-ratio: 4 / 3;
+  background: var(--green-soft);
+}
+
+.recent-activity-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-activity-body .content-card-meta {
+  margin-bottom: 9px;
+}
+
+.recent-activity-body .tag {
+  margin: 0;
+}
+
 /* Numbered public-homepage photo slots */
 .photo-slot,
 .content-photo-slot {
@@ -296,6 +321,7 @@ textarea:focus-visible {
   }
 
   .recent-activities-grid {
+    grid-template-columns: 1fr;
     gap: 18px;
   }
 
@@ -307,6 +333,13 @@ textarea:focus-visible {
   .about-facts div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1100px) {
+  .recent-activities-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
   }
 }
 

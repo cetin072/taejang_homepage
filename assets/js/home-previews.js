@@ -30,7 +30,11 @@
 
     const body = document.createElement('div');
     body.className = 'card-body recent-activity-body';
-    appendText(body, 'span', item.category || sourceLabels[item.source] || '활동', 'tag tag--subtle');
+    const meta = document.createElement('div');
+    meta.className = 'content-card-meta';
+    appendText(meta, 'span', contentHub.sourceLabel(item), `source-badge source-badge--${item.source || 'homepage'}`);
+    appendText(meta, 'span', item.category || '활동', 'tag tag--subtle');
+    body.append(meta);
 
     const date = document.createElement('time');
     date.className = 'card-date';
@@ -62,8 +66,8 @@
     try {
       const items = contentHub.orderedItems(content.hub);
       containers.forEach((container) => {
-        const count = Number.parseInt(container.dataset.homePreviewCount, 10) || 3;
-        const visibleItems = items.slice(0, Math.min(count, 3));
+        const requestedCount = Number.parseInt(container.dataset.homePreviewCount, 10) || 8;
+        const visibleItems = items.slice(0, Math.min(Math.max(requestedCount, 1), 8));
         const section = container.closest('[data-recent-activities]');
         if (!visibleItems.length) {
           if (section) section.hidden = true;

@@ -22,10 +22,10 @@
 4. `Project configuration` → `Notifications` → `Emails and webhooks` → `Form submission notifications`로 이동합니다.
 5. `Add notification`을 선택합니다.
 6. 알림 대상 폼을 `taejang-inquiry`로 지정합니다.
-7. 수신 이메일을 `info@taejang.co.kr`로 입력해 저장합니다.
+7. 수신 이메일을 `taejang2025@naver.com`으로 입력해 저장합니다.
 8. 실제 개인정보 대신 시험용 이름·이메일로 한 번 제출해 다음을 확인합니다.
    - Netlify Forms 제출 목록에 표시되는지
-   - `info@taejang.co.kr`로 알림이 오는지
+   - `taejang2025@naver.com`으로 알림이 오는지
    - 알림 메일에서 답장했을 때 시험 제출자의 이메일이 수신자로 잡히는지
    - 제출 후 `/thanks.html`이 열리는지
 

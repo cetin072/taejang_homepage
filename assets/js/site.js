@@ -18,8 +18,7 @@
   });
 
   const SHOW_EMPLOYEE_ENTRY = false;
-  const PUBLIC_EMAIL = 'info@taejang.co.kr';
-  const LEGACY_PUBLIC_EMAIL = 'taejang2025@naver.com';
+  const PUBLIC_EMAIL = 'taejang2025@naver.com';
   const OPENING_DATE = '2026-08-12';
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
@@ -121,6 +120,13 @@
           shortcuts.appendChild(link);
         });
       }
+
+      const contact = columns[2];
+      const emailLink = contact?.querySelector('a[href^="mailto:"]');
+      if (emailLink) {
+        emailLink.href = `mailto:${PUBLIC_EMAIL}`;
+        emailLink.textContent = PUBLIC_EMAIL;
+      }
     });
   }
 
@@ -139,21 +145,6 @@
       announcement.replaceChildren(date, document.createTextNode(' 태장 신규 사업장 개소식 · '), invitation);
     }
   }
-
-  document.querySelectorAll('a[href^="mailto:"]').forEach(link => {
-    const href = link.getAttribute('href') || '';
-    if (href.includes(LEGACY_PUBLIC_EMAIL)) {
-      link.setAttribute('href', href.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL));
-    }
-
-    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      const textNode = walker.currentNode;
-      if (textNode.nodeValue?.includes(LEGACY_PUBLIC_EMAIL)) {
-        textNode.nodeValue = textNode.nodeValue.replace(LEGACY_PUBLIC_EMAIL, PUBLIC_EMAIL);
-      }
-    }
-  });
 
   normalizeHeaderNavigation();
 

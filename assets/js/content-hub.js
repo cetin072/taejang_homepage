@@ -46,6 +46,10 @@
     return element;
   }
 
+  function sourceLabel(item) {
+    return sourceLabels[item?.source] || item?.source || '홈페이지';
+  }
+
   function createMedia(item, mediaClassName = 'card-media card-media--hub') {
     const media = document.createElement('div');
     media.className = mediaClassName;
@@ -70,7 +74,8 @@
 
   window.TAEJANG_CONTENT_HUB = {
     orderedItems,
-    createMedia
+    createMedia,
+    sourceLabel
   };
 
   function linkText(item) {
@@ -101,7 +106,7 @@
     body.className = 'card-body';
     const meta = document.createElement('div');
     meta.className = 'content-card-meta';
-    appendText(meta, 'span', sourceLabels[item.source] || item.source || '홈페이지', `source-badge source-badge--${item.source || 'homepage'}`);
+    appendText(meta, 'span', sourceLabel(item), `source-badge source-badge--${item.source || 'homepage'}`);
     appendText(meta, 'span', item.category, 'tag tag--subtle');
     body.append(meta);
 
