@@ -29,7 +29,7 @@ test('worker screens send an explicit KST board date and retain their five read-
   }
 });
 
-test('all audited public activity cards use an approved category without unverified imagery', () => {
+test('all audited public activity cards use an approved category and the certification post uses its approved photo', () => {
   const content = read('assets/js/content.js');
   const expectedCategories = {
     'environment-cleanup-first': '환경·사회공헌',
@@ -38,9 +38,15 @@ test('all audited public activity cards use an approved category without unverif
   for (const id of Object.keys(expectedCategories)) {
     const record = content.slice(content.indexOf(`id: "${id}"`), content.indexOf('\n    },', content.indexOf(`id: "${id}"`)));
     assert.match(record, new RegExp(`category: "${expectedCategories[id]}"`));
-    assert.match(record, /thumb: null/);
-    assert.match(record, /hero: null/);
     assert.match(record, /listingPhoto: \{/);
     assert.match(record, /photo: \{/);
+    if (id === 'environment-cleanup-first') {
+      assert.match(record, /thumb: null/);
+      assert.match(record, /hero: null/);
+    } else {
+      assert.match(record, /thumb: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
+      assert.match(record, /hero: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
+      assert.match(record, /alt: \{/);
+    }
   }
 });

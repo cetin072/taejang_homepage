@@ -19,6 +19,21 @@
       status: 'published',
       externalUrl: 'https://blog.naver.com/taejang-official/224367547159',
       externalLabel: '네이버 블로그에서 보기'
+    },
+    {
+      id: 'youtube-FbEOcteBSJ4',
+      type: 'external',
+      source: 'youtube',
+      category: '회사소식',
+      title: '태장 소개영상',
+      summary: '함께 일하며 지속 가능한 기회를 만들어가는 태장의 사업과 일터를 영상으로 소개합니다.',
+      thumbnail: 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg',
+      thumbnailAlt: '태장 공식 소개영상 썸네일',
+      publishedAt: '2026-08-20',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://www.youtube.com/watch?v=FbEOcteBSJ4',
+      externalLabel: '유튜브에서 보기'
     }
   ];
 

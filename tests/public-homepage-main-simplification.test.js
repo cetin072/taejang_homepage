@@ -229,6 +229,7 @@ assert.match(photoFolderGuide, /최근 소식 1~3/);
 assert.match(photoFolderGuide, /thumbnail/);
 assert.match(photoFolderGuide, /원본 사진, 공개동의서, 동의 관리대장/);
 assert.match(contentHub, /window\.TAEJANG_CONTENT_HUB/);
+assert.match(contentHub, /youtube: 'YOUTUBE'/);
 assert.match(contentHub, /dateValue\(right\.item\.publishedAt\) - dateValue\(left\.item\.publishedAt\)[\s\S]*left\.index - right\.index/);
 assert.doesNotMatch(contentHub, /Number\(right\.featured\)/);
 assert.match(previews, /contentHub\.orderedItems\(content\.hub\)/);
@@ -306,12 +307,43 @@ assert.deepEqual(api.orderedItems(previewContent.hub).map(item => item.title), [
 const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
-const actualRecentItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub).slice(0, 3);
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '첫 환경정비 활동을 진행했습니다']);
-assert.equal(actualRecentItems[0].thumbnail, 'images/homepage/photo-09.webp');
-assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
-assert.equal(actualRecentItems[1].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
-assert.equal(actualRecentItems[2].thumbnail, 'images/homepage/photo-11.webp');
+const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub);
+assert.equal(actualHubItems.length, 5, '소식·기록에는 현재 공개할 콘텐츠 5개만 남깁니다');
+assert.deepEqual(Array.from(actualHubItems, item => item.id), [
+  'youtube-FbEOcteBSJ4',
+  'internal-opening',
+  'naver-blog-224367547159',
+  'internal-environment-cleanup',
+  'internal-certification'
+]);
+assert.deepEqual(Array.from(actualHubItems, item => item.title), [
+  '태장 소개영상',
+  '태장 개소식 안내',
+  '한 줄 한 줄 정성으로 완성되는 태장의 하루',
+  '첫 환경정비 활동을 진행했습니다',
+  '자회사형 장애인 표준사업장 인증'
+]);
+assert.equal(actualHubItems.some(item => /민화 작업을 시작했습니다|포장과 검수 작업을 준비합니다/.test(item.title)), false);
+assert.equal(contentData.includes('id: "minhwa-class"'), false);
+assert.equal(contentData.includes('id: "packing-start"'), false);
+assert.equal(contentData.includes('id: "internal-minhwa"'), false);
+assert.equal(contentData.includes('id: "internal-packing"'), false);
+
+const actualRecentItems = actualHubItems.slice(0, 3);
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루']);
+assert.equal(actualRecentItems[0].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
+assert.equal(actualRecentItems[0].thumbnailAlt, '태장 공식 소개영상 썸네일');
+assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
+assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/opening-ceremony.webp');
+assert.equal(actualRecentItems[2].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
+assert.equal(actualRecentItems[2].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
+
+const certificationHubItem = actualHubItems.find(item => item.id === 'internal-certification');
+assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification.webp');
+assert.equal(certificationHubItem.thumbnailAlt, '태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판');
+assert.equal(fs.existsSync(path.join(root, certificationHubItem.thumbnail)), true);
+assert.match(contentData, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification\.webp"[\s\S]*hero: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
+assert.doesNotMatch(contentData, /images\/homepage\/photo-(?:09|10|11)\.webp/);
 
 const visiblePreview = createPreviewFixture(previewContent);
 assert.equal(visiblePreview.section.hidden, false);
