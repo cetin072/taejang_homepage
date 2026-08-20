@@ -105,6 +105,15 @@
       <p>계정은 승인되었지만 기본 업무 역할이 아직 배정되지 않았습니다. 시스템 최고관리자에게 문의하세요.</p>
     </section>
 
+    <section id="issue-panel" class="panel state-panel" hidden>
+      <span class="state-icon" aria-hidden="true">⚠️</span>
+      <h2 id="issue-title">업무 화면을 열 수 없습니다</h2>
+      <p id="issue-copy">로그인 상태는 유지되어 있습니다. 잠시 후 다시 시도하세요.</p>
+      <div class="action-stack compact">
+        <button id="retry-app" class="button" type="button">업무 화면 다시 열기</button>
+      </div>
+    </section>
+
     <section id="admin-panel" class="panel" hidden>
       <div class="section-heading">
         <div>
@@ -114,6 +123,7 @@
         <button id="refresh-pending" class="button button-quiet" type="button">새로고침</button>
       </div>
       <p class="help">실제 소속을 확인한 사람만 부서·직책·역할을 배정하고 승인하세요.</p>
+      <p><a class="button button-quiet" href="../app/">업무 대시보드 열기</a></p>
       <div id="pending-list" class="account-list"></div>
     </section>
   </main>

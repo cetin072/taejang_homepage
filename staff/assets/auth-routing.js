@@ -43,5 +43,13 @@
     return route ? { kind: 'app', route } : { kind: 'unassigned' };
   }
 
-  return { ROLE_ROUTES, roleCodes, resolveRoleRoute, accessDestination };
+  function staffDestination(context) {
+    const destination = accessDestination(context);
+    if (destination.kind === 'app' && destination.route.code === 'super_admin') {
+      return { kind: 'admin', route: destination.route };
+    }
+    return destination;
+  }
+
+  return { ROLE_ROUTES, roleCodes, resolveRoleRoute, accessDestination, staffDestination };
 });

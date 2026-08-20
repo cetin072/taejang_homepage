@@ -134,7 +134,7 @@ test('staff screen includes every allowed staff entry and account state', () => 
 
 test('staff code routes pending and blocked accounts away from internal app', () => {
   const source = fs.readFileSync(path.join(ROOT, 'staff/assets/staff.js'), 'utf8');
-  assert.match(source, /accessDestination\(context\)/);
+  assert.match(source, /staffDestination\(context\)/);
   assert.match(source, /destination\.kind === 'pending'/);
   assert.match(source, /destination\.kind === 'blocked'/);
   assert.match(source, /show\('pending-panel'\)/);

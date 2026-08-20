@@ -16,6 +16,7 @@
 - Supabase: `taejang-phase1-staging` 전용. production 연결·migration 적용 금지.
 - 최초 `dry_run` 1회 실패: `supabase db push`에 더 이상 지원되지 않는 `--project-ref`를 전달해 CLI가 중단됨. staging DB migration·계정·QA 시드는 변경되지 않음.
 - 수정 진행: PR #31 workflow는 `supabase link --project-ref` 후 `supabase db push`를 사용하고, 조건 확인·bootstrap 검증은 공식 Supabase Management API SQL endpoint로 전환한다. 직접 DB IPv6 접속과 pooler 주소 하드코딩은 사용하지 않는다.
+- 김형철 bootstrap 성공 뒤 첫 실제 로그인에서 프론트 라우팅 회귀가 발견됨: `super_admin`을 `/app/`으로 보낸 뒤 앱 초기화 예외를 로그인 실패로 처리하면서 유효 세션까지 삭제했다. PR #31에서 최고관리자는 보호된 staff 최고관리자 화면으로 직접 보내고, 앱 초기화 오류는 세션을 유지한 채 이해 가능한 안내로 표시하도록 수정 완료했다. 계정·역할·bootstrap은 재실행하거나 수정하지 않는다.
 - 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준)
 - Netlify Deploy Preview #31: `/staff/` 정상 연결 확인됨
 - 시험계정·샘플 데이터: 미생성

@@ -48,7 +48,7 @@
     sessionStorage.removeItem(SESSION_KEY);
   }
 
-  function sendToStaff(reason, { clear = true } = {}) {
+  function sendToStaff(reason, { clear = false } = {}) {
     if (clear) clearSession();
     const query = reason ? `?notice=${encodeURIComponent(reason)}` : '';
     window.location.replace(`../staff/${query}`);
@@ -667,8 +667,9 @@
       await renderEntry(current, destination.route);
       if (destination.route.code === 'general_worker') await loadTodayBoard();
       if (isTodayManager()) await loadAdminData();
-    } catch {
-      sendToStaff('login');
+    } catch (error) {
+      if (error.status === 401) return sendToStaff('session-expired', { clear: true });
+      sendToStaff('app-error', { clear: false });
     } finally {
       state.verifying = false;
     }
@@ -722,7 +723,7 @@
       showEnvironmentLabel(state.config);
       await verify();
     } catch {
-      sendToStaff('setup');
+      sendToStaff('setup', { clear: false });
     }
   })();
 })();
