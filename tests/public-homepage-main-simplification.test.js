@@ -307,9 +307,10 @@ const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
 const actualRecentItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub).slice(0, 3);
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 개소식 안내', '태장 네이버 블로그 첫 기록', '첫 환경정비 활동을 진행했습니다']);
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '첫 환경정비 활동을 진행했습니다']);
 assert.equal(actualRecentItems[0].thumbnail, 'images/homepage/photo-09.webp');
-assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/naver-blog-first-post.svg');
+assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
+assert.equal(actualRecentItems[1].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
 assert.equal(actualRecentItems[2].thumbnail, 'images/homepage/photo-11.webp');
 
 const visiblePreview = createPreviewFixture(previewContent);

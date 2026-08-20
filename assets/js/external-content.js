@@ -6,18 +6,18 @@
 
   const externalItems = [
     {
-      id: 'naver-blog-224359125575',
+      id: 'naver-blog-224367547159',
       type: 'external',
       source: 'naver-blog',
       category: '회사소식',
-      title: '태장 네이버 블로그 첫 기록',
-      summary: '태장 네이버 블로그에 작성한 첫 게시글입니다. 카드를 누르면 원문이 새 탭에서 열립니다.',
-      thumbnail: 'assets/images/archive/naver-blog-first-post.svg',
-      thumbnailAlt: '태장 네이버 블로그 첫 기록 시험용 썸네일',
-      publishedAt: '2026-07-27',
+      title: '한 줄 한 줄 정성으로 완성되는 태장의 하루',
+      summary: '태장 직원들이 민화 작업에 집중하며 한 줄 한 줄 정성으로 하루를 채워가는 작업장 모습을 소개합니다.',
+      thumbnail: 'assets/images/archive/naver-blog-224367547159.webp',
+      thumbnailAlt: '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습',
+      publishedAt: '2026-08-04',
       featured: false,
       status: 'published',
-      externalUrl: 'https://m.blog.naver.com/sksk6625/224359125575',
+      externalUrl: 'https://blog.naver.com/taejang-official/224367547159',
       externalLabel: '네이버 블로그에서 보기'
     }
   ];

@@ -12,7 +12,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const index = read('index.html');
 const archive = read('archive.html');
 const externalContent = read('assets/js/external-content.js');
-const thumbnailPath = path.join(root, 'assets/images/archive/naver-blog-first-post.svg');
+const thumbnailPath = path.join(root, 'assets/images/archive/naver-blog-224367547159.webp');
 
 assert.match(index, /content\.js[\s\S]*external-content\.js[\s\S]*home-previews\.js/);
 assert.match(archive, /content\.js[\s\S]*external-content\.js[\s\S]*content-hub\.js/);
@@ -28,10 +28,12 @@ vm.runInNewContext(externalContent, { window });
 assert.equal(window.TAEJANG_CONTENT.hub.length, 1);
 const item = window.TAEJANG_CONTENT.hub[0];
 assert.equal(item.type, 'external');
+assert.equal(item.id, 'naver-blog-224367547159');
 assert.equal(item.source, 'naver-blog');
 assert.equal(item.status, 'published');
-assert.equal(item.externalUrl, 'https://m.blog.naver.com/sksk6625/224359125575');
-assert.equal(item.thumbnail, 'assets/images/archive/naver-blog-first-post.svg');
+assert.equal(item.externalUrl, 'https://blog.naver.com/taejang-official/224367547159');
+assert.equal(item.thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
+assert.equal(item.thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
 assert.equal(item.externalLabel, '네이버 블로그에서 보기');
 
 vm.runInNewContext(externalContent, { window });
