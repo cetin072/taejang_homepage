@@ -29,12 +29,13 @@
     return Date.parse(`${value}T00:00:00Z`) || 0;
   }
 
-  function orderedItems() {
-    return baseItems
-      .filter(isUsableItem)
-      .slice()
-      .sort((left, right) => Number(right.featured) - Number(left.featured)
-        || dateValue(right.publishedAt) - dateValue(left.publishedAt));
+  function orderedItems(items = baseItems) {
+    return items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => isUsableItem(item))
+      .sort((left, right) => dateValue(right.item.publishedAt) - dateValue(left.item.publishedAt)
+        || left.index - right.index)
+      .map(({ item }) => item);
   }
 
   function appendText(parent, tagName, text, className) {
@@ -45,9 +46,9 @@
     return element;
   }
 
-  function createMedia(item) {
+  function createMedia(item, mediaClassName = 'card-media card-media--hub') {
     const media = document.createElement('div');
-    media.className = 'card-media card-media--hub';
+    media.className = mediaClassName;
     if (item.thumbnail) {
       const image = document.createElement('img');
       image.src = item.thumbnail;
@@ -66,6 +67,11 @@
     }
     return media;
   }
+
+  window.TAEJANG_CONTENT_HUB = {
+    orderedItems,
+    createMedia
+  };
 
   function linkText(item) {
     if (item.type === 'internal') return '자세히 보기';
@@ -279,13 +285,5 @@
     render();
   }
 
-  function setupHomePreviews() {
-    document.querySelectorAll('[data-home-preview="hub"]').forEach((container) => {
-      const count = Number.parseInt(container.dataset.homePreviewCount, 10) || 6;
-      container.replaceChildren(...orderedItems().slice(0, count).map((item) => createCard(item, 'h3')));
-    });
-  }
-
   setupArchive();
-  setupHomePreviews();
 }());

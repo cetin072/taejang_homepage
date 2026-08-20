@@ -25,8 +25,11 @@ const terms = read('terms.html');
 const thanks = read('thanks.html');
 const notFound = read('404.html');
 const staff = read('staff/index.html');
+const contentData = read('assets/js/content.js');
+const externalContent = read('assets/js/external-content.js');
 const site = read('assets/js/site.js');
 const previews = read('assets/js/home-previews.js');
+const contentHub = read('assets/js/content-hub.js');
 const photoSlots = read('assets/js/photo-slots.js');
 const styles = read('assets/css/styles.css');
 const polish = read('assets/css/site-polish.css');
@@ -105,7 +108,7 @@ assert.match(index, /환경정비·ESG 현장 운영/);
 assert.match(index, /기업·기관과 협의해 사전 준비부터 현장 수행과 활동 기록까지 운영합니다\./);
 assert.match(index, /href="partnership\.html#environment-service"/);
 assert.match(index, /<strong>info@taejang\.co\.kr<\/strong>/);
-assert.match(index, /home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/);
+assert.match(index, /external-content\.js[\s\S]*content-hub\.js[\s\S]*home-previews\.js[\s\S]*photo-slots\.js[\s\S]*site\.js/);
 
 assert.match(index, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
 assert.match(index, /action="\/thanks\.html"/);
@@ -210,13 +213,46 @@ assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false
 
 assert.match(photoSlots, /const PHOTO_REVIEW_MODE = true/);
 assert.match(photoSlots, /const PHOTO_BASE_PATH = 'images\/homepage\/'/);
-assert.equal((photoSlots.match(/file: 'photo-\d{2}\.webp'/g) || []).length, 11);
+assert.equal((photoSlots.match(/file: 'photo-\d{2}\.webp'/g) || []).length, 8);
+assert.doesNotMatch(photoSlots, /photo-0(?:9|10|11)\.webp/);
 assert.match(photoSlots, /mobileObjectPosition/);
 assert.match(photoSlots, /slot\.prepend\(image\)/);
 assert.match(photoMode, /\.photo-review-mode \.photo-slot--has-image \.photo-slot-number/);
 assert.match(photoMode, /\.photo-public-mode \.photo-slot--has-image > :not\(img\)/);
-assert.match(photoFolderGuide, /photo-01\.webp[\s\S]*photo-11\.webp/);
+assert.match(photoFolderGuide, /photo-01\.webp[\s\S]*photo-08\.webp/);
+assert.match(photoFolderGuide, /최근 소식 1~3/);
+assert.match(photoFolderGuide, /thumbnail/);
 assert.match(photoFolderGuide, /원본 사진, 공개동의서, 동의 관리대장/);
+assert.match(contentHub, /window\.TAEJANG_CONTENT_HUB/);
+assert.match(contentHub, /dateValue\(right\.item\.publishedAt\) - dateValue\(left\.item\.publishedAt\)[\s\S]*left\.index - right\.index/);
+assert.doesNotMatch(contentHub, /Number\(right\.featured\)/);
+assert.match(previews, /contentHub\.orderedItems\(content\.hub\)/);
+assert.match(previews, /contentHub\.createMedia\(item, 'card-media recent-activity-media'\)/);
+assert.doesNotMatch(previews, /createPhotoSlot|data\.photoSlot|PHOTO 0(?:9|10|11)/);
+
+function createHubApi(content) {
+  class Element {
+    constructor() {
+      this.children = [];
+      this.dataset = {};
+      this.hidden = false;
+      this.className = '';
+      this.attributes = {};
+      this.classList = { add: name => { this.className = `${this.className} ${name}`.trim(); } };
+    }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; }
+    setAttribute(name, value) { this.attributes[name] = value; }
+    closest() { return null; }
+  }
+  const document = {
+    createElement: () => new Element(),
+    querySelector: () => null
+  };
+  const runtimeWindow = { TAEJANG_CONTENT: content };
+  vm.runInNewContext(contentHub, { window: runtimeWindow, document, console: { warn() {} } });
+  return runtimeWindow.TAEJANG_CONTENT_HUB;
+}
 
 function createPreviewFixture(content) {
   class Element {
@@ -240,19 +276,43 @@ function createPreviewFixture(content) {
     createElement: () => new Element(),
     querySelectorAll: selector => selector === '[data-home-preview="hub"]' ? [container] : selector === '[data-recent-activities]' ? [section] : []
   };
-  vm.runInNewContext(previews, { window: { TAEJANG_CONTENT: content }, document, console: { warn() {} } });
+  const runtimeWindow = { TAEJANG_CONTENT: content };
+  runtimeWindow.TAEJANG_CONTENT_HUB = createHubApi(content);
+  vm.runInNewContext(previews, { window: runtimeWindow, document, console: { warn() {} } });
   return { section, container };
 }
 
-const visiblePreview = createPreviewFixture({ hub: [
-  { type: 'internal', status: 'published', title: '세 번째', category: '소식', publishedAt: '2026-07-03', detailUrl: 'activities.html?id=3' },
-  { type: 'internal', status: 'published', title: '두 번째', category: '소식', publishedAt: '2026-07-02', detailUrl: 'activities.html?id=2' },
-  { type: 'internal', status: 'published', title: '첫 번째', category: '소식', publishedAt: '2026-07-01', detailUrl: 'activities.html?id=1' },
-  { type: 'internal', status: 'published', title: '네 번째', category: '소식', publishedAt: '2026-06-30', detailUrl: 'activities.html?id=4' }
-] });
+const previewContent = { hub: [
+  { type: 'internal', status: 'published', title: '오래된 고정 글', category: '소식', publishedAt: '2026-07-01', featured: true, detailUrl: 'activities.html?id=old' },
+  { type: 'external', status: 'published', title: '가장 최신 외부 글', category: '소식', publishedAt: '2026-08-03', thumbnail: 'latest.webp', thumbnailAlt: '최신 외부 글 대표사진', externalUrl: 'https://example.org/latest', externalLabel: '원문 보기' },
+  { type: 'internal', status: 'published', title: '두 번째 글', category: '소식', publishedAt: '2026-08-02', thumbnail: 'second.webp', detailUrl: 'activities.html?id=second' },
+  { type: 'internal', status: 'published', title: '같은 날 세 번째 글', category: '소식', publishedAt: '2026-08-02', detailUrl: 'activities.html?id=third' },
+  { type: 'internal', status: 'draft', title: '비공개 글', category: '소식', publishedAt: '2026-08-04', detailUrl: 'activities.html?id=draft' }
+] };
+const api = createHubApi(previewContent);
+assert.deepEqual(api.orderedItems(previewContent.hub).map(item => item.title), ['가장 최신 외부 글', '두 번째 글', '같은 날 세 번째 글', '오래된 고정 글']);
+
+const actualWindow = {};
+vm.runInNewContext(contentData, { window: actualWindow });
+vm.runInNewContext(externalContent, { window: actualWindow });
+const actualRecentItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub).slice(0, 3);
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 개소식 안내', '태장 네이버 블로그 첫 기록', '첫 환경정비 활동을 진행했습니다']);
+assert.equal(actualRecentItems[0].thumbnail, 'images/homepage/photo-09.webp');
+assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/naver-blog-first-post.svg');
+assert.equal(actualRecentItems[2].thumbnail, 'images/homepage/photo-11.webp');
+
+const visiblePreview = createPreviewFixture(previewContent);
 assert.equal(visiblePreview.section.hidden, false);
 assert.equal(visiblePreview.container.children.length, 3);
-assert.deepEqual(visiblePreview.container.children.map(card => card.children[0].children[0].children[0].children[0].textContent), ['PHOTO 09', 'PHOTO 10', 'PHOTO 11']);
+assert.deepEqual(visiblePreview.container.children.map(card => card.children[0].children[1].children[2].textContent), ['가장 최신 외부 글', '두 번째 글', '같은 날 세 번째 글']);
+assert.equal(visiblePreview.container.children[0].children[0].href, 'https://example.org/latest');
+assert.equal(visiblePreview.container.children[0].children[0].target, '_blank');
+assert.equal(visiblePreview.container.children[0].children[0].rel, 'noopener noreferrer');
+assert.equal(visiblePreview.container.children[0].children[0].children[0].children[0].src, 'latest.webp');
+assert.equal(visiblePreview.container.children[0].children[0].children[0].children[0].alt, '최신 외부 글 대표사진');
+assert.equal(visiblePreview.container.children[1].children[0].href, 'activities.html?id=second');
+assert.equal(visiblePreview.container.children[1].children[0].children[0].children[0].alt, '두 번째 글 썸네일');
+assert.equal(visiblePreview.container.children[2].children[0].children[0].children[0].children[0].textContent, 'CONTENT PHOTO');
 assert.equal(createPreviewFixture(undefined).section.hidden, true);
 assert.equal(createPreviewFixture({ hub: [] }).section.hidden, true);
 

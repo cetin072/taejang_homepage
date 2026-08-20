@@ -69,27 +69,6 @@
       alt: '농업회사법인 태장 주식회사 대표이사 이영희',
       objectPosition: '50% 42%',
       mobileObjectPosition: '50% 38%'
-    },
-    '09': {
-      file: 'photo-09.webp',
-      enabled: true,
-      alt: '태장의 최근 활동을 보여주는 첫 번째 대표사진',
-      objectPosition: '50% 50%',
-      mobileObjectPosition: '50% 50%'
-    },
-    '10': {
-      file: 'photo-10.webp',
-      enabled: true,
-      alt: '태장의 최근 활동을 보여주는 두 번째 대표사진',
-      objectPosition: '50% 50%',
-      mobileObjectPosition: '50% 50%'
-    },
-    '11': {
-      file: 'photo-11.webp',
-      enabled: true,
-      alt: '태장의 최근 활동을 보여주는 세 번째 대표사진',
-      objectPosition: '50% 50%',
-      mobileObjectPosition: '50% 50%'
     }
   };
 

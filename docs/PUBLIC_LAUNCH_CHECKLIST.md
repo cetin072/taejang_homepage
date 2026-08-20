@@ -88,7 +88,7 @@ Netlify 관리자 화면에서 Form detection과 `info@taejang.co.kr` 이메일 
 - 내부 링크 대상 파일 존재 여부
 - 새 탭 링크의 `noopener` 적용
 - 페이지별 `main`·`h1`·중복 `id` 검사
-- PHOTO 01~11 연결, 검수 모드, 모바일 크롭 설정
+- PHOTO 01~08 연결·검수 모드·모바일 크롭과 최신 소식 대표사진 자동 연결
 - 최근 활동 빈 상태와 최대 3개 표시 회귀 검사
 
 ## 임직원 진입
@@ -147,9 +147,10 @@ Netlify 관리자 화면에서 Form detection과 `info@taejang.co.kr` 이메일 
 
 - 사진은 처음에 넉넉하게 수집하고 시험 배치 후 줄이기
 - 공개 승인된 WebP 변환본만 `images/homepage/`에 저장
-- PHOTO 01~11은 `photo-01.webp`부터 `photo-11.webp`까지 고정 파일명 사용
-- 사진을 넣은 슬롯만 `assets/js/photo-slots.js`에서 `enabled: true`로 변경
-- PHOTO 번호는 검수 단계의 편집 식별자로 유지
+- PHOTO 01~08은 `photo-01.webp`부터 `photo-08.webp`까지 고정 파일명 사용
+- 사진을 넣은 PHOTO 01~08 슬롯만 `assets/js/photo-slots.js`에서 `enabled: true`로 변경
+- 메인 최신 소식 3개는 각 공개 콘텐츠의 대표사진을 자동 표시하며, PHOTO 09~11 고정 슬롯을 사용하지 않음
+- PHOTO 01~08 번호는 검수 단계의 편집 식별자로 유지
 - 모바일·PC의 `objectPosition`을 각각 확인
 - 공식 공개 직전에 모든 슬롯의 사진·대체 텍스트·크롭 확인
 - 최종 확인 후 `PHOTO_REVIEW_MODE = false`로 변경해 번호와 제작 안내 숨김
@@ -164,7 +165,7 @@ Netlify 관리자 화면에서 Form detection과 `info@taejang.co.kr` 이메일 
 
 다음 항목은 자동으로 확정하지 않습니다.
 
-- PHOTO 01~11 실제 사진 선정과 공개동의 확인
+- PHOTO 01~08 실제 사진 및 각 공개 소식 대표사진의 공개동의 확인
 - 참여기업 네 곳의 공식 로고 원본과 사용 가능 범위 확인
 - `PHOTO_REVIEW_MODE = false` 전환
 - 임직원 진입 재노출
