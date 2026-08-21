@@ -10,6 +10,9 @@
   const listing = document.querySelector('[data-listing]');
   const detail = document.querySelector('[data-detail]');
   const pageHero = document.querySelector('[data-page-hero]');
+  const workplaceOverview = document.querySelector('[data-workplace-overview]');
+  const workplaceRoles = document.querySelector('[data-workplace-roles]');
+  const workplaceProcess = document.querySelector('[data-workplace-process]');
   const detailTarget = detail?.querySelector('.container') || detail;
   const pageConfig = {
     workplace: {
@@ -228,6 +231,12 @@
   listing.hidden = true;
   detail.hidden = false;
   if (pageHero) pageHero.hidden = true;
+  if (type === 'workplace') {
+    document.body.classList.add('workplace-detail-mode');
+    [workplaceOverview, workplaceRoles, workplaceProcess].forEach((section) => {
+      if (section) section.hidden = true;
+    });
+  }
 
   const item = data.find((entry) => entry.id === id);
   if (!item) {

@@ -11,6 +11,7 @@ const listing = read('assets/js/listing.js');
 const content = read('assets/js/content.js');
 const hub = read('assets/js/content-hub.js');
 const styles = read('assets/css/styles.css');
+const workplace = read('workplace.html');
 
 assert.match(listing, /const hubItems = Array\.isArray\(window\.TAEJANG_CONTENT\?\.hub\)/);
 assert.match(listing, /candidate\.detailUrl === `\$\{config\.page\}\?id=\$\{item\.id\}`/);
@@ -31,5 +32,12 @@ assert.match(content, /id: "internal-certification"[\s\S]*thumbnail: "assets\/im
 assert.match(hub, /function createMedia\(item/);
 assert.match(styles, /\.article-body \.article-representative-media\s*\{[\s\S]*aspect-ratio:16\/9/);
 assert.match(styles, /\.article-body \.article-representative-media img\s*\{[\s\S]*object-fit:cover[\s\S]*object-position:center/);
+assert.match(workplace, /data-workplace-overview/);
+assert.match(workplace, /data-workplace-roles/);
+assert.match(workplace, /data-workplace-process/);
+assert.match(listing, /if \(type === 'workplace'\)/);
+assert.match(listing, /workplaceOverview, workplaceRoles, workplaceProcess/);
+assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)/);
+assert.match(listing, /backLabel: '← 일터 이야기 목록으로'/);
 
 console.log('content-detail-thumbnail tests: all cases passed');
