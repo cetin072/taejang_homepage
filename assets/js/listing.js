@@ -69,7 +69,9 @@
     const hubItem = hubItemFor(item);
     const source = hubItem?.thumbnail || item.thumbnail || item.hero || item.thumb || '';
     const alt = hubItem?.thumbnailAlt || item.thumbnailAlt || item.alt?.hero || item.alt?.thumb || `${item.title} 대표사진`;
-    return { source, alt };
+    const objectPosition = hubItem?.thumbnailObjectPosition || item.thumbnailObjectPosition || 'center';
+    const detailMode = hubItem?.thumbnailDetail || item.thumbnailDetail || 'cover';
+    return { source, alt, objectPosition, detailMode };
   }
 
   function contentPhoto(item, variant = 'card') {
@@ -83,7 +85,7 @@
   function cardMedia(item) {
     const media = representativeMedia(item);
     if (media.source) {
-      return `<div class="card-media"><img src="${media.source}" alt="${media.alt}" loading="lazy" decoding="async"></div>`;
+      return `<div class="card-media"><img src="${media.source}" alt="${media.alt}" style="object-position:${media.objectPosition}" loading="lazy" decoding="async"></div>`;
     }
     return `<div class="card-media">${contentPhoto(item, 'card')}</div>`;
   }
@@ -252,7 +254,7 @@
   document.title = `${item.title} | 태장`;
   const detailRepresentative = representativeMedia(item);
   const detailMedia = detailRepresentative.source
-    ? `<figure class="article-representative-media"><img src="${detailRepresentative.source}" alt="${detailRepresentative.alt}" loading="eager" decoding="async"></figure>`
+    ? `<figure class="article-representative-media article-representative-media--${detailRepresentative.detailMode}"><img src="${detailRepresentative.source}" alt="${detailRepresentative.alt}" style="object-position:${detailRepresentative.objectPosition}" loading="eager" decoding="async"></figure>`
     : contentPhoto(item, 'detail');
   const gallery = item.gallery?.length
     ? `<div class="article-gallery">${item.gallery.map((src, index) => `<img src="${src}" alt="${item.alt?.gallery?.[index] || item.title}" loading="lazy" decoding="async">`).join('')}</div>`
