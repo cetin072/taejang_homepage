@@ -55,7 +55,7 @@ assert.equal(knn.status, 'published');
 assert.equal(knn.externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.equal(knn.thumbnail, 'https://i.ytimg.com/vi/8x4Rf3knAb8/hqdefault.jpg');
 assert.equal(knn.externalLabel, '유튜브에서 보기');
-assert.equal(knn.publishedAt, '2026-08');
+assert.equal(knn.publishedAt, '2026-08-13');
 
 assert.equal(kbs.type, 'external');
 assert.equal(kbs.source, 'press');

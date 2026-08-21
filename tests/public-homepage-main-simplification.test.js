@@ -88,7 +88,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.match(html, /태장 소개/, `${filename} 공개 메뉴는 태장 소개를 제공합니다`);
   assert.match(html, /하는 일/, `${filename} 공개 메뉴는 하는 일 명칭을 사용합니다`);
   assert.match(html, /소식·기록/, `${filename} 공개 메뉴는 소식·기록 명칭을 사용합니다`);
-  assert.match(html, /협력·참여/, `${filename} 공개 메뉴는 협력·참여 명칭을 사용합니다`);
+  assert.match(html, /협력·문의/, `${filename} 공개 메뉴는 협력·문의 단일 진입점을 사용합니다`);
   assertSafeBlankTargets(filename, html);
 }
 
@@ -106,7 +106,9 @@ assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니�
 assert.equal((index.match(/지속 가능한/g) || []).length, 1);
 assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/);
 assert.match(index, /소식·기록 전체 보기/);
-assert.ok(index.indexOf('data-recent-activities') < index.indexOf('PARTNERSHIP & PARTICIPATION'), '최근 기록을 협력 제안보다 먼저 보여줍니다');
+assert.match(index, /<h2 class="title" id="recent-activities-title">활동 기록<\/h2>/);
+assert.match(index, /ACTIVITY RECORDS/);
+assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION & CONTACT'), '활동 기록을 협력·문의보다 먼저 보여줍니다');
 assert.match(index, /환경정비·ESG 현장 운영/);
 assert.match(index, /기업·기관과 협의해 사전 준비부터 현장 수행과 활동 기록까지 운영합니다\./);
 assert.match(index, /href="partnership\.html#environment-service"/);
@@ -124,6 +126,8 @@ assert.match(index, /action="\/thanks\.html"/);
 assert.match(index, /name="form-name" value="taejang-inquiry"/);
 assert.match(index, /name="email"[^>]*required/);
 assert.match(index, /name="message"[^>]*required/);
+assert.match(index, /<option>채용·근무 문의<\/option>/);
+assert.match(index, /채용 여부와 시기는 문의 시점에 따라 달라질 수 있습니다\./);
 assert.match(index, /환경정비·ESG 현장/);
 assert.match(index, /name="privacy-consent"[^>]*required/);
 assert.match(index, /주민등록번호, 장애·건강정보 등 민감한 개인정보는 입력하지 마세요/);
@@ -137,9 +141,11 @@ for (const slot of ['02', '03', '04', '05', '06']) assert.match(index, new RegEx
 for (const slot of ['07', '08']) assert.match(about, new RegExp(`data-photo-slot="${slot}"`));
 assert.match(about, /태장 한눈에 보기/);
 assert.equal((about.match(/class="glance-grid"/g) || []).length, 1);
+assert.equal((about.match(/<div><strong>/g) || []).length, 4, '태장 한눈에 보기는 확정한 4칸만 표시합니다');
 assert.match(about, /<strong>장애인 표준사업장<\/strong><span>자회사형 장애인 표준사업장 인증 제2026-049호<\/span>/);
-assert.match(about, /<strong>사업 확장<\/strong><span>농업 기반의 상품과 새로운 직무를 단계적으로 넓혀갑니다\.<\/span>/);
-assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 기업이 출자에 참여해 태장의 출발을 함께했습니다\.<\/span>/);
+assert.equal((about.match(/class="glance-grid"[\s\S]*?<\/div>\s*<\/div>/g) || []).length, 1);
+assert.doesNotMatch(about, /사업 확장/);
+assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 개 기업이 주주로 참여해 태장과 협력하고 있습니다\.<\/span>/);
 assert.match(about, /민화·문화 굿즈, 포장·검수, 환경정비 현장/);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 
@@ -227,7 +233,8 @@ assert.match(site, /emailLink\.href = `mailto:\$\{PUBLIC_EMAIL\}`/);
 assert.match(site, /emailLink\.textContent = PUBLIC_EMAIL/);
 assert.match(site, /const OPENING_HIDDEN_FROM = '2026-08-13'/);
 assert.equal((site.match(/\['archive\.html', '소식·기록'\]/g) || []).length, 2);
-assert.equal((site.match(/\['partnership\.html', '협력·참여'\]/g) || []).length, 2);
+assert.equal((site.match(/\['partnership\.html', '협력·문의'/g) || []).length, 2);
+assert.match(styles, /:focus-visible\{outline:3px solid var\(--green-deep\);outline-offset:3px\}/);
 assert.match(site, /\['about\.html', '태장 소개'\]/);
 assert.match(site, /\['index\.html#business', '하는 일'\]/);
 assert.match(site, /assets\/css\/engagement-polish\.css/);
@@ -351,20 +358,20 @@ const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(a
 assert.equal(actualHubItems.length, 8, '소식·기록은 기존 공개 콘텐츠와 이번에 추가한 3건을 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'youtube-FbEOcteBSJ4',
+  'youtube-8x4Rf3knAb8',
   'internal-opening',
   'naver-blog-224367547159',
   'internal-staff-birthday-2026-08',
-  'youtube-8x4Rf3knAb8',
   'kbs-news-8636757',
   'internal-environment-cleanup',
   'internal-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
   '태장 소개영상',
+  "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
   '태장 개소식 안내',
   '한 줄 한 줄 정성으로 완성되는 태장의 하루',
   '8월 생일을 함께 축하했습니다',
-  "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
   '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
   '첫 환경정비 활동을 진행했습니다',
   '자회사형 장애인 표준사업장 인증'
@@ -377,17 +384,17 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '공개 콘텐츠가 최대 표시 수와 같으면 메인에 8개를 모두 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '‘경남형 장애인 동행일자리’ 1호점 창원 가동', '첫 환경정비 활동을 진행했습니다', '자회사형 장애인 표준사업장 인증']);
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', '‘경남형 장애인 동행일자리’ 1호점 창원 가동', '첫 환경정비 활동을 진행했습니다', '자회사형 장애인 표준사업장 인증']);
 assert.equal(actualRecentItems[0].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
 assert.equal(actualRecentItems[0].thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
-assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/opening-ceremony.webp');
-assert.equal(actualRecentItems[2].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
-assert.equal(actualRecentItems[2].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
-assert.equal(actualRecentItems[3].thumbnail, 'assets/images/archive/staff-birthday-2026-08.webp');
-assert.equal(actualRecentItems[3].publishedAt, '2026-08');
-assert.equal(actualRecentItems[4].source, 'youtube');
-assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
+assert.equal(actualRecentItems[1].source, 'youtube');
+assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
+assert.equal(actualRecentItems[2].thumbnail, 'assets/images/archive/opening-ceremony.webp');
+assert.equal(actualRecentItems[3].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
+assert.equal(actualRecentItems[3].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
+assert.equal(actualRecentItems[4].thumbnail, 'assets/images/archive/staff-birthday-2026-08.webp');
+assert.equal(actualRecentItems[4].publishedAt, '2026-08');
 assert.equal(actualRecentItems[5].source, 'press');
 assert.equal(actualRecentItems[5].externalUrl, 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A');
 

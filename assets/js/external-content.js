@@ -45,7 +45,7 @@
       summary: 'KNN이 경남형 장애인 동행일자리 1호 사업장 태장을 찾아 장애인 근로자의 일터와 운영 현장을 소개했습니다.',
       thumbnail: 'https://i.ytimg.com/vi/8x4Rf3knAb8/hqdefault.jpg',
       thumbnailAlt: 'KNN 경남형 장애인 동행일자리 1호점 보도영상 썸네일',
-      publishedAt: '2026-08',
+      publishedAt: '2026-08-13',
       featured: false,
       status: 'published',
       externalUrl: 'https://www.youtube.com/watch?v=8x4Rf3knAb8',

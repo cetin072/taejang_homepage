@@ -138,7 +138,7 @@
 }
 .glance-grid{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   border-top:1px solid var(--line);
   border-left:1px solid var(--line);
 }
@@ -406,6 +406,10 @@
   color:var(--ink-soft);
   font-size:13px;
   line-height:1.6;
+}
+.workplace-bridge{
+  padding-top:clamp(48px,6vw,76px);
+  padding-bottom:clamp(48px,6vw,76px);
 }
 .form-actions{
   display:flex;

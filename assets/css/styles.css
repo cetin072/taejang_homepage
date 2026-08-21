@@ -32,7 +32,7 @@ img{display:block;max-width:100%}
 button{font:inherit}
 button{cursor:pointer}
 [hidden]{display:none!important}
-:focus-visible{outline:3px solid rgba(45,106,79,.35);outline-offset:3px}
+:focus-visible{outline:3px solid var(--green-deep);outline-offset:3px}
 .skip-link{
   position:fixed;left:16px;top:-80px;z-index:1000;
   background:var(--green-deep);color:#fff;padding:12px 18px;
