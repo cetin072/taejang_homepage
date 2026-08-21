@@ -1,0 +1,130 @@
+.partnership-compact-hero .container {
+  max-width: 860px;
+}
+
+.partnership-compact-hero .lead {
+  max-width: 720px;
+}
+
+.partner-company-section {
+  border-bottom: 1px solid var(--line);
+}
+
+.partner-company-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 34px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+
+.partner-company-intro .lead {
+  margin-bottom: 0;
+}
+
+.partner-company-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partner-company-list span {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  padding: 18px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--green-deep);
+  font-weight: 800;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.partnership-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.partnership-visual-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.partnership-visual-media {
+  height: 230px;
+  overflow: hidden;
+  background: #edf1e9;
+}
+
+.partnership-visual-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.partnership-visual-body {
+  padding: 24px;
+}
+
+.partnership-visual-body h2 {
+  margin: 0 0 10px;
+  color: var(--green-deep);
+  font: 700 clamp(21px, 2.5vw, 28px)/1.4 var(--myeongjo);
+}
+
+.partnership-visual-body p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.75;
+}
+
+.partnership-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.partnership-summary .lead {
+  margin-bottom: 0;
+}
+
+.partnership-contact-actions {
+  display: grid;
+  gap: 12px;
+}
+
+@media (max-width: 760px) {
+  .partner-company-intro,
+  .partnership-visual-grid,
+  .partnership-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-company-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .partnership-visual-grid {
+    gap: 16px;
+  }
+
+  .partnership-visual-media {
+    height: 180px;
+  }
+
+  .partnership-visual-body {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 440px) {
+  .partner-company-list {
+    grid-template-columns: 1fr;
+  }
+}

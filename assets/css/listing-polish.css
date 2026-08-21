@@ -1,0 +1,132 @@
+/* Shared listing, filter and empty-state polish */
+.filters[hidden] {
+  display: none !important;
+}
+
+.filters {
+  min-width: 0;
+}
+
+.article-list {
+  width: 100%;
+}
+
+.article-list .card {
+  min-width: 0;
+}
+
+.article-list .card-link {
+  min-width: 0;
+}
+
+.article-list .card-body {
+  min-width: 0;
+}
+
+.article-list .card h2,
+.article-list .card p,
+.related-post h3,
+.related-post p {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+.listing-empty--panel {
+  display: grid;
+  grid-column: 1 / -1;
+  justify-items: start;
+  gap: 10px;
+  width: 100%;
+  padding: 34px;
+  border: 1px dashed var(--line);
+  background: #fbfaf7;
+  text-align: left;
+}
+
+.listing-empty--panel strong {
+  color: var(--green-deep);
+  font: 700 22px/1.55 var(--myeongjo);
+  word-break: keep-all;
+}
+
+.listing-empty--panel p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.listing-empty--panel .btn {
+  margin-top: 8px;
+}
+
+.listing-reset {
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .filters {
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-right: -18px;
+    margin-bottom: 24px;
+    margin-left: -18px;
+    overflow-x: auto;
+    padding: 0 18px 8px;
+    scroll-padding-inline: 18px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-btn {
+    flex: 0 0 auto;
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  .article-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+
+  .article-list .card-body {
+    padding: 19px 18px 21px;
+  }
+
+  .article-list .card h2 {
+    font-size: 20px;
+    line-height: 1.55;
+  }
+
+  .article-list .card p {
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  .listing-empty--panel {
+    padding: 25px 22px;
+  }
+
+  .listing-empty--panel strong {
+    font-size: 20px;
+  }
+
+  .listing-empty--panel .btn {
+    width: 100%;
+  }
+
+  .article-meta {
+    flex-wrap: wrap;
+  }
+
+  .related-posts-grid {
+    gap: 12px;
+  }
+
+  .related-post {
+    padding: 18px;
+  }
+}
