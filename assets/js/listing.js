@@ -3,6 +3,7 @@
 
   const type = document.body.dataset.contentType;
   const rawData = window.TAEJANG_CONTENT?.[type] || [];
+  const hubItems = Array.isArray(window.TAEJANG_CONTENT?.hub) ? window.TAEJANG_CONTENT.hub : [];
   const data = rawData.filter((item) => item && item.status !== 'draft');
   const list = document.querySelector('[data-list]');
   const filters = document.querySelector('[data-filters]');
@@ -56,6 +57,18 @@
 
   const orderedData = latestFirst(data);
 
+  function hubItemFor(item) {
+    return hubItems.find((candidate) => candidate?.type === 'internal'
+      && candidate.detailUrl === `${config.page}?id=${item.id}`);
+  }
+
+  function representativeMedia(item) {
+    const hubItem = hubItemFor(item);
+    const source = hubItem?.thumbnail || item.thumbnail || item.hero || item.thumb || '';
+    const alt = hubItem?.thumbnailAlt || item.thumbnailAlt || item.alt?.hero || item.alt?.thumb || `${item.title} 대표사진`;
+    return { source, alt };
+  }
+
   function contentPhoto(item, variant = 'card') {
     const title = item.photo?.title || item.listingPhoto?.title || item.title;
     return `<div class="content-photo-slot content-photo-slot--${variant}" role="img" aria-label="CONTENT PHOTO: ${title}">
@@ -65,8 +78,9 @@
   }
 
   function cardMedia(item) {
-    if (item.thumb) {
-      return `<div class="card-media"><img src="${item.thumb}" alt="${item.alt?.thumb || item.title}" loading="lazy" decoding="async"></div>`;
+    const media = representativeMedia(item);
+    if (media.source) {
+      return `<div class="card-media"><img src="${media.source}" alt="${media.alt}" loading="lazy" decoding="async"></div>`;
     }
     return `<div class="card-media">${contentPhoto(item, 'card')}</div>`;
   }
@@ -227,8 +241,9 @@
   }
 
   document.title = `${item.title} | 태장`;
-  const detailMedia = item.hero
-    ? `<figure><img src="${item.hero}" alt="${item.alt?.hero || item.title}"></figure>`
+  const detailRepresentative = representativeMedia(item);
+  const detailMedia = detailRepresentative.source
+    ? `<figure class="article-representative-media"><img src="${detailRepresentative.source}" alt="${detailRepresentative.alt}" loading="eager" decoding="async"></figure>`
     : contentPhoto(item, 'detail');
   const gallery = item.gallery?.length
     ? `<div class="article-gallery">${item.gallery.map((src, index) => `<img src="${src}" alt="${item.alt?.gallery?.[index] || item.title}" loading="lazy" decoding="async">`).join('')}</div>`
