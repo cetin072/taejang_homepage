@@ -36,6 +36,7 @@ const styles = read('assets/css/styles.css');
 const polish = read('assets/css/site-polish.css');
 const photoMode = read('assets/css/photo-mode.css');
 const engagement = read('assets/css/engagement-polish.css');
+const partnershipCompact = read('assets/css/partnership-compact.css');
 const sitemap = read('sitemap.xml');
 const robots = read('robots.txt');
 const photoFolderGuide = read('images/homepage/README.md');
@@ -158,6 +159,18 @@ assert.match(partnership, /보통 2~3주 동안/);
 assert.equal((partnership.match(/class="service-step"/g) || []).length, 6);
 assert.match(partnership, /모회사·예비 모회사/);
 assert.match(partnership, /기업 업무·건별 프로젝트/);
+for (const image of [
+  'partnership-parent-company-ai.webp',
+  'partnership-project-ai.webp',
+  'partnership-esg-ai.webp',
+  'partnership-community-ai.webp'
+]) {
+  assert.match(partnership, new RegExp(`assets/images/partnership/${escapeRegExp(image)}`), `협력·참여 카드가 ${image} 디자인 이미지를 사용합니다`);
+  assert.equal(fs.existsSync(path.join(root, 'assets/images/partnership', image)), true, `${image} 파일이 존재해야 합니다`);
+}
+assert.doesNotMatch(partnership, /PARENT COMPANY|ESG FIELD|COMMUNITY/, '비어 있는 카드용 텍스트 장식을 노출하지 않습니다');
+assert.match(partnershipCompact, /\.partnership-visual-media img\s*\{[\s\S]*?object-fit:\s*cover/, '협력·참여 카드 이미지는 비주얼 영역을 안정적으로 채웁니다');
+assert.match(partnershipCompact, /@media \(max-width: 760px\)[\s\S]*?\.partnership-visual-media\s*\{[\s\S]*?height:\s*180px/, '모바일 카드 미디어 높이를 유지합니다');
 
 assert.match(archive, /<div class="eyebrow">TAEJANG ARCHIVE<\/div>/);
 assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
