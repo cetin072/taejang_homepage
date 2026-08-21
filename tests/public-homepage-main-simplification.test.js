@@ -137,6 +137,9 @@ for (const slot of ['02', '03', '04', '05', '06']) assert.match(index, new RegEx
 for (const slot of ['07', '08']) assert.match(about, new RegExp(`data-photo-slot="${slot}"`));
 assert.match(about, /태장 한눈에 보기/);
 assert.equal((about.match(/class="glance-grid"/g) || []).length, 1);
+assert.match(about, /<strong>장애인 표준사업장<\/strong><span>자회사형 장애인 표준사업장 인증 제2026-049호<\/span>/);
+assert.match(about, /<strong>사업 확장<\/strong><span>농업 기반의 상품과 새로운 직무를 단계적으로 넓혀갑니다\.<\/span>/);
+assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 기업이 출자에 참여해 태장의 출발을 함께했습니다\.<\/span>/);
 assert.match(about, /민화·문화 굿즈, 포장·검수, 환경정비 현장/);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 
@@ -256,6 +259,8 @@ assert.match(photoFolderGuide, /thumbnail/);
 assert.match(photoFolderGuide, /원본 사진, 공개동의서, 동의 관리대장/);
 assert.match(contentHub, /window\.TAEJANG_CONTENT_HUB/);
 assert.match(contentHub, /youtube: 'YOUTUBE'/);
+assert.match(contentHub, /press: '언론보도'/);
+assert.match(contentHub, /function formatPublishedDate\(value\)/);
 assert.match(contentHub, /dateValue\(right\.item\.publishedAt\) - dateValue\(left\.item\.publishedAt\)[\s\S]*left\.index - right\.index/);
 assert.doesNotMatch(contentHub, /Number\(right\.featured\)/);
 assert.match(previews, /contentHub\.orderedItems\(content\.hub\)/);
@@ -335,16 +340,22 @@ assert.deepEqual(api.orderedItems(previewContent.hub).map(item => item.title), [
 assert.equal(api.sourceLabel({ source: 'homepage' }), '홈페이지');
 assert.equal(api.sourceLabel({ source: 'naver-blog' }), 'NAVER BLOG');
 assert.equal(api.sourceLabel({ source: 'youtube' }), 'YOUTUBE');
+assert.equal(api.sourceLabel({ source: 'press' }), '언론보도');
+assert.equal(api.formatPublishedDate('2026-08'), '2026.08');
+assert.equal(api.formatPublishedDate('2026-08-20'), '2026.08.20');
 
 const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
 const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub);
-assert.equal(actualHubItems.length, 5, '소식·기록에는 현재 공개할 콘텐츠 5개만 남깁니다');
+assert.equal(actualHubItems.length, 8, '소식·기록은 기존 공개 콘텐츠와 이번에 추가한 3건을 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'youtube-FbEOcteBSJ4',
   'internal-opening',
   'naver-blog-224367547159',
+  'internal-staff-birthday-2026-08',
+  'youtube-8x4Rf3knAb8',
+  'kbs-news-8636757',
   'internal-environment-cleanup',
   'internal-certification'
 ]);
@@ -352,6 +363,9 @@ assert.deepEqual(Array.from(actualHubItems, item => item.title), [
   '태장 소개영상',
   '태장 개소식 안내',
   '한 줄 한 줄 정성으로 완성되는 태장의 하루',
+  '8월 생일을 함께 축하했습니다',
+  "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
+  '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
   '첫 환경정비 활동을 진행했습니다',
   '자회사형 장애인 표준사업장 인증'
 ]);
@@ -362,14 +376,27 @@ assert.equal(contentData.includes('id: "internal-minhwa"'), false);
 assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
-assert.equal(actualRecentItems.length, 5, '공개 콘텐츠가 8개 미만이면 있는 5개만 메인에 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '첫 환경정비 활동을 진행했습니다', '자회사형 장애인 표준사업장 인증']);
+assert.equal(actualRecentItems.length, 8, '공개 콘텐츠가 최대 표시 수와 같으면 메인에 8개를 모두 표시합니다');
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '‘경남형 장애인 동행일자리’ 1호점 창원 가동', '첫 환경정비 활동을 진행했습니다', '자회사형 장애인 표준사업장 인증']);
 assert.equal(actualRecentItems[0].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
 assert.equal(actualRecentItems[0].thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
 assert.equal(actualRecentItems[1].thumbnail, 'assets/images/archive/opening-ceremony.webp');
 assert.equal(actualRecentItems[2].thumbnail, 'assets/images/archive/naver-blog-224367547159.webp');
 assert.equal(actualRecentItems[2].thumbnailAlt, '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습');
+assert.equal(actualRecentItems[3].thumbnail, 'assets/images/archive/staff-birthday-2026-08.webp');
+assert.equal(actualRecentItems[3].publishedAt, '2026-08');
+assert.equal(actualRecentItems[4].source, 'youtube');
+assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
+assert.equal(actualRecentItems[5].source, 'press');
+assert.equal(actualRecentItems[5].externalUrl, 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A');
+
+const birthdayHubItem = actualHubItems.find(item => item.id === 'internal-staff-birthday-2026-08');
+assert.equal(fs.existsSync(path.join(root, birthdayHubItem.thumbnail)), true);
+const birthdayBytes = fs.readFileSync(path.join(root, birthdayHubItem.thumbnail));
+assert.equal(birthdayBytes.subarray(0, 4).toString('ascii'), 'RIFF');
+assert.equal(birthdayBytes.subarray(8, 12).toString('ascii'), 'WEBP');
+assert.match(contentData, /id: "staff-birthday-2026-08"[\s\S]*date: "2026\.08"/);
 
 const certificationHubItem = actualHubItems.find(item => item.id === 'internal-certification');
 assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification.webp');

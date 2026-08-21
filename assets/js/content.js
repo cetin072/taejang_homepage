@@ -269,6 +269,35 @@ window.TAEJANG_CONTENT = {
           ]
         }
       ]
+    },
+    {
+      id: "staff-birthday-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08",
+      title: "8월 생일을 함께 축하했습니다",
+      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumb: null,
+      hero: null,
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장에서는 2026년 8월, 이달 생일을 맞은 직원들을 함께 축하하는 시간을 가졌습니다."
+          ]
+        },
+        {
+          heading: "함께 축하하는 태장의 일터",
+          paragraphs: [
+            "업무 중 잠시 한자리에 모여 서로의 생일을 축하하고 이야기를 나눴습니다. 작은 시간이지만 함께 일하는 동료들이 서로를 알아가고 편안하게 어울리는 시간이 되었습니다."
+          ]
+        },
+        {
+          paragraphs: [
+            "태장은 직원들이 안정적으로 일하는 것뿐 아니라 서로 존중하고 함께하는 일터를 만들어가겠습니다."
+          ]
+        }
+      ]
     }
   ],
   hub: [
@@ -313,6 +342,20 @@ window.TAEJANG_CONTENT = {
       featured: false,
       status: "published",
       detailUrl: "activities.html?id=standard-workplace-certification"
+    },
+    {
+      id: "internal-staff-birthday-2026-08",
+      type: "internal",
+      source: "homepage",
+      category: "회사소식",
+      title: "8월 생일을 함께 축하했습니다",
+      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumbnail: "assets/images/archive/staff-birthday-2026-08.webp",
+      thumbnailAlt: "태장 직원들이 작업 공간에서 8월 생일을 함께 축하하는 모습",
+      publishedAt: "2026-08",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=staff-birthday-2026-08"
     }
   ]
 };

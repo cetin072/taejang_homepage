@@ -25,8 +25,14 @@
   }
 
   function dateValue(value) {
-    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 0;
-    return Date.parse(`${value}T00:00:00Z`) || 0;
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}(?:-\d{2})?$/.test(value)) return 0;
+    return Date.parse(`${value.length === 7 ? `${value}-01` : value}T00:00:00Z`) || 0;
+  }
+
+  function formatPublishedDate(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}(?:-\d{2})?$/.test(value)
+      ? value.replaceAll('-', '.')
+      : '';
   }
 
   function orderedItems(items = baseItems) {
@@ -75,7 +81,8 @@
   window.TAEJANG_CONTENT_HUB = {
     orderedItems,
     createMedia,
-    sourceLabel
+    sourceLabel,
+    formatPublishedDate
   };
 
   function linkText(item) {
@@ -113,7 +120,7 @@
     const date = document.createElement('time');
     date.className = 'card-date';
     date.dateTime = item.publishedAt;
-    date.textContent = item.publishedAt.replaceAll('-', '.');
+    date.textContent = formatPublishedDate(item.publishedAt);
     body.append(date);
     appendText(body, headingTag, item.title);
     appendText(body, 'p', item.summary);

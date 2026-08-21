@@ -34,6 +34,36 @@
       status: 'published',
       externalUrl: 'https://www.youtube.com/watch?v=FbEOcteBSJ4',
       externalLabel: '유튜브에서 보기'
+    },
+    {
+      id: 'youtube-8x4Rf3knAb8',
+      type: 'external',
+      source: 'youtube',
+      publisher: 'KNN',
+      category: '회사소식',
+      title: "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
+      summary: 'KNN이 경남형 장애인 동행일자리 1호 사업장 태장을 찾아 장애인 근로자의 일터와 운영 현장을 소개했습니다.',
+      thumbnail: 'https://i.ytimg.com/vi/8x4Rf3knAb8/hqdefault.jpg',
+      thumbnailAlt: 'KNN 경남형 장애인 동행일자리 1호점 보도영상 썸네일',
+      publishedAt: '2026-08',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://www.youtube.com/watch?v=8x4Rf3knAb8',
+      externalLabel: '유튜브에서 보기'
+    },
+    {
+      id: 'kbs-news-8636757',
+      type: 'external',
+      source: 'press',
+      publisher: 'KBS 뉴스',
+      category: '회사소식',
+      title: "‘경남형 장애인 동행일자리’ 1호점 창원 가동",
+      summary: 'KBS가 경남형 장애인 동행일자리 1호 사업장 태장의 창원 가동 소식과 장애인 고용·기업 참여 구조를 보도했습니다.',
+      publishedAt: '2026-08',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A',
+      externalLabel: 'KBS 뉴스에서 보기'
     }
   ];
 
