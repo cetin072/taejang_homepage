@@ -45,7 +45,12 @@ for (const [imagePath, alt] of [
   ['assets/images/workplace/main-workspace.webp', '태장 본점의 실무 작업 공간과 작업 테이블'],
   ['assets/images/workplace/packing-inspection.webp', '태장 작업자가 택배 상자를 포장하고 검수하는 모습']
 ]) {
-  assert.equal(fs.existsSync(path.join(root, imagePath)), true);
+  const imageFile = path.join(root, imagePath);
+  assert.equal(fs.existsSync(imageFile), true);
+  const imageBytes = fs.readFileSync(imageFile);
+  assert.equal(imageBytes.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(imageBytes.subarray(8, 12).toString('ascii'), 'WEBP');
+  assert.ok(imageBytes.length > 1000);
   const escapedPath = imagePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   assert.match(workplaceContent, new RegExp(`thumbnail: "${escapedPath}"`));
   assert.match(workplaceContent, new RegExp(`thumbnailAlt: "${alt}"`));
