@@ -562,6 +562,8 @@ button{cursor:pointer}
 .text-link--large{margin-top:24px;font-size:14px}
 .section-head--simple{align-items:start}
 .section-head--simple .lead{max-width:410px;padding-bottom:4px;font-size:15px;line-height:1.8}
+.business-group-head{margin-bottom:16px}
+.business-group-head h3,.business-preparing h3{margin:5px 0 0;color:var(--green-deep);font:700 22px/1.45 var(--myeongjo)}
 .business-showcase{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .business-feature{display:grid;grid-template-columns:1fr;overflow:hidden;border:1px solid var(--line);background:#fff}
 .neutral-image{position:relative;overflow:hidden;background:linear-gradient(145deg,#d8e4dc 0%,#edf1ea 49%,#c5d7cb 50%,#dce8e0 100%)}
@@ -571,10 +573,13 @@ button{cursor:pointer}
 .business-feature-body{padding:27px 28px 30px}
 .business-feature h3{margin:13px 0 9px;color:var(--green-deep);font:700 23px/1.5 var(--myeongjo)}
 .business-feature p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.8}
-.business-supports{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:24px;border:1px solid var(--line);background:var(--line)}
+.business-supports{display:grid;grid-template-columns:minmax(0,1fr);gap:1px;margin-top:24px;border:1px solid var(--line);background:var(--line)}
 .business-supports article{padding:24px 28px;background:rgba(255,255,255,.64)}
 .business-supports span{color:var(--green-deep);font:700 18px var(--myeongjo)}
 .business-supports p{margin:8px 0 0;color:var(--ink-soft);font-size:14px;line-height:1.75}
+.business-preparing{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:24px;align-items:center;margin-top:24px;padding:20px 24px;border-top:1px solid var(--line)}
+.business-preparing h4{margin:0 0 6px;color:var(--green-deep);font:700 18px/1.5 var(--myeongjo)}
+.business-preparing p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.75}
 .workplace-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:68px;align-items:center}
 .workplace-link{margin-top:28px}
 .workplace-gallery{display:grid;grid-template-columns:1.45fr 1fr;gap:12px}
@@ -640,7 +645,7 @@ button{cursor:pointer}
   .hero-facts div + div{border-top:1px solid rgba(255,255,255,.28);border-left:0}
   .hero-facts strong{font-size:12px}
   .hero-facts span{font-size:11px}
-  .about-keywords,.business-showcase,.business-supports,.workplace-layout,.partnership-simple,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
+  .about-keywords,.business-showcase,.business-supports,.business-preparing,.workplace-layout,.partnership-simple,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
   .section-head--simple .lead{padding:0}
   .business-feature-body,.business-supports article,.partnership-details{padding:22px}
   .workplace-gallery{grid-template-columns:1fr 1fr}
