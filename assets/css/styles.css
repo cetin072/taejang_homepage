@@ -580,6 +580,11 @@ button{cursor:pointer}
 .business-preparing{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:24px;align-items:center;margin-top:24px;padding:20px 24px;border-top:1px solid var(--line)}
 .business-preparing h4{margin:0 0 6px;color:var(--green-deep);font:700 18px/1.5 var(--myeongjo)}
 .business-preparing p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.75}
+.business-development-card{display:grid;grid-template-columns:minmax(150px,.76fr) minmax(0,1fr);gap:18px;align-items:center}
+.business-development-card img{width:100%;aspect-ratio:4/3;object-fit:cover;object-position:50% 45%;border:1px solid var(--line)}
+.business-development-card .business-status{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #bfd0c4;color:var(--green);font:800 11px/1.25 var(--gothic);letter-spacing:.04em}
+.business-development-card h4{margin-top:11px}
+.business-development-card .text-link{display:inline-flex;margin-top:12px}
 .workplace-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:68px;align-items:center}
 .workplace-link{margin-top:28px}
 .workplace-gallery{display:grid;grid-template-columns:1.45fr 1fr;gap:12px}
@@ -646,6 +651,8 @@ button{cursor:pointer}
   .hero-facts strong{font-size:12px}
   .hero-facts span{margin-top:3px;font-size:11px;line-height:1.6}
   .about-keywords,.business-showcase,.business-supports,.business-preparing,.workplace-layout,.partnership-simple,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
+  .business-development-card{grid-template-columns:1fr}
+  .business-development-card img{max-height:240px}
   .section-head--simple .lead{padding:0}
   .business-feature-body,.business-supports article,.partnership-details{padding:22px}
   .workplace-gallery{grid-template-columns:1fr 1fr}

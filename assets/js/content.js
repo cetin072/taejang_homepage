@@ -298,6 +298,51 @@ window.TAEJANG_CONTENT = {
           ]
         }
       ]
+    },
+    {
+      id: "terrarium-business-start-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08.22",
+      title: "테라리움 제조사업을 시작합니다",
+      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
+      thumb: "assets/images/terrarium/terrarium-display.webp",
+      hero: "assets/images/terrarium/terrarium-display.webp",
+      alt: {
+        thumb: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        hero: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        gallery: [
+          "유리병 안에 이끼와 식물을 구성한 여러 테라리움 샘플",
+          "다육식물과 선인장을 구성한 유리 테라리움 샘플",
+          "다면체 유리용기에 이끼와 식물을 구성한 테라리움 샘플"
+        ]
+      },
+      gallery: [
+        "assets/images/terrarium/terrarium-glass-jars.webp",
+        "assets/images/terrarium/terrarium-plant-composition.webp",
+        "assets/images/terrarium/terrarium-geometric.webp"
+      ],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 제조업 등록을 마치고 테라리움을 첫 제조상품 중 하나로 개발하기 시작했습니다.",
+            "첫 단계에서는 복잡한 완제품보다 반복 생산하기 쉬운 표준 DIY 키트 1종을 만드는 데 집중합니다."
+          ]
+        },
+        {
+          heading: "제품을 만드는 과정이 직무가 됩니다",
+          paragraphs: [
+            "재료와 용기를 준비하고, 필요한 양을 계량·소분하고, 구성품을 세트화한 뒤 검수하고 포장하는 과정까지 하나의 제조 흐름으로 정리해가고 있습니다.",
+            "각 공정을 작은 작업으로 나누어 근로자가 익숙한 역할에 참여할 수 있도록 만드는 것이 목표입니다."
+          ]
+        },
+        {
+          heading: "다음 단계",
+          paragraphs: [
+            "첫 제품과 작업방식이 안정되면 완제품과 기업·기관용 체험 프로그램 등으로 확장할 수 있는 가능성도 검토할 계획입니다."
+          ]
+        }
+      ]
     }
   ],
   hub: [
@@ -356,6 +401,20 @@ window.TAEJANG_CONTENT = {
       featured: false,
       status: "published",
       detailUrl: "activities.html?id=staff-birthday-2026-08"
+    },
+    {
+      id: "internal-terrarium-business-start-2026-08",
+      type: "internal",
+      source: "homepage",
+      category: "회사소식",
+      title: "테라리움 제조사업을 시작합니다",
+      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
+      thumbnail: "assets/images/terrarium/terrarium-display.webp",
+      thumbnailAlt: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+      publishedAt: "2026-08-22",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=terrarium-business-start-2026-08"
     }
   ]
 };

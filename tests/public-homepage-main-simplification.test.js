@@ -112,9 +112,11 @@ assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 7개 섹�
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
-assert.match(index, /태장은 창원 진전면의 농업 기반에서 출발한 농업회사법인입니다\. 이 기반 위에서 근로자의 강점과 작업 특성에 맞는 직무를 만들며 민화·문화 굿즈, 포장·검수, 지역사회공헌 활동 등으로 사업 영역을 넓혀가고 있습니다\./);
+assert.match(index, /태장은 창원 진전면의 농업 기반에서 출발한 농업회사법인입니다\. 이 기반 위에서 근로자의 강점과 작업 특성에 맞는 직무를 만들며 민화·문화 굿즈와 테라리움 제조상품 개발, 포장·검수, 지역사회공헌 활동 등으로 사업 영역을 넓혀가고 있습니다\./);
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
-assert.match(index, /PREPARING BUSINESS[\s\S]*준비하는 사업[\s\S]*농업 기반 사업[\s\S]*단계적으로 개발하고 있습니다\./);
+assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*제품 개발 진행 중[\s\S]*테라리움 제조사업[\s\S]*표준 DIY 키트를 개발/);
+assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
+assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /기업 업무와 고용 연계, 지역사회공헌·ESG 협력, 지역·문화 활동 등 다양한 협력 방식을 함께 검토합니다\./);
 assert.equal((index.match(/지속 가능한/g) || []).length, 2, 'Hero 제목과 회사 정의 보조문구에서만 사용합니다');
@@ -162,7 +164,7 @@ assert.match(about, /<strong>장애인 표준사업장<\/strong><span>자회사�
 assert.equal((about.match(/class="glance-grid"[\s\S]*?<\/div>\s*<\/div>/g) || []).length, 1);
 assert.doesNotMatch(about, /사업 확장/);
 assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 개 기업이 주주로 참여해 태장과 협력하고 있습니다\.<\/span>/);
-assert.match(about, /민화·문화 굿즈, 포장·검수, 지역사회공헌 활동/);
+assert.match(about, /사업과 직무<\/strong><span>민화·문화 굿즈와 포장·검수, 지역사회공헌 활동을 운영하며 테라리움 제조상품을 개발하고 있습니다\./);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 
 assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
@@ -414,8 +416,9 @@ const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
 const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub);
-assert.equal(actualHubItems.length, 10, '소식·기록은 기존 공개 콘텐츠와 공식 유튜브 영상까지 함께 표시합니다');
+assert.equal(actualHubItems.length, 11, '소식·기록은 테라리움 제조사업 기록을 포함한 공개 콘텐츠를 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
+  'internal-terrarium-business-start-2026-08',
   'youtube-qvqNyeyfQsA',
   'youtube-8x7yg5YBK9g',
   'youtube-FbEOcteBSJ4',
@@ -428,6 +431,7 @@ assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'internal-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
+  '테라리움 제조사업을 시작합니다',
   '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장',
   '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사',
   '태장 소개영상',
@@ -447,16 +451,14 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '메인 활동 기록은 최신 공개 콘텐츠 최대 8개를 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', '‘경남형 장애인 동행일자리’ 1호점 창원 가동']);
-assert.equal(actualRecentItems[2].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
-assert.equal(actualRecentItems[2].thumbnailAlt, '태장 공식 소개영상 썸네일');
-assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다']);
+assert.equal(actualRecentItems[3].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
+assert.equal(actualRecentItems[3].thumbnailAlt, '태장 공식 소개영상 썸네일');
+assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
 assert.deepEqual(Array.from(actualHubItems.filter(item => item.source === 'youtube' && item.publisher === '태장 공식 유튜브'), item => item.id), ['youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g', 'youtube-FbEOcteBSJ4']);
-assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
-assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
-assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
-assert.equal(actualRecentItems[7].source, 'press');
-assert.equal(actualRecentItems[7].externalUrl, 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A');
+assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
+assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
+assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.match(contentHub, /item\.publisher[\s\S]*?sourceLabel\(item\)/, '아카이브 검색은 매체명과 출처 라벨을 함께 대상으로 사용합니다');
 
 const birthdayHubItem = actualHubItems.find(item => item.id === 'internal-staff-birthday-2026-08');
@@ -465,6 +467,22 @@ const birthdayBytes = fs.readFileSync(path.join(root, birthdayHubItem.thumbnail)
 assert.equal(birthdayBytes.subarray(0, 4).toString('ascii'), 'RIFF');
 assert.equal(birthdayBytes.subarray(8, 12).toString('ascii'), 'WEBP');
 assert.match(contentData, /id: "staff-birthday-2026-08"[\s\S]*date: "2026\.08"/);
+
+const terrariumHubItem = actualHubItems.find(item => item.id === 'internal-terrarium-business-start-2026-08');
+assert.equal(terrariumHubItem.source, 'homepage');
+assert.equal(terrariumHubItem.category, '회사소식');
+assert.equal(terrariumHubItem.publishedAt, '2026-08-22');
+assert.equal(terrariumHubItem.thumbnail, 'assets/images/terrarium/terrarium-display.webp');
+assert.equal(terrariumHubItem.thumbnailAlt, '다양한 유리용기와 형태로 구성된 테라리움 샘플 진열');
+for (const image of ['terrarium-display.webp', 'terrarium-glass-jars.webp', 'terrarium-plant-composition.webp', 'terrarium-geometric.webp']) {
+  const imagePath = path.join(root, 'assets/images/terrarium', image);
+  const bytes = fs.readFileSync(imagePath);
+  assert.equal(bytes.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(bytes.subarray(8, 12).toString('ascii'), 'WEBP');
+}
+assert.match(contentData, /id: "terrarium-business-start-2026-08"[\s\S]*?테라리움 제조사업을 시작합니다[\s\S]*?terrarium-glass-jars\.webp[\s\S]*?terrarium-plant-composition\.webp[\s\S]*?terrarium-geometric\.webp/);
+const terrariumActivity = contentData.slice(contentData.indexOf('id: "terrarium-business-start-2026-08"'), contentData.indexOf('\n    }\n  ],\n  hub'));
+assert.doesNotMatch(terrariumActivity, /판매 중|체험 프로그램 운영 중|태장 직원 제작 완제품/);
 
 const certificationHubItem = actualHubItems.find(item => item.id === 'internal-certification');
 assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification.webp');
