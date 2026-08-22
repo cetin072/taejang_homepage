@@ -138,8 +138,8 @@ assert.doesNotMatch(index, /data-photo-slot="01"/);
 assert.match(index, /data-youtube-video="FbEOcteBSJ4"/);
 assert.match(index, /i\.ytimg\.com\/vi\/FbEOcteBSJ4\/hqdefault\.jpg/);
 assert.match(index, /data-youtube-play[^>]*aria-label="태장 공식 소개영상 재생"/);
-assert.match(index, /data-youtube-video="qvqNyeyfQsA"/);
-assert.match(index, /i\.ytimg\.com\/vi\/qvqNyeyfQsA\/hqdefault\.jpg/);
+assert.match(index, /data-youtube-video="8x7yg5YBK9g"/);
+assert.match(index, /i\.ytimg\.com\/vi\/8x7yg5YBK9g\/hqdefault\.jpg/);
 
 assert.match(index, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
 assert.match(index, /action="\/thanks\.html"/);
