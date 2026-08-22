@@ -163,6 +163,8 @@
   margin-top: 34px;
 }
 
+.minhwa-story{max-width:920px}.minhwa-story .story-article{max-width:100%}.minhwa-flow{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin:28px 0 0;padding:1px;list-style:none;background:var(--line)}.minhwa-flow li{padding:18px 14px;background:var(--green-soft);color:var(--green-deep);font-weight:800;text-align:center}.minhwa-products{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;margin-top:28px;padding:1px;background:var(--line)}.minhwa-products strong{grid-column:1/-1;padding:20px;background:var(--green-deep);color:#fff;text-align:center;font:700 20px var(--myeongjo)}.minhwa-products span{padding:16px 10px;background:#fff;color:var(--ink-soft);font-size:14px;text-align:center}.minhwa-closing{margin:24px 0 0!important;color:var(--green-deep)!important;text-align:center;font-weight:700}
+
 @media (max-width: 820px) {
   .story-layout {
     grid-template-columns: 1fr;
@@ -192,4 +194,5 @@
   .story-quote {
     padding: 22px 20px;
   }
+  .minhwa-flow,.minhwa-products{grid-template-columns:1fr 1fr}.minhwa-products strong{grid-column:1/-1}.minhwa-flow--work{grid-template-columns:1fr}
 }

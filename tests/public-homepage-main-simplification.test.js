@@ -159,9 +159,12 @@ assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 
 assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
 assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟|창원 진전면의 과수원에서 시작했습니다/);
-assert.equal((minhwa.match(/class="story-chapter"/g) || []).length, 4);
-assert.match(minhwa, /열두 달을 담을 작품/);
-assert.doesNotMatch(minhwa, /열세 장|그리는 일이 어려운 분은|앉아 있기 어려운 분은/);
+assert.equal((minhwa.match(/class="story-chapter"/g) || []).length, 5);
+for (const heading of ['사람에게 맞는 일에서 시작했습니다', '농업의 이야기가 그림이 됩니다', '그림은 제품이 됩니다', '하나의 제품 안에 여러 일이 있습니다', '이미 시작된 일입니다']) assert.match(minhwa, new RegExp(heading));
+assert.match(minhwa, /민화 작업을 적용한 보석함 약 130개를 실제로 제작했습니다/);
+assert.match(minhwa, /class="minhwa-flow"[\s\S]*농업·자연[\s\S]*민화 도안[\s\S]*제품[\s\S]*체험·문화/);
+assert.match(minhwa, /class="minhwa-products"[\s\S]*보석함[\s\S]*카드[\s\S]*달력[\s\S]*농산물 포장[\s\S]*기업 굿즈/);
+assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
 
 assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 민화·문화 굿즈, 포장·검수, 환경정비 등 다양한 직무를 운영합니다\./);
 assert.match(workplace, /class="workplace-work-gallery"[\s\S]*민화·문화 굿즈[\s\S]*포장·검수[\s\S]*작업 공간과 현장 업무/);
