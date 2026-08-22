@@ -45,11 +45,25 @@
 <main id="main-content">
   <section class="hero hero--neutral" aria-labelledby="hero-title">
     <div class="container hero-layout">
-      <div class="hero-video" data-youtube-video="FbEOcteBSJ4" data-youtube-title="태장 공식 소개영상">
-        <button class="hero-video-poster" type="button" data-youtube-play aria-label="태장 공식 소개영상 재생">
-          <img src="https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg" alt="태장 공식 소개영상 썸네일" fetchpriority="high">
-          <span class="hero-video-play" aria-hidden="true">▶</span>
-        </button>
+      <div class="hero-video-slider" data-hero-video-slider tabindex="0" aria-label="태장 공식 영상 슬라이더">
+        <div class="hero-video" data-hero-video-slide data-youtube-video="FbEOcteBSJ4" data-youtube-title="태장 공식 소개영상">
+          <button class="hero-video-poster" type="button" data-youtube-play aria-label="태장 공식 소개영상 재생">
+            <img src="https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg" alt="태장 공식 소개영상 썸네일" fetchpriority="high">
+            <span class="hero-video-play" aria-hidden="true">▶</span>
+          </button>
+        </div>
+        <div class="hero-video" data-hero-video-slide data-youtube-video="qvqNyeyfQsA" data-youtube-title="경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장" hidden aria-hidden="true">
+          <button class="hero-video-poster" type="button" data-youtube-play aria-label="경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 재생">
+            <img src="https://i.ytimg.com/vi/qvqNyeyfQsA/hqdefault.jpg" alt="경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 썸네일" loading="lazy">
+            <span class="hero-video-play" aria-hidden="true">▶</span>
+          </button>
+        </div>
+        <button class="hero-video-control hero-video-control--previous" type="button" data-hero-video-previous aria-label="이전 영상 보기"><span aria-hidden="true">‹</span></button>
+        <button class="hero-video-control hero-video-control--next" type="button" data-hero-video-next aria-label="다음 영상 보기"><span aria-hidden="true">›</span></button>
+        <div class="hero-video-indicators" aria-label="영상 선택">
+          <button class="hero-video-indicator" type="button" data-hero-video-indicator="0" aria-label="첫 번째 영상 보기" aria-current="true"><span aria-hidden="true"></span></button>
+          <button class="hero-video-indicator" type="button" data-hero-video-indicator="1" aria-label="두 번째 영상 보기" aria-current="false"><span aria-hidden="true"></span></button>
+        </div>
       </div>
       <div class="hero-content">
         <p class="hero-kicker">TAEJANG</p>
