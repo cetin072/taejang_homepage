@@ -15,7 +15,7 @@
   padding: 0;
 }
 
-.hero-video {
+.hero-video-slider {
   position: relative;
   width: 100%;
   min-width: 0;
@@ -25,6 +25,12 @@
   border-radius: 10px;
   background: #143b2d;
   box-shadow: 0 24px 60px rgba(8, 35, 24, .24);
+  touch-action: pan-y;
+}
+
+.hero-video {
+  position: absolute;
+  inset: 0;
 }
 
 .hero-video-poster,
@@ -92,6 +98,79 @@
   border: 0;
 }
 
+.hero-video-control,
+.hero-video-indicator {
+  border: 0;
+  color: #fff;
+  cursor: pointer;
+}
+
+.hero-video-control {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, .74);
+  border-radius: 50%;
+  background: rgba(17, 59, 43, .8);
+  font-size: 36px;
+  line-height: 1;
+  transform: translateY(-50%);
+  transition: background-color .2s ease, transform .2s ease;
+}
+
+.hero-video-control:hover,
+.hero-video-control:focus-visible {
+  background: var(--green);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.hero-video-control--previous { left: 12px; }
+.hero-video-control--next { right: 12px; }
+
+.hero-video-indicators {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 10px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+}
+
+.hero-video-indicator {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+}
+
+.hero-video-indicator span {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border: 1px solid rgba(255, 255, 255, .92);
+  border-radius: 50%;
+  background: transparent;
+}
+
+.hero-video-indicator[aria-current="true"] span {
+  background: #fff;
+}
+
+.hero-video-control:focus-visible,
+.hero-video-indicator:focus-visible {
+  outline: 3px solid #d9e9df;
+  outline-offset: 2px;
+}
+
 @media (max-width: 1000px) {
   .hero-layout {
     gap: 34px;
@@ -119,10 +198,20 @@
     height: 62px;
     font-size: 21px;
   }
+
+  .hero-video-control {
+    width: 44px;
+    height: 44px;
+    font-size: 32px;
+  }
+
+  .hero-video-control--previous { left: 8px; }
+  .hero-video-control--next { right: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-video-play {
+  .hero-video-play,
+  .hero-video-control {
     transition: none;
   }
 }
