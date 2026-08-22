@@ -172,9 +172,18 @@ assert.match(workplace, /일터 이야기/);
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
 assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 4);
 assert.match(partnership, /id="environment-service"/);
-assert.match(partnership, /보통 2~3주 동안/);
-assert.equal((partnership.match(/class="service-step"/g) || []).length, 6);
+assert.match(partnership, /환경정비·ESG 현장 운영/);
+assert.match(partnership, /사전 협의[\s\S]*현장 준비[\s\S]*수행·기록/);
+assert.equal((partnership.match(/class="service-step"/g) || []).length, 3);
 assert.match(partnership, /모회사·예비 모회사/);
+assert.doesNotMatch(partnership, /START WITH A CONVERSATION|간단한 문의부터 시작할 수 있습니다/);
+assert.match(partnership, /href="#contact">협력·문의하기/);
+assert.match(partnership, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
+assert.match(partnership, /action="\/thanks\.html"/);
+assert.match(partnership, /name="form-name" value="taejang-inquiry"/);
+assert.match(partnership, /name="privacy-consent"[^>]*required/);
+assert.match(partnership, /채용·근무 문의/);
+assert.match(partnership, /mailto:taejang2025@naver\.com/);
 assert.match(partnership, /기업 업무·건별 프로젝트/);
 for (const image of [
   'partnership-parent-company-ai.webp',
@@ -187,7 +196,7 @@ for (const image of [
 }
 assert.doesNotMatch(partnership, /PARENT COMPANY|ESG FIELD|COMMUNITY/, '비어 있는 카드용 텍스트 장식을 노출하지 않습니다');
 assert.match(partnershipCompact, /\.partnership-visual-media img\s*\{[\s\S]*?object-fit:\s*cover/, '협력·참여 카드 이미지는 비주얼 영역을 안정적으로 채웁니다');
-assert.match(partnershipCompact, /@media \(max-width: 760px\)[\s\S]*?\.partnership-visual-media\s*\{[\s\S]*?height:\s*180px/, '모바일 카드 미디어 높이를 유지합니다');
+assert.match(partnershipCompact, /@media \(max-width: 760px\)[\s\S]*?\.partnership-visual-media\s*\{[\s\S]*?height:\s*170px/, '모바일 카드 미디어를 압축합니다');
 
 assert.match(archive, /<div class="eyebrow">TAEJANG ARCHIVE<\/div>/);
 assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
@@ -259,6 +268,7 @@ assert.match(engagement, /\.contact-form-card/);
 assert.match(engagement, /\.environment-service-layout/);
 assert.match(engagement, /\.workplace-work-gallery/);
 assert.match(engagement, /\.workplace-principle-list/);
+assert.match(read('assets/css/partnership-compact.css'), /\.partnership-environment \.service-steps[\s\S]*repeat\(3/);
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false);
 
 assert.match(photoSlots, /const PHOTO_REVIEW_MODE = true/);

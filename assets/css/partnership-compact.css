@@ -6,6 +6,14 @@
   max-width: 720px;
 }
 
+.page-hero--partnership {
+  padding: 54px 0 58px;
+}
+
+.page-hero--partnership .title {
+  margin-bottom: 12px;
+}
+
 .partner-company-section {
   border-bottom: 1px solid var(--line);
 }
@@ -54,7 +62,7 @@
 }
 
 .partnership-visual-media {
-  height: 230px;
+  height: 205px;
   overflow: hidden;
   background: #edf1e9;
 }
@@ -83,26 +91,55 @@
   line-height: 1.75;
 }
 
-.partnership-summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
-  gap: 36px;
+.partnership-environment {
+  padding: 58px 0;
+}
+
+.partnership-environment .environment-service-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(420px, .85fr);
+  gap: 42px;
   align-items: center;
 }
 
-.partnership-summary .lead {
-  margin-bottom: 0;
+.partnership-environment .title {
+  margin-bottom: 12px;
 }
 
-.partnership-contact-actions {
-  display: grid;
-  gap: 12px;
+.partnership-environment .environment-service-note {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.partnership-environment .service-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.partnership-environment .service-step {
+  min-height: 104px;
+  padding: 18px 14px;
+}
+
+.partnership-environment .service-step strong {
+  font-size: 17px;
+}
+
+.partnership-contact {
+  padding-top: 62px;
+}
+
+.partnership-contact .contact-actions {
+  grid-template-columns: 1fr;
 }
 
 @media (max-width: 760px) {
   .partner-company-intro,
-  .partnership-visual-grid,
-  .partnership-summary {
+  .partnership-visual-grid {
     grid-template-columns: 1fr;
   }
 
@@ -115,11 +152,40 @@
   }
 
   .partnership-visual-media {
-    height: 180px;
+    height: 170px;
   }
 
   .partnership-visual-body {
     padding: 20px;
+  }
+
+  .partnership-environment .environment-service-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .partnership-environment .service-steps {
+    grid-template-columns: 1fr;
+    gap: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .partnership-environment .service-step {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-height: 0;
+    padding: 13px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+
+  .page-hero--partnership {
+    padding: 38px 0 42px;
+  }
+
+  .partnership-environment {
+    padding: 46px 0;
   }
 }
 
