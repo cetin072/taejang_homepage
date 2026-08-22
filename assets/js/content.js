@@ -148,8 +148,8 @@ window.TAEJANG_CONTENT = {
       status: "published",
       category: "공지",
       date: "2026.08.12",
-      title: "태장의 새로운 사업장이 문을 엽니다",
-      summary: "창원 신화 더 플렉스시티에 마련하는 태장의 새로운 업무 공간을 안내합니다.",
+      title: "태장의 새로운 사업장이 문을 열었습니다",
+      summary: "창원 신화 더 플렉스시티에 마련한 태장의 새로운 업무 공간을 소개합니다.",
       thumb: null,
       hero: null,
       gallery: [],
@@ -167,13 +167,13 @@ window.TAEJANG_CONTENT = {
       sections: [
         {
           paragraphs: [
-            "태장은 2026년 8월 12일 창원 신화 더 플렉스시티에 신규 사업장을 열 예정입니다."
+            "태장은 2026년 8월 12일 창원 신화 더 플렉스시티에 신규 사업장을 열었습니다."
           ]
         },
         {
-          heading: "새로운 일터를 준비합니다",
+          heading: "새로운 일터를 마련했습니다",
           paragraphs: [
-            "새 공간은 민화·문화 굿즈와 포장·검수 등 주요 업무를 위한 작업 환경으로 준비하고 있습니다."
+            "새 공간은 민화·문화 굿즈와 포장·검수 등 주요 업무를 위한 작업 환경으로 마련했습니다."
           ]
         },
         {
@@ -190,7 +190,7 @@ window.TAEJANG_CONTENT = {
       category: "환경·사회공헌",
       date: "2026.07.24",
       title: "첫 환경정비 활동을 진행했습니다",
-      summary: "임직원이 함께 주변 환경을 정비하며 태장의 첫 외부 활동을 시작했습니다.",
+      summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
       thumb: null,
       hero: null,
       gallery: [],
@@ -269,6 +269,80 @@ window.TAEJANG_CONTENT = {
           ]
         }
       ]
+    },
+    {
+      id: "staff-birthday-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08",
+      title: "8월 생일을 함께 축하했습니다",
+      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumb: null,
+      hero: null,
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장에서는 2026년 8월, 이달 생일을 맞은 직원들을 함께 축하하는 시간을 가졌습니다."
+          ]
+        },
+        {
+          heading: "함께 축하하는 태장의 일터",
+          paragraphs: [
+            "업무 중 잠시 한자리에 모여 서로의 생일을 축하하고 이야기를 나눴습니다. 작은 시간이지만 함께 일하는 동료들이 서로를 알아가고 편안하게 어울리는 시간이 되었습니다."
+          ]
+        },
+        {
+          paragraphs: [
+            "태장은 직원들이 안정적으로 일하는 것뿐 아니라 서로 존중하고 함께하는 일터를 만들어가겠습니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "terrarium-business-start-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08.22",
+      title: "테라리움 제조사업을 시작합니다",
+      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
+      thumb: "assets/images/terrarium/terrarium-display.webp",
+      hero: "assets/images/terrarium/terrarium-display.webp",
+      alt: {
+        thumb: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        hero: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        gallery: [
+          "유리병 안에 이끼와 식물을 구성한 여러 테라리움 샘플",
+          "다육식물과 선인장을 구성한 유리 테라리움 샘플",
+          "다면체 유리용기에 이끼와 식물을 구성한 테라리움 샘플"
+        ]
+      },
+      gallery: [
+        "assets/images/terrarium/terrarium-glass-jars.webp",
+        "assets/images/terrarium/terrarium-plant-composition.webp",
+        "assets/images/terrarium/terrarium-geometric.webp"
+      ],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 제조업 등록을 마치고 테라리움을 첫 제조상품 중 하나로 개발하기 시작했습니다.",
+            "첫 단계에서는 복잡한 완제품보다 반복 생산하기 쉬운 표준 DIY 키트 1종을 만드는 데 집중합니다."
+          ]
+        },
+        {
+          heading: "제품을 만드는 과정이 직무가 됩니다",
+          paragraphs: [
+            "재료와 용기를 준비하고, 필요한 양을 계량·소분하고, 구성품을 세트화한 뒤 검수하고 포장하는 과정까지 하나의 제조 흐름으로 정리해가고 있습니다.",
+            "각 공정을 작은 작업으로 나누어 근로자가 익숙한 역할에 참여할 수 있도록 만드는 것이 목표입니다."
+          ]
+        },
+        {
+          heading: "다음 단계",
+          paragraphs: [
+            "첫 제품과 작업방식이 안정되면 완제품과 기업·기관용 체험 프로그램 등으로 확장할 수 있는 가능성도 검토할 계획입니다."
+          ]
+        }
+      ]
     }
   ],
   hub: [
@@ -292,7 +366,7 @@ window.TAEJANG_CONTENT = {
       source: "homepage",
       category: "ESG·사회공헌",
       title: "첫 환경정비 활동을 진행했습니다",
-      summary: "임직원이 함께 주변 환경을 정비하며 태장의 첫 외부 활동을 시작했습니다.",
+      summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
       thumbnail: "assets/images/archive/environment-cleanup-first.webp",
       thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
       publishedAt: "2026-07-24",
@@ -313,6 +387,34 @@ window.TAEJANG_CONTENT = {
       featured: false,
       status: "published",
       detailUrl: "activities.html?id=standard-workplace-certification"
+    },
+    {
+      id: "internal-staff-birthday-2026-08",
+      type: "internal",
+      source: "homepage",
+      category: "회사소식",
+      title: "8월 생일을 함께 축하했습니다",
+      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumbnail: "assets/images/archive/staff-birthday-2026-08.webp",
+      thumbnailAlt: "태장 직원들이 작업 공간에서 8월 생일을 함께 축하하는 모습",
+      publishedAt: "2026-08",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=staff-birthday-2026-08"
+    },
+    {
+      id: "internal-terrarium-business-start-2026-08",
+      type: "internal",
+      source: "homepage",
+      category: "회사소식",
+      title: "테라리움 제조사업을 시작합니다",
+      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
+      thumbnail: "assets/images/terrarium/terrarium-display.webp",
+      thumbnailAlt: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+      publishedAt: "2026-08-22",
+      featured: false,
+      status: "published",
+      detailUrl: "activities.html?id=terrarium-business-start-2026-08"
     }
   ]
 };

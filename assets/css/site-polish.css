@@ -61,6 +61,12 @@ textarea:focus-visible {
   gap: 24px;
 }
 
+.recent-activities-archive-cta {
+  display: flex;
+  justify-content: center;
+  margin-top: 36px;
+}
+
 .recent-activity-media {
   aspect-ratio: 4 / 3;
   background: var(--green-soft);
@@ -323,6 +329,10 @@ textarea:focus-visible {
   .recent-activities-grid {
     grid-template-columns: 1fr;
     gap: 18px;
+  }
+
+  .recent-activities-archive-cta {
+    margin-top: 28px;
   }
 
   .content-photo-slot--detail {

@@ -27,16 +27,14 @@
     ['index.html#business', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·참여'],
-    ['index.html#contact', '문의하기', 'nav-cta']
+    ['partnership.html', '협력·문의', 'nav-cta']
   ];
   const FOOTER_LINKS = [
     ['about.html', '태장 소개'],
     ['index.html#business', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·참여'],
-    ['index.html#contact', '문의하기']
+    ['partnership.html', '협력·문의']
   ];
 
   function getSeoulDateKey(date) {

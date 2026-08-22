@@ -49,17 +49,17 @@ for (const filename of publicPages) {
   );
   assert.match(
     html,
-    /<a href="partnership\.html"(?: aria-current="page")?>협력·참여<\/a>/,
-    `${filename} 협력 메뉴는 기업과 일반 참여자를 함께 안내합니다`
+    /<a(?: class="nav-cta")? href="partnership\.html"(?: aria-current="page")?>협력·문의<\/a>/,
+    `${filename} 협력 메뉴는 협력 안내와 문의를 하나의 흐름으로 연결합니다`
   );
 }
 
 const index = read('index.html');
-assert.match(index, /href="partnership\.html#environment-service">환경정비 협력 안내/);
+assert.match(index, /href="partnership\.html#environment-service">사회공헌 협력 안내/);
 assert.doesNotMatch(index, /href="activities\.html">태장의 활동 보기/);
-assert.ok(index.indexOf('data-recent-activities') < index.indexOf('PARTNERSHIP & PARTICIPATION'));
+assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION & CONTACT'));
 assert.match(index, /name="taejang-inquiry"/);
-assert.match(index, /환경정비·ESG 현장/);
+assert.match(index, /지역사회공헌·ESG 협력/);
 
 const activities = read('activities.html');
 assert.match(activities, /href="archive\.html" aria-current="page">소식·기록<\/a>/);
@@ -70,7 +70,7 @@ assert.doesNotMatch(site, /\['activities\.html', '태장의 활동'\]/);
 assert.doesNotMatch(site, /\['index\.html#business', '사업과 역량'\]/);
 assert.doesNotMatch(site, /\['partnership\.html', '기업 협력'\]/);
 assert.equal((site.match(/\['archive\.html', '소식·기록'\]/g) || []).length, 2);
-assert.equal((site.match(/\['partnership\.html', '협력·참여'\]/g) || []).length, 2);
+assert.equal((site.match(/\['partnership\.html', '협력·문의'/g) || []).length, 2);
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
 
 const content = read('assets/js/content.js');

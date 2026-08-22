@@ -25,7 +25,7 @@ const PRESERVED_UNUSED_IMAGES = new Set([
   'assets/images/partners/samhyun.jpg',
   'assets/images/partners/cheungwoo-bj.png'
 ]);
-const B2B_PUBLIC_PAGES = ['partnership.html', 'resources.html'];
+const B2B_PUBLIC_PAGES = ['partnership.html'];
 const LEGACY_UNSUITABLE_PACKING_2_SHA256 = '3f56e0285804ec587f0fa5adb7541dcc06927906cb2608b7263a9a2c02781523';
 
 function walk(directory) {
@@ -71,18 +71,14 @@ function localPathFromReference(reference, sourceFile, rootDir) {
   const cleanReference = reference.trim().replace(/^['"]|['"]$/g, '');
   if (!cleanReference || cleanReference.startsWith('data:')) return null;
 
-  let pathname = cleanReference.split('#')[0].split('?')[0];
-  if (/^https?:\/\//i.test(pathname)) {
-    try {
-      pathname = new URL(pathname).pathname.replace(/^\//, '');
-    } catch {
-      return null;
-    }
-  }
+  const pathname = cleanReference.split('#')[0].split('?')[0];
+  if (/^https?:\/\//i.test(pathname)) return null;
 
   if (!IMAGE_EXTENSIONS.has(path.extname(pathname).toLowerCase())) return null;
   const absolutePath = pathname.startsWith('/')
     ? path.resolve(rootDir, pathname.slice(1))
+    : /^(?:images|assets\/images)\//.test(pathname)
+      ? path.resolve(rootDir, pathname)
     : path.resolve(path.dirname(sourceFile), pathname);
   const relativePath = relative(rootDir, absolutePath);
   if (relativePath.startsWith('../')) return null;
@@ -182,13 +178,25 @@ function checkLegacyPackingReference(result, rootDir, options) {
   }
 }
 
+function checkPhotoPublicMode(result, rootDir) {
+  const photoSlotsPath = path.join(rootDir, 'assets/js/photo-slots.js');
+  if (!fs.existsSync(photoSlotsPath)) return;
+  const source = fs.readFileSync(photoSlotsPath, 'utf8');
+  if (!/const\s+PHOTO_REVIEW_MODE\s*=\s*false\s*;/.test(source)) {
+    result.errors.push('assets/js/photo-slots.js: 공개 준비 모드에서는 PHOTO_REVIEW_MODE가 false여야 합니다.');
+    return;
+  }
+  result.passes.push('PHOTO 검수모드 비활성화 확인');
+}
+
 function auditRepository(rootDir = ROOT_DIR, options = {}) {
   const result = createResult(options);
   const preservedUnusedImages = options.preservedUnusedImages || PRESERVED_UNUSED_IMAGES;
   const siteFiles = walk(rootDir).filter(filePath => {
     const name = relative(rootDir, filePath);
-    if (name.startsWith('.git/') || name.startsWith('docs/') || name.startsWith('scripts/')) return false;
-    return SITE_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+    const extension = path.extname(filePath).toLowerCase();
+    if (!SITE_EXTENSIONS.has(extension)) return false;
+    return (path.dirname(name) === '.' && extension === '.html') || name.startsWith('assets/css/') || name.startsWith('assets/js/');
   });
   const htmlFiles = siteFiles.filter(filePath => path.extname(filePath).toLowerCase() === '.html');
   result.imageFiles = ['images', 'assets/images']
@@ -215,6 +223,7 @@ function auditRepository(rootDir = ROOT_DIR, options = {}) {
   });
 
   inspectSitemap(result, rootDir);
+  if (result.publicReady) checkPhotoPublicMode(result, rootDir);
 
   result.imageReferences.forEach((sources, imagePath) => {
     if (!fs.existsSync(path.join(rootDir, imagePath))) {

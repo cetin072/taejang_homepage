@@ -107,7 +107,7 @@
     grid-template-columns: 1fr;
     gap: 30px;
     padding-top: 42px;
-    padding-bottom: 166px;
+    padding-bottom: 28px;
   }
 
   .hero-layout .hero-content {
@@ -138,7 +138,7 @@
 }
 .glance-grid{
   display:grid;
-  grid-template-columns:repeat(5,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   border-top:1px solid var(--line);
   border-left:1px solid var(--line);
 }
@@ -162,71 +162,121 @@
   line-height:1.65;
 }
 
-.workplace-overview{
-  padding-top:72px;
+.page-hero--workplace{
+  padding:54px 0 58px;
 }
-.workplace-overview-head{
-  display:grid;
-  grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);
-  gap:56px;
-  align-items:start;
-  margin-bottom:36px;
-}
-.workplace-principle-grid,
-.workplace-role-grid,
-.workplace-process-grid{
-  display:grid;
-  gap:18px;
-}
-.workplace-principle-grid{
-  grid-template-columns:repeat(3,minmax(0,1fr));
-}
-.workplace-role-grid{
-  grid-template-columns:repeat(3,minmax(0,1fr));
-}
-.workplace-process-grid{
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  counter-reset:workplace-step;
-}
-.workplace-principle-card,
-.workplace-role-card,
-.workplace-process-step{
-  border:1px solid var(--line);
-  background:#fff;
-  padding:26px;
-}
-.workplace-principle-card span,
-.workplace-process-step span{
-  display:block;
+.page-hero--workplace .title{
   margin-bottom:12px;
+}
+.workplace-work{
+  padding:64px 0 68px;
+}
+.workplace-work-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.12fr) minmax(330px,.88fr);
+  gap:52px;
+  align-items:stretch;
+}
+.workplace-work-gallery{
+  display:grid;
+  grid-template-columns:minmax(0,1.25fr) minmax(0,.9fr);
+  grid-template-rows:repeat(2,minmax(0,1fr));
+  min-height:420px;
+  gap:12px;
+}
+.workplace-work-visual{
+  position:relative;
+  min-width:0;
+  margin:0;
+  overflow:hidden;
+  background:var(--green-soft);
+}
+.workplace-work-visual--minhwa{
+  grid-row:span 2;
+}
+.workplace-work-visual img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:50% 50%;
+}
+.workplace-work-visual--minhwa img{
+  object-position:50% 72%;
+}
+.workplace-work-visual:first-child + .workplace-work-visual img{
+  object-position:50% 58%;
+}
+.workplace-work-visual figcaption{
+  position:absolute;
+  right:0;
+  bottom:0;
+  left:0;
+  padding:18px 16px 14px;
+  color:#fff;
+  background:linear-gradient(180deg,transparent,rgba(20,47,36,.82));
+}
+.workplace-work-visual figcaption strong,
+.workplace-work-visual figcaption span{
+  display:block;
+}
+.workplace-work-visual figcaption strong{
+  font:800 17px/1.45 var(--myeongjo);
+}
+.workplace-work-visual figcaption span{
+  margin-top:2px;
+  font-size:13px;
+}
+.workplace-work-copy{
+  display:flex;
+  min-width:0;
+  flex-direction:column;
+  justify-content:center;
+}
+.workplace-work-copy .title{
+  margin-bottom:14px;
+}
+.workplace-process-line{
+  margin:0 0 20px;
+  color:var(--green);
+  font-weight:800;
+  letter-spacing:.04em;
+}
+.workplace-process-line span{
+  margin:0 5px;
+  color:var(--green-deep);
+}
+.workplace-principle-list{
+  margin:0;
+  padding:0;
+  list-style:none;
+  border-top:1px solid var(--line);
+}
+.workplace-principle-list li{
+  display:grid;
+  grid-template-columns:34px minmax(0,1fr);
+  gap:12px;
+  padding:14px 0;
+  border-bottom:1px solid var(--line);
+}
+.workplace-principle-list > li > span{
   color:var(--green);
   font-size:12px;
   font-weight:800;
-  letter-spacing:.12em;
+  letter-spacing:.1em;
 }
-.workplace-principle-card h2,
-.workplace-role-card h2,
-.workplace-process-step h2{
-  margin:0 0 10px;
+.workplace-principle-list h3{
+  margin:0 0 2px;
   color:var(--green-deep);
-  font:800 20px/1.45 var(--myeongjo);
+  font:800 18px/1.45 var(--myeongjo);
 }
-.workplace-principle-card p,
-.workplace-role-card p,
-.workplace-process-step p{
+.workplace-principle-list p{
   margin:0;
   color:var(--ink-soft);
+  font-size:14px;
+  line-height:1.65;
 }
-.workplace-role-card{
-  border-top:4px solid var(--green);
-}
-.workplace-role-card .role-status{
-  display:inline-block;
-  margin-bottom:12px;
-  color:var(--green);
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.06em;
+.workplace-stories{
+  padding-top:68px;
 }
 .workplace-story-head{
   display:flex;
@@ -407,6 +457,10 @@
   font-size:13px;
   line-height:1.6;
 }
+.workplace-bridge{
+  padding-top:clamp(48px,6vw,76px);
+  padding-bottom:clamp(48px,6vw,76px);
+}
 .form-actions{
   display:flex;
   align-items:center;
@@ -454,13 +508,12 @@
   .glance-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
-  .workplace-overview-head,
+  .workplace-work-layout,
   .environment-service-layout,
   .contact-layout{
     grid-template-columns:1fr;
     gap:32px;
   }
-  .workplace-process-grid,
   .participation-guide{
     grid-template-columns:repeat(2,minmax(0,1fr));
   }
@@ -468,9 +521,6 @@
 
 @media (max-width:720px){
   .glance-grid,
-  .workplace-principle-grid,
-  .workplace-role-grid,
-  .workplace-process-grid,
   .partnership-visual-grid.partnership-visual-grid--four,
   .service-steps,
   .participation-guide,
@@ -486,6 +536,18 @@
   .workplace-story-head{
     align-items:start;
     flex-direction:column;
+  }
+  .page-hero--workplace{
+    padding:38px 0 42px;
+  }
+  .workplace-work{
+    padding:46px 0 50px;
+  }
+  .workplace-work-gallery{
+    min-height:320px;
+  }
+  .workplace-stories{
+    padding-top:52px;
   }
   .form-actions{
     align-items:stretch;

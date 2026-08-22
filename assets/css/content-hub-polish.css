@@ -54,6 +54,73 @@
   margin-bottom: 28px;
 }
 
+.archive-search {
+  display: grid;
+  max-width: 760px;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.archive-search > label {
+  color: var(--green-deep);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.archive-search-field {
+  position: relative;
+}
+
+.archive-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 17px;
+  color: var(--green-deep);
+  font-size: 25px;
+  line-height: 1;
+  transform: translateY(-53%);
+}
+
+.archive-search input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 50px 12px 48px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.archive-search input::placeholder {
+  color: #68736d;
+  opacity: 1;
+}
+
+.archive-search-clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 25px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.archive-search-clear:hover,
+.archive-search-clear:focus-visible {
+  background: #edf3ef;
+  color: var(--green-deep);
+}
+
 .content-filter-group {
   display: flex;
   min-width: 0;
@@ -255,8 +322,6 @@
 
   .content-hub-filters {
     gap: 14px;
-    margin-right: -18px;
-    margin-left: -18px;
   }
 
   .content-filter-group {
@@ -265,27 +330,19 @@
 
   .content-filter-label {
     display: block;
-    padding: 0 18px 8px;
+    padding: 0 0 8px;
   }
 
   .content-filter-buttons {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
-    overflow-x: auto;
-    padding: 0 18px 7px;
-    scroll-padding-inline: 18px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .content-filter-buttons::-webkit-scrollbar {
-    display: none;
+    overflow: visible;
+    padding: 0;
   }
 
   .content-filter-buttons .filter-btn {
     flex: 0 0 auto;
     min-height: 44px;
-    scroll-snap-align: start;
   }
 
   .archive-controls {

@@ -39,7 +39,7 @@
     const date = document.createElement('time');
     date.className = 'card-date';
     date.dateTime = item.publishedAt || '';
-    date.textContent = (item.publishedAt || '').replaceAll('-', '.');
+    date.textContent = contentHub.formatPublishedDate(item.publishedAt);
     body.append(date);
     appendText(body, 'h3', item.title);
     link.append(body);
