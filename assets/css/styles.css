@@ -640,7 +640,7 @@ button{cursor:pointer}
   .hero-neutral-visual{background:linear-gradient(160deg,#143b2d 0%,#245d45 72%,#dce6db 72%,#dce6db 100%)}
   .hero-neutral-visual::after{right:9%;top:auto;bottom:104px;width:42vw}
   .hero--neutral .hero-content{padding:64px 0 176px}
-  .hero-facts{width:calc(100% - 36px);grid-template-columns:1fr;bottom:0}
+  .hero-facts{width:calc(100% - 36px);grid-template-columns:1fr;bottom:20px;border-bottom:1px solid rgba(255,255,255,.28)}
   .hero-facts div{padding:14px 16px 17px}
   .hero-facts div + div{border-top:1px solid rgba(255,255,255,.28);border-left:0}
   .hero-facts strong{font-size:12px}

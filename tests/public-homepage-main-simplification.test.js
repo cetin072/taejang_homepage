@@ -277,7 +277,7 @@ assert.match(site, /\['index\.html#business', '하는 일'\]/);
 assert.match(site, /assets\/css\/site-polish\.css/, '공통 보정 stylesheet를 동적으로 로드합니다');
 assert.match(site, /assets\/css\/engagement-polish\.css/);
 assert.doesNotMatch(site, /data-hero-slider|hero-slide|photo-slots\.css/);
-assert.match(styles, /@media \(max-width:760px\)\{[\s\S]*?\.hero-facts div\{padding:14px 16px 17px\}[\s\S]*?\.hero-facts span\{margin-top:3px;font-size:11px;line-height:1\.6\}/, '모바일 Hero 정보 행의 하단 여백과 줄간격을 확보합니다');
+assert.match(styles, /@media \(max-width:760px\)\{[\s\S]*?\.hero-facts\{width:calc\(100% - 36px\);grid-template-columns:1fr;bottom:20px;border-bottom:1px solid rgba\(255,255,255,\.28\)\}[\s\S]*?\.hero-facts div\{padding:14px 16px 17px\}[\s\S]*?\.hero-facts span\{margin-top:3px;font-size:11px;line-height:1\.6\}/, '모바일 Hero 정보 패널을 바닥에서 띄우고 내부 여백을 확보합니다');
 
 assert.match(polish, /\/\* Numbered public-homepage photo slots \*\/[\s\S]*?\.photo-slot,\s*\.content-photo-slot \{/);
 assert.doesNotMatch(styles, /^\.photo-slot\s*\{/m);
