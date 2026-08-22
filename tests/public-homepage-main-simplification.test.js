@@ -201,7 +201,25 @@ assert.match(partnershipCompact, /@media \(max-width: 760px\)[\s\S]*?\.partnersh
 assert.match(archive, /<div class="eyebrow">TAEJANG ARCHIVE<\/div>/);
 assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
 assert.match(archive, /최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다/);
-assert.match(archive, /관심 있는 주제나 출처를 선택/);
+assert.match(archive, /검색과 필터를 이용해 태장의 기록을 살펴보세요/);
+assert.match(archive, /<label for="archive-search-input">기록 검색<\/label>/);
+assert.match(archive, /<input id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>/);
+assert.match(archive, /<button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>/);
+assert.match(contentHub, /function searchableText\(item\)[\s\S]*?item\.title[\s\S]*?item\.summary[\s\S]*?item\.category[\s\S]*?item\.publisher[\s\S]*?sourceLabel\(item\)/);
+assert.match(contentHub, /!searchQuery \|\| searchableText\(item\)\.includes\(searchQuery\)/);
+assert.match(contentHub, /const sourceFilters = createFilters[\s\S]*?const categoryFilters = createFilters/);
+assert.match(contentHub, /function resetConditions\(\)[\s\S]*?sourceFilters\.reset\(\)[\s\S]*?categoryFilters\.reset\(\)[\s\S]*?dateControls\.yearSelect\.value = 'all'[\s\S]*?dateControls\.monthSelect\.value = 'all'/);
+assert.match(contentHub, /검색 결과 \$\{filtered\.length\}건/);
+assert.match(contentHub, /조건에 맞는 기록이 없습니다\./);
+assert.match(contentHub, /검색어 또는 필터를 변경해 보세요\./);
+assert.match(contentHub, /조건 초기화/);
+assert.match(contentHub, /clearSearch\.addEventListener\('click'/);
+assert.match(contentHub, /sourceLabels\[item\?\.source\] \|\| item\?\.source \|\| '홈페이지'/);
+assert.match(contentHub, /link\.target = '_blank';[\s\S]*?link\.rel = 'noopener noreferrer'/);
+const archiveStyles = read('assets/css/content-hub-polish.css');
+assert.match(archiveStyles, /\.archive-search input\s*\{[\s\S]*?font-size:\s*16px/);
+assert.match(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?flex-wrap:\s*wrap[\s\S]*?overflow:\s*visible/);
+assert.doesNotMatch(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?overflow-x:\s*auto/);
 
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
 assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업과 역량|기업 협력|href="staff\//);

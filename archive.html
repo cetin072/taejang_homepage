@@ -53,7 +53,15 @@
   </section>
   <section class="section">
     <div class="container">
-      <p class="archive-note">관심 있는 주제나 출처를 선택해 태장의 기록을 살펴보세요.</p>
+      <p class="archive-note">검색과 필터를 이용해 태장의 기록을 살펴보세요.</p>
+      <div class="archive-search" data-archive-search>
+        <label for="archive-search-input">기록 검색</label>
+        <div class="archive-search-field">
+          <span class="archive-search-icon" aria-hidden="true">⌕</span>
+          <input id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>
+          <button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>×</button>
+        </div>
+      </div>
       <div class="content-hub-filters">
         <div class="content-filter-group"><span class="content-filter-label">출처</span><div class="content-filter-buttons" data-hub-source-filters></div></div>
         <div class="content-filter-group"><span class="content-filter-label">주제</span><div class="content-filter-buttons" data-hub-category-filters></div></div>

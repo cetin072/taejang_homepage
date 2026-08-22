@@ -139,7 +139,7 @@
     if (values.length <= 2) {
       if (group) group.hidden = true;
       container.replaceChildren();
-      return;
+      return { reset() {} };
     }
 
     if (group) group.hidden = false;
@@ -161,6 +161,11 @@
       return button;
     }));
     container.setAttribute('aria-label', label);
+    return {
+      reset() {
+        container.querySelector(`[data-${stateKey}="all"]`)?.click();
+      }
+    };
   }
 
   function createDateControls(list, items, onChange) {
@@ -200,7 +205,7 @@
     }
     yearSelect.addEventListener('change', emit);
     monthSelect.addEventListener('change', emit);
-    return { controls, resultCount };
+    return { controls, resultCount, yearSelect, monthSelect };
   }
 
   function createEmptyState(title, text) {
@@ -217,17 +222,49 @@
     return panel;
   }
 
+  function createNoResultsState(onReset) {
+    const panel = document.createElement('div');
+    panel.className = 'listing-empty listing-empty--panel';
+    panel.setAttribute('role', 'status');
+    appendText(panel, 'strong', '조건에 맞는 기록이 없습니다.');
+    appendText(panel, 'p', '검색어 또는 필터를 변경해 보세요.');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn line';
+    button.textContent = '조건 초기화';
+    button.addEventListener('click', onReset);
+    panel.append(button);
+    return panel;
+  }
+
+  function searchableText(item) {
+    return [
+      item.title,
+      item.summary,
+      item.category,
+      item.publisher,
+      sourceLabel(item),
+      item.externalLabel
+    ]
+      .filter((value) => typeof value === 'string')
+      .join(' ')
+      .toLocaleLowerCase('ko-KR');
+  }
+
   function setupArchive() {
     const list = document.querySelector('[data-hub-list]');
     const sourceContainer = document.querySelector('[data-hub-source-filters]');
     const categoryContainer = document.querySelector('[data-hub-category-filters]');
-    if (!list || !sourceContainer || !categoryContainer) return;
+    const searchInput = document.querySelector('[data-archive-search-input]');
+    const clearSearch = document.querySelector('[data-archive-search-clear]');
+    if (!list || !sourceContainer || !categoryContainer || !searchInput || !clearSearch) return;
 
     const allItems = orderedItems();
     let source = 'all';
     let category = 'all';
     let year = 'all';
     let month = 'all';
+    let searchQuery = '';
     let visibleCount = window.matchMedia('(max-width: 620px)').matches ? mobileBatchSize : desktopBatchSize;
 
     if (!allItems.length) {
@@ -254,7 +291,8 @@
     function filteredItems() {
       return allItems.filter((item) => {
         const [itemYear, itemMonth] = item.publishedAt.split('-');
-        return (source === 'all' || item.source === source)
+        return (!searchQuery || searchableText(item).includes(searchQuery))
+          && (source === 'all' || item.source === source)
           && (category === 'all' || item.category === category)
           && (year === 'all' || itemYear === year)
           && (month === 'all' || itemMonth === month);
@@ -267,11 +305,12 @@
       if (visible.length) {
         list.replaceChildren(...visible.map((item) => createCard(item, 'h2')));
       } else {
-        list.replaceChildren(createEmptyState('선택한 조건의 콘텐츠가 없습니다', '다른 출처·주제·기간을 선택해 주세요.'));
+        list.replaceChildren(createNoResultsState(resetConditions));
       }
+      const countLabel = searchQuery ? `검색 결과 ${filtered.length}건` : `총 ${filtered.length}건`;
       dateControls.resultCount.textContent = visible.length < filtered.length
-        ? `총 ${filtered.length}건 중 ${visible.length}건 표시`
-        : `총 ${filtered.length}건`;
+        ? `${countLabel} 중 ${visible.length}건 표시`
+        : countLabel;
       loadMoreWrap.hidden = visible.length >= filtered.length || filtered.length === 0;
     }
 
@@ -280,19 +319,43 @@
       render();
     }
 
+    function resetConditions() {
+      searchQuery = '';
+      searchInput.value = '';
+      clearSearch.hidden = true;
+      sourceFilters.reset();
+      categoryFilters.reset();
+      dateControls.yearSelect.value = 'all';
+      dateControls.monthSelect.value = 'all';
+      resetAndRender();
+      searchInput.focus();
+    }
+
     loadMore.addEventListener('click', () => {
       visibleCount += window.matchMedia('(max-width: 620px)').matches ? mobileBatchSize : desktopBatchSize;
       render();
       loadMore.focus();
     });
 
-    createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', (value) => {
+    const sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', (value) => {
       source = value;
       resetAndRender();
     });
-    createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', (value) => {
+    const categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', (value) => {
       category = value;
       resetAndRender();
+    });
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value.trim().toLocaleLowerCase('ko-KR');
+      clearSearch.hidden = searchQuery.length === 0;
+      resetAndRender();
+    });
+    clearSearch.addEventListener('click', () => {
+      searchQuery = '';
+      searchInput.value = '';
+      clearSearch.hidden = true;
+      resetAndRender();
+      searchInput.focus();
     });
     render();
   }
