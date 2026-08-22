@@ -119,6 +119,8 @@ assert.match(index, /환경정비·ESG 현장 운영/);
 assert.match(index, /기업·기관과 협의해 사전 준비부터 현장 수행과 활동 기록까지 운영합니다\./);
 assert.match(index, /href="partnership\.html#environment-service"/);
 assert.match(index, /data-home-preview="hub"[^>]*data-home-preview-count="8"/);
+assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"[\s\S]*?<div class="recent-activities-archive-cta"><a class="btn line" href="archive\.html">태장 아카이브 전체 보기<\/a><\/div>/, '상단 링크를 유지하고 카드 목록 뒤에 아카이브 CTA를 둡니다');
+assert.match(polish, /\.recent-activities-archive-cta\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?margin-top:\s*36px/);
 assert.match(index, /<strong>taejang2025@naver\.com<\/strong>/);
 assert.doesNotMatch(index, /info@taejang\.co\.kr/);
 assert.match(index, /external-content\.js[\s\S]*content-hub\.js[\s\S]*home-previews\.js[\s\S]*photo-slots\.js[\s\S]*hero-video\.js[\s\S]*site\.js/);
