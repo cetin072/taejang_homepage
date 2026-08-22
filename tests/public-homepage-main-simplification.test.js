@@ -277,7 +277,8 @@ assert.match(site, /\['index\.html#business', '하는 일'\]/);
 assert.match(site, /assets\/css\/site-polish\.css/, '공통 보정 stylesheet를 동적으로 로드합니다');
 assert.match(site, /assets\/css\/engagement-polish\.css/);
 assert.doesNotMatch(site, /data-hero-slider|hero-slide|photo-slots\.css/);
-assert.match(styles, /@media \(max-width:760px\)\{[\s\S]*?\.hero--neutral\{min-height:auto\}[\s\S]*?\.hero-facts\{position:static;left:auto;width:calc\(100% - 36px\);margin:28px auto 22px;grid-template-columns:1fr;transform:none;bottom:auto;border-bottom:1px solid rgba\(255,255,255,\.28\)\}[\s\S]*?\.hero-facts div\{padding:14px 16px 17px\}[\s\S]*?\.hero-facts span\{margin-top:3px;font-size:11px;line-height:1\.6\}/, '모바일 Hero 정보 패널을 일반 흐름으로 배치하고 내부 여백을 유지합니다');
+assert.match(styles, /@media \(max-width:760px\)\{[\s\S]*?\.hero--neutral\{display:block;min-height:auto\}[\s\S]*?\.hero-facts\{position:static;left:auto;width:calc\(100% - 36px\);margin:0 auto 22px;grid-template-columns:1fr;transform:none;bottom:auto;border-bottom:1px solid rgba\(255,255,255,\.28\)\}[\s\S]*?\.hero-facts div\{padding:14px 16px 17px\}[\s\S]*?\.hero-facts span\{margin-top:3px;font-size:11px;line-height:1\.6\}/, '모바일 Hero는 block 흐름으로 쌓고 정보 패널의 내부 여백을 유지합니다');
+assert.doesNotMatch(styles, /\.hero-facts\{[^}]*bottom:20px/, '모바일 Hero 정보 패널은 bottom 위치 보정을 사용하지 않습니다');
 assert.match(engagement, /@media \(max-width: 760px\) \{[\s\S]*?\.hero-layout \{[\s\S]*?padding-bottom: 28px;/, '모바일 Hero layout은 absolute 정보 패널용 하단 예약 공간을 제거합니다');
 
 assert.match(polish, /\/\* Numbered public-homepage photo slots \*\/[\s\S]*?\.photo-slot,\s*\.content-photo-slot \{/);
