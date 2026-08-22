@@ -641,10 +641,10 @@ button{cursor:pointer}
   .hero-neutral-visual::after{right:9%;top:auto;bottom:104px;width:42vw}
   .hero--neutral .hero-content{padding:64px 0 176px}
   .hero-facts{width:calc(100% - 36px);grid-template-columns:1fr;bottom:0}
-  .hero-facts div{padding:11px 14px}
+  .hero-facts div{padding:14px 16px 17px}
   .hero-facts div + div{border-top:1px solid rgba(255,255,255,.28);border-left:0}
   .hero-facts strong{font-size:12px}
-  .hero-facts span{font-size:11px}
+  .hero-facts span{margin-top:3px;font-size:11px;line-height:1.6}
   .about-keywords,.business-showcase,.business-supports,.business-preparing,.workplace-layout,.partnership-simple,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
   .section-head--simple .lead{padding:0}
   .business-feature-body,.business-supports article,.partnership-details{padding:22px}
