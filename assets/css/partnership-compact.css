@@ -115,6 +115,42 @@
   font-weight: 400;
 }
 
+.community-collaboration-scope {
+  margin: 22px 0 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.community-collaboration-scope > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  padding: 13px 0;
+}
+
+.community-collaboration-scope > div + div {
+  border-top: 1px solid var(--line);
+}
+
+.community-collaboration-scope dt {
+  color: var(--green-deep);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.community-collaboration-scope dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.environment-service-process-title {
+  margin: 0 0 12px;
+  color: var(--green-deep);
+  font-size: 16px;
+}
+
 .partnership-environment .service-steps {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -168,6 +204,11 @@
     grid-template-columns: 1fr;
     gap: 0;
     border-top: 1px solid var(--line);
+  }
+
+  .community-collaboration-scope > div {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 10px;
   }
 
   .partnership-environment .service-step {
