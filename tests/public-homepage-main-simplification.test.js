@@ -81,7 +81,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.deepEqual(duplicateIds(html), [], `${filename}에 중복 id가 없어야 합니다`);
   assert.match(html, /taejang2025@naver\.com/, `${filename} 공개 연락처는 새 이메일을 사용합니다`);
   assert.doesNotMatch(html, /info@taejang\.co\.kr/, `${filename} 공개 화면에 이전 이메일을 남기지 않습니다`);
-  assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량|기업 협력/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
+  assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
   assert.doesNotMatch(html, /href="staff\//, `${filename} 원본에서 임직원 진입을 숨깁니다`);
   assert.doesNotMatch(html, /class="staff-nav"/, `${filename} 원본에서 임직원 메뉴 클래스를 숨깁니다`);
   assert.doesNotMatch(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실 링크를 숨깁니다`);
@@ -91,6 +91,14 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.match(html, /협력·문의/, `${filename} 공개 메뉴는 협력·문의 단일 진입점을 사용합니다`);
   assertSafeBlankTargets(filename, html);
 }
+
+assert.match(photoSlots, /const PHOTO_REVIEW_MODE = false;/, '공개 모드에서는 PHOTO 검수 번호를 표시하지 않습니다');
+assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp" alt="농업회사법인 태장 주식회사 대표이사 이영희"/, '대표 인사말에는 승인된 대표 사진을 사용합니다');
+assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
+assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
+assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
+assert.match(pages['partnership.html'], /<h2>기업 협력·고용 연계<\/h2><p>장애인 고용과 실제 업무를 연결할 기업·기관과 다양한 협력 방식을 검토합니다\.<\/p>/, '협력 카드는 신규 주주 모집처럼 보이지 않게 안내합니다');
+assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
 const about = pages['about.html'];
@@ -180,7 +188,7 @@ assert.match(partnership, /id="environment-service"/);
 assert.match(partnership, /환경정비·ESG 현장 운영/);
 assert.match(partnership, /사전 협의[\s\S]*현장 준비[\s\S]*수행·기록/);
 assert.equal((partnership.match(/class="service-step"/g) || []).length, 3);
-assert.match(partnership, /모회사·예비 모회사/);
+assert.match(partnership, /기업 협력·고용 연계/);
 assert.doesNotMatch(partnership, /START WITH A CONVERSATION|간단한 문의부터 시작할 수 있습니다/);
 assert.match(partnership, /href="#contact">협력·문의하기/);
 assert.match(partnership, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
@@ -298,7 +306,7 @@ assert.match(engagement, /\.workplace-principle-list/);
 assert.match(read('assets/css/partnership-compact.css'), /\.partnership-environment \.service-steps[\s\S]*repeat\(3/);
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false);
 
-assert.match(photoSlots, /const PHOTO_REVIEW_MODE = true/);
+assert.match(photoSlots, /const PHOTO_REVIEW_MODE = false/);
 assert.match(photoSlots, /const PHOTO_BASE_PATH = 'images\/homepage\/'/);
 assert.equal((photoSlots.match(/file: 'photo-\d{2}\.webp'/g) || []).length, 8);
 assert.doesNotMatch(photoSlots, /photo-0(?:9|10|11)\.webp/);
@@ -403,9 +411,9 @@ vm.runInNewContext(externalContent, { window: actualWindow });
 const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub);
 assert.equal(actualHubItems.length, 10, '소식·기록은 기존 공개 콘텐츠와 공식 유튜브 영상까지 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
-  'youtube-FbEOcteBSJ4',
   'youtube-qvqNyeyfQsA',
   'youtube-8x7yg5YBK9g',
+  'youtube-FbEOcteBSJ4',
   'youtube-8x4Rf3knAb8',
   'internal-opening',
   'naver-blog-224367547159',
@@ -415,9 +423,9 @@ assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'internal-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
-  '태장 소개영상',
   '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장',
   '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사',
+  '태장 소개영상',
   "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
   '태장 개소식 안내',
   '한 줄 한 줄 정성으로 완성되는 태장의 하루',
@@ -434,13 +442,13 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '메인 활동 기록은 최신 공개 콘텐츠 최대 8개를 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['태장 소개영상', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', '‘경남형 장애인 동행일자리’ 1호점 창원 가동']);
-assert.equal(actualRecentItems[0].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
-assert.equal(actualRecentItems[0].thumbnailAlt, '태장 공식 소개영상 썸네일');
-assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
-assert.deepEqual(Array.from(actualHubItems.filter(item => item.source === 'youtube' && item.publisher === '태장 공식 유튜브'), item => item.id), ['youtube-FbEOcteBSJ4', 'youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g']);
-assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
-assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다', '‘경남형 장애인 동행일자리’ 1호점 창원 가동']);
+assert.equal(actualRecentItems[2].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
+assert.equal(actualRecentItems[2].thumbnailAlt, '태장 공식 소개영상 썸네일');
+assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
+assert.deepEqual(Array.from(actualHubItems.filter(item => item.source === 'youtube' && item.publisher === '태장 공식 유튜브'), item => item.id), ['youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g', 'youtube-FbEOcteBSJ4']);
+assert.equal(actualRecentItems[0].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
+assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
 assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.equal(actualRecentItems[7].source, 'press');
 assert.equal(actualRecentItems[7].externalUrl, 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A');

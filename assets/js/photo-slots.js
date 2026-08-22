@@ -5,7 +5,7 @@
    * 검수 중에는 true를 유지합니다.
    * 공식 공개 직전에 false로 바꾸면 실제 사진 위의 PHOTO 번호가 숨겨집니다.
    */
-  const PHOTO_REVIEW_MODE = true;
+  const PHOTO_REVIEW_MODE = false;
   const PHOTO_BASE_PATH = 'images/homepage/';
 
   /*

@@ -91,11 +91,17 @@ withFixture({
 withFixture({
   'index.html': '<main></main>',
   'partnership.html': '<title>기업 협력</title><meta name="description" content="협력 안내"><main id="partnership"></main>',
-  'resources.html': '<title>자료실</title><meta name="description" content="자료 안내"><main id="resources"></main>',
-  'sitemap.xml': '<urlset><loc>https://example.test/partnership.html</loc><loc>https://example.test/resources.html</loc></urlset>'
+  'sitemap.xml': '<urlset><loc>https://example.test/partnership.html</loc></urlset>'
 }, {}, result => {
   assert.deepStrictEqual(result.errors, []);
-  assert.strictEqual(result.sitemapEntries.length, 2);
+  assert.strictEqual(result.sitemapEntries.length, 1);
+});
+
+withFixture({
+  'index.html': '<main></main>',
+  'assets/js/photo-slots.js': 'const PHOTO_REVIEW_MODE = true;'
+}, { publicReady: true }, result => {
+  assert.ok(result.errors.some(message => message.includes('PHOTO_REVIEW_MODE가 false')));
 });
 
 console.log('audit-site tests: all cases passed');

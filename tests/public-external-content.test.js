@@ -50,6 +50,7 @@ assert.equal(youtube.externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4')
 assert.equal(youtube.thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
 assert.equal(youtube.thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(youtube.externalLabel, '유튜브에서 보기');
+assert.equal(youtube.publishedAt, '2026-08-13');
 
 for (const [video, id, title] of [
   [changwon, 'qvqNyeyfQsA', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장'],

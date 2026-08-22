@@ -30,7 +30,7 @@
       summary: '함께 일하며 지속 가능한 기회를 만들어가는 태장의 사업과 일터를 영상으로 소개합니다.',
       thumbnail: 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg',
       thumbnailAlt: '태장 공식 소개영상 썸네일',
-      publishedAt: '2026-08-20',
+      publishedAt: '2026-08-13',
       featured: false,
       status: 'published',
       externalUrl: 'https://www.youtube.com/watch?v=FbEOcteBSJ4',
