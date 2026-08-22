@@ -161,10 +161,12 @@ assert.equal((minhwa.match(/class="story-chapter"/g) || []).length, 4);
 assert.match(minhwa, /열두 달을 담을 작품/);
 assert.doesNotMatch(minhwa, /열세 장|그리는 일이 어려운 분은|앉아 있기 어려운 분은/);
 
-assert.equal((workplace.match(/class="workplace-principle-card"/g) || []).length, 3);
-assert.equal((workplace.match(/class="workplace-role-card"/g) || []).length, 3);
-assert.equal((workplace.match(/class="workplace-process-step"/g) || []).length, 4);
-assert.match(workplace, /환경정비·ESG 현장/);
+assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 민화·문화 굿즈, 포장·검수, 환경정비 등 다양한 직무를 운영합니다\./);
+assert.match(workplace, /class="workplace-work-gallery"[\s\S]*민화·문화 굿즈[\s\S]*포장·검수[\s\S]*작업 공간과 현장 업무/);
+assert.equal((workplace.match(/class="workplace-principle-list"/g) || []).length, 1);
+assert.equal((workplace.match(/<li><span>0[1-3]<\/span>/g) || []).length, 3);
+assert.doesNotMatch(workplace, /data-workplace-roles|data-workplace-process|class="workplace-role-card"|class="workplace-process-step"/);
+assert.ok(workplace.indexOf('data-workplace-overview') < workplace.indexOf('data-listing'), '작업사진과 원칙 다음에 일터 이야기를 배치합니다');
 assert.match(workplace, /일터 이야기/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
@@ -255,7 +257,8 @@ assert.match(polish, /@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{
 assert.match(polish, /@media \(max-width: 760px\)\s*\{[\s\S]*\.recent-activities-grid\s*\{[\s\S]*grid-template-columns:\s*1fr/);
 assert.match(engagement, /\.contact-form-card/);
 assert.match(engagement, /\.environment-service-layout/);
-assert.match(engagement, /\.workplace-principle-grid/);
+assert.match(engagement, /\.workplace-work-gallery/);
+assert.match(engagement, /\.workplace-principle-list/);
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false);
 
 assert.match(photoSlots, /const PHOTO_REVIEW_MODE = true/);
