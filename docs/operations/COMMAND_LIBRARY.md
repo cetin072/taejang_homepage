@@ -6,9 +6,33 @@
 
 최신 `origin/main`에서 새 작업 브랜치를 만들고 GitHub Issue #N을 단일 작업지시서로 사용합니다. Issue 범위만 구현하고 필요한 테스트를 실행한 뒤 Draft PR까지 생성합니다. Ready for review, merge, Production 배포는 하지 않습니다.
 
+시작 전에는 `PROJECT_CHARTER.md`와 관련 기획·공개 기준을 확인하고 아래 순서로 안전 점검합니다.
+
+```bash
+git fetch origin
+gh issue view <issue-number>
+git status --short --branch
+# 출력이 비어 있지 않으면 변경을 정리하고 중단한다.
+git diff --quiet && git diff --cached --quiet
+git switch -c <type>/issue-<issue-number>-<short-name> origin/main
+```
+
+working tree가 clean하지 않으면 새 브랜치를 만들거나 기존 변경을 새 작업에 포함하지 않습니다.
+
 ## 템플릿 0-1: PR 수정
 
 PR #N의 최신 리뷰·지시를 반영합니다. 기존 작업 브랜치와 같은 PR에 push하며, Issue #M 범위를 벗어나지 않습니다. 수정 후 필요한 테스트만 실행합니다.
+
+수정 전에는 아래 순서로 해당 PR 브랜치에 명시적으로 전환하고 확인합니다.
+
+```bash
+gh pr checkout <pr-number>
+gh pr view <pr-number> --json headRefName,baseRefName,isDraft
+git status --short --branch
+git branch --show-current
+```
+
+현재 브랜치가 `main`이거나 PR의 `headRefName`과 다르면 commit·push하지 않고 중단합니다.
 
 ## 템플릿 0-2: 독립 검수
 
