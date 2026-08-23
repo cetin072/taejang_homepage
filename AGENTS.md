@@ -34,6 +34,15 @@
 - 변경 후 검토 가능한 설명과 테스트 결과를 남기고 PR로 `main` 반영을 요청합니다.
 - PR 검토와 사용자 승인이 끝나기 전에는 `main` 병합, 운영 배포, Netlify 설정 변경을 하지 않습니다.
 
+## 공통 AI 개발 운영
+
+- GitHub Issue가 있는 작업은 Issue의 요구사항과 완료 조건을 구현 작업의 source of truth로 사용합니다. 태장 전용 프로젝트 헌장, 기획 기록과 공개 기준은 계속 우선 적용합니다.
+- 작업 시작 전 `git fetch origin`, 최신 `origin/main`, working tree 상태를 확인합니다. clean working tree에서 최신 `origin/main`을 기준으로 Issue 전용 브랜치를 만듭니다.
+- 필요한 테스트와 문서 링크·경로 검증을 수행하고, 완료한 변경은 commit과 push 후 Draft PR로 제안합니다.
+- Draft PR은 독립 검수 → 수정 → 재검증 루프를 거칩니다. 사용자 승인 전에는 Ready for review 전환, `main` 병합, Production 배포를 하지 않습니다.
+- 다른 PC로 이동하기 전에는 최소 commit과 push를 남기고, 가능하면 Draft PR까지 만들어 작업 맥락과 검증 결과를 GitHub에 남깁니다.
+- 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
+
 ## 수정·보안 원칙
 
 - 요청 범위 밖의 파일은 수정하지 않습니다.

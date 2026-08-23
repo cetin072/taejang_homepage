@@ -42,6 +42,12 @@
 5. 사용자 승인 전에는 Ready for review로 전환하거나 merge하지 않습니다.
 6. Production 배포와 Netlify 운영 설정 변경을 하지 않습니다.
 
+## 공통 AI 운영 절차
+
+- 시작 전에는 `PROJECT_CHARTER.md`, 관련 `docs/planning/` 문서도 확인하고 `git fetch origin`, 최신 `origin/main`, working tree 상태를 점검합니다. clean working tree에서만 최신 `origin/main` 기준 Issue 전용 브랜치를 만듭니다.
+- 필요한 테스트와 문서 링크·경로 검증을 수행합니다. 구현 문맥과 분리된 검수자가 PR을 검토하면, 지적사항을 같은 PR 브랜치에서 수정하고 필요한 검증을 다시 실행합니다.
+- 사무실·집·노트북 등 다른 PC로 이동하기 전에는 최소 commit과 push를 남깁니다. 가능하면 Draft PR까지 만들어 Issue, 브랜치, 커밋, 검증 결과를 GitHub의 공유 상태로 남깁니다. 미커밋 변경은 해당 PC에만 존재하는 상태이므로 장기간 고립시키지 않습니다.
+
 ## 완료 보고 형식
 
 - PR 번호와 주소
