@@ -11,13 +11,14 @@
 ```bash
 git fetch origin
 gh issue view <issue-number>
-git status --short --branch
-# 출력이 비어 있지 않으면 변경을 정리하고 중단한다.
-git diff --quiet && git diff --cached --quiet
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Working tree is not clean; stop before creating a branch." >&2
+  exit 1
+fi
 git switch -c <type>/issue-<issue-number>-<short-name> origin/main
 ```
 
-working tree가 clean하지 않으면 새 브랜치를 만들거나 기존 변경을 새 작업에 포함하지 않습니다.
+`git status --porcelain`이 한 줄이라도 출력되면 tracked 또는 untracked 변경이 있는 것이므로 새 브랜치를 만들거나 기존 변경을 새 작업에 포함하지 않습니다.
 
 ## 템플릿 0-1: PR 수정
 
