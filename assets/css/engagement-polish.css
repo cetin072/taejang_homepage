@@ -225,11 +225,6 @@
 }
 }
 
-.business-status--available{
-  background:var(--green-deep);
-  color:#fff;
-}
-
 .about-at-a-glance{
   padding-top:56px;
   padding-bottom:56px;
@@ -664,8 +659,7 @@
 .lead { font-size: 18px; }
 
 .card p,
-.business-feature-body p,
-.business-supports p { font-size: 16px; }
+.business-card-body p { font-size: 16px; }
 
 .desktop-nav a { font-size: 15px; }
 .btn { font-size: 15px; }

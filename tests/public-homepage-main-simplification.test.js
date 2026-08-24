@@ -113,7 +113,7 @@ for (const id of ['about', 'business', 'contact']) assert.match(index, new RegEx
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
 assert.match(index, /태장은 창원 진전면의 농업 기반에서 출발한 농업회사법인입니다\. 이 기반 위에서 근로자의 강점과 작업 특성에 맞는 직무를 만들며 민화·문화 굿즈와 테라리움 제조상품 개발, 포장·검수, 지역사회공헌 활동 등으로 사업 영역을 넓혀가고 있습니다\./);
-assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
+assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
 assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*제품 개발 진행 중[\s\S]*테라리움 제조사업[\s\S]*표준 DIY 키트를 개발/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
