@@ -94,7 +94,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assertSafeBlankTargets(filename, html);
 }
 
-assert.equal(robots.trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml', 'robots.txt는 기존 크롤링 정책과 공식 sitemap 주소를 유지합니다');
+assert.equal(robots.replace(/\r\n?/g, '\n').trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml', 'robots.txt는 기존 크롤링 정책과 공식 sitemap 주소를 유지합니다');
 assert.doesNotMatch(sitemap, /taejang-homepage\.netlify\.app/, '공개 sitemap에 Netlify 기본 주소를 남기지 않습니다');
 for (const url of Object.values(canonicalUrls)) assert.match(sitemap, new RegExp(`<loc>${escapeRegExp(url)}</loc>`), `sitemap은 ${url}을 포함합니다`);
 
