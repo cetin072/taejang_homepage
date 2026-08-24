@@ -1,0 +1,171 @@
+/* Issue #48: compact visual hierarchy for public information pages */
+.story-chapter--visual {
+  grid-template-columns: 76px minmax(0, 1fr);
+}
+
+.minhwa-photo-feature {
+  margin: 0 0 24px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--green-soft);
+}
+
+.minhwa-photo-feature img {
+  width: 100%;
+  aspect-ratio: 16 / 8;
+  object-fit: cover;
+  object-position: center 52%;
+}
+
+.minhwa-photo-feature figcaption {
+  padding: 14px 17px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.minhwa-diagram,
+.minhwa-products,
+.minhwa-flow {
+  margin-top: 24px;
+}
+
+.minhwa-diagram {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  background: var(--line);
+  gap: 1px;
+}
+
+.minhwa-diagram div {
+  position: relative;
+  min-height: 112px;
+  padding: 18px 14px;
+  background: #fff;
+}
+
+.minhwa-diagram div:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -10px;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+  font-size: 12px;
+}
+
+.minhwa-diagram span,
+.minhwa-products span,
+.minhwa-flow li {
+  color: var(--green-deep);
+  font-weight: 800;
+}
+
+.minhwa-diagram small {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.minhwa-products {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.minhwa-products span {
+  display: grid;
+  min-height: 70px;
+  place-items: center;
+  padding: 12px 8px;
+}
+
+.minhwa-flow li {
+  display: grid;
+  min-height: 76px;
+  place-items: center;
+  padding: 14px 10px;
+}
+
+.minhwa-result {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(220px, 1.1fr);
+  gap: 20px;
+  align-items: center;
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.minhwa-result img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.minhwa-result p { margin: 0 !important; }
+
+.location-guide {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(280px, 1.1fr);
+  gap: clamp(28px, 6vw, 70px);
+  align-items: stretch;
+}
+
+.location-details {
+  padding: clamp(26px, 4vw, 42px);
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.location-details h2 { margin: 0 0 28px; color: var(--green-deep); font: 700 clamp(25px, 3vw, 34px)/1.45 var(--myeongjo); }
+.location-details dl { margin: 0; }
+.location-details div { padding: 15px 0; border-top: 1px solid var(--line); }
+.location-details dt { color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+.location-details dd { margin: 4px 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.8; word-break: keep-all; }
+.location-details .btn { margin-top: 27px; }
+
+.location-route {
+  display: grid;
+  align-content: center;
+  padding: clamp(26px, 5vw, 52px);
+  background: var(--green-deep);
+  color: #fff;
+}
+
+.location-route .eyebrow { color: #c8dfd0; }
+.location-route h2 { margin: 0 0 28px; font: 700 clamp(24px, 3vw, 34px)/1.45 var(--myeongjo); }
+.location-route ol { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; counter-reset: location-route; }
+.location-route li { counter-increment: location-route; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid rgba(255,255,255,.25); font-weight: 700; }
+.location-route li::before { content: counter(location-route, decimal-leading-zero); color: #a8c8b5; font: 700 18px var(--myeongjo); }
+.location-route li:last-child { border-bottom: 1px solid rgba(255,255,255,.25); }
+.location-route p { margin: 23px 0 0; color: rgba(255,255,255,.74); font-size: 13px; }
+
+.about-principle-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.about-principle-strip li { padding: 14px 16px; color: var(--green-deep); font: 700 14px/1.55 var(--myeongjo); }
+.about-principle-strip li + li { border-left: 1px solid var(--line); }
+
+.about-at-a-glance .glance-grid { margin-top: 30px; }
+.about-at-a-glance .glance-grid > div { min-height: 154px; }
+.about-page-hero .photo-slot { box-shadow: var(--shadow); }
+
+.community-collaboration-scope dd { display: flex; flex-wrap: wrap; gap: 7px; }
+.scope-tag { display: inline-flex; align-items: center; padding: 4px 8px; border: 1px solid #c7d8cc; color: var(--green-deep); font-size: 13px; line-height: 1.35; }
+.scope-tag--current { border-color: var(--green); background: var(--green); color: #fff; font-weight: 800; }
+
+@media (max-width: 760px) {
+  .minhwa-diagram, .minhwa-products, .about-principle-strip { grid-template-columns: 1fr; }
+  .minhwa-diagram div:not(:last-child)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
+  .minhwa-products span + span, .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
+  .minhwa-result, .location-guide { grid-template-columns: 1fr; }
+  .minhwa-flow { grid-template-columns: 1fr 1fr; }
+}

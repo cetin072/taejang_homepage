@@ -154,7 +154,8 @@ assert.doesNotMatch(index, /태장 공식 채널|channel-strip|channel-links/, '
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
-assert.match(index, /태장은 창원 진전면의 농업 기반에서 출발한 농업회사법인입니다\. 이 기반 위에서 근로자의 강점과 작업 특성에 맞는 직무를 만들며 민화·문화 굿즈와 테라리움 제조상품 개발, 포장·검수, 지역사회공헌 활동 등으로 사업 영역을 넓혀가고 있습니다\./);
+assert.match(index, /태장은 창원 진전면의 농업 기반에서 출발해, 사람에게 맞는 직무를 사업으로 이어갑니다\./);
+assert.match(index, /class="about-principle-strip"[\s\S]*농업 기반[\s\S]*사람에게 맞는 직무[\s\S]*사업으로 이어지는 일/);
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
 assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*제품 개발 진행 중[\s\S]*테라리움 제조사업[\s\S]*표준 DIY 키트를 개발/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
@@ -217,11 +218,13 @@ assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 
 assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
 assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟|창원 진전면의 과수원에서 시작했습니다/);
-assert.equal((minhwa.match(/class="story-chapter"/g) || []).length, 5);
+assert.equal((minhwa.match(/class="story-chapter(?:\s|" )/g) || []).length, 5);
 for (const heading of ['사람에게 맞는 일에서 시작했습니다', '농업의 이야기가 그림이 됩니다', '그림은 제품이 됩니다', '하나의 제품 안에 여러 일이 있습니다', '이미 시작된 일입니다']) assert.match(minhwa, new RegExp(heading));
 assert.match(minhwa, /민화 작업을 적용한 보석함 약 130개를 실제로 제작했습니다/);
-assert.match(minhwa, /class="minhwa-flow"[\s\S]*농업·자연[\s\S]*민화 도안[\s\S]*제품[\s\S]*체험·문화/);
+assert.match(minhwa, /assets\/images\/workplace\/minhwa-work-process\.webp/);
+assert.match(minhwa, /class="minhwa-diagram"[\s\S]*농업·자연[\s\S]*민화 도안[\s\S]*제품[\s\S]*체험·문화/);
 assert.match(minhwa, /class="minhwa-products"[\s\S]*보석함[\s\S]*카드[\s\S]*달력[\s\S]*농산물 포장[\s\S]*기업 굿즈/);
+assert.match(minhwa, /class="minhwa-flow minhwa-flow--work"[\s\S]*재료 준비[\s\S]*도안 전사·채색[\s\S]*조립·마감[\s\S]*검수·포장/);
 assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
 
 assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 민화·문화 굿즈, 포장·검수, 환경정비 등 다양한 직무를 운영합니다\./);
@@ -237,8 +240,8 @@ assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).lengt
 assert.match(partnership, /id="environment-service"/);
 assert.match(partnership, /지역사회공헌·ESG 협력/);
 assert.match(partnership, /SOCIAL CONTRIBUTION &amp; ESG/);
-assert.match(partnership, /현재는 지역 환경정비 활동을 중심으로 시작했으며, 앞으로 복지시설 연계 활동, 소방·경찰 등 공공기관과 연계한 캠페인, 문화·체험 활동 등 다양한 사회공헌 협력을 검토하고 있습니다\./);
-assert.match(partnership, /현재 활동[\s\S]*지역 환경정비[\s\S]*확장 방향[\s\S]*노인·아동복지시설 및 주간보호시설 연계 활동/);
+assert.match(partnership, /현재는 지역 환경정비 활동을 중심으로 시작했으며, 지역에 필요한 다음 협력 방향을 검토합니다\./);
+assert.match(partnership, /현재 활동[\s\S]*지역 환경정비[\s\S]*확장 방향[\s\S]*복지시설[\s\S]*공공기관 캠페인[\s\S]*지역문화·체험[\s\S]*기업 ESG 프로그램/);
 assert.match(partnership, /현재 환경정비 활동 운영 과정/);
 assert.match(partnership, /사전 협의[\s\S]*현장 준비[\s\S]*수행·기록/);
 assert.equal((partnership.match(/class="service-step"/g) || []).length, 3);
