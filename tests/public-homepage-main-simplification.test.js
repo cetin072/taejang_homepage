@@ -42,14 +42,14 @@ const robots = read('robots.txt');
 const photoFolderGuide = read('images/homepage/README.md');
 
 const canonicalUrls = {
-  'index.html': 'https://taejang-homepage.netlify.app/',
-  'about.html': 'https://taejang-homepage.netlify.app/about.html',
-  'greeting.html': 'https://taejang-homepage.netlify.app/greeting.html',
-  'why-minhwa.html': 'https://taejang-homepage.netlify.app/why-minhwa.html',
-  'workplace.html': 'https://taejang-homepage.netlify.app/workplace.html',
-  'activities.html': 'https://taejang-homepage.netlify.app/activities.html',
-  'archive.html': 'https://taejang-homepage.netlify.app/archive.html',
-  'partnership.html': 'https://taejang-homepage.netlify.app/partnership.html'
+  'index.html': 'https://taejang.co.kr/',
+  'about.html': 'https://taejang.co.kr/about.html',
+  'greeting.html': 'https://taejang.co.kr/greeting.html',
+  'why-minhwa.html': 'https://taejang.co.kr/why-minhwa.html',
+  'workplace.html': 'https://taejang.co.kr/workplace.html',
+  'activities.html': 'https://taejang.co.kr/activities.html',
+  'archive.html': 'https://taejang.co.kr/archive.html',
+  'partnership.html': 'https://taejang.co.kr/partnership.html'
 };
 
 function escapeRegExp(value) {
@@ -70,6 +70,8 @@ function assertSafeBlankTargets(filename, html) {
 for (const [filename, html] of Object.entries(pages)) {
   assert.match(html, /<meta name="description" content="[^"]+">/, `${filename} 검색 설명을 제공합니다`);
   assert.match(html, new RegExp(`<link rel="canonical" href="${escapeRegExp(canonicalUrls[filename])}">`), `${filename} canonical 주소를 제공합니다`);
+  assert.match(html, new RegExp(`<meta property="og:url" content="${escapeRegExp(canonicalUrls[filename])}">`), `${filename} Open Graph URL은 공식 canonical 주소를 사용합니다`);
+  assert.doesNotMatch(html, /taejang-homepage\.netlify\.app/, `${filename} 공개 SEO 메타에 Netlify 기본 주소를 남기지 않습니다`);
   for (const property of ['og:title', 'og:description', 'og:url', 'og:image', 'og:image:secure_url', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt']) {
     assert.match(html, new RegExp(`<meta property="${property}" content="[^"]+">`), `${filename} ${property} 정보를 제공합니다`);
   }
@@ -91,6 +93,10 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.match(html, /협력·문의/, `${filename} 공개 메뉴는 협력·문의 단일 진입점을 사용합니다`);
   assertSafeBlankTargets(filename, html);
 }
+
+assert.equal(robots.trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml', 'robots.txt는 기존 크롤링 정책과 공식 sitemap 주소를 유지합니다');
+assert.doesNotMatch(sitemap, /taejang-homepage\.netlify\.app/, '공개 sitemap에 Netlify 기본 주소를 남기지 않습니다');
+for (const url of Object.values(canonicalUrls)) assert.match(sitemap, new RegExp(`<loc>${escapeRegExp(url)}</loc>`), `sitemap은 ${url}을 포함합니다`);
 
 assert.match(photoSlots, /const PHOTO_REVIEW_MODE = false;/, '공개 모드에서는 PHOTO 검수 번호를 표시하지 않습니다');
 assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp" alt="농업회사법인 태장 주식회사 대표이사 이영희"/, '대표 인사말에는 승인된 대표 사진을 사용합니다');
@@ -268,7 +274,7 @@ for (const excluded of ['resources.html', 'privacy.html', 'terms.html', 'thanks.
 for (const filename of Object.keys(pages).slice(1)) assert.match(sitemap, new RegExp(escapeRegExp(filename)));
 assert.match(robots, /^User-agent: \*$/m);
 assert.match(robots, /^Allow: \/$/m);
-assert.match(robots, /^Sitemap: https:\/\/taejang-homepage\.netlify\.app\/sitemap\.xml$/m);
+assert.match(robots, /^Sitemap: https:\/\/taejang\.co\.kr\/sitemap\.xml$/m);
 
 for (const [filename, html] of Object.entries(pages).concat([['privacy.html', privacy], ['terms.html', terms], ['thanks.html', thanks], ['404.html', notFound]])) {
   for (const match of html.matchAll(/href="([^"]+)"/g)) {
