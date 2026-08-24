@@ -19,6 +19,10 @@ const pages = {
   'archive.html': read('archive.html'),
   'partnership.html': read('partnership.html')
 };
+const issue46Pages = {
+  'business.html': read('business.html'),
+  'location.html': read('location.html')
+};
 const resources = read('resources.html');
 const privacy = read('privacy.html');
 const terms = read('terms.html');
@@ -49,7 +53,9 @@ const canonicalUrls = {
   'workplace.html': 'https://taejang.co.kr/workplace.html',
   'activities.html': 'https://taejang.co.kr/activities.html',
   'archive.html': 'https://taejang.co.kr/archive.html',
-  'partnership.html': 'https://taejang.co.kr/partnership.html'
+  'partnership.html': 'https://taejang.co.kr/partnership.html',
+  'business.html': 'https://taejang.co.kr/business.html',
+  'location.html': 'https://taejang.co.kr/location.html'
 };
 
 function escapeRegExp(value) {
@@ -94,6 +100,35 @@ for (const [filename, html] of Object.entries(pages)) {
   assertSafeBlankTargets(filename, html);
 }
 
+for (const [filename, html] of Object.entries(issue46Pages)) {
+  assert.match(html, new RegExp(`<link rel="canonical" href="${escapeRegExp(canonicalUrls[filename])}">`), `${filename} canonical 주소를 제공합니다`);
+  assert.match(html, new RegExp(`<meta property="og:url" content="${escapeRegExp(canonicalUrls[filename])}">`), `${filename} Open Graph URL은 공식 canonical 주소를 사용합니다`);
+  for (const property of ['og:title', 'og:description', 'og:url', 'og:image', 'og:image:secure_url', 'og:image:type', 'og:image:width', 'og:image:height', 'og:image:alt']) {
+    assert.match(html, new RegExp(`<meta property="${property}" content="[^"]+">`), `${filename} ${property} 정보를 제공합니다`);
+  }
+  for (const name of ['twitter:card', 'twitter:title', 'twitter:description', 'twitter:image']) {
+    assert.match(html, new RegExp(`<meta name="${name}" content="[^"]+">`), `${filename} ${name} 정보를 제공합니다`);
+  }
+}
+
+const breadcrumbNames = {
+  'about.html': '태장 소개',
+  'business.html': '하는 일',
+  'greeting.html': '대표 인사말',
+  'why-minhwa.html': '왜 민화인가',
+  'workplace.html': '우리의 일터',
+  'activities.html': '활동 기록',
+  'archive.html': '소식·기록',
+  'partnership.html': '협력·문의',
+  'location.html': '오시는 길'
+};
+for (const [filename, name] of Object.entries(breadcrumbNames)) {
+  const breadcrumb = issue46Pages[filename] || pages[filename];
+  assert.match(breadcrumb, /<script type="application\/ld\+json">/, `${filename}은 정적 Breadcrumb JSON-LD를 제공합니다`);
+  assert.match(breadcrumb, new RegExp(`"@type":"BreadcrumbList"[\\s\\S]*?"name":"${escapeRegExp(name)}"[\\s\\S]*?"item":"${escapeRegExp(canonicalUrls[filename])}"`), `${filename} Breadcrumb은 실제 canonical URL을 사용합니다`);
+}
+assert.doesNotMatch(site, /breadcrumbNames|data-breadcrumb-jsonld/, 'Breadcrumb JSON-LD를 런타임으로 주입하지 않습니다');
+
 assert.equal(robots.replace(/\r\n?/g, '\n').trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml', 'robots.txt는 기존 크롤링 정책과 공식 sitemap 주소를 유지합니다');
 assert.doesNotMatch(sitemap, /taejang-homepage\.netlify\.app/, '공개 sitemap에 Netlify 기본 주소를 남기지 않습니다');
 for (const url of Object.values(canonicalUrls)) assert.match(sitemap, new RegExp(`<loc>${escapeRegExp(url)}</loc>`), `sitemap은 ${url}을 포함합니다`);
@@ -114,7 +149,8 @@ const workplace = pages['workplace.html'];
 const archive = pages['archive.html'];
 const partnership = pages['partnership.html'];
 
-assert.equal((index.match(/<section\b/g) || []).length, 8, '메인은 기존 7개 흐름과 공식 채널 안내를 포함합니다');
+assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 기존 7개 흐름을 유지합니다');
+assert.match(index, /data-recent-activities[\s\S]*?태장 공식 채널[\s\S]*?태장 공식 유튜브[\s\S]*?태장 공식 블로그/, '공식 채널은 활동 기록 흐름 안에서 안내합니다');
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);

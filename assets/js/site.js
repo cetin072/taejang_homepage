@@ -222,12 +222,4 @@
   const year = document.querySelector('[data-current-year]');
   if (year) year.textContent = new Date().getFullYear();
 
-  const breadcrumbNames = { 'about.html': '태장 소개', 'greeting.html': '대표 인사말', 'why-minhwa.html': '왜 민화인가', 'workplace.html': '우리의 일터', 'activities.html': '활동 기록', 'archive.html': '소식·기록', 'partnership.html': '협력·문의', 'business.html': '하는 일', 'location.html': '오시는 길' };
-  const page = location.pathname.split('/').pop() || 'index.html';
-  if (breadcrumbNames[page] && !document.querySelector('[data-breadcrumb-jsonld]')) {
-    const script = document.createElement('script');
-    script.type = 'application/ld+json'; script.dataset.breadcrumbJsonld = '';
-    script.textContent = JSON.stringify({ '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: '홈', item: 'https://taejang.co.kr/' }, { '@type': 'ListItem', position: 2, name: breadcrumbNames[page], item: `https://taejang.co.kr/${page}` }] });
-    document.head.append(script);
-  }
 }());
