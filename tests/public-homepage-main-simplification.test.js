@@ -150,7 +150,7 @@ const archive = pages['archive.html'];
 const partnership = pages['partnership.html'];
 
 assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 기존 7개 흐름을 유지합니다');
-assert.match(index, /data-recent-activities[\s\S]*?태장 공식 채널[\s\S]*?태장 공식 유튜브[\s\S]*?태장 공식 블로그/, '공식 채널은 활동 기록 흐름 안에서 안내합니다');
+assert.doesNotMatch(index, /태장 공식 채널|channel-strip|channel-links/, '메인 본문에는 공식 채널 별도 블록을 두지 않습니다');
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
@@ -160,13 +160,15 @@ assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*�
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
-assert.match(index, /기업 업무와 고용 연계, 지역사회공헌·ESG 협력, 지역·문화 활동 등 다양한 협력 방식을 함께 검토합니다\./);
+assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
+assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
+assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>[\s\S]*?전화, 이메일, 오시는 길 확인 또는 문의 폼으로 편하게 연락해 주세요\./, '문의 영역은 실제 연락 수단과 폼에 집중합니다');
 assert.equal((index.match(/지속 가능한/g) || []).length, 2, 'Hero 제목과 회사 정의 보조문구에서만 사용합니다');
 assert.match(index, /2026\.07[\s\S]*2025\.06[\s\S]*2023/);
 assert.match(index, /소식·기록 전체 보기/);
 assert.match(index, /<h2 class="title" id="recent-activities-title">활동 기록<\/h2>/);
 assert.match(index, /ACTIVITY RECORDS/);
-assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION & CONTACT'), '활동 기록을 협력·문의보다 먼저 보여줍니다');
+assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION'), '활동 기록을 협력 안내보다 먼저 보여줍니다');
 assert.match(index, /지역사회공헌·ESG 협력/);
 assert.match(index, /기업·기관과 함께 지역사회에 필요한 활동을 기획하고 운영합니다\. 현재는 지역 환경정비 활동을 중심으로 시작하고 있습니다\./);
 assert.match(index, /href="partnership\.html#environment-service">사회공헌 협력 안내/);
@@ -175,6 +177,8 @@ assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"
 assert.match(polish, /\.recent-activities-archive-cta\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?margin-top:\s*36px/);
 assert.match(index, /<strong>taejang2025@naver\.com<\/strong>/);
 assert.doesNotMatch(index, /info@taejang\.co\.kr/);
+assert.match(site, /\['location\.html', '오시는 길'\]/, '공통 footer 바로가기에 오시는 길을 유지합니다');
+assert.match(site, /FOOTER_CHANNEL_LINKS[\s\S]*?youtube\.com\/@taejangofficial[\s\S]*?blog\.naver\.com\/taejang-official/, '공통 footer는 검증된 공식 채널만 제공합니다');
 assert.match(index, /external-content\.js[\s\S]*content-hub\.js[\s\S]*home-previews\.js[\s\S]*photo-slots\.js[\s\S]*hero-video\.js[\s\S]*site\.js/);
 assert.doesNotMatch(index, /data-photo-slot="01"/);
 assert.match(index, /data-youtube-video="FbEOcteBSJ4"/);

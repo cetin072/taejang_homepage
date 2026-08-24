@@ -57,7 +57,9 @@ for (const filename of publicPages) {
 const index = read('index.html');
 assert.match(index, /href="partnership\.html#environment-service">사회공헌 협력 안내/);
 assert.doesNotMatch(index, /href="activities\.html">태장의 활동 보기/);
-assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION & CONTACT'));
+assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION'));
+assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?협력 방식 자세히 보기/);
+assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>/);
 assert.match(index, /name="taejang-inquiry"/);
 assert.match(index, /지역사회공헌·ESG 협력/);
 
