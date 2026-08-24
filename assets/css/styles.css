@@ -306,7 +306,7 @@ button{cursor:pointer}
 
 /* Footer */
 .footer{background:var(--green-deep);color:rgba(255,255,255,.68);padding:58px 0 30px;font-size:13px}
-.footer-top{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:36px;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.14)}
+.footer-top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:36px;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.14)}
 .footer img{height:54px;width:auto;margin-bottom:16px}
 .footer h3{font:700 15px var(--myeongjo);color:#fff;margin:0 0 13px}
 .footer a,.footer p{display:block;margin:7px 0}
@@ -600,6 +600,12 @@ button{cursor:pointer}
 .partnership-types{display:grid;gap:10px;margin:0;padding:0;list-style:none}
 .partnership-types li{position:relative;padding-left:16px;color:var(--green-deep);font:700 17px var(--myeongjo)}
 .partnership-types li::before{content:"";position:absolute;left:0;top:.8em;width:6px;height:1px;background:var(--green)}
+.partnership-overview{padding:56px 0}
+.partnership-overview .section-head{margin-bottom:24px}
+.partnership-overview .partnership-types{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.partnership-overview .partnership-types li{padding:16px 18px;border-right:1px solid var(--line);font-size:15px}
+.partnership-overview .partnership-types li:last-child{border-right:0}
+.partnership-overview-cta{margin-top:24px}
 .partnership-process{margin:26px 0;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--ink-soft);font-size:14px;word-spacing:4px}
 .partnership-process span{color:var(--green);font-weight:800}
 .recent-activities-grid .card{border-radius:0}
@@ -652,7 +658,7 @@ button{cursor:pointer}
   .hero-facts div + div{border-top:1px solid rgba(255,255,255,.28);border-left:0}
   .hero-facts strong{font-size:12px}
   .hero-facts span{margin-top:3px;font-size:11px;line-height:1.6}
-  .about-keywords,.business-cards,.business-preparing,.workplace-layout,.partnership-simple,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
+  .about-keywords,.business-cards,.business-preparing,.workplace-layout,.partnership-simple,.partnership-overview .partnership-types,.about-page-hero-layout,.about-name-layout,.greeting--about,.value-grid,.history-layout{grid-template-columns:1fr}
   .business-development-card{grid-template-columns:1fr}
   .business-development-card img{max-height:240px}
   .section-head--simple .lead{padding:0}
@@ -663,6 +669,8 @@ button{cursor:pointer}
   .workplace-principles div{display:grid;grid-template-columns:35px minmax(0,1fr);gap:10px;padding:12px 0}
   .workplace-principles span{margin:0}
   .partnership-process{line-height:2;word-spacing:2px}
+  .partnership-overview .partnership-types li{border-right:0;border-bottom:1px solid var(--line)}
+  .partnership-overview .partnership-types li:last-child{border-bottom:0}
   .about-page-hero{padding:56px 0}
   .neutral-image--about-hero{aspect-ratio:16/8}
   .name-grid--detailed{grid-template-columns:1fr}

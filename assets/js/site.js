@@ -24,17 +24,22 @@
   const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
   const PUBLIC_NAV_LINKS = [
     ['about.html', '태장 소개'],
-    ['index.html#business', '하는 일'],
+    ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의', 'nav-cta']
   ];
   const FOOTER_LINKS = [
     ['about.html', '태장 소개'],
-    ['index.html#business', '하는 일'],
+    ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·문의']
+    ['partnership.html', '협력·문의'],
+    ['location.html', '오시는 길']
+  ];
+  const FOOTER_CHANNEL_LINKS = [
+    ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
+    ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
   ];
 
   function getSeoulDateKey(date) {
@@ -124,6 +129,28 @@
       if (emailLink) {
         emailLink.href = `mailto:${PUBLIC_EMAIL}`;
         emailLink.textContent = PUBLIC_EMAIL;
+      }
+
+      const footerTop = footer.querySelector('.footer-top');
+      if (footerTop) {
+        let channels = footerTop.querySelector('[data-footer-official-channels]');
+        if (!channels) {
+          channels = document.createElement('div');
+          channels.dataset.footerOfficialChannels = '';
+          footerTop.appendChild(channels);
+        }
+        channels.replaceChildren();
+        const heading = document.createElement('h3');
+        heading.textContent = '공식 채널';
+        channels.appendChild(heading);
+        FOOTER_CHANNEL_LINKS.forEach(([href, label]) => {
+          const link = document.createElement('a');
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = label;
+          channels.appendChild(link);
+        });
       }
     });
   }
@@ -221,4 +248,5 @@
 
   const year = document.querySelector('[data-current-year]');
   if (year) year.textContent = new Date().getFullYear();
+
 }());
