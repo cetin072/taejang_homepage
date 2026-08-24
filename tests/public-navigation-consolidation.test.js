@@ -39,7 +39,7 @@ for (const filename of publicPages) {
   );
   assert.match(
     html,
-    /<a href="(?:index\.html)?#business">하는 일<\/a>/,
+    /<a href="(?:business\.html|(?:index\.html)?#business)">하는 일<\/a>/,
     `${filename} 사업 메뉴는 쉬운 명칭인 하는 일을 사용합니다`
   );
   assert.match(

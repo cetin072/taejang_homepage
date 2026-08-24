@@ -114,7 +114,7 @@ const workplace = pages['workplace.html'];
 const archive = pages['archive.html'];
 const partnership = pages['partnership.html'];
 
-assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 7개 섹션으로 구성되어야 합니다');
+assert.equal((index.match(/<section\b/g) || []).length, 8, '메인은 기존 7개 흐름과 공식 채널 안내를 포함합니다');
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
@@ -299,7 +299,7 @@ assert.equal((site.match(/\['archive\.html', '소식·기록'\]/g) || []).length
 assert.equal((site.match(/\['partnership\.html', '협력·문의'/g) || []).length, 2);
 assert.match(styles, /:focus-visible\{outline:3px solid var\(--green-deep\);outline-offset:3px\}/);
 assert.match(site, /\['about\.html', '태장 소개'\]/);
-assert.match(site, /\['index\.html#business', '하는 일'\]/);
+assert.match(site, /\['business\.html', '하는 일'\]/);
 assert.match(site, /assets\/css\/site-polish\.css/, '공통 보정 stylesheet를 동적으로 로드합니다');
 assert.match(site, /assets\/css\/engagement-polish\.css/);
 assert.doesNotMatch(site, /data-hero-slider|hero-slide|photo-slots\.css/);
