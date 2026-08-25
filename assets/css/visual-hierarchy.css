@@ -106,11 +106,28 @@
   background: #fff;
 }
 
-.minhwa-result img {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+.minhwa-result-graphic {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid #c7d8cc;
+  background: #c7d8cc;
 }
+
+.minhwa-result-graphic span {
+  display: grid;
+  min-height: 106px;
+  place-items: center;
+  padding: 14px;
+  background: #eef5f0;
+  color: var(--green-deep);
+  font-weight: 800;
+  text-align: center;
+}
+
+.minhwa-result-graphic span:nth-child(2),
+.minhwa-result-graphic span:nth-child(3) { background: #fff; }
 
 .minhwa-result p { margin: 0 !important; }
 
@@ -168,4 +185,5 @@
   .minhwa-products span + span, .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
   .minhwa-result, .location-guide { grid-template-columns: 1fr; }
   .minhwa-flow { grid-template-columns: 1fr 1fr; }
+  .minhwa-result-graphic span { min-height: 82px; }
 }

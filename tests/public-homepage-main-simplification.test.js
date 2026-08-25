@@ -220,11 +220,15 @@ assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
 assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟|창원 진전면의 과수원에서 시작했습니다/);
 assert.equal((minhwa.match(/class="story-chapter(?:\s|" )/g) || []).length, 5);
 for (const heading of ['사람에게 맞는 일에서 시작했습니다', '농업의 이야기가 그림이 됩니다', '그림은 제품이 됩니다', '하나의 제품 안에 여러 일이 있습니다', '이미 시작된 일입니다']) assert.match(minhwa, new RegExp(heading));
-assert.match(minhwa, /민화 작업을 적용한 보석함 약 130개를 실제로 제작했습니다/);
+assert.match(minhwa, /민화 작업을 적용한 제품 제작과 전달 과정을 경험했습니다/);
+assert.match(minhwa, /민화는 계획만이 아니라 실제 작업과 제품으로 이어지고 있습니다/);
+assert.doesNotMatch(minhwa, /약 130개|packing-inspection\.webp/);
 assert.match(minhwa, /assets\/images\/workplace\/minhwa-work-process\.webp/);
+assert.match(minhwa, /민화의 소재가 될 수 있습니다[\s\S]*제품과 문화 콘텐츠로 이어가는 방향을 생각하고 있습니다/);
 assert.match(minhwa, /class="minhwa-diagram"[\s\S]*농업·자연[\s\S]*민화 도안[\s\S]*제품[\s\S]*체험·문화/);
 assert.match(minhwa, /class="minhwa-products"[\s\S]*보석함[\s\S]*카드[\s\S]*달력[\s\S]*농산물 포장[\s\S]*기업 굿즈/);
 assert.match(minhwa, /class="minhwa-flow minhwa-flow--work"[\s\S]*재료 준비[\s\S]*도안 전사·채색[\s\S]*조립·마감[\s\S]*검수·포장/);
+assert.match(minhwa, /class="minhwa-result-graphic"[\s\S]*민화 도안[\s\S]*제품 제작[\s\S]*검수·포장[\s\S]*전달/);
 assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
 
 assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 민화·문화 굿즈, 포장·검수, 환경정비 등 다양한 직무를 운영합니다\./);
