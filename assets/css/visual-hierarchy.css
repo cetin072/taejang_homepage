@@ -175,6 +175,32 @@
 .about-at-a-glance .glance-grid > div { min-height: 154px; }
 .about-page-hero .photo-slot { box-shadow: var(--shadow); }
 
+.business-workflow {
+  margin-top: 30px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--green-soft);
+}
+
+.business-workflow-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.business-workflow-head h3 { margin: 5px 0 0; color: var(--green-deep); font: 700 22px/1.45 var(--myeongjo); }
+.business-workflow-head p { max-width: 390px; margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
+.business-workflow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 22px 0 0; padding: 1px; list-style: none; background: #c7d8cc; }
+.business-workflow-steps li { position: relative; min-height: 110px; padding: 18px 16px; background: #fff; }
+.business-workflow-steps li:not(:last-child)::after { content: '→'; position: absolute; z-index: 1; top: 50%; right: -10px; display: grid; width: 20px; height: 20px; place-items: center; transform: translateY(-50%); border-radius: 50%; background: var(--green); color: #fff; font-size: 12px; }
+.business-workflow-steps span { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
+.business-workflow-steps strong { color: var(--green-deep); font: 700 18px/1.45 var(--myeongjo); }
+
+.value-grid--visual article { position: relative; min-height: 232px; overflow: hidden; padding: 36px 32px; }
+.value-grid--visual article::after { position: absolute; right: 24px; bottom: -34px; width: 118px; height: 118px; border: 1px solid #c7d8cc; border-radius: 50%; content: ''; }
+.value-grid--visual article:nth-child(2) { background: #f5f8f4; }
+.value-grid--visual article:nth-child(2)::after { right: 28px; bottom: 27px; width: 88px; height: 2px; border: 0; border-top: 1px solid #b4cab9; box-shadow: 0 16px 0 #b4cab9, 0 32px 0 #b4cab9; }
+.value-grid--visual article:nth-child(3)::after { width: 102px; height: 102px; border-radius: 0; transform: rotate(45deg); }
+.value-grid--visual article > * { position: relative; z-index: 1; }
+.value-grid--visual > article > span { color: var(--green); font-size: 42px; line-height: 1; }
+.value-grid--visual h3 { max-width: 220px; margin: 18px 0 10px; }
+.value-grid--visual p { max-width: 240px; }
+
 .community-collaboration-scope dd { display: flex; flex-wrap: wrap; gap: 7px; }
 .scope-tag { display: inline-flex; align-items: center; padding: 4px 8px; border: 1px solid #c7d8cc; color: var(--green-deep); font-size: 13px; line-height: 1.35; }
 .scope-tag--current { border-color: var(--green); background: var(--green); color: #fff; font-weight: 800; }
@@ -186,4 +212,10 @@
   .minhwa-result, .location-guide { grid-template-columns: 1fr; }
   .minhwa-flow { grid-template-columns: 1fr 1fr; }
   .minhwa-result-graphic span { min-height: 82px; }
+  .business-workflow-head { display: block; }
+  .business-workflow-head p { margin-top: 10px; }
+  .business-workflow-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-workflow-steps li:nth-child(2)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
+  .business-workflow-steps li:nth-child(1)::after, .business-workflow-steps li:nth-child(3)::after { display: none; }
+  .value-grid--visual article { min-height: 196px; }
 }
