@@ -131,37 +131,24 @@
 
 .minhwa-result p { margin: 0 !important; }
 
-.location-guide {
-  display: grid;
-  grid-template-columns: minmax(0, .9fr) minmax(280px, 1.1fr);
-  gap: clamp(28px, 6vw, 70px);
-  align-items: stretch;
-}
-
-.location-details {
-  padding: clamp(26px, 4vw, 42px);
-  border: 1px solid var(--line);
-  background: #fff;
-}
-
-.location-details h2 { margin: 0 0 28px; color: var(--green-deep); font: 700 clamp(25px, 3vw, 34px)/1.45 var(--myeongjo); }
-.location-details dl { margin: 0; }
-.location-details div { padding: 15px 0; border-top: 1px solid var(--line); }
-.location-details dt { color: var(--green); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
-.location-details dd { margin: 4px 0 0; color: var(--ink-soft); font-size: 16px; line-height: 1.8; word-break: keep-all; }
-.location-details .btn { margin-top: 27px; }
-
-.location-visit-panel { padding: clamp(30px, 5vw, 54px); background: #f5f7f2; border: 1px solid var(--line); }
-.location-visit-panel .eyebrow { color: var(--green); }
+.location-guide { max-width: 920px; }
+.location-visit-card { padding: clamp(34px, 6vw, 64px); background: #f5f7f2; border: 1px solid var(--line); }
+.location-visit-card .eyebrow { color: var(--green); }
 .location-pin-icon { display: block; position: relative; width: 30px; height: 30px; margin: 23px 0 18px; border-radius: 50% 50% 50% 0; background: var(--green); transform: rotate(-45deg); }
 .location-pin-icon::after { content: ""; position: absolute; top: 9px; left: 9px; width: 12px; height: 12px; border-radius: 50%; background: #f5f7f2; }
-.location-visit-panel h2 { margin: 0 0 22px; color: var(--green-deep); font: 700 clamp(25px, 3vw, 34px)/1.45 var(--myeongjo); }
+.location-visit-card h2 { margin: 0 0 22px; color: var(--green-deep); font: 700 clamp(25px, 3vw, 34px)/1.45 var(--myeongjo); }
 .location-address-main { margin: 0; padding: 24px 0; border-top: 1px solid #cbd7cc; border-bottom: 1px solid #cbd7cc; color: var(--green-deep); font: 700 clamp(20px, 2.4vw, 27px)/1.55 var(--myeongjo); word-break: keep-all; }
 .location-visit-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 22px 0 25px; }
 .location-visit-details div { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .location-visit-details dt { margin-bottom: 5px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
 .location-visit-details dd { margin: 0; color: var(--ink); font-size: 14px; font-weight: 700; }
 .location-visit-note { margin: 16px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
+
+.inquiry-scope { margin-top: 20px; padding: 22px; border: 1px solid var(--line); background: #f5f7f2; }
+.inquiry-scope h3 { margin: 0; color: var(--green-deep); font: 700 18px/1.5 var(--myeongjo); }
+.inquiry-scope ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0; padding: 0; list-style: none; }
+.inquiry-scope li { padding: 9px 10px; border: 1px solid #c7d8cc; background: #fff; color: var(--green-deep); font-size: 13px; font-weight: 700; line-height: 1.45; }
+.inquiry-scope p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
 
 .about-principle-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .about-principle-strip li { padding: 14px 16px; color: var(--green-deep); font: 700 14px/1.55 var(--myeongjo); }
@@ -206,7 +193,7 @@
   .minhwa-diagram, .minhwa-products, .about-principle-strip { grid-template-columns: 1fr; }
   .minhwa-diagram div:not(:last-child)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
   .minhwa-products span + span, .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
-  .minhwa-result, .location-guide { grid-template-columns: 1fr; }
+  .minhwa-result { grid-template-columns: 1fr; }
   .minhwa-flow { grid-template-columns: 1fr 1fr; }
   .minhwa-result-graphic span { min-height: 82px; }
   .business-workflow-head { display: block; }
@@ -217,4 +204,5 @@
   .value-grid--visual article { min-height: 196px; }
   .greeting--about .photo-slot--4-5 { aspect-ratio: 4 / 5; }
   .greeting--about .photo-slot--4-5 { width: min(100%, 300px); justify-self: center; }
+  .location-visit-details, .inquiry-scope ul { grid-template-columns: 1fr; }
 }
