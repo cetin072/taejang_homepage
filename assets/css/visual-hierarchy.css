@@ -171,7 +171,7 @@
 .location-map-pin { fill: #f1c66b; filter: drop-shadow(0 4px 5px rgba(0,0,0,.2)); }
 .location-map-area { fill: rgba(255,255,255,.78); font: 700 18px var(--gothic); letter-spacing: .04em; }
 .location-map-area--sub { fill: rgba(255,255,255,.6); font-size: 14px; }
-.location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); }
+.location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); paint-order: stroke; stroke: #e4eee7; stroke-width: 4px; stroke-linejoin: round; }
 .location-map-road-label--minor { fill: #dceee2; font-size: 15px; }
 .location-map-building-label { fill: #fff; font: 700 15px var(--gothic); }
 .location-map-taejang { fill: #f1c66b; font: 800 18px var(--myeongjo); }
