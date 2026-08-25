@@ -19,6 +19,11 @@
   display: none;
 }
 
+/* Keep public placeholder copy out of the first paint before photo-slots.js sets the page mode. */
+html:not(.photo-review-mode) [data-photo-slot] > :not(img) {
+  display: none;
+}
+
 .photo-slot--hero.photo-slot--has-image::before {
   position: absolute;
   inset: 0;

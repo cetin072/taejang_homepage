@@ -209,6 +209,8 @@ assert.doesNotMatch(terms, /info@taejang\.co\.kr/);
 
 for (const slot of ['02', '03', '04', '05', '06']) assert.match(index, new RegExp(`data-photo-slot="${slot}"`));
 for (const slot of ['07', '08']) assert.match(about, new RegExp(`data-photo-slot="${slot}"`));
+assert.match(about, /data-photo-slot="07"[\s\S]*?<img src="images\/homepage\/photo-07\.webp"[^>]*loading="eager"[^>]*fetchpriority="high"/);
+assert.match(read('assets/css/photo-mode.css'), /html:not\(\.photo-review-mode\) \[data-photo-slot\] > :not\(img\)/);
 assert.match(about, /태장 한눈에 보기/);
 assert.equal((about.match(/class="glance-grid"/g) || []).length, 1);
 assert.equal((about.match(/<div><strong>/g) || []).length, 4, '태장 한눈에 보기는 확정한 4칸만 표시합니다');
