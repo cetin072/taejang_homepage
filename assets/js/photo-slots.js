@@ -68,8 +68,7 @@
       enabled: true,
       alt: '농업회사법인 태장 주식회사 대표이사 이영희',
       objectPosition: '50% 42%',
-      mobileObjectPosition: '50% 38%',
-      priority: true
+      mobileObjectPosition: '50% 38%'
     }
   };
 
@@ -94,6 +93,15 @@
     slot.style.setProperty('--photo-position-mobile', config.mobileObjectPosition || config.objectPosition || 'center center');
 
     if (!config.enabled) return;
+
+    const existingImage = slot.querySelector(':scope > img');
+    if (existingImage) {
+      slot.classList.add('photo-slot--has-image');
+      slot.dataset.photoState = 'ready';
+      slot.removeAttribute('role');
+      slot.removeAttribute('aria-label');
+      return;
+    }
 
     const image = document.createElement('img');
     image.alt = config.alt;
