@@ -274,7 +274,6 @@ button{cursor:pointer}
 .location-intro .lead{max-width:520px}
 .location-address{margin:22px 0 0;color:var(--ink-soft);font-size:15px;line-height:1.8}
 .location-actions{margin-top:26px}
-.location-map{height:350px}
 
 /* Timeline */
 .timeline{border-left:2px solid var(--line);padding-left:32px;margin-top:36px}
@@ -404,7 +403,6 @@ button{cursor:pointer}
   .article-body .article-representative-media{max-height:none;aspect-ratio:16/9}
   .related-posts{margin-top:38px;padding-top:24px}
   .related-posts > h2{font-size:22px}
-  .location-map{height:300px}
   .footer-top{grid-template-columns:1fr}
   .page-hero-actions,.b2b-cta-panel,.b2b-contact-panel{align-items:stretch;flex-direction:column}
   .page-hero-actions .btn,.b2b-cta-panel .btn{width:100%}
