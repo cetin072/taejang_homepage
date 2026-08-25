@@ -73,6 +73,8 @@
   gap: 18px;
 }
 
+.story-side--static { position: static; }
+
 .story-photo {
   display: flex;
   min-height: 260px;
