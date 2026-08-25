@@ -101,6 +101,8 @@
   background: var(--green-soft);
 }
 
+.story-photo--portrait { aspect-ratio: 3 / 4; }
+
 .story-photo--image img {
   display: block;
   width: 100%;

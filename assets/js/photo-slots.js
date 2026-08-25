@@ -94,6 +94,15 @@
 
     if (!config.enabled) return;
 
+    const existingImage = slot.querySelector(':scope > img');
+    if (existingImage) {
+      slot.classList.add('photo-slot--has-image');
+      slot.dataset.photoState = 'ready';
+      slot.removeAttribute('role');
+      slot.removeAttribute('aria-label');
+      return;
+    }
+
     const image = document.createElement('img');
     image.alt = config.alt;
     image.decoding = 'async';
