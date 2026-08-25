@@ -163,28 +163,32 @@
 .location-route h2 { margin: 0 0 24px; font: 700 clamp(24px, 3vw, 34px)/1.45 var(--myeongjo); }
 .location-map-graphic { margin: 0; }
 .location-map-graphic svg { display: block; width: 100%; height: auto; overflow: visible; }
-.location-map-road { fill: none; stroke: rgba(225, 239, 229, .34); stroke-width: 14; stroke-linecap: round; }
-.location-map-road--major { stroke: #c8dfd0; stroke-width: 22; }
-.location-map-road--connector { stroke-width: 9; }
-.location-map-block { fill: rgba(255,255,255,.08); stroke: rgba(225,239,229,.28); }
+.location-map-district { fill: rgba(255,255,255,.045); fill-rule: evenodd; }
+.location-map-road { fill: none; stroke: rgba(225, 239, 229, .38); stroke-width: 12; stroke-linecap: square; }
+.location-map-road--major { stroke: #d7e9dd; stroke-width: 26; }
+.location-map-road--cross { stroke-width: 17; }
+.location-map-road--local { stroke-width: 11; }
+.location-map-junction { fill: var(--green-deep); stroke: #d7e9dd; stroke-width: 5; }
 .location-map-building { fill: rgba(255,255,255,.14); stroke: #c8dfd0; stroke-width: 2; }
 .location-map-pin { fill: #f1c66b; filter: drop-shadow(0 4px 5px rgba(0,0,0,.2)); }
 .location-map-area { fill: rgba(255,255,255,.78); font: 700 18px var(--gothic); letter-spacing: .04em; }
 .location-map-area--sub { fill: rgba(255,255,255,.6); font-size: 14px; }
-.location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); paint-order: stroke; stroke: #e4eee7; stroke-width: 4px; stroke-linejoin: round; }
+.location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); text-anchor: middle; paint-order: stroke; stroke: #e4eee7; stroke-width: 4px; stroke-linejoin: round; }
 .location-map-road-label--minor { fill: #dceee2; font-size: 15px; }
 .location-map-building-label { fill: #fff; font: 700 15px var(--gothic); }
 .location-map-taejang { fill: #f1c66b; font: 800 18px var(--myeongjo); }
-.location-map-terminal { fill: rgba(255,255,255,.15); stroke: #c8dfd0; stroke-width: 2; }
-.location-map-terminal-mark, .location-map-tunnel { fill: none; stroke: #f1c66b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.location-map-landmark rect { fill: rgba(255,255,255,.1); stroke: #c8dfd0; stroke-width: 2; }
+.location-map-landmark path, .location-map-tunnel path { fill: none; stroke: #f1c66b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .location-map-landmark-label { fill: rgba(255,255,255,.78); font: 700 13px var(--gothic); }
 .location-map-graphic figcaption { margin-top: 15px; color: rgba(255,255,255,.74); font-size: 13px; line-height: 1.7; }
 
 .contact-location-map { margin: 20px 0 0; padding: 20px; background: var(--green-deep); color: #fff; }
 .contact-location-map svg { display: block; width: 100%; height: auto; overflow: visible; }
 .contact-location-map .location-map-area { font-size: 14px; }
-.contact-location-map .location-map-road { stroke-width: 11px; }
-.contact-location-map .location-map-road--major { stroke-width: 18px; }
+.contact-location-map .location-map-road { stroke-width: 9px; }
+.contact-location-map .location-map-road--major { stroke-width: 20px; }
+.contact-location-map .location-map-road--cross { stroke-width: 13px; }
+.contact-location-map .location-map-road--local { stroke-width: 8px; }
 .contact-location-map .location-map-road-label { font-size: 13px; }
 .contact-location-map .location-map-road-label--minor { font-size: 12px; }
 .contact-location-map .location-map-building-label, .contact-location-map .location-map-landmark-label { font-size: 11px; }
