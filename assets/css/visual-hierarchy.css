@@ -176,6 +176,7 @@
 .location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); text-anchor: middle; paint-order: stroke; stroke: #e4eee7; stroke-width: 4px; stroke-linejoin: round; }
 .location-map-road-label--minor { fill: #dceee2; font-size: 15px; }
 .location-map-building-label { fill: #fff; font: 700 15px var(--gothic); }
+.location-map-graphic .location-map-building-label { transform: translateY(-20px); }
 .location-map-taejang { fill: #f1c66b; font: 800 18px var(--myeongjo); }
 .location-map-landmark rect { fill: rgba(255,255,255,.1); stroke: #c8dfd0; stroke-width: 2; }
 .location-map-landmark path, .location-map-tunnel path { fill: none; stroke: #f1c66b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
@@ -192,6 +193,7 @@
 .contact-location-map .location-map-road-label { font-size: 13px; }
 .contact-location-map .location-map-road-label--minor { font-size: 12px; }
 .contact-location-map .location-map-building-label, .contact-location-map .location-map-landmark-label { font-size: 11px; }
+.contact-location-map .location-map-building-label { display: none; }
 .contact-location-map .location-map-taejang { font-size: 15px; }
 .contact-location-map .location-map-pin { filter: drop-shadow(0 3px 4px rgba(0,0,0,.2)); }
 .contact-location-map figcaption { margin-top: 12px; color: rgba(255,255,255,.74); font-size: 12px; line-height: 1.65; }
