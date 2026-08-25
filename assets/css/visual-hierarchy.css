@@ -149,6 +149,8 @@
 .inquiry-scope ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 16px 0; padding: 0; list-style: none; }
 .inquiry-scope li { padding: 9px 10px; border: 1px solid #c7d8cc; background: #fff; color: var(--green-deep); font-size: 13px; font-weight: 700; line-height: 1.45; }
 .inquiry-scope p { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.7; }
+.contact-action--location > span:nth-of-type(2) { display: block; }
+.contact-action--location .contact-action-link { display: block; margin-top: 10px; color: var(--green); font-size: 13px; font-weight: 800; }
 
 .about-principle-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .about-principle-strip li { padding: 14px 16px; color: var(--green-deep); font: 700 14px/1.55 var(--myeongjo); }
