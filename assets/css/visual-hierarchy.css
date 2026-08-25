@@ -165,14 +165,32 @@
 .location-map-graphic svg { display: block; width: 100%; height: auto; overflow: visible; }
 .location-map-road { fill: none; stroke: rgba(225, 239, 229, .34); stroke-width: 14; stroke-linecap: round; }
 .location-map-road--major { stroke: #c8dfd0; stroke-width: 22; }
+.location-map-road--connector { stroke-width: 9; }
 .location-map-block { fill: rgba(255,255,255,.08); stroke: rgba(225,239,229,.28); }
 .location-map-building { fill: rgba(255,255,255,.14); stroke: #c8dfd0; stroke-width: 2; }
 .location-map-pin { fill: #f1c66b; filter: drop-shadow(0 4px 5px rgba(0,0,0,.2)); }
 .location-map-area { fill: rgba(255,255,255,.78); font: 700 18px var(--gothic); letter-spacing: .04em; }
+.location-map-area--sub { fill: rgba(255,255,255,.6); font-size: 14px; }
 .location-map-road-label { fill: var(--green-deep); font: 800 17px var(--gothic); }
+.location-map-road-label--minor { fill: #dceee2; font-size: 15px; }
 .location-map-building-label { fill: #fff; font: 700 15px var(--gothic); }
 .location-map-taejang { fill: #f1c66b; font: 800 18px var(--myeongjo); }
+.location-map-terminal { fill: rgba(255,255,255,.15); stroke: #c8dfd0; stroke-width: 2; }
+.location-map-terminal-mark, .location-map-tunnel { fill: none; stroke: #f1c66b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.location-map-landmark-label { fill: rgba(255,255,255,.78); font: 700 13px var(--gothic); }
 .location-map-graphic figcaption { margin-top: 15px; color: rgba(255,255,255,.74); font-size: 13px; line-height: 1.7; }
+
+.contact-location-map { margin: 20px 0 0; padding: 20px; background: var(--green-deep); color: #fff; }
+.contact-location-map svg { display: block; width: 100%; height: auto; overflow: visible; }
+.contact-location-map .location-map-area { font-size: 14px; }
+.contact-location-map .location-map-road { stroke-width: 11px; }
+.contact-location-map .location-map-road--major { stroke-width: 18px; }
+.contact-location-map .location-map-road-label { font-size: 13px; }
+.contact-location-map .location-map-road-label--minor { font-size: 12px; }
+.contact-location-map .location-map-building-label, .contact-location-map .location-map-landmark-label { font-size: 11px; }
+.contact-location-map .location-map-taejang { font-size: 15px; }
+.contact-location-map .location-map-pin { filter: drop-shadow(0 3px 4px rgba(0,0,0,.2)); }
+.contact-location-map figcaption { margin-top: 12px; color: rgba(255,255,255,.74); font-size: 12px; line-height: 1.65; }
 
 .about-principle-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .about-principle-strip li { padding: 14px 16px; color: var(--green-deep); font: 700 14px/1.55 var(--myeongjo); }
