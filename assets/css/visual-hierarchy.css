@@ -218,4 +218,5 @@
   .business-workflow-steps li:nth-child(2)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
   .business-workflow-steps li:nth-child(1)::after, .business-workflow-steps li:nth-child(3)::after { display: none; }
   .value-grid--visual article { min-height: 196px; }
+  .greeting--about .photo-slot--4-5 { aspect-ratio: 4 / 5; }
 }
