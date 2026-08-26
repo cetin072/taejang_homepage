@@ -18,7 +18,7 @@ assert.equal((business.match(/<article class="business-card">/g) || []).length, 
 assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\s\S]*?<h3>([^<]+)<\/h3>/g), match => match[1]), ['민화·문화 굿즈', '지역사회공헌·ESG 협력', '기업 업무 협력']);
 assert.equal((business.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 3, '현재 운영 카드의 상태를 운영 중으로 통일합니다');
 assert.doesNotMatch(business, /기업·기관 협력 가능/, '협력 가능 여부를 상태 배지로 사용하지 않습니다');
-assert.match(business, /assets\/images\/workplace\/packing-inspection\.webp/, '기업 업무 협력에 기존 공개 업무 사진을 재사용합니다');
+assert.match(business, /assets\/images\/workplace\/packing-tape\.webp/, '기업 업무 협력 카드에 포장 테이프 작업 사진을 사용합니다');
 assert.match(workplace, /assets\/images\/workplace\/packing-inspection\.webp/, '재사용한 업무 사진은 기존 workplace 페이지에서도 사용 중입니다');
 assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOTO 02와 03만 유지하고 새 슬롯을 추가하지 않습니다');
 assert.match(business, /BUSINESS IN DEVELOPMENT[\s\S]*?개발 중인 사업[\s\S]*?제품 개발 진행 중[\s\S]*?테라리움 제조사업/);
