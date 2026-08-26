@@ -149,6 +149,7 @@ const workplace = pages['workplace.html'];
 const archive = pages['archive.html'];
 const partnership = pages['partnership.html'];
 const business = issue46Pages['business.html'];
+const location = issue46Pages['location.html'];
 
 assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 기존 7개 흐름을 유지합니다');
 assert.doesNotMatch(index, /태장 공식 채널|channel-strip|channel-links/, '메인 본문에는 공식 채널 별도 블록을 두지 않습니다');
@@ -162,6 +163,12 @@ assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*�
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(business, /class="business-workflow"[\s\S]*사업이 업무가 되는 방식[\s\S]*협의[\s\S]*작업 설계[\s\S]*수행[\s\S]*확인/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
+assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*055-293-8626[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
+assert.match(location, /location-pin-icon/);
+assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
+assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
+assert.doesNotMatch(partnership, /contact-location-map|<svg/);
+assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
 assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
@@ -209,6 +216,8 @@ assert.doesNotMatch(terms, /info@taejang\.co\.kr/);
 
 for (const slot of ['02', '03', '04', '05', '06']) assert.match(index, new RegExp(`data-photo-slot="${slot}"`));
 for (const slot of ['07', '08']) assert.match(about, new RegExp(`data-photo-slot="${slot}"`));
+assert.match(about, /data-photo-slot="07"[\s\S]*?<img src="images\/homepage\/photo-07\.webp"[^>]*loading="eager"[^>]*fetchpriority="high"/);
+assert.match(read('assets/css/photo-mode.css'), /html:not\(\.photo-review-mode\) \[data-photo-slot\] > :not\(img\)/);
 assert.match(about, /태장 한눈에 보기/);
 assert.equal((about.match(/class="glance-grid"/g) || []).length, 1);
 assert.equal((about.match(/<div><strong>/g) || []).length, 4, '태장 한눈에 보기는 확정한 4칸만 표시합니다');
@@ -219,6 +228,9 @@ assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 개 기업이
 assert.match(about, /사업과 직무<\/strong><span>민화·문화 굿즈와 포장·검수, 지역사회공헌 활동을 운영하며 테라리움 제조상품을 개발하고 있습니다\./);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
+assert.match(about, /images\/homepage\/photo-08-about-preview\.webp/);
+assert.match(greeting, /class="story-side story-side--static"[\s\S]*images\/homepage\/photo-08\.webp/);
+assert.match(read('assets/css/story-pages.css'), /\.story-side--static \{ position: static; \}/);
 
 assert.match(greeting, /사람을 숫자로만 보지 않겠습니다/);
 assert.doesNotMatch(greeting, /21명|18명|스물한 명|열여덟|창원 진전면의 과수원에서 시작했습니다/);
