@@ -244,8 +244,8 @@ assert.match(minhwa, /민화는 계획만이 아니라 실제 작업과 제품�
 assert.doesNotMatch(minhwa, /약 130개|packing-inspection\.webp/);
 assert.match(minhwa, /assets\/images\/workplace\/minhwa-work-process\.webp/);
 assert.match(minhwa, /민화의 소재가 될 수 있습니다[\s\S]*제품과 문화 콘텐츠로 이어가는 방향을 생각하고 있습니다/);
-assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-story-flow\.png[\s\S]*농업과 자연의 소재가 민화 작업을 거쳐 제품과 체험·문화로 이어지는 수채화 일러스트/);
-assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-product-expansion\.png[\s\S]*하나의 민화 도안이 보석함, 카드, 달력, 농산물 포장, 기업 굿즈로 확장되는 수채화 일러스트/);
+assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-story-flow\.webp[\s\S]*농업과 자연의 소재가 민화 작업을 거쳐 제품과 체험·문화로 이어지는 수채화 일러스트/);
+assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-product-expansion\.webp[\s\S]*하나의 민화 도안이 보석함, 카드, 달력, 농산물 포장, 기업 굿즈로 확장되는 수채화 일러스트/);
 assert.match(minhwa, /class="minhwa-flow minhwa-flow--work"[\s\S]*재료 준비[\s\S]*도안 전사·채색[\s\S]*조립·마감[\s\S]*검수·포장/);
 assert.match(minhwa, /class="minhwa-result-graphic"[\s\S]*민화 도안[\s\S]*제품 제작[\s\S]*검수·포장[\s\S]*전달/);
 assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
