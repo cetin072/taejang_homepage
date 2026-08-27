@@ -23,69 +23,21 @@
   font-size: 13px;
 }
 
-.minhwa-diagram,
-.minhwa-products,
+.minhwa-illustration,
 .minhwa-flow {
   margin-top: 24px;
 }
 
-.minhwa-diagram {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.minhwa-illustration {
+  overflow: hidden;
   border: 1px solid var(--line);
-  background: var(--line);
-  gap: 1px;
 }
 
-.minhwa-diagram div {
-  position: relative;
-  min-height: 112px;
-  padding: 18px 14px;
-  background: #fff;
-}
-
-.minhwa-diagram div:not(:last-child)::after {
-  content: '→';
-  position: absolute;
-  right: -10px;
-  top: 50%;
-  z-index: 1;
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  transform: translateY(-50%);
-  border-radius: 50%;
-  background: var(--green);
-  color: #fff;
-  font-size: 12px;
-}
-
-.minhwa-diagram span,
-.minhwa-products span,
-.minhwa-flow li {
-  color: var(--green-deep);
-  font-weight: 800;
-}
-
-.minhwa-diagram small {
+.minhwa-illustration img {
   display: block;
-  margin-bottom: 7px;
-  color: var(--green);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .08em;
-}
-
-.minhwa-products {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.minhwa-products span {
-  display: grid;
-  min-height: 70px;
-  place-items: center;
-  padding: 12px 8px;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
 }
 
 .minhwa-flow li {
@@ -192,9 +144,8 @@
 .scope-tag--current { border-color: var(--green); background: var(--green); color: #fff; font-weight: 800; }
 
 @media (max-width: 760px) {
-  .minhwa-diagram, .minhwa-products, .about-principle-strip { grid-template-columns: 1fr; }
-  .minhwa-diagram div:not(:last-child)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
-  .minhwa-products span + span, .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
+  .about-principle-strip { grid-template-columns: 1fr; }
+  .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
   .minhwa-result { grid-template-columns: 1fr; }
   .minhwa-flow { grid-template-columns: 1fr 1fr; }
   .minhwa-result-graphic span { min-height: 82px; }
