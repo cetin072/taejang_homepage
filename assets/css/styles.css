@@ -575,7 +575,6 @@ button{cursor:pointer}
 .business-card-media{width:100%;border-width:0 0 1px;border-radius:0}
 .business-card-media--image{position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--green-soft)}
 .business-card-media--image img{display:block;width:100%;height:100%;object-fit:cover;object-position:50% 58%}
-.business-card-media--summary{display:grid;aspect-ratio:4/3;place-items:center;background:linear-gradient(135deg,#e8f0e8,#d5e4d8);color:var(--green-deep);font:800 22px/1.35 var(--myeongjo);letter-spacing:.08em;text-align:center}
 .business-card-body{display:flex;min-height:250px;flex:1;flex-direction:column;padding:27px 28px 30px}
 .business-card h3{margin:13px 0 9px;color:var(--green-deep);font:700 23px/1.5 var(--myeongjo)}
 .business-card p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.8}
