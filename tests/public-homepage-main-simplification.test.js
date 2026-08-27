@@ -161,7 +161,10 @@ assert.match(index, /class="about-principle-strip"[\s\S]*농업 기반[\s\S]*사
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
 assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*제품 개발 진행 중[\s\S]*테라리움 제조사업[\s\S]*표준 DIY 키트를 개발/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
-assert.match(business, /class="business-workflow"[\s\S]*사업이 업무가 되는 방식[\s\S]*협의[\s\S]*작업 설계[\s\S]*수행[\s\S]*확인/);
+assert.match(business, /class="business-workflow"[\s\S]*협력은 이렇게 함께 정리합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*방식 설계[\s\S]*운영 확인/);
+assert.match(business, /기업·기관이 함께 만들 수 있는 현재 사업과 협력 가능 업무를 소개합니다\./);
+assert.match(workplace, /직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
+assert.match(workplace, /직무를 이해하고<br>함께 익히는 방식/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
 assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*055-293-8626[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
 assert.match(location, /location-pin-icon/);
@@ -247,7 +250,7 @@ assert.match(minhwa, /class="minhwa-flow minhwa-flow--work"[\s\S]*재료 준비[
 assert.match(minhwa, /class="minhwa-result-graphic"[\s\S]*민화 도안[\s\S]*제품 제작[\s\S]*검수·포장[\s\S]*전달/);
 assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
 
-assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 민화·문화 굿즈, 포장·검수, 환경정비 등 다양한 직무를 운영합니다\./);
+assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
 assert.match(workplace, /class="workplace-work-gallery"[\s\S]*민화·문화 굿즈[\s\S]*포장·검수[\s\S]*작업 공간과 현장 업무/);
 assert.equal((workplace.match(/class="workplace-principle-list"/g) || []).length, 1);
 assert.equal((workplace.match(/<li><span>0[1-3]<\/span>/g) || []).length, 3);
