@@ -138,7 +138,7 @@ assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp
 assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
-assert.match(pages['partnership.html'], /<h2>기업 협력·고용 연계<\/h2><p>장애인 고용과 실제 업무를 연결할 기업·기관과 다양한 협력 방식을 검토합니다\.<\/p>/, '협력 카드는 신규 주주 모집처럼 보이지 않게 안내합니다');
+assert.match(pages['partnership.html'], /<h2>기업 협력·고용 연계<\/h2><p>기업·기관과 실제 업무와 협력 방식을 함께 검토합니다\.<\/p>/, '협력 카드는 협력 분야 입구로 간결하게 안내합니다');
 assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
@@ -279,6 +279,12 @@ assert.match(partnership, /채용·근무 문의/);
 assert.match(partnership, /<option>지역사회공헌·ESG 협력<\/option>/);
 assert.match(partnership, /mailto:taejang2025@naver\.com/);
 assert.match(partnership, /기업 업무·건별 프로젝트/);
+assert.equal((partnership.match(/class="faq-item"/g) || []).length, 6, '협력 FAQ는 6개 질문을 제공합니다');
+assert.equal((partnership.match(/data-faq-button aria-expanded="false"/g) || []).length, 6, 'FAQ 질문은 처음에 모두 접힌 상태입니다');
+assert.match(partnership, /환경정비 등 지역사회 활동을 기업·기관과 함께 검토합니다\.[\s\S]*href="#environment-service"/);
+assert.ok(partnership.indexOf('id="environment-service"') < partnership.indexOf('faq-section'), 'FAQ는 ESG 상세 뒤에 배치합니다');
+assert.ok(partnership.indexOf('faq-section') < partnership.indexOf('id="contact"'), 'FAQ는 문의 영역 앞에 배치합니다');
+assert.match(site, /querySelectorAll\('\[data-faq-button\]'\)[\s\S]*setAttribute\('aria-expanded', 'false'\)[\s\S]*setAttribute\('aria-expanded', 'true'\)/, '기존 FAQ 아코디언 동작을 재사용합니다');
 for (const image of [
   'partnership-parent-company-ai.webp',
   'partnership-project-ai.webp',
