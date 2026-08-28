@@ -143,11 +143,9 @@
 .scope-tag { display: inline-flex; align-items: center; padding: 4px 8px; border: 1px solid #c7d8cc; color: var(--green-deep); font-size: 13px; line-height: 1.35; }
 .scope-tag--current { border-color: var(--green); background: var(--green); color: #fff; font-weight: 800; }
 
-.illustration-slot { box-sizing: border-box; display: grid; gap: 7px; max-width: 100%; margin: 24px 0; padding: 17px 20px; border: 1px solid #c7d8cc; border-radius: 14px; background: #fbf8ef; }
-.illustration-slot-head { display: flex; align-items: center; gap: 8px; color: #71846f; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
-.illustration-slot-badge { display: grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 50%; background: #dce8d9; color: var(--green-deep); font-size: 12px; letter-spacing: 0; }
-.illustration-slot p { margin: 0; color: var(--green-deep); font: 700 clamp(15px, 1.8vw, 18px)/1.55 var(--myeongjo); overflow-wrap: anywhere; word-break: keep-all; }
-.illustration-slot small { color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
+.illustration-slot--image { max-width: 100%; margin: 24px 0; overflow: hidden; border: 1px solid var(--line); background: #fbf8ef; }
+.illustration-slot--image img { display: block; width: 100%; max-width: 100%; height: auto; }
+.illustration-slot--image figcaption { padding: 14px 17px; color: var(--ink-soft); font-size: 13px; line-height: 1.65; }
 
 @media (max-width: 760px) {
   .about-principle-strip { grid-template-columns: 1fr; }
