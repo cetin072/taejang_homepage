@@ -157,7 +157,7 @@ for (const id of ['about', 'business', 'contact']) assert.match(index, new RegEx
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
 assert.match(index, /태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다\./);
 assert.match(index, /태장은 사람에게 맞는 직무를 만들고, 민화·문화 굿즈와 기업 업무, 지역사회 활동으로 이어지는 사업을 운영합니다\./);
-assert.match(index, /class="about-principle-strip"[\s\S]*민화·문화 굿즈[\s\S]*기업 업무 협력[\s\S]*지역사회 활동/);
+assert.match(index, /class="about-principle-strip"[\s\S]*사람에게 맞는 직무[\s\S]*오래 이어지는 일[\s\S]*기업·지역사회와 협력/);
 assert.match(index, /<a class="btn hero-primary" href="about\.html"/, 'Hero의 회사 소개 CTA는 상세 소개 페이지로 연결합니다');
 assert.match(index, /<a class="btn hero-secondary" href="partnership\.html"/, 'Hero의 협력 CTA는 협력 상세 페이지로 연결합니다');
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
@@ -174,7 +174,8 @@ assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
 assert.doesNotMatch(partnership, /contact-location-map|<svg/);
 assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
-assert.match(partnership, /id="subsidiary-standard-title">자회사형 장애인 표준사업장이란[\s\S]*?고용률 산정 등에 반영하는 제도입니다\.[\s\S]*?공동출자형은 출자 구조와 법령상 요건에 따라 참여기업별 반영 방식이 달라질 수 있습니다\./, '자회사형 제도는 조건부 고용률 산정 구조를 설명합니다');
+assert.match(partnership, /id="subsidiary-standard-title">자회사형 장애인 표준사업장이란[\s\S]*?실질적으로 지배하거나, 둘 이상의 사업주가 출자하는 등 법령상 요건을 갖춘 경우[\s\S]*?출자 비율과 지배 구조, 그 밖의 법령상 요건에 따라 달라질 수 있습니다\./, '자회사형 제도는 실질 지배와 공동출자 구조를 함께 설명합니다');
+assert.match(partnership, /둘 이상의 사업주가 출자한 경우에는 출자 비율과 실질적 지배 여부 등에 따라 참여기업별 반영 인원이 달라질 수 있습니다\.[\s\S]*?장애인 의무고용률과 고용부담금 산정에 영향을 줄 수 있으며, 실제 효과는 기업별 의무고용 현황과 출자 구조 등에 따라 달라집니다\./, '제도 효과는 공동출자 구조와 기업별 조건에 따라 달라짐을 안내합니다');
 assert.match(partnership, /자회사형 참여 검토 흐름[\s\S]*?문의[\s\S]*?제도·조건 확인[\s\S]*?출자·협약 검토[\s\S]*?운영 구조 확인/, '자회사형 참여 절차를 일반 사업협력과 구분해 안내합니다');
 assert.match(partnership, /https:\/\/www\.kead\.or\.kr\/spdstndsyst\/cntntsPage\.do\?menuId=MEN/, '자회사형 제도는 한국장애인고용공단 공식 안내로 연결합니다');
 assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효과|리스크를 태장이 모두 부담/, '제도 설명에 과장된 영업 문구를 사용하지 않습니다');
@@ -187,7 +188,7 @@ assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
 assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>[\s\S]*?전화, 이메일, 오시는 길 확인 또는 문의 폼으로 편하게 연락해 주세요\./, '문의 영역은 실제 연락 수단과 폼에 집중합니다');
 assert.equal((index.match(/지속 가능한/g) || []).length, 2, 'Hero 제목과 회사 정의 보조문구에서만 사용합니다');
-assert.match(index, /2026\.08[\s\S]*신규 사업장 개소[\s\S]*2026\.07[\s\S]*장애인 표준사업장 인증 · 경남형 동행일자리 제1호[\s\S]*2025\.06[\s\S]*법인 설립/);
+assert.match(index, /2026\.08[\s\S]*신규 사업장 개소[\s\S]*2026\.07[\s\S]*자회사형 장애인 표준사업장 인증[\s\S]*2025\.06[\s\S]*법인 설립/);
 assert.match(index, /id="inquiry-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '홈 문의 폼은 필수 입력 안내를 제공합니다');
 assert.match(index, /소식·기록 전체 보기/);
 assert.match(index, /<h2 class="title" id="recent-activities-title">활동 기록<\/h2>/);
