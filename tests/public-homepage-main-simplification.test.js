@@ -271,6 +271,7 @@ for (const [imagePath, alt] of [
   assert.equal(imageBytes.subarray(8, 12).toString('ascii'), 'WEBP');
   assert.match(workplace, new RegExp(`src="${imagePath}" alt="${alt}"`));
 }
+assert.match(engagement, /@media \(max-width:720px\)\{[\s\S]*?\.workplace-work-visual figcaption\{\s*padding:12px 10px 10px;[\s\S]*?\.workplace-work-visual figcaption strong\{\s*font-size:15px;[\s\S]*?\.workplace-work-visual figcaption span\{\s*margin-top:1px;\s*font-size:10px;/, '모바일 작업 타일의 캡션이 작은 화면에서 과밀하지 않도록 조정합니다');
 assert.equal((workplace.match(/class="workplace-principle-list"/g) || []).length, 1);
 assert.equal((workplace.match(/<li><span>0[1-3]<\/span>/g) || []).length, 3);
 assert.doesNotMatch(workplace, /data-workplace-roles|data-workplace-process|class="workplace-role-card"|class="workplace-process-step"/);
