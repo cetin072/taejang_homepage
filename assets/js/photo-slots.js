@@ -24,37 +24,37 @@
     '02': {
       file: 'photo-02.webp',
       enabled: true,
-      alt: '민화 도안을 채색하는 손과 작업물',
-      objectPosition: '48% 54%',
-      mobileObjectPosition: '48% 52%'
+      alt: '잉어 민화 도안을 채색하는 작업자와 물감 팔레트',
+      objectPosition: 'center center',
+      mobileObjectPosition: 'center center'
     },
     '03': {
       file: 'photo-03.webp',
       enabled: true,
-      alt: '태장 임직원이 함께하는 환경·사회공헌 활동',
-      objectPosition: '44% 52%',
-      mobileObjectPosition: '42% 52%'
+      alt: '울타리 옆에서 집게와 봉투로 환경정비 활동을 하는 작업자',
+      objectPosition: 'center center',
+      mobileObjectPosition: 'center center'
     },
     '04': {
       file: 'photo-04.webp',
       enabled: true,
-      alt: '여러 직원이 함께 작업하는 태장 일터 전경',
-      objectPosition: '50% 52%',
-      mobileObjectPosition: '50% 50%'
+      alt: '상자를 조립하고 포장 테이프 작업을 하는 두 작업자',
+      objectPosition: 'center center',
+      mobileObjectPosition: 'center center'
     },
     '05': {
       file: 'photo-05.webp',
       enabled: true,
-      alt: '태장 작업 현장의 손과 도구 및 재료',
-      objectPosition: '52% 46%',
-      mobileObjectPosition: '52% 44%'
+      alt: '상자 포장 작업에 집중하는 작업자와 포장 자재',
+      objectPosition: 'center center',
+      mobileObjectPosition: 'center center'
     },
     '06': {
       file: 'photo-06.webp',
       enabled: true,
-      alt: '작업 방법을 함께 확인하는 태장 직원들',
-      objectPosition: '54% 52%',
-      mobileObjectPosition: '54% 50%'
+      alt: '상자를 접고 테이프로 포장하는 작업자의 손',
+      objectPosition: 'center center',
+      mobileObjectPosition: 'center center'
     },
     '07': {
       file: 'photo-07.webp',
