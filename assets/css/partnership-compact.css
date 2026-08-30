@@ -92,84 +92,6 @@
   line-height: 1.75;
 }
 
-.subsidiary-standard-section .section-head {
-  margin-bottom: 30px;
-}
-
-.subsidiary-standard-details {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid var(--line);
-  background: var(--line);
-  gap: 1px;
-}
-
-.subsidiary-standard-details article {
-  padding: 26px;
-  background: #fff;
-}
-
-.subsidiary-standard-details h3,
-.subsidiary-standard-flow h3 {
-  margin: 0 0 10px;
-  color: var(--green-deep);
-  font: 700 20px/1.5 var(--myeongjo);
-}
-
-.subsidiary-standard-details p,
-.subsidiary-standard-source {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.8;
-}
-
-.subsidiary-standard-flow {
-  margin-top: 28px;
-  padding-top: 28px;
-  border-top: 1px solid var(--line);
-}
-
-.subsidiary-standard-flow ol {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--line);
-  background: #fff;
-}
-
-.subsidiary-standard-flow li {
-  min-width: 0;
-  padding: 20px;
-}
-
-.subsidiary-standard-flow li + li {
-  border-left: 1px solid var(--line);
-}
-
-.subsidiary-standard-flow strong,
-.subsidiary-standard-flow span {
-  display: block;
-}
-
-.subsidiary-standard-flow strong {
-  margin-bottom: 6px;
-  color: var(--green-deep);
-  font-size: 15px;
-}
-
-.subsidiary-standard-flow span {
-  color: var(--ink-soft);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.subsidiary-standard-source {
-  margin-top: 18px;
-}
-
 .partnership-environment {
   padding: 58px 0;
 }
@@ -254,9 +176,7 @@
 
 @media (max-width: 760px) {
   .partner-company-intro,
-  .partnership-visual-grid,
-  .subsidiary-standard-details,
-  .subsidiary-standard-flow ol {
+  .partnership-visual-grid {
     grid-template-columns: 1fr;
   }
 
@@ -274,24 +194,6 @@
 
   .partnership-visual-body {
     padding: 20px;
-  }
-
-  .subsidiary-standard-details article {
-    padding: 22px;
-  }
-
-  .subsidiary-standard-flow {
-    margin-top: 22px;
-    padding-top: 22px;
-  }
-
-  .subsidiary-standard-flow li {
-    padding: 16px 18px;
-  }
-
-  .subsidiary-standard-flow li + li {
-    border-top: 1px solid var(--line);
-    border-left: 0;
   }
 
   .partnership-environment .environment-service-layout {

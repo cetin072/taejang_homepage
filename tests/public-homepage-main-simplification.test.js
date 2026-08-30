@@ -174,10 +174,7 @@ assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
 assert.doesNotMatch(partnership, /contact-location-map|<svg/);
 assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
-assert.match(partnership, /id="subsidiary-standard-title">자회사형 장애인 표준사업장이란[\s\S]*?실질적으로 지배하거나, 둘 이상의 사업주가 출자하는 등 법령상 요건을 갖춘 경우[\s\S]*?출자 비율과 지배 구조, 그 밖의 법령상 요건에 따라 달라질 수 있습니다\./, '자회사형 제도는 실질 지배와 공동출자 구조를 함께 설명합니다');
-assert.match(partnership, /둘 이상의 사업주가 출자한 경우에는 출자 비율과 실질적 지배 여부 등에 따라 참여기업별 반영 인원이 달라질 수 있습니다\.[\s\S]*?장애인 의무고용률과 고용부담금 산정에 영향을 줄 수 있으며, 실제 효과는 기업별 의무고용 현황과 출자 구조 등에 따라 달라집니다\./, '제도 효과는 공동출자 구조와 기업별 조건에 따라 달라짐을 안내합니다');
-assert.match(partnership, /자회사형 참여 검토 흐름[\s\S]*?문의[\s\S]*?제도·조건 확인[\s\S]*?출자·협약 검토[\s\S]*?운영 구조 확인/, '자회사형 참여 절차를 일반 사업협력과 구분해 안내합니다');
-assert.match(partnership, /https:\/\/www\.kead\.or\.kr\/spdstndsyst\/cntntsPage\.do\?menuId=MEN/, '자회사형 제도는 한국장애인고용공단 공식 안내로 연결합니다');
+assert.doesNotMatch(partnership, /subsidiary-standard-|자회사형 장애인 표준사업장이란|고용률 산정 반영|고용부담금 산정에 영향을/, '상세 제도 설명은 공개 페이지에서 제외합니다');
 assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효과|리스크를 태장이 모두 부담/, '제도 설명에 과장된 영업 문구를 사용하지 않습니다');
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
