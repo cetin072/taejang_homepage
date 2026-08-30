@@ -79,7 +79,8 @@
   padding: 24px;
 }
 
-.partnership-visual-body h2 {
+.partnership-visual-body h2,
+.partnership-visual-body h3 {
   margin: 0 0 10px;
   color: var(--green-deep);
   font: 700 clamp(21px, 2.5vw, 28px)/1.4 var(--myeongjo);
