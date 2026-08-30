@@ -72,7 +72,7 @@
         <p class="hero-kicker">TAEJANG</p>
         <h1 id="hero-title">함께 일하며,<br>지속 가능한 가치를 만듭니다</h1>
         <p>태장은 장애인과 함께 실제 일을 만들고, 그 일을 지속 가능한 사업으로 이어가는 농업회사법인이자 자회사형 장애인 표준사업장입니다.</p>
-        <div class="btns hero-actions"><a class="btn hero-primary" href="#about">태장 알아보기</a><a class="btn hero-secondary" href="#contact">협력·문의</a></div>
+        <div class="btns hero-actions"><a class="btn hero-primary" href="about.html">태장 알아보기</a><a class="btn hero-secondary" href="partnership.html">협력·문의</a></div>
       </div>
     </div>
     <div class="hero-facts" aria-label="태장 주요 정보"><div><strong>자회사형 장애인 표준사업장</strong><span>인증 제2026-049호 · 2026.07.09</span></div><div><strong>경남형 장애인 동행일자리</strong><span>제1호 사업장</span></div></div>
@@ -80,8 +80,8 @@
 
   <section class="section" id="about" aria-labelledby="about-title">
     <div class="container about-layout about-layout--compact">
-      <div class="about-intro"><div class="eyebrow">ABOUT TAEJANG</div><h2 class="title" id="about-title">사람의 강점이<br>일이 되도록</h2><p>태장은 창원 진전면의 농업 기반에서 출발해, 사람에게 맞는 직무를 사업으로 이어갑니다.</p><ul class="about-principle-strip" aria-label="태장이 일하는 세 가지 기준"><li>농업 기반</li><li>사람에게 맞는 직무</li><li>사업으로 이어지는 일</li></ul><a class="text-link text-link--large" href="about.html">태장 자세히 보기 <span aria-hidden="true">→</span></a></div>
-      <div class="about-facts" aria-label="태장 주요 연혁"><div><strong>2026.07</strong><span>장애인 표준사업장 인증</span></div><div><strong>2025.06</strong><span>법인 설립</span></div><div><strong>2023</strong><span>사업 준비 시작</span></div></div>
+      <div class="about-intro"><div class="eyebrow">ABOUT TAEJANG</div><h2 class="title" id="about-title">사람의 강점이<br>일이 되도록</h2><p>태장은 사람에게 맞는 직무를 만들고, 민화·문화 굿즈와 기업 업무, 지역사회 활동으로 이어지는 사업을 운영합니다.</p><ul class="about-principle-strip" aria-label="태장이 현재 운영하는 주요 영역"><li>민화·문화 굿즈</li><li>기업 업무 협력</li><li>지역사회 활동</li></ul><a class="text-link text-link--large" href="about.html">태장 자세히 보기 <span aria-hidden="true">→</span></a></div>
+      <div class="about-facts" aria-label="태장 주요 연혁"><div><strong>2026.08</strong><span>신규 사업장 개소</span></div><div><strong>2026.07</strong><span>장애인 표준사업장 인증 · 경남형 동행일자리 제1호</span></div><div><strong>2025.06</strong><span>법인 설립</span></div></div>
     </div>
   </section>
 
@@ -139,19 +139,20 @@
       <div class="contact-form-card">
         <h3>홈페이지에서 바로 문의하기</h3>
         <p class="contact-form-intro">필수 항목만 작성해 보내면 태장 담당자가 확인 후 연락드립니다.</p>
+        <p class="form-required-guide" id="inquiry-required-guide"><span aria-hidden="true">*</span> 표시는 필수 입력 항목입니다.</p>
         <form class="inquiry-form" name="taejang-inquiry" method="POST" action="/thanks.html" data-netlify="true" netlify-honeypot="bot-field" accept-charset="UTF-8">
           <input type="hidden" name="form-name" value="taejang-inquiry">
           <input type="hidden" name="subject" data-remove-prefix value="태장 홈페이지 문의 (%{submissionId})">
           <p class="form-honeypot"><label>사람은 입력하지 마세요 <input name="bot-field" type="text" tabindex="-1" autocomplete="off"></label></p>
           <div class="form-grid">
-            <label class="form-field form-field--full"><span>문의 유형 <b class="form-required" aria-hidden="true">*</b></span><select name="inquiry-type" required aria-describedby="inquiry-type-guide"><option value="">선택해 주세요</option><option>모회사·고용 연계</option><option>기업 업무·건별 프로젝트</option><option>지역사회공헌·ESG 협력</option><option>지역·문화 활동</option><option>제품·행사 문의</option><option>채용·근무 문의</option><option>일반 문의</option></select></label>
-            <label class="form-field"><span>이름 <b class="form-required" aria-hidden="true">*</b></span><input type="text" name="name" maxlength="50" autocomplete="name" required></label>
+            <label class="form-field form-field--full"><span>문의 유형 <b class="form-required" aria-hidden="true">*</b></span><select name="inquiry-type" required aria-describedby="inquiry-required-guide inquiry-type-guide"><option value="">선택해 주세요</option><option>모회사·고용 연계</option><option>기업 업무·건별 프로젝트</option><option>지역사회공헌·ESG 협력</option><option>지역·문화 활동</option><option>제품·행사 문의</option><option>채용·근무 문의</option><option>일반 문의</option></select></label>
+            <label class="form-field"><span>이름 <b class="form-required" aria-hidden="true">*</b></span><input type="text" name="name" maxlength="50" autocomplete="name" required aria-describedby="inquiry-required-guide"></label>
             <label class="form-field"><span>회사·기관명</span><input type="text" name="organization" maxlength="100" autocomplete="organization"></label>
-            <label class="form-field"><span>이메일 <b class="form-required" aria-hidden="true">*</b></span><input type="email" name="email" maxlength="120" autocomplete="email" required></label>
+            <label class="form-field"><span>이메일 <b class="form-required" aria-hidden="true">*</b></span><input type="email" name="email" maxlength="120" autocomplete="email" required aria-describedby="inquiry-required-guide"></label>
             <label class="form-field"><span>연락처</span><input type="tel" name="phone" maxlength="30" autocomplete="tel" inputmode="tel"></label>
-            <label class="form-field form-field--full"><span>문의 내용 <b class="form-required" aria-hidden="true">*</b></span><textarea name="message" maxlength="2000" required placeholder="검토 중인 업무나 활동, 희망 시기, 문의 내용을 적어 주세요."></textarea></label>
+            <label class="form-field form-field--full"><span>문의 내용 <b class="form-required" aria-hidden="true">*</b></span><textarea name="message" maxlength="2000" required aria-describedby="inquiry-required-guide" placeholder="검토 중인 업무나 활동, 희망 시기, 문의 내용을 적어 주세요."></textarea></label>
           </div>
-          <label class="form-consent"><input type="checkbox" name="privacy-consent" value="동의함" required><span><a href="privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>을 확인했으며, 문의 접수와 회신을 위한 개인정보 수집·이용에 동의합니다. <b class="form-required" aria-hidden="true">*</b></span></label>
+          <label class="form-consent"><input type="checkbox" name="privacy-consent" value="동의함" required aria-describedby="inquiry-required-guide"><span><a href="privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>을 확인했으며, 문의 접수와 회신을 위한 개인정보 수집·이용에 동의합니다. <b class="form-required" aria-hidden="true">*</b></span></label>
           <p class="form-help" id="inquiry-type-guide">채용 여부와 시기는 문의 시점에 따라 달라질 수 있습니다.</p>
           <p class="form-help">주민등록번호, 장애·건강정보 등 민감한 개인정보는 입력하지 마세요.</p>
           <div class="form-actions"><p class="form-help">문의 처리 완료 후 6개월 동안 보관한 뒤 삭제합니다.</p><button class="btn" type="submit">문의 보내기</button></div>

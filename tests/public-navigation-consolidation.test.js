@@ -17,7 +17,9 @@ const publicPages = [
   'activities.html',
   'archive.html',
   'partnership.html',
-  'resources.html'
+  'resources.html',
+  'business.html',
+  'location.html'
 ];
 
 for (const filename of publicPages) {
@@ -39,8 +41,8 @@ for (const filename of publicPages) {
   );
   assert.match(
     html,
-    /<a href="(?:business\.html|(?:index\.html)?#business)">하는 일<\/a>/,
-    `${filename} 사업 메뉴는 쉬운 명칭인 하는 일을 사용합니다`
+    /<a href="business\.html"(?: aria-current="page")?>하는 일<\/a>/,
+    `${filename} 사업 메뉴는 business.html 상세 페이지로 연결합니다`
   );
   assert.match(
     html,

@@ -475,6 +475,15 @@
   margin:0 0 24px;
   color:var(--ink-soft);
 }
+.form-required-guide{
+  margin:-12px 0 20px;
+  color:var(--ink-soft);
+  font-size:13px;
+}
+.form-required-guide span{
+  color:var(--danger);
+  font-weight:800;
+}
 .inquiry-form{
   display:grid;
   gap:18px;
