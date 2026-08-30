@@ -648,6 +648,18 @@
   .workplace-work-gallery{
     min-height:320px;
   }
+  .workplace-work-visual figcaption{
+    padding:12px 10px 10px;
+  }
+  .workplace-work-visual figcaption strong{
+    font-size:15px;
+    line-height:1.35;
+  }
+  .workplace-work-visual figcaption span{
+    margin-top:1px;
+    font-size:10px;
+    line-height:1.4;
+  }
   .workplace-stories{
     padding-top:52px;
   }

@@ -260,6 +260,18 @@ assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문
 
 assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
 assert.match(workplace, /class="workplace-work-gallery"[\s\S]*민화·문화 굿즈[\s\S]*포장·검수[\s\S]*작업 공간과 현장 업무/);
+for (const [imagePath, alt] of [
+  ['assets/images/workplace/workplace-minhwa-watercolor.webp', '꽃무늬 나무 상자를 채색하는 민화 작업 수채화 일러스트'],
+  ['assets/images/workplace/workplace-packing-watercolor.webp', '상자를 테이프로 포장하는 작업 수채화 일러스트'],
+  ['assets/images/workplace/workplace-workspace-watercolor.webp', '작업 테이블과 의자가 있는 차분한 작업실 수채화 일러스트']
+]) {
+  const imageFile = path.join(root, imagePath);
+  const imageBytes = fs.readFileSync(imageFile);
+  assert.equal(imageBytes.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(imageBytes.subarray(8, 12).toString('ascii'), 'WEBP');
+  assert.match(workplace, new RegExp(`src="${imagePath}" alt="${alt}"`));
+}
+assert.match(engagement, /@media \(max-width:720px\)\{[\s\S]*?\.workplace-work-visual figcaption\{\s*padding:12px 10px 10px;[\s\S]*?\.workplace-work-visual figcaption strong\{\s*font-size:15px;[\s\S]*?\.workplace-work-visual figcaption span\{\s*margin-top:1px;\s*font-size:10px;/, '모바일 작업 타일의 캡션이 작은 화면에서 과밀하지 않도록 조정합니다');
 assert.equal((workplace.match(/class="workplace-principle-list"/g) || []).length, 1);
 assert.equal((workplace.match(/<li><span>0[1-3]<\/span>/g) || []).length, 3);
 assert.doesNotMatch(workplace, /data-workplace-roles|data-workplace-process|class="workplace-role-card"|class="workplace-process-step"/);
