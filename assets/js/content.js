@@ -284,7 +284,7 @@ window.TAEJANG_CONTENT = {
       category: "회사 소식",
       date: "2026.07.09",
       title: "자회사형 장애인 표준사업장 인증을 받았습니다",
-      summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 경남형 장애인 동행일자리 제1호 사업장과 함께 안정적인 일자리와 실제 업무를 만들어가고 있습니다.",
+      summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 경남형 장애인 동행일자리 제1호 사업장으로서 안정적인 일자리와 실제 업무를 만들어가고 있습니다.",
       thumb: "assets/images/archive/standard-workplace-certification-plaque.webp",
       hero: "assets/images/archive/standard-workplace-certification-plaque.webp",
       hub: { category: "장애인 일자리", featured: false },
@@ -320,7 +320,7 @@ window.TAEJANG_CONTENT = {
         {
           heading: "함께 출발한 기반",
           paragraphs: [
-            "태장은 경남형 장애인 동행일자리 제1호 사업장으로 함께하고 있습니다. 범한메카텍, 삼현, 청우비제이, 현대비앤지스틸이 공동출자기업으로 참여해 일자리와 협력의 기반을 함께 만들어가고 있습니다."
+            "태장은 경남형 장애인 동행일자리 제1호 사업장입니다. 범한메카텍, 삼현, 청우비제이, 현대비앤지스틸이 공동출자기업으로 참여해 일자리와 협력의 기반을 함께 만들어가고 있습니다."
           ]
         },
         {
