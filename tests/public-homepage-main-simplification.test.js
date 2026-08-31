@@ -193,7 +193,7 @@ assert.match(index, /ACTIVITY RECORDS/);
 assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION'), '활동 기록을 협력 안내보다 먼저 보여줍니다');
 assert.match(index, /지역사회공헌·ESG 협력/);
 assert.match(index, /기업·기관과 함께 지역사회에 필요한 활동을 기획하고 운영합니다\. 현재는 지역 환경정비 활동을 중심으로 시작하고 있습니다\./);
-assert.match(index, /href="partnership\.html#environment-service">사회공헌 협력 안내/);
+assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.match(index, /data-home-preview="hub"[^>]*data-home-preview-count="8"/);
 assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"[\s\S]*?<div class="recent-activities-archive-cta"><a class="btn line" href="archive\.html">태장 아카이브 전체 보기<\/a><\/div>/, '상단 링크를 유지하고 카드 목록 뒤에 아카이브 CTA를 둡니다');
 assert.match(polish, /\.recent-activities-archive-cta\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?margin-top:\s*36px/);
@@ -283,11 +283,11 @@ assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).lengt
 assert.match(partnership, /id="environment-service"/);
 assert.match(partnership, /지역사회공헌·ESG 협력/);
 assert.match(partnership, /SOCIAL CONTRIBUTION &amp; ESG/);
-assert.match(partnership, /현재는 지역 환경정비 활동을 중심으로 시작했으며, 지역에 필요한 다음 협력 방향을 검토합니다\./);
-assert.match(partnership, /현재 활동[\s\S]*지역 환경정비[\s\S]*확장 방향[\s\S]*복지시설[\s\S]*공공기관 캠페인[\s\S]*지역문화·체험[\s\S]*기업 ESG 프로그램/);
-assert.match(partnership, /현재 환경정비 활동 운영 과정/);
-assert.match(partnership, /사전 협의[\s\S]*현장 준비[\s\S]*수행·기록/);
-assert.equal((partnership.match(/class="service-step"/g) || []).length, 3);
+assert.match(partnership, /현재 지역 환경정비 활동을 기록하고 있으며, 기업·기관과는 현장 여건에 맞는 지역사회공헌 활동을 함께 검토합니다\./);
+assert.match(partnership, /지역사회공헌 활동 자세히 보기/);
+assert.match(partnership, /협력 검토 흐름/);
+assert.match(partnership, /사전 협의[\s\S]*현장 확인·준비[\s\S]*안전 안내·활동[\s\S]*기록·다음 협력 검토/);
+assert.equal((partnership.match(/class="service-step"/g) || []).length, 4);
 assert.match(partnership, /기업 협력·고용 연계/);
 assert.doesNotMatch(partnership, /START WITH A CONVERSATION|간단한 문의부터 시작할 수 있습니다/);
 assert.match(partnership, /href="#contact">협력·문의하기/);
@@ -301,7 +301,7 @@ assert.match(partnership, /mailto:taejang2025@naver\.com/);
 assert.match(partnership, /기업 업무·건별 프로젝트/);
 assert.equal((partnership.match(/class="faq-item"/g) || []).length, 6, '협력 FAQ는 6개 질문을 제공합니다');
 assert.equal((partnership.match(/data-faq-button aria-expanded="false"/g) || []).length, 6, 'FAQ 질문은 처음에 모두 접힌 상태입니다');
-assert.match(partnership, /환경정비 등 지역사회 활동을 기업·기관과 함께 검토합니다\.[\s\S]*href="#environment-service"/);
+assert.match(partnership, /환경정비 등 지역사회 활동을 기업·기관과 함께 검토합니다\.[\s\S]*href="community-esg\.html"/);
 assert.ok(partnership.indexOf('id="environment-service"') < partnership.indexOf('faq-section'), 'FAQ는 ESG 상세 뒤에 배치합니다');
 assert.ok(partnership.indexOf('faq-section') < partnership.indexOf('id="contact"'), 'FAQ는 문의 영역 앞에 배치합니다');
 assert.match(site, /querySelectorAll\('\[data-faq-button\]'\)[\s\S]*setAttribute\('aria-expanded', 'false'\)[\s\S]*setAttribute\('aria-expanded', 'true'\)/, '기존 FAQ 아코디언 동작을 재사용합니다');
@@ -431,7 +431,7 @@ assert.match(contentHub, /press: '언론보도'/);
 assert.match(contentHub, /function formatPublishedDate\(value\)/);
 assert.match(contentHub, /dateValue\(right\.item\.publishedAt\) - dateValue\(left\.item\.publishedAt\)[\s\S]*left\.index - right\.index/);
 assert.doesNotMatch(contentHub, /Number\(right\.featured\)/);
-assert.match(previews, /contentHub\.orderedItems\(content\.hub\)/);
+assert.match(previews, /contentHub\.orderedItems\(\)/);
 assert.match(previews, /contentHub\.createMedia\(item, 'card-media recent-activity-media'\)/);
 assert.match(previews, /contentHub\.sourceLabel\(item\)/);
 assert.match(previews, /source-badge source-badge--\$\{item\.source \|\| 'homepage'\}/);
@@ -515,20 +515,20 @@ assert.equal(api.formatPublishedDate('2026-08-20'), '2026.08.20');
 const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
-const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems(actualWindow.TAEJANG_CONTENT.hub);
+const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems();
 assert.equal(actualHubItems.length, 11, '소식·기록은 테라리움 제조사업 기록을 포함한 공개 콘텐츠를 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
-  'internal-terrarium-business-start-2026-08',
+  'activity-terrarium-business-start-2026-08',
   'youtube-qvqNyeyfQsA',
   'youtube-8x7yg5YBK9g',
   'youtube-FbEOcteBSJ4',
   'youtube-8x4Rf3knAb8',
-  'internal-opening',
+  'activity-new-workplace-opening',
   'naver-blog-224367547159',
-  'internal-staff-birthday-2026-08',
+  'activity-staff-birthday-2026-08',
   'kbs-news-8636757',
-  'internal-environment-cleanup',
-  'internal-certification'
+  'activity-environment-cleanup-first',
+  'activity-standard-workplace-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
   '테라리움 제조사업을 시작합니다',
@@ -536,12 +536,12 @@ assert.deepEqual(Array.from(actualHubItems, item => item.title), [
   '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사',
   '태장 소개영상',
   "[현장] '경남형 장애인 동행일자리' 1호점 가보니",
-  '태장 개소식 안내',
+  '태장의 새로운 사업장이 문을 열었습니다',
   '한 줄 한 줄 정성으로 완성되는 태장의 하루',
   '8월 생일을 함께 축하했습니다',
   '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
   '첫 환경정비 활동을 진행했습니다',
-  '자회사형 장애인 표준사업장 인증'
+  '자회사형 장애인 표준사업장 인증을 받았습니다'
 ]);
 assert.equal(actualHubItems.some(item => /민화 작업을 시작했습니다|포장과 검수 작업을 준비합니다/.test(item.title)), false);
 assert.equal(contentData.includes('id: "minhwa-class"'), false);
@@ -551,7 +551,7 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '메인 활동 기록은 최신 공개 콘텐츠 최대 8개를 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장 개소식 안내', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다']);
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장의 새로운 사업장이 문을 열었습니다', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다']);
 assert.equal(actualRecentItems[3].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
 assert.equal(actualRecentItems[3].thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
@@ -561,14 +561,14 @@ assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=
 assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.match(contentHub, /item\.publisher[\s\S]*?sourceLabel\(item\)/, '아카이브 검색은 매체명과 출처 라벨을 함께 대상으로 사용합니다');
 
-const birthdayHubItem = actualHubItems.find(item => item.id === 'internal-staff-birthday-2026-08');
+const birthdayHubItem = actualHubItems.find(item => item.id === 'activity-staff-birthday-2026-08');
 assert.equal(fs.existsSync(path.join(root, birthdayHubItem.thumbnail)), true);
 const birthdayBytes = fs.readFileSync(path.join(root, birthdayHubItem.thumbnail));
 assert.equal(birthdayBytes.subarray(0, 4).toString('ascii'), 'RIFF');
 assert.equal(birthdayBytes.subarray(8, 12).toString('ascii'), 'WEBP');
 assert.match(contentData, /id: "staff-birthday-2026-08"[\s\S]*date: "2026\.08"/);
 
-const terrariumHubItem = actualHubItems.find(item => item.id === 'internal-terrarium-business-start-2026-08');
+const terrariumHubItem = actualHubItems.find(item => item.id === 'activity-terrarium-business-start-2026-08');
 assert.equal(terrariumHubItem.source, 'homepage');
 assert.equal(terrariumHubItem.category, '회사소식');
 assert.equal(terrariumHubItem.publishedAt, '2026-08-22');
@@ -584,7 +584,7 @@ assert.match(contentData, /id: "terrarium-business-start-2026-08"[\s\S]*?테라�
 const terrariumActivity = contentData.slice(contentData.indexOf('id: "terrarium-business-start-2026-08"'), contentData.indexOf('\n    }\n  ],\n  hub'));
 assert.doesNotMatch(terrariumActivity, /판매 중|체험 프로그램 운영 중|태장 직원 제작 완제품/);
 
-const certificationHubItem = actualHubItems.find(item => item.id === 'internal-certification');
+const certificationHubItem = actualHubItems.find(item => item.id === 'activity-standard-workplace-certification');
 assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification.webp');
 assert.equal(certificationHubItem.thumbnailAlt, '태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판');
 assert.equal(fs.existsSync(path.join(root, certificationHubItem.thumbnail)), true);

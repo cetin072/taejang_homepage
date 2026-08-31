@@ -15,6 +15,7 @@ const publicPages = [
   'why-minhwa.html',
   'workplace.html',
   'activities.html',
+  'community-esg.html',
   'archive.html',
   'partnership.html',
   'resources.html',
@@ -57,7 +58,7 @@ for (const filename of publicPages) {
 }
 
 const index = read('index.html');
-assert.match(index, /href="partnership\.html#environment-service">사회공헌 협력 안내/);
+assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.doesNotMatch(index, /href="activities\.html">태장의 활동 보기/);
 assert.ok(index.indexOf('data-recent-activities') < index.indexOf('COLLABORATION'));
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?협력 방식 자세히 보기/);
@@ -78,7 +79,7 @@ assert.equal((site.match(/\['partnership\.html', '협력·문의'/g) || []).leng
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
 
 const content = read('assets/js/content.js');
-assert.match(content, /detailUrl: "activities\.html\?id=/);
+assert.match(read('assets/js/content-hub.js'), /detailUrl: `activities\.html\?id=\$\{encodeURIComponent\(activity\.id\)\}`/);
 assert.equal(fs.existsSync(path.join(root, 'activities.html')), true);
 assert.equal(fs.existsSync(path.join(root, 'thanks.html')), true);
 

@@ -64,7 +64,7 @@
     }
 
     try {
-      const items = contentHub.orderedItems(content.hub);
+      const items = contentHub.orderedItems();
       containers.forEach((container) => {
         const requestedCount = Number.parseInt(container.dataset.homePreviewCount, 10) || 8;
         const visibleItems = items.slice(0, Math.min(Math.max(requestedCount, 1), 8));
