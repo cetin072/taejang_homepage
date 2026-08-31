@@ -75,6 +75,13 @@
     return { source, alt, objectPosition, detailMode };
   }
 
+  function representativeGallery(item) {
+    if (!Array.isArray(item.detailGallery)) return [];
+    return item.detailGallery.filter((image) => image
+      && typeof image.src === 'string'
+      && typeof image.alt === 'string');
+  }
+
   function contentPhoto(item, variant = 'card') {
     const title = item.photo?.title || item.listingPhoto?.title || item.title;
     return `<div class="content-photo-slot content-photo-slot--${variant}" role="img" aria-label="CONTENT PHOTO: ${title}">
@@ -254,7 +261,10 @@
 
   document.title = `${item.title} | 태장`;
   const detailRepresentative = representativeMedia(item);
-  const detailMedia = detailRepresentative.source
+  const detailGallery = representativeGallery(item);
+  const detailMedia = detailGallery.length
+    ? `<figure class="article-representative-media article-representative-media--collage"><div class="article-representative-collage">${detailGallery.map((image) => `<img src="${image.src}" alt="${image.alt}" style="object-position:${image.objectPosition || '50% 50%'}" loading="${image === detailGallery[0] ? 'eager' : 'lazy'}" decoding="async">`).join('')}</div></figure>`
+    : detailRepresentative.source
     ? `<figure class="article-representative-media article-representative-media--${detailRepresentative.detailMode}"><img src="${detailRepresentative.source}" alt="${detailRepresentative.alt}" style="object-position:${detailRepresentative.objectPosition}" loading="eager" decoding="async"></figure>`
     : contentPhoto(item, 'detail');
   const gallery = item.gallery?.length

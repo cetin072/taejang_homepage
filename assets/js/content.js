@@ -101,10 +101,27 @@ window.TAEJANG_CONTENT = {
       date: "2026.07.09",
       title: "사람에 맞게 정리하는 작업환경",
       summary: "근로자가 안정적으로 업무를 익히고 참여할 수 있도록 작업 순서와 환경을 정리합니다.",
-      thumbnail: "assets/images/workplace/main-workspace.webp",
-      thumbnailAlt: "태장 본점의 실무 작업 공간과 작업 테이블",
+      thumbnail: "assets/images/workplace/workplace-packing-team.webp",
+      thumbnailAlt: "두 명의 작업자가 박스를 조립하고 포장하는 작업 모습",
       thumbnailObjectPosition: "50% 50%",
-      thumbnailDetail: "natural",
+      thumbnailDetail: "cover",
+      detailGallery: [
+        {
+          src: "assets/images/workplace/workplace-packing-team.webp",
+          alt: "두 명의 작업자가 박스를 조립하고 포장하는 작업 모습",
+          objectPosition: "50% 50%"
+        },
+        {
+          src: "assets/images/workplace/workplace-packing-detail.webp",
+          alt: "검은 티셔츠 작업자가 박스를 정리하며 포장 작업을 준비하는 모습",
+          objectPosition: "50% 50%"
+        },
+        {
+          src: "assets/images/workplace/packing-tape-work.webp",
+          alt: "파란 작업복을 입은 작업자가 박스에 포장 테이프를 붙이는 작업 모습",
+          objectPosition: "50% 50%"
+        }
+      ],
       thumb: null,
       hero: null,
       gallery: [],

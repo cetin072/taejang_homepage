@@ -20,6 +20,8 @@ assert.match(listing, /const source = hubItem\?\.thumbnail \|\| item\.thumbnail 
 assert.match(listing, /const alt = hubItem\?\.thumbnailAlt \|\| item\.thumbnailAlt \|\| item\.alt\?\.hero \|\| item\.alt\?\.thumb/);
 assert.match(listing, /cardMedia\(item\)/);
 assert.match(listing, /detailRepresentative = representativeMedia\(item\)/);
+assert.match(listing, /function representativeGallery\(item\)/);
+assert.match(listing, /detailGallery = representativeGallery\(item\)/);
 assert.match(listing, /class="article-representative-media(?:\s|\")/);
 assert.match(listing, /contentPhoto\(item, 'detail'\)/);
 
@@ -44,7 +46,7 @@ assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)
 assert.match(listing, /backLabel: '← 일터 이야기 목록으로'/);
 for (const [imagePath, alt] of [
   ['assets/images/workplace/minhwa-fish-scale-painting.webp', '붓으로 잉어 민화의 비늘을 채색하는 작업 모습'],
-  ['assets/images/workplace/main-workspace.webp', '태장 본점의 실무 작업 공간과 작업 테이블'],
+  ['assets/images/workplace/workplace-packing-team.webp', '두 명의 작업자가 박스를 조립하고 포장하는 작업 모습'],
   ['assets/images/workplace/packing-tape-work.webp', '파란 작업복을 입은 작업자가 박스에 포장 테이프를 붙이는 포장·검수 작업 모습']
 ]) {
   const imageFile = path.join(root, imagePath);
@@ -57,10 +59,28 @@ for (const [imagePath, alt] of [
   assert.match(workplaceContent, new RegExp(`thumbnail: "${escapedPath}"`));
   assert.match(workplaceContent, new RegExp(`thumbnailAlt: "${alt}"`));
 }
+for (const [imagePath, alt] of [
+  ['assets/images/workplace/workplace-packing-team.webp', '두 명의 작업자가 박스를 조립하고 포장하는 작업 모습'],
+  ['assets/images/workplace/workplace-packing-detail.webp', '검은 티셔츠 작업자가 박스를 정리하며 포장 작업을 준비하는 모습'],
+  ['assets/images/workplace/packing-tape-work.webp', '파란 작업복을 입은 작업자가 박스에 포장 테이프를 붙이는 작업 모습']
+]) {
+  const imageFile = path.join(root, imagePath);
+  assert.equal(fs.existsSync(imageFile), true);
+  const imageBytes = fs.readFileSync(imageFile);
+  assert.equal(imageBytes.subarray(0, 4).toString('ascii'), 'RIFF');
+  assert.equal(imageBytes.subarray(8, 12).toString('ascii'), 'WEBP');
+  assert.ok(imageBytes.length > 1000);
+  const escapedPath = imagePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert.match(workplaceContent, new RegExp(`src: "${escapedPath}"`));
+  assert.match(workplaceContent, new RegExp(`alt: "${alt}"`));
+}
 assert.match(workplaceContent, /thumbnailObjectPosition: "50% 50%"/);
-assert.match(workplaceContent, /thumbnailDetail: "natural"/);
+assert.match(workplaceContent, /thumbnailDetail: "cover"/);
+assert.match(workplaceContent, /detailGallery: \[[\s\S]*workplace-packing-team\.webp[\s\S]*workplace-packing-detail\.webp[\s\S]*packing-tape-work\.webp/);
 assert.match(listing, /article-representative-media--\$\{detailRepresentative\.detailMode\}/);
+assert.match(listing, /article-representative-media--collage/);
 assert.match(styles, /\.article-body \.article-representative-media--natural\s*\{[\s\S]*aspect-ratio:auto/);
 assert.match(styles, /\.article-body \.article-representative-media--natural img\s*\{[\s\S]*height:auto/);
+assert.match(styles, /\.article-representative-collage\s*\{[\s\S]*grid-template-columns:1\.45fr 1fr/);
 
 console.log('content-detail-thumbnail tests: all cases passed');
