@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://taejang-homepage.netlify.app/</loc></url>
-  <url><loc>https://taejang-homepage.netlify.app/workplace.html</loc></url>
-  <url><loc>https://taejang-homepage.netlify.app/activities.html</loc></url>
-  <url><loc>https://taejang-homepage.netlify.app/archive.html</loc></url>
-  <url><loc>https://taejang-homepage.netlify.app/partnership.html</loc></url>
-  <url><loc>https://taejang-homepage.netlify.app/resources.html</loc></url>
+  <url><loc>https://taejang.co.kr/</loc></url>
+  <url><loc>https://taejang.co.kr/about.html</loc></url>
+  <url><loc>https://taejang.co.kr/business.html</loc></url>
+  <url><loc>https://taejang.co.kr/greeting.html</loc></url>
+  <url><loc>https://taejang.co.kr/why-minhwa.html</loc></url>
+  <url><loc>https://taejang.co.kr/workplace.html</loc></url>
+  <url><loc>https://taejang.co.kr/activities.html</loc></url>
+  <url><loc>https://taejang.co.kr/community-esg.html</loc></url>
+  <url><loc>https://taejang.co.kr/archive.html</loc></url>
+  <url><loc>https://taejang.co.kr/partnership.html</loc></url>
+  <url><loc>https://taejang.co.kr/location.html</loc></url>
 </urlset>

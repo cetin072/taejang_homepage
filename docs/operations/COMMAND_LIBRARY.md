@@ -2,6 +2,47 @@
 
 아래 템플릿은 필요한 입력 항목만 채워 사용합니다.
 
+## 템플릿 0: Issue 실행
+
+최신 `origin/main`에서 새 작업 브랜치를 만들고 GitHub Issue #N을 단일 작업지시서로 사용합니다. Issue 범위만 구현하고 필요한 테스트를 실행한 뒤 Draft PR까지 생성합니다. Ready for review, merge, Production 배포는 하지 않습니다.
+
+시작 전에는 `PROJECT_CHARTER.md`와 관련 기획·공개 기준을 확인하고 아래 순서로 안전 점검합니다.
+
+```bash
+git fetch origin
+gh issue view <issue-number>
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Working tree is not clean; stop before creating a branch." >&2
+  exit 1
+fi
+git switch -c <type>/issue-<issue-number>-<short-name> origin/main
+```
+
+`git status --porcelain`이 한 줄이라도 출력되면 tracked 또는 untracked 변경이 있는 것이므로 새 브랜치를 만들거나 기존 변경을 새 작업에 포함하지 않습니다.
+
+## 템플릿 0-1: PR 수정
+
+PR #N의 최신 리뷰·지시를 반영합니다. 기존 작업 브랜치와 같은 PR에 push하며, Issue #M 범위를 벗어나지 않습니다. 수정 후 필요한 테스트만 실행합니다.
+
+수정 전에는 아래 순서로 해당 PR 브랜치에 명시적으로 전환하고 확인합니다.
+
+```bash
+gh pr checkout <pr-number>
+gh pr view <pr-number> --json headRefName,baseRefName,isDraft
+git status --short --branch
+git branch --show-current
+```
+
+현재 브랜치가 `main`이거나 PR의 `headRefName`과 다르면 commit·push하지 않고 중단합니다.
+
+## 템플릿 0-2: 독립 검수
+
+PR #N을 Issue #M 기준으로 검수합니다. 파일을 수정하거나 push하지 않고, 문제·재현 방법·심각도·확인 결과만 보고합니다.
+
+## 템플릿 0-3: 상태 점검
+
+저장소, 현재 브랜치, 원격, 최신 `origin/main`, working tree를 확인한 뒤 결과만 보고하고 멈춥니다.
+
 ## 템플릿 A: 홈페이지 섹션 개편
 
 AGENTS.md와 docs/operations의 공통 기준을 먼저 읽고 준수하세요.

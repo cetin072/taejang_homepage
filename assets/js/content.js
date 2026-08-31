@@ -2,14 +2,18 @@ window.TAEJANG_CONTENT = {
   workplace: [
     {
       id: "minhwa-one-stroke",
+      status: "published",
       category: "민화·문화 굿즈",
       date: "2026.07.09",
       title: "한 획씩 완성해가는 민화 작업",
       summary: "밑그림과 채색을 거쳐 작품을 완성하고, 문화 굿즈로 이어가는 작업 과정을 소개합니다.",
+      thumbnail: "assets/images/workplace/minhwa-fish-scale-painting.webp",
+      thumbnailAlt: "붓으로 잉어 민화의 비늘을 채색하는 작업 모습",
+      thumbnailObjectPosition: "50% 50%",
+      thumbnailDetail: "natural",
       thumb: null,
       hero: null,
       gallery: [],
-      photoRequired: true,
       listingPhoto: {
         title: "민화 작업 과정",
         filename: "minhwa-1.jpg",
@@ -38,21 +42,25 @@ window.TAEJANG_CONTENT = {
           heading: "각자의 속도로 완성하는 작업",
           paragraphs: [
             "근로자마다 익숙한 방식과 작업 속도가 다른 만큼, 각자의 강점을 고려해 작업을 이어갑니다. 필요한 부분은 담당자가 함께 확인합니다.",
-            "완성 작품은 달력·카드·기념품 등 문화 굿즈로 연결할 수 있는 가능성을 검토합니다."
+            "완성 작품은 달력·카드·기념품 등 문화 굿즈로 연결할 수 있도록 준비하고 있습니다."
           ]
         }
       ]
     },
     {
       id: "packing-care",
+      status: "published",
       category: "포장·검수",
       date: "2026.07.02",
       title: "정확한 순서로 진행하는 포장과 검수",
       summary: "자재 준비부터 포장, 확인, 최종 검수까지 정해진 순서에 따라 작업합니다.",
+      thumbnail: "images/homepage/photo-06.webp",
+      thumbnailAlt: "상자를 접고 테이프로 포장하는 작업자의 손",
+      thumbnailObjectPosition: "50% 50%",
+      thumbnailDetail: "natural",
       thumb: null,
       hero: null,
       gallery: [],
-      photoRequired: true,
       listingPhoto: {
         title: "포장·검수 작업",
         filename: "packing-1.jpg",
@@ -88,21 +96,25 @@ window.TAEJANG_CONTENT = {
     },
     {
       id: "work-together",
+      status: "published",
       category: "일터 운영",
       date: "2026.07.09",
       title: "사람에 맞게 정리하는 작업환경",
       summary: "근로자가 안정적으로 업무를 익히고 참여할 수 있도록 작업 순서와 환경을 정리합니다.",
+      thumbnail: "images/homepage/photo-04.webp",
+      thumbnailAlt: "상자를 조립하고 포장 테이프 작업을 하는 두 작업자",
+      thumbnailObjectPosition: "50% 50%",
+      thumbnailDetail: "natural",
       thumb: null,
       hero: null,
       gallery: [],
-      photoRequired: true,
       listingPhoto: {
-        title: "팔용동 본점·실무공간",
+        title: "태장 본점·실무공간",
         filename: "office-2.jpg",
         orientation: "가로형"
       },
       photo: {
-        title: "팔용동 본점·실무공간",
+        title: "태장 본점·실무공간",
         filename: "office-2.jpg",
         orientation: "가로형",
         note: "개인정보와 문서가 보이지 않는 정돈된 작업공간"
@@ -131,17 +143,19 @@ window.TAEJANG_CONTENT = {
     }
   ],
   activities: [
-    // 운영 메모: 2026.08.12 이후 실제 개소 상태와 office-1.jpg 공개 승인을 확인해 문구를 갱신합니다.
     {
       id: "new-workplace-opening",
+      status: "published",
       category: "공지",
       date: "2026.08.12",
-      title: "태장의 새로운 사업장이 문을 엽니다",
-      summary: "창원 신화 더 플렉스시티에 마련하는 태장의 새로운 업무 공간을 안내합니다.",
+      title: "태장의 새로운 사업장이 문을 열었습니다",
+      summary: "창원 신화 더 플렉스시티에 마련한 태장의 새로운 업무 공간을 소개합니다.",
+      thumbnail: "assets/images/archive/opening-ceremony.webp",
+      thumbnailAlt: "태장 현판제막 및 개소식 현수막 앞에 선 참석자들",
+      hub: { category: "회사소식", featured: true },
       thumb: null,
       hero: null,
       gallery: [],
-      photoRequired: true,
       listingPhoto: {
         title: "신규 사업장 또는 개소식 사진",
         filename: "office-1.jpg",
@@ -151,18 +165,18 @@ window.TAEJANG_CONTENT = {
         title: "신규 사업장 또는 개소식 사진",
         filename: "office-1.jpg",
         orientation: "가로형",
-        note: "개소식 사진 또는 개인정보·문서가 보이지 않는 사업장 외부 전경"
+        note: "개소식 사진 또는 개인정보·문서가 보이지 않는 사업장 전경"
       },
       sections: [
         {
           paragraphs: [
-            "태장은 2026년 8월 12일 창원 신화 더 플렉스시티에 신규 사업장을 열 예정입니다."
+            "태장은 2026년 8월 12일 창원 신화 더 플렉스시티에 신규 사업장을 열었습니다."
           ]
         },
         {
-          heading: "새로운 일터를 준비합니다",
+          heading: "새로운 일터를 마련했습니다",
           paragraphs: [
-            "새 공간은 민화·문화 굿즈와 포장·검수 등 주요 업무를 위한 작업 환경으로 준비하고 있습니다."
+            "새 공간은 민화·문화 굿즈와 포장·검수 등 주요 업무를 위한 작업 환경으로 마련했습니다."
           ]
         },
         {
@@ -174,310 +188,233 @@ window.TAEJANG_CONTENT = {
       ]
     },
     {
-      id: "minhwa-class",
-      category: "일터 소식",
+      id: "environment-cleanup-first",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.07.24",
+      title: "첫 환경정비 활동을 진행했습니다",
+      summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/archive/environment-cleanup-first.webp",
+      thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      listingPhoto: {
+        title: "환경정비 활동",
+        filename: "activity-1.jpg",
+        orientation: "가로형 또는 정방형"
+      },
+      photo: {
+        title: "환경정비 활동",
+        filename: "activity-1.jpg",
+        orientation: "가로형",
+        note: "참여자의 사진 공개 동의를 확인하고 안전 장비 착용이 보이는 장면"
+      },
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 7월 24일 임직원이 함께 참여하는 첫 환경정비 활동을 진행했습니다."
+          ]
+        },
+        {
+          heading: "안전교육부터 현장 활동까지",
+          paragraphs: [
+            "활동 전 안전수칙과 이동 방법을 확인하고, 현장에서는 담당자의 안내에 따라 주변을 정비했습니다."
+          ]
+        },
+        {
+          heading: "꾸준히 이어가는 지역 활동",
+          paragraphs: [
+            "태장은 무리하지 않는 범위에서 환경정비와 사회공헌 활동을 꾸준히 이어갈 계획입니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "environment-cleanup-second",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.08.24",
+      title: "두 번째 환경정비 활동을 진행했습니다",
+      summary: "태장이 두 번째 지역 환경정비 활동을 진행하며 참여자들과 함께 현장 정비에 나섰습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/business/environment-cleanup-group.webp",
+      thumbnailAlt: "환경정비 활동에 참여한 태장 작업자와 협력 참여자들의 단체 사진",
+      thumbnailObjectPosition: "50% 64%",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      listingPhoto: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형"
+      },
+      photo: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형",
+        note: "참여자의 사진 공개 동의를 확인하고 안전 장비 착용이 보이는 장면"
+      },
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 24일 두 번째 환경정비 활동을 진행했습니다."
+          ]
+        },
+        {
+          heading: "함께 정비한 현장",
+          paragraphs: [
+            "참여자들은 현장 안내에 따라 주변 환경을 정비하고 활동을 기록했습니다."
+          ]
+        },
+        {
+          heading: "다음 활동을 위한 기록",
+          paragraphs: [
+            "태장은 활동 경험을 살피며 무리하지 않는 범위에서 지역사회공헌 활동을 이어갈 계획입니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "standard-workplace-certification",
+      status: "published",
+      category: "회사 소식",
       date: "2026.07.09",
-      title: "민화 작업을 시작했습니다",
-      summary: "도안과 채색 작업 과정을 익히며 민화 작업을 차분히 이어가고 있습니다.",
-      thumb: null,
-      hero: null,
-      gallery: [],
-      photoRequired: true,
+      title: "자회사형 장애인 표준사업장 인증을 받았습니다",
+      summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 경남형 장애인 동행일자리 제1호 사업장으로서 안정적인 일자리와 실제 업무를 만들어가고 있습니다.",
+      thumb: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
+      hero: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
+      hub: { category: "장애인 일자리", featured: false },
+      alt: {
+        thumb: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",
+        hero: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",
+        gallery: [
+          "태장 공동출자기업 범한메카텍, 삼현, 현대비앤지스틸, 청우비제이 현판",
+          "태장 사업장에 설치된 경남형 장애인 동행일자리 1호점 현판"
+        ]
+      },
+      gallery: [
+        "assets/images/archive/partner-company-plaques-v3.webp",
+        "assets/images/archive/companion-job-first-store-plaque.webp"
+      ],
       listingPhoto: {
-        title: "민화 작업 과정",
-        filename: "minhwa-2.jpg",
-        orientation: "가로형 또는 정방형"
-      },
-      photo: {
-        title: "민화 작업 과정",
-        filename: "minhwa-2.jpg",
-        orientation: "가로형 또는 정방형",
-        note: "얼굴 공개 동의가 불분명하면 손과 작업물을 중심으로 촬영"
-      },
-      sections: [
-        {
-          paragraphs: [
-            "근로자들은 민화 도안과 채색 작업의 기본 과정을 익히며, 각자의 작업 속도와 강점에 맞춰 차분히 진행하고 있습니다."
-          ]
-        },
-        {
-          heading: "도안과 색을 익히는 과정",
-          paragraphs: [
-            "도안을 살피고 붓과 색을 사용하는 방법을 한 단계씩 익힙니다."
-          ]
-        },
-        {
-          heading: "문화 굿즈로 이어질 가능성",
-          paragraphs: [
-            "완성한 작업은 달력·카드·기념품 등 문화 굿즈로 연결할 수 있는 가능성을 검토합니다."
-          ]
-        }
-      ]
-    },
-    {
-      id: "packing-start",
-      category: "일터 소식",
-      date: "2026.07.02",
-      title: "포장과 검수 작업을 준비합니다",
-      summary: "작업공간과 자재를 정리하며 포장·확인·검수의 기본 흐름을 준비하고 있습니다.",
-      thumb: null,
-      hero: null,
-      gallery: [],
-      photoRequired: true,
-      listingPhoto: {
-        title: "포장·검수 작업",
-        filename: "packing-3.jpg",
-        orientation: "가로형 또는 정방형"
-      },
-      photo: {
-        title: "포장·검수 작업",
-        filename: "packing-3.jpg",
-        orientation: "가로형 또는 정방형",
-        note: "송장·주소·주문정보가 보이지 않는 정돈된 작업 장면"
-      },
-      sections: [
-        {
-          paragraphs: [
-            "포장과 검수 작업을 위해 작업공간과 자재를 정리하며, 포장·확인·검수의 기본 흐름을 준비하고 있습니다."
-          ]
-        },
-        {
-          heading: "작업하기 쉬운 공간 준비",
-          paragraphs: [
-            "근로자가 이해하기 쉬운 작업 순서로 정리하고, 작업대와 이동 동선을 함께 점검합니다."
-          ]
-        },
-        {
-          heading: "포장부터 확인까지",
-          paragraphs: [
-            "포장과 확인, 검수 과정은 실제 업무 적합성과 준비 상태를 확인하며 검토합니다.",
-            "기업 수요에 따른 협력은 근로자에게 적합한 방식을 중심으로 논의합니다."
-          ]
-        }
-      ]
-    },
-    {
-      id: "recruitment-notice",
-      category: "공지",
-      date: "2026.07.25",
-      title: "신규 채용 공고",
-      summary: "태장과 함께할 구성원을 찾기 위한 채용 안내입니다.",
-      thumb: null,
-      hero: null,
-      gallery: [],
-      photoRequired: true,
-      listingPhoto: {
-        title: "채용 안내 또는 업무공간 사진",
-        filename: "activity-1.jpg",
-        orientation: "가로형 또는 정방형"
-      },
-      photo: {
-        title: "채용 안내 또는 업무공간 사진",
-        filename: "activity-1.jpg",
-        orientation: "가로형 또는 정방형",
-        note: "지원자 개인정보와 문서가 보이지 않는 안내 장면"
-      },
-      sections: [
-        {
-          paragraphs: [
-            "태장은 장애인 근로자가 안정적으로 일할 수 있는 환경을 함께 만들어갈 구성원을 찾고 있습니다."
-          ]
-        },
-        {
-          heading: "지원 안내",
-          paragraphs: [
-            "모집 분야와 일정은 공식 안내를 통해 확인해 주세요. 세부 조건은 문의 과정에서 안내합니다."
-          ]
-        }
-      ]
-    },
-    {
-      id: "community-program",
-      category: "기업·지역 협력",
-      date: "2026.07.22",
-      title: "지역사회 연계 프로그램 진행",
-      summary: "지역사회와 함께하는 활동의 준비와 진행 과정을 기록합니다.",
-      thumb: null,
-      hero: null,
-      gallery: [],
-      photoRequired: true,
-      listingPhoto: {
-        title: "지역사회 연계 활동",
-        filename: "activity-1.jpg",
-        orientation: "가로형 또는 정방형"
-      },
-      photo: {
-        title: "지역사회 연계 활동",
-        filename: "activity-1.jpg",
-        orientation: "가로형 또는 정방형",
-        note: "참여자 초상권과 개인정보를 확인한 활동 장면"
-      },
-      sections: [
-        {
-          paragraphs: [
-            "태장은 지역사회와 연결되는 활동을 통해 근로자와 지역이 함께 참여할 수 있는 기회를 만들어갑니다."
-          ]
-        },
-        {
-          heading: "함께 만드는 활동",
-          paragraphs: [
-            "활동 내용과 참여 방식은 공개 가능한 범위에서 사실관계를 확인한 뒤 차분히 기록합니다."
-          ]
-        }
-      ]
-    },
-    {
-      id: "standard-workplace-news",
-      category: "일터 소식",
-      date: "2026.07.18",
-      title: "자회사형 장애인 표준사업장 관련 소식",
-      summary: "태장이 안정적인 일터를 만들기 위해 이어가는 운영 방향을 소개합니다.",
-      thumb: null,
-      hero: null,
-      gallery: [],
-      photoRequired: true,
-      listingPhoto: {
-        title: "안정적인 일터 운영",
+        title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
         orientation: "가로형 또는 정방형"
       },
       photo: {
-        title: "안정적인 일터 운영",
+        title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
-        orientation: "가로형 또는 정방형",
-        note: "개인정보와 민감한 문서가 보이지 않는 업무공간 또는 협력 장면"
+        orientation: "가로형",
+        note: "인증서 원본을 게시할 경우 공개 가능한 항목만 보이도록 확인"
       },
       sections: [
         {
           paragraphs: [
-            "태장은 자회사형 장애인 표준사업장으로서 장애인 근로자가 안정적으로 일하고 성장할 수 있는 환경을 만들어갑니다."
+            "농업회사법인 태장 주식회사는 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 인증은 끝이 아니라 장애인이 안정적으로 일할 수 있는 일터와 실제 업무를 만들어가기 위한 출발점입니다."
           ]
         },
         {
-          heading: "지속 가능한 일터",
+          heading: "함께 출발한 기반",
           paragraphs: [
-            "업무 환경과 직무를 차분히 정리하고, 기업과 지역사회가 함께할 수 있는 협력 기반을 단계적으로 넓혀갑니다."
+            "태장은 경남형 장애인 동행일자리 제1호 사업장입니다. 범한메카텍, 삼현, 청우비제이, 현대비앤지스틸이 공동출자기업으로 참여해 일자리와 협력의 기반을 함께 만들어가고 있습니다."
+          ]
+        },
+        {
+          heading: "인증 이후의 과제",
+          paragraphs: [
+            "인증 자체에 머물지 않고, 근로자가 계속 참여할 수 있는 직무와 작업환경, 지속가능한 업무를 차근차근 만들어가겠습니다."
+          ]
+        },
+        {
+          heading: "사업장에 함께 걸린 현판",
+          paragraphs: [
+            "태장 사업장에는 장애인 표준사업장 인증, 경남형 장애인 동행일자리 제1호점, 공동출자기업 현판이 함께 설치되어 있습니다. 아래 사진은 함께 출발한 기반을 현장에서 확인할 수 있는 기록입니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "staff-birthday-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08",
+      title: "8월 생일을 함께 축하했습니다",
+      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumbnail: "assets/images/archive/staff-birthday-2026-08.webp",
+      thumbnailAlt: "태장 직원들이 작업 공간에서 8월 생일을 함께 축하하는 모습",
+      hub: { category: "회사소식", featured: false },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      sections: [
+        {
+          paragraphs: [
+            "태장에서는 2026년 8월, 이달 생일을 맞은 직원들을 함께 축하하는 시간을 가졌습니다."
+          ]
+        },
+        {
+          heading: "함께 축하하는 태장의 일터",
+          paragraphs: [
+            "업무 중 잠시 한자리에 모여 서로의 생일을 축하하고 이야기를 나눴습니다. 작은 시간이지만 함께 일하는 동료들이 서로를 알아가고 편안하게 어울리는 시간이 되었습니다."
+          ]
+        },
+        {
+          paragraphs: [
+            "태장은 직원들이 안정적으로 일하는 것뿐 아니라 서로 존중하고 함께하는 일터를 만들어가겠습니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "terrarium-business-start-2026-08",
+      status: "published",
+      category: "회사 소식",
+      date: "2026.08.22",
+      title: "테라리움 제조사업을 시작합니다",
+      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
+      thumb: "assets/images/terrarium/terrarium-display.webp",
+      hero: "assets/images/terrarium/terrarium-display.webp",
+      hub: { category: "회사소식", featured: false },
+      alt: {
+        thumb: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        hero: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
+        gallery: [
+          "유리병 안에 이끼와 식물을 구성한 여러 테라리움 샘플",
+          "다육식물과 선인장을 구성한 유리 테라리움 샘플",
+          "다면체 유리용기에 이끼와 식물을 구성한 테라리움 샘플"
+        ]
+      },
+      gallery: [
+        "assets/images/terrarium/terrarium-glass-jars.webp",
+        "assets/images/terrarium/terrarium-plant-composition.webp",
+        "assets/images/terrarium/terrarium-geometric.webp"
+      ],
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 제조업 등록을 마치고 테라리움을 첫 제조상품 중 하나로 개발하기 시작했습니다.",
+            "첫 단계에서는 복잡한 완제품보다 반복 생산하기 쉬운 표준 DIY 키트 1종을 만드는 데 집중합니다."
+          ]
+        },
+        {
+          heading: "제품을 만드는 과정이 직무가 됩니다",
+          paragraphs: [
+            "재료와 용기를 준비하고, 필요한 양을 계량·소분하고, 구성품을 세트화한 뒤 검수하고 포장하는 과정까지 하나의 제조 흐름으로 정리해가고 있습니다.",
+            "각 공정을 작은 작업으로 나누어 근로자가 익숙한 역할에 참여할 수 있도록 만드는 것이 목표입니다."
+          ]
+        },
+        {
+          heading: "다음 단계",
+          paragraphs: [
+            "첫 제품과 작업방식이 안정되면 완제품과 기업·기관용 체험 프로그램 등으로 확장할 수 있는 가능성도 검토할 계획입니다."
           ]
         }
       ]
     }
   ],
-  hub: [
-    {
-      id: "internal-opening",
-      type: "internal",
-      source: "homepage",
-      category: "회사소식",
-      title: "태장 개소식 안내",
-      summary: "태장의 새로운 사업장과 개소 관련 안내를 홈페이지에서 확인해 주세요.",
-      thumbnail: "images/minhwa-wide.jpg",
-      publishedAt: "2026-08-12",
-      featured: true,
-      status: "published",
-      detailUrl: "activities.html?id=new-workplace-opening",
-      attachments: []
-    },
-    {
-      id: "internal-recruitment",
-      type: "internal",
-      source: "homepage",
-      category: "채용",
-      title: "신규 채용 공고",
-      summary: "태장과 함께할 구성원을 찾기 위한 공식 채용 안내입니다.",
-      thumbnail: "images/coaching.jpg",
-      publishedAt: "2026-07-25",
-      featured: true,
-      status: "published",
-      detailUrl: "activities.html?id=recruitment-notice",
-      attachments: []
-    },
-    {
-      id: "internal-community",
-      type: "internal",
-      source: "homepage",
-      category: "교육·행사",
-      title: "지역사회 연계 프로그램 진행",
-      summary: "지역사회와 함께하는 활동의 준비와 진행 과정을 기록합니다.",
-      thumbnail: "images/minhwa-wide.jpg",
-      publishedAt: "2026-07-22",
-      featured: false,
-      status: "published",
-      detailUrl: "activities.html?id=community-program",
-      attachments: []
-    },
-    {
-      id: "internal-standard-workplace",
-      type: "internal",
-      source: "homepage",
-      category: "장애인 일자리",
-      title: "자회사형 장애인 표준사업장 관련 소식",
-      summary: "안정적인 일터를 만들기 위해 이어가는 태장의 운영 방향을 소개합니다.",
-      thumbnail: "images/coaching.jpg",
-      publishedAt: "2026-07-18",
-      featured: false,
-      status: "published",
-      detailUrl: "activities.html?id=standard-workplace-news",
-      attachments: []
-    },
-    {
-      id: "external-blog-training",
-      type: "external",
-      source: "naver-blog",
-      category: "교육·행사",
-      title: "태장 근로자 직무교육 현장",
-      summary: "직무교육 현장의 이야기와 사진을 카드로 소개합니다.",
-      thumbnail: "images/minhwa-wide.jpg",
-      publishedAt: "2026-07-20",
-      featured: false,
-      status: "published",
-      externalUrl: "https://example.com/taejang-blog-training",
-      externalLabel: "블로그 원문 보기",
-      openInNewTab: true
-    },
-    {
-      id: "external-instagram-farm",
-      type: "external",
-      source: "instagram",
-      category: "농업·현장",
-      title: "오늘의 농장 현장",
-      summary: "농장 현장의 짧은 기록을 인스타그램 원문에서 확인합니다.",
-      thumbnail: "images/coaching.jpg",
-      publishedAt: "2026-07-19",
-      featured: false,
-      status: "published",
-      externalUrl: "https://example.com/taejang-instagram-farm",
-      externalLabel: "인스타그램에서 보기",
-      openInNewTab: true
-    },
-    {
-      id: "external-youtube-intro",
-      type: "external",
-      source: "youtube",
-      category: "영상",
-      title: "태장 회사 소개 영상",
-      summary: "태장의 일터와 운영 방향을 영상으로 소개합니다.",
-      thumbnail: "images/minhwa-wide.jpg",
-      publishedAt: "2026-07-17",
-      featured: false,
-      status: "published",
-      externalUrl: "https://example.com/taejang-youtube-intro",
-      externalLabel: "영상 보기",
-      openInNewTab: true
-    },
-    {
-      id: "external-press-community",
-      type: "external",
-      source: "press",
-      category: "언론보도",
-      title: "지역사회 일자리 관련 보도",
-      summary: "태장과 지역사회 일자리에 관한 언론 보도를 카드로 소개합니다.",
-      thumbnail: "images/coaching.jpg",
-      publishedAt: "2026-07-16",
-      featured: false,
-      status: "published",
-      externalUrl: "https://example.com/taejang-press-community",
-      externalLabel: "기사 원문 보기",
-      openInNewTab: true
-    }
-  ]
+  hub: []
 };

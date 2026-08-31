@@ -1,0 +1,74 @@
+/* Homepage photo review/public display modes */
+.photo-slot--has-image {
+  position: relative;
+  isolation: isolate;
+  background: #dfe7e1;
+}
+
+.photo-slot--has-image > img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: var(--photo-position-desktop, center center);
+}
+
+.photo-slot--has-image::after {
+  display: none;
+}
+
+/* Keep public placeholder copy out of the first paint before photo-slots.js sets the page mode. */
+html:not(.photo-review-mode) [data-photo-slot] > :not(img) {
+  display: none;
+}
+
+.photo-slot--hero.photo-slot--has-image::before {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, rgba(16, 50, 37, .88) 0%, rgba(16, 50, 37, .62) 54%, rgba(16, 50, 37, .12) 100%);
+  content: "";
+  pointer-events: none;
+}
+
+.photo-review-mode .photo-slot--has-image > strong,
+.photo-review-mode .photo-slot--has-image > span:not(.photo-slot-number),
+.photo-review-mode .photo-slot--has-image > small,
+.photo-public-mode .photo-slot--has-image > :not(img) {
+  display: none;
+}
+
+.photo-review-mode .photo-slot--has-image .photo-slot-number {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 3;
+  display: inline-flex;
+  min-height: 27px;
+  margin: 0;
+  border-color: rgba(255, 255, 255, .72);
+  background: rgba(17, 54, 40, .84);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(12, 37, 28, .18);
+}
+
+.photo-public-mode .photo-slot--has-image {
+  border-color: transparent;
+}
+
+@media (max-width: 760px) {
+  .photo-slot--has-image > img {
+    object-position: var(--photo-position-mobile, var(--photo-position-desktop, center center));
+  }
+
+  .photo-slot--hero.photo-slot--has-image::before {
+    background: linear-gradient(180deg, rgba(16, 50, 37, .34) 0%, rgba(16, 50, 37, .82) 78%, rgba(16, 50, 37, .92) 100%);
+  }
+
+  .photo-review-mode .photo-slot--has-image .photo-slot-number {
+    top: 10px;
+    left: 10px;
+  }
+}

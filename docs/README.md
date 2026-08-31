@@ -92,13 +92,14 @@
 - [관리자 시스템 로드맵](ADMIN_ROADMAP.md)
 - [Phase 0 기술 설계](ADMIN_PHASE0_TECHNICAL_ARCHITECTURE.md)
 - [Phase 1A 보안 기술 검증](ADMIN_PHASE1A_SECURITY_SPIKE.md)
+- [공개 홈페이지 콘텐츠 일괄 발행 설계 v1](PUBLIC_CONTENT_BATCH_PUBLISHING_DESIGN_V1.md) — 홍보팀장 일반 승인·목록 확정, 운영총괄 중요 결재·대리 승인 지정, 최고관리자 금요일 16:00 Production 발행, 긴급 발행·강제 비공개·복구 기준
 - [직원용 관리자 시스템 요구사항](ADMIN_SYSTEM_REQUIREMENTS.md)
 - [관리자 화면 명세](ADMIN_SCREEN_SPEC.md)
 - [관리자 데이터 모델](ADMIN_DATA_MODEL.md)
 - [관리자 보안 계획](ADMIN_SECURITY_PLAN.md)
 - [관리자 도입 의사결정](ADMIN_DECISION_LOG.md)
 
-공개 콘텐츠 관리자 안에서 화면은 화면 명세, 콘텐츠 필드와 관계는 데이터 모델, 파일·발행 보안은 보안 계획, 기존 운영 판단은 의사결정 문서에서 관리합니다.
+공개 콘텐츠 관리자 안에서 화면은 화면 명세, 콘텐츠 필드와 관계는 데이터 모델, 파일·발행 보안은 보안 계획, 일반·중요 콘텐츠의 승인선과 정기 발행 운영은 공개 홈페이지 콘텐츠 일괄 발행 설계, 기존 운영 판단은 의사결정 문서에서 관리합니다.
 
 위 기존 관리자 문서는 공개 콘텐츠 관리 기술기준으로 유지합니다. 태장 업무플랫폼의 가입 승인, 조직·역할, 일반 근로자 화면과 Phase 1A 구현은 앞의 확정 기획·MVP 최종 기준·Phase 1A 문서를 우선합니다.
 

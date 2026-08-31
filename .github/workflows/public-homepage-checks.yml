@@ -1,0 +1,66 @@
+name: Public Homepage Checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "*.html"
+      - "assets/css/**"
+      - "assets/js/**"
+      - "assets/images/archive/**"
+      - "images/homepage/**"
+      - "sitemap.xml"
+      - "robots.txt"
+      - "tests/public-homepage-main-simplification.test.js"
+      - "tests/public-navigation-consolidation.test.js"
+      - "tests/public-external-content.test.js"
+      - ".github/workflows/public-homepage-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-homepage-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: Public source and launch regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Run public homepage checks
+        id: public-checks
+        shell: bash
+        run: |
+          set +e
+          status=0
+          node tests/public-homepage-main-simplification.test.js > public-homepage-checks.log 2>&1 || status=$?
+          node tests/public-navigation-consolidation.test.js >> public-homepage-checks.log 2>&1 || status=$?
+          node tests/public-external-content.test.js >> public-homepage-checks.log 2>&1 || status=$?
+          cat public-homepage-checks.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload failure log
+        if: steps.public-checks.outputs.status != '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-homepage-checks-log
+          path: public-homepage-checks.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report failed checks
+        if: steps.public-checks.outputs.status != '0'
+        run: exit 1

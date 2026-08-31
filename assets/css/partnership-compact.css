@@ -1,0 +1,258 @@
+.partnership-compact-hero .container {
+  max-width: 860px;
+}
+
+.partnership-compact-hero .lead {
+  max-width: 720px;
+}
+
+.page-hero--partnership {
+  padding: 54px 0 58px;
+}
+
+.page-hero--partnership .title {
+  margin-bottom: 12px;
+}
+
+.partner-company-section {
+  border-bottom: 1px solid var(--line);
+}
+
+.partner-company-intro {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 34px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+
+.partner-company-intro .lead {
+  margin-bottom: 0;
+}
+
+.partner-company-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partner-company-list span {
+  display: grid;
+  min-height: 92px;
+  place-items: center;
+  padding: 18px 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--green-deep);
+  font-weight: 800;
+  text-align: center;
+  word-break: keep-all;
+}
+
+.partner-company-evidence {
+  max-width: 760px;
+  margin: 30px auto 0;
+}
+
+.partner-company-evidence img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.partner-company-evidence figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.partnership-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.partnership-visual-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.partnership-visual-media {
+  height: 205px;
+  overflow: hidden;
+  background: #edf1e9;
+}
+
+.partnership-visual-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.partnership-visual-body {
+  padding: 24px;
+}
+
+.partnership-visual-body h2,
+.partnership-visual-body h3 {
+  margin: 0 0 10px;
+  color: var(--green-deep);
+  font: 700 clamp(21px, 2.5vw, 28px)/1.4 var(--myeongjo);
+}
+
+.partnership-visual-body p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.75;
+}
+
+.partnership-environment {
+  padding: 58px 0;
+}
+
+.partnership-environment .environment-service-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(420px, .85fr);
+  gap: 42px;
+  align-items: center;
+}
+
+.partnership-environment .title {
+  margin-bottom: 12px;
+}
+
+.partnership-environment .environment-service-note {
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.community-collaboration-scope {
+  margin: 22px 0 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.community-collaboration-scope > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 14px;
+  padding: 13px 0;
+}
+
+.community-collaboration-scope > div + div {
+  border-top: 1px solid var(--line);
+}
+
+.community-collaboration-scope dt {
+  color: var(--green-deep);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.community-collaboration-scope dd {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.environment-service-process-title {
+  margin: 0 0 12px;
+  color: var(--green-deep);
+  font-size: 16px;
+}
+
+.partnership-environment .service-steps {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.partnership-environment .service-step {
+  min-height: 104px;
+  padding: 18px 14px;
+}
+
+.partnership-environment .service-step strong {
+  font-size: 17px;
+}
+
+.partnership-contact {
+  padding-top: 62px;
+}
+
+.partnership-contact .contact-actions {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 760px) {
+  .partner-company-intro,
+  .partnership-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-company-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .partnership-visual-grid {
+    gap: 16px;
+  }
+
+  .partnership-visual-media {
+    height: 170px;
+  }
+
+  .partnership-visual-body {
+    padding: 20px;
+  }
+
+  .partnership-environment .environment-service-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .partnership-environment .service-steps {
+    grid-template-columns: 1fr;
+    gap: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .community-collaboration-scope > div {
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .partnership-environment .service-step {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-height: 0;
+    padding: 13px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: transparent;
+  }
+
+  .page-hero--partnership {
+    padding: 38px 0 42px;
+  }
+
+  .partnership-environment {
+    padding: 46px 0;
+  }
+}
+
+@media (max-width: 440px) {
+  .partner-company-list {
+    grid-template-columns: 1fr;
+  }
+}

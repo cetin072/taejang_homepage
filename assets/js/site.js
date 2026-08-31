@@ -1,115 +1,252 @@
+(function () {
+  'use strict';
 
-(function(){
-  const polishHref = 'assets/css/site-polish.css';
-  if (!document.querySelector(`link[href="${polishHref}"]`)) {
-    const polishLink = document.createElement('link');
-    polishLink.rel = 'stylesheet';
-    polishLink.href = polishHref;
-    document.head.append(polishLink);
+  const sharedStyleHrefs = [
+    'assets/css/site-polish.css',
+    'assets/css/mobile-layout-fixes.css',
+    'assets/css/listing-polish.css',
+    'assets/css/photo-mode.css',
+    'assets/css/engagement-polish.css'
+  ];
+
+  sharedStyleHrefs.forEach(href => {
+    if (document.querySelector(`link[href="${href}"]`)) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.append(link);
+  });
+
+  const SHOW_EMPLOYEE_ENTRY = false;
+  const PUBLIC_EMAIL = 'taejang2025@naver.com';
+  const OPENING_DATE = '2026-08-12';
+  const OPENING_HIDDEN_FROM = '2026-08-13';
+  const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
+  const PUBLIC_NAV_LINKS = [
+    ['about.html', '태장 소개'],
+    ['business.html', '하는 일'],
+    ['workplace.html', '우리의 일터'],
+    ['archive.html', '소식·기록'],
+    ['partnership.html', '협력·문의', 'nav-cta']
+  ];
+  const FOOTER_LINKS = [
+    ['about.html', '태장 소개'],
+    ['business.html', '하는 일'],
+    ['workplace.html', '우리의 일터'],
+    ['archive.html', '소식·기록'],
+    ['partnership.html', '협력·문의'],
+    ['location.html', '오시는 길']
+  ];
+  const FOOTER_CHANNEL_LINKS = [
+    ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
+    ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
+  ];
+
+  function getSeoulDateKey(date) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(date);
+    const value = type => parts.find(part => part.type === type)?.value || '';
+    return `${value('year')}-${value('month')}-${value('day')}`;
   }
+
+  function currentPageName() {
+    const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
+    return path.endsWith('.html') ? path : 'index.html';
+  }
+
+  function hrefForCurrentPage(href, page) {
+    if (page === 'index.html' && href.startsWith('index.html#')) {
+      return href.slice('index.html'.length);
+    }
+    return href;
+  }
+
+  function isCurrentNavigationTarget(page, targetPage, href) {
+    if (href.includes('#')) return false;
+    if (targetPage === page) return true;
+    return page === 'activities.html' && targetPage === 'archive.html';
+  }
+
+  function ensureContentHubLink(nav) {
+    if (!nav) return;
+    const contentLinks = [...nav.querySelectorAll('a')].filter(link => {
+      const href = (link.getAttribute('href') || '').split(/[?#]/)[0].replace(/^\.\//, '');
+      return href === 'archive.html';
+    });
+    contentLinks.slice(1).forEach(link => link.remove());
+  }
+
+  function normalizeHeaderNavigation() {
+    const page = currentPageName();
+    document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
+      const isDesktop = nav.classList.contains('desktop-nav');
+      nav.replaceChildren();
+
+      PUBLIC_NAV_LINKS.forEach(([href, label, className]) => {
+        const link = document.createElement('a');
+        link.href = hrefForCurrentPage(href, page);
+        link.textContent = label;
+        if (isDesktop && className) link.classList.add(className);
+
+        const targetPage = href.split('#')[0] || 'index.html';
+        if (isCurrentNavigationTarget(page, targetPage, href)) {
+          link.setAttribute('aria-current', 'page');
+        }
+        nav.appendChild(link);
+      });
+      ensureContentHubLink(nav);
+    });
+  }
+
+  function normalizeFooter() {
+    const page = currentPageName();
+    document.querySelectorAll('.footer').forEach(footer => {
+      const columns = footer.querySelectorAll('.footer-top > div');
+      const summary = columns[0]?.querySelector('p');
+      if (summary) {
+        summary.textContent = '장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다.';
+      }
+
+      const shortcuts = columns[1];
+      if (shortcuts) {
+        shortcuts.querySelectorAll('a').forEach(link => link.remove());
+        FOOTER_LINKS.forEach(([href, label]) => {
+          const link = document.createElement('a');
+          link.href = hrefForCurrentPage(href, page);
+          link.textContent = label;
+          const targetPage = href.split('#')[0] || 'index.html';
+          if (isCurrentNavigationTarget(page, targetPage, href)) link.setAttribute('aria-current', 'page');
+          shortcuts.appendChild(link);
+        });
+      }
+
+      const contact = columns[2];
+      const emailLink = contact?.querySelector('a[href^="mailto:"]');
+      if (emailLink) {
+        emailLink.href = `mailto:${PUBLIC_EMAIL}`;
+        emailLink.textContent = PUBLIC_EMAIL;
+      }
+
+      const footerTop = footer.querySelector('.footer-top');
+      if (footerTop) {
+        let channels = footerTop.querySelector('[data-footer-official-channels]');
+        if (!channels) {
+          channels = document.createElement('div');
+          channels.dataset.footerOfficialChannels = '';
+          footerTop.appendChild(channels);
+        }
+        channels.replaceChildren();
+        const heading = document.createElement('h3');
+        heading.textContent = '공식 채널';
+        channels.appendChild(heading);
+        FOOTER_CHANNEL_LINKS.forEach(([href, label]) => {
+          const link = document.createElement('a');
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = label;
+          channels.appendChild(link);
+        });
+      }
+    });
+  }
+
+  const announcement = document.querySelector('.announcement');
+  if (announcement) {
+    if (getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
+      announcement.hidden = true;
+    } else {
+      const date = document.createElement('strong');
+      date.textContent = OPENING_DATE.replaceAll('-', '.');
+      const invitation = document.createElement('a');
+      invitation.href = OPENING_INVITATION_URL;
+      invitation.target = '_blank';
+      invitation.rel = 'noopener noreferrer';
+      invitation.textContent = '초대장 보기';
+      announcement.replaceChildren(date, document.createTextNode(' 태장 신규 사업장 개소식 · '), invitation);
+    }
+  }
+
+  normalizeHeaderNavigation();
+
+  if (SHOW_EMPLOYEE_ENTRY) {
+    const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
+    document.querySelectorAll('.desktop-nav').forEach(nav => {
+      let link = nav.querySelector('.staff-nav, a[href="staff/"]');
+      if (!link) {
+        link = document.createElement('a');
+        link.href = 'staff/';
+        const contact = nav.querySelector('.nav-cta');
+        nav.insertBefore(link, contact || null);
+      }
+      link.classList.add('staff-nav');
+      link.setAttribute('aria-label', '임직원 로그인');
+      link.innerHTML = employeeIcon;
+    });
+
+    document.querySelectorAll('[data-mobile-nav]').forEach(nav => {
+      let link = nav.querySelector('a[href="staff/"]');
+      if (!link) {
+        link = document.createElement('a');
+        link.href = 'staff/';
+        const contact = [...nav.querySelectorAll('a')].find(candidate => candidate.getAttribute('href')?.includes('#contact'));
+        nav.insertBefore(link, contact || null);
+      }
+      link.setAttribute('aria-label', '임직원 로그인');
+      link.innerHTML = employeeIcon;
+    });
+  } else {
+    document.querySelectorAll('.staff-nav, a[href="staff/"], a[href$="/staff/"]').forEach(link => link.remove());
+  }
+
+  document.querySelectorAll('a[href="resources.html"]').forEach(link => link.remove());
+  normalizeFooter();
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
-  if(menuBtn && mobileNav){
-    function setMenu(open){
+  if (menuBtn && mobileNav) {
+    function setMenu(open) {
       mobileNav.classList.toggle('open', open);
       document.body.classList.toggle('nav-open', open);
       menuBtn.setAttribute('aria-expanded', String(open));
       menuBtn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
     }
 
-    menuBtn.addEventListener('click', function(){
+    menuBtn.addEventListener('click', function () {
       setMenu(!mobileNav.classList.contains('open'));
     });
-    mobileNav.querySelectorAll('a').forEach(a => a.addEventListener('click', function(){
+    mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', function () {
       setMenu(false);
     }));
-    document.addEventListener('keydown', function(event){
-      if(event.key === 'Escape' && mobileNav.classList.contains('open')){
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && mobileNav.classList.contains('open')) {
         setMenu(false);
         menuBtn.focus();
       }
     });
   }
 
-  document.querySelectorAll('[data-faq-button]').forEach(btn => {
-    btn.addEventListener('click', function(){
-      const item = btn.closest('.faq-item');
+  document.querySelectorAll('[data-faq-button]').forEach(button => {
+    button.addEventListener('click', function () {
+      const item = button.closest('.faq-item');
       const wasOpen = item.classList.contains('open');
-      document.querySelectorAll('.faq-item').forEach(x => {
-        x.classList.remove('open');
-        const q = x.querySelector('[data-faq-button]');
-        if(q) q.setAttribute('aria-expanded','false');
+      document.querySelectorAll('.faq-item').forEach(candidate => {
+        candidate.classList.remove('open');
+        const question = candidate.querySelector('[data-faq-button]');
+        if (question) question.setAttribute('aria-expanded', 'false');
       });
-      if(!wasOpen){
+      if (!wasOpen) {
         item.classList.add('open');
-        btn.setAttribute('aria-expanded','true');
+        button.setAttribute('aria-expanded', 'true');
       }
     });
   });
 
   const year = document.querySelector('[data-current-year]');
-  if(year) year.textContent = new Date().getFullYear();
+  if (year) year.textContent = new Date().getFullYear();
 
-  const slider = document.querySelector('[data-hero-slider]');
-  if(slider){
-    const slides = Array.from(slider.querySelectorAll('.hero-slide'));
-    const dots = Array.from(document.querySelectorAll('[data-hero-dot]'));
-    const prev = document.querySelector('[data-hero-prev]');
-    const next = document.querySelector('[data-hero-next]');
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let index = 0;
-    let timer = null;
-
-    function showSlide(nextIndex){
-      index = (nextIndex + slides.length) % slides.length;
-      slides.forEach((slide, i) => slide.classList.toggle('active', i === index));
-      dots.forEach((dot, i) => {
-        const active = i === index;
-        dot.classList.toggle('active', active);
-        dot.setAttribute('aria-selected', String(active));
-      });
-    }
-
-    function stopAuto(){
-      if(timer){
-        clearInterval(timer);
-        timer = null;
-      }
-    }
-
-    function startAuto(){
-      stopAuto();
-      if(!reduceMotion){
-        timer = setInterval(() => showSlide(index + 1), 6000);
-      }
-    }
-
-    prev?.addEventListener('click', () => {
-      showSlide(index - 1);
-      startAuto();
-    });
-
-    next?.addEventListener('click', () => {
-      showSlide(index + 1);
-      startAuto();
-    });
-
-    dots.forEach(dot => {
-      dot.addEventListener('click', () => {
-        showSlide(Number(dot.dataset.heroDot));
-        startAuto();
-      });
-    });
-
-    const hero = slider.closest('.hero-slider');
-    hero?.addEventListener('mouseenter', stopAuto);
-    hero?.addEventListener('mouseleave', startAuto);
-    hero?.addEventListener('focusin', stopAuto);
-    hero?.addEventListener('focusout', startAuto);
-
-    showSlide(0);
-    startAuto();
-  }
-
-})();
+}());

@@ -30,7 +30,7 @@
 | 최신순·관련 글 | 원본 배열을 변경하지 않는 안정 정렬 | 유지 |
 | 메인 미리보기 | `content.js` 기반 자동 생성, 실패 시 목록 링크 안내 | 콘텐츠 수정 뒤 검증 실행 |
 | 접근성 기본 | skip link, 키보드 포커스, 모바일 메뉴, reduced motion | 회귀 검사 유지 |
-| 승인된 히어로 | `minhwa-wide.jpg`, `coaching.jpg`만 사용 | 승인 전 교체 금지 |
+| 사진 운영 | 고정 사진 슬롯과 콘텐츠 사진 빈 영역 사용 | 실제 사진 승인 후 교체 |
 
 ## 4. 중복 구조와 기술 부채
 
@@ -57,12 +57,10 @@ JavaScript의 초기화·이벤트·목록 렌더링 함수는 현재 흐름에�
 
 ## 6. 이미지·자산 감사
 
-### 현재 파일 10개
+### 현재 파일 8개
 
 | 파일 | 분류 | 참조·용도 | 권고 |
 | --- | --- | --- | --- |
-| `images/coaching.jpg` | A 현재 사용 | 포장 작업 히어로 | 유지 |
-| `images/minhwa-wide.jpg` | A 현재 사용 | 민화 작업 히어로 | 유지 |
 | `images/favicon.png` | B 아이콘 | favicon·Apple icon | 유지 |
 | `images/logo.png` | B 공식 로고 | 헤더 | 유지 |
 | `images/logo-white.png` | B 공식 로고 | 푸터 | 유지 |
@@ -76,7 +74,7 @@ JavaScript의 초기화·이벤트·목록 렌더링 함수는 현재 흐름에�
 
 ### 삭제한 과거 자산
 
-`business-premium-stilllife.webp`, `minhwa-color.jpg`, `minhwa-line.jpg`, `packing-1.jpg`, `packing-2.jpg`는 사이트·문서에서 현재 참조되지 않고, 공개 승인·역할 확인이 없으며, 일부는 새 촬영 예정 파일명과 충돌했습니다. 실제 사진 원본은 공개 저장소 밖의 내부 보관 여부를 회사가 별도로 관리해야 합니다.
+`business-premium-stilllife.webp`, `minhwa-color.jpg`, `minhwa-line.jpg`, `packing-1.jpg`, `packing-2.jpg`, `coaching.jpg`, `minhwa-wide.jpg`는 사이트·문서에서 현재 참조되지 않고, 공개 승인·역할 확인이 없거나 새 사진 운영 기준과 맞지 않아 삭제했습니다. 실제 사진 원본은 공개 저장소 밖의 내부 보관 여부를 회사가 별도로 관리해야 합니다.
 
 과거 `images/packing-2.jpg`는 공개 부적합 판정 파일이므로 삭제했습니다. 새 촬영 예정 파일명 `packing-2.jpg` 정책은 유지하며, 실제 승인 사진이 들어오기 전에는 `img src`로 연결하지 않습니다. 감사 스크립트는 과거 파일 해시가 다시 공개 참조되는 경우 오류로 처리합니다.
 

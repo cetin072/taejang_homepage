@@ -10,20 +10,23 @@ const ROOT = path.resolve(__dirname, '..');
 const routing = require(path.join(ROOT, 'staff/assets/auth-routing.js'));
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
-test('public homepage exposes a low-priority desktop staff link and mobile staff-app link', () => {
+test('public homepage keeps the staff entry hidden until launch approval', () => {
   const html = read('index.html');
-  assert.match(html, /class="staff-nav" href="staff\/"[^>]*>임직원/);
-  assert.match(html, /href="staff\/">임직원 업무앱<\//);
+  const site = read('assets/js/site.js');
+  assert.doesNotMatch(html, /href="staff\//);
+  assert.doesNotMatch(html, /class="staff-nav"/);
+  assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
 });
 
 test('staff entry keeps login and sign-up as separate chosen actions', () => {
   const html = read('staff/index.html');
+  assert.match(html, /<h1 id="login-title">임직원 로그인<\/h1>/);
   assert.match(html, /id="show-login"/);
   assert.match(html, /id="show-signup"/);
   assert.match(html, /id="password_confirm"|name="password_confirm"/);
   assert.match(html, /name="privacy_consent"/);
   assert.match(html, /id="refresh-status"/);
-  assert.match(html, /설치 안내는 준비 중입니다/);
+  assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
 });
 
 test('non-active contexts never resolve to the protected app', () => {

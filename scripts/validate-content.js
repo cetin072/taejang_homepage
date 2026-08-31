@@ -12,12 +12,12 @@ const INDEX_FILE = path.join(ROOT_DIR, 'index.html');
 
 const REQUIRED_IDS = {
   workplace: ['minhwa-one-stroke', 'packing-care', 'work-together'],
-  activities: ['new-workplace-opening', 'minhwa-class', 'packing-start']
+  activities: ['new-workplace-opening', 'environment-cleanup-first', 'standard-workplace-certification']
 };
 
 const ALLOWED_CATEGORIES = {
   workplace: ['민화·문화 굿즈', '포장·검수', '일터 운영'],
-  activities: ['공지', '일터 소식', '기업·지역 협력', '행사']
+  activities: ['공지', '환경·사회공헌', '회사 소식', '일터 소식', '기업·지역 협력', '행사']
 };
 
 const PLANNED_PHOTO_FILENAMES = [
