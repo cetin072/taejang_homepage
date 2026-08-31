@@ -21,8 +21,9 @@ assert.equal((business.match(/<span class="business-status">운영 중<\/span>/g
 assert.doesNotMatch(business, /기업·기관 협력 가능/, '협력 가능 여부를 상태 배지로 사용하지 않습니다');
 assert.match(business, /assets\/images\/workplace\/packing-tape-work\.webp/, '기업 업무 협력 카드에 새 포장 테이프 작업 사진을 사용합니다');
 assert.match(businessPage, /assets\/images\/archive\/environment-cleanup-first\.webp/, '하는 일의 ESG 카드는 실제 환경정비 활동 사진을 사용합니다');
-assert.match(businessPage, /assets\/images\/workplace\/minhwa-fish-scale-painting\.webp/, '하는 일의 문화 굿즈 카드가 새 민화 작업 사진을 사용합니다');
-assert.match(businessPage, /assets\/images\/workplace\/packing-tape-work\.webp/, '하는 일의 기업 업무 협력 카드도 새 포장 작업 사진을 사용합니다');
+assert.match(businessPage, /images\/homepage\/photo-02\.webp/, '하는 일의 문화 굿즈 카드가 사람과 작업 과정이 함께 보이는 민화 사진을 사용합니다');
+assert.match(businessPage, /images\/homepage\/photo-05\.webp/, '하는 일의 기업 업무 협력 카드는 넓은 작업환경이 보이는 다른 포장 사진을 사용합니다');
+assert.doesNotMatch(businessPage, /assets\/images\/workplace\/(?:minhwa-fish-scale-painting|packing-tape-work)\.webp/, '하는 일 카드는 메인과 일터 이야기의 대표 사진을 반복하지 않습니다');
 assert.doesNotMatch(businessPage, /business-card-media--summary|BUSINESS<br>PARTNERSHIP/, '하는 일은 텍스트 그래픽 카드 미디어를 사용하지 않습니다');
 assert.equal((businessPage.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 3, '하는 일의 현재 운영 카드 상태를 운영 중으로 유지합니다');
 assert.match(businessPage, /기업·기관용 문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 물품·반복 업무 협력/, '하는 일은 기업·발주 관점의 사업과 협력 업무를 보여 줍니다');

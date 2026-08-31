@@ -91,6 +91,7 @@ textarea:focus-visible {
 .content-photo-slot {
   position: relative;
   display: flex;
+  margin: 0;
   width: 100%;
   min-width: 0;
   flex-direction: column;
