@@ -250,7 +250,7 @@ for (const heading of ['사람에게 맞는 일에서 시작했습니다', '농�
 assert.match(minhwa, /민화 작업을 적용한 제품 제작과 전달 과정을 경험했습니다/);
 assert.match(minhwa, /민화는 계획만이 아니라 실제 작업과 제품으로 이어지고 있습니다/);
 assert.doesNotMatch(minhwa, /약 130개|packing-inspection\.webp/);
-assert.match(minhwa, /assets\/images\/workplace\/minhwa-work-process\.webp/);
+assert.match(minhwa, /assets\/images\/workplace\/minhwa-fish-scale-painting\.webp/);
 assert.match(minhwa, /민화의 소재가 될 수 있습니다[\s\S]*제품과 문화 콘텐츠로 이어가는 방향을 생각하고 있습니다/);
 assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-story-flow\.webp[\s\S]*농업과 자연의 소재가 민화 작업을 거쳐 제품과 체험·문화로 이어지는 수채화 일러스트/);
 assert.match(minhwa, /class="minhwa-illustration"[\s\S]*assets\/images\/minhwa\/why-minhwa-product-expansion\.webp[\s\S]*하나의 민화 도안이 보석함, 카드, 달력, 농산물 포장, 기업 굿즈로 확장되는 수채화 일러스트/);
