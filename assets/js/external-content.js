@@ -69,6 +69,22 @@
       externalLabel: '유튜브에서 보기'
     },
     {
+      id: 'youtube-mIb0wN_Wi8w',
+      type: 'external',
+      source: 'youtube',
+      publisher: '태장 공식 유튜브',
+      category: 'ESG·사회공헌',
+      title: '[태장 브이로그] 8월 24일, 더운 날씨 속에서도 정말 뿌듯했던 환경정비 활동',
+      summary: '8월 24일 더운 날씨 속에서 진행한 태장의 두 번째 환경정비 활동 현장을 브이로그로 소개합니다.',
+      thumbnail: 'https://i.ytimg.com/vi/mIb0wN_Wi8w/hqdefault.jpg',
+      thumbnailAlt: '태장 8월 24일 환경정비 활동 브이로그 썸네일',
+      publishedAt: '2026-08-24',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://www.youtube.com/watch?v=mIb0wN_Wi8w',
+      externalLabel: '유튜브에서 보기'
+    },
+    {
       id: 'youtube-8x4Rf3knAb8',
       type: 'external',
       source: 'youtube',
