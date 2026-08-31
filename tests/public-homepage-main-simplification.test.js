@@ -592,10 +592,10 @@ const terrariumActivity = contentData.slice(contentData.indexOf('id: "terrarium-
 assert.doesNotMatch(terrariumActivity, /판매 중|체험 프로그램 운영 중|태장 직원 제작 완제품/);
 
 const certificationHubItem = actualHubItems.find(item => item.id === 'activity-standard-workplace-certification');
-assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification.webp');
-assert.equal(certificationHubItem.thumbnailAlt, '태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판');
+assert.equal(certificationHubItem.thumbnail, 'assets/images/archive/standard-workplace-certification-plaque.webp');
+assert.equal(certificationHubItem.thumbnailAlt, '농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판');
 assert.equal(fs.existsSync(path.join(root, certificationHubItem.thumbnail)), true);
-assert.match(contentData, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification\.webp"[\s\S]*hero: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
+assert.match(contentData, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification-plaque\.webp"[\s\S]*hero: "assets\/images\/archive\/standard-workplace-certification-plaque\.webp"[\s\S]*taejang-plaque-wall\.webp[\s\S]*companion-job-first-store-plaque\.webp/);
 assert.doesNotMatch(contentData, /images\/homepage\/photo-(?:09|10|11)\.webp/);
 
 const visiblePreview = createPreviewFixture(previewContent);

@@ -24,6 +24,7 @@ for (const directory of ['assets/images', 'images/homepage']) {
 const business = read('business.html');
 const communityEsg = read('community-esg.html');
 const content = read('assets/js/content.js');
+const partnership = read('partnership.html');
 const policy = read('docs/operations/ASSET_POLICY.md');
 const sitePolish = read('assets/css/site-polish.css');
 
@@ -33,6 +34,8 @@ assert.match(business, /images\/homepage\/photo-02\.webp/);
 assert.match(business, /images\/homepage\/photo-05\.webp/);
 assert.match(communityEsg, /assets\/images\/business\/environment-cleanup-group\.webp|assets\/js\/community-esg\.js/);
 assert.match(content, /id: "environment-cleanup-first"[\s\S]*thumbnail: "assets\/images\/business\/environment-cleanup-group\.webp"/);
+assert.match(content, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification-plaque\.webp"[\s\S]*gallery: \[[\s\S]*taejang-plaque-wall\.webp[\s\S]*companion-job-first-store-plaque\.webp/);
+assert.match(partnership, /partner-company-evidence[\s\S]*taejang-plaque-wall\.webp/);
 assert.match(policy, /의미 없이 반복 사용하지 않습니다/);
 assert.match(sitePolish, /\.photo-slot,[\s\S]*?margin: 0;[\s\S]*?width: 100%;/, '사진 figure의 기본 여백이 모바일 가로 넘침을 만들지 않습니다');
 
