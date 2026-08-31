@@ -20,7 +20,12 @@ assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\
 assert.equal((business.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 3, '현재 운영 카드의 상태를 운영 중으로 통일합니다');
 assert.doesNotMatch(business, /기업·기관 협력 가능/, '협력 가능 여부를 상태 배지로 사용하지 않습니다');
 assert.match(business, /assets\/images\/workplace\/packing-tape-work\.webp/, '기업 업무 협력 카드에 새 포장 테이프 작업 사진을 사용합니다');
-assert.match(businessPage, /assets\/images\/archive\/environment-cleanup-first\.webp/, '하는 일의 ESG 카드는 실제 환경정비 활동 사진을 사용합니다');
+assert.match(businessPage, /assets\/images\/business\/environment-cleanup-group\.webp/, '하는 일의 ESG 카드는 새 환경정비 단체사진을 사용합니다');
+assert.match(businessPage, /환경정비 활동에 참여한 태장 작업자와 협력 참여자들의 단체 사진/, '하는 일 ESG 카드의 대체 텍스트가 새 단체사진을 설명합니다');
+assert.match(index, /assets\/images\/business\/environment-cleanup-group\.webp/, '메인 현재 운영 ESG 카드도 같은 새 단체사진을 사용합니다');
+const environmentGroup = fs.readFileSync(path.join(root, 'assets/images/business/environment-cleanup-group.webp'));
+assert.equal(environmentGroup.subarray(0, 4).toString('ascii'), 'RIFF', '새 환경정비 단체사진은 WebP 컨테이너입니다');
+assert.equal(environmentGroup.subarray(8, 12).toString('ascii'), 'WEBP', '새 환경정비 단체사진은 WebP 형식입니다');
 assert.match(businessPage, /images\/homepage\/photo-02\.webp/, '하는 일의 문화 굿즈 카드가 사람과 작업 과정이 함께 보이는 민화 사진을 사용합니다');
 assert.match(businessPage, /images\/homepage\/photo-05\.webp/, '하는 일의 기업 업무 협력 카드는 넓은 작업환경이 보이는 다른 포장 사진을 사용합니다');
 assert.doesNotMatch(businessPage, /assets\/images\/workplace\/(?:minhwa-fish-scale-painting|packing-tape-work)\.webp/, '하는 일 카드는 메인과 일터 이야기의 대표 사진을 반복하지 않습니다');
