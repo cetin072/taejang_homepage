@@ -44,8 +44,8 @@ assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)
 assert.match(listing, /backLabel: '← 일터 이야기 목록으로'/);
 for (const [imagePath, alt] of [
   ['assets/images/workplace/minhwa-fish-scale-painting.webp', '붓으로 잉어 민화의 비늘을 채색하는 작업 모습'],
-  ['assets/images/workplace/main-workspace.webp', '태장 본점의 실무 작업 공간과 작업 테이블'],
-  ['assets/images/workplace/packing-tape-work.webp', '파란 작업복을 입은 작업자가 박스에 포장 테이프를 붙이는 포장·검수 작업 모습']
+  ['images/homepage/photo-06.webp', '상자를 접고 테이프로 포장하는 작업자의 손'],
+  ['images/homepage/photo-04.webp', '상자를 조립하고 포장 테이프 작업을 하는 두 작업자']
 ]) {
   const imageFile = path.join(root, imagePath);
   assert.equal(fs.existsSync(imageFile), true);
