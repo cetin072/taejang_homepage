@@ -20,7 +20,7 @@
 - 김형철 bootstrap과 실제 로그인 재검증은 성공 확정: `active`, `super_admin`, `operations_manager`이며 보호된 staff 최고관리자 화면과 가입 승인 대기 화면이 정상이다. 계정·역할·부서·직책·감사기록은 이번 작업에서 재조회·수정하지 않았다. `apply_bootstrap`, `bootstrap_super_admin`, `profiles`·`profile_roles` 직접 수정은 재실행 금지다.
 - 그 재검증 중 과거 `?notice=app-error`가 성공한 관리자 화면에도 남는 stale 안내를 확인했다. PR #31에서 처리한 notice를 URL에서 소비하고, 검증된 최고관리자 화면에는 과거 `app-error`·`setup`을 다시 표시하지 않도록 수정했다. 과거 `/app/`의 원본 예외는 넓은 catch가 버려 정확한 모듈까지 소급 식별할 수 없지만, 관리자 보조 모듈 동적 로딩은 실패해도 핵심 대시보드·세션을 유지하고 제한된 안내만 표시하도록 분리했다.
 - 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준)
-- Netlify Deploy Preview #31: 이전 HEAD에서 `/staff/` 정상 연결 기록이 있다. 이번 push 뒤 새 Preview에서 `/staff/`, `/app/` 기본 경로를 다시 확인한다. Production 배포는 금지다.
+- Netlify Deploy Preview #31: HEAD `3513f311f83526b64924c5a049b4872d48f2de6c` 기준 `ready`. `/staff/` 로그인 화면 정상, 비로그인 `/app/`은 `/staff/`로 보호 리디렉션되는 것을 확인했다. Production 배포는 하지 않았다.
 - 시험계정·샘플 데이터: 미생성
 - staging QA 시드: 기본 2계정·5개 샘플은 별도 승인 전까지 미실행. 전체 9계정은 `--full`과 명시 확인값 없이는 금지.
 
@@ -37,12 +37,13 @@
 - PR #31: 최소 staging QA 시드 정리(실제 실행 없음)
 - 최초 최고관리자 bootstrap의 성공 기록을 현재 기준으로 정리하고 재실행 금지 상태를 명확화
 - Issue #86: 최신 main 반영·PR #31 충돌 해결 및 최고관리자 protected staff 진입, stale notice 소비, 보조 모듈 오류 격리, Auth 오류 구분 회귀검증 완료
+- PR #31 최종 Deploy Preview에서 `/staff/` 및 비로그인 `/app/` 보호 리디렉션 검증 완료
 
 ## 다음 작업
 
-1. PR #31의 새 Deploy Preview에서 `/staff/`와 `/app/` 기본 경로를 비파괴 방식으로 확인한다.
-2. 독립 검수와 사용자 승인 뒤에만 PR 상태 변경 또는 main 병합을 검토한다.
-3. 실제 계정 생성·승인, migration 적용, QA 시드, Production 변경은 별도 승인·별도 작업으로 분리한다.
+1. 독립 검수와 사용자 승인 뒤에만 PR #31의 Ready for review 전환 또는 main 병합을 검토한다.
+2. 실제 계정 생성·승인, migration 적용, QA 시드, Production 변경은 별도 승인·별도 작업으로 분리한다.
+3. PR #31이 승인·병합된 뒤 대표이사 계정 생성/승인 흐름과 제한된 직원 pilot 준비를 다음 Issue에서 진행한다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
