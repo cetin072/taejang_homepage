@@ -284,15 +284,22 @@ window.TAEJANG_CONTENT = {
       category: "회사 소식",
       date: "2026.07.09",
       title: "자회사형 장애인 표준사업장 인증을 받았습니다",
-      summary: "장애인이 안정적으로 일할 수 있는 일터와 실제 업무를 함께 만들어가기 위한 태장의 운영 방향을 안내합니다.",
-      thumb: "assets/images/archive/standard-workplace-certification.webp",
-      hero: "assets/images/archive/standard-workplace-certification.webp",
+      summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 경남형 장애인 동행일자리 제1호 사업장으로서 안정적인 일자리와 실제 업무를 만들어가고 있습니다.",
+      thumb: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
+      hero: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
       hub: { category: "장애인 일자리", featured: false },
       alt: {
-        thumb: "태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판",
-        hero: "태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판"
+        thumb: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",
+        hero: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",
+        gallery: [
+          "태장 공동출자기업 범한메카텍, 삼현, 현대비앤지스틸, 청우비제이 현판",
+          "태장 사업장에 설치된 경남형 장애인 동행일자리 1호점 현판"
+        ]
       },
-      gallery: [],
+      gallery: [
+        "assets/images/archive/partner-company-plaques-v3.webp",
+        "assets/images/archive/companion-job-first-store-plaque.webp"
+      ],
       listingPhoto: {
         title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
@@ -307,19 +314,25 @@ window.TAEJANG_CONTENT = {
       sections: [
         {
           paragraphs: [
-            "농업회사법인 태장 주식회사는 2026년 7월 9일 자회사형 장애인 표준사업장으로 인증받았습니다. 장애인이 안정적으로 일할 수 있는 일터를 만들고, 실제 업무와 사업을 연결하는 것이 태장의 운영 목표입니다."
+            "농업회사법인 태장 주식회사는 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 인증은 끝이 아니라 장애인이 안정적으로 일할 수 있는 일터와 실제 업무를 만들어가기 위한 출발점입니다."
           ]
         },
         {
-          heading: "함께 만드는 일자리",
+          heading: "함께 출발한 기반",
           paragraphs: [
-            "태장은 경남형 장애인 동행일자리 제1호점으로 함께 운영되고 있습니다. 범한메카텍, 삼현, 청우비제이, 현대비앤지스틸이 공동출자기업으로 참여해 일자리와 협력 기반을 함께 만들어갑니다."
+            "태장은 경남형 장애인 동행일자리 제1호 사업장입니다. 범한메카텍, 삼현, 청우비제이, 현대비앤지스틸이 공동출자기업으로 참여해 일자리와 협력의 기반을 함께 만들어가고 있습니다."
           ]
         },
         {
           heading: "인증 이후의 과제",
           paragraphs: [
             "인증 자체에 머물지 않고, 근로자가 계속 참여할 수 있는 직무와 작업환경, 지속가능한 업무를 차근차근 만들어가겠습니다."
+          ]
+        },
+        {
+          heading: "사업장에 함께 걸린 현판",
+          paragraphs: [
+            "태장 사업장에는 장애인 표준사업장 인증, 경남형 장애인 동행일자리 제1호점, 공동출자기업 현판이 함께 설치되어 있습니다. 아래 사진은 함께 출발한 기반을 현장에서 확인할 수 있는 기록입니다."
           ]
         }
       ]

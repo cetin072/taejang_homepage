@@ -44,8 +44,8 @@ test('all audited public activity cards use an approved category and the certifi
       assert.match(record, /thumb: null/);
       assert.match(record, /hero: null/);
     } else {
-      assert.match(record, /thumb: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
-      assert.match(record, /hero: "assets\/images\/archive\/standard-workplace-certification\.webp"/);
+      assert.match(record, /thumb: "assets\/images\/archive\/standard-workplace-certification-plaque-v3\.webp"/);
+      assert.match(record, /hero: "assets\/images\/archive\/standard-workplace-certification-plaque-v3\.webp"/);
       assert.match(record, /alt: \{/);
     }
   }
