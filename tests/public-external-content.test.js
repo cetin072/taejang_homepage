@@ -25,11 +25,12 @@ const window = {
 };
 vm.runInNewContext(externalContent, { window });
 
-assert.equal(window.TAEJANG_CONTENT.hub.length, 6);
+assert.equal(window.TAEJANG_CONTENT.hub.length, 7);
 const naver = window.TAEJANG_CONTENT.hub.find(item => item.id === 'naver-blog-224367547159');
 const youtube = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-FbEOcteBSJ4');
 const changwon = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-qvqNyeyfQsA');
 const gyeongnam = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-8x7yg5YBK9g');
+const vlog = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-mIb0wN_Wi8w');
 const knn = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-8x4Rf3knAb8');
 const kbs = window.TAEJANG_CONTENT.hub.find(item => item.id === 'kbs-news-8636757');
 
@@ -51,6 +52,18 @@ assert.equal(youtube.thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jp
 assert.equal(youtube.thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(youtube.externalLabel, '유튜브에서 보기');
 assert.equal(youtube.publishedAt, '2026-08-13');
+
+
+assert.equal(vlog.type, 'external');
+assert.equal(vlog.source, 'youtube');
+assert.equal(vlog.publisher, '태장 공식 유튜브');
+assert.equal(vlog.category, 'ESG·사회공헌');
+assert.equal(vlog.title, '[태장 브이로그] 8월 24일, 더운 날씨 속에서도 정말 뿌듯했던 환경정비 활동');
+assert.equal(vlog.status, 'published');
+assert.equal(vlog.publishedAt, '2026-08-24');
+assert.equal(vlog.externalUrl, 'https://www.youtube.com/watch?v=mIb0wN_Wi8w');
+assert.equal(vlog.thumbnail, 'https://i.ytimg.com/vi/mIb0wN_Wi8w/hqdefault.jpg');
+assert.equal(vlog.externalLabel, '유튜브에서 보기');
 
 for (const [video, id, title] of [
   [changwon, 'qvqNyeyfQsA', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장'],
@@ -88,6 +101,6 @@ assert.equal(kbs.externalLabel, 'KBS 뉴스에서 보기');
 assert.equal(kbs.publishedAt, '2026-08');
 
 vm.runInNewContext(externalContent, { window });
-assert.equal(window.TAEJANG_CONTENT.hub.length, 6, '같은 외부 콘텐츠를 중복 등록하지 않습니다');
+assert.equal(window.TAEJANG_CONTENT.hub.length, 7, '같은 외부 콘텐츠를 중복 등록하지 않습니다');
 
 console.log('public-external-content tests: all cases passed');
