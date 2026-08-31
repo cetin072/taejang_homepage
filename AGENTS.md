@@ -43,6 +43,16 @@
 - 다른 PC로 이동하기 전에는 최소 commit과 push를 남기고, 가능하면 Draft PR까지 만들어 작업 맥락과 검증 결과를 GitHub에 남깁니다.
 - 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
 
+### Codex 모델·추론 선택
+
+- 모든 Codex 작업은 시작 전에 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 읽고 현재 작업 단위에 맞는 GPT-5.6 모델과 추론 수준을 다시 판단합니다.
+- 모델은 채팅방 단위로 고정하지 않습니다. 같은 채팅이어도 작업이 바뀌면 다시 선택합니다.
+- 모든 Codex 지시에는 가능하면 `권장 모델`, `권장 추론`, `선정 이유`를 명시합니다.
+- 판단이 애매하면 `Terra / Medium`을 기본값으로 사용합니다.
+- 단순 작업에 이전 Sol 설정을 관성적으로 유지하지 않습니다.
+- 보안·Auth·RLS·권한·중요 DB migration·Production 사고·복잡한 장기 브랜치 정합화에는 Luna를 사용하지 않습니다.
+- 작업 중 범위나 위험도가 달라지면 모델을 승급 또는 강등합니다.
+
 ## 수정·보안 원칙
 
 - 요청 범위 밖의 파일은 수정하지 않습니다.
