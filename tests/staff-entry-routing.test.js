@@ -36,9 +36,13 @@ test('non-active contexts never resolve to the protected app', () => {
   }
 });
 
-test('active general worker and super admin are automatically routed', () => {
+test('active roles use their safe first staff entry', () => {
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'general_worker' }]), { code: 'general_worker', home: 'general-worker', label: '일반 근로자' });
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'super_admin' }]), { code: 'super_admin', home: 'super-admin', label: '시스템 관리' });
+  assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] }).kind, 'admin');
+  assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'operations_manager' }] }).kind, 'app');
+  assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'general_worker' }] }).route.code, 'general_worker');
+  for (const status of ['pending', 'suspended', 'departed', 'deleted']) assert.notEqual(routing.staffDestination({ account_status: status, roles: [{ code: 'super_admin' }] }).kind, 'admin');
 });
 
 test('multiple roles use the documented fixed priority without a user choice', () => {
@@ -55,6 +59,36 @@ test('protected app rechecks access context on direct entry, refresh, and naviga
   assert.match(source, /window\.addEventListener\('pageshow', verify\)/);
   assert.match(source, /window\.addEventListener\('popstate', verify\)/);
   assert.match(source, /sessionStorage\.removeItem/);
+  assert.match(source, /sendToStaff\('app-error', \{ clear: false \}\)/);
+  assert.match(source, /sendToStaff\('session-expired', \{ clear: true \}\)/);
+  assert.match(source, /sendToStaff\('setup', \{ clear: false \}\)/);
+});
+
+test('super admin is kept on the protected staff admin screen and return notices are consumed', () => {
+  const staff = read('staff/assets/staff.js');
+  const html = read('staff/index.html');
+  assert.match(staff, /staffDestination\(context\)/);
+  assert.match(staff, /function routeToAdmin\(\)/);
+  assert.match(staff, /query\.set\('admin', '1'\)/);
+  assert.match(staff, /'app-error'/);
+  assert.match(staff, /showIssue\('app-error'\)/);
+  assert.match(staff, /function consumeNotice\(\)/);
+  assert.match(staff, /url\.searchParams\.delete\('notice'\)/);
+  assert.match(staff, /if \(!detail\.issue\) message\(detail\.text, detail\.error\)/);
+  assert.match(html, /id="issue-panel"/);
+  assert.match(html, /id="retry-app"/);
+  assert.match(html, /href="\.\.\/app\/"/);
+});
+
+test('manager add-on loading cannot invalidate a verified app session', () => {
+  const app = read('app/assets/app.js');
+  const html = read('app/index.html');
+  assert.match(app, /Promise\.allSettled\(modules\.map\(loadScript\)\)/);
+  assert.match(app, /managerModuleFailures/);
+  assert.match(app, /핵심 대시보드와 로그인 상태는 계속 사용할 수 있습니다/);
+  assert.match(html, /id="app-status-message"/);
+  assert.match(app, /sendToStaff\('session-expired', \{ clear: true \}\)/);
+  assert.match(app, /sendToStaff\('app-error', \{ clear: false \}\)/);
 });
 
 test('inactive access panels do not render profile fields', () => {

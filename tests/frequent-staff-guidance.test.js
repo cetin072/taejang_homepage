@@ -14,7 +14,7 @@ test('frequent staff guidance is a separate worker screen with accessible filter
 
 test('guidance code remains modular and does not add writes to app.js', () => {
   const app = read('app/assets/app.js');
-  assert.match(app, /loadScript\('assets\/guidance-admin\.js'\)/);
+  assert.match(app, /'assets\/guidance-admin\.js'/);
   assert.doesNotMatch(app, /save_staff_guidance/);
   for (const file of ['guidance-worker.js', 'guidance-admin.js']) assert.ok(fs.existsSync(path.join(root, 'app/assets', file)));
 });

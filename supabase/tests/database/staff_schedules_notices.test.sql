@@ -49,6 +49,10 @@ values
   ('61000000-0000-0000-0000-000000000006', 'schedule-other-worker@example.test', '{}'::jsonb, '{"display_name":"테스트 다른부서 근로자"}'::jsonb),
   ('61000000-0000-0000-0000-000000000007', 'schedule-pending@example.test', '{}'::jsonb, '{"display_name":"테스트 승인대기"}'::jsonb);
 
+update auth.users
+set email_confirmed_at = now()
+where id = '61000000-0000-0000-0000-000000000001';
+
 select is(
   (public.bootstrap_super_admin('61000000-0000-0000-0000-000000000001') ->> 'code'),
   'SUPER_ADMIN_BOOTSTRAPPED',

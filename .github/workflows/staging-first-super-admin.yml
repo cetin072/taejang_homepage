@@ -45,37 +45,42 @@ jobs:
           [[ "$STAGING_PROJECT_REF" != *prod* && "$STAGING_PROJECT_REF" != *live* ]] || { echo "STOP: production-looking ref"; exit 1; }
           [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$STAGING_DB_PASSWORD" ]] || { echo "STOP: required staging secrets missing"; exit 1; }
           echo "Target: approved staging allow-list only."
+      - name: Link approved staging project
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: supabase link --project-ref "$STAGING_PROJECT_REF"
       - name: Migration dry-run
-        run: supabase db push --project-ref "$STAGING_PROJECT_REF" --dry-run
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: supabase db push --dry-run
       - name: Discover and verify exactly one bootstrap candidate
         shell: bash
         run: |
           set -euo pipefail
-          export PGPASSWORD="$STAGING_DB_PASSWORD"
-          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 <<'SQL'
-          \set QUIET 1
-          do $$
-          declare candidate_count integer; active_admin_count integer;
-          begin
-            select count(*) into candidate_count from auth.users u join public.profiles p on p.id=u.id where u.email_confirmed_at is not null and p.account_status='pending';
-            select count(distinct p.id) into active_admin_count from public.profiles p join public.profile_roles pr on pr.profile_id=p.id and pr.revoked_at is null join public.roles r on r.id=pr.role_id and r.code='super_admin' where p.account_status='active';
-            if active_admin_count <> 0 then raise exception 'STOP_ACTIVE_SUPER_ADMIN_EXISTS'; end if;
-            if candidate_count = 0 then raise exception 'STOP_NO_BOOTSTRAP_CANDIDATE'; end if;
-            if candidate_count > 1 then raise exception 'STOP_MULTIPLE_BOOTSTRAP_CANDIDATES'; end if;
-          end $$;
-          select 'PASS exactly one bootstrap candidate; identity withheld';
+          query="$(cat <<'SQL'
+          select
+            (select count(*) from auth.users u join public.profiles p on p.id = u.id where u.email_confirmed_at is not null and p.account_status = 'pending') as candidate_count,
+            (select count(distinct p.id) from public.profiles p join public.profile_roles pr on pr.profile_id = p.id and pr.revoked_at is null join public.roles r on r.id = pr.role_id and r.code = 'super_admin' where p.account_status = 'active') as active_admin_count;
           SQL
+          )"
+          response="$(jq -n --arg query "$query" '{ query: $query, read_only: true }' | curl --fail --silent --show-error --retry 2 --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header "Content-Type: application/json" --data-binary @-)"
+          candidate_count="$(printf '%s' "$response" | jq -er 'if type == "array" then .[0].candidate_count elif .result? and (.result | type == "array") then .result[0].candidate_count else .candidate_count end | tostring')"
+          active_admin_count="$(printf '%s' "$response" | jq -er 'if type == "array" then .[0].active_admin_count elif .result? and (.result | type == "array") then .result[0].active_admin_count else .active_admin_count end | tostring')"
+          [[ "$active_admin_count" == "0" ]] || { echo "STOP_ACTIVE_SUPER_ADMIN_EXISTS"; exit 1; }
+          [[ "$candidate_count" != "0" ]] || { echo "STOP_NO_BOOTSTRAP_CANDIDATE"; exit 1; }
+          [[ "$candidate_count" == "1" ]] || { echo "STOP_MULTIPLE_BOOTSTRAP_CANDIDATES"; exit 1; }
+          echo "PASS exactly one bootstrap candidate; identity withheld"
       - name: Apply staging migration
         if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
-        run: supabase db push --project-ref "$STAGING_PROJECT_REF"
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+        run: supabase db push
       - name: Official one-time bootstrap and verification
         if: inputs.action == 'apply_bootstrap' && inputs.approval == 'APPLY_STAGING_BOOTSTRAP'
         shell: bash
         run: |
           set -euo pipefail
-          export PGPASSWORD="$STAGING_DB_PASSWORD"
-          psql "sslmode=require host=db.${STAGING_PROJECT_REF}.supabase.co port=5432 dbname=postgres user=postgres" -v ON_ERROR_STOP=1 <<'SQL'
-          begin;
+          query="$(cat <<'SQL'
           do $$ declare target uuid; result jsonb; candidate_count integer; begin
             select count(*) into candidate_count from auth.users u join public.profiles p on p.id=u.id where u.email_confirmed_at is not null and p.account_status='pending';
             if candidate_count <> 1 then raise exception 'STOP_CANDIDATE_COUNT_CHANGED'; end if;
@@ -87,9 +92,10 @@ jobs:
             if not exists (select 1 from public.account_status_history where profile_id=target and previous_status='pending' and new_status='active') then raise exception 'STOP_STATUS_HISTORY_MISSING'; end if;
             if (select count(*) from public.audit_logs where target_id=target::text and action in ('organization_assignment_changed','role_granted','super_admin_bootstrapped') and outcome='success') < 4 then raise exception 'STOP_AUDIT_VERIFICATION_FAILED'; end if;
           end $$;
-          commit;
-          select 'PASS bootstrap and post-verification';
           SQL
+          )"
+          jq -n --arg query "$query" '{ query: $query, read_only: false }' | curl --fail --silent --show-error --retry 2 --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header "Content-Type: application/json" --data-binary @- >/dev/null
+          echo "PASS bootstrap and post-verification"
       - name: Require explicit apply phrase
         if: inputs.action == 'apply_bootstrap' && inputs.approval != 'APPLY_STAGING_BOOTSTRAP'
         run: 'echo "STOP: apply_bootstrap requires the exact approval phrase" && exit 1'

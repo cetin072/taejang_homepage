@@ -52,7 +52,7 @@ test('schedule, notice, acknowledgement, admin, and common concerns are separate
     assert.ok(fs.existsSync(path.join(root, 'app/assets', file)));
   }
   for (const file of ['schedule-admin.js', 'notice-admin.js']) {
-    assert.match(read('app/assets/app.js'), new RegExp(`loadScript\\('assets/${file.replace('.', '\\.')}\\'\\)`));
+    assert.match(read('app/assets/app.js'), new RegExp(`'assets/${file.replace('.', '\\.')}'`));
     assert.ok(fs.existsSync(path.join(root, 'app/assets', file)));
   }
   const app = read('app/assets/app.js');

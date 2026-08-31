@@ -7,7 +7,7 @@
 - `STAGING_SUPABASE_PROJECT_REF`가 URL 호스트와 일치해야 한다.
 - ref가 `STAGING_ALLOWED_PROJECT_REFS`에 명시되어야 하며, 로컬 `STAGING_BLOCKED_PROJECT_REFS`에 있으면 중단한다.
 - URL이 `prod`, `production`, `live`로 보이면 중단한다.
-- 쓰기 명령은 `STAGING_CONFIRM=STAGING`과 `--apply` 또는 `--delete`를 모두 요구한다.
+- 쓰기 명령은 `STAGING_CONFIRM=STAGING`을 요구한다. migration·정리는 각각 `--apply` 또는 `--delete`도 추가로 요구한다.
 - key, 비밀번호, 토큰은 출력·manifest·저장소에 기록하지 않는다.
 
 ## 명령
@@ -16,9 +16,11 @@
 
 `node scripts/staging/apply-migrations.mjs`는 Supabase CLI의 dry-run을 수행한다. 실제 반영은 사용자 승인 후 `STAGING_CONFIRM=STAGING node scripts/staging/apply-migrations.mjs --apply`로만 가능하다. CLI가 없으면 설치 방법만 확인하고 자동 설치하지 않는다. migration은 자동 rollback되지 않는다.
 
-`STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`는 service role을 사용하는 **로컬 관리자 명령**이다. 가상 Auth 사용자 9명(최고관리자 2명 포함), 기존 역할·부서·작업반, Today·작업방법·일정·공지·안내 검수자료를 만든다. `STAGING_QA_PASSWORD`는 실행 때만 입력한다.
+`STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`는 service role을 사용하는 **로컬 관리자 명령**이다. 기본값은 `[TEST] 시험 관리자`와 `[TEST] 시험 근로자` 2명, 작업반 1개, 오늘의 업무·일정·중요공지·작업방법·자주 보는 안내만 만든다. 실제 사용자 계정은 만들지 않는다. `STAGING_QA_PASSWORD`는 실행 때만 입력한다.
 
-`node scripts/staging/verify-phase1.mjs`는 가상 사용자·최고관리자 2명·검수 콘텐츠 존재를 확인한다.
+전체 역할·RLS 검수가 꼭 필요한 경우에만 `STAGING_CONFIRM=STAGING STAGING_FULL_QA_CONFIRM=FULL_QA node scripts/staging/seed-phase1.mjs --full`을 사용한다. 이 별도 확인값 없이는 기존 9계정 QA 시드가 시작되지 않는다.
+
+`node scripts/staging/verify-phase1.mjs`는 manifest에 기록된 최소 2계정 또는 전체 9계정, 해당 모드의 최고관리자 수와 검수 콘텐츠 존재를 확인한다.
 
 `node scripts/staging/cleanup-phase1.mjs`는 삭제 예정 개수만 보여준다. 실제 콘텐츠·작업반 정리는 `STAGING_CONFIRM=STAGING node scripts/staging/cleanup-phase1.mjs --delete`다. 감사·상태이력의 append-only 보존과 `on delete restrict`를 우회하지 않으므로 Auth 사용자·프로필이 남으면 보고하고, 필요한 경우 비운영 프로젝트 자체를 폐기한다.
 

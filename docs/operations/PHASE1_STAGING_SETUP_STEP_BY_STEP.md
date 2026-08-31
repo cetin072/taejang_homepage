@@ -24,7 +24,7 @@ Supabase CLI가 이미 설치된 경우 먼저 `node scripts/staging/apply-migra
 
 ## 6단계: 검수 계정·데이터 생성
 
-수동 방식은 Dashboard에서 `qa-...@staging.invalid` 가상 계정을 만들고, 최고관리자 화면에서 역할·부서·작업반을 연결하는 방식입니다. 자동 방식은 `STAGING_QA_PASSWORD`를 실행 때만 제공한 뒤 `STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`를 실행합니다. 비밀번호는 문서나 캡처에 적지 않습니다. 자동 방식은 최고관리자 2명, 대표·운영총괄·팀장·현장책임자·사무직·근로자 2명과 2개 작업반을 만듭니다.
+수동 방식은 Dashboard에서 `qa-...@staging.invalid` 가상 계정을 만들고, 최고관리자 화면에서 역할·부서·작업반을 연결하는 방식입니다. 자동 방식의 기본값은 `STAGING_QA_PASSWORD`를 실행 때만 제공한 뒤 `STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`를 실행하여 `[TEST] 시험 관리자`·`[TEST] 시험 근로자` 2명과 최소 콘텐츠만 만드는 것입니다. 비밀번호는 문서나 캡처에 적지 않습니다. 전체 역할·RLS 검수가 필요한 경우에만 `STAGING_FULL_QA_CONFIRM=FULL_QA`와 `--full`을 함께 추가해 기존 9계정 구조를 실행합니다. 실제 대표이사·직원 계정은 자동 생성하지 않으며, 실제 사용자는 추후 `/staff/`에서 직접 가입합니다.
 
 ## 7단계: Netlify Deploy Preview 연결
 

@@ -2,7 +2,7 @@
   'use strict';
 
   const SESSION_KEY = 'taejang-staff-session-v1';
-  const panels = ['setup-panel', 'start-panel', 'login-panel', 'signup-panel', 'pending-panel', 'blocked-panel', 'unassigned-panel', 'admin-panel'];
+  const panels = ['setup-panel', 'start-panel', 'login-panel', 'signup-panel', 'pending-panel', 'blocked-panel', 'unassigned-panel', 'issue-panel', 'admin-panel'];
   const state = { config: null, session: null, context: null, options: null };
   const element = id => document.getElementById(id);
   const show = (...ids) => panels.forEach(id => { element(id).hidden = !ids.includes(id); });
@@ -99,28 +99,82 @@
 
   function routeToApp() { window.location.replace('../app/'); }
 
+  function routeToAdmin() {
+    const query = new URLSearchParams(window.location.search);
+    query.set('admin', '1');
+    window.location.replace(`./?${query.toString()}`);
+  }
+
+  function noticeDetails(notice) {
+    return {
+      login: { text: '로그인 정보가 없거나 확인할 수 없습니다. 로그인한 뒤 다시 시도하세요.', error: true },
+      'session-expired': { text: '로그인 시간이 끝났습니다. 다시 로그인하세요.', error: true },
+      setup: { title: '업무 화면 연결을 확인해야 합니다', text: '업무 화면 연결 설정을 확인하는 중 문제가 발생했습니다. 로그인 상태는 유지되어 있습니다.', error: true, issue: true },
+      'app-error': { title: '업무 화면을 여는 중 오류가 발생했습니다', text: '업무 화면의 일부를 불러오는 과정에서 문제가 발생했습니다. 로그인 상태는 유지되어 있습니다. 다시 열어보거나 운영 담당자에게 알려주세요.', error: true, issue: true },
+      logout: { text: '로그아웃했습니다.', error: false }
+    }[notice] || null;
+  }
+
+  function currentNotice() { return new URLSearchParams(window.location.search).get('notice'); }
+
+  function consumeNotice() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('notice')) return;
+    url.searchParams.delete('notice');
+    const query = url.searchParams.toString();
+    window.history.replaceState(null, '', `${url.pathname}${query ? `?${query}` : ''}${url.hash}`);
+  }
+
+  function showIssue(notice) {
+    const detail = noticeDetails(notice) || noticeDetails('app-error');
+    element('issue-title').textContent = detail.title || '업무 화면을 열 수 없습니다';
+    element('issue-copy').textContent = detail.text;
+    message(detail.text, true);
+    show('issue-panel');
+  }
+
   function renderContext(context, { allowAdmin = false } = {}) {
     state.context = context;
-    const destination = window.TaejangAuthRouting.accessDestination(context);
+    const destination = window.TaejangAuthRouting.staffDestination(context);
     if (destination.kind === 'signin') { storeSession(null); show('start-panel'); return; }
     if (destination.kind === 'pending') { show('pending-panel'); return; }
     if (destination.kind === 'blocked') { element('blocked-copy').textContent = statusCopy(destination.status); show('blocked-panel'); return; }
     if (destination.kind === 'unassigned') { show('unassigned-panel'); return; }
-    if (allowAdmin && destination.route.code === 'super_admin') { show('admin-panel'); loadPendingAccounts(); return; }
+    if (destination.kind === 'admin') {
+      if (allowAdmin) { show('admin-panel'); loadPendingAccounts(); return; }
+      routeToAdmin(); return;
+    }
     routeToApp();
   }
 
   async function restore() {
+    const notice = currentNotice();
+    const detail = noticeDetails(notice);
     const stored = sessionStorage.getItem(SESSION_KEY);
-    if (!stored) return show('start-panel');
+    if (!stored) {
+      show('start-panel');
+      if (detail) { message(detail.text, detail.error); consumeNotice(); }
+      return;
+    }
     try { state.session = JSON.parse(stored); } catch { storeSession(null); return show('start-panel'); }
     element('logout-button').hidden = false;
-    try { renderContext(await rpc('get_my_access_context'), { allowAdmin: new URLSearchParams(window.location.search).get('admin') === '1' }); }
-    catch {
-      if (await refreshSession()) {
+    try {
+      const context = await rpc('get_my_access_context');
+      const destination = window.TaejangAuthRouting.staffDestination(context);
+      if (detail?.issue && destination.kind === 'app') { state.context = context; showIssue(notice); consumeNotice(); return; }
+      // A verified destination is newer and more authoritative than a prior return notice.
+      // Do not let an old app/setup error appear on a working protected screen.
+      if (detail) {
+        if (!detail.issue) message(detail.text, detail.error);
+        consumeNotice();
+      }
+      renderContext(context, { allowAdmin: new URLSearchParams(window.location.search).get('admin') === '1' });
+    } catch (error) {
+      if (error.status === 401 && await refreshSession()) {
         try { return renderContext(await rpc('get_my_access_context')); } catch { /* handled below */ }
       }
-      storeSession(null); show('start-panel'); message('로그인 시간이 끝났습니다. 다시 로그인하세요.', true);
+      if (error.status === 401) { storeSession(null); show('start-panel'); message('로그인 시간이 끝났습니다. 다시 로그인하세요.', true); return; }
+      showIssue('app-error');
     }
   }
 
@@ -210,12 +264,19 @@
     message('');
     if (!state.session) { show('login-panel'); message('승인 상태를 확인하려면 로그인하세요.'); return; }
     try { renderContext(await rpc('get_my_access_context')); }
-    catch { storeSession(null); show('login-panel'); message('다시 로그인한 뒤 승인 상태를 확인하세요.', true); }
+    catch (error) {
+      if (error.status === 401) { storeSession(null); show('login-panel'); message('로그인 시간이 끝났습니다. 다시 로그인하세요.', true); return; }
+      message('승인 상태를 불러오지 못했습니다. 로그인은 유지되어 있습니다. 잠시 후 다시 시도하세요.', true);
+    }
   });
 
   element('logout-button').addEventListener('click', async () => {
     try { if (state.session) await request('/auth/v1/logout?scope=local', { method: 'POST', authenticated: true }); } catch { /* Local state must still be removed. */ }
     storeSession(null); state.context = null; state.options = null; show('start-panel'); message('로그아웃했습니다.');
+  });
+  element('retry-app').addEventListener('click', () => {
+    if (state.context && window.TaejangAuthRouting.staffDestination(state.context).kind === 'admin') return routeToAdmin();
+    routeToApp();
   });
   element('refresh-pending').addEventListener('click', loadPendingAccounts);
   element('pending-list').addEventListener('submit', async event => {

@@ -12,7 +12,8 @@
     adminOptions: null,
     adminRecords: { tasks: [], information: [] },
     verifying: false,
-    managerModulesLoaded: false
+    managerModulesLoaded: false,
+    managerModuleFailures: []
   };
   const boardTools = window.TaejangTodayBoard;
   const element = id => document.getElementById(id);
@@ -48,7 +49,7 @@
     sessionStorage.removeItem(SESSION_KEY);
   }
 
-  function sendToStaff(reason, { clear = true } = {}) {
+  function sendToStaff(reason, { clear = false } = {}) {
     if (clear) clearSession();
     const query = reason ? `?notice=${encodeURIComponent(reason)}` : '';
     window.location.replace(`../staff/${query}`);
@@ -125,11 +126,22 @@
 
   async function loadManagerModules() {
     if (!isTodayManager() || state.managerModulesLoaded) return;
-    await loadScript('assets/work-guide-admin.js');
-    await loadScript('assets/schedule-admin.js');
-    await loadScript('assets/notice-admin.js');
-    await loadScript('assets/guidance-admin.js');
+    const modules = [
+      'assets/work-guide-admin.js',
+      'assets/schedule-admin.js',
+      'assets/notice-admin.js',
+      'assets/guidance-admin.js'
+    ];
+    const results = await Promise.allSettled(modules.map(loadScript));
+    state.managerModuleFailures = results
+      .map((result, index) => result.status === 'rejected' ? modules[index] : null)
+      .filter(Boolean);
     state.managerModulesLoaded = true;
+  }
+
+  function showManagerModuleStatus() {
+    if (!state.managerModuleFailures.length) return hideMessage('app-status-message');
+    showMessage('app-status-message', '일부 관리 도구를 불러오지 못했습니다. 핵심 대시보드와 로그인 상태는 계속 사용할 수 있습니다. 잠시 후 새로고침해주세요.', true);
   }
 
   function friendlyError(error) {
@@ -643,6 +655,7 @@
       friendlyError
     };
     await loadManagerModules();
+    showManagerModuleStatus();
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
   }
 
@@ -667,8 +680,9 @@
       await renderEntry(current, destination.route);
       if (destination.route.code === 'general_worker') await loadTodayBoard();
       if (isTodayManager()) await loadAdminData();
-    } catch {
-      sendToStaff('login');
+    } catch (error) {
+      if (error.status === 401) return sendToStaff('session-expired', { clear: true });
+      sendToStaff('app-error', { clear: false });
     } finally {
       state.verifying = false;
     }
@@ -722,7 +736,7 @@
       showEnvironmentLabel(state.config);
       await verify();
     } catch {
-      sendToStaff('setup');
+      sendToStaff('setup', { clear: false });
     }
   })();
 })();

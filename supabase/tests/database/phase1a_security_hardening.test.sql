@@ -49,6 +49,10 @@ values
   ('30000000-0000-0000-0000-000000000003', 'admin-one@example.test', '{}'::jsonb, '{"display_name":"테스트 관리자 1"}'::jsonb),
   ('40000000-0000-0000-0000-000000000004', 'admin-two@example.test', '{}'::jsonb, '{"display_name":"테스트 관리자 2"}'::jsonb);
 
+update auth.users
+set email_confirmed_at = now()
+where id = '30000000-0000-0000-0000-000000000003';
+
 select is(
   (public.bootstrap_super_admin('30000000-0000-0000-0000-000000000003') ->> 'code'),
   'SUPER_ADMIN_BOOTSTRAPPED',

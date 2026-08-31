@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(44);
+select plan(48);
 
 select has_table('public', 'profiles', 'profiles table exists');
 select is(
@@ -22,6 +22,10 @@ insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data)
 values
   ('10000000-0000-0000-0000-000000000001', 'bootstrap@example.test', '{}'::jsonb, '{"display_name":"초기 관리자"}'::jsonb),
   ('20000000-0000-0000-0000-000000000002', 'worker@example.test', '{}'::jsonb, '{"display_name":"일반 직원"}'::jsonb);
+
+update auth.users
+set email_confirmed_at = now()
+where id = '10000000-0000-0000-0000-000000000001';
 
 select is(
   (select account_status::text from public.profiles where id = '20000000-0000-0000-0000-000000000002'),
@@ -59,6 +63,11 @@ select throws_ok(
 
 reset role;
 select is(
+  (public.bootstrap_super_admin('20000000-0000-0000-0000-000000000002') ->> 'code'),
+  'EMAIL_NOT_CONFIRMED',
+  'bootstrap requires a confirmed email before any account change'
+);
+select is(
   (public.bootstrap_super_admin('10000000-0000-0000-0000-000000000001') ->> 'code'),
   'SUPER_ADMIN_BOOTSTRAPPED',
   'DB owner can perform one-time bootstrap'
@@ -82,6 +91,21 @@ select is(
      and role.code = 'super_admin'),
   1,
   'bootstrap grants super_admin role'
+);
+select is(
+  (select department.code from public.profiles profile join public.departments department on department.id = profile.department_id where profile.id = '10000000-0000-0000-0000-000000000001'),
+  'operations',
+  'bootstrap assigns the operations department'
+);
+select is(
+  (select position.code from public.profiles profile join public.positions position on position.id = profile.position_id where profile.id = '10000000-0000-0000-0000-000000000001'),
+  'operations_manager',
+  'bootstrap assigns the operations manager position'
+);
+select is(
+  (select count(*)::integer from public.profile_roles assignment join public.roles role on role.id = assignment.role_id where assignment.profile_id = '10000000-0000-0000-0000-000000000001' and assignment.revoked_at is null and role.code = 'operations_manager'),
+  1,
+  'bootstrap grants the operations manager role'
 );
 
 set local role authenticated;
