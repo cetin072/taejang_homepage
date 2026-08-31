@@ -43,9 +43,9 @@ assert.match(listing, /workplaceOverview, workplaceRoles, workplaceProcess/);
 assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)/);
 assert.match(listing, /backLabel: '← 일터 이야기 목록으로'/);
 for (const [imagePath, alt] of [
-  ['assets/images/workplace/minhwa-work-process.webp', '태장 작업자가 민화 문양을 채색하는 모습'],
+  ['assets/images/workplace/minhwa-fish-scale-painting.webp', '붓으로 잉어 민화의 비늘을 채색하는 작업 모습'],
   ['assets/images/workplace/main-workspace.webp', '태장 본점의 실무 작업 공간과 작업 테이블'],
-  ['assets/images/workplace/packing-tape.webp', '포장 테이프로 상자를 마감하는 작업 현장']
+  ['assets/images/workplace/packing-tape-work.webp', '파란 작업복을 입은 작업자가 박스에 포장 테이프를 붙이는 포장·검수 작업 모습']
 ]) {
   const imageFile = path.join(root, imagePath);
   assert.equal(fs.existsSync(imageFile), true);
@@ -57,7 +57,7 @@ for (const [imagePath, alt] of [
   assert.match(workplaceContent, new RegExp(`thumbnail: "${escapedPath}"`));
   assert.match(workplaceContent, new RegExp(`thumbnailAlt: "${alt}"`));
 }
-assert.match(workplaceContent, /thumbnailObjectPosition: "50% 72%"/);
+assert.match(workplaceContent, /thumbnailObjectPosition: "50% 50%"/);
 assert.match(workplaceContent, /thumbnailDetail: "natural"/);
 assert.match(listing, /article-representative-media--\$\{detailRepresentative\.detailMode\}/);
 assert.match(styles, /\.article-body \.article-representative-media--natural\s*\{[\s\S]*aspect-ratio:auto/);
