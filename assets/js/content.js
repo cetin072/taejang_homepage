@@ -150,6 +150,9 @@ window.TAEJANG_CONTENT = {
       date: "2026.08.12",
       title: "태장의 새로운 사업장이 문을 열었습니다",
       summary: "창원 신화 더 플렉스시티에 마련한 태장의 새로운 업무 공간을 소개합니다.",
+      thumbnail: "assets/images/archive/opening-ceremony.webp",
+      thumbnailAlt: "태장 현판제막 및 개소식 현수막 앞에 선 참석자들",
+      hub: { category: "회사소식", featured: true },
       thumb: null,
       hero: null,
       gallery: [],
@@ -191,6 +194,10 @@ window.TAEJANG_CONTENT = {
       date: "2026.07.24",
       title: "첫 환경정비 활동을 진행했습니다",
       summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/archive/environment-cleanup-first.webp",
+      thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
+      hub: { category: "ESG·사회공헌", featured: true },
       thumb: null,
       hero: null,
       gallery: [],
@@ -226,6 +233,52 @@ window.TAEJANG_CONTENT = {
       ]
     },
     {
+      id: "environment-cleanup-second",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.08.24",
+      title: "두 번째 환경정비 활동을 진행했습니다",
+      summary: "태장이 두 번째 지역 환경정비 활동을 진행하며 참여자들과 함께 현장 정비에 나섰습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/business/environment-cleanup-group.webp",
+      thumbnailAlt: "환경정비 활동에 참여한 태장 작업자와 협력 참여자들의 단체 사진",
+      thumbnailObjectPosition: "50% 64%",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      listingPhoto: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형"
+      },
+      photo: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형",
+        note: "참여자의 사진 공개 동의를 확인하고 안전 장비 착용이 보이는 장면"
+      },
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 24일 두 번째 환경정비 활동을 진행했습니다."
+          ]
+        },
+        {
+          heading: "함께 정비한 현장",
+          paragraphs: [
+            "참여자들은 현장 안내에 따라 주변 환경을 정비하고 활동을 기록했습니다."
+          ]
+        },
+        {
+          heading: "다음 활동을 위한 기록",
+          paragraphs: [
+            "태장은 활동 경험을 살피며 무리하지 않는 범위에서 지역사회공헌 활동을 이어갈 계획입니다."
+          ]
+        }
+      ]
+    },
+    {
       id: "standard-workplace-certification",
       status: "published",
       category: "회사 소식",
@@ -234,6 +287,7 @@ window.TAEJANG_CONTENT = {
       summary: "장애인이 안정적으로 일할 수 있는 일터와 실제 업무를 함께 만들어가기 위한 태장의 운영 방향을 안내합니다.",
       thumb: "assets/images/archive/standard-workplace-certification.webp",
       hero: "assets/images/archive/standard-workplace-certification.webp",
+      hub: { category: "장애인 일자리", featured: false },
       alt: {
         thumb: "태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판",
         hero: "태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판"
@@ -277,6 +331,9 @@ window.TAEJANG_CONTENT = {
       date: "2026.08",
       title: "8월 생일을 함께 축하했습니다",
       summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
+      thumbnail: "assets/images/archive/staff-birthday-2026-08.webp",
+      thumbnailAlt: "태장 직원들이 작업 공간에서 8월 생일을 함께 축하하는 모습",
+      hub: { category: "회사소식", featured: false },
       thumb: null,
       hero: null,
       gallery: [],
@@ -308,6 +365,7 @@ window.TAEJANG_CONTENT = {
       summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
       thumb: "assets/images/terrarium/terrarium-display.webp",
       hero: "assets/images/terrarium/terrarium-display.webp",
+      hub: { category: "회사소식", featured: false },
       alt: {
         thumb: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
         hero: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
@@ -345,76 +403,5 @@ window.TAEJANG_CONTENT = {
       ]
     }
   ],
-  hub: [
-    {
-      id: "internal-opening",
-      type: "internal",
-      source: "homepage",
-      category: "회사소식",
-      title: "태장 개소식 안내",
-      summary: "태장의 새로운 사업장과 개소 관련 안내를 홈페이지에서 확인해 주세요.",
-      thumbnail: "assets/images/archive/opening-ceremony.webp",
-      thumbnailAlt: "태장 현판제막 및 개소식 현수막 앞에 선 참석자들",
-      publishedAt: "2026-08-12",
-      featured: true,
-      status: "published",
-      detailUrl: "activities.html?id=new-workplace-opening"
-    },
-    {
-      id: "internal-environment-cleanup",
-      type: "internal",
-      source: "homepage",
-      category: "ESG·사회공헌",
-      title: "첫 환경정비 활동을 진행했습니다",
-      summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
-      thumbnail: "assets/images/archive/environment-cleanup-first.webp",
-      thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
-      publishedAt: "2026-07-24",
-      featured: true,
-      status: "published",
-      detailUrl: "activities.html?id=environment-cleanup-first"
-    },
-    {
-      id: "internal-certification",
-      type: "internal",
-      source: "homepage",
-      category: "장애인 일자리",
-      title: "자회사형 장애인 표준사업장 인증",
-      summary: "2026년 7월 9일 받은 장애인 표준사업장 인증과 앞으로의 운영 방향을 안내합니다.",
-      thumbnail: "assets/images/archive/standard-workplace-certification.webp",
-      thumbnailAlt: "태장 사업장에 설치된 장애인 표준사업장 인증과 경남형 장애인 동행일자리 및 공동출자기업 현판",
-      publishedAt: "2026-07-09",
-      featured: false,
-      status: "published",
-      detailUrl: "activities.html?id=standard-workplace-certification"
-    },
-    {
-      id: "internal-staff-birthday-2026-08",
-      type: "internal",
-      source: "homepage",
-      category: "회사소식",
-      title: "8월 생일을 함께 축하했습니다",
-      summary: "태장 직원들이 한자리에 모여 8월 생일을 맞은 동료들을 축하하며 즐거운 시간을 함께했습니다.",
-      thumbnail: "assets/images/archive/staff-birthday-2026-08.webp",
-      thumbnailAlt: "태장 직원들이 작업 공간에서 8월 생일을 함께 축하하는 모습",
-      publishedAt: "2026-08",
-      featured: false,
-      status: "published",
-      detailUrl: "activities.html?id=staff-birthday-2026-08"
-    },
-    {
-      id: "internal-terrarium-business-start-2026-08",
-      type: "internal",
-      source: "homepage",
-      category: "회사소식",
-      title: "테라리움 제조사업을 시작합니다",
-      summary: "제조업 등록을 마치고 첫 표준 DIY 키트 개발과 장애인 근로자의 제조 직무 개발을 시작했습니다.",
-      thumbnail: "assets/images/terrarium/terrarium-display.webp",
-      thumbnailAlt: "다양한 유리용기와 형태로 구성된 테라리움 샘플 진열",
-      publishedAt: "2026-08-22",
-      featured: false,
-      status: "published",
-      detailUrl: "activities.html?id=terrarium-business-start-2026-08"
-    }
-  ]
+  hub: []
 };

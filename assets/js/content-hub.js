@@ -2,7 +2,28 @@
   'use strict';
 
   const content = window.TAEJANG_CONTENT;
-  const baseItems = Array.isArray(content?.hub) ? content.hub : [];
+  const activityItems = Array.isArray(content?.activities) ? content.activities : [];
+  const explicitHubItems = Array.isArray(content?.hub) ? content.hub : [];
+  const internalActivityItems = activityItems
+    .filter((activity) => activity?.hub && activity.status === 'published')
+    .map((activity) => ({
+      id: `activity-${activity.id}`,
+      type: 'internal',
+      source: 'homepage',
+      category: activity.hub.category || activity.category || '활동 기록',
+      title: activity.title,
+      summary: activity.summary,
+      thumbnail: activity.thumbnail || activity.hero || activity.thumb || '',
+      thumbnailAlt: activity.thumbnailAlt || activity.alt?.hero || activity.alt?.thumb || `${activity.title} 대표사진`,
+      thumbnailObjectPosition: activity.thumbnailObjectPosition || 'center',
+      thumbnailDetail: activity.thumbnailDetail || 'cover',
+      publishedAt: typeof activity.date === 'string' ? activity.date.replaceAll('.', '-') : '',
+      featured: Boolean(activity.hub.featured),
+      status: activity.status,
+      detailUrl: `activities.html?id=${encodeURIComponent(activity.id)}`,
+      series: activity.series || ''
+    }));
+  const baseItems = [...internalActivityItems, ...explicitHubItems];
   const sourceLabels = {
     homepage: '홈페이지',
     'naver-blog': 'NAVER BLOG',
