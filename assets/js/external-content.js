@@ -68,6 +68,7 @@
       externalUrl: 'https://www.youtube.com/watch?v=8x7yg5YBK9g',
       externalLabel: '유튜브에서 보기'
     },
+    // 2026-08-24 두 번째 환경정비 활동을 기록한 태장 공식 브이로그입니다.
     {
       id: 'youtube-mIb0wN_Wi8w',
       type: 'external',
