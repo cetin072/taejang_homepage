@@ -195,9 +195,8 @@ window.TAEJANG_CONTENT = {
       title: "첫 환경정비 활동을 진행했습니다",
       summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
       series: "community-esg",
-      thumbnail: "assets/images/business/environment-cleanup-group.webp",
-      thumbnailAlt: "환경정비 활동에 참여한 태장 작업자와 협력 참여자들의 단체 사진",
-      thumbnailObjectPosition: "50% 64%",
+      thumbnail: "assets/images/archive/environment-cleanup-first.webp",
+      thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
       hub: { category: "ESG·사회공헌", featured: true },
       thumb: null,
       hero: null,
@@ -229,6 +228,52 @@ window.TAEJANG_CONTENT = {
           heading: "꾸준히 이어가는 지역 활동",
           paragraphs: [
             "태장은 무리하지 않는 범위에서 환경정비와 사회공헌 활동을 꾸준히 이어갈 계획입니다."
+          ]
+        }
+      ]
+    },
+    {
+      id: "environment-cleanup-second",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.08.24",
+      title: "두 번째 환경정비 활동을 진행했습니다",
+      summary: "태장이 두 번째 지역 환경정비 활동을 진행하며 참여자들과 함께 현장 정비에 나섰습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/business/environment-cleanup-group.webp",
+      thumbnailAlt: "환경정비 활동에 참여한 태장 작업자와 협력 참여자들의 단체 사진",
+      thumbnailObjectPosition: "50% 64%",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      listingPhoto: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형"
+      },
+      photo: {
+        title: "환경정비 활동",
+        filename: "activity-2.jpg",
+        orientation: "가로형",
+        note: "참여자의 사진 공개 동의를 확인하고 안전 장비 착용이 보이는 장면"
+      },
+      sections: [
+        {
+          paragraphs: [
+            "태장은 2026년 8월 24일 두 번째 환경정비 활동을 진행했습니다."
+          ]
+        },
+        {
+          heading: "함께 정비한 현장",
+          paragraphs: [
+            "참여자들은 현장 안내에 따라 주변 환경을 정비하고 활동을 기록했습니다."
+          ]
+        },
+        {
+          heading: "다음 활동을 위한 기록",
+          paragraphs: [
+            "태장은 활동 경험을 살피며 무리하지 않는 범위에서 지역사회공헌 활동을 이어갈 계획입니다."
           ]
         }
       ]

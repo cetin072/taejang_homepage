@@ -516,8 +516,9 @@ const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
 const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems();
-assert.equal(actualHubItems.length, 11, '소식·기록은 테라리움 제조사업 기록을 포함한 공개 콘텐츠를 함께 표시합니다');
+assert.equal(actualHubItems.length, 12, '소식·기록은 두 환경정비 활동을 포함한 공개 콘텐츠를 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
+  'activity-environment-cleanup-second',
   'activity-terrarium-business-start-2026-08',
   'youtube-qvqNyeyfQsA',
   'youtube-8x7yg5YBK9g',
@@ -531,6 +532,7 @@ assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'activity-standard-workplace-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
+  '두 번째 환경정비 활동을 진행했습니다',
   '테라리움 제조사업을 시작합니다',
   '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장',
   '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사',
@@ -551,14 +553,14 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '메인 활동 기록은 최신 공개 콘텐츠 최대 8개를 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장의 새로운 사업장이 문을 열었습니다', '한 줄 한 줄 정성으로 완성되는 태장의 하루', '8월 생일을 함께 축하했습니다']);
-assert.equal(actualRecentItems[3].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
-assert.equal(actualRecentItems[3].thumbnailAlt, '태장 공식 소개영상 썸네일');
-assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
+assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['두 번째 환경정비 활동을 진행했습니다', '테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니", '태장의 새로운 사업장이 문을 열었습니다', '한 줄 한 줄 정성으로 완성되는 태장의 하루']);
+assert.equal(actualRecentItems[4].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
+assert.equal(actualRecentItems[4].thumbnailAlt, '태장 공식 소개영상 썸네일');
+assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
 assert.deepEqual(Array.from(actualHubItems.filter(item => item.source === 'youtube' && item.publisher === '태장 공식 유튜브'), item => item.id), ['youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g', 'youtube-FbEOcteBSJ4']);
-assert.equal(actualRecentItems[1].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
-assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
-assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
+assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
+assert.equal(actualRecentItems[3].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
+assert.equal(actualRecentItems[5].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.match(contentHub, /item\.publisher[\s\S]*?sourceLabel\(item\)/, '아카이브 검색은 매체명과 출처 라벨을 함께 대상으로 사용합니다');
 
 const birthdayHubItem = actualHubItems.find(item => item.id === 'activity-staff-birthday-2026-08');
