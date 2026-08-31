@@ -29,13 +29,27 @@
 
     const media = document.createElement('div');
     media.className = 'community-esg-record-media';
-    const image = document.createElement('img');
-    image.src = activity.thumbnail || activity.hero || activity.thumb || '';
-    image.alt = activity.thumbnailAlt || activity.alt?.hero || `${activity.title} 대표사진`;
-    image.loading = 'lazy';
-    image.decoding = 'async';
-    if (activity.thumbnailObjectPosition) image.style.objectPosition = activity.thumbnailObjectPosition;
-    media.append(image);
+    const imageSource = activity.thumbnail || activity.hero || activity.thumb || '';
+    if (imageSource) {
+      const image = document.createElement('img');
+      image.src = imageSource;
+      image.alt = activity.thumbnailAlt || activity.alt?.hero || `${activity.title} 대표사진`;
+      image.loading = 'lazy';
+      image.decoding = 'async';
+      if (activity.thumbnailObjectPosition) image.style.objectPosition = activity.thumbnailObjectPosition;
+      media.append(image);
+    } else {
+      const placeholder = document.createElement('div');
+      placeholder.className = 'community-esg-record-placeholder';
+      placeholder.setAttribute('role', 'img');
+      placeholder.setAttribute('aria-label', `${activity.title} 대표사진 준비 중`);
+      const label = document.createElement('span');
+      label.textContent = 'ACTIVITY RECORD';
+      const title = document.createElement('strong');
+      title.textContent = activity.title;
+      placeholder.append(label, title);
+      media.append(placeholder);
+    }
 
     const body = document.createElement('div');
     body.className = 'community-esg-record-body';
