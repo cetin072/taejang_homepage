@@ -29,6 +29,13 @@ test('staff entry keeps login and sign-up as separate chosen actions', () => {
   assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
 });
 
+test('staff entry shows an immediate loading message before its connection check completes', () => {
+  const html = read('staff/index.html');
+  const setupPanel = html.match(/<section id="setup-panel"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.doesNotMatch(setupPanel, /\bhidden\b/);
+  assert.match(setupPanel, /로그인을 준비하고 있습니다/);
+});
+
 test('non-active contexts never resolve to the protected app', () => {
   assert.equal(routing.accessDestination(null).kind, 'signin');
   for (const status of ['pending', 'suspended', 'departed', 'deleted']) {
