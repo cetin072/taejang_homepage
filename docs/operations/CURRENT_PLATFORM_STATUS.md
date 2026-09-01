@@ -25,7 +25,7 @@
 - Netlify Production 현재 배포: `ready`, branch `main`, commit `d8dea79f5cfe17a0f1e6ca2eca7d9dae95e13e25`, deploy id `6a95a4889f13b60008941fc4`.
 - Netlify secret scan: 검출된 secret 없음.
 - 시험계정·샘플 데이터: 미생성.
-- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만 현재 실행 환경에 staging 전용 Service Role 자격증명이 없어 minimal seed는 아직 실행되지 않았다.
+- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만, 2026-09-01 재검증에서 실행 프로세스에 필수 URL·project ref·allow-list·publishable key가 모두 로드되지 않아 minimal seed는 아직 실행되지 않았다.
 
 ## 실제 사용자 계정 상태
 
@@ -75,12 +75,12 @@
 
 - Issue #90에서 기본 minimal TEST seed와 TEST 전용 E2E·RLS·계정상태 검증을 명시 승인했다.
 - `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
-- 현재 로컬 실행 환경에는 `STAGING_SUPABASE_SERVICE_ROLE_KEY`가 없어서 seed와 cleanup 도구가 안전하게 중단됐다. TEST 사용자·콘텐츠·작업반과 실제 사용자 데이터 모두 변경되지 않았다.
-- 재개 시 회사의 안전한 로컬 환경에 staging 전용 Service Role 자격증명만 준비한다. 비밀값은 채팅·GitHub·문서·Netlify에 기록하지 않고, 기본 2계정 seed만 실행한다.
+- 2026-09-01 재실행에서 Service Role 키는 감지됐지만, 실행 프로세스에 `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PROJECT_REF`, `STAGING_ALLOWED_PROJECT_REFS`, `STAGING_SUPABASE_PUBLISHABLE_KEY`가 모두 로드되지 않아 seed가 원격 변경 전에 안전하게 중단됐다. TEST 사용자·콘텐츠·작업반과 실제 사용자 데이터 모두 변경되지 않았다.
+- 재개 시 회사의 안전한 로컬 환경에 위 필수 staging 설정과 Service Role 자격증명을 모두 준비한다. 비밀값은 채팅·GitHub·문서·Netlify에 기록하지 않고, 기본 2계정 seed만 실행한다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, 현재 실행 환경에 staging 전용 Service Role 자격증명이 필요하다.
+- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, 현재 실행 환경에서 `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PROJECT_REF`, `STAGING_ALLOWED_PROJECT_REFS`, `STAGING_SUPABASE_PUBLISHABLE_KEY`를 포함한 필수 staging 설정이 로드되어야 한다.
 - 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 
