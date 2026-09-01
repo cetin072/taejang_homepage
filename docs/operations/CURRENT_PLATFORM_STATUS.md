@@ -77,11 +77,11 @@
 - `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
 - 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
 - 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
-- 재개에는 staging DB 소유자 경로에서 TEST automation에 필요한 최소 Data API 권한을 부여하거나, 동등하게 TEST 데이터만 다룰 수 있는 별도 승인된 seed 경로가 필요하다. 이는 현재 승인 범위를 넘는 권한 변경이므로 사용자 결정 전에는 실행하지 않는다.
+- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 사용할 수 있다. 이 경로는 migration·권한 변경 없이 정확히 TEST Auth 사용자와 TEST 데이터만 다루며, 현재 로컬 실행 환경에는 Management API용 `SUPABASE_ACCESS_TOKEN`이 없어 아직 실행하지 않았다. DB password는 migration을 실행하지 않으므로 이 seed 경로에 사용하지 않는다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, staging DB 소유자 권한으로 TEST automation의 필요한 Data API 권한을 별도 승인하거나, 기존 권한 모델을 존중하는 대체 seed 실행 경로를 결정해야 한다.
+- 기본 2개 TEST 계정과 5종 샘플 staging QA 및 DB owner TEST-only seed 경로는 승인됐다. 재개 전 회사의 안전한 로컬 환경에 `SUPABASE_ACCESS_TOKEN`을 현재 실행 프로세스용으로만 준비한다. 값은 채팅·문서·GitHub에 기록하지 않는다.
 - 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 
