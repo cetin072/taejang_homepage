@@ -31,3 +31,13 @@ test('hosted seed checks direct Data API access before it can create TEST Auth u
   assert.ok(authUsers >= 0, 'seed enumerates TEST Auth users after preflight');
   assert.ok(preflight < authUsers, 'preflight runs before any Auth user creation path');
 });
+
+test('DB owner seed is minimal-only, staging-confirmed, and never applies migrations or grants', () => {
+  const source = fs.readFileSync(new URL('../scripts/staging/seed-phase1-db-owner.mjs', import.meta.url), 'utf8');
+  assert.match(source, /process\.argv\.length !== 2/);
+  assert.match(source, /stagingConfig\(\{ serviceRole: true, mutation: true \}\)/);
+  assert.match(source, /SUPABASE_ACCESS_TOKEN/);
+  assert.doesNotMatch(source, /--full|db push|apply_migration|\bgrant\b/i);
+  assert.match(source, /staging_qa/);
+  assert.match(source, /STAGING_QA_PASSWORD/);
+});

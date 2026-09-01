@@ -77,7 +77,7 @@
 - `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
 - 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
 - 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
-- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 사용할 수 있다. 이 경로는 migration·권한 변경 없이 정확히 TEST Auth 사용자와 TEST 데이터만 다루며, 현재 로컬 실행 환경에는 Management API용 `SUPABASE_ACCESS_TOKEN`이 없어 아직 실행하지 않았다. DB password는 migration을 실행하지 않으므로 이 seed 경로에 사용하지 않는다.
+- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 사용할 수 있다. `scripts/staging/seed-phase1-db-owner.mjs`는 Management API 사전검사 뒤 정확히 TEST Auth 사용자와 TEST 데이터를 단일 transaction으로 다루며 migration·권한 변경·`--full`을 실행하지 않는다. 현재 로컬 실행 환경에는 Management API용 `SUPABASE_ACCESS_TOKEN`이 없어 아직 실행하지 않았다. DB password는 migration을 실행하지 않으므로 이 seed 경로에 사용하지 않는다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
