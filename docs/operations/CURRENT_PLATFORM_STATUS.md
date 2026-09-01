@@ -77,11 +77,12 @@
 - `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
 - 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
 - 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
-- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 사용할 수 있다. `scripts/staging/seed-phase1-db-owner.mjs`는 Management API 사전검사 뒤 정확히 TEST Auth 사용자와 TEST 데이터를 단일 transaction으로 다루며 migration·권한 변경·`--full`을 실행하지 않는다. 현재 로컬 실행 환경에는 Management API용 `SUPABASE_ACCESS_TOKEN`이 없어 아직 실행하지 않았다. DB password는 migration을 실행하지 않으므로 이 seed 경로에 사용하지 않는다.
+- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 실행했다. `scripts/staging/seed-phase1-db-owner.mjs`가 TEST Auth 2개, TEST 부서·작업반, 오늘 업무·작업방법·일정·중요공지·반복 안내를 생성했고 DB owner 읽기 전용 verify가 통과했다. migration·권한 변경·`--full`은 실행하지 않았다.
+- TEST 관리자·근로자 로그인 context, 근로자 5종 조회, 근로자의 관리자 작성 기능 차단, TEST 근로자 `suspended`·`departed` 즉시 차단 및 최종 `active` 복구가 hosted staging에서 통과했다. 회사·부서·작업반·타인 대상과 초안·사용중지·기간 경계의 추가 RLS 행 검증은 재사용 스크립트로 계속 수행한다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- 기본 2개 TEST 계정과 5종 샘플 staging QA 및 DB owner TEST-only seed 경로는 승인됐다. 재개 전 회사의 안전한 로컬 환경에 `SUPABASE_ACCESS_TOKEN`을 현재 실행 프로세스용으로만 준비한다. 값은 채팅·문서·GitHub에 기록하지 않는다.
+- DB owner seed 및 기본 hosted TEST E2E는 실행됐다. 실제 사용자 계정 생성/권한 변경, migration, `--full`, Production, Ready 전환·main 병합은 계속 별도 승인이 필요하다.
 - 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 

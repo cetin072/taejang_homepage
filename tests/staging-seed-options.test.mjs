@@ -41,3 +41,11 @@ test('DB owner seed is minimal-only, staging-confirmed, and never applies migrat
   assert.match(source, /staging_qa/);
   assert.match(source, /STAGING_QA_PASSWORD/);
 });
+
+test('DB owner verification is read-only and requires a completed minimal DB owner manifest', () => {
+  const source = fs.readFileSync(new URL('../scripts/staging/verify-phase1-db-owner.mjs', import.meta.url), 'utf8');
+  assert.match(source, /read_only: true/);
+  assert.match(source, /seed_mode !== 'minimal'/);
+  assert.match(source, /seed_path !== 'db_owner'/);
+  assert.doesNotMatch(source, /method:\s*'POST'\s*,\s*body:|insert into|update public|delete from/i);
+});
