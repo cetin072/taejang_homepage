@@ -31,26 +31,31 @@
 
 - `main` 브랜치에 직접 수정하거나 직접 커밋하지 않습니다.
 - 모든 변경은 목적이 드러나는 기능 브랜치에서 작업합니다.
+- 기존 Issue/branch/Draft PR이 있으면 새로 만들지 않고 같은 작업 흐름을 이어갑니다.
 - 변경 후 검토 가능한 설명과 테스트 결과를 남기고 PR로 `main` 반영을 요청합니다.
-- PR 검토와 사용자 승인이 끝나기 전에는 `main` 병합, 운영 배포, Netlify 설정 변경을 하지 않습니다.
+- PR 검토와 사용자 승인이 끝나기 전에는 Ready for review, `main` 병합, 운영 배포, Netlify Production 설정 변경을 하지 않습니다.
 
 ## 공통 AI 개발 운영
 
-- GitHub Issue가 있는 작업은 Issue의 요구사항과 완료 조건을 구현 작업의 source of truth로 사용합니다. 태장 전용 프로젝트 헌장, 기획 기록과 공개 기준은 계속 우선 적용합니다.
-- 작업 시작 전 `git fetch origin`, 최신 `origin/main`, working tree 상태를 확인합니다. clean working tree에서 최신 `origin/main`을 기준으로 Issue 전용 브랜치를 만듭니다.
-- 필요한 테스트와 문서 링크·경로 검증을 수행하고, 완료한 변경은 commit과 push 후 Draft PR로 제안합니다.
+- GitHub Issue가 있는 작업은 Issue의 요구사항과 완료 조건을 구현 작업의 source of truth로 사용합니다. 태장 전용 프로젝트 헌장, 확정 기획 기록과 공개 기준은 계속 우선 적용합니다.
+- 작업 시작 전 `git fetch origin`, 최신 `origin/main`, 현재 branch와 working tree 상태를 확인합니다.
+- 새 작업이고 기존 branch/PR이 없을 때만 최신 `origin/main`을 기준으로 Issue 전용 브랜치를 만듭니다.
+- 기존 진행 중인 Issue/branch/Draft PR이 있으면 그 흐름을 유지하고 최신 review를 읽어 같은 PR에서 수정·재검증합니다.
+- 필요한 테스트와 문서 링크·경로 검증을 수행하고, 완료한 변경은 commit과 push 후 Draft PR에 기록합니다.
 - Draft PR은 독립 검수 → 수정 → 재검증 루프를 거칩니다. 사용자 승인 전에는 Ready for review 전환, `main` 병합, Production 배포를 하지 않습니다.
 - 다른 PC로 이동하기 전에는 최소 commit과 push를 남기고, 가능하면 Draft PR까지 만들어 작업 맥락과 검증 결과를 GitHub에 남깁니다.
 - 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
+- 사용자가 ChatGPT 기획방과 Codex 사이에서 긴 지시문·결과를 반복 운반하지 않도록 GitHub Issue/PR과 운영문서를 공유 상태의 기준으로 사용합니다.
 
 ### Codex 모델·추론 선택
 
 - 모든 Codex 작업은 시작 전에 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 읽고 현재 작업 단위에 맞는 GPT-5.6 모델과 추론 수준을 다시 판단합니다.
-- 모델은 채팅방 단위로 고정하지 않습니다. 같은 채팅이어도 작업이 바뀌면 다시 선택합니다.
-- 모든 Codex 지시에는 가능하면 `권장 모델`, `권장 추론`, `선정 이유`를 명시합니다.
-- 판단이 애매하면 `Terra / Medium`을 기본값으로 사용합니다.
-- 단순 작업에 이전 Sol 설정을 관성적으로 유지하지 않습니다.
-- 보안·Auth·RLS·권한·중요 DB migration·Production 사고·복잡한 장기 브랜치 정합화에는 Luna를 사용하지 않습니다.
+- 기본값은 `Terra / Medium`입니다.
+- 여러 모듈·큰 회귀위험·복합 통합·승인된 Auth/RLS 검증은 `Terra / High`를 우선합니다.
+- 작은 저위험·기계적 작업은 Luna를 사용할 수 있습니다.
+- Sol은 `Terra / High`로 반복 검증해도 안전하게 해결하기 어렵다는 구체적 근거가 있을 때만 예외적으로 사용합니다.
+- 보안·Auth·RLS라는 이유만으로 자동으로 Sol을 선택하지 않습니다.
+- 핵심 아키텍처·데이터 계약·권한 의미를 바꾸는 문제는 모델을 높여 우회하지 않고 사용자 판단을 요청합니다.
 - 작업 중 범위나 위험도가 달라지면 모델을 승급 또는 강등합니다.
 
 ## 수정·보안 원칙
@@ -64,15 +69,24 @@
 
 ## 상시 운영 기준
 
-- 모든 작업 전에 `PROJECT_CHARTER.md`, 관련 `docs/planning/` 문서와 `docs/operations/` 문서를 확인합니다.
-- 파일은 `PROJECT_STRUCTURE.md`와 `ASSET_POLICY.md`에 지정된 위치에만 저장합니다.
-- 반복 작업은 `COMMAND_LIBRARY.md`의 템플릿을 우선 사용합니다.
-- 브랜치·검사·PR 절차는 `CODEX_WORKFLOW.md`를 따릅니다.
+- 모든 작업 전에 `PROJECT_CHARTER.md`, 현재 Issue가 참조하는 관련 `docs/planning/` 문서와 필요한 `docs/operations/` 문서를 확인합니다.
+- Codex 실행 절차는 [`docs/operations/CODEX_WORKFLOW.md`](docs/operations/CODEX_WORKFLOW.md), 모델 선택은 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 따릅니다.
+- 존재하지 않는 운영문서를 찾기 위해 저장소 전체를 반복 탐색하지 않습니다. 문서 경로가 실제 저장소와 맞지 않으면 현재 GitHub Issue 또는 운영문서에서 정합화합니다.
+- 파일과 자산은 기존 저장소 구조와 인접 파일 패턴을 우선합니다. 새로운 최상위 디렉터리나 자산 체계가 필요하면 아키텍처 변경으로 보고 먼저 판단을 요청합니다.
+- 공개 콘텐츠·이미지는 [`docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md`](docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md)와 기존 `assets/` 구조를 따릅니다.
 - 새 라이브러리나 도구 도입 전 기존 구조로 해결 가능한지 확인합니다.
 - 사용하지 않는 자산·코드·중복 구현을 남기지 않습니다.
 - 성능 최적화가 디자인과 기능 품질을 훼손하지 않도록 균형을 유지합니다.
 - 기존 로컬 미커밋 변경을 사용자 승인 없이 새 작업에 포함하지 않습니다.
-- 파일을 받았다고 무조건 저장소에 등록하지 않고 `ASSET_POLICY.md` 기준으로 판정합니다.
+
+## Codex Goal 반자동 운영
+
+- 장기 제품 방향은 상위 Epic/Goal Issue와 확정 planning에 둡니다.
+- Codex Goal은 현재 Phase의 지속 실행 목표와 자율 진행 원칙을 유지하는 용도로 사용합니다.
+- 세부 화면, 필드, 상태, RLS 조건, TEST 데이터, 이번 mutation 범위는 현재 GitHub Issue에 둡니다.
+- 기존 승인 범위 안의 구현·테스트·build·CI·Preview·작은 오류는 self-heal 후 계속 진행할 수 있습니다.
+- 다음은 반드시 사용자 판단을 요청합니다: 핵심 아키텍처 변경, 데이터/상태 계약 변경, Auth/RLS/보안/권한 의미 변경, 중요한 DB migration, 실제 사용자 계정·민감정보 변경, 새 외부 서비스·비용, 확정 기획·승인선 변경, 중요한 요구사항 충돌, Ready for review, `main` 병합, Production 변경·배포.
+- 저장소 전체 재탐색과 불필요한 전체 검증 반복을 피하고, targeted test를 우선한 뒤 완료 또는 중요 gate 직전에 전체 회귀·CI·Preview를 수행합니다.
 
 ## 콘텐츠와 대외 표현
 
@@ -84,15 +98,15 @@
 
 ## 업무 플랫폼 개발 원칙
 
-- 첫 운영 모듈은 홍보 모듈입니다.
+- **기반 MVP와 일반 근로자 정보게시판을 먼저 안정화한 뒤, 실제 업무 모듈의 첫 운영 모듈은 홍보 모듈로 진행합니다.**
 - 홍보직원 대시보드와 승인 흐름은 [`docs/planning/PROMOTION_EMPLOYEE_DASHBOARD_V1.md`](docs/planning/PROMOTION_EMPLOYEE_DASHBOARD_V1.md)를 우선합니다.
 - 직원, 팀장, 운영총괄, 대표이사의 역할에 따라 대시보드와 접근 범위를 구분합니다.
 - 관리자가 보완을 요청해 직원에게 되돌아온 상태는 직원 화면에서 `보완 필요`로 표시합니다.
 - 홍보직원은 콘텐츠 중요도·위험도·최종 승인선을 판단하지 않고 작성과 사실 자료 입력에 집중합니다.
-- 홍보 모듈이 실제 운영에서 안정화된 뒤 공통 승인·알림 기반과 물류·재고·발주 등 다음 모듈로 확장합니다.
+- 홍보 모듈이 실제 운영에서 안정화된 뒤 현장관리, 근로자지원, 공통 승인·협업·경영보고와 후속 사업 모듈로 확장합니다.
 - 외주는 최대한 지양하고 내부 직원, 김형철 운영총괄, ChatGPT와 Codex를 중심으로 개발·검증합니다.
 - 회계·급여·금융·법정 신고 등 고위험 영역은 검증된 전문 서비스와 연동하거나 필요한 범위만 외부 검토를 받습니다.
 
 ## 완료 보고
 
-작업 완료 보고에는 변경 파일, 변경 목적, 적용한 기획 문서, 기획 대비 구현 결과, 확인 결과와 남은 확인 사항을 포함합니다.
+작업 완료 보고에는 변경 파일, 변경 목적, 적용한 기획 문서, 기획 대비 구현 결과, 확인 결과와 남은 확인 사항을 포함합니다. 사용자에게 긴 작업 로그를 반복 운반시키지 않고 PR·Issue에 공유 상태를 남깁니다.
