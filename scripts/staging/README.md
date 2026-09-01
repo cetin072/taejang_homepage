@@ -18,6 +18,10 @@
 
 `STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`는 service role을 사용하는 **로컬 관리자 명령**이다. 기본값은 `[TEST] 시험 관리자`와 `[TEST] 시험 근로자` 2명, 작업반 1개, 오늘의 업무·일정·중요공지·작업방법·자주 보는 안내만 만든다. 실제 사용자 계정은 만들지 않는다. `STAGING_QA_PASSWORD`는 실행 때만 입력한다.
 
+Data API 권한을 의도적으로 제한한 staging에서는 `STAGING_CONFIRM=STAGING STAGING_QA_PASSWORD=<runtime-only> SUPABASE_ACCESS_TOKEN=<runtime-only> node --env-file=.env.staging scripts/staging/seed-phase1-db-owner.mjs`를 사용한다. 이 DB owner 경로는 승인된 minimal TEST mode만 지원하며 migration·권한 부여·`--full`을 실행하지 않는다. Management API 사전검사 뒤 TEST Auth 2개와 TEST 데이터만 하나의 DB transaction으로 만든다. 두 비밀값은 실행 프로세스에만 두고 출력·문서·커밋하지 않는다.
+
+같은 경로의 생성 확인은 `node --env-file=.env.staging scripts/staging/verify-phase1-db-owner.mjs`를 사용한다. 이 명령은 Management API의 읽기 전용 query로 TEST 계정 2개, TEST 부서·작업반, 5종 최소 샘플의 개수만 확인한다.
+
 전체 역할·RLS 검수가 꼭 필요한 경우에만 `STAGING_CONFIRM=STAGING STAGING_FULL_QA_CONFIRM=FULL_QA node scripts/staging/seed-phase1.mjs --full`을 사용한다. 이 별도 확인값 없이는 기존 9계정 QA 시드가 시작되지 않는다.
 
 `node scripts/staging/verify-phase1.mjs`는 manifest에 기록된 최소 2계정 또는 전체 9계정, 해당 모드의 최고관리자 수와 검수 콘텐츠 존재를 확인한다.

@@ -5,6 +5,17 @@ const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', y
 const target = (scope, id) => ({ target_scope: scope, target_department_id: scope === 'department' ? id : null, target_work_group_id: scope === 'work_group' ? id : null, target_profile_id: scope === 'profile' ? id : null });
 const minimalOrganization = { departments: [['staging_test', `${PREFIX} [TEST] 시험부서`, 900]], groups: [[`${PREFIX} [TEST] 시험 작업반`, 'staging_test', 910]], primaryGroup: `${PREFIX} [TEST] 시험 작업반`, adminSlug: 'test-admin', workerSlug: 'test-worker' };
 const fullOrganization = { departments: [['staging_qa_operations', `${PREFIX} 검수운영부`, 900], ['staging_qa_field', `${PREFIX} 검수현장부`, 901]], groups: [[`${PREFIX} 현장 A반`, 'staging_qa_field', 910], [`${PREFIX} 운영 B반`, 'staging_qa_operations', 920]], primaryGroup: `${PREFIX} 현장 A반`, adminSlug: 'super-admin-1', workerSlug: 'worker-1' };
+const seedReadTables = ['departments', 'positions', 'roles', 'profiles', 'profile_roles', 'work_groups', 'work_group_members', 'work_guides', 'work_guide_steps', 'today_information_items', 'daily_work_assignments', 'schedule_items', 'notices', 'notice_acknowledgements', 'staff_guidance_items'];
+
+async function assertSeedReadAccess(config) {
+  for (const table of seedReadTables) {
+    try {
+      await api(config, `/rest/v1/${table}?select=id&limit=1`);
+    } catch (error) {
+      throw new Error(`Hosted TEST seed requires Data API access to ${table}; preflight stopped before TEST Auth users were created. ${error.message}`);
+    }
+  }
+}
 
 async function seedMinimalContent(config, { ids, departmentId, groupByName, organization }) {
   const actor = ids[organization.adminSlug]; const worker = ids[organization.workerSlug]; const date = today(); const now = new Date(); const later = new Date(now.getTime() + 3 * 86400000);
@@ -38,6 +49,7 @@ try {
   const config = stagingConfig({ serviceRole: true, mutation: true }); printTarget(config, `Phase 1 ${mode} QA seed`);
   if (!process.env.STAGING_QA_PASSWORD || process.env.STAGING_QA_PASSWORD.length < 12) throw new Error('STAGING_QA_PASSWORD (at least 12 characters) is required and is never printed.');
   const prior = readManifest(); if (prior?.project_ref === config.ref && prior?.seed_state === 'complete') { console.log('Existing complete manifest found. Seed is idempotent; run verify-phase1 or cleanup-phase1.'); process.exit(0); }
+  await assertSeedReadAccess(config);
   const existing = await api(config, '/auth/v1/admin/users?per_page=1000'); const existingByEmail = new Map((existing.users || []).map(user => [user.email, user])); const ids = {};
   for (const [slug, display_name] of users) { const email = qaEmail(slug); let user = existingByEmail.get(email); if (!user) user = await api(config, '/auth/v1/admin/users', { method: 'POST', body: { email, password: process.env.STAGING_QA_PASSWORD, email_confirm: true, user_metadata: { display_name, staging_qa: true, qa_namespace: mode === 'full' ? 'phase1-full' : 'phase1-minimal-test' } } }); if (user.user_metadata?.staging_qa !== true) throw new Error(`Refuse to reuse non-QA auth user ${email}.`); ids[slug] = user.id; }
   let departments = await api(config, '/rest/v1/departments?select=id,code'); for (const [code, name, sort_order] of organization.departments) if (!departments.some(row => row.code === code)) await api(config, '/rest/v1/departments', { method: 'POST', body: { code, name, active: true, sort_order }, prefer: 'return=minimal' });
