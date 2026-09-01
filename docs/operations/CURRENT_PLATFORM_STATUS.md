@@ -78,12 +78,24 @@
 - 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
 - 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
 - 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 실행했다. `scripts/staging/seed-phase1-db-owner.mjs`가 TEST Auth 2개, TEST 부서·작업반, 오늘 업무·작업방법·일정·중요공지·반복 안내를 생성했고 DB owner 읽기 전용 verify가 통과했다. migration·권한 변경·`--full`은 실행하지 않았다.
-- TEST 관리자·근로자 로그인 context, 근로자 5종 조회, 근로자의 관리자 작성 기능 차단, TEST 근로자 `suspended`·`departed` 즉시 차단 및 최종 `active` 복구가 hosted staging에서 통과했다. 회사·부서·작업반·타인 대상과 초안·사용중지·기간 경계의 추가 RLS 행 검증은 재사용 스크립트로 계속 수행한다.
+- TEST 관리자·근로자 로그인 context, 관리자 5종 정보의 작성·게시 흐름과 근로자 5종 조회, 근로자의 관리자 작성 기능 차단, TEST 근로자 `suspended`·`departed` 즉시 차단 및 최종 `active` 복구가 hosted staging에서 통과했다.
+
+## Issue #90 hosted 대상 범위·기간 RLS 독립 검증 — 2026-09-01 (KST)
+
+- 기획방의 승인된 TEST-only 독립 검증에서 `get_my_today_board`를 실제 TEST 근로자 세션으로 확인했다. 회사 전체, 본인 부서, 본인 작업반, 본인 개인 대상 행은 조회됐고 다른 TEST 부서·작업반·개인 대상 행은 차단됐다.
+- 초안과 사용중지 행은 조회되지 않았다. 중요공지·일정·반복 안내는 각각 현재 표시기간 또는 현재·향후 일정만 조회되고 미래 시작·만료된 행은 차단됐다.
+- 검증에만 사용한 `[STAGING-QA]` 임시 TEST 행, 보조 부서·작업반과 RLS audit 행은 즉시 정리했다. 잔여 audit 행·부서·작업반은 0건이며 기본 TEST 근로자는 최종 `active` 상태를 유지한다.
+- 이 독립 검증은 Production, migration, `--full` QA, 실제 사용자 계정·역할·상태를 변경하지 않았다. 같은 hosted mutation을 반복 실행하지 않는다.
+
+### 기획 대비 최종 상태
+
+- `구현 완료`: 비로그인·비활성 계정 차단, 마지막 활성 `super_admin` 보호, 관리자 5종 정보 관리·게시 기반, TEST 관리자→근로자 5종 hosted E2E, 회사·부서·작업반·개인 대상 범위와 타인 대상 차단, 게시 상태·기간 RLS, 일반 근로자 읽기 전용 화면의 자동화·hosted 검증.
+- `부분 구현`: 실제 직원 제한 시범운영의 계정 생성·권한·상태 변경과 실제 사용자 환경의 수동 접근성 검수. 이는 별도 사용자 승인 이후에만 진행한다.
+- `미구현·후속 작업`: 실제 사용자 제한 시범운영 승인, Ready for review 판단, main 병합과 Production 배포는 다음 사용자 결정 gate다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- DB owner seed 및 기본 hosted TEST E2E는 실행됐다. 실제 사용자 계정 생성/권한 변경, migration, `--full`, Production, Ready 전환·main 병합은 계속 별도 승인이 필요하다.
-- 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
+- DB owner seed, 기본 hosted TEST E2E 및 대상 범위·기간 RLS 독립 검증은 완료됐다. 실제 사용자 계정 생성/권한 변경, migration, `--full`, Production, Ready 전환·main 병합은 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 
 ## 하면 안 되는 작업
