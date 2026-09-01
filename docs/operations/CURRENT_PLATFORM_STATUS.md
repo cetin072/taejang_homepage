@@ -25,7 +25,7 @@
 - Netlify Production 현재 배포: `ready`, branch `main`, commit `d8dea79f5cfe17a0f1e6ca2eca7d9dae95e13e25`, deploy id `6a95a4889f13b60008941fc4`.
 - Netlify secret scan: 검출된 secret 없음.
 - 시험계정·샘플 데이터: 미생성.
-- staging QA 시드: 기본 2계정·5개 샘플과 전체 9계정 모두 별도 승인 전까지 미실행.
+- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만 현재 실행 환경에 staging 전용 Service Role 자격증명이 없어 minimal seed는 아직 실행되지 않았다.
 
 ## 실제 사용자 계정 상태
 
@@ -69,12 +69,19 @@
 
 - `구현 완료`: 비로그인·비활성 계정 차단, 마지막 활성 `super_admin` 보호, 관리자 5종 정보 관리 기반, 대상 범위·게시 상태·기간 RLS, 일반 근로자 읽기 전용 화면의 자동화 검증.
 - `부분 구현`: 실제 staging의 관리자 → 일반 근로자 5종 정보 E2E와 실제 계정 상태 전환 검증. 코드와 격리 CI는 통과했지만 실제 계정 또는 전용 TEST 계정 없이 hosted staging을 변경하지 않았다.
-- `미구현·후속 작업`: 사용자 승인 후에만 전용 TEST 계정 또는 제한된 실제 직원 범위에서 hosted staging E2E를 실행한다. 이 단계에서만 계정 생성·역할 배정·QA 시드·상태 전환을 수행할 수 있다.
+- `미구현·후속 작업`: 승인된 기본 TEST 계정 범위에서 hosted staging E2E를 실행한다. 제한된 실제 직원 범위의 계정·권한·상태 변경은 별도 사용자 승인이 있어야 한다.
+
+## Issue #90 staging TEST 실행 상태 — 2026-09-01 (KST)
+
+- Issue #90에서 기본 minimal TEST seed와 TEST 전용 E2E·RLS·계정상태 검증을 명시 승인했다.
+- `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
+- 현재 로컬 실행 환경에는 `STAGING_SUPABASE_SERVICE_ROLE_KEY`가 없어서 seed와 cleanup 도구가 안전하게 중단됐다. TEST 사용자·콘텐츠·작업반과 실제 사용자 데이터 모두 변경되지 않았다.
+- 재개 시 회사의 안전한 로컬 환경에 staging 전용 Service Role 자격증명만 준비한다. 비밀값은 채팅·GitHub·문서·Netlify에 기록하지 않고, 기본 2계정 seed만 실행한다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- 현재 Issue #90 시작 준비에는 없음.
-- 실제 사용자 계정 생성/권한 변경, TEST 계정 생성, staging 데이터 mutation, migration apply가 필요해지는 순간에만 별도 승인을 요청한다.
+- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, 현재 실행 환경에 staging 전용 Service Role 자격증명이 필요하다.
+- 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 
 ## 하면 안 되는 작업
