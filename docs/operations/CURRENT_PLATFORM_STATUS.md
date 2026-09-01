@@ -24,8 +24,8 @@
 - 사용자 승인에 따라 PR #31 main 병합 및 그에 따른 Netlify Production 자동배포를 허용했다.
 - Netlify Production 현재 배포: `ready`, branch `main`, commit `d8dea79f5cfe17a0f1e6ca2eca7d9dae95e13e25`, deploy id `6a95a4889f13b60008941fc4`.
 - Netlify secret scan: 검출된 secret 없음.
-- 시험계정·샘플 데이터: 미생성.
-- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만, 2026-09-01 재검증에서 실행 프로세스에 필수 URL·project ref·allow-list·publishable key가 모두 로드되지 않아 minimal seed는 아직 실행되지 않았다.
+- 시험계정·샘플 데이터: 최초 minimal seed가 조직 테이블 권한 확인 전에 정확히 2개의 TEST Auth·`pending` profile을 부분 생성했다. 이후 두 Auth 계정은 soft-delete로 로그인 차단했으며, profile FK 때문에 영구 삭제는 하지 않았다. TEST 조직·작업반·5종 샘플 콘텐츠는 생성되지 않았다.
+- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만, 현재 staging `service_role`에는 `departments`를 포함한 직접 Data API 접근 권한이 없어 minimal seed 및 hosted E2E를 진행할 수 없다.
 
 ## 실제 사용자 계정 상태
 
@@ -69,18 +69,19 @@
 
 - `구현 완료`: 비로그인·비활성 계정 차단, 마지막 활성 `super_admin` 보호, 관리자 5종 정보 관리 기반, 대상 범위·게시 상태·기간 RLS, 일반 근로자 읽기 전용 화면의 자동화 검증.
 - `부분 구현`: 실제 staging의 관리자 → 일반 근로자 5종 정보 E2E와 실제 계정 상태 전환 검증. 코드와 격리 CI는 통과했지만 실제 계정 또는 전용 TEST 계정 없이 hosted staging을 변경하지 않았다.
-- `미구현·후속 작업`: 승인된 기본 TEST 계정 범위에서 hosted staging E2E를 실행한다. 제한된 실제 직원 범위의 계정·권한·상태 변경은 별도 사용자 승인이 있어야 한다.
+- `미구현·후속 작업`: staging Data API 권한 gate가 해소되면 승인된 기본 TEST 계정 범위에서 hosted staging E2E를 실행한다. 제한된 실제 직원 범위의 계정·권한·상태 변경은 별도 사용자 승인이 있어야 한다.
 
 ## Issue #90 staging TEST 실행 상태 — 2026-09-01 (KST)
 
 - Issue #90에서 기본 minimal TEST seed와 TEST 전용 E2E·RLS·계정상태 검증을 명시 승인했다.
 - `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
-- 2026-09-01 재실행에서 Service Role 키는 감지됐지만, 실행 프로세스에 `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PROJECT_REF`, `STAGING_ALLOWED_PROJECT_REFS`, `STAGING_SUPABASE_PUBLISHABLE_KEY`가 모두 로드되지 않아 seed가 원격 변경 전에 안전하게 중단됐다. TEST 사용자·콘텐츠·작업반과 실제 사용자 데이터 모두 변경되지 않았다.
-- 재개 시 회사의 안전한 로컬 환경에 위 필수 staging 설정과 Service Role 자격증명을 모두 준비한다. 비밀값은 채팅·GitHub·문서·Netlify에 기록하지 않고, 기본 2계정 seed만 실행한다.
+- 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
+- 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
+- 재개에는 staging DB 소유자 경로에서 TEST automation에 필요한 최소 Data API 권한을 부여하거나, 동등하게 TEST 데이터만 다룰 수 있는 별도 승인된 seed 경로가 필요하다. 이는 현재 승인 범위를 넘는 권한 변경이므로 사용자 결정 전에는 실행하지 않는다.
 
 ## 사용자가 직접 해야 하는 최소 작업
 
-- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, 현재 실행 환경에서 `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_PROJECT_REF`, `STAGING_ALLOWED_PROJECT_REFS`, `STAGING_SUPABASE_PUBLISHABLE_KEY`를 포함한 필수 staging 설정이 로드되어야 한다.
+- 기본 2개 TEST 계정과 5종 샘플 staging QA는 승인됐지만, staging DB 소유자 권한으로 TEST automation의 필요한 Data API 권한을 별도 승인하거나, 기존 권한 모델을 존중하는 대체 seed 실행 경로를 결정해야 한다.
 - 실제 사용자 계정 생성/권한 변경과 migration apply는 계속 별도 승인이 필요하다.
 - 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
 

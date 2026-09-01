@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import test from 'node:test';
 import { FULL_QA_CONFIRMATION_ENV, FULL_QA_CONFIRMATION_VALUE, FULL_QA_USERS, MINIMAL_TEST_USERS, seedMode } from '../scripts/staging/seed-spec.mjs';
 
@@ -20,4 +21,13 @@ test('full staging QA seed requires a separate explicit confirmation value', () 
 
 test('seed parser refuses unrecognised options before staging configuration is read', () => {
   assert.throws(() => seedMode(['--apply'], {}), /Only --full is supported/);
+});
+
+test('hosted seed checks direct Data API access before it can create TEST Auth users', () => {
+  const source = fs.readFileSync(new URL('../scripts/staging/seed-phase1.mjs', import.meta.url), 'utf8');
+  const preflight = source.indexOf('await assertSeedReadAccess(config);');
+  const authUsers = source.indexOf("/auth/v1/admin/users?per_page=1000");
+  assert.ok(preflight >= 0, 'seed includes a direct Data API preflight');
+  assert.ok(authUsers >= 0, 'seed enumerates TEST Auth users after preflight');
+  assert.ok(preflight < authUsers, 'preflight runs before any Auth user creation path');
 });
