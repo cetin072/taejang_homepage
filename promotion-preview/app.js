@@ -9,7 +9,8 @@
   const PUBLIC_MEDIA_FIELDS = new Set(['url', 'slot', 'kind', 'alt']);
   const status = document.getElementById('status');
   const entriesRoot = document.getElementById('entries');
-  const productionHosts = new Set(['taejang.co.kr', 'www.taejang.co.kr']);
+  const previewHost = location.hostname.startsWith('deploy-preview-') && location.hostname.endsWith('.netlify.app');
+  const localHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const httpsUrl = value => typeof value === 'string' && /^https:\/\/[^\s]+$/.test(value);
 
   const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
@@ -107,8 +108,8 @@
   }
 
   async function start() {
-    if (productionHosts.has(location.hostname)) {
-      status.textContent = 'Production에서는 이 검증 경로를 사용하지 않습니다.';
+    if (!previewHost && !localHost) {
+      status.textContent = '이 검증 경로는 Deploy Preview에서만 콘텐츠를 표시합니다.';
       entriesRoot.replaceChildren();
       return;
     }
