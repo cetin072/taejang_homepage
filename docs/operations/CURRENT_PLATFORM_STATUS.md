@@ -98,6 +98,26 @@
 - 로컬 정적·보안·staging 안전장치 회귀 95건이 모두 통과했고 `git diff --check`도 통과했다.
 - 커밋 `91e489c614fd862bd7f152c66d171ed77d484330`에 대해 GitHub Actions `Migration, pgTAP, Auth and RLS`와 Netlify Deploy Preview가 모두 통과했다. PR #92는 계속 Draft로 유지한다.
 
+## Issue #94 Phase C 홍보·공개 발행 기반 — 2026-09-02 (KST)
+
+- 작업 branch: `codex/issue-94-promotion-publishing-mvp`, Draft PR #96. `Ready for review`, main 병합, Production Supabase·공개 배포는 수행하지 않았다.
+- 승인된 staging `jgsxpdflgkqroecfjzxq`에 Phase C migration과 queued revision export blocker 수정 migration이 적용됐다. dry-run은 remote migration history가 최신임을 확인했다.
+- `[TEST-C]` 홍보직원·홍보팀장·운영총괄·대표이사 네 TEST Auth identity를 marker/namespace로 확인해 idempotent하게 active·정확한 role로 준비했다. 실제 사용자 계정·역할은 변경하지 않았다.
+- DB owner verify는 네 TEST profile의 active 상태와 정확한 role, Phase C 4개 table, 핵심 RPC를 확인했다. hosted E2E는 staff 직접 table write 차단, 역할별 review queue, operations/CEO 승인선, CEO 상신 전 차단, 승인 revision의 queue/export allow-list와 내부 source link 제외를 확인했다.
+- E2E 종료 후 TEST promotion content·revision·review·publication queue를 제거했다. 네 TEST-C profile은 `pending`, active role 0으로 되돌렸고 owner read-only cleanup verifier가 이를 확인했다.
+- 최종 로컬 static/security regression 64건, GitHub Actions `Migration, pgTAP, Auth and RLS` run `33618208036`, Draft PR #96 Deploy Preview가 통과했다. 비밀값은 문서·GitHub·commit에 기록하지 않았다.
+
+### Phase C 기획 대비 상태
+
+- `구현 완료`: 홍보직원 초안/승인요청과 `잘 모르겠음` 입력, 불변 revision, 팀장→운영총괄→필요 시 대표이사 승인 경로, 보완·보류·상신 RPC/audit, 역할별 RLS, 승인 revision만의 static export candidate allow-list/checksum 기반, TEST-only hosted E2E와 cleanup 경계.
+- `부분 구현`: 실제 로그인 상태의 360px/키보드 수동 UI 검수, 기존 draft의 상세 편집·미리보기, 홍보팀장 신규사업 운영 화면, 운영총괄의 채널 현황·장기대기·방향 관리, 대표이사 상신 요약 입력, PHOTO 고정 슬롯·최근 활동 사진의 실제 운영 화면, export artifact를 Deploy Preview 공개 페이지에 연결하는 운영 job.
+- `의도적으로 제외·후속`: SNS 자동 게시, 원본 사진 저장소, 고급 성과 분석·개인 순위, 새 외부 서비스, 실제 사용자 시범운영과 Production 공개. 이들은 별도 Issue/승인 없이 시작하지 않는다.
+
+### 다음 사람 판단 gate
+
+- Draft PR #96의 부분 구현 범위를 검토해 Ready for review로 전환할지, 남은 Phase C UI/publication 운영 항목을 같은 Issue에 계속 구현할지 결정한다.
+- 어떤 경우에도 main 병합, Production Supabase·Netlify Production 변경, 실제 사용자 계정·권한 mutation은 별도 명시 승인 전 금지다.
+
 ## 사용자가 직접 해야 하는 최소 작업
 
 - DB owner seed, 기본 hosted TEST E2E 및 대상 범위·기간 RLS 독립 검증은 완료됐다. 실제 사용자 계정 생성/권한 변경, migration, `--full`, Production, Ready 전환·main 병합은 계속 별도 승인이 필요하다.
