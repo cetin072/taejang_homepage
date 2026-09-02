@@ -32,7 +32,7 @@ select is(public.promotion_required_stage('homepage_article', 'company', 'no')::
 select is(public.promotion_required_stage('press_release', 'company', 'no')::text, 'operations', 'press releases require operations review');
 select is(public.promotion_required_stage('homepage_article', 'company', 'unsure')::text, 'operations', 'uncertain amounts require operations review');
 select is(public.promotion_required_stage('homepage_article', 'ceo', 'no')::text, 'ceo', 'CEO byline requires CEO review');
-select ok(public.promotion_validate_url('https://example.test/reference', 'test') is null, 'HTTPS promotion URL is accepted');
+select lives_ok($$select public.promotion_validate_url('https://example.test/reference', 'test')$$, 'HTTPS promotion URL is accepted');
 select throws_ok($$select public.promotion_validate_url('javascript:alert(1)', 'test')$$, '22023', 'INVALID_PROMOTION_URL', 'unsafe promotion URL is rejected');
 select throws_ok($$select public.promotion_validate_public_media('[{"url":"http://example.test/image"}]'::jsonb)$$, '22023', 'INVALID_PROMOTION_URL', 'public media requires HTTPS');
 
