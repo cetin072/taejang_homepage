@@ -23,7 +23,10 @@ test('public export is allow-listed, checksummed, and removes internal fields', 
 
 test('promotion staff composer keeps risk routing system-managed and supports edit, preview, and PHOTO slots', () => {
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
-  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '직원용 미리보기', 'PHOTO 01', 'PHOTO 11', '최근 활동 대표사진']) assert.match(workspace, new RegExp(label));
+  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '직원용 미리보기', '최근 활동 대표사진']) assert.match(workspace, new RegExp(label));
+  assert.match(workspace, /for \(let index = 1; index <= 11; index \+= 1\)/);
+  assert.match(workspace, /`PHOTO \$\{String\(index\)\.padStart\(2, '0'\)\}`/);
+  assert.match(workspace, /slot: 'RECENT'/);
   assert.match(workspace, /save_promotion_draft/);
   assert.match(workspace, /submit_promotion_revision/);
   assert.match(workspace, /p_content_id:\s*existingItem\?\.content_id/);
