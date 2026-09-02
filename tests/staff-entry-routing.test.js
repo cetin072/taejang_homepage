@@ -71,6 +71,12 @@ test('protected app rechecks access context on direct entry, refresh, and naviga
   assert.match(source, /sendToStaff\('setup', \{ clear: false \}\)/);
 });
 
+test('protected app prevents the initial pageshow event from racing async config bootstrap', () => {
+  const ui = read('app/assets/app-ui.js');
+  assert.match(ui, /window\.addEventListener\('pageshow'/);
+  assert.match(ui, /if \(!window\.TaejangApp\) event\.stopImmediatePropagation\(\)/);
+});
+
 test('super admin is kept on the protected staff admin screen and return notices are consumed', () => {
   const staff = read('staff/assets/staff.js');
   const html = read('staff/index.html');
