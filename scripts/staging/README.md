@@ -22,6 +22,8 @@ Data API 권한을 의도적으로 제한한 staging에서는 `STAGING_CONFIRM=S
 
 Phase C 홍보 검증은 기존 Phase 1 계정과 섞지 않는다. 승인된 staging TEST-only 범위에서만 `STAGING_CONFIRM=STAGING STAGING_QA_PASSWORD=<runtime-only> node --env-file=.env.staging scripts/staging/seed-phase-c-db-owner.mjs`로 `[TEST-C]` 역할별 4계정을 만들고, `node --env-file=.env.staging scripts/staging/verify-phase-c-db-owner.mjs`로 계정·역할·schema를 확인한다. 이어서 같은 runtime-only 비밀번호로 `STAGING_CONFIRM=STAGING node --env-file=.env.staging scripts/staging/verify-phase-c-hosted-e2e.mjs`를 실행한다. E2E는 TEST 콘텐츠만 만들며 Production, 실제 계정, migration, `--full`을 건드리지 않는다.
 
+E2E가 끝나면 `STAGING_CONFIRM=STAGING node --env-file=.env.staging scripts/staging/cleanup-phase-c-db-owner.mjs`로 TEST-C가 만든 콘텐츠·revision·review·queue만 지우고 네 계정을 pending/무권한으로 되돌린다. `node --env-file=.env.staging scripts/staging/verify-phase-c-cleanup.mjs`는 이 정리 상태를 읽기 전용으로 확인한다. 두 명령 모두 TEST marker와 namespace가 정확히 네 계정과 일치하지 않으면 중단한다.
+
 같은 경로의 생성 확인은 `node --env-file=.env.staging scripts/staging/verify-phase1-db-owner.mjs`를 사용한다. 이 명령은 Management API의 읽기 전용 query로 TEST 계정 2개, TEST 부서·작업반, 5종 최소 샘플의 개수만 확인한다.
 
 전체 역할·RLS 검수가 꼭 필요한 경우에만 `STAGING_CONFIRM=STAGING STAGING_FULL_QA_CONFIRM=FULL_QA node scripts/staging/seed-phase1.mjs --full`을 사용한다. 이 별도 확인값 없이는 기존 9계정 QA 시드가 시작되지 않는다.
