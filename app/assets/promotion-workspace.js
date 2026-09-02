@@ -43,7 +43,84 @@
       text('h3', item.title),
       text('p', item.requested_publish_date ? `게시 희망일: ${item.requested_publish_date}` : '게시 희망일을 정하지 않았습니다.')
     );
+    if (item.lifecycle === 'draft' || item.lifecycle === 'needs_revision') {
+      node.append(actionButton('승인 요청', async () => {
+        try {
+          await window.TaejangApp.rpc('submit_promotion_revision', { p_content_id: item.content_id });
+          await open();
+        } catch (error) {
+          window.alert(window.TaejangApp.friendlyError(error));
+        }
+      }));
+    }
     return node;
+  }
+
+  function field(label, control) {
+    const wrapper = document.createElement('label');
+    wrapper.append(text('span', label), control);
+    return wrapper;
+  }
+
+  function select(options, value) {
+    const control = document.createElement('select');
+    options.forEach(([optionValue, optionLabel]) => {
+      const option = document.createElement('option');
+      option.value = optionValue;
+      option.textContent = optionLabel;
+      option.selected = optionValue === value;
+      control.append(option);
+    });
+    return control;
+  }
+
+  async function saveDraft(form, submitAfterSave) {
+    const value = name => form.elements.namedItem(name)?.value || null;
+    const payload = {
+      p_content_id: null, p_content_type: value('content_type'), p_slug: value('slug'), p_title: value('title'),
+      p_summary: value('summary'), p_public_body: value('public_body'), p_external_url: value('external_url'),
+      p_byline: value('byline'), p_byline_kind: value('byline_kind'), p_related_organization: value('related_organization'),
+      p_source_reference_url: value('source_reference_url'), p_hero_image_url: value('hero_image_url'), p_public_media: [],
+      p_people_photo: value('people_photo'), p_number_or_amount: value('number_or_amount'),
+      p_requested_publish_date: value('requested_publish_date'), p_change_reason: '홍보 콘텐츠 초안 저장'
+    };
+    try {
+      const saved = await window.TaejangApp.rpc('save_promotion_draft', payload);
+      if (submitAfterSave) await window.TaejangApp.rpc('submit_promotion_revision', { p_content_id: saved.content_id });
+      await open();
+    } catch (error) {
+      window.alert(window.TaejangApp.friendlyError(error));
+    }
+  }
+
+  function composer() {
+    const section = document.createElement('section');
+    section.className = 'dashboard-section promotion-composer';
+    section.append(text('h2', '새 콘텐츠 작성'), text('p', '중요도와 승인선은 고르지 않아도 됩니다. 사실과 자료를 입력하면 시스템과 관리자가 확인합니다.', 'help'));
+    const form = document.createElement('form');
+    form.className = 'promotion-form';
+    const grid = document.createElement('div');
+    grid.className = 'promotion-form-grid';
+    const contentType = select([['homepage_article', '홈페이지 글'], ['external_content', '외부 콘텐츠'], ['press_release', '보도자료']], 'homepage_article'); contentType.name = 'content_type';
+    const titleInput = document.createElement('input'); titleInput.name = 'title'; titleInput.maxLength = 160; titleInput.required = true;
+    const slugInput = document.createElement('input'); slugInput.name = 'slug'; slugInput.maxLength = 160; slugInput.pattern = '[a-z0-9]+(?:-[a-z0-9]+){0,79}'; slugInput.placeholder = '예: autumn-harvest';
+    const byline = select([['company', '회사 명의'], ['ceo', '대표이사 명의'], ['other', '기타 명의']], 'company'); byline.name = 'byline_kind';
+    const peoplePhoto = select([['unsure', '잘 모르겠음'], ['yes', '있음'], ['no', '없음']], 'unsure'); peoplePhoto.name = 'people_photo';
+    const numberAmount = select([['unsure', '잘 모르겠음'], ['yes', '있음'], ['no', '없음']], 'unsure'); numberAmount.name = 'number_or_amount';
+    const requestedDate = document.createElement('input'); requestedDate.name = 'requested_publish_date'; requestedDate.type = 'date';
+    grid.append(field('글 종류', contentType), field('제목', titleInput), field('게시 주소(영문·숫자·하이픈)', slugInput), field('작성 명의', byline), field('사람이 나온 사진', peoplePhoto), field('숫자·금액 포함', numberAmount), field('게시 희망일', requestedDate));
+    const summary = document.createElement('textarea'); summary.name = 'summary'; summary.maxLength = 500; summary.rows = 2;
+    const body = document.createElement('textarea'); body.name = 'public_body'; body.maxLength = 30000; body.rows = 7;
+    const externalUrl = document.createElement('input'); externalUrl.name = 'external_url'; externalUrl.type = 'url'; externalUrl.placeholder = 'https://';
+    const bylineText = document.createElement('input'); bylineText.name = 'byline'; bylineText.maxLength = 120;
+    const organization = document.createElement('input'); organization.name = 'related_organization'; organization.maxLength = 160;
+    const sourceUrl = document.createElement('input'); sourceUrl.name = 'source_reference_url'; sourceUrl.type = 'url'; sourceUrl.placeholder = 'https://';
+    const heroUrl = document.createElement('input'); heroUrl.name = 'hero_image_url'; heroUrl.type = 'url'; heroUrl.placeholder = 'https://';
+    form.append(grid, field('요약', summary), field('본문', body), field('외부 게시 링크', externalUrl), field('작성자 표기', bylineText), field('관련 기관', organization), field('자료 확인 링크(내부)', sourceUrl), field('대표 이미지 링크', heroUrl));
+    const actions = document.createElement('div'); actions.className = 'quick-links';
+    actions.append(actionButton('임시저장', () => { if (form.reportValidity()) saveDraft(form, false); }), actionButton('저장 후 승인 요청', () => { if (form.reportValidity()) saveDraft(form, true); }));
+    form.append(actions); section.append(form);
+    return section;
   }
 
   async function review(contentId, action) {
@@ -70,6 +147,7 @@
       : '역할에 배정된 검토 안건만 표시합니다. 검토 의견은 구체적으로 남겨주세요.'));
     intro.append(actionButton('대시보드로', () => document.dispatchEvent(new Event('taejang-dashboard-refresh')), true));
     main.replaceChildren(intro);
+    if (role === 'promotion_staff') main.append(composer());
 
     const mine = array(workspace.my_items);
     const mySection = document.createElement('section');

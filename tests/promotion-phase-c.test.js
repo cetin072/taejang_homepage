@@ -18,3 +18,11 @@ test('public export is allow-listed, checksummed, and removes internal fields', 
   assert.equal(artifact.entries.length, 1); assert.equal('internal_comment' in artifact.entries[0], false); assert.equal(exporter.validateCandidate(artifact), true);
   artifact.checksum = 'broken'; assert.throws(() => exporter.validateCandidate(artifact), /checksum/i);
 });
+
+test('promotion staff composer keeps risk routing system-managed and uses only guarded RPCs', () => {
+  const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
+  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청']) assert.match(workspace, new RegExp(label));
+  assert.match(workspace, /save_promotion_draft/);
+  assert.match(workspace, /submit_promotion_revision/);
+  assert.doesNotMatch(workspace, /p_minimum_review_stage/);
+});
