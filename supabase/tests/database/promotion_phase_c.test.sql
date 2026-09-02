@@ -9,6 +9,8 @@ select has_table('public', 'promotion_review_requests', 'promotion review table 
 select has_table('public', 'promotion_publication_queue', 'promotion publication queue exists');
 select has_type('public', 'promotion_lifecycle', 'promotion lifecycle enum exists');
 select has_type('public', 'promotion_review_stage', 'promotion review stage enum exists');
+select has_function('public', 'guard_promotion_review_stage_decision', 'review-stage decision guard function exists');
+select has_trigger('public', 'promotion_review_requests', 'promotion_review_stage_decision_guard', 'review-stage decision guard trigger exists');
 
 select is(
   (select count(*)::integer from pg_class relation join pg_namespace namespace on namespace.oid = relation.relnamespace
@@ -27,6 +29,7 @@ select ok(has_function_privilege('authenticated', 'public.save_promotion_draft(u
 select ok(has_function_privilege('authenticated', 'public.submit_promotion_revision(uuid)', 'EXECUTE'), 'authenticated users can call guarded promotion submit RPC');
 select ok(not has_function_privilege('authenticated', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'browser users cannot read static export candidates');
 select ok(has_function_privilege('service_role', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'service role alone can read static export candidates');
+select ok(not has_function_privilege('authenticated', 'public.guard_promotion_review_stage_decision()', 'EXECUTE'), 'browser users cannot execute the internal review-stage guard directly');
 
 select is(public.promotion_required_stage('homepage_article', 'company', 'no')::text, 'lead', 'ordinary content starts at lead review');
 select is(public.promotion_required_stage('press_release', 'company', 'no')::text, 'operations', 'press releases require operations review');
