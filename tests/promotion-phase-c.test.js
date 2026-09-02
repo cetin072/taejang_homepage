@@ -45,6 +45,14 @@ test('role review UI includes CEO rejection and structured operations escalation
   assert.match(workspace, /검토 보류/);
 });
 
+test('promotion routes have explicit role copy without joining generic manager write permissions', () => {
+  const shell = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
+  assert.match(shell, /promotion_lead: \['홍보팀장 대시보드'/);
+  assert.match(shell, /promotion_staff: \['홍보직원 대시보드'/);
+  const managerSet = shell.match(/managerRoles = new Set\(\[([^\]]+)\]\)/)?.[1] || '';
+  assert.doesNotMatch(managerSet, /promotion_lead|promotion_staff/);
+});
+
 test('workspace detail migration returns editable fields and approved publication items with less direct helper exposure', () => {
   for (const marker of ['revision_no', 'source_reference_url', 'public_media', 'people_photo', 'number_or_amount', 'publication_items', "content.lifecycle in ('approved', 'scheduled')", 'promotion_revision_is_fully_approved']) assert.match(workspaceDetail, new RegExp(marker.replace(/[()]/g, '\\$&'), 'i'));
   assert.match(workspaceDetail, /revoke execute on function public\.current_user_is_promotion_member\(\) from authenticated/i);
@@ -66,13 +74,14 @@ test('queued approved revisions remain eligible for the allow-listed public expo
   assert.match(exportFix, /ceo_review\.decision = 'approved'/);
 });
 
-test('Deploy Preview route validates the same artifact contract and refuses production rendering', () => {
+test('Deploy Preview route validates the same artifact contract and refuses non-preview hosts', () => {
   const previewHtml = fs.readFileSync(path.join(root, 'promotion-preview/index.html'), 'utf8');
   const previewJs = fs.readFileSync(path.join(root, 'promotion-preview/app.js'), 'utf8');
   const fixture = JSON.parse(fs.readFileSync(path.join(root, 'promotion-preview/artifact.json'), 'utf8'));
   assert.match(previewHtml, /Deploy Preview 전용/);
   assert.match(previewHtml, /noindex,nofollow/);
-  assert.match(previewJs, /taejang\.co\.kr/);
+  assert.match(previewJs, /startsWith\('deploy-preview-'\)/);
+  assert.match(previewJs, /endsWith\('\.netlify\.app'\)/);
   assert.match(previewJs, /checksum/);
   assert.match(previewJs, /PUBLIC_FIELDS/);
   assert.match(previewJs, /PUBLIC_MEDIA_FIELDS/);
