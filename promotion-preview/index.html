@@ -11,14 +11,17 @@
     main { width: min(100% - 32px, 860px); margin: 0 auto; padding: 40px 0 64px; }
     header, article { background: #fff; border: 1px solid #d7e0da; border-radius: 16px; padding: clamp(20px, 4vw, 32px); }
     header { margin-bottom: 18px; }
+    article + article { margin-top: 18px; }
     h1, h2 { margin: 0 0 12px; letter-spacing: -.03em; }
     p { line-height: 1.75; }
     .eyebrow { margin: 0 0 8px; color: #236545; font-weight: 850; }
     .notice { padding: 12px 14px; border-radius: 10px; background: #fff5d9; color: #6f4b00; font-weight: 750; }
     .meta { color: #5f6d66; }
-    .body { white-space: pre-wrap; line-height: 1.85; }
-    .media { padding-left: 20px; }
+    .body { white-space: pre-wrap; line-height: 1.85; overflow-wrap: anywhere; }
+    article img { display: block; width: min(100%, 760px); max-height: 520px; margin: 18px 0; border-radius: 12px; object-fit: cover; }
+    .media { padding-left: 20px; overflow-wrap: anywhere; }
     a { color: #236545; }
+    a:focus-visible { outline: 3px solid #236545; outline-offset: 3px; }
     .error { color: #9c2f2f; font-weight: 750; }
     @media (max-width: 400px) { main { width: min(100% - 20px, 860px); padding-top: 20px; } header, article { padding: 18px; } }
   </style>
