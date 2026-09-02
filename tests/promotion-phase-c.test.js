@@ -6,6 +6,7 @@ const test = require('node:test');
 const exporter = require('../scripts/promotion-public-export.js');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/migrations/20260902024950_phase_c_promotion_publishing.sql'), 'utf8');
+const exportFix = fs.readFileSync(path.join(root, 'supabase/migrations/20260902100857_phase_c_export_scheduled_candidate.sql'), 'utf8');
 
 test('Phase C migration keeps lifecycle, review, RLS, RPC, and public export contracts separate', () => {
   for (const marker of ['promotion_contents', 'promotion_content_revisions', 'promotion_review_requests', 'promotion_publication_queue', "'review_pending'", "'needs_revision'", "'operations'", "'ceo'", 'security definer', 'private_append_audit', 'PROMOTION_SUBMITTED_REVISION_IMMUTABLE', 'PROMOTION_REVIEW_STAGE_CAN_ONLY_INCREASE', 'list_promotion_public_export_candidates']) assert.match(sql, new RegExp(marker, 'i'));
@@ -25,4 +26,12 @@ test('promotion staff composer keeps risk routing system-managed and uses only g
   assert.match(workspace, /save_promotion_draft/);
   assert.match(workspace, /submit_promotion_revision/);
   assert.doesNotMatch(workspace, /p_minimum_review_stage/);
+});
+
+test('queued approved revisions remain eligible for the allow-listed public export', () => {
+  assert.match(exportFix, /content\.lifecycle in \('approved', 'scheduled'\)/);
+  assert.match(exportFix, /current_revision_id = p_revision_id/);
+  assert.match(exportFix, /lead_review\.decision = 'approved'/);
+  assert.match(exportFix, /operations_review\.decision = 'approved'/);
+  assert.match(exportFix, /ceo_review\.decision = 'approved'/);
 });
