@@ -1,0 +1,8 @@
+{
+  "name": "taejang-homepage",
+  "private": true,
+  "description": "Local development tooling for the Taejang homepage and work platform.",
+  "devDependencies": {
+    "supabase": "^2.116.0"
+  }
+}

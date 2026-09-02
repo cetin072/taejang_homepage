@@ -26,6 +26,7 @@
     if (managerRoles.has(route)) items.push({ label: '오늘 관리', run: () => openPanel('today-admin-panel') });
     if (managerRoles.has(route)) items.push({ label: '일정 관리', run: () => openPanel('schedule-admin-panel') }, { label: '공지 관리', run: () => openPanel('notice-admin-panel') }, { label: '안내 관리', run: () => openPanel('guidance-admin-panel') }, { label: '작업방법 관리', run: () => openPanel('today-admin-panel') });
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
+    if (['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo'].includes(route)) items.push({ label: route === 'promotion_staff' ? '홍보 작성' : '홍보 검토', run: () => document.dispatchEvent(new Event('taejang-open-promotion-workspace')) });
     items.forEach(item => { const node = item.href ? document.createElement('a') : document.createElement('button'); if (item.href) { node.href = item.href; node.className = 'button button-quiet'; node.textContent = item.label; } else { node.type = 'button'; node.textContent = item.label; node.addEventListener('click', item.run); } if (item.current) node.setAttribute('aria-current', 'page'); nav.append(node); });
   }
   async function dashboardData(route) {
@@ -43,14 +44,17 @@
     main.replaceChildren(); const intro = document.createElement('header'); intro.className = 'dashboard-intro'; intro.append(text('p', new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date()), 'eyebrow'), text('h2', heading), text('p', copy)); main.append(intro);
     const grid = document.createElement('section'); grid.className = 'dashboard-grid'; grid.setAttribute('aria-label', '현재 업무 요약');
     if (route === 'super_admin') grid.append(card('가입·계정 승인 대기', pending.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.length ? `${pending.length}건` : undefined, action: { label: '가입 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));
-    if (route === 'ceo') grid.append(card('전체 운영 세부 화면', '현재는 역할별 보안 권한을 유지하며 후속 단계에서 연결합니다.', { preparing: true }));
+    if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 실제로 상신한 중요 콘텐츠만 표시합니다.', { action: { label: '홍보 검토 열기', run: () => document.dispatchEvent(new Event('taejang-open-promotion-workspace')) } }));
     grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '오늘 일정', schedules.length ? schedules[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.length ? `${schedules.length}건` : undefined, action: managerRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
     const important = notices.filter(item => item.importance === 'urgent' || item.importance === 'important');
     grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: managerRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
     if (route !== 'ceo') grid.append(card(route === 'field_lead' ? '변경된 작업방법' : '작업방법', guides.length ? '현재 열람 가능한 작업방법이 있습니다.' : '현재 열람 가능한 작업방법이 없습니다.', { value: guides.length ? `${guides.length}개` : undefined, action: managerRoles.has(route) ? { label: '작업방법 관리', run: () => openPanel('today-admin-panel') } : undefined }));
-    if (route === 'operations_manager') grid.append(card('근로자지원 특이사항', '후속 기능에서 안전하게 연결할 예정입니다.', { preparing: true }));
+    if (route === 'operations_manager') {
+      grid.append(card('중요 홍보 승인', '중요 콘텐츠와 대표이사 상신이 필요한 안건만 확인합니다.', { action: { label: '홍보 검토 열기', run: () => document.dispatchEvent(new Event('taejang-open-promotion-workspace')) } }));
+      grid.append(card('근로자지원 특이사항', '후속 기능에서 안전하게 연결할 예정입니다.', { preparing: true }));
+    }
     if (['worker_support_lead', 'worker_support_staff'].includes(route)) grid.append(card('근로자지원 업무', '민감정보를 포함하지 않는 바로가기만 후속 기능에서 연결합니다.', { preparing: true }));
-    if (['promotion_lead', 'promotion_staff'].includes(route)) grid.append(card('홍보 업무', '홍보 모듈이 준비되면 이 위치에서 연결합니다.', { preparing: true }));
+    if (['promotion_lead', 'promotion_staff'].includes(route)) grid.append(card('홍보 업무', route === 'promotion_staff' ? '작성·보완·승인 요청을 한 화면에서 처리합니다.' : '콘텐츠 검토와 보완 요청, 중요 안건 상신을 처리합니다.', { action: { label: route === 'promotion_staff' ? '홍보 작성 열기' : '홍보 검토 열기', run: () => document.dispatchEvent(new Event('taejang-open-promotion-workspace')) } }));
     main.append(grid);
     const quick = document.createElement('section'); quick.className = 'dashboard-section'; quick.append(text('h2', '빠른 이동')); const links = document.createElement('div'); links.className = 'quick-links';
     if (managerRoles.has(route)) { links.append(button('오늘 관리', () => openPanel('today-admin-panel')), button('일정 관리', () => openPanel('schedule-admin-panel')), button('공지 관리', () => openPanel('notice-admin-panel')), button('안내 관리', () => openPanel('guidance-admin-panel'))); }

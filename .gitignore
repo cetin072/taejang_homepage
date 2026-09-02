@@ -4,4 +4,5 @@
 !.env.staging.example
 scripts/staging/.qa-manifest.json
 .supabase/
+supabase/.temp/
 node_modules/
