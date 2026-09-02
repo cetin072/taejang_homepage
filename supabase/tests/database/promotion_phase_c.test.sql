@@ -23,6 +23,8 @@ select ok(not has_table_privilege('authenticated', 'public.promotion_contents', 
 select ok(not has_table_privilege('authenticated', 'public.promotion_content_revisions', 'UPDATE'), 'authenticated users cannot rewrite revisions directly');
 select ok(not has_table_privilege('authenticated', 'public.promotion_review_requests', 'INSERT'), 'authenticated users cannot create approval records directly');
 select ok(not has_table_privilege('authenticated', 'public.promotion_publication_queue', 'INSERT'), 'authenticated users cannot queue publication directly');
+select ok(not has_table_privilege('authenticated', 'public.promotion_review_requests', 'SELECT'), 'browser users cannot read internal approval history directly');
+select ok(not has_table_privilege('authenticated', 'public.promotion_publication_queue', 'SELECT'), 'browser users cannot read internal publication queue directly');
 
 select ok(not has_function_privilege('anon', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'anonymous users cannot save promotion drafts');
 select ok(has_function_privilege('authenticated', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'authenticated users can call guarded promotion draft RPC');
