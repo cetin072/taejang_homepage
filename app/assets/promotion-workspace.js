@@ -338,7 +338,7 @@
     if (role === 'promotion_lead') actions.append(actionButton('운영총괄 상신', () => review(item.content_id, 'escalate_to_operations'), true));
     if (role === 'operations_manager') actions.append(actionButton('대표이사 상신', () => review(item.content_id, 'escalate_to_ceo'), true));
     if (role === 'ceo') actions.append(actionButton('반려', () => review(item.content_id, 'rejected'), true));
-    actions.append(actionButton('검토 보류', () => review(item.content_id, 'on_hold'), true));
+    if (role === 'operations_manager' || role === 'ceo') actions.append(actionButton('검토 보류', () => review(item.content_id, 'on_hold'), true));
     node.append(actions);
     return node;
   }
