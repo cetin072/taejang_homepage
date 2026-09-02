@@ -1,5 +1,14 @@
 (() => {
   'use strict';
+
+  // app.js loads its Supabase config asynchronously, but the browser can fire the
+  // initial pageshow event before that fetch finishes. app.js also verifies again
+  // explicitly after config loading, so suppress only the premature pageshow.
+  // Later pageshow events are allowed once the protected app has initialized.
+  window.addEventListener('pageshow', event => {
+    if (!window.TaejangApp) event.stopImmediatePropagation();
+  }, true);
+
   const element = id => document.getElementById(id);
   const text = (tag, value, className) => {
     const node = document.createElement(tag);
