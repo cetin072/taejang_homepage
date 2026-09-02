@@ -6,9 +6,11 @@
     'public_body', 'external_url', 'byline', 'related_organization',
     'hero_image_url', 'public_media', 'requested_publish_date'
   ]);
+  const PUBLIC_MEDIA_FIELDS = new Set(['url', 'slot', 'kind', 'alt']);
   const status = document.getElementById('status');
   const entriesRoot = document.getElementById('entries');
   const productionHosts = new Set(['taejang.co.kr', 'www.taejang.co.kr']);
+  const httpsUrl = value => typeof value === 'string' && /^https:\/\/[^\s]+$/.test(value);
 
   const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]`
     : value && typeof value === 'object' ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`
@@ -20,12 +22,33 @@
     return Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
+  function validateMedia(media) {
+    if (!media || typeof media !== 'object' || Array.isArray(media)) throw new Error('public_media 항목 형식이 올바르지 않습니다.');
+    Object.keys(media).forEach(key => { if (!PUBLIC_MEDIA_FIELDS.has(key)) throw new Error(`공개 미디어 허용목록 밖 필드가 있습니다: ${key}`); });
+    if (!httpsUrl(media.url)) throw new Error('공개 미디어 URL은 HTTPS여야 합니다.');
+    if (media.slot && !/^(PHOTO (0[1-9]|1[01])|RECENT)$/.test(media.slot)) throw new Error('공개 미디어 슬롯 형식이 올바르지 않습니다.');
+    if (media.kind && !['fixed', 'recent', 'selected'].includes(media.kind)) throw new Error('공개 미디어 종류가 올바르지 않습니다.');
+    if (media.alt && (typeof media.alt !== 'string' || media.alt.length > 300)) throw new Error('공개 미디어 대체텍스트가 올바르지 않습니다.');
+  }
+
   async function validate(candidate) {
     if (!candidate || candidate.schema_version !== 1 || !Array.isArray(candidate.entries)) throw new Error('공개 artifact 스키마가 올바르지 않습니다.');
     candidate.entries.forEach(entry => {
       Object.keys(entry).forEach(key => { if (!PUBLIC_FIELDS.has(key)) throw new Error(`공개 허용목록 밖 필드가 있습니다: ${key}`); });
       if (!entry.content_id || !entry.revision_id || !entry.slug || !entry.title) throw new Error('공개 artifact 필수값이 없습니다.');
-      if (entry.public_media !== undefined && !Array.isArray(entry.public_media)) throw new Error('public_media 형식이 올바르지 않습니다.');
+      if (entry.external_url && !httpsUrl(entry.external_url)) throw new Error('외부 공개 링크는 HTTPS여야 합니다.');
+      if (entry.hero_image_url && !httpsUrl(entry.hero_image_url)) throw new Error('대표 이미지 URL은 HTTPS여야 합니다.');
+      if (entry.public_media !== undefined) {
+        if (!Array.isArray(entry.public_media) || entry.public_media.length > 12) throw new Error('public_media 형식이 올바르지 않습니다.');
+        const slots = new Set();
+        entry.public_media.forEach(media => {
+          validateMedia(media);
+          if (media.slot) {
+            if (slots.has(media.slot)) throw new Error('공개 미디어 슬롯이 중복되었습니다.');
+            slots.add(media.slot);
+          }
+        });
+      }
     });
     const expected = await sha256(canonical({ schema_version: candidate.schema_version, generated_at: candidate.generated_at, entries: candidate.entries }));
     if (candidate.checksum !== expected) throw new Error('공개 artifact checksum이 일치하지 않습니다.');
@@ -49,6 +72,13 @@
       const meta = node('p', [entry.byline, entry.related_organization, entry.requested_publish_date].filter(Boolean).join(' · '), 'meta');
       article.append(meta);
     }
+    if (entry.hero_image_url) {
+      const image = document.createElement('img');
+      image.src = entry.hero_image_url;
+      image.alt = `${entry.title} 대표 이미지`;
+      image.loading = 'lazy';
+      article.append(image);
+    }
     if (entry.public_body) article.append(node('div', entry.public_body, 'body'));
     if (entry.external_url) {
       const link = document.createElement('a');
@@ -67,7 +97,7 @@
         link.href = media.url;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
-        link.textContent = media.slot || `게시 사진 ${index + 1}`;
+        link.textContent = media.slot || media.alt || `게시 사진 ${index + 1}`;
         item.append(link);
         list.append(item);
       });
