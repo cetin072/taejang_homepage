@@ -7,6 +7,7 @@ const exporter = require('../scripts/promotion-public-export.js');
 const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/migrations/20260902024950_phase_c_promotion_publishing.sql'), 'utf8');
 const exportFix = fs.readFileSync(path.join(root, 'supabase/migrations/20260902100857_phase_c_export_scheduled_candidate.sql'), 'utf8');
+const workspaceDetail = fs.readFileSync(path.join(root, 'supabase/migrations/20260902110300_phase_c_workspace_detail.sql'), 'utf8');
 
 test('Phase C migration keeps lifecycle, review, RLS, RPC, and public export contracts separate', () => {
   for (const marker of ['promotion_contents', 'promotion_content_revisions', 'promotion_review_requests', 'promotion_publication_queue', "'review_pending'", "'needs_revision'", "'operations'", "'ceo'", 'security definer', 'private_append_audit', 'PROMOTION_SUBMITTED_REVISION_IMMUTABLE', 'PROMOTION_REVIEW_STAGE_CAN_ONLY_INCREASE', 'list_promotion_public_export_candidates']) assert.match(sql, new RegExp(marker, 'i'));
@@ -20,12 +21,30 @@ test('public export is allow-listed, checksummed, and removes internal fields', 
   artifact.checksum = 'broken'; assert.throws(() => exporter.validateCandidate(artifact), /checksum/i);
 });
 
-test('promotion staff composer keeps risk routing system-managed and uses only guarded RPCs', () => {
+test('promotion staff composer keeps risk routing system-managed and supports edit, preview, and PHOTO slots', () => {
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
-  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청']) assert.match(workspace, new RegExp(label));
+  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '직원용 미리보기', 'PHOTO 01', 'PHOTO 11', '최근 활동 대표사진']) assert.match(workspace, new RegExp(label));
   assert.match(workspace, /save_promotion_draft/);
   assert.match(workspace, /submit_promotion_revision/);
+  assert.match(workspace, /p_content_id:\s*existingItem\?\.content_id/);
   assert.doesNotMatch(workspace, /p_minimum_review_stage/);
+  assert.doesNotMatch(workspace, /총괄 등기이사/);
+});
+
+test('role review UI includes CEO rejection and structured operations escalation', () => {
+  const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
+  assert.match(workspace, /대표이사 상신/);
+  assert.match(workspace, /대표이사에게 전달할 핵심 요약/);
+  assert.match(workspace, /확인 이유/);
+  assert.match(workspace, /운영총괄 검토 의견/);
+  assert.match(workspace, /'rejected'/);
+  assert.match(workspace, /검토 보류/);
+});
+
+test('workspace detail migration returns editable fields and approved publication items with less direct helper exposure', () => {
+  for (const marker of ['revision_no', 'source_reference_url', 'public_media', 'people_photo', 'number_or_amount', 'publication_items', "content.lifecycle in ('approved', 'scheduled')", 'promotion_revision_is_fully_approved']) assert.match(workspaceDetail, new RegExp(marker.replace(/[()]/g, '\\$&'), 'i'));
+  assert.match(workspaceDetail, /revoke execute on function public\.current_user_is_promotion_member\(\) from authenticated/i);
+  assert.match(workspaceDetail, /revoke execute on function public\.current_user_is_promotion_lead\(\) from authenticated/i);
 });
 
 test('queued approved revisions remain eligible for the allow-listed public export', () => {
@@ -34,4 +53,23 @@ test('queued approved revisions remain eligible for the allow-listed public expo
   assert.match(exportFix, /lead_review\.decision = 'approved'/);
   assert.match(exportFix, /operations_review\.decision = 'approved'/);
   assert.match(exportFix, /ceo_review\.decision = 'approved'/);
+});
+
+test('Deploy Preview route validates the same artifact contract and refuses production rendering', () => {
+  const previewHtml = fs.readFileSync(path.join(root, 'promotion-preview/index.html'), 'utf8');
+  const previewJs = fs.readFileSync(path.join(root, 'promotion-preview/app.js'), 'utf8');
+  const fixture = JSON.parse(fs.readFileSync(path.join(root, 'promotion-preview/artifact.json'), 'utf8'));
+  assert.match(previewHtml, /Deploy Preview 전용/);
+  assert.match(previewHtml, /noindex,nofollow/);
+  assert.match(previewJs, /taejang\.co\.kr/);
+  assert.match(previewJs, /checksum/);
+  assert.match(previewJs, /PUBLIC_FIELDS/);
+  assert.equal(exporter.validateCandidate(fixture), true);
+});
+
+test('Phase C mobile CSS includes a 400px safety boundary and single-column media forms', () => {
+  const css = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.css'), 'utf8');
+  assert.match(css, /@media \(max-width: 400px\)/);
+  assert.match(css, /promotion-media-grid/);
+  assert.match(css, /grid-template-columns: 1fr/);
 });
