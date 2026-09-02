@@ -2,148 +2,159 @@
 
 마지막 확인일: **2026-09-02 (KST)**
 
-이 문서는 다음 Work가 현재 상태를 빠르게 복구하기 위한 운영 기록이다. 플랫폼 관련 작업을 완료·중단·배포 확인·실제 계정 상태 변경한 경우, 비밀정보 없이 이 문서를 함께 갱신한다.
+이 문서는 다음 Work/Codex가 현재 상태를 빠르게 복구하기 위한 **현재 상태 중심 기록**이다. 상세 과거 이력은 GitHub Issue/PR 기록을 기준으로 확인한다.
 
-## 기준 코드와 PR
+## 1. 현재 기준 코드와 작업
 
-- 기준 `main` SHA: `d8dea79f5cfe17a0f1e6ca2eca7d9dae95e13e25`
-- PR #31: 사용자 승인 후 squash merge 완료
-- Issue #86: 완료/종료
-- 현재 작업 Issue: #90 `platform: complete MVP v1 limited pilot readiness`
-- 현재 작업 브랜치: `codex/issue-90-mvp-pilot-readiness`
+- 기준 `main` SHA: `51859fb5f4f8fa51320d92052f3fe489049ac257`
+- `main` 반영 완료: Issue #90 / PR #92 — MVP v1 제한 시범운영 준비
+- 현재 작업 Issue: #94 `platform: implement promotion + homepage publishing MVP`
+- 승인 계약: Issue #95 `planning: approve Phase C promotion data, RLS, RPC, and publication contract` — 사용자 승인/closed
+- 현재 작업 브랜치: `codex/issue-94-promotion-publishing-mvp`
+- 현재 Draft PR: #96 `feat: Phase C promotion publishing MVP foundation`
 - 상위 장기 목표: Issue #89
-- 공개 홈페이지와 내부 업무플랫폼의 시스템 경계는 계속 유지한다.
+- 공개 홈페이지와 내부 업무플랫폼의 보안·장애 경계는 계속 유지한다.
 
-## staging·Netlify 상태
+## 2. Production 상태 — 변경 금지 유지
 
-- Supabase 업무플랫폼 대상은 `taejang-phase1-staging`이다. Production Supabase는 변경하지 않는다.
-- PR #31에서 staging workflow 정합화와 staff 진입 회귀수정을 완료했다.
-- 김형철 bootstrap과 실제 로그인 검증은 성공 확정: `active`, `super_admin`, `operations_manager`이며 보호된 staff 최고관리자 화면과 가입 승인 대기 화면이 정상이다. `apply_bootstrap`, `bootstrap_super_admin`, `profiles`·`profile_roles` 직접 수정은 재실행 금지다.
-- 적용 확인된 기존 migration: Phase 1 기본 6개(2026-07-25 기록 기준).
-- PR #31 Deploy Preview 검증 완료: `/staff/` 로그인 화면 정상, 비로그인 `/app/`은 `/staff/`로 보호 리디렉션.
-- 사용자 승인에 따라 PR #31 main 병합 및 그에 따른 Netlify Production 자동배포를 허용했다.
-- Netlify Production 현재 배포: `ready`, branch `main`, commit `d8dea79f5cfe17a0f1e6ca2eca7d9dae95e13e25`, deploy id `6a95a4889f13b60008941fc4`.
-- Netlify secret scan: 검출된 secret 없음.
-- 시험계정·샘플 데이터: 최초 minimal seed가 조직 테이블 권한 확인 전에 정확히 2개의 TEST Auth·`pending` profile을 부분 생성했다. 이후 두 Auth 계정은 soft-delete로 로그인 차단했으며, profile FK 때문에 영구 삭제는 하지 않았다. TEST 조직·작업반·5종 샘플 콘텐츠는 생성되지 않았다.
-- staging QA 시드: Issue #90의 2026-09-01 KST 승인으로 기본 2개 TEST 계정·5종 샘플만 실행 가능하다. `--full` 9계정 QA는 계속 금지다. 대상 allow-list 검사는 통과했지만, 현재 staging `service_role`에는 `departments`를 포함한 직접 Data API 접근 권한이 없어 minimal seed 및 hosted E2E를 진행할 수 없다.
+- Netlify Production 현재 배포는 기존 상태 그대로다.
+- site id: `9caa5a1a-f86d-4a9f-aed4-f560e1c2101f`
+- current deploy id: `6a96fc697413e300082b1760`
+- state: `ready`
+- Production `main` 기준: `51859fb5f4f8fa51320d92052f3fe489049ac257`
+- Issue #94 작업으로 Production Supabase, Netlify Production, 실제 사용자 계정·권한은 변경하지 않는다.
+- PR #96은 계속 Draft 상태를 유지한다. Ready for review, main merge, Production 배포는 사용자 승인 gate다.
 
-## 실제 사용자 계정 상태
+## 3. Supabase staging
+
+- project: `taejang-phase1-staging`
+- project ref: `jgsxpdflgkqroecfjzxq`
+- Production Supabase는 변경하지 않는다.
+- Phase C Contract v1 범위의 migration/RLS/RPC는 staging TEST-only로 적용·검증한다.
+
+### 적용 확인된 Phase C migration
+
+1. `20260902024950_phase_c_promotion_publishing.sql`
+2. `20260902100857_phase_c_export_scheduled_candidate.sql`
+3. `20260902111344_phase_c_workspace_detail.sql`
+4. `20260902112106_phase_c_public_media_allowlist.sql`
+5. `20260902113822_phase_c_review_stage_action_guard.sql`
+6. `20260902114231_phase_c_internal_review_read_boundary.sql`
+
+### Phase C staging 현재 상태
+
+- `[TEST-C]` 홍보직원·홍보팀장·운영총괄·대표이사 TEST identity 4개는 cleanup 후 `pending`, active role 0 상태다.
+- promotion content / revision / review / publication queue TEST row는 0건으로 정리돼 있다.
+- 실제 사용자 계정·역할은 변경하지 않았다.
+- `promotion_review_requests`, `promotion_publication_queue`의 authenticated direct `SELECT`는 차단했다. 브라우저는 guarded workspace RPC를 사용한다.
+- 내부 review-stage guard는 authenticated 직접 실행 불가다.
+
+## 4. 실제 사용자 계정 상태
 
 - 김형철 시스템 최고관리자: 기존 검증 기록상 `active`; 역할은 `super_admin`, `operations_manager`; 부서는 `operations`, 직책은 `operations_manager`다. 이 상태를 보존한다.
 - 이영희 대표이사: 계정 미생성.
-- 실제 사용자에게 TEST·QA 표기를 붙이거나 자동 생성하지 않는다.
-- 초기 시범운영에는 장애 상세, 건강, 상담, 보호자 연락처, 주민등록번호, 급여·계약 원문, 민감 인사·징계·사고 기록을 입력하지 않는다.
+- `apply_bootstrap`, `bootstrap_super_admin` 재실행 금지.
+- 실제 `profiles`, `profile_roles` 직접 수정 금지.
+- 실제 사용자에게 TEST/QA 표기를 붙이거나 자동 생성하지 않는다.
 
-## 완료된 작업
+## 5. Phase C 구현 완료 범위
 
-- Phase 1 계정 상태·역할·RLS·감사로그 기반 구현 및 staging 첫 연결
-- 최초 최고관리자 bootstrap 및 실제 관리자 로그인 검증
-- 일반 근로자 핵심 5화면과 관리자 최소 작성/게시 기반
-- Issue #86 / PR #31 최신 main 정합화, 충돌 해결, Auth 오류처리 회귀검증
-- PR #31 GitHub Actions 및 Deploy Preview 통과
-- PR #31 사용자 승인 후 main squash merge
-- 병합 commit의 Netlify Production 자동배포 `ready` 확인
+### 홍보직원
 
-## 현재 작업 — Issue #90
+- 새 콘텐츠 작성, 임시저장, 승인 요청
+- 기존 draft 상세 열기·수정
+- 보완 후 기존 제출본을 덮어쓰지 않는 새 revision 저장
+- 직원용 미리보기
+- 사람 사진 / 숫자·금액 `있음 / 없음 / 잘 모르겠음`
+- 중요도·승인선은 직원이 직접 선택하지 않음
+- PHOTO 01~11 + 최근 활동 대표사진의 게시용 선별 URL 연결
 
-목표는 새 기능 확장이 아니라 **MVP v1 제한 시범운영 직전 상태**까지 검증·안정화하는 것이다.
+### 홍보팀장
 
-1. 대표이사 계정 생성/승인 흐름의 정책·화면 검증
-2. 신규 직원 `pending → 부서/직책/역할 → active` 관리자 흐름 검증
-3. 관리자 5종 정보 작성·수정·게시·사용중지 → 일반 근로자 모바일 조회 E2E
-4. 회사/부서/작업반/개인 범위 RLS 검증
-5. 초안·사용중지·기간 밖·타인 자료 차단 검증
-6. `suspended`, `departed`, 마지막 `super_admin` 보호 검증
-7. 모바일 360px, 200% 확대, 키보드 이동, 가로스크롤, 쉬운 빈 상태·오류 문구 검수
-8. blocker 수정 → 테스트 → Deploy Preview → 독립검수 반복
+- 홍보 검토 queue
+- 승인 / 보완 요청 / 운영총괄 상신
+- 시스템 최소 승인 단계 하향 금지
+- 최종 승인 콘텐츠의 홈페이지 발행 대기 등록
+- generic 관리자 권한과 promotion 승인권을 자동 혼합하지 않음
 
-## Issue #90 비변경 QA 기록 — 2026-09-01 (KST)
+### 운영총괄
 
-- 이번 QA에서는 실제 사용자 계정·권한·상태, staging 데이터·migration, Production Supabase를 변경하지 않았다.
-- 로그인 초기 연결 확인 중 모든 패널이 숨겨져 빈 화면이 보일 수 있던 blocker를 수정했다. 이제 설정 확인 전에는 `로그인을 준비하고 있습니다` 안내를 즉시 표시하고, 연결 확인 후 기존 로그인·가입 흐름으로 전환한다.
-- 로컬 정적·보안 회귀 검사 54건이 통과했다. 기존 전체 정적 회귀 검사 87건과 staging 안전장치 검사 4건도 통과했다.
-- GitHub Actions의 격리 환경에서 migration 재적용, schema lint, pgTAP, 실제 Auth·Data API·RLS 통합 검사가 통과했다. 이 검사는 hosted staging이 아닌 CI의 로컬 Supabase로 실행됐다.
-- Draft PR #92 Deploy Preview에서 비로그인 `/app/`의 `/staff/` 보호 이동, 360px 로그인·가입 화면의 가로 스크롤 없음, 즉시 로딩 안내, 48px 로그인 입력·주요 버튼과 콘솔 오류 없음을 확인했다.
+- 중요 홍보 승인 queue
+- 승인 / 보완 요청 / 보류 / 대표이사 상신
+- 대표이사 상신 시 핵심 요약·확인 이유·운영총괄 의견 입력
 
-### 기획 대비 상태
+### 대표이사
 
-- `구현 완료`: 비로그인·비활성 계정 차단, 마지막 활성 `super_admin` 보호, 관리자 5종 정보 관리 기반, 대상 범위·게시 상태·기간 RLS, 일반 근로자 읽기 전용 화면의 자동화 검증.
-- `부분 구현`: 실제 staging의 관리자 → 일반 근로자 5종 정보 E2E와 실제 계정 상태 전환 검증. 코드와 격리 CI는 통과했지만 실제 계정 또는 전용 TEST 계정 없이 hosted staging을 변경하지 않았다.
-- `미구현·후속 작업`: staging Data API 권한 gate가 해소되면 승인된 기본 TEST 계정 범위에서 hosted staging E2E를 실행한다. 제한된 실제 직원 범위의 계정·권한·상태 변경은 별도 사용자 승인이 있어야 한다.
+- 실제 상신된 콘텐츠만 검토 queue에 노출
+- 승인 / 보완 요청 / 보류 / 반려
+- 일상 편집·팀장 역할·계정관리 권한을 자동 부여하지 않음
 
-## Issue #90 staging TEST 실행 상태 — 2026-09-01 (KST)
+### 데이터·보안
 
-- Issue #90에서 기본 minimal TEST seed와 TEST 전용 E2E·RLS·계정상태 검증을 명시 승인했다.
-- `taejang-phase1-staging`의 HTTPS URL·project ref·allow-list·production 차단 검사는 통과했다.
-- 실행 프로세스의 staging 설정과 Service Role 키는 정상 감지됐다. 그러나 첫 seed는 `departments` Data API 읽기에서 HTTP 403으로 중단됐다. 원인 확인 뒤 seed 도구를 수정해 모든 직접 Data API 읽기 권한을 Auth 사용자 생성 전에 검사하도록 보완했고, 재실행에서 같은 403이 사용자 생성 전에 안전하게 발생함을 확인했다.
-- 최초 부분 생성된 정확히 2개의 TEST Auth 계정은 영구 삭제 시 profile FK가 거부해, 공식 Auth soft-delete로 로그인 차단했다. soft-delete 응답은 성공했으며 실제 사용자·조직·콘텐츠는 변경하지 않았다.
-- 2026-09-01 사용자 승인으로 staging DB owner TEST-only seed 경로를 실행했다. `scripts/staging/seed-phase1-db-owner.mjs`가 TEST Auth 2개, TEST 부서·작업반, 오늘 업무·작업방법·일정·중요공지·반복 안내를 생성했고 DB owner 읽기 전용 verify가 통과했다. migration·권한 변경·`--full`은 실행하지 않았다.
-- TEST 관리자·근로자 로그인 context, 관리자 5종 정보의 작성·게시 흐름과 근로자 5종 조회, 근로자의 관리자 작성 기능 차단, TEST 근로자 `suspended`·`departed` 즉시 차단 및 최종 `active` 복구가 hosted staging에서 통과했다.
+- `promotion_contents`
+- immutable `promotion_content_revisions`
+- `promotion_review_requests`
+- `promotion_publication_queue`
+- 중요한 상태 전이는 security-definer RPC + 서버 검증 + audit
+- lead는 `hold/reject` 불가, operations는 `reject` 불가하도록 DB guard 추가
+- public media JSON은 `url`, `slot`, `kind`, `alt` 외 임의 내부 필드 삽입을 거부
+- 내부 승인 이력·approver id/comment·publication queue metadata는 브라우저 direct table read 차단
 
-## Issue #90 hosted 대상 범위·기간 RLS 독립 검증 — 2026-09-01 (KST)
+### 공개 결과 경계
 
-- 기획방의 승인된 TEST-only 독립 검증에서 `get_my_today_board`를 실제 TEST 근로자 세션으로 확인했다. 회사 전체, 본인 부서, 본인 작업반, 본인 개인 대상 행은 조회됐고 다른 TEST 부서·작업반·개인 대상 행은 차단됐다.
-- 초안과 사용중지 행은 조회되지 않았다. 중요공지·일정·반복 안내는 각각 현재 표시기간 또는 현재·향후 일정만 조회되고 미래 시작·만료된 행은 차단됐다.
-- 검증에만 사용한 `[STAGING-QA]` 임시 TEST 행, 보조 부서·작업반과 RLS audit 행은 즉시 정리했다. 잔여 audit 행·부서·작업반은 0건이며 기본 TEST 근로자는 최종 `active` 상태를 유지한다.
-- 이 독립 검증은 Production, migration, `--full` QA, 실제 사용자 계정·역할·상태를 변경하지 않았다. 같은 hosted mutation을 반복 실행하지 않는다.
+- 최종 승인된 특정 revision만 publication queue 진입 가능
+- service-role 전용 allow-list export candidate
+- 내부 source link / 승인정보 / 감사정보 / 위험체크는 export 제외
+- checksum 검증과 staged/atomic replace 원칙 유지
+- `/promotion-preview/` Deploy Preview 전용 공개 결과 검증 경로 추가
+- Production hostname에서는 TEST preview 렌더링 금지
 
-### 기획 대비 최종 상태
+## 6. 독립 검증 결과
 
-- `구현 완료`: 비로그인·비활성 계정 차단, 마지막 활성 `super_admin` 보호, 관리자 5종 정보 관리·게시 기반, TEST 관리자→근로자 5종 hosted E2E, 회사·부서·작업반·개인 대상 범위와 타인 대상 차단, 게시 상태·기간 RLS, 일반 근로자 읽기 전용 화면의 자동화·hosted 검증.
-- `부분 구현`: 실제 직원 제한 시범운영의 계정 생성·권한·상태 변경과 실제 사용자 환경의 수동 접근성 검수. 이는 별도 사용자 승인 이후에만 진행한다.
-- `미구현·후속 작업`: 실제 사용자 제한 시범운영 승인, Ready for review 판단, main 병합과 Production 배포는 다음 사용자 결정 gate다.
+- 최신 PR #96 HEAD 기준 GitHub Actions `Phase 1A Supabase Integration` run `33626087697` 성공
+- `Migration, pgTAP, Auth and RLS` 전체 job 성공
+- clean DB migration 재적용 성공
+- DB lint 성공
+- pgTAP 성공
+- 실제 Auth/Data API 통합 회귀 성공
+- Netlify Deploy Preview status 성공
+- Deploy Preview: `https://deploy-preview-96--taejang-homepage.netlify.app`
+- PR #96 mergeable 유지
+- PR review thread 현재 0건
 
-### 2026-09-02 회귀·배포 확인
+### Supabase security advisor 점검
 
-- 로컬 정적·보안·staging 안전장치 회귀 95건이 모두 통과했고 `git diff --check`도 통과했다.
-- 커밋 `91e489c614fd862bd7f152c66d171ed77d484330`에 대해 GitHub Actions `Migration, pgTAP, Auth and RLS`와 Netlify Deploy Preview가 모두 통과했다. PR #92는 계속 Draft로 유지한다.
+- Phase C의 browser-facing security-definer RPC 경고는 각 RPC 내부 role/active 검증을 전제로 한 의도된 노출이다.
+- Phase C 내부 helper 중 browser가 직접 호출할 필요가 없는 함수는 EXECUTE를 축소했다.
+- 기존 Phase 1 계열 advisor 경고는 #94 범위에서 대규모 수정하지 않는다.
+- 기존 `private_enforce_published_work_guide_assignment()` 등의 Phase 1 경고는 별도 보안 정리 대상으로 남긴다.
 
-## Issue #94 Phase C 홍보·공개 발행 기반 — 2026-09-02 (KST)
+## 7. 아직 사람 승인 없이 하면 안 되는 작업
 
-- 작업 branch: `codex/issue-94-promotion-publishing-mvp`, Draft PR #96. `Ready for review`, main 병합, Production Supabase·공개 배포는 수행하지 않았다.
-- 승인된 staging `jgsxpdflgkqroecfjzxq`에 Phase C migration과 queued revision export blocker 수정 migration이 적용됐다. dry-run은 remote migration history가 최신임을 확인했다.
-- `[TEST-C]` 홍보직원·홍보팀장·운영총괄·대표이사 네 TEST Auth identity를 marker/namespace로 확인해 idempotent하게 active·정확한 role로 준비했다. 실제 사용자 계정·역할은 변경하지 않았다.
-- DB owner verify는 네 TEST profile의 active 상태와 정확한 role, Phase C 4개 table, 핵심 RPC를 확인했다. hosted E2E는 staff 직접 table write 차단, 역할별 review queue, operations/CEO 승인선, CEO 상신 전 차단, 승인 revision의 queue/export allow-list와 내부 source link 제외를 확인했다.
-- E2E 종료 후 TEST promotion content·revision·review·publication queue를 제거했다. 네 TEST-C profile은 `pending`, active role 0으로 되돌렸고 owner read-only cleanup verifier가 이를 확인했다.
-- 최종 로컬 static/security regression 64건, GitHub Actions `Migration, pgTAP, Auth and RLS` run `33618208036`, Draft PR #96 Deploy Preview가 통과했다. 비밀값은 문서·GitHub·commit에 기록하지 않았다.
+- PR #96 Ready for review 전환
+- main merge
+- Netlify Production 배포
+- Production Supabase migration/data 변경
+- 실제 사용자 생성·승격·정지·퇴사·역할 변경
+- 실제 민감정보 입력
+- 새 외부 서비스 또는 유료 API 도입
+- Phase D 자동 시작
 
-### Phase C 기획 대비 상태
+## 8. 다음 작업 판단
 
-- `구현 완료`: 홍보직원 초안/승인요청과 `잘 모르겠음` 입력, 불변 revision, 팀장→운영총괄→필요 시 대표이사 승인 경로, 보완·보류·상신 RPC/audit, 역할별 RLS, 승인 revision만의 static export candidate allow-list/checksum 기반, TEST-only hosted E2E와 cleanup 경계.
-- `부분 구현`: 실제 로그인 상태의 360px/키보드 수동 UI 검수, 기존 draft의 상세 편집·미리보기, 홍보팀장 신규사업 운영 화면, 운영총괄의 채널 현황·장기대기·방향 관리, 대표이사 상신 요약 입력, PHOTO 고정 슬롯·최근 활동 사진의 실제 운영 화면, export artifact를 Deploy Preview 공개 페이지에 연결하는 운영 job.
-- `의도적으로 제외·후속`: SNS 자동 게시, 원본 사진 저장소, 고급 성과 분석·개인 순위, 새 외부 서비스, 실제 사용자 시범운영과 Production 공개. 이들은 별도 Issue/승인 없이 시작하지 않는다.
+현재 Phase C 최소 MVP는 Draft PR #96 안에서 구현·staging 검증·CI·Deploy Preview까지 진행된 상태다.
 
-### 다음 사람 판단 gate
+다음 단계는 기획방 독립 최종검수 후 **Ready for review 전환 여부**를 사용자에게 묻는 human gate다. Ready 전환 전 추가 blocker가 발견되면 같은 branch/PR에서 수정한다.
 
-- Draft PR #96의 부분 구현 범위를 검토해 Ready for review로 전환할지, 남은 Phase C UI/publication 운영 항목을 같은 Issue에 계속 구현할지 결정한다.
-- 어떤 경우에도 main 병합, Production Supabase·Netlify Production 변경, 실제 사용자 계정·권한 mutation은 별도 명시 승인 전 금지다.
-
-## 사용자가 직접 해야 하는 최소 작업
-
-- DB owner seed, 기본 hosted TEST E2E 및 대상 범위·기간 RLS 독립 검증은 완료됐다. 실제 사용자 계정 생성/권한 변경, migration, `--full`, Production, Ready 전환·main 병합은 계속 별도 승인이 필요하다.
-- 비밀번호·Service Role Key·DB 비밀번호는 채팅이나 GitHub에 입력하지 않는다.
-
-## 하면 안 되는 작업
-
-- Production Supabase 변경
-- `apply_bootstrap` 또는 `bootstrap_super_admin` 재실행
-- `profiles` 또는 `profile_roles` 직접 수정
-- Service Role Key·비밀번호·개인정보를 채팅·GitHub·문서에 기록
-- 사용자 승인 없는 실제 계정 승격·정지·퇴사 처리
-- 사용자 승인 없는 QA seed·migration apply
-- 사용자 승인 없는 Ready for review / main 병합 / 추가 Production 배포
-- main 직접 수정
-
-## 다음 Work 필수 확인 문서
+## 9. 다음 Work 필수 확인 순서
 
 1. `AGENTS.md`
 2. `PROJECT_CHARTER.md`
 3. Issue #89
-4. Issue #90
-5. `docs/planning/MVP_FUNCTIONAL_SPECIFICATION_V1.md`
-6. `docs/planning/MVP_V1_FAST_TRACK_FINAL_SCOPE_V1.md`가 main에 존재하면 우선순위 기준으로 함께 확인
-7. `docs/planning/GENERAL_WORKER_INFORMATION_BOARD_V1.md`
-8. `docs/planning/ACCOUNT_ROLE_ASSIGNMENT_POLICY_V1.md`
-9. `docs/planning/PHASE1A_ACCESS_RLS_V1.md`
-10. `docs/operations/FIRST_SUPER_ADMIN_BOOTSTRAP.md`
-11. 이 문서
+4. Issue #94
+5. Issue #95
+6. Draft PR #96
+7. 이 문서
+8. Issue/PR이 직접 참조하는 승인 planning 문서
+
+비밀번호, Service Role Key, DB password, Management PAT 등 실제 secret은 문서·GitHub·채팅에 기록하지 않는다.
