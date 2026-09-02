@@ -10,7 +10,9 @@
     ceo: ['대표이사 요약', '중요 공지와 주요 일정부터 간결하게 확인하세요.'],
     operations_manager: ['운영총괄 대시보드', '중요한 처리 항목과 변경사항을 확인하세요.'],
     department_lead: ['부서 운영 대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
-    field_lead: ['현장 실행 홈', '오늘 작업반과 현장 안내를 먼저 확인하세요.']
+    field_lead: ['현장 실행 홈', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
+    promotion_lead: ['홍보팀장 대시보드', '홍보 검토·보완 요청과 중요 안건 상신을 우선 확인하세요.'],
+    promotion_staff: ['홍보직원 대시보드', '콘텐츠 작성·보완과 승인 요청을 한 화면에서 처리하세요.']
   };
   function openPanel(id) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id } })); }
   function button(label, action) { const node = text('button', label, 'button button-quiet'); node.type = 'button'; node.addEventListener('click', action); return node; }
