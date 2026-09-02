@@ -35,14 +35,15 @@ test('promotion staff composer keeps risk routing system-managed and supports ed
   assert.doesNotMatch(workspace, /총괄 등기이사/);
 });
 
-test('role review UI includes CEO rejection and structured operations escalation', () => {
+test('role review UI follows Contract v1: CEO rejection, structured escalation, and hold only for operations or CEO', () => {
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
   assert.match(workspace, /대표이사 상신/);
   assert.match(workspace, /대표이사에게 전달할 핵심 요약/);
   assert.match(workspace, /확인 이유/);
   assert.match(workspace, /운영총괄 검토 의견/);
-  assert.match(workspace, /'rejected'/);
-  assert.match(workspace, /검토 보류/);
+  assert.match(workspace, /if \(role === 'ceo'\) actions\.append\(actionButton\('반려'/);
+  assert.match(workspace, /if \(role === 'operations_manager' \|\| role === 'ceo'\) actions\.append\(actionButton\('검토 보류'/);
+  assert.doesNotMatch(workspace, /if \(role === 'promotion_lead'\)[^\n]*검토 보류/);
 });
 
 test('promotion routes have explicit role copy without joining generic manager write permissions', () => {
