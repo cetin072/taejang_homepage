@@ -11,7 +11,7 @@
 - 현재 작업 Issue: #94 `platform: implement promotion + homepage publishing MVP`
 - 승인 계약: Issue #95 `planning: approve Phase C promotion data, RLS, RPC, and publication contract` — 사용자 승인/closed
 - 현재 작업 브랜치: `codex/issue-94-promotion-publishing-mvp`
-- 현재 Draft PR: #96 `feat: Phase C promotion publishing MVP foundation`
+- 현재 Draft PR: #96 `feat: complete Phase C promotion publishing MVP`
 - 상위 장기 목표: Issue #89
 - 공개 홈페이지와 내부 업무플랫폼의 보안·장애 경계는 계속 유지한다.
 
@@ -74,6 +74,7 @@
 - 홍보 검토 queue
 - 승인 / 보완 요청 / 운영총괄 상신
 - 시스템 최소 승인 단계 하향 금지
+- `보류 / 반려`는 화면과 DB 모두 허용하지 않음
 - 최종 승인 콘텐츠의 홈페이지 발행 대기 등록
 - generic 관리자 권한과 promotion 승인권을 자동 혼합하지 않음
 
@@ -81,6 +82,7 @@
 
 - 중요 홍보 승인 queue
 - 승인 / 보완 요청 / 보류 / 대표이사 상신
+- 반려는 직접 수행하지 않고 승인선에 맞춰 보완 또는 대표이사 상신으로 처리
 - 대표이사 상신 시 핵심 요약·확인 이유·운영총괄 의견 입력
 
 ### 대표이사
@@ -97,6 +99,7 @@
 - `promotion_publication_queue`
 - 중요한 상태 전이는 security-definer RPC + 서버 검증 + audit
 - lead는 `hold/reject` 불가, operations는 `reject` 불가하도록 DB guard 추가
+- UI도 같은 역할별 행동만 표시하도록 정합화
 - public media JSON은 `url`, `slot`, `kind`, `alt` 외 임의 내부 필드 삽입을 거부
 - 내부 승인 이력·approver id/comment·publication queue metadata는 브라우저 direct table read 차단
 
@@ -111,8 +114,10 @@
 
 ## 6. 독립 검증 결과
 
-- 최신 PR #96 HEAD 기준 GitHub Actions `Phase 1A Supabase Integration` run `33626087697` 성공
-- `Migration, pgTAP, Auth and RLS` 전체 job 성공
+- 마지막 기능 코드 변경 commit: `57f5163922afe89a2d2e6d4bba5875be138ad8ac`
+- GitHub Actions `Phase 1A Supabase Integration` run `33626915317` (#273): **success**
+- static security checks 성공
+- isolated local Supabase 기동 성공
 - clean DB migration 재적용 성공
 - DB lint 성공
 - pgTAP 성공
