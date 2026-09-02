@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase/migrations/20260902024950_phase_c_promotion_publishing.sql'), 'utf8');
 const exportFix = fs.readFileSync(path.join(root, 'supabase/migrations/20260902100857_phase_c_export_scheduled_candidate.sql'), 'utf8');
 const workspaceDetail = fs.readFileSync(path.join(root, 'supabase/migrations/20260902111344_phase_c_workspace_detail.sql'), 'utf8');
+const mediaAllowlist = fs.readFileSync(path.join(root, 'supabase/migrations/20260902112106_phase_c_public_media_allowlist.sql'), 'utf8');
 
 test('Phase C migration keeps lifecycle, review, RLS, RPC, and public export contracts separate', () => {
   for (const marker of ['promotion_contents', 'promotion_content_revisions', 'promotion_review_requests', 'promotion_publication_queue', "'review_pending'", "'needs_revision'", "'operations'", "'ceo'", 'security definer', 'private_append_audit', 'PROMOTION_SUBMITTED_REVISION_IMMUTABLE', 'PROMOTION_REVIEW_STAGE_CAN_ONLY_INCREASE', 'list_promotion_public_export_candidates']) assert.match(sql, new RegExp(marker, 'i'));
@@ -50,6 +51,13 @@ test('workspace detail migration returns editable fields and approved publicatio
   assert.match(workspaceDetail, /revoke execute on function public\.current_user_is_promotion_lead\(\) from authenticated/i);
 });
 
+test('selected public media is nested-field allow-listed and fixed PHOTO slots are constrained', () => {
+  assert.match(mediaAllowlist, /key not in \('url', 'slot', 'kind', 'alt'\)/);
+  assert.match(mediaAllowlist, /PHOTO \(0\[1-9\]\|1\[01\]\)\|RECENT/);
+  assert.match(mediaAllowlist, /DUPLICATE_PROMOTION_PUBLIC_MEDIA_SLOT/);
+  assert.match(mediaAllowlist, /revoke all on function public\.promotion_validate_public_media\(jsonb\) from public, anon, authenticated/i);
+});
+
 test('queued approved revisions remain eligible for the allow-listed public export', () => {
   assert.match(exportFix, /content\.lifecycle in \('approved', 'scheduled'\)/);
   assert.match(exportFix, /current_revision_id = p_revision_id/);
@@ -67,6 +75,8 @@ test('Deploy Preview route validates the same artifact contract and refuses prod
   assert.match(previewJs, /taejang\.co\.kr/);
   assert.match(previewJs, /checksum/);
   assert.match(previewJs, /PUBLIC_FIELDS/);
+  assert.match(previewJs, /PUBLIC_MEDIA_FIELDS/);
+  assert.match(previewJs, /공개 미디어 허용목록 밖 필드/);
   assert.equal(exporter.validateCandidate(fixture), true);
 });
 
