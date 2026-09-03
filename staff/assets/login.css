@@ -59,6 +59,11 @@ body {
   margin-top: 18px;
 }
 
+.auth-links-split {
+  flex-wrap: wrap;
+  gap: 10px 22px;
+}
+
 .auth-links .text-button {
   font-size: .95rem;
   text-decoration: none;
@@ -76,5 +81,10 @@ body {
   .auth-panel {
     margin-top: 28px;
     padding: 24px 20px;
+  }
+
+  .auth-links-split {
+    align-items: center;
+    flex-direction: column;
   }
 }
