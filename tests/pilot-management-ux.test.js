@@ -131,7 +131,7 @@ test('homepage content management is limited to existing-section text and photo 
     'homepage_change_requests_page_section_allowlist',
     'list_homepage_change_publish_candidates',
     "request.status = 'approved'",
-    "auth.role()",
+    "auth.jwt() ->> 'role'",
     'service_role'
   ]) assert.ok(homepageBoundarySql.includes(marker), `missing homepage boundary marker: ${marker}`);
   assert.match(homepageBoundarySql, /page_key = 'home' and section_key in/i);
