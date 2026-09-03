@@ -16,15 +16,16 @@
   const stageLabel = { lead: '홍보팀장', operations: '운영총괄', ceo: '대표이사' };
   let editingContentId = null;
 
-  async function open() {
+  async function open(event) {
     const app = window.TaejangApp;
     const main = document.getElementById('dashboard-main');
     if (!app || !main) return;
+    const mode = event?.detail?.mode || 'review';
     main.hidden = false;
     main.replaceChildren(text('p', '홍보 업무를 불러오고 있습니다.', 'message'));
     try {
       const workspace = await app.rpc('get_my_promotion_workspace');
-      render(main, workspace || {});
+      render(main, workspace || {}, mode);
     } catch (error) {
       main.replaceChildren(text('p', app.friendlyError(error), 'message error'));
     }
@@ -91,7 +92,7 @@
     const panel = document.createElement('section');
     panel.className = 'dashboard-section promotion-preview-panel';
     panel.tabIndex = -1;
-    panel.append(text('p', '직원용 미리보기', 'eyebrow'), text('h2', item.title || '제목 없음'));
+    panel.append(text('p', '작성본 미리보기', 'eyebrow'), text('h2', item.title || '제목 없음'));
     if (item.summary) panel.append(text('p', item.summary, 'promotion-preview-summary'));
     const meta = document.createElement('dl');
     meta.className = 'promotion-preview-meta';
@@ -155,13 +156,13 @@
     if (allowEdit && (item.lifecycle === 'draft' || item.lifecycle === 'needs_revision')) {
       actions.append(actionButton(item.lifecycle === 'needs_revision' ? '보완해서 새 수정본 만들기' : '열어 수정', () => {
         editingContentId = item.content_id;
-        open();
+        open({ detail: { mode: 'write' } });
       }));
       actions.append(actionButton('승인 요청', async () => {
         try {
           await window.TaejangApp.rpc('submit_promotion_revision', { p_content_id: item.content_id });
           editingContentId = null;
-          await open();
+          await open({ detail: { mode: 'write' } });
         } catch (error) {
           window.alert(window.TaejangApp.friendlyError(error));
         }
@@ -196,7 +197,7 @@
       const saved = await window.TaejangApp.rpc('save_promotion_draft', payload);
       if (submitAfterSave) await window.TaejangApp.rpc('submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = submitAfterSave ? null : saved.content_id;
-      await open();
+      await open({ detail: { mode: 'write' } });
     } catch (error) {
       window.alert(window.TaejangApp.friendlyError(error));
     }
@@ -205,8 +206,9 @@
   function composer(existingItem = null) {
     const section = document.createElement('section');
     section.className = 'dashboard-section promotion-composer';
+    section.dataset.promotionComposer = '1';
     section.append(
-      text('h2', existingItem ? '콘텐츠 수정·보완' : '새 콘텐츠 작성'),
+      text('h2', existingItem ? '콘텐츠 수정·보완' : '새 홍보자료 작성'),
       text('p', '중요도와 승인선은 고르지 않아도 됩니다. 사실과 자료를 입력하면 시스템과 관리자가 확인합니다.', 'help')
     );
     if (existingItem?.submitted_at || existingItem?.lifecycle === 'needs_revision') {
@@ -276,7 +278,7 @@
       actionButton(existingItem ? '수정본 저장' : '임시저장', () => { if (form.reportValidity()) saveDraft(form, false, existingItem); }),
       actionButton(existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청', () => { if (form.reportValidity()) saveDraft(form, true, existingItem); })
     );
-    if (existingItem) actions.append(actionButton('수정 취소', () => { editingContentId = null; open(); }, true));
+    if (existingItem) actions.append(actionButton('수정 취소', () => { editingContentId = null; open({ detail: { mode: 'write' } }); }, true));
     form.append(actions);
     section.append(form);
     return section;
@@ -319,7 +321,7 @@
       await window.TaejangApp.rpc('review_promotion_revision', {
         p_content_id: contentId, p_action: action, p_comment: comment, p_revisit_at: revisit
       });
-      await open();
+      await open({ detail: { mode: 'review' } });
     } catch (error) {
       window.alert(window.TaejangApp.friendlyError(error));
     }
@@ -354,56 +356,66 @@
       const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 바로 대기함에 넣으려면 비워두세요.', '');
       if (raw === null) return;
       await window.TaejangApp.rpc('queue_promotion_revision', { p_content_id: contentId, p_scheduled_for: scheduleValue(raw) });
-      await open();
+      await open({ detail: { mode: 'review' } });
     } catch (error) {
       window.alert(window.TaejangApp.friendlyError(error));
     }
   }
 
-  function render(main, workspace) {
-    const role = workspace.role;
-    const intro = document.createElement('header');
-    intro.className = 'dashboard-intro';
-    intro.append(text('p', '홍보 업무', 'eyebrow'));
-    intro.append(text('h2', role === 'promotion_staff' ? '작성과 보완' : '홍보 검토'));
-    intro.append(text('p', role === 'promotion_staff'
-      ? '중요도나 승인선을 고르지 않아도 됩니다. 사실과 자료를 입력하고 승인 요청하세요.'
-      : '역할에 배정된 검토 안건만 표시합니다. 검토 의견은 구체적으로 남겨주세요.'));
-    intro.append(actionButton('대시보드로', () => document.dispatchEvent(new Event('taejang-dashboard-refresh')), true));
-    main.replaceChildren(intro);
-
-    const mine = array(workspace.my_items);
-    const editingItem = mine.find(item => item.content_id === editingContentId) || null;
-    if (editingContentId && !editingItem) editingContentId = null;
-    if (role === 'promotion_staff') main.append(composer(editingItem));
-
-    const mySection = document.createElement('section');
-    mySection.className = 'dashboard-section';
-    mySection.append(text('h2', role === 'promotion_staff' ? '내 콘텐츠' : '내가 작성한 콘텐츠'));
-    const myGrid = document.createElement('div');
-    myGrid.className = 'dashboard-grid';
-    if (mine.length) mine.forEach(item => myGrid.append(card(item, main, { allowEdit: role === 'promotion_staff' })));
-    else myGrid.append(text('p', '아직 작성한 홍보 콘텐츠가 없습니다.', 'empty'));
-    mySection.append(myGrid);
-    main.append(mySection);
-
-    if (role === 'promotion_lead') {
-      const planning = document.createElement('section');
-      planning.className = 'dashboard-section';
-      planning.append(text('h2', '신규 사업기획'), text('p', '운영총괄이 공식 요청으로 전환한 항목만 후속 화면에서 연결합니다. 비공식 아이디어는 실행업무로 만들지 않습니다.', 'help'));
-      main.append(planning);
-    }
-
+  function createReviewSection(main, workspace, role) {
     const reviews = array(workspace.review_items);
     const reviewSection = document.createElement('section');
     reviewSection.className = 'dashboard-section';
+    reviewSection.dataset.corePromotionReview = '1';
     reviewSection.append(text('h2', role === 'ceo' ? '대표이사 확인 안건' : '검토 대기 안건'));
     const reviewGrid = document.createElement('div');
     reviewGrid.className = 'dashboard-grid';
     if (reviews.length) reviews.forEach(item => reviewGrid.append(reviewCard(item, role, main)));
     else reviewGrid.append(text('p', '현재 검토 대기 안건이 없습니다.', 'empty'));
     reviewSection.append(reviewGrid);
-    main.append(reviewSection);
+    return reviewSection;
+  }
+
+  function render(main, workspace, mode = 'review') {
+    const role = workspace.role;
+    const canWrite = role === 'promotion_staff' || role === 'promotion_lead';
+    const canReview = ['promotion_lead', 'operations_manager', 'ceo'].includes(role);
+    const intro = document.createElement('header');
+    intro.className = 'dashboard-intro';
+    intro.append(text('p', '홍보 업무', 'eyebrow'));
+    intro.append(text('h2', role === 'promotion_staff' ? '작성과 보완' : role === 'promotion_lead' ? '홍보 검토 · 작성' : '홍보 검토'));
+    intro.append(text('p', role === 'promotion_staff'
+      ? '보완 요청을 확인하고 홍보자료를 작성해 승인 요청하세요.'
+      : role === 'promotion_lead'
+        ? '직원 검토 안건을 우선 처리하고, 필요하면 홍보팀장도 같은 화면에서 직접 홍보자료를 작성할 수 있습니다.'
+        : '역할에 배정된 검토 안건만 표시합니다. 검토 의견은 구체적으로 남겨주세요.'));
+    intro.append(actionButton('대시보드로', () => document.dispatchEvent(new Event('taejang-dashboard-refresh')), true));
+    main.replaceChildren(intro);
+
+    const mine = array(workspace.my_items);
+    const editingItem = mine.find(item => item.content_id === editingContentId) || null;
+    if (editingContentId && !editingItem) editingContentId = null;
+
+    const reviewSection = canReview ? createReviewSection(main, workspace, role) : null;
+    if (reviewSection) main.append(reviewSection);
+
+    let composerSection = null;
+    if (canWrite) {
+      composerSection = composer(editingItem);
+      main.append(composerSection);
+    }
+
+    if (canWrite || mine.length) {
+      const mySection = document.createElement('section');
+      mySection.className = 'dashboard-section';
+      mySection.append(text('h2', '내가 작성한 콘텐츠'));
+      const myGrid = document.createElement('div');
+      myGrid.className = 'dashboard-grid';
+      if (mine.length) mine.forEach(item => myGrid.append(card(item, main, { allowEdit: canWrite })));
+      else myGrid.append(text('p', '아직 작성한 홍보 콘텐츠가 없습니다.', 'empty'));
+      mySection.append(myGrid);
+      main.append(mySection);
+    }
 
     if (role === 'promotion_lead') {
       const publicationItems = array(workspace.publication_items);
@@ -432,6 +444,11 @@
       publication.append(publicationGrid);
       main.append(publication);
     }
+
+    requestAnimationFrame(() => {
+      if (mode === 'write' && composerSection) composerSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      else if (mode === 'review' && reviewSection) reviewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   document.addEventListener('taejang-open-promotion-workspace', open);
