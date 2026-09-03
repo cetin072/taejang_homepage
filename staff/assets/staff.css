@@ -43,6 +43,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .button:disabled { opacity: .55; cursor: wait; }
 .button-secondary { background: #315b70; }
 .button-quiet { background: #e8efe9; color: var(--brand-dark); }
+.button-quiet:hover, .button-quiet:active, .button-quiet:focus-visible { background: #d9e7dd; color: var(--brand-dark); }
 .button-danger { background: var(--danger); }
 .help { color: var(--muted); line-height: 1.6; }
 .field-error { margin: -8px 0 12px; color: #8d2929; font-size: .92rem; font-weight: 700; line-height: 1.5; }
