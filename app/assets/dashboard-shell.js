@@ -12,7 +12,7 @@
     operations_manager: ['운영총괄 대시보드', '중요한 처리 항목과 변경사항을 확인하세요.'],
     department_lead: ['부서 운영 대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
     field_lead: ['현장 실행 홈', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
-    promotion_lead: ['홍보팀장 대시보드', '검토 대기와 보완 요청을 먼저 확인하고 필요하면 직접 홍보자료를 작성하세요.'],
+    promotion_lead: ['운영팀장 대시보드', '검토 대기와 보완 요청을 먼저 확인하고 필요하면 직접 홍보자료를 작성하세요.'],
     promotion_staff: ['홍보직원 대시보드', '보완 요청과 콘텐츠 작성·승인 요청을 한 화면에서 처리하세요.']
   };
   function openPanel(id) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id } })); }
@@ -107,16 +107,16 @@
 
     if (route === 'promotion_lead') {
       const reviewCount = array(promotion?.review_items).length;
-      grid.append(card('홍보 검토 대기', reviewCount ? '직원이 올린 검토 안건이 있습니다. 홍보팀장의 우선 업무입니다.' : '현재 검토 대기 안건이 없습니다.', {
+      grid.append(card('홍보 검토 대기', reviewCount ? '직원이 올린 검토 안건이 있습니다. 운영팀장의 우선 업무입니다.' : '현재 검토 대기 안건이 없습니다.', {
         value: reviewCount ? `${reviewCount}건` : undefined,
         action: { label: '홍보 검토 열기', run: () => openPromotion('review') }
       }));
-      grid.append(card('홍보자료 직접 작성', '홍보팀장도 직원과 같은 작성 화면에서 직접 홍보자료를 만들 수 있습니다.', { action: { label: '새 홍보자료 작성', run: () => openPromotion('write') } }));
+      grid.append(card('홍보자료 직접 작성', '운영팀장도 직원과 같은 작성 화면에서 직접 홍보자료를 만들 수 있습니다.', { action: { label: '새 홍보자료 작성', run: () => openPromotion('write') } }));
     }
     if (route === 'promotion_staff') {
       const mine = array(promotion?.my_items);
       const revisionCount = mine.filter(item => item.lifecycle === 'needs_revision').length;
-      if (revisionCount) grid.append(card('수정·보완 요청', '팀장에게서 보완 요청이 왔습니다. 대시보드에서 바로 확인하고 수정하세요.', { value: `${revisionCount}건`, action: { label: '보완 내용 확인', run: () => openPromotion('write') } }));
+      if (revisionCount) grid.append(card('수정·보완 요청', '운영팀장에게서 보완 요청이 왔습니다. 대시보드에서 바로 확인하고 수정하세요.', { value: `${revisionCount}건`, action: { label: '보완 내용 확인', run: () => openPromotion('write') } }));
       grid.append(card('홍보자료 작성', '홈페이지 글·외부 콘텐츠·보도자료를 작성하고 승인 요청합니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
     }
     if (route === 'operations_manager') grid.append(card('중요 홍보 승인', '중요 콘텐츠와 대표이사 상신이 필요한 안건을 우선 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
