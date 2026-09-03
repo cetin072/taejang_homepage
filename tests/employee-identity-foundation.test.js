@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -15,6 +16,16 @@ const employeeUi = read('app/assets/employee-management.js');
 const approvalUi = read('app/assets/phase-c-account-approval.js');
 const menuStatus = read('app/assets/menu-status.js');
 const attendance = read('supabase/migrations/20260903234500_worker_mobile_attendance_v1.sql');
+
+test('employee browser modules parse as valid JavaScript', () => {
+  for (const [name, source] of [
+    ['employee-management.js', employeeUi],
+    ['phase-c-account-approval.js', approvalUi],
+    ['menu-status.js', menuStatus]
+  ]) {
+    assert.doesNotThrow(() => new vm.Script(source, { filename: name }));
+  }
+});
 
 test('employee identity is separate from Auth/profile and employee_id is immutable', () => {
   for (const table of ['people', 'employees', 'account_person_links', 'employee_photos', 'employee_change_requests']) {
