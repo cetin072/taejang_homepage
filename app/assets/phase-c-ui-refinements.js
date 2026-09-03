@@ -25,24 +25,41 @@
     intro.classList.toggle('dashboard-intro--duplicate-title', heading.textContent.trim() === topTitle);
   }
 
+  function sectionByHeading(target, headingText) {
+    const heading = [...target.querySelectorAll('.dashboard-section > h2')]
+      .find(node => node.textContent.trim() === headingText);
+    return heading?.closest('.dashboard-section') || null;
+  }
+
   function separateLeadPromotionViews() {
     if (route() !== 'promotion_lead') return;
     const target = main();
     if (!target) return;
     const composer = target.querySelector('[data-promotion-composer]');
     const review = target.querySelector('[data-core-promotion-review]');
-    const publicationHeading = [...target.querySelectorAll('.dashboard-section > h2')]
-      .find(node => node.textContent.trim() === '홈페이지 발행 대기');
-    const publication = publicationHeading?.closest('.dashboard-section');
+    const myContent = sectionByHeading(target, '내가 작성한 콘텐츠');
+    const publication = sectionByHeading(target, '홈페이지 발행 대기');
+    const intro = target.querySelector(':scope > .dashboard-intro');
+    const introHeading = intro?.querySelector('h2');
+    const introCopy = intro ? [...intro.querySelectorAll(':scope > p')].at(-1) : null;
+    const topTitle = document.getElementById('desktop-page-title');
 
     if (promotionMode === 'review') {
       if (composer) composer.hidden = true;
       if (review) review.hidden = false;
+      if (myContent) myContent.hidden = true;
       if (publication) publication.hidden = false;
+      if (introHeading) introHeading.textContent = '홍보 검토';
+      if (introCopy) introCopy.textContent = '검토 대기 안건과 승인·보완·상신, 홈페이지 발행 대기를 확인합니다.';
+      if (topTitle) topTitle.textContent = '홍보 업무';
     } else if (promotionMode === 'write') {
       if (composer) composer.hidden = false;
       if (review) review.hidden = true;
+      if (myContent) myContent.hidden = false;
       if (publication) publication.hidden = true;
+      if (introHeading) introHeading.textContent = '홍보 작성';
+      if (introCopy) introCopy.textContent = '새 홍보자료를 작성하고 내가 작성한 콘텐츠를 이어서 관리합니다.';
+      if (topTitle) topTitle.textContent = '홍보 업무';
     }
   }
 
@@ -104,8 +121,8 @@
     if (refining) return;
     refining = true;
     try {
-      markDuplicateDashboardHeading();
       separateLeadPromotionViews();
+      markDuplicateDashboardHeading();
       enhanceExternalBodyImport();
     } finally {
       refining = false;
