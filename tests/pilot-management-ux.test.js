@@ -32,7 +32,7 @@ test('promotion pilot keeps immutable history while allowing withdrawal and lead
     "lifecycle = 'draft'",
     "lifecycle = 'review_pending'",
     'private_append_audit'
-  ]) assert.match(uxSql, new RegExp(marker, 'i'));
+  ]) assert.ok(uxSql.includes(marker), `missing SQL marker: ${marker}`);
   assert.doesNotMatch(uxSql, /delete\s+from\s+public\.promotion_content_revisions/i);
 });
 
@@ -42,16 +42,16 @@ test('management UX exposes calendars, clearer task/manual wording, homepage pre
     '일정 캘린더', '주간', '월간', '업무 배정', '작업 매뉴얼',
     '실제 홈페이지 모습 미리보기', '홍보팀장 직접 수정', '게시 예정일 최종 확인',
     '운영총괄 전달 의견', '승인 요청 취소하고 수정', '보완 요청:'
-  ]) assert.match(source, new RegExp(marker));
+  ]) assert.ok(source.includes(marker), `missing UX marker: ${marker}`);
 });
 
 test('staff composer removes technical fields and external content can fetch metadata safely', () => {
   const source = fs.readFileSync(overlayPath, 'utf8');
-  for (const marker of ['게시 주소(영문·숫자·하이픈)', '자료 확인 링크(내부)', '홈페이지 PHOTO', '링크에서 제목·이미지 자동 가져오기']) {
-    assert.match(source, new RegExp(marker));
+  for (const marker of ['게시 주소(영문·숫자·하이픈)', '자료 확인 링크(내부)', 'promotion-media-fields', '링크에서 제목·이미지 자동 가져오기']) {
+    assert.ok(source.includes(marker), `missing staff UX marker: ${marker}`);
   }
   const meta = fs.readFileSync(metaPath, 'utf8');
   for (const marker of ['dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image', 'PAGE_TOO_LARGE']) {
-    assert.match(meta, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.ok(meta.includes(marker), `missing metadata safety marker: ${marker}`);
   }
 });
