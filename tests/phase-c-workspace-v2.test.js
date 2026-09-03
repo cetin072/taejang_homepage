@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const v2Path = path.join(root, 'app/assets/phase-c-workspace-v2.js');
 const appUiPath = path.join(root, 'app/assets/app-ui.js');
 const storagePath = path.join(root, 'supabase/migrations/20260903190000_phase_c_promotion_media_storage.sql');
+const configPath = path.join(root, 'supabase/config.toml');
 
 function syntax(file) {
   const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
@@ -38,7 +39,7 @@ test('board-style promotion composer hides technical fields and keeps user-facin
   }
 });
 
-test('promotion and homepage image uploads use restricted promotion-media storage', () => {
+test('promotion and homepage image uploads use declarative restricted promotion-media storage', () => {
   const source = fs.readFileSync(v2Path, 'utf8');
   assert.match(source, /storage\/v1\/object\/promotion-media/);
   assert.match(source, /storage\/v1\/object\/public\/promotion-media/);
@@ -47,11 +48,19 @@ test('promotion and homepage image uploads use restricted promotion-media storag
   assert.match(source, /홈페이지 사진 수정/);
   assert.match(source, /새 사진 파일/);
 
+  const config = fs.readFileSync(configPath, 'utf8');
+  assert.match(config, /\[storage\]\s+enabled = true/s);
+  assert.match(config, /\[storage\.buckets\.promotion-media\]/);
+  assert.match(config, /public = true/);
+  assert.match(config, /file_size_limit = "8MiB"/);
+  assert.match(config, /image\/jpeg/);
+  assert.match(config, /image\/webp/);
+
   const sql = fs.readFileSync(storagePath, 'utf8');
-  assert.match(sql, /'promotion-media'/);
-  assert.match(sql, /8388608/);
+  assert.match(sql, /bucket_id = 'promotion-media'/);
   assert.match(sql, /for insert\s+to authenticated/i);
   assert.match(sql, /storage\.foldername\(name\)/);
   assert.match(sql, /current_user_has_role\('promotion_staff'\)/);
   assert.match(sql, /current_user_has_role\('promotion_lead'\)/);
+  assert.doesNotMatch(sql, /insert into storage\.buckets/i);
 });
