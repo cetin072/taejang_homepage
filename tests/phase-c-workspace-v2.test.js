@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const v2Path = path.join(root, 'app/assets/phase-c-workspace-v2.js');
 const roleLabelsPath = path.join(root, 'app/assets/phase-c-role-labels.js');
 const accountApprovalPath = path.join(root, 'app/assets/phase-c-account-approval.js');
+const roleSimulationPath = path.join(root, 'app/assets/phase-c-role-simulation.js');
 const appUiPath = path.join(root, 'app/assets/app-ui.js');
 const routingPath = path.join(root, 'staff/assets/auth-routing.js');
 const signupHtmlPath = path.join(root, 'staff/index.html');
@@ -16,6 +17,7 @@ const dashboardPath = path.join(root, 'app/assets/dashboard-shell.js');
 const storagePath = path.join(root, 'supabase/migrations/20260903190000_phase_c_promotion_media_storage.sql');
 const renamePath = path.join(root, 'supabase/migrations/20260903201500_rename_promotion_lead_display_name.sql');
 const signupApprovalSqlPath = path.join(root, 'supabase/migrations/20260903210000_phase_c_signup_approval_chain.sql');
+const roleSimulationSqlPath = path.join(root, 'supabase/migrations/20260903233000_phase_c_role_simulation_mode.sql');
 const configPath = path.join(root, 'supabase/config.toml');
 
 function syntax(file) {
@@ -27,11 +29,13 @@ test('Phase C workspace V2 compiles and is the only loaded Phase C workspace ove
   syntax(v2Path);
   syntax(roleLabelsPath);
   syntax(accountApprovalPath);
+  syntax(roleSimulationPath);
   syntax(appUiPath);
   const appUi = fs.readFileSync(appUiPath, 'utf8');
   assert.match(appUi, /phase-c-workspace-v2\.js/);
   assert.match(appUi, /phase-c-role-labels\.js/);
   assert.match(appUi, /phase-c-account-approval\.js/);
+  assert.match(appUi, /phase-c-role-simulation\.js/);
   for (const legacy of ['pilot-ux-fixes.js', 'homepage-change-requests.js', 'phase-c-ui-refinements.js', 'phase-c-workflow-navigation.js', 'phase-c-ux-simplification.js']) {
     assert.doesNotMatch(appUi, new RegExp(legacy.replaceAll('.', '\\.')));
   }
@@ -81,6 +85,31 @@ test('signup applicants choose no role and operations manager alone assigns pilo
   assert.match(sql, /p_role_code text/);
   assert.match(sql, /'promotion_staff', 'promotion_lead'/);
   assert.doesNotMatch(sql, /requested_role_code/);
+});
+
+test('highest-authority role switch is server-enforced rather than a visual-only preview', () => {
+  const ui = fs.readFileSync(roleSimulationPath, 'utf8');
+  const sql = fs.readFileSync(roleSimulationSqlPath, 'utf8');
+
+  assert.match(ui, /홍보직원 보기/);
+  assert.match(ui, /운영팀장 보기/);
+  assert.match(ui, /운영총괄 복귀/);
+  assert.match(ui, /set_role_simulation_mode/);
+  assert.match(ui, /해당 역할의 서버 권한만 행사됩니다/);
+  assert.match(ui, /window\.location\.reload\(\)/);
+  assert.doesNotMatch(ui, /set_profile_roles/);
+
+  assert.match(sql, /create table if not exists public\.role_simulation_modes/);
+  assert.match(sql, /role_code in \('promotion_staff', 'promotion_lead'\)/);
+  assert.match(sql, /role\.code in \('operations_manager', 'super_admin'\)/);
+  assert.match(sql, /create or replace function public\.current_user_has_role/);
+  assert.match(sql, /simulation\.role_code = p_role_code/);
+  assert.match(sql, /create or replace function public\.current_user_is_promotion_member/);
+  assert.match(sql, /create or replace function public\.current_user_department_id/);
+  assert.match(sql, /'role_simulation'/);
+  assert.match(sql, /expires_at > now\(\)/);
+  assert.match(sql, /interval '2 hours'/);
+  assert.doesNotMatch(sql, /update public\.profile_roles/);
 });
 
 test('promotion and homepage image uploads use declarative restricted promotion-media storage', () => {
