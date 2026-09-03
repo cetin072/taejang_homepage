@@ -1,5 +1,6 @@
 -- Phase C: promotion/homepage media upload policy.
--- The promotion-media bucket itself is declared in supabase/config.toml.
+-- The promotion-media bucket itself is declared in supabase/config.toml for local/CI.
+-- Hosted Production bucket creation/seeding remains a separate HUMAN GATE action.
 -- Upload is limited to authenticated promotion staff/leads and their own folder.
 begin;
 
