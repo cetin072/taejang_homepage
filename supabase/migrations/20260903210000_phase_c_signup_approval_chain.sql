@@ -35,16 +35,6 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $$;
-
--- Recreate body separately because PostgreSQL does not allow a stray semicolon in
--- the dollar-quoted block when this file is linted by older tooling.
-create or replace function public.get_signup_approval_options()
-returns jsonb
-language plpgsql
-stable
-security definer
-set search_path = ''
 as $$
 begin
   if not public.current_user_has_role('operations_manager') then
@@ -156,8 +146,7 @@ begin
   );
 
   insert into public.profile_roles (profile_id, role_id, granted_by)
-  values (p_target_profile_id, target_role_id, actor_id)
-  on conflict do nothing;
+  values (p_target_profile_id, target_role_id, actor_id);
 
   perform public.private_append_audit(
     actor_id,
