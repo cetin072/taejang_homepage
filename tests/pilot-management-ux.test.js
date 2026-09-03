@@ -8,12 +8,14 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const overlayPath = path.join(root, 'app/assets/pilot-ux-fixes.js');
 const refinementPath = path.join(root, 'app/assets/phase-c-ui-refinements.js');
+const workflowPath = path.join(root, 'app/assets/phase-c-workflow-navigation.js');
 const homepageUiPath = path.join(root, 'app/assets/homepage-change-requests.js');
 const metaPath = path.join(root, 'netlify/functions/external-content-meta.mjs');
 const enumSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121500_phase_c_review_withdrawn_decision.sql'), 'utf8');
 const uxSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121600_phase_c_pilot_review_ux.sql'), 'utf8');
 const homepageSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903154500_phase_c_homepage_change_requests.sql'), 'utf8');
 const homepageBoundarySql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903165000_phase_c_homepage_section_allowlist.sql'), 'utf8');
+const workflowSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903173000_phase_c_promotion_workflow_navigation.sql'), 'utf8');
 
 function checkSyntax(file) {
   const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
@@ -23,6 +25,7 @@ function checkSyntax(file) {
 test('pilot UX scripts compile', () => {
   checkSyntax(overlayPath);
   checkSyntax(refinementPath);
+  checkSyntax(workflowPath);
   checkSyntax(homepageUiPath);
   checkSyntax(metaPath);
 });
@@ -74,18 +77,40 @@ test('promotion review enhancement is idempotent to prevent review and publicati
   assert.match(source, /promotion-form:not\(\[data-pilot-simplified\]\)/);
 });
 
-test('promotion lead review and writing views are fully separated and duplicate dashboard title is suppressed', () => {
+test('promotion lead review and writing views exclude publication queue and duplicate dashboard title is suppressed', () => {
   const refinement = fs.readFileSync(refinementPath, 'utf8');
   assert.match(refinement, /promotionMode === 'review'/);
   assert.match(refinement, /composer\.hidden = true/);
   assert.match(refinement, /myContent\.hidden = true/);
-  assert.match(refinement, /publication\.hidden = false/);
+  assert.match(refinement, /publication\.hidden = true/);
   assert.match(refinement, /promotionMode === 'write'/);
   assert.match(refinement, /review\.hidden = true/);
   assert.match(refinement, /myContent\.hidden = false/);
-  assert.match(refinement, /publication\.hidden = true/);
   assert.match(refinement, /dashboard-intro--duplicate-title/);
   assert.ok(refinement.includes("setText(topTitle, '홍보 업무')"));
+});
+
+test('promotion workflow separates review, revision, publication, calendar and operations handoff', () => {
+  const workflow = fs.readFileSync(workflowPath, 'utf8');
+  for (const marker of [
+    '수정·보완 요청', '발행 대기', '일정 캘린더', '홈페이지 내용 관리',
+    "openPromotion('revision')", 'get_promotion_publication_overview',
+    'request_promotion_changes_via_lead', 'get_promotion_review_handoff',
+    '홍보팀장에게 보완 요청', '홍보직원에게 보완 전달', '신규 사업 기획'
+  ]) assert.ok(workflow.includes(marker), `missing workflow marker: ${marker}`);
+  assert.match(workflow, /node\.textContent\.trim\(\) === '신규 사업 기획'.*node\.remove\(\)/s);
+  for (const marker of [
+    'request_promotion_changes_via_lead',
+    'get_promotion_review_handoff',
+    'get_promotion_publication_overview',
+    "stage = 'operations'",
+    "stage = 'lead'",
+    "lifecycle = 'review_pending'",
+    "current_user_has_role('operations_manager')",
+    'current_user_is_promotion_lead',
+    'private_append_audit'
+  ]) assert.ok(workflowSql.includes(marker), `missing workflow SQL marker: ${marker}`);
+  assert.match(workflowSql, /revoke all on function public\.request_promotion_changes_via_lead\(uuid, text\) from public, anon, authenticated/i);
 });
 
 test('homepage content management is limited to existing-section text and photo requests', () => {
