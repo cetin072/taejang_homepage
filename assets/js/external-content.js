@@ -107,7 +107,7 @@
       source: 'press',
       publisher: 'KBS 뉴스',
       category: '회사소식',
-      title: "‘경남형 장애인 동행일자리’ 1호점 창원 가동",
+      title: '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
       summary: 'KBS가 경남형 장애인 동행일자리 1호 사업장 태장의 창원 가동 소식과 장애인 고용·기업 참여 구조를 보도했습니다.',
       publishedAt: '2026-08',
       featured: false,
@@ -121,4 +121,12 @@
     const exists = content.hub.some((candidate) => candidate.id === item.id);
     if (!exists) content.hub.push(item);
   });
+
+  // archive.html and index.html load this file immediately before content-hub.js.
+  // Use a parser-blocking external script so the public-safe live feed is merged
+  // before the existing static hub renders. If the feed function is unavailable,
+  // its response is an empty JS comment and the static homepage remains intact.
+  if (document.readyState === 'loading') {
+    document.write('<script data-live-promotion-feed src="/.netlify/functions/public-promotion-feed"><\/script>');
+  }
 }());
