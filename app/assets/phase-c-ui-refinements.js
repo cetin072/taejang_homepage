@@ -7,6 +7,15 @@
   const main = () => document.getElementById('dashboard-main');
   const route = () => window.TaejangApp?.getRoute?.();
 
+  function loadStyles() {
+    if (document.querySelector('link[data-phase-c-ui-refinements]')) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'assets/phase-c-ui-refinements.css';
+    link.dataset.phaseCUiRefinements = '1';
+    document.head.append(link);
+  }
+
   function markDuplicateDashboardHeading() {
     const target = main();
     const intro = target?.querySelector(':scope > .dashboard-intro');
@@ -103,6 +112,7 @@
     }
   }
 
+  loadStyles();
   document.addEventListener('taejang-open-promotion-workspace', event => {
     promotionMode = event.detail?.mode || 'review';
     setTimeout(refine, 0);
