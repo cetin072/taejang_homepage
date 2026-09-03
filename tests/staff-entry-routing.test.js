@@ -10,12 +10,11 @@ const ROOT = path.resolve(__dirname, '..');
 const routing = require(path.join(ROOT, 'staff/assets/auth-routing.js'));
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
-test('public homepage keeps the staff entry hidden until launch approval', () => {
-  const html = read('index.html');
+test('public homepage shows the staff entry for the approved field pilot', () => {
   const site = read('assets/js/site.js');
-  assert.doesNotMatch(html, /href="staff\//);
-  assert.doesNotMatch(html, /class="staff-nav"/);
-  assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
+  assert.match(site, /const SHOW_EMPLOYEE_ENTRY = true/);
+  assert.match(site, /staff-nav/);
+  assert.match(site, /임직원 로그인/);
 });
 
 test('staff entry keeps login and sign-up as separate chosen actions', () => {
@@ -26,6 +25,7 @@ test('staff entry keeps login and sign-up as separate chosen actions', () => {
   assert.match(html, /id="password_confirm"|name="password_confirm"/);
   assert.match(html, /name="privacy_consent"/);
   assert.match(html, /id="refresh-status"/);
+  assert.doesNotMatch(html, /name="requested_role_code"/);
   assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
 });
 
