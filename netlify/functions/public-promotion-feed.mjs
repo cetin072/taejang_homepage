@@ -54,8 +54,8 @@ function hubItem(row) {
 }
 
 async function rpc(name, body) {
-  const url = process.env.SUPABASE_URL;
-  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url = Netlify.env.get('SUPABASE_URL');
+  const publishableKey = Netlify.env.get('SUPABASE_PUBLISHABLE_KEY');
   if (!url || !publishableKey) throw new Error('PUBLIC_FEED_CONFIG_NOT_READY');
 
   const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
