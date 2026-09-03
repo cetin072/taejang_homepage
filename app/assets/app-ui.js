@@ -2,9 +2,8 @@
   'use strict';
 
   // app.js loads its Supabase config asynchronously, but the browser can fire the
-  // initial pageshow event before that fetch finishes. app.js also verifies again
-  // explicitly after config loading, so suppress only the premature pageshow.
-  // Later pageshow events are allowed once the protected app has initialized.
+  // initial pageshow event before that fetch finishes. app.js verifies again after
+  // config loading, so suppress only the premature pageshow.
   window.addEventListener('pageshow', event => {
     if (!window.TaejangApp) event.stopImmediatePropagation();
   }, true);
@@ -45,12 +44,9 @@
     document.head.append(script);
   }
 
-  // Pilot feedback improvements are intentionally isolated from the stable
-  // foundation modules so they can be reviewed and reverted as one unit.
-  loadOnce('assets/pilot-ux-fixes.js', 'pilot-ux');
-  loadOnce('assets/homepage-change-requests.js', 'homepage-change-requests');
-  loadOnce('assets/phase-c-ui-refinements.js', 'phase-c-ui-refinements');
-  loadOnce('assets/phase-c-workflow-navigation.js', 'phase-c-workflow-navigation');
-  loadOnce('assets/phase-c-ux-simplification.js', 'phase-c-ux-simplification');
+  // Phase C workspace V2 owns promotion writing/revision/review and homepage
+  // content management. Legacy Phase C overlay scripts are intentionally not
+  // loaded to prevent load-order regressions and duplicated UI mutations.
+  loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
