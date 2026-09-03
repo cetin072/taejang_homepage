@@ -40,6 +40,7 @@
     if (document.querySelector(`script[data-${dataKey}]`)) return;
     const script = document.createElement('script');
     script.src = source;
+    script.async = false;
     script.dataset[dataKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = '1';
     document.head.append(script);
   }
