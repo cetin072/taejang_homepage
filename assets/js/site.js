@@ -17,7 +17,10 @@
     document.head.append(link);
   });
 
+  // General public launch gate remains closed; the limited employee field pilot
+  // explicitly enables only the staff entry while the pilot is being evaluated.
   const SHOW_EMPLOYEE_ENTRY = false;
+  const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
   const PUBLIC_EMAIL = 'taejang2025@naver.com';
   const OPENING_DATE = '2026-08-12';
   const OPENING_HIDDEN_FROM = '2026-08-13';
@@ -152,6 +155,16 @@
           channels.appendChild(link);
         });
       }
+
+      const footerLegal = footer.querySelector('.footer-bottom > div:last-child');
+      if (footerLegal && !footerLegal.querySelector('[data-footer-staff-login]')) {
+        footerLegal.appendChild(document.createTextNode(' · '));
+        const staffLogin = document.createElement('a');
+        staffLogin.href = 'staff/';
+        staffLogin.textContent = '임직원 로그인';
+        staffLogin.dataset.footerStaffLogin = '';
+        footerLegal.appendChild(staffLogin);
+      }
     });
   }
 
@@ -173,7 +186,7 @@
 
   normalizeHeaderNavigation();
 
-  if (SHOW_EMPLOYEE_ENTRY) {
+  if (SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT) {
     const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
     document.querySelectorAll('.desktop-nav').forEach(nav => {
       let link = nav.querySelector('.staff-nav, a[href="staff/"]');

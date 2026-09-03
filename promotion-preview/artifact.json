@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-02T11:15:00.000Z",
+  "entries": [
+    {
+      "content_id": "00000000-0000-4000-8000-000000000001",
+      "revision_id": "00000000-0000-4000-8000-000000000002",
+      "content_type": "homepage_article",
+      "slug": "phase-c-preview-sample",
+      "title": "Phase C 공개 결과 미리보기",
+      "summary": "승인된 allow-list artifact가 공개 페이지에 어떻게 표시되는지 확인하는 TEST-only 샘플입니다.",
+      "public_body": "이 페이지는 Deploy Preview 렌더링 경로 확인용 샘플입니다.\nProduction 발행이나 실제 콘텐츠 공개를 수행하지 않습니다.",
+      "byline": "태장",
+      "related_organization": "TEST-only",
+      "public_media": [
+        {
+          "slot": "PHOTO 01",
+          "kind": "fixed",
+          "url": "https://example.com/phase-c-photo-01.jpg"
+        }
+      ],
+      "requested_publish_date": "2026-09-02"
+    }
+  ],
+  "checksum": "348adf8209f94ba17363b2435ec79ee59b204f949a339ec2afc4b2763990f71c"
+}

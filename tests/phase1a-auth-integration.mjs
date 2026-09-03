@@ -113,6 +113,13 @@ equal(bootstrapCode, 'SUPER_ADMIN_BOOTSTRAPPED', 'database owner bootstraps the 
 const browserBootstrap = await rpc('bootstrap_super_admin', admin.token, { p_target_auth_user_id: admin.id });
 check(!browserBootstrap.ok, 'browser token cannot execute bootstrap RPC');
 
+const authorityRoles = await rpc('set_profile_roles', admin.token, {
+  p_target_profile_id: admin.id,
+  p_role_codes: ['super_admin', 'operations_manager'],
+  p_reason_summary: 'CI 운영총괄 겸 시스템 최고관리자 설정',
+});
+equal(authorityRoles.data?.code, 'ROLES_CHANGED', 'highest authority keeps operations manager and super admin together');
+
 const worker = await signUp('phase1a-worker@example.test', '테스트 일반직원');
 assertUuid(worker.id, 'worker id');
 
@@ -126,8 +133,8 @@ equal(pendingDepartments.data.length, 0, 'pending access token cannot read inter
 
 const department = await api('/rest/v1/departments?select=id&code=eq.operations', { token: admin.token });
 const position = await api('/rest/v1/positions?select=id&code=eq.staff', { token: admin.token });
-check(department.ok && department.data?.[0]?.id, 'super admin can resolve an active department');
-check(position.ok && position.data?.[0]?.id, 'super admin can resolve an active position');
+check(department.ok && department.data?.[0]?.id, 'highest authority can resolve an active department');
+check(position.ok && position.data?.[0]?.id, 'highest authority can resolve an active position');
 
 const approval = await rpc('approve_pending_user', admin.token, {
   p_target_profile_id: worker.id,
@@ -137,7 +144,7 @@ const approval = await rpc('approve_pending_user', admin.token, {
   p_reason_summary: 'CI 테스트 계정 승인',
 });
 check(approval.ok, `approval RPC failed: ${JSON.stringify(approval.data)}`);
-equal(approval.data?.code, 'ACCOUNT_APPROVED', 'super admin approves a pending account');
+equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pending account and assigns roles');
 
 const activeDepartments = await api('/rest/v1/departments?select=id', { token: worker.token });
 check(activeDepartments.ok && activeDepartments.data.length > 0, 'active user can read allowed internal reference data');
@@ -229,10 +236,10 @@ equal(reactivateForSecondAdmin.data?.code, 'STATUS_CHANGED', 'worker is reactiva
 
 const grantSecondAdmin = await rpc('set_profile_roles', admin.token, {
   p_target_profile_id: worker.id,
-  p_role_codes: ['super_admin'],
-  p_reason_summary: 'CI 두 번째 최고관리자 지정',
+  p_role_codes: ['super_admin', 'operations_manager'],
+  p_reason_summary: 'CI 두 번째 운영총괄 겸 최고관리자 지정',
 });
-equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active super admin can be granted');
+equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active super admin can be granted; highest-authority pilot accounts also retain operations manager');
 
 const revokeFirstAdmin = await rpc('set_profile_roles', admin.token, {
   p_target_profile_id: admin.id,

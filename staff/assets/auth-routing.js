@@ -5,17 +5,17 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  // A user can hold several roles. The first matching code is their safe default
-  // entry point; other authorized areas can be added as menus in a later phase.
+  // A user can hold several roles. Operational roles take precedence over the
+  // technical super-admin role so dual-role accounts enter their real work area.
   const ROLE_ROUTES = [
-    ['super_admin', 'super-admin', '시스템 관리'],
     ['ceo', 'ceo', '대표이사'],
     ['operations_manager', 'operations-manager', '운영총괄'],
+    ['super_admin', 'super-admin', '시스템 관리'],
     ['department_lead', 'department-lead', '부서 팀장'],
     ['worker_support_lead', 'worker-support', '근로자지원'],
-    ['promotion_lead', 'promotion', '홍보'],
+    ['promotion_lead', 'promotion', '운영팀장'],
     ['worker_support_staff', 'worker-support', '근로자지원'],
-    ['promotion_staff', 'promotion', '홍보'],
+    ['promotion_staff', 'promotion', '홍보직원'],
     ['field_lead', 'field-lead', '현장 책임자'],
     ['office_staff', 'office-staff', '일반 사무'],
     ['work_assistant', 'work-assistant', '근로지원'],

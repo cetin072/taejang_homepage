@@ -1,5 +1,13 @@
 (() => {
   'use strict';
+
+  // app.js loads its Supabase config asynchronously, but the browser can fire the
+  // initial pageshow event before that fetch finishes. app.js verifies again after
+  // config loading, so suppress only the premature pageshow.
+  window.addEventListener('pageshow', event => {
+    if (!window.TaejangApp) event.stopImmediatePropagation();
+  }, true);
+
   const element = id => document.getElementById(id);
   const text = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -26,4 +34,25 @@
     return image;
   };
   window.TaejangAppUi = { element, text, clear, message, imageOrNotice };
+
+  function loadOnce(source, dataKey) {
+    if (document.querySelector(`script[data-${dataKey}]`)) return;
+    const script = document.createElement('script');
+    script.src = source;
+    script.async = false;
+    script.dataset[dataKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = '1';
+    document.head.append(script);
+  }
+
+  // Phase C workspace V2 owns promotion writing/revision/review and homepage
+  // content management. Publication administration is a narrow separate module:
+  // it only owns published/hidden/delete-request controls and does not mutate the
+  // writer/reviewer workspace. Role simulation is server-enforced and available
+  // only to the dual operations-manager + super-admin account.
+  loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
+  loadOnce('assets/phase-c-role-labels.js', 'phase-c-role-labels');
+  loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
+  loadOnce('assets/phase-c-publication-admin.js', 'phase-c-publication-admin');
+  loadOnce('assets/phase-c-role-simulation.js', 'phase-c-role-simulation');
+  loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();

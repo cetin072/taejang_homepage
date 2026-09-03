@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Phase C 공개 결과 미리보기 | 태장</title>
+  <style>
+    :root { font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; color: #18251f; background: #f3f6f4; }
+    body { margin: 0; }
+    main { width: min(100% - 32px, 860px); margin: 0 auto; padding: 40px 0 64px; }
+    header, article { background: #fff; border: 1px solid #d7e0da; border-radius: 16px; padding: clamp(20px, 4vw, 32px); }
+    header { margin-bottom: 18px; }
+    article + article { margin-top: 18px; }
+    h1, h2 { margin: 0 0 12px; letter-spacing: -.03em; }
+    p { line-height: 1.75; }
+    .eyebrow { margin: 0 0 8px; color: #236545; font-weight: 850; }
+    .notice { padding: 12px 14px; border-radius: 10px; background: #fff5d9; color: #6f4b00; font-weight: 750; }
+    .meta { color: #5f6d66; }
+    .body { white-space: pre-wrap; line-height: 1.85; overflow-wrap: anywhere; }
+    article img { display: block; width: min(100%, 760px); max-height: 520px; margin: 18px 0; border-radius: 12px; object-fit: cover; }
+    .media { padding-left: 20px; overflow-wrap: anywhere; }
+    a { color: #236545; }
+    a:focus-visible { outline: 3px solid #236545; outline-offset: 3px; }
+    .error { color: #9c2f2f; font-weight: 750; }
+    @media (max-width: 400px) { main { width: min(100% - 20px, 860px); padding-top: 20px; } header, article { padding: 18px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Deploy Preview 전용</p>
+      <h1>Phase C 공개 결과 확인</h1>
+      <p>승인된 allow-list artifact와 같은 스키마를 공개 화면 경로에서 렌더링하는 최소 검증 페이지입니다.</p>
+      <p class="notice">이 경로는 Production에서 실제 콘텐츠를 발행하지 않습니다. 현재 artifact는 TEST-only 안전 샘플입니다.</p>
+    </header>
+    <p id="status" role="status" aria-live="polite">artifact를 확인하고 있습니다.</p>
+    <section id="entries" aria-label="공개 결과 미리보기"></section>
+  </main>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -32,7 +32,16 @@ enabled = false
 enabled = false
 
 [storage]
-enabled = false
+enabled = true
+file_size_limit = "8MiB"
+
+# Storage buckets are rows, not database schema. Supabase recommends declaring
+# them in config.toml for local/reproducible environments rather than inserting
+# storage.buckets rows from normal database migrations.
+[storage.buckets.promotion-media]
+public = true
+file_size_limit = "8MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
 [auth]
 enabled = true

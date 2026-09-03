@@ -10,12 +10,13 @@ const ROOT = path.resolve(__dirname, '..');
 const routing = require(path.join(ROOT, 'staff/assets/auth-routing.js'));
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
-test('public homepage keeps the staff entry hidden until launch approval', () => {
-  const html = read('index.html');
+test('public homepage shows the staff entry only through the approved field pilot gate', () => {
   const site = read('assets/js/site.js');
-  assert.doesNotMatch(html, /href="staff\//);
-  assert.doesNotMatch(html, /class="staff-nav"/);
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
+  assert.match(site, /const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true/);
+  assert.match(site, /SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
+  assert.match(site, /staff-nav/);
+  assert.match(site, /임직원 로그인/);
 });
 
 test('staff entry keeps login and sign-up as separate chosen actions', () => {
@@ -26,6 +27,7 @@ test('staff entry keeps login and sign-up as separate chosen actions', () => {
   assert.match(html, /id="password_confirm"|name="password_confirm"/);
   assert.match(html, /name="privacy_consent"/);
   assert.match(html, /id="refresh-status"/);
+  assert.doesNotMatch(html, /name="requested_role_code"/);
   assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
 });
 
@@ -46,7 +48,11 @@ test('non-active contexts never resolve to the protected app', () => {
 test('active roles use their safe first staff entry', () => {
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'general_worker' }]), { code: 'general_worker', home: 'general-worker', label: '일반 근로자' });
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'super_admin' }]), { code: 'super_admin', home: 'super-admin', label: '시스템 관리' });
-  assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] }).kind, 'admin');
+  assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_lead' }]), { code: 'promotion_lead', home: 'promotion', label: '운영팀장' });
+  assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_staff' }]), { code: 'promotion_staff', home: 'promotion', label: '홍보직원' });
+  const dual = routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] });
+  assert.equal(dual.kind, 'app');
+  assert.equal(dual.route.code, 'operations_manager');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'operations_manager' }] }).kind, 'app');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'general_worker' }] }).route.code, 'general_worker');
   for (const status of ['pending', 'suspended', 'departed', 'deleted']) assert.notEqual(routing.staffDestination({ account_status: status, roles: [{ code: 'super_admin' }] }).kind, 'admin');
@@ -54,7 +60,7 @@ test('active roles use their safe first staff entry', () => {
 
 test('multiple roles use the documented fixed priority without a user choice', () => {
   const route = routing.resolveRoleRoute([{ code: 'general_worker' }, { code: 'field_lead' }, { code: 'operations_manager' }, { code: 'super_admin' }]);
-  assert.equal(route.code, 'super_admin');
+  assert.equal(route.code, 'operations_manager');
   assert.equal(routing.resolveRoleRoute([{ code: 'general_worker' }, { code: 'field_lead' }]).code, 'field_lead');
   assert.equal(routing.resolveRoleRoute([{ code: 'promotion_staff' }, { code: 'department_lead' }]).code, 'department_lead');
 });
@@ -69,6 +75,12 @@ test('protected app rechecks access context on direct entry, refresh, and naviga
   assert.match(source, /sendToStaff\('app-error', \{ clear: false \}\)/);
   assert.match(source, /sendToStaff\('session-expired', \{ clear: true \}\)/);
   assert.match(source, /sendToStaff\('setup', \{ clear: false \}\)/);
+});
+
+test('protected app prevents the initial pageshow event from racing async config bootstrap', () => {
+  const ui = read('app/assets/app-ui.js');
+  assert.match(ui, /window\.addEventListener\('pageshow'/);
+  assert.match(ui, /if \(!window\.TaejangApp\) event\.stopImmediatePropagation\(\)/);
 });
 
 test('super admin is kept on the protected staff admin screen and return notices are consumed', () => {
