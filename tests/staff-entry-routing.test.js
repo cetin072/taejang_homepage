@@ -48,7 +48,9 @@ test('active roles use their safe first staff entry', () => {
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'super_admin' }]), { code: 'super_admin', home: 'super-admin', label: '시스템 관리' });
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_lead' }]), { code: 'promotion_lead', home: 'promotion', label: '운영팀장' });
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_staff' }]), { code: 'promotion_staff', home: 'promotion', label: '홍보직원' });
-  assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] }).kind, 'admin');
+  const dual = routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] });
+  assert.equal(dual.kind, 'app');
+  assert.equal(dual.route.code, 'operations_manager');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'operations_manager' }] }).kind, 'app');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'general_worker' }] }).route.code, 'general_worker');
   for (const status of ['pending', 'suspended', 'departed', 'deleted']) assert.notEqual(routing.staffDestination({ account_status: status, roles: [{ code: 'super_admin' }] }).kind, 'admin');
@@ -56,7 +58,7 @@ test('active roles use their safe first staff entry', () => {
 
 test('multiple roles use the documented fixed priority without a user choice', () => {
   const route = routing.resolveRoleRoute([{ code: 'general_worker' }, { code: 'field_lead' }, { code: 'operations_manager' }, { code: 'super_admin' }]);
-  assert.equal(route.code, 'super_admin');
+  assert.equal(route.code, 'operations_manager');
   assert.equal(routing.resolveRoleRoute([{ code: 'general_worker' }, { code: 'field_lead' }]).code, 'field_lead');
   assert.equal(routing.resolveRoleRoute([{ code: 'promotion_staff' }, { code: 'department_lead' }]).code, 'department_lead');
 });
