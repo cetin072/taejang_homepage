@@ -126,7 +126,7 @@
   // Use a parser-blocking external script so the public-safe live feed is merged
   // before the existing static hub renders. If the feed function is unavailable,
   // its response is an empty JS comment and the static homepage remains intact.
-  if (document.readyState === 'loading') {
+  if (typeof document !== 'undefined' && document.readyState === 'loading') {
     document.write('<script data-live-promotion-feed src="/.netlify/functions/public-promotion-feed"><\/script>');
   }
 }());
