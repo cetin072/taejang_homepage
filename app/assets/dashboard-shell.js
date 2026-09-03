@@ -29,7 +29,7 @@
     closeSidebar();
     const route = window.TaejangApp?.getRoute?.();
     if (route) el('desktop-page-title').textContent = routeCopy[route]?.[0] || '업무 대시보드';
-    render();
+    document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));
   }
   function renderBusinessPlanning() {
     closeSidebar();
