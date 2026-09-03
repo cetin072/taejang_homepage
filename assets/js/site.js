@@ -152,6 +152,16 @@
           channels.appendChild(link);
         });
       }
+
+      const footerLegal = footer.querySelector('.footer-bottom > div:last-child');
+      if (footerLegal && !footerLegal.querySelector('[data-footer-staff-login]')) {
+        footerLegal.appendChild(document.createTextNode(' · '));
+        const staffLogin = document.createElement('a');
+        staffLogin.href = 'staff/';
+        staffLogin.textContent = '임직원 로그인';
+        staffLogin.dataset.footerStaffLogin = '';
+        footerLegal.appendChild(staffLogin);
+      }
     });
   }
 
