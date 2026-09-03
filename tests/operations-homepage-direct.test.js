@@ -47,10 +47,12 @@ test('operations can optionally author posts and external links but submission s
 });
 
 test('operations image upload remains own-folder only and does not grant anon upload', () => {
-  assert.match(authoringMigration, /bucket_id = 'promotion-media'/);
-  assert.match(authoringMigration, /storage\.foldername\(name\)\)\[1\] = \(select auth\.uid\(\)\)::text/);
-  assert.match(authoringMigration, /or public\.current_user_has_role\('operations_manager'\)/);
-  assert.doesNotMatch(authoringMigration, /create policy "promotion media upload"[\s\S]*to anon/);
+  const policy = authoringMigration.slice(authoringMigration.indexOf('create policy "promotion media upload"'), authoringMigration.indexOf('create or replace function public.save_operations_promotion_draft'));
+  assert.match(policy, /bucket_id = 'promotion-media'/);
+  assert.match(policy, /storage\.foldername\(name\)\)\[1\] = \(select auth\.uid\(\)\)::text/);
+  assert.match(policy, /or public\.current_user_has_role\('operations_manager'\)/);
+  assert.match(policy, /for insert\s+to authenticated/);
+  assert.doesNotMatch(policy, /to anon/);
 });
 
 test('direct editor is allow-listed, audited and reversible at the database boundary', () => {
