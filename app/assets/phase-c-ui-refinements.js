@@ -51,9 +51,9 @@
       if (composer) composer.hidden = true;
       if (review) review.hidden = false;
       if (myContent) myContent.hidden = true;
-      if (publication) publication.hidden = false;
+      if (publication) publication.hidden = true;
       setText(introHeading, '홍보 검토');
-      setText(introCopy, '검토 대기 안건과 승인·보완·상신, 홈페이지 발행 대기를 확인합니다.');
+      setText(introCopy, '검토 대기 안건과 승인·보완·상신만 확인합니다. 발행 대기는 별도 메뉴에서 확인합니다.');
       setText(topTitle, '홍보 업무');
     } else if (promotionMode === 'write') {
       if (composer) composer.hidden = false;
