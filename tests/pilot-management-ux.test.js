@@ -13,6 +13,7 @@ const metaPath = path.join(root, 'netlify/functions/external-content-meta.mjs');
 const enumSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121500_phase_c_review_withdrawn_decision.sql'), 'utf8');
 const uxSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121600_phase_c_pilot_review_ux.sql'), 'utf8');
 const homepageSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903154500_phase_c_homepage_change_requests.sql'), 'utf8');
+const homepageBoundarySql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903165000_phase_c_homepage_section_allowlist.sql'), 'utf8');
 
 function checkSyntax(file) {
   const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
@@ -57,9 +58,10 @@ test('staff and promotion lead composer remove technical fields and external con
     '링크 정보 자동 가져오기', "['promotion_staff', 'promotion_lead']", '게시 위치:'
   ]) assert.ok(source.includes(marker), `missing staff UX marker: ${marker}`);
   const meta = fs.readFileSync(metaPath, 'utf8');
-  for (const marker of ['dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image', 'PAGE_TOO_LARGE', 'extractArticleText', 'article_text']) {
-    assert.ok(meta.includes(marker), `missing metadata safety marker: ${marker}`);
-  }
+  for (const marker of [
+    'dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image',
+    'PAGE_TOO_LARGE', 'extractArticleText', 'article_text', 'extractJsonLdArticleBody', 'stripArticleNoise', 'ARTICLE_TEXT_MAX'
+  ]) assert.ok(meta.includes(marker), `missing metadata safety marker: ${marker}`);
   const refinement = fs.readFileSync(refinementPath, 'utf8');
   assert.match(refinement, /metadata\.article_text/);
   assert.match(refinement, /body\.value\.trim\(\)/);
@@ -72,13 +74,18 @@ test('promotion review enhancement is idempotent to prevent review and publicati
   assert.match(source, /promotion-form:not\(\[data-pilot-simplified\]\)/);
 });
 
-test('promotion lead review and writing views are visually separated and duplicate dashboard title is suppressed', () => {
+test('promotion lead review and writing views are fully separated and duplicate dashboard title is suppressed', () => {
   const refinement = fs.readFileSync(refinementPath, 'utf8');
   assert.match(refinement, /promotionMode === 'review'/);
   assert.match(refinement, /composer\.hidden = true/);
+  assert.match(refinement, /myContent\.hidden = true/);
+  assert.match(refinement, /publication\.hidden = false/);
   assert.match(refinement, /promotionMode === 'write'/);
   assert.match(refinement, /review\.hidden = true/);
+  assert.match(refinement, /myContent\.hidden = false/);
+  assert.match(refinement, /publication\.hidden = true/);
   assert.match(refinement, /dashboard-intro--duplicate-title/);
+  assert.ok(refinement.includes("topTitle.textContent = '홍보 업무'"));
 });
 
 test('homepage content management is limited to existing-section text and photo requests', () => {
@@ -94,6 +101,16 @@ test('homepage content management is limited to existing-section text and photo 
   ]) assert.ok(homepageSql.includes(marker), `missing homepage SQL marker: ${marker}`);
   assert.doesNotMatch(homepageSql, /section_content/);
   assert.match(homepageSql, /revoke all on table public\.homepage_change_requests from public, anon, authenticated/i);
+
+  for (const marker of [
+    'homepage_change_requests_page_section_allowlist',
+    'list_homepage_change_publish_candidates',
+    "request.status = 'approved'",
+    "auth.role()",
+    'service_role'
+  ]) assert.ok(homepageBoundarySql.includes(marker), `missing homepage boundary marker: ${marker}`);
+  assert.match(homepageBoundarySql, /page_key = 'home' and section_key in/i);
+  assert.match(homepageBoundarySql, /revoke all on function public\.list_homepage_change_publish_candidates\(\) from public, anon, authenticated/i);
 
   const ui = fs.readFileSync(homepageUiPath, 'utf8');
   for (const marker of ['홈페이지 내용 관리', '글 수정', '사진 수정', '현재 섹션', '총괄이사에게 수정 요청', '최종 승인']) {
