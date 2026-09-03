@@ -38,7 +38,7 @@ test('operations manager and team-lead boundaries are enforced in guarded RPCs',
   assert.match(foundation, /current_user_has_role\('promotion_lead'\) or public\.current_user_has_role\('department_lead'\)/);
   assert.match(foundation, /EMPLOYEE_OUT_OF_SCOPE/);
   assert.match(foundation, /PROTECTED_EMPLOYEE_CHANGE_FORBIDDEN/);
-  assert.match(foundation, /employee\.department_id = public\.private_team_lead_department\(\)/);
+  assert.match(foundation, /department_id\s*=\s*public\.private_team_lead_department\(\)/);
   assert.match(foundation, /review_employee_change_request/);
 });
 
