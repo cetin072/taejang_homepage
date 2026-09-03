@@ -7,8 +7,12 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const v2Path = path.join(root, 'app/assets/phase-c-workspace-v2.js');
+const roleLabelsPath = path.join(root, 'app/assets/phase-c-role-labels.js');
 const appUiPath = path.join(root, 'app/assets/app-ui.js');
+const routingPath = path.join(root, 'staff/assets/auth-routing.js');
+const dashboardPath = path.join(root, 'app/assets/dashboard-shell.js');
 const storagePath = path.join(root, 'supabase/migrations/20260903190000_phase_c_promotion_media_storage.sql');
+const renamePath = path.join(root, 'supabase/migrations/20260903201500_rename_promotion_lead_display_name.sql');
 const configPath = path.join(root, 'supabase/config.toml');
 
 function syntax(file) {
@@ -18,9 +22,11 @@ function syntax(file) {
 
 test('Phase C workspace V2 compiles and is the only loaded Phase C workspace overlay', () => {
   syntax(v2Path);
+  syntax(roleLabelsPath);
   syntax(appUiPath);
   const appUi = fs.readFileSync(appUiPath, 'utf8');
   assert.match(appUi, /phase-c-workspace-v2\.js/);
+  assert.match(appUi, /phase-c-role-labels\.js/);
   for (const legacy of ['pilot-ux-fixes.js', 'homepage-change-requests.js', 'phase-c-ui-refinements.js', 'phase-c-workflow-navigation.js', 'phase-c-ux-simplification.js']) {
     assert.doesNotMatch(appUi, new RegExp(legacy.replaceAll('.', '\\.')));
   }
@@ -37,6 +43,23 @@ test('board-style promotion composer hides technical fields and keeps user-facin
   for (const technicalLabel of ['게시 주소(영문·숫자·하이픈)', '자료 확인 링크(내부)', '대표 이미지 링크']) {
     assert.ok(!source.includes(technicalLabel), `technical field leaked into V2: ${technicalLabel}`);
   }
+});
+
+test('promotion lead keeps its stable permission code while displaying as 운영팀장', () => {
+  const labels = fs.readFileSync(roleLabelsPath, 'utf8');
+  const routing = fs.readFileSync(routingPath, 'utf8');
+  const dashboard = fs.readFileSync(dashboardPath, 'utf8');
+  const rename = fs.readFileSync(renamePath, 'utf8');
+
+  assert.match(labels, /const LEGACY = '홍보팀장'/);
+  assert.match(labels, /const CURRENT = '운영팀장'/);
+  assert.match(routing, /\['promotion_lead', 'promotion', '운영팀장'\]/);
+  assert.match(routing, /\['promotion_staff', 'promotion', '홍보직원'\]/);
+  assert.match(dashboard, /promotion_lead: \['운영팀장 대시보드'/);
+  assert.match(dashboard, /운영팀장의 우선 업무입니다/);
+  assert.match(rename, /where code = 'promotion_lead'/);
+  assert.match(rename, /name = '운영팀장'/);
+  assert.doesNotMatch(rename, /code\s*=\s*'operations_manager'/);
 });
 
 test('promotion and homepage image uploads use declarative restricted promotion-media storage', () => {
