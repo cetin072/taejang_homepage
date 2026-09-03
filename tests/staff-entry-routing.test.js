@@ -10,9 +10,11 @@ const ROOT = path.resolve(__dirname, '..');
 const routing = require(path.join(ROOT, 'staff/assets/auth-routing.js'));
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
-test('public homepage shows the staff entry for the approved field pilot', () => {
+test('public homepage shows the staff entry only through the approved field pilot gate', () => {
   const site = read('assets/js/site.js');
-  assert.match(site, /const SHOW_EMPLOYEE_ENTRY = true/);
+  assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
+  assert.match(site, /const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true/);
+  assert.match(site, /SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
   assert.match(site, /staff-nav/);
   assert.match(site, /임직원 로그인/);
 });
