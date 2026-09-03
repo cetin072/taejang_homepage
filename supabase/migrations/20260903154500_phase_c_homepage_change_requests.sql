@@ -1,7 +1,7 @@
--- Phase C pilot: controlled homepage text/photo change requests.
--- Promotion lead proposes; operations manager gives the final approval.
--- Approval does not directly mutate static public files. It creates an approved
--- application target that can be applied to the static homepage in a controlled step.
+-- Phase C pilot: controlled homepage text/photo change requests only.
+-- Promotion lead may propose changes inside already-defined pages/sections.
+-- Page/section structure, navigation, layout and new section creation are intentionally out of scope.
+-- Operations manager gives the final approval. Approval itself does not mutate static public files.
 
 begin;
 
@@ -10,7 +10,7 @@ create table public.homepage_change_requests (
   requested_by_profile_id uuid not null references public.profiles(id) on delete restrict,
   page_key text not null check (page_key in ('home', 'about', 'business', 'workplace', 'archive', 'partnership')),
   section_key text not null check (char_length(btrim(section_key)) between 1 and 160),
-  change_kind text not null check (change_kind in ('text', 'image', 'section_content')),
+  change_kind text not null check (change_kind in ('text', 'image')),
   current_summary text check (char_length(coalesce(current_summary, '')) <= 2000),
   proposed_text text check (char_length(coalesce(proposed_text, '')) <= 12000),
   proposed_image_url text check (char_length(coalesce(proposed_image_url, '')) <= 2000),
@@ -22,6 +22,10 @@ create table public.homepage_change_requests (
   decided_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  check (
+    (change_kind = 'text' and proposed_text is not null and proposed_image_url is null)
+    or (change_kind = 'image' and proposed_image_url is not null)
+  ),
   check (
     (status = 'pending' and decided_by_profile_id is null and decided_at is null)
     or (status <> 'pending' and decided_by_profile_id is not null and decided_at is not null)
@@ -64,7 +68,7 @@ begin
   if p_page_key not in ('home', 'about', 'business', 'workplace', 'archive', 'partnership') then
     raise exception using errcode = '22023', message = 'INVALID_HOMEPAGE_PAGE';
   end if;
-  if p_change_kind not in ('text', 'image', 'section_content') then
+  if p_change_kind not in ('text', 'image') then
     raise exception using errcode = '22023', message = 'INVALID_HOMEPAGE_CHANGE_KIND';
   end if;
   if p_section_key is null or btrim(p_section_key) = '' then
@@ -73,10 +77,13 @@ begin
   if p_reason is null or btrim(p_reason) = '' then
     raise exception using errcode = '22023', message = 'HOMEPAGE_CHANGE_REASON_REQUIRED';
   end if;
-  if p_change_kind = 'image' and (p_proposed_image_url is null or btrim(p_proposed_image_url) = '') then
+  if p_change_kind = 'text' and btrim(coalesce(p_proposed_text, '')) = '' then
+    raise exception using errcode = '22023', message = 'HOMEPAGE_TEXT_REQUIRED';
+  end if;
+  if p_change_kind = 'image' and btrim(coalesce(p_proposed_image_url, '')) = '' then
     raise exception using errcode = '22023', message = 'HOMEPAGE_IMAGE_URL_REQUIRED';
   end if;
-  if p_proposed_image_url is not null and btrim(p_proposed_image_url) <> '' then
+  if p_change_kind = 'image' then
     perform public.promotion_validate_url(btrim(p_proposed_image_url), 'proposed_image_url');
   end if;
 
@@ -86,9 +93,9 @@ begin
   ) values (
     actor_id, p_page_key, btrim(p_section_key), p_change_kind,
     nullif(btrim(coalesce(p_current_summary, '')), ''),
-    nullif(btrim(coalesce(p_proposed_text, '')), ''),
-    nullif(btrim(coalesce(p_proposed_image_url, '')), ''),
-    nullif(btrim(coalesce(p_image_alt, '')), ''),
+    case when p_change_kind = 'text' then nullif(btrim(coalesce(p_proposed_text, '')), '') else null end,
+    case when p_change_kind = 'image' then nullif(btrim(coalesce(p_proposed_image_url, '')), '') else null end,
+    case when p_change_kind = 'image' then nullif(btrim(coalesce(p_image_alt, '')), '') else null end,
     btrim(p_reason)
   ) returning * into request_row;
 
@@ -98,7 +105,7 @@ begin
     'homepage_change_request',
     request_row.id::text,
     'success',
-    '홈페이지 수정 요청 생성',
+    '홈페이지 글·사진 수정 요청 생성',
     jsonb_build_object('page_key', request_row.page_key, 'section_key', request_row.section_key, 'change_kind', request_row.change_kind)
   );
 
@@ -217,7 +224,7 @@ begin
     'homepage_change_request',
     request_row.id::text,
     'success',
-    '홈페이지 수정 요청 최종 검토',
+    '홈페이지 글·사진 수정 요청 최종 검토',
     jsonb_build_object('status', request_row.status, 'page_key', request_row.page_key, 'section_key', request_row.section_key)
   );
 
