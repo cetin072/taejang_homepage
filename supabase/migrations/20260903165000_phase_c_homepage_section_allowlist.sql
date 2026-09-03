@@ -32,7 +32,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if coalesce(auth.role(), '') <> 'service_role' then
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
     raise exception using errcode = '42501', message = 'HOMEPAGE_CHANGE_EXPORT_FORBIDDEN';
   end if;
 
