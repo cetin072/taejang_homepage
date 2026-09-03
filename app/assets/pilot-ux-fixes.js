@@ -29,7 +29,7 @@
     const style = document.createElement('style');
     style.id = 'pilot-ux-style';
     style.textContent = `
-      .pilot-calendar { margin: 0 0 28px; padding: 20px; border: 1px solid var(--app-border); border-radius: var(--app-radius); background: #fff; box-shadow: var(--app-shadow); }
+      .pilot-calendar { margin: 28px 0 0; padding: 20px; border: 1px solid var(--app-border); border-radius: var(--app-radius); background: #fff; box-shadow: var(--app-shadow); }
       .pilot-calendar-head { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:16px; }
       .pilot-calendar-head h2 { margin:0 auto 0 0; font-size:1.25rem; }
       .pilot-calendar-controls { display:flex; flex-wrap:wrap; gap:8px; }
@@ -45,7 +45,7 @@
       .pilot-week-day { min-height:150px; padding:12px; border:1px solid var(--app-border); border-radius:10px; background:#fff; }
       .pilot-week-day h3 { margin:0 0 8px; font-size:.95rem; }
       .pilot-empty-day { color:var(--app-muted); font-size:.85rem; }
-      .pilot-review-section { margin-top:28px; }
+      .pilot-review-section { margin-top:0; }
       .pilot-review-card { padding:20px; border:1px solid var(--app-border); border-radius:var(--app-radius); background:#fff; box-shadow:0 5px 16px rgba(22,53,38,.04); margin-bottom:14px; }
       .pilot-review-card h3 { margin:6px 0 10px; }
       .pilot-review-meta { display:flex; flex-wrap:wrap; gap:8px 14px; margin:10px 0; color:var(--app-muted); font-size:.9rem; }
@@ -67,6 +67,8 @@
       .pilot-lead-editor input,.pilot-lead-editor textarea { min-height:44px; padding:10px 12px; border:1px solid var(--app-border); border-radius:8px; font:inherit; }
       .pilot-lead-editor textarea { min-height:180px; resize:vertical; }
       .pilot-meta-result { margin:8px 0 0; padding:10px; border-radius:8px; background:#eef4ef; font-size:.9rem; }
+      .pilot-meta-image { display:block; width:min(100%,260px); max-height:150px; object-fit:cover; margin-top:8px; border-radius:8px; }
+      .pilot-publish-location { margin:10px 0; padding:10px 12px; border:1px solid var(--app-border); border-radius:8px; background:#f7f9f7; font-weight:750; }
       .pilot-feedback { margin:10px 0; padding:10px 12px; border-radius:8px; background:#fff5d9; white-space:pre-wrap; }
       @media (max-width:800px) { .pilot-calendar-grid { grid-template-columns:repeat(7,minmax(72px,1fr)); overflow-x:auto; } .pilot-week-list { grid-template-columns:1fr; } }
     `;
@@ -99,9 +101,7 @@
   }
 
   function calendarTitle() {
-    if (calendarState.view === 'month') {
-      return `${calendarState.cursor.getFullYear()}년 ${calendarState.cursor.getMonth() + 1}월`;
-    }
+    if (calendarState.view === 'month') return `${calendarState.cursor.getFullYear()}년 ${calendarState.cursor.getMonth() + 1}월`;
     const start = startOfWeek(calendarState.cursor);
     const end = addDays(start, 6);
     return `${start.getMonth() + 1}/${start.getDate()} ~ ${end.getMonth() + 1}/${end.getDate()}`;
@@ -148,7 +148,8 @@
     );
     head.append(controls);
     section.append(head, el('p', calendarTitle(), 'help'));
-    target.querySelector('.dashboard-intro')?.after(section);
+    const anchor = target.querySelector('.dashboard-grid') || target.querySelector('.dashboard-intro');
+    anchor?.after(section);
 
     const rangeStart = calendarState.view === 'month' ? monthGridStart(calendarState.cursor) : startOfWeek(calendarState.cursor);
     const days = calendarState.view === 'month' ? 42 : 7;
@@ -204,19 +205,15 @@
     const nav = document.getElementById('app-nav');
     if (nav) {
       [...nav.querySelectorAll('button')].forEach(node => {
-        if (node.textContent === '오늘 관리') {
-          node.textContent = '업무 배정';
-          if (!node.dataset.pilotTaskNav) {
-            node.dataset.pilotTaskNav = '1';
-            node.addEventListener('click', () => setTimeout(() => focusAdminEditor('오늘 업무 등록·수정'), 30));
-          }
+        if (node.textContent === '오늘 관리') node.textContent = '업무 배정';
+        if (node.textContent === '작업방법 관리') node.textContent = '작업 매뉴얼';
+        if (node.textContent === '업무 배정' && !node.dataset.pilotTaskNav) {
+          node.dataset.pilotTaskNav = '1';
+          node.addEventListener('click', () => setTimeout(() => focusAdminEditor('오늘 업무 등록·수정'), 30));
         }
-        if (node.textContent === '작업방법 관리') {
-          node.textContent = '작업 매뉴얼';
-          if (!node.dataset.pilotGuideNav) {
-            node.dataset.pilotGuideNav = '1';
-            node.addEventListener('click', () => setTimeout(() => focusAdminEditor('작업방법 기본정보 등록·수정'), 30));
-          }
+        if (node.textContent === '작업 매뉴얼' && !node.dataset.pilotGuideNav) {
+          node.dataset.pilotGuideNav = '1';
+          node.addEventListener('click', () => setTimeout(() => focusAdminEditor('작업방법 기본정보 등록·수정'), 30));
         }
       });
     }
@@ -274,7 +271,7 @@
   }
 
   function simplifyStaffComposer() {
-    if (route() !== 'promotion_staff') return;
+    if (!['promotion_staff', 'promotion_lead'].includes(route())) return;
     const form = main()?.querySelector('.promotion-form');
     if (!form || form.dataset.pilotSimplified) return;
     form.dataset.pilotSimplified = '1';
@@ -316,16 +313,28 @@
     if (!summary?.value) syncSummary();
 
     const externalLabel = findFormLabel(form, '외부 게시 링크');
+    const location = el('p', '', 'pilot-publish-location');
+    location.dataset.pilotPublishLocation = '1';
     const updateExternalVisibility = () => {
-      if (!externalLabel) return;
-      externalLabel.hidden = contentType?.value !== 'external_content';
-      if (contentType?.value !== 'external_content' && external) external.value = '';
+      const type = contentType?.value || 'homepage_article';
+      const usesExternal = type === 'external_content' || type === 'press_release';
+      if (externalLabel) {
+        externalLabel.hidden = !usesExternal;
+        if (usesExternal && form.firstElementChild !== externalLabel) form.insertBefore(externalLabel, form.firstElementChild);
+      }
+      if (!usesExternal && external) external.value = '';
+      location.textContent = type === 'external_content'
+        ? '게시 위치: 홈페이지 > 소식·기록 > 외부 기사·콘텐츠'
+        : type === 'press_release'
+          ? '게시 위치: 홈페이지 > 소식·기록 > 보도자료'
+          : '게시 위치: 홈페이지 > 소식·기록 > 태장 소식';
     };
+    if (!form.querySelector('[data-pilot-publish-location]')) form.insertBefore(location, form.querySelector('.quick-links'));
     updateExternalVisibility();
     contentType?.addEventListener('change', updateExternalVisibility);
 
     if (externalLabel && !externalLabel.querySelector('[data-pilot-meta-button]')) {
-      const metaButton = button('링크에서 제목·이미지 자동 가져오기', async () => {
+      const metaButton = button('링크 정보 자동 가져오기', async () => {
         if (!external?.value?.trim()) { window.alert('외부 링크를 먼저 붙여넣어 주세요.'); return; }
         metaButton.disabled = true;
         try {
@@ -335,22 +344,26 @@
           if (metadata.description && summary) summary.value = metadata.description.slice(0, 500);
           if (metadata.image && hero) hero.value = metadata.image;
           let result = externalLabel.querySelector('.pilot-meta-result');
-          if (!result) { result = el('p', '', 'pilot-meta-result'); externalLabel.append(result); }
-          result.textContent = metadata.title ? `가져옴: ${metadata.title}` : '링크는 확인했지만 제목을 찾지 못했습니다. 제목을 직접 입력해 주세요.';
+          if (!result) { result = el('div', '', 'pilot-meta-result'); externalLabel.append(result); }
+          result.replaceChildren(el('span', metadata.title ? `자동으로 가져옴: ${metadata.title}` : '링크는 확인했지만 제목을 찾지 못했습니다. 제목을 직접 입력해 주세요.'));
+          if (metadata.image) {
+            const image = document.createElement('img'); image.src = metadata.image; image.alt = '자동으로 가져온 대표 이미지'; image.className = 'pilot-meta-image'; result.append(image);
+          }
         } catch (error) { window.alert(error.message); }
         finally { metaButton.disabled = false; }
       }, true);
       metaButton.dataset.pilotMetaButton = '1';
       externalLabel.append(metaButton);
+      external?.addEventListener('change', () => { if (external.value.trim()) metaButton.click(); });
     }
 
     const intro = form.closest('.promotion-composer')?.querySelector('.help');
-    if (intro) intro.textContent = '직원은 제목과 본문 중심으로 작성하면 됩니다. 게시주소·요약·승인선은 시스템과 관리자가 처리합니다.';
+    if (intro) intro.textContent = '제목과 본문 중심으로 작성하면 됩니다. 외부 기사·보도자료는 링크를 먼저 넣으면 가능한 정보를 자동으로 가져옵니다.';
   }
 
   async function enhanceStaffCards(workspace) {
-    if (workspace.role !== 'promotion_staff') return;
-    const section = [...main().querySelectorAll('.dashboard-section')].find(node => node.querySelector('h2')?.textContent === '내 콘텐츠');
+    if (!['promotion_staff', 'promotion_lead'].includes(workspace.role)) return;
+    const section = [...main().querySelectorAll('.dashboard-section')].find(node => ['내 콘텐츠', '내가 작성한 콘텐츠'].includes(node.querySelector('h2')?.textContent));
     if (!section) return;
     const cards = [...section.querySelectorAll('.promotion-card')];
     const items = Array.isArray(workspace.my_items) ? workspace.my_items : [];
@@ -360,10 +373,10 @@
       const actions = card.querySelector('.quick-links') || card.appendChild(el('div', null, 'quick-links'));
       if (item.lifecycle === 'review_pending' && !actions.querySelector('[data-pilot-withdraw]')) {
         const withdraw = button('승인 요청 취소하고 수정', async () => {
-          if (!window.confirm('팀장 검토 전 승인 요청을 취소하고 수정하시겠습니까?')) return;
+          if (!window.confirm('첫 검토 전 승인 요청을 취소하고 수정하시겠습니까?')) return;
           try {
             await app().rpc('withdraw_promotion_submission', { p_content_id: item.content_id });
-            document.dispatchEvent(new Event('taejang-open-promotion-workspace'));
+            document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode: 'write' } }));
             setTimeout(() => {
               const matching = [...main().querySelectorAll('.promotion-card')].find(node => node.querySelector('h3')?.textContent === item.title);
               [...(matching?.querySelectorAll('button') || [])].find(node => node.textContent.includes('열어 수정'))?.click();
@@ -498,15 +511,15 @@
       p_comment: comment,
       p_revisit_at: revisit
     });
-    document.dispatchEvent(new Event('taejang-open-promotion-workspace'));
+    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode: 'review' } }));
   }
 
   async function enhancedReviewSection(workspace) {
     if (!['promotion_lead', 'operations_manager', 'ceo'].includes(workspace.role)) return;
+    if (main().querySelector('[data-pilot-review-section]')) return;
     const original = [...main().querySelectorAll('.dashboard-section')].find(node => ['검토 대기 안건', '대표이사 확인 안건'].includes(node.querySelector('h2')?.textContent));
     if (!original) return;
     original.hidden = true;
-    main().querySelector('[data-pilot-review-section]')?.remove();
 
     const section = el('section', null, 'dashboard-section pilot-review-section');
     section.dataset.pilotReviewSection = '';
@@ -543,7 +556,7 @@
       if (workspace.role === 'promotion_lead') {
         actions.append(button('직접 수정', () => {
           card.querySelector('.pilot-lead-editor')?.remove();
-          card.append(leadEditor(detail, () => document.dispatchEvent(new Event('taejang-open-promotion-workspace'))));
+          card.append(leadEditor(detail, () => document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode: 'review' } }))));
         }, true));
         actions.append(button('보완 요청', () => runReview(detail, 'changes_requested', dateInput), true));
         actions.append(button('게시일 확인 후 승인', () => runReview(detail, 'approve', dateInput)));
@@ -570,7 +583,12 @@
     const target = main();
     if (!target) return;
     const heading = target.querySelector('.dashboard-intro h2')?.textContent || '';
-    if (!['작성과 보완', '홍보 검토'].includes(heading)) return;
+    if (!['작성과 보완', '홍보 검토', '홍보 검토 · 작성'].includes(heading)) return;
+    const currentRoute = route();
+    const composerNeedsEnhancement = ['promotion_staff', 'promotion_lead'].includes(currentRoute) && !!target.querySelector('.promotion-form:not([data-pilot-simplified])');
+    const reviewNeedsEnhancement = ['promotion_lead', 'operations_manager', 'ceo'].includes(currentRoute) && !target.querySelector('[data-pilot-review-section]');
+    const cardsNeedEnhancement = ['promotion_staff', 'promotion_lead'].includes(currentRoute) && !!target.querySelector('.promotion-card');
+    if (!composerNeedsEnhancement && !reviewNeedsEnhancement && !cardsNeedEnhancement) return;
     promotionEnhancing = true;
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
@@ -596,8 +614,13 @@
 
   const observer = new MutationObserver(() => {
     managementLabels();
-    const heading = main()?.querySelector('.dashboard-intro h2')?.textContent || '';
-    if (['작성과 보완', '홍보 검토'].includes(heading)) setTimeout(enhancePromotionWorkspace, 80);
+    const target = main();
+    const heading = target?.querySelector('.dashboard-intro h2')?.textContent || '';
+    if (!['작성과 보완', '홍보 검토', '홍보 검토 · 작성'].includes(heading)) return;
+    const currentRoute = route();
+    const needsComposer = ['promotion_staff', 'promotion_lead'].includes(currentRoute) && !!target.querySelector('.promotion-form:not([data-pilot-simplified])');
+    const needsReview = ['promotion_lead', 'operations_manager', 'ceo'].includes(currentRoute) && !target.querySelector('[data-pilot-review-section]');
+    if (needsComposer || needsReview) setTimeout(enhancePromotionWorkspace, 80);
   });
   const startObserver = () => {
     const target = document.getElementById('dashboard-main');
