@@ -8,8 +8,9 @@ const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const foundation = read('supabase/migrations/20260904083000_employee_identity_foundation_v1.sql');
-const storage = read('supabase/migrations/20260904083300_employee_private_media_path_fix.sql');
+const storage = read('supabase/migrations/20260904083700_storage_policy_isolation_fix.sql');
 const signupGuard = read('supabase/migrations/20260904083200_employee_signup_link_guard.sql');
+const safeDefaults = read('supabase/migrations/20260904083500_employee_position_safe_default.sql');
 const config = read('supabase/config.toml');
 const appUi = read('app/assets/app-ui.js');
 const employeeUi = read('app/assets/employee-management.js');
@@ -53,12 +54,15 @@ test('operations manager and team-lead boundaries are enforced in guarded RPCs',
   assert.match(foundation, /review_employee_change_request/);
 });
 
-test('employee photos use a private bucket and id photos are not team-lead readable', () => {
+test('employee photos use isolated guarded private storage without breaking promotion uploads', () => {
   assert.match(config, /\[storage\.buckets\.employee-private-media\][\s\S]*?public = false/);
+  assert.match(storage, /private_employee_media_allowed/);
+  assert.match(storage, /private_promotion_media_upload_allowed/);
   assert.match(storage, /bucket_id = 'employee-private-media'/);
+  assert.match(storage, /bucket_id = 'promotion-media'/);
   assert.match(storage, /array_length\(storage\.foldername\(name\), 1\) >= 2/);
-  assert.match(storage, /\(storage\.foldername\(name\)\)\[2\] = 'profile'/);
-  assert.doesNotMatch(storage, /employee\.department_id = public\.private_team_lead_department\(\)[\s\S]{0,120}\(storage\.foldername\(name\)\)\[2\] = 'id_photo'/);
+  assert.match(storage, /p_read and p_photo_type <> 'profile'/);
+  assert.match(storage, /grant execute on function public\.private_promotion_media_upload_allowed\(text\) to authenticated/);
   assert.match(employeeUi, /storage\/v1\/object\/employee-private-media/);
   assert.match(employeeUi, /storage\/v1\/object\/sign\/employee-private-media/);
   assert.doesNotMatch(employeeUi, /storage\/v1\/object\/public\/employee-private-media/);
@@ -74,6 +78,7 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(employeeUi, /직원 관리/);
   assert.match(employeeUi, /팀 직원 관리/);
   assert.doesNotMatch(employeeUi, /field\(['"]직원번호['"]/);
+  assert.match(safeDefaults, /p\.code='general_worker' then 0/);
 });
 
 test('staff signup approval requires an explicit Employee selection and blocks legacy bypass', () => {
