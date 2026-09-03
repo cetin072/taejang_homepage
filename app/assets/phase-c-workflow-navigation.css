@@ -1,0 +1,90 @@
+.phase-c-workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.phase-c-workflow-grid > .dashboard-card,
+.phase-c-workflow-grid > .pilot-review-card {
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+}
+.phase-c-workflow-grid .pilot-review-actions,
+.phase-c-workflow-grid .quick-links {
+  margin-top: auto;
+}
+.phase-c-workflow-grid .pilot-review-card {
+  display: flex;
+  flex-direction: column;
+}
+.phase-c-workflow-source {
+  display: inline-flex;
+  width: fit-content;
+  margin: 0 0 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: #eef4ef;
+  color: var(--app-brand);
+  font-size: .8rem;
+  font-weight: 850;
+}
+.phase-c-workflow-source.operations-return {
+  background: #fff2d8;
+  color: #785100;
+}
+.phase-c-publication-card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  margin: 4px 0 2px;
+}
+.phase-c-publication-meta {
+  display: grid;
+  gap: 4px;
+  color: var(--app-muted);
+  font-size: .88rem;
+}
+.phase-c-homepage-catalog {
+  margin-top: 20px;
+}
+.phase-c-homepage-catalog .phase-c-workflow-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.phase-c-homepage-catalog .dashboard-card {
+  min-height: 0;
+}
+.phase-c-homepage-catalog ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: var(--app-muted);
+  line-height: 1.65;
+}
+.pilot-review-section.phase-c-review-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.pilot-review-section.phase-c-review-grid > h2,
+.pilot-review-section.phase-c-review-grid > .empty,
+.pilot-review-section.phase-c-review-grid > .pilot-public-preview {
+  grid-column: 1 / -1;
+}
+.pilot-review-section.phase-c-review-grid > .pilot-review-card {
+  margin: 0;
+  min-width: 0;
+}
+@media (max-width: 1180px) {
+  .phase-c-workflow-grid,
+  .pilot-review-section.phase-c-review-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .phase-c-workflow-grid,
+  .pilot-review-section.phase-c-review-grid,
+  .phase-c-homepage-catalog .phase-c-workflow-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .phase-c-workflow-grid,
+  .pilot-review-section.phase-c-review-grid,
+  .phase-c-homepage-catalog .phase-c-workflow-grid { grid-template-columns: 1fr; }
+}
