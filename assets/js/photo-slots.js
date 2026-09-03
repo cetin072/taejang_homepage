@@ -127,4 +127,14 @@
     image.src = `${PHOTO_BASE_PATH}${config.file}`;
     slot.prepend(image);
   });
+
+  // Main-page direct edits are loaded only after the static photo slots exist.
+  // If the live feed fails, the static homepage above remains the complete fallback.
+  const page = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
+  if (page === 'index.html' && !document.querySelector('script[data-homepage-live-overrides]')) {
+    const script = document.createElement('script');
+    script.src = 'assets/js/homepage-live-overrides.js';
+    script.dataset.homepageLiveOverrides = '1';
+    document.head.append(script);
+  }
 }());

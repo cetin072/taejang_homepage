@@ -44,15 +44,23 @@
     document.head.append(script);
   }
 
+  // PWA install support is deliberately network-first: authenticated work data is
+  // never cached by the service worker. The employee home remains read/confirm-only
+  // except for attendance actions and role-specific work shortcuts.
+  loadOnce('assets/pwa-install.js', 'pwa-install');
+  loadOnce('assets/worker-mobile-v1.js', 'worker-mobile-v1');
+  loadOnce('assets/attendance-admin.js', 'attendance-admin');
+
   // Phase C workspace V2 owns promotion writing/revision/review and homepage
-  // content management. Publication administration is a narrow separate module:
-  // it only owns published/hidden/delete-request controls and does not mutate the
-  // writer/reviewer workspace. Role simulation is server-enforced and available
-  // only to the dual operations-manager + super-admin account.
+  // request/approval management. Operations authoring and direct homepage editing
+  // are optional sidebar tools and do not replace the promotion team's main flow.
   loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
+  loadOnce('assets/operations-promotion-writer.js', 'operations-promotion-writer');
+  loadOnce('assets/operations-homepage-direct.js', 'operations-homepage-direct');
   loadOnce('assets/phase-c-role-labels.js', 'phase-c-role-labels');
   loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
   loadOnce('assets/phase-c-publication-admin.js', 'phase-c-publication-admin');
   loadOnce('assets/phase-c-role-simulation.js', 'phase-c-role-simulation');
+  loadOnce('assets/employee-common-home-v1.js', 'employee-common-home-v1');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
