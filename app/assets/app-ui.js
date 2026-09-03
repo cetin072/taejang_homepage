@@ -45,8 +45,8 @@
   }
 
   // PWA install support is deliberately network-first: authenticated work data is
-  // never cached by the service worker. The worker home remains read/confirm-only
-  // except for the two attendance actions.
+  // never cached by the service worker. The employee home remains read/confirm-only
+  // except for attendance actions and role-specific work shortcuts.
   loadOnce('assets/pwa-install.js', 'pwa-install');
   loadOnce('assets/worker-mobile-v1.js', 'worker-mobile-v1');
   loadOnce('assets/attendance-admin.js', 'attendance-admin');
@@ -61,5 +61,6 @@
   loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
   loadOnce('assets/phase-c-publication-admin.js', 'phase-c-publication-admin');
   loadOnce('assets/phase-c-role-simulation.js', 'phase-c-role-simulation');
+  loadOnce('assets/employee-common-home-v1.js', 'employee-common-home-v1');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
