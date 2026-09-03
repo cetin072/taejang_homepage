@@ -1,0 +1,20 @@
+{
+  "name": "태장 업무앱",
+  "short_name": "태장",
+  "description": "태장 임직원용 출퇴근 및 공지 확인 앱",
+  "lang": "ko-KR",
+  "start_url": "/staff/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/images/favicon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
