@@ -46,6 +46,8 @@ test('non-active contexts never resolve to the protected app', () => {
 test('active roles use their safe first staff entry', () => {
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'general_worker' }]), { code: 'general_worker', home: 'general-worker', label: '일반 근로자' });
   assert.deepEqual(routing.resolveRoleRoute([{ code: 'super_admin' }]), { code: 'super_admin', home: 'super-admin', label: '시스템 관리' });
+  assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_lead' }]), { code: 'promotion_lead', home: 'promotion', label: '운영팀장' });
+  assert.deepEqual(routing.resolveRoleRoute([{ code: 'promotion_staff' }]), { code: 'promotion_staff', home: 'promotion', label: '홍보직원' });
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'super_admin' }, { code: 'operations_manager' }] }).kind, 'admin');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'operations_manager' }] }).kind, 'app');
   assert.equal(routing.staffDestination({ account_status: 'active', roles: [{ code: 'general_worker' }] }).route.code, 'general_worker');
