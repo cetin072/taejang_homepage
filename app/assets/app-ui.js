@@ -44,6 +44,13 @@
     document.head.append(script);
   }
 
+  // PWA install support is deliberately network-first: authenticated work data is
+  // never cached by the service worker. The worker home remains read/confirm-only
+  // except for the two attendance actions.
+  loadOnce('assets/pwa-install.js', 'pwa-install');
+  loadOnce('assets/worker-mobile-v1.js', 'worker-mobile-v1');
+  loadOnce('assets/attendance-admin.js', 'attendance-admin');
+
   // Phase C workspace V2 owns promotion writing/revision/review and homepage
   // content management. Publication administration is a narrow separate module:
   // it only owns published/hidden/delete-request controls and does not mutate the
