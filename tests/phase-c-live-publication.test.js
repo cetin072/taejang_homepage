@@ -10,7 +10,9 @@ const ROOT = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
 const migrationPath = 'supabase/migrations/20260903224000_phase_c_live_publication_controls.sql';
+const compatibilityPath = 'supabase/migrations/20260903225000_phase_c_live_publication_compatibility.sql';
 const migration = read(migrationPath);
+const compatibility = read(compatibilityPath);
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -50,20 +52,29 @@ test('public hub loads live feed before the existing content hub renders', () =>
   assert.match(feedFunction, /content\.hub\.push/);
 });
 
-test('promotion lead can hide and request deletion but permanent deletion is operations-only', () => {
+test('promotion lead can hide and request deletion while hard delete requires operations plus super-admin', () => {
   assert.match(migration, /current_user_is_promotion_lead\(\) or public\.current_user_has_role\('operations_manager'\)/);
   assert.match(migration, /request_promotion_deletion/);
   assert.match(migration, /not public\.current_user_is_promotion_lead\(\)/);
-  const permanentDelete = migration.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
+  const permanentDelete = compatibility.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
   assert.match(permanentDelete, /current_user_has_role\('operations_manager'\)/);
+  assert.match(permanentDelete, /current_user_has_role\('super_admin'\)/);
   assert.match(permanentDelete, /PROMOTION_PERMANENT_DELETE_TITLE_CONFIRMATION_MISMATCH/);
   assert.doesNotMatch(permanentDelete, /promotion_lead/);
 });
 
-test('publication admin never offers permanent delete to the lead branch', () => {
+test('legacy publication queue remains compatible after immediate live publication', () => {
+  const approvalCheck = compatibility.match(/create or replace function public\.promotion_revision_is_fully_approved[\s\S]*?\$\$;/)?.[0] || '';
+  assert.match(approvalCheck, /'approved'::public\.promotion_lifecycle/);
+  assert.match(approvalCheck, /'published'::public\.promotion_lifecycle/);
+  assert.match(approvalCheck, /'scheduled'::public\.promotion_lifecycle/);
+});
+
+test('publication admin never offers permanent delete unless the server grants highest-authority delete', () => {
   assert.match(publicationAdmin, /role === 'promotion_lead'/);
   assert.match(publicationAdmin, /삭제 요청/);
-  assert.match(publicationAdmin, /else if \(role === 'operations_manager'\)/);
+  assert.match(publicationAdmin, /data\?\.can_permanently_delete === true/);
+  assert.match(publicationAdmin, /role === 'operations_manager' && canPermanentlyDelete/);
   assert.match(publicationAdmin, /영구 삭제/);
   assert.match(appUi, /phase-c-publication-admin\.js/);
 });
