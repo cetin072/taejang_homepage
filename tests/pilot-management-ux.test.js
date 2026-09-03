@@ -99,5 +99,5 @@ test('homepage content management is limited to existing-section text and photo 
   for (const marker of ['홈페이지 내용 관리', '글 수정', '사진 수정', '현재 섹션', '총괄이사에게 수정 요청', '최종 승인']) {
     assert.ok(ui.includes(marker), `missing homepage UI marker: ${marker}`);
   }
-  assert.doesNotMatch(ui, /섹션 추가|섹션 삭제/);
+  assert.doesNotMatch(ui, /section_content/);
 });
