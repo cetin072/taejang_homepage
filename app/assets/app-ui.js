@@ -52,11 +52,10 @@
   loadOnce('assets/attendance-admin.js', 'attendance-admin');
 
   // Phase C workspace V2 owns promotion writing/revision/review and homepage
-  // content management. Publication administration is a narrow separate module:
-  // it only owns published/hidden/delete-request controls and does not mutate the
-  // writer/reviewer workspace. Role simulation is server-enforced and available
-  // only to the dual operations-manager + super-admin account.
+  // request/approval management. Operations direct homepage editing is a separate,
+  // allow-listed sidebar tool so it does not replace the promotion workflow.
   loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
+  loadOnce('assets/operations-homepage-direct.js', 'operations-homepage-direct');
   loadOnce('assets/phase-c-role-labels.js', 'phase-c-role-labels');
   loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
   loadOnce('assets/phase-c-publication-admin.js', 'phase-c-publication-admin');
