@@ -52,9 +52,10 @@
   loadOnce('assets/attendance-admin.js', 'attendance-admin');
 
   // Phase C workspace V2 owns promotion writing/revision/review and homepage
-  // request/approval management. Operations direct homepage editing is a separate,
-  // allow-listed sidebar tool so it does not replace the promotion workflow.
+  // request/approval management. Operations authoring and direct homepage editing
+  // are optional sidebar tools and do not replace the promotion team's main flow.
   loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
+  loadOnce('assets/operations-promotion-writer.js', 'operations-promotion-writer');
   loadOnce('assets/operations-homepage-direct.js', 'operations-homepage-direct');
   loadOnce('assets/phase-c-role-labels.js', 'phase-c-role-labels');
   loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
