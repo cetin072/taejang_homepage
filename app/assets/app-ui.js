@@ -49,5 +49,6 @@
   // loaded to prevent load-order regressions and duplicated UI mutations.
   loadOnce('assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2');
   loadOnce('assets/phase-c-role-labels.js', 'phase-c-role-labels');
+  loadOnce('assets/phase-c-account-approval.js', 'phase-c-account-approval');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
