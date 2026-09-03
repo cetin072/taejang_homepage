@@ -39,8 +39,9 @@
         <p id="login-password-error" class="field-error" role="alert" hidden></p>
         <button class="button" type="submit">로그인</button>
       </form>
-      <div class="auth-links">
+      <div class="auth-links auth-links-split">
         <button id="show-signup" class="text-button" type="button">가입 신청</button>
+        <button id="show-recovery" class="text-button" type="button">비밀번호를 잊으셨나요?</button>
       </div>
     </section>
 
@@ -73,9 +74,22 @@
       </form>
     </section>
 
+    <section id="recovery-panel" class="panel auth-panel" hidden aria-labelledby="recovery-title">
+      <button class="text-button" type="button" data-back-to-start>← 로그인</button>
+      <h2 id="recovery-title">비밀번호 재설정</h2>
+      <p class="help">가입할 때 사용한 이메일 주소를 입력하세요. 등록된 계정이면 비밀번호 재설정 메일이 발송됩니다.</p>
+      <form id="recovery-form" novalidate>
+        <label>아이디
+          <input name="email" type="email" autocomplete="email" aria-describedby="recovery-email-error" required>
+        </label>
+        <p id="recovery-email-error" class="field-error" role="alert" hidden></p>
+        <button class="button" type="submit">재설정 메일 보내기</button>
+      </form>
+    </section>
+
     <section id="pending-panel" class="panel state-panel" hidden>
       <h2>승인 대기 중입니다</h2>
-      <p>관리자 승인 후 로그인할 수 있습니다.</p>
+      <p>운영총괄 승인 후 로그인할 수 있습니다.</p>
       <div class="action-stack compact">
         <button id="refresh-status" class="button" type="button">승인 상태 확인</button>
       </div>
@@ -88,7 +102,7 @@
 
     <section id="unassigned-panel" class="panel state-panel" hidden>
       <h2>사용 권한을 준비하고 있습니다</h2>
-      <p>담당자에게 문의해 주세요.</p>
+      <p>운영총괄에게 문의해 주세요.</p>
     </section>
 
     <section id="issue-panel" class="panel state-panel" hidden>
