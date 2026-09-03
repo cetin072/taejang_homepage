@@ -6,6 +6,7 @@ const JSON_HEADERS = {
   'Cache-Control': 'no-store',
   'X-Content-Type-Options': 'nosniff'
 };
+const ARTICLE_TEXT_MAX = 8000;
 
 function json(status, payload) {
   return new Response(JSON.stringify(payload), { status, headers: JSON_HEADERS });
@@ -75,11 +76,15 @@ function titleTag(html) {
   return match ? decodeHtml(match[1].replace(/\s+/g, ' ')) : '';
 }
 
+function stripArticleNoise(fragment = '') {
+  return fragment
+    .replace(/<(script|style|noscript|svg|canvas|template)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<(nav|header|footer|aside|form)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<(div|section|ul)\b[^>]*(?:id|class)=["'][^"']*(?:^|[-_\s])(ad|ads|advert|advertisement|menu|nav|footer|header|related|recommend|comment|reply|share|social|privacy|cookie|banner|subscribe|promo)(?:[-_\s]|$)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, ' ');
+}
+
 function cleanArticleText(fragment = '') {
-  const stripped = fragment
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+  const stripped = stripArticleNoise(fragment)
     .replace(/<(br|p|div|section|article|h1|h2|h3|h4|h5|h6|li|blockquote)[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ');
   return decodeHtml(stripped)
@@ -89,14 +94,57 @@ function cleanArticleText(fragment = '') {
     .trim();
 }
 
+function findArticleBody(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = findArticleBody(item);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof value !== 'object') return null;
+  if (typeof value.articleBody === 'string' && value.articleBody.trim().length >= 120) return value.articleBody;
+  if (value['@graph']) {
+    const found = findArticleBody(value['@graph']);
+    if (found) return found;
+  }
+  for (const child of Object.values(value)) {
+    const found = findArticleBody(child);
+    if (found) return found;
+  }
+  return null;
+}
+
+function extractJsonLdArticleBody(html) {
+  const scripts = html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  for (const match of scripts) {
+    try {
+      const parsed = JSON.parse(match[1].trim());
+      const articleBody = findArticleBody(parsed);
+      if (articleBody) return articleBody;
+    } catch {
+      // Invalid JSON-LD should not block the normal HTML fallback.
+    }
+  }
+  return null;
+}
+
 function extractArticleText(html) {
+  const structured = extractJsonLdArticleBody(html);
+  if (structured) {
+    const text = cleanArticleText(structured);
+    if (text.length >= 120) return text.slice(0, ARTICLE_TEXT_MAX);
+  }
+
   const article = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1];
+  const commonBody = html.match(/<(?:div|section)\b[^>]*(?:id|class)=["'][^"']*(?:article[-_ ]?(?:body|content)|newsct_article|news[-_ ]content|post[-_ ]content|entry[-_ ]content|view[-_ ]content|content[-_ ]body)[^"']*["'][^>]*>([\s\S]*?)<\/(?:div|section)>/i)?.[1];
   const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
-  const candidate = article || main || '';
+  const candidate = article || commonBody || main || '';
   if (!candidate) return null;
   const text = cleanArticleText(candidate);
   if (text.length < 120) return null;
-  return text.slice(0, 8000);
+  return text.slice(0, ARTICLE_TEXT_MAX);
 }
 
 async function readLimited(response, maxBytes = 1_000_000) {
