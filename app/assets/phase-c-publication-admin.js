@@ -103,7 +103,7 @@
     }
   }
 
-  function itemCard(item, role) {
+  function itemCard(item, role, canPermanentlyDelete) {
     const card = el('article', null, 'dashboard-card phase-c-v2-card');
     card.append(el('span', `${TYPE_LABELS[item.content_type] || '홍보 글'} · ${LIFECYCLE_LABELS[item.lifecycle] || item.lifecycle}`, 'eyebrow'));
     card.append(el('h3', item.title || '제목 없음'));
@@ -122,7 +122,7 @@
 
     if (role === 'promotion_lead') {
       if (!item.pending_delete_request) actions.append(button('삭제 요청', () => requestDeletion(item), true));
-    } else if (role === 'operations_manager') {
+    } else if (role === 'operations_manager' && canPermanentlyDelete) {
       actions.append(button('영구 삭제', () => permanentDelete(item)));
     }
 
@@ -130,7 +130,7 @@
     return card;
   }
 
-  function deletionRequestCard(request, items) {
+  function deletionRequestCard(request, items, canPermanentlyDelete) {
     const card = el('article', null, 'dashboard-card phase-c-v2-card');
     card.append(el('span', '운영팀장 삭제 요청', 'eyebrow'));
     card.append(el('h3', request.content_title || '삭제 요청'));
@@ -138,7 +138,7 @@
     card.append(el('p', `요청 시각 ${formatDate(request.created_at)}`));
     const actions = el('div', null, 'quick-links');
     const item = items.find(candidate => candidate.content_id === request.content_id);
-    if (item) actions.append(button('영구 삭제', () => permanentDelete(item)));
+    if (item && canPermanentlyDelete) actions.append(button('영구 삭제', () => permanentDelete(item)));
     actions.append(button('요청 반려', () => rejectDeletion(request), true));
     card.append(actions);
     return card;
@@ -157,6 +157,7 @@
     try {
       const data = await app().rpc('get_promotion_publication_admin');
       const role = data?.role || currentRoute;
+      const canPermanentlyDelete = data?.can_permanently_delete === true;
       const items = Array.isArray(data?.items) ? data.items : [];
       const requests = Array.isArray(data?.deletion_requests) ? data.deletion_requests : [];
 
@@ -164,7 +165,9 @@
       intro.append(el('p', '홈페이지 운영', 'eyebrow'));
       intro.append(el('h1', '공개 글 관리'));
       intro.append(el('p', role === 'operations_manager'
-        ? '공개·숨김 상태를 관리하고 영구 삭제를 최종 결정합니다. 영구 삭제는 운영총괄만 가능합니다.'
+        ? (canPermanentlyDelete
+          ? '공개·숨김 상태를 관리하고 영구 삭제를 최종 결정합니다. 영구 삭제는 운영총괄+최고관리자 계정에만 열립니다.'
+          : '공개·숨김 상태와 삭제 요청을 확인할 수 있습니다. 이 계정에는 영구 삭제 권한이 없습니다.')
         : '잘못 공개된 글은 즉시 숨길 수 있습니다. 영구 삭제가 필요하면 운영총괄에게 요청하세요.'));
       intro.append(el('p', '승인이 끝난 글은 별도 홈페이지 빌드 없이 바로 공개 데이터에 들어갑니다. 새로 연 홈페이지 화면에서 즉시 확인할 수 있습니다.', 'help'));
       target.replaceChildren(intro);
@@ -173,7 +176,7 @@
         const requestSection = el('section', null, 'dashboard-section');
         requestSection.append(el('h2', `삭제 요청 ${requests.length}건`));
         const requestGrid = el('div', null, 'phase-c-v2-grid');
-        requests.forEach(request => requestGrid.append(deletionRequestCard(request, items)));
+        requests.forEach(request => requestGrid.append(deletionRequestCard(request, items, canPermanentlyDelete)));
         requestSection.append(requestGrid);
         target.append(requestSection);
       }
@@ -182,7 +185,7 @@
       section.append(el('h2', `공개 글 ${items.length}건`));
       const grid = el('div', null, 'phase-c-v2-grid');
       if (!items.length) grid.append(el('p', '현재 공개되었거나 숨김 처리된 글이 없습니다.', 'empty'));
-      items.forEach(item => grid.append(itemCard(item, role)));
+      items.forEach(item => grid.append(itemCard(item, role, canPermanentlyDelete)));
       section.append(grid);
       target.append(section);
     } catch (error) {
