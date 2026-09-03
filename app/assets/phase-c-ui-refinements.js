@@ -6,6 +6,9 @@
 
   const main = () => document.getElementById('dashboard-main');
   const route = () => window.TaejangApp?.getRoute?.();
+  const setText = (node, value) => {
+    if (node && node.textContent !== value) node.textContent = value;
+  };
 
   function loadStyles() {
     if (document.querySelector('link[data-phase-c-ui-refinements]')) return;
@@ -49,17 +52,17 @@
       if (review) review.hidden = false;
       if (myContent) myContent.hidden = true;
       if (publication) publication.hidden = false;
-      if (introHeading) introHeading.textContent = '홍보 검토';
-      if (introCopy) introCopy.textContent = '검토 대기 안건과 승인·보완·상신, 홈페이지 발행 대기를 확인합니다.';
-      if (topTitle) topTitle.textContent = '홍보 업무';
+      setText(introHeading, '홍보 검토');
+      setText(introCopy, '검토 대기 안건과 승인·보완·상신, 홈페이지 발행 대기를 확인합니다.');
+      setText(topTitle, '홍보 업무');
     } else if (promotionMode === 'write') {
       if (composer) composer.hidden = false;
       if (review) review.hidden = true;
       if (myContent) myContent.hidden = false;
       if (publication) publication.hidden = true;
-      if (introHeading) introHeading.textContent = '홍보 작성';
-      if (introCopy) introCopy.textContent = '새 홍보자료를 작성하고 내가 작성한 콘텐츠를 이어서 관리합니다.';
-      if (topTitle) topTitle.textContent = '홍보 업무';
+      setText(introHeading, '홍보 작성');
+      setText(introCopy, '새 홍보자료를 작성하고 내가 작성한 콘텐츠를 이어서 관리합니다.');
+      setText(topTitle, '홍보 업무');
     }
   }
 
