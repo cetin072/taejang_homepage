@@ -46,6 +46,7 @@ async function assertPublicHttps(raw) {
 
 function decodeHtml(value = '') {
   return value
+    .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
@@ -72,6 +73,30 @@ function meta(html, key, attr = 'property') {
 function titleTag(html) {
   const match = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   return match ? decodeHtml(match[1].replace(/\s+/g, ' ')) : '';
+}
+
+function cleanArticleText(fragment = '') {
+  const stripped = fragment
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<(br|p|div|section|article|h1|h2|h3|h4|h5|h6|li|blockquote)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ');
+  return decodeHtml(stripped)
+    .replace(/[\t\r ]+/g, ' ')
+    .replace(/\n[ ]+/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractArticleText(html) {
+  const article = html.match(/<article\b[^>]*>([\s\S]*?)<\/article>/i)?.[1];
+  const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1];
+  const candidate = article || main || '';
+  if (!candidate) return null;
+  const text = cleanArticleText(candidate);
+  if (text.length < 120) return null;
+  return text.slice(0, 8000);
 }
 
 async function readLimited(response, maxBytes = 1_000_000) {
@@ -161,12 +186,14 @@ export default async (request) => {
     const imageRaw = meta(html, 'og:image') || meta(html, 'twitter:image', 'name');
     const siteName = meta(html, 'og:site_name');
     const image = imageRaw ? new URL(imageRaw, finalUrl).toString() : null;
+    const articleText = extractArticleText(html);
     return json(200, {
       url: finalUrl.toString(),
       title: title || null,
       description: description || null,
       image,
-      site_name: siteName || null
+      site_name: siteName || null,
+      article_text: articleText
     });
   } catch (error) {
     const code = error?.name === 'AbortError' ? 'FETCH_TIMEOUT' : (error?.message || 'FETCH_FAILED');
