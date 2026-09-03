@@ -35,4 +35,13 @@
     return image;
   };
   window.TaejangAppUi = { element, text, clear, message, imageOrNotice };
+
+  // Pilot feedback improvements are intentionally isolated from the stable
+  // foundation modules so they can be reviewed and reverted as one unit.
+  if (!document.querySelector('script[data-pilot-ux]')) {
+    const script = document.createElement('script');
+    script.src = 'assets/pilot-ux-fixes.js';
+    script.dataset.pilotUx = '1';
+    document.head.append(script);
+  }
 })();
