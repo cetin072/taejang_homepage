@@ -6,23 +6,28 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
-test('worker mobile scripts parse', () => {
+test('worker mobile and optional operations scripts parse', () => {
   for (const file of [
     'app/assets/pwa-install.js',
     'app/assets/worker-mobile-v1.js',
     'app/assets/employee-common-home-v1.js',
-    'app/assets/attendance-admin.js'
+    'app/assets/attendance-admin.js',
+    'app/assets/operations-promotion-writer.js',
+    'app/assets/operations-homepage-direct.js',
+    'assets/js/homepage-live-overrides.js'
   ]) {
     assert.doesNotThrow(() => new Function(read(file)), file);
   }
 });
 
-test('app UI loads PWA, worker attendance, common employee home, and attendance admin modules', () => {
+test('app UI loads PWA, worker attendance, common employee home, attendance admin, and operations optional modules', () => {
   const source = read('app/assets/app-ui.js');
   assert.match(source, /pwa-install\.js/);
   assert.match(source, /worker-mobile-v1\.js/);
   assert.match(source, /employee-common-home-v1\.js/);
   assert.match(source, /attendance-admin\.js/);
+  assert.match(source, /operations-promotion-writer\.js/);
+  assert.match(source, /operations-homepage-direct\.js/);
 });
 
 test('worker UI remains simple and blocks abusive exception patterns', () => {
