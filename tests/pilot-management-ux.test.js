@@ -85,7 +85,7 @@ test('promotion lead review and writing views are fully separated and duplicate 
   assert.match(refinement, /myContent\.hidden = false/);
   assert.match(refinement, /publication\.hidden = true/);
   assert.match(refinement, /dashboard-intro--duplicate-title/);
-  assert.ok(refinement.includes("topTitle.textContent = '홍보 업무'"));
+  assert.ok(refinement.includes("setText(topTitle, '홍보 업무')"));
 });
 
 test('homepage content management is limited to existing-section text and photo requests', () => {
