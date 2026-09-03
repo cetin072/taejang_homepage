@@ -9,6 +9,8 @@ const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'),
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
 const attendanceAdmin = fs.readFileSync(path.join(root, 'app/assets/attendance-admin.js'), 'utf8');
+const operationsWriter = fs.readFileSync(path.join(root, 'app/assets/operations-promotion-writer.js'), 'utf8');
+const operationsHomepage = fs.readFileSync(path.join(root, 'app/assets/operations-homepage-direct.js'), 'utf8');
 
 class Hub {
   constructor() { this.listeners = new Map(); }
@@ -210,7 +212,7 @@ test('promotion lead sidebar clicks review, write and business planning, then re
   assert.equal(qa.document.getElementById('desktop-page-title').textContent, '운영팀장 대시보드');
 });
 
-test('operations manager clicks every internal sidebar menu and dashboard always restores', async () => {
+test('operations manager clicks every core internal sidebar menu and dashboard always restores', async () => {
   const qa = await makeDashboard('operations_manager');
   assert.deepEqual(menuLabels(qa.nav), [
     '대시보드', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '작업 매뉴얼', '홈페이지'
@@ -234,6 +236,15 @@ test('operations manager clicks every internal sidebar menu and dashboard always
     await nextTurn();
     assert.equal(qa.main.hidden, false, `${label} -> 대시보드 should restore dashboard`);
   }
+});
+
+test('operations optional authoring and direct homepage editing stay operations-only sidebar tools', () => {
+  assert.match(operationsWriter, /route\(\) !== 'operations_manager'/);
+  assert.match(operationsWriter, /node\.textContent = '홍보 글 작성'/);
+  assert.match(operationsHomepage, /route\(\) !== 'operations_manager'/);
+  assert.match(operationsHomepage, /node\.textContent = '홈페이지 직접 수정'/);
+  assert.doesNotMatch(operationsWriter, /dashboard-card[^\n]*홍보 글 작성/);
+  assert.doesNotMatch(operationsHomepage, /dashboard-card[^\n]*홈페이지 직접 수정/);
 });
 
 test('super admin and CEO menu contracts remain navigable', async () => {
