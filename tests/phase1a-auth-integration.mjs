@@ -239,7 +239,7 @@ const grantSecondAdmin = await rpc('set_profile_roles', admin.token, {
   p_role_codes: ['super_admin', 'operations_manager'],
   p_reason_summary: 'CI 두 번째 운영총괄 겸 최고관리자 지정',
 });
-equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active highest-authority account can hold super admin and operations manager together');
+equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active super admin can be granted; highest-authority pilot accounts also retain operations manager');
 
 const revokeFirstAdmin = await rpc('set_profile_roles', admin.token, {
   p_target_profile_id: admin.id,
