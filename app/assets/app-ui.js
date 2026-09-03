@@ -63,5 +63,6 @@
   loadOnce('assets/phase-c-role-simulation.js', 'phase-c-role-simulation');
   loadOnce('assets/employee-common-home-v1.js', 'employee-common-home-v1');
   loadOnce('assets/employee-management.js', 'employee-management');
+  loadOnce('assets/menu-status.js', 'menu-status');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
