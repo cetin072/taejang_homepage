@@ -22,9 +22,10 @@ test('public export is allow-listed, checksummed, and removes internal fields', 
   artifact.checksum = 'broken'; assert.throws(() => exporter.validateCandidate(artifact), /checksum/i);
 });
 
-test('promotion staff composer keeps risk routing system-managed and supports edit, preview, and PHOTO slots', () => {
+test('promotion composer keeps risk routing system-managed and supports staff and lead authoring', () => {
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
-  for (const label of ['새 콘텐츠 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '직원용 미리보기', '최근 활동 대표사진']) assert.match(workspace, new RegExp(label));
+  for (const label of ['새 홍보자료 작성', '사람이 나온 사진', '숫자·금액 포함', '잘 모르겠음', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '작성본 미리보기', '최근 활동 대표사진']) assert.match(workspace, new RegExp(label));
+  assert.match(workspace, /const canWrite = role === 'promotion_staff' \|\| role === 'promotion_lead'/);
   assert.match(workspace, /for \(let index = 1; index <= 11; index \+= 1\)/);
   assert.match(workspace, /`PHOTO \$\{String\(index\)\.padStart\(2, '0'\)\}`/);
   assert.match(workspace, /slot: 'RECENT'/);
@@ -46,10 +47,15 @@ test('role review UI follows Contract v1: CEO rejection, structured escalation, 
   assert.doesNotMatch(workspace, /if \(role === 'promotion_lead'\)[^\n]*검토 보류/);
 });
 
-test('promotion routes have explicit role copy without joining generic manager write permissions', () => {
+test('promotion routes prioritize review, keep manual navigation explicit, and separate new business planning', () => {
   const shell = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
+  const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
   assert.match(shell, /promotion_lead: \['홍보팀장 대시보드'/);
   assert.match(shell, /promotion_staff: \['홍보직원 대시보드'/);
+  assert.match(shell, /홍보 검토 대기/);
+  assert.match(shell, /신규 사업 기획/);
+  assert.match(shell, /작업 매뉴얼/);
+  assert.doesNotMatch(workspace, /신규 사업기획/);
   const managerSet = shell.match(/managerRoles = new Set\(\[([^\]]+)\]\)/)?.[1] || '';
   assert.doesNotMatch(managerSet, /promotion_lead|promotion_staff/);
 });
