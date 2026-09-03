@@ -50,7 +50,7 @@ test('role review UI follows Contract v1: CEO rejection, structured escalation, 
 test('promotion routes prioritize review, keep manual navigation explicit, and separate new business planning', () => {
   const shell = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
-  assert.match(shell, /promotion_lead: \['홍보팀장 대시보드'/);
+  assert.match(shell, /promotion_lead: \['운영팀장 대시보드'/);
   assert.match(shell, /promotion_staff: \['홍보직원 대시보드'/);
   assert.match(shell, /홍보 검토 대기/);
   assert.match(shell, /신규 사업 기획/);
