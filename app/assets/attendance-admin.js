@@ -101,14 +101,14 @@
       const intro = el('header', null, 'dashboard-intro');
       const back = el('button', '대시보드로', 'button button-quiet'); back.type = 'button';
       back.addEventListener('click', () => document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh')));
-      intro.append(el('p', '운영팀장 담당', 'eyebrow'), el('h2', '오늘 출근부'), el('p', '일반직원의 GPS 출퇴근과 예외 요청만 확인합니다. 직원이 같은 출퇴근 건으로 반복 요청하는 것은 서버에서 차단됩니다.'), back);
+      intro.append(el('p', '운영팀장 담당', 'eyebrow'), el('h2', '오늘 출근부'), el('p', '출퇴근 대상 직원의 GPS 기록과 예외 요청을 확인합니다. 직원이 같은 출퇴근 건으로 반복 요청하는 것은 서버에서 차단됩니다.'), back);
 
       const summary = el('section', null, 'attendance-summary');
       summary.append(summaryCard('대상 직원', rows.length), summaryCard('출근 완료', inCount), summaryCard('확인 필요', pendingCount), summaryCard('퇴근 완료', outCount));
       if (missingCount) summary.append(summaryCard('아직 미출근', missingCount));
 
       const list = el('section', null, 'attendance-list');
-      if (!rows.length) list.append(el('p', '일반직원 계정이 아직 없습니다.', 'empty'));
+      if (!rows.length) list.append(el('p', '현재 출퇴근 대상 직원 계정이 없습니다.', 'empty'));
       rows.forEach(row => {
         const line = el('article', null, 'attendance-row');
         line.append(el('div', row.display_name || '직원', 'attendance-person'), cell('출근', row.clock_in), cell('퇴근', row.clock_out));
@@ -136,7 +136,7 @@
     const grid = main()?.querySelector('.dashboard-grid');
     if (!grid || grid.querySelector('[data-attendance-card]')) return;
     const card = el('article', null, 'dashboard-card'); card.dataset.attendanceCard = '1';
-    card.append(el('span', '현재 담당 업무', 'status-label'), el('h3', '오늘 출근부'), el('p', '일반직원 출퇴근과 GPS 예외 요청을 확인합니다.'));
+    card.append(el('span', '현재 담당 업무', 'status-label'), el('h3', '오늘 출근부'), el('p', '출퇴근 대상 직원의 GPS 기록과 예외 요청을 확인합니다.'));
     const button = el('button', '출근부 열기', 'button button-quiet'); button.type = 'button'; button.addEventListener('click', openAttendance);
     card.append(button); grid.prepend(card);
   }
