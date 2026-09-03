@@ -8,11 +8,14 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const v2Path = path.join(root, 'app/assets/phase-c-workspace-v2.js');
 const roleLabelsPath = path.join(root, 'app/assets/phase-c-role-labels.js');
+const accountApprovalPath = path.join(root, 'app/assets/phase-c-account-approval.js');
 const appUiPath = path.join(root, 'app/assets/app-ui.js');
 const routingPath = path.join(root, 'staff/assets/auth-routing.js');
+const signupHtmlPath = path.join(root, 'staff/index.html');
 const dashboardPath = path.join(root, 'app/assets/dashboard-shell.js');
 const storagePath = path.join(root, 'supabase/migrations/20260903190000_phase_c_promotion_media_storage.sql');
 const renamePath = path.join(root, 'supabase/migrations/20260903201500_rename_promotion_lead_display_name.sql');
+const signupApprovalSqlPath = path.join(root, 'supabase/migrations/20260903210000_phase_c_signup_approval_chain.sql');
 const configPath = path.join(root, 'supabase/config.toml');
 
 function syntax(file) {
@@ -23,10 +26,12 @@ function syntax(file) {
 test('Phase C workspace V2 compiles and is the only loaded Phase C workspace overlay', () => {
   syntax(v2Path);
   syntax(roleLabelsPath);
+  syntax(accountApprovalPath);
   syntax(appUiPath);
   const appUi = fs.readFileSync(appUiPath, 'utf8');
   assert.match(appUi, /phase-c-workspace-v2\.js/);
   assert.match(appUi, /phase-c-role-labels\.js/);
+  assert.match(appUi, /phase-c-account-approval\.js/);
   for (const legacy of ['pilot-ux-fixes.js', 'homepage-change-requests.js', 'phase-c-ui-refinements.js', 'phase-c-workflow-navigation.js', 'phase-c-ux-simplification.js']) {
     assert.doesNotMatch(appUi, new RegExp(legacy.replaceAll('.', '\\.')));
   }
@@ -60,6 +65,22 @@ test('promotion lead keeps its stable permission code while displaying as 운영
   assert.match(rename, /where code = 'promotion_lead'/);
   assert.match(rename, /name = '운영팀장'/);
   assert.doesNotMatch(rename, /code\s*=\s*'operations_manager'/);
+});
+
+test('signup applicants choose no role and operations manager alone assigns pilot permissions', () => {
+  const html = fs.readFileSync(signupHtmlPath, 'utf8');
+  const ui = fs.readFileSync(accountApprovalPath, 'utf8');
+  const sql = fs.readFileSync(signupApprovalSqlPath, 'utf8');
+
+  assert.doesNotMatch(html, /requested_role_code/);
+  assert.match(ui, /route\(\) !== 'operations_manager'/);
+  assert.match(ui, /p_role_code/);
+  assert.match(ui, /운영총괄 고유 권한/);
+  assert.doesNotMatch(ui, /promotion_lead.*가입 승인/);
+  assert.match(sql, /current_user_has_role\('operations_manager'\)/);
+  assert.match(sql, /p_role_code text/);
+  assert.match(sql, /'promotion_staff', 'promotion_lead'/);
+  assert.doesNotMatch(sql, /requested_role_code/);
 });
 
 test('promotion and homepage image uploads use declarative restricted promotion-media storage', () => {
