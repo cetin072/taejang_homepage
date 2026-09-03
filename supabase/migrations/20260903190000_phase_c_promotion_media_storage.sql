@@ -1,19 +1,7 @@
--- Phase C: public media bucket for promotion/homepage images.
+-- Phase C: promotion/homepage media upload policy.
+-- The promotion-media bucket itself is declared in supabase/config.toml.
 -- Upload is limited to authenticated promotion staff/leads and their own folder.
 begin;
-
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'promotion-media',
-  'promotion-media',
-  true,
-  8388608,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-)
-on conflict (id) do update
-set public = excluded.public,
-    file_size_limit = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "promotion media upload" on storage.objects;
 create policy "promotion media upload"
