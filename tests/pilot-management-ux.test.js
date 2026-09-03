@@ -7,9 +7,12 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const overlayPath = path.join(root, 'app/assets/pilot-ux-fixes.js');
+const refinementPath = path.join(root, 'app/assets/phase-c-ui-refinements.js');
+const homepageUiPath = path.join(root, 'app/assets/homepage-change-requests.js');
 const metaPath = path.join(root, 'netlify/functions/external-content-meta.mjs');
 const enumSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121500_phase_c_review_withdrawn_decision.sql'), 'utf8');
 const uxSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903121600_phase_c_pilot_review_ux.sql'), 'utf8');
+const homepageSql = fs.readFileSync(path.join(root, 'supabase/migrations/20260903154500_phase_c_homepage_change_requests.sql'), 'utf8');
 
 function checkSyntax(file) {
   const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
@@ -18,6 +21,8 @@ function checkSyntax(file) {
 
 test('pilot UX scripts compile', () => {
   checkSyntax(overlayPath);
+  checkSyntax(refinementPath);
+  checkSyntax(homepageUiPath);
   checkSyntax(metaPath);
 });
 
@@ -52,9 +57,12 @@ test('staff and promotion lead composer remove technical fields and external con
     '링크 정보 자동 가져오기', "['promotion_staff', 'promotion_lead']", '게시 위치:'
   ]) assert.ok(source.includes(marker), `missing staff UX marker: ${marker}`);
   const meta = fs.readFileSync(metaPath, 'utf8');
-  for (const marker of ['dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image', 'PAGE_TOO_LARGE']) {
+  for (const marker of ['dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image', 'PAGE_TOO_LARGE', 'extractArticleText', 'article_text']) {
     assert.ok(meta.includes(marker), `missing metadata safety marker: ${marker}`);
   }
+  const refinement = fs.readFileSync(refinementPath, 'utf8');
+  assert.match(refinement, /metadata\.article_text/);
+  assert.match(refinement, /body\.value\.trim\(\)/);
 });
 
 test('promotion review enhancement is idempotent to prevent review and publication flicker', () => {
@@ -62,4 +70,34 @@ test('promotion review enhancement is idempotent to prevent review and publicati
   assert.match(source, /querySelector\('\[data-pilot-review-section\]'\)\) return/);
   assert.match(source, /needsReview/);
   assert.match(source, /promotion-form:not\(\[data-pilot-simplified\]\)/);
+});
+
+test('promotion lead review and writing views are visually separated and duplicate dashboard title is suppressed', () => {
+  const refinement = fs.readFileSync(refinementPath, 'utf8');
+  assert.match(refinement, /promotionMode === 'review'/);
+  assert.match(refinement, /composer\.hidden = true/);
+  assert.match(refinement, /promotionMode === 'write'/);
+  assert.match(refinement, /review\.hidden = true/);
+  assert.match(refinement, /dashboard-intro--duplicate-title/);
+});
+
+test('homepage content management is limited to existing-section text and photo requests', () => {
+  for (const marker of [
+    'homepage_change_requests',
+    "change_kind in ('text', 'image')",
+    'create_homepage_change_request',
+    'get_homepage_change_requests',
+    'review_homepage_change_request',
+    "current_user_has_role('promotion_lead')",
+    "current_user_has_role('operations_manager')",
+    'private_append_audit'
+  ]) assert.ok(homepageSql.includes(marker), `missing homepage SQL marker: ${marker}`);
+  assert.doesNotMatch(homepageSql, /section_content/);
+  assert.match(homepageSql, /revoke all on table public\.homepage_change_requests from public, anon, authenticated/i);
+
+  const ui = fs.readFileSync(homepageUiPath, 'utf8');
+  for (const marker of ['홈페이지 내용 관리', '글 수정', '사진 수정', '현재 섹션', '총괄이사에게 수정 요청', '최종 승인']) {
+    assert.ok(ui.includes(marker), `missing homepage UI marker: ${marker}`);
+  }
+  assert.doesNotMatch(ui, /섹션 추가|섹션 삭제/);
 });
