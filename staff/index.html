@@ -75,7 +75,7 @@
     </section>
 
     <section id="recovery-panel" class="panel auth-panel" hidden aria-labelledby="recovery-title">
-      <button class="text-button" type="button" data-back-to-start>← 로그인</button>
+      <button id="recovery-back" class="text-button" type="button">← 로그인</button>
       <h2 id="recovery-title">비밀번호 재설정</h2>
       <p class="help">가입할 때 사용한 이메일 주소를 입력하세요. 등록된 계정이면 비밀번호 재설정 메일이 발송됩니다.</p>
       <form id="recovery-form" novalidate>
@@ -129,6 +129,7 @@
   </main>
   <script src="assets/auth-routing.js"></script>
   <script src="assets/staff.js" defer></script>
+  <script src="assets/password-recovery.js" defer></script>
   <script src="assets/login-entry.js" defer></script>
 </body>
 </html>
