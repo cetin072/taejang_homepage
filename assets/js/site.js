@@ -17,7 +17,7 @@
     document.head.append(link);
   });
 
-  const SHOW_EMPLOYEE_ENTRY = false;
+  const SHOW_EMPLOYEE_ENTRY = true;
   const PUBLIC_EMAIL = 'taejang2025@naver.com';
   const OPENING_DATE = '2026-08-12';
   const OPENING_HIDDEN_FROM = '2026-08-13';
