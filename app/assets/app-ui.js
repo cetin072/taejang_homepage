@@ -52,4 +52,5 @@
   loadOnce('assets/phase-c-ui-refinements.js', 'phase-c-ui-refinements');
   loadOnce('assets/phase-c-workflow-navigation.js', 'phase-c-workflow-navigation');
   loadOnce('assets/phase-c-ux-simplification.js', 'phase-c-ux-simplification');
+  loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
 })();
