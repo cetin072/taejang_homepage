@@ -42,7 +42,7 @@ test('operations can optionally author posts and external links but submission s
   assert.match(writer, /submit_operations_promotion_revision/);
   assert.match(writer, /기존 운영팀장 검토 흐름/);
   assert.match(authoringMigration, /current_user_has_role\('operations_manager'\)/);
-  assert.match(authoringMigration, /insert into public\.promotion_review_requests[\s\S]*'lead'/);
+  assert.match(authoringMigration, /insert into public\.promotion_review_requests[\s\S]*values \(revision_row\.id, 'lead', actor_id\)/);
   assert.doesNotMatch(authoringMigration, /set lifecycle = 'published'/);
 });
 
