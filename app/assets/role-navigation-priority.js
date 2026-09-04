@@ -63,6 +63,13 @@
     target.setAttribute('aria-current', 'page');
   }
 
+  function markDashboardCurrent() {
+    const nav = document.getElementById('app-nav');
+    if (!nav) return;
+    const dashboard = [...nav.children].find(node => cleanLabel(node) === '대시보드');
+    if (dashboard) updateCurrent(dashboard);
+  }
+
   function reorder() {
     scheduled = false;
     const nav = document.getElementById('app-nav');
@@ -112,7 +119,7 @@
   }
 
   document.addEventListener('taejang-app-ready', () => setTimeout(() => { bind(); schedule(); }, 180));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(schedule, 180));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(() => { schedule(); markDashboardCurrent(); }, 180));
 
   const start = () => { bind(); schedule(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
