@@ -57,5 +57,6 @@ test('notice authoring keeps a short default form and moves optional fields into
     'notice-related-schedule', 'notice-requires-ack', 'notice-materials',
     'notice-link-url', 'notice-reason'
   ]) assert.ok(source.includes(`'${id}'`), `missing advanced notice field ${id}`);
-  assert.match(source, /reason\.value = byId\('notice-id'\)\?\.value \? '공지 수정' : '공지 작성'/);
+  assert.match(source, /reason\.value = '공지 작성·수정'/);
+  assert.match(source, /form\.addEventListener\('reset',[\s\S]*seedReason/);
 });
