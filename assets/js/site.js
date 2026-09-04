@@ -45,6 +45,10 @@
     ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
   ];
 
+  function employeeEntryEnabled() {
+    return SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT;
+  }
+
   function getSeoulDateKey(date) {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Seoul',
@@ -83,24 +87,62 @@
     contentLinks.slice(1).forEach(link => link.remove());
   }
 
+  function normalizedHref(link) {
+    return (link.getAttribute('href') || '')
+      .split(/[?#]/)[0]
+      .replace(/^\.\//, '')
+      .replace(/^\//, '');
+  }
+
   function normalizeHeaderNavigation() {
     const page = currentPageName();
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
       const isDesktop = nav.classList.contains('desktop-nav');
-      nav.replaceChildren();
+      const existing = [...nav.querySelectorAll(':scope > a')];
+      let previous = null;
 
       PUBLIC_NAV_LINKS.forEach(([href, label, className]) => {
-        const link = document.createElement('a');
+        const targetPage = href.split('#')[0] || 'index.html';
+        let link = existing.find(candidate => {
+          if (candidate.classList.contains('staff-nav')) return false;
+          return normalizedHref(candidate) === targetPage || candidate.textContent.trim() === label;
+        });
+
+        if (!link) {
+          link = document.createElement('a');
+          if (previous?.nextSibling) nav.insertBefore(link, previous.nextSibling);
+          else if (previous) nav.appendChild(link);
+          else nav.prepend(link);
+        }
+
         link.href = hrefForCurrentPage(href, page);
         link.textContent = label;
+        link.removeAttribute('aria-current');
         if (isDesktop && className) link.classList.add(className);
+        else link.classList.remove('nav-cta');
+        if (isCurrentNavigationTarget(page, targetPage, href)) link.setAttribute('aria-current', 'page');
 
-        const targetPage = href.split('#')[0] || 'index.html';
-        if (isCurrentNavigationTarget(page, targetPage, href)) {
-          link.setAttribute('aria-current', 'page');
-        }
-        nav.appendChild(link);
+        const expected = previous ? previous.nextElementSibling : nav.firstElementChild;
+        if (expected !== link) nav.insertBefore(link, expected || null);
+        previous = link;
       });
+
+      let staffLink = existing.find(candidate => candidate.classList.contains('staff-nav') || normalizedHref(candidate) === 'staff/');
+      if (employeeEntryEnabled()) {
+        if (!staffLink) staffLink = document.createElement('a');
+        staffLink.href = 'staff/';
+        staffLink.textContent = '임직원';
+        staffLink.classList.add('staff-nav');
+        staffLink.classList.remove('nav-cta');
+        staffLink.removeAttribute('aria-current');
+        staffLink.setAttribute('aria-label', '임직원 페이지');
+        const expected = previous ? previous.nextElementSibling : nav.firstElementChild;
+        if (expected !== staffLink) nav.insertBefore(staffLink, expected || null);
+        previous = staffLink;
+      } else if (staffLink) {
+        staffLink.remove();
+      }
+
       ensureContentHubLink(nav);
     });
   }
@@ -161,7 +203,7 @@
         footerLegal.appendChild(document.createTextNode(' · '));
         const staffLogin = document.createElement('a');
         staffLogin.href = 'staff/';
-        staffLogin.textContent = '임직원 로그인';
+        staffLogin.textContent = '임직원';
         staffLogin.dataset.footerStaffLogin = '';
         footerLegal.appendChild(staffLogin);
       }
@@ -185,36 +227,6 @@
   }
 
   normalizeHeaderNavigation();
-
-  if (SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT) {
-    const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
-    document.querySelectorAll('.desktop-nav').forEach(nav => {
-      let link = nav.querySelector('.staff-nav, a[href="staff/"]');
-      if (!link) {
-        link = document.createElement('a');
-        link.href = 'staff/';
-        const contact = nav.querySelector('.nav-cta');
-        nav.insertBefore(link, contact || null);
-      }
-      link.classList.add('staff-nav');
-      link.setAttribute('aria-label', '임직원 로그인');
-      link.innerHTML = employeeIcon;
-    });
-
-    document.querySelectorAll('[data-mobile-nav]').forEach(nav => {
-      let link = nav.querySelector('a[href="staff/"]');
-      if (!link) {
-        link = document.createElement('a');
-        link.href = 'staff/';
-        const contact = [...nav.querySelectorAll('a')].find(candidate => candidate.getAttribute('href')?.includes('#contact'));
-        nav.insertBefore(link, contact || null);
-      }
-      link.setAttribute('aria-label', '임직원 로그인');
-      link.innerHTML = employeeIcon;
-    });
-  } else {
-    document.querySelectorAll('.staff-nav, a[href="staff/"], a[href$="/staff/"]').forEach(link => link.remove());
-  }
 
   document.querySelectorAll('a[href="resources.html"]').forEach(link => link.remove());
   normalizeFooter();
