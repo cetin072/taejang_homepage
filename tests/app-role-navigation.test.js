@@ -146,13 +146,15 @@ test('base role menus remain clickable before final priority sorting', async () 
   }
 });
 
-test('central navigation keeps operations approvals first and attendance in low-priority tools', () => {
+test('central navigation groups menus by work category and keeps manuals before official channels', () => {
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '홍보 검토', '홈페이지 내용 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '출근부', '홈페이지']);
+  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '출근부', '작업 매뉴얼', '홈페이지']);
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '출근부', '홍보 검토', '홍보 작성', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
-  assert.match(navPriority, /label:\s*'승인·관리'[\s\S]*'가입 승인'[\s\S]*'직원 관리'/);
-  assert.match(navPriority, /label:\s*'조회·도구'[\s\S]*'작업 매뉴얼'[\s\S]*'출근부'/);
+  assertOrdered(leadBlock, ['대시보드', '홍보 검토', '홍보 작성', '홍보 글 관리', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '홈페이지 내용 관리', '출근부', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
+  assert.match(navPriority, /label:\s*'인사·계정'[\s\S]*'가입 승인'[\s\S]*'직원 관리'/);
+  assert.match(navPriority, /label:\s*'홍보·홈페이지'[\s\S]*'홍보 검토'[\s\S]*'홍보 글 관리'/);
+  assert.match(navPriority, /label:\s*'공지·안내'[\s\S]*'공지 관리'[\s\S]*'상시 안내 관리'/);
+  assert.match(navPriority, /label:\s*'업무 참고'[\s\S]*'작업 매뉴얼'/);
   assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
   assert.match(navPriority, /return 10000/);
   assert.match(navPriority, /app-nav-checking-first/);
