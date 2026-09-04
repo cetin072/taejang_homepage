@@ -33,6 +33,7 @@ on:
       - "tests/operations-homepage-direct.test.js"
       - "tests/employee-identity-foundation.test.js"
       - "tests/operations-recoverable-delete.test.js"
+      - "tests/internal-app-ia.test.js"
   workflow_dispatch:
 
 permissions:
@@ -58,7 +59,7 @@ jobs:
           version: 2.109.1
 
       - name: Run static security checks
-        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/staff-password-recovery.test.js tests/general-worker-today-board.test.js tests/staff-schedules-notices.test.js tests/frequent-staff-guidance.test.js tests/promotion-phase-c.test.js tests/pilot-management-ux.test.js tests/phase-c-workspace-v2.test.js tests/phase-c-live-publication.test.js tests/worker-mobile-attendance.test.js tests/app-role-navigation.test.js tests/operations-homepage-direct.test.js tests/employee-identity-foundation.test.js tests/operations-recoverable-delete.test.js
+        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/staff-password-recovery.test.js tests/general-worker-today-board.test.js tests/staff-schedules-notices.test.js tests/frequent-staff-guidance.test.js tests/promotion-phase-c.test.js tests/pilot-management-ux.test.js tests/phase-c-workspace-v2.test.js tests/phase-c-live-publication.test.js tests/worker-mobile-attendance.test.js tests/app-role-navigation.test.js tests/operations-homepage-direct.test.js tests/employee-identity-foundation.test.js tests/operations-recoverable-delete.test.js tests/internal-app-ia.test.js
 
       - name: Start isolated local Supabase
         run: supabase start
