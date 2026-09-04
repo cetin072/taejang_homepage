@@ -7,13 +7,13 @@
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
   const array = value => Array.isArray(value) ? value : [];
   const routeCopy = {
-    super_admin: ['시스템 관리 대시보드', '계정 승인과 현재 운영 정보를 안전하게 확인하세요.'],
-    ceo: ['대표이사 요약', '중요 공지와 주요 일정부터 간결하게 확인하세요.'],
-    operations_manager: ['운영총괄 대시보드', '승인과 오늘 처리할 핵심 항목부터 확인하세요.'],
-    department_lead: ['부서 운영 대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
-    field_lead: ['현장 실행 홈', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
-    promotion_lead: ['운영팀장 대시보드', '출근부·팀 직원·홍보 검토 등 오늘의 우선 업무부터 확인하세요.'],
-    promotion_staff: ['홍보직원 대시보드', '보완 요청과 콘텐츠 작성·승인 요청을 한 화면에서 처리하세요.']
+    super_admin: ['대시보드', '계정 승인과 현재 운영 정보를 안전하게 확인하세요.'],
+    ceo: ['대시보드', '중요 공지와 주요 일정부터 간결하게 확인하세요.'],
+    operations_manager: ['대시보드', '승인과 오늘 처리할 핵심 항목부터 확인하세요.'],
+    department_lead: ['대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
+    field_lead: ['대시보드', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
+    promotion_lead: ['대시보드', '출근부·홍보 검토·홍보 작성 등 오늘의 우선 업무부터 확인하세요.'],
+    promotion_staff: ['대시보드', '보완 요청과 콘텐츠 작성·승인 요청을 한 화면에서 처리하세요.']
   };
   const topbarCopy = {
     super_admin: '시스템 관리',
@@ -37,6 +37,8 @@
   function setDashboardTopbar(route) {
     const title = el('desktop-page-title');
     if (title) title.textContent = topbarCopy[route] || '업무';
+    const label = el('desktop-role-label');
+    if (label) { label.textContent = ''; label.hidden = true; }
   }
   function goDashboard() {
     closeSidebar();
@@ -48,7 +50,8 @@
     closeSidebar();
     const main = el('dashboard-main');
     if (!main) return;
-    el('desktop-page-title').textContent = '신규 사업 기획';
+    const route = window.TaejangApp?.getRoute?.();
+    if (route) setDashboardTopbar(route);
     const intro = document.createElement('header'); intro.className = 'dashboard-intro';
     intro.append(text('p', '홍보팀 · 점검중', 'eyebrow'), text('h2', '신규 사업 기획'), text('p', '신규 사업 기획 기능은 아직 연결 전입니다. 현재는 다른 실제 업무 메뉴를 이용해 주세요.'));
     intro.append(button('대시보드로', goDashboard));
@@ -109,7 +112,7 @@
     const route = window.TaejangApp?.getRoute?.(); if (!route || route === worker) return;
     const main = el('dashboard-main'); main.replaceChildren(text('p', '현재 정보를 불러오고 있습니다.', 'message'));
     const { schedules, notices, pending, promotion } = await dashboardData(route);
-    const [heading, copy] = routeCopy[route] || ['업무 안내', '현재 사용할 수 있는 업무 정보를 확인하세요.'];
+    const [heading, copy] = routeCopy[route] || ['대시보드', '현재 사용할 수 있는 업무 정보를 확인하세요.'];
     setDashboardTopbar(route);
     main.replaceChildren();
     const intro = document.createElement('header'); intro.className = 'dashboard-intro';
@@ -158,7 +161,6 @@
   function setup(event) {
     const route = event.detail.route; if (route === worker) return;
     el('desktop-app-shell').hidden = false;
-    el('desktop-role-label').textContent = '태장 업무플랫폼';
     setDashboardTopbar(route);
     el('desktop-user-label').textContent = `${window.TaejangApp.getContext().display_name || '사용자'} · ${event.detail.label}`;
     menu(route);

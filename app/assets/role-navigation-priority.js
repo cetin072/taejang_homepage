@@ -3,17 +3,17 @@
 
   const ROLE_ORDER = {
     promotion_staff: [
-      '대시보드', '홍보 작성', '공식 블로그', '공식 유튜브', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
+      '대시보드', '홍보 작성', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
     ],
     promotion_lead: [
-      '대시보드', '출근부', '팀 직원 관리', '홍보 검토', '홍보 작성', '공식 블로그', '공식 유튜브', '업무 배정',
+      '대시보드', '출근부', '홍보 검토', '홍보 작성', '팀 직원 관리', '업무 배정',
       '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지',
       '신규 사업 기획'
     ],
     operations_manager: [
-      '대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정',
-      '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성',
-      '홈페이지 직접 수정', '공식 블로그', '공식 유튜브', '작업 매뉴얼', '홈페이지'
+      '대시보드', '가입 승인', '직원 관리', '홍보 검토', '글 관리', '홈페이지 내용 관리', '업무 배정',
+      '일정 관리', '공지 관리', '안내 관리', '홍보 글 작성', '홈페이지 직접 수정',
+      '작업 매뉴얼', '출근부', '홈페이지'
     ],
     department_lead: [
       '대시보드', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리',
@@ -29,6 +29,38 @@
     ]
   };
 
+  const ROLE_SECTIONS = {
+    promotion_staff: [
+      { label: '주요 업무', items: ['홍보 작성'] },
+      { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
+    ],
+    promotion_lead: [
+      { label: '오늘 업무', items: ['출근부', '홍보 검토', '홍보 작성'] },
+      { label: '팀 운영', items: ['팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼'] }
+    ],
+    operations_manager: [
+      { label: '승인·관리', items: ['가입 승인', '직원 관리', '홍보 검토', '글 관리', '홈페이지 내용 관리'] },
+      { label: '업무 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '출근부'] }
+    ],
+    department_lead: [
+      { label: '팀 운영', items: ['팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
+    ],
+    field_lead: [
+      { label: '현장 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
+    ],
+    ceo: [
+      { label: '승인·검토', items: ['홍보 검토'] }
+    ],
+    super_admin: [
+      { label: '시스템 관리', items: ['계정 승인'] },
+      { label: '업무 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
+    ]
+  };
+
   const CHECKING = new Set(['신규 사업 기획']);
   let scheduled = false;
 
@@ -36,6 +68,7 @@
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
 
   function priority(node, role) {
+    if (node.dataset?.navSection === 'official_channels') return 9000;
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
     const order = ROLE_ORDER[role] || [];
@@ -46,6 +79,7 @@
   }
 
   function markStatus(node) {
+    if (node.dataset?.navSection === 'official_channels') return;
     const label = cleanLabel(node);
     if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
     const markedLabel = `${label} · 점검중`;
@@ -53,6 +87,23 @@
     node.classList.add('app-nav-checking');
     if ((node.textContent || '').trim() !== markedLabel) node.textContent = markedLabel;
     node.title = '현재 기능 점검중입니다.';
+  }
+
+  function decorateSections(nodes, role) {
+    nodes.forEach(node => {
+      node.classList.remove('app-nav-section-start');
+      delete node.dataset.sectionLabel;
+    });
+
+    const sections = ROLE_SECTIONS[role] || [];
+    sections.forEach(section => {
+      const first = section.items
+        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && cleanLabel(node) === label))
+        .find(Boolean);
+      if (!first) return;
+      first.classList.add('app-nav-section-start');
+      first.dataset.sectionLabel = section.label;
+    });
   }
 
   function updateCurrent(target) {
@@ -78,7 +129,7 @@
 
     const children = [...nav.children];
     children.forEach(node => {
-      node.classList.add('app-nav-item');
+      if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
       markStatus(node);
     });
 
@@ -93,6 +144,8 @@
       desired.forEach(node => fragment.append(node));
       nav.append(fragment);
     }
+
+    decorateSections(desired, currentRole);
 
     const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
     desired.forEach(node => node.classList.remove('app-nav-checking-first'));
@@ -125,5 +178,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, reorder };
 })();

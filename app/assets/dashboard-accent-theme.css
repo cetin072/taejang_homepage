@@ -104,30 +104,110 @@
   color: var(--card-accent);
 }
 
-.app-nav > a.app-nav-official-channel {
+.app-nav > .app-nav-section-start {
   position: relative;
-  font-weight: 850;
-  background: rgba(255,255,255,.045);
+  margin-top: 32px;
 }
-.app-nav > a.app-nav-official-channel::before {
+.app-nav > .app-nav-section-start::before {
+  content: attr(data-section-label);
+  position: absolute;
+  left: 10px;
+  right: 4px;
+  top: -26px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.17);
+  color: #c9d7cf;
+  font-size: .69rem;
+  font-weight: 900;
+  letter-spacing: .07em;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.app-nav-channel-group {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255,255,255,.17);
+}
+.app-nav-group-label {
+  margin: 0;
+  padding: 0 12px 4px;
+  color: #c9d7cf;
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+.app-nav-channel-group > a.app-nav-official-channel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  font-weight: 780;
+  background: rgba(255,255,255,.035);
+}
+.app-nav-channel-group > a.app-nav-official-channel::before {
   content: '';
   width: 8px;
   height: 8px;
   margin-right: 9px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+  background: var(--app-accent-gold);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.07);
   flex: 0 0 auto;
 }
-.app-nav > a.app-nav-official-channel[data-channel="blog"]::before {
+.app-nav-channel-group > a.app-nav-official-channel::after {
+  content: '↗';
+  margin-left: auto;
+  padding-left: 8px;
+  color: #d9e5dd;
+  font-size: .78rem;
+  font-weight: 800;
+  opacity: .76;
+}
+.app-nav-channel-group > a.app-nav-official-channel[data-channel="blog"]::before {
   background: #32c45d;
 }
-.app-nav > a.app-nav-official-channel[data-channel="youtube"]::before {
+.app-nav-channel-group > a.app-nav-official-channel[data-channel="youtube"]::before {
   background: #e25555;
 }
-.app-nav > a.app-nav-official-channel:hover,
-.app-nav > a.app-nav-official-channel:focus-visible {
-  background: rgba(255,255,255,.14);
+.app-nav-channel-group > a.app-nav-official-channel:hover,
+.app-nav-channel-group > a.app-nav-official-channel:focus-visible {
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  outline: 2px solid rgba(255,255,255,.55);
+  outline-offset: 1px;
+}
+.app-nav-channel-group > a.app-nav-official-channel:hover::after,
+.app-nav-channel-group > a.app-nav-official-channel:focus-visible::after {
+  color: #fff;
+  opacity: 1;
+}
+
+.app-nav > .app-nav-checking-first {
+  margin-top: 32px;
+}
+.app-nav > .app-nav-checking-first::before {
+  content: '점검중';
+  position: absolute;
+  left: 10px;
+  right: 4px;
+  top: -26px;
+  height: auto;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.17);
+  background: none;
+  color: #c9d7cf;
+  font-size: .69rem;
+  font-weight: 900;
+  letter-spacing: .07em;
+  line-height: 1;
 }
 
 .app-nav > button[aria-current="page"],

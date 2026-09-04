@@ -64,7 +64,8 @@ test('promotion lead keeps its stable permission code while displaying as 운영
   assert.match(labels, /const CURRENT = '운영팀장'/);
   assert.match(routing, /\['promotion_lead', 'promotion', '운영팀장'\]/);
   assert.match(routing, /\['promotion_staff', 'promotion', '홍보직원'\]/);
-  assert.match(dashboard, /promotion_lead: \['운영팀장 대시보드'/);
+  assert.match(dashboard, /promotion_lead: \['대시보드'/);
+  assert.match(dashboard, /promotion_lead: '운영팀장'/);
   assert.match(dashboard, /운영팀장의 우선 업무입니다/);
   assert.match(rename, /where code = 'promotion_lead'/);
   assert.match(rename, /name = '운영팀장'/);
