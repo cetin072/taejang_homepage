@@ -265,6 +265,43 @@ textarea:focus-visible {
   transform: none;
 }
 
+/* Employee access is the rightmost utility entry, separated from public navigation. */
+.desktop-nav .staff-nav {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(27, 67, 50, .22);
+  color: inherit;
+  font-size: 14px;
+}
+
+/* Legal/staff links are one touch-friendly group; legacy text-node separators are hidden. */
+.footer-bottom > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0;
+}
+
+.footer-bottom > div:last-child a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin: 0;
+  color: rgba(255, 255, 255, .58);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.footer-bottom > div:last-child a + a::before {
+  margin: 0 9px;
+  color: rgba(255, 255, 255, .34);
+  content: "·";
+  pointer-events: none;
+}
+
 @media (max-width: 760px) {
   .photo-slot {
     gap: 7px;
@@ -323,6 +360,26 @@ textarea:focus-visible {
   .about-facts div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .mobile-nav .staff-nav {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(27, 67, 50, .16);
+  }
+
+  .footer-bottom > div:last-child {
+    column-gap: 18px;
+    row-gap: 2px;
+  }
+
+  .footer-bottom > div:last-child a {
+    min-height: 44px;
+    font-size: 13px;
+  }
+
+  .footer-bottom > div:last-child a + a::before {
+    display: none;
   }
 }
 
