@@ -3,17 +3,17 @@
 
   const ROLE_ORDER = {
     promotion_staff: [
-      '대시보드', '홍보 작성', '공식 블로그', '공식 유튜브', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
+      '대시보드', '홍보 작성', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
     ],
     promotion_lead: [
-      '대시보드', '출근부', '팀 직원 관리', '홍보 검토', '홍보 작성', '공식 블로그', '공식 유튜브', '업무 배정',
+      '대시보드', '출근부', '홍보 검토', '홍보 작성', '팀 직원 관리', '업무 배정',
       '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지',
       '신규 사업 기획'
     ],
     operations_manager: [
       '대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정',
       '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성',
-      '홈페이지 직접 수정', '공식 블로그', '공식 유튜브', '작업 매뉴얼', '홈페이지'
+      '홈페이지 직접 수정', '작업 매뉴얼', '홈페이지'
     ],
     department_lead: [
       '대시보드', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리',
@@ -36,6 +36,7 @@
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
 
   function priority(node, role) {
+    if (node.dataset?.navSection === 'official_channels') return 9000;
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
     const order = ROLE_ORDER[role] || [];
@@ -46,6 +47,7 @@
   }
 
   function markStatus(node) {
+    if (node.dataset?.navSection === 'official_channels') return;
     const label = cleanLabel(node);
     if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
     const markedLabel = `${label} · 점검중`;
@@ -78,7 +80,7 @@
 
     const children = [...nav.children];
     children.forEach(node => {
-      node.classList.add('app-nav-item');
+      if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
       markStatus(node);
     });
 
