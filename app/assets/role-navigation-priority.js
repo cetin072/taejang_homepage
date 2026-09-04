@@ -11,9 +11,9 @@
       '신규 사업 기획'
     ],
     operations_manager: [
-      '대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정',
-      '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성',
-      '홈페이지 직접 수정', '작업 매뉴얼', '홈페이지'
+      '대시보드', '가입 승인', '직원 관리', '홍보 검토', '홈페이지 내용 관리', '업무 배정',
+      '일정 관리', '공지 관리', '안내 관리', '홍보 글 작성', '홈페이지 직접 수정',
+      '작업 매뉴얼', '출근부', '홈페이지'
     ],
     department_lead: [
       '대시보드', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리',
@@ -26,6 +26,38 @@
     super_admin: [
       '대시보드', '계정 승인', '업무 배정', '일정 관리', '공지 관리', '안내 관리',
       '작업 매뉴얼', '홈페이지'
+    ]
+  };
+
+  const ROLE_SECTIONS = {
+    promotion_staff: [
+      { label: '주요 업무', items: ['홍보 작성'] },
+      { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
+    ],
+    promotion_lead: [
+      { label: '오늘 업무', items: ['출근부', '홍보 검토', '홍보 작성'] },
+      { label: '팀 운영', items: ['팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼'] }
+    ],
+    operations_manager: [
+      { label: '승인·관리', items: ['가입 승인', '직원 관리', '홍보 검토', '홈페이지 내용 관리'] },
+      { label: '업무 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '출근부'] }
+    ],
+    department_lead: [
+      { label: '팀 운영', items: ['팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
+    ],
+    field_lead: [
+      { label: '현장 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
+    ],
+    ceo: [
+      { label: '승인·검토', items: ['홍보 검토'] }
+    ],
+    super_admin: [
+      { label: '시스템 관리', items: ['계정 승인'] },
+      { label: '업무 운영', items: ['업무 배정', '일정 관리', '공지 관리', '안내 관리'] },
+      { label: '조회·도구', items: ['작업 매뉴얼'] }
     ]
   };
 
@@ -55,6 +87,23 @@
     node.classList.add('app-nav-checking');
     if ((node.textContent || '').trim() !== markedLabel) node.textContent = markedLabel;
     node.title = '현재 기능 점검중입니다.';
+  }
+
+  function decorateSections(nodes, role) {
+    nodes.forEach(node => {
+      node.classList.remove('app-nav-section-start');
+      delete node.dataset.sectionLabel;
+    });
+
+    const sections = ROLE_SECTIONS[role] || [];
+    sections.forEach(section => {
+      const first = section.items
+        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && cleanLabel(node) === label))
+        .find(Boolean);
+      if (!first) return;
+      first.classList.add('app-nav-section-start');
+      first.dataset.sectionLabel = section.label;
+    });
   }
 
   function updateCurrent(target) {
@@ -96,6 +145,8 @@
       nav.append(fragment);
     }
 
+    decorateSections(desired, currentRole);
+
     const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
     desired.forEach(node => node.classList.remove('app-nav-checking-first'));
     checking[0]?.classList.add('app-nav-checking-first');
@@ -127,5 +178,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, reorder };
 })();
