@@ -17,10 +17,30 @@
     document.head.append(link);
   });
 
+  // These contracts validate the static HTML only. They are never used to create
+  // or rebuild the public navigation. Missing core links stay visible as a source
+  // defect for tests/QA instead of being silently repaired at runtime.
+  const STATIC_HEADER_CONTRACT = [
+    ['about.html', '태장 소개'],
+    ['business.html', '하는 일'],
+    ['workplace.html', '우리의 일터'],
+    ['archive.html', '소식·기록'],
+    ['partnership.html', '협력·문의']
+  ];
+  const STATIC_FOOTER_CONTRACT = [
+    ['about.html', '태장 소개'],
+    ['business.html', '하는 일'],
+    ['workplace.html', '우리의 일터'],
+    ['archive.html', '소식·기록'],
+    ['partnership.html', '협력·문의'],
+    ['location.html', '오시는 길']
+  ];
+
   // General public launch gate remains closed; the limited employee field pilot
   // explicitly enables only the staff entry while the pilot is being evaluated.
   const SHOW_EMPLOYEE_ENTRY = false;
   const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
+  const PUBLIC_EMAIL = 'taejang2025@naver.com';
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const FOOTER_CHANNEL_LINKS = [
     ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
@@ -56,11 +76,22 @@
     return page === 'activities.html' && targetPage === 'archive.html';
   }
 
+  function validateStaticLinks(nav, contract, scopeLabel) {
+    if (!nav) return;
+    contract.forEach(([href, label]) => {
+      const found = [...nav.querySelectorAll(':scope > a')].some(link => {
+        return normalizedHref(link) === href && link.textContent.trim() === label;
+      });
+      if (!found) console.warn(`${scopeLabel} 정적 링크 누락: ${label} (${href})`);
+    });
+  }
+
   // Core public links are authored in HTML. JavaScript may annotate them, but it
   // must not delete/rebuild the menu or invent missing core navigation entries.
   function markCurrentNavigation() {
     const page = currentPageName();
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
+      validateStaticLinks(nav, STATIC_HEADER_CONTRACT, '공개 메뉴');
       nav.querySelectorAll(':scope > a').forEach(link => {
         if (link.classList.contains('staff-nav') || normalizedHref(link) === 'staff/') return;
         const href = link.getAttribute('href') || '';
@@ -80,6 +111,7 @@
     document.querySelectorAll('.footer').forEach(footer => {
       const columns = footer.querySelectorAll('.footer-top > div');
       const shortcuts = columns[1];
+      validateStaticLinks(shortcuts, STATIC_FOOTER_CONTRACT, '푸터 바로가기');
       shortcuts?.querySelectorAll('a').forEach(link => {
         const href = link.getAttribute('href') || '';
         const targetPage = normalizedHref(link) || 'index.html';
@@ -88,6 +120,13 @@
           link.setAttribute('aria-current', 'page');
         }
       });
+
+      const contact = columns[2];
+      const emailLink = contact?.querySelector('a[href^="mailto:"]');
+      if (emailLink) {
+        emailLink.href = `mailto:${PUBLIC_EMAIL}`;
+        emailLink.textContent = PUBLIC_EMAIL;
+      }
 
       const footerTop = footer.querySelector('.footer-top');
       if (footerTop && !footerTop.querySelector('[data-footer-official-channels]')) {
