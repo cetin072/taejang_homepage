@@ -93,7 +93,8 @@ test('publication admin gives operations manager direct recoverable delete and k
   assert.match(publicationAdmin, /삭제 요청/);
   assert.match(publicationAdmin, /data\?\.can_permanently_delete === true/);
   assert.match(publicationAdmin, /role === 'operations_manager' && canDelete/);
-  assert.match(publicationAdmin, /초안·검토중·발행 예정·공개 글/);
+  assert.match(publicationAdmin, /초안부터 공개·숨김까지 홍보 글의 전체 상태/);
+  assert.match(publicationAdmin, /현재 공개 중이거나 숨김 상태인 태장 소식, 외부 기사·콘텐츠, 보도자료/);
   assert.match(publicationAdmin, /내부 복구용 기록은 보존/);
   assert.match(operationsDelete, /'can_permanently_delete',actor_is_operations/);
   assert.match(appUi, /phase-c-publication-admin\.js/);
