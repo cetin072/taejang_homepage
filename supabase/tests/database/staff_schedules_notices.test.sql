@@ -59,6 +59,29 @@ select is(
   'schedule test bootstraps a fake super admin'
 );
 
+insert into public.people (id, full_name) values
+  ('61100000-0000-0000-0000-000000000004', '테스트 일정 근로자 A'),
+  ('61100000-0000-0000-0000-000000000005', '테스트 일정 근로자 B'),
+  ('61100000-0000-0000-0000-000000000006', '테스트 다른부서 근로자');
+insert into public.employees (
+  id, employee_id, person_id, department_id, position_id, hired_on, attendance_required
+) values
+  (
+    '61200000-0000-0000-0000-000000000004', 'TJ-990004', '61100000-0000-0000-0000-000000000004',
+    (select id from public.departments where code = 'production'),
+    (select id from public.positions where code = 'general_worker'), current_date, true
+  ),
+  (
+    '61200000-0000-0000-0000-000000000005', 'TJ-990005', '61100000-0000-0000-0000-000000000005',
+    (select id from public.departments where code = 'production'),
+    (select id from public.positions where code = 'general_worker'), current_date, true
+  ),
+  (
+    '61200000-0000-0000-0000-000000000006', 'TJ-990006', '61100000-0000-0000-0000-000000000006',
+    (select id from public.departments where code = 'logistics'),
+    (select id from public.positions where code = 'general_worker'), current_date, true
+  );
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 
@@ -74,24 +97,21 @@ select is((public.approve_pending_user(
   (select id from public.positions where code = 'general_field_lead'),
   array['field_lead'], '일정 테스트 반장 승인'
 ) ->> 'code'), 'ACCOUNT_APPROVED', 'field lead is approved');
-select is((public.approve_pending_user(
+select is((public.approve_signup_request_with_employee(
   '61000000-0000-0000-0000-000000000004',
-  (select id from public.departments where code = 'production'),
-  (select id from public.positions where code = 'general_worker'),
-  array['general_worker'], '일정 테스트 근로자 A 승인'
-) ->> 'code'), 'ACCOUNT_APPROVED', 'worker A is approved');
-select is((public.approve_pending_user(
+  '61200000-0000-0000-0000-000000000004',
+  'general_worker', '일정 테스트 근로자 A 승인'
+) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'worker A is approved through an Employee link');
+select is((public.approve_signup_request_with_employee(
   '61000000-0000-0000-0000-000000000005',
-  (select id from public.departments where code = 'production'),
-  (select id from public.positions where code = 'general_worker'),
-  array['general_worker'], '일정 테스트 근로자 B 승인'
-) ->> 'code'), 'ACCOUNT_APPROVED', 'worker B is approved');
-select is((public.approve_pending_user(
+  '61200000-0000-0000-0000-000000000005',
+  'general_worker', '일정 테스트 근로자 B 승인'
+) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'worker B is approved through an Employee link');
+select is((public.approve_signup_request_with_employee(
   '61000000-0000-0000-0000-000000000006',
-  (select id from public.departments where code = 'logistics'),
-  (select id from public.positions where code = 'general_worker'),
-  array['general_worker'], '일정 테스트 다른부서 승인'
-) ->> 'code'), 'ACCOUNT_APPROVED', 'other-department worker is approved');
+  '61200000-0000-0000-0000-000000000006',
+  'general_worker', '일정 테스트 다른부서 승인'
+) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'other-department worker is approved through an Employee link');
 
 select is((public.save_work_group(
   null, (select id from public.departments where code = 'production'),
