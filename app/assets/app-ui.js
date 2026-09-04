@@ -44,6 +44,17 @@
     document.head.append(script);
   }
 
+  function loadStyleOnce(source, dataKey) {
+    if (document.querySelector(`link[data-${dataKey}]`)) return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = source;
+    link.dataset[dataKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = '1';
+    document.head.append(link);
+  }
+
+  loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
+
   // PWA install support is deliberately network-first: authenticated work data is
   // never cached by the service worker. The employee home remains read/confirm-only
   // except for attendance actions and role-specific work shortcuts.
@@ -65,6 +76,7 @@
   loadOnce('assets/employee-management.js', 'employee-management');
   loadOnce('assets/menu-status.js', 'menu-status');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
+  loadOnce('assets/official-channel-links.js', 'official-channel-links');
 
   // Final role-based presentation runs after feature modules. These modules only
   // reorder or summarize already-permitted features and never grant permissions.
