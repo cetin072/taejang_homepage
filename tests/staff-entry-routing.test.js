@@ -14,9 +14,33 @@ test('public homepage shows the staff entry only through the approved field pilo
   const site = read('assets/js/site.js');
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true/);
-  assert.match(site, /SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
-  assert.match(site, /staff-nav/);
-  assert.match(site, /임직원 로그인/);
+  assert.match(site, /return SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
+  assert.match(site, /staffLink\.textContent = '임직원'/);
+  assert.match(site, /staffLogin\.textContent = '임직원'/);
+  assert.doesNotMatch(site, /employeeIcon/);
+});
+
+test('public staff navigation is rightmost, separated, stable from first paint, and built without clearing the nav', () => {
+  const site = read('assets/js/site.js');
+  const polish = read('assets/css/site-polish.css');
+  const visual = read('assets/css/visual-hierarchy.css');
+  const mobile = read('assets/css/mobile-layout-fixes.css');
+
+  assert.match(site, /function normalizedHref\(link\)/);
+  assert.match(site, /PUBLIC_NAV_LINKS\.forEach[\s\S]*?previous = link[\s\S]*?if \(employeeEntryEnabled\(\)\)[\s\S]*?staffLink\.textContent = '임직원'/);
+  assert.doesNotMatch(site, /normalizeHeaderNavigation\(\)[\s\S]*?nav\.replaceChildren\(\)/);
+  assert.doesNotMatch(site, /employeeIcon/);
+  assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?margin-left:\s*10px[\s\S]*?border-left:\s*1px solid/);
+  assert.match(polish, /\.mobile-nav \.staff-nav[\s\S]*?border-top:\s*1px solid/);
+  assert.match(mobile, /\.mobile-nav a[\s\S]*?min-height:\s*54px/);
+  assert.match(visual, /\.desktop-nav:not\(:has\(\.staff-nav\)\)::after[\s\S]*?content:\s*"임직원"/);
+  assert.match(visual, /\.desktop-nav \.staff-nav[\s\S]*?border-left:\s*1px solid/);
+  assert.match(visual, /\.mobile-nav:not\(:has\(\.staff-nav\)\)::after[\s\S]*?content:\s*"임직원"/);
+
+  assert.match(polish, /\.footer-bottom > div:last-child[\s\S]*?font-size:\s*0/);
+  assert.match(polish, /\.footer-bottom > div:last-child a[\s\S]*?min-height:\s*44px/);
+  assert.match(polish, /a \+ a::before[\s\S]*?content:\s*"·"/);
+  assert.match(polish, /@media \(max-width: 760px\)[\s\S]*?\.footer-bottom > div:last-child a \+ a::before[\s\S]*?display:\s*none/);
 });
 
 test('staff entry keeps login and sign-up as separate chosen actions', () => {
