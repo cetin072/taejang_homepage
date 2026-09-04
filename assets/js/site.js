@@ -47,6 +47,10 @@
     ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
   ];
 
+  function employeeEntryEnabled() {
+    return SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT;
+  }
+
   function getSeoulDateKey(date) {
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Seoul',
@@ -104,6 +108,30 @@
     });
   }
 
+  function syncEmployeeEntry() {
+    document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
+      let link = [...nav.querySelectorAll(':scope > a')].find(candidate => {
+        return candidate.classList.contains('staff-nav') || normalizedHref(candidate) === 'staff/';
+      });
+      if (!employeeEntryEnabled()) {
+        link?.remove();
+        return;
+      }
+      if (!link) {
+        link = document.createElement('a');
+        nav.appendChild(link);
+      }
+      link.href = 'staff/';
+      link.textContent = '임직원';
+      link.classList.add('staff-nav');
+      link.classList.remove('nav-cta');
+      link.removeAttribute('aria-current');
+      link.setAttribute('aria-label', '임직원 페이지');
+      // The employee entry is a separate utility item and always stays rightmost.
+      if (nav.lastElementChild !== link) nav.appendChild(link);
+    });
+  }
+
   // Footer shortcuts/contact details are also authored in HTML. Only optional
   // official-channel/staff enhancements are added here without replacing them.
   function enhanceFooter() {
@@ -151,7 +179,7 @@
         footerLegal.appendChild(document.createTextNode(' · '));
         const staffLogin = document.createElement('a');
         staffLogin.href = 'staff/';
-        staffLogin.textContent = '임직원 로그인';
+        staffLogin.textContent = '임직원';
         staffLogin.dataset.footerStaffLogin = '';
         footerLegal.appendChild(staffLogin);
       }
@@ -166,36 +194,7 @@
   }
 
   markCurrentNavigation();
-
-  if (SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT) {
-    const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
-    document.querySelectorAll('.desktop-nav').forEach(nav => {
-      let link = nav.querySelector('.staff-nav, a[href="staff/"]');
-      if (!link) {
-        link = document.createElement('a');
-        link.href = 'staff/';
-        const contact = nav.querySelector('.nav-cta');
-        nav.insertBefore(link, contact || null);
-      }
-      link.classList.add('staff-nav');
-      link.setAttribute('aria-label', '임직원 로그인');
-      link.innerHTML = employeeIcon;
-    });
-
-    document.querySelectorAll('[data-mobile-nav]').forEach(nav => {
-      let link = nav.querySelector('a[href="staff/"]');
-      if (!link) {
-        link = document.createElement('a');
-        link.href = 'staff/';
-        nav.appendChild(link);
-      }
-      link.setAttribute('aria-label', '임직원 로그인');
-      link.innerHTML = employeeIcon;
-    });
-  } else {
-    document.querySelectorAll('.staff-nav, a[href="staff/"], a[href$="/staff/"]').forEach(link => link.remove());
-  }
-
+  syncEmployeeEntry();
   enhanceFooter();
 
   const menuBtn = document.querySelector('[data-menu-button]');

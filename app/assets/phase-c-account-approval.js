@@ -194,15 +194,6 @@
     }
   }
 
-  function syncNavigation() {
-    const nav = document.getElementById('app-nav');
-    if (!nav || route() !== 'operations_manager') return;
-    if (nav.querySelector('[data-phase-c-account-approval-nav]')) return;
-    const node = button('가입 승인', openAccountApproval, true); node.dataset.phaseCAccountApprovalNav = '1';
-    const homepage = [...nav.children].find(child => child.textContent?.trim() === '홈페이지');
-    if (homepage) nav.insertBefore(node, homepage); else nav.append(node);
-  }
-
   async function syncDashboard() {
     const target = main();
     if (!target || route() !== 'operations_manager' || dashboardSyncing) return;
@@ -225,19 +216,10 @@
     finally { dashboardSyncing = false; }
   }
 
-  function sync() { syncNavigation(); syncDashboard(); }
-
   injectStyles();
   document.addEventListener('taejang-open-account-approval', openAccountApproval);
-  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 80));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
+  document.addEventListener('taejang-app-ready', () => setTimeout(syncDashboard, 120));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(syncDashboard, 160));
 
-  const start = () => {
-    const shell = document.getElementById('desktop-app-shell'); if (!shell) return;
-    new MutationObserver(() => setTimeout(sync, 20)).observe(shell, { childList: true, subtree: true });
-    sync();
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
-
-  window.TaejangAccountApproval = { openAccountApproval };
+  window.TaejangAccountApproval = { openAccountApproval, syncDashboard };
 })();

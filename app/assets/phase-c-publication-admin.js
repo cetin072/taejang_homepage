@@ -161,10 +161,10 @@
     const currentRoute = route();
     const target = main();
     if (!target || !ELIGIBLE.has(currentRoute)) return;
-    document.getElementById('desktop-page-title').textContent = '글 관리';
+    document.getElementById('desktop-page-title').textContent = '홍보 글 관리';
     target.hidden = false;
     target.classList.add('phase-c-v2');
-    target.replaceChildren(el('p', '글 상태를 불러오고 있습니다.', 'message'));
+    target.replaceChildren(el('p', '홍보 글 상태를 불러오고 있습니다.', 'message'));
 
     try {
       const data = await app().rpc('get_promotion_publication_admin');
@@ -174,12 +174,14 @@
       const requests = Array.isArray(data?.deletion_requests) ? data.deletion_requests : [];
 
       const intro = el('section', null, 'dashboard-intro');
-      intro.append(el('p', '홍보 글 관리', 'eyebrow'));
-      intro.append(el('h1', '글 관리'));
+      intro.append(el('p', '태장 소식 · 외부 기사·콘텐츠 · 보도자료', 'eyebrow'));
+      intro.append(el('h1', '홍보 글 관리'));
       intro.append(el('p', role === 'operations_manager'
-        ? '초안·검토중·발행 예정·공개 글을 확인하고 필요 없는 테스트 글을 직접 삭제할 수 있습니다.'
-        : '잘못 공개된 글은 즉시 숨길 수 있습니다. 삭제가 필요하면 운영총괄에게 요청하세요.'));
-      intro.append(el('p', '삭제된 글은 일반 목록과 홈페이지에서는 사라지지만 원문과 승인 이력은 내부 복구용으로 보존됩니다.', 'help'));
+        ? '초안부터 공개·숨김까지 홍보 글의 전체 상태를 확인하고, 불필요한 테스트 글을 직접 정리할 수 있습니다.'
+        : '홈페이지에 공개된 글과 숨김 처리한 글을 관리하는 화면입니다. 초안·검토 중인 글은 `홍보 작성`과 `홍보 검토`에서 관리합니다.'));
+      intro.append(el('p', role === 'promotion_lead'
+        ? '현재 공개 중이거나 숨김 상태인 태장 소식, 외부 기사·콘텐츠, 보도자료만 이 목록에 표시됩니다.'
+        : '삭제된 글은 일반 목록과 홈페이지에서는 사라지지만 원문과 승인 이력은 내부 복구용으로 보존됩니다.', 'help'));
       target.replaceChildren(intro);
 
       if (role === 'operations_manager' && requests.length) {
@@ -192,14 +194,18 @@
       }
 
       const section = el('section', null, 'dashboard-section');
-      section.append(el('h2', `글 ${items.length}건`));
+      section.append(el('h2', `홍보 글 ${items.length}건`));
       const grid = el('div', null, 'phase-c-v2-grid');
-      if (!items.length) grid.append(el('p', '현재 관리할 글이 없습니다.', 'empty'));
+      if (!items.length) {
+        grid.append(el('p', role === 'promotion_lead'
+          ? '현재 공개 중이거나 숨김 상태인 홍보 글이 없습니다. 작성·검토 중인 글은 홍보 작성/홍보 검토 메뉴에서 확인하세요.'
+          : '현재 관리할 홍보 글이 없습니다.', 'empty'));
+      }
       items.forEach(item => grid.append(itemCard(item, role, canDelete)));
       section.append(grid);
       target.append(section);
     } catch (error) {
-      target.replaceChildren(el('p', friendly(error, '글을 불러오지 못했습니다.'), 'message error'));
+      target.replaceChildren(el('p', friendly(error, '홍보 글을 불러오지 못했습니다.'), 'message error'));
     }
   }
 
@@ -212,10 +218,13 @@
       node?.remove();
       return;
     }
-    if (node) return;
+    if (node) {
+      node.textContent = '홍보 글 관리';
+      return;
+    }
     node = document.createElement('button');
     node.type = 'button';
-    node.textContent = '글 관리';
+    node.textContent = '홍보 글 관리';
     node.dataset.phaseCPublicationAdmin = '1';
     node.addEventListener('click', openPublicationAdmin);
     const homepage = [...nav.querySelectorAll('button')].find(candidate => candidate.textContent.trim() === '홈페이지 내용 관리');

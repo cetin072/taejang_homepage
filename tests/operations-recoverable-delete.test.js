@@ -44,6 +44,15 @@ test('delete button flow requires confirmation and reason then refreshes the scr
   assert.match(controls, /refresh-guidance-admin/);
 });
 
+test('delete decorators do not refetch already decorated lists on unrelated mobile DOM changes', () => {
+  assert.match(controls, /cards\.every\(card => card\.querySelector\('\[data-ops-delete-employee\]'\)\)/);
+  assert.match(controls, /cards\.every\(card => card\.querySelector\(`\[data-\$\{config\.dataAttribute\}\]`\)\)/);
+  assert.match(controls, /function hasRelevantAddedNode\(records\)/);
+  assert.match(controls, /\.employee-card, \.admin-record-card/);
+  assert.match(controls, /if \(hasRelevantAddedNode\(records\)\) scheduleSync\(\)/);
+  assert.doesNotMatch(controls, /new MutationObserver\(scheduleSync\)\.observe\(shell/);
+});
+
 test('employee delete is operations-only, recoverable, and blocks a linked test account', () => {
   const fn = functionBlock('archive_employee');
   assert.match(migration, /add column if not exists archived_at timestamptz/);
