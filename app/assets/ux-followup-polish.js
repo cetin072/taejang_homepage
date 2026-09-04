@@ -172,10 +172,17 @@
     if (actions) form.insertBefore(details, actions);
     else form.append(details);
 
-    form.addEventListener('submit', () => {
+    const seedReason = () => {
       const reason = byId('notice-reason');
-      if (reason && !reason.value.trim()) reason.value = byId('notice-id')?.value ? '공지 수정' : '공지 작성';
-    }, true);
+      if (!reason || reason.value.trim()) return;
+      reason.value = '공지 작성·수정';
+      reason.defaultValue = '공지 작성·수정';
+    };
+    seedReason();
+    form.addEventListener('reset', () => setTimeout(seedReason, 0));
+    byId('reset-notice-form')?.addEventListener('click', () => setTimeout(seedReason, 0));
+    byId('notice-admin-list')?.addEventListener('click', () => setTimeout(seedReason, 0));
+    form.addEventListener('submit', seedReason, true);
   }
 
   function injectStyles() {
