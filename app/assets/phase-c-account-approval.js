@@ -177,9 +177,9 @@
       ]);
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
-        el('p', '계정 관리', 'eyebrow'),
+        el('p', '운영총괄 고유 권한', 'eyebrow'),
         el('h2', '임직원 계정 승인'),
-        el('p', '실제 직원은 직원 마스터와 연결해 승인하고, 잘못된 신청이나 비직원 신청은 사유를 남겨 거절합니다.')
+        el('p', '실제 직원은 직원 마스터와 연결해 승인하고, 잘못된 신청이나 비직원 신청은 사유를 남겨 거절합니다. 이름이나 이메일로 자동매칭하지 않습니다.')
       );
       if (!Array.isArray(employees) || !employees.length) {
         intro.append(el('p', '연결 가능한 직원이 없습니다. 먼저 사이드바의 직원 관리에서 직원을 등록하거나 기존 직원을 확인하세요.', 'message'));
