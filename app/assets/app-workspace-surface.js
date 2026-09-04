@@ -47,16 +47,65 @@
     });
   }
 
+  function setHidden(node, hidden) {
+    if (node) node.hidden = hidden;
+  }
+
+  function configureTodayAdmin(view = null) {
+    const panel = byId('today-admin-panel');
+    if (!panel) return;
+    const workManual = view === 'work_manual';
+    panel.dataset.workspaceView = workManual ? 'work_manual' : 'all';
+
+    const title = byId('today-admin-title');
+    const eyebrow = title?.parentElement?.querySelector?.('.eyebrow');
+    const topbar = byId('desktop-page-title');
+    if (workManual) {
+      if (eyebrow) eyebrow.textContent = '업무 참고';
+      if (title) title.textContent = '작업 매뉴얼 관리';
+      if (topbar) topbar.textContent = '작업 매뉴얼';
+    } else {
+      if (eyebrow) eyebrow.textContent = '관리자 검증 화면';
+      if (title) title.textContent = '오늘 정보 등록·수정';
+      if (topbar) topbar.textContent = '업무 배정';
+    }
+
+    const refresh = byId('refresh-admin');
+    const panelHelp = panel.querySelector?.(':scope > .help');
+    const boardDate = byId('admin-board-date')?.closest?.('label');
+    const todayRecords = byId('admin-records-title')?.closest?.('.admin-records');
+    const taskEditor = byId('task-form')?.closest?.('details');
+    const informationEditor = byId('information-form')?.closest?.('details');
+    const guideEditor = byId('guide-form')?.closest?.('details');
+    const stepEditor = byId('guide-step-editor');
+    const previewEditor = byId('guide-preview')?.closest?.('details');
+    const guideRecords = byId('guide-manage-list')?.closest?.('.admin-records');
+
+    setHidden(refresh, workManual);
+    setHidden(panelHelp, workManual);
+    setHidden(boardDate, workManual);
+    setHidden(todayRecords, workManual);
+    setHidden(taskEditor, workManual);
+    setHidden(informationEditor, workManual);
+    setHidden(guideEditor, false);
+    setHidden(stepEditor, false);
+    setHidden(previewEditor, false);
+    setHidden(guideRecords, false);
+
+    if (workManual && guideEditor) guideEditor.open = true;
+  }
+
   function showDashboard() {
     hidePanels();
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = false;
   }
 
-  function openPanel(id) {
+  function openPanel(id, view = null) {
     if (!PANEL_IDS.includes(id)) return;
     mountPanels();
     hidePanels(id);
+    if (id === 'today-admin-panel') configureTodayAdmin(view);
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = true;
   }
@@ -66,7 +115,7 @@
     mountPanels();
   }
 
-  document.addEventListener('taejang-open-app-panel', event => openPanel(event.detail?.id), true);
+  document.addEventListener('taejang-open-app-panel', event => openPanel(event.detail?.id, event.detail?.view), true);
   document.addEventListener('taejang-dashboard-refresh', showDashboard, true);
   document.addEventListener('taejang-open-employee-management', showDashboard, true);
   document.addEventListener('taejang-open-promotion-workspace', showDashboard, true);
