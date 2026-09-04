@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const migration = read('supabase/migrations/20260904133000_operations_manager_recoverable_delete.sql');
 const controls = read('app/assets/operations-delete-controls.js');
+const publicationAdmin = read('app/assets/phase-c-publication-admin.js');
 const appUi = read('app/assets/app-ui.js');
 
 function functionBlock(name) {
@@ -24,6 +25,22 @@ test('operations delete browser module parses and is loaded by the protected app
   assert.match(controls, /일정 삭제/);
   assert.match(controls, /공지 삭제/);
   assert.match(controls, /안내 삭제/);
+});
+
+test('delete button flow requires confirmation and reason then refreshes the screen', () => {
+  const flow = controls.match(/async function confirmAndDelete[\s\S]*?\n  }/)?.[0] || '';
+  assert.match(flow, /window\.confirm/);
+  assert.match(flow, /window\.prompt/);
+  assert.match(flow, /app\(\)\.rpc\(rpc/);
+  assert.match(flow, /await refresh\?\.\(\)/);
+  assert.match(controls, /data-ops-delete-employee/);
+  assert.match(controls, /data-ops-delete-schedule/);
+  assert.match(controls, /data-ops-delete-notice/);
+  assert.match(controls, /data-ops-delete-guidance/);
+  assert.match(controls, /taejang-open-employee-management/);
+  assert.match(controls, /refresh-schedule-admin/);
+  assert.match(controls, /refresh-notice-admin/);
+  assert.match(controls, /refresh-guidance-admin/);
 });
 
 test('employee delete is operations-only, recoverable, and blocks a linked test account', () => {
@@ -60,6 +77,17 @@ test('schedule notice and guidance delete use inactive state and disappear from 
   assert.match(controls, /delete_schedule_item/);
   assert.match(controls, /delete_notice/);
   assert.match(controls, /delete_staff_guidance/);
+});
+
+test('promotion delete is visible to operations manager and requires exact title confirmation', () => {
+  const fn = functionBlock('delete_promotion_content');
+  assert.match(fn, /current_user_has_role\('operations_manager'\)/);
+  assert.doesNotMatch(fn, /current_user_has_role\('super_admin'\)/);
+  assert.match(fn, /PROMOTION_DELETE_TITLE_CONFIRMATION_MISMATCH/);
+  assert.match(fn, /set lifecycle='archived'/);
+  assert.match(publicationAdmin, /can_permanently_delete/);
+  assert.match(publicationAdmin, /delete_promotion_content/);
+  assert.match(publicationAdmin, /p_confirm_title/);
 });
 
 test('all destructive operations require a reason and retain audit history', () => {
