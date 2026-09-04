@@ -55,6 +55,10 @@
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
 
+  // Mount legacy manager panels into the app workspace before any feature module
+  // can open them. This prevents the visible screen from dropping below the shell.
+  loadOnce('assets/app-workspace-surface.js', 'app-workspace-surface');
+
   // PWA install support is deliberately network-first: authenticated work data is
   // never cached by the service worker. The employee home remains read/confirm-only
   // except for attendance actions and role-specific work shortcuts.
