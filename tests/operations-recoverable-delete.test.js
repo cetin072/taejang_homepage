@@ -34,9 +34,10 @@ test('delete button flow requires confirmation and reason then refreshes the scr
   assert.match(flow, /app\(\)\.rpc\(rpc/);
   assert.match(flow, /await refresh\?\.\(\)/);
   assert.match(controls, /data-ops-delete-employee/);
-  assert.match(controls, /data-ops-delete-schedule/);
-  assert.match(controls, /data-ops-delete-notice/);
-  assert.match(controls, /data-ops-delete-guidance/);
+  assert.match(controls, /dataAttribute: 'ops-delete-schedule'/);
+  assert.match(controls, /dataAttribute: 'ops-delete-notice'/);
+  assert.match(controls, /dataAttribute: 'ops-delete-guidance'/);
+  assert.match(controls, /card\.querySelector\(`\[data-\$\{config\.dataAttribute\}\]`\)/);
   assert.match(controls, /taejang-open-employee-management/);
   assert.match(controls, /refresh-schedule-admin/);
   assert.match(controls, /refresh-notice-admin/);
