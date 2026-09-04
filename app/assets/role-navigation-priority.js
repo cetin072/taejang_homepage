@@ -101,6 +101,7 @@
     ['안내 관리', '상시 안내 관리']
   ]);
   let scheduled = false;
+  let reordering = false;
 
   const route = () => window.TaejangApp?.getRoute?.();
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
@@ -168,40 +169,46 @@
 
   function reorder() {
     scheduled = false;
+    if (reordering) return;
     const nav = document.getElementById('app-nav');
     const currentRole = route();
     if (!nav || !currentRole || currentRole === 'general_worker') return;
 
-    const children = [...nav.children];
-    children.forEach(node => {
-      normalizeLabel(node);
-      if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
-      markStatus(node);
-    });
+    reordering = true;
+    try {
+      const children = [...nav.children];
+      children.forEach(node => {
+        normalizeLabel(node);
+        if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
+        markStatus(node);
+      });
 
-    const desired = [...children].sort((a, b) => {
-      const diff = priority(a, currentRole) - priority(b, currentRole);
-      if (diff) return diff;
-      return children.indexOf(a) - children.indexOf(b);
-    });
-    const changed = desired.some((node, index) => children[index] !== node);
-    if (changed) {
-      const fragment = document.createDocumentFragment();
-      desired.forEach(node => fragment.append(node));
-      nav.append(fragment);
+      const desired = [...children].sort((a, b) => {
+        const diff = priority(a, currentRole) - priority(b, currentRole);
+        if (diff) return diff;
+        return children.indexOf(a) - children.indexOf(b);
+      });
+      const changed = desired.some((node, index) => children[index] !== node);
+      if (changed) {
+        const fragment = document.createDocumentFragment();
+        desired.forEach(node => fragment.append(node));
+        nav.append(fragment);
+      }
+
+      decorateSections(desired, currentRole);
+
+      const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
+      desired.forEach(node => node.classList.remove('app-nav-checking-first'));
+      checking[0]?.classList.add('app-nav-checking-first');
+    } finally {
+      reordering = false;
     }
-
-    decorateSections(desired, currentRole);
-
-    const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
-    desired.forEach(node => node.classList.remove('app-nav-checking-first'));
-    checking[0]?.classList.add('app-nav-checking-first');
   }
 
   function schedule() {
-    if (scheduled) return;
+    if (scheduled || reordering) return;
     scheduled = true;
-    queueMicrotask(reorder);
+    setTimeout(reorder, 0);
   }
 
   function bind() {
@@ -213,7 +220,7 @@
       if (!target || !nav.contains(target)) return;
       updateCurrent(target);
     });
-    new MutationObserver(schedule).observe(nav, { childList: true, subtree: true });
+    new MutationObserver(schedule).observe(nav, { childList: true });
     schedule();
   }
 
