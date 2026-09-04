@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
@@ -16,6 +17,74 @@ function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
 }
 
+function datasetKey(attribute) {
+  return attribute.replace(/^data-/, '').replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+class EventHub {
+  constructor() { this.listeners = new Map(); }
+  addEventListener(type, listener) {
+    if (!this.listeners.has(type)) this.listeners.set(type, []);
+    this.listeners.get(type).push(listener);
+  }
+  dispatchEvent(event) {
+    event.target = event.target || this;
+    event.currentTarget = this;
+    event.__stopped = false;
+    event.stopImmediatePropagation = () => { event.__stopped = true; };
+    for (const listener of [...(this.listeners.get(event.type) || [])]) {
+      listener(event);
+      if (event.__stopped) break;
+    }
+    return true;
+  }
+}
+
+class FakeElement extends EventHub {
+  constructor(tag) {
+    super();
+    this.tagName = tag.toUpperCase();
+    this.dataset = {};
+    this.children = [];
+    this.src = '';
+    this.href = '';
+    this.rel = '';
+    this.className = '';
+    this.textContent = '';
+    this.async = true;
+  }
+  append(...nodes) { this.children.push(...nodes); }
+  replaceWith() {}
+}
+
+class FakeDocument extends EventHub {
+  constructor() {
+    super();
+    this.nodes = [];
+    this.head = {
+      append: node => {
+        this.nodes.push(node);
+        if (node.tagName === 'SCRIPT') setTimeout(() => node.dispatchEvent({ type: 'load' }), 1);
+      }
+    };
+  }
+  createElement(tag) { return new FakeElement(tag); }
+  querySelector(selector) {
+    const match = selector.match(/^(script|link)\[data-([a-z0-9-]+)\]$/i);
+    if (!match) return null;
+    const tag = match[1].toUpperCase();
+    const key = datasetKey(`data-${match[2]}`);
+    return this.nodes.find(node => node.tagName === tag && Object.hasOwn(node.dataset, key)) || null;
+  }
+  getElementById() { return null; }
+}
+
+class FakeCustomEvent {
+  constructor(type, init = {}) { this.type = type; this.detail = init.detail; }
+}
+
+const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
 test('app feature modules load deterministically before the first app-ready event is released', () => {
   syntaxCheck('app/assets/app-ui.js');
   assert.match(appUi, /const FEATURE_MODULES = \[/);
@@ -27,6 +96,40 @@ test('app feature modules load deterministically before the first app-ready even
   assert.ok(appUi.indexOf("assets/phase-c-account-approval.js") < appUi.indexOf("assets/employee-management.js"));
   assert.ok(appUi.indexOf("assets/employee-management.js") < appUi.indexOf("assets/role-navigation-priority.js"));
   assert.ok(appUi.indexOf("assets/role-navigation-priority.js") < appUi.indexOf("assets/ux-followup-polish.js"));
+});
+
+test('an early app-ready event is held until all dynamically loaded feature modules register', async () => {
+  const document = new FakeDocument();
+  const window = new EventHub();
+  const sandbox = {
+    window,
+    document,
+    CustomEvent: FakeCustomEvent,
+    Promise,
+    setTimeout,
+    clearTimeout,
+    console
+  };
+  vm.runInNewContext(appUi, sandbox, { filename: 'app-ui.js' });
+
+  let delivered = 0;
+  let deliveredDetail = null;
+  document.addEventListener('taejang-app-ready', event => {
+    delivered += 1;
+    deliveredDetail = event.detail;
+  });
+
+  document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route: 'operations_manager', label: '운영총괄' } }));
+  assert.equal(delivered, 0, 'ready must not escape while feature scripts are still loading');
+
+  await window.TaejangFeatureModulesReady;
+  await tick();
+
+  assert.equal(delivered, 1, 'ready must be replayed exactly once after feature modules load');
+  assert.equal(deliveredDetail.route, 'operations_manager');
+  const loadedScripts = document.nodes.filter(node => node.tagName === 'SCRIPT');
+  assert.ok(loadedScripts.length >= 20, 'all feature modules should have been scheduled before replay');
+  assert.ok(loadedScripts.every(node => node.dataset.loaded === '1'));
 });
 
 test('workspace surface guard parses and loads before feature modules', () => {
