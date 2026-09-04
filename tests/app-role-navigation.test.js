@@ -102,23 +102,27 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
-test('accent theme adds restrained gold blue coral and mint visual hierarchy', () => {
+test('accent theme adds restrained color hierarchy and a separate official channel group', () => {
   assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
   assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
   assert.match(accentCss, /--app-accent-coral:\s*#a86857/);
   assert.match(accentCss, /dashboard-card:nth-child\(4n \+ 2\)/);
   assert.match(accentCss, /dashboard-intro[\s\S]*border-left:\s*5px solid var\(--app-brand\)/);
+  assert.match(accentCss, /\.app-nav-channel-group\s*\{/);
+  assert.match(accentCss, /\.app-nav-group-label\s*\{/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="youtube"\]/);
 });
 
-test('dashboard return restores the dashboard and uses a short topbar role label', async () => {
-  assert.match(source, /function goDashboard\(\)[\s\S]*?dispatchEvent\(new CustomEvent\('taejang-dashboard-refresh'\)\)/);
-  assert.match(appSource, /taejang-dashboard-refresh[\s\S]*?dashboard-main'\)\.hidden = false/);
+test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard once in body', async () => {
+  assert.match(source, /promotion_lead:\s*\['대시보드', '출근부·홍보 검토·홍보 작성/);
+  assert.match(source, /label\.textContent = ''; label\.hidden = true/);
   const qa = await makeDashboard('promotion_lead');
   findMenu(qa.nav, '대시보드').click(); await nextTurn();
   assert.equal(qa.main.hidden, false);
   assert.equal(qa.document.getElementById('desktop-page-title').textContent, '운영팀장');
+  assert.equal(qa.document.getElementById('desktop-role-label').hidden, true);
+  assert.equal(qa.document.getElementById('desktop-role-label').textContent, '');
 });
 
 test('base role menus remain clickable before final priority sorting', async () => {
@@ -137,21 +141,23 @@ test('base role menus remain clickable before final priority sorting', async () 
   }
 });
 
-test('central navigation priority keeps operations and promotion lead critical work first', () => {
+test('central navigation priority keeps promotion work before team employee management', () => {
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성', '홈페이지 직접 수정', '공식 블로그', '공식 유튜브', '작업 매뉴얼', '홈페이지']);
+  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '홈페이지']);
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '출근부', '팀 직원 관리', '홍보 검토', '홍보 작성', '공식 블로그', '공식 유튜브', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
-  const staffBlock = navPriority.slice(navPriority.indexOf('promotion_staff:'), navPriority.indexOf('promotion_lead:'));
-  assertOrdered(staffBlock, ['대시보드', '홍보 작성', '공식 블로그', '공식 유튜브', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지']);
+  assertOrdered(leadBlock, ['대시보드', '출근부', '홍보 검토', '홍보 작성', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
+  assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
   assert.match(navPriority, /return 10000/);
   assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('official blog and YouTube shortcuts use public homepage canonical channels and limited roles', () => {
-  assert.match(officialChannels, /https:\/\/blog\.naver\.com\/taejang-official/);
-  assert.match(officialChannels, /https:\/\/youtube\.com\/@taejangofficial/);
+test('official channels are grouped as homepage, blog and YouTube for limited roles', () => {
   assert.match(officialChannels, /new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
+  assertOrdered(officialChannels, ['homepage', 'blog', 'youtube']);
+  assert.ok(officialChannels.indexOf("label: '홈페이지'") < officialChannels.indexOf("label: '공식 블로그'"));
+  assert.ok(officialChannels.indexOf("label: '공식 블로그'") < officialChannels.indexOf("label: '공식 유튜브'"));
+  assert.match(officialChannels, /label\.textContent = '공식 채널'/);
+  assert.match(officialChannels, /dataset\.navSection = 'official_channels'/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
 });
@@ -179,9 +185,10 @@ test('operations dashboard priority adds employee and homepage approval summarie
   assert.match(dashboardPriority, /get_homepage_change_requests/);
 });
 
-test('checking business planning is clearly marked and intentionally incomplete', () => {
+test('checking business planning is clearly marked, remains last and keeps role in topbar', () => {
   assert.match(source, /홍보팀 · 점검중/);
   assert.match(source, /기능은 아직 연결 전/);
+  assert.match(source, /renderBusinessPlanning\(\)[\s\S]*setDashboardTopbar\(route\)/);
   assert.match(navPriority, /CHECKING = new Set\(\['신규 사업 기획'\]\)/);
 });
 
