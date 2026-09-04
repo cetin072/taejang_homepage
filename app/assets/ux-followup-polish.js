@@ -1,82 +1,21 @@
 (() => {
   'use strict';
 
-  const STATIC_ADMIN_PANELS = [
-    'today-admin-panel',
-    'schedule-admin-panel',
-    'notice-admin-panel',
-    'guidance-admin-panel'
-  ];
   const EMPLOYEE_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
-
   const byId = id => document.getElementById(id);
   const route = () => window.TaejangApp?.getRoute?.();
-
-  function mountStaticAdminPanels() {
-    const workspace = document.querySelector('.app-workspace');
-    if (!workspace) return;
-    STATIC_ADMIN_PANELS.forEach(id => {
-      const panel = byId(id);
-      if (panel && panel.parentElement !== workspace) workspace.append(panel);
-    });
-  }
-
-  function hideStaticAdminPanels(exceptId = null) {
-    STATIC_ADMIN_PANELS.forEach(id => {
-      const panel = byId(id);
-      if (panel) panel.hidden = id !== exceptId;
-    });
-  }
-
-  function showDashboardSurface() {
-    hideStaticAdminPanels();
-    const dashboard = byId('dashboard-main');
-    if (dashboard) dashboard.hidden = false;
-  }
+  let syncQueued = false;
+  let navObserver = null;
+  let dashboardObserver = null;
 
   function closeSidebar() {
     byId('desktop-app-shell')?.classList.remove('sidebar-open');
     byId('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
   }
 
-  function bindSurfaceGuard() {
-    const nav = byId('app-nav');
-    if (!nav || nav.dataset.surfaceGuardBound) return;
-    nav.dataset.surfaceGuardBound = '1';
-    nav.addEventListener('click', event => {
-      const target = event.target?.closest?.('button, a');
-      if (!target || !nav.contains(target) || target.target === '_blank') return;
-      showDashboardSurface();
-    }, true);
-  }
-
-  function ensureEmployeeNavigation() {
-    const currentRoute = route();
-    const nav = byId('app-nav');
-    if (!nav || !EMPLOYEE_ROUTES.has(currentRoute)) return;
-
-    const existing = nav.querySelector('[data-employee-management-nav]');
-    if (!existing) return;
-
-    let create = nav.querySelector('[data-employee-new-nav]');
-    if (!create) {
-      create = document.createElement('button');
-      create.type = 'button';
-      create.className = existing.className || 'button button-quiet';
-      create.dataset.employeeNewNav = '1';
-      create.addEventListener('click', () => {
-        closeSidebar();
-        showDashboardSurface();
-        window.TaejangEmployeeManagement?.openEmployeeManagement?.('new');
-      });
-      nav.insertBefore(create, existing.nextSibling);
-    }
-    create.textContent = currentRoute === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청';
-  }
-
   function configureRoleNavigation() {
     const api = window.TaejangRoleNavigationPriority;
-    if (!api?.ROLE_ORDER || !api?.ROLE_SECTIONS) return;
+    if (!api?.ROLE_ORDER || !api?.ROLE_SECTIONS) return false;
 
     api.ROLE_ORDER.operations_manager = [
       '대시보드',
@@ -133,6 +72,31 @@
     ];
 
     api.reorder?.();
+    return true;
+  }
+
+  function ensureEmployeeNavigation() {
+    const currentRoute = route();
+    const nav = byId('app-nav');
+    if (!nav || !EMPLOYEE_ROUTES.has(currentRoute)) return false;
+
+    const existing = nav.querySelector('[data-employee-management-nav]');
+    if (!existing) return false;
+
+    let create = nav.querySelector('[data-employee-new-nav]');
+    if (!create) {
+      create = document.createElement('button');
+      create.type = 'button';
+      create.className = existing.className || 'button button-quiet';
+      create.dataset.employeeNewNav = '1';
+      create.addEventListener('click', () => {
+        closeSidebar();
+        window.TaejangEmployeeManagement?.openEmployeeManagement?.('new');
+      });
+      nav.insertBefore(create, existing.nextSibling);
+    }
+    create.textContent = currentRoute === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청';
+    return true;
   }
 
   function removeEmployeeTabs() {
@@ -145,7 +109,7 @@
 
   function simplifyNoticeForm() {
     const form = byId('notice-form');
-    if (!form || form.dataset.progressiveDisclosure) return;
+    if (!form || form.dataset.progressiveDisclosure) return false;
     form.dataset.progressiveDisclosure = '1';
 
     const panel = byId('notice-admin-panel');
@@ -192,6 +156,7 @@
     byId('reset-notice-form')?.addEventListener('click', () => setTimeout(seedReason, 0));
     byId('notice-admin-list')?.addEventListener('click', () => setTimeout(seedReason, 0));
     form.addEventListener('submit', seedReason, true);
+    return true;
   }
 
   function injectStyles() {
@@ -200,43 +165,58 @@
     style.dataset.followupUx = '1';
     style.textContent = `
       .employee-view-tabs { display:none !important; }
-      .app-workspace > .admin-today { width:min(100% - 40px, var(--app-content-width)); margin:32px auto 48px; }
       .notice-advanced-settings { margin-top:14px; border:1px solid var(--app-border); border-radius:12px; background:#f7f9f7; }
-      .notice-advanced-settings > summary { min-height:48px; display:flex; align-items:center; padding:10px 14px; color:var(--app-accent); font-weight:850; cursor:pointer; }
+      .notice-advanced-settings > summary { min-height:48px; display:flex; align-items:center; padding:10px 14px; color:var(--app-brand); font-weight:850; cursor:pointer; }
       .notice-advanced-settings > .help { margin:0; padding:0 14px 8px; }
       .notice-advanced-grid { padding:0 14px 14px; }
-      @media(max-width:760px){.app-workspace > .admin-today{width:min(100% - 28px, var(--app-content-width));margin-top:24px}.notice-advanced-grid{grid-template-columns:1fr}}
+      @media(max-width:760px){.notice-advanced-grid{grid-template-columns:1fr}}
     `;
     document.head.append(style);
   }
 
   function sync() {
+    syncQueued = false;
     injectStyles();
-    mountStaticAdminPanels();
-    bindSurfaceGuard();
-    ensureEmployeeNavigation();
     configureRoleNavigation();
-    simplifyNoticeForm();
+    ensureEmployeeNavigation();
     removeEmployeeTabs();
+    simplifyNoticeForm();
+    window.TaejangRoleNavigationPriority?.reorder?.();
   }
 
-  document.addEventListener('taejang-open-app-panel', event => {
-    const id = event.detail?.id;
-    if (!STATIC_ADMIN_PANELS.includes(id)) return;
-    mountStaticAdminPanels();
-    hideStaticAdminPanels(id);
+  function scheduleSync() {
+    if (syncQueued) return;
+    syncQueued = true;
+    queueMicrotask(sync);
+  }
+
+  function observe() {
+    const nav = byId('app-nav');
+    if (nav && !navObserver) {
+      navObserver = new MutationObserver(scheduleSync);
+      navObserver.observe(nav, { childList: true, subtree: true });
+    }
     const dashboard = byId('dashboard-main');
-    if (dashboard) dashboard.hidden = true;
-  });
-  document.addEventListener('taejang-dashboard-refresh', showDashboardSurface);
-  document.addEventListener('taejang-open-employee-management', showDashboardSurface);
-  document.addEventListener('taejang-open-promotion-workspace', showDashboardSurface);
-  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 260));
+    if (dashboard && !dashboardObserver) {
+      dashboardObserver = new MutationObserver(() => {
+        removeEmployeeTabs();
+        scheduleSync();
+      });
+      dashboardObserver.observe(dashboard, { childList: true, subtree: true });
+    }
+  }
 
-  const dashboard = byId('dashboard-main');
-  if (dashboard) new MutationObserver(() => removeEmployeeTabs()).observe(dashboard, { childList: true, subtree: true });
+  function start() {
+    observe();
+    scheduleSync();
+    setTimeout(scheduleSync, 150);
+    setTimeout(scheduleSync, 500);
+    setTimeout(scheduleSync, 1200);
+  }
 
-  const start = () => { sync(); setTimeout(sync, 500); };
+  document.addEventListener('taejang-app-ready', start);
+  document.addEventListener('taejang-dashboard-refresh', scheduleSync);
+  document.addEventListener('taejang-open-employee-management', scheduleSync);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 })();
