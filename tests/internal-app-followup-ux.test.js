@@ -39,6 +39,13 @@ test('operations sidebar keeps signup approval below routine work', () => {
   assert.match(source, /label: '승인·관리', items: \['가입 승인'\]/);
 });
 
+test('admin panels mount inside the app workspace and cannot stack below the shell', () => {
+  assert.match(source, /function mountStaticAdminPanels\(\)/);
+  assert.match(source, /document\.querySelector\('\.app-workspace'\)/);
+  assert.match(source, /workspace\.append\(panel\)/);
+  assert.match(source, /\.app-workspace > \.admin-today/);
+});
+
 test('navigation surface guard prevents stale admin panels from stacking below dynamic screens', () => {
   for (const id of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
     assert.ok(source.includes(`'${id}'`), `missing static panel guard for ${id}`);
