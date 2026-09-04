@@ -43,6 +43,12 @@ public = true
 file_size_limit = "8MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 
+# Employee photos are HR/work-platform data and must never use a public bucket.
+[storage.buckets.employee-private-media]
+public = false
+file_size_limit = "8MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"

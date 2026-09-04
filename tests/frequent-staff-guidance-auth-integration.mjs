@@ -4,15 +4,28 @@ import assert from 'node:assert/strict';
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const password = 'Phase1A-Test-Only-2026!';
+const employeeRoleCodes = new Set(['general_worker', 'promotion_staff', 'promotion_lead']);
 assert.ok(apiUrl && publishableKey, 'local Supabase URL and publishable key are required');
 let assertions = 0;
 const check = (value, label) => { assert.ok(value, label); assertions += 1; };
 const equal = (actual, expected, label) => { assert.equal(actual, expected, label); assertions += 1; };
 async function api(path, { method = 'GET', token, body } = {}) { const response = await fetch(`${apiUrl}${path}`, { method, headers: { apikey: publishableKey, Authorization: `Bearer ${token || publishableKey}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) }); const raw = await response.text(); let data = null; try { data = raw ? JSON.parse(raw) : null; } catch { data = raw; } return { ok: response.ok, status: response.status, data }; }
 const rpc = (name, token, body = {}) => api(`/rest/v1/rpc/${name}`, { method: 'POST', token, body });
-async function signup(email, displayName) { const result = await api('/auth/v1/signup', { method: 'POST', body: { email, password, data: { display_name: displayName } } }); check(result.ok, `signup ${email}`); return { id: result.data.user.id, token: result.data.access_token }; }
+async function signup(email, displayName) { const result = await api('/auth/v1/signup', { method: 'POST', body: { email, password, data: { display_name: displayName } } }); check(result.ok, `signup ${email}`); return { id: result.data.user.id, token: result.data.access_token, displayName }; }
 async function signin(email) { const result = await api('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } }); check(result.ok, `signin ${email}`); return result.data.access_token; }
-async function approve(adminToken, user, departmentId, positionId, roles) { const result = await rpc('approve_pending_user', adminToken, { p_target_profile_id: user.id, p_department_id: departmentId, p_position_id: positionId, p_role_codes: roles, p_reason_summary: '자주 보는 안내 CI 가상계정 승인' }); equal(result.data?.code, 'ACCOUNT_APPROVED', `approve ${user.id}`); }
+async function approve(adminToken, user, departmentId, positionId, roles) {
+  const employeeRole = roles.find(role => employeeRoleCodes.has(role));
+  if (employeeRole) {
+    equal(roles.length, 1, `employee fixture uses one role ${user.id}`);
+    const employee = await rpc('create_employee', adminToken, { p_full_name: user.displayName, p_hired_on: '2020-01-01', p_department_id: departmentId, p_position_id: positionId, p_attendance_required: true });
+    equal(employee.data?.code, 'EMPLOYEE_CREATED', `create Employee ${user.id}`);
+    const result = await rpc('approve_signup_request_with_employee', adminToken, { p_target_profile_id: user.id, p_employee_uuid: employee.data.employee_uuid, p_role_code: employeeRole, p_reason_summary: '자주 보는 안내 CI Employee 연결 승인' });
+    equal(result.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', `approve Employee link ${user.id}`);
+    return;
+  }
+  const result = await rpc('approve_pending_user', adminToken, { p_target_profile_id: user.id, p_department_id: departmentId, p_position_id: positionId, p_role_codes: roles, p_reason_summary: '자주 보는 안내 CI 가상계정 승인' });
+  equal(result.data?.code, 'ACCOUNT_APPROVED', `approve ${user.id}`);
+}
 const target = (scope, id = null) => ({ p_target_scope: scope, p_target_department_id: scope === 'department' ? id : null, p_target_work_group_id: scope === 'work_group' ? id : null, p_target_profile_id: scope === 'profile' ? id : null });
 async function save(token, overrides = {}) { return rpc('save_staff_guidance', token, { p_guidance_id: null, p_category: 'company_life', p_title: 'CI 기본 안내', p_summary_easy: '필요할 때 다시 확인하세요.', p_body_easy: '가까운 반장에게 먼저 알려주세요.', p_location_text: null, p_help_contact_label: 'CI 담당자', p_help_method_text: '현장 반장에게 직접 알려주세요.', p_related_work_guide_id: null, p_related_schedule_id: null, p_related_link_url: 'https://example.test/guidance', p_related_link_label: 'CI 안내 원문', ...target('company'), p_display_order: 10, p_is_featured: false, p_status: 'published', p_effective_from: null, p_effective_until: null, p_change_reason: '자주 보는 안내 CI 생성', ...overrides }); }
 

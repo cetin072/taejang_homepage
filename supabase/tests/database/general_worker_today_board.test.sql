@@ -149,6 +149,20 @@ select is(
   'Today board test bootstraps a fake super admin'
 );
 
+insert into public.people (id, full_name)
+values ('52100000-0000-0000-0000-000000000002', '테스트 일반 근로자');
+insert into public.employees (
+  id, employee_id, person_id, department_id, position_id, hired_on, attendance_required
+) values (
+  '52200000-0000-0000-0000-000000000002',
+  'TJ-990001',
+  '52100000-0000-0000-0000-000000000002',
+  (select id from public.departments where code = 'production'),
+  (select id from public.positions where code = 'general_worker'),
+  current_date,
+  true
+);
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -156,15 +170,14 @@ select set_config(
   true
 );
 select is(
-  (public.approve_pending_user(
+  (public.approve_signup_request_with_employee(
     '52000000-0000-0000-0000-000000000002',
-    (select id from public.departments where code = 'production'),
-    (select id from public.positions where code = 'general_worker'),
-    array['general_worker'],
+    '52200000-0000-0000-0000-000000000002',
+    'general_worker',
     '오늘 게시판 테스트 승인'
   ) ->> 'code'),
-  'ACCOUNT_APPROVED',
-  'fake worker is approved as an active general worker'
+  'EMPLOYEE_ACCOUNT_APPROVED',
+  'fake worker is approved through an explicit Employee link'
 );
 select is(
   (public.save_work_group(
