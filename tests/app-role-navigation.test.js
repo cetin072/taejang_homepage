@@ -9,9 +9,11 @@ const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'),
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
 const dashboardCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.css'), 'utf8');
+const accentCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-accent-theme.css'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const dashboardPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
+const officialChannels = fs.readFileSync(path.join(root, 'app/assets/official-channel-links.js'), 'utf8');
 const attendanceAdmin = fs.readFileSync(path.join(root, 'app/assets/attendance-admin.js'), 'utf8');
 const operationsWriter = fs.readFileSync(path.join(root, 'app/assets/operations-promotion-writer.js'), 'utf8');
 const operationsHomepage = fs.readFileSync(path.join(root, 'app/assets/operations-homepage-direct.js'), 'utf8');
@@ -100,6 +102,16 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
+test('accent theme adds restrained gold blue coral and mint visual hierarchy', () => {
+  assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
+  assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
+  assert.match(accentCss, /--app-accent-coral:\s*#a86857/);
+  assert.match(accentCss, /dashboard-card:nth-child\(4n \+ 2\)/);
+  assert.match(accentCss, /dashboard-intro[\s\S]*border-left:\s*5px solid var\(--app-brand\)/);
+  assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
+  assert.match(accentCss, /app-nav-official-channel\[data-channel="youtube"\]/);
+});
+
 test('dashboard return restores the dashboard and uses a short topbar role label', async () => {
   assert.match(source, /function goDashboard\(\)[\s\S]*?dispatchEvent\(new CustomEvent\('taejang-dashboard-refresh'\)\)/);
   assert.match(appSource, /taejang-dashboard-refresh[\s\S]*?dashboard-main'\)\.hidden = false/);
@@ -127,17 +139,30 @@ test('base role menus remain clickable before final priority sorting', async () 
 
 test('central navigation priority keeps operations and promotion lead critical work first', () => {
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '홈페이지']);
+  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성', '홈페이지 직접 수정', '공식 블로그', '공식 유튜브', '작업 매뉴얼', '홈페이지']);
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '출근부', '팀 직원 관리', '홍보 검토', '홍보 작성', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
+  assertOrdered(leadBlock, ['대시보드', '출근부', '팀 직원 관리', '홍보 검토', '홍보 작성', '공식 블로그', '공식 유튜브', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
+  const staffBlock = navPriority.slice(navPriority.indexOf('promotion_staff:'), navPriority.indexOf('promotion_lead:'));
+  assertOrdered(staffBlock, ['대시보드', '홍보 작성', '공식 블로그', '공식 유튜브', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지']);
   assert.match(navPriority, /return 10000/);
   assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('priority presentation is loaded after feature modules and does not change permissions', () => {
-  assert.ok(appUi.indexOf("assets/role-navigation-priority.js") > appUi.indexOf("assets/menu-status.js"));
+test('official blog and YouTube shortcuts use public homepage canonical channels and limited roles', () => {
+  assert.match(officialChannels, /https:\/\/blog\.naver\.com\/taejang-official/);
+  assert.match(officialChannels, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(officialChannels, /new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
+  assert.match(officialChannels, /target = '_blank'/);
+  assert.match(officialChannels, /rel = 'noopener noreferrer'/);
+});
+
+test('priority presentation and visual polish load after feature modules without changing permissions', () => {
+  assert.ok(appUi.indexOf("assets/official-channel-links.js") > appUi.indexOf("assets/menu-status.js"));
+  assert.ok(appUi.indexOf("assets/role-navigation-priority.js") > appUi.indexOf("assets/official-channel-links.js"));
   assert.ok(appUi.indexOf("assets/dashboard-priority-cards.js") > appUi.indexOf("assets/role-navigation-priority.js"));
+  assert.match(appUi, /loadStyleOnce\('assets\/dashboard-accent-theme\.css'/);
   assert.doesNotMatch(navPriority, /rpc\(/);
+  assert.doesNotMatch(officialChannels, /rpc\(/);
 });
 
 test('dashboard removes low-priority manual and preparing cards', () => {
