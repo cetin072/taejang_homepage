@@ -12,6 +12,7 @@
 // - Never mutate the source Excel file.
 // - Convert the source Excel into a temporary Google Sheet, read it, then trash only the temporary copy.
 // - Preserve source values as display strings.
+// - Store attendance dates as real Date values so effective-dated employment rules can compare safely.
 // - Do not convert clock-in/out differences directly into paid hours.
 // - Do not copy birthdate/disability fields into the attendance raw table.
 // - Import is idempotent for the same source file + source sheet: existing rows from that source are replaced.
@@ -228,7 +229,7 @@ function payrollExtractAttendanceRows_(values, context) {
         context.sourceSheetName,
         rowIndex + 1,
         name,
-        column.dateIso,
+        payrollDateFromIso_(column.dateIso),
         inValue,
         outValue,
         status,
@@ -271,6 +272,18 @@ function payrollParseAttendanceDateHeader_(header, year, expectedMonth) {
   return Utilities.formatDate(date, PAYROLL_ATTENDANCE_CONFIG.TIME_ZONE, 'yyyy-MM-dd');
 }
 
+function payrollDateFromIso_(dateIso) {
+  const match = String(dateIso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error(`날짜 변환 실패: ${dateIso}`);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  // Noon avoids date rollback around timezone/DST boundaries when Sheets serializes Date objects.
+  return new Date(year, month - 1, day, 12, 0, 0);
+}
+
 function payrollNormalizeDisplayValue_(value) {
   if (value === null || value === undefined) return '';
   return String(value).replace(/\r\n/g, '\n').trim();
@@ -307,7 +320,7 @@ function payrollReplaceRawRowsForSource_(rawSheet, sourceFileId, sourceSheetName
   const currentLastRow = Math.max(rawSheet.getLastRow(), 1);
   const currentLastCol = Math.max(rawSheet.getLastColumn(), headers.length);
   const currentValues = currentLastRow > 1
-    ? rawSheet.getRange(2, 1, currentLastRow - 1, currentLastCol).getDisplayValues()
+    ? rawSheet.getRange(2, 1, currentLastRow - 1, currentLastCol).getValues()
     : [];
 
   const kept = currentValues
@@ -323,7 +336,9 @@ function payrollReplaceRawRowsForSource_(rawSheet, sourceFileId, sourceSheetName
   rawSheet.clearContents();
   rawSheet.getRange(1, 1, output.length, headers.length).setValues(output);
   rawSheet.setFrozenRows(1);
-  rawSheet.getRange(2, 6, Math.max(output.length - 1, 1), 1).setNumberFormat('yyyy-mm-dd');
+  if (output.length > 1) {
+    rawSheet.getRange(2, 6, output.length - 1, 1).setNumberFormat('yyyy-mm-dd');
+  }
 }
 
 function payrollTrashTemporaryFile_(fileId) {
