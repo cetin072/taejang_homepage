@@ -1,0 +1,149 @@
+:root {
+  --app-accent-gold: #b48632;
+  --app-accent-gold-soft: #f6efe1;
+  --app-accent-blue: #4f7080;
+  --app-accent-blue-soft: #edf3f6;
+  --app-accent-coral: #a86857;
+  --app-accent-coral-soft: #f7eeeb;
+  --app-accent-mint: #dfeee5;
+}
+
+.desktop-app-shell {
+  background:
+    linear-gradient(135deg, rgba(180, 134, 50, .035), transparent 30%),
+    var(--app-background);
+}
+
+.app-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.025), transparent 24%),
+    var(--sidebar-bg);
+}
+
+.app-logo {
+  position: relative;
+  padding-bottom: 15px;
+}
+.app-logo::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  bottom: 4px;
+  width: 44px;
+  height: 3px;
+  border-radius: 99px;
+  background: var(--app-accent-gold);
+}
+
+.app-topbar {
+  background: linear-gradient(90deg, #fff 0%, #fbfcfb 72%, #f8f4eb 100%);
+  border-bottom-color: #d6ddd8;
+  box-shadow: 0 1px 0 rgba(180, 134, 50, .08);
+}
+
+.dashboard-intro {
+  position: relative;
+  padding: 22px 24px;
+  border: 1px solid #d9e2dc;
+  border-left: 5px solid var(--app-brand);
+  border-radius: 16px;
+  background: linear-gradient(120deg, #ffffff 0%, #f7faf8 64%, var(--app-accent-gold-soft) 100%);
+  box-shadow: 0 8px 24px rgba(22, 53, 38, .045);
+}
+.dashboard-intro .eyebrow {
+  color: var(--app-accent-gold);
+  font-weight: 900;
+}
+
+.dashboard-card {
+  --card-accent: var(--app-brand);
+  position: relative;
+  overflow: hidden;
+  border-color: #d6dfd9;
+  background: linear-gradient(145deg, #fff 0%, #fbfdfc 100%);
+  box-shadow: 0 8px 22px rgba(22, 53, 38, .055);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.dashboard-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--card-accent);
+}
+.dashboard-card:nth-child(4n + 1) {
+  --card-accent: var(--app-brand);
+  background: linear-gradient(145deg, #fff 0%, #f1f8f4 100%);
+}
+.dashboard-card:nth-child(4n + 2) {
+  --card-accent: var(--app-accent-gold);
+  background: linear-gradient(145deg, #fff 0%, var(--app-accent-gold-soft) 100%);
+}
+.dashboard-card:nth-child(4n + 3) {
+  --card-accent: var(--app-accent-blue);
+  background: linear-gradient(145deg, #fff 0%, var(--app-accent-blue-soft) 100%);
+}
+.dashboard-card:nth-child(4n) {
+  --card-accent: var(--app-accent-coral);
+  background: linear-gradient(145deg, #fff 0%, var(--app-accent-coral-soft) 100%);
+}
+.dashboard-card:hover {
+  transform: translateY(-1px);
+  border-color: #c8d5cd;
+  box-shadow: 0 12px 28px rgba(22, 53, 38, .075);
+}
+.dashboard-card .status-label {
+  background: rgba(255,255,255,.82);
+  border: 1px solid rgba(35, 101, 69, .12);
+  box-shadow: 0 2px 7px rgba(22, 53, 38, .03);
+}
+.dashboard-card h3 {
+  color: #173d2d;
+}
+.dashboard-card .dashboard-value {
+  color: var(--card-accent);
+}
+
+.app-nav > a.app-nav-official-channel {
+  position: relative;
+  font-weight: 850;
+  background: rgba(255,255,255,.045);
+}
+.app-nav > a.app-nav-official-channel::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+  flex: 0 0 auto;
+}
+.app-nav > a.app-nav-official-channel[data-channel="blog"]::before {
+  background: #32c45d;
+}
+.app-nav > a.app-nav-official-channel[data-channel="youtube"]::before {
+  background: #e25555;
+}
+.app-nav > a.app-nav-official-channel:hover,
+.app-nav > a.app-nav-official-channel:focus-visible {
+  background: rgba(255,255,255,.14);
+}
+
+.app-nav > button[aria-current="page"],
+.app-nav > a[aria-current="page"] {
+  box-shadow: inset 4px 0 0 var(--app-accent-gold);
+}
+
+@media (max-width: 900px) {
+  .dashboard-intro {
+    padding: 18px 18px;
+  }
+  .dashboard-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-card { transition: none; }
+}
