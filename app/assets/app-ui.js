@@ -65,4 +65,9 @@
   loadOnce('assets/employee-management.js', 'employee-management');
   loadOnce('assets/menu-status.js', 'menu-status');
   loadOnce('assets/phase-c-account-topbar.js', 'phase-c-account-topbar');
+
+  // Final navigation order is role-based and must run after feature modules have
+  // registered their menu entries. It only reorders existing permitted entries;
+  // it does not grant or change permissions.
+  loadOnce('assets/role-navigation-priority.js', 'role-navigation-priority');
 })();
