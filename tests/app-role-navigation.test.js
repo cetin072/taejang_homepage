@@ -60,8 +60,9 @@ class Document extends Hub {
   querySelectorAll(selector) { if (selector === '.staff-brand, .app-logo') return []; return []; }
 }
 class FakeCustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } }
-function menuLabels(nav) { return nav.children.map(item => item.textContent); }
-function findMenu(nav, label) { return nav.children.find(item => item.textContent === label); }
+function menuLabel(item) { return item.dataset?.navSection === 'official_channels' ? '공식 채널' : item.textContent; }
+function menuLabels(nav) { return nav.children.map(menuLabel); }
+function findMenu(nav, label) { return nav.children.find(item => menuLabel(item) === label); }
 const nextTurn = () => new Promise(resolve => setTimeout(resolve, 0));
 
 async function makeDashboard(route) {
@@ -73,8 +74,8 @@ async function makeDashboard(route) {
   document.make('button', 'logout-button'); document.make('button', 'sidebar-toggle');
   document.make('p', 'desktop-role-label'); document.make('h1', 'desktop-page-title'); document.make('span', 'desktop-user-label');
   const main = document.make('main', 'dashboard-main');
-  const openedPanels = []; const promotionModes = []; const employeeViews = []; let approvalOpens = 0;
-  document.addEventListener('taejang-open-app-panel', event => { openedPanels.push(event.detail.id); main.hidden = true; });
+  const openedPanels = []; const openedPanelDetails = []; const promotionModes = []; const employeeViews = []; let approvalOpens = 0;
+  document.addEventListener('taejang-open-app-panel', event => { openedPanels.push(event.detail.id); openedPanelDetails.push(event.detail); main.hidden = true; });
   document.addEventListener('taejang-dashboard-refresh', () => { main.hidden = false; });
   document.addEventListener('taejang-open-promotion-workspace', event => promotionModes.push(event.detail.mode));
   document.addEventListener('taejang-open-employee-management', event => employeeViews.push(event.detail?.view || 'existing'));
@@ -84,7 +85,7 @@ async function makeDashboard(route) {
   vm.runInNewContext(source, sandbox, { filename: 'dashboard-shell.js' });
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route, label: route } }));
   await nextTurn();
-  return { document, shell, nav, main, openedPanels, promotionModes, employeeViews, getApprovalOpens: () => approvalOpens, window };
+  return { document, shell, nav, main, openedPanels, openedPanelDetails, promotionModes, employeeViews, getApprovalOpens: () => approvalOpens, window };
 }
 
 function assertOrdered(text, labels) {
@@ -134,15 +135,16 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
 
 test('base role menus remain clickable before final priority sorting', async () => {
   const promotion = await makeDashboard('promotion_staff');
-  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '홈페이지']);
+  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '공식 채널']);
   findMenu(promotion.nav, '홍보 작성').click();
   assert.deepEqual(promotion.promotionModes, ['write']);
 
   const operations = await makeDashboard('operations_manager');
-  assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '작업 매뉴얼', '홈페이지']);
+  assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '작업 매뉴얼', '공식 채널']);
   for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['상시 안내 관리','guidance-admin-panel'],['작업 매뉴얼','today-admin-panel']])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
+    if (label === '작업 매뉴얼') assert.equal(operations.openedPanelDetails.at(-1).view, 'work_manual');
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
@@ -181,13 +183,15 @@ test('central navigation groups menus by work category and keeps manuals before 
   assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('official channels are grouped as homepage, blog and YouTube for limited roles', () => {
-  assert.match(officialChannels, /new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
-  assertOrdered(officialChannels, ['homepage', 'blog', 'youtube']);
-  assert.ok(officialChannels.indexOf("label: '홈페이지'") < officialChannels.indexOf("label: '공식 블로그'"));
-  assert.ok(officialChannels.indexOf("label: '공식 블로그'") < officialChannels.indexOf("label: '공식 유튜브'"));
-  assert.match(officialChannels, /label\.textContent = '공식 채널'/);
-  assert.match(officialChannels, /dataset\.navSection = 'official_channels'/);
+test('official channels are created in the base sidebar with homepage, blog and YouTube', () => {
+  assert.match(source, /officialChannelRoles = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
+  assertOrdered(source, ['homepage', 'blog', 'youtube']);
+  assert.ok(source.indexOf("label: '홈페이지'") < source.indexOf("label: '공식 블로그'"));
+  assert.ok(source.indexOf("label: '공식 블로그'") < source.indexOf("label: '공식 유튜브'"));
+  assert.match(source, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(source, /dataset\.navSection = 'official_channels'/);
+  assert.match(source, /if \(officialChannelRoles\.has\(route\)\) nav\.append\(makeOfficialChannelGroup\(\)\)/);
+  assert.match(officialChannels, /if \(nav\.querySelector\('\[data-official-channel-group\]'\)\) return/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
 });
