@@ -2,6 +2,7 @@
   'use strict';
   const worker = 'general_worker';
   const managerRoles = new Set(['super_admin', 'operations_manager', 'department_lead', 'field_lead']);
+  const employeeManagerRoles = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const promotionWorkspaceRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
@@ -26,6 +27,16 @@
   };
   function openPanel(id) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id } })); }
   function openPromotion(mode = 'review') { document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } })); }
+  function openEmployee(view = 'existing') {
+    const api = window.TaejangEmployeeManagement?.openEmployeeManagement;
+    if (api) return api(view);
+    document.dispatchEvent(new CustomEvent('taejang-open-employee-management', { detail: { view } }));
+  }
+  function openSignupApproval() {
+    const api = window.TaejangAccountApproval?.openAccountApproval;
+    if (api) return api();
+    document.dispatchEvent(new CustomEvent('taejang-open-account-approval'));
+  }
   function button(label, action) { const node = text('button', label, 'button button-quiet'); node.type = 'button'; node.addEventListener('click', action); return node; }
   function closeSidebar() { const shell = el('desktop-app-shell'); if (!shell) return; shell.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded', 'false'); }
   function card(title, body, { value, action } = {}) {
@@ -57,9 +68,28 @@
     intro.append(button('대시보드로', goDashboard));
     main.replaceChildren(intro);
   }
+  function markMenuNode(node, item) {
+    if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
+    if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
+    if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
+  }
   function menu(route) {
     const nav = el('app-nav'); nav.replaceChildren();
     const items = [{ label: '대시보드', run: goDashboard, current: true }];
+
+    if (employeeManagerRoles.has(route)) {
+      items.push({
+        label: route === 'operations_manager' ? '직원 관리' : '팀 직원 관리',
+        run: () => openEmployee('existing'),
+        dataKey: 'employee-management'
+      });
+      items.push({
+        label: route === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청',
+        run: () => openEmployee('new'),
+        dataKey: 'employee-new'
+      });
+    }
+
     if (route === 'promotion_staff') items.push({ label: '홍보 작성', run: () => openPromotion('write') });
     if (route === 'promotion_lead') {
       items.push(
@@ -73,11 +103,15 @@
     if (managerRoles.has(route)) items.push(
       { label: '일정 관리', run: () => openPanel('schedule-admin-panel') },
       { label: '공지 관리', run: () => openPanel('notice-admin-panel') },
-      { label: '안내 관리', run: () => openPanel('guidance-admin-panel') },
-      { label: '작업 매뉴얼', run: () => openPanel('today-admin-panel') }
+      { label: '상시 안내 관리', run: () => openPanel('guidance-admin-panel') }
     );
+    if (route === 'operations_manager') {
+      items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
+    }
+    if (managerRoles.has(route)) items.push({ label: '작업 매뉴얼', run: () => openPanel('today-admin-panel') });
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
     items.push({ label: '홈페이지', href: '../index.html', newTab: true });
+
     items.forEach(item => {
       const node = item.href ? document.createElement('a') : document.createElement('button');
       if (item.href) {
@@ -86,6 +120,7 @@
       } else {
         node.type = 'button'; node.textContent = item.label; node.addEventListener('click', () => { closeSidebar(); item.run(); });
       }
+      markMenuNode(node, item);
       if (item.current) node.setAttribute('aria-current', 'page');
       nav.append(node);
     });
