@@ -16,6 +16,19 @@ function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
 }
 
+test('app feature modules load deterministically before the first app-ready event is released', () => {
+  syntaxCheck('app/assets/app-ui.js');
+  assert.match(appUi, /const FEATURE_MODULES = \[/);
+  assert.match(appUi, /FEATURE_MODULES\.reduce\(/);
+  assert.match(appUi, /promise\.then\(\(\) => loadScriptOnce\(source, key\)\)/);
+  assert.match(appUi, /document\.addEventListener\('taejang-app-ready',[\s\S]*event\.stopImmediatePropagation\(\)/);
+  assert.match(appUi, /featureModulesReady\.then\([\s\S]*document\.dispatchEvent\(new CustomEvent\('taejang-app-ready'/);
+  assert.match(appUi, /window\.TaejangFeatureModulesReady = featureModulesReady/);
+  assert.ok(appUi.indexOf("assets/phase-c-account-approval.js") < appUi.indexOf("assets/employee-management.js"));
+  assert.ok(appUi.indexOf("assets/employee-management.js") < appUi.indexOf("assets/role-navigation-priority.js"));
+  assert.ok(appUi.indexOf("assets/role-navigation-priority.js") < appUi.indexOf("assets/ux-followup-polish.js"));
+});
+
 test('workspace surface guard parses and loads before feature modules', () => {
   syntaxCheck('app/assets/app-workspace-surface.js');
   assert.match(appUi, /assets\/app-workspace-surface\.js/);
