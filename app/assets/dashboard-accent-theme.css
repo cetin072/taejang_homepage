@@ -142,6 +142,15 @@
   box-shadow: 0 0 0 3px rgba(255,255,255,.07);
   flex: 0 0 auto;
 }
+.app-nav-channel-group > a.app-nav-official-channel::after {
+  content: '↗';
+  margin-left: auto;
+  padding-left: 8px;
+  color: #d9e5dd;
+  font-size: .78rem;
+  font-weight: 800;
+  opacity: .76;
+}
 .app-nav-channel-group > a.app-nav-official-channel[data-channel="blog"]::before {
   background: #32c45d;
 }
@@ -154,6 +163,11 @@
   color: #fff;
   outline: 2px solid rgba(255,255,255,.55);
   outline-offset: 1px;
+}
+.app-nav-channel-group > a.app-nav-official-channel:hover::after,
+.app-nav-channel-group > a.app-nav-official-channel:focus-visible::after {
+  color: #fff;
+  opacity: 1;
 }
 
 .app-nav > button[aria-current="page"],
