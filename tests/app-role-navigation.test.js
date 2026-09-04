@@ -137,8 +137,14 @@ test('base role menus remain clickable before final priority sorting', async () 
   assert.deepEqual(promotion.promotionModes, ['write']);
 
   const operations = await makeDashboard('operations_manager');
-  assert.deepEqual(menuLabels(operations.nav), ['대시보드', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '작업 매뉴얼', '홈페이지']);
-  for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['안내 관리','guidance-admin-panel'],['작업 매뉴얼','today-admin-panel']])) {
+  assert.deepEqual(menuLabels(operations.nav), [
+    '대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리',
+    '공지 관리', '상시 안내 관리', '가입 승인', '작업 매뉴얼', '홈페이지'
+  ]);
+  assert.equal(operations.nav.querySelector('[data-employee-management-nav]')?.textContent, '직원 관리');
+  assert.equal(operations.nav.querySelector('[data-employee-new-nav]')?.textContent, '신규 직원 등록');
+  assert.equal(operations.nav.querySelector('[data-phase-c-account-approval-nav]')?.textContent, '가입 승인');
+  for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['상시 안내 관리','guidance-admin-panel'],['작업 매뉴얼','today-admin-panel']])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
