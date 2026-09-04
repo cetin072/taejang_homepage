@@ -8,12 +8,15 @@ const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
+const staffIndex = fs.readFileSync(path.join(root, 'staff/index.html'), 'utf8');
 const dashboardCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.css'), 'utf8');
 const accentCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-accent-theme.css'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const dashboardPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
 const officialChannels = fs.readFileSync(path.join(root, 'app/assets/official-channel-links.js'), 'utf8');
+const accountApproval = fs.readFileSync(path.join(root, 'app/assets/phase-c-account-approval.js'), 'utf8');
+const signupRejection = fs.readFileSync(path.join(root, 'supabase/migrations/20260904121000_signup_rejection_soft_delete.sql'), 'utf8');
 const attendanceAdmin = fs.readFileSync(path.join(root, 'app/assets/attendance-admin.js'), 'utf8');
 const operationsWriter = fs.readFileSync(path.join(root, 'app/assets/operations-promotion-writer.js'), 'utf8');
 const operationsHomepage = fs.readFileSync(path.join(root, 'app/assets/operations-homepage-direct.js'), 'utf8');
@@ -102,12 +105,14 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
-test('accent theme adds restrained color hierarchy and a separate official channel group', () => {
+test('accent theme adds restrained color hierarchy and separated sidebar groups', () => {
   assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
   assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
   assert.match(accentCss, /--app-accent-coral:\s*#a86857/);
   assert.match(accentCss, /dashboard-card:nth-child\(4n \+ 2\)/);
   assert.match(accentCss, /dashboard-intro[\s\S]*border-left:\s*5px solid var\(--app-brand\)/);
+  assert.match(accentCss, /\.app-nav > \.app-nav-section-start\s*\{/);
+  assert.match(accentCss, /content:\s*attr\(data-section-label\)/);
   assert.match(accentCss, /\.app-nav-channel-group\s*\{/);
   assert.match(accentCss, /\.app-nav-group-label\s*\{/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
@@ -141,11 +146,13 @@ test('base role menus remain clickable before final priority sorting', async () 
   }
 });
 
-test('central navigation priority keeps promotion work before team employee management', () => {
+test('central navigation keeps operations approvals first and attendance in low-priority tools', () => {
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '출근부', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '홈페이지']);
+  assertOrdered(operationsBlock, ['대시보드', '가입 승인', '직원 관리', '홍보 검토', '홈페이지 내용 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홍보 글 작성', '홈페이지 직접 수정', '작업 매뉴얼', '출근부', '홈페이지']);
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
   assertOrdered(leadBlock, ['대시보드', '출근부', '홍보 검토', '홍보 작성', '팀 직원 관리', '업무 배정', '일정 관리', '공지 관리', '안내 관리', '홈페이지 내용 관리', '작업 매뉴얼', '홈페이지', '신규 사업 기획']);
+  assert.match(navPriority, /label:\s*'승인·관리'[\s\S]*'가입 승인'[\s\S]*'직원 관리'/);
+  assert.match(navPriority, /label:\s*'조회·도구'[\s\S]*'작업 매뉴얼'[\s\S]*'출근부'/);
   assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
   assert.match(navPriority, /return 10000/);
   assert.match(navPriority, /app-nav-checking-first/);
@@ -160,6 +167,22 @@ test('official channels are grouped as homepage, blog and YouTube for limited ro
   assert.match(officialChannels, /dataset\.navSection = 'official_channels'/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
+});
+
+test('signup pending copy is neutral and rejection becomes a blocked audited account state', () => {
+  const pendingStart = staffIndex.indexOf('id="pending-panel"');
+  const pendingEnd = staffIndex.indexOf('id="blocked-panel"');
+  const pendingCopy = staffIndex.slice(pendingStart, pendingEnd);
+  assert.match(pendingCopy, /관리자 확인 후 승인됩니다\./);
+  assert.doesNotMatch(pendingCopy, /운영총괄/);
+  assert.match(accountApproval, /p_decision:\s*'rejected'/);
+  assert.match(accountApproval, /가입 거절/);
+  assert.match(accountApproval, /거절 사유/);
+  assert.match(signupRejection, /current_user_has_role\('operations_manager'\)/);
+  assert.match(signupRejection, /account_status\s*=\s*'deleted'/);
+  assert.match(signupRejection, /'pending',\s*\n\s*'deleted'/);
+  assert.match(signupRejection, /account_signup_rejected/);
+  assert.match(signupRejection, /revoke all on function public\.record_pending_decision/);
 });
 
 test('priority presentation and visual polish load after feature modules without changing permissions', () => {
@@ -179,8 +202,10 @@ test('dashboard removes low-priority manual and preparing cards', () => {
   assert.doesNotMatch(source, /get_my_work_guide_list/);
 });
 
-test('operations dashboard priority adds employee and homepage approval summaries', () => {
-  assertOrdered(dashboardPriority, ['가입 승인', '직원관리 요청', '오늘 출근부', '중요 홍보 승인', '홈페이지 수정 승인', '중요공지', '가까운 일정']);
+test('operations dashboard is approval-focused and hides routine lookup cards', () => {
+  assertOrdered(dashboardPriority, ['가입 승인', '직원관리 요청', '중요 홍보 승인', '홈페이지 수정 승인']);
+  assert.match(dashboardPriority, /OPERATIONS_DASHBOARD_HIDDEN = new Set\(\['오늘 출근부', '중요공지', '가까운 일정'\]\)/);
+  assert.match(dashboardPriority, /currentRoute === 'operations_manager' && !requests\.length/);
   assert.match(dashboardPriority, /get_employee_management_context/);
   assert.match(dashboardPriority, /get_homepage_change_requests/);
 });
@@ -199,7 +224,7 @@ test('operations optional authoring and direct homepage editing stay operations-
   assert.match(operationsHomepage, /node\.textContent = '홈페이지 직접 수정'/);
 });
 
-test('attendance navigation remains limited to operations manager and promotion lead', () => {
+test('attendance navigation remains available to operations manager and promotion lead', () => {
   assert.match(attendanceAdmin, /new Set\(\['promotion_lead', 'operations_manager'\]\)/);
   assert.match(attendanceAdmin, /'출근부'/);
 });
