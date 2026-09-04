@@ -9,11 +9,19 @@ const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const source = read('app/assets/ux-followup-polish.js');
+const surface = read('app/assets/app-workspace-surface.js');
 const appUi = read('app/assets/app-ui.js');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
 }
+
+test('workspace surface guard parses and loads before feature modules', () => {
+  syntaxCheck('app/assets/app-workspace-surface.js');
+  assert.match(appUi, /assets\/app-workspace-surface\.js/);
+  assert.ok(appUi.indexOf("assets/app-workspace-surface.js") < appUi.indexOf("assets/attendance-admin.js"));
+  assert.ok(appUi.indexOf("assets/app-workspace-surface.js") < appUi.indexOf("assets/employee-management.js"));
+});
 
 test('follow-up UX module parses and loads after role navigation', () => {
   syntaxCheck('app/assets/ux-followup-polish.js');
@@ -28,6 +36,7 @@ test('employee management has a separate new registration navigation action', ()
   assert.match(source, /신규 직원 등록 요청/);
   assert.match(source, /openEmployeeManagement\?\.\('new'\)/);
   assert.match(source, /\.employee-view-tabs \{ display:none !important; \}/);
+  assert.match(source, /MutationObserver\(scheduleSync\)/);
 });
 
 test('operations sidebar keeps signup approval below routine work', () => {
@@ -39,21 +48,16 @@ test('operations sidebar keeps signup approval below routine work', () => {
   assert.match(source, /label: '승인·관리', items: \['가입 승인'\]/);
 });
 
-test('admin panels mount inside the app workspace and cannot stack below the shell', () => {
-  assert.match(source, /function mountStaticAdminPanels\(\)/);
-  assert.match(source, /document\.querySelector\('\.app-workspace'\)/);
-  assert.match(source, /workspace\.append\(panel\)/);
-  assert.match(source, /\.app-workspace > \.admin-today/);
-});
-
-test('navigation surface guard prevents stale admin panels from stacking below dynamic screens', () => {
+test('admin panels mount inside the app workspace before they can open', () => {
   for (const id of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
-    assert.ok(source.includes(`'${id}'`), `missing static panel guard for ${id}`);
+    assert.ok(surface.includes(`'${id}'`), `missing workspace panel ${id}`);
   }
-  assert.match(source, /nav\.addEventListener\('click',[\s\S]*showDashboardSurface\(\)/);
-  assert.match(source, /document\.addEventListener\('taejang-open-app-panel'/);
-  assert.match(source, /document\.addEventListener\('taejang-open-employee-management', showDashboardSurface\)/);
-  assert.match(source, /document\.addEventListener\('taejang-open-promotion-workspace', showDashboardSurface\)/);
+  assert.match(surface, /document\.querySelector\('\.app-workspace'\)/);
+  assert.match(surface, /workspace\.append\(panel\)/);
+  assert.match(surface, /panel\.classList\.add\('app-workspace-panel'\)/);
+  assert.match(surface, /document\.addEventListener\('taejang-open-app-panel'/);
+  assert.match(surface, /document\.addEventListener\('taejang-open-employee-management', showDashboard/);
+  assert.match(surface, /document\.addEventListener\('taejang-open-promotion-workspace', showDashboard/);
 });
 
 test('notice authoring keeps a short default form and moves optional fields into details', () => {
