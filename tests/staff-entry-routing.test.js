@@ -20,9 +20,10 @@ test('public homepage shows the staff entry only through the approved field pilo
   assert.doesNotMatch(site, /employeeIcon/);
 });
 
-test('public staff navigation is rightmost, separated, and built in the same normalization pass', () => {
+test('public staff navigation is rightmost, separated, stable from first paint, and built in one normalization pass', () => {
   const site = read('assets/js/site.js');
   const polish = read('assets/css/site-polish.css');
+  const visual = read('assets/css/visual-hierarchy.css');
   const mobile = read('assets/css/mobile-layout-fixes.css');
 
   assert.match(site, /PUBLIC_NAV_LINKS\.forEach[\s\S]*?nav\.appendChild\(link\)[\s\S]*?if \(employeeEntryEnabled\(\)\)[\s\S]*?nav\.appendChild\(staffLink\)/);
@@ -30,6 +31,9 @@ test('public staff navigation is rightmost, separated, and built in the same nor
   assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?margin-left:\s*10px[\s\S]*?border-left:\s*1px solid/);
   assert.match(polish, /\.mobile-nav \.staff-nav[\s\S]*?border-top:\s*1px solid/);
   assert.match(mobile, /\.mobile-nav a[\s\S]*?min-height:\s*54px/);
+  assert.match(visual, /\.desktop-nav:not\(:has\(\.staff-nav\)\)::after[\s\S]*?content:\s*"임직원"/);
+  assert.match(visual, /\.desktop-nav \.staff-nav[\s\S]*?border-left:\s*1px solid/);
+  assert.match(visual, /\.mobile-nav:not\(:has\(\.staff-nav\)\)::after[\s\S]*?content:\s*"임직원"/);
 
   assert.match(polish, /\.footer-bottom > div:last-child[\s\S]*?font-size:\s*0/);
   assert.match(polish, /\.footer-bottom > div:last-child a[\s\S]*?min-height:\s*44px/);
