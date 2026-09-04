@@ -104,10 +104,30 @@
   color: var(--card-accent);
 }
 
+.app-nav > .app-nav-section-start {
+  position: relative;
+  margin-top: 32px;
+}
+.app-nav > .app-nav-section-start::before {
+  content: attr(data-section-label);
+  position: absolute;
+  left: 10px;
+  right: 4px;
+  top: -26px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.17);
+  color: #c9d7cf;
+  font-size: .69rem;
+  font-weight: 900;
+  letter-spacing: .07em;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .app-nav-channel-group {
   display: grid;
   gap: 4px;
-  margin-top: 16px;
+  margin-top: 18px;
   padding-top: 13px;
   border-top: 1px solid rgba(255,255,255,.17);
 }
@@ -168,6 +188,26 @@
 .app-nav-channel-group > a.app-nav-official-channel:focus-visible::after {
   color: #fff;
   opacity: 1;
+}
+
+.app-nav > .app-nav-checking-first {
+  margin-top: 32px;
+}
+.app-nav > .app-nav-checking-first::before {
+  content: '점검중';
+  position: absolute;
+  left: 10px;
+  right: 4px;
+  top: -26px;
+  height: auto;
+  padding-top: 7px;
+  border-top: 1px solid rgba(255,255,255,.17);
+  background: none;
+  color: #c9d7cf;
+  font-size: .69rem;
+  font-weight: 900;
+  letter-spacing: .07em;
+  line-height: 1;
 }
 
 .app-nav > button[aria-current="page"],
