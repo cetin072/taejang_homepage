@@ -83,4 +83,5 @@
   // reorder or summarize already-permitted features and never grant permissions.
   loadOnce('assets/role-navigation-priority.js', 'role-navigation-priority');
   loadOnce('assets/dashboard-priority-cards.js', 'dashboard-priority-cards');
+  loadOnce('assets/ux-followup-polish.js', 'ux-followup-polish');
 })();
