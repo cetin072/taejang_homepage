@@ -143,6 +143,53 @@
 .scope-tag { display: inline-flex; align-items: center; padding: 4px 8px; border: 1px solid #c7d8cc; color: var(--green-deep); font-size: 13px; line-height: 1.35; }
 .scope-tag--current { border-color: var(--green); background: var(--green); color: #fff; font-weight: 800; }
 
+/* Reserve the employee entry from first paint so it never jumps in after site.js runs. */
+@supports selector(.desktop-nav:has(.staff-nav)) {
+  .desktop-nav:not(:has(.staff-nav))::after {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    margin-left: -4px;
+    padding-left: 18px;
+    border-left: 1px solid var(--line);
+    color: var(--ink-soft);
+    content: "임직원";
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .desktop-nav .staff-nav {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    margin-left: -4px;
+    padding-left: 18px;
+    border-left: 1px solid var(--line);
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .mobile-nav:not(:has(.staff-nav))::after {
+    display: flex;
+    min-height: 54px;
+    align-items: center;
+    margin-top: 8px;
+    padding: 13px 0 0;
+    border-top: 1px solid var(--line);
+    color: var(--green-deep);
+    content: "임직원";
+    font-weight: 700;
+  }
+
+  .mobile-nav .staff-nav {
+    margin-top: 8px;
+    border-top: 1px solid var(--line);
+  }
+}
+
 @media (max-width: 760px) {
   .about-principle-strip { grid-template-columns: 1fr; }
   .about-principle-strip li + li { border-left: 0; border-top: 1px solid var(--line); }
