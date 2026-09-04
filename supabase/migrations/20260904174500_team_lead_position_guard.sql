@@ -1,5 +1,5 @@
--- Team leads may request only strictly subordinate positions.
--- Operations manager retains full employee-master authority.
+-- Team leads may request only strictly subordinate positions for new employees.
+-- Existing employee edit behavior stays unchanged. Operations manager retains full authority.
 begin;
 
 create or replace function public.private_team_lead_can_assign_position(p_position_id uuid)
@@ -43,6 +43,7 @@ declare
   requests_json jsonb;
   departments_json jsonb;
   positions_json jsonb;
+  new_employee_positions_json jsonb;
 begin
   if actor_id is null or (not is_ops and dept is null) then
     raise exception using errcode='42501', message='EMPLOYEE_MANAGEMENT_FORBIDDEN';
@@ -117,6 +118,12 @@ begin
     order by p.sort_order,p.name),'[]'::jsonb)
   into positions_json
   from public.positions p
+  where p.active;
+
+  select coalesce(jsonb_agg(jsonb_build_object('id',p.id,'name',p.name,'code',p.code,'sort_order',p.sort_order)
+    order by p.sort_order,p.name),'[]'::jsonb)
+  into new_employee_positions_json
+  from public.positions p
   where p.active
     and (is_ops or p.sort_order > actor_position_sort);
 
@@ -126,7 +133,8 @@ begin
     'employees', employees_json,
     'change_requests', requests_json,
     'departments', departments_json,
-    'positions', positions_json
+    'positions', positions_json,
+    'new_employee_positions', new_employee_positions_json
   );
 end;
 $$;
@@ -188,16 +196,6 @@ begin
     end if;
     if p_request_type='employee_update' then
       unsupported := p_requested_changes - array['full_name','hired_on','department_id','position_id','employment_status','departed_on','attendance_required']::text[];
-      if p_requested_changes ? 'position_id' then
-        begin
-          requested_position_id := (p_requested_changes->>'position_id')::uuid;
-        exception when invalid_text_representation then
-          raise exception using errcode='22023', message='INVALID_POSITION';
-        end;
-        if not public.private_team_lead_can_assign_position(requested_position_id) then
-          raise exception using errcode='42501', message='TEAM_LEAD_POSITION_OUT_OF_SCOPE';
-        end if;
-      end if;
     else
       unsupported := p_requested_changes - array['id_photo_path']::text[];
     end if;
