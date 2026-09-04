@@ -14,6 +14,7 @@ const surface = read('app/assets/app-workspace-surface.js');
 const appUi = read('app/assets/app-ui.js');
 const dashboardShell = read('app/assets/dashboard-shell.js');
 const roleNavigation = read('app/assets/role-navigation-priority.js');
+const accountApproval = read('app/assets/phase-c-account-approval.js');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
@@ -163,6 +164,15 @@ test('role navigation observes only direct menu additions and guards re-entrant 
   assert.match(roleNavigation, /if \(reordering\) return/);
   assert.match(roleNavigation, /new MutationObserver\(schedule\)\.observe\(nav, \{ childList: true \}\)/);
   assert.doesNotMatch(roleNavigation, /observe\(nav, \{ childList: true, subtree: true \}\)/);
+});
+
+test('account approval does not poll the whole app DOM after login or menu clicks', () => {
+  syntaxCheck('app/assets/phase-c-account-approval.js');
+  assert.doesNotMatch(accountApproval, /MutationObserver/);
+  assert.doesNotMatch(accountApproval, /syncNavigation/);
+  assert.match(accountApproval, /document\.addEventListener\('taejang-app-ready', \(\) => setTimeout\(syncDashboard, 120\)\)/);
+  assert.match(accountApproval, /document\.addEventListener\('taejang-dashboard-refresh', \(\) => setTimeout\(syncDashboard, 160\)\)/);
+  assert.match(accountApproval, /window\.TaejangAccountApproval = \{ openAccountApproval, syncDashboard \}/);
 });
 
 test('employee management has separate existing and new registration navigation actions in the base menu', () => {
