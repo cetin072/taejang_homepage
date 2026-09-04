@@ -27,6 +27,18 @@
 - Netlify는 저장소 루트를 정적 파일로 배포합니다.
 - 내부 업무 플랫폼은 공개 홈페이지와 연결할 수 있지만 보안, 권한과 장애 경계는 분리합니다.
 
+## 공통 웹 아키텍처 표준
+
+- 웹 제작 공통 source of truth는 `cetin072/ai-development-system`의 [`docs/WEB_ARCHITECTURE_STANDARD_V1.md`](https://github.com/cetin072/ai-development-system/blob/main/docs/WEB_ARCHITECTURE_STANDARD_V1.md)입니다.
+- 태장 프로젝트 고유 적용 결정은 [`docs/operations/WEB_ARCHITECTURE_ADOPTION.md`](docs/operations/WEB_ARCHITECTURE_ADOPTION.md)에 기록합니다.
+- 핵심 원칙은 **Static by Default, Dynamic by Necessity**입니다.
+- 공개 홈페이지는 JavaScript 실패 시에도 핵심 정보·주요 페이지 이동·기본 연락 동선·승인된 기본 이미지가 유지되어야 합니다.
+- 공개 Fresh content는 빈 핵심 컨테이너에서 시작하지 않고 정적 fallback 위에 최신 승인 데이터를 보강합니다.
+- 내부 업무 플랫폼은 동적 처리를 적극 사용할 수 있지만 인증·권한·중요 데이터는 서버/API/DB/RLS가 최종 책임집니다.
+- 인증과 역할 결정 후 핵심 App Shell과 역할별 핵심 메뉴는 최초 렌더링에서 함께 확정하고, 별도 후처리 모듈이 핵심 메뉴를 추가해야만 완성되는 구조를 사용하지 않습니다.
+- 정적/빌드 반영과 runtime fetch 사이의 변경은 아키텍처 선택 변경으로 취급합니다.
+- 기존 구현은 표준 준수만을 이유로 대규모 재작성하지 않고 Issue #117 기준으로 위험도 순으로 감사·정비합니다.
+
 ## 브랜치와 검토 원칙
 
 - `main` 브랜치에 직접 수정하거나 직접 커밋하지 않습니다.
