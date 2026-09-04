@@ -32,11 +32,26 @@ const PAYROLL_ATTENDANCE_CONFIG = Object.freeze({
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('급여 자동화')
-    .addItem('출퇴근부 가져오기', 'payrollImportLatestAttendance')
+    .addItem('현재월 출퇴근부 가져오기', 'payrollImportLatestAttendance')
+    .addSeparator()
+    .addItem('8월 Golden Import 검사', 'payrollRunAugustGoldenImport')
     .addToUi();
 }
 
 function payrollImportLatestAttendance() {
+  const context = payrollGetOperationalContext_();
+  const year = Number(context.settings.getRange(PAYROLL_ATTENDANCE_CONFIG.YEAR_CELL).getValue());
+  const month = Number(context.settings.getRange(PAYROLL_ATTENDANCE_CONFIG.MONTH_CELL).getValue());
+
+  payrollImportAttendanceForMonth_(context, year, month, '현재월');
+}
+
+function payrollRunAugustGoldenImport() {
+  const context = payrollGetOperationalContext_();
+  payrollImportAttendanceForMonth_(context, 2026, 8, '8월 Golden');
+}
+
+function payrollGetOperationalContext_() {
   const target = SpreadsheetApp.getActiveSpreadsheet();
   const settings = target.getSheetByName(PAYROLL_ATTENDANCE_CONFIG.SETTINGS_SHEET);
   const rawSheet = target.getSheetByName(PAYROLL_ATTENDANCE_CONFIG.RAW_SHEET);
@@ -45,22 +60,25 @@ function payrollImportLatestAttendance() {
     throw new Error('필수 시트(설정 또는 출퇴근원본)를 찾을 수 없습니다.');
   }
 
-  const year = Number(settings.getRange(PAYROLL_ATTENDANCE_CONFIG.YEAR_CELL).getValue());
-  const month = Number(settings.getRange(PAYROLL_ATTENDANCE_CONFIG.MONTH_CELL).getValue());
   const folderId = String(settings.getRange(PAYROLL_ATTENDANCE_CONFIG.SOURCE_FOLDER_CELL).getDisplayValue()).trim();
   const filenameBase = String(settings.getRange(PAYROLL_ATTENDANCE_CONFIG.SOURCE_FILENAME_CELL).getDisplayValue()).trim();
 
-  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
-    throw new Error('설정의 대상연도가 올바르지 않습니다.');
-  }
-  if (!Number.isInteger(month) || month < 1 || month > 12) {
-    throw new Error('설정의 대상월이 올바르지 않습니다.');
-  }
   if (!folderId) {
     throw new Error('설정의 출퇴근부 Drive 폴더 ID가 비어 있습니다.');
   }
 
-  const source = payrollFindLatestAttendanceExcel_(folderId, filenameBase, year, month);
+  return { target, settings, rawSheet, folderId, filenameBase };
+}
+
+function payrollImportAttendanceForMonth_(context, year, month, modeLabel) {
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    throw new Error('대상연도가 올바르지 않습니다.');
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error('대상월이 올바르지 않습니다.');
+  }
+
+  const source = payrollFindLatestAttendanceExcel_(context.folderId, context.filenameBase, year, month);
   let tempFileId = '';
 
   try {
@@ -82,11 +100,11 @@ function payrollImportLatestAttendance() {
       throw new Error('출퇴근 원본에서 가져올 근태행을 찾지 못했습니다. 원본 형식을 확인하세요.');
     }
 
-    payrollReplaceRawRowsForSource_(rawSheet, source.id, sourceSheet.getName(), rows);
+    payrollReplaceRawRowsForSource_(context.rawSheet, source.id, sourceSheet.getName(), rows);
 
     SpreadsheetApp.flush();
     SpreadsheetApp.getUi().alert(
-      `출퇴근부 가져오기 완료\n파일: ${source.name}\n원본행: ${rows.length}건\n급여시간은 아직 자동 확정하지 않습니다.`
+      `${modeLabel} 출퇴근부 가져오기 완료\n파일: ${source.name}\n원본행: ${rows.length}건\n급여시간은 아직 자동 확정하지 않습니다.`
     );
   } finally {
     if (tempFileId) {
