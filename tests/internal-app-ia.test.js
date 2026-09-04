@@ -67,10 +67,11 @@ test('publication admin explains what promotion posts are managed and why lead l
 test('sidebar groups navigation by work category and keeps manuals immediately before official channels', () => {
   assert.match(nav, /\['글 관리', '홍보 글 관리'\]/);
   assert.match(nav, /\['안내 관리', '상시 안내 관리'\]/);
-  assert.match(nav, /label: '인사·계정'/);
+  assert.match(nav, /label: '직원·팀 관리', items: \['직원 관리', '신규 직원 등록'\]/);
   assert.match(nav, /label: '홍보·홈페이지'/);
   assert.match(nav, /label: '공지·안내'/);
   assert.match(nav, /label: '근태'/);
+  assert.match(nav, /label: '승인·관리', items: \['가입 승인'\]/);
   assert.match(nav, /label: '업무 참고', items: \['작업 매뉴얼'\]/);
   assert.match(nav, /navSection === 'official_channels'\) return 9000/);
   assert.match(nav, /return 10000/);
