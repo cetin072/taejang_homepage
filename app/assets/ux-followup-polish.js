@@ -12,6 +12,15 @@
   const byId = id => document.getElementById(id);
   const route = () => window.TaejangApp?.getRoute?.();
 
+  function mountStaticAdminPanels() {
+    const workspace = document.querySelector('.app-workspace');
+    if (!workspace) return;
+    STATIC_ADMIN_PANELS.forEach(id => {
+      const panel = byId(id);
+      if (panel && panel.parentElement !== workspace) workspace.append(panel);
+    });
+  }
+
   function hideStaticAdminPanels(exceptId = null) {
     STATIC_ADMIN_PANELS.forEach(id => {
       const panel = byId(id);
@@ -191,17 +200,19 @@
     style.dataset.followupUx = '1';
     style.textContent = `
       .employee-view-tabs { display:none !important; }
+      .app-workspace > .admin-today { width:min(100% - 40px, var(--app-content-width)); margin:32px auto 48px; }
       .notice-advanced-settings { margin-top:14px; border:1px solid var(--app-border); border-radius:12px; background:#f7f9f7; }
       .notice-advanced-settings > summary { min-height:48px; display:flex; align-items:center; padding:10px 14px; color:var(--app-accent); font-weight:850; cursor:pointer; }
       .notice-advanced-settings > .help { margin:0; padding:0 14px 8px; }
       .notice-advanced-grid { padding:0 14px 14px; }
-      @media(max-width:760px){.notice-advanced-grid{grid-template-columns:1fr}}
+      @media(max-width:760px){.app-workspace > .admin-today{width:min(100% - 28px, var(--app-content-width));margin-top:24px}.notice-advanced-grid{grid-template-columns:1fr}}
     `;
     document.head.append(style);
   }
 
   function sync() {
     injectStyles();
+    mountStaticAdminPanels();
     bindSurfaceGuard();
     ensureEmployeeNavigation();
     configureRoleNavigation();
@@ -212,6 +223,7 @@
   document.addEventListener('taejang-open-app-panel', event => {
     const id = event.detail?.id;
     if (!STATIC_ADMIN_PANELS.includes(id)) return;
+    mountStaticAdminPanels();
     hideStaticAdminPanels(id);
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = true;
