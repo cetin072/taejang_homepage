@@ -87,32 +87,60 @@
     contentLinks.slice(1).forEach(link => link.remove());
   }
 
+  function normalizedHref(link) {
+    return (link.getAttribute('href') || '')
+      .split(/[?#]/)[0]
+      .replace(/^\.\//, '')
+      .replace(/^\//, '');
+  }
+
   function normalizeHeaderNavigation() {
     const page = currentPageName();
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
       const isDesktop = nav.classList.contains('desktop-nav');
-      nav.replaceChildren();
+      const existing = [...nav.querySelectorAll(':scope > a')];
+      let previous = null;
 
       PUBLIC_NAV_LINKS.forEach(([href, label, className]) => {
-        const link = document.createElement('a');
+        const targetPage = href.split('#')[0] || 'index.html';
+        let link = existing.find(candidate => {
+          if (candidate.classList.contains('staff-nav')) return false;
+          return normalizedHref(candidate) === targetPage || candidate.textContent.trim() === label;
+        });
+
+        if (!link) {
+          link = document.createElement('a');
+          if (previous?.nextSibling) nav.insertBefore(link, previous.nextSibling);
+          else if (previous) nav.appendChild(link);
+          else nav.prepend(link);
+        }
+
         link.href = hrefForCurrentPage(href, page);
         link.textContent = label;
+        link.removeAttribute('aria-current');
         if (isDesktop && className) link.classList.add(className);
+        else link.classList.remove('nav-cta');
+        if (isCurrentNavigationTarget(page, targetPage, href)) link.setAttribute('aria-current', 'page');
 
-        const targetPage = href.split('#')[0] || 'index.html';
-        if (isCurrentNavigationTarget(page, targetPage, href)) {
-          link.setAttribute('aria-current', 'page');
-        }
-        nav.appendChild(link);
+        const expected = previous ? previous.nextElementSibling : nav.firstElementChild;
+        if (expected !== link) nav.insertBefore(link, expected || null);
+        previous = link;
       });
 
+      let staffLink = existing.find(candidate => candidate.classList.contains('staff-nav') || normalizedHref(candidate) === 'staff/');
       if (employeeEntryEnabled()) {
-        const staffLink = document.createElement('a');
+        if (!staffLink) staffLink = document.createElement('a');
         staffLink.href = 'staff/';
         staffLink.textContent = '임직원';
         staffLink.classList.add('staff-nav');
+        staffLink.classList.remove('nav-cta');
+        staffLink.removeAttribute('aria-current');
         staffLink.setAttribute('aria-label', '임직원 페이지');
-        nav.appendChild(staffLink);
+        const expected = previous ? previous.nextElementSibling : nav.firstElementChild;
+        if (expected !== staffLink) nav.insertBefore(staffLink, expected || null);
+        previous = staffLink;
+      } else if (staffLink) {
+        staffLink.remove();
       }
 
       ensureContentHubLink(nav);
