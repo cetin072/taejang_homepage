@@ -15,20 +15,25 @@ test('public homepage shows the staff entry only through the approved field pilo
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true/);
   assert.match(site, /return SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
-  assert.match(site, /staffLink\.textContent = '임직원'/);
+  assert.match(site, /function syncEmployeeEntry\(\)/);
+  assert.match(site, /link\.textContent = '임직원'/);
   assert.match(site, /staffLogin\.textContent = '임직원'/);
   assert.doesNotMatch(site, /employeeIcon/);
 });
 
-test('public staff navigation is rightmost, separated, stable from first paint, and built without clearing the nav', () => {
+test('public staff navigation stays rightmost and stable while core public links remain static HTML', () => {
   const site = read('assets/js/site.js');
   const polish = read('assets/css/site-polish.css');
   const visual = read('assets/css/visual-hierarchy.css');
   const mobile = read('assets/css/mobile-layout-fixes.css');
 
   assert.match(site, /function normalizedHref\(link\)/);
-  assert.match(site, /PUBLIC_NAV_LINKS\.forEach[\s\S]*?previous = link[\s\S]*?if \(employeeEntryEnabled\(\)\)[\s\S]*?staffLink\.textContent = '임직원'/);
-  assert.doesNotMatch(site, /normalizeHeaderNavigation\(\)[\s\S]*?nav\.replaceChildren\(\)/);
+  assert.match(site, /function markCurrentNavigation\(\)/);
+  assert.match(site, /function syncEmployeeEntry\(\)/);
+  assert.match(site, /link\.classList\.add\('staff-nav'\)/);
+  assert.match(site, /if \(nav\.lastElementChild !== link\) nav\.appendChild\(link\)/);
+  assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/);
+  assert.doesNotMatch(site, /nav\.replaceChildren\(\)/);
   assert.doesNotMatch(site, /employeeIcon/);
   assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?margin-left:\s*10px[\s\S]*?border-left:\s*1px solid/);
   assert.match(polish, /\.mobile-nav \.staff-nav[\s\S]*?border-top:\s*1px solid/);
