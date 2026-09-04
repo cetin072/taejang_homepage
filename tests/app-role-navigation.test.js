@@ -73,16 +73,18 @@ async function makeDashboard(route) {
   document.make('button', 'logout-button'); document.make('button', 'sidebar-toggle');
   document.make('p', 'desktop-role-label'); document.make('h1', 'desktop-page-title'); document.make('span', 'desktop-user-label');
   const main = document.make('main', 'dashboard-main');
-  const openedPanels = []; const promotionModes = [];
+  const openedPanels = []; const promotionModes = []; const employeeViews = []; let approvalOpens = 0;
   document.addEventListener('taejang-open-app-panel', event => { openedPanels.push(event.detail.id); main.hidden = true; });
   document.addEventListener('taejang-dashboard-refresh', () => { main.hidden = false; });
   document.addEventListener('taejang-open-promotion-workspace', event => promotionModes.push(event.detail.mode));
+  document.addEventListener('taejang-open-employee-management', event => employeeViews.push(event.detail?.view || 'existing'));
+  document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = { TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] }, location: { href: '' } };
   const sandbox = { window, document, CustomEvent: FakeCustomEvent, Intl, Date, Set, Array, Promise, console };
   vm.runInNewContext(source, sandbox, { filename: 'dashboard-shell.js' });
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route, label: route } }));
   await nextTurn();
-  return { document, shell, nav, main, openedPanels, promotionModes, window };
+  return { document, shell, nav, main, openedPanels, promotionModes, employeeViews, getApprovalOpens: () => approvalOpens, window };
 }
 
 function assertOrdered(text, labels) {
@@ -137,19 +139,31 @@ test('base role menus remain clickable before final priority sorting', async () 
   assert.deepEqual(promotion.promotionModes, ['write']);
 
   const operations = await makeDashboard('operations_manager');
-  assert.deepEqual(menuLabels(operations.nav), [
-    '대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리',
-    '공지 관리', '상시 안내 관리', '가입 승인', '작업 매뉴얼', '홈페이지'
-  ]);
-  assert.equal(operations.nav.querySelector('[data-employee-management-nav]')?.textContent, '직원 관리');
-  assert.equal(operations.nav.querySelector('[data-employee-new-nav]')?.textContent, '신규 직원 등록');
-  assert.equal(operations.nav.querySelector('[data-phase-c-account-approval-nav]')?.textContent, '가입 승인');
+  assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '작업 매뉴얼', '홈페이지']);
   for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['상시 안내 관리','guidance-admin-panel'],['작업 매뉴얼','today-admin-panel']])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
+});
+
+test('operations mobile menu actions close the sidebar and dispatch one destination action', async () => {
+  const operations = await makeDashboard('operations_manager');
+  operations.shell.classList.add('sidebar-open');
+  findMenu(operations.nav, '직원 관리').click();
+  assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
+  assert.deepEqual(operations.employeeViews, ['existing']);
+
+  operations.shell.classList.add('sidebar-open');
+  findMenu(operations.nav, '신규 직원 등록').click();
+  assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
+  assert.deepEqual(operations.employeeViews, ['existing', 'new']);
+
+  operations.shell.classList.add('sidebar-open');
+  findMenu(operations.nav, '가입 승인').click();
+  assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
+  assert.equal(operations.getApprovalOpens(), 1);
 });
 
 test('central navigation groups menus by work category and keeps manuals before official channels', () => {
