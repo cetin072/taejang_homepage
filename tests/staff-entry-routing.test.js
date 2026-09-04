@@ -14,19 +14,21 @@ test('public homepage shows the staff entry only through the approved field pilo
   const site = read('assets/js/site.js');
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY = false/);
   assert.match(site, /const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true/);
-  assert.match(site, /SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
-  assert.match(site, /staff-nav/);
-  assert.match(site, /임직원 로그인/);
+  assert.match(site, /return SHOW_EMPLOYEE_ENTRY \|\| SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT/);
+  assert.match(site, /staffLink\.textContent = '임직원'/);
+  assert.match(site, /staffLogin\.textContent = '임직원'/);
+  assert.doesNotMatch(site, /employeeIcon/);
 });
 
-test('public staff navigation and footer links stay continuous and touch friendly', () => {
+test('public staff navigation is rightmost, separated, and built in the same normalization pass', () => {
   const site = read('assets/js/site.js');
   const polish = read('assets/css/site-polish.css');
   const mobile = read('assets/css/mobile-layout-fixes.css');
 
-  assert.match(site, /nav\.insertBefore\(link, contact \|\| null\)/);
-  assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?border-left:\s*0/);
-  assert.match(polish, /\.desktop-nav \.staff-nav svg,[\s\S]*?display:\s*none/);
+  assert.match(site, /PUBLIC_NAV_LINKS\.forEach[\s\S]*?nav\.appendChild\(link\)[\s\S]*?if \(employeeEntryEnabled\(\)\)[\s\S]*?nav\.appendChild\(staffLink\)/);
+  assert.doesNotMatch(site, /nav\.insertBefore\(link, contact/);
+  assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?margin-left:\s*10px[\s\S]*?border-left:\s*1px solid/);
+  assert.match(polish, /\.mobile-nav \.staff-nav[\s\S]*?border-top:\s*1px solid/);
   assert.match(mobile, /\.mobile-nav a[\s\S]*?min-height:\s*54px/);
 
   assert.match(polish, /\.footer-bottom > div:last-child[\s\S]*?font-size:\s*0/);
