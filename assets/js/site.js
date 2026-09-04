@@ -17,22 +17,17 @@
     document.head.append(link);
   });
 
-  // General public launch gate remains closed; the limited employee field pilot
-  // explicitly enables only the staff entry while the pilot is being evaluated.
-  const SHOW_EMPLOYEE_ENTRY = false;
-  const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
-  const PUBLIC_EMAIL = 'taejang2025@naver.com';
-  const OPENING_DATE = '2026-08-12';
-  const OPENING_HIDDEN_FROM = '2026-08-13';
-  const OPENING_INVITATION_URL = 'https://taejang-news01.netlify.app/';
-  const PUBLIC_NAV_LINKS = [
+  // These contracts validate the static HTML only. They are never used to create
+  // or rebuild the public navigation. Missing core links stay visible as a source
+  // defect for tests/QA instead of being silently repaired at runtime.
+  const STATIC_HEADER_CONTRACT = [
     ['about.html', '태장 소개'],
     ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·문의', 'nav-cta']
+    ['partnership.html', '협력·문의']
   ];
-  const FOOTER_LINKS = [
+  const STATIC_FOOTER_CONTRACT = [
     ['about.html', '태장 소개'],
     ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
@@ -40,6 +35,13 @@
     ['partnership.html', '협력·문의'],
     ['location.html', '오시는 길']
   ];
+
+  // General public launch gate remains closed; the limited employee field pilot
+  // explicitly enables only the staff entry while the pilot is being evaluated.
+  const SHOW_EMPLOYEE_ENTRY = false;
+  const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
+  const PUBLIC_EMAIL = 'taejang2025@naver.com';
+  const OPENING_HIDDEN_FROM = '2026-08-13';
   const FOOTER_CHANNEL_LINKS = [
     ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
     ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
@@ -61,11 +63,11 @@
     return path.endsWith('.html') ? path : 'index.html';
   }
 
-  function hrefForCurrentPage(href, page) {
-    if (page === 'index.html' && href.startsWith('index.html#')) {
-      return href.slice('index.html'.length);
-    }
-    return href;
+  function normalizedHref(link) {
+    return (link.getAttribute('href') || '')
+      .split(/[?#]/)[0]
+      .replace(/^\.\//, '')
+      .replace(/^\//, '');
   }
 
   function isCurrentNavigationTarget(page, targetPage, href) {
@@ -74,58 +76,50 @@
     return page === 'activities.html' && targetPage === 'archive.html';
   }
 
-  function ensureContentHubLink(nav) {
+  function validateStaticLinks(nav, contract, scopeLabel) {
     if (!nav) return;
-    const contentLinks = [...nav.querySelectorAll('a')].filter(link => {
-      const href = (link.getAttribute('href') || '').split(/[?#]/)[0].replace(/^\.\//, '');
-      return href === 'archive.html';
+    contract.forEach(([href, label]) => {
+      const found = [...nav.querySelectorAll(':scope > a')].some(link => {
+        return normalizedHref(link) === href && link.textContent.trim() === label;
+      });
+      if (!found) console.warn(`${scopeLabel} 정적 링크 누락: ${label} (${href})`);
     });
-    contentLinks.slice(1).forEach(link => link.remove());
   }
 
-  function normalizeHeaderNavigation() {
+  // Core public links are authored in HTML. JavaScript may annotate them, but it
+  // must not delete/rebuild the menu or invent missing core navigation entries.
+  function markCurrentNavigation() {
     const page = currentPageName();
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
-      const isDesktop = nav.classList.contains('desktop-nav');
-      nav.replaceChildren();
-
-      PUBLIC_NAV_LINKS.forEach(([href, label, className]) => {
-        const link = document.createElement('a');
-        link.href = hrefForCurrentPage(href, page);
-        link.textContent = label;
-        if (isDesktop && className) link.classList.add(className);
-
-        const targetPage = href.split('#')[0] || 'index.html';
+      validateStaticLinks(nav, STATIC_HEADER_CONTRACT, '공개 메뉴');
+      nav.querySelectorAll(':scope > a').forEach(link => {
+        if (link.classList.contains('staff-nav') || normalizedHref(link) === 'staff/') return;
+        const href = link.getAttribute('href') || '';
+        const targetPage = normalizedHref(link) || 'index.html';
+        link.removeAttribute('aria-current');
         if (isCurrentNavigationTarget(page, targetPage, href)) {
           link.setAttribute('aria-current', 'page');
         }
-        nav.appendChild(link);
       });
-      ensureContentHubLink(nav);
     });
   }
 
-  function normalizeFooter() {
+  // Footer shortcuts/contact details are also authored in HTML. Only optional
+  // official-channel/staff enhancements are added here without replacing them.
+  function enhanceFooter() {
     const page = currentPageName();
     document.querySelectorAll('.footer').forEach(footer => {
       const columns = footer.querySelectorAll('.footer-top > div');
-      const summary = columns[0]?.querySelector('p');
-      if (summary) {
-        summary.textContent = '장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다.';
-      }
-
       const shortcuts = columns[1];
-      if (shortcuts) {
-        shortcuts.querySelectorAll('a').forEach(link => link.remove());
-        FOOTER_LINKS.forEach(([href, label]) => {
-          const link = document.createElement('a');
-          link.href = hrefForCurrentPage(href, page);
-          link.textContent = label;
-          const targetPage = href.split('#')[0] || 'index.html';
-          if (isCurrentNavigationTarget(page, targetPage, href)) link.setAttribute('aria-current', 'page');
-          shortcuts.appendChild(link);
-        });
-      }
+      validateStaticLinks(shortcuts, STATIC_FOOTER_CONTRACT, '푸터 바로가기');
+      shortcuts?.querySelectorAll('a').forEach(link => {
+        const href = link.getAttribute('href') || '';
+        const targetPage = normalizedHref(link) || 'index.html';
+        link.removeAttribute('aria-current');
+        if (isCurrentNavigationTarget(page, targetPage, href)) {
+          link.setAttribute('aria-current', 'page');
+        }
+      });
 
       const contact = columns[2];
       const emailLink = contact?.querySelector('a[href^="mailto:"]');
@@ -135,14 +129,9 @@
       }
 
       const footerTop = footer.querySelector('.footer-top');
-      if (footerTop) {
-        let channels = footerTop.querySelector('[data-footer-official-channels]');
-        if (!channels) {
-          channels = document.createElement('div');
-          channels.dataset.footerOfficialChannels = '';
-          footerTop.appendChild(channels);
-        }
-        channels.replaceChildren();
+      if (footerTop && !footerTop.querySelector('[data-footer-official-channels]')) {
+        const channels = document.createElement('div');
+        channels.dataset.footerOfficialChannels = '';
         const heading = document.createElement('h3');
         heading.textContent = '공식 채널';
         channels.appendChild(heading);
@@ -154,6 +143,7 @@
           link.textContent = label;
           channels.appendChild(link);
         });
+        footerTop.appendChild(channels);
       }
 
       const footerLegal = footer.querySelector('.footer-bottom > div:last-child');
@@ -168,23 +158,14 @@
     });
   }
 
+  // Legacy opening notices remain hidden after their event date. The static
+  // source is being retired page-by-page; this guard remains as backward safety.
   const announcement = document.querySelector('.announcement');
-  if (announcement) {
-    if (getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
-      announcement.hidden = true;
-    } else {
-      const date = document.createElement('strong');
-      date.textContent = OPENING_DATE.replaceAll('-', '.');
-      const invitation = document.createElement('a');
-      invitation.href = OPENING_INVITATION_URL;
-      invitation.target = '_blank';
-      invitation.rel = 'noopener noreferrer';
-      invitation.textContent = '초대장 보기';
-      announcement.replaceChildren(date, document.createTextNode(' 태장 신규 사업장 개소식 · '), invitation);
-    }
+  if (announcement && getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
+    announcement.hidden = true;
   }
 
-  normalizeHeaderNavigation();
+  markCurrentNavigation();
 
   if (SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT) {
     const employeeIcon = '<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.7-4 3.1-6 7-6s6.3 2 7 6"></path></svg><span>임직원</span>';
@@ -206,8 +187,7 @@
       if (!link) {
         link = document.createElement('a');
         link.href = 'staff/';
-        const contact = [...nav.querySelectorAll('a')].find(candidate => candidate.getAttribute('href')?.includes('#contact'));
-        nav.insertBefore(link, contact || null);
+        nav.appendChild(link);
       }
       link.setAttribute('aria-label', '임직원 로그인');
       link.innerHTML = employeeIcon;
@@ -216,8 +196,7 @@
     document.querySelectorAll('.staff-nav, a[href="staff/"], a[href$="/staff/"]').forEach(link => link.remove());
   }
 
-  document.querySelectorAll('a[href="resources.html"]').forEach(link => link.remove());
-  normalizeFooter();
+  enhanceFooter();
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');
