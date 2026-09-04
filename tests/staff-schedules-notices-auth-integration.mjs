@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const password = 'Phase1A-Test-Only-2026!';
+const employeeRoleCodes = new Set(['general_worker', 'promotion_staff', 'promotion_lead']);
 
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
@@ -42,7 +43,7 @@ async function signUp(email, displayName) {
     body: { email, password, data: { display_name: displayName } }
   });
   check(result.ok, `signup failed for ${email}: ${JSON.stringify(result.data)}`);
-  return { id: result.data.user.id, token: result.data.access_token };
+  return { id: result.data.user.id, token: result.data.access_token, displayName };
 }
 
 async function signIn(email) {
@@ -55,6 +56,26 @@ async function signIn(email) {
 }
 
 async function approve(adminToken, user, departmentId, positionId, roles) {
+  const employeeRole = roles.find(role => employeeRoleCodes.has(role));
+  if (employeeRole) {
+    equal(roles.length, 1, `employee fixture must use one employee role for ${user.id}`);
+    const employee = await rpc('create_employee', adminToken, {
+      p_full_name: user.displayName,
+      p_hired_on: '2020-01-01',
+      p_department_id: departmentId,
+      p_position_id: positionId,
+      p_attendance_required: true
+    });
+    equal(employee.data?.code, 'EMPLOYEE_CREATED', `employee creation failed for ${user.id}: ${JSON.stringify(employee.data)}`);
+    const result = await rpc('approve_signup_request_with_employee', adminToken, {
+      p_target_profile_id: user.id,
+      p_employee_uuid: employee.data.employee_uuid,
+      p_role_code: employeeRole,
+      p_reason_summary: '일정 공지 CI Employee 연결 승인'
+    });
+    equal(result.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', `employee-link approval failed for ${user.id}: ${JSON.stringify(result.data)}`);
+    return;
+  }
   const result = await rpc('approve_pending_user', adminToken, {
     p_target_profile_id: user.id,
     p_department_id: departmentId,
