@@ -12,6 +12,7 @@
   };
 
   let rendering = false;
+  let scheduled = false;
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
   const main = () => document.getElementById('dashboard-main');
@@ -49,6 +50,7 @@
         ? (requests.length ? '팀장이 보낸 직원 등록·수정 요청을 확인하세요.' : '현재 팀장에게서 들어온 직원관리 요청이 없습니다.')
         : (requests.length ? '내가 보낸 직원 등록·수정 요청 상태를 확인하세요.' : '우리 팀 직원정보와 필요한 변경 요청을 관리합니다.');
       const value = requests.length ? `${requests.length}건` : undefined;
+      if (!grid.isConnected) return;
       grid.append(card(title, body, value, {
         label: currentRoute === 'operations_manager' ? '직원 관리 열기' : '팀 직원 관리 열기',
         run: () => window.TaejangEmployeeManagement?.openEmployeeManagement?.()
@@ -61,7 +63,7 @@
     try {
       const requests = await app().rpc('get_homepage_change_requests');
       const pending = (Array.isArray(requests) ? requests : []).filter(item => item.status === 'pending');
-      if (!pending.length) return;
+      if (!pending.length || !grid.isConnected) return;
       grid.append(card('홈페이지 수정 승인', '운영팀장이 요청한 홈페이지 글·사진 변경을 확인하세요.', `${pending.length}건`, {
         label: '홈페이지 요청 검토',
         run: () => window.TaejangHomepageContent?.open?.()
@@ -88,21 +90,41 @@
   }
 
   async function sync() {
+    scheduled = false;
     if (rendering) return;
     const currentRoute = route();
     const target = main();
     const grid = target?.querySelector('.dashboard-grid');
     const heading = target?.querySelector('.dashboard-intro h2')?.textContent || '';
-    if (!currentRoute || !grid || !heading.includes('대시보드') && currentRoute !== 'field_lead' && currentRoute !== 'ceo') return;
+    const specialDashboard = currentRoute === 'field_lead' || currentRoute === 'ceo';
+    if (!currentRoute || !grid || (!heading.includes('대시보드') && !specialDashboard)) return;
     rendering = true;
     try {
       await addEmployeeCard(currentRoute, grid);
       await addHomepageApprovalCard(currentRoute, grid);
-      reorderCards(currentRoute, grid);
+      if (grid.isConnected) reorderCards(currentRoute, grid);
     } finally { rendering = false; }
   }
 
-  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 320));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 320));
+  function scheduleSync(delay = 40) {
+    if (scheduled) return;
+    scheduled = true;
+    setTimeout(sync, delay);
+  }
+
+  function bindObserver() {
+    const target = main();
+    if (!target || target.dataset.priorityCardsObserved) return;
+    target.dataset.priorityCardsObserved = '1';
+    new MutationObserver(() => scheduleSync()).observe(target, { childList: true, subtree: true });
+  }
+
+  document.addEventListener('taejang-app-ready', () => setTimeout(() => { bindObserver(); scheduleSync(); }, 260));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(scheduleSync, 260));
+
+  const start = () => bindObserver();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
+  else start();
+
   window.TaejangDashboardPriorityCards = { sync, CARD_ORDER };
 })();
