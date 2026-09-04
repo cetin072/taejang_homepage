@@ -265,19 +265,15 @@ textarea:focus-visible {
   transform: none;
 }
 
-/* Keep the employee pilot entry visually continuous with the public navigation. */
+/* Employee access is the rightmost utility entry, separated from public navigation. */
 .desktop-nav .staff-nav {
   display: inline-flex;
   align-items: center;
-  padding: 0;
-  border-left: 0;
+  margin-left: 10px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(27, 67, 50, .22);
   color: inherit;
   font-size: 14px;
-}
-
-.desktop-nav .staff-nav svg,
-.mobile-nav a[href="staff/"] svg {
-  display: none;
 }
 
 /* Legal/staff links are one touch-friendly group; legacy text-node separators are hidden. */
@@ -364,6 +360,12 @@ textarea:focus-visible {
   .about-facts div {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+
+  .mobile-nav .staff-nav {
+    margin-top: 8px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(27, 67, 50, .16);
   }
 
   .footer-bottom > div:last-child {
