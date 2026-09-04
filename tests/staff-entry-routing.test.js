@@ -19,6 +19,22 @@ test('public homepage shows the staff entry only through the approved field pilo
   assert.match(site, /임직원 로그인/);
 });
 
+test('public staff navigation and footer links stay continuous and touch friendly', () => {
+  const site = read('assets/js/site.js');
+  const polish = read('assets/css/site-polish.css');
+  const mobile = read('assets/css/mobile-layout-fixes.css');
+
+  assert.match(site, /nav\.insertBefore\(link, contact \|\| null\)/);
+  assert.match(polish, /\.desktop-nav \.staff-nav[\s\S]*?border-left:\s*0/);
+  assert.match(polish, /\.desktop-nav \.staff-nav svg,[\s\S]*?display:\s*none/);
+  assert.match(mobile, /\.mobile-nav a[\s\S]*?min-height:\s*54px/);
+
+  assert.match(polish, /\.footer-bottom > div:last-child[\s\S]*?font-size:\s*0/);
+  assert.match(polish, /\.footer-bottom > div:last-child a[\s\S]*?min-height:\s*44px/);
+  assert.match(polish, /a \+ a::before[\s\S]*?content:\s*"·"/);
+  assert.match(polish, /@media \(max-width: 760px\)[\s\S]*?\.footer-bottom > div:last-child a \+ a::before[\s\S]*?display:\s*none/);
+});
+
 test('staff entry keeps login and sign-up as separate chosen actions', () => {
   const html = read('staff/index.html');
   assert.match(html, /<h1 id="login-title">임직원 로그인<\/h1>/);
