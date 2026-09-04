@@ -4,6 +4,12 @@
   const managerRoles = new Set(['super_admin', 'operations_manager', 'department_lead', 'field_lead']);
   const employeeManagerRoles = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const promotionWorkspaceRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
+  const officialChannelRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
+  const OFFICIAL_CHANNELS = [
+    { id: 'homepage', label: '홈페이지', href: '../index.html' },
+    { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+    { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+  ];
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
   const array = value => Array.isArray(value) ? value : [];
@@ -25,7 +31,7 @@
     promotion_lead: '운영팀장',
     promotion_staff: '홍보직원'
   };
-  function openPanel(id) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id } })); }
+  function openPanel(id, view = null) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id, view } })); }
   function openPromotion(mode = 'review') { document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } })); }
   function openEmployee(view = 'existing') {
     const api = window.TaejangEmployeeManagement?.openEmployeeManagement;
@@ -73,6 +79,28 @@
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
   }
+  function makeOfficialChannelGroup() {
+    const group = document.createElement('section');
+    group.className = 'app-nav-channel-group';
+    group.dataset.officialChannelGroup = '1';
+    group.dataset.navSection = 'official_channels';
+    group.setAttribute('aria-label', '공식 채널');
+    const label = text('p', '공식 채널', 'app-nav-group-label');
+    group.append(label);
+    OFFICIAL_CHANNELS.forEach(channel => {
+      const link = document.createElement('a');
+      link.href = channel.href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = channel.label;
+      link.className = 'app-nav-official-channel';
+      link.dataset.officialChannelLink = channel.id;
+      link.dataset.channel = channel.id;
+      link.setAttribute('aria-label', `${channel.label} 새 탭에서 열기`);
+      group.append(link);
+    });
+    return group;
+  }
   function menu(route) {
     const nav = el('app-nav'); nav.replaceChildren();
     const items = [{ label: '대시보드', run: goDashboard, current: true }];
@@ -108,9 +136,9 @@
     if (route === 'operations_manager') {
       items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
     }
-    if (managerRoles.has(route)) items.push({ label: '작업 매뉴얼', run: () => openPanel('today-admin-panel') });
+    if (managerRoles.has(route)) items.push({ label: '작업 매뉴얼', run: () => openPanel('today-admin-panel', 'work_manual') });
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
-    items.push({ label: '홈페이지', href: '../index.html', newTab: true });
+    if (!officialChannelRoles.has(route)) items.push({ label: '홈페이지', href: '../index.html', newTab: true });
 
     items.forEach(item => {
       const node = item.href ? document.createElement('a') : document.createElement('button');
@@ -124,6 +152,7 @@
       if (item.current) node.setAttribute('aria-current', 'page');
       nav.append(node);
     });
+    if (officialChannelRoles.has(route)) nav.append(makeOfficialChannelGroup());
   }
   async function dashboardData(route) {
     const app = window.TaejangApp;
