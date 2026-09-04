@@ -48,9 +48,10 @@
   function markStatus(node) {
     const label = cleanLabel(node);
     if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
+    const markedLabel = `${label} · 점검중`;
     node.dataset.featureStatus = 'checking';
     node.classList.add('app-nav-checking');
-    node.textContent = `${label} · 점검중`;
+    if ((node.textContent || '').trim() !== markedLabel) node.textContent = markedLabel;
     node.title = '현재 기능 점검중입니다.';
   }
 
@@ -106,7 +107,7 @@
       if (!target || !nav.contains(target)) return;
       updateCurrent(target);
     });
-    new MutationObserver(schedule).observe(nav, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(schedule).observe(nav, { childList: true, subtree: true });
     schedule();
   }
 
