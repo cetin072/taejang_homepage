@@ -158,7 +158,7 @@
   function setup(event) {
     const route = event.detail.route; if (route === worker) return;
     el('desktop-app-shell').hidden = false;
-    el('desktop-role-label').textContent = event.detail.label;
+    el('desktop-role-label').textContent = '태장 업무플랫폼';
     setDashboardTopbar(route);
     el('desktop-user-label').textContent = `${window.TaejangApp.getContext().display_name || '사용자'} · ${event.detail.label}`;
     menu(route);
