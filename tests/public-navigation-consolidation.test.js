@@ -25,6 +25,7 @@ const publicPages = [
 
 const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html'];
 const footerHrefs = [...headerHrefs, 'location.html'];
+const compactFooterPages = new Set(['resources.html']);
 
 function assertHrefOrder(fragment, hrefs, message) {
   let previous = -1;
@@ -89,11 +90,15 @@ for (const filename of publicPages) {
   const footerStart = html.indexOf('<footer class="footer">');
   assert.ok(footerStart >= 0, `${filename} 정적 푸터가 있어야 합니다`);
   const footer = html.slice(footerStart);
-  assert.match(footer, /class="footer-top"/, `${filename} 표준 푸터 상단 영역이 있어야 합니다`);
-  assertHrefOrder(footer, footerHrefs, `${filename} 푸터 바로가기`);
-  assert.match(footer, /href="tel:0552938626">055-293-8626<\/a>/, `${filename} 푸터 전화번호를 동일하게 유지합니다`);
-  assert.match(footer, /href="mailto:taejang2025@naver\.com">taejang2025@naver\.com<\/a>/, `${filename} 푸터 이메일을 동일하게 유지합니다`);
-  assert.match(footer, /경남 창원시 의창구 평산로 33<br>신화 더 플렉스시티 422·423호/, `${filename} 푸터 주소를 동일하게 유지합니다`);
+  if (compactFooterPages.has(filename)) {
+    assert.doesNotMatch(footer, /class="footer-top"/, `${filename}는 noindex 자료 안내용 최소 푸터를 유지합니다`);
+  } else {
+    assert.match(footer, /class="footer-top"/, `${filename} 표준 푸터 상단 영역이 있어야 합니다`);
+    assertHrefOrder(footer, footerHrefs, `${filename} 푸터 바로가기`);
+    assert.match(footer, /href="tel:0552938626">055-293-8626<\/a>/, `${filename} 푸터 전화번호를 동일하게 유지합니다`);
+    assert.match(footer, /href="mailto:taejang2025@naver\.com">taejang2025@naver\.com<\/a>/, `${filename} 푸터 이메일을 동일하게 유지합니다`);
+    assert.match(footer, /경남 창원시 의창구 평산로 33<br>신화 더 플렉스시티 422·423호/, `${filename} 푸터 주소를 동일하게 유지합니다`);
+  }
 }
 
 const index = read('index.html');
@@ -151,7 +156,7 @@ const photoSlots = read('assets/js/photo-slots.js');
 assert.match(photoSlots, /const existingImage = slot\.querySelector\(':scope > img'\);[\s\S]*?if \(existingImage\)/, 'photo-slots는 정적 이미지가 있으면 중복 생성하지 않습니다');
 
 const liveOverrides = read('assets/js/homepage-live-overrides.js');
-assert.match(liveOverrides, /Static homepage remains the fallback/, '관리자 live override 실패 시 정적 홈페이지를 fallback으로 유지합니다');
+assert.match(liveOverrides, /Static homepage remains the fallback/, '관리자 live override 실패 시 정적 홈페이지를 파괴하지 않습니다');
 assert.match(liveOverrides, /catch \{[\s\S]*?Static homepage remains the fallback/, 'live override 네트워크 실패는 정적 홈페이지를 파괴하지 않습니다');
 
 const content = read('assets/js/content.js');
