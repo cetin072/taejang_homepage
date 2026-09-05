@@ -95,10 +95,6 @@
     ]
   };
 
-  /* The manager-side manual editor is intentionally hidden until its information
-     architecture is ready. The underlying guide data and worker-facing guide
-     feature remain intact so this entry can be restored later without migration. */
-  const HIDDEN_NAV_ITEMS = new Set(['작업 매뉴얼']);
   const CHECKING = new Set(['신규 사업 기획']);
   const LABEL_RENAMES = new Map([
     ['글 관리', '홍보 글 관리'],
@@ -171,13 +167,6 @@
     if (dashboard) updateCurrent(dashboard);
   }
 
-  function removeHiddenItems(nav) {
-    [...nav.children].forEach(node => {
-      if (node.dataset?.navSection === 'official_channels') return;
-      if (HIDDEN_NAV_ITEMS.has(cleanLabel(node))) node.remove();
-    });
-  }
-
   function reorder() {
     scheduled = false;
     if (reordering) return;
@@ -187,7 +176,6 @@
 
     reordering = true;
     try {
-      removeHiddenItems(nav);
       const children = [...nav.children];
       children.forEach(node => {
         normalizeLabel(node);
@@ -243,5 +231,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, HIDDEN_NAV_ITEMS, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, reorder };
 })();
