@@ -1,0 +1,36 @@
+name: Temporary Issue 124 Main Sync
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/tmp-sync-issue-124.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/issue-124-public-image-budgets'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/issue-124-public-image-budgets
+          fetch-depth: 0
+      - name: Merge latest main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          if git merge origin/main --no-edit; then
+            git push origin HEAD:codex/issue-124-public-image-budgets
+          else
+            echo "CONFLICTS_BEGIN"
+            git diff --name-only --diff-filter=U
+            echo "CONFLICTS_END"
+            exit 1
+          fi
