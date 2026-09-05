@@ -41,7 +41,6 @@
   const SHOW_EMPLOYEE_ENTRY = false;
   const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
   const PUBLIC_EMAIL = 'taejang2025@naver.com';
-  const OPENING_HIDDEN_FROM = '2026-08-13';
   const FOOTER_CHANNEL_LINKS = [
     ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
     ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
@@ -49,17 +48,6 @@
 
   function employeeEntryEnabled() {
     return SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT;
-  }
-
-  function getSeoulDateKey(date) {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Seoul',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).formatToParts(date);
-    const value = type => parts.find(part => part.type === type)?.value || '';
-    return `${value('year')}-${value('month')}-${value('day')}`;
   }
 
   function currentPageName() {
@@ -184,13 +172,6 @@
         footerLegal.appendChild(staffLogin);
       }
     });
-  }
-
-  // Legacy opening notices remain hidden after their event date. The static
-  // source is being retired page-by-page; this guard remains as backward safety.
-  const announcement = document.querySelector('.announcement');
-  if (announcement && getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
-    announcement.hidden = true;
   }
 
   markCurrentNavigation();
