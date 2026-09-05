@@ -219,6 +219,10 @@
         menuBtn.focus();
       }
     });
+
+    // Collapse the static mobile navigation only after every interaction handler
+    // is bound. If this script never reaches here, the no-JS navigation stays visible.
+    document.documentElement.classList.add('js-nav-ready');
   }
 
   document.querySelectorAll('[data-faq-button]').forEach(button => {
