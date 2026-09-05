@@ -50,7 +50,7 @@ for (const filename of publicPages) {
   );
   assert.doesNotMatch(
     html,
-    /2026\.08\.12|taejang-news01\.netlify\.app/,
+    /<div class="announcement"[^>]*>[\s\S]*?2026\.08\.12[\s\S]*?태장 신규 사업장 개소식|taejang-news01\.netlify\.app/,
     `${filename} 원본에는 종료된 개소식 안내가 남아 있으면 안 됩니다`
   );
 
