@@ -56,10 +56,10 @@ jobs:
           from PIL import Image, ImageOps
 
           targets = {
-              Path('assets/images/archive/environment-cleanup-first.webp'): (200 * 1024, 1600, 1200),
+              Path('assets/images/archive/environment-cleanup-first.webp'): (200 * 1024, 1600, 1050),
               Path('assets/images/archive/partner-company-plaques-v3.webp'): (400 * 1024, 2200, 1600),
-              Path('assets/images/business/environment-cleanup-group.webp'): (200 * 1024, 1600, 1200),
-              Path('assets/images/minhwa/why-minhwa-product-expansion.webp'): (200 * 1024, 1600, 1200),
+              Path('assets/images/business/environment-cleanup-group.webp'): (200 * 1024, 1448, 1050),
+              Path('assets/images/minhwa/why-minhwa-product-expansion.webp'): (200 * 1024, 1600, 1050),
           }
           qualities = [90, 88, 86, 84, 82, 80, 78, 76, 74, 72, 70]
 
@@ -76,19 +76,17 @@ jobs:
 
               original_width, original_height = source.size
               start_width = min(original_width, preferred_max_width)
+              floor_width = min(minimum_width, original_width)
               widths = []
               width = start_width
-              while width >= min(minimum_width, original_width):
+              while True:
                   widths.append(width)
-                  if width == original_width and original_width <= preferred_max_width:
+                  if width <= floor_width:
                       break
-                  next_width = int(width * 0.9)
+                  next_width = max(floor_width, int(width * 0.9))
                   if next_width >= width:
                       break
                   width = next_width
-              if original_width not in widths:
-                  widths.insert(0, original_width)
-              widths = list(dict.fromkeys(widths))
 
               chosen = None
               best = None
