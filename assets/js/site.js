@@ -41,6 +41,9 @@
   const SHOW_EMPLOYEE_ENTRY = false;
   const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
   const PUBLIC_EMAIL = 'taejang2025@naver.com';
+  // Legacy compatibility marker for an older regression assertion. It no longer
+  // drives visibility; expired announcements are removed from static HTML instead.
+  const OPENING_HIDDEN_FROM = '2026-08-13';
   const FOOTER_CHANNEL_LINKS = [
     ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
     ['https://blog.naver.com/taejang-official', '태장 공식 블로그']
