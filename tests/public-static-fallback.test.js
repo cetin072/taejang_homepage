@@ -17,13 +17,6 @@ const homePreviews = read('assets/js/home-previews.js');
 const contentHub = read('assets/js/content-hub.js');
 const listing = read('assets/js/listing.js');
 
-function fallbackBlock(html, key) {
-  const pattern = new RegExp(`<div class="[^"]*"[^>]*data-static-fallback="${key}"[^>]*>([\\s\\S]*?)</div>\\s*(?:</div>|</section>)`);
-  const match = html.match(pattern);
-  assert.ok(match, `${key} 정적 fallback 컨테이너가 있어야 합니다`);
-  return match[0];
-}
-
 function assertFallbackCards(html, key, minimum) {
   const start = html.indexOf(`data-static-fallback="${key}"`);
   assert.ok(start >= 0, `${key} fallback 표시가 있어야 합니다`);
@@ -70,11 +63,15 @@ assert.match(contentHub, /list\.replaceChildren\(\.\.\.visible\.map\(\(item\) =>
 assert.match(listing, /list\.innerHTML = items\.length[\s\S]*?items\.map\(card\)\.join\(''\)/);
 
 // Missing runtime data is a degradation state, not a reason to erase approved HTML.
-assert.doesNotMatch(homePreviews, /hideRecentActivities/);
+assert.match(homePreviews, /if \(container\.dataset\.staticFallback\)[\s\S]*?section\.hidden = false/);
 assert.match(homePreviews, /정적 기록을 유지합니다/);
-assert.match(contentHub, /if \(!allItems\.length\)[\s\S]*?정적 archive cards[\s\S]*?return;/);
-assert.doesNotMatch(contentHub, /if \(!allItems\.length\)[\s\S]*?list\.replaceChildren\(createEmptyState/);
-assert.match(listing, /if \(!orderedData\.length\)[\s\S]*?last approved fallback[\s\S]*?return;/);
-assert.doesNotMatch(listing, /if \(!orderedData\.length\)[\s\S]*?list\.innerHTML = emptyState/);
+const emptyArchiveBranch = contentHub.match(/if \(!allItems\.length\) \{([\s\S]*?)\n    \}/)?.[1] || '';
+assert.match(emptyArchiveBranch, /content-hub-filters/);
+assert.match(emptyArchiveBranch, /return;/);
+assert.doesNotMatch(emptyArchiveBranch, /list\.replaceChildren/);
+const emptyListingBranch = listing.match(/if \(!orderedData\.length\) \{([\s\S]*?)\n    \}/)?.[1] || '';
+assert.match(emptyListingBranch, /filters\.hidden = true/);
+assert.match(emptyListingBranch, /return;/);
+assert.doesNotMatch(emptyListingBranch, /list\.innerHTML|replaceChildren/);
 
 console.log('public-static-fallback tests: all cases passed');
