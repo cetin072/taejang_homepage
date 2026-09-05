@@ -47,19 +47,14 @@
     return article;
   }
 
-  function hideRecentActivities() {
-    document.querySelectorAll('[data-recent-activities]').forEach((section) => {
-      section.hidden = true;
-    });
-  }
-
   function renderRecentActivities() {
     const containers = document.querySelectorAll('[data-home-preview="hub"]');
     if (!containers.length) return;
 
+    // Static HTML is the resilient baseline. Missing runtime modules or data must
+    // leave those approved cards visible instead of turning the section empty.
     if (!content || !Array.isArray(content.hub) || !contentHub) {
-      console.warn('최근 활동 콘텐츠 데이터를 사용할 수 없습니다.');
-      hideRecentActivities();
+      console.warn('최근 활동 콘텐츠 데이터를 사용할 수 없어 정적 기록을 유지합니다.');
       return;
     }
 
@@ -68,17 +63,13 @@
       containers.forEach((container) => {
         const requestedCount = Number.parseInt(container.dataset.homePreviewCount, 10) || 8;
         const visibleItems = items.slice(0, Math.min(Math.max(requestedCount, 1), 8));
-        const section = container.closest('[data-recent-activities]');
-        if (!visibleItems.length) {
-          if (section) section.hidden = true;
-          return;
-        }
+        if (!visibleItems.length) return;
         container.replaceChildren(...visibleItems.map(createActivityCard));
+        const section = container.closest('[data-recent-activities]');
         if (section) section.hidden = false;
       });
     } catch (error) {
-      console.warn('최근 활동을 표시하지 않았습니다.', error);
-      hideRecentActivities();
+      console.warn('최근 활동 최신화에 실패해 정적 기록을 유지합니다.', error);
     }
   }
 
