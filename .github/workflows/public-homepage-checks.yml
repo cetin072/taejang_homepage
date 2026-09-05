@@ -18,14 +18,125 @@ on:
       - ".github/workflows/public-homepage-checks.yml"
   workflow_dispatch:
 
+# Temporary write permission is scoped to the Issue #124 optimizer job below.
+# It will be restored to contents: read after the optimized image commit lands.
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: public-homepage-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  issue124_optimize:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'codex/issue-124-public-image-budgets'
+    name: Optimize active over-budget public images
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out PR head branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install image encoder
+        run: python -m pip install --disable-pip-version-check pillow
+
+      - name: Re-encode only approved optimization targets
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageOps
+
+          targets = {
+              Path('assets/images/archive/environment-cleanup-first.webp'): (200 * 1024, 1600, 1200),
+              Path('assets/images/archive/partner-company-plaques-v3.webp'): (400 * 1024, 2200, 1600),
+              Path('assets/images/business/environment-cleanup-group.webp'): (200 * 1024, 1600, 1200),
+              Path('assets/images/minhwa/why-minhwa-product-expansion.webp'): (200 * 1024, 1600, 1200),
+          }
+          qualities = [90, 88, 86, 84, 82, 80, 78, 76, 74, 72, 70]
+
+          for image_path, (budget, preferred_max_width, minimum_width) in targets.items():
+              before = image_path.stat().st_size
+              if before <= budget:
+                  print(f'SKIP {image_path}: {before} <= {budget}')
+                  continue
+
+              with Image.open(image_path) as opened:
+                  source = ImageOps.exif_transpose(opened).copy()
+              if source.mode not in ('RGB', 'RGBA'):
+                  source = source.convert('RGBA' if 'A' in source.getbands() else 'RGB')
+
+              original_width, original_height = source.size
+              start_width = min(original_width, preferred_max_width)
+              widths = []
+              width = start_width
+              while width >= min(minimum_width, original_width):
+                  widths.append(width)
+                  if width == original_width and original_width <= preferred_max_width:
+                      break
+                  next_width = int(width * 0.9)
+                  if next_width >= width:
+                      break
+                  width = next_width
+              if original_width not in widths:
+                  widths.insert(0, original_width)
+              widths = list(dict.fromkeys(widths))
+
+              chosen = None
+              best = None
+              for candidate_width in widths:
+                  if candidate_width == original_width:
+                      candidate = source
+                  else:
+                      candidate_height = round(original_height * candidate_width / original_width)
+                      candidate = source.resize((candidate_width, candidate_height), Image.Resampling.LANCZOS)
+                  for quality in qualities:
+                      temp = image_path.with_suffix('.optimized.webp')
+                      candidate.save(temp, 'WEBP', quality=quality, method=6)
+                      size = temp.stat().st_size
+                      if best is None or size < best[0]:
+                          best = (size, candidate_width, quality, temp.read_bytes())
+                      if size <= budget:
+                          chosen = (size, candidate_width, quality, temp.read_bytes())
+                          break
+                  temp.unlink(missing_ok=True)
+                  if chosen:
+                      break
+
+              if chosen is None:
+                  raise SystemExit(f'Could not optimize {image_path} below {budget}; best={best[:3] if best else None}')
+
+              size, final_width, quality, payload = chosen
+              image_path.write_bytes(payload)
+              final_height = round(original_height * final_width / original_width)
+              print(f'OPTIMIZED {image_path}: {before} -> {size} bytes; {original_width}x{original_height} -> {final_width}x{final_height}; quality={quality}')
+          PY
+
+      - name: Commit optimized binaries when needed
+        shell: bash
+        run: |
+          git add \
+            assets/images/archive/environment-cleanup-first.webp \
+            assets/images/archive/partner-company-plaques-v3.webp \
+            assets/images/business/environment-cleanup-group.webp \
+            assets/images/minhwa/why-minhwa-product-expansion.webp
+          if git diff --cached --quiet; then
+            echo "No image optimization commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "perf: optimize active public images"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   regression:
     name: Public source and launch regression
     runs-on: ubuntu-latest
