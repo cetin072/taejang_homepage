@@ -136,7 +136,6 @@
     if (route === 'operations_manager') {
       items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
     }
-    if (managerRoles.has(route)) items.push({ label: '작업 매뉴얼', run: () => openPanel('today-admin-panel', 'work_manual') });
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
     if (!officialChannelRoles.has(route)) items.push({ label: '홈페이지', href: '../index.html', newTab: true });
 
