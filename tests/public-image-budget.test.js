@@ -10,6 +10,14 @@ const NORMAL_BUDGET = 200 * 1024;
 const REPRESENTATIVE_BUDGET = 400 * 1024;
 const rasterPattern = /(?:assets|images)\/[A-Za-z0-9_./-]+\.(?:avif|gif|jpe?g|png|webp)/gi;
 
+// These are intentionally larger presentation/evidence assets, not ordinary cards.
+// Keep the list explicit so a normal thumbnail cannot silently inherit the larger budget.
+const EXPLICIT_REPRESENTATIVE_ASSETS = new Set([
+  'assets/images/archive/partner-company-plaques-v3.webp',
+  'images/homepage/photo-07.webp',
+  'images/homepage/photo-08-about-preview.webp'
+]);
+
 const publicSourceFiles = [
   ...fs.readdirSync(root).filter((name) => name.endsWith('.html')),
   ...fs.readdirSync(path.join(root, 'assets/css')).filter((name) => name.endsWith('.css')).map((name) => `assets/css/${name}`),
@@ -27,7 +35,7 @@ const active = new Map();
 function remember(relativePath, representative, sourceFile) {
   const normalized = relativePath.replaceAll('\\', '/');
   const current = active.get(normalized) || { representative: false, sources: new Set() };
-  current.representative ||= representative;
+  current.representative ||= representative || EXPLICIT_REPRESENTATIVE_ASSETS.has(normalized);
   current.sources.add(sourceFile);
   active.set(normalized, current);
 }
