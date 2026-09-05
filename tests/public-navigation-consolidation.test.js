@@ -60,6 +60,11 @@ for (const filename of publicPages) {
     /<a(?: class="nav-cta")? href="partnership\.html"(?: aria-current="page")?>협력·문의<\/a>/,
     `${filename} 협력·문의는 HTML 원본에 정적으로 존재해야 합니다`
   );
+  assert.match(
+    html,
+    /<nav class="mobile-nav"[^>]*>[\s\S]*?href="about\.html"[\s\S]*?href="business\.html"[\s\S]*?href="workplace\.html"[\s\S]*?href="archive\.html"[\s\S]*?href="partnership\.html"[\s\S]*?<\/nav>/,
+    `${filename} 모바일 주요 메뉴도 HTML 원본에 정적으로 존재해야 합니다`
+  );
 }
 
 const index = read('index.html');
@@ -94,6 +99,13 @@ const activities = read('activities.html');
 assert.match(activities, /href="archive\.html" aria-current="page">소식·기록<\/a>/);
 assert.match(activities, /소식·기록 전체 보기/);
 
+const styles = read('assets/css/styles.css');
+assert.match(
+  styles,
+  /@media \(max-width:1000px\)\{[\s\S]*?\.desktop-nav\{display:none\}[\s\S]*?\.mobile-nav\{display:grid\}[\s\S]*?\.menu-btn\{display:none\}[\s\S]*?\.js-nav-ready \.menu-btn\{display:block\}[\s\S]*?\.js-nav-ready \.mobile-nav\{display:none\}[\s\S]*?\.js-nav-ready \.mobile-nav\.open\{display:grid\}/,
+  '모바일에서는 JS가 없어도 정적 메뉴가 보이고, JS가 준비된 뒤에만 접힘 상태를 사용합니다'
+);
+
 const site = read('assets/js/site.js');
 assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/, '핵심 공개 메뉴를 JS 배열로 다시 생성하지 않습니다');
 assert.doesNotMatch(site, /FOOTER_LINKS/, '핵심 푸터 바로가기를 JS 배열로 다시 생성하지 않습니다');
@@ -102,6 +114,8 @@ assert.doesNotMatch(site, /shortcuts\.querySelectorAll\('a'\)\.forEach\(link => 
 assert.match(site, /function markCurrentNavigation\(\)/, 'JS는 기존 정적 메뉴에 현재 페이지 상태만 보강합니다');
 assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 비파괴적으로 보강합니다');
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
+assert.match(site, /document\.documentElement\.classList\.add\('js-nav-ready'\)/, '토글 바인딩이 끝난 뒤에만 접힘 메뉴 모드를 활성화합니다');
+assert.ok(site.indexOf("menuBtn.addEventListener('click'") < site.indexOf("classList.add('js-nav-ready')"), 'JS 준비 클래스는 메뉴 클릭 핸들러 등록 이후에 추가해야 합니다');
 
 const photoSlots = read('assets/js/photo-slots.js');
 assert.match(photoSlots, /const existingImage = slot\.querySelector\(':scope > img'\);[\s\S]*?if \(existingImage\)/, 'photo-slots는 정적 이미지가 있으면 중복 생성하지 않습니다');
