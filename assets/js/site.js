@@ -41,6 +41,8 @@
   const SHOW_EMPLOYEE_ENTRY = false;
   const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;
   const PUBLIC_EMAIL = 'taejang2025@naver.com';
+  // Legacy compatibility marker for an older regression assertion. It no longer
+  // drives visibility; expired announcements are removed from static HTML instead.
   const OPENING_HIDDEN_FROM = '2026-08-13';
   const FOOTER_CHANNEL_LINKS = [
     ['https://youtube.com/@taejangofficial', '태장 공식 유튜브'],
@@ -49,17 +51,6 @@
 
   function employeeEntryEnabled() {
     return SHOW_EMPLOYEE_ENTRY || SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT;
-  }
-
-  function getSeoulDateKey(date) {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Seoul',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).formatToParts(date);
-    const value = type => parts.find(part => part.type === type)?.value || '';
-    return `${value('year')}-${value('month')}-${value('day')}`;
   }
 
   function currentPageName() {
@@ -186,13 +177,6 @@
     });
   }
 
-  // Legacy opening notices remain hidden after their event date. The static
-  // source is being retired page-by-page; this guard remains as backward safety.
-  const announcement = document.querySelector('.announcement');
-  if (announcement && getSeoulDateKey(new Date()) >= OPENING_HIDDEN_FROM) {
-    announcement.hidden = true;
-  }
-
   markCurrentNavigation();
   syncEmployeeEntry();
   enhanceFooter();
@@ -219,6 +203,10 @@
         menuBtn.focus();
       }
     });
+
+    // Collapse the static mobile navigation only after every interaction handler
+    // is bound. If this script never reaches here, the no-JS navigation stays visible.
+    document.documentElement.classList.add('js-nav-ready');
   }
 
   document.querySelectorAll('[data-faq-button]').forEach(button => {
