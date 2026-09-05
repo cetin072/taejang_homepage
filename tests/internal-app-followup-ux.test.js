@@ -13,6 +13,8 @@ const source = read('app/assets/ux-followup-polish.js');
 const surface = read('app/assets/app-workspace-surface.js');
 const appUi = read('app/assets/app-ui.js');
 const dashboardShell = read('app/assets/dashboard-shell.js');
+const shellCss = read('app/assets/dashboard-shell.css');
+const roleSimulation = read('app/assets/phase-c-role-simulation.js');
 const roleNavigation = read('app/assets/role-navigation-priority.js');
 const accountApproval = read('app/assets/phase-c-account-approval.js');
 
@@ -192,6 +194,28 @@ test('operations sidebar keeps signup approval below routine work', () => {
   assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'출근부'"));
   assert.ok(order.indexOf("'작업 매뉴얼'") > order.indexOf("'가입 승인'"));
   assert.match(roleNavigation, /label: '승인·관리', items: \['가입 승인'\]/);
+});
+
+test('manager shell shows one logout header while general worker keeps the legacy header', () => {
+  assert.match(shellCss, /\.staff-shell > \.staff-header\s*\{\s*display:\s*none;/);
+  assert.match(shellCss, /\.general-worker-mode \.staff-shell > \.staff-header\s*\{\s*display:\s*flex;/);
+  assert.match(shellCss, /\.environment-label\s*\{\s*display:\s*none !important;/);
+});
+
+test('mobile role simulation remains available normally but never covers an open sidebar', () => {
+  assert.match(roleSimulation, /\.role-simulation-switcher\s*\{[\s\S]*position:\s*fixed;/);
+  assert.match(shellCss, /\.desktop-app-shell\.sidebar-open \.role-simulation-switcher\s*\{\s*display:\s*none;/);
+  assert.match(roleSimulation, /홍보직원 보기/);
+  assert.match(roleSimulation, /운영팀장 보기/);
+  assert.match(roleSimulation, /운영총괄 복귀/);
+});
+
+test('unfinished manager manual is absent from the base shell instead of removed by a later module', () => {
+  assert.doesNotMatch(dashboardShell, /label:\s*'작업 매뉴얼'/);
+  assert.doesNotMatch(roleNavigation, /HIDDEN_NAV_ITEMS/);
+  assert.equal(fs.existsSync(path.join(root, 'app/assets/work-guide-worker.js')), true);
+  assert.match(dashboardShell, /label:\s*'공식 유튜브'/);
+  assert.match(dashboardShell, /https:\/\/youtube\.com\/@taejangofficial/);
 });
 
 test('admin panels mount inside the app workspace before they can open', () => {
