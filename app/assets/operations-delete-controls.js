@@ -34,7 +34,7 @@
   async function decorateEmployees() {
     if (!isOperations() || busy.has('employees')) return;
     const cards = [...document.querySelectorAll('.employee-grid .employee-card')];
-    if (!cards.length) return;
+    if (!cards.length || cards.every(card => card.querySelector('[data-ops-delete-employee]'))) return;
     busy.add('employees');
     try {
       const context = await app().rpc('get_employee_management_context');
@@ -70,7 +70,7 @@
     const list = document.getElementById(config.listId);
     if (!list) return;
     const cards = [...list.querySelectorAll('.admin-record-card')];
-    if (!cards.length) return;
+    if (!cards.length || cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;
     busy.add(config.key);
     try {
       const rows = await config.load();
@@ -125,13 +125,27 @@
     setTimeout(() => { scheduled = false; sync(); }, 60);
   }
 
+  function hasRelevantAddedNode(records) {
+    return records.some(record => [...record.addedNodes].some(node => {
+      if (node.nodeType !== 1) return false;
+      if (node.matches?.('.employee-card, .admin-record-card, .employee-grid, #schedule-admin-list, #notice-admin-list, #guidance-admin-list')) return true;
+      return !!node.querySelector?.('.employee-card, .admin-record-card');
+    }));
+  }
+
   document.addEventListener('taejang-app-ready', scheduleSync);
   document.addEventListener('taejang-dashboard-refresh', scheduleSync);
   document.addEventListener('taejang-schedule-admin-loaded', scheduleSync);
+  document.addEventListener('taejang-open-employee-management', () => setTimeout(scheduleSync, 120));
+  document.addEventListener('taejang-open-app-panel', event => {
+    if (['schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel'].includes(event.detail?.id)) setTimeout(scheduleSync, 120);
+  });
 
   const start = () => {
     const shell = document.getElementById('desktop-app-shell') || document.body;
-    new MutationObserver(scheduleSync).observe(shell, { childList: true, subtree: true });
+    new MutationObserver(records => {
+      if (hasRelevantAddedNode(records)) scheduleSync();
+    }).observe(shell, { childList: true, subtree: true });
     scheduleSync();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });

@@ -9,6 +9,7 @@
   const arr = value => Array.isArray(value) ? value : [];
   let cachedConfig = null;
   let currentContext = null;
+  let activeEmployeeView = 'existing';
 
   const el = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -62,6 +63,9 @@
     style.dataset.employeeManagement = '1';
     style.textContent = `
       .employee-management { display:grid; gap:20px; }
+      .employee-view-tabs { display:flex; flex-wrap:wrap; gap:8px; padding:6px; border:1px solid var(--app-border); border-radius:12px; background:#f7f9f7; width:fit-content; max-width:100%; }
+      .employee-view-tabs .button { min-height:42px; }
+      .employee-view-tabs .button[aria-current="page"] { background:var(--app-accent); color:#fff; border-color:var(--app-accent); }
       .employee-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
       .employee-toolbar input[type="search"] { min-width:260px; min-height:44px; padding:9px 11px; border:1px solid var(--app-border); border-radius:9px; font:inherit; }
       .employee-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
@@ -81,7 +85,7 @@
       .employee-photo-actions { display:flex; flex-wrap:wrap; gap:8px; }
       .employee-photo-actions input[type="file"] { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
       .employee-protected-note { padding:9px 10px; border-radius:9px; background:#fff4df; color:#6a4d13; font-weight:700; }
-      @media(max-width:760px){.employee-grid,.employee-request-grid,.employee-form-grid{grid-template-columns:1fr}.employee-toolbar{align-items:stretch}.employee-toolbar input[type="search"]{min-width:0;width:100%}}
+      @media(max-width:760px){.employee-grid,.employee-request-grid,.employee-form-grid{grid-template-columns:1fr}.employee-toolbar{align-items:stretch}.employee-toolbar input[type="search"]{min-width:0;width:100%}.employee-view-tabs{display:grid;width:100%;grid-template-columns:1fr}.employee-view-tabs .button{width:100%}}
     `;
     document.head.append(style);
   }
@@ -166,7 +170,8 @@
     const name = input('text', employee?.full_name || ''); name.required = true; name.maxLength = 80;
     const hired = input('date', employee?.hired_on || ''); hired.required = true;
     const department = select(context.departments, employee?.department_id || context.department_id || context.departments?.[0]?.id || '');
-    const position = select(context.positions, employee?.position_id || context.positions?.[0]?.id || '');
+    const positionItems = !employee && teamRequest ? arr(context.new_employee_positions) : arr(context.positions);
+    const position = select(positionItems, employee?.position_id || positionItems?.[0]?.id || '');
     const status = select([
       { id: 'active', name: '재직' }, { id: 'leave', name: '휴직' }, { id: 'departed', name: '퇴사' }
     ], employee?.employment_status || 'active');
@@ -174,15 +179,26 @@
     const attendance = input('checkbox'); attendance.checked = employee ? !!employee.attendance_required : true;
     if (teamRequest) department.disabled = true;
     if (!employee) { status.value = 'active'; status.disabled = true; departed.disabled = true; }
+    if (!positionItems.length) position.disabled = true;
 
     const grid = el('div', null, 'employee-form-grid');
     grid.append(
-      field('이름', name), field('입사일', hired), field('부서', department), field('직책', position),
-      field('재직상태', status), field('퇴사일', departed), field('근태 대상', attendance, '체크하면 출퇴근 관리 대상입니다.')
+      field('이름', name),
+      field('입사일', hired),
+      field('부서', department),
+      field('직책', position, !employee && teamRequest ? '본인 직책보다 낮은 직책만 요청할 수 있습니다.' : null),
+      field('재직상태', status),
+      field('퇴사일', departed),
+      field('근태 대상', attendance, '체크하면 출퇴근 관리 대상입니다.')
     );
     const actions = el('div', null, 'quick-links');
     const submit = button(employee ? (teamRequest ? '수정 요청 보내기' : '직원정보 저장') : (teamRequest ? '등록 요청 보내기' : '직원 등록'), () => {});
-    submit.type = 'submit'; actions.append(submit); form.append(grid, actions);
+    submit.type = 'submit';
+    if (!positionItems.length) submit.disabled = true;
+    actions.append(submit); form.append(grid, actions);
+    if (!employee && teamRequest && !positionItems.length) {
+      form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
+    }
 
     form.addEventListener('submit', async event => {
       event.preventDefault(); submit.disabled = true;
@@ -215,7 +231,8 @@
             }
           });
         }
-        await openEmployeeManagement();
+        if (!employee) activeEmployeeView = 'existing';
+        await openEmployeeManagement(activeEmployeeView);
       } catch (error) {
         window.alert(app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
         submit.disabled = false;
@@ -240,7 +257,7 @@
         } else {
           await app().rpc('submit_employee_change_request', { p_request_type: 'id_photo_update', p_employee_uuid: employee.id, p_requested_changes: { id_photo_path: path } });
         }
-        await openEmployeeManagement();
+        await openEmployeeManagement('existing');
       } catch (error) {
         window.alert(error.message || '사진을 저장하지 못했습니다.');
         action.disabled = false; action.textContent = label;
@@ -307,16 +324,31 @@
       if (action !== 'approve' && !comment.trim()) return;
       try {
         await app().rpc('review_employee_change_request', { p_request_id: request.id, p_action: action, p_comment: comment.trim() || null });
-        await openEmployeeManagement();
+        await openEmployeeManagement('existing');
       } catch (error) { window.alert(app().friendlyError?.(error) || '요청을 처리하지 못했습니다.'); }
     };
     actions.append(button('승인', () => act('approve')), button('보완 요청', () => act('changes_requested'), true), button('반려', () => act('reject'), true));
     card.append(actions); return card;
   }
 
-  async function openEmployeeManagement() {
+  function employeeViewTabs(context) {
+    const tabs = el('nav', null, 'employee-view-tabs');
+    tabs.setAttribute('aria-label', '직원 관리 화면 선택');
+    const labels = context.access_level === 'operations_manager'
+      ? [['existing', '기존 직원 관리'], ['new', '신규 직원 등록']]
+      : [['existing', '기존 직원 관리'], ['new', '신규 직원 등록 요청']];
+    labels.forEach(([view, label]) => {
+      const node = button(label, () => openEmployeeManagement(view), true);
+      if (activeEmployeeView === view) node.setAttribute('aria-current', 'page');
+      tabs.append(node);
+    });
+    return tabs;
+  }
+
+  async function openEmployeeManagement(view = activeEmployeeView) {
     closeSidebar();
     if (!ALLOWED_ROUTES.has(route())) return;
+    if (typeof view === 'string' && ['existing', 'new'].includes(view)) activeEmployeeView = view;
     const target = main(); if (!target) return;
     document.getElementById('desktop-page-title').textContent = route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리';
     target.replaceChildren(el('p', '직원 정보를 불러오고 있습니다.', 'message'));
@@ -325,13 +357,20 @@
       const shell = el('section', null, 'employee-management');
       const intro = el('header', null, 'dashboard-intro');
       intro.append(el('p', context.access_level === 'operations_manager' ? '운영총괄 직원관리' : '내 팀 직원관리', 'eyebrow'), el('h2', context.access_level === 'operations_manager' ? '직원 관리' : '팀 직원 관리'));
-      intro.append(el('p', context.access_level === 'operations_manager' ? '직원 등록·수정과 팀장 요청 승인을 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : '자기 팀 직원만 확인합니다. 업무용 사진은 직접 바꾸고 핵심 인사정보는 운영총괄에게 수정 요청합니다.'));
-      shell.append(intro);
+      intro.append(el('p', context.access_level === 'operations_manager' ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
+      shell.append(intro, employeeViewTabs(context));
 
-      const createSection = el('section', null, 'dashboard-section');
-      createSection.append(el('h2', context.access_level === 'operations_manager' ? '새 직원 등록' : '신규 직원 등록 요청'));
-      createSection.append(makeEmployeeForm(context, null, context.access_level !== 'operations_manager'));
-      shell.append(createSection);
+      if (activeEmployeeView === 'new') {
+        const createSection = el('section', null, 'dashboard-section');
+        createSection.append(el('h2', context.access_level === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청'));
+        createSection.append(el('p', context.access_level === 'operations_manager'
+          ? '신규 직원을 직원 마스터에 등록합니다.'
+          : '운영총괄 승인 후 직원 마스터에 등록됩니다. 본인과 같거나 높은 직책은 선택할 수 없습니다.', 'help'));
+        createSection.append(makeEmployeeForm(context, null, context.access_level !== 'operations_manager'));
+        shell.append(createSection);
+        target.replaceChildren(shell);
+        return;
+      }
 
       if (context.access_level === 'operations_manager') {
         const requests = arr(context.change_requests);
@@ -344,7 +383,12 @@
         if (requests.length) {
           const mine = el('section', null, 'dashboard-section'); mine.append(el('h2', '내 요청 상태'));
           const grid = el('div', null, 'employee-request-grid');
-          requests.forEach(request => { const card = el('article', null, 'dashboard-card'); card.append(el('span', request.status === 'pending' ? '처리 대기' : '보완 필요', 'status-label'), el('h3', requestLabel(request.request_type)), el('p', requestSummary(context, request))); if (request.decision_comment) card.append(el('p', `운영총괄 의견: ${request.decision_comment}`)); grid.append(card); });
+          requests.forEach(request => {
+            const card = el('article', null, 'dashboard-card');
+            card.append(el('span', request.status === 'pending' ? '처리 대기' : '보완 필요', 'status-label'), el('h3', requestLabel(request.request_type)), el('p', requestSummary(context, request)));
+            if (request.decision_comment) card.append(el('p', `운영총괄 의견: ${request.decision_comment}`));
+            grid.append(card);
+          });
           mine.append(grid); shell.append(mine);
         }
       }
@@ -370,7 +414,7 @@
   function syncNavigation() {
     const nav = document.getElementById('app-nav');
     if (!nav || !ALLOWED_ROUTES.has(route()) || nav.querySelector('[data-employee-management-nav]')) return;
-    const node = button(route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리', openEmployeeManagement, true);
+    const node = button(route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리', () => openEmployeeManagement('existing'), true);
     node.dataset.employeeManagementNav = '1';
     const accountApproval = [...nav.children].find(child => child.textContent?.includes('가입 승인'));
     const homepage = [...nav.children].find(child => child.textContent?.trim() === '홈페이지');
@@ -379,7 +423,7 @@
 
   function sync() { syncNavigation(); }
   injectStyles();
-  document.addEventListener('taejang-open-employee-management', openEmployeeManagement);
+  document.addEventListener('taejang-open-employee-management', () => openEmployeeManagement('existing'));
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
   const start = () => {

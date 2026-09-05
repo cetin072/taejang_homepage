@@ -45,8 +45,15 @@
   function sync() {
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    removeExisting(nav);
-    if (!ALLOWED_ROLES.has(route())) return;
+    if (!ALLOWED_ROLES.has(route())) {
+      removeExisting(nav);
+      return;
+    }
+
+    // dashboard-shell now creates the official channel group synchronously.
+    // Keep this module only as a compatibility fallback for older shells and
+    // never tear down a valid group after first paint.
+    if (nav.querySelector('[data-official-channel-group]')) return;
 
     [...nav.children].forEach(node => {
       if ((node.textContent || '').trim() === '홈페이지' && node.tagName === 'A') node.remove();
@@ -54,10 +61,10 @@
     nav.append(makeGroup());
   }
 
-  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 120));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
+  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 0));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 0));
 
-  const start = () => setTimeout(sync, 120);
+  const start = () => setTimeout(sync, 0);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 

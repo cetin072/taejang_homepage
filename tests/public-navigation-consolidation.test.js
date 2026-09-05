@@ -38,22 +38,27 @@ for (const filename of publicPages) {
   assert.match(
     html,
     /<a href="about\.html"(?: aria-current="page")?>태장 소개<\/a>/,
-    `${filename} 태장 소개는 상세 페이지로 연결합니다`
+    `${filename} 태장 소개는 HTML 원본에 정적으로 존재해야 합니다`
   );
   assert.match(
     html,
     /<a href="business\.html"(?: aria-current="page")?>하는 일<\/a>/,
-    `${filename} 사업 메뉴는 business.html 상세 페이지로 연결합니다`
+    `${filename} 하는 일은 HTML 원본에 정적으로 존재해야 합니다`
+  );
+  assert.match(
+    html,
+    /<a href="workplace\.html"(?: aria-current="page")?>우리의 일터<\/a>/,
+    `${filename} 우리의 일터는 HTML 원본에 정적으로 존재해야 합니다`
   );
   assert.match(
     html,
     /<a href="archive\.html"(?: aria-current="page")?>소식·기록<\/a>/,
-    `${filename} 공개 메뉴는 소식·기록을 단일 소식 진입점으로 사용합니다`
+    `${filename} 소식·기록은 HTML 원본에 정적으로 존재해야 합니다`
   );
   assert.match(
     html,
     /<a(?: class="nav-cta")? href="partnership\.html"(?: aria-current="page")?>협력·문의<\/a>/,
-    `${filename} 협력 메뉴는 협력 안내와 문의를 하나의 흐름으로 연결합니다`
+    `${filename} 협력·문의는 HTML 원본에 정적으로 존재해야 합니다`
   );
 }
 
@@ -66,17 +71,44 @@ assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기
 assert.match(index, /name="taejang-inquiry"/);
 assert.match(index, /지역사회공헌·ESG 협력/);
 
+for (const href of [
+  'assets/css/site-polish.css',
+  'assets/css/mobile-layout-fixes.css',
+  'assets/css/photo-mode.css'
+]) {
+  assert.match(index, new RegExp(`<link rel="stylesheet" href="${href.replaceAll('.', '\\.')}"`), `${href}는 메인에서 JS 없이 정적으로 로드합니다`);
+}
+
+const staticPhotoExpectations = [
+  ['02', 'images/homepage/photo-02.webp'],
+  ['04', 'images/homepage/photo-04.webp'],
+  ['05', 'images/homepage/photo-05.webp'],
+  ['06', 'images/homepage/photo-06.webp']
+];
+for (const [slot, src] of staticPhotoExpectations) {
+  const pattern = new RegExp(`data-photo-slot="${slot}"[^>]*>[\\s\\S]*?<img src="${src.replaceAll('.', '\\.')}"`);
+  assert.match(index, pattern, `PHOTO ${slot}는 JS 없이 실제 정적 이미지를 제공합니다`);
+}
+
 const activities = read('activities.html');
 assert.match(activities, /href="archive\.html" aria-current="page">소식·기록<\/a>/);
 assert.match(activities, /소식·기록 전체 보기/);
 
 const site = read('assets/js/site.js');
-assert.doesNotMatch(site, /\['activities\.html', '태장의 활동'\]/);
-assert.doesNotMatch(site, /\['index\.html#business', '사업과 역량'\]/);
-assert.doesNotMatch(site, /\['partnership\.html', '기업 협력'\]/);
-assert.equal((site.match(/\['archive\.html', '소식·기록'\]/g) || []).length, 2);
-assert.equal((site.match(/\['partnership\.html', '협력·문의'/g) || []).length, 2);
+assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/, '핵심 공개 메뉴를 JS 배열로 다시 생성하지 않습니다');
+assert.doesNotMatch(site, /FOOTER_LINKS/, '핵심 푸터 바로가기를 JS 배열로 다시 생성하지 않습니다');
+assert.doesNotMatch(site, /nav\.replaceChildren\(\)/, '공개 헤더를 JS에서 비우고 재생성하지 않습니다');
+assert.doesNotMatch(site, /shortcuts\.querySelectorAll\('a'\)\.forEach\(link => link\.remove\(\)\)/, '푸터 바로가기를 삭제 후 재생성하지 않습니다');
+assert.match(site, /function markCurrentNavigation\(\)/, 'JS는 기존 정적 메뉴에 현재 페이지 상태만 보강합니다');
+assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 비파괴적으로 보강합니다');
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
+
+const photoSlots = read('assets/js/photo-slots.js');
+assert.match(photoSlots, /const existingImage = slot\.querySelector\(':scope > img'\);[\s\S]*?if \(existingImage\)/, 'photo-slots는 정적 이미지가 있으면 중복 생성하지 않습니다');
+
+const liveOverrides = read('assets/js/homepage-live-overrides.js');
+assert.match(liveOverrides, /Static homepage remains the fallback/, '관리자 live override 실패 시 정적 홈페이지를 fallback으로 유지합니다');
+assert.match(liveOverrides, /catch \{[\s\S]*?Static homepage remains the fallback/, 'live override 네트워크 실패는 정적 홈페이지를 파괴하지 않습니다');
 
 const content = read('assets/js/content.js');
 assert.match(read('assets/js/content-hub.js'), /detailUrl: `activities\.html\?id=\$\{encodeURIComponent\(activity\.id\)\}`/);
