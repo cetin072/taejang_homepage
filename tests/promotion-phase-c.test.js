@@ -47,7 +47,7 @@ test('role review UI follows Contract v1: CEO rejection, structured escalation, 
   assert.doesNotMatch(workspace, /if \(role === 'promotion_lead'\)[^\n]*검토 보류/);
 });
 
-test('promotion routes prioritize review, keep manual navigation explicit, and separate new business planning', () => {
+test('promotion routes prioritize review, hide unfinished manager manual, and separate new business planning', () => {
   const shell = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
   const workspace = fs.readFileSync(path.join(root, 'app/assets/promotion-workspace.js'), 'utf8');
   assert.match(shell, /promotion_lead: \['대시보드'/);
@@ -56,7 +56,8 @@ test('promotion routes prioritize review, keep manual navigation explicit, and s
   assert.match(shell, /promotion_staff: '홍보직원'/);
   assert.match(shell, /홍보 검토 대기/);
   assert.match(shell, /신규 사업 기획/);
-  assert.match(shell, /작업 매뉴얼/);
+  assert.doesNotMatch(shell, /label:\s*'작업 매뉴얼'/);
+  assert.equal(fs.existsSync(path.join(root, 'app/assets/work-guide-worker.js')), true);
   assert.doesNotMatch(workspace, /신규 사업기획/);
   const managerSet = shell.match(/managerRoles = new Set\(\[([^\]]+)\]\)/)?.[1] || '';
   assert.doesNotMatch(managerSet, /promotion_lead|promotion_staff/);
