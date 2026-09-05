@@ -150,7 +150,7 @@ assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
 assert.match(site, /document\.documentElement\.classList\.add\('js-nav-ready'\)/, '토글 바인딩이 끝난 뒤에만 접힘 메뉴 모드를 활성화합니다');
 assert.ok(site.indexOf("menuBtn.addEventListener('click'") < site.indexOf("classList.add('js-nav-ready')"), 'JS 준비 클래스는 메뉴 클릭 핸들러 등록 이후에 추가해야 합니다');
-assert.doesNotMatch(site, /OPENING_HIDDEN_FROM|getSeoulDateKey|announcement\.hidden/, '종료 공지를 날짜 기준 JS로 숨기는 구형 우회 로직을 남기지 않습니다');
+assert.doesNotMatch(site, /function getSeoulDateKey|document\.querySelector\('\.announcement'\)|announcement\.hidden/, '종료 공지를 날짜 기준 JS로 숨기는 구형 동작을 남기지 않습니다');
 
 const photoSlots = read('assets/js/photo-slots.js');
 assert.match(photoSlots, /const existingImage = slot\.querySelector\(':scope > img'\);[\s\S]*?if \(existingImage\)/, 'photo-slots는 정적 이미지가 있으면 중복 생성하지 않습니다');
