@@ -4,18 +4,28 @@
 
 ## 최상위 기준
 
-- 모든 기획, 개발, 콘텐츠, 운영 작업 전에 [`PROJECT_CHARTER.md`](PROJECT_CHARTER.md)를 먼저 읽습니다.
+- [`PROJECT_CHARTER.md`](PROJECT_CHARTER.md)는 태장 프로젝트의 장기 목적·범위·기능 채택 기준을 정의합니다. 모든 작은 작업에서 전문을 다시 읽지는 않고, 새 기능·범위 변경·목적 판단이 필요한 작업에서 확인합니다.
 - 홈페이지와 업무 플랫폼은 태장의 장애인 고용 안정, 장기 완전고용 유지, 제품·서비스 경쟁력, 수익성, 영업과 사회공헌을 지원하는 도구입니다.
 - 기능 개발 자체를 목표로 삼지 않습니다.
 - 새 기능은 프로젝트 헌장의 기능 채택 판단 기준을 통과해야 합니다.
 - 전체 시스템을 한 번에 만들지 않고 모듈별로 실제 운영 가능한 수준까지 완성한 뒤 다음 모듈로 확장합니다.
 
+## 문서 로딩 경량화
+
+모든 작업에서 모든 운영문서를 다시 읽지 않습니다. 프로젝트 `AGENTS.md`를 일상 작업의 압축 기준으로 사용하고 작업 위험도에 따라 필요한 문서만 추가로 확인합니다.
+
+- **일반 작업:** 현재 Issue/사용자 요청 + `AGENTS.md` + 직접 수정할 인접 파일·관련 테스트
+- **큰 기능·여러 모듈 변경:** 위 내용 + 관련 `docs/planning/` 또는 `docs/operations/` + 현재 PR/review
+- **아키텍처·보안·권한·DB·배포 구조 변경:** 위 내용 + 필요한 중앙 공통 표준 원문 + 프로젝트 헌장/계약 문서
+- 중앙 `ai-development-system` 문서는 모든 작업의 상시 체크리스트가 아니라 아키텍처 판단과 감사의 상위 기준입니다.
+- 문서 탐색·전체 검증 비용이 실제 위험 감소보다 커지지 않도록 targeted read/test를 우선합니다.
+
 ## 기획 기록 우선 원칙
 
-- 모듈 개발 전에 [`docs/planning/PLANNING_RECORD_SYSTEM.md`](docs/planning/PLANNING_RECORD_SYSTEM.md)를 확인합니다.
+- 새 모듈, 기능 범위 변경, 기획 판단이 필요한 작업에서는 [`docs/planning/PLANNING_RECORD_SYSTEM.md`](docs/planning/PLANNING_RECORD_SYSTEM.md)와 해당 모듈의 확정 기획 문서를 확인합니다. 단순 버그·문구·스타일 수정에서는 관련 Issue와 인접 규칙만으로 충분하면 전체 planning 문서를 다시 읽지 않습니다.
 - 대화에서 확정된 내용은 해당 `docs/planning/` 문서에 기록된 뒤 개발 기준으로 사용합니다.
 - `검토 중`인 아이디어를 확정 기능처럼 구현하지 않습니다.
-- 작업 지시문과 PR에는 적용한 확정 기획 문서 경로를 명시합니다.
+- 작업 지시문과 PR에는 실제로 적용한 확정 기획 문서 경로를 명시합니다.
 - 개발 완료 전 확정 기획의 각 항목을 `구현 완료`, `부분 구현`, `미구현·후속 작업`, `의도적으로 제외`로 대조합니다.
 - 확정된 항목이 설명 없이 누락된 PR은 완료 처리하지 않습니다.
 
@@ -49,7 +59,7 @@
 
 ## 공통 AI 개발 운영
 
-- GitHub Issue가 있는 작업은 Issue의 요구사항과 완료 조건을 구현 작업의 source of truth로 사용합니다. 태장 전용 프로젝트 헌장, 확정 기획 기록과 공개 기준은 계속 우선 적용합니다.
+- GitHub Issue가 있는 작업은 Issue의 요구사항과 완료 조건을 구현 작업의 source of truth로 사용합니다. 태장 전용 프로젝트 헌장, 확정 기획 기록과 공개 기준은 해당 작업과 관련될 때 우선 적용합니다.
 - 작업 시작 전 `git fetch origin`, 최신 `origin/main`, 현재 branch와 working tree 상태를 확인합니다.
 - 새 작업이고 기존 branch/PR이 없을 때만 최신 `origin/main`을 기준으로 Issue 전용 브랜치를 만듭니다.
 - 기존 진행 중인 Issue/branch/Draft PR이 있으면 그 흐름을 유지하고 최신 review를 읽어 같은 PR에서 수정·재검증합니다.
@@ -61,8 +71,8 @@
 
 ### Codex 모델·추론 선택
 
-- 모든 Codex 작업은 시작 전에 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 읽고 현재 작업 단위에 맞는 GPT-5.6 모델과 추론 수준을 다시 판단합니다.
-- 기본값은 `Terra / Medium`입니다.
+- 기본값은 `Terra / Medium`이며, 현재 작업의 위험도·복잡도에 맞춰 조정합니다.
+- 모델 선택이 애매하거나 고위험 작업으로 승급되는 경우 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md) 원문을 확인합니다. 작은 저위험 작업마다 정책 전문을 반복해서 읽지 않습니다.
 - 여러 모듈·큰 회귀위험·복합 통합·승인된 Auth/RLS 검증은 `Terra / High`를 우선합니다.
 - 작은 저위험·기계적 작업은 Luna를 사용할 수 있습니다.
 - Sol은 `Terra / High`로 반복 검증해도 안전하게 해결하기 어렵다는 구체적 근거가 있을 때만 예외적으로 사용합니다.
@@ -81,11 +91,11 @@
 
 ## 상시 운영 기준
 
-- 모든 작업 전에 `PROJECT_CHARTER.md`, 현재 Issue가 참조하는 관련 `docs/planning/` 문서와 필요한 `docs/operations/` 문서를 확인합니다.
-- Codex 실행 절차는 [`docs/operations/CODEX_WORKFLOW.md`](docs/operations/CODEX_WORKFLOW.md), 모델 선택은 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 따릅니다.
+- 일반 작업은 현재 Issue/요청과 `AGENTS.md`를 먼저 읽고, 관련 planning/operations는 실제 변경 범위에 필요한 것만 추가 확인합니다.
+- Codex 실행 절차의 세부사항이 필요한 작업은 [`docs/operations/CODEX_WORKFLOW.md`](docs/operations/CODEX_WORKFLOW.md), 모델 판단이 필요한 작업은 [`docs/operations/MODEL_SELECTION_POLICY.md`](docs/operations/MODEL_SELECTION_POLICY.md)를 확인합니다.
 - 존재하지 않는 운영문서를 찾기 위해 저장소 전체를 반복 탐색하지 않습니다. 문서 경로가 실제 저장소와 맞지 않으면 현재 GitHub Issue 또는 운영문서에서 정합화합니다.
 - 파일과 자산은 기존 저장소 구조와 인접 파일 패턴을 우선합니다. 새로운 최상위 디렉터리나 자산 체계가 필요하면 아키텍처 변경으로 보고 먼저 판단을 요청합니다.
-- 공개 콘텐츠·이미지는 [`docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md`](docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md)와 기존 `assets/` 구조를 따릅니다.
+- 공개 콘텐츠·이미지 작업에서는 [`docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md`](docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md)와 기존 `assets/` 구조를 따릅니다.
 - 새 라이브러리나 도구 도입 전 기존 구조로 해결 가능한지 확인합니다.
 - 사용하지 않는 자산·코드·중복 구현을 남기지 않습니다.
 - 성능 최적화가 디자인과 기능 품질을 훼손하지 않도록 균형을 유지합니다.
@@ -102,7 +112,7 @@
 
 ## 콘텐츠와 대외 표현
 
-- 콘텐츠·문구 작업 전에는 [`docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md`](docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md)를 먼저 읽고 공개 수준·표현 기준을 준수합니다.
+- 콘텐츠·문구 작업 전에는 [`docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md`](docs/reference/TAEJANG_PUBLIC_WEB_BRIEF.md)를 읽고 공개 수준·표현 기준을 준수합니다.
 - 게시 전 사실관계, 날짜, 연락처, 인증·선정 표기, 로고 사용 승인 여부를 확인합니다.
 - 태장 공식 정보와 대외 표현 기준은 별도 기준 문서로 관리하며, 홈페이지 문구는 그 문서를 우선합니다.
 - 법률·고용·인증 관련 문구는 단정 표현을 피하고 필요한 경우 담당자 또는 공식 자료로 재확인합니다.
