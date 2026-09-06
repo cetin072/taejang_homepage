@@ -168,7 +168,7 @@
     Promise.resolve()
   ).then(() => {
     modulesReady = true;
-    queueMicrotask(showAggregateFailure);
+    Promise.resolve().then(showAggregateFailure);
   });
 
   function scheduleReadyReplay() {
