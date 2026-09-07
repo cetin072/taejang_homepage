@@ -73,14 +73,24 @@ test('term row without employee_id is critical because it cannot be safely assoc
   assert.equal(result.issues.find((item) => item.code === 'employment_term_employee_missing').severity, 'critical');
 });
 
-test('missing hourly rate is an explicit preflight issue', () => {
+test('missing hourly rate is critical and blocks payroll calculation', () => {
   const result = validator.validateEmploymentTerms([
     term({ hourlyRate: null }),
   ]);
 
   assert.equal(result.ok, false);
   assert.equal(result.counts.employment_term_rate_missing, 1);
-  assert.equal(result.issues.find((item) => item.code === 'employment_term_rate_missing').severity, 'high');
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_rate_missing').severity, 'critical');
+});
+
+test('zero hourly rate is also critical rather than a valid zero-pay rate', () => {
+  const result = validator.validateEmploymentTerms([
+    term({ hourlyRate: 0 }),
+  ]);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.counts.employment_term_rate_missing, 1);
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_rate_missing').severity, 'critical');
 });
 
 test('validator output uses employee_id and dates only and does not need employee names', () => {
