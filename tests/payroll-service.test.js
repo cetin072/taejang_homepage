@@ -35,6 +35,7 @@ function fixture() {
 
   const attendanceRecords = [
     { employeeId: 'TJ-TEST-0001', date: '2026-08-31', autoDecision: '기록완전' },
+    { employeeId: 'TJ-TEST-0001', date: '2026-09-01', autoDecision: '기록완전' },
   ];
 
   return { employees, terms, holidays, attendanceRecords };
@@ -50,7 +51,7 @@ async function createProvisional(service, overrides = {}) {
   const data = fixture();
   return service.calculateAndPersistProvisional({
     month: '2026-09',
-    cutoffDate: '2026-08-31',
+    cutoffDate: '2026-09-01',
     ...data,
     ...overrides,
   });
@@ -92,7 +93,7 @@ test('calculation fingerprint excludes names and HR secrets but changes when pay
   const data = fixture();
   const base = serviceApi.safeCalculationInput({
     month: '2026-09',
-    cutoffDate: '2026-08-31',
+    cutoffDate: '2026-09-01',
     ...data,
   });
   const first = serviceApi.buildInputFingerprint(base);
@@ -103,7 +104,7 @@ test('calculation fingerprint excludes names and HR secrets but changes when pay
 
   const changed = serviceApi.safeCalculationInput({
     month: '2026-09',
-    cutoffDate: '2026-08-31',
+    cutoffDate: '2026-09-01',
     ...data,
     terms: data.terms.map((term) => ({ ...term, hourlyRate: 11000 })),
   });
@@ -154,32 +155,19 @@ test('repository returns clones so UI mutations cannot alter stored payroll stat
   assert.notEqual(stored.employees[0].dayRows[0].payableHours, -999);
 });
 
-test('provisional vs final day difference becomes a separate carryover adjustment', async () => {
+test('unsafe legacy carryover service path is disabled', async () => {
   const { repository, service } = makeService();
-
   const run = await createProvisional(service);
 
-  const provisionalRows = run.employees[0].dayRows;
-  const finalRows = provisionalRows.map((row) => ({ ...row }));
-  const target = finalRows.find((row) => row.date === '2026-09-28');
-  assert.ok(target);
-  target.payableHours = 0;
-
-  const adjustments = await service.generateAndPersistCarryover({
-    month: '2026-09',
-    provisionalRun: run,
-    finalEmployeeDayRows: {
-      'TJ-TEST-0001': finalRows,
-    },
-  });
-
-  assert.equal(adjustments.length, 1);
-  assert.equal(adjustments[0].sourceDate, '2026-09-28');
-  assert.equal(adjustments[0].differenceHours, -3);
-
-  const stored = await repository.listAdjustments('2026-09');
-  assert.equal(stored.length, 1);
-  assert.equal(stored[0].status, 'pending_next_month');
+  await assert.rejects(
+    () => service.generateAndPersistCarryover({
+      month: '2026-09',
+      provisionalRun: run,
+      finalEmployeeDayRows: {},
+    }),
+    (error) => error && error.code === 'unsafe_legacy_carryover_disabled'
+  );
+  assert.deepEqual(await repository.listAdjustments('2026-09'), []);
 });
 
 test('accounting comparison requires a provisional run and binds itself to the latest run', async () => {
@@ -216,7 +204,7 @@ test('accounting comparison requires a provisional run and binds itself to the l
 });
 
 test('new provisional facts automatically invalidate a prior accounting comparison', async () => {
-  const { repository, service } = makeService();
+  const { service } = makeService();
   const data = fixture();
 
   const first = await createProvisional(service);
