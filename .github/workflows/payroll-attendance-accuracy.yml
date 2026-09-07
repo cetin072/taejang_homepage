@@ -9,6 +9,7 @@ on:
       - 'app/assets/payroll-golden-compat.js'
       - 'app/assets/payroll-repository.js'
       - 'app/assets/payroll-service.js'
+      - 'app/assets/payroll-output.js'
       - 'app/assets/payroll-sheet-bridge.js'
       - 'app/assets/payroll-attendance-normalizer.js'
       - 'app/assets/payroll-term-validator.js'
@@ -29,6 +30,7 @@ on:
       - 'tests/payroll-service.test.js'
       - 'tests/payroll-repository-integrity.test.js'
       - 'tests/payroll-accounting-basis.test.js'
+      - 'tests/payroll-output.test.js'
       - 'tests/payroll-unresolved-total-guard.test.js'
       - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-term-validator.test.js'
@@ -39,6 +41,7 @@ on:
       - 'tests/payroll-command-operator-errors.test.js'
       - 'tests/payroll-view-model.test.js'
       - 'tests/payroll-operator-workflow.test.js'
+      - 'tests/payroll-locked-output-workflow.test.js'
       - 'tests/payroll-preview.test.js'
       - 'tests/payroll-audit-counterexamples.test.js'
       - '.github/workflows/payroll-attendance-accuracy.yml'
@@ -72,6 +75,7 @@ jobs:
           tests/payroll-service.test.js
           tests/payroll-repository-integrity.test.js
           tests/payroll-accounting-basis.test.js
+          tests/payroll-output.test.js
           tests/payroll-unresolved-total-guard.test.js
           tests/payroll-sheet-bridge.test.js
           tests/payroll-term-validator.test.js
@@ -82,5 +86,6 @@ jobs:
           tests/payroll-command-operator-errors.test.js
           tests/payroll-view-model.test.js
           tests/payroll-operator-workflow.test.js
+          tests/payroll-locked-output-workflow.test.js
           tests/payroll-preview.test.js
           tests/payroll-audit-counterexamples.test.js
