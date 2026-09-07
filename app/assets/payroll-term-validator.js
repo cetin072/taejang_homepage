@@ -16,6 +16,8 @@
     'employment_term_end_invalid',
     'employment_term_range_invalid',
     'employment_term_overlap',
+    'employment_term_hours_invalid',
+    'employment_term_rate_missing',
   ]);
 
   function validDate(value) {
@@ -79,7 +81,7 @@
     }
 
     const rate = Number(term.hourlyRate);
-    if (term.hourlyRate === null || term.hourlyRate === '' || !Number.isFinite(rate) || rate < 0) {
+    if (term.hourlyRate === null || term.hourlyRate === '' || !Number.isFinite(rate) || rate <= 0) {
       issues.push(issue('employment_term_rate_missing', employeeId, { rowIndex: index }));
     }
 
