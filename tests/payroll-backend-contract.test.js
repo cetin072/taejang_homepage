@@ -5,6 +5,10 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'prototypes/payroll-backend/schema.sql'), 'utf8');
+const concurrency = fs.readFileSync(
+  path.join(root, 'prototypes/payroll-backend/CONCURRENCY_CONTRACT.md'),
+  'utf8'
+);
 
 test('payroll backend remains a rollback-only prototype, not an applied migration', () => {
   assert.match(sql, /Status: PROTOTYPE ONLY/i);
@@ -103,4 +107,47 @@ test('prototype does not smuggle in a new payroll role or executable month-lock 
   assert.doesNotMatch(sql, /current_user_has_role\s*\(\s*'payroll/i);
   assert.match(sql, /payroll operator role mapping/i);
   assert.match(sql, /real month lock RPC/i);
+});
+
+test('Supabase promotion requires transactionally protected month mutations', () => {
+  assert.match(concurrency, /locking or otherwise transactionally protecting the target `payroll_months` row/i);
+  assert.match(concurrency, /re-check the current month status/i);
+  assert.match(concurrency, /No payroll mutation may use an unlocked read-then-write sequence/i);
+});
+
+test('calculation retries must converge on one canonical run', () => {
+  assert.match(concurrency, /\(payroll_month_id, calculation_version, input_fingerprint, cutoff_date\)/i);
+  assert.match(concurrency, /exactly one canonical calculation run/i);
+  assert.match(concurrency, /unique conflict[\s\S]*fetch and return the existing canonical run/i);
+});
+
+test('accounting confirmation must bind to exact current run and adjusted payroll basis', () => {
+  assert.match(concurrency, /referenced calculation run is still `payroll_months\.latest_run_id`/i);
+  assert.match(concurrency, /incoming carryover status for that exact run is `none` or `complete`/i);
+  assert.match(concurrency, /adjusted gross basis used for comparison is the current one/i);
+  assert.match(concurrency, /accounting confirmation must fail closed/i);
+});
+
+test('carryover application retry is idempotent and cannot bind to an obsolete target run', () => {
+  assert.match(concurrency, /source payroll month is locked/i);
+  assert.match(concurrency, /target `latest_run_id` has not changed/i);
+  assert.match(concurrency, /\(adjustment_id, applied_run_id\) has not already been applied/i);
+  assert.match(concurrency, /idempotent retry/i);
+});
+
+test('month lock must atomically recheck every current blocker', () => {
+  assert.match(concurrency, /Month lock must be an atomic server-side operation/i);
+  assert.match(concurrency, /important payroll exceptions are zero/i);
+  assert.match(concurrency, /weekly-holiday pending weeks are zero/i);
+  assert.match(concurrency, /incoming carryover for the month is `none` or fully applied to the current run/i);
+  assert.match(concurrency, /no stale accounting or stale carryover application remains/i);
+  assert.match(concurrency, /lock write and its approval audit fields must commit in the same transaction/i);
+});
+
+test('concurrency contract remains design-only and requires race tests before promotion', () => {
+  assert.match(concurrency, /does not authorize a Supabase migration, RPC, Production deployment/i);
+  assert.match(concurrency, /two concurrent identical provisional requests create one canonical run/i);
+  assert.match(concurrency, /recalculation racing accounting confirmation cannot confirm stale values/i);
+  assert.match(concurrency, /two concurrent carryover-apply requests create one immutable application/i);
+  assert.match(concurrency, /transaction failure leaves no partial payroll mutation/i);
 });
