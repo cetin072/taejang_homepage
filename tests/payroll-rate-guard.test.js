@@ -20,6 +20,7 @@ const baseTerm = {
 
 const attendanceRecords = [
   { employeeId: 'TJ-TEST-0001', date: '2026-08-31', autoDecision: '기록완전' },
+  { employeeId: 'TJ-TEST-0001', date: '2026-09-01', autoDecision: '기록완전' },
 ];
 
 const holidays = [
@@ -32,7 +33,7 @@ test('missing hourly rate is an explicit review state, never a zero-pay single-r
     employee,
     year: 2026,
     month: 9,
-    cutoffDate: '2026-08-31',
+    cutoffDate: '2026-09-01',
     terms: [{ ...baseTerm, hourlyRate: null }],
     holidays,
     attendanceRecords,
@@ -44,28 +45,27 @@ test('missing hourly rate is an explicit review state, never a zero-pay single-r
   assert.ok(result.payableHoursPreview > 0);
 });
 
-test('service withholds company gross total and raises rate review count when a rate is missing', async () => {
+test('service rejects missing hourly rate before persisting a payroll run', async () => {
   const repository = repositoryApi.createMemoryPayrollRepository();
   const service = serviceApi.createPayrollService({
     repository,
     clock: () => new Date('2026-09-25T07:00:00.000Z'),
   });
 
-  const run = await service.calculateAndPersistProvisional({
-    month: '2026-09',
-    cutoffDate: '2026-08-31',
-    employees: [employee],
-    terms: [{ ...baseTerm, hourlyRate: null }],
-    holidays,
-    attendanceRecords,
-  });
+  await assert.rejects(
+    () => service.calculateAndPersistProvisional({
+      month: '2026-09',
+      cutoffDate: '2026-09-01',
+      employees: [employee],
+      terms: [{ ...baseTerm, hourlyRate: null }],
+      holidays,
+      attendanceRecords,
+    }),
+    (error) => error
+      && error.code === 'payroll_preflight_failed'
+      && error.validation.issues.some((item) => item.code === 'employment_term_rate_missing')
+  );
 
-  assert.equal(run.summary.missingRateReviewCount, 1);
-  assert.equal(run.summary.multiRateReviewCount, 0);
-  assert.equal(run.summary.rateReviewCount, 1);
-  assert.equal(run.summary.grossPayPreviewStatus, 'review_required');
-  assert.equal(run.summary.grossPayPreview, null);
-
-  const state = await repository.getMonthState('2026-09');
-  assert.equal(state.unresolvedImportantExceptions, 1);
+  assert.equal(await repository.getLatestComputation('2026-09'), null);
+  assert.equal(await repository.getMonthState('2026-09'), null);
 });
