@@ -44,6 +44,64 @@ test('persisted service state becomes the simple five-step operator snapshot', (
   assert.equal(operator.primaryAction.label, '회계자료 대조');
 });
 
+test('incoming carryover stays inside the five-step provisional stage and must be applied before accounting', () => {
+  const backend = serviceSnapshot({
+    payrollAmounts: {
+      baseGrossPay: 18240000,
+      incomingAdjustmentCount: 2,
+      incomingAdjustmentStatus: 'review_required',
+      appliedAdjustmentAmount: null,
+      grossPayWithAdjustments: null,
+    },
+  });
+
+  const snapshot = viewModel.buildOperatorSnapshot({
+    importSummary: { completed: true, rawRows: 483 },
+    exceptionSummary: { unresolvedImportant: 0 },
+    serviceSnapshot: backend,
+    finalization: { allowed: false, blockers: ['carryover_not_reviewed'] },
+  });
+  const operator = workflow.buildOperatorWorkflow(snapshot);
+
+  assert.equal(snapshot.provisional.baseReady, true);
+  assert.equal(snapshot.provisional.ready, false);
+  assert.equal(snapshot.provisional.baseGrossPay, 18240000);
+  assert.equal(snapshot.provisional.grossPayPreview, null);
+  assert.equal(snapshot.provisional.incomingCarryoverCount, 2);
+  assert.equal(operator.currentStep, workflow.StepId.PROVISIONAL);
+  assert.equal(operator.primaryAction.id, 'apply_incoming_carryover');
+  assert.equal(operator.primaryAction.label, '전월 조정 반영');
+  assert.match(operator.steps.find((step) => step.id === 'provisional').description, /전월 이월조정 2건/);
+  assert.equal(operator.steps.find((step) => step.id === 'accounting').status, workflow.StepStatus.BLOCKED);
+});
+
+test('applied incoming carryover becomes the adjusted payroll total shown before accounting', () => {
+  const backend = serviceSnapshot({
+    payrollAmounts: {
+      baseGrossPay: 18240000,
+      incomingAdjustmentCount: 2,
+      incomingAdjustmentStatus: 'complete',
+      appliedAdjustmentAmount: -61920,
+      grossPayWithAdjustments: 18178080,
+    },
+  });
+
+  const snapshot = viewModel.buildOperatorSnapshot({
+    importSummary: { completed: true, rawRows: 483 },
+    exceptionSummary: { unresolvedImportant: 0 },
+    serviceSnapshot: backend,
+    finalization: { allowed: false, blockers: ['accounting_values_unconfirmed'] },
+  });
+  const operator = workflow.buildOperatorWorkflow(snapshot);
+
+  assert.equal(snapshot.provisional.ready, true);
+  assert.equal(snapshot.provisional.baseGrossPay, 18240000);
+  assert.equal(snapshot.provisional.carryoverAdjustmentAmount, -61920);
+  assert.equal(snapshot.provisional.grossPayPreview, 18178080);
+  assert.equal(operator.currentStep, workflow.StepId.ACCOUNTING);
+  assert.equal(operator.primaryAction.label, '회계자료 대조');
+});
+
 test('stale accounting remains stale after mapping and pushes operator back to re-comparison', () => {
   const backend = serviceSnapshot({
     accountingComparison: {
@@ -141,6 +199,27 @@ test('month list uses business statuses instead of backend status codes', () => 
 
   assert.equal(item.status, '회계 다시 대조');
   assert.doesNotMatch(item.status, /stale|provisional|locked/);
+});
+
+test('month list shows incoming carryover before accounting status', () => {
+  const item = viewModel.buildMonthListItem({
+    month: '2026-09',
+    importSummary: { completed: true, rawRows: 483 },
+    exceptionSummary: { unresolvedImportant: 0 },
+    serviceSnapshot: serviceSnapshot({
+      accountingStatus: 'not_started',
+      payrollAmounts: {
+        baseGrossPay: 18240000,
+        incomingAdjustmentCount: 1,
+        incomingAdjustmentStatus: 'review_required',
+        grossPayWithAdjustments: null,
+      },
+    }),
+  });
+
+  assert.equal(item.status, '전월 조정 반영');
+  assert.equal(item.incomingCarryoverCount, 1);
+  assert.equal(item.incomingCarryoverStatus, 'review_required');
 });
 
 test('month list prioritizes unresolved payroll facts over a misleading accounting-ready state', () => {
