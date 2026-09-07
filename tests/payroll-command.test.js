@@ -13,7 +13,7 @@ function makeService() {
     },
     async getPayrollMonthSnapshot(month) {
       calls.push(['get', month]);
-      return { month };
+      return { month, adjustments: [] };
     },
     async saveAccountingComparison(input) {
       calls.push(['accounting', input]);
@@ -62,6 +62,21 @@ function reconciliationResult({ dayHours = 3, weeklyHours = 3 } = {}) {
     weeklyHoliday: {
       weeks: [{ weekStart: '2026-09-28', weekEnd: '2026-10-04', payableHours: weeklyHours }],
     },
+  };
+}
+
+function pendingAdjustment(overrides = {}) {
+  return {
+    adjustmentId: 'ADJ-1',
+    employeeId: 'TJ-TEST-0001',
+    sourceMonth: '2026-09',
+    sourceDate: '2026-09-28',
+    category: 'work_hours',
+    beforeHours: 3,
+    afterHours: 0,
+    differenceHours: -3,
+    status: 'pending_next_month',
+    ...overrides,
   };
 }
 
@@ -126,6 +141,61 @@ test('carryover command refuses incomplete final reconciliation without persisti
 
   assert.equal(result.ok, false);
   assert.equal(result.code, 'final_reconciliation_incomplete');
+  assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 0);
+});
+
+test('carryover review never mutates state without explicit approval', async () => {
+  const service = makeService();
+  service.getPayrollMonthSnapshot = async (month) => ({ month, adjustments: [pendingAdjustment()] });
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.reviewCarryover({
+    month: '2026-09',
+    reviewAll: true,
+    approvedByUser: false,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'carryover_review_approval_required');
+  assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 0);
+});
+
+test('explicit reviewAll marks pending carryover reviewed but does not execute payment', async () => {
+  const service = makeService();
+  service.getPayrollMonthSnapshot = async (month) => ({
+    month,
+    adjustments: [pendingAdjustment(), pendingAdjustment({ adjustmentId: 'ADJ-2', status: 'applied' })],
+  });
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.reviewCarryover({
+    month: '2026-09',
+    reviewAll: true,
+    approvedByUser: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.code, 'carryover_reviewed');
+  assert.equal(result.reviewedCount, 1);
+  assert.equal(result.adjustments.find((row) => row.adjustmentId === 'ADJ-1').status, 'reviewed');
+  assert.equal(result.adjustments.find((row) => row.adjustmentId === 'ADJ-2').status, 'applied');
+  assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 1);
+});
+
+test('unknown carryover adjustment id fails closed without persistence', async () => {
+  const service = makeService();
+  service.getPayrollMonthSnapshot = async (month) => ({ month, adjustments: [pendingAdjustment()] });
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.reviewCarryover({
+    month: '2026-09',
+    adjustmentIds: ['DOES-NOT-EXIST'],
+    approvedByUser: true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'carryover_review_unknown_adjustment');
+  assert.deepEqual(result.unknownAdjustmentIds, ['DOES-NOT-EXIST']);
   assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 0);
 });
 
