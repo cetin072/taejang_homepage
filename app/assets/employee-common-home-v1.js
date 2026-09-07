@@ -274,6 +274,7 @@
         await loadAttendance();
         return;
       }
+      if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
       else if (result?.code === 'OUTSIDE_GEOFENCE') setMessage(card, '회사 출근 장소 안에서만 출퇴근할 수 있습니다.', 'error');
       else if (result?.code === 'LOCATION_UNCERTAIN') {
@@ -285,14 +286,19 @@
       else setMessage(card, '서버에서 출퇴근 기록을 처리하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
     } catch (error) {
       if (stage === 'server') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
         setMessage(card, '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
         return;
       }
       const code = failureCode(error);
       lastFailure[eventType] = code;
-      if (code === 'PERMISSION_DENIED') setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
-      else if (code === 'GEOLOCATION_UNAVAILABLE') setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. 위치 기능을 지원하는 휴대폰 브라우저에서 다시 시도해주세요.', 'error');
-      else {
+      if (code === 'PERMISSION_DENIED') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
+      } else if (code === 'GEOLOCATION_UNAVAILABLE') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. 위치 기능을 지원하는 휴대폰 브라우저에서 다시 시도해주세요.', 'error');
+      } else {
         setMessage(card, attempts[eventType] < 2 ? '위치를 확인하지 못했습니다. 다시 한 번 눌러주세요.' : '위치를 두 번 확인하지 못했습니다.', 'error');
         allowException(eventType, card);
       }
