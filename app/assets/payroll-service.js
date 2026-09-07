@@ -1,22 +1,25 @@
 (function initPayrollService(root, factory) {
   let engine = root && root.TaejangPayrollEngine;
   let repositoryApi = root && root.TaejangPayrollRepository;
+  let preflight = root && root.TaejangPayrollPreflight;
 
   if (typeof module !== 'undefined' && module.exports) {
     engine = require('./payroll-engine.js');
     repositoryApi = require('./payroll-repository.js');
-    module.exports = factory(engine, repositoryApi);
+    preflight = require('./payroll-preflight.js');
+    module.exports = factory(engine, repositoryApi, preflight);
     return;
   }
 
   if (root) {
-    root.TaejangPayrollService = factory(engine, repositoryApi);
+    root.TaejangPayrollService = factory(engine, repositoryApi, preflight);
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollServiceFactory(engine, repositoryApi) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollServiceFactory(engine, repositoryApi, preflight) {
   'use strict';
 
   if (!engine) throw new Error('TaejangPayrollEngine is required.');
   if (!repositoryApi) throw new Error('TaejangPayrollRepository is required.');
+  if (!preflight) throw new Error('TaejangPayrollPreflight is required.');
 
   const CALCULATION_VERSION = 'payroll-engine-v1';
 
@@ -116,6 +119,16 @@
   }
 
   function buildPersistedEmployeeResult(result) {
+    const unresolvedCount = Number(result.unresolvedCount || 0);
+    const pendingWeeks = Number(result.weeklyHolidayPendingWeeks || 0);
+    const grossValue = Number(result.grossPayPreview);
+    const grossSafe = unresolvedCount === 0
+      && pendingWeeks === 0
+      && result.rateStatus === 'single_rate'
+      && result.grossPayPreview !== null
+      && result.grossPayPreview !== undefined
+      && Number.isFinite(grossValue);
+
     return {
       employeeId: result.employeeId,
       actualWorkHours: result.actualWorkHours,
@@ -127,7 +140,7 @@
       unresolvedCount: result.unresolvedCount,
       payableHoursPreview: result.payableHoursPreview,
       hourlyRate: result.hourlyRate,
-      grossPayPreview: result.grossPayPreview,
+      grossPayPreview: grossSafe ? grossValue : null,
       rateStatus: result.rateStatus,
       dayRows: (result.dayRows || []).map((row) => ({
         date: row.date,
@@ -161,6 +174,28 @@
   function createPayrollService({ repository, clock } = {}) {
     const store = repositoryApi.assertPayrollRepository(repository);
 
+    async function assertMonthMutable(month) {
+      const state = await store.getMonthState(month);
+      if (state && state.status === 'locked') {
+        const error = new Error(`month_locked:${month}`);
+        error.code = 'month_locked';
+        error.month = month;
+        throw error;
+      }
+      return state;
+    }
+
+    function assertValidCalculationInput(input) {
+      const validation = preflight.validatePayrollInput(input);
+      if (!validation.calculationAllowed) {
+        const error = new Error('payroll_preflight_failed');
+        error.code = 'payroll_preflight_failed';
+        error.validation = validation;
+        throw error;
+      }
+      return validation;
+    }
+
     async function markAccountingStaleIfNeeded(month, currentRunId) {
       const accounting = await store.getAccountingComparison(month);
       if (!accounting || !accounting.runId || accounting.runId === currentRunId) return accounting;
@@ -187,7 +222,17 @@
       attendanceRecords,
     }) {
       const { month, year, monthNumber } = parseMonth(monthValue);
+      await assertMonthMutable(month);
       if (!cutoffDate) throw new Error('cutoffDate is required.');
+
+      assertValidCalculationInput({
+        month,
+        cutoffDate,
+        employees,
+        terms,
+        holidays,
+        attendanceRecords,
+      });
 
       const safeInput = safeCalculationInput({
         month,
@@ -232,16 +277,21 @@
       ).length;
       const rateReviewCount = multiRateReviewCount + missingRateReviewCount;
       const unresolvedItemCount = safeSum(persistedResults, 'unresolvedCount');
-      const grossPayComplete = unresolvedItemCount === 0 && rateReviewCount === 0 && persistedResults.every(
-        (row) => row.grossPayPreview !== null
-          && row.grossPayPreview !== undefined
-          && Number.isFinite(Number(row.grossPayPreview))
-      );
+      const pendingWeeklyHolidayWeeks = safeSum(persistedResults, 'weeklyHolidayPendingWeeks');
+      const grossPayComplete = unresolvedItemCount === 0
+        && pendingWeeklyHolidayWeeks === 0
+        && rateReviewCount === 0
+        && persistedResults.every(
+          (row) => row.grossPayPreview !== null
+            && row.grossPayPreview !== undefined
+            && Number.isFinite(Number(row.grossPayPreview))
+        );
 
       const summary = {
         employeeCount: persistedResults.length,
         unresolvedEmployeeCount: persistedResults.filter((row) => row.unresolvedCount > 0).length,
         unresolvedItemCount,
+        pendingWeeklyHolidayWeeks,
         multiRateReviewCount,
         missingRateReviewCount,
         rateReviewCount,
@@ -271,7 +321,9 @@
         status: 'provisional',
         latestRunId: run.runId,
         generatedAt,
-        unresolvedImportantExceptions: summary.unresolvedItemCount + summary.rateReviewCount,
+        unresolvedImportantExceptions: summary.unresolvedItemCount
+          + summary.pendingWeeklyHolidayWeeks
+          + summary.rateReviewCount,
       });
 
       return run;
@@ -309,6 +361,7 @@
 
     async function saveAccountingComparison({ month: monthValue, confirmed, differenceCount, rows = [] }) {
       const { month } = parseMonth(monthValue);
+      await assertMonthMutable(month);
       const latestRun = await store.getLatestComputation(month);
       if (!latestRun) {
         const error = new Error('provisional_run_required');
@@ -336,35 +389,22 @@
       return store.saveAccountingComparison(value);
     }
 
-    async function generateAndPersistCarryover({
-      month: monthValue,
-      provisionalRun,
-      finalEmployeeDayRows,
-    }) {
+    async function generateAndPersistCarryover({ month: monthValue }) {
       const { month } = parseMonth(monthValue);
-      const adjustments = [];
-
-      (provisionalRun && provisionalRun.employees || []).forEach((employeeResult) => {
-        const provisionalRows = employeeResult.dayRows || [];
-        const finalRows = finalEmployeeDayRows && finalEmployeeDayRows[employeeResult.employeeId] || [];
-        adjustments.push(...engine.buildCarryoverAdjustments({
-          employeeId: employeeResult.employeeId,
-          sourceMonth: month,
-          provisionalDayRows: provisionalRows,
-          finalDayRows: finalRows,
-        }));
-      });
-
-      await store.replaceAdjustments(month, adjustments);
-      return adjustments;
+      await assertMonthMutable(month);
+      const error = new Error('unsafe_legacy_carryover_disabled');
+      error.code = 'unsafe_legacy_carryover_disabled';
+      throw error;
     }
 
     async function replaceCarryoverAdjustments({ month: monthValue, adjustments }) {
       const { month } = parseMonth(monthValue);
+      await assertMonthMutable(month);
       const safeRows = (adjustments || []).map((row) => ({
         adjustmentId: row.adjustmentId,
         employeeId: row.employeeId,
         sourceMonth: month,
+        targetMonth: row.targetMonth || null,
         sourceDate: row.sourceDate,
         category: row.category,
         beforeHours: row.beforeHours,
