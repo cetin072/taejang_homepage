@@ -9,6 +9,10 @@ const holidays = [
   { date: '2026-09-26', name: '추석 다음날', paid: true },
 ];
 
+const priorMonthBoundaryAttendance = [
+  { employeeId: 'TJ-TEST-0001', date: '2026-08-31', autoDecision: '기록완전' },
+];
+
 function employee(overrides = {}) {
   return {
     employeeId: 'TJ-TEST-0001',
@@ -47,14 +51,14 @@ test('weeks are Monday through Sunday and September 2026 contains four Sunday-ow
   );
 });
 
-test('3h and 4h workers reproduce September weekly-holiday Golden expectations', () => {
+test('3h and 4h workers reproduce September weekly-holiday Golden expectations across the August boundary', () => {
   const threeHour = engine.calculateMonthlyWeeklyHoliday({
     employee: employee(),
     year: 2026,
     month: 9,
     terms: [term({ hours: 3 })],
     holidays,
-    attendanceRecords: [],
+    attendanceRecords: priorMonthBoundaryAttendance,
     cutoffDate: '2026-08-31',
   });
 
@@ -64,7 +68,7 @@ test('3h and 4h workers reproduce September weekly-holiday Golden expectations',
     month: 9,
     terms: [term({ hours: 4 })],
     holidays,
-    attendanceRecords: [],
+    attendanceRecords: priorMonthBoundaryAttendance,
     cutoffDate: '2026-08-31',
   });
 
@@ -72,6 +76,22 @@ test('3h and 4h workers reproduce September weekly-holiday Golden expectations',
   assert.equal(threeHour.expectedHours, 12);
   assert.equal(threeHour.pendingWeeks, 0);
   assert.equal(fourHour.expectedHours, 16);
+});
+
+test('missing prior-month boundary attendance leaves the cross-month weekly holiday pending', () => {
+  const result = engine.calculateMonthlyWeeklyHoliday({
+    employee: employee(),
+    year: 2026,
+    month: 9,
+    terms: [term({ hours: 3 })],
+    holidays,
+    attendanceRecords: [],
+    cutoffDate: '2026-08-31',
+  });
+
+  assert.equal(result.expectedHours, 9);
+  assert.equal(result.pendingWeeks, 1);
+  assert.deepEqual(result.weeks[0].unresolvedDates, ['2026-08-31']);
 });
 
 test('paid Chuseok weekdays remain paid and do not break weekly attendance', () => {
@@ -82,7 +102,7 @@ test('paid Chuseok weekdays remain paid and do not break weekly attendance', () 
     cutoffDate: '2026-08-31',
     terms: [term({ hours: 3 })],
     holidays,
-    attendanceRecords: [],
+    attendanceRecords: priorMonthBoundaryAttendance,
   });
 
   assert.equal(result.expectedWorkHours, 60);
@@ -99,7 +119,7 @@ test('employee terminated on Friday before weekly holiday is not eligible for th
     weekStart: '2026-08-31',
     terms: [term({ hours: 3 })],
     holidays,
-    attendanceRecords: [],
+    attendanceRecords: priorMonthBoundaryAttendance,
     cutoffDate: '2026-08-31',
   });
 
@@ -231,7 +251,7 @@ test('multiple hourly rates require review instead of silently choosing one rate
     cutoffDate: '2026-08-31',
     terms,
     holidays,
-    attendanceRecords: [],
+    attendanceRecords: priorMonthBoundaryAttendance,
   });
 
   assert.equal(result.rateStatus, 'multiple_rates_review_required');
