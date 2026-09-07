@@ -192,7 +192,7 @@ test('operations sidebar keeps signup approval below routine work', () => {
   assert.ok(order.indexOf("'직원 관리'") >= 0);
   assert.ok(order.indexOf("'출근부'") >= 0);
   assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'출근부'"));
-  assert.ok(order.indexOf("'작업 매뉴얼'") > order.indexOf("'가입 승인'"));
+  assert.equal(order.includes("'작업 매뉴얼'"), false);
   assert.match(roleNavigation, /label: '승인·관리', items: \['가입 승인'\]/);
 });
 
