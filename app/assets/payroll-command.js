@@ -69,6 +69,23 @@
     return blockers;
   }
 
+  function lockedMonthResult(message) {
+    return {
+      ok: false,
+      code: 'month_locked',
+      message: message || '이미 확정된 급여월은 수정할 수 없습니다.',
+    };
+  }
+
+  function accountingBlockedResult(blockers) {
+    return {
+      ok: false,
+      code: 'accounting_comparison_blocked',
+      message: '전월 조정까지 반영된 최신 급여 가안을 만든 뒤 회계 대조를 다시 확인해 주세요.',
+      blockers: blockers || ['adjusted_payroll_basis_incomplete'],
+    };
+  }
+
   function createPayrollCommand({ service }) {
     const payrollService = assertService(service);
 
@@ -111,6 +128,9 @@
             exceptions: preflight.operatorExceptionItems(serviceValidation),
           };
         }
+        if (error && error.code === 'month_locked') {
+          return lockedMonthResult('이미 확정된 급여월은 다시 계산할 수 없습니다.');
+        }
         throw error;
       }
     }
@@ -123,16 +143,20 @@
       if (input && input.confirmed === true) {
         const snapshot = await payrollService.getPayrollMonthSnapshot(input.month);
         const blockers = incomingAccountingBlockers(snapshot);
-        if (blockers.length) {
-          return {
-            ok: false,
-            code: 'accounting_comparison_blocked',
-            message: '전월 조정까지 반영된 급여 가안을 만든 뒤 회계 대조를 확정해 주세요.',
-            blockers,
-          };
-        }
+        if (blockers.length) return accountingBlockedResult(blockers);
       }
-      return payrollService.saveAccountingComparison(input);
+
+      try {
+        return await payrollService.saveAccountingComparison(input);
+      } catch (error) {
+        if (error && error.code === 'accounting_basis_incomplete') {
+          return accountingBlockedResult(error.blockers || ['adjusted_payroll_basis_incomplete']);
+        }
+        if (error && error.code === 'month_locked') {
+          return lockedMonthResult('이미 확정된 급여월의 회계 대조는 수정할 수 없습니다.');
+        }
+        throw error;
+      }
     }
 
     async function reconcileCarryover({ month, provisionalRun, finalEmployeeResults }) {
@@ -187,6 +211,9 @@
             date: error.date || null,
           };
         }
+        if (error && error.code === 'month_locked') {
+          return lockedMonthResult('이미 확정된 급여월의 이월조정은 다시 만들 수 없습니다.');
+        }
         throw error;
       }
     }
@@ -238,13 +265,20 @@
         return { ...row, status: 'reviewed' };
       });
 
-      const stored = await payrollService.replaceCarryoverAdjustments({ month, adjustments: next });
-      return {
-        ok: true,
-        code: 'carryover_reviewed',
-        reviewedCount,
-        adjustments: stored,
-      };
+      try {
+        const stored = await payrollService.replaceCarryoverAdjustments({ month, adjustments: next });
+        return {
+          ok: true,
+          code: 'carryover_reviewed',
+          reviewedCount,
+          adjustments: stored,
+        };
+      } catch (error) {
+        if (error && error.code === 'month_locked') {
+          return lockedMonthResult('이미 확정된 급여월의 이월조정 확인상태는 바꿀 수 없습니다.');
+        }
+        throw error;
+      }
     }
 
     async function applyIncomingCarryover(input = {}) {
@@ -292,11 +326,7 @@
           };
         }
         if (error && error.code === 'month_locked') {
-          return {
-            ok: false,
-            code: 'month_locked',
-            message: '이미 확정된 급여월에는 이월조정을 새로 반영할 수 없습니다.',
-          };
+          return lockedMonthResult('이미 확정된 급여월에는 이월조정을 새로 반영할 수 없습니다.');
         }
         throw error;
       }
@@ -327,6 +357,9 @@
             blockers: error.blockers || [],
           };
         }
+        if (error && error.code === 'month_locked') {
+          return lockedMonthResult('이미 확정된 급여월입니다.');
+        }
         throw error;
       }
     }
@@ -348,6 +381,8 @@
     nextPayrollMonth,
     finiteAmount,
     incomingAccountingBlockers,
+    lockedMonthResult,
+    accountingBlockedResult,
     createPayrollCommand,
   });
 });
