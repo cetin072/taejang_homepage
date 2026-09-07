@@ -185,7 +185,8 @@
     let finalizePrimaryAction = null;
     if (locked) {
       finalizeStatus = StepStatus.DONE;
-      finalizeDescription = '급여가 확정되어 잠금 상태입니다.';
+      finalizeDescription = '급여가 확정되어 잠금 상태입니다. 확정 요약을 다시 확인할 수 있습니다.';
+      finalizePrimaryAction = { id: 'view_locked_output', label: '확정 요약 보기' };
     } else if (accountingConfirmed && pendingCarryoverCount > 0) {
       finalizeStatus = StepStatus.CURRENT;
       finalizeDescription = `이번 달 이후 반영할 이월조정 ${pendingCarryoverCount}건을 확인하면 급여 확정으로 넘어갑니다.`;
