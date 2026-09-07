@@ -36,6 +36,7 @@ on:
       - 'tests/payroll-carryover.test.js'
       - 'tests/payroll-carryover-application.test.js'
       - 'tests/payroll-command.test.js'
+      - 'tests/payroll-command-operator-errors.test.js'
       - 'tests/payroll-view-model.test.js'
       - 'tests/payroll-operator-workflow.test.js'
       - 'tests/payroll-preview.test.js'
@@ -78,6 +79,7 @@ jobs:
           tests/payroll-carryover.test.js
           tests/payroll-carryover-application.test.js
           tests/payroll-command.test.js
+          tests/payroll-command-operator-errors.test.js
           tests/payroll-view-model.test.js
           tests/payroll-operator-workflow.test.js
           tests/payroll-preview.test.js
