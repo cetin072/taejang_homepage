@@ -5,9 +5,9 @@ const bridge = require('../app/assets/payroll-sheet-bridge.js');
 const engine = require('../app/assets/payroll-engine.js');
 
 const employeeMaster = [
-  ['employee_id', '성명', '구분', '재직상태', '입사일', '퇴사일', '주민등록번호'],
-  ['TJ-TEST-0001', 'SECRET-NAME', '근로자', '재직', '2026-06-09', '', 'SECRET-RRN'],
-  ['TJ-TEST-EXEC', 'SECRET-EXEC', '임원', '재직', '2026-06-09', '', 'SECRET-EXEC-RRN'],
+  ['employee_id', '기존 사번', '성명', '구분', '재직상태', '입사일', '퇴사일', '주민등록번호'],
+  ['TJ-TEST-0001', '1', 'SECRET-NAME', '근로자', '재직', '2026-06-09', '', 'SECRET-RRN'],
+  ['TJ-TEST-EXEC', '2', 'SECRET-EXEC', '임원', '재직', '2026-06-09', '', 'SECRET-EXEC-RRN'],
 ];
 
 const employmentTerms = [
@@ -28,6 +28,36 @@ const holidayMaster = [
   ['2026-09-24', '추석 전날', '법정공휴일', '유급', 'fixture'],
   ['2026-09-25', '추석', '법정공휴일', '유급', 'fixture'],
   ['2026-09-26', '추석 다음날', '법정공휴일', '유급', 'fixture'],
+];
+
+function rawAttendance(rows) {
+  return [
+    ['source_key', '원본파일', '원본시트', '원본행', '성명_원본', '근무일', '출근_원본', '퇴근_원본', '상태_원본', '수기표시', '가져온시각', '가져온사람', '비고', '원본파일ID'],
+    ...rows,
+  ];
+}
+
+function rawRow({ key = 'RAW-1', name = 'SECRET-NAME', date = '2026-08-31', clockIn = '08:30', clockOut = '13:00', status = '', manual = 'N' } = {}) {
+  return [
+    key,
+    '익명 출퇴근부.xlsx',
+    '8월',
+    3,
+    name,
+    date,
+    clockIn,
+    clockOut,
+    status,
+    manual,
+    '2026-08-27 15:00:00',
+    'qa@example.invalid',
+    '원본헤더=익명; 원본수정=2026-08-27T06:23:03.000Z',
+    'anonymous-file-id',
+  ];
+}
+
+const emptyCorrections = [
+  ['adjustment_id', 'source_key', 'employee_id', '성명', '대상일', '수정항목', '변경전', '변경후', '사유', '증빙/근거', '변경자', '변경시각', '상태'],
 ];
 
 test('employee bridge keeps only employee_id and employment dates for hourly workers', () => {
@@ -105,6 +135,84 @@ test('bridge output can feed the deterministic engine without reinterpreting She
 
   assert.equal(corrected.payableHours, 2);
   assert.equal(corrected.attendanceState, engine.AttendanceState.MANUAL_CONFIRMED);
+});
+
+test('raw bridge now owns name matching and 기록완전 classification in versioned code', () => {
+  const input = bridge.buildEngineInputFromRaw({
+    employeeMaster,
+    employmentTerms,
+    rawAttendance: rawAttendance([rawRow()]),
+    holidayMaster,
+    corrections: emptyCorrections,
+  });
+
+  assert.equal(input.normalization.rowCount, 1);
+  assert.equal(input.normalization.criticalIssueCount, 0);
+  assert.equal(input.attendanceRecords.length, 1);
+  assert.equal(input.attendanceRecords[0].employeeId, 'TJ-TEST-0001');
+  assert.equal(input.attendanceRecords[0].autoDecision, '기록완전');
+  assert.doesNotMatch(JSON.stringify(input.attendanceRecords), /SECRET-NAME|08:30|13:00/);
+});
+
+test('future scheduled-out row is audited as expected but not misrepresented as actual attendance to the engine', () => {
+  const input = bridge.buildEngineInputFromRaw({
+    employeeMaster,
+    employmentTerms,
+    rawAttendance: rawAttendance([rawRow({ date: '2026-08-31', clockIn: '', clockOut: '13:00' })]),
+    holidayMaster,
+    corrections: emptyCorrections,
+  });
+
+  assert.equal(input.normalization.rowCount, 1);
+  assert.equal(input.attendanceRecords.length, 0);
+});
+
+test('unresolved manual record blocks the raw bridge until a confirmed correction exists', () => {
+  assert.throws(
+    () => bridge.buildEngineInputFromRaw({
+      employeeMaster,
+      employmentTerms,
+      rawAttendance: rawAttendance([rawRow({ key: 'MANUAL', clockIn: '10:27 (수기)', manual: 'Y' })]),
+      holidayMaster,
+      corrections: emptyCorrections,
+    }),
+    (error) => error && error.code === 'payroll_attendance_review_required'
+  );
+
+  const corrections = [
+    emptyCorrections[0],
+    ['ADJ-1', 'MANUAL', 'TJ-TEST-0001', 'SECRET-NAME', '2026-08-31', '확정근로시간', '', '2', '확인', '익명근거', 'qa', '2026-09-01', '확정'],
+  ];
+  const input = bridge.buildEngineInputFromRaw({
+    employeeMaster,
+    employmentTerms,
+    rawAttendance: rawAttendance([rawRow({ key: 'MANUAL', clockIn: '10:27 (수기)', manual: 'Y' })]),
+    holidayMaster,
+    corrections,
+  });
+  assert.equal(input.attendanceRecords[0].reviewStatus, 'confirmed');
+  assert.equal(input.attendanceRecords[0].confirmedHours, 2);
+});
+
+test('ambiguous duplicate active names fail closed before payroll calculation', () => {
+  const duplicateMaster = [
+    employeeMaster[0],
+    employeeMaster[1],
+    ['TJ-TEST-0002', '9', 'SECRET-NAME', '근로자', '재직', '2026-06-09', '', 'SECRET-RRN-2'],
+  ];
+
+  assert.throws(
+    () => bridge.buildEngineInputFromRaw({
+      employeeMaster: duplicateMaster,
+      employmentTerms,
+      rawAttendance: rawAttendance([rawRow()]),
+      holidayMaster,
+      corrections: emptyCorrections,
+    }),
+    (error) => error
+      && error.code === 'payroll_attendance_matching_failed'
+      && error.normalization.criticalIssueCount > 0
+  );
 });
 
 test('missing required Sheet headers fails closed rather than silently shifting columns', () => {
