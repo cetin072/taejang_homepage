@@ -79,6 +79,9 @@
     const locked = Boolean(snapshot.finalization && snapshot.finalization.locked);
     const lockAllowed = Boolean(snapshot.finalization && snapshot.finalization.allowed);
     const lockBlockers = (snapshot.finalization && snapshot.finalization.blockers) || [];
+    const pendingCarryoverCount = normalizeCount(
+      snapshot.finalization && snapshot.finalization.pendingCarryoverCount
+    );
 
     const importStep = buildStep(
       StepId.IMPORT,
@@ -159,9 +162,14 @@
 
     let finalizeStatus = StepStatus.BLOCKED;
     let finalizeDescription = '앞 단계 확인이 완료되어야 급여를 확정할 수 있습니다.';
+    let finalizePrimaryAction = null;
     if (locked) {
       finalizeStatus = StepStatus.DONE;
       finalizeDescription = '급여가 확정되어 잠금 상태입니다.';
+    } else if (accountingConfirmed && pendingCarryoverCount > 0) {
+      finalizeStatus = StepStatus.CURRENT;
+      finalizeDescription = `이월조정 ${pendingCarryoverCount}건을 확인하면 급여 확정으로 넘어갑니다.`;
+      finalizePrimaryAction = { id: 'review_carryover', label: '이월조정 확인' };
     } else if (accountingConfirmed && lockAllowed) {
       finalizeStatus = StepStatus.CURRENT;
       finalizeDescription = '최종 확인 후 이번 달 급여를 확정할 수 있습니다.';
@@ -178,7 +186,11 @@
       '급여 확정',
       finalizeStatus,
       finalizeDescription,
-      { blockers: translateBlockers(lockBlockers) }
+      {
+        blockers: translateBlockers(lockBlockers),
+        pendingCarryoverCount,
+        primaryAction: finalizePrimaryAction,
+      }
     );
 
     const steps = [importStep, exceptionStep, provisionalStep, accountingStep, finalizeStep];
@@ -188,12 +200,15 @@
       month: snapshot.month || null,
       steps,
       currentStep: current ? current.id : StepId.IMPORT,
-      primaryAction: actionForStep(current ? current.id : StepId.IMPORT),
+      primaryAction: current && current.primaryAction
+        ? current.primaryAction
+        : actionForStep(current ? current.id : StepId.IMPORT),
       complete: locked,
       summary: {
         rawRows: normalizeCount(snapshot.import && snapshot.import.rawRows),
         unresolvedImportant: exceptionCount,
         unresolvedRateCount,
+        pendingCarryoverCount,
         accountingDifferences: normalizeCount(snapshot.accounting && snapshot.accounting.differenceCount),
         accountingStale,
       },
