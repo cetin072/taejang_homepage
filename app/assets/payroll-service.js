@@ -227,8 +227,14 @@
       const multiRateReviewCount = persistedResults.filter(
         (row) => row.rateStatus === 'multiple_rates_review_required'
       ).length;
-      const grossPayComplete = multiRateReviewCount === 0 && persistedResults.every(
-        (row) => Number.isFinite(Number(row.grossPayPreview))
+      const missingRateReviewCount = persistedResults.filter(
+        (row) => row.rateStatus === 'missing_rate_review_required'
+      ).length;
+      const rateReviewCount = multiRateReviewCount + missingRateReviewCount;
+      const grossPayComplete = rateReviewCount === 0 && persistedResults.every(
+        (row) => row.grossPayPreview !== null
+          && row.grossPayPreview !== undefined
+          && Number.isFinite(Number(row.grossPayPreview))
       );
 
       const summary = {
@@ -236,6 +242,8 @@
         unresolvedEmployeeCount: persistedResults.filter((row) => row.unresolvedCount > 0).length,
         unresolvedItemCount: safeSum(persistedResults, 'unresolvedCount'),
         multiRateReviewCount,
+        missingRateReviewCount,
+        rateReviewCount,
         grossPayPreviewStatus: grossPayComplete ? 'complete' : 'review_required',
         grossPayPreview: grossPayComplete
           ? persistedResults.reduce((sum, row) => sum + Number(row.grossPayPreview), 0)
@@ -262,7 +270,7 @@
         status: 'provisional',
         latestRunId: run.runId,
         generatedAt,
-        unresolvedImportantExceptions: summary.unresolvedItemCount + summary.multiRateReviewCount,
+        unresolvedImportantExceptions: summary.unresolvedItemCount + summary.rateReviewCount,
       });
 
       return run;
