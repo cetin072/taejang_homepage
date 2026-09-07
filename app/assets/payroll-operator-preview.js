@@ -2,7 +2,48 @@
   'use strict';
 
   const workflow = globalThis.TaejangPayrollOperatorWorkflow;
-  if (!workflow) return;
+  const outputApi = globalThis.TaejangPayrollOutput;
+  if (!workflow || !outputApi) return;
+
+  const lockedServiceSnapshot = {
+    month: '2026-09',
+    latestRun: {
+      runId: 'DEMO-RUN-2026-09',
+      version: 'payroll-engine-v2',
+      generatedAt: '2026-09-25T07:00:00.000Z',
+      summary: {
+        employeeCount: 24,
+        grossPayPreviewStatus: 'complete',
+        grossPayPreview: 18240000,
+      },
+    },
+    monthState: {
+      month: '2026-09',
+      status: 'locked',
+      lockedAt: '2026-09-30T07:00:00.000Z',
+      approvedBy: 'anonymous-operator',
+      approvalNote: '익명 Preview',
+    },
+    payrollAmounts: {
+      baseGrossPay: 18240000,
+      incomingAdjustmentStatus: 'complete',
+      incomingAdjustmentCount: 2,
+      orphanApplicationCount: 0,
+      appliedAdjustmentAmount: -61920,
+      grossPayWithAdjustments: 18178080,
+      employees: [],
+    },
+    adjustments: [{ adjustmentId: 'DEMO-OUT-1', status: 'reviewed' }],
+    incomingAdjustments: [],
+    payrollBasisFingerprint: 'demo-basis-202609',
+    accountingStatus: 'confirmed',
+    accountingComparison: {
+      confirmed: true,
+      differenceCount: 0,
+      payrollBasisFingerprint: 'demo-basis-202609',
+      adjustedGrossBasis: 18178080,
+    },
+  };
 
   const demoSnapshots = [
     {
@@ -145,15 +186,45 @@
       },
       exceptions: [],
     },
+    {
+      id: 'locked',
+      label: '5. 확정 완료',
+      snapshot: {
+        month: '2026-09',
+        import: { completed: true, rawRows: 483 },
+        exceptions: { unresolvedImportant: 0 },
+        provisional: {
+          ready: true,
+          baseReady: true,
+          baseGrossPay: 18240000,
+          incomingCarryoverCount: 2,
+          incomingCarryoverStatus: 'complete',
+          carryoverAdjustmentAmount: -61920,
+          grossPayPreview: 18178080,
+          grossPayPreviewStatus: 'complete',
+          unresolvedRateCount: 0,
+        },
+        accounting: { confirmed: true, stale: false, differenceCount: 0 },
+        finalization: { allowed: false, blockers: ['already_locked'], locked: true },
+      },
+      serviceSnapshot: lockedServiceSnapshot,
+      exceptions: [],
+    },
   ];
 
-  const state = { demoIndex: 1 };
+  const state = { demoIndex: 1, outputOpen: false };
 
   function money(value) {
     if (value === null || value === undefined || value === '') return '—';
     const number = Number(value);
     if (!Number.isFinite(number)) return '—';
     return `${Math.round(number).toLocaleString('ko-KR')}원`;
+  }
+
+  function dateLabel(value) {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return '—';
+    return `${match[1]}.${match[2]}.${match[3]}`;
   }
 
   function grossLabel(snapshot) {
@@ -214,6 +285,34 @@
     setMetricState('carryover', incomingCount > 0 && !carryoverComplete ? 'attention' : 'normal');
   }
 
+  function renderLockedOutput(demo, result) {
+    const panel = document.querySelector('[data-payroll-output]');
+    if (!panel) return;
+
+    const show = Boolean(result.complete && demo.serviceSnapshot && state.outputOpen);
+    panel.hidden = !show;
+    if (!show) return;
+
+    try {
+      const output = outputApi.buildLockedPayrollOutput(demo.serviceSnapshot);
+      setText('[data-output-locked-at]', dateLabel(output.lockedAt));
+      setText('[data-output-adjusted-gross]', money(output.totals.adjustedGrossPay));
+      setText('[data-output-accounting]', output.accounting.confirmed ? '대조 완료' : '확인 필요');
+      setText(
+        '[data-output-carryover]',
+        output.carryover.outgoingCount > 0
+          ? `${output.carryover.outgoingCount}건 확인 완료`
+          : '없음'
+      );
+    } catch (error) {
+      panel.hidden = false;
+      setText('[data-output-locked-at]', '확인 필요');
+      setText('[data-output-adjusted-gross]', '확인 필요');
+      setText('[data-output-accounting]', '다시 확인');
+      setText('[data-output-carryover]', '다시 확인');
+    }
+  }
+
   function render() {
     const demo = demoSnapshots[state.demoIndex];
     const result = workflow.buildOperatorWorkflow(demo.snapshot);
@@ -238,6 +337,7 @@
     setText('[data-metric-gross]', grossLabel(demo.snapshot));
     setText('[data-metric-accounting]', accountingLabel(demo.snapshot));
     renderPayrollBreakdown(demo.snapshot);
+    renderLockedOutput(demo, result);
 
     setMetricState('exception', result.summary.unresolvedImportant > 0 ? 'attention' : 'normal');
     setMetricState(
@@ -255,7 +355,7 @@
       alert.innerHTML = `
         <div aria-hidden="true">●</div>
         <div>
-          <strong>지금 할 일 · ${escapeHtml(current ? current.title : '급여관리')}</strong>
+          <strong>${result.complete ? '처리 완료' : '지금 할 일'} · ${escapeHtml(current ? current.title : '급여관리')}</strong>
           <p>${escapeHtml(current ? current.description : '')}</p>
         </div>
       `;
@@ -323,13 +423,19 @@
     const demoButton = event.target.closest('[data-demo-index]');
     if (demoButton) {
       state.demoIndex = Number(demoButton.dataset.demoIndex);
+      state.outputOpen = false;
       render();
       return;
     }
 
     const primary = event.target.closest('[data-payroll-primary]');
     if (primary) {
-      state.demoIndex = Math.min(state.demoIndex + 1, demoSnapshots.length - 1);
+      if (primary.dataset.action === 'view_locked_output') {
+        state.outputOpen = true;
+      } else {
+        state.demoIndex = Math.min(state.demoIndex + 1, demoSnapshots.length - 1);
+        state.outputOpen = false;
+      }
       render();
     }
   });
