@@ -94,12 +94,27 @@ test('accounting comparison run must belong to the same payroll month', () => {
   );
 });
 
+test('confirmed accounting persists the exact adjusted-payroll basis identity', () => {
+  assert.match(
+    sql,
+    /create table if not exists public\.payroll_accounting_comparisons[\s\S]*payroll_basis_fingerprint text/i
+  );
+  assert.match(
+    sql,
+    /create table if not exists public\.payroll_accounting_comparisons[\s\S]*adjusted_gross_basis numeric\(16,2\)/i
+  );
+  assert.match(
+    sql,
+    /not confirmed or \(payroll_basis_fingerprint is not null and adjusted_gross_basis is not null\)/i
+  );
+});
+
 test('prototype records migration-promotion blockers instead of silently treating itself as executable-ready', () => {
   assert.match(sql, /preventing overlapping employment-term date ranges/i);
   assert.match(sql, /persist gross-pay previews as null while unresolved\/rate-review items remain/i);
   assert.match(sql, /independently review payroll read\/write role mapping/i);
   assert.match(sql, /source payroll month locked before carryover application/i);
-  assert.match(sql, /bind confirmed accounting to the exact adjusted-payroll basis/i);
+  assert.match(sql, /verify the persisted payroll_basis_fingerprint against the exact adjusted-payroll basis/i);
 });
 
 test('prototype does not smuggle in a new payroll role or executable month-lock RPC', () => {
