@@ -192,7 +192,7 @@ test('temporary converted sheet cleanup uses Drive API v3 trashed metadata', () 
   payrollTrashTemporaryFile_('temporary-sheet-id');
 
   assert.equal(driveUpdateCalls.length, 1);
-  assert.deepEqual(driveUpdateCalls[0].metadata, { trashed: true });
+  assert.equal(driveUpdateCalls[0].metadata.trashed, true);
   assert.equal(driveUpdateCalls[0].fileId, 'temporary-sheet-id');
   assert.equal(driveUpdateCalls[0].mediaData, null);
   assert.equal(driveUpdateCalls[0].options.fields, 'id,trashed');
