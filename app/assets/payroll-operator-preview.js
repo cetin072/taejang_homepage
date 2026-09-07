@@ -12,7 +12,17 @@
         month: '2026-09',
         import: { completed: false, rawRows: 0 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        provisional: {
+          ready: false,
+          baseReady: false,
+          baseGrossPay: null,
+          incomingCarryoverCount: 0,
+          incomingCarryoverStatus: 'none',
+          carryoverAdjustmentAmount: 0,
+          grossPayPreview: null,
+          grossPayPreviewStatus: null,
+          unresolvedRateCount: 0,
+        },
         accounting: { confirmed: false, stale: false, differenceCount: 0 },
         finalization: { allowed: false, blockers: ['attendance_not_imported'], locked: false },
       },
@@ -25,7 +35,17 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 3 },
-        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        provisional: {
+          ready: false,
+          baseReady: false,
+          baseGrossPay: null,
+          incomingCarryoverCount: 0,
+          incomingCarryoverStatus: 'none',
+          carryoverAdjustmentAmount: 0,
+          grossPayPreview: null,
+          grossPayPreviewStatus: null,
+          unresolvedRateCount: 0,
+        },
         accounting: { confirmed: false, stale: false, differenceCount: 0 },
         finalization: { allowed: false, blockers: ['important_exceptions_unresolved'], locked: false },
       },
@@ -63,9 +83,19 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        provisional: {
+          ready: false,
+          baseReady: true,
+          baseGrossPay: 18240000,
+          incomingCarryoverCount: 2,
+          incomingCarryoverStatus: 'review_required',
+          carryoverAdjustmentAmount: null,
+          grossPayPreview: null,
+          grossPayPreviewStatus: 'review_required',
+          unresolvedRateCount: 0,
+        },
         accounting: { confirmed: false, stale: false, differenceCount: 0 },
-        finalization: { allowed: false, blockers: ['provisional_not_ready'], locked: false },
+        finalization: { allowed: false, blockers: ['carryover_not_reviewed'], locked: false },
       },
       exceptions: [],
     },
@@ -78,7 +108,12 @@
         exceptions: { unresolvedImportant: 0 },
         provisional: {
           ready: true,
-          grossPayPreview: 18240000,
+          baseReady: true,
+          baseGrossPay: 18240000,
+          incomingCarryoverCount: 2,
+          incomingCarryoverStatus: 'complete',
+          carryoverAdjustmentAmount: -61920,
+          grossPayPreview: 18178080,
           grossPayPreviewStatus: 'complete',
           unresolvedRateCount: 0,
         },
@@ -96,7 +131,12 @@
         exceptions: { unresolvedImportant: 0 },
         provisional: {
           ready: true,
-          grossPayPreview: 18240000,
+          baseReady: true,
+          baseGrossPay: 18240000,
+          incomingCarryoverCount: 2,
+          incomingCarryoverStatus: 'complete',
+          carryoverAdjustmentAmount: -61920,
+          grossPayPreview: 18178080,
           grossPayPreviewStatus: 'complete',
           unresolvedRateCount: 0,
         },
@@ -118,9 +158,12 @@
 
   function grossLabel(snapshot) {
     const provisional = snapshot.provisional || {};
-    if (Number(provisional.unresolvedRateCount || 0) > 0 || provisional.grossPayPreviewStatus === 'review_required') {
-      return '조건 확인 필요';
+    const incomingCount = Number(provisional.incomingCarryoverCount || 0);
+    if (Number(provisional.unresolvedRateCount || 0) > 0) return '조건 확인 필요';
+    if (incomingCount > 0 && provisional.incomingCarryoverStatus !== 'complete') {
+      return '전월 조정 반영 필요';
     }
+    if (provisional.grossPayPreviewStatus === 'review_required') return '조건 확인 필요';
     if (provisional.ready !== true) return '계산 전';
     return money(provisional.grossPayPreview);
   }
@@ -132,6 +175,43 @@
     if (accounting.confirmed === true) return '완료';
     if (provisional.ready === true) return `${Number(accounting.differenceCount || 0)}명`;
     return '대조 전';
+  }
+
+  function carryoverStatusLabel(provisional) {
+    const count = Number(provisional.incomingCarryoverCount || 0);
+    if (count === 0) return '없음';
+    if (provisional.incomingCarryoverStatus === 'complete') return `${count}건 반영 완료`;
+    return `${count}건 반영 필요`;
+  }
+
+  function renderPayrollBreakdown(snapshot) {
+    const provisional = snapshot.provisional || {};
+    const breakdown = document.querySelector('[data-payroll-breakdown]');
+    if (!breakdown) return;
+
+    const incomingCount = Number(provisional.incomingCarryoverCount || 0);
+    const show = provisional.baseGrossPay !== null
+      && provisional.baseGrossPay !== undefined
+      || incomingCount > 0;
+    breakdown.hidden = !show;
+    if (!show) return;
+
+    const carryoverComplete = incomingCount === 0 || provisional.incomingCarryoverStatus === 'complete';
+    setText('[data-payroll-base-gross]', money(provisional.baseGrossPay));
+    setText(
+      '[data-payroll-carryover]',
+      incomingCount === 0
+        ? '0원'
+        : carryoverComplete
+          ? money(provisional.carryoverAdjustmentAmount)
+          : '반영 전'
+    );
+    setText(
+      '[data-payroll-adjusted-gross]',
+      provisional.ready === true ? money(provisional.grossPayPreview) : '반영 후 계산'
+    );
+    setText('[data-payroll-carryover-status]', carryoverStatusLabel(provisional));
+    setMetricState('carryover', incomingCount > 0 && !carryoverComplete ? 'attention' : 'normal');
   }
 
   function render() {
@@ -157,11 +237,12 @@
     setText('[data-metric-exception]', `${result.summary.unresolvedImportant}건`);
     setText('[data-metric-gross]', grossLabel(demo.snapshot));
     setText('[data-metric-accounting]', accountingLabel(demo.snapshot));
+    renderPayrollBreakdown(demo.snapshot);
 
     setMetricState('exception', result.summary.unresolvedImportant > 0 ? 'attention' : 'normal');
     setMetricState(
       'gross',
-      grossLabel(demo.snapshot) === '조건 확인 필요' ? 'attention' : 'normal'
+      grossLabel(demo.snapshot).includes('필요') ? 'attention' : 'normal'
     );
     setMetricState(
       'accounting',
