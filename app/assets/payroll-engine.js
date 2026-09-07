@@ -17,6 +17,7 @@
     PAID_LEAVE: 'paid_leave',
     UNPAID_ABSENCE: 'unpaid_absence',
     PAID_HOLIDAY: 'paid_holiday',
+    UNPAID_HOLIDAY: 'unpaid_holiday',
     MANUAL_CONFIRMED: 'manual_confirmed',
     MISSING: 'missing',
     NOT_APPLICABLE: 'not_applicable',
@@ -140,7 +141,7 @@
       return null;
     }
     const rate = Number(term.hourlyRate);
-    return Number.isFinite(rate) && rate >= 0 ? rate : null;
+    return Number.isFinite(rate) && rate > 0 ? rate : null;
   }
 
   function holidayForDate(dateValue, holidays) {
@@ -161,7 +162,15 @@
     const map = new Map();
     (records || []).forEach((record) => {
       if (!record || !record.employeeId || !record.date) return;
-      map.set(attendanceKey(record.employeeId, record.date), record);
+      const key = attendanceKey(record.employeeId, record.date);
+      if (map.has(key)) {
+        const error = new Error(`duplicate_attendance:${key}`);
+        error.code = 'duplicate_attendance';
+        error.employeeId = record.employeeId;
+        error.date = dateKey(record.date);
+        throw error;
+      }
+      map.set(key, record);
     });
     return map;
   }
@@ -215,14 +224,25 @@
       };
     }
 
-    if (isPaidHoliday(date, holidays) && isWeekday(date)) {
+    const holiday = holidayForDate(date, holidays);
+    if (holiday && isWeekday(date)) {
+      if (holiday.paid !== false) {
+        return {
+          employeeId: employee.employeeId,
+          date: dateKey(date),
+          kind: DayValueKind.HOLIDAY,
+          attendanceState: AttendanceState.PAID_HOLIDAY,
+          scheduledHours,
+          payableHours: scheduledHours,
+        };
+      }
       return {
         employeeId: employee.employeeId,
         date: dateKey(date),
         kind: DayValueKind.HOLIDAY,
-        attendanceState: AttendanceState.PAID_HOLIDAY,
+        attendanceState: AttendanceState.UNPAID_HOLIDAY,
         scheduledHours,
-        payableHours: scheduledHours,
+        payableHours: 0,
       };
     }
 
@@ -251,6 +271,17 @@
       };
     }
 
+    if (attendanceState === AttendanceState.PAID_HOLIDAY) {
+      return {
+        employeeId: employee.employeeId,
+        date: dateKey(date),
+        kind: DayValueKind.HOLIDAY,
+        attendanceState,
+        scheduledHours,
+        payableHours: scheduledHours,
+      };
+    }
+
     if (attendanceState === AttendanceState.UNPAID_ABSENCE) {
       return {
         employeeId: employee.employeeId,
@@ -262,8 +293,19 @@
       };
     }
 
+    if (attendanceState === AttendanceState.NOT_APPLICABLE) {
+      return {
+        employeeId: employee.employeeId,
+        date: dateKey(date),
+        kind: DayValueKind.NOT_APPLICABLE,
+        attendanceState,
+        scheduledHours: 0,
+        payableHours: 0,
+      };
+    }
+
     const cutoff = cutoffDate ? asDate(cutoffDate) : null;
-    if (cutoff && compareDate(date, cutoff) > 0) {
+    if (cutoff && compareDate(date, cutoff) > 0 && !record) {
       return {
         employeeId: employee.employeeId,
         date: dateKey(date),
@@ -281,7 +323,9 @@
       attendanceState,
       scheduledHours,
       payableHours: null,
-      reason: 'attendance_missing_or_unconfirmed',
+      reason: record && cutoff && compareDate(date, cutoff) > 0
+        ? 'attendance_conflict_after_cutoff'
+        : 'attendance_missing_or_unconfirmed',
     };
   }
 
@@ -329,6 +373,23 @@
       .at(-1) || 0;
     const holidayHoursCandidate = Number(sundayTermHours) || fallbackHours;
 
+    const unresolvedDates = weekdayRows
+      .filter((row) => row.kind === DayValueKind.UNRESOLVED)
+      .map((row) => row.date);
+
+    if (unresolvedDates.length > 0) {
+      return {
+        employeeId: employee.employeeId,
+        weekStart: dateKey(monday),
+        weekEnd: dateKey(sunday),
+        scheduledHours,
+        holidayHoursCandidate,
+        status: 'pending_attendance',
+        payableHours: null,
+        unresolvedDates,
+      };
+    }
+
     if (scheduledHours < WEEKLY_HOLIDAY_THRESHOLD_HOURS) {
       return {
         employeeId: employee.employeeId,
@@ -353,23 +414,6 @@
         status: 'not_eligible_absence',
         payableHours: 0,
         unresolvedDates: [],
-      };
-    }
-
-    const unresolvedDates = weekdayRows
-      .filter((row) => row.kind === DayValueKind.UNRESOLVED)
-      .map((row) => row.date);
-
-    if (unresolvedDates.length > 0) {
-      return {
-        employeeId: employee.employeeId,
-        weekStart: dateKey(monday),
-        weekEnd: dateKey(sunday),
-        scheduledHours,
-        holidayHoursCandidate,
-        status: 'pending_attendance',
-        payableHours: null,
-        unresolvedDates,
       };
     }
 
@@ -427,9 +471,27 @@
   function calculateProvisionalMonth({ employee, year, month, cutoffDate, terms, holidays, attendanceRecords }) {
     const { start, end } = monthBounds(year, month);
     const attendanceMap = indexAttendance(attendanceRecords);
-    const dayRows = enumerateDates(start, end)
+    const weekdayRows = enumerateDates(start, end)
       .filter(isWeekday)
       .map((date) => resolvePayableDay({ employee, date, terms, holidays, attendanceMap, cutoffDate }));
+
+    const weekendReviewRows = (attendanceRecords || [])
+      .filter((record) => record && record.employeeId === employee.employeeId && record.date)
+      .filter((record) => compareDate(record.date, start) >= 0 && compareDate(record.date, end) <= 0)
+      .filter((record) => !isWeekday(record.date))
+      .filter((record) => isEmployeeActiveOn(employee, record.date))
+      .map((record) => ({
+        employeeId: employee.employeeId,
+        date: dateKey(record.date),
+        kind: DayValueKind.UNRESOLVED,
+        attendanceState: classifyAttendanceRecord(record),
+        scheduledHours: 0,
+        payableHours: null,
+        reason: 'weekend_record_review_required',
+      }));
+
+    const dayRows = [...weekdayRows, ...weekendReviewRows]
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     const weeklyHoliday = calculateMonthlyWeeklyHoliday({
       employee,
@@ -448,17 +510,17 @@
       .filter((row) => row.kind === DayValueKind.EXPECTED)
       .reduce((sum, row) => sum + Number(row.payableHours || 0), 0);
     const paidHolidayHours = dayRows
-      .filter((row) => row.kind === DayValueKind.HOLIDAY)
+      .filter((row) => row.kind === DayValueKind.HOLIDAY && row.attendanceState === AttendanceState.PAID_HOLIDAY)
       .reduce((sum, row) => sum + Number(row.payableHours || 0), 0);
     const unresolved = dayRows.filter((row) => row.kind === DayValueKind.UNRESOLVED);
 
-    const rates = new Set(dayRows
-      .filter((row) => row.kind !== DayValueKind.NOT_APPLICABLE)
-      .map((row) => hourlyRateForDate(employee, row.date, terms))
-      .filter((rate) => rate !== null));
+    const payableRows = dayRows.filter((row) => row.kind !== DayValueKind.NOT_APPLICABLE);
+    const rateValues = payableRows.map((row) => hourlyRateForDate(employee, row.date, terms));
+    const missingRateOnPayableDate = rateValues.some((rate) => rate === null);
+    const rates = new Set(rateValues.filter((rate) => rate !== null));
 
-    const singleHourlyRate = rates.size === 1 ? [...rates][0] : null;
-    const rateStatus = rates.size === 0
+    const singleHourlyRate = !missingRateOnPayableDate && rates.size === 1 ? [...rates][0] : null;
+    const rateStatus = missingRateOnPayableDate || rates.size === 0
       ? 'missing_rate_review_required'
       : rates.size === 1
         ? 'single_rate'
@@ -491,35 +553,10 @@
     };
   }
 
-  function buildCarryoverAdjustments({ employeeId, provisionalDayRows, finalDayRows, sourceMonth }) {
-    const provisionalMap = new Map((provisionalDayRows || []).map((row) => [row.date, row]));
-    const finalMap = new Map((finalDayRows || []).map((row) => [row.date, row]));
-    const dates = new Set([...provisionalMap.keys(), ...finalMap.keys()]);
-    const adjustments = [];
-
-    [...dates].sort().forEach((date) => {
-      const provisional = provisionalMap.get(date);
-      const final = finalMap.get(date);
-      const before = Number(provisional && provisional.payableHours);
-      const after = Number(final && final.payableHours);
-      const beforeValue = Number.isFinite(before) ? before : 0;
-      const afterValue = Number.isFinite(after) ? after : 0;
-      const difference = afterValue - beforeValue;
-      if (difference === 0) return;
-      adjustments.push({
-        adjustmentId: `${employeeId}|${sourceMonth}|${date}|work-hours`,
-        employeeId,
-        sourceMonth,
-        sourceDate: date,
-        category: 'work_hours',
-        beforeHours: beforeValue,
-        afterHours: afterValue,
-        differenceHours: difference,
-        status: 'pending_next_month',
-      });
-    });
-
-    return adjustments;
+  function buildCarryoverAdjustments() {
+    const error = new Error('unsafe_legacy_carryover_disabled');
+    error.code = 'unsafe_legacy_carryover_disabled';
+    throw error;
   }
 
   function evaluateMonthLock({ unresolvedImportantExceptions, accountingConfirmed, carryoverReviewed, alreadyLocked }) {
