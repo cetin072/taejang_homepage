@@ -14,6 +14,8 @@ function pad(value) {
   return String(value).padStart(2, '0');
 }
 
+const driveUpdateCalls = [];
+
 const sandbox = {
   console,
   Date,
@@ -32,6 +34,14 @@ const sandbox = {
       return { getEmail: () => 'qa@example.invalid' };
     },
   },
+  Drive: {
+    Files: {
+      update(metadata, fileId, mediaData, options) {
+        driveUpdateCalls.push({ metadata, fileId, mediaData, options });
+        return { id: fileId, trashed: metadata.trashed === true };
+      },
+    },
+  },
 };
 
 vm.createContext(sandbox);
@@ -42,6 +52,7 @@ const {
   payrollExtractAttendanceRows_,
   payrollDeriveOriginalStatus_,
   payrollNormalizeDisplayValue_,
+  payrollTrashTemporaryFile_,
 } = sandbox;
 
 function makeHeaders() {
@@ -97,7 +108,8 @@ test('original status classification preserves leave, absence, holiday and termi
   assert.match(payrollDeriveOriginalStatus_('월차(유급)', ''), /월차/);
   assert.match(payrollDeriveOriginalStatus_('', '결근(개인사정) (무급)'), /결근/);
   assert.match(payrollDeriveOriginalStatus_('대체공휴일', ''), /공휴일/);
-  assert.match(payrollDeriveOriginalStatus_('중도퇴사', ''), /중도퇴사/);
+  assert.match(payrollDeriveOriginalStatus_('중도퇴사', ''), /퇴사/);
+  assert.match(payrollDeriveOriginalStatus_('퇴사', ''), /퇴사/);
   assert.equal(payrollDeriveOriginalStatus_('08:38', '12:00'), '');
 });
 
@@ -172,4 +184,17 @@ test('malformed 출근/퇴근 column pairing fails closed instead of silently im
     () => payrollExtractAttendanceRows_([header1, header2, worker], makeContext()),
     /출퇴근 열 구조가 예상과 다릅니다/
   );
+});
+
+test('temporary converted sheet cleanup uses Drive API v3 trashed metadata', () => {
+  driveUpdateCalls.length = 0;
+
+  payrollTrashTemporaryFile_('temporary-sheet-id');
+
+  assert.equal(driveUpdateCalls.length, 1);
+  assert.deepEqual(driveUpdateCalls[0].metadata, { trashed: true });
+  assert.equal(driveUpdateCalls[0].fileId, 'temporary-sheet-id');
+  assert.equal(driveUpdateCalls[0].mediaData, null);
+  assert.equal(driveUpdateCalls[0].options.fields, 'id,trashed');
+  assert.equal(driveUpdateCalls[0].options.supportsAllDrives, true);
 });
