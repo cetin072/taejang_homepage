@@ -11,6 +11,7 @@
 
   const DAY_MS = 24 * 60 * 60 * 1000;
   const WEEKLY_HOLIDAY_THRESHOLD_HOURS = 15;
+  const WEEKLY_HOLIDAY_LOOKBACK_DAYS = 28;
 
   const AttendanceState = Object.freeze({
     COMPLETE: 'complete',
@@ -335,6 +336,47 @@
     return isEmployeeActiveOn(employee, weekStart) && isEmployeeActiveOn(employee, weekEnd);
   }
 
+  function roundHours(value) {
+    return Math.round(Number(value || 0) * 1000000) / 1000000;
+  }
+
+  function weeklyHolidayLookbackMetrics({ employee, weekEnd, terms }) {
+    const end = asDate(weekEnd);
+    const nominalStart = addDays(end, -(WEEKLY_HOLIDAY_LOOKBACK_DAYS - 1));
+    const hiredAt = normalizeOptionalDate(employee.hiredAt || employee.hireDate);
+    const start = hiredAt && compareDate(hiredAt, nominalStart) > 0 ? hiredAt : nominalStart;
+    const periodDates = enumerateDates(start, end);
+    const standardWorkdays = periodDates.filter(isWeekday);
+    const unresolvedDates = [];
+    let totalScheduledHours = 0;
+
+    standardWorkdays.forEach((date) => {
+      const hours = scheduledHoursForDate(employee, date, terms);
+      if (hours === null) {
+        unresolvedDates.push(dateKey(date));
+        return;
+      }
+      totalScheduledHours += Number(hours || 0);
+    });
+
+    const periodWeeks = periodDates.length / 7;
+    return {
+      start: dateKey(start),
+      end: dateKey(end),
+      periodDays: periodDates.length,
+      periodWeeks,
+      standardWorkdays: standardWorkdays.length,
+      totalScheduledHours: roundHours(totalScheduledHours),
+      averageWeeklyScheduledHours: periodWeeks > 0
+        ? roundHours(totalScheduledHours / periodWeeks)
+        : 0,
+      averageDailyScheduledHours: standardWorkdays.length > 0
+        ? roundHours(totalScheduledHours / standardWorkdays.length)
+        : 0,
+      unresolvedDates,
+    };
+  }
+
   function calculateWeeklyHoliday({ employee, weekStart, terms, holidays, attendanceRecords, cutoffDate }) {
     const monday = startOfWeekMonday(weekStart);
     const sunday = endOfWeekSunday(monday);
@@ -348,6 +390,7 @@
         weekEnd: dateKey(sunday),
         scheduledHours: 0,
         holidayHoursCandidate: 0,
+        averageWeeklyScheduledHours: 0,
         status: 'not_eligible_relationship',
         payableHours: 0,
         unresolvedDates: [],
@@ -366,37 +409,42 @@
       }));
 
     const scheduledHours = weekdayRows.reduce((sum, row) => sum + (Number(row.scheduledHours) || 0), 0);
-    const sundayTermHours = scheduledHoursForDate(employee, sunday, terms);
-    const fallbackHours = weekdayRows
-      .map((row) => Number(row.scheduledHours) || 0)
-      .filter((hours) => hours > 0)
-      .at(-1) || 0;
-    const holidayHoursCandidate = Number(sundayTermHours) || fallbackHours;
+    const lookback = weeklyHolidayLookbackMetrics({ employee, weekEnd: sunday, terms });
+    const holidayHoursCandidate = lookback.averageDailyScheduledHours;
 
-    const unresolvedDates = weekdayRows
-      .filter((row) => row.kind === DayValueKind.UNRESOLVED)
-      .map((row) => row.date);
+    const unresolvedDates = [...new Set([
+      ...weekdayRows
+        .filter((row) => row.kind === DayValueKind.UNRESOLVED)
+        .map((row) => row.date),
+      ...lookback.unresolvedDates,
+    ])].sort();
+
+    const weekMeta = {
+      employeeId: employee.employeeId,
+      weekStart: dateKey(monday),
+      weekEnd: dateKey(sunday),
+      scheduledHours,
+      holidayHoursCandidate,
+      averageWeeklyScheduledHours: lookback.averageWeeklyScheduledHours,
+      lookbackStart: lookback.start,
+      lookbackEnd: lookback.end,
+      lookbackScheduledHours: lookback.totalScheduledHours,
+      lookbackStandardWorkdays: lookback.standardWorkdays,
+      lookbackWeeks: lookback.periodWeeks,
+    };
 
     if (unresolvedDates.length > 0) {
       return {
-        employeeId: employee.employeeId,
-        weekStart: dateKey(monday),
-        weekEnd: dateKey(sunday),
-        scheduledHours,
-        holidayHoursCandidate,
+        ...weekMeta,
         status: 'pending_attendance',
         payableHours: null,
         unresolvedDates,
       };
     }
 
-    if (scheduledHours < WEEKLY_HOLIDAY_THRESHOLD_HOURS) {
+    if (lookback.averageWeeklyScheduledHours < WEEKLY_HOLIDAY_THRESHOLD_HOURS) {
       return {
-        employeeId: employee.employeeId,
-        weekStart: dateKey(monday),
-        weekEnd: dateKey(sunday),
-        scheduledHours,
-        holidayHoursCandidate,
+        ...weekMeta,
         status: 'not_eligible_under_15_hours',
         payableHours: 0,
         unresolvedDates: [],
@@ -406,11 +454,7 @@
     const hasAbsence = weekdayRows.some((row) => row.attendanceState === AttendanceState.UNPAID_ABSENCE);
     if (hasAbsence) {
       return {
-        employeeId: employee.employeeId,
-        weekStart: dateKey(monday),
-        weekEnd: dateKey(sunday),
-        scheduledHours,
-        holidayHoursCandidate,
+        ...weekMeta,
         status: 'not_eligible_absence',
         payableHours: 0,
         unresolvedDates: [],
@@ -419,11 +463,7 @@
 
     const hasExpected = weekdayRows.some((row) => row.kind === DayValueKind.EXPECTED);
     return {
-      employeeId: employee.employeeId,
-      weekStart: dateKey(monday),
-      weekEnd: dateKey(sunday),
-      scheduledHours,
-      holidayHoursCandidate,
+      ...weekMeta,
       status: hasExpected ? 'expected_eligible' : 'actual_eligible',
       payableHours: holidayHoursCandidate,
       unresolvedDates: [],
@@ -581,6 +621,7 @@
     DayValueKind,
     MonthStatus,
     WEEKLY_HOLIDAY_THRESHOLD_HOURS,
+    WEEKLY_HOLIDAY_LOOKBACK_DAYS,
     asDate,
     dateKey,
     addDays,
@@ -601,6 +642,7 @@
     classifyAttendanceRecord,
     resolvePayableDay,
     employeeHasFullWeekRelationship,
+    weeklyHolidayLookbackMetrics,
     calculateWeeklyHoliday,
     weeksWithSundayInMonth,
     calculateMonthlyWeeklyHoliday,
