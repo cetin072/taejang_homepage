@@ -46,38 +46,74 @@ function makeService() {
   return { repository, service };
 }
 
+async function createProvisional(service, overrides = {}) {
+  const data = fixture();
+  return service.calculateAndPersistProvisional({
+    month: '2026-09',
+    cutoffDate: '2026-08-31',
+    ...data,
+    ...overrides,
+  });
+}
+
 test('provisional calculation runs only on an explicit command and persists its result', async () => {
   const { repository, service } = makeService();
-  const data = fixture();
 
   const before = await service.getPayrollMonthSnapshot('2026-09');
   assert.equal(before.latestRun, null);
 
-  const run = await service.calculateAndPersistProvisional({
-    month: '2026-09',
-    cutoffDate: '2026-08-31',
-    ...data,
-  });
+  const run = await createProvisional(service);
 
   assert.equal(run.month, '2026-09');
   assert.equal(run.summary.employeeCount, 1);
   assert.equal(run.summary.grossPayPreview, 804960);
+  assert.equal(run.summary.grossPayPreviewStatus, 'complete');
   assert.equal(run.employees[0].payableHoursPreview, 78);
+  assert.match(run.inputFingerprint, /^[0-9a-f]{8}$/);
 
   const stored = await repository.getLatestComputation('2026-09');
   assert.equal(stored.runId, run.runId);
   assert.equal(stored.summary.grossPayPreview, 804960);
 });
 
-test('read-only month snapshot returns persisted values without creating a new calculation run', async () => {
+test('same payroll inputs reuse the existing calculation run instead of duplicating work', async () => {
   const { repository, service } = makeService();
-  const data = fixture();
 
-  await service.calculateAndPersistProvisional({
+  const first = await createProvisional(service);
+  const second = await createProvisional(service);
+  const runs = await repository.listComputations('2026-09');
+
+  assert.equal(runs.length, 1);
+  assert.equal(second.runId, first.runId);
+  assert.equal(second.reusedExistingRun, true);
+});
+
+test('calculation fingerprint excludes names and HR secrets but changes when payroll facts change', () => {
+  const data = fixture();
+  const base = serviceApi.safeCalculationInput({
     month: '2026-09',
     cutoffDate: '2026-08-31',
     ...data,
   });
+  const first = serviceApi.buildInputFingerprint(base);
+  const serialized = serviceApi.stableStringify(base);
+
+  assert.doesNotMatch(serialized, /SECRET-NAME-SHOULD-NOT-PERSIST/);
+  assert.doesNotMatch(serialized, /SECRET-ID-SHOULD-NOT-PERSIST/);
+
+  const changed = serviceApi.safeCalculationInput({
+    month: '2026-09',
+    cutoffDate: '2026-08-31',
+    ...data,
+    terms: data.terms.map((term) => ({ ...term, hourlyRate: 11000 })),
+  });
+  assert.notEqual(serviceApi.buildInputFingerprint(changed), first);
+});
+
+test('read-only month snapshot returns persisted values without creating a new calculation run', async () => {
+  const { repository, service } = makeService();
+
+  await createProvisional(service);
 
   const countBefore = (await repository.listComputations('2026-09')).length;
   const first = await service.getPayrollMonthSnapshot('2026-09');
@@ -91,13 +127,8 @@ test('read-only month snapshot returns persisted values without creating a new c
 
 test('persisted calculation keeps employee_id and calculation facts but drops names and HR secrets', async () => {
   const { repository, service } = makeService();
-  const data = fixture();
 
-  await service.calculateAndPersistProvisional({
-    month: '2026-09',
-    cutoffDate: '2026-08-31',
-    ...data,
-  });
+  await createProvisional(service);
 
   const stored = await repository.getLatestComputation('2026-09');
   const serialized = JSON.stringify(stored);
@@ -111,13 +142,8 @@ test('persisted calculation keeps employee_id and calculation facts but drops na
 
 test('repository returns clones so UI mutations cannot alter stored payroll state', async () => {
   const { repository, service } = makeService();
-  const data = fixture();
 
-  await service.calculateAndPersistProvisional({
-    month: '2026-09',
-    cutoffDate: '2026-08-31',
-    ...data,
-  });
+  await createProvisional(service);
 
   const snapshot = await service.getPayrollMonthSnapshot('2026-09');
   snapshot.latestRun.summary.grossPayPreview = -999;
@@ -130,13 +156,8 @@ test('repository returns clones so UI mutations cannot alter stored payroll stat
 
 test('provisional vs final day difference becomes a separate carryover adjustment', async () => {
   const { repository, service } = makeService();
-  const data = fixture();
 
-  const run = await service.calculateAndPersistProvisional({
-    month: '2026-09',
-    cutoffDate: '2026-08-31',
-    ...data,
-  });
+  const run = await createProvisional(service);
 
   const provisionalRows = run.employees[0].dayRows;
   const finalRows = provisionalRows.map((row) => ({ ...row }));
@@ -161,9 +182,15 @@ test('provisional vs final day difference becomes a separate carryover adjustmen
   assert.equal(stored[0].status, 'pending_next_month');
 });
 
-test('accounting comparison stores only employee-keyed differences', async () => {
+test('accounting comparison requires a provisional run and binds itself to the latest run', async () => {
   const { repository, service } = makeService();
 
+  await assert.rejects(
+    () => service.saveAccountingComparison({ month: '2026-09', confirmed: false, differenceCount: 0 }),
+    (error) => error && error.code === 'provisional_run_required'
+  );
+
+  const run = await createProvisional(service);
   await service.saveAccountingComparison({
     month: '2026-09',
     confirmed: false,
@@ -181,13 +208,57 @@ test('accounting comparison stores only employee-keyed differences', async () =>
   });
 
   const stored = await repository.getAccountingComparison('2026-09');
+  assert.equal(stored.runId, run.runId);
+  assert.equal(stored.stale, false);
   assert.equal(stored.rows[0].employeeId, 'TJ-TEST-0001');
   assert.equal(stored.rows[0].employeeName, undefined);
   assert.doesNotMatch(JSON.stringify(stored), /SHOULD-NOT-PERSIST/);
 });
 
+test('new provisional facts automatically invalidate a prior accounting comparison', async () => {
+  const { repository, service } = makeService();
+  const data = fixture();
+
+  const first = await createProvisional(service);
+  await service.saveAccountingComparison({
+    month: '2026-09',
+    confirmed: true,
+    differenceCount: 0,
+  });
+
+  const changedTerms = data.terms.map((term) => ({ ...term, hourlyRate: 11000 }));
+  const second = await createProvisional(service, { terms: changedTerms });
+  assert.notEqual(second.runId, first.runId);
+
+  const snapshot = await service.getPayrollMonthSnapshot('2026-09');
+  assert.equal(snapshot.accountingStatus, 'stale');
+  assert.equal(snapshot.accountingComparison.confirmed, false);
+  assert.equal(snapshot.accountingComparison.staleReason, 'provisional_recalculated');
+  assert.equal(snapshot.accountingComparison.previousRunId, first.runId);
+  assert.equal(snapshot.accountingComparison.currentRunId, second.runId);
+
+  const evaluation = await service.evaluateFinalization('2026-09');
+  assert.equal(evaluation.allowed, false);
+  assert.ok(evaluation.blockers.includes('accounting_values_unconfirmed'));
+});
+
+test('company gross preview is withheld when any employee has multiple hourly rates requiring review', async () => {
+  const { service } = makeService();
+  const data = fixture();
+  const terms = [
+    { ...data.terms[0], effectiveTo: '2026-09-14' },
+    { ...data.terms[0], effectiveFrom: '2026-09-15', hourlyRate: 11000 },
+  ];
+
+  const run = await createProvisional(service, { terms });
+  assert.equal(run.summary.multiRateReviewCount, 1);
+  assert.equal(run.summary.grossPayPreviewStatus, 'review_required');
+  assert.equal(run.summary.grossPayPreview, null);
+});
+
 test('real month lock refuses to execute without explicit user approval even when all checks pass', async () => {
   const { repository, service } = makeService();
+  await createProvisional(service);
 
   await repository.saveMonthState({
     month: '2026-09',
@@ -212,6 +283,7 @@ test('real month lock refuses to execute without explicit user approval even whe
 
 test('explicit approval still cannot bypass unresolved operational blockers', async () => {
   const { repository, service } = makeService();
+  await createProvisional(service);
 
   await repository.saveMonthState({
     month: '2026-09',
@@ -232,6 +304,7 @@ test('explicit approval still cannot bypass unresolved operational blockers', as
 
 test('month locks only after explicit approval and all guards are clear', async () => {
   const { repository, service } = makeService();
+  await createProvisional(service);
 
   await repository.saveMonthState({
     month: '2026-09',
