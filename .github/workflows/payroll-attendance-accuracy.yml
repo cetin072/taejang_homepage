@@ -34,6 +34,7 @@ on:
       - 'tests/payroll-view-model.test.js'
       - 'tests/payroll-operator-workflow.test.js'
       - 'tests/payroll-preview.test.js'
+      - 'tests/payroll-audit-counterexamples.test.js'
       - '.github/workflows/payroll-attendance-accuracy.yml'
   workflow_dispatch:
 
@@ -71,3 +72,4 @@ jobs:
           tests/payroll-view-model.test.js
           tests/payroll-operator-workflow.test.js
           tests/payroll-preview.test.js
+          tests/payroll-audit-counterexamples.test.js
