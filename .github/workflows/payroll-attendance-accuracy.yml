@@ -4,7 +4,11 @@ on:
   pull_request:
     paths:
       - 'docs/operations/PAYROLL_ATTENDANCE_IMPORT_APPS_SCRIPT.gs'
+      - 'app/assets/payroll-engine.js'
+      - 'app/assets/payroll-operator-workflow.js'
       - 'tests/payroll-attendance-import.test.js'
+      - 'tests/payroll-engine.test.js'
+      - 'tests/payroll-operator-workflow.test.js'
       - '.github/workflows/payroll-attendance-accuracy.yml'
   workflow_dispatch:
 
@@ -12,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  anonymous-import-regression:
+  anonymous-payroll-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -24,5 +28,5 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run anonymous payroll attendance regression
-        run: node --test tests/payroll-attendance-import.test.js
+      - name: Run anonymous payroll regression
+        run: node --test tests/payroll-attendance-import.test.js tests/payroll-engine.test.js tests/payroll-operator-workflow.test.js
