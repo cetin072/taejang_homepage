@@ -331,10 +331,11 @@
 
     async function getPayrollMonthSnapshot(monthValue) {
       const { month } = parseMonth(monthValue);
-      const [latestRun, monthState, adjustments, accountingComparison] = await Promise.all([
+      const [latestRun, monthState, adjustments, incomingAdjustments, accountingComparison] = await Promise.all([
         store.getLatestComputation(month),
         store.getMonthState(month),
         store.listAdjustments(month),
+        store.listAdjustmentsTargeting(month),
         store.getAccountingComparison(month),
       ]);
 
@@ -354,6 +355,7 @@
         latestRun,
         monthState,
         adjustments,
+        incomingAdjustments,
         accountingComparison,
         accountingStatus,
       };
@@ -421,16 +423,20 @@
       const snapshot = await getPayrollMonthSnapshot(month);
       const state = snapshot.monthState || {};
       const accounting = snapshot.accountingComparison || {};
-      const adjustmentRows = snapshot.adjustments || [];
-      const carryoverReviewed = adjustmentRows.every(
+      const outgoingRows = snapshot.adjustments || [];
+      const incomingRows = snapshot.incomingAdjustments || [];
+      const outgoingReviewed = outgoingRows.every(
         (row) => row.status === 'reviewed' || row.status === 'applied' || row.status === 'none'
+      );
+      const incomingApplied = incomingRows.every(
+        (row) => row.status === 'applied' || row.status === 'cancelled' || row.status === 'none'
       );
       const accountingCurrent = snapshot.accountingStatus === 'confirmed';
 
       return engine.evaluateMonthLock({
         unresolvedImportantExceptions: Number(state.unresolvedImportantExceptions || 0),
         accountingConfirmed: accountingCurrent && accounting.confirmed === true,
-        carryoverReviewed,
+        carryoverReviewed: outgoingReviewed && incomingApplied,
         alreadyLocked: state.status === 'locked',
       });
     }
