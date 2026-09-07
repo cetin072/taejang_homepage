@@ -1,5 +1,5 @@
-// 독립 검수용 반례 테스트 (익명 fixture). tests/ 폴더에 두고 `node --test tests/payroll-audit-counterexamples.test.js` 로 실행.
-// 각 assert는 "있어야 할 동작"을 검증하므로 현재 PR #143 HEAD(6f15f2c)에서는 의도적으로 실패한다(EXPECT FAIL 표시).
+// 독립 검수용 반례 테스트 (익명 fixture).
+// 외부 감사에서 발견된 회귀를 영구 방지하기 위한 테스트이며, 수정 후에도 CI에 계속 유지한다.
 // CE-09는 전월 경계 근태를 완전히 채운 별도 fixture에서 재현됨(보고서 참조).
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -160,12 +160,22 @@ test('CE-14 duplicate attendance rows bypass preflight when service is called di
   );
 });
 
-test('CE-15/16 business-rule sensitive weekly-holiday choices remain explicit for later approval', () => {
+test('CE-15 Sunday termination remains weekly-holiday eligible when the relationship lasts through Sunday', () => {
   const w = engine.calculateWeeklyHoliday({ employee: emp({ terminatedAt: '2026-09-13' }), weekStart: '2026-09-07', terms: [term()], holidays, attendanceRecords: fullSeptAttendance(), cutoffDate: '2026-09-30' });
-  assert.ok(['eligible', 'not_eligible_relationship'].includes(w.status));
+  assert.equal(w.status, 'actual_eligible');
+  assert.equal(w.payableHours, 3);
+});
+
+test('CE-16 midweek term change uses the four-week average prescribed daily hours', () => {
   const terms = [term({ to: '2026-09-09', hours: 4 }), term({ from: '2026-09-10', hours: 3 })];
-  const w2 = engine.calculateWeeklyHoliday({ employee: emp(), weekStart: '2026-09-07', terms, holidays, attendanceRecords: fullSeptAttendance(), cutoffDate: '2026-09-30' });
-  assert.ok(Number.isFinite(Number(w2.payableHours)));
+  const w = engine.calculateWeeklyHoliday({ employee: emp(), weekStart: '2026-09-07', terms, holidays, attendanceRecords: fullSeptAttendance(), cutoffDate: '2026-09-30' });
+  assert.equal(w.status, 'actual_eligible');
+  assert.equal(w.averageWeeklyScheduledHours, 19.5);
+  assert.equal(w.payableHours, 3.9);
+});
+
+test('five-Sunday month is not capped at four weekly-holiday weeks', () => {
+  assert.equal(engine.weeksWithSundayInMonth(2026, 8).length, 5);
 });
 
 test('CE-17 Dec->Jan and leap Feb boundaries remain valid', () => {
