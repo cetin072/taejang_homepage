@@ -313,7 +313,7 @@ function payrollDeriveOriginalStatus_(inValue, outValue) {
   if (/월차/.test(combined)) return combined;
   if (/결근/.test(combined)) return combined;
   if (/공휴일|대체공휴일/.test(combined)) return combined;
-  if (/중도퇴사/.test(combined)) return combined;
+  if (/퇴사/.test(combined)) return combined;
   return '';
 }
 
@@ -361,7 +361,15 @@ function payrollReplaceRawRowsForSource_(rawSheet, sourceFileId, sourceSheetName
 
 function payrollTrashTemporaryFile_(fileId) {
   try {
-    DriveApp.getFileById(fileId).setTrashed(true);
+    Drive.Files.update(
+      { trashed: true },
+      fileId,
+      null,
+      {
+        fields: 'id,trashed',
+        supportsAllDrives: true,
+      }
+    );
   } catch (error) {
     console.warn(`임시 변환파일 휴지통 처리 실패: ${error.message}`);
   }
