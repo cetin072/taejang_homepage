@@ -130,11 +130,9 @@
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
 
-  // These modules used to be appended independently while app.js was already
-  // verifying the session. On a fast app bootstrap, `taejang-app-ready` could fire
-  // before one or more modules had registered their listeners. Load them in order,
-  // but do not hide a failed module: record it, finish loading the remaining
-  // features, and surface an actionable retry state after the shell is available.
+  // Start independent feature requests together, but do not release app-ready until
+  // every module has registered or failed. `async = false` keeps dynamically
+  // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/pwa-install.js', 'pwa-install'],
@@ -164,9 +162,8 @@
   let queuedReadyDetail = null;
   let replayScheduled = false;
 
-  const featureModulesReady = FEATURE_MODULES.reduce(
-    (promise, [source, key]) => promise.then(() => loadScriptOnce(source, key)),
-    Promise.resolve()
+  const featureModulesReady = Promise.all(
+    FEATURE_MODULES.map(([source, key]) => loadScriptOnce(source, key))
   ).then(() => {
     modulesReady = true;
     Promise.resolve().then(showAggregateFailure);
