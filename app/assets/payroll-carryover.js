@@ -15,6 +15,12 @@
     return Number.isFinite(number) ? number : null;
   }
 
+  function hourlyRate(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
   function adjustmentId(employeeId, sourceMonth, sourceDate, category) {
     return `${employeeId}|${sourceMonth}|${sourceDate}|${category}`;
   }
@@ -119,11 +125,55 @@
     return adjustments;
   }
 
+  function authoritativeSourceRate(provisionalResult, finalResult) {
+    const provisionalRate = hourlyRate(provisionalResult && provisionalResult.hourlyRate);
+    const finalRate = hourlyRate(finalResult && finalResult.hourlyRate);
+    const provisionalStatus = String(provisionalResult && provisionalResult.rateStatus || '').trim();
+    const finalStatus = String(finalResult && finalResult.rateStatus || '').trim();
+
+    if (
+      provisionalStatus !== 'single_rate'
+      || finalStatus !== 'single_rate'
+      || provisionalRate === null
+      || finalRate === null
+      || provisionalRate !== finalRate
+    ) {
+      return {
+        amountStatus: 'review_required',
+        sourceHourlyRate: null,
+      };
+    }
+
+    return {
+      amountStatus: 'ready',
+      sourceHourlyRate: provisionalRate,
+    };
+  }
+
+  function attachMoney(adjustment, rateMeta) {
+    if (!rateMeta || rateMeta.amountStatus !== 'ready' || rateMeta.sourceHourlyRate === null) {
+      return {
+        ...adjustment,
+        sourceHourlyRate: null,
+        differenceAmount: null,
+        amountStatus: 'review_required',
+      };
+    }
+
+    return {
+      ...adjustment,
+      sourceHourlyRate: rateMeta.sourceHourlyRate,
+      differenceAmount: Math.round(Number(adjustment.differenceHours) * rateMeta.sourceHourlyRate),
+      amountStatus: 'ready',
+    };
+  }
+
   function buildEmployeeCarryover({ employeeId, sourceMonth, provisionalResult, finalResult }) {
     assertResolvedResult(provisionalResult, employeeId);
     assertResolvedResult(finalResult, employeeId);
 
-    return [
+    const rateMeta = authoritativeSourceRate(provisionalResult, finalResult);
+    const adjustments = [
       ...buildDayAdjustments({
         employeeId,
         sourceMonth,
@@ -137,6 +187,8 @@
         finalWeeks: finalResult.weeklyHoliday && finalResult.weeklyHoliday.weeks || [],
       }),
     ];
+
+    return adjustments.map((adjustment) => attachMoney(adjustment, rateMeta));
   }
 
   function buildMonthCarryover({ sourceMonth, provisionalRun, finalEmployeeResults }) {
@@ -160,9 +212,12 @@
 
   return Object.freeze({
     hours,
+    hourlyRate,
     assertResolvedResult,
     buildDayAdjustments,
     buildWeeklyHolidayAdjustments,
+    authoritativeSourceRate,
+    attachMoney,
     buildEmployeeCarryover,
     buildMonthCarryover,
   });
