@@ -22,6 +22,13 @@
     return value;
   }
 
+  function duplicateIdError(kind, id) {
+    const error = new Error(`${kind}_duplicate:${id}`);
+    error.code = `${kind}_duplicate`;
+    error.id = id;
+    return error;
+  }
+
   function createMemoryPayrollRepository(initial = {}) {
     const computations = new Map();
     const monthStates = new Map();
@@ -49,6 +56,10 @@
       async saveComputation(run) {
         const month = normalizeMonth(run.month);
         const current = computations.get(month) || [];
+        const runId = String(run.runId || '').trim();
+        if (!runId) throw new Error('payroll runId is required.');
+        const existing = current.find((row) => String(row.runId) === runId);
+        if (existing) return clone(existing);
         const next = current.concat([clone(run)]);
         computations.set(month, next);
         return clone(run);
@@ -67,6 +78,17 @@
 
       async saveMonthState(state) {
         const month = normalizeMonth(state.month);
+        const latestRunId = state.latestRunId ? String(state.latestRunId) : null;
+        if (latestRunId) {
+          const runs = computations.get(month) || [];
+          if (!runs.some((run) => String(run.runId) === latestRunId)) {
+            const error = new Error(`payroll_latest_run_missing:${month}:${latestRunId}`);
+            error.code = 'payroll_latest_run_missing';
+            error.month = month;
+            error.runId = latestRunId;
+            throw error;
+          }
+        }
         monthStates.set(month, clone(state));
         return clone(state);
       },
@@ -78,8 +100,16 @@
 
       async replaceAdjustments(monthValue, rows) {
         const month = normalizeMonth(monthValue);
-        adjustments.set(month, clone(rows || []));
-        return clone(rows || []);
+        const safeRows = clone(rows || []);
+        const seen = new Set();
+        for (const row of safeRows) {
+          const adjustmentId = String(row && row.adjustmentId || '').trim();
+          if (!adjustmentId) throw new Error('carryover adjustmentId is required.');
+          if (seen.has(adjustmentId)) throw duplicateIdError('carryover_adjustment', adjustmentId);
+          seen.add(adjustmentId);
+        }
+        adjustments.set(month, safeRows);
+        return clone(safeRows);
       },
 
       async listAdjustments(monthValue) {
@@ -117,6 +147,17 @@
 
       async saveAccountingComparison(value) {
         const month = normalizeMonth(value.month);
+        const runId = value.runId ? String(value.runId) : null;
+        if (runId) {
+          const runs = computations.get(month) || [];
+          if (!runs.some((run) => String(run.runId) === runId)) {
+            const error = new Error(`accounting_run_missing:${month}:${runId}`);
+            error.code = 'accounting_run_missing';
+            error.month = month;
+            error.runId = runId;
+            throw error;
+          }
+        }
         accounting.set(month, clone(value));
         return clone(value);
       },
@@ -165,6 +206,7 @@
   return Object.freeze({
     clone,
     normalizeMonth,
+    duplicateIdError,
     createMemoryPayrollRepository,
     assertPayrollRepository,
   });
