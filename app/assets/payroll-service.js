@@ -56,6 +56,14 @@
       hourlyRate: result.hourlyRate,
       grossPayPreview: result.grossPayPreview,
       rateStatus: result.rateStatus,
+      dayRows: (result.dayRows || []).map((row) => ({
+        date: row.date,
+        kind: row.kind,
+        attendanceState: row.attendanceState,
+        scheduledHours: row.scheduledHours,
+        payableHours: row.payableHours,
+        reason: row.reason || null,
+      })),
       unresolved: (result.unresolved || []).map((item) => ({
         date: item.date,
         reason: item.reason || 'review_required',
