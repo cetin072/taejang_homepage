@@ -98,6 +98,62 @@
       }
     }
 
+    async function reviewCarryover({ month, adjustmentIds = [], reviewAll = false, approvedByUser = false } = {}) {
+      if (approvedByUser !== true) {
+        return {
+          ok: false,
+          code: 'carryover_review_approval_required',
+          message: '이월조정 확인 완료 처리는 담당자의 명시적 확인이 필요합니다.',
+        };
+      }
+
+      const snapshot = await payrollService.getPayrollMonthSnapshot(month);
+      const current = snapshot && snapshot.adjustments || [];
+      const pending = current.filter((row) => row.status === 'pending_next_month');
+      if (pending.length === 0) {
+        return { ok: true, code: 'carryover_already_clear', reviewedCount: 0, adjustments: current };
+      }
+
+      const requested = new Set((adjustmentIds || []).map(String));
+      if (!reviewAll && requested.size === 0) {
+        return {
+          ok: false,
+          code: 'carryover_review_selection_required',
+          message: '확인 완료할 이월조정 항목을 선택해 주세요.',
+        };
+      }
+
+      if (!reviewAll) {
+        const known = new Set(current.map((row) => String(row.adjustmentId)));
+        const unknown = [...requested].filter((id) => !known.has(id));
+        if (unknown.length) {
+          return {
+            ok: false,
+            code: 'carryover_review_unknown_adjustment',
+            message: '현재 월에 없는 이월조정 항목이 포함되어 있습니다.',
+            unknownAdjustmentIds: unknown,
+          };
+        }
+      }
+
+      let reviewedCount = 0;
+      const next = current.map((row) => {
+        const shouldReview = row.status === 'pending_next_month'
+          && (reviewAll || requested.has(String(row.adjustmentId)));
+        if (!shouldReview) return row;
+        reviewedCount += 1;
+        return { ...row, status: 'reviewed' };
+      });
+
+      const stored = await payrollService.replaceCarryoverAdjustments({ month, adjustments: next });
+      return {
+        ok: true,
+        code: 'carryover_reviewed',
+        reviewedCount,
+        adjustments: stored,
+      };
+    }
+
     async function evaluateFinalization(month) {
       return payrollService.evaluateFinalization(month);
     }
@@ -132,6 +188,7 @@
       getMonth,
       saveAccountingComparison,
       reconcileCarryover,
+      reviewCarryover,
       evaluateFinalization,
       finalizeMonth,
     });
