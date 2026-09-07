@@ -114,7 +114,38 @@
       }));
   }
 
-  function validatePayrollInput({ employees, terms, attendanceRecords } = {}) {
+  function validateCalendarContext({ cutoffDate, holidays } = {}) {
+    const issues = [];
+    const cutoff = String(cutoffDate || '').trim();
+    if (!validIsoDate(cutoff)) {
+      issues.push(makeIssue('payroll_cutoff_date_invalid', 'critical', {
+        date: cutoff || null,
+      }));
+    }
+
+    const holidayDates = new Set();
+    (holidays || []).forEach((holiday, index) => {
+      const date = String(holiday && holiday.date || '').trim();
+      if (!validIsoDate(date)) {
+        issues.push(makeIssue('payroll_holiday_date_invalid', 'critical', {
+          date: date || null,
+          rowIndex: index,
+        }));
+        return;
+      }
+      if (holidayDates.has(date)) {
+        issues.push(makeIssue('payroll_holiday_date_duplicate', 'critical', {
+          date,
+          rowIndex: index,
+        }));
+      }
+      holidayDates.add(date);
+    });
+
+    return issues;
+  }
+
+  function validatePayrollInput({ employees, terms, attendanceRecords, cutoffDate, holidays } = {}) {
     const employeeValidation = validateEmployees(employees || []);
     const termValidation = termValidator.validateEmploymentTerms(terms || []);
     const termIssues = termValidation.issues.map((item) => ({
@@ -123,12 +154,14 @@
     }));
     const referenceIssues = validateTermReferences(terms || [], employeeValidation.employeeIds);
     const attendanceIssues = validateAttendance(attendanceRecords || [], employeeValidation.employeeIds);
+    const calendarIssues = validateCalendarContext({ cutoffDate, holidays: holidays || [] });
 
     const issues = [
       ...employeeValidation.issues,
       ...termIssues,
       ...referenceIssues,
       ...attendanceIssues,
+      ...calendarIssues,
     ];
     const criticalCount = issues.filter((item) => item.severity === 'critical').length;
     const highCount = issues.filter((item) => item.severity === 'high').length;
@@ -150,6 +183,9 @@
       employee_hire_date_invalid: '입사일 확인',
       employee_termination_date_invalid: '퇴사일 확인',
       employee_period_invalid: '입·퇴사일 확인',
+      employment_term_employee_missing: '근로조건 직원번호 확인',
+      employment_term_start_invalid: '근로조건 시작일 확인',
+      employment_term_end_invalid: '근로조건 종료일 확인',
       employment_term_overlap: '근로조건 적용기간 겹침 확인',
       employment_term_range_invalid: '근로조건 적용기간 확인',
       employment_term_hours_invalid: '소정근로시간 확인',
@@ -160,6 +196,9 @@
       attendance_day_duplicate: '같은 날 출퇴근 중복 확인',
       attendance_source_key_duplicate: '출퇴근 원본 중복 확인',
       confirmed_hours_invalid: '확정 근로시간 확인',
+      payroll_cutoff_date_invalid: '급여 가마감일 확인',
+      payroll_holiday_date_invalid: '공휴일 날짜 확인',
+      payroll_holiday_date_duplicate: '중복 공휴일 확인',
     };
 
     return (validation && validation.issues || []).map((item, index) => ({
@@ -177,6 +216,7 @@
   return Object.freeze({
     validateEmployees,
     validateAttendance,
+    validateCalendarContext,
     validatePayrollInput,
     operatorExceptionItems,
   });
