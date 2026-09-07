@@ -13,12 +13,18 @@
 
   if (!termValidator) throw new Error('TaejangPayrollTermValidator is required.');
 
+  const PAYROLL_MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+
   function makeIssue(code, severity, detail = {}) {
     return { code, severity, ...detail };
   }
 
   function validIsoDate(value) {
     return termValidator.validDate(value);
+  }
+
+  function validMonth(value) {
+    return PAYROLL_MONTH.test(String(value || '').trim());
   }
 
   function validateEmployees(employees) {
@@ -114,12 +120,25 @@
       }));
   }
 
-  function validateCalendarContext({ cutoffDate, holidays } = {}) {
+  function validateCalendarContext({ month, cutoffDate, holidays } = {}) {
     const issues = [];
+    const payrollMonth = String(month || '').trim();
     const cutoff = String(cutoffDate || '').trim();
+
+    if (!validMonth(payrollMonth)) {
+      issues.push(makeIssue('payroll_month_invalid', 'critical', {
+        month: payrollMonth || null,
+      }));
+    }
+
     if (!validIsoDate(cutoff)) {
       issues.push(makeIssue('payroll_cutoff_date_invalid', 'critical', {
         date: cutoff || null,
+      }));
+    } else if (validMonth(payrollMonth) && !cutoff.startsWith(`${payrollMonth}-`)) {
+      issues.push(makeIssue('payroll_cutoff_outside_month', 'critical', {
+        month: payrollMonth,
+        date: cutoff,
       }));
     }
 
@@ -145,7 +164,7 @@
     return issues;
   }
 
-  function validatePayrollInput({ employees, terms, attendanceRecords, cutoffDate, holidays } = {}) {
+  function validatePayrollInput({ month, employees, terms, attendanceRecords, cutoffDate, holidays } = {}) {
     const employeeValidation = validateEmployees(employees || []);
     const termValidation = termValidator.validateEmploymentTerms(terms || []);
     const termIssues = termValidation.issues.map((item) => ({
@@ -154,7 +173,7 @@
     }));
     const referenceIssues = validateTermReferences(terms || [], employeeValidation.employeeIds);
     const attendanceIssues = validateAttendance(attendanceRecords || [], employeeValidation.employeeIds);
-    const calendarIssues = validateCalendarContext({ cutoffDate, holidays: holidays || [] });
+    const calendarIssues = validateCalendarContext({ month, cutoffDate, holidays: holidays || [] });
 
     const issues = [
       ...employeeValidation.issues,
@@ -196,7 +215,9 @@
       attendance_day_duplicate: '같은 날 출퇴근 중복 확인',
       attendance_source_key_duplicate: '출퇴근 원본 중복 확인',
       confirmed_hours_invalid: '확정 근로시간 확인',
+      payroll_month_invalid: '급여 대상월 확인',
       payroll_cutoff_date_invalid: '급여 가마감일 확인',
+      payroll_cutoff_outside_month: '급여 가마감일이 대상월인지 확인',
       payroll_holiday_date_invalid: '공휴일 날짜 확인',
       payroll_holiday_date_duplicate: '중복 공휴일 확인',
     };
@@ -214,6 +235,7 @@
   }
 
   return Object.freeze({
+    validMonth,
     validateEmployees,
     validateAttendance,
     validateCalendarContext,
