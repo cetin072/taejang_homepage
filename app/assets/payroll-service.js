@@ -22,6 +22,7 @@
   if (!preflight) throw new Error('TaejangPayrollPreflight is required.');
 
   const CALCULATION_VERSION = 'payroll-engine-v2';
+  const ACCOUNTING_BASIS_VERSION = 'payroll-accounting-basis-v1';
 
   function nowIso(clock) {
     const value = clock ? clock() : new Date();
@@ -187,9 +188,16 @@
       ? finiteAmount(latestRun.summary.grossPayPreview)
       : null;
 
-    const currentApplications = applications.filter((row) => (
+    const incomingIds = new Set(incoming.map((row) => String(row && row.adjustmentId || '')));
+    const allCurrentApplications = applications.filter((row) => (
       row && row.status === 'applied' && row.appliedRunId === runId
     ));
+    const orphanApplications = allCurrentApplications.filter(
+      (row) => !incomingIds.has(String(row.adjustmentId || ''))
+    );
+    const currentApplications = allCurrentApplications.filter(
+      (row) => incomingIds.has(String(row.adjustmentId || ''))
+    );
     const currentByAdjustment = new Map(
       currentApplications.map((row) => [String(row.adjustmentId), row])
     );
@@ -202,8 +210,6 @@
       ));
       const expectedAmount = finiteAmount(adjustment.differenceAmount);
       const appliedAmount = current ? finiteAmount(current.differenceAmount) : null;
-      const amountReady = adjustment.amountStatus === 'ready' && expectedAmount !== null;
-      const sourceReviewed = ['reviewed', 'applied'].includes(adjustment.status);
       const applicationCurrent = Boolean(
         current
         && appliedAmount !== null
@@ -232,7 +238,7 @@
       };
     });
 
-    const allIncomingApplied = rows.every((row) => (
+    const allIncomingApplied = orphanApplications.length === 0 && rows.every((row) => (
       row.amountStatus === 'ready'
       && ['reviewed', 'applied'].includes(row.sourceStatus)
       && row.applicationStatus === 'applied_current_run'
@@ -241,11 +247,13 @@
       const amount = finiteAmount(row.differenceAmount);
       return sum + (amount === null ? 0 : amount);
     }, 0);
-    const incomingAdjustmentStatus = incoming.length === 0
-      ? 'none'
-      : allIncomingApplied
-        ? 'complete'
-        : 'review_required';
+    const incomingAdjustmentStatus = orphanApplications.length > 0
+      ? 'review_required'
+      : incoming.length === 0
+        ? 'none'
+        : allIncomingApplied
+          ? 'complete'
+          : 'review_required';
     const grossPayWithAdjustments = baseGross !== null && allIncomingApplied
       ? Math.round(baseGross + appliedAdjustmentAmount)
       : null;
@@ -281,11 +289,37 @@
       baseGrossPay: baseGross,
       incomingAdjustmentStatus,
       incomingAdjustmentCount: incoming.length,
+      orphanApplicationCount: orphanApplications.length,
+      orphanApplicationIds: orphanApplications.map((row) => row.applicationId || null).filter(Boolean),
       appliedAdjustmentAmount: allIncomingApplied ? appliedAdjustmentAmount : null,
       grossPayWithAdjustments,
       rows,
       employees,
     };
+  }
+
+  function buildPayrollBasisFingerprint(latestRun, payrollAmounts) {
+    if (!latestRun || !latestRun.runId || !payrollAmounts) return null;
+    const rows = (payrollAmounts.rows || []).map((row) => ({
+      adjustmentId: row.adjustmentId || null,
+      differenceAmount: finiteAmount(row.differenceAmount),
+      amountStatus: row.amountStatus || null,
+      sourceStatus: row.sourceStatus || null,
+      applicationStatus: row.applicationStatus || null,
+      appliedRunId: row.appliedRunId || null,
+    })).sort((a, b) => String(a.adjustmentId).localeCompare(String(b.adjustmentId)));
+
+    return fnv1a(stableStringify({
+      version: ACCOUNTING_BASIS_VERSION,
+      runId: latestRun.runId,
+      baseGrossPay: finiteAmount(payrollAmounts.baseGrossPay),
+      incomingAdjustmentStatus: payrollAmounts.incomingAdjustmentStatus || null,
+      incomingAdjustmentCount: Number(payrollAmounts.incomingAdjustmentCount || 0),
+      orphanApplicationCount: Number(payrollAmounts.orphanApplicationCount || 0),
+      appliedAdjustmentAmount: finiteAmount(payrollAmounts.appliedAdjustmentAmount),
+      grossPayWithAdjustments: finiteAmount(payrollAmounts.grossPayWithAdjustments),
+      rows,
+    }));
   }
 
   function createPayrollService({ repository, clock } = {}) {
@@ -464,12 +498,30 @@
         store.getAccountingComparison(month),
       ]);
 
+      const payrollAmounts = buildPayrollAmounts(
+        latestRun,
+        incomingAdjustments,
+        carryoverApplications
+      );
+      const payrollBasisFingerprint = buildPayrollBasisFingerprint(latestRun, payrollAmounts);
+
       let accountingStatus = 'not_started';
       if (accountingComparison) {
+        const basisMismatch = Boolean(
+          accountingComparison.payrollBasisFingerprint
+          && payrollBasisFingerprint
+          && accountingComparison.payrollBasisFingerprint !== payrollBasisFingerprint
+        );
+        const missingBasis = Boolean(
+          accountingComparison.confirmed === true
+          && !accountingComparison.payrollBasisFingerprint
+        );
         const stale = accountingComparison.stale === true
           || !latestRun
           || !accountingComparison.runId
-          || accountingComparison.runId !== latestRun.runId;
+          || accountingComparison.runId !== latestRun.runId
+          || basisMismatch
+          || missingBasis;
         if (stale) accountingStatus = 'stale';
         else if (accountingComparison.confirmed === true) accountingStatus = 'confirmed';
         else accountingStatus = 'review';
@@ -482,7 +534,8 @@
         adjustments,
         incomingAdjustments,
         carryoverApplications,
-        payrollAmounts: buildPayrollAmounts(latestRun, incomingAdjustments, carryoverApplications),
+        payrollAmounts,
+        payrollBasisFingerprint,
         accountingComparison,
         accountingStatus,
       };
@@ -491,19 +544,36 @@
     async function saveAccountingComparison({ month: monthValue, confirmed, differenceCount, rows = [] }) {
       const { month } = parseMonth(monthValue);
       await assertMonthMutable(month);
-      const latestRun = await store.getLatestComputation(month);
+      const snapshot = await getPayrollMonthSnapshot(month);
+      const latestRun = snapshot.latestRun;
       if (!latestRun) {
         const error = new Error('provisional_run_required');
         error.code = 'provisional_run_required';
         throw error;
       }
 
+      const wantsConfirmed = confirmed === true;
+      const payrollAmounts = snapshot.payrollAmounts || {};
+      const basisReady = ['none', 'complete'].includes(payrollAmounts.incomingAdjustmentStatus)
+        && payrollAmounts.orphanApplicationCount === 0
+        && payrollAmounts.grossPayWithAdjustments !== null
+        && payrollAmounts.grossPayWithAdjustments !== undefined
+        && snapshot.payrollBasisFingerprint;
+      if (wantsConfirmed && !basisReady) {
+        const error = new Error('accounting_basis_incomplete');
+        error.code = 'accounting_basis_incomplete';
+        error.blockers = ['adjusted_payroll_basis_incomplete'];
+        throw error;
+      }
+
       const value = {
         month,
         runId: latestRun.runId,
+        payrollBasisFingerprint: snapshot.payrollBasisFingerprint || null,
+        adjustedGrossBasis: finiteAmount(payrollAmounts.grossPayWithAdjustments),
         stale: false,
         staleReason: null,
-        confirmed: confirmed === true,
+        confirmed: wantsConfirmed,
         differenceCount: Number(differenceCount || 0),
         rows: (rows || []).map((row) => ({
           employeeId: row.employeeId,
@@ -583,6 +653,14 @@
       }
 
       const blockers = [];
+      const sourceMonths = [...new Set(incoming.map((row) => row.sourceMonth).filter(Boolean))];
+      for (const sourceMonth of sourceMonths) {
+        const sourceState = await store.getMonthState(sourceMonth);
+        if (!sourceState || sourceState.status !== 'locked') {
+          blockers.push(`source_month_not_locked:${sourceMonth}`);
+        }
+      }
+
       incoming.forEach((row) => {
         const amount = finiteAmount(row.differenceAmount);
         if (!['reviewed', 'applied'].includes(row.status)) {
@@ -634,6 +712,27 @@
           approvalNote: approvalNote || '',
         };
         applications.push(await store.saveCarryoverApplication(application));
+      }
+
+      const accounting = await store.getAccountingComparison(month);
+      if (accounting) {
+        const refreshedApplications = await store.listCarryoverApplications(month);
+        const refreshedAmounts = buildPayrollAmounts(latestRun, incoming, refreshedApplications);
+        const refreshedBasis = buildPayrollBasisFingerprint(latestRun, refreshedAmounts);
+        if (
+          !accounting.payrollBasisFingerprint
+          || accounting.payrollBasisFingerprint !== refreshedBasis
+        ) {
+          await store.saveAccountingComparison({
+            ...accounting,
+            confirmed: false,
+            stale: true,
+            staleReason: 'payroll_basis_changed',
+            previousPayrollBasisFingerprint: accounting.payrollBasisFingerprint || null,
+            currentPayrollBasisFingerprint: refreshedBasis,
+            updatedAt: nowIso(clock),
+          });
+        }
       }
 
       return {
@@ -711,12 +810,14 @@
 
   return Object.freeze({
     CALCULATION_VERSION,
+    ACCOUNTING_BASIS_VERSION,
     parseMonth,
     stableStringify,
     buildInputFingerprint,
     safeCalculationInput,
     buildPersistedEmployeeResult,
     buildPayrollAmounts,
+    buildPayrollBasisFingerprint,
     createPayrollService,
   });
 });
