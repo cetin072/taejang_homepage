@@ -8,6 +8,7 @@
 -- 3) Heavy calculations are explicit commands; normal screens read persisted snapshots.
 -- 4) RLS starts fail-closed. This prototype intentionally defines no end-user policies.
 -- 5) Month lock, retroactive payment execution, and shared auth/RLS changes are approval gates.
+-- 6) A payroll month may only point to calculation/accounting runs that belong to that same month.
 
 begin;
 
@@ -74,12 +75,21 @@ create table if not exists public.payroll_calculation_runs (
   gross_pay_preview_status text not null check (gross_pay_preview_status in ('complete','review_required')),
   payable_hours_preview numeric(12,2) not null default 0,
   created_at timestamptz not null default now(),
+  unique (id, payroll_month_id),
   unique (payroll_month_id, calculation_version, input_fingerprint, cutoff_date)
 );
 
-alter table public.payroll_months
-  add constraint payroll_months_latest_run_fk
-  foreign key (latest_run_id) references public.payroll_calculation_runs(id) on delete restrict;
+-- Composite FK prevents a month from accidentally pointing at another month's run.
+do $$
+begin
+  alter table public.payroll_months
+    add constraint payroll_months_latest_run_same_month_fk
+    foreign key (latest_run_id, id)
+    references public.payroll_calculation_runs(id, payroll_month_id)
+    on delete restrict;
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.payroll_employee_results (
   id uuid primary key default gen_random_uuid(),
@@ -121,14 +131,17 @@ create table if not exists public.payroll_adjustments (
 create table if not exists public.payroll_accounting_comparisons (
   id uuid primary key default gen_random_uuid(),
   payroll_month_id uuid not null unique references public.payroll_months(id) on delete cascade,
-  run_id uuid not null references public.payroll_calculation_runs(id) on delete restrict,
+  run_id uuid not null,
   confirmed boolean not null default false,
   stale boolean not null default false,
   stale_reason text,
   difference_count integer not null default 0 check (difference_count >= 0),
   updated_at timestamptz not null default now(),
   updated_by uuid references public.profiles(id) on delete restrict,
-  check (not (confirmed and stale))
+  check (not (confirmed and stale)),
+  foreign key (run_id, payroll_month_id)
+    references public.payroll_calculation_runs(id, payroll_month_id)
+    on delete restrict
 );
 
 create table if not exists public.payroll_accounting_difference_rows (
@@ -164,6 +177,12 @@ revoke all on
   public.payroll_accounting_difference_rows
 from public, anon, authenticated;
 
+-- Migration-promotion checks still required before this prototype can become executable SQL:
+-- - add transaction-safe DB enforcement preventing overlapping employment-term date ranges
+-- - ensure adapters persist gross-pay previews as null while unresolved/rate-review items remain
+-- - independently review payroll read/write role mapping and all RLS policies
+-- - verify all cross-month carryover rules against approved business/payroll policy
+--
 -- Intentionally absent until separately reviewed/approved:
 -- - authenticated SELECT/INSERT/UPDATE/DELETE policies
 -- - RPC mutation functions
