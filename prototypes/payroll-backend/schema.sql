@@ -9,8 +9,9 @@
 -- 4) RLS starts fail-closed. This prototype intentionally defines no end-user policies.
 -- 5) Month lock, retroactive payment execution, and shared auth/RLS changes are approval gates.
 -- 6) A payroll month may only point to calculation/accounting/carryover-application runs that belong to that same month.
--- 7) Prior-month adjustments remain immutable source facts; target-month application is a separate audited record.
+-- 7) Earlier-month adjustments remain immutable source facts; target-month application is a separate audited record.
 -- 8) Confirmed accounting must bind to the exact adjusted-payroll basis, not only the calculation run.
+-- 9) A correction discovered after month lock is appended as a new post_lock adjustment; the locked source payroll is never rewritten.
 
 begin;
 
@@ -120,6 +121,7 @@ create table if not exists public.payroll_adjustments (
   target_month date not null check (date_trunc('month',target_month)::date=target_month),
   source_date date not null,
   category text not null check (category in ('work_hours','weekly_holiday','paid_holiday','other_approved')),
+  correction_kind text not null default 'cutoff_reconciliation' check (correction_kind in ('cutoff_reconciliation','post_lock')),
   before_hours numeric(10,2),
   after_hours numeric(10,2),
   difference_hours numeric(10,2),
@@ -131,9 +133,19 @@ create table if not exists public.payroll_adjustments (
   created_at timestamptz not null default now(),
   reviewed_at timestamptz,
   reviewed_by uuid references public.profiles(id) on delete restrict,
+  check (target_month > source_month),
   check (
     amount_status='review_required'
     or (source_hourly_rate is not null and source_hourly_rate > 0 and difference_amount is not null)
+  ),
+  check (
+    correction_kind<>'post_lock'
+    or (
+      status in ('reviewed','applied')
+      and char_length(btrim(coalesce(reason,''))) > 0
+      and reviewed_at is not null
+      and reviewed_by is not null
+    )
   )
 );
 
@@ -223,6 +235,7 @@ from public, anon, authenticated;
 -- - ensure adapters persist gross-pay previews as null while unresolved/rate-review items remain
 -- - independently review payroll read/write role mapping and all RLS policies
 -- - enforce source payroll month locked before carryover application at the transaction boundary
+-- - enforce post_lock correction as append-only: source month must be locked, target month must still be mutable, and the locked payroll run/month state must not be rewritten
 -- - transactionally verify the persisted payroll_basis_fingerprint against the exact adjusted-payroll basis at accounting confirmation and month lock
 -- - verify all cross-month carryover rules against approved business/payroll policy
 --
