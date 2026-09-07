@@ -31,25 +31,63 @@
     promotion_lead: '운영팀장',
     promotion_staff: '홍보직원'
   };
-  function openPanel(id, view = null) { document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id, view } })); }
-  function openPromotion(mode = 'review') { document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } })); }
+
+  function featureUnavailable(key, label) {
+    const health = window.TaejangFeatureHealth;
+    if (!health?.hasFailed?.(key)) return false;
+    health.showFailure?.(label);
+    return true;
+  }
+  function openPanel(id, view = null) {
+    if (featureUnavailable('app-workspace-surface', '관리 화면')) return;
+    document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id, view } }));
+  }
+  function openPromotion(mode = 'review') {
+    if (featureUnavailable('phase-c-workspace-v2', '홍보 업무 기능')) return;
+    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
+  }
   function openEmployee(view = 'existing') {
+    if (featureUnavailable('employee-management', '직원 관리 기능')) return;
     const api = window.TaejangEmployeeManagement?.openEmployeeManagement;
     if (api) return api(view);
-    document.dispatchEvent(new CustomEvent('taejang-open-employee-management', { detail: { view } }));
+    window.TaejangFeatureHealth?.showFailure?.('직원 관리 기능');
   }
   function openSignupApproval() {
+    if (featureUnavailable('phase-c-account-approval', '가입 승인 기능')) return;
     const api = window.TaejangAccountApproval?.openAccountApproval;
     if (api) return api();
-    document.dispatchEvent(new CustomEvent('taejang-open-account-approval'));
+    window.TaejangFeatureHealth?.showFailure?.('가입 승인 기능');
   }
   function button(label, action) { const node = text('button', label, 'button button-quiet'); node.type = 'button'; node.addEventListener('click', action); return node; }
   function closeSidebar() { const shell = el('desktop-app-shell'); if (!shell) return; shell.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded', 'false'); }
-  function card(title, body, { value, action } = {}) {
+  function card(title, body, { value, action, state } = {}) {
     const node = document.createElement('article'); node.className = 'dashboard-card';
-    node.append(text('span', '현재 정보', 'status-label'), text('h3', title));
+    if (state) node.dataset.state = state;
+    node.append(text('span', state === 'error' || state === 'forbidden' ? '확인 필요' : '현재 정보', 'status-label'), text('h3', title));
     if (value) node.append(text('p', value, 'dashboard-value'));
     node.append(text('p', body)); if (action) node.append(button(action.label, action.run)); return node;
+  }
+  function classifyFailure(error) {
+    const status = Number(error?.status || error?.statusCode || error?.response?.status || 0);
+    const code = String(error?.code || '').toLowerCase();
+    if (status === 401 || status === 403 || code === '42501' || code.includes('forbidden') || code.includes('permission')) return 'forbidden';
+    return 'error';
+  }
+  function settledState(result) {
+    return result.status === 'fulfilled'
+      ? { status: 'success', value: array(result.value), error: null }
+      : { status: classifyFailure(result.reason), value: [], error: result.reason };
+  }
+  function failedState(error) {
+    return { status: classifyFailure(error), value: [], error };
+  }
+  function successState(value) {
+    return { status: 'success', value, error: null };
+  }
+  function failureCopy(kind, subject) {
+    return kind === 'forbidden'
+      ? `${subject}을 볼 권한을 확인할 수 없습니다. 다시 로그인하거나 관리자에게 문의해 주세요.`
+      : `${subject}을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`;
   }
   function setDashboardTopbar(route) {
     const title = el('desktop-page-title');
@@ -159,15 +197,17 @@
       app.rpc('get_my_schedule_list', { p_limit: 5 }),
       app.rpc('get_my_notice_list', { p_limit: 5 })
     ]);
-    const schedules = settled[0].status === 'fulfilled' ? array(settled[0].value) : [];
-    const notices = settled[1].status === 'fulfilled' ? array(settled[1].value) : [];
-    let pending = [];
-    let promotion = null;
+    const schedules = settledState(settled[0]);
+    const notices = settledState(settled[1]);
+    let pending = successState([]);
+    let promotion = successState(null);
     if (route === 'super_admin') {
-      try { pending = array(await app.rpc('list_pending_profiles')); } catch { pending = []; }
+      try { pending = successState(array(await app.rpc('list_pending_profiles'))); }
+      catch (error) { pending = failedState(error); }
     }
     if (promotionWorkspaceRoles.has(route)) {
-      try { promotion = await app.rpc('get_my_promotion_workspace'); } catch { promotion = null; }
+      try { promotion = successState(await app.rpc('get_my_promotion_workspace')); }
+      catch (error) { promotion = failedState(error); }
     }
     return { schedules, notices, pending, promotion };
   }
@@ -184,26 +224,49 @@
     const grid = document.createElement('section'); grid.className = 'dashboard-grid'; grid.setAttribute('aria-label', '현재 업무 요약');
 
     if (route === 'promotion_lead') {
-      const reviewCount = array(promotion?.review_items).length;
-      grid.append(card('홍보 검토 대기', reviewCount ? '직원이 올린 검토 안건이 있습니다. 운영팀장의 우선 업무입니다.' : '현재 검토 대기 안건이 없습니다.', {
-        value: reviewCount ? `${reviewCount}건` : undefined,
-        action: { label: '홍보 검토 열기', run: () => openPromotion('review') }
-      }));
+      if (promotion.status === 'success') {
+        const reviewCount = array(promotion.value?.review_items).length;
+        grid.append(card('홍보 검토 대기', reviewCount ? '직원이 올린 검토 안건이 있습니다. 운영팀장의 우선 업무입니다.' : '현재 검토 대기 안건이 없습니다.', {
+          value: reviewCount ? `${reviewCount}건` : undefined,
+          action: { label: '홍보 검토 열기', run: () => openPromotion('review') }
+        }));
+      } else {
+        grid.append(card('홍보 검토 대기', failureCopy(promotion.status, '홍보 검토 정보'), { state: promotion.status, action: { label: '다시 불러오기', run: goDashboard } }));
+      }
       grid.append(card('홍보자료 작성', '필요하면 운영팀장도 직접 홍보자료를 작성할 수 있습니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
     }
     if (route === 'promotion_staff') {
-      const mine = array(promotion?.my_items);
-      const revisionCount = mine.filter(item => item.lifecycle === 'needs_revision').length;
-      if (revisionCount) grid.append(card('수정·보완 요청', '운영팀장에게서 보완 요청이 왔습니다. 먼저 확인하고 수정하세요.', { value: `${revisionCount}건`, action: { label: '보완 내용 확인', run: () => openPromotion('write') } }));
+      if (promotion.status === 'success') {
+        const mine = array(promotion.value?.my_items);
+        const revisionCount = mine.filter(item => item.lifecycle === 'needs_revision').length;
+        if (revisionCount) grid.append(card('수정·보완 요청', '운영팀장에게서 보완 요청이 왔습니다. 먼저 확인하고 수정하세요.', { value: `${revisionCount}건`, action: { label: '보완 내용 확인', run: () => openPromotion('write') } }));
+      } else {
+        grid.append(card('수정·보완 요청', failureCopy(promotion.status, '홍보 작성 정보'), { state: promotion.status, action: { label: '다시 불러오기', run: goDashboard } }));
+      }
       grid.append(card('홍보자료 작성', '홈페이지 글·외부 콘텐츠·보도자료를 작성하고 승인 요청합니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
     }
     if (route === 'operations_manager') grid.append(card('중요 홍보 승인', '중요 콘텐츠와 대표이사 상신이 필요한 안건을 우선 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
     if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 실제로 상신한 중요 콘텐츠를 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
-    if (route === 'super_admin') grid.append(card('계정 승인 확인', pending.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.length ? `${pending.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));
+    if (route === 'super_admin') {
+      if (pending.status === 'success') {
+        grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));
+      } else {
+        grid.append(card('계정 승인 확인', failureCopy(pending.status, '승인 대기 정보'), { state: pending.status, action: { label: '다시 불러오기', run: goDashboard } }));
+      }
+    }
 
-    grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', schedules.length ? schedules[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.length ? `${schedules.length}건` : undefined, action: managerRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
-    const important = notices.filter(item => item.importance === 'urgent' || item.importance === 'important');
-    grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: managerRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
+    if (schedules.status === 'success') {
+      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', schedules.value.length ? schedules.value[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.value.length ? `${schedules.value.length}건` : undefined, action: managerRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
+    } else {
+      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', failureCopy(schedules.status, '일정 정보'), { state: schedules.status, action: { label: '다시 불러오기', run: goDashboard } }));
+    }
+
+    if (notices.status === 'success') {
+      const important = notices.value.filter(item => item.importance === 'urgent' || item.importance === 'important');
+      grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: managerRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
+    } else {
+      grid.append(card('중요공지', failureCopy(notices.status, '공지 정보'), { state: notices.status, action: { label: '다시 불러오기', run: goDashboard } }));
+    }
     main.append(grid);
   }
   function ensureHomepageAction() {
@@ -238,5 +301,5 @@
   }
   document.addEventListener('taejang-app-ready', setup);
   document.addEventListener('taejang-dashboard-refresh', render);
-  window.TaejangDashboard = { render };
+  window.TaejangDashboard = { render, dashboardData, classifyFailure };
 })();

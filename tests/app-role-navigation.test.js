@@ -80,7 +80,13 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-promotion-workspace', event => promotionModes.push(event.detail.mode));
   document.addEventListener('taejang-open-employee-management', event => employeeViews.push(event.detail?.view || 'existing'));
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
-  const window = { TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] }, location: { href: '' } };
+  const window = {
+    TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
+    TaejangEmployeeManagement: { openEmployeeManagement: view => employeeViews.push(view || 'existing') },
+    TaejangAccountApproval: { openAccountApproval: () => { approvalOpens += 1; } },
+    TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
+    location: { href: '' }
+  };
   const sandbox = { window, document, CustomEvent: FakeCustomEvent, Intl, Date, Set, Array, Promise, console };
   vm.runInNewContext(source, sandbox, { filename: 'dashboard-shell.js' });
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route, label: route } }));
