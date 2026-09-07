@@ -458,6 +458,11 @@
       .filter((rate) => rate !== null));
 
     const singleHourlyRate = rates.size === 1 ? [...rates][0] : null;
+    const rateStatus = rates.size === 0
+      ? 'missing_rate_review_required'
+      : rates.size === 1
+        ? 'single_rate'
+        : 'multiple_rates_review_required';
     const payableHoursPreview = actualWorkHours
       + expectedWorkHours
       + paidHolidayHours
@@ -479,8 +484,8 @@
       unresolved,
       payableHoursPreview,
       hourlyRate: singleHourlyRate,
-      grossPayPreview: singleHourlyRate === null ? null : Math.round(payableHoursPreview * singleHourlyRate),
-      rateStatus: rates.size <= 1 ? 'single_rate' : 'multiple_rates_review_required',
+      grossPayPreview: rateStatus === 'single_rate' ? Math.round(payableHoursPreview * singleHourlyRate) : null,
+      rateStatus,
       dayRows,
       weeklyHoliday,
     };
