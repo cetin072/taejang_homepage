@@ -83,6 +83,17 @@
         return clone(adjustments.get(month) || []);
       },
 
+      async listAdjustmentsTargeting(monthValue) {
+        const targetMonth = normalizeMonth(monthValue);
+        const rows = [];
+        for (const sourceRows of adjustments.values()) {
+          for (const row of sourceRows || []) {
+            if (row && row.targetMonth === targetMonth) rows.push(clone(row));
+          }
+        }
+        return rows;
+      },
+
       async saveAccountingComparison(value) {
         const month = normalizeMonth(value.month);
         accounting.set(month, clone(value));
@@ -116,6 +127,7 @@
       'getMonthState',
       'replaceAdjustments',
       'listAdjustments',
+      'listAdjustmentsTargeting',
       'saveAccountingComparison',
       'getAccountingComparison',
     ];
