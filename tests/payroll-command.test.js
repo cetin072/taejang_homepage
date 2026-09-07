@@ -9,11 +9,11 @@ function makeService() {
     calls,
     async calculateAndPersistProvisional(input) {
       calls.push(['calculate', input]);
-      return { runId: 'RUN-1', reusedExistingRun: false };
+      return { runId: 'RUN-1', month: input.month, reusedExistingRun: false };
     },
     async getPayrollMonthSnapshot(month) {
       calls.push(['get', month]);
-      return { month, adjustments: [] };
+      return { month, latestRun: { runId: 'RUN-1', month }, adjustments: [] };
     },
     async saveAccountingComparison(input) {
       calls.push(['accounting', input]);
@@ -65,11 +65,16 @@ function reconciliationResult({ dayHours = 3, weeklyHours = 3 } = {}) {
   };
 }
 
+function provisionalRun(result) {
+  return { month: '2026-09', runId: 'RUN-1', employees: [result] };
+}
+
 function pendingAdjustment(overrides = {}) {
   return {
     adjustmentId: 'ADJ-1',
     employeeId: 'TJ-TEST-0001',
     sourceMonth: '2026-09',
+    targetMonth: '2026-10',
     sourceDate: '2026-09-28',
     category: 'work_hours',
     beforeHours: 3,
@@ -116,13 +121,14 @@ test('carryover command persists both day and weekly-holiday differences', async
 
   const result = await command.reconcileCarryover({
     month: '2026-09',
-    provisionalRun: { employees: [provisional] },
+    provisionalRun: provisionalRun(provisional),
     finalEmployeeResults: { 'TJ-TEST-0001': final },
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.adjustmentCount, 2);
   assert.deepEqual(result.adjustments.map((row) => row.category).sort(), ['weekly_holiday', 'work_hours']);
+  assert.ok(result.adjustments.every((row) => row.targetMonth === '2026-10'));
   assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 1);
 });
 
@@ -135,7 +141,7 @@ test('carryover command refuses incomplete final reconciliation without persisti
 
   const result = await command.reconcileCarryover({
     month: '2026-09',
-    provisionalRun: { employees: [provisional] },
+    provisionalRun: provisionalRun(provisional),
     finalEmployeeResults: { 'TJ-TEST-0001': final },
   });
 
