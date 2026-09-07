@@ -125,9 +125,9 @@
     const payrollMonth = String(month || '').trim();
     const cutoff = String(cutoffDate || '').trim();
 
-    if (!validMonth(payrollMonth)) {
+    if (payrollMonth && !validMonth(payrollMonth)) {
       issues.push(makeIssue('payroll_month_invalid', 'critical', {
-        month: payrollMonth || null,
+        month: payrollMonth,
       }));
     }
 
