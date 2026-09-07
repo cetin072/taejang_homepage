@@ -27,10 +27,12 @@
   const blockerLabels = Object.freeze({
     important_exceptions_unresolved: '확인이 필요한 근태 예외가 남아 있습니다.',
     accounting_values_unconfirmed: '회계사무실 확정값 확인이 필요합니다.',
+    accounting_comparison_stale: '급여 가안이 변경되어 회계자료를 다시 대조해야 합니다.',
     carryover_not_reviewed: '전월·다음달 조정내역 확인이 필요합니다.',
     already_locked: '이미 확정된 급여월입니다.',
     attendance_not_imported: '먼저 출퇴근 자료를 가져와 주세요.',
     provisional_not_ready: '급여 가안 계산을 먼저 완료해 주세요.',
+    payroll_rate_review_required: '시급 변경 또는 복수 시급 적용 직원의 확인이 필요합니다.',
   });
 
   function normalizeCount(value) {
@@ -59,8 +61,14 @@
   function buildOperatorWorkflow(snapshot = {}) {
     const imported = isImported(snapshot);
     const exceptionCount = normalizeCount(snapshot.exceptions && snapshot.exceptions.unresolvedImportant);
-    const provisionalReady = Boolean(snapshot.provisional && snapshot.provisional.ready);
-    const accountingConfirmed = Boolean(snapshot.accounting && snapshot.accounting.confirmed);
+    const unresolvedRateCount = normalizeCount(snapshot.provisional && snapshot.provisional.unresolvedRateCount);
+    const grossPayPreviewStatus = snapshot.provisional && snapshot.provisional.grossPayPreviewStatus;
+    const provisionalCalculated = Boolean(snapshot.provisional && snapshot.provisional.ready);
+    const provisionalReady = provisionalCalculated && unresolvedRateCount === 0 && grossPayPreviewStatus !== 'review_required';
+    const accountingStale = Boolean(snapshot.accounting && (
+      snapshot.accounting.stale === true || snapshot.accounting.status === 'stale'
+    ));
+    const accountingConfirmed = Boolean(snapshot.accounting && snapshot.accounting.confirmed) && !accountingStale;
     const locked = Boolean(snapshot.finalization && snapshot.finalization.locked);
     const lockAllowed = Boolean(snapshot.finalization && snapshot.finalization.allowed);
     const lockBlockers = (snapshot.finalization && snapshot.finalization.blockers) || [];
@@ -94,10 +102,18 @@
     let provisionalStatus = StepStatus.BLOCKED;
     let provisionalDescription = '근태 예외 확인이 끝나면 급여 가안을 계산합니다.';
     if (imported && exceptionCount === 0) {
-      provisionalStatus = provisionalReady ? StepStatus.DONE : StepStatus.CURRENT;
-      provisionalDescription = provisionalReady
-        ? '급여 가안 계산이 완료되었습니다.'
-        : '예상근무·주휴·유급공휴일을 포함한 가안을 계산합니다.';
+      if (provisionalCalculated && unresolvedRateCount > 0) {
+        provisionalStatus = StepStatus.CURRENT;
+        provisionalDescription = `시급 적용을 확인해야 하는 직원 ${unresolvedRateCount}명이 있습니다.`;
+      } else if (provisionalCalculated && grossPayPreviewStatus === 'review_required') {
+        provisionalStatus = StepStatus.CURRENT;
+        provisionalDescription = '일부 직원의 급여조건 확인이 끝나야 회사 전체 가안 금액을 확정할 수 있습니다.';
+      } else {
+        provisionalStatus = provisionalReady ? StepStatus.DONE : StepStatus.CURRENT;
+        provisionalDescription = provisionalReady
+          ? '급여 가안 계산이 완료되었습니다.'
+          : '예상근무·주휴·유급공휴일을 포함한 가안을 계산합니다.';
+      }
     }
     const provisionalStep = buildStep(
       StepId.PROVISIONAL,
@@ -106,7 +122,8 @@
       provisionalDescription,
       {
         grossPayPreview: snapshot.provisional && snapshot.provisional.grossPayPreview,
-        unresolvedRateCount: normalizeCount(snapshot.provisional && snapshot.provisional.unresolvedRateCount),
+        grossPayPreviewStatus,
+        unresolvedRateCount,
       }
     );
 
@@ -114,16 +131,23 @@
     let accountingDescription = '급여 가안 완료 후 회계사무실 확정값을 대조합니다.';
     if (provisionalReady) {
       accountingStatus = accountingConfirmed ? StepStatus.DONE : StepStatus.CURRENT;
-      accountingDescription = accountingConfirmed
-        ? '회계사무실 확정값 대조가 완료되었습니다.'
-        : '회계사무실 확정 공제·지급값과 다른 직원만 확인합니다.';
+      if (accountingStale) {
+        accountingDescription = '급여 가안이 변경되어 회계자료를 다시 대조해야 합니다.';
+      } else {
+        accountingDescription = accountingConfirmed
+          ? '회계사무실 확정값 대조가 완료되었습니다.'
+          : '회계사무실 확정 공제·지급값과 다른 직원만 확인합니다.';
+      }
     }
     const accountingStep = buildStep(
       StepId.ACCOUNTING,
       '회계 대조',
       accountingStatus,
       accountingDescription,
-      { differenceCount: normalizeCount(snapshot.accounting && snapshot.accounting.differenceCount) }
+      {
+        differenceCount: normalizeCount(snapshot.accounting && snapshot.accounting.differenceCount),
+        stale: accountingStale,
+      }
     );
 
     let finalizeStatus = StepStatus.BLOCKED;
@@ -139,6 +163,8 @@
       finalizeDescription = translated.length
         ? translated.map((item) => item.message).join(' ')
         : finalizeDescription;
+    } else if (accountingStale) {
+      finalizeDescription = blockerLabels.accounting_comparison_stale;
     }
     const finalizeStep = buildStep(
       StepId.FINALIZE,
@@ -160,7 +186,9 @@
       summary: {
         rawRows: normalizeCount(snapshot.import && snapshot.import.rawRows),
         unresolvedImportant: exceptionCount,
+        unresolvedRateCount,
         accountingDifferences: normalizeCount(snapshot.accounting && snapshot.accounting.differenceCount),
+        accountingStale,
       },
     };
   }
@@ -207,6 +235,7 @@
       employment_period_conflict: '입·퇴사일 확인',
       multiple_hourly_rates: '시급 변경 확인',
       accounting_difference: '회계자료 차이 확인',
+      accounting_stale: '회계자료 다시 대조',
       carryover_adjustment: '전월 조정 확인',
     };
     return labels[type] || '확인 필요';
