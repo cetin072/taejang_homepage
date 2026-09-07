@@ -1,12 +1,14 @@
 (function initPayrollSheetBridge(root, factory) {
-  const api = factory();
+  let attendanceNormalizer = root && root.TaejangPayrollAttendanceNormalizer;
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = api;
+    attendanceNormalizer = require('./payroll-attendance-normalizer.js');
+    module.exports = factory(attendanceNormalizer);
+    return;
   }
   if (root) {
-    root.TaejangPayrollSheetBridge = api;
+    root.TaejangPayrollSheetBridge = factory(attendanceNormalizer);
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollSheetBridgeFactory() {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollSheetBridgeFactory(attendanceNormalizer) {
   'use strict';
 
   function clean(value) {
@@ -65,6 +67,22 @@
       }));
   }
 
+  function adaptEmployeeMasterForNormalization(matrix) {
+    const { rows, index } = rowsFromMatrix(matrix);
+    requireHeaders(index, ['employee_id', '기존 사번', '성명', '구분', '입사일', '퇴사일'], '직원마스터');
+
+    return rows
+      .filter((row) => clean(read(row, index, 'employee_id')))
+      .filter((row) => clean(read(row, index, '구분')) === '근로자')
+      .map((row) => ({
+        employeeId: clean(read(row, index, 'employee_id')),
+        sourceEmployeeNumber: clean(read(row, index, '기존 사번')) || null,
+        name: clean(read(row, index, '성명')),
+        hiredAt: clean(read(row, index, '입사일')) || null,
+        terminatedAt: clean(read(row, index, '퇴사일')) || null,
+      }));
+  }
+
   function adaptEmploymentTerms(matrix) {
     const { rows, index } = rowsFromMatrix(matrix);
     requireHeaders(
@@ -113,6 +131,52 @@
       }));
   }
 
+  function adaptRawAttendance(matrix) {
+    const { rows, index } = rowsFromMatrix(matrix);
+    requireHeaders(
+      index,
+      [
+        'source_key', '원본파일', '원본시트', '원본행', '성명_원본', '근무일',
+        '출근_원본', '퇴근_원본', '상태_원본', '수기표시', '비고', '원본파일ID',
+      ],
+      '출퇴근원본'
+    );
+    const employeeNumberHeader = index.has('사번_원본') ? '사번_원본' : null;
+
+    return rows
+      .filter((row) => clean(read(row, index, 'source_key')))
+      .map((row) => ({
+        sourceKey: clean(read(row, index, 'source_key')),
+        sourceFile: clean(read(row, index, '원본파일')) || null,
+        sourceSheet: clean(read(row, index, '원본시트')) || null,
+        sourceRow: numberOrNull(read(row, index, '원본행')),
+        sourceEmployeeNumber: employeeNumberHeader ? clean(read(row, index, employeeNumberHeader)) || null : null,
+        sourceName: clean(read(row, index, '성명_원본')),
+        date: clean(read(row, index, '근무일')),
+        clockInRaw: clean(read(row, index, '출근_원본')),
+        clockOutRaw: clean(read(row, index, '퇴근_원본')),
+        sourceStatus: clean(read(row, index, '상태_원본')),
+        manualFlag: clean(read(row, index, '수기표시')),
+        note: clean(read(row, index, '비고')),
+        sourceFileId: clean(read(row, index, '원본파일ID')) || null,
+      }));
+  }
+
+  function adaptCorrections(matrix) {
+    if (!Array.isArray(matrix) || matrix.length < 2) return [];
+    const { rows, index } = rowsFromMatrix(matrix);
+    requireHeaders(index, ['source_key', '수정항목', '변경후', '상태'], '수정보정이력');
+
+    return rows
+      .filter((row) => clean(read(row, index, 'source_key')))
+      .map((row) => ({
+        sourceKey: clean(read(row, index, 'source_key')),
+        field: clean(read(row, index, '수정항목')),
+        newValue: read(row, index, '변경후'),
+        status: clean(read(row, index, '상태')),
+      }));
+  }
+
   function adaptHolidayMaster(matrix) {
     const { rows, index } = rowsFromMatrix(matrix);
     requireHeaders(index, ['날짜', '명칭', '유급여부'], '공휴일마스터');
@@ -135,16 +199,111 @@
     };
   }
 
+  function sanitizeNormalizationIssue(item) {
+    return {
+      code: item.code,
+      severity: item.severity,
+      sourceKey: item.sourceKey || null,
+      date: item.date || null,
+      employeeId: item.employeeId || null,
+      matchStatus: item.matchStatus || null,
+      termStatus: item.termStatus || null,
+    };
+  }
+
+  function buildEngineInputFromRaw({
+    employeeMaster,
+    employmentTerms,
+    rawAttendance,
+    holidayMaster,
+    corrections,
+  }) {
+    if (!attendanceNormalizer) {
+      throw new Error('TaejangPayrollAttendanceNormalizer is required for raw attendance.');
+    }
+
+    const employeesForNormalization = adaptEmployeeMasterForNormalization(employeeMaster);
+    const employees = adaptEmployeeMaster(employeeMaster);
+    const terms = adaptEmploymentTerms(employmentTerms);
+    const rawRows = adaptRawAttendance(rawAttendance);
+    const correctionRows = adaptCorrections(corrections);
+    const holidays = adaptHolidayMaster(holidayMaster);
+    const normalized = attendanceNormalizer.normalizeAttendanceRows({
+      rawRows,
+      employees: employeesForNormalization,
+      terms,
+      corrections: correctionRows,
+    });
+
+    const unresolvedReviewRows = normalized.rows.filter((row) => (
+      row.exceptionType
+      && row.reviewStatus !== 'confirmed'
+      && row.reviewStatus !== 'not_applicable'
+    ));
+
+    if (normalized.criticalIssueCount > 0 || unresolvedReviewRows.length > 0) {
+      const error = new Error('payroll_attendance_normalization_failed');
+      error.code = normalized.criticalIssueCount > 0
+        ? 'payroll_attendance_matching_failed'
+        : 'payroll_attendance_review_required';
+      error.normalization = {
+        issueCount: normalized.issueCount,
+        criticalIssueCount: normalized.criticalIssueCount,
+        highIssueCount: normalized.highIssueCount,
+        unresolvedReviewCount: unresolvedReviewRows.length,
+        issues: normalized.issues.map(sanitizeNormalizationIssue),
+        reviewItems: unresolvedReviewRows.map((row) => ({
+          sourceKey: row.sourceKey,
+          employeeId: row.employeeId,
+          date: row.date,
+          exceptionType: row.exceptionType,
+        })),
+      };
+      throw error;
+    }
+
+    const attendanceRecords = normalized.rows
+      .filter((row) => row.employeeId && row.date)
+      // Expected rows are explicitly audited in normalization but are not actual attendance.
+      // Omitting them lets the engine project scheduled hours only after the approved cutoff.
+      .filter((row) => row.autoDecision !== '예상_정상근무')
+      .map((row) => ({
+        sourceKey: row.sourceKey,
+        employeeId: row.employeeId,
+        date: row.date,
+        autoDecision: row.autoDecision,
+        reviewStatus: row.reviewStatus === 'confirmed' ? 'confirmed' : null,
+        confirmedHours: row.confirmedHours,
+      }));
+
+    return {
+      employees,
+      terms,
+      attendanceRecords,
+      holidays,
+      normalization: {
+        rowCount: normalized.rows.length,
+        issueCount: normalized.issueCount,
+        criticalIssueCount: normalized.criticalIssueCount,
+        highIssueCount: normalized.highIssueCount,
+      },
+    };
+  }
+
   return Object.freeze({
     clean,
     numberOrNull,
     makeHeaderIndex,
     rowsFromMatrix,
     adaptEmployeeMaster,
+    adaptEmployeeMasterForNormalization,
     adaptEmploymentTerms,
     normalizeReviewStatus,
     adaptNormalizedAttendance,
+    adaptRawAttendance,
+    adaptCorrections,
     adaptHolidayMaster,
     buildEngineInput,
+    buildEngineInputFromRaw,
   });
 });
