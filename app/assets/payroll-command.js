@@ -38,6 +38,8 @@
         employees: input && input.employees,
         terms: input && input.terms,
         attendanceRecords: input && input.attendanceRecords,
+        cutoffDate: input && input.cutoffDate,
+        holidays: input && input.holidays,
       });
 
       if (!validation.calculationAllowed) {
