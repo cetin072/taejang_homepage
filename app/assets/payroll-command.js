@@ -22,6 +22,7 @@
       'getPayrollMonthSnapshot',
       'saveAccountingComparison',
       'replaceCarryoverAdjustments',
+      'applyIncomingCarryover',
       'evaluateFinalization',
       'lockPayrollMonth',
     ];
@@ -208,6 +209,42 @@
       };
     }
 
+    async function applyIncomingCarryover(input = {}) {
+      if (input.approvedByUser !== true) {
+        return {
+          ok: false,
+          code: 'carryover_application_approval_required',
+          message: '전월 이월조정을 이번 달 급여에 반영하려면 담당자의 명시적 확인이 필요합니다.',
+        };
+      }
+
+      try {
+        const result = await payrollService.applyIncomingCarryover(input);
+        return {
+          ok: true,
+          code: result.code || 'carryover_applied',
+          result,
+        };
+      } catch (error) {
+        if (error && error.code === 'carryover_application_blocked') {
+          return {
+            ok: false,
+            code: 'carryover_application_blocked',
+            message: '이월조정 금액 또는 현재 급여 가안을 먼저 확인해야 합니다.',
+            blockers: error.blockers || [],
+          };
+        }
+        if (error && error.code === 'month_locked') {
+          return {
+            ok: false,
+            code: 'month_locked',
+            message: '이미 확정된 급여월에는 이월조정을 새로 반영할 수 없습니다.',
+          };
+        }
+        throw error;
+      }
+    }
+
     async function evaluateFinalization(month) {
       return payrollService.evaluateFinalization(month);
     }
@@ -243,6 +280,7 @@
       saveAccountingComparison,
       reconcileCarryover,
       reviewCarryover,
+      applyIncomingCarryover,
       evaluateFinalization,
       finalizeMonth,
     });
