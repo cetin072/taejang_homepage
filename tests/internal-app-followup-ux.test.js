@@ -93,8 +93,8 @@ const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 test('app feature modules load deterministically before the first app-ready event is released', () => {
   syntaxCheck('app/assets/app-ui.js');
   assert.match(appUi, /const FEATURE_MODULES = \[/);
-  assert.match(appUi, /FEATURE_MODULES\.reduce\(/);
-  assert.match(appUi, /promise\.then\(\(\) => loadScriptOnce\(source, key\)\)/);
+  assert.match(appUi, /Promise\.all\(/);
+  assert.match(appUi, /FEATURE_MODULES\.map\(\(\[source, key\]\) => loadScriptOnce\(source, key\)\)/);
   assert.match(appUi, /document\.addEventListener\('taejang-app-ready',[\s\S]*event\.stopImmediatePropagation\(\)/);
   assert.match(appUi, /featureModulesReady\.then\([\s\S]*document\.dispatchEvent\(new CustomEvent\('taejang-app-ready'/);
   assert.match(appUi, /window\.TaejangFeatureModulesReady = featureModulesReady/);
@@ -135,6 +135,18 @@ test('an early app-ready event is held until all dynamically loaded feature modu
   const loadedScripts = document.nodes.filter(node => node.tagName === 'SCRIPT');
   assert.ok(loadedScripts.length >= 20, 'all feature modules should have been scheduled before replay');
   assert.ok(loadedScripts.every(node => node.dataset.loaded === '1'));
+});
+
+test('feature module requests begin together while app-ready remains gated', async () => {
+  const document = new FakeDocument();
+  const window = new EventHub();
+  vm.runInNewContext(appUi, { window, document, CustomEvent: FakeCustomEvent, Promise, setTimeout, clearTimeout, console }, { filename: 'app-ui.js' });
+
+  const requested = document.nodes.filter(node => node.tagName === 'SCRIPT');
+  assert.ok(requested.length >= 20, 'all module requests should be appended before the first response resolves');
+  assert.equal(requested.filter(node => node.dataset.loaded === '1').length, 0);
+  await window.TaejangFeatureModulesReady;
+  assert.ok(requested.every(node => node.dataset.loaded === '1'));
 });
 
 test('workspace surface guard parses and loads before feature modules', () => {
