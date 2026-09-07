@@ -46,7 +46,7 @@ test('completed provisional calculation advances to accounting comparison', () =
   const result = workflow.buildOperatorWorkflow({
     import: { completed: true, rawRows: 500 },
     exceptions: { unresolvedImportant: 0 },
-    provisional: { ready: true, grossPayPreview: 12345678 },
+    provisional: { ready: true, grossPayPreview: 12345678, grossPayPreviewStatus: 'complete' },
     accounting: { confirmed: false, differenceCount: 4 },
   });
 
@@ -54,6 +54,41 @@ test('completed provisional calculation advances to accounting comparison', () =
   assert.equal(result.primaryAction.id, 'compare_accounting');
   assert.equal(byId(result, workflow.StepId.PROVISIONAL).status, workflow.StepStatus.DONE);
   assert.equal(byId(result, workflow.StepId.ACCOUNTING).differenceCount, 4);
+});
+
+test('multiple-rate review keeps operator on provisional step and avoids presenting partial total as done', () => {
+  const result = workflow.buildOperatorWorkflow({
+    import: { completed: true, rawRows: 500 },
+    exceptions: { unresolvedImportant: 0 },
+    provisional: {
+      ready: true,
+      grossPayPreview: null,
+      grossPayPreviewStatus: 'review_required',
+      unresolvedRateCount: 2,
+    },
+  });
+
+  assert.equal(result.currentStep, workflow.StepId.PROVISIONAL);
+  assert.equal(byId(result, workflow.StepId.PROVISIONAL).status, workflow.StepStatus.CURRENT);
+  assert.match(byId(result, workflow.StepId.PROVISIONAL).description, /2명/);
+  assert.equal(result.summary.unresolvedRateCount, 2);
+});
+
+test('stale accounting comparison is explained as re-comparison work, not a technical failure', () => {
+  const result = workflow.buildOperatorWorkflow({
+    import: { completed: true, rawRows: 500 },
+    exceptions: { unresolvedImportant: 0 },
+    provisional: { ready: true, grossPayPreviewStatus: 'complete' },
+    accounting: { confirmed: true, stale: true, differenceCount: 0 },
+    finalization: { allowed: false, blockers: ['accounting_values_unconfirmed'], locked: false },
+  });
+
+  assert.equal(result.currentStep, workflow.StepId.ACCOUNTING);
+  assert.equal(byId(result, workflow.StepId.ACCOUNTING).status, workflow.StepStatus.CURRENT);
+  assert.equal(byId(result, workflow.StepId.ACCOUNTING).stale, true);
+  assert.match(byId(result, workflow.StepId.ACCOUNTING).description, /다시 대조/);
+  assert.match(byId(result, workflow.StepId.FINALIZE).description, /다시 대조/);
+  assert.equal(result.summary.accountingStale, true);
 });
 
 test('finalization becomes available only after accounting and lock guards are clear', () => {
@@ -114,8 +149,10 @@ test('technical blockers are translated into operator language', () => {
   const translated = workflow.translateBlockers([
     'important_exceptions_unresolved',
     'accounting_values_unconfirmed',
+    'accounting_comparison_stale',
   ]);
 
   assert.match(translated[0].message, /근태 예외/);
   assert.match(translated[1].message, /회계사무실/);
+  assert.match(translated[2].message, /다시 대조/);
 });
