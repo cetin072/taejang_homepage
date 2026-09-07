@@ -30,11 +30,24 @@
     return service;
   }
 
+  function nextPayrollMonth(month) {
+    const match = String(month || '').match(/^(\d{4})-(\d{2})$/);
+    if (!match) return null;
+    let year = Number(match[1]);
+    let monthNumber = Number(match[2]) + 1;
+    if (monthNumber === 13) {
+      year += 1;
+      monthNumber = 1;
+    }
+    return `${year}-${String(monthNumber).padStart(2, '0')}`;
+  }
+
   function createPayrollCommand({ service }) {
     const payrollService = assertService(service);
 
     async function calculateProvisional(input) {
       const validation = preflight.validatePayrollInput({
+        month: input && input.month,
         employees: input && input.employees,
         terms: input && input.terms,
         attendanceRecords: input && input.attendanceRecords,
@@ -52,13 +65,27 @@
         };
       }
 
-      const run = await payrollService.calculateAndPersistProvisional(input);
-      return {
-        ok: true,
-        code: run.reusedExistingRun ? 'provisional_reused' : 'provisional_calculated',
-        validation,
-        run,
-      };
+      try {
+        const run = await payrollService.calculateAndPersistProvisional(input);
+        return {
+          ok: true,
+          code: run.reusedExistingRun ? 'provisional_reused' : 'provisional_calculated',
+          validation,
+          run,
+        };
+      } catch (error) {
+        if (error && error.code === 'payroll_preflight_failed') {
+          const serviceValidation = error.validation || validation;
+          return {
+            ok: false,
+            code: 'payroll_preflight_failed',
+            message: '급여 계산 전에 확인해야 할 기초정보가 있습니다.',
+            validation: serviceValidation,
+            exceptions: preflight.operatorExceptionItems(serviceValidation),
+          };
+        }
+        throw error;
+      }
     }
 
     async function getMonth(month) {
@@ -71,11 +98,36 @@
 
     async function reconcileCarryover({ month, provisionalRun, finalEmployeeResults }) {
       try {
+        const snapshot = await payrollService.getPayrollMonthSnapshot(month);
+        const latestRun = snapshot && snapshot.latestRun;
+        if (
+          !provisionalRun
+          || provisionalRun.month !== month
+          || !latestRun
+          || latestRun.runId !== provisionalRun.runId
+        ) {
+          return {
+            ok: false,
+            code: 'carryover_run_mismatch',
+            message: '현재 급여월의 최신 가안과 일치하는 자료로 다시 이월조정을 계산해 주세요.',
+          };
+        }
+
+        const existing = snapshot.adjustments || [];
+        if (existing.some((row) => row.status === 'reviewed' || row.status === 'applied')) {
+          return {
+            ok: false,
+            code: 'carryover_reconciliation_locked',
+            message: '이미 확인된 이월조정이 있어 자동 재생성할 수 없습니다.',
+          };
+        }
+
+        const targetMonth = nextPayrollMonth(month);
         const adjustments = carryover.buildMonthCarryover({
           sourceMonth: month,
           provisionalRun,
           finalEmployeeResults,
-        });
+        }).map((row) => ({ ...row, targetMonth }));
         const stored = await payrollService.replaceCarryoverAdjustments({
           month,
           adjustments,
@@ -198,6 +250,7 @@
 
   return Object.freeze({
     assertService,
+    nextPayrollMonth,
     createPayrollCommand,
   });
 });
