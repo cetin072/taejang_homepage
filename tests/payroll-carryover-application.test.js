@@ -69,6 +69,11 @@ async function seededService() {
     unresolvedImportantExceptions: 0,
   });
   await repository.replaceAdjustments('2026-09', [reviewedIncoming()]);
+  await repository.saveMonthState({
+    month: '2026-09',
+    status: 'locked',
+    lockedAt: '2026-09-30T07:00:00.000Z',
+  });
   return { repository, service };
 }
 
