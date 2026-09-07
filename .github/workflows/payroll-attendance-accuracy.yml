@@ -10,6 +10,7 @@ on:
       - 'app/assets/payroll-repository.js'
       - 'app/assets/payroll-service.js'
       - 'app/assets/payroll-sheet-bridge.js'
+      - 'app/assets/payroll-term-validator.js'
       - 'app/assets/payroll-operator-workflow.js'
       - 'app/assets/payroll-operator-preview.js'
       - 'app/assets/payroll-operator.css'
@@ -21,6 +22,7 @@ on:
       - 'tests/payroll-backend-contract.test.js'
       - 'tests/payroll-service.test.js'
       - 'tests/payroll-sheet-bridge.test.js'
+      - 'tests/payroll-term-validator.test.js'
       - 'tests/payroll-operator-workflow.test.js'
       - 'tests/payroll-preview.test.js'
       - '.github/workflows/payroll-attendance-accuracy.yml'
@@ -52,5 +54,6 @@ jobs:
           tests/payroll-backend-contract.test.js
           tests/payroll-service.test.js
           tests/payroll-sheet-bridge.test.js
+          tests/payroll-term-validator.test.js
           tests/payroll-operator-workflow.test.js
           tests/payroll-preview.test.js
