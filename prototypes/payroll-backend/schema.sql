@@ -10,6 +10,7 @@
 -- 5) Month lock, retroactive payment execution, and shared auth/RLS changes are approval gates.
 -- 6) A payroll month may only point to calculation/accounting/carryover-application runs that belong to that same month.
 -- 7) Prior-month adjustments remain immutable source facts; target-month application is a separate audited record.
+-- 8) Confirmed accounting must bind to the exact adjusted-payroll basis, not only the calculation run.
 
 begin;
 
@@ -166,13 +167,17 @@ create table if not exists public.payroll_accounting_comparisons (
   id uuid primary key default gen_random_uuid(),
   payroll_month_id uuid not null unique references public.payroll_months(id) on delete cascade,
   run_id uuid not null,
+  payroll_basis_fingerprint text,
+  adjusted_gross_basis numeric(16,2),
   confirmed boolean not null default false,
   stale boolean not null default false,
   stale_reason text,
   difference_count integer not null default 0 check (difference_count >= 0),
   updated_at timestamptz not null default now(),
   updated_by uuid references public.profiles(id) on delete restrict,
+  check (payroll_basis_fingerprint is null or char_length(btrim(payroll_basis_fingerprint)) between 1 and 128),
   check (not (confirmed and stale)),
+  check (not confirmed or (payroll_basis_fingerprint is not null and adjusted_gross_basis is not null)),
   foreign key (run_id, payroll_month_id)
     references public.payroll_calculation_runs(id, payroll_month_id)
     on delete restrict
@@ -218,7 +223,7 @@ from public, anon, authenticated;
 -- - ensure adapters persist gross-pay previews as null while unresolved/rate-review items remain
 -- - independently review payroll read/write role mapping and all RLS policies
 -- - enforce source payroll month locked before carryover application at the transaction boundary
--- - bind confirmed accounting to the exact adjusted-payroll basis, including carryover applications
+-- - transactionally verify the persisted payroll_basis_fingerprint against the exact adjusted-payroll basis at accounting confirmation and month lock
 -- - verify all cross-month carryover rules against approved business/payroll policy
 --
 -- Intentionally absent until separately reviewed/approved:
