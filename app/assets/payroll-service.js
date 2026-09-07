@@ -21,7 +21,7 @@
   if (!repositoryApi) throw new Error('TaejangPayrollRepository is required.');
   if (!preflight) throw new Error('TaejangPayrollPreflight is required.');
 
-  const CALCULATION_VERSION = 'payroll-engine-v1';
+  const CALCULATION_VERSION = 'payroll-engine-v2';
 
   function nowIso(clock) {
     const value = clock ? clock() : new Date();
@@ -171,6 +171,123 @@
     };
   }
 
+  function finiteAmount(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function buildPayrollAmounts(latestRun, incomingAdjustments, carryoverApplications) {
+    const incoming = incomingAdjustments || [];
+    const applications = carryoverApplications || [];
+    const runId = latestRun && latestRun.runId || null;
+    const baseGross = latestRun
+      && latestRun.summary
+      && latestRun.summary.grossPayPreviewStatus === 'complete'
+      ? finiteAmount(latestRun.summary.grossPayPreview)
+      : null;
+
+    const currentApplications = applications.filter((row) => (
+      row && row.status === 'applied' && row.appliedRunId === runId
+    ));
+    const currentByAdjustment = new Map(
+      currentApplications.map((row) => [String(row.adjustmentId), row])
+    );
+
+    const rows = incoming.map((adjustment) => {
+      const adjustmentId = String(adjustment.adjustmentId || '');
+      const current = currentByAdjustment.get(adjustmentId) || null;
+      const stale = !current && applications.some((row) => (
+        row && String(row.adjustmentId) === adjustmentId && row.status === 'applied'
+      ));
+      const expectedAmount = finiteAmount(adjustment.differenceAmount);
+      const appliedAmount = current ? finiteAmount(current.differenceAmount) : null;
+      const amountReady = adjustment.amountStatus === 'ready' && expectedAmount !== null;
+      const sourceReviewed = ['reviewed', 'applied'].includes(adjustment.status);
+      const applicationCurrent = Boolean(
+        current
+        && appliedAmount !== null
+        && expectedAmount !== null
+        && appliedAmount === expectedAmount
+      );
+
+      return {
+        adjustmentId: adjustment.adjustmentId,
+        employeeId: adjustment.employeeId,
+        sourceMonth: adjustment.sourceMonth,
+        targetMonth: adjustment.targetMonth,
+        sourceDate: adjustment.sourceDate,
+        category: adjustment.category,
+        differenceHours: adjustment.differenceHours,
+        sourceHourlyRate: adjustment.sourceHourlyRate || null,
+        differenceAmount: expectedAmount,
+        amountStatus: adjustment.amountStatus || 'review_required',
+        sourceStatus: adjustment.status || null,
+        applicationStatus: applicationCurrent
+          ? 'applied_current_run'
+          : stale
+            ? 'stale'
+            : 'pending',
+        appliedRunId: current && current.appliedRunId || null,
+      };
+    });
+
+    const allIncomingApplied = rows.every((row) => (
+      row.amountStatus === 'ready'
+      && ['reviewed', 'applied'].includes(row.sourceStatus)
+      && row.applicationStatus === 'applied_current_run'
+    ));
+    const appliedAdjustmentAmount = currentApplications.reduce((sum, row) => {
+      const amount = finiteAmount(row.differenceAmount);
+      return sum + (amount === null ? 0 : amount);
+    }, 0);
+    const incomingAdjustmentStatus = incoming.length === 0
+      ? 'none'
+      : allIncomingApplied
+        ? 'complete'
+        : 'review_required';
+    const grossPayWithAdjustments = baseGross !== null && allIncomingApplied
+      ? Math.round(baseGross + appliedAdjustmentAmount)
+      : null;
+
+    const baseByEmployee = new Map((latestRun && latestRun.employees || []).map((row) => [
+      String(row.employeeId),
+      finiteAmount(row.grossPayPreview),
+    ]));
+    const adjustmentByEmployee = new Map();
+    if (allIncomingApplied) {
+      currentApplications.forEach((application) => {
+        const employeeId = String(application.employeeId || '');
+        const amount = finiteAmount(application.differenceAmount) || 0;
+        adjustmentByEmployee.set(employeeId, (adjustmentByEmployee.get(employeeId) || 0) + amount);
+      });
+    }
+    const employeeIds = new Set([...baseByEmployee.keys(), ...adjustmentByEmployee.keys()]);
+    const employees = [...employeeIds].sort().map((employeeId) => {
+      const base = baseByEmployee.has(employeeId) ? baseByEmployee.get(employeeId) : 0;
+      const adjustmentAmount = adjustmentByEmployee.get(employeeId) || 0;
+      return {
+        employeeId,
+        baseGrossPay: base,
+        carryoverAdjustmentAmount: allIncomingApplied ? adjustmentAmount : null,
+        grossPayWithAdjustments: allIncomingApplied && base !== null
+          ? Math.round(base + adjustmentAmount)
+          : null,
+      };
+    });
+
+    return {
+      runId,
+      baseGrossPay: baseGross,
+      incomingAdjustmentStatus,
+      incomingAdjustmentCount: incoming.length,
+      appliedAdjustmentAmount: allIncomingApplied ? appliedAdjustmentAmount : null,
+      grossPayWithAdjustments,
+      rows,
+      employees,
+    };
+  }
+
   function createPayrollService({ repository, clock } = {}) {
     const store = repositoryApi.assertPayrollRepository(repository);
 
@@ -246,10 +363,10 @@
       const latest = await store.getLatestComputation(month);
 
       if (
-        latest &&
-        latest.version === CALCULATION_VERSION &&
-        latest.inputFingerprint === inputFingerprint &&
-        latest.cutoffDate === safeInput.cutoffDate
+        latest
+        && latest.version === CALCULATION_VERSION
+        && latest.inputFingerprint === inputFingerprint
+        && latest.cutoffDate === safeInput.cutoffDate
       ) {
         return {
           ...latest,
@@ -331,11 +448,19 @@
 
     async function getPayrollMonthSnapshot(monthValue) {
       const { month } = parseMonth(monthValue);
-      const [latestRun, monthState, adjustments, incomingAdjustments, accountingComparison] = await Promise.all([
+      const [
+        latestRun,
+        monthState,
+        adjustments,
+        incomingAdjustments,
+        carryoverApplications,
+        accountingComparison,
+      ] = await Promise.all([
         store.getLatestComputation(month),
         store.getMonthState(month),
         store.listAdjustments(month),
         store.listAdjustmentsTargeting(month),
+        store.listCarryoverApplications(month),
         store.getAccountingComparison(month),
       ]);
 
@@ -356,6 +481,8 @@
         monthState,
         adjustments,
         incomingAdjustments,
+        carryoverApplications,
+        payrollAmounts: buildPayrollAmounts(latestRun, incomingAdjustments, carryoverApplications),
         accountingComparison,
         accountingStatus,
       };
@@ -412,10 +539,111 @@
         beforeHours: row.beforeHours,
         afterHours: row.afterHours,
         differenceHours: row.differenceHours,
+        sourceHourlyRate: row.sourceHourlyRate === undefined ? null : row.sourceHourlyRate,
+        differenceAmount: row.differenceAmount === undefined ? null : row.differenceAmount,
+        amountStatus: row.amountStatus || 'review_required',
         status: row.status || 'pending_next_month',
       }));
       await store.replaceAdjustments(month, safeRows);
       return safeRows;
+    }
+
+    async function applyIncomingCarryover({
+      month: monthValue,
+      approvedByUser,
+      approvedBy,
+      approvalNote,
+    }) {
+      const { month } = parseMonth(monthValue);
+      if (approvedByUser !== true) {
+        const error = new Error('carryover_application_approval_required');
+        error.code = 'carryover_application_approval_required';
+        throw error;
+      }
+      await assertMonthMutable(month);
+
+      const snapshot = await getPayrollMonthSnapshot(month);
+      const latestRun = snapshot.latestRun;
+      if (!latestRun || !latestRun.summary || latestRun.summary.grossPayPreviewStatus !== 'complete') {
+        const error = new Error('carryover_application_base_payroll_incomplete');
+        error.code = 'carryover_application_blocked';
+        error.blockers = ['base_payroll_incomplete'];
+        throw error;
+      }
+
+      const incoming = snapshot.incomingAdjustments || [];
+      if (incoming.length === 0) {
+        return {
+          month,
+          runId: latestRun.runId,
+          code: 'carryover_none',
+          applicationCount: 0,
+          applications: [],
+        };
+      }
+
+      const blockers = [];
+      incoming.forEach((row) => {
+        const amount = finiteAmount(row.differenceAmount);
+        if (!['reviewed', 'applied'].includes(row.status)) {
+          blockers.push(`source_not_reviewed:${row.adjustmentId}`);
+        }
+        if (row.amountStatus !== 'ready' || amount === null) {
+          blockers.push(`amount_not_ready:${row.adjustmentId}`);
+        }
+        if (row.targetMonth !== month) {
+          blockers.push(`target_month_mismatch:${row.adjustmentId}`);
+        }
+      });
+      if (blockers.length) {
+        const error = new Error(`carryover_application_blocked:${blockers.join(',')}`);
+        error.code = 'carryover_application_blocked';
+        error.blockers = blockers;
+        throw error;
+      }
+
+      const existing = snapshot.carryoverApplications || [];
+      const appliedAt = nowIso(clock);
+      const applications = [];
+      let reusedCount = 0;
+
+      for (const row of incoming) {
+        const applicationId = `${row.adjustmentId}|${latestRun.runId}`;
+        const already = existing.find((item) => item.applicationId === applicationId);
+        if (already) {
+          applications.push(already);
+          reusedCount += 1;
+          continue;
+        }
+
+        const application = {
+          applicationId,
+          adjustmentId: row.adjustmentId,
+          employeeId: row.employeeId,
+          sourceMonth: row.sourceMonth,
+          targetMonth: month,
+          sourceDate: row.sourceDate,
+          category: row.category,
+          differenceHours: row.differenceHours,
+          sourceHourlyRate: row.sourceHourlyRate,
+          differenceAmount: Number(row.differenceAmount),
+          appliedRunId: latestRun.runId,
+          status: 'applied',
+          appliedAt,
+          approvedBy: approvedBy || 'explicit-user-approval',
+          approvalNote: approvalNote || '',
+        };
+        applications.push(await store.saveCarryoverApplication(application));
+      }
+
+      return {
+        month,
+        runId: latestRun.runId,
+        code: reusedCount === applications.length ? 'carryover_application_reused' : 'carryover_applied',
+        applicationCount: applications.length,
+        reusedCount,
+        applications,
+      };
     }
 
     async function evaluateFinalization(monthValue) {
@@ -424,13 +652,11 @@
       const state = snapshot.monthState || {};
       const accounting = snapshot.accountingComparison || {};
       const outgoingRows = snapshot.adjustments || [];
-      const incomingRows = snapshot.incomingAdjustments || [];
       const outgoingReviewed = outgoingRows.every(
         (row) => row.status === 'reviewed' || row.status === 'applied' || row.status === 'none'
       );
-      const incomingApplied = incomingRows.every(
-        (row) => row.status === 'applied' || row.status === 'cancelled' || row.status === 'none'
-      );
+      const incomingApplied = snapshot.payrollAmounts
+        && ['none', 'complete'].includes(snapshot.payrollAmounts.incomingAdjustmentStatus);
       const accountingCurrent = snapshot.accountingStatus === 'confirmed';
 
       return engine.evaluateMonthLock({
@@ -477,6 +703,7 @@
       saveAccountingComparison,
       generateAndPersistCarryover,
       replaceCarryoverAdjustments,
+      applyIncomingCarryover,
       evaluateFinalization,
       lockPayrollMonth,
     });
@@ -489,6 +716,7 @@
     buildInputFingerprint,
     safeCalculationInput,
     buildPersistedEmployeeResult,
+    buildPayrollAmounts,
     createPayrollService,
   });
 });
