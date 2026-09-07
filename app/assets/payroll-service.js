@@ -231,7 +231,8 @@
         (row) => row.rateStatus === 'missing_rate_review_required'
       ).length;
       const rateReviewCount = multiRateReviewCount + missingRateReviewCount;
-      const grossPayComplete = rateReviewCount === 0 && persistedResults.every(
+      const unresolvedItemCount = safeSum(persistedResults, 'unresolvedCount');
+      const grossPayComplete = unresolvedItemCount === 0 && rateReviewCount === 0 && persistedResults.every(
         (row) => row.grossPayPreview !== null
           && row.grossPayPreview !== undefined
           && Number.isFinite(Number(row.grossPayPreview))
@@ -240,7 +241,7 @@
       const summary = {
         employeeCount: persistedResults.length,
         unresolvedEmployeeCount: persistedResults.filter((row) => row.unresolvedCount > 0).length,
-        unresolvedItemCount: safeSum(persistedResults, 'unresolvedCount'),
+        unresolvedItemCount,
         multiRateReviewCount,
         missingRateReviewCount,
         rateReviewCount,
