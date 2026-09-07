@@ -63,8 +63,15 @@
     const exceptionCount = normalizeCount(snapshot.exceptions && snapshot.exceptions.unresolvedImportant);
     const unresolvedRateCount = normalizeCount(snapshot.provisional && snapshot.provisional.unresolvedRateCount);
     const grossPayPreviewStatus = snapshot.provisional && snapshot.provisional.grossPayPreviewStatus;
-    const provisionalCalculated = Boolean(snapshot.provisional && snapshot.provisional.ready);
-    const provisionalReady = provisionalCalculated && unresolvedRateCount === 0 && grossPayPreviewStatus !== 'review_required';
+    const provisionalCalculated = Boolean(snapshot.provisional && (
+      snapshot.provisional.runId
+      || snapshot.provisional.ready
+      || unresolvedRateCount > 0
+      || grossPayPreviewStatus === 'review_required'
+    ));
+    const provisionalReady = Boolean(snapshot.provisional && snapshot.provisional.ready)
+      && unresolvedRateCount === 0
+      && grossPayPreviewStatus !== 'review_required';
     const accountingStale = Boolean(snapshot.accounting && (
       snapshot.accounting.stale === true || snapshot.accounting.status === 'stale'
     ));
