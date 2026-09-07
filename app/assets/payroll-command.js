@@ -1,23 +1,27 @@
 (function initPayrollCommand(root, factory) {
   let preflight = root && root.TaejangPayrollPreflight;
+  let carryover = root && root.TaejangPayrollCarryover;
   if (typeof module !== 'undefined' && module.exports) {
     preflight = require('./payroll-preflight.js');
-    module.exports = factory(preflight);
+    carryover = require('./payroll-carryover.js');
+    module.exports = factory(preflight, carryover);
     return;
   }
   if (root) {
-    root.TaejangPayrollCommand = factory(preflight);
+    root.TaejangPayrollCommand = factory(preflight, carryover);
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollCommandFactory(preflight) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollCommandFactory(preflight, carryover) {
   'use strict';
 
   if (!preflight) throw new Error('TaejangPayrollPreflight is required.');
+  if (!carryover) throw new Error('TaejangPayrollCarryover is required.');
 
   function assertService(service) {
     const required = [
       'calculateAndPersistProvisional',
       'getPayrollMonthSnapshot',
       'saveAccountingComparison',
+      'replaceCarryoverAdjustments',
       'evaluateFinalization',
       'lockPayrollMonth',
     ];
@@ -63,6 +67,37 @@
       return payrollService.saveAccountingComparison(input);
     }
 
+    async function reconcileCarryover({ month, provisionalRun, finalEmployeeResults }) {
+      try {
+        const adjustments = carryover.buildMonthCarryover({
+          sourceMonth: month,
+          provisionalRun,
+          finalEmployeeResults,
+        });
+        const stored = await payrollService.replaceCarryoverAdjustments({
+          month,
+          adjustments,
+        });
+        return {
+          ok: true,
+          code: adjustments.length ? 'carryover_reconciled' : 'carryover_none',
+          adjustmentCount: stored.length,
+          adjustments: stored,
+        };
+      } catch (error) {
+        if (error && error.code === 'final_reconciliation_incomplete') {
+          return {
+            ok: false,
+            code: 'final_reconciliation_incomplete',
+            message: '최종 근태·주휴 확인이 끝나지 않아 이월조정을 만들 수 없습니다.',
+            employeeId: error.employeeId || null,
+            date: error.date || null,
+          };
+        }
+        throw error;
+      }
+    }
+
     async function evaluateFinalization(month) {
       return payrollService.evaluateFinalization(month);
     }
@@ -96,6 +131,7 @@
       calculateProvisional,
       getMonth,
       saveAccountingComparison,
+      reconcileCarryover,
       evaluateFinalization,
       finalizeMonth,
     });
