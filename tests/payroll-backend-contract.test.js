@@ -47,6 +47,27 @@ test('all payroll tables are fail-closed until a separate access decision is app
   assert.doesNotMatch(sql, /grant\s+(?:select|insert|update|delete|all)[\s\S]*authenticated/i);
 });
 
+test('month latest-run pointer cannot reference another payroll month', () => {
+  assert.match(sql, /unique\s*\(id,\s*payroll_month_id\)/i);
+  assert.match(
+    sql,
+    /foreign key\s*\(latest_run_id,\s*id\)[\s\S]*references public\.payroll_calculation_runs\(id,\s*payroll_month_id\)/i
+  );
+});
+
+test('accounting comparison run must belong to the same payroll month', () => {
+  assert.match(
+    sql,
+    /foreign key\s*\(run_id,\s*payroll_month_id\)[\s\S]*references public\.payroll_calculation_runs\(id,\s*payroll_month_id\)/i
+  );
+});
+
+test('prototype records migration-promotion blockers instead of silently treating itself as executable-ready', () => {
+  assert.match(sql, /preventing overlapping employment-term date ranges/i);
+  assert.match(sql, /persist gross-pay previews as null while unresolved\/rate-review items remain/i);
+  assert.match(sql, /independently review payroll read\/write role mapping/i);
+});
+
 test('prototype does not smuggle in a new payroll role or executable month-lock RPC', () => {
   assert.doesNotMatch(sql, /create\s+(?:or\s+replace\s+)?function/i);
   assert.doesNotMatch(sql, /current_user_has_role\s*\(\s*'payroll/i);
