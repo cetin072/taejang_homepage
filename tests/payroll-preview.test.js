@@ -13,6 +13,7 @@ test('payroll preview loads only isolated payroll assets', () => {
   const html = read('app/payroll/index.html');
 
   assert.match(html, /payroll-operator\.css/);
+  assert.match(html, /payroll-output\.js/);
   assert.match(html, /payroll-operator-workflow\.js/);
   assert.match(html, /payroll-operator-preview\.js/);
   assert.match(html, /익명 UX PREVIEW/);
@@ -51,10 +52,26 @@ test('preview demonstrates adjusted gross only after incoming carryover is compl
   assert.match(preview, /incomingCarryoverStatus:\s*'complete'/);
 });
 
-test('general work-platform entry does not load payroll engine or preview assets', () => {
+test('locked preview exposes a read-only final summary instead of another finalization action', () => {
+  const html = read('app/payroll/index.html');
+  const preview = read('app/assets/payroll-operator-preview.js');
+  const workflow = read('app/assets/payroll-operator-workflow.js');
+
+  assert.match(html, /data-payroll-output/);
+  assert.match(html, /확정 요약/);
+  assert.match(html, /읽기 전용 산출물/);
+  assert.match(preview, /id:\s*'locked'/);
+  assert.match(preview, /label:\s*'5\. 확정 완료'/);
+  assert.match(preview, /buildLockedPayrollOutput/);
+  assert.match(preview, /view_locked_output/);
+  assert.match(workflow, /label:\s*'확정 요약 보기'/);
+});
+
+test('general work-platform entry does not load payroll engine, output or preview assets', () => {
   const appIndex = read('app/index.html');
 
   assert.doesNotMatch(appIndex, /payroll-engine\.js/);
+  assert.doesNotMatch(appIndex, /payroll-output\.js/);
   assert.doesNotMatch(appIndex, /payroll-operator-workflow\.js/);
   assert.doesNotMatch(appIndex, /payroll-operator-preview\.js/);
   assert.doesNotMatch(appIndex, /payroll-operator\.css/);
@@ -63,6 +80,7 @@ test('general work-platform entry does not load payroll engine or preview assets
 test('anonymous preview does not embed sensitive payroll or HR identifiers', () => {
   const files = [
     read('app/payroll/index.html'),
+    read('app/assets/payroll-output.js'),
     read('app/assets/payroll-operator-preview.js'),
     read('app/assets/payroll-operator-workflow.js'),
     read('app/assets/payroll-engine.js'),
