@@ -27,6 +27,7 @@ on:
       - 'tests/payroll-rate-guard.test.js'
       - 'tests/payroll-backend-contract.test.js'
       - 'tests/payroll-service.test.js'
+      - 'tests/payroll-repository-integrity.test.js'
       - 'tests/payroll-unresolved-total-guard.test.js'
       - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-term-validator.test.js'
@@ -67,6 +68,7 @@ jobs:
           tests/payroll-rate-guard.test.js
           tests/payroll-backend-contract.test.js
           tests/payroll-service.test.js
+          tests/payroll-repository-integrity.test.js
           tests/payroll-unresolved-total-guard.test.js
           tests/payroll-sheet-bridge.test.js
           tests/payroll-term-validator.test.js
