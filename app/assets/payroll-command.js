@@ -1,20 +1,23 @@
 (function initPayrollCommand(root, factory) {
   let preflight = root && root.TaejangPayrollPreflight;
   let carryover = root && root.TaejangPayrollCarryover;
+  let output = root && root.TaejangPayrollOutput;
   if (typeof module !== 'undefined' && module.exports) {
     preflight = require('./payroll-preflight.js');
     carryover = require('./payroll-carryover.js');
-    module.exports = factory(preflight, carryover);
+    output = require('./payroll-output.js');
+    module.exports = factory(preflight, carryover, output);
     return;
   }
   if (root) {
-    root.TaejangPayrollCommand = factory(preflight, carryover);
+    root.TaejangPayrollCommand = factory(preflight, carryover, output);
   }
-})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollCommandFactory(preflight, carryover) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollCommandFactory(preflight, carryover, output) {
   'use strict';
 
   if (!preflight) throw new Error('TaejangPayrollPreflight is required.');
   if (!carryover) throw new Error('TaejangPayrollCarryover is required.');
+  if (!output) throw new Error('TaejangPayrollOutput is required.');
 
   function assertService(service) {
     const required = [
@@ -137,6 +140,27 @@
 
     async function getMonth(month) {
       return payrollService.getPayrollMonthSnapshot(month);
+    }
+
+    async function getLockedOutput(month) {
+      try {
+        const snapshot = await payrollService.getPayrollMonthSnapshot(month);
+        return {
+          ok: true,
+          code: 'payroll_locked_output_ready',
+          output: output.buildLockedPayrollOutput(snapshot),
+        };
+      } catch (error) {
+        if (error && typeof error.code === 'string' && error.code.startsWith('payroll_output_')) {
+          return {
+            ok: false,
+            code: error.code,
+            message: error.operatorMessage || '확정 요약을 만들기 전에 급여 상태를 다시 확인해 주세요.',
+            blockers: error.blockers || [],
+          };
+        }
+        throw error;
+      }
     }
 
     async function saveAccountingComparison(input) {
@@ -367,6 +391,7 @@
     return Object.freeze({
       calculateProvisional,
       getMonth,
+      getLockedOutput,
       saveAccountingComparison,
       reconcileCarryover,
       reviewCarryover,
