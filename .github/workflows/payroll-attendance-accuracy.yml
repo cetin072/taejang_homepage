@@ -12,6 +12,7 @@ on:
       - 'app/assets/payroll-sheet-bridge.js'
       - 'app/assets/payroll-term-validator.js'
       - 'app/assets/payroll-preflight.js'
+      - 'app/assets/payroll-carryover.js'
       - 'app/assets/payroll-command.js'
       - 'app/assets/payroll-view-model.js'
       - 'app/assets/payroll-operator-workflow.js'
@@ -27,6 +28,7 @@ on:
       - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-term-validator.test.js'
       - 'tests/payroll-preflight.test.js'
+      - 'tests/payroll-carryover.test.js'
       - 'tests/payroll-command.test.js'
       - 'tests/payroll-view-model.test.js'
       - 'tests/payroll-operator-workflow.test.js'
@@ -62,6 +64,7 @@ jobs:
           tests/payroll-sheet-bridge.test.js
           tests/payroll-term-validator.test.js
           tests/payroll-preflight.test.js
+          tests/payroll-carryover.test.js
           tests/payroll-command.test.js
           tests/payroll-view-model.test.js
           tests/payroll-operator-workflow.test.js
