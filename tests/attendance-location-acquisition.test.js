@@ -65,3 +65,13 @@ test('attendance clients distinguish location, server, duplicate, and in-flight 
   assert.match(source, /MAX_ACCEPTABLE_ACCURACY_M = 80/);
   assert.match(source, /enableHighAccuracy: true/);
 });
+
+test('attendance exception retry count only tracks real location failures', () => {
+  for (const file of ['app/assets/worker-mobile-v1.js', 'app/assets/employee-common-home-v1.js']) {
+    const client = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    assert.match(client, /result\?\.code !== 'LOCATION_UNCERTAIN'\) attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
+    assert.match(client, /if \(stage === 'server'\) \{[\s\S]*attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
+    assert.match(client, /code === 'PERMISSION_DENIED'[\s\S]*attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
+    assert.match(client, /code === 'GEOLOCATION_UNAVAILABLE'[\s\S]*attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
+  }
+});
