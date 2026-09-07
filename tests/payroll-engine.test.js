@@ -194,24 +194,16 @@ test('confirmed manual correction overrides scheduled hours without using clock-
   assert.equal(day.payableHours, 2);
 });
 
-test('carryover adjustment records only differences between provisional and final day values', () => {
-  const adjustments = engine.buildCarryoverAdjustments({
-    employeeId: 'TJ-TEST-0001',
-    sourceMonth: '2026-09',
-    provisionalDayRows: [
-      { date: '2026-09-28', payableHours: 3 },
-      { date: '2026-09-29', payableHours: 3 },
-    ],
-    finalDayRows: [
-      { date: '2026-09-28', payableHours: 0 },
-      { date: '2026-09-29', payableHours: 3 },
-    ],
-  });
-
-  assert.equal(adjustments.length, 1);
-  assert.equal(adjustments[0].sourceDate, '2026-09-28');
-  assert.equal(adjustments[0].differenceHours, -3);
-  assert.equal(adjustments[0].status, 'pending_next_month');
+test('unsafe legacy carryover helper is disabled instead of converting unknown values to zero', () => {
+  assert.throws(
+    () => engine.buildCarryoverAdjustments({
+      employeeId: 'TJ-TEST-0001',
+      sourceMonth: '2026-09',
+      provisionalDayRows: [{ date: '2026-09-28', payableHours: 3 }],
+      finalDayRows: [{ date: '2026-09-28', payableHours: null }],
+    }),
+    (error) => error && error.code === 'unsafe_legacy_carryover_disabled'
+  );
 });
 
 test('month lock is blocked until important exceptions, accounting and carryover are cleared', () => {
