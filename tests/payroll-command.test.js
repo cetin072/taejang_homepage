@@ -94,6 +94,31 @@ function pendingAdjustment(overrides = {}) {
   };
 }
 
+function completeAccountingSnapshot(overrides = {}) {
+  return {
+    month: '2026-10',
+    latestRun: {
+      runId: 'RUN-1',
+      month: '2026-10',
+      summary: {
+        grossPayPreviewStatus: 'complete',
+        grossPayPreview: 100000,
+      },
+    },
+    payrollAmounts: {
+      baseGrossPay: 100000,
+      incomingAdjustmentStatus: 'none',
+      incomingAdjustmentCount: 0,
+      appliedAdjustmentAmount: 0,
+      grossPayWithAdjustments: 100000,
+    },
+    adjustments: [],
+    incomingAdjustments: [],
+    monthState: { month: '2026-10', status: 'provisional' },
+    ...overrides,
+  };
+}
+
 test('critical preflight issue blocks calculation service call and returns operator exceptions', async () => {
   const service = makeService();
   const command = commandApi.createPayrollCommand({ service });
@@ -120,6 +145,55 @@ test('clean preflight calls calculation service exactly once', async () => {
   assert.equal(result.ok, true);
   assert.equal(result.code, 'provisional_calculated');
   assert.equal(service.calls.filter(([name]) => name === 'calculate').length, 1);
+});
+
+test('confirmed accounting is blocked until incoming carryover is applied to adjusted gross', async () => {
+  const service = makeService();
+  service.getPayrollMonthSnapshot = async () => completeAccountingSnapshot({
+    payrollAmounts: {
+      baseGrossPay: 100000,
+      incomingAdjustmentStatus: 'review_required',
+      incomingAdjustmentCount: 1,
+      appliedAdjustmentAmount: null,
+      grossPayWithAdjustments: null,
+    },
+  });
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.saveAccountingComparison({
+    month: '2026-10',
+    confirmed: true,
+    differenceCount: 0,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'accounting_comparison_blocked');
+  assert.ok(result.blockers.includes('incoming_carryover_not_applied'));
+  assert.ok(result.blockers.includes('adjusted_gross_not_ready'));
+  assert.equal(service.calls.filter(([name]) => name === 'accounting').length, 0);
+});
+
+test('confirmed accounting proceeds only after adjusted gross is ready', async () => {
+  const service = makeService();
+  service.getPayrollMonthSnapshot = async () => completeAccountingSnapshot({
+    payrollAmounts: {
+      baseGrossPay: 100000,
+      incomingAdjustmentStatus: 'complete',
+      incomingAdjustmentCount: 1,
+      appliedAdjustmentAmount: -30960,
+      grossPayWithAdjustments: 69040,
+    },
+  });
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.saveAccountingComparison({
+    month: '2026-10',
+    confirmed: true,
+    differenceCount: 0,
+  });
+
+  assert.equal(result.confirmed, true);
+  assert.equal(service.calls.filter(([name]) => name === 'accounting').length, 1);
 });
 
 test('carryover command persists both day and weekly-holiday differences', async () => {
@@ -228,8 +302,50 @@ test('incoming carryover application never reaches service without explicit appr
   assert.equal(service.calls.filter(([name]) => name === 'apply-incoming').length, 0);
 });
 
-test('approved incoming carryover application is delegated exactly once', async () => {
+test('incoming carryover cannot consume adjustments from an unlocked source payroll month', async () => {
   const service = makeService();
+  service.getPayrollMonthSnapshot = async (month) => {
+    if (month === '2026-10') {
+      return {
+        month,
+        incomingAdjustments: [pendingAdjustment({ status: 'reviewed' })],
+        monthState: { month, status: 'provisional' },
+      };
+    }
+    if (month === '2026-09') {
+      return { month, monthState: { month, status: 'provisional' } };
+    }
+    return { month };
+  };
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.applyIncomingCarryover({
+    month: '2026-10',
+    approvedByUser: true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'carryover_source_month_not_locked');
+  assert.deepEqual(result.sourceMonths, ['2026-09']);
+  assert.equal(service.calls.filter(([name]) => name === 'apply-incoming').length, 0);
+});
+
+test('approved incoming carryover from a locked source month is delegated exactly once', async () => {
+  const service = makeService();
+  const originalGet = service.getPayrollMonthSnapshot;
+  service.getPayrollMonthSnapshot = async (month) => {
+    if (month === '2026-10') {
+      return {
+        month,
+        incomingAdjustments: [pendingAdjustment({ status: 'reviewed' })],
+        monthState: { month, status: 'provisional' },
+      };
+    }
+    if (month === '2026-09') {
+      return { month, monthState: { month, status: 'locked' } };
+    }
+    return originalGet(month);
+  };
   const command = commandApi.createPayrollCommand({ service });
 
   const result = await command.applyIncomingCarryover({
