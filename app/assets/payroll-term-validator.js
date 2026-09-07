@@ -10,6 +10,13 @@
   'use strict';
 
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  const CRITICAL_CODES = new Set([
+    'employment_term_employee_missing',
+    'employment_term_start_invalid',
+    'employment_term_end_invalid',
+    'employment_term_range_invalid',
+    'employment_term_overlap',
+  ]);
 
   function validDate(value) {
     if (!ISO_DATE.test(String(value || ''))) return false;
@@ -26,7 +33,7 @@
     return {
       code,
       employeeId: employeeId || null,
-      severity: code === 'employment_term_overlap' ? 'critical' : 'high',
+      severity: CRITICAL_CODES.has(code) ? 'critical' : 'high',
       ...detail,
     };
   }
