@@ -4,6 +4,7 @@
   const attempts = { clock_in: 0, clock_out: 0 };
   const lastFailure = { clock_in: null, clock_out: null };
   const lastPosition = { clock_in: null, clock_out: null };
+  const attendanceInFlight = { clock_in: false, clock_out: false };
   const app = () => window.TaejangApp;
   const context = () => app()?.getContext?.() || {};
   const route = () => app()?.getRoute?.();
@@ -107,21 +108,11 @@
   }
 
   function failureCode(error) {
+    if (typeof error?.code === 'string') return error.code;
     if (error?.code === 1) return 'PERMISSION_DENIED';
     if (error?.code === 2) return 'POSITION_UNAVAILABLE';
     if (error?.code === 3) return 'TIMEOUT';
     return 'POSITION_UNAVAILABLE';
-  }
-
-  function getPosition() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject({ code: 2 });
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0
-      });
-    });
   }
 
   function allowException(eventType, card) {
@@ -155,13 +146,20 @@
   }
 
   async function attemptAttendance(eventType, card) {
+    if (attendanceInFlight[eventType]) return;
+    attendanceInFlight[eventType] = true;
     const mainButton = card.querySelector('[data-attendance-action]');
     if (mainButton) mainButton.disabled = true;
     attempts[eventType] += 1;
-    setMessage(card, '현재 위치를 확인하고 있습니다.');
+    setMessage(card, '위치 확인을 시작합니다.');
+    let stage = 'location';
     try {
-      const position = await getPosition();
+      const position = await window.TaejangAttendanceLocation.getBestPosition({
+        onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
+      });
       lastPosition[eventType] = position;
+      stage = 'server';
+      setMessage(card, '서버에 출근·퇴근 기록을 확인하고 있습니다.');
       const result = await app().rpc('record_attendance_event', {
         p_event_type: eventType,
         p_latitude: position.coords.latitude,
@@ -171,9 +169,11 @@
       if (result?.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result?.code)) {
         attempts[eventType] = 0;
         lastFailure[eventType] = null;
+        if (result?.code === 'ALREADY_RECORDED') setMessage(card, '이미 등록된 기록이 있습니다. 기록 시간을 다시 확인합니다.', 'success');
         await loadAttendance();
         return;
       }
+      if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') {
         setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
       } else if (result?.code === 'OUTSIDE_GEOFENCE') {
@@ -184,19 +184,31 @@
         allowException(eventType, card);
       } else if (result?.code === 'CLOCK_IN_REQUIRED') {
         setMessage(card, '먼저 출근 처리가 완료되어야 합니다.', 'error');
+      } else if (result?.code === 'FORBIDDEN') {
+        setMessage(card, '현재 계정으로는 출퇴근을 등록할 수 없습니다. 다시 로그인한 뒤 확인해주세요.', 'error');
       } else {
-        setMessage(card, '출퇴근을 처리하지 못했습니다. 다시 시도해주세요.', 'error');
+        setMessage(card, '서버에서 출퇴근 기록을 처리하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
       }
     } catch (error) {
+      if (stage === 'server') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
+        return;
+      }
       const code = failureCode(error);
       lastFailure[eventType] = code;
       if (code === 'PERMISSION_DENIED') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
         setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
+      } else if (code === 'GEOLOCATION_UNAVAILABLE') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. 위치 기능을 지원하는 휴대폰 브라우저에서 다시 시도해주세요.', 'error');
       } else {
         setMessage(card, attempts[eventType] < 2 ? '위치를 확인하지 못했습니다. 다시 한 번 눌러주세요.' : '위치를 두 번 확인하지 못했습니다.', 'error');
         allowException(eventType, card);
       }
     } finally {
+      attendanceInFlight[eventType] = false;
       if (mainButton?.isConnected) mainButton.disabled = false;
     }
   }
