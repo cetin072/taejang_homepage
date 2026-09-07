@@ -26,6 +26,7 @@
     const computations = new Map();
     const monthStates = new Map();
     const adjustments = new Map();
+    const carryoverApplications = new Map();
     const accounting = new Map();
 
     Object.entries(initial.computations || {}).forEach(([month, runs]) => {
@@ -36,6 +37,9 @@
     });
     Object.entries(initial.adjustments || {}).forEach(([month, rows]) => {
       adjustments.set(normalizeMonth(month), clone(rows || []));
+    });
+    Object.entries(initial.carryoverApplications || {}).forEach(([month, rows]) => {
+      carryoverApplications.set(normalizeMonth(month), clone(rows || []));
     });
     Object.entries(initial.accounting || {}).forEach(([month, value]) => {
       accounting.set(normalizeMonth(month), clone(value));
@@ -94,6 +98,23 @@
         return rows;
       },
 
+      async saveCarryoverApplication(value) {
+        const targetMonth = normalizeMonth(value.targetMonth);
+        const current = carryoverApplications.get(targetMonth) || [];
+        const applicationId = String(value.applicationId || '').trim();
+        if (!applicationId) throw new Error('carryover applicationId is required.');
+        const existing = current.find((row) => row.applicationId === applicationId);
+        if (existing) return clone(existing);
+        const next = current.concat([clone(value)]);
+        carryoverApplications.set(targetMonth, next);
+        return clone(value);
+      },
+
+      async listCarryoverApplications(monthValue) {
+        const targetMonth = normalizeMonth(monthValue);
+        return clone(carryoverApplications.get(targetMonth) || []);
+      },
+
       async saveAccountingComparison(value) {
         const month = normalizeMonth(value.month);
         accounting.set(month, clone(value));
@@ -113,6 +134,7 @@
           computations: mapToObject(computations),
           monthStates: mapToObject(monthStates),
           adjustments: mapToObject(adjustments),
+          carryoverApplications: mapToObject(carryoverApplications),
           accounting: mapToObject(accounting),
         };
       },
@@ -128,6 +150,8 @@
       'replaceAdjustments',
       'listAdjustments',
       'listAdjustmentsTargeting',
+      'saveCarryoverApplication',
+      'listCarryoverApplications',
       'saveAccountingComparison',
       'getAccountingComparison',
     ];
