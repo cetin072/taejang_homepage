@@ -12,8 +12,8 @@
         month: '2026-09',
         import: { completed: false, rawRows: 0 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: false },
-        accounting: { confirmed: false, differenceCount: 0 },
+        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        accounting: { confirmed: false, stale: false, differenceCount: 0 },
         finalization: { allowed: false, blockers: ['attendance_not_imported'], locked: false },
       },
       exceptions: [],
@@ -25,8 +25,8 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 3 },
-        provisional: { ready: false },
-        accounting: { confirmed: false, differenceCount: 0 },
+        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        accounting: { confirmed: false, stale: false, differenceCount: 0 },
         finalization: { allowed: false, blockers: ['important_exceptions_unresolved'], locked: false },
       },
       exceptions: [
@@ -63,8 +63,8 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: false, grossPayPreview: null, unresolvedRateCount: 0 },
-        accounting: { confirmed: false, differenceCount: 0 },
+        provisional: { ready: false, grossPayPreview: null, grossPayPreviewStatus: null, unresolvedRateCount: 0 },
+        accounting: { confirmed: false, stale: false, differenceCount: 0 },
         finalization: { allowed: false, blockers: ['provisional_not_ready'], locked: false },
       },
       exceptions: [],
@@ -76,8 +76,13 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: true, grossPayPreview: 18240000, unresolvedRateCount: 0 },
-        accounting: { confirmed: false, differenceCount: 4 },
+        provisional: {
+          ready: true,
+          grossPayPreview: 18240000,
+          grossPayPreviewStatus: 'complete',
+          unresolvedRateCount: 0,
+        },
+        accounting: { confirmed: false, stale: false, differenceCount: 4 },
         finalization: { allowed: false, blockers: ['accounting_values_unconfirmed'], locked: false },
       },
       exceptions: [],
@@ -89,8 +94,13 @@
         month: '2026-09',
         import: { completed: true, rawRows: 483 },
         exceptions: { unresolvedImportant: 0 },
-        provisional: { ready: true, grossPayPreview: 18240000, unresolvedRateCount: 0 },
-        accounting: { confirmed: true, differenceCount: 0 },
+        provisional: {
+          ready: true,
+          grossPayPreview: 18240000,
+          grossPayPreviewStatus: 'complete',
+          unresolvedRateCount: 0,
+        },
+        accounting: { confirmed: true, stale: false, differenceCount: 0 },
         finalization: { allowed: true, blockers: [], locked: false },
       },
       exceptions: [],
@@ -100,9 +110,28 @@
   const state = { demoIndex: 1 };
 
   function money(value) {
+    if (value === null || value === undefined || value === '') return '—';
     const number = Number(value);
     if (!Number.isFinite(number)) return '—';
     return `${Math.round(number).toLocaleString('ko-KR')}원`;
+  }
+
+  function grossLabel(snapshot) {
+    const provisional = snapshot.provisional || {};
+    if (Number(provisional.unresolvedRateCount || 0) > 0 || provisional.grossPayPreviewStatus === 'review_required') {
+      return '조건 확인 필요';
+    }
+    if (provisional.ready !== true) return '계산 전';
+    return money(provisional.grossPayPreview);
+  }
+
+  function accountingLabel(snapshot) {
+    const accounting = snapshot.accounting || {};
+    const provisional = snapshot.provisional || {};
+    if (accounting.stale === true || accounting.status === 'stale') return '다시 대조';
+    if (accounting.confirmed === true) return '완료';
+    if (provisional.ready === true) return `${Number(accounting.differenceCount || 0)}명`;
+    return '대조 전';
   }
 
   function render() {
@@ -116,7 +145,7 @@
     const stepper = document.querySelector('[data-payroll-stepper]');
     if (stepper) {
       stepper.innerHTML = result.steps.map((step, index) => `
-        <article class="payroll-step" data-status="${step.status}">
+        <article class="payroll-step" data-status="${step.status}" ${step.id === result.currentStep ? 'aria-current="step"' : ''}>
           <span class="payroll-step-index">${index + 1}단계 · ${statusLabel(step.status)}</span>
           <strong>${escapeHtml(step.title)}</strong>
           <small>${escapeHtml(step.description)}</small>
@@ -126,8 +155,18 @@
 
     setText('[data-metric-import]', result.summary.rawRows ? `${result.summary.rawRows}건` : '대기');
     setText('[data-metric-exception]', `${result.summary.unresolvedImportant}건`);
-    setText('[data-metric-gross]', money(demo.snapshot.provisional && demo.snapshot.provisional.grossPayPreview));
-    setText('[data-metric-accounting]', `${result.summary.accountingDifferences}명`);
+    setText('[data-metric-gross]', grossLabel(demo.snapshot));
+    setText('[data-metric-accounting]', accountingLabel(demo.snapshot));
+
+    setMetricState('exception', result.summary.unresolvedImportant > 0 ? 'attention' : 'normal');
+    setMetricState(
+      'gross',
+      grossLabel(demo.snapshot) === '조건 확인 필요' ? 'attention' : 'normal'
+    );
+    setMetricState(
+      'accounting',
+      accountingLabel(demo.snapshot) === '다시 대조' ? 'attention' : 'normal'
+    );
 
     const alert = document.querySelector('[data-payroll-alert]');
     if (alert) {
@@ -135,7 +174,7 @@
       alert.innerHTML = `
         <div aria-hidden="true">●</div>
         <div>
-          <strong>지금 할 일: ${escapeHtml(current ? current.title : '급여관리')}</strong>
+          <strong>지금 할 일 · ${escapeHtml(current ? current.title : '급여관리')}</strong>
           <p>${escapeHtml(current ? current.description : '')}</p>
         </div>
       `;
@@ -153,7 +192,7 @@
               <button class="payroll-button secondary" type="button" data-demo-resolve="${escapeHtml(item.id)}">확인</button>
             </article>
           `).join('')
-        : '<div class="payroll-alert" style="background: var(--payroll-accent-soft); color: var(--payroll-accent);"><div>✓</div><div><strong>중요 예외 0건</strong><p>정상 데이터는 시스템이 처리하고 있습니다.</p></div></div>';
+        : '<div class="payroll-clear-state"><div class="payroll-clear-icon">✓</div><div><strong>확인 필요한 중요 항목 0건</strong><p>정상 데이터는 시스템이 처리하고 있습니다.</p></div></div>';
     }
 
     const primary = document.querySelector('[data-payroll-primary]');
@@ -164,9 +203,12 @@
 
     const demoControls = document.querySelector('[data-demo-controls]');
     if (demoControls) {
-      demoControls.innerHTML = demoSnapshots.map((item, index) => `
-        <button type="button" data-demo-index="${index}" aria-pressed="${index === state.demoIndex}">${escapeHtml(item.label)}</button>
-      `).join('');
+      demoControls.innerHTML = `
+        <p class="payroll-demo-label">Preview 단계 보기</p>
+        ${demoSnapshots.map((item, index) => `
+          <button type="button" data-demo-index="${index}" aria-pressed="${index === state.demoIndex}">${escapeHtml(item.label)}</button>
+        `).join('')}
+      `;
     }
   }
 
@@ -180,6 +222,11 @@
   function setText(selector, value) {
     const element = document.querySelector(selector);
     if (element) element.textContent = value;
+  }
+
+  function setMetricState(name, value) {
+    const element = document.querySelector(`[data-metric-card="${name}"]`);
+    if (element) element.dataset.state = value;
   }
 
   function escapeHtml(value) {
