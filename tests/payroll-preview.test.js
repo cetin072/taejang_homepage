@@ -23,6 +23,33 @@ test('payroll preview loads only isolated payroll assets', () => {
   assert.match(html, /확정/);
 });
 
+test('operator preview exposes a separate carryover breakdown instead of mixing prior-month adjustments into work hours', () => {
+  const html = read('app/payroll/index.html');
+  const preview = read('app/assets/payroll-operator-preview.js');
+
+  assert.match(html, /data-payroll-breakdown/);
+  assert.match(html, /data-payroll-base-gross/);
+  assert.match(html, /data-payroll-carryover/);
+  assert.match(html, /data-payroll-adjusted-gross/);
+  assert.match(html, /data-payroll-carryover-status/);
+  assert.match(html, /전월 조정은 이번 달 근로시간에 섞지 않고 별도 금액으로 반영/);
+
+  assert.match(preview, /incomingCarryoverStatus:\s*'review_required'/);
+  assert.match(preview, /incomingCarryoverStatus:\s*'complete'/);
+  assert.match(preview, /전월 조정 반영 필요/);
+  assert.match(preview, /반영 후 계산/);
+  assert.match(preview, /2건 반영 완료/);
+});
+
+test('preview demonstrates adjusted gross only after incoming carryover is complete', () => {
+  const preview = read('app/assets/payroll-operator-preview.js');
+
+  assert.match(preview, /baseGrossPay:\s*18240000/);
+  assert.match(preview, /carryoverAdjustmentAmount:\s*-61920/);
+  assert.match(preview, /grossPayPreview:\s*18178080/);
+  assert.match(preview, /incomingCarryoverStatus:\s*'complete'/);
+});
+
 test('general work-platform entry does not load payroll engine or preview assets', () => {
   const appIndex = read('app/index.html');
 
