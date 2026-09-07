@@ -43,6 +43,32 @@
     return `${year}-${String(monthNumber).padStart(2, '0')}`;
   }
 
+  function finiteAmount(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function incomingAccountingBlockers(snapshot) {
+    const blockers = [];
+    const latestRun = snapshot && snapshot.latestRun;
+    const amounts = snapshot && snapshot.payrollAmounts;
+
+    if (!latestRun || !latestRun.summary || latestRun.summary.grossPayPreviewStatus !== 'complete') {
+      blockers.push('base_payroll_incomplete');
+      return blockers;
+    }
+
+    if (!amounts) return blockers;
+    if (!['none', 'complete'].includes(amounts.incomingAdjustmentStatus)) {
+      blockers.push('incoming_carryover_not_applied');
+    }
+    if (finiteAmount(amounts.grossPayWithAdjustments) === null) {
+      blockers.push('adjusted_gross_not_ready');
+    }
+    return blockers;
+  }
+
   function createPayrollCommand({ service }) {
     const payrollService = assertService(service);
 
@@ -94,6 +120,18 @@
     }
 
     async function saveAccountingComparison(input) {
+      if (input && input.confirmed === true) {
+        const snapshot = await payrollService.getPayrollMonthSnapshot(input.month);
+        const blockers = incomingAccountingBlockers(snapshot);
+        if (blockers.length) {
+          return {
+            ok: false,
+            code: 'accounting_comparison_blocked',
+            message: '전월 조정까지 반영된 급여 가안을 만든 뒤 회계 대조를 확정해 주세요.',
+            blockers,
+          };
+        }
+      }
       return payrollService.saveAccountingComparison(input);
     }
 
@@ -218,6 +256,25 @@
         };
       }
 
+      const targetSnapshot = await payrollService.getPayrollMonthSnapshot(input.month);
+      const incoming = targetSnapshot && targetSnapshot.incomingAdjustments || [];
+      const sourceMonths = [...new Set(incoming.map((row) => row && row.sourceMonth).filter(Boolean))];
+      const unlockedSourceMonths = [];
+      for (const sourceMonth of sourceMonths) {
+        const sourceSnapshot = await payrollService.getPayrollMonthSnapshot(sourceMonth);
+        if (!sourceSnapshot || !sourceSnapshot.monthState || sourceSnapshot.monthState.status !== 'locked') {
+          unlockedSourceMonths.push(sourceMonth);
+        }
+      }
+      if (unlockedSourceMonths.length) {
+        return {
+          ok: false,
+          code: 'carryover_source_month_not_locked',
+          message: '전월 급여가 확정된 뒤에만 그 조정내역을 이번 달 급여에 반영할 수 있습니다.',
+          sourceMonths: unlockedSourceMonths,
+        };
+      }
+
       try {
         const result = await payrollService.applyIncomingCarryover(input);
         return {
@@ -289,6 +346,8 @@
   return Object.freeze({
     assertService,
     nextPayrollMonth,
+    finiteAmount,
+    incomingAccountingBlockers,
     createPayrollCommand,
   });
 });
