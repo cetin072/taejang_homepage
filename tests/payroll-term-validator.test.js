@@ -51,6 +51,26 @@ test('invalid date range is caught before payroll calculation', () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.counts.employment_term_range_invalid, 1);
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_range_invalid').severity, 'critical');
+});
+
+test('impossible calendar dates are critical rather than being normalized by JavaScript', () => {
+  const result = validator.validateEmploymentTerms([
+    term({ effectiveFrom: '2026-02-31' }),
+  ]);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.counts.employment_term_start_invalid, 1);
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_start_invalid').severity, 'critical');
+});
+
+test('term row without employee_id is critical because it cannot be safely associated', () => {
+  const result = validator.validateEmploymentTerms([
+    term({ employeeId: '' }),
+  ]);
+
+  assert.equal(result.counts.employment_term_employee_missing, 1);
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_employee_missing').severity, 'critical');
 });
 
 test('missing hourly rate is an explicit preflight issue', () => {
@@ -60,6 +80,7 @@ test('missing hourly rate is an explicit preflight issue', () => {
 
   assert.equal(result.ok, false);
   assert.equal(result.counts.employment_term_rate_missing, 1);
+  assert.equal(result.issues.find((item) => item.code === 'employment_term_rate_missing').severity, 'high');
 });
 
 test('validator output uses employee_id and dates only and does not need employee names', () => {
