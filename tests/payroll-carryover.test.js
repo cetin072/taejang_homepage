@@ -3,9 +3,11 @@ const assert = require('node:assert/strict');
 
 const carryover = require('../app/assets/payroll-carryover.js');
 
-function employeeResult({ dayHours = 3, weeklyHours = 3 } = {}) {
+function employeeResult({ dayHours = 3, weeklyHours = 3, rate = null, rateStatus = null } = {}) {
   return {
     employeeId: 'TJ-TEST-0001',
+    hourlyRate: rate,
+    rateStatus,
     dayRows: [
       { date: '2026-09-28', payableHours: dayHours },
     ],
@@ -36,6 +38,56 @@ test('post-cutoff absence creates both work-hour and weekly-holiday carryover ad
   assert.deepEqual(adjustments.map((row) => row.category).sort(), ['weekly_holiday', 'work_hours']);
   assert.equal(adjustments.find((row) => row.category === 'work_hours').differenceHours, -3);
   assert.equal(adjustments.find((row) => row.category === 'weekly_holiday').differenceHours, -3);
+  assert.ok(adjustments.every((row) => row.amountStatus === 'review_required'));
+  assert.ok(adjustments.every((row) => row.differenceAmount === null));
+});
+
+test('single authoritative source-month rate converts carryover hours into won amount', () => {
+  const provisional = employeeResult({
+    dayHours: 3,
+    weeklyHours: 3,
+    rate: 10320,
+    rateStatus: 'single_rate',
+  });
+  const final = employeeResult({
+    dayHours: 0,
+    weeklyHours: 0,
+    rate: 10320,
+    rateStatus: 'single_rate',
+  });
+
+  const adjustments = carryover.buildEmployeeCarryover({
+    employeeId: 'TJ-TEST-0001',
+    sourceMonth: '2026-09',
+    provisionalResult: provisional,
+    finalResult: final,
+  });
+
+  assert.equal(adjustments.length, 2);
+  assert.ok(adjustments.every((row) => row.amountStatus === 'ready'));
+  assert.ok(adjustments.every((row) => row.sourceHourlyRate === 10320));
+  assert.ok(adjustments.every((row) => row.differenceAmount === -30960));
+});
+
+test('changed or non-single source rate never guesses a carryover amount', () => {
+  const changedRate = carryover.buildEmployeeCarryover({
+    employeeId: 'TJ-TEST-0001',
+    sourceMonth: '2026-09',
+    provisionalResult: employeeResult({ rate: 10320, rateStatus: 'single_rate' }),
+    finalResult: employeeResult({ dayHours: 0, weeklyHours: 0, rate: 11000, rateStatus: 'single_rate' }),
+  });
+  const multiRate = carryover.buildEmployeeCarryover({
+    employeeId: 'TJ-TEST-0001',
+    sourceMonth: '2026-09',
+    provisionalResult: employeeResult({ rate: 10320, rateStatus: 'multiple_rates_review_required' }),
+    finalResult: employeeResult({ dayHours: 0, weeklyHours: 0, rate: 10320, rateStatus: 'multiple_rates_review_required' }),
+  });
+
+  for (const row of [...changedRate, ...multiRate]) {
+    assert.equal(row.amountStatus, 'review_required');
+    assert.equal(row.sourceHourlyRate, null);
+    assert.equal(row.differenceAmount, null);
+  }
 });
 
 test('unchanged final result creates no carryover noise', () => {
