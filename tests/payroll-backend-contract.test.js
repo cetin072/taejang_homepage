@@ -131,7 +131,7 @@ test('accounting confirmation must bind to exact current run and adjusted payrol
 test('carryover application retry is idempotent and cannot bind to an obsolete target run', () => {
   assert.match(concurrency, /source payroll month is locked/i);
   assert.match(concurrency, /target `latest_run_id` has not changed/i);
-  assert.match(concurrency, /\(adjustment_id, applied_run_id\) has not already been applied/i);
+  assert.match(concurrency, /`\(adjustment_id, applied_run_id\)` has not already been applied/i);
   assert.match(concurrency, /idempotent retry/i);
 });
 
