@@ -32,6 +32,7 @@ on:
       - 'tests/payroll-term-validator.test.js'
       - 'tests/payroll-preflight.test.js'
       - 'tests/payroll-carryover.test.js'
+      - 'tests/payroll-carryover-application.test.js'
       - 'tests/payroll-command.test.js'
       - 'tests/payroll-view-model.test.js'
       - 'tests/payroll-operator-workflow.test.js'
@@ -71,6 +72,7 @@ jobs:
           tests/payroll-term-validator.test.js
           tests/payroll-preflight.test.js
           tests/payroll-carryover.test.js
+          tests/payroll-carryover-application.test.js
           tests/payroll-command.test.js
           tests/payroll-view-model.test.js
           tests/payroll-operator-workflow.test.js
