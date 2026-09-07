@@ -8,12 +8,14 @@ on:
       - 'app/assets/payroll-engine.js'
       - 'app/assets/payroll-repository.js'
       - 'app/assets/payroll-service.js'
+      - 'app/assets/payroll-sheet-bridge.js'
       - 'app/assets/payroll-operator-workflow.js'
       - 'app/assets/payroll-operator-preview.js'
       - 'app/assets/payroll-operator.css'
       - 'tests/payroll-attendance-import.test.js'
       - 'tests/payroll-engine.test.js'
       - 'tests/payroll-service.test.js'
+      - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-operator-workflow.test.js'
       - 'tests/payroll-preview.test.js'
       - '.github/workflows/payroll-attendance-accuracy.yml'
@@ -36,4 +38,4 @@ jobs:
           node-version: '22'
 
       - name: Run anonymous payroll regression
-        run: node --test tests/payroll-attendance-import.test.js tests/payroll-engine.test.js tests/payroll-service.test.js tests/payroll-operator-workflow.test.js tests/payroll-preview.test.js
+        run: node --test tests/payroll-attendance-import.test.js tests/payroll-engine.test.js tests/payroll-service.test.js tests/payroll-sheet-bridge.test.js tests/payroll-operator-workflow.test.js tests/payroll-preview.test.js
