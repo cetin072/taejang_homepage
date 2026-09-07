@@ -29,6 +29,25 @@
     return error;
   }
 
+  function adjustmentIdentity(row) {
+    return {
+      adjustmentId: row && row.adjustmentId || null,
+      employeeId: row && row.employeeId || null,
+      sourceMonth: row && row.sourceMonth || null,
+      targetMonth: row && row.targetMonth || null,
+      sourceDate: row && row.sourceDate || null,
+      category: row && row.category || null,
+      beforeHours: row && row.beforeHours ?? null,
+      afterHours: row && row.afterHours ?? null,
+      differenceHours: row && row.differenceHours ?? null,
+      sourceHourlyRate: row && row.sourceHourlyRate ?? null,
+      differenceAmount: row && row.differenceAmount ?? null,
+      amountStatus: row && row.amountStatus || null,
+      status: row && row.status || null,
+      reason: row && row.reason || '',
+    };
+  }
+
   function createMemoryPayrollRepository(initial = {}) {
     const computations = new Map();
     const monthStates = new Map();
@@ -112,6 +131,28 @@
         return clone(safeRows);
       },
 
+      async saveAdjustment(value) {
+        const sourceMonth = normalizeMonth(value && value.sourceMonth);
+        const adjustmentId = String(value && value.adjustmentId || '').trim();
+        if (!adjustmentId) throw new Error('carryover adjustmentId is required.');
+
+        const current = adjustments.get(sourceMonth) || [];
+        const existing = current.find((row) => String(row && row.adjustmentId) === adjustmentId);
+        if (existing) {
+          if (JSON.stringify(adjustmentIdentity(existing)) === JSON.stringify(adjustmentIdentity(value))) {
+            return clone(existing);
+          }
+          const error = new Error(`carryover_adjustment_conflict:${adjustmentId}`);
+          error.code = 'carryover_adjustment_conflict';
+          error.adjustmentId = adjustmentId;
+          throw error;
+        }
+
+        const next = current.concat([clone(value)]);
+        adjustments.set(sourceMonth, next);
+        return clone(value);
+      },
+
       async listAdjustments(monthValue) {
         const month = normalizeMonth(monthValue);
         return clone(adjustments.get(month) || []);
@@ -189,6 +230,7 @@
       'saveMonthState',
       'getMonthState',
       'replaceAdjustments',
+      'saveAdjustment',
       'listAdjustments',
       'listAdjustmentsTargeting',
       'saveCarryoverApplication',
@@ -207,6 +249,7 @@
     clone,
     normalizeMonth,
     duplicateIdError,
+    adjustmentIdentity,
     createMemoryPayrollRepository,
     assertPayrollRepository,
   });
