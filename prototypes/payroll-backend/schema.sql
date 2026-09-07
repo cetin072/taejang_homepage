@@ -8,7 +8,8 @@
 -- 3) Heavy calculations are explicit commands; normal screens read persisted snapshots.
 -- 4) RLS starts fail-closed. This prototype intentionally defines no end-user policies.
 -- 5) Month lock, retroactive payment execution, and shared auth/RLS changes are approval gates.
--- 6) A payroll month may only point to calculation/accounting runs that belong to that same month.
+-- 6) A payroll month may only point to calculation/accounting/carryover-application runs that belong to that same month.
+-- 7) Prior-month adjustments remain immutable source facts; target-month application is a separate audited record.
 
 begin;
 
@@ -27,7 +28,7 @@ create table if not exists public.payroll_employment_terms (
   created_by uuid references public.profiles(id) on delete restrict,
   check (effective_to is null or effective_to >= effective_from),
   check (
-    (pay_type='hourly' and daily_scheduled_hours is not null and daily_scheduled_hours >= 0 and hourly_rate is not null and hourly_rate >= 0)
+    (pay_type='hourly' and daily_scheduled_hours is not null and daily_scheduled_hours >= 0 and hourly_rate is not null and hourly_rate > 0)
     or
     (pay_type='monthly' and monthly_salary is not null and monthly_salary >= 0)
   )
@@ -112,6 +113,7 @@ create table if not exists public.payroll_employee_results (
 
 create table if not exists public.payroll_adjustments (
   id uuid primary key default gen_random_uuid(),
+  adjustment_key text not null unique,
   employee_uuid uuid not null references public.employees(id) on delete restrict,
   source_month date not null check (date_trunc('month',source_month)::date=source_month),
   target_month date not null check (date_trunc('month',target_month)::date=target_month),
@@ -120,12 +122,44 @@ create table if not exists public.payroll_adjustments (
   before_hours numeric(10,2),
   after_hours numeric(10,2),
   difference_hours numeric(10,2),
+  source_hourly_rate numeric(12,2),
   difference_amount numeric(14,2),
+  amount_status text not null default 'review_required' check (amount_status in ('ready','review_required')),
   status text not null default 'pending_next_month' check (status in ('pending_next_month','reviewed','applied','cancelled')),
   reason text check (char_length(coalesce(reason,'')) <= 1000),
   created_at timestamptz not null default now(),
   reviewed_at timestamptz,
-  reviewed_by uuid references public.profiles(id) on delete restrict
+  reviewed_by uuid references public.profiles(id) on delete restrict,
+  check (
+    amount_status='review_required'
+    or (source_hourly_rate is not null and source_hourly_rate > 0 and difference_amount is not null)
+  )
+);
+
+-- Applying a reviewed source adjustment to a later payroll run is a new immutable audit fact.
+-- It does not rewrite the source adjustment and it does not become target-month work hours.
+create table if not exists public.payroll_carryover_applications (
+  id uuid primary key default gen_random_uuid(),
+  application_key text not null unique,
+  adjustment_id uuid not null references public.payroll_adjustments(id) on delete restrict,
+  employee_uuid uuid not null references public.employees(id) on delete restrict,
+  target_payroll_month_id uuid not null references public.payroll_months(id) on delete restrict,
+  applied_run_id uuid not null,
+  source_month date not null check (date_trunc('month',source_month)::date=source_month),
+  source_date date not null,
+  category text not null check (category in ('work_hours','weekly_holiday','paid_holiday','other_approved')),
+  difference_hours numeric(10,2),
+  source_hourly_rate numeric(12,2) not null check (source_hourly_rate > 0),
+  difference_amount numeric(14,2) not null,
+  status text not null default 'applied' check (status='applied'),
+  applied_at timestamptz not null,
+  approved_by uuid references public.profiles(id) on delete restrict,
+  approval_note text check (char_length(coalesce(approval_note,'')) <= 1000),
+  created_at timestamptz not null default now(),
+  unique (adjustment_id, applied_run_id),
+  foreign key (applied_run_id, target_payroll_month_id)
+    references public.payroll_calculation_runs(id, payroll_month_id)
+    on delete restrict
 );
 
 create table if not exists public.payroll_accounting_comparisons (
@@ -163,6 +197,7 @@ alter table public.payroll_months enable row level security;
 alter table public.payroll_calculation_runs enable row level security;
 alter table public.payroll_employee_results enable row level security;
 alter table public.payroll_adjustments enable row level security;
+alter table public.payroll_carryover_applications enable row level security;
 alter table public.payroll_accounting_comparisons enable row level security;
 alter table public.payroll_accounting_difference_rows enable row level security;
 
@@ -173,6 +208,7 @@ revoke all on
   public.payroll_calculation_runs,
   public.payroll_employee_results,
   public.payroll_adjustments,
+  public.payroll_carryover_applications,
   public.payroll_accounting_comparisons,
   public.payroll_accounting_difference_rows
 from public, anon, authenticated;
@@ -181,6 +217,8 @@ from public, anon, authenticated;
 -- - add transaction-safe DB enforcement preventing overlapping employment-term date ranges
 -- - ensure adapters persist gross-pay previews as null while unresolved/rate-review items remain
 -- - independently review payroll read/write role mapping and all RLS policies
+-- - enforce source payroll month locked before carryover application at the transaction boundary
+-- - bind confirmed accounting to the exact adjusted-payroll basis, including carryover applications
 -- - verify all cross-month carryover rules against approved business/payroll policy
 --
 -- Intentionally absent until separately reviewed/approved:
