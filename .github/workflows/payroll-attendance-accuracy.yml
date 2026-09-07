@@ -6,6 +6,7 @@ on:
       - 'docs/operations/PAYROLL_ATTENDANCE_IMPORT_APPS_SCRIPT.gs'
       - 'app/payroll/**'
       - 'app/assets/payroll-engine.js'
+      - 'app/assets/payroll-golden-compat.js'
       - 'app/assets/payroll-repository.js'
       - 'app/assets/payroll-service.js'
       - 'app/assets/payroll-sheet-bridge.js'
@@ -14,6 +15,7 @@ on:
       - 'app/assets/payroll-operator.css'
       - 'tests/payroll-attendance-import.test.js'
       - 'tests/payroll-engine.test.js'
+      - 'tests/payroll-golden-compat.test.js'
       - 'tests/payroll-service.test.js'
       - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-operator-workflow.test.js'
@@ -38,4 +40,12 @@ jobs:
           node-version: '22'
 
       - name: Run anonymous payroll regression
-        run: node --test tests/payroll-attendance-import.test.js tests/payroll-engine.test.js tests/payroll-service.test.js tests/payroll-sheet-bridge.test.js tests/payroll-operator-workflow.test.js tests/payroll-preview.test.js
+        run: >-
+          node --test
+          tests/payroll-attendance-import.test.js
+          tests/payroll-engine.test.js
+          tests/payroll-golden-compat.test.js
+          tests/payroll-service.test.js
+          tests/payroll-sheet-bridge.test.js
+          tests/payroll-operator-workflow.test.js
+          tests/payroll-preview.test.js
