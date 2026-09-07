@@ -63,14 +63,24 @@
     const exceptionCount = normalizeCount(snapshot.exceptions && snapshot.exceptions.unresolvedImportant);
     const unresolvedRateCount = normalizeCount(snapshot.provisional && snapshot.provisional.unresolvedRateCount);
     const grossPayPreviewStatus = snapshot.provisional && snapshot.provisional.grossPayPreviewStatus;
+    const baseReady = Boolean(snapshot.provisional && snapshot.provisional.baseReady);
+    const incomingCarryoverCount = normalizeCount(
+      snapshot.provisional && snapshot.provisional.incomingCarryoverCount
+    );
+    const incomingCarryoverStatus = snapshot.provisional
+      && snapshot.provisional.incomingCarryoverStatus || 'none';
+    const incomingCarryoverPending = incomingCarryoverCount > 0
+      && incomingCarryoverStatus !== 'complete';
     const provisionalCalculated = Boolean(snapshot.provisional && (
       snapshot.provisional.runId
       || snapshot.provisional.ready
+      || baseReady
       || unresolvedRateCount > 0
       || grossPayPreviewStatus === 'review_required'
     ));
     const provisionalReady = Boolean(snapshot.provisional && snapshot.provisional.ready)
       && unresolvedRateCount === 0
+      && !incomingCarryoverPending
       && grossPayPreviewStatus !== 'review_required';
     const accountingStale = Boolean(snapshot.accounting && (
       snapshot.accounting.stale === true || snapshot.accounting.status === 'stale'
@@ -111,10 +121,15 @@
 
     let provisionalStatus = StepStatus.BLOCKED;
     let provisionalDescription = '근태 예외 확인이 끝나면 급여 가안을 계산합니다.';
+    let provisionalPrimaryAction = null;
     if (imported && exceptionCount === 0) {
       if (provisionalCalculated && unresolvedRateCount > 0) {
         provisionalStatus = StepStatus.CURRENT;
         provisionalDescription = `시급 적용을 확인해야 하는 직원 ${unresolvedRateCount}명이 있습니다.`;
+      } else if (baseReady && incomingCarryoverPending) {
+        provisionalStatus = StepStatus.CURRENT;
+        provisionalDescription = `전월 이월조정 ${incomingCarryoverCount}건을 이번 달 급여 가안에 반영해야 합니다.`;
+        provisionalPrimaryAction = { id: 'apply_incoming_carryover', label: '전월 조정 반영' };
       } else if (provisionalCalculated && grossPayPreviewStatus === 'review_required') {
         provisionalStatus = StepStatus.CURRENT;
         provisionalDescription = '일부 직원의 급여조건 확인이 끝나야 회사 전체 가안 금액을 확정할 수 있습니다.';
@@ -131,9 +146,14 @@
       provisionalStatus,
       provisionalDescription,
       {
+        baseGrossPay: snapshot.provisional && snapshot.provisional.baseGrossPay,
+        carryoverAdjustmentAmount: snapshot.provisional && snapshot.provisional.carryoverAdjustmentAmount,
         grossPayPreview: snapshot.provisional && snapshot.provisional.grossPayPreview,
         grossPayPreviewStatus,
         unresolvedRateCount,
+        incomingCarryoverCount,
+        incomingCarryoverStatus,
+        primaryAction: provisionalPrimaryAction,
       }
     );
 
@@ -168,8 +188,8 @@
       finalizeDescription = '급여가 확정되어 잠금 상태입니다.';
     } else if (accountingConfirmed && pendingCarryoverCount > 0) {
       finalizeStatus = StepStatus.CURRENT;
-      finalizeDescription = `이월조정 ${pendingCarryoverCount}건을 확인하면 급여 확정으로 넘어갑니다.`;
-      finalizePrimaryAction = { id: 'review_carryover', label: '이월조정 확인' };
+      finalizeDescription = `이번 달 이후 반영할 이월조정 ${pendingCarryoverCount}건을 확인하면 급여 확정으로 넘어갑니다.`;
+      finalizePrimaryAction = { id: 'review_carryover', label: '다음달 이월조정 확인' };
     } else if (accountingConfirmed && lockAllowed) {
       finalizeStatus = StepStatus.CURRENT;
       finalizeDescription = '최종 확인 후 이번 달 급여를 확정할 수 있습니다.';
@@ -208,6 +228,8 @@
         rawRows: normalizeCount(snapshot.import && snapshot.import.rawRows),
         unresolvedImportant: exceptionCount,
         unresolvedRateCount,
+        incomingCarryoverCount,
+        incomingCarryoverStatus,
         pendingCarryoverCount,
         accountingDifferences: normalizeCount(snapshot.accounting && snapshot.accounting.differenceCount),
         accountingStale,
