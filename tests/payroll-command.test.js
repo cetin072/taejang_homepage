@@ -23,6 +23,15 @@ function makeService() {
       calls.push(['carryover', input]);
       return input.adjustments;
     },
+    async applyIncomingCarryover(input) {
+      calls.push(['apply-incoming', input]);
+      return {
+        month: input.month,
+        runId: 'RUN-1',
+        code: 'carryover_applied',
+        applicationCount: 1,
+      };
+    },
     async evaluateFinalization(month) {
       calls.push(['evaluate', month]);
       return { allowed: true, blockers: [] };
@@ -203,6 +212,57 @@ test('unknown carryover adjustment id fails closed without persistence', async (
   assert.equal(result.code, 'carryover_review_unknown_adjustment');
   assert.deepEqual(result.unknownAdjustmentIds, ['DOES-NOT-EXIST']);
   assert.equal(service.calls.filter(([name]) => name === 'carryover').length, 0);
+});
+
+test('incoming carryover application never reaches service without explicit approval', async () => {
+  const service = makeService();
+  const command = commandApi.createPayrollCommand({ service });
+
+  const denied = await command.applyIncomingCarryover({
+    month: '2026-10',
+    approvedByUser: false,
+  });
+
+  assert.equal(denied.ok, false);
+  assert.equal(denied.code, 'carryover_application_approval_required');
+  assert.equal(service.calls.filter(([name]) => name === 'apply-incoming').length, 0);
+});
+
+test('approved incoming carryover application is delegated exactly once', async () => {
+  const service = makeService();
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.applyIncomingCarryover({
+    month: '2026-10',
+    approvedByUser: true,
+    approvedBy: 'anonymous-operator',
+    approvalNote: 'regression only',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.code, 'carryover_applied');
+  assert.equal(result.result.applicationCount, 1);
+  assert.equal(service.calls.filter(([name]) => name === 'apply-incoming').length, 1);
+});
+
+test('incoming carryover blocker is translated into operator language', async () => {
+  const service = makeService();
+  service.applyIncomingCarryover = async () => {
+    const error = new Error('blocked');
+    error.code = 'carryover_application_blocked';
+    error.blockers = ['amount_not_ready:ADJ-1'];
+    throw error;
+  };
+  const command = commandApi.createPayrollCommand({ service });
+
+  const result = await command.applyIncomingCarryover({
+    month: '2026-10',
+    approvedByUser: true,
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.code, 'carryover_application_blocked');
+  assert.deepEqual(result.blockers, ['amount_not_ready:ADJ-1']);
 });
 
 test('explicit finalization approval remains visible at command boundary', async () => {
