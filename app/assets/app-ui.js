@@ -138,6 +138,7 @@
   const FEATURE_MODULES = [
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/pwa-install.js', 'pwa-install'],
+    ['assets/attendance-location.js', 'attendance-location'],
     ['assets/worker-mobile-v1.js', 'worker-mobile-v1'],
     ['assets/attendance-admin.js', 'attendance-admin'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
