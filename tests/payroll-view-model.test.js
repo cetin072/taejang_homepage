@@ -13,6 +13,7 @@ function serviceSnapshot(overrides = {}) {
       generatedAt: '2026-09-25T07:00:00.000Z',
       summary: {
         employeeCount: 22,
+        unresolvedItemCount: 0,
         rateReviewCount: 0,
         grossPayPreviewStatus: 'complete',
         grossPayPreview: 18240000,
@@ -84,8 +85,32 @@ test('rate review is not hidden inside generic attendance exception count', () =
 
   assert.equal(snapshot.exceptions.unresolvedImportant, 0);
   assert.equal(snapshot.provisional.unresolvedRateCount, 2);
+  assert.equal(snapshot.provisional.ready, false);
+  assert.equal(snapshot.provisional.grossPayPreview, null);
   assert.equal(operator.currentStep, workflow.StepId.PROVISIONAL);
   assert.match(operator.steps.find((step) => step.id === 'provisional').description, /2명/);
+});
+
+test('unresolved calculation days hide partial totals and send operator back to exception review', () => {
+  const backend = serviceSnapshot();
+  backend.latestRun.summary.unresolvedItemCount = 2;
+  backend.latestRun.summary.grossPayPreview = 18000000;
+  backend.latestRun.summary.payableHoursPreview = 1490;
+
+  const snapshot = viewModel.buildOperatorSnapshot({
+    importSummary: { completed: true, rawRows: 500 },
+    exceptionSummary: { unresolvedImportant: 0 },
+    serviceSnapshot: backend,
+    finalization: { allowed: false, blockers: ['important_exceptions_unresolved'] },
+  });
+  const operator = workflow.buildOperatorWorkflow(snapshot);
+
+  assert.equal(snapshot.exceptions.unresolvedImportant, 2);
+  assert.equal(snapshot.provisional.ready, false);
+  assert.equal(snapshot.provisional.grossPayPreview, null);
+  assert.equal(snapshot.provisional.payableHoursPreview, null);
+  assert.equal(snapshot.provisional.grossPayPreviewStatus, 'review_required');
+  assert.equal(operator.currentStep, workflow.StepId.EXCEPTIONS);
 });
 
 test('locked backend month maps to completed operator workflow', () => {
@@ -116,4 +141,19 @@ test('month list uses business statuses instead of backend status codes', () => 
 
   assert.equal(item.status, '회계 다시 대조');
   assert.doesNotMatch(item.status, /stale|provisional|locked/);
+});
+
+test('month list prioritizes unresolved payroll facts over a misleading accounting-ready state', () => {
+  const backend = serviceSnapshot({ accountingStatus: 'confirmed' });
+  backend.latestRun.summary.unresolvedItemCount = 1;
+
+  const item = viewModel.buildMonthListItem({
+    month: '2026-09',
+    importSummary: { completed: true, rawRows: 483 },
+    exceptionSummary: { unresolvedImportant: 0 },
+    serviceSnapshot: backend,
+  });
+
+  assert.equal(item.status, '예외 확인');
+  assert.equal(item.unresolvedImportant, 1);
 });
