@@ -356,23 +356,25 @@
       const context = await app().rpc('get_employee_management_context'); currentContext = context;
       const shell = el('section', null, 'employee-management');
       const intro = el('header', null, 'dashboard-intro');
-      intro.append(el('p', context.access_level === 'operations_manager' ? '운영총괄 직원관리' : '내 팀 직원관리', 'eyebrow'), el('h2', context.access_level === 'operations_manager' ? '직원 관리' : '팀 직원 관리'));
-      intro.append(el('p', context.access_level === 'operations_manager' ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
+      const isOps = context.access_level === 'operations_manager';
+      const isGlobalPromotionLead = context.access_level === 'promotion_lead_global';
+      intro.append(el('p', isOps ? '운영총괄 직원관리' : isGlobalPromotionLead ? '운영팀장 전사 직원등록' : '내 팀 직원관리', 'eyebrow'), el('h2', isOps || isGlobalPromotionLead ? '직원 관리' : '팀 직원 관리'));
+      intro.append(el('p', isOps ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : isGlobalPromotionLead ? '모든 부서·팀 또는 미배정 신규 직원을 직접 등록할 수 있습니다. 직원번호는 서버가 발급하며, 삭제는 운영총괄만 할 수 있습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
       shell.append(intro, employeeViewTabs(context));
 
       if (activeEmployeeView === 'new') {
         const createSection = el('section', null, 'dashboard-section');
-        createSection.append(el('h2', context.access_level === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청'));
-        createSection.append(el('p', context.access_level === 'operations_manager'
+        createSection.append(el('h2', isOps || isGlobalPromotionLead ? '신규 직원 등록' : '신규 직원 등록 요청'));
+        createSection.append(el('p', isOps || isGlobalPromotionLead
           ? '신규 직원을 직원 마스터에 등록합니다.'
           : '운영총괄 승인 후 직원 마스터에 등록됩니다. 본인과 같거나 높은 직책은 선택할 수 없습니다.', 'help'));
-        createSection.append(makeEmployeeForm(context, null, context.access_level !== 'operations_manager'));
+        createSection.append(makeEmployeeForm(context, null, !(isOps || isGlobalPromotionLead)));
         shell.append(createSection);
         target.replaceChildren(shell);
         return;
       }
 
-      if (context.access_level === 'operations_manager') {
+      if (isOps) {
         const requests = arr(context.change_requests);
         const review = el('section', null, 'dashboard-section'); review.append(el('h2', `팀장 요청 ${requests.length ? `· ${requests.length}건` : ''}`));
         const grid = el('div', null, 'employee-request-grid');
@@ -394,7 +396,7 @@
       }
 
       const listSection = el('section', null, 'dashboard-section');
-      const toolbar = el('div', null, 'employee-toolbar'); toolbar.append(el('h2', context.access_level === 'operations_manager' ? '전체 직원' : '내 팀 직원'));
+      const toolbar = el('div', null, 'employee-toolbar'); toolbar.append(el('h2', isOps || isGlobalPromotionLead ? '전체 직원' : '내 팀 직원'));
       const search = input('search'); search.placeholder = '직원번호 또는 이름 검색'; toolbar.append(search); listSection.append(toolbar);
       const grid = el('div', null, 'employee-grid');
       const employees = arr(context.employees);
