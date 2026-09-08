@@ -63,33 +63,29 @@ async function rpc(name, token, parameters = {}) {
 }
 
 const admin = await signUp('attendance-admin@example.test', '근태 테스트 운영총괄');
-// The Phase 1A integration script runs immediately before this test in the same
-// local database and has already consumed the one-time super-admin bootstrap.
-// This test only needs an isolated operations-manager fixture, so seed that
-// narrow test authority directly instead of attempting a second bootstrap.
 sql(`update public.profiles
      set account_status='active', status_changed_at=now(), status_changed_by='${admin.id}'::uuid
      where id='${admin.id}'::uuid`);
 sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
      select '${admin.id}'::uuid, r.id, 'company'::public.role_scope_type, '${admin.id}'::uuid
      from public.roles r where r.code='operations_manager'`);
-equal(sql(`select public.current_profile_is_active()::text from public.profiles where id='${admin.id}'::uuid limit 1`), 'f', 'database fixture does not rely on request auth context');
+equal(sql(`select public.current_profile_is_active()::text from public.profiles where id='${admin.id}'::uuid limit 1`), 'false', 'database fixture does not rely on request auth context');
 equal(sql(`select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='${admin.id}'::uuid and pr.revoked_at is null and r.code='operations_manager'`), '1', 'test admin receives one operations-manager role assignment');
 
 const departmentResult = await api('/rest/v1/departments?select=id&code=eq.operations', { token: admin.token });
-const positionResult = await api('/rest/v1/positions?select=id&code=eq.staff', { token: admin.token });
+const positionsResult = await api('/rest/v1/positions?select=id,code&code=in.(staff,operations_manager,ceo)', { token: admin.token });
 check(departmentResult.ok && departmentResult.data?.[0]?.id, 'resolve attendance test department');
-check(positionResult.ok && positionResult.data?.[0]?.id, 'resolve attendance test position');
+check(positionsResult.ok && positionsResult.data?.length >= 3, 'resolve attendance test positions');
 const departmentId = departmentResult.data[0].id;
-const positionId = positionResult.data[0].id;
+const positions = Object.fromEntries(positionsResult.data.map(row => [row.code, row.id]));
 
-async function createLinkedEmployee({ email, name, role, attendanceRequired }) {
+async function createLinkedEmployee({ email, name, role, attendanceRequired, positionCode = 'staff' }) {
   const account = await signUp(email, name);
   const employee = await rpc('create_employee', admin.token, {
     p_full_name: name,
     p_hired_on: '2026-09-08',
     p_department_id: departmentId,
-    p_position_id: positionId,
+    p_position_id: positions[positionCode],
     p_attendance_required: attendanceRequired,
   });
   equal(employee.data?.code, 'EMPLOYEE_CREATED', `create Employee for ${name}`);
@@ -103,7 +99,6 @@ async function createLinkedEmployee({ email, name, role, attendanceRequired }) {
   return { ...account, employeeUuid: employee.data.employee_uuid, employeeId: employee.data.employee_id };
 }
 
-// Make the test independent of the day of week on which CI happens to run.
 sql(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason,updated_by,updated_at)
      values ((now() at time zone 'Asia/Seoul')::date,true,'CI 강제 근무일','${admin.id}'::uuid,now())
      on conflict(work_date) do update set is_workday=true,reason='CI 강제 근무일',updated_by='${admin.id}'::uuid,updated_at=now()`);
@@ -149,10 +144,22 @@ const noAttendanceRecord = await rpc('record_attendance_event', noAttendance.tok
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
 equal(noAttendanceRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false account cannot record attendance even with valid GPS');
-const noAttendanceException = await rpc('request_attendance_exception', noAttendance.token, {
-  p_event_type: 'clock_in', p_failure_code: 'POSITION_UNAVAILABLE',
+
+const executive = await createLinkedEmployee({
+  email: 'attendance-executive@example.test', name: '근태 제외 운영총괄', role: 'operations_manager', attendanceRequired: true, positionCode: 'operations_manager',
 });
-equal(noAttendanceException.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false account cannot create an attendance exception');
+const executiveToday = await rpc('get_my_attendance_today', executive.token, {});
+equal(executiveToday.data?.attendance_required, false, 'operations manager is excluded from personal attendance even when attendance_required is true');
+const executiveRecord = await rpc('record_attendance_event', executive.token, {
+  p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
+});
+equal(executiveRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'operations manager cannot create personal attendance records');
+
+const ceo = await createLinkedEmployee({
+  email: 'attendance-ceo@example.test', name: '근태 제외 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
+});
+const ceoToday = await rpc('get_my_attendance_today', ceo.token, {});
+equal(ceoToday.data?.attendance_required, false, 'CEO is excluded from personal attendance even when attendance_required is true');
 
 const worker = await createLinkedEmployee({
   email: 'attendance-worker@example.test', name: '근태 대상 직원', role: 'general_worker', attendanceRequired: true,
@@ -171,9 +178,66 @@ const validRecord = await rpc('record_attendance_event', worker.token, {
 equal(validRecord.data?.code, 'ATTENDANCE_RECORDED', 'eligible Employee records attendance with valid office GPS');
 check(validRecord.data?.event_at, 'attendance record uses server-generated event time');
 
+const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
+const correctedClockIn = `${workDate}T08:55:00+09:00`;
+const correction = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: correctedClockIn,
+  p_reason: '현장 확인 후 출근시간 정정',
+});
+equal(correction.data?.code, 'ATTENDANCE_CORRECTED', 'operations manager can append a correction without rewriting the raw GPS event');
+equal(correction.data?.effective?.status, 'corrected', 'latest correction becomes the effective attendance value');
+equal(sql(`select count(*) from public.attendance_events where profile_id='${worker.id}'::uuid and work_date='${workDate}'::date and event_type='clock_in'`), '1', 'raw GPS event remains present after correction');
+equal(sql(`select count(*) from public.attendance_corrections where employee_uuid='${worker.employeeUuid}'::uuid and work_date='${workDate}'::date and event_type='clock_in'`), '1', 'correction is stored as a separate append-only ledger row');
+
+const backfillOut = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_out',
+  p_action: 'set_time',
+  p_corrected_event_at: `${workDate}T18:05:00+09:00`,
+  p_reason: '퇴근 누락 확인 후 관리자 보정',
+});
+equal(backfillOut.data?.code, 'ATTENDANCE_CORRECTED', 'operations manager can backfill a missing clock-out after an effective clock-in exists');
+
+const invalidateOut = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_out',
+  p_action: 'invalidate',
+  p_corrected_event_at: null,
+  p_reason: '잘못 추가된 퇴근시간 무효 처리',
+});
+equal(invalidateOut.data?.code, 'ATTENDANCE_CORRECTED', 'operations manager can invalidate an effective correction by appending another ledger row');
+equal(invalidateOut.data?.effective?.status, 'correction_invalidated', 'latest invalidation is reflected without deleting prior correction history');
+equal(sql(`select count(*) from public.attendance_corrections where employee_uuid='${worker.employeeUuid}'::uuid and work_date='${workDate}'::date and event_type='clock_out'`), '2', 'backfill and invalidation remain in immutable history');
+
+const leadCorrection = await rpc('create_attendance_correction', lead.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: `${workDate}T09:00:00+09:00`,
+  p_reason: '권한 차단 검증을 위한 시도',
+});
+equal(leadCorrection.data?.code, 'FORBIDDEN', 'promotion lead cannot manually alter payroll-relevant attendance times');
+
+const executiveCorrection = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: executive.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: `${workDate}T09:00:00+09:00`,
+  p_reason: '임원 근태 제외 정책 검증',
+});
+equal(executiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'excluded operations manager cannot receive manual attendance corrections');
+
 const unlinkedEmployee = await rpc('create_employee', admin.token, {
   p_full_name: '계정 미연결 근태 대상', p_hired_on: '2026-09-08',
-  p_department_id: departmentId, p_position_id: positionId, p_attendance_required: true,
+  p_department_id: departmentId, p_position_id: positions.staff, p_attendance_required: true,
 });
 equal(unlinkedEmployee.data?.code, 'EMPLOYEE_CREATED', 'create unlinked attendance-required Employee');
 
@@ -183,7 +247,11 @@ const unlinkedRow = adminRoster.data.rows.find(row => row.employee_uuid === unli
 check(Boolean(unlinkedRow), 'attendance roster includes attendance-required Employee before account linking');
 equal(unlinkedRow?.account_linked, false, 'unlinked attendance-required Employee is explicitly marked as not linked');
 check(!adminRoster.data.rows.some(row => row.employee_uuid === noAttendance.employeeUuid), 'attendance roster excludes attendance_required=false Employee');
-check(adminRoster.data.rows.some(row => row.employee_uuid === worker.employeeUuid), 'attendance roster includes active attendance-required Employee');
+check(!adminRoster.data.rows.some(row => row.employee_uuid === executive.employeeUuid), 'attendance roster excludes operations manager');
+check(!adminRoster.data.rows.some(row => row.employee_uuid === ceo.employeeUuid), 'attendance roster excludes CEO');
+const workerRow = adminRoster.data.rows.find(row => row.employee_uuid === worker.employeeUuid);
+equal(workerRow?.clock_in?.status, 'corrected', 'admin roster shows corrected effective clock-in');
+equal(workerRow?.clock_out?.status, 'correction_invalidated', 'admin roster shows latest invalidated clock-out state');
 
 const archiveTarget = await createLinkedEmployee({
   email: 'attendance-archive@example.test', name: '근태 퇴사 테스트 직원', role: 'general_worker', attendanceRequired: true,
