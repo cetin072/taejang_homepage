@@ -63,13 +63,18 @@ async function rpc(name, token, parameters = {}) {
 }
 
 const admin = await signUp('attendance-admin@example.test', '근태 테스트 운영총괄');
-equal(sql(`select public.bootstrap_super_admin('${admin.id}'::uuid)->>'code'`), 'SUPER_ADMIN_BOOTSTRAPPED', 'bootstrap test super admin');
-const adminRoles = await rpc('set_profile_roles', admin.token, {
-  p_target_profile_id: admin.id,
-  p_role_codes: ['super_admin', 'operations_manager'],
-  p_reason_summary: '근태 통합테스트 운영총괄 권한',
-});
-equal(adminRoles.data?.code, 'ROLES_CHANGED', 'test admin receives operations-manager authority');
+// The Phase 1A integration script runs immediately before this test in the same
+// local database and has already consumed the one-time super-admin bootstrap.
+// This test only needs an isolated operations-manager fixture, so seed that
+// narrow test authority directly instead of attempting a second bootstrap.
+sql(`update public.profiles
+     set account_status='active', status_changed_at=now(), status_changed_by='${admin.id}'::uuid
+     where id='${admin.id}'::uuid`);
+sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
+     select '${admin.id}'::uuid, r.id, 'company'::public.role_scope_type, '${admin.id}'::uuid
+     from public.roles r where r.code='operations_manager'`);
+equal(sql(`select public.current_profile_is_active()::text from public.profiles where id='${admin.id}'::uuid limit 1`), 'f', 'database fixture does not rely on request auth context');
+equal(sql(`select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='${admin.id}'::uuid and pr.revoked_at is null and r.code='operations_manager'`), '1', 'test admin receives one operations-manager role assignment');
 
 const departmentResult = await api('/rest/v1/departments?select=id&code=eq.operations', { token: admin.token });
 const positionResult = await api('/rest/v1/positions?select=id&code=eq.staff', { token: admin.token });
