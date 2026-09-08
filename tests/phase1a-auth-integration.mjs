@@ -170,6 +170,103 @@ const approval = await rpc('approve_pending_user', admin.token, {
 check(approval.ok, `approval RPC failed: ${JSON.stringify(approval.data)}`);
 equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pending account and assigns roles');
 
+const promotionDepartment = await api('/rest/v1/departments?select=id&code=eq.promotion', { token: admin.token });
+check(promotionDepartment.ok && promotionDepartment.data?.[0]?.id, 'highest authority can resolve the promotion department');
+const lead = await signUp('phase1a-promotion-lead@example.test', '테스트 운영팀장');
+const approveLead = await rpc('approve_pending_user', admin.token, {
+  p_target_profile_id: lead.id,
+  p_department_id: promotionDepartment.data[0].id,
+  p_position_id: position.data[0].id,
+  p_role_codes: ['promotion_lead'],
+  p_reason_summary: 'CI 운영팀장 계정 승인',
+});
+equal(approveLead.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a promotion-lead account');
+
+const leadCrossDepartmentEmployee = await rpc('create_employee', lead.token, {
+  p_full_name: 'CI 운영팀장 타부서 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: department.data[0].id,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(leadCrossDepartmentEmployee.data?.code, 'EMPLOYEE_CREATED', 'promotion lead can directly create an Employee outside its own department');
+const leadUnassignedEmployee = await rpc('create_employee', lead.token, {
+  p_full_name: 'CI 운영팀장 미배정 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: null,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(leadUnassignedEmployee.data?.code, 'EMPLOYEE_CREATED', 'promotion lead can directly create an unassigned Employee');
+const leadArchiveAttempt = await rpc('archive_employee', lead.token, {
+  p_employee_uuid: leadUnassignedEmployee.data?.employee_uuid,
+  p_reason: 'CI 운영팀장 삭제 차단 확인',
+});
+check(!leadArchiveAttempt.ok, 'promotion lead cannot perform final Employee archive');
+
+const ordinaryHomepageRequest = await rpc('create_homepage_slot_change_request', worker.token, {
+  p_slot_key: 'home.hero.title', p_proposed_text: '권한 없는 변경', p_reason: 'CI 일반직원 차단',
+});
+check(!ordinaryHomepageRequest.ok, 'ordinary worker cannot create a homepage slot request');
+const homepageRequest = await rpc('create_homepage_slot_change_request', lead.token, {
+  p_slot_key: 'home.hero.title', p_current_summary: '기존 제목', p_proposed_text: 'CI 승인된 홈페이지 제목', p_reason: 'CI 운영팀장 홈페이지 변경',
+});
+check(homepageRequest.ok && homepageRequest.data?.request_id, 'promotion lead creates an allow-listed homepage slot request');
+equal(sql("select count(*) from public.homepage_live_overrides where slot_key = 'home.hero.title'"), '0', 'homepage remains unchanged before operations approval');
+const homepageApproval = await rpc('review_homepage_change_request', admin.token, {
+  p_request_id: homepageRequest.data.request_id, p_action: 'approve', p_comment: 'CI 승인',
+});
+equal(homepageApproval.data?.status, 'approved', 'operations manager approves the homepage slot request');
+equal(sql("select text_value from public.homepage_live_overrides where slot_key = 'home.hero.title'"), 'CI 승인된 홈페이지 제목', 'homepage approval writes the canonical live override source');
+
+const linkedUser = await signUp('phase1a-linked-employee@example.test', '테스트 연결 직원');
+const approveLinkedUser = await rpc('approve_pending_user', admin.token, {
+  p_target_profile_id: linkedUser.id,
+  p_department_id: department.data[0].id,
+  p_position_id: position.data[0].id,
+  p_role_codes: ['office_staff'],
+  p_reason_summary: 'CI 연결 Employee 승인',
+});
+equal(approveLinkedUser.data?.code, 'ACCOUNT_APPROVED', 'operations manager creates a linked Employee account for archive verification');
+const linkedEmployeeId = sql(`select employee.id from public.employees employee join public.account_person_links account_link on account_link.person_id = employee.person_id where account_link.profile_id = '${linkedUser.id}'::uuid and account_link.revoked_at is null`);
+assertUuid(linkedEmployeeId, 'linked Employee UUID');
+const archiveLinkedEmployee = await rpc('archive_employee', admin.token, {
+  p_employee_uuid: linkedEmployeeId,
+  p_reason: 'CI linked Employee recoverable archive',
+});
+equal(archiveLinkedEmployee.data?.code, 'EMPLOYEE_DELETED', 'operations manager archives a linked Employee without a lint-time ambiguity');
+equal(sql(`select account_status::text from public.profiles where id = '${linkedUser.id}'::uuid`), 'deleted', 'linked Employee archive blocks the linked account');
+equal(sql(`select count(*) from public.account_person_links where profile_id = '${linkedUser.id}'::uuid and revoked_at is null`), '0', 'linked Employee archive revokes the active account link');
+
+const maturePromotion = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-final-deletion', p_title: 'CI 최종 삭제 요청 글',
+  p_summary: 'CI', p_public_body: 'CI deletion behavior verification', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
+});
+equal(maturePromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a promotion item for final deletion verification');
+sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() - interval '25 hours' where id = '${maturePromotion.data.content_id}'::uuid`);
+const deletionRequest = await rpc('request_promotion_deletion', lead.token, {
+  p_content_id: maturePromotion.data.content_id, p_reason: 'CI 운영팀장 삭제 요청',
+});
+equal(deletionRequest.data?.code, 'PROMOTION_DELETION_REQUESTED', 'promotion lead can request deletion after the server-side 24-hour threshold');
+const finalPromotionDelete = await rpc('delete_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_confirm_title: 'CI 최종 삭제 요청 글', p_reason: 'CI 운영총괄 최종 처리',
+});
+equal(finalPromotionDelete.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager finalizes a pending promotion deletion request without ambiguity');
+equal(sql(`select status from public.promotion_deletion_requests where content_id = '${maturePromotion.data.content_id}'::uuid`), 'deleted', 'final promotion archive records the pending deletion request as deleted');
+
+const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',
+  p_summary: 'CI', p_public_body: 'CI deletion eligibility verification', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
+});
+equal(freshPromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a fresh promotion item for eligibility verification');
+sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() where id = '${freshPromotion.data.content_id}'::uuid`);
+const leadPublicationContext = await rpc('get_promotion_publication_admin', lead.token, {});
+const freshPublicationItem = leadPublicationContext.data?.items?.find(item => item.content_id === freshPromotion.data.content_id);
+equal(freshPublicationItem?.can_request_delete, false, 'server publication context marks a fresh post as ineligible for deletion request');
+check(freshPublicationItem?.delete_request_eligible_at, 'server publication context provides the future deletion-request time');
+
 const linkWorker = await rpc('link_employee_account', admin.token, {
   p_employee_uuid: unassignedEmployee.data.employee_uuid,
   p_profile_id: worker.id,

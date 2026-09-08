@@ -396,7 +396,7 @@
       }
 
       const listSection = el('section', null, 'dashboard-section');
-      const toolbar = el('div', null, 'employee-toolbar'); toolbar.append(el('h2', isOps || isGlobalPromotionLead ? '전체 직원' : '내 팀 직원'));
+      const toolbar = el('div', null, 'employee-toolbar'); toolbar.append(el('h2', isOps ? '전체 직원' : (isGlobalPromotionLead ? '조회 가능한 직원' : '내 팀 직원')));
       const search = input('search'); search.placeholder = '직원번호 또는 이름 검색'; toolbar.append(search); listSection.append(toolbar);
       const grid = el('div', null, 'employee-grid');
       const employees = arr(context.employees);
