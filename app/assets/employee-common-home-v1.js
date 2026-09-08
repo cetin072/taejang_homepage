@@ -3,9 +3,10 @@
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
   const PROMOTION_EMPLOYEE_ROLES = new Set(['promotion_staff', 'promotion_lead']);
-  const ALL_EMPLOYEE_HOME_ROLES = new Set(['general_worker', 'promotion_staff', 'promotion_lead']);
+  const ALL_EMPLOYEE_HOME_ROLES = new Set(['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager']);
   const ROLE_LABELS = {
     general_worker: '일반직원',
+    operations_manager: '운영총괄',
     promotion_staff: '홍보직원',
     promotion_lead: '운영팀장'
   };
@@ -124,13 +125,14 @@
   }
 
   function showEmployeeHome() {
-    const home = document.getElementById('employee-common-home');
+    const home = buildHome();
     const shell = document.getElementById('desktop-app-shell');
     if (!home || !shell) return;
     shell.hidden = true;
     home.hidden = false;
     document.body.classList.add('employee-home-mode');
     home.scrollIntoView({ block: 'start' });
+    void Promise.all([loadAttendance(), loadNotices()]);
   }
 
   function showRoleDashboard() {
@@ -181,11 +183,13 @@
     const work = node('section', null, 'employee-card');
     work.append(node('h2', '내 업무'));
     const currentRoute = route();
-    const copy = currentRoute === 'promotion_lead'
+    const copy = currentRoute === 'operations_manager'
+      ? '출퇴근과 공지를 확인한 뒤 운영 업무 화면으로 돌아갈 수 있습니다.'
+      : currentRoute === 'promotion_lead'
       ? '홍보 검토와 출근부 관리가 필요할 때 업무 화면을 여세요.'
       : '홍보자료를 작성하거나 보완 요청을 확인할 때 업무 화면을 여세요.';
     work.append(node('p', copy));
-    const workButton = node('button', currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
+    const workButton = node('button', currentRoute === 'operations_manager' || currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
     workButton.type = 'button';
     workButton.addEventListener('click', showRoleDashboard);
     work.append(workButton);
@@ -429,12 +433,13 @@
       return;
     }
     if (PROMOTION_EMPLOYEE_ROLES.has(currentRoute)) startPromotionEmployeeHome();
+    else if (currentRoute === 'operations_manager') installDashboardReturn();
     else setTimeout(attachSimulationCardToGeneralWorker, 80);
   }
 
   document.addEventListener('taejang-app-ready', () => setTimeout(setup, 0));
   document.addEventListener('taejang-dashboard-refresh', () => {
-    if (PROMOTION_EMPLOYEE_ROLES.has(route())) installDashboardReturn();
+    if (PROMOTION_EMPLOYEE_ROLES.has(route()) || route() === 'operations_manager') installDashboardReturn();
   });
   document.addEventListener('taejang-pwa-install-ready', () => {
     if (!PROMOTION_EMPLOYEE_ROLES.has(route()) || document.querySelector('#employee-common-home [data-worker-install-card]')) return;

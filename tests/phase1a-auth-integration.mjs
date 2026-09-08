@@ -184,6 +184,27 @@ const approveLead = await rpc('approve_signup_request_with_employee', admin.toke
 });
 equal(approveLead.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links a promotion-lead account');
 
+const lowerRoleDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft', p_title: 'CI 운영팀장 초안',
+  p_summary: 'CI', p_public_body: 'CI lower-role draft', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 작성',
+});
+equal(lowerRoleDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead creates an unpublished draft');
+const operationsEditLowerRoleDraft = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft-ops',
+  p_title: 'CI 운영총괄 수정 초안', p_summary: 'CI', p_public_body: 'CI operations edit', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 운영총괄 보완',
+});
+equal(operationsEditLowerRoleDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager edits another lower-role unpublished draft');
+equal(sql(`select owner_profile_id::text from public.promotion_contents where id = '${lowerRoleDraft.data.content_id}'::uuid`), lead.id, 'operations edit preserves the original lower-role owner');
+equal(sql(`select author_profile_id::text from public.promotion_content_revisions where id = '${operationsEditLowerRoleDraft.data.revision_id}'::uuid`), admin.id, 'operations edit records the operations manager as the new revision author');
+equal(sql(`select count(*) from public.audit_logs where target_id = '${lowerRoleDraft.data.content_id}' and action = 'operations_promotion_draft_edited_for_owner'`), '1', 'operations edit writes an owner-preserving audit event');
+const ordinaryCrossDraftEdit = await rpc('save_promotion_draft', worker.token, {
+  p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_title: '권한 없는 수정',
+  p_byline_kind: 'company', p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 차단',
+});
+check(!ordinaryCrossDraftEdit.ok, 'a different lower-role-or-less account cannot edit another author draft');
+
 const leadCrossDepartmentEmployee = await rpc('create_employee', lead.token, {
   p_full_name: 'CI 운영팀장 타부서 직원',
   p_hired_on: '2026-09-08',
@@ -258,6 +279,15 @@ const finalPromotionDelete = await rpc('delete_promotion_content', admin.token, 
 });
 equal(finalPromotionDelete.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager finalizes a pending promotion deletion request without ambiguity');
 equal(sql(`select status from public.promotion_deletion_requests where content_id = '${maturePromotion.data.content_id}'::uuid`), 'deleted', 'final promotion archive records the pending deletion request as deleted');
+const restorePublishedHistory = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_reason: 'CI 공개 이력 안전 복구',
+});
+equal(restorePublishedHistory.data?.lifecycle, 'hidden', 'published-history promotion restore returns to hidden rather than immediately republishing');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published-history restore remains hidden in the persisted public state');
+const explicitRepublish = await rpc('set_promotion_visibility', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_visible: true, p_reason: 'CI 명시적 재공개',
+});
+equal(explicitRepublish.data?.code, 'PROMOTION_RESTORED', 'published-history content requires a separate explicit republish action');
 
 const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',
