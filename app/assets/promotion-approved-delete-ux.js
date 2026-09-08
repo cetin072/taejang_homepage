@@ -72,37 +72,8 @@
       button.classList.add('button-danger');
       button.dataset.promotionApprovedDelete = '1';
       button.setAttribute('aria-label', '이 미발행 홍보글 삭제');
+      button.title = '삭제 후에도 원문과 수정이력은 남아 운영총괄이 복구할 수 있습니다.';
     });
-  }
-
-  async function handleDelete(event) {
-    const button = event.target?.closest?.('[data-promotion-approved-delete]');
-    if (!button || route() !== 'promotion_lead') return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-
-    const card = button.closest('.issue146-card');
-    const title = card?.querySelector('h3')?.textContent?.trim() || '홍보글';
-    const reason = window.prompt(`“${title}” 삭제 사유를 입력해 주세요.`, '')?.trim();
-    if (!reason) return;
-    if (!window.confirm('이 홍보글을 삭제하시겠습니까?\n아직 공개 전이므로 홈페이지에는 영향이 없고, 원문·수정이력은 보존되어 운영총괄이 복구할 수 있습니다.')) return;
-
-    button.disabled = true;
-    try {
-      const candidates = await app().rpc('get_unpublished_promotion_archive_candidates');
-      const item = Array.isArray(candidates)
-        ? candidates.find(candidate => candidate.title === title && candidate.published_at == null)
-        : null;
-      if (!item?.content_id) throw new Error('PROMOTION_CONTENT_NOT_FOUND');
-      await app().rpc('archive_unpublished_promotion_content', {
-        p_content_id: item.content_id,
-        p_reason: reason
-      });
-      await openPromotionManagement();
-    } catch (error) {
-      window.alert(app()?.friendlyError?.(error) || error?.message || '홍보글을 삭제하지 못했습니다.');
-      button.disabled = false;
-    }
   }
 
   function sync() {
@@ -120,7 +91,6 @@
     }, 30);
   }
 
-  document.addEventListener('click', handleDelete, true);
   document.addEventListener('taejang-app-ready', scheduleSync);
   document.addEventListener('taejang-dashboard-refresh', scheduleSync);
   document.addEventListener('taejang-open-promotion-workspace', scheduleSync);
