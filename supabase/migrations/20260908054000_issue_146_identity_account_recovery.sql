@@ -886,7 +886,7 @@ begin
           where link.profile_id = profile.id and link.revoked_at is null
           limit 1
         )
-      ) order by profile.display_name), '[]'::jsonb)
+      ) order by profile.display_name)
       from public.profiles profile
     ), '[]'::jsonb),
     'employees', coalesce((
@@ -906,7 +906,7 @@ begin
           where link.person_id = employee.person_id and link.revoked_at is null
           limit 1
         )
-      ) order by employee.employee_id), '[]'::jsonb)
+      ) order by employee.employee_id)
       from public.employees employee
       join public.people person on person.id = employee.person_id
       left join public.departments department on department.id = employee.department_id
