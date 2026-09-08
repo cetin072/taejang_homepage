@@ -151,7 +151,7 @@
       const payload = await response.json().catch(() => null);
       apply(payload?.items);
     } catch {
-      // Public HTML is the durable fallback if Supabase/Netlify live content is unavailable.
+      // Static homepage remains the fallback if Supabase/Netlify live content is unavailable.
     }
   }
 
