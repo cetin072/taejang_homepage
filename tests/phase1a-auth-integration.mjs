@@ -218,14 +218,14 @@ const protectStatus = await rpc('change_account_status', admin.token, {
   p_new_status: 'suspended',
   p_reason_summary: 'CI 마지막 최고관리자 정지 시도',
 });
-equal(protectStatus.data?.code, 'LAST_ACTIVE_SUPER_ADMIN_PROTECTED', 'last active super admin status is protected');
+equal(protectStatus.data?.code, 'SELF_LOCKOUT_PROTECTED', 'self-lockout protection blocks a super admin from suspending itself');
 
 const protectRole = await rpc('set_profile_roles', admin.token, {
   p_target_profile_id: admin.id,
   p_role_codes: ['operations_manager'],
   p_reason_summary: 'CI 마지막 최고관리자 역할 회수 시도',
 });
-equal(protectRole.data?.code, 'LAST_ACTIVE_SUPER_ADMIN_PROTECTED', 'last active super admin role is protected');
+equal(protectRole.data?.code, 'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED', 'self-lockout protection blocks a super admin from removing its own technical role');
 
 const reactivateForSecondAdmin = await rpc('change_account_status', admin.token, {
   p_target_profile_id: worker.id,
