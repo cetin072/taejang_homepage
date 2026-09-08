@@ -32,12 +32,8 @@ jobs:
         shell: bash
         run: |
           set +e
-          status=0
-          node tests/public-homepage-main-simplification.test.js > public-homepage-checks.log 2>&1 || status=$?
-          node tests/public-navigation-consolidation.test.js >> public-homepage-checks.log 2>&1 || status=$?
-          node tests/public-external-content.test.js >> public-homepage-checks.log 2>&1 || status=$?
-          node tests/public-static-fallback.test.js >> public-homepage-checks.log 2>&1 || status=$?
-          node tests/public-image-budget.test.js >> public-homepage-checks.log 2>&1 || status=$?
+          node scripts/run-test-group.mjs publicHomepage > public-homepage-checks.log 2>&1
+          status=$?
           cat public-homepage-checks.log
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
