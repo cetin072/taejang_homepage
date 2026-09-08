@@ -3,20 +3,6 @@ name: Public Homepage Checks
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "*.html"
-      - "assets/css/**"
-      - "assets/js/**"
-      - "assets/images/**"
-      - "images/**"
-      - "sitemap.xml"
-      - "robots.txt"
-      - "tests/public-homepage-main-simplification.test.js"
-      - "tests/public-navigation-consolidation.test.js"
-      - "tests/public-external-content.test.js"
-      - "tests/public-static-fallback.test.js"
-      - "tests/public-image-budget.test.js"
-      - ".github/workflows/public-homepage-checks.yml"
   workflow_dispatch:
 
 permissions:

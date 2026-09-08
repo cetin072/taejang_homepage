@@ -3,40 +3,6 @@ name: Phase 1A Supabase Integration
 on:
   pull_request:
     branches: [main]
-    paths:
-      - ".github/workflows/phase1a-supabase-integration.yml"
-      - "supabase/**"
-      - "staff/**"
-      - "app/**"
-      - "netlify/functions/**"
-      - "admin/index.html"
-      - "assets/css/styles.css"
-      - "assets/js/**"
-      - "index.html"
-      - "promotion.html"
-      - "tests/phase1a-auth-integration.mjs"
-      - "tests/today-board-auth-integration.mjs"
-      - "tests/phase1a-security-foundation.test.js"
-      - "tests/staff-entry-routing.test.js"
-      - "tests/staff-password-recovery.test.js"
-      - "tests/general-worker-today-board.test.js"
-      - "tests/staff-schedules-notices.test.js"
-      - "tests/staff-schedules-notices-auth-integration.mjs"
-      - "tests/frequent-staff-guidance.test.js"
-      - "tests/frequent-staff-guidance-auth-integration.mjs"
-      - "tests/promotion-phase-c.test.js"
-      - "tests/pilot-management-ux.test.js"
-      - "tests/phase-c-workspace-v2.test.js"
-      - "tests/phase-c-live-publication.test.js"
-      - "tests/worker-mobile-attendance.test.js"
-      - "tests/attendance-location-acquisition.test.js"
-      - "tests/app-role-navigation.test.js"
-      - "tests/operations-homepage-direct.test.js"
-      - "tests/employee-identity-foundation.test.js"
-      - "tests/operations-recoverable-delete.test.js"
-      - "tests/internal-app-ia.test.js"
-      - "tests/internal-app-followup-ux.test.js"
-      - "tests/app-failure-states.test.js"
   workflow_dispatch:
 
 permissions:
@@ -55,28 +21,59 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether full platform integration is relevant
+        id: scope
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "run_full=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
+          printf '%s\n' "$changed_files"
+
+          if printf '%s\n' "$changed_files" | grep -Eq '^(\.github/workflows/phase1a-supabase-integration\.yml$|supabase/|staff/|app/|netlify/functions/|admin/index\.html$|assets/js/|assets/css/styles\.css$|index\.html$|promotion\.html$|tests/)'; then
+            echo "run_full=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_full=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Report lightweight pass for unrelated changes
+        if: steps.scope.outputs.run_full != 'true'
+        run: echo "No Phase 1A platform-sensitive files changed; required check is satisfied without starting Supabase."
 
       - name: Set up Supabase CLI
+        if: steps.scope.outputs.run_full == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
 
       - name: Run static security checks
-        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/staff-password-recovery.test.js tests/general-worker-today-board.test.js tests/staff-schedules-notices.test.js tests/frequent-staff-guidance.test.js tests/promotion-phase-c.test.js tests/pilot-management-ux.test.js tests/phase-c-workspace-v2.test.js tests/phase-c-live-publication.test.js tests/worker-mobile-attendance.test.js tests/attendance-location-acquisition.test.js tests/app-role-navigation.test.js tests/operations-homepage-direct.test.js tests/employee-identity-foundation.test.js tests/operations-recoverable-delete.test.js tests/internal-app-ia.test.js tests/internal-app-followup-ux.test.js tests/app-failure-states.test.js
+        if: steps.scope.outputs.run_full == 'true'
+        run: node --test tests/phase1a-security-foundation.test.js tests/staff-entry-routing.test.js tests/staff-password-recovery.test.js tests/general-worker-today-board.test.js tests/staff-schedules-notices.test.js tests/frequent-staff-guidance.test.js tests/promotion-phase-c.test.js tests/pilot-management-ux.test.js tests/phase-c-workspace-v2.test.js tests/phase-c-live-publication.test.js tests/worker-mobile-attendance.test.js tests/attendance-location-acquisition.test.js tests/app-role-navigation.test.js tests/operations-homepage-direct.test.js tests/employee-identity-foundation.test.js tests/operations-recoverable-delete.test.js tests/internal-app-ia.test.js tests/internal-app-followup-ux.test.js tests/app-failure-states.test.js tests/required-check-workflows.test.js
 
       - name: Start isolated local Supabase
+        if: steps.scope.outputs.run_full == 'true'
         run: supabase start
 
       - name: Reapply migrations from a clean database
+        if: steps.scope.outputs.run_full == 'true'
         run: supabase db reset
 
       - name: Lint database schema
+        if: steps.scope.outputs.run_full == 'true'
         run: supabase db lint --level error
 
       - name: Run pgTAP security tests
+        if: steps.scope.outputs.run_full == 'true'
         run: supabase test db supabase/tests/database/*.test.sql
 
       - name: Run real Auth and Data API integration
+        if: steps.scope.outputs.run_full == 'true'
         shell: bash
         run: |
           supabase status -o env > /tmp/taejang-supabase.env
@@ -89,5 +86,5 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/frequent-staff-guidance-auth-integration.mjs
 
       - name: Stop local Supabase
-        if: always()
+        if: always() && steps.scope.outputs.run_full == 'true'
         run: supabase stop --no-backup
