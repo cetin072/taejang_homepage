@@ -173,14 +173,16 @@ equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pe
 const promotionDepartment = await api('/rest/v1/departments?select=id&code=eq.promotion', { token: admin.token });
 check(promotionDepartment.ok && promotionDepartment.data?.[0]?.id, 'highest authority can resolve the promotion department');
 const lead = await signUp('phase1a-promotion-lead@example.test', '테스트 운영팀장');
-const approveLead = await rpc('approve_pending_user', admin.token, {
-  p_target_profile_id: lead.id,
-  p_department_id: promotionDepartment.data[0].id,
-  p_position_id: position.data[0].id,
-  p_role_codes: ['promotion_lead'],
-  p_reason_summary: 'CI 운영팀장 계정 승인',
+const leadEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 운영팀장 계정 연결 직원', p_hired_on: '2026-09-08',
+  p_department_id: promotionDepartment.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
 });
-equal(approveLead.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a promotion-lead account');
+equal(leadEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee that will be linked to the promotion lead account');
+const approveLead = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: lead.id, p_employee_uuid: leadEmployee.data.employee_uuid,
+  p_role_code: 'promotion_lead', p_reason_summary: 'CI 운영팀장 계정 승인',
+});
+equal(approveLead.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links a promotion-lead account');
 
 const leadCrossDepartmentEmployee = await rpc('create_employee', lead.token, {
   p_full_name: 'CI 운영팀장 타부서 직원',
@@ -220,15 +222,17 @@ equal(homepageApproval.data?.status, 'approved', 'operations manager approves th
 equal(sql("select text_value from public.homepage_live_overrides where slot_key = 'home.hero.title'"), 'CI 승인된 홈페이지 제목', 'homepage approval writes the canonical live override source');
 
 const linkedUser = await signUp('phase1a-linked-employee@example.test', '테스트 연결 직원');
-const approveLinkedUser = await rpc('approve_pending_user', admin.token, {
-  p_target_profile_id: linkedUser.id,
-  p_department_id: department.data[0].id,
-  p_position_id: position.data[0].id,
-  p_role_codes: ['office_staff'],
-  p_reason_summary: 'CI 연결 Employee 승인',
+const linkedEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 연결 Employee', p_hired_on: '2026-09-08',
+  p_department_id: department.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
 });
-equal(approveLinkedUser.data?.code, 'ACCOUNT_APPROVED', 'operations manager creates a linked Employee account for archive verification');
-const linkedEmployeeId = sql(`select employee.id from public.employees employee join public.account_person_links account_link on account_link.person_id = employee.person_id where account_link.profile_id = '${linkedUser.id}'::uuid and account_link.revoked_at is null`);
+equal(linkedEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates a dedicated linked Employee for archive verification');
+const approveLinkedUser = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: linkedUser.id, p_employee_uuid: linkedEmployee.data.employee_uuid,
+  p_role_code: 'general_worker', p_reason_summary: 'CI 연결 Employee 승인',
+});
+equal(approveLinkedUser.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager creates a linked Employee account for archive verification');
+const linkedEmployeeId = linkedEmployee.data.employee_uuid;
 assertUuid(linkedEmployeeId, 'linked Employee UUID');
 const archiveLinkedEmployee = await rpc('archive_employee', admin.token, {
   p_employee_uuid: linkedEmployeeId,
