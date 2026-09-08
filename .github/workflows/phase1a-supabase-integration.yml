@@ -66,11 +66,7 @@ jobs:
 
       - name: Lint database schema
         if: steps.scope.outputs.run_full == 'true'
-        shell: bash
-        run: |
-          lint_output="$(supabase db lint --level error --output json)"
-          printf '%s\n' "$lint_output"
-          test "$(printf '%s' "$lint_output" | jq '[.[] | select(.level == "error")] | length')" -eq 0
+        run: supabase db lint --level error --fail-on error
 
       - name: Run pgTAP security tests
         if: steps.scope.outputs.run_full == 'true'
