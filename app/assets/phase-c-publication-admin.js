@@ -131,7 +131,16 @@
     if (item.lifecycle === 'hidden') actions.append(button('다시 공개', () => setVisibility(item, true), true));
 
     if (role === 'promotion_lead') {
-      if (!item.pending_delete_request) actions.append(button('삭제 요청', () => requestDeletion(item), true));
+      if (item.pending_delete_request) {
+        actions.append(el('p', '삭제 요청 대기 중', 'help'));
+      } else if (item.can_request_delete === true) {
+        actions.append(button('삭제 요청', () => requestDeletion(item), true));
+      } else {
+        const eligibleAt = formatDate(item.delete_request_eligible_at);
+        actions.append(el('p', eligibleAt
+          ? `삭제 요청 가능: ${eligibleAt}`
+          : '공개 시각이 확인된 뒤 삭제 요청 가능 여부를 안내합니다.', 'help'));
+      }
     } else if (role === 'operations_manager' && canDelete) {
       const remove = button('삭제', () => deleteContent(item));
       remove.className = 'button button-danger';

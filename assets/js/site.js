@@ -177,9 +177,23 @@
     });
   }
 
+  // Approved homepage slots are an optional enhancement. Every public page keeps
+  // its authored static HTML when this script, Netlify Functions, or Supabase is
+  // unavailable. Avoid duplicate loading on index.html where photo-slots may have
+  // already requested the same module.
+  function loadHomepageLiveOverrides() {
+    if (document.querySelector('script[src$="homepage-live-overrides.js"]')) return;
+    const script = document.createElement('script');
+    script.src = 'assets/js/homepage-live-overrides.js';
+    script.async = true;
+    script.dataset.homepageLiveOverrides = '1';
+    document.head.append(script);
+  }
+
   markCurrentNavigation();
   syncEmployeeEntry();
   enhanceFooter();
+  loadHomepageLiveOverrides();
 
   const menuBtn = document.querySelector('[data-menu-button]');
   const mobileNav = document.querySelector('[data-mobile-nav]');

@@ -21,6 +21,7 @@ test('Phase 1A keeps an always-present lightweight result while gating expensive
   assert.match(phaseWorkflow, /fetch-depth: 0/);
   assert.match(phaseWorkflow, /run_full=false/);
   assert.match(phaseWorkflow, /No Phase 1A platform-sensitive files changed/);
+  assert.match(phaseWorkflow, /supabase db lint --level error --fail-on error/);
   assert.match(phaseWorkflow, /if: steps\.scope\.outputs\.run_full == 'true'/);
   assert.match(phaseWorkflow, /if: always\(\) && steps\.scope\.outputs\.run_full == 'true'/);
 });

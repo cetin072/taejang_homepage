@@ -149,6 +149,7 @@
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
+    ['assets/issue-146-end-to-end.js', 'issue-146-end-to-end'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],

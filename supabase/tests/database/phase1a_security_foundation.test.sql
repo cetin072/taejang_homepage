@@ -227,20 +227,20 @@ select set_config(
 );
 select is(
   (public.change_account_status('10000000-0000-0000-0000-000000000001', 'suspended', '마지막 관리자 정지 시도') ->> 'code'),
-  'LAST_ACTIVE_SUPER_ADMIN_PROTECTED',
-  'last active super admin cannot be suspended'
+  'SELF_LOCKOUT_PROTECTED',
+  'self-lockout protection prevents an active super admin from suspending itself'
 );
 select is(
   (public.set_profile_roles('10000000-0000-0000-0000-000000000001', array['operations_manager'], '마지막 관리자 역할 회수 시도') ->> 'code'),
-  'LAST_ACTIVE_SUPER_ADMIN_PROTECTED',
-  'last active super admin role cannot be revoked'
+  'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED',
+  'self-lockout protection prevents an active super admin from revoking its own technical role'
 );
 
 reset role;
 select isnt(
-  (select count(*)::integer from public.audit_logs where action = 'last_super_admin_change_denied'),
+  (select count(*)::integer from public.audit_logs where action = 'account_status_change' and outcome = 'denied'),
   0,
-  'blocked last-super-admin attempts are audited'
+  'blocked self-lockout attempt is audited'
 );
 select isnt(
   (select count(*)::integer from public.audit_logs where action = 'account_signed_up'),

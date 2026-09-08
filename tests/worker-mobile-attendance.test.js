@@ -63,6 +63,14 @@ test('operations manager can enter server-backed general worker simulation', () 
   assert.match(bridge, /운영총괄 복귀/);
 });
 
+test('operations manager keeps a normal employee-home attendance path outside simulation', () => {
+  const bridge = read('app/assets/employee-common-home-v1.js');
+  assert.match(bridge, /ALL_EMPLOYEE_HOME_ROLES = new Set\(\['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
+  assert.match(bridge, /currentRoute === 'operations_manager'\) installDashboardReturn\(\)/);
+  assert.match(bridge, /출퇴근과 공지를 확인한 뒤 운영 업무 화면으로 돌아갈 수 있습니다/);
+  assert.match(bridge, /void Promise\.all\(\[loadAttendance\(\), loadNotices\(\)\]\)/);
+});
+
 test('attendance database enforces one event per person/date/type and role boundaries', () => {
   const first = read('supabase/migrations/20260903234500_worker_mobile_attendance_v1.sql');
   const guard = read('supabase/migrations/20260903234600_worker_attendance_non_workday_guard.sql');
