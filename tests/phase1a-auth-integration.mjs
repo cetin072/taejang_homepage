@@ -291,4 +291,17 @@ const revokeFirstAdmin = await rpc('set_profile_roles', worker.token, {
 equal(revokeFirstAdmin.data?.code, 'ROLES_CHANGED', 'one super admin role can be revoked when two are active');
 equal(sql("select count(distinct profile.id) from public.profiles profile join public.profile_roles assignment on assignment.profile_id = profile.id and assignment.revoked_at is null join public.roles role on role.id = assignment.role_id and role.code = 'super_admin' where profile.account_status = 'active'"), '1', 'one active super admin remains');
 
+const opsOnlySimulation = await rpc('set_role_simulation_mode', admin.token, {
+  p_role_code: 'promotion_lead',
+});
+equal(opsOnlySimulation.data?.code, 'ROLE_SIMULATION_SET', 'operations manager alone can start lower-role simulation');
+const simulatedContext = await rpc('get_my_access_context', admin.token, {});
+equal(simulatedContext.data?.role_simulation?.role_code, 'promotion_lead', 'simulation exposes only the selected lower-role context');
+const clearOpsOnlySimulation = await rpc('set_role_simulation_mode', admin.token, {
+  p_role_code: null,
+});
+equal(clearOpsOnlySimulation.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations manager alone can end lower-role simulation');
+const restoredContext = await rpc('get_my_access_context', admin.token, {});
+equal(restoredContext.data?.role_simulation?.active, false, 'ending simulation restores the actual operations-manager context');
+
 console.log(`Phase 1A Auth integration passed: ${assertions} assertions`);
