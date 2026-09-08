@@ -225,6 +225,20 @@ select set_config(
   '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}',
   true
 );
+-- Give a second operational actor authority to verify the last-super-admin
+-- protection without relying on a self-lockout path.
+select public.set_profile_roles(
+  '20000000-0000-0000-0000-000000000002',
+  array['office_staff', 'operations_manager'],
+  '마지막 최고관리자 보호 검증용 운영 권한'
+);
+reset role;
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"20000000-0000-0000-0000-000000000002","role":"authenticated"}',
+  true
+);
 select is(
   (public.change_account_status('10000000-0000-0000-0000-000000000001', 'suspended', '마지막 관리자 정지 시도') ->> 'code'),
   'LAST_ACTIVE_SUPER_ADMIN_PROTECTED',

@@ -57,7 +57,7 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.update_employee_core(uuid,text,date,uuid,uuid,text,date,boolean,text)'::regprocedure)
-    ilike '%EMPLOYEE_ARCHIVED_RESTORE_FIRST%',
+    ilike '%ARCHIVED_EMPLOYEE_UPDATE_FORBIDDEN%',
   'archived Employees cannot be modified through the ordinary update RPC'
 );
 

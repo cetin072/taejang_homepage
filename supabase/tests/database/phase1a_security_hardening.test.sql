@@ -62,7 +62,7 @@ select is(
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"30000000-0000-0000-0000-000000000003","role":"authenticated"}',
+  '{"sub":"40000000-0000-0000-0000-000000000004","role":"authenticated"}',
   true
 );
 select throws_ok(

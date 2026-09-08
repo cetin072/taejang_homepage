@@ -21,8 +21,8 @@
 | 운영총괄 단독 최종 홍보 archive | 구현 완료 | forward migration |
 | 미발행 글 archive 및 공개 글 24h 삭제 요청 | 구현 완료 | forward migration |
 | 홈페이지 allowlist 확대, 비교·PC/mobile preview | 구현 완료 | forward migration, `phase-c-workspace-v2.js` |
-| 운영총괄 전체 플랫폼 기능의 RPC/RLS superset 감사 | 부분 구현 | 이번 Issue에서 영향 모듈을 갱신하고 회귀 테스트를 추가함. 향후 모듈에는 새 권한 누락 방지 검토를 계속 적용해야 함. |
-| 승인된 홈페이지 변경의 운영 공개 반영 | 기존 흐름 유지 | 승인 후보 export/publisher 계약은 기존 Static by Default 경계를 유지함. Production 적용은 사용자 승인 후 별도 운영 단계. |
+| 운영총괄 전체 플랫폼 기능의 RPC/RLS superset 감사 | 검증 진행 | #146 영향 모듈의 UI·RPC·RLS role matrix와 실제 integration 검증을 완료 조건으로 한다. |
+| 승인된 홈페이지 변경의 운영 공개 반영 | 구현·검증 진행 | 운영총괄 승인은 canonical live content source에 반영되어 해당 공개 페이지의 safe slot에 적용된다. 이 앱 내부 반영은 저장소 merge·Production 배포 승인과 별개이며, override 장애 시 정적 fallback을 유지한다. |
 
 ## 검수 기준
 
@@ -34,3 +34,4 @@
 ## 결정 이력
 
 - 2026-09-08: #145/#146에서 운영팀장 전사 등록, 운영총괄 superset, 공개 콘텐츠 삭제 안전선, 홈페이지 전반 안전 콘텐츠 편집을 확정했다.
+- 2026-09-08: 홈페이지 승인 후 canonical live source 반영은 #146의 앱 내부 워크플로로 확정했다. 이는 main 병합이나 Production 배포 승인 게이트를 대체하지 않는다.
