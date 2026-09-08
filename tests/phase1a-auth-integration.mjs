@@ -136,6 +136,30 @@ const position = await api('/rest/v1/positions?select=id&code=eq.staff', { token
 check(department.ok && department.data?.[0]?.id, 'highest authority can resolve an active department');
 check(position.ok && position.data?.[0]?.id, 'highest authority can resolve an active position');
 
+const unassignedEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 미배정 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: null,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(unassignedEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager can create an unassigned Employee');
+assertUuid(unassignedEmployee.data?.employee_uuid, 'unassigned Employee UUID');
+check(unassignedEmployee.data?.employee_id, 'server issues an immutable employee_id');
+equal(sql(`select department_id is null from public.employees where id = '${unassignedEmployee.data.employee_uuid}'::uuid`), 't', 'unassigned Employee persists with a null department');
+
+const archiveUnassignedEmployee = await rpc('archive_employee', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI recoverable archive verification',
+});
+equal(archiveUnassignedEmployee.data?.code, 'EMPLOYEE_DELETED', 'operations manager can recoverably archive an Employee');
+const restoreUnassignedEmployee = await rpc('restore_employee', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI recoverable restore verification',
+});
+equal(restoreUnassignedEmployee.data?.code, 'EMPLOYEE_RESTORED', 'operations manager can restore an archived Employee');
+equal(sql(`select department_id is null and archived_at is null from public.employees where id = '${unassignedEmployee.data.employee_uuid}'::uuid`), 't', 'restore preserves the unassigned Employee identity and active state');
+
 const approval = await rpc('approve_pending_user', admin.token, {
   p_target_profile_id: worker.id,
   p_department_id: department.data[0].id,
@@ -145,6 +169,24 @@ const approval = await rpc('approve_pending_user', admin.token, {
 });
 check(approval.ok, `approval RPC failed: ${JSON.stringify(approval.data)}`);
 equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pending account and assigns roles');
+
+const linkWorker = await rpc('link_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_profile_id: worker.id,
+  p_reason: 'CI explicit employee-account link',
+});
+equal(linkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can explicitly link Auth and Employee records');
+const unlinkWorker = await rpc('unlink_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI explicit employee-account unlink',
+});
+equal(unlinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_UNLINKED', 'operations manager can explicitly unlink Auth and Employee records');
+const relinkWorker = await rpc('link_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_profile_id: worker.id,
+  p_reason: 'CI explicit employee-account relink',
+});
+equal(relinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can safely relink Auth and Employee records');
 
 const activeDepartments = await api('/rest/v1/departments?select=id', { token: worker.token });
 check(activeDepartments.ok && activeDepartments.data.length > 0, 'active user can read allowed internal reference data');
