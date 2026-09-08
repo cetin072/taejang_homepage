@@ -162,7 +162,8 @@ test('real Auth integration covers the required state and super-admin scenarios'
     'FORBIDDEN',
     "p_new_status: 'suspended'",
     "p_new_status: 'departed'",
-    'LAST_ACTIVE_SUPER_ADMIN_PROTECTED',
+    'SELF_LOCKOUT_PROTECTED',
+    'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED',
     'a second active super admin can be granted',
     'one super admin role can be revoked when two are active',
   ]) {
