@@ -199,11 +199,22 @@ equal(operationsEditLowerRoleDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'operati
 equal(sql(`select owner_profile_id::text from public.promotion_contents where id = '${lowerRoleDraft.data.content_id}'::uuid`), lead.id, 'operations edit preserves the original lower-role owner');
 equal(sql(`select author_profile_id::text from public.promotion_content_revisions where id = '${operationsEditLowerRoleDraft.data.revision_id}'::uuid`), admin.id, 'operations edit records the operations manager as the new revision author');
 equal(sql(`select count(*) from public.audit_logs where target_id = '${lowerRoleDraft.data.content_id}' and action = 'operations_promotion_draft_edited_for_owner'`), '1', 'operations edit writes an owner-preserving audit event');
-const ordinaryCrossDraftEdit = await rpc('save_promotion_draft', worker.token, {
+const promotionStaff = await signUp('phase1a-promotion-staff@example.test', '테스트 홍보직원');
+const promotionStaffEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 홍보직원 계정 연결 직원', p_hired_on: '2026-09-08',
+  p_department_id: promotionDepartment.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
+});
+equal(promotionStaffEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee linked to the promotion-staff account');
+const approvePromotionStaff = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: promotionStaff.id, p_employee_uuid: promotionStaffEmployee.data.employee_uuid,
+  p_role_code: 'promotion_staff', p_reason_summary: 'CI 홍보직원 계정 승인',
+});
+equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
+const lowerRoleCrossDraftEdit = await rpc('save_promotion_draft', promotionStaff.token, {
   p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_title: '권한 없는 수정',
   p_byline_kind: 'company', p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 차단',
 });
-check(!ordinaryCrossDraftEdit.ok, 'a different lower-role-or-less account cannot edit another author draft');
+check(!lowerRoleCrossDraftEdit.ok, 'a different lower-role account cannot edit another author draft');
 
 const leadCrossDepartmentEmployee = await rpc('create_employee', lead.token, {
   p_full_name: 'CI 운영팀장 타부서 직원',
