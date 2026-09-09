@@ -84,6 +84,7 @@
     const attendanceSource = Array.isArray(canonical.attendance) ? canonical.attendance : [];
     const uuidToEmployeeId = new Map();
     const seenEmployeeIds = new Set();
+    const inputBlockers = [];
 
     const employees = employeesSource.map((row) => {
       const employeeUuid = requiredString(row.employee_uuid, 'employee_uuid_required');
@@ -133,11 +134,19 @@
       if (shouldOmitAsProjectedFuture(row, cutoffDate)) continue;
       const employeeUuid = row.employee_uuid == null ? null : String(row.employee_uuid);
       const employeeId = employeeUuid ? uuidToEmployeeId.get(employeeUuid) : null;
+      const matchStatus = String(row.match_status || '');
 
       if (!employeeId) {
-        // Unmatched/ambiguous rows must never be silently assigned. They remain a
-        // preflight blocker outside per-employee engine calculation.
-        if (String(row.match_status || '') !== 'matched') continue;
+        if (matchStatus !== 'matched') {
+          inputBlockers.push(Object.freeze({
+            code: 'attendance_employee_match_required',
+            sourceKey: row.source_key == null ? null : String(row.source_key),
+            date: row.work_date == null ? null : String(row.work_date),
+            matchStatus: matchStatus || 'unmatched',
+            exceptionType: row.exception_type == null ? null : String(row.exception_type),
+          }));
+          continue;
+        }
         const error = new Error('attendance_employee_not_canonical');
         error.code = 'attendance_employee_not_canonical';
         throw error;
@@ -151,7 +160,7 @@
         autoDecision: mapDecision(row),
         reviewStatus: row.review_status == null ? null : String(row.review_status),
         confirmedHours: numberOrNull(row.confirmed_hours),
-        matchStatus: row.match_status == null ? null : String(row.match_status),
+        matchStatus,
         recordStatus: row.record_status == null ? null : String(row.record_status),
         exceptionType: row.exception_type == null ? null : String(row.exception_type),
       };
@@ -181,6 +190,7 @@
       terms,
       holidays,
       attendanceRecords,
+      inputBlockers: Object.freeze(inputBlockers),
     });
   }
 
