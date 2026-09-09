@@ -70,8 +70,8 @@ test('incoming carryover stays inside the five-step provisional stage and must b
   assert.equal(snapshot.provisional.incomingCarryoverCount, 2);
   assert.equal(operator.currentStep, workflow.StepId.PROVISIONAL);
   assert.equal(operator.primaryAction.id, 'apply_incoming_carryover');
-  assert.equal(operator.primaryAction.label, '전월 조정 반영');
-  assert.match(operator.steps.find((step) => step.id === 'provisional').description, /전월 이월조정 2건/);
+  assert.equal(operator.primaryAction.label, '이전월 조정 반영');
+  assert.match(operator.steps.find((step) => step.id === 'provisional').description, /이전월 조정 2건/);
   assert.equal(operator.steps.find((step) => step.id === 'accounting').status, workflow.StepStatus.BLOCKED);
 });
 
@@ -217,7 +217,7 @@ test('month list shows incoming carryover before accounting status', () => {
     }),
   });
 
-  assert.equal(item.status, '전월 조정 반영');
+  assert.equal(item.status, '이전월 조정 반영');
   assert.equal(item.incomingCarryoverCount, 1);
   assert.equal(item.incomingCarryoverStatus, 'review_required');
 });
