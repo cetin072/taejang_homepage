@@ -1,4 +1,8 @@
+import { createHash } from 'node:crypto';
+
 const SOURCE_CODE = /^[a-z][a-z0-9_]{1,59}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
+const CONTENT_HASH_BASIS_VERSION = 'support-radar-material-v1';
 
 function clean(value) {
   return value === null || value === undefined ? '' : String(value).trim();
@@ -13,6 +17,48 @@ function validIsoInstant(value) {
   if (!raw) return false;
   const time = Date.parse(raw);
   return Number.isFinite(time) && /(?:Z|[+-]\d{2}:\d{2})$/.test(raw);
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map(key => [key, canonicalize(value[key])])
+    );
+  }
+  return value;
+}
+
+function materialHashInput(item) {
+  return {
+    occurrence: {
+      source_notice_id: item?.occurrence?.source_notice_id ?? null,
+      source_url: item?.occurrence?.source_url ?? null,
+      raw_title: item?.occurrence?.raw_title ?? null
+    },
+    notice: item?.notice ?? null,
+    source_summary: item?.source_summary ?? null,
+    application_url: item?.application_url ?? null,
+    application_period_raw: item?.application_period_raw ?? null,
+    hashtags: item?.hashtags ?? [],
+    documents: item?.documents ?? []
+  };
+}
+
+export function computeSupportRadarItemContentHash(item) {
+  assertObject(item, 'INGESTION_ITEM_INVALID');
+  const canonical = JSON.stringify(canonicalize(materialHashInput(item)));
+  return createHash('sha256').update(canonical, 'utf8').digest('hex');
+}
+
+function attachContentHash(item) {
+  return {
+    ...item,
+    content_hash: computeSupportRadarItemContentHash(item),
+    content_hash_basis_version: CONTENT_HASH_BASIS_VERSION
+  };
 }
 
 function validateOccurrence(occurrence) {
@@ -38,6 +84,16 @@ function validateDocuments(documents) {
   }
 }
 
+function validateContentHash(item) {
+  if (!SHA256.test(clean(item.content_hash))) throw new Error('INGESTION_CONTENT_HASH_INVALID');
+  if (item.content_hash_basis_version !== CONTENT_HASH_BASIS_VERSION) {
+    throw new Error('INGESTION_CONTENT_HASH_BASIS_UNSUPPORTED');
+  }
+  if (item.content_hash !== computeSupportRadarItemContentHash(item)) {
+    throw new Error('INGESTION_CONTENT_HASH_MISMATCH');
+  }
+}
+
 export function validateSupportRadarIngestionBatch(batch) {
   assertObject(batch, 'INGESTION_BATCH_REQUIRED');
   if (!SOURCE_CODE.test(clean(batch.source_code))) throw new Error('INGESTION_SOURCE_CODE_INVALID');
@@ -51,6 +107,7 @@ export function validateSupportRadarIngestionBatch(batch) {
     validateOccurrence(item.occurrence);
     validateNotice(item.notice);
     validateDocuments(item.documents);
+    validateContentHash(item);
     const id = clean(item.occurrence.source_notice_id);
     if (ids.has(id)) throw new Error('INGESTION_DUPLICATE_SOURCE_NOTICE_ID');
     ids.add(id);
@@ -69,7 +126,7 @@ export function createSupportRadarIngestionBatch({ source_code, fetched_at, norm
     source_meta: normalized.meta && typeof normalized.meta === 'object' && !Array.isArray(normalized.meta)
       ? normalized.meta
       : {},
-    items: Array.isArray(normalized.items) ? normalized.items : [],
+    items: (Array.isArray(normalized.items) ? normalized.items : []).map(attachContentHash),
     rejected: Array.isArray(normalized.rejected) ? normalized.rejected : []
   };
   return validateSupportRadarIngestionBatch(batch);
@@ -77,6 +134,7 @@ export function createSupportRadarIngestionBatch({ source_code, fetched_at, norm
 
 export const SUPPORT_RADAR_INGESTION_CONTRACT = Object.freeze({
   version: 'support-radar-ingestion-v1',
+  content_hash_basis_version: CONTENT_HASH_BASIS_VERSION,
   authoritative_fields: Object.freeze([
     'source_code',
     'fetched_at',
@@ -85,9 +143,15 @@ export const SUPPORT_RADAR_INGESTION_CONTRACT = Object.freeze({
     'items',
     'rejected'
   ]),
+  item_freshness_fields: Object.freeze([
+    'content_hash',
+    'content_hash_basis_version'
+  ]),
   principles: Object.freeze([
     'source adapter normalizes facts only',
     'invalid source items are rejected, not invented',
+    'content hash covers normalized material facts, not volatile raw payload metadata',
+    'raw payload remains available separately for provenance',
     'semantic AI interpretation is outside ingestion',
     'delivery/alerts are outside ingestion'
   ])
