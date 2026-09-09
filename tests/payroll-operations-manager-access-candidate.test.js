@@ -40,6 +40,14 @@ test('authorized read model resolves names transiently without joining sensitive
   assert.doesNotMatch(candidate, /consultation/i);
 });
 
+test('read model exposes the server-generated payroll basis used by accounting and lock commands', () => {
+  assert.match(candidate, /basis_json := public\.private_current_payroll_basis\(month_row\.id,run_row\.id\)/i);
+  assert.match(candidate, /'payroll_basis',basis_json/i);
+  assert.match(candidate, /'payroll_basis',null/i);
+  assert.match(candidate, /'payroll_basis_fingerprint',c\.payroll_basis_fingerprint/i);
+  assert.match(candidate, /'adjusted_gross_basis',c\.adjusted_gross_basis/i);
+});
+
 test('generic payroll access audit contains identifiers and operation facts, not payroll amounts or employee names', () => {
   assert.match(candidate, /payroll_month_viewed/);
   const auditCalls = [...candidate.matchAll(/perform public\.private_append_audit\([\s\S]*?\n\s*\);/gi)].map((match) => match[0]);
@@ -63,8 +71,8 @@ test('candidate remains rollback-only outside real Supabase migrations', () => {
   );
 });
 
-test('state-changing payroll RPCs remain absent until transaction tests are implemented', () => {
-  assert.match(candidate, /any state-changing payroll RPC/i);
+test('state-changing payroll RPC definitions remain outside the read-access candidate', () => {
+  assert.match(candidate, /any state-changing payroll RPC definition/i);
   assert.doesNotMatch(candidate, /create or replace function public\.lock_payroll_month/i);
   assert.doesNotMatch(candidate, /create or replace function public\.apply_payroll_carryover/i);
   assert.doesNotMatch(candidate, /create or replace function public\.confirm_payroll_accounting/i);
