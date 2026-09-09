@@ -6,11 +6,14 @@
 -- - provide the trusted payroll calculation runtime with canonical DB facts;
 -- - never accept employee/rate/attendance result arrays from the browser as authoritative input;
 -- - include the prior-month Monday boundary needed for the first Sunday-owned weekly-holiday week;
--- - surface a missing prior accepted attendance batch explicitly instead of assuming attendance.
+-- - surface a missing prior accepted attendance batch explicitly instead of assuming attendance;
+-- - give the persistence boundary a DB-rebuildable input fingerprint for race detection.
 
 begin;
 
-create or replace function public.get_payroll_calculation_input(
+-- Pure read builder. No auth side effects or audit writes live here so the same canonical
+-- DB input can be rebuilt during trusted result persistence for stale-input detection.
+create or replace function public.private_build_payroll_calculation_input(
   p_payroll_month date,
   p_cutoff_date date,
   p_expected_batch_id uuid default null
@@ -22,7 +25,6 @@ security definer
 set search_path = ''
 as $$
 declare
-  actor_id uuid := public.private_require_payroll_operator();
   month_start date;
   month_end date;
   boundary_start date;
@@ -34,7 +36,8 @@ declare
   terms_json jsonb := '[]'::jsonb;
   holidays_json jsonb := '[]'::jsonb;
   attendance_json jsonb := '[]'::jsonb;
-  result jsonb;
+  base_result jsonb;
+  input_basis_fingerprint text;
 begin
   if p_payroll_month is null
      or date_trunc('month',p_payroll_month)::date <> p_payroll_month then
@@ -74,7 +77,6 @@ begin
     prior_boundary_missing := not found;
   end if;
 
-  -- Employee identity/lifecycle comes only from the canonical employee source of truth.
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -91,8 +93,6 @@ begin
   where e.hired_on <= month_end
     and (e.departed_on is null or e.departed_on >= month_start);
 
-  -- Pull every effective-dated term that can affect target-month work or the first
-  -- cross-month weekly-holiday period. Overlap validity is still checked by preflight.
   select coalesce(
     jsonb_agg(
       jsonb_build_object(
@@ -125,8 +125,6 @@ begin
   from public.payroll_holidays h
   where h.holiday_date between boundary_start and month_end;
 
-  -- Current-month rows plus only the prior-month boundary rows needed for the first
-  -- Monday-Sunday week. Raw clock values and source display names are deliberately omitted.
   with selected_rows as (
     select r.*
     from public.payroll_attendance_rows r
@@ -174,7 +172,7 @@ begin
   from selected_rows r
   left join latest_corrections c on c.attendance_row_id=r.id;
 
-  result := jsonb_build_object(
+  base_result := jsonb_build_object(
     'payroll_month',month_start,
     'cutoff_date',p_cutoff_date,
     'input_window',jsonb_build_object(
@@ -187,8 +185,8 @@ begin
     'attendance_batches',jsonb_build_object(
       'current_batch_id',current_batch.id,
       'current_source_fingerprint',current_batch.source_fingerprint,
-      'prior_batch_id',case when prior_boundary_missing then null else prior_batch.id end,
-      'prior_source_fingerprint',case when prior_boundary_missing then null else prior_batch.source_fingerprint end
+      'prior_batch_id',case when prior_boundary_missing or not prior_boundary_required then null else prior_batch.id end,
+      'prior_source_fingerprint',case when prior_boundary_missing or not prior_boundary_required then null else prior_batch.source_fingerprint end
     ),
     'employees',employees_json,
     'terms',terms_json,
@@ -196,17 +194,47 @@ begin
     'attendance',attendance_json
   );
 
+  input_basis_fingerprint := md5(base_result::text);
+
+  return base_result || jsonb_build_object(
+    'input_basis_version','payroll-db-input-v1',
+    'input_basis_fingerprint',input_basis_fingerprint
+  );
+end;
+$$;
+
+-- Guarded/audited wrapper used by the trusted runtime with the caller JWT.
+create or replace function public.get_payroll_calculation_input(
+  p_payroll_month date,
+  p_cutoff_date date,
+  p_expected_batch_id uuid default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  actor_id uuid := public.private_require_payroll_operator();
+  result jsonb;
+begin
+  result := public.private_build_payroll_calculation_input(
+    p_payroll_month,
+    p_cutoff_date,
+    p_expected_batch_id
+  );
+
   perform public.private_append_audit(
     actor_id,
     'payroll_calculation_input_read',
     'payroll_month',
-    month_start::text,
+    p_payroll_month::text,
     'success',
     '급여 계산 입력 조회',
     jsonb_build_object(
-      'payroll_month',month_start,
-      'current_batch_id',current_batch.id,
-      'prior_boundary_missing',prior_boundary_missing
+      'payroll_month',p_payroll_month,
+      'current_batch_id',result #>> '{attendance_batches,current_batch_id}',
+      'prior_boundary_missing',coalesce((result #>> '{input_window,prior_boundary_missing}')::boolean,false)
     )
   );
 
@@ -214,9 +242,9 @@ begin
 end;
 $$;
 
--- Browser-authenticated callers may reach this guarded RPC, but the server guard still
--- requires the approved active operations_manager role. The RPC contains no raw clocks,
--- source display names, bank data, resident-registration data, disability data, or health data.
+-- The private builder is internal-only. Authenticated callers may reach only the guarded
+-- wrapper, and the wrapper still requires the approved active operations_manager role.
+revoke all on function public.private_build_payroll_calculation_input(date,date,uuid) from public, anon, authenticated;
 revoke all on function public.get_payroll_calculation_input(date,date,uuid) from public, anon, authenticated;
 grant execute on function public.get_payroll_calculation_input(date,date,uuid) to authenticated;
 
