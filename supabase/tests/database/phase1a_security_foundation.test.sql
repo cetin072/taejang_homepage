@@ -114,17 +114,25 @@ select set_config(
   '{"sub":"10000000-0000-0000-0000-000000000001","role":"authenticated"}',
   true
 );
-select is((select count(*)::integer from public.list_pending_profiles()), 1, 'super admin sees pending account');
-select is(
-  (public.approve_pending_user(
-    '20000000-0000-0000-0000-000000000002',
+select is((select count(*)::integer from public.list_pending_signup_requests()), 1, 'operations manager sees pending signup');
+with created as (
+  select (public.create_employee(
+    '기초 테스트 직원',
+    current_date,
     (select id from public.departments where code = 'operations'),
-    (select id from public.positions where code = 'staff'),
-    array['office_staff'],
-    '테스트 승인'
-  ) ->> 'code'),
-  'ACCOUNT_APPROVED',
-  'super admin can approve pending account atomically'
+    (select id from public.positions where code = 'general_worker'),
+    true
+  ) ->> 'employee_uuid')::uuid as employee_uuid
+)
+select is(
+  (select public.approve_signup_request_with_employee(
+    '20000000-0000-0000-0000-000000000002',
+    created.employee_uuid,
+    'general_worker',
+    'Employee 연결 기반 테스트 승인'
+  ) ->> 'code' from created),
+  'EMPLOYEE_ACCOUNT_APPROVED',
+  'operations manager approves signup only through an explicit Employee link'
 );
 
 reset role;
@@ -162,7 +170,7 @@ select set_config(
 select is(
   (public.change_account_status('20000000-0000-0000-0000-000000000002', 'suspended', '테스트 정지') ->> 'code'),
   'STATUS_CHANGED',
-  'super admin can suspend account'
+  'operations manager can suspend account'
 );
 
 reset role;
@@ -184,7 +192,7 @@ select set_config(
 select is(
   (public.change_account_status('20000000-0000-0000-0000-000000000002', 'active', '테스트 재활성화') ->> 'code'),
   'STATUS_CHANGED',
-  'super admin can reactivate suspended account'
+  'operations manager can reactivate suspended account'
 );
 
 reset role;
@@ -206,7 +214,7 @@ select set_config(
 select is(
   (public.change_account_status('20000000-0000-0000-0000-000000000002', 'departed', '테스트 퇴사') ->> 'code'),
   'STATUS_CHANGED',
-  'super admin can mark account departed'
+  'operations manager can mark account departed'
 );
 
 reset role;
@@ -228,12 +236,12 @@ select set_config(
 select is(
   (public.change_account_status('10000000-0000-0000-0000-000000000001', 'suspended', '마지막 관리자 정지 시도') ->> 'code'),
   'SELF_LOCKOUT_PROTECTED',
-  'self-lockout protection prevents an active super admin from suspending itself'
+  'self-lockout protection prevents operations manager from suspending itself'
 );
 select is(
-  (public.set_profile_roles('10000000-0000-0000-0000-000000000001', array['operations_manager'], '마지막 관리자 역할 회수 시도') ->> 'code'),
+  (public.set_profile_super_admin_status('10000000-0000-0000-0000-000000000001', false, '자기 기술역할 회수 시도') ->> 'code'),
   'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED',
-  'self-lockout protection prevents an active super admin from revoking its own technical role'
+  'technical endpoint prevents an active super admin from revoking its own technical role'
 );
 
 reset role;
@@ -248,14 +256,20 @@ select isnt(
   'signup is audited'
 );
 select isnt(
-  (select count(*)::integer from public.audit_logs where action = 'account_approved'),
+  (select count(*)::integer from public.audit_logs where action = 'employee_account_linked_and_approved'),
   0,
-  'approval is audited'
+  'Employee-linked approval is audited'
 );
-select isnt(
-  (select count(*)::integer from public.audit_logs where action = 'role_granted'),
-  0,
-  'role grants are audited'
+select is(
+  (select count(*)::integer
+   from public.account_person_links link
+   join public.employees employee on employee.person_id = link.person_id
+   join public.people person on person.id = employee.person_id
+   where link.profile_id = '20000000-0000-0000-0000-000000000002'
+     and link.revoked_at is null
+     and person.full_name = '기초 테스트 직원'),
+  1,
+  'approved account keeps one explicit active Employee link'
 );
 select cmp_ok(
   (select count(*)::integer from public.account_status_history where profile_id = '20000000-0000-0000-0000-000000000002'),
@@ -285,12 +299,12 @@ select set_config(
 select is(
   (public.change_account_status('20000000-0000-0000-0000-000000000002', 'active', '삭제 테스트 전 재활성화') ->> 'code'),
   'STATUS_CHANGED',
-  'departed account can be reactivated only by super admin'
+  'departed account can be reactivated by operations manager'
 );
 select is(
   (public.change_account_status('20000000-0000-0000-0000-000000000002', 'deleted', '테스트 삭제 처리') ->> 'code'),
   'STATUS_CHANGED',
-  'super admin can mark account deleted without deleting history'
+  'operations manager can mark account deleted without deleting history'
 );
 
 reset role;
