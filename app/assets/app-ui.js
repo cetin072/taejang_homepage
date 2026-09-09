@@ -155,6 +155,7 @@
     ['assets/promotion-approved-delete-ux.js', 'promotion-approved-delete-ux'],
     ['assets/support-radar.js', 'support-radar'],
     ['assets/support-radar-notices.js', 'support-radar-notices'],
+    ['assets/support-radar-dedupe.js', 'support-radar-dedupe'],
     ['assets/support-radar-assignment.js', 'support-radar-assignment'],
     ['assets/support-radar-alerts.js', 'support-radar-alerts'],
     ['assets/support-radar-report.js', 'support-radar-report'],
