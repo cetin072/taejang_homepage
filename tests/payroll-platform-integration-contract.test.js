@@ -75,5 +75,5 @@ test('role decision is approved while real DB application remains a separate gat
   assert.match(contract, /\[x\].*Option A \/ `operations_manager` only/i);
   assert.match(contract, /\[ \] exact payroll read RPC contract is reviewed/i);
   assert.match(contract, /\[ \] exact payroll mutation RPCs are implemented transactionally/i);
-  assert.match(contract, /Not approved now: introducing a dedicated `payroll_operator` role/i);
+  assert.match(contract, /\*\*Not approved now:\*\* introducing a dedicated `payroll_operator` role/i);
 });
