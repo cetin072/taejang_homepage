@@ -33,6 +33,7 @@ on:
       - 'tests/payroll-accounting-basis.test.js'
       - 'tests/payroll-output.test.js'
       - 'tests/payroll-post-lock-correction.test.js'
+      - 'tests/payroll-post-lock-backend-contract.test.js'
       - 'tests/payroll-unresolved-total-guard.test.js'
       - 'tests/payroll-sheet-bridge.test.js'
       - 'tests/payroll-term-validator.test.js'
@@ -80,6 +81,7 @@ jobs:
           tests/payroll-accounting-basis.test.js
           tests/payroll-output.test.js
           tests/payroll-post-lock-correction.test.js
+          tests/payroll-post-lock-backend-contract.test.js
           tests/payroll-unresolved-total-guard.test.js
           tests/payroll-sheet-bridge.test.js
           tests/payroll-term-validator.test.js
