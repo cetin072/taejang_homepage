@@ -4,6 +4,8 @@
   let accessContext = null;
   let capabilitySet = new Set();
   let refreshPromise = null;
+  let replayingReady = false;
+  let queuedReadyDetail = null;
 
   const array = value => Array.isArray(value) ? value : [];
   const roleCodes = value => array(value).map(role => typeof role === 'string' ? role : role?.code).filter(Boolean);
@@ -67,7 +69,21 @@
     return refreshPromise;
   }
 
-  document.addEventListener('taejang-app-ready', () => { void refresh(); });
+  // app-ui already delays the first app-ready until all feature modules are loaded.
+  // This capture listener performs one additional replay after capability context is
+  // resolved, so normal feature listeners start with TaejangApp.can() available.
+  document.addEventListener('taejang-app-ready', event => {
+    if (replayingReady || !window.TaejangApp?.rpc) return;
+    queuedReadyDetail = event.detail || {};
+    event.stopImmediatePropagation();
+    void refresh().finally(() => {
+      const detail = queuedReadyDetail || {};
+      queuedReadyDetail = null;
+      replayingReady = true;
+      document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail }));
+      replayingReady = false;
+    });
+  }, true);
 
   window.TaejangCapabilityAccess = {
     refresh,
