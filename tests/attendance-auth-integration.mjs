@@ -78,6 +78,25 @@ check(departmentResult.ok && departmentResult.data?.[0]?.id, 'resolve attendance
 check(positionsResult.ok && positionsResult.data?.length >= 3, 'resolve attendance test positions');
 const departmentId = departmentResult.data[0].id;
 const positions = Object.fromEntries(positionsResult.data.map(row => [row.code, row.id]));
+const approvalRoles = new Set(['general_worker', 'promotion_staff', 'promotion_lead']);
+
+function grantFixtureRole(profileId, role, name) {
+  sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
+       select '${profileId}'::uuid, r.id, 'company'::public.role_scope_type, '${admin.id}'::uuid
+       from public.roles r
+       where r.code='${role}'
+         and not exists (
+           select 1 from public.profile_roles pr
+           where pr.profile_id='${profileId}'::uuid
+             and pr.role_id=r.id
+             and pr.revoked_at is null
+         )`);
+  equal(
+    sql(`select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='${profileId}'::uuid and pr.revoked_at is null and r.code='${role}'`),
+    '1',
+    `${name} receives ${role} fixture role`,
+  );
+}
 
 async function createLinkedEmployee({ email, name, role, attendanceRequired, positionCode = 'staff' }) {
   const account = await signUp(email, name);
@@ -89,13 +108,20 @@ async function createLinkedEmployee({ email, name, role, attendanceRequired, pos
     p_attendance_required: attendanceRequired,
   });
   equal(employee.data?.code, 'EMPLOYEE_CREATED', `create Employee for ${name}`);
+
+  // Production signup approval intentionally accepts only normal staff roles.
+  // Executive fixtures first use that real link path with a normal role, then
+  // receive the executive role directly in this isolated local test database.
+  const approvalRole = approvalRoles.has(role) ? role : 'general_worker';
   const approval = await rpc('approve_signup_request_with_employee', admin.token, {
     p_target_profile_id: account.id,
     p_employee_uuid: employee.data.employee_uuid,
-    p_role_code: role,
+    p_role_code: approvalRole,
     p_reason_summary: `근태 통합테스트 ${name} 연결`,
   });
   equal(approval.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', `approve and link ${name}`);
+  if (approvalRole !== role) grantFixtureRole(account.id, role, name);
+
   return { ...account, employeeUuid: employee.data.employee_uuid, employeeId: employee.data.employee_id };
 }
 
