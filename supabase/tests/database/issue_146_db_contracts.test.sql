@@ -51,14 +51,18 @@ select is(
 
 select ok(
   pg_get_functiondef('public.get_employee_management_context()'::regprocedure)
-    ilike '%left join public.departments%',
-  'employee management can represent unassigned employees'
+      ilike '%private_actor_can(''employee.view_all'')%'
+  and pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure)
+      ilike '%left join public.departments%',
+  'employee capability wrapper preserves explicit unassigned Employee reads'
 );
 
 select ok(
   pg_get_functiondef('public.update_employee_core(uuid,text,date,uuid,uuid,text,date,boolean,text)'::regprocedure)
-    ilike '%ARCHIVED_EMPLOYEE_UPDATE_FORBIDDEN%',
-  'archived Employees cannot be modified through the ordinary update RPC'
+      ilike '%private_actor_can(''employee.update'')%'
+  and pg_get_functiondef('public.private_update_employee_core_pre148(uuid,text,date,uuid,uuid,text,date,boolean,text)'::regprocedure)
+      ilike '%ARCHIVED_EMPLOYEE_UPDATE_FORBIDDEN%',
+  'employee update capability wrapper preserves archived-Employee protection'
 );
 
 select * from finish();
