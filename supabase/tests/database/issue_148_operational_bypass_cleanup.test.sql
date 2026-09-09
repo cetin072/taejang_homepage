@@ -47,9 +47,11 @@ select ok(
     where schemaname = 'public'
       and tablename = 'work_groups'
       and policyname = 'work_groups_read'
-      and qual ilike '%private_actor_can%task.manage%'
+      and qual ilike '%current_user_has_role%operations_manager%'
+      and qual ilike '%current_user_has_role%department_lead%'
+      and qual ilike '%current_user_has_role%field_lead%'
   ),
-  'work-group RLS requires task management capability for manager reads'
+  'work-group RLS uses effective operational-role bridge for scoped manager reads'
 );
 select ok(
   not exists (
@@ -58,9 +60,9 @@ select ok(
     where schemaname = 'public'
       and tablename = 'work_groups'
       and policyname = 'work_groups_read'
-      and qual ilike '%super_admin%'
+      and (qual ilike '%super_admin%' or qual ilike '%private_actor_can%')
   ),
-  'work-group RLS no longer grants technical super-admin a direct operational bypass'
+  'work-group RLS neither grants technical super-admin nor calls private capability helper directly'
 );
 
 select * from finish();
