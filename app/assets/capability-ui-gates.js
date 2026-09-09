@@ -12,7 +12,8 @@
     '업무 배정': 'task.manage',
     '일정 관리': 'schedule.manage',
     '공지 관리': 'notice.manage',
-    '상시 안내 관리': 'guidance.manage'
+    '상시 안내 관리': 'guidance.manage',
+    '복구·계정 관리': 'account.view_management'
   });
 
   const EMPLOYEE_ENTRY_CAPABILITIES = Object.freeze([
@@ -25,6 +26,10 @@
     '팀 직원 관리',
     '신규 직원 등록',
     '신규 직원 등록 요청'
+  ]);
+  const ACCOUNT_APPROVAL_CAPABILITIES = Object.freeze([
+    'account.approve',
+    'account.reject'
   ]);
 
   const cleanLabel = node => (node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
@@ -67,6 +72,10 @@
       }
       if (EMPLOYEE_NAV_LABELS.has(label)) {
         applyNavigationState(node, canAny(EMPLOYEE_ENTRY_CAPABILITIES), EMPLOYEE_ENTRY_CAPABILITIES.join('|'));
+        return;
+      }
+      if (label === '가입 승인') {
+        applyNavigationState(node, canAny(ACCOUNT_APPROVAL_CAPABILITIES), ACCOUNT_APPROVAL_CAPABILITIES.join('|'));
       }
     });
   }
@@ -105,6 +114,24 @@
     showDenied('직원 관리');
   }, true);
 
+  document.addEventListener('taejang-open-account-approval', event => {
+    if (!hasContract() || canAny(ACCOUNT_APPROVAL_CAPABILITIES)) return;
+    event.stopImmediatePropagation();
+    event.preventDefault?.();
+    showDenied('가입 승인');
+  }, true);
+
+  document.addEventListener('click', event => {
+    if (!hasContract()) return;
+    const target = event.target?.closest?.('button,a');
+    if (!target) return;
+    const label = cleanLabel(target);
+    if (label !== '복구·계정 관리' || can('account.view_management')) return;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    showDenied('복구·계정 관리');
+  }, true);
+
   function refreshUi() {
     bindNavigationObserver();
     pruneNavigation();
@@ -117,6 +144,7 @@
     PANEL_CAPABILITIES,
     NAV_CAPABILITIES,
     EMPLOYEE_ENTRY_CAPABILITIES,
+    ACCOUNT_APPROVAL_CAPABILITIES,
     refresh: refreshUi
   };
 })();
