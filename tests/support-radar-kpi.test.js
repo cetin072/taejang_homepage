@@ -14,8 +14,8 @@ test('Phase 1 KPI query covers all agreed operating indicators',()=>{
 
 test('missed-important KPI requires a high-score relevant notice that passed without application',()=>{
   assert.match(sql,/overall_score>=85/);
-  assert.match(sql,/hard_gate<>''fail''/);
-  assert.match(sql,/recommended_application_mode<>''none''/);
+  assert.match(sql,/hard_gate<>'fail'/);
+  assert.match(sql,/recommended_application_mode<>'none'/);
   assert.match(sql,/not exists\(select 1 from public\.support_applications/);
 });
 
