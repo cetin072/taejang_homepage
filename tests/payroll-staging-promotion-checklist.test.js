@@ -12,6 +12,10 @@ const compatibility = fs.readFileSync(
   path.join(root, 'prototypes/payroll-backend/STAGING_COMPATIBILITY_SNAPSHOT_20260910.md'),
   'utf8'
 );
+const resyncPlan = fs.readFileSync(
+  path.join(root, 'prototypes/payroll-backend/MAIN_RESYNC_PLAN.md'),
+  'utf8'
+);
 
 test('staging checklist does not authorize deployment and keeps payroll function outside deployable tree', () => {
   assert.match(checklist, /NOTHING IN THIS DOCUMENT AUTHORIZES DEPLOYMENT/i);
@@ -32,6 +36,16 @@ test('staging promotion requires current main and staging migration baselines to
   assert.match(checklist, /do not apply payroll candidates onto a staging schema that is behind/i);
   assert.match(compatibility, /READ-ONLY OBSERVATION \/ NOT DEPLOYMENT AUTHORIZATION/i);
   assert.match(compatibility, /staging was \*\*behind the current main migration baseline\*\*/i);
+});
+
+test('main resync plan registers payroll into the current manifest-based test runner', () => {
+  assert.match(resyncPlan, /PLAN ONLY \/ NO REBASE OR MERGE PERFORMED/i);
+  assert.match(resyncPlan, /scripts\/test-manifest\.mjs/i);
+  assert.match(resyncPlan, /payrollRegression/i);
+  assert.match(resyncPlan, /npm run test:payroll/i);
+  assert.match(resyncPlan, /include payroll in default `npm test` once the branch is integrated/i);
+  assert.match(resyncPlan, /Issue #149 attendance integrity/i);
+  assert.match(resyncPlan, /do not replace the accepted vendor\/fingerprint Excel import with mobile attendance automatically/i);
 });
 
 test('staging checklist requires approved operator access and denies implicit super-admin payroll authority', () => {
