@@ -43,6 +43,13 @@
   }
 
   function makeEngineResultRow(employee, result) {
+    const unresolvedCount = Number(result.unresolvedCount || 0);
+    const weeklyHolidayPendingWeeks = Number(result.weeklyHolidayPendingWeeks || 0);
+    const rateStatus = result.rateStatus;
+    const employeeGrossReady = unresolvedCount === 0
+      && weeklyHolidayPendingWeeks === 0
+      && rateStatus === 'single_rate';
+
     return {
       employee_uuid: employee.employeeUuid,
       actual_work_hours: Number(result.actualWorkHours || 0),
@@ -50,12 +57,14 @@
       paid_holiday_hours: Number(result.paidHolidayHours || 0),
       weekly_holiday_actual_hours: Number(result.weeklyHolidayActualHours || 0),
       weekly_holiday_expected_hours: Number(result.weeklyHolidayExpectedHours || 0),
-      weekly_holiday_pending_weeks: Number(result.weeklyHolidayPendingWeeks || 0),
-      unresolved_count: Number(result.unresolvedCount || 0),
+      weekly_holiday_pending_weeks: weeklyHolidayPendingWeeks,
+      unresolved_count: unresolvedCount,
       payable_hours_preview: Number(result.payableHoursPreview || 0),
       hourly_rate: result.hourlyRate == null ? null : Number(result.hourlyRate),
-      gross_pay_preview: result.grossPayPreview == null ? null : Number(result.grossPayPreview),
-      rate_status: result.rateStatus,
+      gross_pay_preview: employeeGrossReady && result.grossPayPreview != null
+        ? Number(result.grossPayPreview)
+        : null,
+      rate_status: rateStatus,
       calculation_detail: {
         weekly_holiday_statuses: Array.isArray(result.weeklyHoliday && result.weeklyHoliday.weeks)
           ? result.weeklyHoliday.weeks.map((week) => ({
@@ -161,8 +170,12 @@
         unresolvedItemCount += Number(result.weeklyHolidayPendingWeeks || 0);
         if (result.rateStatus !== 'single_rate') rateReviewCount += 1;
         payableHoursPreview += Number(result.payableHoursPreview || 0);
-        if (result.grossPayPreview != null) grossPayPreview += Number(result.grossPayPreview);
-        employeeResults.push(makeEngineResultRow(canonicalEmployee, result));
+
+        const persistedEmployeeResult = makeEngineResultRow(canonicalEmployee, result);
+        if (persistedEmployeeResult.gross_pay_preview != null) {
+          grossPayPreview += Number(persistedEmployeeResult.gross_pay_preview);
+        }
+        employeeResults.push(persistedEmployeeResult);
       }
 
       const grossPayPreviewStatus = unresolvedItemCount === 0 && rateReviewCount === 0
