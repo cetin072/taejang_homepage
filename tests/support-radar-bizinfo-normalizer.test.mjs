@@ -4,6 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  BIZINFO_API_ENDPOINT,
+  buildBizinfoRequestPlan,
   normalizeBizinfoPayload,
   parseBizinfoApplicationPeriod,
   parseBizinfoCsv,
@@ -22,6 +24,32 @@ const sourcePath = path.join(__dirname, '..', 'scripts', 'support-radar-bizinfo-
 const source = fs.readFileSync(sourcePath, 'utf8');
 const contractPath = path.join(__dirname, '..', 'scripts', 'support-radar-ingestion-contract.mjs');
 const contractSource = fs.readFileSync(contractPath, 'utf8');
+
+test('builds a public BizInfo request plan without accepting or embedding the service key', () => {
+  const plan = buildBizinfoRequestPlan({
+    dataType: 'json',
+    searchCnt: 10,
+    searchLclasId: '03',
+    hashtags: '경남',
+    pageUnit: 20,
+    pageIndex: 2
+  });
+
+  assert.equal(plan.endpoint, BIZINFO_API_ENDPOINT);
+  assert.deepEqual(plan.public_params, {
+    dataType: 'json',
+    searchCnt: '10',
+    searchLclasId: '03',
+    hashtags: '경남',
+    pageUnit: '20',
+    pageIndex: '2'
+  });
+  assert.equal(plan.requires_server_secret, true);
+  assert.equal(plan.secret_parameter_name, 'crtfcKey');
+  assert.equal(Object.prototype.hasOwnProperty.call(plan.public_params, 'crtfcKey'), false);
+  assert.throws(() => buildBizinfoRequestPlan({ dataType: 'yaml' }), /BIZINFO_DATA_TYPE_INVALID/);
+  assert.throws(() => buildBizinfoRequestPlan({ pageIndex: 0 }), /BIZINFO_PAGEINDEX_INVALID/);
+});
 
 test('normalizes documented BizInfo fields into ledger-ready source and notice shapes', () => {
   const result = normalizeBizinfoPayload(fixture);
@@ -150,11 +178,13 @@ test('common ingestion contract rejects duplicate IDs and incomplete ledger fact
   }), /INGESTION_SOURCE_CODE_INVALID/);
 });
 
-test('fixture normalizer and common contract are offline-only with no credentials or AI dependency', () => {
+test('fixture normalizer and common contract are offline-only with no credential values or AI dependency', () => {
   for (const fileSource of [source, contractSource]) {
     assert.doesNotMatch(fileSource, /\bfetch\s*\(/);
     assert.doesNotMatch(fileSource, /Netlify\.env/);
-    assert.doesNotMatch(fileSource, /crtfcKey/);
     assert.doesNotMatch(fileSource, /OPENAI|ANTHROPIC|CLAUDE|API_KEY/i);
   }
+
+  assert.match(source, /secret_parameter_name:\s*'crtfcKey'/);
+  assert.doesNotMatch(source, /crtfcKey\s*[:=]\s*['"][A-Za-z0-9_-]{8,}/);
 });
