@@ -24,7 +24,8 @@ export const testGroups = Object.freeze({
     'tests/internal-app-ia.test.js',
     'tests/internal-app-followup-ux.test.js',
     'tests/app-failure-states.test.js',
-    'tests/required-check-workflows.test.js'
+    'tests/required-check-workflows.test.js',
+    'tests/support-radar-bizinfo-normalizer.test.mjs'
   ]),
   publicHomepage: Object.freeze([
     'tests/public-homepage-main-simplification.test.js',
