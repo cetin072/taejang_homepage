@@ -9,11 +9,16 @@ const bridge = fs.readFileSync('app/assets/capability-access.js', 'utf8');
 for (const capability of ['task.manage', 'schedule.manage', 'notice.manage', 'guidance.manage']) {
   assert.match(gates, new RegExp(capability.replace('.', '\\.')), `${capability} must be mapped in UI gates`);
 }
+for (const capability of ['employee.view_all', 'employee.view_scoped', 'employee.create']) {
+  assert.match(gates, new RegExp(capability.replace('.', '\\.')), `${capability} must participate in Employee workspace entry`);
+}
 
 assert.match(gates, /hasCapabilityContract/, 'UI gating activates only when v2 capability contract is available');
 assert.match(gates, /TaejangApp\?\.can|TaejangApp\.can/, 'UI gates use TaejangApp.can as the client authorization source');
 assert.match(gates, /taejang-open-app-panel/, 'direct panel-open events are capability gated');
-assert.match(gates, /stopImmediatePropagation/, 'unauthorized panel-open events are stopped before legacy route listeners');
+assert.match(gates, /taejang-open-employee-management/, 'direct Employee workspace events are capability gated');
+assert.match(gates, /EMPLOYEE_NAV_LABELS/, 'legacy Employee navigation is pruned by capability when v2 is active');
+assert.match(gates, /stopImmediatePropagation/, 'unauthorized open events are stopped before legacy route listeners');
 assert.match(gates, /MutationObserver/, 'navigation added by legacy modules is rechecked after render');
 
 assert.match(bridge, /capability-ui-gates\.js/, 'capability bridge preloads UI gates');
