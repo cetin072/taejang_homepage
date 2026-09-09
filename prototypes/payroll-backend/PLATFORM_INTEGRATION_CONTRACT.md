@@ -1,10 +1,12 @@
 # Taejang Payroll Platform Integration Contract
 
-Status: **DESIGN / APPROVAL-GATE CONTRACT ONLY**
+Status: **ACCESS MODEL APPROVED / DB APPLICATION NOT APPROVED**
 
 Goal: #142 / PR #143
 
-This document defines how the payroll module may connect to the existing Taejang work platform. It does **not** authorize a Supabase migration, RLS policy, RPC deployment, role grant, Production deployment, real payroll lock, or payment execution.
+User approval recorded: **2026-09-09 — Option A approved.**
+
+The first controlled payroll MVP will reuse the existing `operations_manager` role as the **only payroll operator role**. This approval settles the role/access-model decision. It does **not** authorize a Supabase migration, RLS/RPC deployment, Production deployment, real payroll lock, retroactive payment, or payroll payment execution.
 
 ## 1. Reuse the existing employee identity source of truth
 
@@ -33,28 +35,32 @@ State-changing payroll operations must be server-side / transaction-safe RPC ope
 
 Normal page loads should read persisted payroll snapshots through an authorized read boundary instead of recomputing payroll.
 
-## 3. Payroll authorization is separate from system administration
+## 3. Approved payroll authorization model — Option A
 
-A system-administration role must not automatically imply payroll-data access.
+The approved first controlled MVP authorization model is:
 
-In particular, `super_admin` alone is **not** a payroll authorization rule. System configuration authority and payroll confidentiality are separate concerns.
-
-The existing role/permission design allows the operations manager to access company-wide records when operationally necessary and requires auditability for sensitive access. Therefore the recommended MVP authorization candidate is:
-
-- `operations_manager`: payroll operator read/write candidate for the first controlled MVP;
-- `ceo`: no automatic employee-level payroll write authority; any read-only final-summary access should be a separate explicit decision;
-- `super_admin`: no automatic payroll access solely because of the system role;
+- `operations_manager`: **the only payroll operator role** for employee-level payroll read/write operations;
+- `ceo`: no automatic employee-level payroll access under this approval;
+- `super_admin`: no automatic payroll access solely because of the system-administration role;
 - department/team leads, worker-support roles, promotion roles, office staff, general workers, work assistants, external guides: no company-wide payroll access.
 
-**This is a recommendation, not an applied permission decision.** Granting payroll access to any role remains a user approval gate.
+This means payroll authorization is intentionally separate from system administration. `super_admin` alone is **not** a payroll authorization rule.
 
-If payroll operation later needs delegation without giving the full `operations_manager` role, create a dedicated least-privilege `payroll_operator` role only after a separate shared Auth/Role/RLS approval. Do not smuggle a new role into the payroll migration.
+Do not create a new `payroll_operator` role in this MVP. If payroll work later needs delegation without granting the full `operations_manager` role, that becomes a new shared Auth/Role/RLS approval gate.
+
+This approval authorizes implementation of a reviewed **candidate** access layer and tests in Draft PR #143. It does not authorize applying that candidate to a live Supabase environment.
 
 ## 4. Active-account check is mandatory
 
 Every payroll read or mutation RPC must reject unauthenticated or inactive profiles.
 
 Approved implementations should reuse the established helpers such as `current_profile_is_active()` and `current_user_has_role(...)`, or an independently reviewed equivalent. A stale browser session must not bypass an account suspension/departure decision.
+
+For the approved MVP, the positive authorization predicate is effectively:
+
+`current_profile_is_active() AND current_user_has_role('operations_manager')`
+
+No other role may be OR-ed into this predicate without a new approval.
 
 ## 5. Read boundary
 
@@ -83,6 +89,8 @@ The Production adapter must implement state-changing operations through reviewed
 4. reconcile/review outgoing adjustments;
 5. append a post-lock correction without rewriting the locked source month;
 6. lock a payroll month after atomically rechecking all blockers.
+
+Every mutation RPC must independently enforce the approved `operations_manager` authorization predicate at the server boundary. UI button visibility is never an authorization control.
 
 The exact concurrency requirements are defined in `CONCURRENCY_CONTRACT.md`.
 
@@ -130,9 +138,9 @@ A later correction to employee lifecycle facts must be audited and must make any
 
 ## 10. Migration promotion blockers
 
-Before the rollback-only payroll prototype can become an executable Supabase migration, all of the following must be resolved:
+The role/access-model blocker is now resolved by the user's Option A approval. Before any rollback-only candidate can become an executable Supabase migration, all remaining blockers below must still be resolved:
 
-- [ ] user explicitly approves the payroll role/access model;
+- [x] user explicitly approves the payroll role/access model — **Option A / `operations_manager` only**;
 - [ ] exact payroll read RPC contract is reviewed;
 - [ ] exact payroll mutation RPCs are implemented transactionally;
 - [ ] RLS/grants remain fail-closed except for reviewed RPC execution;
@@ -141,26 +149,15 @@ Before the rollback-only payroll prototype can become an executable Supabase mig
 - [ ] audit payloads are verified not to contain payroll amounts or Sensitive HR values;
 - [ ] staging verification confirms an inactive account loses payroll access immediately;
 - [ ] staging verification confirms non-payroll roles cannot read payroll data;
-- [ ] staging verification confirms `super_admin` alone does not grant payroll access unless separately approved;
+- [ ] staging verification confirms `super_admin` alone does not grant payroll access;
 - [ ] no Production deployment or real payroll month mutation occurs during migration verification.
 
-## 11. Recommended approval decision when this gate is reached
+## 11. Approved decision and future delegation
 
-Recommended first controlled MVP:
+**Approved now:** reuse `operations_manager` as the only payroll operator role initially.
 
-**Option A — reuse `operations_manager` as the only payroll operator role initially.**
+This keeps the payroll audience very small and avoids changing the shared Auth/Role model while the payroll MVP is still being validated.
 
-Why this is preferred for the first release:
+**Not approved now:** introducing a dedicated `payroll_operator` role, automatic CEO payroll access, or automatic `super_admin` payroll access.
 
-- it matches the current employee-management authority model;
-- it avoids introducing a new shared Auth/Role contract while the payroll MVP is still being validated;
-- it keeps the payroll audience very small;
-- a dedicated least-privilege role can be added later if delegation becomes necessary.
-
-Alternative:
-
-**Option B — introduce a dedicated `payroll_operator` role before the first live payroll integration.**
-
-This is stronger least-privilege design for delegation, but it changes the shared role model and requires broader Auth/RLS review and explicit user approval.
-
-No option is applied by this document.
+If delegation becomes necessary later, create a dedicated least-privilege payroll role only through a separate Auth/Role/RLS review and explicit user approval.
