@@ -6,6 +6,7 @@
   let refreshPromise = null;
   let replayingReady = false;
   let queuedReadyDetail = null;
+  let uiGatesPromise = null;
 
   const array = value => Array.isArray(value) ? value : [];
   const roleCodes = value => array(value).map(role => typeof role === 'string' ? role : role?.code).filter(Boolean);
@@ -30,6 +31,30 @@
       || /get_my_access_context_v2|PGRST202|function.*does not exist/i.test(message);
   }
 
+  function ensureUiGates() {
+    if (window.TaejangCapabilityUiGates) return Promise.resolve();
+    if (uiGatesPromise) return uiGatesPromise;
+    uiGatesPromise = new Promise(resolve => {
+      const existing = document.querySelector('script[data-capability-ui-gates]');
+      if (existing) {
+        existing.addEventListener('load', resolve, { once: true });
+        existing.addEventListener('error', resolve, { once: true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'assets/capability-ui-gates.js';
+      script.async = false;
+      script.dataset.capabilityUiGates = '1';
+      script.addEventListener('load', resolve, { once: true });
+      script.addEventListener('error', () => {
+        console.warn('Capability UI gates failed to load; server authorization remains authoritative.');
+        resolve();
+      }, { once: true });
+      document.head.append(script);
+    }).finally(() => { uiGatesPromise = null; });
+    return uiGatesPromise;
+  }
+
   async function refresh() {
     if (refreshPromise) return refreshPromise;
     refreshPromise = (async () => {
@@ -44,6 +69,7 @@
         const context = await app.rpc('get_my_access_context_v2');
         if (!context || Number(context.access_contract_version) < 2) throw new Error('INVALID_CAPABILITY_CONTEXT');
         installApi(context, 2);
+        await ensureUiGates();
         document.dispatchEvent(new CustomEvent('taejang-capabilities-ready', {
           detail: {
             version: 2,
