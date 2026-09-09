@@ -15,9 +15,22 @@
     '상시 안내 관리': 'guidance.manage'
   });
 
+  const EMPLOYEE_ENTRY_CAPABILITIES = Object.freeze([
+    'employee.view_all',
+    'employee.view_scoped',
+    'employee.create'
+  ]);
+  const EMPLOYEE_NAV_LABELS = new Set([
+    '직원 관리',
+    '팀 직원 관리',
+    '신규 직원 등록',
+    '신규 직원 등록 요청'
+  ]);
+
   const cleanLabel = node => (node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
   const hasContract = () => Boolean(window.TaejangApp?.hasCapabilityContract?.());
   const can = capability => Boolean(window.TaejangApp?.can?.(capability));
+  const canAny = capabilities => capabilities.some(can);
 
   function showDenied(label) {
     const health = window.TaejangFeatureHealth;
@@ -32,6 +45,14 @@
     notice.hidden = false;
   }
 
+  function applyNavigationState(node, allowed, capabilityLabel) {
+    node.hidden = !allowed;
+    node.setAttribute('aria-hidden', String(!allowed));
+    node.toggleAttribute('disabled', !allowed && node.tagName === 'BUTTON');
+    if (!allowed) node.dataset.capabilityDenied = capabilityLabel;
+    else delete node.dataset.capabilityDenied;
+  }
+
   function pruneNavigation() {
     if (!hasContract()) return;
     const nav = document.getElementById('app-nav');
@@ -40,13 +61,13 @@
     [...nav.querySelectorAll('button, a')].forEach(node => {
       const label = cleanLabel(node);
       const capability = NAV_CAPABILITIES[label];
-      if (!capability) return;
-      const allowed = can(capability);
-      node.hidden = !allowed;
-      node.setAttribute('aria-hidden', String(!allowed));
-      node.toggleAttribute('disabled', !allowed && node.tagName === 'BUTTON');
-      if (!allowed) node.dataset.capabilityDenied = capability;
-      else delete node.dataset.capabilityDenied;
+      if (capability) {
+        applyNavigationState(node, can(capability), capability);
+        return;
+      }
+      if (EMPLOYEE_NAV_LABELS.has(label)) {
+        applyNavigationState(node, canAny(EMPLOYEE_ENTRY_CAPABILITIES), EMPLOYEE_ENTRY_CAPABILITIES.join('|'));
+      }
     });
   }
 
@@ -77,6 +98,13 @@
     showDenied(labels[panelId] || '관리 기능');
   }, true);
 
+  document.addEventListener('taejang-open-employee-management', event => {
+    if (!hasContract() || canAny(EMPLOYEE_ENTRY_CAPABILITIES)) return;
+    event.stopImmediatePropagation();
+    event.preventDefault?.();
+    showDenied('직원 관리');
+  }, true);
+
   function refreshUi() {
     bindNavigationObserver();
     pruneNavigation();
@@ -88,6 +116,7 @@
   window.TaejangCapabilityUiGates = {
     PANEL_CAPABILITIES,
     NAV_CAPABILITIES,
+    EMPLOYEE_ENTRY_CAPABILITIES,
     refresh: refreshUi
   };
 })();
