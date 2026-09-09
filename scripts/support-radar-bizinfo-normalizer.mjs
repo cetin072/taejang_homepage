@@ -1,3 +1,5 @@
+export const BIZINFO_API_ENDPOINT = 'https://www.bizinfo.go.kr/uss/rss/bizinfoApi.do';
+
 const REGION_TAGS = new Set([
   '서울', '부산', '대구', '인천', '전남광주', '대전', '울산', '세종',
   '경기', '강원', '충북', '충남', '전북', '경북', '경남', '제주'
@@ -14,6 +16,42 @@ function first(...values) {
     if (normalized) return normalized;
   }
   return '';
+}
+
+function positiveInteger(value, field) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0) throw new Error(`BIZINFO_${field.toUpperCase()}_INVALID`);
+  return number;
+}
+
+export function buildBizinfoRequestPlan({
+  dataType = 'json',
+  searchCnt = null,
+  searchLclasId = null,
+  hashtags = null,
+  pageUnit = null,
+  pageIndex = null
+} = {}) {
+  const normalizedType = clean(dataType).toLowerCase();
+  if (!['json', 'xml'].includes(normalizedType)) throw new Error('BIZINFO_DATA_TYPE_INVALID');
+
+  const params = { dataType: normalizedType };
+  const count = positiveInteger(searchCnt, 'searchCnt');
+  const unit = positiveInteger(pageUnit, 'pageUnit');
+  const index = positiveInteger(pageIndex, 'pageIndex');
+  if (count !== null) params.searchCnt = String(count);
+  if (clean(searchLclasId)) params.searchLclasId = clean(searchLclasId);
+  if (clean(hashtags)) params.hashtags = clean(hashtags);
+  if (unit !== null) params.pageUnit = String(unit);
+  if (index !== null) params.pageIndex = String(index);
+
+  return {
+    endpoint: BIZINFO_API_ENDPOINT,
+    public_params: params,
+    requires_server_secret: true,
+    secret_parameter_name: 'crtfcKey'
+  };
 }
 
 function decodeEntities(value) {
