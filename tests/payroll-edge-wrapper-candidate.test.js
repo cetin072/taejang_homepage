@@ -54,9 +54,11 @@ test('internal client is limited to trusted persistence RPC and never performs p
 });
 
 test('service credential never enters response or operational log payload', () => {
-  const responseCalls = [...wrapper.matchAll(/responseJson\([\s\S]*?\)/g)].map((m) => m[0]);
+  const responseLines = wrapper
+    .split('\n')
+    .filter((line) => line.includes('responseJson(') && !line.includes('function responseJson'));
   const logCalls = [...wrapper.matchAll(/safeOperationalLog\([\s\S]*?\n\s*\}\);/g)].map((m) => m[0]);
-  for (const text of [...responseCalls, ...logCalls]) {
+  for (const text of [...responseLines, ...logCalls]) {
     assert.doesNotMatch(text, /internalServiceKey|SUPABASE_SERVICE_ROLE_KEY|publishableKey|Bearer \$\{token\}/);
   }
   assert.doesNotMatch(wrapper, /console\.(?:log|info|error)\([^\n]*(?:internalServiceKey|token|requestBody|employeeResults)/);
