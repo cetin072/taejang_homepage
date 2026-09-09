@@ -9,12 +9,19 @@ import {
   parseBizinfoCsv,
   stripBizinfoHtml
 } from '../scripts/support-radar-bizinfo-normalizer.mjs';
+import {
+  createSupportRadarIngestionBatch,
+  SUPPORT_RADAR_INGESTION_CONTRACT,
+  validateSupportRadarIngestionBatch
+} from '../scripts/support-radar-ingestion-contract.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fixturePath = path.join(__dirname, 'fixtures', 'support-radar-bizinfo-sample.json');
 const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 const sourcePath = path.join(__dirname, '..', 'scripts', 'support-radar-bizinfo-normalizer.mjs');
 const source = fs.readFileSync(sourcePath, 'utf8');
+const contractPath = path.join(__dirname, '..', 'scripts', 'support-radar-ingestion-contract.mjs');
+const contractSource = fs.readFileSync(contractPath, 'utf8');
 
 test('normalizes documented BizInfo fields into ledger-ready source and notice shapes', () => {
   const result = normalizeBizinfoPayload(fixture);
@@ -103,9 +110,51 @@ test('normalizes simple source text deterministically', () => {
   assert.deepEqual(parseBizinfoCsv('경남, 인력,경남,,AI'), ['경남', '인력', 'AI']);
 });
 
-test('fixture normalizer is offline-only and does not contain API credentials or network calls', () => {
-  assert.doesNotMatch(source, /\bfetch\s*\(/);
-  assert.doesNotMatch(source, /Netlify\.env/);
-  assert.doesNotMatch(source, /crtfcKey/);
-  assert.doesNotMatch(source, /OPENAI|ANTHROPIC|CLAUDE|API_KEY/i);
+test('wraps a source adapter result in a source-neutral ingestion contract', () => {
+  const normalized = normalizeBizinfoPayload(fixture);
+  const batch = createSupportRadarIngestionBatch({
+    source_code: 'bizinfo',
+    fetched_at: '2026-09-10T08:00:00+09:00',
+    normalized,
+    cursor: { page_index: 1 }
+  });
+
+  assert.equal(batch.contract_version, 'support-radar-ingestion-v1');
+  assert.equal(batch.source_code, 'bizinfo');
+  assert.equal(batch.items.length, 2);
+  assert.deepEqual(batch.cursor, { page_index: 1 });
+  assert.equal(SUPPORT_RADAR_INGESTION_CONTRACT.version, 'support-radar-ingestion-v1');
+  assert.match(SUPPORT_RADAR_INGESTION_CONTRACT.principles.join(' '), /semantic AI interpretation is outside ingestion/);
+});
+
+test('common ingestion contract rejects duplicate IDs and incomplete ledger facts', () => {
+  const normalized = normalizeBizinfoPayload(fixture);
+  const batch = createSupportRadarIngestionBatch({
+    source_code: 'bizinfo',
+    fetched_at: '2026-09-10T08:00:00+09:00',
+    normalized
+  });
+
+  const duplicate = structuredClone(batch);
+  duplicate.items.push(structuredClone(duplicate.items[0]));
+  assert.throws(() => validateSupportRadarIngestionBatch(duplicate), /INGESTION_DUPLICATE_SOURCE_NOTICE_ID/);
+
+  const noRawPayload = structuredClone(batch);
+  delete noRawPayload.items[0].occurrence.raw_payload;
+  assert.throws(() => validateSupportRadarIngestionBatch(noRawPayload), /INGESTION_RAW_PAYLOAD_REQUIRED/);
+
+  assert.throws(() => createSupportRadarIngestionBatch({
+    source_code: 'BizInfo!',
+    fetched_at: '2026-09-10T08:00:00+09:00',
+    normalized
+  }), /INGESTION_SOURCE_CODE_INVALID/);
+});
+
+test('fixture normalizer and common contract are offline-only with no credentials or AI dependency', () => {
+  for (const fileSource of [source, contractSource]) {
+    assert.doesNotMatch(fileSource, /\bfetch\s*\(/);
+    assert.doesNotMatch(fileSource, /Netlify\.env/);
+    assert.doesNotMatch(fileSource, /crtfcKey/);
+    assert.doesNotMatch(fileSource, /OPENAI|ANTHROPIC|CLAUDE|API_KEY/i);
+  }
 });
