@@ -6,6 +6,7 @@ on:
       - 'docs/operations/PAYROLL_ATTENDANCE_IMPORT_APPS_SCRIPT.gs'
       - 'app/payroll/**'
       - 'app/assets/payroll-engine.js'
+      - 'app/assets/payroll-db-input-adapter.js'
       - 'app/assets/payroll-golden-compat.js'
       - 'app/assets/payroll-repository.js'
       - 'app/assets/payroll-service.js'
@@ -29,6 +30,7 @@ on:
       - 'tests/payroll-trusted-runtime-contract.test.js'
       - 'tests/payroll-trusted-result-persistence-candidate.test.js'
       - 'tests/payroll-outgoing-adjustment-review-candidate.test.js'
+      - 'tests/payroll-db-input-adapter.test.js'
       - 'tests/payroll-engine.test.js'
       - 'tests/payroll-golden-compat.test.js'
       - 'tests/payroll-rate-guard.test.js'
@@ -85,6 +87,7 @@ jobs:
           tests/payroll-trusted-runtime-contract.test.js
           tests/payroll-trusted-result-persistence-candidate.test.js
           tests/payroll-outgoing-adjustment-review-candidate.test.js
+          tests/payroll-db-input-adapter.test.js
           tests/payroll-engine.test.js
           tests/payroll-golden-compat.test.js
           tests/payroll-rate-guard.test.js
