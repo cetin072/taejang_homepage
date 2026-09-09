@@ -3,9 +3,10 @@
 -- Status: CANDIDATE ONLY. THIS FILE ROLLS BACK AND MUST NOT BE APPLIED TO STAGING/PRODUCTION WITHOUT A SEPARATE APPROVAL.
 -- User-approved access model (2026-09-09): operations_manager is the only payroll operator role for the first controlled MVP.
 --
--- This candidate assumes the payroll core tables from schema.sql and the existing platform
--- security helpers already exist. It intentionally creates no role, no table policy, no
--- service-role bypass, no payroll mutation RPC, and no Production grant beyond guarded RPC EXECUTE.
+-- This candidate assumes the payroll core tables from schema.sql, the existing platform
+-- security helpers, and private_current_payroll_basis(uuid,uuid) from the mutation candidate
+-- are promoted together in one reviewed migration bundle. It intentionally creates no role,
+-- no table policy, no service-role bypass, and no Production grant beyond guarded RPC EXECUTE.
 
 begin;
 
@@ -54,6 +55,7 @@ declare
   employees_json jsonb := '[]'::jsonb;
   accounting_json jsonb := null;
   carryover_json jsonb := '{}'::jsonb;
+  basis_json jsonb := null;
   result jsonb;
 begin
   if p_payroll_month is null
@@ -85,6 +87,7 @@ begin
       'month_status','not_started',
       'month',null,
       'latest_run',null,
+      'payroll_basis',null,
       'employees','[]'::jsonb,
       'carryover',jsonb_build_object('incoming_count',0,'outgoing_count',0),
       'accounting',null
@@ -112,6 +115,11 @@ begin
     if not found then
       raise exception using errcode='55000', message='PAYROLL_LATEST_RUN_INTEGRITY_ERROR';
     end if;
+
+    -- Server-generated basis is returned to the operator UI. Confirmation/lock commands
+    -- send this fingerprint back as an expected value; mutation RPCs rebuild it again
+    -- under the payroll-month row lock before accepting the action.
+    basis_json := public.private_current_payroll_basis(month_row.id,run_row.id);
 
     select coalesce(
       jsonb_agg(
@@ -147,6 +155,8 @@ begin
   select jsonb_build_object(
     'comparison_id',c.id,
     'run_id',c.run_id,
+    'payroll_basis_fingerprint',c.payroll_basis_fingerprint,
+    'adjusted_gross_basis',c.adjusted_gross_basis,
     'confirmed',c.confirmed,
     'stale',c.stale,
     'difference_count',c.difference_count,
@@ -198,13 +208,13 @@ begin
       'gross_pay_preview_status',run_row.gross_pay_preview_status,
       'payable_hours_preview',run_row.payable_hours_preview
     ) end,
+    'payroll_basis',basis_json,
     'employees',employees_json,
     'carryover',coalesce(carryover_json,'{}'::jsonb),
     'accounting',accounting_json
   );
 
-  -- Generic audit intentionally stores no employee names, payroll amounts, deductions,
-  -- attendance raw values, or other payroll payloads.
+  -- Generic audit intentionally stores only operation identifiers and month/run references.
   perform public.private_append_audit(
     actor_id,
     'payroll_month_viewed',
@@ -242,12 +252,12 @@ revoke all on function public.get_payroll_operator_month_context(date) from publ
 -- authenticated may reach the guarded RPC, but authorization is rechecked inside the RPC.
 grant execute on function public.get_payroll_operator_month_context(date) to authenticated;
 
--- Intentionally absent from this candidate:
+-- Intentionally absent from this read-access candidate:
 -- - any CREATE ROLE / payroll_operator role
 -- - any payroll table SELECT/INSERT/UPDATE/DELETE grant
 -- - any payroll table RLS allow policy
 -- - any super_admin or ceo payroll bypass
--- - any state-changing payroll RPC
+-- - any state-changing payroll RPC definition
 -- - any service-role bypass
 -- - any actual month lock/payment/retroactive payment execution
 
