@@ -38,20 +38,22 @@ test('employee foundation demonstrates the fail-closed table plus guarded RPC pa
   assert.match(contract, /must not be directly selectable or writable by `anon` or ordinary `authenticated` clients/i);
 });
 
-test('payroll role recommendation never treats super-admin as implicit payroll authority', () => {
+test('approved MVP access model is operations_manager only and never implicit super-admin payroll authority', () => {
   assert.match(securitySql, /\('operations_manager', '운영총괄'\)/);
   assert.match(securitySql, /\('super_admin', '시스템 최고관리자'\)/);
+  assert.match(contract, /Option A approved/i);
+  assert.match(contract, /`operations_manager`: \*\*the only payroll operator role\*\*/i);
   assert.match(contract, /`super_admin` alone is \*\*not\*\* a payroll authorization rule/i);
-  assert.match(contract, /recommended MVP authorization candidate/i);
-  assert.match(contract, /`operations_manager`: payroll operator read\/write candidate/i);
-  assert.match(contract, /recommendation, not an applied permission decision/i);
+  assert.match(contract, /Do not create a new `payroll_operator` role/i);
+  assert.match(contract, /does not authorize applying that candidate to a live Supabase environment/i);
 });
 
-test('payroll integration contract requires active-account and role checks at the RPC boundary', () => {
+test('payroll integration contract requires active-account and operations-manager checks at the RPC boundary', () => {
   assert.match(securitySql, /create or replace function public\.current_profile_is_active\(\)/i);
   assert.match(securitySql, /create or replace function public\.current_user_has_role\(p_role_code text\)/i);
   assert.match(contract, /Every payroll read or mutation RPC must reject unauthenticated or inactive profiles/i);
-  assert.match(contract, /current_profile_is_active\(\).*current_user_has_role/i);
+  assert.match(contract, /current_profile_is_active\(\) AND current_user_has_role\('operations_manager'\)/i);
+  assert.match(contract, /No other role may be OR-ed into this predicate without a new approval/i);
 });
 
 test('generic audit logs stay free of payroll amounts and sensitive payroll payloads', () => {
@@ -68,10 +70,10 @@ test('authoritative payroll mutations are reserved for reviewed transaction-safe
   assert.match(contract, /A final locked payroll month is immutable/i);
 });
 
-test('platform integration remains an explicit approval gate rather than an executable migration', () => {
-  assert.match(contract, /does \*\*not\*\* authorize a Supabase migration/i);
-  assert.match(contract, /user explicitly approves the payroll role\/access model/i);
-  assert.match(contract, /Option A — reuse `operations_manager`/i);
-  assert.match(contract, /Option B — introduce a dedicated `payroll_operator` role/i);
-  assert.match(contract, /No option is applied by this document/i);
+test('role decision is approved while real DB application remains a separate gate', () => {
+  assert.match(contract, /ACCESS MODEL APPROVED \/ DB APPLICATION NOT APPROVED/i);
+  assert.match(contract, /\[x\].*Option A \/ `operations_manager` only/i);
+  assert.match(contract, /\[ \] exact payroll read RPC contract is reviewed/i);
+  assert.match(contract, /\[ \] exact payroll mutation RPCs are implemented transactionally/i);
+  assert.match(contract, /Not approved now: introducing a dedicated `payroll_operator` role/i);
 });
