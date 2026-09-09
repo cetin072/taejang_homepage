@@ -3,10 +3,10 @@
 // These imports intentionally execute in order because payroll-preflight depends on
 // TaejangPayrollTermValidator already being present on globalThis.
 
-await import('../../../../../app/assets/payroll-term-validator.js');
-await import('../../../../../app/assets/payroll-preflight.js');
-await import('../../../../../app/assets/payroll-engine.js');
-await import('../../../../../app/assets/payroll-db-input-adapter.js');
+await import('../../../../app/assets/payroll-term-validator.js');
+await import('../../../../app/assets/payroll-preflight.js');
+await import('../../../../app/assets/payroll-engine.js');
+await import('../../../../app/assets/payroll-db-input-adapter.js');
 await import('../payroll-calculate-core.js');
 
 type RuntimeGlobal = typeof globalThis & {
