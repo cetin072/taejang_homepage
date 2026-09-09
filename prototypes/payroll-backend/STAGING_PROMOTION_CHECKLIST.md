@@ -6,6 +6,19 @@ Goal: #142 / Draft PR #143
 
 This checklist is the mandatory gate before any payroll SQL candidate is promoted into `supabase/migrations/` or any payroll Edge Function is copied into `supabase/functions/`.
 
+## 0. Platform baseline synchronization
+
+Payroll staging work must start from the **current work-platform main schema**, not from the historical stacked-PR merge base.
+
+- [ ] record current `main` SHA immediately before staging preparation;
+- [ ] record current staging migration head;
+- [ ] confirm staging has applied all platform migrations required by current `main` before payroll migration testing;
+- [ ] re-sync/rebase the payroll implementation against current `main` in a controlled development step and rerun all payroll + platform CI before staging promotion;
+- [ ] review conflicts involving employee identity, account roles, attendance integrity, test runner, or Supabase integration instead of resolving them mechanically;
+- [ ] do not apply payroll candidates onto a staging schema that is behind the required platform baseline.
+
+Current read-only compatibility snapshot (2026-09-10) found that PR #143 and `main` are diverged and staging is behind the latest migrations present on `main`. That observation is a blocker, not deployment authorization.
+
 ## 1. Scope and environment
 
 - [ ] PR #143 remains Draft during staging preparation.
@@ -49,15 +62,25 @@ Do not add a parallel payroll employee master. `public.employees.id` remains the
 
 ## 4. Canonical input and attendance
 
+For the first payroll MVP, attendance sources remain deliberately separated:
+
+- **Payroll source of truth:** the accepted vendor/fingerprint Excel import batch used by payroll reconciliation.
+- **Work-platform mobile attendance:** `attendance_events` + append-only `attendance_corrections`, retained as operational attendance evidence.
+- Do **not** automatically merge, overwrite, or sum these two sources until a separate source-reconciliation policy is designed and approved.
+
+Required checks:
+
 - [ ] browser can submit only payroll control identifiers, not authoritative payroll result arrays;
-- [ ] canonical employees, lifecycle, terms, holidays, accepted attendance, and confirmed corrections are rebuilt from DB;
-- [ ] exactly one accepted attendance batch is canonical for each payroll month;
+- [ ] canonical employees, lifecycle, terms, holidays, accepted payroll attendance, and confirmed payroll corrections are rebuilt from DB;
+- [ ] exactly one accepted payroll attendance batch is canonical for each payroll month;
 - [ ] stale/wrong accepted batch ID is rejected;
 - [ ] first Monday-Sunday weekly boundary extends into the prior month when needed;
-- [ ] missing prior-boundary accepted attendance is explicit and leaves weekly holiday pending;
+- [ ] missing prior-boundary accepted payroll attendance is explicit and leaves weekly holiday pending;
 - [ ] unmatched/ambiguous employee attendance blocks calculation;
 - [ ] raw clock-in/out values remain evidence only and never become paid hours by subtraction;
-- [ ] duplicate employee/day and duplicate source-key attendance fail closed.
+- [ ] duplicate employee/day and duplicate source-key attendance fail closed;
+- [ ] existing platform mobile attendance never silently overrides an accepted payroll import row;
+- [ ] accepted payroll import never rewrites raw mobile/GPS attendance events or their correction ledger.
 
 ## 5. Trusted calculation runtime
 
