@@ -159,6 +159,7 @@
     ['assets/support-radar-assignment.js', 'support-radar-assignment'],
     ['assets/support-radar-alerts.js', 'support-radar-alerts'],
     ['assets/support-radar-report.js', 'support-radar-report'],
+    ['assets/support-radar-my-work.js', 'support-radar-my-work'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],
