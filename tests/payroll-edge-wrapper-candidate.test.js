@@ -57,7 +57,8 @@ test('service credential never enters response or operational log payload', () =
   const responseLines = wrapper
     .split('\n')
     .filter((line) => line.includes('responseJson(') && !line.includes('function responseJson'));
-  const logCalls = [...wrapper.matchAll(/safeOperationalLog\([\s\S]*?\n\s*\}\);/g)].map((m) => m[0]);
+  const logCalls = [...wrapper.matchAll(/safeOperationalLog\('[^']+'[\s\S]*?\n\s*\}\);/g)].map((m) => m[0]);
+  assert.equal(logCalls.length, 2, 'only completed/failed operational log calls should be inspected');
   for (const text of [...responseLines, ...logCalls]) {
     assert.doesNotMatch(text, /internalServiceKey|SUPABASE_SERVICE_ROLE_KEY|publishableKey|Bearer \$\{token\}/);
   }
