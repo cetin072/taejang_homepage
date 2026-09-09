@@ -115,6 +115,17 @@ check(!opsCaps.has('attendance.self_record'), 'operations manager never receives
 check(!opsCaps.has('technical.bootstrap_super_admin'), 'operations manager does not inherit technical bootstrap capability');
 check(!opsCaps.has('audit.system_raw_read'), 'operations manager does not inherit raw system audit capability');
 
+for (const [rpcName, parameters] of [
+  ['get_today_board_admin_options', {}],
+  ['list_manageable_today_records', {}],
+  ['list_manageable_schedules', { p_include_past: true, p_limit: 5 }],
+  ['list_manageable_notices', { p_limit: 5 }],
+  ['list_manageable_staff_guidance', { p_limit: 5 }],
+]) {
+  const result = await rpc(rpcName, ops.token, parameters);
+  check(result.ok, `operations manager can call operational RPC ${rpcName}`);
+}
+
 const simulationStart = await rpc('set_role_simulation_mode', ops.token, { p_role_code: 'promotion_staff' });
 equal(simulationStart.data?.code, 'ROLE_SIMULATION_SET', 'operations manager alone can start lower-role simulation');
 opsContext = await accessContext(ops);
@@ -126,6 +137,8 @@ check(opsEffective.has('promotion_staff') && opsEffective.size === 1, 'simulatio
 check(opsCaps.has('promotion.write') && opsCaps.has('promotion.edit_own'), 'simulated promotion staff receives its normal promotion capabilities');
 check(!opsCaps.has('employee.archive') && !opsCaps.has('task.manage'), 'simulation removes operations-manager operational superset');
 check(!opsCaps.has('attendance.self_record'), 'executive personal attendance remains excluded during lower-role simulation');
+const simulatedTaskAdmin = await rpc('get_today_board_admin_options', ops.token, {});
+check(!simulatedTaskAdmin.ok && simulatedTaskAdmin.status === 403, 'simulated lower role cannot use operations-manager task administration');
 const simulationStop = await rpc('set_role_simulation_mode', ops.token, { p_role_code: 'actual' });
 equal(simulationStop.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations manager can exit simulation without super-admin role');
 opsContext = await accessContext(ops);
@@ -158,12 +171,33 @@ for (const code of [
 check(!superCaps.has('task.manage'), 'super-admin-only account does not automatically get normal task management');
 check(!superCaps.has('promotion.write'), 'super-admin-only account does not automatically get promotion operations');
 
+for (const [rpcName, parameters] of [
+  ['get_today_board_admin_options', {}],
+  ['list_manageable_today_records', {}],
+  ['list_manageable_schedules', { p_include_past: true, p_limit: 5 }],
+  ['list_manageable_notices', { p_limit: 5 }],
+  ['list_manageable_staff_guidance', { p_limit: 5 }],
+]) {
+  const result = await rpc(rpcName, superAdmin.token, parameters);
+  check(!result.ok && result.status === 403, `technical super-admin is denied operational RPC ${rpcName}`);
+}
+const superWorkGroupSave = await rpc('save_work_group', superAdmin.token, {
+  p_work_group_id: null,
+  p_department_id: null,
+  p_name: '기술관리자 차단 확인',
+  p_active: true,
+  p_change_reason: 'capability integration test',
+});
+equal(superWorkGroupSave.data?.code, 'FORBIDDEN', 'technical super-admin cannot use legacy work-group mutation bypass');
+
 const dual = await fixture('capability-dual@example.test', '권한 테스트 운영총괄 기술겸임', ['operations_manager', 'super_admin']);
 const dualContext = await accessContext(dual);
 const dualCaps = capabilities(dualContext);
 check(dualCaps.has('employee.archive') && dualCaps.has('task.manage'), 'dual account keeps operations-manager operational superset');
 check(dualCaps.has('technical.bootstrap_super_admin') && dualCaps.has('audit.system_raw_read'), 'dual account also keeps actual technical capabilities');
 check(!dualCaps.has('attendance.self_record'), 'dual operations-manager account remains excluded from personal attendance');
+const dualTaskAdmin = await rpc('get_today_board_admin_options', dual.token, {});
+check(dualTaskAdmin.ok, 'dual account can use operational RPC because it actually has operations-manager capability');
 
 const ceo = await fixture('capability-ceo@example.test', '권한 테스트 대표이사', ['ceo']);
 const ceoCaps = capabilities(await accessContext(ceo));
