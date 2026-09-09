@@ -156,6 +156,7 @@
     ['assets/support-radar.js', 'support-radar'],
     ['assets/support-radar-notices.js', 'support-radar-notices'],
     ['assets/support-radar-assignment.js', 'support-radar-assignment'],
+    ['assets/support-radar-alerts.js', 'support-radar-alerts'],
     ['assets/support-radar-report.js', 'support-radar-report'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
