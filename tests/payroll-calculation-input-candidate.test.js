@@ -11,12 +11,31 @@ const executableSql = candidate
   .filter((line) => !line.trimStart().startsWith('--'))
   .join('\n');
 
+function functionBody(name) {
+  const marker = `create or replace function public.${name}`;
+  const start = candidate.toLowerCase().indexOf(marker.toLowerCase());
+  assert.notEqual(start, -1, `${name} must exist`);
+  const next = candidate.toLowerCase().indexOf('\ncreate or replace function public.', start + marker.length);
+  return candidate.slice(start, next === -1 ? candidate.length : next);
+}
+
 test('calculation input candidate is rollback-only and guarded by approved payroll authorization', () => {
   assert.match(candidate, /Status: CANDIDATE ONLY\. ROLLBACK-ONLY/i);
   assert.match(candidate.trim(), /rollback;$/i);
   assert.match(candidate, /public\.private_require_payroll_operator\(\)/i);
   assert.match(candidate, /grant execute on function public\.get_payroll_calculation_input\(date,date,uuid\) to authenticated/i);
   assert.doesNotMatch(candidate, /current_user_has_role\('super_admin'\)/i);
+});
+
+test('private canonical builder is stable/read-only while guarded wrapper owns audit side effects', () => {
+  const builder = functionBody('private_build_payroll_calculation_input');
+  const wrapper = functionBody('get_payroll_calculation_input');
+  assert.match(builder, /language plpgsql\s+stable\s+security definer/i);
+  assert.doesNotMatch(builder, /private_append_audit/i);
+  assert.match(wrapper, /private_require_payroll_operator\(\)/i);
+  assert.match(wrapper, /private_build_payroll_calculation_input/i);
+  assert.match(wrapper, /private_append_audit/i);
+  assert.match(candidate, /revoke all on function public\.private_build_payroll_calculation_input\(date,date,uuid\) from public, anon, authenticated/i);
 });
 
 test('browser can provide only month, cutoff and expected batch identity, not authoritative payroll arrays', () => {
@@ -51,8 +70,7 @@ test('first weekly-holiday boundary expands back to Monday using ISO weekday ari
 test('missing prior-month accepted attendance is surfaced explicitly instead of guessed', () => {
   assert.match(candidate, /prior_boundary_missing := not found/i);
   assert.match(candidate, /'prior_boundary_missing',prior_boundary_missing/i);
-  assert.match(candidate, /case when prior_boundary_missing then null else prior_batch\.id end/i);
-  assert.doesNotMatch(candidate, /prior_boundary_missing\s*:=\s*false[\s\S]*coalesce\([^)]*0/i);
+  assert.match(candidate, /case when prior_boundary_missing or not prior_boundary_required then null else prior_batch\.id end/i);
 });
 
 test('canonical employees, terms and holidays come from DB sources of truth', () => {
@@ -81,6 +99,14 @@ test('latest confirmed append-only correction overrides row confirmed hours dete
   assert.match(candidate, /where c\.status='confirmed'/i);
   assert.match(candidate, /order by c\.attendance_row_id,c\.created_at desc,c\.id desc/i);
   assert.match(candidate, /coalesce\(c\.new_confirmed_hours,r\.confirmed_hours\)/i);
+});
+
+test('DB input fingerprint is generated from the complete canonical base result', () => {
+  const builder = functionBody('private_build_payroll_calculation_input');
+  assert.match(builder, /base_result := jsonb_build_object/i);
+  assert.match(builder, /input_basis_fingerprint := md5\(base_result::text\)/i);
+  assert.match(builder, /'input_basis_version','payroll-db-input-v1'/i);
+  assert.match(builder, /'input_basis_fingerprint',input_basis_fingerprint/i);
 });
 
 test('generic calculation-input audit contains identifiers and boundary status, not payroll values', () => {
