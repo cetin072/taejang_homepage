@@ -27,6 +27,12 @@ test('attendance persistence records immutable source identity and canonical emp
   assert.match(candidate, /work_date date not null/i);
 });
 
+test('exactly one accepted attendance batch can be canonical for a payroll month', () => {
+  assert.match(candidate, /create unique index if not exists payroll_attendance_one_accepted_batch_per_month_uq/i);
+  assert.match(candidate, /on public\.payroll_attendance_import_batches\(payroll_month\)[\s\S]*where status='accepted'/i);
+  assert.match(candidate, /void\/supersede the old accepted batch before[\s\S]*accepting the replacement/i);
+});
+
 test('clock values are evidence only and never become paid hours through clock-span arithmetic', () => {
   assert.match(candidate, /clock_in_raw text/i);
   assert.match(candidate, /clock_out_raw text/i);
