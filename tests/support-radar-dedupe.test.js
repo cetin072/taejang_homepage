@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const sql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260910082000_support_radar_cross_source_dedupe.sql'), 'utf8');
+const fixSql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260910082100_support_radar_dedupe_existing_occurrence_fix.sql'), 'utf8');
 const ui = fs.readFileSync(path.join(root, 'app', 'assets', 'support-radar-dedupe.js'), 'utf8');
 const loader = fs.readFileSync(path.join(root, 'app', 'assets', 'app-ui.js'), 'utf8');
 
@@ -21,6 +22,11 @@ test('existing notice can receive a new source occurrence through a guarded audi
   assert.match(sql, /current_user_has_role\('operations_manager'\)/);
   assert.match(sql, /support_occurrence_attached/);
   assert.match(sql, /private_append_audit/);
+});
+
+test('idempotent attachment returns the canonical notice that owns an existing source occurrence', () => {
+  assert.match(fixSql, /select o\.id,o\.notice_id into existing_id,existing_notice_id/);
+  assert.match(fixSql, /'notice_id',existing_notice_id/);
 });
 
 test('separate registration can retain duplicate-candidate trace', () => {
