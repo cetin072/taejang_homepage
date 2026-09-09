@@ -141,7 +141,7 @@
     if (monthState.status === 'locked') status = '확정 완료';
     else if (unresolvedImportant > 0) status = '예외 확인';
     else if (rateReviewCount > 0) status = '조건 확인';
-    else if (incomingCarryoverCount > 0 && incomingCarryoverStatus !== 'complete') status = '전월 조정 반영';
+    else if (incomingCarryoverCount > 0 && incomingCarryoverStatus !== 'complete') status = '이전월 조정 반영';
     else if (accountingStatus === 'stale') status = '회계 다시 대조';
     else if (accountingStatus === 'confirmed' && pendingCarryover > 0) status = '이월조정 확인';
     else if (accountingStatus === 'confirmed') status = '확정 대기';
