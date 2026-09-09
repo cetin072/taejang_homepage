@@ -24,6 +24,7 @@ on:
       - 'prototypes/payroll-backend/**'
       - 'tests/payroll-attendance-import.test.js'
       - 'tests/payroll-attendance-normalizer.test.js'
+      - 'tests/payroll-attendance-persistence-candidate.test.js'
       - 'tests/payroll-engine.test.js'
       - 'tests/payroll-golden-compat.test.js'
       - 'tests/payroll-rate-guard.test.js'
@@ -75,6 +76,7 @@ jobs:
           node --test
           tests/payroll-attendance-import.test.js
           tests/payroll-attendance-normalizer.test.js
+          tests/payroll-attendance-persistence-candidate.test.js
           tests/payroll-engine.test.js
           tests/payroll-golden-compat.test.js
           tests/payroll-rate-guard.test.js
