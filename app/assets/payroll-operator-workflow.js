@@ -28,7 +28,7 @@
     important_exceptions_unresolved: '확인이 필요한 근태 예외가 남아 있습니다.',
     accounting_values_unconfirmed: '회계사무실 확정값 확인이 필요합니다.',
     accounting_comparison_stale: '급여 가안이 변경되어 회계자료를 다시 대조해야 합니다.',
-    carryover_not_reviewed: '전월·다음달 조정내역 확인이 필요합니다.',
+    carryover_not_reviewed: '이전월·다음달 조정내역 확인이 필요합니다.',
     already_locked: '이미 확정된 급여월입니다.',
     attendance_not_imported: '먼저 출퇴근 자료를 가져와 주세요.',
     provisional_not_ready: '급여 가안 계산을 먼저 완료해 주세요.',
@@ -128,8 +128,8 @@
         provisionalDescription = `시급 적용을 확인해야 하는 직원 ${unresolvedRateCount}명이 있습니다.`;
       } else if (baseReady && incomingCarryoverPending) {
         provisionalStatus = StepStatus.CURRENT;
-        provisionalDescription = `전월 이월조정 ${incomingCarryoverCount}건을 이번 달 급여 가안에 반영해야 합니다.`;
-        provisionalPrimaryAction = { id: 'apply_incoming_carryover', label: '전월 조정 반영' };
+        provisionalDescription = `이전월 조정 ${incomingCarryoverCount}건을 이번 달 급여 가안에 반영해야 합니다.`;
+        provisionalPrimaryAction = { id: 'apply_incoming_carryover', label: '이전월 조정 반영' };
       } else if (provisionalCalculated && grossPayPreviewStatus === 'review_required') {
         provisionalStatus = StepStatus.CURRENT;
         provisionalDescription = '일부 직원의 급여조건 확인이 끝나야 회사 전체 가안 금액을 확정할 수 있습니다.';
@@ -281,7 +281,7 @@
       multiple_hourly_rates: '시급 변경 확인',
       accounting_difference: '회계자료 차이 확인',
       accounting_stale: '회계자료 다시 대조',
-      carryover_adjustment: '전월 조정 확인',
+      carryover_adjustment: '이전월 조정 확인',
     };
     return labels[type] || '확인 필요';
   }
