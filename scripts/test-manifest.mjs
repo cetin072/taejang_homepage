@@ -30,7 +30,8 @@ export const testGroups = Object.freeze({
     'tests/support-radar-rules-ui.test.js',
     'tests/support-radar-golden-set.test.js',
     'tests/support-radar-alerts.test.js',
-    'tests/support-radar-dedupe.test.js'
+    'tests/support-radar-dedupe.test.js',
+    'tests/support-radar-assignee.test.js'
   ]),
   publicHomepage: Object.freeze([
     'tests/public-homepage-main-simplification.test.js',
