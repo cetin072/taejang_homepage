@@ -33,12 +33,12 @@ test('operator preview exposes a separate carryover breakdown instead of mixing 
   assert.match(html, /data-payroll-carryover/);
   assert.match(html, /data-payroll-adjusted-gross/);
   assert.match(html, /data-payroll-carryover-status/);
-  assert.match(html, /전월 조정은 이번 달 근로시간에 섞지 않고 별도 금액으로 반영/);
+  assert.match(html, /이전월 조정은 이번 달 근로시간에 섞지 않고 별도 금액으로 반영/);
 
   assert.match(preview, /incomingCarryoverCount:\s*2/);
   assert.match(preview, /incomingCarryoverStatus:\s*'review_required'/);
   assert.match(preview, /incomingCarryoverStatus:\s*'complete'/);
-  assert.match(preview, /전월 조정 반영 필요/);
+  assert.match(preview, /이전월 조정 반영 필요/);
   assert.match(preview, /반영 후 계산/);
   assert.match(preview, /건 반영 완료/);
 });
