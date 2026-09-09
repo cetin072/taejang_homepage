@@ -3,7 +3,7 @@
 
 begin;
 
-insert into public.platform_capabilities(code, kind, operations_manager_auto_grant, description)
+insert into public.platform_capabilities(code, capability_kind, operations_manager_auto_grant, description)
 values
   ('employee.view_scoped', 'operational', true, 'View existing Employees in the actor existing team/department scope'),
   ('employee.request_change', 'operational', true, 'Submit scoped Employee registration/update/photo requests'),
@@ -11,20 +11,27 @@ values
   ('employee.id_photo_manage', 'operational', true, 'Directly manage protected Employee ID photos'),
   ('employee.review_change_requests', 'operational', true, 'Review and decide Employee change requests')
 on conflict (code) do update
-set kind=excluded.kind,
+set capability_kind=excluded.capability_kind,
     operations_manager_auto_grant=excluded.operations_manager_auto_grant,
     description=excluded.description,
-    active=true;
+    active=true,
+    updated_at=now();
 
-insert into public.role_capability_grants(role_code, capability_code)
-values
-  ('promotion_lead','employee.view_scoped'),
-  ('promotion_lead','employee.request_change'),
-  ('promotion_lead','employee.profile_photo_manage_scoped'),
-  ('department_lead','employee.view_scoped'),
-  ('department_lead','employee.request_change'),
-  ('department_lead','employee.profile_photo_manage_scoped')
-on conflict do nothing;
+with grants(role_code, capability_code) as (
+  values
+    ('promotion_lead','employee.view_scoped'),
+    ('promotion_lead','employee.request_change'),
+    ('promotion_lead','employee.profile_photo_manage_scoped'),
+    ('department_lead','employee.view_scoped'),
+    ('department_lead','employee.request_change'),
+    ('department_lead','employee.profile_photo_manage_scoped')
+)
+insert into public.role_capability_grants(role_id, capability_code)
+select role.id, grants.capability_code
+from grants
+join public.roles role on role.code=grants.role_code and role.active
+join public.platform_capabilities capability on capability.code=grants.capability_code and capability.active
+on conflict (role_id, capability_code) do nothing;
 
 -- Preserve the final accumulated Employee business implementations.
 alter function public.get_employee_management_context()
