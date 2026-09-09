@@ -29,6 +29,7 @@ on:
       - 'tests/payroll-rate-guard.test.js'
       - 'tests/payroll-backend-contract.test.js'
       - 'tests/payroll-platform-integration-contract.test.js'
+      - 'tests/payroll-operations-manager-access-candidate.test.js'
       - 'tests/payroll-service.test.js'
       - 'tests/payroll-repository-integrity.test.js'
       - 'tests/payroll-accounting-basis.test.js'
@@ -78,6 +79,7 @@ jobs:
           tests/payroll-rate-guard.test.js
           tests/payroll-backend-contract.test.js
           tests/payroll-platform-integration-contract.test.js
+          tests/payroll-operations-manager-access-candidate.test.js
           tests/payroll-service.test.js
           tests/payroll-repository-integrity.test.js
           tests/payroll-accounting-basis.test.js
