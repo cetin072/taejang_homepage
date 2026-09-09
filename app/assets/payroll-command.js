@@ -84,7 +84,7 @@
     return {
       ok: false,
       code: 'accounting_comparison_blocked',
-      message: '전월 조정까지 반영된 최신 급여 가안을 만든 뒤 회계 대조를 다시 확인해 주세요.',
+      message: '이전월 조정까지 반영된 최신 급여 가안을 만든 뒤 회계 대조를 다시 확인해 주세요.',
       blockers: blockers || ['adjusted_payroll_basis_incomplete'],
     };
   }
@@ -310,7 +310,7 @@
         return {
           ok: false,
           code: 'carryover_application_approval_required',
-          message: '전월 이월조정을 이번 달 급여에 반영하려면 담당자의 명시적 확인이 필요합니다.',
+          message: '이전월 조정을 이번 달 급여에 반영하려면 담당자의 명시적 확인이 필요합니다.',
         };
       }
 
@@ -328,7 +328,7 @@
         return {
           ok: false,
           code: 'carryover_source_month_not_locked',
-          message: '전월 급여가 확정된 뒤에만 그 조정내역을 이번 달 급여에 반영할 수 있습니다.',
+          message: '조정이 발생한 이전 급여월이 확정된 뒤에만 그 조정내역을 이번 달 급여에 반영할 수 있습니다.',
           sourceMonths: unlockedSourceMonths,
         };
       }
