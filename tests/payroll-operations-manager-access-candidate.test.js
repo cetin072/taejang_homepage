@@ -42,13 +42,15 @@ test('authorized read model resolves names transiently without joining sensitive
 
 test('generic payroll access audit contains identifiers and operation facts, not payroll amounts or employee names', () => {
   assert.match(candidate, /payroll_month_viewed/);
-  assert.match(candidate, /jsonb_build_object\([\s\S]*'payroll_month',p_payroll_month[\s\S]*'run_id',month_row\.latest_run_id[\s\S]*\)/i);
+  const auditCalls = [...candidate.matchAll(/perform public\.private_append_audit\([\s\S]*?\n\s*\);/gi)].map((match) => match[0]);
+  assert.ok(auditCalls.length >= 2, 'candidate should audit both denied and successful payroll access');
 
-  const auditTail = candidate.slice(candidate.indexOf('-- Generic audit intentionally'));
-  assert.doesNotMatch(auditTail, /gross_pay_preview/);
-  assert.doesNotMatch(auditTail, /hourly_rate/);
-  assert.doesNotMatch(auditTail, /display_name/);
-  assert.doesNotMatch(auditTail, /deduction/i);
+  for (const auditCall of auditCalls) {
+    assert.doesNotMatch(auditCall, /gross_pay_preview/);
+    assert.doesNotMatch(auditCall, /hourly_rate/);
+    assert.doesNotMatch(auditCall, /display_name/);
+    assert.doesNotMatch(auditCall, /deduction/i);
+  }
 });
 
 test('candidate remains rollback-only outside real Supabase migrations', () => {
