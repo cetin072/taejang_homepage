@@ -81,6 +81,7 @@ jobs:
           source /tmp/taejang-supabase.env
           set +a
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/today-board-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/staff-schedules-notices-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/frequent-staff-guidance-auth-integration.mjs
