@@ -139,6 +139,7 @@
     ['assets/attendance-location.js', 'attendance-location'],
     ['assets/worker-mobile-v1.js', 'worker-mobile-v1'],
     ['assets/attendance-admin.js', 'attendance-admin'],
+    ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/operations-promotion-writer.js', 'operations-promotion-writer'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
