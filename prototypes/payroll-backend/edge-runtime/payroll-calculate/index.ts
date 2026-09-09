@@ -46,10 +46,12 @@ function bearerToken(req: Request): string | null {
 }
 
 function safeErrorCode(error: unknown): string {
-  const candidate = error && typeof error === 'object'
-    ? String((error as { code?: unknown; message?: unknown }).code || (error as { message?: unknown }).message || '')
-    : '';
-  return SAFE_CODE.test(candidate) ? candidate : 'PAYROLL_CALCULATION_FAILED';
+  if (!error || typeof error !== 'object') return 'PAYROLL_CALCULATION_FAILED';
+  const message = String((error as { message?: unknown }).message || '').trim();
+  const code = String((error as { code?: unknown }).code || '').trim();
+  if (SAFE_CODE.test(message)) return message;
+  if (SAFE_CODE.test(code)) return code;
+  return 'PAYROLL_CALCULATION_FAILED';
 }
 
 function statusForCode(code: string): number {
@@ -149,8 +151,9 @@ Deno.serve(async (req: Request) => {
           p_expected_batch_id: acceptedBatchId,
         });
         if (error) {
-          const rpcError = new Error(safeErrorCode(error));
-          (rpcError as { code?: string }).code = safeErrorCode(error);
+          const code = safeErrorCode(error);
+          const rpcError = new Error(code);
+          (rpcError as { code?: string }).code = code;
           throw rpcError;
         }
         return data;
@@ -173,8 +176,9 @@ Deno.serve(async (req: Request) => {
           p_employee_results: payload.employeeResults,
         });
         if (error) {
-          const rpcError = new Error(safeErrorCode(error));
-          (rpcError as { code?: string }).code = safeErrorCode(error);
+          const code = safeErrorCode(error);
+          const rpcError = new Error(code);
+          (rpcError as { code?: string }).code = code;
           throw rpcError;
         }
         return data;
