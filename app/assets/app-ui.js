@@ -129,6 +129,7 @@
   window.TaejangFeatureHealth = featureHealth;
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
+  loadStyleOnce('assets/support-radar.css', 'support-radar');
 
   // Start independent feature requests together, but do not release app-ready until
   // every module has registered or failed. `async = false` keeps dynamically
@@ -152,6 +153,7 @@
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
     ['assets/issue-146-end-to-end.js', 'issue-146-end-to-end'],
     ['assets/promotion-approved-delete-ux.js', 'promotion-approved-delete-ux'],
+    ['assets/support-radar.js', 'support-radar'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],
