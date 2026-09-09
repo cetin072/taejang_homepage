@@ -3,6 +3,8 @@ const path = require('path');
 
 const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20260909230000_support_radar_company_profile.sql'), 'utf8');
 const ui = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar.js'), 'utf8');
+const polish = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar-profile-polish.js'), 'utf8');
+const appUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'app-ui.js'), 'utf8');
 
 function expectContains(source, fragment, message) {
   if (!source.includes(fragment)) throw new Error(message || `Missing fragment: ${fragment}`);
@@ -32,6 +34,17 @@ function expectContains(source, fragment, message) {
   "support_get_company_profile",
   "support_save_company_profile"
 ].forEach(fragment => expectContains(ui, fragment));
+
+[
+  '자격·확인서 점검',
+  '저장 전 변경내용 요약',
+  '유효기간 경과',
+  '일 후 만료',
+  '기업 프로필에서 바로 수정',
+  'support_get_company_profile'
+].forEach(fragment => expectContains(polish, fragment));
+
+expectContains(appUi, "['assets/support-radar-profile-polish.js', 'support-radar-profile-polish']", 'Company profile polish module must be loaded by the app feature loader.');
 
 if (/grant\s+(insert|update|delete|all)\s+on\s+public\.support_company_/i.test(migration)) {
   throw new Error('Company profile tables must not grant direct mutations to authenticated clients.');
