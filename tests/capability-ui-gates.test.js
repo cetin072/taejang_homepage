@@ -12,12 +12,18 @@ for (const capability of ['task.manage', 'schedule.manage', 'notice.manage', 'gu
 for (const capability of ['employee.view_all', 'employee.view_scoped', 'employee.create']) {
   assert.match(gates, new RegExp(capability.replace('.', '\\.')), `${capability} must participate in Employee workspace entry`);
 }
+for (const capability of ['account.view_management', 'account.approve', 'account.reject']) {
+  assert.match(gates, new RegExp(capability.replace('.', '\\.')), `${capability} must participate in account workspace entry`);
+}
 
 assert.match(gates, /hasCapabilityContract/, 'UI gating activates only when v2 capability contract is available');
 assert.match(gates, /TaejangApp\?\.can|TaejangApp\.can/, 'UI gates use TaejangApp.can as the client authorization source');
 assert.match(gates, /taejang-open-app-panel/, 'direct panel-open events are capability gated');
 assert.match(gates, /taejang-open-employee-management/, 'direct Employee workspace events are capability gated');
+assert.match(gates, /taejang-open-account-approval/, 'direct account-approval events are capability gated');
+assert.match(gates, /복구·계정 관리/, 'operations account-management navigation is capability gated');
 assert.match(gates, /EMPLOYEE_NAV_LABELS/, 'legacy Employee navigation is pruned by capability when v2 is active');
+assert.match(gates, /ACCOUNT_APPROVAL_CAPABILITIES/, 'signup approval navigation uses account capabilities');
 assert.match(gates, /stopImmediatePropagation/, 'unauthorized open events are stopped before legacy route listeners');
 assert.match(gates, /MutationObserver/, 'navigation added by legacy modules is rechecked after render');
 
