@@ -25,6 +25,7 @@ on:
       - 'tests/payroll-attendance-import.test.js'
       - 'tests/payroll-attendance-normalizer.test.js'
       - 'tests/payroll-attendance-persistence-candidate.test.js'
+      - 'tests/payroll-calculation-input-candidate.test.js'
       - 'tests/payroll-trusted-runtime-contract.test.js'
       - 'tests/payroll-engine.test.js'
       - 'tests/payroll-golden-compat.test.js'
@@ -78,6 +79,7 @@ jobs:
           tests/payroll-attendance-import.test.js
           tests/payroll-attendance-normalizer.test.js
           tests/payroll-attendance-persistence-candidate.test.js
+          tests/payroll-calculation-input-candidate.test.js
           tests/payroll-trusted-runtime-contract.test.js
           tests/payroll-engine.test.js
           tests/payroll-golden-compat.test.js
