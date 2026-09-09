@@ -205,13 +205,16 @@ equal(validRecord.data?.code, 'ATTENDANCE_RECORDED', 'eligible Employee records 
 check(validRecord.data?.event_at, 'attendance record uses server-generated event time');
 
 const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
-const correctedClockIn = `${workDate}T08:55:00+09:00`;
+// Reuse the server-generated raw event timestamp so this behavior test is
+// independent of the hour at which CI happens to run. It is guaranteed to be
+// on the tested work date and never in the future.
+const safeEffectiveTime = validRecord.data.event_at;
 const correction = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: worker.employeeUuid,
   p_work_date: workDate,
   p_event_type: 'clock_in',
   p_action: 'set_time',
-  p_corrected_event_at: correctedClockIn,
+  p_corrected_event_at: safeEffectiveTime,
   p_reason: '현장 확인 후 출근시간 정정',
 });
 equal(correction.data?.code, 'ATTENDANCE_CORRECTED', 'operations manager can append a correction without rewriting the raw GPS event');
@@ -224,7 +227,7 @@ const backfillOut = await rpc('create_attendance_correction', admin.token, {
   p_work_date: workDate,
   p_event_type: 'clock_out',
   p_action: 'set_time',
-  p_corrected_event_at: `${workDate}T18:05:00+09:00`,
+  p_corrected_event_at: safeEffectiveTime,
   p_reason: '퇴근 누락 확인 후 관리자 보정',
 });
 equal(backfillOut.data?.code, 'ATTENDANCE_CORRECTED', 'operations manager can backfill a missing clock-out after an effective clock-in exists');
@@ -246,7 +249,7 @@ const leadCorrection = await rpc('create_attendance_correction', lead.token, {
   p_work_date: workDate,
   p_event_type: 'clock_in',
   p_action: 'set_time',
-  p_corrected_event_at: `${workDate}T09:00:00+09:00`,
+  p_corrected_event_at: safeEffectiveTime,
   p_reason: '권한 차단 검증을 위한 시도',
 });
 equal(leadCorrection.data?.code, 'FORBIDDEN', 'promotion lead cannot manually alter payroll-relevant attendance times');
@@ -256,7 +259,7 @@ const executiveCorrection = await rpc('create_attendance_correction', admin.toke
   p_work_date: workDate,
   p_event_type: 'clock_in',
   p_action: 'set_time',
-  p_corrected_event_at: `${workDate}T09:00:00+09:00`,
+  p_corrected_event_at: safeEffectiveTime,
   p_reason: '임원 근태 제외 정책 검증',
 });
 equal(executiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'excluded operations manager cannot receive manual attendance corrections');
