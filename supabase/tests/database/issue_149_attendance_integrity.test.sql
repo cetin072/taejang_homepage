@@ -72,16 +72,20 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.get_attendance_admin_today(date)'::regprocedure)
+    ilike '%private_actor_can(''attendance.admin_view'')%'
+  and pg_get_functiondef('public.private_get_attendance_admin_today_pre148(date)'::regprocedure)
     ilike '%private_employee_is_attendance_subject%'
-  and pg_get_functiondef('public.get_attendance_admin_today(date)'::regprocedure)
+  and pg_get_functiondef('public.private_get_attendance_admin_today_pre148(date)'::regprocedure)
     ilike '%account_linked%',
-  'attendance admin roster is Employee-based and excludes non-subject executives'
+  'attendance admin roster is capability-gated while Employee roster semantics stay preserved'
 );
 
 select ok(
   pg_get_functiondef('public.review_attendance_exception(uuid,boolean)'::regprocedure)
+    ilike '%private_actor_can(''attendance.exception_review'')%'
+  and pg_get_functiondef('public.private_review_attendance_exception_pre148(uuid,boolean)'::regprocedure)
     ilike '%SELF_REVIEW_FORBIDDEN%',
-  'attendance exception review explicitly blocks self review'
+  'attendance exception review is capability-gated and still explicitly blocks self review'
 );
 
 select has_table('public', 'attendance_corrections', 'append-only attendance correction ledger exists');
@@ -101,10 +105,12 @@ select has_function(
 
 select ok(
   pg_get_functiondef('public.create_attendance_correction(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
+    ilike '%private_actor_can(''attendance.correct'')%'
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%current_user_has_role(''operations_manager'')%'
-  and pg_get_functiondef('public.create_attendance_correction(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%attendance_correction_created%',
-  'only operations manager can create audited corrections'
+  'attendance correction is capability-gated while operations-manager business guard and audit remain preserved'
 );
 
 select ok(
