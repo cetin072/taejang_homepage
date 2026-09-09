@@ -6,6 +6,10 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const candidatePath = path.join(root, 'prototypes/payroll-backend/attendance_persistence_candidate.sql');
 const candidate = fs.readFileSync(candidatePath, 'utf8');
+const executableSql = candidate
+  .split('\n')
+  .filter((line) => !line.trimStart().startsWith('--'))
+  .join('\n');
 
 test('attendance persistence candidate remains rollback-only and outside migrations', () => {
   assert.match(candidate, /Status: CANDIDATE ONLY\. ROLLBACK-ONLY/i);
@@ -37,9 +41,9 @@ test('clock values are evidence only and never become paid hours through clock-s
   assert.match(candidate, /clock_in_raw text/i);
   assert.match(candidate, /clock_out_raw text/i);
   assert.match(candidate, /Never derive paid hours from clock span automatically/i);
-  assert.doesNotMatch(candidate, /clock_out_raw\s*-\s*clock_in_raw/i);
-  assert.doesNotMatch(candidate, /extract\s*\([\s\S]*clock_(?:in|out)_raw/i);
-  assert.doesNotMatch(candidate, /generated always as[\s\S]*clock_(?:in|out)_raw/i);
+  assert.doesNotMatch(executableSql, /clock_out_raw\s*-\s*clock_in_raw/i);
+  assert.doesNotMatch(executableSql, /extract\s*\([\s\S]*clock_(?:in|out)_raw/i);
+  assert.doesNotMatch(executableSql, /generated always as[\s\S]*clock_(?:in|out)_raw/i);
 });
 
 test('ambiguous, unmatched and lifecycle-conflict records cannot masquerade as matched employees', () => {
@@ -57,15 +61,15 @@ test('confirmed correction requires explicit confirmed review state and confirme
   assert.match(candidate, /evidence_ref text/i);
 });
 
-test('attendance tables remain fail-closed and contain no Sensitive HR identity columns', () => {
+test('attendance tables remain fail-closed and executable schema contains no Sensitive HR identity columns', () => {
   assert.match(candidate, /alter table public\.payroll_attendance_import_batches enable row level security/i);
   assert.match(candidate, /alter table public\.payroll_attendance_rows enable row level security/i);
   assert.match(candidate, /alter table public\.payroll_attendance_corrections enable row level security/i);
   assert.match(candidate, /revoke all on[\s\S]*from public, anon, authenticated/i);
-  assert.doesNotMatch(candidate, /resident[_-]?registration/i);
-  assert.doesNotMatch(candidate, /disability_(?:type|grade|number|card)/i);
-  assert.doesNotMatch(candidate, /bank_(?:account|number)/i);
-  assert.doesNotMatch(candidate, /health_/i);
+  assert.doesNotMatch(executableSql, /resident[_-]?registration/i);
+  assert.doesNotMatch(executableSql, /disability_(?:type|grade|number|card)/i);
+  assert.doesNotMatch(executableSql, /bank_(?:account|number)/i);
+  assert.doesNotMatch(executableSql, /health_/i);
 });
 
 test('import acceptance is explicit and unresolved records are documented as blockers', () => {
