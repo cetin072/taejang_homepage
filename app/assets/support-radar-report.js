@@ -17,7 +17,10 @@
     const title=el('desktop-page-title');if(title)title.textContent='지원사업 주간 보고';
     const main=el('dashboard-main');main.replaceChildren(text('p','주간 보고를 만들고 있습니다.','message'));
     try{
-      const data=await window.TaejangApp.rpc('support_get_weekly_report',{});
+      const [data,kpi]=await Promise.all([
+        window.TaejangApp.rpc('support_get_weekly_report',{}),
+        window.TaejangApp.rpc('support_get_kpis',{})
+      ]);
       const root=document.createElement('div');root.className='support-radar-shell';
       const head=document.createElement('header');head.className='support-radar-header';
       const left=document.createElement('div');left.append(text('p','지원사업 레이더','eyebrow'),text('h2','주간 종합보고'),text('p',`${formatDate(data.period_start)} ~ ${formatDate(data.period_end)}`));
@@ -28,6 +31,21 @@
       const current=document.createElement('div');current.className='support-radar-summary';current.append(
         stat('현재 열린 공고',`${data.open_count||0}건`),stat('7일 내 마감',`${data.deadline_7_count||0}건`),stat('미평가',`${data.unreviewed_count||0}건`),stat('신청 진행',`${data.application_count||0}건`)
       );root.append(current);
+
+      const kpiSection=section('누적 운영 KPI','지원사업 레이더가 실제로 놓치지 않고 신청·선정까지 이어지는지 확인합니다.');
+      const kpis=document.createElement('div');kpis.className='support-radar-summary';
+      const reviewHours=kpi.average_hours_discovery_to_first_review===null||kpi.average_hours_discovery_to_first_review===undefined?'아직 없음':`${kpi.average_hours_discovery_to_first_review}시간`;
+      kpis.append(
+        stat('적격·조건부 후보',`${kpi.eligible_notice_count||0}건`),
+        stat('누적 신청',`${kpi.application_count||0}건`),
+        stat('누적 선정',`${kpi.selected_count||0}건`),
+        stat('누적 지원금',money(kpi.actual_cash_total)),
+        stat('누적 현물가치',money(kpi.actual_in_kind_total)),
+        stat('놓친 중요공고',`${kpi.missed_important_count||0}건`,'85점 이상인데 신청 없이 마감'),
+        stat('중요 미검토',`${kpi.important_unreviewed_count||0}건`),
+        stat('발견→첫 검토',reviewHours,'평균')
+      );kpiSection.append(kpis);root.append(kpiSection);
+
       const top=section('이번 주 우선 검토 TOP 5','운영총괄이 먼저 판단할 공고입니다.');
       const items=array(data.top_items);if(!items.length)top.append(text('p','평가된 우선 공고가 아직 없습니다.','support-radar-empty'));
       items.forEach((item,index)=>{const card=document.createElement('article');card.className='support-radar-row';card.append(text('p',`TOP ${index+1} · ${item.score??'미평가'}점`,'eyebrow'),text('h3',item.title),text('p',`${item.organization||'기관 미확인'} · 마감 ${formatDate(item.deadline)}`));if(item.recommendation)card.append(text('p',item.recommendation));if(window.TaejangSupportRadarNotices?.renderDetail)card.append(button('상세 보기',()=>window.TaejangSupportRadarNotices.renderDetail(item.notice_id),true));top.append(card);});root.append(top);
