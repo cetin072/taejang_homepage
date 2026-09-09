@@ -232,7 +232,7 @@
     const incomingCount = Number(provisional.incomingCarryoverCount || 0);
     if (Number(provisional.unresolvedRateCount || 0) > 0) return '조건 확인 필요';
     if (incomingCount > 0 && provisional.incomingCarryoverStatus !== 'complete') {
-      return '전월 조정 반영 필요';
+      return '이전월 조정 반영 필요';
     }
     if (provisional.grossPayPreviewStatus === 'review_required') return '조건 확인 필요';
     if (provisional.ready !== true) return '계산 전';
