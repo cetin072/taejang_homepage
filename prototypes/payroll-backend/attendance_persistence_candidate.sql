@@ -31,6 +31,13 @@ create table if not exists public.payroll_attendance_import_batches (
   )
 );
 
+-- Exactly one accepted source-of-truth attendance batch may exist for a payroll month.
+-- Re-import promotion must transactionally void/supersede the old accepted batch before
+-- accepting the replacement, so a calculation runtime never has two canonical inputs.
+create unique index if not exists payroll_attendance_one_accepted_batch_per_month_uq
+  on public.payroll_attendance_import_batches(payroll_month)
+  where status='accepted';
+
 create table if not exists public.payroll_attendance_rows (
   id uuid primary key default gen_random_uuid(),
   batch_id uuid not null references public.payroll_attendance_import_batches(id) on delete restrict,
