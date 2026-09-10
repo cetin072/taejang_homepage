@@ -59,10 +59,10 @@ select ok(
     join pg_namespace namespace on namespace.oid = relation.relnamespace
     where namespace.nspname = 'public'
       and relation.relname = 'homepage_change_requests'
-      and constraint_row.conname = 'homepage_change_requests_page_section_allowlist'
-      and constraint_row.contype = 'c'
+      and constraint_row.conname = 'homepage_change_requests_slot_key_fk'
+      and constraint_row.contype = 'f'
   ),
-  'homepage page/section allow-list is enforced by a database check constraint'
+  'homepage safe-edit target is enforced by the canonical slot registry foreign key'
 );
 
 select is(public.promotion_required_stage('homepage_article', 'company', 'no')::text, 'lead', 'ordinary content starts at lead review');

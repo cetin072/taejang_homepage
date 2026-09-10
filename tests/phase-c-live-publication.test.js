@@ -91,6 +91,9 @@ test('legacy publication queue remains compatible after immediate live publicati
 test('publication admin gives operations manager direct recoverable delete and keeps lead request flow', () => {
   assert.match(publicationAdmin, /role === 'promotion_lead'/);
   assert.match(publicationAdmin, /삭제 요청/);
+  assert.match(publicationAdmin, /item\.can_request_delete === true/);
+  assert.match(publicationAdmin, /item\.delete_request_eligible_at/);
+  assert.match(publicationAdmin, /삭제 요청 가능:/);
   assert.match(publicationAdmin, /data\?\.can_permanently_delete === true/);
   assert.match(publicationAdmin, /role === 'operations_manager' && canDelete/);
   assert.match(publicationAdmin, /초안부터 공개·숨김까지 홍보 글의 전체 상태/);

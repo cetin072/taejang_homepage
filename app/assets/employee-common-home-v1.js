@@ -3,15 +3,17 @@
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
   const PROMOTION_EMPLOYEE_ROLES = new Set(['promotion_staff', 'promotion_lead']);
-  const ALL_EMPLOYEE_HOME_ROLES = new Set(['general_worker', 'promotion_staff', 'promotion_lead']);
+  const ALL_EMPLOYEE_HOME_ROLES = new Set(['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager']);
   const ROLE_LABELS = {
     general_worker: '일반직원',
+    operations_manager: '운영총괄',
     promotion_staff: '홍보직원',
     promotion_lead: '운영팀장'
   };
   const attempts = { clock_in: 0, clock_out: 0 };
   const lastFailure = { clock_in: null, clock_out: null };
   const lastPosition = { clock_in: null, clock_out: null };
+  const attendanceInFlight = { clock_in: false, clock_out: false };
   let switching = false;
 
   const app = () => window.TaejangApp;
@@ -123,13 +125,14 @@
   }
 
   function showEmployeeHome() {
-    const home = document.getElementById('employee-common-home');
+    const home = buildHome();
     const shell = document.getElementById('desktop-app-shell');
     if (!home || !shell) return;
     shell.hidden = true;
     home.hidden = false;
     document.body.classList.add('employee-home-mode');
     home.scrollIntoView({ block: 'start' });
+    void Promise.all([loadAttendance(), loadNotices()]);
   }
 
   function showRoleDashboard() {
@@ -180,11 +183,13 @@
     const work = node('section', null, 'employee-card');
     work.append(node('h2', '내 업무'));
     const currentRoute = route();
-    const copy = currentRoute === 'promotion_lead'
+    const copy = currentRoute === 'operations_manager'
+      ? '출퇴근과 공지를 확인한 뒤 운영 업무 화면으로 돌아갈 수 있습니다.'
+      : currentRoute === 'promotion_lead'
       ? '홍보 검토와 출근부 관리가 필요할 때 업무 화면을 여세요.'
       : '홍보자료를 작성하거나 보완 요청을 확인할 때 업무 화면을 여세요.';
     work.append(node('p', copy));
-    const workButton = node('button', currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
+    const workButton = node('button', currentRoute === 'operations_manager' || currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
     workButton.type = 'button';
     workButton.addEventListener('click', showRoleDashboard);
     work.append(workButton);
@@ -208,21 +213,11 @@
   }
 
   function failureCode(error) {
+    if (typeof error?.code === 'string') return error.code;
     if (error?.code === 1) return 'PERMISSION_DENIED';
     if (error?.code === 2) return 'POSITION_UNAVAILABLE';
     if (error?.code === 3) return 'TIMEOUT';
     return 'POSITION_UNAVAILABLE';
-  }
-
-  function getPosition() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) return reject({ code: 2 });
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0
-      });
-    });
   }
 
   function allowException(eventType, card) {
@@ -256,13 +251,20 @@
   }
 
   async function attemptAttendance(eventType, card) {
+    if (attendanceInFlight[eventType]) return;
+    attendanceInFlight[eventType] = true;
     const mainButton = card.querySelector('[data-employee-attendance-action]');
     if (mainButton) mainButton.disabled = true;
     attempts[eventType] += 1;
-    setMessage(card, '현재 위치를 확인하고 있습니다.');
+    setMessage(card, '위치 확인을 시작합니다.');
+    let stage = 'location';
     try {
-      const position = await getPosition();
+      const position = await window.TaejangAttendanceLocation.getBestPosition({
+        onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
+      });
       lastPosition[eventType] = position;
+      stage = 'server';
+      setMessage(card, '서버에 출근·퇴근 기록을 확인하고 있습니다.');
       const result = await app().rpc('record_attendance_event', {
         p_event_type: eventType,
         p_latitude: position.coords.latitude,
@@ -272,9 +274,11 @@
       if (result?.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result?.code)) {
         attempts[eventType] = 0;
         lastFailure[eventType] = null;
+        if (result?.code === 'ALREADY_RECORDED') setMessage(card, '이미 등록된 기록이 있습니다. 기록 시간을 다시 확인합니다.', 'success');
         await loadAttendance();
         return;
       }
+      if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
       else if (result?.code === 'OUTSIDE_GEOFENCE') setMessage(card, '회사 출근 장소 안에서만 출퇴근할 수 있습니다.', 'error');
       else if (result?.code === 'LOCATION_UNCERTAIN') {
@@ -282,16 +286,28 @@
         setMessage(card, attempts[eventType] < 2 ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.' : '위치를 두 번 확인했지만 정확하지 않습니다.', 'error');
         allowException(eventType, card);
       } else if (result?.code === 'CLOCK_IN_REQUIRED') setMessage(card, '먼저 출근 처리가 완료되어야 합니다.', 'error');
-      else setMessage(card, '출퇴근을 처리하지 못했습니다. 다시 시도해주세요.', 'error');
+      else if (result?.code === 'FORBIDDEN') setMessage(card, '현재 계정으로는 출퇴근을 등록할 수 없습니다. 다시 로그인한 뒤 확인해주세요.', 'error');
+      else setMessage(card, '서버에서 출퇴근 기록을 처리하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
     } catch (error) {
+      if (stage === 'server') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
+        return;
+      }
       const code = failureCode(error);
       lastFailure[eventType] = code;
-      if (code === 'PERMISSION_DENIED') setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
-      else {
+      if (code === 'PERMISSION_DENIED') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
+      } else if (code === 'GEOLOCATION_UNAVAILABLE') {
+        attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. 위치 기능을 지원하는 휴대폰 브라우저에서 다시 시도해주세요.', 'error');
+      } else {
         setMessage(card, attempts[eventType] < 2 ? '위치를 확인하지 못했습니다. 다시 한 번 눌러주세요.' : '위치를 두 번 확인하지 못했습니다.', 'error');
         allowException(eventType, card);
       }
     } finally {
+      attendanceInFlight[eventType] = false;
       if (mainButton?.isConnected) mainButton.disabled = false;
     }
   }
@@ -417,12 +433,13 @@
       return;
     }
     if (PROMOTION_EMPLOYEE_ROLES.has(currentRoute)) startPromotionEmployeeHome();
+    else if (currentRoute === 'operations_manager') installDashboardReturn();
     else setTimeout(attachSimulationCardToGeneralWorker, 80);
   }
 
   document.addEventListener('taejang-app-ready', () => setTimeout(setup, 0));
   document.addEventListener('taejang-dashboard-refresh', () => {
-    if (PROMOTION_EMPLOYEE_ROLES.has(route())) installDashboardReturn();
+    if (PROMOTION_EMPLOYEE_ROLES.has(route()) || route() === 'operations_manager') installDashboardReturn();
   });
   document.addEventListener('taejang-pwa-install-ready', () => {
     if (!PROMOTION_EMPLOYEE_ROLES.has(route()) || document.querySelector('#employee-common-home [data-worker-install-card]')) return;

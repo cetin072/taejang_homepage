@@ -364,7 +364,13 @@ button{cursor:pointer}
 @media (max-width:1000px){
   :root{--section:76px}
   .desktop-nav{display:none}
-  .menu-btn{display:block}
+  /* Progressive enhancement: without JS the static mobile navigation remains
+     visible. site.js adds .js-nav-ready only after the toggle is bound. */
+  .mobile-nav{display:grid}
+  .menu-btn{display:none}
+  .js-nav-ready .menu-btn{display:block}
+  .js-nav-ready .mobile-nav{display:none}
+  .js-nav-ready .mobile-nav.open{display:grid}
   .facts{grid-template-columns:repeat(2,1fr)}
   .fact{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
   .fact:nth-child(2n){border-right:0}

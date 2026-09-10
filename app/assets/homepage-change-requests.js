@@ -61,6 +61,12 @@
   const KIND = { text: '글 수정', image: '사진 수정' };
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyAllowed;
+  const canDraft = () => can('homepage.draft', route() === 'promotion_lead');
+  const canReview = () => can('homepage.review', route() === 'operations_manager');
+  const canApprove = () => can('homepage.approve_apply', route() === 'operations_manager');
   const main = () => document.getElementById('dashboard-main');
 
   function text(tag, value, className) {
@@ -140,7 +146,7 @@
     return link;
   }
 
-  function requestCard(item, canReview) {
+  function requestCard(item) {
     const card = document.createElement('article');
     card.className = 'dashboard-card wide homepage-change-card';
     const page = PAGE_CATALOG[item.page_key];
@@ -170,10 +176,12 @@
     const actions = document.createElement('div');
     actions.className = 'quick-links';
     actions.append(currentPageLink(item.page_key));
-    if (canReview && item.status === 'pending') {
-      actions.append(button('최종 승인', () => reviewRequest(item.id, 'approve')));
-      actions.append(button('보완 요청', () => reviewRequest(item.id, 'changes_requested'), true));
-      actions.append(button('반려', () => reviewRequest(item.id, 'reject'), true));
+    if (item.status === 'pending') {
+      if (canApprove()) actions.append(button('최종 승인', () => reviewRequest(item.id, 'approve')));
+      if (canReview()) {
+        actions.append(button('보완 요청', () => reviewRequest(item.id, 'changes_requested'), true));
+        actions.append(button('반려', () => reviewRequest(item.id, 'reject'), true));
+      }
     }
     card.append(actions);
     return card;
@@ -347,7 +355,7 @@
   async function openWorkspace() {
     const target = main();
     const currentRoute = route();
-    if (!target || !['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    if (!target || !(canDraft() || canReview() || canApprove())) return;
     closeSidebar();
     document.getElementById('desktop-page-title').textContent = '홈페이지 내용 관리';
     target.replaceChildren(text('p', '홈페이지 수정 요청을 불러오고 있습니다.', 'message'));
@@ -356,22 +364,22 @@
       const intro = document.createElement('header'); intro.className = 'dashboard-intro';
       intro.append(
         text('p', '홈페이지 운영', 'eyebrow'),
-        text('h2', currentRoute === 'promotion_lead' ? '글·사진 수정 요청' : '홈페이지 수정 최종 승인'),
-        text('p', currentRoute === 'promotion_lead'
+        text('h2', canDraft() ? '글·사진 수정 요청' : '홈페이지 수정 최종 승인'),
+        text('p', canDraft()
           ? '현재 홈페이지 화면과 기존 문구를 확인한 뒤 변경할 내용과 이유를 요청합니다.'
           : '홍보팀장이 요청한 현재 내용·변경안·수정 이유를 비교해 최종 검토합니다. 홈페이지 구조 변경은 이 화면의 대상이 아닙니다.')
       );
       target.replaceChildren(intro);
-      if (currentRoute === 'promotion_lead') target.append(buildLeadForm());
+      if (canDraft()) target.append(buildLeadForm());
 
       const listSection = document.createElement('section'); listSection.className = 'dashboard-section';
       const list = Array.isArray(requests) ? requests : [];
       const pending = list.filter(item => item.status === 'pending');
-      listSection.append(text('h2', currentRoute === 'operations_manager' ? `승인 대기 ${pending.length}건` : '내 수정 요청'));
+      listSection.append(text('h2', (canReview() || canApprove()) ? `승인 대기 ${pending.length}건` : '내 수정 요청'));
       const grid = document.createElement('div'); grid.className = 'dashboard-grid';
-      const visible = currentRoute === 'operations_manager' ? [...pending, ...list.filter(item => item.status !== 'pending')] : list;
+      const visible = (canReview() || canApprove()) ? [...pending, ...list.filter(item => item.status !== 'pending')] : list;
       if (!visible.length) grid.append(text('p', '현재 홈페이지 글·사진 수정 요청이 없습니다.', 'empty'));
-      visible.forEach(item => grid.append(requestCard(item, currentRoute === 'operations_manager')));
+      visible.forEach(item => grid.append(requestCard(item)));
       listSection.append(grid); target.append(listSection);
     } catch (error) {
       target.replaceChildren(text('p', app().friendlyError(error), 'message error'));
@@ -380,7 +388,7 @@
 
   function addNavigation(event) {
     const currentRoute = event.detail?.route;
-    if (!['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    if (!(canDraft() || canReview() || canApprove())) return;
     queueMicrotask(() => {
       const nav = document.getElementById('app-nav');
       if (!nav || nav.querySelector('[data-homepage-content-nav]')) return;

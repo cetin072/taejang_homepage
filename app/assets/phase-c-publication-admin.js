@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const ELIGIBLE = new Set(['promotion_lead', 'operations_manager']);
+  const LEGACY_ELIGIBLE = new Set(['promotion_lead', 'operations_manager']);
   const TYPE_LABELS = {
     homepage_article: '태장 소식',
     external_content: '외부 기사·콘텐츠',
@@ -19,6 +19,14 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyAllowed;
+  const canManagePublication = () => [
+    'promotion.hide',
+    'promotion.republish',
+    'promotion.archive'
+  ].some(capability => can(capability, LEGACY_ELIGIBLE.has(route())));
   const main = () => document.getElementById('dashboard-main');
   const el = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -127,12 +135,25 @@
       actions.append(publicLink);
     }
 
-    if (item.lifecycle === 'published') actions.append(button('숨기기', () => setVisibility(item, false), true));
-    if (item.lifecycle === 'hidden') actions.append(button('다시 공개', () => setVisibility(item, true), true));
+    if (item.lifecycle === 'published' && can('promotion.hide', LEGACY_ELIGIBLE.has(role))) {
+      actions.append(button('숨기기', () => setVisibility(item, false), true));
+    }
+    if (item.lifecycle === 'hidden' && can('promotion.republish', LEGACY_ELIGIBLE.has(role))) {
+      actions.append(button('다시 공개', () => setVisibility(item, true), true));
+    }
 
-    if (role === 'promotion_lead') {
-      if (!item.pending_delete_request) actions.append(button('삭제 요청', () => requestDeletion(item), true));
-    } else if (role === 'operations_manager' && canDelete) {
+    if (role === 'promotion_lead' && can('promotion.archive', true)) {
+      if (item.pending_delete_request) {
+        actions.append(el('p', '삭제 요청 대기 중', 'help'));
+      } else if (item.can_request_delete === true) {
+        actions.append(button('삭제 요청', () => requestDeletion(item), true));
+      } else {
+        const eligibleAt = formatDate(item.delete_request_eligible_at);
+        actions.append(el('p', eligibleAt
+          ? `삭제 요청 가능: ${eligibleAt}`
+          : '공개 시각이 확인된 뒤 삭제 요청 가능 여부를 안내합니다.', 'help'));
+      }
+    } else if (role === 'operations_manager' && canDelete && can('promotion.archive', true)) {
       const remove = button('삭제', () => deleteContent(item));
       remove.className = 'button button-danger';
       actions.append(remove);
@@ -150,8 +171,8 @@
     card.append(el('p', `요청 시각 ${formatDate(request.created_at)}`));
     const actions = el('div', null, 'quick-links');
     const item = items.find(candidate => candidate.content_id === request.content_id);
-    if (item && canDelete) actions.append(button('삭제', () => deleteContent(item)));
-    actions.append(button('요청 반려', () => rejectDeletion(request), true));
+    if (item && canDelete && can('promotion.archive', true)) actions.append(button('삭제', () => deleteContent(item)));
+    if (can('promotion.archive', true)) actions.append(button('요청 반려', () => rejectDeletion(request), true));
     card.append(actions);
     return card;
   }
@@ -160,7 +181,7 @@
     closeSidebar();
     const currentRoute = route();
     const target = main();
-    if (!target || !ELIGIBLE.has(currentRoute)) return;
+    if (!target || !canManagePublication()) return;
     document.getElementById('desktop-page-title').textContent = '홍보 글 관리';
     target.hidden = false;
     target.classList.add('phase-c-v2');
@@ -184,7 +205,7 @@
         : '삭제된 글은 일반 목록과 홈페이지에서는 사라지지만 원문과 승인 이력은 내부 복구용으로 보존됩니다.', 'help'));
       target.replaceChildren(intro);
 
-      if (role === 'operations_manager' && requests.length) {
+      if (role === 'operations_manager' && requests.length && can('promotion.archive', true)) {
         const requestSection = el('section', null, 'dashboard-section');
         requestSection.append(el('h2', `삭제 요청 ${requests.length}건`));
         const requestGrid = el('div', null, 'phase-c-v2-grid');
@@ -212,7 +233,7 @@
   function ensureNav() {
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    const eligible = ELIGIBLE.has(route());
+    const eligible = canManagePublication();
     let node = nav.querySelector('[data-phase-c-publication-admin]');
     if (!eligible) {
       node?.remove();

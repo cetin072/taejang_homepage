@@ -20,6 +20,13 @@
   --sidebar-hover-bg: rgba(255,255,255,.12);
 }
 
+/* The manager workspace owns its own topbar. Keep the legacy outer header only
+   for the general-worker screen so logout and branding are never duplicated. */
+.staff-shell > .staff-header { display: none; }
+.general-worker-mode .staff-shell > .staff-header { display: flex; }
+/* Environment/test labels are operational metadata, not end-user UI. */
+.environment-label { display: none !important; }
+
 .desktop-app-shell { min-height: calc(100vh - 72px); display: grid; grid-template-columns: 248px minmax(0, 1fr); width: min(100vw - 32px, 1480px); margin: 0 calc((min(100vw - 32px, 1480px) - min(100% - 32px, 980px)) / -2) 40px; border: 1px solid var(--app-border); border-radius: 20px; overflow: clip; background: var(--app-background); box-shadow: var(--app-shadow); }
 .app-sidebar { display: grid; align-content: start; gap: 20px; padding: 24px 16px; background: var(--sidebar-bg); color: var(--sidebar-text); }
 .app-logo { color: #fff; font-size: 1.25rem; font-weight: 900; text-decoration: none; padding: 8px; }
@@ -120,6 +127,9 @@
   .desktop-app-shell { grid-template-columns: 1fr; width: min(100% - 20px, 980px); margin: 0 auto 28px; overflow: visible; }
   .app-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(84vw, 310px); height: 100dvh; overflow-y: auto; overscroll-behavior: contain; transform: translateX(-105%); transition: transform .18s ease; box-shadow: 12px 0 30px rgba(0,0,0,.22); }
   .desktop-app-shell.sidebar-open .app-sidebar { transform: translateX(0); }
+  /* Keep role switching available on the normal mobile screen, but never let the
+     fixed switcher cover the open sidebar or its official-channel links. */
+  .desktop-app-shell.sidebar-open .role-simulation-switcher { display: none; }
   .icon-button { display: inline-flex; }
   .app-topbar { min-height: 76px; }
   .app-user-label { display: none; }
