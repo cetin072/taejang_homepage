@@ -34,8 +34,8 @@ test('public payroll authorization routes through the current-main capability so
   assert.match(candidate, /create or replace function public\.private_payroll_operator_allowed\(\)/i);
   assert.match(candidate, /current_profile_is_active\(\)/i);
   assert.match(candidate, /private_actor_can\('payroll\.manage'\)/i);
-  assert.doesNotMatch(candidate, /current_user_has_role\('super_admin'\)/i);
-  assert.doesNotMatch(candidate, /current_user_has_role\('ceo'\)/i);
+  assert.doesNotMatch(executableSql, /current_user_has_role\('super_admin'\)/i);
+  assert.doesNotMatch(executableSql, /current_user_has_role\('ceo'\)/i);
 });
 
 test('trusted service persistence rechecks original actor and respects lower-role simulation', () => {
@@ -51,6 +51,7 @@ test('trusted service persistence rechecks original actor and respects lower-rol
 
 test('candidate never grants browser table access or technical-super-admin payroll bypass', () => {
   assert.doesNotMatch(executableSql, /grant\s+(?:select|insert|update|delete)\s+on/i);
-  assert.doesNotMatch(candidate, /payroll\.manage[\s\S]*super_admin/i);
-  assert.doesNotMatch(candidate, /create\s+role\s+payroll_operator/i);
+  assert.doesNotMatch(executableSql, /\bsuper_admin\b/i);
+  assert.doesNotMatch(executableSql, /\bceo\b/i);
+  assert.doesNotMatch(executableSql, /create\s+role\s+payroll_operator/i);
 });
