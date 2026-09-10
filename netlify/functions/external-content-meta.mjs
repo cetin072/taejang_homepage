@@ -166,13 +166,15 @@ async function readLimited(response, maxBytes = 1_000_000) {
   return text;
 }
 
-async function verifyPromotionUser(request) {
+async function authorizePromotionRequest(request) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   const auth = request.headers.get('authorization') || '';
-  if (!supabaseUrl || !key || !auth.startsWith('Bearer ')) return false;
+  if (!supabaseUrl || !key || !auth.startsWith('Bearer ')) {
+    return { allowed: false, status: 403, error: 'FORBIDDEN' };
+  }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/get_my_access_context`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_external_content_meta_quota`, {
     method: 'POST',
     headers: {
       apikey: key,
@@ -181,10 +183,25 @@ async function verifyPromotionUser(request) {
     },
     body: '{}'
   });
-  if (!response.ok) return false;
-  const context = await response.json().catch(() => null);
-  const roles = Array.isArray(context?.roles) ? context.roles.map(role => role.code) : [];
-  return roles.some(role => ['promotion_staff', 'promotion_lead', 'operations_manager'].includes(role));
+
+  if (response.status === 401 || response.status === 403) {
+    return { allowed: false, status: 403, error: 'FORBIDDEN' };
+  }
+  if (!response.ok) {
+    return { allowed: false, status: 503, error: 'AUTHORIZATION_UNAVAILABLE' };
+  }
+
+  const quota = await response.json().catch(() => null);
+  if (!quota || quota.allowed !== true) {
+    return {
+      allowed: false,
+      status: 429,
+      error: 'RATE_LIMITED',
+      retry_after_seconds: Number(quota?.retry_after_seconds || 0)
+    };
+  }
+
+  return { allowed: true, status: 200 };
 }
 
 async function fetchHtml(initialUrl) {
@@ -220,7 +237,14 @@ async function fetchHtml(initialUrl) {
 
 export default async (request) => {
   if (request.method !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED' });
-  if (!(await verifyPromotionUser(request))) return json(403, { error: 'FORBIDDEN' });
+
+  const authorization = await authorizePromotionRequest(request);
+  if (!authorization.allowed) {
+    return json(authorization.status, {
+      error: authorization.error,
+      ...(authorization.status === 429 ? { retry_after_seconds: authorization.retry_after_seconds } : {})
+    });
+  }
 
   let body;
   try { body = await request.json(); } catch { return json(400, { error: 'INVALID_JSON' }); }
