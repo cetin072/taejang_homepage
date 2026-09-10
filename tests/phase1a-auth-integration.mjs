@@ -411,9 +411,9 @@ const protectStatus = await rpc('change_account_status', admin.token, {
 });
 equal(protectStatus.data?.code, 'SELF_LOCKOUT_PROTECTED', 'self-lockout protection blocks a super admin from suspending itself');
 
-const protectRole = await rpc('set_profile_roles', admin.token, {
+const protectRole = await rpc('set_profile_super_admin_status', admin.token, {
   p_target_profile_id: admin.id,
-  p_role_codes: ['operations_manager'],
+  p_enabled: false,
   p_reason_summary: 'CI 마지막 최고관리자 역할 회수 시도',
 });
 equal(protectRole.data?.code, 'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED', 'self-lockout protection blocks a super admin from removing its own technical role');
@@ -425,19 +425,19 @@ const reactivateForSecondAdmin = await rpc('change_account_status', admin.token,
 });
 equal(reactivateForSecondAdmin.data?.code, 'STATUS_CHANGED', 'worker is reactivated for two-admin test');
 
-const grantSecondAdmin = await rpc('set_profile_roles', admin.token, {
+const grantSecondAdmin = await rpc('set_profile_super_admin_status', admin.token, {
   p_target_profile_id: worker.id,
-  p_role_codes: ['super_admin', 'operations_manager'],
+  p_enabled: true,
   p_reason_summary: 'CI 두 번째 운영총괄 겸 최고관리자 지정',
 });
-equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active super admin can be granted; highest-authority pilot accounts also retain operations manager');
+equal(grantSecondAdmin.data?.code, 'TECHNICAL_ROLE_GRANTED', 'a second active super admin can be granted through the separate technical endpoint');
 
-const revokeFirstAdmin = await rpc('set_profile_roles', worker.token, {
+const revokeFirstAdmin = await rpc('set_profile_super_admin_status', worker.token, {
   p_target_profile_id: admin.id,
-  p_role_codes: ['operations_manager'],
+  p_enabled: false,
   p_reason_summary: 'CI 최고관리자 2명 상태 역할 회수',
 });
-equal(revokeFirstAdmin.data?.code, 'ROLES_CHANGED', 'one super admin role can be revoked when two are active');
+equal(revokeFirstAdmin.data?.code, 'TECHNICAL_ROLE_REVOKED', 'one super admin role can be revoked when two are active through the separate technical endpoint');
 equal(sql("select count(distinct profile.id) from public.profiles profile join public.profile_roles assignment on assignment.profile_id = profile.id and assignment.revoked_at is null join public.roles role on role.id = assignment.role_id and role.code = 'super_admin' where profile.account_status = 'active'"), '1', 'one active super admin remains');
 
 const opsOnlySimulation = await rpc('set_role_simulation_mode', admin.token, {
