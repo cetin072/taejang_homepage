@@ -1,1 +1,0 @@
-Remove this temporary file once the dedicated resync GitHub Issue is created.
