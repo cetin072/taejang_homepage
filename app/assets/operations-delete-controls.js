@@ -220,7 +220,8 @@
     const list = document.getElementById(config.listId);
     if (!list) return;
     const cards = [...list.querySelectorAll(':scope > .admin-record-card')];
-    if (!cards.length && list.querySelector(`[data-${config.archiveSectionAttribute}]`)) return;
+    const archivedSection = list.querySelector(`:scope > [data-${config.archiveSectionAttribute}]`);
+    if (archivedSection && cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;
     busy.add(config.key);
     try {
       const [activeRows, archivedRows] = await Promise.all([
@@ -276,6 +277,7 @@
   function hasRelevantAddedNode(records) {
     return records.some(record => [...record.addedNodes].some(node => {
       if (node.nodeType !== 1) return false;
+      if (node.matches?.('[data-ops-archive-schedule], [data-ops-archive-notice], [data-ops-archive-guidance]')) return false;
       if (node.matches?.('.employee-card, .admin-record-card, .employee-grid, #schedule-admin-list, #notice-admin-list, #guidance-admin-list')) return true;
       return !!node.querySelector?.('.employee-card, .admin-record-card');
     }));
