@@ -38,7 +38,8 @@ export const testGroups = Object.freeze({
     'tests/business-section-hierarchy.test.js',
     'tests/community-esg.test.js',
     'tests/content-detail-thumbnail.test.js',
-    'tests/hero-video-slider.test.js'
+    'tests/hero-video-slider.test.js',
+    'tests/netlify-publish-boundary.test.js'
   ]),
   stagingSafety: Object.freeze([
     'tests/first-super-admin-bootstrap.test.js',
