@@ -58,6 +58,24 @@ begin
 end;
 $$;
 
+-- After current-main resync, payroll public RPCs must use the same server-owned
+-- capability source of truth as the rest of the platform. This replaces the legacy
+-- direct role-string predicate in operations_manager_access_candidate.sql when the
+-- prototypes are consolidated into one reviewed migration.
+create or replace function public.private_payroll_operator_allowed()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.current_profile_is_active()
+     and public.private_actor_can('payroll.manage');
+$$;
+
+revoke all on function public.private_payroll_operator_allowed()
+  from public, anon, authenticated;
+
 -- No grants are made to anon/authenticated on capability registry tables.
 -- Existing fail-closed capability-table access from Issue #148 remains authoritative.
 
