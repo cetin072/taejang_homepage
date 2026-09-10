@@ -160,15 +160,21 @@ const restoreUnassignedEmployee = await rpc('restore_employee', admin.token, {
 equal(restoreUnassignedEmployee.data?.code, 'EMPLOYEE_RESTORED', 'operations manager can restore an archived Employee');
 equal(sql(`select department_id is null and archived_at is null from public.employees where id = '${unassignedEmployee.data.employee_uuid}'::uuid`), 't', 'restore preserves the unassigned Employee identity and active state');
 
-const approval = await rpc('approve_pending_user', admin.token, {
-  p_target_profile_id: worker.id,
+const workerEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 일반직원 계정 연결 Employee',
+  p_hired_on: '2026-09-08',
   p_department_id: department.data[0].id,
   p_position_id: position.data[0].id,
-  p_role_codes: ['office_staff'],
-  p_reason_summary: 'CI 테스트 계정 승인',
+  p_attendance_required: false,
 });
-check(approval.ok, `approval RPC failed: ${JSON.stringify(approval.data)}`);
-equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pending account and assigns roles');
+equal(workerEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee linked to the ordinary worker account');
+const approval = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: worker.id,
+  p_employee_uuid: workerEmployee.data.employee_uuid,
+  p_role_code: 'general_worker',
+  p_reason_summary: 'CI 일반직원 계정 연결 승인',
+});
+equal(approval.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links the ordinary worker account');
 
 const promotionDepartment = await api('/rest/v1/departments?select=id&code=eq.promotion', { token: admin.token });
 check(promotionDepartment.ok && promotionDepartment.data?.[0]?.id, 'highest authority can resolve the promotion department');
