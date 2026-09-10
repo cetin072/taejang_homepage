@@ -62,9 +62,10 @@ test('staff and promotion lead composer remove technical fields and external con
   ]) assert.ok(source.includes(marker), `missing staff UX marker: ${marker}`);
   const meta = fs.readFileSync(metaPath, 'utf8');
   for (const marker of [
-    'dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'get_my_access_context', 'og:title', 'og:image',
+    'dns.lookup', 'BLOCKED_HOST', "redirect: 'manual'", 'consume_external_content_meta_quota', 'og:title', 'og:image',
     'PAGE_TOO_LARGE', 'extractArticleText', 'article_text', 'extractJsonLdArticleBody', 'stripArticleNoise', 'ARTICLE_TEXT_MAX'
   ]) assert.ok(meta.includes(marker), `missing metadata safety marker: ${marker}`);
+  assert.doesNotMatch(meta, /rpc\/get_my_access_context/);
   const refinement = fs.readFileSync(refinementPath, 'utf8');
   assert.match(refinement, /metadata\.article_text/);
   assert.match(refinement, /body\.value\.trim\(\)/);
