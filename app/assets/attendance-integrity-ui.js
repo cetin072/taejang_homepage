@@ -3,6 +3,9 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const canCorrect = () => app()?.hasCapabilityContract?.()
+    ? Boolean(app()?.can?.('attendance.correct'))
+    : route() === 'operations_manager';
   const node = (tag, text, className) => {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -92,7 +95,7 @@
   }
 
   async function createCorrection({ employeeUuid, workDate, eventType, action, currentRecord }) {
-    if (route() !== 'operations_manager') return;
+    if (!canCorrect()) return;
     let correctedEventAt = null;
     if (action === 'set_time') {
       const defaultTime = currentRecord?.event_at && kstDate(currentRecord.event_at) === workDate
@@ -139,7 +142,8 @@
         CLOCK_IN_AFTER_CLOCK_OUT: '출근 시간은 퇴근 시간보다 늦을 수 없습니다.',
         NOTHING_TO_INVALIDATE: '현재 무효 처리할 유효 기록이 없습니다.',
         ATTENDANCE_NOT_REQUIRED: '근태 기록 대상이 아닌 직원입니다.',
-        OUTSIDE_EMPLOYMENT_PERIOD: '재직기간 밖의 날짜는 보정할 수 없습니다.'
+        OUTSIDE_EMPLOYMENT_PERIOD: '재직기간 밖의 날짜는 보정할 수 없습니다.',
+        FORBIDDEN: '근태 보정 권한이 없습니다.'
       }[result?.code] || '근태 보정을 처리하지 못했습니다.';
       window.alert(copy);
       return;
@@ -148,7 +152,7 @@
   }
 
   async function openCorrectionScreen() {
-    if (route() !== 'operations_manager') return;
+    if (!canCorrect()) return;
     const main = document.getElementById('dashboard-main');
     if (!main) return;
     document.getElementById('desktop-app-shell')?.classList.remove('sidebar-open');
@@ -170,7 +174,7 @@
 
     const intro = node('header', null, 'dashboard-intro');
     intro.append(
-      node('p', '운영총괄 전용', 'eyebrow'),
+      node('p', '근태 보정 권한', 'eyebrow'),
       node('h2', '근태 기록 보정'),
       node('p', '누락 출퇴근 추가, 시간 정정, 잘못된 기록 무효 처리를 합니다. GPS 원본 기록은 삭제하거나 덮어쓰지 않습니다.')
     );
@@ -241,7 +245,7 @@
   }
 
   function addCorrectionNavigation() {
-    if (route() !== 'operations_manager') return;
+    if (!canCorrect()) return;
     const nav = document.getElementById('app-nav');
     if (!nav || nav.querySelector('[data-attendance-correction-nav]')) return;
     const button = correctionActionButton('근태 보정');
@@ -260,5 +264,6 @@
 
   document.addEventListener('taejang-app-ready', sync);
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(addCorrectionNavigation, 100));
+  document.addEventListener('taejang-capabilities-ready', () => setTimeout(addCorrectionNavigation, 0));
   window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi };
 })();

@@ -3,6 +3,9 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const canArchive = () => app()?.hasCapabilityContract?.()
+    ? app()?.can?.('promotion.archive') === true
+    : ['promotion_lead', 'operations_manager'].includes(route());
   let scheduled = false;
 
   function openPromotionManagement() {
@@ -11,7 +14,7 @@
 
   function syncNavigation() {
     const currentRoute = route();
-    if (!['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    if (!canArchive()) return;
     const nav = document.querySelector('[data-issue146-nav="promotion-archive"]');
     if (!nav) return;
     nav.textContent = currentRoute === 'operations_manager' ? '홍보글 관리·복구' : '홍보글 관리';
@@ -20,7 +23,7 @@
 
   function syncReviewEntry() {
     const currentRoute = route();
-    if (!['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    if (!canArchive()) return;
     const title = document.getElementById('desktop-page-title')?.textContent?.trim();
     if (!['홍보 검토', '홍보 승인 검토'].includes(title)) return;
     const intro = document.querySelector('#dashboard-main .dashboard-intro');
@@ -50,7 +53,7 @@
 
   function syncArchiveScreen() {
     const currentRoute = route();
-    if (!['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    if (!canArchive()) return;
     const shell = document.querySelector('#dashboard-main .issue146-shell');
     if (!shell) return;
 

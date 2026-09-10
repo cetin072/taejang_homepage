@@ -60,12 +60,24 @@ select is(
 );
 
 insert into public.people (id, full_name) values
+  ('61100000-0000-0000-0000-000000000002', '테스트 일정 팀장'),
+  ('61100000-0000-0000-0000-000000000003', '테스트 일정 반장'),
   ('61100000-0000-0000-0000-000000000004', '테스트 일정 근로자 A'),
   ('61100000-0000-0000-0000-000000000005', '테스트 일정 근로자 B'),
   ('61100000-0000-0000-0000-000000000006', '테스트 다른부서 근로자');
 insert into public.employees (
   id, employee_id, person_id, department_id, position_id, hired_on, attendance_required
 ) values
+  (
+    '61200000-0000-0000-0000-000000000002', 'TJ-990002', '61100000-0000-0000-0000-000000000002',
+    (select id from public.departments where code = 'production'),
+    (select id from public.positions where code = 'department_lead'), current_date, true
+  ),
+  (
+    '61200000-0000-0000-0000-000000000003', 'TJ-990003', '61100000-0000-0000-0000-000000000003',
+    (select id from public.departments where code = 'production'),
+    (select id from public.positions where code = 'general_field_lead'), current_date, true
+  ),
   (
     '61200000-0000-0000-0000-000000000004', 'TJ-990004', '61100000-0000-0000-0000-000000000004',
     (select id from public.departments where code = 'production'),
@@ -84,34 +96,61 @@ insert into public.employees (
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
+reset role;
 
-select is((public.approve_pending_user(
-  '61000000-0000-0000-0000-000000000002',
-  (select id from public.departments where code = 'production'),
-  (select id from public.positions where code = 'department_lead'),
-  array['department_lead'], '일정 테스트 팀장 승인'
-) ->> 'code'), 'ACCOUNT_APPROVED', 'department lead is approved');
-select is((public.approve_pending_user(
-  '61000000-0000-0000-0000-000000000003',
-  (select id from public.departments where code = 'production'),
-  (select id from public.positions where code = 'general_field_lead'),
-  array['field_lead'], '일정 테스트 반장 승인'
-) ->> 'code'), 'ACCOUNT_APPROVED', 'field lead is approved');
-select is((public.approve_signup_request_with_employee(
-  '61000000-0000-0000-0000-000000000004',
-  '61200000-0000-0000-0000-000000000004',
-  'general_worker', '일정 테스트 근로자 A 승인'
-) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'worker A is approved through an Employee link');
-select is((public.approve_signup_request_with_employee(
-  '61000000-0000-0000-0000-000000000005',
-  '61200000-0000-0000-0000-000000000005',
-  'general_worker', '일정 테스트 근로자 B 승인'
-) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'worker B is approved through an Employee link');
-select is((public.approve_signup_request_with_employee(
-  '61000000-0000-0000-0000-000000000006',
-  '61200000-0000-0000-0000-000000000006',
-  'general_worker', '일정 테스트 다른부서 승인'
-) ->> 'code'), 'EMPLOYEE_ACCOUNT_APPROVED', 'other-department worker is approved through an Employee link');
+-- This test is about schedules and notices, not account approval.  Its actors
+-- use the current Person/Employee/Auth fixture shape directly so that lead
+-- accounts never rely on the retired approve_pending_user() path.
+update public.profiles profile
+set account_status = 'active',
+    department_id = employee.department_id,
+    position_id = employee.position_id,
+    approved_at = now(),
+    approved_by = '61000000-0000-0000-0000-000000000001',
+    status_changed_at = now(),
+    status_changed_by = '61000000-0000-0000-0000-000000000001',
+    status_reason = '일정·공지 테스트 fixture 활성화'
+from (values
+  ('61000000-0000-0000-0000-000000000002'::uuid, '61200000-0000-0000-0000-000000000002'::uuid),
+  ('61000000-0000-0000-0000-000000000003'::uuid, '61200000-0000-0000-0000-000000000003'::uuid),
+  ('61000000-0000-0000-0000-000000000004'::uuid, '61200000-0000-0000-0000-000000000004'::uuid),
+  ('61000000-0000-0000-0000-000000000005'::uuid, '61200000-0000-0000-0000-000000000005'::uuid),
+  ('61000000-0000-0000-0000-000000000006'::uuid, '61200000-0000-0000-0000-000000000006'::uuid)
+) fixture(profile_id, employee_id)
+join public.employees employee on employee.id = fixture.employee_id
+where profile.id = fixture.profile_id;
+
+insert into public.account_person_links (profile_id, person_id, linked_by, reason)
+select
+  profile_id,
+  employee.person_id,
+  '61000000-0000-0000-0000-000000000001',
+  '일정·공지 테스트 fixture 계정 연결'
+from (values
+  ('61000000-0000-0000-0000-000000000002'::uuid, '61200000-0000-0000-0000-000000000002'::uuid),
+  ('61000000-0000-0000-0000-000000000003'::uuid, '61200000-0000-0000-0000-000000000003'::uuid),
+  ('61000000-0000-0000-0000-000000000004'::uuid, '61200000-0000-0000-0000-000000000004'::uuid),
+  ('61000000-0000-0000-0000-000000000005'::uuid, '61200000-0000-0000-0000-000000000005'::uuid),
+  ('61000000-0000-0000-0000-000000000006'::uuid, '61200000-0000-0000-0000-000000000006'::uuid)
+) fixture(profile_id, employee_id)
+join public.employees employee on employee.id = fixture.employee_id;
+
+insert into public.profile_roles (profile_id, role_id, granted_by)
+select
+  fixture.profile_id,
+  role.id,
+  '61000000-0000-0000-0000-000000000001'
+from (values
+  ('61000000-0000-0000-0000-000000000002'::uuid, 'department_lead'),
+  ('61000000-0000-0000-0000-000000000003'::uuid, 'field_lead'),
+  ('61000000-0000-0000-0000-000000000004'::uuid, 'general_worker'),
+  ('61000000-0000-0000-0000-000000000005'::uuid, 'general_worker'),
+  ('61000000-0000-0000-0000-000000000006'::uuid, 'general_worker')
+) fixture(profile_id, role_code)
+join public.roles role on role.code = fixture.role_code;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"61000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 
 select is((public.save_work_group(
   null, (select id from public.departments where code = 'production'),

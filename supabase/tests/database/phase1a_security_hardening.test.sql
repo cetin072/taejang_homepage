@@ -71,16 +71,35 @@ select throws_ok(
   'permission denied for function bootstrap_super_admin',
   'authenticated browser role cannot execute bootstrap'
 );
-select is(
-  (public.approve_pending_user(
-    '40000000-0000-0000-0000-000000000004',
+with created as (
+  select (public.create_employee(
+    '두 번째 기술관리자 직원',
+    current_date,
     (select id from public.departments where code = 'operations'),
-    (select id from public.positions where code = 'system_super_admin'),
-    array['super_admin'],
-    '두 번째 테스트 최고관리자 승인'
-  ) ->> 'code'),
-  'ACCOUNT_APPROVED',
-  'first super admin can approve a second super admin'
+    (select id from public.positions where code = 'general_worker'),
+    false
+  ) ->> 'employee_uuid')::uuid as employee_uuid
+), approved as (
+  select public.approve_signup_request_with_employee(
+    '40000000-0000-0000-0000-000000000004',
+    created.employee_uuid,
+    'general_worker',
+    '두 번째 기술관리자 일반계정 승인'
+  ) as result
+  from created
+), technical as (
+  select public.set_profile_super_admin_status(
+    '40000000-0000-0000-0000-000000000004',
+    true,
+    '두 번째 기술 최고관리자 권한 부여'
+  ) ->> 'code' as code
+  from approved
+  where approved.result ->> 'code' = 'EMPLOYEE_ACCOUNT_APPROVED'
+)
+select is(
+  (select code from technical),
+  'TECHNICAL_ROLE_GRANTED',
+  'second super admin is granted only after normal Employee-linked account approval'
 );
 
 reset role;
@@ -104,13 +123,13 @@ select set_config(
   true
 );
 select is(
-  (public.set_profile_roles(
+  (public.set_profile_super_admin_status(
     '30000000-0000-0000-0000-000000000003',
-    array['operations_manager'],
-    '최고관리자 2명 상태 역할 회수 검증'
+    false,
+    '최고관리자 2명 상태 기술역할 회수 검증'
   ) ->> 'code'),
-  'ROLES_CHANGED',
-  'one super admin role can be revoked when two are active'
+  'TECHNICAL_ROLE_REVOKED',
+  'one super admin technical role can be revoked when two are active'
 );
 
 reset role;
