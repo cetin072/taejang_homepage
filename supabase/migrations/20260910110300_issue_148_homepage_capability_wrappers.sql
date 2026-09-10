@@ -21,6 +21,7 @@ create function public.create_homepage_slot_change_request(
 ) returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   if not public.private_actor_can('homepage.draft') then raise exception using errcode='42501', message='HOMEPAGE_CHANGE_REQUEST_FORBIDDEN'; end if;
+  perform public.promotion_validate_url(p_proposed_image_url, 'proposed_image_url');
   return public.private_create_homepage_slot_change_request_pre148(p_slot_key,p_current_summary,p_proposed_text,p_proposed_image_url,p_image_alt,p_reason);
 end; $$;
 
