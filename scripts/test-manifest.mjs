@@ -24,6 +24,7 @@ export const testGroups = Object.freeze({
     'tests/capability-access-foundation.test.js',
     'tests/capability-ui-gates.test.js',
     'tests/issue-148-promotion-homepage-capability-contract.test.js',
+    'tests/external-content-meta-guard.test.js',
     'tests/internal-app-ia.test.js',
     'tests/internal-app-followup-ux.test.js',
     'tests/app-failure-states.test.js',
@@ -49,7 +50,8 @@ export const testGroups = Object.freeze({
     'tests/business-section-hierarchy.test.js',
     'tests/community-esg.test.js',
     'tests/content-detail-thumbnail.test.js',
-    'tests/hero-video-slider.test.js'
+    'tests/hero-video-slider.test.js',
+    'tests/netlify-publish-boundary.test.js'
   ]),
   stagingSafety: Object.freeze([
     'tests/first-super-admin-bootstrap.test.js',
