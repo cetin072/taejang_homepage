@@ -121,3 +121,31 @@ test('simulation surfaces contradictory pagination as manual inspection instead 
     'run_record'
   ]);
 });
+
+test('simulation accepts only explicit public filter keys and rejects credential-shaped or unknown inputs', () => {
+  assert.deepEqual(SUPPORT_RADAR_BIZINFO_SIMULATION_CONTRACT.allowed_request_filters, [
+    'searchCnt',
+    'searchLclasId',
+    'hashtags'
+  ]);
+
+  assert.throws(() => simulateBizinfoIngestionPage({
+    payload: fixture,
+    previous_items: [],
+    run_id: 'bizinfo-sim-secret',
+    started_at: '2026-09-10T19:20:00+09:00',
+    fetched_at: '2026-09-10T19:20:01+09:00',
+    finished_at: '2026-09-10T19:20:02+09:00',
+    request_filters: { crtfcKey: 'must-not-be-accepted' }
+  }), /SIMULATION_REQUEST_FILTER_FORBIDDEN:crtfcKey/);
+
+  assert.throws(() => simulateBizinfoIngestionPage({
+    payload: fixture,
+    previous_items: [],
+    run_id: 'bizinfo-sim-unknown-filter',
+    started_at: '2026-09-10T19:20:00+09:00',
+    fetched_at: '2026-09-10T19:20:01+09:00',
+    finished_at: '2026-09-10T19:20:02+09:00',
+    request_filters: { undocumentedParam: 'value' }
+  }), /SIMULATION_REQUEST_FILTER_FORBIDDEN:undocumentedParam/);
+});
