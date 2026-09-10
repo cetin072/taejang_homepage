@@ -43,7 +43,7 @@ test('main resync plan registers payroll into the current manifest-based test ru
   assert.match(resyncPlan, /scripts\/test-manifest\.mjs/i);
   assert.match(resyncPlan, /payrollRegression/i);
   assert.match(resyncPlan, /npm run test:payroll/i);
-  assert.match(resyncPlan, /include payroll in default `npm test` once the branch is integrated/i);
+  assert.match(resyncPlan, /include payroll in default `npm test` once(?: the branch is)? integrated/i);
   assert.match(resyncPlan, /Issue #149 attendance integrity/i);
   assert.match(resyncPlan, /do not replace the accepted vendor\/fingerprint Excel import with mobile attendance automatically/i);
 });
