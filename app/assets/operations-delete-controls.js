@@ -27,6 +27,21 @@
     }).format(date);
   }
 
+  function formatAuditSnapshot(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+    const labels = {
+      status: '상태', lifecycle: '공개상태', employment_status: '재직상태',
+      account_status: '계정상태', archived_at: '보관시각'
+    };
+    return Object.entries(value)
+      .filter(([key, item]) => Object.hasOwn(labels, key) && item !== undefined)
+      .map(([key, item]) => {
+        const shown = key === 'archived_at' && item ? formatDateTime(item) : (item ?? '-');
+        return `${labels[key]} ${shown}`;
+      })
+      .join(' · ');
+  }
+
   async function confirmAndDelete({ kind, title, rpc, args, refresh, extraWarning = '' }) {
     if (!isOperations()) return;
     const target = title || kind;
@@ -106,6 +121,15 @@
           const reason = entry.reason ? ` · ${entry.reason}` : '';
           line.textContent = `${formatDateTime(entry.created_at)} · ${actor} · ${entry.action}${reason}`;
           panel.append(line);
+
+          const before = formatAuditSnapshot(entry.metadata?.before);
+          const after = formatAuditSnapshot(entry.metadata?.after);
+          if (before || after) {
+            const change = document.createElement('p');
+            change.className = 'help';
+            change.textContent = `변경: ${before || '-'} → ${after || '-'}`;
+            panel.append(change);
+          }
         });
       }
       card.append(panel);
@@ -126,29 +150,39 @@
   async function decorateEmployees() {
     if (!isOperations() || busy.has('employees')) return;
     const cards = [...document.querySelectorAll('.employee-grid .employee-card')];
-    if (!cards.length || cards.every(card => card.querySelector('[data-ops-delete-employee]'))) return;
+    if (!cards.length || cards.every(card => card.querySelector('[data-ops-employee-tools]'))) return;
     busy.add('employees');
     try {
       const context = await app().rpc('get_employee_management_context');
       const employees = Array.isArray(context?.employees) ? context.employees : [];
       const byId = new Map(employees.map(employee => [employee.employee_id, employee]));
       cards.forEach(card => {
-        if (card.querySelector('[data-ops-delete-employee]')) return;
+        if (card.querySelector('[data-ops-employee-tools]')) return;
         const employeeId = card.querySelector('.status-label')?.textContent?.trim();
         const employee = byId.get(employeeId);
-        if (!employee || employee.protected) return;
+        if (!employee) return;
         const actions = card.querySelector('.quick-links');
         if (!actions) return;
-        const node = actionButton('직원 삭제', () => confirmAndDelete({
-          kind: '직원',
-          title: `${employee.full_name} (${employee.employee_id})`,
-          rpc: 'archive_employee',
-          args: { p_employee_uuid: employee.id },
-          extraWarning: employee.linked_profile ? '연결된 업무플랫폼 계정도 즉시 접근 차단됩니다.' : '',
-          refresh: async () => document.dispatchEvent(new CustomEvent('taejang-open-employee-management'))
-        }), true);
-        node.dataset.opsDeleteEmployee = '1';
-        actions.append(node);
+
+        const tools = document.createElement('span');
+        tools.hidden = true;
+        tools.dataset.opsEmployeeTools = '1';
+        card.append(tools);
+
+        if (!employee.protected) {
+          const node = actionButton('직원 삭제', () => confirmAndDelete({
+            kind: '직원',
+            title: `${employee.full_name} (${employee.employee_id})`,
+            rpc: 'archive_employee',
+            args: { p_employee_uuid: employee.id },
+            extraWarning: employee.linked_profile ? '연결된 업무플랫폼 계정도 즉시 접근 차단됩니다.' : '',
+            refresh: async () => document.dispatchEvent(new CustomEvent('taejang-open-employee-management'))
+          }), true);
+          node.dataset.opsDeleteEmployee = '1';
+          actions.append(node);
+        }
+
+        appendHistoryButton({ targetType: 'employee' }, employee, card, actions);
       });
     } catch {
       // Recovery controls are optional; the underlying management screen remains usable.
