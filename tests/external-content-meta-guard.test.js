@@ -14,6 +14,8 @@ test('external metadata function uses capability-backed durable quota instead of
 test('external metadata function fails closed and distinguishes forbidden from rate limiting', () => {
   assert.match(source, /AUTHORIZATION_UNAVAILABLE/);
   assert.match(source, /status:\s*503/);
+  assert.match(source, /typeof quota\.allowed !== ['"]boolean['"]/);
+  assert.match(source, /Number\.isFinite\(retryAfterSeconds\)/);
   assert.match(source, /RATE_LIMITED/);
   assert.match(source, /status:\s*429/);
   assert.match(source, /retry_after_seconds/);
