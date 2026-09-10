@@ -3,6 +3,7 @@
   "private": true,
   "description": "Local development tooling for the Taejang homepage and work platform.",
   "scripts": {
+    "build:netlify": "node scripts/build-netlify-publish.mjs",
     "test": "npm run test:platform-static && npm run test:public",
     "test:platform-static": "node scripts/run-test-group.mjs platformStatic",
     "test:public": "node scripts/run-test-group.mjs publicHomepage",
