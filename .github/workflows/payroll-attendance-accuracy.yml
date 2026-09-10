@@ -31,5 +31,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run payroll regression from shared manifest
-        run: npm run test:payroll
+      - name: Run current platform, public and payroll regression
+        run: npm test
+
+      - name: Run staging safety regression
+        run: npm run test:staging-safety
