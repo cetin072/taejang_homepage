@@ -174,15 +174,20 @@ async function authorizePromotionRequest(request) {
     return { allowed: false, status: 403, error: 'FORBIDDEN' };
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_external_content_meta_quota`, {
-    method: 'POST',
-    headers: {
-      apikey: key,
-      Authorization: auth,
-      'Content-Type': 'application/json'
-    },
-    body: '{}'
-  });
+  let response;
+  try {
+    response = await fetch(`${supabaseUrl}/rest/v1/rpc/consume_external_content_meta_quota`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: auth,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    });
+  } catch {
+    return { allowed: false, status: 503, error: 'AUTHORIZATION_UNAVAILABLE' };
+  }
 
   if (response.status === 401 || response.status === 403) {
     return { allowed: false, status: 403, error: 'FORBIDDEN' };
@@ -192,12 +197,19 @@ async function authorizePromotionRequest(request) {
   }
 
   const quota = await response.json().catch(() => null);
-  if (!quota || quota.allowed !== true) {
+  if (!quota || typeof quota !== 'object' || typeof quota.allowed !== 'boolean') {
+    return { allowed: false, status: 503, error: 'AUTHORIZATION_UNAVAILABLE' };
+  }
+  if (quota.allowed === false) {
+    const retryAfterSeconds = Number(quota.retry_after_seconds);
+    if (!Number.isFinite(retryAfterSeconds) || retryAfterSeconds < 0) {
+      return { allowed: false, status: 503, error: 'AUTHORIZATION_UNAVAILABLE' };
+    }
     return {
       allowed: false,
       status: 429,
       error: 'RATE_LIMITED',
-      retry_after_seconds: Number(quota?.retry_after_seconds || 0)
+      retry_after_seconds: retryAfterSeconds
     };
   }
 
