@@ -30,7 +30,8 @@ export const testGroups = Object.freeze({
     'tests/required-check-workflows.test.js',
     'tests/support-radar-bizinfo-normalizer.test.mjs',
     'tests/support-radar-reingestion-plan.test.mjs',
-    'tests/support-radar-ingestion-run.test.mjs'
+    'tests/support-radar-ingestion-run.test.mjs',
+    'tests/support-radar-bizinfo-simulation.test.mjs'
   ]),
   publicHomepage: Object.freeze([
     'tests/public-homepage-main-simplification.test.js',
