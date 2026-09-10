@@ -43,29 +43,34 @@
     }
   }
 
-  async function confirmArchiveOrRestore({ config, item, refresh }) {
+  async function archiveItem({ config, item, refresh }) {
     if (!isOperations()) return;
-    const archived = Boolean(item.archived_at);
     const target = item.title || config.kind;
-    const previous = item.archive_previous_status ? ` 이전 상태(${item.archive_previous_status})로 돌아갑니다.` : '';
-    const question = archived
-      ? `${target}을(를) 복구할까요?${previous}`
-      : `${target}을(를) 삭제할까요?\n실제 데이터는 지우지 않고 복구 가능한 보관 상태로 전환합니다.`;
-    if (!window.confirm(question)) return;
-
-    const reason = window.prompt(
-      archived ? `${config.kind} 복구 이유를 적어주세요.` : `${config.kind} 삭제(보관) 이유를 적어주세요.`,
-      archived ? '다시 사용' : '더 이상 사용하지 않음'
-    )?.trim();
+    if (!window.confirm(`${target}을(를) 삭제할까요?\n실제 데이터는 지우지 않고 복구 가능한 보관 상태로 전환합니다.`)) return;
+    const reason = window.prompt(`${config.kind} 삭제(보관) 이유를 적어주세요.`, '더 이상 사용하지 않음')?.trim();
     if (!reason) return;
-
     try {
-      const rpc = archived ? config.restoreRpc : config.archiveRpc;
-      const result = await app().rpc(rpc, { [config.idArg]: item.id, p_reason: reason });
-      if (!result?.ok) throw new Error(result?.code || (archived ? 'RESTORE_FAILED' : 'ARCHIVE_FAILED'));
+      const result = await app().rpc(config.archiveRpc, { [config.idArg]: item.id, p_reason: reason });
+      if (!result?.ok) throw new Error(result?.code || 'ARCHIVE_FAILED');
       await refresh?.();
     } catch (error) {
-      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) ${archived ? '복구' : '보관'}하지 못했습니다.`);
+      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 보관하지 못했습니다.`);
+    }
+  }
+
+  async function restoreItem({ config, item, refresh }) {
+    if (!isOperations()) return;
+    const target = item.title || config.kind;
+    const previous = item.archive_previous_status ? ` 이전 상태(${item.archive_previous_status})로 돌아갑니다.` : '';
+    if (!window.confirm(`${target}을(를) 복구할까요?${previous}`)) return;
+    const reason = window.prompt(`${config.kind} 복구 이유를 적어주세요.`, '다시 사용')?.trim();
+    if (!reason) return;
+    try {
+      const result = await app().rpc(config.restoreRpc, { [config.idArg]: item.id, p_reason: reason });
+      if (!result?.ok) throw new Error(result?.code || 'RESTORE_FAILED');
+      await refresh?.();
+    } catch (error) {
+      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 복구하지 못했습니다.`);
     }
   }
 
@@ -92,9 +97,9 @@
       if (!history.length) {
         panel.textContent = '기록된 변경 이력이 없습니다.';
       } else {
-        const title = document.createElement('strong');
-        title.textContent = `변경 이력 ${history.length}건`;
-        panel.append(title);
+        const heading = document.createElement('strong');
+        heading.textContent = `변경 이력 ${history.length}건`;
+        panel.append(heading);
         history.forEach(entry => {
           const line = document.createElement('p');
           const actor = entry.actor_display_name || '시스템';
@@ -110,6 +115,12 @@
     } finally {
       button.disabled = false;
     }
+  }
+
+  function appendHistoryButton(config, item, card, actions) {
+    const history = actionButton('변경 이력', () => toggleHistory({ config, item, card, button: history }));
+    history.dataset.targetAuditAction = '1';
+    actions.append(history);
   }
 
   async function decorateEmployees() {
@@ -146,58 +157,85 @@
     }
   }
 
+  function decorateActiveCard(config, item, card) {
+    if (card.querySelector(`[data-${config.dataAttribute}]`)) return;
+    const actions = document.createElement('div');
+    actions.className = 'quick-links';
+    actions.setAttribute(`data-${config.dataAttribute}`, '1');
+    const remove = actionButton('삭제', () => archiveItem({
+      config,
+      item,
+      refresh: async () => document.getElementById(config.refreshId)?.click()
+    }), true);
+    remove.dataset.recoveryAction = 'archive';
+    actions.append(remove);
+    appendHistoryButton(config, item, card, actions);
+    card.append(actions);
+  }
+
+  function renderArchivedSection(config, items, list) {
+    list.querySelector(`[data-${config.archiveSectionAttribute}]`)?.remove();
+    if (!items.length) return;
+
+    const section = document.createElement('section');
+    section.setAttribute(`data-${config.archiveSectionAttribute}`, '1');
+    section.className = 'dashboard-section';
+    const heading = document.createElement('h3');
+    heading.textContent = `보관함 ${items.length}건`;
+    section.append(heading);
+
+    items.forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'admin-record-card';
+      const kicker = document.createElement('p');
+      kicker.className = 'card-kicker';
+      kicker.textContent = `보관됨 · 이전 상태 ${item.archive_previous_status || '-'}`;
+      const title = document.createElement('h4');
+      title.textContent = item.title || config.kind;
+      const help = document.createElement('p');
+      help.className = 'help';
+      const actor = item.archived_by_name ? ` · ${item.archived_by_name}` : '';
+      const reason = item.archive_reason ? ` · ${item.archive_reason}` : '';
+      help.textContent = `${formatDateTime(item.archived_at)}${actor}${reason}`;
+      card.append(kicker, title, help);
+
+      const actions = document.createElement('div');
+      actions.className = 'quick-links';
+      const restore = actionButton('복구', () => restoreItem({
+        config,
+        item,
+        refresh: async () => document.getElementById(config.refreshId)?.click()
+      }));
+      restore.dataset.recoveryAction = 'restore';
+      actions.append(restore);
+      appendHistoryButton(config, item, card, actions);
+      card.append(actions);
+      section.append(card);
+    });
+    list.append(section);
+  }
+
   async function decorateIndexedList(config) {
     if (!isOperations() || busy.has(config.key)) return;
     const list = document.getElementById(config.listId);
     if (!list) return;
-    const cards = [...list.querySelectorAll('.admin-record-card')];
-    if (!cards.length || cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;
+    const cards = [...list.querySelectorAll(':scope > .admin-record-card')];
+    if (!cards.length && list.querySelector(`[data-${config.archiveSectionAttribute}]`)) return;
     busy.add(config.key);
     try {
-      const rows = await config.load();
-      const items = Array.isArray(rows) ? rows : [];
+      const [activeRows, archivedRows] = await Promise.all([
+        config.load(),
+        app().rpc('get_archived_recovery_items', { p_resource_type: config.targetType, p_limit: 100 })
+      ]);
+      const activeItems = Array.isArray(activeRows) ? activeRows : [];
+      const archivedItems = Array.isArray(archivedRows) ? archivedRows : [];
       cards.forEach((card, index) => {
-        if (card.querySelector(`[data-${config.dataAttribute}]`)) return;
-        const item = items[index];
-        if (!item) return;
-
-        const archived = Boolean(item.archived_at);
-        if (archived) {
-          const marker = document.createElement('p');
-          marker.className = 'help';
-          marker.textContent = `보관됨${item.archived_at ? ` · ${formatDateTime(item.archived_at)}` : ''}${item.archive_reason ? ` · ${item.archive_reason}` : ''}`;
-          card.append(marker);
-          [...card.querySelectorAll('button')]
-            .filter(node => /수정$/.test(node.textContent || ''))
-            .forEach(node => {
-              node.disabled = true;
-              node.title = '보관된 자료는 복구한 뒤 수정할 수 있습니다.';
-            });
-        }
-
-        const actions = document.createElement('div');
-        actions.className = 'quick-links';
-        actions.setAttribute(`data-${config.dataAttribute}`, '1');
-
-        const archiveOrRestore = actionButton(
-          archived ? '복구' : '삭제',
-          () => confirmArchiveOrRestore({
-            config,
-            item,
-            refresh: async () => document.getElementById(config.refreshId)?.click()
-          }),
-          !archived
-        );
-        archiveOrRestore.dataset.recoveryAction = archived ? 'restore' : 'archive';
-        actions.append(archiveOrRestore);
-
-        const history = actionButton('변경 이력', () => toggleHistory({ config, item, card, button: history }));
-        history.dataset.targetAuditAction = '1';
-        actions.append(history);
-        card.append(actions);
+        const item = activeItems[index];
+        if (item) decorateActiveCard(config, item, card);
       });
+      renderArchivedSection(config, archivedItems, list);
     } catch {
-      // Keep the existing management list usable when the optional recovery decoration fails.
+      // Keep the existing management list usable when optional recovery UI fails.
     } finally {
       busy.delete(config.key);
     }
@@ -208,20 +246,23 @@
     decorateEmployees();
     decorateIndexedList({
       key: 'schedules', listId: 'schedule-admin-list', refreshId: 'refresh-schedule-admin',
-      dataAttribute: 'ops-recovery-schedule', kind: '일정', targetType: 'schedule_item',
-      archiveRpc: 'archive_schedule_item', restoreRpc: 'restore_schedule_item', idArg: 'p_schedule_id',
+      dataAttribute: 'ops-recovery-schedule', archiveSectionAttribute: 'ops-archive-schedule',
+      kind: '일정', targetType: 'schedule_item', archiveRpc: 'archive_schedule_item',
+      restoreRpc: 'restore_schedule_item', idArg: 'p_schedule_id',
       load: () => app().rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
     });
     decorateIndexedList({
       key: 'notices', listId: 'notice-admin-list', refreshId: 'refresh-notice-admin',
-      dataAttribute: 'ops-recovery-notice', kind: '공지', targetType: 'notice',
-      archiveRpc: 'archive_notice', restoreRpc: 'restore_notice', idArg: 'p_notice_id',
+      dataAttribute: 'ops-recovery-notice', archiveSectionAttribute: 'ops-archive-notice',
+      kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice',
+      restoreRpc: 'restore_notice', idArg: 'p_notice_id',
       load: () => app().rpc('list_manageable_notices', { p_limit: 200 })
     });
     decorateIndexedList({
       key: 'guidance', listId: 'guidance-admin-list', refreshId: 'refresh-guidance-admin',
-      dataAttribute: 'ops-recovery-guidance', kind: '안내', targetType: 'staff_guidance',
-      archiveRpc: 'archive_staff_guidance', restoreRpc: 'restore_staff_guidance', idArg: 'p_guidance_id',
+      dataAttribute: 'ops-recovery-guidance', archiveSectionAttribute: 'ops-archive-guidance',
+      kind: '안내', targetType: 'staff_guidance', archiveRpc: 'archive_staff_guidance',
+      restoreRpc: 'restore_staff_guidance', idArg: 'p_guidance_id',
       load: () => app().rpc('list_manageable_staff_guidance', { p_limit: 200 })
     });
   }
