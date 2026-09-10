@@ -34,13 +34,14 @@ function validateFingerprintedItem(item, prefix) {
 
 /**
  * Compare two normalized occurrences of the same source notice.
- * This does not decide semantic importance; it only reports deterministic source change state.
+ * Different source notice IDs are never auto-linked as revisions here.
  */
 export function classifySupportRadarItemDelta(previousItem, currentItem) {
   if (previousItem === null || previousItem === undefined) {
     const current = validateFingerprintedItem(currentItem, 'DELTA_CURRENT');
     return {
       status: 'new',
+      revision_kind: 'none',
       source_notice_id: current.sourceNoticeId,
       previous_content_hash: null,
       current_content_hash: current.hash,
@@ -60,6 +61,7 @@ export function classifySupportRadarItemDelta(previousItem, currentItem) {
   if (previous.basis !== current.basis) {
     return {
       status: 'basis_changed',
+      revision_kind: 'hash_contract_change',
       source_notice_id: current.sourceNoticeId,
       previous_content_hash: previous.hash,
       current_content_hash: current.hash,
@@ -73,6 +75,7 @@ export function classifySupportRadarItemDelta(previousItem, currentItem) {
   if (previous.hash === current.hash) {
     return {
       status: 'unchanged',
+      revision_kind: 'none',
       source_notice_id: current.sourceNoticeId,
       previous_content_hash: previous.hash,
       current_content_hash: current.hash,
@@ -84,6 +87,7 @@ export function classifySupportRadarItemDelta(previousItem, currentItem) {
 
   return {
     status: 'changed',
+    revision_kind: 'same_source_id_material_change',
     source_notice_id: current.sourceNoticeId,
     previous_content_hash: previous.hash,
     current_content_hash: current.hash,
@@ -126,6 +130,7 @@ export function planSupportRadarBatchDelta({ current_items, previous_items = [] 
       source_notice_id: current.sourceNoticeId,
       action: deltaAction(delta.status),
       delta_status: delta.status,
+      revision_kind: delta.revision_kind,
       requires_re_evaluation: delta.requires_re_evaluation,
       requires_rebaseline: delta.requires_rebaseline,
       previous_content_hash: delta.previous_content_hash,
@@ -152,7 +157,8 @@ export function planSupportRadarBatchDelta({ current_items, previous_items = [] 
 
 /**
  * Build a deterministic pagination cursor without assuming an undocumented remote page limit.
- * `reported_total_count` is optional because some sources may omit or distrust it.
+ * When source total-count and page shape disagree, stop automatic pagination and surface
+ * `inconsistent` instead of guessing which signal is correct.
  */
 export function buildSupportRadarPageCursor({
   page_index,
@@ -172,10 +178,20 @@ export function buildSupportRadarPageCursor({
   let nextPageIndex = null;
 
   if (totalCount !== null) {
-    const consumedUpperBound = (pageIndex - 1) * pageUnit + itemCount;
-    hasMore = consumedUpperBound < totalCount;
-    state = hasMore ? 'more' : 'complete';
-    nextPageIndex = hasMore ? pageIndex + 1 : null;
+    const consumedBefore = (pageIndex - 1) * pageUnit;
+    const consumedAfter = consumedBefore + itemCount;
+    const impossibleOverflow = consumedAfter > totalCount;
+    const shortPageBeforeReportedEnd = itemCount < pageUnit && consumedAfter < totalCount;
+
+    if (impossibleOverflow || shortPageBeforeReportedEnd) {
+      state = 'inconsistent';
+      hasMore = null;
+      nextPageIndex = null;
+    } else {
+      hasMore = consumedAfter < totalCount;
+      state = hasMore ? 'more' : 'complete';
+      nextPageIndex = hasMore ? pageIndex + 1 : null;
+    }
   } else if (itemCount < pageUnit) {
     hasMore = false;
     state = 'complete';
@@ -200,13 +216,17 @@ export function buildSupportRadarPageCursor({
 export const SUPPORT_RADAR_DELTA_CONTRACT = Object.freeze({
   version: 'support-radar-delta-v1',
   statuses: Object.freeze(['new', 'unchanged', 'changed', 'basis_changed']),
+  revision_kinds: Object.freeze(['none', 'same_source_id_material_change', 'hash_contract_change']),
   write_actions: Object.freeze(['insert', 'touch_seen', 'update_material_facts', 'rebaseline']),
+  cursor_states: Object.freeze(['more', 'complete', 'unknown', 'inconsistent']),
   principles: Object.freeze([
     'same source notice id plus same material hash means unchanged',
-    'same source notice id plus different material hash means changed',
-    'hash basis changes require rebaseline rather than pretending content changed',
+    'same source notice id plus different material hash means a source revision candidate',
+    'different source notice ids are not auto-linked as revisions',
+    'hash basis changes require rebaseline rather than pretending source content changed',
     'changed or new source facts require deterministic re-evaluation eligibility',
     'write planning is deterministic and separate from database mutation',
-    'pagination does not assume undocumented remote page limits'
+    'pagination does not assume undocumented remote page limits',
+    'pagination stops on contradictory total-count and page-shape signals'
   ])
 });
