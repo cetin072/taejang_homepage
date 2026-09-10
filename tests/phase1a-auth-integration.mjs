@@ -318,9 +318,10 @@ const freshPublicationItem = leadPublicationContext.data?.items?.find(item => it
 equal(freshPublicationItem?.can_request_delete, false, 'server publication context marks a fresh post as ineligible for deletion request');
 check(freshPublicationItem?.delete_request_eligible_at, 'server publication context provides the future deletion-request time');
 
+const linkableUser = await signUp('phase1a-linkable-employee@example.test', '테스트 명시적 계정 연결');
 const linkWorker = await rpc('link_employee_account', admin.token, {
   p_employee_uuid: unassignedEmployee.data.employee_uuid,
-  p_profile_id: worker.id,
+  p_profile_id: linkableUser.id,
   p_reason: 'CI explicit employee-account link',
 });
 equal(linkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can explicitly link Auth and Employee records');
@@ -331,7 +332,7 @@ const unlinkWorker = await rpc('unlink_employee_account', admin.token, {
 equal(unlinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_UNLINKED', 'operations manager can explicitly unlink Auth and Employee records');
 const relinkWorker = await rpc('link_employee_account', admin.token, {
   p_employee_uuid: unassignedEmployee.data.employee_uuid,
-  p_profile_id: worker.id,
+  p_profile_id: linkableUser.id,
   p_reason: 'CI explicit employee-account relink',
 });
 equal(relinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can safely relink Auth and Employee records');
