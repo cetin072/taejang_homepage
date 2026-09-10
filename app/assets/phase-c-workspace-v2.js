@@ -744,7 +744,7 @@
     if (canAny(['promotion.review_operations', 'promotion.review_ceo'], currentRoute === 'operations_manager' || currentRoute === 'ceo')) {
       replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
     }
-    if (['promotion_lead', 'operations_manager'].includes(currentRoute) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {
+    if (canAny(['homepage.draft', 'homepage.review', 'homepage.approve_apply'], ['promotion_lead', 'operations_manager'].includes(currentRoute)) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {
       const homepageLink = [...nav.querySelectorAll('a')].find(node => node.textContent.trim() === '홈페이지');
       const node = navButton('홈페이지 내용 관리', openHomepageManagement, 'homepage');
       if (homepageLink) nav.insertBefore(node, homepageLink); else nav.append(node);
@@ -794,7 +794,7 @@
     return Object.entries(HOMEPAGE_PAGES).map(([key, [label]]) => [key, label]);
   }
 
-  function homepageRequestCard(item, canReview) {
+  function homepageRequestCard(item, canReview, canApprove) {
     const [pageLabel, sections] = HOMEPAGE_PAGES[item.page_key] || [item.page_key, []];
     const sectionLabel = sections.find(([key]) => key === item.section_key)?.[1] || item.section_key;
     const card = el('article', null, 'dashboard-card phase-c-homepage-request');
@@ -812,10 +812,12 @@
     link.href = ({ home: '../index.html', about: '../about.html', business: '../business.html', workplace: '../workplace.html', archive: '../archive.html', partnership: '../partnership.html' })[item.page_key] || '../index.html';
     link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'button button-quiet'; link.textContent = '현재 홈페이지 확인';
     actions.append(link);
-    if (canReview && item.status === 'pending') {
-      actions.append(button('최종 승인', () => reviewHomepageRequest(item.id, 'approve')));
-      actions.append(button('보완 요청', () => reviewHomepageRequest(item.id, 'changes_requested'), true));
-      actions.append(button('반려', () => reviewHomepageRequest(item.id, 'reject'), true));
+    if (item.status === 'pending') {
+      if (canApprove) actions.append(button('최종 승인', () => reviewHomepageRequest(item.id, 'approve')));
+      if (canReview) {
+        actions.append(button('보완 요청', () => reviewHomepageRequest(item.id, 'changes_requested'), true));
+        actions.append(button('반려', () => reviewHomepageRequest(item.id, 'reject'), true));
+      }
     }
     card.append(actions);
     return card;
@@ -916,15 +918,18 @@
     closeSidebar();
     const target = main();
     const currentRoute = route();
-    if (!target || !['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    const canHomepageDraft = can('homepage.draft', currentRoute === 'promotion_lead');
+    const canHomepageReview = can('homepage.review', currentRoute === 'operations_manager');
+    const canHomepageApprove = can('homepage.approve_apply', currentRoute === 'operations_manager');
+    if (!target || !(canHomepageDraft || canHomepageReview || canHomepageApprove)) return;
     document.getElementById('desktop-page-title').textContent = '홈페이지 내용 관리';
     target.classList.add('phase-c-v2');
     target.replaceChildren(el('p', '홈페이지 내용을 불러오고 있습니다.', 'message'));
     try {
       const requests = arr(await app().rpc('get_homepage_change_requests'));
-      const intro = renderIntro('홈페이지 운영', '홈페이지 내용 관리', currentRoute === 'promotion_lead' ? '현재 공개본을 기준으로 안전하게 식별된 기존 글과 사진의 수정 초안을 만들고 상신합니다.' : '전사 홈페이지 콘텐츠 초안과 운영팀장 요청을 비교하고, 승인·보완·반려 또는 직접 수정으로 처리합니다. 구조 변경은 이 화면의 대상이 아닙니다.');
+      const intro = renderIntro('홈페이지 운영', '홈페이지 내용 관리', canHomepageDraft ? '현재 공개본을 기준으로 안전하게 식별된 기존 글과 사진의 수정 초안을 만들고 상신합니다.' : '전사 홈페이지 콘텐츠 초안과 운영팀장 요청을 비교하고, 승인·보완·반려 또는 직접 수정으로 처리합니다. 구조 변경은 이 화면의 대상이 아닙니다.');
       target.replaceChildren(intro);
-      if (['promotion_lead', 'operations_manager'].includes(currentRoute)) {
+      if (canHomepageDraft) {
         const entry = el('div', null, 'phase-c-homepage-entry');
         const textEntry = el('button'); textEntry.type = 'button'; textEntry.append(el('strong', '홈페이지 글 수정'), el('span', '페이지와 영역을 고르고 새 문구를 입력합니다.'));
         const imageEntry = el('button'); imageEntry.type = 'button'; imageEntry.append(el('strong', '홈페이지 사진 수정'), el('span', '새 사진 파일을 직접 업로드해 변경 요청합니다.'));
@@ -937,11 +942,11 @@
       }
       const section = el('section', null, 'dashboard-section');
       const pending = requests.filter(item => item.status === 'pending');
-      section.append(el('h2', currentRoute === 'operations_manager' ? `승인 대기 ${pending.length}건` : '내 홈페이지 수정 요청'));
+      section.append(el('h2', (canHomepageReview || canHomepageApprove) ? `승인 대기 ${pending.length}건` : '내 홈페이지 수정 요청'));
       const grid = el('div', null, 'phase-c-homepage-request-grid');
-      const visible = currentRoute === 'operations_manager' ? [...pending, ...requests.filter(item => item.status !== 'pending')] : requests;
+      const visible = (canHomepageReview || canHomepageApprove) ? [...pending, ...requests.filter(item => item.status !== 'pending')] : requests;
       if (!visible.length) grid.append(el('p', '현재 등록된 홈페이지 수정 요청이 없습니다.', 'empty'));
-      visible.forEach(item => grid.append(homepageRequestCard(item, currentRoute === 'operations_manager')));
+      visible.forEach(item => grid.append(homepageRequestCard(item, canHomepageReview, canHomepageApprove)));
       section.append(grid); target.append(section);
     } catch (error) {
       target.replaceChildren(renderIntro('홈페이지 운영', '홈페이지 내용 관리', '내용을 불러오지 못했습니다.'), el('p', app().friendlyError?.(error) || error.message || '잠시 후 다시 시도해 주세요.', 'message error'));

@@ -33,6 +33,10 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const isNotLegacyOperationsRoute = () => route() !== 'operations_manager';
+  const canDirectEdit = () => app()?.hasCapabilityContract?.()
+    ? app()?.can?.('homepage.direct_edit') === true
+    : !isNotLegacyOperationsRoute();
   const main = () => document.getElementById('dashboard-main');
   const el = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -135,7 +139,7 @@
 
   async function renderEditor(kind) {
     const target = prepareWorkspace();
-    if (!target || route() !== 'operations_manager') return;
+    if (!target || !canDirectEdit()) return;
     document.getElementById('desktop-page-title').textContent = '홈페이지 직접 수정';
     target.replaceChildren(el('p', '현재 홈페이지 설정을 확인하고 있습니다.', 'message'));
     try {
@@ -256,7 +260,7 @@
 
   function openWorkspace() {
     const target = prepareWorkspace();
-    if (!target || route() !== 'operations_manager') return;
+    if (!target || !canDirectEdit()) return;
     document.getElementById('desktop-page-title').textContent = '홈페이지 직접 수정';
     const intro = el('header', null, 'dashboard-intro');
     intro.append(el('p', '운영총괄 전용', 'eyebrow'), el('h2', '홈페이지 직접 수정'), el('p', '주업무는 아니므로 사이드바에서 필요할 때만 사용합니다. 글·링크·메인 사진을 정해진 영역 안에서 직접 바꿀 수 있습니다.'));
@@ -273,7 +277,7 @@
   }
 
   function addNavigation() {
-    if (route() !== 'operations_manager') return;
+    if (!canDirectEdit()) return;
     const nav = document.getElementById('app-nav');
     if (!nav || nav.querySelector('[data-operations-homepage-direct]')) return;
     const node = document.createElement('button');
