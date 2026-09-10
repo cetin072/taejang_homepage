@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const sql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260910080000_support_radar_alert_candidates.sql'), 'utf8');
+const sql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260910074000_support_radar_alert_candidates.sql'), 'utf8');
 const querySql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260910081000_support_radar_alert_flag_query.sql'), 'utf8');
 const ui = fs.readFileSync(path.join(root, 'app', 'assets', 'support-radar-alerts.js'), 'utf8');
 const loader = fs.readFileSync(path.join(root, 'app', 'assets', 'app-ui.js'), 'utf8');
