@@ -9,6 +9,8 @@ import {
   startSupportRadarIngestionRun
 } from './support-radar-ingestion-run.mjs';
 
+const ALLOWED_REQUEST_FILTERS = new Set(['searchCnt', 'searchLclasId', 'hashtags']);
+
 function clean(value) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
@@ -17,6 +19,16 @@ function positiveInteger(value, code) {
   const number = Number(value);
   if (!Number.isInteger(number) || number <= 0) throw new Error(code);
   return number;
+}
+
+function validateRequestFilters(requestFilters) {
+  if (!requestFilters || typeof requestFilters !== 'object' || Array.isArray(requestFilters)) {
+    throw new Error('SIMULATION_REQUEST_FILTERS_OBJECT_REQUIRED');
+  }
+  for (const key of Object.keys(requestFilters)) {
+    if (!ALLOWED_REQUEST_FILTERS.has(key)) throw new Error(`SIMULATION_REQUEST_FILTER_FORBIDDEN:${key}`);
+  }
+  return requestFilters;
 }
 
 function safeRunRequest(requestPlan) {
@@ -52,12 +64,10 @@ export function simulateBizinfoIngestionPage({
   const pageUnit = positiveInteger(page_unit, 'SIMULATION_PAGE_UNIT_INVALID');
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('SIMULATION_PAYLOAD_REQUIRED');
   if (!Array.isArray(previous_items)) throw new Error('SIMULATION_PREVIOUS_ITEMS_ARRAY_REQUIRED');
-  if (!request_filters || typeof request_filters !== 'object' || Array.isArray(request_filters)) {
-    throw new Error('SIMULATION_REQUEST_FILTERS_OBJECT_REQUIRED');
-  }
+  const requestFilters = validateRequestFilters(request_filters);
 
   const requestPlan = buildBizinfoRequestPlan({
-    ...request_filters,
+    ...requestFilters,
     dataType: 'json',
     pageUnit,
     pageIndex
@@ -121,6 +131,7 @@ export function simulateBizinfoIngestionPage({
 
 export const SUPPORT_RADAR_BIZINFO_SIMULATION_CONTRACT = Object.freeze({
   version: 'support-radar-bizinfo-simulation-v1',
+  allowed_request_filters: Object.freeze([...ALLOWED_REQUEST_FILTERS]),
   stages: Object.freeze([
     'public_request_plan',
     'normalize',
@@ -131,6 +142,7 @@ export const SUPPORT_RADAR_BIZINFO_SIMULATION_CONTRACT = Object.freeze({
   ]),
   principles: Object.freeze([
     'simulation accepts source payload directly and performs no fetch',
+    'request filters are allow-listed and do not accept credential fields',
     'service key parameter name may appear in request plan but never in the ledger run request',
     'database writes are outside the simulation',
     'AI interpretation is outside the simulation',
