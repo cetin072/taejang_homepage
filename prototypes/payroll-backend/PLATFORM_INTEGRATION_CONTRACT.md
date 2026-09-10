@@ -1,87 +1,132 @@
 # Taejang Payroll Platform Integration Contract
 
-Status: **ACCESS MODEL APPROVED / DB APPLICATION NOT APPROVED**
+Status: **ACCESS AUDIENCE APPROVED / CAPABILITY INTEGRATION CANDIDATE / DB APPLICATION NOT APPROVED**
 
 Goal: #142 / PR #143
 
 User approval recorded: **2026-09-09 — Option A approved.**
 
-The first controlled payroll MVP will reuse the existing `operations_manager` role as the **only payroll operator role**. This approval settles the role/access-model decision. It does **not** authorize a Supabase migration, RLS/RPC deployment, Production deployment, real payroll lock, retroactive payment, or payroll payment execution.
+The first controlled payroll MVP keeps `operations_manager` as the **only payroll operator audience**. Current `main` now uses the Issue #148 capability contract for feature authorization, so the final implementation should express that approved audience through a payroll capability rather than proliferating direct role-string checks.
+
+This does **not** authorize a Supabase migration, RLS/RPC deployment, Edge Function deployment, Production deployment, real payroll lock, retroactive payment, or payment execution.
 
 ## 1. Reuse the existing employee identity source of truth
 
-Payroll must reference `public.employees(id)` as the employee identity key.
+Payroll references `public.employees(id)` as the employee identity key.
 
 Do not create a parallel payroll employee master. Do not duplicate `people.full_name`, Auth user identity, work email, resident-registration data, disability data, bank-account data, or other Sensitive HR identity fields into payroll core tables.
 
-The existing platform intentionally separates:
+The platform separation remains:
 
 - `auth.users` / `profiles` — login and account state;
 - `people` — person identity;
 - `employees` — employment identity and lifecycle;
 - `account_person_links` — optional account-to-person linkage.
 
-Payroll must preserve that separation.
+Employee names needed on an authorized payroll screen are resolved transiently through a guarded read model. Persisted payroll results store employee UUID, not copied names.
 
-Employee display names needed by an authorized payroll screen should be resolved through a guarded server/RPC read model. Persisted payroll result rows should keep the employee UUID, not a copied name.
+## 2. Central AI architecture candidate — Issue #21 classification
 
-## 2. Preserve the platform's fail-closed access pattern
+For AI-related design, use the latest `cetin072/ai-development-system` Issue #21 as a **candidate review framework, not a forced standard**. If Issue #21 changes, its current GitHub content takes priority over copied chat text.
 
-The current employee foundation enables RLS, revokes direct authenticated table access, and exposes guarded RPCs instead. Payroll must follow the same pattern.
+Payroll currently classifies as follows:
 
-Production payroll tables must not be directly selectable or writable by `anon` or ordinary `authenticated` clients.
+1. **Code / deterministic rules**
+   - payroll calculation;
+   - 7-day weekly-holiday calculation;
+   - effective-dated employment terms;
+   - hire/termination boundaries;
+   - validation, permissions, state transitions, locking, carryover and accounting-basis checks.
+2. **Official data ledger**
+   - Employee lifecycle;
+   - accepted payroll attendance imports and correction history;
+   - employment-term history;
+   - calculation runs/results;
+   - carryover applications;
+   - accounting comparisons;
+   - append-only audit facts.
+3. **AI-appropriate optional work**
+   - later explanation of unusual changes;
+   - exception-summary drafting;
+   - anomaly briefing or management summary;
+   - prioritization of review items where deterministic severity is insufficient.
+4. **Realtime AI requirement**
+   - **none for the current payroll MVP**.
 
-State-changing payroll operations must be server-side / transaction-safe RPC operations as defined in `CONCURRENCY_CONTRACT.md`. Browser code may request an operation, but it must not directly INSERT/UPDATE/DELETE authoritative payroll rows.
+The payroll core must remain usable when AI is unavailable. AI must not determine authoritative wages, permissions, month locks, attendance facts, or payment amounts. Follow the candidate principle: **Deterministic by Default, AI by Necessity.**
 
-Normal page loads should read persisted payroll snapshots through an authorized read boundary instead of recomputing payroll.
+Do not rewrite working payroll logic merely to fit Issue #21.
 
-## 3. Approved payroll authorization model — Option A
+## 3. Preserve the platform fail-closed access pattern
 
-The approved first controlled MVP authorization model is:
+Payroll tables must not be directly selectable or writable by `anon` or ordinary `authenticated` clients.
 
-- `operations_manager`: **the only payroll operator role** for employee-level payroll read/write operations;
-- `ceo`: no automatic employee-level payroll access under this approval;
-- `super_admin`: no automatic payroll access solely because of the system-administration role;
-- department/team leads, worker-support roles, promotion roles, office staff, general workers, work assistants, external guides: no company-wide payroll access.
+State-changing payroll operations use transaction-safe server/RPC boundaries. Browser code may request an operation but must not directly INSERT/UPDATE/DELETE authoritative payroll rows.
 
-This means payroll authorization is intentionally separate from system administration. `super_admin` alone is **not** a payroll authorization rule.
+Normal page loads read persisted payroll snapshots instead of recalculating payroll.
 
-Do not create a new `payroll_operator` role in this MVP. If payroll work later needs delegation without granting the full `operations_manager` role, that becomes a new shared Auth/Role/RLS approval gate.
+## 4. Approved audience + current-main capability implementation
 
-This approval authorizes implementation of a reviewed **candidate** access layer and tests in Draft PR #143. It does not authorize applying that candidate to a live Supabase environment.
+The approved audience remains:
 
-## 4. Active-account check is mandatory
+- `operations_manager`: **only payroll operator for the first controlled MVP**;
+- `ceo`: no automatic employee-level payroll access;
+- `super_admin`: no automatic payroll access merely because it is a technical administration role;
+- department/team leads, worker-support roles, promotion roles, office staff, general workers, work assistants and external guides: no company-wide payroll access.
 
-Every payroll read or mutation RPC must reject unauthenticated or inactive profiles.
+Current `main` Issue #148 defines capabilities as the feature-authorization source of truth and keeps technical `super_admin` capabilities separate from normal operations. After controlled main resync, payroll should register one initial operational capability:
 
-Approved implementations should reuse the established helpers such as `current_profile_is_active()` and `current_user_has_role(...)`, or an independently reviewed equivalent. A stale browser session must not bypass an account suspension/departure decision.
+`payroll.manage`
 
-For the approved MVP, the positive authorization predicate is effectively:
+Candidate semantics:
 
-`current_profile_is_active() AND current_user_has_role('operations_manager')`
+- `capability_kind = 'operational'`;
+- `operations_manager_auto_grant = true`;
+- no explicit lower-role `role_capability_grants` rows;
+- no `super_admin` or CEO grant;
+- lower-role simulation removes payroll operational access.
 
-No other role may be OR-ed into this predicate without a new approval.
+For the public user-JWT RPC boundary, the intended positive predicate after resync is:
 
-## 5. Read boundary
+`current_profile_is_active() AND private_actor_can('payroll.manage')`
 
-The payroll operator read model should expose only information required for payroll work, for example:
+The older direct predicate `current_user_has_role('operations_manager')` in pre-resync prototypes is not the final promotion contract and must not be promoted unchanged.
+
+Do not create a new `payroll_operator` role in this MVP. Future delegation requires a separate approval and should then prefer least-privilege capability grants rather than broad role expansion.
+
+## 5. Trusted internal persistence authorization
+
+The Edge Function persistence path runs under an internal service credential, so `auth.uid()` there is not the original payroll operator.
+
+The persistence RPC must receive the original actor UUID from the already-authenticated Edge request and re-check at persistence time that:
+
+- the profile is still active;
+- the actual account still has `operations_manager`;
+- an active lower-role simulation has not removed operational permissions;
+- `payroll.manage` is still active and configured as an operations-manager operational capability.
+
+If current `main` later provides a generic profile-ID capability evaluator, prefer that shared helper instead of duplicating capability semantics in payroll.
+
+A stale session, suspended account, revoked role or lower-role simulation must fail closed.
+
+## 6. Read boundary
+
+The payroll operator read model should expose only information required for payroll work, such as:
 
 - employee UUID / immutable employee ID;
 - display name for the authorized payroll screen;
-- hire / departure lifecycle facts;
+- hire/departure lifecycle facts;
 - payroll employment terms;
 - attendance-normalization status and exceptions;
-- persisted payroll calculation results;
+- persisted calculation results;
 - carryover and accounting comparison status;
 - locked-month output metadata.
 
-It should not join or return resident-registration numbers, disability identifiers/details, bank accounts, health/support consultation data, ID-photo paths, or unrelated employee-management information.
+Do not join resident-registration numbers, disability identifiers/details, bank accounts, health/support consultation data, ID-photo paths, or unrelated employee-management information.
 
-Avoid reusing broad employee-management responses when a narrower payroll-specific read model is sufficient.
+## 7. Mutation boundary
 
-## 6. Mutation boundary
-
-The Production adapter must implement state-changing operations through reviewed transaction-safe RPC/server boundaries. At minimum:
+At minimum, reviewed transaction-safe server boundaries must cover:
 
 1. persist/reuse a provisional calculation run;
 2. apply incoming prior-month adjustments to the current run;
@@ -90,74 +135,60 @@ The Production adapter must implement state-changing operations through reviewed
 5. append a post-lock correction without rewriting the locked source month;
 6. lock a payroll month after atomically rechecking all blockers.
 
-Every mutation RPC must independently enforce the approved `operations_manager` authorization predicate at the server boundary. UI button visibility is never an authorization control.
+Public mutation RPCs must use the approved payroll capability guard after main resync. UI visibility is never authorization.
 
-The exact concurrency requirements are defined in `CONCURRENCY_CONTRACT.md`.
+A locked payroll month is immutable. Later corrections become append-only audited adjustments targeting a later mutable month.
 
-A final locked payroll month is immutable. A later discovered correction must become an append-only audited adjustment targeting a later mutable payroll month.
+## 8. Attendance source boundary
 
-## 7. Audit boundary
+Current platform mobile attendance (`attendance_events` + append-only `attendance_corrections`) and the vendor/fingerprint Excel payroll import serve different purposes.
 
-Use the shared append-only audit mechanism for payroll security/approval actions only after review.
+For the current payroll MVP:
 
-Audit records should answer **who / when / which payroll month / which operation / success or denial**. They should not copy payroll amounts or employee-sensitive payloads into generic `audit_logs.metadata` or `reason_summary`.
+- accepted vendor/fingerprint Excel import batch remains the payroll calculation attendance source of truth;
+- mobile attendance remains separate operational evidence;
+- the two sources are not automatically merged, summed or used to overwrite each other;
+- clock-in/out elapsed time never becomes paid hours by implicit subtraction;
+- future cross-source reconciliation is a separate reviewed feature.
 
-Recommended safe audit metadata examples:
+## 9. Audit and confidentiality boundary
 
-- `payroll_month`
-- `run_id`
-- `adjustment_id`
-- `comparison_id`
-- `action_kind`
-- counts of affected records when they do not reveal employee-sensitive details
+Generic audit records answer **who / when / which payroll month / which operation / success or denial**. They must not copy payroll amounts or employee-sensitive payloads into `audit_logs.metadata` or `reason_summary`.
 
-Do not place employee names, gross/net pay, deductions, bank data, resident-registration data, disability/health data, attendance raw values, or consultation text into generic audit metadata.
+Safe examples include payroll month, run ID, adjustment ID, comparison ID, action kind and non-sensitive counts.
 
-## 8. Payroll data is confidential even when it is not Sensitive HR identity data
+Do not place employee names, gross/net pay, deductions, bank data, resident-registration data, disability/health data, raw attendance values, tokens or consultation text into generic audit metadata or logs.
 
-The payroll core intentionally excludes resident-registration, disability, bank, and health identifiers, but payroll amounts and attendance-derived pay facts are still confidential employment information.
+No real payroll values belong in GitHub fixtures or CI logs.
 
-Therefore:
+## 10. Current-main resync is now a hard pre-staging blocker
 
-- no real payroll values in GitHub fixtures or CI logs;
-- no payroll payloads in browser console/debug logs;
-- no anonymous Preview wired to Production payroll sources;
-- no broad `authenticated` SELECT grant;
-- no use of public website endpoints for payroll data.
+The payroll stacked branch has diverged materially from current `main`. The observed current-main line includes:
 
-## 9. Employee lifecycle linkage
+- Issue #146 employee/account workflow changes;
+- Issue #149 attendance-integrity migrations;
+- Issue #148 capability authorization and technical-super-admin separation;
+- new test-manifest/test-runner structure;
+- newer Supabase integration changes.
 
-Payroll must use the employee lifecycle from `public.employees` as the authoritative employment identity boundary:
+Therefore no rollback-only payroll SQL candidate may be promoted to staging until the controlled resync in `MAIN_RESYNC_PLAN.md` is complete and all relevant platform + payroll tests are green.
 
-- `hired_on` defines the earliest in-scope employment date unless an approved historical migration explicitly establishes earlier evidence;
-- `employment_status='departed'` requires `departed_on`;
-- employee ID is immutable;
-- payroll employment-term history is a separate effective-dated history and must not overwrite the employee identity row for rate/hour changes.
+## 11. Promotion blockers
 
-A later correction to employee lifecycle facts must be audited and must make any affected payroll basis stale or require explicit post-lock correction rather than silently rewriting a locked payroll result.
+Before any rollback-only candidate becomes an executable Supabase migration:
 
-## 10. Migration promotion blockers
+- [x] payroll audience approved — **Option A / `operations_manager` only**;
+- [x] current-main capability implementation direction identified — **`payroll.manage`, operational, OM auto-grant, no lower grants**;
+- [x] payroll AI architecture classification recorded — **core deterministic / ledger-backed / no realtime AI requirement**;
+- [ ] #112 / #143 controlled resync against current main is complete;
+- [ ] payroll tests are registered in current main test-manifest and full platform regression is green;
+- [ ] exact payroll read/mutation RPC bundle is consolidated after resync;
+- [ ] capability/RLS/grants remain fail-closed;
+- [ ] race/concurrency tests pass against a disposable/local database;
+- [ ] staging has caught up to the required current-main migration baseline;
+- [ ] staging confirms inactive accounts and non-payroll roles cannot access payroll;
+- [ ] staging confirms `super_admin` alone cannot access payroll;
+- [ ] audit payloads are verified free of payroll amounts and Sensitive HR values;
+- [ ] no Production deployment or real payroll-month mutation occurs during verification.
 
-The role/access-model blocker is now resolved by the user's Option A approval. Before any rollback-only candidate can become an executable Supabase migration, all remaining blockers below must still be resolved:
-
-- [x] user explicitly approves the payroll role/access model — **Option A / `operations_manager` only**;
-- [ ] exact payroll read RPC contract is reviewed;
-- [ ] exact payroll mutation RPCs are implemented transactionally;
-- [ ] RLS/grants remain fail-closed except for reviewed RPC execution;
-- [ ] server-side enforcement prevents overlapping effective-dated employment terms;
-- [ ] race/concurrency tests from `CONCURRENCY_CONTRACT.md` pass against a real database;
-- [ ] audit payloads are verified not to contain payroll amounts or Sensitive HR values;
-- [ ] staging verification confirms an inactive account loses payroll access immediately;
-- [ ] staging verification confirms non-payroll roles cannot read payroll data;
-- [ ] staging verification confirms `super_admin` alone does not grant payroll access;
-- [ ] no Production deployment or real payroll month mutation occurs during migration verification.
-
-## 11. Approved decision and future delegation
-
-**Approved now:** reuse `operations_manager` as the only payroll operator role initially.
-
-This keeps the payroll audience very small and avoids changing the shared Auth/Role model while the payroll MVP is still being validated.
-
-**Not approved now:** introducing a dedicated `payroll_operator` role, automatic CEO payroll access, or automatic `super_admin` payroll access.
-
-If delegation becomes necessary later, create a dedicated least-privilege payroll role only through a separate Auth/Role/RLS review and explicit user approval.
+**Not approved now:** dedicated `payroll_operator` role, automatic CEO payroll access, automatic `super_admin` payroll access, staging/Production deployment, real payroll lock/payment, or retroactive payment execution.
