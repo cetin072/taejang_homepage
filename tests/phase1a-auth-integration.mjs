@@ -136,15 +136,206 @@ const position = await api('/rest/v1/positions?select=id&code=eq.staff', { token
 check(department.ok && department.data?.[0]?.id, 'highest authority can resolve an active department');
 check(position.ok && position.data?.[0]?.id, 'highest authority can resolve an active position');
 
-const approval = await rpc('approve_pending_user', admin.token, {
-  p_target_profile_id: worker.id,
+const unassignedEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 미배정 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: null,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(unassignedEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager can create an unassigned Employee');
+assertUuid(unassignedEmployee.data?.employee_uuid, 'unassigned Employee UUID');
+check(unassignedEmployee.data?.employee_id, 'server issues an immutable employee_id');
+equal(sql(`select department_id is null from public.employees where id = '${unassignedEmployee.data.employee_uuid}'::uuid`), 't', 'unassigned Employee persists with a null department');
+
+const archiveUnassignedEmployee = await rpc('archive_employee', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI recoverable archive verification',
+});
+equal(archiveUnassignedEmployee.data?.code, 'EMPLOYEE_DELETED', 'operations manager can recoverably archive an Employee');
+const restoreUnassignedEmployee = await rpc('restore_employee', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI recoverable restore verification',
+});
+equal(restoreUnassignedEmployee.data?.code, 'EMPLOYEE_RESTORED', 'operations manager can restore an archived Employee');
+equal(sql(`select department_id is null and archived_at is null from public.employees where id = '${unassignedEmployee.data.employee_uuid}'::uuid`), 't', 'restore preserves the unassigned Employee identity and active state');
+
+const workerEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 일반직원 계정 연결 Employee',
+  p_hired_on: '2026-09-08',
   p_department_id: department.data[0].id,
   p_position_id: position.data[0].id,
-  p_role_codes: ['office_staff'],
-  p_reason_summary: 'CI 테스트 계정 승인',
+  p_attendance_required: false,
 });
-check(approval.ok, `approval RPC failed: ${JSON.stringify(approval.data)}`);
-equal(approval.data?.code, 'ACCOUNT_APPROVED', 'operations manager approves a pending account and assigns roles');
+equal(workerEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee linked to the ordinary worker account');
+const approval = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: worker.id,
+  p_employee_uuid: workerEmployee.data.employee_uuid,
+  p_role_code: 'general_worker',
+  p_reason_summary: 'CI 일반직원 계정 연결 승인',
+});
+equal(approval.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links the ordinary worker account');
+
+const promotionDepartment = await api('/rest/v1/departments?select=id&code=eq.promotion', { token: admin.token });
+check(promotionDepartment.ok && promotionDepartment.data?.[0]?.id, 'highest authority can resolve the promotion department');
+const lead = await signUp('phase1a-promotion-lead@example.test', '테스트 운영팀장');
+const leadEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 운영팀장 계정 연결 직원', p_hired_on: '2026-09-08',
+  p_department_id: promotionDepartment.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
+});
+equal(leadEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee that will be linked to the promotion lead account');
+const approveLead = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: lead.id, p_employee_uuid: leadEmployee.data.employee_uuid,
+  p_role_code: 'promotion_lead', p_reason_summary: 'CI 운영팀장 계정 승인',
+});
+equal(approveLead.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links a promotion-lead account');
+
+const lowerRoleDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft', p_title: 'CI 운영팀장 초안',
+  p_summary: 'CI', p_public_body: 'CI lower-role draft', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 작성',
+});
+equal(lowerRoleDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead creates an unpublished draft');
+const operationsEditLowerRoleDraft = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft-ops',
+  p_title: 'CI 운영총괄 수정 초안', p_summary: 'CI', p_public_body: 'CI operations edit', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 운영총괄 보완',
+});
+equal(operationsEditLowerRoleDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager edits another lower-role unpublished draft');
+equal(sql(`select owner_profile_id::text from public.promotion_contents where id = '${lowerRoleDraft.data.content_id}'::uuid`), lead.id, 'operations edit preserves the original lower-role owner');
+equal(sql(`select author_profile_id::text from public.promotion_content_revisions where id = '${operationsEditLowerRoleDraft.data.revision_id}'::uuid`), admin.id, 'operations edit records the operations manager as the new revision author');
+equal(sql(`select count(*) from public.audit_logs where target_id = '${lowerRoleDraft.data.content_id}' and action = 'operations_promotion_draft_edited_for_owner'`), '1', 'operations edit writes an owner-preserving audit event');
+const promotionStaff = await signUp('phase1a-promotion-staff@example.test', '테스트 홍보직원');
+const promotionStaffEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 홍보직원 계정 연결 직원', p_hired_on: '2026-09-08',
+  p_department_id: promotionDepartment.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
+});
+equal(promotionStaffEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates the Employee linked to the promotion-staff account');
+const approvePromotionStaff = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: promotionStaff.id, p_employee_uuid: promotionStaffEmployee.data.employee_uuid,
+  p_role_code: 'promotion_staff', p_reason_summary: 'CI 홍보직원 계정 승인',
+});
+equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
+const lowerRoleCrossDraftEdit = await rpc('save_promotion_draft', promotionStaff.token, {
+  p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_title: '권한 없는 수정',
+  p_byline_kind: 'company', p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 차단',
+});
+check(!lowerRoleCrossDraftEdit.ok, 'a different lower-role account cannot edit another author draft');
+
+const leadCrossDepartmentEmployee = await rpc('create_employee', lead.token, {
+  p_full_name: 'CI 운영팀장 타부서 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: department.data[0].id,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(leadCrossDepartmentEmployee.data?.code, 'EMPLOYEE_CREATED', 'promotion lead can directly create an Employee outside its own department');
+const leadUnassignedEmployee = await rpc('create_employee', lead.token, {
+  p_full_name: 'CI 운영팀장 미배정 직원',
+  p_hired_on: '2026-09-08',
+  p_department_id: null,
+  p_position_id: position.data[0].id,
+  p_attendance_required: false,
+});
+equal(leadUnassignedEmployee.data?.code, 'EMPLOYEE_CREATED', 'promotion lead can directly create an unassigned Employee');
+const leadArchiveAttempt = await rpc('archive_employee', lead.token, {
+  p_employee_uuid: leadUnassignedEmployee.data?.employee_uuid,
+  p_reason: 'CI 운영팀장 삭제 차단 확인',
+});
+check(!leadArchiveAttempt.ok, 'promotion lead cannot perform final Employee archive');
+
+const ordinaryHomepageRequest = await rpc('create_homepage_slot_change_request', worker.token, {
+  p_slot_key: 'home.hero.title', p_proposed_text: '권한 없는 변경', p_reason: 'CI 일반직원 차단',
+});
+check(!ordinaryHomepageRequest.ok, 'ordinary worker cannot create a homepage slot request');
+const homepageRequest = await rpc('create_homepage_slot_change_request', lead.token, {
+  p_slot_key: 'home.hero.title', p_current_summary: '기존 제목', p_proposed_text: 'CI 승인된 홈페이지 제목', p_reason: 'CI 운영팀장 홈페이지 변경',
+});
+check(homepageRequest.ok && homepageRequest.data?.request_id, 'promotion lead creates an allow-listed homepage slot request');
+equal(sql("select count(*) from public.homepage_live_overrides where slot_key = 'home.hero.title'"), '0', 'homepage remains unchanged before operations approval');
+const homepageApproval = await rpc('review_homepage_change_request', admin.token, {
+  p_request_id: homepageRequest.data.request_id, p_action: 'approve', p_comment: 'CI 승인',
+});
+equal(homepageApproval.data?.status, 'approved', 'operations manager approves the homepage slot request');
+equal(sql("select text_value from public.homepage_live_overrides where slot_key = 'home.hero.title'"), 'CI 승인된 홈페이지 제목', 'homepage approval writes the canonical live override source');
+
+const linkedUser = await signUp('phase1a-linked-employee@example.test', '테스트 연결 직원');
+const linkedEmployee = await rpc('create_employee', admin.token, {
+  p_full_name: 'CI 연결 Employee', p_hired_on: '2026-09-08',
+  p_department_id: department.data[0].id, p_position_id: position.data[0].id, p_attendance_required: false,
+});
+equal(linkedEmployee.data?.code, 'EMPLOYEE_CREATED', 'operations manager creates a dedicated linked Employee for archive verification');
+const approveLinkedUser = await rpc('approve_signup_request_with_employee', admin.token, {
+  p_target_profile_id: linkedUser.id, p_employee_uuid: linkedEmployee.data.employee_uuid,
+  p_role_code: 'general_worker', p_reason_summary: 'CI 연결 Employee 승인',
+});
+equal(approveLinkedUser.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager creates a linked Employee account for archive verification');
+const linkedEmployeeId = linkedEmployee.data.employee_uuid;
+assertUuid(linkedEmployeeId, 'linked Employee UUID');
+const archiveLinkedEmployee = await rpc('archive_employee', admin.token, {
+  p_employee_uuid: linkedEmployeeId,
+  p_reason: 'CI linked Employee recoverable archive',
+});
+equal(archiveLinkedEmployee.data?.code, 'EMPLOYEE_DELETED', 'operations manager archives a linked Employee without a lint-time ambiguity');
+equal(sql(`select account_status::text from public.profiles where id = '${linkedUser.id}'::uuid`), 'deleted', 'linked Employee archive blocks the linked account');
+equal(sql(`select count(*) from public.account_person_links where profile_id = '${linkedUser.id}'::uuid and revoked_at is null`), '0', 'linked Employee archive revokes the active account link');
+
+const maturePromotion = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-final-deletion', p_title: 'CI 최종 삭제 요청 글',
+  p_summary: 'CI', p_public_body: 'CI deletion behavior verification', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
+});
+equal(maturePromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a promotion item for final deletion verification');
+sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() - interval '25 hours' where id = '${maturePromotion.data.content_id}'::uuid`);
+const deletionRequest = await rpc('request_promotion_deletion', lead.token, {
+  p_content_id: maturePromotion.data.content_id, p_reason: 'CI 운영팀장 삭제 요청',
+});
+equal(deletionRequest.data?.code, 'PROMOTION_DELETION_REQUESTED', 'promotion lead can request deletion after the server-side 24-hour threshold');
+const finalPromotionDelete = await rpc('delete_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_confirm_title: 'CI 최종 삭제 요청 글', p_reason: 'CI 운영총괄 최종 처리',
+});
+equal(finalPromotionDelete.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager finalizes a pending promotion deletion request without ambiguity');
+equal(sql(`select status from public.promotion_deletion_requests where content_id = '${maturePromotion.data.content_id}'::uuid`), 'deleted', 'final promotion archive records the pending deletion request as deleted');
+const restorePublishedHistory = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_reason: 'CI 공개 이력 안전 복구',
+});
+equal(restorePublishedHistory.data?.lifecycle, 'hidden', 'published-history promotion restore returns to hidden rather than immediately republishing');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published-history restore remains hidden in the persisted public state');
+const explicitRepublish = await rpc('set_promotion_visibility', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_visible: true, p_reason: 'CI 명시적 재공개',
+});
+equal(explicitRepublish.data?.code, 'PROMOTION_RESTORED', 'published-history content requires a separate explicit republish action');
+
+const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',
+  p_summary: 'CI', p_public_body: 'CI deletion eligibility verification', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
+});
+equal(freshPromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a fresh promotion item for eligibility verification');
+sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() where id = '${freshPromotion.data.content_id}'::uuid`);
+const leadPublicationContext = await rpc('get_promotion_publication_admin', lead.token, {});
+const freshPublicationItem = leadPublicationContext.data?.items?.find(item => item.content_id === freshPromotion.data.content_id);
+equal(freshPublicationItem?.can_request_delete, false, 'server publication context marks a fresh post as ineligible for deletion request');
+check(freshPublicationItem?.delete_request_eligible_at, 'server publication context provides the future deletion-request time');
+
+const linkableUser = await signUp('phase1a-linkable-employee@example.test', '테스트 명시적 계정 연결');
+const linkWorker = await rpc('link_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_profile_id: linkableUser.id,
+  p_reason: 'CI explicit employee-account link',
+});
+equal(linkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can explicitly link Auth and Employee records');
+const unlinkWorker = await rpc('unlink_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_reason: 'CI explicit employee-account unlink',
+});
+equal(unlinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_UNLINKED', 'operations manager can explicitly unlink Auth and Employee records');
+const relinkWorker = await rpc('link_employee_account', admin.token, {
+  p_employee_uuid: unassignedEmployee.data.employee_uuid,
+  p_profile_id: linkableUser.id,
+  p_reason: 'CI explicit employee-account relink',
+});
+equal(relinkWorker.data?.code, 'EMPLOYEE_ACCOUNT_LINKED', 'operations manager can safely relink Auth and Employee records');
 
 const activeDepartments = await api('/rest/v1/departments?select=id', { token: worker.token });
 check(activeDepartments.ok && activeDepartments.data.length > 0, 'active user can read allowed internal reference data');
@@ -218,14 +409,14 @@ const protectStatus = await rpc('change_account_status', admin.token, {
   p_new_status: 'suspended',
   p_reason_summary: 'CI 마지막 최고관리자 정지 시도',
 });
-equal(protectStatus.data?.code, 'LAST_ACTIVE_SUPER_ADMIN_PROTECTED', 'last active super admin status is protected');
+equal(protectStatus.data?.code, 'SELF_LOCKOUT_PROTECTED', 'self-lockout protection blocks a super admin from suspending itself');
 
-const protectRole = await rpc('set_profile_roles', admin.token, {
+const protectRole = await rpc('set_profile_super_admin_status', admin.token, {
   p_target_profile_id: admin.id,
-  p_role_codes: ['operations_manager'],
+  p_enabled: false,
   p_reason_summary: 'CI 마지막 최고관리자 역할 회수 시도',
 });
-equal(protectRole.data?.code, 'LAST_ACTIVE_SUPER_ADMIN_PROTECTED', 'last active super admin role is protected');
+equal(protectRole.data?.code, 'SELF_TECHNICAL_ROLE_REMOVAL_PROTECTED', 'self-lockout protection blocks a super admin from removing its own technical role');
 
 const reactivateForSecondAdmin = await rpc('change_account_status', admin.token, {
   p_target_profile_id: worker.id,
@@ -234,19 +425,39 @@ const reactivateForSecondAdmin = await rpc('change_account_status', admin.token,
 });
 equal(reactivateForSecondAdmin.data?.code, 'STATUS_CHANGED', 'worker is reactivated for two-admin test');
 
-const grantSecondAdmin = await rpc('set_profile_roles', admin.token, {
+const grantSecondAdminOperations = await rpc('set_profile_roles', admin.token, {
   p_target_profile_id: worker.id,
-  p_role_codes: ['super_admin', 'operations_manager'],
+  p_role_codes: ['operations_manager'],
+  p_reason_summary: 'CI 두 번째 최고관리자 운영 역할 준비',
+});
+equal(grantSecondAdminOperations.data?.code, 'ROLES_CHANGED', 'the second highest-authority account keeps a separate operations-manager role');
+
+const grantSecondAdmin = await rpc('set_profile_super_admin_status', admin.token, {
+  p_target_profile_id: worker.id,
+  p_enabled: true,
   p_reason_summary: 'CI 두 번째 운영총괄 겸 최고관리자 지정',
 });
-equal(grantSecondAdmin.data?.code, 'ROLES_CHANGED', 'a second active super admin can be granted; highest-authority pilot accounts also retain operations manager');
+equal(grantSecondAdmin.data?.code, 'TECHNICAL_ROLE_GRANTED', 'a second active super admin can be granted through the separate technical endpoint');
 
-const revokeFirstAdmin = await rpc('set_profile_roles', admin.token, {
+const revokeFirstAdmin = await rpc('set_profile_super_admin_status', worker.token, {
   p_target_profile_id: admin.id,
-  p_role_codes: ['operations_manager'],
+  p_enabled: false,
   p_reason_summary: 'CI 최고관리자 2명 상태 역할 회수',
 });
-equal(revokeFirstAdmin.data?.code, 'ROLES_CHANGED', 'one super admin role can be revoked when two are active');
+equal(revokeFirstAdmin.data?.code, 'TECHNICAL_ROLE_REVOKED', 'one super admin role can be revoked when two are active through the separate technical endpoint');
 equal(sql("select count(distinct profile.id) from public.profiles profile join public.profile_roles assignment on assignment.profile_id = profile.id and assignment.revoked_at is null join public.roles role on role.id = assignment.role_id and role.code = 'super_admin' where profile.account_status = 'active'"), '1', 'one active super admin remains');
+
+const opsOnlySimulation = await rpc('set_role_simulation_mode', admin.token, {
+  p_role_code: 'promotion_lead',
+});
+equal(opsOnlySimulation.data?.code, 'ROLE_SIMULATION_SET', 'operations manager alone can start lower-role simulation');
+const simulatedContext = await rpc('get_my_access_context', admin.token, {});
+equal(simulatedContext.data?.role_simulation?.role_code, 'promotion_lead', 'simulation exposes only the selected lower-role context');
+const clearOpsOnlySimulation = await rpc('set_role_simulation_mode', admin.token, {
+  p_role_code: null,
+});
+equal(clearOpsOnlySimulation.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations manager alone can end lower-role simulation');
+const restoredContext = await rpc('get_my_access_context', admin.token, {});
+equal(restoredContext.data?.role_simulation?.active, false, 'ending simulation restores the actual operations-manager context');
 
 console.log(`Phase 1A Auth integration passed: ${assertions} assertions`);

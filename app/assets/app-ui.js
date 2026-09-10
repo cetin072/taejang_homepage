@@ -44,13 +44,27 @@
     document.head.append(link);
   }
 
+  const moduleFailures = new Map();
+
+  function recordModuleFailure(source, dataKey) {
+    moduleFailures.set(dataKey, source);
+  }
+
   function loadScriptOnce(source, dataKey) {
     const existing = document.querySelector(`script[data-${dataKey}]`);
     if (existing) {
-      if (existing.dataset.loaded === '1') return Promise.resolve();
+      if (existing.dataset.loaded === '1') return Promise.resolve({ source, key: dataKey, ok: true });
+      if (existing.dataset.loadFailed === '1') {
+        recordModuleFailure(source, dataKey);
+        return Promise.resolve({ source, key: dataKey, ok: false });
+      }
       return new Promise(resolve => {
-        existing.addEventListener('load', resolve, { once: true });
-        existing.addEventListener('error', resolve, { once: true });
+        existing.addEventListener('load', () => resolve({ source, key: dataKey, ok: true }), { once: true });
+        existing.addEventListener('error', () => {
+          existing.dataset.loadFailed = '1';
+          recordModuleFailure(source, dataKey);
+          resolve({ source, key: dataKey, ok: false });
+        }, { once: true });
       });
     }
     return new Promise(resolve => {
@@ -58,26 +72,75 @@
       script.src = source;
       script.async = false;
       script.dataset[dataKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = '1';
-      script.addEventListener('load', () => { script.dataset.loaded = '1'; resolve(); }, { once: true });
-      script.addEventListener('error', () => { script.dataset.loadFailed = '1'; resolve(); }, { once: true });
+      script.addEventListener('load', () => {
+        script.dataset.loaded = '1';
+        resolve({ source, key: dataKey, ok: true });
+      }, { once: true });
+      script.addEventListener('error', () => {
+        script.dataset.loadFailed = '1';
+        recordModuleFailure(source, dataKey);
+        resolve({ source, key: dataKey, ok: false });
+      }, { once: true });
       document.head.append(script);
     });
   }
 
+  function ensureFailureNotice() {
+    let notice = document.querySelector('[data-feature-health-notice]');
+    if (notice) return notice;
+    const workspace = document.querySelector('.app-workspace');
+    if (!workspace) return null;
+    notice = document.createElement('div');
+    notice.className = 'message error feature-health-notice';
+    notice.dataset.featureHealthNotice = '1';
+    notice.setAttribute('role', 'alert');
+    notice.hidden = true;
+    const main = document.getElementById('dashboard-main');
+    if (main) workspace.insertBefore(notice, main);
+    else workspace.append(notice);
+    return notice;
+  }
+
+  function showFeatureFailure(label = '일부 업무 기능') {
+    const notice = ensureFailureNotice();
+    if (!notice) return;
+    const copy = document.createElement('span');
+    copy.textContent = `${label}을 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.`;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'button button-quiet';
+    retry.textContent = '다시 시도';
+    retry.addEventListener('click', () => window.location.reload());
+    notice.replaceChildren(copy, retry);
+    notice.hidden = false;
+  }
+
+  function showAggregateFailure() {
+    if (!moduleFailures.size) return;
+    showFeatureFailure('일부 업무 기능');
+  }
+
+  const featureHealth = {
+    failedKeys: () => [...moduleFailures.keys()],
+    hasFailed: key => moduleFailures.has(key),
+    showFailure: showFeatureFailure,
+    retry: () => window.location.reload()
+  };
+  window.TaejangFeatureHealth = featureHealth;
+
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
 
-  // These modules used to be appended independently while app.js was already
-  // verifying the session. On a fast app bootstrap, `taejang-app-ready` could fire
-  // before one or more modules had registered their listeners. The result was a
-  // nondeterministic sidebar: employee management, signup approval, renamed
-  // guidance, or workspace panel guards could disappear depending on timing.
-  // Load them deterministically and hold the first ready event until every module
-  // has had a chance to register its listeners.
+  // Start independent feature requests together, but do not release app-ready until
+  // every module has registered or failed. `async = false` keeps dynamically
+  // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
+    ['assets/capability-access.js', 'capability-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/pwa-install.js', 'pwa-install'],
+    ['assets/attendance-location.js', 'attendance-location'],
     ['assets/worker-mobile-v1.js', 'worker-mobile-v1'],
     ['assets/attendance-admin.js', 'attendance-admin'],
+    ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/operations-promotion-writer.js', 'operations-promotion-writer'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
@@ -88,6 +151,8 @@
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
+    ['assets/issue-146-end-to-end.js', 'issue-146-end-to-end'],
+    ['assets/promotion-approved-delete-ux.js', 'promotion-approved-delete-ux'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],
@@ -101,10 +166,12 @@
   let queuedReadyDetail = null;
   let replayScheduled = false;
 
-  const featureModulesReady = FEATURE_MODULES.reduce(
-    (promise, [source, key]) => promise.then(() => loadScriptOnce(source, key)),
-    Promise.resolve()
-  ).then(() => { modulesReady = true; });
+  const featureModulesReady = Promise.all(
+    FEATURE_MODULES.map(([source, key]) => loadScriptOnce(source, key))
+  ).then(() => {
+    modulesReady = true;
+    Promise.resolve().then(showAggregateFailure);
+  });
 
   function scheduleReadyReplay() {
     if (replayScheduled) return;
@@ -117,6 +184,7 @@
       replayingReady = true;
       document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail }));
       replayingReady = false;
+      showAggregateFailure();
     });
   }
 

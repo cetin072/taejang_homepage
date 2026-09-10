@@ -128,7 +128,8 @@
   function render(filter = '전체') {
     if (!orderedData.length) {
       if (filters) filters.hidden = true;
-      list.innerHTML = emptyState(config.emptyTitle, config.emptyText, false);
+      // The HTML list contains the last approved fallback. Runtime data absence is
+      // not equivalent to "no content", so keep that baseline instead of erasing it.
       return;
     }
 

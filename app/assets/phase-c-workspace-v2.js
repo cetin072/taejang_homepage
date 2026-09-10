@@ -5,7 +5,7 @@
 
   const SESSION_KEY = 'taejang-staff-session-v1';
   const PROMOTION_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
-  const WRITE_ROLES = new Set(['promotion_staff', 'promotion_lead']);
+  const WRITE_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
   const REVIEW_ROLES = new Set(['promotion_lead', 'operations_manager', 'ceo']);
   const TYPE_LABELS = {
     homepage_article: '태장 소식',
@@ -29,11 +29,20 @@
     business: ['하는 일', [['page_hero', '페이지 상단 소개'], ['current_operations', '현재 운영 사업'], ['partnership_flow', '협력 검토 흐름'], ['business_in_development', '개발 중인 사업']]],
     workplace: ['우리의 일터', [['page_hero', '페이지 상단 소개'], ['workplace_overview', '직무와 작업 방식'], ['workplace_stories', '일터 이야기']]],
     archive: ['소식·기록', [['page_hero', '페이지 상단 소개'], ['archive_list', '기록 목록 안내']]],
-    partnership: ['협력·문의', [['page_hero', '페이지 상단 소개'], ['partner_companies', '함께 출발한 기업'], ['partnership_fields', '함께하는 방법'], ['environment_service', '지역사회공헌·ESG 협력'], ['faq', '자주 묻는 협력 질문'], ['contact', '협력 문의']]]
+    activities: ['활동', [['page_hero', '페이지 상단 소개'], ['activities_intro', '활동 소개']]],
+    partnership: ['협력·문의', [['page_hero', '페이지 상단 소개'], ['partner_companies', '함께 출발한 기업'], ['partnership_fields', '함께하는 방법'], ['environment_service', '지역사회공헌·ESG 협력'], ['faq', '자주 묻는 협력 질문'], ['contact', '협력 문의']]],
+    greeting: ['인사말', [['page_hero', '페이지 상단 소개'], ['greeting_body', '인사말 본문']]],
+    why_minhwa: ['왜 민화인가', [['page_hero', '페이지 상단 소개'], ['why_minhwa_body', '소개 본문']]],
+    location: ['오시는 길', [['page_hero', '페이지 상단 소개'], ['location_body', '위치 안내']]],
+    resources: ['자료실', [['page_hero', '페이지 상단 소개'], ['resources_intro', '자료실 소개']]]
   };
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyAllowed;
+  const canAny = (capabilities, legacyAllowed) => capabilities.some(capability => can(capability, legacyAllowed));
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let editingContentId = null;
@@ -113,11 +122,13 @@
       .phase-c-homepage-entry button { min-height:130px; padding:20px; border:1px solid var(--app-border); border-radius:14px; background:#fff; text-align:left; cursor:pointer; }
       .phase-c-homepage-entry strong { display:block; margin-bottom:8px; font-size:1.12rem; }
       .phase-c-homepage-form { max-width:900px; padding:22px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
+      .phase-c-homepage-preview { width:100%; height:520px; border:1px solid var(--app-border); border-radius:12px; background:#fff; }
+      .phase-c-homepage-preview.mobile { width:390px; max-width:100%; margin-inline:auto; }
       .phase-c-homepage-request-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
       .phase-c-homepage-request { min-height:170px; }
       .phase-c-upload-status { margin:0; color:var(--app-muted); font-size:.92rem; }
       @media(max-width:1100px){.phase-c-v2-grid,.phase-c-homepage-request-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
-      @media(max-width:760px){.phase-c-v2-grid,.phase-c-homepage-request-grid,.phase-c-homepage-entry,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}}
+      @media(max-width:760px){.phase-c-v2-grid,.phase-c-homepage-request-grid,.phase-c-homepage-entry,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}.phase-c-homepage-preview{height:420px;}}
       @media(max-width:480px){.phase-c-photo-grid{grid-template-columns:1fr;}}
     `;
     document.head.append(style);
@@ -271,8 +282,9 @@
     };
     try {
       formState.saveButtons.forEach(node => { node.disabled = true; });
-      const saved = await app().rpc('save_promotion_draft', payload);
-      if (submitAfterSave) await app().rpc('submit_promotion_revision', { p_content_id: saved.content_id });
+      const isOperations = can('promotion.edit_any_unpublished', route() === 'operations_manager');
+      const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
+      if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
       await openPromotion(submitAfterSave ? (route() === 'promotion_staff' ? 'write' : 'review') : 'write');
     } catch (error) {
@@ -674,16 +686,19 @@
     closeSidebar();
     currentMode = mode;
     const target = main();
-    if (!target || !PROMOTION_ROLES.has(route())) return;
+    if (!target || !canAny(['promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], PROMOTION_ROLES.has(route()))) return;
     target.hidden = false;
     target.classList.add('phase-c-v2');
     target.replaceChildren(el('p', '홍보 업무를 불러오고 있습니다.', 'message'));
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
-      if (mode === 'revision' && workspace.role === 'promotion_staff') return renderRevision(workspace);
-      if (mode === 'edit' && WRITE_ROLES.has(workspace.role)) return renderEdit(workspace);
-      if (mode === 'write' && WRITE_ROLES.has(workspace.role)) return renderWrite(workspace);
-      if (REVIEW_ROLES.has(workspace.role)) return renderReview(workspace);
+      const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
+      const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
+      const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
+      if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
+      if (mode === 'write' && canWrite) return renderWrite(workspace);
+      if (canReview) return renderReview(workspace);
       return renderWrite(workspace);
     } catch (error) {
       target.replaceChildren(el('p', app().friendlyError?.(error) || '홍보 업무를 불러오지 못했습니다.', 'message error'));
@@ -715,21 +730,21 @@
     [...nav.querySelectorAll('button')].forEach(node => {
       if (node.textContent.trim() === '신규 사업 기획') node.remove();
     });
-    if (currentRoute === 'promotion_staff') {
+    if (can('promotion.write', currentRoute === 'promotion_staff')) {
       const write = replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
       if (!nav.querySelector('[data-phase-c-v2-nav="revision"]')) {
         const revision = navButton('수정·보완 요청', () => openPromotion('revision'), 'revision');
         if (write) nav.insertBefore(revision, write); else nav.append(revision);
       }
     }
-    if (currentRoute === 'promotion_lead') {
+    if (can('promotion.review_lead', currentRoute === 'promotion_lead')) {
       replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
       replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
     }
-    if (currentRoute === 'operations_manager' || currentRoute === 'ceo') {
+    if (canAny(['promotion.review_operations', 'promotion.review_ceo'], currentRoute === 'operations_manager' || currentRoute === 'ceo')) {
       replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
     }
-    if (['promotion_lead', 'operations_manager'].includes(currentRoute) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {
+    if (canAny(['homepage.draft', 'homepage.review', 'homepage.approve_apply'], ['promotion_lead', 'operations_manager'].includes(currentRoute)) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {
       const homepageLink = [...nav.querySelectorAll('a')].find(node => node.textContent.trim() === '홈페이지');
       const node = navButton('홈페이지 내용 관리', openHomepageManagement, 'homepage');
       if (homepageLink) nav.insertBefore(node, homepageLink); else nav.append(node);
@@ -779,7 +794,7 @@
     return Object.entries(HOMEPAGE_PAGES).map(([key, [label]]) => [key, label]);
   }
 
-  function homepageRequestCard(item, canReview) {
+  function homepageRequestCard(item, canReview, canApprove) {
     const [pageLabel, sections] = HOMEPAGE_PAGES[item.page_key] || [item.page_key, []];
     const sectionLabel = sections.find(([key]) => key === item.section_key)?.[1] || item.section_key;
     const card = el('article', null, 'dashboard-card phase-c-homepage-request');
@@ -797,10 +812,12 @@
     link.href = ({ home: '../index.html', about: '../about.html', business: '../business.html', workplace: '../workplace.html', archive: '../archive.html', partnership: '../partnership.html' })[item.page_key] || '../index.html';
     link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'button button-quiet'; link.textContent = '현재 홈페이지 확인';
     actions.append(link);
-    if (canReview && item.status === 'pending') {
-      actions.append(button('최종 승인', () => reviewHomepageRequest(item.id, 'approve')));
-      actions.append(button('보완 요청', () => reviewHomepageRequest(item.id, 'changes_requested'), true));
-      actions.append(button('반려', () => reviewHomepageRequest(item.id, 'reject'), true));
+    if (item.status === 'pending') {
+      if (canApprove) actions.append(button('최종 승인', () => reviewHomepageRequest(item.id, 'approve')));
+      if (canReview) {
+        actions.append(button('보완 요청', () => reviewHomepageRequest(item.id, 'changes_requested'), true));
+        actions.append(button('반려', () => reviewHomepageRequest(item.id, 'reject'), true));
+      }
     }
     card.append(actions);
     return card;
@@ -829,10 +846,13 @@
     const reason = document.createElement('textarea'); reason.rows = 3; reason.maxLength = 1000; reason.placeholder = '왜 수정하는지 적어주세요.'; reason.required = true;
     const proposed = document.createElement('textarea'); proposed.rows = 8; proposed.maxLength = 12000; proposed.placeholder = '새로 바꿀 문구를 입력하세요.';
     const imageAlt = input(); imageAlt.maxLength = 300; imageAlt.placeholder = '사진 설명(선택)';
+    const currentSummary = document.createElement('textarea'); currentSummary.rows = 4; currentSummary.readOnly = true; currentSummary.maxLength = 2000; currentSummary.placeholder = '선택한 공개 영역의 현재 문구를 읽는 중입니다.';
+    const preview = document.createElement('iframe'); preview.className = 'phase-c-homepage-preview'; preview.title = '현재 공개 홈페이지 미리보기'; preview.loading = 'eager';
+    const previewActions = el('div', null, 'quick-links');
     let uploadedUrl = null;
     const imageBox = el('div', null, 'phase-c-link-tools');
     const file = input('file'); file.accept = 'image/jpeg,image/png,image/webp,image/gif';
-    const preview = el('div', null, 'phase-c-link-preview');
+    const imagePreview = el('div', null, 'phase-c-link-preview');
     const status = el('p', 'JPG, PNG, WEBP, GIF · 8MB 이하', 'phase-c-upload-status');
     file.addEventListener('change', async () => {
       if (!file.files?.[0]) return;
@@ -841,23 +861,35 @@
       try {
         uploadedUrl = await uploadImage(file.files[0]);
         const image = document.createElement('img'); image.src = uploadedUrl; image.alt = imageAlt.value || '변경할 사진';
-        preview.replaceChildren(image, el('p', '새 사진 업로드 완료'));
+        imagePreview.replaceChildren(image, el('p', '새 사진 업로드 완료'));
         status.textContent = '사진 업로드 완료';
       } catch (error) {
         uploadedUrl = null; status.textContent = '사진 업로드 실패'; window.alert(error.message || '사진 업로드에 실패했습니다.');
       } finally { file.disabled = false; }
     });
-    imageBox.append(field('새 사진 파일', file), field('사진 설명', imageAlt), status, preview);
+    imageBox.append(field('새 사진 파일', file), field('사진 설명', imageAlt), status, imagePreview);
 
     const updateSections = () => {
       section.replaceChildren();
       HOMEPAGE_PAGES[page.value][1].forEach(([value, label]) => {
         const option = document.createElement('option'); option.value = value; option.textContent = label; section.append(option);
       });
+      const href = ({ home: '../index.html', about: '../about.html', business: '../business.html', workplace: '../workplace.html', archive: '../archive.html', activities: '../activities.html', partnership: '../partnership.html', greeting: '../greeting.html', why_minhwa: '../why-minhwa.html', location: '../location.html', resources: '../resources.html' })[page.value];
+      preview.src = href;
     };
+    preview.addEventListener('load', () => {
+      try {
+        const sectionKey = section.value;
+        const target = preview.contentDocument?.getElementById(sectionKey) || preview.contentDocument?.querySelector(`[data-homepage-section="${sectionKey}"]`);
+        currentSummary.value = (target?.innerText || target?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 2000) || '현재 문구는 미리보기에서 직접 확인해 주세요.';
+      } catch { currentSummary.value = '현재 문구는 미리보기에서 직접 확인해 주세요.'; }
+    });
+    section.addEventListener('change', () => preview.dispatchEvent(new Event('load')));
+    previewActions.append(button('PC 미리보기', () => preview.classList.remove('mobile'), true), button('모바일 미리보기', () => preview.classList.add('mobile'), true));
     page.addEventListener('change', updateSections); updateSections();
     const row = el('div', null, 'phase-c-board-row'); row.append(field('페이지', page), field('수정할 영역', section));
     form.append(row);
+    form.append(previewActions, preview, field('현재 공개 문구', currentSummary, '읽기 전용입니다. 변경 전·후를 비교한 뒤 상신합니다.'));
     if (kind === 'text') form.append(field('새 문구', proposed)); else form.append(imageBox);
     form.append(field('수정 이유', reason));
     form.append(button('운영총괄에게 수정 요청', async () => {
@@ -869,7 +901,7 @@
           p_page_key: page.value,
           p_section_key: section.value,
           p_change_kind: kind,
-          p_current_summary: null,
+          p_current_summary: currentSummary.value.trim() || null,
           p_proposed_text: kind === 'text' ? proposed.value.trim() : null,
           p_proposed_image_url: kind === 'image' ? uploadedUrl : null,
           p_image_alt: kind === 'image' ? (imageAlt.value.trim() || null) : null,
@@ -886,15 +918,18 @@
     closeSidebar();
     const target = main();
     const currentRoute = route();
-    if (!target || !['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
+    const canHomepageDraft = can('homepage.draft', currentRoute === 'promotion_lead');
+    const canHomepageReview = can('homepage.review', currentRoute === 'operations_manager');
+    const canHomepageApprove = can('homepage.approve_apply', currentRoute === 'operations_manager');
+    if (!target || !(canHomepageDraft || canHomepageReview || canHomepageApprove)) return;
     document.getElementById('desktop-page-title').textContent = '홈페이지 내용 관리';
     target.classList.add('phase-c-v2');
     target.replaceChildren(el('p', '홈페이지 내용을 불러오고 있습니다.', 'message'));
     try {
       const requests = arr(await app().rpc('get_homepage_change_requests'));
-      const intro = renderIntro('홈페이지 운영', '홈페이지 내용 관리', currentRoute === 'promotion_lead' ? '홈페이지의 기존 글과 사진을 수정 요청하는 화면입니다.' : '홍보팀장이 요청한 홈페이지 글·사진 변경을 최종 검토합니다.');
+      const intro = renderIntro('홈페이지 운영', '홈페이지 내용 관리', canHomepageDraft ? '현재 공개본을 기준으로 안전하게 식별된 기존 글과 사진의 수정 초안을 만들고 상신합니다.' : '전사 홈페이지 콘텐츠 초안과 운영팀장 요청을 비교하고, 승인·보완·반려 또는 직접 수정으로 처리합니다. 구조 변경은 이 화면의 대상이 아닙니다.');
       target.replaceChildren(intro);
-      if (currentRoute === 'promotion_lead') {
+      if (canHomepageDraft) {
         const entry = el('div', null, 'phase-c-homepage-entry');
         const textEntry = el('button'); textEntry.type = 'button'; textEntry.append(el('strong', '홈페이지 글 수정'), el('span', '페이지와 영역을 고르고 새 문구를 입력합니다.'));
         const imageEntry = el('button'); imageEntry.type = 'button'; imageEntry.append(el('strong', '홈페이지 사진 수정'), el('span', '새 사진 파일을 직접 업로드해 변경 요청합니다.'));
@@ -907,11 +942,11 @@
       }
       const section = el('section', null, 'dashboard-section');
       const pending = requests.filter(item => item.status === 'pending');
-      section.append(el('h2', currentRoute === 'operations_manager' ? `승인 대기 ${pending.length}건` : '내 홈페이지 수정 요청'));
+      section.append(el('h2', (canHomepageReview || canHomepageApprove) ? `승인 대기 ${pending.length}건` : '내 홈페이지 수정 요청'));
       const grid = el('div', null, 'phase-c-homepage-request-grid');
-      const visible = currentRoute === 'operations_manager' ? [...pending, ...requests.filter(item => item.status !== 'pending')] : requests;
+      const visible = (canHomepageReview || canHomepageApprove) ? [...pending, ...requests.filter(item => item.status !== 'pending')] : requests;
       if (!visible.length) grid.append(el('p', '현재 등록된 홈페이지 수정 요청이 없습니다.', 'empty'));
-      visible.forEach(item => grid.append(homepageRequestCard(item, currentRoute === 'operations_manager')));
+      visible.forEach(item => grid.append(homepageRequestCard(item, canHomepageReview, canHomepageApprove)));
       section.append(grid); target.append(section);
     } catch (error) {
       target.replaceChildren(renderIntro('홈페이지 운영', '홈페이지 내용 관리', '내용을 불러오지 못했습니다.'), el('p', app().friendlyError?.(error) || error.message || '잠시 후 다시 시도해 주세요.', 'message error'));

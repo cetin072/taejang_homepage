@@ -290,7 +290,7 @@
 
     if (!allItems.length) {
       sourceContainer.closest('.content-hub-filters')?.setAttribute('hidden', '');
-      list.replaceChildren(createEmptyState('공개할 콘텐츠를 확인하고 있습니다', '공식 홈페이지 글과 실제 원문 링크가 확인된 콘텐츠부터 차례로 등록하겠습니다.'));
+      // Runtime data absence must not erase the last approved static archive cards.
       return;
     }
 
