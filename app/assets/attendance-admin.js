@@ -1,9 +1,12 @@
 (() => {
   'use strict';
 
-  const allowed = new Set(['promotion_lead', 'operations_manager']);
+  const legacyAllowed = new Set(['promotion_lead', 'operations_manager']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = capability => app()?.hasCapabilityContract?.()
+    ? Boolean(app()?.can?.(capability))
+    : legacyAllowed.has(route());
   const main = () => document.getElementById('dashboard-main');
   const el = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -49,6 +52,7 @@
   }
 
   async function review(eventId, approve, button) {
+    if (!can('attendance.exception_review')) return;
     button.disabled = true;
     try {
       const result = await app().rpc('review_attendance_exception', { p_event_id: eventId, p_approve: approve });
@@ -61,7 +65,7 @@
   }
 
   function reviewButtons(record) {
-    if (!record || record.status !== 'exception_pending') return null;
+    if (!can('attendance.exception_review') || !record || record.status !== 'exception_pending') return null;
     const wrap = el('div', null, 'attendance-review-actions');
     const approve = el('button', '승인', 'button'); approve.type = 'button';
     const reject = el('button', '반려', 'button button-quiet'); reject.type = 'button';
@@ -84,7 +88,7 @@
   }
 
   async function openAttendance() {
-    if (!allowed.has(route())) return;
+    if (!can('attendance.admin_view')) return;
     closeSidebar();
     const target = main();
     document.getElementById('desktop-page-title').textContent = '출근부';
@@ -101,7 +105,7 @@
       const intro = el('header', null, 'dashboard-intro');
       const back = el('button', '대시보드로', 'button button-quiet'); back.type = 'button';
       back.addEventListener('click', () => document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh')));
-      intro.append(el('p', '운영팀장 담당', 'eyebrow'), el('h2', '오늘 출근부'), el('p', '출퇴근 대상 직원의 GPS 기록과 예외 요청을 확인합니다. 직원이 같은 출퇴근 건으로 반복 요청하는 것은 서버에서 차단됩니다.'), back);
+      intro.append(el('p', '근태 관리', 'eyebrow'), el('h2', '오늘 출근부'), el('p', '출퇴근 대상 직원의 GPS 기록과 예외 요청을 확인합니다. 직원이 같은 출퇴근 건으로 반복 요청하는 것은 서버에서 차단됩니다.'), back);
 
       const summary = el('section', null, 'attendance-summary');
       summary.append(summaryCard('대상 직원', rows.length), summaryCard('출근 완료', inCount), summaryCard('확인 필요', pendingCount), summaryCard('퇴근 완료', outCount));
@@ -121,7 +125,7 @@
   }
 
   function addNavigation() {
-    if (!allowed.has(route())) return;
+    if (!can('attendance.admin_view')) return;
     const nav = document.getElementById('app-nav');
     if (!nav || nav.querySelector('[data-attendance-nav]')) return;
     const button = el('button', '출근부', 'button button-quiet');
@@ -132,7 +136,7 @@
   }
 
   function addDashboardCard() {
-    if (!allowed.has(route())) return;
+    if (!can('attendance.admin_view')) return;
     const grid = main()?.querySelector('.dashboard-grid');
     if (!grid || grid.querySelector('[data-attendance-card]')) return;
     const card = el('article', null, 'dashboard-card'); card.dataset.attendanceCard = '1';
@@ -145,5 +149,6 @@
   injectStyles();
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
+  document.addEventListener('taejang-capabilities-ready', () => setTimeout(sync, 0));
   window.TaejangAttendanceAdmin = { openAttendance };
 })();

@@ -43,16 +43,25 @@ test('worker UI remains simple and blocks abusive exception patterns', () => {
   assert.match(source, /OUTSIDE_GEOFENCE/);
 });
 
-test('attendance integrity UI hides personal attendance for excluded employees and keeps correction operations-manager only', () => {
+test('attendance integrity UI hides personal attendance for excluded employees and gates correction by capability', () => {
   const source = read('app/assets/attendance-integrity-ui.js');
   assert.match(source, /근태 기록 대상이 아닙니다/);
-  assert.match(source, /route\(\) !== 'operations_manager'/);
+  assert.match(source, /attendance\.correct/);
+  assert.match(source, /hasCapabilityContract/);
   assert.match(source, /create_attendance_correction/);
   assert.match(source, /누락 시간 추가/);
   assert.match(source, /시간 정정/);
   assert.match(source, /무효 처리/);
   assert.match(source, /원본 기록은 그대로 보존/);
   assert.match(source, /get_attendance_correction_history/);
+});
+
+test('attendance admin separates view and exception-review capabilities', () => {
+  const source = read('app/assets/attendance-admin.js');
+  assert.match(source, /attendance\.admin_view/);
+  assert.match(source, /attendance\.exception_review/);
+  assert.match(source, /hasCapabilityContract/);
+  assert.match(source, /review_attendance_exception/);
 });
 
 test('promotion staff and lead start from the common employee home with work shortcuts', () => {
