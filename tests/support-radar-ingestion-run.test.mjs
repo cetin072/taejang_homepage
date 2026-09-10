@@ -29,7 +29,7 @@ function buildBatch(fetchedAt) {
 
 test('successful run records provenance and deterministic write counts', () => {
   const run = startSupportRadarIngestionRun({
-    run_id: 'bizinfo:2026-09-10T18:00:00+09:00',
+    run_id: 'bizinfo-run-20260910-180000-01',
     source_code: 'bizinfo',
     started_at: '2026-09-10T18:00:00+09:00',
     request: {
