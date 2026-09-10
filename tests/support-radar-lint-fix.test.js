@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const sql = fs.readFileSync(
-  path.join(__dirname, '..', 'supabase', 'migrations', '20260910090000_support_radar_lint_fix.sql'),
+  path.join(__dirname, '..', 'supabase', 'migrations', '20260910085500_support_radar_lint_fix.sql'),
   'utf8'
 );
 
