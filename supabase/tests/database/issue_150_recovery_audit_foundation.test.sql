@@ -28,7 +28,8 @@ select ok(exists(select 1 from pg_trigger where tgrelid='public.staff_guidance_i
 insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data)
 values
  ('67000000-0000-0000-0000-000000000001','issue150-ops@example.test','{}'::jsonb,'{"display_name":"Issue150 운영총괄"}'::jsonb),
- ('67000000-0000-0000-0000-000000000002','issue150-tech@example.test','{}'::jsonb,'{"display_name":"Issue150 기술관리자"}'::jsonb);
+ ('67000000-0000-0000-0000-000000000002','issue150-tech@example.test','{}'::jsonb,'{"display_name":"Issue150 기술관리자"}'::jsonb),
+ ('67000000-0000-0000-0000-000000000003','issue150-staff@example.test','{}'::jsonb,'{"display_name":"Issue150 일반홍보직원"}'::jsonb);
 
 update public.profiles
 set account_status='active',
@@ -44,10 +45,24 @@ set account_status='active',
     approved_at=now(), status_changed_at=now(), status_reason='Issue150 test fixture'
 where id='67000000-0000-0000-0000-000000000002';
 
+update public.profiles
+set account_status='active',
+    department_id=(select id from public.departments where code='promotion'),
+    position_id=(select id from public.positions where code='staff'),
+    approved_at=now(), status_changed_at=now(), status_reason='Issue150 test fixture'
+where id='67000000-0000-0000-0000-000000000003';
+
+-- The operations fixture also receives the technical super-admin assignment solely
+-- so it can use the product's official role-simulation mode. Target-audit authority
+-- still comes from the operations-manager operational superset.
 insert into public.profile_roles(profile_id,role_id,granted_by)
 select '67000000-0000-0000-0000-000000000001',id,'67000000-0000-0000-0000-000000000001' from public.roles where code='operations_manager';
 insert into public.profile_roles(profile_id,role_id,granted_by)
+select '67000000-0000-0000-0000-000000000001',id,'67000000-0000-0000-0000-000000000001' from public.roles where code='super_admin';
+insert into public.profile_roles(profile_id,role_id,granted_by)
 select '67000000-0000-0000-0000-000000000002',id,'67000000-0000-0000-0000-000000000002' from public.roles where code='super_admin';
+insert into public.profile_roles(profile_id,role_id,granted_by)
+select '67000000-0000-0000-0000-000000000003',id,'67000000-0000-0000-0000-000000000001' from public.roles where code='promotion_staff';
 
 insert into public.schedule_items(
  id,schedule_type,title,starts_at,ends_at,all_day,easy_text,target_scope,status,change_reason,created_by,updated_by
@@ -98,13 +113,36 @@ select is((public.restore_schedule_item('67100000-0000-0000-0000-000000000001','
 select is((public.restore_notice('67200000-0000-0000-0000-000000000001','공지 재사용')->>'code'),'NOTICE_RESTORED','operations manager restores notice');
 select is((public.restore_staff_guidance('67300000-0000-0000-0000-000000000001','안내 재사용')->>'code'),'STAFF_GUIDANCE_RESTORED','operations manager restores guidance');
 
+select lives_ok(
+ $$select public.save_schedule_item(
+   '67100000-0000-0000-0000-000000000001','training','Issue150 복구 후 수정됨',now()+interval '1 day',now()+interval '2 days',false,
+   null,null,null,null,null,'복구 후 다시 수정 가능한 일정입니다.','company',null,null,null,'published','복구 후 일반 수정 확인',null,null,null,'none'
+ )$$,
+ 'ordinary schedule update is allowed again after restore'
+);
+
 select ok(
  public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)::text like '%schedule_archived%'
  and public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)::text like '%schedule_restored%',
  'operations manager target audit returns archive and restore history'
 );
 
+-- Official role simulation must narrow effective capabilities. While simulating
+-- promotion_staff, target-level business audit is denied; clearing simulation
+-- restores the actual operations-manager capability without changing role rows.
+select is((public.set_role_simulation_mode('promotion_staff')->>'code'),'ROLE_SIMULATION_SET','operations account enters official lower-role simulation');
+select throws_ok(
+ $$select public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)$$,
+ '42501','TARGET_AUDIT_FORBIDDEN','target audit is denied while operations account simulates promotion staff'
+);
+select is((public.set_role_simulation_mode('actual')->>'code'),'ROLE_SIMULATION_CLEARED','operations account exits role simulation');
+select lives_ok(
+ $$select public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)$$,
+ 'target audit works again after returning to actual operations authority'
+);
+
 reset role;
+select is((select title from public.schedule_items where id='67100000-0000-0000-0000-000000000001'),'Issue150 복구 후 수정됨','restored schedule persisted ordinary edit');
 select is((select status::text from public.schedule_items where id='67100000-0000-0000-0000-000000000001'),'published','schedule restores previous status');
 select is((select status::text from public.notices where id='67200000-0000-0000-0000-000000000001'),'published','notice restores previous status');
 select is((select status::text from public.staff_guidance_items where id='67300000-0000-0000-0000-000000000001'),'published','guidance restores previous status');
@@ -115,6 +153,12 @@ select set_config('request.jwt.claims','{"sub":"67000000-0000-0000-0000-00000000
 select throws_ok(
  $$select public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)$$,
  '42501','TARGET_AUDIT_FORBIDDEN','technical super-admin alone cannot read business target audit'
+);
+
+select set_config('request.jwt.claims','{"sub":"67000000-0000-0000-0000-000000000003","role":"authenticated"}',true);
+select throws_ok(
+ $$select public.get_target_audit_trail('schedule_item','67100000-0000-0000-0000-000000000001',100)$$,
+ '42501','TARGET_AUDIT_FORBIDDEN','ordinary lower role cannot read business target audit'
 );
 
 reset role;
