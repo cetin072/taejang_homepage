@@ -3,10 +3,11 @@
   "private": true,
   "description": "Local development tooling for the Taejang homepage and work platform.",
   "scripts": {
-    "test": "npm run test:platform-static && npm run test:public",
+    "test": "npm run test:platform-static && npm run test:public && npm run test:payroll",
     "test:platform-static": "node scripts/run-test-group.mjs platformStatic",
     "test:public": "node scripts/run-test-group.mjs publicHomepage",
-    "test:staging-safety": "node scripts/run-test-group.mjs stagingSafety"
+    "test:staging-safety": "node scripts/run-test-group.mjs stagingSafety",
+    "test:payroll": "node scripts/run-test-group.mjs payrollRegression"
   },
   "devDependencies": {
     "supabase": "^2.116.0"
