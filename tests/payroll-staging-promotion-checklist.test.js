@@ -45,7 +45,8 @@ test('main resync plan registers payroll into the current manifest-based test ru
   assert.match(resyncPlan, /npm run test:payroll/i);
   assert.match(resyncPlan, /include payroll in default `npm test` once(?: the branch is)? integrated/i);
   assert.match(resyncPlan, /Issue #149 attendance integrity/i);
-  assert.match(resyncPlan, /do not replace the accepted vendor\/fingerprint Excel import with mobile attendance automatically/i);
+  assert.match(resyncPlan, /accepted vendor\/fingerprint Excel import batches remain the payroll calculation source of truth/i);
+  assert.match(resyncPlan, /mobile attendance remains separate operational evidence/i);
 });
 
 test('staging checklist requires approved operator access and denies implicit super-admin payroll authority', () => {
