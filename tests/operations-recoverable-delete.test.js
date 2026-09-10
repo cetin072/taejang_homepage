@@ -29,7 +29,7 @@ test('operations recovery browser module parses, is loaded, and uses capability-
   assert.match(controls, /taejang-capabilities-ready/);
 });
 
-test('employee delete remains operations-only and recoverable', () => {
+test('employee delete remains operations-only and recoverable while Employee target history is available', () => {
   const fn = functionBlock(legacyMigration, 'archive_employee');
   assert.match(fn, /current_user_has_role\('operations_manager'\)/);
   assert.match(fn, /private_employee_is_protected/);
@@ -39,6 +39,8 @@ test('employee delete remains operations-only and recoverable', () => {
   assert.doesNotMatch(fn, /delete from public\.employees/i);
   assert.match(controls, /직원 삭제/);
   assert.match(controls, /archive_employee/);
+  assert.match(controls, /targetType: 'employee'/);
+  assert.match(controls, /data-ops-employee-tools/);
 });
 
 test('schedule notice and guidance delete aliases now enter recoverable archive instead of inactive-only legacy delete', () => {
@@ -85,7 +87,7 @@ test('normal manager lists stay clean while operations receives a dedicated arch
   assert.match(controls, /보관함/);
 });
 
-test('recovery UI requires confirmation and reason, supports restore, and exposes target history', () => {
+test('recovery UI requires confirmation and reason, supports restore, and exposes readable target history', () => {
   assert.match(controls, /async function archiveItem/);
   assert.match(controls, /async function restoreItem/);
   assert.match(controls, /window\.confirm/);
@@ -99,6 +101,10 @@ test('recovery UI requires confirmation and reason, supports restore, and expose
   assert.match(controls, /get_target_audit_trail/);
   assert.match(controls, /변경 이력/);
   assert.match(controls, /data-target-audit-panel/);
+  assert.match(controls, /formatAuditSnapshot/);
+  assert.match(controls, /metadata\?\.before/);
+  assert.match(controls, /metadata\?\.after/);
+  assert.match(controls, /변경: \$\{before \|\| '-'\} → \$\{after \|\| '-'\}/);
 });
 
 test('recovery observer avoids repeatedly reloading the archive section it just rendered', () => {
@@ -117,6 +123,10 @@ test('target audit is business-scoped and not the raw technical audit browser', 
   assert.match(fn, /actor_display_name/);
   assert.match(fn, /reason_summary/);
   assert.match(fn, /metadata/);
+  assert.match(fn, /'employee'/);
+  assert.match(fn, /'promotion_content'/);
+  assert.match(fn, /'homepage_change_request'/);
+  assert.match(fn, /'homepage_live_override'/);
   assert.doesNotMatch(fn, /audit\.system_raw_read/);
 });
 
