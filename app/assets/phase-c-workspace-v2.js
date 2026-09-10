@@ -39,6 +39,10 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyAllowed;
+  const canAny = (capabilities, legacyAllowed) => capabilities.some(capability => can(capability, legacyAllowed));
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let editingContentId = null;
@@ -278,7 +282,7 @@
     };
     try {
       formState.saveButtons.forEach(node => { node.disabled = true; });
-      const isOperations = route() === 'operations_manager';
+      const isOperations = can('promotion.edit_any_unpublished', route() === 'operations_manager');
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
       if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
@@ -682,16 +686,19 @@
     closeSidebar();
     currentMode = mode;
     const target = main();
-    if (!target || !PROMOTION_ROLES.has(route())) return;
+    if (!target || !canAny(['promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], PROMOTION_ROLES.has(route()))) return;
     target.hidden = false;
     target.classList.add('phase-c-v2');
     target.replaceChildren(el('p', '홍보 업무를 불러오고 있습니다.', 'message'));
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
-      if (mode === 'revision' && workspace.role === 'promotion_staff') return renderRevision(workspace);
-      if (mode === 'edit' && WRITE_ROLES.has(workspace.role)) return renderEdit(workspace);
-      if (mode === 'write' && WRITE_ROLES.has(workspace.role)) return renderWrite(workspace);
-      if (REVIEW_ROLES.has(workspace.role)) return renderReview(workspace);
+      const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
+      const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
+      const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
+      if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
+      if (mode === 'write' && canWrite) return renderWrite(workspace);
+      if (canReview) return renderReview(workspace);
       return renderWrite(workspace);
     } catch (error) {
       target.replaceChildren(el('p', app().friendlyError?.(error) || '홍보 업무를 불러오지 못했습니다.', 'message error'));
@@ -723,18 +730,18 @@
     [...nav.querySelectorAll('button')].forEach(node => {
       if (node.textContent.trim() === '신규 사업 기획') node.remove();
     });
-    if (currentRoute === 'promotion_staff') {
+    if (can('promotion.write', currentRoute === 'promotion_staff')) {
       const write = replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
       if (!nav.querySelector('[data-phase-c-v2-nav="revision"]')) {
         const revision = navButton('수정·보완 요청', () => openPromotion('revision'), 'revision');
         if (write) nav.insertBefore(revision, write); else nav.append(revision);
       }
     }
-    if (currentRoute === 'promotion_lead') {
+    if (can('promotion.review_lead', currentRoute === 'promotion_lead')) {
       replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
       replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
     }
-    if (currentRoute === 'operations_manager' || currentRoute === 'ceo') {
+    if (canAny(['promotion.review_operations', 'promotion.review_ceo'], currentRoute === 'operations_manager' || currentRoute === 'ceo')) {
       replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
     }
     if (['promotion_lead', 'operations_manager'].includes(currentRoute) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {

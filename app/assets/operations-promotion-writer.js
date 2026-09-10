@@ -3,6 +3,11 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyAllowed;
+  const isNotLegacyOperationsRoute = () => route() !== 'operations_manager';
+  const canWriteOperationsPromotion = () => can('promotion.edit_any_unpublished', !isNotLegacyOperationsRoute());
   const main = () => document.getElementById('dashboard-main');
   const el = (tag, text, className) => {
     const node = document.createElement(tag);
@@ -83,7 +88,7 @@
 
   async function openWriter(editingId = null) {
     const target = prepareWorkspace();
-    if (!target || route() !== 'operations_manager') return;
+    if (!target || !canWriteOperationsPromotion()) return;
     document.getElementById('desktop-page-title').textContent = '홍보 글 작성';
     target.replaceChildren(el('p', '작성 화면을 불러오고 있습니다.', 'message'));
 
@@ -212,7 +217,7 @@
   }
 
   function addNavigation() {
-    if (route() !== 'operations_manager') return;
+    if (!canWriteOperationsPromotion()) return;
     const nav = document.getElementById('app-nav');
     if (!nav || nav.querySelector('[data-operations-promotion-writer]')) return;
     const node = document.createElement('button');
