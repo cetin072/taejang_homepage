@@ -425,6 +425,13 @@ const reactivateForSecondAdmin = await rpc('change_account_status', admin.token,
 });
 equal(reactivateForSecondAdmin.data?.code, 'STATUS_CHANGED', 'worker is reactivated for two-admin test');
 
+const grantSecondAdminOperations = await rpc('set_profile_roles', admin.token, {
+  p_target_profile_id: worker.id,
+  p_role_codes: ['operations_manager'],
+  p_reason_summary: 'CI 두 번째 최고관리자 운영 역할 준비',
+});
+equal(grantSecondAdminOperations.data?.code, 'ROLES_CHANGED', 'the second highest-authority account keeps a separate operations-manager role');
+
 const grantSecondAdmin = await rpc('set_profile_super_admin_status', admin.token, {
   p_target_profile_id: worker.id,
   p_enabled: true,
