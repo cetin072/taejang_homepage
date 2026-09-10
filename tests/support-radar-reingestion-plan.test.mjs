@@ -61,10 +61,15 @@ test('reingestion plan separates new, unchanged and materially changed notices w
   const third = plan.actions.find(action => action.source_notice_id === 'PBLN_TEST_0003');
 
   assert.equal(first.action, 'touch_seen');
+  assert.equal(first.revision_kind, 'none');
   assert.equal(first.requires_re_evaluation, false);
+
   assert.equal(second.action, 'update_material_facts');
+  assert.equal(second.revision_kind, 'same_source_id_material_change');
   assert.equal(second.requires_re_evaluation, true);
+
   assert.equal(third.action, 'insert');
+  assert.equal(third.revision_kind, 'none');
   assert.equal(third.requires_re_evaluation, true);
 });
 
@@ -80,8 +85,24 @@ test('hash-basis changes are rebaseline operations rather than fake source edits
 
   assert.equal(plan.actions[0].action, 'rebaseline');
   assert.equal(plan.actions[0].delta_status, 'basis_changed');
+  assert.equal(plan.actions[0].revision_kind, 'hash_contract_change');
   assert.equal(plan.actions[0].requires_rebaseline, true);
   assert.equal(plan.actions[0].requires_re_evaluation, true);
+});
+
+test('different source notice IDs are not silently treated as a revision relationship', () => {
+  const baseline = makeBatch(fixture, '2026-09-10T08:00:00+09:00');
+  const newItem = structuredClone(baseline.items[0]);
+  newItem.occurrence.source_notice_id = 'PBLN_TEST_REPOST_0001';
+
+  const plan = planSupportRadarBatchDelta({
+    current_items: [newItem],
+    previous_items: baseline.items
+  });
+
+  assert.equal(plan.actions[0].action, 'insert');
+  assert.equal(plan.actions[0].delta_status, 'new');
+  assert.equal(plan.actions[0].revision_kind, 'none');
 });
 
 test('reingestion plan rejects duplicate ledger snapshots instead of choosing one silently', () => {
@@ -117,4 +138,36 @@ test('pagination cursor is conservative when total count is absent', () => {
   assert.equal(shortPage.next_page_index, null);
 
   assert.match(SUPPORT_RADAR_DELTA_CONTRACT.principles.join(' '), /database mutation/);
+});
+
+test('pagination stops automatic continuation when total count contradicts page shape', () => {
+  const prematureShortPage = buildSupportRadarPageCursor({
+    page_index: 1,
+    page_unit: 20,
+    item_count: 7,
+    reported_total_count: 41
+  });
+  assert.equal(prematureShortPage.state, 'inconsistent');
+  assert.equal(prematureShortPage.has_more, null);
+  assert.equal(prematureShortPage.next_page_index, null);
+
+  const overflow = buildSupportRadarPageCursor({
+    page_index: 3,
+    page_unit: 20,
+    item_count: 2,
+    reported_total_count: 41
+  });
+  assert.equal(overflow.state, 'inconsistent');
+  assert.equal(overflow.next_page_index, null);
+
+  const validFinalPage = buildSupportRadarPageCursor({
+    page_index: 3,
+    page_unit: 20,
+    item_count: 1,
+    reported_total_count: 41
+  });
+  assert.equal(validFinalPage.state, 'complete');
+  assert.equal(validFinalPage.has_more, false);
+
+  assert.deepEqual(SUPPORT_RADAR_DELTA_CONTRACT.cursor_states, ['more', 'complete', 'unknown', 'inconsistent']);
 });
