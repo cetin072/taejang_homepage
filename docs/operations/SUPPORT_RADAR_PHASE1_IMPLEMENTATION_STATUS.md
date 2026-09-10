@@ -2,7 +2,8 @@
 
 기준 Issue: #161, #167, #169  
 구현 PR: #168  
-상태: **Phase 1 MVP 구현·자동검수 진행 중 / Production 미적용**
+기준일: 2026-09-11  
+상태: **Phase 1 MVP 기능·자동검수 완료 / 브라우저 Preview 사람 UX 검수 대기 / Production 미적용**
 
 ## 1. 구현 완료
 
@@ -18,6 +19,7 @@
 - 버전형 snapshot 저장
 - 운영총괄 수정 / 대표이사 조회
 - 과거 평가가 당시 profile version을 계속 참조
+- 프로필 변경 후 기존 평가 재평가 필요 표시
 
 ### 공고·정보원
 - Source Registry
@@ -58,21 +60,49 @@
 - trigger-only가 아니라 현재 태장 관련성으로 2차 필터
 - 누적 KPI: 적격후보, 신청, 선정, 지원금, 현물가치, 놓친 중요공고, 중요 미검토, 발견→첫 검토시간
 
-### 검수 기반
-- Support Radar 정적 회귀테스트를 `platformStatic` 필수 그룹에 등록
-- pgTAP DB contract tests
-- Golden Set v1 24건
-- 중복/권한/알림/담당자/검토/KPI/Source catalog 테스트
+## 2. 자동검수 완료
 
-## 2. 현재 검증 중
+PR #168의 2026-09-11 검증 기준:
+- 최신 `main` 공통 플랫폼 변경을 force 없이 반영
+- Public Homepage Checks #564: SUCCESS
+- Phase 1A Supabase Integration #775: SUCCESS
+- Netlify Deploy Preview: ready
 
-- 최신 전체 migration clean reset
+통과 항목:
+- active static platform checks
+- staging safety checks
+- isolated local Supabase start
+- 전체 migration clean reset/reapply
 - DB lint
-- pgTAP
-- 실제 Auth/Data API 통합 회귀
-- PR #168 전체 CI
+- pgTAP DB/RLS/security tests
+- 기존 실제 Auth/Data API 통합 회귀
+- Support Radar 전용 실제 Auth/RLS/Data API 통합 회귀
 
-CI가 실패하면 Ready/merge로 가지 않고 같은 Draft PR에서 수정한다.
+### Support Radar 실제 Auth/RLS 통합검사
+
+파일: `tests/support-radar-auth-integration.mjs`
+
+local Supabase에서 실제 signup/access token과 Data API/RPC/RLS를 사용해 다음을 검증한다.
+- 운영총괄이 기업 프로필을 생성·수정할 수 있음
+- 기업 프로필 수정은 overwrite가 아니라 새 version을 생성함
+- 두 번째 저장에서 version이 +1 증가함
+- 프로필 변경 후 과거 평가가 stale/re-evaluation 대상으로 표시됨
+- 최신 profile version으로 재평가 가능
+- 운영총괄이 Source와 수동 공고를 생성할 수 있음
+- deterministic Rule Engine v1을 실행할 수 있음
+- 운영총괄만 최종 apply/hold/exclude 판단을 수행함
+- apply 결정 시 application workflow가 생성됨
+- 운영총괄이 담당자를 배정할 수 있음
+- 배정 전 일반 직원은 공고를 볼 수 없음
+- 배정 후 담당자는 자기 공고만 볼 수 있음
+- 다른 미배정 직원은 RPC와 direct table RLS 모두에서 해당 공고를 볼 수 없음
+- 배정 담당자는 application 진행상태를 변경할 수 있음
+- 미배정 직원은 진행상태를 변경할 수 없음
+- 대표이사는 기업 프로필/대시보드/공고를 조회할 수 있음
+- 대표이사는 기업 프로필·최종결정·진행상태 mutation을 할 수 없음
+- 기업 프로필/Source/공고/평가/결정/배정/진행상태 변경이 Audit ledger에 기록됨
+
+따라서 기능·DB·권한 경계에서 현재 확인된 Phase 1 blocker는 없다.
 
 ## 3. Phase 1에서 의도적으로 하지 않음
 
@@ -89,15 +119,39 @@ CI가 실패하면 Ready/merge로 가지 않고 같은 Draft PR에서 수정한�
 
 위 항목은 Source 계약·비용·보안·사용자 승인 게이트에 따라 Phase 2/3에서 진행한다.
 
-## 4. Production 전 반드시 남아 있는 검수
+## 4. 이제 남은 사람 Preview 검수
 
-1. PR #168 최신 CI 전체 성공
-2. Deploy Preview에서 운영총괄 계정으로 기업 프로필 저장/버전 증가 확인
-3. 수동 공고 등록 → 중복 확인 → Rule 평가 → 신청결정 → 담당자 배정 확인
-4. 담당자 계정에서 `내 지원사업`만 보이는지 확인
-5. 담당자 진행상태 변경 후 운영총괄 화면 반영 확인
-6. 대표이사 read-only 범위 확인
-7. 주간보고·긴급확인·KPI 표시 확인
-8. 모바일 화면 가독성 확인
-9. Production DB 적용 계획 별도 검토 및 사용자 승인
-10. 사용자 승인 전 Draft 해제/main merge/Production 배포 금지
+자동화로 검증 가능한 핵심 저장·권한·RLS·Audit은 완료했다. 남은 검수는 브라우저 실제 사용성과 모바일 UX다.
+
+1. 운영총괄 계정으로 `/app/` 진입 후 지원사업 레이더 메뉴가 정상 노출되는지
+2. 기업 프로필에 1~2클릭으로 진입되는지
+3. 기업 프로필 수정 폼, 저장 전 변경요약, 저장 성공 안내, 새 버전 표시가 자연스러운지
+4. 수동 공고 등록 → 상세 → Rule 평가 → 신청/보류/제외 → 담당자 배정 화면 흐름이 끊기지 않는지
+5. 담당자 계정에서 `내 지원사업` 메뉴와 배정된 공고만 정상 노출되는지
+6. 담당자가 진행상태와 다음 행동을 모바일에서도 편하게 저장할 수 있는지
+7. 대표이사 계정에서 read-only UX가 명확한지
+8. 주간보고·긴급확인·KPI 화면이 실제 데이터와 함께 읽기 쉬운지
+9. Android 모바일에서 스크롤·입력·버튼·카드 배치가 업무 사용에 지장이 없는지
+
+사람 검수에서는 다음만 MVP blocker로 수정한다.
+- 화면 진입 불가
+- 저장 불가
+- 권한 오류
+- 핵심 흐름 단절
+- 잘못된 데이터 저장/표시
+- 모바일에서 실제 사용이 곤란한 수준의 문제
+
+미세 디자인, 추가 통계, 자동화 확장, AI 고도화는 Phase 1 MVP 확정을 막지 않는다.
+
+## 5. 승인 게이트
+
+사용자 명시 승인 전 다음은 금지한다.
+- Draft 해제 / Ready for review
+- `main` merge
+- Production Netlify 배포
+- Production Supabase 적용
+- 외부 API key 발급 또는 비용 발생
+- 유료 AI/API 도입
+- 파괴적 DB 변경
+
+사람 Preview 검수 완료 후 blocker가 없거나 수정·재검증이 끝난 시점에만 MVP v0.1 확정 및 다음 승인 게이트를 검토한다.
