@@ -7,47 +7,71 @@ const root = path.join(__dirname, '..');
 const roleUi = fs.readFileSync(path.join(root, 'app', 'assets', 'phase-c-role-simulation.js'), 'utf8');
 const refinementsCss = fs.readFileSync(path.join(root, 'app', 'assets', 'phase-c-ui-refinements.css'), 'utf8');
 const previewPage = fs.readFileSync(path.join(root, 'app', 'qa-account-preview.html'), 'utf8');
+const capabilityAccess = fs.readFileSync(path.join(root, 'app', 'assets', 'capability-access.js'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase', 'functions', 'qa-account-preview', 'index.ts'), 'utf8');
 const supabaseConfig = fs.readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app', 'assets', 'app.js'), 'utf8');
 const stagingDeploy = fs.readFileSync(path.join(root, '.github', 'workflows', 'qa-account-preview-staging-deploy.yml'), 'utf8');
 
-test('operations QA switcher exposes real-account preview separately from role simulation', () => {
-  assert.match(roleUi, /실제 계정 검수/);
-  assert.match(roleUi, /qa-account-preview/);
-  assert.match(roleUi, /action:\s*'list'/);
-  assert.match(previewPage, /action:\s*'create'/);
-  assert.match(roleUi, /새 탭/);
-  assert.match(appSource, /getSession:\s*\(\)\s*=>\s*state\.session/);
-  assert.match(roleUi, /TaejangCapabilityAccess\?\.refresh/);
-  assert.match(roleUi, /X-QA-Context-Profile-ID/);
-  assert.match(roleUi, /X-QA-Access-Profile-ID/);
-  assert.match(roleUi, /X-QA-JWT-Subject/);
-  assert.match(roleUi, /QA_IDENTITY_MISMATCH/);
-  assert.match(roleUi, /역할만 바꾸며 실제 사용자 계정의 배정 데이터까지 바꾸지는 않습니다/);
+test('employee screen experience unifies real accounts and role presets behind one launcher', () => {
+  assert.match(roleUi, /직원 화면 체험/);
+  assert.match(roleUi, /👤 내 계정 ▾/);
+  assert.match(roleUi, /으로 보는 중 ▾/);
+  assert.match(roleUi, /체험 가능한 직원/);
+  assert.match(roleUi, /역할 미리보기/);
+  assert.match(roleUi, /실제 로그인 가능한 직원은 그 직원이 실제로 보는 화면/);
+  assert.match(roleUi, /data\.personaLauncher/);
+  assert.match(roleUi, /data\.personaKind/);
+  assert.doesNotMatch(roleUi, /홍보직원 보기|운영팀장 보기|운영총괄 복귀|실제 계정 검수|권한 체험 중/);
 });
 
-test('mobile account switching stays visible and uses large touch targets', () => {
+test('effective persona route follows effective roles while preserving the actual login route', () => {
+  assert.match(capabilityAccess, /app\.getActualRoute/);
+  assert.match(capabilityAccess, /app\.getEffectiveRoles/);
+  assert.match(capabilityAccess, /TaejangAuthRouting\?\.resolveRoleRoute/);
+  assert.match(capabilityAccess, /app\.getEffectiveRoute\s*=\s*\(\)\s*=>\s*effectiveRoute\(app\)/);
+  assert.match(capabilityAccess, /app\.getRoute\s*=\s*\(\)\s*=>\s*effectiveRoute\(app\)/);
+  assert.match(capabilityAccess, /app\.getPersona/);
+  assert.match(capabilityAccess, /kind:\s*accessContext\?\.role_simulation\?\.active\s*\?\s*'role_preset'\s*:\s*'account'/);
+  assert.match(appSource, /getRoute:\s*\(\)\s*=>\s*state\.route\?\.code/);
+});
+
+test('actual employee account is preferred and role preset is only fallback when that role has no account', () => {
+  assert.match(roleUi, /const PRESET_ROLES = \['promotion_staff', 'promotion_lead'\]/);
+  assert.match(roleUi, /actualRoleCodes\s*=\s*new Set/);
+  assert.match(roleUi, /PRESET_ROLES\.filter\(roleCode => !actualRoleCodes\.has\(roleCode\)\)/);
+  assert.match(roleUi, /employeeGroup\.label = '체험 가능한 직원'/);
+  assert.match(roleUi, /presetGroup\.label = '역할 미리보기'/);
+});
+
+test('role preset banner is plain-language and offers a direct return to my account', () => {
+  assert.match(roleUi, /역할 미리보기 중/);
+  assert.match(roleUi, /실제 직원 계정이 아닌 테스트용 역할 화면입니다/);
+  assert.match(roleUi, /내 계정으로 돌아가기/);
+  assert.match(roleUi, /data\.personaReturn/);
+});
+
+test('mobile employee screen experience stays visible with one large touch target', () => {
   assert.match(refinementsCss, /@media \(max-width: 900px\)[\s\S]*\.role-simulation-switcher/);
-  assert.match(refinementsCss, /content:\s*'계정 전환'/);
-  assert.match(refinementsCss, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
-  assert.match(refinementsCss, /min-height:\s*54px\s*!important/);
+  assert.match(refinementsCss, /\.role-simulation-switcher \.button[\s\S]*min-height:\s*56px\s*!important/);
   assert.match(refinementsCss, /safe-area-inset-bottom/);
-  assert.match(refinementsCss, /\[data-qa-account-preview-button\][\s\S]*background:\s*#236d4b\s*!important/);
+  assert.match(refinementsCss, /background:\s*#236d4b\s*!important/);
   assert.match(refinementsCss, /\.qa-account-dialog__actions[\s\S]*grid-template-columns:\s*1fr\s*!important/);
-  assert.match(refinementsCss, /\[data-qa-account-open\]\s*\{\s*order:\s*-1;/);
+  assert.match(refinementsCss, /\[data-persona-open\]\s*\{\s*order:\s*-1;/);
+  assert.doesNotMatch(refinementsCss, /content:\s*'계정 전환'/);
 });
 
-test('mobile real-account QA keeps return controls in the persistent top bar', () => {
-  assert.match(previewPage, /운영총괄로 돌아가기/);
+test('employee experience tab keeps return controls in the persistent top bar without developer jargon', () => {
+  assert.match(previewPage, /직원 화면 체험 준비 중/);
+  assert.match(previewPage, /내 계정으로 돌아가기/);
+  assert.match(previewPage, /선택한 직원이 실제로 보는 화면과 권한 범위로 동작합니다/);
   assert.match(previewPage, /@media \(max-width: 720px\)[\s\S]*\.qa-actions\s*\{[\s\S]*width:\s*100%/);
-  assert.match(previewPage, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1\.35fr\)/);
   assert.match(previewPage, /\.qa-actions button\s*\{[\s\S]*min-height:\s*52px/);
   assert.match(previewPage, /#qa-close\s*\{[\s\S]*background:\s*#174f38/);
-  assert.doesNotMatch(previewPage, /qa-mobile-actions/);
+  assert.doesNotMatch(previewPage, /실제 계정 검수|운영총괄로 돌아가기|실제 Auth 세션|실제 RLS/);
 });
 
-test('QA preview page creates an isolated tab session and then loads the real app', () => {
+test('employee preview page creates an isolated tab session and then loads the real app', () => {
   assert.match(previewPage, /taejang-staff-session-v1/);
   assert.match(previewPage, /sessionStorage\.setItem\(SESSION_KEY/);
   assert.doesNotMatch(previewPage, /localStorage/);
@@ -59,10 +83,9 @@ test('QA preview page creates an isolated tab session and then loads the real ap
   assert.match(previewPage, /window\.addEventListener\('pagehide'/);
   assert.match(previewPage, /deploy-preview-/);
   assert.match(previewPage, /QA_STAGING_ONLY/);
-  assert.match(previewPage, /Production에서는 사용하지 않습니다/);
 });
 
-test('successful QA preview always removes the loading overlay on mobile', () => {
+test('successful employee preview always removes the loading overlay on mobile', () => {
   assert.match(previewPage, /\.qa-state\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
   assert.match(previewPage, /state\.hidden\s*=\s*true;/);
   assert.match(previewPage, /state\.style\.display\s*=\s*'none';/);
@@ -70,9 +93,10 @@ test('successful QA preview always removes the loading overlay on mobile', () =>
   assert.match(previewPage, /state\.style\.display\s*=\s*'grid';/);
 });
 
-test('mobile QA handoff finishes inside the newly opened preview tab without parent-tab create race', () => {
+test('employee preview handoff remains isolated and does not replace the operator browser session', () => {
   assert.match(roleUi, /QA_HANDOFF_KEY/);
   assert.match(roleUi, /sessionStorage\.setItem\(QA_HANDOFF_KEY/);
+  assert.match(roleUi, /window\.open\('about:blank', '_blank'\)/);
   assert.match(roleUi, /qa-account-preview\.html#waiting=1/);
   assert.doesNotMatch(roleUi, /qaRequest\(\{\s*action:\s*'create'/);
   assert.match(previewPage, /QA_HANDOFF_KEY/);
@@ -84,6 +108,25 @@ test('mobile QA handoff finishes inside the newly opened preview tab without par
   assert.match(previewPage, /sessionStorage\.removeItem\(SESSION_KEY\)/);
   assert.match(previewPage, /showTargetSession/);
   assert.match(previewPage, /window\.opener = null/);
+});
+
+test('switching from a role preset to a real employee clears the preset before target session creation', () => {
+  const handoff = roleUi.indexOf('sessionStorage.setItem(QA_HANDOFF_KEY');
+  const blankTab = roleUi.indexOf("window.open('about:blank', '_blank')");
+  const clearPreset = roleUi.indexOf("app().rpc('set_role_simulation_mode', { p_role_code: null })", blankTab);
+  const navigate = roleUi.indexOf("previewTab.location.replace('/app/qa-account-preview.html#waiting=1')", clearPreset);
+  assert.ok(handoff >= 0 && blankTab > handoff);
+  assert.ok(clearPreset > blankTab);
+  assert.ok(navigate > clearPreset);
+  assert.match(roleUi, /TaejangCapabilityAccess\?\.refresh/);
+});
+
+test('actual account list is cached briefly so switching among personas stays usable after preset reload', () => {
+  assert.match(roleUi, /QA_ACCOUNT_CACHE_KEY/);
+  assert.match(roleUi, /QA_ACCOUNT_CACHE_TTL_MS = 10 \* 60 \* 1000/);
+  assert.match(roleUi, /sessionStorage\.setItem\(QA_ACCOUNT_CACHE_KEY/);
+  assert.match(roleUi, /preloadQaAccounts/);
+  assert.match(roleUi, /if \(!currentSimulation\.active\) preloadQaAccounts\(\)/);
 });
 
 test('QA edge function is hard-locked to staging and requires the integrated top-authority account', () => {
