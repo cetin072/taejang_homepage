@@ -94,11 +94,16 @@ async function authorizeTopAuthority(admin: any, supabaseUrl: string, publicKey:
   return { user, profile: accessContext, codes, userClient };
 }
 
+async function loadAccountManagement(userClient: any) {
+  const { data: management, error: managementError } = await userClient.rpc('get_operations_account_management');
+  if (managementError) throw qaFailure('account_management', managementError);
+  return management || {};
+}
+
 async function listAccounts(admin: any, userClient: any) {
   // Reuse the capability-gated account-management contract instead of
   // duplicating raw profile/role table reads in the Edge function.
-  const { data: management, error: managementError } = await userClient.rpc('get_operations_account_management');
-  if (managementError) throw qaFailure('account_management', managementError);
+  const management = await loadAccountManagement(userClient);
 
   const profileRows = (management?.profiles || []).filter((profile: any) => profile.account_status === 'active');
   const departments = management?.departments || [];
@@ -133,17 +138,13 @@ async function listAccounts(admin: any, userClient: any) {
   });
 }
 
-async function createPreviewToken(admin: any, targetProfileId: unknown) {
+async function createPreviewToken(admin: any, userClient: any, targetProfileId: unknown) {
   if (typeof targetProfileId !== 'string' || !/^[0-9a-f-]{36}$/i.test(targetProfileId)) {
     return { error: 'INVALID_TARGET_PROFILE', status: 400 };
   }
 
-  const { data: targetProfile, error: profileError } = await admin
-    .from('profiles')
-    .select('id, display_name, account_status')
-    .eq('id', targetProfileId)
-    .maybeSingle();
-  if (profileError) throw profileError;
+  const management = await loadAccountManagement(userClient);
+  const targetProfile = (management?.profiles || []).find((profile: any) => profile.id === targetProfileId);
   if (!targetProfile || targetProfile.account_status !== 'active') {
     return { error: 'TARGET_NOT_ACTIVE', status: 400 };
   }
@@ -212,7 +213,7 @@ Deno.serve(async (req: Request) => {
     }
 
     if (body?.action === 'create') {
-      const result = await createPreviewToken(admin, body.target_profile_id);
+      const result = await createPreviewToken(admin, authorization.userClient, body.target_profile_id);
       if (result.error) return reply(result.status, { error: result.error }, origin);
       console.info('qa_account_preview_created', { actor_id: authorization.user.id, target_profile_id: result.target.id });
       return reply(200, result, origin);

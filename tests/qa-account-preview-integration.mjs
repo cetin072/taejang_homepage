@@ -174,7 +174,7 @@ equal(list.data?.qa_contract_version, 2, 'hosted contract version is explicit');
 check(list.data?.accounts?.some(account => account.id === target.id && account.previewable), 'target employee is included and previewable');
 
 const create = await qa('create', operator, { target_profile_id: target.id });
-equal(create.status, 200, 'top-authority create succeeds');
+equal(create.status, 200, `top-authority create succeeds: ${JSON.stringify(create.data)}`);
 check(create.data?.token_hash, 'create returns a token hash');
 check(!/password/i.test(JSON.stringify(create.data)), 'create response contains no password material');
 

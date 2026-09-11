@@ -64,6 +64,7 @@ test('QA account listing reuses the capability-gated account management contract
   assert.match(edge, /management\?\.positions/);
   assert.match(edge, /management\?\.roles/);
   assert.doesNotMatch(edge, /select\('id, display_name, account_status, department_id, position_id'\)/);
+  assert.doesNotMatch(edge, /admin\s*\.from\('profiles'\)/);
   assert.doesNotMatch(edge, /role:roles!inner/);
   assert.doesNotMatch(edge, /department:departments/);
   assert.doesNotMatch(edge, /position:positions/);
