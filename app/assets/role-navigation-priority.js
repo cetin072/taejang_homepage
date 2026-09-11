@@ -7,7 +7,7 @@
     ],
     promotion_lead: [
       '대시보드',
-      '홍보 검토', '홍보 작성', '홍보 글 관리',
+      '홍보 관리', '홍보 작성',
       '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
       '공지 관리', '상시 안내 관리',
       '홈페이지 내용 관리',
@@ -53,7 +53,7 @@
       { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
     ],
     promotion_lead: [
-      { label: '홍보', items: ['홍보 검토', '홍보 작성', '홍보 글 관리'] },
+      { label: '홍보', items: ['홍보 관리', '홍보 작성'] },
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
       { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] },
       { label: '홈페이지', items: ['홈페이지 내용 관리'] },
@@ -96,11 +96,29 @@
   const route = () => window.TaejangApp?.getRoute?.();
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
 
-  function normalizeLabel(node) {
+  function normalizeLabel(node, role) {
     if (node.dataset?.navSection === 'official_channels') return;
     const current = cleanLabel(node);
+    if (role === 'promotion_lead' && current === '홍보 검토') {
+      node.textContent = '홍보 관리';
+      return;
+    }
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
+  }
+
+  function syncMergedVisibility(node, role) {
+    if (node.dataset?.navSection === 'official_channels') return;
+    const shouldHide = role === 'promotion_lead' && (
+      node.dataset?.issue146Nav === 'promotion-archive' || cleanLabel(node) === '홍보 글 관리'
+    );
+    if (shouldHide) {
+      node.hidden = true;
+      node.dataset.navPriorityMergedHidden = '1';
+    } else if (node.dataset.navPriorityMergedHidden) {
+      node.hidden = false;
+      delete node.dataset.navPriorityMergedHidden;
+    }
   }
 
   function priority(node, role) {
@@ -134,7 +152,7 @@
     const sections = ROLE_SECTIONS[role] || [];
     sections.forEach(section => {
       const first = section.items
-        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && cleanLabel(node) === label))
+        .map(label => nodes.find(node => !node.hidden && node.dataset?.navSection !== 'official_channels' && cleanLabel(node) === label))
         .find(Boolean);
       if (!first) return;
       first.classList.add('app-nav-section-start');
@@ -168,7 +186,8 @@
     try {
       const children = [...nav.children];
       children.forEach(node => {
-        normalizeLabel(node);
+        normalizeLabel(node, currentRole);
+        syncMergedVisibility(node, currentRole);
         if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
         markStatus(node);
       });
