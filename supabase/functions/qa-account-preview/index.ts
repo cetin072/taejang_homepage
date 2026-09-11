@@ -65,6 +65,9 @@ async function loadRoleCodes(admin: any, profileId: string) {
 }
 
 async function authorizeTopAuthority(admin: any, token: string) {
+  // Gateway JWT verification is intentionally disabled for this staging-only
+  // function. The bearer token is verified against Supabase Auth here instead,
+  // then the real active profile must hold both top-authority roles.
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   const user = authData?.user;
   if (authError || !user) return { error: 'UNAUTHENTICATED', status: 401 };
