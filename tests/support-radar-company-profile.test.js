@@ -44,6 +44,7 @@ function expectContains(source, fragment, message) {
   'support_get_company_profile'
 ].forEach(fragment => expectContains(polish, fragment));
 
+expectContains(polish, 'mutation.target === panel || panel.contains(mutation.target)', 'Profile change-summary observer must ignore mutations caused by its own summary panel to prevent an infinite UI loop.');
 expectContains(appUi, "['assets/support-radar-profile-polish.js', 'support-radar-profile-polish']", 'Company profile polish module must be loaded by the app feature loader.');
 
 if (/grant\s+(insert|update|delete|all)\s+on\s+public\.support_company_/i.test(migration)) {
