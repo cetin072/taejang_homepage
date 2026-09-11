@@ -38,13 +38,13 @@ test('mobile account switching stays visible and uses large touch targets', () =
   assert.match(refinementsCss, /\[data-qa-account-open\]\s*\{\s*order:\s*-1;/);
 });
 
-test('mobile real-account QA keeps return controls reachable above browser chrome', () => {
-  assert.match(previewPage, /class="qa-mobile-actions"/);
+test('mobile real-account QA keeps return controls in the persistent top bar', () => {
   assert.match(previewPage, /운영총괄로 돌아가기/);
-  assert.match(previewPage, /bottom:\s*calc\(12px \+ env\(safe-area-inset-bottom\)\)/);
-  assert.match(previewPage, /min-height:\s*56px/);
-  assert.match(previewPage, /mobileActions\.hidden\s*=\s*false/);
-  assert.match(previewPage, /mobileReturn\.addEventListener\('click', closePreview\)/);
+  assert.match(previewPage, /@media \(max-width: 720px\)[\s\S]*\.qa-actions\s*\{[\s\S]*width:\s*100%/);
+  assert.match(previewPage, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1\.35fr\)/);
+  assert.match(previewPage, /\.qa-actions button\s*\{[\s\S]*min-height:\s*52px/);
+  assert.match(previewPage, /#qa-close\s*\{[\s\S]*background:\s*#174f38/);
+  assert.doesNotMatch(previewPage, /qa-mobile-actions/);
 });
 
 test('QA preview page creates an isolated tab session and then loads the real app', () => {
