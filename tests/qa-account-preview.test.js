@@ -41,6 +41,14 @@ test('QA preview page creates an isolated tab session and then loads the real ap
   assert.match(previewPage, /Production에서는 사용하지 않습니다/);
 });
 
+test('successful QA preview always removes the loading overlay on mobile', () => {
+  assert.match(previewPage, /\.qa-state\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+  assert.match(previewPage, /state\.hidden\s*=\s*true;/);
+  assert.match(previewPage, /state\.style\.display\s*=\s*'none';/);
+  assert.match(previewPage, /state\.hidden\s*=\s*false;/);
+  assert.match(previewPage, /state\.style\.display\s*=\s*'grid';/);
+});
+
 test('mobile QA handoff finishes inside the newly opened preview tab without parent-tab create race', () => {
   assert.match(roleUi, /QA_HANDOFF_KEY/);
   assert.match(roleUi, /sessionStorage\.setItem\(QA_HANDOFF_KEY/);
