@@ -2,11 +2,15 @@
   'use strict';
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
+  const APP_SESSION_KEY = 'taejang-staff-session-v1';
+  const QA_FUNCTION = 'qa-account-preview';
   const LABELS = {
     promotion_staff: '홍보직원',
     promotion_lead: '운영팀장'
   };
   let switching = false;
+  let qaAccounts = null;
+  let qaLoading = false;
 
   const app = () => window.TaejangApp;
   const context = () => app()?.getContext?.();
@@ -45,6 +49,27 @@
         text-align: center;
       }
       .role-simulation-banner strong { color: #7a2f00; }
+      .qa-account-dialog {
+        width: min(620px, calc(100vw - 28px));
+        border: 0;
+        border-radius: 18px;
+        padding: 0;
+        box-shadow: 0 24px 70px rgba(0,0,0,.24);
+      }
+      .qa-account-dialog::backdrop { background: rgba(15, 23, 42, .46); }
+      .qa-account-dialog__body { padding: 22px; display: grid; gap: 14px; }
+      .qa-account-dialog__body h2 { margin: 0; font-size: 1.2rem; }
+      .qa-account-dialog__body p { margin: 0; color: #52605a; line-height: 1.55; }
+      .qa-account-dialog__body select {
+        width: 100%;
+        min-height: 46px;
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #fff;
+      }
+      .qa-account-dialog__actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+      .qa-account-dialog__status { min-height: 1.4em; font-weight: 700; color: #7a2f00 !important; }
       @media (max-width: 900px) {
         .role-simulation-switcher {
           position: fixed;
@@ -53,10 +78,11 @@
           bottom: 10px;
           z-index: 50;
           justify-content: center;
+          flex-wrap: wrap;
           box-shadow: 0 8px 28px rgba(0,0,0,.16);
         }
-        .role-simulation-switcher .button { flex: 1 1 0; }
-        body:has(.role-simulation-switcher) { padding-bottom: 72px; }
+        .role-simulation-switcher .button { flex: 1 1 42%; }
+        body:has(.role-simulation-switcher) { padding-bottom: 116px; }
       }
     `;
     document.head.append(style);
@@ -72,7 +98,7 @@
     banner.className = 'role-simulation-banner';
     banner.dataset.roleSimulationBanner = '1';
     const label = LABELS[simulation.role_code] || simulation.role_code;
-    banner.append('권한 체험 중: ', Object.assign(document.createElement('strong'), { textContent: label }), ' · 이 화면에서는 해당 역할의 서버 권한만 행사됩니다.');
+    banner.append('권한 체험 중: ', Object.assign(document.createElement('strong'), { textContent: label }), ' · 이 기능은 역할만 바꾸며 실제 사용자 계정의 배정 데이터까지 바꾸지는 않습니다.');
     const topbar = workspace.querySelector('.app-topbar');
     if (topbar?.nextSibling) workspace.insertBefore(banner, topbar.nextSibling);
     else workspace.append(banner);
@@ -105,6 +131,172 @@
     return button;
   }
 
+  function readSession() {
+    try {
+      return JSON.parse(sessionStorage.getItem(APP_SESSION_KEY) || 'null');
+    } catch {
+      return null;
+    }
+  }
+
+  async function loadConfig() {
+    const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
+    if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
+    const config = await response.json();
+    if (!config.url || !config.publishableKey) throw new Error('CONFIG_INCOMPLETE');
+    return config;
+  }
+
+  async function qaRequest(payload) {
+    const [config, session] = await Promise.all([loadConfig(), Promise.resolve(readSession())]);
+    if (!session?.access_token) throw new Error('QA_SESSION_MISSING');
+    const response = await fetch(`${config.url}/functions/v1/${QA_FUNCTION}`, {
+      method: 'POST',
+      headers: {
+        apikey: config.publishableKey,
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || `QA_PREVIEW_${response.status}`);
+    return data;
+  }
+
+  function accountLabel(account) {
+    const roleNames = (account.roles || []).map(role => role.name || role.code).filter(Boolean);
+    const meta = [account.department_name, account.position_name, roleNames.join('·')].filter(Boolean).join(' / ');
+    return meta ? `${account.display_name} — ${meta}` : account.display_name;
+  }
+
+  function ensureQaDialog() {
+    let dialog = document.querySelector('[data-qa-account-dialog]');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('dialog');
+    dialog.className = 'qa-account-dialog';
+    dialog.dataset.qaAccountDialog = '1';
+
+    const body = document.createElement('div');
+    body.className = 'qa-account-dialog__body';
+    const heading = document.createElement('h2');
+    heading.textContent = '실제 계정 검수';
+    const copy = document.createElement('p');
+    copy.textContent = '선택한 직원의 실제 Auth 세션과 실제 RLS로 새 탭을 엽니다. 운영총괄 원래 탭은 그대로 유지됩니다. Staging/Deploy Preview 검수용 기능입니다.';
+    const select = document.createElement('select');
+    select.dataset.qaAccountSelect = '1';
+    select.setAttribute('aria-label', '검수할 실제 사용자 계정');
+    const status = document.createElement('p');
+    status.className = 'qa-account-dialog__status';
+    status.dataset.qaAccountStatus = '1';
+    const actions = document.createElement('div');
+    actions.className = 'qa-account-dialog__actions';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'button button-quiet';
+    cancel.textContent = '닫기';
+    cancel.addEventListener('click', () => dialog.close());
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'button';
+    open.textContent = '선택 계정 새 탭으로 열기';
+    open.dataset.qaAccountOpen = '1';
+    open.addEventListener('click', startQaPreview);
+    actions.append(cancel, open);
+    body.append(heading, copy, select, status, actions);
+    dialog.append(body);
+    document.body.append(dialog);
+    return dialog;
+  }
+
+  function fillQaAccounts(dialog, accounts) {
+    const select = dialog.querySelector('[data-qa-account-select]');
+    select.replaceChildren();
+    for (const account of accounts) {
+      const option = document.createElement('option');
+      option.value = account.id;
+      option.textContent = account.previewable ? accountLabel(account) : `${accountLabel(account)} · 로그인 계정 없음`;
+      option.disabled = !account.previewable;
+      option.dataset.displayName = account.display_name || '';
+      select.append(option);
+    }
+    const first = [...select.options].find(option => !option.disabled);
+    if (first) select.value = first.value;
+  }
+
+  async function openQaDialog() {
+    if (qaLoading) return;
+    qaLoading = true;
+    const dialog = ensureQaDialog();
+    const status = dialog.querySelector('[data-qa-account-status]');
+    const open = dialog.querySelector('[data-qa-account-open]');
+    status.textContent = '계정 목록을 불러오고 있습니다.';
+    open.disabled = true;
+    if (!dialog.open) dialog.showModal();
+    try {
+      if (!qaAccounts) {
+        const result = await qaRequest({ action: 'list' });
+        qaAccounts = Array.isArray(result.accounts) ? result.accounts : [];
+      }
+      fillQaAccounts(dialog, qaAccounts);
+      const available = qaAccounts.filter(account => account.previewable).length;
+      status.textContent = available ? `검수 가능한 실제 로그인 계정 ${available}개` : '검수 가능한 로그인 계정이 없습니다.';
+      open.disabled = available === 0;
+    } catch (error) {
+      status.textContent = '실제 계정 목록을 불러오지 못했습니다.';
+      open.disabled = true;
+      console.error(error);
+    } finally {
+      qaLoading = false;
+    }
+  }
+
+  async function startQaPreview() {
+    const dialog = ensureQaDialog();
+    const select = dialog.querySelector('[data-qa-account-select]');
+    const status = dialog.querySelector('[data-qa-account-status]');
+    const open = dialog.querySelector('[data-qa-account-open]');
+    const targetProfileId = select.value;
+    if (!targetProfileId) return;
+
+    const previewTab = window.open('/app/qa-account-preview.html#waiting=1', '_blank');
+    if (!previewTab) {
+      status.textContent = '새 탭이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도하세요.';
+      return;
+    }
+
+    open.disabled = true;
+    status.textContent = '실제 계정 세션을 준비하고 있습니다.';
+    try {
+      const result = await qaRequest({ action: 'create', target_profile_id: targetProfileId });
+      const params = new URLSearchParams({
+        token_hash: result.token_hash,
+        type: result.verification_type || 'magiclink',
+        target_name: result.target?.display_name || select.selectedOptions[0]?.dataset.displayName || '사용자'
+      });
+      previewTab.location.replace(`/app/qa-account-preview.html#${params.toString()}`);
+      status.textContent = `${result.target?.display_name || '선택 계정'} 실제 계정 검수 탭을 열었습니다.`;
+      dialog.close();
+    } catch (error) {
+      try { previewTab.close(); } catch { /* no-op */ }
+      status.textContent = '실제 계정 검수 세션을 만들지 못했습니다.';
+      console.error(error);
+    } finally {
+      open.disabled = false;
+    }
+  }
+
+  function makeQaButton() {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'button button-quiet';
+    button.textContent = '실제 계정 검수';
+    button.dataset.qaAccountPreviewButton = '1';
+    button.addEventListener('click', openQaDialog);
+    return button;
+  }
+
   function installSwitcher() {
     installStyles();
     const current = context();
@@ -126,12 +318,13 @@
     switcher = document.createElement('div');
     switcher.className = 'role-simulation-switcher';
     switcher.dataset.roleSimulationSwitcher = '1';
-    switcher.setAttribute('aria-label', '권한 체험 화면 전환');
+    switcher.setAttribute('aria-label', '권한 및 실제 계정 검수 전환');
 
     const activeRole = simulation.active ? simulation.role_code : null;
     switcher.append(
-      makeButton('홍보직원 보기', 'promotion_staff', activeRole === 'promotion_staff'),
-      makeButton('운영팀장 보기', 'promotion_lead', activeRole === 'promotion_lead'),
+      makeButton('홍보직원 역할 보기', 'promotion_staff', activeRole === 'promotion_staff'),
+      makeButton('운영팀장 역할 보기', 'promotion_lead', activeRole === 'promotion_lead'),
+      makeQaButton(),
       makeButton('운영총괄 복귀', null, !activeRole)
     );
     actions.prepend(switcher);
@@ -139,7 +332,7 @@
 
     const userLabel = document.getElementById('desktop-user-label');
     if (userLabel && simulation.active) {
-      userLabel.textContent = `${current.display_name || '사용자'} · ${LABELS[simulation.role_code] || simulation.role_code} 체험`;
+      userLabel.textContent = `${current.display_name || '사용자'} · ${LABELS[simulation.role_code] || simulation.role_code} 역할 체험`;
     }
 
     const desktopLogout = document.getElementById('desktop-logout-button');
