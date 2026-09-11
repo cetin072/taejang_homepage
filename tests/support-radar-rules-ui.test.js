@@ -52,7 +52,7 @@ function expectContains(source, fragment, label = fragment) {
 
 [
   'label:has(input[type="checkbox"])',
-  'input[type="checkbox"]{width:1.15rem',
+  '.support-radar-row input[type="checkbox"]{width:1.15rem',
   'cursor:pointer'
 ].forEach(fragment => expectContains(radarCss, fragment, `compact checkbox UX: ${fragment}`));
 
