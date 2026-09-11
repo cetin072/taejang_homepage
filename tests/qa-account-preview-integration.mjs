@@ -170,7 +170,7 @@ equal(identityMismatch.data?.error, 'QA_IDENTITY_MISMATCH', 'identity mismatch h
 
 const list = await qa('list', operator);
 equal(list.status, 200, `top-authority list succeeds: ${JSON.stringify(list.data)}`);
-equal(list.data?.qa_contract_version, 2, 'hosted contract version is explicit');
+equal(list.data?.qa_contract_version, 3, 'hosted contract version is explicit');
 check(list.data?.accounts?.some(account => account.id === target.id && account.previewable), 'target employee is included and previewable');
 
 const create = await qa('create', operator, { target_profile_id: target.id });
