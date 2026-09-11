@@ -8,6 +8,36 @@
   const isOps = () => window.TaejangApp?.getRoute?.()==='operations_manager';
   const button = (label,action,quiet=false) => { const node=text('button',label,quiet?'button button-quiet':'button'); node.type='button'; node.addEventListener('click',action); return node; };
   const decisionLabel = value => ({ apply: '신청', hold: '보류', exclude: '제외' })[value] || value || '미결정';
+  const prepLabels = new Set(['검토 중','기관 문의','자료 수집','신청서 작성','제출 준비']);
+
+  function simplifyProgress(root) {
+    const heading=[...root.querySelectorAll('h3')].find(node=>node.textContent==='신청 진행'||node.textContent==='진행 현황');
+    const section=heading?.closest('.support-radar-section');
+    if(!section || section.dataset.supportOpsProgressSimplified==='1') return;
+    section.dataset.supportOpsProgressSimplified='1';
+    heading.textContent='진행 현황';
+
+    const directParagraphs=[...section.children].filter(node=>node.tagName==='P');
+    const current=directParagraphs.find(node=>node.textContent.startsWith('현재 상태:')||node.textContent.startsWith('현재:'));
+    if(current){
+      const raw=current.textContent.replace(/^현재 상태:\s*/,'').replace(/^현재:\s*/,'').trim();
+      current.textContent=`현재: ${prepLabels.has(raw)?'신청 진행 중':raw}`;
+      current.classList.add('support-radar-note');
+    }
+
+    const reviewing=section.querySelector('option[value="reviewing"]');
+    if(reviewing) reviewing.textContent='신청 준비';
+
+    const advanced=[...section.children].filter(node=>node!==heading && node!==current);
+    if(advanced.length){
+      const details=document.createElement('details');
+      details.className='support-radar-advanced';
+      const summary=document.createElement('summary');
+      summary.textContent='필요할 때 진행상태 직접 관리';
+      details.append(summary,...advanced);
+      section.append(details);
+    }
+  }
 
   function wrapRpc() {
     if(state.wrapped || !window.TaejangApp?.rpc) return;
@@ -46,6 +76,9 @@
     const main=el('dashboard-main');
     const root=main?.querySelector('.support-radar-shell');
     if(!root) return;
+
+    simplifyProgress(root);
+
     const headings=[...root.querySelectorAll('h3')];
     const decisionHeading=headings.find(node=>node.textContent==='운영총괄 결정');
     const decisionSection=decisionHeading?.closest('.support-radar-section');
