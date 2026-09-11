@@ -4,6 +4,7 @@ const path = require('path');
 const rules = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20260909232000_support_radar_queries_and_rules.sql'), 'utf8');
 const profileUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar.js'), 'utf8');
 const noticeUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar-notices.js'), 'utf8');
+const assignmentUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar-assignment.js'), 'utf8');
 const radarCss = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar.css'), 'utf8');
 const loader = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'app-ui.js'), 'utf8');
 
@@ -51,6 +52,14 @@ function expectContains(source, fragment, label = fragment) {
 ].forEach(fragment => expectContains(noticeUi, fragment));
 
 [
+  "if(decision!=='apply') return;",
+  "apply: '신청'",
+  "hold: '보류'",
+  "exclude: '제외'",
+  '담당자 배정'
+].forEach(fragment => expectContains(assignmentUi, fragment, `decision-before-assignment UX: ${fragment}`));
+
+[
   'label:has(input[type="checkbox"])',
   '.support-radar-row input[type="checkbox"]{width:1.15rem',
   'cursor:pointer'
@@ -58,6 +67,7 @@ function expectContains(source, fragment, label = fragment) {
 
 expectContains(loader, "['assets/support-radar.js', 'support-radar']", 'support-radar loader');
 expectContains(loader, "['assets/support-radar-notices.js', 'support-radar-notices']", 'support-radar-notices loader');
+expectContains(loader, "['assets/support-radar-assignment.js', 'support-radar-assignment']", 'support-radar-assignment loader');
 
 if (/grant\s+(insert|update|delete|all)\s+on\s+public\.support_/i.test(rules)) {
   throw new Error('Rule/query migration must not expose direct support-table mutations.');
