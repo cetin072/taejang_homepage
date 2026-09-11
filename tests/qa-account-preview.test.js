@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const roleUi = fs.readFileSync(path.join(root, 'app', 'assets', 'phase-c-role-simulation.js'), 'utf8');
+const refinementsCss = fs.readFileSync(path.join(root, 'app', 'assets', 'phase-c-ui-refinements.css'), 'utf8');
 const previewPage = fs.readFileSync(path.join(root, 'app', 'qa-account-preview.html'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase', 'functions', 'qa-account-preview', 'index.ts'), 'utf8');
 const supabaseConfig = fs.readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8');
@@ -24,6 +25,17 @@ test('operations QA switcher exposes real-account preview separately from role s
   assert.match(roleUi, /X-QA-JWT-Subject/);
   assert.match(roleUi, /QA_IDENTITY_MISMATCH/);
   assert.match(roleUi, /역할만 바꾸며 실제 사용자 계정의 배정 데이터까지 바꾸지는 않습니다/);
+});
+
+test('mobile account switching stays visible and uses large touch targets', () => {
+  assert.match(refinementsCss, /@media \(max-width: 900px\)[\s\S]*\.role-simulation-switcher/);
+  assert.match(refinementsCss, /content:\s*'계정 전환'/);
+  assert.match(refinementsCss, /grid-template-columns:\s*minmax\(0, 1fr\) minmax\(0, 1fr\)/);
+  assert.match(refinementsCss, /min-height:\s*54px\s*!important/);
+  assert.match(refinementsCss, /safe-area-inset-bottom/);
+  assert.match(refinementsCss, /\[data-qa-account-preview-button\][\s\S]*background:\s*#236d4b\s*!important/);
+  assert.match(refinementsCss, /\.qa-account-dialog__actions[\s\S]*grid-template-columns:\s*1fr\s*!important/);
+  assert.match(refinementsCss, /\[data-qa-account-open\]\s*\{\s*order:\s*-1;/);
 });
 
 test('QA preview page creates an isolated tab session and then loads the real app', () => {
