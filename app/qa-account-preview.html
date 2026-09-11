@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>태장 Staging 실제 계정 검수</title>
+  <style>
+    :root { color-scheme: light; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #f4f7f5; color: #17231d; }
+    body { height: 100vh; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+    .qa-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #fff3cd;
+      border-bottom: 1px solid #e4c970;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      z-index: 2;
+    }
+    .qa-bar__copy { min-width: 0; flex: 1; }
+    .qa-bar strong { display: block; color: #7a2f00; font-size: .95rem; }
+    .qa-bar span { display: block; margin-top: 2px; color: #4b3b00; font-size: .78rem; line-height: 1.4; }
+    .qa-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+    button {
+      min-height: 36px;
+      border-radius: 9px;
+      border: 1px solid #b7a14f;
+      background: #fff;
+      color: #2f2a14;
+      font-weight: 800;
+      padding: 7px 11px;
+      cursor: pointer;
+    }
+    button:hover { background: #fff9e7; }
+    .qa-stage { min-height: 0; position: relative; }
+    .qa-stage iframe { width: 100%; height: 100%; border: 0; background: #fff; display: none; }
+    .qa-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .qa-card {
+      max-width: 560px;
+      background: #fff;
+      border: 1px solid #dbe5df;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.08);
+    }
+    .qa-card h1 { margin: 0 0 10px; font-size: 1.25rem; }
+    .qa-card p { margin: 0; line-height: 1.6; color: #56655e; }
+    .qa-card.is-error h1 { color: #a22020; }
+    @media (max-width: 720px) {
+      .qa-bar { align-items: flex-start; flex-wrap: wrap; }
+      .qa-actions { width: 100%; }
+      .qa-actions button { flex: 1 1 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="qa-bar">
+    <div class="qa-bar__copy">
+      <strong id="qa-title">Staging 실제 계정 검수 준비 중</strong>
+      <span>이 탭만 선택한 사용자의 실제 Auth 세션과 실제 RLS로 동작합니다. 원래 운영총괄 탭은 유지됩니다. Production에서는 사용하지 않습니다.</span>
+    </div>
+    <div class="qa-actions">
+      <button type="button" id="qa-reload" hidden>화면 새로고침</button>
+      <button type="button" id="qa-close">검수 탭 닫기</button>
+    </div>
+  </header>
+  <main class="qa-stage">
+    <div class="qa-state" id="qa-state">
+      <div class="qa-card" id="qa-card">
+        <h1 id="qa-state-title">실제 계정 세션을 확인하고 있습니다.</h1>
+        <p id="qa-state-copy">잠시만 기다려 주세요.</p>
+      </div>
+    </div>
+    <iframe id="qa-frame" title="선택한 실제 사용자 계정의 태장 업무플랫폼"></iframe>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+
+      const SESSION_KEY = 'taejang-staff-session-v1';
+      const QA_MARKER_KEY = 'taejang-qa-account-preview-v1';
+      const frame = document.getElementById('qa-frame');
+      const state = document.getElementById('qa-state');
+      const card = document.getElementById('qa-card');
+      const title = document.getElementById('qa-title');
+      const stateTitle = document.getElementById('qa-state-title');
+      const stateCopy = document.getElementById('qa-state-copy');
+      const reload = document.getElementById('qa-reload');
+
+      function fail(message) {
+        card.classList.add('is-error');
+        stateTitle.textContent = '실제 계정 검수를 시작하지 못했습니다.';
+        stateCopy.textContent = message;
+        state.hidden = false;
+        frame.style.display = 'none';
+      }
+
+      async function loadConfig() {
+        const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
+        if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
+        const config = await response.json();
+        if (!config.url || !config.publishableKey) throw new Error('CONFIG_INCOMPLETE');
+        return config;
+      }
+
+      async function verifySession(config, tokenHash, verificationType) {
+        const response = await fetch(`${config.url}/auth/v1/verify`, {
+          method: 'POST',
+          headers: {
+            apikey: config.publishableKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ token_hash: tokenHash, type: verificationType || 'magiclink' })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.access_token || !payload?.refresh_token) {
+          throw new Error(payload?.msg || payload?.message || 'VERIFY_FAILED');
+        }
+        return payload;
+      }
+
+      async function start() {
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const waiting = hash.get('waiting') === '1';
+        const tokenHash = hash.get('token_hash');
+        const verificationType = hash.get('type') || 'magiclink';
+        const targetName = hash.get('target_name') || '선택 사용자';
+        history.replaceState(null, '', window.location.pathname);
+
+        if (waiting && !tokenHash) {
+          stateTitle.textContent = '실제 계정 세션을 준비하고 있습니다.';
+          stateCopy.textContent = '운영총괄 화면에서 선택한 계정 정보를 확인하는 중입니다.';
+          return;
+        }
+        if (!tokenHash) {
+          fail('검수용 일회성 인증정보가 없습니다. 운영총괄 화면의 “실제 계정 검수”에서 다시 열어 주세요.');
+          return;
+        }
+
+        try {
+          const config = await loadConfig();
+          const session = await verifySession(config, tokenHash, verificationType);
+          sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+          sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
+          title.textContent = `Staging 실제 계정 검수: ${targetName}`;
+          document.title = `${targetName} 실제 계정 검수 · 태장 Staging`;
+          state.hidden = true;
+          frame.style.display = 'block';
+          frame.src = '/app/';
+          reload.hidden = false;
+        } catch (error) {
+          console.error(error);
+          fail('인증정보가 만료되었거나 계정 검수 세션을 만들 수 없습니다. 운영총괄 화면에서 다시 시도해 주세요.');
+        }
+      }
+
+      reload.addEventListener('click', () => {
+        if (frame.contentWindow) frame.contentWindow.location.reload();
+      });
+      document.getElementById('qa-close').addEventListener('click', () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(QA_MARKER_KEY);
+        window.close();
+      });
+
+      start();
+    })();
+  </script>
+</body>
+</html>
