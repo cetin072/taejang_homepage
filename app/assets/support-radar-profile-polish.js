@@ -192,7 +192,11 @@
     form.addEventListener('change', update);
 
     state.editorObserver?.disconnect();
-    state.editorObserver = new MutationObserver(() => {
+    state.editorObserver = new MutationObserver(mutations => {
+      const selfOnly = mutations.every(mutation =>
+        mutation.target === panel || panel.contains(mutation.target)
+      );
+      if (selfOnly) return;
       captureNewInputs(form);
       update();
     });
