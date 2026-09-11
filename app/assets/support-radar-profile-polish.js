@@ -20,10 +20,22 @@
   const array = value => Array.isArray(value) ? value : [];
   const canUse = () => allowedRoles.has(window.TaejangApp?.getRoute?.());
   const canEdit = () => window.TaejangApp?.getRoute?.() === 'operations_manager';
+  const STANDARD_WORKPLACE_OLD = '자회사형 장애인표준사업장';
+  const STANDARD_WORKPLACE_LABEL = '장애인표준사업장';
 
   function isProfileSurface(root) {
     const heading = root?.querySelector('h2');
     return heading && (heading.textContent === '기업 프로필' || /기업 프로필 v\d+ 수정/.test(heading.textContent) || heading.textContent === '첫 기업 프로필 만들기');
+  }
+
+  function normalizeStandardWorkplaceTerminology(root) {
+    if (!root || !isProfileSurface(root)) return;
+    root.querySelectorAll('dt, label > span, strong').forEach(node => {
+      if (node.textContent?.trim() === STANDARD_WORKPLACE_OLD) node.textContent = STANDARD_WORKPLACE_LABEL;
+    });
+    const qualification = root.querySelector('.support-radar-row[data-kind="qualification"][data-code="subsidiary_standard_workplace"]');
+    const nameInput = qualification?.querySelector('input[name="name"]');
+    if (nameInput?.value?.trim() === STANDARD_WORKPLACE_OLD) nameInput.value = STANDARD_WORKPLACE_LABEL;
   }
 
   function qualificationState(item) {
@@ -70,7 +82,8 @@
           card.className = 'support-radar-row';
           const header = document.createElement('div');
           header.className = 'support-radar-header';
-          header.append(text('strong', item.name || item.code || '자격·확인서'), text('span', itemState.label, itemState.className));
+          const itemName = item.code === 'subsidiary_standard_workplace' ? STANDARD_WORKPLACE_LABEL : (item.name || item.code || '자격·확인서');
+          header.append(text('strong', itemName), text('span', itemState.label, itemState.className));
           card.append(header);
           if (item.valid_until) card.append(text('p', `유효 종료일 ${item.valid_until}`, 'support-radar-muted'));
           if (item.evidence_summary) card.append(text('p', item.evidence_summary, 'support-radar-muted'));
@@ -204,6 +217,8 @@
   }
 
   function inspectSurface() {
+    const root = el('dashboard-main')?.querySelector('.support-radar-shell');
+    normalizeStandardWorkplaceTerminology(root);
     injectQualificationHealth();
     bindEditorSummary();
   }
