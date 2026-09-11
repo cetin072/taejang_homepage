@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
   const QA_FUNCTION = 'qa-account-preview';
+  const QA_HANDOFF_KEY = 'taejang-qa-account-handoff-v1';
   const LABELS = {
     promotion_staff: '홍보직원',
     promotion_lead: '운영팀장'
@@ -275,39 +276,31 @@
     }
   }
 
-  async function startQaPreview() {
+  function startQaPreview() {
     const dialog = ensureQaDialog();
     const select = dialog.querySelector('[data-qa-account-select]');
     const status = dialog.querySelector('[data-qa-account-status]');
-    const open = dialog.querySelector('[data-qa-account-open]');
     const targetProfileId = select.value;
+    const selected = select.selectedOptions[0];
+    const targetName = selected?.dataset.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 사용자';
     if (!targetProfileId) return;
+
+    sessionStorage.setItem(QA_HANDOFF_KEY, JSON.stringify({
+      target_profile_id: targetProfileId,
+      target_name: targetName,
+      created_at: new Date().toISOString()
+    }));
 
     const previewTab = window.open('/app/qa-account-preview.html#waiting=1', '_blank');
     if (!previewTab) {
+      sessionStorage.removeItem(QA_HANDOFF_KEY);
       status.textContent = '새 탭이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도하세요.';
       return;
     }
 
-    open.disabled = true;
-    status.textContent = '실제 계정 세션을 준비하고 있습니다.';
-    try {
-      const result = await qaRequest({ action: 'create', target_profile_id: targetProfileId });
-      const params = new URLSearchParams({
-        token_hash: result.token_hash,
-        type: result.verification_type || 'magiclink',
-        target_name: result.target?.display_name || select.selectedOptions[0]?.dataset.displayName || '사용자'
-      });
-      previewTab.location.replace(`/app/qa-account-preview.html#${params.toString()}`);
-      status.textContent = `${result.target?.display_name || '선택 계정'} 실제 계정 검수 탭을 열었습니다.`;
-      dialog.close();
-    } catch (error) {
-      try { previewTab.close(); } catch { /* no-op */ }
-      status.textContent = `실제 계정 검수 세션을 만들지 못했습니다. (${qaErrorCode(error)})`;
-      console.error(error);
-    } finally {
-      open.disabled = false;
-    }
+    status.textContent = `${targetName} 실제 계정 검수 탭을 열었습니다.`;
+    dialog.close();
+    window.setTimeout(() => sessionStorage.removeItem(QA_HANDOFF_KEY), 5000);
   }
 
   function makeQaButton() {

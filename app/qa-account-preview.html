@@ -89,6 +89,7 @@
 
       const SESSION_KEY = 'taejang-staff-session-v1';
       const QA_MARKER_KEY = 'taejang-qa-account-preview-v1';
+      const QA_HANDOFF_KEY = 'taejang-qa-account-handoff-v1';
       const STAGING_PROJECT_REF = 'jgsxpdflgkqroecfjzxq';
       const frame = document.getElementById('qa-frame');
       const state = document.getElementById('qa-state');
@@ -130,6 +131,19 @@
       }
 
       function readSelectedTarget() {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(QA_HANDOFF_KEY) || 'null');
+          if (stored?.target_profile_id) {
+            sessionStorage.removeItem(QA_HANDOFF_KEY);
+            return {
+              targetProfileId: stored.target_profile_id,
+              targetName: stored.target_name || '선택 사용자'
+            };
+          }
+        } catch {
+          sessionStorage.removeItem(QA_HANDOFF_KEY);
+        }
+
         try {
           if (!window.opener || window.opener.closed) throw new Error('QA_OPENER_UNAVAILABLE');
           const select = window.opener.document.querySelector('[data-qa-account-select]');
@@ -193,6 +207,7 @@
       }
 
       function showTargetSession(session, targetName) {
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
         sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
         try { window.opener = null; } catch { /* browser may keep it read-only */ }
@@ -232,6 +247,7 @@
           const session = await verifySession(config, tokenHash, verificationType);
           showTargetSession(session, targetName);
         } catch (error) {
+          sessionStorage.removeItem(QA_HANDOFF_KEY);
           console.error(error);
           const code = String(error?.message || 'UNKNOWN').replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 80);
           fail(`실제 계정 검수 세션을 만들 수 없습니다. 운영총괄 화면에서 다시 시도해 주세요. (${code || 'UNKNOWN'})`);
@@ -244,11 +260,13 @@
       document.getElementById('qa-close').addEventListener('click', () => {
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(QA_MARKER_KEY);
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
         window.close();
       });
       window.addEventListener('pagehide', () => {
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(QA_MARKER_KEY);
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
       });
 
       start();

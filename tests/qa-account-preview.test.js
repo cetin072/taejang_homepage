@@ -15,7 +15,7 @@ test('operations QA switcher exposes real-account preview separately from role s
   assert.match(roleUi, /실제 계정 검수/);
   assert.match(roleUi, /qa-account-preview/);
   assert.match(roleUi, /action:\s*'list'/);
-  assert.match(roleUi, /action:\s*'create'/);
+  assert.match(previewPage, /action:\s*'create'/);
   assert.match(roleUi, /새 탭/);
   assert.match(appSource, /getSession:\s*\(\)\s*=>\s*state\.session/);
   assert.match(roleUi, /TaejangCapabilityAccess\?\.refresh/);
@@ -41,9 +41,13 @@ test('QA preview page creates an isolated tab session and then loads the real ap
   assert.match(previewPage, /Production에서는 사용하지 않습니다/);
 });
 
-test('mobile QA handoff finishes inside the newly opened preview tab', () => {
+test('mobile QA handoff finishes inside the newly opened preview tab without parent-tab create race', () => {
+  assert.match(roleUi, /QA_HANDOFF_KEY/);
+  assert.match(roleUi, /sessionStorage\.setItem\(QA_HANDOFF_KEY/);
   assert.match(roleUi, /qa-account-preview\.html#waiting=1/);
-  assert.match(previewPage, /window\.opener/);
+  assert.doesNotMatch(roleUi, /qaRequest\(\{\s*action:\s*'create'/);
+  assert.match(previewPage, /QA_HANDOFF_KEY/);
+  assert.match(previewPage, /sessionStorage\.getItem\(QA_HANDOFF_KEY/);
   assert.match(previewPage, /readOperatorSession/);
   assert.match(previewPage, /readSelectedTarget/);
   assert.match(previewPage, /createPreviewToken/);
