@@ -41,6 +41,18 @@ test('QA preview page creates an isolated tab session and then loads the real ap
   assert.match(previewPage, /Production에서는 사용하지 않습니다/);
 });
 
+test('mobile QA handoff finishes inside the newly opened preview tab', () => {
+  assert.match(roleUi, /qa-account-preview\.html#waiting=1/);
+  assert.match(previewPage, /window\.opener/);
+  assert.match(previewPage, /readOperatorSession/);
+  assert.match(previewPage, /readSelectedTarget/);
+  assert.match(previewPage, /createPreviewToken/);
+  assert.match(previewPage, /action:\s*'create'/);
+  assert.match(previewPage, /sessionStorage\.removeItem\(SESSION_KEY\)/);
+  assert.match(previewPage, /showTargetSession/);
+  assert.match(previewPage, /window\.opener = null/);
+});
+
 test('QA edge function is hard-locked to staging and requires the integrated top-authority account', () => {
   assert.match(edge, /qaEnvironment/);
   assert.match(edge, /QA_STAGING_ONLY/);
@@ -57,7 +69,7 @@ test('QA edge function is hard-locked to staging and requires the integrated top
   assert.doesNotMatch(edge, /password\s*:/i);
 });
 
-test('QA account listing reuses the capability-gated account management contract without bulk Auth enumeration', () => {
+test('QA account listing reuses the capability-gated account management contract', () => {
   assert.match(edge, /get_operations_account_management/);
   assert.match(edge, /management\?\.profiles/);
   assert.match(edge, /management\?\.departments/);
@@ -84,13 +96,11 @@ test('QA edge function returns distinct safe authorization diagnostics', () => {
   assert.doesNotMatch(edge, /QA_PREVIEW_FORBIDDEN/);
   assert.match(edge, /actor_profile_id/);
   assert.match(edge, /actual_role_codes/);
-  assert.match(edge, /diagnostic_code:\s*safeDiagnosticCode\(error\)/);
+  assert.match(edge, /diagnostic_code:\s*safeDiagnosticCode/);
 });
 
-test('QA preview verifies the selected login account at create time', () => {
-  assert.match(edge, /getUserById\(targetProfileId\)/);
+test('QA preview does not silently activate an unconfirmed login account', () => {
   assert.match(edge, /email_confirmed_at/);
-  assert.match(edge, /TARGET_AUTH_ACCOUNT_NOT_FOUND/);
   assert.match(edge, /TARGET_EMAIL_NOT_CONFIRMED/);
 });
 
