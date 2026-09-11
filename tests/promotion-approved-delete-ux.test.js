@@ -11,11 +11,12 @@ test('promotion lead management UX parses and is loaded by app bootstrap', () =>
   const appUi = read('app/assets/app-ui.js');
   assert.doesNotThrow(() => new Function(moduleSource));
   assert.match(appUi, /assets\/promotion-approved-delete-ux\.js/);
-  assert.match(moduleSource, /heading\.textContent = '홍보 관리'/);
+  assert.match(moduleSource, /setText\(heading, '홍보 관리'\)/);
   assert.match(moduleSource, /미리보기·수정·삭제·보완 요청·승인·상신/);
   assert.match(moduleSource, /data-promotion-review-delete/);
   assert.match(moduleSource, /승인 완료·미발행 글/);
   assert.match(moduleSource, /원문과 수정이력은 보존/);
+  assert.match(moduleSource, /renderSignature/);
 });
 
 test('promotion lead review and approved-unpublished items reuse the recoverable archive RPC', () => {
@@ -43,6 +44,19 @@ test('promotion lead sidebar archive entry is merged into the review-management 
   assert.match(navSource, /issue146Nav === 'promotion-archive'/);
   assert.match(navSource, /cleanLabel\(node\) === '홍보 글 관리'/);
   assert.match(navSource, /items: \['홍보 관리', '홍보 작성'\]/);
+});
+
+test('external link import uses one capture handler and preserves manual fallback', () => {
+  const refinement = read('app/assets/phase-c-ui-refinements.js');
+  assert.doesNotThrow(() => new Function(refinement));
+  assert.match(refinement, /singleFetchBound/);
+  assert.match(refinement, /event\.stopImmediatePropagation\(\)/);
+  assert.match(refinement, /metadata\.article_text/);
+  assert.match(refinement, /!body\.value\.trim\(\)/);
+  assert.match(refinement, /!title\.value\.trim\(\)/);
+  assert.match(refinement, /!summary\.value\.trim\(\)/);
+  assert.match(refinement, /직접 입력하면 정상적으로 저장·승인 요청/);
+  assert.match(refinement, /addEventListener\('click',[\s\S]*, true\)/);
 });
 
 test('published promotion deletion policy remains outside the direct delete UX', () => {
