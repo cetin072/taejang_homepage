@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const state = { currentNoticeId: null, currentDetail: null, wrapped: false, observer: null };
+  const state = { currentNoticeId: null, currentDetail: null, wrapped: false, observer: null, injecting: false };
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node=document.createElement(tag); if(className)node.className=className; node.textContent=value??''; return node; };
   const array = value => Array.isArray(value)?value:[];
@@ -55,29 +55,35 @@
     const decisionReason=state.currentDetail?.decision?.decision_reason;
     if(decision){
       const note=decisionSection.querySelector('.support-radar-note');
-      if(note) note.textContent=`현재 결정: ${decisionLabel(decision)}${decisionReason ? ` — ${decisionReason}` : ''}`;
+      const desired=`현재 결정: ${decisionLabel(decision)}${decisionReason ? ` — ${decisionReason}` : ''}`;
+      if(note && note.textContent !== desired) note.textContent=desired;
     }
 
     if(decision!=='apply') return;
-    if(root.querySelector('[data-support-assignment-panel]')) return;
+    if(root.querySelector('[data-support-assignment-panel]') || state.injecting) return;
 
-    const panel=document.createElement('section');
-    panel.className='support-radar-section';
-    panel.dataset.supportAssignmentPanel='1';
-    panel.append(text('h3','담당자 배정'),text('p','신청을 실제로 진행할 직원을 지정합니다. 배정된 직원은 자기 지원사업의 진행상태만 볼 수 있습니다.','support-radar-muted'));
-
-    const current=document.createElement('div'); current.className='support-radar-list';
-    const assignments=array(state.currentDetail.assignments);
-    if(!assignments.length) current.append(text('p','현재 담당자가 지정되지 않았습니다.','support-radar-empty'));
-    assignments.forEach(item=>{
-      const row=document.createElement('div'); row.className='support-radar-row';
-      const info=document.createElement('div'); info.append(text('strong',item.display_name||'이름 미확인'),text('p',`배정 ${new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeZone:'Asia/Seoul'}).format(new Date(item.assigned_at))}`,'support-radar-muted'));
-      row.append(info,button('배정 해제',()=>unassign(item.profile_id,item.display_name),true)); current.append(row);
-    });
-    panel.append(current);
-
+    state.injecting=true;
     try {
+      const assignments=array(state.currentDetail.assignments);
       const candidates=array(await window.TaejangApp.rpc('support_list_assignable_profiles'));
+
+      const liveRoot=el('dashboard-main')?.querySelector('.support-radar-shell');
+      if(liveRoot!==root || root.querySelector('[data-support-assignment-panel]')) return;
+
+      const panel=document.createElement('section');
+      panel.className='support-radar-section';
+      panel.dataset.supportAssignmentPanel='1';
+      panel.append(text('h3','담당자 배정'),text('p','신청을 실제로 진행할 직원을 지정합니다. 배정된 직원은 자기 지원사업의 진행상태만 볼 수 있습니다.','support-radar-muted'));
+
+      const current=document.createElement('div'); current.className='support-radar-list';
+      if(!assignments.length) current.append(text('p','현재 담당자가 지정되지 않았습니다.','support-radar-empty'));
+      assignments.forEach(item=>{
+        const row=document.createElement('div'); row.className='support-radar-row';
+        const info=document.createElement('div'); info.append(text('strong',item.display_name||'이름 미확인'),text('p',`배정 ${new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeZone:'Asia/Seoul'}).format(new Date(item.assigned_at))}`,'support-radar-muted'));
+        row.append(info,button('배정 해제',()=>unassign(item.profile_id,item.display_name),true)); current.append(row);
+      });
+      panel.append(current);
+
       const assignedIds=new Set(assignments.map(item=>item.profile_id));
       const available=candidates.filter(item=>!assignedIds.has(item.profile_id));
       if(available.length){
@@ -87,11 +93,19 @@
         available.forEach(item=>{const option=document.createElement('option');option.value=item.profile_id;option.textContent=[item.display_name,item.department,item.position].filter(Boolean).join(' · ');select.append(option);});
         const assignButton=button('담당자로 배정',()=>assign(select.value)); controls.append(select,assignButton); panel.append(controls);
       } else panel.append(text('p','추가로 배정할 수 있는 활성 담당자가 없습니다.','support-radar-muted'));
-    } catch(error) {
-      panel.append(text('p','담당자 후보를 불러오지 못했습니다.','message error'));
-    }
 
-    decisionSection.insertAdjacentElement('afterend',panel);
+      decisionSection.insertAdjacentElement('afterend',panel);
+    } catch(error) {
+      const liveRoot=el('dashboard-main')?.querySelector('.support-radar-shell');
+      if(liveRoot===root && !root.querySelector('[data-support-assignment-panel]')) {
+        const panel=document.createElement('section');
+        panel.className='support-radar-section'; panel.dataset.supportAssignmentPanel='1';
+        panel.append(text('h3','담당자 배정'),text('p','담당자 후보를 불러오지 못했습니다.','message error'));
+        decisionSection.insertAdjacentElement('afterend',panel);
+      }
+    } finally {
+      state.injecting=false;
+    }
   }
 
   function watch(){
