@@ -164,6 +164,12 @@
     return data;
   }
 
+  function qaErrorCode(error) {
+    const raw = String(error?.message || 'UNKNOWN');
+    const safe = raw.replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 80);
+    return safe || 'UNKNOWN';
+  }
+
   function accountLabel(account) {
     const roleNames = (account.roles || []).map(role => role.name || role.code).filter(Boolean);
     const meta = [account.department_name, account.position_name, roleNames.join('·')].filter(Boolean).join(' / ');
@@ -216,7 +222,7 @@
     for (const account of accounts) {
       const option = document.createElement('option');
       option.value = account.id;
-      option.textContent = account.previewable ? accountLabel(account) : `${accountLabel(account)} · 로그인 계정 없음`;
+      option.textContent = account.previewable ? accountLabel(account) : `${accountLabel(account)} · ${account.preview_reason || '검수 불가'}`;
       option.disabled = !account.previewable;
       option.dataset.displayName = account.display_name || '';
       select.append(option);
@@ -244,7 +250,7 @@
       status.textContent = available ? `검수 가능한 실제 로그인 계정 ${available}개` : '검수 가능한 로그인 계정이 없습니다.';
       open.disabled = available === 0;
     } catch (error) {
-      status.textContent = '실제 계정 목록을 불러오지 못했습니다.';
+      status.textContent = `실제 계정 목록을 불러오지 못했습니다. (${qaErrorCode(error)})`;
       open.disabled = true;
       console.error(error);
     } finally {
@@ -280,7 +286,7 @@
       dialog.close();
     } catch (error) {
       try { previewTab.close(); } catch { /* no-op */ }
-      status.textContent = '실제 계정 검수 세션을 만들지 못했습니다.';
+      status.textContent = `실제 계정 검수 세션을 만들지 못했습니다. (${qaErrorCode(error)})`;
       console.error(error);
     } finally {
       open.disabled = false;
