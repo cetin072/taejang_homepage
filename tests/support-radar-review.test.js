@@ -39,6 +39,14 @@ test('CEO can read review history but cannot mark review complete from UI', () =
   assert.match(ui, /검토 완료 표시/);
 });
 
+test('review UI localizes stored review codes and blocks rapid duplicate saves', () => {
+  assert.match(ui, /reviewKindLabel/);
+  assert.match(ui, /result:'결과 검토'/);
+  assert.match(ui, /state\.saving/);
+  assert.match(ui, /if\(!canMark\(\)\|\|!state\.currentNoticeId\|\|state\.saving\)return/);
+  assert.match(ui, /finally\{state\.saving=false;\}/);
+});
+
 test('review module is loaded by the app feature loader', () => {
   assert.match(loader, /support-radar-review\.js/);
 });

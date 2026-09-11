@@ -48,6 +48,13 @@ test('operations view keeps full authority but hides detailed progress by defaul
   assert.match(assignmentUi, /option\[value="reviewing"\]/);
 });
 
+test('assigned employee view removes stale assignment wording from next action', () => {
+  assert.match(ui, /employeeNextAction/);
+  assert.match(ui, /담당자 지정 및 신청요건 재확인/);
+  assert.match(ui, /신청요건 재확인/);
+  assert.match(ui, /p_next_action:normalizedNextAction\|\|null/);
+});
+
 test('application status RPC recognizes active assignment authority', () => {
   assert.match(mutationSql, /support_assignments/);
   assert.match(mutationSql, /is_assignee/);

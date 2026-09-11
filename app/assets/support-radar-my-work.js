@@ -13,6 +13,7 @@
   function formatDate(value){if(!value)return '미정';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeZone:'Asia/Seoul'}).format(d);}
   function statusLabel(value){return ({reviewing:'검토 중',contacting_agency:'기관 문의',collecting_documents:'자료 수집',drafting_application:'신청서 작성',ready_to_submit:'제출 준비',submitted:'제출 완료',selected:'선정',not_selected:'미선정',cancelled:'취소'})[value]||value||'신청 전';}
   function modeLabel(value){return ({direct:'직접신청',joint:'공동신청',partner:'협력기관',none:'진행 안 함',verify:'확인 필요'})[value]||'미평가';}
+  function employeeNextAction(value){return value==='담당자 지정 및 신청요건 재확인'?'신청요건 재확인':(value||'');}
 
   function header(title,copy,actions=[]){const node=document.createElement('header');node.className='support-radar-header';const left=document.createElement('div');left.append(text('p','내 지원사업','eyebrow'),text('h2',title),text('p',copy));const right=document.createElement('div');right.className='support-radar-actions';actions.forEach(item=>right.append(item));node.append(left,right);return node;}
   function section(title,copy=''){const node=document.createElement('section');node.className='support-radar-section';node.append(text('h3',title));if(copy)node.append(text('p',copy,'support-radar-muted'));return node;}
@@ -56,7 +57,8 @@
 
   async function saveProgress(noticeId,status,nextAction){
     try{
-      await window.TaejangApp.rpc('support_update_application_status',{p_notice_id:noticeId,p_status:status,p_next_action:nextAction||null});
+      const normalizedNextAction=employeeNextAction(nextAction);
+      await window.TaejangApp.rpc('support_update_application_status',{p_notice_id:noticeId,p_status:status,p_next_action:normalizedNextAction||null});
       await renderDetail(noticeId);
     }catch(error){window.alert(window.TaejangApp.friendlyError(error));}
   }
@@ -84,12 +86,13 @@
       if(!a){
         progress.append(text('p','아직 운영총괄의 신청 결정이 없어 진행상태를 수정할 수 없습니다.','support-radar-warning'));
       }else{
+        const nextAction=employeeNextAction(a.next_action);
         progress.append(text('p',`현재: ${statusLabel(a.status)}`));
-        if(a.next_action)progress.append(text('p',`다음 행동: ${a.next_action}`,'support-radar-note'));
+        if(nextAction)progress.append(text('p',`다음 행동: ${nextAction}`,'support-radar-note'));
         const controls=document.createElement('div');controls.className='support-radar-grid';
         const select=document.createElement('select');
         [['reviewing','검토 중'],['contacting_agency','기관 문의'],['collecting_documents','자료 수집'],['drafting_application','신청서 작성'],['ready_to_submit','제출 준비'],['submitted','제출 완료'],['selected','선정'],['not_selected','미선정'],['cancelled','취소']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;option.selected=value===a.status;select.append(option);});
-        const next=document.createElement('input');next.type='text';next.maxLength=2000;next.placeholder='다음 행동 예: 공단 담당자에게 자격 문의';next.value=a.next_action||'';
+        const next=document.createElement('input');next.type='text';next.maxLength=2000;next.placeholder='다음 행동 예: 공단 담당자에게 자격 문의';next.value=nextAction;
         controls.append(select,next,button('진행상태 저장',()=>saveProgress(id,select.value,next.value)));progress.append(controls);
       }
       root.append(progress);
