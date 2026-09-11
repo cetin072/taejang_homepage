@@ -98,7 +98,7 @@
     banner.className = 'role-simulation-banner';
     banner.dataset.roleSimulationBanner = '1';
     const label = LABELS[simulation.role_code] || simulation.role_code;
-    banner.append('권한 체험 중: ', Object.assign(document.createElement('strong'), { textContent: label }), ' · 해당 역할의 서버 권한만 행사됩니다. 실제 사용자 계정의 신원과 배정 데이터는 바뀌지 않습니다.');
+    banner.append('권한 체험 중: ', Object.assign(document.createElement('strong'), { textContent: label }), ' · 이 기능은 역할만 바꾸며 실제 사용자 계정의 배정 데이터까지 바꾸지는 않습니다. 해당 역할의 서버 권한만 행사됩니다. 사용자 신원도 바뀌지 않습니다.');
     const topbar = workspace.querySelector('.app-topbar');
     if (topbar?.nextSibling) workspace.insertBefore(banner, topbar.nextSibling);
     else workspace.append(banner);
