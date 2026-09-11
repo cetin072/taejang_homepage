@@ -41,10 +41,13 @@ function expectContains(source, fragment, message) {
   '유효기간 경과',
   '일 후 만료',
   '기업 프로필에서 바로 수정',
-  'support_get_company_profile'
+  'support_get_company_profile',
+  "STANDARD_WORKPLACE_LABEL = '장애인표준사업장'",
+  'normalizeStandardWorkplaceTerminology'
 ].forEach(fragment => expectContains(polish, fragment));
 
 expectContains(polish, 'mutation.target === panel || panel.contains(mutation.target)', 'Profile change-summary observer must ignore mutations caused by its own summary panel to prevent an infinite UI loop.');
+expectContains(polish, "item.code === 'subsidiary_standard_workplace' ? STANDARD_WORKPLACE_LABEL", 'Standard-workplace qualification must use the general public-facing name.');
 expectContains(appUi, "['assets/support-radar-profile-polish.js', 'support-radar-profile-polish']", 'Company profile polish module must be loaded by the app feature loader.');
 
 if (/grant\s+(insert|update|delete|all)\s+on\s+public\.support_company_/i.test(migration)) {
