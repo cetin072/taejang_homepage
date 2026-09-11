@@ -36,7 +36,11 @@
         if (failure) reject(failure);
         else resolve(value);
       };
-      const sampleTimer = setTimeout(() => finish(best, best ? null : error('TIMEOUT')), SAMPLE_WINDOW_MS);
+      const sampleTimer = setTimeout(() => {
+        if (best && best.coords.accuracy > MAX_ACCEPTABLE_ACCURACY_M) {
+          onStage?.('improving', best.coords.accuracy);
+        }
+      }, SAMPLE_WINDOW_MS);
       const timeoutTimer = setTimeout(() => finish(best, best ? null : error('TIMEOUT')), ACQUISITION_TIMEOUT_MS);
 
       watchId = navigator.geolocation.watchPosition(position => {
