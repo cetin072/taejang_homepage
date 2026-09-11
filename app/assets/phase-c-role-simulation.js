@@ -4,6 +4,9 @@
   const STORAGE_KEY = 'taejang-role-simulation-v1';
   const QA_FUNCTION = 'qa-account-preview';
   const QA_HANDOFF_KEY = 'taejang-qa-account-handoff-v1';
+  const QA_ACCOUNT_CACHE_KEY = 'taejang-persona-account-cache-v1';
+  const QA_ACCOUNT_CACHE_TTL_MS = 10 * 60 * 1000;
+  const PRESET_ROLES = ['promotion_staff', 'promotion_lead'];
   const LABELS = {
     promotion_staff: '홍보직원',
     promotion_lead: '운영팀장'
@@ -11,9 +14,11 @@
   let switching = false;
   let qaAccounts = null;
   let qaLoading = false;
+  let preloadPromise = null;
 
   const app = () => window.TaejangApp;
   const context = () => app()?.getContext?.();
+  const simulation = () => context()?.role_simulation || null;
 
   function installStyles() {
     if (document.querySelector('style[data-role-simulation]')) return;
@@ -23,32 +28,38 @@
       .role-simulation-switcher {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
-        padding: 5px;
+        padding: 4px;
         border: 1px solid var(--app-border);
         border-radius: 12px;
         background: #fff;
       }
       .role-simulation-switcher .button {
-        min-height: 34px !important;
-        padding: 7px 9px !important;
-        font-size: .82rem;
+        min-height: 38px !important;
+        padding: 8px 12px !important;
+        font-size: .86rem;
+        font-weight: 850;
       }
-      .role-simulation-switcher .button[aria-pressed="true"] {
+      .role-simulation-switcher .button[aria-expanded="true"] {
         background: #173f2c;
         color: #fff;
         border-color: #173f2c;
       }
       .role-simulation-banner {
         margin: 0;
-        padding: 8px 14px;
+        padding: 9px 14px;
         background: #fff3cd;
         border-bottom: 1px solid #e5cc79;
         color: #4b3b00;
-        font-weight: 800;
+        font-weight: 750;
         text-align: center;
       }
       .role-simulation-banner strong { color: #7a2f00; }
+      .role-simulation-banner .button {
+        margin-left: 10px;
+        min-height: 34px;
+        padding: 5px 9px;
+        font-size: .8rem;
+      }
       .qa-account-dialog {
         width: min(620px, calc(100vw - 28px));
         border: 0;
@@ -62,7 +73,7 @@
       .qa-account-dialog__body p { margin: 0; color: #52605a; line-height: 1.55; }
       .qa-account-dialog__body select {
         width: 100%;
-        min-height: 46px;
+        min-height: 48px;
         border: 1px solid var(--app-border);
         border-radius: 10px;
         padding: 8px 10px;
@@ -73,32 +84,44 @@
       @media (max-width: 900px) {
         .role-simulation-switcher {
           position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-          z-index: 50;
-          justify-content: center;
-          flex-wrap: wrap;
-          box-shadow: 0 8px 28px rgba(0,0,0,.16);
+          left: 12px;
+          right: 12px;
+          bottom: max(16px, env(safe-area-inset-bottom));
+          z-index: 90;
+          box-shadow: 0 10px 30px rgba(0,0,0,.2);
         }
-        .role-simulation-switcher .button { flex: 1 1 42%; }
-        body:has(.role-simulation-switcher) { padding-bottom: 116px; }
+        .role-simulation-switcher .button {
+          width: 100%;
+          min-height: 56px !important;
+          font-size: 1rem !important;
+        }
+        body:has(.role-simulation-switcher) { padding-bottom: 92px; }
       }
     `;
     document.head.append(style);
   }
 
-  function renderBanner(simulation) {
+  function renderBanner(currentSimulation) {
     document.querySelector('[data-role-simulation-banner]')?.remove();
-    if (!simulation?.active) return;
+    if (!currentSimulation?.active) return;
     const shell = document.getElementById('desktop-app-shell');
     const workspace = shell?.querySelector('.app-workspace');
     if (!workspace) return;
-    const banner = document.createElement('p');
+    const banner = document.createElement('div');
     banner.className = 'role-simulation-banner';
     banner.dataset.roleSimulationBanner = '1';
-    const label = LABELS[simulation.role_code] || simulation.role_code;
-    banner.append('권한 체험 중: ', Object.assign(document.createElement('strong'), { textContent: label }), ' · 이 기능은 역할만 바꾸며 실제 사용자 계정의 배정 데이터까지 바꾸지는 않습니다. 해당 역할의 서버 권한만 행사됩니다. 사용자 신원도 바뀌지 않습니다.');
+    const label = LABELS[currentSimulation.role_code] || currentSimulation.role_code;
+    banner.append(
+      Object.assign(document.createElement('strong'), { textContent: `${label} 역할 미리보기 중` }),
+      ' · 실제 직원 계정이 아닌 테스트용 역할 화면입니다.'
+    );
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'button button-quiet';
+    back.textContent = '내 계정으로 돌아가기';
+    back.dataset.personaReturn = '1';
+    back.addEventListener('click', () => switchMode(null));
+    banner.append(back);
     const topbar = workspace.querySelector('.app-topbar');
     if (topbar?.nextSibling) workspace.insertBefore(banner, topbar.nextSibling);
     else workspace.append(banner);
@@ -107,7 +130,7 @@
   async function switchMode(roleCode) {
     if (switching) return;
     switching = true;
-    document.querySelectorAll('[data-role-simulation-button]').forEach(button => { button.disabled = true; });
+    document.querySelectorAll('[data-persona-launcher], [data-persona-return]').forEach(button => { button.disabled = true; });
     try {
       await app().rpc('set_role_simulation_mode', { p_role_code: roleCode });
       if (roleCode) sessionStorage.setItem(STORAGE_KEY, roleCode);
@@ -115,20 +138,9 @@
       window.location.reload();
     } catch (error) {
       switching = false;
-      document.querySelectorAll('[data-role-simulation-button]').forEach(button => { button.disabled = false; });
-      window.alert(app()?.friendlyError?.(error) || '권한 화면을 전환하지 못했습니다.');
+      document.querySelectorAll('[data-persona-launcher], [data-persona-return]').forEach(button => { button.disabled = false; });
+      window.alert(app()?.friendlyError?.(error) || '직원 화면을 전환하지 못했습니다.');
     }
-  }
-
-  function makeButton(label, roleCode, pressed) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'button button-quiet';
-    button.textContent = label;
-    button.dataset.roleSimulationButton = roleCode || 'actual';
-    button.setAttribute('aria-pressed', String(pressed));
-    button.addEventListener('click', () => switchMode(roleCode));
-    return button;
   }
 
   function decodeJwtSubject(token) {
@@ -182,19 +194,53 @@
     return data;
   }
 
-  function qaErrorCode(error) {
-    const raw = String(error?.message || 'UNKNOWN');
-    const safe = raw.replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 80);
-    return safe || 'UNKNOWN';
-  }
-
   function accountLabel(account) {
     const roleNames = (account.roles || []).map(role => role.name || role.code).filter(Boolean);
     const meta = [account.department_name, account.position_name, roleNames.join('·')].filter(Boolean).join(' / ');
     return meta ? `${account.display_name} — ${meta}` : account.display_name;
   }
 
-  function ensureQaDialog() {
+  function readAccountCache() {
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(QA_ACCOUNT_CACHE_KEY) || 'null');
+      if (!cached?.saved_at || !Array.isArray(cached.accounts)) return null;
+      if (Date.now() - Number(cached.saved_at) > QA_ACCOUNT_CACHE_TTL_MS) {
+        sessionStorage.removeItem(QA_ACCOUNT_CACHE_KEY);
+        return null;
+      }
+      return cached.accounts;
+    } catch {
+      sessionStorage.removeItem(QA_ACCOUNT_CACHE_KEY);
+      return null;
+    }
+  }
+
+  function writeAccountCache(accounts) {
+    sessionStorage.setItem(QA_ACCOUNT_CACHE_KEY, JSON.stringify({ saved_at: Date.now(), accounts }));
+  }
+
+  async function fetchQaAccounts({ allowCached = true } = {}) {
+    if (allowCached) {
+      const cached = readAccountCache();
+      if (cached) {
+        qaAccounts = cached;
+        return cached;
+      }
+    }
+    const result = await qaRequest({ action: 'list' });
+    qaAccounts = Array.isArray(result.accounts) ? result.accounts : [];
+    writeAccountCache(qaAccounts);
+    return qaAccounts;
+  }
+
+  function preloadQaAccounts() {
+    if (simulation()?.active || preloadPromise || readAccountCache()) return;
+    preloadPromise = fetchQaAccounts({ allowCached: false })
+      .catch(error => console.warn('Employee preview account preload unavailable.', error))
+      .finally(() => { preloadPromise = null; });
+  }
+
+  function ensurePersonaDialog() {
     let dialog = document.querySelector('[data-qa-account-dialog]');
     if (dialog) return dialog;
 
@@ -205,12 +251,13 @@
     const body = document.createElement('div');
     body.className = 'qa-account-dialog__body';
     const heading = document.createElement('h2');
-    heading.textContent = '실제 계정 검수';
+    heading.textContent = '직원 화면 체험';
     const copy = document.createElement('p');
-    copy.textContent = '선택한 직원의 실제 Auth 세션과 실제 RLS로 새 탭을 엽니다. 운영총괄 원래 탭은 그대로 유지됩니다. Staging/Deploy Preview 검수용 기능입니다.';
+    copy.textContent = '실제 로그인 가능한 직원은 그 직원이 실제로 보는 화면으로 열고, 실제 계정이 없는 역할만 테스트용 역할 미리보기로 보여줍니다.';
     const select = document.createElement('select');
     select.dataset.qaAccountSelect = '1';
-    select.setAttribute('aria-label', '검수할 실제 사용자 계정');
+    select.dataset.personaSelect = '1';
+    select.setAttribute('aria-label', '체험할 직원 또는 역할');
     const status = document.createElement('p');
     status.className = 'qa-account-dialog__status';
     status.dataset.qaAccountStatus = '1';
@@ -224,9 +271,10 @@
     const open = document.createElement('button');
     open.type = 'button';
     open.className = 'button';
-    open.textContent = '선택 계정 새 탭으로 열기';
+    open.textContent = '이 화면으로 보기';
     open.dataset.qaAccountOpen = '1';
-    open.addEventListener('click', startQaPreview);
+    open.dataset.personaOpen = '1';
+    open.addEventListener('click', applyPersonaSelection);
     actions.append(cancel, open);
     body.append(heading, copy, select, status, actions);
     dialog.append(body);
@@ -234,55 +282,94 @@
     return dialog;
   }
 
-  function fillQaAccounts(dialog, accounts) {
-    const select = dialog.querySelector('[data-qa-account-select]');
-    select.replaceChildren();
-    for (const account of accounts) {
-      const option = document.createElement('option');
-      option.value = account.id;
-      option.textContent = account.previewable ? accountLabel(account) : `${accountLabel(account)} · ${account.preview_reason || '검수 불가'}`;
-      option.disabled = !account.previewable;
-      option.dataset.displayName = account.display_name || '';
-      select.append(option);
-    }
-    const first = [...select.options].find(option => !option.disabled);
-    if (first) select.value = first.value;
+  function option(value, text, kind, extra = {}) {
+    const node = document.createElement('option');
+    node.value = value;
+    node.textContent = text;
+    node.dataset.personaKind = kind;
+    Object.entries(extra).forEach(([key, val]) => { node.dataset[key] = String(val || ''); });
+    return node;
   }
 
-  async function openQaDialog() {
+  function fillPersonaOptions(dialog, accounts) {
+    const select = dialog.querySelector('[data-persona-select]');
+    const currentId = context()?.id || '';
+    select.replaceChildren(option('self', '내 계정', 'self'));
+
+    const previewable = (accounts || []).filter(account => account.previewable && account.id !== currentId);
+    if (previewable.length) {
+      const employeeGroup = document.createElement('optgroup');
+      employeeGroup.label = '체험 가능한 직원';
+      previewable.forEach(account => employeeGroup.append(option(
+        account.id,
+        accountLabel(account),
+        'account',
+        { displayName: account.display_name || '선택 직원' }
+      )));
+      select.append(employeeGroup);
+    }
+
+    const actualRoleCodes = new Set(previewable.flatMap(account => (account.roles || []).map(role => role.code).filter(Boolean)));
+    const fallbackRoles = PRESET_ROLES.filter(roleCode => !actualRoleCodes.has(roleCode));
+    if (fallbackRoles.length) {
+      const presetGroup = document.createElement('optgroup');
+      presetGroup.label = '역할 미리보기';
+      fallbackRoles.forEach(roleCode => presetGroup.append(option(
+        roleCode,
+        `${LABELS[roleCode]} — 역할 미리보기`,
+        'preset',
+        { roleCode }
+      )));
+      select.append(presetGroup);
+    }
+
+    const activeRole = simulation()?.active ? simulation().role_code : null;
+    const activePreset = [...select.options].find(item => item.dataset.personaKind === 'preset' && item.value === activeRole);
+    if (activePreset) select.value = activePreset.value;
+    else select.value = 'self';
+
+    return { previewableCount: previewable.length, fallbackCount: fallbackRoles.length };
+  }
+
+  async function openPersonaDialog() {
     if (qaLoading) return;
     qaLoading = true;
-    const dialog = ensureQaDialog();
+    const dialog = ensurePersonaDialog();
     const status = dialog.querySelector('[data-qa-account-status]');
-    const open = dialog.querySelector('[data-qa-account-open]');
-    status.textContent = '계정 목록을 불러오고 있습니다.';
+    const open = dialog.querySelector('[data-persona-open]');
+    status.textContent = '체험 가능한 직원을 확인하고 있습니다.';
     open.disabled = true;
     if (!dialog.open) dialog.showModal();
+
     try {
-      if (!qaAccounts) {
-        const result = await qaRequest({ action: 'list' });
-        qaAccounts = Array.isArray(result.accounts) ? result.accounts : [];
+      let accounts = qaAccounts || readAccountCache();
+      if (!accounts && !simulation()?.active) accounts = await fetchQaAccounts({ allowCached: false });
+      accounts = accounts || [];
+      const counts = fillPersonaOptions(dialog, accounts);
+      if (counts.previewableCount) {
+        status.textContent = `체험 가능한 직원 ${counts.previewableCount}명${counts.fallbackCount ? ` · 역할 미리보기 ${counts.fallbackCount}개` : ''}`;
+      } else if (simulation()?.active) {
+        status.textContent = '직원 목록을 새로 확인하려면 내 계정으로 돌아간 뒤 다시 열어 주세요.';
+      } else {
+        status.textContent = counts.fallbackCount ? `역할 미리보기 ${counts.fallbackCount}개를 사용할 수 있습니다.` : '현재 체험 가능한 직원이 없습니다.';
       }
-      fillQaAccounts(dialog, qaAccounts);
-      const available = qaAccounts.filter(account => account.previewable).length;
-      status.textContent = available ? `검수 가능한 실제 로그인 계정 ${available}개` : '검수 가능한 로그인 계정이 없습니다.';
-      open.disabled = available === 0;
+      open.disabled = false;
     } catch (error) {
-      status.textContent = `실제 계정 목록을 불러오지 못했습니다. (${qaErrorCode(error)})`;
-      open.disabled = true;
       console.error(error);
+      const counts = fillPersonaOptions(dialog, []);
+      status.textContent = counts.fallbackCount
+        ? '직원 목록은 불러오지 못했지만 역할 미리보기는 사용할 수 있습니다.'
+        : '직원 목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      open.disabled = false;
     } finally {
       qaLoading = false;
     }
   }
 
-  function startQaPreview() {
-    const dialog = ensureQaDialog();
-    const select = dialog.querySelector('[data-qa-account-select]');
+  async function startEmployeePreview(selected, dialog) {
     const status = dialog.querySelector('[data-qa-account-status]');
-    const targetProfileId = select.value;
-    const selected = select.selectedOptions[0];
-    const targetName = selected?.dataset.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 사용자';
+    const targetProfileId = selected.value;
+    const targetName = selected.dataset.displayName || selected.textContent?.split(' — ')[0]?.trim() || '선택 직원';
     if (!targetProfileId) return;
 
     sessionStorage.setItem(QA_HANDOFF_KEY, JSON.stringify({
@@ -291,65 +378,106 @@
       created_at: new Date().toISOString()
     }));
 
-    const previewTab = window.open('/app/qa-account-preview.html#waiting=1', '_blank');
+    // Open synchronously from the user gesture so mobile popup blockers do not
+    // interfere. The operator session remains isolated from the target session.
+    const previewTab = window.open('about:blank', '_blank');
     if (!previewTab) {
       sessionStorage.removeItem(QA_HANDOFF_KEY);
       status.textContent = '새 탭이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도하세요.';
       return;
     }
 
-    status.textContent = `${targetName} 실제 계정 검수 탭을 열었습니다.`;
-    dialog.close();
-    window.setTimeout(() => sessionStorage.removeItem(QA_HANDOFF_KEY), 5000);
+    try {
+      if (simulation()?.active) {
+        status.textContent = '직원 화면을 준비하고 있습니다.';
+        await app().rpc('set_role_simulation_mode', { p_role_code: null });
+        sessionStorage.removeItem(STORAGE_KEY);
+        await window.TaejangCapabilityAccess?.refresh?.();
+      }
+      previewTab.location.replace('/app/qa-account-preview.html#waiting=1');
+      status.textContent = `${targetName} 직원 화면 체험 탭을 열었습니다.`;
+      dialog.close();
+      window.setTimeout(() => sessionStorage.removeItem(QA_HANDOFF_KEY), 5000);
+      if (simulation()?.active) window.setTimeout(() => window.location.reload(), 120);
+    } catch (error) {
+      console.error(error);
+      sessionStorage.removeItem(QA_HANDOFF_KEY);
+      try { previewTab.close(); } catch { /* no-op */ }
+      status.textContent = '직원 화면을 열지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
   }
 
-  function makeQaButton() {
+  async function applyPersonaSelection() {
+    if (switching) return;
+    const dialog = ensurePersonaDialog();
+    const select = dialog.querySelector('[data-persona-select]');
+    const selected = select.selectedOptions[0];
+    const kind = selected?.dataset.personaKind;
+    if (!selected || !kind) return;
+
+    if (kind === 'self') {
+      if (simulation()?.active) await switchMode(null);
+      else dialog.close();
+      return;
+    }
+    if (kind === 'preset') {
+      await switchMode(selected.dataset.roleCode || selected.value);
+      return;
+    }
+    if (kind === 'account') await startEmployeePreview(selected, dialog);
+  }
+
+  function makePersonaLauncher(currentSimulation) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'button button-quiet';
-    button.textContent = '실제 계정 검수';
+    const activeRole = currentSimulation?.active ? currentSimulation.role_code : null;
+    button.textContent = activeRole
+      ? `👤 ${LABELS[activeRole] || activeRole}으로 보는 중 ▾`
+      : '👤 내 계정 ▾';
+    button.dataset.personaLauncher = '1';
     button.dataset.qaAccountPreviewButton = '1';
-    button.addEventListener('click', openQaDialog);
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.setAttribute('aria-expanded', 'false');
+    button.addEventListener('click', async () => {
+      button.setAttribute('aria-expanded', 'true');
+      try { await openPersonaDialog(); }
+      finally { button.setAttribute('aria-expanded', 'false'); }
+    });
     return button;
   }
 
   function installSwitcher() {
     installStyles();
     const current = context();
-    const simulation = current?.role_simulation;
+    const currentSimulation = current?.role_simulation;
     const actions = document.querySelector('.app-user-actions');
-    if (!actions || !simulation?.can_switch) return;
+    if (!actions || !currentSimulation?.can_switch) return;
 
-    // A simulation must belong to this browser tab. Closing the tab or logging
-    // in again without the local marker restores the real account automatically.
+    // A preset belongs only to this browser tab. If its local marker is gone,
+    // fail back to the real operator account rather than silently keeping it.
     const localMode = sessionStorage.getItem(STORAGE_KEY);
-    if (simulation.active && localMode !== simulation.role_code) {
+    if (currentSimulation.active && localMode !== currentSimulation.role_code) {
       switchMode(null);
       return;
     }
-    if (!simulation.active && localMode) sessionStorage.removeItem(STORAGE_KEY);
+    if (!currentSimulation.active && localMode) sessionStorage.removeItem(STORAGE_KEY);
 
-    let switcher = actions.querySelector('[data-role-simulation-switcher]');
-    if (switcher) switcher.remove();
-    switcher = document.createElement('div');
+    actions.querySelector('[data-role-simulation-switcher]')?.remove();
+    const switcher = document.createElement('div');
     switcher.className = 'role-simulation-switcher';
     switcher.dataset.roleSimulationSwitcher = '1';
-    switcher.setAttribute('aria-label', '권한 및 실제 계정 검수 전환');
-
-    const activeRole = simulation.active ? simulation.role_code : null;
-    switcher.append(
-      makeButton('홍보직원 보기', 'promotion_staff', activeRole === 'promotion_staff'),
-      makeButton('운영팀장 보기', 'promotion_lead', activeRole === 'promotion_lead'),
-      makeQaButton(),
-      makeButton('운영총괄 복귀', null, !activeRole)
-    );
+    switcher.setAttribute('aria-label', '직원 화면 체험');
+    switcher.append(makePersonaLauncher(currentSimulation));
     actions.prepend(switcher);
-    renderBanner(simulation);
+    renderBanner(currentSimulation);
 
     const userLabel = document.getElementById('desktop-user-label');
-    if (userLabel && simulation.active) {
-      userLabel.textContent = `${current.display_name || '사용자'} · ${LABELS[simulation.role_code] || simulation.role_code} 역할 체험`;
+    if (userLabel && currentSimulation.active) {
+      userLabel.textContent = `${current.display_name || '사용자'} · ${LABELS[currentSimulation.role_code] || currentSimulation.role_code} 역할 미리보기`;
     }
+
+    if (!currentSimulation.active) preloadQaAccounts();
 
     const desktopLogout = document.getElementById('desktop-logout-button');
     if (desktopLogout && !desktopLogout.dataset.roleSimulationLogoutBound) {
