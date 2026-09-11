@@ -100,9 +100,11 @@ async function loadAccountManagement(userClient: any) {
   return management || {};
 }
 
-async function listAccounts(admin: any, userClient: any) {
-  // Reuse the capability-gated account-management contract instead of
-  // duplicating raw profile/role table reads in the Edge function.
+async function listAccounts(userClient: any) {
+  // The canonical account-management RPC is the source of truth for which
+  // active profiles a top-authority operator may inspect. Do not bulk-enumerate
+  // Auth users here: hosted environments can restrict that admin endpoint, and
+  // the selected target is authoritatively verified against Auth in create.
   const management = await loadAccountManagement(userClient);
 
   const profileRows = (management?.profiles || []).filter((profile: any) => profile.account_status === 'active');
@@ -110,21 +112,14 @@ async function listAccounts(admin: any, userClient: any) {
   const positions = management?.positions || [];
   const roles = management?.roles || [];
 
-  const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (usersError) throw qaFailure('auth_users', usersError);
-
   const departmentMap = new Map(departments.map((row: any) => [row.id, row.name]));
   const positionMap = new Map(positions.map((row: any) => [row.id, row.name]));
   const roleByCode = new Map(roles.map((role: any) => [role.code, role]));
-  const authUsers = new Map((usersData?.users || []).map((user: any) => [user.id, user]));
 
   return profileRows.map((profile: any) => {
     const accountRoles = (profile.roles || [])
       .map((roleCode: string) => ({ code: roleCode, name: roleByCode.get(roleCode)?.name || roleCode }))
       .sort((left: any, right: any) => (left.name || '').localeCompare(right.name || '', 'ko'));
-    const authUser: any = authUsers.get(profile.id);
-    const hasEmail = Boolean(authUser?.email);
-    const emailConfirmed = Boolean(authUser?.email_confirmed_at);
     return {
       id: profile.id,
       display_name: profile.display_name || '이름 없음',
@@ -132,8 +127,8 @@ async function listAccounts(admin: any, userClient: any) {
       position_name: positionMap.get(profile.position_id) || null,
       roles: accountRoles,
       top_authority: isTopAuthority(new Set(accountRoles.map(role => role.code))),
-      previewable: hasEmail && emailConfirmed,
-      preview_reason: !hasEmail ? '로그인 계정 없음' : (!emailConfirmed ? '이메일 확인 전 계정' : null)
+      previewable: true,
+      preview_reason: null
     };
   });
 }
@@ -158,7 +153,7 @@ async function createPreviewToken(admin: any, userClient: any, targetProfileId: 
     type: 'magiclink',
     email: targetUser.email
   });
-  if (linkError) throw linkError;
+  if (linkError) throw qaFailure('generate_link', linkError);
 
   const tokenHash = linkData?.properties?.hashed_token;
   const verificationType = linkData?.properties?.verification_type || 'magiclink';
@@ -207,9 +202,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (body?.action === 'list') {
-      const accounts = await listAccounts(admin, authorization.userClient);
+      const accounts = await listAccounts(authorization.userClient);
       console.info('qa_account_preview_list', { actor_id: authorization.user.id, count: accounts.length });
-      return reply(200, { accounts, authority: 'top', qa_contract_version: 2 }, origin);
+      return reply(200, { accounts, authority: 'top', qa_contract_version: 3 }, origin);
     }
 
     if (body?.action === 'create') {
@@ -224,7 +219,7 @@ Deno.serve(async (req: Request) => {
     console.error('qa_account_preview_failed', error);
     return reply(500, {
       error: 'QA_PREVIEW_FAILED',
-      ...(environment === 'local' ? { diagnostic_code: safeDiagnosticCode(error) } : {})
+      diagnostic_code: safeDiagnosticCode(error)
     }, origin);
   }
 });
