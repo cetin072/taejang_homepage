@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const ui = fs.readFileSync(path.join(root, 'app', 'assets', 'support-radar-my-work.js'), 'utf8');
+const assignmentUi = fs.readFileSync(path.join(root, 'app', 'assets', 'support-radar-assignment.js'), 'utf8');
 const assignmentSql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260909234000_support_radar_assignment.sql'), 'utf8');
 const mutationSql = fs.readFileSync(path.join(root, 'supabase', 'migrations', '20260909214000_support_radar_phase1_mutations.sql'), 'utf8');
 const loader = fs.readFileSync(path.join(root, 'app', 'assets', 'app-ui.js'), 'utf8');
@@ -25,6 +26,13 @@ test('assignee UI uses scoped notice queries and progress mutation only', () => 
   assert.doesNotMatch(ui, /support_set_decision/);
   assert.doesNotMatch(ui, /support_evaluate_notice_v1/);
   assert.doesNotMatch(ui, /support_save_company_profile/);
+});
+
+test('assignment panel appears only after apply and avoids observer self-loops', () => {
+  assert.match(assignmentUi, /if\(decision!==['"]apply['"]\) return/);
+  assert.match(assignmentUi, /state\.injecting/);
+  assert.match(assignmentUi, /note && note\.textContent !== desired/);
+  assert.match(assignmentUi, /liveRoot!==root/);
 });
 
 test('application status RPC recognizes active assignment authority', () => {
