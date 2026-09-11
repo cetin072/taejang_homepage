@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>태장 급여관리 Staging MVP</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="../assets/payroll-operator.css">
+</head>
+<body class="payroll-preview">
+  <main class="payroll-shell">
+    <header class="payroll-topbar">
+      <div>
+        <p class="payroll-eyebrow">태장 업무플랫폼 · 급여관리</p>
+        <h1 class="payroll-title" id="payroll-live-title">2026년 8월</h1>
+        <p class="payroll-subtitle">실제 Staging Shadow Payroll 계산결과를 운영총괄 권한으로 읽기 전용 확인합니다.</p>
+      </div>
+      <span class="payroll-demo-badge" id="payroll-live-environment">STAGING · READ ONLY</span>
+    </header>
+
+    <section class="payroll-live-toolbar payroll-card" aria-label="급여월 선택과 새로고침">
+      <label for="payroll-live-month">
+        <span>급여월</span>
+        <input id="payroll-live-month" type="month" value="2026-08">
+      </label>
+      <button class="payroll-button" type="button" id="payroll-live-refresh">새로고침</button>
+      <a class="payroll-button secondary payroll-live-link" href="../">업무플랫폼으로</a>
+      <a class="payroll-button secondary payroll-live-link" href="../../staff/" id="payroll-live-login" hidden>로그인 화면</a>
+    </section>
+
+    <p id="payroll-live-message" class="payroll-live-message" role="status" aria-live="polite" hidden></p>
+
+    <section class="payroll-summary payroll-live-summary" aria-label="Shadow Payroll 요약">
+      <div class="payroll-metric">
+        <span>상태</span>
+        <strong id="payroll-live-status">불러오는 중</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>계산 직원</span>
+        <strong id="payroll-live-employees">—</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>가안 총지급</span>
+        <strong id="payroll-live-gross">—</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>미해결</span>
+        <strong id="payroll-live-exceptions">—</strong>
+      </div>
+    </section>
+
+    <section class="payroll-grid payroll-live-grid">
+      <article class="payroll-card payroll-main-card">
+        <div class="payroll-card-header">
+          <div>
+            <p class="payroll-eyebrow">실제 계산결과</p>
+            <h2>직원별 Shadow Payroll</h2>
+          </div>
+        </div>
+        <div class="payroll-card-body">
+          <div id="payroll-live-empty" class="payroll-clear-state" hidden>
+            <div class="payroll-clear-icon">i</div>
+            <div>
+              <strong>이 급여월은 아직 계산결과가 없습니다.</strong>
+              <p>출퇴근 원본을 확정한 뒤 Shadow 계산을 실행하면 이곳에 표시됩니다.</p>
+            </div>
+          </div>
+
+          <div id="payroll-live-table-wrap" class="payroll-live-table-wrap" hidden>
+            <table class="payroll-live-table">
+              <thead>
+                <tr>
+                  <th>사번</th>
+                  <th>성명</th>
+                  <th>실근로</th>
+                  <th>유급휴일</th>
+                  <th>주휴</th>
+                  <th>지급시간</th>
+                  <th>가안 총지급</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-live-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <aside class="payroll-card payroll-guide-card">
+        <div class="payroll-card-header">
+          <h3>현재 검수 기준</h3>
+        </div>
+        <div class="payroll-card-body">
+          <dl class="payroll-live-meta">
+            <div><dt>근태 기준일</dt><dd id="payroll-live-cutoff">—</dd></div>
+            <div><dt>계산 Run</dt><dd id="payroll-live-run">—</dd></div>
+            <div><dt>계산 버전</dt><dd id="payroll-live-version">—</dd></div>
+          </dl>
+          <ul class="payroll-checklist">
+            <li>이 화면은 Staging 데이터만 읽습니다.</li>
+            <li>급여 확정·월 잠금·송금 기능은 없습니다.</li>
+            <li>주민등록번호·계좌·장애·건강정보는 표시하지 않습니다.</li>
+            <li>직원별 근로시간·주휴·가안 총지급만 확인합니다.</li>
+            <li>권한 없는 계정은 서버 RPC에서 차단됩니다.</li>
+          </ul>
+        </div>
+      </aside>
+    </section>
+
+    <p class="payroll-footer-note">
+      Staging Shadow Payroll MVP 검수 화면입니다. 실제 지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다.
+    </p>
+  </main>
+
+  <script src="../assets/payroll-operator-live.js"></script>
+</body>
+</html>
