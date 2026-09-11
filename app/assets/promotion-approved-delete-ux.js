@@ -9,6 +9,10 @@
   let scheduled = false;
   let leadSyncBusy = false;
 
+  function setText(node, value) {
+    if (node && node.textContent !== value) node.textContent = value;
+  }
+
   function openPromotionManagement() {
     window.TaejangIssue146?.openPromotionArchive?.();
   }
@@ -36,7 +40,7 @@
     if (!nav) return;
 
     if (currentRoute === 'promotion_lead') {
-      nav.hidden = true;
+      if (!nav.hidden) nav.hidden = true;
       nav.dataset.promotionLeadMergedNav = '1';
       return;
     }
@@ -45,8 +49,10 @@
       nav.hidden = false;
       delete nav.dataset.promotionLeadMergedNav;
     }
-    nav.textContent = '홍보글 관리·복구';
-    nav.setAttribute('aria-label', '홍보글 삭제 보관 및 복구 관리');
+    setText(nav, '홍보글 관리·복구');
+    if (nav.getAttribute('aria-label') !== '홍보글 삭제 보관 및 복구 관리') {
+      nav.setAttribute('aria-label', '홍보글 삭제 보관 및 복구 관리');
+    }
   }
 
   function syncReviewEntry() {
@@ -95,8 +101,8 @@
     if (!review || !intro) return;
     const heading = intro.querySelector('h2');
     const copy = [...intro.querySelectorAll(':scope > p')].at(-1);
-    if (heading) heading.textContent = '홍보 관리';
-    if (copy) copy.textContent = '검토 대기 글의 미리보기·수정·삭제·보완 요청·승인·상신을 한 화면에서 처리합니다.';
+    setText(heading, '홍보 관리');
+    setText(copy, '검토 대기 글의 미리보기·수정·삭제·보완 요청·승인·상신을 한 화면에서 처리합니다.');
   }
 
   function reviewDeleteButton(item) {
@@ -133,19 +139,37 @@
     });
   }
 
+  function approvedUnpublishedSignature(items) {
+    return items.map(item => [
+      item.content_id || '',
+      item.lifecycle || '',
+      item.title || '',
+      item.owner_name || '',
+      item.requested_publish_date || ''
+    ].join(':')).join('|');
+  }
+
   function renderLeadApprovedUnpublished(candidates, reviewItems) {
     const reviewSection = document.querySelector('#dashboard-main [data-pilot-review-section]');
     if (!reviewSection) return;
-    reviewSection.querySelector('[data-promotion-approved-unpublished-section]')?.remove();
-
+    const existing = reviewSection.querySelector('[data-promotion-approved-unpublished-section]');
     const reviewIds = new Set((Array.isArray(reviewItems) ? reviewItems : []).map(item => item.content_id));
     const items = (Array.isArray(candidates) ? candidates : []).filter(item =>
       !reviewIds.has(item.content_id) && ['approved', 'scheduled'].includes(item.lifecycle)
     );
-    if (!items.length) return;
+
+    if (!items.length) {
+      existing?.remove();
+      return;
+    }
+
+    const signature = approvedUnpublishedSignature(items);
+    if (existing?.dataset.renderSignature === signature) return;
+    existing?.remove();
 
     const section = document.createElement('div');
     section.dataset.promotionApprovedUnpublishedSection = '1';
+    section.dataset.renderSignature = signature;
     section.className = 'dashboard-section';
     const heading = document.createElement('h3');
     heading.textContent = `승인 완료·미발행 글 ${items.length}건`;
@@ -204,13 +228,14 @@
     if (currentRoute === 'promotion_lead') {
       const introHeading = shell.querySelector('.dashboard-intro h2');
       const introCopy = shell.querySelector('.dashboard-intro p:last-child');
-      if (introHeading?.textContent.includes('공개 전 글')) introHeading.textContent = '승인 완료·공개 전 홍보글을 삭제할 수 있습니다';
-      if (introCopy?.textContent.includes('보관')) introCopy.textContent = '승인 완료를 포함해 아직 한 번도 공개되지 않은 글은 삭제할 수 있습니다. 원문과 수정이력은 보존되어 운영총괄이 필요할 때 복구할 수 있습니다.';
+      if (introHeading?.textContent.includes('공개 전 글')) setText(introHeading, '승인 완료·공개 전 홍보글을 삭제할 수 있습니다');
+      if (introCopy?.textContent.includes('보관')) setText(introCopy, '승인 완료를 포함해 아직 한 번도 공개되지 않은 글은 삭제할 수 있습니다. 원문과 수정이력은 보존되어 운영총괄이 필요할 때 복구할 수 있습니다.');
     }
 
     shell.querySelectorAll('.issue146-badge').forEach(badge => {
       const value = badge.textContent?.trim();
-      if (value) badge.textContent = lifecycleLabel(value);
+      const label = value ? lifecycleLabel(value) : '';
+      if (label && badge.textContent !== label) badge.textContent = label;
     });
 
     shell.querySelectorAll('button').forEach(button => {
