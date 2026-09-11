@@ -54,6 +54,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-attendance-normalizer.test.js',
     'tests/payroll-attendance-persistence-candidate.test.js',
     'tests/payroll-calculation-input-candidate.test.js',
+    'tests/payroll-calculation-scope-guard.test.js',
     'tests/payroll-trusted-runtime-contract.test.js',
     'tests/payroll-trusted-result-persistence-candidate.test.js',
     'tests/payroll-outgoing-adjustment-review-candidate.test.js',
