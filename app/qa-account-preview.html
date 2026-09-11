@@ -45,6 +45,7 @@
       padding: 24px;
       text-align: center;
     }
+    .qa-state[hidden] { display: none !important; }
     .qa-card {
       max-width: 560px;
       background: #fff;
@@ -104,6 +105,7 @@
         stateTitle.textContent = '실제 계정 검수를 시작하지 못했습니다.';
         stateCopy.textContent = message;
         state.hidden = false;
+        state.style.display = 'grid';
         frame.style.display = 'none';
       }
 
@@ -214,6 +216,7 @@
         title.textContent = `Staging 실제 계정 검수: ${targetName}`;
         document.title = `${targetName} 실제 계정 검수 · 태장 Staging`;
         state.hidden = true;
+        state.style.display = 'none';
         frame.style.display = 'block';
         frame.src = '/app/';
         reload.hidden = false;
