@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow,noarchive">
-  <title>태장 Staging 실제 계정 검수</title>
+  <title>태장 직원 화면 체험</title>
   <style>
     :root { color-scheme: light; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
     * { box-sizing: border-box; }
@@ -92,22 +92,22 @@
 <body>
   <header class="qa-bar">
     <div class="qa-bar__copy">
-      <strong id="qa-title">Staging 실제 계정 검수 준비 중</strong>
-      <span>이 탭만 선택한 사용자의 실제 Auth 세션과 실제 RLS로 동작합니다. 원래 운영총괄 탭은 유지됩니다. Production에서는 사용하지 않습니다.</span>
+      <strong id="qa-title">직원 화면 체험 준비 중</strong>
+      <span>선택한 직원이 실제로 보는 화면과 권한 범위로 동작합니다. 원래 내 계정 화면은 그대로 유지됩니다. 개발·체험 환경에서만 사용합니다.</span>
     </div>
     <div class="qa-actions">
       <button type="button" id="qa-reload" hidden>화면 새로고침</button>
-      <button type="button" id="qa-close">운영총괄로 돌아가기</button>
+      <button type="button" id="qa-close">내 계정으로 돌아가기</button>
     </div>
   </header>
   <main class="qa-stage">
     <div class="qa-state" id="qa-state">
       <div class="qa-card" id="qa-card">
-        <h1 id="qa-state-title">실제 계정 세션을 확인하고 있습니다.</h1>
+        <h1 id="qa-state-title">직원 화면을 확인하고 있습니다.</h1>
         <p id="qa-state-copy">잠시만 기다려 주세요.</p>
       </div>
     </div>
-    <iframe id="qa-frame" title="선택한 실제 사용자 계정의 태장 업무플랫폼" referrerpolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+    <iframe id="qa-frame" title="선택한 직원의 태장 업무플랫폼 화면" referrerpolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
   </main>
   <script>
     (() => {
@@ -127,7 +127,7 @@
 
       function fail(message) {
         card.classList.add('is-error');
-        stateTitle.textContent = '실제 계정 검수를 시작하지 못했습니다.';
+        stateTitle.textContent = '직원 화면 체험을 시작하지 못했습니다.';
         stateCopy.textContent = message;
         state.hidden = false;
         state.style.display = 'grid';
@@ -164,7 +164,7 @@
             sessionStorage.removeItem(QA_HANDOFF_KEY);
             return {
               targetProfileId: stored.target_profile_id,
-              targetName: stored.target_name || '선택 사용자'
+              targetName: stored.target_name || '선택 직원'
             };
           }
         } catch {
@@ -176,7 +176,7 @@
           const select = window.opener.document.querySelector('[data-qa-account-select]');
           const targetProfileId = select?.value || '';
           const selected = select?.selectedOptions?.[0];
-          const targetName = selected?.dataset?.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 사용자';
+          const targetName = selected?.dataset?.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 직원';
           if (!targetProfileId) throw new Error('QA_TARGET_MISSING');
           return { targetProfileId, targetName };
         } catch (error) {
@@ -238,8 +238,8 @@
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
         sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
         try { window.opener = null; } catch { /* browser may keep it read-only */ }
-        title.textContent = `Staging 실제 계정 검수: ${targetName}`;
-        document.title = `${targetName} 실제 계정 검수 · 태장 Staging`;
+        title.textContent = `${targetName} 화면 체험 중`;
+        document.title = `${targetName} 화면 체험 · 태장`;
         state.hidden = true;
         state.style.display = 'none';
         frame.style.display = 'block';
@@ -252,14 +252,14 @@
         const waiting = hash.get('waiting') === '1';
         const tokenHash = hash.get('token_hash');
         const verificationType = hash.get('type') || 'magiclink';
-        const targetName = hash.get('target_name') || '선택 사용자';
+        const targetName = hash.get('target_name') || '선택 직원';
         history.replaceState(null, '', window.location.pathname);
 
         try {
           const config = await loadConfig();
           if (waiting && !tokenHash) {
-            stateTitle.textContent = '실제 계정 세션을 준비하고 있습니다.';
-            stateCopy.textContent = '선택한 계정의 실제 Auth 세션과 권한을 확인하는 중입니다.';
+            stateTitle.textContent = '직원 화면을 준비하고 있습니다.';
+            stateCopy.textContent = '선택한 직원의 화면과 권한 범위를 확인하는 중입니다.';
             const operatorSession = readOperatorSession();
             const selected = readSelectedTarget();
             const created = await createPreviewToken(config, operatorSession, selected.targetProfileId);
@@ -269,7 +269,7 @@
             return;
           }
           if (!tokenHash) {
-            fail('검수용 일회성 인증정보가 없습니다. 운영총괄 화면의 “실제 계정 검수”에서 다시 열어 주세요.');
+            fail('체험용 인증정보가 없습니다. 내 계정 화면의 “직원 화면 체험”에서 다시 열어 주세요.');
             return;
           }
           const session = await verifySession(config, tokenHash, verificationType);
@@ -277,8 +277,7 @@
         } catch (error) {
           sessionStorage.removeItem(QA_HANDOFF_KEY);
           console.error(error);
-          const code = String(error?.message || 'UNKNOWN').replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 80);
-          fail(`실제 계정 검수 세션을 만들 수 없습니다. 운영총괄 화면에서 다시 시도해 주세요. (${code || 'UNKNOWN'})`);
+          fail('직원 화면을 열 수 없습니다. 내 계정 화면에서 다시 시도해 주세요.');
         }
       }
 
