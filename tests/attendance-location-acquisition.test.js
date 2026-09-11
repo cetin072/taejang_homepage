@@ -59,7 +59,7 @@ test('attendance location does not settle an inaccurate fix at the 6 second samp
   } });
 
   const pending = api.getBestPosition({ onStage: (...args) => stages.push(args) });
-  await Promise.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
   success(position(125));
   timers.run(6000);
   success(position(28));
@@ -78,7 +78,7 @@ test('attendance location returns the best available fix only at the final acqui
   } });
 
   const pending = api.getBestPosition();
-  await Promise.resolve();
+  await new Promise(resolve => setTimeout(resolve, 0));
   success(position(130));
   timers.run(6000);
   timers.run(14000);
