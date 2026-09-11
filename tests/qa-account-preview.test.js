@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const roleUi = fs.readFileSync(path.join(root, 'app', 'assets', 'phase-c-role-simulation.js'), 'utf8');
 const previewPage = fs.readFileSync(path.join(root, 'app', 'qa-account-preview.html'), 'utf8');
 const edge = fs.readFileSync(path.join(root, 'supabase', 'functions', 'qa-account-preview', 'index.ts'), 'utf8');
+const supabaseConfig = fs.readFileSync(path.join(root, 'supabase', 'config.toml'), 'utf8');
 
 test('operations QA switcher exposes real-account preview separately from role simulation', () => {
   assert.match(roleUi, /실제 계정 검수/);
@@ -56,4 +57,12 @@ test('QA preview does not silently activate an unconfirmed login account', () =>
   assert.match(edge, /email_confirmed_at/);
   assert.match(edge, /TARGET_EMAIL_NOT_CONFIRMED/);
   assert.match(edge, /이메일 확인 전 계정/);
+});
+
+test('QA preview disables gateway JWT verification only because it performs explicit Auth verification inside the staging-only function', () => {
+  assert.match(supabaseConfig, /\[functions\.qa-account-preview\][\s\S]*verify_jwt\s*=\s*false/);
+  assert.match(edge, /admin\.auth\.getUser\(token\)/);
+  assert.match(edge, /STAGING_ONLY/);
+  assert.match(edge, /operations_manager/);
+  assert.match(edge, /super_admin/);
 });
