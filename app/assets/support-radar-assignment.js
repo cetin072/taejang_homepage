@@ -7,6 +7,7 @@
   const array = value => Array.isArray(value)?value:[];
   const isOps = () => window.TaejangApp?.getRoute?.()==='operations_manager';
   const button = (label,action,quiet=false) => { const node=text('button',label,quiet?'button button-quiet':'button'); node.type='button'; node.addEventListener('click',action); return node; };
+  const decisionLabel = value => ({ apply: '신청', hold: '보류', exclude: '제외' })[value] || value || '미결정';
 
   function wrapRpc() {
     if(state.wrapped || !window.TaejangApp?.rpc) return;
@@ -44,9 +45,21 @@
     if(!isOps() || !state.currentNoticeId || !state.currentDetail) return;
     const main=el('dashboard-main');
     const root=main?.querySelector('.support-radar-shell');
-    if(!root || root.querySelector('[data-support-assignment-panel]')) return;
+    if(!root) return;
     const headings=[...root.querySelectorAll('h3')];
-    if(!headings.some(node=>node.textContent==='운영총괄 결정')) return;
+    const decisionHeading=headings.find(node=>node.textContent==='운영총괄 결정');
+    const decisionSection=decisionHeading?.closest('.support-radar-section');
+    if(!decisionSection) return;
+
+    const decision=state.currentDetail?.decision?.decision;
+    const decisionReason=state.currentDetail?.decision?.decision_reason;
+    if(decision){
+      const note=decisionSection.querySelector('.support-radar-note');
+      if(note) note.textContent=`현재 결정: ${decisionLabel(decision)}${decisionReason ? ` — ${decisionReason}` : ''}`;
+    }
+
+    if(decision!=='apply') return;
+    if(root.querySelector('[data-support-assignment-panel]')) return;
 
     const panel=document.createElement('section');
     panel.className='support-radar-section';
@@ -78,9 +91,7 @@
       panel.append(text('p','담당자 후보를 불러오지 못했습니다.','message error'));
     }
 
-    const decisionHeading=headings.find(node=>node.textContent==='운영총괄 결정');
-    const decisionSection=decisionHeading?.closest('.support-radar-section');
-    if(decisionSection) decisionSection.insertAdjacentElement('afterend',panel); else root.append(panel);
+    decisionSection.insertAdjacentElement('afterend',panel);
   }
 
   function watch(){
