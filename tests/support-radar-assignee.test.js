@@ -35,6 +35,14 @@ test('assignment panel appears only after apply and avoids observer self-loops',
   assert.match(assignmentUi, /liveRoot!==root/);
 });
 
+test('operations view keeps full authority but hides detailed progress by default', () => {
+  assert.match(assignmentUi, /supportOpsProgressSimplified/);
+  assert.match(assignmentUi, /진행 현황/);
+  assert.match(assignmentUi, /신청 진행 중/);
+  assert.match(assignmentUi, /필요할 때 진행상태 직접 관리/);
+  assert.match(assignmentUi, /option\[value="reviewing"\]/);
+});
+
 test('application status RPC recognizes active assignment authority', () => {
   assert.match(mutationSql, /support_assignments/);
   assert.match(mutationSql, /is_assignee/);
