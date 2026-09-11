@@ -31,8 +31,15 @@ function isTopAuthority(codes: Set<string>) {
 }
 
 function safeDiagnosticCode(error: any) {
-  const raw = String(error?.code || error?.name || 'UNKNOWN');
+  const raw = [error?.code || error?.name || 'UNKNOWN', error?.qaStage].filter(Boolean).join('_');
   return raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60) || 'UNKNOWN';
+}
+
+function qaFailure(stage: string, error: any) {
+  const wrapped: any = new Error(`QA ${stage} failed`);
+  wrapped.code = error?.code || error?.name || 'UNKNOWN';
+  wrapped.qaStage = stage;
+  return wrapped;
 }
 
 function requestIdentity(req: Request) {
@@ -93,7 +100,7 @@ async function listAccounts(admin: any) {
     .select('id, display_name, account_status, department_id, position_id')
     .eq('account_status', 'active')
     .order('display_name', { ascending: true });
-  if (profileError) throw profileError;
+  if (profileError) throw qaFailure('profiles', profileError);
 
   const profileRows = profiles || [];
   const profileIds = profileRows.map((profile: any) => profile.id);
@@ -103,14 +110,14 @@ async function listAccounts(admin: any) {
   let departments: any[] = [];
   if (departmentIds.length) {
     const { data, error } = await admin.from('departments').select('id, name').in('id', departmentIds);
-    if (error) throw error;
+    if (error) throw qaFailure('departments', error);
     departments = data || [];
   }
 
   let positions: any[] = [];
   if (positionIds.length) {
     const { data, error } = await admin.from('positions').select('id, name').in('id', positionIds);
-    if (error) throw error;
+    if (error) throw qaFailure('positions', error);
     positions = data || [];
   }
 
@@ -121,7 +128,7 @@ async function listAccounts(admin: any) {
       .select('profile_id, role_id')
       .in('profile_id', profileIds)
       .is('revoked_at', null);
-    if (error) throw error;
+    if (error) throw qaFailure('profile_roles', error);
     assignments = data || [];
   }
 
@@ -129,12 +136,12 @@ async function listAccounts(admin: any) {
   let roles: any[] = [];
   if (roleIds.length) {
     const { data, error } = await admin.from('roles').select('id, code, name, active').in('id', roleIds);
-    if (error) throw error;
+    if (error) throw qaFailure('roles', error);
     roles = (data || []).filter((role: any) => role.active !== false);
   }
 
   const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (usersError) throw usersError;
+  if (usersError) throw qaFailure('auth_users', usersError);
 
   const departmentMap = new Map(departments.map((row: any) => [row.id, row.name]));
   const positionMap = new Map(positions.map((row: any) => [row.id, row.name]));
