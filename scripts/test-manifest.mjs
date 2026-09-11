@@ -71,6 +71,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-golden-compat.test.js',
     'tests/payroll-rate-guard.test.js',
     'tests/payroll-statutory-profile-history.test.js',
+    'tests/payroll-history-record-roles.test.js',
     'tests/payroll-backend-contract.test.js',
     'tests/payroll-platform-integration-contract.test.js',
     'tests/payroll-operations-manager-access-candidate.test.js',
