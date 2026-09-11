@@ -106,6 +106,44 @@
         frame.style.display = 'none';
       }
 
+      function decodeJwtSubject(token) {
+        try {
+          const payload = token.split('.')[1];
+          if (!payload) return null;
+          const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+          return JSON.parse(atob(normalized))?.sub || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function readOperatorSession() {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+          if (stored?.access_token) return stored;
+        } catch { /* try opener next */ }
+        try {
+          const openerSession = window.opener?.TaejangApp?.getSession?.();
+          if (openerSession?.access_token) return openerSession;
+        } catch { /* handled below */ }
+        throw new Error('QA_OPERATOR_SESSION_MISSING');
+      }
+
+      function readSelectedTarget() {
+        try {
+          if (!window.opener || window.opener.closed) throw new Error('QA_OPENER_UNAVAILABLE');
+          const select = window.opener.document.querySelector('[data-qa-account-select]');
+          const targetProfileId = select?.value || '';
+          const selected = select?.selectedOptions?.[0];
+          const targetName = selected?.dataset?.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 사용자';
+          if (!targetProfileId) throw new Error('QA_TARGET_MISSING');
+          return { targetProfileId, targetName };
+        } catch (error) {
+          if (error?.message?.startsWith('QA_')) throw error;
+          throw new Error('QA_OPENER_UNAVAILABLE');
+        }
+      }
+
       async function loadConfig() {
         const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
         if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
@@ -116,6 +154,26 @@
         const previewHost = window.location.hostname.startsWith('deploy-preview-') && window.location.hostname.endsWith('--taejang-homepage.netlify.app');
         if (!(localHost || (previewHost && configUrl.hostname === `${STAGING_PROJECT_REF}.supabase.co`))) throw new Error('QA_STAGING_ONLY');
         return config;
+      }
+
+      async function createPreviewToken(config, operatorSession, targetProfileId) {
+        const subject = decodeJwtSubject(operatorSession.access_token);
+        if (!subject) throw new Error('QA_OPERATOR_IDENTITY_MISSING');
+        const response = await fetch(`${config.url}/functions/v1/qa-account-preview`, {
+          method: 'POST',
+          headers: {
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${operatorSession.access_token}`,
+            'X-QA-Context-Profile-ID': subject,
+            'X-QA-Access-Profile-ID': subject,
+            'X-QA-JWT-Subject': subject,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'create', target_profile_id: targetProfileId })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.token_hash) throw new Error(payload?.error || `QA_PREVIEW_${response.status}`);
+        return payload;
       }
 
       async function verifySession(config, tokenHash, verificationType) {
@@ -134,6 +192,18 @@
         return payload;
       }
 
+      function showTargetSession(session, targetName) {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
+        try { window.opener = null; } catch { /* browser may keep it read-only */ }
+        title.textContent = `Staging 실제 계정 검수: ${targetName}`;
+        document.title = `${targetName} 실제 계정 검수 · 태장 Staging`;
+        state.hidden = true;
+        frame.style.display = 'block';
+        frame.src = '/app/';
+        reload.hidden = false;
+      }
+
       async function start() {
         const hash = new URLSearchParams(window.location.hash.slice(1));
         const waiting = hash.get('waiting') === '1';
@@ -142,30 +212,29 @@
         const targetName = hash.get('target_name') || '선택 사용자';
         history.replaceState(null, '', window.location.pathname);
 
-        if (waiting && !tokenHash) {
-          stateTitle.textContent = '실제 계정 세션을 준비하고 있습니다.';
-          stateCopy.textContent = '운영총괄 화면에서 선택한 계정 정보를 확인하는 중입니다.';
-          return;
-        }
-        if (!tokenHash) {
-          fail('검수용 일회성 인증정보가 없습니다. 운영총괄 화면의 “실제 계정 검수”에서 다시 열어 주세요.');
-          return;
-        }
-
         try {
           const config = await loadConfig();
+          if (waiting && !tokenHash) {
+            stateTitle.textContent = '실제 계정 세션을 준비하고 있습니다.';
+            stateCopy.textContent = '선택한 계정의 실제 Auth 세션과 권한을 확인하는 중입니다.';
+            const operatorSession = readOperatorSession();
+            const selected = readSelectedTarget();
+            const created = await createPreviewToken(config, operatorSession, selected.targetProfileId);
+            sessionStorage.removeItem(SESSION_KEY);
+            const session = await verifySession(config, created.token_hash, created.verification_type || 'magiclink');
+            showTargetSession(session, created.target?.display_name || selected.targetName);
+            return;
+          }
+          if (!tokenHash) {
+            fail('검수용 일회성 인증정보가 없습니다. 운영총괄 화면의 “실제 계정 검수”에서 다시 열어 주세요.');
+            return;
+          }
           const session = await verifySession(config, tokenHash, verificationType);
-          sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-          sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
-          title.textContent = `Staging 실제 계정 검수: ${targetName}`;
-          document.title = `${targetName} 실제 계정 검수 · 태장 Staging`;
-          state.hidden = true;
-          frame.style.display = 'block';
-          frame.src = '/app/';
-          reload.hidden = false;
+          showTargetSession(session, targetName);
         } catch (error) {
           console.error(error);
-          fail('인증정보가 만료되었거나 계정 검수 세션을 만들 수 없습니다. 운영총괄 화면에서 다시 시도해 주세요.');
+          const code = String(error?.message || 'UNKNOWN').replace(/[^A-Za-z0-9_:-]/g, '').slice(0, 80);
+          fail(`실제 계정 검수 세션을 만들 수 없습니다. 운영총괄 화면에서 다시 시도해 주세요. (${code || 'UNKNOWN'})`);
         }
       }
 
