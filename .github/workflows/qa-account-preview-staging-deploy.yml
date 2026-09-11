@@ -1,0 +1,64 @@
+name: QA Account Preview Staging Deploy
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/qa-account-preview/**'
+      - '.github/workflows/qa-account-preview-staging-deploy.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-account-preview-staging-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-deploy:
+    name: Verify locally and deploy staging function
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'codex/issue-167-support-radar-phase1-mvp'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Guard the non-production target
+        shell: bash
+        run: |
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP: unexpected project ref"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "STOP: staging deployment credential missing"; exit 1; }
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start isolated local Supabase
+        run: supabase start
+
+      - name: Reapply migrations from a clean database
+        run: supabase db reset
+
+      - name: Run real QA Auth, Edge and RLS integration
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/taejang-supabase.env
+          set -a
+          source /tmp/taejang-supabase.env
+          set +a
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/qa-account-preview-integration.mjs
+
+      - name: Deploy only the QA function to staging
+        run: supabase functions deploy qa-account-preview --project-ref "$STAGING_PROJECT_REF" --no-verify-jwt --use-api
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup

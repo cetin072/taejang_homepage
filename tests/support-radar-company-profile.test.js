@@ -46,7 +46,8 @@ function expectContains(source, fragment, message) {
   'normalizeStandardWorkplaceTerminology'
 ].forEach(fragment => expectContains(polish, fragment));
 
-expectContains(polish, 'mutation.target === panel || panel.contains(mutation.target)', 'Profile change-summary observer must ignore mutations caused by its own summary panel to prevent an infinite UI loop.');
+expectContains(polish, 'taejang-support-radar-rendered', 'Profile polish must react to the explicit Support Radar render lifecycle.');
+if (/MutationObserver/.test(polish)) throw new Error('Profile polish must not observe and rewrite its own DOM surface.');
 expectContains(polish, "item.code === 'subsidiary_standard_workplace' ? STANDARD_WORKPLACE_LABEL", 'Standard-workplace qualification must use the general public-facing name.');
 expectContains(appUi, "['assets/support-radar-profile-polish.js', 'support-radar-profile-polish']", 'Company profile polish module must be loaded by the app feature loader.');
 

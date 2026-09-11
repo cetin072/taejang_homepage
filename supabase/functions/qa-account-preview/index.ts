@@ -1,26 +1,12 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { allowedQaOrigin, qaEnvironment } from './boundary.mjs';
 
-const STAGING_PROJECT_REF = 'jgsxpdflgkqroecfjzxq';
 const jsonHeaders = { 'Content-Type': 'application/json; charset=utf-8' };
-
-function allowedOrigin(origin: string | null) {
-  if (!origin) return null;
-  try {
-    const url = new URL(origin);
-    const host = url.hostname;
-    if (url.protocol === 'http:' && (host === 'localhost' || host === '127.0.0.1')) return origin;
-    if (url.protocol !== 'https:') return null;
-    if (host.startsWith('deploy-preview-') && host.endsWith('--taejang-homepage.netlify.app')) return origin;
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 function corsHeaders(origin: string | null) {
   return {
     ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-qa-context-profile-id, x-qa-access-profile-id, x-qa-jwt-subject',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Max-Age': '3600',
     'Vary': 'Origin'
@@ -44,27 +30,15 @@ function isTopAuthority(codes: Set<string>) {
   return codes.has('operations_manager') && codes.has('super_admin');
 }
 
-async function loadRoleCodes(admin: any, profileId: string) {
-  const { data: assignments, error: assignmentError } = await admin
-    .from('profile_roles')
-    .select('role_id')
-    .eq('profile_id', profileId)
-    .is('revoked_at', null);
-  if (assignmentError) throw assignmentError;
-
-  const roleIds = [...new Set((assignments || []).map((row: any) => row.role_id).filter(Boolean))];
-  if (!roleIds.length) return new Set<string>();
-
-  const { data: roles, error: roleError } = await admin
-    .from('roles')
-    .select('id, code, active')
-    .in('id', roleIds);
-  if (roleError) throw roleError;
-
-  return new Set<string>((roles || []).filter((role: any) => role.active !== false).map((role: any) => role.code).filter(Boolean));
+function requestIdentity(req: Request) {
+  return {
+    contextProfileId: req.headers.get('x-qa-context-profile-id'),
+    accessProfileId: req.headers.get('x-qa-access-profile-id'),
+    jwtSubject: req.headers.get('x-qa-jwt-subject')
+  };
 }
 
-async function authorizeTopAuthority(admin: any, token: string) {
+async function authorizeTopAuthority(admin: any, supabaseUrl: string, publicKey: string, token: string, identity: ReturnType<typeof requestIdentity>) {
   // Gateway JWT verification is intentionally disabled for this staging-only
   // function. The bearer token is verified against Supabase Auth here instead,
   // then the real active profile must hold both top-authority roles.
@@ -72,25 +46,40 @@ async function authorizeTopAuthority(admin: any, token: string) {
   const user = authData?.user;
   if (authError || !user) return { error: 'UNAUTHENTICATED', status: 401 };
 
-  const { data: profile, error: profileError } = await admin
-    .from('profiles')
-    .select('id, display_name, account_status')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (profileError || !profile || profile.account_status !== 'active') {
-    return { error: 'QA_PREVIEW_FORBIDDEN', status: 403 };
+  const clientIdentity = [identity.contextProfileId, identity.accessProfileId, identity.jwtSubject];
+  const identityMatches = clientIdentity.every(value => value === user.id);
+  if (!identityMatches) {
+    console.warn('qa_account_preview_identity_mismatch', {
+      actor_profile_id: user.id,
+      context_profile_id: identity.contextProfileId,
+      access_profile_id: identity.accessProfileId,
+      jwt_subject: identity.jwtSubject
+    });
+    return { error: 'QA_IDENTITY_MISMATCH', status: 403 };
   }
 
-  let codes: Set<string>;
-  try {
-    codes = await loadRoleCodes(admin, user.id);
-  } catch (error) {
-    console.error('qa_account_preview_role_lookup_failed', error);
-    return { error: 'QA_PREVIEW_ROLE_LOOKUP_FAILED', status: 500 };
+  const userClient = createClient(supabaseUrl, publicKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+  const { data: accessContext, error: accessError } = await userClient.rpc('get_my_access_context_v2');
+  if (accessError) {
+    console.error('qa_account_preview_role_lookup_failed', { actor_profile_id: user.id, code: accessError.code || null });
+    return { error: 'QA_ROLE_LOOKUP_FAILED', status: 500 };
   }
 
-  if (!isTopAuthority(codes)) return { error: 'QA_PREVIEW_FORBIDDEN', status: 403 };
-  return { user, profile, codes };
+  if (!accessContext || accessContext.id !== user.id || accessContext.account_status !== 'active') {
+    console.warn('qa_account_preview_profile_not_active', { actor_profile_id: user.id });
+    return { error: 'QA_PROFILE_NOT_ACTIVE', status: 403 };
+  }
+
+  const codes = new Set<string>((accessContext.actual_roles || []).map((role: any) => role?.code).filter(Boolean));
+  if (!isTopAuthority(codes)) {
+    console.warn('qa_account_preview_top_authority_required', { actor_profile_id: user.id, actual_role_codes: [...codes].sort() });
+    return { error: 'QA_TOP_AUTHORITY_REQUIRED', status: 403 };
+  }
+  console.info('qa_account_preview_authorized', { actor_profile_id: user.id, actual_role_codes: [...codes].sort() });
+  return { user, profile: accessContext, codes };
 }
 
 async function listAccounts(admin: any) {
@@ -212,27 +201,29 @@ async function createPreviewToken(admin: any, targetProfileId: unknown) {
 }
 
 Deno.serve(async (req: Request) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  const environment = qaEnvironment(supabaseUrl);
   const requestOrigin = req.headers.get('origin');
-  const origin = allowedOrigin(requestOrigin);
+  const origin = allowedQaOrigin(requestOrigin, environment);
 
   if (req.method === 'OPTIONS') {
-    if (requestOrigin && !origin) return reply(403, { error: 'ORIGIN_NOT_ALLOWED' }, null);
+    if (requestOrigin && !origin) return reply(403, { error: 'QA_ORIGIN_NOT_ALLOWED' }, null);
     return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
   if (req.method !== 'POST') return reply(405, { error: 'METHOD_NOT_ALLOWED' }, origin);
-  if (requestOrigin && !origin) return reply(403, { error: 'ORIGIN_NOT_ALLOWED' }, null);
+  if (requestOrigin && !origin) return reply(403, { error: 'QA_ORIGIN_NOT_ALLOWED' }, null);
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  if (!supabaseUrl.includes(`${STAGING_PROJECT_REF}.supabase.co`) || !serviceRoleKey) {
-    return reply(403, { error: 'STAGING_ONLY' }, origin);
+  const publicKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_PUBLISHABLE_KEY') || '';
+  if (!environment || !serviceRoleKey || !publicKey) {
+    return reply(403, { error: 'QA_STAGING_ONLY' }, origin);
   }
 
   const token = bearerToken(req);
   if (!token) return reply(401, { error: 'UNAUTHENTICATED' }, origin);
 
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const authorization = await authorizeTopAuthority(admin, token);
+  const authorization = await authorizeTopAuthority(admin, supabaseUrl, publicKey, token, requestIdentity(req));
   if (authorization.error) return reply(authorization.status, { error: authorization.error }, origin);
 
   let body: any;
@@ -246,7 +237,7 @@ Deno.serve(async (req: Request) => {
     if (body?.action === 'list') {
       const accounts = await listAccounts(admin);
       console.info('qa_account_preview_list', { actor_id: authorization.user.id, count: accounts.length });
-      return reply(200, { accounts, authority: 'top' }, origin);
+      return reply(200, { accounts, authority: 'top', qa_contract_version: 2 }, origin);
     }
 
     if (body?.action === 'create') {

@@ -2,7 +2,7 @@
   'use strict';
 
   let wrapped=false;
-  const isOps=()=>window.TaejangApp?.getRoute?.()==='operations_manager';
+  const isOps=()=>Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.());
   const array=value=>Array.isArray(value)?value:[];
 
   function candidateMessage(items) {

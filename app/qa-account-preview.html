@@ -81,7 +81,7 @@
         <p id="qa-state-copy">잠시만 기다려 주세요.</p>
       </div>
     </div>
-    <iframe id="qa-frame" title="선택한 실제 사용자 계정의 태장 업무플랫폼"></iframe>
+    <iframe id="qa-frame" title="선택한 실제 사용자 계정의 태장 업무플랫폼" referrerpolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
   </main>
   <script>
     (() => {
@@ -89,6 +89,7 @@
 
       const SESSION_KEY = 'taejang-staff-session-v1';
       const QA_MARKER_KEY = 'taejang-qa-account-preview-v1';
+      const STAGING_PROJECT_REF = 'jgsxpdflgkqroecfjzxq';
       const frame = document.getElementById('qa-frame');
       const state = document.getElementById('qa-state');
       const card = document.getElementById('qa-card');
@@ -110,6 +111,10 @@
         if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
         const config = await response.json();
         if (!config.url || !config.publishableKey) throw new Error('CONFIG_INCOMPLETE');
+        const configUrl = new URL(config.url);
+        const localHost = ['localhost', '127.0.0.1'].includes(configUrl.hostname);
+        const previewHost = window.location.hostname.startsWith('deploy-preview-') && window.location.hostname.endsWith('--taejang-homepage.netlify.app');
+        if (!(localHost || (previewHost && configUrl.hostname === `${STAGING_PROJECT_REF}.supabase.co`))) throw new Error('QA_STAGING_ONLY');
         return config;
       }
 
@@ -171,6 +176,10 @@
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(QA_MARKER_KEY);
         window.close();
+      });
+      window.addEventListener('pagehide', () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(QA_MARKER_KEY);
       });
 
       start();

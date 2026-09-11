@@ -1,12 +1,11 @@
 (() => {
   'use strict';
-  const allowed = new Set(['operations_manager','ceo']);
   const el = id => document.getElementById(id);
   const text = (tag,value,className) => { const node=document.createElement(tag); if(className)node.className=className; node.textContent=value??''; return node; };
   const array = value => Array.isArray(value)?value:[];
   const money = value => `${new Intl.NumberFormat('ko-KR').format(Number(value||0))}원`;
   const formatDate = value => value ? new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeZone:'Asia/Seoul'}).format(new Date(value)) : '미정';
-  function canUse(){return allowed.has(window.TaejangApp?.getRoute?.());}
+  function canUse(){return Boolean(window.TaejangSupportRadarAccess?.canManagementView?.());}
   function button(label,action,quiet=false){const node=text('button',label,quiet?'button button-quiet':'button');node.type='button';node.addEventListener('click',action);return node;}
   function stat(label,value,note=''){const node=document.createElement('article');node.className='support-radar-stat';node.append(text('span',label,'support-radar-muted'),text('strong',value));if(note)node.append(text('span',note,'support-radar-muted'));return node;}
   function section(title,copy=''){const node=document.createElement('section');node.className='support-radar-section';node.append(text('h3',title));if(copy)node.append(text('p',copy,'support-radar-muted'));return node;}

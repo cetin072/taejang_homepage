@@ -648,6 +648,7 @@
       roleCodes,
       getRoute: () => state.route?.code,
       getContext: () => state.context,
+      getSession: () => state.session,
       getBoardDate: () => state.boardDate,
       refreshToday: loadTodayBoard,
       refreshAdmin: loadAdminData,

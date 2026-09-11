@@ -1,16 +1,15 @@
 (() => {
   'use strict';
 
-  const allowedRoles = new Set(['operations_manager', 'ceo']);
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node = document.createElement(tag); if (className) node.className = className; node.textContent = value ?? ''; return node; };
   const array = value => Array.isArray(value) ? value : [];
   const clean = value => String(value ?? '').trim();
   const unique = values => [...new Set(values.map(clean).filter(Boolean))];
-  let observer;
 
-  function canUse() { return allowedRoles.has(window.TaejangApp?.getRoute?.()); }
-  function canEdit() { return window.TaejangApp?.getRoute?.() === 'operations_manager'; }
+  function canUse() { return Boolean(window.TaejangSupportRadarAccess?.canManagementView?.()); }
+  function canEdit() { return Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.()); }
+  function emit(surface, detail={}) { window.TaejangSupportRadarLifecycle?.emit?.(surface,detail); }
   function closeSidebar() { el('desktop-app-shell')?.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded','false'); }
   function setTitle(value) { const node=el('desktop-page-title'); if(node) node.textContent=value; }
   function button(label, action, quiet=false) { const node=text('button',label,quiet?'button button-quiet':'button'); node.type='button'; node.addEventListener('click',action); return node; }
@@ -113,7 +112,7 @@
         if(!filtered.length) list.append(text('p','조건에 맞는 공고가 없습니다.','support-radar-empty'));
         filtered.forEach(item=>list.append(noticeCard(item,()=>renderDetail(item.id))));
       };
-      search.addEventListener('input',render); filter.append(search); root.append(filter,list); main.replaceChildren(root); render(); main.focus();
+      search.addEventListener('input',render); filter.append(search); root.append(filter,list); main.replaceChildren(root); render(); main.focus(); emit('notice-list',{root});
     } catch(error) { main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error')); }
   }
 
@@ -169,7 +168,7 @@
         }
         root.append(app);
       }
-      main.replaceChildren(root); main.focus();
+      main.replaceChildren(root); main.focus(); emit('notice-detail',{root,noticeId:id,data});
     } catch(error) { main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error')); }
   }
 
@@ -193,7 +192,7 @@
     try {
       const sources=array(await window.TaejangApp.rpc('support_list_sources'));
       const root=document.createElement('div'); root.className='support-radar-shell'; root.append(header('공고 직접 등록','자동수집 전에도 중요한 공고를 URL과 핵심정보만 입력해 즉시 관리할 수 있습니다.',[button('전체 공고',renderList,true),button('정보원 관리',renderSources,true)]));
-      if(!sources.length){const empty=section('정보원이 먼저 필요합니다.'); empty.append(text('p','공고가 올라온 기관 또는 사이트를 먼저 등록하세요.'),button('정보원 등록하기',renderSources)); root.append(empty); main.replaceChildren(root); return;}
+      if(!sources.length){const empty=section('정보원이 먼저 필요합니다.'); empty.append(text('p','공고가 올라온 기관 또는 사이트를 먼저 등록하세요.'),button('정보원 등록하기',renderSources)); root.append(empty); main.replaceChildren(root); emit('notice-create',{root}); return;}
       const form=document.createElement('form'); form.className='support-radar-form'; const base=section('공고 핵심정보'); const grid=document.createElement('div'); grid.className='support-radar-grid';
       const title=formField('사업명'); title.input.required=true; const sourceUrl=formField('공고 URL','url'); sourceUrl.input.required=true; const sourceId=document.createElement('select'); sources.forEach(s=>{const o=document.createElement('option');o.value=s.id;o.textContent=s.name;sourceId.append(o);}); const sourceWrap=document.createElement('label'); sourceWrap.append(text('span','정보원'),sourceId);
       const sourceNoticeId=formField('정보원 공고 ID'); const agency=formField('주관·수행기관'); const announced=formField('공고일','date'); const start=formField('신청 시작일','date'); const deadline=formField('마감일','date'); const amount=formField('최대 지원금','number'); amount.input.min='0'; const regions=formField('대상지역'); regions.input.placeholder='예: 전국, 경상남도, 창원시'; const categories=formField('분야'); categories.input.placeholder='예: 고용, 원예, AI·디지털';
@@ -202,7 +201,7 @@
       const eligibility=textarea('신청자격 요약',4); const duplicate=textarea('중복지원 제한',2); base.append(eligibility.wrap,duplicate.wrap); form.append(base);
       const save=button('공고 저장 후 평가',()=>{}); save.type='submit'; form.append(save);
       form.addEventListener('submit',async event=>{event.preventDefault(); save.disabled=true; try{const result=await window.TaejangApp.rpc('support_create_notice',{p_title:clean(title.input.value),p_source_id:sourceId.value,p_source_url:clean(sourceUrl.input.value),p_source_notice_id:clean(sourceNoticeId.input.value)||null,p_managing_organization:clean(agency.input.value)||null,p_announced_at:announced.input.value?`${announced.input.value}T00:00:00+09:00`:null,p_application_start_at:start.input.value?`${start.input.value}T00:00:00+09:00`:null,p_deadline_at:deadline.input.value?`${deadline.input.value}T23:59:59+09:00`:null,p_notice_status:'open',p_cash_support_max:amount.input.value||null,p_in_kind_available:inKindInput.checked,p_target_regions:unique(regions.input.value.split(',')),p_categories:unique(categories.input.value.split(',')),p_eligibility_summary:clean(eligibility.input.value)||null,p_duplicate_support_rule:clean(duplicate.input.value)||null}); if(!result?.notice_id) throw new Error('SAVE_FAILED'); try{await window.TaejangApp.rpc('support_evaluate_notice_v1',{p_notice_id:result.notice_id});}catch{} await renderDetail(result.notice_id);}catch(error){window.alert(window.TaejangApp.friendlyError(error));}finally{save.disabled=false;}});
-      root.append(form); main.replaceChildren(root); main.focus();
+      root.append(form); main.replaceChildren(root); main.focus(); emit('notice-create',{root});
     } catch(error) { main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error')); }
   }
 
@@ -212,16 +211,15 @@
     try {
       const sources=array(await window.TaejangApp.rpc('support_list_sources')); const root=document.createElement('div'); root.className='support-radar-shell'; root.append(header('정보원 관리','기업마당·공공기관·지자체 등 공고 출처를 관리합니다. 자동수집은 공식 접근방식이 확인된 정보원만 후속 연결합니다.',[button('공고 등록',renderCreateNotice,true),button('레이더 홈',goHome,true)]));
       const list=section('현재 정보원'); if(!sources.length) list.append(text('p','등록된 정보원이 없습니다.','support-radar-empty')); sources.forEach(s=>list.append(noticeCard({title:s.name,organization:s.organization_name,deadline:null,recommendation:`${s.access_method} · ${s.terms_review_status} · 자동화 ${s.automation_status}`},()=>{}))); root.append(list);
-      const form=document.createElement('form'); form.className='support-radar-section'; form.append(text('h3','정보원 추가')); const code=formField('내부 코드'); code.input.placeholder='예: bizinfo'; code.input.required=true; const name=formField('정보원 이름'); name.input.required=true; const org=formField('운영기관'); const url=formField('기본 URL','url'); const grid=document.createElement('div');grid.className='support-radar-grid';grid.append(code.wrap,name.wrap,org.wrap,url.wrap); form.append(grid); const submit=button('정보원 저장',()=>{}); submit.type='submit'; form.append(submit); form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{await window.TaejangApp.rpc('support_create_source',{p_code:clean(code.input.value).toLowerCase(),p_name:clean(name.input.value),p_organization_name:clean(org.input.value)||null,p_base_url:clean(url.input.value)||null,p_access_method:'manual',p_terms_review_status:'unreviewed',p_automation_status:'manual_only'});await renderSources();}catch(error){window.alert(window.TaejangApp.friendlyError(error));}finally{submit.disabled=false;}}); root.append(form); main.replaceChildren(root); main.focus();
+      const form=document.createElement('form'); form.className='support-radar-section'; form.append(text('h3','정보원 추가')); const code=formField('내부 코드'); code.input.placeholder='예: bizinfo'; code.input.required=true; const name=formField('정보원 이름'); name.input.required=true; const org=formField('운영기관'); const url=formField('기본 URL','url'); const grid=document.createElement('div');grid.className='support-radar-grid';grid.append(code.wrap,name.wrap,org.wrap,url.wrap); form.append(grid); const submit=button('정보원 저장',()=>{}); submit.type='submit'; form.append(submit); form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{await window.TaejangApp.rpc('support_create_source',{p_code:clean(code.input.value).toLowerCase(),p_name:clean(name.input.value),p_organization_name:clean(org.input.value)||null,p_base_url:clean(url.input.value)||null,p_access_method:'manual',p_terms_review_status:'unreviewed',p_automation_status:'manual_only'});await renderSources();}catch(error){window.alert(window.TaejangApp.friendlyError(error));}finally{submit.disabled=false;}}); root.append(form); main.replaceChildren(root); main.focus(); emit('sources',{root});
     } catch(error){main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error'));}
   }
 
-  function watch() {
-    if(observer) return; const main=el('dashboard-main'); if(!main) return;
-    observer=new MutationObserver(()=>queueMicrotask(()=>{injectNav();enrichDashboard();})); observer.observe(main,{childList:true,subtree:true});
-  }
-  function setup(){if(!canUse()) return;queueMicrotask(()=>{injectNav();watch();enrichDashboard();});}
+  function setup(){if(!canUse()) return;queueMicrotask(()=>{injectNav();enrichDashboard();});}
   document.addEventListener('taejang-app-ready',setup);
   document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectNav));
+  document.addEventListener('taejang-support-radar-rendered',event=>{
+    if(event.detail?.surface==='dashboard') queueMicrotask(enrichDashboard);
+  });
   window.TaejangSupportRadarNotices={renderList,renderDetail,renderCreateNotice,renderSources,enrichDashboard};
 })();

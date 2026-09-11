@@ -1,13 +1,12 @@
 (() => {
   'use strict';
 
-  const allowedRoles = new Set(['operations_manager', 'ceo']);
-  const state = { observer: null, wrapped: false, currentNoticeId: null, dashboardLoading: false };
+  const state = { currentNoticeId: null, dashboardLoading: false, priorityLoading: false };
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node=document.createElement(tag); if(className)node.className=className; node.textContent=value??''; return node; };
   const array = value => Array.isArray(value)?value:[];
-  const isOps = () => window.TaejangApp?.getRoute?.()==='operations_manager';
-  const canUse = () => allowedRoles.has(window.TaejangApp?.getRoute?.());
+  const isOps = () => Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.());
+  const canUse = () => Boolean(window.TaejangSupportRadarAccess?.canManagementView?.());
   const button = (label,action,quiet=false) => { const node=text('button',label,quiet?'button button-quiet':'button'); node.type='button'; node.addEventListener('click',action); return node; };
 
   const reasonLabels = {
@@ -63,6 +62,8 @@
     state.dashboardLoading=true;
     try {
       const data=await window.TaejangApp.rpc('support_get_alert_candidates');
+      const liveRoot=el('dashboard-main')?.querySelector('.support-radar-shell');
+      if(liveRoot!==root || root.querySelector('[data-support-alert-panel]')) return;
       const panel=document.createElement('section');
       panel.className='support-radar-section'; panel.dataset.supportAlertPanel='1';
       panel.append(text('h3','긴급 확인'),text('p','조건만 맞는 공고가 아니라 현재 태장 기업 프로필과 Rule Engine 관련성까지 통과한 공고만 표시합니다.','support-radar-muted'));
@@ -79,20 +80,6 @@
     } finally { state.dashboardLoading=false; }
   }
 
-  function wrapRpc() {
-    if(state.wrapped || !window.TaejangApp?.rpc) return;
-    const original=window.TaejangApp.rpc;
-    window.TaejangApp.rpc=async function(name,body={}){
-      const result=await original(name,body);
-      if(name==='support_get_notice_detail' && body?.p_notice_id){
-        state.currentNoticeId=body.p_notice_id;
-        queueMicrotask(injectPriorityFlags);
-      }
-      return result;
-    };
-    state.wrapped=true;
-  }
-
   async function saveFlags(rare,force,note) {
     if(!isOps() || !state.currentNoticeId) return;
     try {
@@ -107,15 +94,19 @@
   }
 
   async function injectPriorityFlags() {
-    if(!isOps() || !state.currentNoticeId) return;
+    if(!isOps() || !state.currentNoticeId || state.priorityLoading) return;
     const root=el('dashboard-main')?.querySelector('.support-radar-shell');
     if(!root || root.querySelector('[data-support-priority-flags]')) return;
     const headings=[...root.querySelectorAll('h3')];
     if(!headings.some(node=>node.textContent==='태장 적합도')) return;
 
+    state.priorityLoading=true;
     let data;
     try { data=await window.TaejangApp.rpc('support_get_notice_priority_flags',{p_notice_id:state.currentNoticeId}); }
     catch { return; }
+    finally { state.priorityLoading=false; }
+    const liveRoot=el('dashboard-main')?.querySelector('.support-radar-shell');
+    if(liveRoot!==root || root.querySelector('[data-support-priority-flags]')) return;
 
     const panel=document.createElement('section'); panel.className='support-radar-section'; panel.dataset.supportPriorityFlags='1';
     panel.append(text('h3','중요 공고 표시'),text('p','자동 판단이 어려운 희소 전국공모나 반드시 확인할 공고만 수동으로 표시하세요.','support-radar-muted'));
@@ -132,20 +123,19 @@
     if(evalSection) evalSection.insertAdjacentElement('afterend',panel); else root.append(panel);
   }
 
-  function watch() {
-    if(state.observer) return;
-    const main=el('dashboard-main'); if(!main) return;
-    state.observer=new MutationObserver(()=>queueMicrotask(()=>{injectDashboardAlerts();injectPriorityFlags();}));
-    state.observer.observe(main,{childList:true,subtree:true});
-  }
-
   function setup() {
     if(!canUse()) return;
-    wrapRpc(); watch();
     queueMicrotask(injectDashboardAlerts);
   }
 
   document.addEventListener('taejang-app-ready',setup);
   document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectDashboardAlerts));
+  document.addEventListener('taejang-support-radar-rendered',event=>{
+    if(event.detail?.surface==='dashboard') queueMicrotask(injectDashboardAlerts);
+    if(event.detail?.surface==='notice-detail') {
+      state.currentNoticeId=event.detail.noticeId;
+      queueMicrotask(injectPriorityFlags);
+    }
+  });
   window.TaejangSupportRadarAlerts={injectDashboardAlerts,injectPriorityFlags};
 })();

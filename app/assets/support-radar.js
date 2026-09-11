@@ -1,8 +1,7 @@
 (() => {
   'use strict';
 
-  const allowedRoles = new Set(['operations_manager', 'ceo']);
-  const state = { active: false, route: null, profileData: null, observer: null };
+  const state = { active: false, profileData: null };
   const text = (tag, value, className) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -17,12 +16,15 @@
   const code = (prefix, existing) => existing || `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
   function canUse() {
-    const route = window.TaejangApp?.getRoute?.();
-    return allowedRoles.has(route);
+    return Boolean(window.TaejangSupportRadarAccess?.canManagementView?.());
   }
 
   function canEdit() {
-    return window.TaejangApp?.getRoute?.() === 'operations_manager';
+    return Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.());
+  }
+
+  function emit(surface, detail = {}) {
+    window.TaejangSupportRadarLifecycle?.emit?.(surface, detail);
   }
 
   function closeSidebar() {
@@ -250,6 +252,7 @@
       renderProfileSummary(root, data);
       main.replaceChildren(root);
       main.focus();
+      emit('profile', { root });
     } catch (error) {
       main.replaceChildren(text('p', window.TaejangApp.friendlyError(error), 'message error'));
     }
@@ -265,7 +268,11 @@
     buildFields(grid, initial || {});
     const actions = document.createElement('div');
     actions.className = 'support-radar-row-actions';
-    actions.append(button('항목 삭제', () => row.remove(), true));
+    actions.append(button('항목 삭제', () => {
+      const root = row.closest('.support-radar-shell');
+      row.remove();
+      emit('profile-editor-structure', { root });
+    }, true));
     row.append(grid, actions);
     return row;
   }
@@ -284,6 +291,7 @@
       checks.append(checkField('농어촌 지역', item.rural_area, 'rural_area'), checkField('현재 사용', item.active !== false, 'active'));
       grid.append(checks);
     }));
+    emit('profile-editor-structure');
   }
 
   function addQualification(list, initial = {}) {
@@ -300,6 +308,7 @@
       checks.append(checkField('취득 가능', item.obtainable, 'obtainable'));
       grid.append(checks);
     }));
+    emit('profile-editor-structure');
   }
 
   function addBusinessArea(list, initial = {}) {
@@ -313,6 +322,7 @@
       checks.append(checkField('현재 사업분야', item.active !== false, 'active'));
       grid.append(checks);
     }));
+    emit('profile-editor-structure');
   }
 
   function addPartner(list, initial = {}) {
@@ -325,6 +335,7 @@
         textareaField('메모', item.notes || '', { name: 'notes', rows: 2 })
       );
     }));
+    emit('profile-editor-structure');
   }
 
   function addBenefit(list, initial = {}) {
@@ -341,6 +352,7 @@
         textareaField('메모', item.notes || '', { name: 'notes', rows: 2 })
       );
     }));
+    emit('profile-editor-structure');
   }
 
   function values(row) {
@@ -484,6 +496,7 @@
     });
 
     root.append(form);
+    emit('profile-editor', { root, form });
   }
 
   async function renderDashboard() {
@@ -512,6 +525,7 @@
       root.append(next);
       main.replaceChildren(root);
       main.focus();
+      emit('dashboard', { root });
     } catch (error) {
       main.replaceChildren(text('p', window.TaejangApp.friendlyError(error), 'message error'));
     }
@@ -558,21 +572,11 @@
     grid.append(card);
   }
 
-  function watchDashboard() {
-    if (state.observer) return;
-    const main = el('dashboard-main');
-    if (!main) return;
-    state.observer = new MutationObserver(() => queueMicrotask(injectDashboardShortcut));
-    state.observer.observe(main, { childList: true, subtree: true });
-  }
-
-  function setup(event) {
-    state.route = event.detail?.route || window.TaejangApp?.getRoute?.();
-    if (!allowedRoles.has(state.route)) return;
+  function setup() {
+    if (!canUse()) return;
     state.active = false;
     queueMicrotask(() => {
       injectNavigation();
-      watchDashboard();
       injectDashboardShortcut();
     });
   }

@@ -1,17 +1,13 @@
 (() => {
   'use strict';
 
-  const assigneeRoles = new Set([
-    'department_lead','promotion_lead','promotion_staff',
-    'worker_support_lead','worker_support_staff','office_staff'
-  ]);
   const el=id=>document.getElementById(id);
   const text=(tag,value,className)=>{const node=document.createElement(tag);if(className)node.className=className;node.textContent=value??'';return node;};
   const array=value=>Array.isArray(value)?value:[];
   const button=(label,action,quiet=false)=>{const node=text('button',label,quiet?'button button-quiet':'button');node.type='button';node.addEventListener('click',action);return node;};
-  let observer;
 
-  function canUse(){return assigneeRoles.has(window.TaejangApp?.getRoute?.());}
+  function canUse(){return Boolean(window.TaejangSupportRadarAccess?.canAssignedWork?.());}
+  function emit(surface,detail={}){window.TaejangSupportRadarLifecycle?.emit?.(surface,detail);}
   function closeSidebar(){el('desktop-app-shell')?.classList.remove('sidebar-open');el('sidebar-toggle')?.setAttribute('aria-expanded','false');}
   function setTitle(value){const node=el('desktop-page-title');if(node)node.textContent=value;}
   function formatDate(value){if(!value)return '미정';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):new Intl.DateTimeFormat('ko-KR',{dateStyle:'medium',timeZone:'Asia/Seoul'}).format(d);}
@@ -54,7 +50,7 @@
       root.append(header('내 지원사업','운영총괄이 나에게 배정한 지원사업만 표시합니다. 기관 문의·자료 수집·신청 준비 상태를 여기서 업데이트하세요.'));
       const list=section('배정된 공고');
       if(!items.length)list.append(text('p','현재 나에게 배정된 지원사업이 없습니다.','support-radar-empty'));
-      items.forEach(item=>list.append(card(item)));root.append(list);main.replaceChildren(root);main.focus();
+      items.forEach(item=>list.append(card(item)));root.append(list);main.replaceChildren(root);main.focus();emit('assigned-list',{root});
     }catch(error){main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error'));}
   }
 
@@ -97,12 +93,12 @@
         controls.append(select,next,button('진행상태 저장',()=>saveProgress(id,select.value,next.value)));progress.append(controls);
       }
       root.append(progress);
-      main.replaceChildren(root);main.focus();
+      main.replaceChildren(root);main.focus();emit('assigned-detail',{root,noticeId:id,data});
     }catch(error){main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error'));}
   }
 
-  function watch(){if(observer)return;const nav=el('app-nav');if(!nav)return;observer=new MutationObserver(()=>queueMicrotask(injectNav));observer.observe(nav,{childList:true,subtree:true});}
-  function setup(){if(!canUse())return;queueMicrotask(()=>{injectNav();watch();});}
+  function setup(){if(!canUse())return;queueMicrotask(injectNav);}
   document.addEventListener('taejang-app-ready',setup);
+  document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectNav));
   window.TaejangSupportRadarMyWork={renderList,renderDetail};
 })();

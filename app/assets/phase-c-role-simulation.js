@@ -2,7 +2,6 @@
   'use strict';
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
-  const APP_SESSION_KEY = 'taejang-staff-session-v1';
   const QA_FUNCTION = 'qa-account-preview';
   const LABELS = {
     promotion_staff: '홍보직원',
@@ -131,12 +130,28 @@
     return button;
   }
 
-  function readSession() {
+  function decodeJwtSubject(token) {
     try {
-      return JSON.parse(sessionStorage.getItem(APP_SESSION_KEY) || 'null');
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+      return JSON.parse(atob(normalized))?.sub || null;
     } catch {
       return null;
     }
+  }
+
+  async function qaIdentity() {
+    const session = app()?.getSession?.();
+    if (!session?.access_token) throw new Error('QA_SESSION_MISSING');
+    const accessContext = await window.TaejangCapabilityAccess?.refresh?.() || app()?.getAccessContext?.();
+    const contextProfileId = context()?.id || null;
+    const accessProfileId = accessContext?.id || null;
+    const jwtSubject = decodeJwtSubject(session.access_token);
+    if (!contextProfileId || contextProfileId !== accessProfileId || contextProfileId !== jwtSubject) {
+      throw new Error('QA_IDENTITY_MISMATCH');
+    }
+    return { session, contextProfileId, accessProfileId, jwtSubject };
   }
 
   async function loadConfig() {
@@ -148,13 +163,15 @@
   }
 
   async function qaRequest(payload) {
-    const [config, session] = await Promise.all([loadConfig(), Promise.resolve(readSession())]);
-    if (!session?.access_token) throw new Error('QA_SESSION_MISSING');
+    const [config, identity] = await Promise.all([loadConfig(), qaIdentity()]);
     const response = await fetch(`${config.url}/functions/v1/${QA_FUNCTION}`, {
       method: 'POST',
       headers: {
         apikey: config.publishableKey,
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${identity.session.access_token}`,
+        'X-QA-Context-Profile-ID': identity.contextProfileId,
+        'X-QA-Access-Profile-ID': identity.accessProfileId,
+        'X-QA-JWT-Subject': identity.jwtSubject,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)

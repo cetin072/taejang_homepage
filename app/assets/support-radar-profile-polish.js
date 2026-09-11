@@ -1,14 +1,12 @@
 (() => {
   'use strict';
 
-  const allowedRoles = new Set(['operations_manager', 'ceo']);
   const state = {
-    observer: null,
     profileLoading: false,
     editorForm: null,
     inputBaseline: new WeakMap(),
     initialRowCounts: null,
-    editorObserver: null
+    editorUpdate: null
   };
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => {
@@ -18,8 +16,8 @@
     return node;
   };
   const array = value => Array.isArray(value) ? value : [];
-  const canUse = () => allowedRoles.has(window.TaejangApp?.getRoute?.());
-  const canEdit = () => window.TaejangApp?.getRoute?.() === 'operations_manager';
+  const canUse = () => Boolean(window.TaejangSupportRadarAccess?.canManagementView?.());
+  const canEdit = () => Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.());
   const STANDARD_WORKPLACE_OLD = '자회사형 장애인표준사업장';
   const STANDARD_WORKPLACE_LABEL = '장애인표준사업장';
 
@@ -60,6 +58,8 @@
     state.profileLoading = true;
     try {
       const data = await window.TaejangApp.rpc('support_get_company_profile');
+      const liveRoot = el('dashboard-main')?.querySelector('.support-radar-shell');
+      if (liveRoot !== root || root.querySelector('[data-support-profile-health]')) return;
       if (!data?.profile) return;
       const items = array(data.qualifications)
         .map(item => ({ item, state: qualificationState(item) }))
@@ -201,19 +201,9 @@
     renderChangeSummary(form, panel);
 
     const update = () => renderChangeSummary(form, panel);
+    state.editorUpdate = update;
     form.addEventListener('input', update);
     form.addEventListener('change', update);
-
-    state.editorObserver?.disconnect();
-    state.editorObserver = new MutationObserver(mutations => {
-      const selfOnly = mutations.every(mutation =>
-        mutation.target === panel || panel.contains(mutation.target)
-      );
-      if (selfOnly) return;
-      captureNewInputs(form);
-      update();
-    });
-    state.editorObserver.observe(form, { childList: true, subtree: true });
   }
 
   function inspectSurface() {
@@ -225,15 +215,19 @@
 
   function setup() {
     if (!canUse()) return;
-    const main = el('dashboard-main');
-    if (!main) return;
     inspectSurface();
-    if (state.observer) return;
-    state.observer = new MutationObserver(() => queueMicrotask(inspectSurface));
-    state.observer.observe(main, { childList: true, subtree: true });
   }
 
   document.addEventListener('taejang-app-ready', setup);
   document.addEventListener('taejang-dashboard-refresh', () => queueMicrotask(inspectSurface));
+  document.addEventListener('taejang-support-radar-rendered', event => {
+    if (event.detail?.surface === 'profile' || event.detail?.surface === 'profile-editor') {
+      queueMicrotask(inspectSurface);
+    }
+    if (event.detail?.surface === 'profile-editor-structure' && state.editorForm?.isConnected) {
+      captureNewInputs(state.editorForm);
+      state.editorUpdate?.();
+    }
+  });
   window.TaejangSupportRadarProfilePolish = { inspectSurface };
 })();

@@ -1,11 +1,11 @@
 (() => {
   'use strict';
 
-  const state = { currentNoticeId: null, currentDetail: null, wrapped: false, observer: null, injecting: false };
+  const state = { currentNoticeId: null, currentDetail: null, injecting: false };
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node=document.createElement(tag); if(className)node.className=className; node.textContent=value??''; return node; };
   const array = value => Array.isArray(value)?value:[];
-  const isOps = () => window.TaejangApp?.getRoute?.()==='operations_manager';
+  const isOps = () => Boolean(window.TaejangSupportRadarAccess?.canManagementEdit?.());
   const button = (label,action,quiet=false) => { const node=text('button',label,quiet?'button button-quiet':'button'); node.type='button'; node.addEventListener('click',action); return node; };
   const decisionLabel = value => ({ apply: '신청', hold: '보류', exclude: '제외' })[value] || value || '미결정';
   const prepLabels = new Set(['검토 중','기관 문의','자료 수집','신청서 작성','제출 준비']);
@@ -37,21 +37,6 @@
       details.append(summary,...advanced);
       section.append(details);
     }
-  }
-
-  function wrapRpc() {
-    if(state.wrapped || !window.TaejangApp?.rpc) return;
-    const original=window.TaejangApp.rpc;
-    window.TaejangApp.rpc=async function(name,body={}){
-      const result=await original(name,body);
-      if(name==='support_get_notice_detail' && body?.p_notice_id){
-        state.currentNoticeId=body.p_notice_id;
-        state.currentDetail=result;
-        queueMicrotask(inject);
-      }
-      return result;
-    };
-    state.wrapped=true;
   }
 
   async function assign(profileId) {
@@ -141,14 +126,11 @@
     }
   }
 
-  function watch(){
-    if(state.observer) return;
-    const main=el('dashboard-main'); if(!main) return;
-    state.observer=new MutationObserver(()=>queueMicrotask(inject));
-    state.observer.observe(main,{childList:true,subtree:true});
-  }
-
-  function setup(){ if(!isOps()) return; wrapRpc(); watch(); }
-  document.addEventListener('taejang-app-ready',setup);
+  document.addEventListener('taejang-support-radar-rendered',event=>{
+    if(event.detail?.surface!=='notice-detail' || !isOps()) return;
+    state.currentNoticeId=event.detail.noticeId;
+    state.currentDetail=event.detail.data;
+    queueMicrotask(inject);
+  });
   window.TaejangSupportRadarAssignment={inject};
 })();
