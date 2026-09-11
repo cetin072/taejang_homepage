@@ -322,8 +322,8 @@
 
     const activeRole = simulation.active ? simulation.role_code : null;
     switcher.append(
-      makeButton('홍보직원 역할 보기', 'promotion_staff', activeRole === 'promotion_staff'),
-      makeButton('운영팀장 역할 보기', 'promotion_lead', activeRole === 'promotion_lead'),
+      makeButton('홍보직원 보기', 'promotion_staff', activeRole === 'promotion_staff'),
+      makeButton('운영팀장 보기', 'promotion_lead', activeRole === 'promotion_lead'),
       makeQaButton(),
       makeButton('운영총괄 복귀', null, !activeRole)
     );
