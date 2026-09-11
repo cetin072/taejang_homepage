@@ -57,10 +57,40 @@
     .qa-card h1 { margin: 0 0 10px; font-size: 1.25rem; }
     .qa-card p { margin: 0; line-height: 1.6; color: #56655e; }
     .qa-card.is-error h1 { color: #a22020; }
+    .qa-mobile-actions { display: none; }
     @media (max-width: 720px) {
-      .qa-bar { align-items: flex-start; flex-wrap: wrap; }
-      .qa-actions { width: 100%; }
-      .qa-actions button { flex: 1 1 0; }
+      .qa-bar { align-items: flex-start; flex-wrap: wrap; padding: 8px 12px; }
+      .qa-bar__copy span { display: none; }
+      .qa-bar strong { font-size: .88rem; }
+      .qa-actions { display: none; }
+      .qa-mobile-actions {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: calc(12px + env(safe-area-inset-bottom));
+        z-index: 30;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #d6c777;
+        border-radius: 16px;
+        background: rgba(255, 248, 218, .96);
+        box-shadow: 0 10px 30px rgba(0,0,0,.22);
+        backdrop-filter: blur(8px);
+      }
+      .qa-mobile-actions button {
+        min-height: 56px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: 1rem;
+      }
+      .qa-mobile-actions .qa-mobile-return {
+        background: #174f38;
+        border-color: #174f38;
+        color: #fff;
+      }
+      .qa-stage { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -84,6 +114,10 @@
     </div>
     <iframe id="qa-frame" title="선택한 실제 사용자 계정의 태장 업무플랫폼" referrerpolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
   </main>
+  <div class="qa-mobile-actions" id="qa-mobile-actions" hidden>
+    <button type="button" id="qa-mobile-reload">화면 새로고침</button>
+    <button type="button" id="qa-mobile-return" class="qa-mobile-return">운영총괄로 돌아가기</button>
+  </div>
   <script>
     (() => {
       'use strict';
@@ -99,6 +133,9 @@
       const stateTitle = document.getElementById('qa-state-title');
       const stateCopy = document.getElementById('qa-state-copy');
       const reload = document.getElementById('qa-reload');
+      const mobileActions = document.getElementById('qa-mobile-actions');
+      const mobileReload = document.getElementById('qa-mobile-reload');
+      const mobileReturn = document.getElementById('qa-mobile-return');
 
       function fail(message) {
         card.classList.add('is-error');
@@ -107,6 +144,7 @@
         state.hidden = false;
         state.style.display = 'grid';
         frame.style.display = 'none';
+        mobileActions.hidden = true;
       }
 
       function decodeJwtSubject(token) {
@@ -218,8 +256,8 @@
         state.hidden = true;
         state.style.display = 'none';
         frame.style.display = 'block';
-        frame.src = '/app/';
         reload.hidden = false;
+        mobileActions.hidden = false;
       }
 
       async function start() {
@@ -257,15 +295,21 @@
         }
       }
 
-      reload.addEventListener('click', () => {
-        if (frame.contentWindow) frame.contentWindow.location.reload();
-      });
-      document.getElementById('qa-close').addEventListener('click', () => {
+      function closePreview() {
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(QA_MARKER_KEY);
         sessionStorage.removeItem(QA_HANDOFF_KEY);
         window.close();
+      }
+
+      reload.addEventListener('click', () => {
+        if (frame.contentWindow) frame.contentWindow.location.reload();
       });
+      mobileReload.addEventListener('click', () => {
+        if (frame.contentWindow) frame.contentWindow.location.reload();
+      });
+      document.getElementById('qa-close').addEventListener('click', closePreview);
+      mobileReturn.addEventListener('click', closePreview);
       window.addEventListener('pagehide', () => {
         sessionStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(QA_MARKER_KEY);
