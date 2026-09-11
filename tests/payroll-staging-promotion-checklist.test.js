@@ -16,15 +16,22 @@ const resyncPlan = fs.readFileSync(
   path.join(root, 'prototypes/payroll-backend/MAIN_RESYNC_PLAN.md'),
   'utf8'
 );
+const promotionReceipt = fs.readFileSync(
+  path.join(root, 'prototypes/payroll-backend/STAGING_PAYROLL_PROMOTION_RECEIPT_20260911.md'),
+  'utf8'
+);
 
-test('staging checklist does not authorize deployment and keeps payroll function outside deployable tree', () => {
+test('staging checklist is not self-authorizing while the approved promotion is separately receipted', () => {
   assert.match(checklist, /NOTHING IN THIS DOCUMENT AUTHORIZES DEPLOYMENT/i);
   assert.match(checklist, /separate user approval/i);
   assert.equal(
     fs.existsSync(path.join(root, 'supabase/functions/payroll-calculate/index.ts')),
-    false,
-    'payroll Edge Function must still be outside deployable tree'
+    true,
+    'user-approved Staging promotion must keep the deployed Edge source versioned'
   );
+  assert.match(promotionReceipt, /STAGING PAYROLL FOUNDATION APPLIED \/ SYNTHETIC VERIFICATION PASSED/i);
+  assert.match(promotionReceipt, /user-approved Staging-only payroll foundation work/i);
+  assert.match(promotionReceipt, /does \*\*not\*\* authorize real August payroll data, Production, Ready\/merge, real month lock, payment/i);
 });
 
 test('staging promotion requires current main and staging migration baselines to be synchronized first', () => {
@@ -36,6 +43,7 @@ test('staging promotion requires current main and staging migration baselines to
   assert.match(checklist, /do not apply payroll candidates onto a staging schema that is behind/i);
   assert.match(compatibility, /READ-ONLY OBSERVATION \/ NOT DEPLOYMENT AUTHORIZATION/i);
   assert.match(compatibility, /staging was \*\*behind the current main migration baseline\*\*/i);
+  assert.match(promotionReceipt, /platform baseline had already been reconciled through Issue #151 before payroll promotion/i);
 });
 
 test('main resync plan registers payroll into the current manifest-based test runner', () => {
@@ -54,12 +62,16 @@ test('staging checklist requires approved operator access and denies implicit su
   assert.match(checklist, /inactive `operations_manager` is denied/i);
   assert.match(checklist, /`super_admin` without operations-manager role is denied/i);
   assert.match(checklist, /ordinary staff is denied/i);
+  assert.match(promotionReceipt, /`payroll\.manage` exists as an active operational capability with `operations_manager_auto_grant=true`/i);
+  assert.match(promotionReceipt, /no lower-role direct grant for `payroll\.manage` exists/i);
 });
 
 test('staging checklist requires direct payroll CRUD denial including service-role confinement', () => {
   assert.match(checklist, /payroll tables remain unavailable through direct browser CRUD/i);
   assert.match(checklist, /service client receives EXECUTE only on the trusted persistence RPC/i);
   assert.match(checklist, /`service_role` has direct payroll table CRUD revoked/i);
+  assert.match(promotionReceipt, /`service_role` has no direct payroll table CRUD/i);
+  assert.match(promotionReceipt, /`service_role` can execute `private_persist_payroll_calculation`/i);
 });
 
 test('staging checklist keeps vendor payroll attendance separate from mobile operational attendance', () => {
@@ -85,9 +97,13 @@ test('staging checklist requires transaction, concurrency, privacy and performan
   assert.match(checklist, /general `\/app\/` does not load payroll/i);
 });
 
-test('staging checklist explicitly blocks real data, Production and payment execution', () => {
+test('staging approval remains synthetic-only and still blocks real data, Production and payment execution', () => {
   assert.match(checklist, /Synthetic\/anonymized employees and attendance/i);
   assert.match(checklist, /No payment, bank-transfer, tax filing, insurance filing, or retroactive payment/i);
   assert.match(checklist, /do not promote staging findings to Production automatically/i);
   assert.match(checklist, /using any real employee payroll\/attendance data for verification/i);
+  assert.match(promotionReceipt, /no real August payroll or attendance import/i);
+  assert.match(promotionReceipt, /no real month lock/i);
+  assert.match(promotionReceipt, /no payment or retroactive payment/i);
+  assert.match(promotionReceipt, /no Production migration or Edge deployment/i);
 });
