@@ -27,15 +27,33 @@ test('QA preview page creates an isolated tab session and then loads the real ap
   assert.match(previewPage, /Production에서는 사용하지 않습니다/);
 });
 
-test('QA edge function is hard-locked to staging and requires actual top authority', () => {
+test('QA edge function is hard-locked to staging and requires the integrated top-authority account', () => {
   assert.match(edge, /jgsxpdflgkqroecfjzxq/);
   assert.match(edge, /STAGING_ONLY/);
-  assert.match(edge, /operations_manager/);
-  assert.match(edge, /super_admin/);
+  assert.match(edge, /function isTopAuthority/);
+  assert.match(edge, /codes\.has\('operations_manager'\)/);
+  assert.match(edge, /codes\.has\('super_admin'\)/);
+  assert.match(edge, /authorizeTopAuthority/);
   assert.match(edge, /admin\.auth\.getUser\(token\)/);
-  assert.match(edge, /profile_roles/);
   assert.match(edge, /generateLink/);
   assert.match(edge, /getUserById/);
   assert.match(edge, /type:\s*'magiclink'/);
   assert.doesNotMatch(edge, /password\s*:/i);
+});
+
+test('QA account listing avoids fragile embedded relationship joins', () => {
+  assert.match(edge, /department_id, position_id/);
+  assert.match(edge, /select\('profile_id, role_id'\)/);
+  assert.match(edge, /from\('departments'\)/);
+  assert.match(edge, /from\('positions'\)/);
+  assert.match(edge, /from\('roles'\)/);
+  assert.doesNotMatch(edge, /role:roles!inner/);
+  assert.doesNotMatch(edge, /department:departments/);
+  assert.doesNotMatch(edge, /position:positions/);
+});
+
+test('QA preview does not silently activate an unconfirmed login account', () => {
+  assert.match(edge, /email_confirmed_at/);
+  assert.match(edge, /TARGET_EMAIL_NOT_CONFIRMED/);
+  assert.match(edge, /이메일 확인 전 계정/);
 });
