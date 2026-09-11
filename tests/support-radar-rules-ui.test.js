@@ -4,6 +4,7 @@ const path = require('path');
 const rules = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20260909232000_support_radar_queries_and_rules.sql'), 'utf8');
 const profileUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar.js'), 'utf8');
 const noticeUi = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar-notices.js'), 'utf8');
+const radarCss = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'support-radar.css'), 'utf8');
 const loader = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'app-ui.js'), 'utf8');
 
 function expectContains(source, fragment, label = fragment) {
@@ -48,6 +49,12 @@ function expectContains(source, fragment, label = fragment) {
   'support_set_decision',
   'support_update_application_status'
 ].forEach(fragment => expectContains(noticeUi, fragment));
+
+[
+  'label:has(input[type="checkbox"])',
+  'input[type="checkbox"]{width:1.15rem',
+  'cursor:pointer'
+].forEach(fragment => expectContains(radarCss, fragment, `compact checkbox UX: ${fragment}`));
 
 expectContains(loader, "['assets/support-radar.js', 'support-radar']", 'support-radar loader');
 expectContains(loader, "['assets/support-radar-notices.js', 'support-radar-notices']", 'support-radar-notices loader');
