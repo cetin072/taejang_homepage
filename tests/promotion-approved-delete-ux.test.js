@@ -13,7 +13,7 @@ test('promotion lead management UX parses and is loaded by app bootstrap', () =>
   assert.match(appUi, /assets\/promotion-approved-delete-ux\.js/);
   assert.match(moduleSource, /setText\(heading, '홍보 관리'\)/);
   assert.match(moduleSource, /미리보기·수정·삭제·보완 요청·승인·상신/);
-  assert.match(moduleSource, /data-promotion-review-delete/);
+  assert.match(moduleSource, /promotionReviewDelete/);
   assert.match(moduleSource, /승인 완료·미발행 글/);
   assert.match(moduleSource, /원문과 수정이력은 보존/);
   assert.match(moduleSource, /renderSignature/);
