@@ -6,16 +6,26 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const wrapperPath = path.join(root, 'prototypes/payroll-backend/edge-runtime/payroll-calculate/index.ts');
 const depsPath = path.join(root, 'prototypes/payroll-backend/edge-runtime/payroll-calculate/runtime-deps.ts');
+const deployedWrapperPath = path.join(root, 'supabase/functions/payroll-calculate/index.ts');
+const receiptPath = path.join(root, 'prototypes/payroll-backend/STAGING_PAYROLL_PROMOTION_RECEIPT_20260911.md');
 const wrapper = fs.readFileSync(wrapperPath, 'utf8');
 const deps = fs.readFileSync(depsPath, 'utf8');
 
-test('Edge wrapper remains prototype-only and outside deployable supabase/functions tree', () => {
+test('approved Staging promotion keeps the design candidate and records the deployable wrapper explicitly', () => {
   assert.match(wrapper, /DESIGN CANDIDATE ONLY \/ NOT DEPLOYED/i);
   assert.equal(
-    fs.existsSync(path.join(root, 'supabase/functions/payroll-calculate/index.ts')),
-    false,
-    'payroll Edge Function must not be promoted into deployable functions before approval'
+    fs.existsSync(deployedWrapperPath),
+    true,
+    'approved Staging promotion must keep its deployable Edge wrapper versioned in the repository'
   );
+  assert.equal(
+    fs.existsSync(receiptPath),
+    true,
+    'approved Staging deployment must have an explicit promotion receipt'
+  );
+  const receipt = fs.readFileSync(receiptPath, 'utf8');
+  assert.match(receipt, /user-approved Staging-only payroll foundation work/i);
+  assert.match(receipt, /does \*\*not\*\* authorize real August payroll data, Production, Ready\/merge, real month lock, payment/i);
 });
 
 test('runtime loader reuses existing tested payroll modules rather than copying payroll algorithms', () => {
