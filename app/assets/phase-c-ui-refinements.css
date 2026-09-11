@@ -44,6 +44,73 @@
 }
 .homepage-change-form-wrap .quick-links { margin: 4px 0; }
 
+@media (max-width: 900px) {
+  .role-simulation-switcher {
+    left: max(14px, env(safe-area-inset-left)) !important;
+    right: max(14px, env(safe-area-inset-right)) !important;
+    bottom: max(18px, env(safe-area-inset-bottom)) !important;
+    z-index: 90 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 12px !important;
+    border: 2px solid #bfd1c6 !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.98) !important;
+    box-shadow: 0 14px 36px rgba(0,0,0,.24) !important;
+  }
+  .role-simulation-switcher::before {
+    content: '계정 전환';
+    grid-column: 1 / -1;
+    padding: 0 2px 2px;
+    color: #173f2c;
+    font-size: 1rem;
+    font-weight: 900;
+    text-align: left;
+  }
+  .role-simulation-switcher .button {
+    width: 100% !important;
+    min-height: 54px !important;
+    padding: 12px 10px !important;
+    border-radius: 12px !important;
+    font-size: .98rem !important;
+    font-weight: 850 !important;
+    line-height: 1.2 !important;
+    touch-action: manipulation;
+  }
+  .role-simulation-switcher [data-qa-account-preview-button] {
+    background: #236d4b !important;
+    border-color: #236d4b !important;
+    color: #fff !important;
+  }
+  body:has(.role-simulation-switcher) { padding-bottom: 210px !important; }
+
+  .qa-account-dialog {
+    width: min(620px, calc(100vw - 20px)) !important;
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+  }
+  .qa-account-dialog__body { padding: 18px !important; gap: 16px !important; }
+  .qa-account-dialog__body select {
+    min-height: 56px !important;
+    padding: 10px 12px !important;
+    font-size: 1rem;
+  }
+  .qa-account-dialog__actions {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  .qa-account-dialog__actions .button {
+    width: 100% !important;
+    min-height: 54px !important;
+    padding: 12px !important;
+    font-size: 1rem !important;
+    font-weight: 850 !important;
+  }
+  .qa-account-dialog__actions [data-qa-account-open] { order: -1; }
+}
+
 @media (max-width: 620px) {
   .homepage-change-form-wrap { padding: 16px; }
   .homepage-change-image { width: 100%; }
