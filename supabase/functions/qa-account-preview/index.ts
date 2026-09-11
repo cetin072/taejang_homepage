@@ -30,6 +30,11 @@ function isTopAuthority(codes: Set<string>) {
   return codes.has('operations_manager') && codes.has('super_admin');
 }
 
+function safeDiagnosticCode(error: any) {
+  const raw = String(error?.code || error?.name || 'UNKNOWN');
+  return raw.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60) || 'UNKNOWN';
+}
+
 function requestIdentity(req: Request) {
   return {
     contextProfileId: req.headers.get('x-qa-context-profile-id'),
@@ -250,6 +255,9 @@ Deno.serve(async (req: Request) => {
     return reply(400, { error: 'INVALID_ACTION' }, origin);
   } catch (error) {
     console.error('qa_account_preview_failed', error);
-    return reply(500, { error: 'QA_PREVIEW_FAILED' }, origin);
+    return reply(500, {
+      error: 'QA_PREVIEW_FAILED',
+      ...(environment === 'local' ? { diagnostic_code: safeDiagnosticCode(error) } : {})
+    }, origin);
   }
 });

@@ -169,7 +169,7 @@ equal(identityMismatch.status, 403, 'browser/server identity mismatch is rejecte
 equal(identityMismatch.data?.error, 'QA_IDENTITY_MISMATCH', 'identity mismatch has a specific code');
 
 const list = await qa('list', operator);
-equal(list.status, 200, 'top-authority list succeeds');
+equal(list.status, 200, `top-authority list succeeds: ${JSON.stringify(list.data)}`);
 equal(list.data?.qa_contract_version, 2, 'hosted contract version is explicit');
 check(list.data?.accounts?.some(account => account.id === target.id && account.previewable), 'target employee is included and previewable');
 

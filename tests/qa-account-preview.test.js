@@ -81,6 +81,7 @@ test('QA edge function returns distinct safe authorization diagnostics', () => {
   assert.doesNotMatch(edge, /QA_PREVIEW_FORBIDDEN/);
   assert.match(edge, /actor_profile_id/);
   assert.match(edge, /actual_role_codes/);
+  assert.match(edge, /environment === 'local'.*diagnostic_code/s);
 });
 
 test('QA preview does not silently activate an unconfirmed login account', () => {
