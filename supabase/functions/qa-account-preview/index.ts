@@ -91,73 +91,32 @@ async function authorizeTopAuthority(admin: any, supabaseUrl: string, publicKey:
     return { error: 'QA_TOP_AUTHORITY_REQUIRED', status: 403 };
   }
   console.info('qa_account_preview_authorized', { actor_profile_id: user.id, actual_role_codes: [...codes].sort() });
-  return { user, profile: accessContext, codes };
+  return { user, profile: accessContext, codes, userClient };
 }
 
-async function listAccounts(admin: any) {
-  const { data: profiles, error: profileError } = await admin
-    .from('profiles')
-    .select('id, display_name, account_status, department_id, position_id')
-    .eq('account_status', 'active')
-    .order('display_name', { ascending: true });
-  if (profileError) throw qaFailure('profiles', profileError);
+async function listAccounts(admin: any, userClient: any) {
+  // Reuse the capability-gated account-management contract instead of
+  // duplicating raw profile/role table reads in the Edge function.
+  const { data: management, error: managementError } = await userClient.rpc('get_operations_account_management');
+  if (managementError) throw qaFailure('account_management', managementError);
 
-  const profileRows = profiles || [];
-  const profileIds = profileRows.map((profile: any) => profile.id);
-  const departmentIds = [...new Set(profileRows.map((profile: any) => profile.department_id).filter(Boolean))];
-  const positionIds = [...new Set(profileRows.map((profile: any) => profile.position_id).filter(Boolean))];
-
-  let departments: any[] = [];
-  if (departmentIds.length) {
-    const { data, error } = await admin.from('departments').select('id, name').in('id', departmentIds);
-    if (error) throw qaFailure('departments', error);
-    departments = data || [];
-  }
-
-  let positions: any[] = [];
-  if (positionIds.length) {
-    const { data, error } = await admin.from('positions').select('id, name').in('id', positionIds);
-    if (error) throw qaFailure('positions', error);
-    positions = data || [];
-  }
-
-  let assignments: any[] = [];
-  if (profileIds.length) {
-    const { data, error } = await admin
-      .from('profile_roles')
-      .select('profile_id, role_id')
-      .in('profile_id', profileIds)
-      .is('revoked_at', null);
-    if (error) throw qaFailure('profile_roles', error);
-    assignments = data || [];
-  }
-
-  const roleIds = [...new Set(assignments.map((assignment: any) => assignment.role_id).filter(Boolean))];
-  let roles: any[] = [];
-  if (roleIds.length) {
-    const { data, error } = await admin.from('roles').select('id, code, name, active').in('id', roleIds);
-    if (error) throw qaFailure('roles', error);
-    roles = (data || []).filter((role: any) => role.active !== false);
-  }
+  const profileRows = (management?.profiles || []).filter((profile: any) => profile.account_status === 'active');
+  const departments = management?.departments || [];
+  const positions = management?.positions || [];
+  const roles = management?.roles || [];
 
   const { data: usersData, error: usersError } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (usersError) throw qaFailure('auth_users', usersError);
 
   const departmentMap = new Map(departments.map((row: any) => [row.id, row.name]));
   const positionMap = new Map(positions.map((row: any) => [row.id, row.name]));
-  const roleById = new Map(roles.map((role: any) => [role.id, role]));
-  const rolesByProfile = new Map<string, any[]>();
-  for (const assignment of assignments) {
-    const role = roleById.get(assignment.role_id);
-    if (!role) continue;
-    const current = rolesByProfile.get(assignment.profile_id) || [];
-    current.push({ code: role.code, name: role.name || role.code });
-    rolesByProfile.set(assignment.profile_id, current);
-  }
+  const roleByCode = new Map(roles.map((role: any) => [role.code, role]));
   const authUsers = new Map((usersData?.users || []).map((user: any) => [user.id, user]));
 
   return profileRows.map((profile: any) => {
-    const accountRoles = (rolesByProfile.get(profile.id) || []).sort((left, right) => (left.name || '').localeCompare(right.name || '', 'ko'));
+    const accountRoles = (profile.roles || [])
+      .map((roleCode: string) => ({ code: roleCode, name: roleByCode.get(roleCode)?.name || roleCode }))
+      .sort((left: any, right: any) => (left.name || '').localeCompare(right.name || '', 'ko'));
     const authUser: any = authUsers.get(profile.id);
     const hasEmail = Boolean(authUser?.email);
     const emailConfirmed = Boolean(authUser?.email_confirmed_at);
@@ -247,7 +206,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (body?.action === 'list') {
-      const accounts = await listAccounts(admin);
+      const accounts = await listAccounts(admin, authorization.userClient);
       console.info('qa_account_preview_list', { actor_id: authorization.user.id, count: accounts.length });
       return reply(200, { accounts, authority: 'top', qa_contract_version: 2 }, origin);
     }

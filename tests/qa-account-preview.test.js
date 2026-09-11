@@ -57,12 +57,13 @@ test('QA edge function is hard-locked to staging and requires the integrated top
   assert.doesNotMatch(edge, /password\s*:/i);
 });
 
-test('QA account listing avoids fragile embedded relationship joins', () => {
-  assert.match(edge, /department_id, position_id/);
-  assert.match(edge, /select\('profile_id, role_id'\)/);
-  assert.match(edge, /from\('departments'\)/);
-  assert.match(edge, /from\('positions'\)/);
-  assert.match(edge, /from\('roles'\)/);
+test('QA account listing reuses the capability-gated account management contract', () => {
+  assert.match(edge, /get_operations_account_management/);
+  assert.match(edge, /management\?\.profiles/);
+  assert.match(edge, /management\?\.departments/);
+  assert.match(edge, /management\?\.positions/);
+  assert.match(edge, /management\?\.roles/);
+  assert.doesNotMatch(edge, /select\('id, display_name, account_status, department_id, position_id'\)/);
   assert.doesNotMatch(edge, /role:roles!inner/);
   assert.doesNotMatch(edge, /department:departments/);
   assert.doesNotMatch(edge, /position:positions/);
