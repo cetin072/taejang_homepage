@@ -57,12 +57,13 @@ test('QA edge function is hard-locked to staging and requires the integrated top
   assert.doesNotMatch(edge, /password\s*:/i);
 });
 
-test('QA account listing reuses the capability-gated account management contract', () => {
+test('QA account listing reuses the capability-gated account management contract without bulk Auth enumeration', () => {
   assert.match(edge, /get_operations_account_management/);
   assert.match(edge, /management\?\.profiles/);
   assert.match(edge, /management\?\.departments/);
   assert.match(edge, /management\?\.positions/);
   assert.match(edge, /management\?\.roles/);
+  assert.doesNotMatch(edge, /admin\.auth\.admin\.listUsers/);
   assert.doesNotMatch(edge, /select\('id, display_name, account_status, department_id, position_id'\)/);
   assert.doesNotMatch(edge, /admin\s*\.from\('profiles'\)/);
   assert.doesNotMatch(edge, /role:roles!inner/);
@@ -83,13 +84,14 @@ test('QA edge function returns distinct safe authorization diagnostics', () => {
   assert.doesNotMatch(edge, /QA_PREVIEW_FORBIDDEN/);
   assert.match(edge, /actor_profile_id/);
   assert.match(edge, /actual_role_codes/);
-  assert.match(edge, /environment === 'local'.*diagnostic_code/s);
+  assert.match(edge, /diagnostic_code:\s*safeDiagnosticCode\(error\)/);
 });
 
-test('QA preview does not silently activate an unconfirmed login account', () => {
+test('QA preview verifies the selected login account at create time', () => {
+  assert.match(edge, /getUserById\(targetProfileId\)/);
   assert.match(edge, /email_confirmed_at/);
+  assert.match(edge, /TARGET_AUTH_ACCOUNT_NOT_FOUND/);
   assert.match(edge, /TARGET_EMAIL_NOT_CONFIRMED/);
-  assert.match(edge, /이메일 확인 전 계정/);
 });
 
 test('QA preview disables gateway JWT verification only because it performs explicit Auth verification inside the staging-only function', () => {
