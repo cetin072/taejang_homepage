@@ -42,7 +42,57 @@
     return Object.freeze({ payrollMonth, cutoffDate, acceptedBatchId, requestId });
   }
 
-  function makeEngineResultRow(employee, result) {
+  function monthEndKey(payrollMonth) {
+    const year = Number(payrollMonth.slice(0, 4));
+    const month = Number(payrollMonth.slice(5, 7));
+    const end = new Date(year, month, 0, 12, 0, 0, 0);
+    return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
+  }
+
+  function selectFullMonthProfile(statutoryInput, employeeUuid, payrollMonth) {
+    const monthEnd = monthEndKey(payrollMonth);
+    const rows = (Array.isArray(statutoryInput && statutoryInput.profiles) ? statutoryInput.profiles : [])
+      .filter((row) => String(row.employee_uuid || row.employeeUuid || '') === String(employeeUuid));
+    if (rows.length !== 1) {
+      return { profile: null, reason: rows.length === 0 ? 'statutory_profile_missing' : 'statutory_profile_overlap_review_required' };
+    }
+    const row = rows[0];
+    const effectiveFrom = String(row.effective_from || row.effectiveFrom || '');
+    const effectiveTo = row.effective_to || row.effectiveTo;
+    if (!effectiveFrom || effectiveFrom > payrollMonth || (effectiveTo && String(effectiveTo) < monthEnd)) {
+      return { profile: null, reason: 'statutory_profile_partial_month_review_required' };
+    }
+    return { profile: row, reason: null };
+  }
+
+  function summarizeStatutory(result, grossPayPreview) {
+    if (!result || result.status !== 'complete') {
+      return {
+        status: 'review_required',
+        nps: null,
+        nhi: null,
+        ltc: null,
+        ei: null,
+        total: null,
+        net: null,
+        reasons: result && Array.isArray(result.unresolvedReasons) ? result.unresolvedReasons : ['statutory_review_required'],
+      };
+    }
+    const amountByCode = new Map((result.rows || []).map((row) => [row.code, Number(row.amount || 0)]));
+    const total = Number(result.totalEmployeeDeduction || 0);
+    return {
+      status: 'complete',
+      nps: amountByCode.get('national_pension') || 0,
+      nhi: amountByCode.get('health_insurance') || 0,
+      ltc: amountByCode.get('long_term_care') || 0,
+      ei: amountByCode.get('employment_insurance') || 0,
+      total,
+      net: Number(grossPayPreview) - total,
+      reasons: [],
+    };
+  }
+
+  function makeEngineResultRow(employee, result, statutorySummary) {
     const unresolvedCount = Number(result.unresolvedCount || 0);
     const weeklyHolidayPendingWeeks = Number(result.weeklyHolidayPendingWeeks || 0);
     const rateStatus = result.rateStatus;
@@ -76,6 +126,7 @@
         unresolved_reasons: Array.isArray(result.unresolved)
           ? result.unresolved.map((item) => ({ date: item.date || null, reason: item.reason || null }))
           : [],
+        statutory: statutorySummary,
       },
     };
   }
@@ -83,19 +134,23 @@
   function createPayrollCalculateCore({
     authorizeRequest,
     fetchCanonicalInput,
+    fetchStatutoryInput,
     persistTrustedResult,
     adapter,
     engine,
     preflight,
+    statutory,
     calculationVersion = 'payroll-engine-7day-v1',
     now = () => new Date().toISOString(),
   } = {}) {
     if (typeof authorizeRequest !== 'function') fail('authorize_request_dependency_required');
     if (typeof fetchCanonicalInput !== 'function') fail('fetch_canonical_input_dependency_required');
+    if (typeof fetchStatutoryInput !== 'function') fail('fetch_statutory_input_dependency_required');
     if (typeof persistTrustedResult !== 'function') fail('persist_trusted_result_dependency_required');
     if (!adapter || typeof adapter.toEnginePayrollInputs !== 'function') fail('payroll_db_adapter_required');
     if (!engine || typeof engine.calculateProvisionalMonth !== 'function') fail('payroll_engine_required');
     if (!preflight || typeof preflight.validatePayrollInput !== 'function') fail('payroll_preflight_required');
+    if (!statutory || typeof statutory.calculateStatutoryDeductions !== 'function') fail('payroll_statutory_engine_required');
 
     return async function calculate(requestInput, authContext = {}) {
       const request = validateRequest(requestInput);
@@ -140,6 +195,14 @@
         });
       }
 
+      const statutoryInput = await fetchStatutoryInput({
+        actorId,
+        payrollMonth: request.payrollMonth,
+      });
+      const statutoryRateRules = Array.isArray(statutoryInput && statutoryInput.rate_rules)
+        ? statutoryInput.rate_rules
+        : [];
+
       const canonicalEmployeesById = new Map(
         (Array.isArray(canonical.employees) ? canonical.employees : []).map((row) => [
           String(row.employee_id),
@@ -150,6 +213,7 @@
       const employeeResults = [];
       let unresolvedItemCount = 0;
       let rateReviewCount = 0;
+      let statutoryReviewCount = 0;
       let payableHoursPreview = 0;
       let grossPayPreview = 0;
 
@@ -171,7 +235,33 @@
         if (result.rateStatus !== 'single_rate') rateReviewCount += 1;
         payableHoursPreview += Number(result.payableHoursPreview || 0);
 
-        const persistedEmployeeResult = makeEngineResultRow(canonicalEmployee, result);
+        const baseRow = makeEngineResultRow(canonicalEmployee, result, null);
+        let statutorySummary;
+        if (baseRow.gross_pay_preview == null) {
+          statutorySummary = {
+            status: 'review_required', nps: null, nhi: null, ltc: null, ei: null,
+            total: null, net: null, reasons: ['gross_not_ready'],
+          };
+        } else {
+          const selected = selectFullMonthProfile(statutoryInput, canonicalEmployee.employeeUuid, request.payrollMonth);
+          if (!selected.profile) {
+            statutorySummary = {
+              status: 'review_required', nps: null, nhi: null, ltc: null, ei: null,
+              total: null, net: null, reasons: [selected.reason],
+            };
+          } else {
+            const statutoryResult = statutory.calculateStatutoryDeductions({
+              payrollMonth: request.payrollMonth,
+              taxableRemuneration: baseRow.gross_pay_preview,
+              profile: selected.profile,
+              rateRules: statutoryRateRules,
+            });
+            statutorySummary = summarizeStatutory(statutoryResult, baseRow.gross_pay_preview);
+          }
+        }
+        if (statutorySummary.status !== 'complete') statutoryReviewCount += 1;
+
+        const persistedEmployeeResult = makeEngineResultRow(canonicalEmployee, result, statutorySummary);
         if (persistedEmployeeResult.gross_pay_preview != null) {
           grossPayPreview += Number(persistedEmployeeResult.gross_pay_preview);
         }
@@ -208,6 +298,7 @@
         employeeCount: employeeResults.length,
         unresolvedItemCount,
         rateReviewCount,
+        statutoryReviewCount,
         grossPayPreviewStatus,
         grossPayPreview: companyGrossPayPreview,
       });
