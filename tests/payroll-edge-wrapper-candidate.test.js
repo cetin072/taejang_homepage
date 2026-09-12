@@ -7,9 +7,12 @@ const root = path.join(__dirname, '..');
 const wrapperPath = path.join(root, 'prototypes/payroll-backend/edge-runtime/payroll-calculate/index.ts');
 const depsPath = path.join(root, 'prototypes/payroll-backend/edge-runtime/payroll-calculate/runtime-deps.ts');
 const deployedWrapperPath = path.join(root, 'supabase/functions/payroll-calculate/index.ts');
+const deployedDepsPath = path.join(root, 'supabase/functions/payroll-calculate/runtime-deps.ts');
 const receiptPath = path.join(root, 'prototypes/payroll-backend/STAGING_PAYROLL_PROMOTION_RECEIPT_20260911.md');
 const wrapper = fs.readFileSync(wrapperPath, 'utf8');
 const deps = fs.readFileSync(depsPath, 'utf8');
+const deployedWrapper = fs.readFileSync(deployedWrapperPath, 'utf8');
+const deployedDeps = fs.readFileSync(deployedDepsPath, 'utf8');
 
 test('approved Staging promotion keeps the design candidate and records the deployable wrapper explicitly', () => {
   assert.match(wrapper, /DESIGN CANDIDATE ONLY \/ NOT DEPLOYED/i);
@@ -55,12 +58,21 @@ test('user JWT validates identity and canonical input through guarded public RPC
   assert.doesNotMatch(wrapper, /actor[_-]?id\s*:\s*requestBody/i);
 });
 
-test('internal client is limited to trusted persistence RPC and never performs payroll table CRUD', () => {
+test('design internal client is limited to trusted persistence RPC and never performs payroll table CRUD', () => {
   assert.match(wrapper, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(wrapper, /internalClient\.rpc\('private_persist_payroll_calculation'/);
   assert.doesNotMatch(wrapper, /internalClient\.from\(/);
   assert.doesNotMatch(wrapper, /userClient\.from\(/);
   assert.doesNotMatch(wrapper, /\.insert\(|\.update\(|\.delete\(/);
+});
+
+test('deployed staging wrapper adds statutory input through one server-only RPC without table CRUD or browser input', () => {
+  assert.match(deployedWrapper, /internalClient\.rpc\('private_get_payroll_statutory_input'/);
+  assert.match(deployedWrapper, /internalClient\.rpc\('private_persist_payroll_calculation'/);
+  assert.doesNotMatch(deployedWrapper, /internalClient\.from\(/);
+  assert.doesNotMatch(deployedWrapper, /userClient\.from\(/);
+  assert.match(deployedDeps, /payroll-statutory-deductions\.js/);
+  assert.match(deployedDeps, /PAYROLL_RUNTIME_COMMIT\s*=\s*'[0-9a-f]{40}'/);
 });
 
 test('service credential never enters response or operational log payload', () => {
