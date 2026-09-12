@@ -70,6 +70,27 @@
     return new Set((app()?.getContext?.()?.roles || []).map(item => item?.code).filter(Boolean));
   }
 
+  function classifyLinkedSource(urlValue) {
+    const raw = String(urlValue || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(raw, window.location.href);
+      const host = parsed.hostname.toLowerCase();
+      const path = parsed.pathname.toLowerCase();
+      if (parsed.origin === window.location.origin) return 'taejang_homepage';
+
+      const naverBlogHost = host === 'blog.naver.com' || host === 'm.blog.naver.com';
+      const firstPathSegment = path.split('/').filter(Boolean)[0] || '';
+      const queryBlogId = String(parsed.searchParams.get('blogId') || '').toLowerCase();
+      if (naverBlogHost && (firstPathSegment === 'taejang-official' || queryBlogId === 'taejang-official')) return 'taejang_blog';
+
+      if ((host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com') && path.includes('@taejangofficial')) return 'taejang_youtube';
+      return 'external';
+    } catch {
+      return '';
+    }
+  }
+
   function hideRoutineSupportRadarMenus() {
     if (window.TaejangSupportRadarAccess?.canManagementView?.()) return;
     const roles = effectiveRoles();
@@ -176,14 +197,17 @@
     const type = topRow?.querySelector('select');
     if (type && heading === '새 홍보자료 작성') {
       type.querySelector('option[value="external_content"]')?.remove();
-      if (type.value === 'external_content') type.value = 'homepage_article';
+      if (route() === 'promotion_staff') type.querySelector('option[value="press_release"]')?.remove();
+      if (type.value === 'external_content' || (route() === 'promotion_staff' && type.value === 'press_release')) type.value = 'homepage_article';
     }
 
     if (topRow && !composer.querySelector('[data-issue187-type-help]')) {
       const help = document.createElement('p');
       help.className = 'help';
       help.dataset.issue187TypeHelp = '1';
-      help.textContent = '태장 소식은 홈페이지에 올리는 일반 소식이고, 보도자료는 언론에 배포할 공식 문안입니다. 외부 기사 링크 여부는 아래 연결 자료에서 따로 구분합니다.';
+      help.textContent = route() === 'promotion_staff'
+        ? '홍보직원은 태장 소식만 작성합니다. 블로그·유튜브·외부 기사 링크는 아래 연결 자료에서 자동으로 구분합니다. 보도자료 초안은 운영팀장 이상이 작성합니다.'
+        : '태장 소식은 홈페이지에 올리는 일반 소식이고, 보도자료는 언론에 배포할 공식 문안입니다. 외부 기사 링크 여부는 아래 연결 자료에서 따로 구분합니다.';
       topRow.insertAdjacentElement('afterend', help);
     }
 
@@ -203,7 +227,7 @@
       urlInput.dataset.issue187AutoSource = '1';
       const classify = () => {
         if (!urlInput.value.trim() || source.dataset.manual === '1') return;
-        const suggested = window.TaejangIssue181PromotionLiveUx?.suggestSource?.(urlInput.value.trim());
+        const suggested = classifyLinkedSource(urlInput.value.trim());
         source.value = suggested || 'external';
       };
       urlInput.addEventListener('input', classify);
@@ -245,6 +269,11 @@
       return original(name, { ...args, p_hero_image_url: null });
     };
     importedImageRpcWrapped = true;
+  }
+
+  function revealPromotionPreview() {
+    const panel = byId('dashboard-main')?.querySelector('.promotion-preview-panel');
+    panel?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
   function injectStyles() {
@@ -292,6 +321,8 @@
   });
   document.addEventListener('taejang-open-promotion-workspace', scheduleAfterWorkNavigation);
   document.addEventListener('click', event => {
+    const clickedButton = event.target?.closest?.('button');
+    if (clickedButton?.textContent?.trim() === '미리보기') setTimeout(revealPromotionPreview, 0);
     const target = event.target?.closest?.('[data-phase-c-v2-nav], [data-issue187-promotion-nav], .dashboard-card button');
     if (target) scheduleAfterWorkNavigation();
   }, true);
