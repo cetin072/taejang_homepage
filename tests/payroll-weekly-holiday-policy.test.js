@@ -1,10 +1,21 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const engine = require('../app/assets/payroll-engine.js');
 const policy = require('../app/assets/payroll-weekly-holiday-policy.js');
 
 const wrapped = policy.wrapEngine(engine);
+const root = path.join(__dirname, '..');
+const stagingRuntimeDeps = fs.readFileSync(
+  path.join(root, 'supabase/functions/payroll-calculate/runtime-deps.ts'),
+  'utf8'
+);
+const stagingIndex = fs.readFileSync(
+  path.join(root, 'supabase/functions/payroll-calculate/index.ts'),
+  'utf8'
+);
 
 function employee({ hiredAt = '2026-06-01', terminatedAt = null } = {}) {
   return { employeeId: 'TJ-TEST-POLICY', hiredAt, terminatedAt };
@@ -126,4 +137,15 @@ test('recent hire receives eligible later workweeks without diluting them by a p
   assert.equal(result.weeklyHolidayActualHours, 3);
   assert.equal(result.weeklyHolidayExpectedHours, 3);
   assert.equal(result.payableHoursPreview, 51);
+});
+
+test('Staging runtime imports and wraps the reviewed weekly holiday policy', () => {
+  assert.match(stagingRuntimeDeps, /PAYROLL_RUNTIME_COMMIT\s*=\s*'[0-9a-f]{40}'/);
+  assert.match(stagingRuntimeDeps, /payroll-weekly-holiday-policy\.js/);
+  assert.match(stagingRuntimeDeps, /PAYROLL_WEEKLY_POLICY_MODULE_MISSING/);
+  assert.match(stagingRuntimeDeps, /policy\.wrapEngine\(runtime\.TaejangPayrollEngine/);
+});
+
+test('Staging calculation run records the Golden workweek policy version', () => {
+  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v2'/);
 });
