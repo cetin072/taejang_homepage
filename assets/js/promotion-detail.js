@@ -74,7 +74,11 @@
     article.append(header);
 
     const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => /^https:\/\//.test(entry?.url || '')) : [];
-    const heroUrl = /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : media[0]?.url;
+    // Explicitly selected/uploaded public media is authoritative for the public
+    // detail hero. Imported remote og:image remains only a fallback when no
+    // public media was selected, avoiding a card/detail mismatch or hotlink-only
+    // representative image after staff uploaded their own photo.
+    const heroUrl = media[0]?.url || (/^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '');
     if (heroUrl) {
       const heroMatch = media.find(entry => entry.url === heroUrl);
       const hero = imageNode(heroUrl, heroMatch?.alt || `${item.title} 대표사진`, 'article-representative-media');
