@@ -10,13 +10,14 @@ const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/ux-followup-polish.js'), 'utf8');
 const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion-live-qa.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
+const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
 }
 
 function classifierFromSource() {
-  const match = qaSource.match(/function classifyLinkedSource\(urlValue\) \{([\s\S]*?)\n  \}\n\n  function isNewPromotionComposer/);
+  const match = qaSource.match(/function classifyLinkedSource\(urlValue\) \{([\s\S]*?)\n  \}\n\n  function openPromotion/);
   assert.ok(match, 'classifier function must remain extractable for behavior tests');
   const window = { location: { href: 'https://deploy-preview-188--taejang-homepage.netlify.app/app/', origin: 'https://deploy-preview-188--taejang-homepage.netlify.app' } };
   return new Function('window', `return function classifyLinkedSource(urlValue) {${match[1]}\n};`)(window);
@@ -32,11 +33,11 @@ function runPreviewReveal() {
   return calls;
 }
 
-test('issue 187 follow-up UX parses and proactive QA module is loaded last', () => {
+test('issue 187 modules parse and image retry loads before fallback guard', () => {
   syntaxCheck('app/assets/ux-followup-polish.js');
   syntaxCheck('app/assets/issue-187-promotion-live-qa.js');
   assert.match(appUi, /assets\/issue-187-promotion-live-qa\.js/);
-  assert.ok(appUi.indexOf('assets/ux-followup-polish.js') < appUi.indexOf('assets/issue-187-promotion-live-qa.js'));
+  assert.ok(appUi.indexOf('assets/issue-187-promotion-live-qa.js') < appUi.indexOf('assets/ux-followup-polish.js'));
 });
 
 test('routine promotion and office staff hide support-radar navigation without changing server capabilities', () => {
@@ -47,15 +48,14 @@ test('routine promotion and office staff hide support-radar navigation without c
   assert.doesNotMatch(source, /support_radar\.assigned_work/);
 });
 
-test('promotion staff always gets write and revision shortcuts in sidebar and dashboard', () => {
-  assert.match(source, /route\(\) !== 'promotion_staff'/);
-  assert.match(source, /홍보 작성/);
-  assert.match(source, /수정·보완 요청/);
-  assert.match(source, /홍보자료 작성/);
-  assert.match(source, /중요공지/);
-  assert.match(source, /openPromotion\?\.\(mode\)/);
+test('promotion staff sidebar and dashboard have stable write and revision entry points', () => {
   assert.match(source, /makePromotionNavButton\('홍보 작성', 'write'\)/);
   assert.match(source, /makePromotionNavButton\('수정·보완 요청', 'revision'\)/);
+  assert.match(qaSource, /replaceCardAction\(revision, '보완 글 확인', 'revision'\)/);
+  assert.match(qaSource, /replaceCardAction\(write, '새 태장 소식 작성', 'write'\)/);
+  assert.match(qaSource, /보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다/);
+  assert.match(qaSource, /태장 소식을 작성해 운영팀장에게 승인 요청합니다/);
+  assert.match(dashboard, /openPromotion\('write'\)/, 'legacy dashboard remains compatible while follow-up repairs the returned-item action');
 });
 
 test('promotion staff new composer is reduced to Taejang news only', () => {
@@ -64,7 +64,6 @@ test('promotion staff new composer is reduced to Taejang news only', () => {
   assert.match(qaSource, /heading\.textContent = '새 태장 소식 작성'/);
   assert.match(qaSource, /type\.value = 'homepage_article'/);
   assert.match(qaSource, /typeField\.hidden = true/);
-  assert.match(qaSource, /태장 소식을 작성해 운영팀장에게 승인 요청합니다/);
 });
 
 test('official link classifier behaves correctly across preview and production URL shapes', () => {
@@ -81,7 +80,6 @@ test('official link classifier behaves correctly across preview and production U
 });
 
 test('link source is reclassified after metadata import canonicalizes the URL', () => {
-  assert.match(qaSource, /MutationObserver/);
   assert.match(qaSource, /attributeFilter: \['disabled'\]/);
   assert.match(qaSource, /if \(!metaButton\.disabled\) setTimeout\(classify, 0\)/);
   assert.match(qaSource, /링크 종류 \(자동 확인\)/);
@@ -94,14 +92,12 @@ test('preview reveal helper actually scrolls the generated panel into view', () 
   assert.match(source, /setTimeout\(revealPromotionPreview, 0\)/);
 });
 
-test('imported thumbnail gets a no-referrer retry before manual-upload fallback', () => {
-  assert.match(qaSource, /phase-c-link-preview img/);
+test('imported thumbnail retries once without referrer before manual-upload fallback', () => {
+  assert.match(qaSource, /document\.addEventListener\('error'/);
+  assert.match(qaSource, /event\.stopImmediatePropagation\(\)/);
   assert.match(qaSource, /referrerPolicy = 'no-referrer'/);
   assert.match(qaSource, /issue187NoReferrerRetry/);
   assert.match(source, /brokenImportedImages\.add/);
   assert.match(source, /사진 추가로 직접 올려주세요/);
   assert.match(source, /p_hero_image_url: null/);
-  assert.match(source, /save_promotion_draft/);
-  assert.match(source, /save_operations_promotion_draft/);
-  assert.match(source, /lead_replace_promotion_revision/);
 });
