@@ -108,6 +108,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-locked-output-workflow.test.js',
     'tests/payroll-preview.test.js',
     'tests/payroll-live-staging-mvp.test.js',
+    'tests/payroll-current-month-bootstrap.test.js',
     'tests/payroll-audit-counterexamples.test.js'
   ])
 });
