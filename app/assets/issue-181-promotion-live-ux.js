@@ -181,7 +181,10 @@
         if (body && previousBody.trim()) body.value = previousBody;
         if (body && sourceType === 'external' && !previousBody.trim()) body.value = '';
         if (status) {
-          if (sourceType === 'external' && !previousBody.trim()) {
+          const fetchFailed = /가져오지 못|실패|확인할 수 없/.test(status.textContent || '');
+          if (fetchFailed) {
+            status.textContent = `${status.textContent} 자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다.`;
+          } else if (sourceType === 'external' && !previousBody.trim()) {
             status.textContent = '외부 기사·자료는 원문 전체를 복사하지 않습니다. 제목·썸네일을 참고하고 본문에는 태장 측 소개·요약을 직접 작성해 주세요.';
           } else if (previousTitle.trim() || previousBody.trim()) {
             status.textContent = '링크 정보를 가져왔습니다. 이미 직접 입력한 제목·본문은 그대로 유지했습니다.';
