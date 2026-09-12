@@ -16,6 +16,7 @@ test('promotion link tools stay visible and preserve URL/source when content typ
   assert.match(live, /const beforeSource = source\.value/);
   assert.match(live, /if \(!urlInput\.value && beforeUrl\) urlInput\.value = beforeUrl/);
   assert.match(live, /if \(!source\.value && beforeSource\) source\.value = beforeSource/);
+  assert.match(live, /initialUrl/);
   assert.match(live, /연결 링크 \(선택\)/);
   assert.match(live, /태장 홈페이지·블로그·유튜브·외부 기사 주소/);
 });
@@ -37,15 +38,24 @@ test('draft RPC wrapper persists linked URL independently of content type', () =
   assert.match(workspace, /formState\.type\.value === 'external_content'/);
 });
 
-test('existing linked URL and source metadata survive edit flows that hide the legacy URL field', () => {
+test('visible composer may remove a link while hidden legacy lead edit preserves it', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
 
-  assert.match(live, /if \(!linkedUrl && nextArgs\?\.p_content_id\)/);
+  assert.match(live, /if \(!linkedUrl && !urlInput && nextArgs\?\.p_content_id\)/);
+  assert.match(live, /empty visible input[\s\S]*intentionally removed the link/);
   assert.match(live, /get_promotion_review_detail/);
   assert.match(live, /linkedUrl = String\(detail\?\.external_url \|\| ''\)\.trim\(\)/);
+});
+
+test('existing manual source classification wins over auto suggestion until URL changes', () => {
+  const live = read('app/assets/issue-181-promotion-live-ux.js');
+
+  assert.match(live, /sourceWasManuallyChosen/);
+  assert.match(live, /sourceInitialUrl/);
+  assert.match(live, /linkedUrl === sourceInitialUrl/);
   assert.match(live, /get_promotion_link_source/);
-  assert.match(live, /sourceType = String\(await original\('get_promotion_link_source'/);
-  assert.match(live, /Preserve the original RPC behavior/);
+  assert.match(live, /storedSource && storedSource !== 'none'/);
+  assert.match(live, /sourceType = storedSource/);
 });
 
 test('metadata import remains single-fetch, preserves manual text, and keeps manual fallback on failure', () => {
