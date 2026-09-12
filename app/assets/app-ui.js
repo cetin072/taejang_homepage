@@ -142,6 +142,7 @@
     ['assets/attendance-admin.js', 'attendance-admin'],
     ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
+    ['assets/issue-181-promotion-live-ux.js', 'issue-181-promotion-live-ux'],
     ['assets/operations-promotion-writer.js', 'operations-promotion-writer'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
     ['assets/phase-c-role-labels.js', 'phase-c-role-labels'],
