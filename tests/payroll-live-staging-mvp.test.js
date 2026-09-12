@@ -6,6 +6,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'app/payroll/live.html'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.js'), 'utf8');
+const attendanceAnalyzer = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-xlsx.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.css'), 'utf8');
 
 function executableClient() {
@@ -22,6 +23,7 @@ test('live payroll MVP is an explicit staging read-only surface', () => {
   assert.match(html, /payroll-operator-live\.js/i);
   assert.match(html, /payroll-operator-live\.css/i);
   assert.match(html, /payroll-ledger-xlsx\.js/i);
+  assert.match(html, /payroll-attendance-xlsx\.js/i);
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
@@ -67,11 +69,16 @@ test('live MVP renders the practical payroll ledger without extra payroll-settin
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
-test('attendance Excel selection is local-only until the real vendor format is mapped', () => {
+test('attendance Excel selection and XLSX analysis remain local-only before vendor mapping', () => {
   assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
   assert.match(client, /xlsx\|xls/i);
   assert.match(client, /아직 DB에는 등록하지 않았습니다/);
-  assert.doesNotMatch(client, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
+  assert.match(html, /payroll-attendance-preview/);
+  assert.match(attendanceAnalyzer, /parseXlsxFile/);
+  assert.match(attendanceAnalyzer, /inferColumns/);
+  assert.match(attendanceAnalyzer, /duplicate_row/);
+  assert.match(attendanceAnalyzer, /DB 미등록/);
+  assert.doesNotMatch(client + attendanceAnalyzer, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
 });
 
 test('live payroll can export a non-sensitive payroll ledger xlsx preview', () => {
@@ -84,4 +91,5 @@ test('live MVP remains usable on narrow screens', () => {
   assert.match(css, /overflow-x:\s*auto/i);
   assert.match(css, /@media \(max-width: 560px\)/i);
   assert.match(css, /min-width:\s*1760px/i);
+  assert.match(css, /payroll-file-preview/);
 });
