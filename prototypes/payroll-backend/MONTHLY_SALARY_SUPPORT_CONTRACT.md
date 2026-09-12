@@ -77,4 +77,4 @@ Before Production use of monthly salary calculation:
 
 ## Approval boundaries unchanged
 
-This limited Staging implementation does not authorize Production deployment, month lock, payment execution, retroactive payment, or real Kakao paystub sending.
+This limited Staging implementation does not authorize real payroll changes. It also does not authorize Production deployment, month lock, payment execution, retroactive payment, or real Kakao paystub sending.
