@@ -129,12 +129,14 @@
   window.TaejangFeatureHealth = featureHealth;
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
+  loadStyleOnce('assets/support-radar.css', 'support-radar');
 
   // Start independent feature requests together, but do not release app-ready until
   // every module has registered or failed. `async = false` keeps dynamically
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/capability-access.js', 'capability-access'],
+    ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/pwa-install.js', 'pwa-install'],
     ['assets/attendance-location.js', 'attendance-location'],
@@ -154,6 +156,15 @@
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
     ['assets/issue-146-end-to-end.js', 'issue-146-end-to-end'],
     ['assets/promotion-approved-delete-ux.js', 'promotion-approved-delete-ux'],
+    ['assets/support-radar.js', 'support-radar'],
+    ['assets/support-radar-notices.js', 'support-radar-notices'],
+    ['assets/support-radar-dedupe.js', 'support-radar-dedupe'],
+    ['assets/support-radar-assignment.js', 'support-radar-assignment'],
+    ['assets/support-radar-alerts.js', 'support-radar-alerts'],
+    ['assets/support-radar-report.js', 'support-radar-report'],
+    ['assets/support-radar-my-work.js', 'support-radar-my-work'],
+    ['assets/support-radar-review.js', 'support-radar-review'],
+    ['assets/support-radar-profile-polish.js', 'support-radar-profile-polish'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],
