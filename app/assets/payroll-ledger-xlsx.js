@@ -59,9 +59,11 @@
 
   function statusLabel(employee) {
     if (Number(employee?.unresolved_count || 0) > 0) return '확인 필요';
-    if (employee?.rate_status !== 'single_rate') return '시급 확인';
+    const readyRate = employee?.rate_status === 'single_rate' || employee?.rate_status === 'monthly_salary';
+    if (!readyRate) return employee?.rate_status === 'monthly_salary_review_required' ? '월급 확인' : '시급 확인';
+    if (employee?.deduction_source === 'historical_as_paid') return '지급이력';
     if (employee?.statutory_status === 'review_required') return '공제 확인';
-    if (employee?.statutory_status === 'complete') return '정상';
+    if (employee?.statutory_status === 'complete') return employee?.rate_status === 'monthly_salary' ? '월급제' : '정상';
     return '공제 계산 전';
   }
 
