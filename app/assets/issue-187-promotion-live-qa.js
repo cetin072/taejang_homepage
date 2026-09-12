@@ -55,15 +55,14 @@
 
     const revision = findCard('수정·보완 요청');
     if (revision) {
-      const copy = revision.querySelector('h3')?.nextElementSibling;
-      if (copy?.tagName === 'P') copy.textContent = '보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다.';
+      const copy = [...revision.querySelectorAll('p')].at(-1);
+      if (copy) copy.textContent = '보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다.';
       replaceCardAction(revision, '보완 글 확인', 'revision');
     }
 
     const write = findCard('홍보자료 작성');
     if (write) {
-      const paragraphs = [...write.querySelectorAll('p')];
-      const copy = paragraphs.at(-1);
+      const copy = [...write.querySelectorAll('p')].at(-1);
       if (copy) copy.textContent = '태장 소식을 작성해 운영팀장에게 승인 요청합니다.';
       replaceCardAction(write, '새 태장 소식 작성', 'write');
     }
