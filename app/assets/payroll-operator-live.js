@@ -198,8 +198,9 @@
 
   function renderEnvironment() {
     const badge = element('payroll-live-environment');
+    if (!badge) return;
     const text = String(state.config?.environmentLabel || '').trim();
-    badge.textContent = text ? `${text} · READ ONLY` : 'READ ONLY';
+    badge.textContent = text ? `${text} · 근태 편집` : 'STAGING · 근태 편집';
   }
 
   function setExportEnabled(enabled) {
@@ -381,7 +382,6 @@
 
     state.attendanceFile = file;
     setText('payroll-attendance-file-name', `${file.name} · ${(file.size / 1024).toFixed(0)}KB`);
-    setMessage('출근부 Excel 원본이 선택되었습니다. 아직 DB에는 등록하지 않았습니다. 실제 보안업체 원본 형식을 확인한 뒤 자동 등록을 연결합니다.');
   }
 
   async function init() {
