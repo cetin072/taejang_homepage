@@ -29,6 +29,11 @@
     return /\.xls$/i.test(name) && !/\.xlsx$/i.test(name);
   }
 
+  function dirtyCountFromSummaryText(value) {
+    const match = normalized(value).match(/변경\s+(\d+)건/);
+    return match ? Number(match[1]) : 0;
+  }
+
   function setEditorMessage(documentRef, text, state = 'normal') {
     const node = documentRef.getElementById('payroll-attendance-editor-message');
     if (!node) return;
@@ -100,7 +105,7 @@
     return observer;
   }
 
-  function handleFileChange(documentRef, target) {
+  function handleLegacyFile(documentRef, target) {
     const file = target.files && target.files[0];
     if (!file || !isLegacyXlsFileName(file.name)) return false;
 
@@ -113,6 +118,17 @@
       'review'
     );
     return true;
+  }
+
+  function shouldBlockExcelPrefill(documentRef) {
+    const summary = documentRef.getElementById('payroll-attendance-editor-summary');
+    const pending = dirtyCountFromSummaryText(summary?.textContent);
+    if (!pending) return false;
+    const view = documentRef.defaultView || globalThis;
+    if (typeof view.confirm !== 'function') return false;
+    return !view.confirm(
+      `저장하지 않은 근태 변경사항이 ${pending}건 있습니다. Excel 자동채움은 같은 직원·날짜 값을 바꿀 수 있습니다. 먼저 저장하지 않고 계속할까요?`
+    );
   }
 
   function install(documentRef) {
@@ -129,7 +145,14 @@
       if (!target || !target.matches) return;
 
       if (target.matches('#payroll-attendance-file')) {
-        if (handleFileChange(documentRef, target)) {
+        if (handleLegacyFile(documentRef, target)) {
+          event.preventDefault?.();
+          event.stopImmediatePropagation?.();
+          return;
+        }
+        if (target.files?.[0] && shouldBlockExcelPrefill(documentRef)) {
+          target.value = '';
+          setEditorMessage(documentRef, 'Excel 자동채움을 취소했습니다. 현재 변경사항을 먼저 저장해 주세요.', 'review');
           event.preventDefault?.();
           event.stopImmediatePropagation?.();
         }
@@ -148,6 +171,7 @@
     inferAttendanceStatus,
     shouldAutoUpdateStatus,
     isLegacyXlsFileName,
+    dirtyCountFromSummaryText,
     install,
   });
 });
