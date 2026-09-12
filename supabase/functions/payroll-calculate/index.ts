@@ -149,6 +149,18 @@ Deno.serve(async (req: Request) => {
         }
         return data;
       },
+      fetchStatutoryInput: async ({ payrollMonth }: JsonObject) => {
+        const { data, error } = await internalClient.rpc('private_get_payroll_statutory_input', {
+          p_payroll_month: payrollMonth,
+        });
+        if (error) {
+          const code = safeErrorCode(error);
+          const rpcError = new Error(code);
+          (rpcError as { code?: string }).code = code;
+          throw rpcError;
+        }
+        return data;
+      },
       persistTrustedResult: async (payload: JsonObject) => {
         const { data, error } = await internalClient.rpc('private_persist_payroll_calculation', {
           p_actor_id: payload.actorId,
@@ -177,7 +189,8 @@ Deno.serve(async (req: Request) => {
       adapter: modules.adapter,
       engine: modules.engine,
       preflight: modules.preflight,
-      calculationVersion: 'payroll-engine-7day-v1',
+      statutory: modules.statutory,
+      calculationVersion: 'payroll-engine-7day-statutory-v1',
     });
 
     const result = await calculate(requestBody, { correlationId });
@@ -188,6 +201,7 @@ Deno.serve(async (req: Request) => {
       employee_count: result.employeeCount || 0,
       unresolved_item_count: result.unresolvedItemCount || 0,
       rate_review_count: result.rateReviewCount || 0,
+      statutory_review_count: result.statutoryReviewCount || 0,
     });
     return responseJson(result.ok === false ? 422 : 200, { ...result, correlation_id: correlationId }, origin);
   } catch (error) {
