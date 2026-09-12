@@ -95,33 +95,38 @@ alter table public.support_ingestion_source_state enable row level security;
 alter table public.support_ingestion_rejects enable row level security;
 alter table public.support_ingestion_item_events enable row level security;
 
+-- The shared capability helper is intentionally private. Expose only this
+-- narrow read predicate to authenticated users so RLS can evaluate capability
+-- without making the shared private helper directly executable.
+create or replace function public.support_can_view_ingestion_ledger()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.current_profile_is_active()
+    and public.private_actor_can('support_radar.management_view');
+$$;
+
+revoke all on function public.support_can_view_ingestion_ledger() from public, anon;
+grant execute on function public.support_can_view_ingestion_ledger() to authenticated;
+
 create policy support_ingestion_runs_management_read on public.support_ingestion_runs
 for select to authenticated
-using (
-  public.current_profile_is_active()
-  and public.private_actor_can('support_radar.management_view')
-);
+using (public.support_can_view_ingestion_ledger());
 
 create policy support_ingestion_source_state_management_read on public.support_ingestion_source_state
 for select to authenticated
-using (
-  public.current_profile_is_active()
-  and public.private_actor_can('support_radar.management_view')
-);
+using (public.support_can_view_ingestion_ledger());
 
 create policy support_ingestion_rejects_management_read on public.support_ingestion_rejects
 for select to authenticated
-using (
-  public.current_profile_is_active()
-  and public.private_actor_can('support_radar.management_view')
-);
+using (public.support_can_view_ingestion_ledger());
 
 create policy support_ingestion_item_events_management_read on public.support_ingestion_item_events
 for select to authenticated
-using (
-  public.current_profile_is_active()
-  and public.private_actor_can('support_radar.management_view')
-);
+using (public.support_can_view_ingestion_ledger());
 
 revoke all on public.support_ingestion_runs from anon, authenticated;
 revoke all on public.support_ingestion_source_state from anon, authenticated;
@@ -139,5 +144,6 @@ comment on table public.support_ingestion_rejects is 'Minimal rejected-item diag
 comment on table public.support_ingestion_item_events is 'Per-run new/unchanged/changed/rebaseline decisions linked to existing Support Radar occurrences.';
 comment on column public.support_notice_occurrences.content_hash_basis_version is 'Version of the normalized material hash contract used for content_hash.';
 comment on column public.support_notice_occurrences.last_ingestion_run_id is 'Latest successful ingestion run that wrote or touched this occurrence.';
+comment on function public.support_can_view_ingestion_ledger() is 'Authenticated RLS bridge to the private Support Radar management capability helper.';
 
 commit;
