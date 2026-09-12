@@ -34,7 +34,7 @@ test('promotion lead gets direct recoverable delete without duplicate sidebar or
   assert.match(live, /archive_unpublished_promotion_content/);
   assert.match(live, /issue181ReviewDelete/);
   assert.doesNotMatch(live, /delete_promotion_content/);
-  assert.match(live, /data-issue181-management-shortcuts/);
+  assert.match(live, /issue181ManagementShortcuts/);
   assert.match(live, /공개글 관리/);
   assert.match(live, /미발행 글 정리/);
 
