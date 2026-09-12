@@ -63,7 +63,8 @@
   color: #7a5a14;
 }
 
-.payroll-live-message {
+.payroll-live-message,
+.payroll-ledger-validation {
   margin: 0 0 14px;
   padding: 12px 14px;
   border: 1px solid #c9dfd4;
@@ -74,10 +75,23 @@
   font-weight: 700;
 }
 
-.payroll-live-message[data-state="error"] {
+.payroll-live-message[data-state="error"],
+.payroll-ledger-validation[data-state="error"] {
   border-color: #ebc3c3;
   background: var(--payroll-danger-soft);
   color: var(--payroll-danger);
+}
+
+.payroll-ledger-validation[data-state="review"] {
+  border-color: #ecd9a9;
+  background: #fffaf0;
+  color: #7a5a14;
+}
+
+.payroll-ledger-validation[data-state="idle"] {
+  border-color: var(--payroll-line);
+  background: #f8faf9;
+  color: var(--payroll-muted);
 }
 
 .payroll-live-summary { margin-bottom: 18px; }
