@@ -113,10 +113,11 @@ test('imported thumbnail retries once without referrer before manual-upload fall
   assert.match(source, /p_hero_image_url: null/);
 });
 
-test('public archive cards use selected uploaded media, not imported remote og:image alone', () => {
+test('public archive cards avoid linked remote og:image but preserve explicit or legacy images', () => {
   const firstImage = firstPublicImageFromSource();
-  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [] }), '');
-  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }] }), 'https://storage.example/uploaded.jpg');
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), '');
+  assert.equal(firstImage({ hero_image_url: 'https://legacy.example/hero.jpg', public_media: [], link_source_type: 'none' }), 'https://legacy.example/hero.jpg');
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://storage.example/uploaded.jpg');
 });
 
 test('published promotion detail labels official linked sources and avoids broken hotlink images', () => {
