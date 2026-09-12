@@ -120,11 +120,12 @@ test('public archive cards avoid linked remote og:image but preserve explicit or
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://storage.example/uploaded.jpg');
 });
 
-test('published promotion detail labels official linked sources and avoids broken hotlink images', () => {
+test('published promotion detail prefers selected public media and avoids broken hotlink images', () => {
   assert.match(promotionDetail, /태장 홈페이지에서 보기 ↗/);
   assert.match(promotionDetail, /태장 공식 블로그에서 보기 ↗/);
   assert.match(promotionDetail, /태장 공식 유튜브에서 보기 ↗/);
   assert.match(promotionDetail, /sourceLinkLabel\(item\.link_source_type\)/);
+  assert.match(promotionDetail, /const heroUrl = media\[0\]\?\.url \|\|/);
   assert.match(promotionDetail, /image\.referrerPolicy = 'no-referrer'/);
   assert.match(promotionDetail, /image\.addEventListener\('error', \(\) => figure\.remove\(\)/);
 });
