@@ -16,6 +16,10 @@ const directScopeSql = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260912052000_payroll_direct_entry_scope.sql'),
   'utf8'
 );
+const bootstrapSql = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260912135000_payroll_editor_month_bootstrap.sql'),
+  'utf8'
+);
 
 test('manual attendance editor is protected and append-only', () => {
   assert.match(editorSql, /create table if not exists public\.payroll_attendance_manual_entries/i);
@@ -65,6 +69,18 @@ test('manual-only month gets an internal accepted editor batch without replacing
   assert.doesNotMatch(batchSql, /update\s+public\.payroll_attendance_import_batches/i);
   assert.doesNotMatch(batchSql, /delete\s+from\s+public\.payroll_attendance_import_batches/i);
   assert.doesNotMatch(batchSql, /insert\s+into\s+public\.payroll_attendance_rows/i);
+});
+
+test('first direct save bootstraps a draft payroll month as well as the editor batch', () => {
+  assert.match(bootstrapSql, /create or replace function public\.private_ensure_payroll_attendance_editor_batch\(\)/i);
+  assert.match(bootstrapSql, /insert into public\.payroll_months/i);
+  assert.match(bootstrapSql, /new\.payroll_month/i);
+  assert.match(bootstrapSql, /'draft'/i);
+  assert.match(bootstrapSql, /on conflict \(payroll_month\) do nothing/i);
+  assert.match(bootstrapSql, /operator-editor:\/\//i);
+  assert.match(bootstrapSql, /where b\.payroll_month=new\.payroll_month and b\.status='accepted'/i);
+  assert.doesNotMatch(bootstrapSql, /status='locked'|status\s*=\s*'locked'/i);
+  assert.doesNotMatch(bootstrapSql, /finalize|payment|bank_transfer|kakao/i);
 });
 
 test('direct entry does not require a vendor identity mapping', () => {
