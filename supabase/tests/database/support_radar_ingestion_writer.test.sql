@@ -9,9 +9,9 @@ select is(
   'authenticated cannot start ingestion runs'
 );
 select is(
-  has_function_privilege('authenticated','public.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
+  has_function_privilege('authenticated','private.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
   false,
-  'authenticated cannot execute the internal raw ingestion writer'
+  'authenticated cannot execute the private raw ingestion writer'
 );
 select is(
   has_function_privilege('authenticated','public.support_ingestion_apply_item_checked_v1(uuid,jsonb)','EXECUTE'),
@@ -35,14 +35,14 @@ select is(
   'service role can start prepared ingestion runs'
 );
 select is(
-  has_function_privilege('service_role','public.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
-  false,
-  'service role cannot bypass the source-check wrapper'
+  has_function_privilege('service_role','private.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
+  true,
+  'service role can execute the private raw writer only inside the trusted server boundary'
 );
 select is(
   has_function_privilege('service_role','public.support_ingestion_apply_item_checked_v1(uuid,jsonb)','EXECUTE'),
   true,
-  'service role can execute the source-checked ingestion writer'
+  'service role can execute the source-checked ingestion facade'
 );
 select is(
   has_function_privilege('service_role','public.support_ingestion_record_reject_v1(uuid,integer,text,text,jsonb)','EXECUTE'),
