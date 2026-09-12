@@ -173,7 +173,8 @@
     ['assets/official-channel-links.js', 'official-channel-links'],
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
-    ['assets/ux-followup-polish.js', 'ux-followup-polish']
+    ['assets/ux-followup-polish.js', 'ux-followup-polish'],
+    ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa']
   ];
 
   let modulesReady = false;
