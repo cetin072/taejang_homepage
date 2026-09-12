@@ -31,8 +31,9 @@ test('promotion staff always gets write and revision shortcuts in sidebar and da
   assert.match(source, /수정·보완 요청/);
   assert.match(source, /홍보자료 작성/);
   assert.match(source, /중요공지/);
-  assert.match(source, /openPromotion\?\.\('write'\)/);
-  assert.match(source, /openPromotion\?\.\('revision'\)/);
+  assert.match(source, /openPromotion\?\.\(mode\)/);
+  assert.match(source, /makePromotionNavButton\('홍보 작성', 'write'\)/);
+  assert.match(source, /makePromotionNavButton\('수정·보완 요청', 'revision'\)/);
 });
 
 test('new promotion composer separates post type from link source', () => {
