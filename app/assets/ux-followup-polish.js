@@ -70,27 +70,6 @@
     return new Set((app()?.getContext?.()?.roles || []).map(item => item?.code).filter(Boolean));
   }
 
-  function classifyLinkedSource(urlValue) {
-    const raw = String(urlValue || '').trim();
-    if (!raw) return '';
-    try {
-      const parsed = new URL(raw, window.location.href);
-      const host = parsed.hostname.toLowerCase();
-      const path = parsed.pathname.toLowerCase();
-      if (parsed.origin === window.location.origin) return 'taejang_homepage';
-
-      const naverBlogHost = host === 'blog.naver.com' || host === 'm.blog.naver.com';
-      const firstPathSegment = path.split('/').filter(Boolean)[0] || '';
-      const queryBlogId = String(parsed.searchParams.get('blogId') || '').toLowerCase();
-      if (naverBlogHost && (firstPathSegment === 'taejang-official' || queryBlogId === 'taejang-official')) return 'taejang_blog';
-
-      if ((host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com') && path.includes('@taejangofficial')) return 'taejang_youtube';
-      return 'external';
-    } catch {
-      return '';
-    }
-  }
-
   function hideRoutineSupportRadarMenus() {
     if (window.TaejangSupportRadarAccess?.canManagementView?.()) return;
     const roles = effectiveRoles();
@@ -206,33 +185,9 @@
       help.className = 'help';
       help.dataset.issue187TypeHelp = '1';
       help.textContent = route() === 'promotion_staff'
-        ? '홍보직원은 태장 소식만 작성합니다. 블로그·유튜브·외부 기사 링크는 아래 연결 자료에서 자동으로 구분합니다. 보도자료 초안은 운영팀장 이상이 작성합니다.'
+        ? '홍보직원은 태장 소식만 작성합니다. 블로그·유튜브·외부 기사 링크는 아래에서 자동으로 구분합니다. 보도자료 초안은 운영팀장 이상이 작성합니다.'
         : '태장 소식은 홈페이지에 올리는 일반 소식이고, 보도자료는 언론에 배포할 공식 문안입니다. 외부 기사 링크 여부는 아래 연결 자료에서 따로 구분합니다.';
       topRow.insertAdjacentElement('afterend', help);
-    }
-
-    const source = composer.querySelector('[data-issue181-link-source]');
-    if (!source) return;
-    const label = source.closest('label');
-    const labelText = label?.querySelector(':scope > span');
-    const sourceHelp = label?.querySelector('small.help');
-    const emptyOption = source.querySelector('option[value=""]');
-    if (labelText) labelText.textContent = '연결 자료 (자동 분류)';
-    if (sourceHelp) sourceHelp.textContent = '링크를 붙이면 종류를 자동으로 확인합니다. 자동 분류가 다를 때만 직접 바꾸면 됩니다.';
-    if (emptyOption) emptyOption.textContent = '링크를 붙이면 자동으로 확인합니다';
-
-    const linkTools = source.closest('.phase-c-link-tools');
-    const urlInput = linkTools?.querySelector('input[type="url"]');
-    if (urlInput && urlInput.dataset.issue187AutoSource !== '1') {
-      urlInput.dataset.issue187AutoSource = '1';
-      const classify = () => {
-        if (!urlInput.value.trim() || source.dataset.manual === '1') return;
-        const suggested = classifyLinkedSource(urlInput.value.trim());
-        source.value = suggested || 'external';
-      };
-      urlInput.addEventListener('input', classify);
-      urlInput.addEventListener('blur', classify);
-      classify();
     }
   }
 
