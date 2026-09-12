@@ -5,6 +5,7 @@
   const route = () => app()?.getRoute?.();
   const main = () => document.getElementById('dashboard-main');
   let scheduled = false;
+  let imageRetryBound = false;
 
   function classifyLinkedSource(urlValue) {
     const raw = String(urlValue || '').trim();
@@ -128,17 +129,23 @@
     classify();
   }
 
-  function retryImportedImageWithoutReferrer() {
-    const image = main()?.querySelector('.phase-c-link-preview img');
-    if (!image || image.dataset.issue187NoReferrerRetry === '1') return;
-    const src = image.getAttribute('src');
-    if (!src) return;
-    image.dataset.issue187NoReferrerRetry = '1';
-    image.referrerPolicy = 'no-referrer';
-    image.removeAttribute('src');
-    queueMicrotask(() => {
-      if (image.isConnected) image.src = src;
-    });
+  function bindImportedImageRetry() {
+    if (imageRetryBound) return;
+    imageRetryBound = true;
+    document.addEventListener('error', event => {
+      const image = event.target;
+      if (!image?.matches?.('.phase-c-link-preview img')) return;
+      if (image.dataset.issue187NoReferrerRetry === '1') return;
+      const src = String(image.currentSrc || image.src || '').trim();
+      if (!src) return;
+      event.stopImmediatePropagation();
+      image.dataset.issue187NoReferrerRetry = '1';
+      image.referrerPolicy = 'no-referrer';
+      image.removeAttribute('src');
+      queueMicrotask(() => {
+        if (image.isConnected) image.src = src;
+      });
+    }, true);
   }
 
   function apply() {
@@ -148,7 +155,6 @@
     if (composer) {
       simplifyPromotionStaffType(composer);
       polishLinkSource(composer);
-      retryImportedImageWithoutReferrer();
     }
   }
 
@@ -158,6 +164,7 @@
     setTimeout(apply, delay);
   }
 
+  bindImportedImageRetry();
   document.addEventListener('taejang-app-ready', () => scheduleApply());
   document.addEventListener('taejang-dashboard-refresh', () => scheduleApply());
   document.addEventListener('taejang-open-promotion-workspace', () => scheduleApply(220));
