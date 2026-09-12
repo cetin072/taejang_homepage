@@ -6,47 +6,67 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'app/payroll/live.html'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.js'), 'utf8');
+const attendanceEditor = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-editor.js'), 'utf8');
 const attendanceAnalyzer = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-xlsx.js'), 'utf8');
 const ledgerValidator = fs.readFileSync(path.join(root, 'app/assets/payroll-ledger-validator.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.css'), 'utf8');
+const attendanceCss = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-editor.css'), 'utf8');
 
-function executableClient() {
-  return client
+function executableClient(source) {
+  return source
     .split('\n')
     .filter((line) => !line.trimStart().startsWith('//'))
     .join('\n');
 }
 
-test('live payroll MVP is an explicit staging read-only surface', () => {
-  assert.match(html, /Staging Shadow Payroll/i);
-  assert.match(html, /READ ONLY/i);
-  assert.match(html, /실제 지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다/i);
+test('live payroll MVP is a staging attendance-edit and payroll-preview surface', () => {
+  assert.match(html, /Staging 근태·급여 MVP/i);
+  assert.match(html, /STAGING · 근태 편집/i);
+  assert.match(html, /실제 급여 확정·지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다/i);
   assert.match(html, /payroll-operator-live\.js/i);
-  assert.match(html, /payroll-operator-live\.css/i);
+  assert.match(html, /payroll-attendance-editor\.js/i);
+  assert.match(html, /payroll-attendance-editor\.css/i);
   assert.match(html, /payroll-ledger-xlsx\.js/i);
   assert.match(html, /payroll-ledger-validator\.js/i);
   assert.match(html, /payroll-attendance-xlsx\.js/i);
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
-test('live client reuses staff auth session and protected practical-ledger RPC', () => {
+test('live clients reuse staff auth and protected payroll RPCs', () => {
   assert.match(client, /taejang-staff-session-v1/);
-  assert.match(client, /\.netlify\/functions\/staff-config/);
+  assert.match(attendanceEditor, /taejang-staff-session-v1/);
   assert.match(client, /get_payroll_operator_ledger_context/);
-  assert.match(client, /Authorization:\s*`Bearer \$\{state\.session\.access_token\}`/);
-  assert.match(client, /refresh_token/);
+  assert.match(attendanceEditor, /get_payroll_attendance_editor_context/);
+  assert.match(attendanceEditor, /save_payroll_attendance_manual_entries/);
+  assert.match(client + attendanceEditor, /Authorization:\s*`Bearer \$\{state\.session\.access_token\}`/);
+  assert.match(client + attendanceEditor, /refresh_token/);
 });
 
-test('live client has no payroll mutation or payment execution path', () => {
-  const executable = executableClient();
-  assert.doesNotMatch(executable, /private_persist_payroll_calculation/i);
-  assert.doesNotMatch(executable, /lock_payroll|lockPayrollMonth|finalize_payroll/i);
-  assert.doesNotMatch(executable, /applyIncomingCarryover|saveAccountingComparison/i);
+test('direct attendance entry is primary and Excel is optional same-table prefill', () => {
+  assert.match(html, /직접 입력이 기본입니다/);
+  assert.match(html, /출근부 Excel로 채우기/);
+  assert.match(html, /같은 표에 자동으로 채워지고/);
+  assert.match(html, /저장 전에 다시 직접 수정/);
+  assert.match(html, /payroll-attendance-editor-body/);
+  assert.match(html, /변경사항 저장/);
+  assert.match(attendanceEditor, /xlsx_prefill/);
+  assert.match(attendanceEditor, /xlsx_post_edit/);
+  assert.match(attendanceEditor, /manual_ui/);
+  assert.match(attendanceEditor, /state\.cells/);
+  assert.match(attendanceEditor, /fillFromExcel/);
+  assert.match(attendanceEditor, /markChanged/);
+});
+
+test('attendance save recalculates shadow payroll but has no finalization or payment path', () => {
+  const executable = executableClient(attendanceEditor);
+  assert.match(attendanceEditor, /\/functions\/v1\/payroll-calculate/);
+  assert.match(attendanceEditor, /payroll-live-refresh/);
+  assert.doesNotMatch(executable, /lock_payroll|finalize_payroll|bank_transfer|payment_execute|kakao/i);
   assert.doesNotMatch(executable, /insert\s+into|update\s+public\.|delete\s+from/i);
-  assert.doesNotMatch(executable, /bank[_-]?(account|number)|resident[_-]?registration|rrn|disability|medical_record|livelihood/i);
+  assert.doesNotMatch(executable, /resident[_-]?registration|rrn|disability|medical_record|livelihood|bank[_-]?account/i);
 });
 
-test('live MVP renders the practical payroll ledger without extra payroll-setting inputs', () => {
+test('live MVP renders the practical payroll ledger without statutory setting inputs', () => {
   for (const label of [
     '실근로', '결근', '유급휴가', '유급공휴일', '주휴시간', '기본급', '주휴수당',
     '총지급', '국민연금', '건강보험', '장기요양', '고용보험', '공제계', '실지급', '상태',
@@ -66,22 +86,23 @@ test('live MVP renders the practical payroll ledger without extra payroll-settin
   assert.match(client, /weekly_holiday_actual_hours/);
   assert.match(client, /monthly_salary/);
 
-  assert.equal((html.match(/<input\b/g) || []).length, 2, 'operator should only choose payroll month and attendance Excel file');
   assert.match(html, /type="month"/i);
+  assert.match(html, /type="date"/i);
   assert.match(html, /type="file"[^>]+accept="\.xlsx,\.xls"/i);
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
-test('attendance Excel selection and XLSX analysis remain local-only before vendor mapping', () => {
+test('attendance Excel analysis is local prefill and remains editable before save', () => {
   assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
   assert.match(client, /xlsx\|xls/i);
-  assert.match(client, /아직 DB에는 등록하지 않았습니다/);
   assert.match(html, /payroll-attendance-preview/);
   assert.match(attendanceAnalyzer, /parseXlsxFile/);
   assert.match(attendanceAnalyzer, /inferColumns/);
   assert.match(attendanceAnalyzer, /duplicate_row/);
-  assert.match(attendanceAnalyzer, /DB 미등록/);
-  assert.doesNotMatch(client + attendanceAnalyzer, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
+  assert.match(attendanceEditor, /best\.matrix/);
+  assert.match(attendanceEditor, /sourceFileName/);
+  assert.match(attendanceEditor, /Excel.*채움/);
+  assert.doesNotMatch(attendanceAnalyzer, /persistAttendance|attendance_import.*insert/i);
 });
 
 test('ledger validation checks duplicate/count/arithmetic and blocks erroneous export', () => {
@@ -99,10 +120,11 @@ test('live payroll can export a non-sensitive payroll ledger xlsx preview', () =
   assert.match(html, /주민등록번호·급여계좌·장애·건강정보는 화면\/가안 Excel에 넣지 않습니다/);
 });
 
-test('live MVP remains usable on narrow screens', () => {
+test('attendance and ledger remain usable on narrow screens', () => {
   assert.match(css, /overflow-x:\s*auto/i);
   assert.match(css, /@media \(max-width: 560px\)/i);
   assert.match(css, /min-width:\s*1760px/i);
-  assert.match(css, /payroll-file-preview/);
-  assert.match(css, /payroll-ledger-validation/);
+  assert.match(attendanceCss, /overflow-x:\s*auto/i);
+  assert.match(attendanceCss, /@media \(max-width: 720px\)/i);
+  assert.match(attendanceCss, /min-width:\s*860px/i);
 });
