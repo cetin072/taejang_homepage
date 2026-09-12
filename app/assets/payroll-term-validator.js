@@ -18,6 +18,7 @@
     'employment_term_overlap',
     'employment_term_hours_invalid',
     'employment_term_rate_missing',
+    'employment_term_monthly_salary_missing',
   ]);
 
   function validDate(value) {
@@ -73,6 +74,15 @@
         effectiveFrom: term.effectiveFrom,
         effectiveTo: term.effectiveTo,
       }));
+    }
+
+    const payType = String(term && term.payType || '').trim().toLowerCase();
+    if (payType === 'monthly') {
+      const monthlySalary = Number(term.monthlySalary);
+      if (term.monthlySalary === null || term.monthlySalary === '' || !Number.isFinite(monthlySalary) || monthlySalary <= 0) {
+        issues.push(issue('employment_term_monthly_salary_missing', employeeId, { rowIndex: index }));
+      }
+      return issues;
     }
 
     const hours = Number(term.dailyScheduledHours);
