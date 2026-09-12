@@ -24,6 +24,11 @@
     return AUTO_STATUS_VALUES.has(normalized(currentStatus));
   }
 
+  function isLegacyXlsFileName(value) {
+    const name = normalized(value);
+    return /\.xls$/i.test(name) && !/\.xlsx$/i.test(name);
+  }
+
   function setEditorMessage(documentRef, text, state = 'normal') {
     const node = documentRef.getElementById('payroll-attendance-editor-message');
     if (!node) return;
@@ -46,7 +51,7 @@
 
   function normalizeFileChooser(documentRef) {
     const fileInput = documentRef.getElementById('payroll-attendance-file');
-    if (fileInput) fileInput.setAttribute('accept', '.xlsx');
+    if (fileInput) fileInput.setAttribute('accept', '.xlsx,.xls');
   }
 
   function applyInferredStatus(row, { onlyIncompleteWork = false } = {}) {
@@ -98,9 +103,7 @@
   function handleFileChange(documentRef, target) {
     const file = target.files && target.files[0];
     if (!file) return;
-    const name = normalized(file.name);
-    const isLegacyXls = /\.xls$/i.test(name) && !/\.xlsx$/i.test(name);
-    if (!isLegacyXls) return;
+    if (!isLegacyXlsFileName(file.name)) return;
 
     target.value = '';
     const fileName = documentRef.getElementById('payroll-attendance-file-name');
@@ -141,6 +144,7 @@
   return Object.freeze({
     inferAttendanceStatus,
     shouldAutoUpdateStatus,
+    isLegacyXlsFileName,
     install,
   });
 });
