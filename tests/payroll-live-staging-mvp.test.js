@@ -99,7 +99,7 @@ test('attendance Excel analysis is local prefill and remains editable before sav
   assert.match(attendanceAnalyzer, /parseXlsxFile/);
   assert.match(attendanceAnalyzer, /inferColumns/);
   assert.match(attendanceAnalyzer, /duplicate_row/);
-  assert.match(attendanceEditor, /best\.matrix/);
+  assert.match(attendanceEditor, /best\??\.matrix/);
   assert.match(attendanceEditor, /sourceFileName/);
   assert.match(attendanceEditor, /Excel.*채움/);
   assert.doesNotMatch(attendanceAnalyzer, /persistAttendance|attendance_import.*insert/i);
