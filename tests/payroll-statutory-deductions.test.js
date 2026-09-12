@@ -3,11 +3,13 @@ const assert = require('node:assert/strict');
 const payrollStatutory = require('../app/assets/payroll-statutory-deductions.js');
 
 function rules(overrides = {}) {
+  // Synthetic engine configuration used to test supported rounding mechanics.
+  // Production/Staging policy remains DB-driven and may stay null until officially verified.
   const base = [
     { rateCode: 'national_pension', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.0475, roundingMethod: 'floor_to_10' },
     { rateCode: 'health_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.03595, roundingMethod: 'floor_to_10' },
     { rateCode: 'long_term_care', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', ratioNumerator: 0.009448, ratioDenominator: 0.0719, roundingMethod: 'floor_to_10' },
-    { rateCode: 'employment_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.009, roundingMethod: 'floor_to_10' },
+    { rateCode: 'employment_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.009, roundingMethod: 'floor_to_1' },
   ];
   return base.map((rule) => Object.assign({}, rule, overrides[rule.rateCode] || {}));
 }
@@ -38,16 +40,16 @@ test('uses statutory bases instead of gross pay for pension and health', () => {
   assert.equal(health.amount, 89870);
 });
 
-test('normalizes floating point drift before applying won rounding policy', () => {
+test('normalizes floating point drift before applying configured rounding policy', () => {
   const result = payrollStatutory.calculateStatutoryDeductions({
     payrollMonth: '2026-09-01',
-    taxableRemuneration: 1800000,
+    taxableRemuneration: 835920,
     profile: enrolledProfile(),
     rateRules: rules(),
   });
   const employment = result.rows.find((row) => row.code === 'employment_insurance');
-  assert.equal(employment.rawAmount, 16200);
-  assert.equal(employment.amount, 16200);
+  assert.equal(employment.rawAmount, 7523.28);
+  assert.equal(employment.amount, 7523);
   assert.equal(payrollStatutory.applyRounding(89875, 'floor_to_10'), 89870);
 });
 
