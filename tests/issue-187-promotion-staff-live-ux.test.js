@@ -22,6 +22,16 @@ function classifierFromSource() {
   return new Function('window', `return function classifyLinkedSource(urlValue) {${match[1]}\n};`)(window);
 }
 
+function runPreviewReveal() {
+  const match = source.match(/function revealPromotionPreview\(\) \{([\s\S]*?)\n  \}\n\n  function injectStyles/);
+  assert.ok(match, 'preview reveal helper must remain extractable for behavior tests');
+  let calls = 0;
+  const panel = { scrollIntoView(options) { calls += 1; assert.deepEqual(options, { behavior: 'smooth', block: 'start' }); } };
+  const byId = id => id === 'dashboard-main' ? { querySelector: selector => selector === '.promotion-preview-panel' ? panel : null } : null;
+  new Function('byId', match[1])(byId);
+  return calls;
+}
+
 test('issue 187 follow-up UX parses and proactive QA module is loaded last', () => {
   syntaxCheck('app/assets/ux-followup-polish.js');
   syntaxCheck('app/assets/issue-187-promotion-live-qa.js');
@@ -78,11 +88,10 @@ test('link source is reclassified after metadata import canonicalizes the URL', 
   assert.match(qaSource, /sourceField\.hidden = !raw/);
 });
 
-test('preview click brings the generated preview panel into view instead of rendering off-screen', () => {
+test('preview reveal helper actually scrolls the generated panel into view', () => {
+  assert.equal(runPreviewReveal(), 1);
   assert.match(source, /textContent\?\.trim\(\) === '미리보기'/);
   assert.match(source, /setTimeout\(revealPromotionPreview, 0\)/);
-  assert.match(source, /promotion-preview-panel/);
-  assert.match(source, /scrollIntoView/);
 });
 
 test('imported thumbnail gets a no-referrer retry before manual-upload fallback', () => {
