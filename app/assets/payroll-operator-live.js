@@ -68,6 +68,9 @@
     if (employee.rate_status !== 'single_rate') {
       return { label: rateStatusLabel(employee.rate_status), review: true };
     }
+    if (employee.deduction_source === 'historical_as_paid') {
+      return { label: '지급이력', review: false };
+    }
     if (employee.statutory_status === 'review_required') {
       return { label: '공제 확인', review: true };
     }
@@ -303,7 +306,7 @@
 
     try {
       const month = selectedMonth();
-      const context = await rpc('get_payroll_operator_month_context', {
+      const context = await rpc('get_payroll_operator_ledger_context', {
         p_payroll_month: `${month}-01`,
       });
       render(context, month);
