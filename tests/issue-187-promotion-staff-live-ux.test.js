@@ -36,12 +36,28 @@ test('promotion staff always gets write and revision shortcuts in sidebar and da
   assert.match(source, /makePromotionNavButton\('수정·보완 요청', 'revision'\)/);
 });
 
-test('new promotion composer separates post type from link source', () => {
+test('promotion staff new composer is limited to Taejang news while lead can retain press-release authoring', () => {
   assert.match(source, /option\[value="external_content"\]/);
-  assert.match(source, /태장 소식은 홈페이지에 올리는 일반 소식/);
-  assert.match(source, /보도자료는 언론에 배포할 공식 문안/);
+  assert.match(source, /route\(\) === 'promotion_staff'[\s\S]*option\[value="press_release"\]/);
+  assert.match(source, /홍보직원은 태장 소식만 작성합니다/);
+  assert.match(source, /보도자료 초안은 운영팀장 이상이 작성합니다/);
   assert.match(source, /연결 자료 \(자동 분류\)/);
-  assert.match(source, /자동 분류가 다를 때만 직접 바꾸면 됩니다/);
+});
+
+test('official Naver blog classification accepts desktop mobile and PostView URL shapes', () => {
+  assert.match(source, /host === 'blog\.naver\.com'/);
+  assert.match(source, /host === 'm\.blog\.naver\.com'/);
+  assert.match(source, /firstPathSegment === 'taejang-official'/);
+  assert.match(source, /searchParams\.get\('blogId'\)/);
+  assert.match(source, /queryBlogId === 'taejang-official'/);
+  assert.match(source, /return 'taejang_blog'/);
+});
+
+test('preview click brings the generated preview panel into view instead of rendering off-screen', () => {
+  assert.match(source, /textContent\?\.trim\(\) === '미리보기'/);
+  assert.match(source, /setTimeout\(revealPromotionPreview, 0\)/);
+  assert.match(source, /promotion-preview-panel/);
+  assert.match(source, /scrollIntoView/);
 });
 
 test('broken imported thumbnails fall back to manual photo upload and are not saved as hero images', () => {
