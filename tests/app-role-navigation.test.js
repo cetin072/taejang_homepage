@@ -177,7 +177,7 @@ test('central navigation groups menus by work category without unfinished manage
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
   assertOrdered(operationsBlock, ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '출근부', '가입 승인', '홈페이지']);
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '홍보 검토', '홍보 작성', '홍보 글 관리', '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '홈페이지 내용 관리', '출근부', '홈페이지', '신규 사업 기획']);
+  assertOrdered(leadBlock, ['대시보드', '홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제', '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '홈페이지 내용 관리', '출근부', '홈페이지', '신규 사업 기획']);
   assert.match(navPriority, /label:\s*'직원·팀 관리'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'/);
   assert.match(navPriority, /label:\s*'홍보·홈페이지'[\s\S]*'홍보 검토'[\s\S]*'홍보 글 관리'/);
   assert.match(navPriority, /label:\s*'공지·안내'[\s\S]*'공지 관리'[\s\S]*'상시 안내 관리'/);
