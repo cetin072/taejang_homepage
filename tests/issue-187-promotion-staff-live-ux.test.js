@@ -77,6 +77,7 @@ test('official link classifier behaves correctly across preview and production U
   assert.equal(classify('https://blog.naver.com/someone-else/223000000000'), 'external');
   assert.equal(classify('https://www.youtube.com/@taejangofficial/videos'), 'taejang_youtube');
   assert.equal(classify('https://example.com/article/1'), 'external');
+  assert.doesNotMatch(source, /suggestSource\?\.|classifyLinkedSource\(/, 'legacy polish must not overwrite the single live classifier');
 });
 
 test('link source is reclassified after metadata import canonicalizes the URL', () => {
