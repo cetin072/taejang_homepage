@@ -20,6 +20,13 @@
       : '';
   }
 
+  function sourceLinkLabel(sourceType) {
+    if (sourceType === 'taejang_homepage') return '태장 홈페이지에서 보기 ↗';
+    if (sourceType === 'taejang_blog') return '태장 공식 블로그에서 보기 ↗';
+    if (sourceType === 'taejang_youtube') return '태장 공식 유튜브에서 보기 ↗';
+    return '원문 보기 ↗';
+  }
+
   function unavailable(message) {
     const article = el('article', null, 'article article-empty');
     article.append(el('h1', '공개된 글을 찾을 수 없습니다'));
@@ -39,6 +46,8 @@
     image.alt = alt || '태장 소식 사진';
     image.loading = 'lazy';
     image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => figure.remove(), { once: true });
     figure.append(image);
     return figure;
   }
@@ -93,7 +102,7 @@
     }
 
     if (/^https:\/\//.test(item.external_url || '')) {
-      const external = el('a', '관련 원문 보기 ↗', 'btn line');
+      const external = el('a', sourceLinkLabel(item.link_source_type), 'btn line');
       external.href = item.external_url;
       external.target = '_blank';
       external.rel = 'noopener noreferrer';
