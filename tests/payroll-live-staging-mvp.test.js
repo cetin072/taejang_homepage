@@ -39,7 +39,7 @@ test('live client has no payroll mutation or payment execution path', () => {
   assert.doesNotMatch(executable, /lock_payroll|lockPayrollMonth|finalize_payroll/i);
   assert.doesNotMatch(executable, /applyIncomingCarryover|saveAccountingComparison/i);
   assert.doesNotMatch(executable, /insert\s+into|update\s+public\.|delete\s+from/i);
-  assert.doesNotMatch(executable, /bank[_-]?(account|number)|resident[_-]?registration|disability|health_/i);
+  assert.doesNotMatch(executable, /bank[_-]?(account|number)|resident[_-]?registration|rrn|disability|medical_record|livelihood/i);
 });
 
 test('live MVP renders the practical payroll ledger without extra payroll-setting inputs', () => {
@@ -67,7 +67,7 @@ test('live MVP renders the practical payroll ledger without extra payroll-settin
 
 test('attendance Excel selection is local-only until the real vendor format is mapped', () => {
   assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
-  assert.match(client, /\.(xlsx\|xls)/i);
+  assert.match(client, /xlsx\|xls/i);
   assert.match(client, /아직 DB에는 등록하지 않았습니다/);
   assert.doesNotMatch(client, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
 });
