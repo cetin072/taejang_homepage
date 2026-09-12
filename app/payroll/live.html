@@ -33,6 +33,7 @@
       <a class="payroll-button secondary payroll-live-link" href="../">업무플랫폼으로</a>
       <a class="payroll-button secondary payroll-live-link" href="../../staff/" id="payroll-live-login" hidden>로그인 화면</a>
       <span id="payroll-attendance-file-name" class="payroll-file-name">출근부 파일 미선택</span>
+      <span id="payroll-attendance-preview" class="payroll-file-preview" data-state="idle">선택한 출근부의 시트·헤더·행 수를 여기서 자동 확인합니다.</span>
     </section>
 
     <p id="payroll-live-message" class="payroll-live-message" role="status" aria-live="polite" hidden></p>
@@ -118,7 +119,8 @@
             <li>이 화면은 Staging 데이터만 읽습니다.</li>
             <li>급여 확정·월 잠금·송금 기능은 없습니다.</li>
             <li>주민등록번호·급여계좌·장애·건강정보는 화면/가안 Excel에 넣지 않습니다.</li>
-            <li>출근부 Excel은 실제 보안업체 원본 형식을 확인한 뒤 자동 등록을 연결합니다.</li>
+            <li>출근부 XLSX는 시트·헤더·행 수와 사번/성명·날짜·출퇴근 열 후보를 로컬에서 먼저 확인하며 DB에는 저장하지 않습니다.</li>
+            <li>구형 XLS는 실제 보안업체 원본을 확인한 뒤 전용 지원 여부를 결정합니다.</li>
             <li>소득세·지방소득세 자동계산은 후순위이며 현재 급여대장 개발을 막지 않습니다.</li>
             <li>법정공제 근거가 부족한 직원은 금액을 추정하지 않고 확인 필요로 표시합니다.</li>
           </ul>
@@ -132,6 +134,7 @@
   </main>
 
   <script src="../assets/payroll-ledger-xlsx.js"></script>
+  <script src="../assets/payroll-attendance-xlsx.js"></script>
   <script src="../assets/payroll-operator-live.js"></script>
 </body>
 </html>
