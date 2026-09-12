@@ -21,6 +21,7 @@ test('live payroll MVP is an explicit staging read-only surface', () => {
   assert.match(html, /실제 지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다/i);
   assert.match(html, /payroll-operator-live\.js/i);
   assert.match(html, /payroll-operator-live\.css/i);
+  assert.match(html, /payroll-ledger-xlsx\.js/i);
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
@@ -41,27 +42,44 @@ test('live client has no payroll mutation or payment execution path', () => {
   assert.doesNotMatch(executable, /bank[_-]?(account|number)|resident[_-]?registration|disability|health_/i);
 });
 
-test('live MVP renders compact gross, deduction and net payroll fields without extra operator inputs', () => {
-  assert.match(html, /실근로/);
-  assert.match(html, /유급휴일/);
-  assert.match(html, /주휴/);
-  assert.match(html, /지급시간/);
-  assert.match(html, /가안 총지급/);
-  assert.match(html, /공제합계/);
-  assert.match(html, /실지급/);
+test('live MVP renders the practical payroll ledger without extra payroll-setting inputs', () => {
+  for (const label of [
+    '실근로', '결근', '유급휴가', '유급공휴일', '주휴시간', '기본급', '주휴수당',
+    '총지급', '국민연금', '건강보험', '장기요양', '고용보험', '공제계', '실지급', '상태',
+  ]) assert.match(html, new RegExp(label));
+
   assert.match(client, /employee_id/);
   assert.match(client, /display_name/);
+  assert.match(client, /absence_day_count/);
+  assert.match(client, /paid_leave_day_count/);
+  assert.match(client, /paid_holiday_day_count/);
   assert.match(client, /gross_pay_preview/);
   assert.match(client, /statutory_deduction_preview/);
   assert.match(client, /net_pay_preview/);
   assert.match(client, /statutory_status/);
   assert.match(client, /weekly_holiday_actual_hours/);
-  assert.equal((html.match(/<input\b/g) || []).length, 1, 'operator should only choose the payroll month');
+
+  assert.equal((html.match(/<input\b/g) || []).length, 2, 'operator should only choose payroll month and attendance Excel file');
+  assert.match(html, /type="month"/i);
+  assert.match(html, /type="file"[^>]+accept="\.xlsx,\.xls"/i);
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
+});
+
+test('attendance Excel selection is local-only until the real vendor format is mapped', () => {
+  assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
+  assert.match(client, /\.(xlsx\|xls)/i);
+  assert.match(client, /아직 DB에는 등록하지 않았습니다/);
+  assert.doesNotMatch(client, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
+});
+
+test('live payroll can export a non-sensitive payroll ledger xlsx preview', () => {
+  assert.match(html, /급여대장 Excel/);
+  assert.match(client, /downloadPayrollLedgerXlsx/);
+  assert.match(html, /주민등록번호·급여계좌·장애·건강정보는 화면\/가안 Excel에 넣지 않습니다/);
 });
 
 test('live MVP remains usable on narrow screens', () => {
   assert.match(css, /overflow-x:\s*auto/i);
   assert.match(css, /@media \(max-width: 560px\)/i);
-  assert.match(css, /min-width:\s*880px/i);
+  assert.match(css, /min-width:\s*1760px/i);
 });
