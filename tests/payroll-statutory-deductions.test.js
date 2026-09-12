@@ -38,6 +38,19 @@ test('uses statutory bases instead of gross pay for pension and health', () => {
   assert.equal(health.amount, 89870);
 });
 
+test('normalizes floating point drift before applying won rounding policy', () => {
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-09-01',
+    taxableRemuneration: 1800000,
+    profile: enrolledProfile(),
+    rateRules: rules(),
+  });
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(employment.rawAmount, 16200);
+  assert.equal(employment.amount, 16200);
+  assert.equal(payrollStatutory.applyRounding(89875, 'floor_to_10'), 89870);
+});
+
 test('fails closed when an official rounding policy is missing', () => {
   const rateRules = rules({ health_insurance: { roundingMethod: null } });
   const result = payrollStatutory.calculateStatutoryDeductions({
