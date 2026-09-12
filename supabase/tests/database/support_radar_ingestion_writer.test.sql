@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(27);
 
 select is(
   has_function_privilege('authenticated','public.support_ingestion_begin_run_v1(text,text,timestamptz,jsonb,jsonb,text,text,text)','EXECUTE'),
@@ -165,11 +165,10 @@ select is(
   1,
   'writer adds fixture document metadata without a second notice store'
 );
-select is(
-  (select deadline_at::text from public.support_notices notice
+select is_null(
+  (select deadline_at from public.support_notices notice
    join public.support_notice_occurrences occurrence on occurrence.notice_id=notice.id
    where occurrence.source_notice_id='PBLN_DB_FIXTURE_0001'),
-  null,
   'writer does not invent a timestamp for deferred date-only deadline'
 );
 
