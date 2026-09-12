@@ -22,9 +22,16 @@ function safeScriptJson(value) {
 }
 
 function firstImage(row) {
-  if (typeof row?.hero_image_url === 'string' && row.hero_image_url) return row.hero_image_url;
+  // Public cards prefer images explicitly uploaded/selected into public_media.
+  // For a post with a linked source, a standalone remote og:image is reference
+  // material only because it may block hotlinking later. Legacy no-link rows may
+  // still use their stored hero image for backwards compatibility.
   const media = Array.isArray(row?.public_media) ? row.public_media : [];
-  return media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
+  const selected = media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
+  if (selected) return selected;
+  const sourceType = String(row?.link_source_type || 'none');
+  if (sourceType !== 'none') return '';
+  return typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
 }
 
 function firstImageAlt(row) {

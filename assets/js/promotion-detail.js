@@ -20,6 +20,13 @@
       : '';
   }
 
+  function sourceLinkLabel(sourceType) {
+    if (sourceType === 'taejang_homepage') return '태장 홈페이지에서 보기 ↗';
+    if (sourceType === 'taejang_blog') return '태장 공식 블로그에서 보기 ↗';
+    if (sourceType === 'taejang_youtube') return '태장 공식 유튜브에서 보기 ↗';
+    return '원문 보기 ↗';
+  }
+
   function unavailable(message) {
     const article = el('article', null, 'article article-empty');
     article.append(el('h1', '공개된 글을 찾을 수 없습니다'));
@@ -39,6 +46,8 @@
     image.alt = alt || '태장 소식 사진';
     image.loading = 'lazy';
     image.decoding = 'async';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => figure.remove(), { once: true });
     figure.append(image);
     return figure;
   }
@@ -65,7 +74,12 @@
     article.append(header);
 
     const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => /^https:\/\//.test(entry?.url || '')) : [];
-    const heroUrl = /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : media[0]?.url;
+    // Explicitly selected/uploaded public media is authoritative. A remotely
+    // imported og:image from a linked source is reference material only and is
+    // never the public detail hero; legacy no-link rows keep their stored hero.
+    const storedHero = String(item.link_source_type || 'none') === 'none'
+      && /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '';
+    const heroUrl = media[0]?.url || storedHero;
     if (heroUrl) {
       const heroMatch = media.find(entry => entry.url === heroUrl);
       const hero = imageNode(heroUrl, heroMatch?.alt || `${item.title} 대표사진`, 'article-representative-media');
@@ -93,7 +107,7 @@
     }
 
     if (/^https:\/\//.test(item.external_url || '')) {
-      const external = el('a', '관련 원문 보기 ↗', 'btn line');
+      const external = el('a', sourceLinkLabel(item.link_source_type), 'btn line');
       external.href = item.external_url;
       external.target = '_blank';
       external.rel = 'noopener noreferrer';
