@@ -37,16 +37,18 @@ test('draft RPC wrapper persists linked URL independently of content type', () =
   assert.match(workspace, /formState\.type\.value === 'external_content'/);
 });
 
-test('lead direct edit preserves an existing linked URL even for non-external content types', () => {
+test('existing linked URL and source metadata survive edit flows that hide the legacy URL field', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
 
-  assert.match(live, /name === 'lead_replace_promotion_revision'/);
+  assert.match(live, /if \(!linkedUrl && nextArgs\?\.p_content_id\)/);
   assert.match(live, /get_promotion_review_detail/);
   assert.match(live, /linkedUrl = String\(detail\?\.external_url \|\| ''\)\.trim\(\)/);
+  assert.match(live, /get_promotion_link_source/);
+  assert.match(live, /sourceType = String\(await original\('get_promotion_link_source'/);
   assert.match(live, /Preserve the original RPC behavior/);
 });
 
-test('metadata import remains single-fetch and external material does not copy full article body', () => {
+test('metadata import remains single-fetch, preserves manual text, and keeps manual fallback on failure', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
   const workspace = read('app/assets/phase-c-workspace-v2.js');
 
@@ -55,4 +57,6 @@ test('metadata import remains single-fetch and external material does not copy f
   assert.match(live, /sourceType === 'external' && !previousBody\.trim\(\)/);
   assert.match(live, /body\.value = ''/);
   assert.match(live, /외부 기사·자료는 원문 전체를 복사하지 않습니다/);
+  assert.match(live, /const fetchFailed = \/가져오지 못\|실패\|확인할 수 없\//);
+  assert.match(live, /자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다/);
 });
