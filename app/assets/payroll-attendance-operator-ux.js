@@ -102,8 +102,7 @@
 
   function handleFileChange(documentRef, target) {
     const file = target.files && target.files[0];
-    if (!file) return;
-    if (!isLegacyXlsFileName(file.name)) return;
+    if (!file || !isLegacyXlsFileName(file.name)) return false;
 
     target.value = '';
     const fileName = documentRef.getElementById('payroll-attendance-file-name');
@@ -113,6 +112,7 @@
       '구형 .xls 파일은 현재 자동채움하지 않습니다. Excel에서 .xlsx로 저장한 뒤 다시 선택해 주세요.',
       'review'
     );
+    return true;
   }
 
   function install(documentRef) {
@@ -129,7 +129,10 @@
       if (!target || !target.matches) return;
 
       if (target.matches('#payroll-attendance-file')) {
-        handleFileChange(documentRef, target);
+        if (handleFileChange(documentRef, target)) {
+          event.preventDefault?.();
+          event.stopImmediatePropagation?.();
+        }
         return;
       }
 
