@@ -1,4 +1,8 @@
-(() => {
+(function initPayrollCurrentMonthBootstrap(root, factory) {
+  const api = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  if (root && root.document) api.ensureCurrentMonthQuery(root);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function payrollCurrentMonthBootstrapFactory() {
   'use strict';
 
   function currentSeoulMonth(now = new Date()) {
@@ -12,7 +16,7 @@
       const month = parts.find(part => part.type === 'month')?.value;
       if (year && month) return `${year}-${month}`;
     } catch {
-      // Fall back to the browser clock only when the timezone formatter is unavailable.
+      // Fall back to the runtime clock only when timezone formatting is unavailable.
     }
 
     const year = now.getFullYear();
@@ -20,7 +24,8 @@
     return `${year}-${month}`;
   }
 
-  function ensureCurrentMonthQuery(windowRef = window) {
+  function ensureCurrentMonthQuery(windowRef) {
+    if (!windowRef?.location?.href || !windowRef?.history) return null;
     const url = new URL(windowRef.location.href);
     const existing = url.searchParams.get('month') || '';
     if (/^\d{4}-\d{2}$/.test(existing)) return existing;
@@ -34,9 +39,5 @@
     return month;
   }
 
-  ensureCurrentMonthQuery();
-
-  if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { currentSeoulMonth, ensureCurrentMonthQuery };
-  }
-})();
+  return Object.freeze({ currentSeoulMonth, ensureCurrentMonthQuery });
+});
