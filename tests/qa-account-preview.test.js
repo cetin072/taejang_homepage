@@ -20,8 +20,8 @@ test('employee screen experience unifies real accounts and role presets behind o
   assert.match(roleUi, /체험 가능한 직원/);
   assert.match(roleUi, /역할 미리보기/);
   assert.match(roleUi, /실제 로그인 가능한 직원은 그 직원이 실제로 보는 화면/);
-  assert.match(roleUi, /data\.personaLauncher/);
-  assert.match(roleUi, /data\.personaKind/);
+  assert.match(roleUi, /dataset\.personaLauncher/);
+  assert.match(roleUi, /dataset\.personaKind/);
   assert.doesNotMatch(roleUi, /홍보직원 보기|운영팀장 보기|운영총괄 복귀|실제 계정 검수|권한 체험 중/);
 });
 
@@ -48,7 +48,7 @@ test('role preset banner is plain-language and offers a direct return to my acco
   assert.match(roleUi, /역할 미리보기 중/);
   assert.match(roleUi, /실제 직원 계정이 아닌 테스트용 역할 화면입니다/);
   assert.match(roleUi, /내 계정으로 돌아가기/);
-  assert.match(roleUi, /data\.personaReturn/);
+  assert.match(roleUi, /dataset\.personaReturn/);
 });
 
 test('mobile employee screen experience stays visible with one large touch target', () => {
