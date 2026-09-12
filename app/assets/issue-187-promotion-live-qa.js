@@ -146,6 +146,17 @@
     classify();
   }
 
+  function annotateImportedImageAsReference(composer) {
+    const preview = composer?.querySelector('.phase-c-link-preview');
+    const image = preview?.querySelector('img');
+    if (!preview || !image || preview.querySelector('[data-issue187-remote-image-note]')) return;
+    const note = document.createElement('p');
+    note.className = 'help';
+    note.dataset.issue187RemoteImageNote = '1';
+    note.textContent = '원문에서 가져온 사진은 참고용입니다. 홈페이지에 사진을 공개하려면 아래 사진 추가에서 직접 업로드해 주세요.';
+    preview.append(note);
+  }
+
   function bindImportedImageRetry() {
     if (imageRetryBound) return;
     imageRetryBound = true;
@@ -173,6 +184,7 @@
     if (composer) {
       simplifyPromotionStaffType(composer);
       polishLinkSource(composer);
+      annotateImportedImageAsReference(composer);
     }
   }
 
