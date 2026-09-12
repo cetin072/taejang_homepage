@@ -14,7 +14,7 @@
     <header class="payroll-topbar">
       <div>
         <p class="payroll-eyebrow">태장 업무플랫폼 · 근태·급여관리</p>
-        <h1 class="payroll-title" id="payroll-live-title">2026년 8월</h1>
+        <h1 class="payroll-title" id="payroll-live-title">급여월 불러오는 중</h1>
         <p class="payroll-subtitle">화면에서 근태를 직접 입력하거나 출근부 Excel로 채운 뒤 수정하고, 같은 자료로 급여 가안을 확인합니다.</p>
       </div>
       <span class="payroll-demo-badge" id="payroll-live-environment">STAGING · 근태 편집</span>
@@ -23,7 +23,7 @@
     <section class="payroll-live-toolbar payroll-card" aria-label="급여월 선택과 급여대장 작업">
       <label class="payroll-month-picker" for="payroll-live-month">
         <span>급여월</span>
-        <input id="payroll-live-month" type="month" value="2026-08">
+        <input id="payroll-live-month" type="month">
       </label>
       <button class="payroll-button" type="button" id="payroll-live-refresh">새로고침</button>
       <button class="payroll-button secondary" type="button" id="payroll-live-export" disabled>급여대장 Excel</button>
@@ -183,6 +183,7 @@
   <script src="../assets/payroll-ledger-xlsx.js"></script>
   <script src="../assets/payroll-ledger-validator.js"></script>
   <script src="../assets/payroll-attendance-xlsx.js"></script>
+  <script src="../assets/payroll-current-month-bootstrap.js"></script>
   <script src="../assets/payroll-operator-live.js"></script>
   <script src="../assets/payroll-attendance-editor.js"></script>
   <script src="../assets/payroll-attendance-operator-ux.js"></script>
