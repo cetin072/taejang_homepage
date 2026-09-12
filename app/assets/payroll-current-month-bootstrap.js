@@ -24,13 +24,13 @@
     return `${year}-${month}`;
   }
 
-  function ensureCurrentMonthQuery(windowRef) {
+  function ensureCurrentMonthQuery(windowRef, now = new Date()) {
     if (!windowRef?.location?.href || !windowRef?.history) return null;
     const url = new URL(windowRef.location.href);
     const existing = url.searchParams.get('month') || '';
     if (/^\d{4}-\d{2}$/.test(existing)) return existing;
 
-    const month = currentSeoulMonth();
+    const month = currentSeoulMonth(now);
     url.searchParams.set('month', month);
     windowRef.history.replaceState(null, '', url);
 
