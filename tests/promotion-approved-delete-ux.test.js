@@ -25,7 +25,7 @@ test('issue 181 promotion hardening is loaded after the live workspace and targe
   assert.doesNotMatch(live, /data-pilot-review-section|pilot-review-card|pilot-review-actions/);
 });
 
-test('promotion lead gets direct recoverable delete while safe fallback management remains available', () => {
+test('promotion lead gets direct recoverable delete without duplicate sidebar or intro delete entry points', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
   const fallback = read('app/assets/promotion-approved-delete-ux.js');
   const nav = read('app/assets/role-navigation-priority.js');
@@ -34,9 +34,14 @@ test('promotion lead gets direct recoverable delete while safe fallback manageme
   assert.match(live, /archive_unpublished_promotion_content/);
   assert.match(live, /issue181ReviewDelete/);
   assert.doesNotMatch(live, /delete_promotion_content/);
-  assert.match(fallback, /미발행 글 삭제/);
+  assert.match(live, /data-issue181-management-shortcuts/);
+  assert.match(live, /공개글 관리/);
+  assert.match(live, /미발행 글 정리/);
+
+  assert.match(fallback, /function issue181UnifiedLeadManagement\(\)/);
+  assert.match(fallback, /if \(issue181UnifiedLeadManagement\(\)\) \{[\s\S]*nav\.hidden = true/);
+  assert.match(fallback, /if \(!canArchive\(\) \|\| issue181UnifiedLeadManagement\(\)\) return/);
   assert.match(nav, /'홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제'/);
-  assert.doesNotMatch(nav, /syncMergedVisibility/);
   assert.match(workflow, /PROMOTION_UNPUBLISHED_ARCHIVE_REQUIRES_NO_PUBLIC_HISTORY/);
 });
 
