@@ -53,9 +53,9 @@ select is(has_table_privilege('authenticated','public.support_ingestion_rejects'
 select is(has_table_privilege('authenticated','public.support_ingestion_item_events','INSERT'), false, 'authenticated cannot directly insert ingestion item events');
 
 select is(
-  has_function_privilege('authenticated','public.support_can_view_ingestion_ledger()','EXECUTE'),
+  has_function_privilege('authenticated','private.support_can_view_ingestion_ledger()','EXECUTE'),
   true,
-  'authenticated can execute narrow ingestion ledger read wrapper'
+  'authenticated can execute narrow private ingestion ledger read helper'
 );
 select is(
   has_function_privilege('authenticated','public.private_actor_can(text)','EXECUTE'),
@@ -63,9 +63,9 @@ select is(
   'shared private capability helper remains non-executable by authenticated users'
 );
 select ok(
-  pg_get_functiondef('public.support_can_view_ingestion_ledger()'::regprocedure)
+  pg_get_functiondef('private.support_can_view_ingestion_ledger()'::regprocedure)
     ilike '%private_actor_can(''support_radar.management_view''%',
-  'ingestion ledger wrapper delegates to Support Radar management capability'
+  'private ingestion ledger helper delegates to Support Radar management capability'
 );
 select ok(
   coalesce((
@@ -75,7 +75,7 @@ select ok(
       and tablename='support_ingestion_runs'
       and policyname='support_ingestion_runs_management_read'
   ), '') ilike '%support_can_view_ingestion_ledger%',
-  'ingestion run RLS uses the narrow executable wrapper'
+  'ingestion run RLS uses the narrow private capability helper'
 );
 
 select ok(
