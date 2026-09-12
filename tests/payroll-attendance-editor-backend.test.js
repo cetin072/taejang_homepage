@@ -80,7 +80,8 @@ test('first direct save bootstraps a draft payroll month as well as the editor b
   assert.match(bootstrapSql, /operator-editor:\/\//i);
   assert.match(bootstrapSql, /where b\.payroll_month=new\.payroll_month and b\.status='accepted'/i);
   assert.doesNotMatch(bootstrapSql, /status='locked'|status\s*=\s*'locked'/i);
-  assert.doesNotMatch(bootstrapSql, /finalize|payment|bank_transfer|kakao/i);
+  const executableBootstrapSql = bootstrapSql.replace(/--.*$/gm, '');
+  assert.doesNotMatch(executableBootstrapSql, /finalize|payment|bank_transfer|kakao/i);
 });
 
 test('direct entry does not require a vendor identity mapping', () => {
