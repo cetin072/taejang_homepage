@@ -5,6 +5,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function payrollStatutoryDeductionsFactory() {
   'use strict';
 
+  const DECIMAL_NORMALIZATION_SCALE = 1e8;
+
   function asDate(value) {
     if (value instanceof Date) return new Date(value.getFullYear(), value.getMonth(), value.getDate(), 12, 0, 0, 0);
     const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -44,9 +46,15 @@
       .sort((a, b) => dateKey(b.effectiveFrom || b.effective_from).localeCompare(dateKey(a.effectiveFrom || a.effective_from)))[0] || null;
   }
 
-  function applyRounding(value, method) {
+  function normalizeDecimal(value) {
     const amount = Number(value);
     if (!Number.isFinite(amount)) return null;
+    return Math.round(amount * DECIMAL_NORMALIZATION_SCALE) / DECIMAL_NORMALIZATION_SCALE;
+  }
+
+  function applyRounding(value, method) {
+    const amount = normalizeDecimal(value);
+    if (amount === null) return null;
     const unit = method && method.endsWith('_to_10') ? 10 : 1;
     if (method && method.startsWith('floor_')) return Math.floor(amount / unit) * unit;
     if (method && method.startsWith('round_')) return Math.round(amount / unit) * unit;
@@ -67,12 +75,13 @@
   function finalizeRateAmount({ code, rawAmount, rule, reasons = [] }) {
     const roundingMethod = rule && (rule.roundingMethod || rule.rounding_method);
     if (!roundingMethod) {
-      return statusRow(code, { rawAmount, reasons: [...reasons, 'rounding_policy_missing'] });
+      return statusRow(code, { rawAmount: normalizeDecimal(rawAmount), reasons: [...reasons, 'rounding_policy_missing'] });
     }
+    const normalizedRawAmount = normalizeDecimal(rawAmount);
     return {
       code,
-      rawAmount,
-      amount: applyRounding(rawAmount, roundingMethod),
+      rawAmount: normalizedRawAmount,
+      amount: applyRounding(normalizedRawAmount, roundingMethod),
       status: 'complete',
       reasons,
       roundingMethod,
@@ -180,6 +189,7 @@
   }
 
   return {
+    normalizeDecimal,
     applyRounding,
     selectRateRule,
     calculateStatutoryDeductions,
