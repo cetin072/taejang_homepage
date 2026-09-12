@@ -2,8 +2,8 @@
 
 기준 Issue: #161, #167, #169  
 구현 PR: #168  
-기준일: 2026-09-11  
-상태: **Phase 1 MVP 기능·자동검수 완료 / 브라우저 Preview 사람 UX 검수 대기 / Production 미적용**
+기준일: 2026-09-12  
+상태: **Phase 1 MVP 기능·자동검수 완료 / 직원 화면 체험 통합 완료 / 브라우저 Preview 사람 UX 검수 대기 / Production 미적용**
 
 ## 1. 구현 완료
 
@@ -60,13 +60,32 @@
 - trigger-only가 아니라 현재 태장 관련성으로 2차 필터
 - 누적 KPI: 적격후보, 신청, 선정, 지원금, 현물가치, 놓친 중요공고, 중요 미검토, 발견→첫 검토시간
 
+### 공통 개발도구 — 직원 화면 체험
+기존의 역할 시뮬레이션과 실제 직원 계정 검수 UX를 사용자 관점에서 하나의 `직원 화면 체험` 기능으로 통합했다.
+
+원칙:
+- 상위 진입은 `👤 내 계정 ▾` 단일 런처를 사용
+- 실제 로그인 가능한 직원 계정이 있으면 실제 직원 화면 체험을 우선 사용
+- 실제 직원 계정이 없는 역할만 `역할 미리보기`를 사용
+- 현재 안전하게 지원하는 역할 프리셋은 `promotion_staff`(홍보직원), `promotion_lead`(운영팀장)만 유지
+- 실제 직원 화면은 별도 탭의 격리된 세션에서 열어 원래 운영총괄 세션을 덮어쓰지 않음
+- 역할 미리보기는 서버 `set_role_simulation_mode` RPC와 기존 권한 계약으로 제한
+- 앱은 actual route와 effective persona route를 분리하고, 현재 체험 대상의 effective role/capability를 기준으로 화면을 구성
+- route는 권한의 최종 근거로 사용하지 않으며 서버 capability/RPC/RLS가 최종 권위
+- 역할 미리보기 중 실제 직원으로 전환할 때 프리셋을 먼저 해제한 후 격리된 실제 직원 세션을 생성
+- 사용자 화면에서 Auth/RLS/capability/route/simulation 같은 개발자 용어를 노출하지 않음
+- `내 계정으로 돌아가기`를 공통 복귀 표현으로 사용
+- 모바일에서도 하나의 큰 체험 전환 버튼을 유지하고 사이드바가 열렸을 때 겹치지 않도록 처리
+- Production 일반 직원 기능이 아니라 Deploy Preview/Staging 중심 개발·검수 도구로 제한
+
 ## 2. 자동검수 완료
 
-PR #168의 2026-09-11 검증 기준:
-- 최신 `main` 공통 플랫폼 변경을 force 없이 반영
-- Public Homepage Checks #564: SUCCESS
-- Phase 1A Supabase Integration #775: SUCCESS
-- Netlify Deploy Preview: ready
+PR #168 HEAD `6c85fb1b8a9a1a6478973aa913c2d8272c33de64` 기준:
+- 동기화된 `main`: `163cbcb989920fc58252a7f096d3bf6a018c1f0b`
+- Public Homepage Checks #631: **SUCCESS**
+- Phase 1A Supabase Integration #841: **SUCCESS**
+- QA Account Preview Staging Deploy #31: **SUCCESS**
+- Netlify Deploy Preview: **ready**
 
 통과 항목:
 - active static platform checks
@@ -77,6 +96,9 @@ PR #168의 2026-09-11 검증 기준:
 - pgTAP DB/RLS/security tests
 - 기존 실제 Auth/Data API 통합 회귀
 - Support Radar 전용 실제 Auth/RLS/Data API 통합 회귀
+- 직원 화면 체험 정적 회귀
+- QA actual-account Auth/Edge/RLS integration
+- QA function staging-only deploy
 
 ### Support Radar 실제 Auth/RLS 통합검사
 
@@ -102,7 +124,22 @@ local Supabase에서 실제 signup/access token과 Data API/RPC/RLS를 사용해
 - 대표이사는 기업 프로필·최종결정·진행상태 mutation을 할 수 없음
 - 기업 프로필/Source/공고/평가/결정/배정/진행상태 변경이 Audit ledger에 기록됨
 
-따라서 기능·DB·권한 경계에서 현재 확인된 Phase 1 blocker는 없다.
+### 직원 화면 체험 회귀검사
+
+자동검사에서 다음 계약을 고정한다.
+- 단일 `직원 화면 체험` 런처와 새 사용자 문구
+- 실제 직원 계정 우선 / 동일 역할의 프리셋 숨김
+- actual route 보존 / effective persona route 분리
+- 실제 직원 세션의 새 탭 격리
+- 역할 프리셋 → 실제 직원 전환 시 프리셋 선해제
+- 모바일 팝업 차단을 피하기 위한 동기적 빈 탭 확보
+- 실제 계정 목록 단기 캐시
+- 역할 프리셋의 서버 RPC/SQL 권한 제한
+- QA Edge Function의 staging-only 및 최고권한 검증
+- 일반 직원 QA 접근 차단과 실제 Auth/RLS 경계
+- 이전 사용자 문구 `홍보직원 보기`, `운영팀장 보기`, `운영총괄 복귀`, `실제 계정 검수`가 다시 노출되지 않음
+
+따라서 기능·DB·권한·자동검수 경계에서 현재 확인된 Phase 1 blocker는 없다.
 
 ## 3. Phase 1에서 의도적으로 하지 않음
 
@@ -121,17 +158,19 @@ local Supabase에서 실제 signup/access token과 Data API/RPC/RLS를 사용해
 
 ## 4. 이제 남은 사람 Preview 검수
 
-자동화로 검증 가능한 핵심 저장·권한·RLS·Audit은 완료했다. 남은 검수는 브라우저 실제 사용성과 모바일 UX다.
+자동화로 검증 가능한 핵심 저장·권한·RLS·Audit과 직원 화면 체험의 정적/통합 검수는 완료했다. 남은 검수는 브라우저 실제 사용성과 모바일 UX다.
 
-1. 운영총괄 계정으로 `/app/` 진입 후 지원사업 레이더 메뉴가 정상 노출되는지
-2. 기업 프로필에 1~2클릭으로 진입되는지
-3. 기업 프로필 수정 폼, 저장 전 변경요약, 저장 성공 안내, 새 버전 표시가 자연스러운지
-4. 수동 공고 등록 → 상세 → Rule 평가 → 신청/보류/제외 → 담당자 배정 화면 흐름이 끊기지 않는지
-5. 담당자 계정에서 `내 지원사업` 메뉴와 배정된 공고만 정상 노출되는지
-6. 담당자가 진행상태와 다음 행동을 모바일에서도 편하게 저장할 수 있는지
-7. 대표이사 계정에서 read-only UX가 명확한지
-8. 주간보고·긴급확인·KPI 화면이 실제 데이터와 함께 읽기 쉬운지
-9. Android 모바일에서 스크롤·입력·버튼·카드 배치가 업무 사용에 지장이 없는지
+1. 운영총괄 계정에서 `👤 내 계정 ▾` 단일 런처가 정상 노출되는지
+2. 실제 로그인 가능한 직원을 고르면 새 탭에서 해당 직원의 실제 화면·메뉴·데이터 범위가 열리는지
+3. 실제 계정이 없는 역할은 `역할 미리보기`로 명확하게 구분되는지
+4. 운영총괄 → 홍보직원 → 운영팀장 → 가능한 일반직원 → 내 계정 복귀 흐름에서 메뉴·페이지 제목·버튼·데이터·수정권한이 선택 대상과 일치하는지
+5. 실제 직원 체험 후에도 원래 운영총괄 탭의 세션과 최고권한 화면이 그대로 유지되는지
+6. 지원사업 레이더 기업 프로필 수정 폼, 저장 전 변경요약, 저장 성공 안내, 새 버전 표시가 자연스러운지
+7. 수동 공고 등록 → 상세 → Rule 평가 → 신청/보류/제외 → 담당자 배정 화면 흐름이 끊기지 않는지
+8. 담당자 실제 직원 화면에서 `내 지원사업`에 자기 배정 공고만 노출되고 진행상태 저장이 되는지
+9. 대표이사 실제 계정이 준비된 경우 read-only UX가 명확한지
+10. 주간보고·긴급확인·KPI 화면이 실제 데이터와 함께 읽기 쉬운지
+11. Android 모바일에서 체험 전환·스크롤·입력·버튼·카드 배치가 업무 사용에 지장이 없는지
 
 사람 검수에서는 다음만 MVP blocker로 수정한다.
 - 화면 진입 불가
@@ -139,6 +178,7 @@ local Supabase에서 실제 signup/access token과 Data API/RPC/RLS를 사용해
 - 권한 오류
 - 핵심 흐름 단절
 - 잘못된 데이터 저장/표시
+- 선택한 직원/역할과 메뉴·버튼·데이터 범위가 불일치
 - 모바일에서 실제 사용이 곤란한 수준의 문제
 
 미세 디자인, 추가 통계, 자동화 확장, AI 고도화는 Phase 1 MVP 확정을 막지 않는다.
