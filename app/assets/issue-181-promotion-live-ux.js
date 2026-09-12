@@ -211,7 +211,7 @@
       const nextArgs = { ...args };
       let linkedUrl = String(urlInput?.value || nextArgs?.p_external_url || '').trim();
 
-      if (name === 'lead_replace_promotion_revision' && !linkedUrl && nextArgs?.p_content_id) {
+      if (!linkedUrl && nextArgs?.p_content_id) {
         try {
           const detail = await original('get_promotion_review_detail', { p_content_id: nextArgs.p_content_id });
           linkedUrl = String(detail?.external_url || '').trim();
@@ -225,7 +225,14 @@
         if (name !== 'lead_replace_promotion_revision') nextArgs.p_source_reference_url = linkedUrl;
       }
 
-      const sourceType = linkedUrl ? (selector?.value || '') : 'none';
+      let sourceType = linkedUrl ? (selector?.value || '') : 'none';
+      if (linkedUrl && selector && !sourceType && nextArgs?.p_content_id) {
+        try {
+          sourceType = String(await original('get_promotion_link_source', { p_content_id: nextArgs.p_content_id }) || '').trim();
+        } catch {
+          // Existing source metadata is optional for this compatibility bridge.
+        }
+      }
       if (linkedUrl && selector && !sourceType) throw new Error('연결 자료가 무엇인지 선택해 주세요.');
 
       const result = await original(name, nextArgs);
