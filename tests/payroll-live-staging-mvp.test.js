@@ -10,6 +10,7 @@ const attendanceEditor = fs.readFileSync(path.join(root, 'app/assets/payroll-att
 const attendanceAnalyzer = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-xlsx.js'), 'utf8');
 const attendanceOperatorUx = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-operator-ux.js'), 'utf8');
 const ledgerValidator = fs.readFileSync(path.join(root, 'app/assets/payroll-ledger-validator.js'), 'utf8');
+const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.css'), 'utf8');
 const attendanceCss = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-editor.css'), 'utf8');
 
@@ -32,6 +33,15 @@ test('live payroll MVP is a staging attendance-edit and payroll-preview surface'
   assert.match(html, /payroll-ledger-validator\.js/i);
   assert.match(html, /payroll-attendance-xlsx\.js/i);
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
+});
+
+test('operations manager navigation exposes the payroll MVP in the same staff session', () => {
+  assert.match(navPriority, /currentRole !== 'operations_manager'/);
+  assert.match(navPriority, /근태·급여관리/);
+  assert.match(navPriority, /link\.href = 'payroll\/live\.html'/);
+  assert.match(navPriority, /dataset\.payrollMvpNav = '1'/);
+  assert.match(navPriority, /label: '근태·급여'/);
+  assert.doesNotMatch(navPriority, /target = '_blank'[\s\S]{0,160}payroll\/live\.html/);
 });
 
 test('live clients reuse staff auth and protected payroll RPCs', () => {
