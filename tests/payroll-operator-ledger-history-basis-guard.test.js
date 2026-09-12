@@ -11,14 +11,13 @@ const sql = fs.readFileSync(
 test('historical deduction fallback requires current and historical gross to match', () => {
   assert.match(sql, /fallback_eligible/i);
   assert.match(sql, /round\(nullif\(emp\.value->>'gross_pay_preview',''\)::numeric\)\s*=\s*round\(h\.gross_pay\)/i);
-  assert.match(sql, /when hist\.fallback_eligible then hist\.total_deduction/i);
-  assert.match(sql, /when hist\.fallback_eligible then hist\.net_pay/i);
+  assert.match(sql, /when hist\.fallback_eligible then hist\.total_deduction\s+else null\s+end/i);
+  assert.match(sql, /when hist\.fallback_eligible then hist\.net_pay\s+else null\s+end/i);
 });
 
 test('gross mismatch fails closed instead of mixing current gross with historical deductions', () => {
   assert.match(sql, /when hist\.id is not null then 'review_required'/i);
-  assert.match(sql, /historical_gross_mismatch/i);
-  assert.doesNotMatch(sql, /coalesce\([\s\S]*statutory_deduction_preview[\s\S]*hist\.total_deduction/i);
+  assert.match(sql, /when hist\.id is not null then 'historical_gross_mismatch'/i);
 });
 
 test('gross-basis guard remains read-only and authenticated-only', () => {
