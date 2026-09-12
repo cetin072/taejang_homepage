@@ -61,6 +61,30 @@ test('hourly gross is split into base pay and weekly holiday pay without changin
   assert.equal(split.basicPay + split.weeklyHolidayPay, context.employees[0].gross_pay_preview);
 });
 
+test('monthly salary is treated as base salary and not mislabeled as hourly-rate review', () => {
+  const employee = {
+    ...context.employees[0],
+    rate_status: 'monthly_salary',
+    hourly_rate: null,
+    weekly_holiday_actual_hours: 0,
+    gross_pay_preview: 3900000,
+    statutory_status: 'complete',
+  };
+  const split = ledger.payrollSplit(employee);
+  assert.equal(split.basicPay, 3900000);
+  assert.equal(split.weeklyHolidayPay, 0);
+  assert.equal(ledger.statusLabel(employee), '월급제');
+});
+
+test('historical as-paid deduction fallback is clearly labeled as 지급이력', () => {
+  const employee = {
+    ...context.employees[0],
+    deduction_source: 'historical_as_paid',
+    statutory_status: null,
+  };
+  assert.equal(ledger.statusLabel(employee), '지급이력');
+});
+
 test('ledger xlsx is a valid ZIP-based xlsx payload with expected workbook parts', () => {
   const bytes = ledger.buildPayrollLedgerXlsx(context, '2026-08');
   assert.ok(bytes instanceof Uint8Array);
