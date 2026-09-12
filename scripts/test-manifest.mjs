@@ -85,6 +85,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-output.test.js',
     'tests/payroll-ledger-xlsx.test.js',
     'tests/payroll-operator-ledger-detail.test.js',
+    'tests/payroll-operator-ledger-history-fallback.test.js',
     'tests/payroll-post-lock-correction.test.js',
     'tests/payroll-post-lock-backend-contract.test.js',
     'tests/payroll-unresolved-total-guard.test.js',
