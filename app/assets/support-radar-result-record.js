@@ -1,6 +1,7 @@
 (() => {
   'use strict';
 
+  // Phase 1 final-result UI reuses the existing audited application mutation and KPI source.
   const terminalStatuses = new Set(['selected', 'not_selected', 'cancelled']);
   const state = { saving: false };
   const text = (tag, value, className) => {
