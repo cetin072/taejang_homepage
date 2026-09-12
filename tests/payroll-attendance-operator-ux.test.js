@@ -47,6 +47,17 @@ test('Excel prefill warns before it can overwrite unsaved screen edits', () => {
 test('attendance save success is never reported as save failure when recalculation fails later', () => {
   assert.doesNotMatch(editorSource, /근태 저장\/계산 실패/);
   assert.match(editorSource, /근태 저장 실패:/);
+  assert.match(editorSource, /clearSavedDirty\(entries\);/);
   assert.match(editorSource, /근태 \$\{savedCount\}건은 저장되었습니다\. 급여 가안 재계산에 실패했습니다:/);
-  assert.match(editorSource, /새로고침 후 다시 확인해 주세요/);
+  assert.match(editorSource, /급여 가안 다시 계산/);
+});
+
+test('saved attendance can retry payroll calculation without writing attendance again', () => {
+  assert.match(editorSource, /async function retryCalculation\(\)/);
+  assert.match(editorSource, /저장하지 않은 근태 변경 \$\{state\.dirty\.size\}건이 있습니다/);
+  assert.match(editorSource, /await recalculate\(state\.context\)/);
+  assert.match(editorSource, /저장된 근태는 그대로 유지됩니다/);
+  assert.match(editorSource, /payroll-attendance-recalculate/);
+  assert.match(editorSource, /setEditorBusy\(true\)/);
+  assert.match(editorSource, /setEditorBusy\(false\)/);
 });

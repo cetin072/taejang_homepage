@@ -80,6 +80,8 @@ test('direct attendance entry is primary and Excel is optional same-table prefil
 test('attendance save recalculates shadow payroll but has no finalization or payment path', () => {
   const executable = executableClient(attendanceEditor);
   assert.match(attendanceEditor, /\/functions\/v1\/payroll-calculate/);
+  assert.match(html, /id="payroll-attendance-recalculate"/);
+  assert.match(attendanceEditor, /async function retryCalculation\(\)/);
   assert.match(attendanceEditor, /payroll-live-refresh/);
   assert.doesNotMatch(executable, /lock_payroll|finalize_payroll|bank_transfer|payment_execute|kakao/i);
   assert.doesNotMatch(executable, /insert\s+into|update\s+public\.|delete\s+from/i);
