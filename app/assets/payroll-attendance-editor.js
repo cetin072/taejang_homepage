@@ -409,18 +409,31 @@
     const button = el('payroll-attendance-save');
     if (button) button.disabled = true;
     setMessage(`${entries.length}건 저장 중…`);
+
+    let saved;
     try {
-      const saved = await rpc('save_payroll_attendance_manual_entries', {
+      saved = await rpc('save_payroll_attendance_manual_entries', {
         p_payroll_month: monthStart(),
         p_entries: entries,
       });
+    } catch (error) {
+      setMessage(`근태 저장 실패: ${error.message || '확인 필요'}`, 'error');
+      state.loading = false;
+      if (button) button.disabled = false;
+      return;
+    }
+
+    const savedCount = Number(saved?.saved_count || entries.length);
+    setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안을 다시 계산하는 중…`, 'ok');
+
+    try {
       await loadContext({ preserveDate: true, quiet: true });
       const calculated = await recalculate(state.context);
       const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
-      setMessage(`${Number(saved?.saved_count || entries.length)}건 저장 완료 · 급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
+      setMessage(`${savedCount}건 저장 완료 · 급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
       document.getElementById('payroll-live-refresh')?.click();
     } catch (error) {
-      setMessage(`근태 저장/계산 실패: ${error.message || '확인 필요'}`, 'error');
+      setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안 재계산에 실패했습니다: ${error.message || '확인 필요'}. 새로고침 후 다시 확인해 주세요.`, 'review');
     } finally {
       state.loading = false;
       if (button) button.disabled = false;
