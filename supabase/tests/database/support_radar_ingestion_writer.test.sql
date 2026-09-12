@@ -206,10 +206,11 @@ select is(
   1,
   'writer adds fixture document metadata without a second notice store'
 );
-select is_null(
+select is(
   (select deadline_at from public.support_notices notice
    join public.support_notice_occurrences occurrence on occurrence.notice_id=notice.id
    where occurrence.source_notice_id='PBLN_DB_FIXTURE_0001'),
+  null::timestamptz,
   'writer does not invent a timestamp for deferred date-only deadline'
 );
 
