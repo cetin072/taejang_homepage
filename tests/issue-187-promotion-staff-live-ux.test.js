@@ -113,6 +113,12 @@ test('imported thumbnail retries once without referrer before manual-upload fall
   assert.match(source, /p_hero_image_url: null/);
 });
 
+test('successful linked image preview is explicitly reference-only for public publishing', () => {
+  assert.match(qaSource, /data-issue187-remote-image-note/);
+  assert.match(qaSource, /원문에서 가져온 사진은 참고용입니다/);
+  assert.match(qaSource, /사진 추가에서 직접 업로드해 주세요/);
+});
+
 test('public archive cards avoid linked remote og:image but preserve explicit or legacy images', () => {
   const firstImage = firstPublicImageFromSource();
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), '');
@@ -120,12 +126,13 @@ test('public archive cards avoid linked remote og:image but preserve explicit or
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://storage.example/uploaded.jpg');
 });
 
-test('published promotion detail prefers selected public media and avoids broken hotlink images', () => {
+test('published promotion detail aligns with archive image policy and avoids hotlink-only hero', () => {
   assert.match(promotionDetail, /태장 홈페이지에서 보기 ↗/);
   assert.match(promotionDetail, /태장 공식 블로그에서 보기 ↗/);
   assert.match(promotionDetail, /태장 공식 유튜브에서 보기 ↗/);
   assert.match(promotionDetail, /sourceLinkLabel\(item\.link_source_type\)/);
-  assert.match(promotionDetail, /const heroUrl = media\[0\]\?\.url \|\|/);
+  assert.match(promotionDetail, /String\(item\.link_source_type \|\| 'none'\) === 'none'/);
+  assert.match(promotionDetail, /const heroUrl = media\[0\]\?\.url \|\| storedHero/);
   assert.match(promotionDetail, /image\.referrerPolicy = 'no-referrer'/);
   assert.match(promotionDetail, /image\.addEventListener\('error', \(\) => figure\.remove\(\)/);
 });
