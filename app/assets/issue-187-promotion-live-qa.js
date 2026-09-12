@@ -29,6 +29,46 @@
     }
   }
 
+  function openPromotion(mode) {
+    window.TaejangPromotionWorkspaceV2Api?.openPromotion?.(mode);
+  }
+
+  function replaceCardAction(card, label, mode) {
+    const actions = card?.querySelector('.quick-links') || card;
+    const oldButton = actions?.querySelector('button');
+    if (!oldButton) return;
+    if (oldButton.dataset.issue187StableAction === mode) return;
+    const next = oldButton.cloneNode(true);
+    next.textContent = label;
+    next.dataset.issue187StableAction = mode;
+    next.addEventListener('click', () => openPromotion(mode));
+    oldButton.replaceWith(next);
+  }
+
+  function stabilizePromotionStaffDashboard() {
+    if (route() !== 'promotion_staff') return;
+    const grid = main()?.querySelector('.dashboard-grid');
+    const heading = main()?.querySelector('.dashboard-intro h2')?.textContent || '';
+    if (!grid || !heading.includes('대시보드')) return;
+    const cards = [...grid.querySelectorAll('.dashboard-card')];
+    const findCard = title => cards.find(card => card.querySelector('h3')?.textContent?.trim() === title);
+
+    const revision = findCard('수정·보완 요청');
+    if (revision) {
+      const copy = revision.querySelector('h3')?.nextElementSibling;
+      if (copy?.tagName === 'P') copy.textContent = '보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다.';
+      replaceCardAction(revision, '보완 글 확인', 'revision');
+    }
+
+    const write = findCard('홍보자료 작성');
+    if (write) {
+      const paragraphs = [...write.querySelectorAll('p')];
+      const copy = paragraphs.at(-1);
+      if (copy) copy.textContent = '태장 소식을 작성해 운영팀장에게 승인 요청합니다.';
+      replaceCardAction(write, '새 태장 소식 작성', 'write');
+    }
+  }
+
   function isNewPromotionComposer(composer) {
     return composer?.querySelector('h2')?.textContent?.trim() === '새 홍보자료 작성'
       || composer?.querySelector('h2')?.textContent?.trim() === '새 태장 소식 작성';
@@ -104,6 +144,7 @@
 
   function apply() {
     scheduled = false;
+    stabilizePromotionStaffDashboard();
     const composer = main()?.querySelector('.phase-c-board-composer');
     if (composer) {
       simplifyPromotionStaffType(composer);
