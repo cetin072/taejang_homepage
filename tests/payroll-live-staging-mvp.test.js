@@ -41,16 +41,23 @@ test('live client has no payroll mutation or payment execution path', () => {
   assert.doesNotMatch(executable, /bank[_-]?(account|number)|resident[_-]?registration|disability|health_/i);
 });
 
-test('live MVP renders only bounded payroll verification fields', () => {
+test('live MVP renders compact gross, deduction and net payroll fields without extra operator inputs', () => {
   assert.match(html, /실근로/);
   assert.match(html, /유급휴일/);
   assert.match(html, /주휴/);
   assert.match(html, /지급시간/);
   assert.match(html, /가안 총지급/);
+  assert.match(html, /공제합계/);
+  assert.match(html, /실지급/);
   assert.match(client, /employee_id/);
   assert.match(client, /display_name/);
   assert.match(client, /gross_pay_preview/);
+  assert.match(client, /statutory_deduction_preview/);
+  assert.match(client, /net_pay_preview/);
+  assert.match(client, /statutory_status/);
   assert.match(client, /weekly_holiday_actual_hours/);
+  assert.equal((html.match(/<input\b/g) || []).length, 1, 'operator should only choose the payroll month');
+  assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
 test('live MVP remains usable on narrow screens', () => {
