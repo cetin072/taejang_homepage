@@ -7,6 +7,7 @@ const root = path.join(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'app/payroll/live.html'), 'utf8');
 const client = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.js'), 'utf8');
 const attendanceAnalyzer = fs.readFileSync(path.join(root, 'app/assets/payroll-attendance-xlsx.js'), 'utf8');
+const ledgerValidator = fs.readFileSync(path.join(root, 'app/assets/payroll-ledger-validator.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app/assets/payroll-operator-live.css'), 'utf8');
 
 function executableClient() {
@@ -23,6 +24,7 @@ test('live payroll MVP is an explicit staging read-only surface', () => {
   assert.match(html, /payroll-operator-live\.js/i);
   assert.match(html, /payroll-operator-live\.css/i);
   assert.match(html, /payroll-ledger-xlsx\.js/i);
+  assert.match(html, /payroll-ledger-validator\.js/i);
   assert.match(html, /payroll-attendance-xlsx\.js/i);
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
@@ -62,6 +64,7 @@ test('live MVP renders the practical payroll ledger without extra payroll-settin
   assert.match(client, /deduction_source/);
   assert.match(client, /historical_as_paid/);
   assert.match(client, /weekly_holiday_actual_hours/);
+  assert.match(client, /monthly_salary/);
 
   assert.equal((html.match(/<input\b/g) || []).length, 2, 'operator should only choose payroll month and attendance Excel file');
   assert.match(html, /type="month"/i);
@@ -81,6 +84,15 @@ test('attendance Excel selection and XLSX analysis remain local-only before vend
   assert.doesNotMatch(client + attendanceAnalyzer, /uploadAttendance|persistAttendance|attendance_import.*insert/i);
 });
 
+test('ledger validation checks duplicate/count/arithmetic and blocks erroneous export', () => {
+  assert.match(html, /payroll-ledger-validation/);
+  assert.match(ledgerValidator, /employee_count_mismatch/);
+  assert.match(ledgerValidator, /employee_id_duplicate/);
+  assert.match(ledgerValidator, /net_pay_arithmetic_mismatch/);
+  assert.match(client, /validation\.errorCount === 0/);
+  assert.match(client, /오류가 있는 가안은 Excel로 내보내지 않습니다/);
+});
+
 test('live payroll can export a non-sensitive payroll ledger xlsx preview', () => {
   assert.match(html, /급여대장 Excel/);
   assert.match(client, /downloadPayrollLedgerXlsx/);
@@ -92,4 +104,5 @@ test('live MVP remains usable on narrow screens', () => {
   assert.match(css, /@media \(max-width: 560px\)/i);
   assert.match(css, /min-width:\s*1760px/i);
   assert.match(css, /payroll-file-preview/);
+  assert.match(css, /payroll-ledger-validation/);
 });
