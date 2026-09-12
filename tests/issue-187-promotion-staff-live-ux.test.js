@@ -12,6 +12,7 @@ const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const promotionDetail = fs.readFileSync(path.join(root, 'assets/js/promotion-detail.js'), 'utf8');
+const publicFeed = fs.readFileSync(path.join(root, 'netlify/functions/public-promotion-feed.mjs'), 'utf8');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
@@ -22,6 +23,12 @@ function classifierFromSource() {
   assert.ok(match, 'classifier function must remain extractable for behavior tests');
   const window = { location: { href: 'https://deploy-preview-188--taejang-homepage.netlify.app/app/', origin: 'https://deploy-preview-188--taejang-homepage.netlify.app' } };
   return new Function('window', `return function classifyLinkedSource(urlValue) {${match[1]}\n};`)(window);
+}
+
+function firstPublicImageFromSource() {
+  const match = publicFeed.match(/function firstImage\(row\) \{([\s\S]*?)\n\}\n\nfunction firstImageAlt/);
+  assert.ok(match, 'firstImage must remain extractable for behavior tests');
+  return new Function(`return function firstImage(row) {${match[1]}\n};`)();
 }
 
 function runPreviewReveal() {
@@ -38,6 +45,7 @@ test('issue 187 modules parse and image retry loads before fallback guard', () =
   syntaxCheck('app/assets/ux-followup-polish.js');
   syntaxCheck('app/assets/issue-187-promotion-live-qa.js');
   syntaxCheck('assets/js/promotion-detail.js');
+  assert.doesNotThrow(() => new Function(publicFeed.replace('export default async', 'const handler = async')));
   assert.match(appUi, /assets\/issue-187-promotion-live-qa\.js/);
   assert.ok(appUi.indexOf('assets/issue-187-promotion-live-qa.js') < appUi.indexOf('assets/ux-followup-polish.js'));
 });
@@ -103,6 +111,12 @@ test('imported thumbnail retries once without referrer before manual-upload fall
   assert.match(source, /brokenImportedImages\.add/);
   assert.match(source, /사진 추가로 직접 올려주세요/);
   assert.match(source, /p_hero_image_url: null/);
+});
+
+test('public archive cards use selected uploaded media, not imported remote og:image alone', () => {
+  const firstImage = firstPublicImageFromSource();
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [] }), '');
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }] }), 'https://storage.example/uploaded.jpg');
 });
 
 test('published promotion detail labels official linked sources and avoids broken hotlink images', () => {
