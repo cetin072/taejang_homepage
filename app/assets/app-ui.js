@@ -165,6 +165,7 @@
     ['assets/support-radar-my-work.js', 'support-radar-my-work'],
     ['assets/support-radar-review.js', 'support-radar-review'],
     ['assets/support-radar-profile-polish.js', 'support-radar-profile-polish'],
+    ['assets/support-radar-ops-progress-refresh.js', 'support-radar-ops-progress-refresh'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/official-channel-links.js', 'official-channel-links'],
