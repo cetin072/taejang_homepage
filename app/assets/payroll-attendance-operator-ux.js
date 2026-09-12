@@ -6,6 +6,7 @@
   'use strict';
 
   const INSTALL_MARKER = 'payrollAttendanceOperatorUxInstalled';
+  const AUTO_STATUS_VALUES = new Set(['', 'work', 'review_required']);
 
   function normalized(value) {
     return String(value == null ? '' : value).trim();
@@ -17,6 +18,10 @@
     if (hasIn && hasOut) return 'work';
     if (hasIn || hasOut) return 'review_required';
     return null;
+  }
+
+  function shouldAutoUpdateStatus(currentStatus) {
+    return AUTO_STATUS_VALUES.has(normalized(currentStatus));
   }
 
   function setEditorMessage(documentRef, text, state = 'normal') {
@@ -44,18 +49,50 @@
     if (fileInput) fileInput.setAttribute('accept', '.xlsx');
   }
 
-  function handleClockChange(documentRef, target) {
-    const row = target.closest && target.closest('tr');
-    if (!row) return;
+  function applyInferredStatus(row, { onlyIncompleteWork = false } = {}) {
+    if (!row || !row.querySelector) return false;
     const clockIn = row.querySelector('[data-field="clockIn"]');
     const clockOut = row.querySelector('[data-field="clockOut"]');
     const status = row.querySelector('select[data-field="status"]');
-    if (!clockIn || !clockOut || !status) return;
+    if (!clockIn || !clockOut || !status) return false;
 
     const inferred = inferAttendanceStatus(clockIn.value, clockOut.value);
-    if (!inferred || status.value === inferred) return;
+    if (!inferred || status.value === inferred) return false;
+
+    if (onlyIncompleteWork) {
+      if (status.value !== 'work' || inferred !== 'review_required') return false;
+    } else if (!shouldAutoUpdateStatus(status.value)) {
+      return false;
+    }
+
     status.value = inferred;
     status.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  function handleClockChange(target) {
+    const row = target.closest && target.closest('tr');
+    return applyInferredStatus(row);
+  }
+
+  function normalizeRenderedClockStatuses(documentRef) {
+    const body = documentRef.getElementById('payroll-attendance-editor-body');
+    if (!body) return 0;
+    let changed = 0;
+    body.querySelectorAll('tr').forEach(row => {
+      if (applyInferredStatus(row, { onlyIncompleteWork: true })) changed += 1;
+    });
+    return changed;
+  }
+
+  function observeEditorRows(documentRef) {
+    const body = documentRef.getElementById('payroll-attendance-editor-body');
+    const Observer = documentRef.defaultView?.MutationObserver || globalThis.MutationObserver;
+    if (!body || typeof Observer !== 'function') return null;
+    const observer = new Observer(() => normalizeRenderedClockStatuses(documentRef));
+    observer.observe(body, { childList: true, subtree: true });
+    normalizeRenderedClockStatuses(documentRef);
+    return observer;
   }
 
   function handleFileChange(documentRef, target) {
@@ -82,6 +119,7 @@
 
     normalizeFileChooser(documentRef);
     addClockOnlyHint(documentRef);
+    observeEditorRows(documentRef);
 
     documentRef.addEventListener('change', (event) => {
       const target = event.target;
@@ -93,7 +131,7 @@
       }
 
       if (target.matches('[data-field="clockIn"], [data-field="clockOut"]')) {
-        handleClockChange(documentRef, target);
+        handleClockChange(target);
       }
     }, true);
 
@@ -102,6 +140,7 @@
 
   return Object.freeze({
     inferAttendanceStatus,
+    shouldAutoUpdateStatus,
     install,
   });
 });
