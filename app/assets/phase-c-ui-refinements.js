@@ -52,8 +52,8 @@
       if (review) review.hidden = false;
       if (myContent) myContent.hidden = true;
       if (publication) publication.hidden = true;
-      setText(introHeading, '홍보 관리');
-      setText(introCopy, '검토 대기 글의 미리보기·수정·삭제·보완 요청·승인·상신을 한 화면에서 처리합니다.');
+      setText(introHeading, '홍보 검토');
+      setText(introCopy, '검토 대기 안건과 승인·보완·상신만 확인합니다. 발행 대기는 별도 메뉴에서 확인합니다.');
       setText(topTitle, '홍보 업무');
     } else if (promotionMode === 'write') {
       if (composer) composer.hidden = false;
@@ -80,19 +80,8 @@
       body: JSON.stringify({ url })
     });
     const payload = await response.json().catch(() => null);
-    if (!response.ok) throw new Error('외부 페이지 정보를 자동으로 가져오지 못했습니다.');
-    return payload || {};
-  }
-
-  function importNote(form, body) {
-    let note = form.querySelector('[data-external-body-note]');
-    if (!note) {
-      note = document.createElement('p');
-      note.dataset.externalBodyNote = '1';
-      note.className = 'message';
-      body.closest('label')?.append(note);
-    }
-    return note;
+    if (!response.ok) throw new Error('외부 페이지 본문을 자동으로 가져오지 못했습니다.');
+    return payload;
   }
 
   function enhanceExternalBodyImport() {
@@ -100,50 +89,35 @@
     const form = main()?.querySelector('.promotion-form');
     if (!form) return;
     const external = form.elements.namedItem('external_url');
-    const title = form.elements.namedItem('title');
-    const summary = form.elements.namedItem('public_summary');
     const body = form.elements.namedItem('public_body');
-    const image = form.elements.namedItem('hero_image_url') || form.elements.namedItem('image_url');
     if (!external || !body) return;
 
     const externalLabel = external.closest('label');
     const metaButton = externalLabel?.querySelector('[data-pilot-meta-button]') ||
       [...(externalLabel?.querySelectorAll('button') || [])].find(node => node.textContent.includes('링크 정보 자동 가져오기'));
-    if (!metaButton || metaButton.dataset.singleFetchBound) return;
-    metaButton.dataset.singleFetchBound = '1';
+    if (!metaButton || metaButton.dataset.bodyImportBound) return;
+    metaButton.dataset.bodyImportBound = '1';
 
-    metaButton.addEventListener('click', async event => {
-      event.preventDefault();
-      event.stopImmediatePropagation();
+    metaButton.addEventListener('click', async () => {
       const url = external.value.trim();
-      const note = importNote(form, body);
-      if (!url) {
-        note.textContent = '먼저 블로그나 기사 링크를 입력해 주세요.';
-        return;
-      }
-
-      const previousLabel = metaButton.textContent;
-      metaButton.disabled = true;
-      metaButton.textContent = '불러오는 중…';
+      if (!url || body.value.trim()) return;
       try {
         const metadata = await fetchExternalMeta(url);
-        if (title && !title.value.trim() && metadata.title) title.value = metadata.title;
-        if (summary && !summary.value.trim() && metadata.description) summary.value = metadata.description;
-        if (!body.value.trim() && metadata.article_text) body.value = metadata.article_text;
-        if (image && !image.value.trim() && metadata.image) image.value = metadata.image;
-
-        if (metadata.article_text) {
-          note.textContent = '링크에서 제목·요약·본문·대표이미지 초안을 가져왔습니다. 이미 직접 입력한 내용은 덮어쓰지 않았습니다. 발행 전 사실관계와 표현을 확인해 주세요.';
-        } else {
-          note.textContent = '링크에서 가져올 수 있는 정보만 채웠습니다. 본문이 비어 있으면 아래 입력란에 직접 작성해도 그대로 저장·승인 요청할 수 있습니다.';
+        if (!body.value.trim() && metadata.article_text) {
+          body.value = metadata.article_text;
+          let note = form.querySelector('[data-external-body-note]');
+          if (!note) {
+            note = document.createElement('p');
+            note.dataset.externalBodyNote = '1';
+            note.className = 'message';
+            body.closest('label')?.append(note);
+          }
+          note.textContent = '외부 페이지의 본문을 참고용 초안으로 가져왔습니다. 발행 전 사실관계·표현·저작권 범위를 확인하고 필요한 부분만 다듬어 주세요.';
         }
       } catch {
-        note.textContent = '자동 가져오기에 실패했습니다. 링크는 그대로 두고 제목과 본문을 직접 입력하면 정상적으로 저장·승인 요청할 수 있습니다.';
-      } finally {
-        metaButton.disabled = false;
-        metaButton.textContent = previousLabel;
+        // Existing manual-entry flow remains available when a site blocks extraction.
       }
-    }, true);
+    });
   }
 
   function refine() {
