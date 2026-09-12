@@ -49,6 +49,121 @@
     return `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`;
   }
 
+  function monthlyReviewResult(employee, year, month, reason, monthlySalary = null) {
+    return {
+      employeeId: employee.employeeId,
+      year,
+      month,
+      actualWorkHours: 0,
+      expectedWorkHours: 0,
+      paidHolidayHours: 0,
+      weeklyHolidayActualHours: 0,
+      weeklyHolidayExpectedHours: 0,
+      weeklyHolidayPendingWeeks: 0,
+      unresolvedCount: 1,
+      unresolved: [{ date: null, reason }],
+      payableHoursPreview: 0,
+      hourlyRate: null,
+      monthlySalary,
+      grossPayPreview: null,
+      rateStatus: 'monthly_salary_review_required',
+      payType: 'monthly',
+      dayRows: [],
+      weeklyHoliday: {
+        employeeId: employee.employeeId,
+        year,
+        month,
+        weeks: [],
+        actualHours: 0,
+        expectedHours: 0,
+        pendingWeeks: 0,
+      },
+    };
+  }
+
+  function calculateMonthlySalaryResult({ employee, year, month, terms, attendanceRecords }) {
+    const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+    const monthEnd = monthEndKey(monthStart);
+    const employeeTerms = (Array.isArray(terms) ? terms : [])
+      .filter((term) => String(term.employeeId || '') === String(employee.employeeId))
+      .filter((term) => String(term.effectiveFrom || '') <= monthEnd)
+      .filter((term) => !term.effectiveTo || String(term.effectiveTo) >= monthStart);
+    const monthlyTerms = employeeTerms.filter((term) => String(term.payType || '').trim().toLowerCase() === 'monthly');
+
+    if (monthlyTerms.length === 0) return null;
+
+    const hiredAt = String(employee.hiredAt || employee.hireDate || '');
+    const terminatedAt = employee.terminatedAt || employee.terminationDate;
+    if (!hiredAt || hiredAt > monthStart || (terminatedAt && String(terminatedAt) < monthEnd)) {
+      return monthlyReviewResult(employee, year, month, 'monthly_salary_partial_relationship_review_required');
+    }
+
+    if (employeeTerms.length !== 1 || monthlyTerms.length !== 1) {
+      return monthlyReviewResult(employee, year, month, 'monthly_salary_term_change_review_required');
+    }
+
+    const term = monthlyTerms[0];
+    if (String(term.effectiveFrom || '') > monthStart || (term.effectiveTo && String(term.effectiveTo) < monthEnd)) {
+      return monthlyReviewResult(employee, year, month, 'monthly_salary_partial_term_review_required');
+    }
+
+    const monthlySalary = Number(term.monthlySalary);
+    if (!Number.isFinite(monthlySalary) || monthlySalary <= 0) {
+      return monthlyReviewResult(employee, year, month, 'monthly_salary_missing_review_required');
+    }
+
+    const salaryImpactAttendance = (Array.isArray(attendanceRecords) ? attendanceRecords : [])
+      .filter((record) => record && String(record.employeeId || '') === String(employee.employeeId))
+      .filter((record) => record.date && String(record.date) >= monthStart && String(record.date) <= monthEnd)
+      .find((record) => {
+        const decision = String(record.autoDecision || '').trim();
+        return decision === 'review_required'
+          || decision === 'confirmed_correction'
+          || decision === '원본_무급결근'
+          || /결근/.test(decision);
+      });
+
+    if (salaryImpactAttendance) {
+      return monthlyReviewResult(
+        employee,
+        year,
+        month,
+        'monthly_salary_attendance_adjustment_review_required',
+        monthlySalary
+      );
+    }
+
+    return {
+      employeeId: employee.employeeId,
+      year,
+      month,
+      actualWorkHours: 0,
+      expectedWorkHours: 0,
+      paidHolidayHours: 0,
+      weeklyHolidayActualHours: 0,
+      weeklyHolidayExpectedHours: 0,
+      weeklyHolidayPendingWeeks: 0,
+      unresolvedCount: 0,
+      unresolved: [],
+      payableHoursPreview: 0,
+      hourlyRate: null,
+      monthlySalary,
+      grossPayPreview: monthlySalary,
+      rateStatus: 'monthly_salary',
+      payType: 'monthly',
+      dayRows: [],
+      weeklyHoliday: {
+        employeeId: employee.employeeId,
+        year,
+        month,
+        weeks: [],
+        actualHours: 0,
+        expectedHours: 0,
+        pendingWeeks: 0,
+      },
+    };
+  }
+
   function selectFullMonthProfile(statutoryInput, employeeUuid, payrollMonth) {
     const monthEnd = monthEndKey(payrollMonth);
     const rows = (Array.isArray(statutoryInput && statutoryInput.profiles) ? statutoryInput.profiles : [])
@@ -98,7 +213,8 @@
     const rateStatus = result.rateStatus;
     const employeeGrossReady = unresolvedCount === 0
       && weeklyHolidayPendingWeeks === 0
-      && rateStatus === 'single_rate';
+      && (rateStatus === 'single_rate' || rateStatus === 'monthly_salary');
+    const payType = result.payType === 'monthly' ? 'monthly' : 'hourly';
 
     return {
       employee_uuid: employee.employeeUuid,
@@ -116,6 +232,10 @@
         : null,
       rate_status: rateStatus,
       calculation_detail: {
+        pay_type: payType,
+        monthly_salary: payType === 'monthly' && result.monthlySalary != null
+          ? Number(result.monthlySalary)
+          : null,
         weekly_holiday_statuses: Array.isArray(result.weeklyHoliday && result.weeklyHoliday.weeks)
           ? result.weeklyHoliday.weeks.map((week) => ({
               week_start: week.weekStart || null,
@@ -140,7 +260,7 @@
     engine,
     preflight,
     statutory = null,
-    calculationVersion = 'payroll-engine-7day-v1',
+    calculationVersion = 'payroll-engine-7day-monthly-v1',
     now = () => new Date().toISOString(),
   } = {}) {
     if (typeof authorizeRequest !== 'function') fail('authorize_request_dependency_required');
@@ -216,7 +336,14 @@
       let grossPayPreview = 0;
 
       for (const employee of mapped.employees) {
-        const result = engine.calculateProvisionalMonth({
+        const monthlyResult = calculateMonthlySalaryResult({
+          employee,
+          year: mapped.year,
+          month: mapped.month,
+          terms: mapped.terms,
+          attendanceRecords: mapped.attendanceRecords,
+        });
+        const result = monthlyResult || engine.calculateProvisionalMonth({
           employee,
           year: mapped.year,
           month: mapped.month,
@@ -230,7 +357,7 @@
 
         unresolvedItemCount += Number(result.unresolvedCount || 0);
         unresolvedItemCount += Number(result.weeklyHolidayPendingWeeks || 0);
-        if (result.rateStatus !== 'single_rate') rateReviewCount += 1;
+        if (result.rateStatus !== 'single_rate' && result.rateStatus !== 'monthly_salary') rateReviewCount += 1;
         payableHoursPreview += Number(result.payableHoursPreview || 0);
 
         const baseRow = makeEngineResultRow(canonicalEmployee, result, null);
@@ -311,6 +438,7 @@
   return Object.freeze({
     ALLOWED_REQUEST_KEYS,
     validateRequest,
+    calculateMonthlySalaryResult,
     createPayrollCalculateCore,
   });
 });
