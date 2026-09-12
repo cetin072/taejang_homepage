@@ -8,6 +8,7 @@
     config: null,
     session: null,
     context: null,
+    validation: null,
     attendanceFile: null,
     loading: false,
   };
@@ -57,6 +58,8 @@
 
   function rateStatusLabel(value) {
     if (value === 'single_rate') return '정상';
+    if (value === 'monthly_salary') return '월급제';
+    if (value === 'monthly_salary_review_required') return '월급 확인';
     if (value === 'multiple_rates_review_required') return '복수 시급 확인';
     if (value === 'missing_rate_review_required') return '시급 확인';
     return '확인';
@@ -65,7 +68,8 @@
   function employeeStatus(employee) {
     const unresolved = Number(employee.unresolved_count || 0);
     if (unresolved > 0) return { label: `확인 ${unresolved}건`, review: true };
-    if (employee.rate_status !== 'single_rate') {
+    const readyRate = employee.rate_status === 'single_rate' || employee.rate_status === 'monthly_salary';
+    if (!readyRate) {
       return { label: rateStatusLabel(employee.rate_status), review: true };
     }
     if (employee.deduction_source === 'historical_as_paid') {
@@ -75,7 +79,7 @@
       return { label: '공제 확인', review: true };
     }
     if (employee.statutory_status === 'complete') {
-      return { label: '정상', review: false };
+      return { label: employee.rate_status === 'monthly_salary' ? '월급제' : '정상', review: false };
     }
     return { label: '공제 계산 전', review: true };
   }
@@ -203,6 +207,20 @@
     if (button) button.disabled = !enabled;
   }
 
+  function renderValidation(context) {
+    const node = element('payroll-ledger-validation');
+    const validator = window.TaejangPayrollLedgerValidator;
+    if (!node || !validator) {
+      state.validation = null;
+      return null;
+    }
+    const result = validator.validatePayrollLedgerContext(context);
+    state.validation = result;
+    node.textContent = validator.summaryText(result);
+    node.dataset.state = result.status;
+    return result;
+  }
+
   function renderEmpty(context, month) {
     setText('payroll-live-title', monthLabel(month));
     setText('payroll-live-status', statusLabel(context?.month_status));
@@ -212,6 +230,10 @@
     setText('payroll-live-cutoff', '—');
     setText('payroll-live-run', '—');
     setText('payroll-live-version', '—');
+    setText('payroll-ledger-validation', '검증할 급여대장 계산결과가 없습니다.');
+    const validationNode = element('payroll-ledger-validation');
+    if (validationNode) validationNode.dataset.state = 'idle';
+    state.validation = null;
     element('payroll-live-table-body').replaceChildren();
     element('payroll-live-empty').hidden = false;
     element('payroll-live-table-wrap').hidden = true;
@@ -286,7 +308,12 @@
     element('payroll-live-empty').hidden = true;
     element('payroll-live-table-wrap').hidden = false;
     renderEmployees(employees);
-    setExportEnabled(employees.length > 0 && Boolean(window.TaejangPayrollLedgerXlsx));
+    const validation = renderValidation(context);
+    const exportReady = employees.length > 0
+      && Boolean(window.TaejangPayrollLedgerXlsx)
+      && Boolean(validation)
+      && validation.errorCount === 0;
+    setExportEnabled(exportReady);
   }
 
   function friendlyError(error) {
@@ -323,6 +350,10 @@
   function exportLedger() {
     const exporter = window.TaejangPayrollLedgerXlsx;
     const employees = Array.isArray(state.context?.employees) ? state.context.employees : [];
+    if (state.validation?.errorCount > 0) {
+      setMessage('급여대장 자동검증 오류를 먼저 확인해 주세요. 오류가 있는 가안은 Excel로 내보내지 않습니다.', { error: true });
+      return;
+    }
     if (!exporter || employees.length === 0) {
       setMessage('내보낼 급여대장 계산결과가 없습니다.', { error: true });
       return;
