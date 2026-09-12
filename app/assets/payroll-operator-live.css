@@ -4,9 +4,10 @@
   gap: 10px;
   margin-bottom: 14px;
   padding: 14px 16px;
+  flex-wrap: wrap;
 }
 
-.payroll-live-toolbar label {
+.payroll-live-toolbar .payroll-month-picker {
   display: grid;
   gap: 5px;
   min-width: 180px;
@@ -15,7 +16,7 @@
   font-weight: 800;
 }
 
-.payroll-live-toolbar input {
+.payroll-live-toolbar .payroll-month-picker input {
   min-height: 42px;
   padding: 0 11px;
   border: 1px solid var(--payroll-line);
@@ -25,11 +26,21 @@
   font: inherit;
 }
 
-.payroll-live-link {
+.payroll-live-link,
+.payroll-file-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  cursor: pointer;
+}
+
+.payroll-file-name {
+  flex: 1 1 100%;
+  color: var(--payroll-muted);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .payroll-live-message {
@@ -50,7 +61,7 @@
 }
 
 .payroll-live-summary { margin-bottom: 18px; }
-.payroll-live-grid { grid-template-columns: minmax(0, 2.2fr) minmax(280px, .7fr); }
+.payroll-live-grid { grid-template-columns: minmax(0, 2.6fr) minmax(280px, .65fr); }
 
 .payroll-live-table-wrap {
   width: 100%;
@@ -61,7 +72,7 @@
 
 .payroll-live-table {
   width: 100%;
-  min-width: 880px;
+  min-width: 1760px;
   border-collapse: collapse;
   font-size: 13px;
 }
@@ -77,6 +88,7 @@
 .payroll-live-table th {
   position: sticky;
   top: 0;
+  z-index: 1;
   background: #f8faf9;
   color: var(--payroll-muted);
   font-size: 11px;
@@ -88,10 +100,32 @@
 .payroll-live-table td:nth-child(1),
 .payroll-live-table td:nth-child(2) { text-align: left; }
 
+.payroll-live-table th:nth-child(1),
+.payroll-live-table td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: white;
+}
+
+.payroll-live-table th:nth-child(2),
+.payroll-live-table td:nth-child(2) {
+  position: sticky;
+  left: 92px;
+  z-index: 2;
+  background: white;
+}
+
+.payroll-live-table th:nth-child(1),
+.payroll-live-table th:nth-child(2) {
+  z-index: 3;
+  background: #f8faf9;
+}
+
 .payroll-live-table tbody tr:last-child td { border-bottom: 0; }
-.payroll-live-table tbody tr:hover { background: #fbfcfc; }
+.payroll-live-table tbody tr:hover td { background: #fbfcfc; }
 .payroll-name-cell { font-weight: 800; }
-.payroll-id-cell { color: var(--payroll-muted); font-size: 12px; }
+.payroll-id-cell { color: var(--payroll-muted); font-size: 12px; min-width: 92px; }
 .payroll-money-cell { font-weight: 800; }
 .payroll-ok-cell { color: var(--payroll-accent); font-weight: 800; }
 .payroll-review-cell { color: var(--payroll-danger); font-weight: 800; }
@@ -124,13 +158,13 @@
 
 @media (max-width: 900px) {
   .payroll-live-grid { grid-template-columns: 1fr; }
-  .payroll-live-toolbar { flex-wrap: wrap; align-items: end; }
-  .payroll-live-toolbar label { flex: 1 1 180px; }
+  .payroll-live-toolbar { align-items: end; }
+  .payroll-live-toolbar .payroll-month-picker { flex: 1 1 180px; }
 }
 
 @media (max-width: 560px) {
   .payroll-live-toolbar { padding: 12px; }
-  .payroll-live-toolbar label { flex-basis: 100%; }
+  .payroll-live-toolbar .payroll-month-picker { flex-basis: 100%; }
   .payroll-live-toolbar .payroll-button,
   .payroll-live-toolbar .payroll-live-link { flex: 1 1 40%; }
   .payroll-live-table th,
