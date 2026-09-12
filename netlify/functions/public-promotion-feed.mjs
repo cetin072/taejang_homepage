@@ -22,7 +22,9 @@ function safeScriptJson(value) {
 }
 
 function firstImage(row) {
-  if (typeof row?.hero_image_url === 'string' && row.hero_image_url) return row.hero_image_url;
+  // Public cards use images explicitly uploaded/selected into public_media.
+  // A remotely imported og:image is reference material only: it may block
+  // hotlinking later and must not silently become a durable public thumbnail.
   const media = Array.isArray(row?.public_media) ? row.public_media : [];
   return media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
 }
