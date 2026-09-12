@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(27);
+select plan(31);
 
 select is(
   has_function_privilege('authenticated','public.support_ingestion_begin_run_v1(text,text,timestamptz,jsonb,jsonb,text,text,text)','EXECUTE'),
@@ -11,7 +11,12 @@ select is(
 select is(
   has_function_privilege('authenticated','public.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
   false,
-  'authenticated cannot apply ingestion items'
+  'authenticated cannot execute the internal raw ingestion writer'
+);
+select is(
+  has_function_privilege('authenticated','public.support_ingestion_apply_item_checked_v1(uuid,jsonb)','EXECUTE'),
+  false,
+  'authenticated cannot execute the source-checked ingestion writer'
 );
 select is(
   has_function_privilege('authenticated','public.support_ingestion_record_reject_v1(uuid,integer,text,text,jsonb)','EXECUTE'),
@@ -31,8 +36,13 @@ select is(
 );
 select is(
   has_function_privilege('service_role','public.support_ingestion_apply_item_v1(uuid,jsonb)','EXECUTE'),
+  false,
+  'service role cannot bypass the source-check wrapper'
+);
+select is(
+  has_function_privilege('service_role','public.support_ingestion_apply_item_checked_v1(uuid,jsonb)','EXECUTE'),
   true,
-  'service role can apply prepared ingestion items'
+  'service role can execute the source-checked ingestion writer'
 );
 select is(
   has_function_privilege('service_role','public.support_ingestion_record_reject_v1(uuid,integer,text,text,jsonb)','EXECUTE'),
@@ -58,6 +68,16 @@ select is(
   false,
   'public request metadata rejects key-like private fields recursively'
 );
+select ok(
+  exists (
+    select 1
+    from pg_indexes
+    where schemaname='public'
+      and tablename='support_ingestion_runs'
+      and indexname='support_ingestion_runs_one_running_per_stream_idx'
+  ),
+  'only one running ingestion run is allowed per source stream'
+);
 
 create temporary table ingestion_test_runs (
   label text primary key,
@@ -74,6 +94,7 @@ values (
   'base',
   jsonb_build_object(
     'contract_version', 'support-radar-phase1-map-v1',
+    'source_code', 'bizinfo',
     'support_notice', jsonb_build_object(
       'title', 'DB fixture 작업환경 개선 지원사업',
       'managing_organization', '테스트 중앙기관',
@@ -137,8 +158,18 @@ select is(
   'begin run creates a running ledger record'
 );
 
+select throws_ok(
+  $$select public.support_ingestion_apply_item_checked_v1(
+      (select run_id from ingestion_test_runs where label='first'),
+      jsonb_set((select candidate from ingestion_test_candidates where label='base'), '{source_code}', '"enaradoom"'::jsonb)
+    )$$,
+  'P0001',
+  'SUPPORT_INGESTION_SOURCE_MISMATCH',
+  'source-checked writer rejects a candidate from another source'
+);
+
 select is(
-  public.support_ingestion_apply_item_v1(
+  public.support_ingestion_apply_item_checked_v1(
     (select run_id from ingestion_test_runs where label='first'),
     (select candidate from ingestion_test_candidates where label='base')
   )->>'delta_status',
@@ -210,7 +241,7 @@ select
   );
 
 select is(
-  public.support_ingestion_apply_item_v1(
+  public.support_ingestion_apply_item_checked_v1(
     (select run_id from ingestion_test_runs where label='second'),
     (select candidate from ingestion_test_candidates where label='base')
   )->>'delta_status',
