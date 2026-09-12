@@ -77,6 +77,7 @@ Legacy offline parser PR: #175
 
 - credential/service-key 값은 어떤 경우에도 저장하지 않는다.
 - `request_public`에는 endpoint와 공개 filter만 저장한다.
+- cursor, reject details, safe error summary, prepared candidate provenance도 credential-shaped key/value와 과대 payload를 거부한다.
 - 실패 run은 cursor를 전진시키지 않는다.
 - 성공/실패 모두 이력을 삭제하거나 덮어쓰지 않는다.
 
@@ -197,6 +198,7 @@ AI는 ingestion 단계에 들어오지 않는다.
 - 일반 authenticated 직원에게 ledger mutation 권한을 주지 않는다.
 - 운영총괄/대표의 필요한 진단 조회만 기존 Support Radar management capability 경계에 맞춰 제공한다.
 - UI 숨김은 보안 근거로 사용하지 않는다.
+- 서비스 경계에서도 임의 JSON을 그대로 신뢰하지 않는다. object shape, size limit, Source 일치, credential-shaped 값 거부를 함께 적용한다.
 
 구체 RLS/RPC는 현재 main capability helper를 재확인한 뒤 migration에 작성한다.
 
