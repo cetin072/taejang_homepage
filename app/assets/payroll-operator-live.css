@@ -35,12 +35,32 @@
   cursor: pointer;
 }
 
-.payroll-file-name {
+.payroll-file-name,
+.payroll-file-preview {
   flex: 1 1 100%;
   color: var(--payroll-muted);
   font-size: 12px;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.payroll-file-preview {
+  padding: 9px 11px;
+  border: 1px solid var(--payroll-line);
+  border-radius: 10px;
+  background: #f8faf9;
+}
+
+.payroll-file-preview[data-state="ok"] {
+  border-color: #c9dfd4;
+  background: var(--payroll-accent-soft);
+  color: var(--payroll-accent);
+}
+
+.payroll-file-preview[data-state="review"] {
+  border-color: #ecd9a9;
+  background: #fffaf0;
+  color: #7a5a14;
 }
 
 .payroll-live-message {
