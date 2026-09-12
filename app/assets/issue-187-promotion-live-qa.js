@@ -7,6 +7,23 @@
   let scheduled = false;
   let imageRetryBound = false;
 
+  function effectiveRoles() {
+    const roles = app()?.getEffectiveRoles?.();
+    if (Array.isArray(roles)) return new Set(roles);
+    return new Set((app()?.getContext?.()?.roles || []).map(item => item?.code).filter(Boolean));
+  }
+
+  function keepRoutineSupportRadarHidden() {
+    if (window.TaejangSupportRadarAccess?.canManagementView?.()) return;
+    const roles = effectiveRoles();
+    if (!roles.has('promotion_staff') && !roles.has('office_staff')) return;
+    document.querySelectorAll('[data-support-my-work-nav], [data-support-radar-nav-group]').forEach(node => {
+      node.hidden = true;
+      node.dataset.issue187RoutineHidden = '1';
+    });
+    document.querySelectorAll('[data-support-radar-shortcut]').forEach(node => node.remove());
+  }
+
   function classifyLinkedSource(urlValue) {
     const raw = String(urlValue || '').trim();
     if (!raw) return '';
@@ -150,6 +167,7 @@
 
   function apply() {
     scheduled = false;
+    keepRoutineSupportRadarHidden();
     stabilizePromotionStaffDashboard();
     const composer = main()?.querySelector('.phase-c-board-composer');
     if (composer) {
