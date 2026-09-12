@@ -11,6 +11,7 @@ const source = fs.readFileSync(path.join(root, 'app/assets/ux-followup-polish.js
 const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion-live-qa.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
+const promotionDetail = fs.readFileSync(path.join(root, 'assets/js/promotion-detail.js'), 'utf8');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
@@ -36,6 +37,7 @@ function runPreviewReveal() {
 test('issue 187 modules parse and image retry loads before fallback guard', () => {
   syntaxCheck('app/assets/ux-followup-polish.js');
   syntaxCheck('app/assets/issue-187-promotion-live-qa.js');
+  syntaxCheck('assets/js/promotion-detail.js');
   assert.match(appUi, /assets\/issue-187-promotion-live-qa\.js/);
   assert.ok(appUi.indexOf('assets/issue-187-promotion-live-qa.js') < appUi.indexOf('assets/ux-followup-polish.js'));
 });
@@ -101,4 +103,13 @@ test('imported thumbnail retries once without referrer before manual-upload fall
   assert.match(source, /brokenImportedImages\.add/);
   assert.match(source, /사진 추가로 직접 올려주세요/);
   assert.match(source, /p_hero_image_url: null/);
+});
+
+test('published promotion detail labels official linked sources and avoids broken hotlink images', () => {
+  assert.match(promotionDetail, /태장 홈페이지에서 보기 ↗/);
+  assert.match(promotionDetail, /태장 공식 블로그에서 보기 ↗/);
+  assert.match(promotionDetail, /태장 공식 유튜브에서 보기 ↗/);
+  assert.match(promotionDetail, /sourceLinkLabel\(item\.link_source_type\)/);
+  assert.match(promotionDetail, /image\.referrerPolicy = 'no-referrer'/);
+  assert.match(promotionDetail, /image\.addEventListener\('error', \(\) => figure\.remove\(\)/);
 });
