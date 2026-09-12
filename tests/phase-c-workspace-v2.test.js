@@ -95,8 +95,8 @@ test('highest-authority role preset remains server-enforced inside employee scre
   assert.match(ui, /const PRESET_ROLES = \['promotion_staff', 'promotion_lead'\]/);
   assert.match(ui, /직원 화면 체험/);
   assert.match(ui, /역할 미리보기/);
+  assert.match(ui, /실제 직원 계정이 아닌 테스트용 역할 화면입니다/);
   assert.match(ui, /set_role_simulation_mode/);
-  assert.match(ui, /해당 역할의 서버 권한만 행사됩니다/);
   assert.match(ui, /window\.location\.reload\(\)/);
   assert.doesNotMatch(ui, /set_profile_roles/);
   assert.doesNotMatch(ui, /홍보직원 보기|운영팀장 보기|운영총괄 복귀/);
