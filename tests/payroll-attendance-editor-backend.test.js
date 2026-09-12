@@ -12,6 +12,10 @@ const batchSql = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260912043500_payroll_manual_attendance_editor_batch.sql'),
   'utf8'
 );
+const directScopeSql = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260912052000_payroll_direct_entry_scope.sql'),
+  'utf8'
+);
 
 test('manual attendance editor is protected and append-only', () => {
   assert.match(editorSql, /create table if not exists public\.payroll_attendance_manual_entries/i);
@@ -61,4 +65,23 @@ test('manual-only month gets an internal accepted editor batch without replacing
   assert.doesNotMatch(batchSql, /update\s+public\.payroll_attendance_import_batches/i);
   assert.doesNotMatch(batchSql, /delete\s+from\s+public\.payroll_attendance_import_batches/i);
   assert.doesNotMatch(batchSql, /insert\s+into\s+public\.payroll_attendance_rows/i);
+});
+
+test('direct entry does not require a vendor identity mapping', () => {
+  assert.match(directScopeSql, /direct attendance entry must not depend on an external source mapping/i);
+  assert.match(directScopeSql, /e\.attendance_required=true/i);
+  assert.match(directScopeSql, /PAYROLL_ATTENDANCE_EMPLOYEE_NOT_ELIGIBLE/i);
+  assert.match(directScopeSql, /payroll-db-input-v3-direct-explicit/i);
+  assert.match(directScopeSql, /payroll_attendance_manual_entries/i);
+  assert.match(directScopeSql, /private_build_payroll_calculation_input_mapped_v2/i);
+  assert.match(directScopeSql, /get_payroll_attendance_editor_context_mapped_v1/i);
+  assert.match(directScopeSql, /input_basis_fingerprint/i);
+});
+
+test('direct-entry scope preserves mapped import guard and adds only explicitly saved canonical employees', () => {
+  assert.match(directScopeSql, /exists \([\s\S]*payroll_attendance_manual_entries m[\s\S]*m\.employee_uuid=e\.id/i);
+  assert.match(directScopeSql, /not exists \([\s\S]*jsonb_array_elements\(coalesce\(base_result->'employees'/i);
+  assert.doesNotMatch(directScopeSql, /insert\s+into\s+public\.payroll_source_identity_mappings/i);
+  assert.doesNotMatch(directScopeSql, /update\s+public\.payroll_source_identity_mappings/i);
+  assert.doesNotMatch(directScopeSql, /delete\s+from\s+public\.payroll_source_identity_mappings/i);
 });
