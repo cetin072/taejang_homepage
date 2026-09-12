@@ -72,6 +72,7 @@
     title.textContent = '연결 자료';
     const select = document.createElement('select');
     select.dataset.issue181LinkSource = '1';
+    select.dataset.initialUrl = String(urlInput?.value || '').trim();
     SOURCE_OPTIONS.forEach(([value, label]) => {
       const option = document.createElement('option');
       option.value = value;
@@ -214,7 +215,11 @@
       const nextArgs = { ...args };
       let linkedUrl = String(urlInput?.value || nextArgs?.p_external_url || '').trim();
 
-      if (!linkedUrl && nextArgs?.p_content_id) {
+      // The live composer always exposes its URL input. An empty visible input
+      // therefore means the user intentionally removed the link. Only the lead
+      // direct-edit legacy path can omit the URL control for non-external posts;
+      // preserve the existing link in that hidden-field compatibility case.
+      if (!linkedUrl && !urlInput && nextArgs?.p_content_id) {
         try {
           const detail = await original('get_promotion_review_detail', { p_content_id: nextArgs.p_content_id });
           linkedUrl = String(detail?.external_url || '').trim();
@@ -229,11 +234,14 @@
       }
 
       let sourceType = linkedUrl ? (selector?.value || '') : 'none';
-      if (linkedUrl && selector && !sourceType && nextArgs?.p_content_id) {
+      const sourceWasManuallyChosen = selector?.dataset?.manual === '1';
+      const sourceInitialUrl = String(selector?.dataset?.initialUrl || '').trim();
+      if (linkedUrl && selector && nextArgs?.p_content_id && !sourceWasManuallyChosen && linkedUrl === sourceInitialUrl) {
         try {
-          sourceType = String(await original('get_promotion_link_source', { p_content_id: nextArgs.p_content_id }) || '').trim();
+          const storedSource = String(await original('get_promotion_link_source', { p_content_id: nextArgs.p_content_id }) || '').trim();
+          if (storedSource && storedSource !== 'none') sourceType = storedSource;
         } catch {
-          // Existing source metadata is optional for this compatibility bridge.
+          // Existing source metadata is optional for old rows created before #181.
         }
       }
       if (linkedUrl && selector && !sourceType) throw new Error('연결 자료가 무엇인지 선택해 주세요.');
