@@ -134,23 +134,21 @@
   function createPayrollCalculateCore({
     authorizeRequest,
     fetchCanonicalInput,
-    fetchStatutoryInput,
+    fetchStatutoryInput = async () => ({ rate_rules: [], profiles: [] }),
     persistTrustedResult,
     adapter,
     engine,
     preflight,
-    statutory,
+    statutory = null,
     calculationVersion = 'payroll-engine-7day-v1',
     now = () => new Date().toISOString(),
   } = {}) {
     if (typeof authorizeRequest !== 'function') fail('authorize_request_dependency_required');
     if (typeof fetchCanonicalInput !== 'function') fail('fetch_canonical_input_dependency_required');
-    if (typeof fetchStatutoryInput !== 'function') fail('fetch_statutory_input_dependency_required');
     if (typeof persistTrustedResult !== 'function') fail('persist_trusted_result_dependency_required');
     if (!adapter || typeof adapter.toEnginePayrollInputs !== 'function') fail('payroll_db_adapter_required');
     if (!engine || typeof engine.calculateProvisionalMonth !== 'function') fail('payroll_engine_required');
     if (!preflight || typeof preflight.validatePayrollInput !== 'function') fail('payroll_preflight_required');
-    if (!statutory || typeof statutory.calculateStatutoryDeductions !== 'function') fail('payroll_statutory_engine_required');
 
     return async function calculate(requestInput, authContext = {}) {
       const request = validateRequest(requestInput);
@@ -248,6 +246,11 @@
             statutorySummary = {
               status: 'review_required', nps: null, nhi: null, ltc: null, ei: null,
               total: null, net: null, reasons: [selected.reason],
+            };
+          } else if (!statutory || typeof statutory.calculateStatutoryDeductions !== 'function') {
+            statutorySummary = {
+              status: 'review_required', nps: null, nhi: null, ltc: null, ei: null,
+              total: null, net: null, reasons: ['statutory_engine_unavailable'],
             };
           } else {
             const statutoryResult = statutory.calculateStatutoryDeductions({
