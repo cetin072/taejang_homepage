@@ -5,6 +5,7 @@ const coreApi = require('../prototypes/payroll-backend/edge-runtime/payroll-calc
 const adapter = require('../app/assets/payroll-db-input-adapter.js');
 const engine = require('../app/assets/payroll-engine.js');
 const preflight = require('../app/assets/payroll-preflight.js');
+const statutory = require('../app/assets/payroll-statutory-deductions.js');
 
 const employeeUuid = '11111111-1111-4111-8111-111111111111';
 const batchId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -57,8 +58,40 @@ function cleanCanonical() {
   };
 }
 
-function makeCore({ canonical = cleanCanonical(), actorId = '22222222-2222-4222-8222-222222222222' } = {}) {
-  const calls = { auth: 0, fetch: 0, persist: 0, persistedPayload: null };
+function emptyStatutoryInput() {
+  return { payroll_month: '2026-09-01', rate_rules: [], profiles: [] };
+}
+
+function completeStatutoryInput() {
+  return {
+    payroll_month: '2026-09-01',
+    rate_rules: [
+      { rate_code: 'national_pension', effective_from: '2026-01-01', effective_to: '2026-12-31', employee_rate: 0.0475, rounding_method: 'floor_to_10' },
+      { rate_code: 'health_insurance', effective_from: '2026-01-01', effective_to: '2026-12-31', employee_rate: 0.03595, rounding_method: 'floor_to_10' },
+      { rate_code: 'long_term_care', effective_from: '2026-01-01', effective_to: '2026-12-31', ratio_numerator: 0.009448, ratio_denominator: 0.0719, rounding_method: 'floor_to_10' },
+      { rate_code: 'employment_insurance', effective_from: '2026-01-01', effective_to: '2026-12-31', employee_rate: 0.009, rounding_method: 'floor_to_10' },
+    ],
+    profiles: [
+      {
+        employee_uuid: employeeUuid,
+        effective_from: '2026-01-01',
+        effective_to: null,
+        national_pension_status: 'enrolled',
+        health_insurance_status: 'enrolled',
+        employment_insurance_status: 'enrolled',
+        pension_standard_monthly_income: 1000000,
+        health_monthly_remuneration: 1000000,
+      },
+    ],
+  };
+}
+
+function makeCore({
+  canonical = cleanCanonical(),
+  actorId = '22222222-2222-4222-8222-222222222222',
+  statutoryInput = emptyStatutoryInput(),
+} = {}) {
+  const calls = { auth: 0, fetch: 0, statutoryFetch: 0, persist: 0, persistedPayload: null };
   const calculate = coreApi.createPayrollCalculateCore({
     authorizeRequest: async () => {
       calls.auth += 1;
@@ -69,6 +102,11 @@ function makeCore({ canonical = cleanCanonical(), actorId = '22222222-2222-4222-
       calls.fetchArgs = args;
       return canonical;
     },
+    fetchStatutoryInput: async (args) => {
+      calls.statutoryFetch += 1;
+      calls.statutoryFetchArgs = args;
+      return statutoryInput;
+    },
     persistTrustedResult: async (payload) => {
       calls.persist += 1;
       calls.persistedPayload = payload;
@@ -77,6 +115,7 @@ function makeCore({ canonical = cleanCanonical(), actorId = '22222222-2222-4222-
     adapter,
     engine,
     preflight,
+    statutory,
     calculationVersion: 'payroll-engine-7day-test-v1',
     now: () => '2026-09-30T12:00:00.000Z',
   });
@@ -96,6 +135,7 @@ test('browser cannot submit authoritative payroll totals or result fields', asyn
   );
   assert.equal(calls.auth, 0);
   assert.equal(calls.fetch, 0);
+  assert.equal(calls.statutoryFetch, 0);
   assert.equal(calls.persist, 0);
 });
 
@@ -108,6 +148,7 @@ test('authenticated actor identity comes from authorization boundary, not reques
     accepted_import_batch_id: batchId,
   });
   assert.equal(calls.fetchArgs.actorId, actorId);
+  assert.equal(calls.statutoryFetchArgs.actorId, actorId);
   assert.equal(calls.persistedPayload.actorId, actorId);
 });
 
@@ -122,10 +163,11 @@ test('missing authorized actor fails before canonical payroll is read or persist
     (error) => error && error.code === 'payroll_actor_required'
   );
   assert.equal(calls.fetch, 0);
+  assert.equal(calls.statutoryFetch, 0);
   assert.equal(calls.persist, 0);
 });
 
-test('clean canonical input is calculated by the existing 7-day engine and persisted once', async () => {
+test('clean canonical input keeps gross ready while missing statutory profile is review-only', async () => {
   const { calculate, calls } = makeCore();
   const result = await calculate({
     payroll_month: '2026-09-01',
@@ -139,6 +181,7 @@ test('clean canonical input is calculated by the existing 7-day engine and persi
   assert.equal(result.employeeCount, 1);
   assert.equal(result.unresolvedItemCount, 0);
   assert.equal(result.rateReviewCount, 0);
+  assert.equal(result.statutoryReviewCount, 1);
   assert.equal(result.grossPayPreviewStatus, 'complete');
   assert.equal(result.grossPayPreview, 30960);
   assert.equal(calls.persist, 1);
@@ -150,6 +193,27 @@ test('clean canonical input is calculated by the existing 7-day engine and persi
   assert.equal(payload.employeeResults.length, 1);
   assert.equal(payload.employeeResults[0].employee_uuid, employeeUuid);
   assert.equal(payload.employeeResults[0].gross_pay_preview, 30960);
+  assert.equal(payload.employeeResults[0].calculation_detail.statutory.status, 'review_required');
+  assert.deepEqual(payload.employeeResults[0].calculation_detail.statutory.reasons, ['statutory_profile_missing']);
+});
+
+test('complete statutory input is persisted only as compact deduction amounts and net preview', async () => {
+  const { calculate, calls } = makeCore({ statutoryInput: completeStatutoryInput() });
+  const result = await calculate({
+    payroll_month: '2026-09-01',
+    cutoff_date: '2026-09-30',
+    accepted_import_batch_id: batchId,
+  });
+
+  assert.equal(result.statutoryReviewCount, 0);
+  const summary = calls.persistedPayload.employeeResults[0].calculation_detail.statutory;
+  assert.equal(summary.status, 'complete');
+  assert.equal(summary.nps, 47500);
+  assert.equal(summary.nhi, 35950);
+  assert.equal(summary.ei, 270);
+  assert.equal(summary.total, summary.nps + summary.nhi + summary.ltc + summary.ei);
+  assert.equal(summary.net, 30960 - summary.total);
+  assert.deepEqual(summary.reasons, []);
 });
 
 test('unmatched canonical attendance becomes review work and is never persisted as a payroll run', async () => {
@@ -178,6 +242,7 @@ test('unmatched canonical attendance becomes review work and is never persisted 
   assert.equal(result.status, 'review_required');
   assert.equal(result.persisted, false);
   assert.equal(result.blockers.some((item) => item.code === 'attendance_employee_match_required'), true);
+  assert.equal(calls.statutoryFetch, 0);
   assert.equal(calls.persist, 0);
 });
 
@@ -253,10 +318,11 @@ test('accepted batch mismatch fails closed before calculation persistence', asyn
     }),
     (error) => error && error.code === 'payroll_attendance_batch_stale'
   );
+  assert.equal(calls.statutoryFetch, 0);
   assert.equal(calls.persist, 0);
 });
 
-test('persistence payload contains no employee names, raw clocks or bank/identity fields', async () => {
+test('persistence payload contains no employee names, raw clocks or protected identity fields', async () => {
   const { calculate, calls } = makeCore();
   await calculate({
     payroll_month: '2026-09-01',
@@ -264,5 +330,5 @@ test('persistence payload contains no employee names, raw clocks or bank/identit
     accepted_import_batch_id: batchId,
   });
   const serialized = JSON.stringify(calls.persistedPayload);
-  assert.doesNotMatch(serialized, /display_name|full_name|resident|registration|disability|health|consultation|bank_account|clock_in|clock_out/i);
+  assert.doesNotMatch(serialized, /display_name|full_name|resident|registration|disability|consultation|bank_account|clock_in|clock_out/i);
 });
