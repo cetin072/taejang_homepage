@@ -8,6 +8,10 @@
     : ['promotion_lead', 'operations_manager'].includes(route());
   let scheduled = false;
 
+  function issue181UnifiedLeadManagement() {
+    return route() === 'promotion_lead' && !!window.TaejangIssue181PromotionLiveUx;
+  }
+
   function openPromotionManagement() {
     window.TaejangIssue146?.openPromotionArchive?.();
   }
@@ -17,14 +21,20 @@
     if (!canArchive()) return;
     const nav = document.querySelector('[data-issue146-nav="promotion-archive"]');
     if (!nav) return;
+    if (issue181UnifiedLeadManagement()) {
+      nav.hidden = true;
+      nav.dataset.issue181MergedHidden = '1';
+      return;
+    }
     nav.hidden = false;
+    delete nav.dataset.issue181MergedHidden;
     nav.textContent = currentRoute === 'operations_manager' ? '홍보글 관리·복구' : '미발행 글 삭제';
     nav.setAttribute('aria-label', currentRoute === 'operations_manager' ? '홍보글 삭제 보관 및 복구 관리' : '공개 전 홍보글 삭제 관리');
   }
 
   function syncReviewEntry() {
     const currentRoute = route();
-    if (!canArchive()) return;
+    if (!canArchive() || issue181UnifiedLeadManagement()) return;
     const title = document.getElementById('desktop-page-title')?.textContent?.trim();
     if (!['홍보 검토', '홍보 관리', '홍보 승인 검토'].includes(title)) return;
     const intro = document.querySelector('#dashboard-main .dashboard-intro');
