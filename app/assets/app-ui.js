@@ -138,6 +138,7 @@
     ['assets/capability-access.js', 'capability-access'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
+    ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
     ['assets/pwa-install.js', 'pwa-install'],
     ['assets/attendance-location.js', 'attendance-location'],
     ['assets/worker-mobile-v1.js', 'worker-mobile-v1'],
