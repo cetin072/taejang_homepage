@@ -49,8 +49,18 @@
   }
 
   function activeSourceSelector() {
-    return [...document.querySelectorAll('[data-issue181-link-source]')]
-      .find(node => !node.closest('[hidden]')) || null;
+    const selectors = [...document.querySelectorAll('[data-issue181-link-source]')];
+    return selectors.find(node => node.closest?.('.phase-c-board-composer'))
+      || selectors.find(node => !node.closest?.('[hidden]'))
+      || selectors[0]
+      || null;
+  }
+
+  function activeLinkContext() {
+    const selector = activeSourceSelector();
+    const root = selector?.closest?.('.phase-c-link-tools') || selector?.closest?.('form') || null;
+    const urlInput = root?.querySelector?.('input[type="url"]') || null;
+    return { selector, root, urlInput };
   }
 
   function makeSourceSelector(urlInput) {
@@ -91,6 +101,37 @@
     linkTools.insertBefore(makeSourceSelector(urlInput), linkTools.firstChild);
   }
 
+  function keepComposerLinkIndependent() {
+    const composer = main()?.querySelector('.phase-c-board-composer');
+    const linkTools = composer?.querySelector('.phase-c-link-tools');
+    const urlInput = linkTools?.querySelector('input[type="url"]');
+    const source = sourceSelectorFor(linkTools);
+    if (!composer || !linkTools || !urlInput || !source) return;
+
+    linkTools.hidden = false;
+    const linkLabel = urlInput.closest?.('label')?.querySelector?.('span');
+    if (linkLabel) linkLabel.textContent = '연결 링크 (선택)';
+    urlInput.placeholder = '태장 홈페이지·블로그·유튜브·외부 기사 주소를 붙여넣으세요';
+    const metaButton = [...linkTools.querySelectorAll('button')]
+      .find(node => node.textContent.includes('링크'));
+    if (metaButton) metaButton.textContent = '링크 정보 가져오기';
+
+    if (linkTools.dataset.issue181TypeDecoupled === '1') return;
+    linkTools.dataset.issue181TypeDecoupled = '1';
+    const typeSelect = composer.querySelector('.phase-c-board-row select');
+    if (!typeSelect) return;
+
+    typeSelect.addEventListener('change', () => {
+      const beforeUrl = urlInput.value;
+      const beforeSource = source.value;
+      setTimeout(() => {
+        linkTools.hidden = false;
+        if (!urlInput.value && beforeUrl) urlInput.value = beforeUrl;
+        if (!source.value && beforeSource) source.value = beforeSource;
+      }, 0);
+    }, true);
+  }
+
   function enhanceLeadEditSource() {
     if (!isPromotionLead()) return;
     const editPage = main()?.querySelector('.phase-c-edit-page');
@@ -107,7 +148,7 @@
     const linkTools = composer?.querySelector('.phase-c-link-tools');
     if (!composer || !linkTools) return;
     const metaButton = [...linkTools.querySelectorAll('button')]
-      .find(node => node.textContent.includes('링크에서 제목'));
+      .find(node => node.textContent.includes('링크'));
     if (!metaButton || metaButton.dataset.issue181ImportGuard === '1') return;
     metaButton.dataset.issue181ImportGuard = '1';
 
@@ -166,15 +207,30 @@
         || name === 'lead_replace_promotion_revision';
       if (!tracked) return original(name, args);
 
-      const selector = activeSourceSelector();
-      if (!selector) return original(name, args);
-      const externalUrl = String(args?.p_external_url || '').trim();
-      const sourceType = externalUrl ? selector.value : 'none';
-      if (externalUrl && !sourceType) throw new Error('연결 자료가 무엇인지 선택해 주세요.');
+      const { selector, urlInput } = activeLinkContext();
+      const nextArgs = { ...args };
+      let linkedUrl = String(urlInput?.value || nextArgs?.p_external_url || '').trim();
 
-      const result = await original(name, args);
-      const contentId = args?.p_content_id || result?.content_id;
-      if (contentId) {
+      if (name === 'lead_replace_promotion_revision' && !linkedUrl && nextArgs?.p_content_id) {
+        try {
+          const detail = await original('get_promotion_review_detail', { p_content_id: nextArgs.p_content_id });
+          linkedUrl = String(detail?.external_url || '').trim();
+        } catch {
+          // Preserve the original RPC behavior if optional detail lookup is unavailable.
+        }
+      }
+
+      if (linkedUrl) {
+        nextArgs.p_external_url = linkedUrl;
+        if (name !== 'lead_replace_promotion_revision') nextArgs.p_source_reference_url = linkedUrl;
+      }
+
+      const sourceType = linkedUrl ? (selector?.value || '') : 'none';
+      if (linkedUrl && selector && !sourceType) throw new Error('연결 자료가 무엇인지 선택해 주세요.');
+
+      const result = await original(name, nextArgs);
+      const contentId = nextArgs?.p_content_id || result?.content_id;
+      if (contentId && selector) {
         await original('set_promotion_link_source', {
           p_content_id: contentId,
           p_link_source_type: sourceType
@@ -326,6 +382,7 @@
   function sync() {
     installRpcSourcePersistence();
     enhanceComposerSource();
+    keepComposerLinkIndependent();
     enhanceLeadEditSource();
     protectImportedText();
     syncLeadNavigation();
