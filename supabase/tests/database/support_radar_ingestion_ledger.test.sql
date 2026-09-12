@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(21);
 
 select ok(to_regclass('public.support_ingestion_runs') is not null, 'ingestion runs table exists');
 select ok(to_regclass('public.support_ingestion_source_state') is not null, 'ingestion source state table exists');
@@ -52,6 +52,21 @@ select is(has_table_privilege('authenticated','public.support_ingestion_source_s
 select is(has_table_privilege('authenticated','public.support_ingestion_rejects','INSERT'), false, 'authenticated cannot directly insert ingestion rejects');
 select is(has_table_privilege('authenticated','public.support_ingestion_item_events','INSERT'), false, 'authenticated cannot directly insert ingestion item events');
 
+select is(
+  has_function_privilege('authenticated','public.support_can_view_ingestion_ledger()','EXECUTE'),
+  true,
+  'authenticated can execute narrow ingestion ledger read wrapper'
+);
+select is(
+  has_function_privilege('authenticated','public.private_actor_can(text)','EXECUTE'),
+  false,
+  'shared private capability helper remains non-executable by authenticated users'
+);
+select ok(
+  pg_get_functiondef('public.support_can_view_ingestion_ledger()'::regprocedure)
+    ilike '%private_actor_can(''support_radar.management_view''%',
+  'ingestion ledger wrapper delegates to Support Radar management capability'
+);
 select ok(
   coalesce((
     select qual
@@ -59,8 +74,8 @@ select ok(
     where schemaname='public'
       and tablename='support_ingestion_runs'
       and policyname='support_ingestion_runs_management_read'
-  ), '') ilike '%private_actor_can%support_radar.management_view%',
-  'ingestion run reads use Support Radar management capability'
+  ), '') ilike '%support_can_view_ingestion_ledger%',
+  'ingestion run RLS uses the narrow executable wrapper'
 );
 
 select ok(
