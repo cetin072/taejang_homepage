@@ -6,11 +6,31 @@ const test = require('node:test');
 const source = fs.readFileSync(path.join(__dirname, '..', 'app/assets/attendance-location.js'), 'utf8');
 const position = accuracy => ({ coords: { latitude: 35.2476581, longitude: 128.61418, accuracy } });
 
-function locationApi({ permission = 'granted', geolocation }) {
+function locationApi({ permission = 'granted', geolocation, timers = { setTimeout, clearTimeout } }) {
   const window = {};
   const navigator = { geolocation, permissions: { query: async () => ({ state: permission }) } };
-  new Function('window', 'navigator', 'setTimeout', 'clearTimeout', source)(window, navigator, setTimeout, clearTimeout);
+  new Function('window', 'navigator', 'setTimeout', 'clearTimeout', source)(window, navigator, timers.setTimeout, timers.clearTimeout);
   return window.TaejangAttendanceLocation;
+}
+
+function manualTimers() {
+  let nextId = 1;
+  const pending = new Map();
+  return {
+    setTimeout(fn, ms) {
+      const id = nextId++;
+      pending.set(id, { fn, ms });
+      return id;
+    },
+    clearTimeout(id) { pending.delete(id); },
+    run(ms) {
+      const due = [...pending.entries()].filter(([, timer]) => timer.ms === ms);
+      due.forEach(([id, timer]) => {
+        pending.delete(id);
+        timer.fn();
+      });
+    }
+  };
 }
 
 test('attendance location keeps sampling after an inaccurate first fix and uses the better fix', async () => {
@@ -28,12 +48,67 @@ test('attendance location keeps sampling after an inaccurate first fix and uses 
   assert.equal(cleared, 42);
 });
 
+test('attendance location does not settle an inaccurate fix at the 6 second sample window', async () => {
+  let success;
+  let cleared;
+  const timers = manualTimers();
+  const stages = [];
+  const api = locationApi({ timers, geolocation: {
+    watchPosition: ok => { success = ok; return 51; },
+    clearWatch: id => { cleared = id; }
+  } });
+
+  const pending = api.getBestPosition({ onStage: (...args) => stages.push(args) });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  success(position(125));
+  timers.run(6000);
+  success(position(28));
+
+  assert.equal((await pending).coords.accuracy, 28);
+  assert.equal(cleared, 51);
+  assert.ok(stages.some(([stage, accuracy]) => stage === 'improving' && accuracy === 125));
+});
+
+test('attendance location returns the best available fix only at the final acquisition timeout', async () => {
+  let success;
+  const timers = manualTimers();
+  const api = locationApi({ timers, geolocation: {
+    watchPosition: ok => { success = ok; return 61; },
+    clearWatch() {}
+  } });
+
+  const pending = api.getBestPosition();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  success(position(130));
+  timers.run(6000);
+  timers.run(14000);
+  assert.equal((await pending).coords.accuracy, 130);
+});
+
+test('attendance location preserves a real best fix when the provider times out late', async () => {
+  let success;
+  let failure;
+  let cleared;
+  const api = locationApi({ geolocation: {
+    watchPosition: (ok, fail) => { success = ok; failure = fail; return 71; },
+    clearWatch: id => { cleared = id; }
+  } });
+
+  const pending = api.getBestPosition();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  success(position(118));
+  failure({ code: 3 });
+
+  assert.equal((await pending).coords.accuracy, 118);
+  assert.equal(cleared, 71);
+});
+
 test('attendance location reports a denied permission before location collection', async () => {
   const api = locationApi({ permission: 'denied', geolocation: { watchPosition() { throw new Error('must not start'); }, clearWatch() {} } });
   await assert.rejects(api.getBestPosition(), error => error.code === 'PERMISSION_DENIED');
 });
 
-test('attendance location distinguishes unavailable and timeout browser failures', async () => {
+test('attendance location distinguishes unavailable and timeout browser failures when no fix exists', async () => {
   const unsupported = locationApi({ geolocation: undefined });
   await assert.rejects(unsupported.getBestPosition(), error => error.code === 'GEOLOCATION_UNAVAILABLE');
 
@@ -64,6 +139,8 @@ test('attendance clients distinguish location, server, duplicate, and in-flight 
   assert.match(source, /watchPosition/);
   assert.match(source, /MAX_ACCEPTABLE_ACCURACY_M = 80/);
   assert.match(source, /enableHighAccuracy: true/);
+  assert.match(source, /if \(best && reason\?\.code !== 1\) return finish\(best\)/);
+  assert.doesNotMatch(source, /sampleTimer = setTimeout\(\(\) => finish\(best/);
 });
 
 test('attendance exception retry count only tracks real location failures', () => {
