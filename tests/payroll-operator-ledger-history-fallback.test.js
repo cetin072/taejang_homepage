@@ -9,7 +9,7 @@ const baseSql = fs.readFileSync(
   'utf8'
 );
 const correctedSql = fs.readFileSync(
-  path.join(root, 'supabase/migrations/20260913042000_payroll_ledger_corrected_reference_fallback.sql'),
+  path.join(root, 'supabase/migrations/20260913043500_payroll_corrected_reference_gross_guard.sql'),
   'utf8'
 );
 
@@ -38,11 +38,11 @@ test('latest ledger fallback prefers corrected Golden history over older as-paid
 test('calculated statutory values still win before any historical fallback', () => {
   assert.match(
     correctedSql,
-    /coalesce\([\s\S]*statutory_deduction_preview[\s\S]*hist\.total_deduction/i
+    /when nullif\(emp\.value->>'statutory_deduction_preview',''\) is not null[\s\S]*then nullif\(emp\.value->>'statutory_deduction_preview',''\)::numeric/i
   );
   assert.match(
     correctedSql,
-    /coalesce\([\s\S]*net_pay_preview[\s\S]*hist\.net_pay/i
+    /when nullif\(emp\.value->>'net_pay_preview',''\) is not null[\s\S]*then nullif\(emp\.value->>'net_pay_preview',''\)::numeric/i
   );
 });
 
