@@ -48,6 +48,21 @@
     return '확인';
   }
 
+  function employeeStatus(employee) {
+    const unresolved = Number(employee.unresolved_count || 0);
+    if (unresolved > 0) return { label: `확인 ${unresolved}건`, review: true };
+    if (employee.rate_status !== 'single_rate') {
+      return { label: rateStatusLabel(employee.rate_status), review: true };
+    }
+    if (employee.statutory_status === 'review_required') {
+      return { label: '공제 확인', review: true };
+    }
+    if (employee.statutory_status === 'complete') {
+      return { label: '정상', review: false };
+    }
+    return { label: '공제 계산 전', review: true };
+  }
+
   async function loadConfig() {
     const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
     if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
@@ -175,6 +190,7 @@
     body.replaceChildren();
     employees.forEach(employee => {
       const row = document.createElement('tr');
+      const status = employeeStatus(employee);
       appendCell(row, employee.employee_id || '—', 'payroll-id-cell');
       appendCell(row, employee.display_name || '—', 'payroll-name-cell');
       appendCell(row, hours(employee.actual_work_hours));
@@ -185,15 +201,9 @@
       );
       appendCell(row, hours(employee.payable_hours_preview));
       appendCell(row, money(employee.gross_pay_preview), 'payroll-money-cell');
-      appendCell(
-        row,
-        Number(employee.unresolved_count || 0) > 0
-          ? `확인 ${Number(employee.unresolved_count)}건`
-          : rateStatusLabel(employee.rate_status),
-        Number(employee.unresolved_count || 0) > 0 || employee.rate_status !== 'single_rate'
-          ? 'payroll-review-cell'
-          : 'payroll-ok-cell'
-      );
+      appendCell(row, money(employee.statutory_deduction_preview), 'payroll-money-cell');
+      appendCell(row, money(employee.net_pay_preview), 'payroll-money-cell');
+      appendCell(row, status.label, status.review ? 'payroll-review-cell' : 'payroll-ok-cell');
       body.append(row);
     });
   }
