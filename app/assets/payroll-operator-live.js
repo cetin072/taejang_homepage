@@ -3,10 +3,12 @@
 
   const SESSION_KEY = 'taejang-staff-session-v1';
   const DEFAULT_MONTH = '2026-08';
+  const MAX_ATTENDANCE_FILE_BYTES = 15 * 1024 * 1024;
   const state = {
     config: null,
     session: null,
     context: null,
+    attendanceFile: null,
     loading: false,
   };
 
@@ -22,6 +24,18 @@
     const number = Number(value);
     if (!Number.isFinite(number)) return '—';
     return `${Number.isInteger(number) ? number : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}시간`;
+  }
+
+  function days(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return '—';
+    return `${number}일`;
+  }
+
+  function dateLabel(value) {
+    if (!value) return '—';
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return match ? `${match[1]}.${match[2]}.${match[3]}` : String(value);
   }
 
   function monthLabel(value) {
@@ -61,6 +75,21 @@
       return { label: '정상', review: false };
     }
     return { label: '공제 계산 전', review: true };
+  }
+
+  function payrollSplit(employee) {
+    const helper = window.TaejangPayrollLedgerXlsx;
+    if (helper?.payrollSplit) return helper.payrollSplit(employee);
+    const gross = Number(employee.gross_pay_preview);
+    const rate = Number(employee.hourly_rate);
+    const weeklyHours = Number(employee.weekly_holiday_actual_hours || 0)
+      + Number(employee.weekly_holiday_expected_hours || 0);
+    if (!Number.isFinite(gross)) return { basicPay: null, weeklyHolidayPay: null };
+    if (!Number.isFinite(rate) || employee.rate_status !== 'single_rate') {
+      return { basicPay: gross, weeklyHolidayPay: 0 };
+    }
+    const weeklyHolidayPay = Math.round(weeklyHours * rate);
+    return { basicPay: gross - weeklyHolidayPay, weeklyHolidayPay };
   }
 
   async function loadConfig() {
@@ -166,6 +195,11 @@
     badge.textContent = text ? `${text} · READ ONLY` : 'READ ONLY';
   }
 
+  function setExportEnabled(enabled) {
+    const button = element('payroll-live-export');
+    if (button) button.disabled = !enabled;
+  }
+
   function renderEmpty(context, month) {
     setText('payroll-live-title', monthLabel(month));
     setText('payroll-live-status', statusLabel(context?.month_status));
@@ -173,9 +207,12 @@
     setText('payroll-live-gross', '계산 전');
     setText('payroll-live-exceptions', '0건');
     setText('payroll-live-cutoff', '—');
+    setText('payroll-live-run', '—');
+    setText('payroll-live-version', '—');
     element('payroll-live-table-body').replaceChildren();
     element('payroll-live-empty').hidden = false;
     element('payroll-live-table-wrap').hidden = true;
+    setExportEnabled(false);
   }
 
   function appendCell(row, value, className = '') {
@@ -191,16 +228,25 @@
     employees.forEach(employee => {
       const row = document.createElement('tr');
       const status = employeeStatus(employee);
+      const split = payrollSplit(employee);
+      const weeklyHours = Number(employee.weekly_holiday_actual_hours || 0)
+        + Number(employee.weekly_holiday_expected_hours || 0);
       appendCell(row, employee.employee_id || '—', 'payroll-id-cell');
       appendCell(row, employee.display_name || '—', 'payroll-name-cell');
+      appendCell(row, dateLabel(employee.hired_on));
+      appendCell(row, dateLabel(employee.departed_on));
       appendCell(row, hours(employee.actual_work_hours));
-      appendCell(row, hours(employee.paid_holiday_hours));
-      appendCell(
-        row,
-        hours(Number(employee.weekly_holiday_actual_hours || 0) + Number(employee.weekly_holiday_expected_hours || 0))
-      );
-      appendCell(row, hours(employee.payable_hours_preview));
+      appendCell(row, days(employee.absence_day_count || 0));
+      appendCell(row, days(employee.paid_leave_day_count || 0));
+      appendCell(row, days(employee.paid_holiday_day_count || 0));
+      appendCell(row, hours(weeklyHours));
+      appendCell(row, money(split.basicPay), 'payroll-money-cell');
+      appendCell(row, money(split.weeklyHolidayPay), 'payroll-money-cell');
       appendCell(row, money(employee.gross_pay_preview), 'payroll-money-cell');
+      appendCell(row, money(employee.national_pension_preview), 'payroll-money-cell');
+      appendCell(row, money(employee.health_insurance_preview), 'payroll-money-cell');
+      appendCell(row, money(employee.long_term_care_preview), 'payroll-money-cell');
+      appendCell(row, money(employee.employment_insurance_preview), 'payroll-money-cell');
       appendCell(row, money(employee.statutory_deduction_preview), 'payroll-money-cell');
       appendCell(row, money(employee.net_pay_preview), 'payroll-money-cell');
       appendCell(row, status.label, status.review ? 'payroll-review-cell' : 'payroll-ok-cell');
@@ -237,6 +283,7 @@
     element('payroll-live-empty').hidden = true;
     element('payroll-live-table-wrap').hidden = false;
     renderEmployees(employees);
+    setExportEnabled(employees.length > 0 && Boolean(window.TaejangPayrollLedgerXlsx));
   }
 
   function friendlyError(error) {
@@ -260,13 +307,47 @@
         p_payroll_month: `${month}-01`,
       });
       render(context, month);
-      setMessage('Staging Shadow Payroll 데이터를 읽기 전용으로 표시하고 있습니다.');
+      setMessage('Staging 급여대장 가안을 표시하고 있습니다. 실제 급여 확정이나 지급은 실행하지 않습니다.');
     } catch (error) {
       setMessage(friendlyError(error), { error: true });
+      setExportEnabled(false);
     } finally {
       state.loading = false;
       button.disabled = false;
     }
+  }
+
+  function exportLedger() {
+    const exporter = window.TaejangPayrollLedgerXlsx;
+    const employees = Array.isArray(state.context?.employees) ? state.context.employees : [];
+    if (!exporter || employees.length === 0) {
+      setMessage('내보낼 급여대장 계산결과가 없습니다.', { error: true });
+      return;
+    }
+    exporter.downloadPayrollLedgerXlsx(state.context, selectedMonth());
+    setMessage('민감정보를 제외한 급여대장 Excel 가안을 내려받았습니다.');
+  }
+
+  function handleAttendanceFile(event) {
+    const file = event.target.files?.[0] || null;
+    state.attendanceFile = null;
+    setText('payroll-attendance-file-name', '출근부 파일 미선택');
+    if (!file) return;
+
+    if (!/\.(xlsx|xls)$/i.test(file.name)) {
+      event.target.value = '';
+      setMessage('출근부는 Excel(.xlsx 또는 .xls) 파일을 선택해 주세요.', { error: true });
+      return;
+    }
+    if (file.size > MAX_ATTENDANCE_FILE_BYTES) {
+      event.target.value = '';
+      setMessage('출근부 Excel 파일이 너무 큽니다. 15MB 이하 원본 파일을 선택해 주세요.', { error: true });
+      return;
+    }
+
+    state.attendanceFile = file;
+    setText('payroll-attendance-file-name', `${file.name} · ${(file.size / 1024).toFixed(0)}KB`);
+    setMessage('출근부 Excel 원본이 선택되었습니다. 아직 DB에는 등록하지 않았습니다. 실제 보안업체 원본 형식을 확인한 뒤 자동 등록을 연결합니다.');
   }
 
   async function init() {
@@ -279,6 +360,7 @@
       setMessage('업무플랫폼 로그인이 필요합니다. 로그인 후 이 화면을 다시 열어 주세요.', { error: true });
       element('payroll-live-refresh').disabled = true;
       element('payroll-live-login').hidden = false;
+      setExportEnabled(false);
       return;
     }
 
@@ -292,6 +374,8 @@
   }
 
   element('payroll-live-refresh')?.addEventListener('click', loadMonth);
+  element('payroll-live-export')?.addEventListener('click', exportLedger);
+  element('payroll-attendance-file')?.addEventListener('change', handleAttendanceFile);
   element('payroll-live-month')?.addEventListener('change', () => {
     const month = selectedMonth();
     const url = new URL(window.location.href);
