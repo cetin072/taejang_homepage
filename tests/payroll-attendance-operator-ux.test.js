@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const ux = require('../app/assets/payroll-attendance-operator-ux.js');
 const editorSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'payroll-attendance-editor.js'), 'utf8');
+const uxSource = fs.readFileSync(path.join(__dirname, '..', 'app', 'assets', 'payroll-attendance-operator-ux.js'), 'utf8');
 
 test('clock-only entry infers normal work only when both clock values exist', () => {
   assert.equal(ux.inferAttendanceStatus('09:01', '12:03'), 'work');
@@ -25,6 +26,14 @@ test('automatic clock inference only changes empty/work/review statuses', () => 
   for (const value of ['paid_leave', 'unpaid_absence', 'paid_holiday', 'off']) {
     assert.equal(ux.shouldAutoUpdateStatus(value), false);
   }
+});
+
+test('legacy xls can be selected only to show the safe conversion guidance', () => {
+  assert.equal(ux.isLegacyXlsFileName('출근부.xls'), true);
+  assert.equal(ux.isLegacyXlsFileName('출근부.XLS'), true);
+  assert.equal(ux.isLegacyXlsFileName('출근부.xlsx'), false);
+  assert.match(uxSource, /accept', '\.xlsx,\.xls'/);
+  assert.match(uxSource, /Excel에서 \.xlsx로 저장한 뒤 다시 선택해 주세요/);
 });
 
 test('attendance save success is never reported as save failure when recalculation fails later', () => {
