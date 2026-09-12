@@ -34,6 +34,14 @@ test('legacy xls can be selected only to show the safe conversion guidance', () 
   assert.equal(ux.isLegacyXlsFileName('출근부.xlsx'), false);
   assert.match(uxSource, /accept', '\.xlsx,\.xls'/);
   assert.match(uxSource, /Excel에서 \.xlsx로 저장한 뒤 다시 선택해 주세요/);
+  assert.match(uxSource, /stopImmediatePropagation/);
+});
+
+test('Excel prefill warns before it can overwrite unsaved screen edits', () => {
+  assert.equal(ux.dirtyCountFromSummaryText('2026-09-13 · 입력 23명 · 변경 0건'), 0);
+  assert.equal(ux.dirtyCountFromSummaryText('2026-09-13 · 입력 23명 · 변경 4건'), 4);
+  assert.match(uxSource, /Excel 자동채움은 같은 직원·날짜 값을 바꿀 수 있습니다/);
+  assert.match(uxSource, /현재 변경사항을 먼저 저장해 주세요/);
 });
 
 test('attendance save success is never reported as save failure when recalculation fails later', () => {
