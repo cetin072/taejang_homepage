@@ -25,10 +25,10 @@ test('live payroll MVP is an explicit staging read-only surface', () => {
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
-test('live client reuses staff auth session and protected operator RPC', () => {
+test('live client reuses staff auth session and protected practical-ledger RPC', () => {
   assert.match(client, /taejang-staff-session-v1/);
   assert.match(client, /\.netlify\/functions\/staff-config/);
-  assert.match(client, /get_payroll_operator_month_context/);
+  assert.match(client, /get_payroll_operator_ledger_context/);
   assert.match(client, /Authorization:\s*`Bearer \$\{state\.session\.access_token\}`/);
   assert.match(client, /refresh_token/);
 });
@@ -57,6 +57,8 @@ test('live MVP renders the practical payroll ledger without extra payroll-settin
   assert.match(client, /statutory_deduction_preview/);
   assert.match(client, /net_pay_preview/);
   assert.match(client, /statutory_status/);
+  assert.match(client, /deduction_source/);
+  assert.match(client, /historical_as_paid/);
   assert.match(client, /weekly_holiday_actual_hours/);
 
   assert.equal((html.match(/<input\b/g) || []).length, 2, 'operator should only choose payroll month and attendance Excel file');
