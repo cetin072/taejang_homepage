@@ -8,6 +8,8 @@ on:
       - 'app/assets/payroll-*.js'
       - 'app/assets/payroll-operator.css'
       - 'prototypes/payroll-backend/**'
+      - 'supabase/migrations/*payroll*.sql'
+      - 'supabase/functions/payroll-calculate/**'
       - 'tests/payroll-*.test.js'
       - 'scripts/test-manifest.mjs'
       - 'scripts/run-test-group.mjs'
