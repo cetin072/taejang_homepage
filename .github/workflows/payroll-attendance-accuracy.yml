@@ -4,7 +4,18 @@ on:
   pull_request:
     paths:
       - 'docs/operations/PAYROLL_ATTENDANCE_IMPORT_APPS_SCRIPT.gs'
-      - 'tests/payroll-attendance-import.test.js'
+      - 'app/payroll/**'
+      - 'app/assets/payroll-*.js'
+      - 'app/assets/payroll-operator.css'
+      - 'prototypes/payroll-backend/**'
+      - 'supabase/migrations/*payroll*.sql'
+      - 'supabase/functions/payroll-calculate/**'
+      - 'tests/payroll-*.test.js'
+      - 'tests/payroll-*.mjs'
+      - 'scripts/test-manifest.mjs'
+      - 'scripts/run-test-group.mjs'
+      - 'scripts/build-netlify-publish.mjs'
+      - 'package.json'
       - '.github/workflows/payroll-attendance-accuracy.yml'
   workflow_dispatch:
 
@@ -12,7 +23,7 @@ permissions:
   contents: read
 
 jobs:
-  anonymous-import-regression:
+  anonymous-payroll-regression:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -24,5 +35,28 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run anonymous payroll attendance regression
-        run: node --test tests/payroll-attendance-import.test.js
+      - name: Run current platform, public and payroll regression
+        run: npm test
+
+      - name: Build Netlify publish bundle with payroll operator page
+        run: |
+          npm run build:netlify
+          test -f dist/app/payroll/live.html
+          test -f dist/app/assets/payroll-attendance-editor.js
+          test -f dist/app/assets/payroll-operator-live.js
+
+      - name: Run payroll PC operator happy-path smoke
+        run: node tests/payroll-browser-happy-path.mjs
+
+      - name: Run mobile Excel browser path (follow-up, non-blocking for PC pilot)
+        continue-on-error: true
+        run: node tests/payroll-browser-mobile-excel-path.mjs
+
+      - name: Verify actual Netlify Deploy Preview runtime
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          PAYROLL_PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--taejang-homepage.netlify.app
+        run: node tests/payroll-preview-runtime-smoke.mjs
+
+      - name: Run staging safety regression
+        run: npm run test:staging-safety
