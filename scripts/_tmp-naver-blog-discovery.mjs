@@ -34,45 +34,38 @@ function publishedDate(value) {
     }
   }
 
-  const match = raw.match(/(20\d{2})[.\/-](\d{1,2})[.\/-](\d{1,2})/);
+  const match = raw.match(/(20\d{2})\s*[.\/-]\s*(\d{1,2})\s*[.\/-]\s*(\d{1,2})/);
   if (!match) return '';
   return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
 }
 
-function unescapeLooseJson(value) {
-  return String(value || '')
-    .replace(/\\\"/g, '"')
-    .replace(/\\n/g, ' ')
-    .replace(/\\r/g, ' ')
-    .replace(/\\t/g, ' ')
-    .replace(/\\\\/g, '\\');
-}
-
-function parseLoosePostList(text) {
-  // Naver's legacy endpoint sometimes returns JSON-like text that is rejected by
-  // strict JSON.parse. Extract only the public fields required for archive sync.
-  const chunks = text.split(/"logNo"\s*:\s*"/).slice(1);
-  return chunks.map((chunk) => {
-    const logNo = chunk.match(/^(\d+)/)?.[1] || '';
-    const title = chunk.match(/"title"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] || '';
-    const addDate = chunk.match(/"addDate"\s*:\s*(?:"((?:\\.|[^"\\])*)"|(\d+))/)?.slice(1).find(Boolean) || '';
-    return { logNo, title: unescapeLooseJson(title), addDate: unescapeLooseJson(addDate) };
-  }).filter((item) => /^\d+$/.test(item.logNo));
-}
-
-function parsePostList(text) {
+function parseLegacyResponse(text) {
+  // Naver embeds `\'` inside pagingHtml even though that escape is not valid JSON.
+  // Removing only that non-standard escape keeps the public post data intact.
+  const sanitized = text.replace(/\\'/g, "'");
   try {
-    const payload = JSON.parse(text);
-    if (Array.isArray(payload?.postList)) return payload.postList;
+    const payload = JSON.parse(sanitized);
+    return {
+      totalCount: Number(payload?.totalCount || 0),
+      items: Array.isArray(payload?.postList) ? payload.postList : []
+    };
   } catch {
-    // Fall through to the narrowly scoped legacy-response parser below.
+    const chunks = text.split(/"logNo"\s*:\s*"/).slice(1);
+    const items = chunks.map((chunk) => {
+      const logNo = chunk.match(/^(\d+)/)?.[1] || '';
+      const title = chunk.match(/"title"\s*:\s*"((?:\\.|[^"\\])*)"/)?.[1] || '';
+      const addDate = chunk.match(/"addDate"\s*:\s*(?:"((?:\\.|[^"\\])*)"|(\d+))/)?.slice(1).find(Boolean) || '';
+      return { logNo, title, addDate };
+    }).filter((item) => /^\d+$/.test(item.logNo));
+    const totalCount = Number(text.match(/"totalCount"\s*:\s*"?(\d+)/)?.[1] || 0);
+    return { totalCount, items };
   }
-  return parseLoosePostList(text);
 }
 
 const seen = new Set();
 const posts = [];
 const diagnostics = [];
+let reportedTotalCount = 0;
 
 for (let page = 1; page <= MAX_PAGES; page += 1) {
   const url = new URL(API);
@@ -80,7 +73,7 @@ for (let page = 1; page <= MAX_PAGES; page += 1) {
   url.searchParams.set('viewdate', '');
   url.searchParams.set('currentPage', String(page));
   url.searchParams.set('categoryNo', '0');
-  url.searchParams.set('parentCategoryNo', '');
+  url.searchParams.set('parentCategoryNo', '0');
   url.searchParams.set('countPerPage', String(PAGE_SIZE));
 
   const response = await fetch(url, {
@@ -95,8 +88,10 @@ for (let page = 1; page <= MAX_PAGES; page += 1) {
   const text = await response.text();
   if (!response.ok) throw new Error(`Naver upstream ${response.status}: ${text.slice(0, 300)}`);
 
-  const items = parsePostList(text);
-  diagnostics.push({ page, itemCount: items.length });
+  const parsed = parseLegacyResponse(text);
+  const items = parsed.items;
+  reportedTotalCount = Math.max(reportedTotalCount, parsed.totalCount || 0);
+  diagnostics.push({ page, itemCount: items.length, totalCount: parsed.totalCount || null });
   if (!items.length) break;
 
   let added = 0;
@@ -114,8 +109,15 @@ for (let page = 1; page <= MAX_PAGES; page += 1) {
     });
   }
 
-  if (added === 0 || items.length < PAGE_SIZE) break;
+  if ((reportedTotalCount && posts.length >= reportedTotalCount) || added === 0 || items.length < PAGE_SIZE) break;
   await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
-process.stdout.write(JSON.stringify({ blogId: BLOG_ID, count: posts.length, diagnostics, posts }, null, 2));
+process.stdout.write(JSON.stringify({
+  blogId: BLOG_ID,
+  reportedTotalCount,
+  count: posts.length,
+  complete: reportedTotalCount > 0 ? posts.length >= reportedTotalCount : false,
+  diagnostics,
+  posts
+}, null, 2));
