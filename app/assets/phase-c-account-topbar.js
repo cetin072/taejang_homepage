@@ -1,6 +1,54 @@
 (() => {
   'use strict';
 
+  const QA_MARKER_KEY = 'taejang-qa-account-preview-v1';
+
+  function isQaPreviewHost() {
+    const host = window.location.hostname;
+    return host === 'localhost'
+      || host === '127.0.0.1'
+      || (host.startsWith('deploy-preview-') && host.endsWith('--taejang-homepage.netlify.app'));
+  }
+
+  function readQaMarker() {
+    if (!isQaPreviewHost() || window.parent === window) return null;
+    try {
+      const marker = JSON.parse(sessionStorage.getItem(QA_MARKER_KEY) || 'null');
+      return marker?.target_name ? marker : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function returnToOperator() {
+    try {
+      const parentClose = window.parent?.document?.getElementById('qa-close');
+      if (parentClose) {
+        parentClose.click();
+        return;
+      }
+    } catch { /* fall through to top-level close */ }
+
+    try {
+      window.top?.close();
+    } catch { /* browser may block scripted close */ }
+  }
+
+  function installQaReturn(actions) {
+    actions.querySelector('[data-qa-account-return]')?.remove();
+    const marker = readQaMarker();
+    if (!marker) return;
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'button button-quiet';
+    button.textContent = '내 계정으로 돌아가기';
+    button.dataset.qaAccountReturn = '1';
+    button.setAttribute('aria-label', '직원 화면 체험을 종료하고 내 계정으로 돌아가기');
+    button.addEventListener('click', returnToOperator);
+    actions.prepend(button);
+  }
+
   function installStyles() {
     if (document.querySelector('style[data-phase-c-account-topbar]')) return;
     const style = document.createElement('style');
@@ -65,6 +113,19 @@
         }
       }
 
+      #desktop-app-shell:not([hidden]) [data-qa-account-return] {
+        background: #174f38;
+        border-color: #174f38;
+        color: #fff;
+        font-weight: 850;
+      }
+      #desktop-app-shell:not([hidden]) [data-qa-account-return]:hover,
+      #desktop-app-shell:not([hidden]) [data-qa-account-return]:focus-visible {
+        background: #0f3d2b;
+        border-color: #0f3d2b;
+        color: #fff;
+      }
+
       @media (max-width: 900px) {
         #desktop-app-shell:not([hidden]) .app-user-actions {
           margin-left: auto;
@@ -77,6 +138,13 @@
         #desktop-app-shell:not([hidden]) #desktop-logout-button {
           min-height: 40px;
           padding: 8px 11px;
+        }
+        #desktop-app-shell:not([hidden]) [data-qa-account-return] {
+          display: inline-flex !important;
+          align-items: center;
+          justify-content: center;
+          min-height: 44px;
+          padding: 9px 12px;
         }
       }
     `;
@@ -92,6 +160,7 @@
     actions.setAttribute('aria-label', '내 계정과 로그아웃');
     logout.setAttribute('aria-label', '현재 계정에서 로그아웃');
     if (user) user.setAttribute('title', user.textContent.trim());
+    installQaReturn(actions);
   }
 
   document.addEventListener('taejang-app-ready', () => requestAnimationFrame(enhance));

@@ -11,11 +11,22 @@
   const array = value => Array.isArray(value) ? value : [];
   const roleCodes = value => array(value).map(role => typeof role === 'string' ? role : role?.code).filter(Boolean);
 
+  function effectiveRoute(app) {
+    const effectiveRoles = app.getEffectiveRoles?.() || [];
+    const resolved = window.TaejangAuthRouting?.resolveRoleRoute?.(effectiveRoles);
+    return resolved?.code || app.getActualRoute?.() || null;
+  }
+
   function installApi(context, version = 1) {
     const app = window.TaejangApp;
     if (!app) return;
     accessContext = context || app.getContext?.() || null;
     capabilitySet = new Set(array(accessContext?.capabilities));
+
+    if (!app.getActualRoute) {
+      const originalRoute = app.getRoute?.bind(app);
+      app.getActualRoute = () => originalRoute?.() || null;
+    }
 
     app.getAccessContext = () => accessContext;
     app.getActualRoles = () => roleCodes(accessContext?.actual_roles || accessContext?.roles);
@@ -23,6 +34,19 @@
     app.getCapabilities = () => [...capabilitySet];
     app.hasCapabilityContract = () => Number(accessContext?.access_contract_version || version) >= 2;
     app.can = capability => app.hasCapabilityContract() && capabilitySet.has(capability);
+    app.getEffectiveRoute = () => effectiveRoute(app);
+    app.getRoute = () => effectiveRoute(app);
+    app.getPersona = () => ({
+      id: accessContext?.id || app.getContext?.()?.id || null,
+      display_name: accessContext?.display_name || app.getContext?.()?.display_name || null,
+      kind: accessContext?.role_simulation?.active ? 'role_preset' : 'account',
+      actual_roles: app.getActualRoles(),
+      effective_roles: app.getEffectiveRoles(),
+      capabilities: app.getCapabilities(),
+      actual_route: app.getActualRoute(),
+      effective_route: app.getEffectiveRoute(),
+      role_simulation: accessContext?.role_simulation || null,
+    });
   }
 
   function isMissingV2(error) {
@@ -76,6 +100,8 @@
             capabilities: [...capabilitySet],
             actualRoles: app.getActualRoles(),
             effectiveRoles: app.getEffectiveRoles(),
+            actualRoute: app.getActualRoute(),
+            effectiveRoute: app.getEffectiveRoute(),
           },
         }));
         return context;

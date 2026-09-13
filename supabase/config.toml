@@ -73,5 +73,12 @@ otp_expiry = 3600
 enable_signup = false
 enable_confirmations = false
 
+# Staging-only QA helper. The gateway JWT check is disabled because this
+# function verifies the bearer token with Supabase Auth (`auth.getUser`) inside
+# the function and then requires the real active profile to hold both
+# operations_manager and super_admin. Production deployment remains forbidden.
+[functions.qa-account-preview]
+verify_jwt = false
+
 [analytics]
 enabled = false

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>태장 직원 화면 체험</title>
+  <style>
+    :root { color-scheme: light; font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #f4f7f5; color: #17231d; }
+    body { height: 100vh; display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+    .qa-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: #fff3cd;
+      border-bottom: 1px solid #e4c970;
+      box-shadow: 0 2px 10px rgba(0,0,0,.08);
+      z-index: 2;
+    }
+    .qa-bar__copy { min-width: 0; flex: 1; }
+    .qa-bar strong { display: block; color: #7a2f00; font-size: .95rem; }
+    .qa-bar span { display: block; margin-top: 2px; color: #4b3b00; font-size: .78rem; line-height: 1.4; }
+    .qa-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+    button {
+      min-height: 36px;
+      border-radius: 9px;
+      border: 1px solid #b7a14f;
+      background: #fff;
+      color: #2f2a14;
+      font-weight: 800;
+      padding: 7px 11px;
+      cursor: pointer;
+    }
+    button:hover { background: #fff9e7; }
+    .qa-stage { min-height: 0; position: relative; }
+    .qa-stage iframe { width: 100%; height: 100%; border: 0; background: #fff; display: none; }
+    .qa-state {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .qa-state[hidden] { display: none !important; }
+    .qa-card {
+      max-width: 560px;
+      background: #fff;
+      border: 1px solid #dbe5df;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 12px 32px rgba(0,0,0,.08);
+    }
+    .qa-card h1 { margin: 0 0 10px; font-size: 1.25rem; }
+    .qa-card p { margin: 0; line-height: 1.6; color: #56655e; }
+    .qa-card.is-error h1 { color: #a22020; }
+    @media (max-width: 720px) {
+      .qa-bar {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px 12px;
+      }
+      .qa-bar__copy { flex: 1 0 100%; }
+      .qa-bar__copy span { display: none; }
+      .qa-bar strong { font-size: .9rem; }
+      .qa-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+        gap: 8px;
+      }
+      .qa-actions button {
+        width: 100%;
+        min-height: 52px;
+        padding: 10px 12px;
+        border-radius: 12px;
+        font-size: .98rem;
+      }
+      #qa-close {
+        background: #174f38;
+        border-color: #174f38;
+        color: #fff;
+      }
+      #qa-reload[hidden] + #qa-close { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="qa-bar">
+    <div class="qa-bar__copy">
+      <strong id="qa-title">직원 화면 체험 준비 중</strong>
+      <span>선택한 직원이 실제로 보는 화면과 권한 범위로 동작합니다. 원래 내 계정 화면은 그대로 유지됩니다. 개발·체험 환경에서만 사용합니다.</span>
+    </div>
+    <div class="qa-actions">
+      <button type="button" id="qa-reload" hidden>화면 새로고침</button>
+      <button type="button" id="qa-close">내 계정으로 돌아가기</button>
+    </div>
+  </header>
+  <main class="qa-stage">
+    <div class="qa-state" id="qa-state">
+      <div class="qa-card" id="qa-card">
+        <h1 id="qa-state-title">직원 화면을 확인하고 있습니다.</h1>
+        <p id="qa-state-copy">잠시만 기다려 주세요.</p>
+      </div>
+    </div>
+    <iframe id="qa-frame" title="선택한 직원의 태장 업무플랫폼 화면" referrerpolicy="no-referrer" sandbox="allow-downloads allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+
+      const SESSION_KEY = 'taejang-staff-session-v1';
+      const QA_MARKER_KEY = 'taejang-qa-account-preview-v1';
+      const QA_HANDOFF_KEY = 'taejang-qa-account-handoff-v1';
+      const STAGING_PROJECT_REF = 'jgsxpdflgkqroecfjzxq';
+      const frame = document.getElementById('qa-frame');
+      const state = document.getElementById('qa-state');
+      const card = document.getElementById('qa-card');
+      const title = document.getElementById('qa-title');
+      const stateTitle = document.getElementById('qa-state-title');
+      const stateCopy = document.getElementById('qa-state-copy');
+      const reload = document.getElementById('qa-reload');
+
+      function fail(message) {
+        card.classList.add('is-error');
+        stateTitle.textContent = '직원 화면 체험을 시작하지 못했습니다.';
+        stateCopy.textContent = message;
+        state.hidden = false;
+        state.style.display = 'grid';
+        frame.style.display = 'none';
+      }
+
+      function decodeJwtSubject(token) {
+        try {
+          const payload = token.split('.')[1];
+          if (!payload) return null;
+          const normalized = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+          return JSON.parse(atob(normalized))?.sub || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function readOperatorSession() {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+          if (stored?.access_token) return stored;
+        } catch { /* try opener next */ }
+        try {
+          const openerSession = window.opener?.TaejangApp?.getSession?.();
+          if (openerSession?.access_token) return openerSession;
+        } catch { /* handled below */ }
+        throw new Error('QA_OPERATOR_SESSION_MISSING');
+      }
+
+      function readSelectedTarget() {
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(QA_HANDOFF_KEY) || 'null');
+          if (stored?.target_profile_id) {
+            sessionStorage.removeItem(QA_HANDOFF_KEY);
+            return {
+              targetProfileId: stored.target_profile_id,
+              targetName: stored.target_name || '선택 직원'
+            };
+          }
+        } catch {
+          sessionStorage.removeItem(QA_HANDOFF_KEY);
+        }
+
+        try {
+          if (!window.opener || window.opener.closed) throw new Error('QA_OPENER_UNAVAILABLE');
+          const select = window.opener.document.querySelector('[data-qa-account-select]');
+          const targetProfileId = select?.value || '';
+          const selected = select?.selectedOptions?.[0];
+          const targetName = selected?.dataset?.displayName || selected?.textContent?.split(' — ')[0]?.trim() || '선택 직원';
+          if (!targetProfileId) throw new Error('QA_TARGET_MISSING');
+          return { targetProfileId, targetName };
+        } catch (error) {
+          if (error?.message?.startsWith('QA_')) throw error;
+          throw new Error('QA_OPENER_UNAVAILABLE');
+        }
+      }
+
+      async function loadConfig() {
+        const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
+        if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
+        const config = await response.json();
+        if (!config.url || !config.publishableKey) throw new Error('CONFIG_INCOMPLETE');
+        const configUrl = new URL(config.url);
+        const localHost = ['localhost', '127.0.0.1'].includes(configUrl.hostname);
+        const previewHost = window.location.hostname.startsWith('deploy-preview-') && window.location.hostname.endsWith('--taejang-homepage.netlify.app');
+        if (!(localHost || (previewHost && configUrl.hostname === `${STAGING_PROJECT_REF}.supabase.co`))) throw new Error('QA_STAGING_ONLY');
+        return config;
+      }
+
+      async function createPreviewToken(config, operatorSession, targetProfileId) {
+        const subject = decodeJwtSubject(operatorSession.access_token);
+        if (!subject) throw new Error('QA_OPERATOR_IDENTITY_MISSING');
+        const response = await fetch(`${config.url}/functions/v1/qa-account-preview`, {
+          method: 'POST',
+          headers: {
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${operatorSession.access_token}`,
+            'X-QA-Context-Profile-ID': subject,
+            'X-QA-Access-Profile-ID': subject,
+            'X-QA-JWT-Subject': subject,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ action: 'create', target_profile_id: targetProfileId })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.token_hash) throw new Error(payload?.error || `QA_PREVIEW_${response.status}`);
+        return payload;
+      }
+
+      async function verifySession(config, tokenHash, verificationType) {
+        const response = await fetch(`${config.url}/auth/v1/verify`, {
+          method: 'POST',
+          headers: {
+            apikey: config.publishableKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ token_hash: tokenHash, type: verificationType || 'magiclink' })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.access_token || !payload?.refresh_token) {
+          throw new Error(payload?.msg || payload?.message || 'VERIFY_FAILED');
+        }
+        return payload;
+      }
+
+      function showTargetSession(session, targetName) {
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+        sessionStorage.setItem(QA_MARKER_KEY, JSON.stringify({ target_name: targetName, started_at: new Date().toISOString() }));
+        try { window.opener = null; } catch { /* browser may keep it read-only */ }
+        title.textContent = `${targetName} 화면 체험 중`;
+        document.title = `${targetName} 화면 체험 · 태장`;
+        state.hidden = true;
+        state.style.display = 'none';
+        frame.style.display = 'block';
+        frame.src = '/app/';
+        reload.hidden = false;
+      }
+
+      async function start() {
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        const waiting = hash.get('waiting') === '1';
+        const tokenHash = hash.get('token_hash');
+        const verificationType = hash.get('type') || 'magiclink';
+        const targetName = hash.get('target_name') || '선택 직원';
+        history.replaceState(null, '', window.location.pathname);
+
+        try {
+          const config = await loadConfig();
+          if (waiting && !tokenHash) {
+            stateTitle.textContent = '직원 화면을 준비하고 있습니다.';
+            stateCopy.textContent = '선택한 직원의 화면과 권한 범위를 확인하는 중입니다.';
+            const operatorSession = readOperatorSession();
+            const selected = readSelectedTarget();
+            const created = await createPreviewToken(config, operatorSession, selected.targetProfileId);
+            sessionStorage.removeItem(SESSION_KEY);
+            const session = await verifySession(config, created.token_hash, created.verification_type || 'magiclink');
+            showTargetSession(session, created.target?.display_name || selected.targetName);
+            return;
+          }
+          if (!tokenHash) {
+            fail('체험용 인증정보가 없습니다. 내 계정 화면의 “직원 화면 체험”에서 다시 열어 주세요.');
+            return;
+          }
+          const session = await verifySession(config, tokenHash, verificationType);
+          showTargetSession(session, targetName);
+        } catch (error) {
+          sessionStorage.removeItem(QA_HANDOFF_KEY);
+          console.error(error);
+          fail('직원 화면을 열 수 없습니다. 내 계정 화면에서 다시 시도해 주세요.');
+        }
+      }
+
+      function closePreview() {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(QA_MARKER_KEY);
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
+        window.close();
+      }
+
+      reload.addEventListener('click', () => {
+        if (frame.contentWindow) frame.contentWindow.location.reload();
+      });
+      document.getElementById('qa-close').addEventListener('click', closePreview);
+      window.addEventListener('pagehide', () => {
+        sessionStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(QA_MARKER_KEY);
+        sessionStorage.removeItem(QA_HANDOFF_KEY);
+      });
+
+      start();
+    })();
+  </script>
+</body>
+</html>

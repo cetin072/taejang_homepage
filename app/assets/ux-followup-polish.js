@@ -2,7 +2,12 @@
   'use strict';
 
   const byId = id => document.getElementById(id);
+  const app = () => window.TaejangApp;
+  const route = () => app()?.getRoute?.();
   let scheduled = false;
+  let importedImageGuardBound = false;
+  let importedImageRpcWrapped = false;
+  const brokenImportedImages = new Set();
 
   function labelForControl(id) {
     return byId(id)?.closest?.('label') || null;
@@ -59,6 +64,173 @@
     return true;
   }
 
+  function effectiveRoles() {
+    const roles = app()?.getEffectiveRoles?.();
+    if (Array.isArray(roles)) return new Set(roles);
+    return new Set((app()?.getContext?.()?.roles || []).map(item => item?.code).filter(Boolean));
+  }
+
+  function hideRoutineSupportRadarMenus() {
+    if (window.TaejangSupportRadarAccess?.canManagementView?.()) return;
+    const roles = effectiveRoles();
+    if (!roles.has('promotion_staff') && !roles.has('office_staff')) return;
+    document.querySelectorAll('[data-support-my-work-nav], [data-support-radar-nav-group]').forEach(node => {
+      node.hidden = true;
+      node.dataset.issue187RoutineHidden = '1';
+    });
+    document.querySelectorAll('[data-support-radar-shortcut]').forEach(node => node.remove());
+  }
+
+  function makePromotionNavButton(label, mode) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.dataset.issue187PromotionNav = mode;
+    button.addEventListener('click', () => window.TaejangPromotionWorkspaceV2Api?.openPromotion?.(mode));
+    return button;
+  }
+
+  function ensurePromotionStaffNavigation() {
+    if (route() !== 'promotion_staff') return;
+    const nav = byId('app-nav');
+    if (!nav || !window.TaejangPromotionWorkspaceV2Api?.openPromotion) return;
+
+    const children = [...nav.children];
+    const labelOf = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
+    const dashboard = children.find(node => labelOf(node) === '대시보드');
+    let write = nav.querySelector('[data-phase-c-v2-nav="write"], [data-issue187-promotion-nav="write"]');
+    let revision = nav.querySelector('[data-phase-c-v2-nav="revision"], [data-issue187-promotion-nav="revision"]');
+
+    if (!write) write = makePromotionNavButton('홍보 작성', 'write');
+    if (!revision) revision = makePromotionNavButton('수정·보완 요청', 'revision');
+    write.hidden = false;
+    revision.hidden = false;
+
+    if (dashboard?.parentNode === nav) {
+      nav.insertBefore(write, dashboard.nextSibling);
+      nav.insertBefore(revision, write.nextSibling);
+    } else {
+      nav.prepend(revision);
+      nav.prepend(write);
+    }
+
+    const notice = [...nav.children].find(node => labelOf(node) === '공지 확인');
+    if (notice) notice.hidden = false;
+  }
+
+  function dashboardCard(title, body, actionLabel, mode) {
+    const card = document.createElement('article');
+    card.className = 'dashboard-card';
+    card.dataset.issue187PromotionCard = mode;
+    const status = document.createElement('span');
+    status.className = 'status-label';
+    status.textContent = '바로가기';
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const copy = document.createElement('p');
+    copy.textContent = body;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'button button-quiet';
+    button.textContent = actionLabel;
+    button.addEventListener('click', () => window.TaejangPromotionWorkspaceV2Api?.openPromotion?.(mode));
+    card.append(status, heading, copy, button);
+    return card;
+  }
+
+  function ensurePromotionStaffDashboard() {
+    if (route() !== 'promotion_staff') return;
+    const main = byId('dashboard-main');
+    const grid = main?.querySelector('.dashboard-grid');
+    const heading = main?.querySelector('.dashboard-intro h2')?.textContent || '';
+    if (!grid || !heading.includes('대시보드')) return;
+
+    const findCard = title => [...grid.querySelectorAll('.dashboard-card')]
+      .find(node => node.querySelector('h3')?.textContent?.trim() === title);
+
+    let revision = findCard('수정·보완 요청');
+    if (!revision) {
+      revision = dashboardCard('수정·보완 요청', '보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다.', '보완 글 확인', 'revision');
+      grid.prepend(revision);
+    }
+    revision.hidden = false;
+
+    let write = findCard('홍보자료 작성');
+    if (!write) {
+      write = dashboardCard('홍보자료 작성', '새 홍보자료를 작성해 운영팀장에게 승인 요청합니다.', '새 글 작성', 'write');
+      if (revision.nextSibling) grid.insertBefore(write, revision.nextSibling);
+      else grid.append(write);
+    }
+    write.hidden = false;
+
+    const importantNotice = findCard('중요공지');
+    if (importantNotice) importantNotice.hidden = false;
+  }
+
+  function polishPromotionComposer() {
+    const composer = byId('dashboard-main')?.querySelector('.phase-c-board-composer');
+    if (!composer) return;
+
+    const heading = composer.querySelector('h2')?.textContent?.trim() || '';
+    const topRow = composer.querySelector('.phase-c-board-row');
+    const type = topRow?.querySelector('select');
+    if (type && heading === '새 홍보자료 작성') {
+      type.querySelector('option[value="external_content"]')?.remove();
+      if (route() === 'promotion_staff') type.querySelector('option[value="press_release"]')?.remove();
+      if (type.value === 'external_content' || (route() === 'promotion_staff' && type.value === 'press_release')) type.value = 'homepage_article';
+    }
+
+    if (topRow && !composer.querySelector('[data-issue187-type-help]')) {
+      const help = document.createElement('p');
+      help.className = 'help';
+      help.dataset.issue187TypeHelp = '1';
+      help.textContent = route() === 'promotion_staff'
+        ? '홍보직원은 태장 소식만 작성합니다. 블로그·유튜브·외부 기사 링크는 아래에서 자동으로 구분합니다. 보도자료 초안은 운영팀장 이상이 작성합니다.'
+        : '태장 소식은 홈페이지에 올리는 일반 소식이고, 보도자료는 언론에 배포할 공식 문안입니다. 외부 기사 링크 여부는 아래 연결 자료에서 따로 구분합니다.';
+      topRow.insertAdjacentElement('afterend', help);
+    }
+  }
+
+  function bindImportedImageErrorGuard() {
+    if (importedImageGuardBound) return;
+    importedImageGuardBound = true;
+    document.addEventListener('error', event => {
+      const image = event.target;
+      if (!image?.matches?.('.phase-c-link-preview img')) return;
+      const failedUrl = String(image.currentSrc || image.src || '').trim();
+      if (failedUrl) brokenImportedImages.add(failedUrl);
+      const preview = image.closest('.phase-c-link-preview');
+      image.remove();
+      if (!preview || preview.querySelector('[data-issue187-image-fallback]')) return;
+      const note = document.createElement('p');
+      note.className = 'help';
+      note.dataset.issue187ImageFallback = '1';
+      note.textContent = '원문 사이트가 썸네일 직접 표시를 막아 사진은 가져오지 못했습니다. 필요한 사진은 아래 사진 추가로 직접 올려주세요.';
+      preview.prepend(note);
+    }, true);
+  }
+
+  function installImportedImageSaveGuard() {
+    if (importedImageRpcWrapped || !app()?.rpc) return;
+    const target = app();
+    const original = target.rpc.bind(target);
+    target.rpc = async (name, args = {}) => {
+      const tracked = name === 'save_promotion_draft'
+        || name === 'save_operations_promotion_draft'
+        || name === 'lead_replace_promotion_revision';
+      if (!tracked || !args?.p_hero_image_url) return original(name, args);
+      const hero = String(args.p_hero_image_url).trim();
+      if (!brokenImportedImages.has(hero)) return original(name, args);
+      return original(name, { ...args, p_hero_image_url: null });
+    };
+    importedImageRpcWrapped = true;
+  }
+
+  function revealPromotionPreview() {
+    const panel = byId('dashboard-main')?.querySelector('.promotion-preview-panel');
+    panel?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }
+
   function injectStyles() {
     if (document.querySelector('style[data-followup-ux]')) return;
     const style = document.createElement('style');
@@ -69,6 +241,7 @@
       .notice-advanced-settings > summary { min-height:48px; display:flex; align-items:center; padding:10px 14px; color:var(--app-brand); font-weight:850; cursor:pointer; }
       .notice-advanced-settings > .help { margin:0; padding:0 14px 8px; }
       .notice-advanced-grid { padding:0 14px 14px; }
+      [data-issue187-routine-hidden] { display:none !important; }
       @media(max-width:760px){.notice-advanced-grid{grid-template-columns:1fr}}
     `;
     document.head.append(style);
@@ -78,6 +251,12 @@
     scheduled = false;
     injectStyles();
     simplifyNoticeForm();
+    bindImportedImageErrorGuard();
+    installImportedImageSaveGuard();
+    hideRoutineSupportRadarMenus();
+    ensurePromotionStaffNavigation();
+    ensurePromotionStaffDashboard();
+    polishPromotionComposer();
   }
 
   function scheduleApply() {
@@ -86,10 +265,22 @@
     setTimeout(apply, 0);
   }
 
+  function scheduleAfterWorkNavigation() {
+    setTimeout(scheduleApply, 220);
+  }
+
   document.addEventListener('taejang-app-ready', scheduleApply);
+  document.addEventListener('taejang-dashboard-refresh', scheduleApply);
   document.addEventListener('taejang-open-app-panel', event => {
     if (event.detail?.id === 'notice-admin-panel') scheduleApply();
   });
+  document.addEventListener('taejang-open-promotion-workspace', scheduleAfterWorkNavigation);
+  document.addEventListener('click', event => {
+    const clickedButton = event.target?.closest?.('button');
+    if (clickedButton?.textContent?.trim() === '미리보기') setTimeout(revealPromotionPreview, 0);
+    const target = event.target?.closest?.('[data-phase-c-v2-nav], [data-issue187-promotion-nav], .dashboard-card button');
+    if (target) scheduleAfterWorkNavigation();
+  }, true);
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleApply, { once: true });
   else scheduleApply();

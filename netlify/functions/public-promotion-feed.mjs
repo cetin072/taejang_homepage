@@ -22,9 +22,16 @@ function safeScriptJson(value) {
 }
 
 function firstImage(row) {
-  if (typeof row?.hero_image_url === 'string' && row.hero_image_url) return row.hero_image_url;
+  // Public cards prefer images explicitly uploaded/selected into public_media.
+  // For a post with a linked source, a standalone remote og:image is reference
+  // material only because it may block hotlinking later. Legacy no-link rows may
+  // still use their stored hero image for backwards compatibility.
   const media = Array.isArray(row?.public_media) ? row.public_media : [];
-  return media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
+  const selected = media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
+  if (selected) return selected;
+  const sourceType = String(row?.link_source_type || 'none');
+  if (sourceType !== 'none') return '';
+  return typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
 }
 
 function firstImageAlt(row) {
@@ -33,13 +40,22 @@ function firstImageAlt(row) {
   return match?.alt || `${row?.title || '태장 소식'} 대표사진`;
 }
 
+function linkPresentation(row) {
+  const type = row?.link_source_type || 'external';
+  if (type === 'taejang_homepage') return { source: 'homepage', label: '태장 홈페이지에서 보기' };
+  if (type === 'taejang_blog') return { source: 'blog', label: '태장 공식 블로그에서 보기' };
+  if (type === 'taejang_youtube') return { source: 'youtube', label: '태장 공식 유튜브에서 보기' };
+  return { source: 'press', label: '원문 보기' };
+}
+
 function hubItem(row) {
   const external = row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || '');
+  const link = linkPresentation(row);
   return {
     id: `promotion-${row.content_id}`,
     type: external ? 'external' : 'internal',
-    source: external ? 'press' : 'homepage',
-    category: row.content_type === 'press_release' ? '보도자료' : row.content_type === 'external_content' ? '언론·외부콘텐츠' : '회사소식',
+    source: external ? link.source : 'homepage',
+    category: row.content_type === 'press_release' ? '보도자료' : row.content_type === 'external_content' ? '연결 콘텐츠' : '회사소식',
     title: row.title,
     summary: row.summary || '',
     thumbnail: firstImage(row),
@@ -48,7 +64,7 @@ function hubItem(row) {
     featured: false,
     status: 'published',
     ...(external
-      ? { externalUrl: row.external_url, externalLabel: '원문 보기' }
+      ? { externalUrl: row.external_url, externalLabel: link.label }
       : { detailUrl: `promotion.html?id=${encodeURIComponent(row.content_id)}` })
   };
 }

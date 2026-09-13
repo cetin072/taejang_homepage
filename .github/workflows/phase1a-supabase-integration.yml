@@ -98,6 +98,8 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/today-board-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/staff-schedules-notices-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/frequent-staff-guidance-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/support-radar-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/qa-account-preview-integration.mjs
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'
