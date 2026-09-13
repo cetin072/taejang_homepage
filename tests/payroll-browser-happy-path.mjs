@@ -247,8 +247,10 @@ const automationScript = `<script>
         dispatchChange(hours);
         await waitFor(() => status.value === 'work', 'automatic work status');
 
-        const summary = document.getElementById('payroll-attendance-editor-summary').textContent;
-        if (!/변경\s+[1-9]\d*건/.test(summary)) throw new Error('DIRTY_STATE_NOT_RECORDED');
+        await waitFor(() => {
+          const summary = document.getElementById('payroll-attendance-editor-summary')?.textContent || '';
+          return /변경\s+[1-9]\d*건/.test(summary);
+        }, 'dirty state recorded');
 
         document.getElementById('payroll-attendance-save').click();
         await waitFor(() => {
