@@ -31,6 +31,27 @@ function canonicalize(value) {
   return value;
 }
 
+function canonicalStringSet(value) {
+  if (!Array.isArray(value)) return value;
+  return [...new Set(value.map(clean).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+}
+
+function canonicalDocuments(value) {
+  if (!Array.isArray(value)) return value;
+  return value
+    .map(document => canonicalize(document))
+    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+}
+
+function canonicalNoticeForHash(notice) {
+  if (!notice || typeof notice !== 'object' || Array.isArray(notice)) return notice ?? null;
+  return {
+    ...notice,
+    target_regions: canonicalStringSet(notice.target_regions),
+    categories: canonicalStringSet(notice.categories)
+  };
+}
+
 function materialHashInput(item) {
   return {
     occurrence: {
@@ -38,12 +59,12 @@ function materialHashInput(item) {
       source_url: item?.occurrence?.source_url ?? null,
       raw_title: item?.occurrence?.raw_title ?? null
     },
-    notice: item?.notice ?? null,
+    notice: canonicalNoticeForHash(item?.notice),
     source_summary: item?.source_summary ?? null,
     application_url: item?.application_url ?? null,
     application_period_raw: item?.application_period_raw ?? null,
-    hashtags: item?.hashtags ?? [],
-    documents: item?.documents ?? []
+    hashtags: canonicalStringSet(item?.hashtags ?? []),
+    documents: canonicalDocuments(item?.documents ?? [])
   };
 }
 
@@ -104,6 +125,7 @@ export function validateSupportRadarIngestionBatch(batch) {
   const ids = new Set();
   batch.items.forEach(item => {
     assertObject(item, 'INGESTION_ITEM_INVALID');
+    if (clean(item.source_code) !== clean(batch.source_code)) throw new Error('INGESTION_ITEM_SOURCE_MISMATCH');
     validateOccurrence(item.occurrence);
     validateNotice(item.notice);
     validateDocuments(item.documents);
@@ -150,7 +172,8 @@ export const SUPPORT_RADAR_INGESTION_CONTRACT = Object.freeze({
   principles: Object.freeze([
     'source adapter normalizes facts only',
     'invalid source items are rejected, not invented',
-    'content hash covers normalized material facts, not volatile raw payload metadata',
+    'batch Source and item Source must match before mapping or persistence',
+    'content hash covers normalized material facts, not volatile raw payload metadata or set/list ordering noise',
     'raw payload remains available separately for provenance',
     'semantic AI interpretation is outside ingestion',
     'delivery and alerts are outside ingestion'
