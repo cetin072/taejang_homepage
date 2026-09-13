@@ -53,8 +53,8 @@
     if (currentRoute !== 'operations_manager' || grid.querySelector('[data-priority-dashboard-card="근태·급여관리"]')) return;
     grid.append(card(
       '근태·급여관리',
-      '출퇴근을 직접 입력하거나 보안업체 Excel로 채운 뒤 수정·저장하고 급여 가안과 급여대장 Excel을 확인합니다.',
-      'Staging MVP',
+      '오늘 근태를 직접 입력하거나 보안업체 Excel로 채운 뒤 수정·저장하고, 급여 가안과 급여대장 Excel까지 한 화면에서 확인합니다.',
+      '운영총괄 1차 사용',
       {
         label: '근태·급여관리 열기',
         run: () => { window.location.href = 'payroll/live.html'; }
