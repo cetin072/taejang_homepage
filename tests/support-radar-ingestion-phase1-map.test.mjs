@@ -116,3 +116,12 @@ test('rejects unsupported date precision instead of guessing a timestamp', () =>
     /PHASE1_MAP_DEADLINE_PRECISION_UNSUPPORTED/
   );
 });
+
+test('rejects calendar-invalid date-only facts even when YYYY-MM-DD shape is valid', () => {
+  const item = sampleItem();
+  item.notice.deadline_date = '2026-02-31';
+  assert.throws(
+    () => buildSupportRadarPhase1WriteCandidate(item),
+    /PHASE1_MAP_DEADLINE_DATE_INVALID/
+  );
+});
