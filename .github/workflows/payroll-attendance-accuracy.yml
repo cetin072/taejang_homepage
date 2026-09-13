@@ -45,6 +45,9 @@ jobs:
           test -f dist/app/assets/payroll-attendance-editor.js
           test -f dist/app/assets/payroll-operator-live.js
 
+      - name: Run operations manager PC platform entry smoke
+        run: node tests/payroll-platform-entry-browser.mjs
+
       - name: Run payroll PC operator happy-path smoke
         run: node tests/payroll-browser-happy-path.mjs
 
