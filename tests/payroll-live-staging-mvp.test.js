@@ -22,9 +22,9 @@ function executableClient(source) {
     .join('\n');
 }
 
-test('live payroll MVP is a staging attendance-edit and payroll-preview surface', () => {
-  assert.match(html, /Staging 근태·급여 MVP/i);
-  assert.match(html, /STAGING · 근태 편집/i);
+test('live payroll MVP is a safe pre-production attendance-edit and payroll-preview surface', () => {
+  assert.match(html, /<title>태장 근태·급여관리<\/title>/i);
+  assert.match(html, /사전운영 · 근태 편집/i);
   assert.match(html, /실제 급여 확정·지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다/i);
   assert.match(html, /payroll-operator-live\.js/i);
   assert.match(html, /payroll-attendance-editor\.js/i);
