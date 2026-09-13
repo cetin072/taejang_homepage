@@ -136,6 +136,7 @@
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/capability-access.js', 'capability-access'],
+    ['assets/official-channel-config.js', 'official-channel-config'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
