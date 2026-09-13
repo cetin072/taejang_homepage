@@ -21,7 +21,7 @@
       '홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정',
       '업무 배정', '일정 관리',
       '공지 관리', '상시 안내 관리',
-      '출근부',
+      '근태·급여관리', '출근부',
       '가입 승인',
       '홈페이지'
     ],
@@ -64,7 +64,7 @@
       { label: '홍보·홈페이지', items: ['홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정'] },
       { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
       { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] },
-      { label: '근태', items: ['출근부'] },
+      { label: '근태·급여', items: ['근태·급여관리', '출근부'] },
       { label: '승인·관리', items: ['가입 승인'] }
     ],
     department_lead: [
@@ -109,6 +109,21 @@
     }
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
+  }
+
+  function ensurePayrollEntry(nav, currentRole) {
+    if (!nav || currentRole !== 'operations_manager') return null;
+    const existing = [...nav.children].find(node => cleanLabel(node) === '근태·급여관리');
+    if (existing) return existing;
+
+    const link = document.createElement('a');
+    link.href = 'payroll/live.html';
+    link.textContent = '근태·급여관리';
+    link.className = 'app-nav-item';
+    link.dataset.payrollMvpNav = '1';
+    link.setAttribute('aria-label', '근태·급여관리 Staging MVP 열기');
+    nav.append(link);
+    return link;
   }
 
   function priority(node, role) {
@@ -174,6 +189,7 @@
 
     reordering = true;
     try {
+      ensurePayrollEntry(nav, currentRole);
       const children = [...nav.children];
       children.forEach(node => {
         normalizeLabel(node, currentRole);
@@ -229,5 +245,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, reorder };
 })();
