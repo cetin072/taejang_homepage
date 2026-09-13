@@ -5,11 +5,6 @@
   const employeeManagerRoles = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const promotionWorkspaceRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
   const officialChannelRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
-  const OFFICIAL_CHANNELS = [
-    { id: 'homepage', label: '홈페이지', href: '../index.html' },
-    { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
-    { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
-  ];
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
   const array = value => Array.isArray(value) ? value : [];
@@ -20,7 +15,7 @@
     department_lead: ['대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
     field_lead: ['대시보드', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
     promotion_lead: ['대시보드', '출근부·홍보 검토·홍보 작성 등 오늘의 우선 업무부터 확인하세요.'],
-    promotion_staff: ['대시보드', '보완 요청과 콘텐츠 작성·승인 요청을 한 화면에서 처리하세요.']
+    promotion_staff: ['대시보드', '보완 요청받은 글과 태장 소식 작성·승인 요청을 한 화면에서 처리하세요.']
   };
   const topbarCopy = {
     super_admin: '시스템 관리',
@@ -116,6 +111,8 @@
     if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
+    if (item.dataKey === 'promotion-write') node.dataset.promotionWriteNav = '1';
+    if (item.dataKey === 'promotion-returned') node.dataset.promotionReturnedNav = '1';
   }
   function makeOfficialChannelGroup() {
     const group = document.createElement('section');
@@ -125,7 +122,8 @@
     group.setAttribute('aria-label', '공식 채널');
     const label = text('p', '공식 채널', 'app-nav-group-label');
     group.append(label);
-    OFFICIAL_CHANNELS.forEach(channel => {
+    const channels = window.TaejangOfficialChannels?.list || [];
+    channels.forEach(channel => {
       const link = document.createElement('a');
       link.href = channel.href;
       link.target = '_blank';
@@ -156,7 +154,12 @@
       });
     }
 
-    if (route === 'promotion_staff') items.push({ label: '홍보 작성', run: () => openPromotion('write') });
+    if (route === 'promotion_staff') {
+      items.push(
+        { label: '홍보 작성', run: () => openPromotion('write'), dataKey: 'promotion-write' },
+        { label: '보완 요청받은 글', run: () => openPromotion('revision'), dataKey: 'promotion-returned' }
+      );
+    }
     if (route === 'promotion_lead') {
       items.push(
         { label: '홍보 검토', run: () => openPromotion('review') },
@@ -239,17 +242,24 @@
       if (promotion.status === 'success') {
         const mine = array(promotion.value?.my_items);
         const revisionCount = mine.filter(item => item.lifecycle === 'needs_revision').length;
-        if (revisionCount) grid.append(card('수정·보완 요청', '운영팀장에게서 보완 요청이 왔습니다. 먼저 확인하고 수정하세요.', { value: `${revisionCount}건`, action: { label: '보완 내용 확인', run: () => openPromotion('write') } }));
+        grid.append(card(
+          '보완 요청받은 글',
+          revisionCount ? '운영팀장 검토에서 돌아온 글이 있습니다. 내용을 확인하고 수정한 뒤 다시 승인 요청하세요.' : '현재 보완 요청받은 글이 없습니다.',
+          {
+            value: revisionCount ? `${revisionCount}건` : undefined,
+            action: { label: '보완 글 확인', run: () => openPromotion('revision') }
+          }
+        ));
       } else {
-        grid.append(card('수정·보완 요청', failureCopy(promotion.status, '홍보 작성 정보'), { state: promotion.status, action: { label: '다시 불러오기', run: goDashboard } }));
+        grid.append(card('보완 요청받은 글', failureCopy(promotion.status, '보완 요청받은 글 정보'), { state: promotion.status, action: { label: '다시 불러오기', run: goDashboard } }));
       }
-      grid.append(card('홍보자료 작성', '홈페이지 글·외부 콘텐츠·보도자료를 작성하고 승인 요청합니다.', { action: { label: '홍보 작성 열기', run: () => openPromotion('write') } }));
+      grid.append(card('홍보자료 작성', '태장 소식을 작성해 운영팀장에게 승인 요청합니다.', { action: { label: '새 태장 소식 작성', run: () => openPromotion('write') } }));
     }
     if (route === 'operations_manager') grid.append(card('중요 홍보 승인', '중요 콘텐츠와 대표이사 상신이 필요한 안건을 우선 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
     if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 실제로 상신한 중요 콘텐츠를 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
     if (route === 'super_admin') {
       if (pending.status === 'success') {
-        grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));
+        grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } }));
       } else {
         grid.append(card('계정 승인 확인', failureCopy(pending.status, '승인 대기 정보'), { state: pending.status, action: { label: '다시 불러오기', run: goDashboard } }));
       }
