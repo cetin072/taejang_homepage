@@ -13,6 +13,7 @@ on:
       - 'tests/payroll-*.test.js'
       - 'scripts/test-manifest.mjs'
       - 'scripts/run-test-group.mjs'
+      - 'scripts/build-netlify-publish.mjs'
       - 'package.json'
       - '.github/workflows/payroll-attendance-accuracy.yml'
   workflow_dispatch:
@@ -35,6 +36,13 @@ jobs:
 
       - name: Run current platform, public and payroll regression
         run: npm test
+
+      - name: Build Netlify publish bundle with payroll operator page
+        run: |
+          npm run build:netlify
+          test -f dist/app/payroll/live.html
+          test -f dist/app/assets/payroll-attendance-editor.js
+          test -f dist/app/assets/payroll-operator-live.js
 
       - name: Run staging safety regression
         run: npm run test:staging-safety
