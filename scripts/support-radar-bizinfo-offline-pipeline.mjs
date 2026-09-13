@@ -199,6 +199,7 @@ export function buildBizinfoStagingPilotOfflinePlan({
   const writePlans = buildWritePlans(batch, deltaPlan, fetchedAt);
   const rejectPlans = batch.rejected.map(rejectLedgerInput);
   const successAllowedByCursor = pageCursor.state !== 'inconsistent';
+  const successAllowedByPilotPolicy = successAllowedByCursor && rejectPlans.length === 0;
   const paginationFollowupRequired = pageCursor.state === 'more' || pageCursor.state === 'unknown';
 
   return {
@@ -226,7 +227,8 @@ export function buildBizinfoStagingPilotOfflinePlan({
       finish_run_preview: {
         finished_at: finishedAt,
         cursor_after: pageCursor,
-        success_allowed_by_cursor: successAllowedByCursor
+        success_allowed_by_cursor: successAllowedByCursor,
+        success_allowed_by_pilot_policy: successAllowedByPilotPolicy
       }
     },
     operational_summary: {
@@ -263,6 +265,7 @@ export const SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT = Object.freez
     'search count cannot exceed the one-page pilot item budget',
     'previous comparison items must belong to the BizInfo Source',
     'pagination uses raw source page item count rather than accepted normalized item count',
+    'any rejected source item blocks successful cursor finalization during the first live pilot',
     'rejected items remain explicit ledger reject plans and do not silently disappear',
     'Phase 1 write candidates are prepared without database mutation',
     'Rule Engine execution, AI, live network access, secret handling and Production are outside this contract'
