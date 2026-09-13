@@ -45,7 +45,7 @@ test('operations manager gets a direct payroll MVP work entry from menu and dash
   assert.doesNotMatch(navPriority, /target = '_blank'[\s\S]{0,160}payroll\/live\.html/);
 
   assert.match(dashboardPriority, /operations_manager:\s*\['근태·급여관리'/);
-  assert.match(dashboardPriority, /Staging MVP/);
+  assert.match(dashboardPriority, /운영총괄 1차 사용/);
   assert.match(dashboardPriority, /근태·급여관리 열기/);
   assert.match(dashboardPriority, /window\.location\.href = 'payroll\/live\.html'/);
 });
