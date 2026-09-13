@@ -69,6 +69,16 @@
 - 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
 - 사용자가 ChatGPT 기획방과 Codex 사이에서 긴 지시문·결과를 반복 운반하지 않도록 GitHub Issue/PR과 운영문서를 공유 상태의 기준으로 사용합니다.
 
+### 사용자 Preview QA Gate
+
+- 중앙 source of truth는 `cetin072/ai-development-system`의 [`DEVELOPMENT_CONSTITUTION.md`](https://github.com/cetin072/ai-development-system/blob/main/DEVELOPMENT_CONSTITUTION.md), [`AI_DEVELOPMENT_STANDARD.md`](https://github.com/cetin072/ai-development-system/blob/main/AI_DEVELOPMENT_STANDARD.md), 특히 [`docs/PREVIEW_QA_GATE.md`](https://github.com/cetin072/ai-development-system/blob/main/docs/PREVIEW_QA_GATE.md)입니다.
+- 사용자는 최종 수용 검수자이지 기본 디버거가 아닙니다. Preview·모바일 실기·캡처·버튼 확인을 요청하기 전에 기계적으로 검증 가능한 오류를 개발 측에서 먼저 제거합니다.
+- `CI green`, `npm test 통과`, `Netlify Ready`, 코드상 문제없어 보임 중 하나만으로 사용자 검수를 요청하지 않습니다.
+- 사용자 검수 요청 전에는 가능한 범위에서 최신 기준 브랜치 대비 behind/충돌과 전체 diff, 관련 자동 테스트·정적 검사, 기존 핵심 기능 회귀, 새 기능 전용 검증, 빌드 산출물과 런타임 자산·Worker/WASM/모델·동적 import/API 경로, Preview 대상 커밋 일치, 자동화 가능한 대표 사용자 흐름, 실패 시 입력·첨부·작성 데이터 보존을 확인합니다.
+- 사용자가 발견한 기계적 버그는 단순 패치로 끝내지 않고 가능한 범위에서 같은 유형을 다시 사전에 잡는 테스트·fixture·경로 검사·회귀 규칙으로 남깁니다.
+- 실제 휴대폰 조작감, 실제 업무 데이터의 정확도, 화면 가독성·버튼 위치, 실제 업무 흐름의 요구사항 누락처럼 사람과 실제 환경이 필요한 항목만 사용자 실기 검수로 남깁니다.
+- 사용자 검수 요청 시에는 자동 테스트, 전용 기능 테스트, Deploy Preview, 런타임 자산/경로, 자동화 가능한 대표 흐름 중 실제 확인한 항목만 PASS로 보고하고, 미확인 항목은 PASS로 기록하지 않습니다.
+
 ### Codex 모델·추론 선택
 
 - 기본값은 `Terra / Medium`이며, 현재 작업의 위험도·복잡도에 맞춰 조정합니다.
