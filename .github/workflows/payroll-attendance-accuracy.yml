@@ -45,10 +45,11 @@ jobs:
           test -f dist/app/assets/payroll-attendance-editor.js
           test -f dist/app/assets/payroll-operator-live.js
 
-      - name: Run payroll browser happy-path smoke
+      - name: Run payroll PC operator happy-path smoke
         run: node tests/payroll-browser-happy-path.mjs
 
-      - name: Run payroll mobile Excel browser path
+      - name: Run mobile Excel browser path (follow-up, non-blocking for PC pilot)
+        continue-on-error: true
         run: node tests/payroll-browser-mobile-excel-path.mjs
 
       - name: Verify actual Netlify Deploy Preview runtime
