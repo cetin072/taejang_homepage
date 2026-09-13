@@ -46,6 +46,8 @@ test('builds the full one-page staging pilot package without network, DB, Rule E
   assert.equal(plan.ledger_plan.item_write_plans[0].expected_delta_status, 'new');
   assert.equal(plan.ledger_plan.item_write_plans[0].expected_write_action, 'insert');
   assert.equal(plan.delta_summary.requires_re_evaluation_count, 2);
+  assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_cursor, true);
+  assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_pilot_policy, true);
 
   const firstCandidate = plan.ledger_plan.item_write_plans[0].candidate;
   assert.equal(Object.hasOwn(firstCandidate.support_notice, 'application_start_at'), false);
@@ -81,6 +83,8 @@ test('pagination uses raw source page count even when one source item is rejecte
   assert.equal(plan.ledger_plan.reject_plans[0].item_index, 1);
   assert.equal(plan.ledger_plan.reject_plans[0].reason, 'MISSING_REQUIRED_FIELDS');
   assert.deepEqual(plan.ledger_plan.reject_plans[0].details.missing, ['source_url']);
+  assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_cursor, true);
+  assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_pilot_policy, false);
   assert.equal(plan.operational_summary.manual_review_required, true);
 });
 
@@ -135,6 +139,7 @@ test('does not allow a contradictory page cursor to be presented as success-elig
   const plan = buildPlan({ payload });
   assert.equal(plan.page_cursor.state, 'inconsistent');
   assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_cursor, false);
+  assert.equal(plan.ledger_plan.finish_run_preview.success_allowed_by_pilot_policy, false);
   assert.equal(plan.operational_summary.manual_review_required, true);
 });
 
