@@ -249,7 +249,7 @@ const automationScript = `<script>
 
         await waitFor(() => {
           const summary = document.getElementById('payroll-attendance-editor-summary')?.textContent || '';
-          return /변경\s+[1-9]\d*건/.test(summary);
+          return /변경\\s+[1-9]\\d*건/.test(summary);
         }, 'dirty state recorded');
 
         document.getElementById('payroll-attendance-save').click();
