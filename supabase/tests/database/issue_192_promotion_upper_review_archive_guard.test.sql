@@ -10,7 +10,7 @@ select has_function(
 );
 
 select ok(
-  position("review.stage in ('operations', 'ceo')" in pg_get_functiondef('public.archive_unpublished_promotion_content(uuid,text)'::regprocedure)) > 0,
+  position('review.stage in (''operations'', ''ceo'')' in pg_get_functiondef('public.archive_unpublished_promotion_content(uuid,text)'::regprocedure)) > 0,
   'upper review stages are part of the archive guard'
 );
 
