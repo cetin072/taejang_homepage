@@ -147,6 +147,43 @@ function extractArticleText(html) {
   return text.slice(0, ARTICLE_TEXT_MAX);
 }
 
+function decodeEmbeddedUrl(value = '') {
+  return decodeHtml(value)
+    .replace(/\\u0026/gi, '&')
+    .replace(/\\\//g, '/')
+    .trim();
+}
+
+function extractYouTubeChannelUrl(html, finalUrl) {
+  let parsed;
+  try { parsed = new URL(finalUrl); } catch { return null; }
+  const host = parsed.hostname.toLowerCase();
+  if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(host)) return null;
+
+  const patterns = [
+    /"ownerProfileUrl"\s*:\s*"([^"]+)"/i,
+    /"vanityChannelUrl"\s*:\s*"([^"]+)"/i,
+    /"canonicalBaseUrl"\s*:\s*"(\/@[^"]+)"/i,
+    /<link\b[^>]*itemprop=["']url["'][^>]*href=["']([^"']*\/@[^"']+)["'][^>]*>/i,
+    /<link\b[^>]*href=["']([^"']*\/@[^"']+)["'][^>]*itemprop=["']url["'][^>]*>/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (!match?.[1]) continue;
+    const raw = decodeEmbeddedUrl(match[1]);
+    try {
+      const channel = new URL(raw, finalUrl);
+      if (!['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(channel.hostname.toLowerCase())) continue;
+      if (!channel.pathname.toLowerCase().includes('/@')) continue;
+      return channel.toString();
+    } catch {
+      // Try the next known YouTube identity shape.
+    }
+  }
+  return null;
+}
+
 async function readLimited(response, maxBytes = 1_000_000) {
   const length = Number(response.headers.get('content-length') || 0);
   if (length && length > maxBytes) throw new Error('PAGE_TOO_LARGE');
@@ -271,13 +308,15 @@ export default async (request) => {
     const siteName = meta(html, 'og:site_name');
     const image = imageRaw ? new URL(imageRaw, finalUrl).toString() : null;
     const articleText = extractArticleText(html);
+    const channelUrl = extractYouTubeChannelUrl(html, finalUrl);
     return json(200, {
       url: finalUrl.toString(),
       title: title || null,
       description: description || null,
       image,
       site_name: siteName || null,
-      article_text: articleText
+      article_text: articleText,
+      channel_url: channelUrl
     });
   } catch (error) {
     const code = error?.name === 'AbortError' ? 'FETCH_TIMEOUT' : (error?.message || 'FETCH_FAILED');
