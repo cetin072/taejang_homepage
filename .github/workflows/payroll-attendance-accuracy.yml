@@ -1,0 +1,28 @@
+name: Payroll Attendance Accuracy
+
+on:
+  pull_request:
+    paths:
+      - 'docs/operations/PAYROLL_ATTENDANCE_IMPORT_APPS_SCRIPT.gs'
+      - 'tests/payroll-attendance-import.test.js'
+      - '.github/workflows/payroll-attendance-accuracy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  anonymous-import-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run anonymous payroll attendance regression
+        run: node --test tests/payroll-attendance-import.test.js
