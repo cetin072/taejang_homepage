@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(11);
+select plan(13);
 
 select is(
   has_function_privilege('authenticated','private.support_ingestion_re_evaluation_candidates_v1(uuid)','EXECUTE'),
@@ -125,18 +125,19 @@ select 'successful_retry', public.support_ingestion_begin_run_v1(
 select is(
   public.support_ingestion_apply_item_checked_v1(
     (select run_id from semantics_runs where label='successful_retry'),
-    jsonb_set(
-      jsonb_set(
-        (select candidate from semantics_candidates where label='base'),
-        '{support_notice,eligibility_summary}',
-        '"장애인 고용기업 및 제조업"'::jsonb
-      ),
-      '{support_notice_occurrence,content_hash}',
-      to_jsonb(repeat('b', 64))
-    )
+    (select candidate from semantics_candidates where label='base')
   )->>'delta_status',
-  'changed',
-  'retry with changed material is classified deterministically'
+  'unchanged',
+  'retry of the exact source facts remains content-wise unchanged'
+);
+
+select is(
+  (select event.requires_re_evaluation
+   from public.support_ingestion_item_events event
+   where event.run_id=(select run_id from semantics_runs where label='successful_retry')
+   limit 1),
+  true,
+  'unchanged retry inherits unresolved re-evaluation debt from the failed write'
 );
 
 select is(
@@ -148,9 +149,16 @@ select is(
     null,
     null,
     null
-  )->>'status',
+  )->>'requires_re_evaluation_count',
+  '1',
+  'successful retry run summary preserves the carried re-evaluation requirement'
+);
+
+select is(
+  (select status from public.support_ingestion_runs
+   where id=(select run_id from semantics_runs where label='successful_retry')),
   'succeeded',
-  'retry can finalize successfully and become authoritative progress'
+  'retry finalizes successfully and becomes authoritative progress'
 );
 
 select is(
@@ -159,7 +167,7 @@ select is(
      (select run_id from semantics_runs where label='successful_retry')
    )),
   1,
-  'only the succeeded changed event is exposed for future deterministic evaluation'
+  'succeeded unchanged retry remains eligible for future deterministic evaluation'
 );
 
 select ok(
