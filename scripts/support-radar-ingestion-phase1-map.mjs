@@ -12,6 +12,18 @@ function clone(value) {
   return value === undefined ? undefined : structuredClone(value);
 }
 
+function isValidDateOnly(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
 function dateOnlyFact(value, precision, field) {
   const date = clean(value) || null;
   const normalizedPrecision = clean(precision) || 'unknown';
@@ -19,7 +31,7 @@ function dateOnlyFact(value, precision, field) {
   if (normalizedPrecision !== 'date') {
     throw new Error(`PHASE1_MAP_${field.toUpperCase()}_PRECISION_UNSUPPORTED`);
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (!isValidDateOnly(date)) {
     throw new Error(`PHASE1_MAP_${field.toUpperCase()}_DATE_INVALID`);
   }
   return {
@@ -127,6 +139,7 @@ export const SUPPORT_RADAR_PHASE1_MAP_CONTRACT = Object.freeze({
     'map only fields that exist in the current Phase 1 schema',
     'preserve source-only facts inside occurrence provenance until an authoritative column exists',
     'do not coerce date-only source facts into timestamp columns',
+    'reject calendar-invalid date-only facts even when their string shape is valid',
     'content hash basis, run, cursor, and reject history require an ingestion ledger boundary',
     'mapping performs no database mutation and no semantic AI judgment'
   ])
