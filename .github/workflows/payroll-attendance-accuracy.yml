@@ -11,6 +11,7 @@ on:
       - 'supabase/migrations/*payroll*.sql'
       - 'supabase/functions/payroll-calculate/**'
       - 'tests/payroll-*.test.js'
+      - 'tests/payroll-*.mjs'
       - 'scripts/test-manifest.mjs'
       - 'scripts/run-test-group.mjs'
       - 'scripts/build-netlify-publish.mjs'
@@ -43,6 +44,9 @@ jobs:
           test -f dist/app/payroll/live.html
           test -f dist/app/assets/payroll-attendance-editor.js
           test -f dist/app/assets/payroll-operator-live.js
+
+      - name: Run payroll browser happy-path smoke
+        run: node tests/payroll-browser-happy-path.mjs
 
       - name: Run staging safety regression
         run: npm run test:staging-safety
