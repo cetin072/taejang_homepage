@@ -83,9 +83,23 @@ async function applyPlan(runId, writePlan) {
   return result.data;
 }
 
+async function recordReject(runId, rejectPlan) {
+  const result = await rpc('support_ingestion_record_reject_v1', {
+    p_run_id: runId,
+    p_item_index: rejectPlan.item_index,
+    p_source_notice_id: rejectPlan.source_notice_id,
+    p_reason: rejectPlan.reason,
+    p_details: rejectPlan.details
+  });
+  check(result.ok, `record reject failed: ${result.status} ${JSON.stringify(result.data)}`);
+  check(typeof result.data === 'string' && /^[0-9a-f-]{36}$/i.test(result.data), 'record reject returns UUID');
+  return result.data;
+}
+
 async function finishRun(plan, runId) {
   const preview = plan.ledger_plan.finish_run_preview;
   check(preview.success_allowed_by_cursor, 'fixture cursor is eligible for successful finalization');
+  check(preview.success_allowed_by_pilot_policy, 'fixture satisfies strict pilot success policy');
   const result = await rpc('support_ingestion_finish_run_v1', {
     p_run_id: runId,
     p_finished_at: preview.finished_at,
@@ -97,6 +111,24 @@ async function finishRun(plan, runId) {
   });
   check(result.ok, `finish ingestion run failed: ${result.status} ${JSON.stringify(result.data)}`);
   equal(result.data?.status, 'succeeded', 'run finalizes successfully');
+  return result.data;
+}
+
+async function failRun(plan, runId, errorCode, errorSummary) {
+  const preview = plan.ledger_plan.finish_run_preview;
+  check(!preview.success_allowed_by_pilot_policy, 'strict pilot policy refuses successful finalization');
+  const result = await rpc('support_ingestion_finish_run_v1', {
+    p_run_id: runId,
+    p_finished_at: preview.finished_at,
+    p_cursor_after: preview.cursor_after,
+    p_success: false,
+    p_retryable: true,
+    p_error_code: errorCode,
+    p_error_summary: errorSummary
+  });
+  check(result.ok, `fail ingestion run failed: ${result.status} ${JSON.stringify(result.data)}`);
+  equal(result.data?.status, 'failed', 'pilot reject run finalizes as failed');
+  equal(result.data?.cursor_advanced, false, 'failed pilot run reports no cursor advancement');
   return result.data;
 }
 
@@ -200,5 +232,67 @@ const documentReplay = await api(
 );
 check(documentReplay.ok, `document replay query failed: ${documentReplay.status} ${JSON.stringify(documentReplay.data)}`);
 equal(documentReplay.data?.length, 2, 'idempotent replay does not duplicate identical documents');
+
+const rejectPayload = structuredClone(fixture);
+rejectPayload.jsonArray.item[0].pblancId = 'PBLN_REJECT_0001';
+rejectPayload.jsonArray.item[0].pblancUrl = 'https://www.bizinfo.go.kr/example/view.do?pblancId=PBLN_REJECT_0001';
+rejectPayload.jsonArray.item[0].rceptEngnHmpgUrl = 'https://example.go.kr/apply/PBLN_REJECT_0001';
+rejectPayload.jsonArray.item[0].flpthNm = 'https://www.bizinfo.go.kr/files/PBLN_REJECT_0001-1.pdf';
+rejectPayload.jsonArray.item[0].printFlpthNm = 'https://www.bizinfo.go.kr/files/PBLN_REJECT_0001-2.pdf';
+rejectPayload.jsonArray.item[1].seq = 'PBLN_REJECT_BAD';
+delete rejectPayload.jsonArray.item[1].link;
+rejectPayload.jsonArray.item[0].totCnt = '2';
+rejectPayload.jsonArray.item[1].totCnt = '2';
+
+const rejectPlan = buildBizinfoStagingPilotOfflinePlan({
+  payload: rejectPayload,
+  started_at: '2026-09-13T15:32:00+09:00',
+  fetched_at: '2026-09-13T15:32:05+09:00',
+  finished_at: '2026-09-13T15:32:10+09:00',
+  page_index: 1,
+  page_unit: 20,
+  stream_key: 'ci-offline-reject',
+  request_filters: { searchLclasId: '03', hashtags: '경남' }
+});
+
+equal(rejectPlan.ledger_plan.item_write_plans.length, 1, 'malformed pilot keeps the valid item as an explicit write plan');
+equal(rejectPlan.ledger_plan.reject_plans.length, 1, 'malformed pilot produces one explicit reject plan');
+equal(rejectPlan.ledger_plan.finish_run_preview.success_allowed_by_cursor, true, 'raw page shape itself remains pagination-consistent');
+equal(rejectPlan.ledger_plan.finish_run_preview.success_allowed_by_pilot_policy, false, 'strict pilot policy blocks success when any item is rejected');
+
+const rejectRunId = await beginRun(rejectPlan);
+const partialWrite = await applyPlan(rejectRunId, rejectPlan.ledger_plan.item_write_plans[0]);
+equal(partialWrite.delta_status, 'new', 'valid item can be written before a later page-level failure is finalized');
+await recordReject(rejectRunId, rejectPlan.ledger_plan.reject_plans[0]);
+const rejectedFinish = await failRun(
+  rejectPlan,
+  rejectRunId,
+  'PILOT_SOURCE_ITEM_REJECTED',
+  'one or more source items were rejected during the offline pilot replay'
+);
+equal(rejectedFinish.rejected_items, 1, 'failed pilot run reports one rejected source item');
+equal(rejectedFinish.insert_count, 1, 'failed pilot run preserves the partial valid write count for audit');
+
+const rejectedRun = await single(
+  `/rest/v1/support_ingestion_runs?id=eq.${encodeURIComponent(rejectRunId)}&select=status,cursor_after,rejected_items,insert_count,error_code`,
+  'rejected pilot run ledger'
+);
+equal(rejectedRun.status, 'failed', 'rejected pilot ledger is failed');
+equal(rejectedRun.cursor_after, null, 'rejected pilot ledger stores no cursor_after');
+equal(rejectedRun.error_code, 'PILOT_SOURCE_ITEM_REJECTED', 'rejected pilot ledger preserves deterministic failure code');
+
+const rejectRows = await api(
+  `/rest/v1/support_ingestion_rejects?run_id=eq.${encodeURIComponent(rejectRunId)}&select=item_index,source_notice_id,reason,details`
+);
+check(rejectRows.ok, `reject ledger query failed: ${rejectRows.status} ${JSON.stringify(rejectRows.data)}`);
+equal(rejectRows.data?.length, 1, 'reject ledger persists one diagnostic row');
+equal(rejectRows.data?.[0]?.source_notice_id, 'PBLN_REJECT_BAD', 'reject ledger preserves malformed source id');
+equal(rejectRows.data?.[0]?.reason, 'MISSING_REQUIRED_FIELDS', 'reject ledger preserves deterministic reject reason');
+
+const rejectedState = await api(
+  `/rest/v1/support_ingestion_source_state?source_id=eq.${encodeURIComponent(bizinfoSource.id)}&stream_key=eq.ci-offline-reject&select=cursor,last_successful_run_id`
+);
+check(rejectedState.ok, `rejected stream state query failed: ${rejectedState.status} ${JSON.stringify(rejectedState.data)}`);
+equal(rejectedState.data?.length, 0, 'failed first pilot run creates no successful source cursor state');
 
 console.log(`Support Radar ingestion pipeline integration passed (${assertions} assertions).`);
