@@ -1,0 +1,31 @@
+name: Temporary Naver Blog Discovery
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/_tmp-naver-blog-discovery.mjs'
+      - '.github/workflows/_tmp-naver-blog-discovery.yml'
+      - 'netlify/functions/_tmp-naver-blog-discovery.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Fetch public Naver Blog post list
+        run: node scripts/_tmp-naver-blog-discovery.mjs > naver-blog-posts.json
+      - name: Upload discovery result
+        uses: actions/upload-artifact@v4
+        with:
+          name: naver-blog-posts
+          path: naver-blog-posts.json
+          if-no-files-found: error
+          retention-days: 1
