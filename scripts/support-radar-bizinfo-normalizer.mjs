@@ -248,7 +248,8 @@ export function normalizeBizinfoPayload(payload) {
       category: first(root.category) || null,
       ttl: first(root.ttl) || null,
       last_build_date_raw: first(root.lastBuildDate) || null,
-      reported_total_count: totalCount
+      reported_total_count: totalCount,
+      source_item_count: sourceItems.length
     },
     items,
     rejected
