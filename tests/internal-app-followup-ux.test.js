@@ -214,12 +214,13 @@ test('manager shell shows one logout header while general worker keeps the legac
   assert.match(shellCss, /\.environment-label\s*\{\s*display:\s*none !important;/);
 });
 
-test('mobile role simulation remains available normally but never covers an open sidebar', () => {
+test('mobile employee screen experience remains available normally but never covers an open sidebar', () => {
   assert.match(roleSimulation, /\.role-simulation-switcher\s*\{[\s\S]*position:\s*fixed;/);
   assert.match(shellCss, /\.desktop-app-shell\.sidebar-open \.role-simulation-switcher\s*\{\s*display:\s*none;/);
-  assert.match(roleSimulation, /홍보직원 보기/);
-  assert.match(roleSimulation, /운영팀장 보기/);
-  assert.match(roleSimulation, /운영총괄 복귀/);
+  assert.match(roleSimulation, /직원 화면 체험/);
+  assert.match(roleSimulation, /👤 내 계정 ▾/);
+  assert.match(roleSimulation, /dataset\.personaLauncher/);
+  assert.doesNotMatch(roleSimulation, /홍보직원 보기|운영팀장 보기|운영총괄 복귀/);
 });
 
 test('unfinished manager manual is absent from the base shell instead of removed by a later module', () => {
