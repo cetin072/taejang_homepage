@@ -83,7 +83,8 @@
         if (isMetaEndpoint && response.ok) {
           const body = typeof init?.body === 'string' ? JSON.parse(init.body) : null;
           const requestedUrl = body?.url;
-          response.clone().json().then(payload => rememberMetadata(requestedUrl, payload)).catch(() => {});
+          const payload = await response.clone().json();
+          rememberMetadata(requestedUrl, payload);
         }
       } catch {
         // Passive observation must never change the original fetch result.
