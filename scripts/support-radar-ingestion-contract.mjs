@@ -31,16 +31,20 @@ function canonicalize(value) {
   return value;
 }
 
+function stableTextCompare(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 function canonicalStringSet(value) {
   if (!Array.isArray(value)) return value;
-  return [...new Set(value.map(clean).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+  return [...new Set(value.map(clean).filter(Boolean))].sort(stableTextCompare);
 }
 
 function canonicalDocuments(value) {
   if (!Array.isArray(value)) return value;
   return value
     .map(document => canonicalize(document))
-    .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    .sort((left, right) => stableTextCompare(JSON.stringify(left), JSON.stringify(right)));
 }
 
 function canonicalNoticeForHash(notice) {
@@ -174,6 +178,7 @@ export const SUPPORT_RADAR_INGESTION_CONTRACT = Object.freeze({
     'invalid source items are rejected, not invented',
     'batch Source and item Source must match before mapping or persistence',
     'content hash covers normalized material facts, not volatile raw payload metadata or set/list ordering noise',
+    'content hash ordering is locale-independent and reproducible across runtimes',
     'raw payload remains available separately for provenance',
     'semantic AI interpretation is outside ingestion',
     'delivery and alerts are outside ingestion'
