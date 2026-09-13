@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>promotion browser gate</title>
+</head>
+<body>
+  <a class="staff-brand" href="#">태장</a>
+  <a class="app-logo" href="#">태장 업무플랫폼</a>
+  <button id="logout-button" type="button">logout</button>
+  <section id="desktop-app-shell" hidden>
+    <nav id="app-nav"></nav>
+    <div class="app-workspace">
+      <header>
+        <button id="sidebar-toggle" type="button" aria-expanded="false">menu</button>
+        <h1 id="desktop-page-title">업무 대시보드</h1>
+        <span id="desktop-role-label"></span>
+        <div class="app-user-actions"><span id="desktop-user-label"></span><button id="desktop-logout-button" type="button">logout</button></div>
+      </header>
+      <main id="dashboard-main"></main>
+    </div>
+  </section>
+  <pre id="result">RUNNING</pre>
+
+  <script>
+    let currentRoute = 'promotion_staff';
+    let openedPromotionMode = null;
+    const fakeMetadata = {
+      url: 'https://www.youtube.com/watch?v=taejang-test',
+      title: '태장 공식 영상',
+      channel_url: 'https://www.youtube.com/@taejangofficial'
+    };
+
+    window.fetch = async () => new Response(JSON.stringify(fakeMetadata), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
+    window.TaejangSupportRadarAccess = { canManagementView: () => false };
+    window.TaejangPromotionWorkspaceV2Api = { openPromotion(mode) { openedPromotionMode = mode; } };
+    window.TaejangApp = {
+      getRoute: () => currentRoute,
+      getContext: () => ({ display_name: '브라우저검수', roles: [{ code: currentRoute }] }),
+      getEffectiveRoles: () => [currentRoute],
+      can: capability => capability === 'promotion.review_lead' || capability === 'promotion.write' || capability === 'promotion.edit_own',
+      hasCapabilityContract: () => true,
+      friendlyError: error => error?.message || '오류',
+      rpc: async (name, args = {}) => {
+        if (name === 'get_my_schedule_list') return [];
+        if (name === 'get_my_notice_list') return [{ title: '중요 공지', importance: 'important' }];
+        if (name === 'get_my_promotion_workspace') {
+          if (currentRoute === 'promotion_staff') {
+            return { role: currentRoute, my_items: [{ content_id: 'returned-1', lifecycle: 'needs_revision' }], review_items: [] };
+          }
+          if (currentRoute === 'promotion_lead') {
+            return { role: currentRoute, my_items: [], review_items: [{ content_id: 'lead-1', title: '상신 후 반송', required_stage: 'operations' }] };
+          }
+          return { role: currentRoute, my_items: [], review_items: [] };
+        }
+        if (name === 'get_promotion_review_handoff' && args.p_content_id === 'lead-1') {
+          return { source: 'operations_changes_requested', comment: '운영총괄 보완 의견' };
+        }
+        if (name === 'get_promotion_link_source') return 'none';
+        return null;
+      }
+    };
+
+    document.addEventListener('taejang-open-promotion-workspace', event => {
+      openedPromotionMode = event.detail?.mode || null;
+    });
+  </script>
+  <script src="../../app/assets/official-channel-config.js"></script>
+  <script src="../../app/assets/dashboard-shell.js"></script>
+  <script src="../../app/assets/issue-181-promotion-live-ux.js"></script>
+  <script src="../../app/assets/ux-followup-polish.js"></script>
+  <script>
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const assert = (condition, message) => {
+      if (!condition) throw new Error(message);
+    };
+
+    window.addEventListener('load', async () => {
+      const output = document.getElementById('result');
+      try {
+        document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: 'promotion_staff', label: '홍보직원' } }));
+        await wait(100);
+
+        const navLabels = [...document.querySelectorAll('#app-nav > button')].map(node => node.textContent.trim());
+        assert(navLabels.includes('홍보 작성'), '홍보 작성 메뉴 누락');
+        assert(navLabels.includes('보완 요청받은 글'), '보완 요청받은 글 메뉴 누락');
+        assert(!navLabels.includes('수정·보완 요청'), '구형 반환 메뉴명이 남아 있음');
+        assert(document.querySelectorAll('[data-phase-c-v2-nav="revision"]').length === 1, '반환 글 메뉴가 중복 생성됨');
+
+        const returned = document.querySelector('[data-promotion-returned-nav]');
+        assert(returned, '반환 글 메뉴 식별자 누락');
+        returned.click();
+        assert(openedPromotionMode === 'revision', '반환 글 메뉴가 revision 화면을 열지 않음');
+
+        const returnedCard = [...document.querySelectorAll('.dashboard-card')]
+          .find(card => card.querySelector('h3')?.textContent.trim() === '보완 요청받은 글');
+        assert(returnedCard, '대시보드 반환 글 카드 누락');
+        assert(returnedCard.textContent.includes('1건'), '반환 글 건수 누락');
+
+        assert(window.TaejangOfficialChannels.classifyUrl('https://blog.naver.com/taejang-official/223000000000') === 'taejang_blog', '공식 블로그 개별 글 분류 실패');
+        assert(window.TaejangOfficialChannels.classifyUrl('https://m.blog.naver.com/PostView.naver?blogId=taejang-official&logNo=223000000000') === 'taejang_blog', '모바일 공식 블로그 글 분류 실패');
+
+        const metadataObserved = new Promise(resolve => document.addEventListener('taejang-external-meta-observed', resolve, { once: true }));
+        await window.fetch('/.netlify/functions/external-content-meta', {
+          method: 'POST',
+          body: JSON.stringify({ url: 'https://www.youtube.com/watch?v=taejang-test' })
+        });
+        await metadataObserved;
+        assert(window.TaejangOfficialChannels.classifyUrl('https://www.youtube.com/watch?v=taejang-test') === 'taejang_youtube', '공식 유튜브 개별 영상 메타데이터 분류 실패');
+
+        currentRoute = 'promotion_lead';
+        document.getElementById('desktop-page-title').textContent = '홍보 검토';
+        const main = document.getElementById('dashboard-main');
+        main.innerHTML = '<header class="dashboard-intro"><h2>홍보 검토</h2><p>검토</p></header><section class="phase-c-v2-grid"><article class="phase-c-v2-card"><h3>상신 후 반송</h3><div class="quick-links"><button type="button">직접 수정</button></div></article></section>';
+        window.TaejangIssue181PromotionLiveUx.sync();
+        await wait(120);
+        assert(!main.querySelector('[data-issue181-review-delete]'), '운영총괄 반송 글에 삭제 버튼이 노출됨');
+
+        const preview = document.createElement('section');
+        preview.className = 'promotion-preview-panel';
+        preview.scrollIntoView = () => { preview.dataset.scrolled = '1'; };
+        const previewButton = document.createElement('button');
+        previewButton.type = 'button';
+        previewButton.textContent = '미리보기';
+        main.append(preview, previewButton);
+        previewButton.click();
+        await wait(30);
+        assert(preview.dataset.scrolled === '1', '미리보기 결과가 사용자 위치로 이동하지 않음');
+
+        output.textContent = 'PROMOTION_BROWSER_GATE_PASS';
+        document.title = 'PROMOTION_BROWSER_GATE_PASS';
+      } catch (error) {
+        output.textContent = `PROMOTION_BROWSER_GATE_FAIL: ${error.message}`;
+        document.title = 'PROMOTION_BROWSER_GATE_FAIL';
+      }
+    });
+  </script>
+</body>
+</html>
