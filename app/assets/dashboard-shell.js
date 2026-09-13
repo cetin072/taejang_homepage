@@ -111,8 +111,14 @@
     if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
-    if (item.dataKey === 'promotion-write') node.dataset.promotionWriteNav = '1';
-    if (item.dataKey === 'promotion-returned') node.dataset.promotionReturnedNav = '1';
+    if (item.dataKey === 'promotion-write') {
+      node.dataset.promotionWriteNav = '1';
+      node.dataset.phaseCV2Nav = 'write';
+    }
+    if (item.dataKey === 'promotion-returned') {
+      node.dataset.promotionReturnedNav = '1';
+      node.dataset.phaseCV2Nav = 'revision';
+    }
   }
   function makeOfficialChannelGroup() {
     const group = document.createElement('section');
