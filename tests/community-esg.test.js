@@ -39,8 +39,19 @@ assert.match(communityPage, /지역에서 필요한 일을,<br>꾸준히 이어�
 assert.match(communityPage, /지역사회공헌 활동 기록/);
 assert.match(communityPage, /partnership\.html#contact/);
 assert.match(communityPage, /canonical" href="https:\/\/taejang\.co\.kr\/community-esg\.html/);
+assert.match(communityPage, /data-static-fallback="community-esg"/, '지역사회공헌 기록은 JS 없이도 정적 fallback을 제공합니다');
+assert.equal((communityPage.match(/data-static-fallback-card/g) || []).length, 2, '공개 승인된 환경정비 기록 2건을 정적 fallback으로 유지합니다');
+assert.ok(communityPage.indexOf('두 번째 환경정비 활동을 진행했습니다') < communityPage.indexOf('첫 환경정비 활동을 진행했습니다'), '정적 fallback은 최신순을 유지합니다');
+assert.match(communityPage, /현재 공개된 활동 2건/, 'JS 실행 전에도 현재 공개 건수를 안내합니다');
+assert.match(communityPage, /assets\/images\/business\/environment-cleanup-group\.webp/);
+assert.match(communityPage, /assets\/images\/archive\/environment-cleanup-first\.webp/);
+
 assert.match(communityScript, /activity\.series === 'community-esg'/);
 assert.match(communityScript, /activities\.html\?id=/);
+assert.match(communityScript, /const staticFallbackCount = list\.querySelectorAll\('\[data-static-fallback-card\]'\)\.length/);
+assert.match(communityScript, /if \(!records\.length\) \{[\s\S]*?staticFallbackCount[\s\S]*?return;/, '동적 데이터가 없으면 정적 fallback을 지우지 않습니다');
+assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/, '동적 데이터가 있으면 정적 fallback을 최신 데이터로 교체합니다');
+assert.doesNotMatch(communityScript, /list\.hidden = true/, '동적 데이터 누락을 이유로 승인된 정적 기록을 숨기지 않습니다');
 assert.match(communityScript, /const imageSource = activity\.thumbnail \|\| activity\.hero \|\| activity\.thumb \|\| ''/);
 assert.match(communityScript, /if \(imageSource\)/);
 assert.match(communityScript, /community-esg-record-placeholder/);
