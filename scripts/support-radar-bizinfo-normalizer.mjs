@@ -2,8 +2,8 @@ export const BIZINFO_API_ENDPOINT = 'https://www.bizinfo.go.kr/uss/rss/bizinfoAp
 
 const BIZINFO_CATEGORY_CODES = new Set(['01', '02', '03', '04', '05', '06', '07', '09']);
 const REGION_TAGS = new Set([
-  '서울', '부산', '대구', '인천', '전남광주', '대전', '울산', '세종',
-  '경기', '강원', '충북', '충남', '전북', '경북', '경남', '제주'
+  '서울', '부산', '대구', '인천', '광주', '전남광주', '대전', '울산', '세종',
+  '경기', '강원', '충북', '충남', '전북', '전남', '경북', '경남', '제주'
 ]);
 
 function clean(value) {
