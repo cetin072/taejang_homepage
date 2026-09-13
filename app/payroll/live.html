@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>태장 근태·급여관리 Staging MVP</title>
+  <title>태장 근태·급여관리</title>
   <meta name="robots" content="noindex,nofollow">
   <link rel="stylesheet" href="../assets/payroll-operator.css">
   <link rel="stylesheet" href="../assets/payroll-operator-live.css">
@@ -17,7 +17,7 @@
         <h1 class="payroll-title" id="payroll-live-title">급여월 불러오는 중</h1>
         <p class="payroll-subtitle">화면에서 근태를 직접 입력하거나 출근부 Excel로 채운 뒤 수정하고, 같은 자료로 급여 가안을 확인합니다.</p>
       </div>
-      <span class="payroll-demo-badge" id="payroll-live-environment">STAGING · 근태 편집</span>
+      <span class="payroll-demo-badge" id="payroll-live-environment">사전운영 · 근태 편집</span>
     </header>
 
     <section class="payroll-live-toolbar payroll-card" aria-label="급여월 선택과 급여대장 작업">
@@ -78,13 +78,13 @@
             <tbody id="payroll-attendance-editor-body"></tbody>
           </table>
         </div>
-        <p class="payroll-attendance-editor-note">저장하면 원본을 덮어쓰지 않고 변경이력으로 남긴 뒤 Staging 급여 가안을 다시 계산합니다. 계산이 실패해도 저장된 근태는 유지되며, 저장 없이 다시 계산할 수 있습니다.</p>
+        <p class="payroll-attendance-editor-note">저장하면 원본을 덮어쓰지 않고 변경이력으로 남긴 뒤 급여 가안을 다시 계산합니다. 계산이 실패해도 저장된 근태는 유지되며, 저장 없이 다시 계산할 수 있습니다.</p>
       </div>
     </section>
 
     <p id="payroll-ledger-validation" class="payroll-ledger-validation" data-state="idle">급여대장 검증 전</p>
 
-    <section class="payroll-summary payroll-live-summary" aria-label="Shadow Payroll 요약">
+    <section class="payroll-summary payroll-live-summary" aria-label="급여 가안 요약">
       <div class="payroll-metric">
         <span>상태</span>
         <strong id="payroll-live-status">불러오는 중</strong>
@@ -116,7 +116,7 @@
             <div class="payroll-clear-icon">i</div>
             <div>
               <strong>이 급여월은 아직 계산결과가 없습니다.</strong>
-              <p>위 출근부에서 근태를 입력·저장하면 Shadow 급여 가안을 계산해 이곳에 표시합니다.</p>
+              <p>위 출근부에서 근태를 입력·저장하면 급여 가안을 계산해 이곳에 표시합니다.</p>
             </div>
           </div>
 
@@ -153,7 +153,7 @@
 
       <aside class="payroll-card payroll-guide-card">
         <div class="payroll-card-header">
-          <h3>현재 검수 기준</h3>
+          <h3>사용 상태</h3>
         </div>
         <div class="payroll-card-body">
           <dl class="payroll-live-meta">
@@ -162,7 +162,7 @@
             <div><dt>계산 버전</dt><dd id="payroll-live-version">—</dd></div>
           </dl>
           <ul class="payroll-checklist">
-            <li>근태 저장과 급여 가안 계산은 Staging에서만 수행합니다.</li>
+            <li>현재 사전운영 환경에서 근태 저장과 급여 가안 계산을 수행합니다.</li>
             <li>급여 확정·월 잠금·송금 기능은 없습니다.</li>
             <li>직접 입력이 기본이며 Excel은 같은 표를 빠르게 채우는 보조수단입니다.</li>
             <li>Excel 원본과 기존 근태 원본은 덮어쓰지 않고, 화면 수정은 별도 변경이력으로 남깁니다.</li>
@@ -177,7 +177,7 @@
     </section>
 
     <p class="payroll-footer-note">
-      Staging 근태·급여 MVP 검수 화면입니다. 실제 급여 확정·지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다.
+      사전운영 근태·급여 화면입니다. 실제 급여 확정·지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다.
     </p>
   </main>
 
