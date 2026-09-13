@@ -3,7 +3,7 @@
 
   const ROLE_ORDER = {
     promotion_staff: [
-      '대시보드', '홍보 작성', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
+      '대시보드', '홍보 작성', '보완 요청받은 글', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
     ],
     promotion_lead: [
       '대시보드',
@@ -49,7 +49,7 @@
 
   const ROLE_SECTIONS = {
     promotion_staff: [
-      { label: '주요 업무', items: ['홍보 작성'] },
+      { label: '주요 업무', items: ['홍보 작성', '보완 요청받은 글'] },
       { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
     ],
     promotion_lead: [
