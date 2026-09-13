@@ -74,11 +74,45 @@ test('fingerprint covers material facts but ignores raw payload-only volatility'
   assert.equal(computeSupportRadarItemContentHash(changedItem), changedItem.content_hash);
 });
 
-test('batch validation rejects duplicate source IDs and tampered normalized material', () => {
+test('fingerprint ignores ordering noise in set-like fields and document lists', () => {
+  const baselineSource = normalizedItem();
+  baselineSource.notice.target_regions = ['경남', '전남'];
+  baselineSource.notice.categories = ['인력', '경영'];
+  baselineSource.hashtags = ['경남', '고용', '인력'];
+  baselineSource.documents = [
+    {
+      document_type: 'attachment',
+      source_url: 'https://example.go.kr/files/a.pdf',
+      original_filename: 'a.pdf'
+    },
+    {
+      document_type: 'attachment',
+      source_url: 'https://example.go.kr/files/b.pdf',
+      original_filename: 'b.pdf'
+    }
+  ];
+
+  const reordered = structuredClone(baselineSource);
+  reordered.notice.target_regions = ['전남', '경남', '경남'];
+  reordered.notice.categories = ['경영', '인력'];
+  reordered.hashtags = ['인력', '경남', '고용', '경남'];
+  reordered.documents.reverse();
+
+  assert.equal(
+    batchFor(baselineSource).items[0].content_hash,
+    batchFor(reordered).items[0].content_hash
+  );
+});
+
+test('batch validation rejects duplicate source IDs, cross-source items and tampered normalized material', () => {
   const batch = batchFor();
   const duplicate = structuredClone(batch);
   duplicate.items.push(structuredClone(duplicate.items[0]));
   assert.throws(() => validateSupportRadarIngestionBatch(duplicate), /INGESTION_DUPLICATE_SOURCE_NOTICE_ID/);
+
+  const crossSource = structuredClone(batch);
+  crossSource.items[0].source_code = 'other_source';
+  assert.throws(() => validateSupportRadarIngestionBatch(crossSource), /INGESTION_ITEM_SOURCE_MISMATCH/);
 
   const tampered = structuredClone(batch);
   tampered.items[0].notice.title = '사후 변경 제목';
