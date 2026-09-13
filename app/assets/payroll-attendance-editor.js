@@ -262,7 +262,16 @@
         <td><input data-field="confirmedHours" type="number" min="0" max="24" step="0.25" value="${cell.confirmedHours ?? ''}" placeholder="${term?.daily_scheduled_hours ?? ''}" aria-label="${employee.name} 인정시간"></td>
         <td><span class="payroll-source-badge ${sourceClass(cell.sourceKind)}">${sourceLabel(cell.sourceKind)}</span></td>`;
       tr.querySelectorAll('[data-field]').forEach(input => {
-        input.addEventListener('change', () => markChanged(cell, input.dataset.field, input.value));
+        input.addEventListener('change', () => {
+          const field = input.dataset.field;
+          markChanged(cell, field, input.value);
+          if (field !== 'status' && input.value && !cell.status) {
+            cell.status = 'work';
+            const status = tr.querySelector('[data-field="status"]');
+            if (status) status.value = 'work';
+            renderSummary();
+          }
+        });
       });
       tbody.appendChild(tr);
     }
