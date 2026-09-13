@@ -31,7 +31,7 @@ PHOTO 번호는 편집·검수용 식별자이며, **현재 공개 HTML에 명�
 
 ## 최신 소식 이미지
 
-메인 최근 활동과 `archive.html`의 최신 소식 카드는 각 콘텐츠의 `thumbnail`과 `thumbnailAlt`를 사용합니다.
+메인 최근 활동과 `archive.html`의 최신 소식 카드는 각 콘텐츠의 `thumbnail`과 `thumbnailAlt`를 사용합니다. 메인 최신 최대 8개 카드는 고정 PHOTO 번호가 아니라 각 게시물의 대표사진을 사용합니다.
 
 PHOTO 09~11 번호를 최신 소식용 고정 파일명으로 사용하지 않습니다.
 
