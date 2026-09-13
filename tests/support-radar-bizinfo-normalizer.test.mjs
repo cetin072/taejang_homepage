@@ -50,6 +50,7 @@ test('normalizes current documented BizInfo response fields and fallback fields'
   assert.equal(normalized.source_code, 'bizinfo');
   assert.equal(normalized.meta.title, '기업마당 지원사업정보');
   assert.equal(normalized.meta.reported_total_count, 2);
+  assert.equal(normalized.meta.source_item_count, 2);
   assert.equal(normalized.items.length, 2);
   assert.deepEqual(normalized.rejected, []);
 
@@ -95,11 +96,12 @@ test('does not invent total count when source does not report one', () => {
   assert.equal(normalizeBizinfoPayload(payload).meta.reported_total_count, null);
 });
 
-test('rejects malformed source items instead of creating incomplete ledger candidates', () => {
+test('rejects malformed source items while preserving raw page shape for pagination', () => {
   const result = normalizeBizinfoPayload({ jsonArray: { item: [
     { pblancId: 'PBLN_BAD', pblancNm: 'URL 없는 테스트 공고' },
     null
   ] } });
+  assert.equal(result.meta.source_item_count, 2);
   assert.equal(result.items.length, 0);
   assert.equal(result.rejected.length, 2);
   assert.deepEqual(result.rejected[0].missing, ['source_url']);
