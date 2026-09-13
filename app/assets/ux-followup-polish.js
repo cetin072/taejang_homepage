@@ -81,92 +81,6 @@
     document.querySelectorAll('[data-support-radar-shortcut]').forEach(node => node.remove());
   }
 
-  function makePromotionNavButton(label, mode) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = label;
-    button.dataset.issue187PromotionNav = mode;
-    button.addEventListener('click', () => window.TaejangPromotionWorkspaceV2Api?.openPromotion?.(mode));
-    return button;
-  }
-
-  function ensurePromotionStaffNavigation() {
-    if (route() !== 'promotion_staff') return;
-    const nav = byId('app-nav');
-    if (!nav || !window.TaejangPromotionWorkspaceV2Api?.openPromotion) return;
-
-    const children = [...nav.children];
-    const labelOf = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
-    const dashboard = children.find(node => labelOf(node) === '대시보드');
-    let write = nav.querySelector('[data-phase-c-v2-nav="write"], [data-issue187-promotion-nav="write"]');
-    let revision = nav.querySelector('[data-phase-c-v2-nav="revision"], [data-issue187-promotion-nav="revision"]');
-
-    if (!write) write = makePromotionNavButton('홍보 작성', 'write');
-    if (!revision) revision = makePromotionNavButton('수정·보완 요청', 'revision');
-    write.hidden = false;
-    revision.hidden = false;
-
-    if (dashboard?.parentNode === nav) {
-      nav.insertBefore(write, dashboard.nextSibling);
-      nav.insertBefore(revision, write.nextSibling);
-    } else {
-      nav.prepend(revision);
-      nav.prepend(write);
-    }
-
-    const notice = [...nav.children].find(node => labelOf(node) === '공지 확인');
-    if (notice) notice.hidden = false;
-  }
-
-  function dashboardCard(title, body, actionLabel, mode) {
-    const card = document.createElement('article');
-    card.className = 'dashboard-card';
-    card.dataset.issue187PromotionCard = mode;
-    const status = document.createElement('span');
-    status.className = 'status-label';
-    status.textContent = '바로가기';
-    const heading = document.createElement('h3');
-    heading.textContent = title;
-    const copy = document.createElement('p');
-    copy.textContent = body;
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'button button-quiet';
-    button.textContent = actionLabel;
-    button.addEventListener('click', () => window.TaejangPromotionWorkspaceV2Api?.openPromotion?.(mode));
-    card.append(status, heading, copy, button);
-    return card;
-  }
-
-  function ensurePromotionStaffDashboard() {
-    if (route() !== 'promotion_staff') return;
-    const main = byId('dashboard-main');
-    const grid = main?.querySelector('.dashboard-grid');
-    const heading = main?.querySelector('.dashboard-intro h2')?.textContent || '';
-    if (!grid || !heading.includes('대시보드')) return;
-
-    const findCard = title => [...grid.querySelectorAll('.dashboard-card')]
-      .find(node => node.querySelector('h3')?.textContent?.trim() === title);
-
-    let revision = findCard('수정·보완 요청');
-    if (!revision) {
-      revision = dashboardCard('수정·보완 요청', '보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다.', '보완 글 확인', 'revision');
-      grid.prepend(revision);
-    }
-    revision.hidden = false;
-
-    let write = findCard('홍보자료 작성');
-    if (!write) {
-      write = dashboardCard('홍보자료 작성', '새 홍보자료를 작성해 운영팀장에게 승인 요청합니다.', '새 글 작성', 'write');
-      if (revision.nextSibling) grid.insertBefore(write, revision.nextSibling);
-      else grid.append(write);
-    }
-    write.hidden = false;
-
-    const importantNotice = findCard('중요공지');
-    if (importantNotice) importantNotice.hidden = false;
-  }
-
   function polishPromotionComposer() {
     const composer = byId('dashboard-main')?.querySelector('.phase-c-board-composer');
     if (!composer) return;
@@ -254,8 +168,6 @@
     bindImportedImageErrorGuard();
     installImportedImageSaveGuard();
     hideRoutineSupportRadarMenus();
-    ensurePromotionStaffNavigation();
-    ensurePromotionStaffDashboard();
     polishPromotionComposer();
   }
 
@@ -278,7 +190,7 @@
   document.addEventListener('click', event => {
     const clickedButton = event.target?.closest?.('button');
     if (clickedButton?.textContent?.trim() === '미리보기') setTimeout(revealPromotionPreview, 0);
-    const target = event.target?.closest?.('[data-phase-c-v2-nav], [data-issue187-promotion-nav], .dashboard-card button');
+    const target = event.target?.closest?.('[data-phase-c-v2-nav], .dashboard-card button');
     if (target) scheduleAfterWorkNavigation();
   }, true);
 
