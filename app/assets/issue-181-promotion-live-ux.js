@@ -51,6 +51,14 @@
     return { selector, root, urlInput };
   }
 
+  function refreshAutomaticSourceClassification(metadata = null) {
+    const { selector, urlInput } = activeLinkContext();
+    const raw = String(urlInput?.value || '').trim();
+    if (!selector || !raw || selector.dataset.manual === '1') return;
+    const next = suggestSource(raw, metadata);
+    if (next) selector.value = next;
+  }
+
   function makeSourceSelector(urlInput) {
     const wrapper = document.createElement('label');
     wrapper.className = 'phase-c-link-source';
@@ -158,7 +166,6 @@
       const status = linkTools.querySelector('.phase-c-upload-status');
       const previousTitle = titleInput?.value || '';
       const previousBody = body?.value || '';
-      const sourceType = source.value;
       let settled = false;
 
       const finish = () => {
@@ -166,14 +173,16 @@
         settled = true;
         observer.disconnect();
         clearTimeout(timeout);
+        refreshAutomaticSourceClassification();
+        const finalSourceType = source?.value || suggestSource(urlInput?.value) || 'external';
         if (titleInput && previousTitle.trim()) titleInput.value = previousTitle;
         if (body && previousBody.trim()) body.value = previousBody;
-        if (body && sourceType === 'external' && !previousBody.trim()) body.value = '';
+        if (body && finalSourceType === 'external' && !previousBody.trim()) body.value = '';
         if (status) {
           const fetchFailed = /가져오지 못|실패|확인할 수 없/.test(status.textContent || '');
           if (fetchFailed) {
             status.textContent = `${status.textContent} 자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다.`;
-          } else if (sourceType === 'external' && !previousBody.trim()) {
+          } else if (finalSourceType === 'external' && !previousBody.trim()) {
             status.textContent = '외부 기사·자료는 원문 전체를 복사하지 않습니다. 제목·썸네일을 참고하고 본문에는 태장 측 소개·요약을 직접 작성해 주세요.';
           } else if (previousTitle.trim() || previousBody.trim()) {
             status.textContent = '링크 정보를 가져왔습니다. 이미 직접 입력한 제목·본문은 그대로 유지했습니다.';
@@ -401,6 +410,7 @@
     installRpcSourcePersistence();
     enhanceComposerSource();
     keepComposerLinkIndependent();
+    refreshAutomaticSourceClassification();
     enhanceLeadEditSource();
     protectImportedText();
     syncLeadNavigation();
@@ -419,7 +429,10 @@
   document.addEventListener('taejang-app-ready', scheduleSync);
   document.addEventListener('taejang-dashboard-refresh', scheduleSync);
   document.addEventListener('taejang-open-promotion-workspace', scheduleSync);
-  document.addEventListener('taejang-external-meta-observed', scheduleSync);
+  document.addEventListener('taejang-external-meta-observed', event => {
+    refreshAutomaticSourceClassification(event.detail?.metadata || null);
+    scheduleSync();
+  });
 
   const start = () => {
     const shell = document.getElementById('desktop-app-shell') || document.documentElement;
