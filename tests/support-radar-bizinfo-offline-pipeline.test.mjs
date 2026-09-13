@@ -98,8 +98,20 @@ test('rejects secrets and unknown request controls before a pilot package is bui
 test('keeps the approved staging pilot finite to page one and at most 20 source items', () => {
   assert.equal(SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT.max_pages, 1);
   assert.equal(SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT.max_page_unit, 20);
+  assert.equal(SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT.max_search_count, 20);
   assert.throws(() => buildPlan({ page_index: 2 }), /BIZINFO_PILOT_PAGE_INDEX_MUST_BE_ONE/);
   assert.throws(() => buildPlan({ page_unit: 21 }), /BIZINFO_PILOT_PAGE_UNIT_EXCEEDS_LIMIT/);
+  assert.throws(
+    () => buildPlan({ request_filters: { searchCnt: 21 } }),
+    /BIZINFO_PILOT_SEARCH_COUNT_EXCEEDS_LIMIT/
+  );
+});
+
+test('refuses previous delta material from a different Source', () => {
+  assert.throws(
+    () => buildPlan({ previous_items: [{ source_code: 'other_source' }] }),
+    /BIZINFO_PILOT_PREVIOUS_SOURCE_MISMATCH/
+  );
 });
 
 test('does not allow a contradictory page cursor to be presented as success-eligible', () => {
