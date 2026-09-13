@@ -48,7 +48,8 @@ export const testGroups = Object.freeze({
     'tests/support-radar-ingestion-phase1-map.test.mjs',
     'tests/support-radar-ingestion-core.test.mjs',
     'tests/support-radar-bizinfo-normalizer.test.mjs',
-    'tests/support-radar-bizinfo-offline-pipeline.test.mjs'
+    'tests/support-radar-bizinfo-offline-pipeline.test.mjs',
+    'tests/support-radar-prepared-ingestion-runner.test.mjs'
   ]),
   publicHomepage: Object.freeze([
     'tests/public-homepage-main-simplification.test.js',
