@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 select is(
   has_function_privilege('authenticated','private.support_ingestion_http_url_is_safe(text)','EXECUTE'),
@@ -23,6 +23,11 @@ select is(
   private.support_ingestion_http_url_is_safe('https://www.bizinfo.go.kr/example/PBLN_URL_GUARD'),
   true,
   'documented HTTPS Source URLs are accepted'
+);
+select is(
+  private.support_ingestion_http_url_is_safe('https:///missing-host'),
+  false,
+  'hostless HTTP(S) URLs are rejected'
 );
 select is(
   private.support_ingestion_http_url_is_safe('https://user:password@example.invalid/notice'),
