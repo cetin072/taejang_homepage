@@ -1,6 +1,6 @@
 -- Defense in depth for browser-reachable URLs carried by prepared ingestion candidates.
 -- Source adapters validate first; this service-side boundary independently refuses
--- non-HTTP(S) schemes and credential-bearing URL authorities before any write.
+-- non-HTTP(S), hostless and credential-bearing URLs before any write.
 
 begin;
 
@@ -13,7 +13,7 @@ set search_path = ''
 as $$
   select case
     when nullif(btrim(coalesce(p_value, '')), '') is null then false
-    when btrim(p_value) !~* '^https?://[^[:space:]]+$' then false
+    when btrim(p_value) !~* '^https?://[^/[:space:]?#]+([/?#][^[:space:]]*)?$' then false
     when position('@' in split_part(split_part(btrim(p_value), '://', 2), '/', 1)) > 0 then false
     else true
   end;
@@ -139,7 +139,7 @@ revoke all on function public.support_ingestion_apply_item_checked_v1(uuid,jsonb
 grant execute on function public.support_ingestion_apply_item_checked_v1(uuid,jsonb) to service_role;
 
 comment on function private.support_ingestion_http_url_is_safe(text) is
-  'Service-only HTTP(S) URL scheme guard. Rejects whitespace and credential-bearing URL authorities.';
+  'Service-only HTTP(S) URL guard. Requires a non-empty host and rejects whitespace or credential-bearing URL authorities.';
 comment on function private.support_ingestion_candidate_urls_are_safe(jsonb) is
   'Service-only prepared-candidate URL guard for notice, application and document links.';
 comment on function public.support_ingestion_apply_item_checked_v1(uuid,jsonb) is
