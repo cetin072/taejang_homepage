@@ -17,6 +17,8 @@ const PILOT_MAX_PAGE_UNIT = 20;
 const PILOT_MAX_SEARCH_COUNT = 20;
 const PILOT_MAX_HASHTAGS_LENGTH = 200;
 const ALLOWED_REQUEST_FILTERS = new Set(['searchCnt', 'searchLclasId', 'hashtags']);
+const SENSITIVE_KEY_PATTERN = /(secret|password|token|credential|authorization|api[_-]?key|access[_-]?key|client[_-]?secret|key)/i;
+const SENSITIVE_VALUE_PATTERN = /(^|[?&;\s])(secret|password|token|credential|authorization|api[_-]?key|access[_-]?key|client[_-]?secret|key)=|(^|\s)(bearer|basic)\s+/i;
 
 function clean(value) {
   return value === null || value === undefined ? '' : String(value).trim();
@@ -43,6 +45,18 @@ function requireInstant(value, code) {
   return clean(value);
 }
 
+function metadataIsSafe(value) {
+  if (value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.every(metadataIsSafe);
+  if (typeof value === 'object') {
+    return Object.entries(value).every(([key, nested]) => (
+      !SENSITIVE_KEY_PATTERN.test(key) && metadataIsSafe(nested)
+    ));
+  }
+  if (typeof value === 'string') return !SENSITIVE_VALUE_PATTERN.test(value);
+  return true;
+}
+
 function validateRequestFilters(filters) {
   assertObject(filters, 'BIZINFO_PILOT_REQUEST_FILTERS_OBJECT_REQUIRED');
   for (const key of Object.keys(filters)) {
@@ -57,15 +71,23 @@ function validateRequestFilters(filters) {
     if (searchCount > PILOT_MAX_SEARCH_COUNT) throw new Error('BIZINFO_PILOT_SEARCH_COUNT_EXCEEDS_LIMIT');
     result.searchCnt = searchCount;
   }
+  if (result.searchLclasId !== null && result.searchLclasId !== undefined && typeof result.searchLclasId !== 'string') {
+    throw new Error('BIZINFO_PILOT_SEARCH_CLASS_INVALID');
+  }
+  if (result.hashtags !== null && result.hashtags !== undefined && typeof result.hashtags !== 'string') {
+    throw new Error('BIZINFO_PILOT_HASHTAGS_INVALID');
+  }
   if (clean(result.hashtags).length > PILOT_MAX_HASHTAGS_LENGTH) {
     throw new Error('BIZINFO_PILOT_HASHTAGS_TOO_LONG');
   }
+  if (!metadataIsSafe(result)) throw new Error('BIZINFO_PILOT_REQUEST_FILTERS_UNSAFE');
   return result;
 }
 
 function validateCursorBefore(cursor) {
   if (cursor === null || cursor === undefined) return null;
   assertObject(cursor, 'BIZINFO_PILOT_CURSOR_BEFORE_OBJECT_REQUIRED');
+  if (!metadataIsSafe(cursor)) throw new Error('BIZINFO_PILOT_CURSOR_BEFORE_UNSAFE');
   return structuredClone(cursor);
 }
 
@@ -99,12 +121,14 @@ function buildWritePlans(batch, deltaPlan, fetchedAt) {
     const sourceNoticeId = item.occurrence.source_notice_id;
     const action = actionById.get(sourceNoticeId);
     if (!action) throw new Error('BIZINFO_PILOT_DELTA_ACTION_MISSING');
+    const candidate = buildSupportRadarPhase1WriteCandidate(item, { fetched_at: fetchedAt });
+    if (!metadataIsSafe(candidate)) throw new Error('BIZINFO_PILOT_CANDIDATE_UNSAFE');
     return {
       source_notice_id: sourceNoticeId,
       expected_delta_status: action.delta_status,
       expected_write_action: action.action,
       requires_re_evaluation: action.requires_re_evaluation,
-      candidate: buildSupportRadarPhase1WriteCandidate(item, { fetched_at: fetchedAt })
+      candidate
     };
   });
 }
@@ -152,6 +176,7 @@ export function buildBizinfoStagingPilotOfflinePlan({
     pageUnit,
     pageIndex
   });
+  if (!metadataIsSafe(requestPlan)) throw new Error('BIZINFO_PILOT_PUBLIC_REQUEST_UNSAFE');
 
   const normalized = normalizeBizinfoPayload(payload);
   const batch = createSupportRadarIngestionBatch({
@@ -234,6 +259,7 @@ export const SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT = Object.freez
   principles: Object.freeze([
     'the pilot plan is single-page and finite',
     'credential-shaped or unknown request filters are rejected by allowlist before planning',
+    'cursor and prepared candidate provenance are screened for credential-shaped metadata before output',
     'search count cannot exceed the one-page pilot item budget',
     'previous comparison items must belong to the BizInfo Source',
     'pagination uses raw source page item count rather than accepted normalized item count',
