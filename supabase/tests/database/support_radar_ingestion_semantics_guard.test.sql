@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 select is(
   has_function_privilege('authenticated','private.support_ingestion_re_evaluation_candidates_v1(uuid)','EXECUTE'),
@@ -193,9 +193,7 @@ select throws_ok(
       null,
       null
     )$$,
-  '23514',
-  null,
-  'an inconsistent pagination cursor cannot be finalized as a successful run'
+  '23514'
 );
 
 select * from finish();
