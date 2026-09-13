@@ -119,6 +119,24 @@ test('batch validation rejects duplicate source IDs, cross-source items and tamp
   assert.throws(() => validateSupportRadarIngestionBatch(tampered), /INGESTION_CONTENT_HASH_MISMATCH/);
 });
 
+test('batch validation rejects non-HTTP browser-reachable URLs before mapping', () => {
+  const unsafeSource = structuredClone(batchFor());
+  unsafeSource.items[0].occurrence.source_url = 'javascript:alert(1)';
+  assert.throws(() => validateSupportRadarIngestionBatch(unsafeSource), /INGESTION_SOURCE_URL_INVALID/);
+
+  const unsafeCanonical = structuredClone(batchFor());
+  unsafeCanonical.items[0].notice.canonical_url = 'data:text/html,unsafe';
+  assert.throws(() => validateSupportRadarIngestionBatch(unsafeCanonical), /INGESTION_CANONICAL_URL_INVALID/);
+
+  const unsafeApplication = structuredClone(batchFor());
+  unsafeApplication.items[0].application_url = 'javascript:alert(1)';
+  assert.throws(() => validateSupportRadarIngestionBatch(unsafeApplication), /INGESTION_APPLICATION_URL_INVALID/);
+
+  const unsafeDocument = structuredClone(batchFor());
+  unsafeDocument.items[0].documents[0].source_url = 'file:///tmp/unsafe.pdf';
+  assert.throws(() => validateSupportRadarIngestionBatch(unsafeDocument), /INGESTION_DOCUMENT_URL_INVALID/);
+});
+
 test('delta classification preserves new unchanged changed and basis-change meanings', () => {
   const baseline = batchFor().items[0];
   assert.equal(classifySupportRadarItemDelta(null, baseline).status, 'new');
