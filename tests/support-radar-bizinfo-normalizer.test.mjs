@@ -73,6 +73,21 @@ test('normalizes current documented BizInfo response fields and fallback fields'
   assert.equal(fallback.application_url, null);
 });
 
+test('preserves current BizInfo regional hashtags used by live notices', () => {
+  const payload = {
+    jsonArray: {
+      item: [{
+        pblancId: 'PBLN_REGION_FIXTURE',
+        pblancNm: '지역 태그 검증 공고',
+        pblancUrl: 'https://www.bizinfo.go.kr/example/PBLN_REGION_FIXTURE',
+        hashTags: '전남광주,전남,광주,경남,기술'
+      }]
+    }
+  };
+  const normalized = normalizeBizinfoPayload(payload);
+  assert.deepEqual(normalized.items[0].notice.target_regions, ['전남광주', '전남', '광주', '경남']);
+});
+
 test('does not invent total count when source does not report one', () => {
   const payload = structuredClone(fixture);
   delete payload.jsonArray.item[0].totCnt;
