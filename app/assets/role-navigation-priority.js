@@ -7,7 +7,7 @@
     ],
     promotion_lead: [
       '대시보드',
-      '홍보 검토', '홍보 작성', '홍보 글 관리',
+      '홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제',
       '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
       '공지 관리', '상시 안내 관리',
       '홈페이지 내용 관리',
@@ -53,7 +53,7 @@
       { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
     ],
     promotion_lead: [
-      { label: '홍보', items: ['홍보 검토', '홍보 작성', '홍보 글 관리'] },
+      { label: '홍보', items: ['홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제'] },
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
       { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] },
       { label: '홈페이지', items: ['홈페이지 내용 관리'] },
@@ -96,9 +96,17 @@
   const route = () => window.TaejangApp?.getRoute?.();
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
 
-  function normalizeLabel(node) {
+  function normalizeLabel(node, role) {
     if (node.dataset?.navSection === 'official_channels') return;
     const current = cleanLabel(node);
+    if (role === 'promotion_lead' && current === '홍보 검토') {
+      node.textContent = '홍보 관리';
+      return;
+    }
+    if (role === 'promotion_lead' && current === '홍보 글 관리') {
+      node.textContent = '공개글 관리';
+      return;
+    }
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
   }
@@ -113,7 +121,7 @@
     link.textContent = '근태·급여관리';
     link.className = 'app-nav-item';
     link.dataset.payrollMvpNav = '1';
-    link.setAttribute('aria-label', '근태·급여관리 Staging MVP 열기');
+    link.setAttribute('aria-label', '근태·급여관리 사전운영 화면 열기');
     nav.append(link);
     return link;
   }
@@ -184,7 +192,7 @@
       ensurePayrollEntry(nav, currentRole);
       const children = [...nav.children];
       children.forEach(node => {
-        normalizeLabel(node);
+        normalizeLabel(node, currentRole);
         if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
         markStatus(node);
       });
