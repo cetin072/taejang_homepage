@@ -14,6 +14,8 @@ import {
 import { buildSupportRadarPhase1WriteCandidate } from './support-radar-ingestion-phase1-map.mjs';
 
 const PILOT_MAX_PAGE_UNIT = 20;
+const PILOT_MAX_SEARCH_COUNT = 20;
+const PILOT_MAX_HASHTAGS_LENGTH = 200;
 const ALLOWED_REQUEST_FILTERS = new Set(['searchCnt', 'searchLclasId', 'hashtags']);
 
 function clean(value) {
@@ -48,13 +50,31 @@ function validateRequestFilters(filters) {
       throw new Error(`BIZINFO_PILOT_REQUEST_FILTER_FORBIDDEN:${key}`);
     }
   }
-  return structuredClone(filters);
+
+  const result = structuredClone(filters);
+  if (result.searchCnt !== null && result.searchCnt !== undefined && result.searchCnt !== '') {
+    const searchCount = positiveInteger(result.searchCnt, 'BIZINFO_PILOT_SEARCH_COUNT_INVALID');
+    if (searchCount > PILOT_MAX_SEARCH_COUNT) throw new Error('BIZINFO_PILOT_SEARCH_COUNT_EXCEEDS_LIMIT');
+    result.searchCnt = searchCount;
+  }
+  if (clean(result.hashtags).length > PILOT_MAX_HASHTAGS_LENGTH) {
+    throw new Error('BIZINFO_PILOT_HASHTAGS_TOO_LONG');
+  }
+  return result;
 }
 
 function validateCursorBefore(cursor) {
   if (cursor === null || cursor === undefined) return null;
   assertObject(cursor, 'BIZINFO_PILOT_CURSOR_BEFORE_OBJECT_REQUIRED');
   return structuredClone(cursor);
+}
+
+function validatePreviousItems(previousItems) {
+  for (const item of previousItems) {
+    if (clean(item?.source_code) !== 'bizinfo') {
+      throw new Error('BIZINFO_PILOT_PREVIOUS_SOURCE_MISMATCH');
+    }
+  }
 }
 
 function rejectLedgerInput(rejected) {
@@ -107,6 +127,7 @@ export function buildBizinfoStagingPilotOfflinePlan({
 }) {
   assertObject(payload, 'BIZINFO_PILOT_PAYLOAD_OBJECT_REQUIRED');
   if (!Array.isArray(previous_items)) throw new Error('BIZINFO_PILOT_PREVIOUS_ITEMS_ARRAY_REQUIRED');
+  validatePreviousItems(previous_items);
 
   const pageIndex = positiveInteger(page_index, 'BIZINFO_PILOT_PAGE_INDEX_INVALID');
   const pageUnit = positiveInteger(page_unit, 'BIZINFO_PILOT_PAGE_UNIT_INVALID');
@@ -192,7 +213,7 @@ export function buildBizinfoStagingPilotOfflinePlan({
         .filter(plan => plan.requires_re_evaluation)
         .map(plan => plan.source_notice_id),
       pagination_followup_required: paginationFollowupRequired,
-      manual_review_required: batch.rejected.length > 0 || pageCursor.state === 'inconsistent',
+      manual_review_required: batch.rejected.length > 0 || pageCursor.state === 'inconsistent' || pageCursor.state === 'unknown',
       network_used: false,
       credential_accepted: false,
       database_write_performed: false,
@@ -207,11 +228,14 @@ export const SUPPORT_RADAR_BIZINFO_STAGING_PILOT_OFFLINE_CONTRACT = Object.freez
   version: 'support-radar-bizinfo-staging-pilot-offline-v1',
   max_pages: 1,
   max_page_unit: PILOT_MAX_PAGE_UNIT,
+  max_search_count: PILOT_MAX_SEARCH_COUNT,
   data_type: 'json',
   allowed_request_filters: Object.freeze([...ALLOWED_REQUEST_FILTERS]),
   principles: Object.freeze([
     'the pilot plan is single-page and finite',
     'credential-shaped or unknown request filters are rejected by allowlist before planning',
+    'search count cannot exceed the one-page pilot item budget',
+    'previous comparison items must belong to the BizInfo Source',
     'pagination uses raw source page item count rather than accepted normalized item count',
     'rejected items remain explicit ledger reject plans and do not silently disappear',
     'Phase 1 write candidates are prepared without database mutation',
