@@ -265,7 +265,7 @@
     if (route === 'ceo') grid.append(card('홍보 상신 검토', '운영총괄이 실제로 상신한 중요 콘텐츠를 확인합니다.', { action: { label: '홍보 검토 열기', run: () => openPromotion('review') } }));
     if (route === 'super_admin') {
       if (pending.status === 'success') {
-        grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } }));
+        grid.append(card('계정 승인 확인', pending.value.length ? '보호된 계정 승인 화면에서 확인하세요.' : '현재 승인 대기 항목이 없습니다.', { value: pending.value.length ? `${pending.value.length}건` : undefined, action: { label: '계정 승인 열기', run: () => { window.location.href = '../staff/?admin=1'; } } }));
       } else {
         grid.append(card('계정 승인 확인', failureCopy(pending.status, '승인 대기 정보'), { state: pending.status, action: { label: '다시 불러오기', run: goDashboard } }));
       }
