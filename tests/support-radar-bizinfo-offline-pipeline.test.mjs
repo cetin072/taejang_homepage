@@ -93,6 +93,19 @@ test('rejects secrets and unknown request controls before a pilot package is bui
     () => buildPlan({ request_filters: { pageUnit: 999 } }),
     /BIZINFO_PILOT_REQUEST_FILTER_FORBIDDEN:pageUnit/
   );
+  assert.throws(
+    () => buildPlan({ cursor_before: { contract_version: 'cursor-v1', token: 'do-not-store' } }),
+    /BIZINFO_PILOT_CURSOR_BEFORE_UNSAFE/
+  );
+});
+
+test('rejects credential-shaped Source provenance before producing DB write candidates', () => {
+  const payload = structuredClone(fixture);
+  payload.jsonArray.item[0].authorization = 'Bearer do-not-store';
+  assert.throws(
+    () => buildPlan({ payload }),
+    /BIZINFO_PILOT_CANDIDATE_UNSAFE/
+  );
 });
 
 test('keeps the approved staging pilot finite to page one and at most 20 source items', () => {
