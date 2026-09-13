@@ -12,6 +12,17 @@ function assertObject(value, code) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(code);
 }
 
+function isHttpUrl(value) {
+  const raw = clean(value);
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function validIsoInstant(value) {
   const raw = clean(value);
   if (!raw) return false;
@@ -89,7 +100,7 @@ function attachContentHash(item) {
 function validateOccurrence(occurrence) {
   assertObject(occurrence, 'INGESTION_OCCURRENCE_REQUIRED');
   if (!clean(occurrence.source_notice_id)) throw new Error('INGESTION_SOURCE_NOTICE_ID_REQUIRED');
-  if (!clean(occurrence.source_url)) throw new Error('INGESTION_SOURCE_URL_REQUIRED');
+  if (!isHttpUrl(occurrence.source_url)) throw new Error('INGESTION_SOURCE_URL_INVALID');
   if (!clean(occurrence.raw_title)) throw new Error('INGESTION_RAW_TITLE_REQUIRED');
   assertObject(occurrence.raw_payload, 'INGESTION_RAW_PAYLOAD_REQUIRED');
 }
@@ -97,6 +108,9 @@ function validateOccurrence(occurrence) {
 function validateNotice(notice) {
   assertObject(notice, 'INGESTION_NOTICE_REQUIRED');
   if (!clean(notice.title)) throw new Error('INGESTION_NOTICE_TITLE_REQUIRED');
+  if (clean(notice.canonical_url) && !isHttpUrl(notice.canonical_url)) {
+    throw new Error('INGESTION_CANONICAL_URL_INVALID');
+  }
   if (!Array.isArray(notice.target_regions)) throw new Error('INGESTION_TARGET_REGIONS_ARRAY_REQUIRED');
   if (!Array.isArray(notice.categories)) throw new Error('INGESTION_CATEGORIES_ARRAY_REQUIRED');
 }
@@ -105,7 +119,7 @@ function validateDocuments(documents) {
   if (!Array.isArray(documents)) throw new Error('INGESTION_DOCUMENTS_ARRAY_REQUIRED');
   for (const document of documents) {
     assertObject(document, 'INGESTION_DOCUMENT_INVALID');
-    if (!clean(document.source_url)) throw new Error('INGESTION_DOCUMENT_URL_REQUIRED');
+    if (!isHttpUrl(document.source_url)) throw new Error('INGESTION_DOCUMENT_URL_INVALID');
   }
 }
 
@@ -133,6 +147,9 @@ export function validateSupportRadarIngestionBatch(batch) {
     validateOccurrence(item.occurrence);
     validateNotice(item.notice);
     validateDocuments(item.documents);
+    if (clean(item.application_url) && !isHttpUrl(item.application_url)) {
+      throw new Error('INGESTION_APPLICATION_URL_INVALID');
+    }
     validateContentHash(item);
     const id = clean(item.occurrence.source_notice_id);
     if (ids.has(id)) throw new Error('INGESTION_DUPLICATE_SOURCE_NOTICE_ID');
@@ -177,6 +194,7 @@ export const SUPPORT_RADAR_INGESTION_CONTRACT = Object.freeze({
     'source adapter normalizes facts only',
     'invalid source items are rejected, not invented',
     'batch Source and item Source must match before mapping or persistence',
+    'browser-reachable URLs are limited to HTTP(S) before mapping or persistence',
     'content hash covers normalized material facts, not volatile raw payload metadata or set/list ordering noise',
     'content hash ordering is locale-independent and reproducible across runtimes',
     'raw payload remains available separately for provenance',
