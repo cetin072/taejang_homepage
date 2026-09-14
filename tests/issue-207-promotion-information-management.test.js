@@ -44,11 +44,17 @@ test('promotion staff write screen separates sent and revision queues from compo
   assert.match(ux, /item\.submitted_at/);
 });
 
-test('promotion lead navigation uses lightweight existing-content and unified information management', () => {
+test('promotion lead navigation restores missing management entries and uses notice-only labels', () => {
   assert.match(ux, /review\.textContent = '승인·검토'/);
   assert.match(ux, /write\.textContent = '새 홍보글 작성'/);
-  assert.match(ux, /existing\.textContent = '기존 글 관리'/);
-  assert.match(ux, /navNode\('공지·안내 관리'/);
+  assert.match(ux, /ensureExistingContentNav\(nav\)/);
+  assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
+  assert.match(ux, /node\.dataset\.phaseCPublicationAdmin = '1'/);
+  assert.match(ux, /node\.dataset\.phaseCV2Nav = 'homepage'/);
+  assert.match(ux, /navNode\('공지 관리'/);
+  assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
+  assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
+  assert.doesNotMatch(ux, /navNode\('공지·안내 관리'/);
   assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
   assert.doesNotMatch(ux, /MutationObserver/);
 });
@@ -92,21 +98,25 @@ test('public content policy allows recent direct edit/archive but forbids deleti
   assert.doesNotMatch(finalPolicy, /private_request_promotion_deletion_pre148/);
 });
 
-test('notice and standing guidance share one submit/review lane without promotion-lead direct publish', () => {
+test('notice approval lane remains operations-approved while the UI removes standing-guidance authoring', () => {
   assert.match(migration, /'information\.submit'/);
   assert.match(migration, /'information\.review'/);
   assert.match(migration, /where role\.code = 'promotion_lead'/);
-  assert.doesNotMatch(migration, /cap\.code in \([^)]*notice\.manage/s);
-  assert.doesNotMatch(migration, /cap\.code in \([^)]*guidance\.manage/s);
   assert.match(migration, /save_information_publication_request/);
   assert.match(migration, /review_information_publication_request/);
   assert.match(migration, /not public\.current_user_has_role\('operations_manager'\)/);
-  assert.match(ux, /운영총괄에게 상신/);
-  assert.match(ux, /승인·게시/);
+  assert.match(ux, /p_information_kind: 'notice'/);
+  assert.match(ux, /item\.information_kind === 'notice'/);
+  assert.match(ux, /'새 공지 작성'/);
+  assert.match(ux, /'공지 관리'/);
+  assert.match(ux, /'승인·게시'/);
+  assert.doesNotMatch(ux, /guidanceKinds/);
+  assert.doesNotMatch(ux, /get_my_staff_guidance_list/);
+  assert.doesNotMatch(ux, /상시 안내/);
 });
 
-test('promotion staff read navigation combines notice and standing guidance', () => {
-  assert.match(ux, /'공지·안내 확인'/);
+test('promotion staff read navigation is notice-only', () => {
+  assert.match(ux, /'공지 확인'/);
   assert.match(ux, /get_my_notice_list/);
-  assert.match(ux, /get_my_staff_guidance_list/);
+  assert.doesNotMatch(ux, /공지·안내 확인/);
 });
