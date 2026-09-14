@@ -71,6 +71,13 @@ test('existing content pilot avoids hidden archive iframe and provides manual st
   assert.doesNotMatch(migration, /create table if not exists public\.public_content_inventory/);
 });
 
+test('existing-content review exposes only actions supported end-to-end in the pilot', () => {
+  assert.match(publicationAdmin, /reviewChangeRequest\(request, 'approve'\)/);
+  assert.match(publicationAdmin, /reviewChangeRequest\(request, 'reject'\)/);
+  assert.doesNotMatch(publicationAdmin, /reviewChangeRequest\(request, 'changes_requested'\)/);
+  assert.match(ux, /reviewInformation\(request, 'changes_requested'\)/);
+});
+
 test('public content policy allows recent direct edit/archive but forbids deletion after 24 hours', () => {
   assert.match(migration, /lead_update_recent_promotion_content/);
   assert.match(migration, /PROMOTION_PUBLIC_EDIT_WINDOW_EXPIRED/);
