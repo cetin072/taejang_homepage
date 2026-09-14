@@ -1,0 +1,50 @@
+name: Temporary Cleanup Thumbnail QA
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/_tmp-cleanup-thumbnail-qa.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  compare-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pillow
+      - name: Build comparison sheet
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+
+          paths = [
+              Path('assets/images/archive/environment-cleanup-first.webp'),
+              Path('assets/images/business/environment-cleanup-group.webp'),
+          ]
+          canvas = Image.new('RGB', (900, 720), 'white')
+          draw = ImageDraw.Draw(canvas)
+          y = 0
+          for path in paths:
+              im = Image.open(path).convert('RGB')
+              w, h = im.size
+              im.thumbnail((860, 300))
+              x = (900 - im.width) // 2
+              canvas.paste(im, (x, y + 30))
+              draw.text((20, y + 340), f'{path} | original={w}x{h} | bytes={path.stat().st_size}', fill='black')
+              y += 360
+          canvas.save('cleanup-thumbnail-comparison.jpg', quality=90)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-thumbnail-comparison
+          path: cleanup-thumbnail-comparison.jpg
+          if-no-files-found: error
+          retention-days: 1
