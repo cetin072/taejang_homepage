@@ -28,12 +28,12 @@ test('automatic clock inference only changes empty/work/review statuses', () => 
   }
 });
 
-test('legacy xls can be selected only to show the safe conversion guidance', () => {
+test('legacy xls is selectable directly and is not diverted to conversion guidance', () => {
   assert.equal(ux.isLegacyXlsFileName('출근부.xls'), true);
   assert.equal(ux.isLegacyXlsFileName('출근부.XLS'), true);
   assert.equal(ux.isLegacyXlsFileName('출근부.xlsx'), false);
   assert.match(uxSource, /accept', '\.xlsx,\.xls'/);
-  assert.match(uxSource, /Excel에서 \.xlsx로 저장한 뒤 다시 선택해 주세요/);
+  assert.doesNotMatch(uxSource, /Excel에서 \.xlsx로 저장한 뒤 다시 선택해 주세요/);
   assert.match(uxSource, /stopImmediatePropagation/);
 });
 

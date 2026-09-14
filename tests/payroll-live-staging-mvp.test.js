@@ -123,8 +123,8 @@ test('live MVP renders the practical payroll ledger without statutory setting in
 
   assert.match(html, /type="month"/i);
   assert.match(html, /type="date"/i);
-  assert.match(html, /type="file"[^>]+accept="\.xlsx"/i);
-  assert.match(html, /구형 XLS는 실제 보안업체 원본을 확인한 뒤 전용 지원 여부를 결정합니다/);
+  assert.match(html, /type="file"[^>]+accept="\.xlsx,\.xls"/i);
+  assert.match(html, /구형 XLS와 기존 XLSX를 원본 변환 없이 읽고/);
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
@@ -132,6 +132,7 @@ test('attendance Excel analysis is local prefill and remains editable before sav
   assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
   assert.match(html, /payroll-attendance-preview/);
   assert.match(attendanceAnalyzer, /parseXlsxFile/);
+  assert.match(html, /payroll-attendance-xls\.js/);
   assert.match(attendanceAnalyzer, /inferColumns/);
   assert.match(attendanceAnalyzer, /duplicate_row/);
   assert.match(attendanceEditor, /best\??\.matrix/);

@@ -296,51 +296,56 @@
     const matrix = best?.matrix;
     const analysis = best?.analysis;
     if (!helper || !Array.isArray(matrix) || !analysis?.ok) return [];
-    const mapping = analysis.mapping || {};
-    const result = [];
-    for (let index = Number(analysis.headerRow || 1); index < matrix.length; index += 1) {
-      const row = Array.isArray(matrix[index]) ? matrix[index] : [];
-      if (row.every(value => value == null || String(value).trim() === '')) continue;
-      const employeeId = mapping.employeeId == null ? '' : String(row[mapping.employeeId] ?? '').trim();
-      const name = mapping.name == null ? '' : String(row[mapping.name] ?? '').trim();
-      const date = helper.normalizeDateCell(row[mapping.date]);
-      const clockIn = mapping.clockIn == null ? null : helper.normalizeTimeCell(row[mapping.clockIn]);
-      const clockOut = mapping.clockOut == null ? null : helper.normalizeTimeCell(row[mapping.clockOut]);
-      result.push({ sourceRow: index + 1, employeeId, name, date, clockIn, clockOut });
-    }
-    return result;
+    return helper.extractAttendanceRows(matrix, analysis);
   }
 
   async function fillFromExcel(file) {
-    if (!file || !/\.xlsx$/i.test(file.name || '')) return;
+    if (!file || !/\.(xlsx|xls)$/i.test(file.name || '')) return;
     const helper = window.TaejangPayrollAttendanceXlsx;
     if (!helper?.parseXlsxFile) return;
     setMessage('Excel을 근태표에 채우는 중입니다…');
     try {
-      const workbook = await helper.parseXlsxFile(file);
+      const isLegacyXls = /\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '');
+      const workbook = isLegacyXls
+        ? await window.TaejangPayrollAttendanceXls?.parseXlsFile(file)
+        : await helper.parseXlsxFile(file);
+      if (!workbook) throw new Error('attendance_xls_parser_unavailable');
       const best = workbook.best;
       if (!best?.analysis?.ok) throw new Error('근태 헤더를 찾지 못했습니다');
       const employees = state.context?.employees || [];
       const byId = new Map(employees.map(employee => [String(employee.employee_id || '').trim(), employee]));
-      const byName = new Map(employees.map(employee => [String(employee.name || '').trim(), employee]));
+      const byName = new Map();
+      for (const employee of employees) {
+        const name = String(employee.name || '').trim();
+        if (!name) continue;
+        const candidates = byName.get(name) || [];
+        candidates.push(employee);
+        byName.set(name, candidates);
+      }
       let filled = 0;
       let unmatched = 0;
       let outsideMonth = 0;
       const seen = new Set();
       let duplicates = 0;
+      let partial = 0;
+      let noRecord = 0;
       for (const row of allExcelRows(best)) {
         if (!row.date || !row.date.startsWith(`${selectedMonth()}-`)) { outsideMonth += 1; continue; }
-        const employee = (row.employeeId && byId.get(row.employeeId)) || (row.name && byName.get(row.name));
+        const namedCandidates = row.name ? byName.get(row.name) || [] : [];
+        const employee = (row.employeeId && byId.get(row.employeeId)) || (row.employeeId ? null : namedCandidates.length === 1 ? namedCandidates[0] : null);
         if (!employee) { unmatched += 1; continue; }
         const key = keyOf(employee.employee_uuid, row.date);
         if (seen.has(key)) duplicates += 1;
         seen.add(key);
         const cell = getCell(employee, row.date);
         Object.assign(cell, {
-          status: row.clockIn || row.clockOut ? 'work' : 'review_required',
+          status: row.clockIn && row.clockOut ? 'work' : 'review_required',
           clockIn: row.clockIn || '',
           clockOut: row.clockOut || '',
           confirmedHours: '',
+          // The append-only editor contract calls every spreadsheet prefill
+          // xlsx_prefill. The exact immutable source format remains in the
+          // file-name/reference fields; it is never converted or overwritten.
           sourceKind: 'xlsx_prefill',
           originalSourceKind: 'xlsx_prefill',
           sourceFileName: file.name,
@@ -348,6 +353,8 @@
           sourceRowNumber: row.sourceRow,
         });
         state.dirty.add(key);
+        if (!row.clockIn && !row.clockOut) noRecord += 1;
+        else if (!row.clockIn || !row.clockOut) partial += 1;
         filled += 1;
       }
       state.excelFile = file;
@@ -355,6 +362,8 @@
       const notes = [`Excel ${filled}건 채움`];
       if (unmatched) notes.push(`직원 미매칭 ${unmatched}건`);
       if (duplicates) notes.push(`중복일자 ${duplicates}건`);
+      if (partial) notes.push(`출퇴근 누락 ${partial}건`);
+      if (noRecord) notes.push(`기록 없음 ${noRecord}건`);
       if (outsideMonth) notes.push(`다른 월 ${outsideMonth}건 제외`);
       setMessage(`${notes.join(' · ')}. 저장 전 화면에서 수정할 수 있습니다.`, unmatched || duplicates ? 'review' : 'ok');
       renderSummary(notes[0]);

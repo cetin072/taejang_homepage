@@ -105,21 +105,6 @@
     return observer;
   }
 
-  function handleLegacyFile(documentRef, target) {
-    const file = target.files && target.files[0];
-    if (!file || !isLegacyXlsFileName(file.name)) return false;
-
-    target.value = '';
-    const fileName = documentRef.getElementById('payroll-attendance-file-name');
-    if (fileName) fileName.textContent = '구형 .xls는 아직 자동채움 미지원 · .xlsx 파일을 선택해 주세요';
-    setEditorMessage(
-      documentRef,
-      '구형 .xls 파일은 현재 자동채움하지 않습니다. Excel에서 .xlsx로 저장한 뒤 다시 선택해 주세요.',
-      'review'
-    );
-    return true;
-  }
-
   function shouldBlockExcelPrefill(documentRef) {
     const summary = documentRef.getElementById('payroll-attendance-editor-summary');
     const pending = dirtyCountFromSummaryText(summary?.textContent);
@@ -145,11 +130,6 @@
       if (!target || !target.matches) return;
 
       if (target.matches('#payroll-attendance-file')) {
-        if (handleLegacyFile(documentRef, target)) {
-          event.preventDefault?.();
-          event.stopImmediatePropagation?.();
-          return;
-        }
         if (target.files?.[0] && shouldBlockExcelPrefill(documentRef)) {
           target.value = '';
           setEditorMessage(documentRef, 'Excel 자동채움을 취소했습니다. 현재 변경사항을 먼저 저장해 주세요.', 'review');
