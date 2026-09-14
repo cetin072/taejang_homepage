@@ -10,6 +10,9 @@ const root = path.resolve(__dirname, '..');
 const ux = fs.readFileSync(path.join(root, 'app/assets/issue-207-promotion-information-ux.js'), 'utf8');
 const publicationAdmin = fs.readFileSync(path.join(root, 'app/assets/phase-c-publication-admin.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
+const navigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
+const workspace = fs.readFileSync(path.join(root, 'app/assets/phase-c-workspace-v2.js'), 'utf8');
+const supportCss = fs.readFileSync(path.join(root, 'app/assets/support-radar.css'), 'utf8');
 const capabilityFoundation = fs.readFileSync(path.join(root, 'supabase/migrations/20260909150000_issue_148_capability_foundation.sql'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260914070000_issue207_promotion_information_workflow.sql'), 'utf8');
 const correction = fs.readFileSync(path.join(root, 'supabase/migrations/20260914071500_issue207_delete_request_and_submitter_correction.sql'), 'utf8');
@@ -22,6 +25,7 @@ function syntaxCheck(file) {
 test('issue 207 pilot UX parses and loads after earlier promotion modules', () => {
   syntaxCheck('app/assets/issue-207-promotion-information-ux.js');
   syntaxCheck('app/assets/phase-c-publication-admin.js');
+  syntaxCheck('app/assets/role-navigation-priority.js');
   syntaxCheck('app/assets/app-ui.js');
   assert.match(appUi, /assets\/issue-207-promotion-information-ux\.js/);
   assert.ok(appUi.indexOf('assets/issue-207-promotion-information-ux.js') > appUi.indexOf('assets/ux-followup-polish.js'));
@@ -57,6 +61,22 @@ test('promotion lead navigation restores missing management entries and uses not
   assert.doesNotMatch(ux, /navNode\('공지·안내 관리'/);
   assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
   assert.doesNotMatch(ux, /MutationObserver/);
+});
+
+test('issue 214 final sidebar contract removes lead revision leak and separates support work after attendance', () => {
+  assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace still exposes the source that previously leaked into lead navigation');
+  assert.match(navigation, /function ensureIssue207RoleContract/);
+  assert.match(navigation, /currentRole === 'promotion_lead'/);
+  assert.match(navigation, /node\.dataset\?\.phaseCV2Nav === 'revision'/);
+  assert.match(navigation, /\['수정·보완 요청', '보완 요청받은 글'\]\.includes/);
+  assert.match(navigation, /review\.textContent = '홍보글 승인·검토'/);
+  assert.match(navigation, /navButton\('기존 글 관리'/);
+  assert.match(navigation, /navButton\('홈페이지 내용 관리'/);
+  assert.match(navigation, /navButton\('공지 관리'/);
+  assert.match(navigation, /node\.dataset\?\.supportMyWorkNav[\s\S]*role === 'promotion_lead'\) return 105/);
+  assert.match(navigation, /'출근부',[\s\S]*'홈페이지'/);
+  assert.match(navigation, /\[0, 120, 360, 850\]\.forEach/);
+  assert.match(supportCss, /support-radar-nav-group\{[^}]*margin-top:18px[^}]*border-top:1px solid rgba\(255,255,255,\.17\)/);
 });
 
 test('review queue identifies originating employee and current submitter without permanent DOM observer', () => {
