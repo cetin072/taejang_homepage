@@ -1,37 +1,27 @@
 (() => {
   'use strict';
 
-  const LEGACY_ELIGIBLE = new Set(['promotion_lead', 'operations_manager']);
+  const ELIGIBLE_ROLES = new Set(['promotion_lead', 'operations_manager']);
   const TYPE_LABELS = {
     homepage_article: '태장 소식',
     external_content: '외부 기사·콘텐츠',
     press_release: '보도자료'
   };
-  const LIFECYCLE_LABELS = {
-    draft: '초안',
-    review_pending: '검토 대기',
-    needs_revision: '수정 필요',
-    approved: '승인 완료',
-    scheduled: '발행 예정',
-    published: '공개 중',
-    hidden: '숨김'
+  const STATUS_LABELS = {
+    pending: '승인 대기',
+    changes_requested: '보완 요청',
+    rejected: '반려',
+    approved: '승인 완료'
   };
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
-  const can = (capability, legacyAllowed) => app()?.hasCapabilityContract?.()
-    ? app()?.can?.(capability) === true
-    : legacyAllowed;
-  const canManagePublication = () => [
-    'promotion.hide',
-    'promotion.republish',
-    'promotion.archive'
-  ].some(capability => can(capability, LEGACY_ELIGIBLE.has(route())));
   const main = () => document.getElementById('dashboard-main');
-  const el = (tag, text, className) => {
+  const arr = value => Array.isArray(value) ? value : [];
+  const el = (tag, value, className) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
-    if (text !== undefined && text !== null) node.textContent = text;
+    if (value !== undefined && value !== null) node.textContent = value;
     return node;
   };
   const button = (label, handler, quiet = false) => {
@@ -40,10 +30,32 @@
     node.addEventListener('click', handler);
     return node;
   };
+  const field = (label, control, help = '') => {
+    const wrap = document.createElement('label');
+    wrap.append(el('span', label));
+    if (help) wrap.append(el('small', help, 'field-help'));
+    wrap.append(control);
+    return wrap;
+  };
+  const friendly = (error, fallback) => app()?.friendlyError?.(error) || error?.message || fallback;
 
   function closeSidebar() {
     document.getElementById('desktop-app-shell')?.classList.remove('sidebar-open');
     document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
+  }
+
+  function setPage(title, copy) {
+    closeSidebar();
+    const target = main();
+    if (!target) return null;
+    document.getElementById('desktop-page-title').textContent = title;
+    const intro = document.createElement('header');
+    intro.className = 'dashboard-intro';
+    intro.append(el('p', '소식·기록 관리', 'eyebrow'), el('h2', title), el('p', copy));
+    target.hidden = false;
+    target.classList.add('phase-c-v2');
+    target.replaceChildren(intro);
+    return target;
   }
 
   function formatDate(value) {
@@ -55,207 +67,316 @@
     }).format(date);
   }
 
-  function friendly(error, fallback) {
-    return app()?.friendlyError?.(error) || error?.message || fallback;
+  function within24Hours(value) {
+    if (!value) return false;
+    const time = new Date(value).getTime();
+    return Number.isFinite(time) && time > Date.now() - 24 * 60 * 60 * 1000;
   }
 
-  async function setVisibility(item, visible) {
-    const reason = window.prompt(visible ? '다시 공개하는 이유를 적어주세요.' : '숨기는 이유를 적어주세요.', '')?.trim();
-    if (!reason) return;
+  async function fetchPublicDetail(contentId) {
     try {
-      await app().rpc('set_promotion_visibility', {
-        p_content_id: item.content_id,
-        p_visible: visible,
-        p_reason: reason
+      const response = await fetch(`../.netlify/functions/public-promotion-feed?id=${encodeURIComponent(contentId)}&format=json`, {
+        credentials: 'same-origin', cache: 'no-store'
       });
-      await openPublicationAdmin();
-    } catch (error) {
-      window.alert(friendly(error, '공개 상태를 변경하지 못했습니다.'));
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data?.item || null;
+    } catch {
+      return null;
     }
   }
 
-  async function requestDeletion(item) {
-    const reason = window.prompt('운영총괄에게 전달할 삭제 이유를 적어주세요.', '')?.trim();
+  async function archiveRecent(item) {
+    const reason = window.prompt(`“${item.title}” 글을 공개 후 24시간 안에 내리는 이유를 적어주세요.`, '')?.trim();
     if (!reason) return;
+    if (!window.confirm('공개 목록에서 내립니다. 원문과 감사기록은 복구 가능하게 보존됩니다. 계속할까요?')) return;
     try {
-      await app().rpc('request_promotion_deletion', { p_content_id: item.content_id, p_reason: reason });
-      window.alert('삭제 요청을 운영총괄에게 보냈습니다. 글은 삭제 전까지 숨기거나 다시 공개할 수 있습니다.');
+      await app().rpc('lead_archive_recent_promotion_content', { p_content_id: item.content_id, p_reason: reason });
       await openPublicationAdmin();
     } catch (error) {
-      window.alert(friendly(error, '삭제 요청을 보내지 못했습니다.'));
+      window.alert(friendly(error, '글을 정리하지 못했습니다.'));
     }
   }
 
-  async function deleteContent(item) {
-    const confirmedTitle = window.prompt(`삭제하려면 아래 제목을 정확히 다시 입력하세요.\n\n${item.title}`, '') || '';
-    if (confirmedTitle !== item.title) {
-      if (confirmedTitle) window.alert('제목이 일치하지 않아 삭제하지 않았습니다.');
-      return;
-    }
-    const reason = window.prompt('삭제 이유를 적어주세요.', '테스트 글 정리')?.trim();
-    if (!reason) return;
-    if (!window.confirm('이 글을 일반 관리 목록과 홈페이지에서 삭제합니다. 내부 복구용 기록은 보존됩니다. 계속하시겠습니까?')) return;
-    try {
-      await app().rpc('delete_promotion_content', {
-        p_content_id: item.content_id,
-        p_confirm_title: confirmedTitle,
-        p_reason: reason
-      });
-      window.alert('글을 삭제했습니다. 일반 목록과 홈페이지에서는 사라지고 내부 복구용 기록은 보존됩니다.');
-      await openPublicationAdmin();
-    } catch (error) {
-      window.alert(friendly(error, '글을 삭제하지 못했습니다.'));
-    }
+  async function submitChangeRequest(payload) {
+    await app().rpc('create_public_content_change_request', payload);
   }
 
-  async function rejectDeletion(request) {
-    const comment = window.prompt('삭제 요청을 반려하는 이유를 적어주세요.', '')?.trim();
-    if (!comment) return;
-    try {
-      await app().rpc('reject_promotion_deletion_request', { p_request_id: request.request_id, p_comment: comment });
-      await openPublicationAdmin();
-    } catch (error) {
-      window.alert(friendly(error, '삭제 요청을 반려하지 못했습니다.'));
-    }
-  }
+  async function openChangeForm(item, direct) {
+    const target = setPage(direct ? '기존 글 수정' : '기존 글 수정 요청', direct
+      ? '공개 후 24시간 이내 플랫폼 작성 글만 운영팀장이 직접 수정합니다. 수정 이력과 감사기록은 보존됩니다.'
+      : '공개 후 24시간이 지난 글은 삭제하지 않고 운영총괄에게 수정 요청만 상신합니다.');
+    if (!target) return;
 
-  function itemCard(item, role, canDelete) {
-    const card = el('article', null, 'dashboard-card phase-c-v2-card');
-    card.append(el('span', `${TYPE_LABELS[item.content_type] || '홍보 글'} · ${LIFECYCLE_LABELS[item.lifecycle] || item.lifecycle}`, 'eyebrow'));
-    card.append(el('h3', item.title || '제목 없음'));
-    if (item.published_at) card.append(el('p', `공개 시각 ${formatDate(item.published_at)}`));
-    if (item.pending_delete_request) card.append(el('p', '삭제 요청 대기 중', 'message'));
+    const detail = item?.content_id ? await fetchPublicDetail(item.content_id) : null;
+    const form = document.createElement('form');
+    form.className = 'phase-c-board-form';
+    form.addEventListener('submit', event => event.preventDefault());
 
-    const actions = el('div', null, 'quick-links');
-    if (item.lifecycle === 'published' || item.lifecycle === 'hidden') {
-      const publicLink = el('a', '홈페이지에서 보기', 'button button-quiet');
-      publicLink.href = `../promotion.html?id=${encodeURIComponent(item.content_id)}`;
-      publicLink.target = '_blank';
-      publicLink.rel = 'noopener noreferrer';
-      actions.append(publicLink);
-    }
+    const title = document.createElement('input');
+    title.maxLength = 500;
+    title.value = detail?.title || item?.title || '';
+    const summary = document.createElement('textarea');
+    summary.rows = 4;
+    summary.maxLength = 4000;
+    summary.value = detail?.summary || item?.summary || '';
+    const body = document.createElement('textarea');
+    body.rows = 9;
+    body.maxLength = 30000;
+    body.value = detail?.public_body || '';
+    const reason = document.createElement('textarea');
+    reason.rows = 3;
+    reason.maxLength = 1000;
 
-    if (item.lifecycle === 'published' && can('promotion.hide', LEGACY_ELIGIBLE.has(role))) {
-      actions.append(button('숨기기', () => setVisibility(item, false), true));
-    }
-    if (item.lifecycle === 'hidden' && can('promotion.republish', LEGACY_ELIGIBLE.has(role))) {
-      actions.append(button('다시 공개', () => setVisibility(item, true), true));
-    }
-
-    if (role === 'promotion_lead' && can('promotion.archive', true)) {
-      if (item.pending_delete_request) {
-        actions.append(el('p', '삭제 요청 대기 중', 'help'));
-      } else if (item.can_request_delete === true) {
-        actions.append(button('삭제 요청', () => requestDeletion(item), true));
-      } else {
-        const eligibleAt = formatDate(item.delete_request_eligible_at);
-        actions.append(el('p', eligibleAt
-          ? `삭제 요청 가능: ${eligibleAt}`
-          : '공개 시각이 확인된 뒤 삭제 요청 가능 여부를 안내합니다.', 'help'));
+    form.append(field('제목', title), field('요약', summary), field('본문', body), field('수정 사유', reason));
+    form.append(button(direct ? '수정 반영' : '운영총괄에게 수정 요청', async () => {
+      if (!reason.value.trim()) {
+        window.alert('수정 사유를 적어주세요.');
+        return;
       }
-    } else if (role === 'operations_manager' && canDelete && can('promotion.archive', true)) {
-      const remove = button('삭제', () => deleteContent(item));
-      remove.className = 'button button-danger';
-      actions.append(remove);
-    }
+      try {
+        if (direct) {
+          await app().rpc('lead_update_recent_promotion_content', {
+            p_content_id: item.content_id,
+            p_title: title.value.trim(),
+            p_summary: summary.value.trim() || null,
+            p_public_body: body.value.trim() || null,
+            p_reason: reason.value.trim()
+          });
+        } else {
+          await submitChangeRequest({
+            p_target_kind: 'promotion',
+            p_target_key: item.content_id,
+            p_current_title: item.title || null,
+            p_current_summary: item.summary || null,
+            p_proposed_title: title.value.trim() || null,
+            p_proposed_summary: summary.value.trim() || null,
+            p_proposed_body: body.value.trim() || null,
+            p_reason: reason.value.trim(),
+            p_published_at: item.published_at || null
+          });
+        }
+        await openPublicationAdmin();
+      } catch (error) {
+        window.alert(friendly(error, '수정 내용을 저장하지 못했습니다.'));
+      }
+    }), button('목록으로', openPublicationAdmin, true));
 
-    card.append(actions);
+    const section = document.createElement('section');
+    section.className = 'dashboard-section promotion-composer';
+    section.append(form);
+    target.append(section);
+  }
+
+  function manualArchiveRequestForm() {
+    const section = document.createElement('section');
+    section.className = 'dashboard-section';
+    section.append(el('h2', '기타 공개글 수정 요청'));
+    section.append(el('p', 'ChatGPT 지시로 정적 반영된 글, 블로그·유튜브·언론 연결글은 자동으로 전부 불러오지 않습니다. 공개 소식·기록에서 해당 글을 확인한 뒤 주소와 수정 내용을 적어 운영총괄에게 상신하세요.', 'help'));
+
+    const openArchive = document.createElement('a');
+    openArchive.href = '../archive.html';
+    openArchive.target = '_blank';
+    openArchive.rel = 'noopener noreferrer';
+    openArchive.className = 'button button-quiet';
+    openArchive.textContent = '전체 소식·기록 열기';
+    section.append(openArchive);
+
+    const form = document.createElement('form');
+    form.className = 'phase-c-board-form';
+    form.addEventListener('submit', event => event.preventDefault());
+    const url = document.createElement('input'); url.placeholder = '예: https://taejang.co.kr/archive.html#...'; url.maxLength = 2000;
+    const currentTitle = document.createElement('input'); currentTitle.maxLength = 500;
+    const nextTitle = document.createElement('input'); nextTitle.maxLength = 500;
+    const nextSummary = document.createElement('textarea'); nextSummary.rows = 3; nextSummary.maxLength = 4000;
+    const nextBody = document.createElement('textarea'); nextBody.rows = 6; nextBody.maxLength = 30000;
+    const reason = document.createElement('textarea'); reason.rows = 3; reason.maxLength = 1000;
+    form.append(
+      field('공개 글 주소', url),
+      field('현재 제목', currentTitle),
+      field('수정 제목', nextTitle),
+      field('수정 요약', nextSummary),
+      field('수정 본문 또는 요청 내용', nextBody),
+      field('수정 사유', reason)
+    );
+    form.append(button('운영총괄에게 수정 요청', async () => {
+      if (!url.value.trim() || !reason.value.trim()) {
+        window.alert('공개 글 주소와 수정 사유를 입력해 주세요.');
+        return;
+      }
+      if (!nextTitle.value.trim() && !nextSummary.value.trim() && !nextBody.value.trim()) {
+        window.alert('수정할 제목, 요약, 본문 또는 요청 내용 중 하나를 입력해 주세요.');
+        return;
+      }
+      try {
+        await submitChangeRequest({
+          p_target_kind: 'archive',
+          p_target_key: url.value.trim(),
+          p_current_title: currentTitle.value.trim() || null,
+          p_current_summary: null,
+          p_proposed_title: nextTitle.value.trim() || null,
+          p_proposed_summary: nextSummary.value.trim() || null,
+          p_proposed_body: nextBody.value.trim() || null,
+          p_reason: reason.value.trim(),
+          p_published_at: null
+        });
+        window.alert('운영총괄에게 수정 요청을 보냈습니다.');
+        await openPublicationAdmin();
+      } catch (error) {
+        window.alert(friendly(error, '수정 요청을 보내지 못했습니다.'));
+      }
+    }));
+    section.append(form);
+    return section;
+  }
+
+  async function reviewChangeRequest(request, action) {
+    let comment = null;
+    if (action !== 'approve') {
+      comment = window.prompt(action === 'changes_requested' ? '보완할 내용을 적어주세요.' : '반려 이유를 적어주세요.', '')?.trim();
+      if (!comment) return;
+    }
+    try {
+      const result = await app().rpc('review_public_content_change_request', {
+        p_request_id: request.id,
+        p_action: action,
+        p_comment: comment
+      });
+      if (result?.requires_code_apply) {
+        window.alert('승인했습니다. 이 항목은 정적/외부 원본이므로 코드 또는 원본 소스 반영 단계가 필요합니다. 요청 기록은 보존됩니다.');
+      }
+      await openPublicationAdmin();
+    } catch (error) {
+      window.alert(friendly(error, '수정 요청을 처리하지 못했습니다.'));
+    }
+  }
+
+  function requestCard(request, isOperations) {
+    const card = document.createElement('article');
+    card.className = 'dashboard-card phase-c-v2-card';
+    card.append(el('span', `${request.target_kind === 'promotion' ? '플랫폼 글' : '기타 공개글'} · ${STATUS_LABELS[request.status] || request.status}`, 'status-label'));
+    card.append(el('h3', request.current_title || request.target_key || '수정 요청'));
+    if (request.requested_by_name) card.append(el('p', `요청자: ${request.requested_by_name}`, 'help'));
+    if (request.reason) card.append(el('p', `사유: ${request.reason}`));
+    if (request.proposed_title) card.append(el('p', `수정 제목: ${request.proposed_title}`));
+    if (request.decision_comment) card.append(el('p', `검토 의견: ${request.decision_comment}`, 'help'));
+    if (isOperations && request.status === 'pending') {
+      const actions = document.createElement('div');
+      actions.className = 'quick-links';
+      actions.append(
+        button('승인', () => reviewChangeRequest(request, 'approve')),
+        button('보완 요청', () => reviewChangeRequest(request, 'changes_requested'), true),
+        button('반려', () => reviewChangeRequest(request, 'reject'), true)
+      );
+      card.append(actions);
+    }
     return card;
   }
 
-  function deletionRequestCard(request, items, canDelete) {
-    const card = el('article', null, 'dashboard-card phase-c-v2-card');
-    card.append(el('span', '운영팀장 삭제 요청', 'eyebrow'));
-    card.append(el('h3', request.content_title || '삭제 요청'));
-    card.append(el('p', request.reason || '사유 없음'));
-    card.append(el('p', `요청 시각 ${formatDate(request.created_at)}`));
-    const actions = el('div', null, 'quick-links');
-    const item = items.find(candidate => candidate.content_id === request.content_id);
-    if (item && canDelete && can('promotion.archive', true)) actions.append(button('삭제', () => deleteContent(item)));
-    if (can('promotion.archive', true)) actions.append(button('요청 반려', () => rejectDeletion(request), true));
+  function itemCard(item, role) {
+    const card = document.createElement('article');
+    card.className = 'dashboard-card phase-c-v2-card';
+    const recent = within24Hours(item.published_at);
+    card.append(el('span', `${TYPE_LABELS[item.content_type] || '홍보 글'} · ${item.lifecycle === 'hidden' ? '숨김' : '공개'}`, 'status-label'));
+    card.append(el('h3', item.title || '제목 없음'));
+    if (item.published_at) card.append(el('p', `공개 시각 ${formatDate(item.published_at)}`, 'help'));
+    const actions = document.createElement('div');
+    actions.className = 'quick-links';
+    const publicLink = document.createElement('a');
+    publicLink.href = `../promotion.html?id=${encodeURIComponent(item.content_id)}`;
+    publicLink.target = '_blank';
+    publicLink.rel = 'noopener noreferrer';
+    publicLink.className = 'button button-quiet';
+    publicLink.textContent = '공개 화면';
+    actions.append(publicLink);
+
+    if (role === 'promotion_lead') {
+      if (recent) {
+        actions.append(
+          button('수정', () => openChangeForm(item, true), true),
+          button('24시간 내 삭제', () => archiveRecent(item), true)
+        );
+      } else {
+        actions.append(button('수정 요청', () => openChangeForm(item, false), true));
+        actions.append(el('span', '24시간 경과 · 삭제 불가', 'help'));
+      }
+    }
     card.append(actions);
     return card;
   }
 
   async function openPublicationAdmin() {
-    closeSidebar();
     const currentRoute = route();
-    const target = main();
-    if (!target || !canManagePublication()) return;
-    document.getElementById('desktop-page-title').textContent = '홍보 글 관리';
-    target.hidden = false;
-    target.classList.add('phase-c-v2');
-    target.replaceChildren(el('p', '홍보 글 상태를 불러오고 있습니다.', 'message'));
+    if (!ELIGIBLE_ROLES.has(currentRoute)) return;
+    const isOperations = currentRoute === 'operations_manager';
+    const target = setPage('기존 글 관리', isOperations
+      ? '운영총괄에게 올라온 기존 공개글 수정 요청을 검토합니다.'
+      : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
+    if (!target) return;
+    const loading = el('p', '기존 글을 불러오고 있습니다.', 'message');
+    target.append(loading);
 
     try {
-      const data = await app().rpc('get_promotion_publication_admin');
-      const role = data?.role || currentRoute;
-      const canDelete = data?.can_permanently_delete === true;
-      const items = Array.isArray(data?.items) ? data.items : [];
-      const requests = Array.isArray(data?.deletion_requests) ? data.deletion_requests : [];
+      const results = await Promise.allSettled([
+        app().rpc('get_promotion_publication_admin'),
+        app().rpc('list_public_content_change_requests')
+      ]);
+      const publication = results[0].status === 'fulfilled' ? results[0].value : {};
+      const requests = results[1].status === 'fulfilled' ? arr(results[1].value) : [];
+      const items = arr(publication?.items);
+      loading.remove();
 
-      const intro = el('section', null, 'dashboard-intro');
-      intro.append(el('p', '태장 소식 · 외부 기사·콘텐츠 · 보도자료', 'eyebrow'));
-      intro.append(el('h1', '홍보 글 관리'));
-      intro.append(el('p', role === 'operations_manager'
-        ? '초안부터 공개·숨김까지 홍보 글의 전체 상태를 확인하고, 불필요한 테스트 글을 직접 정리할 수 있습니다.'
-        : '홈페이지에 공개된 글과 숨김 처리한 글을 관리하는 화면입니다. 초안·검토 중인 글은 `홍보 작성`과 `홍보 검토`에서 관리합니다.'));
-      intro.append(el('p', role === 'promotion_lead'
-        ? '현재 공개 중이거나 숨김 상태인 태장 소식, 외부 기사·콘텐츠, 보도자료만 이 목록에 표시됩니다.'
-        : '삭제된 글은 일반 목록과 홈페이지에서는 사라지지만 원문과 승인 이력은 내부 복구용으로 보존됩니다.', 'help'));
-      target.replaceChildren(intro);
-
-      if (role === 'operations_manager' && requests.length && can('promotion.archive', true)) {
-        const requestSection = el('section', null, 'dashboard-section');
-        requestSection.append(el('h2', `삭제 요청 ${requests.length}건`));
-        const requestGrid = el('div', null, 'phase-c-v2-grid');
-        requests.forEach(request => requestGrid.append(deletionRequestCard(request, items, canDelete)));
-        requestSection.append(requestGrid);
+      if (isOperations) {
+        const requestSection = document.createElement('section');
+        requestSection.className = 'dashboard-section';
+        requestSection.append(el('h2', `수정 요청 ${requests.filter(item => item.status === 'pending').length}건`));
+        const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
+        if (!requests.length) grid.append(el('p', '현재 기존 글 수정 요청이 없습니다.', 'empty'));
+        requests.forEach(request => grid.append(requestCard(request, true)));
+        requestSection.append(grid);
         target.append(requestSection);
-      }
+      } else {
+        const section = document.createElement('section');
+        section.className = 'dashboard-section';
+        section.append(el('h2', `플랫폼 작성 공개글 ${items.length}건`));
+        const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
+        if (!items.length) grid.append(el('p', '현재 플랫폼에서 관리할 공개글이 없습니다.', 'empty'));
+        items.forEach(item => grid.append(itemCard(item, currentRoute)));
+        section.append(grid);
+        target.append(section, manualArchiveRequestForm());
 
-      const section = el('section', null, 'dashboard-section');
-      section.append(el('h2', `홍보 글 ${items.length}건`));
-      const grid = el('div', null, 'phase-c-v2-grid');
-      if (!items.length) {
-        grid.append(el('p', role === 'promotion_lead'
-          ? '현재 공개 중이거나 숨김 상태인 홍보 글이 없습니다. 작성·검토 중인 글은 홍보 작성/홍보 검토 메뉴에서 확인하세요.'
-          : '현재 관리할 홍보 글이 없습니다.', 'empty'));
+        if (requests.length) {
+          const my = document.createElement('section'); my.className = 'dashboard-section';
+          my.append(el('h2', '내 수정 요청'));
+          const requestGrid = document.createElement('div'); requestGrid.className = 'phase-c-v2-grid';
+          requests.forEach(request => requestGrid.append(requestCard(request, false)));
+          my.append(requestGrid); target.append(my);
+        }
       }
-      items.forEach(item => grid.append(itemCard(item, role, canDelete)));
-      section.append(grid);
-      target.append(section);
     } catch (error) {
-      target.replaceChildren(el('p', friendly(error, '홍보 글을 불러오지 못했습니다.'), 'message error'));
+      loading.textContent = friendly(error, '기존 글을 불러오지 못했습니다.');
+      loading.classList.add('error');
     }
   }
 
   function ensureNav() {
     const nav = document.getElementById('app-nav');
-    if (!nav) return;
-    const eligible = canManagePublication();
+    const currentRoute = route();
+    if (!nav || !ELIGIBLE_ROLES.has(currentRoute)) return;
     let node = nav.querySelector('[data-phase-c-publication-admin]');
-    if (!eligible) {
-      node?.remove();
-      return;
+    if (!node) {
+      node = document.createElement('button');
+      node.type = 'button';
+      node.dataset.phaseCPublicationAdmin = '1';
+      node.addEventListener('click', openPublicationAdmin);
+      nav.append(node);
     }
-    if (node) {
-      node.textContent = '홍보 글 관리';
-      return;
-    }
-    node = document.createElement('button');
-    node.type = 'button';
-    node.textContent = '홍보 글 관리';
-    node.dataset.phaseCPublicationAdmin = '1';
-    node.addEventListener('click', openPublicationAdmin);
-    const homepage = [...nav.querySelectorAll('button')].find(candidate => candidate.textContent.trim() === '홈페이지 내용 관리');
-    if (homepage?.nextSibling) nav.insertBefore(node, homepage.nextSibling);
-    else nav.append(node);
+    node.textContent = '기존 글 관리';
   }
 
-  const nav = document.getElementById('app-nav');
-  if (nav) new MutationObserver(ensureNav).observe(nav, { childList: true });
-  window.addEventListener('pageshow', ensureNav);
-  window.addEventListener('taejang-dashboard-refresh', ensureNav);
-  setTimeout(ensureNav, 0);
+  document.addEventListener('taejang-app-ready', () => setTimeout(ensureNav, 0));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(ensureNav, 0));
+  window.addEventListener('pageshow', () => setTimeout(ensureNav, 0));
+
+  window.TaejangPublicationAdmin = { openPublicationAdmin, ensureNav };
 })();
