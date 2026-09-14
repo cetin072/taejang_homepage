@@ -49,6 +49,7 @@ test('review queue identifies originating employee and current submitter without
   assert.match(ux, /작성자: \$\{owner\} · 현재 상신: \$\{submitter\}/);
   assert.match(correction, /'owner_name', owner_name/);
   assert.match(correction, /'submitted_by_name', submitter_name/);
+  assert.doesNotMatch(correction, /request_promotion_deletion/);
 });
 
 test('existing content pilot avoids hidden archive iframe and provides manual static-content modification request', () => {
