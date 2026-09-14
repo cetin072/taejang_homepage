@@ -243,6 +243,53 @@
     return `${STORAGE_PREFIX}:${start}:${end}`;
   }
 
+  function readSourceIndex(snapshot, storage) {
+    if (!storage || typeof storage.getItem !== 'function') return null;
+    const key = sourceIndexStorageKey(snapshot?.period);
+    try { return JSON.parse(storage.getItem(key) || 'null'); } catch { return null; }
+  }
+
+  async function inspectLegacyFile(file, targetRoot) {
+    const browserRoot = targetRoot || root;
+    const xls = browserRoot?.TaejangPayrollAttendanceXls;
+    const xlsx = browserRoot?.TaejangPayrollAttendanceXlsx;
+    if (!file || !xls?.parseXlsFile || !xlsx?.normalizeDateCell) throw new Error('attendance_vendor_preflight_unavailable');
+    const workbook = await xls.parseXlsFile(file);
+    const best = workbook?.best;
+    if (!best?.analysis?.ok) throw new Error('attendance_header_not_detected');
+    const rows = extractAttendanceRowsExact(best.matrix, best.analysis, xlsx);
+    const downloadedAt = typeof xls.downloadTimestampFromFileName === 'function'
+      ? xls.downloadTimestampFromFileName(file.name)
+      : null;
+    const snapshot = createSnapshot({ fileName: file.name, downloadedAt, rows });
+    let storage = null;
+    try { storage = browserRoot.localStorage || null; } catch { storage = null; }
+    const previous = readSourceIndex(snapshot, storage);
+    const current = compactSourceIndex(snapshot);
+    const diff = compareSourceIndexes(previous, current);
+    const identical = Boolean(previous && previous.sourceFingerprint === current.sourceFingerprint);
+    const inspection = Object.freeze({
+      snapshot,
+      previousFound: Boolean(previous),
+      identical,
+      diff,
+    });
+    lastImportState = Object.freeze({
+      fileName: clean(file.name),
+      snapshot,
+      reconciliation: reconciliationSummary(snapshot, null),
+      sourceIndexPersistence: Object.freeze({
+        persisted: identical,
+        pending: !identical,
+        key: sourceIndexStorageKey(snapshot.period),
+        diff,
+      }),
+      preflight: true,
+      identical,
+    });
+    return inspection;
+  }
+
   function persistSourceIndex(snapshot, storage) {
     if (!storage || typeof storage.getItem !== 'function' || typeof storage.setItem !== 'function') {
       return Object.freeze({ persisted: false, diff: { added: 0, changed: 0, missing: 0, unchanged: 0 } });
@@ -294,12 +341,21 @@
           const snapshot = createSnapshot({ ...pendingSourceMeta, rows });
           let storage = null;
           try { storage = browserRoot.localStorage || null; } catch { storage = null; }
-          const persistence = persistSourceIndex(snapshot, storage);
+          const previous = readSourceIndex(snapshot, storage);
+          const current = compactSourceIndex(snapshot);
+          const diff = compareSourceIndexes(previous, current);
           lastImportState = Object.freeze({
             fileName: pendingSourceMeta.fileName,
             snapshot,
             reconciliation: reconciliationSummary(snapshot, null),
-            sourceIndexPersistence: persistence,
+            sourceIndexPersistence: Object.freeze({
+              persisted: false,
+              pending: true,
+              key: sourceIndexStorageKey(snapshot.period),
+              diff,
+            }),
+            preflight: false,
+            identical: Boolean(previous && previous.sourceFingerprint === current.sourceFingerprint),
           });
         }
         return rows;
@@ -309,6 +365,20 @@
     browserRoot.TaejangPayrollAttendanceXls = wrappedXls;
     browserRoot.TaejangPayrollAttendanceXlsx = wrappedXlsx;
     return true;
+  }
+
+  function commitLastImportSourceIndex(targetRoot) {
+    if (!lastImportState?.snapshot || !lastImportState?.sourceIndexPersistence?.pending) return lastImportState;
+    const browserRoot = targetRoot || root;
+    let storage = null;
+    try { storage = browserRoot?.localStorage || null; } catch { storage = null; }
+    const persistence = persistSourceIndex(lastImportState.snapshot, storage);
+    lastImportState = Object.freeze({
+      ...lastImportState,
+      sourceIndexPersistence: Object.freeze({ ...persistence, pending: !persistence.persisted }),
+      committedAt: persistence.persisted ? new Date().toISOString() : null,
+    });
+    return lastImportState;
   }
 
   function getLastImportState() { return lastImportState; }
@@ -323,8 +393,11 @@
     compactSourceIndex,
     compareSourceIndexes,
     sourceIndexStorageKey,
+    readSourceIndex,
     persistSourceIndex,
+    inspectLegacyFile,
     installBrowserBridge,
+    commitLastImportSourceIndex,
     getLastImportState,
   });
 
