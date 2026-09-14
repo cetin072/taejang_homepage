@@ -55,13 +55,14 @@ test('homepage change request shows live current content before proposed content
   assert.match(homepage, /scrollIntoView/);
 });
 
-test('publication admin explains what promotion posts are managed and why lead list can be empty', () => {
-  assert.match(publication, /홍보 글 관리/);
-  assert.match(publication, /태장 소식/);
-  assert.match(publication, /외부 기사·콘텐츠/);
-  assert.match(publication, /보도자료/);
-  assert.match(publication, /공개 중이거나 숨김 상태/);
-  assert.match(publication, /초안·검토 중인 글은 `홍보 작성`과 `홍보 검토`/);
+test('publication admin explains the lightweight existing-content scope and escalation path', () => {
+  assert.match(publication, /기존 글 관리/);
+  assert.match(publication, /플랫폼에서 작성된 공개글/);
+  assert.match(publication, /정적·ChatGPT·블로그·유튜브/);
+  assert.match(publication, /전체 소식·기록 열기/);
+  assert.match(publication, /기타 공개글 수정 요청/);
+  assert.match(publication, /24시간 경과 · 삭제 불가/);
+  assert.doesNotMatch(publication, /초안·검토 중인 글은 `홍보 작성`과 `홍보 검토`/);
 });
 
 test('sidebar groups navigation by work category without unfinished manager manuals', () => {
