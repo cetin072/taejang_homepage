@@ -61,12 +61,16 @@ test('existing manual source classification wins over auto suggestion until URL 
 test('metadata import remains single-fetch, preserves manual text, and keeps manual fallback on failure', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
   const workspace = read('app/assets/phase-c-workspace-v2.js');
+  const config = read('app/assets/official-channel-config.js');
 
   const fetchCalls = (workspace.match(/fetchExternalMeta\(external\.value\.trim\(\)\)/g) || []).length;
   assert.equal(fetchCalls, 1);
-  assert.match(live, /sourceType === 'external' && !previousBody\.trim\(\)/);
+  assert.match(live, /refreshAutomaticSourceClassification\(\)/);
+  assert.match(live, /finalSourceType === 'external' && !previousBody\.trim\(\)/);
   assert.match(live, /body\.value = ''/);
   assert.match(live, /외부 기사·자료는 원문 전체를 복사하지 않습니다/);
   assert.match(live, /const fetchFailed = \/가져오지 못\|실패\|확인할 수 없\//);
   assert.match(live, /자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다/);
+  assert.match(config, /const payload = await response\.clone\(\)\.json\(\)/);
+  assert.match(config, /rememberMetadata\(requestedUrl, payload\)/);
 });

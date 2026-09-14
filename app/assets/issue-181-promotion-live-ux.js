@@ -28,20 +28,8 @@
     return `${value('year')}-${value('month')}-${value('day')}`;
   }
 
-  function suggestSource(urlValue) {
-    const raw = String(urlValue || '').trim();
-    if (!raw) return '';
-    try {
-      const parsed = new URL(raw, window.location.href);
-      const host = parsed.hostname.toLowerCase();
-      const path = parsed.pathname.toLowerCase();
-      if (parsed.origin === window.location.origin) return 'taejang_homepage';
-      if (host === 'blog.naver.com' && path.startsWith('/taejang-official')) return 'taejang_blog';
-      if ((host === 'youtube.com' || host === 'www.youtube.com') && path.includes('@taejangofficial')) return 'taejang_youtube';
-      return 'external';
-    } catch {
-      return '';
-    }
+  function suggestSource(urlValue, metadata = null) {
+    return window.TaejangOfficialChannels?.classifyUrl?.(urlValue, metadata) || '';
   }
 
   function sourceSelectorFor(root) {
@@ -63,6 +51,14 @@
     return { selector, root, urlInput };
   }
 
+  function refreshAutomaticSourceClassification(metadata = null) {
+    const { selector, urlInput } = activeLinkContext();
+    const raw = String(urlInput?.value || '').trim();
+    if (!selector || !raw || selector.dataset.manual === '1') return;
+    const next = suggestSource(raw, metadata);
+    if (next) selector.value = next;
+  }
+
   function makeSourceSelector(urlInput) {
     const wrapper = document.createElement('label');
     wrapper.className = 'phase-c-link-source';
@@ -81,7 +77,7 @@
     });
     const help = document.createElement('small');
     help.className = 'help';
-    help.textContent = '글 종류와 별개입니다. 공식 채널 여부는 자동 판별을 참고하되 직원이 최종 확인합니다.';
+    help.textContent = '주소를 기준으로 공식 채널 여부를 자동 확인합니다. 자동 확인이 틀린 경우에만 직접 바꾸세요.';
 
     const applySuggestion = () => {
       if (select.dataset.manual === '1') return;
@@ -170,7 +166,6 @@
       const status = linkTools.querySelector('.phase-c-upload-status');
       const previousTitle = titleInput?.value || '';
       const previousBody = body?.value || '';
-      const sourceType = source.value;
       let settled = false;
 
       const finish = () => {
@@ -178,14 +173,16 @@
         settled = true;
         observer.disconnect();
         clearTimeout(timeout);
+        refreshAutomaticSourceClassification();
+        const finalSourceType = source?.value || suggestSource(urlInput?.value) || 'external';
         if (titleInput && previousTitle.trim()) titleInput.value = previousTitle;
         if (body && previousBody.trim()) body.value = previousBody;
-        if (body && sourceType === 'external' && !previousBody.trim()) body.value = '';
+        if (body && finalSourceType === 'external' && !previousBody.trim()) body.value = '';
         if (status) {
           const fetchFailed = /가져오지 못|실패|확인할 수 없/.test(status.textContent || '');
           if (fetchFailed) {
             status.textContent = `${status.textContent} 자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다.`;
-          } else if (sourceType === 'external' && !previousBody.trim()) {
+          } else if (finalSourceType === 'external' && !previousBody.trim()) {
             status.textContent = '외부 기사·자료는 원문 전체를 복사하지 않습니다. 제목·썸네일을 참고하고 본문에는 태장 측 소개·요약을 직접 작성해 주세요.';
           } else if (previousTitle.trim() || previousBody.trim()) {
             status.textContent = '링크 정보를 가져왔습니다. 이미 직접 입력한 제목·본문은 그대로 유지했습니다.';
@@ -270,7 +267,11 @@
       });
       await window.TaejangPromotionWorkspaceV2Api?.openPromotion?.('review');
     } catch (error) {
-      window.alert(app()?.friendlyError?.(error) || error?.message || '홍보글을 삭제하지 못했습니다.');
+      const code = String(error?.message || error?.code || '');
+      const upperReviewLocked = code.includes('PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED');
+      window.alert(upperReviewLocked
+        ? '운영총괄 또는 대표이사 결재선에 올라간 글은 운영팀장이 삭제할 수 없습니다. 수정·보완 후 다시 상신해 주세요.'
+        : (app()?.friendlyError?.(error) || error?.message || '홍보글을 삭제하지 못했습니다.'));
     }
   }
 
@@ -361,7 +362,7 @@
       const heading = intro.querySelector('h2');
       const copy = [...intro.querySelectorAll(':scope > p')].at(-1);
       if (heading) heading.textContent = '홍보 관리';
-      if (copy) copy.textContent = '검토 대기 글의 미리보기·수정·삭제·보완 요청·승인·상신을 한 화면에서 처리합니다.';
+      if (copy) copy.textContent = '검토 대기 글의 미리보기·수정·보완 요청·승인·상신을 처리합니다. 상위 결재선에서 돌아온 글은 삭제할 수 없습니다.';
       addManagementShortcuts(intro);
 
       const workspace = await app().rpc('get_my_promotion_workspace');
@@ -369,27 +370,35 @@
       const cards = [...grid.children].filter(node => node.matches?.('.phase-c-v2-card'));
       if (cards.length !== items.length) return;
 
-      cards.forEach((card, index) => {
+      for (let index = 0; index < cards.length; index += 1) {
+        const card = cards[index];
         const item = items[index];
         const title = card.querySelector('h3')?.textContent?.trim() || '';
-        if (!item?.content_id || title !== String(item.title || '').trim()) return;
+        if (!item?.content_id || title !== String(item.title || '').trim()) continue;
         const actions = card.querySelector('.quick-links');
-        if (!actions) return;
+        if (!actions) continue;
 
-        if (!actions.querySelector('[data-issue181-review-delete]')) {
+        let handoff = null;
+        try { handoff = await app().rpc('get_promotion_review_handoff', { p_content_id: item.content_id }); }
+        catch { handoff = null; }
+
+        const existingDelete = actions.querySelector('[data-issue181-review-delete]');
+        if (handoff) {
+          existingDelete?.remove();
+        } else if (!existingDelete) {
           const remove = document.createElement('button');
           remove.type = 'button';
           remove.className = 'button button-quiet';
           remove.textContent = '삭제';
           remove.dataset.issue181ReviewDelete = '1';
-          remove.title = '복구 가능한 삭제입니다. 원문과 수정이력은 보존됩니다.';
+          remove.title = '복구 가능한 삭제입니다. 상위 결재선에 올라간 글은 삭제할 수 없습니다.';
           remove.addEventListener('click', () => archiveReviewItem(item));
           const edit = [...actions.querySelectorAll('button')].find(node => node.textContent.trim() === '직접 수정');
           if (edit?.nextSibling) actions.insertBefore(remove, edit.nextSibling);
           else actions.append(remove);
         }
         decorateApproval(actions, item, card);
-      });
+      }
     } catch {
       // Existing safe fallback menus remain in the DOM even if enhancement fails.
     } finally {
@@ -401,6 +410,7 @@
     installRpcSourcePersistence();
     enhanceComposerSource();
     keepComposerLinkIndependent();
+    refreshAutomaticSourceClassification();
     enhanceLeadEditSource();
     protectImportedText();
     syncLeadNavigation();
@@ -419,6 +429,10 @@
   document.addEventListener('taejang-app-ready', scheduleSync);
   document.addEventListener('taejang-dashboard-refresh', scheduleSync);
   document.addEventListener('taejang-open-promotion-workspace', scheduleSync);
+  document.addEventListener('taejang-external-meta-observed', event => {
+    refreshAutomaticSourceClassification(event.detail?.metadata || null);
+    scheduleSync();
+  });
 
   const start = () => {
     const shell = document.getElementById('desktop-app-shell') || document.documentElement;

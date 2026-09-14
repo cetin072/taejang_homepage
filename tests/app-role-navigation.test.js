@@ -15,6 +15,7 @@ const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const dashboardPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
 const officialChannels = fs.readFileSync(path.join(root, 'app/assets/official-channel-links.js'), 'utf8');
+const officialChannelConfig = fs.readFileSync(path.join(root, 'app/assets/official-channel-config.js'), 'utf8');
 const accountApproval = fs.readFileSync(path.join(root, 'app/assets/phase-c-account-approval.js'), 'utf8');
 const signupRejection = fs.readFileSync(path.join(root, 'supabase/migrations/20260904121000_signup_rejection_soft_delete.sql'), 'utf8');
 const attendanceAdmin = fs.readFileSync(path.join(root, 'app/assets/attendance-admin.js'), 'utf8');
@@ -82,6 +83,7 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
     TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
+    TaejangOfficialChannels: { list: [] },
     TaejangEmployeeManagement: { openEmployeeManagement: view => employeeViews.push(view || 'existing') },
     TaejangAccountApproval: { openAccountApproval: () => { approvalOpens += 1; } },
     TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
@@ -141,9 +143,10 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
 
 test('base role menus remain clickable before final priority sorting', async () => {
   const promotion = await makeDashboard('promotion_staff');
-  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '공식 채널']);
+  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '보완 요청받은 글', '공식 채널']);
   findMenu(promotion.nav, '홍보 작성').click();
-  assert.deepEqual(promotion.promotionModes, ['write']);
+  findMenu(promotion.nav, '보완 요청받은 글').click();
+  assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
 
   const operations = await makeDashboard('operations_manager');
   assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '공식 채널']);
@@ -188,12 +191,13 @@ test('central navigation groups menus by work category without unfinished manage
   assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('official channels are created in the base sidebar with homepage, blog and YouTube', () => {
+test('official channels are created in the base sidebar from the shared channel config', () => {
   assert.match(source, /officialChannelRoles = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
-  assertOrdered(source, ['homepage', 'blog', 'youtube']);
-  assert.ok(source.indexOf("label: '홈페이지'") < source.indexOf("label: '공식 블로그'"));
-  assert.ok(source.indexOf("label: '공식 블로그'") < source.indexOf("label: '공식 유튜브'"));
-  assert.match(source, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(source, /TaejangOfficialChannels\?\.list/);
+  assertOrdered(officialChannelConfig, ['homepage', 'blog', 'youtube']);
+  assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
+  assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
+  assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
   assert.match(source, /dataset\.navSection = 'official_channels'/);
   assert.match(source, /if \(officialChannelRoles\.has\(route\)\) nav\.append\(makeOfficialChannelGroup\(\)\)/);
   assert.match(officialChannels, /if \(nav\.querySelector\('\[data-official-channel-group\]'\)\) return/);

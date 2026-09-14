@@ -75,6 +75,10 @@ function activateAndGrant(account, roles) {
   }
 }
 
+function markEmailUnconfirmed(account) {
+  sql(`update auth.users set email_confirmed_at=null where id='${account.id}'::uuid`);
+}
+
 function jwtSubject(token) {
   const payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
   return JSON.parse(Buffer.from(payload, 'base64').toString('utf8')).sub;
@@ -134,10 +138,13 @@ const unique = `${Date.now()}-${process.pid}`;
 const operator = await signUp(`qa-preview-operator-${unique}@example.test`, 'QA 실제 계정 최고권한');
 const target = await signUp(`qa-preview-target-${unique}@example.test`, 'QA 실제 계정 대상 직원');
 const other = await signUp(`qa-preview-other-${unique}@example.test`, 'QA 실제 계정 다른 직원');
+const unconfirmed = await signUp(`qa-preview-unconfirmed-${unique}@example.test`, 'QA 이메일 미인증 직원');
 
 activateAndGrant(operator, ['operations_manager', 'super_admin']);
 activateAndGrant(target, ['promotion_staff']);
 activateAndGrant(other, ['promotion_staff']);
+activateAndGrant(unconfirmed, ['promotion_staff']);
+markEmailUnconfirmed(unconfirmed);
 
 const operatorAccess = await rpc('get_my_access_context_v2', operator);
 equal(operatorAccess.status, 200, 'top-authority access context is readable through the canonical RPC');
@@ -170,8 +177,16 @@ equal(identityMismatch.data?.error, 'QA_IDENTITY_MISMATCH', 'identity mismatch h
 
 const list = await qa('list', operator);
 equal(list.status, 200, `top-authority list succeeds: ${JSON.stringify(list.data)}`);
-equal(list.data?.qa_contract_version, 3, 'hosted contract version is explicit');
-check(list.data?.accounts?.some(account => account.id === target.id && account.previewable), 'target employee is included and previewable');
+equal(list.data?.qa_contract_version, 4, 'hosted contract version is explicit');
+check(list.data?.accounts?.some(account => account.id === target.id && account.previewable), 'confirmed target employee is included and previewable');
+const unconfirmedListed = list.data?.accounts?.find(account => account.id === unconfirmed.id);
+check(unconfirmedListed, 'unconfirmed active employee remains visible to account management');
+equal(unconfirmedListed?.previewable, false, 'unconfirmed employee is not advertised as previewable');
+equal(unconfirmedListed?.preview_reason, 'email_not_confirmed', 'unconfirmed preview reason is explicit');
+
+const rejectedUnconfirmed = await qa('create', operator, { target_profile_id: unconfirmed.id });
+equal(rejectedUnconfirmed.status, 400, 'unconfirmed employee preview token creation is rejected');
+equal(rejectedUnconfirmed.data?.error, 'TARGET_EMAIL_NOT_CONFIRMED', 'unconfirmed employee rejection has a specific code');
 
 const create = await qa('create', operator, { target_profile_id: target.id });
 equal(create.status, 200, `top-authority create succeeds: ${JSON.stringify(create.data)}`);

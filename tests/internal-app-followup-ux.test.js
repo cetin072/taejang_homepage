@@ -13,6 +13,7 @@ const source = read('app/assets/ux-followup-polish.js');
 const surface = read('app/assets/app-workspace-surface.js');
 const appUi = read('app/assets/app-ui.js');
 const dashboardShell = read('app/assets/dashboard-shell.js');
+const officialChannelConfig = read('app/assets/official-channel-config.js');
 const shellCss = read('app/assets/dashboard-shell.css');
 const roleSimulation = read('app/assets/phase-c-role-simulation.js');
 const roleNavigation = read('app/assets/role-navigation-priority.js');
@@ -227,8 +228,9 @@ test('unfinished manager manual is absent from the base shell instead of removed
   assert.doesNotMatch(dashboardShell, /label:\s*'작업 매뉴얼'/);
   assert.doesNotMatch(roleNavigation, /HIDDEN_NAV_ITEMS/);
   assert.equal(fs.existsSync(path.join(root, 'app/assets/work-guide-worker.js')), true);
-  assert.match(dashboardShell, /label:\s*'공식 유튜브'/);
-  assert.match(dashboardShell, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(dashboardShell, /TaejangOfficialChannels\?\.list/);
+  assert.match(officialChannelConfig, /label:\s*'공식 유튜브'/);
+  assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
 });
 
 test('admin panels mount inside the app workspace before they can open', () => {

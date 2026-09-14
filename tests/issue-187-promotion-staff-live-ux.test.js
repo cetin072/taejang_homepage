@@ -4,25 +4,46 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/ux-followup-polish.js'), 'utf8');
 const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion-live-qa.js'), 'utf8');
+const issue181 = fs.readFileSync(path.join(root, 'app/assets/issue-181-promotion-live-ux.js'), 'utf8');
+const channelConfig = fs.readFileSync(path.join(root, 'app/assets/official-channel-config.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
+const roleNavigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260913070500_issue_192_upper_review_archive_guard.sql'), 'utf8');
 const promotionDetail = fs.readFileSync(path.join(root, 'assets/js/promotion-detail.js'), 'utf8');
 const publicFeed = fs.readFileSync(path.join(root, 'netlify/functions/public-promotion-feed.mjs'), 'utf8');
+const externalMeta = fs.readFileSync(path.join(root, 'netlify/functions/external-content-meta.mjs'), 'utf8');
 
 function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
 }
 
-function classifierFromSource() {
-  const match = qaSource.match(/function classifyLinkedSource\(urlValue\) \{([\s\S]*?)\n  \}\n\n  function openPromotion/);
-  assert.ok(match, 'classifier function must remain extractable for behavior tests');
-  const window = { location: { href: 'https://deploy-preview-188--taejang-homepage.netlify.app/app/', origin: 'https://deploy-preview-188--taejang-homepage.netlify.app' } };
-  return new Function('window', `return function classifyLinkedSource(urlValue) {${match[1]}\n};`)(window);
+function officialChannels() {
+  const listeners = new Map();
+  class FakeCustomEvent {
+    constructor(type, options = {}) { this.type = type; this.detail = options.detail; }
+  }
+  const document = {
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    dispatchEvent() {}
+  };
+  const originalFetch = async () => ({ ok: false });
+  const window = {
+    location: {
+      href: 'https://deploy-preview-192--taejang-homepage.netlify.app/app/',
+      origin: 'https://deploy-preview-192--taejang-homepage.netlify.app'
+    },
+    fetch: originalFetch
+  };
+  const context = vm.createContext({ window, document, CustomEvent: FakeCustomEvent, URL, JSON, Map, Set, Object, String });
+  vm.runInContext(channelConfig, context);
+  return window.TaejangOfficialChannels;
 }
 
 function firstPublicImageFromSource() {
@@ -41,13 +62,21 @@ function runPreviewReveal() {
   return calls;
 }
 
-test('issue 187 modules parse and image retry loads before fallback guard', () => {
-  syntaxCheck('app/assets/ux-followup-polish.js');
-  syntaxCheck('app/assets/issue-187-promotion-live-qa.js');
-  syntaxCheck('assets/js/promotion-detail.js');
+test('issue 192 promotion modules parse and official channel config loads before promotion modules', () => {
+  [
+    'app/assets/official-channel-config.js',
+    'app/assets/dashboard-shell.js',
+    'app/assets/role-navigation-priority.js',
+    'app/assets/issue-181-promotion-live-ux.js',
+    'app/assets/issue-187-promotion-live-qa.js',
+    'app/assets/ux-followup-polish.js',
+    'assets/js/promotion-detail.js'
+  ].forEach(syntaxCheck);
   assert.doesNotThrow(() => new Function(publicFeed.replace('export default async', 'const handler = async')));
-  assert.match(appUi, /assets\/issue-187-promotion-live-qa\.js/);
-  assert.ok(appUi.indexOf('assets/issue-187-promotion-live-qa.js') < appUi.indexOf('assets/ux-followup-polish.js'));
+  assert.doesNotThrow(() => new Function(externalMeta.replace(/^import[^\n]+\n/gm, '').replace('export default async', 'const handler = async')));
+  assert.match(appUi, /assets\/official-channel-config\.js/);
+  assert.ok(appUi.indexOf('assets/official-channel-config.js') < appUi.indexOf('assets/phase-c-workspace-v2.js'));
+  assert.ok(appUi.indexOf('assets/official-channel-config.js') < appUi.indexOf('assets/issue-181-promotion-live-ux.js'));
 });
 
 test('routine promotion and office staff hide support-radar navigation without changing server capabilities', () => {
@@ -58,17 +87,20 @@ test('routine promotion and office staff hide support-radar navigation without c
   assert.doesNotMatch(source, /support_radar\.assigned_work/);
 });
 
-test('promotion staff sidebar and dashboard have stable write and revision entry points', () => {
-  assert.match(source, /makePromotionNavButton\('홍보 작성', 'write'\)/);
-  assert.match(source, /makePromotionNavButton\('수정·보완 요청', 'revision'\)/);
-  assert.match(qaSource, /replaceCardAction\(revision, '보완 글 확인', 'revision'\)/);
-  assert.match(qaSource, /replaceCardAction\(write, '새 태장 소식 작성', 'write'\)/);
-  assert.match(qaSource, /보완 요청으로 돌아온 글을 확인하고 수정한 뒤 다시 승인 요청합니다/);
-  assert.match(qaSource, /태장 소식을 작성해 운영팀장에게 승인 요청합니다/);
-  assert.match(dashboard, /openPromotion\('write'\)/, 'legacy dashboard remains compatible while follow-up repairs the returned-item action');
+test('promotion staff core navigation is authoritative on first render', () => {
+  assert.match(dashboard, /label: '홍보 작성'[\s\S]*openPromotion\('write'\)/);
+  assert.match(dashboard, /label: '보완 요청받은 글'[\s\S]*openPromotion\('revision'\)/);
+  assert.match(dashboard, /node\.dataset\.phaseCV2Nav = 'write'/);
+  assert.match(dashboard, /node\.dataset\.phaseCV2Nav = 'revision'/);
+  assert.match(dashboard, /card\(\s*'보완 요청받은 글'/);
+  assert.match(dashboard, /label: '보완 글 확인', run: \(\) => openPromotion\('revision'\)/);
+  assert.match(roleNavigation, /'대시보드', '홍보 작성', '보완 요청받은 글'/);
+  assert.doesNotMatch(source, /ensurePromotionStaffNavigation/);
+  assert.doesNotMatch(source, /makePromotionNavButton/);
+  assert.doesNotMatch(qaSource, /stabilizePromotionStaffDashboard/);
 });
 
-test('promotion staff new composer is reduced to Taejang news only', () => {
+test('promotion staff new composer remains Taejang news only', () => {
   assert.match(source, /route\(\) === 'promotion_staff'[\s\S]*option\[value="press_release"\]/);
   assert.match(source, /홍보직원은 태장 소식만 작성합니다/);
   assert.match(qaSource, /heading\.textContent = '새 태장 소식 작성'/);
@@ -76,25 +108,36 @@ test('promotion staff new composer is reduced to Taejang news only', () => {
   assert.match(qaSource, /typeField\.hidden = true/);
 });
 
-test('official link classifier behaves correctly across preview and production URL shapes', () => {
-  const classify = classifierFromSource();
-  assert.equal(classify('https://taejang.co.kr/activities.html'), 'taejang_homepage');
-  assert.equal(classify('https://www.taejang.co.kr/about.html'), 'taejang_homepage');
-  assert.equal(classify('https://deploy-preview-188--taejang-homepage.netlify.app/app/'), 'taejang_homepage');
-  assert.equal(classify('https://blog.naver.com/taejang-official/223000000000'), 'taejang_blog');
-  assert.equal(classify('https://m.blog.naver.com/taejang-official/223000000000'), 'taejang_blog');
-  assert.equal(classify('https://m.blog.naver.com/PostView.naver?blogId=taejang-official&logNo=223000000000'), 'taejang_blog');
-  assert.equal(classify('https://blog.naver.com/someone-else/223000000000'), 'external');
-  assert.equal(classify('https://www.youtube.com/@taejangofficial/videos'), 'taejang_youtube');
-  assert.equal(classify('https://example.com/article/1'), 'external');
-  assert.doesNotMatch(source, /suggestSource\?\.|classifyLinkedSource\(/, 'legacy polish must not overwrite the single live classifier');
+test('official channel classifier recognizes blog children and metadata-proven YouTube videos', () => {
+  const channels = officialChannels();
+  assert.equal(channels.classifyUrl('https://taejang.co.kr/activities.html'), 'taejang_homepage');
+  assert.equal(channels.classifyUrl('https://blog.naver.com/taejang-official/223000000000'), 'taejang_blog');
+  assert.equal(channels.classifyUrl('https://m.blog.naver.com/taejang-official/223000000000'), 'taejang_blog');
+  assert.equal(channels.classifyUrl('https://m.blog.naver.com/PostView.naver?blogId=taejang-official&logNo=223000000000'), 'taejang_blog');
+  assert.equal(channels.classifyUrl('https://blog.naver.com/someone-else/223000000000'), 'external');
+  assert.equal(channels.classifyUrl('https://www.youtube.com/@taejangofficial/videos'), 'taejang_youtube');
+  assert.equal(channels.classifyUrl('https://www.youtube.com/watch?v=abc123', { channel_url: 'https://www.youtube.com/@taejangofficial' }), 'taejang_youtube');
+  assert.equal(channels.classifyUrl('https://youtu.be/abc123', { channel_url: 'https://www.youtube.com/@anotherchannel' }), 'external');
+  assert.match(qaSource, /TaejangOfficialChannels\?\.classifyUrl/);
+  assert.match(issue181, /TaejangOfficialChannels\?\.classifyUrl/);
 });
 
-test('link source is reclassified after metadata import canonicalizes the URL', () => {
-  assert.match(qaSource, /attributeFilter: \['disabled'\]/);
-  assert.match(qaSource, /if \(!metaButton\.disabled\) setTimeout\(classify, 0\)/);
-  assert.match(qaSource, /링크 종류 \(자동 확인\)/);
-  assert.match(qaSource, /sourceField\.hidden = !raw/);
+test('external metadata returns channel identity for YouTube page ownership checks', () => {
+  assert.match(externalMeta, /function extractYouTubeChannelUrl/);
+  assert.match(externalMeta, /ownerProfileUrl/);
+  assert.match(externalMeta, /vanityChannelUrl/);
+  assert.match(externalMeta, /canonicalBaseUrl/);
+  assert.match(externalMeta, /channel_url: channelUrl/);
+  assert.match(channelConfig, /taejang-external-meta-observed/);
+});
+
+test('upper approval history blocks promotion-lead deletion in UI and server contract', () => {
+  assert.match(issue181, /get_promotion_review_handoff/);
+  assert.match(issue181, /if \(handoff\) \{\s*existingDelete\?\.remove\(\)/);
+  assert.match(issue181, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
+  assert.match(migration, /review\.stage in \('operations', 'ceo'\)/);
+  assert.match(migration, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
+  assert.match(migration, /public\.archive_unpublished_promotion_content/);
 });
 
 test('preview reveal helper actually scrolls the generated panel into view', () => {
