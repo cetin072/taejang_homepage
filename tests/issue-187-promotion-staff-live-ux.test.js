@@ -94,7 +94,9 @@ test('promotion staff core navigation is authoritative on first render', () => {
   assert.match(dashboard, /node\.dataset\.phaseCV2Nav = 'revision'/);
   assert.match(dashboard, /card\(\s*'보완 요청받은 글'/);
   assert.match(dashboard, /label: '보완 글 확인', run: \(\) => openPromotion\('revision'\)/);
-  assert.match(roleNavigation, /'대시보드', '홍보 작성', '보완 요청받은 글'/);
+  assert.match(roleNavigation, /'대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인'/);
+  assert.match(roleNavigation, /label: '홍보', items: \['새 홍보글 작성', '보낸 글', '보완 요청받은 글'\]/);
+  assert.match(roleNavigation, /label: '공지', items: \['공지 확인'\]/);
   assert.doesNotMatch(source, /ensurePromotionStaffNavigation/);
   assert.doesNotMatch(source, /makePromotionNavButton/);
   assert.doesNotMatch(qaSource, /stabilizePromotionStaffDashboard/);
