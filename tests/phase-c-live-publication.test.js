@@ -29,6 +29,10 @@ function syntaxCheck(file) {
   execFileSync(process.execPath, ['--check', path.join(ROOT, file)], { stdio: 'pipe' });
 }
 
+function functionBlock(source, name) {
+  return source.match(new RegExp(`create or replace function public\\.${name}[\\s\\S]*?(?:\\$\\$|\\$[A-Za-z_][A-Za-z0-9_]*\\$);`))?.[0] || '';
+}
+
 test('live publication browser and Netlify modules compile', () => {
   syntaxCheck('netlify/functions/public-promotion-feed.mjs');
   syntaxCheck('assets/js/external-content.js');
@@ -61,8 +65,8 @@ test('public hub loads live feed before the existing content hub renders', () =>
 });
 
 test('Issue 207 retires deletion requests and caps public deletion at 24 hours', () => {
-  const requestFunction = issue207Policy.match(/create or replace function public\.request_promotion_deletion[\s\S]*?\$\$;/)?.[0] || '';
-  const deleteFunction = issue207Policy.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
+  const requestFunction = functionBlock(issue207Policy, 'request_promotion_deletion');
+  const deleteFunction = functionBlock(issue207Policy, 'delete_promotion_content');
   assert.match(requestFunction, /PROMOTION_DELETE_REQUEST_POLICY_RETIRED/);
   assert.match(deleteFunction, /private_actor_can\('promotion\.archive'\)/);
   assert.match(deleteFunction, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
