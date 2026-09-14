@@ -44,6 +44,19 @@ test('Excel prefill warns before it can overwrite unsaved screen edits', () => {
   assert.match(uxSource, /현재 변경사항을 먼저 저장해 주세요/);
 });
 
+test('vendor xls summary exposes content period, exceptions and re-download changes', () => {
+  const text = ux.vendorImportSummaryText({
+    snapshot: { period: { start: '2026-08-03', end: '2026-08-31' }, rows: new Array(388).fill({}) },
+    reconciliation: { exceptionCounts: { clock_in_missing: 3, clock_out_missing: 4, no_fingerprint_record: 0 } },
+    sourceIndexPersistence: { diff: { added: 1, changed: 2, missing: 3 } },
+  });
+  assert.match(text, /원본 388건/);
+  assert.match(text, /실제기간 2026-08-03~2026-08-31/);
+  assert.match(text, /출퇴근 한쪽누락 7건/);
+  assert.match(text, /재다운로드 변경 6건/);
+  assert.match(text, /초단위 원본 보존/);
+});
+
 test('attendance save success is never reported as save failure when recalculation fails later', () => {
   assert.doesNotMatch(editorSource, /근태 저장\/계산 실패/);
   assert.match(editorSource, /근태 저장 실패:/);
