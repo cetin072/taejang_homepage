@@ -112,11 +112,16 @@ test('notice approval lane remains operations-approved while the UI removes stan
   assert.match(ux, /'승인·게시'/);
   assert.doesNotMatch(ux, /guidanceKinds/);
   assert.doesNotMatch(ux, /get_my_staff_guidance_list/);
-  assert.doesNotMatch(ux, /상시 안내/);
+  assert.doesNotMatch(ux, /option\('guidance'/);
+  assert.doesNotMatch(ux, /setPage\('공지·안내/);
+  assert.doesNotMatch(ux, /navNode\('공지·안내/);
 });
 
 test('promotion staff read navigation is notice-only', () => {
-  assert.match(ux, /'공지 확인'/);
+  assert.match(ux, /navNode\('공지 확인'/);
+  assert.match(ux, /setPage\('공지 확인'/);
   assert.match(ux, /get_my_notice_list/);
-  assert.doesNotMatch(ux, /공지·안내 확인/);
+  assert.doesNotMatch(ux, /get_my_staff_guidance_list/);
+  assert.doesNotMatch(ux, /navNode\('공지·안내 확인'/);
+  assert.doesNotMatch(ux, /setPage\('공지·안내 확인'/);
 });
