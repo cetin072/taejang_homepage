@@ -110,6 +110,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-attendance-xls.test.js',
     'tests/payroll-attendance-vendor-import.test.js',
     'tests/payroll-attendance-vendor-preflight-ux.test.js',
+    'tests/payroll-attendance-redownload-persistence.test.js',
     'tests/payroll-attendance-editor-backend.test.js',
     'tests/payroll-editor-term-scope.test.js',
     'tests/payroll-attendance-operator-ux.test.js',
