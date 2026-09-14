@@ -13,10 +13,13 @@ const index = read('index.html');
 const archive = read('archive.html');
 const externalContent = read('assets/js/external-content.js');
 const thumbnailPath = path.join(root, 'assets/images/archive/naver-blog-224367547159.webp');
+const openingPhotoPath = path.join(root, 'assets/images/archive/opening-ceremony.webp');
 
 assert.match(index, /content\.js[\s\S]*external-content\.js[\s\S]*home-previews\.js/);
 assert.match(archive, /content\.js[\s\S]*external-content\.js[\s\S]*content-hub\.js/);
 assert.equal(fs.existsSync(thumbnailPath), true);
+assert.equal(fs.existsSync(openingPhotoPath), true);
+assert.ok(fs.statSync(openingPhotoPath).size <= 200 * 1024, '언론보도 공통 썸네일은 200KB 이하이어야 합니다');
 
 const window = {
   TAEJANG_CONTENT: {
@@ -25,7 +28,7 @@ const window = {
 };
 vm.runInNewContext(externalContent, { window });
 
-assert.equal(window.TAEJANG_CONTENT.hub.length, 7);
+assert.equal(window.TAEJANG_CONTENT.hub.length, 7, '메인에는 기존 외부 콘텐츠만 유지해야 합니다');
 const naver = window.TAEJANG_CONTENT.hub.find(item => item.id === 'naver-blog-224367547159');
 const youtube = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-FbEOcteBSJ4');
 const changwon = window.TAEJANG_CONTENT.hub.find(item => item.id === 'youtube-qvqNyeyfQsA');
@@ -52,7 +55,6 @@ assert.equal(youtube.thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jp
 assert.equal(youtube.thumbnailAlt, '태장 공식 소개영상 썸네일');
 assert.equal(youtube.externalLabel, '유튜브에서 보기');
 assert.equal(youtube.publishedAt, '2026-08-13');
-
 
 assert.equal(vlog.type, 'external');
 assert.equal(vlog.source, 'youtube');
@@ -102,5 +104,48 @@ assert.equal(kbs.publishedAt, '2026-08');
 
 vm.runInNewContext(externalContent, { window });
 assert.equal(window.TAEJANG_CONTENT.hub.length, 7, '같은 외부 콘텐츠를 중복 등록하지 않습니다');
+
+const archiveWindow = { TAEJANG_CONTENT: { hub: [] } };
+const archiveDocument = {
+  readyState: 'complete',
+  querySelector(selector) {
+    return selector === '[data-hub-list][data-static-fallback="archive"]' ? {} : null;
+  }
+};
+vm.runInNewContext(externalContent, { window: archiveWindow, document: archiveDocument });
+
+const archiveItems = archiveWindow.TAEJANG_CONTENT.hub;
+assert.equal(archiveItems.length, 12, '아카이브에서는 기존 7건 + 검증된 언론보도 5건을 함께 제공해야 합니다');
+const pressItems = archiveItems.filter(item => item.id.startsWith('press-'));
+assert.equal(pressItems.length, 5, '이번 언론보도 백필은 원문 링크가 확인된 5건이어야 합니다');
+
+const expectedPress = new Map([
+  ['press-yonhap-20260812-taejang', ['연합뉴스', '2026-08-12', 'https://www.yna.co.kr/view/AKR20260812048100052']],
+  ['press-newsjinju-59989', ['진주신문', '2026-08-12', 'https://newsjinju.kr/news/articleView.html?idxno=59989']],
+  ['press-knn-191206', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191206']],
+  ['press-knn-191244', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191244']],
+  ['press-kdjob-8779', ['장애인일자리신문', '2026-08-13', 'https://kdjob.co.kr/article/8779']]
+]);
+
+for (const item of pressItems) {
+  const expected = expectedPress.get(item.id);
+  assert.ok(expected, `예상하지 않은 언론보도 항목: ${item.id}`);
+  assert.equal(item.type, 'external');
+  assert.equal(item.source, 'press');
+  assert.equal(item.publisher, expected[0]);
+  assert.equal(item.publishedAt, expected[1]);
+  assert.equal(item.externalUrl, expected[2]);
+  assert.equal(item.status, 'published');
+  assert.equal(item.category, '회사소식');
+  assert.ok(item.title.length > 0);
+  assert.ok(item.summary.length > 0);
+  assert.equal(item.thumbnail, 'assets/images/archive/opening-ceremony.webp');
+  assert.match(item.thumbnailAlt, /태장 개소식/);
+  assert.doesNotMatch(item.externalUrl, /(?:nate\.com|daum\.net)/, '포털 재전송 링크가 아니라 원문 언론사 링크를 사용해야 합니다');
+}
+
+assert.equal(new Set(archiveItems.map(item => item.id)).size, archiveItems.length, '아카이브 외부 콘텐츠 ID는 중복되면 안 됩니다');
+vm.runInNewContext(externalContent, { window: archiveWindow, document: archiveDocument });
+assert.equal(archiveWindow.TAEJANG_CONTENT.hub.length, 12, '아카이브 백필을 다시 실행해도 중복 등록하면 안 됩니다');
 
 console.log('public-external-content tests: all cases passed');
