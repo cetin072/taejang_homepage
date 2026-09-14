@@ -28,6 +28,18 @@ test('automatic clock inference only changes empty/work/review statuses', () => 
   }
 });
 
+test('operator queue classifies normal, missing-source, partial and already-resolved attendance', () => {
+  assert.equal(ux.classifyOperatorRow('work', '09:01', '12:03'), 'normal');
+  assert.equal(ux.classifyOperatorRow('', '', ''), 'no_source');
+  assert.equal(ux.classifyOperatorRow('review_required', '09:01', ''), 'exception');
+  assert.equal(ux.classifyOperatorRow('paid_leave', '', ''), 'resolved');
+  assert.equal(ux.classifyOperatorRow('work', '09:01', ''), 'exception');
+  assert.equal(
+    ux.queueSummaryText({ normal: 19, exception: 2, no_source: 2, resolved: 0 }),
+    '정상 자동대조 19명 · 확인 필요 4명 · 지문기록 없음 2명'
+  );
+});
+
 test('legacy xls is selectable directly and is not diverted to conversion guidance', () => {
   assert.equal(ux.isLegacyXlsFileName('출근부.xls'), true);
   assert.equal(ux.isLegacyXlsFileName('출근부.XLS'), true);
@@ -55,6 +67,14 @@ test('vendor xls summary exposes content period, exceptions and re-download chan
   assert.match(text, /출퇴근 한쪽누락 7건/);
   assert.match(text, /재다운로드 변경 6건/);
   assert.match(text, /초단위 원본 보존/);
+});
+
+test('exception-focus UX is present without changing server permission semantics', () => {
+  assert.match(uxSource, /오늘 근태대조/);
+  assert.match(uxSource, /예외만 보기/);
+  assert.match(uxSource, /data-payroll-exception-summary/);
+  assert.match(uxSource, /selectedDateWithinImportedPeriod/);
+  assert.doesNotMatch(uxSource, /payroll\.manage|operations_manager|service_role/);
 });
 
 test('attendance save success is never reported as save failure when recalculation fails later', () => {
