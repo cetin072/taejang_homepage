@@ -27,16 +27,39 @@ function labelSst(row, column, index) {
   return record(0x00fd, payload);
 }
 
+function numberCell(row, column, value) {
+  const payload = Buffer.alloc(14);
+  payload.writeUInt16LE(row, 0);
+  payload.writeUInt16LE(column, 2);
+  payload.writeUInt16LE(0, 4);
+  payload.writeDoubleLE(value, 6);
+  return record(0x0203, payload);
+}
+
 function simpleBiffWorkbook() {
-  const values = ['사번', '성명', '일자', '출근', '퇴근', 'V-001', '익명근로자', '2026-08-03', '08:59', '12:01'];
+  const headers = ['일 자', '요 일', '사 번', '이 름', '회 사', '부 서', '직 책', '직 위', '출 근', '출근위치', '퇴 근', '퇴근위치', '총 근무시간'];
+  const dataStrings = ['2026년 08월 03일', '월요일', 'V-001', '익명근로자', '미등록', '미등록', '미등록', '미등록', '입구 근태리더', '입구 근태리더'];
+  const values = [...headers, ...dataStrings];
   const sstPayload = Buffer.alloc(8);
   sstPayload.writeUInt32LE(values.length, 0);
   sstPayload.writeUInt32LE(values.length, 4);
   const sst = record(0x00fc, Buffer.concat([sstPayload, ...values.map(unicodeString)]));
   const sheet = Buffer.concat([
     record(0x0809, Buffer.alloc(4)),
-    ...[0, 1, 2, 3, 4].map((index) => labelSst(0, index, index)),
-    ...[5, 6, 7, 8, 9].map((index, column) => labelSst(1, column, index)),
+    ...headers.map((_, index) => labelSst(0, index, index)),
+    labelSst(1, 0, 13),
+    labelSst(1, 1, 14),
+    labelSst(1, 2, 15),
+    labelSst(1, 3, 16),
+    labelSst(1, 4, 17),
+    labelSst(1, 5, 18),
+    labelSst(1, 6, 19),
+    labelSst(1, 7, 20),
+    numberCell(1, 8, (8 * 3600 + 47 * 60 + 20) / 86400),
+    labelSst(1, 9, 21),
+    numberCell(1, 10, (12 * 3600 + 35) / 86400),
+    labelSst(1, 11, 22),
+    numberCell(1, 12, (3 * 3600 + 13 * 60 + 15) / 86400),
     record(0x000a, Buffer.alloc(0)),
   ]);
   const bof = record(0x0809, Buffer.alloc(4));
@@ -53,12 +76,18 @@ function simpleBiffWorkbook() {
   return Buffer.concat([bof, sst, record(0x0085, boundsheetPayload), record(0x000a, Buffer.alloc(0)), sheet]);
 }
 
-test('BIFF .xls reader extracts a fixed Korean vendor-style matrix without conversion', () => {
+test('BIFF .xls reader extracts the anonymized real 13-column vendor layout without conversion', () => {
   const sheets = legacy.parseBiffWorkbook(simpleBiffWorkbook());
   assert.equal(sheets.length, 1);
   assert.equal(sheets[0].sheetName, '근태');
-  assert.deepEqual(sheets[0].matrix[0], ['사번', '성명', '일자', '출근', '퇴근']);
-  assert.deepEqual(sheets[0].matrix[1], ['V-001', '익명근로자', '2026-08-03', '08:59', '12:01']);
+  assert.deepEqual(sheets[0].matrix[0], ['일 자', '요 일', '사 번', '이 름', '회 사', '부 서', '직 책', '직 위', '출 근', '출근위치', '퇴 근', '퇴근위치', '총 근무시간']);
+  assert.equal(sheets[0].matrix[1][0], '2026년 08월 03일');
+  assert.equal(sheets[0].matrix[1][2], 'V-001');
+  assert.equal(sheets[0].matrix[1][3], '익명근로자');
+  assert.equal(sheets[0].matrix[1][9], '입구 근태리더');
+  assert.equal(sheets[0].matrix[1][11], '입구 근태리더');
+  assert.ok(Math.abs(sheets[0].matrix[1][8] - ((8 * 3600 + 47 * 60 + 20) / 86400)) < 1e-12);
+  assert.ok(Math.abs(sheets[0].matrix[1][10] - ((12 * 3600 + 35) / 86400)) < 1e-12);
 });
 
 test('vendor filename timestamp is metadata only and never used as attendance period', () => {
