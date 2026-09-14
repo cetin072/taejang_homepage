@@ -25,6 +25,7 @@
   <script>
     let currentRoute = 'promotion_staff';
     let openedPromotionMode = null;
+    let homepageManagementOpened = false;
     let failInformationSave = false;
     const fakeMetadata = {
       url: 'https://www.youtube.com/watch?v=taejang-test',
@@ -70,7 +71,10 @@
 
     window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
     window.TaejangSupportRadarAccess = { canManagementView: () => false };
-    window.TaejangPromotionWorkspaceV2Api = { openPromotion(mode) { openedPromotionMode = mode; } };
+    window.TaejangPromotionWorkspaceV2Api = {
+      openPromotion(mode) { openedPromotionMode = mode; },
+      openHomepageManagement() { homepageManagementOpened = true; }
+    };
     window.TaejangApp = {
       getRoute: () => currentRoute,
       getContext: () => ({ display_name: '브라우저검수', roles: [{ code: currentRoute }] }),
@@ -81,7 +85,6 @@
       rpc: async (name, args = {}) => {
         if (name === 'get_my_schedule_list') return [];
         if (name === 'get_my_notice_list') return [{ title: '중요 공지', importance: 'important', body_easy: '오늘 확인할 공지' }];
-        if (name === 'get_my_staff_guidance_list') return [{ title: '상시 안내', summary_easy: '평소 확인할 안내' }];
         if (name === 'get_my_promotion_workspace') {
           if (currentRoute === 'promotion_staff') {
             return {
@@ -135,7 +138,7 @@
     const labels = () => [...document.querySelectorAll('#app-nav > button')].map(node => node.textContent.trim());
     const fieldByLabel = label => [...document.querySelectorAll('.phase-c-board-form label')]
       .find(node => node.querySelector('span')?.textContent.trim() === label)?.querySelector('input, textarea, select');
-    const buttonByText = (root, text) => [...root.querySelectorAll('button')].find(node => node.textContent.trim() === text);
+    const buttonByText = (root, value) => [...root.querySelectorAll('button')].find(node => node.textContent.trim() === value);
 
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
@@ -147,7 +150,8 @@
         assert(staffLabels.includes('새 홍보글 작성'), 'Issue 207 새 홍보글 작성 메뉴 누락');
         assert(staffLabels.includes('보낸 글'), 'Issue 207 보낸 글 메뉴 누락');
         assert(staffLabels.includes('보완 요청받은 글'), 'Issue 207 보완 요청받은 글 메뉴 누락');
-        assert(staffLabels.includes('공지·안내 확인'), 'Issue 207 공지·안내 확인 메뉴 누락');
+        assert(staffLabels.includes('공지 확인'), 'Issue 207 공지 확인 메뉴 누락');
+        assert(!staffLabels.some(label => label.includes('안내')), '공지 메뉴에 안내 용어가 남아 있음');
         assert(!staffLabels.includes('수정·보완 요청'), '구형 반환 메뉴명이 남아 있음');
         assert(document.querySelectorAll('[data-phase-c-v2-nav="revision"]').length === 1, '반환 글 메뉴가 중복 생성됨');
 
@@ -168,7 +172,7 @@
 
         await window.TaejangIssue207Ux.openInformationRead();
         assert(document.getElementById('dashboard-main').textContent.includes('오늘 확인할 공지'), '직원 공지 확인 화면 누락');
-        assert(document.getElementById('dashboard-main').textContent.includes('평소 확인할 안내'), '직원 상시 안내 확인 화면 누락');
+        assert(!document.getElementById('dashboard-main').textContent.includes('상시 안내'), '공지 확인 화면에 안내 영역이 남아 있음');
 
         assert(window.TaejangOfficialChannels.classifyUrl('https://blog.naver.com/taejang-official/223000000000') === 'taejang_blog', '공식 블로그 개별 글 분류 실패');
         assert(window.TaejangOfficialChannels.classifyUrl('https://m.blog.naver.com/PostView.naver?blogId=taejang-official&logNo=223000000000') === 'taejang_blog', '모바일 공식 블로그 글 분류 실패');
@@ -184,16 +188,20 @@
         currentRoute = 'promotion_lead';
         const nav = document.getElementById('app-nav');
         nav.replaceChildren();
-        ['대시보드', '홍보 작성', '홍보 검토', '홈페이지 내용 관리'].forEach(label => {
+        ['대시보드', '홍보 작성', '홍보 검토'].forEach(label => {
           const node = document.createElement('button'); node.type = 'button'; node.textContent = label; nav.append(node);
         });
-        window.TaejangPublicationAdmin.ensureNav();
         window.TaejangIssue207Ux.ensureNavigation();
         const leadLabels = labels();
         assert(leadLabels.includes('새 홍보글 작성'), '운영팀장 새 홍보글 메뉴 누락');
         assert(leadLabels.includes('승인·검토'), '운영팀장 승인·검토 메뉴 누락');
-        assert(leadLabels.includes('기존 글 관리'), '운영팀장 기존 글 관리 메뉴 누락');
-        assert(leadLabels.includes('공지·안내 관리'), '운영팀장 공지·안내 관리 메뉴 누락');
+        assert(leadLabels.includes('기존 글 관리'), '운영팀장 기존 글 관리 메뉴 자동 복구 실패');
+        assert(leadLabels.includes('홈페이지 내용 관리'), '운영팀장 홈페이지 내용 관리 메뉴 자동 복구 실패');
+        assert(leadLabels.includes('공지 관리'), '운영팀장 공지 관리 메뉴 누락');
+        assert(!leadLabels.some(label => label.includes('안내')), '운영팀장 메뉴에 안내 용어가 남아 있음');
+
+        document.querySelector('[data-phase-c-v2-nav="homepage"]').click();
+        assert(homepageManagementOpened, '홈페이지 내용 관리 복구 메뉴가 기존 관리 기능을 열지 않음');
 
         await window.TaejangPublicationAdmin.openPublicationAdmin();
         const adminMain = document.getElementById('dashboard-main');
@@ -205,7 +213,9 @@
         assert(oldCard.textContent.includes('24시간 경과 · 삭제 불가'), '24시간 경과 공개글 삭제 차단 안내 누락');
 
         await window.TaejangIssue207Ux.openInformationHub();
-        assert(document.getElementById('dashboard-main').textContent.includes('새 공지·안내 작성'), '운영팀장 공지·안내 작성 화면 누락');
+        assert(document.getElementById('desktop-page-title').textContent === '공지 관리', '운영팀장 공지 관리 제목 불일치');
+        assert(document.getElementById('dashboard-main').textContent.includes('새 공지 작성'), '운영팀장 공지 작성 화면 누락');
+        assert(!document.getElementById('dashboard-main').textContent.includes('상시 안내'), '운영팀장 공지 화면에 안내 유형이 남아 있음');
         const titleInput = fieldByLabel('제목');
         const bodyInput = fieldByLabel('내용');
         const reasonInput = fieldByLabel('상신 사유');
@@ -223,10 +233,11 @@
         currentRoute = 'operations_manager';
         await window.TaejangIssue207Ux.openInformationHub();
         const opsMain = document.getElementById('dashboard-main');
-        assert(opsMain.textContent.includes('승인·검토 목록'), '운영총괄 공지·안내 검토 목록 누락');
+        assert(opsMain.textContent.includes('승인·검토 목록'), '운영총괄 공지 검토 목록 누락');
         assert(buttonByText(opsMain, '승인·게시'), '운영총괄 승인·게시 버튼 누락');
         assert(buttonByText(opsMain, '보완 요청'), '운영총괄 보완 요청 버튼 누락');
         assert(buttonByText(opsMain, '반려'), '운영총괄 반려 버튼 누락');
+        assert(!opsMain.textContent.includes('상시 안내'), '운영총괄 공지 화면에 안내 유형이 남아 있음');
 
         currentRoute = 'promotion_lead';
         document.getElementById('desktop-page-title').textContent = '홍보 검토';
