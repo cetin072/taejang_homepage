@@ -85,6 +85,36 @@ test('employment term bridge parses comma-formatted hourly rate and preserves ef
   assert.doesNotMatch(JSON.stringify(rows), /SECRET/);
 });
 
+test('executive monthly lane retains canonical IDs and never classifies executives as unmatched attendance workers', () => {
+  const lanes = bridge.buildShadowPayrollLanes({
+    employeeMaster,
+    employmentTerms,
+    normalizedAttendance,
+    holidayMaster,
+  });
+
+  assert.equal(lanes.attendanceHourlyWorkers.payrollLane, 'attendance_hourly_worker');
+  assert.equal(lanes.attendanceHourlyWorkers.employees.length, 1);
+  assert.equal(lanes.attendanceHourlyWorkers.terms.length, 2);
+  assert.equal(lanes.executiveFixedMonthly.payrollLane, 'executive_fixed_monthly');
+  assert.deepEqual(lanes.executiveFixedMonthly.employees, [{
+    employeeId: 'TJ-TEST-EXEC',
+    hiredAt: '2026-06-09',
+    terminatedAt: null,
+    payrollLane: 'executive_fixed_monthly',
+  }]);
+  assert.deepEqual(lanes.executiveFixedMonthly.terms, [{
+    employeeId: 'TJ-TEST-EXEC',
+    effectiveFrom: '2026-06-09',
+    effectiveTo: null,
+    payType: 'monthly',
+    monthlySalary: 3000000,
+    payrollLane: 'executive_fixed_monthly',
+  }]);
+  assert.deepEqual(lanes.executiveFixedMonthly.attendanceRecords, []);
+  assert.doesNotMatch(JSON.stringify(lanes), /SECRET/);
+});
+
 test('attendance bridge removes names and clock times while keeping auditable calculation decisions', () => {
   const rows = bridge.adaptNormalizedAttendance(normalizedAttendance);
 

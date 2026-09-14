@@ -67,6 +67,25 @@
       }));
   }
 
+  // Executives are payroll subjects, but do not belong in the attendance-driven
+  // hourly calculation lane. Keep their canonical employee IDs in a distinct
+  // fixed-monthly lane rather than treating their lack of attendance rows as a
+  // source-match failure.
+  function adaptExecutiveMonthlyEmployeeMaster(matrix) {
+    const { rows, index } = rowsFromMatrix(matrix);
+    requireHeaders(index, ['employee_id', '구분', '입사일', '퇴사일'], '직원마스터');
+
+    return rows
+      .filter((row) => clean(read(row, index, 'employee_id')))
+      .filter((row) => clean(read(row, index, '구분')) === '임원')
+      .map((row) => ({
+        employeeId: clean(read(row, index, 'employee_id')),
+        hiredAt: clean(read(row, index, '입사일')) || null,
+        terminatedAt: clean(read(row, index, '퇴사일')) || null,
+        payrollLane: 'executive_fixed_monthly',
+      }));
+  }
+
   function adaptEmployeeMasterForNormalization(matrix) {
     const { rows, index } = rowsFromMatrix(matrix);
     requireHeaders(index, ['employee_id', '기존 사번', '성명', '구분', '입사일', '퇴사일'], '직원마스터');
@@ -100,6 +119,28 @@
         effectiveTo: clean(read(row, index, '적용종료일')) || null,
         dailyScheduledHours: numberOrNull(read(row, index, '일 소정시간')),
         hourlyRate: numberOrNull(read(row, index, '시급')),
+      }));
+  }
+
+  function adaptExecutiveMonthlyTerms(matrix, executiveEmployees) {
+    const { rows, index } = rowsFromMatrix(matrix);
+    requireHeaders(
+      index,
+      ['employee_id', '적용시작일', '적용종료일', '급여형태', '월 기본급'],
+      '근로조건이력'
+    );
+    const executiveIds = new Set((executiveEmployees || []).map((employee) => employee.employeeId));
+
+    return rows
+      .filter((row) => executiveIds.has(clean(read(row, index, 'employee_id'))))
+      .filter((row) => clean(read(row, index, '급여형태')) === '월급')
+      .map((row) => ({
+        employeeId: clean(read(row, index, 'employee_id')),
+        effectiveFrom: clean(read(row, index, '적용시작일')) || null,
+        effectiveTo: clean(read(row, index, '적용종료일')) || null,
+        payType: 'monthly',
+        monthlySalary: numberOrNull(read(row, index, '월 기본급')),
+        payrollLane: 'executive_fixed_monthly',
       }));
   }
 
@@ -196,6 +237,27 @@
       terms: adaptEmploymentTerms(employmentTerms),
       attendanceRecords: adaptNormalizedAttendance(normalizedAttendance),
       holidays: adaptHolidayMaster(holidayMaster),
+    };
+  }
+
+  function buildShadowPayrollLanes({ employeeMaster, employmentTerms, normalizedAttendance, holidayMaster }) {
+    const executiveEmployees = adaptExecutiveMonthlyEmployeeMaster(employeeMaster);
+    return {
+      attendanceHourlyWorkers: {
+        payrollLane: 'attendance_hourly_worker',
+        employees: adaptEmployeeMaster(employeeMaster),
+        terms: adaptEmploymentTerms(employmentTerms),
+        attendanceRecords: adaptNormalizedAttendance(normalizedAttendance),
+        holidays: adaptHolidayMaster(holidayMaster),
+      },
+      executiveFixedMonthly: {
+        payrollLane: 'executive_fixed_monthly',
+        employees: executiveEmployees,
+        terms: adaptExecutiveMonthlyTerms(employmentTerms, executiveEmployees),
+        // A fixed-monthly executive is deliberately not inferred from, or
+        // blocked by, the attendance source lane.
+        attendanceRecords: [],
+      },
     };
   }
 
@@ -296,14 +358,17 @@
     makeHeaderIndex,
     rowsFromMatrix,
     adaptEmployeeMaster,
+    adaptExecutiveMonthlyEmployeeMaster,
     adaptEmployeeMasterForNormalization,
     adaptEmploymentTerms,
+    adaptExecutiveMonthlyTerms,
     normalizeReviewStatus,
     adaptNormalizedAttendance,
     adaptRawAttendance,
     adaptCorrections,
     adaptHolidayMaster,
     buildEngineInput,
+    buildShadowPayrollLanes,
     buildEngineInputFromRaw,
   });
 });

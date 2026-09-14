@@ -116,6 +116,8 @@ export const testGroups = Object.freeze({
     'tests/payroll-post-lock-backend-contract.test.js',
     'tests/payroll-unresolved-total-guard.test.js',
     'tests/payroll-sheet-bridge.test.js',
+    'tests/payroll-shadow-input-adapter.test.js',
+    'tests/payroll-july-executive-lanes-verification.test.js',
     'tests/payroll-term-validator.test.js',
     'tests/payroll-preflight.test.js',
     'tests/payroll-carryover.test.js',

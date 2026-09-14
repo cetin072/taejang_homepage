@@ -63,7 +63,13 @@
     return null;
   }
 
-  function mapEmploymentTerm(row, mappingState) {
+  function payrollLaneForEmployeeKind(value) {
+    const kind = clean(value);
+    if (kind === '임원' || kind === 'executive') return 'executive_fixed_monthly';
+    return 'attendance_hourly_worker';
+  }
+
+  function mapEmploymentTerm(row, mappingState, employeeLanes) {
     const key = sourceEmployeeKey(row);
     const mapping = resolveMapping(key, mappingState);
     if (mapping.code) return { blocker: { code: mapping.code, sourceEmployeeKey: key || null, source: 'employment_term' } };
@@ -83,7 +89,19 @@
       monthlySalary: numberValue(pick(row, ['monthlySalary', '월 기본급'])),
       sourceKind: 'sheet_bridge',
       sourceRef: key,
+      payrollLane: employeeLanes.get(mapping.employeeUuid) || 'attendance_hourly_worker',
     };
+
+    if (term.payrollLane === 'executive_fixed_monthly' && payType !== 'monthly') {
+      return {
+        blocker: {
+          code: 'executive_fixed_monthly_pay_type_required',
+          employeeUuid: mapping.employeeUuid,
+          sourceEmployeeKey: key,
+          source: 'employment_term',
+        },
+      };
+    }
 
     if (payType === 'monthly') {
       return {
@@ -98,7 +116,7 @@
     return { term };
   }
 
-  function mapAttendanceRow(row, mappingState) {
+  function mapAttendanceRow(row, mappingState, employeeLanes) {
     const key = sourceEmployeeKey(row);
     const mapping = resolveMapping(key, mappingState);
     const sourceKey = clean(pick(row, ['sourceKey', 'source_key']));
@@ -133,6 +151,7 @@
       confirmedHours,
       sourceFile: clean(pick(row, ['sourceFile', '원본파일'])) || null,
       sourceRow: numberValue(pick(row, ['sourceRow', '원본행'])),
+      payrollLane: employeeLanes.get(mapping.employeeUuid) || 'attendance_hourly_worker',
     };
 
     // Calculation facts intentionally exclude names and raw clock evidence.
@@ -148,7 +167,12 @@
       confirmedHours,
     };
 
-    return { evidence, calculation };
+    // Executive fixed-monthly subjects can retain source evidence if supplied,
+    // but their payroll calculation never interprets it as attendance input.
+    return {
+      evidence,
+      calculation: evidence.payrollLane === 'executive_fixed_monthly' ? null : calculation,
+    };
   }
 
   function buildShadowPayrollDtos({
@@ -163,6 +187,7 @@
     const reviews = [];
 
     const employeeLinks = [];
+    const employeeLanes = new Map();
     const seenEmployeeKeys = new Set();
     employeeRows.forEach((row) => {
       const key = sourceEmployeeKey(row);
@@ -176,6 +201,9 @@
         blockers.push({ code: mapping.code, sourceEmployeeKey: key || null, source: 'employee_master' });
         return;
       }
+      const employeeKind = clean(pick(row, ['employeeKind', '구분'])) || null;
+      const payrollLane = payrollLaneForEmployeeKind(employeeKind);
+      employeeLanes.set(mapping.employeeUuid, payrollLane);
       employeeLinks.push({
         sourceSystem,
         sourceEmployeeKey: key,
@@ -183,13 +211,14 @@
         employmentStatus: clean(pick(row, ['employmentStatus', '재직상태'])) || null,
         hiredOn: clean(pick(row, ['hiredOn', '입사일'])) || null,
         departedOn: clean(pick(row, ['departedOn', '퇴사일'])) || null,
-        employeeKind: clean(pick(row, ['employeeKind', '구분'])) || null,
+        employeeKind,
+        payrollLane,
       });
     });
 
     const employmentTerms = [];
     termRows.forEach((row) => {
-      const mapped = mapEmploymentTerm(row, mappingState);
+      const mapped = mapEmploymentTerm(row, mappingState, employeeLanes);
       if (mapped.blocker) blockers.push(mapped.blocker);
       if (mapped.term) employmentTerms.push(mapped.term);
       if (mapped.review) reviews.push(mapped.review);
@@ -198,7 +227,7 @@
     const attendanceEvidence = [];
     const calculationAttendance = [];
     attendanceRows.forEach((row) => {
-      const mapped = mapAttendanceRow(row, mappingState);
+      const mapped = mapAttendanceRow(row, mappingState, employeeLanes);
       if (mapped.evidence) attendanceEvidence.push(mapped.evidence);
       if (mapped.calculation) calculationAttendance.push(mapped.calculation);
       if (mapped.blocker) blockers.push(mapped.blocker);
@@ -213,6 +242,18 @@
       employmentTerms,
       attendanceEvidence,
       calculationAttendance,
+      lanes: {
+        attendanceHourlyWorkers: {
+          employeeLinks: employeeLinks.filter((row) => row.payrollLane === 'attendance_hourly_worker'),
+          employmentTerms: employmentTerms.filter((row) => row.payrollLane === 'attendance_hourly_worker'),
+          calculationAttendance,
+        },
+        executiveFixedMonthly: {
+          employeeLinks: employeeLinks.filter((row) => row.payrollLane === 'executive_fixed_monthly'),
+          employmentTerms: employmentTerms.filter((row) => row.payrollLane === 'executive_fixed_monthly'),
+          attendanceEvidence: attendanceEvidence.filter((row) => row.payrollLane === 'executive_fixed_monthly'),
+        },
+      },
     };
   }
 
@@ -223,6 +264,7 @@
     mappingIndex,
     resolveMapping,
     normalizePayType,
+    payrollLaneForEmployeeKind,
     buildShadowPayrollDtos,
   });
 });

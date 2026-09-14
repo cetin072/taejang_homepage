@@ -29,3 +29,14 @@ The main employee table should stay compact. Show gross pay, deduction total, ne
 - Sensitive payroll/HR evidence stays outside GitHub fixtures, comments, and browser payloads.
 - Unknown statutory conditions fail to review-required without blocking already-valid gross payroll calculation.
 - Production, month lock, payment, Ready, and main merge remain separate approval gates.
+
+## July 2026 Shadow Payroll lane classification (confirmed 2026-09-14)
+
+The July ledger population is handled as two explicit calculation lanes:
+
+- 21 attendance-driven worker payroll subjects use the existing attendance-based calculation lane.
+- 2 executive payroll subjects use the `executive_fixed_monthly` lane. They are not `unmatched employee` records or source anomalies merely because they have no attendance-source rows.
+
+Before a July Shadow run is treated as reconciled, the Staging-only verifier must confirm each executive lane subject has an existing canonical `public.employees.id`, a full-month active monthly-salary employment term, and an active payroll source mapping. The fixed-monthly lane does not infer attendance or create attendance exceptions; partial-month and changed-term cases remain review-required under the existing monthly-salary contract.
+
+No identity, compensation amount, disability, health, or other sensitive personnel data is recorded in this repository. Production, payroll finalization/payment, PR Ready transition, and `main` merge remain separate approval gates.

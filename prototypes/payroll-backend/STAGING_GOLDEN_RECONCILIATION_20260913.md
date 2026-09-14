@@ -100,11 +100,11 @@ The corresponding payroll regression was GREEN before the Staging function promo
 
 The existing August `latest_run` remains the prior persisted Shadow result until an authenticated payroll operator legitimately triggers recalculation through the guarded Edge Function. This receipt does not bypass user JWT authorization or directly write a replacement calculation run.
 
-## July limitation
+## July lane correction (2026-09-14)
 
-The July finalized payroll source contains two identities that are not currently mapped to shared `public.employees` records in Staging. No shared employee record was created and July was not partially represented as a complete reconciliation.
+The earlier July limitation is superseded. The two July payroll subjects outside the attendance-driven worker population are confirmed executive fixed-monthly payroll subjects, not unmatched employees and not source anomalies.
 
-Resolving those historical identities remains a separate shared-identity approval/data-quality task.
+July Shadow Payroll therefore has two calculation lanes: 21 attendance-driven worker subjects and 2 executive fixed-monthly subjects. The executive lane must be backed by existing canonical `public.employees.id` records, full-month monthly-salary employment terms, and active payroll source mappings before a complete July reconciliation can be recorded. This receipt records no identities or amounts and does not authorize a Production change, lock/finalization, payment, PR Ready transition, or merge.
 
 ## Safety conclusion
 
