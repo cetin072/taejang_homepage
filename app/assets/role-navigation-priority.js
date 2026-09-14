@@ -3,14 +3,12 @@
 
   const ROLE_ORDER = {
     promotion_staff: [
-      '대시보드', '홍보 작성', '보완 요청받은 글', '일정 확인', '공지 확인', '자주 보는 안내', '홈페이지'
+      '대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인', '홈페이지'
     ],
     promotion_lead: [
       '대시보드',
-      '홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제',
+      '새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리',
       '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
-      '공지 관리', '상시 안내 관리',
-      '홈페이지 내용 관리',
       '출근부',
       '홈페이지',
       '신규 사업 기획'
@@ -49,14 +47,14 @@
 
   const ROLE_SECTIONS = {
     promotion_staff: [
-      { label: '주요 업무', items: ['홍보 작성', '보완 요청받은 글'] },
-      { label: '확인', items: ['일정 확인', '공지 확인', '자주 보는 안내'] }
+      { label: '홍보', items: ['새 홍보글 작성', '보낸 글', '보완 요청받은 글'] },
+      { label: '공지', items: ['공지 확인'] }
     ],
     promotion_lead: [
-      { label: '홍보', items: ['홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제'] },
-      { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
-      { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] },
+      { label: '홍보', items: ['새 홍보글 작성', '승인·검토', '기존 글 관리'] },
       { label: '홈페이지', items: ['홈페이지 내용 관리'] },
+      { label: '공지', items: ['공지 관리'] },
+      { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
       { label: '근태', items: ['출근부'] }
     ],
     operations_manager: [
@@ -99,12 +97,20 @@
   function normalizeLabel(node, role) {
     if (node.dataset?.navSection === 'official_channels') return;
     const current = cleanLabel(node);
-    if (role === 'promotion_lead' && current === '홍보 검토') {
-      node.textContent = '홍보 관리';
+    if (role === 'promotion_staff' && current === '홍보 작성') {
+      node.textContent = '새 홍보글 작성';
       return;
     }
-    if (role === 'promotion_lead' && current === '홍보 글 관리') {
-      node.textContent = '공개글 관리';
+    if (role === 'promotion_lead' && current === '홍보 작성') {
+      node.textContent = '새 홍보글 작성';
+      return;
+    }
+    if (role === 'promotion_lead' && ['홍보 검토', '홍보 관리'].includes(current)) {
+      node.textContent = '승인·검토';
+      return;
+    }
+    if (role === 'promotion_lead' && ['글 관리', '홍보 글 관리', '공개글 관리'].includes(current)) {
+      node.textContent = '기존 글 관리';
       return;
     }
     const renamed = LABEL_RENAMES.get(current);

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "bootstrap": "npm ci",
+  "preview": {
+    "required": true,
+    "status_context": "netlify/taejang-homepage/deploy-preview",
+    "wait_seconds": 600
+  },
+  "checks": {
+    "static_regression": {
+      "command": "npm run test:platform-static && npm run test:public"
+    },
+    "environment_parity": {
+      "command": "node scripts/uar-staging-parity.mjs"
+    },
+    "role_ui_contract": {
+      "fixture_policy": "minimal",
+      "command": "node scripts/run-promotion-browser-gate.mjs"
+    },
+    "preview_runtime": {
+      "command": "node scripts/uar-preview-runtime.mjs"
+    },
+    "representative_smoke": {
+      "command": "node scripts/run-promotion-browser-gate.mjs"
+    }
+  },
+  "qa_escape_regressions": [
+    "issue-207 promotion lead missing existing-content menu",
+    "issue-207 promotion lead missing homepage-content menu",
+    "issue-207 staging information RPC migration mismatch",
+    "issue-207 optimistic browser fixture pre-seeded required navigation"
+  ]
+}

@@ -175,7 +175,8 @@
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
-    ['assets/ux-followup-polish.js', 'ux-followup-polish']
+    ['assets/ux-followup-polish.js', 'ux-followup-polish'],
+    ['assets/issue-207-promotion-information-ux.js', 'issue-207-promotion-information-ux']
   ];
 
   let modulesReady = false;
