@@ -18,7 +18,7 @@ const publicationAdmin = read('app/assets/phase-c-publication-admin.js');
 const appUi = read('app/assets/app-ui.js');
 
 function functionBlock(source, name) {
-  return source.match(new RegExp(`create or replace function public\\.${name}[\\s\\S]*?\\$\\$;`))?.[0] || '';
+  return source.match(new RegExp(`create or replace function public\\.${name}[\\s\\S]*?(?:\\$\\$|\\$[A-Za-z_][A-Za-z0-9_]*\\$);`))?.[0] || '';
 }
 
 test('operations recovery browser module parses, is loaded, and uses capability-first operations gating', () => {
