@@ -6,11 +6,11 @@ begin;
 
 insert into public.platform_capabilities(code, capability_kind, operations_manager_auto_grant, description, active)
 values
-  ('promotion.manage_recent_public', 'operation', true, '공개 24시간 이내 홍보 콘텐츠 직접 수정·복구가능 정리', true),
-  ('promotion.request_public_change', 'operation', false, '24시간 경과 또는 코드형 공개 콘텐츠 수정 요청 상신', true),
-  ('promotion.review_public_change', 'operation', true, '공개 콘텐츠 수정 요청 최종 검토·적용', true),
-  ('information.submit', 'operation', false, '공지·상시 안내 초안 작성 및 운영총괄 상신', true),
-  ('information.review', 'operation', true, '공지·상시 안내 상신안 최종 검토·게시', true)
+  ('promotion.manage_recent_public', 'operational', true, '공개 24시간 이내 홍보 콘텐츠 직접 수정·복구가능 정리', true),
+  ('promotion.request_public_change', 'operational', false, '24시간 경과 또는 코드형 공개 콘텐츠 수정 요청 상신', true),
+  ('promotion.review_public_change', 'operational', true, '공개 콘텐츠 수정 요청 최종 검토·적용', true),
+  ('information.submit', 'operational', false, '공지·상시 안내 초안 작성 및 운영총괄 상신', true),
+  ('information.review', 'operational', true, '공지·상시 안내 상신안 최종 검토·게시', true)
 on conflict (code) do update
 set capability_kind = excluded.capability_kind,
     operations_manager_auto_grant = excluded.operations_manager_auto_grant,
@@ -704,7 +704,7 @@ begin
       '운영총괄 승인: ' || left(request_row.reason,700), request_row.requested_by_profile_id, actor_id, now()
     ) returning id into saved_id;
   elsif next_status='approved' and request_row.information_kind='guidance' then
-    summary_value := coalesce(request_row.summary_easy, left(regexp_replace(request_row.body_easy, '\\s+', ' ', 'g'), 500));
+    summary_value := coalesce(request_row.summary_easy, left(regexp_replace(request_row.body_easy, '\s+', ' ', 'g'), 500));
     insert into public.staff_guidance_items(
       category, title, summary_easy, body_easy, target_scope,
       display_order, is_featured, status, effective_from, effective_until,
