@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const ux = fs.readFileSync(path.join(root, 'app/assets/issue-207-promotion-information-ux.js'), 'utf8');
 const publicationAdmin = fs.readFileSync(path.join(root, 'app/assets/phase-c-publication-admin.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
+const capabilityFoundation = fs.readFileSync(path.join(root, 'supabase/migrations/20260909150000_issue_148_capability_foundation.sql'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260914070000_issue207_promotion_information_workflow.sql'), 'utf8');
 const correction = fs.readFileSync(path.join(root, 'supabase/migrations/20260914071500_issue207_delete_request_and_submitter_correction.sql'), 'utf8');
 const finalPolicy = fs.readFileSync(path.join(root, 'supabase/migrations/20260914073000_issue207_final_public_delete_policy.sql'), 'utf8');
@@ -24,6 +25,14 @@ test('issue 207 pilot UX parses and loads after earlier promotion modules', () =
   syntaxCheck('app/assets/app-ui.js');
   assert.match(appUi, /assets\/issue-207-promotion-information-ux\.js/);
   assert.ok(appUi.indexOf('assets/issue-207-promotion-information-ux.js') > appUi.indexOf('assets/ux-followup-polish.js'));
+});
+
+test('issue 207 capability kinds stay inside the platform capability contract', () => {
+  assert.match(capabilityFoundation, /capability_kind in \('operational', 'technical'\)/);
+  const capabilityRows = [...migration.matchAll(/\('(?:promotion|information)\.[^']+',\s*'([^']+)'/g)];
+  assert.equal(capabilityRows.length, 5);
+  assert.deepEqual([...new Set(capabilityRows.map(match => match[1]))], ['operational']);
+  assert.doesNotMatch(migration, /'operation'/);
 });
 
 test('promotion staff write screen separates sent and revision queues from composer', () => {
