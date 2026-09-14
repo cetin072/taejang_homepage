@@ -11,6 +11,7 @@ const ux = fs.readFileSync(path.join(root, 'app/assets/issue-207-promotion-infor
 const publicationAdmin = fs.readFileSync(path.join(root, 'app/assets/phase-c-publication-admin.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
+const navigationStability = fs.readFileSync(path.join(root, 'app/assets/navigation-visual-stability.js'), 'utf8');
 const workspace = fs.readFileSync(path.join(root, 'app/assets/phase-c-workspace-v2.js'), 'utf8');
 const supportCss = fs.readFileSync(path.join(root, 'app/assets/support-radar.css'), 'utf8');
 const capabilityFoundation = fs.readFileSync(path.join(root, 'supabase/migrations/20260909150000_issue_148_capability_foundation.sql'), 'utf8');
@@ -26,9 +27,12 @@ test('issue 207 pilot UX parses and loads after earlier promotion modules', () =
   syntaxCheck('app/assets/issue-207-promotion-information-ux.js');
   syntaxCheck('app/assets/phase-c-publication-admin.js');
   syntaxCheck('app/assets/role-navigation-priority.js');
+  syntaxCheck('app/assets/navigation-visual-stability.js');
   syntaxCheck('app/assets/app-ui.js');
   assert.match(appUi, /assets\/issue-207-promotion-information-ux\.js/);
+  assert.match(appUi, /assets\/navigation-visual-stability\.js/);
   assert.ok(appUi.indexOf('assets/issue-207-promotion-information-ux.js') > appUi.indexOf('assets/ux-followup-polish.js'));
+  assert.ok(appUi.indexOf('assets/navigation-visual-stability.js') > appUi.indexOf('assets/issue-207-promotion-information-ux.js'));
 });
 
 test('issue 207 capability kinds stay inside the platform capability contract', () => {
@@ -41,6 +45,7 @@ test('issue 207 capability kinds stay inside the platform capability contract', 
 
 test('promotion staff write screen separates sent and revision queues from composer', () => {
   assert.match(ux, /'새 홍보글 작성'/);
+  assert.match(ux, /navNode\('새 홍보글 작성'/);
   assert.match(ux, /'보낸 글'/);
   assert.match(ux, /'보완 요청받은 글'/);
   assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
@@ -49,7 +54,7 @@ test('promotion staff write screen separates sent and revision queues from compo
 });
 
 test('promotion lead navigation restores missing management entries and uses notice-only labels', () => {
-  assert.match(ux, /review\.textContent = '승인·검토'/);
+  assert.match(ux, /review\.textContent = '홍보글 승인·검토'/);
   assert.match(ux, /write\.textContent = '새 홍보글 작성'/);
   assert.match(ux, /ensureExistingContentNav\(nav\)/);
   assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
@@ -63,7 +68,7 @@ test('promotion lead navigation restores missing management entries and uses not
   assert.doesNotMatch(ux, /MutationObserver/);
 });
 
-test('issue 214 final sidebar contract removes lead revision leak and separates support work after attendance', () => {
+test('issue 216 final sidebar contract removes jitter and keeps support after attendance', () => {
   assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace still exposes the source that previously leaked into lead navigation');
   assert.match(navigation, /function ensureIssue207RoleContract/);
   assert.match(navigation, /currentRole === 'promotion_lead'/);
@@ -73,9 +78,16 @@ test('issue 214 final sidebar contract removes lead revision leak and separates 
   assert.match(navigation, /navButton\('기존 글 관리'/);
   assert.match(navigation, /navButton\('홈페이지 내용 관리'/);
   assert.match(navigation, /navButton\('공지 관리'/);
-  assert.match(navigation, /node\.dataset\?\.supportMyWorkNav[\s\S]*role === 'promotion_lead'\) return 105/);
+  assert.match(navigation, /supportGroupPriority/);
+  assert.match(navigation, /role === 'promotion_lead'\) return 105/);
+  assert.match(navigation, /role === 'operations_manager'\) return 145/);
   assert.match(navigation, /'출근부',[\s\S]*'홈페이지'/);
-  assert.match(navigation, /\[0, 120, 360, 850\]\.forEach/);
+  assert.doesNotMatch(navigation, /\[0, 120, 360, 850\]\.forEach/);
+  assert.doesNotMatch(navigation, /new MutationObserver/);
+  assert.match(navigation, /taejang-navigation-changed/);
+  assert.match(navigationStability, /INITIAL_SETTLE_MS = 190/);
+  assert.match(navigationStability, /style\.visibility = 'hidden'/);
+  assert.match(navigationStability, /taejang-navigation-stable/);
   assert.match(supportCss, /support-radar-nav-group\{[^}]*margin-top:18px[^}]*border-top:1px solid rgba\(255,255,255,\.17\)/);
 });
 

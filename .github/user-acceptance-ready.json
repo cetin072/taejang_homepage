@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "bootstrap": "npm ci",
   "preview": {
     "required": true,
@@ -22,12 +22,19 @@
     },
     "representative_smoke": {
       "command": "node scripts/run-promotion-browser-gate.mjs"
+    },
+    "visual_stability": {
+      "surface_policy": "all-critical",
+      "command": "node scripts/run-promotion-browser-gate.mjs"
     }
   },
   "qa_escape_regressions": [
     "issue-207 promotion lead missing existing-content menu",
     "issue-207 promotion lead missing homepage-content menu",
     "issue-207 staging information RPC migration mismatch",
-    "issue-207 optimistic browser fixture pre-seeded required navigation"
+    "issue-207 optimistic browser fixture pre-seeded required navigation",
+    "issue-216 repeated timed sidebar reorder and visible jitter",
+    "issue-216 promotion staff missing new promotion writer",
+    "issue-216 operations sidebar category mixing"
   ]
 }
