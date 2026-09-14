@@ -60,7 +60,7 @@ def write_webp(image_bytes, out_path):
 
 def main():
     text = ARCHIVE_JS.read_text(encoding='utf-8')
-    log_nos = re.findall(r"id:\s*'naver-blog-(\d+)'", text)
+    log_nos = re.findall(r"\['(\d{12})',\s*'2026-", text)
     if len(set(log_nos)) != 30:
         raise SystemExit(f'expected 30 blog ids, found {len(set(log_nos))}')
 
