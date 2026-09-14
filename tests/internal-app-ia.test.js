@@ -76,14 +76,14 @@ test('promotion staff and lead sidebars use the Issue 207 work order and notice-
   assert.match(staffSections, /label: '공지', items: \['공지 확인'\]/);
   assert.doesNotMatch(staffOrder + staffSections, /자주 보는 안내|상시 안내/);
 
-  assert.match(leadOrder, /'새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리'/);
-  assert.match(leadSections, /label: '홍보', items: \['새 홍보글 작성', '승인·검토', '기존 글 관리'\]/);
+  assert.match(leadOrder, /'새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리'/);
+  assert.match(leadSections, /label: '홍보', items: \['새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리'\]/);
   assert.match(leadSections, /label: '홈페이지', items: \['홈페이지 내용 관리'\]/);
   assert.match(leadSections, /label: '공지', items: \['공지 관리'\]/);
-  assert.doesNotMatch(leadOrder + leadSections, /공지·안내|상시 안내/);
+  assert.doesNotMatch(leadOrder + leadSections, /공지·안내|상시 안내|수정·보완 요청|보완 요청받은 글/);
 
   assert.match(nav, /role === 'promotion_staff' && current === '홍보 작성'/);
-  assert.match(nav, /role === 'promotion_lead' && \['홍보 검토', '홍보 관리'\]\.includes\(current\)/);
+  assert.match(nav, /role === 'promotion_lead' && \['홍보 검토', '홍보 관리', '승인·검토'\]\.includes\(current\)/);
   assert.match(nav, /role === 'promotion_lead' && \['글 관리', '홍보 글 관리', '공개글 관리'\]\.includes\(current\)/);
 });
 
