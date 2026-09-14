@@ -194,6 +194,8 @@
       category: '회사소식',
       title: '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
       summary: 'KBS가 경남형 장애인 동행일자리 1호 사업장 태장의 창원 가동 소식과 장애인 고용·기업 참여 구조를 보도했습니다.',
+      thumbnail: 'images/homepage/photo-04.webp',
+      thumbnailAlt: '태장 작업장에서 근로자들이 포장 업무를 진행하는 모습',
       publishedAt: '2026-08',
       featured: false,
       status: 'published',
