@@ -61,7 +61,14 @@ for (const item of items) {
   assert.ok(['explicit-activity-date', 'source-publication-date'].includes(item.archiveDateBasis));
   assert.ok(item.title.length > 0);
   assert.ok(item.summary.length > 0);
-  if (item.thumbnail) assert.match(item.thumbnail, /^assets\//, '네이버 원격 이미지는 직접 핫링크하지 않습니다');
+  assert.equal(item.thumbnail, `assets/images/archive/naver-blog-${logNo}.webp`);
+  assert.ok(item.thumbnailAlt.length > 0);
+  assert.doesNotMatch(item.thumbnail, /^https?:\/\//, '네이버 원격 이미지를 직접 핫링크하지 않습니다');
+
+  const thumbnailPath = path.join(root, item.thumbnail);
+  assert.equal(fs.existsSync(thumbnailPath), true, `${item.thumbnail} 파일이 있어야 합니다`);
+  const bytes = fs.statSync(thumbnailPath).size;
+  assert.ok(bytes > 0 && bytes <= 200 * 1024, `${item.thumbnail}은 200KB 이하이어야 합니다: ${bytes}`);
 }
 
 const explicitDateItems = items.filter(item => item.archiveDateBasis === 'explicit-activity-date');
