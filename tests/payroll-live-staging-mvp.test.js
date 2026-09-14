@@ -60,6 +60,19 @@ test('live clients reuse staff auth and protected payroll RPCs', () => {
   assert.match(client + attendanceEditor, /refresh_token/);
 });
 
+test('unauthenticated payroll page keeps attendance controls inactive until protected context is ready', () => {
+  assert.match(client, /업무플랫폼 로그인이 필요합니다\. 로그인 후 이 화면을 다시 열어 주세요\./);
+  assert.match(client, /payroll-live-login'\)\.hidden = false/);
+  assert.match(attendanceEditor, /setEditorBusy\(true\);[\s\S]*state\.session = loadSession\(\)/);
+  assert.match(attendanceEditor, /await loadContext\(\);\s*setEditorBusy\(false\);/);
+  for (const id of [
+    'payroll-attendance-prev',
+    'payroll-attendance-next',
+    'payroll-attendance-save',
+    'payroll-attendance-recalculate',
+  ]) assert.match(attendanceEditor, new RegExp(`'${id}'`));
+});
+
 test('direct attendance entry is primary and Excel is optional same-table prefill', () => {
   assert.match(html, /직접 입력이 기본입니다/);
   assert.match(html, /출근부 Excel로 채우기/);

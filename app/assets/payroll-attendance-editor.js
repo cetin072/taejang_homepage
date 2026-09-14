@@ -395,10 +395,17 @@
   }
 
   function setEditorBusy(busy) {
-    for (const control of document.querySelectorAll('#payroll-attendance-editor [data-field], #payroll-attendance-file')) {
+    for (const control of document.querySelectorAll(
+      '#payroll-attendance-editor [data-field], #payroll-attendance-file, #payroll-attendance-date'
+    )) {
       control.disabled = busy;
     }
-    for (const id of ['payroll-attendance-save', 'payroll-attendance-recalculate']) {
+    for (const id of [
+      'payroll-attendance-prev',
+      'payroll-attendance-next',
+      'payroll-attendance-save',
+      'payroll-attendance-recalculate',
+    ]) {
       const button = el(id);
       if (button) button.disabled = busy;
     }
@@ -518,6 +525,10 @@
   async function init() {
     const root = el('payroll-attendance-editor');
     if (!root) return;
+    // The controls are rendered as part of the operator workflow, but they must
+    // never look actionable until staff authentication and the protected editor
+    // context have both completed.
+    setEditorBusy(true);
     try {
       state.config = await loadConfig();
       state.session = loadSession();
@@ -527,6 +538,7 @@
       }
       bindEvents();
       await loadContext();
+      setEditorBusy(false);
     } catch (error) {
       setMessage(`근태 입력표를 열지 못했습니다: ${error.message || '확인 필요'}`, 'error');
     }
