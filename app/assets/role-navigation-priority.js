@@ -7,7 +7,7 @@
     ],
     promotion_lead: [
       '대시보드',
-      '새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리',
+      '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리',
       '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
       '출근부',
       '홈페이지',
@@ -51,7 +51,7 @@
       { label: '공지', items: ['공지 확인'] }
     ],
     promotion_lead: [
-      { label: '홍보', items: ['새 홍보글 작성', '승인·검토', '기존 글 관리'] },
+      { label: '홍보', items: ['새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리'] },
       { label: '홈페이지', items: ['홈페이지 내용 관리'] },
       { label: '공지', items: ['공지 관리'] },
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
@@ -94,19 +94,91 @@
   const route = () => window.TaejangApp?.getRoute?.();
   const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
 
+  function invoke(label, callback) {
+    if (typeof callback === 'function') return callback();
+    window.TaejangFeatureHealth?.showFailure?.(label);
+  }
+
+  function navButton(label, callback, dataset = {}) {
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.textContent = label;
+    node.className = 'app-nav-item';
+    Object.entries(dataset).forEach(([key, value]) => { node.dataset[key] = value; });
+    node.addEventListener('click', () => invoke(label, callback));
+    return node;
+  }
+
+  function findByLabel(nav, labels) {
+    const wanted = new Set(Array.isArray(labels) ? labels : [labels]);
+    return [...nav.children].find(node => wanted.has(cleanLabel(node))) || null;
+  }
+
+  function ensureIssue207RoleContract(nav, currentRole) {
+    if (!nav) return;
+
+    if (currentRole === 'promotion_staff') {
+      const write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
+      if (write) write.textContent = '새 홍보글 작성';
+      const revision = findByLabel(nav, ['수정·보완 요청', '보완 요청받은 글']);
+      if (revision) revision.textContent = '보완 요청받은 글';
+
+      if (!findByLabel(nav, '보낸 글')) {
+        const sent = navButton('보낸 글', () => window.TaejangIssue207Ux?.openSent?.(), { issue207Nav: 'sent' });
+        nav.append(sent);
+      }
+      if (!findByLabel(nav, '공지 확인')) {
+        const notice = navButton('공지 확인', () => window.TaejangIssue207Ux?.openInformationRead?.(), { issue207Nav: 'notice-read' });
+        nav.append(notice);
+      }
+      return;
+    }
+
+    if (currentRole === 'promotion_lead') {
+      [...nav.children].forEach(node => {
+        if (node.dataset?.phaseCV2Nav === 'revision' || ['수정·보완 요청', '보완 요청받은 글'].includes(cleanLabel(node))) node.remove();
+      });
+
+      const write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
+      if (write) write.textContent = '새 홍보글 작성';
+      const review = findByLabel(nav, ['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
+      if (review) review.textContent = '홍보글 승인·검토';
+
+      if (!findByLabel(nav, '기존 글 관리')) {
+        nav.append(navButton('기존 글 관리', () => window.TaejangPublicationAdmin?.openPublicationAdmin?.(), {
+          phaseCPublicationAdmin: '1'
+        }));
+      }
+      if (!findByLabel(nav, '홈페이지 내용 관리')) {
+        nav.append(navButton('홈페이지 내용 관리', () => window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement?.(), {
+          phaseCV2Nav: 'homepage'
+        }));
+      }
+      if (!findByLabel(nav, '공지 관리')) {
+        nav.append(navButton('공지 관리', () => window.TaejangIssue207Ux?.openInformationHub?.(), {
+          issue207Nav: 'notice-manage'
+        }));
+      }
+    }
+  }
+
   function normalizeLabel(node, role) {
-    if (node.dataset?.navSection === 'official_channels') return;
+    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav) return;
     const current = cleanLabel(node);
     if (role === 'promotion_staff' && current === '홍보 작성') {
       node.textContent = '새 홍보글 작성';
+      return;
+    }
+    if (role === 'promotion_staff' && current === '수정·보완 요청') {
+      node.textContent = '보완 요청받은 글';
       return;
     }
     if (role === 'promotion_lead' && current === '홍보 작성') {
       node.textContent = '새 홍보글 작성';
       return;
     }
-    if (role === 'promotion_lead' && ['홍보 검토', '홍보 관리'].includes(current)) {
-      node.textContent = '승인·검토';
+    if (role === 'promotion_lead' && ['홍보 검토', '홍보 관리', '승인·검토'].includes(current)) {
+      node.textContent = '홍보글 승인·검토';
       return;
     }
     if (role === 'promotion_lead' && ['글 관리', '홍보 글 관리', '공개글 관리'].includes(current)) {
@@ -134,6 +206,10 @@
 
   function priority(node, role) {
     if (node.dataset?.navSection === 'official_channels') return 9000;
+    if (node.dataset?.supportMyWorkNav) {
+      if (role === 'promotion_lead') return 105;
+      return 7900;
+    }
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
     const order = ROLE_ORDER[role] || [];
@@ -144,7 +220,7 @@
   }
 
   function markStatus(node) {
-    if (node.dataset?.navSection === 'official_channels') return;
+    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav) return;
     const label = cleanLabel(node);
     if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
     const markedLabel = `${label} · 점검중`;
@@ -156,6 +232,7 @@
 
   function decorateSections(nodes, role) {
     nodes.forEach(node => {
+      if (node.dataset?.supportMyWorkNav) return;
       node.classList.remove('app-nav-section-start');
       delete node.dataset.sectionLabel;
     });
@@ -163,7 +240,7 @@
     const sections = ROLE_SECTIONS[role] || [];
     sections.forEach(section => {
       const first = section.items
-        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && cleanLabel(node) === label))
+        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && cleanLabel(node) === label))
         .find(Boolean);
       if (!first) return;
       first.classList.add('app-nav-section-start');
@@ -196,10 +273,11 @@
     reordering = true;
     try {
       ensurePayrollEntry(nav, currentRole);
+      ensureIssue207RoleContract(nav, currentRole);
       const children = [...nav.children];
       children.forEach(node => {
         normalizeLabel(node, currentRole);
-        if (node.dataset?.navSection !== 'official_channels') node.classList.add('app-nav-item');
+        if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav) node.classList.add('app-nav-item');
         markStatus(node);
       });
 
@@ -231,6 +309,10 @@
     setTimeout(reorder, 0);
   }
 
+  function stabilize() {
+    [0, 120, 360, 850].forEach(delay => setTimeout(schedule, delay));
+  }
+
   function bind() {
     const nav = document.getElementById('app-nav');
     if (!nav || nav.dataset.priorityBound) return;
@@ -241,15 +323,16 @@
       updateCurrent(target);
     });
     new MutationObserver(schedule).observe(nav, { childList: true });
-    schedule();
+    stabilize();
   }
 
-  document.addEventListener('taejang-app-ready', () => setTimeout(() => { bind(); schedule(); }, 0));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(() => { schedule(); markDashboardCurrent(); }, 0));
+  document.addEventListener('taejang-app-ready', () => setTimeout(() => { bind(); stabilize(); }, 0));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(() => { stabilize(); markDashboardCurrent(); }, 0));
+  document.addEventListener('taejang-open-promotion-workspace', stabilize);
 
-  const start = () => { bind(); schedule(); };
+  const start = () => { bind(); stabilize(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensureIssue207RoleContract, reorder };
 })();
