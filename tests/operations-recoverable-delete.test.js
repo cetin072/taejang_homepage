@@ -12,6 +12,7 @@ const legacyMigration = read('supabase/migrations/20260904133000_operations_mana
 const recoveryMigration = read('supabase/migrations/20260910171000_issue_150_recovery_audit_foundation.sql');
 const authorityBridge = read('supabase/migrations/20260910172000_issue_150_recovery_authority_and_legacy_bridge.sql');
 const recoveryFeed = read('supabase/migrations/20260910173000_issue_150_archived_recovery_feed.sql');
+const issue207Policy = read('supabase/migrations/20260914073000_issue207_final_public_delete_policy.sql');
 const controls = read('app/assets/operations-delete-controls.js');
 const publicationAdmin = read('app/assets/phase-c-publication-admin.js');
 const appUi = read('app/assets/app-ui.js');
@@ -130,11 +131,16 @@ test('target audit is business-scoped and not the raw technical audit browser', 
   assert.doesNotMatch(fn, /audit\.system_raw_read/);
 });
 
-test('promotion recoverable delete remains unchanged by Issue 150 schedule/notice/guidance work', () => {
-  const fn = functionBlock(legacyMigration, 'delete_promotion_content');
-  assert.match(fn, /current_user_has_role\('operations_manager'\)/);
-  assert.match(fn, /PROMOTION_DELETE_TITLE_CONFIRMATION_MISMATCH/);
-  assert.match(fn, /set lifecycle='archived'/);
-  assert.match(publicationAdmin, /delete_promotion_content/);
-  assert.match(publicationAdmin, /p_confirm_title/);
+test('Issue 207 narrows published promotion deletion while preserving recoverable archive history', () => {
+  const legacyFn = functionBlock(legacyMigration, 'delete_promotion_content');
+  const policyFn = functionBlock(issue207Policy, 'delete_promotion_content');
+  assert.match(legacyFn, /PROMOTION_DELETE_TITLE_CONFIRMATION_MISMATCH/);
+  assert.match(legacyFn, /set lifecycle='archived'/);
+  assert.match(policyFn, /private_actor_can\('promotion\.archive'\)/);
+  assert.match(policyFn, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
+  assert.match(policyFn, /private_delete_promotion_content_pre148/);
+  assert.match(publicationAdmin, /lead_archive_recent_promotion_content/);
+  assert.match(publicationAdmin, /24시간 내 삭제/);
+  assert.match(publicationAdmin, /24시간 경과 · 삭제 불가/);
+  assert.doesNotMatch(publicationAdmin, /request_promotion_deletion/);
 });
