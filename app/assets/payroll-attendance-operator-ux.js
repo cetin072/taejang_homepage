@@ -42,6 +42,55 @@
     node.dataset.state = state;
   }
 
+  function vendorImportSummaryText(importState) {
+    const snapshot = importState?.snapshot;
+    if (!snapshot?.period) return '';
+    const reconciliation = importState?.reconciliation || {};
+    const counts = reconciliation.exceptionCounts || {};
+    const persistenceDiff = importState?.sourceIndexPersistence?.diff || {};
+    const rows = Array.isArray(snapshot.rows) ? snapshot.rows.length : 0;
+    const partial = Number(counts.clock_in_missing || 0) + Number(counts.clock_out_missing || 0);
+    const noRecord = Number(counts.no_fingerprint_record || 0);
+    const changed = Number(persistenceDiff.added || 0) + Number(persistenceDiff.changed || 0) + Number(persistenceDiff.missing || 0);
+    const parts = [
+      `원본 ${rows}건`,
+      `실제기간 ${snapshot.period.start || '—'}~${snapshot.period.end || '—'}`,
+    ];
+    if (partial) parts.push(`출퇴근 한쪽누락 ${partial}건`);
+    if (noRecord) parts.push(`지문기록없음 ${noRecord}건`);
+    if (changed) parts.push(`재다운로드 변경 ${changed}건`);
+    parts.push('초단위 원본 보존');
+    return parts.join(' · ');
+  }
+
+  function appendVendorImportSummary(documentRef, expectedFileName, attempt = 0) {
+    const view = documentRef?.defaultView || globalThis;
+    const module = view?.TaejangPayrollAttendanceVendorImport;
+    const state = typeof module?.getLastImportState === 'function' ? module.getLastImportState() : null;
+    if (!state || (expectedFileName && state.fileName !== expectedFileName)) {
+      if (attempt < 12 && typeof view?.setTimeout === 'function') {
+        view.setTimeout(() => appendVendorImportSummary(documentRef, expectedFileName, attempt + 1), 100);
+      }
+      return false;
+    }
+    const text = vendorImportSummaryText(state);
+    if (!text) return false;
+    const node = documentRef.getElementById('payroll-attendance-editor-message');
+    if (!node) return false;
+    const current = normalized(node.textContent);
+    if (!current.includes(text)) node.textContent = current ? `${current} · ${text}` : text;
+    const sourceChanged = Number(state?.sourceIndexPersistence?.diff?.added || 0)
+      + Number(state?.sourceIndexPersistence?.diff?.changed || 0)
+      + Number(state?.sourceIndexPersistence?.diff?.missing || 0);
+    if (sourceChanged || Number(state?.reconciliation?.exceptionCounts?.clock_in_missing || 0)
+      || Number(state?.reconciliation?.exceptionCounts?.clock_out_missing || 0)
+      || Number(state?.reconciliation?.exceptionCounts?.no_fingerprint_record || 0)) {
+      node.dataset.state = 'review';
+    }
+    node.hidden = false;
+    return true;
+  }
+
   function addClockOnlyHint(documentRef) {
     const editor = documentRef.getElementById('payroll-attendance-editor');
     if (!editor || editor.querySelector('[data-payroll-clock-only-hint]')) return;
@@ -135,6 +184,14 @@
           setEditorMessage(documentRef, 'Excel 자동채움을 취소했습니다. 현재 변경사항을 먼저 저장해 주세요.', 'review');
           event.preventDefault?.();
           event.stopImmediatePropagation?.();
+          return;
+        }
+        const file = target.files?.[0] || null;
+        if (file && isLegacyXlsFileName(file.name)) {
+          const view = documentRef.defaultView || globalThis;
+          if (typeof view.setTimeout === 'function') {
+            view.setTimeout(() => appendVendorImportSummary(documentRef, file.name), 100);
+          }
         }
         return;
       }
@@ -152,6 +209,8 @@
     shouldAutoUpdateStatus,
     isLegacyXlsFileName,
     dirtyCountFromSummaryText,
+    vendorImportSummaryText,
+    appendVendorImportSummary,
     install,
   });
 });
