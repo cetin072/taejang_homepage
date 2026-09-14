@@ -159,6 +159,15 @@ test('QA account listing reuses the capability-gated account management contract
   assert.doesNotMatch(edge, /position:positions/);
 });
 
+test('QA account list checks Auth readiness before advertising an employee as previewable', () => {
+  assert.match(edge, /async function previewReadiness\(admin: any, profileId: string\)/);
+  assert.match(edge, /admin\.auth\.admin\.getUserById\(profileId\)/);
+  assert.match(edge, /preview_reason: 'email_not_confirmed'/);
+  assert.match(edge, /previewable: readiness\.previewable/);
+  assert.match(edge, /listAccounts\(authorization\.userClient, admin\)/);
+  assert.match(roleUi, /filter\(account => account\.previewable && account\.id !== currentId\)/);
+});
+
 test('QA edge function returns distinct safe authorization diagnostics', () => {
   for (const code of [
     'UNAUTHENTICATED',
@@ -178,6 +187,7 @@ test('QA edge function returns distinct safe authorization diagnostics', () => {
 test('QA preview does not silently activate an unconfirmed login account', () => {
   assert.match(edge, /email_confirmed_at/);
   assert.match(edge, /TARGET_EMAIL_NOT_CONFIRMED/);
+  assert.match(edge, /email_not_confirmed/);
 });
 
 test('QA preview disables gateway JWT verification only because it performs explicit Auth verification inside the staging-only function', () => {
