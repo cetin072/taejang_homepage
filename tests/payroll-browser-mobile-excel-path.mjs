@@ -148,11 +148,11 @@ const xlsxBase64 = zipStore([
     <c r="A1" t="inlineStr"><is><t>사번</t></is></c><c r="B1" t="inlineStr"><is><t>성명</t></is></c><c r="C1" t="inlineStr"><is><t>일자</t></is></c><c r="D1" t="inlineStr"><is><t>출근</t></is></c><c r="E1" t="inlineStr"><is><t>퇴근</t></is></c>
   </row>
   <row r="2">
-    <c r="A2" t="inlineStr"><is><t>E2E-XLSX-001</t></is></c><c r="B2" t="inlineStr"><is><t>엑셀테스트직원</t></is></c><c r="C2" t="inlineStr"><is><t>2026-09-13</t></is></c><c r="D2" t="inlineStr"><is><t>08:30</t></is></c><c r="E2" t="inlineStr"><is><t>12:30</t></is></c>
+    <c r="A2" t="inlineStr"><is><t>VENDOR-REF-987</t></is></c><c r="B2" t="inlineStr"><is><t>엑셀테스트직원</t></is></c><c r="C2" t="inlineStr"><is><t>2026-09-13</t></is></c><c r="D2" t="inlineStr"><is><t>08:30</t></is></c><c r="E2" t="inlineStr"><is><t>12:30</t></is></c>
   </row>
 </sheetData></worksheet>`],
 ]).toString('base64');
-const legacyXlsHtml = `<!doctype html><html><body><table id="근태이력"><tr><th>사번</th><th>성명</th><th>일자</th><th>출근</th><th>퇴근</th></tr><tr><td>E2E-XLSX-001</td><td>엑셀테스트직원</td><td>2026-09-13</td><td>09:00</td><td>13:00</td></tr></table></body></html>`;
+const legacyXlsHtml = `<!doctype html><html><body><table id="근태이력"><tr><th>사번</th><th>성명</th><th>일자</th><th>출근</th><th>퇴근</th></tr><tr><td>VENDOR-REF-987</td><td>엑셀테스트직원</td><td>2026-09-13</td><td>09:00</td><td>13:00</td></tr></table></body></html>`;
 
 function editorContext() {
   return {

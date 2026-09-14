@@ -313,7 +313,6 @@
       const best = workbook.best;
       if (!best?.analysis?.ok) throw new Error('근태 헤더를 찾지 못했습니다');
       const employees = state.context?.employees || [];
-      const byId = new Map(employees.map(employee => [String(employee.employee_id || '').trim(), employee]));
       const byName = new Map();
       for (const employee of employees) {
         const name = String(employee.name || '').trim();
@@ -331,8 +330,13 @@
       let noRecord = 0;
       for (const row of allExcelRows(best)) {
         if (!row.date || !row.date.startsWith(`${selectedMonth()}-`)) { outsideMonth += 1; continue; }
-        const namedCandidates = row.name ? byName.get(row.name) || [] : [];
-        const employee = (row.employeeId && byId.get(row.employeeId)) || (row.employeeId ? null : namedCandidates.length === 1 ? namedCandidates[0] : null);
+        // Vendor employee numbers remain immutable source references. They are
+        // never treated as platform employee_id values without a separately
+        // approved alias-mapping contract. Only one exact-name candidate whose
+        // employment range includes this work date is safe to prefill.
+        const namedCandidates = row.name ? (byName.get(row.name) || []) : [];
+        const activeCandidates = namedCandidates.filter(candidate => employeeActiveOn(candidate, row.date));
+        const employee = activeCandidates.length === 1 ? activeCandidates[0] : null;
         if (!employee) { unmatched += 1; continue; }
         const key = keyOf(employee.employee_uuid, row.date);
         if (seen.has(key)) duplicates += 1;
