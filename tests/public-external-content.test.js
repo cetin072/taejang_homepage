@@ -13,13 +13,21 @@ const index = read('index.html');
 const archive = read('archive.html');
 const externalContent = read('assets/js/external-content.js');
 const thumbnailPath = path.join(root, 'assets/images/archive/naver-blog-224367547159.webp');
-const openingPhotoPath = path.join(root, 'assets/images/archive/opening-ceremony.webp');
+const pressThumbnailPaths = [
+  'assets/images/archive/opening-ceremony.webp',
+  'assets/images/archive/companion-job-first-store-plaque.webp',
+  'assets/images/archive/naver-blog-224376710751.webp',
+  'assets/images/archive/naver-blog-224377482691.webp',
+  'assets/images/archive/naver-blog-224378213482.webp'
+].map(file => path.join(root, file));
 
 assert.match(index, /content\.js[\s\S]*external-content\.js[\s\S]*home-previews\.js/);
 assert.match(archive, /content\.js[\s\S]*external-content\.js[\s\S]*content-hub\.js/);
 assert.equal(fs.existsSync(thumbnailPath), true);
-assert.equal(fs.existsSync(openingPhotoPath), true);
-assert.ok(fs.statSync(openingPhotoPath).size <= 200 * 1024, '언론보도 공통 썸네일은 200KB 이하이어야 합니다');
+for (const file of pressThumbnailPaths) {
+  assert.equal(fs.existsSync(file), true, `언론보도 썸네일이 존재해야 합니다: ${file}`);
+  assert.ok(fs.statSync(file).size <= 200 * 1024, `언론보도 썸네일은 200KB 이하이어야 합니다: ${file}`);
+}
 
 const window = {
   TAEJANG_CONTENT: {
@@ -118,13 +126,14 @@ const archiveItems = archiveWindow.TAEJANG_CONTENT.hub;
 assert.equal(archiveItems.length, 12, '아카이브에서는 기존 7건 + 검증된 언론보도 5건을 함께 제공해야 합니다');
 const pressItems = archiveItems.filter(item => item.id.startsWith('press-'));
 assert.equal(pressItems.length, 5, '이번 언론보도 백필은 원문 링크가 확인된 5건이어야 합니다');
+assert.equal(new Set(pressItems.map(item => item.thumbnail)).size, 5, '언론보도 5건은 서로 다른 태장 보유 썸네일을 사용해야 합니다');
 
 const expectedPress = new Map([
-  ['press-yonhap-20260812-taejang', ['연합뉴스', '2026-08-12', 'https://www.yna.co.kr/view/AKR20260812048100052']],
-  ['press-newsjinju-59989', ['진주신문', '2026-08-12', 'https://newsjinju.kr/news/articleView.html?idxno=59989']],
-  ['press-knn-191206', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191206']],
-  ['press-knn-191244', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191244']],
-  ['press-kdjob-8779', ['장애인일자리신문', '2026-08-13', 'https://kdjob.co.kr/article/8779']]
+  ['press-yonhap-20260812-taejang', ['연합뉴스', '2026-08-12', 'https://www.yna.co.kr/view/AKR20260812048100052', 'assets/images/archive/opening-ceremony.webp']],
+  ['press-newsjinju-59989', ['진주신문', '2026-08-12', 'https://newsjinju.kr/news/articleView.html?idxno=59989', 'assets/images/archive/companion-job-first-store-plaque.webp']],
+  ['press-knn-191206', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191206', 'assets/images/archive/naver-blog-224376710751.webp']],
+  ['press-knn-191244', ['KNN', '2026-08-13', 'https://news.knn.co.kr/news/article/191244', 'assets/images/archive/naver-blog-224377482691.webp']],
+  ['press-kdjob-8779', ['장애인일자리신문', '2026-08-13', 'https://kdjob.co.kr/article/8779', 'assets/images/archive/naver-blog-224378213482.webp']]
 ]);
 
 for (const item of pressItems) {
@@ -139,8 +148,8 @@ for (const item of pressItems) {
   assert.equal(item.category, '회사소식');
   assert.ok(item.title.length > 0);
   assert.ok(item.summary.length > 0);
-  assert.equal(item.thumbnail, 'assets/images/archive/opening-ceremony.webp');
-  assert.match(item.thumbnailAlt, /태장 개소식/);
+  assert.equal(item.thumbnail, expected[3]);
+  assert.ok(item.thumbnailAlt.length > 0, '언론보도 썸네일 대체텍스트가 있어야 합니다');
   assert.doesNotMatch(item.externalUrl, /(?:nate\.com|daum\.net)/, '포털 재전송 링크가 아니라 원문 언론사 링크를 사용해야 합니다');
 }
 
