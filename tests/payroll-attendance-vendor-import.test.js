@@ -101,3 +101,40 @@ test('compact re-download guard detects source changes without carrying accepted
   assert.equal(diff.added, 1);
   assert.equal(diff.missing, 1);
 });
+
+test('preflight does not mark a source index as saved until attendance save commits it', async () => {
+  const stored = new Map();
+  const root = {
+    localStorage: {
+      getItem(key) { return stored.get(key) || null; },
+      setItem(key, value) { stored.set(key, value); },
+    },
+    TaejangPayrollAttendanceXls: {
+      async parseXlsFile() {
+        return {
+          best: {
+            matrix: [
+              ['일 자','요 일','사 번','이 름','회 사','부 서','직 책','직 위','출 근','출근위치','퇴 근','퇴근위치','총 근무시간'],
+              ['2026-08-03','월요일','V-001','익명근로자','','','','','08:59:31','','12:01:07','', ''],
+            ],
+            analysis: { ok: true, headerRow: 1, mapping: { date:0, employeeId:2, name:3, clockIn:8, clockOut:10 } },
+          },
+        };
+      },
+      downloadTimestampFromFileName() { return '2026-09-14T16:27:04+09:00'; },
+    },
+    TaejangPayrollAttendanceXlsx: {
+      normalizeDateCell(value) { return String(value); },
+    },
+  };
+  const file = { name: '근태이력_20260914162704.xls' };
+  const preflight = await vendorImport.inspectLegacyFile(file, root);
+  assert.equal(preflight.identical, false);
+  assert.equal(stored.size, 0);
+  assert.equal(vendorImport.getLastImportState().sourceIndexPersistence.pending, true);
+
+  const committed = vendorImport.commitLastImportSourceIndex(root);
+  assert.equal(committed.sourceIndexPersistence.persisted, true);
+  assert.equal(committed.sourceIndexPersistence.pending, false);
+  assert.equal(stored.size, 1);
+});
