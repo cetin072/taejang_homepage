@@ -45,30 +45,26 @@
     return title.replace(/(?:\s*-\s*장애인 표준사업장 태장)+\s*$/g, '').trim();
   }
 
-  const officialBlogItems = snapshot.map(([logNo, sourcePublishedAt, archiveDate, hasExplicitActivityDate, category, title]) => {
-    const item = {
-      id: `naver-blog-${logNo}`,
-      type: 'external',
-      source: 'naver-blog',
-      publisher: '태장 공식 블로그',
-      category,
-      title,
-      summary: `태장 공식 블로그의 「${summaryTitle(title)}」 기록입니다.`,
-      publishedAt: archiveDate,
-      sourcePublishedAt,
-      archiveDateBasis: hasExplicitActivityDate ? 'explicit-activity-date' : 'source-publication-date',
-      featured: false,
-      status: 'published',
-      externalUrl: `https://blog.naver.com/taejang-official/${logNo}`,
-      externalLabel: '네이버 블로그에서 보기'
-    };
-
-    if (logNo === '224367547159') {
-      item.thumbnail = 'assets/images/archive/naver-blog-224367547159.webp';
-      item.thumbnailAlt = '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습';
-    }
-    return item;
-  });
+  const officialBlogItems = snapshot.map(([logNo, sourcePublishedAt, archiveDate, hasExplicitActivityDate, category, title]) => ({
+    id: `naver-blog-${logNo}`,
+    type: 'external',
+    source: 'naver-blog',
+    publisher: '태장 공식 블로그',
+    category,
+    title,
+    summary: `태장 공식 블로그의 「${summaryTitle(title)}」 기록입니다.`,
+    thumbnail: `assets/images/archive/naver-blog-${logNo}.webp`,
+    thumbnailAlt: logNo === '224367547159'
+      ? '태장 작업장에서 직원들이 민화와 작업 활동을 진행하는 모습'
+      : `${summaryTitle(title)} 관련 태장 공식 블로그 대표사진`,
+    publishedAt: archiveDate,
+    sourcePublishedAt,
+    archiveDateBasis: hasExplicitActivityDate ? 'explicit-activity-date' : 'source-publication-date',
+    featured: false,
+    status: 'published',
+    externalUrl: `https://blog.naver.com/taejang-official/${logNo}`,
+    externalLabel: '네이버 블로그에서 보기'
+  }));
 
   officialBlogItems.forEach((item) => {
     if (!content.hub.some((candidate) => candidate.id === item.id)) content.hub.push(item);
