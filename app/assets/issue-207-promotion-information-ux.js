@@ -26,10 +26,6 @@
     general: '일반공지', safety: '안전', working_hours: '근무시간', work_location: '근무장소', training: '교육',
     external_activity: '외부활동', holiday: '휴무', transport: '차량·이동', materials: '준비물', clothing: '복장', company_life: '회사생활'
   };
-  const guidanceKinds = {
-    working_hours: '근무시간', breaks_meals: '휴게·식사', places: '장소', safety: '안전', clothing_supplies: '복장·준비물',
-    absence_contact: '결근·연락', pay_documents: '급여·서류', help_request: '도움 요청', company_life: '회사생활', other: '기타'
-  };
   let informationEditingId = null;
 
   function closeSidebar() {
@@ -79,6 +75,52 @@
     });
   }
 
+  function openExistingContent() {
+    if (window.TaejangPublicationAdmin?.openPublicationAdmin) {
+      window.TaejangPublicationAdmin.openPublicationAdmin();
+      return;
+    }
+    window.alert('기존 글 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+  }
+
+  function openHomepageManagement() {
+    if (window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement) {
+      window.TaejangPromotionWorkspaceV2Api.openHomepageManagement();
+      return;
+    }
+    window.alert('홈페이지 내용 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+  }
+
+  function ensureExistingContentNav(nav) {
+    let node = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
+    if (!node) {
+      node = navNode('기존 글 관리', openExistingContent, 'existing-content');
+      node.dataset.phaseCPublicationAdmin = '1';
+      nav.append(node);
+    }
+    node.textContent = '기존 글 관리';
+    return node;
+  }
+
+  function ensureHomepageManagementNav(nav) {
+    let node = nav.querySelector('[data-phase-c-v2-nav="homepage"]') || findNav('홈페이지 내용 관리');
+    if (!node) {
+      node = navNode('홈페이지 내용 관리', openHomepageManagement, 'homepage-management');
+      node.dataset.phaseCV2Nav = 'homepage';
+      nav.append(node);
+    }
+    node.textContent = '홈페이지 내용 관리';
+    return node;
+  }
+
+  function removeLegacyInformationNav(nav, keepKey) {
+    const legacy = new Set(['공지 관리', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인']);
+    [...nav.children].forEach(node => {
+      if (node.dataset.issue207Nav === keepKey) return;
+      if (legacy.has(cleanLabel(node))) node.remove();
+    });
+  }
+
   function ensureNavigation() {
     const nav = document.getElementById('app-nav');
     const currentRoute = route();
@@ -93,8 +135,9 @@
         const sent = navNode('보낸 글', openSent, 'sent');
         if (write?.nextSibling) nav.insertBefore(sent, write.nextSibling); else nav.append(sent);
       }
-      if (!nav.querySelector('[data-issue207-nav="information-read"]')) nav.append(navNode('공지·안내 확인', openInformationRead, 'information-read'));
-      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지·안내 확인']);
+      removeLegacyInformationNav(nav, 'notice-read');
+      if (!nav.querySelector('[data-issue207-nav="notice-read"]')) nav.append(navNode('공지 확인', openInformationRead, 'notice-read'));
+      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인']);
     }
 
     if (currentRoute === 'promotion_lead') {
@@ -102,27 +145,23 @@
       if (review) review.textContent = '승인·검토';
       const write = findNav(['홍보 작성', '새 홍보글 작성']);
       if (write) write.textContent = '새 홍보글 작성';
-      const existing = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
-      if (existing) existing.textContent = '기존 글 관리';
-      [...nav.children].forEach(node => {
-        if (['공지 관리', '상시 안내 관리'].includes(cleanLabel(node))) node.remove();
-      });
-      if (!nav.querySelector('[data-issue207-nav="information-manage"]')) nav.append(navNode('공지·안내 관리', openInformationHub, 'information-manage'));
-      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지·안내 관리']);
+      ensureExistingContentNav(nav);
+      ensureHomepageManagementNav(nav);
+      removeLegacyInformationNav(nav, 'notice-manage');
+      if (!nav.querySelector('[data-issue207-nav="notice-manage"]')) nav.append(navNode('공지 관리', openInformationHub, 'notice-manage'));
+      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리']);
     }
 
     if (currentRoute === 'operations_manager') {
-      const existing = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
-      if (existing) existing.textContent = '기존 글 관리';
-      [...nav.children].forEach(node => {
-        if (['공지 관리', '상시 안내 관리'].includes(cleanLabel(node))) node.remove();
-      });
-      if (!nav.querySelector('[data-issue207-nav="information-manage"]')) nav.append(navNode('공지·안내 관리', openInformationHub, 'information-manage'));
+      ensureExistingContentNav(nav);
+      ensureHomepageManagementNav(nav);
+      removeLegacyInformationNav(nav, 'notice-manage');
+      if (!nav.querySelector('[data-issue207-nav="notice-manage"]')) nav.append(navNode('공지 관리', openInformationHub, 'notice-manage'));
     }
   }
 
   function scheduleNavigation() {
-    [0, 80, 240].forEach(delay => setTimeout(ensureNavigation, delay));
+    [0, 80, 240, 700].forEach(delay => setTimeout(ensureNavigation, delay));
   }
 
   function cleanupWriteScreen() {
@@ -167,29 +206,29 @@
   }
 
   async function openInformationRead() {
-    const target = setPage('공지·안내 확인', '확인', '중요공지와 평소 자주 보는 안내를 한 화면에서 확인합니다.');
+    const target = setPage('공지 확인', '공지', '현재 나에게 적용되는 공지를 확인합니다.');
     if (!target) return;
-    const loading = text('p', '공지·안내를 불러오고 있습니다.', 'message'); target.append(loading);
-    const results = await Promise.allSettled([
-      app().rpc('get_my_notice_list', { p_limit: 100 }),
-      app().rpc('get_my_staff_guidance_list', { p_category: null, p_limit: 100 })
-    ]);
-    loading.remove();
-    const groups = [
-      ['공지', results[0].status === 'fulfilled' ? arr(results[0].value) : [], item => item.body_easy || ''],
-      ['상시 안내', results[1].status === 'fulfilled' ? arr(results[1].value) : [], item => item.summary_easy || item.body_easy || '']
-    ];
-    groups.forEach(([label, items, body]) => {
-      const section = document.createElement('section'); section.className = 'dashboard-section'; section.append(text('h2', label));
+    const loading = text('p', '공지를 불러오고 있습니다.', 'message');
+    target.append(loading);
+    try {
+      const items = arr(await app().rpc('get_my_notice_list', { p_limit: 100 }));
+      loading.remove();
+      const section = document.createElement('section');
+      section.className = 'dashboard-section';
+      section.append(text('h2', '공지'));
       const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
-      if (!items.length) grid.append(text('p', `현재 확인할 ${label}가 없습니다.`, 'empty'));
+      if (!items.length) grid.append(text('p', '현재 확인할 공지가 없습니다.', 'empty'));
       items.forEach(item => {
         const card = document.createElement('article'); card.className = 'dashboard-card';
-        card.append(text('h3', item.title || label), text('p', body(item)));
+        card.append(text('h3', item.title || '공지'), text('p', item.body_easy || ''));
         grid.append(card);
       });
-      section.append(grid); target.append(section);
-    });
+      section.append(grid);
+      target.append(section);
+    } catch (error) {
+      loading.textContent = app().friendlyError?.(error) || error.message || '공지를 불러오지 못했습니다.';
+      loading.classList.add('error');
+    }
   }
 
   function option(value, label) {
@@ -203,33 +242,29 @@
   }
 
   function informationForm(request = null) {
-    const form = document.createElement('form'); form.className = 'phase-c-board-form'; form.addEventListener('submit', event => event.preventDefault());
-    const kind = document.createElement('select'); kind.append(option('notice', '공지'), option('guidance', '상시 안내'));
+    const form = document.createElement('form');
+    form.className = 'phase-c-board-form';
+    form.addEventListener('submit', event => event.preventDefault());
     const category = document.createElement('select');
-    const importance = document.createElement('select'); importance.append(option('normal','일반'), option('important','중요'), option('urgent','긴급'));
+    Object.entries(noticeKinds).forEach(([value, label]) => category.append(option(value, label)));
+    const importance = document.createElement('select');
+    importance.append(option('normal', '일반'), option('important', '중요'), option('urgent', '긴급'));
     const title = document.createElement('input'); title.maxLength = 120;
-    const summary = document.createElement('textarea'); summary.rows = 2; summary.maxLength = 500;
     const body = document.createElement('textarea'); body.rows = 7; body.maxLength = 3000;
     const from = document.createElement('input'); from.type = 'date';
     const until = document.createElement('input'); until.type = 'date';
     const reason = document.createElement('textarea'); reason.rows = 2; reason.maxLength = 1000;
 
-    const refreshCategories = () => {
-      category.replaceChildren();
-      Object.entries(kind.value === 'notice' ? noticeKinds : guidanceKinds).forEach(([value,label]) => category.append(option(value,label)));
-      importance.closest('label')?.toggleAttribute('hidden', kind.value !== 'notice');
-      summary.closest('label')?.toggleAttribute('hidden', kind.value !== 'guidance');
-    };
-    kind.addEventListener('change', refreshCategories);
-    form.append(field('유형', kind), field('분류', category), field('중요도', importance), field('제목', title), field('짧은 설명', summary), field('내용', body), field('적용 시작일', from), field('적용 종료일', until), field('상신 사유', reason));
-    refreshCategories();
+    form.append(field('분류', category), field('중요도', importance), field('제목', title), field('내용', body), field('적용 시작일', from), field('적용 종료일', until), field('상신 사유', reason));
 
     if (request) {
-      kind.value = request.information_kind || 'notice'; refreshCategories();
       category.value = request.category_code || category.value;
       importance.value = request.importance_code || 'normal';
-      title.value = request.title || ''; summary.value = request.summary_easy || ''; body.value = request.body_easy || '';
-      from.value = request.effective_from || ''; until.value = request.effective_until || ''; reason.value = request.reason || '';
+      title.value = request.title || '';
+      body.value = request.body_easy || '';
+      from.value = request.effective_from || '';
+      until.value = request.effective_until || '';
+      reason.value = request.reason || '';
     }
 
     form.append(button(request ? '보완 후 다시 상신' : '운영총괄에게 상신', async () => {
@@ -240,11 +275,11 @@
       try {
         await app().rpc('save_information_publication_request', {
           p_request_id: request?.id || null,
-          p_information_kind: kind.value,
+          p_information_kind: 'notice',
           p_category_code: category.value,
-          p_importance_code: kind.value === 'notice' ? importance.value : 'normal',
+          p_importance_code: importance.value,
           p_title: title.value.trim(),
-          p_summary_easy: summary.value.trim() || null,
+          p_summary_easy: null,
           p_body_easy: body.value.trim(),
           p_effective_from: from.value || null,
           p_effective_until: until.value || null,
@@ -254,7 +289,7 @@
         informationEditingId = null;
         await openInformationHub();
       } catch (error) {
-        window.alert(app().friendlyError?.(error) || error.message || '공지·안내를 상신하지 못했습니다.');
+        window.alert(app().friendlyError?.(error) || error.message || '공지를 상신하지 못했습니다.');
       }
     }));
     return form;
@@ -275,15 +310,20 @@
   }
 
   function informationRequestCard(request, isOperations) {
-    const card = document.createElement('article'); card.className = 'dashboard-card phase-c-v2-card';
-    card.append(text('span', `${request.information_kind === 'notice' ? '공지' : '상시 안내'} · ${requestStatusLabel[request.status] || request.status}`, 'status-label'));
+    const card = document.createElement('article');
+    card.className = 'dashboard-card phase-c-v2-card';
+    card.append(text('span', `공지 · ${requestStatusLabel[request.status] || request.status}`, 'status-label'));
     card.append(text('h3', request.title || '제목 없음'));
     if (request.requested_by_name) card.append(text('p', `상신자: ${request.requested_by_name}`, 'help'));
-    card.append(text('p', request.summary_easy || request.body_easy || ''));
+    card.append(text('p', request.body_easy || ''));
     if (request.decision_comment) card.append(text('p', `검토 의견: ${request.decision_comment}`, 'help'));
     const actions = document.createElement('div'); actions.className = 'quick-links';
     if (isOperations && request.status === 'pending') {
-      actions.append(button('승인·게시', () => reviewInformation(request, 'approve')), button('보완 요청', () => reviewInformation(request, 'changes_requested'), true), button('반려', () => reviewInformation(request, 'reject'), true));
+      actions.append(
+        button('승인·게시', () => reviewInformation(request, 'approve')),
+        button('보완 요청', () => reviewInformation(request, 'changes_requested'), true),
+        button('반려', () => reviewInformation(request, 'reject'), true)
+      );
     } else if (!isOperations && request.status === 'changes_requested') {
       actions.append(button('보완해서 다시 상신', () => { informationEditingId = request.id; openInformationHub(); }));
     }
@@ -293,28 +333,30 @@
 
   async function openInformationHub() {
     const isOperations = route() === 'operations_manager';
-    const target = setPage('공지·안내 관리', '공지·안내', isOperations
-      ? '홍보팀장이 상신한 공지와 상시 안내를 검토하고 승인·게시합니다.'
-      : '공지와 상시 안내를 한 화면에서 작성하고 운영총괄에게 상신합니다. 홍보팀장은 직접 게시할 수 없습니다.');
+    const target = setPage('공지 관리', '공지', isOperations
+      ? '운영팀장이 상신한 공지를 검토하고 승인·게시합니다.'
+      : '새 공지를 작성해 운영총괄에게 상신합니다. 운영팀장은 직접 게시할 수 없습니다.');
     if (!target) return;
-    const loading = text('p', '공지·안내 상신 내역을 불러오고 있습니다.', 'message'); target.append(loading);
+    const loading = text('p', '공지 상신 내역을 불러오고 있습니다.', 'message');
+    target.append(loading);
     try {
-      const requests = arr(await app().rpc('list_information_publication_requests'));
+      const requests = arr(await app().rpc('list_information_publication_requests')).filter(item => item.information_kind === 'notice');
       loading.remove();
       if (!isOperations) {
         const edit = requests.find(item => item.id === informationEditingId && item.status === 'changes_requested');
         const composer = document.createElement('section'); composer.className = 'dashboard-section promotion-composer';
-        composer.append(text('h2', edit ? '보완 후 다시 상신' : '새 공지·안내 작성'), informationForm(edit || null));
+        composer.append(text('h2', edit ? '보완 후 다시 상신' : '새 공지 작성'), informationForm(edit || null));
         target.append(composer);
       }
       const section = document.createElement('section'); section.className = 'dashboard-section';
       section.append(text('h2', isOperations ? '승인·검토 목록' : '내 상신 목록'));
       const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
-      if (!requests.length) grid.append(text('p', '현재 등록된 공지·안내 상신안이 없습니다.', 'empty'));
+      if (!requests.length) grid.append(text('p', '현재 등록된 공지 상신안이 없습니다.', 'empty'));
       requests.forEach(item => grid.append(informationRequestCard(item, isOperations)));
-      section.append(grid); target.append(section);
+      section.append(grid);
+      target.append(section);
     } catch (error) {
-      loading.textContent = app().friendlyError?.(error) || error.message || '공지·안내를 불러오지 못했습니다.';
+      loading.textContent = app().friendlyError?.(error) || error.message || '공지를 불러오지 못했습니다.';
       loading.classList.add('error');
     }
   }
