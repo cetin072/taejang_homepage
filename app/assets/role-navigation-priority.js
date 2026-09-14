@@ -16,10 +16,10 @@
     operations_manager: [
       '대시보드',
       '직원 관리', '신규 직원 등록', '가입 승인',
-      '홍보 검토', '홍보 글 작성', '홍보 글 관리',
+      '홍보 검토', '홍보 글 작성', '기존 글 관리',
       '홈페이지 내용 관리', '홈페이지 직접 수정',
       '업무 배정', '일정 관리',
-      '공지 관리', '상시 안내 관리',
+      '공지 관리',
       '근태·급여관리', '출근부',
       '홈페이지'
     ],
@@ -59,10 +59,10 @@
     ],
     operations_manager: [
       { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
-      { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '홍보 글 관리'] },
+      { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '기존 글 관리'] },
       { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
       { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
-      { label: '공지', items: ['공지 관리', '상시 안내 관리'] },
+      { label: '공지', items: ['공지 관리'] },
       { label: '근태·급여', items: ['근태·급여관리', '출근부'] }
     ],
     department_lead: [
@@ -228,7 +228,7 @@
 
   function supportGroupPriority(role) {
     if (role === 'promotion_lead') return 105;
-    if (role === 'operations_manager') return 155;
+    if (role === 'operations_manager') return 145;
     return 7900;
   }
 
