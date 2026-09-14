@@ -1,0 +1,30 @@
+name: Temporary Naver Post Date Audit
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/_tmp-naver-post-date-audit.mjs'
+      - '.github/workflows/_tmp-naver-post-date-audit.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Audit explicit dates in public Naver Blog posts
+        run: node scripts/_tmp-naver-post-date-audit.mjs > naver-post-date-audit.json
+      - name: Upload audit result
+        uses: actions/upload-artifact@v4
+        with:
+          name: naver-post-date-audit
+          path: naver-post-date-audit.json
+          if-no-files-found: error
+          retention-days: 1
