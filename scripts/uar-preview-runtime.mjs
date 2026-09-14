@@ -16,9 +16,15 @@ async function get(pathname, expectJson = false) {
   return { url, body, response };
 }
 
+// /staff/ is the authentication entry surface; /app/ is the protected work shell.
 const staff = await get('staff/');
-if (!staff.body.includes('desktop-app-shell') || !staff.body.includes('dashboard-main')) {
-  throw new Error('UAR_PREVIEW_RUNTIME_STAFF_SHELL_MISSING');
+if (!staff.body.includes('login-form') || !staff.body.includes('임직원 로그인')) {
+  throw new Error('UAR_PREVIEW_RUNTIME_LOGIN_SURFACE_MISSING');
+}
+
+const appShell = await get('app/');
+if (!appShell.body.includes('desktop-app-shell') || !appShell.body.includes('dashboard-main') || !appShell.body.includes('app-nav')) {
+  throw new Error('UAR_PREVIEW_RUNTIME_APP_SHELL_MISSING');
 }
 
 for (const asset of [
