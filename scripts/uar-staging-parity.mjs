@@ -27,19 +27,22 @@ async function query(sql) {
 }
 
 const migrationDir = path.resolve('supabase/migrations');
-const localVersions = readdirSync(migrationDir)
-  .map(name => name.match(/^(\d{14})_.*\.sql$/)?.[1])
+const localMigrations = readdirSync(migrationDir)
+  .map(file => {
+    const match = file.match(/^(\d{14})_(.+)\.sql$/);
+    return match ? { version: match[1], name: match[2], file } : null;
+  })
   .filter(Boolean);
 
 const remoteMigrationRows = await query(`
-  select version::text as version
+  select version::text as version, name
   from supabase_migrations.schema_migrations
   order by version
 `);
-const remoteVersions = new Set(remoteMigrationRows.map(row => String(row.version)));
-const missingMigrations = localVersions.filter(version => !remoteVersions.has(version));
+const remoteNames = new Set(remoteMigrationRows.map(row => String(row.name || '').trim()).filter(Boolean));
+const missingMigrations = localMigrations.filter(item => !remoteNames.has(item.name));
 if (missingMigrations.length) {
-  throw new Error(`UAR_STAGING_PARITY_MISSING_MIGRATIONS:${missingMigrations.join(',')}`);
+  throw new Error(`UAR_STAGING_PARITY_MISSING_MIGRATIONS:${missingMigrations.map(item => item.file).join(',')}`);
 }
 
 const requiredFunctions = [
@@ -65,4 +68,4 @@ if (missingFunctions.length) {
   throw new Error(`UAR_STAGING_PARITY_MISSING_FUNCTIONS:${missingFunctions.join(',')}`);
 }
 
-console.log(`UAR_STAGING_PARITY_PASS migrations=${localVersions.length} required_functions=${requiredFunctions.length}`);
+console.log(`UAR_STAGING_PARITY_PASS migrations=${localMigrations.length} required_functions=${requiredFunctions.length}`);
