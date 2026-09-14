@@ -13,10 +13,12 @@ const migrationPath = 'supabase/migrations/20260903224000_phase_c_live_publicati
 const compatibilityPath = 'supabase/migrations/20260903225000_phase_c_live_publication_compatibility.sql';
 const recoverableDeletePath = 'supabase/migrations/20260903230000_phase_c_recoverable_publication_delete.sql';
 const operationsDeletePath = 'supabase/migrations/20260904133000_operations_manager_recoverable_delete.sql';
+const issue207PolicyPath = 'supabase/migrations/20260914073000_issue207_final_public_delete_policy.sql';
 const migration = read(migrationPath);
 const compatibility = read(compatibilityPath);
 const recoverableDelete = read(recoverableDeletePath);
 const operationsDelete = read(operationsDeletePath);
+const issue207Policy = read(issue207PolicyPath);
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -58,18 +60,16 @@ test('public hub loads live feed before the existing content hub renders', () =>
   assert.match(feedFunction, /content\.hub\.push/);
 });
 
-test('promotion lead requests deletion while operations manager can delete directly', () => {
-  assert.match(migration, /current_user_is_promotion_lead\(\) or public\.current_user_has_role\('operations_manager'\)/);
-  assert.match(migration, /request_promotion_deletion/);
-  assert.match(migration, /not public\.current_user_is_promotion_lead\(\)/);
-  const deleteFunction = operationsDelete.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
-  assert.match(deleteFunction, /current_user_has_role\('operations_manager'\)/);
-  assert.doesNotMatch(deleteFunction, /current_user_has_role\('super_admin'\)/);
-  assert.match(deleteFunction, /PROMOTION_DELETE_TITLE_CONFIRMATION_MISMATCH/);
-  assert.doesNotMatch(deleteFunction, /promotion_lead/);
+test('Issue 207 retires deletion requests and caps public deletion at 24 hours', () => {
+  const requestFunction = issue207Policy.match(/create or replace function public\.request_promotion_deletion[\s\S]*?\$\$;/)?.[0] || '';
+  const deleteFunction = issue207Policy.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
+  assert.match(requestFunction, /PROMOTION_DELETE_REQUEST_POLICY_RETIRED/);
+  assert.match(deleteFunction, /private_actor_can\('promotion\.archive'\)/);
+  assert.match(deleteFunction, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
+  assert.match(deleteFunction, /private_delete_promotion_content_pre148/);
 });
 
-test('user-facing delete archives every promotion lifecycle instead of physically destroying history', () => {
+test('underlying promotion delete primitive remains recoverable rather than physically destructive', () => {
   const deleteFunction = operationsDelete.match(/create or replace function public\.delete_promotion_content[\s\S]*?\$\$;/)?.[0] || '';
   assert.match(deleteFunction, /lifecycle='archived'/);
   assert.match(deleteFunction, /decision='withdrawn'/);
@@ -88,18 +88,16 @@ test('legacy publication queue remains compatible after immediate live publicati
   assert.match(approvalCheck, /'scheduled'::public\.promotion_lifecycle/);
 });
 
-test('publication admin gives operations manager direct recoverable delete and keeps lead request flow', () => {
+test('publication admin follows the Issue 207 recent-delete window and modification escalation', () => {
   assert.match(publicationAdmin, /role === 'promotion_lead'/);
-  assert.match(publicationAdmin, /삭제 요청/);
-  assert.match(publicationAdmin, /item\.can_request_delete === true/);
-  assert.match(publicationAdmin, /item\.delete_request_eligible_at/);
-  assert.match(publicationAdmin, /삭제 요청 가능:/);
-  assert.match(publicationAdmin, /data\?\.can_permanently_delete === true/);
-  assert.match(publicationAdmin, /role === 'operations_manager' && canDelete/);
-  assert.match(publicationAdmin, /초안부터 공개·숨김까지 홍보 글의 전체 상태/);
-  assert.match(publicationAdmin, /현재 공개 중이거나 숨김 상태인 태장 소식, 외부 기사·콘텐츠, 보도자료/);
-  assert.match(publicationAdmin, /내부 복구용 기록은 보존/);
-  assert.match(operationsDelete, /'can_permanently_delete',actor_is_operations/);
+  assert.match(publicationAdmin, /lead_archive_recent_promotion_content/);
+  assert.match(publicationAdmin, /24시간 내 삭제/);
+  assert.match(publicationAdmin, /24시간 경과 · 삭제 불가/);
+  assert.match(publicationAdmin, /운영총괄에게 수정 요청/);
+  assert.match(publicationAdmin, /기타 공개글 수정 요청/);
+  assert.doesNotMatch(publicationAdmin, /request_promotion_deletion/);
+  assert.match(issue207Policy, /PROMOTION_DELETE_REQUEST_POLICY_RETIRED/);
+  assert.match(issue207Policy, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
   assert.match(appUi, /phase-c-publication-admin\.js/);
 });
 
