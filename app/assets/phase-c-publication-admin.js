@@ -232,8 +232,8 @@
 
   async function reviewChangeRequest(request, action) {
     let comment = null;
-    if (action !== 'approve') {
-      comment = window.prompt(action === 'changes_requested' ? '보완할 내용을 적어주세요.' : '반려 이유를 적어주세요.', '')?.trim();
+    if (action === 'reject') {
+      comment = window.prompt('반려 이유를 적어주세요.', '')?.trim();
       if (!comment) return;
     }
     try {
@@ -265,7 +265,6 @@
       actions.className = 'quick-links';
       actions.append(
         button('승인', () => reviewChangeRequest(request, 'approve')),
-        button('보완 요청', () => reviewChangeRequest(request, 'changes_requested'), true),
         button('반려', () => reviewChangeRequest(request, 'reject'), true)
       );
       card.append(actions);
