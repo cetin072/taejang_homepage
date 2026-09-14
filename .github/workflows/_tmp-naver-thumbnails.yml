@@ -1,0 +1,40 @@
+name: Temporary Naver Thumbnail Generation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'scripts/_tmp-generate-naver-thumbnails.py'
+      - '.github/workflows/_tmp-naver-thumbnails.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Pillow
+        run: python -m pip install --disable-pip-version-check pillow
+      - name: Generate optimized blog thumbnails
+        run: python scripts/_tmp-generate-naver-thumbnails.py
+      - name: Commit generated thumbnails to PR branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/images/archive/naver-blog-*.webp
+          if git diff --cached --quiet; then
+            echo "No thumbnail changes"
+            exit 0
+          fi
+          git commit -m "assets: add official blog archive thumbnails"
+          git push origin "HEAD:${HEAD_REF}"
