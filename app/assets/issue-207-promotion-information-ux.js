@@ -27,6 +27,7 @@
     external_activity: '외부활동', holiday: '휴무', transport: '차량·이동', materials: '준비물', clothing: '복장', company_life: '회사생활'
   };
   let informationEditingId = null;
+  let navigationScheduled = false;
 
   function closeSidebar() {
     document.getElementById('desktop-app-shell')?.classList.remove('sidebar-open');
@@ -65,14 +66,10 @@
     return node;
   }
 
-  function moveKnownToFront(nav, labels) {
-    let cursor = nav.firstChild;
-    labels.forEach(label => {
-      const node = [...nav.children].find(candidate => cleanLabel(candidate) === label);
-      if (!node) return;
-      nav.insertBefore(node, cursor);
-      cursor = node.nextSibling;
-    });
+  function openPromotion(mode) {
+    const api = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
+    if (typeof api === 'function') return api(mode);
+    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
   }
 
   function openExistingContent() {
@@ -127,29 +124,38 @@
     if (!nav || !currentRoute) return;
 
     if (currentRoute === 'promotion_staff') {
-      const write = findNav(['홍보 작성', '새 홍보글 작성']);
-      if (write) write.textContent = '새 홍보글 작성';
-      const revision = findNav(['수정·보완 요청', '보완 요청받은 글']);
-      if (revision) revision.textContent = '보완 요청받은 글';
-      if (!nav.querySelector('[data-issue207-nav="sent"]')) {
-        const sent = navNode('보낸 글', openSent, 'sent');
-        if (write?.nextSibling) nav.insertBefore(sent, write.nextSibling); else nav.append(sent);
+      let write = findNav(['홍보 작성', '새 홍보글 작성']);
+      if (!write) {
+        write = navNode('새 홍보글 작성', () => openPromotion('write'), 'write');
+        write.dataset.phaseCV2Nav = 'write';
+        write.dataset.promotionWriteNav = '1';
+        nav.append(write);
       }
+      write.textContent = '새 홍보글 작성';
+
+      let revision = findNav(['수정·보완 요청', '보완 요청받은 글']);
+      if (!revision) {
+        revision = navNode('보완 요청받은 글', () => openPromotion('revision'), 'revision');
+        revision.dataset.phaseCV2Nav = 'revision';
+        revision.dataset.promotionReturnedNav = '1';
+        nav.append(revision);
+      }
+      revision.textContent = '보완 요청받은 글';
+
+      if (!nav.querySelector('[data-issue207-nav="sent"]')) nav.append(navNode('보낸 글', openSent, 'sent'));
       removeLegacyInformationNav(nav, 'notice-read');
       if (!nav.querySelector('[data-issue207-nav="notice-read"]')) nav.append(navNode('공지 확인', openInformationRead, 'notice-read'));
-      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인']);
     }
 
     if (currentRoute === 'promotion_lead') {
-      const review = findNav(['홍보 검토', '홍보 관리', '승인·검토']);
-      if (review) review.textContent = '승인·검토';
+      const review = findNav(['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
+      if (review) review.textContent = '홍보글 승인·검토';
       const write = findNav(['홍보 작성', '새 홍보글 작성']);
       if (write) write.textContent = '새 홍보글 작성';
       ensureExistingContentNav(nav);
       ensureHomepageManagementNav(nav);
       removeLegacyInformationNav(nav, 'notice-manage');
       if (!nav.querySelector('[data-issue207-nav="notice-manage"]')) nav.append(navNode('공지 관리', openInformationHub, 'notice-manage'));
-      moveKnownToFront(nav, ['대시보드', '새 홍보글 작성', '승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리']);
     }
 
     if (currentRoute === 'operations_manager') {
@@ -161,7 +167,13 @@
   }
 
   function scheduleNavigation() {
-    [0, 80, 240, 700].forEach(delay => setTimeout(ensureNavigation, delay));
+    if (navigationScheduled) return;
+    navigationScheduled = true;
+    setTimeout(() => {
+      navigationScheduled = false;
+      ensureNavigation();
+      document.dispatchEvent(new CustomEvent('taejang-navigation-changed'));
+    }, 0);
   }
 
   function cleanupWriteScreen() {
@@ -176,7 +188,7 @@
   }
 
   function scheduleWriteCleanup() {
-    [80, 250, 700].forEach(delay => setTimeout(cleanupWriteScreen, delay));
+    [0, 120].forEach(delay => setTimeout(cleanupWriteScreen, delay));
   }
 
   async function openSent() {
@@ -386,7 +398,7 @@
   }
 
   function scheduleReviewDecoration() {
-    [120, 400, 900].forEach(delay => setTimeout(decorateReviewSubmitters, delay));
+    [120, 400].forEach(delay => setTimeout(decorateReviewSubmitters, delay));
   }
 
   document.addEventListener('taejang-app-ready', scheduleNavigation);
