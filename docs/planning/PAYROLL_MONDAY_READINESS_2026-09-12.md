@@ -30,6 +30,12 @@
 
 The remaining vendor-specific step is to confirm the actual workbook structure and then connect the already prepared local analyzer to the existing accepted attendance-import pipeline. Do not make users rearrange columns manually if the vendor format can be recognized deterministically.
 
-## Gates unchanged
+## 2026-09-14 operations-manager pilot approval
 
-No Production deployment, PR Ready transition, main merge, real payroll month lock/finalization, payment or Kakao send without explicit approval.
+The user explicitly approved promoting the current operations-manager payroll pilot into `main` after final automated QA so that the authenticated operations-manager can see and open `근태·급여관리` from the normal staff platform and collect hands-on feedback.
+
+This approval is limited to the pilot surface already implemented and verified: authenticated operations-manager navigation/dashboard entry, Staging-backed attendance editing, provisional payroll calculation, read-only payroll ledger review and safe XLSX export. It does **not** authorize real payroll finalization, month lock, payment execution, retroactive payment, Kakao delivery, Sensitive HR permission expansion, or lower-role payroll access.
+
+## Gates unchanged except approved pilot promotion
+
+Production frontend visibility and the required `main` merge for the operations-manager pilot are approved after the final QA gate. Real payroll month lock/finalization, payment, retroactive payment, Kakao send, Sensitive HR permission expansion, or lower-role payroll access still require separate explicit approval.
