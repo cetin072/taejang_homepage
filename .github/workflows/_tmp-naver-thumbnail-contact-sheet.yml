@@ -1,0 +1,49 @@
+name: Temporary Naver Thumbnail Contact Sheet
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/_tmp-naver-thumbnail-contact-sheet.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contact-sheet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check pillow
+      - name: Build contact sheet
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw, ImageFont
+
+          files = sorted(Path('assets/images/archive').glob('naver-blog-*.webp'))
+          assert len(files) == 30, len(files)
+          thumb_w, thumb_h = 320, 180
+          label_h = 32
+          cols, rows = 5, 6
+          sheet = Image.new('RGB', (cols * thumb_w, rows * (thumb_h + label_h)), 'white')
+          draw = ImageDraw.Draw(sheet)
+          for i, path in enumerate(files):
+              im = Image.open(path).convert('RGB').resize((thumb_w, thumb_h))
+              x = (i % cols) * thumb_w
+              y = (i // cols) * (thumb_h + label_h)
+              sheet.paste(im, (x, y))
+              draw.rectangle([x, y + thumb_h, x + thumb_w, y + thumb_h + label_h], fill='white')
+              draw.text((x + 6, y + thumb_h + 7), path.stem.replace('naver-blog-', ''), fill='black')
+          sheet.save('naver-thumbnail-contact-sheet.jpg', quality=88)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: naver-thumbnail-contact-sheet
+          path: naver-thumbnail-contact-sheet.jpg
+          if-no-files-found: error
+          retention-days: 1
