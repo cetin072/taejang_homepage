@@ -18,7 +18,8 @@ const pressThumbnailPaths = [
   'assets/images/archive/companion-job-first-store-plaque.webp',
   'assets/images/archive/naver-blog-224376710751.webp',
   'assets/images/archive/naver-blog-224377482691.webp',
-  'assets/images/archive/naver-blog-224378213482.webp'
+  'assets/images/archive/naver-blog-224378213482.webp',
+  'images/homepage/photo-04.webp'
 ].map(file => path.join(root, file));
 
 assert.match(index, /content\.js[\s\S]*external-content\.js[\s\S]*home-previews\.js/);
@@ -106,7 +107,8 @@ assert.equal(kbs.source, 'press');
 assert.equal(kbs.publisher, 'KBS 뉴스');
 assert.equal(kbs.status, 'published');
 assert.equal(kbs.externalUrl, 'https://news.kbs.co.kr/news/pc/view/view.do?ncd=8636757&ref=A');
-assert.equal(kbs.thumbnail, undefined, '사용권이 불분명한 KBS 기사 사진은 내려받아 사용하지 않습니다');
+assert.equal(kbs.thumbnail, 'images/homepage/photo-04.webp');
+assert.equal(kbs.thumbnailAlt, '태장 작업장에서 근로자들이 포장 업무를 진행하는 모습');
 assert.equal(kbs.externalLabel, 'KBS 뉴스에서 보기');
 assert.equal(kbs.publishedAt, '2026-08');
 
