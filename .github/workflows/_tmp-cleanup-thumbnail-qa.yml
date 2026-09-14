@@ -7,44 +7,50 @@ on:
       - '.github/workflows/_tmp-cleanup-thumbnail-qa.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  compare-images:
+  crop-thumbnail:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check pillow
-      - name: Build comparison sheet
+      - name: Re-encode first cleanup photo as archive thumbnail
         run: |
           python - <<'PY'
           from pathlib import Path
-          from PIL import Image, ImageDraw
+          from PIL import Image, ImageOps
 
-          paths = [
-              Path('assets/images/archive/environment-cleanup-first.webp'),
-              Path('assets/images/business/environment-cleanup-group.webp'),
-          ]
-          canvas = Image.new('RGB', (900, 720), 'white')
-          draw = ImageDraw.Draw(canvas)
-          y = 0
-          for path in paths:
-              im = Image.open(path).convert('RGB')
-              w, h = im.size
-              im.thumbnail((860, 300))
-              x = (900 - im.width) // 2
-              canvas.paste(im, (x, y + 30))
-              draw.text((20, y + 340), f'{path} | original={w}x{h} | bytes={path.stat().st_size}', fill='black')
-              y += 360
-          canvas.save('cleanup-thumbnail-comparison.jpg', quality=90)
+          path = Path('assets/images/archive/environment-cleanup-first.webp')
+          image = Image.open(path).convert('RGB')
+          thumb = ImageOps.fit(
+              image,
+              (720, 405),
+              method=Image.Resampling.LANCZOS,
+              centering=(0.5, 0.5),
+          )
+          thumb.save(path, 'WEBP', quality=82, method=6)
+          check = Image.open(path)
+          assert check.size == (720, 405), check.size
+          assert path.stat().st_size < 200 * 1024, path.stat().st_size
+          print(f'{path}: {check.size}, {path.stat().st_size} bytes')
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cleanup-thumbnail-comparison
-          path: cleanup-thumbnail-comparison.jpg
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit optimized thumbnail to PR branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/images/archive/environment-cleanup-first.webp
+          if git diff --cached --quiet; then
+            echo "No thumbnail change"
+            exit 0
+          fi
+          git commit -m "fix: optimize first cleanup archive thumbnail"
+          git push origin "HEAD:${HEAD_REF}"
