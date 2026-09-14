@@ -15,12 +15,12 @@
     ],
     operations_manager: [
       '대시보드',
-      '직원 관리', '신규 직원 등록',
-      '홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정',
+      '직원 관리', '신규 직원 등록', '가입 승인',
+      '홍보 검토', '홍보 글 작성', '홍보 글 관리',
+      '홈페이지 내용 관리', '홈페이지 직접 수정',
       '업무 배정', '일정 관리',
       '공지 관리', '상시 안내 관리',
       '근태·급여관리', '출근부',
-      '가입 승인',
       '홈페이지'
     ],
     department_lead: [
@@ -58,12 +58,12 @@
       { label: '근태', items: ['출근부'] }
     ],
     operations_manager: [
-      { label: '직원·팀 관리', items: ['직원 관리', '신규 직원 등록'] },
-      { label: '홍보·홈페이지', items: ['홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정'] },
+      { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
+      { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '홍보 글 관리'] },
+      { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
       { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
-      { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] },
-      { label: '근태·급여', items: ['근태·급여관리', '출근부'] },
-      { label: '승인·관리', items: ['가입 승인'] }
+      { label: '공지', items: ['공지 관리', '상시 안내 관리'] },
+      { label: '근태·급여', items: ['근태·급여관리', '출근부'] }
     ],
     department_lead: [
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
@@ -99,6 +99,12 @@
     window.TaejangFeatureHealth?.showFailure?.(label);
   }
 
+  function openPromotion(mode) {
+    const api = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
+    if (typeof api === 'function') return api(mode);
+    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
+  }
+
   function navButton(label, callback, dataset = {}) {
     const node = document.createElement('button');
     node.type = 'button';
@@ -118,18 +124,25 @@
     if (!nav) return;
 
     if (currentRole === 'promotion_staff') {
-      const write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
-      if (write) write.textContent = '새 홍보글 작성';
-      const revision = findByLabel(nav, ['수정·보완 요청', '보완 요청받은 글']);
-      if (revision) revision.textContent = '보완 요청받은 글';
+      let write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
+      if (!write) {
+        write = navButton('새 홍보글 작성', () => openPromotion('write'), { phaseCV2Nav: 'write', promotionWriteNav: '1' });
+        nav.append(write);
+      }
+      write.textContent = '새 홍보글 작성';
+
+      let revision = findByLabel(nav, ['수정·보완 요청', '보완 요청받은 글']);
+      if (!revision) {
+        revision = navButton('보완 요청받은 글', () => openPromotion('revision'), { phaseCV2Nav: 'revision', promotionReturnedNav: '1' });
+        nav.append(revision);
+      }
+      revision.textContent = '보완 요청받은 글';
 
       if (!findByLabel(nav, '보낸 글')) {
-        const sent = navButton('보낸 글', () => window.TaejangIssue207Ux?.openSent?.(), { issue207Nav: 'sent' });
-        nav.append(sent);
+        nav.append(navButton('보낸 글', () => window.TaejangIssue207Ux?.openSent?.(), { issue207Nav: 'sent' }));
       }
       if (!findByLabel(nav, '공지 확인')) {
-        const notice = navButton('공지 확인', () => window.TaejangIssue207Ux?.openInformationRead?.(), { issue207Nav: 'notice-read' });
-        nav.append(notice);
+        nav.append(navButton('공지 확인', () => window.TaejangIssue207Ux?.openInformationRead?.(), { issue207Nav: 'notice-read' }));
       }
       return;
     }
@@ -139,10 +152,19 @@
         if (node.dataset?.phaseCV2Nav === 'revision' || ['수정·보완 요청', '보완 요청받은 글'].includes(cleanLabel(node))) node.remove();
       });
 
-      const write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
-      if (write) write.textContent = '새 홍보글 작성';
-      const review = findByLabel(nav, ['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
-      if (review) review.textContent = '홍보글 승인·검토';
+      let write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
+      if (!write) {
+        write = navButton('새 홍보글 작성', () => openPromotion('write'), { phaseCV2Nav: 'write', promotionWriteNav: '1' });
+        nav.append(write);
+      }
+      write.textContent = '새 홍보글 작성';
+
+      let review = findByLabel(nav, ['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
+      if (!review) {
+        review = navButton('홍보글 승인·검토', () => openPromotion('review'), { phaseCV2Nav: 'review' });
+        nav.append(review);
+      }
+      review.textContent = '홍보글 승인·검토';
 
       if (!findByLabel(nav, '기존 글 관리')) {
         nav.append(navButton('기존 글 관리', () => window.TaejangPublicationAdmin?.openPublicationAdmin?.(), {
@@ -163,7 +185,7 @@
   }
 
   function normalizeLabel(node, role) {
-    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav) return;
+    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
     const current = cleanLabel(node);
     if (role === 'promotion_staff' && current === '홍보 작성') {
       node.textContent = '새 홍보글 작성';
@@ -204,12 +226,15 @@
     return link;
   }
 
+  function supportGroupPriority(role) {
+    if (role === 'promotion_lead') return 105;
+    if (role === 'operations_manager') return 155;
+    return 7900;
+  }
+
   function priority(node, role) {
     if (node.dataset?.navSection === 'official_channels') return 9000;
-    if (node.dataset?.supportMyWorkNav) {
-      if (role === 'promotion_lead') return 105;
-      return 7900;
-    }
+    if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return supportGroupPriority(role);
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
     const order = ROLE_ORDER[role] || [];
@@ -220,7 +245,7 @@
   }
 
   function markStatus(node) {
-    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav) return;
+    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
     const label = cleanLabel(node);
     if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
     const markedLabel = `${label} · 점검중`;
@@ -232,7 +257,7 @@
 
   function decorateSections(nodes, role) {
     nodes.forEach(node => {
-      if (node.dataset?.supportMyWorkNav) return;
+      if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
       node.classList.remove('app-nav-section-start');
       delete node.dataset.sectionLabel;
     });
@@ -240,7 +265,7 @@
     const sections = ROLE_SECTIONS[role] || [];
     sections.forEach(section => {
       const first = section.items
-        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && cleanLabel(node) === label))
+        .map(label => nodes.find(node => node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup && cleanLabel(node) === label))
         .find(Boolean);
       if (!first) return;
       first.classList.add('app-nav-section-start');
@@ -277,7 +302,7 @@
       const children = [...nav.children];
       children.forEach(node => {
         normalizeLabel(node, currentRole);
-        if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav) node.classList.add('app-nav-item');
+        if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup) node.classList.add('app-nav-item');
         markStatus(node);
       });
 
@@ -294,10 +319,10 @@
       }
 
       decorateSections(desired, currentRole);
-
       const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
       desired.forEach(node => node.classList.remove('app-nav-checking-first'));
       checking[0]?.classList.add('app-nav-checking-first');
+      nav.dataset.navigationSettled = '1';
     } finally {
       reordering = false;
     }
@@ -309,10 +334,6 @@
     setTimeout(reorder, 0);
   }
 
-  function stabilize() {
-    [0, 120, 360, 850].forEach(delay => setTimeout(schedule, delay));
-  }
-
   function bind() {
     const nav = document.getElementById('app-nav');
     if (!nav || nav.dataset.priorityBound) return;
@@ -322,17 +343,16 @@
       if (!target || !nav.contains(target)) return;
       updateCurrent(target);
     });
-    new MutationObserver(schedule).observe(nav, { childList: true });
-    stabilize();
   }
 
-  document.addEventListener('taejang-app-ready', () => setTimeout(() => { bind(); stabilize(); }, 0));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(() => { stabilize(); markDashboardCurrent(); }, 0));
-  document.addEventListener('taejang-open-promotion-workspace', stabilize);
+  document.addEventListener('taejang-app-ready', () => { bind(); schedule(); });
+  document.addEventListener('taejang-dashboard-refresh', () => { schedule(); setTimeout(markDashboardCurrent, 0); });
+  document.addEventListener('taejang-open-promotion-workspace', schedule);
+  document.addEventListener('taejang-navigation-changed', schedule);
 
-  const start = () => { bind(); stabilize(); };
+  const start = () => { bind(); schedule(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensureIssue207RoleContract, reorder };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensureIssue207RoleContract, reorder, schedule };
 })();
