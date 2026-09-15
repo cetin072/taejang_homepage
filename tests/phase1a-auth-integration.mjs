@@ -285,38 +285,52 @@ const maturePromotion = await rpc('save_operations_promotion_draft', admin.token
   p_summary: 'CI', p_public_body: 'CI deletion behavior verification', p_byline_kind: 'company',
   p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
 });
-equal(maturePromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a promotion item for final deletion verification');
+equal(maturePromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a promotion item for the post-24-hour public policy verification');
 sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() - interval '25 hours' where id = '${maturePromotion.data.content_id}'::uuid`);
 const deletionRequest = await rpc('request_promotion_deletion', lead.token, {
   p_content_id: maturePromotion.data.content_id, p_reason: 'CI 운영팀장 삭제 요청',
 });
-equal(deletionRequest.data?.code, 'PROMOTION_DELETION_REQUESTED', 'promotion lead can request deletion after the server-side 24-hour threshold');
-const finalPromotionDelete = await rpc('delete_promotion_content', admin.token, {
-  p_content_id: maturePromotion.data.content_id, p_confirm_title: 'CI 최종 삭제 요청 글', p_reason: 'CI 운영총괄 최종 처리',
+check(!deletionRequest.ok, 'promotion lead cannot request deletion after the 24-hour public window');
+equal(deletionRequest.data?.code, '42501', 'retired deletion-request lane is forbidden at the server boundary');
+equal(deletionRequest.data?.message, 'PROMOTION_DELETE_REQUEST_POLICY_RETIRED', 'server explains that the legacy deletion-request lane is retired');
+const expiredDirectDelete = await rpc('delete_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id, p_confirm_title: 'CI 최종 삭제 요청 글', p_reason: 'CI 운영총괄 삭제 차단 확인',
 });
-equal(finalPromotionDelete.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager finalizes a pending promotion deletion request without ambiguity');
-equal(sql(`select status from public.promotion_deletion_requests where content_id = '${maturePromotion.data.content_id}'::uuid`), 'deleted', 'final promotion archive records the pending deletion request as deleted');
-const restorePublishedHistory = await rpc('restore_promotion_content', admin.token, {
-  p_content_id: maturePromotion.data.content_id, p_reason: 'CI 공개 이력 안전 복구',
+check(!expiredDirectDelete.ok, 'operations manager cannot bypass the 24-hour public deletion limit');
+equal(expiredDirectDelete.data?.code, '42501', 'expired direct public deletion is forbidden');
+equal(expiredDirectDelete.data?.message, 'PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED', 'server returns the final post-24-hour deletion policy error');
+const matureChangeRequest = await rpc('create_public_content_change_request', lead.token, {
+  p_target_kind: 'promotion',
+  p_target_key: maturePromotion.data.content_id,
+  p_proposed_title: 'CI 24시간 경과 수정 승인 글',
+  p_proposed_summary: 'CI 24시간 경과 수정 요청',
+  p_reason: 'CI 운영팀장 24시간 경과 수정 상신',
 });
-equal(restorePublishedHistory.data?.lifecycle, 'hidden', 'published-history promotion restore returns to hidden rather than immediately republishing');
-equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published-history restore remains hidden in the persisted public state');
-const explicitRepublish = await rpc('set_promotion_visibility', admin.token, {
-  p_content_id: maturePromotion.data.content_id, p_visible: true, p_reason: 'CI 명시적 재공개',
+check(matureChangeRequest.ok && matureChangeRequest.data?.request_id, 'promotion lead can escalate a modification request after 24 hours');
+const matureChangeApproval = await rpc('review_public_content_change_request', admin.token, {
+  p_request_id: matureChangeRequest.data.request_id,
+  p_action: 'approve',
+  p_comment: 'CI 운영총괄 수정 승인',
 });
-equal(explicitRepublish.data?.code, 'PROMOTION_RESTORED', 'published-history content requires a separate explicit republish action');
+equal(matureChangeApproval.data?.status, 'approved', 'operations manager approves the post-24-hour modification request');
+equal(matureChangeApproval.data?.applied, true, 'approved promotion modification is applied to a new immutable revision');
+equal(sql(`select revision.title from public.promotion_contents content join public.promotion_content_revisions revision on revision.id = content.current_revision_id where content.id = '${maturePromotion.data.content_id}'::uuid`), 'CI 24시간 경과 수정 승인 글', 'approved post-24-hour modification becomes the current promotion revision');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'post-24-hour modification keeps the already-published content public');
 
 const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',
   p_summary: 'CI', p_public_body: 'CI deletion eligibility verification', p_byline_kind: 'company',
   p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 생성',
 });
-equal(freshPromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a fresh promotion item for eligibility verification');
+equal(freshPromotion.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates a fresh promotion item for the within-24-hour policy verification');
 sql(`update public.promotion_contents set lifecycle = 'published', published_at = now() where id = '${freshPromotion.data.content_id}'::uuid`);
-const leadPublicationContext = await rpc('get_promotion_publication_admin', lead.token, {});
-const freshPublicationItem = leadPublicationContext.data?.items?.find(item => item.content_id === freshPromotion.data.content_id);
-equal(freshPublicationItem?.can_request_delete, false, 'server publication context marks a fresh post as ineligible for deletion request');
-check(freshPublicationItem?.delete_request_eligible_at, 'server publication context provides the future deletion-request time');
+const freshRecentArchive = await rpc('lead_archive_recent_promotion_content', lead.token, {
+  p_content_id: freshPromotion.data.content_id,
+  p_reason: 'CI 운영팀장 24시간 이내 회수',
+});
+equal(freshRecentArchive.data?.code, 'PROMOTION_RECENT_PUBLIC_ARCHIVED', 'promotion lead can recoverably archive a public post within 24 hours');
+equal(freshRecentArchive.data?.recoverable_archive_preserved, true, 'within-24-hour public archive preserves recovery history');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${freshPromotion.data.content_id}'::uuid`), 'archived', 'within-24-hour promotion lead archive persists as recoverable archived state');
 
 const linkableUser = await signUp('phase1a-linkable-employee@example.test', '테스트 명시적 계정 연결');
 const linkWorker = await rpc('link_employee_account', admin.token, {

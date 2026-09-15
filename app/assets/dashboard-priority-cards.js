@@ -2,7 +2,7 @@
   'use strict';
 
   const CARD_ORDER = {
-    operations_manager: ['가입 승인', '직원관리 요청', '중요 홍보 승인', '홈페이지 수정 승인'],
+    operations_manager: ['근태·급여관리', '가입 승인', '직원관리 요청', '중요 홍보 승인', '홈페이지 수정 승인'],
     promotion_lead: ['오늘 출근부', '팀 직원 관리', '홍보 검토 대기', '홍보자료 작성', '중요공지', '가까운 일정'],
     department_lead: ['팀 직원 관리', '중요공지', '가까운 일정'],
     field_lead: ['오늘 작업과 장소', '중요공지'],
@@ -47,6 +47,19 @@
     [...grid.children].forEach(node => {
       if (OPERATIONS_DASHBOARD_HIDDEN.has(titleOf(node))) node.remove();
     });
+  }
+
+  function addPayrollCard(currentRoute, grid) {
+    if (currentRoute !== 'operations_manager' || grid.querySelector('[data-priority-dashboard-card="근태·급여관리"]')) return;
+    grid.append(card(
+      '근태·급여관리',
+      '오늘 근태를 직접 입력하거나 보안업체 Excel로 채운 뒤 수정·저장하고, 급여 가안과 급여대장 Excel까지 한 화면에서 확인합니다.',
+      '운영총괄 1차 사용',
+      {
+        label: '근태·급여관리 열기',
+        run: () => { window.location.href = 'payroll/live.html'; }
+      }
+    ));
   }
 
   async function addEmployeeCard(currentRoute, grid) {
@@ -110,6 +123,7 @@
     rendering = true;
     try {
       removeLowPriorityOperationsCards(currentRoute, grid);
+      addPayrollCard(currentRoute, grid);
       await addEmployeeCard(currentRoute, grid);
       await addHomepageApprovalCard(currentRoute, grid);
       if (grid.isConnected) {

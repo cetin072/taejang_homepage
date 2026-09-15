@@ -2,12 +2,7 @@
   'use strict';
 
   const ALLOWED_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
-  const CHANNELS = [
-    { id: 'homepage', label: '홈페이지', href: '../index.html' },
-    { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
-    { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
-  ];
-
+  const channels = () => window.TaejangOfficialChannels?.list || [];
   const route = () => window.TaejangApp?.getRoute?.();
 
   function removeExisting(nav) {
@@ -38,7 +33,7 @@
     label.className = 'app-nav-group-label';
     label.textContent = '공식 채널';
     group.append(label);
-    CHANNELS.forEach(channel => group.append(makeLink(channel)));
+    channels().forEach(channel => group.append(makeLink(channel)));
     return group;
   }
 
@@ -50,9 +45,8 @@
       return;
     }
 
-    // dashboard-shell now creates the official channel group synchronously.
-    // Keep this module only as a compatibility fallback for older shells and
-    // never tear down a valid group after first paint.
+    // dashboard-shell creates this group on the authoritative first render.
+    // Keep this module only as a compatibility fallback for older shells.
     if (nav.querySelector('[data-official-channel-group]')) return;
 
     [...nav.children].forEach(node => {
@@ -68,5 +62,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangOfficialChannelLinks = { sync, CHANNELS, ALLOWED_ROLES };
+  window.TaejangOfficialChannelLinks = { sync, channels, ALLOWED_ROLES };
 })();

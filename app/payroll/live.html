@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>태장 근태·급여관리</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="../assets/payroll-operator.css">
+  <link rel="stylesheet" href="../assets/payroll-operator-live.css">
+  <link rel="stylesheet" href="../assets/payroll-attendance-editor.css">
+</head>
+<body class="payroll-preview">
+  <main class="payroll-shell">
+    <header class="payroll-topbar">
+      <div>
+        <p class="payroll-eyebrow">태장 업무플랫폼 · 근태·급여관리</p>
+        <h1 class="payroll-title" id="payroll-live-title">급여월 불러오는 중</h1>
+        <p class="payroll-subtitle">운영총괄 PC 사전운영 화면입니다. 근태를 직접 입력하거나 출근부 Excel로 채운 뒤 수정하고, 같은 자료로 급여 가안을 확인합니다.</p>
+      </div>
+      <span class="payroll-demo-badge" id="payroll-live-environment">PC 사전운영 · 운영총괄</span>
+    </header>
+
+    <section class="payroll-live-toolbar payroll-card" aria-label="급여월 선택과 급여대장 작업">
+      <label class="payroll-month-picker" for="payroll-live-month">
+        <span>급여월</span>
+        <input id="payroll-live-month" type="month">
+      </label>
+      <button class="payroll-button" type="button" id="payroll-live-refresh">새로고침</button>
+      <button class="payroll-button secondary" type="button" id="payroll-live-export" disabled>급여대장 Excel</button>
+      <a class="payroll-button secondary payroll-live-link" href="../">업무플랫폼으로</a>
+      <a class="payroll-button secondary payroll-live-link" href="../../staff/" id="payroll-live-login" hidden>로그인 화면</a>
+    </section>
+
+    <p id="payroll-live-message" class="payroll-live-message" role="status" aria-live="polite" hidden></p>
+
+    <section class="payroll-card payroll-attendance-editor-card" id="payroll-attendance-editor" aria-label="근태 직접 입력 및 Excel 자동채움">
+      <div class="payroll-card-header payroll-attendance-editor-header">
+        <div>
+          <p class="payroll-eyebrow">1. 근태 입력</p>
+          <h2>출근부</h2>
+          <p class="payroll-attendance-editor-note">
+            <strong>직접 입력이 기본입니다.</strong> 보안업체 출근부 Excel을 선택하면 같은 표에 자동으로 채워지고, 저장 전에 다시 직접 수정할 수 있습니다.
+          </p>
+        </div>
+        <div class="payroll-attendance-editor-actions">
+          <button class="payroll-button secondary" type="button" id="payroll-attendance-prev">이전날</button>
+          <label class="payroll-attendance-date-picker" for="payroll-attendance-date">
+            <span>근무일</span>
+            <input id="payroll-attendance-date" type="date">
+          </label>
+          <button class="payroll-button secondary" type="button" id="payroll-attendance-next">다음날</button>
+          <label class="payroll-button secondary payroll-file-button" for="payroll-attendance-file">
+            출근부 Excel로 채우기
+            <input id="payroll-attendance-file" type="file" accept=".xlsx" hidden>
+          </label>
+          <button class="payroll-button" type="button" id="payroll-attendance-save">변경사항 저장</button>
+          <button class="payroll-button secondary" type="button" id="payroll-attendance-recalculate">급여 가안 다시 계산</button>
+        </div>
+      </div>
+      <div class="payroll-card-body">
+        <span id="payroll-attendance-file-name" class="payroll-file-name">Excel 선택 안 함 · 직접 입력 가능</span>
+        <span id="payroll-attendance-preview" class="payroll-file-preview" data-state="idle">Excel은 선택사항입니다. 선택하면 시트·헤더·행 수를 먼저 확인하고 같은 표에 채웁니다.</span>
+        <p id="payroll-attendance-editor-message" class="payroll-attendance-editor-message" role="status" aria-live="polite" hidden></p>
+        <p id="payroll-attendance-editor-summary" class="payroll-attendance-editor-summary">근태 입력표 불러오는 중</p>
+        <div class="payroll-attendance-editor-table-wrap">
+          <table class="payroll-attendance-editor-table">
+            <thead>
+              <tr>
+                <th>사번</th>
+                <th>성명</th>
+                <th>상태</th>
+                <th>출근</th>
+                <th>퇴근</th>
+                <th>인정시간</th>
+                <th>출처</th>
+              </tr>
+            </thead>
+            <tbody id="payroll-attendance-editor-body"></tbody>
+          </table>
+        </div>
+        <p class="payroll-attendance-editor-note">저장하면 원본을 덮어쓰지 않고 변경이력으로 남긴 뒤 급여 가안을 다시 계산합니다. 계산이 실패해도 저장된 근태는 유지되며, 저장 없이 다시 계산할 수 있습니다.</p>
+      </div>
+    </section>
+
+    <p id="payroll-ledger-validation" class="payroll-ledger-validation" data-state="idle">급여대장 검증 전</p>
+
+    <section class="payroll-summary payroll-live-summary" aria-label="급여 가안 요약">
+      <div class="payroll-metric">
+        <span>상태</span>
+        <strong id="payroll-live-status">불러오는 중</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>계산 직원</span>
+        <strong id="payroll-live-employees">—</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>가안 총지급</span>
+        <strong id="payroll-live-gross">—</strong>
+      </div>
+      <div class="payroll-metric">
+        <span>미해결</span>
+        <strong id="payroll-live-exceptions">—</strong>
+      </div>
+    </section>
+
+    <section class="payroll-grid payroll-live-grid">
+      <article class="payroll-card payroll-main-card">
+        <div class="payroll-card-header">
+          <div>
+            <p class="payroll-eyebrow">2. 급여 확인</p>
+            <h2>월 급여대장</h2>
+          </div>
+        </div>
+        <div class="payroll-card-body">
+          <div id="payroll-live-empty" class="payroll-clear-state" hidden>
+            <div class="payroll-clear-icon">i</div>
+            <div>
+              <strong>이 급여월은 아직 계산결과가 없습니다.</strong>
+              <p>위 출근부에서 근태를 입력·저장하면 급여 가안을 계산해 이곳에 표시합니다.</p>
+            </div>
+          </div>
+
+          <div id="payroll-live-table-wrap" class="payroll-live-table-wrap" hidden>
+            <table class="payroll-live-table">
+              <thead>
+                <tr>
+                  <th>사번</th>
+                  <th>성명</th>
+                  <th>입사일</th>
+                  <th>퇴사일</th>
+                  <th>실근로</th>
+                  <th>결근</th>
+                  <th>유급휴가</th>
+                  <th>유급공휴일</th>
+                  <th>주휴시간</th>
+                  <th>기본급</th>
+                  <th>주휴수당</th>
+                  <th>총지급</th>
+                  <th>국민연금</th>
+                  <th>건강보험</th>
+                  <th>장기요양</th>
+                  <th>고용보험</th>
+                  <th>공제계</th>
+                  <th>실지급</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody id="payroll-live-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </article>
+
+      <aside class="payroll-card payroll-guide-card">
+        <div class="payroll-card-header">
+          <h3>사용 상태</h3>
+        </div>
+        <div class="payroll-card-body">
+          <dl class="payroll-live-meta">
+            <div><dt>근태 기준일</dt><dd id="payroll-live-cutoff">—</dd></div>
+            <div><dt>계산 Run</dt><dd id="payroll-live-run">—</dd></div>
+            <div><dt>계산 버전</dt><dd id="payroll-live-version">—</dd></div>
+          </dl>
+          <ul class="payroll-checklist">
+            <li>현재 PC 사전운영 환경에서 운영총괄이 근태 저장과 급여 가안 계산을 수행합니다.</li>
+            <li>급여 확정·월 잠금·송금 기능은 없습니다.</li>
+            <li>직접 입력이 기본이며 Excel은 같은 표를 빠르게 채우는 보조수단입니다.</li>
+            <li>Excel 원본과 기존 근태 원본은 덮어쓰지 않고, 화면 수정은 별도 변경이력으로 남깁니다.</li>
+            <li>주민등록번호·급여계좌·장애·건강정보는 화면/가안 Excel에 넣지 않습니다.</li>
+            <li>급여대장은 직원 중복·계산 인원·총지급-공제-실지급 산식을 자동 검증합니다.</li>
+            <li>구형 XLS는 실제 보안업체 원본을 확인한 뒤 전용 지원 여부를 결정합니다.</li>
+            <li>모바일 최적화는 PC 사전운영 안정화 후 이어서 적용합니다.</li>
+            <li>소득세·지방소득세 자동계산은 후순위이며 현재 급여대장 개발을 막지 않습니다.</li>
+            <li>법정공제 근거가 부족한 직원은 금액을 추정하지 않고 확인 필요로 표시합니다.</li>
+          </ul>
+        </div>
+      </aside>
+    </section>
+
+    <p class="payroll-footer-note">
+      운영총괄 PC 사전운영 근태·급여 화면입니다. 실제 급여 확정·지급을 실행하지 않으며 Production 급여월을 변경하지 않습니다.
+    </p>
+  </main>
+
+  <script src="../assets/payroll-ledger-xlsx.js"></script>
+  <script src="../assets/payroll-ledger-validator.js"></script>
+  <script src="../assets/payroll-attendance-xlsx.js"></script>
+  <script src="../assets/payroll-current-month-bootstrap.js"></script>
+  <script src="../assets/payroll-operator-live.js"></script>
+  <script src="../assets/payroll-attendance-editor.js"></script>
+  <script src="../assets/payroll-attendance-operator-ux.js"></script>
+</body>
+</html>

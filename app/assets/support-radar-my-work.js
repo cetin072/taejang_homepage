@@ -18,12 +18,19 @@
   function header(title,copy,actions=[]){const node=document.createElement('header');node.className='support-radar-header';const left=document.createElement('div');left.append(text('p','내 지원사업','eyebrow'),text('h2',title),text('p',copy));const right=document.createElement('div');right.className='support-radar-actions';actions.forEach(item=>right.append(item));node.append(left,right);return node;}
   function section(title,copy=''){const node=document.createElement('section');node.className='support-radar-section';node.append(text('h3',title));if(copy)node.append(text('p',copy,'support-radar-muted'));return node;}
 
+  function makeEntry(){const entry=button('내 지원사업',renderList);entry.dataset.supportMyWorkEntry='1';return entry;}
   function injectNav(){
     if(!canUse())return;
     const nav=el('app-nav');
-    if(!nav||nav.querySelector('[data-support-my-work-nav]'))return;
+    if(!nav)return;
+    const management=nav.querySelector('[data-support-radar-nav-group]');
+    if(management){
+      if(!management.querySelector('[data-support-my-work-entry]'))management.append(makeEntry());
+      return;
+    }
+    if(nav.querySelector('[data-support-my-work-nav]'))return;
     const group=document.createElement('section');group.className='support-radar-nav-group';group.dataset.supportMyWorkNav='1';
-    group.append(text('p','지원사업','support-radar-nav-label'),button('내 지원사업',renderList));
+    group.append(text('p','지원사업','support-radar-nav-label'),makeEntry());
     const official=nav.querySelector('[data-official-channel-group]');
     if(official)nav.insertBefore(group,official);else nav.append(group);
   }
@@ -103,5 +110,5 @@
   function setup(){if(!canUse())return;queueMicrotask(injectNav);}
   document.addEventListener('taejang-app-ready',setup);
   document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectNav));
-  window.TaejangSupportRadarMyWork={renderList,renderDetail};
+  window.TaejangSupportRadarMyWork={renderList,renderDetail,injectNav};
 })();

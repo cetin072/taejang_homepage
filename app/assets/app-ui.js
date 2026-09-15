@@ -136,6 +136,7 @@
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/capability-access.js', 'capability-access'],
+    ['assets/official-channel-config.js', 'official-channel-config'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
@@ -174,7 +175,9 @@
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
-    ['assets/ux-followup-polish.js', 'ux-followup-polish']
+    ['assets/ux-followup-polish.js', 'ux-followup-polish'],
+    ['assets/issue-207-promotion-information-ux.js', 'issue-207-promotion-information-ux'],
+    ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 
   let modulesReady = false;

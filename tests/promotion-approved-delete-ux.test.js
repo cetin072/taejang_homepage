@@ -41,7 +41,8 @@ test('promotion lead gets direct recoverable delete without duplicate sidebar or
   assert.match(fallback, /function issue181UnifiedLeadManagement\(\)/);
   assert.match(fallback, /if \(issue181UnifiedLeadManagement\(\)\) \{[\s\S]*nav\.hidden = true/);
   assert.match(fallback, /if \(!canArchive\(\) \|\| issue181UnifiedLeadManagement\(\)\) return/);
-  assert.match(nav, /'홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제'/);
+  assert.match(nav, /'새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리'/);
+  assert.doesNotMatch(nav.match(/promotion_lead: \[[\s\S]*?\],\n    operations_manager:/)?.[0] || '', /미발행 글 삭제|공개글 관리|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
   assert.match(workflow, /PROMOTION_UNPUBLISHED_ARCHIVE_REQUIRES_NO_PUBLIC_HISTORY/);
 });
 
@@ -54,21 +55,27 @@ test('promotion lead review labels communicate publish, schedule, and next-revie
   assert.match(live, /00:00\(한국시간\)/);
 });
 
-test('link source classification separates official channels from external material and preserves manual text', () => {
+test('link source classification uses the shared official-channel config and preserves manual text', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
+  const config = read('app/assets/official-channel-config.js');
   const workspace = read('app/assets/phase-c-workspace-v2.js');
 
   for (const value of ['taejang_homepage', 'taejang_blog', 'taejang_youtube', 'external']) {
     assert.match(live, new RegExp(value));
   }
-  assert.match(live, /blog\.naver\.com/);
-  assert.match(live, /taejang-official/);
-  assert.match(live, /taejangofficial/);
+  assert.match(live, /TaejangOfficialChannels\?\.classifyUrl/);
+  assert.match(config, /blog\.naver\.com/);
+  assert.match(config, /taejang-official/);
+  assert.match(config, /taejangofficial/);
   assert.match(live, /previousTitle/);
   assert.match(live, /previousBody/);
+  assert.match(live, /finalSourceType/);
+  assert.match(live, /refreshAutomaticSourceClassification/);
+  assert.match(live, /taejang-external-meta-observed/);
   assert.match(live, /외부 기사·자료는 원문 전체를 복사하지 않습니다/);
   assert.match(live, /set_promotion_link_source/);
   assert.match(live, /addEventListener\('click',[\s\S]*true\)/);
+  assert.match(config, /const payload = await response\.clone\(\)\.json\(\)/);
 
   const fetchCalls = (workspace.match(/fetchExternalMeta\(external\.value\.trim\(\)\)/g) || []).length;
   assert.equal(fetchCalls, 1, 'live workspace must issue a single metadata fetch per import click');
