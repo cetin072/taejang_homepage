@@ -28,17 +28,30 @@ test('general worker screen has a deterministic visual fallback instead of brows
   assert.match(polish, /employeeHome\.hidden = true/);
 });
 
-test('legacy duplicate promotion menus are suppressed without a DOM observer loop', () => {
-  assert.match(polish, /label === '수정·보완 요청' \|\| label === '홍보 작성'/);
+test('legacy duplicate promotion menus are cleaned without a DOM observer loop', () => {
+  assert.match(polish, /function removeLegacyRevisionMenus\(nav\)/);
+  assert.match(polish, /phaseCV2Nav === 'revision'/);
+  assert.match(polish, /label === '수정·보완 요청'/);
+  assert.match(polish, /node\.remove\(\)/);
+  assert.match(polish, /cleanLabel\(node\) === '홍보 작성'/);
   assert.match(polish, /node\.dataset\.navSuppressed = '1'/);
   assert.doesNotMatch(polish, /new MutationObserver/);
+});
+
+test('lead and operations revision navigation has a late-injection visibility guard', () => {
+  assert.match(polish, /data-effective-role=\"promotion_lead\"/);
+  assert.match(polish, /data-effective-role=\"operations_manager\"/);
+  assert.match(polish, /data-phase-c-v2-nav=\"revision\"/);
+  assert.match(polish, /display:none !important/);
+  assert.match(polish, /nav\.dataset\.effectiveRole = route\(\) \|\| ''/);
 });
 
 test('checking-only navigation is removed instead of shown as a checking section', () => {
   assert.match(polish, /function removeCheckingNavigation\(\)/);
   assert.match(polish, /featureStatus === 'checking'/);
   assert.match(polish, /label === '신규 사업 기획'/);
-  assert.match(polish, /currentRoute !== 'promotion_staff' && label === '수정·보완 요청'/);
+  assert.match(polish, /currentRoute !== 'promotion_staff'/);
+  assert.match(polish, /phaseCV2Nav === 'revision'/);
   assert.match(polish, /if \(markedChecking \|\| obsoleteRevision\) node\.remove\(\)/);
   assert.match(polish, /removeCheckingNavigation\(\);/);
 });

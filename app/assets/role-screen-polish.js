@@ -62,6 +62,25 @@
     document.head.append(style);
   }
 
+  function installNavigationGuardStyles() {
+    if (document.querySelector('style[data-role-nav-guard]')) return;
+    const style = document.createElement('style');
+    style.dataset.roleNavGuard = '1';
+    style.textContent = `
+      #app-nav[data-effective-role="promotion_lead"] [data-phase-c-v2-nav="revision"],
+      #app-nav[data-effective-role="operations_manager"] [data-phase-c-v2-nav="revision"] {
+        display:none !important;
+      }
+    `;
+    document.head.append(style);
+  }
+
+  function markEffectiveRole() {
+    const nav = document.getElementById('app-nav');
+    if (!nav) return;
+    nav.dataset.effectiveRole = route() || '';
+  }
+
   function recoverGeneralWorkerScreen() {
     if (route() !== 'general_worker') return;
     installWorkerFallbackStyles();
@@ -128,8 +147,16 @@
       const markedChecking = node.dataset?.featureStatus === 'checking'
         || /\s*·\s*점검중\s*$/.test(node.textContent || '')
         || label === '신규 사업 기획';
-      const obsoleteRevision = currentRoute !== 'promotion_staff' && label === '수정·보완 요청';
+      const obsoleteRevision = currentRoute !== 'promotion_staff'
+        && (node.dataset?.phaseCV2Nav === 'revision' || label === '수정·보완 요청');
       if (markedChecking || obsoleteRevision) node.remove();
+    });
+  }
+
+  function removeLegacyRevisionMenus(nav) {
+    directItems(nav).forEach(node => {
+      const label = cleanLabel(node);
+      if (node.dataset?.phaseCV2Nav === 'revision' || label === '수정·보완 요청') node.remove();
     });
   }
 
@@ -138,9 +165,9 @@
     const nav = document.getElementById('app-nav');
     if (!nav) return;
 
+    removeLegacyRevisionMenus(nav);
     directItems(nav).forEach(node => {
-      const label = cleanLabel(node);
-      if (label === '수정·보완 요청' || label === '홍보 작성') suppress(node);
+      if (cleanLabel(node) === '홍보 작성') suppress(node);
     });
 
     const accountRecovery = find(nav, '복구·계정 관리', { visibleOnly: true });
@@ -159,13 +186,13 @@
     if (route() !== 'promotion_lead') return;
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    directItems(nav).forEach(node => {
-      if (cleanLabel(node) === '수정·보완 요청') suppress(node);
-    });
+    removeLegacyRevisionMenus(nav);
     moveAfter(nav, find(nav, '홍보글 보관', { visibleOnly: true }), find(nav, '기존 글 관리', { visibleOnly: true }));
   }
 
   function apply() {
+    installNavigationGuardStyles();
+    markEffectiveRole();
     recoverGeneralWorkerScreen();
     fixTopbarIdentity();
     removeCheckingNavigation();
@@ -184,6 +211,8 @@
 
   document.addEventListener('taejang-app-ready', () => {
     setTimeout(() => {
+      installNavigationGuardStyles();
+      markEffectiveRole();
       recoverGeneralWorkerScreen();
       fixTopbarIdentity();
     }, 0);
