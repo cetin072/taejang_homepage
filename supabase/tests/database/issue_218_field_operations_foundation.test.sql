@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(27);
 
 select has_table('public', 'work_group_employee_memberships', 'Employee-based work-group membership exists');
 select has_table('public', 'field_work_templates', 'field recurring template table exists');
