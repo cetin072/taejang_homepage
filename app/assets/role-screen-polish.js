@@ -117,6 +117,22 @@
     nav.insertBefore(node, reference);
   }
 
+  function removeCheckingNavigation() {
+    const currentRoute = route();
+    if (!currentRoute || currentRoute === 'general_worker') return;
+    const nav = document.getElementById('app-nav');
+    if (!nav) return;
+
+    directItems(nav).forEach(node => {
+      const label = cleanLabel(node);
+      const markedChecking = node.dataset?.featureStatus === 'checking'
+        || /\s*·\s*점검중\s*$/.test(node.textContent || '')
+        || label === '신규 사업 기획';
+      const obsoleteRevision = currentRoute !== 'promotion_staff' && label === '수정·보완 요청';
+      if (markedChecking || obsoleteRevision) node.remove();
+    });
+  }
+
   function tidyOperationsNavigation() {
     if (route() !== 'operations_manager') return;
     const nav = document.getElementById('app-nav');
@@ -152,6 +168,7 @@
   function apply() {
     recoverGeneralWorkerScreen();
     fixTopbarIdentity();
+    removeCheckingNavigation();
     tidyLeadNavigation();
     tidyOperationsNavigation();
   }
@@ -176,5 +193,5 @@
   document.addEventListener('taejang-capabilities-ready', () => scheduleNavigationPass(0));
   document.addEventListener('taejang-navigation-changed', () => scheduleNavigationPass(0));
 
-  window.TaejangRoleScreenPolish = { apply, recoverGeneralWorkerScreen, tidyOperationsNavigation, tidyLeadNavigation };
+  window.TaejangRoleScreenPolish = { apply, recoverGeneralWorkerScreen, removeCheckingNavigation, tidyOperationsNavigation, tidyLeadNavigation };
 })();
