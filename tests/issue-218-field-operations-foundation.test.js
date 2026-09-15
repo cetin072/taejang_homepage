@@ -28,8 +28,12 @@ assert.match(migration, /create table public\.work_group_employee_memberships/i,
   'field work-group membership must use an Employee-based bridge');
 assert.match(migration, /employee_uuid uuid not null references public\.employees\(id\)/i,
   'field worker identity must reference authoritative employees');
-assert.match(migration, /join public\.account_person_links[\s\S]+legacy_profile_backfill/i,
-  'linked legacy profile memberships must be bridged without guessing identities');
+assert.match(migration, /join public\.account_person_links/i,
+  'legacy profile membership backfill must require a confirmed account-to-person link');
+assert.match(migration, /link_row\.revoked_at is null/i,
+  'legacy profile membership backfill must use only an active account-person link');
+assert.match(migration, /legacy_profile_backfill/i,
+  'legacy profile membership backfill must be explicitly marked instead of guessed');
 
 assert.match(migration, /create table public\.field_work_templates/i,
   'recurring field templates must have a dedicated operational table');
