@@ -177,6 +177,7 @@
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
     ['assets/ux-followup-polish.js', 'ux-followup-polish'],
     ['assets/issue-207-promotion-information-ux.js', 'issue-207-promotion-information-ux'],
+    ['assets/role-screen-polish.js', 'role-screen-polish'],
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 
