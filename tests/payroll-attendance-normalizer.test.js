@@ -86,40 +86,63 @@ test('duplicate active names fail closed instead of picking the first person', (
   assert.equal(result.rows[0].autoDecision, '확인필요');
 });
 
-test('an explicit source employee number never falls back to a same-name employee when the number is unknown', () => {
+test('a vendor employee number is preserved as source data and cannot override a unique active exact-name match', () => {
   const result = normalizer.normalizeAttendanceRows({
     rawRows: [raw({ sourceEmployeeNumber: 'DOES-NOT-EXIST' })],
     employees: [employee()],
     terms: [term()],
   });
 
-  assert.equal(result.criticalIssueCount, 1);
-  assert.equal(result.rows[0].employeeId, null);
-  assert.equal(result.rows[0].matchStatus, '사번미매칭');
+  assert.equal(result.criticalIssueCount, 0);
+  assert.equal(result.rows[0].employeeId, E1);
+  assert.equal(result.rows[0].matchStatus, '매칭');
+  assert.equal(result.rows[0].matchMethod, 'unique_active_name');
+  assert.equal(result.rows[0].sourceEmployeeNumber, 'DOES-NOT-EXIST');
 });
 
-test('attendance outside employment lifecycle is not silently paid', () => {
+test('a vendor number equal to a platform employee_id cannot bypass missing or ambiguous name matching', () => {
+  const missingName = normalizer.normalizeAttendanceRows({
+    rawRows: [raw({ sourceEmployeeNumber: E1, sourceName: '' })],
+    employees: [employee()],
+    terms: [term()],
+  });
+  const duplicateName = normalizer.normalizeAttendanceRows({
+    rawRows: [raw({ sourceEmployeeNumber: E1 })],
+    employees: [employee(), employee({ employeeId: E2 })],
+    terms: [term(), term({ employeeId: E2 })],
+  });
+
+  assert.equal(missingName.rows[0].employeeId, null);
+  assert.equal(missingName.rows[0].matchStatus, '미매칭');
+  assert.equal(duplicateName.rows[0].employeeId, null);
+  assert.equal(duplicateName.rows[0].matchStatus, '중복이름');
+});
+
+test('attendance outside employment lifecycle is fail-closed for operator review', () => {
   const result = normalizer.normalizeAttendanceRows({
     rawRows: [raw({ date: '2026-08-28' })],
     employees: [employee({ terminatedAt: '2026-08-27' })],
     terms: [term({ effectiveTo: '2026-08-27' })],
   });
 
-  assert.equal(result.rows[0].scheduledHours, 0);
-  assert.equal(result.rows[0].recordStatus, '재직기간충돌');
+  assert.equal(result.rows[0].employeeId, null);
+  assert.equal(result.rows[0].scheduledHours, null);
+  assert.equal(result.rows[0].matchStatus, '미매칭');
+  assert.equal(result.rows[0].recordStatus, '출퇴근완전');
   assert.equal(result.rows[0].autoDecision, '확인필요');
-  assert.equal(result.rows[0].exceptionType, '재직기간충돌');
+  assert.equal(result.rows[0].exceptionType, '미매칭');
 });
 
-test('termination marker outside lifecycle remains a termination marker rather than a lifecycle collision', () => {
+test('termination marker outside lifecycle is not automatically linked to a departed platform employee', () => {
   const result = normalizer.normalizeAttendanceRows({
     rawRows: [raw({ date: '2026-08-28', clockInRaw: '퇴사', clockOutRaw: '', sourceStatus: '퇴사' })],
     employees: [employee({ terminatedAt: '2026-08-27' })],
     terms: [term({ effectiveTo: '2026-08-27' })],
   });
 
-  assert.equal(result.rows[0].recordStatus, '퇴사표시');
-  assert.equal(result.rows[0].autoDecision, '원본_퇴사표시');
+  assert.equal(result.rows[0].employeeId, null);
+  assert.equal(result.rows[0].matchStatus, '미매칭');
+  assert.equal(result.rows[0].autoDecision, '확인필요');
 });
 
 test('missing effective-dated term is visible and cannot become a complete record', () => {

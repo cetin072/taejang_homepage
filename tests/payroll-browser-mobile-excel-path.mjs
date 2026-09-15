@@ -148,10 +148,11 @@ const xlsxBase64 = zipStore([
     <c r="A1" t="inlineStr"><is><t>사번</t></is></c><c r="B1" t="inlineStr"><is><t>성명</t></is></c><c r="C1" t="inlineStr"><is><t>일자</t></is></c><c r="D1" t="inlineStr"><is><t>출근</t></is></c><c r="E1" t="inlineStr"><is><t>퇴근</t></is></c>
   </row>
   <row r="2">
-    <c r="A2" t="inlineStr"><is><t>E2E-XLSX-001</t></is></c><c r="B2" t="inlineStr"><is><t>엑셀테스트직원</t></is></c><c r="C2" t="inlineStr"><is><t>2026-09-13</t></is></c><c r="D2" t="inlineStr"><is><t>08:30</t></is></c><c r="E2" t="inlineStr"><is><t>12:30</t></is></c>
+    <c r="A2" t="inlineStr"><is><t>VENDOR-REF-987</t></is></c><c r="B2" t="inlineStr"><is><t>엑셀테스트직원</t></is></c><c r="C2" t="inlineStr"><is><t>2026-09-13</t></is></c><c r="D2" t="inlineStr"><is><t>08:30</t></is></c><c r="E2" t="inlineStr"><is><t>12:30</t></is></c>
   </row>
 </sheetData></worksheet>`],
 ]).toString('base64');
+const legacyXlsHtml = `<!doctype html><html><body><table id="근태이력"><tr><th>사번</th><th>성명</th><th>일자</th><th>출근</th><th>퇴근</th></tr><tr><td>VENDOR-REF-987</td><td>엑셀테스트직원</td><td>2026-09-13</td><td>09:00</td><td>13:00</td></tr></table></body></html>`;
 
 function editorContext() {
   return {
@@ -197,6 +198,7 @@ const automationScript = `<script>
 (() => {
   const targetDate = ${JSON.stringify(TARGET_DATE)};
   const xlsxBase64 = ${JSON.stringify(xlsxBase64)};
+  const legacyXlsHtml = ${JSON.stringify(legacyXlsHtml)};
   const stageKey = 'payroll-mobile-excel-stage';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const waitFor = async (predicate, label, timeout = 8000) => {
@@ -220,6 +222,7 @@ const automationScript = `<script>
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     return new File([bytes], '보안업체_출근부_E2E.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   };
+  const legacyXlsFile = () => new File([legacyXlsHtml], '근태이력_20260914162704.xls', { type: 'application/vnd.ms-excel' });
   const assertMobileLayout = () => {
     if (window.innerWidth > 420) throw new Error('MOBILE_VIEWPORT_NOT_APPLIED:' + window.innerWidth);
     if (document.documentElement.scrollWidth > window.innerWidth + 2) throw new Error('PAGE_HORIZONTAL_OVERFLOW');
@@ -289,16 +292,32 @@ const automationScript = `<script>
       const hours = row.querySelector('[data-field="confirmedHours"]');
       const status = row.querySelector('[data-field="status"]');
       const source = row.querySelector('.payroll-source-badge');
-      if (clockIn.value !== '08:30') throw new Error('XLSX_CLOCK_IN_NOT_PERSISTED');
-      if (clockOut.value !== '13:00') throw new Error('XLSX_POST_EDIT_CLOCK_OUT_NOT_PERSISTED');
-      if (Number(hours.value) !== 4.5) throw new Error('XLSX_POST_EDIT_HOURS_NOT_PERSISTED');
-      if (status.value !== 'work') throw new Error('XLSX_STATUS_NOT_PERSISTED');
-      if ((source?.textContent || '').trim() !== '수정') throw new Error('XLSX_POST_EDIT_SOURCE_NOT_PERSISTED');
-      if (!(document.getElementById('payroll-attendance-editor-summary')?.textContent || '').includes('변경 0건')) throw new Error('XLSX_DIRTY_STATE_NOT_CLEARED');
-      await waitFor(() => document.querySelectorAll('#payroll-live-table-body tr').length === 1, 'ledger after xlsx reload');
+      if (stage === 'reload') {
+        if (clockIn.value !== '08:30') throw new Error('XLSX_CLOCK_IN_NOT_PERSISTED');
+        if (clockOut.value !== '13:00') throw new Error('XLSX_POST_EDIT_CLOCK_OUT_NOT_PERSISTED');
+        if (Number(hours.value) !== 4.5) throw new Error('XLSX_POST_EDIT_HOURS_NOT_PERSISTED');
+        if (status.value !== 'work') throw new Error('XLSX_STATUS_NOT_PERSISTED');
+        if ((source?.textContent || '').trim() !== '수정') throw new Error('XLSX_POST_EDIT_SOURCE_NOT_PERSISTED');
+        if (!(document.getElementById('payroll-attendance-editor-summary')?.textContent || '').includes('변경 0건')) throw new Error('XLSX_DIRTY_STATE_NOT_CLEARED');
+        await waitFor(() => document.querySelectorAll('#payroll-live-table-body tr').length === 1, 'ledger after xlsx reload');
+        const input = document.getElementById('payroll-attendance-file');
+        const transfer = new DataTransfer();
+        transfer.items.add(legacyXlsFile());
+        input.files = transfer.files;
+        change(input);
+        await waitFor(() => (document.getElementById('payroll-attendance-editor-message')?.textContent || '').includes('Excel 1건 채움'), 'xls prefill');
+        if (clockIn.value !== '09:00' || clockOut.value !== '13:00' || status.value !== 'work') throw new Error('XLS_PREFILL_VALUES_INCORRECT');
+        document.getElementById('payroll-attendance-save').click();
+        await waitFor(() => (document.getElementById('payroll-attendance-editor-message')?.textContent || '').includes('저장 완료'), 'xls save');
+        sessionStorage.setItem(stageKey, 'legacy-reload');
+        location.reload();
+        return;
+      }
+
+      if (clockIn.value !== '09:00' || clockOut.value !== '13:00' || status.value !== 'work') throw new Error('XLS_CLOCK_VALUES_NOT_PERSISTED');
 
       sessionStorage.removeItem(stageKey);
-      mark('pass', 'mobile-390-xlsx-prefill-edit-save-reload');
+      mark('pass', 'mobile-390-xlsx-prefill-edit-save-reload-xls-prefill-save-reload');
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }

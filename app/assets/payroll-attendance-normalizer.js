@@ -49,51 +49,28 @@
     return true;
   }
 
-  function employeeNumber(employee) {
-    return clean(employee && (
-      employee.sourceEmployeeNumber
-      || employee.legacyEmployeeNumber
-      || employee.employeeNumber
-      || employee.existingEmployeeNumber
-    ));
-  }
-
   function employeeName(employee) {
     return clean(employee && (employee.name || employee.displayName || employee.sourceName));
   }
 
   function matchEmployee(rawRow, employees) {
     const date = isoDate(rawRow && rawRow.date);
-    const sourceNumber = clean(rawRow && rawRow.sourceEmployeeNumber);
     const sourceName = clean(rawRow && rawRow.sourceName);
     const employeeRows = employees || [];
 
-    if (sourceNumber) {
-      const byNumber = employeeRows.filter((employee) => employeeNumber(employee) === sourceNumber);
-      if (byNumber.length === 1) {
-        return { status: '매칭', employee: byNumber[0], method: 'employee_number' };
-      }
-      return {
-        status: byNumber.length === 0 ? '사번미매칭' : '사번중복',
-        employee: null,
-        method: 'employee_number',
-      };
-    }
-
     if (!sourceName) return { status: '미매칭', employee: null, method: 'name' };
-    const byName = employeeRows.filter((employee) => employeeName(employee) === sourceName);
-    if (byName.length === 1) {
-      return { status: '매칭', employee: byName[0], method: 'unique_name' };
-    }
-    if (byName.length === 0) {
-      return { status: '미매칭', employee: null, method: 'name' };
-    }
-
-    const active = date ? byName.filter((employee) => isActiveOn(employee, date)) : [];
+    // The security-vendor number is a raw source reference, not an
+    // authoritative platform identity. Match only exact names among employees
+    // whose employment range is valid on the attendance date, and fail closed
+    // for zero or multiple candidates.
+    const active = date
+      ? employeeRows.filter((employee) => employeeName(employee) === sourceName && isActiveOn(employee, date))
+      : [];
     if (active.length === 1) {
       return { status: '매칭', employee: active[0], method: 'unique_active_name' };
     }
-    return { status: '중복이름', employee: null, method: 'name' };
+    if (active.length > 1) return { status: '중복이름', employee: null, method: 'name' };
+    return { status: '미매칭', employee: null, method: 'name' };
   }
 
   function termForDate(employeeId, dateValue, terms) {
@@ -242,6 +219,7 @@
         rows.push({
           sourceKey: clean(rawRow && rawRow.sourceKey) || null,
           employeeId: null,
+          sourceEmployeeNumber: clean(rawRow && rawRow.sourceEmployeeNumber) || null,
           date: null,
           matchStatus: '미매칭',
           recordStatus: '기록없음',
@@ -292,6 +270,7 @@
       rows.push({
         sourceKey: clean(rawRow && rawRow.sourceKey) || null,
         employeeId: match.employee && match.employee.employeeId || null,
+        sourceEmployeeNumber: clean(rawRow && rawRow.sourceEmployeeNumber) || null,
         sourceName: clean(rawRow && rawRow.sourceName) || null,
         date,
         scheduledHours: schedule.status === 'matched' ? schedule.hours : schedule.status === 'non_target' ? 0 : null,
