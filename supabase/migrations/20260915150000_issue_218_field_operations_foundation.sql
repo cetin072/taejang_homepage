@@ -476,7 +476,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $$;
+as $$
 begin
   if not public.current_profile_is_active()
      or not public.private_actor_can('field.template.manage') then
