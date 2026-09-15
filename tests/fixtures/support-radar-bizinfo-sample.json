@@ -1,0 +1,43 @@
+{
+  "jsonArray": {
+    "title": "기업마당 지원사업정보",
+    "category": "bizinfo",
+    "ttl": "60",
+    "item": [
+      {
+        "pblancId": "PBLN_TEST_0001",
+        "pblancNm": "2026년 경남 작업환경 개선 지원사업 예시",
+        "pblancUrl": "https://www.bizinfo.go.kr/example/view.do?pblancId=PBLN_TEST_0001",
+        "jrsdInsttNm": "테스트 중앙기관",
+        "excInsttNm": "테스트 수행기관",
+        "bsnsSumryCn": "<div>고용기업의 작업환경 개선을 지원하는 테스트 공고입니다.</div>",
+        "reqstMthPapersCn": "온라인 신청 후 구비서류 제출",
+        "refrncNm": "테스트 문의처",
+        "rceptEngnHmpgUrl": "https://example.go.kr/apply/PBLN_TEST_0001",
+        "pldirSportRealmLclasCodeNm": "인력",
+        "creatPnttm": "2026-09-01 09:00:00",
+        "reqstBeginEndDe": "20260901 ~ 20260930",
+        "trgetNm": "고용 중소기업",
+        "hashTags": "2026,인력,경남",
+        "flpthNm": "https://www.bizinfo.go.kr/files/PBLN_TEST_0001-1.pdf",
+        "fileNm": "공고문.pdf",
+        "printFlpthNm": "https://www.bizinfo.go.kr/files/PBLN_TEST_0001-2.pdf",
+        "printFileNm": "신청서.pdf",
+        "totCnt": "2"
+      },
+      {
+        "seq": "PBLN_TEST_0002",
+        "title": "2026년 디지털 전환 컨설팅 지원 예시",
+        "link": "https://www.bizinfo.go.kr/example/view.do?pblancId=PBLN_TEST_0002",
+        "author": "테스트 지원기관",
+        "description": "<p>중소기업의 디지털 전환을 지원합니다.</p>",
+        "lcategory": "기술",
+        "pubDate": "2026-09-02 10:30:00",
+        "reqstDt": "2026-09-02 ~ 2026-10-15",
+        "trgetNm": "중소기업",
+        "hashTags": "기술,경남,디지털",
+        "totCnt": "2"
+      }
+    ]
+  }
+}
