@@ -34,6 +34,15 @@ test('legacy duplicate promotion menus are suppressed without a DOM observer loo
   assert.doesNotMatch(polish, /new MutationObserver/);
 });
 
+test('checking-only navigation is removed instead of shown as a checking section', () => {
+  assert.match(polish, /function removeCheckingNavigation\(\)/);
+  assert.match(polish, /featureStatus === 'checking'/);
+  assert.match(polish, /label === '신규 사업 기획'/);
+  assert.match(polish, /currentRoute !== 'promotion_staff' && label === '수정·보완 요청'/);
+  assert.match(polish, /if \(markedChecking \|\| obsoleteRevision\) node\.remove\(\)/);
+  assert.match(polish, /removeCheckingNavigation\(\);/);
+});
+
 test('operations add-on menus belong to their business categories before support work', () => {
   const operations = nav.slice(nav.indexOf('operations_manager:'), nav.indexOf('department_lead:'));
   assert.match(operations, /'가입 승인', '복구·계정 관리'/);
