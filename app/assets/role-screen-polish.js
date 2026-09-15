@@ -117,12 +117,6 @@
     nav.insertBefore(node, reference);
   }
 
-  function setSection(node, label) {
-    if (!node || node.hidden) return;
-    node.classList.add('app-nav-section-start');
-    node.dataset.sectionLabel = label;
-  }
-
   function tidyOperationsNavigation() {
     if (route() !== 'operations_manager') return;
     const nav = document.getElementById('app-nav');
@@ -134,23 +128,15 @@
     });
 
     const accountRecovery = find(nav, '복구·계정 관리', { visibleOnly: true });
-    const signupApproval = find(nav, '가입 승인', { visibleOnly: true });
-    moveAfter(nav, accountRecovery, signupApproval);
+    moveAfter(nav, accountRecovery, find(nav, '가입 승인', { visibleOnly: true }));
 
     const promotionArchive = find(nav, ['홍보글 보관·복구', '홍보글 관리·복구'], { visibleOnly: true });
-    const existingContent = find(nav, '기존 글 관리', { visibleOnly: true });
-    moveAfter(nav, promotionArchive, existingContent);
+    moveAfter(nav, promotionArchive, find(nav, '기존 글 관리', { visibleOnly: true }));
 
     const attendanceCorrection = find(nav, '근태 보정', { visibleOnly: true });
     const attendance = find(nav, '출근부', { visibleOnly: true });
     moveAfter(nav, attendanceCorrection, attendance);
-
-    const support = supportGroup(nav);
-    moveAfter(nav, support, attendanceCorrection || attendance);
-
-    if (accountRecovery) setSection(find(nav, '직원 관리', { visibleOnly: true }), '직원·계정');
-    if (promotionArchive) setSection(find(nav, '홍보 검토', { visibleOnly: true }), '홍보');
-    if (attendanceCorrection) setSection(find(nav, '근태·급여관리', { visibleOnly: true }), '근태·급여');
+    moveAfter(nav, supportGroup(nav), attendanceCorrection || attendance);
   }
 
   function tidyLeadNavigation() {
@@ -160,6 +146,7 @@
     directItems(nav).forEach(node => {
       if (cleanLabel(node) === '수정·보완 요청') suppress(node);
     });
+    moveAfter(nav, find(nav, '홍보글 보관', { visibleOnly: true }), find(nav, '기존 글 관리', { visibleOnly: true }));
   }
 
   function apply() {
@@ -173,8 +160,8 @@
     if (navTimer) clearTimeout(navTimer);
     navTimer = setTimeout(() => {
       navTimer = null;
-      apply();
       window.TaejangRoleNavigationPriority?.reorder?.();
+      apply();
     }, delay);
   }
 
