@@ -13,6 +13,7 @@
     if (!target) return;
     window.TaejangIssue207Ux?.ensureNavigation?.();
     window.TaejangRoleNavigationPriority?.reorder?.();
+    window.TaejangRoleScreenPolish?.apply?.();
     requestAnimationFrame(() => {
       const current = nav();
       if (!current) return;
@@ -38,6 +39,7 @@
     setTimeout(() => {
       window.TaejangIssue207Ux?.ensureNavigation?.();
       window.TaejangRoleNavigationPriority?.reorder?.();
+      window.TaejangRoleScreenPolish?.apply?.();
     }, 0);
   }
 

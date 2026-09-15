@@ -207,14 +207,15 @@ test('employee management has separate existing and new registration navigation 
   assert.match(source, /\.employee-view-tabs \{ display:none !important; \}/);
 });
 
-test('operations sidebar keeps signup approval inside employee/account work', () => {
+test('operations sidebar keeps signup approval and recovery inside employee/account work', () => {
   const order = roleNavigation.match(/operations_manager: \[([\s\S]*?)\n    \],/)?.[1] || '';
   assert.ok(order.indexOf("'직원 관리'") >= 0);
   assert.ok(order.indexOf("'신규 직원 등록'") >= 0);
   assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'신규 직원 등록'"));
-  assert.ok(order.indexOf("'가입 승인'") < order.indexOf("'홍보 검토'"));
+  assert.ok(order.indexOf("'복구·계정 관리'") > order.indexOf("'가입 승인'"));
+  assert.ok(order.indexOf("'복구·계정 관리'") < order.indexOf("'홍보 검토'"));
   assert.equal(order.includes("'작업 매뉴얼'"), false);
-  assert.match(roleNavigation, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인'\]/);
+  assert.match(roleNavigation, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'\]/);
 });
 
 test('manager shell shows one logout header while general worker keeps the legacy header', () => {

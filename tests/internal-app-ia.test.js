@@ -89,12 +89,12 @@ test('promotion staff and lead sidebars use the Issue 207 work order and notice-
 
 test('operations sidebar is grouped by final work categories without legacy guidance mixing', () => {
   const operationsSections = nav.match(/operations_manager: \[[\s\S]*?\],\n    department_lead:/g)?.[1] || '';
-  assert.match(operationsSections, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인'\]/);
-  assert.match(operationsSections, /label: '홍보', items: \['홍보 검토', '홍보 글 작성', '기존 글 관리'\]/);
+  assert.match(operationsSections, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'\]/);
+  assert.match(operationsSections, /label: '홍보', items: \['홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구'\]/);
   assert.match(operationsSections, /label: '홈페이지', items: \['홈페이지 내용 관리', '홈페이지 직접 수정'\]/);
   assert.match(operationsSections, /label: '업무 운영', items: \['업무 배정', '일정 관리'\]/);
   assert.match(operationsSections, /label: '공지', items: \['공지 관리'\]/);
-  assert.match(operationsSections, /label: '근태·급여', items: \['근태·급여관리', '출근부'\]/);
+  assert.match(operationsSections, /label: '근태·급여', items: \['근태·급여관리', '출근부'\]\.concat\(\['근태 보정'\]\)/);
   assert.doesNotMatch(operationsSections, /상시 안내 관리|승인·관리|홍보·홈페이지|직원·팀 관리/);
   assert.doesNotMatch(nav, /작업 매뉴얼/);
   assert.match(nav, /navSection === 'official_channels'\) return 9000/);

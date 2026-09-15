@@ -80,7 +80,7 @@ test('issue 216 final sidebar contract removes jitter and keeps support after at
   assert.match(navigation, /navButton\('공지 관리'/);
   assert.match(navigation, /supportGroupPriority/);
   assert.match(navigation, /role === 'promotion_lead'\) return 105/);
-  assert.match(navigation, /role === 'operations_manager'\) return 145/);
+  assert.match(navigation, /role === 'operations_manager'\) return 165/);
   assert.match(navigation, /'출근부',[\s\S]*'홈페이지'/);
   assert.doesNotMatch(navigation, /\[0, 120, 360, 850\]\.forEach/);
   assert.doesNotMatch(navigation, /new MutationObserver/);
