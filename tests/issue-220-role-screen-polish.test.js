@@ -1,0 +1,48 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.join(__dirname, '..');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+
+const appUi = read('app/assets/app-ui.js');
+const polish = read('app/assets/role-screen-polish.js');
+const nav = read('app/assets/role-navigation-priority.js');
+const stability = read('app/assets/navigation-visual-stability.js');
+
+test('role screen polish loads before the final navigation reveal', () => {
+  const polishIndex = appUi.indexOf("['assets/role-screen-polish.js', 'role-screen-polish']");
+  const stabilityIndex = appUi.indexOf("['assets/navigation-visual-stability.js', 'navigation-visual-stability']");
+  assert.ok(polishIndex >= 0, 'role screen polish module is loaded');
+  assert.ok(stabilityIndex > polishIndex, 'role screen polish loads before visual stability finalization');
+  assert.match(stability, /TaejangRoleScreenPolish\?\.apply\?\.\(\)/);
+});
+
+test('general worker screen has a deterministic visual fallback instead of browser defaults', () => {
+  assert.match(polish, /general-worker-mode/);
+  assert.match(polish, /worker-mobile-home/);
+  assert.match(polish, /worker-card/);
+  assert.match(polish, /employee-role-switch-grid/);
+  assert.match(polish, /classList\.add\('general-worker-mode'\)/);
+  assert.match(polish, /employeeHome\.hidden = true/);
+});
+
+test('legacy duplicate promotion menus are suppressed without a DOM observer loop', () => {
+  assert.match(polish, /label === '수정·보완 요청' \|\| label === '홍보 작성'/);
+  assert.match(polish, /node\.dataset\.navSuppressed = '1'/);
+  assert.doesNotMatch(polish, /new MutationObserver/);
+});
+
+test('operations add-on menus belong to their business categories before support work', () => {
+  const operations = nav.slice(nav.indexOf('operations_manager:'), nav.indexOf('department_lead:'));
+  assert.match(operations, /'가입 승인', '복구·계정 관리'/);
+  assert.match(operations, /'홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 보관·복구', '홍보글 관리·복구'/);
+  assert.match(operations, /'근태·급여관리', '출근부', '근태 보정'/);
+  assert.match(nav, /operations_manager'\) return 175/);
+});
+
+test('undefined role labels are repaired from the effective route', () => {
+  assert.match(polish, /\/undefined\|null\//);
+  assert.match(polish, /label\.textContent = `\$\{displayName\} · \$\{roleLabel\}`/);
+});
