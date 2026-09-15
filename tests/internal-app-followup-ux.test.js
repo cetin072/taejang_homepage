@@ -17,6 +17,7 @@ const officialChannelConfig = read('app/assets/official-channel-config.js');
 const shellCss = read('app/assets/dashboard-shell.css');
 const roleSimulation = read('app/assets/phase-c-role-simulation.js');
 const roleNavigation = read('app/assets/role-navigation-priority.js');
+const navigationStability = read('app/assets/navigation-visual-stability.js');
 const accountApproval = read('app/assets/phase-c-account-approval.js');
 
 function syntaxCheck(file) {
@@ -102,6 +103,7 @@ test('app feature modules load deterministically before the first app-ready even
   assert.ok(appUi.indexOf("assets/phase-c-account-approval.js") < appUi.indexOf("assets/employee-management.js"));
   assert.ok(appUi.indexOf("assets/employee-management.js") < appUi.indexOf("assets/role-navigation-priority.js"));
   assert.ok(appUi.indexOf("assets/role-navigation-priority.js") < appUi.indexOf("assets/ux-followup-polish.js"));
+  assert.ok(appUi.indexOf("assets/issue-207-promotion-information-ux.js") < appUi.indexOf("assets/navigation-visual-stability.js"));
 });
 
 test('an early app-ready event is held until all dynamically loaded feature modules register', async () => {
@@ -174,11 +176,16 @@ test('mobile follow-up polish cannot continuously observe or reorder the navigat
   assert.match(source, /setTimeout\(apply, 0\)/);
 });
 
-test('role navigation observes only direct menu additions and guards re-entrant sorting', () => {
+test('role navigation is event-driven and avoids mutation-observer reorder loops', () => {
   assert.match(roleNavigation, /let reordering = false/);
-  assert.match(roleNavigation, /if \(reordering\) return/);
-  assert.match(roleNavigation, /new MutationObserver\(schedule\)\.observe\(nav, \{ childList: true \}\)/);
-  assert.doesNotMatch(roleNavigation, /observe\(nav, \{ childList: true, subtree: true \}\)/);
+  assert.match(roleNavigation, /if \(scheduled \|\| reordering\) return/);
+  assert.doesNotMatch(roleNavigation, /new MutationObserver/);
+  assert.doesNotMatch(roleNavigation, /\[0, 120, 360, 850\]\.forEach/);
+  assert.match(roleNavigation, /taejang-navigation-changed/);
+  assert.match(roleNavigation, /navigationSettled = '1'/);
+  assert.match(navigationStability, /INITIAL_SETTLE_MS = 190/);
+  assert.match(navigationStability, /style\.visibility = 'hidden'/);
+  assert.match(navigationStability, /taejang-navigation-stable/);
 });
 
 test('account approval does not poll the whole app DOM after login or menu clicks', () => {
@@ -200,13 +207,14 @@ test('employee management has separate existing and new registration navigation 
   assert.match(source, /\.employee-view-tabs \{ display:none !important; \}/);
 });
 
-test('operations sidebar keeps signup approval below routine work', () => {
+test('operations sidebar keeps signup approval inside employee/account work', () => {
   const order = roleNavigation.match(/operations_manager: \[([\s\S]*?)\n    \],/)?.[1] || '';
   assert.ok(order.indexOf("'직원 관리'") >= 0);
-  assert.ok(order.indexOf("'출근부'") >= 0);
-  assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'출근부'"));
+  assert.ok(order.indexOf("'신규 직원 등록'") >= 0);
+  assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'신규 직원 등록'"));
+  assert.ok(order.indexOf("'가입 승인'") < order.indexOf("'홍보 검토'"));
   assert.equal(order.includes("'작업 매뉴얼'"), false);
-  assert.match(roleNavigation, /label: '승인·관리', items: \['가입 승인'\]/);
+  assert.match(roleNavigation, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인'\]/);
 });
 
 test('manager shell shows one logout header while general worker keeps the legacy header', () => {
