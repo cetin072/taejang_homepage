@@ -15,6 +15,7 @@ const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navPriority = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const dashboardPriority = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
 const officialChannels = fs.readFileSync(path.join(root, 'app/assets/official-channel-links.js'), 'utf8');
+const officialChannelConfig = fs.readFileSync(path.join(root, 'app/assets/official-channel-config.js'), 'utf8');
 const accountApproval = fs.readFileSync(path.join(root, 'app/assets/phase-c-account-approval.js'), 'utf8');
 const signupRejection = fs.readFileSync(path.join(root, 'supabase/migrations/20260904121000_signup_rejection_soft_delete.sql'), 'utf8');
 const attendanceAdmin = fs.readFileSync(path.join(root, 'app/assets/attendance-admin.js'), 'utf8');
@@ -82,6 +83,7 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
     TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
+    TaejangOfficialChannels: { list: [] },
     TaejangEmployeeManagement: { openEmployeeManagement: view => employeeViews.push(view || 'existing') },
     TaejangAccountApproval: { openAccountApproval: () => { approvalOpens += 1; } },
     TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
@@ -141,9 +143,10 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
 
 test('base role menus remain clickable before final priority sorting', async () => {
   const promotion = await makeDashboard('promotion_staff');
-  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '공식 채널']);
+  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '보완 요청받은 글', '공식 채널']);
   findMenu(promotion.nav, '홍보 작성').click();
-  assert.deepEqual(promotion.promotionModes, ['write']);
+  findMenu(promotion.nav, '보완 요청받은 글').click();
+  assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
 
   const operations = await makeDashboard('operations_manager');
   assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '공식 채널']);
@@ -173,27 +176,43 @@ test('operations mobile menu actions close the sidebar and dispatch one destinat
   assert.equal(operations.getApprovalOpens(), 1);
 });
 
-test('central navigation groups menus by work category without unfinished manager manuals', () => {
+test('central navigation groups menus by final work category contracts', () => {
   const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '홍보 글 관리', '홍보 글 작성', '홈페이지 내용 관리', '홈페이지 직접 수정', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '출근부', '가입 승인', '홈페이지']);
+  assertOrdered(operationsBlock, [
+    '대시보드',
+    '직원 관리', '신규 직원 등록', '가입 승인',
+    '홍보 검토', '홍보 글 작성', '기존 글 관리',
+    '홈페이지 내용 관리', '홈페이지 직접 수정',
+    '업무 배정', '일정 관리',
+    '공지 관리',
+    '근태·급여관리', '출근부',
+    '홈페이지'
+  ]);
+  assert.doesNotMatch(operationsBlock, /상시 안내 관리|홍보 글 관리/);
+
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '홍보 관리', '홍보 작성', '공개글 관리', '미발행 글 삭제', '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '홈페이지 내용 관리', '출근부', '홈페이지', '신규 사업 기획']);
-  assert.match(navPriority, /label:\s*'직원·팀 관리'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'/);
-  assert.match(navPriority, /label:\s*'홍보·홈페이지'[\s\S]*'홍보 검토'[\s\S]*'홍보 글 관리'/);
-  assert.match(navPriority, /label:\s*'공지·안내'[\s\S]*'공지 관리'[\s\S]*'상시 안내 관리'/);
-  assert.match(navPriority, /label:\s*'승인·관리'[\s\S]*'가입 승인'/);
+  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리', '출근부', '홈페이지', '신규 사업 기획']);
+  assert.doesNotMatch(leadBlock, /공개글 관리|미발행 글 삭제|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
+
+  assert.match(navPriority, /label:\s*'직원·계정'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'[\s\S]*'가입 승인'/);
+  assert.match(navPriority, /label:\s*'홍보'[\s\S]*'홍보 검토'[\s\S]*'홍보 글 작성'[\s\S]*'기존 글 관리'/);
+  assert.match(navPriority, /label:\s*'홈페이지'[\s\S]*'홈페이지 내용 관리'[\s\S]*'홈페이지 직접 수정'/);
+  assert.match(navPriority, /label:\s*'업무 운영'[\s\S]*'업무 배정'[\s\S]*'일정 관리'/);
+  assert.match(navPriority, /label:\s*'공지', items: \['공지 관리'\]/);
+  assert.match(navPriority, /label:\s*'근태·급여', items: \['근태·급여관리', '출근부'\]/);
   assert.doesNotMatch(navPriority, /작업 매뉴얼/);
   assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
   assert.match(navPriority, /return 10000/);
   assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('official channels are created in the base sidebar with homepage, blog and YouTube', () => {
+test('official channels are created in the base sidebar from the shared channel config', () => {
   assert.match(source, /officialChannelRoles = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
-  assertOrdered(source, ['homepage', 'blog', 'youtube']);
-  assert.ok(source.indexOf("label: '홈페이지'") < source.indexOf("label: '공식 블로그'"));
-  assert.ok(source.indexOf("label: '공식 블로그'") < source.indexOf("label: '공식 유튜브'"));
-  assert.match(source, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(source, /TaejangOfficialChannels\?\.list/);
+  assertOrdered(officialChannelConfig, ['homepage', 'blog', 'youtube']);
+  assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
+  assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
+  assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
   assert.match(source, /dataset\.navSection = 'official_channels'/);
   assert.match(source, /if \(officialChannelRoles\.has\(route\)\) nav\.append\(makeOfficialChannelGroup\(\)\)/);
   assert.match(officialChannels, /if \(nav\.querySelector\('\[data-official-channel-group\]'\)\) return/);

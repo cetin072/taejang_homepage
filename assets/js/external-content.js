@@ -4,6 +4,91 @@
   const content = window.TAEJANG_CONTENT;
   if (!content || !Array.isArray(content.hub)) return;
 
+  // 언론보도 백필은 소식·기록(archive)에서만 전체 노출합니다.
+  // 기사 사진은 언론사 저작물을 복제하지 않고, 기사 내용과 가까운 태장 자체 보유 사진을 각각 다르게 사용합니다.
+  const archivePressItems = [
+    {
+      id: 'press-yonhap-20260812-taejang',
+      type: 'external',
+      source: 'press',
+      publisher: '연합뉴스',
+      category: '회사소식',
+      title: "경남형 장애인 동행일자리 1호 농업회사법인 '태장' 창원서 개소",
+      summary: '연합뉴스가 경남 4개 기업의 공동출자로 출범한 태장과 자회사형 장애인표준사업장 인증, 장애인 고용 현황을 보도했습니다.',
+      thumbnail: 'assets/images/archive/opening-ceremony.webp',
+      thumbnailAlt: '경남형 장애인 동행일자리 1호점 태장 개소식 전체 현장',
+      publishedAt: '2026-08-12',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://www.yna.co.kr/view/AKR20260812048100052',
+      externalLabel: '연합뉴스에서 보기'
+    },
+    {
+      id: 'press-newsjinju-59989',
+      type: 'external',
+      source: 'press',
+      publisher: '진주신문',
+      category: '회사소식',
+      title: '경남형 장애인 동행일자리 1호점 출범',
+      summary: '진주신문이 태장의 개소와 도내 4개 기업 공동출자, 장애인 고용 상생모델의 출범을 소개했습니다.',
+      thumbnail: 'assets/images/archive/companion-job-first-store-plaque.webp',
+      thumbnailAlt: '경남형 장애인 동행일자리 1호점 태장 인증·현판',
+      publishedAt: '2026-08-12',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://newsjinju.kr/news/articleView.html?idxno=59989',
+      externalLabel: '진주신문에서 보기'
+    },
+    {
+      id: 'press-knn-191206',
+      type: 'external',
+      source: 'press',
+      publisher: 'KNN',
+      category: '회사소식',
+      title: "민관협력 '경남형 장애인 동행일자리 1호점' 개소",
+      summary: 'KNN이 경남도와 기업, 한국장애인고용공단 등이 협력해 문을 연 경남형 장애인 동행일자리 1호점의 개소 소식을 보도했습니다.',
+      thumbnail: 'assets/images/archive/naver-blog-224376710751.webp',
+      thumbnailAlt: '태장 현판 제막 및 개소식 현장',
+      publishedAt: '2026-08-13',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://news.knn.co.kr/news/article/191206',
+      externalLabel: 'KNN에서 보기'
+    },
+    {
+      id: 'press-knn-191244',
+      type: 'external',
+      source: 'press',
+      publisher: 'KNN',
+      category: '회사소식',
+      title: "'경남형 장애인 동행일자리' 1호점 첫선",
+      summary: 'KNN이 태장 근로자들의 테라리움과 홍보 직무 현장을 찾아 장애인 일자리 운영 모습과 민관 협력 고용모델을 소개했습니다.',
+      thumbnail: 'assets/images/archive/naver-blog-224377482691.webp',
+      thumbnailAlt: '개소식 이후 태장 작업장에서 근로자들이 업무를 진행하는 모습',
+      publishedAt: '2026-08-13',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://news.knn.co.kr/news/article/191244',
+      externalLabel: 'KNN에서 보기'
+    },
+    {
+      id: 'press-kdjob-8779',
+      type: 'external',
+      source: 'press',
+      publisher: '장애인일자리신문',
+      category: '회사소식',
+      title: '경남형 장애인 동행일자리 1호점 출범…민관 공동 장애인 고용모델 가동',
+      summary: '장애인일자리신문이 도내 4개 기업이 공동출자한 태장의 개소와 장애인 고용 확대 계획, 자회사형 장애인표준사업장 운영모델을 보도했습니다.',
+      thumbnail: 'assets/images/archive/naver-blog-224378213482.webp',
+      thumbnailAlt: '태장 새 작업공간에서 근로자들이 직무 활동을 진행하는 모습',
+      publishedAt: '2026-08-13',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://kdjob.co.kr/article/8779',
+      externalLabel: '장애인일자리신문에서 보기'
+    }
+  ];
+
   const externalItems = [
     {
       id: 'naver-blog-224367547159',
@@ -109,6 +194,8 @@
       category: '회사소식',
       title: '‘경남형 장애인 동행일자리’ 1호점 창원 가동',
       summary: 'KBS가 경남형 장애인 동행일자리 1호 사업장 태장의 창원 가동 소식과 장애인 고용·기업 참여 구조를 보도했습니다.',
+      thumbnail: 'images/homepage/photo-04.webp',
+      thumbnailAlt: '태장 작업장에서 근로자들이 포장 업무를 진행하는 모습',
       publishedAt: '2026-08',
       featured: false,
       status: 'published',
@@ -116,6 +203,10 @@
       externalLabel: 'KBS 뉴스에서 보기'
     }
   ];
+
+  const isArchivePage = typeof document !== 'undefined'
+    && Boolean(document.querySelector?.('[data-hub-list][data-static-fallback="archive"]'));
+  if (isArchivePage) externalItems.push(...archivePressItems);
 
   externalItems.forEach((item) => {
     const exists = content.hub.some((candidate) => candidate.id === item.id);

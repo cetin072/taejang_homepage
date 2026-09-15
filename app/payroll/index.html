@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>태장 급여관리 Preview</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="../assets/payroll-operator.css">
+</head>
+<body class="payroll-preview">
+  <main class="payroll-shell">
+    <header class="payroll-topbar">
+      <div>
+        <p class="payroll-eyebrow">태장 업무플랫폼 · 급여관리</p>
+        <h1 class="payroll-title" data-payroll-month>2026년 9월</h1>
+        <p class="payroll-subtitle">정상 데이터는 자동 처리하고, 담당자는 확인이 필요한 항목만 처리합니다.</p>
+      </div>
+      <span class="payroll-demo-badge">익명 UX PREVIEW</span>
+    </header>
+
+    <p class="payroll-footer-note">
+      익명 흐름 검수 화면입니다. 실제 8월 Shadow Payroll을 보려면
+      <a href="live.html?month=2026-08">Staging 실데이터 읽기전용 MVP 열기</a>를 사용하세요.
+    </p>
+
+    <section class="payroll-stepper" data-payroll-stepper aria-label="급여 처리 단계"></section>
+
+    <section class="payroll-grid">
+      <article class="payroll-card payroll-main-card">
+        <div class="payroll-card-header">
+          <div>
+            <p class="payroll-eyebrow">이번 달 업무</p>
+            <h2>확인할 것만 처리하세요</h2>
+          </div>
+        </div>
+        <div class="payroll-card-body">
+          <div class="payroll-alert" data-payroll-alert aria-live="polite">
+            <div aria-hidden="true">●</div>
+            <div>
+              <strong>지금 할 일을 불러오는 중입니다.</strong>
+              <p>잠시만 기다려 주세요.</p>
+            </div>
+          </div>
+
+          <button class="payroll-button payroll-primary-action" type="button" data-payroll-primary>
+            출퇴근 가져오기
+          </button>
+
+          <div class="payroll-summary" aria-label="급여 처리 요약">
+            <div class="payroll-metric">
+              <span>출퇴근 원본</span>
+              <strong data-metric-import>대기</strong>
+            </div>
+            <div class="payroll-metric" data-metric-card="exception">
+              <span>확인 필요</span>
+              <strong data-metric-exception>0건</strong>
+            </div>
+            <div class="payroll-metric" data-metric-card="gross">
+              <span>가안 총지급</span>
+              <strong data-metric-gross>계산 전</strong>
+            </div>
+            <div class="payroll-metric" data-metric-card="accounting">
+              <span>회계 차이</span>
+              <strong data-metric-accounting>대조 전</strong>
+            </div>
+          </div>
+
+          <div class="payroll-summary" data-payroll-breakdown aria-label="이전월 조정 포함 급여 가안" hidden>
+            <div class="payroll-metric">
+              <span>기본 가안</span>
+              <strong data-payroll-base-gross>—</strong>
+            </div>
+            <div class="payroll-metric" data-metric-card="carryover">
+              <span>이전월 조정</span>
+              <strong data-payroll-carryover>—</strong>
+            </div>
+            <div class="payroll-metric">
+              <span>조정 후 가안</span>
+              <strong data-payroll-adjusted-gross>—</strong>
+            </div>
+            <div class="payroll-metric">
+              <span>조정 상태</span>
+              <strong data-payroll-carryover-status>—</strong>
+            </div>
+          </div>
+
+          <section class="payroll-output-panel" data-payroll-output hidden aria-label="확정 급여 요약">
+            <div class="payroll-section-heading">
+              <strong>확정 요약</strong>
+              <span>잠금된 급여월의 현재 확정 기준입니다.</span>
+            </div>
+            <div class="payroll-summary payroll-output-summary">
+              <div class="payroll-metric">
+                <span>확정일</span>
+                <strong data-output-locked-at>—</strong>
+              </div>
+              <div class="payroll-metric">
+                <span>조정 후 총지급</span>
+                <strong data-output-adjusted-gross>—</strong>
+              </div>
+              <div class="payroll-metric">
+                <span>회계 대조</span>
+                <strong data-output-accounting>—</strong>
+              </div>
+              <div class="payroll-metric">
+                <span>다음달 이월</span>
+                <strong data-output-carryover>—</strong>
+              </div>
+            </div>
+            <p class="payroll-output-note">
+              이 요약은 확정된 계산 기준을 다시 확인하기 위한 읽기 전용 산출물입니다. 실제 지급 실행이나 계좌·주민등록번호·장애정보는 포함하지 않습니다.
+            </p>
+          </section>
+
+          <div class="payroll-section-heading">
+            <strong>확인 필요한 항목</strong>
+            <span>정상건은 표시하지 않습니다.</span>
+          </div>
+          <div class="payroll-exceptions" data-payroll-exceptions></div>
+        </div>
+      </article>
+
+      <aside class="payroll-card payroll-guide-card">
+        <div class="payroll-card-header">
+          <h3>자동 처리 원칙</h3>
+        </div>
+        <div class="payroll-card-body">
+          <ul class="payroll-checklist">
+            <li>출퇴근 Excel은 한 번만 가져옵니다.</li>
+            <li>정상 직원의 일별 기록은 다시 보지 않습니다.</li>
+            <li>수기·누락·입퇴사 충돌처럼 판단이 필요한 건만 확인합니다.</li>
+            <li>주휴·유급공휴일·적용일자 근로조건은 시스템이 계산합니다.</li>
+            <li>이전월 조정은 이번 달 근로시간에 섞지 않고 별도 금액으로 반영합니다.</li>
+            <li>회계사무실 자료도 차이 나는 직원부터 확인합니다.</li>
+            <li>중요 예외가 남으면 최종 급여 확정이 차단됩니다.</li>
+            <li>확정 후에는 다시 계산하지 않고 확정 요약만 확인합니다.</li>
+          </ul>
+
+          <div class="payroll-demo-controls" data-demo-controls aria-label="Preview 단계 전환"></div>
+        </div>
+      </aside>
+    </section>
+
+    <p class="payroll-footer-note">
+      이 화면은 Goal #142의 담당자 UX를 검수하기 위한 익명 Preview입니다. 실제 급여·주민등록번호·장애정보·계좌정보는 포함하지 않으며, 현재 운영 Google Sheet나 Production 데이터를 변경하지 않습니다.
+    </p>
+  </main>
+
+  <script src="../assets/payroll-output.js"></script>
+  <script src="../assets/payroll-operator-workflow.js"></script>
+  <script src="../assets/payroll-operator-preview.js"></script>
+</body>
+</html>

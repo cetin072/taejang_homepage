@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>sidebar runtime gate</title>
+</head>
+<body>
+  <section id="desktop-app-shell">
+    <nav id="app-nav"></nav>
+    <div class="app-workspace">
+      <header class="app-topbar">
+        <button id="sidebar-toggle" type="button" aria-expanded="false">menu</button>
+        <h1 id="desktop-page-title">업무 대시보드</h1>
+        <span id="desktop-role-label"></span>
+        <div class="app-user-actions"><span id="desktop-user-label"></span><button id="desktop-logout-button" type="button">logout</button></div>
+      </header>
+      <main id="dashboard-main"></main>
+    </div>
+  </section>
+  <button id="logout-button" type="button">logout</button>
+  <pre id="result">RUNNING</pre>
+
+  <script>
+    let currentRoute = 'promotion_staff';
+    const roleCapabilities = {
+      promotion_staff: new Set(['promotion.write', 'promotion.edit_own']),
+      promotion_lead: new Set([
+        'promotion.write', 'promotion.review_lead', 'promotion.edit_own',
+        'promotion.manage_recent_public', 'promotion.request_public_change', 'information.submit',
+        'attendance.admin_view', 'homepage.draft', 'homepage.review'
+      ]),
+      operations_manager: new Set([
+        'promotion.write', 'promotion.review_lead', 'promotion.edit_own', 'promotion.edit_any_unpublished',
+        'promotion.manage_recent_public', 'promotion.request_public_change', 'information.review',
+        'attendance.admin_view', 'attendance.exception_review',
+        'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit'
+      ])
+    };
+
+    window.alert = () => {};
+    window.confirm = () => true;
+    window.prompt = () => '테스트';
+    window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
+    window.TaejangOfficialChannels = { list: [] };
+    window.TaejangSupportRadarLifecycle = { emit() {} };
+    window.TaejangSupportRadarAccess = {
+      canAssignedWork: () => ['promotion_lead', 'operations_manager'].includes(currentRoute),
+      canManagementView: () => currentRoute === 'operations_manager',
+      canManagementEdit: () => currentRoute === 'operations_manager'
+    };
+    window.TaejangApp = {
+      getRoute: () => currentRoute,
+      getContext: () => ({ display_name: '사이드바 QA', roles: [{ code: currentRoute }] }),
+      getEffectiveRoles: () => [currentRoute],
+      hasCapabilityContract: () => true,
+      can: capability => roleCapabilities[currentRoute]?.has(capability) || false,
+      friendlyError: error => error?.message || '오류',
+      rpc: async name => {
+        if (name === 'get_my_schedule_list') return [];
+        if (name === 'get_my_notice_list') return [];
+        if (name === 'get_my_promotion_workspace') return { role: currentRoute, my_items: [], review_items: [] };
+        if (name === 'get_promotion_publication_admin') return { items: [] };
+        if (name === 'list_public_content_change_requests') return [];
+        if (name === 'list_information_publication_requests') return [];
+        if (name === 'support_get_company_profile') return { profile: null, locations: [], qualifications: [], business_areas: [], partners: [], benefits: [], can_edit: true, stale_evaluation_count: 0 };
+        if (name === 'support_list_notices') return [];
+        if (name === 'get_attendance_admin_today') return { rows: [] };
+        return [];
+      }
+    };
+  </script>
+  <script src="../../app/assets/dashboard-shell.js"></script>
+  <script src="../../app/assets/attendance-admin.js"></script>
+  <script src="../../app/assets/phase-c-workspace-v2.js"></script>
+  <script src="../../app/assets/phase-c-publication-admin.js"></script>
+  <script src="../../app/assets/operations-promotion-writer.js"></script>
+  <script src="../../app/assets/operations-homepage-direct.js"></script>
+  <script src="../../app/assets/support-radar.js"></script>
+  <script src="../../app/assets/support-radar-my-work.js"></script>
+  <script src="../../app/assets/role-navigation-priority.js"></script>
+  <script src="../../app/assets/issue-207-promotion-information-ux.js"></script>
+  <script src="../../app/assets/navigation-visual-stability.js"></script>
+  <script>
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const assert = (condition, message) => { if (!condition) throw new Error(message); };
+    const clean = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
+    const directItems = () => [...document.getElementById('app-nav').children];
+    const itemLabel = node => (node.dataset.supportMyWorkNav || node.dataset.supportRadarNavGroup) ? '지원사업' : clean(node);
+    const labels = () => directItems().map(itemLabel);
+    const find = label => directItems().find(node => itemLabel(node) === label || clean(node) === label);
+    const navSignature = () => directItems().map(node => {
+      const section = node.dataset.sectionLabel || '';
+      const inner = (node.dataset.supportMyWorkNav || node.dataset.supportRadarNavGroup)
+        ? [...node.querySelectorAll('button')].map(button => button.textContent.trim()).join(',')
+        : '';
+      return `${itemLabel(node)}[${section}](${inner})`;
+    }).join('|');
+
+    function waitForStable(timeout = 1200) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`navigation stable timeout: ${currentRoute}`)), timeout);
+        document.addEventListener('taejang-navigation-stable', () => {
+          clearTimeout(timer);
+          resolve();
+        }, { once: true });
+      });
+    }
+
+    async function assertNoPostSettleJitter(role) {
+      const nav = document.getElementById('app-nav');
+      assert(nav.dataset.navigationSettled === '1', `${role}: navigationSettled 플래그 누락`);
+      assert(nav.style.visibility !== 'hidden', `${role}: 정착 후 사이드바가 숨겨져 있음`);
+      const initial = navSignature();
+      let childMutations = 0;
+      const observer = new MutationObserver(records => {
+        childMutations += records.filter(record => record.type === 'childList').length;
+      });
+      observer.observe(nav, { childList: true, subtree: true });
+      const samples = [];
+      for (let index = 0; index < 8; index += 1) {
+        await wait(80);
+        samples.push(navSignature());
+      }
+      observer.disconnect();
+      assert(samples.every(signature => signature === initial), `${role}: 정착 후 메뉴 순서/내용이 다시 변함`);
+      assert(childMutations === 0, `${role}: 정착 후 DOM childList 변경 ${childMutations}회 발생`);
+    }
+
+    async function enterRole(role, label) {
+      currentRoute = role;
+      const stable = waitForStable();
+      document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: role, label } }));
+      await stable;
+      await wait(30);
+      return labels();
+    }
+
+    function assertStaffContract(current) {
+      for (const required of ['대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인']) {
+        assert(current.includes(required), `홍보직원 필수 메뉴 누락: ${required}`);
+      }
+      assert(find('새 홍보글 작성')?.dataset.sectionLabel === '홍보', '홍보직원 홍보 섹션 구분 누락');
+      assert(find('공지 확인')?.dataset.sectionLabel === '공지', '홍보직원 공지 섹션 구분 누락');
+    }
+
+    function assertLeadContract(current) {
+      for (const required of ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '출근부', '지원사업']) {
+        assert(current.includes(required), `운영팀장 필수 메뉴 누락: ${required}`);
+      }
+      assert(!current.includes('수정·보완 요청'), '운영팀장에 수정·보완 요청 메뉴가 남아 있음');
+      assert(!current.includes('보완 요청받은 글'), '운영팀장에 직원용 보완 메뉴가 남아 있음');
+      assert(find('새 홍보글 작성')?.dataset.sectionLabel === '홍보', '운영팀장 홍보 섹션 구분 누락');
+      assert(find('홈페이지 내용 관리')?.dataset.sectionLabel === '홈페이지', '운영팀장 홈페이지 섹션 구분 누락');
+      assert(find('공지 관리')?.dataset.sectionLabel === '공지', '운영팀장 공지 섹션 구분 누락');
+      assert(find('팀 직원 관리')?.dataset.sectionLabel === '팀 운영', '운영팀장 팀 운영 섹션 구분 누락');
+      assert(find('출근부')?.dataset.sectionLabel === '근태', '운영팀장 근태 섹션 구분 누락');
+      const attendanceIndex = current.indexOf('출근부');
+      const supportIndex = current.indexOf('지원사업');
+      assert(attendanceIndex >= 0 && supportIndex === attendanceIndex + 1, '운영팀장 지원사업이 출근부 바로 다음에 있지 않음');
+      const support = find('지원사업');
+      assert([...support.querySelectorAll('button')].some(node => node.textContent.trim() === '내 지원사업'), '운영팀장 내 지원사업 메뉴 누락');
+    }
+
+    function assertOperationsContract(current) {
+      for (const required of [
+        '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
+        '홍보 검토', '홍보 글 작성', '기존 글 관리',
+        '홈페이지 내용 관리', '홈페이지 직접 수정',
+        '업무 배정', '일정 관리', '공지 관리',
+        '근태·급여관리', '출근부', '지원사업'
+      ]) {
+        assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
+      }
+      assert(!current.includes('상시 안내 관리'), '운영총괄에 제거된 안내 메뉴가 남아 있음');
+      assert(find('직원 관리')?.dataset.sectionLabel === '직원·계정', '운영총괄 직원·계정 섹션 누락');
+      assert(find('홍보 검토')?.dataset.sectionLabel === '홍보', '운영총괄 홍보 섹션 누락');
+      assert(find('홈페이지 내용 관리')?.dataset.sectionLabel === '홈페이지', '운영총괄 홈페이지 섹션 누락');
+      assert(find('업무 배정')?.dataset.sectionLabel === '업무 운영', '운영총괄 업무 운영 섹션 누락');
+      assert(find('공지 관리')?.dataset.sectionLabel === '공지', '운영총괄 공지 섹션 누락');
+      assert(find('근태·급여관리')?.dataset.sectionLabel === '근태·급여', '운영총괄 근태·급여 섹션 누락');
+      const attendanceIndex = current.indexOf('출근부');
+      const supportIndex = current.indexOf('지원사업');
+      assert(attendanceIndex >= 0 && supportIndex === attendanceIndex + 1, '운영총괄 지원사업이 근태·급여 다음에 있지 않음');
+      const support = find('지원사업');
+      const supportButtons = [...support.querySelectorAll('button')].map(node => node.textContent.trim());
+      assert(supportButtons.includes('지원사업 레이더'), '운영총괄 지원사업 레이더 누락');
+      assert(supportButtons.includes('기업 프로필'), '운영총괄 기업 프로필 누락');
+      assert(supportButtons.includes('내 지원사업'), '운영총괄 내 지원사업 통합 누락');
+      assert(directItems().filter(node => itemLabel(node) === '지원사업').length === 1, '운영총괄 지원사업 그룹이 중복됨');
+    }
+
+    window.addEventListener('load', async () => {
+      const output = document.getElementById('result');
+      try {
+        let current = await enterRole('promotion_staff', '홍보직원');
+        assertStaffContract(current);
+        await assertNoPostSettleJitter('promotion_staff');
+
+        current = await enterRole('promotion_lead', '운영팀장');
+        assertLeadContract(current);
+        await assertNoPostSettleJitter('promotion_lead');
+
+        current = await enterRole('operations_manager', '운영총괄');
+        assertOperationsContract(current);
+        await assertNoPostSettleJitter('operations_manager');
+
+        output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
+      } catch (error) {
+        output.textContent = `SIDEBAR_RUNTIME_GATE_FAIL:${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

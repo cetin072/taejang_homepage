@@ -32,6 +32,17 @@ test('remote staging scripts require an allow-list, ref/URL match, and explicit 
   assert.match(cleanup, /never force-deletes/);
 });
 
+test('staging migration helper links the allow-listed project before db push', () => {
+  const migrate = read('scripts/staging/apply-migrations.mjs');
+  const linkCall = "runSupabase(['link', '--project-ref', config.ref]);";
+  const pushCall = "runSupabase(['db', 'push', ...(apply ? [] : ['--dry-run'])]);";
+
+  assert.ok(migrate.includes(linkCall), 'migration helper must link the explicit staging ref first');
+  assert.ok(migrate.includes(pushCall), 'migration helper must run db push against the linked project');
+  assert.ok(migrate.indexOf(linkCall) < migrate.indexOf(pushCall), 'link must happen before db push');
+  assert.doesNotMatch(migrate, /\['db',\s*'push',\s*'--project-ref'/);
+});
+
 test('seed specification defaults to two TEST accounts and keeps the full nine-account matrix behind a second confirmation', () => {
   const seed = read('scripts/staging/seed-phase1.mjs');
   const spec = read('scripts/staging/seed-spec.mjs');

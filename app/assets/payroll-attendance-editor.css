@@ -1,0 +1,131 @@
+.payroll-attendance-editor-card {
+  margin: 18px 0;
+}
+
+.payroll-attendance-editor-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.payroll-attendance-editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: end;
+}
+
+.payroll-attendance-date-picker {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.payroll-attendance-date-picker input {
+  min-height: 42px;
+  border: 1px solid #d8dee8;
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #fff;
+  font: inherit;
+}
+
+.payroll-attendance-editor-note,
+.payroll-attendance-editor-message,
+.payroll-attendance-editor-summary {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.payroll-attendance-editor-note {
+  color: #5b6575;
+}
+
+.payroll-attendance-editor-message[data-state="ok"] { color: #176b45; }
+.payroll-attendance-editor-message[data-state="review"] { color: #946200; }
+.payroll-attendance-editor-message[data-state="error"] { color: #b42318; }
+
+.payroll-attendance-editor-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 14px;
+  border: 1px solid #e3e8ef;
+  border-radius: 12px;
+}
+
+.payroll-attendance-editor-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.payroll-attendance-editor-table th,
+.payroll-attendance-editor-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid #eef1f5;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.payroll-attendance-editor-table th {
+  background: #f7f9fc;
+  color: #475467;
+  font-size: 12px;
+}
+
+.payroll-attendance-editor-table td {
+  font-size: 13px;
+}
+
+.payroll-attendance-editor-table select,
+.payroll-attendance-editor-table input {
+  min-height: 36px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #fff;
+  font: inherit;
+}
+
+.payroll-attendance-editor-table input[type="number"] { width: 92px; }
+.payroll-attendance-editor-table input[type="time"] { width: 112px; }
+.payroll-attendance-name { font-weight: 700; }
+
+.payroll-source-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.source-manual-ui { background: #eef4ff; color: #3538cd; }
+.source-xlsx-prefill { background: #ecfdf3; color: #027a48; }
+.source-xlsx-post-edit { background: #fff6ed; color: #b54708; }
+.source-existing-import { background: #f2f4f7; color: #344054; }
+
+@media (max-width: 720px) {
+  .payroll-attendance-editor-header,
+  .payroll-attendance-editor-actions {
+    align-items: stretch;
+  }
+
+  .payroll-attendance-editor-actions,
+  .payroll-attendance-date-picker {
+    width: 100%;
+  }
+
+  .payroll-attendance-editor-actions .payroll-button {
+    flex: 1 1 auto;
+  }
+}

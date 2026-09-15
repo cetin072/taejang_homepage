@@ -100,11 +100,23 @@ async function loadAccountManagement(userClient: any) {
   return management || {};
 }
 
-async function listAccounts(userClient: any) {
+async function previewReadiness(admin: any, profileId: string) {
+  const { data: userData, error: userError } = await admin.auth.admin.getUserById(profileId);
+  const targetUser = userData?.user;
+  if (userError || !targetUser?.email) {
+    return { previewable: false, preview_reason: 'auth_account_not_ready' };
+  }
+  if (!targetUser.email_confirmed_at) {
+    return { previewable: false, preview_reason: 'email_not_confirmed' };
+  }
+  return { previewable: true, preview_reason: null };
+}
+
+async function listAccounts(userClient: any, admin: any) {
   // The canonical account-management RPC is the source of truth for which
-  // active profiles a top-authority operator may inspect. Do not bulk-enumerate
-  // Auth users here: hosted environments can restrict that admin endpoint, and
-  // the selected target is authoritatively verified against Auth in create.
+  // active profiles a top-authority operator may inspect. Auth readiness is
+  // then checked per profile so the selector never advertises an account that
+  // createPreviewToken will reject moments later.
   const management = await loadAccountManagement(userClient);
 
   const profileRows = (management?.profiles || []).filter((profile: any) => profile.account_status === 'active');
@@ -115,22 +127,26 @@ async function listAccounts(userClient: any) {
   const departmentMap = new Map(departments.map((row: any) => [row.id, row.name]));
   const positionMap = new Map(positions.map((row: any) => [row.id, row.name]));
   const roleByCode = new Map(roles.map((role: any) => [role.code, role]));
+  const accounts = [];
 
-  return profileRows.map((profile: any) => {
+  for (const profile of profileRows) {
     const accountRoles = (profile.roles || [])
       .map((roleCode: string) => ({ code: roleCode, name: roleByCode.get(roleCode)?.name || roleCode }))
       .sort((left: any, right: any) => (left.name || '').localeCompare(right.name || '', 'ko'));
-    return {
+    const readiness = await previewReadiness(admin, profile.id);
+    accounts.push({
       id: profile.id,
       display_name: profile.display_name || '이름 없음',
       department_name: departmentMap.get(profile.department_id) || null,
       position_name: positionMap.get(profile.position_id) || null,
       roles: accountRoles,
       top_authority: isTopAuthority(new Set(accountRoles.map(role => role.code))),
-      previewable: true,
-      preview_reason: null
-    };
-  });
+      previewable: readiness.previewable,
+      preview_reason: readiness.preview_reason
+    });
+  }
+
+  return accounts;
 }
 
 async function createPreviewToken(admin: any, userClient: any, targetProfileId: unknown) {
@@ -202,9 +218,13 @@ Deno.serve(async (req: Request) => {
 
   try {
     if (body?.action === 'list') {
-      const accounts = await listAccounts(authorization.userClient);
-      console.info('qa_account_preview_list', { actor_id: authorization.user.id, count: accounts.length });
-      return reply(200, { accounts, authority: 'top', qa_contract_version: 3 }, origin);
+      const accounts = await listAccounts(authorization.userClient, admin);
+      console.info('qa_account_preview_list', {
+        actor_id: authorization.user.id,
+        count: accounts.length,
+        previewable_count: accounts.filter((account: any) => account.previewable).length
+      });
+      return reply(200, { accounts, authority: 'top', qa_contract_version: 4 }, origin);
     }
 
     if (body?.action === 'create') {
