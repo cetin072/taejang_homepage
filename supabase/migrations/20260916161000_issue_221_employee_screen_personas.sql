@@ -1,6 +1,6 @@
 -- Issue #221: production-safe employee screen personas for operations manager.
--- This contract returns only non-secret display/identity fields and never returns
--- passwords, auth tokens, refresh tokens, service-role material, or user email.
+-- This contract returns only the minimum non-secret display/identity fields needed
+-- by the employee-screen switcher; authentication credentials and email stay server-side.
 
 create or replace function public.get_operations_employee_screen_personas()
 returns jsonb
