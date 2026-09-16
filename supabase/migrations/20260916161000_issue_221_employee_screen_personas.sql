@@ -29,7 +29,7 @@ begin
     raise exception using errcode = '42501', message = 'EMPLOYEE_SCREEN_PERSONAS_FORBIDDEN';
   end if;
 
-  if not public.private_actor_has_capability('account.view_management') then
+  if not public.private_actor_can('account.view_management') then
     raise exception using errcode = '42501', message = 'EMPLOYEE_SCREEN_PERSONAS_FORBIDDEN';
   end if;
 
