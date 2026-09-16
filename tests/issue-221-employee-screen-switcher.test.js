@@ -88,7 +88,7 @@ test('database persona RPC filters active linked employees and auth-ready users 
   assert.match(migration, /partition by employee\.id/);
   assert.match(migration, /role\.code in \('general_worker', 'promotion_staff', 'promotion_lead'\)/);
   assert.match(migration, /role\.code = 'operations_manager'/);
-  assert.match(migration, /private_actor_has_capability\('account\.view_management'\)/);
+  assert.match(migration, /private_actor_can\('account\.view_management'\)/);
   assert.doesNotMatch(migration, /access_token|refresh_token|password|service[_-]?role/i);
   assert.doesNotMatch(migration, /auth_user\.email|profile\.work_email/);
 });
