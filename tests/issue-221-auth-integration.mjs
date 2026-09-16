@@ -102,6 +102,7 @@ const operations = await activateAccount(`issue221-ops-${unique}@example.test`, 
 const general = await activateAccount(`issue221-general-${unique}@example.test`, 'Issue221 일반직원', 'general_worker');
 const promotion = await activateAccount(`issue221-promo-${unique}@example.test`, 'Issue221 홍보직원', 'promotion_staff');
 const lead = await activateAccount(`issue221-lead-${unique}@example.test`, 'Issue221 운영팀장', 'promotion_lead');
+const multiRole = await activateAccount(`issue221-multi-${unique}@example.test`, 'Issue221 복수역할직원', 'general_worker');
 const suspended = await activateAccount(`issue221-suspended-${unique}@example.test`, 'Issue221 정지직원', 'general_worker');
 const departed = await activateAccount(`issue221-departed-${unique}@example.test`, 'Issue221 퇴사직원', 'general_worker');
 const archived = await activateAccount(`issue221-archived-${unique}@example.test`, 'Issue221 보관직원', 'general_worker');
@@ -110,13 +111,14 @@ const unconfirmed = await activateAccount(`issue221-unconfirmed-${unique}@exampl
 const generalEmployee = await createAndLinkEmployee(operations, general, 'Issue221 일반직원', positionId);
 await createAndLinkEmployee(operations, promotion, 'Issue221 홍보직원', positionId);
 await createAndLinkEmployee(operations, lead, 'Issue221 운영팀장', positionId);
+const multiRoleEmployee = await createAndLinkEmployee(operations, multiRole, 'Issue221 복수역할직원', positionId);
 await createAndLinkEmployee(operations, suspended, 'Issue221 정지직원', positionId);
 const departedEmployee = await createAndLinkEmployee(operations, departed, 'Issue221 퇴사직원', positionId);
 const archivedEmployee = await createAndLinkEmployee(operations, archived, 'Issue221 보관직원', positionId);
 await createAndLinkEmployee(operations, unconfirmed, 'Issue221 미인증직원', positionId);
 
 // Multiple active eligible roles on one profile must still yield one employee row.
-grantRole(general.id, 'promotion_staff');
+grantRole(multiRole.id, 'promotion_staff');
 sql(`update public.profiles set account_status='suspended', status_changed_at=now(), status_changed_by='${operations.id}'::uuid where id='${suspended.id}'::uuid`);
 sql(`update public.employees set employment_status='departed', departed_on=current_date where id='${departedEmployee}'::uuid`);
 sql(`update public.employees set archived_at=now(), archived_by='${operations.id}'::uuid, archive_reason='Issue #221 integration archive fixture' where id='${archivedEmployee}'::uuid`);
@@ -129,12 +131,14 @@ const byProfile = new Map(personas.map(persona => [persona.profile_id, persona])
 check(byProfile.has(general.id), 'active general employee account is listed');
 check(byProfile.has(promotion.id), 'active promotion employee account is listed');
 check(byProfile.has(lead.id), 'active promotion-lead employee account is listed');
-equal(byProfile.get(general.id)?.role_code, 'promotion_staff', 'multi-role employee is deduped with deterministic role precedence');
+equal(byProfile.get(general.id)?.role_code, 'general_worker', 'general employee keeps the general-worker role');
+equal(byProfile.get(multiRole.id)?.role_code, 'promotion_staff', 'multi-role employee uses deterministic role precedence');
 check(!byProfile.has(suspended.id), 'suspended account is excluded');
 check(!byProfile.has(departed.id), 'departed employee is excluded');
 check(!byProfile.has(archived.id), 'archived employee is excluded');
 check(!byProfile.has(unconfirmed.id), 'unconfirmed Auth user is excluded');
-equal(personas.filter(persona => persona.employee_uuid === generalEmployee).length, 1, 'same employee never appears twice');
+equal(personas.filter(persona => persona.employee_uuid === generalEmployee).length, 1, 'general employee appears once');
+equal(personas.filter(persona => persona.employee_uuid === multiRoleEmployee).length, 1, 'multi-role employee appears once');
 
 const serialized = JSON.stringify(list.data).toLowerCase();
 for (const forbidden of ['access_token', 'refresh_token', 'password', 'service_role', 'work_email']) {
