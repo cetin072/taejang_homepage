@@ -53,7 +53,7 @@
   function isExactQaPreviewHost(hostname) {
     const host = text(hostname).toLowerCase();
     if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return true;
-    return /^deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/.test(host);
+    return /^deploy-preview-\d+--taejang-homepage\.netlify\.app$/.test(host);
   }
 
   return Object.freeze({ ROLE_CODES, ROLE_LABELS, buildPersonas, missingRoleCodes, isExactQaPreviewHost });
