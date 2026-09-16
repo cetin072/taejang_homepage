@@ -31,6 +31,7 @@ export const testGroups = Object.freeze({
     'tests/issue-187-promotion-staff-live-ux.test.js',
     'tests/issue-207-promotion-information-management.test.js',
     'tests/issue-220-role-screen-polish.test.js',
+    'tests/issue-221-employee-screen-switcher.test.js',
     'tests/issue-218-field-operations-foundation.test.js',
     'tests/app-failure-states.test.js',
     'tests/required-check-workflows.test.js',
