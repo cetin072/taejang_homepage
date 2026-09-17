@@ -28,8 +28,8 @@ test('reason context remains append-only and does not widen raw attendance acces
 
 test('finalized exception statuses are selectable and accepted by the protected append-only save path', () => {
   for (const status of ['termination', 'out_of_scope', 'manual_evidence_required']) {
-    assert.match(editor, new RegExp(\`\\['${status}'\`));
-    assert.match(statusSql, new RegExp(\`'${status}'\`));
+    assert.ok(editor.includes(`['${status}'`));
+    assert.ok(statusSql.includes(`'${status}'`));
   }
   assert.match(statusSql, /private_require_payroll_operator\(\)/);
   assert.match(statusSql, /insert into public\.payroll_attendance_manual_entries/i);
