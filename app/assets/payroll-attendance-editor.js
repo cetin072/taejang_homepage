@@ -260,6 +260,9 @@
       ['unpaid_absence', '결근'],
       ['paid_holiday', '유급공휴일'],
       ['off', '휴무'],
+      ['termination', '퇴사'],
+      ['out_of_scope', '대상 제외'],
+      ['manual_evidence_required', '수기 근거 필요'],
       ['review_required', '확인 필요'],
     ];
     return options.map(([key, label]) => `<option value="${key}"${key === value ? ' selected' : ''}>${label}</option>`).join('');
