@@ -7,7 +7,10 @@
 
   const INSTALL_MARKER = 'payrollAttendanceOperatorUxInstalled';
   const AUTO_STATUS_VALUES = new Set(['', 'work', 'review_required']);
-  const RESOLVED_STATUS_VALUES = new Set(['paid_leave', 'unpaid_absence', 'paid_holiday', 'off']);
+  const RESOLVED_STATUS_VALUES = new Set([
+    'paid_leave', 'unpaid_absence', 'paid_holiday', 'off',
+    'termination', 'out_of_scope', 'manual_evidence_required',
+  ]);
 
   function normalized(value) {
     return String(value == null ? '' : value).trim();
