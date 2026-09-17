@@ -33,6 +33,9 @@ test('operator queue classifies normal, missing-source, partial and already-reso
   assert.equal(ux.classifyOperatorRow('', '', ''), 'no_source');
   assert.equal(ux.classifyOperatorRow('review_required', '09:01', ''), 'exception');
   assert.equal(ux.classifyOperatorRow('paid_leave', '', ''), 'resolved');
+  assert.equal(ux.classifyOperatorRow('termination', '', ''), 'resolved');
+  assert.equal(ux.classifyOperatorRow('out_of_scope', '', ''), 'resolved');
+  assert.equal(ux.classifyOperatorRow('manual_evidence_required', '', ''), 'resolved');
   assert.equal(ux.classifyOperatorRow('work', '09:01', ''), 'exception');
   assert.equal(
     ux.queueSummaryText({ normal: 19, exception: 2, no_source: 2, resolved: 0 }),
