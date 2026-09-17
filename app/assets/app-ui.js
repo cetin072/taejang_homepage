@@ -153,6 +153,8 @@
     ['assets/phase-c-account-approval.js', 'phase-c-account-approval'],
     ['assets/phase-c-publication-admin.js', 'phase-c-publication-admin'],
     ['assets/phase-c-role-simulation.js', 'phase-c-role-simulation'],
+    ['assets/issue-221-employee-screen-core.js', 'issue-221-employee-screen-core'],
+    ['assets/issue-221-employee-screen-switcher.js', 'issue-221-employee-screen-switcher'],
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
