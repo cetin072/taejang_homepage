@@ -164,6 +164,7 @@
       clockInRaw: '',
       clockOutRaw: '',
       confirmedHours: '',
+      reason: '',
       sourceKind: '',
       sourceFileName: '',
       sourceSheet: '',
@@ -191,6 +192,7 @@
         clockInRaw: row.clock_in_raw || '',
         clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
+        reason: row.reason || '',
         sourceKind: 'existing_import',
         originalSourceKind: 'existing_import',
         sourceAttendanceRowId: row.attendance_row_id || null,
@@ -210,6 +212,7 @@
         clockInRaw: row.clock_in_raw || '',
         clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
+        reason: row.reason || '',
         sourceKind: row.source_kind || 'manual_ui',
         originalSourceKind: row.source_kind || 'manual_ui',
         sourceFileName: row.source_file_name || '',
@@ -279,6 +282,7 @@
         <td><input data-field="clockIn" type="time" value="${cell.clockIn || ''}" aria-label="${employee.name} 출근"></td>
         <td><input data-field="clockOut" type="time" value="${cell.clockOut || ''}" aria-label="${employee.name} 퇴근"></td>
         <td><input data-field="confirmedHours" type="number" min="0" max="24" step="0.25" value="${cell.confirmedHours ?? ''}" placeholder="${term?.daily_scheduled_hours ?? ''}" aria-label="${employee.name} 인정시간"></td>
+        <td><input data-field="reason" type="text" value="${cell.reason || ''}" maxlength="300" placeholder="수기 근거·보정 사유" aria-label="${employee.name} 보정 사유"></td>
         <td><span class="payroll-source-badge ${sourceClass(cell.sourceKind)}">${sourceLabel(cell.sourceKind)}</span></td>`;
       tr.querySelectorAll('[data-field]').forEach(input => {
         input.addEventListener('change', () => markChanged(cell, input.dataset.field, input.value));
@@ -417,7 +421,7 @@
         source_sheet: cell.sourceSheet || null,
         source_row_number: cell.sourceRowNumber || null,
         source_attendance_row_id: cell.sourceAttendanceRowId || null,
-        reason: cell.sourceKind === 'xlsx_post_edit' ? 'Excel 자동채움 후 화면 수정' : null,
+        reason: cell.reason || (cell.sourceKind === 'xlsx_post_edit' ? 'Excel 자동채움 후 화면 수정' : null),
       });
     }
     return entries;
