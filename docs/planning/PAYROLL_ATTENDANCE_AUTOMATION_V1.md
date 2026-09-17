@@ -58,7 +58,7 @@
 | UI의 예외 중심 요약·필터 | 구현 완료 | `payroll-attendance-operator-ux.js`, 예외만 보기와 append-only 보정 사유 재표시 |
 | 재다운로드 diff와 확정값 보호 | 구현 완료 | `20260917225912_payroll_vendor_source_snapshots.sql`, protected hash-index RPC, existing prefill protection |
 | correction audit persistence | 구현 완료 | append-only status/time/reason, source reference, actor/timestamp; `20260918090000_payroll_attendance_exception_reason_context.sql` |
-| 월간 출퇴근부 XLSX model/exporter | 부분 구현 | `payroll-ledger-xlsx.js`의 protected-HR join contract·익명 회귀 |
+| 월간 출퇴근부 XLSX model/exporter | 부분 구현 | `payroll-ledger-xlsx.js`의 protected-HR join contract·익명 회귀·휴가/결근/공휴일/퇴사/범위제외/수기근거 상태 표현 |
 | 기존 Golden workbook 구조/집계 비교 | 미구현·후속 작업 | 실제 Golden 파일을 저장소에 넣지 않음; 안전한 비교 경로 필요 |
 | confirmed attendance → payroll draft 연결 | 부분 구현 | 기존 payroll effective attendance 계산 흐름; vendor persistence 완료 후 재검증 필요 |
 

@@ -22,6 +22,9 @@ const input = {
     { employee_uuid: 'employee-1', work_date: '2026-08-05', attendance_status: 'paid_leave' },
     { employee_uuid: 'employee-1', work_date: '2026-08-06', attendance_status: 'unpaid_absence' },
     { employee_uuid: 'employee-1', work_date: '2026-08-07', attendance_status: 'paid_holiday' },
+    { employee_uuid: 'employee-1', work_date: '2026-08-10', attendance_status: 'termination' },
+    { employee_uuid: 'employee-1', work_date: '2026-08-11', attendance_status: 'out_of_scope' },
+    { employee_uuid: 'employee-1', work_date: '2026-08-12', attendance_status: 'manual_evidence_required' },
   ],
 };
 
@@ -34,6 +37,9 @@ test('monthly workbook model keeps protected HR join separate from confirmed att
   assert.equal(model.rows[0].unpaidAbsence, 1);
   assert.equal(model.rows[0].paidHoliday, 1);
   assert.deepEqual(model.rows[0].daily[4], ['', '', '유급휴가']);
+  assert.deepEqual(model.rows[0].daily[9], ['', '', '퇴사']);
+  assert.deepEqual(model.rows[0].daily[10], ['', '', '대상 제외']);
+  assert.deepEqual(model.rows[0].daily[11], ['', '', '수기 근거 필요']);
 });
 
 test('monthly attendance workbook requires an explicit one-to-one protected HR source', () => {

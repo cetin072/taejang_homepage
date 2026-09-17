@@ -262,6 +262,7 @@
   // browser exporter.
   const ATTENDANCE_STATUSES = new Set([
     'work', 'paid_leave', 'unpaid_absence', 'paid_holiday', 'off', 'review_required',
+    'termination', 'out_of_scope', 'manual_evidence_required',
   ]);
 
   function monthCalendarDays(month) {
@@ -287,6 +288,9 @@
     if (status === 'unpaid_absence') return '결근';
     if (status === 'paid_holiday') return '유급공휴일';
     if (status === 'off') return '휴무';
+    if (status === 'termination') return '퇴사';
+    if (status === 'out_of_scope') return '대상 제외';
+    if (status === 'manual_evidence_required') return '수기 근거 필요';
     return '확인 필요';
   }
 
