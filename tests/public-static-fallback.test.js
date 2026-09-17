@@ -12,10 +12,12 @@ const index = read('index.html');
 const archive = read('archive.html');
 const activities = read('activities.html');
 const workplace = read('workplace.html');
+const community = read('community-esg.html');
 const content = read('assets/js/content.js');
 const homePreviews = read('assets/js/home-previews.js');
 const contentHub = read('assets/js/content-hub.js');
 const listing = read('assets/js/listing.js');
+const communityScript = read('assets/js/community-esg.js');
 
 function assertFallbackCards(html, key, minimum) {
   const start = html.indexOf(`data-static-fallback="${key}"`);
@@ -33,6 +35,14 @@ const archiveFallback = assertFallbackCards(archive, 'archive', 3);
 const activityFallback = assertFallbackCards(activities, 'activities', 3);
 const workplaceFallback = assertFallbackCards(workplace, 'workplace', 3);
 
+const communityStart = community.indexOf('data-static-fallback="community-esg"');
+assert.ok(communityStart >= 0, 'community-esg fallback 표시가 있어야 합니다');
+const communityEnd = community.indexOf('</section>', communityStart);
+const communityFallback = community.slice(communityStart, communityEnd >= 0 ? communityEnd : undefined);
+assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 2, 'community-esg fallback은 승인된 활동 기록 2건 이상을 포함해야 합니다');
+assert.match(communityFallback, /activities\.html\?id=environment-cleanup-second/);
+assert.match(communityFallback, /activities\.html\?id=environment-cleanup-first/);
+
 assert.doesNotMatch(index, /data-recent-activities\s+hidden/, '메인 활동 기록은 JS 없이도 표시되어야 합니다');
 
 const approvedActivityTitles = [
@@ -45,6 +55,11 @@ for (const title of approvedActivityTitles) {
   assert.match(homeFallback, new RegExp(title), `${title}은 메인 fallback에 있어야 합니다`);
   assert.match(archiveFallback, new RegExp(title), `${title}은 아카이브 fallback에 있어야 합니다`);
   assert.match(activityFallback, new RegExp(title), `${title}은 활동 목록 fallback에 있어야 합니다`);
+}
+
+for (const title of ['두 번째 환경정비 활동을 진행했습니다', '첫 환경정비 활동을 진행했습니다']) {
+  assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
+  assert.match(communityFallback, new RegExp(title), `${title}은 community-esg fallback에 있어야 합니다`);
 }
 
 const approvedWorkplaceTitles = [
@@ -61,6 +76,7 @@ for (const title of approvedWorkplaceTitles) {
 assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(createActivityCard\)\)/);
 assert.match(contentHub, /list\.replaceChildren\(\.\.\.visible\.map\(\(item\) => createCard\(item, 'h2'\)\)\)/);
 assert.match(listing, /list\.innerHTML = items\.length[\s\S]*?items\.map\(card\)\.join\(''\)/);
+assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/);
 
 // Missing runtime data is a degradation state, not a reason to erase approved HTML.
 assert.match(homePreviews, /if \(container\.dataset\.staticFallback\)[\s\S]*?section\.hidden = false/);
@@ -73,5 +89,9 @@ const emptyListingBranch = listing.match(/if \(!orderedData\.length\) \{([\s\S]*
 assert.match(emptyListingBranch, /filters\.hidden = true/);
 assert.match(emptyListingBranch, /return;/);
 assert.doesNotMatch(emptyListingBranch, /list\.innerHTML|replaceChildren/);
+const emptyCommunityBranch = communityScript.match(/if \(!records\.length\) \{([\s\S]*?)\n  \}/)?.[1] || '';
+assert.match(emptyCommunityBranch, /staticFallbackCount/);
+assert.match(emptyCommunityBranch, /return;/);
+assert.doesNotMatch(emptyCommunityBranch, /list\.hidden|replaceChildren/);
 
 console.log('public-static-fallback tests: all cases passed');

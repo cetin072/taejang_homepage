@@ -5,10 +5,20 @@
 ## 최상위 기준
 
 - [`PROJECT_CHARTER.md`](PROJECT_CHARTER.md)는 태장 프로젝트의 장기 목적·범위·기능 채택 기준을 정의합니다. 모든 작은 작업에서 전문을 다시 읽지는 않고, 새 기능·범위 변경·목적 판단이 필요한 작업에서 확인합니다.
+- [`docs/PLATFORM_CONSTITUTION.md`](docs/PLATFORM_CONSTITUTION.md)는 태장 홈페이지·업무플랫폼의 확장형 아키텍처 상위 원칙을 정의합니다. 새 기능, 공통 모듈, 데이터 구조, 조직 경계, 대규모 구조 변경을 판단할 때 확인합니다.
+- **현재 태장을 제대로 만드는 것을 우선하되, 태장만 만들 수 있는 구조로 만들지는 않습니다.** 공통화가 명확한 것은 Platform/Shared/Core 경계를 고려하고, 아직 명확하지 않은 것은 섣불리 추상화하지 않습니다.
 - 홈페이지와 업무 플랫폼은 태장의 장애인 고용 안정, 장기 완전고용 유지, 제품·서비스 경쟁력, 수익성, 영업과 사회공헌을 지원하는 도구입니다.
 - 기능 개발 자체를 목표로 삼지 않습니다.
 - 새 기능은 프로젝트 헌장의 기능 채택 판단 기준을 통과해야 합니다.
 - 전체 시스템을 한 번에 만들지 않고 모듈별로 실제 운영 가능한 수준까지 완성한 뒤 다음 모듈로 확장합니다.
+
+## 플랫폼 확장 판단
+
+- 새 기능을 설계할 때 `태장 Domain`, `Platform / Shared / Core`, `현재는 태장에 두고 공통화 보류` 중 어디에 해당하는지 판단합니다.
+- 로그인, 사용자, 조직, 권한, 알림, 파일, 검색, 감사로그, AI, Jobs, 공통 UI처럼 재사용 가능성이 명확한 기능은 불필요하게 태장 이름에 종속시키지 않습니다.
+- 태장 고유 업무와 공통 플랫폼 기능의 경계를 명확히 하되, 두 번째 사용처가 없거나 공통성이 불명확한 코드를 미래를 예상해 억지로 추상화하지 않습니다.
+- `Organization` 또는 이에 준하는 조직 경계를 나중에 추가하기 어렵게 만드는 데이터 구조는 피하지만, 현재 필요하지 않은 복잡한 멀티테넌트 기능을 선행 구현하지 않습니다.
+- 기존 정상 코드는 플랫폼 원칙만을 이유로 전면 재작성하지 않고 새 기능과 실제 반복 사용을 계기로 점진적으로 정리합니다.
 
 ## 문서 로딩 경량화
 
@@ -16,7 +26,7 @@
 
 - **일반 작업:** 현재 Issue/사용자 요청 + `AGENTS.md` + 직접 수정할 인접 파일·관련 테스트
 - **큰 기능·여러 모듈 변경:** 위 내용 + 관련 `docs/planning/` 또는 `docs/operations/` + 현재 PR/review
-- **아키텍처·보안·권한·DB·배포 구조 변경:** 위 내용 + 필요한 중앙 공통 표준 원문 + 프로젝트 헌장/계약 문서
+- **아키텍처·공통화·조직 경계·보안·권한·DB·배포 구조 변경:** 위 내용 + [`docs/PLATFORM_CONSTITUTION.md`](docs/PLATFORM_CONSTITUTION.md) + 필요한 중앙 공통 표준 원문 + 프로젝트 헌장/계약 문서
 - 중앙 `ai-development-system` 문서는 모든 작업의 상시 체크리스트가 아니라 아키텍처 판단과 감사의 상위 기준입니다.
 - 문서 탐색·전체 검증 비용이 실제 위험 감소보다 커지지 않도록 targeted read/test를 우선합니다.
 
@@ -68,6 +78,16 @@
 - 다른 PC로 이동하기 전에는 최소 commit과 push를 남기고, 가능하면 Draft PR까지 만들어 작업 맥락과 검증 결과를 GitHub에 남깁니다.
 - 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
 - 사용자가 ChatGPT 기획방과 Codex 사이에서 긴 지시문·결과를 반복 운반하지 않도록 GitHub Issue/PR과 운영문서를 공유 상태의 기준으로 사용합니다.
+
+### 사용자 Preview QA Gate
+
+- 중앙 source of truth는 `cetin072/ai-development-system`의 [`DEVELOPMENT_CONSTITUTION.md`](https://github.com/cetin072/ai-development-system/blob/main/DEVELOPMENT_CONSTITUTION.md), [`AI_DEVELOPMENT_STANDARD.md`](https://github.com/cetin072/ai-development-system/blob/main/AI_DEVELOPMENT_STANDARD.md), 특히 [`docs/PREVIEW_QA_GATE.md`](https://github.com/cetin072/ai-development-system/blob/main/docs/PREVIEW_QA_GATE.md)입니다.
+- 사용자는 최종 수용 검수자이지 기본 디버거가 아닙니다. Preview·모바일 실기·캡처·버튼 확인을 요청하기 전에 기계적으로 검증 가능한 오류를 개발 측에서 먼저 제거합니다.
+- `CI green`, `npm test 통과`, `Netlify Ready`, 코드상 문제없어 보임 중 하나만으로 사용자 검수를 요청하지 않습니다.
+- 사용자 검수 요청 전에는 가능한 범위에서 최신 기준 브랜치 대비 behind/충돌과 전체 diff, 관련 자동 테스트·정적 검사, 기존 핵심 기능 회귀, 새 기능 전용 검증, 빌드 산출물과 런타임 자산·Worker/WASM/모델·동적 import/API 경로, Preview 대상 커밋 일치, 자동화 가능한 대표 사용자 흐름, 실패 시 입력·첨부·작성 데이터 보존을 확인합니다.
+- 사용자가 발견한 기계적 버그는 단순 패치로 끝내지 않고 가능한 범위에서 같은 유형을 다시 사전에 잡는 테스트·fixture·경로 검사·회귀 규칙으로 남깁니다.
+- 실제 휴대폰 조작감, 실제 업무 데이터의 정확도, 화면 가독성·버튼 위치, 실제 업무 흐름의 요구사항 누락처럼 사람과 실제 환경이 필요한 항목만 사용자 실기 검수로 남깁니다.
+- 사용자 검수 요청 시에는 자동 테스트, 전용 기능 테스트, Deploy Preview, 런타임 자산/경로, 자동화 가능한 대표 흐름 중 실제 확인한 항목만 PASS로 보고하고, 미확인 항목은 PASS로 기록하지 않습니다.
 
 ### Codex 모델·추론 선택
 

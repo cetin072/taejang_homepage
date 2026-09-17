@@ -136,6 +136,7 @@
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
     ['assets/capability-access.js', 'capability-access'],
+    ['assets/issue-223-promotion-meta-stale-guard.js', 'issue-223-promotion-meta-stale-guard'],
     ['assets/official-channel-config.js', 'official-channel-config'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
@@ -153,6 +154,8 @@
     ['assets/phase-c-account-approval.js', 'phase-c-account-approval'],
     ['assets/phase-c-publication-admin.js', 'phase-c-publication-admin'],
     ['assets/phase-c-role-simulation.js', 'phase-c-role-simulation'],
+    ['assets/issue-221-employee-screen-core.js', 'issue-221-employee-screen-core'],
+    ['assets/issue-221-employee-screen-switcher.js', 'issue-221-employee-screen-switcher'],
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
@@ -177,6 +180,7 @@
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
     ['assets/ux-followup-polish.js', 'ux-followup-polish'],
     ['assets/issue-207-promotion-information-ux.js', 'issue-207-promotion-information-ux'],
+    ['assets/role-screen-polish.js', 'role-screen-polish'],
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 

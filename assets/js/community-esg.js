@@ -14,13 +14,13 @@
     .sort((left, right) => Date.parse(`${right.activity.date.replaceAll('.', '-')}T00:00:00Z`)
       - Date.parse(`${left.activity.date.replaceAll('.', '-')}T00:00:00Z`) || left.index - right.index);
 
-  if (count) count.textContent = `현재 공개된 활동 ${records.length}건`;
+  const staticFallbackCount = list.querySelectorAll('[data-static-fallback-card]').length;
   if (!records.length) {
-    list.hidden = true;
+    if (count) count.textContent = `현재 공개된 활동 ${staticFallbackCount}건`;
     return;
   }
 
-  records.forEach(({ activity }) => {
+  function createRecord(activity) {
     const article = document.createElement('article');
     article.className = 'community-esg-record';
     const link = document.createElement('a');
@@ -71,6 +71,9 @@
     body.append(meta, heading, summary, more);
     link.append(media, body);
     article.append(link);
-    list.append(article);
-  });
+    return article;
+  }
+
+  if (count) count.textContent = `현재 공개된 활동 ${records.length}건`;
+  list.replaceChildren(...records.map(({ activity }) => createRecord(activity)));
 }());
