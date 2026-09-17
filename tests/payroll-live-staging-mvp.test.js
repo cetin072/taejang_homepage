@@ -73,11 +73,13 @@ test('unauthenticated payroll page keeps attendance controls inactive until prot
   ]) assert.match(attendanceEditor, new RegExp(`'${id}'`));
 });
 
-test('direct attendance entry is primary and Excel is optional same-table prefill', () => {
-  assert.match(html, /직접 입력이 기본입니다/);
-  assert.match(html, /출근부 Excel로 채우기/);
-  assert.match(html, /같은 표에 자동으로 채워지고/);
-  assert.match(html, /저장 전에 다시 직접 수정/);
+test('vendor attendance Excel is primary and direct entry is limited to exception correction', () => {
+  assert.match(html, /보안업체 출근부 Excel이 기본입니다/);
+  assert.match(html, /보안업체 출근부 Excel 가져오기/);
+  assert.match(html, /정상건은 자동대조하고 예외만/);
+  assert.match(html, /수기 입력은 예외 보정용/);
+  assert.match(attendanceEditor, /보안업체 출근부 Excel이 기본입니다/);
+  assert.doesNotMatch(html, /직접 입력이 기본입니다/);
   assert.match(html, /payroll-attendance-editor-body/);
   assert.match(html, /변경사항 저장/);
   assert.match(attendanceEditor, /xlsx_prefill/);

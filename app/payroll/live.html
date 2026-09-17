@@ -15,7 +15,7 @@
       <div>
         <p class="payroll-eyebrow">태장 업무플랫폼 · 근태·급여관리</p>
         <h1 class="payroll-title" id="payroll-live-title">급여월 불러오는 중</h1>
-        <p class="payroll-subtitle">운영총괄 PC 사전운영 화면입니다. 근태를 직접 입력하거나 출근부 Excel로 채운 뒤 수정하고, 같은 자료로 급여 가안을 확인합니다.</p>
+        <p class="payroll-subtitle">운영총괄 PC 사전운영 화면입니다. 보안업체 출근부 Excel을 원본 그대로 가져와 정상건은 자동대조하고 예외만 보정한 뒤, 같은 자료로 급여 가안을 확인합니다.</p>
       </div>
       <span class="payroll-demo-badge" id="payroll-live-environment">PC 사전운영 · 운영총괄</span>
     </header>
@@ -33,13 +33,13 @@
 
     <p id="payroll-live-message" class="payroll-live-message" role="status" aria-live="polite" hidden></p>
 
-    <section class="payroll-card payroll-attendance-editor-card" id="payroll-attendance-editor" aria-label="근태 직접 입력 및 Excel 자동채움">
+    <section class="payroll-card payroll-attendance-editor-card" id="payroll-attendance-editor" aria-label="보안업체 출근부 가져오기 및 예외 보정">
       <div class="payroll-card-header payroll-attendance-editor-header">
         <div>
           <p class="payroll-eyebrow">1. 근태 입력</p>
           <h2>출근부</h2>
           <p class="payroll-attendance-editor-note">
-            <strong>직접 입력이 기본입니다.</strong> 보안업체 출근부 Excel을 선택하면 같은 표에 자동으로 채워지고, 저장 전에 다시 직접 수정할 수 있습니다.
+            <strong>보안업체 출근부 Excel이 기본입니다.</strong> 원본을 선택하면 정상건은 자동대조하고 예외만 저장 전에 수기 근거로 보정할 수 있습니다.
           </p>
         </div>
         <div class="payroll-attendance-editor-actions">
@@ -50,7 +50,7 @@
           </label>
           <button class="payroll-button secondary" type="button" id="payroll-attendance-next">다음날</button>
           <label class="payroll-button secondary payroll-file-button" for="payroll-attendance-file">
-            출근부 Excel로 채우기
+            보안업체 출근부 Excel 가져오기
             <input id="payroll-attendance-file" type="file" accept=".xlsx,.xls" hidden>
           </label>
           <button class="payroll-button" type="button" id="payroll-attendance-save">변경사항 저장</button>
@@ -58,8 +58,8 @@
         </div>
       </div>
       <div class="payroll-card-body">
-        <span id="payroll-attendance-file-name" class="payroll-file-name">Excel 선택 안 함 · 직접 입력 가능</span>
-        <span id="payroll-attendance-preview" class="payroll-file-preview" data-state="idle">Excel은 선택사항입니다. 선택하면 시트·헤더·행 수를 먼저 확인하고 같은 표에 채웁니다.</span>
+        <span id="payroll-attendance-file-name" class="payroll-file-name">보안업체 원본을 선택해 주세요 · 수기 입력은 예외 보정용</span>
+        <span id="payroll-attendance-preview" class="payroll-file-preview" data-state="idle">보안업체 `.xls` 또는 `.xlsx` 원본을 선택하면 시트·헤더·행 수를 먼저 확인하고 근태 대조표에 채웁니다.</span>
         <p id="payroll-attendance-editor-message" class="payroll-attendance-editor-message" role="status" aria-live="polite" hidden></p>
         <p id="payroll-attendance-editor-summary" class="payroll-attendance-editor-summary">근태 입력표 불러오는 중</p>
         <div class="payroll-attendance-editor-table-wrap">
@@ -164,7 +164,7 @@
           <ul class="payroll-checklist">
             <li>현재 PC 사전운영 환경에서 운영총괄이 근태 저장과 급여 가안 계산을 수행합니다.</li>
             <li>급여 확정·월 잠금·송금 기능은 없습니다.</li>
-            <li>직접 입력이 기본이며 Excel은 같은 표를 빠르게 채우는 보조수단입니다.</li>
+            <li>보안업체 Excel 원본이 기본 입력이며 직접 입력은 현장 수기 근거에 따른 예외 보정용입니다.</li>
             <li>Excel 원본과 기존 근태 원본은 덮어쓰지 않고, 화면 수정은 별도 변경이력으로 남깁니다.</li>
             <li>주민등록번호·급여계좌·장애·건강정보는 화면/가안 Excel에 넣지 않습니다.</li>
             <li>급여대장은 직원 중복·계산 인원·총지급-공제-실지급 산식을 자동 검증합니다.</li>

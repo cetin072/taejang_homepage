@@ -516,7 +516,7 @@
       dateInput.value = state.selectedDate;
     }
     renderTable();
-    if (!quiet) setMessage('직접 입력이 기본입니다. Excel을 선택하면 같은 표에 자동으로 채워지고 다시 수정할 수 있습니다.', 'ok');
+    if (!quiet) setMessage('보안업체 출근부 Excel이 기본입니다. 원본을 가져오면 정상건은 자동대조하고 수기 입력은 예외 보정에만 사용합니다.', 'ok');
   }
 
   function bindEvents() {
