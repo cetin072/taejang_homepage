@@ -52,6 +52,7 @@
 | 확정 항목 | 상태 | 증거 |
 | --- | --- | --- |
 | 구형 13-column BIFF `.xls` 직접 읽기 및 실제 기간 판별 | 구현 완료 | `payroll-attendance-xls.js`, vendor import 회귀 |
+| 보안업체 Excel 원본 우선 입력, 수기 입력은 예외 보정 | 구현 완료 | `app/payroll/live.html`, `payroll-attendance-editor.js` |
 | 초 단위 evidence와 분 단위 파생 | 구현 완료 | `payroll-attendance-vendor-import.js` |
 | 이름 + 재직기간 fail-closed 매칭 | 구현 완료 | `payroll-attendance-normalizer.js` 회귀 |
 | UI의 예외 중심 요약·필터 | 부분 구현 | `payroll-attendance-operator-ux.js`; 영속 예외 queue는 미구현 |
