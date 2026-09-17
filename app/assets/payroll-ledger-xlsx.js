@@ -367,6 +367,51 @@
     return { days, rows };
   }
 
+  function summarizeMonthlyAttendanceWorkbookModel(model) {
+    if (!model || !Array.isArray(model.days) || !Array.isArray(model.rows)) {
+      throw new Error('monthly_attendance_workbook_model_required');
+    }
+    const summary = {
+      employeeCount: model.rows.length,
+      calendarDayCount: model.days.length,
+      workedPersonDays: 0,
+      paidLeavePersonDays: 0,
+      unpaidAbsencePersonDays: 0,
+      paidHolidayPersonDays: 0,
+      reviewRequiredPersonDays: 0,
+      workedHours: 0,
+    };
+    for (const row of model.rows) {
+      summary.workedHours += Number(row?.workedHours || 0);
+      summary.paidLeavePersonDays += Number(row?.paidLeave || 0);
+      summary.unpaidAbsencePersonDays += Number(row?.unpaidAbsence || 0);
+      summary.paidHolidayPersonDays += Number(row?.paidHoliday || 0);
+      for (const daily of row?.daily || []) {
+        if (!Array.isArray(daily) || daily.length < 3) continue;
+        const label = String(daily[2] ?? '').trim();
+        if (daily[0] || daily[1] || (label && !['유급휴가', '결근', '유급공휴일', '휴무', '퇴사', '대상 제외', '수기 근거 필요', '확인 필요'].includes(label))) {
+          summary.workedPersonDays += 1;
+        }
+        if (label === '확인 필요' || label === '수기 근거 필요') summary.reviewRequiredPersonDays += 1;
+      }
+    }
+    return Object.freeze(summary);
+  }
+
+  function compareMonthlyAttendanceWorkbookSummary(model, expected = {}) {
+    const actual = summarizeMonthlyAttendanceWorkbookModel(model);
+    const differences = [];
+    for (const [key, expectedValue] of Object.entries(expected || {})) {
+      if (!(key in actual)) continue;
+      const normalizedExpected = Number(expectedValue);
+      if (!Number.isFinite(normalizedExpected)) continue;
+      if (Number(actual[key]) !== normalizedExpected) {
+        differences.push(Object.freeze({ key, expected: normalizedExpected, actual: Number(actual[key]) }));
+      }
+    }
+    return Object.freeze({ ok: differences.length === 0, actual, differences: Object.freeze(differences) });
+  }
+
   function monthlyAttendanceSheetXml(model, month) {
     const identityHeaders = ['오전 / 오후', '순번', '성명', '성별', '생년월일', '장애유형'];
     const tailHeaders = ['월 근무시간', '월차 발생', '월차 사용', '월차 잔여', '입사일', '근로지도원'];
@@ -461,6 +506,8 @@
     downloadPayrollLedgerXlsx,
     monthCalendarDays,
     buildMonthlyAttendanceWorkbookModel,
+    summarizeMonthlyAttendanceWorkbookModel,
+    compareMonthlyAttendanceWorkbookSummary,
     buildMonthlyAttendanceWorkbookXlsx,
   });
 });
