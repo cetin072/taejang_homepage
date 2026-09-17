@@ -88,8 +88,6 @@
     if (documentRef.documentElement.dataset[INSTALL_MARKER] === 'true') return false;
     documentRef.documentElement.dataset[INSTALL_MARKER] = 'true';
 
-    observeAttendanceSave(root);
-
     documentRef.addEventListener('change', event => {
       const input = event.target;
       if (!input?.matches?.('#payroll-attendance-file')) return;

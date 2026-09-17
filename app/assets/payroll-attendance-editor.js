@@ -129,6 +129,17 @@
     return '미입력';
   }
 
+  function minuteDisplay(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{2}:\d{2})(?::\d{2})?$/);
+    return match ? match[1] : text;
+  }
+
+  function operatorRawTime(value) {
+    const minute = minuteDisplay(value);
+    return /^\d{2}:\d{2}$/.test(minute) ? `${minute}:00` : minute;
+  }
+
   function sourceClass(source) {
     return source ? `source-${String(source).replace(/_/g, '-')}` : 'source-empty';
   }
@@ -150,6 +161,8 @@
       status: '',
       clockIn: '',
       clockOut: '',
+      clockInRaw: '',
+      clockOutRaw: '',
       confirmedHours: '',
       sourceKind: '',
       sourceFileName: '',
@@ -173,8 +186,10 @@
       const cell = baseCell(employee, row.work_date);
       Object.assign(cell, {
         status: statusFromImported(row),
-        clockIn: row.clock_in_raw || '',
-        clockOut: row.clock_out_raw || '',
+        clockIn: minuteDisplay(row.clock_in_raw),
+        clockOut: minuteDisplay(row.clock_out_raw),
+        clockInRaw: row.clock_in_raw || '',
+        clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
         sourceKind: 'existing_import',
         originalSourceKind: 'existing_import',
@@ -190,8 +205,10 @@
       const cell = baseCell(employee, row.work_date);
       Object.assign(cell, {
         status: row.attendance_status || '',
-        clockIn: row.clock_in_raw || '',
-        clockOut: row.clock_out_raw || '',
+        clockIn: minuteDisplay(row.clock_in_raw),
+        clockOut: minuteDisplay(row.clock_out_raw),
+        clockInRaw: row.clock_in_raw || '',
+        clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
         sourceKind: row.source_kind || 'manual_ui',
         originalSourceKind: row.source_kind || 'manual_ui',
@@ -225,6 +242,8 @@
 
   function markChanged(cell, field, value) {
     cell[field] = value;
+    if (field === 'clockIn') cell.clockInRaw = operatorRawTime(value);
+    if (field === 'clockOut') cell.clockOutRaw = operatorRawTime(value);
     cell.sourceKind = dirtySource(cell);
     state.dirty.add(keyOf(cell.employeeUuid, cell.workDate));
     renderSummary();
@@ -346,6 +365,10 @@
           status: row.clockIn && row.clockOut ? 'work' : 'review_required',
           clockIn: row.clockIn || '',
           clockOut: row.clockOut || '',
+          // The time inputs show minute precision, while these fields retain
+          // the vendor source's original seconds for append-only persistence.
+          clockInRaw: row.clockInRaw || row.clockIn || '',
+          clockOutRaw: row.clockOutRaw || row.clockOut || '',
           confirmedHours: '',
           // The append-only editor contract calls every spreadsheet prefill
           // xlsx_prefill. The exact immutable source format remains in the
@@ -386,8 +409,8 @@
         employee_uuid: cell.employeeUuid,
         work_date: cell.workDate,
         attendance_status: cell.status,
-        clock_in_raw: cell.clockIn || null,
-        clock_out_raw: cell.clockOut || null,
+        clock_in_raw: cell.clockInRaw || cell.clockIn || null,
+        clock_out_raw: cell.clockOutRaw || cell.clockOut || null,
         confirmed_hours: Number.isFinite(value) ? value : null,
         source_kind: cell.sourceKind || 'manual_ui',
         source_file_name: cell.sourceFileName || null,
@@ -435,6 +458,41 @@
     });
   }
 
+  function vendorSourceIndexForSave() {
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    const importState = module?.getLastImportState?.();
+    if (!importState?.snapshot || !/\.xls$/i.test(importState.fileName || '')) return null;
+    return module.compactSourceIndex?.(importState.snapshot) || null;
+  }
+
+  async function loadVendorSourceIndexes() {
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    if (typeof module?.setRemoteSourceIndexes !== 'function') return;
+    try {
+      const result = await rpc('get_payroll_vendor_source_indexes', { p_payroll_month: monthStart() });
+      module.setRemoteSourceIndexes(result?.source_indexes || []);
+    } catch {
+      // A migration not yet present on an older Preview must not expose an
+      // attendance editor failure or fall back to a less-restricted API.
+      module.setRemoteSourceIndexes([]);
+    }
+  }
+
+  async function persistVendorSourceIndex() {
+    const sourceIndex = vendorSourceIndexForSave();
+    if (!sourceIndex) return null;
+    const result = await rpc('record_payroll_vendor_source_snapshot', {
+      p_payroll_month: monthStart(),
+      p_source_index: sourceIndex,
+    });
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    module?.rememberRemoteSourceIndex?.(result?.source_index);
+    // Browser storage is only a local cache. It is updated after the protected
+    // backend record succeeds, never from a success-message observer.
+    module?.commitLastImportSourceIndex?.(window);
+    return result;
+  }
+
   async function saveChanges() {
     if (state.loading) return;
     const entries = serializeDirty();
@@ -459,11 +517,18 @@
       return;
     }
 
+    let sourceIndexWarning = '';
+    try {
+      await persistVendorSourceIndex();
+    } catch (error) {
+      sourceIndexWarning = ` · 보안업체 원본 대조기준 저장 실패: ${error.message || '재업로드 필요'}`;
+    }
+
     const savedCount = Number(saved?.saved_count || entries.length);
     // The attendance write has completed. Never leave these same entries dirty
     // merely because the later, independent payroll calculation has a problem.
     clearSavedDirty(entries);
-    setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안을 다시 계산하는 중…`, 'ok');
+    setMessage(`근태 ${savedCount}건은 저장되었습니다${sourceIndexWarning}. 급여 가안을 다시 계산하는 중…`, sourceIndexWarning ? 'review' : 'ok');
 
     try {
       await loadContext({ preserveDate: true, quiet: true });
@@ -507,6 +572,7 @@
     if (!quiet) setMessage('근태 입력표를 불러오는 중…');
     const context = await rpc('get_payroll_attendance_editor_context', { p_payroll_month: monthStart() });
     state.context = context;
+    await loadVendorSourceIndexes();
     state.selectedDate = safeDateForMonth(preserveDate ? state.selectedDate : el('payroll-attendance-date')?.value);
     rebuildModel();
     const dateInput = el('payroll-attendance-date');

@@ -13,6 +13,7 @@
 
   let pendingSourceMeta = null;
   let lastImportState = null;
+  const remoteSourceIndexes = new Map();
 
   function clean(value) { return String(value == null ? '' : value).trim(); }
   function canonical(value) { return clean(value).normalize('NFC'); }
@@ -243,6 +244,34 @@
     return `${STORAGE_PREFIX}:${start}:${end}`;
   }
 
+  function validSourceIndex(index) {
+    return Boolean(
+      index
+      && index.version === 'vendor-attendance-source-index-v1'
+      && /^fnv1a-[0-9a-f]{8}$/i.test(clean(index.sourceFingerprint))
+      && Array.isArray(index.rows)
+    );
+  }
+
+  function setRemoteSourceIndexes(indexes) {
+    remoteSourceIndexes.clear();
+    for (const index of Array.isArray(indexes) ? indexes : []) {
+      if (!validSourceIndex(index)) continue;
+      remoteSourceIndexes.set(sourceIndexStorageKey(index.period), Object.freeze(index));
+    }
+    return remoteSourceIndexes.size;
+  }
+
+  function rememberRemoteSourceIndex(index) {
+    if (!validSourceIndex(index)) return false;
+    remoteSourceIndexes.set(sourceIndexStorageKey(index.period), Object.freeze(index));
+    return true;
+  }
+
+  function sourceIndexFor(snapshot, storage) {
+    return remoteSourceIndexes.get(sourceIndexStorageKey(snapshot?.period)) || readSourceIndex(snapshot, storage);
+  }
+
   function readSourceIndex(snapshot, storage) {
     if (!storage || typeof storage.getItem !== 'function') return null;
     const key = sourceIndexStorageKey(snapshot?.period);
@@ -264,7 +293,7 @@
     const snapshot = createSnapshot({ fileName: file.name, downloadedAt, rows });
     let storage = null;
     try { storage = browserRoot.localStorage || null; } catch { storage = null; }
-    const previous = readSourceIndex(snapshot, storage);
+    const previous = sourceIndexFor(snapshot, storage);
     const current = compactSourceIndex(snapshot);
     const diff = compareSourceIndexes(previous, current);
     const identical = Boolean(previous && previous.sourceFingerprint === current.sourceFingerprint);
@@ -341,7 +370,7 @@
           const snapshot = createSnapshot({ ...pendingSourceMeta, rows });
           let storage = null;
           try { storage = browserRoot.localStorage || null; } catch { storage = null; }
-          const previous = readSourceIndex(snapshot, storage);
+          const previous = sourceIndexFor(snapshot, storage);
           const current = compactSourceIndex(snapshot);
           const diff = compareSourceIndexes(previous, current);
           lastImportState = Object.freeze({
@@ -393,6 +422,8 @@
     compactSourceIndex,
     compareSourceIndexes,
     sourceIndexStorageKey,
+    setRemoteSourceIndexes,
+    rememberRemoteSourceIndex,
     readSourceIndex,
     persistSourceIndex,
     inspectLegacyFile,

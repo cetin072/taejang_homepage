@@ -53,11 +53,11 @@
 | --- | --- | --- |
 | 구형 13-column BIFF `.xls` 직접 읽기 및 실제 기간 판별 | 구현 완료 | `payroll-attendance-xls.js`, vendor import 회귀 |
 | 보안업체 Excel 원본 우선 입력, 수기 입력은 예외 보정 | 구현 완료 | `app/payroll/live.html`, `payroll-attendance-editor.js` |
-| 초 단위 evidence와 분 단위 파생 | 구현 완료 | `payroll-attendance-vendor-import.js` |
+| 초 단위 evidence와 분 단위 파생 | 구현 완료 | `payroll-attendance-vendor-import.js`, append-only editor payload |
 | 이름 + 재직기간 fail-closed 매칭 | 구현 완료 | `payroll-attendance-normalizer.js` 회귀 |
 | UI의 예외 중심 요약·필터 | 부분 구현 | `payroll-attendance-operator-ux.js`; 영속 예외 queue는 미구현 |
-| 재다운로드 diff와 확정값 보호 | 부분 구현 | browser hash/localStorage 및 prefill 보호; DB source snapshot은 미구현 |
-| correction audit persistence | 부분 구현 | 기존 attendance correction schema; vendor upload의 실제 persistence 연결은 미구현 |
+| 재다운로드 diff와 확정값 보호 | 구현 완료 | `20260917225912_payroll_vendor_source_snapshots.sql`, protected hash-index RPC, existing prefill protection |
+| correction audit persistence | 부분 구현 | 기존 attendance correction schema와 raw clock append-only persistence; 예외 queue의 correction 작성 흐름은 #211 후속 |
 | 월간 출퇴근부 XLSX model/exporter | 부분 구현 | `payroll-ledger-xlsx.js`의 protected-HR join contract·익명 회귀 |
 | 기존 Golden workbook 구조/집계 비교 | 미구현·후속 작업 | 실제 Golden 파일을 저장소에 넣지 않음; 안전한 비교 경로 필요 |
 | confirmed attendance → payroll draft 연결 | 부분 구현 | 기존 payroll effective attendance 계산 흐름; vendor persistence 완료 후 재검증 필요 |
@@ -75,8 +75,9 @@ PR #213은 vendor `.xls` import/reconciliation, 예외 중심 UX, confirmed-valu
 
 ## 남은 승인 경계
 
-vendor source snapshot·재다운로드 diff·예외 보정 audit을 browser local state가 아닌 DB persistence로 완성하려면, 기존 payroll attendance domain의 non-destructive migration과 최소권한 RPC가 필요하다. 이 변경은 별도 사람 판단 후에만 진행한다.
+2026-09-18의 Goal 지시로 vendor source snapshot·재다운로드 diff를 DB persistence로 완성하는 비파괴 migration과 최소권한 RPC를 승인 범위 안에서 적용한다. 이 변경은 hash index만 보관하며 shared Employee/Auth/RLS 의미를 바꾸지 않는다. 예외 queue의 별도 correction 작성 흐름과 민감 HR 대량 migration은 여전히 별도 판단이 필요하다.
 
 ## 결정 이력
 
-- 2026-09-18: Goal #142 및 Issues #210–#212의 확정 요구사항을 기획 기록으로 정합화했다. 실제 HR 값은 포함하지 않았으며, persistence migration은 승인 대기로 남겼다.
+- 2026-09-18: Goal #142 및 Issues #210–#212의 확정 요구사항을 기획 기록으로 정합화했다. 실제 HR 값은 포함하지 않았다.
+- 2026-09-18: 사용자 지시에 따라 #210의 비파괴 vendor snapshot persistence를 구현 범위로 확정했다. snapshot에는 해시 인덱스만 저장하고, 원본 초 단위 시각은 저장된 append-only attendance payload에만 유지한다.

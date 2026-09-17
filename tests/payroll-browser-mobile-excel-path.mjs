@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 
 const DIST_ROOT = join(process.cwd(), 'dist');
@@ -27,6 +28,7 @@ const terms = Object.freeze([{
 }]);
 
 const savedEntries = new Map();
+let vendorSourceIndex = null;
 let acceptedBatchId = null;
 let calculated = false;
 
@@ -152,7 +154,7 @@ const xlsxBase64 = zipStore([
   </row>
 </sheetData></worksheet>`],
 ]).toString('base64');
-const legacyXlsHtml = `<!doctype html><html><body><table id="근태이력"><tr><th>사번</th><th>성명</th><th>일자</th><th>출근</th><th>퇴근</th></tr><tr><td>VENDOR-REF-987</td><td>엑셀테스트직원</td><td>2026-09-13</td><td>09:00</td><td>13:00</td></tr></table></body></html>`;
+const legacyXlsHtml = `<!doctype html><html><body><table id="근태이력"><tr><th>사번</th><th>성명</th><th>일자</th><th>출근</th><th>퇴근</th></tr><tr><td>VENDOR-REF-987</td><td>엑셀테스트직원</td><td>2026-09-13</td><td>09:00:31</td><td>13:00:17</td></tr></table></body></html>`;
 
 function editorContext() {
   return {
@@ -315,9 +317,15 @@ const automationScript = `<script>
       }
 
       if (clockIn.value !== '09:00' || clockOut.value !== '13:00' || status.value !== 'work') throw new Error('XLS_CLOCK_VALUES_NOT_PERSISTED');
+      const input = document.getElementById('payroll-attendance-file');
+      const transfer = new DataTransfer();
+      transfer.items.add(legacyXlsFile());
+      input.files = transfer.files;
+      change(input);
+      await waitFor(() => (document.getElementById('payroll-attendance-editor-message')?.textContent || '').includes('동일 원본 재업로드'), 'remote source snapshot reload guard');
 
       sessionStorage.removeItem(stageKey);
-      mark('pass', 'mobile-390-xlsx-prefill-edit-save-reload-xls-prefill-save-reload');
+      mark('pass', 'mobile-390-xlsx-prefill-edit-save-reload-xls-prefill-save-reload-remote-snapshot-guard');
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }
@@ -343,12 +351,25 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_operator_ledger_context') { await readJson(request); return json(response, 200, ledgerContext()); }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_attendance_editor_context') { await readJson(request); return json(response, 200, editorContext()); }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_vendor_source_indexes') {
+      await readJson(request);
+      return json(response, 200, { payroll_month: `${TARGET_MONTH}-01`, source_indexes: vendorSourceIndex ? [vendorSourceIndex] : [] });
+    }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/save_payroll_attendance_manual_entries') {
       const body = await readJson(request);
       const entries = Array.isArray(body.p_entries) ? body.p_entries : [];
+      const legacyEntry = entries.find(entry => /\.xls$/i.test(entry.source_file_name || ''));
+      if (legacyEntry && (legacyEntry.clock_in_raw !== '09:00:31' || legacyEntry.clock_out_raw !== '13:00:17')) {
+        return json(response, 400, { message: 'LEGACY_XLS_SECONDS_NOT_PERSISTED' });
+      }
       for (const entry of entries) savedEntries.set(keyOf(entry), { ...entry, source_kind: entry.source_kind || 'manual_ui' });
       acceptedBatchId = '00000000-0000-4000-8000-0000000000dd';
       return json(response, 200, { payroll_month: `${TARGET_MONTH}-01`, saved_count: entries.length });
+    }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/record_payroll_vendor_source_snapshot') {
+      const body = await readJson(request);
+      vendorSourceIndex = body.p_source_index;
+      return json(response, 200, { payroll_month: `${TARGET_MONTH}-01`, snapshot_created: true, source_index: vendorSourceIndex, diff: { added: 1, changed: 0, missing: 0, unchanged: 0 } });
     }
     if (request.method === 'POST' && url.pathname === '/functions/v1/payroll-calculate') {
       const body = await readJson(request);
@@ -384,9 +405,10 @@ function chromeBinary() {
 await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
 const port = server.address().port;
 const target = `http://127.0.0.1:${port}/app/payroll/live.html?month=${TARGET_MONTH}`;
+const chromeProfile = mkdtempSync(join(tmpdir(), 'taejang-payroll-mobile-e2e-'));
 const child = spawn(chromeBinary(), [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--no-first-run', '--disable-background-networking',
-  '--window-size=390,844', '--force-device-scale-factor=1', '--virtual-time-budget=18000', `--user-data-dir=/tmp/taejang-payroll-mobile-e2e-${process.pid}`, '--dump-dom', target,
+  '--window-size=390,844', '--force-device-scale-factor=1', '--virtual-time-budget=18000', `--user-data-dir=${chromeProfile}`, '--dump-dom', target,
 ], { stdio: ['ignore', 'pipe', 'pipe'] });
 let stdout = '';
 let stderr = '';

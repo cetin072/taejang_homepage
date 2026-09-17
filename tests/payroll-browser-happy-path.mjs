@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 
 const DIST_ROOT = join(process.cwd(), 'dist');
@@ -402,6 +403,7 @@ await new Promise((resolve, reject) => {
 const port = server.address().port;
 const target = `http://127.0.0.1:${port}/app/payroll/live.html?month=${TARGET_MONTH}`;
 const chrome = chromeBinary();
+const chromeProfile = mkdtempSync(join(tmpdir(), 'taejang-payroll-e2e-'));
 const args = [
   '--headless=new',
   '--no-sandbox',
@@ -410,7 +412,7 @@ const args = [
   '--no-first-run',
   '--disable-background-networking',
   '--virtual-time-budget=15000',
-  `--user-data-dir=/tmp/taejang-payroll-e2e-${process.pid}`,
+  `--user-data-dir=${chromeProfile}`,
   '--dump-dom',
   target,
 ];
