@@ -176,8 +176,8 @@
 </worksheet>`;
   }
 
-  function workbookXml(month) {
-    const sheetName = String(month || '급여대장').replace(/[\\/?*\[\]:]/g, '-').slice(0, 31);
+  function workbookXml(name) {
+    const sheetName = String(name || '급여대장').replace(/[\\/?*\[\]:]/g, '-').slice(0, 31);
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <sheets><sheet name="${xml(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
@@ -241,16 +241,197 @@
     return new Uint8Array(output);
   }
 
-  function buildPayrollLedgerXlsx(context, month) {
+  function buildSingleSheetXlsx(sheetName, worksheetXml) {
     const files = [
       { name: '[Content_Types].xml', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
       { name: '_rels/.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
-      { name: 'xl/workbook.xml', content: workbookXml(month) },
+      { name: 'xl/workbook.xml', content: workbookXml(sheetName) },
       { name: 'xl/_rels/workbook.xml.rels', content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
       { name: 'xl/styles.xml', content: STYLES_XML },
-      { name: 'xl/worksheets/sheet1.xml', content: sheetXml(context, month) },
+      { name: 'xl/worksheets/sheet1.xml', content: worksheetXml },
     ];
     return storedZip(files);
+  }
+
+  function buildPayrollLedgerXlsx(context, month) {
+    return buildSingleSheetXlsx(month, sheetXml(context, month));
+  }
+
+  // Issue #212 contract: protected HR data is supplied by a separately-authorized
+  // source. It is deliberately not read from raw attendance or guessed by this
+  // browser exporter.
+  const ATTENDANCE_STATUSES = new Set([
+    'work', 'paid_leave', 'unpaid_absence', 'paid_holiday', 'off', 'review_required',
+  ]);
+
+  function monthCalendarDays(month) {
+    const match = String(month || '').match(/^(\d{4})-(\d{2})$/);
+    if (!match) throw new Error('monthly_attendance_workbook_invalid_month');
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const days = [];
+    for (let day = 1; day <= 31; day += 1) {
+      const date = new Date(Date.UTC(year, monthIndex, day));
+      if (date.getUTCMonth() !== monthIndex) break;
+      days.push({
+        iso: `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+        label: `${monthIndex + 1}/${day} (${WEEKDAYS[date.getUTCDay()]})`,
+      });
+    }
+    return days;
+  }
+
+  function attendanceStatusLabel(status, hours) {
+    if (status === 'work') return finite(hours);
+    if (status === 'paid_leave') return '유급휴가';
+    if (status === 'unpaid_absence') return '결근';
+    if (status === 'paid_holiday') return '유급공휴일';
+    if (status === 'off') return '휴무';
+    return '확인 필요';
+  }
+
+  function contractEmployeeId(value) {
+    return String(value?.employeeUuid || value?.employee_uuid || value?.id || '').trim();
+  }
+
+  function buildMonthlyAttendanceWorkbookModel({ month, employees, confirmedAttendance, protectedHrRows } = {}) {
+    const days = monthCalendarDays(month);
+    if (!Array.isArray(employees) || !Array.isArray(confirmedAttendance) || !Array.isArray(protectedHrRows)) {
+      throw new Error('monthly_attendance_workbook_protected_hr_contract_required');
+    }
+    const employeeById = new Map();
+    for (const employee of employees) {
+      const id = contractEmployeeId(employee);
+      if (!id || employeeById.has(id)) throw new Error('monthly_attendance_workbook_employee_identity_invalid');
+      employeeById.set(id, employee);
+    }
+    const hrByEmployee = new Map();
+    for (const hr of protectedHrRows) {
+      const id = contractEmployeeId(hr);
+      if (!id || hrByEmployee.has(id)) throw new Error('monthly_attendance_workbook_protected_hr_identity_invalid');
+      hrByEmployee.set(id, hr);
+    }
+    for (const id of employeeById.keys()) {
+      if (!hrByEmployee.has(id)) throw new Error('monthly_attendance_workbook_protected_hr_missing');
+    }
+
+    const attendanceByEmployeeDay = new Map();
+    for (const row of confirmedAttendance) {
+      const employeeId = contractEmployeeId(row);
+      const workDate = String(row?.workDate || row?.work_date || '').trim();
+      const status = String(row?.attendanceStatus || row?.attendance_status || '').trim();
+      if (!employeeById.has(employeeId) || !days.some(day => day.iso === workDate) || !ATTENDANCE_STATUSES.has(status)) {
+        throw new Error('monthly_attendance_workbook_confirmed_attendance_invalid');
+      }
+      const key = `${employeeId}|${workDate}`;
+      if (attendanceByEmployeeDay.has(key)) throw new Error('monthly_attendance_workbook_duplicate_confirmed_day');
+      attendanceByEmployeeDay.set(key, {
+        status,
+        clockIn: String(row?.clockInDisplay || row?.clock_in_display || '').trim(),
+        clockOut: String(row?.clockOutDisplay || row?.clock_out_display || '').trim(),
+        confirmedHours: finite(row?.confirmedHours ?? row?.confirmed_hours),
+      });
+    }
+
+    const rows = [];
+    for (const [employeeId, employee] of employeeById) {
+      const hr = hrByEmployee.get(employeeId);
+      let workedHours = 0;
+      let paidLeave = 0;
+      let unpaidAbsence = 0;
+      let paidHoliday = 0;
+      const daily = days.map((day) => {
+        const record = attendanceByEmployeeDay.get(`${employeeId}|${day.iso}`);
+        if (!record) return ['', '', ''];
+        if (record.status === 'work') workedHours += Number(record.confirmedHours || 0);
+        if (record.status === 'paid_leave') paidLeave += 1;
+        if (record.status === 'unpaid_absence') unpaidAbsence += 1;
+        if (record.status === 'paid_holiday') paidHoliday += 1;
+        return [record.clockIn, record.clockOut, attendanceStatusLabel(record.status, record.confirmedHours)];
+      });
+      rows.push({
+        employeeId,
+        employee,
+        hr,
+        daily,
+        workedHours,
+        paidLeave,
+        unpaidAbsence,
+        paidHoliday,
+      });
+    }
+    return { days, rows };
+  }
+
+  function monthlyAttendanceSheetXml(model, month) {
+    const identityHeaders = ['오전 / 오후', '순번', '성명', '성별', '생년월일', '장애유형'];
+    const tailHeaders = ['월 근무시간', '월차 발생', '월차 사용', '월차 잔여', '입사일', '근로지도원'];
+    const headers = [...identityHeaders, ...model.days.flatMap(day => [day.label, '', '']), ...tailHeaders];
+    const lastColumn = columnName(headers.length - 1);
+    const dayStart = identityHeaders.length;
+    const tailStart = dayStart + model.days.length * 3;
+    const title = `농업회사법인 태장(주) · 월간 출퇴근부 ${month}`;
+    const note = 'confirmed attendance + protected HR join contract · 근무시간은 work 상태의 confirmed hours만 합산하며, 유급휴가·결근·유급공휴일은 상태로 보존합니다.';
+    const rows = [
+      `<row r="1" ht="26" customHeight="1">${cellXml(title, 'A1', 1)}</row>`,
+      `<row r="2">${cellXml(note, 'A2', 4)}</row>`,
+    ];
+    const firstHeader = identityHeaders.map((header, index) => cellXml(header, `${columnName(index)}3`, 2));
+    model.days.forEach((day, index) => firstHeader.push(cellXml(day.label, `${columnName(dayStart + index * 3)}3`, 2)));
+    tailHeaders.forEach((header, index) => firstHeader.push(cellXml(header, `${columnName(tailStart + index)}3`, 2)));
+    rows.push(`<row r="3" ht="38" customHeight="1">${firstHeader.join('')}</row>`);
+    const secondHeader = identityHeaders.map((_, index) => cellXml('', `${columnName(index)}4`, 2));
+    model.days.forEach((_, index) => {
+      const start = dayStart + index * 3;
+      secondHeader.push(cellXml('출근\n오전', `${columnName(start)}4`, 2));
+      secondHeader.push(cellXml('퇴근\n오후', `${columnName(start + 1)}4`, 2));
+      secondHeader.push(cellXml('근무시간', `${columnName(start + 2)}4`, 2));
+    });
+    tailHeaders.forEach((_, index) => secondHeader.push(cellXml('', `${columnName(tailStart + index)}4`, 2)));
+    rows.push(`<row r="4" ht="38" customHeight="1">${secondHeader.join('')}</row>`);
+
+    model.rows.forEach((entry, index) => {
+      const employee = entry.employee || {};
+      const hr = entry.hr || {};
+      const values = [
+        '', index + 1, employee.display_name || employee.name || '', hr.gender || '', hr.birth_date || hr.birthDate || '', hr.disability_type || hr.disabilityType || '',
+        ...entry.daily.flat(),
+        entry.workedHours,
+        hr.monthly_leave_accrued ?? hr.monthlyLeaveAccrued ?? '',
+        hr.monthly_leave_used ?? hr.monthlyLeaveUsed ?? '',
+        hr.monthly_leave_balance ?? hr.monthlyLeaveBalance ?? '',
+        hr.hired_on || hr.hiredOn || employee.hired_on || employee.hiredOn || '',
+        hr.work_supporter || hr.workSupporter || '',
+      ];
+      const excelRow = index + 5;
+      rows.push(`<row r="${excelRow}">${values.map((value, columnIndex) => cellXml(value, `${columnName(columnIndex)}${excelRow}`, columnIndex === tailStart ? 3 : 0)).join('')}</row>`);
+    });
+
+    const merges = [`A1:${lastColumn}1`, `A2:${lastColumn}2`];
+    identityHeaders.forEach((_, index) => merges.push(`${columnName(index)}3:${columnName(index)}4`));
+    model.days.forEach((_, index) => {
+      const start = dayStart + index * 3;
+      merges.push(`${columnName(start)}3:${columnName(start + 2)}3`);
+    });
+    tailHeaders.forEach((_, index) => merges.push(`${columnName(tailStart + index)}3:${columnName(tailStart + index)}4`));
+    const widths = headers.map((_, index) => {
+      const isDay = index >= dayStart && index < tailStart;
+      const width = index === 0 ? 10 : index === 1 ? 6 : isDay ? 9 : 12;
+      return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetViews><sheetView workbookViewId="0"><pane xSplit="6" ySplit="4" topLeftCell="G5" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>
+  <cols>${widths}</cols>
+  <sheetData>${rows.join('')}</sheetData>
+  <mergeCells count="${merges.length}">${merges.map(ref => `<mergeCell ref="${ref}"/>`).join('')}</mergeCells>
+  <autoFilter ref="A4:${lastColumn}${Math.max(4, model.rows.length + 4)}"/>
+</worksheet>`;
+  }
+
+  function buildMonthlyAttendanceWorkbookXlsx(input) {
+    const model = buildMonthlyAttendanceWorkbookModel(input);
+    return buildSingleSheetXlsx(`${input?.month || '월간'} 출퇴근부`, monthlyAttendanceSheetXml(model, input?.month));
   }
 
   function downloadPayrollLedgerXlsx(context, month) {
@@ -274,5 +455,8 @@
     buildPayrollLedgerMatrix,
     buildPayrollLedgerXlsx,
     downloadPayrollLedgerXlsx,
+    monthCalendarDays,
+    buildMonthlyAttendanceWorkbookModel,
+    buildMonthlyAttendanceWorkbookXlsx,
   });
 });
