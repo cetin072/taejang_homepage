@@ -80,3 +80,29 @@ test('monthly attendance workbook rejects duplicated confirmed employee-days ins
     /monthly_attendance_workbook_duplicate_confirmed_day/
   );
 });
+
+
+test('monthly attendance workbook exposes a privacy-safe aggregate Golden comparison', () => {
+  const model = exporter.buildMonthlyAttendanceWorkbookModel(input);
+  const summary = exporter.summarizeMonthlyAttendanceWorkbookModel(model);
+  assert.equal(summary.employeeCount, 1);
+  assert.equal(summary.calendarDayCount, 31);
+  assert.equal(summary.workedPersonDays, 2);
+  assert.equal(summary.paidLeavePersonDays, 1);
+  assert.equal(summary.unpaidAbsencePersonDays, 1);
+  assert.equal(summary.paidHolidayPersonDays, 1);
+  assert.equal(summary.reviewRequiredPersonDays, 1);
+  assert.equal(summary.workedHours, 7);
+
+  const matched = exporter.compareMonthlyAttendanceWorkbookSummary(model, {
+    employeeCount: 1,
+    workedPersonDays: 2,
+    workedHours: 7,
+  });
+  assert.equal(matched.ok, true);
+  assert.deepEqual(matched.differences, []);
+
+  const mismatch = exporter.compareMonthlyAttendanceWorkbookSummary(model, { workedPersonDays: 3 });
+  assert.equal(mismatch.ok, false);
+  assert.deepEqual(mismatch.differences, [{ key: 'workedPersonDays', expected: 3, actual: 2 }]);
+});
