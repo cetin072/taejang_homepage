@@ -39,6 +39,13 @@ test('target expansion reuses existing server target contract and active account
   assert.match(migration, /on conflict \(event_id, device_id\) do nothing/i);
 });
 
+test('stale cancellation never discards already accepted receipt tracking', () => {
+  const fn = migration.match(/create or replace function public\.private_cancel_stale_notification_deliveries\(\)[\s\S]*?\$\$;/i)?.[0] || '';
+  assert.match(fn, /delivery\.status in \('queued', 'retry', 'sending'\)/i);
+  assert.doesNotMatch(fn, /delivery\.status in \([^)]*accepted/i);
+  assert.doesNotMatch(fn, /delivery\.status in \([^)]*receipt_checking/i);
+});
+
 test('dispatcher RPCs are service-role-only and include retry plus receipt lifecycle', () => {
   for (const name of [
     'private_claim_notification_push_batch',
