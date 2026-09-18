@@ -94,7 +94,7 @@ test('operations sidebar is grouped by final work categories without legacy guid
   assert.match(operationsSections, /label: '홈페이지', items: \['홈페이지 내용 관리', '홈페이지 직접 수정'\]/);
   assert.match(operationsSections, /label: '업무 운영', items: \['업무 배정', '일정 관리'\]/);
   assert.match(operationsSections, /label: '공지', items: \['공지 관리'\]/);
-  assert.match(operationsSections, /label: '근태·급여', items: \\['근태·급여관리', '급여초안 검토', '출근부'\\]\\.concat\\(\\['근태 보정'\\]\\)/);
+  assert.match(operationsSections, /label: '근태·급여', items: \['근태·급여관리', '급여초안 검토', '출근부'\]\.concat\(\['근태 보정'\]\)/);
   assert.doesNotMatch(operationsSections, /상시 안내 관리|승인·관리|홍보·홈페이지|직원·팀 관리/);
   assert.doesNotMatch(nav, /작업 매뉴얼/);
   assert.match(nav, /navSection === 'official_channels'\) return 9000/);
