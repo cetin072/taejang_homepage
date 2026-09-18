@@ -6,7 +6,7 @@ async function text(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('Taejang mobile foundation pins the reused Expo 57 stack', async () => {
+test('Taejang mobile foundation pins the reused Expo 57 compatible stack', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   assert.equal(pkg.main, 'expo-router/entry');
   assert.equal(pkg.dependencies.expo, '57.0.24');
@@ -14,7 +14,10 @@ test('Taejang mobile foundation pins the reused Expo 57 stack', async () => {
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);
-  assert.ok(pkg.dependencies['expo-notifications']);\n  assert.equal(pkg.dependencies['react-dom'], '19.2.3');\n  assert.equal(pkg.dependencies['react-native-reanimated'], '4.5.1');\n  assert.equal(pkg.dependencies['react-native-worklets'], '0.10.1');
+  assert.ok(pkg.dependencies['expo-notifications']);
+  assert.equal(pkg.dependencies['react-dom'], '19.2.3');
+  assert.equal(pkg.dependencies['react-native-reanimated'], '4.5.1');
+  assert.equal(pkg.dependencies['react-native-worklets'], '0.10.1');
 
   for (const version of Object.values({ ...pkg.dependencies, ...pkg.devDependencies })) {
     assert.doesNotMatch(String(version), /^[~^]/, 'mobile direct dependencies must be pinned exactly');
@@ -62,9 +65,12 @@ test('first mobile screen stays focused on auth and notification foundation', as
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 
-test('mobile CI builds an ARM64 Android artifact before human QA', async () => {
+test('mobile CI generates a clean lock then builds an ARM64 Android artifact', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
-  assert.match(workflow, /rm -f package-lock\\.json/);\n  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);\n  assert.match(workflow, /npm ci --no-audit --no-fund/);\n  assert.match(workflow, /taejang-mobile-generated-lock/);
+  assert.match(workflow, /rm -f package-lock\.json/);
+  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);
+  assert.match(workflow, /taejang-mobile-generated-lock/);
+  assert.match(workflow, /npm ci --no-audit --no-fund/);
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
