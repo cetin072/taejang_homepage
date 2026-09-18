@@ -127,11 +127,14 @@ begin
   update public.notification_devices
   set active = false,
       disabled_at = now(),
-      disabled_reason = 'token_reassigned',
+      disabled_reason = case
+        when profile_id = actor_id then 'installation_replaced'
+        else 'token_reassigned'
+      end,
       updated_at = now()
   where provider = p_provider
     and push_token = btrim(p_push_token)
-    and profile_id <> actor_id
+    and (profile_id <> actor_id or installation_id <> p_installation_id)
     and active;
 
   insert into public.notification_devices(
