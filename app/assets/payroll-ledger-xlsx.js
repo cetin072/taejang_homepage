@@ -483,6 +483,19 @@
     return buildSingleSheetXlsx(`${input?.month || '월간'} 출퇴근부`, monthlyAttendanceSheetXml(model, input?.month));
   }
 
+  function downloadMonthlyAttendanceWorkbookXlsx(input) {
+    const bytes = buildMonthlyAttendanceWorkbookXlsx(input);
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `태장_확정출퇴근부_${input?.month || '월간'}.xlsx`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   // This is intentionally a review/audit export, not the familiar protected-HR
   // monthly attendance workbook above. The latter remains fail-closed until an
   // explicitly authorised, one-to-one protected HR source is available.
@@ -574,6 +587,7 @@
     summarizeMonthlyAttendanceWorkbookModel,
     compareMonthlyAttendanceWorkbookSummary,
     buildMonthlyAttendanceWorkbookXlsx,
+    downloadMonthlyAttendanceWorkbookXlsx,
     buildAttendanceReviewMatrix,
     buildAttendanceReviewXlsx,
     downloadAttendanceReviewXlsx,

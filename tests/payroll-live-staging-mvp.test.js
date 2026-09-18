@@ -102,7 +102,8 @@ test('live payroll surface provides the three explicit operator download actions
   assert.match(html, /id="payroll-live-export"/);
   assert.match(html, /payroll-attendance-month-summary\.js/);
   assert.match(client, /downloadAttendanceReviewXlsx/);
-  assert.match(client, /protected HR source.*fail-closed/i);
+  assert.match(client, /get_payroll_confirmed_attendance_workbook_context/);
+  assert.match(client, /downloadMonthlyAttendanceWorkbookXlsx/);
   assert.match(attendanceEditor, /getReviewExportRows/);
   assert.match(attendanceEditor, /moveToNextException/);
 });

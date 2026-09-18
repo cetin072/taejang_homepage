@@ -221,11 +221,10 @@
   function updateConfirmedAttendanceExport() {
     const button = element('payroll-attendance-confirmed-export');
     if (!button) return;
-    // The familiar monthly attendance workbook includes protected HR columns.
-    // Do not make it actionable until a one-to-one approved HR export context
-    // exists; review export remains available without those fields.
-    button.disabled = true;
-    button.title = '승인된 protected HR 출처가 연결되면 사용할 수 있습니다';
+    button.disabled = attendanceReviewRows().length === 0;
+    button.title = button.disabled
+      ? '근태 원본 또는 저장된 확정근태를 먼저 불러와 주세요'
+      : '승인된 Protected HR source를 확인한 뒤 확정 출퇴근부를 생성합니다';
   }
 
   function renderValidation(context) {
@@ -397,8 +396,30 @@
     setMessage('근태 원본·보정 사유·미해결 상태를 포함한 검토내역 Excel을 내려받았습니다. protected HR 열이 필요한 기존 월간 출퇴근부는 승인된 HR source 연결 전까지 생성하지 않습니다.');
   }
 
-  function exportConfirmedAttendance() {
-    setMessage('확정 출퇴근부 Excel은 승인된 protected HR source를 직원별로 정확히 하나씩 연결한 뒤에만 생성합니다. 현재 source가 연결되지 않아 fail-closed 상태입니다.', { error: true });
+  async function exportConfirmedAttendance() {
+    const exporter = window.TaejangPayrollLedgerXlsx;
+    const editor = window.TaejangPayrollAttendanceEditor;
+    const confirmedAttendance = editor?.getConfirmedAttendanceRows?.() || [];
+    if (!exporter?.downloadMonthlyAttendanceWorkbookXlsx || !confirmedAttendance.length) {
+      setMessage('확정 출퇴근부를 만들 근태가 없습니다. 보안업체 원본을 불러오거나 저장된 근태를 확인해 주세요.', { error: true });
+      return;
+    }
+    try {
+      const context = await rpc('get_payroll_confirmed_attendance_workbook_context', { p_payroll_month: `${selectedMonth()}-01` });
+      exporter.downloadMonthlyAttendanceWorkbookXlsx({
+        month: selectedMonth(),
+        employees: context.employees,
+        confirmedAttendance,
+        protectedHrRows: context.protected_hr_rows,
+      });
+      setMessage('확정 출퇴근부 Excel을 내려받았습니다. 이 파일에는 승인된 Protected HR 필드가 포함됩니다.');
+    } catch (error) {
+      if (/PAYROLL_CONFIRMED_ATTENDANCE_PROTECTED_HR_MISSING/.test(error?.message || '')) {
+        setMessage('직원별 승인 Protected HR record가 정확히 하나씩 있어야 확정 출퇴근부를 생성할 수 있습니다. 누락 또는 중복을 먼저 확인해 주세요.', { error: true });
+        return;
+      }
+      setMessage('확정 출퇴근부를 생성하지 못했습니다. 권한과 근태 상태를 확인해 주세요.', { error: true });
+    }
   }
 
   function handleAttendanceFile(event) {

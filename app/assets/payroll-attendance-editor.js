@@ -356,6 +356,7 @@
 
   function reviewExportRows() {
     return storedCellsForMonth().map(cell => ({
+      employee_uuid: cell.employeeUuid || '',
       employee_id: cell.employeeId || '',
       display_name: cell.name || '',
       work_date: cell.workDate,
@@ -703,6 +704,7 @@
   // The bridge deliberately excludes raw seconds and any protected HR attributes.
   window.TaejangPayrollAttendanceEditor = Object.freeze({
     getReviewExportRows: reviewExportRows,
+    getConfirmedAttendanceRows: reviewExportRows,
     getMonthSummary: currentMonthSummary,
   });
 })();
