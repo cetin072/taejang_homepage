@@ -2,6 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import { AppState } from 'react-native';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
+import { disableCurrentPushDevice } from '@/src/notifications/push-registration';
 import { loadPublicPlatformConfig, type PublicPlatformConfig } from '@/src/platform/config';
 import { createPlatformSupabaseClient, type PlatformSupabaseClient } from '@/src/platform/supabase';
 
@@ -95,6 +96,11 @@ export function PlatformProvider({ children }: PropsWithChildren) {
       },
       signOut: async () => {
         if (!client) return;
+        try {
+          await disableCurrentPushDevice(client);
+        } catch {
+          // Signing out must still work if the device-disable request is offline.
+        }
         const { error: signOutError } = await client.auth.signOut();
         if (signOutError) throw signOutError;
       },
