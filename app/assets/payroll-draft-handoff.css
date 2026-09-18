@@ -1,0 +1,134 @@
+.payroll-handoff-shell {
+  max-width: 980px;
+}
+
+.payroll-handoff-notice {
+  margin: 1.25rem 0;
+}
+
+.payroll-handoff-notice h2 {
+  margin: 0 0 .65rem;
+  font-size: 1.08rem;
+}
+
+.payroll-handoff-notice ul {
+  display: grid;
+  gap: .45rem;
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #40534a;
+}
+
+.payroll-handoff-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.payroll-handoff-card {
+  display: grid;
+  gap: .9rem;
+}
+
+.payroll-handoff-card-header {
+  align-items: start;
+}
+
+.payroll-handoff-card-header h2 {
+  margin: 0;
+}
+
+.payroll-handoff-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: .75rem;
+  margin: 0;
+}
+
+.payroll-handoff-meta div {
+  padding: .7rem;
+  border-radius: .55rem;
+  background: #f5f8f5;
+}
+
+.payroll-handoff-meta dt {
+  color: #56675f;
+  font-size: .86rem;
+}
+
+.payroll-handoff-meta dd {
+  margin: .25rem 0 0;
+  color: #1e3529;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.payroll-handoff-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: .25rem .65rem;
+  border-radius: 99px;
+  background: #e9f3eb;
+  color: #225b39;
+  font-weight: 700;
+  font-size: .9rem;
+}
+
+.payroll-handoff-status[data-status="changes_requested"] {
+  background: #fff1dc;
+  color: #8a5209;
+}
+
+.payroll-handoff-status[data-status="rejected"] {
+  background: #fde7e7;
+  color: #8c2626;
+}
+
+.payroll-handoff-status[data-status="approved"] {
+  background: #dff0e4;
+  color: #1e6338;
+}
+
+.payroll-handoff-note {
+  margin: 0;
+  color: #40534a;
+  white-space: pre-wrap;
+}
+
+.payroll-handoff-actions {
+  display: grid;
+  gap: .6rem;
+  padding-top: .9rem;
+  border-top: 1px solid #dce6de;
+}
+
+.payroll-handoff-actions label {
+  display: grid;
+  gap: .35rem;
+  color: #30473a;
+  font-weight: 700;
+}
+
+.payroll-handoff-actions textarea {
+  width: 100%;
+  min-height: 5.5rem;
+  padding: .65rem;
+  border: 1px solid #9bafa1;
+  border-radius: .45rem;
+  color: #1d2d23;
+  font: inherit;
+  resize: vertical;
+}
+
+.payroll-handoff-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+}
+
+.payroll-handoff-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #52655a;
+}

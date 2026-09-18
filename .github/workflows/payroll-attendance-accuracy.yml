@@ -48,6 +48,9 @@ jobs:
       - name: Run operations manager PC platform entry smoke
         run: node tests/payroll-platform-entry-browser.mjs
 
+      - name: Run promotion lead payroll handoff browser smoke
+        run: node tests/payroll-draft-handoff-browser.mjs
+
       - name: Run payroll PC operator happy-path smoke
         run: node tests/payroll-browser-happy-path.mjs
 
