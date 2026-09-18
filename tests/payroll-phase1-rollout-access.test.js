@@ -11,7 +11,7 @@ const capability = fs.readFileSync(
 const nav = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const cards = fs.readFileSync(path.join(root, 'app/assets/dashboard-priority-cards.js'), 'utf8');
 
-test('phase-1 payroll work access is operations_manager only', () => {
+test('full phase-1 payroll management remains operations_manager only', () => {
   assert.match(capability, /operations_manager only/i);
   assert.match(capability, /r\.code\s*=\s*'operations_manager'/i);
   assert.match(capability, /r\.code <> 'operations_manager'/i);
@@ -19,9 +19,10 @@ test('phase-1 payroll work access is operations_manager only', () => {
   assert.match(cards, /currentRoute !== 'operations_manager'/i);
 });
 
-test('promotion lead can keep attendance operations but does not get payroll-management entry yet', () => {
+test('promotion lead gets only the non-amount handoff entry, never full payroll management', () => {
   const promotionBlock = nav.slice(nav.indexOf('promotion_lead:'), nav.indexOf('operations_manager:'));
   assert.match(promotionBlock, /'출근부'/);
+  assert.match(promotionBlock, /'급여초안 상신'/);
   assert.doesNotMatch(promotionBlock, /'근태·급여관리'/);
 
   const cardBlock = cards.slice(cards.indexOf('const CARD_ORDER'), cards.indexOf('const OPERATIONS_DASHBOARD_HIDDEN'));
