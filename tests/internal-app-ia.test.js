@@ -7,7 +7,9 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
+// Source-contract assertions use LF delimiters. Normalize checkout line endings
+// so the same test remains valid on Windows and Linux.
+const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
 const employee = read('app/assets/employee-management.js');
 const homepage = read('app/assets/homepage-change-requests.js');
 const publication = read('app/assets/phase-c-publication-admin.js');
