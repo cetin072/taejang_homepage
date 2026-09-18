@@ -114,7 +114,7 @@ PR #213은 vendor `.xls` import/reconciliation, 예외 중심 UX, confirmed-valu
 
 ### 정상 월의 입력과 흐름
 
-- 정상 월의 외부 입력은 보안업체 지문근태 `.xls` 1개다. 과거 확정 출퇴근부와 실제 급여명세서는 Golden validation 전용이며 운영자가 매월 입력하지 않는다.
+- Phase 1 transitional 운영의 외부 입력은 보안업체 지문근태 `.xls` 1개다. 과거 확정 출퇴근부와 실제 급여명세서는 Golden validation 전용이며 운영자가 매월 입력하지 않는다. Employee App Primary 전환 뒤에는 월을 선택하면 App attendance를 DB에서 직접 조회하므로 외부 파일을 매월 입력하지 않는다.
 - 급여월 선택 → 파일 내부 근태기간 인식 → 재직기간·이름 기반 자동매칭 → 정상 근태 자동처리 → 월간 예외 요약 → `예외만 보기` → 수기근거에 따른 예외 보정 → 근태 저장/확정 → 월간 집계 → 월~일 7일 주휴 계산 → 급여 가안 검토 → Excel 다운로드 순서가 화면 안에서 가능해야 한다.
 - 직원, 재직기간, 입·퇴사일, effective-dated 소정근로시간·시급·월급제, 기존 correction/audit 및 protected HR source는 기존 플랫폼의 권한 있는 데이터에서 자동 참조한다. 월마다 같은 정보를 재입력하지 않는다.
 - 미해결 예외가 있으면 급여 최종확정은 fail-closed다. 이 PR은 급여 가안까지만 제공하며 실제 급여 확정·월 잠금·지급은 계속 제외한다.

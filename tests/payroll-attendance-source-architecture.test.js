@@ -14,6 +14,7 @@ test('Employee App is the documented primary attendance target while vendor impo
   assert.match(plan, /employee_app \| vendor_fingerprint \| manual_evidence/);
   assert.match(plan, /`vendor_fingerprint`:[\s\S]*importer를 삭제하지 않는다/);
   assert.match(plan, /source-neutral `confirmed attendance`와 `payroll effective attendance`만 사용/);
+  assert.match(plan, /Employee App Primary 전환 뒤에는[\s\S]*외부 파일을 매월 입력하지 않는다/);
 });
 
 test('existing Employee App attendance keeps its server-authoritative raw-event safety contract', () => {
