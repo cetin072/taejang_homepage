@@ -32,6 +32,81 @@
     return matrix.map(row => Array.isArray(row) ? row : []);
   }
 
+  function compact(value) {
+    return String(value == null ? '' : value).trim().replace(/[\s\-_./()[\]{}:]+/g, '').toLowerCase();
+  }
+
+  function koreanWeekday(date) {
+    return ['일', '월', '화', '수', '목', '금', '토'][date.getUTCDay()];
+  }
+
+  function gridPeriod(header, fileName) {
+    const download = downloadTimestampFromFileName(fileName);
+    if (!download) return null;
+    const days = header.map((value, index) => {
+      const match = String(value || '').match(/^(\d{1,2})일\(([일월화수목금토])\)$/);
+      return match ? { index, day: Number(match[1]), weekday: match[2] } : null;
+    }).filter(Boolean);
+    if (days.length < 20) return null;
+    const downloadDate = new Date(download);
+    const candidates = [];
+    for (let offset = -18; offset <= 18; offset += 1) {
+      const date = new Date(Date.UTC(downloadDate.getUTCFullYear(), downloadDate.getUTCMonth() + offset, 1));
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      if (!days.every(entry => {
+        const value = new Date(Date.UTC(year, month - 1, entry.day));
+        return value.getUTCMonth() === month - 1 && koreanWeekday(value) === entry.weekday;
+      })) continue;
+      candidates.push({ year, month, distance: Math.abs((year - downloadDate.getUTCFullYear()) * 12 + (month - (downloadDate.getUTCMonth() + 1))) });
+    }
+    candidates.sort((a, b) => a.distance - b.distance || a.year - b.year || a.month - b.month);
+    const candidate = candidates[0];
+    return candidate ? `${candidate.year}-${String(candidate.month).padStart(2, '0')}` : null;
+  }
+
+  function normalizeVendorGridSheet(sheet, fileName) {
+    const matrix = normalizeMatrix(sheet?.matrix || []);
+    const header = matrix[0] || [];
+    const employeeIdColumn = header.findIndex(value => ['사번', '직원번호', '사원번호'].includes(compact(value)));
+    const nameColumn = header.findIndex(value => ['이름', '성명', '직원명', '사원명'].includes(compact(value)));
+    const kindColumn = header.findIndex(value => compact(value) === '구분');
+    const period = gridPeriod(header, fileName);
+    if (employeeIdColumn < 0 || nameColumn < 0 || kindColumn < 0 || !period) return sheet;
+    const dateColumns = header.map((value, index) => {
+      const match = String(value || '').match(/^(\d{1,2})일\([일월화수목금토]\)$/);
+      return match ? { index, date: `${period}-${String(Number(match[1])).padStart(2, '0')}` } : null;
+    }).filter(Boolean);
+    if (!dateColumns.length) return sheet;
+
+    const grouped = new Map();
+    for (const row of matrix.slice(1)) {
+      const employeeId = String(row[employeeIdColumn] ?? '').trim();
+      const name = String(row[nameColumn] ?? '').trim();
+      const kind = compact(row[kindColumn]);
+      if ((!employeeId && !name) || (kind !== '출근' && kind !== '퇴근')) continue;
+      const identity = `${employeeId}\u0000${name}`;
+      for (const column of dateColumns) {
+        const value = row[column.index];
+        if (value == null || String(value).trim() === '') continue;
+        const key = `${identity}\u0000${column.date}`;
+        const entry = grouped.get(key) || { employeeId, name, date: column.date, clockIn: '', clockOut: '' };
+        if (kind === '출근') entry.clockIn = value;
+        else entry.clockOut = value;
+        grouped.set(key, entry);
+      }
+    }
+    if (!grouped.size) return sheet;
+    return Object.freeze({
+      ...sheet,
+      matrix: Object.freeze([
+        ['사번', '이름', '일자', '출근', '퇴근'],
+        ...[...grouped.values()].map(entry => [entry.employeeId, entry.name, entry.date, entry.clockIn, entry.clockOut]),
+      ]),
+      vendorGridPeriod: period,
+    });
+  }
+
   function parseCompoundFile(bytes) {
     if (bytes.length < 512 || ![0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1].every((v, i) => bytes[i] === v)) {
       throw new Error('attendance_xls_cfb_signature_invalid');
@@ -178,14 +253,28 @@
     }
     const sharedStrings = [];
     const sheets = [];
-    for (const record of records) {
+    for (let recordIndex = 0; recordIndex < records.length; recordIndex += 1) {
+      const record = records[recordIndex];
       if (record.id === 0x00fc && record.length >= 8) {
-        let cursor = record.dataStart + 8;
+        // SST records in exported security-vendor workbooks commonly span
+        // BIFF CONTINUE records.  Header labels may otherwise be replaced by
+        // empty strings even though the cell matrix itself is present.
+        const chunks = [bytes.slice(record.dataStart + 8, record.end)];
+        let continuationIndex = recordIndex + 1;
+        while (records[continuationIndex]?.id === 0x003c) {
+          const continuation = records[continuationIndex];
+          chunks.push(bytes.slice(continuation.dataStart, continuation.end));
+          continuationIndex += 1;
+        }
+        const source = new Uint8Array(chunks.reduce((length, chunk) => length + chunk.length, 0));
+        let sourceOffset = 0;
+        for (const chunk of chunks) { source.set(chunk, sourceOffset); sourceOffset += chunk.length; }
+        let cursor = 0;
         const unique = readU32(view, record.dataStart + 4);
-        for (let index = 0; index < unique && cursor < record.end; index += 1) {
-          const parsed = readBiffString(bytes.slice(record.dataStart, record.end), cursor - record.dataStart);
+        for (let index = 0; index < unique && cursor < source.length; index += 1) {
+          const parsed = readBiffString(source, cursor);
           sharedStrings.push(parsed.value);
-          cursor = record.dataStart + parsed.next;
+          cursor = parsed.next;
         }
       }
       if (record.id === 0x0085 && record.length >= 8) {
@@ -221,9 +310,14 @@
           const index = readU32(view, start + 6);
           setCell(matrix, readU16(view, start), readU16(view, start + 2), sharedStrings[index] ?? '');
         }
-        if (id === 0x0204 && length >= 8) {
-          const lengthText = readU16(view, start + 6);
-          setCell(matrix, readU16(view, start), readU16(view, start + 2), decodeAnsi(bytes.slice(start + 8, start + 8 + lengthText)));
+        if (id === 0x0204 && length >= 9) {
+          // BIFF8 LABEL stores its cell text as an XLUnicodeString: the
+          // two-byte character count is followed by an encoding flag.  The
+          // older byte-only read treated that flag as a character, which
+          // corrupts Korean security-vendor headers and prevents the
+          // deterministic attendance contract from being found.
+          const parsed = readBiffString(bytes.slice(start, end), 6);
+          setCell(matrix, readU16(view, start), readU16(view, start + 2), parsed.value);
         }
         if (id === 0x0205 && length >= 8) setCell(matrix, readU16(view, start), readU16(view, start + 2), bytes[start + 6] === 1);
         if (id === 0x0201 && length >= 6) setCell(matrix, readU16(view, start), readU16(view, start + 2), '');
@@ -247,29 +341,34 @@
     }));
   }
 
-  function analyzeSheets(sheets) {
+  function analyzeSheets(sheets, { fileName } = {}) {
     const analyzer = globalThis.TaejangPayrollAttendanceXlsx;
     if (!analyzer?.analyzeMatrix) throw new Error('attendance_xls_analyzer_unavailable');
-    const analyses = sheets.map(sheet => ({ ...sheet, analysis: analyzer.analyzeMatrix(sheet.matrix) }));
+    const analyses = sheets
+      .map(sheet => normalizeVendorGridSheet(sheet, fileName))
+      .map(sheet => ({ ...sheet, analysis: analyzer.analyzeMatrix(sheet.matrix) }));
     analyses.sort((a, b) => Number(b.analysis.confidence || 0) - Number(a.analysis.confidence || 0));
     return Object.freeze({ sheets: Object.freeze(analyses), best: analyses[0] || null });
   }
 
-  function parseXlsArrayBuffer(arrayBuffer) {
+  function parseXlsArrayBuffer(arrayBuffer, options = {}) {
     const bytes = bytesOf(arrayBuffer);
     const isCompound = bytes.length >= 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
     const sheets = isCompound ? parseBiffWorkbook(parseCompoundFile(bytes)) : parseHtmlWorkbook(bytes);
-    return analyzeSheets(sheets);
+    return analyzeSheets(sheets, options);
   }
 
   async function parseXlsFile(file) {
     if (!file || typeof file.arrayBuffer !== 'function') throw new Error('attendance_file_required');
     if (!/\.xls$/i.test(file.name || '') || /\.xlsx$/i.test(file.name || '')) throw new Error('attendance_xls_required');
-    return parseXlsArrayBuffer(await file.arrayBuffer());
+    return parseXlsArrayBuffer(await file.arrayBuffer(), { fileName: file.name });
   }
 
   function downloadTimestampFromFileName(fileName) {
-    const match = String(fileName || '').match(/^근태이력_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\.xls$/i);
+    // A private validation copy may be prefixed with an ordering label (for
+    // example, `03. `).  The timestamp contract is still the trailing vendor
+    // filename, not that local label.
+    const match = String(fileName || '').match(/근태이력_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\.xls$/i);
     if (!match) return null;
     const [, year, month, day, hour, minute, second] = match;
     const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}+09:00`);
@@ -282,5 +381,6 @@
     parseXlsFile,
     downloadTimestampFromFileName,
     parseBiffWorkbook,
+    normalizeVendorGridSheet,
   });
 });

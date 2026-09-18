@@ -27,6 +27,14 @@ function labelSst(row, column, index) {
   return record(0x00fd, payload);
 }
 
+function labelDirect(row, column, value) {
+  const payload = Buffer.alloc(6);
+  payload.writeUInt16LE(row, 0);
+  payload.writeUInt16LE(column, 2);
+  payload.writeUInt16LE(0, 4);
+  return record(0x0204, Buffer.concat([payload, unicodeString(value)]));
+}
+
 function numberCell(row, column, value) {
   const payload = Buffer.alloc(14);
   payload.writeUInt16LE(row, 0);
@@ -90,9 +98,57 @@ test('BIFF .xls reader extracts the anonymized real 13-column vendor layout with
   assert.ok(Math.abs(sheets[0].matrix[1][10] - ((12 * 3600 + 35) / 86400)) < 1e-12);
 });
 
+test('BIFF8 direct LABEL preserves Korean headers instead of reading the encoding flag as text', () => {
+  const sheet = Buffer.concat([
+    record(0x0809, Buffer.alloc(4)),
+    labelDirect(0, 0, '성 명'),
+    labelDirect(0, 1, '출 근'),
+    record(0x000a, Buffer.alloc(0)),
+  ]);
+  const bof = record(0x0809, Buffer.alloc(4));
+  const name = Buffer.from('근태', 'utf16le');
+  const boundsheetPayload = Buffer.alloc(8 + name.length);
+  boundsheetPayload[6] = 2;
+  boundsheetPayload[7] = 1;
+  name.copy(boundsheetPayload, 8);
+  const offset = bof.length + record(0x0085, boundsheetPayload).length + 4;
+  boundsheetPayload.writeUInt32LE(offset, 0);
+  const workbook = Buffer.concat([bof, record(0x0085, boundsheetPayload), record(0x000a, Buffer.alloc(0)), sheet]);
+
+  const sheets = legacy.parseBiffWorkbook(workbook);
+  assert.deepEqual(sheets[0].matrix[0], ['성 명', '출 근']);
+});
+
+test('wide Korean vendor calendar grid is normalized using its weekday-validated period, not the download month', () => {
+  const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+  const days = Array.from({ length: 31 }, (_, index) => {
+    const day = index + 1;
+    return `${day}일(${weekdays[new Date(Date.UTC(2026, 7, day)).getUTCDay()]})`;
+  });
+  const source = {
+    sheetName: '근태',
+    matrix: [
+      ['사번', '이름', '구분', ...days],
+      ['V-001', '익명근로자', '출근', 8 / 24, '', 8 / 24, ...Array(28).fill('')],
+      ['V-001', '익명근로자', '퇴근', 12 / 24, '', 12 / 24, ...Array(28).fill('')],
+    ],
+  };
+  const normalized = legacy.normalizeVendorGridSheet(source, '근태이력_20260918111611.xls');
+  assert.equal(normalized.vendorGridPeriod, '2026-08');
+  assert.deepEqual(normalized.matrix[0], ['사번', '이름', '일자', '출근', '퇴근']);
+  assert.deepEqual(normalized.matrix.slice(1), [
+    ['V-001', '익명근로자', '2026-08-01', 8 / 24, 12 / 24],
+    ['V-001', '익명근로자', '2026-08-03', 8 / 24, 12 / 24],
+  ]);
+});
+
 test('vendor filename timestamp is metadata only and never used as attendance period', () => {
   assert.equal(
     legacy.downloadTimestampFromFileName('근태이력_20260914162704.xls'),
+    '2026-09-14T16:27:04+09:00'
+  );
+  assert.equal(
+    legacy.downloadTimestampFromFileName('03. 근태이력_20260914162704.xls'),
     '2026-09-14T16:27:04+09:00'
   );
   assert.equal(legacy.downloadTimestampFromFileName('근태이력_20260914162704.xlsx'), null);
