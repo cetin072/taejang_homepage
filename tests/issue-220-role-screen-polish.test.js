@@ -60,7 +60,7 @@ test('operations add-on menus belong to their business categories before support
   const operations = nav.slice(nav.indexOf('operations_manager:'), nav.indexOf('department_lead:'));
   assert.match(operations, /'가입 승인', '복구·계정 관리'/);
   assert.match(operations, /'홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구'/);
-  assert.match(operations, /'근태·급여관리', '출근부', '근태 보정'/);
+  assert.match(operations, /'근태·급여관리', '급여초안 검토', '출근부', '근태 보정'/);
   assert.match(nav, /role === 'operations_manager'\) return 165/);
   assert.match(nav, /role === 'operations_manager' && current === '홍보글 보관·복구'/);
 });

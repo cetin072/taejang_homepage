@@ -9,7 +9,7 @@
       '대시보드',
       '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리',
       '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
-      '출근부',
+      '출근부', '급여초안 상신',
       '홈페이지',
       '신규 사업 기획'
     ],
@@ -20,7 +20,7 @@
       '홈페이지 내용 관리', '홈페이지 직접 수정',
       '업무 배정', '일정 관리',
       '공지 관리',
-      '근태·급여관리', '출근부', '근태 보정',
+      '근태·급여관리', '급여초안 검토', '출근부', '근태 보정',
       '홈페이지'
     ],
     department_lead: [
@@ -55,7 +55,7 @@
       { label: '홈페이지', items: ['홈페이지 내용 관리'] },
       { label: '공지', items: ['공지 관리'] },
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
-      { label: '근태', items: ['출근부'] }
+      { label: '근태·급여', items: ['출근부', '급여초안 상신'] }
     ],
     operations_manager: [
       { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
@@ -63,7 +63,7 @@
       { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
       { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
       { label: '공지', items: ['공지 관리'] },
-      { label: '근태·급여', items: ['근태·급여관리', '출근부'].concat(['근태 보정']) }
+      { label: '근태·급여', items: ['근태·급여관리', '급여초안 검토', '출근부'].concat(['근태 보정']) }
     ],
     department_lead: [
       { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
@@ -230,6 +230,22 @@
     return link;
   }
 
+  function ensurePayrollHandoffEntry(nav, currentRole) {
+    if (!nav || !['promotion_lead', 'operations_manager'].includes(currentRole)) return null;
+    const label = currentRole === 'promotion_lead' ? '급여초안 상신' : '급여초안 검토';
+    const existing = [...nav.children].find(node => cleanLabel(node) === label);
+    if (existing) return existing;
+
+    const link = document.createElement('a');
+    link.href = 'payroll/handoff.html';
+    link.textContent = label;
+    link.className = 'app-nav-item';
+    link.dataset.payrollHandoffNav = '1';
+    link.setAttribute('aria-label', `${label} 화면 열기`);
+    nav.append(link);
+    return link;
+  }
+
   function supportGroupPriority(role) {
     if (role === 'promotion_lead') return 105;
     if (role === 'operations_manager') return 165;
@@ -303,6 +319,7 @@
     reordering = true;
     try {
       ensurePayrollEntry(nav, currentRole);
+      ensurePayrollHandoffEntry(nav, currentRole);
       ensureIssue207RoleContract(nav, currentRole);
       const children = [...nav.children];
       children.forEach(node => {
@@ -359,5 +376,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensureIssue207RoleContract, reorder, schedule };
+  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, reorder, schedule };
 })();

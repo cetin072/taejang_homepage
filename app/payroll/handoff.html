@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>태장 급여초안 상신·검토</title>
+  <link rel="stylesheet" href="../assets/payroll-operator.css">
+  <link rel="stylesheet" href="../assets/payroll-draft-handoff.css">
+</head>
+<body class="payroll-preview">
+  <main class="payroll-shell payroll-handoff-shell">
+    <header class="payroll-topbar">
+      <div>
+        <p class="payroll-eyebrow" id="payroll-handoff-eyebrow">태장 업무플랫폼 · 급여초안</p>
+        <h1 class="payroll-title" id="payroll-handoff-title">급여초안 상신·검토</h1>
+        <p class="payroll-subtitle">계산 결과의 상태와 짧은 검토 메모만 다룹니다. 실제 급여 금액, 공제 상세, 지급, 월잠금은 이 화면에서 처리하지 않습니다.</p>
+      </div>
+      <span class="payroll-demo-badge" id="payroll-handoff-environment">업무플랫폼</span>
+    </header>
+
+    <section class="payroll-card payroll-handoff-notice" aria-labelledby="payroll-handoff-notice-title">
+      <h2 id="payroll-handoff-notice-title">안전한 handoff 범위</h2>
+      <ul>
+        <li>팀장은 예외가 없는 최신 계산 run을 검토한 뒤 운영총괄에게 상신합니다.</li>
+        <li>운영총괄의 승인은 플랫폼 내부의 감사 기록일 뿐, 지급·외부 전송·급여월 잠금을 실행하지 않습니다.</li>
+        <li>계산 기준이 바뀌면 이전 handoff는 stale로 표시되며, 최신 run으로 다시 검토해야 합니다.</li>
+      </ul>
+    </section>
+
+    <section class="payroll-live-toolbar payroll-card" aria-label="급여초안 handoff 작업">
+      <button class="payroll-button" type="button" id="payroll-handoff-refresh">새로고침</button>
+      <a class="payroll-button secondary payroll-live-link" href="../">업무플랫폼으로</a>
+      <a class="payroll-button secondary payroll-live-link" href="../../staff/" id="payroll-handoff-login" hidden>로그인 화면</a>
+    </section>
+
+    <p id="payroll-handoff-message" class="payroll-live-message" role="status" aria-live="polite" hidden></p>
+    <section class="payroll-handoff-list" id="payroll-handoff-list" aria-live="polite" aria-label="급여초안 handoff 목록"></section>
+  </main>
+
+  <script src="../assets/payroll-draft-handoff.js"></script>
+</body>
+</html>

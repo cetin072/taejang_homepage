@@ -40,11 +40,19 @@ assert.match(liveHtml, /id="payroll-live-export"/, 'Deploy Preview must contain 
 assert.match(liveHtml, /payroll-attendance-editor\.js/, 'Deploy Preview must load attendance editor JS');
 assert.match(liveHtml, /payroll-operator-live\.js/, 'Deploy Preview must load payroll ledger JS');
 
+const handoffResponse = await fetchReady('/app/payroll/handoff.html');
+assertStayedOnPreview(handoffResponse, 'payroll handoff page');
+const handoffHtml = await handoffResponse.text();
+assert.match(handoffHtml, /id="payroll-handoff-list"/, 'Deploy Preview must contain the payroll handoff workspace');
+assert.match(handoffHtml, /payroll-draft-handoff\.js/, 'Deploy Preview must load the payroll handoff JS');
+
 for (const path of [
   '/app/assets/payroll-attendance-editor.js',
   '/app/assets/payroll-operator-live.js',
   '/app/assets/payroll-ledger-xlsx.js',
   '/app/assets/payroll-attendance-editor.css',
+  '/app/assets/payroll-draft-handoff.js',
+  '/app/assets/payroll-draft-handoff.css',
 ]) {
   const response = await fetchReady(path, { attempts: 3, delayMs: 1000 });
   assertStayedOnPreview(response, path);

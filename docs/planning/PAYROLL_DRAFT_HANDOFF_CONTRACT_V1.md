@@ -104,3 +104,10 @@ lead_review
 
 - 2026-09-18: Issue #229 감사에서 lead-to-operations 급여 handoff 계약 미구현을 P0로 확인. 이 문서를 검토용 초안으로 작성했으며 제품 계약은 아직 변경하지 않았다.
 - 2026-09-18: 내부 calculation run 참조, 업무플랫폼 승인 기록만 유지, stale 시 새 handoff, promotion_lead의 비금액 검토·상신 권한을 1차 계약으로 확정. 실제 지급·월잠금·외부 callback은 제외한다.
+
+## 10. 구현 대조
+
+- **구현 완료**: 기존 내부 `payroll_calculation_runs`를 참조하는 `payroll_draft_handoffs`, `lead_review → submitted_to_operations → changes_requested → operations_approved` RPC 흐름, source stale 재검증, 감사 기록, RLS·직접 테이블 접근 차단.
+- **구현 완료**: `promotion_lead`에는 `payroll.handoff.review`만 명시적으로 부여하고, `operations_manager`에는 최종 기록용 `payroll.handoff.approve`만 자동 부여했다. 기존 `payroll.manage`의 운영총괄 전용 경계는 유지한다.
+- **구현 완료**: 팀장/운영총괄 전용 handoff 화면은 기준월, run 식별자, 예외 수, 상태, 짧은 메모만 표시한다. 금액·공제·직원별 정보, 지급, 월잠금, 외부 callback은 구현하지 않았다.
+- **검증 대기**: Draft PR CI에서 clean migration, pgTAP, 실제 Auth/Data API, headless browser 및 Deploy Preview를 재검증한다.
