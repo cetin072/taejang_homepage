@@ -11,7 +11,7 @@ test('attendance mobile uses Expo 57 location with foreground-only policy', asyn
   const app = JSON.parse(await text('mobile/app.json'));
   const location = await text('mobile/src/features/attendance/location-acquisition.ts');
 
-  assert.equal(pkg.dependencies['expo-location'], '57.0.18');
+  assert.equal(pkg.dependencies['expo-location'], '57.0.19');
   assert.ok(app.expo.plugins.includes('expo-location'));
   assert.match(location, /getForegroundPermissionsAsync/);
   assert.match(location, /requestForegroundPermissionsAsync/);
