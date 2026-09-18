@@ -47,21 +47,19 @@ test('mobile auth reuses Supabase session with SecureStore persistence', async (
   assert.match(provider, /signInWithPassword/);
 });
 
-test('native notification foundation is explicit about remote push being next', async () => {
+test('native notification foundation preserves Android channel and permission handling', async () => {
   const notifications = await text('mobile/src/notifications/native-notifications.ts');
   assert.match(notifications, /expo-notifications/);
   assert.match(notifications, /AndroidImportance\.HIGH/);
   assert.match(notifications, /requestPermissionsAsync/);
-  assert.match(notifications, /remotePushTokenRegistrationImplemented:\s*false/);
-  assert.doesNotMatch(notifications, /getExpoPushTokenAsync|getDevicePushTokenAsync/);
+  assert.match(notifications, /taejang-important-notices/);
 });
 
-test('first mobile screen stays focused on auth and notification foundation', async () => {
+test('first mobile screen remains employee-focused as features are layered on foundation', async () => {
   const app = await text('mobile/app/index.tsx');
   assert.match(app, /태장 직원앱/);
   assert.match(app, /출퇴근과 중요공지/);
-  assert.match(app, /알림 권한 준비/);
-  assert.match(app, /Remote Push token 등록은 다음 단계/);
+  assert.match(app, /중요공지 알림 준비/);
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 
