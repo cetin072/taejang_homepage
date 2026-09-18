@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NoticeListCard } from '@/src/features/notices/notice-list-card';
-import { requestNativeNotificationPermission } from '@/src/notifications/native-notifications';
+import { registerCurrentPushDevice } from '@/src/notifications/push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function messageOf(error: unknown, fallback: string) {
@@ -22,7 +22,7 @@ function messageOf(error: unknown, fallback: string) {
 }
 
 export default function HomeScreen() {
-  const { phase, session, error, config, reload, signIn, signOut } = usePlatform();
+  const { phase, session, error, config, client, reload, signIn, signOut } = usePlatform();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -144,16 +144,23 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>중요공지 알림 준비</Text>
           <Text style={styles.body}>Android 네이티브 알림 권한과 중요공지 채널을 먼저 준비합니다.</Text>
-          <Text style={styles.help}>회사 서버에서 보내는 Remote Push token 등록은 다음 단계에서 연결합니다.</Text>
+          <Text style={styles.help}>알림 권한을 허용하면 이 기기를 태장 중요공지 Push 수신 기기로 등록합니다.</Text>
           <Button
             title="알림 권한 준비"
             disabled={busy}
             onPress={() =>
               void run(async () => {
-                const permission = await requestNativeNotificationPermission();
-                setMessage(permission.granted
-                  ? '알림 권한이 준비되었습니다.'
-                  : '알림 권한이 허용되지 않았습니다. 휴대폰 설정에서 다시 허용할 수 있습니다.');
+                if (!client) throw new Error('알림 연결이 아직 준비되지 않았습니다.');
+                const result = await registerCurrentPushDevice(client, { requestPermission: true });
+                setMessage(
+                  result.status === 'registered'
+                    ? '중요공지 Push 알림이 준비되었습니다.'
+                    : result.status === 'project_not_configured'
+                      ? 'Push 프로젝트 설정이 아직 연결되지 않았습니다.'
+                      : result.status === 'physical_device_required'
+                        ? '실제 Android 기기에서 Push 알림을 준비할 수 있습니다.'
+                        : '알림 권한이 필요합니다. 휴대폰 설정에서 다시 허용할 수 있습니다.',
+                );
               })
             }
           />
