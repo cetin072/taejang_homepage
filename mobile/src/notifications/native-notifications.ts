@@ -30,5 +30,5 @@ export async function requestNativeNotificationPermission() {
 
 export const nativeNotificationFoundation = {
   channelId: NOTICE_CHANNEL_ID,
-  remotePushTokenRegistrationImplemented: false,
+  remotePushTokenRegistrationImplemented: true,
 } as const;
