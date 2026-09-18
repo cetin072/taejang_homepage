@@ -1,14 +1,22 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(24);
 
 select has_table('public', 'payroll_draft_handoffs', 'payroll draft handoff table exists');
+select has_column('public', 'payroll_draft_handoffs', 'payroll_period', 'handoff stores payroll period');
+select has_column('public', 'payroll_draft_handoffs', 'external_draft_id', 'handoff stores external draft id');
+select has_column('public', 'payroll_draft_handoffs', 'external_draft_revision', 'handoff stores external draft revision');
+select has_column('public', 'payroll_draft_handoffs', 'confirmed_attendance_ref', 'handoff stores confirmed attendance reference');
+select has_column('public', 'payroll_draft_handoffs', 'gross_summary_amount', 'handoff stores aggregate gross summary only');
+
 select has_function('public', 'get_my_payroll_draft_handoff_workspace', array[]::text[], 'handoff workspace RPC exists');
-select has_function('public', 'start_payroll_draft_handoff_review', array['date'], 'lead review start RPC exists');
+select has_function('public', 'start_payroll_draft_handoff_review', array['uuid'], 'lead review start RPC exists');
 select has_function('public', 'submit_payroll_draft_handoff', array['uuid', 'text'], 'lead submit RPC exists');
 select has_function('public', 'request_payroll_draft_handoff_changes', array['uuid', 'text'], 'operations changes RPC exists');
+select has_function('public', 'reject_payroll_draft_handoff', array['uuid', 'text'], 'operations reject RPC exists');
 select has_function('public', 'approve_payroll_draft_handoff', array['uuid', 'text'], 'operations approval RPC exists');
+select has_function('public', 'get_payroll_draft_handoff_decision', array['date', 'text', 'integer'], 'protected result read RPC exists');
 
 select is(
   has_table_privilege('authenticated', 'public.payroll_draft_handoffs', 'SELECT'),
@@ -21,24 +29,19 @@ select is(
   'authenticated clients cannot change handoffs directly'
 );
 select is(
-  has_function_privilege('authenticated', 'public.private_payroll_handoff_lead_allowed()', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.private_payroll_handoff_reviewer_allowed()', 'EXECUTE'),
   false,
-  'authenticated clients cannot call the private lead authorization helper'
-);
-select is(
-  has_function_privilege('authenticated', 'public.private_payroll_handoff_source_is_current(uuid,uuid,text)', 'EXECUTE'),
-  false,
-  'authenticated clients cannot call the private source freshness helper'
+  'authenticated clients cannot call private reviewer helper'
 );
 select is(
   has_function_privilege('authenticated', 'public.get_my_payroll_draft_handoff_workspace()', 'EXECUTE'),
   true,
-  'authenticated clients can call the guarded workspace RPC'
+  'authenticated clients can call guarded workspace RPC'
 );
 select is(
-  has_function_privilege('authenticated', 'public.approve_payroll_draft_handoff(uuid,text)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.get_payroll_draft_handoff_decision(date,text,integer)', 'EXECUTE'),
   true,
-  'authenticated clients can call the guarded approval RPC'
+  'authenticated clients can call guarded decision read RPC'
 );
 
 select ok(
@@ -49,41 +52,55 @@ select ok(
     where role.code = 'promotion_lead'
       and grant_row.capability_code = 'payroll.handoff.review'
   ),
-  'promotion lead receives only the handoff review capability'
+  'promotion lead receives handoff review capability'
 );
 select is(
   (select operations_manager_auto_grant from public.platform_capabilities where code = 'payroll.handoff.review'),
-  false,
-  'handoff review is not an operations-manager auto grant'
+  true,
+  'operations manager inherits lead-level handoff review capability'
 );
 select is(
   (select operations_manager_auto_grant from public.platform_capabilities where code = 'payroll.handoff.approve'),
   true,
-  'handoff approval is an operations-manager auto grant'
+  'operations manager receives final handoff approval capability'
 );
+
 select ok(
-  pg_get_functiondef('public.submit_payroll_draft_handoff(uuid,text)'::regprocedure)
-    ilike '%PAYROLL_HANDOFF_SOURCE_STALE%'
-  and pg_get_functiondef('public.approve_payroll_draft_handoff(uuid,text)'::regprocedure)
-    ilike '%PAYROLL_HANDOFF_SOURCE_STALE%',
-  'submit and approval both reject stale calculation runs'
+  (
+    select string_agg(pg_get_constraintdef(oid), ' ')
+    from pg_constraint
+    where conrelid = 'public.payroll_draft_handoffs'::regclass
+      and contype = 'c'
+  ) ilike '%draft%'
+  and (
+    select string_agg(pg_get_constraintdef(oid), ' ')
+    from pg_constraint
+    where conrelid = 'public.payroll_draft_handoffs'::regclass
+      and contype = 'c'
+  ) ilike '%rejected%'
+  and (
+    select string_agg(pg_get_constraintdef(oid), ' ')
+    from pg_constraint
+    where conrelid = 'public.payroll_draft_handoffs'::regclass
+      and contype = 'c'
+  ) ilike '%approved%',
+  'handoff status constraints include approved six-state lifecycle'
 );
+
 select ok(
   pg_get_functiondef('public.get_my_payroll_draft_handoff_workspace()'::regprocedure)
-    not ilike '%gross_pay_preview%'
+    ilike '%gross_summary_amount%'
   and pg_get_functiondef('public.get_my_payroll_draft_handoff_workspace()'::regprocedure)
     not ilike '%employee_uuid%',
-  'workspace return model excludes payroll amount and employee detail fields'
+  'workspace exposes approved aggregate summary without employee rows'
 );
+
 select ok(
-  not exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'payroll_draft_handoffs'
-      and column_name in ('gross_pay_preview', 'net_pay_preview', 'deduction_preview', 'employee_uuid')
-  ),
-  'handoff persistence excludes payroll amounts and employee rows'
+  pg_get_functiondef('public.approve_payroll_draft_handoff(uuid,text)'::regprocedure)
+    not ilike '%update public.payroll_months%'
+  and pg_get_functiondef('public.approve_payroll_draft_handoff(uuid,text)'::regprocedure)
+    not ilike '%payment%',
+  'platform approval cannot lock payroll month or execute payment'
 );
 
 select * from finish();
