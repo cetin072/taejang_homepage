@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AttendanceCard } from '@/src/features/attendance/attendance-card';
 import { loadMyNotices, sortNotices, type MobileNoticeListItem } from '@/src/features/notices/notice-api';
 import { requestNativeNotificationPermission } from '@/src/notifications/native-notifications';
 import { usePlatform } from '@/src/providers/platform-provider';
@@ -169,6 +170,8 @@ export default function HomeScreen() {
           <Text style={styles.body}>중요한 공지와 출퇴근을 가장 먼저 확인합니다.</Text>
         </View>
 
+        <AttendanceCard />
+
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <View>
@@ -209,11 +212,6 @@ export default function HomeScreen() {
           })}
 
           <Button title="공지 새로고침" disabled={noticeLoading} onPress={() => void refreshNotices()} />
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>출퇴근</Text>
-          <Text style={styles.help}>다음 단계에서 기존 태장 출퇴근 RPC와 GPS 계약을 그대로 연결합니다.</Text>
         </View>
 
         <View style={styles.card}>
