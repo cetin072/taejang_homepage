@@ -14,7 +14,7 @@ test('Taejang mobile foundation pins the reused Expo 57 stack', async () => {
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);
-  assert.ok(pkg.dependencies['expo-notifications']);
+  assert.ok(pkg.dependencies['expo-notifications']);\n  assert.equal(pkg.dependencies['react-dom'], '19.2.3');\n  assert.equal(pkg.dependencies['react-native-reanimated'], '4.5.1');\n  assert.equal(pkg.dependencies['react-native-worklets'], '0.10.1');
 
   for (const version of Object.values({ ...pkg.dependencies, ...pkg.devDependencies })) {
     assert.doesNotMatch(String(version), /^[~^]/, 'mobile direct dependencies must be pinned exactly');
