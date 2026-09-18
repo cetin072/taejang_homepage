@@ -20,6 +20,7 @@
     PAID_HOLIDAY: 'paid_holiday',
     UNPAID_HOLIDAY: 'unpaid_holiday',
     MANUAL_CONFIRMED: 'manual_confirmed',
+    TERMINATION: 'termination',
     MISSING: 'missing',
     NOT_APPLICABLE: 'not_applicable',
   });
@@ -198,6 +199,9 @@
     if (decision === '대상아님' || decision === 'not_applicable') {
       return AttendanceState.NOT_APPLICABLE;
     }
+    if (decision === 'termination' || /퇴사/.test(decision)) {
+      return AttendanceState.TERMINATION;
+    }
     return AttendanceState.MISSING;
   }
 
@@ -302,6 +306,21 @@
         attendanceState,
         scheduledHours: 0,
         payableHours: 0,
+      };
+    }
+
+    // A termination marker is evidence that payroll must be reviewed, not an
+    // instruction to guess either paid work or unpaid absence.  The employee
+    // lifecycle and effective-dated terms remain authoritative.
+    if (attendanceState === AttendanceState.TERMINATION) {
+      return {
+        employeeId: employee.employeeId,
+        date: dateKey(date),
+        kind: DayValueKind.UNRESOLVED,
+        attendanceState,
+        scheduledHours,
+        payableHours: null,
+        reason: 'termination_review_required',
       };
     }
 
