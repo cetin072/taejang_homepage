@@ -58,9 +58,10 @@
 | UI의 예외 중심 요약·필터 | 구현 완료 | `payroll-attendance-operator-ux.js`, 예외만 보기와 append-only 보정 사유 재표시 |
 | 재다운로드 diff와 확정값 보호 | 구현 완료 | `20260917225912_payroll_vendor_source_snapshots.sql`, protected hash-index RPC, existing prefill protection |
 | correction audit persistence | 구현 완료 | append-only status/time/reason, source reference, actor/timestamp; `20260918090000_payroll_attendance_exception_reason_context.sql` |
+| 확정 예외상태 저장·재표시 | 구현 완료 | `termination`/`out_of_scope`/`manual_evidence_required` 편집·append-only 저장·reload·예외큐 resolved 처리; `20260918093000_payroll_attendance_exception_statuses.sql` |
 | 월간 출퇴근부 XLSX model/exporter | 부분 구현 | `payroll-ledger-xlsx.js`의 protected-HR join contract·익명 회귀·휴가/결근/공휴일/퇴사/범위제외/수기근거 상태 표현 |
-| 기존 Golden workbook 구조/집계 비교 | 미구현·후속 작업 | 실제 Golden 파일을 저장소에 넣지 않음; 안전한 비교 경로 필요 |
-| confirmed attendance → payroll draft 연결 | 부분 구현 | 기존 payroll effective attendance 계산 흐름; vendor persistence 완료 후 재검증 필요 |
+| 기존 Golden workbook 구조/집계 비교 | 비교 harness 구현 완료·실자료 실행 대기 | 개인정보 없는 employee/day/hour/status aggregate summary + expected diff helper. 실제 Golden 원문은 저장소에 넣지 않음 |
+| confirmed attendance → payroll draft 연결 | 부분 구현 | 기존 manual-overlay → canonical payroll calculation input → payroll draft 경로는 회귀검증됨. 새 `manual_evidence_required`는 fail-closed review로 유지; 종료/범위제외의 급여 의미 확정은 #182에서 별도 검증 필요 |
 
 ## 이번 Draft PR 범위
 
@@ -75,9 +76,12 @@ PR #213은 vendor `.xls` import/reconciliation, 예외 중심 UX, confirmed-valu
 
 ## 남은 승인 경계
 
-2026-09-18의 Goal 지시로 vendor source snapshot·재다운로드 diff를 DB persistence로 완성하는 비파괴 migration과 최소권한 RPC를 승인 범위 안에서 적용한다. 이 변경은 hash index만 보관하며 shared Employee/Auth/RLS 의미를 바꾸지 않는다. 예외 queue의 별도 correction 작성 흐름과 민감 HR 대량 migration은 여전히 별도 판단이 필요하다.
+2026-09-18의 Goal 지시로 vendor source snapshot·재다운로드 diff를 DB persistence로 완성하는 비파괴 migration과 최소권한 RPC를 승인 범위 안에서 적용한다. 이 변경은 hash index만 보관하며 shared Employee/Auth/RLS 의미를 바꾸지 않는다. 예외 queue의 확정 상태/사유는 기존 append-only attendance history를 재사용해 구현했다. 민감 HR 대량 migration·권한 확대는 여전히 별도 판단이 필요하며, 해당 승인 없이 월간 출퇴근부의 실제 HR 결합 경로를 새로 만들지 않는다.
 
 ## 결정 이력
 
 - 2026-09-18: Goal #142 및 Issues #210–#212의 확정 요구사항을 기획 기록으로 정합화했다. 실제 HR 값은 포함하지 않았다.
 - 2026-09-18: 사용자 지시에 따라 #210의 비파괴 vendor snapshot persistence를 구현 범위로 확정했다. snapshot에는 해시 인덱스만 저장하고, 원본 초 단위 시각은 저장된 append-only attendance payload에만 유지한다.
+
+- 2026-09-18: #211 확정 예외상태 3종을 편집기·보호 RPC·reload·예외큐까지 연결하고 exact-head CI/Preview GREEN을 확인했다.
+- 2026-09-18: #212 실자료 Golden 원문을 저장소에 넣지 않고도 월간 인원/근무 person-day/상태/시간 집계를 비교할 수 있는 privacy-safe harness를 추가했다. 실제 protected HR 결합은 기존 승인된 source가 확인되기 전까지 fail-closed로 유지한다.
