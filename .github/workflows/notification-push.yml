@@ -1,0 +1,53 @@
+name: Notification Push
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/*notification_push*'
+      - 'supabase/functions/notification-dispatch/**'
+      - 'mobile/src/notifications/**'
+      - 'mobile/.env.example'
+      - 'mobile/package.json'
+      - 'tests/mobile-push-notifications.test.mjs'
+      - 'tests/notification-push-*.js'
+      - 'tests/notification-push-*.mjs'
+      - 'supabase/tests/database/notification_push_foundation.test.sql'
+      - '.github/workflows/notification-push.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notification-push-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Run notification push static contract
+        run: node --test tests/notification-push-foundation.test.js
+      - name: Start isolated Supabase
+        run: supabase start
+      - name: Reapply migrations from clean database
+        run: supabase db reset
+      - name: Lint database schema
+        run: supabase db lint --level error --fail-on error
+      - name: Run notification pgTAP
+        run: supabase test db supabase/tests/database/notification_push_foundation.test.sql
+      - name: Run notification Auth/Data API integration
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/taejang-notification.env
+          set -a
+          source /tmp/taejang-notification.env
+          set +a
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/notification-push-auth-integration.mjs
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
