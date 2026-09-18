@@ -333,7 +333,7 @@ begin
   from public.notification_events event
   join public.notices notice on notice.id = event.notice_id
   where delivery.event_id = event.id
-    and delivery.status in ('queued', 'retry', 'sending', 'accepted', 'receipt_checking')
+    and delivery.status in ('queued', 'retry', 'sending')
     and (
       notice.version_no <> event.notice_version
       or notice.status <> 'published'
