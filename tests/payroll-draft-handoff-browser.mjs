@@ -7,7 +7,6 @@ const DIST_ROOT = join(process.cwd(), 'dist');
 const HANDOFF_HTML = join(DIST_ROOT, 'app/payroll/handoff.html');
 const SESSION_KEY = 'taejang-staff-session-v1';
 const HANDOFF_ID = '00000000-0000-4000-8000-000000000501';
-const RUN_ID = '00000000-0000-4000-8000-000000000502';
 
 if (!existsSync(HANDOFF_HTML)) throw new Error('PAYROLL_HANDOFF_BROWSER_REQUIRES_DIST_BUILD');
 
@@ -35,26 +34,31 @@ function readJson(request) {
 
 let stage = 'initial';
 function workspace() {
-  const item = {
-    handoff_id: stage === 'initial' ? null : HANDOFF_ID,
-    payroll_month: '2026-09-01',
-    run_id: RUN_ID,
-    generated_at: '2026-09-18T09:00:00Z',
-    exception_count: 0,
-    is_current_source: true,
-    status: stage === 'submitted' ? 'submitted_to_operations' : 'lead_review',
-    lead_note: stage === 'submitted' ? '예외 없음과 최신 기준을 확인했습니다.' : null,
-    submitted_at: stage === 'submitted' ? '2026-09-18T09:05:00Z' : null,
-    operations_note: null,
-    operations_decided_at: null,
-    can_start_review: stage === 'initial',
-    can_submit: stage === 'reviewing',
-    can_decide: false,
-  };
+  const status = stage === 'initial' ? 'draft' : stage === 'reviewing' ? 'lead_review' : 'submitted';
   return {
     viewer_kind: 'promotion_lead',
-    items: [item],
-    scope_note: '급여 금액·공제·직원별 상세와 지급·월잠금 기능은 이 화면에 포함하지 않습니다.',
+    items: [{
+      handoff_id: HANDOFF_ID,
+      payroll_period: '2026-09-01',
+      external_draft_id: 'SEPTEMBER-PAYROLL',
+      external_draft_revision: 2,
+      source_generated_at: '2026-09-18T09:00:00Z',
+      confirmed_attendance_ref: 'attendance-2026-09-confirmed',
+      confirmed_attendance_version: 'v2',
+      employee_count: 25,
+      gross_summary_amount: 25100000,
+      exception_count: 0,
+      status,
+      lead_note: stage === 'submitted' ? '보완된 revision 2와 확정 근태를 확인했습니다.' : null,
+      submitted_at: stage === 'submitted' ? '2026-09-18T09:05:00Z' : null,
+      operations_note: null,
+      final_action_at: null,
+      is_latest_revision: true,
+      can_start_review: stage === 'initial',
+      can_submit: stage === 'reviewing',
+      can_decide: false,
+    }],
+    scope_note: '총 급여 요약은 검토용 aggregate이며 실제 지급·월잠금은 이 화면에 포함하지 않습니다.',
   };
 }
 
@@ -86,16 +90,22 @@ const automation = `<script>
   };
   async function run() {
     try {
+      await waitFor(() => document.body.textContent.includes('SEPTEMBER-PAYROLL'), 'external draft id');
+      if (!document.body.textContent.includes('25명')) throw new Error('EMPLOYEE_COUNT_MISSING');
+      if (!document.body.textContent.includes('25,100,000')) throw new Error('GROSS_SUMMARY_MISSING');
+
       const start = await waitFor(() => [...document.querySelectorAll('button')].find(node => node.textContent === '검토 시작'), 'review start action');
       start.click();
+
       const note = await waitFor(() => document.querySelector('.payroll-handoff-actions textarea'), 'lead note');
-      note.value = '예외 없음과 최신 기준을 확인했습니다.';
+      note.value = '보완된 revision 2와 확정 근태를 확인했습니다.';
       const submit = [...document.querySelectorAll('button')].find(node => node.textContent === '운영총괄에게 상신');
       if (!submit) throw new Error('SUBMIT_ACTION_MISSING');
       submit.click();
+
       await waitFor(() => document.querySelector('.payroll-handoff-status')?.textContent === '운영총괄 검토 대기', 'submitted status');
-      if (document.querySelector('#payroll-live-gross, #payroll-live-table-body')) throw new Error('PAYROLL_LEDGER_LEAKED');
-      mark('pass', 'promotion-lead-review-and-submit');
+      if (document.querySelector('#payroll-live-table-body')) throw new Error('EMPLOYEE_PAYROLL_LEDGER_LEAKED');
+      mark('pass', 'external-draft-review-and-submit');
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }
@@ -118,6 +128,8 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_payroll_draft_handoff_workspace') return json(response, 200, workspace());
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/start_payroll_draft_handoff_review') {
+      const body = await readJson(request);
+      if (body.p_handoff_id !== HANDOFF_ID) return json(response, 400, { message: 'INVALID_HANDOFF_BROWSER_PAYLOAD' });
       stage = 'reviewing';
       return json(response, 200, { ok: true, code: 'PAYROLL_HANDOFF_REVIEW_STARTED', handoff_id: HANDOFF_ID });
     }
@@ -133,6 +145,7 @@ const server = createServer(async (request, response) => {
       response.end(body);
       return;
     }
+
     const relative = normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
     const filePath = join(DIST_ROOT, relative || 'index.html');
     if (!filePath.startsWith(DIST_ROOT) || !existsSync(filePath)) return json(response, 404, { message: 'NOT_FOUND' });
@@ -157,6 +170,7 @@ const child = spawn(chromeBinary(), [
   '--virtual-time-budget=14000', `--user-data-dir=/tmp/taejang-payroll-handoff-${process.pid}`, '--dump-dom',
   `http://127.0.0.1:${port}/app/payroll/handoff.html`,
 ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
 let stdout = '';
 let stderr = '';
 child.stdout.setEncoding('utf8');
@@ -171,4 +185,4 @@ if (!stdout.includes('id="payroll-handoff-browser-result"') || !stdout.includes(
   throw new Error(`PAYROLL_HANDOFF_BROWSER_FAILED\n${stderr.slice(-2500)}`);
 }
 
-console.log('Payroll handoff browser PASS: promotion lead sees no ledger, starts review, and submits the latest run.');
+console.log('Payroll handoff browser PASS: external draft summary renders and promotion lead reviews/submits it.');
