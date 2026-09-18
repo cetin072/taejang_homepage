@@ -26,10 +26,10 @@ test('mobile notice list prioritizes urgent important and acknowledgement-needed
   assert.match(list, /긴급·중요·미확인 공지가 먼저/);
 });
 
-test('employee home shows notice preview before attendance placeholder', async () => {
+test('employee home shows notice section before attendance section', async () => {
   const app = await text('mobile/app/index.tsx');
-  const noticeIndex = app.indexOf('공지사항');
-  const attendanceIndex = app.indexOf('출퇴근');
+  const noticeIndex = app.indexOf('<Text style={styles.sectionTitle}>공지사항</Text>');
+  const attendanceIndex = app.indexOf('<Text style={styles.sectionTitle}>출퇴근</Text>');
   assert.ok(noticeIndex >= 0 && attendanceIndex > noticeIndex);
   assert.match(app, /router\.push\('\/notices'\)/);
   assert.match(app, /pathname: '\/notice\/\[id\]'/);
