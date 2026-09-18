@@ -75,13 +75,17 @@
   font-size: .9rem;
 }
 
-.payroll-handoff-status[data-status="changes_requested"],
-.payroll-handoff-status[data-status="stale"] {
+.payroll-handoff-status[data-status="changes_requested"] {
   background: #fff1dc;
   color: #8a5209;
 }
 
-.payroll-handoff-status[data-status="operations_approved"] {
+.payroll-handoff-status[data-status="rejected"] {
+  background: #fde7e7;
+  color: #8c2626;
+}
+
+.payroll-handoff-status[data-status="approved"] {
   background: #dff0e4;
   color: #1e6338;
 }
