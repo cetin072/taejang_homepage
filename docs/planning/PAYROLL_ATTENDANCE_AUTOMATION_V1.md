@@ -7,7 +7,7 @@
 
 ## 목적
 
-운영팀장이 보안업체 지문근태 원본과 현장 수기근거를 대조해 최종 출퇴근부를 만드는 현재 흐름을 보존한다. 정상건을 다시 입력시키지 않고, 보안업체 원본 업로드 후 예외만 확인하게 한다. 확정 근태는 월간 출퇴근부와 **급여 가안**에만 연결하며, 실제 급여 확정·잠금·지급은 이 범위에 포함하지 않는다.
+운영팀장이 보안업체 지문근태 원본과 현장 수기근거를 대조해 최종 출퇴근부를 만드는 현재 흐름을 보존한다. 정상건을 다시 입력시키지 않고, 보안업체 원본 업로드 후 예외만 확인하게 한다. 장기적으로는 Employee App 출퇴근 event를 Primary source로 사용하고, vendor 원본은 fallback·과거 검증 source로 유지한다. 확정 근태는 월간 출퇴근부와 **급여 가안**에만 연결하며, 실제 급여 확정·잠금·지급은 이 범위에 포함하지 않는다.
 
 ## 확정된 업무 흐름
 
@@ -28,6 +28,33 @@
 - 지문 원본 시간이 운영팀장 최종 인정시간과 다르다는 이유만으로 오류 또는 급여시간으로 자동판정하지 않는다.
 - 원본의 초 단위 시간 evidence는 보존하고 UI·출력용 분 단위 값은 파생한다.
 - 재다운로드로 행이 추가·변경·소실되어도 기존 accepted/confirmed attendance를 조용히 삭제하거나 덮어쓰지 않는다.
+
+### Attendance source 추상화와 Primary 전환
+
+급여계산기는 source 종류나 raw clock span을 직접 해석하지 않고, source-neutral `confirmed attendance`와 `payroll effective attendance`만 사용한다.
+
+```text
+employee_app | vendor_fingerprint | manual_evidence
+  → raw attendance evidence (append-only)
+  → confirmed attendance (operator correction/audit)
+  → payroll effective attendance
+  → payroll draft
+```
+
+- `employee_app`: 최종 Primary source다. 앱 event는 server-authoritative timestamp, server-side workplace/geofence validation, Employee identity, duplicate in/out protection을 유지하며 원본을 수정·삭제하지 않는다.
+- `vendor_fingerprint`: 현행 transitional source와 Employee App 장애·과거 기간·재해복구용 fallback이다. importer를 삭제하지 않는다.
+- `manual_evidence`: 종이 수기 출근부 등 비상·확인 evidence다. 정상 근태를 매일 다시 입력하는 source가 아니라 예외 보정의 supporting source다.
+- 예: App raw clock-in `08:07`을 수기근거로 `08:00`으로 인정할 때 raw event, confirmed value, reason, actor, timestamp, supporting source를 모두 남긴다.
+- 위치는 출퇴근 event 순간에만 검증한다. 실시간 위치추적은 하지 않는다.
+
+### Employee App 전환 로드맵
+
+| Phase | 운영 source | 완료 판단 |
+| --- | --- | --- |
+| 1 | vendor fingerprint + paper ledger | 현행 급여 자동화·Golden regression 완성 |
+| 2 | Employee App + vendor fingerprint + paper ledger | event capture, missing/duplicate, geofence failure, manual correction rate를 기존 확정근태와 비교 |
+| 3 | Employee App Primary + paper backup + vendor secondary | 정상 App 근태 자동처리, 예외만 수기근거 확인 |
+| 4 | Employee App + paper backup | 충분한 안정성 검증 뒤 vendor regular operation 종료; importer는 recovery/historical fallback으로 보존 |
 
 ### 예외 상태
 
@@ -64,6 +91,7 @@
 | 근태 검토내역 XLSX 다운로드 | 구현 완료 | authenticated live page에서 원본 참조·상태·보정사유·미해결 상태를 내보냄. protected HR 열은 의도적으로 제외 |
 | 기존 Golden workbook 구조/집계 비교 | 비교 harness 구현 완료·실자료 실행 대기 | 개인정보 없는 employee/day/hour/status aggregate summary + expected diff helper. 실제 Golden 원문은 저장소에 넣지 않음 |
 | confirmed attendance → payroll draft 연결 | 부분 구현 | 기존 manual-overlay → canonical payroll calculation input → payroll draft 경로는 회귀검증됨. 새 `manual_evidence_required`는 fail-closed review로 유지; 종료/범위제외의 급여 의미 확정은 #182에서 별도 검증 필요 |
+| Employee App event → confirmed/effective attendance → payroll draft | 미구현 | App의 안전한 raw `attendance_events`와 append-only correction은 존재하지만, payroll input builder가 App event를 source-neutral confirmed attendance로 투영하지 않음 |
 
 ## 이번 Draft PR 범위
 
@@ -99,6 +127,15 @@ PR #213은 vendor `.xls` import/reconciliation, 예외 중심 UX, confirmed-valu
 - `급여대장 XLSX`는 근무·유급·주휴시간, 근태기반 지급액, 월급제 lane, 총지급 가안과 계산/검토 상태를 포함한다. 공식 검증 전인 세무·보험 공제는 임의 추정하지 않는다.
 - 업로드 source, 예외, 보정 전후, 사유, actor, timestamp 및 미해결 항목은 플랫폼에서 확인 또는 다운로드할 수 있어야 한다.
 
+### Employee App 최종 Product DoD
+
+- 직원은 App에서 출근·퇴근, 오늘 상태, 공지만 사용해 raw attendance evidence를 생성할 수 있다.
+- 급여관리는 선택한 월의 Employee App attendance를 DB에서 직접 조회하고 정상건은 자동 후보 처리한다.
+- 담당자에게는 누락·이상·위치/네트워크 실패 등 예외만 노출되며, 종이 수기 출근부로 예외만 보정할 수 있다.
+- raw App event는 보정·급여 계산 때문에 변경·삭제되지 않으며, confirmed/effective 값과 audit chain이 분리된다.
+- 확정근태는 자동으로 급여 가안과 출퇴근부·급여대장 다운로드에 연결된다.
+- vendor fingerprint를 비활성화해도 payroll engine의 source-neutral confirmed/effective attendance 계약은 변경하지 않는다.
+
 ### Production 전 검증·UAT gate
 
 - Historical regression은 실제 2026년 6·7·8월의 연속 근태로 월경계 주휴를 검증한다. 8월 Historical Replay는 hourly 23/23, gross difference KRW 0, `unknown_difference` 0을 유지한다.
@@ -115,3 +152,4 @@ PR #213은 vendor `.xls` import/reconciliation, 예외 중심 UX, confirmed-valu
 - 2026-09-18: #211 확정 예외상태 3종을 편집기·보호 RPC·reload·예외큐까지 연결하고 exact-head CI/Preview GREEN을 확인했다.
 - 2026-09-18: #212 실자료 Golden 원문을 저장소에 넣지 않고도 월간 인원/근무 person-day/상태/시간 집계를 비교할 수 있는 privacy-safe harness를 추가했다. 실제 protected HR 결합은 기존 승인된 source가 확인되기 전까지 fail-closed로 유지한다.
 - 2026-09-18: 사용자 지시에 따라 본 문서에 Product DoD를 추가했다. 정상 운영 입력은 보안업체 `.xls` 1개로 제한하고, Golden 자료는 private validation 전용으로 분리한다. 실사용 UAT와 6·7·8월 Historical regression, 9월 real shadow는 main/Production 승인 전 gate다.
+- 2026-09-18: 사용자 지시에 따라 Employee App을 최종 Primary attendance source로 확정했다. vendor fingerprint importer는 삭제하지 않고 transitional/fallback/historical source로 보존한다. App raw event → source-neutral confirmed/effective attendance → payroll 경로는 별도 구현·회귀·pilot metric gate가 남아 있으며, 현재 vendor/manual payroll input을 App event로 바꾸는 것으로 원본 무결성 계약을 약화시키지 않는다.
