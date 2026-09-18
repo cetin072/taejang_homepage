@@ -47,9 +47,9 @@ test('duplicate and revision semantics are keyed by external draft revision', ()
 });
 
 test('operations manager remains a superset of promotion lead handoff operations', () => {
-  const leadHelper = sql.match(/create or replace function public\.private_payroll_handoff_lead_allowed\(\)[\s\S]*?\$\$;/i)?.[0] || '';
-  assert.match(leadHelper, /promotion_lead/i);
-  assert.match(leadHelper, /operations_manager/i);
+  const reviewerHelper = sql.match(/create or replace function public\.private_payroll_handoff_reviewer_allowed\(\)[\s\S]*?\$\$;/i)?.[0] || '';
+  assert.match(reviewerHelper, /promotion_lead/i);
+  assert.match(reviewerHelper, /operations_manager/i);
   assert.match(sql, /payroll\.handoff\.approve/i);
 });
 
