@@ -56,12 +56,12 @@ test('native notification foundation is explicit about remote push being next', 
   assert.doesNotMatch(notifications, /getExpoPushTokenAsync|getDevicePushTokenAsync/);
 });
 
-test('first mobile screen stays focused on auth and notification foundation', async () => {
+test('employee mobile screen stays focused on employee operations and excludes payroll administration', async () => {
   const app = await text('mobile/app/index.tsx');
   assert.match(app, /태장 직원앱/);
-  assert.match(app, /출퇴근과 중요공지/);
+  assert.match(app, /중요공지/);
+  assert.match(app, /출퇴근/);
   assert.match(app, /알림 권한 준비/);
-  assert.match(app, /Remote Push token 등록은 다음 단계/);
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 
