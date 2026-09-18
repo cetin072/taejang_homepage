@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "태장 직원앱",
+    "slug": "taejang-employee-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "taejangstaff",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "android": {
+      "package": "com.cetin072.taejang.staff",
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-notifications"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
