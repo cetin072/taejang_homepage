@@ -7,18 +7,16 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-// Source-contract assertions use LF delimiters. Normalize checkout line endings
-// so the same test remains valid on Windows and Linux.
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
 const employee = read('app/assets/employee-management.js');
-const homepage = read('app/assets/homepage-change-requests.js');
+const workspace = read('app/assets/phase-c-workspace-v2.js');
 const publication = read('app/assets/phase-c-publication-admin.js');
 const nav = read('app/assets/role-navigation-priority.js');
 const migration = read('supabase/migrations/20260904174500_team_lead_position_guard.sql');
 
 for (const file of [
   'app/assets/employee-management.js',
-  'app/assets/homepage-change-requests.js',
+  'app/assets/phase-c-workspace-v2.js',
   'app/assets/phase-c-publication-admin.js',
   'app/assets/role-navigation-priority.js'
 ]) {
@@ -45,16 +43,16 @@ test('team lead new employee requests are server-limited to strictly subordinate
   assert.doesNotMatch(updateBlock, /private_team_lead_can_assign_position/);
 });
 
-test('homepage change request shows live current content before proposed content and reason', () => {
-  assert.match(homepage, /홈페이지-current-content|homepage-current-content/);
-  assert.match(homepage, /현재 홈페이지 내용/);
-  assert.match(homepage, /수정할 내용/);
-  assert.match(homepage, /수정 이유/);
-  assert.match(homepage, /document\.createElement\('iframe'\)/);
-  assert.match(homepage, /contentDocument/);
-  assert.match(homepage, /readOnly = true/);
-  assert.match(homepage, /p_current_summary: currentContentFound \?/);
-  assert.match(homepage, /scrollIntoView/);
+test('loaded Phase C workspace owns homepage change-request compare and submission UX', () => {
+  assert.match(workspace, /function buildHomepageForm/);
+  assert.match(workspace, /document\.createElement\('iframe'\)/);
+  assert.match(workspace, /currentSummary\.readOnly = true/);
+  assert.match(workspace, /현재 공개 문구/);
+  assert.match(workspace, /새 문구/);
+  assert.match(workspace, /수정 이유/);
+  assert.match(workspace, /create_homepage_change_request/);
+  assert.match(workspace, /운영총괄에게 수정 요청/);
+  assert.match(workspace, /review_homepage_change_request/);
 });
 
 test('publication admin explains the lightweight existing-content scope and escalation path', () => {
