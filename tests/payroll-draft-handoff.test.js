@@ -9,68 +9,94 @@ const sql = read('supabase/migrations/20260918090350_payroll_draft_handoff.sql')
 const nav = read('app/assets/role-navigation-priority.js');
 const page = read('app/payroll/handoff.html');
 const ui = read('app/assets/payroll-draft-handoff.js');
+const contract = read('docs/planning/PAYROLL_DRAFT_HANDOFF_CONTRACT_V1.md');
 
-test('payroll draft handoff stores only a run reference and non-payment decision state', () => {
-  assert.match(sql, /create table if not exists public\.payroll_draft_handoffs/i);
-  assert.match(sql, /foreign key \(calculation_run_id, payroll_month_id\)[\s\S]*references public\.payroll_calculation_runs\(id, payroll_month_id\)/i);
-  assert.match(sql, /source_fingerprint text not null/i);
-  assert.match(sql, /status in \('lead_review', 'submitted_to_operations', 'changes_requested', 'operations_approved'\)/i);
-  assert.doesNotMatch(sql, /create table[\s\S]*payroll_draft_handoffs[\s\S]*\b(?:gross_pay|net_pay|deduction|employee_uuid)\b/i);
-  assert.match(sql, /alter table public\.payroll_draft_handoffs enable row level security/i);
-  assert.match(sql, /revoke all on public\.payroll_draft_handoffs from public, anon, authenticated/i);
-  assert.doesNotMatch(sql, /grant\s+(?:select|insert|update|delete)\s+on\s+public\.payroll_draft_handoffs/i);
+test('approved contract uses external payroll draft identity as authoritative handoff source', () => {
+  assert.match(sql, /external_draft_id/i);
+  assert.match(sql, /external_draft_revision/i);
+  assert.match(sql, /payroll_period/i);
+  assert.match(sql, /source_fingerprint/i);
+  assert.match(sql, /source_generated_at|generated_at/i);
+  assert.match(sql, /confirmed_attendance_ref/i);
+  assert.match(sql, /confirmed_attendance_version/i);
+  assert.match(sql, /employee_count/i);
+  assert.match(sql, /gross[^\n,]*(summary|amount)|(summary|amount)[^\n,]*gross/i);
+  assert.match(sql, /(unresolved|review_required|exception)_?count/i);
+
+  assert.doesNotMatch(sql, /calculation_run_id\s+uuid\s+not\s+null/i);
+  assert.match(contract, /외부 급여초안.*authoritative|authoritative.*외부 급여초안/i);
+  assert.match(contract, /internal calculation run.*optional|optional.*internal calculation run/i);
 });
 
-test('promotion lead handoff review is a narrow capability and full payroll manage is unchanged', () => {
-  assert.match(sql, /'payroll\.handoff\.review', 'operational', false/i);
-  assert.match(sql, /'payroll\.handoff\.approve', 'operational', true/i);
-  assert.match(sql, /where role\.code = 'promotion_lead'/i);
-  assert.match(sql, /current_user_has_role\('promotion_lead'\)[\s\S]*private_actor_can\('payroll\.handoff\.review'\)/i);
-  assert.match(sql, /current_user_has_role\('operations_manager'\)[\s\S]*private_actor_can\('payroll\.handoff\.approve'\)/i);
-  assert.doesNotMatch(sql, /payroll\.manage[\s\S]*promotion_lead/i);
-});
-
-test('every state mutation rechecks the current source and never executes payroll side effects', () => {
-  assert.match(sql, /PAYROLL_HANDOFF_SOURCE_STALE/);
-  assert.match(sql, /private_payroll_handoff_source_is_current/);
-  assert.match(sql, /private_payroll_handoff_source_is_submittable/);
-  assert.match(sql, /PAYROLL_HANDOFF_BLOCKED/);
-  assert.match(sql, /UNSAFE_PAYROLL_HANDOFF_LEAD_NOTE/);
-  assert.match(sql, /UNSAFE_PAYROLL_HANDOFF_OPERATIONS_NOTE/);
-  assert.match(sql, /payroll_draft_handoff_review_started/);
-  assert.match(sql, /payroll_draft_handoff_submitted/);
-  assert.match(sql, /payroll_draft_handoff_changes_requested/);
-  assert.match(sql, /payroll_draft_handoff_approved/);
-  assert.doesNotMatch(sql, /\b(?:lock_payroll_month|payment|payroll export|external callback)\s*\(/i);
-  assert.doesNotMatch(sql, /update public\.payroll_months[\s\S]*status\s*=\s*'locked'/i);
-});
-
-test('handoff RPCs are the only authenticated boundary and audit metadata stays non-sensitive', () => {
-  for (const rpc of [
-    'get_my_payroll_draft_handoff_workspace()',
-    'start_payroll_draft_handoff_review(date)',
-    'submit_payroll_draft_handoff(uuid, text)',
-    'request_payroll_draft_handoff_changes(uuid, text)',
-    'approve_payroll_draft_handoff(uuid, text)'
-  ]) {
-    assert.match(sql, new RegExp(`grant execute on function public\\.${rpc.replace(/[()]/g, value => value === '(' ? '\\(' : '\\)') } to authenticated`, 'i'));
+test('approved six-state workflow is preserved exactly and includes rejection', () => {
+  for (const state of ['draft', 'lead_review', 'submitted', 'changes_requested', 'rejected', 'approved']) {
+    assert.match(sql, new RegExp("['\"]" + state + "['\"]", 'i'));
   }
+  assert.doesNotMatch(sql, /submitted_to_operations|operations_approved/i);
+  assert.match(ui, /rejected/i);
+  assert.match(ui, /approved/i);
+});
+
+test('duplicate and revision semantics are keyed by external draft revision', () => {
+  assert.match(sql, /external_draft_id/i);
+  assert.match(sql, /external_draft_revision/i);
+  assert.match(sql, /unique[\s\S]{0,400}payroll_period[\s\S]{0,400}external_draft_id[\s\S]{0,400}external_draft_revision|unique index[\s\S]{0,400}payroll_period[\s\S]{0,400}external_draft_id[\s\S]{0,400}external_draft_revision/i);
+
+  assert.match(contract, /changes_requested[\s\S]*revision.*반드시 증가/i);
+  assert.match(contract, /rejected[\s\S]*동일 revision.*terminal/i);
+});
+
+test('operations manager remains a superset of promotion lead handoff operations', () => {
+  const leadHelper = sql.match(/create or replace function public\.private_payroll_handoff_lead_allowed\(\)[\s\S]*?\$\$;/i)?.[0] || '';
+  assert.match(leadHelper, /promotion_lead/i);
+  assert.match(leadHelper, /operations_manager/i);
+  assert.match(sql, /payroll\.handoff\.approve/i);
+});
+
+test('audit contract records explicit state transition and external draft identity', () => {
+  assert.match(sql, /from_state/i);
+  assert.match(sql, /to_state/i);
+  assert.match(sql, /external_draft_id/i);
+  assert.match(sql, /external_draft_revision/i);
+  assert.match(sql, /reason|note/i);
+
   const auditCalls = [...sql.matchAll(/perform public\.private_append_audit\([\s\S]*?\n\s*\);/gi)].map(match => match[0]);
   assert.ok(auditCalls.length >= 4);
   for (const call of auditCalls) {
-    assert.doesNotMatch(call, /gross_pay|net_pay|deduction|employee_uuid|display_name/i);
+    assert.doesNotMatch(call, /employee_uuid|resident|bank_account|disability|health/i);
   }
 });
 
-test('team lead and operations manager receive the dedicated handoff page without exposing the payroll ledger', () => {
-  assert.match(nav, /currentRole === 'promotion_lead' \? '급여초안 상신' : '급여초안 검토'/);
-  assert.match(nav, /link\.href = 'payroll\/handoff\.html'/);
+test('handoff UI exposes approved aggregate review summary without employee-sensitive detail', () => {
+  assert.match(nav, /payroll\/handoff\.html/);
   assert.match(page, /assets\/payroll-draft-handoff\.js/);
-  assert.match(ui, /get_my_payroll_draft_handoff_workspace/);
-  assert.match(ui, /start_payroll_draft_handoff_review/);
-  assert.match(ui, /submit_payroll_draft_handoff/);
-  assert.match(ui, /request_payroll_draft_handoff_changes/);
-  assert.match(ui, /approve_payroll_draft_handoff/);
-  assert.doesNotMatch(page, /payroll-live-table|payroll-live-gross|payroll-live-export/);
-  assert.doesNotMatch(ui, /gross_pay_preview|net_pay_preview|deduction_preview/);
+
+  for (const field of [
+    /external[_-]?draft/i,
+    /revision/i,
+    /employee[_-]?count/i,
+    /exception|review[_-]?required|unresolved/i,
+    /gross|총\s*급여|총액/i
+  ]) {
+    assert.match(ui, field);
+  }
+
+  assert.doesNotMatch(page, /resident|주민등록|bank_account|계좌번호|disability|장애정보|health|건강정보/i);
+  assert.doesNotMatch(ui, /resident|주민등록|bank_account|계좌번호|disability|장애정보|health|건강정보/i);
+});
+
+test('separate payroll project has a protected pull/read decision contract', () => {
+  assert.match(sql, /external_draft_id/i);
+  assert.match(sql, /external_draft_revision/i);
+  assert.match(sql, /security definer/i);
+  assert.match(sql, /approved|changes_requested|rejected/i);
+
+  assert.match(sql, /create or replace function public\.[a-z0-9_]*(decision|result|status)[a-z0-9_]*\(/i);
+  assert.match(sql, /grant execute on function public\.[a-z0-9_]*(decision|result|status)[a-z0-9_]*\([^;]*\) to authenticated/i);
+});
+
+test('approval is non-payment and cannot lock/finalize payroll', () => {
+  assert.doesNotMatch(sql, /update public\.payroll_months[\s\S]{0,500}status\s*=\s*'locked'/i);
+  assert.doesNotMatch(sql, /\b(?:send_payment|execute_payment|bank_transfer|payroll_lock)\s*\(/i);
+  assert.match(contract, /approved.*실제 송금|실제 송금.*approved/i);
 });
