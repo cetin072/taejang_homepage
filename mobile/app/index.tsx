@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AttendanceCard } from '@/src/features/attendance/attendance-card';
 import { NoticeListCard } from '@/src/features/notices/notice-list-card';
 import { registerCurrentPushDevice } from '@/src/notifications/push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
@@ -129,7 +130,7 @@ export default function HomeScreen() {
           <Text style={styles.eyebrow}>{config?.environmentLabel || '태장 업무플랫폼'}</Text>
           <Text style={styles.title}>직원앱 준비 완료</Text>
           <Text style={styles.body}>
-            로그인과 세션 복원이 연결되었습니다. 지금은 공지를 확인할 수 있고, 다음 단계에서 출퇴근과 원격 Push를 연결합니다.
+            출퇴근과 공지를 한 화면에서 확인할 수 있습니다. 중요공지 Push도 이 기기에서 받을 수 있도록 준비합니다.
           </Text>
         </View>
 
@@ -138,6 +139,8 @@ export default function HomeScreen() {
           <Text style={styles.body}>{session.user.email || '태장 직원 계정'}</Text>
           <Text style={styles.help}>앱을 종료했다 다시 열어도 SecureStore 기반 세션을 복원합니다.</Text>
         </View>
+
+        <AttendanceCard />
 
         <NoticeListCard />
 
