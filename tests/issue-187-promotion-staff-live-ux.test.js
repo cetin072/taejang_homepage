@@ -8,7 +8,8 @@ const vm = require('node:vm');
 const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
-const source = fs.readFileSync(path.join(root, 'app/assets/ux-followup-polish.js'), 'utf8');
+const read = file => fs.readFileSync(path.join(root, file), 'utf8').replace(/\r\n/g, '\n');
+const source = read('app/assets/ux-followup-polish.js');
 const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion-live-qa.js'), 'utf8');
 const issue181 = fs.readFileSync(path.join(root, 'app/assets/issue-181-promotion-live-ux.js'), 'utf8');
 const channelConfig = fs.readFileSync(path.join(root, 'app/assets/official-channel-config.js'), 'utf8');
@@ -17,7 +18,7 @@ const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js
 const roleNavigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260913070500_issue_192_upper_review_archive_guard.sql'), 'utf8');
 const promotionDetail = fs.readFileSync(path.join(root, 'assets/js/promotion-detail.js'), 'utf8');
-const publicFeed = fs.readFileSync(path.join(root, 'netlify/functions/public-promotion-feed.mjs'), 'utf8');
+const publicFeed = read('netlify/functions/public-promotion-feed.mjs');
 const externalMeta = fs.readFileSync(path.join(root, 'netlify/functions/external-content-meta.mjs'), 'utf8');
 
 function syntaxCheck(file) {
