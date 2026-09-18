@@ -64,7 +64,7 @@ test('first mobile screen stays focused on auth and notification foundation', as
 
 test('mobile CI builds an ARM64 Android artifact before human QA', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
-  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);\n  assert.match(workflow, /npm ci --no-audit --no-fund/);\n  assert.match(workflow, /taejang-mobile-generated-lock/);
+  assert.match(workflow, /rm -f package-lock\\.json/);\n  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);\n  assert.match(workflow, /npm ci --no-audit --no-fund/);\n  assert.match(workflow, /taejang-mobile-generated-lock/);
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
