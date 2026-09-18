@@ -27,7 +27,7 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        run: |\n          rm -f package-lock.json\n          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Upload generated lockfile
         uses: actions/upload-artifact@v4
         with:
@@ -64,7 +64,7 @@ jobs:
           java-version: '17'
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+        run: |\n          rm -f package-lock.json\n          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
       - name: Install generated locked dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
