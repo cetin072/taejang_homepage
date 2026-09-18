@@ -208,6 +208,16 @@
     if (button) button.disabled = !enabled;
   }
 
+  function attendanceReviewRows() {
+    const editor = window.TaejangPayrollAttendanceEditor;
+    return typeof editor?.getReviewExportRows === 'function' ? editor.getReviewExportRows() : [];
+  }
+
+  function updateAttendanceReviewExport() {
+    const button = element('payroll-attendance-review-export');
+    if (button) button.disabled = attendanceReviewRows().length === 0;
+  }
+
   function renderValidation(context) {
     const node = element('payroll-ledger-validation');
     const validator = window.TaejangPayrollLedgerValidator;
@@ -315,6 +325,7 @@
       && Boolean(validation)
       && validation.errorCount === 0;
     setExportEnabled(exportReady);
+    updateAttendanceReviewExport();
   }
 
   function friendlyError(error) {
@@ -363,6 +374,17 @@
     setMessage('민감정보를 제외한 급여대장 Excel 가안을 내려받았습니다.');
   }
 
+  function exportAttendanceReview() {
+    const exporter = window.TaejangPayrollLedgerXlsx;
+    const rows = attendanceReviewRows();
+    if (!exporter?.downloadAttendanceReviewXlsx || !rows.length) {
+      setMessage('내보낼 근태 검토내역이 없습니다. 보안업체 원본을 선택하거나 저장된 근태를 불러와 주세요.', { error: true });
+      return;
+    }
+    exporter.downloadAttendanceReviewXlsx(rows, selectedMonth());
+    setMessage('근태 원본·보정 사유·미해결 상태를 포함한 검토내역 Excel을 내려받았습니다. protected HR 열이 필요한 기존 월간 출퇴근부는 승인된 HR source 연결 전까지 생성하지 않습니다.');
+  }
+
   function handleAttendanceFile(event) {
     const file = event.target.files?.[0] || null;
     state.attendanceFile = null;
@@ -409,6 +431,8 @@
 
   element('payroll-live-refresh')?.addEventListener('click', loadMonth);
   element('payroll-live-export')?.addEventListener('click', exportLedger);
+  element('payroll-attendance-review-export')?.addEventListener('click', exportAttendanceReview);
+  document.addEventListener('payroll-attendance-editor-updated', updateAttendanceReviewExport);
   element('payroll-attendance-file')?.addEventListener('change', handleAttendanceFile);
   element('payroll-live-month')?.addEventListener('change', () => {
     const month = selectedMonth();

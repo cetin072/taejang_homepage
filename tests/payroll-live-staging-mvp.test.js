@@ -75,6 +75,7 @@ test('unauthenticated payroll page keeps attendance controls inactive until prot
 
 test('vendor attendance Excel is primary and direct entry is limited to exception correction', () => {
   assert.match(html, /보안업체 출근부 Excel이 기본입니다/);
+  assert.match(html, /정상 월에는 구형 `\.xls` 1개를 선택/);
   assert.match(html, /보안업체 출근부 Excel 가져오기/);
   assert.match(html, /정상건은 자동대조하고 예외만/);
   assert.match(html, /수기 입력은 예외 보정용/);
@@ -90,6 +91,16 @@ test('vendor attendance Excel is primary and direct entry is limited to exceptio
   assert.match(attendanceEditor, /markChanged/);
   assert.match(attendanceOperatorUx, /inferAttendanceStatus/);
   assert.match(attendanceOperatorUx, /한쪽 시간만 있으면 확인 필요/);
+});
+
+test('live payroll surface provides monthly exception navigation and a non-HR audit export', () => {
+  assert.match(html, /id="payroll-attendance-month-summary"/);
+  assert.match(html, /id="payroll-attendance-next-exception"/);
+  assert.match(html, /id="payroll-attendance-review-export"/);
+  assert.match(html, /payroll-attendance-month-summary\.js/);
+  assert.match(client, /downloadAttendanceReviewXlsx/);
+  assert.match(attendanceEditor, /getReviewExportRows/);
+  assert.match(attendanceEditor, /moveToNextException/);
 });
 
 test('attendance save recalculates shadow payroll but has no finalization or payment path', () => {

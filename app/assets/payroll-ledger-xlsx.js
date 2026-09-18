@@ -483,6 +483,71 @@
     return buildSingleSheetXlsx(`${input?.month || '월간'} 출퇴근부`, monthlyAttendanceSheetXml(model, input?.month));
   }
 
+  // This is intentionally a review/audit export, not the familiar protected-HR
+  // monthly attendance workbook above. The latter remains fail-closed until an
+  // explicitly authorised, one-to-one protected HR source is available.
+  function buildAttendanceReviewMatrix(rows) {
+    const headers = ['사번', '성명', '근무일', '상태', '출근', '퇴근', '인정시간', '출처', '원본파일', '시트', '행', '보정 사유'];
+    const values = (Array.isArray(rows) ? rows : []).map(row => [
+      row?.employee_id || row?.employeeId || '',
+      row?.display_name || row?.displayName || row?.name || '',
+      row?.work_date || row?.workDate || '',
+      attendanceStatusLabel(row?.attendance_status || row?.attendanceStatus || 'review_required', row?.confirmed_hours ?? row?.confirmedHours),
+      row?.clock_in_display || row?.clockInDisplay || '',
+      row?.clock_out_display || row?.clockOutDisplay || '',
+      finite(row?.confirmed_hours ?? row?.confirmedHours),
+      row?.source_kind || row?.sourceKind || '',
+      row?.source_file_name || row?.sourceFileName || '',
+      row?.source_sheet || row?.sourceSheet || '',
+      finite(row?.source_row_number ?? row?.sourceRowNumber),
+      row?.reason || '',
+    ]);
+    return { headers, rows: values };
+  }
+
+  function attendanceReviewSheetXml(rows, month) {
+    const matrix = buildAttendanceReviewMatrix(rows);
+    const lastColumn = columnName(matrix.headers.length - 1);
+    const widths = matrix.headers.map((header, index) => {
+      const width = index === 1 ? 12 : header === '보정 사유' ? 30 : header === '원본파일' ? 28 : 13;
+      return `<col min="${index + 1}" max="${index + 1}" width="${width}" customWidth="1"/>`;
+    }).join('');
+    const sheetRows = [
+      `<row r="1" ht="26" customHeight="1">${cellXml(`농업회사법인 태장(주) · 근태 검토내역 ${month}`, 'A1', 1)}</row>`,
+      `<row r="2">${cellXml('운영 검토용 · 원본 출퇴근 증거와 수기 보정 이력 · protected HR 필드 미포함', 'A2', 4)}</row>`,
+      `<row r="3" ht="38" customHeight="1">${matrix.headers.map((header, index) => cellXml(header, `${columnName(index)}3`, 2)).join('')}</row>`,
+    ];
+    matrix.rows.forEach((row, rowIndex) => {
+      const excelRow = rowIndex + 4;
+      sheetRows.push(`<row r="${excelRow}">${row.map((value, columnIndex) => cellXml(value, `${columnName(columnIndex)}${excelRow}`, 0)).join('')}</row>`);
+    });
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetViews><sheetView workbookViewId="0"><pane xSplit="3" ySplit="3" topLeftCell="D4" activePane="bottomRight" state="frozen"/></sheetView></sheetViews>
+  <cols>${widths}</cols>
+  <sheetData>${sheetRows.join('')}</sheetData>
+  <mergeCells count="2"><mergeCell ref="A1:${lastColumn}1"/><mergeCell ref="A2:${lastColumn}2"/></mergeCells>
+  <autoFilter ref="A3:${lastColumn}${Math.max(3, matrix.rows.length + 3)}"/>
+</worksheet>`;
+  }
+
+  function buildAttendanceReviewXlsx(rows, month) {
+    return buildSingleSheetXlsx(`${month || '월간'} 근태검토`, attendanceReviewSheetXml(rows, month));
+  }
+
+  function downloadAttendanceReviewXlsx(rows, month) {
+    const bytes = buildAttendanceReviewXlsx(rows, month);
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `태장_근태검토내역_${month}.xlsx`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   function downloadPayrollLedgerXlsx(context, month) {
     const bytes = buildPayrollLedgerXlsx(context, month);
     const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -509,5 +574,8 @@
     summarizeMonthlyAttendanceWorkbookModel,
     compareMonthlyAttendanceWorkbookSummary,
     buildMonthlyAttendanceWorkbookXlsx,
+    buildAttendanceReviewMatrix,
+    buildAttendanceReviewXlsx,
+    downloadAttendanceReviewXlsx,
   });
 });

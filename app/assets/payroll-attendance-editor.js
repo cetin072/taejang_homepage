@@ -305,6 +305,70 @@
     if (review) parts.push(`확인 ${review}건`);
     if (extra) parts.push(extra);
     node.textContent = parts.join(' · ');
+    renderMonthSummary();
+  }
+
+  function storedCellsForMonth() {
+    return Array.from(state.cells.values()).filter(cell => {
+      if (!cell.workDate?.startsWith(`${selectedMonth()}-`)) return false;
+      return Boolean(cell.status || cell.clockIn || cell.clockOut || cell.sourceKind);
+    });
+  }
+
+  function currentMonthSummary() {
+    const helper = window.TaejangPayrollAttendanceMonthSummary;
+    if (!helper?.summarize) return null;
+    return helper.summarize(storedCellsForMonth(), { month: selectedMonth() });
+  }
+
+  function renderMonthSummary() {
+    const node = el('payroll-attendance-month-summary');
+    const nextException = el('payroll-attendance-next-exception');
+    const helper = window.TaejangPayrollAttendanceMonthSummary;
+    const summary = currentMonthSummary();
+    if (!node || !summary || !helper?.summaryText) {
+      if (node) node.textContent = '월간 근태 요약을 불러오는 중';
+      if (nextException) nextException.disabled = true;
+      return;
+    }
+    node.textContent = helper.summaryText(summary);
+    node.dataset.state = summary.unresolvedCount > 0 ? 'review' : 'ok';
+    if (nextException) nextException.disabled = summary.exceptionDates.length === 0 || state.loading;
+    document.dispatchEvent(new CustomEvent('payroll-attendance-editor-updated'));
+  }
+
+  function moveToNextException() {
+    const summary = currentMonthSummary();
+    const dates = summary?.exceptionDates || [];
+    if (!dates.length) {
+      setMessage('이 급여월에 저장 또는 자동채움된 확인 필요 근태가 없습니다.', 'ok');
+      return;
+    }
+    const next = dates.find(date => date > state.selectedDate) || dates[0];
+    state.selectedDate = next;
+    const input = el('payroll-attendance-date');
+    if (input) input.value = next;
+    renderTable();
+    const toggle = document.querySelector('[data-payroll-exception-toggle]');
+    if (toggle?.hidden === false && toggle.textContent === '예외만 보기') toggle.click();
+    setMessage(`${next}의 확인 필요 근태를 표시했습니다. 수기 근거를 확인한 뒤 저장해 주세요.`, 'review');
+  }
+
+  function reviewExportRows() {
+    return storedCellsForMonth().map(cell => ({
+      employee_id: cell.employeeId || '',
+      display_name: cell.name || '',
+      work_date: cell.workDate,
+      attendance_status: cell.status || 'review_required',
+      clock_in_display: minuteDisplay(cell.clockIn || cell.clockInRaw),
+      clock_out_display: minuteDisplay(cell.clockOut || cell.clockOutRaw),
+      confirmed_hours: cell.confirmedHours === '' ? null : cell.confirmedHours,
+      source_kind: cell.sourceKind || 'manual_ui',
+      source_file_name: cell.sourceFileName || '',
+      source_sheet: cell.sourceSheet || '',
+      source_row_number: cell.sourceRowNumber || null,
+      reason: cell.reason || '',
+    }));
   }
 
   function changeDate(days) {
@@ -448,6 +512,7 @@
       'payroll-attendance-next',
       'payroll-attendance-save',
       'payroll-attendance-recalculate',
+      'payroll-attendance-next-exception',
     ]) {
       const button = el(id);
       if (button) button.disabled = busy;
@@ -601,6 +666,7 @@
     el('payroll-attendance-next')?.addEventListener('click', () => changeDate(1));
     el('payroll-attendance-save')?.addEventListener('click', saveChanges);
     el('payroll-attendance-recalculate')?.addEventListener('click', retryCalculation);
+    el('payroll-attendance-next-exception')?.addEventListener('click', moveToNextException);
     el('payroll-live-month')?.addEventListener('change', () => loadContext().catch(error => setMessage(error.message, 'error')));
     el('payroll-attendance-file')?.addEventListener('change', event => {
       const file = event.target.files?.[0];
@@ -632,4 +698,11 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
+
+  // A narrow, read-only bridge for the authenticated live page's review export.
+  // The bridge deliberately excludes raw seconds and any protected HR attributes.
+  window.TaejangPayrollAttendanceEditor = Object.freeze({
+    getReviewExportRows: reviewExportRows,
+    getMonthSummary: currentMonthSummary,
+  });
 })();
