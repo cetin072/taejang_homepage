@@ -138,6 +138,7 @@ const liveAutomation = `<script>
       if (!badge.includes('근태 편집')) throw new Error('PAYROLL_ENVIRONMENT_BADGE_NOT_READY');
       if (!document.getElementById('payroll-attendance-save')) throw new Error('PAYROLL_SAVE_ACTION_MISSING');
       if (!document.getElementById('payroll-attendance-recalculate')) throw new Error('PAYROLL_RECALCULATE_ACTION_MISSING');
+      if (!document.getElementById('payroll-attendance-confirmed-export')) throw new Error('PAYROLL_CONFIRMED_ATTENDANCE_XLSX_ACTION_MISSING');
       if (!document.getElementById('payroll-live-export')) throw new Error('PAYROLL_XLSX_ACTION_MISSING');
 
       sessionStorage.removeItem(stageKey);

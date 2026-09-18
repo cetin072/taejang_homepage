@@ -93,12 +93,16 @@ test('vendor attendance Excel is primary and direct entry is limited to exceptio
   assert.match(attendanceOperatorUx, /한쪽 시간만 있으면 확인 필요/);
 });
 
-test('live payroll surface provides monthly exception navigation and a non-HR audit export', () => {
+test('live payroll surface provides the three explicit operator download actions', () => {
   assert.match(html, /id="payroll-attendance-month-summary"/);
   assert.match(html, /id="payroll-attendance-next-exception"/);
+  assert.match(html, /id="payroll-attendance-confirmed-export"/);
+  assert.match(html, /확정 출퇴근부 Excel/);
   assert.match(html, /id="payroll-attendance-review-export"/);
+  assert.match(html, /id="payroll-live-export"/);
   assert.match(html, /payroll-attendance-month-summary\.js/);
   assert.match(client, /downloadAttendanceReviewXlsx/);
+  assert.match(client, /protected HR source.*fail-closed/i);
   assert.match(attendanceEditor, /getReviewExportRows/);
   assert.match(attendanceEditor, /moveToNextException/);
 });

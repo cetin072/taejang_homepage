@@ -26,6 +26,7 @@
         <input id="payroll-live-month" type="month">
       </label>
       <button class="payroll-button" type="button" id="payroll-live-refresh">새로고침</button>
+      <button class="payroll-button secondary" type="button" id="payroll-attendance-confirmed-export" disabled title="승인된 protected HR 출처가 연결되면 사용할 수 있습니다">확정 출퇴근부 Excel</button>
       <button class="payroll-button secondary" type="button" id="payroll-live-export" disabled>급여대장 Excel</button>
       <button class="payroll-button secondary" type="button" id="payroll-attendance-review-export" disabled>근태 검토내역 Excel</button>
       <a class="payroll-button secondary payroll-live-link" href="../">업무플랫폼으로</a>
@@ -63,7 +64,7 @@
         <ol class="payroll-checklist" aria-label="근태 급여 사용방법">
           <li>보안업체 근태파일을 올리면 파일 내부 근태기간과 정상근태를 자동 확인합니다.</li>
           <li><strong>확인 필요</strong> 항목만 수기 출석부를 근거로 보정하고 저장합니다.</li>
-          <li>급여 가안을 검토한 뒤 근태 검토내역 또는 급여대장을 다운로드합니다.</li>
+          <li>급여 가안을 검토한 뒤 확정 출퇴근부, 근태 검토내역 또는 급여대장을 다운로드합니다.</li>
         </ol>
         <span id="payroll-attendance-file-name" class="payroll-file-name">보안업체 원본을 선택해 주세요 · 수기 입력은 예외 보정용</span>
         <span id="payroll-attendance-preview" class="payroll-file-preview" data-state="idle">보안업체 `.xls` 또는 `.xlsx` 원본을 선택하면 시트·헤더·행 수를 먼저 확인하고 근태 대조표에 채웁니다.</span>

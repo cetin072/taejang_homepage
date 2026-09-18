@@ -218,6 +218,16 @@
     if (button) button.disabled = attendanceReviewRows().length === 0;
   }
 
+  function updateConfirmedAttendanceExport() {
+    const button = element('payroll-attendance-confirmed-export');
+    if (!button) return;
+    // The familiar monthly attendance workbook includes protected HR columns.
+    // Do not make it actionable until a one-to-one approved HR export context
+    // exists; review export remains available without those fields.
+    button.disabled = true;
+    button.title = '승인된 protected HR 출처가 연결되면 사용할 수 있습니다';
+  }
+
   function renderValidation(context) {
     const node = element('payroll-ledger-validation');
     const validator = window.TaejangPayrollLedgerValidator;
@@ -249,6 +259,7 @@
     element('payroll-live-empty').hidden = false;
     element('payroll-live-table-wrap').hidden = true;
     setExportEnabled(false);
+    updateConfirmedAttendanceExport();
   }
 
   function appendCell(row, value, className = '') {
@@ -326,6 +337,7 @@
       && validation.errorCount === 0;
     setExportEnabled(exportReady);
     updateAttendanceReviewExport();
+    updateConfirmedAttendanceExport();
   }
 
   function friendlyError(error) {
@@ -385,6 +397,10 @@
     setMessage('근태 원본·보정 사유·미해결 상태를 포함한 검토내역 Excel을 내려받았습니다. protected HR 열이 필요한 기존 월간 출퇴근부는 승인된 HR source 연결 전까지 생성하지 않습니다.');
   }
 
+  function exportConfirmedAttendance() {
+    setMessage('확정 출퇴근부 Excel은 승인된 protected HR source를 직원별로 정확히 하나씩 연결한 뒤에만 생성합니다. 현재 source가 연결되지 않아 fail-closed 상태입니다.', { error: true });
+  }
+
   function handleAttendanceFile(event) {
     const file = event.target.files?.[0] || null;
     state.attendanceFile = null;
@@ -430,6 +446,7 @@
   }
 
   element('payroll-live-refresh')?.addEventListener('click', loadMonth);
+  element('payroll-attendance-confirmed-export')?.addEventListener('click', exportConfirmedAttendance);
   element('payroll-live-export')?.addEventListener('click', exportLedger);
   element('payroll-attendance-review-export')?.addEventListener('click', exportAttendanceReview);
   document.addEventListener('payroll-attendance-editor-updated', updateAttendanceReviewExport);

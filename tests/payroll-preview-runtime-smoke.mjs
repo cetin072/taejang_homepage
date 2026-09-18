@@ -36,6 +36,7 @@ const liveResponse = await fetchReady('/app/payroll/live.html?month=2026-09');
 assertStayedOnPreview(liveResponse, 'payroll live page');
 const liveHtml = await liveResponse.text();
 assert.match(liveHtml, /id="payroll-attendance-editor"/, 'Deploy Preview must contain the attendance editor');
+assert.match(liveHtml, /id="payroll-attendance-confirmed-export"/, 'Deploy Preview must contain confirmed-attendance XLSX export');
 assert.match(liveHtml, /id="payroll-live-export"/, 'Deploy Preview must contain payroll XLSX export');
 assert.match(liveHtml, /payroll-attendance-editor\.js/, 'Deploy Preview must load attendance editor JS');
 assert.match(liveHtml, /payroll-operator-live\.js/, 'Deploy Preview must load payroll ledger JS');
