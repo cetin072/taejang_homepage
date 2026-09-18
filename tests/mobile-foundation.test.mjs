@@ -9,8 +9,8 @@ async function text(path) {
 test('Taejang mobile foundation pins the reused Expo 57 stack', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   assert.equal(pkg.main, 'expo-router/entry');
-  assert.equal(pkg.dependencies.expo, '57.0.23');
-  assert.equal(pkg.dependencies['expo-router'], '57.0.21');
+  assert.equal(pkg.dependencies.expo, '57.0.24');
+  assert.equal(pkg.dependencies['expo-router'], '57.0.22');
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);
@@ -64,7 +64,7 @@ test('first mobile screen stays focused on auth and notification foundation', as
 
 test('mobile CI builds an ARM64 Android artifact before human QA', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
-  assert.match(workflow, /npm ci --no-audit --no-fund/);
+  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);\n  assert.match(workflow, /npm ci --no-audit --no-fund/);\n  assert.match(workflow, /taejang-mobile-generated-lock/);
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
