@@ -7,107 +7,227 @@
 
 ## 1. 목적과 경계
 
-이 계약은 급여 계산, 보험·세금, 지급, 실제 월잠금을 구현하거나 바꾸지 않는다. 이미 계산된 급여초안이 다음 운영 절차에서 누락되지 않도록 하는 업무플랫폼 계약만 정의한다.
+이 계약은 급여 계산, 보험·세금, 지급, 실제 월잠금을 구현하거나 바꾸지 않는다.
+
+태장 업무플랫폼이 책임지는 것은 다음 운영 handoff다.
 
 ```text
-확정 근태 / 별도 급여 프로젝트의 초안
+별도 급여 프로젝트
+  → 급여초안 생성
   → 운영팀장 검토
   → 운영총괄 상신
-  → 운영총괄 최종 승인 또는 보완 요청
+  → 운영총괄 최종 승인 / 보완요청 / 반려
+  → 별도 급여 프로젝트가 승인상태를 보호된 read contract로 조회
 ```
 
-현재 `payroll_months`와 `payroll_calculation_runs`는 가안 계산·근태 예외 검토용이며, 위 상신 상태나 운영총괄 상신함을 제공하지 않는다.
+업무플랫폼의 `approved`는 실제 송금, 지급, 월잠금, 소급지급을 실행하지 않는다.
 
-## 2. 기존 정본과 재사용
+## 2. Source of Truth
 
-- 직원 연결은 기존 immutable `employees.id` / `employee_id`만 사용한다.
-- 근태·계산 초안 식별은 기존 `payroll_months.id`, `payroll_months.payroll_month`, `payroll_calculation_runs.id`, `input_fingerprint`를 우선 참조한다.
-- 기존 급여 가안의 `locked`는 실제 급여 확정·월잠금 승인 gate로 남긴다. handoff 최종승인은 이를 자동으로 `locked`로 바꾸지 않는다.
-- 새 handoff는 급여 금액·주민등록번호·은행정보·건강·장애 정보를 audit, push, 일반 상신함 제목/본문에 기록하지 않는다.
+1차 handoff의 authoritative draft는 **별도 급여 프로젝트의 외부 급여초안**이다.
 
-## 3. 제안하는 최소 handoff 단위
+필수 식별·참조:
+- `payroll_period`
+- `external_draft_id`
+- `external_draft_revision`
+- `source_fingerprint`
+- `source_generated_at`
+- `confirmed_attendance_ref`
+- `confirmed_attendance_version`
 
-각 handoff는 하나의 `payroll_month`와 하나의 정확한 calculation run 또는 외부초안 참조를 묶는다.
+기존 내부 `payroll_calculation_runs`는 존재하는 경우 optional reference로 연결할 수 있으나 외부 draft identity를 대체하지 않는다.
 
-| 필드 | 제안 | 목적 |
-| --- | --- | --- |
-| `payroll_month_id` | 필수 FK | 대상 월 고정 |
-| `calculation_run_id` | 내부 가안일 때 필수 FK | 정확한 근태/계산 기준 고정 |
-| `external_draft_ref` | 외부 급여 프로젝트 초안일 때 필수 | 외부 시스템의 변경 불가능한 초안 식별 |
-| `source_fingerprint` | 필수 | 상신 이후 기준 변경 감지 |
-| `status` | 아래 상태집합 | 재시도·보완·상신 추적 |
-| `submitted_by/at`, `reviewed_by/at`, `approved_by/at` | 최소 감사 필드 | actor/time 보존 |
-| `reason` | 보완/승인 때 필수, 짧은 텍스트 | 다음 행동 설명 |
+## 3. 최소 handoff 데이터
 
-`calculation_run_id`와 `external_draft_ref`는 정확히 하나만 존재해야 한다. 외부 초안의 금액 상세는 업무플랫폼에 복사하지 않으며, 권한 있는 별도 급여 화면/시스템으로 안전한 링크 또는 adapter 조회를 사용한다.
+최소 저장/조회 범위:
+- 대상월
+- external draft id
+- external draft revision
+- source fingerprint
+- source generated timestamp
+- confirmed attendance reference/version
+- employee count
+- gross payroll summary amount
+- unresolved/review-required exception count
+- 현재 상태
+- 운영팀장 actor / reviewed at / note
+- submitted at
+- 운영총괄 actor / final action at / note
+- immutable audit history
+- optional internal calculation run reference
 
-## 4. 제안 상태와 불변식
+금지:
+- 주민등록번호
+- 계좌정보
+- 건강/장애정보
+- 개별 직원 민감 HR 원문
+- 업무플랫폼 내부에서 계산식 복제
+
+## 4. 상태 계약
+
+최소 상태는 다음 6개로 고정한다.
+
+- `draft`
+- `lead_review`
+- `submitted`
+- `changes_requested`
+- `rejected`
+- `approved`
+
+기본 흐름:
 
 ```text
-lead_review
-  ├─(보완 요청)→ changes_requested ─(수정 기준 재검토)→ lead_review
-  └─(상신)→ submitted_to_operations
-                 ├─(보완 요청)→ changes_requested
-                 └─(최종 승인)→ operations_approved
+draft
+  → lead_review
+  → submitted
+      ├─→ changes_requested
+      ├─→ rejected
+      └─→ approved
 ```
 
-- 운영팀장만 `lead_review → submitted_to_operations`를 수행한다.
-- 운영총괄만 `submitted_to_operations → operations_approved` 또는 `changes_requested`를 수행한다.
-- `operations_approved`는 급여 계산·지급·월잠금 효과를 발생시키지 않는 업무플랫폼 승인 기록이다.
-- 동일한 `payroll_month_id`와 동일 source reference에는 열린 handoff를 하나만 허용한다.
-- source fingerprint가 달라지면 기존 상신을 자동 승인하지 않고 `changes_requested` 또는 재검토 상태로 되돌린다.
-- 모든 전이는 security-definer RPC 내부에서 현재 계정 상태·capability·대상 run/월 일치·현재 상태를 transaction lock 아래 재확인하고 짧은 audit event를 남긴다.
+### 보완/재상신
+- `changes_requested` 후 같은 `external_draft_id`는 유지할 수 있다.
+- **external_draft_revision은 반드시 증가해야 한다.**
+- 새 revision은 새 검토대상이다.
+- 이전 revision과 결정이력은 삭제하거나 덮어쓰지 않는다.
 
-## 5. 역할과 화면
+### 반려
+- `rejected` 된 동일 revision은 terminal이다.
+- 동일 revision을 다시 `submitted`로 되살리지 않는다.
+- 다시 진행하려면 새 revision이 필요하다.
+
+## 5. 중복 방지
+
+최소 idempotency/unique 의미:
+
+`payroll_period + external_draft_id + external_draft_revision`
+
+동일 revision 중복 상신은 server-side에서 차단한다.
+
+## 6. 역할과 권한
 
 ### 운영팀장 (`promotion_lead`)
-
-- 본인의 검토 대기 초안, 예외 수, 기준월, 다음 행동만 본다.
-- unresolved exception 또는 review-required 상태가 있으면 상신할 수 없다.
-- 상신 시 전체 금액을 자유 텍스트로 복사하지 않고 계산 기준·예외 해소 여부·짧은 검토 메모만 전달한다.
+- draft 조회
+- 검토 시작
+- 검토 메모
+- 운영총괄 상신
+- 보완요청 후 새 revision 재검토/재상신
 
 ### 운영총괄 (`operations_manager`)
+- 운영팀장이 가능한 일반 운영 handoff 기능을 모두 수행 가능
+- payroll submission을 최우선 상신함에서 조회
+- 보완요청
+- 반려
+- 최종 승인
 
-- 상신함에서 급여 handoff를 가장 높은 우선순위로 표시한다.
-- 상신자, 시각, 기준월, 현재 상태, 예외 해소 여부, 다음 행동을 확인한다.
-- 승인 또는 보완 요청을 하고 감사기록을 남긴다.
+운영총괄은 #226의 일반 운영 capability superset 원칙을 유지한다.
 
-### 일반직원·홍보직원
+### lower roles
+- handoff 조회/변경 금지
 
-- 급여 handoff·상신함·급여초안에 접근하지 않는다.
+UI 숨김만으로 권한을 구현하지 않고 RPC/RLS/server boundary에서 동일하게 강제한다.
 
-## 6. 외부 급여 프로젝트 adapter 결정
+## 7. 운영팀장 최소 요약
 
-아래 중 하나를 사용자 승인으로 확정해야 한다.
+운영팀장 화면에는 최소 다음을 표시한다.
 
-1. **내부 가안 참조 우선**: 현재 `calculation_run_id`를 1차 handoff의 정본으로 사용하고, 별도 급여 프로젝트는 운영총괄 승인 상태를 사람이 확인한다.
-2. **외부초안 adapter 우선**: 별도 급여 프로젝트가 불변 `external_draft_ref`, 기준월, source fingerprint, 예외 개수만 안전한 API/파일 adapter로 전달한다. 업무플랫폼은 이를 조회·상신하지만 계산 상세를 저장하지 않는다.
-3. **혼합**: 내부 calculation run과 외부초안 ref가 같은 기준월/fingerprint로 대조된 경우에만 handoff를 연다.
+- 대상월
+- external draft id/revision
+- 생성시각
+- confirmed attendance ref/version
+- 직원 수
+- 총 급여 요약액
+- unresolved/review-required 예외 건수
+- 현재 상태
+- 검토 메모
 
-## 7. 확정된 1차 결정
+개별 급여 상세가 필요하면 기존 권한 있는 급여 화면 또는 별도 급여 프로젝트로 이동한다.
 
-1. **Adapter**: 기존 내부 `calculation_run` 참조를 1차 정본으로 사용한다. 외부 급여 프로젝트 API나 파일 adapter는 이번 구현 범위에서 추가하지 않는다.
-2. **승인 결과**: 운영총괄 승인은 업무플랫폼의 감사 가능한 운영 승인 기록으로만 남긴다. 외부 시스템 callback, 지급, 월잠금, payment export는 발생시키지 않는다.
-3. **보완·재상신**: 기준 run/fingerprint가 같으면 같은 handoff를 보완 후 재상신한다. 기준 run 또는 fingerprint가 바뀌면 이전 handoff는 stale 처리하고 새 handoff를 연다.
-4. **운영팀장 범위**: `promotion_lead`는 기준월, run 식별자, 예외 수, 기준 변경 여부, 짧은 검토 메모만 조회·검토·상신한다. 직원별/월별 급여 금액·공제 상세, 민감 인사정보, 월잠금·지급 권한은 부여하지 않는다.
+## 8. 운영총괄 상신함
 
-## 8. 구현 후 검수 기준
+payroll submission은 운영총괄 상신함 최상위 우선순위로 표시한다.
 
-- 같은 기준월/초안의 동시 상신이 하나의 열린 handoff로 수렴한다.
-- 기준 run 또는 fingerprint가 바뀌면 이전 상신은 최종승인할 수 없다.
-- 일반직원·홍보직원은 조회·변경 모두 거부된다.
-- 운영팀장은 검토/상신만, 운영총괄은 상신함 승인/보완만 가능하다.
-- audit에는 actor, time, transition, 참조 ID와 사유만 남고 급여 금액·민감정보는 남지 않는다.
-- handoff 승인으로 실제 급여 지급, 계산규칙 변경, `payroll_months.status='locked'` 전환이 발생하지 않는다.
+최소 표시:
+- 대상월
+- 운영팀장
+- 상신시각
+- 직원 수
+- 총액 요약
+- 예외/확인필요 건수
+- draft revision
+- 현재 상태
+- 다음 action
 
-## 9. 결정 이력
+잠금화면/Push에는 개별 직원 급여금액·민감정보를 노출하지 않는다.
 
-- 2026-09-18: Issue #229 감사에서 lead-to-operations 급여 handoff 계약 미구현을 P0로 확인. 이 문서를 검토용 초안으로 작성했으며 제품 계약은 아직 변경하지 않았다.
-- 2026-09-18: 내부 calculation run 참조, 업무플랫폼 승인 기록만 유지, stale 시 새 handoff, promotion_lead의 비금액 검토·상신 권한을 1차 계약으로 확정. 실제 지급·월잠금·외부 callback은 제외한다.
+## 9. 승인 결과 반환
 
-## 10. 구현 대조
+1차는 callback/webhook이 아니라 **pull/read 방식**이다.
 
-- **구현 완료**: 기존 내부 `payroll_calculation_runs`를 참조하는 `payroll_draft_handoffs`, `lead_review → submitted_to_operations → changes_requested → operations_approved` RPC 흐름, source stale 재검증, 감사 기록, RLS·직접 테이블 접근 차단.
-- **구현 완료**: `promotion_lead`에는 `payroll.handoff.review`만 명시적으로 부여하고, `operations_manager`에는 최종 기록용 `payroll.handoff.approve`만 자동 부여했다. 기존 `payroll.manage`의 운영총괄 전용 경계는 유지한다.
-- **구현 완료**: 팀장/운영총괄 전용 handoff 화면은 기준월, run 식별자, 예외 수, 상태, 짧은 메모만 표시한다. 금액·공제·직원별 정보, 지급, 월잠금, 외부 callback은 구현하지 않았다.
-- **검증 대기**: Draft PR CI에서 clean migration, pgTAP, 실제 Auth/Data API, headless browser 및 Deploy Preview를 재검증한다.
+별도 급여 프로젝트가 보호된 RPC/API/adapter를 통해 최소 다음을 조회할 수 있어야 한다.
+- external draft id/revision
+- payroll period
+- `approved | changes_requested | rejected`
+- final actor/time
+- non-sensitive decision metadata
+
+1차에서 하지 않는다.
+- 외부 시스템 callback
+- 자동 지급
+- 월잠금
+- 은행 API
+- payment export
+
+## 10. 감사 계약
+
+모든 상태 변경마다 최소 다음을 감사 가능하게 남긴다.
+- actor
+- action
+- from_state
+- to_state
+- timestamp
+- reason/note
+- payroll period
+- external draft id
+- external draft revision
+
+금액/개인 민감정보는 audit metadata에 넣지 않는다.
+
+## 11. 구현 안전선
+
+유지:
+- 기존 Supabase/Auth/RLS/Employee 의미
+- immutable employee identity
+- 기존 급여 계산엔진
+- 실제 지급/월잠금 분리
+- Production 미적용
+- Draft PR 유지
+
+사용자 승인 전 금지:
+- Ready for review
+- main merge
+- Production migration/deploy
+- 실제 지급/송금/월잠금
+- 신규 유료 외부 서비스
+
+## 12. 구현 검수 기준
+
+- 외부 draft identity/revision이 authoritative
+- internal calculation run은 optional reference
+- 6-state contract 반영
+- rejected action/RPC/UI 존재
+- changes_requested 이후 새 revision만 재상신 가능
+- 이전 revision/history 불변 보존
+- 외부 payroll project용 protected read contract 존재
+- 운영팀장/운영총괄 승인 요약정보 표시
+- operations_manager superset 유지
+- audit에 from/to/reason/external identity 명시
+- duplicate key가 external draft identity 기준
+- 실제 지급·월잠금 side effect 없음
+- Auth/RLS/browser/full CI/Preview exact-head 재검증
+
+## 13. 결정 이력
+
+- 2026-09-18: Issue #229 감사에서 lead-to-operations 급여 handoff 미구현을 P0로 확인.
+- 2026-09-18: Issue #232에서 상태·상신·승인·감사 기본계약 승인.
+- 2026-09-18: 최종 사용자 결정으로 **외부 급여초안 adapter 우선**, protected pull/read result contract, revision 증가형 재상신, 운영팀장 총액요약 열람을 확정.
