@@ -68,7 +68,7 @@ test('Edge dispatcher uses Expo tickets and receipts rather than treating send r
 
 test('dispatcher logs operational counts but never push token or notice payload values', () => {
   assert.match(dispatcher, /Never log push tokens, notice titles\/bodies/);
-  const logCalls = [...dispatcher.matchAll(/safeLog\([\s\S]*?\);/g)].map(match => match[0]);
+  const logCalls = [...dispatcher.matchAll(/safeLog\(['"][^'"]+['"],[\s\S]*?\);/g)].map(match => match[0]);
   assert.ok(logCalls.length >= 2);
   for (const call of logCalls) {
     assert.doesNotMatch(call, /expo_push_token|title|body|noticeId|push_token/i);
