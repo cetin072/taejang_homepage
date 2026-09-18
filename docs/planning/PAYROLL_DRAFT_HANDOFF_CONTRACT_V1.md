@@ -1,6 +1,6 @@
 # 급여초안 운영 handoff 계약 v1
 
-- 상태: **검토 중 — 사용자 승인 전 구현 금지**
+- 상태: **확정**
 - 기준 Issue: #232
 - 상위 Goal: #226
 - 작성일: 2026-09-18
@@ -84,14 +84,12 @@ lead_review
 2. **외부초안 adapter 우선**: 별도 급여 프로젝트가 불변 `external_draft_ref`, 기준월, source fingerprint, 예외 개수만 안전한 API/파일 adapter로 전달한다. 업무플랫폼은 이를 조회·상신하지만 계산 상세를 저장하지 않는다.
 3. **혼합**: 내부 calculation run과 외부초안 ref가 같은 기준월/fingerprint로 대조된 경우에만 handoff를 연다.
 
-## 7. 승인 필요 사항
+## 7. 확정된 1차 결정
 
-다음은 현재 확정되지 않았으므로 사용자 승인 없이는 migration, RPC, 권한, UI를 구현하지 않는다.
-
-1. 1차 adapter 방식(내부 가안 참조, 외부초안 adapter, 혼합)
-2. 운영총괄 승인 결과의 반환 방식(사람 확인만, 외부 시스템 상태 callback, 후속 export)
-3. 보완 요청 뒤 이전 초안의 재사용 여부와 새 fingerprint 발생 규칙
-4. 운영팀장이 열람할 급여 요약의 최소 범위
+1. **Adapter**: 기존 내부 `calculation_run` 참조를 1차 정본으로 사용한다. 외부 급여 프로젝트 API나 파일 adapter는 이번 구현 범위에서 추가하지 않는다.
+2. **승인 결과**: 운영총괄 승인은 업무플랫폼의 감사 가능한 운영 승인 기록으로만 남긴다. 외부 시스템 callback, 지급, 월잠금, payment export는 발생시키지 않는다.
+3. **보완·재상신**: 기준 run/fingerprint가 같으면 같은 handoff를 보완 후 재상신한다. 기준 run 또는 fingerprint가 바뀌면 이전 handoff는 stale 처리하고 새 handoff를 연다.
+4. **운영팀장 범위**: `promotion_lead`는 기준월, run 식별자, 예외 수, 기준 변경 여부, 짧은 검토 메모만 조회·검토·상신한다. 직원별/월별 급여 금액·공제 상세, 민감 인사정보, 월잠금·지급 권한은 부여하지 않는다.
 
 ## 8. 구현 후 검수 기준
 
@@ -105,3 +103,4 @@ lead_review
 ## 9. 결정 이력
 
 - 2026-09-18: Issue #229 감사에서 lead-to-operations 급여 handoff 계약 미구현을 P0로 확인. 이 문서를 검토용 초안으로 작성했으며 제품 계약은 아직 변경하지 않았다.
+- 2026-09-18: 내부 calculation run 참조, 업무플랫폼 승인 기록만 유지, stale 시 새 handoff, promotion_lead의 비금액 검토·상신 권한을 1차 계약으로 확정. 실제 지급·월잠금·외부 callback은 제외한다.
