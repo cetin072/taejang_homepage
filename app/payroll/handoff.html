@@ -14,7 +14,7 @@
       <div>
         <p class="payroll-eyebrow" id="payroll-handoff-eyebrow">태장 업무플랫폼 · 급여초안</p>
         <h1 class="payroll-title" id="payroll-handoff-title">급여초안 상신·검토</h1>
-        <p class="payroll-subtitle">계산 결과의 상태와 짧은 검토 메모만 다룹니다. 실제 급여 금액, 공제 상세, 지급, 월잠금은 이 화면에서 처리하지 않습니다.</p>
+        <p class="payroll-subtitle">별도 급여 프로젝트의 외부 급여초안을 검토·상신·승인 기록으로 연결합니다. 이 화면은 실제 지급·월잠금·송금을 실행하지 않습니다.</p>
       </div>
       <span class="payroll-demo-badge" id="payroll-handoff-environment">업무플랫폼</span>
     </header>
@@ -22,9 +22,9 @@
     <section class="payroll-card payroll-handoff-notice" aria-labelledby="payroll-handoff-notice-title">
       <h2 id="payroll-handoff-notice-title">안전한 handoff 범위</h2>
       <ul>
-        <li>팀장은 예외가 없는 최신 계산 run을 검토한 뒤 운영총괄에게 상신합니다.</li>
-        <li>운영총괄의 승인은 플랫폼 내부의 감사 기록일 뿐, 지급·외부 전송·급여월 잠금을 실행하지 않습니다.</li>
-        <li>계산 기준이 바뀌면 이전 handoff는 stale로 표시되며, 최신 run으로 다시 검토해야 합니다.</li>
+        <li>팀장은 외부 draft ID/revision, 확정 근태 참조, 직원 수, 총 급여 요약, 예외 건수를 확인한 뒤 운영총괄에게 상신합니다.</li>
+        <li>운영총괄은 보완 요청·반려·최종 승인 기록을 남기며, 승인으로 실제 지급이나 급여월 잠금이 실행되지 않습니다.</li>
+        <li>보완 요청 뒤에는 같은 draft ID의 더 높은 새 revision이 필요하며, 이전 revision 이력은 그대로 보존합니다.</li>
       </ul>
     </section>
 
