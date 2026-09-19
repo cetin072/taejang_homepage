@@ -117,3 +117,14 @@ It does not change:
 - Employee semantics
 - payroll calculation rules
 - Production deployment
+
+## Workflow glob follow-up
+
+A later Android integration exposed one more audit edge case: dedicated workflows can execute a family of tests via a shell glob such as `tests/mobile-*.test.mjs` rather than naming every file literally.
+
+`tests/test-manifest-coverage.test.js` therefore treats both of the following as explicit execution paths:
+
+- exact workflow references to a test file
+- explicit `tests/...*.js|mjs` / `tests/...?.js|mjs` workflow glob patterns that match the test path
+
+The glob matcher itself is covered by a unit test so mobile or other grouped workflow tests are not falsely classified as unexecuted.
