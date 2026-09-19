@@ -77,6 +77,16 @@ function sql(statement) {
   ], { encoding: 'utf8' }).trim();
 }
 
+function sqlMustFail(statement, expectedMessage) {
+  try {
+    sql(statement);
+    assert.fail(`expected database statement to fail: ${statement}`);
+  } catch (error) {
+    const output = `${error.stdout || ''}\n${error.stderr || ''}\n${error.message || ''}`;
+    assert.match(output, expectedMessage, `database mutation is rejected: ${statement}`);
+  }
+}
+
 const admin = await signUp('issue-254-payroll-admin@example.test', 'Issue 254 급여 운영자');
 sql(`update public.profiles set account_status='active', status_changed_at=now(), status_changed_by='${admin.id}'::uuid where id='${admin.id}'::uuid`);
 sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
@@ -164,12 +174,49 @@ const imported = await rpc('import_attendance_external_evidence', lead.token, {
 equal(imported.data?.code, 'ATTENDANCE_EVIDENCE_IMPORTED', 'synthetic fingerprint evidence imports through the capability-gated RPC');
 equal(imported.data?.matched_count, 23, 'every synthetic fingerprint row matches the canonical employee id');
 
+// An otherwise complete day with a pending GPS exception must be blocked until
+// a recorded exception resolution exists. This uses the public status,
+// resolution, and confirmation RPCs rather than function-source inspection.
+const exceptionDate = workdays[0];
+sql(`update public.attendance_events set status='exception_pending'
+     where profile_id='${worker.id}'::uuid and work_date='${exceptionDate}'::date and event_type='clock_in'`);
+const blockedConfirmation = await rpc('confirm_attendance_day', lead.token, { p_work_date: exceptionDate });
+equal(blockedConfirmation.data?.code, 'CONFIRMATION_BLOCKED', 'unresolved GPS exception blocks daily confirmation');
+const blockedStatus = await rpc('get_attendance_confirmation_status', lead.token, { p_work_date: exceptionDate });
+const pendingGpsException = blockedStatus.data?.blockers?.find(item => item.type === 'pending_gps_exception' && !item.resolved);
+check(Boolean(pendingGpsException?.key), 'blocked day returns an executable pending-GPS exception key');
+const resolvedException = await rpc('resolve_attendance_confirmation_exception', lead.token, {
+  p_work_date: exceptionDate,
+  p_exception_key: pendingGpsException.key,
+  p_reason: 'Issue 264 synthetic exception resolution before confirmation',
+});
+equal(resolvedException.data?.code, 'EXCEPTION_RESOLVED', 'recorded exception resolution clears the specific confirmation blocker');
+
 for (const workDate of workdays) {
   const confirmed = await rpc('confirm_attendance_day', lead.token, { p_work_date: workDate });
   equal(confirmed.data?.code, 'DAY_CONFIRMED', `confirm ${workDate} from immutable raw and fingerprint evidence`);
 }
 
 const correctedDate = '2026-09-15';
+const originalRevisionFingerprint = sql(`select snapshot_fingerprint from public.attendance_confirmation_revisions
+  where work_date='${correctedDate}'::date and revision_no=1`);
+const correctionBeforeReopen = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: correctedDate,
+  p_event_type: 'clock_out',
+  p_action: 'set_time',
+  p_corrected_event_at: `${correctedDate}T18:00:00+09:00`,
+  p_reason: 'Issue 264 must be rejected before reopen',
+});
+equal(correctionBeforeReopen.data?.message, 'DAY_CONFIRMED_REOPEN_REQUIRED', 'confirmed day rejects correction until it is reopened');
+sqlMustFail(
+  `update public.attendance_confirmation_revisions set record_count=0 where work_date='${correctedDate}'::date and revision_no=1`,
+  /ATTENDANCE_CONFIRMATION_APPEND_ONLY/,
+);
+sqlMustFail(
+  `delete from public.attendance_confirmation_revisions where work_date='${correctedDate}'::date and revision_no=1`,
+  /ATTENDANCE_CONFIRMATION_APPEND_ONLY/,
+);
 const reopened = await rpc('reopen_attendance_confirmation', admin.token, {
   p_work_date: correctedDate,
   p_reason: 'Issue 254 synthetic correction trace verification',
@@ -197,6 +244,11 @@ equal(
   'original and reconfirmed daily revisions remain traceable',
 );
 equal(
+  sql(`select snapshot_fingerprint from public.attendance_confirmation_revisions where work_date='${correctedDate}'::date and revision_no=1`),
+  originalRevisionFingerprint,
+  'revision 1 remains byte-for-byte identified by its original immutable snapshot fingerprint',
+);
+equal(
   sql(`select count(*) from public.attendance_confirmation_reopens where work_date='${correctedDate}'::date`),
   '1',
   'reopen trace remains append-only',
@@ -212,6 +264,47 @@ const readiness = await rpc('get_payroll_confirmed_attendance_readiness', admin.
 });
 check(readiness.ok && readiness.data?.ready === true, `confirmed month readiness must be green: ${JSON.stringify(readiness.data)}`);
 equal(readiness.data?.blockers?.length, 0, 'no unresolved confirmed-attendance readiness blockers remain');
+
+const staleInput = await rpc('get_payroll_calculation_input', admin.token, {
+  p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30', p_expected_batch_id: null,
+});
+check(staleInput.ok, 'operator can obtain a canonical input before a later attendance revision');
+const staleDate = '2026-09-16';
+const staleReopen = await rpc('reopen_attendance_confirmation', admin.token, {
+  p_work_date: staleDate,
+  p_reason: 'Issue 264 stale-input concurrency regression',
+});
+equal(staleReopen.data?.code, 'DAY_REOPENED', 'stale-input fixture reopens a previously confirmed day');
+const staleCorrection = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: staleDate,
+  p_event_type: 'clock_out',
+  p_action: 'set_time',
+  p_corrected_event_at: `${staleDate}T17:55:00+09:00`,
+  p_reason: 'Issue 264 stale-input verified correction',
+});
+equal(staleCorrection.data?.code, 'ATTENDANCE_CORRECTED', 'stale-input fixture appends a new effective attendance value');
+const staleReconfirmed = await rpc('confirm_attendance_day', lead.token, { p_work_date: staleDate });
+equal(staleReconfirmed.data?.code, 'DAY_CONFIRMED', 'stale-input fixture creates a replacement confirmation revision');
+// Persistence performs the stale-fingerprint comparison only after it locks
+// an existing payroll month row. Create the synthetic draft month before the
+// deliberate stale attempt so the asserted failure is the intended guard.
+sql(`insert into public.payroll_months(payroll_month,status) values ('2026-09-01','draft') on conflict(payroll_month) do nothing`);
+// Invoke the same service_role-only trusted persistence function in the
+// disposable DB role context. The normal Edge/RPC success path remains covered
+// below; this direct invocation avoids an unrelated PostgREST upstream timeout
+// obscuring the precise stale-input database invariant.
+sqlMustFail(
+  `begin;
+   set local role service_role;
+   select public.private_persist_payroll_calculation(
+     '${admin.id}'::uuid, '2026-09-01'::date, '2026-09-30'::date, null,
+     '${staleInput.data.input_basis_fingerprint}', 'issue-264-stale-input-attempt',
+     '2026-10-01T00:00:00Z'::timestamptz, 0, 0, 0, 0, 'complete', 0, '[]'::jsonb
+   );
+   rollback;`,
+  /PAYROLL_CALCULATION_INPUT_STALE/,
+);
 
 const inputFirst = await rpc('get_payroll_calculation_input', admin.token, {
   p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30', p_expected_batch_id: null,
@@ -262,11 +355,11 @@ equal(payroll.status, 'provisional_ready', 'fixture month produces a complete co
 equal(payroll.employeeCount, 1, 'company payroll draft validates the expected employee count');
 equal(payroll.unresolvedItemCount, 0, 'company payroll draft has no unresolved attendance or weekly-holiday items');
 equal(payroll.rateReviewCount, 0, 'company payroll draft has no pay-rate review items');
-equal(payroll.grossPayPreview, 2300000, 'company payroll draft total is deterministic for the synthetic fixture month');
+equal(payroll.grossPayPreview, 2299200, 'company payroll draft total reflects the reconfirmed stale-input correction deterministically');
 equal(
   sql(`select employee_count::text || '|' || gross_pay_preview::text || '|' || confirmed_attendance_fingerprint
        from public.payroll_calculation_runs order by created_at desc limit 1`).split('|').slice(0, 2).join('|'),
-  '1|2300000.00',
+  '1|2299200.00',
   'trusted persistence validator stores the expected company draft totals',
 );
 equal(

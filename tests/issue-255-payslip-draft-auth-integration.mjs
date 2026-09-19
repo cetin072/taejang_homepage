@@ -82,8 +82,12 @@ assert.ok(!directRows.ok, 'operator cannot read employee payroll result rows thr
 const denied = await rpc('get_payroll_employee_payslip_draft', worker.token, { p_payroll_month: '2026-09-01', p_employee_uuid: employeeUuid });
 assert.equal(denied.status, 403, 'general worker cannot read a payslip draft through the guarded RPC');
 
+const runsBeforeRead = sql('select count(*) from public.payroll_calculation_runs');
+const resultsBeforeRead = sql('select count(*) from public.payroll_employee_results');
 const payslip = await rpc('get_payroll_employee_payslip_draft', ops.token, { p_payroll_month: '2026-09-01', p_employee_uuid: employeeUuid });
 assert.ok(payslip.ok, `operator payslip draft read failed: ${JSON.stringify(payslip.data)}`);
+assert.equal(sql('select count(*) from public.payroll_calculation_runs'), runsBeforeRead, 'payslip read does not create a payroll calculation run');
+assert.equal(sql('select count(*) from public.payroll_employee_results'), resultsBeforeRead, 'payslip read does not create or mutate an employee payroll result');
 assert.equal(payslip.data?.kind, 'payslip_draft');
 assert.equal(payslip.data?.status, 'draft_ready');
 assert.equal(payslip.data?.employee?.employee_uuid, employeeUuid);
