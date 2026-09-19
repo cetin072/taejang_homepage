@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>태장 개인 급여명세서 초안</title>
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="../assets/payroll-operator.css">
+  <link rel="stylesheet" href="../assets/payroll-payslip-draft.css">
+</head>
+<body class="payroll-preview">
+  <main class="payroll-shell payroll-payslip-shell">
+    <header class="payroll-topbar">
+      <div>
+        <p class="payroll-eyebrow">태장 업무플랫폼 · 운영총괄 열람</p>
+        <h1 class="payroll-title" id="payslip-title">개인 급여명세서 초안</h1>
+        <p class="payroll-subtitle">저장된 급여 계산 결과를 읽어 보여주는 초안입니다. 재계산·발송·지급·송금은 수행하지 않습니다.</p>
+      </div>
+      <span class="payroll-demo-badge" id="payslip-environment">업무플랫폼</span>
+    </header>
+
+    <section class="payroll-card payroll-payslip-toolbar" aria-label="명세서 초안 탐색">
+      <a class="payroll-button secondary payroll-live-link" id="payslip-back" href="./live.html">급여대장으로</a>
+      <button class="payroll-button" type="button" id="payslip-refresh">새로고침</button>
+      <a class="payroll-button secondary payroll-live-link" href="../../staff/" id="payslip-login" hidden>로그인 화면</a>
+    </section>
+
+    <p id="payslip-message" class="payslip-message" role="status" aria-live="polite" hidden></p>
+
+    <section id="payslip-content" hidden>
+      <section class="payroll-summary" aria-label="급여명세서 초안 합계">
+        <div class="payroll-metric"><span>상태</span><strong id="payslip-status">—</strong></div>
+        <div class="payroll-metric"><span>총지급 가안</span><strong id="payslip-gross">—</strong></div>
+        <div class="payroll-metric"><span>공제계 가안</span><strong id="payslip-deductions-total">—</strong></div>
+        <div class="payroll-metric"><span>실지급 가안</span><strong id="payslip-net">—</strong></div>
+      </section>
+
+      <section class="payroll-grid payslip-grid">
+        <article class="payroll-card">
+          <div class="payroll-card-header"><div><p class="payroll-eyebrow">대상 직원</p><h2 id="payslip-employee">—</h2></div></div>
+          <div class="payroll-card-body"><dl class="payslip-meta" id="payslip-meta"></dl></div>
+        </article>
+        <article class="payroll-card">
+          <div class="payroll-card-header"><div><p class="payroll-eyebrow">근무·지급 시간</p><h2>이번 계산 기준</h2></div></div>
+          <div class="payroll-card-body"><dl class="payslip-meta" id="payslip-work"></dl></div>
+        </article>
+      </section>
+
+      <section class="payroll-grid payslip-grid">
+        <article class="payroll-card"><div class="payroll-card-header"><h2>지급 항목 가안</h2></div><div class="payroll-card-body"><dl class="payslip-items" id="payslip-earnings"></dl></div></article>
+        <article class="payroll-card"><div class="payroll-card-header"><h2>법정공제 가안</h2></div><div class="payroll-card-body"><dl class="payslip-items" id="payslip-deductions"></dl></div></article>
+      </section>
+
+      <section class="payroll-card payslip-notice-card">
+        <h2>확인 사항</h2>
+        <p id="payslip-notice"></p>
+        <ul id="payslip-review-reasons"></ul>
+      </section>
+    </section>
+  </main>
+  <script src="../assets/payroll-payslip-draft.js"></script>
+</body>
+</html>

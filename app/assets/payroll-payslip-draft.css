@@ -1,0 +1,13 @@
+.payroll-payslip-toolbar { display: flex; gap: 10px; margin-bottom: 14px; padding: 14px 16px; }
+.payslip-message { margin: 0 0 14px; padding: 12px 14px; border: 1px solid #c9dfd4; border-radius: 12px; background: var(--payroll-accent-soft); color: var(--payroll-accent); font-weight: 700; }
+.payslip-message[data-state="error"] { border-color: #ebc3c3; background: var(--payroll-danger-soft); color: var(--payroll-danger); }
+.payslip-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+.payslip-meta, .payslip-items { display: grid; gap: 9px; margin: 0; }
+.payslip-meta div, .payslip-items div { display: flex; justify-content: space-between; gap: 16px; padding-bottom: 9px; border-bottom: 1px solid var(--payroll-line); }
+.payslip-meta dt, .payslip-items dt { color: var(--payroll-muted); font-size: 12px; font-weight: 800; }
+.payslip-meta dd, .payslip-items dd { margin: 0; font-weight: 800; text-align: right; }
+.payslip-notice-card { margin-top: 18px; }
+.payslip-notice-card h2 { margin: 0 0 8px; font-size: 16px; }
+.payslip-notice-card p { margin: 0; color: var(--payroll-muted); font-weight: 700; }
+.payslip-notice-card ul { margin: 10px 0 0; padding-left: 20px; color: #7a5a14; font-weight: 700; }
+@media (max-width: 700px) { .payslip-grid { grid-template-columns: 1fr; } .payroll-payslip-toolbar { flex-wrap: wrap; } }
