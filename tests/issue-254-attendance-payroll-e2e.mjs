@@ -368,4 +368,53 @@ equal(
   'persisted payroll run attaches exactly one immutable confirmed-attendance snapshot',
 );
 
+// Remediation C: a weekend/paid-holiday date is absent from the scheduled
+// roster until it has actual authoritative evidence.  Evidence then makes the
+// date confirmation (and its exception status) a payroll readiness condition.
+const exceptionalEvidenceDate = '2026-09-05';
+const noEvidenceWeekendDate = '2026-09-06';
+sql(`insert into public.payroll_holidays(holiday_date,holiday_name,paid)
+     values ('${exceptionalEvidenceDate}'::date,'Issue 266 synthetic paid holiday',true)
+     on conflict (holiday_date) do update set paid=excluded.paid`);
+const beforeExceptionalEvidence = await rpc('get_payroll_confirmed_attendance_readiness', admin.token, {
+  p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30',
+});
+check(beforeExceptionalEvidence.data?.ready === true, 'weekend/paid-holiday dates without evidence do not invent readiness blockers');
+check(
+  !beforeExceptionalEvidence.data?.blockers?.some(item => item.work_date === exceptionalEvidenceDate || item.work_date === noEvidenceWeekendDate),
+  'no-evidence weekend and paid-holiday dates are absent from required confirmation dates',
+);
+sql(`insert into public.attendance_events(profile_id,work_date,event_type,status,event_at,requested_at) values
+       ('${worker.id}'::uuid,'${exceptionalEvidenceDate}'::date,'clock_in','recorded','${exceptionalEvidenceDate} 09:00:00+09','${exceptionalEvidenceDate} 09:00:00+09'),
+       ('${worker.id}'::uuid,'${exceptionalEvidenceDate}'::date,'clock_out','recorded','${exceptionalEvidenceDate} 18:00:00+09','${exceptionalEvidenceDate} 18:00:00+09')`);
+const exceptionalEvidenceImport = await rpc('import_attendance_external_evidence', lead.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_file_name: 'issue-266-synthetic-paid-holiday.xlsx',
+  p_source_fingerprint: 'd'.repeat(64),
+  p_source_sheet: 'synthetic_fixture',
+  p_rows: [{
+    source_employee_key: worker.employeeId, source_display_name: 'synthetic-payroll-worker',
+    work_date: exceptionalEvidenceDate, clock_in: '09:00', clock_out: '18:00', source_row_number: 2,
+  }],
+});
+equal(exceptionalEvidenceImport.data?.code, 'ATTENDANCE_EVIDENCE_IMPORTED', 'paid-holiday evidence imports through the normal immutable ledger RPC');
+const blockedExceptionalEvidence = await rpc('get_payroll_confirmed_attendance_readiness', admin.token, {
+  p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30',
+});
+check(
+  blockedExceptionalEvidence.data?.ready === false
+    && blockedExceptionalEvidence.data?.blockers?.some(item => item.code === 'day_unconfirmed' && item.work_date === exceptionalEvidenceDate),
+  'actual paid-holiday/weekend evidence requires its day to be confirmed before payroll input is ready',
+);
+const exceptionalConfirmation = await rpc('confirm_attendance_day', lead.token, { p_work_date: exceptionalEvidenceDate });
+equal(exceptionalConfirmation.data?.code, 'DAY_CONFIRMED', 'evidenced paid-holiday/weekend day is confirmed through the normal blocker workflow');
+const afterExceptionalConfirmation = await rpc('get_payroll_confirmed_attendance_readiness', admin.token, {
+  p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30',
+});
+check(afterExceptionalConfirmation.data?.ready === true, 'resolved and confirmed paid-holiday/weekend evidence restores readiness');
+check(
+  !afterExceptionalConfirmation.data?.blockers?.some(item => item.work_date === noEvidenceWeekendDate),
+  'a separate no-evidence weekend still has no artificial day-unconfirmed blocker',
+);
+
 console.log(`Issue #254 confirmed-attendance → payroll E2E passed with ${assertions} assertions.`);
