@@ -14,7 +14,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AttendanceCard } from '@/src/features/attendance/attendance-card';
+import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
 import { NoticeListCard } from '@/src/features/notices/notice-list-card';
+import { PromotionStaffShortcut } from '@/src/features/promotion/promotion-staff-shortcut';
 import { registerCurrentPushDevice } from '@/src/notifications/push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
 
@@ -144,6 +146,8 @@ export default function HomeScreen() {
 
         <NoticeListCard />
 
+        <PromotionStaffShortcut />
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>중요공지 알림 준비</Text>
           <Text style={styles.body}>Android 네이티브 알림 권한과 중요공지 채널을 먼저 준비합니다.</Text>
@@ -170,6 +174,8 @@ export default function HomeScreen() {
         </View>
 
         {message ? <Text style={styles.message}>{message}</Text> : null}
+
+        <OfficialChannelsFooter />
 
         <Button title="로그아웃" disabled={busy} onPress={() => void run(signOut)} />
       </ScrollView>
