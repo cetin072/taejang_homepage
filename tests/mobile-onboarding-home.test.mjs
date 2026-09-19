@@ -11,8 +11,12 @@ test('native signup asks only for the five applicant-owned fields', async () => 
   const provider = await text('mobile/src/providers/platform-provider.tsx');
 
   for (const label of ['이름', '이메일', '전화번호', '비밀번호', '입사일']) {
-    assert.match(home, new RegExp(label));
+    assert.match(home, new RegExp(`label="${label}"`));
   }
+  assert.match(home, /DateTimePicker/);
+  assert.match(home, /입사일 달력 열기/);
+  assert.match(home, /secureTextEntry=\{!visible\}/);
+  assert.match(home, /비밀번호 찾기/);
 
   assert.match(provider, /signup_channel:\s*'native_employee'/);
   assert.match(provider, /display_name:\s*normalizedName/);
@@ -34,6 +38,8 @@ test('active mobile home has at most attendance, notice, and one work-platform p
   const home = await text('mobile/app/index.tsx');
   assert.equal((home.match(/<AttendanceCard/g) || []).length, 1);
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
+  assert.match(home, /justifyContent:\s*'space-between'/);
+  assert.match(home, /actionHeight/);
   assert.equal((home.match(/title="업무 플랫폼 열기"/g) || []).length, 1);
   assert.doesNotMatch(home, /로그인 상태|중요공지 알림 준비|직원앱 준비 완료/);
 });
