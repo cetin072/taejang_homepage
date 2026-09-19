@@ -332,3 +332,23 @@ test('persistence payload contains no employee names, raw clocks or protected id
   const serialized = JSON.stringify(calls.persistedPayload);
   assert.doesNotMatch(serialized, /display_name|full_name|resident|registration|disability|consultation|bank_account|clock_in|clock_out/i);
 });
+
+test('confirmed-native input calculates without a legacy XLS batch token', async () => {
+  const canonical = cleanCanonical();
+  canonical.attendance_batches = { current_batch_id: null, input_mode: 'confirmed_native' };
+  canonical.attendance[0].record_status = 'confirmed_immutable';
+  canonical.attendance[0].auto_decision = 'confirmed_correction';
+  canonical.attendance[0].review_status = 'confirmed';
+  canonical.attendance[0].confirmed_hours = 3;
+
+  const { calculate, calls } = makeCore({ canonical });
+  const result = await calculate({
+    payroll_month: '2026-09-01',
+    cutoff_date: '2026-09-30',
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persisted, true);
+  assert.equal(calls.fetchArgs.acceptedBatchId, null);
+  assert.equal(calls.persistedPayload.expectedBatchId, null);
+});

@@ -35,8 +35,13 @@
     if (!/^\d{4}-(0[1-9]|1[0-2])-01$/.test(payrollMonth)) fail('invalid_payroll_month');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoffDate)) fail('invalid_payroll_cutoff_date');
     if (!cutoffDate.startsWith(payrollMonth.slice(0, 8))) fail('payroll_cutoff_outside_month');
-    const acceptedBatchId = String(input.accepted_import_batch_id || '').trim();
-    if (!acceptedBatchId) fail('accepted_import_batch_id_required');
+    // Confirmed-native attendance deliberately has no mutable XLS import batch.
+    // Retain the optional value for the legacy/manual bridge, where it is an
+    // optimistic-concurrency token, but do not invent a batch requirement for
+    // immutable confirmation revisions.
+    const acceptedBatchId = input.accepted_import_batch_id == null
+      ? null
+      : String(input.accepted_import_batch_id).trim() || null;
     const requestId = input.request_id == null ? null : String(input.request_id).trim();
     if (requestId && requestId.length > 160) fail('invalid_payroll_request_id');
     return Object.freeze({ payrollMonth, cutoffDate, acceptedBatchId, requestId });

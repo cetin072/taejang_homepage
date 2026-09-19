@@ -26,7 +26,8 @@ The browser may request a calculation using identifiers/control values only, for
 
 - `payroll_month`
 - `cutoff_date`
-- `accepted_import_batch_id`
+- optional `accepted_import_batch_id` for the legacy/manual XLS bridge; native
+  confirmed-attendance input uses its immutable attendance fingerprint instead
 - optional request/idempotency key
 
 The browser must **not** be allowed to submit authoritative calculation results such as:
@@ -74,8 +75,10 @@ The calculation input window must include the prior-month boundary dates needed 
 
 Attendance source-of-truth rules:
 
-- exactly one `accepted` attendance batch may exist per payroll month;
-- a missing prior-boundary accepted batch must leave the affected weekly-holiday period unresolved rather than silently assuming attendance;
+- legacy/manual input requires exactly one `accepted` attendance batch per payroll month;
+- confirmed-native input uses only active daily confirmation revisions and its
+  deterministic attendance fingerprint; it has no mutable accepted batch;
+- a missing required prior-boundary confirmation must leave the affected weekly-holiday period unresolved rather than silently assuming attendance;
 - raw clock values remain evidence only;
 - clock-in/out span must never become paid hours automatically.
 
