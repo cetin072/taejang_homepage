@@ -17,6 +17,7 @@ const dashboardPath = path.join(root, 'app/assets/dashboard-shell.js');
 const storagePath = path.join(root, 'supabase/migrations/20260903190000_phase_c_promotion_media_storage.sql');
 const renamePath = path.join(root, 'supabase/migrations/20260903201500_rename_promotion_lead_display_name.sql');
 const signupApprovalSqlPath = path.join(root, 'supabase/migrations/20260903210000_phase_c_signup_approval_chain.sql');
+const mobileOnboardingSqlPath = path.join(root, 'supabase/migrations/20260919235000_issue_274_mobile_onboarding_holiday.sql');
 const roleSimulationSqlPath = path.join(root, 'supabase/migrations/20260903233000_phase_c_role_simulation_mode.sql');
 const configPath = path.join(root, 'supabase/config.toml');
 
@@ -72,20 +73,25 @@ test('promotion lead keeps its stable permission code while displaying as 운영
   assert.doesNotMatch(rename, /code\s*=\s*'operations_manager'/);
 });
 
-test('signup applicants choose no role and operations manager alone assigns pilot permissions', () => {
+test('signup applicants choose no role and onboarding approvers assign only server-allowed roles', () => {
   const html = fs.readFileSync(signupHtmlPath, 'utf8');
   const ui = fs.readFileSync(accountApprovalPath, 'utf8');
-  const sql = fs.readFileSync(signupApprovalSqlPath, 'utf8');
+  const legacySql = fs.readFileSync(signupApprovalSqlPath, 'utf8');
+  const onboardingSql = fs.readFileSync(mobileOnboardingSqlPath, 'utf8');
 
   assert.doesNotMatch(html, /requested_role_code/);
-  assert.match(ui, /route\(\) !== 'operations_manager'/);
-  assert.match(ui, /p_role_code/);
-  assert.match(ui, /운영총괄 고유 권한/);
-  assert.doesNotMatch(ui, /promotion_lead.*가입 승인/);
-  assert.match(sql, /current_user_has_role\('operations_manager'\)/);
-  assert.match(sql, /p_role_code text/);
-  assert.match(sql, /'promotion_staff', 'promotion_lead'/);
-  assert.doesNotMatch(sql, /requested_role_code/);
+  assert.match(ui, /employee\.onboard/);
+  assert.match(ui, /approve_employee_signup_request/);
+  assert.match(ui, /직원 생성 후 가입 승인/);
+  assert.doesNotMatch(ui, /get_signup_employee_options|연결할 직원 선택/);
+
+  assert.match(onboardingSql, /'employee\.onboard'/);
+  assert.match(onboardingSql, /role\.code = 'promotion_lead'/);
+  assert.match(onboardingSql, /normalized_role not in \('general_worker', 'promotion_staff', 'promotion_lead'\)/);
+  assert.match(onboardingSql, /ROLE_NOT_ASSIGNABLE/);
+  assert.match(onboardingSql, /private_insert_employee/);
+  assert.doesNotMatch(onboardingSql, /where .*full_name.*target\.display_name/i);
+  assert.doesNotMatch(legacySql, /requested_role_code/);
 });
 
 test('highest-authority role preset remains server-enforced inside employee screen experience', () => {
