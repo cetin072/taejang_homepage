@@ -180,7 +180,7 @@
       { label: '공지 관리', run: () => openPanel('notice-admin-panel') },
       { label: '상시 안내 관리', run: () => openPanel('guidance-admin-panel') }
     );
-    if (route === 'operations_manager') {
+    if (route === 'operations_manager' || route === 'promotion_lead') {
       items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
     }
     if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
