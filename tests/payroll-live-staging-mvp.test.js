@@ -73,11 +73,14 @@ test('unauthenticated payroll page keeps attendance controls inactive until prot
   ]) assert.match(attendanceEditor, new RegExp(`'${id}'`));
 });
 
-test('direct attendance entry is primary and Excel is optional same-table prefill', () => {
-  assert.match(html, /직접 입력이 기본입니다/);
-  assert.match(html, /출근부 Excel로 채우기/);
-  assert.match(html, /같은 표에 자동으로 채워지고/);
-  assert.match(html, /저장 전에 다시 직접 수정/);
+test('vendor attendance Excel is primary and direct entry is limited to exception correction', () => {
+  assert.match(html, /보안업체 출근부 Excel이 기본입니다/);
+  assert.match(html, /정상 월에는 구형 `\.xls` 1개를 선택/);
+  assert.match(html, /보안업체 출근부 Excel 가져오기/);
+  assert.match(html, /정상건은 자동대조하고 예외만/);
+  assert.match(html, /수기 입력은 예외 보정용/);
+  assert.match(attendanceEditor, /보안업체 출근부 Excel이 기본입니다/);
+  assert.doesNotMatch(html, /직접 입력이 기본입니다/);
   assert.match(html, /payroll-attendance-editor-body/);
   assert.match(html, /변경사항 저장/);
   assert.match(attendanceEditor, /xlsx_prefill/);
@@ -88,6 +91,21 @@ test('direct attendance entry is primary and Excel is optional same-table prefil
   assert.match(attendanceEditor, /markChanged/);
   assert.match(attendanceOperatorUx, /inferAttendanceStatus/);
   assert.match(attendanceOperatorUx, /한쪽 시간만 있으면 확인 필요/);
+});
+
+test('live payroll surface provides the three explicit operator download actions', () => {
+  assert.match(html, /id="payroll-attendance-month-summary"/);
+  assert.match(html, /id="payroll-attendance-next-exception"/);
+  assert.match(html, /id="payroll-attendance-confirmed-export"/);
+  assert.match(html, /확정 출퇴근부 Excel/);
+  assert.match(html, /id="payroll-attendance-review-export"/);
+  assert.match(html, /id="payroll-live-export"/);
+  assert.match(html, /payroll-attendance-month-summary\.js/);
+  assert.match(client, /downloadAttendanceReviewXlsx/);
+  assert.match(client, /get_payroll_confirmed_attendance_workbook_context/);
+  assert.match(client, /downloadMonthlyAttendanceWorkbookXlsx/);
+  assert.match(attendanceEditor, /getReviewExportRows/);
+  assert.match(attendanceEditor, /moveToNextException/);
 });
 
 test('attendance save recalculates shadow payroll but has no finalization or payment path', () => {
@@ -123,8 +141,8 @@ test('live MVP renders the practical payroll ledger without statutory setting in
 
   assert.match(html, /type="month"/i);
   assert.match(html, /type="date"/i);
-  assert.match(html, /type="file"[^>]+accept="\.xlsx"/i);
-  assert.match(html, /구형 XLS는 실제 보안업체 원본을 확인한 뒤 전용 지원 여부를 결정합니다/);
+  assert.match(html, /type="file"[^>]+accept="\.xlsx,\.xls"/i);
+  assert.match(html, /구형 XLS와 기존 XLSX를 원본 변환 없이 읽고/);
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
@@ -132,6 +150,7 @@ test('attendance Excel analysis is local prefill and remains editable before sav
   assert.match(client, /MAX_ATTENDANCE_FILE_BYTES/);
   assert.match(html, /payroll-attendance-preview/);
   assert.match(attendanceAnalyzer, /parseXlsxFile/);
+  assert.match(html, /payroll-attendance-xls\.js/);
   assert.match(attendanceAnalyzer, /inferColumns/);
   assert.match(attendanceAnalyzer, /duplicate_row/);
   assert.match(attendanceEditor, /best\??\.matrix/);

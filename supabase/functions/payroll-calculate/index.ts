@@ -190,7 +190,7 @@ Deno.serve(async (req: Request) => {
       engine: modules.engine,
       preflight: modules.preflight,
       statutory: modules.statutory,
-      calculationVersion: 'payroll-engine-workweek-golden-v2',
+      calculationVersion: 'payroll-engine-continuous-sunday-v3',
     });
 
     const result = await calculate(requestBody, { correlationId });

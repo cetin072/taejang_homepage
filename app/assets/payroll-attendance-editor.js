@@ -129,6 +129,17 @@
     return '미입력';
   }
 
+  function minuteDisplay(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(\d{2}:\d{2})(?::\d{2})?$/);
+    return match ? match[1] : text;
+  }
+
+  function operatorRawTime(value) {
+    const minute = minuteDisplay(value);
+    return /^\d{2}:\d{2}$/.test(minute) ? `${minute}:00` : minute;
+  }
+
   function sourceClass(source) {
     return source ? `source-${String(source).replace(/_/g, '-')}` : 'source-empty';
   }
@@ -150,7 +161,10 @@
       status: '',
       clockIn: '',
       clockOut: '',
+      clockInRaw: '',
+      clockOutRaw: '',
       confirmedHours: '',
+      reason: '',
       sourceKind: '',
       sourceFileName: '',
       sourceSheet: '',
@@ -173,9 +187,12 @@
       const cell = baseCell(employee, row.work_date);
       Object.assign(cell, {
         status: statusFromImported(row),
-        clockIn: row.clock_in_raw || '',
-        clockOut: row.clock_out_raw || '',
+        clockIn: minuteDisplay(row.clock_in_raw),
+        clockOut: minuteDisplay(row.clock_out_raw),
+        clockInRaw: row.clock_in_raw || '',
+        clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
+        reason: row.reason || '',
         sourceKind: 'existing_import',
         originalSourceKind: 'existing_import',
         sourceAttendanceRowId: row.attendance_row_id || null,
@@ -190,9 +207,12 @@
       const cell = baseCell(employee, row.work_date);
       Object.assign(cell, {
         status: row.attendance_status || '',
-        clockIn: row.clock_in_raw || '',
-        clockOut: row.clock_out_raw || '',
+        clockIn: minuteDisplay(row.clock_in_raw),
+        clockOut: minuteDisplay(row.clock_out_raw),
+        clockInRaw: row.clock_in_raw || '',
+        clockOutRaw: row.clock_out_raw || '',
         confirmedHours: row.confirmed_hours ?? '',
+        reason: row.reason || '',
         sourceKind: row.source_kind || 'manual_ui',
         originalSourceKind: row.source_kind || 'manual_ui',
         sourceFileName: row.source_file_name || '',
@@ -225,6 +245,8 @@
 
   function markChanged(cell, field, value) {
     cell[field] = value;
+    if (field === 'clockIn') cell.clockInRaw = operatorRawTime(value);
+    if (field === 'clockOut') cell.clockOutRaw = operatorRawTime(value);
     cell.sourceKind = dirtySource(cell);
     state.dirty.add(keyOf(cell.employeeUuid, cell.workDate));
     renderSummary();
@@ -238,6 +260,9 @@
       ['unpaid_absence', '결근'],
       ['paid_holiday', '유급공휴일'],
       ['off', '휴무'],
+      ['termination', '퇴사'],
+      ['out_of_scope', '대상 제외'],
+      ['manual_evidence_required', '수기 근거 필요'],
       ['review_required', '확인 필요'],
     ];
     return options.map(([key, label]) => `<option value="${key}"${key === value ? ' selected' : ''}>${label}</option>`).join('');
@@ -260,6 +285,7 @@
         <td><input data-field="clockIn" type="time" value="${cell.clockIn || ''}" aria-label="${employee.name} 출근"></td>
         <td><input data-field="clockOut" type="time" value="${cell.clockOut || ''}" aria-label="${employee.name} 퇴근"></td>
         <td><input data-field="confirmedHours" type="number" min="0" max="24" step="0.25" value="${cell.confirmedHours ?? ''}" placeholder="${term?.daily_scheduled_hours ?? ''}" aria-label="${employee.name} 인정시간"></td>
+        <td><input data-field="reason" type="text" value="${cell.reason || ''}" maxlength="300" placeholder="수기 근거·보정 사유" aria-label="${employee.name} 보정 사유"></td>
         <td><span class="payroll-source-badge ${sourceClass(cell.sourceKind)}">${sourceLabel(cell.sourceKind)}</span></td>`;
       tr.querySelectorAll('[data-field]').forEach(input => {
         input.addEventListener('change', () => markChanged(cell, input.dataset.field, input.value));
@@ -279,6 +305,71 @@
     if (review) parts.push(`확인 ${review}건`);
     if (extra) parts.push(extra);
     node.textContent = parts.join(' · ');
+    renderMonthSummary();
+  }
+
+  function storedCellsForMonth() {
+    return Array.from(state.cells.values()).filter(cell => {
+      if (!cell.workDate?.startsWith(`${selectedMonth()}-`)) return false;
+      return Boolean(cell.status || cell.clockIn || cell.clockOut || cell.sourceKind);
+    });
+  }
+
+  function currentMonthSummary() {
+    const helper = window.TaejangPayrollAttendanceMonthSummary;
+    if (!helper?.summarize) return null;
+    return helper.summarize(storedCellsForMonth(), { month: selectedMonth() });
+  }
+
+  function renderMonthSummary() {
+    const node = el('payroll-attendance-month-summary');
+    const nextException = el('payroll-attendance-next-exception');
+    const helper = window.TaejangPayrollAttendanceMonthSummary;
+    const summary = currentMonthSummary();
+    if (!node || !summary || !helper?.summaryText) {
+      if (node) node.textContent = '월간 근태 요약을 불러오는 중';
+      if (nextException) nextException.disabled = true;
+      return;
+    }
+    node.textContent = helper.summaryText(summary);
+    node.dataset.state = summary.unresolvedCount > 0 ? 'review' : 'ok';
+    if (nextException) nextException.disabled = summary.exceptionDates.length === 0 || state.loading;
+    document.dispatchEvent(new CustomEvent('payroll-attendance-editor-updated'));
+  }
+
+  function moveToNextException() {
+    const summary = currentMonthSummary();
+    const dates = summary?.exceptionDates || [];
+    if (!dates.length) {
+      setMessage('이 급여월에 저장 또는 자동채움된 확인 필요 근태가 없습니다.', 'ok');
+      return;
+    }
+    const next = dates.find(date => date > state.selectedDate) || dates[0];
+    state.selectedDate = next;
+    const input = el('payroll-attendance-date');
+    if (input) input.value = next;
+    renderTable();
+    const toggle = document.querySelector('[data-payroll-exception-toggle]');
+    if (toggle?.hidden === false && toggle.textContent === '예외만 보기') toggle.click();
+    setMessage(`${next}의 확인 필요 근태를 표시했습니다. 수기 근거를 확인한 뒤 저장해 주세요.`, 'review');
+  }
+
+  function reviewExportRows() {
+    return storedCellsForMonth().map(cell => ({
+      employee_uuid: cell.employeeUuid || '',
+      employee_id: cell.employeeId || '',
+      display_name: cell.name || '',
+      work_date: cell.workDate,
+      attendance_status: cell.status || 'review_required',
+      clock_in_display: minuteDisplay(cell.clockIn || cell.clockInRaw),
+      clock_out_display: minuteDisplay(cell.clockOut || cell.clockOutRaw),
+      confirmed_hours: cell.confirmedHours === '' ? null : cell.confirmedHours,
+      source_kind: cell.sourceKind || 'manual_ui',
+      source_file_name: cell.sourceFileName || '',
+      source_sheet: cell.sourceSheet || '',
+      source_row_number: cell.sourceRowNumber || null,
+      reason: cell.reason || '',
+    }));
   }
 
   function changeDate(days) {
@@ -296,51 +387,64 @@
     const matrix = best?.matrix;
     const analysis = best?.analysis;
     if (!helper || !Array.isArray(matrix) || !analysis?.ok) return [];
-    const mapping = analysis.mapping || {};
-    const result = [];
-    for (let index = Number(analysis.headerRow || 1); index < matrix.length; index += 1) {
-      const row = Array.isArray(matrix[index]) ? matrix[index] : [];
-      if (row.every(value => value == null || String(value).trim() === '')) continue;
-      const employeeId = mapping.employeeId == null ? '' : String(row[mapping.employeeId] ?? '').trim();
-      const name = mapping.name == null ? '' : String(row[mapping.name] ?? '').trim();
-      const date = helper.normalizeDateCell(row[mapping.date]);
-      const clockIn = mapping.clockIn == null ? null : helper.normalizeTimeCell(row[mapping.clockIn]);
-      const clockOut = mapping.clockOut == null ? null : helper.normalizeTimeCell(row[mapping.clockOut]);
-      result.push({ sourceRow: index + 1, employeeId, name, date, clockIn, clockOut });
-    }
-    return result;
+    return helper.extractAttendanceRows(matrix, analysis);
   }
 
   async function fillFromExcel(file) {
-    if (!file || !/\.xlsx$/i.test(file.name || '')) return;
+    if (!file || !/\.(xlsx|xls)$/i.test(file.name || '')) return;
     const helper = window.TaejangPayrollAttendanceXlsx;
     if (!helper?.parseXlsxFile) return;
     setMessage('Excel을 근태표에 채우는 중입니다…');
     try {
-      const workbook = await helper.parseXlsxFile(file);
+      const isLegacyXls = /\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '');
+      const workbook = isLegacyXls
+        ? await window.TaejangPayrollAttendanceXls?.parseXlsFile(file)
+        : await helper.parseXlsxFile(file);
+      if (!workbook) throw new Error('attendance_xls_parser_unavailable');
       const best = workbook.best;
       if (!best?.analysis?.ok) throw new Error('근태 헤더를 찾지 못했습니다');
       const employees = state.context?.employees || [];
-      const byId = new Map(employees.map(employee => [String(employee.employee_id || '').trim(), employee]));
-      const byName = new Map(employees.map(employee => [String(employee.name || '').trim(), employee]));
+      const byName = new Map();
+      for (const employee of employees) {
+        const name = String(employee.name || '').trim();
+        if (!name) continue;
+        const candidates = byName.get(name) || [];
+        candidates.push(employee);
+        byName.set(name, candidates);
+      }
       let filled = 0;
       let unmatched = 0;
       let outsideMonth = 0;
       const seen = new Set();
       let duplicates = 0;
+      let partial = 0;
+      let noRecord = 0;
       for (const row of allExcelRows(best)) {
         if (!row.date || !row.date.startsWith(`${selectedMonth()}-`)) { outsideMonth += 1; continue; }
-        const employee = (row.employeeId && byId.get(row.employeeId)) || (row.name && byName.get(row.name));
+        // Vendor employee numbers remain immutable source references. They are
+        // never treated as platform employee_id values without a separately
+        // approved alias-mapping contract. Only one exact-name candidate whose
+        // employment range includes this work date is safe to prefill.
+        const namedCandidates = row.name ? (byName.get(row.name) || []) : [];
+        const activeCandidates = namedCandidates.filter(candidate => employeeActiveOn(candidate, row.date));
+        const employee = activeCandidates.length === 1 ? activeCandidates[0] : null;
         if (!employee) { unmatched += 1; continue; }
         const key = keyOf(employee.employee_uuid, row.date);
         if (seen.has(key)) duplicates += 1;
         seen.add(key);
         const cell = getCell(employee, row.date);
         Object.assign(cell, {
-          status: row.clockIn || row.clockOut ? 'work' : 'review_required',
+          status: row.clockIn && row.clockOut ? 'work' : 'review_required',
           clockIn: row.clockIn || '',
           clockOut: row.clockOut || '',
+          // The time inputs show minute precision, while these fields retain
+          // the vendor source's original seconds for append-only persistence.
+          clockInRaw: row.clockInRaw || row.clockIn || '',
+          clockOutRaw: row.clockOutRaw || row.clockOut || '',
           confirmedHours: '',
+          // The append-only editor contract calls every spreadsheet prefill
+          // xlsx_prefill. The exact immutable source format remains in the
+          // file-name/reference fields; it is never converted or overwritten.
           sourceKind: 'xlsx_prefill',
           originalSourceKind: 'xlsx_prefill',
           sourceFileName: file.name,
@@ -348,6 +452,8 @@
           sourceRowNumber: row.sourceRow,
         });
         state.dirty.add(key);
+        if (!row.clockIn && !row.clockOut) noRecord += 1;
+        else if (!row.clockIn || !row.clockOut) partial += 1;
         filled += 1;
       }
       state.excelFile = file;
@@ -355,6 +461,8 @@
       const notes = [`Excel ${filled}건 채움`];
       if (unmatched) notes.push(`직원 미매칭 ${unmatched}건`);
       if (duplicates) notes.push(`중복일자 ${duplicates}건`);
+      if (partial) notes.push(`출퇴근 누락 ${partial}건`);
+      if (noRecord) notes.push(`기록 없음 ${noRecord}건`);
       if (outsideMonth) notes.push(`다른 월 ${outsideMonth}건 제외`);
       setMessage(`${notes.join(' · ')}. 저장 전 화면에서 수정할 수 있습니다.`, unmatched || duplicates ? 'review' : 'ok');
       renderSummary(notes[0]);
@@ -373,15 +481,15 @@
         employee_uuid: cell.employeeUuid,
         work_date: cell.workDate,
         attendance_status: cell.status,
-        clock_in_raw: cell.clockIn || null,
-        clock_out_raw: cell.clockOut || null,
+        clock_in_raw: cell.clockInRaw || cell.clockIn || null,
+        clock_out_raw: cell.clockOutRaw || cell.clockOut || null,
         confirmed_hours: Number.isFinite(value) ? value : null,
         source_kind: cell.sourceKind || 'manual_ui',
         source_file_name: cell.sourceFileName || null,
         source_sheet: cell.sourceSheet || null,
         source_row_number: cell.sourceRowNumber || null,
         source_attendance_row_id: cell.sourceAttendanceRowId || null,
-        reason: cell.sourceKind === 'xlsx_post_edit' ? 'Excel 자동채움 후 화면 수정' : null,
+        reason: cell.reason || (cell.sourceKind === 'xlsx_post_edit' ? 'Excel 자동채움 후 화면 수정' : null),
       });
     }
     return entries;
@@ -405,6 +513,7 @@
       'payroll-attendance-next',
       'payroll-attendance-save',
       'payroll-attendance-recalculate',
+      'payroll-attendance-next-exception',
     ]) {
       const button = el(id);
       if (button) button.disabled = busy;
@@ -420,6 +529,41 @@
       accepted_import_batch_id: batchId,
       request_id: `attendance-editor-${Date.now()}`,
     });
+  }
+
+  function vendorSourceIndexForSave() {
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    const importState = module?.getLastImportState?.();
+    if (!importState?.snapshot || !/\.xls$/i.test(importState.fileName || '')) return null;
+    return module.compactSourceIndex?.(importState.snapshot) || null;
+  }
+
+  async function loadVendorSourceIndexes() {
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    if (typeof module?.setRemoteSourceIndexes !== 'function') return;
+    try {
+      const result = await rpc('get_payroll_vendor_source_indexes', { p_payroll_month: monthStart() });
+      module.setRemoteSourceIndexes(result?.source_indexes || []);
+    } catch {
+      // A migration not yet present on an older Preview must not expose an
+      // attendance editor failure or fall back to a less-restricted API.
+      module.setRemoteSourceIndexes([]);
+    }
+  }
+
+  async function persistVendorSourceIndex() {
+    const sourceIndex = vendorSourceIndexForSave();
+    if (!sourceIndex) return null;
+    const result = await rpc('record_payroll_vendor_source_snapshot', {
+      p_payroll_month: monthStart(),
+      p_source_index: sourceIndex,
+    });
+    const module = window.TaejangPayrollAttendanceVendorImport;
+    module?.rememberRemoteSourceIndex?.(result?.source_index);
+    // Browser storage is only a local cache. It is updated after the protected
+    // backend record succeeds, never from a success-message observer.
+    module?.commitLastImportSourceIndex?.(window);
+    return result;
   }
 
   async function saveChanges() {
@@ -446,11 +590,18 @@
       return;
     }
 
+    let sourceIndexWarning = '';
+    try {
+      await persistVendorSourceIndex();
+    } catch (error) {
+      sourceIndexWarning = ` · 보안업체 원본 대조기준 저장 실패: ${error.message || '재업로드 필요'}`;
+    }
+
     const savedCount = Number(saved?.saved_count || entries.length);
     // The attendance write has completed. Never leave these same entries dirty
     // merely because the later, independent payroll calculation has a problem.
     clearSavedDirty(entries);
-    setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안을 다시 계산하는 중…`, 'ok');
+    setMessage(`근태 ${savedCount}건은 저장되었습니다${sourceIndexWarning}. 급여 가안을 다시 계산하는 중…`, sourceIndexWarning ? 'review' : 'ok');
 
     try {
       await loadContext({ preserveDate: true, quiet: true });
@@ -494,6 +645,7 @@
     if (!quiet) setMessage('근태 입력표를 불러오는 중…');
     const context = await rpc('get_payroll_attendance_editor_context', { p_payroll_month: monthStart() });
     state.context = context;
+    await loadVendorSourceIndexes();
     state.selectedDate = safeDateForMonth(preserveDate ? state.selectedDate : el('payroll-attendance-date')?.value);
     rebuildModel();
     const dateInput = el('payroll-attendance-date');
@@ -503,7 +655,7 @@
       dateInput.value = state.selectedDate;
     }
     renderTable();
-    if (!quiet) setMessage('직접 입력이 기본입니다. Excel을 선택하면 같은 표에 자동으로 채워지고 다시 수정할 수 있습니다.', 'ok');
+    if (!quiet) setMessage('보안업체 출근부 Excel이 기본입니다. 원본을 가져오면 정상건은 자동대조하고 수기 입력은 예외 보정에만 사용합니다.', 'ok');
   }
 
   function bindEvents() {
@@ -515,6 +667,7 @@
     el('payroll-attendance-next')?.addEventListener('click', () => changeDate(1));
     el('payroll-attendance-save')?.addEventListener('click', saveChanges);
     el('payroll-attendance-recalculate')?.addEventListener('click', retryCalculation);
+    el('payroll-attendance-next-exception')?.addEventListener('click', moveToNextException);
     el('payroll-live-month')?.addEventListener('change', () => loadContext().catch(error => setMessage(error.message, 'error')));
     el('payroll-attendance-file')?.addEventListener('change', event => {
       const file = event.target.files?.[0];
@@ -546,4 +699,12 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
+
+  // A narrow, read-only bridge for the authenticated live page's review export.
+  // The bridge deliberately excludes raw seconds and any protected HR attributes.
+  window.TaejangPayrollAttendanceEditor = Object.freeze({
+    getReviewExportRows: reviewExportRows,
+    getConfirmedAttendanceRows: reviewExportRows,
+    getMonthSummary: currentMonthSummary,
+  });
 })();

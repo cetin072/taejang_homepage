@@ -320,6 +320,29 @@
     return parseXlsxArrayBuffer(await file.arrayBuffer());
   }
 
+  function extractAttendanceRows(matrix, analysis) {
+    if (!analysis?.ok || !Array.isArray(matrix)) return [];
+    const mapping = analysis.mapping || {};
+    const rows = [];
+    for (let index = Number(analysis.headerRow || 1); index < matrix.length; index += 1) {
+      const row = Array.isArray(matrix[index]) ? matrix[index] : [];
+      if (row.every(value => value == null || String(value).trim() === '')) continue;
+      const employeeId = String(cell(row, mapping.employeeId) ?? '').trim();
+      const name = String(cell(row, mapping.name) ?? '').trim();
+      const date = normalizeDateCell(cell(row, mapping.date));
+      const clockIn = normalizeTimeCell(cell(row, mapping.clockIn));
+      const clockOut = normalizeTimeCell(cell(row, mapping.clockOut));
+      const issues = [];
+      if (!employeeId && !name) issues.push('employee_unmatched');
+      if (!date) issues.push('date_invalid');
+      if (!clockIn && !clockOut) issues.push('no_fingerprint_record');
+      else if (!clockIn) issues.push('clock_in_missing');
+      else if (!clockOut) issues.push('clock_out_missing');
+      rows.push(Object.freeze({ sourceRow: index + 1, employeeId, name, date, clockIn, clockOut, issues: Object.freeze(issues) }));
+    }
+    return Object.freeze(rows);
+  }
+
   function detectedLabels(mapping) {
     const labels = [];
     if (mapping.employeeId != null) labels.push('사번');
@@ -332,15 +355,13 @@
 
   async function previewSelectedFile(file, previewNode) {
     if (!previewNode || !file) return;
-    if (/\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '')) {
-      previewNode.textContent = '구형 .xls 형식입니다. 실제 보안업체 파일을 확인한 뒤 전용 매핑 여부를 결정합니다. 아직 DB에는 등록하지 않습니다.';
-      previewNode.dataset.state = 'review';
-      return;
-    }
     previewNode.textContent = 'Excel 구조를 읽고 있습니다…';
     previewNode.dataset.state = 'loading';
     try {
-      const workbook = await parseXlsxFile(file);
+      const workbook = /\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '')
+        ? await globalThis.TaejangPayrollAttendanceXls?.parseXlsFile(file)
+        : await parseXlsxFile(file);
+      if (!workbook) throw new Error('attendance_xls_parser_unavailable');
       const best = workbook.best;
       if (!best || !best.analysis.ok) {
         previewNode.textContent = '근태 헤더를 자동으로 찾지 못했습니다. 월요일 실제 파일에서 헤더 위치만 확인하면 됩니다. DB에는 등록하지 않았습니다.';
@@ -387,6 +408,7 @@
     analyzeMatrix,
     parseXlsxArrayBuffer,
     parseXlsxFile,
+    extractAttendanceRows,
     bindAttendanceWorkbookPreview,
   });
 });

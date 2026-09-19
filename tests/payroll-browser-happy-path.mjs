@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 
 const DIST_ROOT = join(process.cwd(), 'dist');
@@ -238,6 +239,7 @@ const automationScript = `<script>
         const clockOut = row.querySelector('[data-field="clockOut"]');
         const hours = row.querySelector('[data-field="confirmedHours"]');
         const status = row.querySelector('[data-field="status"]');
+        const reason = row.querySelector('[data-field="reason"]');
 
         clockIn.value = '09:00';
         dispatchChange(clockIn);
@@ -245,6 +247,8 @@ const automationScript = `<script>
         dispatchChange(clockOut);
         hours.value = '3';
         dispatchChange(hours);
+        reason.value = '현장 수기근거 확인';
+        dispatchChange(reason);
         await waitFor(() => status.value === 'work', 'automatic work status');
 
         await waitFor(() => {
@@ -269,10 +273,12 @@ const automationScript = `<script>
       const clockOut = row.querySelector('[data-field="clockOut"]');
       const hours = row.querySelector('[data-field="confirmedHours"]');
       const status = row.querySelector('[data-field="status"]');
+      const reason = row.querySelector('[data-field="reason"]');
       if (clockIn.value !== '09:00') throw new Error('CLOCK_IN_NOT_PERSISTED');
       if (clockOut.value !== '12:00') throw new Error('CLOCK_OUT_NOT_PERSISTED');
       if (Number(hours.value) !== 3) throw new Error('HOURS_NOT_PERSISTED');
       if (status.value !== 'work') throw new Error('STATUS_NOT_PERSISTED');
+      if (reason.value !== '현장 수기근거 확인') throw new Error('CORRECTION_REASON_NOT_PERSISTED');
 
       const summary = document.getElementById('payroll-attendance-editor-summary').textContent;
       if (!summary.includes('변경 0건')) throw new Error('DIRTY_STATE_NOT_CLEARED');
@@ -402,6 +408,7 @@ await new Promise((resolve, reject) => {
 const port = server.address().port;
 const target = `http://127.0.0.1:${port}/app/payroll/live.html?month=${TARGET_MONTH}`;
 const chrome = chromeBinary();
+const chromeProfile = mkdtempSync(join(tmpdir(), 'taejang-payroll-e2e-'));
 const args = [
   '--headless=new',
   '--no-sandbox',
@@ -410,7 +417,7 @@ const args = [
   '--no-first-run',
   '--disable-background-networking',
   '--virtual-time-budget=15000',
-  `--user-data-dir=/tmp/taejang-payroll-e2e-${process.pid}`,
+  `--user-data-dir=${chromeProfile}`,
   '--dump-dom',
   target,
 ];

@@ -95,6 +95,7 @@
 
 .payroll-attendance-editor-table input[type="number"] { width: 92px; }
 .payroll-attendance-editor-table input[type="time"] { width: 112px; }
+.payroll-attendance-editor-table input[data-field="reason"] { width: 180px; }
 .payroll-attendance-name { font-weight: 700; }
 
 .payroll-source-badge {

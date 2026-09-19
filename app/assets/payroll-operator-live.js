@@ -208,6 +208,25 @@
     if (button) button.disabled = !enabled;
   }
 
+  function attendanceReviewRows() {
+    const editor = window.TaejangPayrollAttendanceEditor;
+    return typeof editor?.getReviewExportRows === 'function' ? editor.getReviewExportRows() : [];
+  }
+
+  function updateAttendanceReviewExport() {
+    const button = element('payroll-attendance-review-export');
+    if (button) button.disabled = attendanceReviewRows().length === 0;
+  }
+
+  function updateConfirmedAttendanceExport() {
+    const button = element('payroll-attendance-confirmed-export');
+    if (!button) return;
+    button.disabled = attendanceReviewRows().length === 0;
+    button.title = button.disabled
+      ? '근태 원본 또는 저장된 확정근태를 먼저 불러와 주세요'
+      : '승인된 Protected HR source를 확인한 뒤 확정 출퇴근부를 생성합니다';
+  }
+
   function renderValidation(context) {
     const node = element('payroll-ledger-validation');
     const validator = window.TaejangPayrollLedgerValidator;
@@ -239,6 +258,7 @@
     element('payroll-live-empty').hidden = false;
     element('payroll-live-table-wrap').hidden = true;
     setExportEnabled(false);
+    updateConfirmedAttendanceExport();
   }
 
   function appendCell(row, value, className = '') {
@@ -334,6 +354,8 @@
       && Boolean(validation)
       && validation.errorCount === 0;
     setExportEnabled(exportReady);
+    updateAttendanceReviewExport();
+    updateConfirmedAttendanceExport();
   }
 
   function friendlyError(error) {
@@ -382,6 +404,43 @@
     setMessage('민감정보를 제외한 급여대장 Excel 가안을 내려받았습니다.');
   }
 
+  function exportAttendanceReview() {
+    const exporter = window.TaejangPayrollLedgerXlsx;
+    const rows = attendanceReviewRows();
+    if (!exporter?.downloadAttendanceReviewXlsx || !rows.length) {
+      setMessage('내보낼 근태 검토내역이 없습니다. 보안업체 원본을 선택하거나 저장된 근태를 불러와 주세요.', { error: true });
+      return;
+    }
+    exporter.downloadAttendanceReviewXlsx(rows, selectedMonth());
+    setMessage('근태 원본·보정 사유·미해결 상태를 포함한 검토내역 Excel을 내려받았습니다. protected HR 열이 필요한 기존 월간 출퇴근부는 승인된 HR source 연결 전까지 생성하지 않습니다.');
+  }
+
+  async function exportConfirmedAttendance() {
+    const exporter = window.TaejangPayrollLedgerXlsx;
+    const editor = window.TaejangPayrollAttendanceEditor;
+    const confirmedAttendance = editor?.getConfirmedAttendanceRows?.() || [];
+    if (!exporter?.downloadMonthlyAttendanceWorkbookXlsx || !confirmedAttendance.length) {
+      setMessage('확정 출퇴근부를 만들 근태가 없습니다. 보안업체 원본을 불러오거나 저장된 근태를 확인해 주세요.', { error: true });
+      return;
+    }
+    try {
+      const context = await rpc('get_payroll_confirmed_attendance_workbook_context', { p_payroll_month: `${selectedMonth()}-01` });
+      exporter.downloadMonthlyAttendanceWorkbookXlsx({
+        month: selectedMonth(),
+        employees: context.employees,
+        confirmedAttendance,
+        protectedHrRows: context.protected_hr_rows,
+      });
+      setMessage('확정 출퇴근부 Excel을 내려받았습니다. 이 파일에는 승인된 Protected HR 필드가 포함됩니다.');
+    } catch (error) {
+      if (/PAYROLL_CONFIRMED_ATTENDANCE_PROTECTED_HR_MISSING/.test(error?.message || '')) {
+        setMessage('직원별 승인 Protected HR record가 정확히 하나씩 있어야 확정 출퇴근부를 생성할 수 있습니다. 누락 또는 중복을 먼저 확인해 주세요.', { error: true });
+        return;
+      }
+      setMessage('확정 출퇴근부를 생성하지 못했습니다. 권한과 근태 상태를 확인해 주세요.', { error: true });
+    }
+  }
+
   function handleAttendanceFile(event) {
     const file = event.target.files?.[0] || null;
     state.attendanceFile = null;
@@ -427,7 +486,10 @@
   }
 
   element('payroll-live-refresh')?.addEventListener('click', loadMonth);
+  element('payroll-attendance-confirmed-export')?.addEventListener('click', exportConfirmedAttendance);
   element('payroll-live-export')?.addEventListener('click', exportLedger);
+  element('payroll-attendance-review-export')?.addEventListener('click', exportAttendanceReview);
+  document.addEventListener('payroll-attendance-editor-updated', updateAttendanceReviewExport);
   element('payroll-attendance-file')?.addEventListener('change', handleAttendanceFile);
   element('payroll-live-month')?.addEventListener('change', () => {
     const month = selectedMonth();

@@ -146,7 +146,9 @@ test('CE-12 employment-term gap inside a week is reported as pending rather than
 
 test('CE-13 raw 퇴사 mark after cutoff is not projected as normal paid work', () => {
   const day = engine.resolvePayableDay({ employee: emp(), date: '2026-09-29', terms: [term()], holidays, attendanceMap: engine.indexAttendance([{ employeeId: E, date: '2026-09-29', autoDecision: '퇴사' }]), cutoffDate: '2026-09-25' });
-  assert.notEqual(day.kind, 'expected');
+  assert.equal(day.kind, 'unresolved');
+  assert.equal(day.attendanceState, engine.AttendanceState.TERMINATION);
+  assert.equal(day.reason, 'termination_review_required');
 });
 
 test('CE-14 duplicate attendance rows bypass preflight when service is called directly', async () => {

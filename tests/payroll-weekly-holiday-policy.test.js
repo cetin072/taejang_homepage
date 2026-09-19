@@ -53,14 +53,14 @@ function calculateMonth({ worker = employee(), terms = [term()], attendanceStart
   });
 }
 
-test('payroll month owns only workweeks whose Monday-Friday weekdays are inside the month', () => {
+test('payroll month owns continuous Monday-Sunday weeks by their Sunday', () => {
   assert.deepEqual(
     policy.weeksOwnedByPayrollMonth(engine, 2026, 7).map(engine.dateKey),
-    ['2026-07-06', '2026-07-13', '2026-07-20', '2026-07-27']
+    ['2026-06-29', '2026-07-06', '2026-07-13', '2026-07-20']
   );
   assert.deepEqual(
     policy.weeksOwnedByPayrollMonth(engine, 2026, 8).map(engine.dateKey),
-    ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24']
+    ['2026-07-27', '2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24']
   );
 });
 
@@ -97,11 +97,84 @@ test('weekly holiday hours follow the current workweek schedule instead of a smo
   assert.equal(result.payableHours, 4);
 });
 
-test('constant three-hour schedule yields the four owned weekly holidays for August', () => {
+test('continuous Sunday-owned August rule keeps a missing July boundary pending instead of guessing it', () => {
   const result = calculateMonth();
   assert.equal(result.weeklyHolidayActualHours, 9);
   assert.equal(result.weeklyHolidayExpectedHours, 3);
+  assert.equal(result.weeklyHolidayPendingWeeks, 1);
   assert.equal(result.payableHoursPreview, 75);
+});
+
+test('prior-boundary attendance completes the Sunday-owned July-to-August week', () => {
+  const result = wrapped.calculateProvisionalMonth({
+    employee: employee(),
+    year: 2026,
+    month: 8,
+    cutoffDate: '2026-08-27',
+    terms: [term()],
+    holidays: [],
+    attendanceRecords: weekdayAttendance('2026-07-27', '2026-08-27'),
+  });
+  assert.equal(result.weeklyHolidayPendingWeeks, 0);
+  assert.equal(result.weeklyHolidayActualHours, 12);
+});
+
+test('current week remains pending until its Sunday rather than earning weekly holiday on Friday', () => {
+  const result = wrapped.calculateWeeklyHoliday({
+    employee: employee(),
+    weekStart: '2026-09-14',
+    terms: [term()],
+    holidays: [],
+    attendanceRecords: weekdayAttendance('2026-09-14', '2026-09-18'),
+    cutoffDate: '2026-09-18',
+    holdFutureSunday: true,
+  });
+  assert.equal(result.status, 'pending_current_week');
+  assert.equal(result.payableHours, null);
+
+  const month = wrapped.calculateMonthlyWeeklyHoliday({
+    employee: employee(),
+    year: 2026,
+    month: 9,
+    terms: [term()],
+    holidays: [],
+    attendanceRecords: weekdayAttendance('2026-08-31', '2026-09-18'),
+    cutoffDate: '2026-09-18',
+    holdFutureSunday: true,
+  });
+  assert.equal(month.pendingWeeks, 1);
+  assert.equal(month.weeks.find((week) => week.weekStart === '2026-09-14').status, 'pending_current_week');
+});
+
+test('earned-to-date excludes later scheduled work while preserving completed Sunday weeks', () => {
+  const result = wrapped.calculateProvisionalMonth({
+    employee: employee(),
+    year: 2026,
+    month: 9,
+    cutoffDate: '2026-09-18',
+    projectionMode: 'earned_to_date',
+    terms: [term()],
+    holidays: [],
+    attendanceRecords: weekdayAttendance('2026-08-31', '2026-09-18'),
+  });
+  assert.equal(result.expectedWorkHours, 0);
+  assert.equal(result.weeklyHolidayActualHours, 6);
+  assert.equal(result.weeklyHolidayPendingWeeks, 1);
+  assert.equal(result.payableHoursPreview, 48);
+});
+
+test('forecast labels a Sunday after the cutoff as expected rather than already earned', () => {
+  const result = wrapped.calculateWeeklyHoliday({
+    employee: employee(),
+    weekStart: '2026-09-14',
+    terms: [term()],
+    holidays: [],
+    attendanceRecords: weekdayAttendance('2026-09-14', '2026-09-18'),
+    cutoffDate: '2026-09-18',
+    projectionMode: 'forecast',
+  });
+  assert.equal(result.status, 'expected_eligible');
+  assert.equal(result.payableHours, 3);
 });
 
 test('Monday schedule change in the final owned week uses the new daily hours', () => {
@@ -146,6 +219,6 @@ test('Staging runtime imports and wraps the reviewed weekly holiday policy', () 
   assert.match(stagingRuntimeDeps, /policy\.wrapEngine\(runtime\.TaejangPayrollEngine/);
 });
 
-test('Staging calculation run records the Golden workweek policy version', () => {
-  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v2'/);
+test('Staging calculation run records the continuous Sunday policy version', () => {
+  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-continuous-sunday-v3'/);
 });
