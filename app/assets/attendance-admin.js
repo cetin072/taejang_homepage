@@ -15,15 +15,17 @@
     return node;
   };
   const time = value => value ? new Intl.DateTimeFormat('ko-KR', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul'
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Seoul'
   }).format(new Date(value)) : '-';
-  const good = record => record && ['recorded', 'exception_approved'].includes(record.status);
+  const good = record => Boolean(record?.event_at && ['recorded', 'exception_approved', 'corrected'].includes(record.status));
   const statusText = record => {
     if (!record) return '미처리';
     if (record.status === 'recorded') return 'GPS 확인';
     if (record.status === 'exception_approved') return '관리자 승인';
     if (record.status === 'exception_pending') return '확인 필요';
     if (record.status === 'exception_rejected') return '반려';
+    if (record.status === 'corrected') return '수기 입력·보정';
+    if (record.status === 'correction_invalidated') return '무효 처리';
     return record.status;
   };
 
@@ -77,7 +79,10 @@
 
   function cell(label, record) {
     const box = el('div', null, 'attendance-cell');
-    box.append(el('span', label, 'eyebrow'), el('strong', `${time(record?.event_at || record?.requested_at)} · ${statusText(record)}`));
+    box.append(el('span', label, 'eyebrow'), el('strong', `${time(record?.event_at)} · ${statusText(record)}`));
+    if (!record?.event_at && record?.requested_at && record.status === 'exception_pending') {
+      box.append(el('p', `확인 요청 시각 ${time(record.requested_at)} (출퇴근 확정 시각 아님)`));
+    }
     const actions = reviewButtons(record);
     if (actions) box.append(actions);
     return box;
@@ -100,17 +105,28 @@
       const inCount = rows.filter(row => good(row.clock_in)).length;
       const pendingCount = rows.filter(row => row.clock_in?.status === 'exception_pending' || row.clock_out?.status === 'exception_pending').length;
       const outCount = rows.filter(row => good(row.clock_out)).length;
-      const missingCount = rows.filter(row => !row.clock_in).length;
+      const missingCount = rows.filter(row => !good(row.clock_in)).length;
 
       const intro = el('header', null, 'dashboard-intro');
       const back = el('button', '대시보드로', 'button button-quiet'); back.type = 'button';
       back.addEventListener('click', () => document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh')));
       intro.append(el('p', '근태 관리', 'eyebrow'), el('h2', '오늘 출근부'), el('p', '출퇴근 대상 직원의 GPS 기록과 예외 요청을 확인합니다. 직원이 같은 출퇴근 건으로 반복 요청하는 것은 서버에서 차단됩니다.'), back);
+      if (can('attendance.correct')) {
+        const edit = el('button', '누락 입력·시간 정정', 'button');
+        edit.type = 'button';
+        edit.addEventListener('click', () => {
+          if (window.TaejangAttendanceIntegrity?.openCorrectionScreen) {
+            void window.TaejangAttendanceIntegrity.openCorrectionScreen();
+          } else {
+            window.alert('근태 보정 화면을 불러오지 못했습니다. 새로고침 후 다시 확인해주세요.');
+          }
+        });
+        intro.append(edit);
+      }
 
       const summary = el('section', null, 'attendance-summary');
       summary.append(summaryCard('대상 직원', rows.length), summaryCard('출근 완료', inCount), summaryCard('확인 필요', pendingCount), summaryCard('퇴근 완료', outCount));
-      if (missingCount) summary.append(summaryCard('아직 미출근', missingCount));
-
+      if (missingCount) summary.append(summaryCard('출근 기록 미확인', missingCount));
       const list = el('section', null, 'attendance-list');
       if (!rows.length) list.append(el('p', '현재 출퇴근 대상 직원 계정이 없습니다.', 'empty'));
       rows.forEach(row => {
