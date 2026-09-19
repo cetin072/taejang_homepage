@@ -107,6 +107,9 @@ export async function savePromotionDraft(
   input: PromotionDraftInput,
 ): Promise<SavedPromotionDraft> {
   if (!input.title.trim()) throw new Error('제목을 입력해주세요.');
+  if (!input.body.trim() && !input.publicMedia.length && input.contentType !== 'external_content') {
+    throw new Error('본문을 입력해주세요.');
+  }
 
   const slug = input.slug?.trim() || makeMobileSlug();
 
