@@ -163,6 +163,7 @@
 .payroll-money-cell { font-weight: 800; }
 .payroll-ok-cell { color: var(--payroll-accent); font-weight: 800; }
 .payroll-review-cell { color: var(--payroll-danger); font-weight: 800; }
+.payroll-payslip-open { min-height: 32px; padding: 6px 9px; font-size: 12px; }
 
 .payroll-live-meta {
   display: grid;

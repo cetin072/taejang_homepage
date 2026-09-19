@@ -154,7 +154,8 @@ export const testGroups = Object.freeze({
     'tests/payroll-live-staging-mvp.test.js',
     'tests/payroll-current-month-bootstrap.test.js',
     'tests/payroll-september-holidays.test.js',
-    'tests/payroll-audit-counterexamples.test.js'
+    'tests/payroll-audit-counterexamples.test.js',
+    'tests/issue-255-payslip-draft.test.js'
   ])
 });
 

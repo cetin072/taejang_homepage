@@ -248,6 +248,24 @@
     row.append(cell);
   }
 
+  function appendPayslipAction(row, employee) {
+    const cell = document.createElement('td');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'payroll-button secondary payroll-payslip-open';
+    button.textContent = '명세서 초안';
+    button.addEventListener('click', () => {
+      const params = new URLSearchParams({
+        month: selectedMonth(),
+        employee: String(employee.employee_uuid || ''),
+      });
+      window.location.assign(`./payslip.html?${params.toString()}`);
+    });
+    button.disabled = !employee.employee_uuid;
+    cell.append(button);
+    row.append(cell);
+  }
+
   function renderEmployees(employees) {
     const body = element('payroll-live-table-body');
     body.replaceChildren();
@@ -276,6 +294,7 @@
       appendCell(row, money(employee.statutory_deduction_preview), 'payroll-money-cell');
       appendCell(row, money(employee.net_pay_preview), 'payroll-money-cell');
       appendCell(row, status.label, status.review ? 'payroll-review-cell' : 'payroll-ok-cell');
+      appendPayslipAction(row, employee);
       body.append(row);
     });
   }

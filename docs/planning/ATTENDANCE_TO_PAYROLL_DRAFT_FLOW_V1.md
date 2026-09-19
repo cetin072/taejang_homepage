@@ -30,7 +30,7 @@
 | Step 4: 장기 confirmed attendance ledger/기간 조회 | 구현 완료 | #252 |
 | Step 5: monthly readiness gate와 payroll input snapshot | 구현 완료 | #253 |
 | Step 6: synthetic month E2E regression | 구현 완료 | #254 |
-| Step 7: 개인 급여명세서 초안 | 미구현·후속 작업 | #255 |
+| Step 7: 개인 급여명세서 초안 | 구현 완료 | #255 — 최신 저장 payroll result를 운영총괄 전용 RPC로 조회하고, 근로·지급·법정공제·총계 가안과 검토 필요 사유를 표시한다. 재계산·발송·지급·송금·신고는 수행하지 않는다. |
 
 ## 검수 기준
 

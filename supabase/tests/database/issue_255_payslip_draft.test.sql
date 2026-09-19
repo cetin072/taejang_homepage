@@ -1,0 +1,10 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(6);
+select has_function('public','get_payroll_employee_payslip_draft',array['date','uuid'],'operator payslip draft RPC exists');
+select is(has_function_privilege('anon','public.get_payroll_employee_payslip_draft(date,uuid)','execute'),false,'anonymous users cannot execute the payslip draft RPC');
+select is(has_function_privilege('authenticated','public.get_payroll_employee_payslip_draft(date,uuid)','execute'),true,'authenticated callers reach the guarded payslip draft RPC');
+select is(has_table_privilege('authenticated','public.payroll_employee_results','select'),false,'browser roles cannot directly read employee payroll result rows');
+select ok(pg_get_functiondef('public.get_payroll_employee_payslip_draft(date,uuid)'::regprocedure) ilike '%private_payroll_operator_allowed%' and pg_get_functiondef('public.get_payroll_employee_payslip_draft(date,uuid)'::regprocedure) ilike '%payroll_employee_results%','payslip draft is derived only behind the payroll operator boundary');
+select ok(pg_get_functiondef('public.get_payroll_employee_payslip_draft(date,uuid)'::regprocedure) ilike '%payroll_payslip_draft_viewed%' and pg_get_functiondef('public.get_payroll_employee_payslip_draft(date,uuid)'::regprocedure) not ilike '%insert into public.payroll_employee_results%','payslip draft audit is read-only and does not create payroll results');
+select * from finish(); rollback;
