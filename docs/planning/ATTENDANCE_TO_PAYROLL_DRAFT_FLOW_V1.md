@@ -28,7 +28,7 @@
 | Step 2: GPS·지문 Excel evidence 비교와 예외 우선 화면 | 구현 완료 | #257 |
 | Step 3: 일일 immutable confirmation revision과 reopen | 구현 완료 | #251 |
 | Step 4: 장기 confirmed attendance ledger/기간 조회 | 구현 완료 | #252 |
-| Step 5: monthly readiness gate와 payroll input snapshot | 미구현·후속 작업 | #253 |
+| Step 5: monthly readiness gate와 payroll input snapshot | 구현 완료 | #253 |
 | Step 6: synthetic month E2E regression | 미구현·후속 작업 | #254 |
 | Step 7: 개인 급여명세서 초안 | 미구현·후속 작업 | #255 |
 
