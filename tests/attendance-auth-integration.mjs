@@ -354,6 +354,11 @@ const matchedFingerprintRow = evidenceBeforeMapping.data.rows.find(row => row.so
 const unmatchedFingerprintRow = evidenceBeforeMapping.data.rows.find(row => row.source_employee_key === 'FP-UNMAPPED-001');
 equal(matchedFingerprintRow?.employee_uuid, worker.employeeUuid, 'evidence read model resolves canonical employee for exact employee id');
 equal(unmatchedFingerprintRow?.employee_uuid, null, 'unknown fingerprint identity stays unmatched until reviewed mapping');
+const confirmationBeforeMapping = await rpc('get_attendance_confirmation_status', lead.token, { p_work_date: workDate });
+check(
+  confirmationBeforeMapping.data?.blockers?.some(item => item.type === 'external_identity_unmatched'),
+  'confirmation blocker reports an imported fingerprint row as unmatched before reviewed identity mapping',
+);
 
 const fingerprintMapping = await rpc('save_attendance_source_identity_mapping', lead.token, {
   p_source_system: 'fingerprint_excel',
@@ -380,6 +385,15 @@ equal(
   sql(`select employee_uuid_at_import is null from public.attendance_external_evidence where id='${remappedFingerprintRow.id}'::uuid`),
   't',
   'late identity mapping does not rewrite employee_uuid_at_import on raw evidence',
+);
+const confirmationAfterMapping = await rpc('get_attendance_confirmation_status', lead.token, { p_work_date: workDate });
+check(
+  !confirmationAfterMapping.data?.blockers?.some(item => item.type === 'external_identity_unmatched'),
+  'confirmation blocker uses the reviewed mapping instead of stale import-time unmatched state',
+);
+check(
+  !confirmationAfterMapping.data?.blockers?.some(item => item.type === 'fingerprint_missing' && item.employee_uuid === unlinkedEmployee.data.employee_uuid),
+  'late-mapped fingerprint evidence is associated with the mapped employee for confirmation comparison without reimport',
 );
 
 const adminRoster = await rpc('get_attendance_admin_today', admin.token, {});
