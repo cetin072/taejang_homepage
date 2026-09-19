@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260919074804_issue_255_payslip_draft.sql'), 'utf8');
+const hardeningMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260919152000_issue_268_payslip_persisted_facts.sql'), 'utf8');
 const page = fs.readFileSync(path.join(root, 'app/payroll/payslip.html'), 'utf8');
 const script = fs.readFileSync(path.join(root, 'app/assets/payroll-payslip-draft.js'), 'utf8');
 
@@ -31,4 +32,15 @@ test('operator payroll ledger links to a read-only per-employee draft page', () 
   assert.match(page, /noindex,nofollow/i);
   assert.match(script, /get_payroll_employee_payslip_draft/i);
   assert.match(script, /재계산·발송·지급을 실행하지 않습니다/i);
+});
+
+test('hardened payslip returns only persisted facts and never derives pay components at read time', () => {
+  assert.match(hardeningMigration, /gross_pay_preview/i);
+  assert.match(hardeningMigration, /weekly_holiday_actual_hours/i);
+  assert.match(hardeningMigration, /weekly_holiday_expected_hours/i);
+  assert.doesNotMatch(hardeningMigration, /base_pay_preview/i);
+  assert.doesNotMatch(hardeningMigration, /weekly_holiday_pay_preview/i);
+  assert.doesNotMatch(hardeningMigration, /weekly_hours\s*:=|weekly_pay\s*:=|base_pay\s*:=/i);
+  assert.match(script, /주휴 실제시간/);
+  assert.match(script, /주휴 예정시간/);
 });
