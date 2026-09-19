@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   loadMyAttendanceToday,
@@ -32,7 +32,7 @@ function completed(event: AttendanceEvent | null) {
   return Boolean(event && ['recorded', 'exception_approved', 'corrected'].includes(event.status));
 }
 
-export function AttendanceCard() {
+export function AttendanceCard({ minHeight = 164 }: { minHeight?: number }) {
   const { client, session } = usePlatform();
   const [today, setToday] = useState<AttendanceToday | null>(null);
   const [loading, setLoading] = useState(true);
@@ -205,7 +205,7 @@ export function AttendanceCard() {
   if (today?.attendance_required === false) {
     action = null;
     title = '근태 기록 대상 아님';
-    subtitle = '';
+    subtitle = '공통 화면은 그대로 유지됩니다';
   } else if (pending) {
     action = null;
     title = '관리자 확인 중';
@@ -220,15 +220,33 @@ export function AttendanceCard() {
     subtitle = `출근 ${formatTime(clockIn?.event_at)}`;
   }
 
+  function handleAction() {
+    if (!action || busy || loading) return;
+    if (action === 'clock_out') {
+      Alert.alert(
+        '퇴근 확인',
+        '정말 퇴근하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '퇴근하기', style: 'destructive', onPress: () => void record('clock_out') },
+        ],
+        { cancelable: true },
+      );
+      return;
+    }
+    void record(action);
+  }
+
   return (
     <View style={styles.wrap}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={title}
         disabled={loading || Boolean(busy) || !action}
-        onPress={() => action && void record(action)}
+        onPress={handleAction}
         style={({ pressed }) => [
           styles.action,
+          { minHeight },
           (!action || loading) ? styles.actionInactive : null,
           pressed && action ? styles.actionPressed : null,
         ]}
@@ -251,8 +269,6 @@ export function AttendanceCard() {
           <Text style={styles.exceptionText}>{busy ? '요청 중…' : '관리자 확인 요청'}</Text>
         </Pressable>
       ) : null}
-
-      <Text style={styles.footer}>위치는 출근·퇴근 버튼을 누르는 순간에만 확인합니다.</Text>
     </View>
   );
 }
@@ -260,18 +276,18 @@ export function AttendanceCard() {
 const styles = StyleSheet.create({
   wrap: { gap: 9 },
   action: {
-    minHeight: 118,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    padding: 20,
-    borderRadius: 24,
+    gap: 10,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    borderRadius: 28,
     backgroundColor: '#173f31',
   },
-  actionInactive: { backgroundColor: '#82978a' },
+  actionInactive: { backgroundColor: '#879b8d' },
   actionPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  actionTitle: { color: '#ffffff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  actionSubtitle: { color: '#dcebe2', fontSize: 14, fontWeight: '700' },
+  actionTitle: { color: '#ffffff', fontSize: 31, fontWeight: '900', letterSpacing: -0.6 },
+  actionSubtitle: { color: '#e4efe8', fontSize: 15, fontWeight: '700' },
   message: {
     padding: 11,
     borderRadius: 12,
@@ -298,5 +314,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#eef1ec',
   },
   exceptionText: { color: '#173f31', fontSize: 16, fontWeight: '800' },
-  footer: { color: '#708077', fontSize: 11, textAlign: 'center' },
 });
