@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -11,6 +12,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,15 +51,91 @@ function messageOf(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function formatDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDate(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return new Date();
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0);
+  return Number.isNaN(date.valueOf()) ? new Date() : date;
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function PasswordInput({
+  label,
+  value,
+  onChangeText,
+  autoComplete,
+  placeholder = '비밀번호',
+  onSubmitEditing,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  autoComplete: 'current-password' | 'new-password';
+  placeholder?: string;
+  onSubmitEditing?: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <Field label={label}>
+      <View style={styles.passwordWrap}>
+        <TextInput
+          accessibilityLabel={label}
+          autoCapitalize="none"
+          autoComplete={autoComplete}
+          autoCorrect={false}
+          placeholder={placeholder}
+          secureTextEntry={!visible}
+          style={[styles.input, styles.passwordInput]}
+          value={value}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmitEditing}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={visible ? '비밀번호 숨기기' : '비밀번호 보기'}
+          onPress={() => setVisible(current => !current)}
+          style={styles.passwordToggle}
+        >
+          <Text style={styles.passwordToggleText}>{visible ? '숨기기' : '보기'}</Text>
+        </Pressable>
+      </View>
+    </Field>
+  );
+}
+
 function PrimaryButton({
   title,
   subtitle,
   onPress,
+  minHeight,
   secondary = false,
 }: {
   title: string;
   subtitle?: string;
   onPress: () => void;
+  minHeight: number;
   secondary?: boolean;
 }) {
   return (
@@ -67,6 +145,7 @@ function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryAction,
+        { minHeight },
         secondary ? styles.platformAction : null,
         pressed ? styles.actionPressed : null,
       ]}
@@ -82,16 +161,30 @@ function PrimaryButton({
 }
 
 export default function HomeScreen() {
-  const { phase, session, error, client, reload, signIn, signUpEmployee, signOut } = usePlatform();
+  const {
+    phase,
+    session,
+    error,
+    client,
+    reload,
+    signIn,
+    signUpEmployee,
+    requestPasswordReset,
+    signOut,
+  } = usePlatform();
   const insets = useSafeAreaInsets();
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const { height: windowHeight } = useWindowDimensions();
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'recovery'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoverySent, setRecoverySent] = useState(false);
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
   const [signupHiredOn, setSignupHiredOn] = useState('');
+  const [showHireDatePicker, setShowHireDatePicker] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [signupComplete, setSignupComplete] = useState(false);
@@ -141,8 +234,16 @@ export default function HomeScreen() {
   }, [session, refreshAccess]);
 
   const capabilities = useMemo(() => new Set(access?.capabilities || []), [access?.capabilities]);
-  const canRecordAttendance = capabilities.has('attendance.self_record');
   const canOpenWorkPlatform = [...capabilities].some(capability => WORK_PLATFORM_CAPABILITIES.has(capability));
+  const primaryCount = canOpenWorkPlatform ? 3 : 2;
+  const actionHeight = useMemo(() => {
+    const reserved = canOpenWorkPlatform ? 300 : 270;
+    const available = Math.max(360, windowHeight - reserved);
+    const raw = Math.floor((available - (primaryCount - 1) * 14) / primaryCount);
+    return canOpenWorkPlatform
+      ? Math.max(138, Math.min(174, raw))
+      : Math.max(176, Math.min(224, raw));
+  }, [canOpenWorkPlatform, primaryCount, windowHeight]);
 
   if (phase === 'loading') {
     return (
@@ -205,27 +306,24 @@ export default function HomeScreen() {
             ) : authMode === 'login' ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>로그인</Text>
-                <TextInput
-                  accessibilityLabel="이메일"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  placeholder="이메일"
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                />
-                <TextInput
-                  accessibilityLabel="비밀번호"
-                  autoCapitalize="none"
-                  autoComplete="current-password"
-                  autoCorrect={false}
-                  placeholder="비밀번호"
-                  secureTextEntry
-                  style={styles.input}
+                <Field label="이메일">
+                  <TextInput
+                    accessibilityLabel="이메일"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    placeholder="name@taejang.co.kr"
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </Field>
+                <PasswordInput
+                  label="비밀번호"
                   value={password}
                   onChangeText={setPassword}
+                  autoComplete="current-password"
                   onSubmitEditing={() => {
                     if (email.trim() && password) void run(() => signIn(email, password));
                   }}
@@ -237,69 +335,143 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.formPrimaryText}>{busy ? '로그인 중…' : '로그인'}</Text>
                 </Pressable>
+                <View style={styles.authLinks}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setMessage('');
+                      setRecoveryEmail(email);
+                      setRecoverySent(false);
+                      setAuthMode('recovery');
+                    }}
+                    style={styles.textAction}
+                  >
+                    <Text style={styles.textActionLabel}>비밀번호 찾기</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setMessage('');
+                      setAuthMode('signup');
+                    }}
+                    style={styles.textAction}
+                  >
+                    <Text style={styles.textActionLabel}>처음이신가요? 가입 요청</Text>
+                  </Pressable>
+                </View>
+                {message ? <Text style={styles.errorText}>{message}</Text> : null}
+              </View>
+            ) : authMode === 'recovery' ? (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>비밀번호 찾기</Text>
+                <Text style={styles.body}>가입할 때 사용한 이메일로 재설정 링크를 보내드립니다.</Text>
+                <Field label="이메일">
+                  <TextInput
+                    accessibilityLabel="비밀번호 재설정 이메일"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    placeholder="name@taejang.co.kr"
+                    style={styles.input}
+                    value={recoveryEmail}
+                    onChangeText={setRecoveryEmail}
+                  />
+                </Field>
                 <Pressable
-                  accessibilityRole="button"
+                  disabled={busy || !recoveryEmail.trim()}
+                  style={[styles.formPrimary, busy || !recoveryEmail.trim() ? styles.disabled : null]}
+                  onPress={() => void run(async () => {
+                    await requestPasswordReset(recoveryEmail);
+                    setRecoverySent(true);
+                  })}
+                >
+                  <Text style={styles.formPrimaryText}>{busy ? '보내는 중…' : '재설정 메일 보내기'}</Text>
+                </Pressable>
+                {recoverySent ? (
+                  <Text style={styles.successText}>
+                    등록된 계정이면 비밀번호 재설정 메일이 발송됩니다. 받은 편지함과 스팸함을 확인해주세요.
+                  </Text>
+                ) : null}
+                <Pressable
                   onPress={() => {
                     setMessage('');
-                    setAuthMode('signup');
+                    setAuthMode('login');
                   }}
                   style={styles.textAction}
                 >
-                  <Text style={styles.textActionLabel}>처음이신가요?  가입 요청</Text>
+                  <Text style={styles.textActionLabel}>로그인으로 돌아가기</Text>
                 </Pressable>
                 {message ? <Text style={styles.errorText}>{message}</Text> : null}
               </View>
             ) : (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>신입직원 가입 요청</Text>
-                <TextInput
-                  accessibilityLabel="이름"
-                  autoComplete="name"
-                  placeholder="이름"
-                  style={styles.input}
-                  value={signupName}
-                  onChangeText={setSignupName}
-                />
-                <TextInput
-                  accessibilityLabel="이메일"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  placeholder="이메일"
-                  style={styles.input}
-                  value={signupEmail}
-                  onChangeText={setSignupEmail}
-                />
-                <TextInput
-                  accessibilityLabel="전화번호"
-                  autoComplete="tel"
-                  keyboardType="phone-pad"
-                  placeholder="전화번호"
-                  style={styles.input}
-                  value={signupPhone}
-                  onChangeText={setSignupPhone}
-                />
-                <TextInput
-                  accessibilityLabel="비밀번호"
-                  autoCapitalize="none"
-                  autoComplete="new-password"
-                  autoCorrect={false}
-                  placeholder="비밀번호 (8자 이상)"
-                  secureTextEntry
-                  style={styles.input}
+                <Field label="이름">
+                  <TextInput
+                    accessibilityLabel="이름"
+                    autoComplete="name"
+                    placeholder="이름"
+                    style={styles.input}
+                    value={signupName}
+                    onChangeText={setSignupName}
+                  />
+                </Field>
+                <Field label="이메일">
+                  <TextInput
+                    accessibilityLabel="이메일"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    placeholder="name@taejang.co.kr"
+                    style={styles.input}
+                    value={signupEmail}
+                    onChangeText={setSignupEmail}
+                  />
+                </Field>
+                <Field label="전화번호">
+                  <TextInput
+                    accessibilityLabel="전화번호"
+                    autoComplete="tel"
+                    keyboardType="phone-pad"
+                    placeholder="010-0000-0000"
+                    style={styles.input}
+                    value={signupPhone}
+                    onChangeText={setSignupPhone}
+                  />
+                </Field>
+                <PasswordInput
+                  label="비밀번호"
                   value={signupPassword}
                   onChangeText={setSignupPassword}
+                  autoComplete="new-password"
+                  placeholder="8자 이상"
                 />
-                <TextInput
-                  accessibilityLabel="입사일"
-                  autoCapitalize="none"
-                  keyboardType="numbers-and-punctuation"
-                  placeholder="입사일  YYYY-MM-DD"
-                  style={styles.input}
-                  value={signupHiredOn}
-                  onChangeText={setSignupHiredOn}
-                />
+                <Field label="입사일">
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="입사일 달력 열기"
+                    onPress={() => setShowHireDatePicker(true)}
+                    style={styles.dateInput}
+                  >
+                    <Text style={signupHiredOn ? styles.dateValue : styles.datePlaceholder}>
+                      {signupHiredOn || '날짜 선택'}
+                    </Text>
+                    <Text style={styles.dateIcon}>달력</Text>
+                  </Pressable>
+                </Field>
+                {showHireDatePicker ? (
+                  <DateTimePicker
+                    value={parseDate(signupHiredOn)}
+                    mode="date"
+                    display={Platform.OS === 'android' ? 'calendar' : 'default'}
+                    onChange={(_event, date) => {
+                      setShowHireDatePicker(false);
+                      if (date) setSignupHiredOn(formatDate(date));
+                    }}
+                  />
+                ) : null}
                 <Pressable
                   disabled={busy}
                   style={[styles.formPrimary, busy ? styles.disabled : null]}
@@ -396,41 +568,44 @@ export default function HomeScreen() {
     <View style={[styles.page, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <StatusBar style="dark" />
       <ScrollView contentContainerStyle={styles.homeScroll}>
-        <View style={styles.homeHeader}>
-          <View style={styles.homeBrand}>
-            <Text style={styles.brandMarkSmall}>泰張</Text>
-            <Text style={styles.homeTitle}>태장</Text>
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="설정"
-            onPress={() => setSettingsOpen(value => !value)}
-            style={styles.settingsButton}
-          >
-            <Text style={styles.settingsText}>설정</Text>
-          </Pressable>
-        </View>
-
-        {settingsOpen ? (
-          <View style={styles.settingsPanel}>
-            <Text style={styles.help}>{access.display_name || '태장 직원'} 계정</Text>
-            <Pressable onPress={() => void run(signOut)} style={styles.logoutButton}>
-              <Text style={styles.logoutText}>{busy ? '처리 중…' : '로그아웃'}</Text>
+        <View style={styles.homeTop}>
+          <View style={styles.homeHeader}>
+            <View style={styles.homeBrand}>
+              <Text style={styles.brandMarkSmall}>泰張</Text>
+              <Text style={styles.homeTitle}>태장</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="설정"
+              onPress={() => setSettingsOpen(value => !value)}
+              style={styles.settingsButton}
+            >
+              <Text style={styles.settingsText}>설정</Text>
             </Pressable>
           </View>
-        ) : null}
 
-        <View style={styles.actions}>
-          {canRecordAttendance ? <AttendanceCard /> : null}
-          <NoticeHomeAction />
-          {canOpenWorkPlatform ? (
-            <PrimaryButton
-              title="업무 플랫폼 열기"
-              subtitle="내 업무와 관리 기능"
-              secondary
-              onPress={() => void Linking.openURL(`${getApiBaseUrl()}/app/`)}
-            />
+          {settingsOpen ? (
+            <View style={styles.settingsPanel}>
+              <Text style={styles.help}>{access.display_name || '태장 직원'} 계정</Text>
+              <Pressable onPress={() => void run(signOut)} style={styles.logoutButton}>
+                <Text style={styles.logoutText}>{busy ? '처리 중…' : '로그아웃'}</Text>
+              </Pressable>
+            </View>
           ) : null}
+
+          <View style={styles.actions}>
+            <AttendanceCard minHeight={actionHeight} />
+            <NoticeHomeAction minHeight={actionHeight} />
+            {canOpenWorkPlatform ? (
+              <PrimaryButton
+                title="업무 플랫폼 열기"
+                subtitle="내 업무와 관리 기능"
+                minHeight={actionHeight}
+                secondary
+                onPress={() => void Linking.openURL(`${getApiBaseUrl()}/app/`)}
+              />
+            ) : null}
+          </View>
         </View>
 
         <OfficialChannelsFooter />
@@ -450,7 +625,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 26,
     backgroundColor: '#f6f4ed',
   },
-  loginScroll: { flexGrow: 1, justifyContent: 'center', gap: 24, padding: 24 },
+  loginScroll: { flexGrow: 1, justifyContent: 'center', gap: 22, padding: 24 },
   loginBrand: { alignItems: 'center', gap: 4, marginBottom: 4 },
   brandMark: { color: '#173f31', fontSize: 34, fontWeight: '900', letterSpacing: 4 },
   brandMarkSmall: { color: '#173f31', fontSize: 18, fontWeight: '900', letterSpacing: 2 },
@@ -462,15 +637,17 @@ const styles = StyleSheet.create({
   help: { color: '#66766d', fontSize: 13, lineHeight: 20 },
   statusText: { color: '#43584d', fontSize: 15, fontWeight: '700' },
   card: {
-    gap: 13,
+    gap: 14,
     padding: 20,
     borderRadius: 22,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#d7ded8',
   },
+  field: { gap: 7 },
+  fieldLabel: { color: '#274d3c', fontSize: 14, fontWeight: '900' },
   input: {
-    minHeight: 52,
+    minHeight: 54,
     paddingHorizontal: 14,
     borderWidth: 1,
     borderColor: '#aebdb3',
@@ -479,8 +656,34 @@ const styles = StyleSheet.create({
     color: '#173f31',
     fontSize: 16,
   },
+  passwordWrap: { position: 'relative', justifyContent: 'center' },
+  passwordInput: { paddingRight: 74 },
+  passwordToggle: {
+    position: 'absolute',
+    right: 8,
+    minWidth: 58,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 9,
+  },
+  passwordToggleText: { color: '#35624d', fontSize: 13, fontWeight: '900' },
+  dateInput: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#aebdb3',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+  },
+  dateValue: { color: '#173f31', fontSize: 16, fontWeight: '700' },
+  datePlaceholder: { color: '#89978f', fontSize: 16 },
+  dateIcon: { color: '#35624d', fontSize: 13, fontWeight: '900' },
   formPrimary: {
-    minHeight: 56,
+    minHeight: 58,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
@@ -489,9 +692,19 @@ const styles = StyleSheet.create({
   },
   formPrimaryText: { color: '#ffffff', fontSize: 17, fontWeight: '900' },
   disabled: { opacity: 0.45 },
-  textAction: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
+  authLinks: { gap: 2, alignItems: 'center' },
+  textAction: { minHeight: 40, alignItems: 'center', justifyContent: 'center' },
   textActionLabel: { color: '#35624d', fontSize: 14, fontWeight: '800' },
   errorText: { color: '#9b2c2c', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  successText: {
+    padding: 11,
+    borderRadius: 12,
+    backgroundColor: '#edf6ef',
+    color: '#27543b',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
   smallButton: {
     minHeight: 50,
     minWidth: 150,
@@ -502,7 +715,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   smallButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
-  homeScroll: { flexGrow: 1, gap: 18, paddingHorizontal: 22, paddingTop: 18, paddingBottom: 24 },
+  homeScroll: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  homeTop: { gap: 14 },
   homeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   homeTitle: { color: '#173f31', fontSize: 27, fontWeight: '900', letterSpacing: -0.6 },
@@ -521,20 +742,20 @@ const styles = StyleSheet.create({
   logoutText: { color: '#7c3932', fontSize: 13, fontWeight: '900' },
   actions: { gap: 14 },
   primaryAction: {
-    minHeight: 118,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    padding: 20,
-    borderRadius: 24,
+    gap: 9,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    borderRadius: 28,
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#9fb5a7',
   },
   platformAction: { backgroundColor: '#e7eee7', borderColor: '#9db2a2' },
   actionPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
-  primaryActionTitle: { color: '#173f31', fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  primaryActionTitle: { color: '#173f31', fontSize: 29, fontWeight: '900', letterSpacing: -0.6 },
   platformActionTitle: { color: '#234e3a' },
-  primaryActionSubtitle: { color: '#60746a', fontSize: 14, fontWeight: '700' },
+  primaryActionSubtitle: { color: '#60746a', fontSize: 15, fontWeight: '700' },
   platformActionSubtitle: { color: '#5b7165' },
 });
