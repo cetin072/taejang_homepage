@@ -68,6 +68,16 @@
       .attendance-confirmation-blockers { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
       .attendance-confirmation-blockers li { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 10px; border-radius:10px; background:#fff; }
       .attendance-confirmation-blockers [data-resolved="true"] { opacity:.72; }
+      .attendance-ledger { margin:14px 0; padding:16px; border:1px solid #c8d5cd; border-radius:14px; background:#fff; }
+      .attendance-ledger h3 { margin:0; }
+      .attendance-ledger-controls { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:12px 0; }
+      .attendance-ledger-controls label { display:grid; gap:6px; font-weight:800; }
+      .attendance-ledger-controls input[type="date"] { min-height:40px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
+      .attendance-ledger-controls label:last-of-type { display:flex; align-items:center; gap:7px; min-height:40px; font-weight:700; }
+      .attendance-ledger-results { display:grid; gap:8px; margin-top:12px; }
+      .attendance-ledger-row { padding:10px; border:1px solid var(--app-border); border-radius:10px; background:#fbfdfb; line-height:1.45; }
+      .attendance-ledger-row[data-reopened="true"] { background:#fff8e9; border-color:#e2c68d; }
+      .attendance-ledger-row strong { display:block; }
       @media(max-width:900px){.attendance-row{grid-template-columns:1fr 1fr}.attendance-person{grid-column:1/-1}}
       @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}.attendance-toolbar{display:grid;grid-template-columns:1fr}}
     `;
@@ -444,6 +454,73 @@
     return panel;
   }
 
+  function monthStart(workDate) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(workDate || '') ? `${workDate.slice(0, 7)}-01` : '';
+  }
+
+  function confirmedLedgerPanel(workDate) {
+    const panel = el('section', null, 'attendance-ledger');
+    const startLabel = el('label', '시작일');
+    const start = document.createElement('input');
+    start.type = 'date'; start.value = monthStart(workDate);
+    startLabel.append(start);
+    const endLabel = el('label', '종료일');
+    const end = document.createElement('input');
+    end.type = 'date'; end.value = workDate || '';
+    endLabel.append(end);
+    const historyLabel = el('label');
+    const history = document.createElement('input');
+    history.type = 'checkbox';
+    historyLabel.append(history, document.createTextNode('재개방된 이전 revision도 포함'));
+    const results = el('div', '조회 전입니다. 현재 대장은 재개방되지 않은 일일 확정본만 사용합니다.', 'attendance-ledger-results');
+    const query = el('button', '확정 근태 대장 조회', 'button button-quiet');
+    query.type = 'button';
+    query.addEventListener('click', async () => {
+      if (!start.value || !end.value || start.value > end.value) {
+        window.alert('시작일과 종료일을 올바르게 입력하세요.');
+        return;
+      }
+      query.disabled = true;
+      results.replaceChildren(el('p', 'immutable 근태 대장을 불러오고 있습니다.', 'message'));
+      try {
+        const result = await app().rpc('get_confirmed_attendance_period', {
+          p_period_start: start.value,
+          p_period_end: end.value,
+          p_employee_uuid: null,
+          p_include_reopened: history.checked,
+        });
+        const rows = Array.isArray(result?.rows) ? result.rows : [];
+        const summary = el('p', `${result?.active_confirmed_day_count || 0}일 · ${result?.employee_count || 0}명 · ${result?.revision_count || 0} revision · fingerprint ${result?.period_fingerprint || '-'}`);
+        const list = el('div', null, 'attendance-ledger-results');
+        if (!rows.length) list.append(el('p', '선택한 기간에는 확정된 근태가 없습니다.', 'empty'));
+        rows.forEach(row => {
+          const line = el('article', null, 'attendance-ledger-row');
+          line.dataset.reopened = String(Boolean(row?.is_reopened));
+          line.append(
+            el('strong', `${row?.work_date || '-'} · ${row?.display_name_at_confirmation || '직원'} · v${row?.revision_no || '-'}`),
+            el('span', `출근 ${time(row?.clock_in_at)} / 퇴근 ${time(row?.clock_out_at)} · record ${row?.record_fingerprint || '-'}`),
+            el('span', row?.is_reopened ? `재개방됨 · ${row?.reopen_reason || '사유 기록됨'}` : `현재 확정본 · snapshot ${row?.revision_snapshot_fingerprint || '-'}`, 'attendance-evidence-line')
+          );
+          list.append(line);
+        });
+        results.replaceChildren(summary, list);
+      } catch {
+        results.replaceChildren(el('p', '확정 근태 대장을 불러오지 못했습니다.', 'message error'));
+      } finally {
+        query.disabled = false;
+      }
+    });
+    const controls = el('div', null, 'attendance-ledger-controls');
+    controls.append(startLabel, endLabel, historyLabel, query);
+    panel.append(
+      el('h3', '확정 근태 대장'),
+      el('p', '주·월·연 데이터를 별도로 복제하지 않습니다. 일일 확정 revision과 GPS·지문·수기 보정 provenance를 기간별로 다시 읽습니다.'),
+      controls,
+      results
+    );
+    return panel;
+  }
+
   async function openAttendance(workDate = null) {
     if (!can('attendance.admin_view')) return;
     closeSidebar();
@@ -524,7 +601,7 @@
         list.append(line);
       });
 
-      const pieces = [intro, makeToolbar(currentWorkDate), confirmationPanel(confirmation, currentWorkDate), summary];
+      const pieces = [intro, makeToolbar(currentWorkDate), confirmationPanel(confirmation, currentWorkDate), confirmedLedgerPanel(currentWorkDate), summary];
       const unmatchedNode = unmatchedPanel(unmatched, rows, currentWorkDate);
       if (unmatchedNode) pieces.push(unmatchedNode);
       pieces.push(list);

@@ -27,7 +27,7 @@
 | Step 1: 운영팀장 수기 보정 및 사유 규칙 | 구현 완료 | #256 |
 | Step 2: GPS·지문 Excel evidence 비교와 예외 우선 화면 | 구현 완료 | #257 |
 | Step 3: 일일 immutable confirmation revision과 reopen | 구현 완료 | #251 |
-| Step 4: 장기 confirmed attendance ledger/기간 조회 | 미구현·후속 작업 | #252 |
+| Step 4: 장기 confirmed attendance ledger/기간 조회 | 구현 완료 | #252 |
 | Step 5: monthly readiness gate와 payroll input snapshot | 미구현·후속 작업 | #253 |
 | Step 6: synthetic month E2E regression | 미구현·후속 작업 | #254 |
 | Step 7: 개인 급여명세서 초안 | 미구현·후속 작업 | #255 |
@@ -38,6 +38,14 @@
 - 정상 행별 승인 버튼이 아니라 예외 해소 후 하루 전체 확정을 기본 UX로 둔다.
 - 확정된 revision은 이전 GPS·지문 evidence와 보정 이력을 그대로 추적할 수 있어야 한다.
 - 확정 후 보정은 reopen 없이는 차단되고, reopen actor·시각·사유는 감사기록과 함께 보존되어야 한다.
+
+## 장기 보존·복구·내보내기 기준
+
+- 장기 조회는 `attendance_confirmed_records`와 confirmation revision/reopen 이력에서만 도출한다. 주·월·연 별도 복제 테이블은 만들지 않는다.
+- 일반 대장 조회는 재개방되지 않은 revision만 현재 확정본으로 반환하고, 감사·재현 조회는 `include_reopened`로 이전 revision과 reopen 사유를 함께 확인한다.
+- 일일 revision snapshot, 직원 record snapshot, GPS·지문·수기 보정 provenance와 SHA-256 fingerprint는 append-only로 보존한다.
+- 복구는 운영 데이터베이스 백업에서 revision/record/reopen/audit row를 함께 복원한 뒤 period fingerprint를 대조하는 방식으로 수행한다. 운영 UI는 실제 삭제·정정 복구를 제공하지 않는다.
+- 내보내기는 권한 있는 운영자가 capability-gated period RPC 결과를 승인된 내부 도구에서 생성하는 방식으로만 허용하며, 공개 저장소·브라우저 로그·fixture에 실제 직원 근태를 저장하지 않는다.
 
 ## 결정 이력
 
