@@ -43,10 +43,9 @@ test('signout best-effort disables device before ending auth session', async () 
   assert.match(provider, /Signing out must still work if the device-disable request is offline/);
 });
 
-test('employee notification CTA registers native remote push instead of only local permission', async () => {
+test('push infrastructure remains available without a technical setup card on the first home', async () => {
   const home = await text('mobile/app/index.tsx');
   const native = await text('mobile/src/notifications/native-notifications.ts');
-  assert.match(home, /registerCurrentPushDevice/);
-  assert.match(home, /중요공지 Push 알림이 준비되었습니다/);
+  assert.doesNotMatch(home, /registerCurrentPushDevice|중요공지 알림 준비|알림 권한 준비/);
   assert.match(native, /remotePushTokenRegistrationImplemented:\s*true/);
 });

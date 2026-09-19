@@ -55,16 +55,21 @@ test('promotion staff shortcut does not expose mobile authoring to manager roles
   assert.match(shortcut, /setWorkspace\(null\)/);
 });
 
-test('official channel footer uses canonical public URLs and stays visually secondary', async () => {
+test('official channel footer uses canonical public URLs and circular branded shortcuts', async () => {
   const footer = await text('mobile/src/features/common/official-channels-footer.tsx');
   assert.match(footer, /https:\/\/taejang\.co\.kr/);
   assert.match(footer, /https:\/\/blog\.naver\.com\/taejang-official/);
   assert.match(footer, /https:\/\/youtube\.com\/@taejangofficial/);
-  assert.match(footer, /fontSize: 12/);
+  assert.match(footer, /borderRadius:\s*24/);
+  assert.match(footer, /mark:\s*'泰'/);
+  assert.match(footer, /mark:\s*'N'/);
+  assert.match(footer, /mark:\s*'▶'/);
 });
 
-test('employee home integrates promotion shortcut and official channel footer', async () => {
+test('employee home uses one capability-driven work-platform action instead of role-specific home shortcuts', async () => {
   const home = await text('mobile/app/index.tsx');
-  assert.match(home, /PromotionStaffShortcut/);
+  assert.match(home, /WORK_PLATFORM_CAPABILITIES/);
+  assert.match(home, /업무 플랫폼 열기/);
   assert.match(home, /OfficialChannelsFooter/);
+  assert.doesNotMatch(home, /PromotionStaffShortcut/);
 });

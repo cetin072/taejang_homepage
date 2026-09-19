@@ -28,6 +28,7 @@
     '신규 직원 등록 요청'
   ]);
   const ACCOUNT_APPROVAL_CAPABILITIES = Object.freeze([
+    'employee.onboard',
     'account.approve',
     'account.reject'
   ]);

@@ -46,13 +46,18 @@ test('recovery completion validates the recovery token and updates the password 
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
 });
 
-test('signup approval source keeps operations manager as the sole approval authority', () => {
-  const migration = read('supabase/migrations/20260903210000_phase_c_signup_approval_chain.sql');
+test('legacy signup path stays operations-only while native onboarding uses a narrow approval capability', () => {
+  const legacy = read('supabase/migrations/20260903210000_phase_c_signup_approval_chain.sql');
+  const onboarding = read('supabase/migrations/20260919235000_issue_274_mobile_onboarding_holiday.sql');
   const ui = read('app/assets/phase-c-account-approval.js');
-  assert.match(migration, /current_user_has_role\('operations_manager'\)/);
-  assert.match(migration, /technical super_admin role does not independently grant signup approval/i);
-  assert.doesNotMatch(migration, /current_user_has_role\('promotion_lead'\)/);
-  assert.match(ui, /route\(\) !== 'operations_manager'/);
-  assert.match(ui, /운영총괄 고유 권한/);
+
+  assert.match(legacy, /current_user_has_role\('operations_manager'\)/);
+  assert.match(legacy, /technical super_admin role does not independently grant signup approval/i);
+
+  assert.match(onboarding, /'employee\.onboard'/);
+  assert.match(onboarding, /role\.code = 'promotion_lead'/);
+  assert.match(onboarding, /operations_manager_auto_grant/);
+  assert.match(ui, /canOnboard/);
+  assert.match(ui, /employee\.onboard/);
   assert.match(ui, /권한 선택/);
 });

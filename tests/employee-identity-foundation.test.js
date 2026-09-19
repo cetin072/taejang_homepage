@@ -18,6 +18,7 @@ const employeeUi = read('app/assets/employee-management.js');
 const approvalUi = read('app/assets/phase-c-account-approval.js');
 const menuStatus = read('app/assets/menu-status.js');
 const attendance = read('supabase/migrations/20260903234500_worker_mobile_attendance_v1.sql');
+const onboarding = read('supabase/migrations/20260919235000_issue_274_mobile_onboarding_holiday.sql');
 
 test('employee browser modules parse as valid JavaScript', () => {
   for (const [name, source] of [
@@ -84,15 +85,18 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(safeDefaults, /p\.code='general_worker' then 0/);
 });
 
-test('staff signup approval requires an explicit Employee selection and blocks legacy bypass', () => {
-  assert.match(approvalUi, /get_signup_employee_options/);
-  assert.match(approvalUi, /approve_signup_request_with_employee/);
-  assert.match(approvalUi, /연결할 직원 선택/);
-  assert.match(approvalUi, /이름이나 이메일로 자동매칭하지 않습니다/);
+test('native signup approval creates Employee atomically while legacy bypass remains blocked', () => {
+  assert.match(approvalUi, /list_employee_signup_requests/);
+  assert.match(approvalUi, /get_employee_signup_approval_options/);
+  assert.match(approvalUi, /approve_employee_signup_request/);
+  assert.match(approvalUi, /직원 생성 후 가입 승인/);
+  assert.match(approvalUi, /이름이나 전화번호로 기존 직원을 자동 연결하지 않습니다/);
+  assert.doesNotMatch(approvalUi, /get_signup_employee_options|연결할 직원 선택/);
+
+  assert.match(onboarding, /private_insert_employee/);
+  assert.match(onboarding, /'employee\.onboard'/);
+  assert.match(onboarding, /ROLE_NOT_ASSIGNABLE/);
   assert.match(signupGuard, /EMPLOYEE_LINK_REQUIRED/);
-  assert.match(signupGuard, /general_worker/);
-  assert.match(signupGuard, /promotion_staff/);
-  assert.match(signupGuard, /promotion_lead/);
 });
 
 test('unfinished menus are explicitly labelled 점검중 while implemented menus remain untouched', () => {

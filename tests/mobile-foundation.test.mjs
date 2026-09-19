@@ -45,6 +45,7 @@ test('mobile auth reuses Supabase session with SecureStore persistence', async (
   assert.match(provider, /startAutoRefresh/);
   assert.match(provider, /stopAutoRefresh/);
   assert.match(provider, /signInWithPassword/);
+  assert.match(provider, /signUpEmployee/);
 });
 
 test('native notification foundation preserves Android channel and permission handling', async () => {
@@ -55,11 +56,16 @@ test('native notification foundation preserves Android channel and permission ha
   assert.match(notifications, /taejang-important-notices/);
 });
 
-test('first mobile screen remains employee-focused as features are layered on foundation', async () => {
+test('first mobile screen is Taejang branded and keeps technical status off the home surface', async () => {
+  const appConfig = JSON.parse(await text('mobile/app.json'));
   const app = await text('mobile/app/index.tsx');
-  assert.match(app, /태장 직원앱/);
-  assert.match(app, /출퇴근과 중요공지/);
-  assert.match(app, /중요공지 알림 준비/);
+  assert.equal(appConfig.expo.name, '태장');
+  assert.match(app, /태장 업무플랫폼/);
+  assert.match(app, /가입 요청/);
+  assert.match(app, /AttendanceCard/);
+  assert.match(app, /NoticeHomeAction/);
+  assert.match(app, /업무 플랫폼 열기/);
+  assert.doesNotMatch(app, /로그인 상태|SecureStore 기반 세션|중요공지 알림 준비|직원앱 준비 완료/);
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 

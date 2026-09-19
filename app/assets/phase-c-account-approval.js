@@ -4,6 +4,9 @@
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
   const main = () => document.getElementById('dashboard-main');
+  const canOnboard = () => app()?.hasCapabilityContract?.()
+    ? Boolean(app()?.can?.('employee.onboard'))
+    : ['promotion_lead', 'operations_manager'].includes(route());
   let dashboardSyncing = false;
 
   const el = (tag, text, className) => {
@@ -14,7 +17,7 @@
   };
 
   const button = (label, handler, quiet = false) => {
-    const node = el('button', label, `button${quiet ? ' button-quiet' : ''}`);
+    const node = el('button', label, 'button' + (quiet ? ' button-quiet' : ''));
     node.type = 'button';
     node.addEventListener('click', handler);
     return node;
@@ -25,26 +28,17 @@
     document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
   }
 
-  function roleSelect(items) {
+  function selectControl(items, placeholder) {
     const select = document.createElement('select');
     select.required = true;
-    const empty = document.createElement('option'); empty.value = ''; empty.textContent = '권한 선택'; select.append(empty);
-    (Array.isArray(items) ? items : []).forEach(item => {
-      const option = document.createElement('option'); option.value = item.code; option.textContent = item.name; select.append(option);
-    });
-    return select;
-  }
-
-  function employeeSelect(items) {
-    const select = document.createElement('select');
-    select.required = true;
-    const empty = document.createElement('option'); empty.value = ''; empty.textContent = '연결할 직원 선택'; select.append(empty);
+    const empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = placeholder;
+    select.append(empty);
     (Array.isArray(items) ? items : []).forEach(item => {
       const option = document.createElement('option');
-      option.value = item.employee_uuid;
-      option.textContent = `${item.employee_id} · ${item.full_name} · ${item.department_name} · ${item.position_name}`;
-      option.dataset.department = item.department_name;
-      option.dataset.position = item.position_name;
+      option.value = item.id || item.code;
+      option.textContent = item.name;
       select.append(option);
     });
     return select;
@@ -57,21 +51,24 @@
   }
 
   function setCardBusy(card, busy) {
-    card.querySelectorAll('button').forEach(node => { node.disabled = busy; });
+    card.querySelectorAll('button,select,input').forEach(node => { node.disabled = busy; });
   }
 
-  async function approve(profile, employee, role, reason, card) {
-    if (!employee.value || !role.value) {
-      window.alert('실제 직원과 권한을 모두 선택해 주세요.');
+  async function approve(profile, controls, card) {
+    if (!controls.department.value || !controls.position.value || !controls.role.value) {
+      window.alert('부서, 직책, 업무 권한을 모두 선택해 주세요.');
       return;
     }
+
     setCardBusy(card, true);
     try {
-      const result = await app().rpc('approve_signup_request_with_employee', {
+      const result = await app().rpc('approve_employee_signup_request', {
         p_target_profile_id: profile.id,
-        p_employee_uuid: employee.value,
-        p_role_code: role.value,
-        p_reason_summary: reason.value.trim() || '실제 직원 확인 후 계정 연결 및 가입 승인'
+        p_department_id: controls.department.value,
+        p_position_id: controls.position.value,
+        p_role_code: controls.role.value,
+        p_attendance_required: controls.attendance.checked,
+        p_reason_summary: controls.reason.value.trim() || '신입 가입요청 확인 후 직원 생성 및 계정 승인'
       });
       if (!result?.ok) throw new Error(result?.code || 'APPROVAL_FAILED');
       await openAccountApproval();
@@ -88,14 +85,12 @@
       rejectReason.focus();
       return;
     }
-    const name = profile.display_name || '이 신청';
-    if (!window.confirm(`${name}의 가입 신청을 거절할까요?\n거절된 계정은 업무플랫폼을 사용할 수 없습니다.`)) return;
+    if (!window.confirm((profile.display_name || '이 신청') + '의 가입 요청을 거절할까요?')) return;
 
     setCardBusy(card, true);
     try {
-      const result = await app().rpc('record_pending_decision', {
+      const result = await app().rpc('reject_employee_signup_request', {
         p_target_profile_id: profile.id,
-        p_decision: 'rejected',
         p_reason_summary: reason
       });
       if (!result?.ok) throw new Error(result?.code || 'REJECTION_FAILED');
@@ -106,120 +101,150 @@
     }
   }
 
-  function requestCard(profile, options, employees) {
+  function requestCard(profile, options) {
     const card = el('article', null, 'dashboard-card');
     card.dataset.signupApprovalCard = profile.id;
-    card.append(el('span', '임직원 계정 신청', 'status-label'));
+    card.append(el('span', '신입 가입 요청', 'status-label'));
     card.append(el('h3', profile.display_name || '이름 없음'));
-    card.append(el('p', profile.work_email || '이메일 없음'));
 
-    const form = el('div', null, 'phase-c-signup-approval-form');
-    const employee = employeeSelect(employees);
-    const role = roleSelect(options?.roles);
-    const linkedSummary = el('p', '직원을 선택하면 등록된 부서·직책으로 계정이 승인됩니다.', 'help');
-    employee.addEventListener('change', () => {
-      const selected = employee.selectedOptions?.[0];
-      linkedSummary.textContent = employee.value
-        ? `연결 정보: ${selected?.dataset.department || '-'} · ${selected?.dataset.position || '-'}`
-        : '직원을 선택하면 등록된 부서·직책으로 계정이 승인됩니다.';
+    const applicant = el('dl', null, 'phase-c-signup-applicant');
+    [
+      ['이메일', profile.work_email || '-'],
+      ['전화번호', profile.phone || '-'],
+      ['입사일', profile.hired_on || '-']
+    ].forEach(([label, value]) => {
+      applicant.append(el('dt', label), el('dd', value));
     });
 
+    const form = el('div', null, 'phase-c-signup-approval-form');
+    const department = selectControl(options?.departments, '부서 선택');
+    const position = selectControl(options?.positions, '직책 선택');
+    const role = selectControl(options?.roles, '업무 권한 선택');
+
+    const attendance = document.createElement('input');
+    attendance.type = 'checkbox';
+    attendance.checked = true;
+    const attendanceField = el('label', null, 'phase-c-signup-check');
+    attendanceField.append(attendance, el('span', '근태 기록 대상'));
+
     const reason = document.createElement('input');
-    reason.type = 'text'; reason.maxLength = 300; reason.value = '실제 직원 확인 후 계정 연결 및 가입 승인';
+    reason.type = 'text';
+    reason.maxLength = 300;
+    reason.value = '신입 가입요청 확인 후 직원 생성 및 계정 승인';
 
     const rejectReason = document.createElement('input');
-    rejectReason.type = 'text'; rejectReason.maxLength = 300;
-    rejectReason.placeholder = '예: 직원 아님, 중복 신청';
+    rejectReason.type = 'text';
+    rejectReason.maxLength = 300;
+    rejectReason.placeholder = '예: 입사 취소, 잘못된 신청';
 
     form.append(
-      field('실제 직원', employee),
-      linkedSummary,
+      field('부서', department),
+      field('직책', position),
       field('업무 권한', role),
+      attendanceField,
       field('승인 처리 사유', reason),
       field('거절 사유', rejectReason)
     );
 
+    const help = el(
+      'p',
+      '승인하면 직원번호를 자동 발급하고 Person·Employee를 생성한 뒤 이 가입 계정과 연결합니다. 이름이나 전화번호로 기존 직원을 자동 연결하지 않습니다.',
+      'help'
+    );
+
     const actions = el('div', null, 'quick-links');
-    const approveButton = button('직원 연결 후 가입 승인', () => approve(profile, employee, role, reason, card));
+    const controls = { department, position, role, attendance, reason };
+    const approveButton = button('직원 생성 후 가입 승인', () => approve(profile, controls, card));
     approveButton.dataset.approveSignup = '1';
     const rejectButton = button('가입 거절', () => reject(profile, rejectReason, card));
     rejectButton.className = 'button button-danger';
     rejectButton.dataset.rejectSignup = '1';
     actions.append(approveButton, rejectButton);
-    card.append(form, actions);
+
+    card.append(applicant, form, help, actions);
     return card;
   }
 
   function injectStyles() {
     if (document.querySelector('style[data-phase-c-account-approval]')) return;
-    const style = document.createElement('style'); style.dataset.phaseCAccountApproval = '1';
-    style.textContent = `
-      .phase-c-signup-approval-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-      .phase-c-signup-approval-form { display:grid; gap:10px; margin-top:12px; }
-      .phase-c-signup-approval-form label { display:grid; gap:6px; font-weight:800; }
-      .phase-c-signup-approval-form select,.phase-c-signup-approval-form input { width:100%; min-height:44px; padding:9px 10px; border:1px solid var(--app-border); border-radius:9px; background:#fff; font:inherit; }
-      @media(max-width:760px){.phase-c-signup-approval-grid{grid-template-columns:1fr;}}
-    `;
+    const style = document.createElement('style');
+    style.dataset.phaseCAccountApproval = '1';
+    style.textContent = [
+      '.phase-c-signup-approval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}',
+      '.phase-c-signup-applicant{display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;margin:12px 0;padding:12px;border-radius:12px;background:#f7f8f4;}',
+      '.phase-c-signup-applicant dt{font-weight:900;color:#52665b}.phase-c-signup-applicant dd{margin:0;word-break:break-all;}',
+      '.phase-c-signup-approval-form{display:grid;gap:10px;margin-top:12px;}',
+      '.phase-c-signup-approval-form label{display:grid;gap:6px;font-weight:800;}',
+      '.phase-c-signup-approval-form select,.phase-c-signup-approval-form input[type="text"]{width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--app-border);border-radius:9px;background:#fff;font:inherit;}',
+      '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:42px;}',
+      '.phase-c-signup-check input{width:20px;height:20px;}',
+      '@media(max-width:760px){.phase-c-signup-approval-grid{grid-template-columns:1fr;}}'
+    ].join('\n');
     document.head.append(style);
   }
 
   async function openAccountApproval() {
     closeSidebar();
     const target = main();
-    if (!target || route() !== 'operations_manager') return;
+    if (!target || !canOnboard()) return;
     document.getElementById('desktop-page-title').textContent = '가입 승인';
-    target.replaceChildren(el('p', '가입 신청과 직원 마스터를 불러오고 있습니다.', 'message'));
+    target.replaceChildren(el('p', '신입 가입 요청을 불러오고 있습니다.', 'message'));
+
     try {
-      const [requests, options, employees] = await Promise.all([
-        app().rpc('list_pending_signup_requests'),
-        app().rpc('get_signup_approval_options'),
-        app().rpc('get_signup_employee_options')
+      const [requests, options] = await Promise.all([
+        app().rpc('list_employee_signup_requests'),
+        app().rpc('get_employee_signup_approval_options')
       ]);
+
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
-        el('p', '운영총괄 고유 권한', 'eyebrow'),
-        el('h2', '임직원 계정 승인'),
-        el('p', '실제 직원은 직원 마스터와 연결해 승인하고, 잘못된 신청이나 비직원 신청은 사유를 남겨 거절합니다. 이름이나 이메일로 자동매칭하지 않습니다.')
+        el('p', '신입 온보딩', 'eyebrow'),
+        el('h2', '가입 요청 승인'),
+        el('p', '신입은 이름·이메일·전화번호·입사일만 신청합니다. 담당자가 부서·직책·권한·근태대상을 확인하고 승인하면 직원 마스터와 계정 연결이 한 번에 생성됩니다.')
       );
-      if (!Array.isArray(employees) || !employees.length) {
-        intro.append(el('p', '연결 가능한 직원이 없습니다. 먼저 사이드바의 직원 관리에서 직원을 등록하거나 기존 직원을 확인하세요.', 'message'));
-      }
+
       const grid = el('section', null, 'phase-c-signup-approval-grid');
       const rows = Array.isArray(requests) ? requests : [];
-      if (!rows.length) grid.append(el('p', '현재 승인할 임직원 계정 신청이 없습니다.', 'empty'));
-      rows.forEach(profile => grid.append(requestCard(profile, options || {}, employees || [])));
+      if (!rows.length) grid.append(el('p', '현재 승인할 신입 가입 요청이 없습니다.', 'empty'));
+      rows.forEach(profile => grid.append(requestCard(profile, options || {})));
       target.replaceChildren(intro, grid);
     } catch (error) {
-      target.replaceChildren(el('p', app().friendlyError?.(error) || '가입 신청을 불러오지 못했습니다.', 'message error'));
+      target.replaceChildren(el('p', app().friendlyError?.(error) || '가입 요청을 불러오지 못했습니다.', 'message error'));
     }
   }
 
   async function syncDashboard() {
     const target = main();
-    if (!target || route() !== 'operations_manager' || dashboardSyncing) return;
+    if (!target || !canOnboard() || dashboardSyncing) return;
     const heading = target.querySelector('.dashboard-intro h2')?.textContent || '';
     if (!heading.includes('대시보드') || target.querySelector('[data-phase-c-account-approval-card]')) return;
-    const grid = target.querySelector('.dashboard-grid'); if (!grid) return;
+    const grid = target.querySelector('.dashboard-grid');
+    if (!grid) return;
 
     dashboardSyncing = true;
     try {
-      const requests = await app().rpc('list_pending_signup_requests');
+      const requests = await app().rpc('list_employee_signup_requests');
       const rows = Array.isArray(requests) ? requests : [];
-      if (!rows.length || !grid.isConnected || route() !== 'operations_manager') return;
-      const card = el('article', null, 'dashboard-card'); card.dataset.phaseCAccountApprovalCard = '1';
-      card.append(el('span', '승인 필요', 'status-label'), el('h3', '가입 승인'));
-      card.append(el('p', `${rows.length}건의 가입 신청을 확인해야 합니다.`, 'dashboard-value'));
-      card.append(el('p', '직원 여부를 확인한 뒤 승인하거나 사유를 남겨 거절하세요.'));
+      if (!rows.length || !grid.isConnected || !canOnboard()) return;
+      const card = el('article', null, 'dashboard-card');
+      card.dataset.phaseCAccountApprovalCard = '1';
+      card.append(el('span', '승인 필요', 'status-label'), el('h3', '신입 가입 승인'));
+      card.append(el('p', rows.length + '건의 가입 요청을 확인해야 합니다.', 'dashboard-value'));
+      card.append(el('p', '부서·직책·권한을 확인하면 직원 생성과 계정 연결까지 한 번에 처리됩니다.'));
       card.append(button('가입 승인 열기', openAccountApproval, true));
       grid.prepend(card);
-    } catch { /* Dashboard remains usable if signup summary is unavailable. */ }
-    finally { dashboardSyncing = false; }
+    } catch {
+      // Dashboard remains usable if signup summary is unavailable.
+    } finally {
+      dashboardSyncing = false;
+    }
   }
 
   injectStyles();
   document.addEventListener('taejang-open-account-approval', openAccountApproval);
   document.addEventListener('taejang-app-ready', () => setTimeout(syncDashboard, 120));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(syncDashboard, 160));
+  document.addEventListener('taejang-capabilities-ready', () => setTimeout(syncDashboard, 0));
 
   window.TaejangAccountApproval = { openAccountApproval, syncDashboard };
 })();

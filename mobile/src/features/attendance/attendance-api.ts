@@ -6,10 +6,12 @@ export type AttendanceEventStatus =
   | 'recorded'
   | 'exception_pending'
   | 'exception_approved'
-  | 'exception_rejected';
+  | 'exception_rejected'
+  | 'corrected'
+  | 'correction_invalidated';
 
 export type AttendanceEvent = {
-  id: string;
+  id?: string;
   status: AttendanceEventStatus;
   event_at: string | null;
   requested_at: string | null;
@@ -17,7 +19,10 @@ export type AttendanceEvent = {
 
 export type AttendanceToday = {
   work_date: string;
+  employee_uuid?: string;
+  attendance_required?: boolean;
   is_workday?: boolean;
+  holiday_work_assigned?: boolean;
   day_reason?: string | null;
   clock_in: AttendanceEvent | null;
   clock_out: AttendanceEvent | null;
