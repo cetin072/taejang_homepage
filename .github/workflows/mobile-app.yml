@@ -6,6 +6,12 @@ on:
       - 'mobile/**'
       - 'tests/mobile-*.test.mjs'
       - '.github/workflows/mobile-app.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'tests/mobile-*.test.mjs'
+      - '.github/workflows/mobile-app.yml'
 
 concurrency:
   group: taejang-mobile-${{ github.ref }}
