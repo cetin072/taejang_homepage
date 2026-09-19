@@ -367,8 +367,7 @@ export default function HomeScreen() {
         <StatusBar style="dark" />
         <Text style={styles.brandMark}>泰張</Text>
         <Text style={styles.title}>가입 승인 대기</Text>
-        <Text style={styles.bodyCenter}>가입 요청이 접수되었습니다.{'
-'}운영팀장 확인 후 이용할 수 있습니다.</Text>
+        <Text style={styles.bodyCenter}>가입 요청이 접수되었습니다.{String.fromCharCode(10)}운영팀장 확인 후 이용할 수 있습니다.</Text>
         <Pressable style={styles.smallButton} onPress={() => void refreshAccess()}>
           <Text style={styles.smallButtonText}>{accessLoading ? '확인 중…' : '승인 상태 확인'}</Text>
         </Pressable>
