@@ -78,6 +78,13 @@
       .attendance-ledger-row { padding:10px; border:1px solid var(--app-border); border-radius:10px; background:#fbfdfb; line-height:1.45; }
       .attendance-ledger-row[data-reopened="true"] { background:#fff8e9; border-color:#e2c68d; }
       .attendance-ledger-row strong { display:block; }
+      .attendance-holiday-work { margin:14px 0; padding:16px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; }
+      .attendance-holiday-work h3 { margin:0; }
+      .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
+      .attendance-holiday-work-list { display:grid; gap:8px; }
+      .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
+      .attendance-holiday-work-row strong { display:block; }
+      .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
       @media(max-width:900px){.attendance-row{grid-template-columns:1fr 1fr}.attendance-person{grid-column:1/-1}}
       @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}.attendance-toolbar{display:grid;grid-template-columns:1fr}}
     `;
@@ -521,6 +528,67 @@
     return panel;
   }
 
+  async function toggleHolidayWork(row, workDate, enabled) {
+    if (!can('attendance.correct')) return;
+    const action = enabled ? '휴일근무 지정' : '휴일근무 지정 해제';
+    const reason = window.prompt(action + ' 사유를 입력하세요.');
+    if (!reason || reason.trim().length < 2) {
+      window.alert('사유를 2자 이상 입력해주세요.');
+      return;
+    }
+    const result = await app().rpc('set_attendance_holiday_work_assignment', {
+      p_employee_uuid: row.employee_uuid,
+      p_work_date: workDate,
+      p_enabled: enabled,
+      p_reason: reason.trim()
+    });
+    if (!result?.ok) {
+      window.alert('휴일근무 지정을 처리하지 못했습니다. ' + (result?.code || ''));
+      return;
+    }
+    await openAttendance(workDate);
+  }
+
+  function holidayWorkPanel(dayStatus, assignmentData, rows, workDate) {
+    if (dayStatus?.is_workday !== false) return null;
+    const panel = el('section', null, 'attendance-holiday-work');
+    panel.append(
+      el('h3', '휴일근무 지정'),
+      el('p', (dayStatus?.reason || '휴일') + '입니다. 기본적으로 출근은 막혀 있으며, 여기에서 지정한 직원만 앱에서 출퇴근할 수 있습니다.')
+    );
+
+    const assigned = new Set(
+      (Array.isArray(assignmentData?.rows) ? assignmentData.rows : [])
+        .map(item => String(item.employee_uuid || ''))
+        .filter(Boolean)
+    );
+    const list = el('div', null, 'attendance-holiday-work-list');
+
+    rows.forEach(row => {
+      const isAssigned = assigned.has(String(row.employee_uuid));
+      const line = el('div', null, 'attendance-holiday-work-row');
+      const copy = el('div');
+      copy.append(
+        el('strong', row.display_name || '직원'),
+        el('span', (row.employee_id || '') + (isAssigned ? ' · 휴일근무 지정됨' : ' · 기본 휴일'))
+      );
+      line.append(copy);
+      if (can('attendance.correct')) {
+        const action = el('button', isAssigned ? '지정 해제' : '휴일근무 지정', 'button button-quiet');
+        action.type = 'button';
+        action.addEventListener('click', () => {
+          toggleHolidayWork(row, workDate, !isAssigned).catch(() => window.alert('휴일근무 지정을 처리하지 못했습니다.'));
+        });
+        line.append(action);
+      }
+      list.append(line);
+    });
+
+    if (!rows.length) list.append(el('p', '휴일근무를 지정할 근태 대상 직원이 없습니다.', 'empty'));
+    panel.append(list);
+    return panel;
+  }
+
   async function openAttendance(workDate = null) {
     if (!can('attendance.admin_view')) return;
     closeSidebar();
@@ -532,10 +600,12 @@
       const requestedWorkDate = workDate || new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
       }).format(new Date());
-      const [data, evidenceData, confirmation] = await Promise.all([
+      const [data, evidenceData, confirmation, dayStatus, holidayAssignments] = await Promise.all([
         app().rpc('get_attendance_admin_today', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_external_evidence', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_confirmation_status', { p_work_date: requestedWorkDate }),
+        app().rpc('get_attendance_workday_status', { p_work_date: requestedWorkDate }),
+        app().rpc('get_attendance_holiday_work_assignments', { p_work_date: requestedWorkDate }),
       ]);
       currentWorkDate = data?.work_date || evidenceData?.work_date || requestedWorkDate;
       const rows = Array.isArray(data?.rows) ? data.rows : [];
@@ -601,7 +671,10 @@
         list.append(line);
       });
 
-      const pieces = [intro, makeToolbar(currentWorkDate), confirmationPanel(confirmation, currentWorkDate), confirmedLedgerPanel(currentWorkDate), summary];
+      const pieces = [intro, makeToolbar(currentWorkDate)];
+      const holidayPanel = holidayWorkPanel(dayStatus, holidayAssignments, rows, currentWorkDate);
+      if (holidayPanel) pieces.push(holidayPanel);
+      pieces.push(confirmationPanel(confirmation, currentWorkDate), confirmedLedgerPanel(currentWorkDate), summary);
       const unmatchedNode = unmatchedPanel(unmatched, rows, currentWorkDate);
       if (unmatchedNode) pieces.push(unmatchedNode);
       pieces.push(list);
