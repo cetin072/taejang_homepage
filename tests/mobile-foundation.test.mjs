@@ -15,6 +15,7 @@ test('Taejang mobile foundation pins the reused Expo 57 compatible stack', async
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);
   assert.ok(pkg.dependencies['expo-notifications']);
+  assert.equal(pkg.dependencies['@react-native-community/datetimepicker'], '9.1.0');
   assert.equal(pkg.dependencies['react-dom'], '19.2.3');
   assert.equal(pkg.dependencies['react-native-reanimated'], '4.5.1');
   assert.equal(pkg.dependencies['react-native-worklets'], '0.10.1');
@@ -46,6 +47,8 @@ test('mobile auth reuses Supabase session with SecureStore persistence', async (
   assert.match(provider, /stopAutoRefresh/);
   assert.match(provider, /signInWithPassword/);
   assert.match(provider, /signUpEmployee/);
+  assert.match(provider, /resetPasswordForEmail/);
+  assert.match(provider, /staff\/reset-password\.html/);
 });
 
 test('native notification foundation preserves Android channel and permission handling', async () => {
@@ -62,6 +65,9 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   assert.equal(appConfig.expo.name, '태장');
   assert.match(app, /태장 업무플랫폼/);
   assert.match(app, /가입 요청/);
+  assert.match(app, /비밀번호 찾기/);
+  assert.match(app, /비밀번호 보기/);
+  assert.match(app, /DateTimePicker/);
   assert.match(app, /AttendanceCard/);
   assert.match(app, /NoticeHomeAction/);
   assert.match(app, /업무 플랫폼 열기/);
