@@ -40,7 +40,7 @@ function collectRunnableTests(directory) {
 function manifestFiles() {
   const source = fs.readFileSync(manifestPath, 'utf8');
   return new Set(
-    [...source.matchAll(/'((?:tests\/)\[^']+\.(?:js|mjs))'/g)].map(match => match[1])
+    [...source.matchAll(/'(tests\/[^']+\.(?:js|mjs))'/g)].map(match => match[1])
   );
 }
 
