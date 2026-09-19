@@ -3,7 +3,7 @@
 // Disposable-local Supabase regression for Goal #226 / Issue #254.  It uses
 // synthetic identities and dates only; no production project is contacted.
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -85,6 +85,18 @@ function sqlMustFail(statement, expectedMessage) {
     const output = `${error.stdout || ''}\n${error.stderr || ''}\n${error.message || ''}`;
     assert.match(output, expectedMessage, `database mutation is rejected: ${statement}`);
   }
+}
+
+function sqlAsync(statement) {
+  return new Promise((resolve, reject) => {
+    execFile('docker', [
+      'exec', databaseContainer(), 'psql', '-U', 'postgres', '-d', 'postgres',
+      '-v', 'ON_ERROR_STOP=1', '-tA', '-c', statement,
+    ], { encoding: 'utf8' }, (error, stdout, stderr) => {
+      if (error) reject(new Error(`${stderr || ''}\n${error.message}`));
+      else resolve(stdout.trim());
+    });
+  });
 }
 
 const admin = await signUp('issue-254-payroll-admin@example.test', 'Issue 254 급여 운영자');
@@ -258,6 +270,28 @@ equal(
   '1',
   'manual correction trace remains append-only',
 );
+
+// Two independent database sessions exercise the shared per-date lock used by
+// confirmation/reopen and the correction trigger.  While the confirmation
+// lock is held, a normal correction RPC cannot pass the active-day test; once
+// released it deterministically returns the reopen-required denial.
+const lockSession = sqlAsync(`begin;
+  select pg_advisory_xact_lock(hashtextextended('attendance-confirm:${correctedDate}', 0));
+  select pg_sleep(1);
+  commit;`);
+await new Promise(resolve => setTimeout(resolve, 150));
+const concurrentStartedAt = Date.now();
+const concurrentCorrection = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: correctedDate,
+  p_event_type: 'clock_out',
+  p_action: 'set_time',
+  p_corrected_event_at: `${correctedDate}T17:50:00+09:00`,
+  p_reason: 'Issue 272 concurrent correction must serialize behind confirmation lock',
+});
+await lockSession;
+equal(concurrentCorrection.data?.message, 'DAY_CONFIRMED_REOPEN_REQUIRED', 'concurrent confirmed-day correction is denied after the shared confirmation-date lock releases');
+check(Date.now() - concurrentStartedAt >= 650, 'correction RPC waited for the independent confirmation-lock session instead of racing its snapshot decision');
 
 const readiness = await rpc('get_payroll_confirmed_attendance_readiness', admin.token, {
   p_payroll_month: '2026-09-01', p_cutoff_date: '2026-09-30',

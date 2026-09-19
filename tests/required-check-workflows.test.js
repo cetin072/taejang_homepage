@@ -18,6 +18,7 @@ test('required PR check workflows always create a check for main pull requests',
 });
 
 test('Phase 1A uses a docs-only skip instead of a sensitive-path allow-list', () => {
+  assert.match(phaseWorkflow, /push:\s*\n\s*branches: \[main\]/, 'Phase 1A runs isolated migration and Auth/Data API integration after every main push');
   assert.match(phaseWorkflow, /Decide whether full platform integration is relevant/);
   assert.match(phaseWorkflow, /fetch-depth: 0/);
   assert.match(phaseWorkflow, /non_docs=/);
