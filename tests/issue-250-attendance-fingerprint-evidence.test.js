@@ -45,7 +45,7 @@ test('platform shell reuses the existing XLSX parser and loads attendance admini
 });
 
 test('attendance roster compares GPS and fingerprint evidence and prioritizes exceptions', () => {
-  assert.match(admin, /ALIGNMENT_TOLERANCE_MINUTES = 10/);
+  assert.match(admin, /ALIGNMENT_TOLERANCE_MINUTES = 5/);
   assert.match(admin, /GPS·지문 대체로 일치/);
   assert.match(admin, /GPS·지문 시간차/);
   assert.match(admin, /지문만 있음 · 확인/);
