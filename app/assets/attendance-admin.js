@@ -3,7 +3,7 @@
 
   const legacyAllowed = new Set(['promotion_lead', 'operations_manager']);
   const EVIDENCE_SOURCE = 'fingerprint_excel';
-  const ALIGNMENT_TOLERANCE_MINUTES = 10;
+  const ALIGNMENT_TOLERANCE_MINUTES = 5;
   let currentWorkDate = null;
 
   const app = () => window.TaejangApp;
@@ -263,7 +263,7 @@
 
     toolbar.append(el(
       'p',
-      'GPS와 지문 Excel은 원본 근거로 따로 보존합니다. 10분 이내 차이는 정상 후보로 표시하고, 누락·큰 차이·미매칭만 우선 확인합니다.',
+      'GPS와 지문 Excel은 원본 근거로 따로 보존합니다. 5분 이내 차이는 정상 후보로 표시하고, 누락·큰 차이·미매칭만 우선 확인합니다.',
       'attendance-evidence-help'
     ));
     return toolbar;
