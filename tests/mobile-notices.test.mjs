@@ -14,12 +14,20 @@ test('mobile notice API reuses existing guarded Supabase RPC contracts', async (
   assert.doesNotMatch(api, /from\(['"]notices['"]\)|\/rest\/v1\/notices/i);
 });
 
-test('notice list marks acknowledgement state and opens an exact notice route', async () => {
-  const list = await text('mobile/src/features/notices/notice-list-card.tsx');
-  assert.match(list, /requires_acknowledgement/);
-  assert.match(list, /acknowledged/);
+test('home notice action sends one active notice directly to detail and multiple to list', async () => {
+  const homeAction = await text('mobile/src/features/notices/notice-home-action.tsx');
+  assert.match(homeAction, /items\.length === 1/);
+  assert.match(homeAction, /router\.push\(noticeDeepLinkPath\(items\[0\]\.id\)\)/);
+  assert.match(homeAction, /router\.push\('\/notices'\)/);
+  assert.match(homeAction, /공지사항/);
+});
+
+test('notice list route uses large current-notice cards and handles empty state', async () => {
+  const list = await text('mobile/app/notices/index.tsx');
+  assert.match(list, /loadMyNotices/);
+  assert.match(list, /현재 확인할 공지가 없습니다/);
   assert.match(list, /noticeDeepLinkPath/);
-  assert.match(list, /router\.push/);
+  assert.match(list, /minHeight:\s*118/);
 });
 
 test('notice detail route can acknowledge the exact current notice version', async () => {
@@ -31,15 +39,16 @@ test('notice detail route can acknowledge the exact current notice version', asy
   assert.match(detail, /내용 확인했습니다/);
 });
 
-test('notice route is suitable for future native push deep linking', async () => {
+test('notice route is suitable for native push deep linking', async () => {
   const api = await text('mobile/src/features/notices/notice-api.ts');
   assert.match(api, /\/notices\/\$\{encodeURIComponent\(noticeId\)\}/);
   const app = JSON.parse(await text('mobile/app.json'));
   assert.equal(app.expo.scheme, 'taejangstaff');
 });
 
-test('mobile notice slice does not introduce a new backend or broaden manager scope', async () => {
+test('mobile notice slice does not broaden manager scope', async () => {
   const api = await text('mobile/src/features/notices/notice-api.ts');
   const detail = await text('mobile/app/notices/[id].tsx');
-  assert.doesNotMatch(api + detail, /service_role|SUPABASE_SERVICE_ROLE_KEY|save_notice|list_manageable_notices/i);
+  const list = await text('mobile/app/notices/index.tsx');
+  assert.doesNotMatch(api + detail + list, /service_role|SUPABASE_SERVICE_ROLE_KEY|save_notice|list_manageable_notices/i);
 });
