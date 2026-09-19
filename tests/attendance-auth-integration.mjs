@@ -291,6 +291,97 @@ const leadMissingBackfill = await rpc('create_attendance_correction', lead.token
 equal(leadMissingBackfill.data?.code, 'ATTENDANCE_CORRECTED', 'promotion lead can backfill a missing effective time without typing a reason');
 equal(leadMissingBackfill.data?.mode, 'manual_backfill', 'missing-time correction is explicitly classified as manual_backfill');
 
+const fingerprintValue = 'a'.repeat(64);
+const fingerprintRows = [
+  {
+    source_employee_key: worker.employeeId,
+    source_display_name: '지문 자동매칭 직원',
+    work_date: workDate,
+    clock_in: '09:00',
+    clock_out: '18:00',
+    source_row_number: 2,
+  },
+  {
+    source_employee_key: 'FP-UNMAPPED-001',
+    source_display_name: '지문 미매칭 직원',
+    work_date: workDate,
+    clock_in: '09:02',
+    clock_out: '18:01',
+    source_row_number: 3,
+  },
+];
+
+const fingerprintImport = await rpc('import_attendance_external_evidence', lead.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_file_name: 'attendance-fingerprint-ci.xlsx',
+  p_source_fingerprint: fingerprintValue,
+  p_source_sheet: 'daily',
+  p_rows: fingerprintRows,
+});
+equal(fingerprintImport.data?.code, 'ATTENDANCE_EVIDENCE_IMPORTED', 'promotion lead can import fingerprint attendance evidence');
+equal(fingerprintImport.data?.matched_count, 1, 'exact canonical employee id is safely auto-matched');
+equal(fingerprintImport.data?.unmatched_count, 1, 'unknown fingerprint employee remains visibly unmatched');
+equal(
+  sql(`select count(*) from public.attendance_external_evidence where batch_id='${fingerprintImport.data.batch_id}'::uuid`),
+  '2',
+  'fingerprint import persists immutable source evidence rows',
+);
+
+const duplicateFingerprintImport = await rpc('import_attendance_external_evidence', lead.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_file_name: 'attendance-fingerprint-ci-copy.xlsx',
+  p_source_fingerprint: fingerprintValue,
+  p_source_sheet: 'daily',
+  p_rows: fingerprintRows,
+});
+equal(duplicateFingerprintImport.data?.code, 'DUPLICATE_IMPORT', 'same fingerprint file is idempotently rejected as a duplicate');
+equal(duplicateFingerprintImport.data?.batch_id, fingerprintImport.data?.batch_id, 'duplicate import returns the original batch');
+
+const workerImportDenied = await rpc('import_attendance_external_evidence', worker.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_file_name: 'worker-forbidden.xlsx',
+  p_source_fingerprint: 'b'.repeat(64),
+  p_source_sheet: 'daily',
+  p_rows: [fingerprintRows[0]],
+});
+equal(workerImportDenied.data?.code, 'FORBIDDEN', 'general worker cannot import external attendance evidence');
+
+const evidenceBeforeMapping = await rpc('get_attendance_external_evidence', lead.token, {
+  p_work_date: workDate,
+});
+check(evidenceBeforeMapping.ok && Array.isArray(evidenceBeforeMapping.data?.rows), 'promotion lead can read protected attendance evidence model');
+const matchedFingerprintRow = evidenceBeforeMapping.data.rows.find(row => row.source_employee_key === worker.employeeId);
+const unmatchedFingerprintRow = evidenceBeforeMapping.data.rows.find(row => row.source_employee_key === 'FP-UNMAPPED-001');
+equal(matchedFingerprintRow?.employee_uuid, worker.employeeUuid, 'evidence read model resolves canonical employee for exact employee id');
+equal(unmatchedFingerprintRow?.employee_uuid, null, 'unknown fingerprint identity stays unmatched until reviewed mapping');
+
+const fingerprintMapping = await rpc('save_attendance_source_identity_mapping', lead.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_employee_key: 'FP-UNMAPPED-001',
+  p_employee_uuid: unlinkedEmployee.data.employee_uuid,
+  p_reason: 'CI 지문 사번 직원 연결',
+});
+equal(fingerprintMapping.data?.code, 'IDENTITY_MAPPING_SAVED', 'promotion lead can review and save a fingerprint employee mapping');
+
+const workerMappingDenied = await rpc('save_attendance_source_identity_mapping', worker.token, {
+  p_source_system: 'fingerprint_excel',
+  p_source_employee_key: 'FP-WORKER-DENIED',
+  p_employee_uuid: unlinkedEmployee.data.employee_uuid,
+  p_reason: '권한 차단 검증',
+});
+equal(workerMappingDenied.data?.code, 'FORBIDDEN', 'general worker cannot alter external attendance identity mappings');
+
+const evidenceAfterMapping = await rpc('get_attendance_external_evidence', lead.token, {
+  p_work_date: workDate,
+});
+const remappedFingerprintRow = evidenceAfterMapping.data.rows.find(row => row.source_employee_key === 'FP-UNMAPPED-001');
+equal(remappedFingerprintRow?.employee_uuid, unlinkedEmployee.data.employee_uuid, 'reviewed mapping resolves prior immutable evidence without rewriting raw row');
+equal(
+  sql(`select employee_uuid_at_import is null from public.attendance_external_evidence where id='${remappedFingerprintRow.id}'::uuid`),
+  't',
+  'late identity mapping does not rewrite employee_uuid_at_import on raw evidence',
+);
+
 const adminRoster = await rpc('get_attendance_admin_today', admin.token, {});
 check(adminRoster.ok && Array.isArray(adminRoster.data?.rows), 'operations manager can load Employee-based attendance roster');
 const unlinkedRow = adminRoster.data.rows.find(row => row.employee_uuid === unlinkedEmployee.data.employee_uuid);
