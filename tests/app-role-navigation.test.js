@@ -191,7 +191,7 @@ test('central navigation groups menus by final work category contracts', () => {
   assert.doesNotMatch(operationsBlock, /상시 안내 관리|홍보 글 관리/);
 
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리', '출근부', '급여초안 상신', '홈페이지', '신규 사업 기획']);
+  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '가입 승인', '업무 배정', '일정 관리', '출근부', '급여초안 상신', '홈페이지', '신규 사업 기획']);
   assert.doesNotMatch(leadBlock, /공개글 관리|미발행 글 삭제|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
 
   assert.match(navPriority, /label:\s*'직원·계정'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'[\s\S]*'가입 승인'/);
@@ -226,7 +226,8 @@ test('signup pending copy is neutral and rejection becomes a blocked audited acc
   const pendingCopy = staffIndex.slice(pendingStart, pendingEnd);
   assert.match(pendingCopy, /관리자 확인 후 승인됩니다\./);
   assert.doesNotMatch(pendingCopy, /운영총괄/);
-  assert.match(accountApproval, /p_decision:\s*'rejected'/);
+  assert.match(accountApproval, /reject_employee_signup_request/);
+  assert.match(accountApproval, /employee\.onboard/);
   assert.match(accountApproval, /가입 거절/);
   assert.match(accountApproval, /거절 사유/);
   assert.match(signupRejection, /current_user_has_role\('operations_manager'\)/);
