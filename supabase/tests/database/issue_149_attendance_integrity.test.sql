@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 select has_function(
   'public',
@@ -107,10 +107,31 @@ select ok(
   pg_get_functiondef('public.create_attendance_correction(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%private_actor_can(''attendance.correct'')%'
   and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
-    ilike '%current_user_has_role(''operations_manager'')%'
+    not ilike '%current_user_has_role(''operations_manager'')%'
   and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%attendance_correction_created%',
-  'attendance correction is capability-gated while operations-manager business guard and audit remain preserved'
+  'attendance correction is capability-gated and private implementation no longer hardcodes operations-manager-only authority'
+);
+
+select ok(
+  exists (
+    select 1
+    from public.role_capability_grants g
+    join public.roles r on r.id = g.role_id
+    where r.code = 'promotion_lead'
+      and g.capability_code = 'attendance.correct'
+  ),
+  'promotion lead receives attendance.correct capability'
+);
+
+select ok(
+  pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
+    ilike '%missing_effective_time%'
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
+    ilike '%누락 근태 수기 입력%'
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
+    ilike '%REASON_REQUIRED%',
+  'missing time backfill gets automatic audit reason while existing-time edits and invalidations still require a reason'
 );
 
 select ok(
