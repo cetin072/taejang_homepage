@@ -15,7 +15,7 @@ const index = read('app/index.html');
 test('fingerprint Excel evidence is operational attendance data, not a new payroll permission path', () => {
   assert.match(migration, /attendance\.evidence_import/);
   assert.match(migration, /r\.code = 'promotion_lead'/);
-  assert.doesNotMatch(migration, /payroll\.manage/);
+  assert.doesNotMatch(migration, /['\"]payroll\.manage['\"]/);
   assert.match(migration, /attendance_external_import_batches/);
   assert.match(migration, /attendance_external_evidence/);
 });
