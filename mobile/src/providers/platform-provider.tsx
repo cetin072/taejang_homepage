@@ -8,6 +8,14 @@ import { createPlatformSupabaseClient, type PlatformSupabaseClient } from '@/src
 
 type PlatformPhase = 'loading' | 'ready' | 'error';
 
+export type EmployeeSignupInput = {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  hiredOn: string;
+};
+
 type PlatformContextValue = {
   phase: PlatformPhase;
   config: PublicPlatformConfig | null;
@@ -16,6 +24,7 @@ type PlatformContextValue = {
   error: string;
   reload: () => void;
   signIn: (email: string, password: string) => Promise<void>;
+  signUpEmployee: (input: EmployeeSignupInput) => Promise<{ sessionStarted: boolean }>;
   signOut: () => Promise<void>;
 };
 
@@ -65,7 +74,7 @@ export function PlatformProvider({ children }: PropsWithChildren) {
         });
       } catch (nextError) {
         if (!alive) return;
-        setError(nextError instanceof Error ? nextError.message : '태장 직원앱 초기화에 실패했습니다.');
+        setError(nextError instanceof Error ? nextError.message : '태장 앱 초기화에 실패했습니다.');
         setPhase('error');
       }
     })();
@@ -93,6 +102,39 @@ export function PlatformProvider({ children }: PropsWithChildren) {
           password,
         });
         if (signInError) throw signInError;
+      },
+      signUpEmployee: async ({ name, email, phone, password, hiredOn }) => {
+        if (!client) throw new Error('가입 모듈이 아직 준비되지 않았습니다.');
+        const normalizedName = name.trim();
+        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedPhone = phone.trim();
+        const normalizedHiredOn = hiredOn.trim();
+
+        if (!normalizedName || !normalizedEmail || !normalizedPhone || !password || !normalizedHiredOn) {
+          throw new Error('이름, 이메일, 전화번호, 비밀번호, 입사일을 모두 입력해주세요.');
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedHiredOn)) {
+          throw new Error('입사일은 2026-09-19처럼 입력해주세요.');
+        }
+        if (password.length < 8) {
+          throw new Error('비밀번호는 8자 이상 입력해주세요.');
+        }
+
+        const { data, error: signUpError } = await client.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            data: {
+              display_name: normalizedName,
+              phone: normalizedPhone,
+              hired_on: normalizedHiredOn,
+              signup_channel: 'native_employee',
+            },
+          },
+        });
+        if (signUpError) throw signUpError;
+        if (!data.user) throw new Error('가입 요청을 만들지 못했습니다.');
+        return { sessionStarted: Boolean(data.session) };
       },
       signOut: async () => {
         if (!client) return;
