@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
 import { disableCurrentPushDevice } from '@/src/notifications/push-registration';
-import { loadPublicPlatformConfig, type PublicPlatformConfig } from '@/src/platform/config';
+import { getApiBaseUrl, loadPublicPlatformConfig, type PublicPlatformConfig } from '@/src/platform/config';
 import { createPlatformSupabaseClient, type PlatformSupabaseClient } from '@/src/platform/supabase';
 
 type PlatformPhase = 'loading' | 'ready' | 'error';
@@ -25,6 +25,7 @@ type PlatformContextValue = {
   reload: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUpEmployee: (input: EmployeeSignupInput) => Promise<{ sessionStarted: boolean }>;
+  requestPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -102,6 +103,17 @@ export function PlatformProvider({ children }: PropsWithChildren) {
           password,
         });
         if (signInError) throw signInError;
+      },
+      requestPasswordReset: async (email) => {
+        if (!client) throw new Error('비밀번호 재설정 모듈이 아직 준비되지 않았습니다.');
+        const normalizedEmail = email.trim().toLowerCase();
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
+          throw new Error('가입할 때 사용한 이메일 주소를 확인해주세요.');
+        }
+        const { error: resetError } = await client.auth.resetPasswordForEmail(normalizedEmail, {
+          redirectTo: `${getApiBaseUrl()}/staff/reset-password.html`,
+        });
+        if (resetError) throw resetError;
       },
       signUpEmployee: async ({ name, email, phone, password, hiredOn }) => {
         if (!client) throw new Error('가입 모듈이 아직 준비되지 않았습니다.');
