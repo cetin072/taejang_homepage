@@ -41,11 +41,12 @@ test('worker stays on the simple board with a bounded desktop width and no deskt
 });
 
 test('dashboard uses safe existing RPCs and empty states instead of fixed statistics', () => {
-  for (const rpc of ['get_my_schedule_list', 'get_my_notice_list', 'get_my_work_guide_list', 'list_pending_profiles']) assert.match(shell, new RegExp(rpc));
+  for (const rpc of ['get_my_schedule_list', 'get_my_notice_list', 'get_my_promotion_workspace', 'list_pending_profiles']) assert.match(shell, new RegExp(rpc));
   assert.match(shell, /현재 승인 대기 항목이 없습니다/);
   assert.match(shell, /현재 중요한 공지가 없습니다/);
   assert.doesNotMatch(shell, /생산률|출고건수|상담건수|매출/);
-  assert.match(shell, /준비 중/);
+  assert.match(shell, /현재 나에게 적용되는 일정이 없습니다/);
+  assert.match(shell, /현재 검토 대기 안건이 없습니다/);
 });
 
 test('manager UI is loaded only after the active server context is verified', () => {
