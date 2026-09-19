@@ -1,0 +1,96 @@
+name: Attendance Register
+
+on:
+  pull_request:
+    paths:
+      - 'prototypes/attendance-register/**'
+      - 'supabase/migrations/*attendance_register*'
+      - 'supabase/tests/database/issue_149_attendance_integrity.test.sql'
+      - 'app/assets/attendance-integrity-ui.js'
+      - 'app/assets/attendance-admin.js'
+      - 'mobile/src/features/attendance/**'
+      - 'scripts/materialize-attendance-entry-candidate.mjs'
+      - 'tests/attendance-register-*.mjs'
+      - 'tests/attendance-auth-integration.mjs'
+      - 'tests/attendance-capability-auth-integration.mjs'
+      - '.github/workflows/attendance-register.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attendance-register-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check active UI syntax
+        run: node --check app/assets/attendance-integrity-ui.js
+      - name: Exercise active correction UI
+        run: node --test tests/attendance-register-ui.test.mjs
+
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Verify CLI-generated migration matches reviewed candidate
+        run: node scripts/materialize-attendance-entry-candidate.mjs
+      - name: Preserve generated migration for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendance-entry-cli-migration
+          path: supabase/migrations/*_attendance_register_lead_entry.sql
+          if-no-files-found: error
+          retention-days: 7
+
+  database:
+    needs: [ui, prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - uses: actions/download-artifact@v4
+        with:
+          name: attendance-entry-cli-migration
+          path: supabase/migrations
+      - name: Start isolated local database
+        run: supabase start
+      - name: Replay all migrations from clean database
+        run: supabase db reset
+      - name: Lint database
+        run: supabase db lint --level error --fail-on error
+      - name: Run database security regression before persistent Auth fixtures
+        run: supabase test db
+      - name: Verify actual Auth and correction behavior
+        shell: bash
+        run: |
+          supabase status -o env > /tmp/attendance-register.env
+          set -a
+          source /tmp/attendance-register.env
+          set +a
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-capability-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-register-auth-integration.mjs
+      - name: Stop local database
+        if: always()
+        run: supabase stop --no-backup

@@ -48,7 +48,11 @@ test('attendance integrity UI hides personal attendance for excluded employees a
   assert.match(source, /근태 기록 대상이 아닙니다/);
   assert.match(source, /attendance\.correct/);
   assert.match(source, /hasCapabilityContract/);
-  assert.match(source, /create_attendance_correction/);
+  assert.match(source, /get_attendance_entry_context/);
+  assert.match(source, /save_attendance_register_time/);
+  assert.match(source, /p_expected_state: context\.expected_state/);
+  assert.match(source, /context\.reason_required/);
+  assert.match(source, /STALE_ATTENDANCE/);
   assert.match(source, /누락 시간 추가/);
   assert.match(source, /시간 정정/);
   assert.match(source, /무효 처리/);

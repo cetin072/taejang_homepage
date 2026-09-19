@@ -205,10 +205,11 @@ equal(validRecord.data?.code, 'ATTENDANCE_RECORDED', 'eligible Employee records 
 check(validRecord.data?.event_at, 'attendance record uses server-generated event time');
 
 const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
-// Reuse the server-generated raw event timestamp so this behavior test is
-// independent of the hour at which CI happens to run. It is guaranteed to be
-// on the tested work date and never in the future.
-const safeEffectiveTime = validRecord.data.event_at;
+// A real edit must differ from the raw event. Stay on the same KST day and
+// within the existing server future-time allowance even near midnight.
+const rawMillis = Date.parse(validRecord.data.event_at);
+const kstDayMillis = (rawMillis + 9 * 60 * 60 * 1000) % (24 * 60 * 60 * 1000);
+const safeEffectiveTime = new Date(rawMillis + (kstDayMillis >= 1000 ? -1000 : 1000)).toISOString();
 const correction = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: worker.employeeUuid,
   p_work_date: workDate,
@@ -250,9 +251,10 @@ const leadCorrection = await rpc('create_attendance_correction', lead.token, {
   p_event_type: 'clock_in',
   p_action: 'set_time',
   p_corrected_event_at: safeEffectiveTime,
-  p_reason: '권한 차단 검증을 위한 시도',
+  p_reason: '운영팀장 수기 출근부 대조 확인',
 });
-equal(leadCorrection.data?.code, 'FORBIDDEN', 'promotion lead cannot manually alter payroll-relevant attendance times');
+equal(leadCorrection.data?.code, 'ATTENDANCE_UNCHANGED', 'approved lead can correct attendance but saving an unchanged value does not append history');
+equal(sql(`select count(*) from public.attendance_corrections where employee_uuid='${worker.employeeUuid}'::uuid and work_date='${workDate}'::date and event_type='clock_in'`), '1', 'unchanged lead save preserves the existing single correction');
 
 const executiveCorrection = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: executive.employeeUuid,

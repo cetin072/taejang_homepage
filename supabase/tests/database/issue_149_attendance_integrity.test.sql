@@ -107,10 +107,10 @@ select ok(
   pg_get_functiondef('public.create_attendance_correction(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%private_actor_can(''attendance.correct'')%'
   and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
-    ilike '%current_user_has_role(''operations_manager'')%'
+    ilike '%private_actor_can(''attendance.correct'')%'
   and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamp with time zone,text)'::regprocedure)
     ilike '%attendance_correction_created%',
-  'attendance correction is capability-gated while operations-manager business guard and audit remain preserved'
+  'approved lead correction is capability-gated at both public and private boundaries while audit is preserved'
 );
 
 select ok(
