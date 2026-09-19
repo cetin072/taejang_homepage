@@ -59,6 +59,15 @@
       .attendance-unmatched-list { display:grid; gap:10px; margin-top:10px; }
       .attendance-unmatched-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
       .attendance-unmatched-row select { min-height:38px; padding:6px 8px; }
+      .attendance-confirmation { margin:14px 0; padding:16px; border:1px solid #aac7b4; border-radius:14px; background:#f5fbf6; }
+      .attendance-confirmation[data-confirmed="true"] { border-color:#7da88c; background:#edf8ef; }
+      .attendance-confirmation[data-blocked="true"] { border-color:#e2c68d; background:#fff8e9; }
+      .attendance-confirmation h3 { margin:0; }
+      .attendance-confirmation p { margin:8px 0; line-height:1.5; }
+      .attendance-confirmation-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+      .attendance-confirmation-blockers { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
+      .attendance-confirmation-blockers li { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 10px; border-radius:10px; background:#fff; }
+      .attendance-confirmation-blockers [data-resolved="true"] { opacity:.72; }
       @media(max-width:900px){.attendance-row{grid-template-columns:1fr 1fr}.attendance-person{grid-column:1/-1}}
       @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}.attendance-toolbar{display:grid;grid-template-columns:1fr}}
     `;
@@ -316,6 +325,125 @@
     return panel;
   }
 
+  function confirmationBlockerLabel(blocker) {
+    const labels = {
+      missing_clock_in: '출근 시간이 없습니다',
+      missing_clock_out: '퇴근 시간이 없습니다',
+      pending_gps_exception: 'GPS 예외가 아직 처리되지 않았습니다',
+      fingerprint_import_missing: '이 날짜의 지문 Excel 자료를 아직 가져오지 않았습니다',
+      fingerprint_missing: '지문 근거가 없습니다',
+      fingerprint_ambiguous: '같은 직원의 지문 근거가 여러 건입니다',
+      fingerprint_clock_in_missing: '지문 출근 시간이 없습니다',
+      fingerprint_clock_out_missing: '지문 퇴근 시간이 없습니다',
+      clock_in_mismatch: 'GPS와 지문 출근 시간 차이가 5분을 넘습니다',
+      clock_out_mismatch: 'GPS와 지문 퇴근 시간 차이가 5분을 넘습니다',
+      external_identity_unmatched: '직원 미매칭 지문자료가 있습니다',
+    };
+    const owner = blocker?.display_name ? `${blocker.display_name} · ` : '';
+    return `${owner}${labels[blocker?.type] || '확정 전 확인이 필요한 근태 예외'}`;
+  }
+
+  async function resolveConfirmationBlocker(workDate, blocker) {
+    if (!can('attendance.confirm')) return;
+    const reason = window.prompt(`${confirmationBlockerLabel(blocker)}\n확정 전 해소 또는 확인 사유를 5자 이상 입력하세요.`);
+    if (!reason || reason.trim().length < 5) {
+      window.alert('확정 전 예외를 해소할 때는 사유를 5자 이상 입력해야 합니다.');
+      return;
+    }
+    const result = await app().rpc('resolve_attendance_confirmation_exception', {
+      p_work_date: workDate,
+      p_exception_key: blocker.key,
+      p_reason: reason.trim(),
+    });
+    if (!result?.ok) throw new Error(result?.code || 'EXCEPTION_RESOLVE_FAILED');
+    await openAttendance(workDate);
+  }
+
+  async function confirmAttendanceDay(workDate) {
+    if (!can('attendance.confirm')) return;
+    if (!window.confirm('이 날짜의 전체 출근부를 확정합니다. 확정된 v1은 변경되지 않으며, 이후 수정하려면 재개방 사유를 남겨야 합니다. 진행할까요?')) return;
+    const result = await app().rpc('confirm_attendance_day', { p_work_date: workDate });
+    if (!result?.ok) {
+      if (result?.code === 'CONFIRMATION_BLOCKED') {
+        window.alert(`확정 전에 해결할 항목이 ${result.unresolved_count || 0}건 있습니다.`);
+        await openAttendance(workDate);
+        return;
+      }
+      throw new Error(result?.code || 'CONFIRMATION_FAILED');
+    }
+    window.alert(`일일 출근부를 v${result.revision_no}로 확정했습니다.`);
+    await openAttendance(workDate);
+  }
+
+  async function reopenAttendanceDay(workDate) {
+    if (!can('attendance.confirm')) return;
+    const reason = window.prompt('재개방 사유를 5자 이상 입력하세요. 이후 수정 후 새 revision으로 다시 확정해야 합니다.');
+    if (!reason || reason.trim().length < 5) {
+      window.alert('재개방 사유를 5자 이상 입력해야 합니다.');
+      return;
+    }
+    const result = await app().rpc('reopen_attendance_confirmation', {
+      p_work_date: workDate,
+      p_reason: reason.trim(),
+    });
+    if (!result?.ok) throw new Error(result?.code || 'REOPEN_FAILED');
+    window.alert(`v${result.revision_no} 확정을 재개방했습니다. 수정 후 새 revision으로 다시 확정하세요.`);
+    await openAttendance(workDate);
+  }
+
+  function confirmationPanel(status, workDate) {
+    const panel = el('section', null, 'attendance-confirmation');
+    const confirmed = Boolean(status?.is_confirmed);
+    const blockers = Array.isArray(status?.blockers) ? status.blockers : [];
+    const pending = blockers.filter(item => !item?.resolved);
+    panel.dataset.confirmed = String(confirmed);
+    panel.dataset.blocked = String(!confirmed && pending.length > 0);
+    const revision = status?.latest_revision;
+    panel.append(
+      el('h3', confirmed ? `일일 근태 확정 v${revision?.revision_no || ''}` : '일일 근태 확정'),
+      el('p', confirmed
+        ? `확정 시각: ${revision?.confirmed_at ? new Date(revision.confirmed_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'} · snapshot ${revision?.snapshot_fingerprint || '-'}`
+        : pending.length
+          ? `확정 전 해결할 항목이 ${pending.length}건 있습니다. 각 예외의 확인 사유를 남긴 뒤 하루 전체를 한 번에 확정합니다.`
+          : '모든 필수 확인 항목이 해소되었습니다. 이 날짜의 전체 출근부를 한 번에 확정할 수 있습니다.'),
+    );
+    if (blockers.length) {
+      const list = el('ul', null, 'attendance-confirmation-blockers');
+      blockers.forEach(blocker => {
+        const item = el('li');
+        item.dataset.resolved = String(Boolean(blocker?.resolved));
+        item.append(el('span', blocker.resolved ? `해소됨 · ${confirmationBlockerLabel(blocker)}` : confirmationBlockerLabel(blocker)));
+        if (!confirmed && !blocker.resolved && can('attendance.confirm')) {
+          const button = el('button', '확인 사유 기록', 'button button-quiet');
+          button.type = 'button';
+          button.addEventListener('click', () => {
+            resolveConfirmationBlocker(workDate, blocker).catch(() => window.alert('확정 예외를 기록하지 못했습니다.'));
+          });
+          item.append(button);
+        }
+        list.append(item);
+      });
+      panel.append(list);
+    }
+    if (can('attendance.confirm')) {
+      const actions = el('div', null, 'attendance-confirmation-actions');
+      if (confirmed) {
+        const reopen = el('button', '확정 재개방', 'button button-quiet');
+        reopen.type = 'button';
+        reopen.addEventListener('click', () => reopenAttendanceDay(workDate).catch(() => window.alert('확정을 재개방하지 못했습니다.')));
+        actions.append(reopen);
+      } else {
+        const confirm = el('button', '하루 전체 확정', 'button');
+        confirm.type = 'button';
+        confirm.disabled = pending.length > 0;
+        confirm.addEventListener('click', () => confirmAttendanceDay(workDate).catch(() => window.alert('일일 출근부를 확정하지 못했습니다.')));
+        actions.append(confirm);
+      }
+      panel.append(actions);
+    }
+    return panel;
+  }
+
   async function openAttendance(workDate = null) {
     if (!can('attendance.admin_view')) return;
     closeSidebar();
@@ -324,11 +452,15 @@
     target.hidden = false;
     target.replaceChildren(el('p', '출근부와 지문 근거자료를 불러오고 있습니다.', 'message'));
     try {
-      const [data, evidenceData] = await Promise.all([
-        app().rpc('get_attendance_admin_today', { p_work_date: workDate }),
-        app().rpc('get_attendance_external_evidence', { p_work_date: workDate }),
+      const requestedWorkDate = workDate || new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+      }).format(new Date());
+      const [data, evidenceData, confirmation] = await Promise.all([
+        app().rpc('get_attendance_admin_today', { p_work_date: requestedWorkDate }),
+        app().rpc('get_attendance_external_evidence', { p_work_date: requestedWorkDate }),
+        app().rpc('get_attendance_confirmation_status', { p_work_date: requestedWorkDate }),
       ]);
-      currentWorkDate = data?.work_date || evidenceData?.work_date || workDate;
+      currentWorkDate = data?.work_date || evidenceData?.work_date || requestedWorkDate;
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const evidenceRows = Array.isArray(evidenceData?.rows) ? evidenceData.rows : [];
       const fingerprintImported = evidenceRows.some(item => item.source_system === EVIDENCE_SOURCE);
@@ -392,7 +524,7 @@
         list.append(line);
       });
 
-      const pieces = [intro, makeToolbar(currentWorkDate), summary];
+      const pieces = [intro, makeToolbar(currentWorkDate), confirmationPanel(confirmation, currentWorkDate), summary];
       const unmatchedNode = unmatchedPanel(unmatched, rows, currentWorkDate);
       if (unmatchedNode) pieces.push(unmatchedNode);
       pieces.push(list);
