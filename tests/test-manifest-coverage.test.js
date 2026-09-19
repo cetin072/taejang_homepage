@@ -52,21 +52,48 @@ function workflowSource() {
     .join('\n');
 }
 
-test('every runnable test has an active manifest entry, direct workflow execution, or documented exclusion', () => {
+function workflowTestPatterns(source) {
+  return [...source.matchAll(/tests\/[A-Za-z0-9_./*?-]+\.(?:js|mjs)/g)]
+    .map(match => match[0]);
+}
+
+function globToRegExp(pattern) {
+  const escaped = pattern
+    .replace(/[.+^$()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\?/g, '[^/]');
+  return new RegExp('^' + escaped + '$');
+}
+
+function workflowCovers(file, source) {
+  if (source.includes(file)) return true;
+  return workflowTestPatterns(source)
+    .filter(pattern => pattern.includes('*') || pattern.includes('?'))
+    .some(pattern => globToRegExp(pattern).test(file));
+}
+
+test('workflow test globs count as explicit execution paths', () => {
+  const workflow = 'node --test tests/mobile-*.test.mjs';
+  assert.equal(workflowCovers('tests/mobile-foundation.test.mjs', workflow), true);
+  assert.equal(workflowCovers('tests/mobile-attendance.test.mjs', workflow), true);
+  assert.equal(workflowCovers('tests/notification-push-auth-integration.mjs', workflow), false);
+});
+
+test('every runnable test has an active manifest entry, workflow execution, or documented exclusion', () => {
   const files = collectRunnableTests(testsRoot);
   const manifest = manifestFiles();
   const workflows = workflowSource();
 
   const uncovered = files.filter(file =>
     !manifest.has(file)
-    && !workflows.includes(file)
+    && !workflowCovers(file, workflows)
     && !INTENTIONAL_EXCLUSIONS.has(file)
   );
 
   assert.deepEqual(
     uncovered,
     [],
-    `Tests without execution path or documented exclusion:\n${uncovered.join('\n')}`
+    'Tests without execution path or documented exclusion:\n' + uncovered.join('\n')
   );
 });
 
