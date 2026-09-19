@@ -32,7 +32,18 @@ test('mobile attendance reuses existing server RPC contracts', async () => {
   assert.match(api, /get_my_attendance_today/);
   assert.match(api, /record_attendance_event/);
   assert.match(api, /request_attendance_exception/);
+  assert.match(api, /holiday_work_assigned/);
   assert.doesNotMatch(api, /attendance_events|attendance_locations|service_role/i);
+});
+
+test('holiday action stays visible but re-checks server authorization before GPS', async () => {
+  const card = await text('mobile/src/features/attendance/attendance-card.tsx');
+  const serverCheck = card.indexOf('const latest = await loadMyAttendanceToday(client)');
+  const locationCheck = card.indexOf('position = await getBestAttendancePosition');
+  assert.ok(serverCheck >= 0 && locationCheck > serverCheck, 'server day status must be rechecked before GPS');
+  assert.match(card, /오늘은 휴일입니다\. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다/);
+  assert.match(card, /let action: AttendanceEventType \| null = 'clock_in'/);
+  assert.doesNotMatch(card, /today\?\.is_workday !== false \? \(/);
 });
 
 test('employee attendance UX preserves hard geofence failure and conservative exceptions', async () => {
@@ -49,9 +60,9 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.doesNotMatch(permissionBranch, /allowException/);
 });
 
-test('employee mobile home prioritizes attendance before notices', async () => {
+test('employee mobile home keeps one attendance action before one notice action', async () => {
   const home = await text('mobile/app/index.tsx');
   const attendance = home.indexOf('<AttendanceCard');
-  const notices = home.indexOf('<NoticeListCard');
-  assert.ok(attendance >= 0 && notices > attendance, 'attendance card must precede notices');
+  const notices = home.indexOf('<NoticeHomeAction');
+  assert.ok(attendance >= 0 && notices > attendance, 'attendance action must precede notices');
 });
