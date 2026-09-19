@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { loadMyNotices, noticeDeepLinkPath, type NoticeSummary } from './notice-api';
 import { usePlatform } from '@/src/providers/platform-provider';
 
-export function NoticeHomeAction() {
+export function NoticeHomeAction({ minHeight = 164 }: { minHeight?: number }) {
   const router = useRouter();
   const { client, session } = usePlatform();
   const [items, setItems] = useState<NoticeSummary[]>([]);
@@ -51,7 +51,11 @@ export function NoticeHomeAction() {
       accessibilityRole="button"
       accessibilityLabel="공지사항 열기"
       onPress={open}
-      style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
+      style={({ pressed }) => [
+        styles.action,
+        { minHeight },
+        pressed ? styles.pressed : null,
+      ]}
     >
       <View style={styles.copy}>
         <Text style={styles.title}>공지사항</Text>
@@ -64,27 +68,27 @@ export function NoticeHomeAction() {
 
 const styles = StyleSheet.create({
   action: {
-    minHeight: 118,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    borderRadius: 28,
     borderWidth: 1,
-    borderColor: '#cfd9d1',
+    borderColor: '#c6d2c9',
     backgroundColor: '#ffffff',
   },
   pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
-  copy: { alignItems: 'center', gap: 7 },
-  title: { color: '#173f31', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
-  subtitle: { color: '#60746a', fontSize: 14, fontWeight: '700' },
+  copy: { alignItems: 'center', gap: 10 },
+  title: { color: '#173f31', fontSize: 31, fontWeight: '900', letterSpacing: -0.6 },
+  subtitle: { color: '#60746a', fontSize: 15, fontWeight: '700' },
   dot: {
     position: 'absolute',
-    top: 18,
-    right: 20,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    top: 20,
+    right: 22,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
     backgroundColor: '#b13b2d',
   },
 });

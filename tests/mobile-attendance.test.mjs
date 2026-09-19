@@ -54,15 +54,20 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.match(card, /PERMISSION_DENIED/);
   assert.match(card, /attempts\.current\[eventType\] < 2/);
   assert.match(card, /관리자 확인 요청/);
-  assert.match(card, /위치는 출근·퇴근 버튼을 누르는 순간에만 확인합니다/);
+  assert.match(card, /Alert\.alert/);
+  assert.match(card, /정말 퇴근하시겠습니까/);
+  assert.match(card, /text: '취소'/);
+  assert.match(card, /text: '퇴근하기'/);
 
   const permissionBranch = card.match(/if \(error\.code === 'PERMISSION_DENIED'\)[\s\S]*?\} else \{/i)?.[0] || '';
   assert.doesNotMatch(permissionBranch, /allowException/);
 });
 
-test('employee mobile home keeps one attendance action before one notice action', async () => {
+test('employee mobile home always keeps one attendance block before notice even for non-attendance roles', async () => {
   const home = await text('mobile/app/index.tsx');
   const attendance = home.indexOf('<AttendanceCard');
   const notices = home.indexOf('<NoticeHomeAction');
   assert.ok(attendance >= 0 && notices > attendance, 'attendance action must precede notices');
+  assert.doesNotMatch(home, /canRecordAttendance\s*\?\s*<AttendanceCard/);
+  assert.match(home, /<AttendanceCard minHeight=\{actionHeight\}/);
 });
