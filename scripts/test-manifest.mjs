@@ -38,6 +38,12 @@ export const testGroups = Object.freeze({
     'tests/required-check-workflows.test.js',
     'tests/qa-account-preview.test.js',
     'tests/qa-account-preview-boundary.test.mjs',
+    'tests/qa-account-preview-return.test.js',
+    'tests/mobile-sidebar-dismiss.test.js',
+    'tests/role-based-dashboard-shells.test.js',
+    'tests/phase1-integrated-readiness.test.js',
+    'tests/test-manifest-coverage.test.js',
+    'tests/notification-push-foundation.test.js',
     'tests/support-radar-capability.test.js',
     'tests/support-radar-foundation.test.js',
     'tests/support-radar-company-profile.test.js',
@@ -49,8 +55,7 @@ export const testGroups = Object.freeze({
     'tests/support-radar-review.test.js',
     'tests/support-radar-sources.test.js',
     'tests/support-radar-kpi.test.js',
-    'tests/support-radar-lint-fix.test.js',
-    'tests/notification-push-foundation.test.js'
+    'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
     'tests/public-homepage-main-simplification.test.js',
@@ -65,7 +70,8 @@ export const testGroups = Object.freeze({
     'tests/community-esg.test.js',
     'tests/content-detail-thumbnail.test.js',
     'tests/hero-video-slider.test.js',
-    'tests/netlify-publish-boundary.test.js'
+    'tests/netlify-publish-boundary.test.js',
+    'tests/visual-asset-audit.test.js'
   ]),
   stagingSafety: Object.freeze([
     'tests/first-super-admin-bootstrap.test.js',
@@ -122,6 +128,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-operator-ledger-detail.test.js',
     'tests/payroll-operator-ledger-history-fallback.test.js',
     'tests/payroll-operator-ledger-history-basis-guard.test.js',
+    'tests/payroll-operator-effective-attendance.test.js',
     'tests/payroll-post-lock-correction.test.js',
     'tests/payroll-post-lock-backend-contract.test.js',
     'tests/payroll-unresolved-total-guard.test.js',
