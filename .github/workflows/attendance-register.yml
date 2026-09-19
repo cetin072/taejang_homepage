@@ -5,10 +5,14 @@ on:
     paths:
       - 'prototypes/attendance-register/**'
       - 'supabase/migrations/*attendance_register*'
+      - 'supabase/tests/database/issue_149_attendance_integrity.test.sql'
       - 'app/assets/attendance-integrity-ui.js'
+      - 'app/assets/attendance-admin.js'
       - 'mobile/src/features/attendance/**'
       - 'scripts/materialize-attendance-entry-candidate.mjs'
       - 'tests/attendance-register-*.mjs'
+      - 'tests/attendance-auth-integration.mjs'
+      - 'tests/attendance-capability-auth-integration.mjs'
       - '.github/workflows/attendance-register.yml'
 
 permissions:
@@ -43,7 +47,7 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
-      - name: Generate migration with Supabase CLI
+      - name: Verify CLI-generated migration matches reviewed candidate
         run: node scripts/materialize-attendance-entry-candidate.mjs
       - name: Preserve generated migration for review
         uses: actions/upload-artifact@v4
@@ -75,6 +79,8 @@ jobs:
         run: supabase db reset
       - name: Lint database
         run: supabase db lint --level error --fail-on error
+      - name: Run database security regression before persistent Auth fixtures
+        run: supabase test db
       - name: Verify actual Auth and correction behavior
         shell: bash
         run: |
@@ -82,9 +88,9 @@ jobs:
           set -a
           source /tmp/attendance-register.env
           set +a
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-register-auth-integration.mjs
-      - name: Run existing database security regression
-        run: supabase test db
       - name: Stop local database
         if: always()
         run: supabase stop --no-backup
