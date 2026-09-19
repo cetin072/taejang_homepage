@@ -112,7 +112,9 @@
     appendItem(workList, '실근로', hours(work.actual_work_hours));
     appendItem(workList, '예정근로', hours(work.expected_work_hours));
     appendItem(workList, '유급휴일', hours(work.paid_holiday_hours));
-    appendItem(workList, '주휴시간', hours(work.weekly_holiday_hours));
+    appendItem(workList, '주휴 실제시간', hours(work.weekly_holiday_actual_hours));
+    appendItem(workList, '주휴 예정시간', hours(work.weekly_holiday_expected_hours));
+    appendItem(workList, '주휴 검토 주수', work.weekly_holiday_pending_weeks ?? '—');
     appendItem(workList, '지급대상 시간', hours(work.payable_hours_preview));
 
     const earnings = el('payslip-earnings');
