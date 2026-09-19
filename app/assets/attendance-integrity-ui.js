@@ -5,7 +5,7 @@
   const route = () => app()?.getRoute?.();
   const canCorrect = () => app()?.hasCapabilityContract?.()
     ? Boolean(app()?.can?.('attendance.correct'))
-    : route() === 'operations_manager';
+    : new Set(['promotion_lead', 'operations_manager']).has(route());
   const node = (tag, text, className) => {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -113,17 +113,23 @@
       correctedEventAt = isoForKstInput(workDate, entered);
     }
 
-    const reason = window.prompt(action === 'set_time'
-      ? '보정 사유를 5자 이상 입력하세요.'
-      : '무효 처리 사유를 5자 이상 입력하세요.');
-    if (!reason || reason.trim().length < 5) {
-      window.alert('사유를 5자 이상 입력해야 합니다.');
-      return;
+    const isMissingBackfill = action === 'set_time' && !currentRecord?.event_at;
+    let reason = null;
+    if (!isMissingBackfill) {
+      reason = window.prompt(action === 'set_time'
+        ? '기존 시간을 변경하는 사유를 5자 이상 입력하세요.'
+        : '무효 처리 사유를 5자 이상 입력하세요.');
+      if (!reason || reason.trim().length < 5) {
+        window.alert('기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다.');
+        return;
+      }
     }
 
-    if (!window.confirm(action === 'set_time'
-      ? '기존 GPS 기록은 보존되고 보정 이력이 추가됩니다. 진행할까요?'
-      : '기존 기록은 삭제되지 않고 무효 처리 이력이 추가됩니다. 진행할까요?')) return;
+    if (!window.confirm(isMissingBackfill
+      ? '비어 있는 출퇴근 시간을 수기 입력합니다. 입력자와 입력시각은 자동 기록됩니다. 진행할까요?'
+      : action === 'set_time'
+        ? '기존 근태 원본은 보존되고 보정 이력이 추가됩니다. 진행할까요?'
+        : '기존 기록은 삭제되지 않고 무효 처리 이력이 추가됩니다. 진행할까요?')) return;
 
     const result = await app().rpc('create_attendance_correction', {
       p_employee_uuid: employeeUuid,
@@ -131,7 +137,7 @@
       p_event_type: eventType,
       p_action: action,
       p_corrected_event_at: correctedEventAt,
-      p_reason: reason.trim()
+      p_reason: reason ? reason.trim() : null
     });
 
     if (!result?.ok) {
@@ -148,7 +154,7 @@
       window.alert(copy);
       return;
     }
-    window.alert('근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
+    window.alert(result.mode === 'manual_backfill' ? '누락 시간을 저장했습니다. 입력자와 입력시각은 자동 기록됩니다.' : '근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
   }
 
   async function openCorrectionScreen() {

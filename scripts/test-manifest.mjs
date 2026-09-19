@@ -29,6 +29,7 @@ export const testGroups = Object.freeze({
     'tests/internal-app-followup-ux.test.js',
     'tests/issue-181-link-decoupling.test.js',
     'tests/issue-223-promotion-meta-stale-response.test.js',
+    'tests/issue-249-attendance-lead-correction-policy.test.js',
     'tests/issue-187-promotion-staff-live-ux.test.js',
     'tests/issue-207-promotion-information-management.test.js',
     'tests/issue-220-role-screen-polish.test.js',

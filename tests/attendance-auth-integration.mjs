@@ -252,7 +252,17 @@ const leadCorrection = await rpc('create_attendance_correction', lead.token, {
   p_corrected_event_at: safeEffectiveTime,
   p_reason: '권한 차단 검증을 위한 시도',
 });
-equal(leadCorrection.data?.code, 'FORBIDDEN', 'promotion lead cannot manually alter payroll-relevant attendance times');
+equal(leadCorrection.data?.code, 'ATTENDANCE_CORRECTED', 'promotion lead can correct an existing attendance time when a reason is supplied');
+
+const leadExistingWithoutReason = await rpc('create_attendance_correction', lead.token, {
+  p_employee_uuid: worker.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: safeEffectiveTime,
+  p_reason: null,
+});
+equal(leadExistingWithoutReason.data?.code, 'REASON_REQUIRED', 'promotion lead must give a reason when changing an existing effective time');
 
 const executiveCorrection = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: executive.employeeUuid,
@@ -269,6 +279,17 @@ const unlinkedEmployee = await rpc('create_employee', admin.token, {
   p_department_id: departmentId, p_position_id: positions.staff, p_attendance_required: true,
 });
 equal(unlinkedEmployee.data?.code, 'EMPLOYEE_CREATED', 'create unlinked attendance-required Employee');
+
+const leadMissingBackfill = await rpc('create_attendance_correction', lead.token, {
+  p_employee_uuid: unlinkedEmployee.data.employee_uuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: safeEffectiveTime,
+  p_reason: null,
+});
+equal(leadMissingBackfill.data?.code, 'ATTENDANCE_CORRECTED', 'promotion lead can backfill a missing effective time without typing a reason');
+equal(leadMissingBackfill.data?.mode, 'manual_backfill', 'missing-time correction is explicitly classified as manual_backfill');
 
 const adminRoster = await rpc('get_attendance_admin_today', admin.token, {});
 check(adminRoster.ok && Array.isArray(adminRoster.data?.rows), 'operations manager can load Employee-based attendance roster');
