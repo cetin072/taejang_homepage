@@ -203,20 +203,20 @@ set search_path = ''
 as $$
 declare
   actor_id uuid := (select auth.uid());
-  source_system text := btrim(coalesce(p_source_system,''));
-  source_key text := btrim(coalesce(p_source_employee_key,''));
-  reason_text text := btrim(coalesce(p_reason,''));
+  v_source_system text := btrim(coalesce(p_source_system,''));
+  v_source_key text := btrim(coalesce(p_source_employee_key,''));
+  v_reason_text text := btrim(coalesce(p_reason,''));
   current_mapping public.attendance_source_identity_mappings%rowtype;
   created public.attendance_source_identity_mappings%rowtype;
 begin
   if actor_id is null or not public.private_actor_can('attendance.evidence_import') then
     return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
   end if;
-  if source_system !~ '^[a-z][a-z0-9_]{1,49}$'
-     or char_length(source_key) not between 1 and 200 then
+  if v_source_system !~ '^[a-z][a-z0-9_]{1,49}$'
+     or char_length(v_source_key) not between 1 and 200 then
     return jsonb_build_object('ok', false, 'code', 'INVALID_SOURCE_IDENTITY');
   end if;
-  if char_length(reason_text) not between 2 and 300 then
+  if char_length(v_reason_text) not between 2 and 300 then
     return jsonb_build_object('ok', false, 'code', 'REASON_REQUIRED');
   end if;
   if p_employee_uuid is null
@@ -226,8 +226,8 @@ begin
 
   select * into current_mapping
   from public.attendance_source_identity_mappings m
-  where m.source_system = source_system
-    and m.source_employee_key = source_key
+  where m.source_system = v_source_system
+    and m.source_employee_key = v_source_key
     and m.status = 'active'
   for update;
 
@@ -244,14 +244,14 @@ begin
     set status = 'revoked',
         revoked_by = actor_id,
         revoked_at = now(),
-        revoke_reason = reason_text
+        revoke_reason = v_reason_text
     where id = current_mapping.id;
   end if;
 
   insert into public.attendance_source_identity_mappings(
     source_system, source_employee_key, employee_uuid, reason, created_by
   ) values (
-    source_system, source_key, p_employee_uuid, reason_text, actor_id
+    v_source_system, v_source_key, p_employee_uuid, v_reason_text, actor_id
   )
   returning * into created;
 
@@ -263,8 +263,8 @@ begin
     'success',
     '외부 근태 직원 매핑',
     jsonb_build_object(
-      'source_system', source_system,
-      'source_employee_key', source_key,
+      'source_system', v_source_system,
+      'source_employee_key', v_source_key,
       'employee_uuid', p_employee_uuid,
       'replaced_mapping_id', current_mapping.id
     )
@@ -292,10 +292,10 @@ set search_path = ''
 as $$
 declare
   actor_id uuid := (select auth.uid());
-  source_system text := btrim(coalesce(p_source_system,''));
-  source_file text := btrim(coalesce(p_source_file_name,''));
-  fingerprint text := btrim(coalesce(p_source_fingerprint,''));
-  source_sheet text := nullif(btrim(coalesce(p_source_sheet,'')), '');
+  v_source_system text := btrim(coalesce(p_source_system,''));
+  v_source_file text := btrim(coalesce(p_source_file_name,''));
+  v_fingerprint text := btrim(coalesce(p_source_fingerprint,''));
+  v_source_sheet text := nullif(btrim(coalesce(p_source_sheet,'')), '');
   existing_batch uuid;
   batch public.attendance_external_import_batches%rowtype;
   item jsonb;
@@ -308,7 +308,7 @@ declare
   clock_in_value timestamptz;
   clock_out_value timestamptz;
   resolved_employee uuid;
-  source_key text;
+  v_source_key text;
   matched integer := 0;
   unmatched integer := 0;
   min_day date;
@@ -318,11 +318,11 @@ begin
   if actor_id is null or not public.private_actor_can('attendance.evidence_import') then
     return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
   end if;
-  if source_system !~ '^[a-z][a-z0-9_]{1,49}$' then
+  if v_source_system !~ '^[a-z][a-z0-9_]{1,49}$' then
     return jsonb_build_object('ok', false, 'code', 'INVALID_SOURCE_SYSTEM');
   end if;
-  if char_length(source_file) not between 1 and 300
-     or char_length(fingerprint) not between 16 and 256 then
+  if char_length(v_source_file) not between 1 and 300
+     or char_length(v_fingerprint) not between 16 and 256 then
     return jsonb_build_object('ok', false, 'code', 'INVALID_SOURCE_FILE');
   end if;
   if p_rows is null or jsonb_typeof(p_rows) <> 'array' then
@@ -336,8 +336,8 @@ begin
 
   select b.id into existing_batch
   from public.attendance_external_import_batches b
-  where b.source_system = source_system
-    and b.source_fingerprint = fingerprint
+  where b.source_system = v_source_system
+    and b.source_fingerprint = v_fingerprint
   limit 1;
 
   if existing_batch is not null then
@@ -352,7 +352,7 @@ begin
     source_system, source_file_name, source_fingerprint, source_sheet,
     row_count, imported_by
   ) values (
-    source_system, source_file, fingerprint, source_sheet, row_total, actor_id
+    v_source_system, v_source_file, v_fingerprint, v_source_sheet, row_total, actor_id
   )
   returning * into batch;
 
@@ -380,7 +380,7 @@ begin
     end if;
 
     resolved_employee := public.private_resolve_attendance_source_identity(
-      source_system,
+      v_source_system,
       employee_key
     );
 
@@ -389,9 +389,9 @@ begin
     clock_out_value := case when clock_out_text is null then null
       else ((work_day + clock_out_text::time) at time zone 'Asia/Seoul') end;
 
-    source_key := concat_ws('|',
-      source_system,
-      coalesce(source_sheet, ''),
+    v_source_key := concat_ws('|',
+      v_source_system,
+      coalesce(v_source_sheet, ''),
       coalesce(source_row::text, ''),
       coalesce(employee_key, display_name, ''),
       work_day::text
@@ -403,7 +403,7 @@ begin
       work_date, clock_in_raw, clock_out_raw, clock_in_at, clock_out_at,
       source_sheet, source_row_number
     ) values (
-      batch.id, source_system, source_key, employee_key,
+      batch.id, v_source_system, v_source_key, employee_key,
       display_name, resolved_employee,
       case
         when resolved_employee is not null then 'matched'
@@ -411,7 +411,7 @@ begin
         else 'unmatched'
       end,
       work_day, clock_in_text, clock_out_text, clock_in_value, clock_out_value,
-      source_sheet, source_row
+      v_source_sheet, source_row
     );
 
     if resolved_employee is null then
@@ -438,7 +438,7 @@ begin
     'success',
     '외부 지문 근태자료 가져오기',
     jsonb_build_object(
-      'source_system', source_system,
+      'source_system', v_source_system,
       'row_count', row_total,
       'matched_count', matched,
       'unmatched_count', unmatched,
@@ -461,8 +461,8 @@ exception
   when unique_violation then
     select b.id into existing_batch
     from public.attendance_external_import_batches b
-    where b.source_system = source_system
-      and b.source_fingerprint = fingerprint
+    where b.source_system = v_source_system
+      and b.source_fingerprint = v_fingerprint
     limit 1;
     if existing_batch is not null then
       return jsonb_build_object(
