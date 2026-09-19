@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   loadMyAttendanceToday,
@@ -29,7 +29,7 @@ function formatTime(value: string | null | undefined) {
 }
 
 function completed(event: AttendanceEvent | null) {
-  return Boolean(event && ['recorded', 'exception_approved'].includes(event.status));
+  return Boolean(event && ['recorded', 'exception_approved', 'corrected'].includes(event.status));
 }
 
 export function AttendanceCard() {
@@ -47,13 +47,16 @@ export function AttendanceCard() {
   const attempts = useRef<Record<AttendanceEventType, number>>({ clock_in: 0, clock_out: 0 });
 
   const refresh = useCallback(async () => {
-    if (!client || !session) return;
+    if (!client || !session) return null;
     setLoading(true);
     try {
-      setToday(await loadMyAttendanceToday(client));
+      const next = await loadMyAttendanceToday(client);
+      setToday(next);
+      return next;
     } catch {
       setMessage('출퇴근 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       setMessageError(true);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -86,6 +89,20 @@ export function AttendanceCard() {
     let position: AttendancePosition | null = null;
 
     try {
+      const latest = await loadMyAttendanceToday(client);
+      setToday(latest);
+
+      if (latest.attendance_required === false) {
+        attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
+        show('현재 계정은 근태 기록 대상이 아닙니다.', true);
+        return;
+      }
+      if (latest.is_workday === false) {
+        attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
+        show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
+        return;
+      }
+
       position = await getBestAttendancePosition({
         onStage: stage => {
           show(stage === 'improving'
@@ -94,12 +111,12 @@ export function AttendanceCard() {
         },
       });
 
-      show('서버에 출근·퇴근 기록을 확인하고 있습니다.');
+      show('출퇴근 기록을 확인하고 있습니다.');
       const result = await recordAttendanceEvent(client, eventType, position);
 
       if (result.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || '')) {
         attempts.current[eventType] = 0;
-        show(eventType === 'clock_in' ? '출근 기록을 확인했습니다.' : '퇴근 기록을 확인했습니다.');
+        show(eventType === 'clock_in' ? '출근이 기록되었습니다.' : '퇴근이 기록되었습니다.');
         await refresh();
         return;
       }
@@ -120,8 +137,8 @@ export function AttendanceCard() {
         show('먼저 출근 처리가 완료되어야 합니다.', true);
       } else if (result.code === 'NON_WORKDAY') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', true);
-      } else if (result.code === 'FORBIDDEN') {
+        show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
+      } else if (result.code === 'ATTENDANCE_NOT_REQUIRED' || result.code === 'FORBIDDEN') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show('현재 계정으로는 출퇴근을 등록할 수 없습니다.', true);
       } else {
@@ -164,7 +181,7 @@ export function AttendanceCard() {
       if (!result.ok && result.code !== 'EXCEPTION_PENDING') {
         throw new Error(result.code || 'REQUEST_FAILED');
       }
-      show('관리자에게 한 번만 확인을 요청했습니다.');
+      show('관리자에게 확인을 요청했습니다.');
       attempts.current[exceptionTarget.eventType] = 0;
       setExceptionTarget(null);
       await refresh();
@@ -179,75 +196,60 @@ export function AttendanceCard() {
   const clockOut = today?.clock_out || null;
   const clockedIn = completed(clockIn);
   const clockedOut = completed(clockOut);
+  const pending = clockIn?.status === 'exception_pending' || clockOut?.status === 'exception_pending';
+
+  let action: AttendanceEventType | null = 'clock_in';
+  let title = '출근하기';
+  let subtitle = today?.is_workday === false ? '오늘은 휴일입니다' : '회사에서 눌러주세요';
+
+  if (today?.attendance_required === false) {
+    action = null;
+    title = '근태 기록 대상 아님';
+    subtitle = '';
+  } else if (pending) {
+    action = null;
+    title = '관리자 확인 중';
+    subtitle = '요청한 출퇴근 기록을 확인하고 있습니다';
+  } else if (clockedOut) {
+    action = null;
+    title = '오늘 근무 완료';
+    subtitle = `${formatTime(clockIn?.event_at)} – ${formatTime(clockOut?.event_at)}`;
+  } else if (clockedIn) {
+    action = 'clock_out';
+    title = '퇴근하기';
+    subtitle = `출근 ${formatTime(clockIn?.event_at)}`;
+  }
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.eyebrow}>오늘 출퇴근</Text>
-
-      {loading ? <Text style={styles.help}>출퇴근 상태를 확인하고 있습니다.</Text> : null}
-
-      {!loading && today?.is_workday === false ? (
-        <Text style={styles.state}>오늘은 휴일입니다.{today.day_reason ? ` (${today.day_reason})` : ''}</Text>
-      ) : null}
-
-      {!loading && today?.is_workday !== false ? (
-        <>
-          {!clockedIn && clockIn?.status !== 'exception_pending' ? (
-            <>
-              <Text style={styles.state}>
-                {clockIn?.status === 'exception_rejected'
-                  ? '관리자 확인이 반려되었습니다. 회사에서 다시 출근해주세요.'
-                  : '아직 출근 전입니다.'}
-              </Text>
-              <Button
-                title={busy === 'clock_in' ? '확인 중…' : '출근하기'}
-                disabled={Boolean(busy)}
-                onPress={() => void record('clock_in')}
-              />
-            </>
-          ) : null}
-
-          {clockIn?.status === 'exception_pending' ? (
-            <Text style={styles.pending}>출근 확인을 관리자에게 요청했습니다. 확인 중입니다.</Text>
-          ) : null}
-
-          {clockedIn ? (
-            <View style={styles.timeBlock}>
-              <Text style={styles.state}>출근 완료</Text>
-              <Text style={styles.time}>{formatTime(clockIn?.event_at)}</Text>
-            </View>
-          ) : null}
-
-          {clockedIn && !clockedOut && clockOut?.status !== 'exception_pending' ? (
-            <Button
-              title={busy === 'clock_out' ? '확인 중…' : '퇴근하기'}
-              disabled={Boolean(busy)}
-              onPress={() => void record('clock_out')}
-            />
-          ) : null}
-
-          {clockOut?.status === 'exception_pending' ? (
-            <Text style={styles.pending}>퇴근 확인을 관리자에게 요청했습니다. 확인 중입니다.</Text>
-          ) : null}
-
-          {clockedOut ? (
-            <View style={styles.timeBlock}>
-              <Text style={styles.state}>퇴근 완료</Text>
-              <Text style={styles.time}>{formatTime(clockOut?.event_at)}</Text>
-              <Text style={styles.help}>오늘도 수고하셨습니다.</Text>
-            </View>
-          ) : null}
-        </>
-      ) : null}
+    <View style={styles.wrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={title}
+        disabled={loading || Boolean(busy) || !action}
+        onPress={() => action && void record(action)}
+        style={({ pressed }) => [
+          styles.action,
+          (!action || loading) ? styles.actionInactive : null,
+          pressed && action ? styles.actionPressed : null,
+        ]}
+      >
+        <Text style={styles.actionTitle}>
+          {busy ? '확인 중…' : loading ? '출퇴근 확인 중…' : title}
+        </Text>
+        {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
+      </Pressable>
 
       {message ? <Text style={messageError ? styles.error : styles.message}>{message}</Text> : null}
 
       {exceptionTarget ? (
-        <Button
-          title={busy ? '요청 중…' : '관리자 확인 요청'}
+        <Pressable
+          accessibilityRole="button"
           disabled={Boolean(busy)}
           onPress={() => void requestException()}
-        />
+          style={styles.exceptionButton}
+        >
+          <Text style={styles.exceptionText}>{busy ? '요청 중…' : '관리자 확인 요청'}</Text>
+        </Pressable>
       ) : null}
 
       <Text style={styles.footer}>위치는 출근·퇴근 버튼을 누르는 순간에만 확인합니다.</Text>
@@ -256,43 +258,45 @@ export function AttendanceCard() {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    gap: 12,
-    padding: 18,
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#d4e0d7',
+  wrap: { gap: 9 },
+  action: {
+    minHeight: 118,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    padding: 20,
+    borderRadius: 24,
+    backgroundColor: '#173f31',
   },
-  eyebrow: { color: '#35624d', fontSize: 13, fontWeight: '700' },
-  state: { color: '#173f31', fontSize: 19, fontWeight: '800', lineHeight: 27 },
-  timeBlock: { gap: 4 },
-  time: { color: '#173f31', fontSize: 30, fontWeight: '900' },
-  pending: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#fff5df',
-    color: '#85520b',
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 22,
-  },
+  actionInactive: { backgroundColor: '#82978a' },
+  actionPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
+  actionTitle: { color: '#ffffff', fontSize: 28, fontWeight: '900', letterSpacing: -0.5 },
+  actionSubtitle: { color: '#dcebe2', fontSize: 14, fontWeight: '700' },
   message: {
-    padding: 12,
-    borderRadius: 10,
+    padding: 11,
+    borderRadius: 12,
     backgroundColor: '#e6f0e9',
     color: '#214b35',
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
   error: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#fdeaea',
+    padding: 11,
+    borderRadius: 12,
+    backgroundColor: '#fff0ed',
     color: '#8b2f2f',
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
-  help: { color: '#60746a', fontSize: 14, lineHeight: 21 },
-  footer: { color: '#6d7e75', fontSize: 12, textAlign: 'center' },
+  exceptionButton: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: '#eef1ec',
+  },
+  exceptionText: { color: '#173f31', fontSize: 16, fontWeight: '800' },
+  footer: { color: '#708077', fontSize: 11, textAlign: 'center' },
 });
