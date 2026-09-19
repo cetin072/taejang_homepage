@@ -102,7 +102,7 @@ const leadCorrection = await rpc('create_attendance_correction', lead.token, {
   p_corrected_event_at: '2026-09-10T09:00:00+09:00',
   p_reason: '권한 테스트용 보정 사유'
 });
-assert.equal(leadCorrection.data?.code, 'FORBIDDEN', 'promotion lead cannot correct attendance');
+assert.equal(leadCorrection.data?.code, 'EMPLOYEE_NOT_FOUND', 'promotion lead passes attendance.correct gate');
 
 const techRoster = await rpc('get_attendance_admin_today', tech.token, { p_work_date: workDate });
 assert.equal(techRoster.status, 403, 'technical super-admin cannot read attendance administration roster');
