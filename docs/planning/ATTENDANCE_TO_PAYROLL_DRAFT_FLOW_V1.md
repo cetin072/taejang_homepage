@@ -29,7 +29,7 @@
 | Step 3: 일일 immutable confirmation revision과 reopen | 구현 완료 | #251 |
 | Step 4: 장기 confirmed attendance ledger/기간 조회 | 구현 완료 | #252 |
 | Step 5: monthly readiness gate와 payroll input snapshot | 구현 완료 | #253 |
-| Step 6: synthetic month E2E regression | 미구현·후속 작업 | #254 |
+| Step 6: synthetic month E2E regression | 구현 완료 | #254 |
 | Step 7: 개인 급여명세서 초안 | 미구현·후속 작업 | #255 |
 
 ## 검수 기준

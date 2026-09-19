@@ -31,11 +31,12 @@ test('runtime preserves active operations-manager-only authorization', () => {
   assert.match(contract, /never authorize payroll from `super_admin`, `ceo`, or UI visibility alone/i);
 });
 
-test('server calculation uses canonical DB facts and accepted attendance only', () => {
+test('server calculation uses canonical DB facts and either approved legacy batches or confirmed-native attendance', () => {
   assert.match(contract, /must fetch payroll facts from the database after authorization/i);
   assert.match(contract, /must not calculate from a browser-supplied employee\/attendance\/rate array/i);
-  assert.match(contract, /exactly one `accepted` attendance batch may exist per payroll month/i);
-  assert.match(contract, /missing prior-boundary accepted batch must leave the affected weekly-holiday period unresolved/i);
+  assert.match(contract, /legacy\/manual input requires exactly one `accepted` attendance batch per payroll month/i);
+  assert.match(contract, /confirmed-native input uses only active daily confirmation revisions/i);
+  assert.match(contract, /missing required prior-boundary confirmation must leave the affected weekly-holiday period unresolved/i);
   assert.match(contract, /clock-in\/out span must never become paid hours automatically/i);
 });
 
