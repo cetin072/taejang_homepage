@@ -13,6 +13,7 @@ const attendance = read('app/assets/attendance-admin.js');
 const migration = read('supabase/migrations/20260920203000_issue_286_confirmed_status_historical_backfill.sql');
 const historicalBridge = read('supabase/migrations/20260920211500_issue_286_historical_confirmation_bridge.sql');
 const rosterStability = read('supabase/migrations/20260920214500_issue_286_reopen_roster_stability.sql');
+const historicalDefaultPresent = read('supabase/migrations/20260920223500_issue_286_historical_default_present.sql');
 
 test('time picker regex accepts real HH:MM values and rejects malformed values', () => {
   const literal = correction.match(/const TIME_VALUE_PATTERN = (\/\^.*?\$\/);/)?.[1];
@@ -66,4 +67,29 @@ test('historical confirmed dates bypass obsolete live-evidence blockers but inco
   assert.match(rosterStability, /confirmation_revision_id=prior_revision_id/);
   assert.match(rosterStability, /roster_source/);
   assert.match(rosterStability, /prior_revision/);
+});
+
+
+test('operator-directed historical blanks become scheduled work without fabricated timestamps', () => {
+  assert.match(historicalDefaultPresent, /historical_default_present/);
+  assert.match(historicalDefaultPresent, /운영자 지시: 2026-06~08 공란\/누락 근태 출근 처리/);
+  assert.match(historicalDefaultPresent, /when h\.id is null then 'actual_scheduled'/);
+  assert.match(historicalDefaultPresent, /when h\.attendance_status in \('blank','review_required','work'\) then 'actual_scheduled'/);
+  assert.match(historicalDefaultPresent, /when h\.clock_in_at is null then null/);
+  assert.match(historicalDefaultPresent, /when h\.clock_out_at is null then null/);
+  assert.doesNotMatch(historicalDefaultPresent, /clock_out_at\s*-\s*interval/i);
+});
+
+test('historical attendance survives later archive or departure-state changes', () => {
+  assert.match(historicalDefaultPresent, /attendance_historical_rows h/);
+  assert.match(historicalDefaultPresent, /h\.attendance_status <> 'out_of_scope'/);
+  assert.doesNotMatch(historicalDefaultPresent, /e\.archived_at is null/);
+  assert.match(historicalDefaultPresent, /e\.hired_on <= p_work_date/);
+  assert.match(historicalDefaultPresent, /e\.departed_on is null or e\.departed_on >= p_work_date/);
+});
+
+test('historical scheduled-work records do not fail confirmed duration readiness', () => {
+  assert.match(historicalDefaultPresent, /confirmed_duration_invalid/);
+  assert.match(historicalDefaultPresent, /payroll_decision',''\) = 'actual_scheduled'/);
+  assert.match(historicalDefaultPresent, /historical_default_present','false'\) = 'true'/);
 });
