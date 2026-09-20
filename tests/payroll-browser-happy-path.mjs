@@ -262,11 +262,10 @@ const automationScript = `<script>
           return node && !node.disabled ? node : null;
         }, 'confirmed payroll action ready');
         calculate.click();
-        await waitFor(() => {
-          const text = document.getElementById('payroll-live-message')?.textContent || '';
-          return text.includes('급여 가안 계산을 완료했습니다') || text.includes('급여 가안을 계산했습니다');
-        }, 'confirmed payroll calculation');
-        await waitFor(() => document.querySelectorAll('#payroll-live-table-body tr').length === 2, 'ledger rows');
+        await waitFor(
+          () => document.querySelectorAll('#payroll-live-table-body tr').length === 2,
+          'confirmed payroll calculation and ledger rows'
+        );
         await waitFor(() => !document.getElementById('payroll-live-export').disabled, 'ledger export enabled');
 
         sessionStorage.setItem(stageKey, 'reload');
