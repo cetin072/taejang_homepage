@@ -11,6 +11,8 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const correction = read('app/assets/attendance-integrity-ui.js');
 const attendance = read('app/assets/attendance-admin.js');
 const migration = read('supabase/migrations/20260920203000_issue_286_confirmed_status_historical_backfill.sql');
+const historicalBridge = read('supabase/migrations/20260920211500_issue_286_historical_confirmation_bridge.sql');
+const rosterStability = read('supabase/migrations/20260920214500_issue_286_reopen_roster_stability.sql');
 
 test('time picker regex accepts real HH:MM values and rejects malformed values', () => {
   const literal = correction.match(/const TIME_VALUE_PATTERN = (\/\^.*?\$\/);/)?.[1];
@@ -54,4 +56,14 @@ test('new private historical/status helpers are not browser-executable', () => {
   assert.match(migration, /revoke all on function public\.private_attendance_effective_event\(uuid,date,text\) from public,anon,authenticated/);
   assert.match(migration, /revoke all on function public\.private_build_payroll_calculation_input\(date,date,uuid\) from public,anon,authenticated/);
   assert.match(migration, /grant execute on function public\.private_backfill_historical_attendance_batch\(uuid\) to service_role/);
+});
+
+test('historical confirmed dates bypass obsolete live-evidence blockers but incomplete dates stay gated', () => {
+  assert.match(historicalBridge, /attendance_exception_unresolved/);
+  assert.match(historicalBridge, /attendance_historical_rows/);
+  assert.match(historicalBridge, /day_unconfirmed/);
+  assert.match(rosterStability, /prior_revision_id/);
+  assert.match(rosterStability, /confirmation_revision_id=prior_revision_id/);
+  assert.match(rosterStability, /roster_source/);
+  assert.match(rosterStability, /prior_revision/);
 });
