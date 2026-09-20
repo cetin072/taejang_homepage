@@ -141,7 +141,33 @@ begin
   limit 1;
 
   if latest.id is null then
-    return jsonb_build_object('status','work','note',null,'reason',null,'changed_at',null);
+    select
+      h.id,
+      h.attendance_status,
+      h.source_annotation
+    into latest.id, latest.attendance_status, latest.note
+    from public.attendance_historical_rows h
+    join public.attendance_historical_import_batches batch on batch.id=h.batch_id
+    where h.employee_uuid=p_employee_uuid
+      and h.work_date=p_work_date
+      and h.parse_status='matched'
+      and h.attendance_status in ('work','paid_leave','unpaid_absence','paid_holiday')
+    order by batch.imported_at desc,h.created_at desc,h.id desc
+    limit 1;
+
+    if latest.id is null then
+      return jsonb_build_object('status','work','note',null,'reason',null,'changed_at',null);
+    end if;
+
+    return jsonb_build_object(
+      'status', latest.attendance_status,
+      'note', latest.note,
+      'reason', '과거 확정 출퇴근부',
+      'changed_by', null,
+      'changed_at', null,
+      'change_id', null,
+      'source', 'historical_final_workbook'
+    );
   end if;
 
   return jsonb_build_object(
@@ -174,6 +200,13 @@ declare
   hist record;
   chosen_at timestamptz;
 begin
+  if coalesce(
+    public.private_attendance_effective_status(p_employee_uuid,p_work_date) ->> 'status',
+    'work'
+  ) <> 'work' then
+    return null;
+  end if;
+
   current_value := public.private_attendance_effective_event_pre286(
     p_employee_uuid, p_work_date, p_event_type
   );
@@ -352,6 +385,13 @@ begin
   from jsonb_array_elements(base) item
   where not (
     nullif(item ->> 'employee_uuid','') is not null
+    and not public.private_employee_is_attendance_subject_on(
+      (item ->> 'employee_uuid')::uuid,
+      p_work_date
+    )
+  )
+  and not (
+    nullif(item ->> 'employee_uuid','') is not null
     and coalesce(
       public.private_attendance_effective_status(
         (item ->> 'employee_uuid')::uuid,
@@ -448,19 +488,19 @@ begin
       'employee_uuid', e.id,
       'employee_id', e.employee_id,
       'display_name', person.full_name,
-      'attendance_status', status_row ->> 'status',
-      'attendance_status_note', status_row ->> 'note',
-      'attendance_status_reason', status_row ->> 'reason',
+      'attendance_status', status.status_row ->> 'status',
+      'attendance_status_note', status.status_row ->> 'note',
+      'attendance_status_reason', status.status_row ->> 'reason',
       'payroll_decision', case
-        when status_row ->> 'status' = 'work'
+        when status.status_row ->> 'status' = 'work'
           and (
             coalesce(clock_in ->> 'status','') = 'corrected'
             or coalesce(clock_out ->> 'status','') = 'corrected'
           ) then 'confirmed_correction'
-        when status_row ->> 'status' = 'work' then 'actual_scheduled'
-        when status_row ->> 'status' = 'paid_leave' then 'paid_leave'
-        when status_row ->> 'status' = 'unpaid_absence' then 'unpaid_absence'
-        when status_row ->> 'status' = 'paid_holiday' then 'paid_holiday'
+        when status.status_row ->> 'status' = 'work' then 'actual_scheduled'
+        when status.status_row ->> 'status' = 'paid_leave' then 'paid_leave'
+        when status.status_row ->> 'status' = 'unpaid_absence' then 'unpaid_absence'
+        when status.status_row ->> 'status' = 'paid_holiday' then 'paid_holiday'
         else 'out_of_scope'
       end,
       'clock_in', clock_in,
@@ -484,7 +524,9 @@ begin
     ) as record
     from public.employees e
     join public.people person on person.id = e.person_id
-    cross join lateral public.private_attendance_effective_status(e.id,p_work_date) status_row
+    cross join lateral (
+      select public.private_attendance_effective_status(e.id,p_work_date) as status_row
+    ) status
     cross join lateral (select public.private_attendance_effective_event(e.id,p_work_date,'clock_in') as clock_in) cin
     cross join lateral (select public.private_attendance_effective_event(e.id,p_work_date,'clock_out') as clock_out) cout
     where public.private_employee_is_attendance_subject_on(e.id,p_work_date)
@@ -827,10 +869,7 @@ begin
     with required as (
       select e.id
       from public.employees e
-      where e.archived_at is null
-        and e.attendance_required
-        and e.hired_on<=target_day
-        and (e.departed_on is null or e.departed_on>=target_day)
+      where public.private_employee_is_attendance_subject_on(e.id,target_day)
         and exists (
           select 1 from public.payroll_employment_terms t
           where t.employee_uuid=e.id
@@ -845,31 +884,41 @@ begin
     with required as (
       select e.id
       from public.employees e
-      where e.archived_at is null
-        and e.attendance_required
-        and e.hired_on<=target_day
-        and (e.departed_on is null or e.departed_on>=target_day)
+      where public.private_employee_is_attendance_subject_on(e.id,target_day)
         and exists (
           select 1 from public.payroll_employment_terms t
           where t.employee_uuid=e.id
             and t.effective_from<=target_day
             and (t.effective_to is null or t.effective_to>=target_day)
         )
+    ),
+    source_counts as (
+      select
+        req.id as employee_uuid,
+        count(h.id)::integer as source_count,
+        count(h.id) filter (
+          where h.parse_status='matched'
+            and h.attendance_status in ('work','paid_leave','unpaid_absence','paid_holiday')
+            and (
+              h.attendance_status<>'work'
+              or (
+                h.clock_in_at is not null
+                and h.clock_out_at is not null
+                and h.clock_out_at>h.clock_in_at
+              )
+            )
+        )::integer as usable_count
+      from required req
+      left join public.attendance_historical_rows h
+        on h.batch_id=p_batch_id
+       and h.work_date=target_day
+       and h.employee_uuid=req.id
+      group by req.id
     )
     select count(*)::integer
     into invalid_count
-    from required req
-    left join public.attendance_historical_rows h
-      on h.batch_id=p_batch_id
-     and h.work_date=target_day
-     and h.employee_uuid=req.id
-    where h.id is null
-       or h.parse_status<>'matched'
-       or h.attendance_status in ('blank','review_required','out_of_scope')
-       or (
-         h.attendance_status='work'
-         and (h.clock_in_at is null or h.clock_out_at is null or h.clock_out_at<=h.clock_in_at)
-       );
+    from source_counts
+    where source_count<>1 or usable_count<>1;
 
     if invalid_count > 0 or required_count = 0 then
       skipped_dates := skipped_dates || jsonb_build_array(
@@ -940,10 +989,7 @@ begin
     where h.batch_id=p_batch_id
       and h.work_date=target_day
       and h.parse_status='matched'
-      and e.archived_at is null
-      and e.attendance_required
-      and e.hired_on<=target_day
-      and (e.departed_on is null or e.departed_on>=target_day)
+      and public.private_employee_is_attendance_subject_on(e.id,target_day)
       and exists (
         select 1 from public.payroll_employment_terms t
         where t.employee_uuid=e.id
@@ -1020,6 +1066,13 @@ revoke all on function public.private_payroll_confirmed_attendance_readiness_pre
 revoke all on function public.private_build_payroll_calculation_input_pre286(date,date,uuid) from public,anon,authenticated;
 revoke all on function public.private_payroll_operator_effective_attendance_summary_pre286(uuid,date) from public,anon,authenticated;
 revoke all on function public.private_backfill_historical_attendance_batch(uuid) from public,anon,authenticated;
+revoke all on function public.private_employee_is_attendance_subject_on(uuid,date) from public,anon,authenticated;
+revoke all on function public.private_attendance_effective_status(uuid,date) from public,anon,authenticated;
+revoke all on function public.private_attendance_effective_event(uuid,date,text) from public,anon,authenticated;
+revoke all on function public.private_attendance_confirmation_blockers(date) from public,anon,authenticated;
+revoke all on function public.private_payroll_confirmed_attendance_readiness(date,date) from public,anon,authenticated;
+revoke all on function public.private_build_payroll_calculation_input(date,date,uuid) from public,anon,authenticated;
+revoke all on function public.private_payroll_operator_effective_attendance_summary(uuid,date) from public,anon,authenticated;
 
 grant execute on function public.set_attendance_day_status(uuid,date,text,text,text) to authenticated;
 grant execute on function public.private_backfill_historical_attendance_batch(uuid) to service_role;
