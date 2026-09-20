@@ -9,6 +9,7 @@
   const employeeUuid = String(query.get('employee') || '');
 
   function money(value) {
+    if (value === null || value === undefined || value === '') return '검토 필요';
     const number = Number(value);
     return Number.isFinite(number) ? `${Math.round(number).toLocaleString('ko-KR')}원` : '검토 필요';
   }
