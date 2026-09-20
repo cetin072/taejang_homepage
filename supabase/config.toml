@@ -82,3 +82,9 @@ verify_jwt = false
 
 [analytics]
 enabled = false
+
+# Public only in the sense that the browser has no Supabase session yet.
+# The body accepts only a high-entropy, short-lived, single-use handoff code,
+# then uses the service role internally to atomically consume it.
+[functions.web-auth-handoff]
+verify_jwt = false

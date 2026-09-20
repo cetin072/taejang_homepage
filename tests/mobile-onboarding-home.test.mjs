@@ -40,7 +40,8 @@ test('active mobile home has at most attendance, notice, and one work-platform p
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
   assert.match(home, /justifyContent:\s*'space-between'/);
   assert.match(home, /actionHeight/);
-  assert.equal((home.match(/title="업무 플랫폼 열기"/g) || []).length, 1);
+  assert.match(home, /업무 플랫폼 열기/);
+  assert.equal((home.match(/<PrimaryButton/g) || []).length, 1);
   assert.doesNotMatch(home, /로그인 상태|중요공지 알림 준비|직원앱 준비 완료/);
 });
 

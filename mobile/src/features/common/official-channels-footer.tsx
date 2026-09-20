@@ -3,17 +3,17 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const CHANNELS = [
   {
-    label: '홈페이지',
+    label: '태장 홈페이지',
     url: 'https://taejang.co.kr',
     icon: require('../../../assets/taejang-favicon.png'),
   },
   {
-    label: '블로그',
+    label: '공식 블로그',
     url: 'https://blog.naver.com/taejang-official',
     icon: require('../../../assets/naver-blog.png'),
   },
   {
-    label: '유튜브',
+    label: '공식 유튜브',
     url: 'https://youtube.com/@taejangofficial',
     icon: require('../../../assets/youtube.png'),
   },
@@ -44,8 +44,8 @@ export function OfficialChannelsFooter() {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', paddingTop: 12, paddingBottom: 2 },
-  links: { flexDirection: 'row', justifyContent: 'center', gap: 30 },
-  item: { width: 68, alignItems: 'center', gap: 8 },
+  links: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
+  item: { width: 88, alignItems: 'center', gap: 8 },
   pressed: { opacity: 0.7 },
   iconFrame: {
     width: 54,
@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   icon: { width: 48, height: 48 },
-  label: { color: '#5e6e65', fontSize: 12, fontWeight: '800' },
+  label: { color: '#5e6e65', fontSize: 12, fontWeight: '800', textAlign: 'center' },
 });

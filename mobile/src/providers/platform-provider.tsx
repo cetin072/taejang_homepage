@@ -1,4 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
+import * as Crypto from 'expo-crypto';
 import { AppState } from 'react-native';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
@@ -26,6 +27,7 @@ type PlatformContextValue = {
   signIn: (email: string, password: string) => Promise<void>;
   signUpEmployee: (input: EmployeeSignupInput) => Promise<{ sessionStarted: boolean }>;
   requestPasswordReset: (email: string) => Promise<void>;
+  createWorkPlatformUrl: () => Promise<string>;
   signOut: () => Promise<void>;
 };
 
@@ -114,6 +116,32 @@ export function PlatformProvider({ children }: PropsWithChildren) {
           redirectTo: `${getApiBaseUrl()}/staff/reset-password.html`,
         });
         if (resetError) throw resetError;
+      },
+      createWorkPlatformUrl: async () => {
+        if (!client) throw new Error('업무 플랫폼 연결이 아직 준비되지 않았습니다.');
+
+        const code = (
+          Crypto.randomUUID().replace(/-/g, '') +
+          Crypto.randomUUID().replace(/-/g, '')
+        ).toLowerCase();
+
+        const codeHash = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          code,
+          { encoding: Crypto.CryptoEncoding.HEX },
+        );
+
+        const { data, error: handoffError } = await client.rpc('create_web_auth_handoff', {
+          p_code_hash: codeHash,
+        });
+        if (handoffError) throw handoffError;
+
+        const result = data as { ok?: boolean; code?: string } | null;
+        if (!result?.ok) {
+          throw new Error(result?.code || 'WEB_AUTH_HANDOFF_FAILED');
+        }
+
+        return `${getApiBaseUrl()}/app/?handoff=${encodeURIComponent(code)}`;
       },
       signUpEmployee: async ({ name, email, phone, password, hiredOn }) => {
         if (!client) throw new Error('가입 모듈이 아직 준비되지 않았습니다.');
