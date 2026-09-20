@@ -14,6 +14,7 @@ const migration = read('supabase/migrations/20260920203000_issue_286_confirmed_s
 const historicalBridge = read('supabase/migrations/20260920211500_issue_286_historical_confirmation_bridge.sql');
 const rosterStability = read('supabase/migrations/20260920214500_issue_286_reopen_roster_stability.sql');
 const historicalDefaultPresent = read('supabase/migrations/20260920223500_issue_286_historical_default_present.sql');
+const historicalReadinessOverride = read('supabase/migrations/20260920224500_issue_286_historical_readiness_override.sql');
 
 test('time picker regex accepts real HH:MM values and rejects malformed values', () => {
   const literal = correction.match(/const TIME_VALUE_PATTERN = (\/\^.*?\$\/);/)?.[1];
@@ -92,4 +93,13 @@ test('historical scheduled-work records do not fail confirmed duration readiness
   assert.match(historicalDefaultPresent, /confirmed_duration_invalid/);
   assert.match(historicalDefaultPresent, /payroll_decision',''\) = 'actual_scheduled'/);
   assert.match(historicalDefaultPresent, /historical_default_present','false'\) = 'true'/);
+});
+
+
+test('final historical confirmations supersede obsolete raw-evidence readiness blockers', () => {
+  assert.match(historicalReadinessOverride, /attendance_exception_unresolved/);
+  assert.match(historicalReadinessOverride, /record\.record_snapshot \? 'historical_source'/);
+  assert.match(historicalReadinessOverride, /historical_default_present/);
+  assert.match(historicalReadinessOverride, /source_fingerprint/);
+  assert.match(historicalReadinessOverride, /attendance_confirmation_reopens/);
 });
