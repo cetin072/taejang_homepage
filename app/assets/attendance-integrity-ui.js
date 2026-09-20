@@ -200,7 +200,7 @@
         hourSelect.addEventListener('change', syncDirectInput);
         minuteSelect.addEventListener('change', syncDirectInput);
         timeInput.addEventListener('input', () => {
-          const match = String(timeInput.value || '').match(/^([01]\\d|2[0-3]):([0-5]\\d)$/);
+          const match = String(timeInput.value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
           if (!match) return;
           hourSelect.value = match[1];
           minuteSelect.value = match[2];
@@ -240,7 +240,7 @@
         if (event.submitter?.value !== 'save') return;
         const timeValue = isSetTime ? `${hourSelect?.value || ''}:${minuteSelect?.value || ''}` : '';
         const reason = reasonInput?.value.trim() || null;
-        if (isSetTime && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(timeValue)) {
+        if (isSetTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(timeValue)) {
           event.preventDefault();
           error.textContent = '시간을 시·분 선택에서 골라주세요.';
           hourSelect?.focus();
