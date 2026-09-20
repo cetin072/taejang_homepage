@@ -75,6 +75,13 @@ test('deployed staging wrapper adds statutory input through one server-only RPC 
   assert.match(deployedDeps, /PAYROLL_RUNTIME_COMMIT\s*=\s*'[0-9a-f]{40}'/);
 });
 
+test('deployed staging runtime pin includes the confirmed actual_worked adapter contract', () => {
+  const pinned = deployedDeps.match(/PAYROLL_RUNTIME_COMMIT\s*=\s*'([0-9a-f]{40})'/)?.[1];
+  assert.equal(pinned, '78f11ec235d3a4165f9558934305392d63a8aef6');
+  const adapter = fs.readFileSync(path.join(root, 'app/assets/payroll-db-input-adapter.js'), 'utf8');
+  assert.match(adapter, /case 'actual_worked':[\s\S]*case 'confirmed_correction':[\s\S]*return 'confirmed_correction'/);
+});
+
 test('service credential never enters response or operational log payload', () => {
   const responseLines = wrapper
     .split('\n')
