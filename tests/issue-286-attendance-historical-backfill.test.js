@@ -60,10 +60,11 @@ test('new private historical/status helpers are not browser-executable', () => {
   assert.match(migration, /grant execute on function public\.private_backfill_historical_attendance_batch\(uuid\) to service_role/);
 });
 
-test('historical confirmed dates bypass obsolete live-evidence blockers but incomplete dates stay gated', () => {
+test('historical confirmed dates bypass obsolete live-evidence blockers and reopen keeps prior roster stable', () => {
   assert.match(historicalBridge, /attendance_exception_unresolved/);
   assert.match(historicalBridge, /attendance_historical_rows/);
-  assert.match(historicalBridge, /day_unconfirmed/);
+  assert.match(historicalBridge, /private_payroll_confirmed_attendance_readiness/);
+  assert.match(historicalBridge, /attendance_confirmation_reopens/);
   assert.match(rosterStability, /prior_revision_id/);
   assert.match(rosterStability, /confirmation_revision_id=prior_revision_id/);
   assert.match(rosterStability, /roster_source/);
