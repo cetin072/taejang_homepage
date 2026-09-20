@@ -1,0 +1,74 @@
+name: Payroll Hosted Staging E2E
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/payroll-hosted-e2e.mjs'
+      - 'tests/payroll-hosted-e2e-contract.test.js'
+      - '.github/workflows/payroll-hosted-staging-e2e.yml'
+      - 'supabase/functions/web-auth-handoff/**'
+      - 'app/payroll/**'
+      - 'app/assets/payroll-*.js'
+      - 'netlify/functions/payroll-calculate-proxy.mjs'
+      - 'supabase/functions/payroll-calculate/**'
+      - 'supabase/migrations/*payroll*.sql'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: payroll-hosted-staging-e2e
+  cancel-in-progress: false
+
+jobs:
+  hosted-payroll:
+    name: Hosted payroll API and browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+      STAGING_CONFIRM: STAGING
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install deterministic test runtime
+        run: npm ci
+      - name: Create one-time active top-authority handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "STOP_STAGING_CREDENTIAL_MISSING"; exit 1; }
+          target_query="$(cat <<'SQL'
+          select p.id
+          from public.profiles p
+          join auth.users u on u.id = p.id and u.email_confirmed_at is not null
+          join public.profile_roles pr on pr.profile_id = p.id and pr.revoked_at is null
+          join public.roles r on r.id = pr.role_id and r.code in ('operations_manager', 'super_admin')
+          where p.account_status = 'active'
+          group by p.id
+          having count(distinct r.code) = 2
+          SQL
+          )"
+          target_response="$(jq -n --arg query "$target_query" '{query:$query,read_only:true}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
+          target_id="$(printf '%s' "$target_response" | jq -er 'if type == "array" then . elif .result? then .result else .data end | if length == 1 then .[0].id else error("top-authority candidate count must equal one") end')"
+          handoff_code="$(openssl rand -hex 32)"
+          echo "::add-mask::$handoff_code"
+          handoff_hash="$(printf '%s' "$handoff_code" | sha256sum | awk '{print $1}')"
+          create_query="begin; set local role authenticated; select set_config('request.jwt.claim.sub', '${target_id}', true); select set_config('request.jwt.claim.role', 'authenticated', true); select public.create_web_auth_handoff('${handoff_hash}'); commit;"
+          create_response="$(jq -n --arg query "$create_query" '{query:$query,read_only:false}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
+          printf '%s' "$create_response" | jq -e 'tostring | test("WEB_AUTH_HANDOFF_CREATED")' >/dev/null
+          echo "PAYROLL_HOSTED_HANDOFF_CODE=$handoff_code" >> "$GITHUB_ENV"
+          unset handoff_code handoff_hash target_id target_response create_response
+          echo "PASS one-time staging QA handoff created; identifiers and credentials withheld"
+      - name: Run cheap checks, staging API smoke, then hosted Playwright
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: 0
+        run: npm run test:payroll-hosted
