@@ -102,6 +102,17 @@ function canonical(overrides = {}) {
       },
       {
         attendance_row_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddd06',
+        source_key: 'source-0905-actual-worked',
+        employee_uuid: employeeUuid,
+        work_date: '2026-09-05',
+        match_status: 'matched',
+        record_status: 'confirmed_immutable',
+        auto_decision: 'actual_worked',
+        review_status: 'confirmed',
+        confirmed_hours: 3.25,
+      },
+      {
+        attendance_row_id: 'dddddddd-dddd-4ddd-8ddd-dddddddddd07',
         source_key: 'source-0908-future',
         employee_uuid: employeeUuid,
         work_date: '2026-09-08',
@@ -138,6 +149,10 @@ test('DB decisions map to the exact engine attendance semantics', () => {
   assert.equal(byDate.get('2026-09-04').reviewStatus, 'confirmed');
   assert.equal(byDate.get('2026-09-04').confirmedHours, 2);
   assert.equal(engine.classifyAttendanceRecord(byDate.get('2026-09-04')), engine.AttendanceState.MANUAL_CONFIRMED);
+  assert.equal(byDate.get('2026-09-05').autoDecision, 'confirmed_correction');
+  assert.equal(byDate.get('2026-09-05').reviewStatus, 'confirmed');
+  assert.equal(byDate.get('2026-09-05').confirmedHours, 3.25);
+  assert.equal(engine.classifyAttendanceRecord(byDate.get('2026-09-05')), engine.AttendanceState.MANUAL_CONFIRMED);
 });
 
 test('future expected DB row is omitted so engine projection is not mistaken for actual attendance', () => {
