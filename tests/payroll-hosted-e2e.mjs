@@ -72,6 +72,8 @@ async function apiSmoke(config, session) {
     body: JSON.stringify({ payroll_month: payrollMonth, cutoff_date: '2026-07-31', request_id: `issue-301-api-${Date.now()}` }),
   }), 'payroll-proxy');
   if (safeCode(calculation) === 'WORKER_ERROR' || safeCode(calculation) === 'PAYROLL_MONTH_NOT_FOUND') fail(`payroll-proxy ${safeCode(calculation)}`);
+  assert.equal(calculation?.persisted, true, 'calculation must persist through the trusted run RPC');
+  assert.ok(calculation?.runId, 'payroll calculation must return its persisted run identifier');
   const ledger = await rpc(config, session, 'get_payroll_operator_ledger_context', { p_payroll_month: payrollMonth });
   assert.ok(ledger?.latest_run?.id && ledger?.month?.latest_run_id, 'persisted payroll run and latest pointer required');
   assert.ok(Array.isArray(ledger?.employees) && ledger.employees.length > 0, 'employee results required');

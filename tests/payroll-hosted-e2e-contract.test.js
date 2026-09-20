@@ -13,6 +13,8 @@ test('hosted payroll E2E is staging-locked, reuses QA sessions, and performs che
   assert.match(source, /await apiSmoke\(config, smokeSession\);[\s\S]*await browserE2E/);
   assert.match(source, /unpaid_absence/);
   assert.match(source, /absence_day_count/);
+  assert.match(source, /calculation\?\.persisted/);
+  assert.match(source, /calculation\?\.runId/);
   assert.match(source, /waitForEvent\('download'\)/);
   assert.match(source, /payslip-content/);
   assert.doesNotMatch(source, /video:|trace:/);
