@@ -25,6 +25,7 @@
     timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false
   }).format(new Date(value)) : '-';
   const isoForKstInput = (date, time) => `${date}T${time}:00+09:00`;
+  const TIME_VALUE_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
   function statusLabel(record) {
     if (!record) return '미처리';
@@ -200,7 +201,7 @@
         hourSelect.addEventListener('change', syncDirectInput);
         minuteSelect.addEventListener('change', syncDirectInput);
         timeInput.addEventListener('input', () => {
-          const match = String(timeInput.value || '').match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+          const match = String(timeInput.value || '').match(TIME_VALUE_PATTERN);
           if (!match) return;
           hourSelect.value = match[1];
           minuteSelect.value = match[2];
@@ -240,7 +241,7 @@
         if (event.submitter?.value !== 'save') return;
         const timeValue = isSetTime ? `${hourSelect?.value || ''}:${minuteSelect?.value || ''}` : '';
         const reason = reasonInput?.value.trim() || null;
-        if (isSetTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(timeValue)) {
+        if (isSetTime && !TIME_VALUE_PATTERN.test(timeValue)) {
           event.preventDefault();
           error.textContent = '시간을 시·분 선택에서 골라주세요.';
           hourSelect?.focus();
