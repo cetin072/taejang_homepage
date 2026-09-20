@@ -16,6 +16,7 @@ const rosterStability = read('supabase/migrations/20260920214500_issue_286_reope
 const historicalDefaultPresent = read('supabase/migrations/20260920223500_issue_286_historical_default_present.sql');
 const historicalReadinessOverride = read('supabase/migrations/20260920224500_issue_286_historical_readiness_override.sql');
 const dayStatusRpcGrants = read('supabase/migrations/20260920225500_issue_286_day_status_rpc_grants.sql');
+const statusConfirmedPayrollInput = read('supabase/migrations/20260920231500_issue_286_status_confirmed_payroll_input.sql');
 
 test('time picker regex accepts real HH:MM values and rejects malformed values', () => {
   const literal = correction.match(/const TIME_VALUE_PATTERN = (\/\^.*?\$\/);/)?.[1];
@@ -111,4 +112,13 @@ test('attendance day-status RPC is never executable by anon', () => {
   assert.match(dayStatusRpcGrants, /revoke execute on function public\.set_attendance_day_status\(uuid,date,text,text,text\)/);
   assert.match(dayStatusRpcGrants, /from public, anon/);
   assert.match(dayStatusRpcGrants, /to authenticated/);
+});
+
+
+test('semantic day statuses do not masquerade as time-confirmed corrections', () => {
+  assert.match(statusConfirmedPayrollInput, /then 'confirmed'/);
+  assert.match(statusConfirmedPayrollInput, /else 'status_confirmed'/);
+  assert.match(statusConfirmedPayrollInput, /payroll_decision',''\) = 'confirmed_correction'/);
+  assert.match(statusConfirmedPayrollInput, /confirmed_hours/);
+  assert.match(statusConfirmedPayrollInput, /payroll-db-input-v6-confirmed-status/);
 });
