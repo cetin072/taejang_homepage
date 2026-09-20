@@ -157,7 +157,7 @@
         dataKey: 'employee-management'
       });
       items.push({
-        label: route === 'operations_manager' ? '신규 직원 등록' : '신규 직원 등록 요청',
+        label: ['operations_manager', 'promotion_lead'].includes(route) ? '신규 직원 등록' : '신규 직원 등록 요청',
         run: () => openEmployee('new'),
         dataKey: 'employee-new'
       });
