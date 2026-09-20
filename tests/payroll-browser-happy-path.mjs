@@ -364,7 +364,7 @@ const server = createServer(async (request, response) => {
       return json(response, 200, { payroll_month: `${TARGET_MONTH}-01`, saved_count: entries.length });
     }
 
-    if (request.method === 'POST' && url.pathname === '/functions/v1/payroll-calculate') {
+    if (request.method === 'POST' && url.pathname === '/api/payroll-calculate') {
       const body = await readJson(request);
       if (Object.prototype.hasOwnProperty.call(body, 'accepted_import_batch_id')) {
         return json(response, 422, { code: 'E2E_CONFIRMED_NATIVE_MUST_NOT_SEND_BATCH' });
