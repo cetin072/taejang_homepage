@@ -49,6 +49,7 @@ test('HTTP boundary requires exact configured origin, POST and bearer authorizat
   assert.match(wrapper, /authorization\.match\(\/\^Bearer\\s\+\(\.\+\)\$\/i\)/);
   assert.match(wrapper, /PAYROLL_AUTH_REQUIRED/);
   assert.match(wrapper, /MAX_REQUEST_BYTES = 32 \* 1024/);
+  assert.match(deployedWrapper, /access-control-allow-headers': 'authorization, x-client-info, apikey, content-type'/);
 });
 
 test('user JWT validates identity and canonical input through guarded public RPC', () => {

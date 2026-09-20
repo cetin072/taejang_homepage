@@ -82,7 +82,7 @@ Deno.serve(async (req: Request) => {
     const headers = new Headers({
       'access-control-allow-origin': configuredOrigin,
       'access-control-allow-methods': 'POST, OPTIONS',
-      'access-control-allow-headers': 'authorization, content-type',
+      'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
       'access-control-max-age': '600',
       'vary': 'Origin',
     });
