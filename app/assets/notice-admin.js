@@ -217,8 +217,15 @@
     ui.element('notice-form').addEventListener('input', renderPreview);
   }
 
+  function canManageNotices() {
+    const app = window.TaejangApp;
+    return app?.hasCapabilityContract?.()
+      ? Boolean(app.can?.('notice.manage'))
+      : Boolean(app?.isTodayManager?.());
+  }
+
   document.addEventListener('taejang-app-ready', () => {
-    if (!window.TaejangApp.isTodayManager()) return;
+    if (!canManageNotices()) return;
     bind();
     resetForm();
   }, { once: true });

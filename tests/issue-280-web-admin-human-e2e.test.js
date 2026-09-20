@@ -10,6 +10,12 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const migration = read('supabase/migrations/20260920043107_issue_280_web_admin_human_e2e_contract.sql');
 const dashboard = read('app/assets/dashboard-shell.js');
 const gates = read('app/assets/capability-ui-gates.js');
+const app = read('app/assets/app.js');
+const workspace = read('app/assets/app-workspace-surface.js');
+const scheduleAdmin = read('app/assets/schedule-admin.js');
+const noticeAdmin = read('app/assets/notice-admin.js');
+const guidanceAdmin = read('app/assets/guidance-admin.js');
+const capabilityAccess = read('app/assets/capability-access.js');
 const attendance = read('app/assets/attendance-admin.js');
 const correctionUi = read('app/assets/attendance-integrity-ui.js');
 const simulation = read('app/assets/phase-c-role-simulation.js');
@@ -25,6 +31,48 @@ test('promotion lead receives exactly the intended operational capability contra
   assert.match(dashboard, /\{ label: '일정 관리', run: \(\) => openPanel\('schedule-admin-panel'\) \}/);
   assert.match(dashboard, /\{ label: '공지 관리', run: \(\) => openPanel\('notice-admin-panel'\) \}/);
   assert.doesNotMatch(migration, /payroll\.manage|payroll\.operator|payroll\.draft/i);
+});
+
+test('promotion lead management modules initialize through capability context and retain exact server RPC guards', () => {
+  assert.match(app, /await resolveCapabilityContext\(\)/);
+  assert.match(app, /window\.TaejangCapabilityAccess\.refresh\(\)/);
+  assert.match(app, /taejang-capability-access-ready/);
+  assert.match(capabilityAccess, /taejang-capability-access-ready/);
+  assert.match(app, /\{ source: 'assets\/schedule-admin\.js', capability: 'schedule\.manage' \}/);
+  assert.match(app, /\{ source: 'assets\/notice-admin\.js', capability: 'notice\.manage' \}/);
+  assert.match(app, /if \(canManage\('task\.manage'\)\) await loadAdminData\(\)/);
+  assert.match(app, /if \(!canManage\('task\.manage'\)\) return;/);
+  assert.match(scheduleAdmin, /app\.can\?\.\('schedule\.manage'\)/);
+  assert.match(scheduleAdmin, /bind\(\);\s*resetForm\(\);/);
+  assert.match(scheduleAdmin, /list_manageable_schedules/);
+  assert.match(scheduleAdmin, /save_schedule_item/);
+  assert.match(noticeAdmin, /app\.can\?\.\('notice\.manage'\)/);
+  assert.match(noticeAdmin, /bind\(\);\s*resetForm\(\);/);
+  assert.match(noticeAdmin, /list_manageable_notices/);
+  assert.match(noticeAdmin, /save_notice/);
+  assert.match(workspace, /'today-admin-panel': 'task\.manage'/);
+  assert.match(workspace, /'schedule-admin-panel': 'schedule\.manage'/);
+  assert.match(workspace, /'notice-admin-panel': 'notice\.manage'/);
+  for (const rpc of ['get_today_board_admin_options', 'list_manageable_today_records', 'save_daily_work_assignment', 'list_manageable_schedules', 'save_schedule_item', 'list_manageable_notices', 'save_notice']) {
+    assert.match(migration, new RegExp(rpc));
+  }
+});
+
+test('promotion lead never loads or opens guidance administration without guidance.manage', () => {
+  assert.match(app, /\{ source: 'assets\/guidance-admin\.js', capability: 'guidance\.manage' \}/);
+  assert.match(app, /\{ source: 'assets\/work-guide-admin\.js', capability: 'guidance\.manage' \}/);
+  assert.match(workspace, /app\.can\?\.\('guidance\.manage'\)/);
+  assert.match(guidanceAdmin, /app\.can\?\.\('guidance\.manage'\)/);
+  assert.doesNotMatch(migration, /\('promotion_lead',\s*'guidance\.manage'\)/);
+  for (const rpc of ['save_work_guide', 'save_work_guide_step', 'save_staff_guidance']) {
+    assert.match(migration, new RegExp(`private_${rpc}_pre280`));
+  }
+});
+
+test('operations manager retains the full management-capability path', () => {
+  assert.match(migration, /public\.current_user_has_role\('operations_manager'\) then\s*return true/);
+  assert.match(migration, /'company_allowed', public\.current_user_has_role\('operations_manager'\)/);
+  assert.match(app, /return isTodayManager\(\);/);
 });
 
 test('promotion lead onboarding stays limited to general worker and promotion staff', () => {

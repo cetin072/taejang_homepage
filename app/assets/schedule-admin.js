@@ -191,8 +191,15 @@
     ui.element('schedule-form').addEventListener('input', renderPreview);
   }
 
+  function canManageSchedules() {
+    const app = window.TaejangApp;
+    return app?.hasCapabilityContract?.()
+      ? Boolean(app.can?.('schedule.manage'))
+      : Boolean(app?.isTodayManager?.());
+  }
+
   document.addEventListener('taejang-app-ready', () => {
-    if (!window.TaejangApp.isTodayManager()) return;
+    if (!canManageSchedules()) return;
     bind();
     resetForm();
   }, { once: true });

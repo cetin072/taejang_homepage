@@ -131,7 +131,7 @@ test('super admin is kept on the protected staff admin screen and return notices
 test('manager add-on loading cannot invalidate a verified app session', () => {
   const app = read('app/assets/app.js');
   const html = read('app/index.html');
-  assert.match(app, /Promise\.allSettled\(modules\.map\(loadScript\)\)/);
+  assert.match(app, /Promise\.allSettled\(modules\.map\(module => loadScript\(module\.source\)\)\)/);
   assert.match(app, /managerModuleFailures/);
   assert.match(app, /핵심 대시보드와 로그인 상태는 계속 사용할 수 있습니다/);
   assert.match(html, /id="app-status-message"/);

@@ -49,19 +49,22 @@ test('dashboard uses safe existing RPCs and empty states instead of fixed statis
   assert.match(shell, /현재 검토 대기 안건이 없습니다/);
 });
 
-test('manager UI is loaded only after the active server context is verified', () => {
+test('manager UI is loaded only after the active capability context is verified', () => {
   assert.match(app, /await loadManagerModules\(\)/);
-  assert.match(app, /if \(!isTodayManager\(\) \|\| state\.managerModulesLoaded\) return/);
+  assert.match(app, /await resolveCapabilityContext\(\)/);
+  assert.match(app, /window\.TaejangCapabilityAccess\.refresh\(\)/);
+  assert.match(app, /\.filter\(module => canManage\(module\.capability\)\)/);
   assert.doesNotMatch(html, /src="assets\/(work-guide-admin|schedule-admin|notice-admin)\.js"/);
   assert.match(app, /get_my_access_context/);
   assert.match(app, /window\.history\.replaceState\(null, '', window\.location\.pathname\)/);
-  assert.match(app, /Promise\.allSettled\(modules\.map\(loadScript\)\)/);
+  assert.match(app, /Promise\.allSettled\(modules\.map\(module => loadScript\(module\.source\)\)\)/);
   assert.match(html, /id="app-status-message"/);
 });
 
-test('protected management panels are opened only for existing manager roles', () => {
-  assert.match(app, /if \(!isTodayManager\(\)\) return/);
-  assert.match(app, /new Set\(\['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel'\]\)/);
+test('protected management panels use their individual capability contract', () => {
+  assert.match(app, /const PANEL_CAPABILITIES = Object\.freeze/);
+  assert.match(app, /function canOpenPanel\(id\)/);
+  assert.match(app, /if \(!allowed\.has\(id\) \|\| !canOpenPanel\(id\)\) return/);
   assert.match(shell, /managerRoles/);
   assert.doesNotMatch(shell, /role=/);
 });
