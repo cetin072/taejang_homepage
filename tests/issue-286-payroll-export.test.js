@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const live = read('app/assets/payroll-operator-live.js');
+const runBasisMigration = read('supabase/migrations/20260920221000_issue_286_operator_summary_run_basis.sql');
 const xlsx = require('../app/assets/payroll-ledger-xlsx.js');
 
 test('payroll Excel control remains interactive so unavailable states explain themselves', () => {
@@ -44,4 +45,10 @@ test('payroll Excel generator still produces a valid xlsx payload for confirmed 
   assert.ok(bytes instanceof Uint8Array);
   assert.equal(bytes[0], 0x50);
   assert.equal(bytes[1], 0x4b);
+});
+
+test('operator attendance summary follows the immutable latest-run basis', () => {
+  assert.match(runBasisMigration, /confirmed_attendance_snapshot_id/);
+  assert.match(runBasisMigration, /payroll_confirmed_attendance_snapshots/);
+  assert.match(runBasisMigration, /private_payroll_operator_effective_attendance_summary_pre286/);
 });
