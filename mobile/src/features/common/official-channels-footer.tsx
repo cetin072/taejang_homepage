@@ -3,17 +3,17 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 const CHANNELS = [
   {
-    label: '홈페이지',
+    label: '태장 홈페이지',
     url: 'https://taejang.co.kr',
     icon: require('../../../assets/taejang-favicon.png'),
   },
   {
-    label: '블로그',
+    label: '공식 블로그',
     url: 'https://blog.naver.com/taejang-official',
     icon: require('../../../assets/naver-blog.png'),
   },
   {
-    label: '유튜브',
+    label: '공식 유튜브',
     url: 'https://youtube.com/@taejangofficial',
     icon: require('../../../assets/youtube.png'),
   },
