@@ -100,7 +100,7 @@ async function browserE2E(session) {
     await page.locator('#payroll-confirmed-calculate').click();
     await page.locator('#payroll-live-table-body tr').first().waitFor();
     const employee = page.locator('#payroll-live-table-body tr').filter({ hasText: EMPLOYEE_ID });
-    await employee.getByText('1일', { exact: true }).waitFor();
+    assert.ok(await employee.getByText('1일', { exact: true }).count() >= 1, 'TJ-000017 must display at least one one-day absence value');
     const downloadPromise = page.waitForEvent('download');
     await page.locator('#payroll-live-export').click();
     const download = await downloadPromise;
