@@ -509,6 +509,8 @@
     } finally {
       state.loading = false;
       button.disabled = false;
+      const calculate = element('payroll-confirmed-calculate');
+      if (calculate) calculate.disabled = !state.readiness?.ready;
     }
   }
 
