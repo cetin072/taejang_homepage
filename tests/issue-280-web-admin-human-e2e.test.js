@@ -70,7 +70,8 @@ test('all payroll standalone pages prioritize localStorage and migrate legacy se
   const pages = [
     'app/assets/payroll-operator-live.js',
     'app/assets/payroll-draft-handoff.js',
-    'app/assets/payroll-payslip-draft.js'
+    'app/assets/payroll-payslip-draft.js',
+    'app/assets/payroll-attendance-editor.js'
   ].map(read);
   for (const source of pages) {
     assert.match(source, /localStorage\.getItem\(SESSION_KEY\)/);
