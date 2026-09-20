@@ -1,0 +1,52 @@
+name: Staging Notice 300 Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "dry_run checks the approved staging migration; apply pushes it."
+        required: true
+        type: choice
+        options: [dry_run, apply]
+      approval:
+        description: "For apply, type APPLY_NOTICE_300_STAGING exactly"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-staging-notice-300
+  cancel-in-progress: false
+
+jobs:
+  staging-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging-first-super-admin
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+      - name: Verify target and credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_DB_PASSWORD" ]] || { echo "STOP_STAGING_SECRETS_MISSING"; exit 1; }
+      - name: Link approved staging project
+        run: supabase link --project-ref "$STAGING_PROJECT_REF"
+      - name: Migration dry-run
+        run: supabase db push --dry-run
+      - name: Apply migration
+        if: inputs.action == 'apply' && inputs.approval == 'APPLY_NOTICE_300_STAGING'
+        run: supabase db push
+      - name: Require exact apply approval
+        if: inputs.action == 'apply' && inputs.approval != 'APPLY_NOTICE_300_STAGING'
+        run: echo "STOP_NOTICE_300_APPROVAL_REQUIRED" && exit 1

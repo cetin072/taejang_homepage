@@ -2,6 +2,21 @@ begin;
 
 -- Issue #300: operations review workflow and notice photo material metadata.
 
+-- config.toml provisions this bucket for local Supabase.  The migration also
+-- declares it for hosted staging, where config.toml is not applied by db push.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'notice-media',
+  'notice-media',
+  false,
+  8388608,
+  array['image/jpeg','image/png','image/webp','image/gif']::text[]
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 alter table public.notices
   add column if not exists review_state text not null default 'none',
   add column if not exists submitted_for_review_at timestamptz,
