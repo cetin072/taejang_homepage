@@ -15,6 +15,7 @@ const historicalBridge = read('supabase/migrations/20260920211500_issue_286_hist
 const rosterStability = read('supabase/migrations/20260920214500_issue_286_reopen_roster_stability.sql');
 const historicalDefaultPresent = read('supabase/migrations/20260920223500_issue_286_historical_default_present.sql');
 const historicalReadinessOverride = read('supabase/migrations/20260920224500_issue_286_historical_readiness_override.sql');
+const dayStatusRpcGrants = read('supabase/migrations/20260920225500_issue_286_day_status_rpc_grants.sql');
 
 test('time picker regex accepts real HH:MM values and rejects malformed values', () => {
   const literal = correction.match(/const TIME_VALUE_PATTERN = (\/\^.*?\$\/);/)?.[1];
@@ -103,4 +104,11 @@ test('final historical confirmations supersede obsolete raw-evidence readiness b
   assert.match(historicalReadinessOverride, /historical_default_present/);
   assert.match(historicalReadinessOverride, /source_fingerprint/);
   assert.match(historicalReadinessOverride, /attendance_confirmation_reopens/);
+});
+
+
+test('attendance day-status RPC is never executable by anon', () => {
+  assert.match(dayStatusRpcGrants, /revoke execute on function public\.set_attendance_day_status\(uuid,date,text,text,text\)/);
+  assert.match(dayStatusRpcGrants, /from public, anon/);
+  assert.match(dayStatusRpcGrants, /to authenticated/);
 });
