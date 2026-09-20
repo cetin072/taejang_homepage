@@ -44,9 +44,31 @@
     label.textContent = text;
   }
 
+  function readStoredSession() {
+    const persistent = localStorage.getItem(SESSION_KEY);
+    if (persistent) return persistent;
+
+    const legacy = sessionStorage.getItem(SESSION_KEY);
+    if (legacy) {
+      localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+    return legacy;
+  }
+
+  function storeSession(session) {
+    state.session = session;
+    if (session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }
+
   function clearSession() {
-    state.session = null;
-    sessionStorage.removeItem(SESSION_KEY);
+    storeSession(null);
   }
 
   function sendToStaff(reason, { clear = false } = {}) {
@@ -88,7 +110,7 @@
       });
       if (!response.ok) throw new Error('REFRESH_FAILED');
       state.session = await response.json();
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
+      storeSession(state.session);
       return true;
     } catch {
       clearSession();
@@ -660,10 +682,66 @@
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
   }
 
+  function clearHandoffFromUrl() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('handoff')) return;
+    url.searchParams.delete('handoff');
+    const query = url.searchParams.toString();
+    window.history.replaceState(null, '', `${url.pathname}${query ? `?${query}` : ''}${url.hash}`);
+  }
+
+  async function exchangeNativeHandoff() {
+    const code = new URLSearchParams(window.location.search).get('handoff');
+    if (!code) return false;
+    if (!/^[0-9a-f]{64}$/i.test(code)) throw new Error('INVALID_HANDOFF_CODE');
+
+    const exchange = await fetch(`${state.config.url}/functions/v1/web-auth-handoff`, {
+      method: 'POST',
+      headers: {
+        apikey: state.config.publishableKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ code })
+    });
+    const exchangePayload = await exchange.json().catch(() => null);
+    if (!exchange.ok || !exchangePayload?.token_hash) {
+      throw new Error(exchangePayload?.code || 'HANDOFF_EXCHANGE_FAILED');
+    }
+
+    const verified = await fetch(`${state.config.url}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {
+        apikey: state.config.publishableKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        token_hash: exchangePayload.token_hash,
+        type: exchangePayload.type || 'email'
+      })
+    });
+    const session = await verified.json().catch(() => null);
+    if (!verified.ok || !session?.access_token || !session?.refresh_token) {
+      throw new Error(session?.message || 'HANDOFF_VERIFY_FAILED');
+    }
+
+    storeSession(session);
+    clearHandoffFromUrl();
+    return true;
+  }
+
   async function verify() {
     if (state.verifying) return;
     state.verifying = true;
-    const stored = sessionStorage.getItem(SESSION_KEY);
+
+    if (new URLSearchParams(window.location.search).has('handoff')) {
+      try {
+        await exchangeNativeHandoff();
+      } catch {
+        clearHandoffFromUrl();
+      }
+    }
+
+    const stored = readStoredSession();
     if (!stored) return sendToStaff('login');
     try {
       state.session = JSON.parse(stored);
