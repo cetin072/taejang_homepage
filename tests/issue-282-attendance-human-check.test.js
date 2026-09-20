@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const dashboard = read('app/assets/dashboard-shell.js');
+const employeeManagement = read('app/assets/employee-management.js');
 const navigation = read('app/assets/role-navigation-priority.js');
 const correction = read('app/assets/attendance-integrity-ui.js');
 const attendance = read('app/assets/attendance-admin.js');
@@ -18,6 +19,12 @@ test('promotion lead uses direct new-employee wording while department lead keep
   assert.match(dashboard, /\['operations_manager', 'promotion_lead'\]\.includes\(route\) \? '신규 직원 등록' : '신규 직원 등록 요청'/);
   assert.match(navigation, /promotion_lead:[\s\S]*?'신규 직원 등록'/);
   assert.match(navigation, /department_lead:[\s\S]*?'신규 직원 등록 요청'/);
+});
+
+test('promotion lead direct registration wording continues inside employee management tabs', () => {
+  assert.match(employeeManagement, /\['operations_manager', 'promotion_lead_global'\]\.includes\(context\.access_level\)/);
+  assert.match(employeeManagement, /\['new', '신규 직원 등록'\]/);
+  assert.match(employeeManagement, /\['new', '신규 직원 등록 요청'\]/);
 });
 
 test('attendance correction makes selection the primary time input and typing secondary', () => {
