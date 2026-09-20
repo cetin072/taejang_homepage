@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -19,7 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AttendanceCard } from '@/src/features/attendance/attendance-card';
 import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
-import { getApiBaseUrl } from '@/src/platform/config';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 type AccessRole = { code?: string; name?: string };
@@ -170,6 +170,7 @@ export default function HomeScreen() {
     signIn,
     signUpEmployee,
     requestPasswordReset,
+    createWorkPlatformUrl,
     signOut,
   } = usePlatform();
   const insets = useSafeAreaInsets();
@@ -192,6 +193,7 @@ export default function HomeScreen() {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessError, setAccessError] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [platformOpening, setPlatformOpening] = useState(false);
 
   async function run(action: () => Promise<void>) {
     if (busy) return;
@@ -203,6 +205,22 @@ export default function HomeScreen() {
       setMessage(messageOf(nextError, '처리 중 오류가 발생했습니다.'));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function openWorkPlatform() {
+    if (platformOpening) return;
+    setPlatformOpening(true);
+    try {
+      const url = await createWorkPlatformUrl();
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        '업무 플랫폼 연결',
+        '자동 로그인 연결에 실패했습니다. 잠시 후 다시 시도해주세요.',
+      );
+    } finally {
+      setPlatformOpening(false);
     }
   }
 
@@ -598,11 +616,11 @@ export default function HomeScreen() {
             <NoticeHomeAction minHeight={actionHeight} />
             {canOpenWorkPlatform ? (
               <PrimaryButton
-                title="업무 플랫폼 열기"
+                title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
                 subtitle="내 업무와 관리 기능"
                 minHeight={actionHeight}
                 secondary
-                onPress={() => void Linking.openURL(`${getApiBaseUrl()}/app/`)}
+                onPress={() => void openWorkPlatform()}
               />
             ) : null}
           </View>
