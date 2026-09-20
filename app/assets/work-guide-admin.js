@@ -114,7 +114,7 @@
     document.addEventListener('taejang-work-guide-saved', async () => { await loadGuides(); renderPreview(); }); loadGuides(); renderPreview();
   }
   document.addEventListener('taejang-app-ready', async event => {
-    if (!app().isTodayManager()) return;
+    if (app().hasCapabilityContract?.() ? !app().can?.('guidance.manage') : !app().isTodayManager()) return;
     try { options = await app().rpc('get_today_board_admin_options'); bind(); } catch { /* The existing protected manager panel reports access errors. */ }
   }, { once: true });
 })();

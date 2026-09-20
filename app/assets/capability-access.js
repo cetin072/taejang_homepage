@@ -142,4 +142,5 @@
     getContext: () => accessContext,
     can: capability => capabilitySet.has(capability),
   };
+  document.dispatchEvent(new CustomEvent('taejang-capability-access-ready'));
 })();

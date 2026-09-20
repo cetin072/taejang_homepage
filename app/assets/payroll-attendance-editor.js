@@ -52,9 +52,31 @@
 
   function loadSession() {
     try {
-      const parsed = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-      return parsed?.access_token ? parsed : null;
+      const persistent = localStorage.getItem(SESSION_KEY);
+      if (persistent) {
+        const parsed = JSON.parse(persistent);
+        return parsed?.access_token ? parsed : null;
+      }
+      const legacy = sessionStorage.getItem(SESSION_KEY);
+      if (!legacy) return null;
+      const parsed = JSON.parse(legacy);
+      if (!parsed?.access_token) return null;
+      localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(SESSION_KEY);
+      return parsed;
     } catch { return null; }
+  }
+
+  function saveSession(session) {
+    state.session = session;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+
+  function clearSession() {
+    state.session = null;
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
   }
 
   async function loadConfig() {
@@ -67,15 +89,19 @@
 
   async function refreshSession() {
     if (!state.session?.refresh_token) return false;
-    const response = await fetch(`${state.config.url}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: state.session.refresh_token }),
-    });
-    if (!response.ok) return false;
-    state.session = await response.json();
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state.session));
-    return true;
+    try {
+      const response = await fetch(`${state.config.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: state.session.refresh_token }),
+      });
+      if (!response.ok) throw new Error('REFRESH_FAILED');
+      saveSession(await response.json());
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
   }
 
   async function request(path, body, retry = true) {

@@ -7,6 +7,12 @@
     'notice-admin-panel',
     'guidance-admin-panel'
   ];
+  const PANEL_CAPABILITIES = Object.freeze({
+    'today-admin-panel': 'task.manage',
+    'schedule-admin-panel': 'schedule.manage',
+    'notice-admin-panel': 'notice.manage',
+    'guidance-admin-panel': 'guidance.manage'
+  });
 
   const byId = id => document.getElementById(id);
 
@@ -55,6 +61,10 @@
     const panel = byId('today-admin-panel');
     if (!panel) return;
     const workManual = view === 'work_manual';
+    const app = window.TaejangApp;
+    const canManageGuidance = app?.hasCapabilityContract?.()
+      ? Boolean(app.can?.('guidance.manage'))
+      : Boolean(app?.isTodayManager?.());
     panel.dataset.workspaceView = workManual ? 'work_manual' : 'all';
 
     const title = byId('today-admin-title');
@@ -87,10 +97,10 @@
     setHidden(todayRecords, workManual);
     setHidden(taskEditor, workManual);
     setHidden(informationEditor, workManual);
-    setHidden(guideEditor, false);
-    setHidden(stepEditor, false);
-    setHidden(previewEditor, false);
-    setHidden(guideRecords, false);
+    setHidden(guideEditor, !canManageGuidance);
+    setHidden(stepEditor, !canManageGuidance);
+    setHidden(previewEditor, !canManageGuidance);
+    setHidden(guideRecords, !canManageGuidance);
 
     if (workManual && guideEditor) guideEditor.open = true;
   }
@@ -102,7 +112,12 @@
   }
 
   function openPanel(id, view = null) {
-    if (!PANEL_IDS.includes(id)) return;
+    const app = window.TaejangApp;
+    const capability = PANEL_CAPABILITIES[id];
+    const allowed = app?.hasCapabilityContract?.()
+      ? Boolean(app.can?.(capability))
+      : Boolean(app?.isTodayManager?.());
+    if (!PANEL_IDS.includes(id) || !capability || !allowed) return;
     mountPanels();
     hidePanels(id);
     if (id === 'today-admin-panel') configureTodayAdmin(view);

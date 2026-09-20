@@ -3,6 +3,12 @@
 
   const SESSION_KEY = 'taejang-staff-session-v1';
   const MANAGER_ROLES = new Set(['super_admin', 'operations_manager', 'department_lead', 'field_lead']);
+  const PANEL_CAPABILITIES = Object.freeze({
+    'today-admin-panel': 'task.manage',
+    'schedule-admin-panel': 'schedule.manage',
+    'notice-admin-panel': 'notice.manage',
+    'guidance-admin-panel': 'guidance.manage'
+  });
   const state = {
     config: null,
     session: null,
@@ -135,6 +141,35 @@
     return [...roleCodes()].some(code => MANAGER_ROLES.has(code));
   }
 
+  // The capability bridge resolves get_my_access_context_v2 before the optional
+  // manager scripts are selected. Keep the legacy role guard only as a fail-closed
+  // compatibility path when that v2 endpoint is genuinely unavailable.
+  function canManage(capability) {
+    const app = window.TaejangApp;
+    if (app?.hasCapabilityContract?.()) return Boolean(app.can?.(capability));
+    return isTodayManager();
+  }
+
+  function canOpenPanel(id) {
+    const capability = PANEL_CAPABILITIES[id];
+    return Boolean(capability && canManage(capability));
+  }
+
+  async function resolveCapabilityContext() {
+    if (!window.TaejangCapabilityAccess?.refresh) {
+      await new Promise(resolve => {
+        const timeout = window.setTimeout(resolve, 3000);
+        document.addEventListener('taejang-capability-access-ready', () => {
+          window.clearTimeout(timeout);
+          resolve();
+        }, { once: true });
+      });
+    }
+    if (!window.TaejangCapabilityAccess?.refresh) return false;
+    await window.TaejangCapabilityAccess.refresh();
+    return Boolean(window.TaejangApp?.hasCapabilityContract?.());
+  }
+
   function loadScript(source) {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
@@ -147,16 +182,17 @@
   }
 
   async function loadManagerModules() {
-    if (!isTodayManager() || state.managerModulesLoaded) return;
+    if (state.managerModulesLoaded) return;
     const modules = [
-      'assets/work-guide-admin.js',
-      'assets/schedule-admin.js',
-      'assets/notice-admin.js',
-      'assets/guidance-admin.js'
-    ];
-    const results = await Promise.allSettled(modules.map(loadScript));
+      { source: 'assets/work-guide-admin.js', capability: 'guidance.manage' },
+      { source: 'assets/schedule-admin.js', capability: 'schedule.manage' },
+      { source: 'assets/notice-admin.js', capability: 'notice.manage' },
+      { source: 'assets/guidance-admin.js', capability: 'guidance.manage' }
+    ].filter(module => canManage(module.capability));
+    if (!modules.length) return;
+    const results = await Promise.allSettled(modules.map(module => loadScript(module.source)));
     state.managerModuleFailures = results
-      .map((result, index) => result.status === 'rejected' ? modules[index] : null)
+      .map((result, index) => result.status === 'rejected' ? modules[index].source : null)
       .filter(Boolean);
     state.managerModulesLoaded = true;
   }
@@ -512,6 +548,7 @@
   }
 
   async function loadAdminData() {
+    if (!canManage('task.manage')) return;
     hideMessage('admin-message');
     element('refresh-admin').disabled = true;
     try {
@@ -677,6 +714,7 @@
       getAdminOptions: () => state.adminOptions,
       friendlyError
     };
+    await resolveCapabilityContext();
     await loadManagerModules();
     showManagerModuleStatus();
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
@@ -758,7 +796,7 @@
       }
       await renderEntry(current, destination.route);
       if (destination.route.code === 'general_worker') await loadTodayBoard();
-      if (isTodayManager()) await loadAdminData();
+      if (canManage('task.manage')) await loadAdminData();
     } catch (error) {
       if (error.status === 401) return sendToStaff('session-expired', { clear: true });
       sendToStaff('app-error', { clear: false });
@@ -780,10 +818,9 @@
   element('refresh-admin').addEventListener('click', loadAdminData);
 
   document.addEventListener('taejang-open-app-panel', event => {
-    if (!isTodayManager()) return;
     const id = event.detail?.id;
-    const allowed = new Set(['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']);
-    if (!allowed.has(id)) return;
+    const allowed = new Set(Object.keys(PANEL_CAPABILITIES));
+    if (!allowed.has(id) || !canOpenPanel(id)) return;
     element('dashboard-main').hidden = true;
     for (const panelId of allowed) element(panelId).hidden = panelId !== id;
     element(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -794,6 +831,7 @@
     for (const panelId of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) element(panelId).hidden = true;
   });
   element('admin-board-date').addEventListener('change', () => {
+    if (!canManage('task.manage')) return;
     element('task-date').value = element('admin-board-date').value;
     element('information-date').value = element('admin-board-date').value;
     loadAdminData();
