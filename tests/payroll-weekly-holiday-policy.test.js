@@ -140,7 +140,8 @@ test('recent hire receives eligible later workweeks without diluting them by a p
 });
 
 test('Staging runtime imports and wraps the reviewed weekly holiday policy', () => {
-  assert.match(stagingRuntimeDeps, /PAYROLL_RUNTIME_COMMIT\s*=\s*'[0-9a-f]{40}'/);
+  assert.match(stagingRuntimeDeps, /PAYROLL_RUNTIME_SOURCE_COMMIT\s*=\s*'[0-9a-f]{40}'/);
+  assert.doesNotMatch(stagingRuntimeDeps, /https?:\/\//);
   assert.match(stagingRuntimeDeps, /payroll-weekly-holiday-policy\.js/);
   assert.match(stagingRuntimeDeps, /PAYROLL_WEEKLY_POLICY_MODULE_MISSING/);
   assert.match(stagingRuntimeDeps, /policy\.wrapEngine\(runtime\.TaejangPayrollEngine/);

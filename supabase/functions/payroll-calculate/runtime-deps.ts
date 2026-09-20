@@ -1,14 +1,15 @@
-// Staging payroll runtime dependencies pinned to one reviewed PR #143 source commit.
-// Immutable URLs prevent a branch update from silently changing deployed calculation rules.
-const PAYROLL_RUNTIME_COMMIT = '78f11ec235d3a4165f9558934305392d63a8aef6';
+// Payroll runtime dependencies vendored from one reviewed immutable source commit.
+// The source commit is provenance only; deployed code loads local bundled modules and
+// never depends on GitHub/network availability at Edge Function startup.
+export const PAYROLL_RUNTIME_SOURCE_COMMIT = '78f11ec235d3a4165f9558934305392d63a8aef6';
 
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-term-validator.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-preflight.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-engine.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-weekly-holiday-policy.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-db-input-adapter.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-statutory-deductions.js`);
-await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/prototypes/payroll-backend/edge-runtime/payroll-calculate-core.js`);
+import './runtime/payroll-term-validator.js';
+import './runtime/payroll-preflight.js';
+import './runtime/payroll-engine.js';
+import './runtime/payroll-weekly-holiday-policy.js';
+import './runtime/payroll-db-input-adapter.js';
+import './runtime/payroll-statutory-deductions.js';
+import './runtime/payroll-calculate-core.js';
 
 type RuntimeGlobal = typeof globalThis & {
   TaejangPayrollTermValidator?: unknown;
