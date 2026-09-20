@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
-const password = 'Issue300-Test-Only-2026!';
+// This suite uses the seeded Phase 1A administrator, so it must share the
+// isolated CI fixture password used by the preceding integration suites.
+const password = 'Phase1A-Test-Only-2026!';
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(key, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
 
