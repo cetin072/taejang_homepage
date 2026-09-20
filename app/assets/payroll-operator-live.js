@@ -291,7 +291,7 @@
     const badge = element('payroll-live-environment');
     if (!badge) return;
     const text = String(state.config?.environmentLabel || '').trim();
-    badge.textContent = text ? `${text} · 근태 편집` : 'STAGING · 근태 편집';
+    badge.textContent = text ? `${text} · 근태 편집` : '업무플랫폼 · 근태·급여';
   }
 
   function setExportEnabled(enabled) {
@@ -483,7 +483,7 @@
     state.loading = true;
     const button = element('payroll-live-refresh');
     button.disabled = true;
-    setMessage('Staging 급여 데이터를 불러오고 있습니다.');
+    setMessage('급여 데이터를 불러오고 있습니다.');
 
     try {
       const month = selectedMonth();
