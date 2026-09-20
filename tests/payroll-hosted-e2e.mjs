@@ -12,7 +12,7 @@ const SITE = 'https://taejang.co.kr';
 const STAGING_REF = 'jgsxpdflgkqroecfjzxq';
 const MONTH = '2026-07';
 const EMPLOYEE_ID = 'TJ-000017';
-const sessionFile = process.env.PAYROLL_HOSTED_OPERATOR_SESSION_FILE;
+const handoffCode = process.env.PAYROLL_HOSTED_HANDOFF_CODE;
 
 function fail(message) { throw new Error(`PAYROLL_HOSTED_E2E: ${message}`); }
 function required(value, label) { if (!value) fail(`${label} is required and is never printed`); return value; }
@@ -34,19 +34,15 @@ async function runtimeConfig() {
 }
 
 async function freshQaSession(config) {
-  const source = JSON.parse(await readFile(required(sessionFile, 'PAYROLL_HOSTED_OPERATOR_SESSION_FILE'), 'utf8'));
-  const token = required(source?.access_token, 'operator access token');
-  const subject = required(jwtSubject(token), 'operator token subject');
-  const headers = {
-    apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json',
-    'X-QA-Context-Profile-ID': subject, 'X-QA-Access-Profile-ID': subject, 'X-QA-JWT-Subject': subject,
-  };
-  const preview = await json(await fetch(`${config.url}/functions/v1/qa-account-preview`, {
-    method: 'POST', headers, body: JSON.stringify({ action: 'create', target_profile_id: subject }),
-  }), 'qa-account-preview');
+  const code = required(handoffCode, 'PAYROLL_HOSTED_HANDOFF_CODE');
+  if (!/^[0-9a-f]{64}$/i.test(code)) fail('PAYROLL_HOSTED_HANDOFF_CODE_INVALID');
+  const preview = await json(await fetch(`${config.url}/functions/v1/web-auth-handoff`, {
+    method: 'POST', headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  }), 'web-auth-handoff');
   const verified = await json(await fetch(`${config.url}/auth/v1/verify`, {
     method: 'POST', headers: { apikey: config.publishableKey, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token_hash: preview.token_hash, type: preview.verification_type || 'magiclink' }),
+    body: JSON.stringify({ token_hash: preview.token_hash, type: preview.type || 'email' }),
   }), 'qa-session-verify');
   if (!verified?.access_token) fail('QA_SESSION_NOT_CREATED');
   return verified;
@@ -86,7 +82,7 @@ async function apiSmoke(config, session) {
 }
 
 async function browserE2E(session) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage();
   const failures = [];
   page.on('console', (entry) => { if (entry.type() === 'error') failures.push(`console:${entry.text().slice(0, 120)}`); });
@@ -128,6 +124,5 @@ if (process.env.STAGING_CONFIRM !== 'STAGING') fail('set STAGING_CONFIRM=STAGING
 const config = await runtimeConfig();
 const smokeSession = await freshQaSession(config);
 await apiSmoke(config, smokeSession);
-const browserSession = await freshQaSession(config);
-await browserE2E(browserSession);
+await browserE2E(smokeSession);
 console.log('Hosted Payroll E2E: PASS');
