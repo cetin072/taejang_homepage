@@ -14,6 +14,8 @@ const DEFAULT_ALLOWED_ORIGIN = 'https://taejang.co.kr';
 const OFFICIAL_ALLOWED_ORIGINS = new Set([
   'https://taejang.co.kr',
   'https://www.taejang.co.kr',
+  'https://taejang-homepage.netlify.app',
+  'https://main--taejang-homepage.netlify.app',
 ]);
 
 function envRequired(name: string): string {
