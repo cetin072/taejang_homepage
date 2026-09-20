@@ -430,19 +430,10 @@
       'payroll-attendance-prev',
       'payroll-attendance-next',
       'payroll-attendance-save',
-      'payroll-attendance-recalculate',
     ]) {
       const button = el(id);
       if (button) button.disabled = busy;
     }
-  }
-
-  async function recalculate() {
-    return request('/functions/v1/payroll-calculate', {
-      payroll_month: monthStart(),
-      cutoff_date: cutoffForMonth(),
-      request_id: `confirmed-native-${Date.now()}`,
-    });
   }
 
   async function saveChanges() {
@@ -481,29 +472,6 @@
     setEditorBusy(false);
   }
 
-  async function retryCalculation() {
-    if (state.loading) return;
-    if (state.dirty.size) {
-      setMessage(`저장하지 않은 근태 변경 ${state.dirty.size}건이 있습니다. 먼저 저장한 뒤 급여 가안을 계산해 주세요.`, 'review');
-      return;
-    }
-    state.loading = true;
-    setEditorBusy(true);
-    setMessage('확정 근태 Gate를 기준으로 급여 가안을 다시 계산하는 중…');
-    try {
-      await loadContext({ preserveDate: true, quiet: true });
-      const calculated = await recalculate();
-      const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
-      setMessage(`급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
-      document.getElementById('payroll-live-refresh')?.click();
-    } catch (error) {
-      setMessage(`급여 가안 재계산에 실패했습니다: ${error.message || '확인 필요'}. 저장된 근태는 그대로 유지됩니다.`, 'review');
-    } finally {
-      state.loading = false;
-      setEditorBusy(false);
-    }
-  }
-
   async function loadContext({ preserveDate = false, quiet = false } = {}) {
     if (!state.session || !state.config) return;
     if (!quiet) setMessage('근태 입력표를 불러오는 중…');
@@ -529,7 +497,6 @@
     el('payroll-attendance-prev')?.addEventListener('click', () => changeDate(-1));
     el('payroll-attendance-next')?.addEventListener('click', () => changeDate(1));
     el('payroll-attendance-save')?.addEventListener('click', saveChanges);
-    el('payroll-attendance-recalculate')?.addEventListener('click', retryCalculation);
     el('payroll-live-month')?.addEventListener('change', () => loadContext().catch(error => setMessage(error.message, 'error')));
     el('payroll-attendance-file')?.addEventListener('change', event => {
       const file = event.target.files?.[0];
