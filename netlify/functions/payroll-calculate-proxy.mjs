@@ -25,8 +25,8 @@ export default async (req) => {
     return json(401, { ok: false, code: 'PAYROLL_AUTH_REQUIRED' });
   }
 
-  const supabaseUrl = Netlify.env.get('SUPABASE_URL')?.trim();
-  const publishableKey = Netlify.env.get('SUPABASE_PUBLISHABLE_KEY')?.trim();
+  const supabaseUrl = process.env.SUPABASE_URL?.trim();
+  const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY?.trim();
   if (!supabaseUrl || !publishableKey) {
     return json(503, { ok: false, code: 'PAYROLL_PROXY_NOT_READY' });
   }
