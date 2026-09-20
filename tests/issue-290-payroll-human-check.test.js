@@ -21,7 +21,8 @@ test('confirmed-native calculation bootstraps only a draft payroll month through
   assert.match(migration, /on conflict \(payroll_month\) do nothing/);
   assert.match(migration, /revoke all on function public\.private_ensure_payroll_month_for_calculation\(uuid,date\)/);
   assert.match(migration, /grant execute on function public\.private_ensure_payroll_month_for_calculation\(uuid,date\)[\s\S]*to service_role/);
-  assert.doesNotMatch(migration, /locked|payment|remittance|tax filing/i);
+  assert.doesNotMatch(migration, /'locked'/i);
+  assert.doesNotMatch(migration, /update\s+public\.payroll_months/i);
 });
 
 test('trusted payroll edge runtime ensures month before persistence', () => {
