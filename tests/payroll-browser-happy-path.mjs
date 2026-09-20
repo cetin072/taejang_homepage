@@ -39,7 +39,6 @@ const terms = employees.map((employee) => ({
 }));
 
 const savedEntries = new Map();
-let acceptedBatchId = null;
 let calculated = false;
 
 function keyOf(entry) {
@@ -161,7 +160,7 @@ function ledgerContext() {
 function editorContext() {
   return {
     payroll_month: `${TARGET_MONTH}-01`,
-    accepted_batch_id: acceptedBatchId,
+    accepted_batch_id: null,
     employees,
     terms,
     imported_rows: [],
@@ -255,8 +254,18 @@ const automationScript = `<script>
         document.getElementById('payroll-attendance-save').click();
         await waitFor(() => {
           const text = document.getElementById('payroll-attendance-editor-message')?.textContent || '';
-          return text.includes('저장 완료') && text.includes('재계산 완료');
-        }, 'save and calculation');
+          return text.includes('보조 근태') && text.includes('저장했습니다');
+        }, 'fallback attendance save');
+
+        const calculate = await waitFor(() => {
+          const node = document.getElementById('payroll-confirmed-calculate');
+          return node && !node.disabled ? node : null;
+        }, 'confirmed payroll action ready');
+        calculate.click();
+        await waitFor(() => {
+          const text = document.getElementById('payroll-live-message')?.textContent || '';
+          return text.includes('급여 가안 계산을 완료했습니다') || text.includes('급여 가안을 계산했습니다');
+        }, 'confirmed payroll calculation');
         await waitFor(() => document.querySelectorAll('#payroll-live-table-body tr').length === 2, 'ledger rows');
         await waitFor(() => !document.getElementById('payroll-live-export').disabled, 'ledger export enabled');
 
@@ -284,7 +293,7 @@ const automationScript = `<script>
       if (!/\.xlsx$/i.test(exported)) throw new Error('XLSX_EXPORT_NOT_TRIGGERED');
 
       sessionStorage.removeItem(stageKey);
-      mark('pass', 'direct-entry-save-reload-recalculate-ledger-xlsx');
+      mark('pass', 'fallback-save-confirmed-calculate-reload-ledger-xlsx');
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }
@@ -326,6 +335,18 @@ const server = createServer(async (request, response) => {
       return json(response, 200, ledgerContext());
     }
 
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_confirmed_attendance_readiness') {
+      await readJson(request);
+      return json(response, 200, {
+        payroll_month: `${TARGET_MONTH}-01`,
+        cutoff_date: TARGET_DATE,
+        boundary_start: `${TARGET_MONTH}-01`,
+        ready: true,
+        blockers: [],
+        readiness_fingerprint: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      });
+    }
+
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_attendance_editor_context') {
       await readJson(request);
       return json(response, 200, editorContext());
@@ -341,14 +362,16 @@ const server = createServer(async (request, response) => {
           source_kind: entry.source_kind || 'manual_ui',
         });
       }
-      acceptedBatchId = '00000000-0000-4000-8000-0000000000aa';
       return json(response, 200, { payroll_month: `${TARGET_MONTH}-01`, saved_count: entries.length });
     }
 
     if (request.method === 'POST' && url.pathname === '/functions/v1/payroll-calculate') {
       const body = await readJson(request);
-      if (!acceptedBatchId || body.accepted_import_batch_id !== acceptedBatchId) {
-        return json(response, 409, { message: 'E2E_ACCEPTED_BATCH_MISMATCH' });
+      if (Object.prototype.hasOwnProperty.call(body, 'accepted_import_batch_id')) {
+        return json(response, 422, { code: 'E2E_CONFIRMED_NATIVE_MUST_NOT_SEND_BATCH' });
+      }
+      if (body.payroll_month !== `${TARGET_MONTH}-01` || !body.cutoff_date) {
+        return json(response, 422, { code: 'E2E_CONFIRMED_NATIVE_INPUT_INVALID' });
       }
       calculated = true;
       return json(response, 200, { status: 'complete', employee_count: employees.length });
