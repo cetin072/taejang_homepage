@@ -136,10 +136,12 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.private_attendance_effective_event(uuid,date,text)'::regprocedure)
+    ilike '%private_attendance_effective_event_pre286%'
+  and pg_get_functiondef('public.private_attendance_effective_event_pre286(uuid,date,text)'::regprocedure)
     ilike '%correction_invalidated%'
-  and pg_get_functiondef('public.private_attendance_effective_event(uuid,date,text)'::regprocedure)
+  and pg_get_functiondef('public.private_attendance_effective_event_pre286(uuid,date,text)'::regprocedure)
     ilike '%corrected%',
-  'effective attendance calculation overlays correction ledger without rewriting raw GPS records'
+  'effective attendance wrapper preserves correction-ledger overlay without rewriting raw GPS records'
 );
 
 select ok(
