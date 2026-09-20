@@ -63,6 +63,9 @@ test('official channel footer uses canonical public URLs and local branded image
   assert.match(footer, /taejang-favicon\.png/);
   assert.match(footer, /naver-blog\.png/);
   assert.match(footer, /youtube\.png/);
+  assert.match(footer, /태장 홈페이지/);
+  assert.match(footer, /공식 블로그/);
+  assert.match(footer, /공식 유튜브/);
   assert.doesNotMatch(footer, /mark:\s*'泰'|mark:\s*'N'|mark:\s*'▶'/);
 });
 
