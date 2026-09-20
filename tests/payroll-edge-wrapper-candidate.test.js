@@ -50,6 +50,12 @@ test('HTTP boundary requires exact configured origin, POST and bearer authorizat
   assert.match(wrapper, /PAYROLL_AUTH_REQUIRED/);
   assert.match(wrapper, /MAX_REQUEST_BYTES = 32 \* 1024/);
   assert.match(deployedWrapper, /access-control-allow-headers': 'authorization, x-client-info, apikey, content-type'/);
+  assert.match(deployedWrapper, /OFFICIAL_ALLOWED_ORIGINS/);
+  assert.match(deployedWrapper, /https:\/\/taejang\.co\.kr/);
+  assert.match(deployedWrapper, /https:\/\/www\.taejang\.co\.kr/);
+  assert.match(deployedWrapper, /https:\/\/taejang-homepage\.netlify\.app/);
+  assert.match(deployedWrapper, /https:\/\/main--taejang-homepage\.netlify\.app/);
+  assert.match(deployedWrapper, /origin === configuredOrigin \|\| OFFICIAL_ALLOWED_ORIGINS\.has\(origin\)/);
 });
 
 test('user JWT validates identity and canonical input through guarded public RPC', () => {

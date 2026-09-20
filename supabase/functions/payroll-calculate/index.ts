@@ -11,6 +11,12 @@ const MAX_REQUEST_BYTES = 32 * 1024;
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
 const SAFE_CODE = /^[A-Za-z][A-Za-z0-9_]{2,79}$/;
 const DEFAULT_ALLOWED_ORIGIN = 'https://taejang.co.kr';
+const OFFICIAL_ALLOWED_ORIGINS = new Set([
+  'https://taejang.co.kr',
+  'https://www.taejang.co.kr',
+  'https://taejang-homepage.netlify.app',
+  'https://main--taejang-homepage.netlify.app',
+]);
 
 function envRequired(name: string): string {
   const value = Deno.env.get(name)?.trim();
@@ -31,7 +37,7 @@ function responseJson(status: number, body: JsonObject, allowedOrigin: string | 
 
 function requestOriginAllowed(req: Request, configuredOrigin: string): boolean {
   const origin = req.headers.get('origin');
-  return !origin || origin === configuredOrigin;
+  return !origin || origin === configuredOrigin || OFFICIAL_ALLOWED_ORIGINS.has(origin);
 }
 
 function bearerToken(req: Request): string | null {
