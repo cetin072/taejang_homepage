@@ -437,14 +437,11 @@
     }
   }
 
-  async function recalculate(context) {
-    const batchId = context?.accepted_batch_id;
-    if (!batchId) throw new Error('근태 저장 후 계산 기준을 찾지 못했습니다');
+  async function recalculate() {
     return request('/functions/v1/payroll-calculate', {
       payroll_month: monthStart(),
       cutoff_date: cutoffForMonth(),
-      accepted_import_batch_id: batchId,
-      request_id: `attendance-editor-${Date.now()}`,
+      request_id: `confirmed-native-${Date.now()}`,
     });
   }
 
@@ -473,23 +470,15 @@
     }
 
     const savedCount = Number(saved?.saved_count || entries.length);
-    // The attendance write has completed. Never leave these same entries dirty
-    // merely because the later, independent payroll calculation has a problem.
     clearSavedDirty(entries);
-    setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안을 다시 계산하는 중…`, 'ok');
-
-    try {
-      await loadContext({ preserveDate: true, quiet: true });
-      const calculated = await recalculate(state.context);
-      const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
-      setMessage(`${savedCount}건 저장 완료 · 급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
-      document.getElementById('payroll-live-refresh')?.click();
-    } catch (error) {
-      setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안 재계산에 실패했습니다: ${error.message || '확인 필요'}. 아래 ‘급여 가안 다시 계산’으로 다시 시도할 수 있습니다.`, 'review');
-    } finally {
-      state.loading = false;
-      setEditorBusy(false);
-    }
+    setMessage(
+      `보조 근태 ${savedCount}건을 저장했습니다. 이 자료는 과거·비상 보조기록이며 정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다.`,
+      'ok'
+    );
+    await loadContext({ preserveDate: true, quiet: true }).catch(() => null);
+    document.getElementById('payroll-live-refresh')?.click();
+    state.loading = false;
+    setEditorBusy(false);
   }
 
   async function retryCalculation() {
@@ -500,10 +489,10 @@
     }
     state.loading = true;
     setEditorBusy(true);
-    setMessage('저장된 근태로 급여 가안을 다시 계산하는 중…');
+    setMessage('확정 근태 Gate를 기준으로 급여 가안을 다시 계산하는 중…');
     try {
       await loadContext({ preserveDate: true, quiet: true });
-      const calculated = await recalculate(state.context);
+      const calculated = await recalculate();
       const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
       setMessage(`급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
       document.getElementById('payroll-live-refresh')?.click();
@@ -529,7 +518,7 @@
       dateInput.value = state.selectedDate;
     }
     renderTable();
-    if (!quiet) setMessage('직접 입력이 기본입니다. Excel을 선택하면 같은 표에 자동으로 채워지고 다시 수정할 수 있습니다.', 'ok');
+    if (!quiet) setMessage('과거자료·비상 대응용 보조입력입니다. 정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다.', 'ok');
   }
 
   function bindEvents() {
