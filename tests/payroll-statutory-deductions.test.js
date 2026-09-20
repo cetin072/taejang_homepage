@@ -6,8 +6,9 @@ function rules(overrides = {}) {
   // Synthetic engine configuration used to test supported rounding mechanics.
   // Production/Staging policy remains DB-driven and may stay null until officially verified.
   const base = [
-    { rateCode: 'national_pension', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.0475, roundingMethod: 'floor_to_10' },
-    { rateCode: 'health_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.03595, roundingMethod: 'floor_to_10' },
+    { rateCode: 'national_pension', effectiveFrom: '2026-01-01', effectiveTo: '2026-06-30', employeeRate: 0.0475, minimumBasis: 400000, maximumBasis: 6370000, roundingMethod: 'floor_to_10' },
+    { rateCode: 'national_pension', effectiveFrom: '2026-07-01', effectiveTo: '2026-12-31', employeeRate: 0.0475, minimumBasis: 410000, maximumBasis: 6590000, roundingMethod: 'floor_to_10' },
+    { rateCode: 'health_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.03595, minimumEmployeeContribution: 10080, maximumEmployeeContribution: 4591740, roundingMethod: 'floor_to_10' },
     { rateCode: 'long_term_care', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', ratioNumerator: 0.009448, ratioDenominator: 0.0719, roundingMethod: 'floor_to_10' },
     { rateCode: 'employment_insurance', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31', employeeRate: 0.009, roundingMethod: 'floor_to_1' },
   ];
@@ -81,18 +82,54 @@ test('pending insurance eligibility blocks final deduction rather than guessing'
   assert.ok(pension.reasons.includes('eligibility_pending_review'));
 });
 
-test('mid-month insurance acquisition or loss requires review', () => {
+test('mid-month pension and health acquisition normally starts charging next month', () => {
   const profile = enrolledProfile();
-  profile.healthInsuranceAcquiredOn = '2026-09-12';
+  profile.nationalPensionAcquiredOn = '2026-07-08';
+  profile.healthInsuranceAcquiredOn = '2026-07-08';
+  profile.employmentInsuranceAcquiredOn = '2026-07-08';
   const result = payrollStatutory.calculateStatutoryDeductions({
-    payrollMonth: '2026-09-01',
-    taxableRemuneration: 1800000,
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 700000,
     profile,
     rateRules: rules(),
   });
+  const pension = result.rows.find((row) => row.code === 'national_pension');
   const health = result.rows.find((row) => row.code === 'health_insurance');
-  assert.equal(health.status, 'review_required');
-  assert.ok(health.reasons.includes('mid_month_coverage_boundary'));
+  const longTermCare = result.rows.find((row) => row.code === 'long_term_care');
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(pension.amount, 0);
+  assert.ok(pension.reasons.includes('acquisition_month_not_charged'));
+  assert.equal(health.amount, 0);
+  assert.equal(longTermCare.amount, 0);
+  assert.equal(employment.amount, 6300);
+});
+
+test('pension acquisition-month opt-in charges from a non-first-day acquisition', () => {
+  const profile = enrolledProfile();
+  profile.nationalPensionAcquiredOn = '2026-07-08';
+  profile.nationalPensionAcquisitionMonthOptIn = true;
+  profile.pensionStandardMonthlyIncome = 300000;
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 700000,
+    profile,
+    rateRules: rules(),
+  });
+  const pension = result.rows.find((row) => row.code === 'national_pension');
+  assert.equal(pension.amount, 19470);
+});
+
+test('July 2026 pension basis uses the official 410,000 floor', () => {
+  const profile = enrolledProfile();
+  profile.pensionStandardMonthlyIncome = 300000;
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 700000,
+    profile,
+    rateRules: rules(),
+  });
+  const pension = result.rows.find((row) => row.code === 'national_pension');
+  assert.equal(pension.amount, 19470);
 });
 
 test('not-applicable insurance produces zero without changing other statutory rates', () => {
