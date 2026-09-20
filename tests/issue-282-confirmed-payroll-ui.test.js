@@ -43,6 +43,13 @@ test('manual and Excel attendance are clearly fallback only and no longer auto-r
   assert.match(editor, /정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다/);
 });
 
+test('production payroll UI does not fall back to a STAGING label', () => {
+  assert.doesNotMatch(live, /STAGING · 근태 편집/);
+  assert.doesNotMatch(live, /Staging 급여 데이터를/);
+  assert.match(live, /업무플랫폼 · 근태·급여/);
+  assert.match(live, /급여 데이터를 불러오고 있습니다/);
+});
+
 test('external payroll handoff is named explicitly so it is not confused with the normal payroll path', () => {
   assert.match(navigation, /외부 급여초안 상신/);
   assert.match(navigation, /외부 급여초안 검토/);
