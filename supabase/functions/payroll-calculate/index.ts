@@ -162,6 +162,17 @@ Deno.serve(async (req: Request) => {
         return data;
       },
       persistTrustedResult: async (payload: JsonObject) => {
+        const { error: bootstrapError } = await internalClient.rpc('private_ensure_payroll_month_for_calculation', {
+          p_actor_id: payload.actorId,
+          p_payroll_month: payload.payrollMonth,
+        });
+        if (bootstrapError) {
+          const code = safeErrorCode(bootstrapError);
+          const rpcError = new Error(code);
+          (rpcError as { code?: string }).code = code;
+          throw rpcError;
+        }
+
         const { data, error } = await internalClient.rpc('private_persist_payroll_calculation', {
           p_actor_id: payload.actorId,
           p_payroll_month: payload.payrollMonth,
