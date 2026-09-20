@@ -69,15 +69,15 @@ test('unauthenticated payroll page keeps attendance controls inactive until prot
     'payroll-attendance-prev',
     'payroll-attendance-next',
     'payroll-attendance-save',
-    'payroll-attendance-recalculate',
   ]) assert.match(attendanceEditor, new RegExp(`'${id}'`));
 });
 
-test('direct attendance entry is primary and Excel is optional same-table prefill', () => {
-  assert.match(html, /직접 입력이 기본입니다/);
+test('confirmed attendance is primary and direct or Excel entry is fallback only', () => {
+  assert.match(html, /id="payroll-confirmed-readiness"/);
+  assert.match(html, /확정 근태로 급여 가안 계산/);
+  assert.match(html, /비상·과거자료 보조입력 열기/);
+  assert.doesNotMatch(html, /직접 입력이 기본입니다/);
   assert.match(html, /출근부 Excel로 채우기/);
-  assert.match(html, /같은 표에 자동으로 채워지고/);
-  assert.match(html, /저장 전에 다시 직접 수정/);
   assert.match(html, /payroll-attendance-editor-body/);
   assert.match(html, /변경사항 저장/);
   assert.match(attendanceEditor, /xlsx_prefill/);
@@ -85,16 +85,14 @@ test('direct attendance entry is primary and Excel is optional same-table prefil
   assert.match(attendanceEditor, /manual_ui/);
   assert.match(attendanceEditor, /state\.cells/);
   assert.match(attendanceEditor, /fillFromExcel/);
-  assert.match(attendanceEditor, /markChanged/);
   assert.match(attendanceOperatorUx, /inferAttendanceStatus/);
   assert.match(attendanceOperatorUx, /한쪽 시간만 있으면 확인 필요/);
 });
 
-test('attendance save recalculates shadow payroll but has no finalization or payment path', () => {
+test('fallback attendance save has no direct payroll calculation or payment path', () => {
   const executable = executableClient(attendanceEditor);
-  assert.match(attendanceEditor, /\/functions\/v1\/payroll-calculate/);
-  assert.match(html, /id="payroll-attendance-recalculate"/);
-  assert.match(attendanceEditor, /async function retryCalculation\(\)/);
+  assert.doesNotMatch(attendanceEditor, /\/functions\/v1\/payroll-calculate/);
+  assert.doesNotMatch(html, /id="payroll-attendance-recalculate"/);
   assert.match(attendanceEditor, /payroll-live-refresh/);
   assert.doesNotMatch(executable, /lock_payroll|finalize_payroll|bank_transfer|payment_execute|kakao/i);
   assert.doesNotMatch(executable, /insert\s+into|update\s+public\.|delete\s+from/i);

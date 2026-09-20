@@ -35,6 +35,7 @@ export const testGroups = Object.freeze({
     'tests/issue-252-confirmed-attendance-ledger.test.js',
     'tests/issue-253-confirmed-payroll-attendance-snapshot.test.js',
     'tests/issue-280-web-admin-human-e2e.test.js',
+    'tests/issue-282-attendance-human-check.test.js',
     'tests/issue-187-promotion-staff-live-ux.test.js',
     'tests/issue-207-promotion-information-management.test.js',
     'tests/issue-220-role-screen-polish.test.js',
@@ -156,7 +157,8 @@ export const testGroups = Object.freeze({
     'tests/payroll-current-month-bootstrap.test.js',
     'tests/payroll-september-holidays.test.js',
     'tests/payroll-audit-counterexamples.test.js',
-    'tests/issue-255-payslip-draft.test.js'
+    'tests/issue-255-payslip-draft.test.js',
+    'tests/issue-282-confirmed-payroll-ui.test.js'
   ])
 });
 

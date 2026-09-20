@@ -10,6 +10,7 @@
     context: null,
     validation: null,
     attendanceFile: null,
+    readiness: null,
     loading: false,
   };
 
@@ -150,7 +151,7 @@
     });
     const payload = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) {
-      const error = new Error(payload?.message || payload?.msg || `REQUEST_${response.status}`);
+      const error = new Error(payload?.code || payload?.message || payload?.msg || `REQUEST_${response.status}`);
       error.status = response.status;
       throw error;
     }
@@ -191,6 +192,86 @@
   function selectedMonth() {
     const input = element('payroll-live-month');
     return input?.value || DEFAULT_MONTH;
+  }
+
+  function monthEnd(month = selectedMonth()) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const date = new Date(year, monthNumber, 0, 12, 0, 0);
+    return `${year}-${String(monthNumber).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function seoulToday() {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
+  }
+
+  function cutoffForMonth() {
+    const month = selectedMonth();
+    const today = seoulToday();
+    const currentMonth = today.slice(0, 7);
+    if (month < currentMonth) return monthEnd(month);
+    if (month === currentMonth) return today;
+    return `${month}-01`;
+  }
+
+  function readinessBlockerLabel(item) {
+    const labels = {
+      day_unconfirmed: '일일 근태 미확정',
+      employee_record_missing: '직원 확정근태 누락',
+      confirmed_duration_invalid: '출퇴근 시간 확인 필요',
+      attendance_exception_unresolved: '근태 예외 미해결',
+    };
+    const parts = [
+      item?.work_date || '',
+      labels[item?.code] || item?.code || '확인 필요',
+      item?.detail || ''
+    ].filter(Boolean);
+    return parts.join(' · ');
+  }
+
+  function renderReadiness(readiness) {
+    state.readiness = readiness || null;
+    const ready = Boolean(readiness?.ready);
+    const blockers = Array.isArray(readiness?.blockers) ? readiness.blockers : [];
+    const stateNode = element('payroll-readiness-state');
+    const summary = element('payroll-readiness-summary');
+    const list = element('payroll-readiness-blockers');
+    const calculate = element('payroll-confirmed-calculate');
+
+    if (stateNode) {
+      stateNode.textContent = ready ? '확정 근태 준비 완료' : `확정이 필요한 항목 ${blockers.length}건`;
+      stateNode.dataset.state = ready ? 'normal' : 'error';
+    }
+    if (summary) {
+      summary.textContent = ready
+        ? '운영팀장이 확정한 근태 snapshot으로 급여 가안을 계산할 수 있습니다.'
+        : '출근부에서 미확정 날짜·누락 시간·미해결 예외를 먼저 처리해주세요.';
+    }
+    if (list) {
+      list.replaceChildren();
+      blockers.slice(0, 12).forEach(item => {
+        const row = document.createElement('li');
+        row.textContent = readinessBlockerLabel(item);
+        list.append(row);
+      });
+      if (blockers.length > 12) {
+        const more = document.createElement('li');
+        more.textContent = `외 ${blockers.length - 12}건 더 있음`;
+        list.append(more);
+      }
+    }
+    if (calculate) calculate.disabled = !ready || state.loading;
+  }
+
+  function renderReadinessUnavailable() {
+    state.readiness = null;
+    setText('payroll-readiness-state', '확정 근태 준비상태를 불러오지 못했습니다.');
+    setText('payroll-readiness-summary', '급여 계산은 차단됩니다. 업무플랫폼 출근부와 서버 상태를 확인해주세요.');
+    const list = element('payroll-readiness-blockers');
+    if (list) list.replaceChildren();
+    const calculate = element('payroll-confirmed-calculate');
+    if (calculate) calculate.disabled = true;
   }
 
   function setMessage(message, { error = false } = {}) {
@@ -347,11 +428,54 @@
   }
 
   function friendlyError(error) {
+    const message = String(error?.message || '');
     if (error?.status === 401) return '로그인 시간이 끝났습니다. 업무플랫폼에서 다시 로그인해 주세요.';
-    if (error?.status === 403 || /PAYROLL_ACCESS_FORBIDDEN|FORBIDDEN/.test(error?.message || '')) {
+    if (error?.status === 403 || /PAYROLL_ACCESS_FORBIDDEN|FORBIDDEN/.test(message)) {
       return '급여관리 권한이 없습니다. 운영총괄 계정으로 로그인해 주세요.';
     }
-    return '급여 데이터를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요.';
+    if (/PAYROLL_CONFIRMED_ATTENDANCE_REQUIRED/.test(message)) {
+      return '운영팀장 확정 근태가 아직 준비되지 않았습니다. 출근부의 미확정 날짜와 예외를 먼저 처리해주세요.';
+    }
+    if (/PAYROLL_CALCULATION_INPUT_STALE|payroll_attendance_batch_stale/i.test(message)) {
+      return '근태 기준이 변경되었습니다. 확정 근태 상태를 새로고침한 뒤 다시 계산해주세요.';
+    }
+    return message && !/^REQUEST_\d+$/.test(message)
+      ? `급여 처리를 완료하지 못했습니다. (${message})`
+      : '급여 데이터를 불러오지 못했습니다. 새로고침 후 다시 확인해 주세요.';
+  }
+
+  async function calculateConfirmedPayroll() {
+    if (state.loading) return;
+    if (!state.readiness?.ready) {
+      setMessage('확정 근태 준비가 끝나야 급여 가안을 계산할 수 있습니다.', { error: true });
+      return;
+    }
+
+    state.loading = true;
+    const calculate = element('payroll-confirmed-calculate');
+    if (calculate) calculate.disabled = true;
+    setMessage('확정 근태 snapshot으로 급여 가안을 계산하고 있습니다.');
+
+    try {
+      const month = selectedMonth();
+      const result = await request('/functions/v1/payroll-calculate', {
+        method: 'POST',
+        body: {
+          payroll_month: `${month}-01`,
+          cutoff_date: cutoffForMonth(),
+          request_id: `confirmed-native-${Date.now()}`,
+        },
+      });
+      setMessage(result?.status === 'review_required'
+        ? '급여 가안을 계산했습니다. 추가 확인이 필요한 항목이 있습니다.'
+        : '확정 근태 기준 급여 가안 계산을 완료했습니다.');
+    } catch (error) {
+      setMessage(friendlyError(error), { error: true });
+    } finally {
+      state.loading = false;
+      if (calculate) calculate.disabled = !state.readiness?.ready;
+    }
+    await loadMonth();
   }
 
   async function loadMonth() {
@@ -363,17 +487,30 @@
 
     try {
       const month = selectedMonth();
-      const context = await rpc('get_payroll_operator_ledger_context', {
-        p_payroll_month: `${month}-01`,
-      });
-      render(context, month);
-      setMessage('Staging 급여대장 가안을 표시하고 있습니다. 실제 급여 확정이나 지급은 실행하지 않습니다.');
+      const [contextResult, readinessResult] = await Promise.allSettled([
+        rpc('get_payroll_operator_ledger_context', {
+          p_payroll_month: `${month}-01`,
+        }),
+        rpc('get_payroll_confirmed_attendance_readiness', {
+          p_payroll_month: `${month}-01`,
+          p_cutoff_date: cutoffForMonth(),
+        }),
+      ]);
+
+      if (contextResult.status !== 'fulfilled') throw contextResult.reason;
+      render(contextResult.value, month);
+      if (readinessResult.status === 'fulfilled') renderReadiness(readinessResult.value);
+      else renderReadinessUnavailable();
+      setMessage('확정 근태 준비상태와 현재 급여대장 가안을 표시하고 있습니다. 실제 급여 확정이나 지급은 실행하지 않습니다.');
     } catch (error) {
+      renderReadinessUnavailable();
       setMessage(friendlyError(error), { error: true });
       setExportEnabled(false);
     } finally {
       state.loading = false;
       button.disabled = false;
+      const calculate = element('payroll-confirmed-calculate');
+      if (calculate) calculate.disabled = !state.readiness?.ready;
     }
   }
 
@@ -437,6 +574,7 @@
   }
 
   element('payroll-live-refresh')?.addEventListener('click', loadMonth);
+  element('payroll-confirmed-calculate')?.addEventListener('click', calculateConfirmedPayroll);
   element('payroll-live-export')?.addEventListener('click', exportLedger);
   element('payroll-attendance-file')?.addEventListener('change', handleAttendanceFile);
   element('payroll-live-month')?.addEventListener('change', () => {

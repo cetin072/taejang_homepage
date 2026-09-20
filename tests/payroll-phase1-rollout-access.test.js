@@ -22,7 +22,7 @@ test('full phase-1 payroll management remains operations_manager only', () => {
 test('promotion lead gets only the non-amount handoff entry, never full payroll management', () => {
   const promotionBlock = nav.slice(nav.indexOf('promotion_lead:'), nav.indexOf('operations_manager:'));
   assert.match(promotionBlock, /'출근부'/);
-  assert.match(promotionBlock, /'급여초안 상신'/);
+  assert.match(promotionBlock, /'외부 급여초안 상신'/);
   assert.doesNotMatch(promotionBlock, /'근태·급여관리'/);
 
   const cardBlock = cards.slice(cards.indexOf('const CARD_ORDER'), cards.indexOf('const OPERATIONS_DASHBOARD_HIDDEN'));

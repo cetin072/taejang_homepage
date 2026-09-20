@@ -363,8 +363,31 @@
     return `${owner}${labels[blocker?.type] || '확정 전 확인이 필요한 근태 예외'}`;
   }
 
+  function isMissingTimeBlocker(blocker) {
+    return blocker?.type === 'missing_clock_in' || blocker?.type === 'missing_clock_out';
+  }
+
+  async function fillMissingTimeBlocker(workDate, blocker) {
+    if (!can('attendance.correct') || !blocker?.employee_uuid || !isMissingTimeBlocker(blocker)) return;
+    const api = window.TaejangAttendanceIntegrity?.addMissingTime;
+    if (typeof api !== 'function') {
+      window.alert('누락 시간 입력 화면을 준비하지 못했습니다. 근태 보정 메뉴에서 입력해주세요.');
+      return;
+    }
+    const saved = await api({
+      employeeUuid: blocker.employee_uuid,
+      workDate,
+      eventType: blocker.type === 'missing_clock_in' ? 'clock_in' : 'clock_out'
+    });
+    if (saved) await openAttendance(workDate);
+  }
+
   async function resolveConfirmationBlocker(workDate, blocker) {
     if (!can('attendance.confirm')) return;
+    if (isMissingTimeBlocker(blocker)) {
+      window.alert('출근·퇴근 누락은 확인 사유만으로 해소할 수 없습니다. 실제 시간을 입력해주세요.');
+      return;
+    }
     const reason = window.prompt(`${confirmationBlockerLabel(blocker)}\n확정 전 해소 또는 확인 사유를 5자 이상 입력하세요.`);
     if (!reason || reason.trim().length < 5) {
       window.alert('확정 전 예외를 해소할 때는 사유를 5자 이상 입력해야 합니다.');
@@ -424,7 +447,7 @@
       el('p', confirmed
         ? `확정 시각: ${revision?.confirmed_at ? new Date(revision.confirmed_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'} · snapshot ${revision?.snapshot_fingerprint || '-'}`
         : pending.length
-          ? `확정 전 해결할 항목이 ${pending.length}건 있습니다. 각 예외의 확인 사유를 남긴 뒤 하루 전체를 한 번에 확정합니다.`
+          ? `확정 전 해결할 항목이 ${pending.length}건 있습니다. 출근·퇴근 누락은 실제 시간을 입력하고, 판단이 필요한 예외만 확인 사유를 남긴 뒤 하루 전체를 확정합니다.`
           : '모든 필수 확인 항목이 해소되었습니다. 이 날짜의 전체 출근부를 한 번에 확정할 수 있습니다.'),
     );
     if (blockers.length) {
@@ -434,10 +457,14 @@
         item.dataset.resolved = String(Boolean(blocker?.resolved));
         item.append(el('span', blocker.resolved ? `해소됨 · ${confirmationBlockerLabel(blocker)}` : confirmationBlockerLabel(blocker)));
         if (!confirmed && !blocker.resolved && can('attendance.confirm')) {
-          const button = el('button', '확인 사유 기록', 'button button-quiet');
+          const missingTime = isMissingTimeBlocker(blocker);
+          const button = el('button', missingTime ? '누락 시간 입력' : '확인 사유 기록', 'button button-quiet');
           button.type = 'button';
           button.addEventListener('click', () => {
-            resolveConfirmationBlocker(workDate, blocker).catch(() => window.alert('확정 예외를 기록하지 못했습니다.'));
+            const action = missingTime
+              ? fillMissingTimeBlocker(workDate, blocker)
+              : resolveConfirmationBlocker(workDate, blocker);
+            action.catch(() => window.alert(missingTime ? '누락 시간을 입력하지 못했습니다.' : '확정 예외를 기록하지 못했습니다.'));
           });
           item.append(button);
         }

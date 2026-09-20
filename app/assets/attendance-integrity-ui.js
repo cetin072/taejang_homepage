@@ -53,7 +53,14 @@
       .attendance-correction-dialog form{display:grid;gap:14px;padding:22px}
       .attendance-correction-dialog h2,.attendance-correction-dialog p{margin:0}
       .attendance-correction-dialog label{display:grid;gap:7px;font-weight:800}
-      .attendance-correction-dialog input,.attendance-correction-dialog textarea{width:100%;min-height:44px;padding:8px 10px;border:1px solid #bbb;border-radius:9px;background:#fff;font:inherit;box-sizing:border-box}
+      .attendance-correction-dialog input,.attendance-correction-dialog select,.attendance-correction-dialog textarea{width:100%;min-height:44px;padding:8px 10px;border:1px solid #bbb;border-radius:9px;background:#fff;font:inherit;box-sizing:border-box}
+      .attendance-time-picker-field{display:grid;gap:8px;font-weight:800}
+      .attendance-time-picker{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+      .attendance-time-picker__colon{font-size:24px;font-weight:900;text-align:center}
+      .attendance-time-picker select{min-height:50px;font-size:18px;font-weight:800}
+      .attendance-direct-time{border:1px solid #e1e5e2;border-radius:10px;padding:10px 12px;background:#fafbf9}
+      .attendance-direct-time summary{cursor:pointer;font-weight:750;color:#53675d}
+      .attendance-direct-time label{margin-top:10px}
       .attendance-correction-dialog textarea{min-height:96px;resize:vertical}
       .attendance-correction-dialog__actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
       .attendance-correction-dialog__error{min-height:1.4em;color:#9f1d1d;font-weight:700}
@@ -147,15 +154,59 @@
         : '원본 기록은 삭제하지 않고 append-only 보정 이력을 추가합니다.'));
 
       let timeInput = null;
+      let hourSelect = null;
+      let minuteSelect = null;
       if (isSetTime) {
-        const timeLabel = node('label', `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간`);
+        const [defaultHour, defaultMinute] = defaultTime.split(':');
+        const pickerField = node('div', null, 'attendance-time-picker-field');
+        pickerField.append(node('span', `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간 선택`));
+        const picker = node('div', null, 'attendance-time-picker');
+
+        hourSelect = document.createElement('select');
+        hourSelect.name = 'corrected-hour';
+        hourSelect.setAttribute('aria-label', '시 선택');
+        for (let hour = 0; hour < 24; hour += 1) {
+          const value = String(hour).padStart(2, '0');
+          hourSelect.append(new Option(`${value}시`, value, false, value === defaultHour));
+        }
+
+        minuteSelect = document.createElement('select');
+        minuteSelect.name = 'corrected-minute';
+        minuteSelect.setAttribute('aria-label', '분 선택');
+        for (let minute = 0; minute < 60; minute += 1) {
+          const value = String(minute).padStart(2, '0');
+          minuteSelect.append(new Option(`${value}분`, value, false, value === defaultMinute));
+        }
+
+        picker.append(hourSelect, node('span', ':', 'attendance-time-picker__colon'), minuteSelect);
+        pickerField.append(picker);
+
+        const direct = document.createElement('details');
+        direct.className = 'attendance-direct-time';
+        const summary = document.createElement('summary');
+        summary.textContent = '직접 입력이 필요한 경우 (HH:MM)';
+        const directLabel = node('label', '시간 직접 입력');
         timeInput = document.createElement('input');
         timeInput.type = 'time';
         timeInput.name = 'corrected-time';
         timeInput.value = defaultTime;
-        timeInput.required = true;
-        timeLabel.append(timeInput);
-        form.append(timeLabel);
+        directLabel.append(timeInput);
+        direct.append(summary, directLabel);
+        pickerField.append(direct);
+
+        const syncDirectInput = () => {
+          timeInput.value = `${hourSelect.value}:${minuteSelect.value}`;
+        };
+        hourSelect.addEventListener('change', syncDirectInput);
+        minuteSelect.addEventListener('change', syncDirectInput);
+        timeInput.addEventListener('input', () => {
+          const match = String(timeInput.value || '').match(/^([01]\\d|2[0-3]):([0-5]\\d)$/);
+          if (!match) return;
+          hourSelect.value = match[1];
+          minuteSelect.value = match[2];
+        });
+
+        form.append(pickerField);
       }
 
       let reasonInput = null;
@@ -187,12 +238,12 @@
 
       form.addEventListener('submit', event => {
         if (event.submitter?.value !== 'save') return;
-        const timeValue = timeInput?.value || '';
+        const timeValue = isSetTime ? `${hourSelect?.value || ''}:${minuteSelect?.value || ''}` : '';
         const reason = reasonInput?.value.trim() || null;
         if (isSetTime && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(timeValue)) {
           event.preventDefault();
-          error.textContent = '시간은 예: 09:00 또는 18:30 형식으로 입력해주세요.';
-          timeInput?.focus();
+          error.textContent = '시간을 시·분 선택에서 골라주세요.';
+          hourSelect?.focus();
           return;
         }
         if (!isMissingBackfill && (!reason || reason.length < 5)) {
@@ -204,7 +255,7 @@
       dialog.addEventListener('close', () => {
         const saved = dialog.returnValue === 'save';
         const value = saved ? {
-          correctedEventAt: isSetTime ? isoForKstInput(workDate, timeInput.value) : null,
+          correctedEventAt: isSetTime ? isoForKstInput(workDate, `${hourSelect.value}:${minuteSelect.value}`) : null,
           reason: reasonInput?.value.trim() || null,
           isMissingBackfill
         } : null;
@@ -212,7 +263,7 @@
         resolve(value);
       }, { once: true });
       dialog.showModal();
-      (timeInput || reasonInput || submit).focus();
+      (hourSelect || reasonInput || submit).focus();
     });
   }
 
@@ -349,5 +400,15 @@
   document.addEventListener('taejang-app-ready', sync);
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(addCorrectionNavigation, 100));
   document.addEventListener('taejang-capabilities-ready', () => setTimeout(addCorrectionNavigation, 0));
-  window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi };
+  async function addMissingTime({ employeeUuid, workDate, eventType }) {
+    return createCorrection({
+      employeeUuid,
+      workDate,
+      eventType,
+      action: 'set_time',
+      currentRecord: null
+    });
+  }
+
+  window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi, addMissingTime };
 })();

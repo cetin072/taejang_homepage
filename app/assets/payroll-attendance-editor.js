@@ -430,22 +430,10 @@
       'payroll-attendance-prev',
       'payroll-attendance-next',
       'payroll-attendance-save',
-      'payroll-attendance-recalculate',
     ]) {
       const button = el(id);
       if (button) button.disabled = busy;
     }
-  }
-
-  async function recalculate(context) {
-    const batchId = context?.accepted_batch_id;
-    if (!batchId) throw new Error('근태 저장 후 계산 기준을 찾지 못했습니다');
-    return request('/functions/v1/payroll-calculate', {
-      payroll_month: monthStart(),
-      cutoff_date: cutoffForMonth(),
-      accepted_import_batch_id: batchId,
-      request_id: `attendance-editor-${Date.now()}`,
-    });
   }
 
   async function saveChanges() {
@@ -473,46 +461,15 @@
     }
 
     const savedCount = Number(saved?.saved_count || entries.length);
-    // The attendance write has completed. Never leave these same entries dirty
-    // merely because the later, independent payroll calculation has a problem.
     clearSavedDirty(entries);
-    setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안을 다시 계산하는 중…`, 'ok');
-
-    try {
-      await loadContext({ preserveDate: true, quiet: true });
-      const calculated = await recalculate(state.context);
-      const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
-      setMessage(`${savedCount}건 저장 완료 · 급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
-      document.getElementById('payroll-live-refresh')?.click();
-    } catch (error) {
-      setMessage(`근태 ${savedCount}건은 저장되었습니다. 급여 가안 재계산에 실패했습니다: ${error.message || '확인 필요'}. 아래 ‘급여 가안 다시 계산’으로 다시 시도할 수 있습니다.`, 'review');
-    } finally {
-      state.loading = false;
-      setEditorBusy(false);
-    }
-  }
-
-  async function retryCalculation() {
-    if (state.loading) return;
-    if (state.dirty.size) {
-      setMessage(`저장하지 않은 근태 변경 ${state.dirty.size}건이 있습니다. 먼저 저장한 뒤 급여 가안을 계산해 주세요.`, 'review');
-      return;
-    }
-    state.loading = true;
-    setEditorBusy(true);
-    setMessage('저장된 근태로 급여 가안을 다시 계산하는 중…');
-    try {
-      await loadContext({ preserveDate: true, quiet: true });
-      const calculated = await recalculate(state.context);
-      const resultState = calculated?.status === 'review_required' ? 'review' : 'ok';
-      setMessage(`급여 가안 재계산 완료${calculated?.status === 'review_required' ? ' · 확인 필요 항목 있음' : ''}`, resultState);
-      document.getElementById('payroll-live-refresh')?.click();
-    } catch (error) {
-      setMessage(`급여 가안 재계산에 실패했습니다: ${error.message || '확인 필요'}. 저장된 근태는 그대로 유지됩니다.`, 'review');
-    } finally {
-      state.loading = false;
-      setEditorBusy(false);
-    }
+    setMessage(
+      `보조 근태 ${savedCount}건을 저장했습니다. 이 자료는 과거·비상 보조기록이며 정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다.`,
+      'ok'
+    );
+    await loadContext({ preserveDate: true, quiet: true }).catch(() => null);
+    document.getElementById('payroll-live-refresh')?.click();
+    state.loading = false;
+    setEditorBusy(false);
   }
 
   async function loadContext({ preserveDate = false, quiet = false } = {}) {
@@ -529,7 +486,7 @@
       dateInput.value = state.selectedDate;
     }
     renderTable();
-    if (!quiet) setMessage('직접 입력이 기본입니다. Excel을 선택하면 같은 표에 자동으로 채워지고 다시 수정할 수 있습니다.', 'ok');
+    if (!quiet) setMessage('과거자료·비상 대응용 보조입력입니다. 정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다.', 'ok');
   }
 
   function bindEvents() {
@@ -540,7 +497,6 @@
     el('payroll-attendance-prev')?.addEventListener('click', () => changeDate(-1));
     el('payroll-attendance-next')?.addEventListener('click', () => changeDate(1));
     el('payroll-attendance-save')?.addEventListener('click', saveChanges);
-    el('payroll-attendance-recalculate')?.addEventListener('click', retryCalculation);
     el('payroll-live-month')?.addEventListener('change', () => loadContext().catch(error => setMessage(error.message, 'error')));
     el('payroll-attendance-file')?.addEventListener('change', event => {
       const file = event.target.files?.[0];

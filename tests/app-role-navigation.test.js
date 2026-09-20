@@ -185,13 +185,13 @@ test('central navigation groups menus by final work category contracts', () => {
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '일정 관리',
     '공지 관리',
-    '근태·급여관리', '급여초안 검토', '출근부',
+    '근태·급여관리', '외부 급여초안 검토', '출근부',
     '홈페이지'
   ]);
   assert.doesNotMatch(operationsBlock, /상시 안내 관리|홍보 글 관리/);
 
   const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '가입 승인', '업무 배정', '일정 관리', '출근부', '급여초안 상신', '홈페이지', '신규 사업 기획']);
+  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록', '가입 승인', '업무 배정', '일정 관리', '출근부', '외부 급여초안 상신', '홈페이지', '신규 사업 기획']);
   assert.doesNotMatch(leadBlock, /공개글 관리|미발행 글 삭제|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
 
   assert.match(navPriority, /label:\s*'직원·계정'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'[\s\S]*'가입 승인'/);
@@ -199,7 +199,7 @@ test('central navigation groups menus by final work category contracts', () => {
   assert.match(navPriority, /label:\s*'홈페이지'[\s\S]*'홈페이지 내용 관리'[\s\S]*'홈페이지 직접 수정'/);
   assert.match(navPriority, /label:\s*'업무 운영'[\s\S]*'업무 배정'[\s\S]*'일정 관리'/);
   assert.match(navPriority, /label:\s*'공지', items: \['공지 관리'\]/);
-  assert.match(navPriority, /label:\s*'근태·급여', items: \['근태·급여관리', '급여초안 검토', '출근부'\]/);
+  assert.match(navPriority, /label:\s*'근태·급여', items: \['근태·급여관리', '외부 급여초안 검토', '출근부'\]/);
   assert.doesNotMatch(navPriority, /작업 매뉴얼/);
   assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
   assert.match(navPriority, /return 10000/);

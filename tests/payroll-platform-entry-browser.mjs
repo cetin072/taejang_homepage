@@ -130,14 +130,21 @@ const liveAutomation = `<script>
         return status && status.textContent && status.textContent !== '불러오는 중';
       }, 'payroll ledger bootstrap');
       await waitFor(() => {
+        const readiness = document.getElementById('payroll-readiness-state');
+        return readiness && readiness.textContent && !readiness.textContent.includes('불러오는 중');
+      }, 'confirmed attendance readiness bootstrap');
+      await waitFor(() => {
         const summary = document.getElementById('payroll-attendance-editor-summary');
         return summary && summary.textContent && !summary.textContent.includes('불러오는 중');
-      }, 'payroll attendance editor bootstrap');
+      }, 'fallback attendance editor bootstrap');
 
       const badge = document.getElementById('payroll-live-environment')?.textContent || '';
       if (!badge.includes('근태 편집')) throw new Error('PAYROLL_ENVIRONMENT_BADGE_NOT_READY');
-      if (!document.getElementById('payroll-attendance-save')) throw new Error('PAYROLL_SAVE_ACTION_MISSING');
-      if (!document.getElementById('payroll-attendance-recalculate')) throw new Error('PAYROLL_RECALCULATE_ACTION_MISSING');
+      const calculate = document.getElementById('payroll-confirmed-calculate');
+      if (!calculate) throw new Error('PAYROLL_CONFIRMED_CALCULATE_ACTION_MISSING');
+      if (calculate.disabled) throw new Error('PAYROLL_CONFIRMED_CALCULATE_ACTION_DISABLED');
+      if (!document.getElementById('payroll-attendance-save')) throw new Error('PAYROLL_FALLBACK_SAVE_ACTION_MISSING');
+      if (document.getElementById('payroll-attendance-recalculate')) throw new Error('PAYROLL_LEGACY_RECALCULATE_ACTION_PRESENT');
       if (!document.getElementById('payroll-live-export')) throw new Error('PAYROLL_XLSX_ACTION_MISSING');
 
       sessionStorage.removeItem(stageKey);
@@ -220,6 +227,16 @@ const server = createServer((request, response) => {
         employees: [],
         carryover: { incoming_count: 0, outgoing_count: 0 },
         accounting: null,
+      });
+    }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_confirmed_attendance_readiness') {
+      return json(response, 200, {
+        payroll_month: '2026-09-01',
+        cutoff_date: '2026-09-20',
+        boundary_start: '2026-09-01',
+        ready: true,
+        blockers: [],
+        readiness_fingerprint: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       });
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_payroll_attendance_editor_context') {
