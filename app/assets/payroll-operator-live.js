@@ -190,6 +190,33 @@
     }
   }
 
+  async function requestPayrollCalculation(body) {
+    const invoke = async () => {
+      const response = await fetch('/api/payroll-calculate', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${state.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const error = new Error(payload?.code || payload?.message || `REQUEST_${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return payload;
+    };
+
+    try {
+      return await invoke();
+    } catch (error) {
+      if (error.status === 401 && await refreshSession()) return invoke();
+      throw error;
+    }
+  }
+
   function selectedMonth() {
     const input = element('payroll-live-month');
     return input?.value || DEFAULT_MONTH;
@@ -476,13 +503,10 @@
     let result = null;
     try {
       const month = selectedMonth();
-      result = await request('/functions/v1/payroll-calculate', {
-        method: 'POST',
-        body: {
-          payroll_month: `${month}-01`,
-          cutoff_date: cutoffForMonth(),
-          request_id: `confirmed-native-${Date.now()}`,
-        },
+      result = await requestPayrollCalculation({
+        payroll_month: `${month}-01`,
+        cutoff_date: cutoffForMonth(),
+        request_id: `confirmed-native-${Date.now()}`,
       });
     } catch (error) {
       setMessage(friendlyError(error), { error: true });
