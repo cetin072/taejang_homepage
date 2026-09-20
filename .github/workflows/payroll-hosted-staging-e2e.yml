@@ -60,6 +60,7 @@ jobs:
           target_response="$(jq -n --arg query "$target_query" '{query:$query,read_only:true}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
           target_id="$(printf '%s' "$target_response" | jq -er 'if type == "array" then . elif .result? then .result else .data end | if length == 1 then .[0].id else error("top-authority candidate count must equal one") end')"
           handoff_code="$(openssl rand -hex 32)"
+          echo "::add-mask::$handoff_code"
           handoff_hash="$(printf '%s' "$handoff_code" | sha256sum | awk '{print $1}')"
           create_query="begin; set local role authenticated; select set_config('request.jwt.claim.sub', '${target_id}', true); select set_config('request.jwt.claim.role', 'authenticated', true); select public.create_web_auth_handoff('${handoff_hash}'); commit;"
           create_response="$(jq -n --arg query "$create_query" '{query:$query,read_only:false}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"

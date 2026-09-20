@@ -62,7 +62,7 @@ async function apiSmoke(config, session) {
   assert.equal(Array.isArray(readiness?.blockers) ? readiness.blockers.length : -1, 0, 'readiness blockers must be zero');
   const input = await rpc(config, session, 'get_payroll_calculation_input', { p_payroll_month: payrollMonth, p_cutoff_date: '2026-07-31', p_expected_batch_id: null });
   const absence = input?.attendance?.find((row) => row?.employee_id === EMPLOYEE_ID && row?.work_date === '2026-07-01');
-  assert.equal(absence?.attendance_status, 'unpaid_absence', 'July 1 must reach canonical input as unpaid_absence');
+  assert.equal(absence?.auto_decision, 'unpaid_absence', 'July 1 must reach canonical input as unpaid_absence');
   const calculation = await json(await fetch(`${SITE}/api/payroll-calculate`, {
     method: 'POST', headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ payroll_month: payrollMonth, cutoff_date: '2026-07-31', request_id: `issue-301-api-${Date.now()}` }),
