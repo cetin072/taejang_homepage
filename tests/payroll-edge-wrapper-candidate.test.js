@@ -78,15 +78,35 @@ test('deployed staging wrapper adds statutory input through one server-only RPC 
   assert.match(deployedWrapper, /internalClient\.rpc\('private_persist_payroll_calculation'/);
   assert.doesNotMatch(deployedWrapper, /internalClient\.from\(/);
   assert.doesNotMatch(deployedWrapper, /userClient\.from\(/);
-  assert.match(deployedDeps, /payroll-statutory-deductions\.js/);
-  assert.match(deployedDeps, /PAYROLL_RUNTIME_COMMIT\s*=\s*'[0-9a-f]{40}'/);
+  assert.match(deployedDeps, /runtime\/payroll-statutory-deductions\.js/);
+  assert.match(deployedDeps, /PAYROLL_RUNTIME_SOURCE_COMMIT\s*=\s*'[0-9a-f]{40}'/);
+  assert.doesNotMatch(deployedDeps, /https?:\/\//);
 });
 
-test('deployed staging runtime pin includes the confirmed actual_worked adapter contract', () => {
-  const pinned = deployedDeps.match(/PAYROLL_RUNTIME_COMMIT\s*=\s*'([0-9a-f]{40})'/)?.[1];
+test('deployed staging runtime provenance includes the confirmed actual_worked adapter contract', () => {
+  const pinned = deployedDeps.match(/PAYROLL_RUNTIME_SOURCE_COMMIT\s*=\s*'([0-9a-f]{40})'/)?.[1];
   assert.equal(pinned, '78f11ec235d3a4165f9558934305392d63a8aef6');
-  const adapter = fs.readFileSync(path.join(root, 'app/assets/payroll-db-input-adapter.js'), 'utf8');
+  const adapterPath = path.join(root, 'supabase/functions/payroll-calculate/runtime/payroll-db-input-adapter.js');
+  assert.equal(fs.existsSync(adapterPath), true);
+  const adapter = fs.readFileSync(adapterPath, 'utf8');
   assert.match(adapter, /case 'actual_worked':[\s\S]*case 'confirmed_correction':[\s\S]*return 'confirmed_correction'/);
+});
+
+test('deployed Edge runtime dependencies are fully bundled and require no startup network fetch', () => {
+  const runtimeDir = path.join(root, 'supabase/functions/payroll-calculate/runtime');
+  const required = [
+    'payroll-term-validator.js',
+    'payroll-preflight.js',
+    'payroll-engine.js',
+    'payroll-weekly-holiday-policy.js',
+    'payroll-db-input-adapter.js',
+    'payroll-statutory-deductions.js',
+    'payroll-calculate-core.js',
+  ];
+  for (const filename of required) {
+    assert.equal(fs.existsSync(path.join(runtimeDir, filename)), true, `${filename} must be bundled`);
+  }
+  assert.doesNotMatch(deployedDeps, /raw\.githubusercontent\.com|https?:\/\//);
 });
 
 test('service credential never enters response or operational log payload', () => {
