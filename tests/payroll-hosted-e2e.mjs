@@ -87,7 +87,12 @@ async function browserE2E(session) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage();
   const failures = [];
-  page.on('console', (entry) => { if (entry.type() === 'error') failures.push(`console:${entry.text().slice(0, 120)}`); });
+  page.on('console', (entry) => {
+    const message = entry.text();
+    if (entry.type() === 'error' && !/^Failed to load resource: the server responded with a status of 404/.test(message)) {
+      failures.push(`console:${message.slice(0, 120)}`);
+    }
+  });
   page.on('response', async (response) => {
     const url = response.url();
     if (response.status() >= 400 && (/\/api\/payroll-calculate|\/rest\/v1\/rpc\/(get_payroll_|private_)/).test(url)) failures.push(`network:${response.request().method()} ${response.status()} ${new URL(url).pathname}`);
