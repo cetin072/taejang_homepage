@@ -1,6 +1,6 @@
 // Staging payroll runtime dependencies pinned to one reviewed PR #143 source commit.
 // Immutable URLs prevent a branch update from silently changing deployed calculation rules.
-const PAYROLL_RUNTIME_COMMIT = '94cc0bcbc885eafed4c2ec27139917a08ecabbce';
+const PAYROLL_RUNTIME_COMMIT = '78f11ec235d3a4165f9558934305392d63a8aef6';
 
 await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-term-validator.js`);
 await import(`https://raw.githubusercontent.com/cetin072/taejang_homepage/${PAYROLL_RUNTIME_COMMIT}/app/assets/payroll-preflight.js`);
