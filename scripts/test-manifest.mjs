@@ -89,6 +89,7 @@ export const testGroups = Object.freeze({
     'tests/staging-seed-options.test.mjs'
   ]),
   payrollRegression: Object.freeze([
+    'tests/payroll-hosted-e2e-contract.test.js',
     'tests/payroll-attendance-import.test.js',
     'tests/payroll-attendance-normalizer.test.js',
     'tests/payroll-attendance-persistence-candidate.test.js',
