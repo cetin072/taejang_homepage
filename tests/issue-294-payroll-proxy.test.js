@@ -22,8 +22,9 @@ test('browser payroll calculation uses a same-origin proxy instead of cross-orig
 });
 
 test('same-origin proxy forwards only the authenticated request to the Supabase payroll function', () => {
-  assert.match(proxy, /Netlify\.env\.get\('SUPABASE_URL'\)/);
-  assert.match(proxy, /Netlify\.env\.get\('SUPABASE_PUBLISHABLE_KEY'\)/);
+  assert.match(proxy, /process\.env\.SUPABASE_URL/);
+  assert.match(proxy, /process\.env\.SUPABASE_PUBLISHABLE_KEY/);
+  assert.doesNotMatch(proxy, /Netlify\.env/);
   assert.match(proxy, /\/functions\/v1\/payroll-calculate/);
   assert.match(proxy, /apikey: publishableKey/);
   assert.match(proxy, /Authorization: `Bearer \$\{token\}`/);
