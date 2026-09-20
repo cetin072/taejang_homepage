@@ -393,6 +393,16 @@ begin
     return jsonb_build_object('ok', false, 'code', 'FORBIDDEN');
   end if;
 
+  -- Promotion leads prepare drafts for operations review.  Publishing (or
+  -- cancelling/deactivating a notice) remains an operations responsibility,
+  -- even when a client bypasses the UI status selector.
+  if public.current_user_has_role('promotion_lead')
+     and not public.current_user_has_role('operations_manager')
+     and not public.current_user_has_role('super_admin')
+     and p_status <> 'draft' then
+    return jsonb_build_object('ok', false, 'code', 'OPERATIONS_REVIEW_REQUIRED');
+  end if;
+
   result := public.private_save_notice_pre280(
     p_notice_id, p_notice_kind, p_importance, p_title, p_body_easy,
     p_publish_start_at, p_publish_end_at, p_effective_start_date,
@@ -408,8 +418,8 @@ begin
     if public.current_user_has_role('promotion_lead')
        and not public.current_user_has_role('operations_manager') then
       perform public.private_reset_notice_review_after_editor_change(saved_id);
-    elsif public.current_user_has_role('operations_manager')
-       and p_status = 'published' then
+    elsif (public.current_user_has_role('operations_manager')
+           or public.current_user_has_role('super_admin')) then
       update public.notices
       set review_state = 'reviewed',
           reviewed_at = now(),

@@ -10,8 +10,8 @@
   let removedMedia = [];
   let previewGeneration = 0;
 
-  function app() { return window.TaejangApp; }
-  function route() { return app()?.getRoute?.() || ''; }
+  const app = window.TaejangApp;
+  function route() { return app?.getRoute?.() || ''; }
   function isOperations() { return route() === 'operations_manager' || route() === 'super_admin'; }
   function isPromotionLead() { return route() === 'promotion_lead'; }
 
@@ -33,6 +33,10 @@
       '연결하지 않음'
     );
     ui.fillSelect(ui.element('notice-related-schedule'), schedules, '연결하지 않음');
+    const status = ui.element('notice-status');
+    const draftOnly = isPromotionLead() && !isOperations();
+    [...status.options].forEach(option => { option.disabled = draftOnly && option.value !== 'draft'; });
+    if (draftOnly) status.value = 'draft';
   }
 
   function setDateTime(prefix, value) {
@@ -201,7 +205,7 @@
   async function showAckSummary(item, slot) {
     slot.textContent = '확인 현황을 불러오고 있습니다.';
     try {
-      const summary = await app().rpc('get_notice_ack_summary', { p_notice_id: item.id });
+      const summary = await app.rpc('get_notice_ack_summary', { p_notice_id: item.id });
       slot.textContent = summary.requires_acknowledgement
         ? `확인 필요 ${summary.required_count}명 · 확인 ${summary.acknowledged_count}명 · 미확인 ${summary.unacknowledged_count}명`
         : '확인이 필요하지 않은 공지입니다.';
@@ -219,7 +223,7 @@
     }
     showMessage('운영총괄에게 공지를 상신하고 있습니다.');
     try {
-      const result = await app().rpc('submit_notice_for_operations_review', {
+      const result = await app.rpc('submit_notice_for_operations_review', {
         p_notice_id: item.id,
         p_reason: reason.trim(),
       });
@@ -287,7 +291,7 @@
     ui.element('notice-form').reset();
     ui.element('notice-id').value = '';
     clearMediaState();
-    const today = app().getBoardDate();
+    const today = app.getBoardDate();
     ui.element('notice-publish-start-date').value = today;
     ui.element('notice-publish-start-time').value = '08:00';
     ui.element('notice-status').value = 'draft';
@@ -336,8 +340,8 @@
     showMessage('공지 목록을 불러오고 있습니다.');
     try {
       const [noticeRows, scheduleRows] = await Promise.all([
-        app().rpc('list_manageable_notices', { p_limit: 200 }),
-        app().rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
+        app.rpc('list_manageable_notices', { p_limit: 200 }),
+        app.rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
       ]);
       notices = ui.array(noticeRows);
       schedules = ui.array(scheduleRows).map(item => ({ id: item.id, title: item.title }));
@@ -357,7 +361,7 @@
     if (mediaItems.length > api.MAX_PHOTOS) throw new Error('NOTICE_MEDIA_LIMIT');
 
     for (const removed of removedMedia) {
-      const result = await app().rpc('archive_notice_media', {
+      const result = await app.rpc('archive_notice_media', {
         p_media_id: removed.id,
         p_reason: reason || '공지 사진 자료 수정',
       });
@@ -369,7 +373,7 @@
       const item = mediaItems[index];
       if (!String(item.alt_text || '').trim()) throw new Error('NOTICE_MEDIA_ALT_REQUIRED');
       if (item.kind === 'existing') {
-        const result = await app().rpc('update_notice_media', {
+        const result = await app.rpc('update_notice_media', {
           p_media_id: item.id,
           p_alt_text: item.alt_text.trim(),
           p_display_order: index,
@@ -377,7 +381,7 @@
         if (!result?.ok) throw new Error(result?.code || 'NOTICE_MEDIA_UPDATE_FAILED');
       } else {
         const uploaded = await api.upload(noticeId, item.file);
-        const result = await app().rpc('add_notice_media', {
+        const result = await app.rpc('add_notice_media', {
           p_notice_id: noticeId,
           p_storage_path: uploaded.storage_path,
           p_mime_type: uploaded.mime_type,
@@ -410,7 +414,7 @@
       if (mediaItems.length > (mediaApi()?.MAX_PHOTOS || 10)) throw new Error('NOTICE_MEDIA_LIMIT');
       if (mediaItems.some(item => !String(item.alt_text || '').trim())) throw new Error('NOTICE_MEDIA_ALT_REQUIRED');
 
-      const result = await app().rpc('save_notice', {
+      const result = await app.rpc('save_notice', {
         p_notice_id: ui.element('notice-id').value || null,
         p_notice_kind: ui.element('notice-kind').value,
         p_importance: importance,
@@ -437,7 +441,7 @@
       showMessage(`공지와 사진 자료를 저장했습니다. 공지 버전은 ${result.version_no}입니다.`);
       resetForm();
       await load();
-      await app().refreshToday();
+      await app.refreshToday();
     } catch (error) {
       const message = error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
         : error.message.includes('DATE_TIME') ? '게시 날짜와 시간을 함께 입력해주세요.'
@@ -447,8 +451,9 @@
                 : error.message === 'NOTICE_MEDIA_LIMIT' ? '공지 사진은 최대 10장까지 등록할 수 있습니다.'
                   : error.message === 'NOTICE_MEDIA_ALT_REQUIRED' ? '모든 사진에 사진 설명을 입력해주세요.'
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
-                      : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '사진 한 장의 크기는 8MB 이하여야 합니다.'
-                        : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
+                          : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '사진 한 장의 크기는 8MB 이하여야 합니다.'
+                            : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
+                            : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
       showMessage(message, true);
     } finally {
@@ -488,10 +493,9 @@
   }
 
   function canManageNotices() {
-    const current = app();
-    return current?.hasCapabilityContract?.()
-      ? Boolean(current.can?.('notice.manage'))
-      : Boolean(current?.isTodayManager?.());
+    const current = app;
+    if (!current?.hasCapabilityContract?.()) return Boolean(current?.isTodayManager?.());
+    return Boolean(app.can?.('notice.manage'));
   }
 
   document.addEventListener('taejang-app-ready', () => {
