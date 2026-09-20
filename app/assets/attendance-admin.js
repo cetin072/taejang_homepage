@@ -34,6 +34,17 @@
     return record.status;
   };
 
+  const DAY_STATUS_LABELS = Object.freeze({
+    work: '정상 근무',
+    paid_leave: '유급휴가·월차',
+    unpaid_absence: '무급 결근',
+    paid_holiday: '유급공휴일',
+    off: '근무대상 아님',
+    review_required: '상태 확인 필요',
+  });
+  const dayStatusCode = row => row?.attendance_status?.status || 'work';
+  const dayStatusLabel = value => DAY_STATUS_LABELS[value] || '상태 확인 필요';
+
   function injectStyles() {
     if (document.querySelector('style[data-attendance-admin]')) return;
     const style = document.createElement('style');
@@ -49,6 +60,10 @@
       .attendance-list { display:grid; gap:10px; }
       .attendance-row { display:grid; grid-template-columns:minmax(120px,1.15fr) 1fr 1fr minmax(150px,.9fr); gap:12px; align-items:center; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-person { font-size:18px; font-weight:900; }
+      .attendance-day-status { display:grid; gap:6px; margin-top:9px; font-size:13px; font-weight:700; }
+      .attendance-day-status select { width:100%; min-height:38px; padding:6px 8px; border:1px solid #c8d5cd; border-radius:8px; background:#fff; font:inherit; }
+      .attendance-day-status .button { width:100%; min-height:36px; padding:6px 9px; }
+      .attendance-day-status-note { color:#60746a; font-size:12px; line-height:1.4; font-weight:600; }
       .attendance-cell { font-size:15px; line-height:1.45; }
       .attendance-cell strong { display:block; font-size:17px; }
       .attendance-evidence-line { display:block; margin-top:4px; color:#60746a; font-size:13px; }
@@ -135,6 +150,95 @@
     return box;
   }
 
+  async function saveDayStatus(row, workDate, select, button, confirmed) {
+    if (!can('attendance.correct')) return;
+    if (confirmed) {
+      window.alert('확정된 날짜는 먼저 “확정 재개방”을 한 뒤 근태 상태를 바꿀 수 있습니다.');
+      return;
+    }
+    const nextStatus = select.value;
+    const currentStatus = dayStatusCode(row);
+    if (nextStatus === currentStatus) {
+      window.alert('현재와 같은 근태 상태입니다.');
+      return;
+    }
+    const reason = window.prompt(
+      `${row.display_name || '직원'} · ${dayStatusLabel(currentStatus)} → ${dayStatusLabel(nextStatus)}\n변경 사유를 5자 이상 입력하세요.`
+    );
+    if (!reason || reason.trim().length < 5) {
+      window.alert('근태 상태 변경 사유를 5자 이상 입력해야 합니다.');
+      select.value = currentStatus;
+      return;
+    }
+    button.disabled = true;
+    select.disabled = true;
+    try {
+      const result = await app().rpc('set_attendance_day_status', {
+        p_employee_uuid: row.employee_uuid,
+        p_work_date: workDate,
+        p_attendance_status: nextStatus,
+        p_reason: reason.trim(),
+        p_note: null,
+      });
+      if (!result?.ok) {
+        if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
+          window.alert('확정된 날짜입니다. 먼저 “확정 재개방”을 한 뒤 다시 변경하세요.');
+        } else {
+          window.alert(`근태 상태를 저장하지 못했습니다. ${result?.code || ''}`);
+        }
+        select.value = currentStatus;
+        return;
+      }
+      await openAttendance(workDate);
+    } catch {
+      window.alert('근태 상태를 저장하지 못했습니다.');
+      select.value = currentStatus;
+    } finally {
+      button.disabled = false;
+      select.disabled = false;
+    }
+  }
+
+  function dayStatusControl(row, workDate, confirmed) {
+    const wrap = el('div', null, 'attendance-day-status');
+    const current = dayStatusCode(row);
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', `${row.display_name || '직원'} 근태 상태`);
+    [
+      ['work', '정상 근무'],
+      ['paid_leave', '유급휴가·월차'],
+      ['unpaid_absence', '무급 결근'],
+      ['paid_holiday', '유급공휴일'],
+    ].forEach(([value, label]) => select.append(new Option(label, value, false, value === current)));
+
+    if (!['work', 'paid_leave', 'unpaid_absence', 'paid_holiday'].includes(current)) {
+      select.append(new Option(dayStatusLabel(current), current, true, true));
+    }
+
+    const button = el('button', '상태 저장', 'button button-quiet');
+    button.type = 'button';
+    const editable = can('attendance.correct') && !confirmed;
+    select.disabled = !editable;
+    button.disabled = !editable;
+    button.addEventListener('click', () => {
+      saveDayStatus(row, workDate, select, button, confirmed);
+    });
+    wrap.append(select);
+    if (can('attendance.correct')) wrap.append(button);
+
+    const sourceNote = row?.attendance_status?.note;
+    wrap.append(el(
+      'span',
+      confirmed
+        ? `${dayStatusLabel(current)} · 확정 재개방 후 변경 가능`
+        : sourceNote
+          ? `${dayStatusLabel(current)} · ${sourceNote}`
+          : dayStatusLabel(current),
+      'attendance-day-status-note'
+    ));
+    return wrap;
+  }
+
   function summaryCard(label, value) {
     const card = el('article');
     card.append(el('span', label), el('strong', String(value)));
@@ -150,6 +254,8 @@
   }
 
   function compareEvidence(row, evidenceRows, fingerprintImported) {
+    const status = dayStatusCode(row);
+    if (status !== 'work') return { label: dayStatusLabel(status), needsReview: status === 'review_required' };
     const evidence = Array.isArray(evidenceRows) ? evidenceRows : [];
     if (!fingerprintImported) return { label: '지문자료 미가져옴', needsReview: false };
     if (evidence.length > 1) return { label: `지문 중복 ${evidence.length}건 · 확인`, needsReview: true };
@@ -358,6 +464,7 @@
       clock_in_mismatch: 'GPS와 지문 출근 시간 차이가 5분을 넘습니다',
       clock_out_mismatch: 'GPS와 지문 퇴근 시간 차이가 5분을 넘습니다',
       external_identity_unmatched: '직원 미매칭 지문자료가 있습니다',
+      attendance_status_review_required: '근태 상태를 확인해야 합니다',
     };
     const owner = blocker?.display_name ? `${blocker.display_name} · ` : '';
     return `${owner}${labels[blocker?.type] || '확정 전 확인이 필요한 근태 예외'}`;
@@ -533,9 +640,10 @@
         rows.forEach(row => {
           const line = el('article', null, 'attendance-ledger-row');
           line.dataset.reopened = String(Boolean(row?.is_reopened));
+          const ledgerStatus = row?.record_snapshot?.attendance_status || 'work';
           line.append(
             el('strong', `${row?.work_date || '-'} · ${row?.display_name_at_confirmation || '직원'} · v${row?.revision_no || '-'}`),
-            el('span', `출근 ${time(row?.clock_in_at)} / 퇴근 ${time(row?.clock_out_at)} · record ${row?.record_fingerprint || '-'}`),
+            el('span', `${dayStatusLabel(ledgerStatus)} · 출근 ${time(row?.clock_in_at)} / 퇴근 ${time(row?.clock_out_at)} · record ${row?.record_fingerprint || '-'}`),
             el('span', row?.is_reopened ? `재개방됨 · ${row?.reopen_reason || '사유 기록됨'}` : `현재 확정본 · snapshot ${row?.revision_snapshot_fingerprint || '-'}`, 'attendance-evidence-line')
           );
           list.append(line);
@@ -697,6 +805,7 @@
       );
 
       const list = el('section', null, 'attendance-list');
+      const dayConfirmed = Boolean(confirmation?.is_confirmed);
       if (!rows.length) list.append(el('p', '현재 출퇴근 대상 직원 계정이 없습니다.', 'empty'));
       rows.forEach((row, index) => {
         const evidence = byEmployee.get(String(row.employee_uuid)) || [];
@@ -706,7 +815,8 @@
         const person = el('div', null, 'attendance-person');
         person.append(
           document.createTextNode(row.display_name || '직원'),
-          el('span', row.employee_id || '', 'attendance-evidence-line')
+          el('span', row.employee_id || '', 'attendance-evidence-line'),
+          dayStatusControl(row, currentWorkDate, dayConfirmed)
         );
         const compare = el('div', comparison.label, 'attendance-compare');
         compare.dataset.review = String(comparison.needsReview);
