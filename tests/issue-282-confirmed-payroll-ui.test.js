@@ -24,7 +24,9 @@ test('payroll live makes confirmed-attendance readiness the primary workflow', (
 });
 
 test('confirmed-native payroll calculation does not require a mutable import batch', () => {
-  const calculateBlock = live.match(/async function calculateConfirmedPayroll\(\)[\s\S]*?await loadMonth\(\);\n  }/)?.[0] || '';
+  const start = live.indexOf('async function calculateConfirmedPayroll()');
+  const end = live.indexOf('async function loadMonth()', start);
+  const calculateBlock = start >= 0 && end > start ? live.slice(start, end) : '';
   assert.ok(calculateBlock);
   assert.doesNotMatch(calculateBlock, /accepted_import_batch_id/);
   assert.match(calculateBlock, /payroll_month/);

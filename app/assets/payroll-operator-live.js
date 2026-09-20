@@ -473,9 +473,10 @@
     if (calculate) calculate.disabled = true;
     setMessage('확정 근태 snapshot으로 급여 가안을 계산하고 있습니다.');
 
+    let result = null;
     try {
       const month = selectedMonth();
-      const result = await request('/functions/v1/payroll-calculate', {
+      result = await request('/functions/v1/payroll-calculate', {
         method: 'POST',
         body: {
           payroll_month: `${month}-01`,
@@ -483,16 +484,22 @@
           request_id: `confirmed-native-${Date.now()}`,
         },
       });
-      setMessage(result?.status === 'review_required'
-        ? '급여 가안을 계산했습니다. 추가 확인이 필요한 항목이 있습니다.'
-        : '확정 근태 기준 급여 가안 계산을 완료했습니다.');
     } catch (error) {
       setMessage(friendlyError(error), { error: true });
+      return;
     } finally {
       state.loading = false;
       if (calculate) calculate.disabled = !state.readiness?.ready;
     }
+
     await loadMonth();
+    if (state.context?.latest_run) {
+      setMessage(result?.status === 'review_required'
+        ? '급여 가안을 계산했습니다. 추가 확인이 필요한 항목이 있습니다.'
+        : '확정 근태 기준 급여 가안 계산을 완료했습니다. 아래 월 급여대장에서 직원별 결과와 명세서 초안을 확인하세요.');
+    } else {
+      setMessage('계산 요청은 완료됐지만 급여대장 결과를 다시 불러오지 못했습니다. 새로고침 후 계산 Run을 확인해주세요.', { error: true });
+    }
   }
 
   async function loadMonth() {
