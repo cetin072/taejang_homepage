@@ -29,20 +29,18 @@ test('confirmed-native payroll calculation does not require a mutable import bat
   assert.doesNotMatch(calculateBlock, /accepted_import_batch_id/);
   assert.match(calculateBlock, /payroll_month/);
   assert.match(calculateBlock, /cutoff_date/);
-
-  const fallbackRecalculate = editor.match(/async function recalculate\(\)[\s\S]*?\n  }/)?.[0] || '';
-  assert.ok(fallbackRecalculate);
-  assert.doesNotMatch(fallbackRecalculate, /accepted_batch_id|accepted_import_batch_id/);
+  assert.doesNotMatch(editor, /accepted_batch_id|accepted_import_batch_id/);
+  assert.doesNotMatch(editor, /async function recalculate\(/);
 });
 
 test('manual and Excel attendance are clearly fallback only and no longer auto-recalculate after save', () => {
   assert.match(html, /비상·과거자료 보조입력 열기/);
   assert.match(html, /현재 확정근태 기반 급여 계산의 정상 입력경로가 아닙니다/);
   assert.doesNotMatch(html, /직접 입력이 기본입니다/);
-  const saveBlock = editor.match(/async function saveChanges\(\)[\s\S]*?\n  }\n\n  async function retryCalculation/)?.[0] || '';
-  assert.ok(saveBlock);
-  assert.doesNotMatch(saveBlock, /await recalculate/);
-  assert.match(saveBlock, /정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다/);
+  assert.doesNotMatch(html, /payroll-attendance-recalculate/);
+  assert.doesNotMatch(editor, /await recalculate|retryCalculation/);
+  assert.match(editor, /보조 근태 \$\{savedCount\}건을 저장했습니다/);
+  assert.match(editor, /정상 급여 계산은 상단의 확정 근태 Gate를 사용합니다/);
 });
 
 test('external payroll handoff is named explicitly so it is not confused with the normal payroll path', () => {
