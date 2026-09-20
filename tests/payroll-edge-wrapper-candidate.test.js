@@ -53,6 +53,8 @@ test('HTTP boundary requires exact configured origin, POST and bearer authorizat
   assert.match(deployedWrapper, /OFFICIAL_ALLOWED_ORIGINS/);
   assert.match(deployedWrapper, /https:\/\/taejang\.co\.kr/);
   assert.match(deployedWrapper, /https:\/\/www\.taejang\.co\.kr/);
+  assert.match(deployedWrapper, /https:\/\/taejang-homepage\.netlify\.app/);
+  assert.match(deployedWrapper, /https:\/\/main--taejang-homepage\.netlify\.app/);
   assert.match(deployedWrapper, /origin === configuredOrigin \|\| OFFICIAL_ALLOWED_ORIGINS\.has\(origin\)/);
 });
 
