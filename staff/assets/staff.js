@@ -64,10 +64,27 @@
     return payload;
   }
 
+  function readStoredSession() {
+    const persistent = localStorage.getItem(SESSION_KEY);
+    if (persistent) return persistent;
+
+    const legacy = sessionStorage.getItem(SESSION_KEY);
+    if (legacy) {
+      localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+    return legacy;
+  }
+
   function storeSession(session) {
     state.session = session;
-    if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    else sessionStorage.removeItem(SESSION_KEY);
+    if (session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      sessionStorage.removeItem(SESSION_KEY);
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(SESSION_KEY);
+    }
     element('logout-button').hidden = !session;
   }
 
@@ -150,7 +167,7 @@
   async function restore() {
     const notice = currentNotice();
     const detail = noticeDetails(notice);
-    const stored = sessionStorage.getItem(SESSION_KEY);
+    const stored = readStoredSession();
     if (!stored) {
       show('start-panel');
       if (detail) { message(detail.text, detail.error); consumeNotice(); }
