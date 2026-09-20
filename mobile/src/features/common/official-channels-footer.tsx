@@ -44,8 +44,8 @@ export function OfficialChannelsFooter() {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', paddingTop: 12, paddingBottom: 2 },
-  links: { flexDirection: 'row', justifyContent: 'center', gap: 30 },
-  item: { width: 68, alignItems: 'center', gap: 8 },
+  links: { flexDirection: 'row', justifyContent: 'center', gap: 16 },
+  item: { width: 88, alignItems: 'center', gap: 8 },
   pressed: { opacity: 0.7 },
   iconFrame: {
     width: 54,
@@ -59,5 +59,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   icon: { width: 48, height: 48 },
-  label: { color: '#5e6e65', fontSize: 12, fontWeight: '800' },
+  label: { color: '#5e6e65', fontSize: 12, fontWeight: '800', textAlign: 'center' },
 });
