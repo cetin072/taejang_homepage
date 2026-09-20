@@ -85,6 +85,9 @@
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
+      .attendance-sync-required { margin:14px 0; padding:14px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; line-height:1.5; }
+      .attendance-sync-required h3,.attendance-sync-required p { margin:0; }
+      .attendance-sync-required p { margin-top:7px; }
       @media(max-width:900px){.attendance-row{grid-template-columns:1fr 1fr}.attendance-person{grid-column:1/-1}}
       @media(max-width:720px){.attendance-summary{grid-template-columns:repeat(2,1fr)}.attendance-row{grid-template-columns:1fr}.attendance-cell,.attendance-compare{padding-top:8px;border-top:1px solid #eee}.attendance-toolbar{display:grid;grid-template-columns:1fr}}
     `;
@@ -589,6 +592,16 @@
     return panel;
   }
 
+  function syncRequiredPanel(feature) {
+    const panel = el('section', null, 'attendance-sync-required');
+    panel.dataset.serverSyncRequired = '1';
+    panel.append(
+      el('h3', `${feature} 서버 동기화 필요`),
+      el('p', '직원 출근부는 계속 표시합니다. 이 보조 기능에 필요한 서버 RPC가 아직 배포되지 않았거나 일시적으로 응답하지 않았습니다. 서버 동기화 후 다시 시도해주세요.')
+    );
+    return panel;
+  }
+
   async function openAttendance(workDate = null) {
     if (!can('attendance.admin_view')) return;
     closeSidebar();
@@ -600,14 +613,24 @@
       const requestedWorkDate = workDate || new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
       }).format(new Date());
-      const [data, evidenceData, confirmation, dayStatus, holidayAssignments] = await Promise.all([
+      const [rosterResult, evidenceResult, confirmationResult, dayStatusResult, holidayAssignmentsResult] = await Promise.allSettled([
         app().rpc('get_attendance_admin_today', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_external_evidence', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_confirmation_status', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_workday_status', { p_work_date: requestedWorkDate }),
         app().rpc('get_attendance_holiday_work_assignments', { p_work_date: requestedWorkDate }),
       ]);
-      currentWorkDate = data?.work_date || evidenceData?.work_date || requestedWorkDate;
+      if (rosterResult.status !== 'fulfilled') throw rosterResult.reason || new Error('ATTENDANCE_ROSTER_UNAVAILABLE');
+      const data = rosterResult.value;
+      const evidenceAvailable = evidenceResult.status === 'fulfilled';
+      const confirmationAvailable = confirmationResult.status === 'fulfilled';
+      const workdayAvailable = dayStatusResult.status === 'fulfilled';
+      const holidayAssignmentsAvailable = holidayAssignmentsResult.status === 'fulfilled';
+      const evidenceData = evidenceAvailable ? evidenceResult.value : null;
+      const confirmation = confirmationAvailable ? confirmationResult.value : null;
+      const dayStatus = workdayAvailable ? dayStatusResult.value : null;
+      const holidayAssignments = holidayAssignmentsAvailable ? holidayAssignmentsResult.value : null;
+      currentWorkDate = data?.work_date || requestedWorkDate;
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const evidenceRows = Array.isArray(evidenceData?.rows) ? evidenceData.rows : [];
       const fingerprintImported = evidenceRows.some(item => item.source_system === EVIDENCE_SOURCE);
@@ -620,11 +643,9 @@
       });
       const unmatched = evidenceRows.filter(item => !item.employee_uuid);
 
-      const comparisons = rows.map(row => compareEvidence(
-        row,
-        byEmployee.get(String(row.employee_uuid)) || [],
-        fingerprintImported
-      ));
+      const comparisons = evidenceAvailable
+        ? rows.map(row => compareEvidence(row, byEmployee.get(String(row.employee_uuid)) || [], fingerprintImported))
+        : rows.map(() => ({ label: '지문 근거자료 서버 동기화 필요', needsReview: true }));
       const reviewCount = comparisons.filter(item => item.needsReview).length
         + unmatched.length
         + rows.filter(row => row.clock_in?.status === 'exception_pending' || row.clock_out?.status === 'exception_pending').length;
@@ -672,9 +693,17 @@
       });
 
       const pieces = [intro, makeToolbar(currentWorkDate)];
-      const holidayPanel = holidayWorkPanel(dayStatus, holidayAssignments, rows, currentWorkDate);
-      if (holidayPanel) pieces.push(holidayPanel);
-      pieces.push(confirmationPanel(confirmation, currentWorkDate), confirmedLedgerPanel(currentWorkDate), summary);
+      if (!evidenceAvailable) pieces.push(syncRequiredPanel('지문 근거자료'));
+      if (!workdayAvailable || !holidayAssignmentsAvailable) {
+        pieces.push(syncRequiredPanel('휴일근무 지정'));
+      } else {
+        const holidayPanel = holidayWorkPanel(dayStatus, holidayAssignments, rows, currentWorkDate);
+        if (holidayPanel) pieces.push(holidayPanel);
+      }
+      pieces.push(confirmationAvailable
+        ? confirmationPanel(confirmation, currentWorkDate)
+        : syncRequiredPanel('일일 근태 확정'));
+      pieces.push(confirmedLedgerPanel(currentWorkDate), summary);
       const unmatchedNode = unmatchedPanel(unmatched, rows, currentWorkDate);
       if (unmatchedNode) pieces.push(unmatchedNode);
       pieces.push(list);

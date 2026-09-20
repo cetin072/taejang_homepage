@@ -37,9 +37,31 @@
 
   function loadSession() {
     try {
-      const session = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-      return session?.access_token ? session : null;
+      const persistent = localStorage.getItem(SESSION_KEY);
+      if (persistent) {
+        const parsed = JSON.parse(persistent);
+        return parsed?.access_token ? parsed : null;
+      }
+      const legacy = sessionStorage.getItem(SESSION_KEY);
+      if (!legacy) return null;
+      const parsed = JSON.parse(legacy);
+      if (!parsed?.access_token) return null;
+      localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(SESSION_KEY);
+      return parsed;
     } catch { return null; }
+  }
+
+  function saveSession(session) {
+    state.session = session;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+
+  function clearSession() {
+    state.session = null;
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
   }
 
   async function loadConfig() {
@@ -50,7 +72,7 @@
     return config;
   }
 
-  async function rpc(name, body) {
+  async function request(name, body) {
     const response = await fetch(`${state.config.url}/rest/v1/rpc/${name}`, {
       method: 'POST',
       headers: {
@@ -67,6 +89,32 @@
       throw error;
     }
     return payload;
+  }
+
+  async function refreshSession() {
+    if (!state.session?.refresh_token) return false;
+    try {
+      const response = await fetch(`${state.config.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: 'POST',
+        headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: state.session.refresh_token }),
+      });
+      if (!response.ok) throw new Error('REFRESH_FAILED');
+      saveSession(await response.json());
+      return true;
+    } catch {
+      clearSession();
+      return false;
+    }
+  }
+
+  async function rpc(name, body) {
+    try {
+      return await request(name, body);
+    } catch (error) {
+      if (error.status === 401 && await refreshSession()) return request(name, body);
+      throw error;
+    }
   }
 
   function appendItem(list, label, value) {

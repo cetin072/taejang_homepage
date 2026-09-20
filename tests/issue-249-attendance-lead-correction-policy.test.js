@@ -23,14 +23,14 @@ test('missing effective time can be manually backfilled without an operator-ente
   assert.match(migration, /missing_effective_time := current_value is null or current_value ->> 'event_at' is null/);
   assert.match(migration, /'누락 근태 수기 입력'/);
   assert.match(migration, /'manual_backfill'/);
-  assert.match(ui, /isMissingBackfill = action === 'set_time' && !currentRecord\?\.event_at/);
-  assert.match(ui, /p_reason: reason \? reason\.trim\(\) : null/);
+  assert.match(ui, /isMissingBackfill = isSetTime && !currentRecord\?\.event_at/);
+  assert.match(ui, /p_reason: input\.reason/);
 });
 
 test('existing-time correction and invalidation still require a reason', () => {
   assert.match(migration, /return jsonb_build_object\('ok', false, 'code', 'REASON_REQUIRED'\)/);
-  assert.match(ui, /기존 시간을 변경하는 사유를 5자 이상 입력하세요/);
-  assert.match(ui, /무효 처리 사유를 5자 이상 입력하세요/);
+  assert.match(ui, /시간 변경 사유 \(5자 이상\)/);
+  assert.match(ui, /무효 처리 사유 \(5자 이상\)/);
   assert.match(ui, /기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다/);
 });
 

@@ -111,9 +111,12 @@
     banner.className = 'role-simulation-banner';
     banner.dataset.roleSimulationBanner = '1';
     const label = LABELS[currentSimulation.role_code] || currentSimulation.role_code;
+    const attendanceNotice = currentSimulation.role_code === 'promotion_lead'
+      ? '권한만 운영팀장으로 미리보기 중이며 근태 대상 여부는 실제 계정 기준입니다.'
+      : '실제 직원 계정이 아닌 테스트용 역할 화면입니다.';
     banner.append(
       Object.assign(document.createElement('strong'), { textContent: `${label} 역할 미리보기 중` }),
-      ' · 실제 직원 계정이 아닌 테스트용 역할 화면입니다.'
+      ` · ${attendanceNotice}`
     );
     const back = document.createElement('button');
     back.type = 'button';

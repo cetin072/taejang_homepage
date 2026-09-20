@@ -2,6 +2,9 @@
   'use strict';
   const worker = 'general_worker';
   const managerRoles = new Set(['super_admin', 'operations_manager', 'department_lead', 'field_lead']);
+  // Promotion leads own the three operational panels below, but not the broader guidance
+  // administration surface or the operations-manager payroll surface.
+  const workManagementRoles = new Set([...managerRoles, 'promotion_lead']);
   const employeeManagerRoles = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const promotionWorkspaceRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
   const officialChannelRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
@@ -174,12 +177,12 @@
       );
     }
     if (route === 'operations_manager' || route === 'ceo') items.push({ label: '홍보 검토', run: () => openPromotion('review') });
-    if (managerRoles.has(route)) items.push({ label: '업무 배정', run: () => openPanel('today-admin-panel') });
-    if (managerRoles.has(route)) items.push(
+    if (workManagementRoles.has(route)) items.push({ label: '업무 배정', run: () => openPanel('today-admin-panel') });
+    if (workManagementRoles.has(route)) items.push(
       { label: '일정 관리', run: () => openPanel('schedule-admin-panel') },
-      { label: '공지 관리', run: () => openPanel('notice-admin-panel') },
-      { label: '상시 안내 관리', run: () => openPanel('guidance-admin-panel') }
+      { label: '공지 관리', run: () => openPanel('notice-admin-panel') }
     );
+    if (managerRoles.has(route)) items.push({ label: '상시 안내 관리', run: () => openPanel('guidance-admin-panel') });
     if (route === 'operations_manager' || route === 'promotion_lead') {
       items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
     }
@@ -272,14 +275,14 @@
     }
 
     if (schedules.status === 'success') {
-      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', schedules.value.length ? schedules.value[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.value.length ? `${schedules.value.length}건` : undefined, action: managerRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
+      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', schedules.value.length ? schedules.value[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.value.length ? `${schedules.value.length}건` : undefined, action: workManagementRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
     } else {
       grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', failureCopy(schedules.status, '일정 정보'), { state: schedules.status, action: { label: '다시 불러오기', run: goDashboard } }));
     }
 
     if (notices.status === 'success') {
       const important = notices.value.filter(item => item.importance === 'urgent' || item.importance === 'important');
-      grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: managerRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
+      grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: workManagementRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
     } else {
       grid.append(card('중요공지', failureCopy(notices.status, '공지 정보'), { state: notices.status, action: { label: '다시 불러오기', run: goDashboard } }));
     }

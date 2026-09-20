@@ -109,10 +109,18 @@
 
   function loadSession() {
     try {
-      const raw = sessionStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      return parsed && parsed.access_token ? parsed : null;
+      const persistent = localStorage.getItem(SESSION_KEY);
+      if (persistent) {
+        const parsed = JSON.parse(persistent);
+        return parsed?.access_token ? parsed : null;
+      }
+      const legacy = sessionStorage.getItem(SESSION_KEY);
+      if (!legacy) return null;
+      const parsed = JSON.parse(legacy);
+      if (!parsed?.access_token) return null;
+      localStorage.setItem(SESSION_KEY, legacy);
+      sessionStorage.removeItem(SESSION_KEY);
+      return parsed;
     } catch {
       return null;
     }
@@ -120,11 +128,13 @@
 
   function saveSession(session) {
     state.session = session;
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    sessionStorage.removeItem(SESSION_KEY);
   }
 
   function clearSession() {
     state.session = null;
+    localStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(SESSION_KEY);
   }
 

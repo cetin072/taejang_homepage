@@ -48,6 +48,15 @@
       .attendance-correction-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
       .attendance-correction-note{margin-top:6px;font-size:14px;line-height:1.45;color:#555}
       .attendance-correction-history{margin-top:6px;padding:8px 10px;border-radius:10px;background:#f5f5f1;font-size:14px;line-height:1.5}
+      .attendance-correction-dialog{width:min(520px,calc(100vw - 28px));padding:0;border:0;border-radius:16px;box-shadow:0 20px 64px rgba(0,0,0,.24)}
+      .attendance-correction-dialog::backdrop{background:rgba(15,23,42,.48)}
+      .attendance-correction-dialog form{display:grid;gap:14px;padding:22px}
+      .attendance-correction-dialog h2,.attendance-correction-dialog p{margin:0}
+      .attendance-correction-dialog label{display:grid;gap:7px;font-weight:800}
+      .attendance-correction-dialog input,.attendance-correction-dialog textarea{width:100%;min-height:44px;padding:8px 10px;border:1px solid #bbb;border-radius:9px;background:#fff;font:inherit;box-sizing:border-box}
+      .attendance-correction-dialog textarea{min-height:96px;resize:vertical}
+      .attendance-correction-dialog__actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+      .attendance-correction-dialog__error{min-height:1.4em;color:#9f1d1d;font-weight:700}
       @media(max-width:720px){.attendance-correction-toolbar{display:grid;grid-template-columns:1fr}.attendance-correction-toolbar .button{width:100%}}
     `;
     document.head.append(style);
@@ -94,67 +103,138 @@
     return button;
   }
 
-  async function createCorrection({ employeeUuid, workDate, eventType, action, currentRecord }) {
-    if (!canCorrect()) return;
-    let correctedEventAt = null;
-    if (action === 'set_time') {
+  function correctionErrorMessage(code) {
+    return {
+      CLOCK_IN_REQUIRED: '먼저 출근 시간을 등록해야 합니다.',
+      CLOCK_OUT_EXISTS: '퇴근 기록이 남아 있어 출근만 무효 처리할 수 없습니다. 퇴근부터 정리해주세요.',
+      CLOCK_OUT_BEFORE_CLOCK_IN: '퇴근 시간은 출근 시간보다 빠를 수 없습니다.',
+      CLOCK_IN_AFTER_CLOCK_OUT: '출근 시간은 퇴근 시간보다 늦을 수 없습니다.',
+      NOTHING_TO_INVALIDATE: '현재 무효 처리할 유효 기록이 없습니다.',
+      ATTENDANCE_NOT_REQUIRED: '근태 기록 대상이 아닌 직원입니다.',
+      OUTSIDE_EMPLOYMENT_PERIOD: '재직기간 밖의 날짜는 보정할 수 없습니다.',
+      FORBIDDEN: '근태 보정 권한이 없습니다.',
+      WORK_DATE_REQUIRED: '보정할 날짜를 선택해주세요.',
+      INVALID_EVENT_TYPE: '출근 또는 퇴근 기록만 보정할 수 있습니다.',
+      INVALID_CORRECTION_ACTION: '지원하지 않는 근태 보정 방식입니다.',
+      CORRECTED_TIME_REQUIRED: '보정할 시간을 입력해주세요.',
+      CORRECTED_TIME_DATE_MISMATCH: '선택한 날짜의 시간만 입력할 수 있습니다.',
+      FUTURE_ATTENDANCE_TIME: '미래 시각은 근태 기록으로 입력할 수 없습니다.',
+      INVALIDATED_TIME_MUST_BE_NULL: '무효 처리에는 별도 시간을 입력할 수 없습니다.',
+      REASON_REQUIRED: '기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다.',
+      EMPLOYEE_NOT_FOUND: '직원 정보를 찾을 수 없습니다. 출근부를 다시 불러와주세요.'
+    }[code] || `근태 보정을 처리하지 못했습니다${code ? ` (${code})` : ''}.`;
+  }
+
+  function openCorrectionDialog({ workDate, eventType, action, currentRecord }) {
+    return new Promise(resolve => {
+      const isSetTime = action === 'set_time';
+      const isMissingBackfill = isSetTime && !currentRecord?.event_at;
       const defaultTime = currentRecord?.event_at && kstDate(currentRecord.event_at) === workDate
         ? kstTime(currentRecord.event_at)
         : eventType === 'clock_in' ? '09:00' : '18:00';
-      const entered = window.prompt(
-        `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간을 24시간 형식(HH:MM)으로 입력하세요.`,
-        defaultTime
-      );
-      if (!entered) return;
-      if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(entered)) {
-        window.alert('시간은 예: 09:00 또는 18:30 형식으로 입력해주세요.');
-        return;
-      }
-      correctedEventAt = isoForKstInput(workDate, entered);
-    }
+      const dialog = document.createElement('dialog');
+      dialog.className = 'attendance-correction-dialog';
+      dialog.setAttribute('aria-labelledby', 'attendance-correction-dialog-title');
+      const form = document.createElement('form');
+      form.method = 'dialog';
+      const title = node('h2', isSetTime
+        ? `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간 ${isMissingBackfill ? '추가' : '정정'}`
+        : `${eventType === 'clock_in' ? '출근' : '퇴근'} 기록 무효 처리`);
+      title.id = 'attendance-correction-dialog-title';
+      form.append(title);
+      form.append(node('p', isMissingBackfill
+        ? '누락 시간을 수기 입력합니다. 입력자와 입력시각은 자동 기록되며, 원본 근거는 변경하지 않습니다.'
+        : '원본 기록은 삭제하지 않고 append-only 보정 이력을 추가합니다.'));
 
-    const isMissingBackfill = action === 'set_time' && !currentRecord?.event_at;
-    let reason = null;
-    if (!isMissingBackfill) {
-      reason = window.prompt(action === 'set_time'
-        ? '기존 시간을 변경하는 사유를 5자 이상 입력하세요.'
-        : '무효 처리 사유를 5자 이상 입력하세요.');
-      if (!reason || reason.trim().length < 5) {
-        window.alert('기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다.');
-        return;
+      let timeInput = null;
+      if (isSetTime) {
+        const timeLabel = node('label', `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간`);
+        timeInput = document.createElement('input');
+        timeInput.type = 'time';
+        timeInput.name = 'corrected-time';
+        timeInput.value = defaultTime;
+        timeInput.required = true;
+        timeLabel.append(timeInput);
+        form.append(timeLabel);
       }
-    }
 
-    if (!window.confirm(isMissingBackfill
-      ? '비어 있는 출퇴근 시간을 수기 입력합니다. 입력자와 입력시각은 자동 기록됩니다. 진행할까요?'
-      : action === 'set_time'
-        ? '기존 근태 원본은 보존되고 보정 이력이 추가됩니다. 진행할까요?'
-        : '기존 기록은 삭제되지 않고 무효 처리 이력이 추가됩니다. 진행할까요?')) return;
+      let reasonInput = null;
+      if (!isMissingBackfill) {
+        const reasonLabel = node('label', isSetTime ? '시간 변경 사유 (5자 이상)' : '무효 처리 사유 (5자 이상)');
+        reasonInput = document.createElement('textarea');
+        reasonInput.name = 'reason';
+        reasonInput.minLength = 5;
+        reasonInput.maxLength = 300;
+        reasonInput.required = true;
+        reasonInput.placeholder = '변경 또는 무효 처리 사유를 입력하세요.';
+        reasonLabel.append(reasonInput);
+        form.append(reasonLabel);
+      }
+
+      const error = node('p', '', 'attendance-correction-dialog__error');
+      error.setAttribute('aria-live', 'polite');
+      form.append(error);
+      const actions = node('div', null, 'attendance-correction-dialog__actions');
+      const cancel = correctionActionButton('취소');
+      cancel.addEventListener('click', () => dialog.close('cancel'));
+      const submit = correctionActionButton(isSetTime ? '보정 저장' : '무효 처리', 'button');
+      submit.type = 'submit';
+      submit.value = 'save';
+      actions.append(cancel, submit);
+      form.append(actions);
+      dialog.append(form);
+      document.body.append(dialog);
+
+      form.addEventListener('submit', event => {
+        if (event.submitter?.value !== 'save') return;
+        const timeValue = timeInput?.value || '';
+        const reason = reasonInput?.value.trim() || null;
+        if (isSetTime && !/^([01]\\d|2[0-3]):[0-5]\\d$/.test(timeValue)) {
+          event.preventDefault();
+          error.textContent = '시간은 예: 09:00 또는 18:30 형식으로 입력해주세요.';
+          timeInput?.focus();
+          return;
+        }
+        if (!isMissingBackfill && (!reason || reason.length < 5)) {
+          event.preventDefault();
+          error.textContent = '기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다.';
+          reasonInput?.focus();
+        }
+      });
+      dialog.addEventListener('close', () => {
+        const saved = dialog.returnValue === 'save';
+        const value = saved ? {
+          correctedEventAt: isSetTime ? isoForKstInput(workDate, timeInput.value) : null,
+          reason: reasonInput?.value.trim() || null,
+          isMissingBackfill
+        } : null;
+        dialog.remove();
+        resolve(value);
+      }, { once: true });
+      dialog.showModal();
+      (timeInput || reasonInput || submit).focus();
+    });
+  }
+
+  async function createCorrection({ employeeUuid, workDate, eventType, action, currentRecord }) {
+    if (!canCorrect()) return;
+    const input = await openCorrectionDialog({ workDate, eventType, action, currentRecord });
+    if (!input) return false;
 
     const result = await app().rpc('create_attendance_correction', {
       p_employee_uuid: employeeUuid,
       p_work_date: workDate,
       p_event_type: eventType,
       p_action: action,
-      p_corrected_event_at: correctedEventAt,
-      p_reason: reason ? reason.trim() : null
+      p_corrected_event_at: input.correctedEventAt,
+      p_reason: input.reason
     });
 
     if (!result?.ok) {
-      const copy = {
-        CLOCK_IN_REQUIRED: '먼저 출근 시간을 등록해야 합니다.',
-        CLOCK_OUT_EXISTS: '퇴근 기록이 남아 있어 출근만 무효 처리할 수 없습니다. 퇴근부터 정리해주세요.',
-        CLOCK_OUT_BEFORE_CLOCK_IN: '퇴근 시간은 출근 시간보다 빠를 수 없습니다.',
-        CLOCK_IN_AFTER_CLOCK_OUT: '출근 시간은 퇴근 시간보다 늦을 수 없습니다.',
-        NOTHING_TO_INVALIDATE: '현재 무효 처리할 유효 기록이 없습니다.',
-        ATTENDANCE_NOT_REQUIRED: '근태 기록 대상이 아닌 직원입니다.',
-        OUTSIDE_EMPLOYMENT_PERIOD: '재직기간 밖의 날짜는 보정할 수 없습니다.',
-        FORBIDDEN: '근태 보정 권한이 없습니다.'
-      }[result?.code] || '근태 보정을 처리하지 못했습니다.';
-      window.alert(copy);
-      return;
+      throw new Error(correctionErrorMessage(result?.code));
     }
-    window.alert(result.mode === 'manual_backfill' ? '누락 시간을 저장했습니다. 입력자와 입력시각은 자동 기록됩니다.' : '근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
+    window.alert(input.isMissingBackfill ? '누락 시간을 저장했습니다. 입력자와 입력시각은 자동 기록됩니다.' : '근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
+    return true;
   }
 
   async function openCorrectionScreen() {
@@ -217,18 +297,16 @@
             const setTime = correctionActionButton(record?.event_at ? '시간 정정' : '누락 시간 추가');
             setTime.addEventListener('click', async () => {
               try {
-                await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'set_time', currentRecord: record });
-                await render();
-              } catch { window.alert('근태 보정을 처리하지 못했습니다.'); }
+                if (await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'set_time', currentRecord: record })) await render();
+              } catch (error) { window.alert(error.message || '근태 보정을 처리하지 못했습니다.'); }
             });
             actions.append(setTime);
             if (record?.event_at) {
               const invalidate = correctionActionButton('무효 처리');
               invalidate.addEventListener('click', async () => {
                 try {
-                  await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'invalidate', currentRecord: record });
-                  await render();
-                } catch { window.alert('근태 보정을 처리하지 못했습니다.'); }
+                  if (await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'invalidate', currentRecord: record })) await render();
+                } catch (error) { window.alert(error.message || '근태 보정을 처리하지 못했습니다.'); }
               });
               actions.append(invalidate);
             }
