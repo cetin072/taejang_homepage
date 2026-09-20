@@ -334,7 +334,8 @@
   function employeeViewTabs(context) {
     const tabs = el('nav', null, 'employee-view-tabs');
     tabs.setAttribute('aria-label', '직원 관리 화면 선택');
-    const labels = context.access_level === 'operations_manager'
+    const canRegisterDirectly = ['operations_manager', 'promotion_lead_global'].includes(context.access_level);
+    const labels = canRegisterDirectly
       ? [['existing', '기존 직원 관리'], ['new', '신규 직원 등록']]
       : [['existing', '기존 직원 관리'], ['new', '신규 직원 등록 요청']];
     labels.forEach(([view, label]) => {
