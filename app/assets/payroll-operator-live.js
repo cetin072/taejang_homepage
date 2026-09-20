@@ -11,6 +11,7 @@
     validation: null,
     attendanceFile: null,
     readiness: null,
+    exportUnavailableReason: '급여대장 계산결과를 먼저 불러와주세요.',
     loading: false,
   };
 
@@ -294,9 +295,16 @@
     badge.textContent = text ? `${text} · 근태 편집` : '업무플랫폼 · 근태·급여';
   }
 
-  function setExportEnabled(enabled) {
+  function setExportEnabled(enabled, reason = '', hardDisable = false) {
     const button = element('payroll-live-export');
-    if (button) button.disabled = !enabled;
+    state.exportUnavailableReason = enabled
+      ? ''
+      : (reason || '현재 내려받을 수 있는 급여대장 계산결과가 없습니다.');
+    if (!button) return;
+    button.disabled = Boolean(hardDisable);
+    button.dataset.exportReady = String(Boolean(enabled));
+    button.setAttribute('aria-disabled', String(!enabled));
+    button.title = enabled ? '급여대장 Excel 가안 내려받기' : state.exportUnavailableReason;
   }
 
   function renderValidation(context) {
@@ -329,7 +337,7 @@
     element('payroll-live-table-body').replaceChildren();
     element('payroll-live-empty').hidden = false;
     element('payroll-live-table-wrap').hidden = true;
-    setExportEnabled(false);
+    setExportEnabled(false, '선택한 월에 계산된 급여대장 결과가 없습니다.');
   }
 
   function appendCell(row, value, className = '') {
@@ -424,7 +432,16 @@
       && Boolean(window.TaejangPayrollLedgerXlsx)
       && Boolean(validation)
       && validation.errorCount === 0;
-    setExportEnabled(exportReady);
+    const exportReason = employees.length === 0
+      ? '선택한 월에 계산된 급여대장 결과가 없습니다.'
+      : !window.TaejangPayrollLedgerXlsx
+        ? '급여대장 Excel 생성 모듈을 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'
+        : !validation
+          ? '급여대장 자동검증 결과를 확인할 수 없습니다.'
+          : validation.errorCount > 0
+            ? '급여대장 자동검증 오류를 먼저 해결해야 Excel을 내려받을 수 있습니다.'
+            : '';
+    setExportEnabled(exportReady, exportReason);
   }
 
   function friendlyError(error) {
@@ -504,8 +521,9 @@
       setMessage('확정 근태 준비상태와 현재 급여대장 가안을 표시하고 있습니다. 실제 급여 확정이나 지급은 실행하지 않습니다.');
     } catch (error) {
       renderReadinessUnavailable();
-      setMessage(friendlyError(error), { error: true });
-      setExportEnabled(false);
+      const message = friendlyError(error);
+      setMessage(message, { error: true });
+      setExportEnabled(false, message);
     } finally {
       state.loading = false;
       button.disabled = false;
@@ -521,12 +539,16 @@
       setMessage('급여대장 자동검증 오류를 먼저 확인해 주세요. 오류가 있는 가안은 Excel로 내보내지 않습니다.', { error: true });
       return;
     }
-    if (!exporter || employees.length === 0) {
-      setMessage('내보낼 급여대장 계산결과가 없습니다.', { error: true });
+    if (!exporter || employees.length === 0 || element('payroll-live-export')?.dataset.exportReady !== 'true') {
+      setMessage(state.exportUnavailableReason || '내보낼 급여대장 계산결과가 없습니다.', { error: true });
       return;
     }
-    exporter.downloadPayrollLedgerXlsx(state.context, selectedMonth());
-    setMessage('민감정보를 제외한 급여대장 Excel 가안을 내려받았습니다.');
+    try {
+      exporter.downloadPayrollLedgerXlsx(state.context, selectedMonth());
+      setMessage('민감정보를 제외한 급여대장 Excel 가안을 내려받았습니다.');
+    } catch {
+      setMessage('급여대장 Excel 파일을 만들거나 내려받지 못했습니다. 새로고침 후 다시 시도해주세요.', { error: true });
+    }
   }
 
   function handleAttendanceFile(event) {
@@ -560,7 +582,7 @@
       setMessage('업무플랫폼 로그인이 필요합니다. 로그인 후 이 화면을 다시 열어 주세요.', { error: true });
       element('payroll-live-refresh').disabled = true;
       element('payroll-live-login').hidden = false;
-      setExportEnabled(false);
+      setExportEnabled(false, '업무플랫폼 로그인이 필요합니다.', true);
       return;
     }
 

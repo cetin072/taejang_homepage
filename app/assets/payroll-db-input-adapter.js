@@ -44,6 +44,7 @@
       case 'termination':
       case 'out_of_scope':
         return '대상아님';
+      case 'actual_worked':
       case 'confirmed_correction':
         return 'confirmed_correction';
       case 'expected_scheduled':
