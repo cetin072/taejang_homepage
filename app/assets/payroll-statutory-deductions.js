@@ -95,25 +95,31 @@
     return { due: true, reason: null };
   }
 
+  function optionalFiniteNumber(value) {
+    if (value === null || value === undefined || value === '') return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
   function clampRuleBasis(value, rule) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return null;
-    const minimum = Number(rule && (rule.minimumBasis ?? rule.minimum_basis));
-    const maximum = Number(rule && (rule.maximumBasis ?? rule.maximum_basis));
+    const minimum = optionalFiniteNumber(rule && (rule.minimumBasis ?? rule.minimum_basis));
+    const maximum = optionalFiniteNumber(rule && (rule.maximumBasis ?? rule.maximum_basis));
     let result = numeric;
-    if (Number.isFinite(minimum)) result = Math.max(result, minimum);
-    if (Number.isFinite(maximum)) result = Math.min(result, maximum);
+    if (minimum !== null) result = Math.max(result, minimum);
+    if (maximum !== null) result = Math.min(result, maximum);
     return result;
   }
 
   function clampEmployeeContribution(value, rule) {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return null;
-    const minimum = Number(rule && (rule.minimumEmployeeContribution ?? rule.minimum_employee_contribution));
-    const maximum = Number(rule && (rule.maximumEmployeeContribution ?? rule.maximum_employee_contribution));
+    const minimum = optionalFiniteNumber(rule && (rule.minimumEmployeeContribution ?? rule.minimum_employee_contribution));
+    const maximum = optionalFiniteNumber(rule && (rule.maximumEmployeeContribution ?? rule.maximum_employee_contribution));
     let result = numeric;
-    if (Number.isFinite(minimum)) result = Math.max(result, minimum);
-    if (Number.isFinite(maximum)) result = Math.min(result, maximum);
+    if (minimum !== null) result = Math.max(result, minimum);
+    if (maximum !== null) result = Math.min(result, maximum);
     return result;
   }
 
