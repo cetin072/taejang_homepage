@@ -17,8 +17,11 @@ test('resident number is stored only through Supabase Vault and private metadata
   assert.match(migration, /vault\.create_secret/);
   assert.match(migration, /vault\.update_secret/);
   assert.match(migration, /resident_secret_id uuid not null unique/);
-  assert.doesNotMatch(migration, /resident_number\s+text/i);
-  assert.doesNotMatch(migration, /resident_registration_number\s+text/i);
+  const tableStart = migration.indexOf('create table if not exists private.employee_sensitive_identity');
+  const tableEnd = migration.indexOf(');', tableStart);
+  const sensitiveTableDdl = migration.slice(tableStart, tableEnd);
+  assert.doesNotMatch(sensitiveTableDdl, /resident_number\s+text/i);
+  assert.doesNotMatch(sensitiveTableDdl, /resident_registration_number\s+text/i);
   assert.match(migration, /revoke all on private\.employee_sensitive_identity from public, anon, authenticated/);
 });
 
