@@ -288,6 +288,10 @@
       }
 
       const resident = normalizeResidentNumber(rawResident);
+      if (resident.length < 13 && /^\d{2}[.\/-]\d{2}[.\/-]\d{2}$/.test(rawResident)) {
+        skipped.push(`${name}: 생년월일만 있어 주민번호 등록 제외`);
+        return;
+      }
       if (!residentNumberChecksumValid(resident)) {
         errors.push(`${name}: 주민등록번호 형식 또는 체크섬을 확인해 주세요.`);
         return;
@@ -302,7 +306,7 @@
 
       const matches = employeeMap.get(name) || [];
       if (!matches.length) {
-        errors.push(`${name}: 현재 직원 DB에서 찾지 못했습니다.`);
+        skipped.push(`${name}: 현재 직원 DB 미등록으로 제외`);
         return;
       }
       if (matches.length > 1) {
@@ -344,7 +348,8 @@
         message.textContent = parsed.skipped.length ? parsed.skipped.join('\n') : '등록할 새 직원이 없습니다.';
         return;
       }
-      if (!window.confirm(`${parsed.rows.length}명의 주민등록번호를 Vault에 암호화 저장합니다. 계속할까요?`)) {
+      const skippedNotice = parsed.skipped.length ? `\n제외 ${parsed.skipped.length}건: ${parsed.skipped.join(' / ')}` : '';
+      if (!window.confirm(`${parsed.rows.length}명의 주민등록번호를 Vault에 암호화 저장합니다.${skippedNotice}\n계속할까요?`)) {
         parsed.rows.length = 0;
         return;
       }
@@ -356,6 +361,7 @@
         parsed.rows.length = 0;
         message.classList.remove('error');
         message.textContent = `${Number(result.saved_count || 0)}명 암호화 등록이 완료됐습니다.`;
+        window.alert(`${Number(result.saved_count || 0)}명 암호화 등록 완료${parsed.skipped.length ? `\n제외 ${parsed.skipped.length}건: ${parsed.skipped.join(' / ')}` : ''}`);
         await openEmployeeManagement('existing');
       } catch (error) {
         textarea.value = '';
@@ -368,7 +374,7 @@
     });
     box.append(
       el('h2', '주민등록번호 일괄 암호화 등록'),
-      el('p', '엑셀의 성명·주민등록번호 두 열을 복사해 붙여넣습니다. 원문은 저장 후 화면에 남기지 않으며, 한 행이라도 오류가 있으면 전체 저장을 취소합니다.', 'help'),
+      el('p', '엑셀의 성명·주민등록번호 두 열을 복사해 붙여넣습니다. 생년월일-only·DB 미등록·동일 중복행은 제외하고, 체크섬 오류·동명이인·번호 충돌이 있으면 전체 저장을 취소합니다. 원문은 저장 후 화면에 남기지 않습니다.', 'help'),
       textarea,
       submit,
       message
