@@ -48,7 +48,8 @@ test('internal persistence boundary is not callable with arbitrary browser resul
 });
 
 test('calculation persistence is idempotent and atomic', () => {
-  assert.match(contract, /\(payroll_month_id, calculation_version, input_fingerprint, cutoff_date\)/i);
+  assert.match(contract, /\(payroll_month_id, calculation_version, input_fingerprint, statutory_input_fingerprint, cutoff_date\)/i);
+  assert.match(contract, /statutory_input_fingerprint/i);
   assert.match(contract, /Two identical requests must converge on one canonical run/i);
   assert.match(contract, /persist employee results and latest-run pointer atomically/i);
   assert.match(contract, /never leave `latest_run_id` pointing at a partially persisted run/i);
