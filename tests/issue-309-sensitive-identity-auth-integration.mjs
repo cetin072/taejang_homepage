@@ -173,6 +173,14 @@ assert.ok(flags.ok, 'age insurance exception flags save');
 assert.equal(flags.data?.national_pension_age_status, 'voluntary_continuation_confirmed');
 assert.equal(flags.data?.employment_insurance_age_status, 'employed_after_65_excluded');
 
+sql(`insert into public.payroll_statutory_profiles(
+       employee_uuid,effective_from,national_pension_status,health_insurance_status,employment_insurance_status
+     )
+     values (
+       '${employeeUuid}'::uuid,date '2026-09-01','pending_review','pending_review','pending_review'
+     )
+     on conflict(employee_uuid,effective_from) do nothing`);
+
 const statutoryJson = sql(`select public.private_get_payroll_statutory_input(date '2026-09-01')::text`);
 assert.ok(statutoryJson.includes('"identity_birth_date": "1960-01-02"') || statutoryJson.includes('"identity_birth_date":"1960-01-02"'));
 assert.ok(statutoryJson.includes('national_pension_age_lost_on'));
