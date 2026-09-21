@@ -424,4 +424,6 @@ revoke all on function public.set_employee_insurance_deduction_settings(uuid,dat
 grant execute on function public.set_employee_insurance_deduction_settings(uuid,date,boolean,boolean,boolean,text)
   to authenticated;
 
+notify pgrst, 'reload schema';
+
 commit;
