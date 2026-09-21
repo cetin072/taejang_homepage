@@ -203,6 +203,10 @@
         capabilities: ['schedule.manage']
       },
       {
+        label: '공지 확인',
+        run: () => window.TaejangIssue207Ux?.openInformationRead?.()
+      },
+      {
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel'),
         capabilities: ['notice.manage', 'information.submit', 'information.review']
