@@ -342,6 +342,9 @@
         return children.indexOf(a) - children.indexOf(b);
       });
       const desired = buildDesiredSequence(nav, desiredMenu);
+      [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(toggle => {
+        if (!desired.includes(toggle)) toggle.remove();
+      });
       const current = [...nav.children];
       const changed = desired.length !== current.length || desired.some((node, index) => current[index] !== node);
 
