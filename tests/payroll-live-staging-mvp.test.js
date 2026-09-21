@@ -43,12 +43,13 @@ test('payroll MVP sidebar entry is capability-driven while the dashboard card re
   assert.match(navPriority, /dataset\.payrollMvpNav = '1'/);
   assert.match(navPriority, /dataset\.capabilityAny = 'payroll\.manage'/);
   assert.match(navPriority, /label: '근태·급여'/);
-  assert.doesNotMatch(navPriority, /target = '_blank'[\s\S]{0,160}payroll\/live\.html/);
+  assert.match(navPriority, /link\.target = '_blank'/);
+  assert.match(navPriority, /link\.rel = 'noopener noreferrer'/);
 
   assert.match(dashboardPriority, /operations_manager:\s*\['근태·급여관리'/);
   assert.match(dashboardPriority, /운영총괄 1차 사용/);
   assert.match(dashboardPriority, /근태·급여관리 열기/);
-  assert.match(dashboardPriority, /window\.location\.href = 'payroll\/live\.html'/);
+  assert.match(dashboardPriority, /window\.open\('payroll\/live\.html', '_blank', 'noopener,noreferrer'\)/);
 });
 
 test('live clients reuse staff auth and protected payroll RPCs', () => {
