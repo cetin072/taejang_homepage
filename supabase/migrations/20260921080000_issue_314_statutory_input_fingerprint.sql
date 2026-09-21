@@ -4,6 +4,21 @@ begin;
 alter function public.private_build_payroll_calculation_input(date,date,uuid)
   rename to private_build_payroll_calculation_input_pre314;
 
+create or replace function public.private_get_payroll_statutory_input_fingerprint(
+  p_payroll_month date
+)
+returns text
+language sql
+stable
+security definer
+set search_path=''
+as $
+  select md5(coalesce(public.private_get_payroll_statutory_input(p_payroll_month),'{}'::jsonb)::text);
+$;
+
+revoke all on function public.private_get_payroll_statutory_input_fingerprint(date)
+from public,anon,authenticated;
+
 create or replace function public.private_build_payroll_calculation_input(
   p_payroll_month date,
   p_cutoff_date date,
@@ -28,7 +43,7 @@ begin
   );
 
   statutory_input := public.private_get_payroll_statutory_input(p_payroll_month);
-  statutory_fingerprint := md5(coalesce(statutory_input,'{}'::jsonb)::text);
+  statutory_fingerprint := public.private_get_payroll_statutory_input_fingerprint(p_payroll_month);
 
   fingerprint_basis := (
     base_input
@@ -48,6 +63,9 @@ $$;
 
 revoke all on function public.private_build_payroll_calculation_input(date,date,uuid)
 from public,anon,authenticated;
+
+comment on function public.private_get_payroll_statutory_input_fingerprint(date) is
+  'Deterministic monthly fingerprint of the server-only statutory payroll input.';
 
 comment on function public.private_build_payroll_calculation_input(date,date,uuid) is
   'Canonical payroll input v2. The input fingerprint covers attendance/rate input plus the deterministic statutory input fingerprint.';
