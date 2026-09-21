@@ -14,7 +14,7 @@
 
 `node scripts/staging/check-environment.mjs`는 migration 이름·해시와 대상 설정만 검사한다.
 
-`node scripts/staging/apply-migrations.mjs`는 Supabase CLI의 dry-run을 수행한다. 실제 반영은 사용자 승인 후 `STAGING_CONFIRM=STAGING node scripts/staging/apply-migrations.mjs --apply`로만 가능하다. CLI가 없으면 설치 방법만 확인하고 자동 설치하지 않는다. migration은 자동 rollback되지 않는다.
+`node scripts/staging/apply-migrations.mjs`는 **공유 staging 프로젝트용 owner-aware migration 도구**다. 이 저장소의 `supabase/migrations`와 원격 history를 비교하되, 원격에만 존재하는 migration은 다른 태장 저장소 소유일 수 있으므로 수정·삭제·revert하지 않고 그대로 보존한다. 기본 실행은 읽기 전용 dry-run이며, 실제 반영은 사용자 승인 후 `STAGING_CONFIRM=STAGING SUPABASE_ACCESS_TOKEN=<runtime-only> node scripts/staging/apply-migrations.mjs --apply`로만 가능하다. 적용 대상은 이 저장소 소유로 확인되면서 아직 원격 history에 대응되지 않는 migration뿐이다. 다른 저장소 migration을 이유로 `supabase db push`나 일괄 `migration repair --status reverted`를 사용하지 않는다.
 
 `STAGING_CONFIRM=STAGING node scripts/staging/seed-phase1.mjs`는 service role을 사용하는 **로컬 관리자 명령**이다. 기본값은 `[TEST] 시험 관리자`와 `[TEST] 시험 근로자` 2명, 작업반 1개, 오늘의 업무·일정·중요공지·작업방법·자주 보는 안내만 만든다. 실제 사용자 계정은 만들지 않는다. `STAGING_QA_PASSWORD`는 실행 때만 입력한다.
 

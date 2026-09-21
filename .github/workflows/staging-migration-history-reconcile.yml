@@ -1,0 +1,97 @@
+name: Staging Owned Migration Verification 306
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-staging-owned-migration-verify-306
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging-first-super-admin
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify approved staging target
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "STOP_STAGING_ACCESS_TOKEN_MISSING"; exit 1; }
+
+      - name: Export remote history
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="select version, name from supabase_migrations.schema_migrations order by version;"
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/remote.json
+
+      - name: Verify repository-owned migration coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/staging/owned-migration-status.mjs /tmp/remote.json /tmp/owned-status.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const status = JSON.parse(fs.readFileSync('/tmp/owned-status.json','utf8'));
+          console.log('OWNED_FINAL=' + JSON.stringify(status.counts));
+          console.log('REMOTE_ONLY_PRESERVED=' + JSON.stringify(status.remoteUnmatched));
+          if (status.versionNameMismatch.length) process.exit(1);
+          if (status.localUnmatched.length) {
+            console.error('STOP_LOCAL_OWNED_MIGRATIONS_UNACCOUNTED');
+            console.error(JSON.stringify(status.localUnmatched));
+            process.exit(1);
+          }
+          NODE
+
+      - name: Verify reconciled owned schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="
+          select
+            (to_regclass('public.homepage_change_requests') is not null) as homepage_change_requests_table,
+            (select count(*)::int from public.platform_capabilities
+              where code in ('support_radar.management_view','support_radar.management_edit','support_radar.assigned_work')
+                and active) as support_capability_count,
+            position(
+              'PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED'
+              in coalesce(pg_get_functiondef(to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)')), '')
+            ) > 0 as archive_guard_signature,
+            exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_time_block') as field_time_block_type,
+            (to_regclass('public.work_group_employee_memberships') is not null) as field_memberships_table,
+            (to_regclass('public.field_work_templates') is not null) as field_templates_table,
+            (to_regclass('public.field_assignment_employee_overrides') is not null) as field_overrides_table,
+            (to_regclass('public.notification_devices') is not null) as notification_devices_table,
+            (to_regclass('public.notification_events') is not null) as notification_events_table,
+            (to_regclass('public.notification_deliveries') is not null) as notification_deliveries_table,
+            exists(select 1 from pg_trigger where tgrelid='public.notices'::regclass and tgname='notices_queue_native_push' and not tgisinternal) as notification_trigger;
+          "
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/schema.json
+          row="$(jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end' /tmp/schema.json)"
+          echo "OWNED_SCHEMA=$row"
+          [[ "$(printf '%s' "$row" | jq -r '.homepage_change_requests_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.support_capability_count')" == "3" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.archive_guard_signature')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_time_block_type')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_memberships_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_templates_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_overrides_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_devices_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_events_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_deliveries_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_trigger')" == "true" ]]
+
+      - name: Run staging safety regression
+        run: npm run test:staging-safety

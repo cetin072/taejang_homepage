@@ -26,21 +26,51 @@ test('remote staging scripts require an allow-list, ref/URL match, and explicit 
   assert.match(shared, /STAGING_BLOCKED_PROJECT_REFS/);
   assert.match(shared, /url\.hostname !== `\$\{ref\}\.supabase\.co`/);
   assert.match(shared, /STAGING_CONFIRM !== 'STAGING'/);
-  assert.match(migrate, /--dry-run/);
-  assert.match(migrate, /--apply/);
+  assert.match(migrate, /const apply = process\.argv\.includes\('--apply'\)/);
+  assert.match(migrate, /Dry-run completed\. No remote mutation was performed\./);
   assert.match(cleanup, /--delete/);
   assert.match(cleanup, /never force-deletes/);
 });
 
-test('staging migration helper links the allow-listed project before db push', () => {
+test('staging migration helper is repository-owner aware for a shared Supabase project', () => {
   const migrate = read('scripts/staging/apply-migrations.mjs');
-  const linkCall = "runSupabase(['link', '--project-ref', config.ref]);";
-  const pushCall = "runSupabase(['db', 'push', ...(apply ? [] : ['--dry-run'])]);";
+  const classifier = read('scripts/staging/owned-migration-status.mjs');
 
-  assert.ok(migrate.includes(linkCall), 'migration helper must link the explicit staging ref first');
-  assert.ok(migrate.includes(pushCall), 'migration helper must run db push against the linked project');
-  assert.ok(migrate.indexOf(linkCall) < migrate.indexOf(pushCall), 'link must happen before db push');
-  assert.doesNotMatch(migrate, /\['db',\s*'push',\s*'--project-ref'/);
+  assert.match(migrate, /classifyOwnedMigrations/);
+  assert.match(migrate, /SUPABASE_ACCESS_TOKEN/);
+  assert.match(migrate, /Remote-only rows preserved/);
+  assert.match(migrate, /localUnmatched/);
+  assert.match(migrate, /--apply/);
+  assert.doesNotMatch(migrate, /supabase db push/);
+  assert.doesNotMatch(migrate, /migration repair --status reverted/);
+
+  assert.match(classifier, /Remote-only rows may belong to another Taejang repository/);
+  assert.match(classifier, /remoteUnmatched\.push/);
+  assert.match(classifier, /phase_c_homepage_text_photo_requests/);
+});
+
+test('owner-aware staging classifier preserves foreign remote migrations and finds only owned pending files', async () => {
+  const { classifyOwnedMigrations } = await import('../scripts/staging/owned-migration-status.mjs');
+  const remote = [
+    { version: '20260101000000', name: 'owned_one' },
+    { version: '20260101000001', name: 'foreign_other_repo' },
+    { version: '20260101000002', name: '20260102000000_owned_two' }
+  ];
+  const local = [
+    { version: '20260103000000', name: 'owned_one', file: '20260103000000_owned_one.sql' },
+    { version: '20260102000000', name: 'owned_two', file: '20260102000000_owned_two.sql' },
+    { version: '20260104000000', name: 'owned_pending', file: '20260104000000_owned_pending.sql' }
+  ];
+
+  const status = classifyOwnedMigrations(remote, local);
+  assert.equal(status.uniqueNameMapped.length, 1);
+  assert.equal(status.embeddedFilenameMapped.length, 1);
+  assert.deepEqual(status.remoteUnmatched, [
+    { version: '20260101000001', name: 'foreign_other_repo' }
+  ]);
+  assert.deepEqual(status.localUnmatched.map(item => item.file), [
+    '20260104000000_owned_pending.sql'
+  ]);
 });
 
 test('seed specification defaults to two TEST accounts and keeps the full nine-account matrix behind a second confirmation', () => {
