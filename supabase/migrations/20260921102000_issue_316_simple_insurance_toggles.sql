@@ -15,12 +15,6 @@ comment on column public.payroll_statutory_profiles.health_insurance_deduction_o
 comment on column public.payroll_statutory_profiles.employment_insurance_deduction_override is
   'Operator payroll-deduction override. null=legacy eligibility logic, true=deduct, false=zero.';
 
-alter function public.private_get_payroll_statutory_input(date)
-  rename to private_get_payroll_statutory_input_pre316;
-
-revoke all on function public.private_get_payroll_statutory_input_pre316(date)
-  from public, anon, authenticated, service_role;
-
 create or replace function public.private_get_payroll_statutory_input(
   p_payroll_month date
 )
@@ -31,30 +25,82 @@ security definer
 set search_path=''
 as $$
 declare
-  base_input jsonb;
-  enriched_profiles jsonb := '[]'::jsonb;
+  month_start date;
+  month_end date;
+  rates_json jsonb := '[]'::jsonb;
+  profiles_json jsonb := '[]'::jsonb;
 begin
-  base_input := public.private_get_payroll_statutory_input_pre316(p_payroll_month);
+  if p_payroll_month is null
+     or date_trunc('month',p_payroll_month)::date <> p_payroll_month then
+    raise exception using errcode='22023',message='INVALID_PAYROLL_MONTH';
+  end if;
 
-  select coalesce(
-    jsonb_agg(
-      profile_row.value
-      || jsonb_build_object(
-        'national_pension_deduction_override',sp.national_pension_deduction_override,
-        'health_insurance_deduction_override',sp.health_insurance_deduction_override,
-        'employment_insurance_deduction_override',sp.employment_insurance_deduction_override
-      )
-      order by profile_row.ordinality
-    ),
-    '[]'::jsonb
-  )
-  into enriched_profiles
-  from jsonb_array_elements(coalesce(base_input->'profiles','[]'::jsonb))
-       with ordinality as profile_row(value,ordinality)
-  left join public.payroll_statutory_profiles sp
-    on sp.id=(profile_row.value->>'profile_id')::uuid;
+  month_start:=p_payroll_month;
+  month_end:=(p_payroll_month + interval '1 month - 1 day')::date;
 
-  return jsonb_set(base_input,'{profiles}',enriched_profiles,true);
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'id',r.id,
+    'rate_code',r.rate_code,
+    'effective_from',r.effective_from,
+    'effective_to',r.effective_to,
+    'calculation_method',r.calculation_method,
+    'employee_rate',r.employee_rate,
+    'ratio_numerator',r.ratio_numerator,
+    'ratio_denominator',r.ratio_denominator,
+    'rounding_method',r.rounding_method,
+    'minimum_basis',r.minimum_basis,
+    'maximum_basis',r.maximum_basis,
+    'minimum_employee_contribution',r.minimum_employee_contribution,
+    'maximum_employee_contribution',r.maximum_employee_contribution
+  ) order by r.rate_code,r.effective_from,r.id),'[]'::jsonb)
+  into rates_json
+  from public.payroll_statutory_rate_rules r
+  where r.effective_from<=month_end
+    and (r.effective_to is null or r.effective_to>=month_start);
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'profile_id',p.id,
+    'employee_uuid',p.employee_uuid,
+    'employee_hired_on',e.hired_on,
+    'effective_from',p.effective_from,
+    'effective_to',p.effective_to,
+    'national_pension_status',p.national_pension_status,
+    'health_insurance_status',p.health_insurance_status,
+    'employment_insurance_status',p.employment_insurance_status,
+    'national_pension_deduction_override',p.national_pension_deduction_override,
+    'health_insurance_deduction_override',p.health_insurance_deduction_override,
+    'employment_insurance_deduction_override',p.employment_insurance_deduction_override,
+    'national_pension_acquired_on',p.national_pension_acquired_on,
+    'national_pension_lost_on',p.national_pension_lost_on,
+    'health_insurance_acquired_on',p.health_insurance_acquired_on,
+    'health_insurance_lost_on',p.health_insurance_lost_on,
+    'employment_insurance_acquired_on',p.employment_insurance_acquired_on,
+    'employment_insurance_lost_on',p.employment_insurance_lost_on,
+    'national_pension_acquisition_month_opt_in',p.national_pension_acquisition_month_opt_in,
+    'pension_standard_monthly_income',p.pension_standard_monthly_income,
+    'health_monthly_remuneration',p.health_monthly_remuneration,
+    'identity_birth_date',identity.birth_date,
+    'national_pension_age_18_on',case when identity.birth_date is null then null else (identity.birth_date + interval '18 years')::date end,
+    'national_pension_age_lost_on',case when identity.birth_date is null then null else (identity.birth_date + interval '60 years' + interval '1 day')::date end,
+    'national_pension_under18_opt_out_confirmed',coalesce(identity.national_pension_under18_opt_out_confirmed,false),
+    'national_pension_over60_exception',coalesce(identity.national_pension_over60_exception,'none'),
+    'employment_insurance_age_65_on',case when identity.birth_date is null then null else (identity.birth_date + interval '65 years')::date end,
+    'employment_insurance_over65_status',coalesce(identity.employment_insurance_over65_status,'unknown')
+  ) order by p.employee_uuid::text,p.effective_from,p.id),'[]'::jsonb)
+  into profiles_json
+  from public.payroll_statutory_profiles p
+  join public.employees e on e.id=p.employee_uuid
+  left join private.employee_sensitive_identity identity on identity.employee_uuid=p.employee_uuid
+  where p.effective_from<=month_end
+    and (p.effective_to is null or p.effective_to>=month_start)
+    and e.hired_on<=month_end
+    and (e.departed_on is null or e.departed_on>=month_start);
+
+  return jsonb_build_object(
+    'payroll_month',month_start,
+    'rate_rules',rates_json,
+    'profiles',profiles_json
+  );
 end;
 $$;
 
