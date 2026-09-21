@@ -47,12 +47,16 @@
       const key=menuKey(node);
       if(!key) return;
       const item=registry()?.byKey?.(key);
+      const wasRoleHidden=node.dataset?.roleHidden==='1';
       const roleHidden=!item?.locked && state.hiddenMenuKeys.has(key);
       if(roleHidden) node.dataset.roleHidden='1';
       else delete node.dataset.roleHidden;
       if(roleHidden) {
         node.hidden=true;
         node.setAttribute('aria-hidden','true');
+      } else if(wasRoleHidden && !node.dataset?.capabilityDenied) {
+        node.hidden=false;
+        node.setAttribute('aria-hidden','false');
       }
     });
     window.TaejangCapabilityUiGates?.refresh?.();
@@ -115,7 +119,7 @@
     if(!node) return null;
     const existing=node.dataset?.dashboardCardKey;
     if(existing) return existing;
-    const key=node.dataset?.priorityDashboardCard || node.dataset?.supportRadarShortcut || node.querySelector('h3')?.textContent?.trim();
+    const key=node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim() || node.dataset?.supportRadarShortcut;
     if(key) node.dataset.dashboardCardKey=String(key);
     return key ? String(key) : null;
   }
