@@ -24,6 +24,10 @@ assert.match(gates, /taejang-open-account-approval/, 'direct account-approval ev
 assert.match(gates, /복구·계정 관리/, 'operations account-management navigation is capability gated');
 assert.match(gates, /EMPLOYEE_NAV_LABELS/, 'legacy Employee navigation is pruned by capability when v2 is active');
 assert.match(gates, /ACCOUNT_APPROVAL_CAPABILITIES/, 'signup approval navigation uses account capabilities');
+assert.match(gates, /NAV_CAPABILITY_ANY/, 'dynamic sidebar labels use capability-any contracts');
+assert.match(gates, /dataset\?\.capabilityAny/, 'menu nodes may declare their own capability-any contract');
+assert.match(gates, /promotion\.review_operations/, 'promotion review navigation is capability-filtered');
+assert.match(gates, /payroll\.manage/, 'payroll navigation is capability-filtered');
 assert.match(gates, /stopImmediatePropagation/, 'unauthorized open events are stopped before legacy route listeners');
 assert.match(gates, /MutationObserver/, 'navigation added by legacy modules is rechecked after render');
 

@@ -21,15 +21,15 @@ const correctionUi = read('app/assets/attendance-integrity-ui.js');
 const simulation = read('app/assets/phase-c-role-simulation.js');
 const onboarding = read('supabase/migrations/20260919235000_issue_274_mobile_onboarding_holiday.sql');
 
-test('promotion lead receives exactly the intended operational capability contract, not payroll management', () => {
+test('promotion lead operational capabilities appear through the shared master sidebar without gaining payroll management', () => {
   for (const capability of ['task.manage', 'schedule.manage', 'notice.manage']) {
     assert.match(migration, new RegExp(`'${capability.replace('.', '\\.')}'`));
     assert.match(gates, new RegExp(`'${capability.replace('.', '\\.')}'`));
   }
-  assert.match(dashboard, /const workManagementRoles = new Set\(\[\.\.\.managerRoles, 'promotion_lead'\]\)/);
-  assert.match(dashboard, /if \(workManagementRoles\.has\(route\)\) items\.push\(\{ label: '업무 배정'/);
-  assert.match(dashboard, /\{ label: '일정 관리', run: \(\) => openPanel\('schedule-admin-panel'\) \}/);
-  assert.match(dashboard, /\{ label: '공지 관리', run: \(\) => openPanel\('notice-admin-panel'\) \}/);
+  assert.match(dashboard, /label: '업무 배정'[\s\S]*task\.manage/);
+  assert.match(dashboard, /label: '일정 관리'[\s\S]*schedule\.manage/);
+  assert.match(dashboard, /label: '공지 관리'[\s\S]*notice\.manage/);
+  assert.match(dashboard, /function masterMenuItems\(\)/);
   assert.doesNotMatch(migration, /payroll\.manage|payroll\.operator|payroll\.draft/i);
 });
 

@@ -197,18 +197,24 @@ test('account approval does not poll the whole app DOM after login or menu click
   assert.match(accountApproval, /window\.TaejangAccountApproval = \{ openAccountApproval, syncDashboard \}/);
 });
 
-test('employee management has separate existing and new registration navigation actions in the base menu', () => {
+test('employee management uses canonical sidebar labels and capability-driven existing/new actions', () => {
   assert.match(dashboardShell, /dataKey: 'employee-management'/);
   assert.match(dashboardShell, /dataKey: 'employee-new'/);
-  assert.match(dashboardShell, /'직원 관리'/);
-  assert.match(dashboardShell, /'신규 직원 등록'/);
-  assert.match(dashboardShell, /'신규 직원 등록 요청'/);
+  assert.match(dashboardShell, /label: '직원 관리'/);
+  assert.match(dashboardShell, /label: '신규 직원 등록'/);
+  assert.match(dashboardShell, /employee\.view_all/);
+  assert.match(dashboardShell, /employee\.view_scoped/);
+  assert.match(dashboardShell, /employee\.create/);
+  assert.match(dashboardShell, /employee\.request_change/);
   assert.match(dashboardShell, /openEmployee\('new'\)/);
   assert.match(source, /\.employee-view-tabs \{ display:none !important; \}/);
 });
 
-test('operations sidebar keeps signup approval and recovery inside employee/account work', () => {
-  const order = roleNavigation.match(/operations_manager: \[([\s\S]*?)\n    \],/)?.[1] || '';
+test('master sidebar keeps signup approval and recovery inside the shared employee/account section', () => {
+  const order = roleNavigation.slice(
+    roleNavigation.indexOf('const MASTER_ORDER'),
+    roleNavigation.indexOf('const MASTER_SECTIONS')
+  );
   assert.ok(order.indexOf("'직원 관리'") >= 0);
   assert.ok(order.indexOf("'신규 직원 등록'") >= 0);
   assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'신규 직원 등록'"));

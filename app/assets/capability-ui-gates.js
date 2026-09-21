@@ -16,6 +16,24 @@
     '복구·계정 관리': 'account.view_management'
   });
 
+  const NAV_CAPABILITY_ANY = Object.freeze({
+    '홍보 검토': ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'],
+    '홍보 글 작성': ['promotion.write', 'promotion.edit_any_unpublished'],
+    '보완 요청받은 글': ['promotion.edit_own', 'promotion.edit_any_unpublished'],
+    '기존 글 관리': ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore'],
+    '홍보글 관리·복구': ['promotion.archive', 'promotion.restore', 'promotion.hide', 'promotion.republish'],
+    '발행 대기': ['promotion.queue_publication'],
+    '홈페이지 내용 관리': ['homepage.draft', 'homepage.review', 'homepage.approve_apply'],
+    '홈페이지 직접 수정': ['homepage.direct_edit'],
+    '근태·급여관리': ['payroll.manage'],
+    '외부 급여초안 검토': ['payroll.handoff.approve'],
+    '외부 급여초안 상신': ['payroll.handoff.review'],
+    '출근부': ['attendance.admin_view'],
+    '근태 보정': ['attendance.correct'],
+    '지원사업 레이더': ['support_radar.management_view', 'support_radar.assigned_work'],
+    '기업 프로필': ['support_radar.management_view', 'support_radar.management_edit']
+  });
+
   const EMPLOYEE_ENTRY_CAPABILITIES = Object.freeze([
     'employee.view_all',
     'employee.view_scoped',
@@ -66,6 +84,19 @@
 
     [...nav.querySelectorAll('button, a')].forEach(node => {
       const label = cleanLabel(node);
+      const declaredAny = String(node.dataset?.capabilityAny || '')
+        .split('|')
+        .map(value => value.trim())
+        .filter(Boolean);
+      if (declaredAny.length) {
+        applyNavigationState(node, canAny(declaredAny), declaredAny.join('|'));
+        return;
+      }
+      const anyCapabilities = NAV_CAPABILITY_ANY[label];
+      if (anyCapabilities) {
+        applyNavigationState(node, canAny(anyCapabilities), anyCapabilities.join('|'));
+        return;
+      }
       const capability = NAV_CAPABILITIES[label];
       if (capability) {
         applyNavigationState(node, can(capability), capability);

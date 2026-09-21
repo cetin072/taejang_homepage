@@ -219,12 +219,24 @@
   function addNavigation() {
     if (!canWriteOperationsPromotion()) return;
     const nav = document.getElementById('app-nav');
-    if (!nav || nav.querySelector('[data-operations-promotion-writer]')) return;
+    if (!nav) return;
+
+    const existing = [...nav.querySelectorAll('button')]
+      .find(item => item.textContent.trim() === '홍보 글 작성');
+    if (existing?.dataset.operationsPromotionWriter === '1') return;
+
     const node = document.createElement('button');
     node.type = 'button';
     node.textContent = '홍보 글 작성';
     node.dataset.operationsPromotionWriter = '1';
+    node.dataset.capabilityAny = 'promotion.edit_any_unpublished|promotion.write';
     node.addEventListener('click', () => openWriter());
+
+    if (existing) {
+      existing.replaceWith(node);
+      return;
+    }
+
     const review = [...nav.querySelectorAll('button')].find(item => item.textContent.trim() === '홍보 검토');
     if (review) nav.insertBefore(node, review.nextSibling);
     else nav.append(node);

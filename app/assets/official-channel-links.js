@@ -1,9 +1,7 @@
 (() => {
   'use strict';
 
-  const ALLOWED_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
   const channels = () => window.TaejangOfficialChannels?.list || [];
-  const route = () => window.TaejangApp?.getRoute?.();
 
   function removeExisting(nav) {
     nav?.querySelectorAll?.('[data-official-channel-group], [data-official-channel-link]')?.forEach?.(node => node.remove());
@@ -40,11 +38,7 @@
   function sync() {
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    if (!ALLOWED_ROLES.has(route())) {
-      removeExisting(nav);
-      return;
-    }
-
+    // Public official channels are safe links and belong to the shared desktop sidebar.
     // dashboard-shell creates this group on the authoritative first render.
     // Keep this module only as a compatibility fallback for older shells.
     if (nav.querySelector('[data-official-channel-group]')) return;
@@ -62,5 +56,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangOfficialChannelLinks = { sync, channels, ALLOWED_ROLES };
+  window.TaejangOfficialChannelLinks = { sync, channels };
 })();

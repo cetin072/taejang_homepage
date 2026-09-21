@@ -5,6 +5,10 @@
   let syncing = false;
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyRoles = []) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyRoles.includes(route());
+  const canAny = (capabilities, legacyRoles = []) => capabilities.some(capability => can(capability, legacyRoles));
   const main = () => document.getElementById('dashboard-main');
   const text = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -40,11 +44,12 @@
     document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
   }
 
-  function navButton(label, handler, key) {
+  function navButton(label, handler, key, capabilities = []) {
     const node = document.createElement('button');
     node.type = 'button';
     node.textContent = label;
     node.dataset.phaseCNav = key;
+    if (capabilities.length) node.dataset.capabilityAny = capabilities.join('|');
     node.addEventListener('click', handler);
     return node;
   }
@@ -83,35 +88,36 @@
       if (node.textContent.trim() === '신규 사업 기획') node.remove();
     });
 
-    if (currentRoute === 'promotion_staff') {
-      if (!nav.querySelector('[data-phase-c-nav="revision"]')) {
-        const write = [...nav.querySelectorAll('button')].find(node => node.textContent.trim() === '홍보 작성');
-        const revision = navButton('수정·보완 요청', () => openPromotion('revision'), 'revision');
-        if (write) nav.insertBefore(revision, write); else insertBeforeHomepage(nav, revision);
-      }
+    const canPublication = can('promotion.queue_publication', ['promotion_lead', 'operations_manager']);
+    if (canPublication && !nav.querySelector('[data-phase-c-nav="publication"]')) {
+      insertBeforeHomepage(
+        nav,
+        navButton('발행 대기', openPublication, 'publication', ['promotion.queue_publication'])
+      );
     }
 
-    if (currentRoute === 'promotion_lead') {
-      if (!nav.querySelector('[data-phase-c-nav="publication"]')) insertBeforeHomepage(nav, navButton('발행 대기', openPublication, 'publication'));
-      if (!nav.querySelector('[data-phase-c-nav="calendar"]')) insertBeforeHomepage(nav, navButton('일정 캘린더', openScheduleCalendar, 'calendar'));
+    const canCalendar = can('schedule.manage', ['promotion_lead', 'operations_manager']);
+    if ((canCalendar || currentRoute === 'ceo') && !nav.querySelector('[data-phase-c-nav="calendar"]')) {
+      insertBeforeHomepage(
+        nav,
+        navButton('일정 캘린더', openScheduleCalendar, 'calendar', canCalendar ? ['schedule.manage'] : [])
+      );
     }
 
-    if (currentRoute === 'operations_manager') {
-      if (!nav.querySelector('[data-phase-c-nav="publication"]')) insertBeforeHomepage(nav, navButton('발행 대기', openPublication, 'publication'));
-      if (!nav.querySelector('[data-phase-c-nav="calendar"]')) insertBeforeHomepage(nav, navButton('일정 캘린더', openScheduleCalendar, 'calendar'));
-    }
-
-    if (currentRoute === 'ceo') {
-      if (!nav.querySelector('[data-phase-c-nav="calendar"]')) insertBeforeHomepage(nav, navButton('일정 캘린더', openScheduleCalendar, 'calendar'));
-    }
-
-    if (['promotion_lead', 'operations_manager'].includes(currentRoute)) {
-      const existing = [...nav.querySelectorAll('button')].find(node => node.textContent.trim() === '홈페이지 내용 관리');
+    const homepageCapabilities = ['homepage.draft', 'homepage.review', 'homepage.approve_apply'];
+    const canHomepageContent = canAny(homepageCapabilities, ['promotion_lead', 'operations_manager']);
+    if (canHomepageContent) {
+      const existing = [...nav.querySelectorAll('button')]
+        .find(node => node.textContent.trim() === '홈페이지 내용 관리');
       if (existing && !existing.dataset.phaseCHomepageRebound) {
-        const replacement = navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content');
+        const replacement = navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content', homepageCapabilities);
+        replacement.dataset.phaseCHomepageRebound = '1';
         existing.replaceWith(replacement);
       } else if (!existing && !nav.querySelector('[data-phase-c-nav="homepage-content"]')) {
-        insertBeforeHomepage(nav, navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content'));
+        insertBeforeHomepage(
+          nav,
+          navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content', homepageCapabilities)
+        );
       }
     }
   }

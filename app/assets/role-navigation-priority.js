@@ -1,91 +1,57 @@
 (() => {
   'use strict';
 
-  const ROLE_ORDER = {
-    promotion_staff: [
-      '대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인', '홈페이지'
-    ],
-    promotion_lead: [
-      '대시보드',
-      '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리',
-      '팀 직원 관리', '신규 직원 등록', '가입 승인', '업무 배정', '일정 관리',
-      '출근부', '외부 급여초안 상신',
-      '홈페이지',
-      '신규 사업 기획'
-    ],
-    operations_manager: [
-      '대시보드',
-      '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
-      '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
-      '홈페이지 내용 관리', '홈페이지 직접 수정',
-      '업무 배정', '일정 관리',
-      '공지 관리',
-      '근태·급여관리', '외부 급여초안 검토', '출근부', '근태 보정',
-      '홈페이지'
-    ],
-    department_lead: [
-      '대시보드',
-      '팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리',
-      '공지 관리', '상시 안내 관리',
-      '홈페이지'
-    ],
-    field_lead: [
-      '대시보드',
-      '업무 배정', '일정 관리',
-      '공지 관리', '상시 안내 관리',
-      '홈페이지'
-    ],
-    ceo: ['대시보드', '홍보 검토', '홈페이지'],
-    super_admin: [
-      '대시보드',
-      '계정 승인',
-      '업무 배정', '일정 관리',
-      '공지 관리', '상시 안내 관리',
-      '홈페이지'
-    ]
-  };
+  const MASTER_ORDER = Object.freeze([
+    '대시보드',
+    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글',
+    '기존 글 관리', '홍보글 관리·복구', '발행 대기',
+    '홈페이지 내용 관리', '홈페이지 직접 수정',
+    '업무 배정', '일정 관리', '일정 캘린더',
+    '공지 확인', '공지 관리', '상시 안내 관리',
+    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
+    '출근부', '근태 보정',
+    '홈페이지',
+    '신규 사업 기획'
+  ]);
 
-  const ROLE_SECTIONS = {
-    promotion_staff: [
-      { label: '홍보', items: ['새 홍보글 작성', '보낸 글', '보완 요청받은 글'] },
-      { label: '공지', items: ['공지 확인'] }
-    ],
-    promotion_lead: [
-      { label: '홍보', items: ['새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리'] },
-      { label: '홈페이지', items: ['홈페이지 내용 관리'] },
-      { label: '공지', items: ['공지 관리'] },
-      { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록', '가입 승인', '업무 배정', '일정 관리'] },
-      { label: '근태·급여', items: ['출근부', '외부 급여초안 상신'] }
-    ],
-    operations_manager: [
-      { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
-      { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구'] },
-      { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-      { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
-      { label: '공지', items: ['공지 관리'] },
-      { label: '근태·급여', items: ['근태·급여관리', '외부 급여초안 검토', '출근부'].concat(['근태 보정']) }
-    ],
-    department_lead: [
-      { label: '팀 운영', items: ['팀 직원 관리', '신규 직원 등록 요청', '업무 배정', '일정 관리'] },
-      { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] }
-    ],
-    field_lead: [
-      { label: '현장 운영', items: ['업무 배정', '일정 관리'] },
-      { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] }
-    ],
-    ceo: [
-      { label: '승인·검토', items: ['홍보 검토'] }
-    ],
-    super_admin: [
-      { label: '시스템 관리', items: ['계정 승인'] },
-      { label: '업무 운영', items: ['업무 배정', '일정 관리'] },
-      { label: '공지·안내', items: ['공지 관리', '상시 안내 관리'] }
-    ]
-  };
+  const MASTER_SECTIONS = Object.freeze([
+    { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
+    { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글', '기존 글 관리', '홍보글 관리·복구', '발행 대기'] },
+    { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
+    { label: '업무 운영', items: ['업무 배정', '일정 관리', '일정 캘린더'] },
+    { label: '공지·안내', items: ['공지 확인', '공지 관리', '상시 안내 관리'] },
+    { label: '근태·급여', items: ['근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정'] }
+  ]);
+
+  const DESKTOP_ROLES = Object.freeze([
+    'promotion_staff', 'promotion_lead', 'operations_manager', 'department_lead',
+    'field_lead', 'ceo', 'super_admin', 'worker_support_lead',
+    'worker_support_staff', 'office_staff', 'work_assistant', 'external_guide'
+  ]);
+
+  const ROLE_ORDER = Object.freeze(Object.fromEntries(
+    DESKTOP_ROLES.map(role => [role, MASTER_ORDER])
+  ));
+  const ROLE_SECTIONS = Object.freeze(Object.fromEntries(
+    DESKTOP_ROLES.map(role => [role, MASTER_SECTIONS])
+  ));
 
   const CHECKING = new Set(['신규 사업 기획']);
   const LABEL_RENAMES = new Map([
-    ['글 관리', '홍보 글 관리'],
+    ['팀 직원 관리', '직원 관리'],
+    ['신규 직원 등록 요청', '신규 직원 등록'],
+    ['계정 승인', '가입 승인'],
+    ['홍보 작성', '홍보 글 작성'],
+    ['새 홍보글 작성', '홍보 글 작성'],
+    ['수정·보완 요청', '보완 요청받은 글'],
+    ['홍보글 승인·검토', '홍보 검토'],
+    ['홍보 관리', '홍보 검토'],
+    ['승인·검토', '홍보 검토'],
+    ['글 관리', '기존 글 관리'],
+    ['홍보 글 관리', '기존 글 관리'],
+    ['공개글 관리', '기존 글 관리'],
+    ['홍보글 보관·복구', '홍보글 관리·복구'],
     ['안내 관리', '상시 안내 관리']
   ]);
   let scheduled = false;
@@ -120,103 +86,27 @@
     return [...nav.children].find(node => wanted.has(cleanLabel(node))) || null;
   }
 
-  function ensureIssue207RoleContract(nav, currentRole) {
+  function ensureIssue207RoleContract(nav) {
     if (!nav) return;
-
-    if (currentRole === 'promotion_staff') {
-      let write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
-      if (!write) {
-        write = navButton('새 홍보글 작성', () => openPromotion('write'), { phaseCV2Nav: 'write', promotionWriteNav: '1' });
-        nav.append(write);
-      }
-      write.textContent = '새 홍보글 작성';
-
-      let revision = findByLabel(nav, ['수정·보완 요청', '보완 요청받은 글']);
-      if (!revision) {
-        revision = navButton('보완 요청받은 글', () => openPromotion('revision'), { phaseCV2Nav: 'revision', promotionReturnedNav: '1' });
-        nav.append(revision);
-      }
-      revision.textContent = '보완 요청받은 글';
-
-      if (!findByLabel(nav, '보낸 글')) {
-        nav.append(navButton('보낸 글', () => window.TaejangIssue207Ux?.openSent?.(), { issue207Nav: 'sent' }));
-      }
-      if (!findByLabel(nav, '공지 확인')) {
-        nav.append(navButton('공지 확인', () => window.TaejangIssue207Ux?.openInformationRead?.(), { issue207Nav: 'notice-read' }));
-      }
-      return;
-    }
-
-    if (currentRole === 'promotion_lead') {
-      [...nav.children].forEach(node => {
-        if (node.dataset?.phaseCV2Nav === 'revision' || ['수정·보완 요청', '보완 요청받은 글'].includes(cleanLabel(node))) node.remove();
-      });
-
-      let write = findByLabel(nav, ['홍보 작성', '새 홍보글 작성']);
-      if (!write) {
-        write = navButton('새 홍보글 작성', () => openPromotion('write'), { phaseCV2Nav: 'write', promotionWriteNav: '1' });
-        nav.append(write);
-      }
-      write.textContent = '새 홍보글 작성';
-
-      let review = findByLabel(nav, ['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
-      if (!review) {
-        review = navButton('홍보글 승인·검토', () => openPromotion('review'), { phaseCV2Nav: 'review' });
-        nav.append(review);
-      }
-      review.textContent = '홍보글 승인·검토';
-
-      if (!findByLabel(nav, '기존 글 관리')) {
-        nav.append(navButton('기존 글 관리', () => window.TaejangPublicationAdmin?.openPublicationAdmin?.(), {
-          phaseCPublicationAdmin: '1'
-        }));
-      }
-      if (!findByLabel(nav, '홈페이지 내용 관리')) {
-        nav.append(navButton('홈페이지 내용 관리', () => window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement?.(), {
-          phaseCV2Nav: 'homepage'
-        }));
-      }
-      if (!findByLabel(nav, '공지 관리')) {
-        nav.append(navButton('공지 관리', () => window.TaejangIssue207Ux?.openInformationHub?.(), {
-          issue207Nav: 'notice-manage'
-        }));
-      }
-    }
+    [...nav.children].forEach(node => normalizeLabel(node));
   }
 
-  function normalizeLabel(node, role) {
+  function normalizeLabel(node) {
     if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
     const current = cleanLabel(node);
-    if (role === 'promotion_staff' && current === '홍보 작성') {
-      node.textContent = '새 홍보글 작성';
-      return;
-    }
-    if (role === 'promotion_staff' && current === '수정·보완 요청') {
-      node.textContent = '보완 요청받은 글';
-      return;
-    }
-    if (role === 'promotion_lead' && current === '홍보 작성') {
-      node.textContent = '새 홍보글 작성';
-      return;
-    }
-    if (role === 'promotion_lead' && ['홍보 검토', '홍보 관리', '승인·검토'].includes(current)) {
-      node.textContent = '홍보글 승인·검토';
-      return;
-    }
-    if (role === 'promotion_lead' && ['글 관리', '홍보 글 관리', '공개글 관리'].includes(current)) {
-      node.textContent = '기존 글 관리';
-      return;
-    }
-    if (role === 'operations_manager' && current === '홍보글 보관·복구') {
-      node.textContent = '홍보글 관리·복구';
-      return;
-    }
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
   }
 
+  function capabilityAllowed(capability, legacyAllowed) {
+    const app = window.TaejangApp;
+    return app?.hasCapabilityContract?.()
+      ? app.can?.(capability) === true
+      : legacyAllowed;
+  }
+
   function ensurePayrollEntry(nav, currentRole) {
-    if (!nav || currentRole !== 'operations_manager') return null;
+    if (!nav || !capabilityAllowed('payroll.manage', currentRole === 'operations_manager')) return null;
     const existing = [...nav.children].find(node => cleanLabel(node) === '근태·급여관리');
     if (existing) return existing;
 
@@ -225,14 +115,19 @@
     link.textContent = '근태·급여관리';
     link.className = 'app-nav-item';
     link.dataset.payrollMvpNav = '1';
+    link.dataset.capabilityAny = 'payroll.manage';
     link.setAttribute('aria-label', '근태·급여관리 사전운영 화면 열기');
     nav.append(link);
     return link;
   }
 
   function ensurePayrollHandoffEntry(nav, currentRole) {
-    if (!nav || !['promotion_lead', 'operations_manager'].includes(currentRole)) return null;
-    const label = currentRole === 'promotion_lead' ? '외부 급여초안 상신' : '외부 급여초안 검토';
+    if (!nav) return null;
+    const canApprove = capabilityAllowed('payroll.handoff.approve', currentRole === 'operations_manager');
+    const canReview = capabilityAllowed('payroll.handoff.review', currentRole === 'promotion_lead');
+    if (!canApprove && !canReview) return null;
+
+    const label = canApprove ? '외부 급여초안 검토' : '외부 급여초안 상신';
     const existing = [...nav.children].find(node => cleanLabel(node) === label);
     if (existing) return existing;
 
@@ -241,15 +136,14 @@
     link.textContent = label;
     link.className = 'app-nav-item';
     link.dataset.payrollHandoffNav = '1';
+    link.dataset.capabilityAny = canApprove ? 'payroll.handoff.approve' : 'payroll.handoff.review';
     link.setAttribute('aria-label', `${label} 화면 열기`);
     nav.append(link);
     return link;
   }
 
-  function supportGroupPriority(role) {
-    if (role === 'promotion_lead') return 105;
-    if (role === 'operations_manager') return 165;
-    return 7900;
+  function supportGroupPriority() {
+    return 235;
   }
 
   function priority(node, role) {
@@ -258,7 +152,7 @@
     if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return supportGroupPriority(role);
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
-    const order = ROLE_ORDER[role] || [];
+    const order = MASTER_ORDER;
     const index = order.indexOf(label);
     if (index >= 0) return index * 10;
     if (label === '홈페이지') return 9000;
@@ -283,7 +177,7 @@
       delete node.dataset.sectionLabel;
     });
 
-    const sections = ROLE_SECTIONS[role] || [];
+    const sections = MASTER_SECTIONS;
     sections.forEach(section => {
       const first = section.items
         .map(label => nodes.find(node => !node.hidden && node.dataset?.navSuppressed !== '1' && node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup && cleanLabel(node) === label))
@@ -320,10 +214,10 @@
     try {
       ensurePayrollEntry(nav, currentRole);
       ensurePayrollHandoffEntry(nav, currentRole);
-      ensureIssue207RoleContract(nav, currentRole);
+      ensureIssue207RoleContract(nav);
       const children = [...nav.children];
       children.forEach(node => {
-        normalizeLabel(node, currentRole);
+        normalizeLabel(node);
         if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup) node.classList.add('app-nav-item');
         markStatus(node);
       });
@@ -376,5 +270,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, reorder, schedule };
+  window.TaejangRoleNavigationPriority = { MASTER_ORDER, MASTER_SECTIONS, ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, reorder, schedule };
 })();

@@ -141,15 +141,25 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
   assert.equal(qa.document.getElementById('desktop-role-label').textContent, '');
 });
 
-test('base role menus remain clickable before final priority sorting', async () => {
+test('all desktop roles start from the same master sidebar before capability pruning', async () => {
+  const expected = [
+    '대시보드',
+    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '홍보 검토', '홍보 글 작성', '보완 요청받은 글',
+    '업무 배정', '일정 관리', '공지 확인', '공지 관리', '상시 안내 관리',
+    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
+    '홈페이지', '공식 채널'
+  ];
+
   const promotion = await makeDashboard('promotion_staff');
-  assert.deepEqual(menuLabels(promotion.nav), ['대시보드', '홍보 작성', '보완 요청받은 글', '공식 채널']);
-  findMenu(promotion.nav, '홍보 작성').click();
+  const operations = await makeDashboard('operations_manager');
+  assert.deepEqual(menuLabels(promotion.nav), expected);
+  assert.deepEqual(menuLabels(operations.nav), expected);
+
+  findMenu(promotion.nav, '홍보 글 작성').click();
   findMenu(promotion.nav, '보완 요청받은 글').click();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
 
-  const operations = await makeDashboard('operations_manager');
-  assert.deepEqual(menuLabels(operations.nav), ['대시보드', '직원 관리', '신규 직원 등록', '홍보 검토', '업무 배정', '일정 관리', '공지 관리', '상시 안내 관리', '가입 승인', '공식 채널']);
   for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['상시 안내 관리','guidance-admin-panel']])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
@@ -176,46 +186,46 @@ test('operations mobile menu actions close the sidebar and dispatch one destinat
   assert.equal(operations.getApprovalOpens(), 1);
 });
 
-test('central navigation groups menus by final work category contracts', () => {
-  const operationsBlock = navPriority.slice(navPriority.indexOf('operations_manager:'), navPriority.indexOf('department_lead:'));
-  assertOrdered(operationsBlock, [
+test('central navigation uses one master order and section contract for every desktop role', () => {
+  const masterStart = navPriority.indexOf('const MASTER_ORDER');
+  const masterEnd = navPriority.indexOf('const MASTER_SECTIONS');
+  const masterBlock = navPriority.slice(masterStart, masterEnd);
+
+  assertOrdered(masterBlock, [
     '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 검토', '홍보 글 작성', '기존 글 관리',
+    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글',
+    '기존 글 관리', '홍보글 관리·복구', '발행 대기',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '일정 관리',
-    '공지 관리',
-    '근태·급여관리', '외부 급여초안 검토', '출근부',
-    '홈페이지'
+    '업무 배정', '일정 관리', '일정 캘린더',
+    '공지 확인', '공지 관리', '상시 안내 관리',
+    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정',
+    '홈페이지', '신규 사업 기획'
   ]);
-  assert.doesNotMatch(operationsBlock, /상시 안내 관리|홍보 글 관리/);
 
-  const leadBlock = navPriority.slice(navPriority.indexOf('promotion_lead:'), navPriority.indexOf('operations_manager:'));
-  assertOrdered(leadBlock, ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록', '가입 승인', '업무 배정', '일정 관리', '출근부', '외부 급여초안 상신', '홈페이지', '신규 사업 기획']);
-  assert.doesNotMatch(leadBlock, /공개글 관리|미발행 글 삭제|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
-
-  assert.match(navPriority, /label:\s*'직원·계정'[\s\S]*'직원 관리'[\s\S]*'신규 직원 등록'[\s\S]*'가입 승인'/);
-  assert.match(navPriority, /label:\s*'홍보'[\s\S]*'홍보 검토'[\s\S]*'홍보 글 작성'[\s\S]*'기존 글 관리'/);
-  assert.match(navPriority, /label:\s*'홈페이지'[\s\S]*'홈페이지 내용 관리'[\s\S]*'홈페이지 직접 수정'/);
-  assert.match(navPriority, /label:\s*'업무 운영'[\s\S]*'업무 배정'[\s\S]*'일정 관리'/);
-  assert.match(navPriority, /label:\s*'공지', items: \['공지 관리'\]/);
-  assert.match(navPriority, /label:\s*'근태·급여', items: \['근태·급여관리', '외부 급여초안 검토', '출근부'\]/);
-  assert.doesNotMatch(navPriority, /작업 매뉴얼/);
+  assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
+  assert.match(navPriority, /label:\s*'직원·계정'/);
+  assert.match(navPriority, /label:\s*'홍보'/);
+  assert.match(navPriority, /label:\s*'홈페이지'/);
+  assert.match(navPriority, /label:\s*'업무 운영'/);
+  assert.match(navPriority, /label:\s*'공지·안내'/);
+  assert.match(navPriority, /label:\s*'근태·급여'/);
+  assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
+  assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_SECTIONS\]\)/);
+  assert.doesNotMatch(navPriority, /promotion_staff:\s*\[/);
+  assert.doesNotMatch(navPriority, /operations_manager:\s*\[/);
   assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
-  assert.match(navPriority, /return 10000/);
-  assert.match(navPriority, /app-nav-checking-first/);
 });
 
-test('official channels are created in the base sidebar from the shared channel config', () => {
-  assert.match(source, /officialChannelRoles = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
+test('official channels are shared public links in the common desktop sidebar', () => {
   assert.match(source, /TaejangOfficialChannels\?\.list/);
   assertOrdered(officialChannelConfig, ['homepage', 'blog', 'youtube']);
   assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
   assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
   assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
   assert.match(source, /dataset\.navSection = 'official_channels'/);
-  assert.match(source, /if \(officialChannelRoles\.has\(route\)\) nav\.append\(makeOfficialChannelGroup\(\)\)/);
-  assert.match(officialChannels, /if \(nav\.querySelector\('\[data-official-channel-group\]'\)\) return/);
+  assert.match(source, /nav\.append\(makeOfficialChannelGroup\(\)\)/);
+  assert.doesNotMatch(officialChannels, /ALLOWED_ROLES/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
 });
@@ -269,14 +279,17 @@ test('checking business planning is clearly marked, remains last and keeps role 
   assert.match(navPriority, /CHECKING = new Set\(\['신규 사업 기획'\]\)/);
 });
 
-test('operations optional authoring and direct homepage editing stay operations-only sidebar tools', () => {
-  assert.match(operationsWriter, /route\(\) !== 'operations_manager'/);
-  assert.match(operationsWriter, /node\.textContent = '홍보 글 작성'/);
-  assert.match(operationsHomepage, /route\(\) !== 'operations_manager'/);
+test('optional authoring and direct homepage editing are capability-driven sidebar tools', () => {
+  assert.match(operationsWriter, /hasCapabilityContract/);
+  assert.match(operationsWriter, /promotion\.edit_any_unpublished/);
+  assert.match(operationsWriter, /dataset\.capabilityAny/);
+  assert.match(operationsHomepage, /hasCapabilityContract/);
+  assert.match(operationsHomepage, /homepage\.direct_edit/);
   assert.match(operationsHomepage, /node\.textContent = '홈페이지 직접 수정'/);
 });
 
-test('attendance navigation remains available to operations manager and promotion lead', () => {
-  assert.match(attendanceAdmin, /new Set\(\['promotion_lead', 'operations_manager'\]\)/);
+test('attendance navigation is capability-driven with legacy role fallback only', () => {
+  assert.match(attendanceAdmin, /attendance\.admin_view/);
+  assert.match(attendanceAdmin, /hasCapabilityContract/);
   assert.match(attendanceAdmin, /'출근부'/);
 });

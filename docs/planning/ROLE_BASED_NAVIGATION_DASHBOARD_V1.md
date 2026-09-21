@@ -1,6 +1,8 @@
 # 역할별 메뉴·대시보드 우선순위 V1
 
-상태: 확정
+상태: **역사적 V1 — 2026-09-21 Issue #320 통합 사이드바 원칙으로 대체됨**
+현재 사이드바 source of truth: `UNIFIED_CAPABILITY_SIDEBAR_V1.md`
+
 확정일: 2026-09-04
 관련 Issue: #103
 

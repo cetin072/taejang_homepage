@@ -108,10 +108,9 @@ check(opsActual.has('operations_manager'), 'operations manager actual role is pr
 check(opsEffective.has('operations_manager'), 'operations manager is effective outside simulation');
 for (const code of [
   'employee.archive', 'employee.restore', 'promotion.write', 'promotion.edit_any_unpublished',
-  'homepage.direct_edit', 'attendance.admin_view', 'attendance.correct',
+  'homepage.direct_edit', 'attendance.admin_view', 'attendance.correct', 'attendance.self_record',
   'task.manage', 'schedule.manage', 'notice.manage', 'guidance.manage', 'simulation.start_lower_role',
 ]) check(opsCaps.has(code), `operations manager receives operational superset capability ${code}`);
-check(!opsCaps.has('attendance.self_record'), 'operations manager never receives personal attendance capability');
 check(!opsCaps.has('technical.bootstrap_super_admin'), 'operations manager does not inherit technical bootstrap capability');
 check(!opsCaps.has('audit.system_raw_read'), 'operations manager does not inherit raw system audit capability');
 
@@ -136,7 +135,7 @@ check(opsActual.has('operations_manager'), 'simulation preserves actual operatio
 check(opsEffective.has('promotion_staff') && opsEffective.size === 1, 'simulation exposes only selected effective operational role');
 check(opsCaps.has('promotion.write') && opsCaps.has('promotion.edit_own'), 'simulated promotion staff receives its normal promotion capabilities');
 check(!opsCaps.has('employee.archive') && !opsCaps.has('task.manage'), 'simulation removes operations-manager operational superset');
-check(!opsCaps.has('attendance.self_record'), 'executive personal attendance remains excluded during lower-role simulation');
+check(opsCaps.has('attendance.self_record'), 'simulated promotion staff retains its normal self-record capability; actual attendance subject policy remains separate');
 const simulatedTaskAdmin = await rpc('get_today_board_admin_options', ops.token, {});
 check(!simulatedTaskAdmin.ok && simulatedTaskAdmin.status === 403, 'simulated lower role cannot use operations-manager task administration');
 const simulationStop = await rpc('set_role_simulation_mode', ops.token, { p_role_code: 'actual' });
@@ -195,7 +194,7 @@ const dualContext = await accessContext(dual);
 const dualCaps = capabilities(dualContext);
 check(dualCaps.has('employee.archive') && dualCaps.has('task.manage'), 'dual account keeps operations-manager operational superset');
 check(dualCaps.has('technical.bootstrap_super_admin') && dualCaps.has('audit.system_raw_read'), 'dual account also keeps actual technical capabilities');
-check(!dualCaps.has('attendance.self_record'), 'dual operations-manager account remains excluded from personal attendance');
+check(dualCaps.has('attendance.self_record'), 'dual operations-manager account keeps the complete operational capability superset');
 const dualTaskAdmin = await rpc('get_today_board_admin_options', dual.token, {});
 check(dualTaskAdmin.ok, 'dual account can use operational RPC because it actually has operations-manager capability');
 

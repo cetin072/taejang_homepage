@@ -41,8 +41,12 @@ test('promotion lead gets direct recoverable delete without duplicate sidebar or
   assert.match(fallback, /function issue181UnifiedLeadManagement\(\)/);
   assert.match(fallback, /if \(issue181UnifiedLeadManagement\(\)\) \{[\s\S]*nav\.hidden = true/);
   assert.match(fallback, /if \(!canArchive\(\) \|\| issue181UnifiedLeadManagement\(\)\) return/);
-  assert.match(nav, /'새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리'/);
-  assert.doesNotMatch(nav.match(/promotion_lead: \[[\s\S]*?\],\n    operations_manager:/)?.[0] || '', /미발행 글 삭제|공개글 관리|상시 안내 관리|수정·보완 요청|보완 요청받은 글/);
+  const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
+  assert.match(master, /'홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글'/);
+  assert.match(master, /'기존 글 관리', '홍보글 관리·복구'/);
+  assert.match(master, /'홈페이지 내용 관리'/);
+  assert.match(master, /'공지 확인', '공지 관리', '상시 안내 관리'/);
+  assert.doesNotMatch(nav, /promotion_lead:\s*\[/);
   assert.match(workflow, /PROMOTION_UNPUBLISHED_ARCHIVE_REQUIRES_NO_PUBLIC_HISTORY/);
 });
 
