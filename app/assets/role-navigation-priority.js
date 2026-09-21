@@ -11,6 +11,8 @@
     '공지 확인', '공지 관리', '상시 안내 관리',
     '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
     '출근부', '근태 보정',
+    '지원사업 레이더', '기업 프로필', '내 지원사업',
+    '설정',
     '홈페이지',
     '신규 사업 기획'
   ]);
@@ -21,7 +23,9 @@
     { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
     { label: '업무 운영', items: ['업무 배정', '일정 관리', '일정 캘린더'] },
     { label: '공지·안내', items: ['공지 확인', '공지 관리', '상시 안내 관리'] },
-    { label: '근태·급여', items: ['근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정'] }
+    { label: '근태·급여', items: ['근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정'] },
+    { label: '지원사업', items: ['지원사업 레이더', '기업 프로필', '내 지원사업'] },
+    { label: '설정', items: ['설정'] }
   ]);
 
   const DESKTOP_ROLES = Object.freeze([
@@ -92,10 +96,41 @@
   }
 
   function normalizeLabel(node) {
-    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
+    if (node.dataset?.navSection === 'official_channels') return;
     const current = cleanLabel(node);
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
+    const registry = window.TaejangPlatformNavigationRegistry;
+    const item = registry?.itemForLabel?.(cleanLabel(node));
+    if (item?.key) node.dataset.menuKey = item.key;
+  }
+
+  function dedupeCanonicalEntries(nav) {
+    const registry = window.TaejangPlatformNavigationRegistry;
+    if (!registry || !nav) return;
+    const seen = new Map();
+
+    [...nav.children].forEach(node => {
+      if (node.dataset?.navSection === 'official_channels') return;
+      const key = registry.keyForNode?.(node);
+      if (!key) return;
+      node.dataset.menuKey = key;
+
+      const existing = seen.get(key);
+      if (!existing) {
+        seen.set(key,node);
+        return;
+      }
+
+      const existingMaster = existing.dataset?.masterMenuItem === '1';
+      const candidateMaster = node.dataset?.masterMenuItem === '1';
+      if (candidateMaster && !existingMaster) {
+        existing.remove();
+        seen.set(key,node);
+      } else {
+        node.remove();
+      }
+    });
   }
 
   function capabilityAllowed(capability, legacyAllowed) {
@@ -152,8 +187,11 @@
     if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return supportGroupPriority(role);
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
-    const order = MASTER_ORDER;
-    const index = order.indexOf(label);
+    const registry = window.TaejangPlatformNavigationRegistry;
+    const key = registry?.keyForNode?.(node);
+    const registryIndex = key ? registry?.orderIndex?.(key) : -1;
+    if (Number.isFinite(registryIndex) && registryIndex >= 0 && registryIndex < 9000) return registryIndex * 10;
+    const index = MASTER_ORDER.indexOf(label);
     if (index >= 0) return index * 10;
     if (label === '홈페이지') return 9000;
     return 8000;
@@ -215,9 +253,10 @@
       ensurePayrollEntry(nav, currentRole);
       ensurePayrollHandoffEntry(nav, currentRole);
       ensureIssue207RoleContract(nav);
+      [...nav.children].forEach(node => normalizeLabel(node));
+      dedupeCanonicalEntries(nav);
       const children = [...nav.children];
       children.forEach(node => {
-        normalizeLabel(node);
         if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup) node.classList.add('app-nav-item');
         markStatus(node);
       });
@@ -270,5 +309,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { MASTER_ORDER, MASTER_SECTIONS, ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, reorder, schedule };
+  window.TaejangRoleNavigationPriority = { MASTER_ORDER, MASTER_SECTIONS, ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, dedupeCanonicalEntries, reorder, schedule };
 })();
