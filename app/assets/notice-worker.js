@@ -28,9 +28,15 @@
     card.append(
       ui.text('p', `${markers.join(' · ') || '공지'} · ${ui.NOTICE_KINDS[item.notice_kind] || '일반공지'}`, 'card-kicker'),
       ui.text('h2', item.title),
-      ui.text('p', item.summary, 'card-body'),
-      ui.text('p', `게시일: ${ui.formatDate(item.publish_start_at)}`, 'help')
+      ui.text('p', item.summary, 'card-body')
     );
+    if (ui.array(item.media).length) {
+      const gallery = document.createElement('div');
+      gallery.className = 'notice-photo-gallery';
+      card.append(gallery);
+      void window.TaejangNoticeMedia?.renderGallery(gallery, item.media.slice(0, 2), { compact: true });
+    }
+    card.append(ui.text('p', `게시일: ${ui.formatDate(item.publish_start_at)}`, 'help'));
     if (item.publish_end_at) card.append(ui.text('p', `표시 종료: ${ui.formatDateTime(item.publish_end_at)}`, 'help'));
     if (item.requires_acknowledgement) {
       card.append(ui.text('p', item.acknowledged ? '내용을 확인했습니다.' : '내용 확인이 필요합니다.', 'status-text'));
@@ -112,6 +118,12 @@
       content.append(ui.text('p', `${ui.IMPORTANCE[notice.importance]} 공지입니다.`, 'status-banner'));
     }
     content.append(ui.text('p', notice.body_easy, 'notice-body'));
+    if (ui.array(notice.media).length) {
+      const gallery = document.createElement('div');
+      gallery.className = 'notice-photo-gallery';
+      content.append(gallery);
+      void window.TaejangNoticeMedia?.renderGallery(gallery, notice.media);
+    }
     const details = document.createElement('dl');
     details.className = 'detail-list';
     ui.appendDetail(details, '공지 종류', ui.NOTICE_KINDS[notice.notice_kind] || '일반공지');
