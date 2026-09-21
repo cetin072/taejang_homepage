@@ -12,6 +12,11 @@ on:
         description: "For apply, type APPLY_NOTICE_300_STAGING exactly"
         required: false
         type: string
+  push:
+    branches:
+      - feat/notice-ops-review-photo
+    paths:
+      - .github/workflows/staging-notice-300.yml
 
 permissions:
   contents: read
@@ -42,11 +47,20 @@ jobs:
           [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_DB_PASSWORD" ]] || { echo "STOP_STAGING_SECRETS_MISSING"; exit 1; }
       - name: Link approved staging project
         run: supabase link --project-ref "$STAGING_PROJECT_REF"
+      - name: Read-only migration inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase migration list || true
+          query="select version, name from supabase_migrations.schema_migrations order by version;"
+          response="$(jq -n --arg query "$query" '{ query: $query, read_only: true }' | curl --fail --silent --show-error --retry 2 --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header "Content-Type: application/json" --data-binary @-)"
+          printf '%s' "$response" | jq -r 'if type == "array" then . elif .result? and (.result | type == "array") then .result else [] end | "REMOTE_MIGRATION_COUNT=\(length)", (.[] | "\(.version)\t\(.name // "")")'
       - name: Migration dry-run
+        if: github.event_name == 'workflow_dispatch'
         run: supabase db push --dry-run
       - name: Apply migration
-        if: inputs.action == 'apply' && inputs.approval == 'APPLY_NOTICE_300_STAGING'
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.approval == 'APPLY_NOTICE_300_STAGING'
         run: supabase db push
       - name: Require exact apply approval
-        if: inputs.action == 'apply' && inputs.approval != 'APPLY_NOTICE_300_STAGING'
+        if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply' && inputs.approval != 'APPLY_NOTICE_300_STAGING'
         run: echo "STOP_NOTICE_300_APPROVAL_REQUIRED" && exit 1
