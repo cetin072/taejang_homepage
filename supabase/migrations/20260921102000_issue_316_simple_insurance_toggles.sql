@@ -404,9 +404,9 @@ begin
     '직원 4대보험 급여공제 ON/OFF 저장',
     jsonb_build_object(
       'payroll_month',p_payroll_month,
-      'national_pension_on',p_national_pension_on,
-      'health_insurance_on',p_health_insurance_on,
-      'employment_insurance_on',p_employment_insurance_on
+      'nps_on',p_national_pension_on,
+      'nhi_on',p_health_insurance_on,
+      'employment_on',p_employment_insurance_on
     )
   );
 
