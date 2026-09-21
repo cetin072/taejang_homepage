@@ -3,6 +3,10 @@
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const can = (capability, legacyRoles = []) => app()?.hasCapabilityContract?.()
+    ? app()?.can?.(capability) === true
+    : legacyRoles.includes(route());
+  const canAny = (capabilities, legacyRoles = []) => capabilities.some(capability => can(capability, legacyRoles));
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   const text = (tag, value, className) => {
@@ -57,11 +61,12 @@
     return [...(document.getElementById('app-nav')?.children || [])].find(node => values.has(cleanLabel(node))) || null;
   }
 
-  function navNode(label, run, key) {
+  function navNode(label, run, key, capabilities = []) {
     const node = document.createElement('button');
     node.type = 'button';
     node.textContent = label;
     node.dataset.issue207Nav = key;
+    if (capabilities.length) node.dataset.capabilityAny = capabilities.join('|');
     node.addEventListener('click', run);
     return node;
   }
@@ -91,7 +96,7 @@
   function ensureExistingContentNav(nav) {
     let node = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
     if (!node) {
-      node = navNode('기존 글 관리', openExistingContent, 'existing-content');
+      node = navNode('기존 글 관리', openExistingContent, 'existing-content', ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore']);
       node.dataset.phaseCPublicationAdmin = '1';
       nav.append(node);
     }
@@ -102,7 +107,7 @@
   function ensureHomepageManagementNav(nav) {
     let node = nav.querySelector('[data-phase-c-v2-nav="homepage"]') || findNav('홈페이지 내용 관리');
     if (!node) {
-      node = navNode('홈페이지 내용 관리', openHomepageManagement, 'homepage-management');
+      node = navNode('홈페이지 내용 관리', openHomepageManagement, 'homepage-management', ['homepage.draft', 'homepage.review', 'homepage.approve_apply']);
       node.dataset.phaseCV2Nav = 'homepage';
       nav.append(node);
     }
@@ -120,49 +125,61 @@
 
   function ensureNavigation() {
     const nav = document.getElementById('app-nav');
-    const currentRoute = route();
-    if (!nav || !currentRoute) return;
+    if (!nav || !route()) return;
 
-    if (currentRoute === 'promotion_staff') {
-      let write = findNav(['홍보 작성', '새 홍보글 작성']);
-      if (!write) {
-        write = navNode('새 홍보글 작성', () => openPromotion('write'), 'write');
-        write.dataset.phaseCV2Nav = 'write';
-        write.dataset.promotionWriteNav = '1';
-        nav.append(write);
-      }
-      write.textContent = '새 홍보글 작성';
+    const canWrite = can('promotion.write', ['promotion_staff', 'promotion_lead', 'operations_manager']);
+    const canEditOwn = can('promotion.edit_own', ['promotion_staff']);
+    const canManageExisting = canAny(
+      ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore'],
+      ['promotion_lead', 'operations_manager']
+    );
+    const canManageHomepage = canAny(
+      ['homepage.draft', 'homepage.review', 'homepage.approve_apply'],
+      ['promotion_lead', 'operations_manager']
+    );
+    const canReviewInformation = can('information.review', ['operations_manager']);
+    const canSubmitInformation = can('information.submit', ['promotion_lead']);
 
-      let revision = findNav(['수정·보완 요청', '보완 요청받은 글']);
-      if (!revision) {
-        revision = navNode('보완 요청받은 글', () => openPromotion('revision'), 'revision');
-        revision.dataset.phaseCV2Nav = 'revision';
-        revision.dataset.promotionReturnedNav = '1';
-        nav.append(revision);
-      }
+    const write = findNav(['홍보 작성', '새 홍보글 작성', '홍보 글 작성']);
+    if (write) {
+      write.textContent = '홍보 글 작성';
+      write.dataset.capabilityAny = 'promotion.write';
+    } else if (canWrite) {
+      const node = navNode('홍보 글 작성', () => openPromotion('write'), 'write', ['promotion.write']);
+      node.dataset.phaseCV2Nav = 'write';
+      nav.append(node);
+    }
+
+    const revision = findNav(['수정·보완 요청', '보완 요청받은 글']);
+    if (revision) {
       revision.textContent = '보완 요청받은 글';
-
-      if (!nav.querySelector('[data-issue207-nav="sent"]')) nav.append(navNode('보낸 글', openSent, 'sent'));
-      removeLegacyInformationNav(nav, 'notice-read');
-      if (!nav.querySelector('[data-issue207-nav="notice-read"]')) nav.append(navNode('공지 확인', openInformationRead, 'notice-read'));
+      revision.dataset.capabilityAny = 'promotion.edit_own|promotion.edit_any_unpublished';
+    } else if (canEditOwn) {
+      const node = navNode(
+        '보완 요청받은 글',
+        () => openPromotion('revision'),
+        'revision',
+        ['promotion.edit_own', 'promotion.edit_any_unpublished']
+      );
+      node.dataset.phaseCV2Nav = 'revision';
+      nav.append(node);
     }
 
-    if (currentRoute === 'promotion_lead') {
-      const review = findNav(['홍보 검토', '홍보 관리', '승인·검토', '홍보글 승인·검토']);
-      if (review) review.textContent = '홍보글 승인·검토';
-      const write = findNav(['홍보 작성', '새 홍보글 작성']);
-      if (write) write.textContent = '새 홍보글 작성';
-      ensureExistingContentNav(nav);
-      ensureHomepageManagementNav(nav);
-      removeLegacyInformationNav(nav, 'notice-manage');
-      if (!nav.querySelector('[data-issue207-nav="notice-manage"]')) nav.append(navNode('공지 관리', openInformationHub, 'notice-manage'));
+    if (canWrite && !nav.querySelector('[data-issue207-nav="sent"]')) {
+      nav.append(navNode('보낸 글', openSent, 'sent', ['promotion.write']));
     }
 
-    if (currentRoute === 'operations_manager') {
-      ensureExistingContentNav(nav);
-      ensureHomepageManagementNav(nav);
-      removeLegacyInformationNav(nav, 'notice-manage');
-      if (!nav.querySelector('[data-issue207-nav="notice-manage"]')) nav.append(navNode('공지 관리', openInformationHub, 'notice-manage'));
+    if (canManageExisting) ensureExistingContentNav(nav);
+    if (canManageHomepage) ensureHomepageManagementNav(nav);
+
+    removeLegacyInformationNav(nav, 'notice-manage');
+    if ((canReviewInformation || canSubmitInformation) && !nav.querySelector('[data-issue207-nav="notice-manage"]')) {
+      nav.append(navNode(
+        '공지 관리',
+        openInformationHub,
+        'notice-manage',
+        ['information.review', 'information.submit', 'notice.manage']
+      ));
     }
   }
 
@@ -344,7 +361,7 @@
   }
 
   async function openInformationHub() {
-    const isOperations = route() === 'operations_manager';
+    const isOperations = can('information.review', ['operations_manager']);
     const target = setPage('공지 관리', '공지', isOperations
       ? '운영팀장이 상신한 공지를 검토하고 승인·게시합니다.'
       : '새 공지를 작성해 운영총괄에게 상신합니다. 운영팀장은 직접 게시할 수 없습니다.');
