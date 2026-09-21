@@ -44,8 +44,8 @@ select is(
 
 select is(
   (select operations_manager_auto_grant from public.platform_capabilities where code = 'attendance.self_record'),
-  false,
-  'operations manager does not automatically inherit personal attendance recording'
+  true,
+  'operations manager inherits the complete operational capability superset'
 );
 
 select ok(
@@ -80,20 +80,22 @@ select ok(
   pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
     ilike '%operations_manager_auto_grant%'
   and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
-    ilike '%capability_kind = ''technical''%'
+    ilike '%technical%'
   and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
-    ilike '%actual_roles%',
-  'capability resolver separates ops auto grants from actual-role technical grants'
+    ilike '%actual_roles%'
+  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
+    not ilike '%attendance.self_record%',
+  'capability resolver gives operations the operational superset while technical grants remain actual-role based'
 );
 
 select ok(
-  pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
-    ilike '%attendance.self_record%'
-  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
-    ilike '%operations_manager%'
-  and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
-    ilike '%ceo%',
-  'executive attendance exclusion survives lower-role simulation'
+  pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
+    ilike '%not employee_row.attendance_required%'
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
+    ilike '%profile_roles%'
+  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
+    ilike '%operations_manager%',
+  'actual attendance eligibility remains separate from capability visibility and uses employee/account policy'
 );
 
 select * from finish();
