@@ -116,14 +116,15 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
-test('accent theme adds restrained color hierarchy and separated sidebar groups', () => {
+test('accent theme keeps restrained colors while real accordion headings own sidebar categories', () => {
   assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
   assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
   assert.match(accentCss, /--app-accent-coral:\s*#a86857/);
   assert.match(accentCss, /dashboard-card:nth-child\(4n \+ 2\)/);
   assert.match(accentCss, /dashboard-intro[\s\S]*border-left:\s*5px solid var\(--app-brand\)/);
-  assert.match(accentCss, /\.app-nav > \.app-nav-section-start\s*\{/);
-  assert.match(accentCss, /content:\s*attr\(data-section-label\)/);
+  assert.doesNotMatch(accentCss, /content:\s*attr\(data-section-label\)/);
+  assert.match(dashboardCss, /\.app-nav > \.app-nav-section-toggle/);
+  assert.match(dashboardCss, /\.app-nav-section-title/);
   assert.match(accentCss, /\.app-nav-channel-group\s*\{/);
   assert.match(accentCss, /\.app-nav-group-label\s*\{/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
@@ -145,11 +146,11 @@ test('all desktop roles start from the same master sidebar before capability pru
   const expected = [
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
-    '홍보 검토', '홍보 글 작성', '보완 요청받은 글',
+    '홍보 글 작성', '보완 요청받은 글', '홍보 검토',
     '업무 배정', '일정 관리', '공지 확인', '공지 관리', '상시 안내 관리',
-    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
-    '지원사업 레이더', '기업 프로필', '설정',
-    '홈페이지', '공식 채널'
+    '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
+    '공식 채널'
   ];
 
   const promotion = await makeDashboard('promotion_staff');
@@ -195,13 +196,14 @@ test('central navigation uses one master order and section contract for every de
   assertOrdered(masterBlock, [
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
-    '홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글',
-    '기존 글 관리', '홍보글 관리·복구', '발행 대기',
+    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
+    '발행 대기', '기존 글 관리', '홍보글 관리·복구',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '일정 관리', '일정 캘린더',
     '공지 확인', '공지 관리', '상시 안내 관리',
-    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정',
-    '홈페이지', '신규 사업 기획'
+    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '기업 프로필', '지원사업 레이더', '내 지원사업',
+    '설정', '신규 사업 기획'
   ]);
 
   assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
@@ -215,7 +217,7 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_SECTIONS\]\)/);
   assert.doesNotMatch(navPriority, /promotion_staff:\s*\[/);
   assert.doesNotMatch(navPriority, /operations_manager:\s*\[/);
-  assert.match(navPriority, /navSection === 'official_channels'\) return 9000/);
+  assert.match(navPriority, /dataset\?\.navSection === 'official_channels'/);
 });
 
 test('official channels are shared public links in the common desktop sidebar', () => {
