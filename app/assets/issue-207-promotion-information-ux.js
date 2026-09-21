@@ -116,7 +116,10 @@
   }
 
   function removeLegacyInformationNav(nav) {
-    const legacy = new Set(['공지·안내 관리', '공지·안내 확인']);
+    const legacy = new Set([
+      '공지 확인', '공지 관리', '상시 안내 관리',
+      '공지·안내 관리', '공지·안내 확인'
+    ]);
     [...nav.children].forEach(node => {
       if (legacy.has(cleanLabel(node))) node.remove();
     });
@@ -136,9 +139,6 @@
       ['homepage.draft', 'homepage.review', 'homepage.approve_apply'],
       ['promotion_lead', 'operations_manager']
     );
-    const canReviewInformation = can('information.review', ['operations_manager']);
-    const canSubmitInformation = can('information.submit', ['promotion_lead']);
-
     const write = findNav(['홍보 작성', '새 홍보글 작성', '홍보 글 작성']);
     if (write) {
       write.textContent = '홍보 글 작성';
@@ -171,20 +171,10 @@
     if (canManageExisting) ensureExistingContentNav(nav);
     if (canManageHomepage) ensureHomepageManagementNav(nav);
 
+    // Goal #327 retires notice/guidance navigation from the operating platform.
+    // Keep the underlying notice workflows callable for legacy/internal uses, but
+    // never inject their entries back into the sidebar.
     removeLegacyInformationNav(nav);
-    if (canReviewInformation || canSubmitInformation) {
-      const existingNotice = findNav('공지 관리');
-      if (!existingNotice?.dataset.issue207Nav) {
-        const replacement = navNode(
-          '공지 관리',
-          openInformationHub,
-          'notice-manage',
-          ['information.review', 'information.submit']
-        );
-        if (existingNotice) existingNotice.replaceWith(replacement);
-        else nav.append(replacement);
-      }
-    }
   }
 
   function scheduleNavigation() {
