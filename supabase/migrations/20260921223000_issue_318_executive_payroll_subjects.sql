@@ -11,7 +11,14 @@ select setval(
     coalesce((
       select max(substring(e.employee_id from 4)::integer)
       from public.employees e
-      where e.employee_id ~ '^TJ-[0-9]{6,}(code,name,description,active,sort_order)
+      where e.employee_id ~ '^TJ-[0-9]{6,}$'
+    ),0),
+    (select last_value from public.employee_number_seq)
+  ),
+  true
+);
+
+insert into public.positions(code,name,description,active,sort_order)
 values(
   'executive_director',
   '상무이사',
