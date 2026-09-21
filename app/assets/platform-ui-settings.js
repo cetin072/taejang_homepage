@@ -3,7 +3,7 @@
 
   const state = {
     roleCode: null,
-    sidebarCollapsed: false,
+    collapsedSections: new Set(),
     dashboardOrder: [],
     hiddenMenuKeys: new Set(),
     navSettings: null,
@@ -60,21 +60,56 @@
       }
     });
     window.TaejangCapabilityUiGates?.refresh?.();
-    window.TaejangRoleNavigationPriority?.schedule?.();
+    window.TaejangRoleNavigationPriority?.refreshSectionVisibility?.();
   }
 
-  function applySidebarPreference() {
-    const shell=el('desktop-app-shell');
-    if(!shell) return;
-    shell.classList.toggle('sidebar-collapsed',Boolean(state.sidebarCollapsed));
-    const toggle=el('sidebar-preference-toggle');
-    if(toggle) {
-      toggle.setAttribute('aria-expanded',String(!state.sidebarCollapsed));
-      toggle.setAttribute('aria-label',state.sidebarCollapsed?'사이드바 펼치기':'사이드바 접기');
-      const label=toggle.querySelector('[data-sidebar-toggle-label]');
-      if(label) label.textContent=state.sidebarCollapsed?'펼치기':'접기';
-      const icon=toggle.querySelector('[data-sidebar-toggle-icon]');
-      if(icon) icon.textContent=state.sidebarCollapsed?'▶':'◀';
+  function applySectionCollapse() {
+    const nav=el('app-nav');
+    if(!nav) return;
+    [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(toggle=>{
+      const key=toggle.dataset.sectionKey;
+      const collapsed=state.collapsedSections.has(key);
+      toggle.setAttribute('aria-expanded',String(!collapsed));
+      toggle.classList.toggle('is-collapsed',collapsed);
+      const icon=toggle.querySelector('[data-section-chevron]');
+      if(icon) icon.textContent=collapsed?'▸':'▾';
+      [...nav.querySelectorAll(`:scope > [data-nav-section="${key}"]`)].forEach(node=>{
+        if(collapsed) node.dataset.sectionCollapsed='1';
+        else delete node.dataset.sectionCollapsed;
+        if(collapsed) {
+          node.hidden=true;
+          node.setAttribute('aria-hidden','true');
+        } else if(node.dataset.roleHidden!=='1' && !node.dataset.capabilityDenied) {
+          node.hidden=false;
+          node.setAttribute('aria-hidden','false');
+        }
+      });
+    });
+    window.TaejangCapabilityUiGates?.refresh?.();
+    window.TaejangRoleNavigationPriority?.refreshSectionVisibility?.();
+  }
+
+  async function saveCollapsedSections() {
+    const role=state.roleCode || currentRole();
+    if(!role) return null;
+    return app().rpc('save_my_sidebar_sections',{
+      p_role_code:role,
+      p_collapsed_sections:[...state.collapsedSections].sort()
+    });
+  }
+
+  async function toggleSection(sectionKey) {
+    if(!sectionKey) return;
+    if(state.collapsedSections.has(sectionKey)) state.collapsedSections.delete(sectionKey);
+    else state.collapsedSections.add(sectionKey);
+    applySectionCollapse();
+    try {
+      await saveCollapsedSections();
+    } catch(error) {
+      if(state.collapsedSections.has(sectionKey)) state.collapsedSections.delete(sectionKey);
+      else state.collapsedSections.add(sectionKey);
+      applySectionCollapse();
+      window.alert(app()?.friendlyError?.(error)||'사이드바 카테고리 상태를 저장하지 못했습니다.');
     }
   }
 
@@ -83,36 +118,13 @@
     if(!role) return null;
     const payload={
       p_role_code:role,
-      p_sidebar_collapsed:Object.prototype.hasOwnProperty.call(partial,'sidebarCollapsed') ? Boolean(partial.sidebarCollapsed) : null,
+      p_sidebar_collapsed:null,
       p_dashboard_order:Object.prototype.hasOwnProperty.call(partial,'dashboardOrder') ? partial.dashboardOrder : null
     };
     const result=await app().rpc('save_my_ui_preferences',payload);
-    state.sidebarCollapsed=Boolean(result?.sidebar_collapsed);
     state.dashboardOrder=cleanArray(result?.dashboard_order);
-    applySidebarPreference();
     applyDashboardOrder();
     return result;
-  }
-
-  async function toggleSidebar() {
-    try {
-      await savePersonal({sidebarCollapsed:!state.sidebarCollapsed});
-    } catch(error) {
-      window.alert(app()?.friendlyError?.(error) || '사이드바 설정을 저장하지 못했습니다.');
-    }
-  }
-
-  function ensureSidebarToggle() {
-    const sidebar=el('app-sidebar');
-    if(!sidebar || sidebar.querySelector('#sidebar-preference-toggle')) return;
-    const node=document.createElement('button');
-    node.id='sidebar-preference-toggle';
-    node.type='button';
-    node.className='sidebar-preference-toggle';
-    node.innerHTML='<span data-sidebar-toggle-icon aria-hidden="true">◀</span><span data-sidebar-toggle-label>접기</span>';
-    node.addEventListener('click',toggleSidebar);
-    sidebar.append(node);
-    applySidebarPreference();
   }
 
   function dashboardCardKey(node) {
@@ -330,15 +342,11 @@
       shell.append(header);
 
       const personal=document.createElement('section'); personal.className='platform-settings-card';
-      personal.append(text('h3','내 화면 옵션'));
-      const sidebarLabel=document.createElement('label'); sidebarLabel.className='platform-settings-toggle';
-      const sidebarCheck=document.createElement('input'); sidebarCheck.type='checkbox'; sidebarCheck.checked=!state.sidebarCollapsed;
-      sidebarLabel.append(sidebarCheck,text('span','사이드바 기본 펼치기'));
-      sidebarCheck.addEventListener('change',async()=>{
-        try{await savePersonal({sidebarCollapsed:!sidebarCheck.checked});}
-        catch(error){sidebarCheck.checked=!state.sidebarCollapsed;window.alert(app()?.friendlyError?.(error)||'설정을 저장하지 못했습니다.');}
-      });
-      personal.append(sidebarLabel,text('p','기본은 펼침입니다. 접기로 저장하면 다음 로그인에서도 접힌 상태를 유지합니다.','help'));
+      personal.append(
+        text('h3','내 화면 옵션'),
+        text('p','사이드바 자체는 항상 펼쳐집니다. 직원·계정, 홍보, 홈페이지 같은 카테고리 제목을 누르면 그 카테고리의 하위 메뉴만 접고 펼칠 수 있으며 상태는 자동 저장됩니다.','help'),
+        text('p','대시보드에서는 “대시보드 수정”을 눌러 카드 순서를 직접 바꿀 수 있습니다.','help')
+      );
       shell.append(personal);
 
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card';
@@ -417,14 +425,13 @@
     state.roleCode=role;
     try {
       const result=await app().rpc('get_my_ui_preferences',{p_role_code:role});
-      state.sidebarCollapsed=Boolean(result?.sidebar_collapsed);
+      state.collapsedSections=new Set(cleanArray(result?.collapsed_sections));
       state.dashboardOrder=cleanArray(result?.dashboard_order);
     } catch {
-      state.sidebarCollapsed=false;
+      state.collapsedSections=new Set();
       state.dashboardOrder=[];
     }
-    ensureSidebarToggle();
-    applySidebarPreference();
+    applySectionCollapse();
     applyDashboardOrder();
     injectDashboardEditor();
   }
@@ -433,7 +440,10 @@
     const nav=el('app-nav');
     if(!nav || nav.dataset.uiPreferenceObserver==='1') return;
     nav.dataset.uiPreferenceObserver='1';
-    new MutationObserver(()=>queueMicrotask(applyRoleVisibility)).observe(nav,{childList:true,subtree:true,characterData:true});
+    new MutationObserver(()=>queueMicrotask(()=>{
+      applyRoleVisibility();
+      applySectionCollapse();
+    })).observe(nav,{childList:true,subtree:false});
   }
 
   function observeDashboard() {
@@ -451,6 +461,8 @@
     observeNavigation();
     observeDashboard();
     await Promise.all([loadPersonalPreferences(),loadRoleVisibility()]);
+    applyRoleVisibility();
+    applySectionCollapse();
   }
 
   document.addEventListener('taejang-open-platform-settings',renderSettings);
@@ -463,6 +475,8 @@
     renderSettings,
     getDashboardOrder:()=>state.dashboardOrder.slice(),
     isDashboardEditing:()=>state.editingDashboard,
-    applyRoleVisibility
+    applyRoleVisibility,
+    applySectionCollapse,
+    toggleSection
   };
 })();
