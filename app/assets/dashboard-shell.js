@@ -207,6 +207,16 @@
         run: () => window.TaejangIssue207Ux?.openInformationRead?.()
       },
       {
+        label: '공지 관리',
+        run: () => openPanel('notice-admin-panel'),
+        capabilities: ['notice.manage']
+      },
+      {
+        label: '상시 안내 관리',
+        run: () => openPanel('guidance-admin-panel'),
+        capabilities: ['guidance.manage']
+      },
+      {
         label: '근태·급여관리',
         href: 'payroll/live.html',
         dataKey: 'payroll-mvp',
@@ -225,16 +235,6 @@
         capabilities: ['payroll.handoff.review']
       },
 
-      {
-        label: '공지 관리',
-        run: () => openPanel('notice-admin-panel'),
-        capabilities: ['notice.manage']
-      },
-      {
-        label: '상시 안내 관리',
-        run: () => openPanel('guidance-admin-panel'),
-        capabilities: ['guidance.manage']
-      },
       { label: '홈페이지', href: '../index.html', newTab: true }
     ];
   }
