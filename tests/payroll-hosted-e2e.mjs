@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright';
 
 const SITE = 'https://taejang.co.kr';
+const BROWSER_SITE = process.env.PAYROLL_HOSTED_PREVIEW_SITE || SITE;
 const STAGING_REF = 'jgsxpdflgkqroecfjzxq';
 const MONTH = '2026-07';
 const EMPLOYEE_ID = 'TJ-000017';
@@ -131,7 +132,17 @@ async function apiSmoke(config, session) {
   };
 }
 
+async function waitForBrowserSite() {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const response = await fetch(`${BROWSER_SITE}/.netlify/functions/staff-config`, { cache: 'no-store' }).catch(() => null);
+    if (response?.ok) return;
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
+  fail('EXACT_HEAD_PREVIEW_NOT_READY');
+}
+
 async function browserE2E(session, targets) {
+  await waitForBrowserSite();
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage();
   const failures = [];
@@ -146,7 +157,7 @@ async function browserE2E(session, targets) {
     if (response.status() >= 400 && (/\/api\/payroll-calculate|\/rest\/v1\/rpc\/(get_payroll_|private_)/).test(url)) failures.push(`network:${response.request().method()} ${response.status()} ${new URL(url).pathname}`);
   });
   try {
-    await page.goto(`${SITE}/app/payroll/live.html?month=${MONTH}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BROWSER_SITE}/app/payroll/live.html?month=${MONTH}`, { waitUntil: 'networkidle' });
     await page.evaluate((value) => sessionStorage.setItem('taejang-staff-session-v1', JSON.stringify(value)), session);
     await page.reload({ waitUntil: 'networkidle' });
     await page.locator('#payroll-readiness-state').getByText('확정 근태 준비 완료').waitFor();
@@ -181,7 +192,7 @@ async function browserE2E(session, targets) {
     assert.notEqual(await page.locator('#payslip-net').textContent(), '검토 필요', 'complete payslip net visible');
     assert.equal(await page.locator('#payslip-deductions').getByText('검토 필요', { exact: true }).count(), 0, 'complete payslip has no unresolved deduction label');
 
-    await page.goto(`${SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BROWSER_SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'networkidle' });
     await page.locator('#payslip-content').waitFor({ state: 'visible' });
     await page.locator('#payslip-message').getByText('개인 급여명세서 초안입니다.', { exact: false }).waitFor();
     await page.locator('#payslip-status').getByText('검토 필요', { exact: true }).waitFor();
