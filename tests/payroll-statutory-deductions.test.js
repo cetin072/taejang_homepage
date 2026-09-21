@@ -145,3 +145,17 @@ test('not-applicable insurance produces zero without changing other statutory ra
   assert.equal(pension.status, 'complete');
   assert.equal(pension.amount, 0);
 });
+
+test('2026 employment insurance uses verified won-unit truncation', () => {
+  const profile = enrolledProfile();
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 1614254,
+    profile,
+    rateRules: rules(),
+  });
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(employment.status, 'complete');
+  assert.equal(employment.amount, 14528);
+  assert.equal(employment.roundingMethod, 'floor_to_1');
+});
