@@ -240,3 +240,61 @@ test('employment insurance age 65 confirmed continuity keeps ordinary contributi
   assert.equal(employment.status, 'complete');
   assert.equal(employment.amount, 16200);
 });
+
+
+test('explicit payroll deduction OFF switches force zero without age or eligibility review', () => {
+  const profile = enrolledProfile();
+  profile.nationalPensionStatus = 'pending_review';
+  profile.healthInsuranceStatus = 'pending_review';
+  profile.employmentInsuranceStatus = 'pending_review';
+  profile.nationalPensionDeductionOverride = false;
+  profile.healthInsuranceDeductionOverride = false;
+  profile.employmentInsuranceDeductionOverride = false;
+  profile.nationalPensionAgeLostOn = '2026-01-01';
+  profile.employmentInsuranceAge65On = '2026-01-01';
+
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-09-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+
+  assert.equal(result.status, 'complete');
+  for (const row of result.rows) {
+    assert.equal(row.status, 'complete');
+    assert.equal(row.amount, 0);
+  }
+});
+
+test('explicit payroll deduction ON switches use annual rates and current pay when a statutory basis is absent', () => {
+  const profile = {
+    nationalPensionStatus: 'pending_review',
+    healthInsuranceStatus: 'pending_review',
+    employmentInsuranceStatus: 'pending_review',
+    nationalPensionDeductionOverride: true,
+    healthInsuranceDeductionOverride: true,
+    employmentInsuranceDeductionOverride: true,
+    nationalPensionAgeLostOn: '2026-01-01',
+    employmentInsuranceAge65On: '2026-01-01',
+    employmentInsuranceOver65Status: 'unknown',
+  };
+
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-09-01',
+    taxableRemuneration: 700000,
+    profile,
+    rateRules: rules(),
+  });
+
+  const pension = result.rows.find((row) => row.code === 'national_pension');
+  const health = result.rows.find((row) => row.code === 'health_insurance');
+  const longTermCare = result.rows.find((row) => row.code === 'long_term_care');
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+
+  assert.equal(result.status, 'complete');
+  assert.equal(pension.amount, 33250);
+  assert.equal(health.amount, 25160);
+  assert.equal(longTermCare.amount, 3300);
+  assert.equal(employment.amount, 6300);
+});
