@@ -83,7 +83,7 @@ test('Issue 325 continuously deduplicates late legacy menu injection and prefers
 test('Issue 325 section collapse composes with role and capability visibility', () => {
   assert.match(gates, /node\.dataset\?\.sectionCollapsed !== '1'/);
   assert.match(gates, /allowed && roleVisible && sectionVisible/);
-  assert.match(settings, /data-section-collapsed/);
+  assert.match(settings, /dataset\.sectionCollapsed/);
   assert.match(settings, /refreshSectionVisibility/);
 });
 
