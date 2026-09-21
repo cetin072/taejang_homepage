@@ -138,3 +138,64 @@ jobs:
             process.exit(1);
           }
           NODE
+
+      - name: Verify schema evidence for local-only migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="
+          select
+            -- 20260903154500 homepage change requests
+            (to_regclass('public.homepage_change_requests') is not null) as homepage_change_requests_table,
+            (to_regprocedure('public.create_homepage_change_request(text,text,text,text,text,text,text,text)') is not null) as homepage_create_rpc,
+            (to_regprocedure('public.get_homepage_change_requests()') is not null) as homepage_list_rpc,
+            (to_regprocedure('public.review_homepage_change_request(uuid,text,text)') is not null) as homepage_review_rpc,
+
+            -- 20260911150000 support radar capability contract
+            (select count(*)::int from public.platform_capabilities
+              where code in ('support_radar.management_view','support_radar.management_edit','support_radar.assigned_work')
+                and active) as support_capability_count,
+            (select count(*)::int
+               from public.role_capability_grants grant_row
+               join public.roles role on role.id = grant_row.role_id
+              where grant_row.capability_code in ('support_radar.management_view','support_radar.assigned_work')
+                and role.code in ('ceo','department_lead','promotion_lead','promotion_staff','worker_support_lead','worker_support_staff','office_staff')
+            ) as support_role_grant_count,
+
+            -- 20260913070500 upper review archive guard
+            (to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)') is not null) as archive_guard_rpc,
+            position(
+              'PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED'
+              in coalesce(pg_get_functiondef(to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)')), '')
+            ) > 0 as archive_guard_signature,
+
+            -- 20260915150000 field operations foundation
+            exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_time_block') as field_time_block_type,
+            exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_assignment_override_action') as field_override_type,
+            (to_regclass('public.work_group_employee_memberships') is not null) as field_memberships_table,
+            (to_regclass('public.field_work_templates') is not null) as field_templates_table,
+            (to_regclass('public.field_assignment_employee_overrides') is not null) as field_overrides_table,
+            (select count(*)::int from public.platform_capabilities
+              where code in ('field.membership.manage','field.template.manage','field.assignment.manage')
+                and active) as field_capability_count,
+            (to_regprocedure('public.get_field_assignment_roster(uuid)') is not null) as field_roster_rpc,
+
+            -- 20260918133000 notification push foundation
+            (to_regclass('public.notification_devices') is not null) as notification_devices_table,
+            (to_regclass('public.notification_events') is not null) as notification_events_table,
+            (to_regclass('public.notification_deliveries') is not null) as notification_deliveries_table,
+            exists(select 1 from pg_trigger where tgrelid='public.notices'::regclass and tgname='notices_queue_native_push' and not tgisinternal) as notification_trigger,
+            (to_regprocedure('public.register_my_notification_device(uuid,text,text,text,text)') is not null) as notification_register_rpc,
+            (to_regprocedure('public.private_claim_notification_push_batch(uuid,integer)') is not null) as notification_claim_rpc,
+
+            -- remote-only contamination discovery
+            (select count(*)::int from information_schema.tables
+              where table_schema='public' and table_name ilike '%survival%') as survival_table_count,
+            (select count(*)::int from information_schema.columns
+              where table_schema='public' and column_name ilike '%gm_state%') as gm_state_column_count;
+          "
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/schema-evidence.json
+          row="$(jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end' /tmp/schema-evidence.json)"
+          [[ -n "$row" && "$row" != "null" ]] || { echo "STOP_SCHEMA_EVIDENCE_RESPONSE"; exit 1; }
+          echo "SCHEMA_EVIDENCE=$row"
