@@ -337,7 +337,12 @@
         actorId,
         payrollMonth: request.payrollMonth,
       });
-      const statutoryInputFingerprint = await sha256Hex(statutoryInput || {});
+      let statutoryInputFingerprint;
+      try {
+        statutoryInputFingerprint = await sha256Hex(statutoryInput || {});
+      } catch {
+        fail('PAYROLL_STATUTORY_FINGERPRINT_FAILED');
+      }
       const statutoryRateRules = Array.isArray(statutoryInput && statutoryInput.rate_rules)
         ? statutoryInput.rate_rules
         : [];
