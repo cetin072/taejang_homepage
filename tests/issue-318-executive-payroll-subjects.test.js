@@ -19,6 +19,10 @@ const runSchemaReconcile = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260921225000_issue_318_statutory_run_schema_reconcile.sql'),
   'utf8'
 );
+const legacyMonthlyPersistence = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260921225500_issue_318_legacy_monthly_persistence.sql'),
+  'utf8'
+);
 
 test('Issue 318 registers final-ledger executive recipients as non-attendance monthly payroll employees', () => {
   assert.match(migration, /'이영희',date '2026-06-09',null,ceo_position_id,false/i);
@@ -86,4 +90,13 @@ test('trusted persistence accepts monthly salary results and keeps review rows f
 test('statutory run fingerprint column exists on clean databases before linted persistence use', () => {
   assert.match(runSchemaReconcile, /add column if not exists statutory_input_fingerprint text/i);
   assert.match(runSchemaReconcile, /payroll_calculation_runs_statutory_input_fingerprint_check/i);
+});
+
+
+test('legacy service-role persistence overload accepts monthly salary too', () => {
+  assert.match(legacyMonthlyPersistence, /'monthly_salary'/);
+  assert.match(legacyMonthlyPersistence, /'monthly_salary_review_required'/);
+  assert.match(legacyMonthlyPersistence, /grant execute on function public\.private_persist_payroll_calculation/i);
+  assert.match(legacyMonthlyPersistence, /to service_role/i);
+  assert.match(legacyMonthlyPersistence, /from public,anon,authenticated/i);
 });
