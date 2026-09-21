@@ -84,7 +84,7 @@ test('deployed staging wrapper adds statutory input through one server-only RPC 
 });
 
 test('2026 statutory rule changes use a new persisted calculation version', () => {
-  assert.match(deployedWrapper, /calculationVersion:\s*'payroll-engine-workweek-golden-v5-age-insurance-eligibility'/);
+  assert.match(deployedWrapper, /calculationVersion:\s*'payroll-engine-workweek-golden-v6-simple-insurance-toggles'/);
   assert.doesNotMatch(deployedWrapper, /calculationVersion:\s*'payroll-engine-workweek-golden-v2'/);
 });
 
