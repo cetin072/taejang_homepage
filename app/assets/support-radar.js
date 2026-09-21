@@ -567,17 +567,28 @@
     card.dataset.supportRadarShortcut = '1';
     card.append(text('span', '지원사업', 'status-label'), text('h3', '지원사업 레이더'), text('p', '기업 프로필을 기준으로 지원사업을 찾고 검토합니다.'));
     const actions = document.createElement('div'); actions.className = 'support-radar-actions';
-    actions.append(button('레이더 열기', () => open('dashboard')), button('기업 프로필', () => open('profile'), true));
+    actions.append(
+      button('레이더 열기', () => { window.location.href = 'index.html?support=radar'; }),
+      button('기업 프로필', () => { window.location.href = 'index.html?support=profile'; }, true)
+    );
     card.append(actions);
     grid.append(card);
+  }
+
+  function requestedView() {
+    const value = new URLSearchParams(window.location.search).get('support');
+    if (value === 'profile') return 'profile';
+    if (value === 'radar') return 'dashboard';
+    return null;
   }
 
   function setup() {
     if (!canUse()) return;
     state.active = false;
     queueMicrotask(() => {
-      injectNavigation();
       injectDashboardShortcut();
+      const view = requestedView();
+      if (view) open(view);
     });
   }
 
