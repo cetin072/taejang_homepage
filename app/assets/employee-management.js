@@ -780,6 +780,11 @@
       const isGlobalPromotionLead = context.access_level === 'promotion_lead_global';
       intro.append(el('p', isOps ? '운영총괄 직원관리' : isGlobalPromotionLead ? '운영팀장 전사 직원등록' : '내 팀 직원관리', 'eyebrow'), el('h2', isOps || isGlobalPromotionLead ? '직원 관리' : '팀 직원 관리'));
       intro.append(el('p', isOps ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : isGlobalPromotionLead ? '모든 부서·팀 또는 미배정 신규 직원을 직접 등록할 수 있습니다. 직원번호는 서버가 발급하며, 삭제는 운영총괄만 할 수 있습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
+      if (isOps && typeof window.TaejangIssue146?.openOperationsSafety === 'function') {
+        const rareActions = el('div', null, 'quick-links');
+        rareActions.append(button('삭제 직원 복구·계정 연결', () => window.TaejangIssue146.openOperationsSafety(), true));
+        intro.append(rareActions);
+      }
       shell.append(intro, employeeViewTabs(context));
 
       if (activeEmployeeView === 'existing' && context.can_manage_sensitive_identity) {
