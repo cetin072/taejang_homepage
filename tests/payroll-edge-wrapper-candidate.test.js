@@ -163,3 +163,16 @@ test('trusted payroll runtime fingerprints statutory input separately from atten
   assert.match(migration, /current_input_fingerprint \|\| '\|' \|\| p_statutory_input_fingerprint/);
   assert.match(migration, /INVALID_PAYROLL_STATUTORY_INPUT_FINGERPRINT/);
 });
+
+
+test('payroll run unique identity includes statutory input fingerprint', () => {
+  const uniqueMigration = fs.readFileSync(
+    path.join(root, 'supabase/migrations/20260921064500_issue_312_statutory_input_unique_key.sql'),
+    'utf8'
+  );
+  assert.match(uniqueMigration, /drop constraint if exists payroll_calculation_runs_payroll_month_id_calculation_versi_key/i);
+  assert.match(
+    uniqueMigration,
+    /unique\s*\(\s*payroll_month_id,\s*calculation_version,\s*input_fingerprint,\s*statutory_input_fingerprint,\s*cutoff_date\s*\)/i
+  );
+});
