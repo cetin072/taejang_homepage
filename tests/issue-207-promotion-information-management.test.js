@@ -8,6 +8,7 @@ const { execFileSync } = require('node:child_process');
 
 const root = path.resolve(__dirname, '..');
 const ux = fs.readFileSync(path.join(root, 'app/assets/issue-207-promotion-information-ux.js'), 'utf8');
+const dashboardShell = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const publicationAdmin = fs.readFileSync(path.join(root, 'app/assets/phase-c-publication-admin.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
 const navigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
@@ -43,45 +44,49 @@ test('issue 207 capability kinds stay inside the platform capability contract', 
   assert.doesNotMatch(migration, /'operation'/);
 });
 
-test('promotion staff write screen separates sent and revision queues from composer', () => {
-  assert.match(ux, /'새 홍보글 작성'/);
-  assert.match(ux, /navNode\('새 홍보글 작성'/);
+test('promotion writing uses canonical shared sidebar labels with capability registration', () => {
+  assert.match(ux, /navNode\('홍보 글 작성'/);
+  assert.match(ux, /promotion\.write/);
   assert.match(ux, /'보낸 글'/);
   assert.match(ux, /'보완 요청받은 글'/);
+  assert.match(ux, /promotion\.edit_own/);
   assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
   assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
   assert.match(ux, /item\.submitted_at/);
 });
 
-test('promotion lead navigation restores missing management entries and uses notice-only labels', () => {
-  assert.match(ux, /review\.textContent = '홍보글 승인·검토'/);
-  assert.match(ux, /write\.textContent = '새 홍보글 작성'/);
+test('promotion and homepage management sidebar slots are capability-driven', () => {
+  assert.match(ux, /canManageExisting/);
+  assert.match(ux, /promotion\.manage_recent_public/);
+  assert.match(ux, /promotion\.archive/);
   assert.match(ux, /ensureExistingContentNav\(nav\)/);
+  assert.match(ux, /canManageHomepage/);
+  assert.match(ux, /homepage\.draft/);
+  assert.match(ux, /homepage\.review/);
+  assert.match(ux, /homepage\.approve_apply/);
   assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
   assert.match(ux, /node\.dataset\.phaseCPublicationAdmin = '1'/);
   assert.match(ux, /node\.dataset\.phaseCV2Nav = 'homepage'/);
-  assert.match(ux, /navNode\('공지 관리'/);
+  assert.match(ux, /information\.review/);
+  assert.match(ux, /information\.submit/);
+  assert.match(ux, /navNode\(\s*'공지 관리'/);
   assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
   assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
-  assert.doesNotMatch(ux, /navNode\('공지·안내 관리'/);
   assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
   assert.doesNotMatch(ux, /MutationObserver/);
 });
 
-test('issue 216 final sidebar contract removes jitter and keeps support after attendance', () => {
-  assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace still exposes the source that previously leaked into lead navigation');
+test('issue 216 navigation stability now applies to the shared master sidebar contract', () => {
+  assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace source remains tolerated and normalized');
   assert.match(navigation, /function ensureIssue207RoleContract/);
-  assert.match(navigation, /currentRole === 'promotion_lead'/);
-  assert.match(navigation, /node\.dataset\?\.phaseCV2Nav === 'revision'/);
-  assert.match(navigation, /\['수정·보완 요청', '보완 요청받은 글'\]\.includes/);
-  assert.match(navigation, /review\.textContent = '홍보글 승인·검토'/);
-  assert.match(navigation, /navButton\('기존 글 관리'/);
-  assert.match(navigation, /navButton\('홈페이지 내용 관리'/);
-  assert.match(navigation, /navButton\('공지 관리'/);
+  assert.match(navigation, /const MASTER_ORDER = Object\.freeze/);
+  assert.match(navigation, /const MASTER_SECTIONS = Object\.freeze/);
+  assert.match(navigation, /LABEL_RENAMES/);
+  assert.match(navigation, /\['수정·보완 요청', '보완 요청받은 글'\]/);
   assert.match(navigation, /supportGroupPriority/);
-  assert.match(navigation, /role === 'promotion_lead'\) return 105/);
-  assert.match(navigation, /role === 'operations_manager'\) return 165/);
-  assert.match(navigation, /'출근부',[\s\S]*'홈페이지'/);
+  assert.doesNotMatch(navigation, /role === 'promotion_lead'\) return 105/);
+  assert.doesNotMatch(navigation, /role === 'operations_manager'\) return 165/);
+  assert.match(navigation, /'출근부', '근태 보정'/);
   assert.doesNotMatch(navigation, /\[0, 120, 360, 850\]\.forEach/);
   assert.doesNotMatch(navigation, /new MutationObserver/);
   assert.match(navigation, /taejang-navigation-changed/);
@@ -149,11 +154,11 @@ test('notice approval lane remains operations-approved while the UI removes stan
   assert.doesNotMatch(ux, /navNode\('공지·안내/);
 });
 
-test('promotion staff read navigation is notice-only', () => {
-  assert.match(ux, /navNode\('공지 확인'/);
+test('notice reading is a shared desktop sidebar slot while its data remains user-scoped', () => {
+  assert.match(dashboardShell, /label: '공지 확인'/);
+  assert.match(dashboardShell, /TaejangIssue207Ux\?\.openInformationRead/);
   assert.match(ux, /setPage\('공지 확인'/);
   assert.match(ux, /get_my_notice_list/);
   assert.doesNotMatch(ux, /get_my_staff_guidance_list/);
-  assert.doesNotMatch(ux, /navNode\('공지·안내 확인'/);
   assert.doesNotMatch(ux, /setPage\('공지·안내 확인'/);
 });
