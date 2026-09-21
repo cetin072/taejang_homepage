@@ -31,3 +31,24 @@ test('statutory input is effective-dated for both rate rules and employee profil
   assert.match(migration, /p\.effective_from <= month_end/i);
   assert.match(migration, /p\.effective_to is null or p\.effective_to >= month_start/i);
 });
+
+
+const fingerprintMigration = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260921080000_issue_314_statutory_input_fingerprint.sql'),
+  'utf8'
+);
+
+test('canonical payroll input v2 includes deterministic statutory fingerprint', () => {
+  assert.match(fingerprintMigration, /private_get_payroll_statutory_input_fingerprint/);
+  assert.match(fingerprintMigration, /md5\(coalesce\(public\.private_get_payroll_statutory_input\(p_payroll_month\)/);
+  assert.match(fingerprintMigration, /'input_basis_version','payroll-db-input-v2-statutory'/);
+  assert.match(fingerprintMigration, /'statutory_input_fingerprint',statutory_fingerprint/);
+  assert.match(fingerprintMigration, /'input_basis_fingerprint',[\s\S]*md5\(fingerprint_basis::text\)/);
+  assert.doesNotMatch(fingerprintMigration, /resident_registration|decrypted_secret|resident_secret_id/i);
+});
+
+test('Issue 314 preserves the pre-change builder behind the statutory-aware wrapper', () => {
+  assert.match(fingerprintMigration, /rename to private_build_payroll_calculation_input_pre314/i);
+  assert.match(fingerprintMigration, /private_build_payroll_calculation_input_pre314\(/i);
+  assert.match(fingerprintMigration, /revoke all on function public\.private_build_payroll_calculation_input\(date,date,uuid\)/i);
+});
