@@ -351,6 +351,14 @@ equal(inputFirst.data?.confirmed_attendance?.attendance_fingerprint, inputSecond
 equal(inputFirst.data?.input_basis_fingerprint, inputSecond.data?.input_basis_fingerprint, 'complete canonical payroll input fingerprint is reproducible');
 equal(inputFirst.data?.attendance?.length, 23, 'native payroll input contains one immutable confirmed record per required fixture weekday');
 equal(inputFirst.data?.attendance_batches?.input_mode, 'confirmed_native', 'calculation input explicitly identifies the confirmed-native source');
+equal(inputFirst.data?.employees?.length, 3, 'canonical payroll input includes one fixture employee plus two non-attendance monthly executives');
+const executiveTerms = (inputFirst.data?.terms || []).filter(term => term?.pay_type === 'monthly');
+equal(executiveTerms.length, 2, 'canonical payroll input includes both fixed monthly executive terms');
+check(
+  executiveTerms.some(term => Number(term?.monthly_salary) === 3200000)
+    && executiveTerms.some(term => Number(term?.monthly_salary) === 4500000),
+  'executive monthly salary terms preserve the seeded final-ledger amounts',
+);
 
 sql(`insert into public.payroll_months(payroll_month,status) values ('2026-09-01','draft') on conflict(payroll_month) do nothing`);
 const calculate = coreApi.createPayrollCalculateCore({
@@ -386,14 +394,14 @@ const calculate = coreApi.createPayrollCalculateCore({
 const payroll = await calculate({ payroll_month: '2026-09-01', cutoff_date: '2026-09-30' });
 equal(payroll.ok, true, 'current payroll engine accepts confirmed-native input without a legacy XLS batch token');
 equal(payroll.status, 'provisional_ready', 'fixture month produces a complete company payroll draft');
-equal(payroll.employeeCount, 1, 'company payroll draft validates the expected employee count');
+equal(payroll.employeeCount, 3, 'company payroll draft includes the fixture employee plus both fixed monthly executives');
 equal(payroll.unresolvedItemCount, 0, 'company payroll draft has no unresolved attendance or weekly-holiday items');
 equal(payroll.rateReviewCount, 0, 'company payroll draft has no pay-rate review items');
-equal(payroll.grossPayPreview, 2299200, 'company payroll draft total reflects the reconfirmed stale-input correction deterministically');
+equal(payroll.grossPayPreview, 9999200, 'company payroll draft total includes the fixture employee plus both fixed monthly executive salaries');
 equal(
   sql(`select employee_count::text || '|' || gross_pay_preview::text || '|' || confirmed_attendance_fingerprint
        from public.payroll_calculation_runs order by created_at desc limit 1`).split('|').slice(0, 2).join('|'),
-  '1|2299200.00',
+  '3|9999200.00',
   'trusted persistence validator stores the expected company draft totals',
 );
 equal(
