@@ -119,7 +119,7 @@ A tightly scoped service-role client may be evaluated only for calling this sing
 
 The calculation identity remains:
 
-`(payroll_month_id, calculation_version, input_fingerprint, cutoff_date)`
+`(payroll_month_id, calculation_version, input_fingerprint, statutory_input_fingerprint, cutoff_date)`
 
 Two identical requests must converge on one canonical run.
 
