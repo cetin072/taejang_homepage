@@ -78,6 +78,9 @@
       .employee-meta dt { color:var(--app-muted); font-size:.82rem; }
       .employee-meta dd { margin:0; font-weight:750; }
       .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
+      .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
+      .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }
+      .employee-sensitive-bulk .message { margin:0; white-space:pre-line; }
       .employee-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
       .employee-form label { display:grid; gap:6px; font-weight:800; }
       .employee-form input,.employee-form select { width:100%; min-height:44px; padding:9px 10px; border:1px solid var(--app-border); border-radius:9px; background:#fff; font:inherit; }
@@ -239,6 +242,139 @@
       }
     });
     return form;
+  }
+
+  function normalizeResidentNumber(value) {
+    return String(value || '').replace(/[^0-9]/g, '');
+  }
+
+  function residentNumberChecksumValid(value) {
+    const digits = normalizeResidentNumber(value);
+    if (!/^\d{13}$/.test(digits) || !/[1-4]/.test(digits[6])) return false;
+    const century = ['1','2'].includes(digits[6]) ? 1900 : 2000;
+    const year = century + Number(digits.slice(0,2));
+    const month = Number(digits.slice(2,4));
+    const day = Number(digits.slice(4,6));
+    const probe = new Date(Date.UTC(year, month - 1, day));
+    if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return false;
+    const weights = [2,3,4,5,6,7,8,9,2,3,4,5];
+    const sum = weights.reduce((total, weight, index) => total + Number(digits[index]) * weight, 0);
+    return ((11 - (sum % 11)) % 10) === Number(digits[12]);
+  }
+
+  function parseResidentBulkPaste(text, employees) {
+    const employeeMap = new Map();
+    arr(employees).forEach(employee => {
+      const name = String(employee.full_name || '').trim();
+      if (!employeeMap.has(name)) employeeMap.set(name, []);
+      employeeMap.get(name).push(employee);
+    });
+
+    const rows = [];
+    const errors = [];
+    const skipped = [];
+    const seen = new Map();
+
+    String(text || '').split(/\r?\n/).forEach((rawLine, index) => {
+      const line = rawLine.trim();
+      if (!line) return;
+      const cells = rawLine.split('\t');
+      const name = String(cells[0] || '').trim();
+      const rawResident = String(cells[1] || '').trim();
+      if (!name || /성명/.test(name) && /주민등록번호/.test(rawResident)) return;
+      if (cells.length < 2 || !rawResident) {
+        errors.push(`${index + 1}행: 이름과 주민등록번호 2개 열이 필요합니다.`);
+        return;
+      }
+
+      const resident = normalizeResidentNumber(rawResident);
+      if (!residentNumberChecksumValid(resident)) {
+        errors.push(`${name}: 주민등록번호 형식 또는 체크섬을 확인해 주세요.`);
+        return;
+      }
+
+      if (seen.has(name)) {
+        if (seen.get(name) === resident) return;
+        errors.push(`${name}: 붙여넣기 안에 서로 다른 주민번호가 중복되어 있습니다.`);
+        return;
+      }
+      seen.set(name, resident);
+
+      const matches = employeeMap.get(name) || [];
+      if (!matches.length) {
+        errors.push(`${name}: 현재 직원 DB에서 찾지 못했습니다.`);
+        return;
+      }
+      if (matches.length > 1) {
+        errors.push(`${name}: 동명이인이 있어 개별 등록이 필요합니다.`);
+        return;
+      }
+      if (matches[0].resident_number_registered) {
+        skipped.push(`${name}: 이미 암호화 등록됨`);
+        return;
+      }
+
+      rows.push({ employee_uuid: matches[0].id, resident_number: resident });
+    });
+
+    return { rows, errors, skipped };
+  }
+
+  function bulkResidentImportPanel(context) {
+    if (!context.can_manage_sensitive_identity) return null;
+    const section = el('section', null, 'dashboard-section');
+    const box = el('div', null, 'employee-sensitive-bulk');
+    const textarea = document.createElement('textarea');
+    textarea.autocomplete = 'off';
+    textarea.spellcheck = false;
+    textarea.placeholder = '엑셀에서 성명 + 주민등록번호 두 열을 복사해 그대로 붙여넣으세요.\n예: 홍길동<TAB>000000-0000000';
+    textarea.setAttribute('aria-label', '주민등록번호 일괄등록 붙여넣기');
+    const message = el('p', '', 'message');
+    const submit = button('검증 후 일괄 암호화 저장', async () => {
+      message.textContent = '';
+      const parsed = parseResidentBulkPaste(textarea.value, context.employees);
+      if (parsed.errors.length) {
+        message.classList.add('error');
+        message.textContent = `저장하지 않았습니다.\n${parsed.errors.join('\n')}`;
+        parsed.rows.length = 0;
+        return;
+      }
+      if (!parsed.rows.length) {
+        message.classList.remove('error');
+        message.textContent = parsed.skipped.length ? parsed.skipped.join('\n') : '등록할 새 직원이 없습니다.';
+        return;
+      }
+      if (!window.confirm(`${parsed.rows.length}명의 주민등록번호를 Vault에 암호화 저장합니다. 계속할까요?`)) {
+        parsed.rows.length = 0;
+        return;
+      }
+
+      submit.disabled = true;
+      try {
+        const result = await app().rpc('bulk_set_employee_resident_registration_numbers', { p_rows: parsed.rows });
+        textarea.value = '';
+        parsed.rows.length = 0;
+        message.classList.remove('error');
+        message.textContent = `${Number(result.saved_count || 0)}명 암호화 등록이 완료됐습니다.`;
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        textarea.value = '';
+        parsed.rows.length = 0;
+        message.classList.add('error');
+        message.textContent = app().friendlyError?.(error) || error.message || '일괄 등록에 실패했습니다. 전체 저장은 취소됐습니다.';
+      } finally {
+        submit.disabled = false;
+      }
+    });
+    box.append(
+      el('h2', '주민등록번호 일괄 암호화 등록'),
+      el('p', '엑셀의 성명·주민등록번호 두 열을 복사해 붙여넣습니다. 원문은 저장 후 화면에 남기지 않으며, 한 행이라도 오류가 있으면 전체 저장을 취소합니다.', 'help'),
+      textarea,
+      submit,
+      message
+    );
+    section.append(box);
+    return section;
   }
 
   function nationalPensionAgeLabel(status) {
@@ -488,6 +624,11 @@
       intro.append(el('p', isOps ? '운영총괄 직원관리' : isGlobalPromotionLead ? '운영팀장 전사 직원등록' : '내 팀 직원관리', 'eyebrow'), el('h2', isOps || isGlobalPromotionLead ? '직원 관리' : '팀 직원 관리'));
       intro.append(el('p', isOps ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : isGlobalPromotionLead ? '모든 부서·팀 또는 미배정 신규 직원을 직접 등록할 수 있습니다. 직원번호는 서버가 발급하며, 삭제는 운영총괄만 할 수 있습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
       shell.append(intro, employeeViewTabs(context));
+
+      if (activeEmployeeView === 'existing' && context.can_manage_sensitive_identity) {
+        const bulkPanel = bulkResidentImportPanel(context);
+        if (bulkPanel) shell.append(bulkPanel);
+      }
 
       if (activeEmployeeView === 'new') {
         const createSection = el('section', null, 'dashboard-section');
