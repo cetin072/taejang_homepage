@@ -8,6 +8,14 @@ const APP_HTML = join(DIST_ROOT, 'app/index.html');
 const LIVE_HTML = join(DIST_ROOT, 'app/payroll/live.html');
 const SESSION_KEY = 'taejang-staff-session-v1';
 const STAGE_KEY = 'payroll-platform-entry-stage';
+const uiPreferences = {
+  role_code: 'operations_manager',
+  sidebar_collapsed: false,
+  collapsed_sections: [],
+  sidebar_section_order: [],
+  sidebar_menu_order: [],
+  dashboard_order: [],
+};
 
 if (!existsSync(APP_HTML) || !existsSync(LIVE_HTML)) {
   throw new Error('PAYROLL_PLATFORM_ENTRY_REQUIRES_DIST_BUILD');
@@ -21,6 +29,12 @@ function json(response, status, value) {
     'Content-Length': Buffer.byteLength(body),
   });
   response.end(body);
+}
+
+async function requestJson(request) {
+  let body = '';
+  for await (const chunk of request) body += chunk;
+  return body ? JSON.parse(body) : {};
 }
 
 const sessionBootstrap = `<script>
@@ -77,17 +91,107 @@ const appAutomation = `<script>
       if (link.target !== '_blank' || !/(^|\\s)noopener(\\s|$)/.test(link.rel || '')) {
         throw new Error('PAYROLL_NAV_NEW_TAB_SAFETY_MISSING');
       }
-
       await waitFor(
         () => document.querySelector('[data-priority-dashboard-card="근태·급여관리"]'),
         'payroll dashboard card'
       );
 
-      sessionStorage.setItem(stageKey, 'from-operations-manager-platform');
-      // The product link deliberately opens an independent payroll workspace in
-      // a new tab. Follow its verified href in this single-page harness so the
-      // bootstrap assertions can still run in Chromium's dumped document.
-      window.location.assign(link.href);
+      const persistedLayoutKey = stageKey + ':layout';
+      const persistedLayout = sessionStorage.getItem(persistedLayoutKey);
+      if (persistedLayout) {
+        const expected = JSON.parse(persistedLayout);
+        const nav = document.getElementById('app-nav');
+        const sectionKeys = () => [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')]
+          .map(node => node.dataset.sectionKey);
+        const cardKeys = () => [...document.querySelectorAll('#dashboard-main .dashboard-grid > [data-dashboard-card-key]')]
+          .map(card => card.dataset.dashboardCardKey);
+        await waitFor(
+          () => sectionKeys().join('|') === expected.sections.join('|'),
+          'sidebar layout after reload'
+        );
+        await waitFor(
+          () => cardKeys().join('|') === expected.cards.join('|'),
+          'dashboard layout after reload'
+        );
+        await waitFor(
+          () => document.querySelector('[data-priority-dashboard-card="근태·급여관리"]'),
+          'payroll dashboard card after layout reload'
+        );
+        sessionStorage.removeItem(persistedLayoutKey);
+        sessionStorage.setItem(stageKey, 'from-operations-manager-platform');
+        window.location.assign(link.href);
+        return;
+      }
+
+      const nav = document.getElementById('app-nav');
+      const sectionKeys = () => [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')]
+        .map(node => node.dataset.sectionKey);
+      const sidebarActions = await waitFor(
+        () => document.querySelector('[data-sidebar-layout-actions]'),
+        'sidebar layout editor'
+      );
+      const action = (container, label) => [...container.querySelectorAll('button')]
+        .find(button => button.textContent.trim() === label);
+      const defaultSections = sectionKeys();
+      if (defaultSections.length < 2) throw new Error('SIDEBAR_SECTION_TEST_DATA_MISSING');
+      action(sidebarActions, '메뉴 편집')?.click();
+      await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit mode');
+      if ([...sidebarActions.querySelectorAll('button')].map(button => button.textContent.trim()).join('|') !== '저장|취소|기본값') {
+        throw new Error('SIDEBAR_EDITOR_ACTIONS_MISMATCH');
+      }
+      const sectionHandle = nav.querySelector('[data-sidebar-drag-handle="section"]');
+      if (!sectionHandle?.draggable) throw new Error('SIDEBAR_HANDLE_NOT_DRAGGABLE');
+      sectionHandle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      const changedSections = await waitFor(() => {
+        const order = sectionKeys();
+        return order[0] !== defaultSections[0] ? order : null;
+      }, 'sidebar keyboard reorder');
+      const normalMenu = nav.querySelector('button[data-menu-key]:not([hidden])')
+        || nav.querySelector('a[data-menu-key]:not([hidden]):not([target="_blank"])');
+      const routeBeforeBlockedClick = window.TaejangApp.getRoute();
+      normalMenu?.click();
+      if (window.TaejangApp.getRoute() !== routeBeforeBlockedClick) throw new Error('SIDEBAR_EDIT_NAVIGATION_NOT_BLOCKED');
+      action(sidebarActions, '취소')?.click();
+      await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit cancel');
+      if (sectionKeys().join('|') !== defaultSections.join('|')) throw new Error('SIDEBAR_CANCEL_DID_NOT_RESTORE');
+
+      action(sidebarActions, '메뉴 편집')?.click();
+      await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit restart');
+      nav.querySelector('[data-sidebar-drag-handle="section"]')
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      const savedSections = await waitFor(() => {
+        const order = sectionKeys();
+        return order[0] !== defaultSections[0] ? order : null;
+      }, 'sidebar saved reorder');
+      action(sidebarActions, '저장')?.click();
+      await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit save');
+
+      const dashboardActions = await waitFor(
+        () => document.querySelector('[data-dashboard-layout-actions]'),
+        'dashboard layout editor'
+      );
+      action(dashboardActions, '대시보드 편집')?.click();
+      const dashboardGrid = await waitFor(
+        () => document.querySelector('#dashboard-main .dashboard-grid[data-layout-editing="1"]'),
+        'dashboard edit mode'
+      );
+      const cardKeys = () => [...dashboardGrid.children].map(card => card.dataset.dashboardCardKey);
+      const defaultCards = cardKeys();
+      if (defaultCards.length < 2) throw new Error('DASHBOARD_CARD_TEST_DATA_MISSING');
+      if ([...dashboardGrid.querySelectorAll('.dashboard-card')].some(card => card.draggable)) {
+        throw new Error('DASHBOARD_CARD_WHOLE_DRAG_ENABLED');
+      }
+      const cardHandle = dashboardGrid.querySelector('.dashboard-drag-handle');
+      if (!cardHandle?.draggable) throw new Error('DASHBOARD_HANDLE_NOT_DRAGGABLE');
+      cardHandle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      const savedCards = await waitFor(() => {
+        const order = cardKeys();
+        return order[0] !== defaultCards[0] ? order : null;
+      }, 'dashboard keyboard reorder');
+      action(dashboardActions, '저장')?.click();
+      await waitFor(() => dashboardGrid.dataset.layoutEditing !== '1', 'dashboard edit save');
+      sessionStorage.setItem(persistedLayoutKey, JSON.stringify({ sections: savedSections, cards: savedCards }));
+      window.location.reload();
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }
@@ -195,7 +299,7 @@ const accessContext = Object.freeze({
   capabilities: Object.freeze(['payroll.manage']),
 });
 
-const server = createServer((request, response) => {
+const server = createServer(async (request, response) => {
   const url = new URL(request.url || '/', 'http://127.0.0.1');
   try {
     if (url.pathname === '/.netlify/functions/staff-config') {
@@ -209,6 +313,16 @@ const server = createServer((request, response) => {
 
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_access_context') {
       return json(response, 200, accessContext);
+    }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_ui_preferences') {
+      return json(response, 200, uiPreferences);
+    }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/save_my_ui_preferences') {
+      const payload = await requestJson(request);
+      if (Array.isArray(payload.p_dashboard_order)) uiPreferences.dashboard_order = payload.p_dashboard_order;
+      if (Array.isArray(payload.p_sidebar_section_order)) uiPreferences.sidebar_section_order = payload.p_sidebar_section_order;
+      if (Array.isArray(payload.p_sidebar_menu_order)) uiPreferences.sidebar_menu_order = payload.p_sidebar_menu_order;
+      return json(response, 200, { ...uiPreferences, ok: true });
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_today_board_admin_options') {
       return json(response, 200, {
