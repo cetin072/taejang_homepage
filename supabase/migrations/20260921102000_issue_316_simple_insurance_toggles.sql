@@ -377,6 +377,24 @@ begin
     end if;
   end if;
 
+  -- Carry the operator decision forward across historical/backfill profile boundaries.
+  -- A later explicit operator-toggle:* row is a real future decision and is never overwritten.
+  update public.payroll_statutory_profiles
+  set national_pension_status=case when p_national_pension_on then 'enrolled' else 'not_applicable' end,
+      health_insurance_status=case when p_health_insurance_on then 'enrolled' else 'not_applicable' end,
+      employment_insurance_status=case when p_employment_insurance_on then 'enrolled' else 'not_applicable' end,
+      national_pension_deduction_override=p_national_pension_on,
+      health_insurance_deduction_override=p_health_insurance_on,
+      employment_insurance_deduction_override=p_employment_insurance_on,
+      source_kind='manual_review',
+      source_ref='operator-toggle-inherited:'||to_char(p_payroll_month,'YYYY-MM'),
+      review_note=clean_note,
+      reviewed_at=now(),
+      reviewed_by=actor_id
+  where employee_uuid=p_employee_uuid
+    and effective_from>effective_start
+    and coalesce(source_ref,'') not like 'operator-toggle:%';
+
   perform public.private_append_audit(
     actor_id,
     'employee_insurance_deduction_settings_saved',
