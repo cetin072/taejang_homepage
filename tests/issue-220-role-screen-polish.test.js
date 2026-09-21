@@ -28,41 +28,30 @@ test('general worker screen has a deterministic visual fallback instead of brows
   assert.match(polish, /employeeHome\.hidden = true/);
 });
 
-test('legacy duplicate promotion menus are cleaned without a DOM observer loop', () => {
-  assert.match(polish, /function removeLegacyRevisionMenus\(nav\)/);
-  assert.match(polish, /phaseCV2Nav === 'revision'/);
-  assert.match(polish, /label === '수정·보완 요청'/);
-  assert.match(polish, /node\.remove\(\)/);
-  assert.match(polish, /cleanLabel\(node\) === '홍보 작성'/);
-  assert.match(polish, /node\.dataset\.navSuppressed = '1'/);
+test('role polish no longer owns role-specific sidebar suppression', () => {
+  assert.doesNotMatch(polish, /function removeLegacyRevisionMenus\(nav\)/);
+  assert.doesNotMatch(polish, /data-effective-role=.*revision/);
+  assert.match(polish, /Sidebar visibility is capability-driven/);
+  assert.doesNotMatch(polish, /display:none !important/);
   assert.doesNotMatch(polish, /new MutationObserver/);
 });
 
-test('lead and operations revision navigation has a late-injection visibility guard', () => {
-  assert.match(polish, /data-effective-role=\"promotion_lead\"/);
-  assert.match(polish, /data-effective-role=\"operations_manager\"/);
-  assert.match(polish, /data-phase-c-v2-nav=\"revision\"/);
-  assert.match(polish, /display:none !important/);
-  assert.match(polish, /nav\.dataset\.effectiveRole = route\(\) \|\| ''/);
-});
-
-test('checking-only navigation is removed instead of shown as a checking section', () => {
+test('checking-only navigation is removed without role-specific menu cleanup', () => {
   assert.match(polish, /function removeCheckingNavigation\(\)/);
   assert.match(polish, /featureStatus === 'checking'/);
   assert.match(polish, /label === '신규 사업 기획'/);
-  assert.match(polish, /currentRoute !== 'promotion_staff'/);
-  assert.match(polish, /phaseCV2Nav === 'revision'/);
-  assert.match(polish, /if \(markedChecking \|\| obsoleteRevision\) node\.remove\(\)/);
+  assert.match(polish, /if \(markedChecking\) node\.remove\(\)/);
+  assert.doesNotMatch(polish, /obsoleteRevision/);
   assert.match(polish, /removeCheckingNavigation\(\);/);
 });
 
-test('operations add-on menus belong to their business categories before support work', () => {
-  const operations = nav.slice(nav.indexOf('operations_manager:'), nav.indexOf('department_lead:'));
-  assert.match(operations, /'가입 승인', '복구·계정 관리'/);
-  assert.match(operations, /'홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구'/);
-  assert.match(operations, /'근태·급여관리', '외부 급여초안 검토', '출근부', '근태 보정'/);
-  assert.match(nav, /role === 'operations_manager'\) return 165/);
-  assert.match(nav, /role === 'operations_manager' && current === '홍보글 보관·복구'/);
+test('all desktop roles share the operations master sidebar categories', () => {
+  const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
+  assert.match(master, /'가입 승인', '복구·계정 관리'/);
+  assert.match(master, /'홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글'/);
+  assert.match(master, /'근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신'/);
+  assert.match(nav, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
+  assert.doesNotMatch(nav, /role === 'operations_manager'\) return 165/);
 });
 
 test('undefined role labels are repaired from the effective route', () => {
