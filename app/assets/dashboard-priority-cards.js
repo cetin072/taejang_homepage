@@ -41,6 +41,11 @@
   }
 
   function titleOf(node) { return node.querySelector('h3')?.textContent?.trim() || ''; }
+  function cardKey(node) {
+    const key = node.dataset?.dashboardCardKey || node.dataset?.priorityDashboardCard || titleOf(node);
+    if (key) node.dataset.dashboardCardKey = key;
+    return key || '';
+  }
 
   function removeLowPriorityOperationsCards(currentRoute, grid) {
     if (currentRoute !== 'operations_manager') return;
@@ -96,11 +101,13 @@
   }
 
   function reorderCards(currentRoute, grid) {
-    const order = CARD_ORDER[currentRoute] || [];
+    if (grid.dataset.layoutEditing === '1' || window.TaejangPlatformUiSettings?.isDashboardEditing?.()) return;
+    const personal = window.TaejangPlatformUiSettings?.getDashboardOrder?.() || [];
+    const order = personal.length ? personal : (CARD_ORDER[currentRoute] || []);
     const children = [...grid.children];
     const desired = [...children].sort((a, b) => {
-      const ai = order.indexOf(titleOf(a));
-      const bi = order.indexOf(titleOf(b));
+      const ai = order.indexOf(personal.length ? cardKey(a) : titleOf(a));
+      const bi = order.indexOf(personal.length ? cardKey(b) : titleOf(b));
       const ap = ai < 0 ? 9000 : ai;
       const bp = bi < 0 ? 9000 : bi;
       return ap - bp || children.indexOf(a) - children.indexOf(b);
