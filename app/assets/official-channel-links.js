@@ -56,5 +56,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangOfficialChannelLinks = { sync, channels, ALLOWED_ROLES };
+  window.TaejangOfficialChannelLinks = { sync, channels };
 })();
