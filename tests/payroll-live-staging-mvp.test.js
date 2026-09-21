@@ -36,11 +36,12 @@ test('live payroll MVP is a safe pre-production attendance-edit and payroll-prev
   assert.doesNotMatch(html, /payroll-operator-preview\.js/i);
 });
 
-test('operations manager gets a direct payroll MVP work entry from menu and dashboard', () => {
-  assert.match(navPriority, /currentRole !== 'operations_manager'/);
+test('payroll MVP sidebar entry is capability-driven while the dashboard card remains operations-focused', () => {
+  assert.match(navPriority, /capabilityAllowed\('payroll\.manage'/);
   assert.match(navPriority, /근태·급여관리/);
   assert.match(navPriority, /link\.href = 'payroll\/live\.html'/);
   assert.match(navPriority, /dataset\.payrollMvpNav = '1'/);
+  assert.match(navPriority, /dataset\.capabilityAny = 'payroll\.manage'/);
   assert.match(navPriority, /label: '근태·급여'/);
   assert.doesNotMatch(navPriority, /target = '_blank'[\s\S]{0,160}payroll\/live\.html/);
 
