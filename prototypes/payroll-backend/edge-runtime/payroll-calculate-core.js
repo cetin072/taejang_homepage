@@ -21,6 +21,26 @@
     throw error;
   }
 
+  function canonicalizeForFingerprint(value) {
+    if (Array.isArray(value)) return value.map(canonicalizeForFingerprint);
+    if (value && typeof value === 'object') {
+      const out = {};
+      for (const key of Object.keys(value).sort()) {
+        out[key] = canonicalizeForFingerprint(value[key]);
+      }
+      return out;
+    }
+    return value;
+  }
+
+  async function sha256Hex(value) {
+    const subtle = globalThis.crypto && globalThis.crypto.subtle;
+    if (!subtle) fail('payroll_crypto_unavailable');
+    const bytes = new TextEncoder().encode(JSON.stringify(canonicalizeForFingerprint(value)));
+    const digest = await subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
   function validateRequest(input) {
     if (!input || typeof input !== 'object' || Array.isArray(input)) {
       fail('invalid_payroll_calculation_request');
@@ -317,6 +337,7 @@
         actorId,
         payrollMonth: request.payrollMonth,
       });
+      const statutoryInputFingerprint = await sha256Hex(statutoryInput || {});
       const statutoryRateRules = Array.isArray(statutoryInput && statutoryInput.rate_rules)
         ? statutoryInput.rate_rules
         : [];
@@ -409,6 +430,7 @@
         cutoffDate: mapped.cutoffDate,
         expectedBatchId: mapped.acceptedBatchId,
         expectedInputBasisFingerprint: mapped.inputBasisFingerprint,
+        statutoryInputFingerprint,
         calculationVersion,
         generatedAt: now(),
         employeeCount: employeeResults.length,
