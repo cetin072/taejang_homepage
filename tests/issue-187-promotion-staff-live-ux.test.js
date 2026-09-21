@@ -88,16 +88,17 @@ test('routine promotion and office staff hide support-radar navigation without c
   assert.doesNotMatch(source, /support_radar\.assigned_work/);
 });
 
-test('promotion staff core navigation is authoritative on first render', () => {
-  assert.match(dashboard, /label: '홍보 작성'[\s\S]*openPromotion\('write'\)/);
+test('promotion staff starts from the shared master sidebar and capability-scoped promotion slots', () => {
+  assert.match(dashboard, /label: '홍보 글 작성'[\s\S]*openPromotion\('write'\)/);
   assert.match(dashboard, /label: '보완 요청받은 글'[\s\S]*openPromotion\('revision'\)/);
-  assert.match(dashboard, /node\.dataset\.phaseCV2Nav = 'write'/);
-  assert.match(dashboard, /node\.dataset\.phaseCV2Nav = 'revision'/);
+  assert.match(dashboard, /promotion\.write/);
+  assert.match(dashboard, /promotion\.edit_own/);
   assert.match(dashboard, /card\(\s*'보완 요청받은 글'/);
   assert.match(dashboard, /label: '보완 글 확인', run: \(\) => openPromotion\('revision'\)/);
-  assert.match(roleNavigation, /'대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인'/);
-  assert.match(roleNavigation, /label: '홍보', items: \['새 홍보글 작성', '보낸 글', '보완 요청받은 글'\]/);
-  assert.match(roleNavigation, /label: '공지', items: \['공지 확인'\]/);
+  assert.match(roleNavigation, /const MASTER_ORDER = Object\.freeze/);
+  assert.match(roleNavigation, /'홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글'/);
+  assert.match(roleNavigation, /'공지 확인', '공지 관리', '상시 안내 관리'/);
+  assert.doesNotMatch(roleNavigation, /promotion_staff:\s*\[/);
   assert.doesNotMatch(source, /ensurePromotionStaffNavigation/);
   assert.doesNotMatch(source, /makePromotionNavButton/);
   assert.doesNotMatch(qaSource, /stabilizePromotionStaffDashboard/);
