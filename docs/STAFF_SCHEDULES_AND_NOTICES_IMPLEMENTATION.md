@@ -236,13 +236,27 @@ GitHub Actions의 격리 Supabase에서 다음을 실행한다.
 - 외부 캘린더 필드는 실제 동기화 전까지 비워둠
 - 운영 Supabase 적용과 실제 계정·데이터 입력은 별도 사용자 승인 후 수행
 
-## 15. 의도적으로 제외
+## 15. Issue #300 공지 검토·사진 자료 확장
+
+상태: **확정 — Issue #300**
+
+- `promotion_lead`는 관리 범위의 공지를 `draft`로만 작성·수정하고 운영총괄에게 상신한다. 상신 후 다시 수정하면 상신 상태를 초기화해 재상신한다.
+- `operations_manager`는 직접 작성·수정·미리보기·게시하며, 상신 공지는 검토 대기로 구분해 조회하고 수정 또는 게시 시 검토 완료를 기록한다.
+- 공지 사진은 최대 10장, 장당 8MB의 JPEG·PNG·WEBP·GIF만 허용한다. 설명·순서·archive를 메타데이터로 보존한다.
+- `notice-media`는 private Storage bucket이며, 직접 테이블 CRUD 대신 guarded RPC와 대상 공지 권한을 거친 Storage 정책으로만 접근한다. 직원 화면은 본인에게 현재 게시 중인 공지 사진만 signed URL로 표시한다.
+- 사진은 직원 공지 본문 안에 순서대로 표시하고, 클릭 또는 터치로 확대한다. 사진 변경도 상신 중인 초안을 재상신 대상으로 만든다.
+
+구현 대조:
+
+- 구현 완료: 검토 상태, 상신 RPC, 운영총괄 검토·게시, 사진 편집·미리보기·확대, private bucket 및 RLS 계약, 정적·Auth/Storage 통합 테스트 경로
+- 미구현·후속 작업: staging 적용, Hosted Browser E2E, 실제 운영 계정 검수 (검증 gate 통과 후 별도 진행)
+
+## 16. 의도적으로 제외
 
 - Google Calendar 실제 API·OAuth
 - Gmail·문자·카카오·푸시 알림
 - 월간 복잡한 달력과 반복 일정 전체 기능
 - 일정 변경 요청
 - 댓글·평가·근태·출퇴근·업무실적
-- 파일 업로드·Storage RLS
 - PWA·서비스 워커·QR
 - 운영 Supabase 적용

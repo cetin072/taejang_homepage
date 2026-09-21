@@ -708,6 +708,7 @@
       getRoute: () => state.route?.code,
       getContext: () => state.context,
       getSession: () => state.session,
+      getConfig: () => state.config,
       getBoardDate: () => state.boardDate,
       refreshToday: loadTodayBoard,
       refreshAdmin: loadAdminData,
