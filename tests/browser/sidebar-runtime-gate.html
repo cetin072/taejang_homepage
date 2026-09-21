@@ -3,10 +3,14 @@
 <head>
   <meta charset="utf-8">
   <title>sidebar runtime gate</title>
+  <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
+  <link rel="stylesheet" href="../../app/assets/dashboard-accent-theme.css">
 </head>
 <body>
-  <section id="desktop-app-shell">
-    <nav id="app-nav"></nav>
+  <section id="desktop-app-shell" class="desktop-app-shell">
+    <aside id="app-sidebar" class="app-sidebar">
+      <nav id="app-nav" class="app-nav"></nav>
+    </aside>
     <div class="app-workspace">
       <header class="app-topbar">
         <button id="sidebar-toggle" type="button" aria-expanded="false">menu</button>
@@ -25,15 +29,21 @@
     const roleCapabilities = {
       promotion_staff: new Set(['promotion.write', 'promotion.edit_own']),
       promotion_lead: new Set([
-        'promotion.write', 'promotion.review_lead', 'promotion.edit_own', 'promotion.archive',
-        'promotion.manage_recent_public', 'promotion.request_public_change', 'information.submit',
-        'attendance.admin_view', 'homepage.draft', 'homepage.review'
+        'employee.view_scoped', 'employee.request_change',
+        'promotion.write', 'promotion.review_lead', 'promotion.edit_own', 'promotion.archive', 'promotion.restore',
+        'promotion.manage_recent_public', 'promotion.request_public_change', 'promotion.queue_publication', 'information.submit',
+        'attendance.admin_view', 'homepage.draft', 'homepage.review', 'support_radar.assigned_work'
       ]),
       operations_manager: new Set([
-        'promotion.write', 'promotion.review_lead', 'promotion.edit_own', 'promotion.edit_any_unpublished', 'promotion.archive',
-        'promotion.manage_recent_public', 'promotion.request_public_change', 'information.review',
+        'employee.view_all', 'employee.create', 'employee.onboard', 'account.approve', 'account.reject',
+        'promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.edit_own', 'promotion.edit_any_unpublished',
+        'promotion.archive', 'promotion.restore', 'promotion.hide', 'promotion.republish', 'promotion.manage_recent_public',
+        'promotion.request_public_change', 'promotion.queue_publication', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
-        'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit'
+        'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
+        'task.manage', 'payroll.manage', 'payroll.handoff.approve',
+        'support_radar.management_view', 'support_radar.management_edit', 'support_radar.assigned_work',
+        'platform.navigation.manage'
       ])
     };
 
@@ -56,7 +66,19 @@
       hasCapabilityContract: () => true,
       can: capability => roleCapabilities[currentRoute]?.has(capability) || false,
       friendlyError: error => error?.message || '오류',
-      rpc: async name => {
+      rpc: async (name, body = {}) => {
+        if (name === 'get_my_ui_preferences') return {
+          role_code: currentRoute, collapsed_sections: [], sidebar_section_order: [], sidebar_menu_order: [], dashboard_order: []
+        };
+        if (name === 'get_my_navigation_visibility') return { hidden_menu_keys: [] };
+        if (name === 'save_my_ui_preferences') return {
+          role_code: currentRoute,
+          collapsed_sections: [],
+          sidebar_section_order: body.p_sidebar_section_order || [],
+          sidebar_menu_order: body.p_sidebar_menu_order || [],
+          dashboard_order: body.p_dashboard_order || []
+        };
+        if (name === 'save_my_sidebar_sections') return { ok: true };
         if (name === 'get_my_schedule_list') return [];
         if (name === 'get_my_notice_list') return [];
         if (name === 'get_my_promotion_workspace') return { role: currentRoute, my_items: [], review_items: [] };
@@ -71,7 +93,10 @@
       }
     };
   </script>
+  <script src="../../app/assets/platform-navigation-registry.js"></script>
   <script src="../../app/assets/dashboard-shell.js"></script>
+  <script src="../../app/assets/platform-ui-settings.js"></script>
+  <script src="../../app/assets/capability-ui-gates.js"></script>
   <script src="../../app/assets/attendance-admin.js"></script>
   <script src="../../app/assets/attendance-integrity-ui.js"></script>
   <script src="../../app/assets/phase-c-workspace-v2.js"></script>
@@ -92,9 +117,10 @@
     const clean = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
     const directItems = () => [...document.getElementById('app-nav').children];
     const visibleItems = () => directItems().filter(node => !node.hidden && node.dataset.navSuppressed !== '1');
+    const visibleLeafItems = () => visibleItems().filter(node => node.dataset.navSectionToggle !== '1');
     const itemLabel = node => (node.dataset.supportMyWorkNav || node.dataset.supportRadarNavGroup) ? '지원사업' : clean(node);
-    const labels = () => visibleItems().map(itemLabel);
-    const find = label => visibleItems().find(node => itemLabel(node) === label || clean(node) === label);
+    const labels = () => visibleLeafItems().map(itemLabel);
+    const find = label => visibleLeafItems().find(node => itemLabel(node) === label || clean(node) === label);
     const navSignature = () => visibleItems().map(node => {
       const section = node.dataset.sectionLabel || '';
       const inner = (node.dataset.supportMyWorkNav || node.dataset.supportRadarNavGroup)
@@ -144,61 +170,103 @@
       }
     }
 
+    const retiredLabels = [
+      '복구·계정 관리', '일정 관리', '일정 캘린더',
+      '공지 확인', '공지 관리', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
+    ];
+
+    function assertRetiredAbsent(current, role) {
+      for (const label of retiredLabels) {
+        assert(!current.includes(label), `${role}: retired menu reappeared: ${label}`);
+      }
+    }
+
+    function assertNoDuplicateLeafLabels(role) {
+      const current = visibleLeafItems()
+        .filter(node => node.tagName === 'BUTTON' || node.tagName === 'A')
+        .map(node => clean(node))
+        .filter(Boolean);
+      assert(new Set(current).size === current.length, `${role}: duplicate visible sidebar label detected`);
+    }
+
+    async function assertFocusGeometryStable(role) {
+      const nodes = visibleLeafItems().filter(node => node.tagName === 'BUTTON' || node.tagName === 'A').slice(0, 12);
+      const snapshot = () => nodes.map(node => {
+        const box = node.getBoundingClientRect();
+        return [box.left, box.top, box.width, box.height];
+      });
+      const baseline = snapshot();
+      for (const node of nodes) {
+        node.focus();
+        await wait(20);
+        const current = snapshot();
+        current.forEach((box, index) => {
+          baseline[index].forEach((value, axis) => {
+            assert(Math.abs(box[axis] - value) < 0.51, `${role}: focus changed sidebar geometry`);
+          });
+        });
+      }
+      document.activeElement?.blur?.();
+    }
+
     function assertStaffContract(current) {
-      for (const required of ['대시보드', '새 홍보글 작성', '보낸 글', '보완 요청받은 글', '공지 확인']) {
+      for (const required of ['대시보드', '홍보 글 작성', '보낸 글', '보완 요청받은 글']) {
         assert(current.includes(required), `홍보직원 필수 메뉴 누락: ${required}`);
       }
-      assert(find('새 홍보글 작성')?.dataset.sectionLabel === '홍보', '홍보직원 홍보 섹션 구분 누락');
-      assert(find('공지 확인')?.dataset.sectionLabel === '공지', '홍보직원 공지 섹션 구분 누락');
+      assertRetiredAbsent(current, 'promotion_staff');
+      assertNoDuplicateLeafLabels('promotion_staff');
     }
 
     function assertLeadContract(current) {
-      for (const required of ['대시보드', '새 홍보글 작성', '홍보글 승인·검토', '기존 글 관리', '홈페이지 내용 관리', '공지 관리', '팀 직원 관리', '신규 직원 등록 요청', '출근부', '지원사업']) {
+      for (const required of ['대시보드', '홍보 글 작성', '홍보 검토', '기존 글 관리', '홈페이지 내용 관리', '직원 관리', '신규 직원 등록', '출근부']) {
         assert(current.includes(required), `운영팀장 필수 메뉴 누락: ${required}`);
       }
-      assert(!current.includes('수정·보완 요청'), '운영팀장에 수정·보완 요청 메뉴가 남아 있음');
-      assert(!current.includes('보완 요청받은 글'), '운영팀장에 직원용 보완 메뉴가 남아 있음');
-      assert(find('새 홍보글 작성')?.dataset.sectionLabel === '홍보', '운영팀장 홍보 섹션 구분 누락');
-      assert(find('홈페이지 내용 관리')?.dataset.sectionLabel === '홈페이지', '운영팀장 홈페이지 섹션 구분 누락');
-      assert(find('공지 관리')?.dataset.sectionLabel === '공지', '운영팀장 공지 섹션 구분 누락');
-      assert(find('팀 직원 관리')?.dataset.sectionLabel === '팀 운영', '운영팀장 팀 운영 섹션 구분 누락');
-      assert(find('출근부')?.dataset.sectionLabel === '근태', '운영팀장 근태 섹션 구분 누락');
-      const attendanceIndex = current.indexOf('출근부');
-      const supportIndex = current.indexOf('지원사업');
-      assert(attendanceIndex >= 0 && supportIndex === attendanceIndex + 1, '운영팀장 지원사업이 출근부 바로 다음에 있지 않음');
-      const support = find('지원사업');
-      assert([...support.querySelectorAll('button')].some(node => node.textContent.trim() === '내 지원사업'), '운영팀장 내 지원사업 메뉴 누락');
+      assertRetiredAbsent(current, 'promotion_lead');
+      assertNoDuplicateLeafLabels('promotion_lead');
     }
 
     function assertOperationsContract(current) {
       for (const required of [
-        '대시보드', '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+        '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
         '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
-        '업무 배정', '일정 관리', '공지 관리',
-        '근태·급여관리', '출근부', '근태 보정', '지원사업'
+        '업무 배정', '근태·급여관리', '출근부', '근태 보정',
+        '기업 프로필', '지원사업 레이더', '내 지원사업'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
       }
-      assert(!current.includes('상시 안내 관리'), '운영총괄에 제거된 안내 메뉴가 남아 있음');
-      assert(!current.includes('수정·보완 요청'), '운영총괄에 구형 수정·보완 요청 메뉴가 남아 있음');
-      assert(!current.includes('홍보 작성'), '운영총괄에 중복 홍보 작성 메뉴가 남아 있음');
-      assert(find('직원 관리')?.dataset.sectionLabel === '직원·계정', '운영총괄 직원·계정 섹션 누락');
-      assert(find('홍보 검토')?.dataset.sectionLabel === '홍보', '운영총괄 홍보 섹션 누락');
-      assert(find('홈페이지 내용 관리')?.dataset.sectionLabel === '홈페이지', '운영총괄 홈페이지 섹션 누락');
-      assert(find('업무 배정')?.dataset.sectionLabel === '업무 운영', '운영총괄 업무 운영 섹션 누락');
-      assert(find('공지 관리')?.dataset.sectionLabel === '공지', '운영총괄 공지 섹션 누락');
-      assert(find('근태·급여관리')?.dataset.sectionLabel === '근태·급여', '운영총괄 근태·급여 섹션 누락');
-      assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'], '운영총괄 직원·계정');
-      assertOrdered(current, ['홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
-      assertOrdered(current, ['근태·급여관리', '출근부', '근태 보정', '지원사업'], '운영총괄 근태·지원사업');
-      const support = find('지원사업');
-      const supportButtons = [...support.querySelectorAll('button')].map(node => node.textContent.trim());
-      assert(supportButtons.includes('지원사업 레이더'), '운영총괄 지원사업 레이더 누락');
-      assert(supportButtons.includes('기업 프로필'), '운영총괄 기업 프로필 누락');
-      assert(supportButtons.includes('내 지원사업'), '운영총괄 내 지원사업 통합 누락');
-      assert(visibleItems().filter(node => itemLabel(node) === '지원사업').length === 1, '운영총괄 지원사업 그룹이 중복됨');
+      assertRetiredAbsent(current, 'operations_manager');
+      assertNoDuplicateLeafLabels('operations_manager');
+      assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
+      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
+      assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
+    }
+
+    function assertInlineEditors() {
+      const sidebarActions = document.querySelector('[data-sidebar-layout-actions]');
+      assert(sidebarActions, '사이드바 메뉴 편집 진입점 누락');
+      const menuEdit = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '메뉴 편집');
+      assert(menuEdit, '메뉴 편집 버튼 누락');
+      menuEdit.click();
+      const nav = document.getElementById('app-nav');
+      assert(nav.dataset.layoutEditing === '1', '사이드바 편집 모드 진입 실패');
+      assert(nav.querySelectorAll('[data-sidebar-drag-handle]').length > 0, '사이드바 drag handle 누락');
+      const cancel = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
+      cancel?.click();
+      assert(nav.dataset.layoutEditing !== '1', '사이드바 편집 취소 실패');
+
+      const dashboardActions = document.querySelector('[data-dashboard-layout-actions]');
+      assert(dashboardActions, '대시보드 편집 진입점 누락');
+      const dashboardEdit = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '대시보드 편집');
+      assert(dashboardEdit, '대시보드 편집 버튼 누락');
+      dashboardEdit.click();
+      const grid = document.querySelector('#dashboard-main > .dashboard-grid');
+      assert(grid?.dataset.layoutEditing === '1', '대시보드 편집 모드 진입 실패');
+      assert(grid.querySelectorAll('.dashboard-drag-handle').length > 0, '대시보드 drag handle 누락');
+      const dashboardCancel = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
+      dashboardCancel?.click();
+      assert(grid.dataset.layoutEditing !== '1', '대시보드 편집 취소 실패');
     }
 
     window.addEventListener('load', async () => {
@@ -207,14 +275,18 @@
         let current = await enterRole('promotion_staff', '홍보직원');
         assertStaffContract(current);
         await assertNoPostSettleJitter('promotion_staff');
+        await assertFocusGeometryStable('promotion_staff');
 
         current = await enterRole('promotion_lead', '운영팀장');
         assertLeadContract(current);
         await assertNoPostSettleJitter('promotion_lead');
+        await assertFocusGeometryStable('promotion_lead');
 
         current = await enterRole('operations_manager', undefined);
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
+        await assertFocusGeometryStable('operations_manager');
+        assertInlineEditors();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {

@@ -67,9 +67,9 @@ test('promotion and homepage management sidebar slots are capability-driven', ()
   assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
   assert.match(ux, /node\.dataset\.phaseCPublicationAdmin = '1'/);
   assert.match(ux, /node\.dataset\.phaseCV2Nav = 'homepage'/);
-  assert.match(ux, /information\.review/);
-  assert.match(ux, /information\.submit/);
-  assert.match(ux, /navNode\(\s*'공지 관리'/);
+  assert.doesNotMatch(ux, /navNode\(\s*'공지 관리'/);
+  assert.match(ux, /never inject their entries back into the sidebar/);
+  assert.match(ux, /openInformationHub/);
   assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
   assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
   assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
@@ -154,9 +154,8 @@ test('notice approval lane remains operations-approved while the UI removes stan
   assert.doesNotMatch(ux, /navNode\('공지·안내/);
 });
 
-test('notice reading is a shared desktop sidebar slot while its data remains user-scoped', () => {
-  assert.match(dashboardShell, /label: '공지 확인'/);
-  assert.match(dashboardShell, /TaejangIssue207Ux\?\.openInformationRead/);
+test('notice data remains user-scoped after navigation is simplified', () => {
+  assert.doesNotMatch(dashboardShell, /label: '공지 확인'/);
   assert.match(ux, /setPage\('공지 확인'/);
   assert.match(ux, /get_my_notice_list/);
   assert.doesNotMatch(ux, /get_my_staff_guidance_list/);

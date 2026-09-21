@@ -565,11 +565,12 @@
     const card = document.createElement('article');
     card.className = 'dashboard-card support-radar-dashboard-shortcut';
     card.dataset.supportRadarShortcut = '1';
+    card.dataset.dashboardCardKey = 'support.radar';
     card.append(text('span', '지원사업', 'status-label'), text('h3', '지원사업 레이더'), text('p', '기업 프로필을 기준으로 지원사업을 찾고 검토합니다.'));
     const actions = document.createElement('div'); actions.className = 'support-radar-actions';
     actions.append(
-      button('레이더 열기', () => { window.location.href = 'index.html?support=radar'; }),
-      button('기업 프로필', () => { window.location.href = 'index.html?support=profile'; }, true)
+      button('레이더 열기', () => { window.open('index.html?support=radar', '_blank', 'noopener,noreferrer'); }),
+      button('기업 프로필', () => { window.open('index.html?support=profile', '_blank', 'noopener,noreferrer'); }, true)
     );
     card.append(actions);
     grid.append(card);

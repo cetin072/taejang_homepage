@@ -75,11 +75,11 @@ test('sidebar stays expanded while per-category collapse is handled by the follo
 });
 
 test('dashboard editor supports drag ordering, save and reset', () => {
-  assert.match(settings, /대시보드 수정/);
-  assert.match(settings, /card\.draggable=true/);
+  assert.match(settings, /대시보드 편집/);
+  assert.doesNotMatch(settings, /card\.draggable=true/);
   assert.match(settings, /dragstart/);
-  assert.match(settings, /배치 저장/);
-  assert.match(settings, /기본 배치로/);
+  assert.match(settings, /button\('저장',saveDashboardLayout\)/);
+  assert.match(settings, /button\('기본값',resetDashboardLayout,true\)/);
   assert.match(settings, /p_dashboard_order/);
   assert.match(dashboard, /getDashboardOrder/);
   assert.match(dashboard, /grid\.dataset\.layoutEditing === '1'/);

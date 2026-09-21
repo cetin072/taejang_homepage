@@ -6,7 +6,6 @@
     { key:'promotion', label:'홍보' },
     { key:'homepage', label:'홈페이지' },
     { key:'operations', label:'업무 운영' },
-    { key:'information', label:'공지·안내' },
     { key:'payroll', label:'근태·급여' },
     { key:'support', label:'지원사업' }
   ]);
@@ -17,8 +16,6 @@
     { key:'employee.manage', label:'직원 관리', section:'직원·계정', capabilities:['employee.view_all','employee.view_scoped'] },
     { key:'employee.new', label:'신규 직원 등록', section:'직원·계정', capabilities:['employee.create','employee.request_change'] },
     { key:'account.approval', label:'가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
-    { key:'account.recovery', label:'복구·계정 관리', section:'직원·계정', capabilities:['account.view_management'] },
-
     { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'] },
     { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'] },
     { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'] },
@@ -31,13 +28,6 @@
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
     { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
-    { key:'schedule.manage', label:'일정 관리', section:'업무 운영', capabilities:['schedule.manage'] },
-    { key:'schedule.calendar', label:'일정 캘린더', section:'업무 운영', capabilities:['schedule.manage'] },
-
-    { key:'notice.read', label:'공지 확인', section:'공지·안내' },
-    { key:'notice.manage', label:'공지 관리', section:'공지·안내', capabilities:['notice.manage','information.review','information.submit'] },
-    { key:'guidance.manage', label:'상시 안내 관리', section:'공지·안내', capabilities:['guidance.manage'] },
-
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'] },
@@ -77,7 +67,7 @@
   const sectionByKey = new Map(SECTIONS.map(section => [section.key,section]));
 
   function cleanLabel(value) {
-    return String(value || '').replace(/\s*·\s*점검중\s*$/,'').trim();
+    return String(value || '').replace(/\s*·\s*점검중\s*$/,'').replace(/\s*⋮⋮\s*$/,'').trim();
   }
 
   function itemForLabel(label) {

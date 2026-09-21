@@ -865,7 +865,7 @@
     if (!can('attendance.admin_view')) return;
     const grid = main()?.querySelector('.dashboard-grid');
     if (!grid || grid.querySelector('[data-attendance-card]')) return;
-    const card = el('article', null, 'dashboard-card'); card.dataset.attendanceCard = '1';
+    const card = el('article', null, 'dashboard-card'); card.dataset.attendanceCard = '1'; card.dataset.dashboardCardKey = 'attendance.today';
     card.append(
       el('span', '현재 담당 업무', 'status-label'),
       el('h3', '오늘 출근부'),

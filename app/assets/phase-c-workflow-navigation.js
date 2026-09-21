@@ -67,15 +67,6 @@
     setTimeout(enhanceHomepageCatalog, 220);
   }
 
-  function openScheduleCalendar() {
-    closeSidebar();
-    document.dispatchEvent(new Event('taejang-dashboard-refresh'));
-    setTimeout(() => {
-      const calendar = document.querySelector('[data-pilot-calendar]');
-      calendar?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 420);
-  }
-
   function syncNavigation() {
     const nav = document.getElementById('app-nav');
     const currentRoute = route();
@@ -96,13 +87,8 @@
       );
     }
 
-    const canCalendar = can('schedule.manage', ['promotion_lead', 'operations_manager']);
-    if ((canCalendar || currentRoute === 'ceo') && !nav.querySelector('[data-phase-c-nav="calendar"]')) {
-      insertBeforeHomepage(
-        nav,
-        navButton('일정 캘린더', openScheduleCalendar, 'calendar', canCalendar ? ['schedule.manage'] : [])
-      );
-    }
+    // Goal #327 retires schedule/calendar navigation from the operating platform.
+    // Scheduling data and backend contracts remain intact for any dependent flows.
 
     const homepageCapabilities = ['homepage.draft', 'homepage.review', 'homepage.approve_apply'];
     const canHomepageContent = canAny(homepageCapabilities, ['promotion_lead', 'operations_manager']);

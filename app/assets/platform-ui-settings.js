@@ -5,10 +5,14 @@
     roleCode: null,
     collapsedSections: new Set(),
     dashboardOrder: [],
+    sidebarSectionOrder: [],
+    sidebarMenuOrder: [],
     hiddenMenuKeys: new Set(),
     navSettings: null,
     editingDashboard: false,
-    dashboardSnapshot: []
+    dashboardSnapshot: [],
+    editingSidebar: false,
+    sidebarSnapshot: null
   };
 
   const app = () => window.TaejangApp;
@@ -27,6 +31,39 @@
     return node;
   };
   const cleanArray = value => Array.isArray(value) ? value.filter(item => typeof item === 'string' && item.trim()) : [];
+  const uniqueArray = value => [...new Set(cleanArray(value))];
+  const LEGACY_DASHBOARD_KEYS = Object.freeze({
+    '홍보 검토 대기':'promotion.review.pending', '홍보자료 작성':'promotion.write',
+    '보완 요청받은 글':'promotion.revision', '중요 홍보 승인':'promotion.operations.review',
+    '홍보 상신 검토':'promotion.ceo.review', '계정 승인 확인':'account.approval',
+    '근태·급여관리':'payroll.manage', '직원관리 요청':'employee.change-requests',
+    '팀 직원 관리':'employee.team', '홈페이지 수정 승인':'homepage.change-approval'
+  });
+  const dashboardOrder = value => uniqueArray(value).map(key=>LEGACY_DASHBOARD_KEYS[key] || key);
+
+  function mergeSavedOrder(saved, master) {
+    const masterKeys=uniqueArray(master);
+    const result=uniqueArray(saved).filter(key=>masterKeys.includes(key));
+    masterKeys.forEach(key=>{
+      if(result.includes(key)) return;
+      const masterIndex=masterKeys.indexOf(key);
+      const previous=[...masterKeys.slice(0,masterIndex)].reverse().find(item=>result.includes(item));
+      const next=masterKeys.slice(masterIndex+1).find(item=>result.includes(item));
+      if(previous) result.splice(result.indexOf(previous)+1,0,key);
+      else if(next) result.splice(result.indexOf(next),0,key);
+      else result.push(key);
+    });
+    return result;
+  }
+
+  function sidebarSectionKeys() { return registry()?.sections?.().map(section=>section.key) || []; }
+  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
+  function sidebarPreference() {
+    return {
+      sectionOrder:mergeSavedOrder(state.sidebarSectionOrder,sidebarSectionKeys()),
+      menuOrder:mergeSavedOrder(state.sidebarMenuOrder,sidebarMenuKeys())
+    };
+  }
 
   function currentRole() {
     return app()?.getRoute?.() || null;
@@ -119,11 +156,16 @@
     const payload={
       p_role_code:role,
       p_sidebar_collapsed:null,
-      p_dashboard_order:Object.prototype.hasOwnProperty.call(partial,'dashboardOrder') ? partial.dashboardOrder : null
+      p_dashboard_order:Object.prototype.hasOwnProperty.call(partial,'dashboardOrder') ? partial.dashboardOrder : null,
+      p_sidebar_section_order:Object.prototype.hasOwnProperty.call(partial,'sidebarSectionOrder') ? partial.sidebarSectionOrder : null,
+      p_sidebar_menu_order:Object.prototype.hasOwnProperty.call(partial,'sidebarMenuOrder') ? partial.sidebarMenuOrder : null
     };
     const result=await app().rpc('save_my_ui_preferences',payload);
-    state.dashboardOrder=cleanArray(result?.dashboard_order);
+    state.dashboardOrder=dashboardOrder(result?.dashboard_order);
+    state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
+    state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
     applyDashboardOrder();
+    window.TaejangRoleNavigationPriority?.reorder?.();
     return result;
   }
 
@@ -131,13 +173,23 @@
     if(!node) return null;
     const existing=node.dataset?.dashboardCardKey;
     if(existing) return existing;
-    const key=node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim() || node.dataset?.supportRadarShortcut;
+    const marker = node.dataset?.supportRadarShortcut ? 'support.radar'
+      : node.dataset?.attendanceCard ? 'attendance.today'
+        : node.dataset?.phaseCAccountApprovalCard ? 'account.signup-requests'
+          : null;
+    const key=marker || node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim();
     if(key) node.dataset.dashboardCardKey=String(key);
     return key ? String(key) : null;
   }
 
+  function isDashboardSurface() {
+    const target=el('dashboard-main');
+    return target?.querySelector(':scope > .dashboard-intro h2')?.textContent?.trim()==='대시보드';
+  }
+
   function dashboardGrid() {
-    return el('dashboard-main')?.querySelector('.dashboard-grid') || null;
+    if(!isDashboardSurface()) return null;
+    return el('dashboard-main')?.querySelector(':scope > .dashboard-grid') || null;
   }
 
   function reorderGridBy(order) {
@@ -165,7 +217,7 @@
   function cardOrder() {
     const grid=dashboardGrid();
     if(!grid) return [];
-    return [...grid.children].map(dashboardCardKey).filter(Boolean);
+    return uniqueArray([...grid.children].map(dashboardCardKey));
   }
 
   function moveCard(node,direction) {
@@ -180,35 +232,69 @@
     }
   }
 
+  function moveCardTo(dragged,target,before=true) {
+    const grid=dashboardGrid();
+    if(!grid || !dragged || !target || dragged===target) return;
+    grid.insertBefore(dragged,before ? target : target.nextElementSibling);
+  }
+
+  function bindCardHandle(handle,card) {
+    if(handle.dataset.bound==='1') return;
+    handle.dataset.bound='1';
+    handle.draggable=true;
+    handle.addEventListener('dragstart',event=>{
+      event.dataTransfer?.setData('text/plain',`dashboard:${dashboardCardKey(card)||''}`);
+      event.dataTransfer && (event.dataTransfer.effectAllowed='move');
+      card.classList.add('dashboard-card-dragging');
+    });
+    handle.addEventListener('dragend',()=>card.classList.remove('dashboard-card-dragging'));
+    handle.addEventListener('keydown',event=>{
+      if(event.key==='ArrowUp' || event.key==='ArrowLeft') { event.preventDefault(); moveCard(card,-1); }
+      if(event.key==='ArrowDown' || event.key==='ArrowRight') { event.preventDefault(); moveCard(card,1); }
+    });
+    handle.addEventListener('pointerdown',event=>{
+      if(event.pointerType==='mouse') return;
+      event.preventDefault();
+      const finish=up=>{
+        const target=document.elementFromPoint(up.clientX,up.clientY)?.closest?.('.dashboard-card');
+        if(target && target!==card) moveCardTo(card,target,up.clientY < target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2);
+        card.classList.remove('dashboard-card-dragging');
+        window.removeEventListener('pointerup',finish,true);
+      };
+      card.classList.add('dashboard-card-dragging');
+      window.addEventListener('pointerup',finish,true);
+    });
+  }
+
   function decorateEditableCards() {
     const grid=dashboardGrid();
     if(!grid) return;
     [...grid.children].forEach(card=>{
       dashboardCardKey(card);
-      card.draggable=true;
       card.classList.add('dashboard-card-editable');
       if(!card.querySelector('[data-dashboard-drag-tools]')) {
         const tools=document.createElement('div');
         tools.className='dashboard-drag-tools';
         tools.dataset.dashboardDragTools='1';
         const handle=text('span','↕ 드래그','dashboard-drag-handle');
+        handle.tabIndex=0;
+        handle.setAttribute('role','button');
+        handle.setAttribute('aria-label','카드 순서 변경. 화살표 키 또는 드래그로 이동');
         const prev=button('←',()=>moveCard(card,-1),true); prev.setAttribute('aria-label','카드 앞으로 이동');
         const next=button('→',()=>moveCard(card,1),true); next.setAttribute('aria-label','카드 뒤로 이동');
         tools.append(handle,prev,next);
         card.prepend(tools);
+        bindCardHandle(handle,card);
       }
-      card.addEventListener('dragstart',event=>{
-        event.dataTransfer?.setData('text/plain',dashboardCardKey(card)||'');
-        card.classList.add('dashboard-card-dragging');
+      card.addEventListener('dragover',event=>{
+        if(state.editingDashboard && event.dataTransfer?.types.includes('text/plain')) event.preventDefault();
       });
-      card.addEventListener('dragend',()=>card.classList.remove('dashboard-card-dragging'));
-      card.addEventListener('dragover',event=>event.preventDefault());
       card.addEventListener('drop',event=>{
         event.preventDefault();
-        const key=event.dataTransfer?.getData('text/plain');
+        const key=event.dataTransfer?.getData('text/plain')?.replace(/^dashboard:/,'');
         const grid=dashboardGrid();
         const dragged=[...grid.children].find(item=>dashboardCardKey(item)===key);
-        if(dragged && dragged!==card) grid.insertBefore(dragged,card);
+        if(dragged && dragged!==card) moveCardTo(dragged,card,event.clientY < card.getBoundingClientRect().top + card.getBoundingClientRect().height / 2);
       });
     });
   }
@@ -218,14 +304,14 @@
     if(!grid) return;
     grid.dataset.layoutEditing='0';
     [...grid.children].forEach(card=>{
-      card.draggable=false;
       card.classList.remove('dashboard-card-editable','dashboard-card-dragging');
       card.querySelector('[data-dashboard-drag-tools]')?.remove();
     });
   }
 
   function dashboardEditorActions() {
-    const intro=el('dashboard-main')?.querySelector('.dashboard-intro');
+    if(!isDashboardSurface()) return null;
+    const intro=el('dashboard-main')?.querySelector(':scope > .dashboard-intro');
     if(!intro) return null;
     let wrap=intro.querySelector('[data-dashboard-layout-actions]');
     if(!wrap) {
@@ -266,7 +352,6 @@
   }
 
   async function resetDashboardLayout() {
-    if(!window.confirm('내 대시보드 카드 순서를 기본값으로 되돌릴까요?')) return;
     try {
       await savePersonal({dashboardOrder:[]});
       state.editingDashboard=false;
@@ -296,13 +381,208 @@
     wrap.replaceChildren();
     if(state.editingDashboard) {
       wrap.append(
-        button('배치 저장',saveDashboardLayout),
+        button('저장',saveDashboardLayout),
         button('취소',cancelDashboardLayout,true),
-        button('기본 배치로',resetDashboardLayout,true)
+        button('기본값',resetDashboardLayout,true)
       );
       decorateEditableCards();
     } else {
-      wrap.append(button('대시보드 수정',startDashboardLayout,true));
+      wrap.append(button('대시보드 편집',startDashboardLayout,true));
+    }
+  }
+
+  function sidebarNav() { return el('app-nav'); }
+  function sidebarMenuNode(key) { return sidebarNav()?.querySelector(`[data-menu-key="${key}"]`) || null; }
+  function sidebarSectionNode(key) { return sidebarNav()?.querySelector(`[data-nav-section-toggle="1"][data-section-key="${key}"]`) || null; }
+
+  function moveInOrder(order,key,targetKey,before=true) {
+    const next=order.filter(item=>item!==key);
+    const index=next.indexOf(targetKey);
+    if(index<0) return order;
+    next.splice(before ? index : index+1,0,key);
+    return next;
+  }
+
+  function moveSidebarSection(key,targetKey,before=true) {
+    const order=sidebarPreference().sectionOrder;
+    state.sidebarSectionOrder=moveInOrder(order,key,targetKey,before);
+    window.TaejangRoleNavigationPriority?.reorder?.();
+  }
+
+  function moveSidebarMenu(key,targetKey,before=true) {
+    const reg=registry();
+    const section=reg?.byKey?.(key)?.section;
+    if(!section || section!==reg?.byKey?.(targetKey)?.section) return;
+    const all=sidebarPreference().menuOrder;
+    const inSection=all.filter(item=>reg?.byKey?.(item)?.section===section);
+    const moved=moveInOrder(inSection,key,targetKey,before);
+    let index=0;
+    state.sidebarMenuOrder=all.map(item=>reg?.byKey?.(item)?.section===section ? moved[index++] : item);
+    window.TaejangRoleNavigationPriority?.reorder?.();
+  }
+
+  function sidebarEditorActions() {
+    const sidebar=el('app-sidebar');
+    if(!sidebar) return null;
+    let wrap=sidebar.querySelector('[data-sidebar-layout-actions]');
+    if(!wrap) {
+      wrap=document.createElement('div');
+      wrap.className='sidebar-layout-actions';
+      wrap.dataset.sidebarLayoutActions='1';
+      sidebar.append(wrap);
+    }
+    return wrap;
+  }
+
+  function bindSidebarHandle(handle,type,key) {
+    if(handle.dataset.bound==='1') return;
+    handle.dataset.bound='1';
+    handle.draggable=true;
+    const move=type==='section' ? moveSidebarSection : moveSidebarMenu;
+    const targetFor=point=>{
+      const candidate=document.elementFromPoint(point.clientX,point.clientY);
+      return type==='section'
+        ? candidate?.closest?.('[data-nav-section-toggle="1"]')?.dataset?.sectionKey
+        : menuKey(candidate?.closest?.('[data-menu-key]'));
+    };
+    handle.addEventListener('click',event=>{ event.preventDefault(); event.stopPropagation(); });
+    handle.addEventListener('dragstart',event=>{
+      event.dataTransfer?.setData('text/plain',`sidebar-${type}:${key}`);
+      event.dataTransfer && (event.dataTransfer.effectAllowed='move');
+      handle.closest(type==='section' ? '[data-nav-section-toggle]' : '[data-menu-key]')?.classList.add('sidebar-item-dragging');
+    });
+    handle.addEventListener('dragend',()=>handle.closest(type==='section' ? '[data-nav-section-toggle]' : '[data-menu-key]')?.classList.remove('sidebar-item-dragging'));
+    handle.addEventListener('keydown',event=>{
+      const previous=event.key==='ArrowUp' || event.key==='ArrowLeft';
+      const next=event.key==='ArrowDown' || event.key==='ArrowRight';
+      if(!previous && !next) return;
+      event.preventDefault();
+      const order=type==='section' ? sidebarPreference().sectionOrder : sidebarPreference().menuOrder.filter(item=>registry()?.byKey?.(item)?.section===registry()?.byKey?.(key)?.section);
+      const index=order.indexOf(key);
+      const target=order[index+(previous?-1:1)];
+      if(target) move(key,target,previous ? true : false);
+    });
+    handle.addEventListener('pointerdown',event=>{
+      if(event.pointerType==='mouse') return;
+      event.preventDefault(); event.stopPropagation();
+      const owner=handle.closest(type==='section' ? '[data-nav-section-toggle]' : '[data-menu-key]');
+      owner?.classList.add('sidebar-item-dragging');
+      const finish=up=>{
+        const target=targetFor(up);
+        if(target && target!==key) move(key,target,true);
+        owner?.classList.remove('sidebar-item-dragging');
+        window.removeEventListener('pointerup',finish,true);
+      };
+      window.addEventListener('pointerup',finish,true);
+    });
+  }
+
+  function decorateEditableSidebar() {
+    const nav=sidebarNav();
+    if(!nav) return;
+    nav.dataset.layoutEditing='1';
+    [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(node=>{
+      if(node.querySelector('[data-sidebar-drag-handle]')) return;
+      const handle=text('span','⋮⋮','sidebar-drag-handle');
+      handle.dataset.sidebarDragHandle='section';
+      handle.tabIndex=0;
+      handle.setAttribute('role','button');
+      handle.setAttribute('aria-label',`${node.dataset.sectionKey} 카테고리 순서 변경`);
+      node.append(handle);
+      bindSidebarHandle(handle,'section',node.dataset.sectionKey);
+    });
+    [...nav.querySelectorAll(':scope > [data-menu-key][data-nav-section]')].forEach(node=>{
+      const key=menuKey(node);
+      if(!key || node.querySelector('[data-sidebar-drag-handle]')) return;
+      const handle=text('span','⋮⋮','sidebar-drag-handle');
+      handle.dataset.sidebarDragHandle='menu';
+      handle.tabIndex=0;
+      handle.setAttribute('role','button');
+      handle.setAttribute('aria-label',`${key} 메뉴 순서 변경`);
+      node.append(handle);
+      bindSidebarHandle(handle,'menu',key);
+    });
+  }
+
+  function clearEditableSidebar() {
+    const nav=sidebarNav();
+    if(!nav) return;
+    delete nav.dataset.layoutEditing;
+    nav.querySelectorAll('[data-sidebar-drag-handle]').forEach(node=>node.remove());
+    nav.querySelectorAll('.sidebar-item-dragging').forEach(node=>node.classList.remove('sidebar-item-dragging'));
+  }
+
+  function bindSidebarDropTargets() {
+    const nav=sidebarNav();
+    if(!nav || nav.dataset.sidebarDropBound==='1') return;
+    nav.dataset.sidebarDropBound='1';
+    nav.addEventListener('click',event=>{
+      if(!state.editingSidebar || event.target.closest('[data-sidebar-drag-handle]')) return;
+      event.preventDefault(); event.stopImmediatePropagation();
+    },true);
+    nav.addEventListener('dragover',event=>{
+      if(state.editingSidebar && event.dataTransfer?.types.includes('text/plain')) event.preventDefault();
+    });
+    nav.addEventListener('drop',event=>{
+      if(!state.editingSidebar) return;
+      const [kind,key]=String(event.dataTransfer?.getData('text/plain')||'').replace(/^sidebar-/,'').split(':');
+      const target=kind==='section'
+        ? event.target.closest('[data-nav-section-toggle="1"]')?.dataset?.sectionKey
+        : menuKey(event.target.closest('[data-menu-key]'));
+      if(!key || !target || key===target) return;
+      event.preventDefault();
+      const box=event.target.closest(kind==='section' ? '[data-nav-section-toggle="1"]' : '[data-menu-key]')?.getBoundingClientRect();
+      const before=!box || event.clientY < box.top + box.height / 2;
+      if(kind==='section') moveSidebarSection(key,target,before);
+      if(kind==='menu') moveSidebarMenu(key,target,before);
+    });
+  }
+
+  async function saveSidebarLayout() {
+    try {
+      await savePersonal({sidebarSectionOrder:state.sidebarSectionOrder,sidebarMenuOrder:state.sidebarMenuOrder});
+      state.editingSidebar=false;
+      clearEditableSidebar();
+      injectSidebarEditor();
+    } catch(error) { window.alert(app()?.friendlyError?.(error)||'메뉴 순서를 저장하지 못했습니다.'); }
+  }
+
+  function cancelSidebarLayout() {
+    state.sidebarSectionOrder=state.sidebarSnapshot?.sectionOrder || [];
+    state.sidebarMenuOrder=state.sidebarSnapshot?.menuOrder || [];
+    state.editingSidebar=false;
+    clearEditableSidebar();
+    window.TaejangRoleNavigationPriority?.reorder?.();
+    injectSidebarEditor();
+  }
+
+  async function resetSidebarLayout() {
+    try {
+      await savePersonal({sidebarSectionOrder:[],sidebarMenuOrder:[]});
+      state.editingSidebar=false;
+      clearEditableSidebar();
+      injectSidebarEditor();
+    } catch(error) { window.alert(app()?.friendlyError?.(error)||'기본 메뉴 순서를 복원하지 못했습니다.'); }
+  }
+
+  function startSidebarLayout() {
+    state.sidebarSnapshot={sectionOrder:state.sidebarSectionOrder.slice(),menuOrder:state.sidebarMenuOrder.slice()};
+    state.editingSidebar=true;
+    decorateEditableSidebar();
+    injectSidebarEditor();
+  }
+
+  function injectSidebarEditor() {
+    const nav=sidebarNav();
+    const wrap=sidebarEditorActions();
+    if(!nav || !wrap) return;
+    bindSidebarDropTargets();
+    wrap.replaceChildren();
+    if(state.editingSidebar) {
+      wrap.append(button('저장',saveSidebarLayout),button('취소',cancelSidebarLayout,true),button('기본값',resetSidebarLayout,true));
+      decorateEditableSidebar();
+    } else {
+      wrap.append(button('메뉴 편집',startSidebarLayout,true));
     }
   }
 
@@ -344,8 +624,7 @@
       const personal=document.createElement('section'); personal.className='platform-settings-card';
       personal.append(
         text('h3','내 화면 옵션'),
-        text('p','사이드바 자체는 항상 펼쳐집니다. 직원·계정, 홍보, 홈페이지 같은 카테고리 제목을 누르면 그 카테고리의 하위 메뉴만 접고 펼칠 수 있으며 상태는 자동 저장됩니다.','help'),
-        text('p','대시보드에서는 “대시보드 수정”을 눌러 카드 순서를 직접 바꿀 수 있습니다.','help')
+        text('p','사이드바의 “메뉴 편집”과 대시보드의 “대시보드 편집”에서 현재 화면을 보며 순서만 바꿀 수 있습니다. 메뉴 표시 설정은 아래 직책·역할별 관리에만 사용합니다.','help')
       );
       shell.append(personal);
 
@@ -426,14 +705,20 @@
     try {
       const result=await app().rpc('get_my_ui_preferences',{p_role_code:role});
       state.collapsedSections=new Set(cleanArray(result?.collapsed_sections));
-      state.dashboardOrder=cleanArray(result?.dashboard_order);
+      state.dashboardOrder=dashboardOrder(result?.dashboard_order);
+      state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
+      state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
     } catch {
       state.collapsedSections=new Set();
       state.dashboardOrder=[];
+      state.sidebarSectionOrder=[];
+      state.sidebarMenuOrder=[];
     }
     applySectionCollapse();
     applyDashboardOrder();
     injectDashboardEditor();
+    window.TaejangRoleNavigationPriority?.reorder?.();
+    injectSidebarEditor();
   }
 
   function observeNavigation() {
@@ -443,6 +728,7 @@
     new MutationObserver(()=>queueMicrotask(()=>{
       applyRoleVisibility();
       applySectionCollapse();
+      if(!state.editingSidebar) injectSidebarEditor();
     })).observe(nav,{childList:true,subtree:false});
   }
 
@@ -463,6 +749,7 @@
     await Promise.all([loadPersonalPreferences(),loadRoleVisibility()]);
     applyRoleVisibility();
     applySectionCollapse();
+    injectSidebarEditor();
   }
 
   document.addEventListener('taejang-open-platform-settings',renderSettings);
@@ -474,6 +761,7 @@
     refresh,
     renderSettings,
     getDashboardOrder:()=>state.dashboardOrder.slice(),
+    getSidebarPreference:()=>sidebarPreference(),
     isDashboardEditing:()=>state.editingDashboard,
     applyRoleVisibility,
     applySectionCollapse,

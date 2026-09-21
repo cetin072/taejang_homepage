@@ -3,12 +3,11 @@
 
   const MASTER_ORDER = Object.freeze([
     '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
     '발행 대기', '기존 글 관리', '홍보글 관리·복구',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '일정 관리', '일정 캘린더',
-    '공지 확인', '공지 관리', '상시 안내 관리',
+    '업무 배정',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '설정',
@@ -16,11 +15,10 @@
   ]);
 
   const MASTER_SECTIONS = Object.freeze([
-    { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
+    { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
     { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리', '홍보글 관리·복구'] },
     { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-    { key: 'operations', label: '업무 운영', items: ['업무 배정', '일정 관리', '일정 캘린더'] },
-    { key: 'information', label: '공지·안내', items: ['공지 확인', '공지 관리', '상시 안내 관리'] },
+    { key: 'operations', label: '업무 운영', items: ['업무 배정'] },
     { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
     { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] }
   ]);
@@ -39,6 +37,10 @@
   ));
 
   const CHECKING = new Set(['신규 사업 기획']);
+  const RETIRED_NAVIGATION = new Set([
+    '복구·계정 관리', '일정 관리', '일정 캘린더',
+    '공지 확인', '공지 관리', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
+  ]);
   const LABEL_RENAMES = new Map([
     ['팀 직원 관리', '직원 관리'],
     ['신규 직원 등록 요청', '신규 직원 등록'],
@@ -61,7 +63,7 @@
   let navObserver = null;
 
   const route = () => window.TaejangApp?.getRoute?.();
-  const cleanLabel = node => (node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').replace(/[▾▸]\s*$/, '').trim();
+  const cleanLabel = node => (node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').replace(/\s*⋮⋮\s*$/, '').replace(/[▾▸]\s*$/, '').trim();
 
   function invoke(label, callback) {
     if (typeof callback === 'function') return callback();
@@ -155,6 +157,8 @@
 
     const link = document.createElement('a');
     link.href = 'payroll/live.html';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
     link.textContent = '근태·급여관리';
     link.className = 'app-nav-item';
     link.dataset.payrollMvpNav = '1';
@@ -177,6 +181,8 @@
 
     const link = document.createElement('a');
     link.href = 'payroll/handoff.html';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
     link.textContent = label;
     link.className = 'app-nav-item';
     link.dataset.payrollHandoffNav = '1';
@@ -194,6 +200,13 @@
     if (CHECKING.has(label) || node.dataset?.featureStatus === 'checking') return 10000;
     const registry = window.TaejangPlatformNavigationRegistry;
     const key = registry?.keyForNode?.(node);
+    const preference=window.TaejangPlatformUiSettings?.getSidebarPreference?.();
+    const item=key ? registry?.byKey?.(key) : null;
+    if(key && item?.section) {
+      const ordered=preference?.menuOrder || [];
+      const index=ordered.indexOf(key);
+      if(index>=0) return index * 10;
+    }
     const registryIndex = key ? registry?.orderIndex?.(key) : -1;
     if (Number.isFinite(registryIndex) && registryIndex >= 0 && registryIndex < 9000) return registryIndex * 10;
     const index = MASTER_ORDER.indexOf(label);
@@ -253,10 +266,19 @@
 
   function buildDesiredSequence(nav, sortedNodes) {
     const registry = window.TaejangPlatformNavigationRegistry;
+    const preference=window.TaejangPlatformUiSettings?.getSidebarPreference?.();
+    const sectionRank=new Map((preference?.sectionOrder || []).map((key,index)=>[key,index]));
+    const orderedNodes=[...sortedNodes].sort((a,b)=>{
+      const aKey=registry?.sectionForItem?.(registry?.itemForNode?.(a))?.key;
+      const bKey=registry?.sectionForItem?.(registry?.itemForNode?.(b))?.key;
+      const aRank=sectionRank.has(aKey) ? sectionRank.get(aKey) : 9000;
+      const bRank=sectionRank.has(bKey) ? sectionRank.get(bKey) : 9000;
+      return aRank-bRank || sortedNodes.indexOf(a)-sortedNodes.indexOf(b);
+    });
     const desired = [];
     let previousSectionKey = null;
 
-    sortedNodes.forEach(node => {
+    orderedNodes.forEach(node => {
       const item = registry?.itemForNode?.(node);
       const section = registry?.sectionForItem?.(item);
       const sectionKey = section?.key || null;
@@ -328,6 +350,7 @@
       removeLegacySupportGroups(nav);
       ensureIssue207RoleContract(nav);
       menuNodes(nav).forEach(normalizeLabel);
+      menuNodes(nav).filter(node => RETIRED_NAVIGATION.has(cleanLabel(node))).forEach(node=>node.remove());
       dedupeCanonicalEntries(nav);
 
       const children = menuNodes(nav);

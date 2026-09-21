@@ -30,11 +30,10 @@ function assertOrdered(source, labels) {
 test('Issue 325 orders canonical menus by actual work flow', () => {
   const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
   assertOrdered(master, [
-    '직원 관리','신규 직원 등록','가입 승인','복구·계정 관리',
+    '직원 관리','신규 직원 등록','가입 승인',
     '홍보 글 작성','보완 요청받은 글','보낸 글','홍보 검토','발행 대기','기존 글 관리','홍보글 관리·복구',
     '홈페이지 내용 관리','홈페이지 직접 수정',
-    '업무 배정','일정 관리','일정 캘린더',
-    '공지 확인','공지 관리','상시 안내 관리',
+    '업무 배정',
     '출근부','근태 보정','근태·급여관리','외부 급여초안 상신','외부 급여초안 검토',
     '기업 프로필','지원사업 레이더','내 지원사업','설정'
   ]);
