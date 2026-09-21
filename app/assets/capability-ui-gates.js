@@ -70,9 +70,11 @@
   }
 
   function applyNavigationState(node, allowed, capabilityLabel) {
-    node.hidden = !allowed;
-    node.setAttribute('aria-hidden', String(!allowed));
-    node.toggleAttribute('disabled', !allowed && node.tagName === 'BUTTON');
+    const roleVisible = node.dataset?.roleHidden !== '1';
+    const effectiveAllowed = Boolean(allowed && roleVisible);
+    node.hidden = !effectiveAllowed;
+    node.setAttribute('aria-hidden', String(!effectiveAllowed));
+    node.toggleAttribute('disabled', !effectiveAllowed && node.tagName === 'BUTTON');
     if (!allowed) node.dataset.capabilityDenied = capabilityLabel;
     else delete node.dataset.capabilityDenied;
   }
@@ -109,6 +111,11 @@
       if (label === '가입 승인') {
         applyNavigationState(node, canAny(ACCOUNT_APPROVAL_CAPABILITIES), ACCOUNT_APPROVAL_CAPABILITIES.join('|'));
       }
+    });
+
+    [...nav.querySelectorAll('[data-role-hidden="1"]')].forEach(node => {
+      node.hidden = true;
+      node.setAttribute('aria-hidden','true');
     });
   }
 

@@ -148,6 +148,7 @@ test('all desktop roles start from the same master sidebar before capability pru
     '홍보 검토', '홍보 글 작성', '보완 요청받은 글',
     '업무 배정', '일정 관리', '공지 확인', '공지 관리', '상시 안내 관리',
     '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
+    '지원사업 레이더', '기업 프로필', '설정',
     '홈페이지', '공식 채널'
   ];
 

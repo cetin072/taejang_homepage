@@ -107,7 +107,13 @@
     }catch(error){main.replaceChildren(text('p',window.TaejangApp.friendlyError(error),'message error'));}
   }
 
-  function setup(){if(!canUse())return;queueMicrotask(injectNav);}
+  function setup(){
+    if(!canUse())return;
+    queueMicrotask(()=>{
+      injectNav();
+      if(new URLSearchParams(window.location.search).get('support')==='mywork') renderList();
+    });
+  }
   document.addEventListener('taejang-app-ready',setup);
   document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectNav));
   window.TaejangSupportRadarMyWork={renderList,renderDetail,injectNav};
