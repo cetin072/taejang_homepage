@@ -228,6 +228,7 @@
       if (!rows.length || !grid.isConnected || !canOnboard()) return;
       const card = el('article', null, 'dashboard-card');
       card.dataset.phaseCAccountApprovalCard = '1';
+      card.dataset.dashboardCardKey = 'account.signup-requests';
       card.append(el('span', '승인 필요', 'status-label'), el('h3', '신입 가입 승인'));
       card.append(el('p', rows.length + '건의 가입 요청을 확인해야 합니다.', 'dashboard-value'));
       card.append(el('p', '부서·직책·권한을 확인하면 직원 생성과 계정 연결까지 한 번에 처리됩니다.'));
