@@ -11,6 +11,10 @@ const migration = fs.readFileSync(
   path.join(root, 'supabase/migrations/20260921223000_issue_318_executive_payroll_subjects.sql'),
   'utf8'
 );
+const monthlyPersistence = fs.readFileSync(
+  path.join(root, 'supabase/migrations/20260921224500_issue_318_monthly_salary_persistence.sql'),
+  'utf8'
+);
 
 test('Issue 318 registers final-ledger executive recipients as non-attendance monthly payroll employees', () => {
   assert.match(migration, /'이영희',date '2026-06-09',null,ceo_position_id,false/i);
@@ -64,4 +68,12 @@ test('non-attendance monthly executive calculates full monthly salary without at
   assert.equal(result.grossPayPreview, 3200000);
   assert.equal(result.unresolvedCount, 0);
   assert.equal(result.actualWorkHours, 0);
+});
+
+
+test('trusted persistence accepts monthly salary results and keeps review rows fail-closed', () => {
+  assert.match(monthlyPersistence, /'monthly_salary'/);
+  assert.match(monthlyPersistence, /'monthly_salary_review_required'/);
+  assert.match(monthlyPersistence, /rate_status in \('single_rate','monthly_salary'\)/i);
+  assert.match(monthlyPersistence, /gross_pay_preview is null[\s\S]*rate_status in \('single_rate','monthly_salary'\)/i);
 });
