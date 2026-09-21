@@ -266,8 +266,7 @@ begin
     'gross_pay_preview_status',run_row.gross_pay_preview_status
   );
 end;
-$function$
-
+$function$;
 
 notify pgrst,'reload schema';
 
