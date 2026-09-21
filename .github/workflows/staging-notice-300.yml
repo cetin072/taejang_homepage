@@ -1,115 +1,33 @@
-name: Staging Notice 300 Migration
+name: Staging Notice 300 Verification
 
 on:
-  push:
-    branches:
-      - feat/notice-ops-review-photo
-    paths:
-      - .github/workflows/staging-notice-300.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: taejang-staging-notice-300
+  group: taejang-staging-notice-300-verify
   cancel-in-progress: false
 
 jobs:
-  apply-targeted-staging-migration:
+  verify-staging:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     environment: staging-first-super-admin
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
       STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
       TARGET_VERSION: "20260921002000"
-      TARGET_PATH: supabase/migrations/20260921002000_issue_300_notice_review_media.sql
-      TARGET_BLOB_SHA: f6e03e23ff34a82a1ae8182d0b1a389800fe0ca9
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
-
-      - name: Verify one-time staging target
+      - name: Verify approved staging target
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$GITHUB_REF_NAME" == "feat/notice-ops-review-photo" ]] || { echo "STOP_UNAPPROVED_BRANCH"; exit 1; }
           [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
-          [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$SUPABASE_DB_PASSWORD" ]] || { echo "STOP_STAGING_SECRETS_MISSING"; exit 1; }
-          [[ -f "$TARGET_PATH" ]] || { echo "STOP_TARGET_MIGRATION_MISSING"; exit 1; }
-          actual_blob="$(git hash-object "$TARGET_PATH")"
-          [[ "$actual_blob" == "$TARGET_BLOB_SHA" ]] || { echo "STOP_TARGET_MIGRATION_CHANGED"; exit 1; }
-          echo "TARGET_MIGRATION_VERIFIED=$TARGET_VERSION"
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "STOP_STAGING_SECRET_MISSING"; exit 1; }
 
-      - name: Link approved staging project
-        run: supabase link --project-ref "$STAGING_PROJECT_REF"
-
-      - name: Preflight no partial Issue 300 schema
-        id: preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          query="
-          select
-            (select count(*)::int from supabase_migrations.schema_migrations where version = '${TARGET_VERSION}') as history_count,
-            (to_regclass('public.notice_media') is not null) as notice_media_table,
-            exists (
-              select 1 from information_schema.columns
-              where table_schema='public' and table_name='notices' and column_name='review_state'
-            ) as review_state_column,
-            exists (select 1 from storage.buckets where id='notice-media') as bucket_exists;
-          "
-          response="$(jq -n --arg query "$query" '{query:$query,read_only:true}' |
-            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @-)"
-          row="$(printf '%s' "$response" | jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end')"
-          [[ -n "$row" && "$row" != "null" ]] || { echo "STOP_PREFLIGHT_RESPONSE"; exit 1; }
-          history="$(printf '%s' "$row" | jq -r '.history_count')"
-          media="$(printf '%s' "$row" | jq -r '.notice_media_table')"
-          review="$(printf '%s' "$row" | jq -r '.review_state_column')"
-          bucket="$(printf '%s' "$row" | jq -r '.bucket_exists')"
-          echo "PREFLIGHT history=$history media=$media review=$review bucket=$bucket"
-          if [[ "$history" == "1" ]]; then
-            [[ "$media" == "true" && "$review" == "true" && "$bucket" == "true" ]] || {
-              echo "STOP_HISTORY_WITH_PARTIAL_SCHEMA"; exit 1;
-            }
-            echo "already_applied=true" >> "$GITHUB_OUTPUT"
-          elif [[ "$history" == "0" ]]; then
-            [[ "$media" == "false" && "$review" == "false" && "$bucket" == "false" ]] || {
-              echo "STOP_PARTIAL_ISSUE_300_SCHEMA"; exit 1;
-            }
-            echo "already_applied=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "STOP_DUPLICATE_MIGRATION_HISTORY"; exit 1
-          fi
-
-      - name: Apply only Issue 300 migration in one transaction
-        if: steps.preflight.outputs.already_applied == 'false'
-        shell: bash
-        run: |
-          set -euo pipefail
-          jq -Rs '{query: ., read_only: false}' "$TARGET_PATH" |
-            curl --fail --silent --show-error --retry 1 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/issue300-apply.json
-          jq -e . /tmp/issue300-apply.json >/dev/null
-          if jq -e 'type=="object" and ((.error? != null) or (.message? != null and .message != ""))' /tmp/issue300-apply.json >/dev/null; then
-            echo "STOP_ISSUE_300_SQL_ERROR"
-            jq -c '{error:(.error // null),message:(.message // null)}' /tmp/issue300-apply.json
-            exit 1
-          fi
-          echo "ISSUE_300_SQL_APPLIED"
-
-      - name: Record only Issue 300 migration version
-        if: steps.preflight.outputs.already_applied == 'false'
-        shell: bash
-        run: |
-          set -euo pipefail
-          supabase migration repair --status applied "$TARGET_VERSION"
-          echo "ISSUE_300_HISTORY_RECORDED=$TARGET_VERSION"
-
-      - name: Verify hosted schema, private bucket and RLS metadata
+      - name: Verify Issue 300 hosted schema and security metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -142,7 +60,7 @@ jobs:
           response="$(jq -n --arg query "$query" '{query:$query,read_only:true}' |
             curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @-)"
           row="$(printf '%s' "$response" | jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end')"
-          [[ -n "$row" && "$row" != "null" ]] || { echo "STOP_POSTCHECK_RESPONSE"; exit 1; }
+          [[ -n "$row" && "$row" != "null" ]] || { echo "STOP_VERIFY_RESPONSE"; exit 1; }
           printf '%s' "$row" | jq -c .
           [[ "$(printf '%s' "$row" | jq -r '.history_count')" == "1" ]]
           [[ "$(printf '%s' "$row" | jq -r '.notice_media_table')" == "true" ]]
