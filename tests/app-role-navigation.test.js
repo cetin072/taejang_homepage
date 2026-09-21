@@ -213,6 +213,11 @@ test('official channels are created in the base sidebar from the shared channel 
   assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
   assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
   assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
+  assert.match(officialChannelConfig, /blog:[\s\S]*icon: 'data:image\/png;base64,/);
+  assert.match(officialChannelConfig, /youtube:[\s\S]*icon: 'data:image\/png;base64,/);
+  assert.match(source, /app-nav-channel-icon/);
+  assert.match(officialChannels, /app-nav-channel-icon/);
+  assert.match(accentCss, /\.app-nav-channel-icon\s*\{[\s\S]*width:\s*24px[\s\S]*height:\s*24px/);
   assert.match(source, /dataset\.navSection = 'official_channels'/);
   assert.match(source, /if \(officialChannelRoles\.has\(route\)\) nav\.append\(makeOfficialChannelGroup\(\)\)/);
   assert.match(officialChannels, /if \(nav\.querySelector\('\[data-official-channel-group\]'\)\) return/);
