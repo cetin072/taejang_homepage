@@ -88,4 +88,5 @@ test('Issue 316 preserves the Issue 314 statutory fingerprint runtime contract',
   assert.match(payrollEdgeIndex, /p_statutory_input_fingerprint:\s*payload\.statutoryInputFingerprint/);
   assert.match(payrollEdgeIndex, /PAYROLL_STATUTORY_INPUT_/);
   assert.match(payrollEdgeIndex, /PAYROLL_PERSISTENCE_/);
+  assert.match(payrollEdgeIndex, /payroll-engine-workweek-golden-v6-simple-insurance-toggles/);
 });
