@@ -35,3 +35,11 @@ test('hosted payroll workflow preserves an active role simulation around QA', ()
   assert.doesNotMatch(workflow, /delete from public\.profile_roles/);
   assert.doesNotMatch(workflow, /delete from auth\.users/);
 });
+
+
+test('hosted payroll browser targets exact-head deploy preview on pull requests', () => {
+  assert.match(workflow, /PAYROLL_HOSTED_PREVIEW_SITE/);
+  assert.match(workflow, /deploy-preview-\{0\}--taejang-homepage\.netlify\.app/);
+  assert.match(source, /BROWSER_SITE = process\.env\.PAYROLL_HOSTED_PREVIEW_SITE \|\| SITE/);
+  assert.match(source, /EXACT_HEAD_PREVIEW_NOT_READY/);
+});
