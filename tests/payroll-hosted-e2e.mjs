@@ -157,9 +157,9 @@ async function browserE2E(session, targets) {
     if (response.status() >= 400 && (/\/api\/payroll-calculate|\/rest\/v1\/rpc\/(get_payroll_|private_)/).test(url)) failures.push(`network:${response.request().method()} ${response.status()} ${new URL(url).pathname}`);
   });
   try {
-    await page.goto(`${BROWSER_SITE}/app/payroll/live.html?month=${MONTH}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BROWSER_SITE}/app/payroll/live.html?month=${MONTH}`, { waitUntil: 'domcontentloaded' });
     await page.evaluate((value) => sessionStorage.setItem('taejang-staff-session-v1', JSON.stringify(value)), session);
-    await page.reload({ waitUntil: 'networkidle' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
     await page.locator('#payroll-readiness-state').getByText('확정 근태 준비 완료').waitFor();
     await page.locator('#payroll-confirmed-calculate').click();
     await page.locator('#payroll-live-table-body tr').first().waitFor();
@@ -192,7 +192,7 @@ async function browserE2E(session, targets) {
     assert.notEqual(await page.locator('#payslip-net').textContent(), '검토 필요', 'complete payslip net visible');
     assert.equal(await page.locator('#payslip-deductions').getByText('검토 필요', { exact: true }).count(), 0, 'complete payslip has no unresolved deduction label');
 
-    await page.goto(`${BROWSER_SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BROWSER_SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'domcontentloaded' });
     await page.locator('#payslip-content').waitFor({ state: 'visible' });
     await page.locator('#payslip-message').getByText('개인 급여명세서 초안입니다.', { exact: false }).waitFor();
     await page.locator('#payslip-status').getByText('검토 필요', { exact: true }).waitFor();
