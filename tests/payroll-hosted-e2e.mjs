@@ -12,6 +12,7 @@ const SITE = 'https://taejang.co.kr';
 const STAGING_REF = 'jgsxpdflgkqroecfjzxq';
 const MONTH = '2026-07';
 const EMPLOYEE_ID = 'TJ-000017';
+const COMPLETE_EMPLOYEE_ID = 'TJ-000015';
 const handoffCode = process.env.PAYROLL_HOSTED_HANDOFF_CODE;
 
 function fail(message) { throw new Error(`PAYROLL_HOSTED_E2E: ${message}`); }
@@ -78,12 +79,59 @@ async function apiSmoke(config, session) {
   const employee = ledger.employees.find((row) => row?.employee_id === EMPLOYEE_ID);
   assert.ok(employee, 'TJ-000017 ledger result required');
   assert.equal(Number(employee.absence_day_count), 1, 'TJ-000017 must have one absence day');
-  const payslip = await rpc(config, session, 'get_payroll_employee_payslip_draft', { p_payroll_month: payrollMonth, p_employee_uuid: employee.employee_uuid });
-  assert.ok(payslip?.employee?.employee_id === EMPLOYEE_ID, 'payslip draft must return the persisted employee result');
+  assert.equal(employee.statutory_status, 'review_required', 'review target must remain fail-closed');
+  const reviewKnownComponents = [
+    employee.national_pension_preview,
+    employee.health_insurance_preview,
+    employee.long_term_care_preview,
+    employee.employment_insurance_preview,
+  ].filter((value) => value !== null && value !== undefined && value !== '');
+  assert.ok(reviewKnownComponents.length >= 1 && reviewKnownComponents.length < 4, 'review target must expose known components without inventing unresolved ones');
+  assert.equal(employee.statutory_deduction_preview, null, 'review target total deduction must remain unresolved');
+  assert.equal(employee.net_pay_preview, null, 'review target net pay must remain unresolved');
+
+  const completeEmployee = ledger.employees.find((row) => row?.employee_id === COMPLETE_EMPLOYEE_ID);
+  assert.ok(completeEmployee?.employee_uuid, 'complete statutory ledger target required');
+  assert.equal(completeEmployee.statutory_status, 'complete', 'complete target statutory status');
+  for (const field of [
+    'national_pension_preview',
+    'health_insurance_preview',
+    'long_term_care_preview',
+    'employment_insurance_preview',
+    'statutory_deduction_preview',
+    'net_pay_preview',
+  ]) {
+    assert.notEqual(completeEmployee[field], null, `complete target ${field} must be persisted`);
+    assert.notEqual(completeEmployee[field], undefined, `complete target ${field} must be persisted`);
+  }
+
+  const reviewPayslip = await rpc(config, session, 'get_payroll_employee_payslip_draft', { p_payroll_month: payrollMonth, p_employee_uuid: employee.employee_uuid });
+  assert.ok(reviewPayslip?.employee?.employee_id === EMPLOYEE_ID, 'review payslip must return the persisted employee result');
+  assert.equal(reviewPayslip?.status, 'review_required', 'review payslip status');
+  assert.ok(reviewPayslip?.review_reasons?.includes('statutory_deduction_review_required'), 'review payslip must explain statutory review');
+  assert.equal(reviewPayslip?.totals?.statutory_deduction_preview, null, 'review payslip total deduction unresolved');
+  assert.equal(reviewPayslip?.totals?.net_pay_preview, null, 'review payslip net unresolved');
+  const reviewDeductionAmounts = (reviewPayslip?.deductions || []).map((item) => item?.amount);
+  assert.ok(reviewDeductionAmounts.some((value) => value !== null && value !== undefined), 'review payslip must preserve known component amounts');
+  assert.ok(reviewDeductionAmounts.some((value) => value === null || value === undefined), 'review payslip must preserve unresolved component labels');
+
+  const completePayslip = await rpc(config, session, 'get_payroll_employee_payslip_draft', { p_payroll_month: payrollMonth, p_employee_uuid: completeEmployee.employee_uuid });
+  assert.ok(completePayslip?.employee?.employee_id === COMPLETE_EMPLOYEE_ID, 'complete payslip must return the persisted employee result');
+  assert.equal(completePayslip?.status, 'draft_ready', 'complete payslip must be ready');
+  assert.notEqual(completePayslip?.totals?.statutory_deduction_preview, null, 'complete payslip total deduction');
+  assert.notEqual(completePayslip?.totals?.net_pay_preview, null, 'complete payslip net');
+  assert.ok((completePayslip?.deductions || []).every((item) => item?.amount !== null && item?.amount !== undefined), 'complete payslip deduction components must all be visible');
+
   console.log('Staging API smoke: PASS');
+  return {
+    reviewEmployeeId: EMPLOYEE_ID,
+    reviewEmployeeUuid: employee.employee_uuid,
+    completeEmployeeId: COMPLETE_EMPLOYEE_ID,
+    completeEmployeeUuid: completeEmployee.employee_uuid,
+  };
 }
 
-async function browserE2E(session) {
+async function browserE2E(session, targets) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const page = await browser.newPage();
   const failures = [];
@@ -113,10 +161,32 @@ async function browserE2E(session) {
     const saved = join(await mkdtemp(join(tmpdir(), 'taejang-payroll-')), download.suggestedFilename());
     await download.saveAs(saved);
     assert.ok((await stat(saved)).size > 0, 'Excel file must be non-empty');
-    assert.equal((await readFile(saved)).subarray(0, 2).toString(), 'PK', 'Excel must be a ZIP/XLSX payload');
-    await Promise.all([page.waitForURL(/\/app\/payroll\/payslip\.html/), employee.getByRole('button', { name: '명세서 초안' }).click()]);
+    const xlsxBytes = await readFile(saved);
+    assert.equal(xlsxBytes.subarray(0, 2).toString(), 'PK', 'Excel must be a ZIP/XLSX payload');
+    const xlsxRaw = xlsxBytes.toString('utf8');
+    for (const label of ['국민연금', '건강보험', '장기요양', '고용보험', '공제계', '실지급액']) {
+      assert.ok(xlsxRaw.includes(label), `Excel must include ${label} column`);
+    }
+    assert.ok(xlsxRaw.includes(targets.completeEmployeeId), 'Excel must include complete statutory employee');
+    assert.ok(xlsxRaw.includes(targets.reviewEmployeeId), 'Excel must include review statutory employee');
+    assert.ok(xlsxRaw.includes('정상') || xlsxRaw.includes('월급제'), 'Excel must visibly label a complete statutory row');
+    assert.ok(xlsxRaw.includes('공제 확인'), 'Excel must visibly label a review-required statutory row');
+
+    const completeRow = page.locator('#payroll-live-table-body tr').filter({ hasText: targets.completeEmployeeId });
+    await Promise.all([page.waitForURL(/\/app\/payroll\/payslip\.html/), completeRow.getByRole('button', { name: '명세서 초안' }).click()]);
     for (const id of ['payslip-content', 'payslip-status', 'payslip-employee', 'payslip-work', 'payslip-earnings', 'payslip-deductions']) await page.locator(`#${id}`).waitFor();
-    assert.equal(await page.locator('#payslip-content').isVisible(), true, 'payslip content visible');
+    assert.equal(await page.locator('#payslip-content').isVisible(), true, 'complete payslip content visible');
+    await page.locator('#payslip-status').getByText('초안 확인 가능', { exact: true }).waitFor();
+    assert.notEqual(await page.locator('#payslip-deductions-total').textContent(), '검토 필요', 'complete payslip total deduction visible');
+    assert.notEqual(await page.locator('#payslip-net').textContent(), '검토 필요', 'complete payslip net visible');
+    assert.equal(await page.locator('#payslip-deductions').getByText('검토 필요', { exact: true }).count(), 0, 'complete payslip has no unresolved deduction label');
+
+    await page.goto(`${SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'networkidle' });
+    await page.locator('#payslip-status').getByText('검토 필요', { exact: true }).waitFor();
+    assert.equal(await page.locator('#payslip-deductions-total').textContent(), '검토 필요', 'review payslip total deduction remains unresolved');
+    assert.equal(await page.locator('#payslip-net').textContent(), '검토 필요', 'review payslip net remains unresolved');
+    assert.ok(await page.locator('#payslip-deductions').getByText('검토 필요', { exact: true }).count() >= 1, 'review payslip exposes unresolved component label');
+    assert.ok(await page.locator('#payslip-deductions dd').evaluateAll(nodes => nodes.some(node => /원$/.test(node.textContent || ''))), 'review payslip also preserves known component amounts');
     if (failures.length) fail(failures.join(' | '));
     console.log('Hosted browser: PASS');
   } catch (error) {
@@ -130,6 +200,6 @@ async function browserE2E(session) {
 if (process.env.STAGING_CONFIRM !== 'STAGING') fail('set STAGING_CONFIRM=STAGING before this mutating staging-only test');
 const config = await runtimeConfig();
 const smokeSession = await freshQaSession(config);
-await apiSmoke(config, smokeSession);
-await browserE2E(smokeSession);
+const targets = await apiSmoke(config, smokeSession);
+await browserE2E(smokeSession, targets);
 console.log('Hosted Payroll E2E: PASS');
