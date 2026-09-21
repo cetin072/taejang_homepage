@@ -148,5 +148,5 @@ test('Staging runtime imports and wraps the reviewed weekly holiday policy', () 
 });
 
 test('Staging calculation run records the Golden workweek policy version', () => {
-  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v5-age-insurance-eligibility'/);
+  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v6-simple-insurance-toggles'/);
 });
