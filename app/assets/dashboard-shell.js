@@ -207,12 +207,12 @@
       {
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel'),
-        capabilities: ['notice.manage', 'information.submit', 'information.review']
+        capabilities: ['notice.manage']
       },
       {
         label: '상시 안내 관리',
         run: () => openPanel('guidance-admin-panel'),
-        capabilities: ['guidance.manage', 'information.submit', 'information.review']
+        capabilities: ['guidance.manage']
       },
       { label: '홈페이지', href: '../index.html', newTab: true }
     ];
