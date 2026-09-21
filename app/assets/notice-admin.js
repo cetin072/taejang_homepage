@@ -437,7 +437,17 @@
       });
       if (!result?.ok) throw new Error(result?.code || 'SAVE_FAILED');
 
-      await persistMedia(result.id, reason);
+      // Persist the saved id before photo work starts. If a later upload/RPC
+      // fails, retrying the still-open form must update this notice instead of
+      // creating a duplicate notice.
+      ui.element('notice-id').value = result.id;
+      try {
+        await persistMedia(result.id, reason);
+      } catch (mediaError) {
+        const partialError = new Error('NOTICE_SAVED_MEDIA_FAILED');
+        partialError.cause = mediaError;
+        throw partialError;
+      }
       showMessage(`공지와 사진 자료를 저장했습니다. 공지 버전은 ${result.version_no}입니다.`);
       resetForm();
       await load();
@@ -453,6 +463,7 @@
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
                           : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '사진 한 장의 크기는 8MB 이하여야 합니다.'
                             : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
+                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? '공지 내용은 저장됐지만 사진 자료 저장에 실패했습니다. 입력은 유지됩니다. 사진을 확인한 뒤 다시 저장해주세요.'
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
       showMessage(message, true);
