@@ -12,9 +12,9 @@ language sql
 stable
 security definer
 set search_path=''
-as $
+as $fingerprint$
   select md5(coalesce(public.private_get_payroll_statutory_input(p_payroll_month),'{}'::jsonb)::text);
-$;
+$fingerprint$;
 
 revoke all on function public.private_get_payroll_statutory_input_fingerprint(date)
 from public,anon,authenticated;
