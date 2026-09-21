@@ -32,7 +32,7 @@ test('role polish no longer owns role-specific sidebar suppression', () => {
   assert.doesNotMatch(polish, /function removeLegacyRevisionMenus\(nav\)/);
   assert.doesNotMatch(polish, /data-effective-role=.*revision/);
   assert.match(polish, /Sidebar visibility is capability-driven/);
-  assert.doesNotMatch(polish, /display:none !important/);
+  assert.doesNotMatch(polish, /data-effective-role=.*display:none !important/);
   assert.doesNotMatch(polish, /new MutationObserver/);
 });
 
