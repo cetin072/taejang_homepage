@@ -48,7 +48,7 @@ test('late legacy menu injection is deduplicated by canonical key', () => {
 
 test('role menu visibility is display-only and composes with capability hiding', () => {
   assert.match(gates, /node\.dataset\?\.roleHidden !== '1'/);
-  assert.match(gates, /effectiveAllowed = Boolean\(allowed && roleVisible\)/);
+  assert.match(gates, /effectiveAllowed = Boolean\(allowed && roleVisible && sectionVisible\)/);
   assert.match(settings, /get_my_navigation_visibility/);
   assert.match(settings, /save_role_navigation_visibility/);
   assert.match(settings, /reset_role_navigation_visibility/);
@@ -66,12 +66,12 @@ test('database stores role navigation separately from personal UI preferences', 
   assert.doesNotMatch(patch, /r\.sort_order/);
 });
 
-test('sidebar defaults expanded and can persist a personal collapsed state', () => {
+test('sidebar stays expanded while per-category collapse is handled by the follow-up contract', () => {
   assert.match(migration, /sidebar_collapsed boolean not null default false/);
-  assert.match(settings, /sidebar-collapsed/);
-  assert.match(settings, /savePersonal\(\{sidebarCollapsed:!state\.sidebarCollapsed\}\)/);
-  assert.match(css, /\.desktop-app-shell\.sidebar-collapsed/);
-  assert.match(css, /grid-template-columns:58px minmax\(0,1fr\)/);
+  assert.doesNotMatch(settings, /sidebarCollapsed|sidebar-collapsed|sidebar-preference-toggle/);
+  assert.doesNotMatch(css, /\.desktop-app-shell\.sidebar-collapsed/);
+  assert.match(settings, /collapsedSections: new Set/);
+  assert.match(settings, /save_my_sidebar_sections/);
 });
 
 test('dashboard editor supports drag ordering, save and reset', () => {
