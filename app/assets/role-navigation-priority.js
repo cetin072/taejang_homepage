@@ -4,28 +4,25 @@
   const MASTER_ORDER = Object.freeze([
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
-    '홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글',
-    '기존 글 관리', '홍보글 관리·복구', '발행 대기',
+    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
+    '발행 대기', '기존 글 관리', '홍보글 관리·복구',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '일정 관리', '일정 캘린더',
     '공지 확인', '공지 관리', '상시 안내 관리',
-    '근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신',
-    '출근부', '근태 보정',
-    '지원사업 레이더', '기업 프로필', '내 지원사업',
+    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '기업 프로필', '지원사업 레이더', '내 지원사업',
     '설정',
-    '홈페이지',
     '신규 사업 기획'
   ]);
 
   const MASTER_SECTIONS = Object.freeze([
-    { label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
-    { label: '홍보', items: ['홍보 검토', '홍보 글 작성', '보낸 글', '보완 요청받은 글', '기존 글 관리', '홍보글 관리·복구', '발행 대기'] },
-    { label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-    { label: '업무 운영', items: ['업무 배정', '일정 관리', '일정 캘린더'] },
-    { label: '공지·안내', items: ['공지 확인', '공지 관리', '상시 안내 관리'] },
-    { label: '근태·급여', items: ['근태·급여관리', '외부 급여초안 검토', '외부 급여초안 상신', '출근부', '근태 보정'] },
-    { label: '지원사업', items: ['지원사업 레이더', '기업 프로필', '내 지원사업'] },
-    { label: '설정', items: ['설정'] }
+    { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'] },
+    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리', '홍보글 관리·복구'] },
+    { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
+    { key: 'operations', label: '업무 운영', items: ['업무 배정', '일정 관리', '일정 캘린더'] },
+    { key: 'information', label: '공지·안내', items: ['공지 확인', '공지 관리', '상시 안내 관리'] },
+    { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
+    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] }
   ]);
 
   const DESKTOP_ROLES = Object.freeze([
@@ -58,21 +55,17 @@
     ['홍보글 보관·복구', '홍보글 관리·복구'],
     ['안내 관리', '상시 안내 관리']
   ]);
+
   let scheduled = false;
-  let reordering = false;
+  let composing = false;
+  let navObserver = null;
 
   const route = () => window.TaejangApp?.getRoute?.();
-  const cleanLabel = node => (node.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
+  const cleanLabel = node => (node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').replace(/[▾▸]\s*$/, '').trim();
 
   function invoke(label, callback) {
     if (typeof callback === 'function') return callback();
     window.TaejangFeatureHealth?.showFailure?.(label);
-  }
-
-  function openPromotion(mode) {
-    const api = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
-    if (typeof api === 'function') return api(mode);
-    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
   }
 
   function navButton(label, callback, dataset = {}) {
@@ -85,18 +78,20 @@
     return node;
   }
 
-  function findByLabel(nav, labels) {
-    const wanted = new Set(Array.isArray(labels) ? labels : [labels]);
-    return [...nav.children].find(node => wanted.has(cleanLabel(node))) || null;
+  function menuNodes(nav) {
+    return [...nav.children].filter(node =>
+      (node.tagName === 'BUTTON' || node.tagName === 'A')
+      && node.dataset?.navSectionToggle !== '1'
+    );
   }
 
-  function ensureIssue207RoleContract(nav) {
-    if (!nav) return;
-    [...nav.children].forEach(node => normalizeLabel(node));
+  function findByLabel(nav, labels) {
+    const wanted = new Set(Array.isArray(labels) ? labels : [labels]);
+    return menuNodes(nav).find(node => wanted.has(cleanLabel(node))) || null;
   }
 
   function normalizeLabel(node) {
-    if (node.dataset?.navSection === 'official_channels') return;
+    if (!node || node.dataset?.navSection === 'official_channels' || node.dataset?.navSectionToggle === '1') return;
     const current = cleanLabel(node);
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
@@ -105,20 +100,31 @@
     if (item?.key) node.dataset.menuKey = item.key;
   }
 
+  function ensureIssue207RoleContract(nav) {
+    if (!nav) return;
+    menuNodes(nav).forEach(normalizeLabel);
+  }
+
+  function removeLegacySupportGroups(nav) {
+    [...nav.children].forEach(node => {
+      if (node.dataset?.supportRadarNavGroup || node.dataset?.supportMyWorkNav) node.remove();
+    });
+  }
+
   function dedupeCanonicalEntries(nav) {
     const registry = window.TaejangPlatformNavigationRegistry;
-    if (!registry || !nav) return;
+    if (!registry || !nav) return false;
     const seen = new Map();
+    let changed = false;
 
-    [...nav.children].forEach(node => {
-      if (node.dataset?.navSection === 'official_channels') return;
+    menuNodes(nav).forEach(node => {
       const key = registry.keyForNode?.(node);
       if (!key) return;
       node.dataset.menuKey = key;
 
       const existing = seen.get(key);
       if (!existing) {
-        seen.set(key,node);
+        seen.set(key, node);
         return;
       }
 
@@ -126,11 +132,13 @@
       const candidateMaster = node.dataset?.masterMenuItem === '1';
       if (candidateMaster && !existingMaster) {
         existing.remove();
-        seen.set(key,node);
+        seen.set(key, node);
       } else {
         node.remove();
       }
+      changed = true;
     });
+    return changed;
   }
 
   function capabilityAllowed(capability, legacyAllowed) {
@@ -142,7 +150,7 @@
 
   function ensurePayrollEntry(nav, currentRole) {
     if (!nav || !capabilityAllowed('payroll.manage', currentRole === 'operations_manager')) return null;
-    const existing = [...nav.children].find(node => cleanLabel(node) === '근태·급여관리');
+    const existing = findByLabel(nav, '근태·급여관리');
     if (existing) return existing;
 
     const link = document.createElement('a');
@@ -151,6 +159,7 @@
     link.className = 'app-nav-item';
     link.dataset.payrollMvpNav = '1';
     link.dataset.capabilityAny = 'payroll.manage';
+    link.dataset.menuKey = 'payroll.manage';
     link.setAttribute('aria-label', '근태·급여관리 사전운영 화면 열기');
     nav.append(link);
     return link;
@@ -163,7 +172,7 @@
     if (!canApprove && !canReview) return null;
 
     const label = canApprove ? '외부 급여초안 검토' : '외부 급여초안 상신';
-    const existing = [...nav.children].find(node => cleanLabel(node) === label);
+    const existing = findByLabel(nav, label);
     if (existing) return existing;
 
     const link = document.createElement('a');
@@ -172,35 +181,30 @@
     link.className = 'app-nav-item';
     link.dataset.payrollHandoffNav = '1';
     link.dataset.capabilityAny = canApprove ? 'payroll.handoff.approve' : 'payroll.handoff.review';
+    link.dataset.menuKey = canApprove ? 'payroll.handoff.approve' : 'payroll.handoff.review';
     link.setAttribute('aria-label', `${label} 화면 열기`);
     nav.append(link);
     return link;
   }
 
-  function supportGroupPriority() {
-    return 235;
-  }
-
-  function priority(node, role) {
-    if (node.dataset?.navSuppressed === '1' || node.hidden) return 11000;
+  function priority(node) {
+    if (node.dataset?.navSuppressed === '1') return 11000;
     if (node.dataset?.navSection === 'official_channels') return 9000;
-    if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return supportGroupPriority(role);
     const label = cleanLabel(node);
-    if (CHECKING.has(label) || node.dataset.featureStatus === 'checking') return 10000;
+    if (CHECKING.has(label) || node.dataset?.featureStatus === 'checking') return 10000;
     const registry = window.TaejangPlatformNavigationRegistry;
     const key = registry?.keyForNode?.(node);
     const registryIndex = key ? registry?.orderIndex?.(key) : -1;
     if (Number.isFinite(registryIndex) && registryIndex >= 0 && registryIndex < 9000) return registryIndex * 10;
     const index = MASTER_ORDER.indexOf(label);
     if (index >= 0) return index * 10;
-    if (label === '홈페이지') return 9000;
     return 8000;
   }
 
   function markStatus(node) {
-    if (node.dataset?.navSection === 'official_channels' || node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
+    if (!node || node.dataset?.navSectionToggle === '1') return;
     const label = cleanLabel(node);
-    if (!CHECKING.has(label) && node.dataset.featureStatus !== 'checking') return;
+    if (!CHECKING.has(label) && node.dataset?.featureStatus !== 'checking') return;
     const markedLabel = `${label} · 점검중`;
     node.dataset.featureStatus = 'checking';
     node.classList.add('app-nav-checking');
@@ -208,94 +212,185 @@
     node.title = '현재 기능 점검중입니다.';
   }
 
-  function decorateSections(nodes, role) {
-    nodes.forEach(node => {
-      if (node.dataset?.supportMyWorkNav || node.dataset?.supportRadarNavGroup) return;
-      node.classList.remove('app-nav-section-start');
-      delete node.dataset.sectionLabel;
+  function sectionToggle(nav, section) {
+    let node = [...nav.children].find(item => item.dataset?.navSectionToggle === '1' && item.dataset?.sectionKey === section.key);
+    if (node) return node;
+
+    node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'app-nav-section-toggle';
+    node.dataset.navSectionToggle = '1';
+    node.dataset.sectionKey = section.key;
+    node.setAttribute('aria-expanded', 'true');
+
+    const label = document.createElement('span');
+    label.className = 'app-nav-section-title';
+    label.textContent = section.label;
+    const icon = document.createElement('span');
+    icon.className = 'app-nav-section-chevron';
+    icon.dataset.sectionChevron = '1';
+    icon.textContent = '▾';
+    icon.setAttribute('aria-hidden', 'true');
+    node.append(label, icon);
+
+    node.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const api = window.TaejangPlatformUiSettings;
+      if (typeof api?.toggleSection === 'function') {
+        api.toggleSection(section.key);
+        return;
+      }
+      const collapsed = node.getAttribute('aria-expanded') !== 'false';
+      node.setAttribute('aria-expanded', String(!collapsed));
+      icon.textContent = collapsed ? '▸' : '▾';
+      menuNodes(nav)
+        .filter(item => item.dataset?.navSection === section.key)
+        .forEach(item => { item.hidden = collapsed; });
+    });
+    return node;
+  }
+
+  function buildDesiredSequence(nav, sortedNodes) {
+    const registry = window.TaejangPlatformNavigationRegistry;
+    const desired = [];
+    let previousSectionKey = null;
+
+    sortedNodes.forEach(node => {
+      const item = registry?.itemForNode?.(node);
+      const section = registry?.sectionForItem?.(item);
+      const sectionKey = section?.key || null;
+      if (sectionKey && sectionKey !== previousSectionKey) {
+        desired.push(sectionToggle(nav, section));
+      }
+      if (!sectionKey) previousSectionKey = null;
+      else previousSectionKey = sectionKey;
+
+      if (sectionKey) node.dataset.navSection = sectionKey;
+      else delete node.dataset.navSection;
+      desired.push(node);
     });
 
-    const sections = MASTER_SECTIONS;
-    sections.forEach(section => {
-      const first = section.items
-        .map(label => nodes.find(node => !node.hidden && node.dataset?.navSuppressed !== '1' && node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup && cleanLabel(node) === label))
-        .find(Boolean);
-      if (!first) return;
-      first.classList.add('app-nav-section-start');
-      first.dataset.sectionLabel = section.label;
+    const official = [...nav.children].filter(node => node.dataset?.navSection === 'official_channels' || node.dataset?.officialChannelGroup);
+    const other = [...nav.children].filter(node =>
+      !desired.includes(node)
+      && !official.includes(node)
+      && node.dataset?.navSectionToggle !== '1'
+      && !node.dataset?.supportRadarNavGroup
+      && !node.dataset?.supportMyWorkNav
+    );
+
+    return [...desired, ...other, ...official];
+  }
+
+  function refreshSectionVisibility() {
+    const nav = document.getElementById('app-nav');
+    if (!nav) return;
+    [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(toggle => {
+      const key = toggle.dataset.sectionKey;
+      const children = menuNodes(nav).filter(node => node.dataset?.navSection === key);
+      const hasUsableChild = children.some(node =>
+        node.dataset?.roleHidden !== '1'
+        && !node.dataset?.capabilityDenied
+        && node.dataset?.navSuppressed !== '1'
+      );
+      toggle.hidden = !hasUsableChild;
+      toggle.setAttribute('aria-hidden', String(!hasUsableChild));
     });
   }
 
   function updateCurrent(target) {
-    if (!target || target.target === '_blank') return;
+    if (!target || target.target === '_blank' || target.dataset?.navSectionToggle === '1') return;
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    [...nav.children].forEach(node => node.removeAttribute('aria-current'));
+    menuNodes(nav).forEach(node => node.removeAttribute('aria-current'));
     target.setAttribute('aria-current', 'page');
   }
 
   function markDashboardCurrent() {
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    const dashboard = [...nav.children].find(node => cleanLabel(node) === '대시보드');
+    const dashboard = findByLabel(nav, '대시보드');
     if (dashboard) updateCurrent(dashboard);
   }
 
   function reorder() {
     scheduled = false;
-    if (reordering) return;
+    if (composing) return;
     const nav = document.getElementById('app-nav');
     const currentRole = route();
     if (!nav || !currentRole || currentRole === 'general_worker') return;
 
-    reordering = true;
+    composing = true;
     try {
       ensurePayrollEntry(nav, currentRole);
       ensurePayrollHandoffEntry(nav, currentRole);
+      removeLegacySupportGroups(nav);
       ensureIssue207RoleContract(nav);
-      [...nav.children].forEach(node => normalizeLabel(node));
+      menuNodes(nav).forEach(normalizeLabel);
       dedupeCanonicalEntries(nav);
-      const children = [...nav.children];
+
+      const children = menuNodes(nav);
       children.forEach(node => {
-        if (node.dataset?.navSection !== 'official_channels' && !node.dataset?.supportMyWorkNav && !node.dataset?.supportRadarNavGroup) node.classList.add('app-nav-item');
+        node.classList.add('app-nav-item');
         markStatus(node);
       });
 
-      const desired = [...children].sort((a, b) => {
-        const diff = priority(a, currentRole) - priority(b, currentRole);
+      const desiredMenu = [...children].sort((a, b) => {
+        const diff = priority(a) - priority(b);
         if (diff) return diff;
         return children.indexOf(a) - children.indexOf(b);
       });
-      const changed = desired.some((node, index) => children[index] !== node);
+      const desired = buildDesiredSequence(nav, desiredMenu);
+      const current = [...nav.children];
+      const changed = desired.length !== current.length || desired.some((node, index) => current[index] !== node);
+
       if (changed) {
         const fragment = document.createDocumentFragment();
         desired.forEach(node => fragment.append(node));
         nav.append(fragment);
       }
 
-      decorateSections(desired, currentRole);
-      const checking = desired.filter(node => node.dataset.featureStatus === 'checking');
-      desired.forEach(node => node.classList.remove('app-nav-checking-first'));
+      const checking = desiredMenu.filter(node => node.dataset.featureStatus === 'checking');
+      desiredMenu.forEach(node => node.classList.remove('app-nav-checking-first'));
       checking[0]?.classList.add('app-nav-checking-first');
+
+      window.TaejangCapabilityUiGates?.refresh?.();
+      window.TaejangPlatformUiSettings?.applyRoleVisibility?.();
+      window.TaejangPlatformUiSettings?.applySectionCollapse?.();
+      refreshSectionVisibility();
+
       nav.dataset.navigationSettled = '1';
     } finally {
-      reordering = false;
+      composing = false;
     }
   }
 
   function schedule() {
-    if (scheduled || reordering) return;
+    if (scheduled || composing) return;
     scheduled = true;
     setTimeout(reorder, 0);
   }
 
+  function bindObserver(nav) {
+    if (!nav || nav.dataset.navigationComposerObserver === '1') return;
+    nav.dataset.navigationComposerObserver = '1';
+    navObserver = new MutationObserver(mutations => {
+      if (composing) return;
+      if (mutations.some(mutation => mutation.type === 'childList')) schedule();
+    });
+    navObserver.observe(nav, { childList: true, subtree: false });
+  }
+
   function bind() {
     const nav = document.getElementById('app-nav');
-    if (!nav || nav.dataset.priorityBound) return;
+    if (!nav) return;
+    bindObserver(nav);
+    if (nav.dataset.priorityBound) return;
     nav.dataset.priorityBound = '1';
     nav.addEventListener('click', event => {
       const target = event.target?.closest?.('button, a');
-      if (!target || !nav.contains(target)) return;
+      if (!target || !nav.contains(target) || target.dataset?.navSectionToggle === '1') return;
       updateCurrent(target);
     });
   }
@@ -309,5 +404,17 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangRoleNavigationPriority = { MASTER_ORDER, MASTER_SECTIONS, ROLE_ORDER, ROLE_SECTIONS, ensurePayrollEntry, ensurePayrollHandoffEntry, ensureIssue207RoleContract, dedupeCanonicalEntries, reorder, schedule };
+  window.TaejangRoleNavigationPriority = {
+    MASTER_ORDER,
+    MASTER_SECTIONS,
+    ROLE_ORDER,
+    ROLE_SECTIONS,
+    ensurePayrollEntry,
+    ensurePayrollHandoffEntry,
+    ensureIssue207RoleContract,
+    dedupeCanonicalEntries,
+    refreshSectionVisibility,
+    reorder,
+    schedule
+  };
 })();
