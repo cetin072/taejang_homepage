@@ -93,6 +93,7 @@ jobs:
       - name: Run cheap checks, staging API smoke, then hosted Playwright
         env:
           PLAYWRIGHT_BROWSERS_PATH: 0
+          PAYROLL_HOSTED_PREVIEW_SITE: ${{ github.event.pull_request.number && format('https://deploy-preview-{0}--taejang-homepage.netlify.app', github.event.pull_request.number) || 'https://taejang.co.kr' }}
         run: npm run test:payroll-hosted
       - name: Restore pre-test role simulation state
         if: always() && env.PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE == 'true'
