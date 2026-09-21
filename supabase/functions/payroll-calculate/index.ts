@@ -217,7 +217,7 @@ Deno.serve(async (req: Request) => {
       engine: modules.engine,
       preflight: modules.preflight,
       statutory: modules.statutory,
-      calculationVersion: 'payroll-engine-workweek-golden-v5-age-insurance-eligibility',
+      calculationVersion: 'payroll-engine-workweek-golden-v6-simple-insurance-toggles',
     });
 
     const result = await calculate(requestBody, { correlationId });
