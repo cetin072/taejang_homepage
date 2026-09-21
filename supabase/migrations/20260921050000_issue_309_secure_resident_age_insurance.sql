@@ -156,8 +156,6 @@ begin
   employment_status := case
     when coalesce(p_as_of,current_date) < age65
       then 'standard_age_range'
-    when employee_row.hired_on < age65
-      then 'continuous_at_company_from_before_65'
     when identity_row.employment_insurance_over65_status='continuous_before_65_confirmed'
       then 'continuous_before_65_confirmed'
     when identity_row.employment_insurance_over65_status='employed_after_65_excluded'
@@ -176,6 +174,7 @@ begin
     'national_pension_over60_exception',identity_row.national_pension_over60_exception,
     'national_pension_under18_opt_out_confirmed',identity_row.national_pension_under18_opt_out_confirmed,
     'employment_insurance_age_status',employment_status,
+    'employment_started_before_65',employee_row.hired_on < age65,
     'employment_insurance_age_65_on',age65,
     'employment_insurance_over65_status',identity_row.employment_insurance_over65_status,
     'identity_updated_at',identity_row.updated_at
