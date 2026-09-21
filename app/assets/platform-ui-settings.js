@@ -439,7 +439,7 @@
     new MutationObserver(()=>queueMicrotask(()=>{
       if(!state.editingDashboard) applyDashboardOrder();
       injectDashboardEditor();
-    })).observe(main,{childList:true,subtree:true});
+    })).observe(main,{childList:true,subtree:false});
   }
 
   async function refresh() {
