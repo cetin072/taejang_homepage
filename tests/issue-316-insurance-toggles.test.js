@@ -22,6 +22,18 @@ const edgeStatutory = fs.readFileSync(
   path.join(root, 'supabase/functions/payroll-calculate/runtime/payroll-statutory-deductions.js'),
   'utf8'
 );
+const payrollCore = fs.readFileSync(
+  path.join(root, 'supabase/functions/payroll-calculate/runtime/payroll-calculate-core.js'),
+  'utf8'
+);
+const prototypePayrollCore = fs.readFileSync(
+  path.join(root, 'prototypes/payroll-backend/edge-runtime/payroll-calculate-core.js'),
+  'utf8'
+);
+const payrollEdgeIndex = fs.readFileSync(
+  path.join(root, 'supabase/functions/payroll-calculate/index.ts'),
+  'utf8'
+);
 
 test('Issue 316 adds effective-dated per-employee deduction overrides', () => {
   assert.match(migration, /national_pension_deduction_override boolean/i);
@@ -65,4 +77,15 @@ test('explicit switches are authoritative while legacy profiles keep the prior a
   assert.match(statutory, /hasEmploymentInsuranceOverride/);
   assert.match(statutory, /taxableRemuneration/);
   assert.equal(statutory, edgeStatutory);
+});
+
+
+test('Issue 316 preserves the Issue 314 statutory fingerprint runtime contract', () => {
+  assert.match(payrollCore, /async function sha256Hex/);
+  assert.match(payrollCore, /statutoryInputFingerprint = await sha256Hex/);
+  assert.match(payrollCore, /statutoryInputFingerprint,/);
+  assert.equal(payrollCore, prototypePayrollCore);
+  assert.match(payrollEdgeIndex, /p_statutory_input_fingerprint:\s*payload\.statutoryInputFingerprint/);
+  assert.match(payrollEdgeIndex, /PAYROLL_STATUTORY_INPUT_/);
+  assert.match(payrollEdgeIndex, /PAYROLL_PERSISTENCE_/);
 });
