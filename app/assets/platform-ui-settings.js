@@ -173,13 +173,23 @@
     if(!node) return null;
     const existing=node.dataset?.dashboardCardKey;
     if(existing) return existing;
-    const key=node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim() || node.dataset?.supportRadarShortcut;
+    const marker = node.dataset?.supportRadarShortcut ? 'support.radar'
+      : node.dataset?.attendanceCard ? 'attendance.today'
+        : node.dataset?.phaseCAccountApprovalCard ? 'account.signup-requests'
+          : null;
+    const key=marker || node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim();
     if(key) node.dataset.dashboardCardKey=String(key);
     return key ? String(key) : null;
   }
 
+  function isDashboardSurface() {
+    const target=el('dashboard-main');
+    return target?.querySelector(':scope > .dashboard-intro h2')?.textContent?.trim()==='대시보드';
+  }
+
   function dashboardGrid() {
-    return el('dashboard-main')?.querySelector('.dashboard-grid') || null;
+    if(!isDashboardSurface()) return null;
+    return el('dashboard-main')?.querySelector(':scope > .dashboard-grid') || null;
   }
 
   function reorderGridBy(order) {
@@ -300,7 +310,8 @@
   }
 
   function dashboardEditorActions() {
-    const intro=el('dashboard-main')?.querySelector('.dashboard-intro');
+    if(!isDashboardSurface()) return null;
+    const intro=el('dashboard-main')?.querySelector(':scope > .dashboard-intro');
     if(!intro) return null;
     let wrap=intro.querySelector('[data-dashboard-layout-actions]');
     if(!wrap) {
