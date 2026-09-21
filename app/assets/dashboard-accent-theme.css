@@ -190,9 +190,29 @@
   line-height: 1;
 }
 
+/* Restrained category accents: color hierarchy without changing layout geometry. */
+.app-nav > [data-section-key="employee-account"],
+.app-nav > [data-nav-section="employee-account"] { --nav-section-accent:#c39748; }
+.app-nav > [data-section-key="promotion"],
+.app-nav > [data-nav-section="promotion"] { --nav-section-accent:#b86f5f; }
+.app-nav > [data-section-key="homepage"],
+.app-nav > [data-nav-section="homepage"] { --nav-section-accent:#4f8b7a; }
+.app-nav > [data-section-key="operations"],
+.app-nav > [data-nav-section="operations"] { --nav-section-accent:#5d7890; }
+.app-nav > [data-section-key="payroll"],
+.app-nav > [data-nav-section="payroll"] { --nav-section-accent:#4f8a62; }
+.app-nav > [data-section-key="support"],
+.app-nav > [data-nav-section="support"] { --nav-section-accent:#7c6f9b; }
+
+.app-nav > .app-nav-section-toggle {
+  box-shadow: inset 3px 0 0 var(--nav-section-accent, rgba(255,255,255,.18));
+}
+.app-nav > [data-nav-section]:not(.app-nav-section-toggle)::before {
+  background: var(--nav-section-accent, rgba(216,235,222,.72));
+}
 .app-nav > button[aria-current="page"],
 .app-nav > a[aria-current="page"] {
-  box-shadow: inset 4px 0 0 var(--app-accent-gold);
+  box-shadow: inset 4px 0 0 var(--nav-section-accent, var(--app-accent-gold));
 }
 
 @media (max-width: 900px) {
