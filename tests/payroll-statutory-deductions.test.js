@@ -298,3 +298,32 @@ test('explicit payroll deduction ON switches use annual rates and current pay wh
   assert.equal(longTermCare.amount, 3300);
   assert.equal(employment.amount, 6300);
 });
+
+
+test('null statutory bounds from DB remain unbounded instead of clamping contribution to zero', () => {
+  const profile = enrolledProfile();
+  profile.nationalPensionDeductionOverride = false;
+  profile.healthInsuranceDeductionOverride = false;
+  profile.employmentInsuranceDeductionOverride = true;
+
+  const rateRules = rules({
+    employment_insurance: {
+      minimumBasis: null,
+      maximumBasis: null,
+      minimumEmployeeContribution: null,
+      maximumEmployeeContribution: null,
+    },
+  });
+
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 988243,
+    profile,
+    rateRules,
+  });
+
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(result.status, 'complete');
+  assert.equal(employment.status, 'complete');
+  assert.equal(employment.amount, 8894);
+});
