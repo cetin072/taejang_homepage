@@ -115,6 +115,8 @@
     if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
+    if (item.dataKey === 'payroll-mvp') node.dataset.payrollMvpNav = '1';
+    if (item.dataKey === 'payroll-handoff-review' || item.dataKey === 'payroll-handoff-submit') node.dataset.payrollHandoffNav = '1';
     if (item.dataKey === 'promotion-write') {
       node.dataset.promotionWriteNav = '1';
       node.dataset.phaseCV2Nav = 'write';
@@ -204,6 +206,25 @@
         label: '공지 확인',
         run: () => window.TaejangIssue207Ux?.openInformationRead?.()
       },
+      {
+        label: '근태·급여관리',
+        href: 'payroll/live.html',
+        dataKey: 'payroll-mvp',
+        capabilities: ['payroll.manage']
+      },
+      {
+        label: '외부 급여초안 검토',
+        href: 'payroll/handoff.html',
+        dataKey: 'payroll-handoff-review',
+        capabilities: ['payroll.handoff.approve']
+      },
+      {
+        label: '외부 급여초안 상신',
+        href: 'payroll/handoff.html',
+        dataKey: 'payroll-handoff-submit',
+        capabilities: ['payroll.handoff.review']
+      },
+
       {
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel'),
