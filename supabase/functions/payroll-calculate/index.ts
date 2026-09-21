@@ -185,6 +185,7 @@ Deno.serve(async (req: Request) => {
           p_cutoff_date: payload.cutoffDate,
           p_expected_batch_id: payload.expectedBatchId,
           p_expected_input_basis_fingerprint: payload.expectedInputBasisFingerprint,
+          p_statutory_input_fingerprint: payload.statutoryInputFingerprint,
           p_calculation_version: payload.calculationVersion,
           p_generated_at: payload.generatedAt,
           p_employee_count: payload.employeeCount,
