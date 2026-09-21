@@ -241,6 +241,116 @@
     return form;
   }
 
+  function nationalPensionAgeLabel(status) {
+    return ({
+      identity_missing: '주민번호 미등록',
+      under18_opt_out_confirmed: '18세 미만 · 제외신청 확인',
+      under18_opt_out_available: '18세 미만 · 제외신청 가능',
+      compulsory_age_range: '의무가입 연령대',
+      voluntary_continuation_confirmed: '60세 이상 · 임의계속가입 확인',
+      non_compulsory_60_plus: '60세 이상 · 의무가입 비대상'
+    })[status] || status || '확인 필요';
+  }
+
+  function employmentInsuranceAgeLabel(status) {
+    return ({
+      identity_missing: '주민번호 미등록',
+      standard_age_range: '일반 연령대',
+      continuous_at_company_from_before_65: '65세 전 입사 · 계속근로',
+      continuous_before_65_confirmed: '65세 전 피보험 연속 확인',
+      employed_after_65_excluded: '65세 이후 신규고용 · 적용 제외 확인',
+      continuity_review_required: '65세 이후 · 연속가입 확인 필요'
+    })[status] || status || '확인 필요';
+  }
+
+  function sensitiveIdentityPanel(context, employee) {
+    if (!context.can_manage_sensitive_identity) return null;
+    const form = el('form', null, 'employee-form');
+    form.dataset.sensitiveIdentityForm = '1';
+
+    const registered = !!employee.resident_number_registered;
+    const intro = el('p',
+      registered
+        ? '주민등록번호는 암호화 보관 중이며 원문은 화면에 다시 표시하지 않습니다.'
+        : '주민등록번호 원문은 저장 후 화면에 다시 표시되지 않고 암호화 보관됩니다.',
+      'help'
+    );
+
+    const rrn = input('password');
+    rrn.placeholder = '000000-0000000';
+    rrn.inputMode = 'numeric';
+    rrn.autocomplete = 'off';
+    rrn.maxLength = 14;
+    rrn.setAttribute('aria-label', '주민등록번호');
+
+    const saveRrn = button(registered ? '주민번호 변경 저장' : '주민번호 암호화 저장', () => {});
+    saveRrn.type = 'submit';
+
+    const under18 = input('checkbox');
+    under18.checked = !!employee.national_pension_under18_opt_out_confirmed;
+    const npsOver60 = select([
+      { id: 'none', name: '별도 예외 없음' },
+      { id: 'voluntary_continuation_confirmed', name: '60세 이후 임의계속가입 확인' }
+    ], employee.national_pension_over60_exception || 'none');
+    const employmentOver65 = select([
+      { id: 'unknown', name: '65세 이후 연속가입 여부 미확인' },
+      { id: 'continuous_before_65_confirmed', name: '65세 전 피보험자격 연속 확인' },
+      { id: 'employed_after_65_excluded', name: '65세 이후 신규고용 · 적용 제외 확인' }
+    ], employee.employment_insurance_over65_status || 'unknown');
+
+    const flagSave = button('연령 예외사항 저장', async () => {
+      flagSave.disabled = true;
+      try {
+        await app().rpc('set_employee_age_insurance_flags', {
+          p_employee_uuid: employee.id,
+          p_national_pension_under18_opt_out_confirmed: under18.checked,
+          p_national_pension_over60_exception: npsOver60.value,
+          p_employment_insurance_over65_status: employmentOver65.value
+        });
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        window.alert(app().friendlyError?.(error) || error.message || '연령 예외사항을 저장하지 못했습니다.');
+        flagSave.disabled = false;
+      }
+    }, true);
+    if (!registered) flagSave.disabled = true;
+
+    const grid = el('div', null, 'employee-form-grid');
+    grid.append(
+      field('주민등록번호', rrn, '공식 4대보험 행정과 연령 판정에만 사용합니다. 원문은 Vault에 암호화됩니다.'),
+      field('국민연금 18세 미만', under18, '본인 제외 신청이 확인된 경우에만 체크합니다.'),
+      field('국민연금 60세 이후', npsOver60, '임의계속가입이 공식 확인된 경우에만 예외로 등록합니다.'),
+      field('고용보험 65세 이후', employmentOver65, '65세 이후 신규고용 여부와 65세 전 피보험 연속 여부를 확인해 등록합니다.')
+    );
+
+    const actions = el('div', null, 'quick-links');
+    actions.append(saveRrn, flagSave);
+    form.append(intro, grid, actions);
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!rrn.value.trim()) {
+        window.alert('주민등록번호를 입력해 주세요.');
+        return;
+      }
+      saveRrn.disabled = true;
+      try {
+        await app().rpc('set_employee_resident_registration_number', {
+          p_employee_uuid: employee.id,
+          p_resident_number: rrn.value.trim()
+        });
+        rrn.value = '';
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        rrn.value = '';
+        window.alert(app().friendlyError?.(error) || error.message || '주민등록번호를 저장하지 못했습니다.');
+        saveRrn.disabled = false;
+      }
+    });
+
+    return form;
+  }
+
   function photoPicker(employee, photoType, context) {
     const wrap = el('div', null, 'employee-photo-actions');
     const file = input('file'); file.accept = 'image/jpeg,image/png,image/webp';
@@ -282,6 +392,15 @@
       ['입사일', employee.hired_on], ['근태대상', employee.attendance_required ? '예' : '아니오'],
       ['계정 연결', employee.linked_profile ? `${employee.linked_profile.display_name} · ${employee.linked_profile.account_status}` : '미연결']
     ];
+    if (context.can_manage_sensitive_identity) {
+      pairs.push(
+        ['주민번호', employee.resident_number_registered ? '암호화 등록됨' : '미등록'],
+        ['생년월일', employee.birth_date || '-'],
+        ['만 나이', Number.isInteger(employee.age_years) ? `${employee.age_years}세` : '-'],
+        ['국민연금', nationalPensionAgeLabel(employee.national_pension_age_status)],
+        ['고용보험', employmentInsuranceAgeLabel(employee.employment_insurance_age_status)]
+      );
+    }
     pairs.forEach(([label, value]) => { const row = document.createElement('div'); row.append(el('dt', label), el('dd', value || '-')); meta.append(row); });
     card.append(meta);
     if (employee.protected && context.access_level !== 'operations_manager') card.append(el('p', '보호 계정은 팀장에서 수정 요청할 수 없습니다.', 'employee-protected-note'));
@@ -295,6 +414,14 @@
         const existing = card.querySelector('[data-employee-edit-form]');
         if (existing) { existing.remove(); return; }
         const form = makeEmployeeForm(context, employee, context.access_level !== 'operations_manager'); form.dataset.employeeEditForm = '1'; card.append(form);
+      }, true));
+    }
+    if (context.can_manage_sensitive_identity) {
+      actions.append(button(employee.resident_number_registered ? '주민번호·보험연령 관리' : '주민번호 등록', () => {
+        const existing = card.querySelector('[data-sensitive-identity-form]');
+        if (existing) { existing.remove(); return; }
+        const form = sensitiveIdentityPanel(context, employee);
+        if (form) card.append(form);
       }, true));
     }
     card.append(actions);
