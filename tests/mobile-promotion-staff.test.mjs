@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
@@ -67,6 +68,13 @@ test('official channel footer uses canonical public URLs and local branded image
   assert.match(footer, /공식 블로그/);
   assert.match(footer, /공식 유튜브/);
   assert.doesNotMatch(footer, /mark:\s*'泰'|mark:\s*'N'|mark:\s*'▶'/);
+});
+
+test('official channel image assets match the approved supplied icons', async () => {
+  const naver = await readFile(new URL('../mobile/assets/naver-blog.png', import.meta.url));
+  const youtube = await readFile(new URL('../mobile/assets/youtube.png', import.meta.url));
+  assert.equal(createHash('sha256').update(naver).digest('hex'), '3e9618de750a2ba82cdc94c2816ef079404f255d82c81bf759a354634f338dfa');
+  assert.equal(createHash('sha256').update(youtube).digest('hex'), '078cc75bf6b7118d4cd0233ed7efcc99d24af8b6e10871634992db5eb820272f');
 });
 
 test('employee home uses one capability-driven work-platform action instead of role-specific home shortcuts', async () => {
