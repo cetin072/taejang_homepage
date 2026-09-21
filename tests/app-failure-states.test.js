@@ -139,7 +139,7 @@ test('failed feature module becomes a visible retry state instead of silent succ
   assert.equal(reloads, 1, 'retry action should reload the app once');
 });
 
-test('schedule RPC failure stays error while a genuine empty notice result stays success', async () => {
+test('simplified manager dashboard does not fetch removed schedule or notice shortcuts', async () => {
   const document = new EventHub();
   document.addEventListener = EventHub.prototype.addEventListener;
   document.getElementById = () => null;
@@ -160,10 +160,8 @@ test('schedule RPC failure stays error while a genuine empty notice result stays
   vm.runInNewContext(dashboardSource, sandbox, { filename: 'dashboard-shell.js' });
 
   const state = await window.TaejangDashboard.dashboardData('department_lead');
-  assert.equal(state.schedules.status, 'error');
-  assert.deepEqual(Array.from(state.schedules.value), []);
-  assert.equal(state.notices.status, 'success');
-  assert.deepEqual(Array.from(state.notices.value), []);
+  assert.equal('schedules' in state, false);
+  assert.equal('notices' in state, false);
 });
 
 test('permission failure is distinguished from ordinary data failure', () => {

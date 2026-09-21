@@ -3,15 +3,21 @@
 
   const CARD_ORDER = {
     operations_manager: ['근태·급여관리', '가입 승인', '직원관리 요청', '중요 홍보 승인', '홈페이지 수정 승인'],
-    promotion_lead: ['오늘 출근부', '팀 직원 관리', '홍보 검토 대기', '홍보자료 작성', '중요공지', '가까운 일정'],
-    department_lead: ['팀 직원 관리', '중요공지', '가까운 일정'],
-    field_lead: ['오늘 작업과 장소', '중요공지'],
-    ceo: ['홍보 상신 검토', '중요공지', '가까운 일정'],
-    super_admin: ['계정 승인 확인', '중요공지', '가까운 일정'],
-    promotion_staff: ['수정·보완 요청', '홍보자료 작성', '중요공지', '가까운 일정']
+    promotion_lead: ['팀 직원 관리', '홍보 검토 대기', '홍보자료 작성'],
+    department_lead: ['팀 직원 관리'],
+    field_lead: [],
+    ceo: ['홍보 상신 검토'],
+    super_admin: ['계정 승인 확인'],
+    promotion_staff: ['수정·보완 요청', '홍보자료 작성']
   };
 
-  const OPERATIONS_DASHBOARD_HIDDEN = new Set(['오늘 출근부', '중요공지', '가까운 일정']);
+  const OPERATIONS_DASHBOARD_HIDDEN = new Set(['오늘 출근부']);
+  const PRIORITY_CARD_KEYS = Object.freeze({
+    '근태·급여관리':'payroll.manage',
+    '직원관리 요청':'employee.change-requests',
+    '팀 직원 관리':'employee.team',
+    '홈페이지 수정 승인':'homepage.change-approval'
+  });
   let rendering = false;
   let scheduled = false;
   const app = () => window.TaejangApp;
@@ -33,6 +39,7 @@
   function card(title, body, value, action) {
     const node = el('article', null, 'dashboard-card');
     node.dataset.priorityDashboardCard = title;
+    node.dataset.dashboardCardKey = PRIORITY_CARD_KEYS[title] || `dashboard.${title}`;
     node.append(el('span', '현재 정보', 'status-label'), el('h3', title));
     if (value) node.append(el('p', value, 'dashboard-value'));
     node.append(el('p', body));

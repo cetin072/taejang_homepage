@@ -221,10 +221,9 @@ test('master sidebar keeps signup approval and recovery inside the shared employ
   assert.ok(order.indexOf("'직원 관리'") >= 0);
   assert.ok(order.indexOf("'신규 직원 등록'") >= 0);
   assert.ok(order.indexOf("'가입 승인'") > order.indexOf("'신규 직원 등록'"));
-  assert.ok(order.indexOf("'복구·계정 관리'") > order.indexOf("'가입 승인'"));
-  assert.ok(order.indexOf("'복구·계정 관리'") < order.indexOf("'홍보 검토'"));
+  assert.equal(order.includes("'복구·계정 관리'"), false);
   assert.equal(order.includes("'작업 매뉴얼'"), false);
-  assert.match(roleNavigation, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리'\]/);
+  assert.match(roleNavigation, /label: '직원·계정', items: \['직원 관리', '신규 직원 등록', '가입 승인'\]/);
 });
 
 test('manager shell shows one logout header while general worker keeps the legacy header', () => {

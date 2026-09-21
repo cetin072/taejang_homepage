@@ -40,13 +40,12 @@ test('worker stays on the simple board with a bounded desktop width and no deskt
   assert.match(shell, /if \(route === worker\) return/);
 });
 
-test('dashboard uses safe existing RPCs and empty states instead of fixed statistics', () => {
-  for (const rpc of ['get_my_schedule_list', 'get_my_notice_list', 'get_my_promotion_workspace', 'list_pending_profiles']) assert.match(shell, new RegExp(rpc));
+test('dashboard uses safe workflow RPCs and no removed schedule or notice shortcuts', () => {
+  for (const rpc of ['get_my_promotion_workspace', 'list_pending_profiles']) assert.match(shell, new RegExp(rpc));
   assert.match(shell, /현재 승인 대기 항목이 없습니다/);
-  assert.match(shell, /현재 중요한 공지가 없습니다/);
   assert.doesNotMatch(shell, /생산률|출고건수|상담건수|매출/);
-  assert.match(shell, /현재 나에게 적용되는 일정이 없습니다/);
   assert.match(shell, /현재 검토 대기 안건이 없습니다/);
+  assert.doesNotMatch(shell, /get_my_schedule_list|get_my_notice_list/);
 });
 
 test('manager UI is loaded only after the active capability context is verified', () => {

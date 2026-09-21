@@ -145,9 +145,9 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
 test('all desktop roles start from the same master sidebar before capability pruning', async () => {
   const expected = [
     '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '홍보 검토',
-    '업무 배정', '일정 관리', '공지 확인', '공지 관리', '상시 안내 관리',
+    '업무 배정',
     '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
     '공식 채널'
@@ -162,7 +162,7 @@ test('all desktop roles start from the same master sidebar before capability pru
   findMenu(promotion.nav, '보완 요청받은 글').click();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
 
-  for (const [label, panel] of new Map([['업무 배정','today-admin-panel'],['일정 관리','schedule-admin-panel'],['공지 관리','notice-admin-panel'],['상시 안내 관리','guidance-admin-panel']])) {
+  for (const [label, panel] of new Map([['업무 배정','today-admin-panel']])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
@@ -195,12 +195,11 @@ test('central navigation uses one master order and section contract for every de
 
   assertOrdered(masterBlock, [
     '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인', '복구·계정 관리',
+    '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
     '발행 대기', '기존 글 관리', '홍보글 관리·복구',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '일정 관리', '일정 캘린더',
-    '공지 확인', '공지 관리', '상시 안내 관리',
+    '업무 배정',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '설정', '신규 사업 기획'
@@ -211,7 +210,7 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /label:\s*'홍보'/);
   assert.match(navPriority, /label:\s*'홈페이지'/);
   assert.match(navPriority, /label:\s*'업무 운영'/);
-  assert.match(navPriority, /label:\s*'공지·안내'/);
+  assert.doesNotMatch(navPriority.slice(masterStart, navPriority.indexOf('const DESKTOP_ROLES')), /label:\s*'공지·안내'/);
   assert.match(navPriority, /label:\s*'근태·급여'/);
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_SECTIONS\]\)/);
@@ -269,7 +268,7 @@ test('dashboard removes low-priority manual and preparing cards', () => {
 
 test('operations dashboard is approval-focused and hides routine lookup cards', () => {
   assertOrdered(dashboardPriority, ['가입 승인', '직원관리 요청', '중요 홍보 승인', '홈페이지 수정 승인']);
-  assert.match(dashboardPriority, /OPERATIONS_DASHBOARD_HIDDEN = new Set\(\['오늘 출근부', '중요공지', '가까운 일정'\]\)/);
+  assert.match(dashboardPriority, /OPERATIONS_DASHBOARD_HIDDEN = new Set\(\['오늘 출근부'\]\)/);
   assert.match(dashboardPriority, /currentRoute === 'operations_manager' && !requests\.length/);
   assert.match(dashboardPriority, /get_employee_management_context/);
   assert.match(dashboardPriority, /get_homepage_change_requests/);

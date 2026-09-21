@@ -27,6 +27,14 @@
     promotion_lead: '운영팀장',
     promotion_staff: '홍보직원'
   };
+  const DASHBOARD_CARD_KEYS = Object.freeze({
+    '홍보 검토 대기':'promotion.review.pending',
+    '홍보자료 작성':'promotion.write',
+    '보완 요청받은 글':'promotion.revision',
+    '중요 홍보 승인':'promotion.operations.review',
+    '홍보 상신 검토':'promotion.ceo.review',
+    '계정 승인 확인':'account.approval'
+  });
 
   function featureUnavailable(key, label) {
     const health = window.TaejangFeatureHealth;
@@ -40,6 +48,8 @@
   }
   function openPromotion(mode = 'review') {
     if (featureUnavailable('phase-c-workspace-v2', '홍보 업무 기능')) return;
+    const open = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
+    if (typeof open === 'function') return open(mode);
     document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
   }
   function openEmployee(view = 'existing') {
@@ -58,6 +68,7 @@
   function closeSidebar() { const shell = el('desktop-app-shell'); if (!shell) return; shell.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded', 'false'); }
   function card(title, body, { value, action, state } = {}) {
     const node = document.createElement('article'); node.className = 'dashboard-card';
+    node.dataset.dashboardCardKey = DASHBOARD_CARD_KEYS[title] || `dashboard.${title}`;
     if (state) node.dataset.state = state;
     node.append(text('span', state === 'error' || state === 'forbidden' ? '확인 필요' : '현재 정보', 'status-label'), text('h3', title));
     if (value) node.append(text('p', value, 'dashboard-value'));
@@ -180,11 +191,6 @@
         capabilities: ['employee.onboard', 'account.approve', 'account.reject']
       },
       {
-        label: '복구·계정 관리',
-        href: '../staff/?admin=1',
-        capabilities: ['account.view_management']
-      },
-      {
         label: '홍보 글 작성',
         run: () => openPromotion('write'),
         dataKey: 'promotion-write',
@@ -207,59 +213,46 @@
         capabilities: ['task.manage']
       },
       {
-        label: '일정 관리',
-        run: () => openPanel('schedule-admin-panel'),
-        capabilities: ['schedule.manage']
-      },
-      {
-        label: '공지 확인',
-        run: () => window.TaejangIssue207Ux?.openInformationRead?.()
-      },
-      {
-        label: '공지 관리',
-        run: () => openPanel('notice-admin-panel'),
-        capabilities: ['notice.manage']
-      },
-      {
-        label: '상시 안내 관리',
-        run: () => openPanel('guidance-admin-panel'),
-        capabilities: ['guidance.manage']
-      },
-      {
         label: '근태·급여관리',
         href: 'payroll/live.html',
         dataKey: 'payroll-mvp',
-        capabilities: ['payroll.manage']
+        capabilities: ['payroll.manage'],
+        newTab: true
       },
       {
         label: '외부 급여초안 상신',
         href: 'payroll/handoff.html',
         dataKey: 'payroll-handoff-submit',
-        capabilities: ['payroll.handoff.review']
+        capabilities: ['payroll.handoff.review'],
+        newTab: true
       },
       {
         label: '외부 급여초안 검토',
         href: 'payroll/handoff.html',
         dataKey: 'payroll-handoff-review',
-        capabilities: ['payroll.handoff.approve']
+        capabilities: ['payroll.handoff.approve'],
+        newTab: true
       },
       {
         key: 'support.profile',
         label: '기업 프로필',
         href: 'index.html?support=profile',
-        capabilities: ['support_radar.management_view', 'support_radar.management_edit']
+        capabilities: ['support_radar.management_view', 'support_radar.management_edit'],
+        newTab: true
       },
       {
         key: 'support.radar',
         label: '지원사업 레이더',
         href: 'index.html?support=radar',
-        capabilities: ['support_radar.management_view']
+        capabilities: ['support_radar.management_view'],
+        newTab: true
       },
       {
         key: 'support.mywork',
         label: '내 지원사업',
         href: 'index.html?support=mywork',
-        capabilities: ['support_radar.assigned_work']
+        capabilities: ['support_radar.assigned_work'],
+        newTab: true
       },
       {
         key: 'platform.settings',
@@ -301,12 +294,6 @@
 
   async function dashboardData(route) {
     const app = window.TaejangApp;
-    const settled = await Promise.allSettled([
-      app.rpc('get_my_schedule_list', { p_limit: 5 }),
-      app.rpc('get_my_notice_list', { p_limit: 5 })
-    ]);
-    const schedules = settledState(settled[0]);
-    const notices = settledState(settled[1]);
     let pending = successState([]);
     let promotion = successState(null);
     if (route === 'super_admin') {
@@ -317,12 +304,12 @@
       try { promotion = successState(await app.rpc('get_my_promotion_workspace')); }
       catch (error) { promotion = failedState(error); }
     }
-    return { schedules, notices, pending, promotion };
+    return { pending, promotion };
   }
   async function render() {
     const route = window.TaejangApp?.getRoute?.(); if (!route || route === worker) return;
     const main = el('dashboard-main'); main.replaceChildren(text('p', '현재 정보를 불러오고 있습니다.', 'message'));
-    const { schedules, notices, pending, promotion } = await dashboardData(route);
+    const { pending, promotion } = await dashboardData(route);
     const [heading, copy] = routeCopy[route] || ['대시보드', '현재 사용할 수 있는 업무 정보를 확인하세요.'];
     setDashboardTopbar(route);
     main.replaceChildren();
@@ -370,18 +357,6 @@
       }
     }
 
-    if (schedules.status === 'success') {
-      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', schedules.value.length ? schedules.value[0].title : '현재 나에게 적용되는 일정이 없습니다.', { value: schedules.value.length ? `${schedules.value.length}건` : undefined, action: workManagementRoles.has(route) ? { label: '일정 관리', run: () => openPanel('schedule-admin-panel') } : undefined }));
-    } else {
-      grid.append(card(route === 'field_lead' ? '오늘 작업과 장소' : '가까운 일정', failureCopy(schedules.status, '일정 정보'), { state: schedules.status, action: { label: '다시 불러오기', run: goDashboard } }));
-    }
-
-    if (notices.status === 'success') {
-      const important = notices.value.filter(item => item.importance === 'urgent' || item.importance === 'important');
-      grid.append(card('중요공지', important.length ? important[0].title : '현재 중요한 공지가 없습니다.', { value: important.length ? `${important.length}건` : undefined, action: workManagementRoles.has(route) ? { label: '공지 관리', run: () => openPanel('notice-admin-panel') } : undefined }));
-    } else {
-      grid.append(card('중요공지', failureCopy(notices.status, '공지 정보'), { state: notices.status, action: { label: '다시 불러오기', run: goDashboard } }));
-    }
     main.append(grid);
   }
   function ensureHomepageAction() {
