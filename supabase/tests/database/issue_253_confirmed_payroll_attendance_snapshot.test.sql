@@ -19,11 +19,18 @@ select ok(
   and pg_get_functiondef('public.private_payroll_confirmed_attendance_readiness(date,date)'::regprocedure) ilike '%confirmed_duration_invalid%',
   'readiness preserves missing-employee and invalid-duration guards while allowing explicit historical exceptions'
 );
-select ok(pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%attendance_confirmed_records%' and pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%employee_uuid%','native input derives from confirmed records with canonical employee UUID');
 select ok(
-  pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%payroll-db-input-v6-confirmed-status%'
-  and pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%confirmed_attendance%',
-  'input carries exact confirmed-attendance fingerprint with status-aware basis version'
+  pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%private_build_payroll_calculation_input_pre314%'
+  and pg_get_functiondef('public.private_build_payroll_calculation_input_pre314(date,date,uuid)'::regprocedure) ilike '%attendance_confirmed_records%'
+  and pg_get_functiondef('public.private_build_payroll_calculation_input_pre314(date,date,uuid)'::regprocedure) ilike '%employee_uuid%',
+  'native confirmed-attendance input remains preserved behind the statutory-aware wrapper'
+);
+select ok(
+  pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%payroll-db-input-v2-statutory%'
+  and pg_get_functiondef('public.private_build_payroll_calculation_input(date,date,uuid)'::regprocedure) ilike '%statutory_input_fingerprint%'
+  and pg_get_functiondef('public.private_build_payroll_calculation_input_pre314(date,date,uuid)'::regprocedure) ilike '%payroll-db-input-v6-confirmed-status%'
+  and pg_get_functiondef('public.private_build_payroll_calculation_input_pre314(date,date,uuid)'::regprocedure) ilike '%confirmed_attendance%',
+  'input carries confirmed-attendance basis plus statutory-input fingerprint'
 );
 select ok(pg_get_functiondef('public.private_attach_payroll_confirmed_snapshot()'::regprocedure) ilike '%payroll_confirmed_attendance_snapshots%' and pg_get_functiondef('public.private_attach_payroll_confirmed_snapshot()'::regprocedure) ilike '%new.confirmed_attendance_snapshot_id%','persisted calculation runs attach immutable attendance snapshots');
 select ok(exists(select 1 from pg_trigger where tgrelid='public.payroll_calculation_runs'::regclass and tgname='payroll_calculation_runs_confirmed_attendance_snapshot' and not tgisinternal),'calculation persistence trigger attaches snapshot');
