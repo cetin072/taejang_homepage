@@ -74,6 +74,9 @@ const appAutomation = `<script>
       );
       if ((link.textContent || '').trim() !== '근태·급여관리') throw new Error('PAYROLL_NAV_LABEL_MISMATCH');
       if (link.getAttribute('href') !== 'payroll/live.html') throw new Error('PAYROLL_NAV_HREF_MISMATCH');
+      if (link.target !== '_blank' || !/(^|\\s)noopener(\\s|$)/.test(link.rel || '')) {
+        throw new Error('PAYROLL_NAV_NEW_TAB_SAFETY_MISSING');
+      }
 
       await waitFor(
         () => document.querySelector('[data-priority-dashboard-card="근태·급여관리"]'),
@@ -81,7 +84,10 @@ const appAutomation = `<script>
       );
 
       sessionStorage.setItem(stageKey, 'from-operations-manager-platform');
-      link.click();
+      // The product link deliberately opens an independent payroll workspace in
+      // a new tab. Follow its verified href in this single-page harness so the
+      // bootstrap assertions can still run in Chromium's dumped document.
+      window.location.assign(link.href);
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));
     }

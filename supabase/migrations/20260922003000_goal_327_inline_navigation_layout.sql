@@ -62,16 +62,16 @@ $$;
 revoke all on function public.get_my_ui_preferences(text) from public,anon;
 grant execute on function public.get_my_ui_preferences(text) to authenticated;
 
--- PostgREST resolves RPC names by signature. Replace the earlier three-argument
--- form instead of leaving an ambiguous overload with default arguments.
+-- The browser uses the five-argument RPC explicitly. Keep the established
+-- three-argument signature as a compatibility wrapper for existing clients.
 drop function if exists public.save_my_ui_preferences(text,boolean,jsonb);
 
 create function public.save_my_ui_preferences(
   p_role_code text,
-  p_sidebar_collapsed boolean default null,
-  p_dashboard_order jsonb default null,
-  p_sidebar_section_order jsonb default null,
-  p_sidebar_menu_order jsonb default null
+  p_sidebar_collapsed boolean,
+  p_dashboard_order jsonb,
+  p_sidebar_section_order jsonb,
+  p_sidebar_menu_order jsonb
 )
 returns jsonb
 language plpgsql
@@ -142,6 +142,42 @@ $$;
 
 revoke all on function public.save_my_ui_preferences(text,boolean,jsonb,jsonb,jsonb) from public,anon;
 grant execute on function public.save_my_ui_preferences(text,boolean,jsonb,jsonb,jsonb) to authenticated;
+
+create function public.save_my_ui_preferences(
+  p_role_code text,
+  p_sidebar_collapsed boolean,
+  p_dashboard_order jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path=''
+as $$
+declare
+  actor_id uuid:=(select auth.uid());
+  resolved_role text;
+begin
+  if actor_id is null or not public.current_profile_is_active() then
+    raise exception using errcode='42501',message='PROFILE_NOT_ACTIVE';
+  end if;
+
+  resolved_role:=public.private_resolve_ui_role(p_role_code);
+  if resolved_role is null then
+    raise exception using errcode='42501',message='UI_ROLE_REQUIRED';
+  end if;
+
+  return public.save_my_ui_preferences(
+    resolved_role,
+    p_sidebar_collapsed,
+    p_dashboard_order,
+    null,
+    null
+  );
+end;
+$$;
+
+revoke all on function public.save_my_ui_preferences(text,boolean,jsonb) from public,anon;
+grant execute on function public.save_my_ui_preferences(text,boolean,jsonb) to authenticated;
 
 comment on column public.profile_ui_preferences.sidebar_section_order is
   'Per-profile, per-role sidebar category keys in the user-selected order.';
