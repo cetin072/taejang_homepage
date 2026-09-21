@@ -137,8 +137,16 @@
       link.href = channel.href;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = channel.label;
       link.className = 'app-nav-official-channel';
+      if (channel.icon) {
+        const icon = document.createElement('img');
+        icon.src = channel.icon;
+        icon.alt = '';
+        icon.className = 'app-nav-channel-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        link.append(icon);
+      }
+      link.append(text('span', channel.label));
       link.dataset.officialChannelLink = channel.id;
       link.dataset.channel = channel.id;
       link.setAttribute('aria-label', `${channel.label} 새 탭에서 열기`);
