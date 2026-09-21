@@ -66,10 +66,55 @@
     return Object.assign({ code, amount: null, rawAmount: null, status: 'review_required', reasons: [] }, extra || {});
   }
 
-  function coverageBoundaryRequiresReview(profile, bounds, prefix) {
-    const acquired = profile[`${prefix}AcquiredOn`] || profile[`${prefix}_acquired_on`];
-    const lost = profile[`${prefix}LostOn`] || profile[`${prefix}_lost_on`];
-    return isInsideMonth(acquired, bounds) || isInsideMonth(lost, bounds);
+  function profileDate(profile, camelPrefix, snakePrefix, suffix) {
+    return profile[`${camelPrefix}${suffix}`] || profile[`${snakePrefix}_${suffix.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)}`] || null;
+  }
+
+  function chargeState(profile, bounds, camelPrefix, snakePrefix, { acquisitionMonthOptIn = false } = {}) {
+    const acquired = profileDate(profile, camelPrefix, snakePrefix, 'AcquiredOn');
+    const lost = profileDate(profile, camelPrefix, snakePrefix, 'LostOn');
+
+    if (acquired && compareDate(acquired, bounds.end) > 0) {
+      return { due: false, reason: 'coverage_not_started' };
+    }
+    if (lost && compareDate(lost, bounds.start) <= 0) {
+      return { due: false, reason: 'coverage_already_lost' };
+    }
+
+    if (acquired && isInsideMonth(acquired, bounds)) {
+      const acquiredDate = asDate(acquired);
+      if (acquiredDate.getDate() !== 1 && !acquisitionMonthOptIn) {
+        return { due: false, reason: 'acquisition_month_not_charged' };
+      }
+    }
+
+    if (lost && isInsideMonth(lost, bounds) && asDate(lost).getDate() === 1) {
+      return { due: false, reason: 'loss_on_first_day_not_charged' };
+    }
+
+    return { due: true, reason: null };
+  }
+
+  function clampRuleBasis(value, rule) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const minimum = Number(rule && (rule.minimumBasis ?? rule.minimum_basis));
+    const maximum = Number(rule && (rule.maximumBasis ?? rule.maximum_basis));
+    let result = numeric;
+    if (Number.isFinite(minimum)) result = Math.max(result, minimum);
+    if (Number.isFinite(maximum)) result = Math.min(result, maximum);
+    return result;
+  }
+
+  function clampEmployeeContribution(value, rule) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return null;
+    const minimum = Number(rule && (rule.minimumEmployeeContribution ?? rule.minimum_employee_contribution));
+    const maximum = Number(rule && (rule.maximumEmployeeContribution ?? rule.maximum_employee_contribution));
+    let result = numeric;
+    if (Number.isFinite(minimum)) result = Math.max(result, minimum);
+    if (Number.isFinite(maximum)) result = Math.min(result, maximum);
+    return result;
   }
 
   function finalizeRateAmount({ code, rawAmount, rule, reasons = [] }) {
@@ -78,30 +123,31 @@
       return statusRow(code, { rawAmount: normalizeDecimal(rawAmount), reasons: [...reasons, 'rounding_policy_missing'] });
     }
     const normalizedRawAmount = normalizeDecimal(rawAmount);
+    const rounded = applyRounding(normalizedRawAmount, roundingMethod);
     return {
       code,
       rawAmount: normalizedRawAmount,
-      amount: applyRounding(normalizedRawAmount, roundingMethod),
+      amount: clampEmployeeContribution(rounded, rule),
       status: 'complete',
       reasons,
       roundingMethod,
     };
   }
 
-  function calculateRateBased({ code, enrollmentStatus, nonApplicableStatuses, base, rule, boundaryReview }) {
+  function calculateRateBased({ code, enrollmentStatus, nonApplicableStatuses, base, rule, charge }) {
     if (nonApplicableStatuses.includes(enrollmentStatus)) {
       return { code, rawAmount: 0, amount: 0, status: 'complete', reasons: ['not_applicable'] };
     }
     if (enrollmentStatus !== 'enrolled') {
       return statusRow(code, { reasons: ['eligibility_pending_review'] });
     }
-    if (boundaryReview) {
-      return statusRow(code, { reasons: ['mid_month_coverage_boundary'] });
+    if (charge && charge.due === false) {
+      return { code, rawAmount: 0, amount: 0, status: 'complete', reasons: [charge.reason || 'not_due'] };
     }
     if (!rule) {
       return statusRow(code, { reasons: ['rate_rule_missing'] });
     }
-    const numericBase = Number(base);
+    const numericBase = clampRuleBasis(base, rule);
     const rate = Number(rule.employeeRate ?? rule.employee_rate);
     if (!Number.isFinite(numericBase) || numericBase < 0) {
       return statusRow(code, { reasons: ['calculation_basis_missing'] });
@@ -130,8 +176,11 @@
       nonApplicableStatuses: ['excluded_by_request', 'not_applicable'],
       base: profile.pensionStandardMonthlyIncome ?? profile.pension_standard_monthly_income,
       rule: npsRule,
-      boundaryReview: coverageBoundaryRequiresReview(profile, bounds, 'nationalPension') ||
-        coverageBoundaryRequiresReview(profile, bounds, 'national_pension'),
+      charge: chargeState(profile, bounds, 'nationalPension', 'national_pension', {
+        acquisitionMonthOptIn: Boolean(
+          profile.nationalPensionAcquisitionMonthOptIn ?? profile.national_pension_acquisition_month_opt_in
+        ),
+      }),
     });
 
     const healthInsurance = calculateRateBased({
@@ -140,8 +189,7 @@
       nonApplicableStatuses: ['not_applicable'],
       base: profile.healthMonthlyRemuneration ?? profile.health_monthly_remuneration,
       rule: healthRule,
-      boundaryReview: coverageBoundaryRequiresReview(profile, bounds, 'healthInsurance') ||
-        coverageBoundaryRequiresReview(profile, bounds, 'health_insurance'),
+      charge: chargeState(profile, bounds, 'healthInsurance', 'health_insurance'),
     });
 
     let longTermCare;
@@ -172,8 +220,7 @@
       nonApplicableStatuses: ['not_applicable'],
       base: taxableRemuneration,
       rule: employmentRule,
-      boundaryReview: coverageBoundaryRequiresReview(profile, bounds, 'employmentInsurance') ||
-        coverageBoundaryRequiresReview(profile, bounds, 'employment_insurance'),
+      charge: { due: true, reason: null },
     });
 
     const rows = [nationalPension, healthInsurance, longTermCare, employmentInsurance];

@@ -83,6 +83,11 @@ test('deployed staging wrapper adds statutory input through one server-only RPC 
   assert.doesNotMatch(deployedDeps, /https?:\/\//);
 });
 
+test('2026 statutory rule changes use a new persisted calculation version', () => {
+  assert.match(deployedWrapper, /calculationVersion:\s*'payroll-engine-workweek-golden-v4-statutory-2026-employment-rounding'/);
+  assert.doesNotMatch(deployedWrapper, /calculationVersion:\s*'payroll-engine-workweek-golden-v2'/);
+});
+
 test('deployed staging runtime provenance includes the confirmed actual_worked adapter contract', () => {
   const pinned = deployedDeps.match(/PAYROLL_RUNTIME_SOURCE_COMMIT\s*=\s*'([0-9a-f]{40})'/)?.[1];
   assert.equal(pinned, '78f11ec235d3a4165f9558934305392d63a8aef6');

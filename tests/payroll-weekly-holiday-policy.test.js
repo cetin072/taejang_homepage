@@ -148,5 +148,5 @@ test('Staging runtime imports and wraps the reviewed weekly holiday policy', () 
 });
 
 test('Staging calculation run records the Golden workweek policy version', () => {
-  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v2'/);
+  assert.match(stagingIndex, /calculationVersion:\s*'payroll-engine-workweek-golden-v4-statutory-2026-employment-rounding'/);
 });

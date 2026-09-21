@@ -169,46 +169,41 @@
     };
   }
 
-  function selectFullMonthProfile(statutoryInput, employeeUuid, payrollMonth) {
-    const monthEnd = monthEndKey(payrollMonth);
+  function selectMonthProfile(statutoryInput, employeeUuid) {
     const rows = (Array.isArray(statutoryInput && statutoryInput.profiles) ? statutoryInput.profiles : [])
       .filter((row) => String(row.employee_uuid || row.employeeUuid || '') === String(employeeUuid));
     if (rows.length !== 1) {
       return { profile: null, reason: rows.length === 0 ? 'statutory_profile_missing' : 'statutory_profile_overlap_review_required' };
     }
-    const row = rows[0];
-    const effectiveFrom = String(row.effective_from || row.effectiveFrom || '');
-    const effectiveTo = row.effective_to || row.effectiveTo;
-    if (!effectiveFrom || effectiveFrom > payrollMonth || (effectiveTo && String(effectiveTo) < monthEnd)) {
-      return { profile: null, reason: 'statutory_profile_partial_month_review_required' };
-    }
-    return { profile: row, reason: null };
+    return { profile: rows[0], reason: null };
   }
 
   function summarizeStatutory(result, grossPayPreview) {
-    if (!result || result.status !== 'complete') {
-      return {
-        status: 'review_required',
-        nps: null,
-        nhi: null,
-        ltc: null,
-        ei: null,
-        total: null,
-        net: null,
-        reasons: result && Array.isArray(result.unresolvedReasons) ? result.unresolvedReasons : ['statutory_review_required'],
-      };
-    }
-    const amountByCode = new Map((result.rows || []).map((row) => [row.code, Number(row.amount || 0)]));
-    const total = Number(result.totalEmployeeDeduction || 0);
+    const rows = result && Array.isArray(result.rows) ? result.rows : [];
+    const rowByCode = new Map(rows.map((row) => [row.code, row]));
+    const amount = (code) => {
+      const row = rowByCode.get(code);
+      return row && row.status === 'complete' && row.amount != null ? Number(row.amount) : null;
+    };
+    const complete = Boolean(result && result.status === 'complete');
+    const total = complete ? Number(result.totalEmployeeDeduction || 0) : null;
     return {
-      status: 'complete',
-      nps: amountByCode.get('national_pension') || 0,
-      nhi: amountByCode.get('health_insurance') || 0,
-      ltc: amountByCode.get('long_term_care') || 0,
-      ei: amountByCode.get('employment_insurance') || 0,
+      status: complete ? 'complete' : 'review_required',
+      nps: amount('national_pension'),
+      nhi: amount('health_insurance'),
+      ltc: amount('long_term_care'),
+      ei: amount('employment_insurance'),
       total,
-      net: Number(grossPayPreview) - total,
-      reasons: [],
+      net: complete ? Number(grossPayPreview) - total : null,
+      reasons: result && Array.isArray(result.unresolvedReasons)
+        ? result.unresolvedReasons
+        : ['statutory_review_required'],
+      components: rows.map((row) => ({
+        code: row.code || null,
+        status: row.status || 'review_required',
+        amount: row.status === 'complete' && row.amount != null ? Number(row.amount) : null,
+        reasons: Array.isArray(row.reasons) ? row.reasons : [],
+      })),
     };
   }
 
@@ -373,7 +368,7 @@
             total: null, net: null, reasons: ['gross_not_ready'],
           };
         } else {
-          const selected = selectFullMonthProfile(statutoryInput, canonicalEmployee.employeeUuid, request.payrollMonth);
+          const selected = selectMonthProfile(statutoryInput, canonicalEmployee.employeeUuid);
           if (!selected.profile) {
             statutorySummary = {
               status: 'review_required', nps: null, nhi: null, ltc: null, ei: null,

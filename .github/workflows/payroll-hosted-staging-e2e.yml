@@ -59,6 +59,28 @@ jobs:
           )"
           target_response="$(jq -n --arg query "$target_query" '{query:$query,read_only:true}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
           target_id="$(printf '%s' "$target_response" | jq -er 'if type == "array" then . elif .result? then .result else .data end | if length == 1 then .[0].id else error("top-authority candidate count must equal one") end')"
+          echo "::add-mask::$target_id"
+          echo "PAYROLL_HOSTED_TARGET_ID=$target_id" >> "$GITHUB_ENV"
+
+          simulation_query="select role_code, expires_at from public.role_simulation_modes where profile_id='${target_id}'::uuid and expires_at>now();"
+          simulation_response="$(jq -n --arg query "$simulation_query" '{query:$query,read_only:true}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
+          simulation_count="$(printf '%s' "$simulation_response" | jq -er 'if type == "array" then length elif .result? then (.result|length) else (.data|length) end')"
+          [[ "$simulation_count" -le 1 ]] || { echo "STOP_MULTIPLE_ROLE_SIMULATION_ROWS"; exit 1; }
+          if [[ "$simulation_count" == "1" ]]; then
+            simulation_role="$(printf '%s' "$simulation_response" | jq -er 'if type == "array" then .[0].role_code elif .result? then .result[0].role_code else .data[0].role_code end')"
+            simulation_expires="$(printf '%s' "$simulation_response" | jq -er 'if type == "array" then .[0].expires_at elif .result? then .result[0].expires_at else .data[0].expires_at end')"
+            [[ "$simulation_role" == "promotion_staff" || "$simulation_role" == "promotion_lead" ]] || { echo "STOP_UNEXPECTED_SIMULATION_ROLE"; exit 1; }
+            clear_query="delete from public.role_simulation_modes where profile_id='${target_id}'::uuid and role_code='${simulation_role}' and expires_at='${simulation_expires}'::timestamptz returning role_code;"
+            clear_response="$(jq -n --arg query "$clear_query" '{query:$query,read_only:false}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
+            printf '%s' "$clear_response" | jq -e 'if type == "array" then length == 1 elif .result? then (.result|length) == 1 else (.data|length) == 1 end' >/dev/null
+            echo "PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE=true" >> "$GITHUB_ENV"
+            echo "PAYROLL_HOSTED_SIMULATION_ROLE=$simulation_role" >> "$GITHUB_ENV"
+            echo "PAYROLL_HOSTED_SIMULATION_EXPIRES_AT=$simulation_expires" >> "$GITHUB_ENV"
+            echo "PASS temporarily suspended active role simulation for payroll QA"
+          else
+            echo "PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE=false" >> "$GITHUB_ENV"
+          fi
+
           handoff_code="$(openssl rand -hex 32)"
           echo "::add-mask::$handoff_code"
           handoff_hash="$(printf '%s' "$handoff_code" | sha256sum | awk '{print $1}')"
@@ -66,9 +88,25 @@ jobs:
           create_response="$(jq -n --arg query "$create_query" '{query:$query,read_only:false}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @-)"
           printf '%s' "$create_response" | jq -e 'tostring | test("WEB_AUTH_HANDOFF_CREATED")' >/dev/null
           echo "PAYROLL_HOSTED_HANDOFF_CODE=$handoff_code" >> "$GITHUB_ENV"
-          unset handoff_code handoff_hash target_id target_response create_response
+          unset handoff_code handoff_hash target_id target_response simulation_response clear_response create_response
           echo "PASS one-time staging QA handoff created; identifiers and credentials withheld"
       - name: Run cheap checks, staging API smoke, then hosted Playwright
         env:
           PLAYWRIGHT_BROWSERS_PATH: 0
+          PAYROLL_HOSTED_PREVIEW_SITE: ${{ github.event.pull_request.number && format('https://deploy-preview-{0}--taejang-homepage.netlify.app', github.event.pull_request.number) || 'https://taejang.co.kr' }}
         run: npm run test:payroll-hosted
+      - name: Restore pre-test role simulation state
+        if: always() && env.PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" && -n "$PAYROLL_HOSTED_TARGET_ID" ]] || { echo "STOP_SIMULATION_RESTORE_CONTEXT_MISSING"; exit 1; }
+          [[ "$PAYROLL_HOSTED_SIMULATION_ROLE" == "promotion_staff" || "$PAYROLL_HOSTED_SIMULATION_ROLE" == "promotion_lead" ]] || { echo "STOP_UNEXPECTED_SIMULATION_ROLE"; exit 1; }
+          restore_query="insert into public.role_simulation_modes(profile_id,role_code,expires_at,updated_at)
+            select '${PAYROLL_HOSTED_TARGET_ID}'::uuid,'${PAYROLL_HOSTED_SIMULATION_ROLE}','${PAYROLL_HOSTED_SIMULATION_EXPIRES_AT}'::timestamptz,now()
+            where '${PAYROLL_HOSTED_SIMULATION_EXPIRES_AT}'::timestamptz > now()
+              and not exists(select 1 from public.role_simulation_modes where profile_id='${PAYROLL_HOSTED_TARGET_ID}'::uuid)
+            on conflict(profile_id) do nothing;"
+          jq -n --arg query "$restore_query" '{query:$query,read_only:false}' | curl --fail --silent --show-error --request POST "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query" --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" --header 'Content-Type: application/json' --data-binary @- >/dev/null
+          echo "PASS pre-test role simulation state restored when still applicable"
