@@ -170,13 +170,42 @@
     const ltcRule = selectRateRule('long_term_care', payrollMonth, rateRules);
     const employmentRule = selectRateRule('employment_insurance', payrollMonth, rateRules);
 
+    const adjustedProfile = Object.assign({}, profile);
+    let nationalPensionStatus = profile.nationalPensionStatus || profile.national_pension_status;
+    const pensionAge18On = profile.nationalPensionAge18On || profile.national_pension_age_18_on || null;
+    const pensionAgeLostOn = profile.nationalPensionAgeLostOn || profile.national_pension_age_lost_on || null;
+    const pensionOver60Exception = profile.nationalPensionOver60Exception
+      || profile.national_pension_over60_exception
+      || 'none';
+    const pensionUnder18OptOut = Boolean(
+      profile.nationalPensionUnder18OptOutConfirmed
+      ?? profile.national_pension_under18_opt_out_confirmed
+    );
+
+    if (pensionUnder18OptOut && pensionAge18On && compareDate(pensionAge18On, bounds.end) > 0) {
+      nationalPensionStatus = 'excluded_by_request';
+    }
+
+    if (pensionAgeLostOn && pensionOver60Exception !== 'voluntary_continuation_confirmed') {
+      if (compareDate(pensionAgeLostOn, bounds.start) <= 0) {
+        nationalPensionStatus = 'not_applicable';
+      } else if (compareDate(pensionAgeLostOn, bounds.end) <= 0) {
+        const existingLostOn = profileDate(adjustedProfile, 'nationalPension', 'national_pension', 'LostOn');
+        const effectiveLostOn = !existingLostOn || compareDate(pensionAgeLostOn, existingLostOn) < 0
+          ? pensionAgeLostOn
+          : existingLostOn;
+        adjustedProfile.nationalPensionLostOn = effectiveLostOn;
+        adjustedProfile.national_pension_lost_on = effectiveLostOn;
+      }
+    }
+
     const nationalPension = calculateRateBased({
       code: 'national_pension',
-      enrollmentStatus: profile.nationalPensionStatus || profile.national_pension_status,
+      enrollmentStatus: nationalPensionStatus,
       nonApplicableStatuses: ['excluded_by_request', 'not_applicable'],
       base: profile.pensionStandardMonthlyIncome ?? profile.pension_standard_monthly_income,
       rule: npsRule,
-      charge: chargeState(profile, bounds, 'nationalPension', 'national_pension', {
+      charge: chargeState(adjustedProfile, bounds, 'nationalPension', 'national_pension', {
         acquisitionMonthOptIn: Boolean(
           profile.nationalPensionAcquisitionMonthOptIn ?? profile.national_pension_acquisition_month_opt_in
         ),
@@ -214,14 +243,34 @@
       }
     }
 
-    const employmentInsurance = calculateRateBased({
-      code: 'employment_insurance',
-      enrollmentStatus: profile.employmentInsuranceStatus || profile.employment_insurance_status,
-      nonApplicableStatuses: ['not_applicable'],
-      base: taxableRemuneration,
-      rule: employmentRule,
-      charge: { due: true, reason: null },
-    });
+    let employmentInsuranceStatus = profile.employmentInsuranceStatus || profile.employment_insurance_status;
+    const employmentAge65On = profile.employmentInsuranceAge65On || profile.employment_insurance_age_65_on || null;
+    const employeeHiredOn = profile.employeeHiredOn || profile.employee_hired_on || null;
+    const employmentOver65Status = profile.employmentInsuranceOver65Status
+      || profile.employment_insurance_over65_status
+      || 'unknown';
+    let employmentAgeReviewRequired = false;
+
+    if (employmentInsuranceStatus !== 'not_applicable'
+        && employmentAge65On
+        && compareDate(employmentAge65On, bounds.end) <= 0) {
+      if (employmentOver65Status === 'employed_after_65_excluded') {
+        employmentInsuranceStatus = 'not_applicable';
+      } else if (employmentOver65Status !== 'continuous_before_65_confirmed') {
+        employmentAgeReviewRequired = true;
+      }
+    }
+
+    const employmentInsurance = employmentAgeReviewRequired
+      ? statusRow('employment_insurance', { reasons: ['employment_insurance_age_continuity_review_required'] })
+      : calculateRateBased({
+          code: 'employment_insurance',
+          enrollmentStatus: employmentInsuranceStatus,
+          nonApplicableStatuses: ['not_applicable'],
+          base: taxableRemuneration,
+          rule: employmentRule,
+          charge: { due: true, reason: null },
+        });
 
     const rows = [nationalPension, healthInsurance, longTermCare, employmentInsurance];
     const complete = rows.every((row) => row.status === 'complete');

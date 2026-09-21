@@ -78,6 +78,9 @@
       .employee-meta dt { color:var(--app-muted); font-size:.82rem; }
       .employee-meta dd { margin:0; font-weight:750; }
       .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
+      .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
+      .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }
+      .employee-sensitive-bulk .message { margin:0; white-space:pre-line; }
       .employee-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
       .employee-form label { display:grid; gap:6px; font-weight:800; }
       .employee-form input,.employee-form select { width:100%; min-height:44px; padding:9px 10px; border:1px solid var(--app-border); border-radius:9px; background:#fff; font:inherit; }
@@ -241,6 +244,254 @@
     return form;
   }
 
+  function normalizeResidentNumber(value) {
+    return String(value || '').replace(/[^0-9]/g, '');
+  }
+
+  function residentNumberChecksumValid(value) {
+    const digits = normalizeResidentNumber(value);
+    if (!/^\d{13}$/.test(digits) || !/[1-4]/.test(digits[6])) return false;
+    const century = ['1','2'].includes(digits[6]) ? 1900 : 2000;
+    const year = century + Number(digits.slice(0,2));
+    const month = Number(digits.slice(2,4));
+    const day = Number(digits.slice(4,6));
+    const probe = new Date(Date.UTC(year, month - 1, day));
+    if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return false;
+    const weights = [2,3,4,5,6,7,8,9,2,3,4,5];
+    const sum = weights.reduce((total, weight, index) => total + Number(digits[index]) * weight, 0);
+    return ((11 - (sum % 11)) % 10) === Number(digits[12]);
+  }
+
+  function parseResidentBulkPaste(text, employees) {
+    const employeeMap = new Map();
+    arr(employees).forEach(employee => {
+      const name = String(employee.full_name || '').trim();
+      if (!employeeMap.has(name)) employeeMap.set(name, []);
+      employeeMap.get(name).push(employee);
+    });
+
+    const rows = [];
+    const errors = [];
+    const skipped = [];
+    const seen = new Map();
+
+    String(text || '').split(/\r?\n/).forEach((rawLine, index) => {
+      const line = rawLine.trim();
+      if (!line) return;
+      const cells = rawLine.split('\t');
+      const name = String(cells[0] || '').trim();
+      const rawResident = String(cells[1] || '').trim();
+      if (!name || /성명/.test(name) && /주민등록번호/.test(rawResident)) return;
+      if (cells.length < 2 || !rawResident) {
+        errors.push(`${index + 1}행: 이름과 주민등록번호 2개 열이 필요합니다.`);
+        return;
+      }
+
+      const resident = normalizeResidentNumber(rawResident);
+      if (resident.length < 13 && /^\d{2}[.\/-]\d{2}[.\/-]\d{2}$/.test(rawResident)) {
+        skipped.push(`${name}: 생년월일만 있어 주민번호 등록 제외`);
+        return;
+      }
+      if (!residentNumberChecksumValid(resident)) {
+        errors.push(`${name}: 주민등록번호 형식 또는 체크섬을 확인해 주세요.`);
+        return;
+      }
+
+      if (seen.has(name)) {
+        if (seen.get(name) === resident) return;
+        errors.push(`${name}: 붙여넣기 안에 서로 다른 주민번호가 중복되어 있습니다.`);
+        return;
+      }
+      seen.set(name, resident);
+
+      const matches = employeeMap.get(name) || [];
+      if (!matches.length) {
+        skipped.push(`${name}: 현재 직원 DB 미등록으로 제외`);
+        return;
+      }
+      if (matches.length > 1) {
+        errors.push(`${name}: 동명이인이 있어 개별 등록이 필요합니다.`);
+        return;
+      }
+      if (matches[0].resident_number_registered) {
+        skipped.push(`${name}: 이미 암호화 등록됨`);
+        return;
+      }
+
+      rows.push({ employee_uuid: matches[0].id, resident_number: resident });
+    });
+
+    return { rows, errors, skipped };
+  }
+
+  function bulkResidentImportPanel(context) {
+    if (!context.can_manage_sensitive_identity) return null;
+    const section = el('section', null, 'dashboard-section');
+    const box = el('div', null, 'employee-sensitive-bulk');
+    const textarea = document.createElement('textarea');
+    textarea.autocomplete = 'off';
+    textarea.spellcheck = false;
+    textarea.placeholder = '엑셀에서 성명 + 주민등록번호 두 열을 복사해 그대로 붙여넣으세요.\n예: 홍길동<TAB>000000-0000000';
+    textarea.setAttribute('aria-label', '주민등록번호 일괄등록 붙여넣기');
+    const message = el('p', '', 'message');
+    const submit = button('검증 후 일괄 암호화 저장', async () => {
+      message.textContent = '';
+      const parsed = parseResidentBulkPaste(textarea.value, context.employees);
+      if (parsed.errors.length) {
+        message.classList.add('error');
+        message.textContent = `저장하지 않았습니다.\n${parsed.errors.join('\n')}`;
+        parsed.rows.length = 0;
+        return;
+      }
+      if (!parsed.rows.length) {
+        message.classList.remove('error');
+        message.textContent = parsed.skipped.length ? parsed.skipped.join('\n') : '등록할 새 직원이 없습니다.';
+        return;
+      }
+      const skippedNotice = parsed.skipped.length ? `\n제외 ${parsed.skipped.length}건: ${parsed.skipped.join(' / ')}` : '';
+      if (!window.confirm(`${parsed.rows.length}명의 주민등록번호를 Vault에 암호화 저장합니다.${skippedNotice}\n계속할까요?`)) {
+        parsed.rows.length = 0;
+        return;
+      }
+
+      submit.disabled = true;
+      try {
+        const result = await app().rpc('bulk_set_employee_resident_registration_numbers', { p_rows: parsed.rows });
+        textarea.value = '';
+        parsed.rows.length = 0;
+        message.classList.remove('error');
+        message.textContent = `${Number(result.saved_count || 0)}명 암호화 등록이 완료됐습니다.`;
+        window.alert(`${Number(result.saved_count || 0)}명 암호화 등록 완료${parsed.skipped.length ? `\n제외 ${parsed.skipped.length}건: ${parsed.skipped.join(' / ')}` : ''}`);
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        textarea.value = '';
+        parsed.rows.length = 0;
+        message.classList.add('error');
+        message.textContent = app().friendlyError?.(error) || error.message || '일괄 등록에 실패했습니다. 전체 저장은 취소됐습니다.';
+      } finally {
+        submit.disabled = false;
+      }
+    });
+    box.append(
+      el('h2', '주민등록번호 일괄 암호화 등록'),
+      el('p', '엑셀의 성명·주민등록번호 두 열을 복사해 붙여넣습니다. 생년월일-only·DB 미등록·동일 중복행은 제외하고, 체크섬 오류·동명이인·번호 충돌이 있으면 전체 저장을 취소합니다. 원문은 저장 후 화면에 남기지 않습니다.', 'help'),
+      textarea,
+      submit,
+      message
+    );
+    section.append(box);
+    return section;
+  }
+
+  function nationalPensionAgeLabel(status) {
+    return ({
+      identity_missing: '주민번호 미등록',
+      under18_opt_out_confirmed: '18세 미만 · 제외신청 확인',
+      under18_opt_out_available: '18세 미만 · 제외신청 가능',
+      compulsory_age_range: '의무가입 연령대',
+      voluntary_continuation_confirmed: '60세 이상 · 임의계속가입 확인',
+      non_compulsory_60_plus: '60세 이상 · 의무가입 비대상'
+    })[status] || status || '확인 필요';
+  }
+
+  function employmentInsuranceAgeLabel(status) {
+    return ({
+      identity_missing: '주민번호 미등록',
+      standard_age_range: '일반 연령대',
+      continuous_before_65_confirmed: '65세 전 피보험 연속 확인',
+      employed_after_65_excluded: '65세 이후 신규고용 · 적용 제외 확인',
+      continuity_review_required: '65세 이후 · 연속가입 확인 필요'
+    })[status] || status || '확인 필요';
+  }
+
+  function sensitiveIdentityPanel(context, employee) {
+    if (!context.can_manage_sensitive_identity) return null;
+    const form = el('form', null, 'employee-form');
+    form.dataset.sensitiveIdentityForm = '1';
+
+    const registered = !!employee.resident_number_registered;
+    const intro = el('p',
+      registered
+        ? '주민등록번호는 암호화 보관 중이며 원문은 화면에 다시 표시하지 않습니다.'
+        : '주민등록번호 원문은 저장 후 화면에 다시 표시되지 않고 암호화 보관됩니다.',
+      'help'
+    );
+
+    const rrn = input('password');
+    rrn.placeholder = '000000-0000000';
+    rrn.inputMode = 'numeric';
+    rrn.autocomplete = 'off';
+    rrn.maxLength = 14;
+    rrn.setAttribute('aria-label', '주민등록번호');
+
+    const saveRrn = button(registered ? '주민번호 변경 저장' : '주민번호 암호화 저장', () => {});
+    saveRrn.type = 'submit';
+
+    const under18 = input('checkbox');
+    under18.checked = !!employee.national_pension_under18_opt_out_confirmed;
+    const npsOver60 = select([
+      { id: 'none', name: '별도 예외 없음' },
+      { id: 'voluntary_continuation_confirmed', name: '60세 이후 임의계속가입 확인' }
+    ], employee.national_pension_over60_exception || 'none');
+    const employmentOver65 = select([
+      { id: 'unknown', name: '65세 이후 연속가입 여부 미확인' },
+      { id: 'continuous_before_65_confirmed', name: '65세 전 피보험자격 연속 확인' },
+      { id: 'employed_after_65_excluded', name: '65세 이후 신규고용 · 적용 제외 확인' }
+    ], employee.employment_insurance_over65_status || 'unknown');
+
+    const flagSave = button('연령 예외사항 저장', async () => {
+      flagSave.disabled = true;
+      try {
+        await app().rpc('set_employee_age_insurance_flags', {
+          p_employee_uuid: employee.id,
+          p_national_pension_under18_opt_out_confirmed: under18.checked,
+          p_national_pension_over60_exception: npsOver60.value,
+          p_employment_insurance_over65_status: employmentOver65.value
+        });
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        window.alert(app().friendlyError?.(error) || error.message || '연령 예외사항을 저장하지 못했습니다.');
+        flagSave.disabled = false;
+      }
+    }, true);
+    if (!registered) flagSave.disabled = true;
+
+    const grid = el('div', null, 'employee-form-grid');
+    grid.append(
+      field('주민등록번호', rrn, '공식 4대보험 행정과 연령 판정에만 사용합니다. 원문은 Vault에 암호화됩니다.'),
+      field('국민연금 18세 미만', under18, '본인 제외 신청이 확인된 경우에만 체크합니다.'),
+      field('국민연금 60세 이후', npsOver60, '임의계속가입이 공식 확인된 경우에만 예외로 등록합니다.'),
+      field('고용보험 65세 이후', employmentOver65, '65세 이후 신규고용 여부와 65세 전 피보험 연속 여부를 확인해 등록합니다.')
+    );
+
+    const actions = el('div', null, 'quick-links');
+    actions.append(saveRrn, flagSave);
+    form.append(intro, grid, actions);
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!rrn.value.trim()) {
+        window.alert('주민등록번호를 입력해 주세요.');
+        return;
+      }
+      saveRrn.disabled = true;
+      try {
+        await app().rpc('set_employee_resident_registration_number', {
+          p_employee_uuid: employee.id,
+          p_resident_number: rrn.value.trim()
+        });
+        rrn.value = '';
+        await openEmployeeManagement('existing');
+      } catch (error) {
+        rrn.value = '';
+        window.alert(app().friendlyError?.(error) || error.message || '주민등록번호를 저장하지 못했습니다.');
+        saveRrn.disabled = false;
+      }
+    });
+
+    return form;
+  }
+
   function photoPicker(employee, photoType, context) {
     const wrap = el('div', null, 'employee-photo-actions');
     const file = input('file'); file.accept = 'image/jpeg,image/png,image/webp';
@@ -282,6 +533,15 @@
       ['입사일', employee.hired_on], ['근태대상', employee.attendance_required ? '예' : '아니오'],
       ['계정 연결', employee.linked_profile ? `${employee.linked_profile.display_name} · ${employee.linked_profile.account_status}` : '미연결']
     ];
+    if (context.can_manage_sensitive_identity) {
+      pairs.push(
+        ['주민번호', employee.resident_number_registered ? '암호화 등록됨' : '미등록'],
+        ['생년월일', employee.birth_date || '-'],
+        ['만 나이', Number.isInteger(employee.age_years) ? `${employee.age_years}세` : '-'],
+        ['국민연금', nationalPensionAgeLabel(employee.national_pension_age_status)],
+        ['고용보험', employmentInsuranceAgeLabel(employee.employment_insurance_age_status)]
+      );
+    }
     pairs.forEach(([label, value]) => { const row = document.createElement('div'); row.append(el('dt', label), el('dd', value || '-')); meta.append(row); });
     card.append(meta);
     if (employee.protected && context.access_level !== 'operations_manager') card.append(el('p', '보호 계정은 팀장에서 수정 요청할 수 없습니다.', 'employee-protected-note'));
@@ -295,6 +555,14 @@
         const existing = card.querySelector('[data-employee-edit-form]');
         if (existing) { existing.remove(); return; }
         const form = makeEmployeeForm(context, employee, context.access_level !== 'operations_manager'); form.dataset.employeeEditForm = '1'; card.append(form);
+      }, true));
+    }
+    if (context.can_manage_sensitive_identity) {
+      actions.append(button(employee.resident_number_registered ? '주민번호·보험연령 관리' : '주민번호 등록', () => {
+        const existing = card.querySelector('[data-sensitive-identity-form]');
+        if (existing) { existing.remove(); return; }
+        const form = sensitiveIdentityPanel(context, employee);
+        if (form) card.append(form);
       }, true));
     }
     card.append(actions);
@@ -362,6 +630,11 @@
       intro.append(el('p', isOps ? '운영총괄 직원관리' : isGlobalPromotionLead ? '운영팀장 전사 직원등록' : '내 팀 직원관리', 'eyebrow'), el('h2', isOps || isGlobalPromotionLead ? '직원 관리' : '팀 직원 관리'));
       intro.append(el('p', isOps ? '기존 직원 관리와 신규 직원 등록을 나누어 처리합니다. 직원번호는 생성 후 변경되지 않습니다.' : isGlobalPromotionLead ? '모든 부서·팀 또는 미배정 신규 직원을 직접 등록할 수 있습니다. 직원번호는 서버가 발급하며, 삭제는 운영총괄만 할 수 있습니다.' : '기존 팀 직원 관리와 신규 직원 등록 요청을 나누어 처리합니다. 신규 등록은 본인보다 낮은 직책만 요청할 수 있습니다.'));
       shell.append(intro, employeeViewTabs(context));
+
+      if (activeEmployeeView === 'existing' && context.can_manage_sensitive_identity) {
+        const bulkPanel = bulkResidentImportPanel(context);
+        if (bulkPanel) shell.append(bulkPanel);
+      }
 
       if (activeEmployeeView === 'new') {
         const createSection = el('section', null, 'dashboard-section');
