@@ -71,7 +71,8 @@
 
   function applyNavigationState(node, allowed, capabilityLabel) {
     const roleVisible = node.dataset?.roleHidden !== '1';
-    const effectiveAllowed = Boolean(allowed && roleVisible);
+    const sectionVisible = node.dataset?.sectionCollapsed !== '1';
+    const effectiveAllowed = Boolean(allowed && roleVisible && sectionVisible);
     node.hidden = !effectiveAllowed;
     node.setAttribute('aria-hidden', String(!effectiveAllowed));
     node.toggleAttribute('disabled', !effectiveAllowed && node.tagName === 'BUTTON');
@@ -113,10 +114,11 @@
       }
     });
 
-    [...nav.querySelectorAll('[data-role-hidden="1"]')].forEach(node => {
+    [...nav.querySelectorAll('[data-role-hidden="1"], [data-section-collapsed="1"]')].forEach(node => {
       node.hidden = true;
       node.setAttribute('aria-hidden','true');
     });
+    window.TaejangRoleNavigationPriority?.refreshSectionVisibility?.();
   }
 
   function bindNavigationObserver() {
