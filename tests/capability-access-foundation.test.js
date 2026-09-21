@@ -6,6 +6,7 @@ const test = require('node:test');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const foundation = read('supabase/migrations/20260909150000_issue_148_capability_foundation.sql');
 const executiveGuard = read('supabase/migrations/20260909150100_issue_148_attendance_capability_guard.sql');
+const issue320 = read('supabase/migrations/20260921233000_issue_320_unified_operations_authority.sql');
 const bridge = read('app/assets/capability-access.js');
 const appUi = read('app/assets/app-ui.js');
 const planning = read('docs/planning/CAPABILITY_AUTHORIZATION_PHASE_A_V1.md');
@@ -27,12 +28,18 @@ test('private capability authorization cannot be invoked directly by browser rol
   assert.match(foundation, /grant execute on function public\.get_my_access_context_v2\(\) to authenticated/);
 });
 
-test('operations-manager operational superset excludes technical and executive self-attendance', () => {
+test('operations manager is the complete operational superset while technical authority stays role-granted', () => {
   assert.match(foundation, /'attendance\.self_record', 'operational', false/);
   assert.match(foundation, /'technical\.bootstrap_super_admin', 'technical', false/);
   assert.match(executiveGuard, /capability\.code = 'attendance\.self_record'/);
-  assert.match(executiveGuard, /'operations_manager' = any\(actual_roles\)/);
-  assert.match(executiveGuard, /'ceo' = any\(actual_roles\)/);
+  assert.match(issue320, /capability_kind='operational'/);
+  assert.match(issue320, /operations_manager_auto_grant=true/);
+  assert.match(issue320, /capability_kind='technical'/);
+  assert.match(issue320, /r\.code='super_admin'/);
+  assert.doesNotMatch(
+    issue320.slice(issue320.indexOf('create or replace function public.private_actor_capabilities')),
+    /capability\.code\s*=\s*'attendance\.self_record'/
+  );
 });
 
 test('browser capability bridge is loaded before feature app-ready handlers and has safe v1 fallback', () => {
