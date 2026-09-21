@@ -115,6 +115,21 @@ assert.equal(saved.data?.national_pension_age_status, 'non_compulsory_60_plus');
 assert.equal(saved.data?.employment_insurance_age_status, 'continuity_review_required');
 assert.ok(!JSON.stringify(saved.data).includes(syntheticResidentNumber), 'setter response never contains resident number');
 
+const duplicateEmployee = await rpc('create_employee', ops.token, {
+  p_full_name: 'Issue 309 중복차단직원',
+  p_hired_on: '2026-09-01',
+  p_department_id: departmentId,
+  p_position_id: positionId,
+  p_attendance_required: false,
+});
+assert.equal(duplicateEmployee.data?.code, 'EMPLOYEE_CREATED');
+const duplicateResident = await rpc('set_employee_resident_registration_number', ops.token, {
+  p_employee_uuid: duplicateEmployee.data.employee_uuid,
+  p_resident_number: syntheticResidentNumber,
+});
+assert.equal(duplicateResident.ok, false, 'same resident number cannot be registered to two employees');
+assert.match(JSON.stringify(duplicateResident.data), /RESIDENT_NUMBER_ALREADY_REGISTERED|23505/);
+
 assert.equal(
   sql(`select (birth_date=date '1960-01-02')::text
        from private.employee_sensitive_identity
