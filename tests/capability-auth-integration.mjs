@@ -194,7 +194,7 @@ const dualContext = await accessContext(dual);
 const dualCaps = capabilities(dualContext);
 check(dualCaps.has('employee.archive') && dualCaps.has('task.manage'), 'dual account keeps operations-manager operational superset');
 check(dualCaps.has('technical.bootstrap_super_admin') && dualCaps.has('audit.system_raw_read'), 'dual account also keeps actual technical capabilities');
-check(!dualCaps.has('attendance.self_record'), 'dual operations-manager account remains excluded from personal attendance');
+check(dualCaps.has('attendance.self_record'), 'dual operations-manager account keeps the complete operational capability superset');
 const dualTaskAdmin = await rpc('get_today_board_admin_options', dual.token, {});
 check(dualTaskAdmin.ok, 'dual account can use operational RPC because it actually has operations-manager capability');
 
