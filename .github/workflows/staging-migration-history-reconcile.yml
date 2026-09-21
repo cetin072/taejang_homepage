@@ -1,4 +1,4 @@
-name: Staging Migration History Reconcile 306
+name: Staging Owned Migration Reconcile 306
 
 on:
   push:
@@ -6,18 +6,19 @@ on:
       - chore/306-staging-migration-history-reconcile
     paths:
       - .github/workflows/staging-migration-history-reconcile.yml
+      - scripts/staging/owned-migration-status.mjs
 
 permissions:
   contents: read
 
 concurrency:
-  group: taejang-staging-migration-history-reconcile-306
+  group: taejang-staging-owned-migration-reconcile-306
   cancel-in-progress: false
 
 jobs:
-  diagnose:
+  reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     environment: staging-first-super-admin
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -41,117 +42,21 @@ jobs:
           jq -n --arg query "$query" '{query:$query,read_only:true}' |
             curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/remote.json
 
-      - name: Compare remote history to current main migration files
+      - name: Classify this repository's owned migrations
         shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('fs');
-          const path = require('path');
+        run: node scripts/staging/owned-migration-status.mjs /tmp/remote.json /tmp/owned-status.json
 
-          const raw = JSON.parse(fs.readFileSync('/tmp/remote.json', 'utf8'));
-          const remote = Array.isArray(raw) ? raw : (Array.isArray(raw.result) ? raw.result : []);
-          const local = fs.readdirSync('supabase/migrations')
-            .filter(name => /^\d{14}_.+\.sql$/.test(name))
-            .sort()
-            .map(file => {
-              const m = file.match(/^(\d{14})_(.+)\.sql$/);
-              return { version: m[1], name: m[2], file };
-            });
-
-          const localByVersion = new Map(local.map(x => [x.version, x]));
-          const localByName = new Map();
-          for (const item of local) {
-            if (!localByName.has(item.name)) localByName.set(item.name, []);
-            localByName.get(item.name).push(item);
-          }
-
-          const mappedLocal = new Set();
-          const exact = [];
-          const nameMapped = [];
-          const embeddedMapped = [];
-          const versionNameMismatch = [];
-          const remoteUnmatched = [];
-
-          for (const r of remote) {
-            const version = String(r.version || '');
-            const name = String(r.name || '');
-            const byVersion = localByVersion.get(version);
-            if (byVersion) {
-              if (byVersion.name === name) {
-                exact.push({ remote: {version,name}, local: byVersion });
-                mappedLocal.add(byVersion.file);
-              } else {
-                versionNameMismatch.push({ remote: {version,name}, local: byVersion });
-              }
-              continue;
-            }
-
-            const byName = localByName.get(name) || [];
-            if (byName.length === 1 && !mappedLocal.has(byName[0].file)) {
-              nameMapped.push({ remote: {version,name}, local: byName[0], proof: 'unique_logical_name' });
-              mappedLocal.add(byName[0].file);
-              continue;
-            }
-
-            const embedded = name.match(/^(\d{14})_(.+)$/);
-            if (embedded) {
-              const candidate = localByVersion.get(embedded[1]);
-              if (candidate && candidate.name === embedded[2] && !mappedLocal.has(candidate.file)) {
-                embeddedMapped.push({ remote: {version,name}, local: candidate, proof: 'remote_name_embeds_exact_local_filename' });
-                mappedLocal.add(candidate.file);
-                continue;
-              }
-            }
-
-            remoteUnmatched.push({version,name});
-          }
-
-          const localUnmatched = local.filter(x => !mappedLocal.has(x.file));
-          const result = {
-            counts: {
-              remote: remote.length,
-              local: local.length,
-              exact: exact.length,
-              uniqueNameMapped: nameMapped.length,
-              embeddedFilenameMapped: embeddedMapped.length,
-              versionNameMismatch: versionNameMismatch.length,
-              remoteUnmatched: remoteUnmatched.length,
-              localUnmatched: localUnmatched.length
-            },
-            nameMapped,
-            embeddedMapped,
-            versionNameMismatch,
-            remoteUnmatched,
-            localUnmatched
-          };
-
-          console.log('RECONCILE_COUNTS=' + JSON.stringify(result.counts));
-          console.log('NAME_MAPPED=' + JSON.stringify(nameMapped));
-          console.log('EMBEDDED_MAPPED=' + JSON.stringify(embeddedMapped));
-          console.log('VERSION_NAME_MISMATCH=' + JSON.stringify(versionNameMismatch));
-          console.log('REMOTE_UNMATCHED=' + JSON.stringify(remoteUnmatched));
-          console.log('LOCAL_UNMATCHED=' + JSON.stringify(localUnmatched));
-
-          if (versionNameMismatch.length) {
-            console.error('STOP_VERSION_NAME_MISMATCH');
-            process.exit(1);
-          }
-          NODE
-
-      - name: Verify schema evidence for local-only migrations
+      - name: Verify schema evidence for legacy-applied owned migrations
+        id: evidence
         shell: bash
         run: |
           set -euo pipefail
           query="
           select
-            -- 20260903154500 homepage change requests
             (to_regclass('public.homepage_change_requests') is not null) as homepage_change_requests_table,
             (to_regprocedure('public.create_homepage_change_request(text,text,text,text,text,text,text,text)') is not null) as homepage_create_rpc,
             (to_regprocedure('public.get_homepage_change_requests()') is not null) as homepage_list_rpc,
             (to_regprocedure('public.review_homepage_change_request(uuid,text,text)') is not null) as homepage_review_rpc,
-
-            -- 20260911150000 support radar capability contract
             (select count(*)::int from public.platform_capabilities
               where code in ('support_radar.management_view','support_radar.management_edit','support_radar.assigned_work')
                 and active) as support_capability_count,
@@ -161,41 +66,138 @@ jobs:
               where grant_row.capability_code in ('support_radar.management_view','support_radar.assigned_work')
                 and role.code in ('ceo','department_lead','promotion_lead','promotion_staff','worker_support_lead','worker_support_staff','office_staff')
             ) as support_role_grant_count,
-
-            -- 20260913070500 upper review archive guard
-            (to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)') is not null) as archive_guard_rpc,
             position(
               'PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED'
               in coalesce(pg_get_functiondef(to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)')), '')
             ) > 0 as archive_guard_signature,
-
-            -- 20260915150000 field operations foundation
             exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_time_block') as field_time_block_type,
-            exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_assignment_override_action') as field_override_type,
             (to_regclass('public.work_group_employee_memberships') is not null) as field_memberships_table,
             (to_regclass('public.field_work_templates') is not null) as field_templates_table,
             (to_regclass('public.field_assignment_employee_overrides') is not null) as field_overrides_table,
-            (select count(*)::int from public.platform_capabilities
-              where code in ('field.membership.manage','field.template.manage','field.assignment.manage')
-                and active) as field_capability_count,
-            (to_regprocedure('public.get_field_assignment_roster(uuid)') is not null) as field_roster_rpc,
-
-            -- 20260918133000 notification push foundation
             (to_regclass('public.notification_devices') is not null) as notification_devices_table,
             (to_regclass('public.notification_events') is not null) as notification_events_table,
-            (to_regclass('public.notification_deliveries') is not null) as notification_deliveries_table,
-            exists(select 1 from pg_trigger where tgrelid='public.notices'::regclass and tgname='notices_queue_native_push' and not tgisinternal) as notification_trigger,
-            (to_regprocedure('public.register_my_notification_device(uuid,text,text,text,text)') is not null) as notification_register_rpc,
-            (to_regprocedure('public.private_claim_notification_push_batch(uuid,integer)') is not null) as notification_claim_rpc,
-
-            -- remote-only contamination discovery
-            (select count(*)::int from information_schema.tables
-              where table_schema='public' and table_name ilike '%survival%') as survival_table_count,
-            (select count(*)::int from information_schema.columns
-              where table_schema='public' and column_name ilike '%gm_state%') as gm_state_column_count;
+            (to_regclass('public.notification_deliveries') is not null) as notification_deliveries_table;
           "
           jq -n --arg query "$query" '{query:$query,read_only:true}' |
             curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/schema-evidence.json
           row="$(jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end' /tmp/schema-evidence.json)"
           [[ -n "$row" && "$row" != "null" ]] || { echo "STOP_SCHEMA_EVIDENCE_RESPONSE"; exit 1; }
           echo "SCHEMA_EVIDENCE=$row"
+
+          [[ "$(printf '%s' "$row" | jq -r '.homepage_change_requests_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.homepage_create_rpc')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.homepage_list_rpc')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.homepage_review_rpc')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.support_capability_count')" == "3" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.support_role_grant_count')" == "7" ]]
+
+          # These three are expected to be genuinely absent before this task applies them.
+          [[ "$(printf '%s' "$row" | jq -r '.archive_guard_signature')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_time_block_type')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_memberships_table')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_templates_table')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_overrides_table')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_devices_table')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_events_table')" == "false" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_deliveries_table')" == "false" ]]
+
+      - name: Record legacy-applied owned migration versions only
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="
+          insert into supabase_migrations.schema_migrations(version, name, statements)
+          values
+            ('20260903154500','phase_c_homepage_change_requests',array[]::text[]),
+            ('20260911150000','support_radar_capability_contract',array[]::text[])
+          on conflict (version) do nothing;
+          "
+          jq -n --arg query "$query" '{query:$query,read_only:false}' |
+            curl --fail --silent --show-error --retry 1 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/history-add.json
+          jq -e . /tmp/history-add.json >/dev/null
+
+      - name: Apply exactly three genuinely missing owned migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            supabase/migrations/20260913070500_issue_192_upper_review_archive_guard.sql
+            supabase/migrations/20260915150000_issue_218_field_operations_foundation.sql
+            supabase/migrations/20260918133000_notification_push_foundation.sql
+          )
+          for file in "${files[@]}"; do
+            version="$(basename "$file" | cut -d_ -f1)"
+            name="$(basename "$file" .sql | cut -d_ -f2-)"
+            echo "APPLY_OWNED_MIGRATION=$version $name"
+            jq -Rs '{query: ., read_only:false}' "$file" |
+              curl --fail --silent --show-error --retry 1 --request POST                 "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"                 --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"                 --header "Content-Type: application/json"                 --data-binary @- > "/tmp/apply-${version}.json"
+            jq -e . "/tmp/apply-${version}.json" >/dev/null
+
+            query="insert into supabase_migrations.schema_migrations(version,name,statements)
+                   values ('${version}','${name}',array[]::text[])
+                   on conflict (version) do nothing;"
+            jq -n --arg query "$query" '{query:$query,read_only:false}' |
+              curl --fail --silent --show-error --retry 1 --request POST                 "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"                 --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"                 --header "Content-Type: application/json"                 --data-binary @- >/dev/null
+          done
+
+      - name: Verify owned schema after apply
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="
+          select
+            position(
+              'PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED'
+              in coalesce(pg_get_functiondef(to_regprocedure('public.archive_unpublished_promotion_content(uuid,text)')), '')
+            ) > 0 as archive_guard_signature,
+            exists(select 1 from pg_type where typnamespace='public'::regnamespace and typname='field_time_block') as field_time_block_type,
+            (to_regclass('public.work_group_employee_memberships') is not null) as field_memberships_table,
+            (to_regclass('public.field_work_templates') is not null) as field_templates_table,
+            (to_regclass('public.field_assignment_employee_overrides') is not null) as field_overrides_table,
+            (to_regclass('public.notification_devices') is not null) as notification_devices_table,
+            (to_regclass('public.notification_events') is not null) as notification_events_table,
+            (to_regclass('public.notification_deliveries') is not null) as notification_deliveries_table,
+            exists(select 1 from pg_trigger where tgrelid='public.notices'::regclass and tgname='notices_queue_native_push' and not tgisinternal) as notification_trigger,
+            (select count(*)::int from supabase_migrations.schema_migrations
+              where version in ('20260903154500','20260911150000','20260913070500','20260915150000','20260918133000')
+            ) as reconciled_history_count;
+          "
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/post-schema.json
+          row="$(jq -c 'if type=="array" then .[0] elif (.result? | type)=="array" then .result[0] else empty end' /tmp/post-schema.json)"
+          echo "POST_SCHEMA=$row"
+          [[ "$(printf '%s' "$row" | jq -r '.archive_guard_signature')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_time_block_type')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_memberships_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_templates_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.field_overrides_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_devices_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_events_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_deliveries_table')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.notification_trigger')" == "true" ]]
+          [[ "$(printf '%s' "$row" | jq -r '.reconciled_history_count')" == "5" ]]
+
+      - name: Re-export remote history and verify repository ownership coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="select version, name from supabase_migrations.schema_migrations order by version;"
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/remote-after.json
+          node scripts/staging/owned-migration-status.mjs /tmp/remote-after.json /tmp/owned-after.json
+          node - <<'NODE'
+          const fs = require('fs');
+          const s = JSON.parse(fs.readFileSync('/tmp/owned-after.json','utf8'));
+          console.log('OWNED_FINAL=' + JSON.stringify(s.counts));
+          if (s.localUnmatched.length !== 0) {
+            console.error('STOP_LOCAL_OWNED_MIGRATIONS_STILL_UNACCOUNTED');
+            console.error(JSON.stringify(s.localUnmatched));
+            process.exit(1);
+          }
+          // Remote-only rows are deliberately preserved because the Supabase staging
+          // project is shared with other Taejang repositories.
+          console.log('REMOTE_ONLY_PRESERVED=' + JSON.stringify(s.remoteUnmatched));
+          NODE
+
+      - name: Run staging safety regression
+        run: npm run test:staging-safety
