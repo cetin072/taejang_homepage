@@ -63,16 +63,7 @@
   }
 
   function installNavigationGuardStyles() {
-    if (document.querySelector('style[data-role-nav-guard]')) return;
-    const style = document.createElement('style');
-    style.dataset.roleNavGuard = '1';
-    style.textContent = `
-      #app-nav[data-effective-role="promotion_lead"] [data-phase-c-v2-nav="revision"],
-      #app-nav[data-effective-role="operations_manager"] [data-phase-c-v2-nav="revision"] {
-        display:none !important;
-      }
-    `;
-    document.head.append(style);
+    // Sidebar visibility is capability-driven. Do not add role-specific CSS hiding here.
   }
 
   function markEffectiveRole() {
@@ -147,47 +138,16 @@
       const markedChecking = node.dataset?.featureStatus === 'checking'
         || /\s*·\s*점검중\s*$/.test(node.textContent || '')
         || label === '신규 사업 기획';
-      const obsoleteRevision = currentRoute !== 'promotion_staff'
-        && (node.dataset?.phaseCV2Nav === 'revision' || label === '수정·보완 요청');
-      if (markedChecking || obsoleteRevision) node.remove();
-    });
-  }
-
-  function removeLegacyRevisionMenus(nav) {
-    directItems(nav).forEach(node => {
-      const label = cleanLabel(node);
-      if (node.dataset?.phaseCV2Nav === 'revision' || label === '수정·보완 요청') node.remove();
+      if (markedChecking) node.remove();
     });
   }
 
   function tidyOperationsNavigation() {
-    if (route() !== 'operations_manager') return;
-    const nav = document.getElementById('app-nav');
-    if (!nav) return;
-
-    removeLegacyRevisionMenus(nav);
-    directItems(nav).forEach(node => {
-      if (cleanLabel(node) === '홍보 작성') suppress(node);
-    });
-
-    const accountRecovery = find(nav, '복구·계정 관리', { visibleOnly: true });
-    moveAfter(nav, accountRecovery, find(nav, '가입 승인', { visibleOnly: true }));
-
-    const promotionArchive = find(nav, ['홍보글 보관·복구', '홍보글 관리·복구'], { visibleOnly: true });
-    moveAfter(nav, promotionArchive, find(nav, '기존 글 관리', { visibleOnly: true }));
-
-    const attendanceCorrection = find(nav, '근태 보정', { visibleOnly: true });
-    const attendance = find(nav, '출근부', { visibleOnly: true });
-    moveAfter(nav, attendanceCorrection, attendance);
-    moveAfter(nav, supportGroup(nav), attendanceCorrection || attendance);
+    // Kept as a compatibility hook. MASTER_ORDER owns sidebar order.
   }
 
   function tidyLeadNavigation() {
-    if (route() !== 'promotion_lead') return;
-    const nav = document.getElementById('app-nav');
-    if (!nav) return;
-    removeLegacyRevisionMenus(nav);
-    moveAfter(nav, find(nav, '홍보글 보관', { visibleOnly: true }), find(nav, '기존 글 관리', { visibleOnly: true }));
+    // Kept as a compatibility hook. MASTER_ORDER owns sidebar order.
   }
 
   function apply() {
