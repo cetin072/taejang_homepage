@@ -162,17 +162,6 @@
   box-shadow: 0 0 0 3px rgba(255,255,255,.07);
   flex: 0 0 auto;
 }
-.app-nav-channel-group > a.app-nav-official-channel[data-channel="blog"]::before,
-.app-nav-channel-group > a.app-nav-official-channel[data-channel="youtube"]::before {
-  display: none;
-}
-.app-nav-channel-icon {
-  width: 24px;
-  height: 24px;
-  margin-right: 9px;
-  object-fit: contain;
-  flex: 0 0 24px;
-}
 .app-nav-channel-group > a.app-nav-official-channel::after {
   content: '↗';
   margin-left: auto;
