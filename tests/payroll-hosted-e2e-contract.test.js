@@ -31,7 +31,7 @@ test('hosted payroll workflow preserves an active role simulation around QA', ()
   assert.match(workflow, /Restore pre-test role simulation state/);
   assert.match(workflow, /if: always\(\) && env\.PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE == 'true'/);
   assert.match(workflow, /not exists\(select 1 from public\.role_simulation_modes/);
-  assert.match(workflow, /expires_at.*> now\(\)/);
+  assert.match(workflow, /expires_at[\s\S]*> now\(\)/);
   assert.doesNotMatch(workflow, /delete from public\.profile_roles/);
   assert.doesNotMatch(workflow, /delete from auth\.users/);
 });
