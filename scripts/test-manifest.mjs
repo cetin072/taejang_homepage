@@ -17,6 +17,7 @@ export const testGroups = Object.freeze({
     'tests/app-role-navigation.test.js',
     'tests/operations-homepage-direct.test.js',
     'tests/employee-identity-foundation.test.js',
+    'tests/issue-309-sensitive-identity.test.js',
     'tests/operations-recoverable-delete.test.js',
     'tests/issue-146-operations-permissions.test.js',
     'tests/issue-146-db-contract-fixes.test.js',
