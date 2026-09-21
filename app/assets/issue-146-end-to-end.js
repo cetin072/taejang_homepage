@@ -215,7 +215,7 @@
   async function openOperationsSafety() {
     closeSidebar();
     if (route() !== 'operations_manager') return;
-    setPageTitle('복구·계정 관리');
+    setPageTitle('직원 복구·계정 연결');
     const target = showLoading('복구 및 계정 정보를 불러오고 있습니다.');
     if (!target) return;
 
@@ -228,7 +228,7 @@
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '운영총괄', 'eyebrow'),
-        el('h2', '복구·계정 관리'),
+        el('h2', '직원 복구·계정 연결'),
         el('p', '직원 삭제 복구, 계정 연결·해제, 상태·소속·직책·일반 운영 역할을 관리합니다. 기술 최고관리자 역할은 별도 안전영역으로 유지합니다.')
       );
       shell.append(intro);
@@ -667,23 +667,14 @@
       replaceHomepageNav(nav);
       if (!nav.querySelector('[data-issue146-nav="promotion-archive"]')) {
         const homepage = nav.querySelector('[data-issue146-nav="homepage"]');
-        const node = navButton(currentRoute === 'operations_manager' ? '홍보글 보관·복구' : '홍보글 보관', openPromotionArchive, 'promotion-archive');
+        const node = navButton('홍보글 관리·복구', openPromotionArchive, 'promotion-archive');
         if (homepage) nav.insertBefore(node, homepage); else nav.append(node);
       }
     }
 
-    if (currentRoute === 'operations_manager') {
-      if (![...nav.querySelectorAll('button')].some(node => node.textContent.trim() === '홍보 작성')) {
-        const node = navButton('홍보 작성', () => document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode: 'write' } })), 'promotion-write');
-        const review = [...nav.querySelectorAll('button')].find(item => item.textContent.trim() === '홍보 검토');
-        if (review?.nextSibling) nav.insertBefore(node, review.nextSibling); else nav.append(node);
-      }
-      if (!nav.querySelector('[data-issue146-nav="ops-safety"]')) {
-        const node = navButton('복구·계정 관리', openOperationsSafety, 'ops-safety');
-        const approval = [...nav.querySelectorAll('button')].find(item => item.textContent.trim() === '가입 승인');
-        if (approval?.nextSibling) nav.insertBefore(node, approval.nextSibling); else nav.append(node);
-      }
-    }
+    // Goal #327: the master sidebar owns promotion writing, and the rare
+    // employee/account recovery tools are reached from Employee Management.
+    // Do not re-inject either as late sidebar nodes.
   }
 
   function scheduleNavSync() {
