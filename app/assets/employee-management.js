@@ -256,7 +256,6 @@
     return ({
       identity_missing: '주민번호 미등록',
       standard_age_range: '일반 연령대',
-      continuous_at_company_from_before_65: '65세 전 입사 · 계속근로',
       continuous_before_65_confirmed: '65세 전 피보험 연속 확인',
       employed_after_65_excluded: '65세 이후 신규고용 · 적용 제외 확인',
       continuity_review_required: '65세 이후 · 연속가입 확인 필요'
