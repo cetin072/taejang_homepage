@@ -140,3 +140,165 @@
 @media (max-width: 400px) { .desktop-app-shell { width: 100%; margin-inline: 0; border-inline: 0; border-radius: 0; }.dashboard-main { width: min(100% - 20px, var(--app-content-width)); }.app-topbar { padding-inline: 12px; }.quick-links .button, .quick-links a.button { width: 100%; justify-content: center; text-align: center; } }
 @media (min-width: 721px) { .general-worker-mode .staff-shell { width: min(100% - 32px, 600px); }.general-worker-mode .staff-header { padding-inline: 4px; } }
 @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none; } }
+
+/* Issue #323: personal desktop shell preferences */
+.sidebar-preference-toggle {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  width:100%;
+  min-height:42px;
+  margin-top:auto;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:10px;
+  background:rgba(255,255,255,.06);
+  color:var(--sidebar-text);
+  font:inherit;
+  font-weight:800;
+  cursor:pointer;
+}
+.sidebar-preference-toggle:hover,
+.sidebar-preference-toggle:focus-visible {
+  background:rgba(255,255,255,.13);
+  outline:2px solid rgba(255,255,255,.6);
+  outline-offset:1px;
+}
+.desktop-app-shell.sidebar-collapsed {
+  grid-template-columns:58px minmax(0,1fr);
+}
+.desktop-app-shell.sidebar-collapsed .app-sidebar {
+  padding:16px 8px;
+  gap:10px;
+}
+.desktop-app-shell.sidebar-collapsed .app-logo,
+.desktop-app-shell.sidebar-collapsed .app-nav {
+  display:none;
+}
+.desktop-app-shell.sidebar-collapsed .sidebar-preference-toggle [data-sidebar-toggle-label] {
+  display:none;
+}
+
+.platform-settings-shell {
+  display:grid;
+  gap:18px;
+}
+.platform-settings-card {
+  display:grid;
+  gap:14px;
+  padding:22px;
+  border:1px solid var(--app-border);
+  border-radius:var(--app-radius);
+  background:#fff;
+  box-shadow:0 5px 16px rgba(22,53,38,.04);
+}
+.platform-settings-card h3 { margin:0; }
+.platform-settings-role-select {
+  width:min(100%,360px);
+  min-height:44px;
+  padding:9px 12px;
+  border:1px solid var(--app-border);
+  border-radius:9px;
+  background:#fff;
+  color:var(--app-text);
+  font:inherit;
+}
+.platform-settings-checklist {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.platform-settings-group {
+  min-width:0;
+  margin:0;
+  padding:14px;
+  border:1px solid var(--app-border);
+  border-radius:12px;
+}
+.platform-settings-group legend {
+  padding:0 6px;
+  font-weight:900;
+}
+.platform-settings-check {
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  min-height:42px;
+  padding:7px 4px;
+}
+.platform-settings-check input {
+  width:20px;
+  height:20px;
+  margin-top:2px;
+}
+.platform-settings-check span {
+  display:grid;
+  gap:2px;
+}
+.platform-settings-check small {
+  color:var(--app-muted);
+  font-size:.78rem;
+}
+.platform-settings-toggle {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:800;
+}
+.platform-settings-toggle input {
+  width:20px;
+  height:20px;
+}
+
+.dashboard-layout-actions {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:14px;
+}
+.dashboard-grid[data-layout-editing="1"] .dashboard-card {
+  border-style:dashed;
+  cursor:grab;
+}
+.dashboard-card-editable {
+  position:relative;
+}
+.dashboard-card-dragging {
+  opacity:.55;
+}
+.dashboard-drag-tools {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin:-6px 0 2px;
+}
+.dashboard-drag-handle {
+  margin-right:auto;
+  color:var(--app-muted);
+  font-size:.82rem;
+  font-weight:800;
+}
+.dashboard-drag-tools .button {
+  min-width:38px;
+  min-height:34px;
+  margin:0;
+  padding:4px 9px;
+}
+
+@media (max-width:900px) {
+  .sidebar-preference-toggle { display:none; }
+  .desktop-app-shell.sidebar-collapsed { grid-template-columns:1fr; }
+  .desktop-app-shell.sidebar-collapsed .app-sidebar {
+    padding:24px 16px;
+  }
+  .desktop-app-shell.sidebar-collapsed .app-logo,
+  .desktop-app-shell.sidebar-collapsed .app-nav {
+    display:grid;
+  }
+  .desktop-app-shell.sidebar-collapsed .app-logo { display:block; }
+  .platform-settings-checklist { grid-template-columns:1fr; }
+}
+
+@media (max-width:620px) {
+  .dashboard-layout-actions .button { width:100%; justify-content:center; }
+}
