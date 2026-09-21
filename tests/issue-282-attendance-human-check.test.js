@@ -15,10 +15,13 @@ const correction = read('app/assets/attendance-integrity-ui.js');
 const attendance = read('app/assets/attendance-admin.js');
 const migration = read('supabase/migrations/20260920173000_issue_282_missing_time_requires_correction.sql');
 
-test('promotion lead uses direct new-employee wording while department lead keeps request wording', () => {
-  assert.match(dashboard, /\['operations_manager', 'promotion_lead'\]\.includes\(route\) \? '신규 직원 등록' : '신규 직원 등록 요청'/);
-  assert.match(navigation, /promotion_lead:[\s\S]*?'신규 직원 등록'/);
-  assert.match(navigation, /department_lead:[\s\S]*?'신규 직원 등록 요청'/);
+test('sidebar uses one canonical new-employee label while capabilities decide direct create vs request behavior', () => {
+  assert.match(dashboard, /label: '신규 직원 등록'/);
+  assert.match(dashboard, /employee\.create/);
+  assert.match(dashboard, /employee\.request_change/);
+  assert.match(navigation, /\['신규 직원 등록 요청', '신규 직원 등록'\]|\['신규 직원 등록 요청'/);
+  assert.match(navigation, /\['신규 직원 등록 요청', '신규 직원 등록'\]|\['신규 직원 등록 요청'/);
+  assert.match(navigation, /\['신규 직원 등록 요청', '신규 직원 등록'\]|신규 직원 등록 요청/);
 });
 
 test('promotion lead direct registration wording continues inside employee management tabs', () => {
