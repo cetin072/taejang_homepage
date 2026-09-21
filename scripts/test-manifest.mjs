@@ -165,7 +165,8 @@ export const testGroups = Object.freeze({
     'tests/issue-282-confirmed-payroll-ui.test.js',
     'tests/issue-286-payroll-export.test.js',
     'tests/issue-290-payroll-human-check.test.js',
-    'tests/issue-294-payroll-proxy.test.js'
+    'tests/issue-294-payroll-proxy.test.js',
+    'tests/issue-316-insurance-toggles.test.js'
   ])
 });
 

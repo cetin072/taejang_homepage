@@ -66,7 +66,7 @@ test('age rules distinguish pension automatic age exclusion from employment cont
   assert.match(statutory, /employment_insurance_age_continuity_review_required/);
   assert.match(statutory, /employed_after_65_excluded/);
   assert.match(statutory, /continuous_before_65_confirmed/);
-  assert.match(edgeIndex, /payroll-engine-workweek-golden-v5-age-insurance-eligibility/);
+  assert.match(edgeIndex, /payroll-engine-workweek-golden-v6-simple-insurance-toggles/);
 });
 
 test('audit metadata deliberately excludes resident-number values', () => {
