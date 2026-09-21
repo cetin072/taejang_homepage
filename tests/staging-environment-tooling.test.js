@@ -26,8 +26,8 @@ test('remote staging scripts require an allow-list, ref/URL match, and explicit 
   assert.match(shared, /STAGING_BLOCKED_PROJECT_REFS/);
   assert.match(shared, /url\.hostname !== `\$\{ref\}\.supabase\.co`/);
   assert.match(shared, /STAGING_CONFIRM !== 'STAGING'/);
-  assert.match(migrate, /--dry-run/);
-  assert.match(migrate, /--apply/);
+  assert.match(migrate, /const apply = process\.argv\.includes\('--apply'\)/);
+  assert.match(migrate, /Dry-run completed\. No remote mutation was performed\./);
   assert.match(cleanup, /--delete/);
   assert.match(cleanup, /never force-deletes/);
 });
