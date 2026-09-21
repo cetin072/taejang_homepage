@@ -5,9 +5,7 @@
   // Promotion leads own the three operational panels below, but not the broader guidance
   // administration surface or the operations-manager payroll surface.
   const workManagementRoles = new Set([...managerRoles, 'promotion_lead']);
-  const employeeManagerRoles = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const promotionWorkspaceRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
-  const officialChannelRoles = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
   const el = id => document.getElementById(id);
   const text = (tag, value, className) => { const node = document.createElement(tag); node.textContent = value; if (className) node.className = className; return node; };
   const array = value => Array.isArray(value) ? value : [];
