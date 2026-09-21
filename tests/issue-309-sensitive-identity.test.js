@@ -76,3 +76,26 @@ test('audit metadata deliberately excludes resident-number values', () => {
   assert.match(auditBlock, /resident_number_registered/);
   assert.doesNotMatch(auditBlock, /normalized|p_resident_number|birth_date/);
 });
+
+
+test('bulk resident import is atomic, operations-only, and never echoes resident numbers', () => {
+  const bulkMigration = read('supabase/migrations/20260921054500_issue_309_bulk_resident_import.sql');
+  assert.match(bulkMigration, /bulk_set_employee_resident_registration_numbers/);
+  assert.match(bulkMigration, /private_actor_can\('employee\.sensitive_identity_manage'\)/);
+  assert.match(bulkMigration, /jsonb_array_length\(p_rows\)/);
+  assert.match(bulkMigration, /row_count < 1 or row_count > 100/);
+  assert.match(bulkMigration, /perform public\.set_employee_resident_registration_number/);
+  assert.match(bulkMigration, /EMPLOYEE_SENSITIVE_IDENTITY_BULK_SAVED/);
+  assert.doesNotMatch(bulkMigration, /jsonb_build_object\([^;]*resident_number/i);
+});
+
+test('employee UI supports safe spreadsheet paste without persisting resident values client-side', () => {
+  assert.match(employeeUi, /bulk_set_employee_resident_registration_numbers/);
+  assert.match(employeeUi, /residentNumberChecksumValid/);
+  assert.match(employeeUi, /생년월일만 있어 주민번호 등록 제외/);
+  assert.match(employeeUi, /현재 직원 DB 미등록으로 제외/);
+  assert.match(employeeUi, /textarea\.value = ''/);
+  assert.doesNotMatch(employeeUi, /localStorage\.setItem\([^)]*resident/i);
+  assert.doesNotMatch(employeeUi, /sessionStorage\.setItem\([^)]*resident/i);
+  assert.doesNotMatch(employeeUi, /console\.(log|info|debug)\([^)]*resident/i);
+});
