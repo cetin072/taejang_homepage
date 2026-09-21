@@ -111,6 +111,9 @@
     main.replaceChildren(intro);
   }
   function markMenuNode(node, item) {
+    if (Array.isArray(item.capabilities) && item.capabilities.length) {
+      node.dataset.capabilityAny = item.capabilities.join('|');
+    }
     if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
@@ -146,63 +149,102 @@
     });
     return group;
   }
-  function menu(route) {
-    const nav = el('app-nav'); nav.replaceChildren();
-    const items = [{ label: '대시보드', run: goDashboard, current: true }];
-
-    if (employeeManagerRoles.has(route)) {
-      items.push({
-        label: route === 'operations_manager' ? '직원 관리' : '팀 직원 관리',
+  function masterMenuItems() {
+    return [
+      { label: '대시보드', run: goDashboard, current: true },
+      {
+        label: '직원 관리',
         run: () => openEmployee('existing'),
-        dataKey: 'employee-management'
-      });
-      items.push({
-        label: ['operations_manager', 'promotion_lead'].includes(route) ? '신규 직원 등록' : '신규 직원 등록 요청',
+        dataKey: 'employee-management',
+        capabilities: ['employee.view_all', 'employee.view_scoped']
+      },
+      {
+        label: '신규 직원 등록',
         run: () => openEmployee('new'),
-        dataKey: 'employee-new'
-      });
-    }
+        dataKey: 'employee-new',
+        capabilities: ['employee.create', 'employee.request_change']
+      },
+      {
+        label: '가입 승인',
+        run: openSignupApproval,
+        dataKey: 'account-approval',
+        capabilities: ['employee.onboard', 'account.approve', 'account.reject']
+      },
+      {
+        label: '복구·계정 관리',
+        href: '../staff/?admin=1',
+        capabilities: ['account.view_management']
+      },
+      {
+        label: '홍보 검토',
+        run: () => openPromotion('review'),
+        capabilities: ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo']
+      },
+      {
+        label: '홍보 글 작성',
+        run: () => openPromotion('write'),
+        dataKey: 'promotion-write',
+        capabilities: ['promotion.write']
+      },
+      {
+        label: '보완 요청받은 글',
+        run: () => openPromotion('revision'),
+        dataKey: 'promotion-returned',
+        capabilities: ['promotion.edit_own']
+      },
+      {
+        label: '업무 배정',
+        run: () => openPanel('today-admin-panel'),
+        capabilities: ['task.manage']
+      },
+      {
+        label: '일정 관리',
+        run: () => openPanel('schedule-admin-panel'),
+        capabilities: ['schedule.manage']
+      },
+      {
+        label: '공지 관리',
+        run: () => openPanel('notice-admin-panel'),
+        capabilities: ['notice.manage', 'information.submit', 'information.review']
+      },
+      {
+        label: '상시 안내 관리',
+        run: () => openPanel('guidance-admin-panel'),
+        capabilities: ['guidance.manage', 'information.submit', 'information.review']
+      },
+      { label: '홈페이지', href: '../index.html', newTab: true }
+    ];
+  }
 
-    if (route === 'promotion_staff') {
-      items.push(
-        { label: '홍보 작성', run: () => openPromotion('write'), dataKey: 'promotion-write' },
-        { label: '보완 요청받은 글', run: () => openPromotion('revision'), dataKey: 'promotion-returned' }
-      );
-    }
-    if (route === 'promotion_lead') {
-      items.push(
-        { label: '홍보 검토', run: () => openPromotion('review') },
-        { label: '홍보 작성', run: () => openPromotion('write') },
-        { label: '신규 사업 기획', run: renderBusinessPlanning }
-      );
-    }
-    if (route === 'operations_manager' || route === 'ceo') items.push({ label: '홍보 검토', run: () => openPromotion('review') });
-    if (workManagementRoles.has(route)) items.push({ label: '업무 배정', run: () => openPanel('today-admin-panel') });
-    if (workManagementRoles.has(route)) items.push(
-      { label: '일정 관리', run: () => openPanel('schedule-admin-panel') },
-      { label: '공지 관리', run: () => openPanel('notice-admin-panel') }
-    );
-    if (managerRoles.has(route)) items.push({ label: '상시 안내 관리', run: () => openPanel('guidance-admin-panel') });
-    if (route === 'operations_manager' || route === 'promotion_lead') {
-      items.push({ label: '가입 승인', run: openSignupApproval, dataKey: 'account-approval' });
-    }
-    if (route === 'super_admin') items.push({ label: '계정 승인', href: '../staff/?admin=1' });
-    if (!officialChannelRoles.has(route)) items.push({ label: '홈페이지', href: '../index.html', newTab: true });
+  function menu(_route) {
+    const nav = el('app-nav');
+    nav.replaceChildren();
 
-    items.forEach(item => {
+    masterMenuItems().forEach(item => {
       const node = item.href ? document.createElement('a') : document.createElement('button');
       if (item.href) {
-        node.href = item.href; node.textContent = item.label;
-        if (item.newTab) { node.target = '_blank'; node.rel = 'noopener noreferrer'; }
+        node.href = item.href;
+        node.textContent = item.label;
+        if (item.newTab) {
+          node.target = '_blank';
+          node.rel = 'noopener noreferrer';
+        }
       } else {
-        node.type = 'button'; node.textContent = item.label; node.addEventListener('click', () => { closeSidebar(); item.run(); });
+        node.type = 'button';
+        node.textContent = item.label;
+        node.addEventListener('click', () => {
+          closeSidebar();
+          item.run();
+        });
       }
       markMenuNode(node, item);
       if (item.current) node.setAttribute('aria-current', 'page');
       nav.append(node);
     });
-    if (officialChannelRoles.has(route)) nav.append(makeOfficialChannelGroup());
+
+    nav.append(makeOfficialChannelGroup());
   }
+
   async function dashboardData(route) {
     const app = window.TaejangApp;
     const settled = await Promise.allSettled([
