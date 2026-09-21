@@ -40,7 +40,7 @@ test('Issue 316 exposes guarded operations-manager read/write RPCs instead of br
 });
 
 test('Issue 316 feeds toggles into the existing server-only statutory RPC without changing its signature', () => {
-  assert.match(migration, /create or replace function public\\.private_get_payroll_statutory_input\s*\(\s*p_payroll_month date/i);
+  assert.match(migration, /create or replace function public\.private_get_payroll_statutory_input\s*\(\s*p_payroll_month date/i);
   assert.doesNotMatch(migration, /rename to private_get_payroll_statutory_input_pre316/i);
   assert.match(migration, /national_pension_deduction_override/i);
   assert.match(migration, /health_insurance_deduction_override/i);
