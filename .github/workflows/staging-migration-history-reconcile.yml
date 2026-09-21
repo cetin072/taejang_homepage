@@ -1,0 +1,140 @@
+name: Staging Migration History Reconcile 306
+
+on:
+  push:
+    branches:
+      - chore/306-staging-migration-history-reconcile
+    paths:
+      - .github/workflows/staging-migration-history-reconcile.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-staging-migration-history-reconcile-306
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging-first-super-admin
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify approved staging target
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" == "chore/306-staging-migration-history-reconcile" ]] || { echo "STOP_UNAPPROVED_BRANCH"; exit 1; }
+          [[ "$STAGING_PROJECT_REF" == "jgsxpdflgkqroecfjzxq" ]] || { echo "STOP_UNAPPROVED_STAGING_REF"; exit 1; }
+          [[ -n "$SUPABASE_ACCESS_TOKEN" ]] || { echo "STOP_STAGING_ACCESS_TOKEN_MISSING"; exit 1; }
+
+      - name: Export remote migration history
+        shell: bash
+        run: |
+          set -euo pipefail
+          query="select version, name from supabase_migrations.schema_migrations order by version;"
+          jq -n --arg query "$query" '{query:$query,read_only:true}' |
+            curl --fail --silent --show-error --retry 2 --request POST               "https://api.supabase.com/v1/projects/${STAGING_PROJECT_REF}/database/query"               --header "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}"               --header "Content-Type: application/json"               --data-binary @- > /tmp/remote.json
+
+      - name: Compare remote history to current main migration files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const raw = JSON.parse(fs.readFileSync('/tmp/remote.json', 'utf8'));
+          const remote = Array.isArray(raw) ? raw : (Array.isArray(raw.result) ? raw.result : []);
+          const local = fs.readdirSync('supabase/migrations')
+            .filter(name => /^\d{14}_.+\.sql$/.test(name))
+            .sort()
+            .map(file => {
+              const m = file.match(/^(\d{14})_(.+)\.sql$/);
+              return { version: m[1], name: m[2], file };
+            });
+
+          const localByVersion = new Map(local.map(x => [x.version, x]));
+          const localByName = new Map();
+          for (const item of local) {
+            if (!localByName.has(item.name)) localByName.set(item.name, []);
+            localByName.get(item.name).push(item);
+          }
+
+          const mappedLocal = new Set();
+          const exact = [];
+          const nameMapped = [];
+          const embeddedMapped = [];
+          const versionNameMismatch = [];
+          const remoteUnmatched = [];
+
+          for (const r of remote) {
+            const version = String(r.version || '');
+            const name = String(r.name || '');
+            const byVersion = localByVersion.get(version);
+            if (byVersion) {
+              if (byVersion.name === name) {
+                exact.push({ remote: {version,name}, local: byVersion });
+                mappedLocal.add(byVersion.file);
+              } else {
+                versionNameMismatch.push({ remote: {version,name}, local: byVersion });
+              }
+              continue;
+            }
+
+            const byName = localByName.get(name) || [];
+            if (byName.length === 1 && !mappedLocal.has(byName[0].file)) {
+              nameMapped.push({ remote: {version,name}, local: byName[0], proof: 'unique_logical_name' });
+              mappedLocal.add(byName[0].file);
+              continue;
+            }
+
+            const embedded = name.match(/^(\d{14})_(.+)$/);
+            if (embedded) {
+              const candidate = localByVersion.get(embedded[1]);
+              if (candidate && candidate.name === embedded[2] && !mappedLocal.has(candidate.file)) {
+                embeddedMapped.push({ remote: {version,name}, local: candidate, proof: 'remote_name_embeds_exact_local_filename' });
+                mappedLocal.add(candidate.file);
+                continue;
+              }
+            }
+
+            remoteUnmatched.push({version,name});
+          }
+
+          const localUnmatched = local.filter(x => !mappedLocal.has(x.file));
+          const result = {
+            counts: {
+              remote: remote.length,
+              local: local.length,
+              exact: exact.length,
+              uniqueNameMapped: nameMapped.length,
+              embeddedFilenameMapped: embeddedMapped.length,
+              versionNameMismatch: versionNameMismatch.length,
+              remoteUnmatched: remoteUnmatched.length,
+              localUnmatched: localUnmatched.length
+            },
+            nameMapped,
+            embeddedMapped,
+            versionNameMismatch,
+            remoteUnmatched,
+            localUnmatched
+          };
+
+          console.log('RECONCILE_COUNTS=' + JSON.stringify(result.counts));
+          console.log('NAME_MAPPED=' + JSON.stringify(nameMapped));
+          console.log('EMBEDDED_MAPPED=' + JSON.stringify(embeddedMapped));
+          console.log('VERSION_NAME_MISMATCH=' + JSON.stringify(versionNameMismatch));
+          console.log('REMOTE_UNMATCHED=' + JSON.stringify(remoteUnmatched));
+          console.log('LOCAL_UNMATCHED=' + JSON.stringify(localUnmatched));
+
+          if (versionNameMismatch.length) {
+            console.error('STOP_VERSION_NAME_MISMATCH');
+            process.exit(1);
+          }
+          NODE
