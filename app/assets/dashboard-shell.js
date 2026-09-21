@@ -185,11 +185,6 @@
         capabilities: ['account.view_management']
       },
       {
-        label: '홍보 검토',
-        run: () => openPromotion('review'),
-        capabilities: ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo']
-      },
-      {
         label: '홍보 글 작성',
         run: () => openPromotion('write'),
         dataKey: 'promotion-write',
@@ -200,6 +195,11 @@
         run: () => openPromotion('revision'),
         dataKey: 'promotion-returned',
         capabilities: ['promotion.edit_own']
+      },
+      {
+        label: '홍보 검토',
+        run: () => openPromotion('review'),
+        capabilities: ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo']
       },
       {
         label: '업무 배정',
@@ -232,22 +232,16 @@
         capabilities: ['payroll.manage']
       },
       {
-        label: '외부 급여초안 검토',
-        href: 'payroll/handoff.html',
-        dataKey: 'payroll-handoff-review',
-        capabilities: ['payroll.handoff.approve']
-      },
-      {
         label: '외부 급여초안 상신',
         href: 'payroll/handoff.html',
         dataKey: 'payroll-handoff-submit',
         capabilities: ['payroll.handoff.review']
       },
       {
-        key: 'support.radar',
-        label: '지원사업 레이더',
-        href: 'index.html?support=radar',
-        capabilities: ['support_radar.management_view']
+        label: '외부 급여초안 검토',
+        href: 'payroll/handoff.html',
+        dataKey: 'payroll-handoff-review',
+        capabilities: ['payroll.handoff.approve']
       },
       {
         key: 'support.profile',
@@ -256,12 +250,23 @@
         capabilities: ['support_radar.management_view', 'support_radar.management_edit']
       },
       {
+        key: 'support.radar',
+        label: '지원사업 레이더',
+        href: 'index.html?support=radar',
+        capabilities: ['support_radar.management_view']
+      },
+      {
+        key: 'support.mywork',
+        label: '내 지원사업',
+        href: 'index.html?support=mywork',
+        capabilities: ['support_radar.assigned_work']
+      },
+      {
         key: 'platform.settings',
         label: '설정',
         run: () => document.dispatchEvent(new CustomEvent('taejang-open-platform-settings')),
         capabilities: ['platform.navigation.manage']
-      },
-      { key: 'public.homepage', label: '홈페이지', href: '../index.html', newTab: true }
+      }
     ];
   }
 

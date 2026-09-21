@@ -176,10 +176,13 @@ test('mobile follow-up polish cannot continuously observe or reorder the navigat
   assert.match(source, /setTimeout\(apply, 0\)/);
 });
 
-test('role navigation is event-driven and avoids mutation-observer reorder loops', () => {
-  assert.match(roleNavigation, /let reordering = false/);
-  assert.match(roleNavigation, /if \(scheduled \|\| reordering\) return/);
-  assert.doesNotMatch(roleNavigation, /new MutationObserver/);
+test('role navigation uses one bounded child-list observer and idempotent reorder instead of feedback loops', () => {
+  assert.match(roleNavigation, /let composing = false/);
+  assert.match(roleNavigation, /if \(scheduled \|\| composing\) return/);
+  assert.match(roleNavigation, /new MutationObserver/);
+  assert.match(roleNavigation, /observe\(nav, \{ childList: true, subtree: false \}\)/);
+  assert.match(roleNavigation, /const changed = desired\.length !== current\.length/);
+  assert.match(roleNavigation, /if \(changed\)/);
   assert.doesNotMatch(roleNavigation, /\[0, 120, 360, 850\]\.forEach/);
   assert.match(roleNavigation, /taejang-navigation-changed/);
   assert.match(roleNavigation, /navigationSettled = '1'/);
