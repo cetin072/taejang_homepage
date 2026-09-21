@@ -253,8 +253,7 @@
 
     if (employmentInsuranceStatus !== 'not_applicable'
         && employmentAge65On
-        && compareDate(employmentAge65On, bounds.end) <= 0
-        && (!employeeHiredOn || compareDate(employeeHiredOn, employmentAge65On) >= 0)) {
+        && compareDate(employmentAge65On, bounds.end) <= 0) {
       if (employmentOver65Status === 'employed_after_65_excluded') {
         employmentInsuranceStatus = 'not_applicable';
       } else if (employmentOver65Status !== 'continuous_before_65_confirmed') {
