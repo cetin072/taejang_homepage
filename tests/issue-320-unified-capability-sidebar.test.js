@@ -70,3 +70,10 @@ test('general worker remains outside the complex desktop sidebar contract', () =
   assert.match(nav, /currentRole === 'general_worker'/);
   assert.match(docs, /일반 근로자의 단순 모바일\/직원 홈은 복잡한 데스크톱 사이드바의 예외/);
 });
+
+
+test('Issue 320 migration stays replayable on clean databases without the real Auth profile', () => {
+  assert.match(migration, /if profile_count>1 then/);
+  assert.match(migration, /if profile_count=0 or target_profile_id is null then\s+return;/);
+  assert.match(migration, /Clean\/local databases do not contain real Auth profiles/);
+});
