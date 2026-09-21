@@ -150,3 +150,16 @@ test('wrapper explicitly documents missing internal EXECUTE grant as deployment 
   assert.match(wrapper, /service_role EXECUTE grant is intentionally absent/i);
   assert.match(wrapper, /separate staging approval\/review gate/i);
 });
+
+
+test('trusted payroll runtime fingerprints statutory input separately from attendance input', () => {
+  const core = fs.readFileSync(path.join(root, 'supabase/functions/payroll-calculate/runtime/payroll-calculate-core.js'), 'utf8');
+  const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260921062000_issue_312_statutory_input_fingerprint.sql'), 'utf8');
+  assert.match(core, /statutoryInputFingerprint = await sha256Hex\(statutoryInput \|\| \{\}\)/);
+  assert.match(core, /canonicalizeForFingerprint/);
+  assert.match(deployedWrapper, /p_statutory_input_fingerprint: payload\.statutoryInputFingerprint/);
+  assert.match(migration, /statutory_input_fingerprint text/);
+  assert.match(migration, /statutory_input_fingerprint = p_statutory_input_fingerprint/);
+  assert.match(migration, /current_input_fingerprint \|\| '\|' \|\| p_statutory_input_fingerprint/);
+  assert.match(migration, /INVALID_PAYROLL_STATUTORY_INPUT_FINGERPRINT/);
+});
