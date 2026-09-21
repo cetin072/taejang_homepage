@@ -171,7 +171,19 @@
     const employmentRule = selectRateRule('employment_insurance', payrollMonth, rateRules);
 
     const adjustedProfile = Object.assign({}, profile);
-    let nationalPensionStatus = profile.nationalPensionStatus || profile.national_pension_status;
+    const nationalPensionOverride = profile.nationalPensionDeductionOverride
+      ?? profile.national_pension_deduction_override;
+    const healthInsuranceOverride = profile.healthInsuranceDeductionOverride
+      ?? profile.health_insurance_deduction_override;
+    const employmentInsuranceOverride = profile.employmentInsuranceDeductionOverride
+      ?? profile.employment_insurance_deduction_override;
+    const hasNationalPensionOverride = typeof nationalPensionOverride === 'boolean';
+    const hasHealthInsuranceOverride = typeof healthInsuranceOverride === 'boolean';
+    const hasEmploymentInsuranceOverride = typeof employmentInsuranceOverride === 'boolean';
+
+    let nationalPensionStatus = hasNationalPensionOverride
+      ? (nationalPensionOverride ? 'enrolled' : 'not_applicable')
+      : (profile.nationalPensionStatus || profile.national_pension_status);
     const pensionAge18On = profile.nationalPensionAge18On || profile.national_pension_age_18_on || null;
     const pensionAgeLostOn = profile.nationalPensionAgeLostOn || profile.national_pension_age_lost_on || null;
     const pensionOver60Exception = profile.nationalPensionOver60Exception
@@ -182,11 +194,11 @@
       ?? profile.national_pension_under18_opt_out_confirmed
     );
 
-    if (pensionUnder18OptOut && pensionAge18On && compareDate(pensionAge18On, bounds.end) > 0) {
+    if (!hasNationalPensionOverride && pensionUnder18OptOut && pensionAge18On && compareDate(pensionAge18On, bounds.end) > 0) {
       nationalPensionStatus = 'excluded_by_request';
     }
 
-    if (pensionAgeLostOn && pensionOver60Exception !== 'voluntary_continuation_confirmed') {
+    if (!hasNationalPensionOverride && pensionAgeLostOn && pensionOver60Exception !== 'voluntary_continuation_confirmed') {
       if (compareDate(pensionAgeLostOn, bounds.start) <= 0) {
         nationalPensionStatus = 'not_applicable';
       } else if (compareDate(pensionAgeLostOn, bounds.end) <= 0) {
@@ -203,26 +215,36 @@
       code: 'national_pension',
       enrollmentStatus: nationalPensionStatus,
       nonApplicableStatuses: ['excluded_by_request', 'not_applicable'],
-      base: profile.pensionStandardMonthlyIncome ?? profile.pension_standard_monthly_income,
+      base: hasNationalPensionOverride
+        ? (profile.pensionStandardMonthlyIncome ?? profile.pension_standard_monthly_income ?? taxableRemuneration)
+        : (profile.pensionStandardMonthlyIncome ?? profile.pension_standard_monthly_income),
       rule: npsRule,
-      charge: chargeState(adjustedProfile, bounds, 'nationalPension', 'national_pension', {
-        acquisitionMonthOptIn: Boolean(
-          profile.nationalPensionAcquisitionMonthOptIn ?? profile.national_pension_acquisition_month_opt_in
-        ),
-      }),
+      charge: hasNationalPensionOverride
+        ? { due: true, reason: null }
+        : chargeState(adjustedProfile, bounds, 'nationalPension', 'national_pension', {
+            acquisitionMonthOptIn: Boolean(
+              profile.nationalPensionAcquisitionMonthOptIn ?? profile.national_pension_acquisition_month_opt_in
+            ),
+          }),
     });
 
+    const healthStatus = hasHealthInsuranceOverride
+      ? (healthInsuranceOverride ? 'enrolled' : 'not_applicable')
+      : (profile.healthInsuranceStatus || profile.health_insurance_status);
     const healthInsurance = calculateRateBased({
       code: 'health_insurance',
-      enrollmentStatus: profile.healthInsuranceStatus || profile.health_insurance_status,
+      enrollmentStatus: healthStatus,
       nonApplicableStatuses: ['not_applicable'],
-      base: profile.healthMonthlyRemuneration ?? profile.health_monthly_remuneration,
+      base: hasHealthInsuranceOverride
+        ? (profile.healthMonthlyRemuneration ?? profile.health_monthly_remuneration ?? taxableRemuneration)
+        : (profile.healthMonthlyRemuneration ?? profile.health_monthly_remuneration),
       rule: healthRule,
-      charge: chargeState(profile, bounds, 'healthInsurance', 'health_insurance'),
+      charge: hasHealthInsuranceOverride
+        ? { due: true, reason: null }
+        : chargeState(profile, bounds, 'healthInsurance', 'health_insurance'),
     });
 
     let longTermCare;
-    const healthStatus = profile.healthInsuranceStatus || profile.health_insurance_status;
     if (healthStatus === 'not_applicable') {
       longTermCare = { code: 'long_term_care', rawAmount: 0, amount: 0, status: 'complete', reasons: ['not_applicable'] };
     } else if (healthInsurance.status !== 'complete') {
@@ -243,7 +265,9 @@
       }
     }
 
-    let employmentInsuranceStatus = profile.employmentInsuranceStatus || profile.employment_insurance_status;
+    let employmentInsuranceStatus = hasEmploymentInsuranceOverride
+      ? (employmentInsuranceOverride ? 'enrolled' : 'not_applicable')
+      : (profile.employmentInsuranceStatus || profile.employment_insurance_status);
     const employmentAge65On = profile.employmentInsuranceAge65On || profile.employment_insurance_age_65_on || null;
     const employeeHiredOn = profile.employeeHiredOn || profile.employee_hired_on || null;
     const employmentOver65Status = profile.employmentInsuranceOver65Status
@@ -251,7 +275,8 @@
       || 'unknown';
     let employmentAgeReviewRequired = false;
 
-    if (employmentInsuranceStatus !== 'not_applicable'
+    if (!hasEmploymentInsuranceOverride
+        && employmentInsuranceStatus !== 'not_applicable'
         && employmentAge65On
         && compareDate(employmentAge65On, bounds.end) <= 0) {
       if (employmentOver65Status === 'employed_after_65_excluded') {
