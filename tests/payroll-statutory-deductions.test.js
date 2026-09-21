@@ -159,3 +159,84 @@ test('2026 employment insurance uses verified won-unit truncation', () => {
   assert.equal(employment.amount, 14528);
   assert.equal(employment.roundingMethod, 'floor_to_1');
 });
+
+
+test('national pension becomes age-based not applicable after compulsory coverage loss when no continuation exception exists', () => {
+  const profile = enrolledProfile();
+  profile.nationalPensionStatus = 'pending_review';
+  profile.nationalPensionAgeLostOn = '2026-08-15';
+  profile.nationalPensionOver60Exception = 'none';
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-09-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+  const pension = result.rows.find((row) => row.code === 'national_pension');
+  assert.equal(pension.status, 'complete');
+  assert.equal(pension.amount, 0);
+  assert.ok(pension.reasons.includes('not_applicable'));
+});
+
+test('national pension voluntary continuation keeps a confirmed enrolled profile active after age 60', () => {
+  const profile = enrolledProfile();
+  profile.nationalPensionAgeLostOn = '2026-08-15';
+  profile.nationalPensionOver60Exception = 'voluntary_continuation_confirmed';
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-09-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+  const pension = result.rows.find((row) => row.code === 'national_pension');
+  assert.equal(pension.status, 'complete');
+  assert.ok(pension.amount > 0);
+});
+
+test('employment insurance age 65 requires continuity review when employment began after age 65', () => {
+  const profile = enrolledProfile();
+  profile.employeeHiredOn = '2026-07-10';
+  profile.employmentInsuranceAge65On = '2026-07-01';
+  profile.employmentInsuranceOver65Status = 'unknown';
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(employment.status, 'review_required');
+  assert.ok(employment.reasons.includes('employment_insurance_age_continuity_review_required'));
+});
+
+test('employment insurance age 65 explicit new-employment exclusion produces zero employee deduction', () => {
+  const profile = enrolledProfile();
+  profile.employeeHiredOn = '2026-07-10';
+  profile.employmentInsuranceAge65On = '2026-07-01';
+  profile.employmentInsuranceOver65Status = 'employed_after_65_excluded';
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(employment.status, 'complete');
+  assert.equal(employment.amount, 0);
+});
+
+test('employment insurance age 65 confirmed continuity keeps ordinary contribution calculation', () => {
+  const profile = enrolledProfile();
+  profile.employeeHiredOn = '2026-07-10';
+  profile.employmentInsuranceAge65On = '2026-07-01';
+  profile.employmentInsuranceOver65Status = 'continuous_before_65_confirmed';
+  const result = payrollStatutory.calculateStatutoryDeductions({
+    payrollMonth: '2026-07-01',
+    taxableRemuneration: 1800000,
+    profile,
+    rateRules: rules(),
+  });
+  const employment = result.rows.find((row) => row.code === 'employment_insurance');
+  assert.equal(employment.status, 'complete');
+  assert.equal(employment.amount, 16200);
+});
