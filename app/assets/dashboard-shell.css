@@ -141,42 +141,62 @@
 @media (min-width: 721px) { .general-worker-mode .staff-shell { width: min(100% - 32px, 600px); }.general-worker-mode .staff-header { padding-inline: 4px; } }
 @media (prefers-reduced-motion: reduce) { .app-sidebar { transition: none; } }
 
-/* Issue #323: personal desktop shell preferences */
-.sidebar-preference-toggle {
+/* Issue #325: stable category accordion. The sidebar itself is always expanded. */
+.app-nav {
+  gap:4px;
+}
+.app-nav > .app-nav-section-toggle {
   display:flex;
   align-items:center;
-  justify-content:center;
-  gap:8px;
   width:100%;
   min-height:42px;
-  margin-top:auto;
-  border:1px solid rgba(255,255,255,.18);
-  border-radius:10px;
-  background:rgba(255,255,255,.06);
-  color:var(--sidebar-text);
-  font:inherit;
-  font-weight:800;
+  margin:16px 0 2px;
+  padding:10px 10px 8px;
+  border:0;
+  border-top:1px solid rgba(255,255,255,.18);
+  border-radius:0;
+  background:transparent;
+  color:#fff;
+  text-align:left;
   cursor:pointer;
+  box-shadow:none;
 }
-.sidebar-preference-toggle:hover,
-.sidebar-preference-toggle:focus-visible {
-  background:rgba(255,255,255,.13);
-  outline:2px solid rgba(255,255,255,.6);
+.app-nav > .app-nav-section-toggle:first-of-type {
+  margin-top:8px;
+}
+.app-nav > .app-nav-section-toggle:hover,
+.app-nav > .app-nav-section-toggle:focus-visible {
+  background:rgba(255,255,255,.07);
+  color:#fff;
+  outline:2px solid rgba(255,255,255,.48);
   outline-offset:1px;
+  border-radius:9px;
 }
-.desktop-app-shell.sidebar-collapsed {
-  grid-template-columns:58px minmax(0,1fr);
+.app-nav-section-title {
+  font-size:1.02rem;
+  line-height:1.2;
+  font-weight:950;
+  letter-spacing:-.01em;
 }
-.desktop-app-shell.sidebar-collapsed .app-sidebar {
-  padding:16px 8px;
-  gap:10px;
+.app-nav-section-chevron {
+  margin-left:auto;
+  padding-left:10px;
+  font-size:.86rem;
+  font-weight:900;
+  color:#dce8e1;
 }
-.desktop-app-shell.sidebar-collapsed .app-logo,
-.desktop-app-shell.sidebar-collapsed .app-nav {
-  display:none;
+.app-nav > [data-nav-section]:not(.app-nav-section-toggle) {
+  min-height:41px;
+  padding:9px 12px 9px 16px;
+  font-size:.91rem;
+  line-height:1.35;
+  font-weight:760;
 }
-.desktop-app-shell.sidebar-collapsed .sidebar-preference-toggle [data-sidebar-toggle-label] {
-  display:none;
+.app-nav > [data-section-collapsed="1"] {
+  display:none !important;
+}
+.app-nav > .app-nav-section-toggle[hidden] {
+  display:none !important;
 }
 
 .platform-settings-shell {
@@ -286,16 +306,6 @@
 }
 
 @media (max-width:900px) {
-  .sidebar-preference-toggle { display:none; }
-  .desktop-app-shell.sidebar-collapsed { grid-template-columns:1fr; }
-  .desktop-app-shell.sidebar-collapsed .app-sidebar {
-    padding:24px 16px;
-  }
-  .desktop-app-shell.sidebar-collapsed .app-logo,
-  .desktop-app-shell.sidebar-collapsed .app-nav {
-    display:grid;
-  }
-  .desktop-app-shell.sidebar-collapsed .app-logo { display:block; }
   .platform-settings-checklist { grid-template-columns:1fr; }
 }
 
