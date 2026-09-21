@@ -115,10 +115,9 @@
     return node;
   }
 
-  function removeLegacyInformationNav(nav, keepKey) {
-    const legacy = new Set(['공지 관리', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인']);
+  function removeLegacyInformationNav(nav) {
+    const legacy = new Set(['공지·안내 관리', '공지·안내 확인']);
     [...nav.children].forEach(node => {
-      if (node.dataset.issue207Nav === keepKey) return;
       if (legacy.has(cleanLabel(node))) node.remove();
     });
   }
@@ -172,14 +171,19 @@
     if (canManageExisting) ensureExistingContentNav(nav);
     if (canManageHomepage) ensureHomepageManagementNav(nav);
 
-    removeLegacyInformationNav(nav, 'notice-manage');
-    if ((canReviewInformation || canSubmitInformation) && !nav.querySelector('[data-issue207-nav="notice-manage"]')) {
-      nav.append(navNode(
-        '공지 관리',
-        openInformationHub,
-        'notice-manage',
-        ['information.review', 'information.submit', 'notice.manage']
-      ));
+    removeLegacyInformationNav(nav);
+    if (canReviewInformation || canSubmitInformation) {
+      const existingNotice = findNav('공지 관리');
+      if (!existingNotice?.dataset.issue207Nav) {
+        const replacement = navNode(
+          '공지 관리',
+          openInformationHub,
+          'notice-manage',
+          ['information.review', 'information.submit']
+        );
+        if (existingNotice) existingNotice.replaceWith(replacement);
+        else nav.append(replacement);
+      }
     }
   }
 
