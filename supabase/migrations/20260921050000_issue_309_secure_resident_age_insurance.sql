@@ -223,6 +223,17 @@ begin
 
   secret_name := 'employee_rrn_' || p_employee_uuid::text;
 
+  if exists (
+    select 1
+    from vault.decrypted_secrets decrypted
+    join private.employee_sensitive_identity identity
+      on identity.resident_secret_id=decrypted.id
+    where decrypted.decrypted_secret=normalized
+      and identity.employee_uuid<>p_employee_uuid
+  ) then
+    raise exception using errcode='23505', message='RESIDENT_NUMBER_ALREADY_REGISTERED';
+  end if;
+
   select identity.resident_secret_id
   into secret_id
   from private.employee_sensitive_identity identity
