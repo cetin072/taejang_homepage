@@ -492,6 +492,150 @@
     return form;
   }
 
+  function seoulCurrentMonth() {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit'
+    }).formatToParts(new Date());
+    const year = parts.find(part => part.type === 'year')?.value;
+    const month = parts.find(part => part.type === 'month')?.value;
+    return year && month ? `${year}-${month}` : '';
+  }
+
+  function insuranceToggleSelect() {
+    return select([
+      { id: '', name: '선택 필요' },
+      { id: 'on', name: 'ON · 공제함' },
+      { id: 'off', name: 'OFF · 공제 안 함' }
+    ]);
+  }
+
+  function setInsuranceToggle(control, value) {
+    control.value = value === true ? 'on' : value === false ? 'off' : '';
+  }
+
+  function insuranceRateLabel(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return '요율 확인 필요';
+    return `${(number * 100).toFixed(4).replace(/0+$/, '').replace(/\.$/, '')}%`;
+  }
+
+  function insuranceDeductionPanel(employee) {
+    const form = el('form', null, 'employee-form');
+    form.dataset.insuranceDeductionForm = '1';
+
+    const month = input('month', seoulCurrentMonth());
+    const pension = insuranceToggleSelect();
+    const health = insuranceToggleSelect();
+    const employment = insuranceToggleSelect();
+    const note = input('text');
+    note.maxLength = 500;
+    note.placeholder = '예: 노무사 확인';
+
+    const rateSummary = el('p', '요율 불러오는 중', 'help');
+    const ageWarning = el('p', '', 'help');
+    const message = el('p', '', 'help');
+
+    const controls = [pension, health, employment, note];
+    const setBusy = busy => {
+      controls.forEach(control => { control.disabled = busy; });
+      month.disabled = busy;
+    };
+
+    const loadSettings = async () => {
+      if (!month.value) return;
+      setBusy(true);
+      message.textContent = '현재 설정을 불러오는 중입니다.';
+      try {
+        const settings = await app().rpc('get_employee_insurance_deduction_settings', {
+          p_employee_uuid: employee.id,
+          p_payroll_month: `${month.value}-01`
+        });
+        setInsuranceToggle(pension, settings?.national_pension_on);
+        setInsuranceToggle(health, settings?.health_insurance_on);
+        setInsuranceToggle(employment, settings?.employment_insurance_on);
+        note.value = settings?.note || '';
+
+        const rates = settings?.rates || {};
+        rateSummary.textContent = [
+          `국민연금 ${insuranceRateLabel(rates.national_pension)}`,
+          `건강보험 ${insuranceRateLabel(rates.health_insurance)}`,
+          '장기요양 건강보험 연동',
+          `고용보험 ${insuranceRateLabel(rates.employment_insurance)}`,
+          '산재보험 근로자 공제 없음'
+        ].join(' · ');
+
+        const warnings = [];
+        if (settings?.national_pension_age_warning) warnings.push('국민연금 연령 기준 확인');
+        if (settings?.employment_insurance_age_warning) warnings.push('고용보험 65세 이상 확인');
+        ageWarning.textContent = warnings.length
+          ? `${warnings.join(' · ')} — 노무사 안내에 따라 아래 ON/OFF만 선택하면 됩니다.`
+          : '연령 자동경고가 있어도 최종 급여 공제 여부는 노무사 안내에 따라 ON/OFF로 저장합니다.';
+
+        message.textContent = settings?.profile_status === 'missing'
+          ? '기존 보험설정이 없습니다. 세 항목을 선택해 새로 저장하세요.'
+          : '현재 적용값을 표시했습니다.';
+      } catch (error) {
+        message.textContent = app().friendlyError?.(error) || error.message || '보험 공제 설정을 불러오지 못했습니다.';
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    const save = button('보험 공제 설정 저장', async () => {
+      if (!month.value || !pension.value || !health.value || !employment.value) {
+        window.alert('적용월과 국민연금·건강보험·고용보험 ON/OFF를 모두 선택해 주세요.');
+        return;
+      }
+      save.disabled = true;
+      setBusy(true);
+      try {
+        await app().rpc('set_employee_insurance_deduction_settings', {
+          p_employee_uuid: employee.id,
+          p_payroll_month: `${month.value}-01`,
+          p_national_pension_on: pension.value === 'on',
+          p_health_insurance_on: health.value === 'on',
+          p_employment_insurance_on: employment.value === 'on',
+          p_note: note.value.trim() || null
+        });
+        window.alert(`${month.value}부터 보험 공제 ON/OFF를 저장했습니다. 다음 급여 계산부터 바로 반영됩니다.`);
+        await loadSettings();
+      } catch (error) {
+        window.alert(app().friendlyError?.(error) || error.message || '보험 공제 설정을 저장하지 못했습니다.');
+      } finally {
+        setBusy(false);
+        save.disabled = false;
+      }
+    });
+
+    month.addEventListener('change', loadSettings);
+
+    const grid = el('div', null, 'employee-form-grid');
+    grid.append(
+      field('적용 시작월', month, '이 월부터 이후 급여에 적용됩니다. 다음 변경월 전까지 유지됩니다.'),
+      field('국민연금', pension, '노무사 안내대로 공제함/공제 안 함만 선택합니다.'),
+      field('건강보험', health, 'OFF면 장기요양보험도 자동으로 0원 처리됩니다.'),
+      field('고용보험', employment, '노무사 안내대로 공제함/공제 안 함만 선택합니다.'),
+      field('메모', note, '선택사항입니다. 예: 노무사 확인')
+    );
+
+    const actions = el('div', null, 'quick-links');
+    actions.append(save);
+    form.append(
+      el('h3', '4대보험 급여공제 ON/OFF'),
+      el('p', '법적 자격을 운영팀장이 판단하는 화면이 아닙니다. 노무사가 알려준 적용 여부를 그대로 입력합니다.', 'help'),
+      rateSummary,
+      ageWarning,
+      grid,
+      el('p', '산재보험은 회사 부담 항목이라 근로자 급여에서 공제하지 않습니다.', 'help'),
+      actions,
+      message
+    );
+    loadSettings();
+    return form;
+  }
+
   function photoPicker(employee, photoType, context) {
     const wrap = el('div', null, 'employee-photo-actions');
     const file = input('file'); file.accept = 'image/jpeg,image/png,image/webp';
@@ -563,6 +707,13 @@
         if (existing) { existing.remove(); return; }
         const form = sensitiveIdentityPanel(context, employee);
         if (form) card.append(form);
+      }, true));
+    }
+    if (context.access_level === 'operations_manager') {
+      actions.append(button('4대보험 공제 ON/OFF', () => {
+        const existing = card.querySelector('[data-insurance-deduction-form]');
+        if (existing) { existing.remove(); return; }
+        card.append(insuranceDeductionPanel(employee));
       }, true));
     }
     card.append(actions);
