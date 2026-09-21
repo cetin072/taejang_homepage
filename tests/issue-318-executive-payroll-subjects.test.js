@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const payrollCore = require('../supabase/functions/payroll-calculate/runtime/payroll-calculate-core.js');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(
@@ -37,4 +38,30 @@ test('Issue 318 keeps the uploaded final ledger as traceable source of truth', (
   assert.match(migration, /e04f25e4876c36ca2b7f22790f66319bbd330ceaf4e90f1de9482d6f933cc42a/);
   assert.match(migration, /historical_reconciliation/);
   assert.match(migration, /payroll_ledger_confirmed/);
+});
+
+
+test('non-attendance monthly executive calculates full monthly salary without attendance rows', () => {
+  const result = payrollCore.calculateMonthlySalaryResult({
+    employee: {
+      employeeId: 'TJ-EXEC',
+      hiredAt: '2026-06-09',
+      terminatedAt: null,
+    },
+    year: 2026,
+    month: 8,
+    terms: [{
+      employeeId: 'TJ-EXEC',
+      effectiveFrom: '2026-06-09',
+      effectiveTo: null,
+      payType: 'monthly',
+      monthlySalary: 3200000,
+    }],
+    attendanceRecords: [],
+  });
+
+  assert.equal(result.rateStatus, 'monthly_salary');
+  assert.equal(result.grossPayPreview, 3200000);
+  assert.equal(result.unresolvedCount, 0);
+  assert.equal(result.actualWorkHours, 0);
 });
