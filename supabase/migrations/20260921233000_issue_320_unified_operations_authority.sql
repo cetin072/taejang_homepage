@@ -110,8 +110,15 @@ begin
   order by p.created_at,p.id
   limit 1;
 
-  if profile_count<>1 or target_profile_id is null then
+  if profile_count>1 then
     raise exception using errcode='55000',message='KIM_HYEONGCHEOL_ACTIVE_PROFILE_NOT_UNIQUE';
+  end if;
+
+  -- Clean/local databases do not contain real Auth profiles. The employee/title
+  -- and role-capability schema changes still apply; account linking is deferred
+  -- until the real profile exists.
+  if profile_count=0 or target_profile_id is null then
+    return;
   end if;
 
   select count(*)
