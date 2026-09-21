@@ -109,8 +109,17 @@
     main.replaceChildren(intro);
   }
   function markMenuNode(node, item) {
-    if (Array.isArray(item.capabilities) && item.capabilities.length) {
-      node.dataset.capabilityAny = item.capabilities.join('|');
+    const registryItem = item.key
+      ? window.TaejangPlatformNavigationRegistry?.byKey?.(item.key)
+      : window.TaejangPlatformNavigationRegistry?.itemForLabel?.(item.label);
+    const menuKey = item.key || registryItem?.key;
+    if (menuKey) node.dataset.menuKey = menuKey;
+    node.dataset.masterMenuItem = '1';
+    const capabilities = Array.isArray(item.capabilities) && item.capabilities.length
+      ? item.capabilities
+      : (registryItem?.capabilities || []);
+    if (capabilities.length) {
+      node.dataset.capabilityAny = capabilities.join('|');
     }
     if (item.dataKey === 'employee-management') node.dataset.employeeManagementNav = '1';
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
@@ -234,8 +243,25 @@
         dataKey: 'payroll-handoff-submit',
         capabilities: ['payroll.handoff.review']
       },
-
-      { label: '홈페이지', href: '../index.html', newTab: true }
+      {
+        key: 'support.radar',
+        label: '지원사업 레이더',
+        href: 'index.html?support=radar',
+        capabilities: ['support_radar.management_view']
+      },
+      {
+        key: 'support.profile',
+        label: '기업 프로필',
+        href: 'index.html?support=profile',
+        capabilities: ['support_radar.management_view', 'support_radar.management_edit']
+      },
+      {
+        key: 'platform.settings',
+        label: '설정',
+        run: () => document.dispatchEvent(new CustomEvent('taejang-open-platform-settings')),
+        capabilities: ['platform.navigation.manage']
+      },
+      { key: 'public.homepage', label: '홈페이지', href: '../index.html', newTab: true }
     ];
   }
 
