@@ -76,24 +76,24 @@ test('promotion and homepage management sidebar slots are capability-driven', ()
   assert.doesNotMatch(ux, /MutationObserver/);
 });
 
-test('issue 216 navigation stability now applies to the shared master sidebar contract', () => {
+test('issue 216 navigation stability now uses the canonical accordion composer', () => {
   assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace source remains tolerated and normalized');
   assert.match(navigation, /function ensureIssue207RoleContract/);
   assert.match(navigation, /const MASTER_ORDER = Object\.freeze/);
   assert.match(navigation, /const MASTER_SECTIONS = Object\.freeze/);
   assert.match(navigation, /LABEL_RENAMES/);
   assert.match(navigation, /\['수정·보완 요청', '보완 요청받은 글'\]/);
-  assert.match(navigation, /supportGroupPriority/);
-  assert.doesNotMatch(navigation, /role === 'promotion_lead'\) return 105/);
-  assert.doesNotMatch(navigation, /role === 'operations_manager'\) return 165/);
-  assert.match(navigation, /'출근부', '근태 보정'/);
+  assert.match(navigation, /function removeLegacySupportGroups/);
+  assert.doesNotMatch(navigation, /supportGroupPriority/);
+  assert.match(navigation, /'출근부', '근태 보정', '근태·급여관리'/);
   assert.doesNotMatch(navigation, /\[0, 120, 360, 850\]\.forEach/);
-  assert.doesNotMatch(navigation, /new MutationObserver/);
+  assert.match(navigation, /navigationComposerObserver/);
+  assert.match(navigation, /observe\(nav, \{ childList: true, subtree: false \}\)/);
   assert.match(navigation, /taejang-navigation-changed/);
   assert.match(navigationStability, /INITIAL_SETTLE_MS = 190/);
   assert.match(navigationStability, /style\.visibility = 'hidden'/);
   assert.match(navigationStability, /taejang-navigation-stable/);
-  assert.match(supportCss, /support-radar-nav-group\{[^}]*margin-top:18px[^}]*border-top:1px solid rgba\(255,255,255,\.17\)/);
+  assert.doesNotMatch(navigation, /data-support-radar-nav-group[^\n]*append/);
 });
 
 test('review queue identifies originating employee and current submitter without permanent DOM observer', () => {
