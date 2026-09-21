@@ -67,8 +67,8 @@ test('promotion and homepage management sidebar slots are capability-driven', ()
   assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
   assert.match(ux, /node\.dataset\.phaseCPublicationAdmin = '1'/);
   assert.match(ux, /node\.dataset\.phaseCV2Nav = 'homepage'/);
-  assert.match(ux, /information\.review/);
-  assert.match(ux, /information\.submit/);
+  assert.doesNotMatch(ux, /navNode\(\s*'공지 관리'/);
+  assert.match(ux, /never inject their entries back into the sidebar/);
   assert.match(ux, /openInformationHub/);
   assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
   assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
