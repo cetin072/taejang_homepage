@@ -98,3 +98,10 @@ test('ledger xlsx is a valid ZIP-based xlsx payload with expected workbook parts
   assert.match(raw, /총지급액/);
   assert.match(raw, /실지급액/);
 });
+
+
+test('ledger workbook scope is four social insurances and does not advertise income tax work', () => {
+  const raw = Buffer.from(ledger.buildPayrollLedgerXlsx(context, '2026-08')).toString('utf8');
+  assert.match(raw, /법정공제 범위: 4대보험/);
+  assert.doesNotMatch(raw, /소득세|지방소득세|자동계산 후순위/);
+});

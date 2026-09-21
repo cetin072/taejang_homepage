@@ -137,7 +137,7 @@
     const { headers, rows, days } = buildPayrollLedgerMatrix(context, month);
     const lastColumn = columnName(headers.length - 1);
     const title = `농업회사법인 태장(주) · 급여대장 ${month}`;
-    const note = 'Staging 가안 · 주민등록번호/급여계좌 미포함 · 소득세/지방소득세 자동계산 후순위';
+    const note = 'Staging 가안 · 주민등록번호/급여계좌 미포함 · 법정공제 범위: 4대보험';
     const moneyStart = 5 + days.length + 5;
     const moneyEnd = moneyStart + 8;
     const rowXml = [];

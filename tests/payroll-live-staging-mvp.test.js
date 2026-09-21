@@ -162,3 +162,9 @@ test('attendance and ledger remain usable on narrow screens', () => {
   assert.match(attendanceCss, /@media \(max-width: 720px\)/i);
   assert.match(attendanceCss, /min-width:\s*860px/i);
 });
+
+
+test('payroll live scope excludes income/local income tax from the current process', () => {
+  assert.match(html, /법정공제 범위는 국민연금·건강보험·장기요양·고용보험까지/);
+  assert.doesNotMatch(html, /소득세|지방소득세|자동계산은 후순위/);
+});
