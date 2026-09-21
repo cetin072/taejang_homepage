@@ -11,10 +11,10 @@
   const array = value => Array.isArray(value) ? value : [];
   const routeCopy = {
     super_admin: ['대시보드', '계정 승인과 현재 운영 정보를 안전하게 확인하세요.'],
-    ceo: ['대시보드', '중요 공지와 주요 일정부터 간결하게 확인하세요.'],
+    ceo: ['대시보드', '중요 홍보 상신 안건과 핵심 운영 정보를 간결하게 확인하세요.'],
     operations_manager: ['대시보드', '승인과 오늘 처리할 핵심 항목부터 확인하세요.'],
-    department_lead: ['대시보드', '우리 부서의 일정·공지와 관리 자료를 확인하세요.'],
-    field_lead: ['대시보드', '오늘 작업반과 현장 안내를 먼저 확인하세요.'],
+    department_lead: ['대시보드', '우리 부서의 직원·업무 현황과 필요한 관리 기능을 확인하세요.'],
+    field_lead: ['대시보드', '오늘 필요한 현장 업무 정보를 확인하세요.'],
     promotion_lead: ['대시보드', '출근부·홍보 검토·홍보 작성 등 오늘의 우선 업무부터 확인하세요.'],
     promotion_staff: ['대시보드', '보완 요청받은 글과 태장 소식 작성·승인 요청을 한 화면에서 처리하세요.']
   };
@@ -33,7 +33,14 @@
     '보완 요청받은 글':'promotion.revision',
     '중요 홍보 승인':'promotion.operations.review',
     '홍보 상신 검토':'promotion.ceo.review',
-    '계정 승인 확인':'account.approval'
+    '계정 승인 확인':'account.approval',
+    '신입 가입 승인':'account.signup-requests',
+    '근태·급여관리':'payroll.manage',
+    '직원관리 요청':'employee.change-requests',
+    '팀 직원 관리':'employee.team',
+    '홈페이지 수정 승인':'homepage.change-approval',
+    '오늘 출근부':'attendance.today',
+    '지원사업 레이더':'support.radar'
   });
 
   function featureUnavailable(key, label) {
