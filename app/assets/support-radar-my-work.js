@@ -110,11 +110,9 @@
   function setup(){
     if(!canUse())return;
     queueMicrotask(()=>{
-      injectNav();
       if(new URLSearchParams(window.location.search).get('support')==='mywork') renderList();
     });
   }
   document.addEventListener('taejang-app-ready',setup);
-  document.addEventListener('taejang-dashboard-refresh',()=>queueMicrotask(injectNav));
-  window.TaejangSupportRadarMyWork={renderList,renderDetail,injectNav};
+  window.TaejangSupportRadarMyWork={renderList,renderDetail};
 })();
