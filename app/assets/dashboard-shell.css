@@ -348,7 +348,6 @@
   touch-action:none;
 }
 .sidebar-item-dragging { opacity:.55; }
-}
 .dashboard-drag-tools .button {
   min-width:38px;
   min-height:34px;
