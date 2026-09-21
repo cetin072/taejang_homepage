@@ -182,6 +182,8 @@ async function browserE2E(session, targets) {
     assert.equal(await page.locator('#payslip-deductions').getByText('검토 필요', { exact: true }).count(), 0, 'complete payslip has no unresolved deduction label');
 
     await page.goto(`${SITE}/app/payroll/payslip.html?month=${MONTH}&employee=${targets.reviewEmployeeUuid}`, { waitUntil: 'networkidle' });
+    await page.locator('#payslip-content').waitFor({ state: 'visible' });
+    await page.locator('#payslip-message').getByText('개인 급여명세서 초안입니다.', { exact: false }).waitFor();
     await page.locator('#payslip-status').getByText('검토 필요', { exact: true }).waitFor();
     assert.equal(await page.locator('#payslip-deductions-total').textContent(), '검토 필요', 'review payslip total deduction remains unresolved');
     assert.equal(await page.locator('#payslip-net').textContent(), '검토 필요', 'review payslip net remains unresolved');
