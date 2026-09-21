@@ -96,22 +96,39 @@ declare
   profile_count integer;
   employee_count integer;
 begin
-  select count(*),min(p.id)
-  into profile_count,target_profile_id
+  select count(*)
+  into profile_count
   from public.profiles p
   where p.display_name='김형철'
     and p.account_status='active';
+
+  select p.id
+  into target_profile_id
+  from public.profiles p
+  where p.display_name='김형철'
+    and p.account_status='active'
+  order by p.created_at,p.id
+  limit 1;
 
   if profile_count<>1 or target_profile_id is null then
     raise exception using errcode='55000',message='KIM_HYEONGCHEOL_ACTIVE_PROFILE_NOT_UNIQUE';
   end if;
 
-  select count(*),min(e.id),min(p.id)
-  into employee_count,target_employee_id,target_person_id
+  select count(*)
+  into employee_count
   from public.employees e
   join public.people p on p.id=e.person_id
   where p.full_name='김형철'
     and e.archived_at is null;
+
+  select e.id,p.id
+  into target_employee_id,target_person_id
+  from public.employees e
+  join public.people p on p.id=e.person_id
+  where p.full_name='김형철'
+    and e.archived_at is null
+  order by e.created_at,e.id
+  limit 1;
 
   if employee_count<>1 or target_employee_id is null or target_person_id is null then
     raise exception using errcode='55000',message='KIM_HYEONGCHEOL_EMPLOYEE_NOT_UNIQUE';
