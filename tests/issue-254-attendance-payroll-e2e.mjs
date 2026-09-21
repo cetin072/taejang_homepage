@@ -333,7 +333,7 @@ sqlMustFail(
    set local role service_role;
    select public.private_persist_payroll_calculation(
      '${admin.id}'::uuid, '2026-09-01'::date, '2026-09-30'::date, null,
-     '${staleInput.data.input_basis_fingerprint}', 'issue-264-stale-input-attempt',
+     '${staleInput.data.input_basis_fingerprint}', repeat('0',64), 'issue-264-stale-input-attempt',
      '2026-10-01T00:00:00Z'::timestamptz, 0, 0, 0, 0, 'complete', 0, '[]'::jsonb
    );
    rollback;`,
@@ -364,6 +364,7 @@ const calculate = coreApi.createPayrollCalculateCore({
       p_cutoff_date: payload.cutoffDate,
       p_expected_batch_id: payload.expectedBatchId,
       p_expected_input_basis_fingerprint: payload.expectedInputBasisFingerprint,
+      p_statutory_input_fingerprint: payload.statutoryInputFingerprint,
       p_calculation_version: payload.calculationVersion,
       p_generated_at: payload.generatedAt,
       p_employee_count: payload.employeeCount,

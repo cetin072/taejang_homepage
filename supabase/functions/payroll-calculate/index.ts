@@ -160,7 +160,8 @@ Deno.serve(async (req: Request) => {
           p_payroll_month: payrollMonth,
         });
         if (error) {
-          const code = safeErrorCode(error);
+          const rawCode = safeErrorCode(error);
+          const code = rawCode === 'PAYROLL_CALCULATION_FAILED' ? 'PAYROLL_STATUTORY_INPUT_FAILED' : rawCode;
           const rpcError = new Error(code);
           (rpcError as { code?: string }).code = code;
           throw rpcError;
@@ -173,7 +174,8 @@ Deno.serve(async (req: Request) => {
           p_payroll_month: payload.payrollMonth,
         });
         if (bootstrapError) {
-          const code = safeErrorCode(bootstrapError);
+          const rawCode = safeErrorCode(bootstrapError);
+          const code = rawCode === 'PAYROLL_CALCULATION_FAILED' ? 'PAYROLL_MONTH_BOOTSTRAP_FAILED' : rawCode;
           const rpcError = new Error(code);
           (rpcError as { code?: string }).code = code;
           throw rpcError;
@@ -185,6 +187,7 @@ Deno.serve(async (req: Request) => {
           p_cutoff_date: payload.cutoffDate,
           p_expected_batch_id: payload.expectedBatchId,
           p_expected_input_basis_fingerprint: payload.expectedInputBasisFingerprint,
+          p_statutory_input_fingerprint: payload.statutoryInputFingerprint,
           p_calculation_version: payload.calculationVersion,
           p_generated_at: payload.generatedAt,
           p_employee_count: payload.employeeCount,
@@ -196,7 +199,8 @@ Deno.serve(async (req: Request) => {
           p_employee_results: payload.employeeResults,
         });
         if (error) {
-          const code = safeErrorCode(error);
+          const rawCode = safeErrorCode(error);
+          const code = rawCode === 'PAYROLL_CALCULATION_FAILED' ? 'PAYROLL_PERSISTENCE_FAILED' : rawCode;
           const rpcError = new Error(code);
           (rpcError as { code?: string }).code = code;
           throw rpcError;
