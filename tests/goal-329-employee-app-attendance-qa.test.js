@@ -80,9 +80,10 @@ test('Goal 329 operations attendance QA is explicit, reusable, and cannot reques
   assert.match(card, /출근했습니다/);
   assert.match(card, /퇴근했습니다/);
   assert.match(card, /validateAttendanceQa/);
+  assert.match(card, /const qaMode = mode === 'qa' && today\?\.attendance_required === false/);
   assert.match(card, /result\.writes_attendance !== false/);
-  assert.match(card, /mode === 'record' && exceptionTarget/);
-  assert.match(card, /if \(mode === 'qa' \|\|/);
+  assert.match(card, /!qaMode && exceptionTarget/);
+  assert.match(card, /mode === 'qa' && today\?\.attendance_required === false/);
   assert.match(card, /다시 검수/);
 });
 
