@@ -2,6 +2,15 @@ import type { PlatformSupabaseClient } from '@/src/platform/supabase';
 
 export type NoticeImportance = 'normal' | 'important' | 'urgent';
 
+export type NoticeMediaItem = {
+  id: string;
+  storage_path: string;
+  mime_type: string;
+  alt_text: string;
+  display_order: number;
+  signed_url?: string | null;
+};
+
 export type NoticeSummary = {
   id: string;
   notice_kind: string;
@@ -16,6 +25,7 @@ export type NoticeSummary = {
   is_new: boolean;
   is_changed: boolean;
   updated_at: string;
+  media?: NoticeMediaItem[];
 };
 
 export type NoticeDetail = NoticeSummary & {
@@ -29,6 +39,7 @@ export type NoticeDetail = NoticeSummary & {
   related_link_url: string | null;
   related_link_label: string | null;
   acknowledged_at: string | null;
+  media: NoticeMediaItem[];
 };
 
 function assertArray(value: unknown): unknown[] {
@@ -41,13 +52,31 @@ export async function loadMyNotices(client: PlatformSupabaseClient, limit = 20):
   return assertArray(data) as NoticeSummary[];
 }
 
+async function resolveNoticeMedia(
+  client: PlatformSupabaseClient,
+  items: NoticeMediaItem[] | undefined,
+): Promise<NoticeMediaItem[]> {
+  const list = Array.isArray(items) ? items : [];
+  return Promise.all(list.map(async item => {
+    const { data, error } = await client.storage.from('notice-media').createSignedUrl(item.storage_path, 3600);
+    return {
+      ...item,
+      signed_url: error ? null : data?.signedUrl || null,
+    };
+  }));
+}
+
 export async function loadMyNoticeDetail(client: PlatformSupabaseClient, noticeId: string): Promise<NoticeDetail> {
   const { data, error } = await client.rpc('get_my_notice_detail', { p_notice_id: noticeId });
   if (error) throw error;
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new Error('공지 상세를 불러오지 못했습니다.');
   }
-  return data as NoticeDetail;
+  const detail = data as NoticeDetail;
+  return {
+    ...detail,
+    media: await resolveNoticeMedia(client, detail.media),
+  };
 }
 
 export async function acknowledgeMyNotice(
