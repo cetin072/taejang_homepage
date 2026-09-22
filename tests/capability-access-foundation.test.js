@@ -9,6 +9,7 @@ const executiveGuard = read('supabase/migrations/20260909150100_issue_148_attend
 const issue320 = read('supabase/migrations/20260921233000_issue_320_unified_operations_authority.sql');
 const bridge = read('app/assets/capability-access.js');
 const appUi = read('app/assets/app-ui.js');
+const appIndex = read('app/index.html');
 const planning = read('docs/planning/CAPABILITY_AUTHORIZATION_PHASE_A_V1.md');
 
 test('capability foundation keeps route presentation separate from server-owned feature access', () => {
@@ -42,12 +43,14 @@ test('operations manager is the complete operational superset while technical au
   );
 });
 
-test('browser capability bridge is loaded before feature app-ready handlers and has safe v1 fallback', () => {
-  assert.match(appUi, /\['assets\/capability-access\.js', 'capability-access'\]/);
+test('browser capability bridge is a Core dependency and retains safe v1 fallback', () => {
+  assert.doesNotMatch(appUi, /\['assets\/capability-access\.js', 'capability-access'\]/);
+  assert.match(appIndex, /<script src="assets\/capability-access\.js" defer><\/script>/);
+  assert.ok(appIndex.indexOf('assets/capability-access.js') < appIndex.indexOf('assets/app.js'));
   assert.match(bridge, /get_my_access_context_v2/);
   assert.match(bridge, /app\.can = capability/);
   assert.match(bridge, /hasCapabilityContract/);
-  assert.match(bridge, /event\.stopImmediatePropagation\(\)/);
+  assert.doesNotMatch(bridge, /taejang-app-ready/);
   assert.match(bridge, /taejang-capabilities-ready/);
   assert.match(bridge, /keeping legacy route guards/);
 });

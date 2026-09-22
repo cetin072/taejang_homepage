@@ -126,8 +126,11 @@ test('failed feature module becomes a visible retry state instead of silent succ
   };
 
   vm.runInNewContext(appUiSource, sandbox, { filename: 'app-ui.js' });
-  await window.TaejangFeatureModulesReady;
-  await tick();
+  assert.equal(window.TaejangFeatureHealth.hasFailed('employee-management'), false, 'branches have not started before Core readiness');
+  document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', {
+    detail: { route: 'operations_manager', label: '운영총괄' }
+  }));
+  await new Promise(resolve => setTimeout(resolve, 8));
 
   assert.equal(window.TaejangFeatureHealth.hasFailed('employee-management'), true);
   const notice = document.querySelector('[data-feature-health-notice]');
