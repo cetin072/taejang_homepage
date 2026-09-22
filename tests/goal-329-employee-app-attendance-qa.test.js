@@ -90,5 +90,6 @@ test('Goal 329 operations attendance QA is explicit, reusable, and cannot reques
 test('Goal 329 keeps excluded ordinary employees visible but disables real attendance', () => {
   assert.match(card, /today\?\.attendance_required === false/);
   assert.match(card, /근태 기록 제외 대상입니다/);
-  assert.match(card, /mode === 'record'/);
+  assert.match(card, /mode = 'record'/);
+  assert.match(card, /const qaAttempt = mode === 'qa' && latest\.attendance_required === false/);
 });
