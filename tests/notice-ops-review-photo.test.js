@@ -30,11 +30,17 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.match(admin, /운영총괄 검토 대기/);
   assert.match(admin, /ui\.element\('notice-id'\)\.value = result\.id/);
   assert.match(admin, /NOTICE_SAVED_MEDIA_FAILED/);
+  assert.match(admin, /value = '공지 작성·수정'/);
+  assert.match(admin, /value\.trim\(\) \|\| '공지 작성·수정'/);
   assert.ok(
     admin.indexOf("ui.element('notice-id').value = result.id") < admin.indexOf('await persistMedia(result.id, reason)'),
     'saved notice id is retained before media persistence so retries cannot duplicate a new notice'
   );
-  assert.match(media, /MAX_FILE_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(media, /MAX_SOURCE_FILE_BYTES = 15 \* 1024 \* 1024/);
+  assert.match(media, /MAX_UPLOAD_FILE_BYTES = 2 \* 1024 \* 1024/);
+  assert.match(media, /TARGET_UPLOAD_FILE_BYTES = 1400 \* 1024/);
+  assert.match(media, /MAX_IMAGE_EDGE = 1600/);
+  assert.match(media, /optimizeForUpload/);
   assert.match(media, /image\/jpeg/);
   assert.match(media, /x-upsert': 'false'/);
   assert.doesNotMatch(media, /'Cache-Control': '3600'/);
