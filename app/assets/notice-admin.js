@@ -509,9 +509,11 @@
             : error.message === 'INVALID_HTTPS_LINK' ? '관련 링크는 올바른 HTTPS 주소만 사용할 수 있습니다.'
               : error.message === 'IMPORTANT_ACK_ONLY' ? '중요 또는 긴급 공지만 확인이 필요하도록 설정할 수 있습니다.'
                 : error.message === 'NOTICE_MEDIA_LIMIT' ? '공지 사진은 최대 10장까지 등록할 수 있습니다.'
+                  : error.message === 'NOTICE_MEDIA_COMPRESS_TOO_LARGE' ? '사진을 자동 압축했지만 용량이 너무 큽니다. 다른 사진을 사용해주세요.'
+                  : error.message === 'NOTICE_MEDIA_DECODE_FAILED' || error.message === 'NOTICE_MEDIA_COMPRESS_FAILED' ? '사진을 처리하지 못했습니다. 다른 사진 파일을 선택해주세요.'
                   : error.message === 'NOTICE_MEDIA_ALT_REQUIRED' ? '모든 사진에 사진 설명을 입력해주세요.'
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
-                          : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '사진 한 장의 크기는 8MB 이하여야 합니다.'
+                          : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '원본 사진은 15MB 이하 파일을 사용해주세요.'
                             : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
                             : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? '공지 내용은 저장됐지만 사진 자료 저장에 실패했습니다. 입력은 유지됩니다. 사진을 확인한 뒤 다시 저장해주세요.'
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
@@ -538,7 +540,7 @@
       void renderPreview();
     } catch (error) {
       const message = error.message === 'NOTICE_MEDIA_LIMIT' ? '공지 사진은 최대 10장까지 등록할 수 있습니다.'
-        : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '사진 한 장의 크기는 8MB 이하여야 합니다.'
+        : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '원본 사진은 15MB 이하 파일을 사용해주세요.'
           : '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.';
       showMessage(message, true);
     }
