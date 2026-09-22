@@ -7,6 +7,8 @@ const migration = read('supabase/migrations/20260921002000_issue_300_notice_revi
 const admin = read('app/assets/notice-admin.js');
 const media = read('app/assets/notice-media.js');
 const worker = read('app/assets/notice-worker.js');
+const index = read('app/index.html');
+const workGuideAdmin = read('app/assets/work-guide-admin.js');
 
 test('notice review and photo contracts keep publication and direct access guarded', () => {
   assert.match(migration, /create table if not exists public\.notice_media/);
@@ -30,14 +32,28 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.match(admin, /운영총괄 검토 대기/);
   assert.match(admin, /ui\.element\('notice-id'\)\.value = result\.id/);
   assert.match(admin, /NOTICE_SAVED_MEDIA_FAILED/);
+  assert.match(admin, /value = '공지 작성·수정'/);
+  assert.match(admin, /const defaultReason = status === 'inactive'/);
+  assert.match(index, /id="notice-reason" type="hidden" value="공지 작성·수정"/);
+  assert.doesNotMatch(index, /id="notice-reason"[^>]*required/);
   assert.ok(
     admin.indexOf("ui.element('notice-id').value = result.id") < admin.indexOf('await persistMedia(result.id, reason)'),
     'saved notice id is retained before media persistence so retries cannot duplicate a new notice'
   );
-  assert.match(media, /MAX_FILE_BYTES = 8 \* 1024 \* 1024/);
+  assert.match(media, /MAX_SOURCE_FILE_BYTES = 15 \* 1024 \* 1024/);
+  assert.match(media, /MAX_UPLOAD_FILE_BYTES = 2 \* 1024 \* 1024/);
+  assert.match(media, /TARGET_UPLOAD_FILE_BYTES = 1400 \* 1024/);
+  assert.match(media, /MAX_IMAGE_EDGE = 1600/);
+  assert.match(media, /optimizeForUpload/);
   assert.match(media, /image\/jpeg/);
   assert.match(media, /x-upsert': 'false'/);
+  assert.doesNotMatch(media, /'Cache-Control': '3600'/);
   assert.match(media, /signedUrl/);
+  assert.match(media, /\$\{config\.url\}\/storage\/v1\$\{normalized\}/);
   assert.match(media, /dialog\.showModal\(\)/);
   assert.match(worker, /renderGallery/);
+  assert.match(index, /<label>공지 내용<textarea id="notice-body" maxlength="3000" rows="6" required><\/textarea><\/label>/);
+  assert.doesNotMatch(index, /id="notice-body"[^>]*data-easy-text/);
+  assert.doesNotMatch(workGuideAdmin, /설명을 더 짧고 쉬운 문장으로 나누어 적어주세요/);
+  assert.doesNotMatch(workGuideAdmin, /setCustomValidity\(/);
 });

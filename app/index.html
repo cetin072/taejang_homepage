@@ -410,7 +410,7 @@
         <div><p class="eyebrow">관리자 공지</p><h2 id="notice-admin-title">공지 작성·검토·게시</h2></div>
         <button id="refresh-notice-admin" class="button button-quiet" type="button">공지 새로고침</button>
       </div>
-      <p class="easy-writing-help">운영총괄은 공지를 직접 작성·게시할 수 있습니다. 운영팀장은 초안을 작성해 운영총괄에게 상신할 수 있습니다. 사진 자료는 공지 본문과 함께 직원 화면에 표시됩니다.</p>
+      <p class="easy-writing-help">운영총괄은 공지를 직접 작성·게시할 수 있습니다. 필요한 내용은 충분히 적고, 읽기 편하도록 문단과 줄바꿈을 사용하세요. 사진 자료는 공지 본문과 함께 직원 화면에 표시됩니다.</p>
       <p id="notice-admin-message" class="message" role="status" aria-live="polite" hidden></p>
       <section id="notice-manage-section" class="notice-manage-section" aria-labelledby="notice-manage-title">
         <h3 id="notice-manage-title">등록된 공지</h3>
@@ -450,12 +450,12 @@
             </select></label>
             <label class="check-label"><input id="notice-requires-ack" type="checkbox"> 내용 확인 필요</label>
           </div>
-          <label>쉬운 안내문<textarea id="notice-body" maxlength="3000" rows="4" required data-easy-text></textarea></label>
+          <label>공지 내용<textarea id="notice-body" maxlength="3000" rows="6" required></textarea></label>
           <label>준비물<textarea id="notice-materials" maxlength="1000" rows="2"></textarea></label>
 
           <fieldset class="notice-photo-fieldset">
             <legend>사진 자료</legend>
-            <p class="help">사진은 최대 10장, 장당 8MB까지 올릴 수 있습니다. JPG·PNG·WEBP·GIF를 지원합니다. 각 사진 설명은 직원 화면의 접근성 안내에 사용됩니다.</p>
+            <p class="help">사진은 최대 10장까지 올릴 수 있습니다. 원본이 큰 사진도 업로드 전에 모바일용으로 자동 축소·압축하며, 원본 파일은 저장하지 않습니다. 각 사진 설명은 직원 화면의 접근성 안내에 사용됩니다.</p>
             <label>사진 추가<input id="notice-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label>
             <div id="notice-media-editor" class="notice-media-editor" aria-live="polite"></div>
           </fieldset>
@@ -464,7 +464,7 @@
             <label>관련 링크 표시명<input id="notice-link-label" type="text" maxlength="160"></label>
             <label>관련 HTTPS 주소<input id="notice-link-url" type="url" maxlength="2000" placeholder="https://..."></label>
           </div>
-          <label>변경·사용중지 사유<input id="notice-reason" type="text" maxlength="300" required></label>
+          <input id="notice-reason" type="hidden" value="공지 작성·수정">
           <div class="form-actions">
             <button class="button" type="submit">공지 저장</button>
             <button id="reset-notice-form" class="button button-quiet" type="button">새 공지 작성</button>

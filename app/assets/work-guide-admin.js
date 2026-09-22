@@ -16,12 +16,6 @@
     e('guide-audience-department-wrap').hidden = !department;
     e('guide-audience-department').disabled = !department;
   }
-  function longTextWarning() {
-    document.querySelectorAll('[data-easy-text]').forEach(field => {
-      field.setCustomValidity(field.value.length > 240 || field.value.split(/[.!?。]\s*/).filter(Boolean).length > 3
-        ? '설명을 더 짧고 쉬운 문장으로 나누어 적어주세요.' : '');
-    });
-  }
   function renderPreview() {
     const preview = e('guide-preview'); preview.replaceChildren();
     const title = e('guide-title-input').value || '작업방법 제목';
@@ -83,7 +77,7 @@
     });
   }
   async function submitStep(event) {
-    event.preventDefault(); longTextWarning(); if (!event.currentTarget.reportValidity() || !selected) return;
+    event.preventDefault(); if (!event.currentTarget.reportValidity() || !selected) return;
     const button = event.currentTarget.querySelector('[type="submit"]'); button.disabled = true;
     try {
       const result = await app().rpc('save_work_guide_step', {
@@ -109,7 +103,7 @@
     e('guide-form').closest('details').before(records); fill(e('guide-audience-department'), options.departments); setAudienceFields();
     e('guide-audience-scope').addEventListener('change', setAudienceFields);
     e('guide-step-form').addEventListener('submit', submitStep); e('reset-guide-step-form').addEventListener('click', resetStep);
-    document.querySelectorAll('[data-easy-text]').forEach(field => field.addEventListener('input', () => { longTextWarning(); renderPreview(); }));
+    document.querySelectorAll('#guide-form [data-easy-text], #guide-step-form [data-easy-text]').forEach(field => field.addEventListener('input', renderPreview));
     ['guide-title-input', 'guide-materials', 'guide-caution', 'guide-completion', 'guide-cover-url', 'guide-cover-alt'].forEach(id => e(id).addEventListener('input', renderPreview));
     document.addEventListener('taejang-work-guide-saved', async () => { await loadGuides(); renderPreview(); }); loadGuides(); renderPreview();
   }

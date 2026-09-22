@@ -60,6 +60,11 @@ for (const filename of publicPages) {
   assert.ok(mobileNav, `${filename} 모바일 주요 메뉴가 HTML 원본에 있어야 합니다`);
   assertHrefOrder(desktopNav, headerHrefs, `${filename} 데스크톱 메뉴`);
   assertHrefOrder(mobileNav, headerHrefs, `${filename} 모바일 메뉴`);
+  if (filename !== 'resources.html') {
+    assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.match(mobileNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 모바일 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="partnership.html"'), `${filename} 임직원 메뉴는 마지막 유틸리티 항목이어야 합니다`);
+  }
 
   assert.match(
     html,
@@ -134,10 +139,16 @@ assert.match(activities, /href="archive\.html" aria-current="page">소식·기�
 assert.match(activities, /소식·기록 전체 보기/);
 
 const styles = read('assets/css/styles.css');
+const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,
   /@media \(max-width:1000px\)\{[\s\S]*?\.desktop-nav\{display:none\}[\s\S]*?\.mobile-nav\{display:grid\}[\s\S]*?\.menu-btn\{display:none\}[\s\S]*?\.js-nav-ready \.menu-btn\{display:block\}[\s\S]*?\.js-nav-ready \.mobile-nav\{display:none\}[\s\S]*?\.js-nav-ready \.mobile-nav\.open\{display:grid\}/,
   '모바일에서는 JS가 없어도 정적 메뉴가 보이고, JS가 준비된 뒤에만 접힘 상태를 사용합니다'
+);
+assert.match(
+  mobileLayout,
+  /@media \(max-width: 760px\)[\s\S]*?\.mobile-nav\s*\{[\s\S]*?display:\s*none;[\s\S]*?\.mobile-nav\.open\s*\{[\s\S]*?display:\s*grid;/,
+  '실제 모바일 첫 페인트에서는 메뉴가 닫힌 상태로 시작해 사이드바 깜빡임이 없어야 합니다'
 );
 
 const site = read('assets/js/site.js');
