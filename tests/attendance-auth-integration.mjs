@@ -191,6 +191,12 @@ const qaExecutive = await createLinkedEmployee({
   email: 'attendance-qa-executive@example.test', name: '근태 QA 운영총괄', role: 'operations_manager', attendanceRequired: false, positionCode: 'operations_manager',
 });
 const qaBefore = sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`);
+const qaCorrectionsBefore = sql(`select count(*) from public.attendance_corrections where employee_uuid='${qaExecutive.employeeUuid}'::uuid`);
+const qaConfirmationsBefore = sql('select count(*) from public.attendance_confirmation_revisions');
+const qaPayrollSnapshotsBefore = sql('select count(*) from public.payroll_confirmed_attendance_snapshots');
+const qaPayrollRunsBefore = sql('select count(*) from public.payroll_calculation_runs');
+const qaTodayBefore = await rpc('get_my_attendance_today', qaExecutive.token, {});
+equal(qaTodayBefore.data?.attendance_required, false, 'QA operations manager remains an excluded attendance subject before validation');
 const qaClockIn = await rpc('qa_validate_attendance_event', qaExecutive.token, {
   p_event_type: 'clock_in',
   p_latitude: officeLat,
@@ -209,6 +215,14 @@ const qaClockOut = await rpc('qa_validate_attendance_event', qaExecutive.token, 
 });
 equal(qaClockOut.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can continue the no-write QA flow through clock-out');
 equal(sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`), qaBefore, 'operations attendance QA creates zero raw attendance rows');
+equal(sql(`select count(*) from public.attendance_corrections where employee_uuid='${qaExecutive.employeeUuid}'::uuid`), qaCorrectionsBefore, 'operations attendance QA creates zero correction rows');
+equal(sql('select count(*) from public.attendance_confirmation_revisions'), qaConfirmationsBefore, 'operations attendance QA creates zero confirmation revisions');
+equal(sql('select count(*) from public.payroll_confirmed_attendance_snapshots'), qaPayrollSnapshotsBefore, 'operations attendance QA creates zero payroll attendance snapshots');
+equal(sql('select count(*) from public.payroll_calculation_runs'), qaPayrollRunsBefore, 'operations attendance QA creates zero payroll calculation runs');
+const qaTodayAfter = await rpc('get_my_attendance_today', qaExecutive.token, {});
+equal(qaTodayAfter.data?.attendance_required, qaTodayBefore.data?.attendance_required, 'QA leaves employee attendance eligibility unchanged');
+equal(qaTodayAfter.data?.clock_in ?? null, qaTodayBefore.data?.clock_in ?? null, 'QA leaves real clock-in state unchanged');
+equal(qaTodayAfter.data?.clock_out ?? null, qaTodayBefore.data?.clock_out ?? null, 'QA leaves real clock-out state unchanged');
 
 const leadQaDenied = await rpc('qa_validate_attendance_event', lead.token, {
   p_event_type: 'clock_in',
