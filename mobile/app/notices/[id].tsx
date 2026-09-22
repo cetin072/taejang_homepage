@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -97,6 +97,21 @@ export default function NoticeDetailScreen() {
             <Text style={styles.title}>{notice.title}</Text>
             <Text style={styles.body}>{notice.body_easy}</Text>
 
+            {notice.media?.length ? (
+              <View style={styles.gallery}>
+                {notice.media.map(item => (
+                  item.signed_url ? (
+                    <Image
+                      key={item.id}
+                      accessibilityLabel={item.alt_text || '공지 사진'}
+                      source={{ uri: item.signed_url }}
+                      style={styles.photo}
+                    />
+                  ) : null
+                ))}
+              </View>
+            ) : null}
+
             {notice.location ? <Text style={styles.meta}>장소 · {notice.location}</Text> : null}
             {notice.materials ? <Text style={styles.meta}>준비물 · {notice.materials}</Text> : null}
 
@@ -143,6 +158,8 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#35624d', fontSize: 13, fontWeight: '800' },
   title: { color: '#173f31', fontSize: 28, fontWeight: '800', lineHeight: 36 },
   body: { color: '#344b40', fontSize: 17, lineHeight: 27 },
+  gallery: { gap: 12 },
+  photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 14, backgroundColor: '#eef2ef' },
   meta: { color: '#60746a', fontSize: 14, lineHeight: 21 },
   help: { color: '#60746a', fontSize: 14 },
   error: { color: '#9b2c2c', fontSize: 15, lineHeight: 22 },
