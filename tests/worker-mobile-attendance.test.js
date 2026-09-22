@@ -9,7 +9,6 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 test('worker mobile and optional operations scripts parse', () => {
   for (const file of [
     'app/assets/pwa-install.js',
-    'app/assets/worker-mobile-v1.js',
     'app/assets/employee-common-home-v1.js',
     'app/assets/attendance-admin.js',
     'app/assets/attendance-integrity-ui.js',
@@ -21,10 +20,10 @@ test('worker mobile and optional operations scripts parse', () => {
   }
 });
 
-test('app UI loads PWA, worker attendance, attendance integrity, common employee home, attendance admin, and operations optional modules', () => {
+test('app UI uses one production employee-home renderer while keeping shared PWA and attendance modules', () => {
   const source = read('app/assets/app-ui.js');
   assert.match(source, /pwa-install\.js/);
-  assert.match(source, /worker-mobile-v1\.js/);
+  assert.doesNotMatch(source, /worker-mobile-v1\.js/);
   assert.match(source, /employee-common-home-v1\.js/);
   assert.match(source, /attendance-admin\.js/);
   assert.match(source, /attendance-integrity-ui\.js/);
@@ -32,16 +31,31 @@ test('app UI loads PWA, worker attendance, attendance integrity, common employee
   assert.match(source, /operations-homepage-direct\.js/);
 });
 
-test('worker UI remains simple and blocks abusive exception patterns', () => {
-  const source = read('app/assets/worker-mobile-v1.js');
-  assert.match(source, /출근했습니다/);
-  assert.match(source, /퇴근했습니다/);
-  assert.match(source, /확인했습니다/);
-  assert.match(source, /attempts\[eventType\] < 2/);
-  assert.match(source, /관리자에게 한 번만 확인을 요청했습니다/);
-  assert.match(source, /위치 권한을 허용해주세요.*관리자 요청으로 대신할 수 없습니다/);
+test('PWA install card owns one role-independent visual contract', () => {
+  const source = read('app/assets/pwa-install.js');
+  assert.match(source, /data-pwa-install-card/);
+  assert.match(source, /\.worker-install-card/);
+  assert.match(source, /\.worker-primary-button/);
+  assert.match(source, /ensureStyles\(\)/);
+});
+
+
+
+test('common employee home owns live attendance, no-write QA, and preview-safe behavior', () => {
+  const source = read('app/assets/employee-common-home-v1.js');
+  assert.match(source, /record_attendance_event/);
+  assert.match(source, /qa_validate_attendance_event/);
+  assert.match(source, /attendance\.qa_validate/);
+  assert.match(source, /기능 검수 모드 · 실제 근태에 반영되지 않음/);
+  assert.match(source, /화면 미리보기 · 실제 근태 기록 없음/);
+  assert.match(source, /근태 기록 대상이 아닙니다/);
+  assert.match(source, /if \(isPreviewMode\(\)\)/);
+  assert.match(source, /writes_attendance !== false/);
+  assert.match(source, /if \(!qaMode\) allowException/);
   assert.match(source, /OUTSIDE_GEOFENCE/);
 });
+
+
 
 test('attendance integrity UI hides personal attendance for excluded employees and gates correction by capability', () => {
   const source = read('app/assets/attendance-integrity-ui.js');
@@ -71,10 +85,10 @@ test('operations manager employee-home entry injects common employee styling bef
   assert.match(match[1], /injectStyles\(\);[\s\S]*const home = buildHome\(\);/);
 });
 
-test('promotion staff and lead start from the common employee home with work shortcuts', () => {
+test('general worker, promotion staff, and lead share the common employee home while only work roles get shortcuts', () => {
   const source = read('app/assets/employee-common-home-v1.js');
-  assert.match(source, /promotion_staff/);
-  assert.match(source, /promotion_lead/);
+  assert.match(source, /\['general_worker', 'promotion_staff', 'promotion_lead'\]\.includes\(currentRoute\)/);
+  assert.match(source, /currentRoute !== 'general_worker'/);
   assert.match(source, /홍보 업무 열기/);
   assert.match(source, /운영팀 업무 열기/);
   assert.match(source, /직원 홈/);
@@ -82,6 +96,8 @@ test('promotion staff and lead start from the common employee home with work sho
   assert.match(source, /퇴근했습니다/);
   assert.match(source, /확인했습니다/);
 });
+
+
 
 test('operations manager can enter server-backed general worker simulation', () => {
   const migration = read('supabase/migrations/20260904002000_employee_common_home_roles.sql');
@@ -98,7 +114,8 @@ test('employee attendance eligibility is data-driven while operations manager ke
   const integrity = read('app/assets/attendance-integrity-ui.js');
   const migration = read('supabase/migrations/20260922010000_goal_329_employee_app_attendance_qa.sql');
   assert.match(bridge, /ALL_EMPLOYEE_HOME_ROLES = new Set\(\['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
-  assert.match(bridge, /currentRoute === 'operations_manager'\) installDashboardReturn\(\)/);
+  assert.match(bridge, /currentRoute === 'operations_manager'/);
+  assert.match(bridge, /attendance\.qa_validate/);
   assert.match(integrity, /attendance_required !== false/);
   assert.match(migration, /e\.attendance_required/);
   const subject = migration.match(/create or replace function public\.private_employee_is_attendance_subject[\s\S]*?create or replace function public\.private_validate_attendance_attempt/)?.[0] || '';

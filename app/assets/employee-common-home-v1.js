@@ -2,7 +2,6 @@
   'use strict';
 
   const STORAGE_KEY = 'taejang-role-simulation-v1';
-  const PROMOTION_EMPLOYEE_ROLES = new Set(['promotion_staff', 'promotion_lead']);
   const ALL_EMPLOYEE_HOME_ROLES = new Set(['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager']);
   const ROLE_LABELS = {
     general_worker: '일반직원',
@@ -15,10 +14,14 @@
   const lastPosition = { clock_in: null, clock_out: null };
   const attendanceInFlight = { clock_in: false, clock_out: false };
   let switching = false;
+  let qaClockInAt = null;
+  let qaClockOutAt = null;
 
   const app = () => window.TaejangApp;
   const context = () => app()?.getContext?.() || {};
   const route = () => app()?.getRoute?.();
+  const isPreviewMode = () => Boolean(context()?.role_simulation?.active);
+  const canQaAttendance = () => Boolean(app()?.can?.('attendance.qa_validate'));
   const node = (tag, text, className) => {
     const el = document.createElement(tag);
     if (className) el.className = className;
@@ -54,6 +57,9 @@
       .employee-message { margin:12px 0 0; padding:14px; border-radius:14px; background:#f2f2ed; font-size:17px; line-height:1.5; font-weight:700; }
       .employee-message.error { background:#fff0ed; }
       .employee-message.success { background:#eef7f1; }
+      .employee-preview-badge,.employee-qa-badge { margin:8px 0 12px; padding:9px 12px; border-radius:999px; font-size:15px; font-weight:900; text-align:center; }
+      .employee-preview-badge { background:#fff4d8; color:#6b5314; }
+      .employee-qa-badge { background:#e8f1ec; color:#214b35; }
       .employee-notice-list { display:grid; gap:12px; }
       .employee-notice { padding:16px; border:1px solid #e3e3dd; border-radius:16px; background:#fff; }
       .employee-notice strong { display:block; font-size:20px; line-height:1.4; }
@@ -90,8 +96,13 @@
     if (!simulation?.can_switch) return null;
     const card = node('section', null, 'employee-card');
     card.dataset.employeeSimulationCard = '1';
-    card.append(node('h2', '권한 체험'));
-    if (simulation.active) card.append(node('p', `${ROLE_LABELS[simulation.role_code] || simulation.role_code} 화면을 체험하고 있습니다.`));
+    card.append(node('h2', '화면 미리보기'));
+    card.append(node(
+      'p',
+      simulation.active
+        ? `${ROLE_LABELS[simulation.role_code] || simulation.role_code} 화면 미리보기 중입니다. 실제 직원 근태 기록은 변경하지 않습니다.`
+        : '개발 중 역할별 직원 화면을 확인하는 미리보기입니다. 실제 근태 기록과 분리됩니다.'
+    ));
     const grid = node('div', null, 'employee-role-switch-grid');
     const active = simulation.active ? simulation.role_code : null;
     [
@@ -181,20 +192,22 @@
     attendance.id = 'employee-attendance-card';
     home.append(attendance);
 
-    const work = node('section', null, 'employee-card');
-    work.append(node('h2', '내 업무'));
     const currentRoute = route();
-    const copy = currentRoute === 'operations_manager'
-      ? '출퇴근과 공지를 확인한 뒤 운영 업무 화면으로 돌아갈 수 있습니다.'
-      : currentRoute === 'promotion_lead'
-      ? '홍보 검토와 출근부 관리가 필요할 때 업무 화면을 여세요.'
-      : '홍보자료를 작성하거나 보완 요청을 확인할 때 업무 화면을 여세요.';
-    work.append(node('p', copy));
-    const workButton = node('button', currentRoute === 'operations_manager' || currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
-    workButton.type = 'button';
-    workButton.addEventListener('click', showRoleDashboard);
-    work.append(workButton);
-    home.append(work);
+    if (currentRoute !== 'general_worker') {
+      const work = node('section', null, 'employee-card');
+      work.append(node('h2', '내 업무'));
+      const copy = currentRoute === 'operations_manager'
+        ? '출퇴근과 공지를 확인한 뒤 운영 업무 화면으로 돌아갈 수 있습니다.'
+        : currentRoute === 'promotion_lead'
+        ? '홍보 검토와 출근부 관리가 필요할 때 업무 화면을 여세요.'
+        : '홍보자료를 작성하거나 보완 요청을 확인할 때 업무 화면을 여세요.';
+      work.append(node('p', copy));
+      const workButton = node('button', currentRoute === 'operations_manager' || currentRoute === 'promotion_lead' ? '운영팀 업무 열기' : '홍보 업무 열기', 'employee-primary-button');
+      workButton.type = 'button';
+      workButton.addEventListener('click', showRoleDashboard);
+      work.append(workButton);
+      home.append(work);
+    }
 
     const notices = node('section', null, 'employee-card');
     notices.id = 'employee-notice-card';
@@ -251,7 +264,11 @@
     card.append(button);
   }
 
-  async function attemptAttendance(eventType, card) {
+  async function attemptAttendance(eventType, card, { qaMode = false } = {}) {
+    if (isPreviewMode()) {
+      setMessage(card, '화면 미리보기에서는 실제 출퇴근을 기록하지 않습니다. 운영총괄 화면의 기능 검수에서 GPS를 확인하세요.');
+      return;
+    }
     if (attendanceInFlight[eventType]) return;
     attendanceInFlight[eventType] = true;
     const mainButton = card.querySelector('[data-employee-attendance-action]');
@@ -265,13 +282,61 @@
       });
       lastPosition[eventType] = position;
       stage = 'server';
-      setMessage(card, '서버에 출근·퇴근 기록을 확인하고 있습니다.');
-      const result = await app().rpc('record_attendance_event', {
-        p_event_type: eventType,
-        p_latitude: position.coords.latitude,
-        p_longitude: position.coords.longitude,
-        p_accuracy_m: position.coords.accuracy
-      });
+      setMessage(card, qaMode
+        ? '검수 서버에서 GPS·근무일·출입 위치를 확인하고 있습니다.'
+        : '서버에 출근·퇴근 기록을 확인하고 있습니다.');
+
+      const result = qaMode
+        ? await app().rpc('qa_validate_attendance_event', {
+            p_event_type: eventType,
+            p_latitude: position.coords.latitude,
+            p_longitude: position.coords.longitude,
+            p_accuracy_m: position.coords.accuracy,
+            p_has_qa_clock_in: Boolean(qaClockInAt)
+          })
+        : await app().rpc('record_attendance_event', {
+            p_event_type: eventType,
+            p_latitude: position.coords.latitude,
+            p_longitude: position.coords.longitude,
+            p_accuracy_m: position.coords.accuracy
+          });
+
+      if (qaMode) {
+        if (result?.ok) {
+          if (result?.writes_attendance !== false) throw new Error('QA_WRITE_GUARD_FAILED');
+          attempts[eventType] = 0;
+          lastFailure[eventType] = null;
+          const checkedAt = result.server_time || new Date().toISOString();
+          if (eventType === 'clock_in') qaClockInAt = checkedAt;
+          else qaClockOutAt = checkedAt;
+          renderQaAttendance(card);
+          setMessage(
+            card,
+            eventType === 'clock_in'
+              ? '검수 출근 정상 · GPS와 서버 경로가 정상이며 실제 근태에는 반영되지 않았습니다.'
+              : '검수 퇴근 정상 · 출근·퇴근 검수 흐름이 정상이며 실제 근태에는 반영되지 않았습니다.',
+            'success'
+          );
+          return;
+        }
+        if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
+        if (result?.code === 'LOCATION_UNCERTAIN') {
+          lastFailure[eventType] = 'LOCATION_UNCERTAIN';
+          setMessage(card, '위치 정확도가 부족합니다. 잠시 후 다시 검수해주세요.', 'error');
+        } else if (result?.code === 'OUTSIDE_GEOFENCE') {
+          setMessage(card, '회사 출근 장소 밖입니다. GPS는 정상이며 서버 위치 판정도 정상 동작했습니다.', 'error');
+        } else if (result?.code === 'CLOCK_IN_REQUIRED') {
+          setMessage(card, '먼저 검수 출근을 완료해주세요.', 'error');
+        } else if (result?.code === 'ATTENDANCE_LOCATION_UNAVAILABLE') {
+          setMessage(card, '회사 출근 위치 설정을 확인하지 못했습니다.', 'error');
+        } else if (result?.code === 'FORBIDDEN') {
+          setMessage(card, '현재 계정에는 출퇴근 기능 검수 권한이 없습니다.', 'error');
+        } else {
+          setMessage(card, '출퇴근 검수 경로를 확인하지 못했습니다. 네트워크와 서버 상태를 확인해주세요.', 'error');
+        }
+        return;
+      }
+
       if (result?.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result?.code)) {
         attempts[eventType] = 0;
         lastFailure[eventType] = null;
@@ -287,25 +352,32 @@
         setMessage(card, attempts[eventType] < 2 ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.' : '위치를 두 번 확인했지만 정확하지 않습니다.', 'error');
         allowException(eventType, card);
       } else if (result?.code === 'CLOCK_IN_REQUIRED') setMessage(card, '먼저 출근 처리가 완료되어야 합니다.', 'error');
+      else if (result?.code === 'ATTENDANCE_NOT_REQUIRED') setMessage(card, '근태 기록 대상이 아닙니다.', 'error');
       else if (result?.code === 'FORBIDDEN') setMessage(card, '현재 계정으로는 출퇴근을 등록할 수 없습니다. 다시 로그인한 뒤 확인해주세요.', 'error');
       else setMessage(card, '서버에서 출퇴근 기록을 처리하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
     } catch (error) {
+      if (error?.message === 'QA_WRITE_GUARD_FAILED') {
+        setMessage(card, '안전 검수 조건을 확인하지 못해 중단했습니다. 실제 근태 저장은 실행하지 않았습니다.', 'error');
+        return;
+      }
       if (stage === 'server') {
         attempts[eventType] = Math.max(0, attempts[eventType] - 1);
-        setMessage(card, '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
+        setMessage(card, qaMode
+          ? '검수 서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.'
+          : '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.', 'error');
         return;
       }
       const code = failureCode(error);
       lastFailure[eventType] = code;
       if (code === 'PERMISSION_DENIED') {
         attempts[eventType] = Math.max(0, attempts[eventType] - 1);
-        setMessage(card, '출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요. 관리자 요청으로 대신할 수 없습니다.', 'error');
+        setMessage(card, '브라우저의 위치 권한이 꺼져 있습니다. 브라우저와 운영체제 위치 권한을 허용해주세요.', 'error');
       } else if (code === 'GEOLOCATION_UNAVAILABLE') {
         attempts[eventType] = Math.max(0, attempts[eventType] - 1);
-        setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. 위치 기능을 지원하는 휴대폰 브라우저에서 다시 시도해주세요.', 'error');
+        setMessage(card, '이 브라우저에서는 위치 확인을 사용할 수 없습니다. PC보다 위치 기능이 있는 휴대폰 브라우저 또는 태장 앱에서 확인해주세요.', 'error');
       } else {
         setMessage(card, attempts[eventType] < 2 ? '위치를 확인하지 못했습니다. 다시 한 번 눌러주세요.' : '위치를 두 번 확인하지 못했습니다.', 'error');
-        allowException(eventType, card);
+        if (!qaMode) allowException(eventType, card);
       }
     } finally {
       attendanceInFlight[eventType] = false;
@@ -313,10 +385,60 @@
     }
   }
 
+  function renderQaAttendance(card) {
+    card.replaceChildren(node('h2', '오늘 출퇴근'));
+    card.dataset.employeeAttendanceMode = 'qa';
+    card.append(node('p', '기능 검수 모드 · 실제 근태에 반영되지 않음', 'employee-qa-badge'));
+
+    if (qaClockOutAt) {
+      const state = node('p', '검수 완료', 'employee-attendance-state');
+      state.append(node('span', `${formatTime(qaClockInAt)} – ${formatTime(qaClockOutAt)}`, 'employee-time'));
+      card.append(state);
+      return;
+    }
+
+    const eventType = qaClockInAt ? 'clock_out' : 'clock_in';
+    const state = node(
+      'p',
+      qaClockInAt ? `검수 출근 ${formatTime(qaClockInAt)}` : 'GPS·서버 경로를 실제처럼 확인합니다.',
+      'employee-attendance-state'
+    );
+    const button = node('button', eventType === 'clock_in' ? '출근했습니다' : '퇴근했습니다', 'employee-primary-button');
+    button.type = 'button';
+    button.dataset.employeeAttendanceAction = eventType;
+    button.addEventListener('click', () => attemptAttendance(eventType, card, { qaMode: true }));
+    card.append(state, button);
+  }
+
   function renderAttendance(data) {
     const card = document.getElementById('employee-attendance-card');
     if (!card) return;
+
+    if (isPreviewMode()) {
+      card.replaceChildren(
+        node('h2', '오늘 출퇴근'),
+        node('p', '화면 미리보기 · 실제 근태 기록 없음', 'employee-preview-badge'),
+        node('p', '역할별 화면 구성만 확인합니다. GPS 기능 검수는 운영총괄 실제 화면에서 실행하세요.', 'employee-message')
+      );
+      card.dataset.employeeAttendanceMode = 'preview';
+      return;
+    }
+
+    if (data?.attendance_required === false) {
+      if (canQaAttendance()) {
+        renderQaAttendance(card);
+        return;
+      }
+      card.replaceChildren(
+        node('h2', '오늘 출퇴근'),
+        node('p', '근태 기록 대상이 아닙니다.', 'employee-attendance-state')
+      );
+      card.dataset.employeeAttendanceMode = 'excluded';
+      return;
+    }
+
     card.replaceChildren(node('h2', '오늘 출퇴근'));
+    card.dataset.employeeAttendanceMode = 'record';
     if (!data?.is_workday) {
       card.append(node('p', `오늘은 휴일입니다. (${data?.day_reason || '휴일'})`, 'employee-attendance-state'));
       return;
@@ -355,6 +477,10 @@
   }
 
   async function loadAttendance() {
+    if (isPreviewMode()) {
+      renderAttendance(null);
+      return;
+    }
     try { renderAttendance(await app().rpc('get_my_attendance_today')); }
     catch { setMessage(document.getElementById('employee-attendance-card'), '출퇴근 정보를 불러오지 못했습니다.', 'error'); }
   }
@@ -403,27 +529,32 @@
     }
   }
 
-  function attachSimulationCardToGeneralWorker() {
-    if (route() !== 'general_worker' || !context()?.role_simulation?.can_switch) return;
-    const home = document.getElementById('worker-mobile-home');
-    if (!home || home.querySelector('[data-employee-simulation-card]')) return;
-    const card = makeSimulationCard();
-    if (!card) return;
-    card.dataset.employeeSimulationCard = '1';
-    const hero = home.querySelector('.worker-mobile-hero');
-    if (hero?.nextSibling) home.insertBefore(card, hero.nextSibling);
-    else home.prepend(card);
+  function bindBrand() {
+    const brand = document.querySelector('.staff-brand');
+    if (!brand || brand.dataset.employeeHomeBound) return;
+    brand.dataset.employeeHomeBound = '1';
+    brand.href = '#employee-common-home';
+    brand.setAttribute('aria-label', '태장 업무앱 홈으로 이동');
+    brand.addEventListener('click', event => {
+      event.preventDefault();
+      document.getElementById('employee-common-home')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
-  async function startPromotionEmployeeHome() {
-    if (!PROMOTION_EMPLOYEE_ROLES.has(route())) return;
+  async function startEmployeeHome() {
+    const currentRoute = route();
+    if (!['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) return;
     injectStyles();
+    bindBrand();
+    document.body.classList.remove('general-worker-mode');
+    document.body.classList.add('employee-home-mode');
+    const legacyBoard = document.getElementById('general-worker-board');
+    if (legacyBoard) legacyBoard.hidden = true;
     const home = buildHome();
     const shell = document.getElementById('desktop-app-shell');
     if (shell) shell.hidden = true;
     home.hidden = false;
-    document.body.classList.add('employee-home-mode');
-    installDashboardReturn();
+    if (currentRoute !== 'general_worker') installDashboardReturn();
     await Promise.all([loadAttendance(), loadNotices()]);
   }
 
@@ -433,17 +564,19 @@
       setTimeout(injectGeneralWorkerDesktopSimulationButton, 120);
       return;
     }
-    if (PROMOTION_EMPLOYEE_ROLES.has(currentRoute)) startPromotionEmployeeHome();
-    else if (currentRoute === 'operations_manager') installDashboardReturn();
-    else setTimeout(attachSimulationCardToGeneralWorker, 80);
+    if (['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) {
+      void startEmployeeHome();
+    } else if (currentRoute === 'operations_manager') {
+      installDashboardReturn();
+    }
   }
 
   document.addEventListener('taejang-app-ready', () => setTimeout(setup, 0));
   document.addEventListener('taejang-dashboard-refresh', () => {
-    if (PROMOTION_EMPLOYEE_ROLES.has(route()) || route() === 'operations_manager') installDashboardReturn();
+    if (['promotion_staff', 'promotion_lead', 'operations_manager'].includes(route())) installDashboardReturn();
   });
   document.addEventListener('taejang-pwa-install-ready', () => {
-    if (!PROMOTION_EMPLOYEE_ROLES.has(route()) || document.querySelector('#employee-common-home [data-worker-install-card]')) return;
+    if (!document.getElementById('employee-common-home') || document.querySelector('#employee-common-home [data-worker-install-card]')) return;
     const card = window.TaejangPwaInstall?.makeInstallCard?.();
     if (card) document.getElementById('employee-attendance-card')?.before(card);
   });

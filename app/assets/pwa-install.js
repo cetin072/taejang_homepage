@@ -5,6 +5,20 @@
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 
+  function ensureStyles() {
+    if (document.querySelector('style[data-pwa-install-card]')) return;
+    const style = document.createElement('style');
+    style.dataset.pwaInstallCard = '1';
+    style.textContent = `
+      .worker-install-card { background:#fff; border:1px solid #deded7; border-radius:20px; padding:20px; box-shadow:0 8px 26px rgba(0,0,0,.045); }
+      .worker-install-card h2 { margin:0 0 10px; font-size:23px; line-height:1.3; }
+      .worker-install-card p { font-size:18px; line-height:1.55; }
+      .worker-primary-button { width:100%; min-height:68px; border-radius:16px; border:0; font:inherit; font-size:21px; font-weight:900; cursor:pointer; background:#173f31; color:#fff; }
+      .worker-primary-button:disabled { opacity:.55; cursor:not-allowed; }
+    `;
+    document.head.append(style);
+  }
+
   function ensureManifest() {
     if (document.querySelector('link[rel="manifest"]')) return;
     const link = document.createElement('link');
@@ -20,6 +34,7 @@
 
   function makeInstallCard() {
     if (isStandalone()) return null;
+    ensureStyles();
     const card = document.createElement('section');
     card.className = 'worker-install-card';
     card.dataset.workerInstallCard = '1';
