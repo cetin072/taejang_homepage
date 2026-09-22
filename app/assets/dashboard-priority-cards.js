@@ -228,8 +228,12 @@
     if (currentRoute !== 'operations_manager' || !settings?.isDashboardCustomized?.()) return;
     if (grid.dataset.layoutEditing === '1' || settings?.isDashboardEditing?.()) return;
     const allowedKeys = new Set(availableCardItems().map(item => item.key));
-    const selected = [...new Set((settings.getDashboardOrder?.() || []).map(normalizeCardKey))]
-      .filter(key => allowedKeys.has(key));
+    const requested = [...new Set((settings.getDashboardOrder?.() || []).map(normalizeCardKey))];
+    const selected = requested.filter(key => allowedKeys.has(key));
+    // Fail open on presentation only: a transient capability/sidebar settle must
+    // never turn a previously useful dashboard into an empty screen. Server-side
+    // authorization still protects every destination.
+    if (requested.length && !selected.length) return;
     const seen = new Set();
     [...grid.children].forEach(node => {
       const key = cardKey(node);
