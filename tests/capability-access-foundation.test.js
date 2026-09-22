@@ -50,5 +50,10 @@ test('browser capability bridge is loaded before feature app-ready handlers and 
   assert.match(bridge, /event\.stopImmediatePropagation\(\)/);
   assert.match(bridge, /taejang-capabilities-ready/);
   assert.match(bridge, /must not silently regress to copied role checks/);
+  assert.match(bridge, /FAILED_ACCESS_CONTEXT/);
+  assert.match(bridge, /access_contract_version: 0/);
+  assert.match(bridge, /effective_roles: \[\]/);
+  assert.match(bridge, /if \(Number\(accessContext\?\.access_contract_version \|\| 0\) === 0\) return null/);
+  assert.match(bridge, /installApi\(FAILED_ACCESS_CONTEXT, 0\)/);
   assert.match(bridge, /detail: \{ version: 0, capabilities: \[\], error: true \}/);
 });
