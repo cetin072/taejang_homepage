@@ -19,13 +19,13 @@ test('role screen polish loads before the final navigation reveal', () => {
   assert.match(stability, /TaejangRoleScreenPolish\?\.apply\?\.\(\)/);
 });
 
-test('general worker screen has a deterministic visual fallback instead of browser defaults', () => {
-  assert.match(polish, /general-worker-mode/);
-  assert.match(polish, /worker-mobile-home/);
-  assert.match(polish, /worker-card/);
-  assert.match(polish, /employee-role-switch-grid/);
-  assert.match(polish, /classList\.add\('general-worker-mode'\)/);
-  assert.match(polish, /employeeHome\.hidden = true/);
+test('general worker recovery keeps the canonical common employee home visible', () => {
+  assert.match(polish, /const employeeHome = document\.getElementById\('employee-common-home'\)/);
+  assert.match(polish, /document\.body\.classList\.add\('employee-home-mode'\)/);
+  assert.match(polish, /employeeHome\.hidden = false/);
+  assert.match(polish, /if \(workerHome\) workerHome\.hidden = true/);
+  assert.doesNotMatch(polish, /employeeHome\.hidden = true/);
+  assert.match(polish, /Compatibility fallback only/);
 });
 
 test('role polish no longer owns role-specific sidebar suppression', () => {
