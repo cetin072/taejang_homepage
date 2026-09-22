@@ -13,6 +13,12 @@
     'notice-admin-panel': 'notice.manage',
     'guidance-admin-panel': 'guidance.manage'
   });
+  const PANEL_TITLES = Object.freeze({
+    'today-admin-panel': '업무 배정',
+    'schedule-admin-panel': '일정 관리',
+    'notice-admin-panel': '공지 관리',
+    'guidance-admin-panel': '상시 안내 관리'
+  });
 
   const byId = id => document.getElementById(id);
 
@@ -121,6 +127,8 @@
     mountPanels();
     hidePanels(id);
     if (id === 'today-admin-panel') configureTodayAdmin(view);
+    const topbar = byId('desktop-page-title');
+    if (topbar) topbar.textContent = PANEL_TITLES[id] || '업무';
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = true;
   }
