@@ -64,6 +64,13 @@ test('attendance admin separates view and exception-review capabilities', () => 
   assert.match(source, /review_attendance_exception/);
 });
 
+test('operations manager employee-home entry injects common employee styling before rendering', () => {
+  const source = read('app/assets/employee-common-home-v1.js');
+  const match = source.match(/function showEmployeeHome\(\) \{([\s\S]*?)\n  \}/);
+  assert.ok(match, 'showEmployeeHome should exist');
+  assert.match(match[1], /injectStyles\(\);[\s\S]*const home = buildHome\(\);/);
+});
+
 test('promotion staff and lead start from the common employee home with work shortcuts', () => {
   const source = read('app/assets/employee-common-home-v1.js');
   assert.match(source, /promotion_staff/);
