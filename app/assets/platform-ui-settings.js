@@ -47,6 +47,7 @@
     '홈페이지 수정 승인':'homepage.content', 'homepage.change-approval':'homepage.content',
     '오늘 출근부':'attendance.view', 'attendance.today':'attendance.view',
     '지원사업 레이더':'support.radar',
+    '공지 등록':'notice.create',
     '공지 관리':'notice.manage'
   });
   const normalizeDashboardKey = key => DASHBOARD_KEY_ALIASES[key] || key;
