@@ -81,7 +81,7 @@ test('Goal 327 prevents retired menus from being re-injected by late feature mod
   assert.match(employeeManagement, /삭제 직원 복구·계정 연결/);
   assert.doesNotMatch(issue207, /navNode\(\s*'공지 관리'/);
   assert.doesNotMatch(workflowNavigation, /navButton\('일정 캘린더'/);
-  assert.match(issue207, /never inject their entries back into the sidebar/);
+  assert.match(issue207, /restores the canonical capability-gated "공지 관리" entry/);
 });
 
 test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry mutations', () => {
