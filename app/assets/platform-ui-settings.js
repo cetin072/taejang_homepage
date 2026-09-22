@@ -5,6 +5,7 @@
     roleCode: null,
     collapsedSections: new Set(),
     dashboardOrder: [],
+    dashboardCustomized: false,
     sidebarSectionOrder: [],
     sidebarMenuOrder: [],
     hiddenMenuKeys: new Set(),
@@ -32,14 +33,29 @@
   };
   const cleanArray = value => Array.isArray(value) ? value.filter(item => typeof item === 'string' && item.trim()) : [];
   const uniqueArray = value => [...new Set(cleanArray(value))];
-  const LEGACY_DASHBOARD_KEYS = Object.freeze({
-    '홍보 검토 대기':'promotion.review.pending', '홍보자료 작성':'promotion.write',
-    '보완 요청받은 글':'promotion.revision', '중요 홍보 승인':'promotion.operations.review',
-    '홍보 상신 검토':'promotion.ceo.review', '계정 승인 확인':'account.approval',
-    '근태·급여관리':'payroll.manage', '직원관리 요청':'employee.change-requests',
-    '팀 직원 관리':'employee.team', '홈페이지 수정 승인':'homepage.change-approval'
+  const DASHBOARD_CUSTOM_SENTINEL = '__custom_dashboard_cards__';
+  const DASHBOARD_KEY_ALIASES = Object.freeze({
+    '홍보 검토 대기':'promotion.review', 'promotion.review.pending':'promotion.review',
+    '홍보자료 작성':'promotion.write',
+    '보완 요청받은 글':'promotion.revision',
+    '중요 홍보 승인':'promotion.review', 'promotion.operations.review':'promotion.review',
+    '홍보 상신 검토':'promotion.review', 'promotion.ceo.review':'promotion.review',
+    '계정 승인 확인':'account.approval', 'account.signup-requests':'account.approval',
+    '근태·급여관리':'payroll.manage',
+    '직원관리 요청':'employee.manage', 'employee.change-requests':'employee.manage',
+    '팀 직원 관리':'employee.manage', 'employee.team':'employee.manage',
+    '홈페이지 수정 승인':'homepage.content', 'homepage.change-approval':'homepage.content',
+    '오늘 출근부':'attendance.view', 'attendance.today':'attendance.view',
+    '지원사업 레이더':'support.radar',
+    '공지 관리':'notice.manage'
   });
-  const dashboardOrder = value => uniqueArray(value).map(key=>LEGACY_DASHBOARD_KEYS[key] || key);
+  const normalizeDashboardKey = key => DASHBOARD_KEY_ALIASES[key] || key;
+  const dashboardOrder = value => [...new Set(
+    uniqueArray(value)
+      .filter(key=>key!==DASHBOARD_CUSTOM_SENTINEL)
+      .map(normalizeDashboardKey)
+  )];
+  const dashboardCustomized = value => uniqueArray(value).includes(DASHBOARD_CUSTOM_SENTINEL);
 
   function mergeSavedOrder(saved, master) {
     const masterKeys=uniqueArray(master);
@@ -162,6 +178,7 @@
     };
     const result=await app().rpc('save_my_ui_preferences',payload);
     state.dashboardOrder=dashboardOrder(result?.dashboard_order);
+    state.dashboardCustomized=dashboardCustomized(result?.dashboard_order);
     state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
     state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
     applyDashboardOrder();
@@ -172,14 +189,14 @@
   function dashboardCardKey(node) {
     if(!node) return null;
     const existing=node.dataset?.dashboardCardKey;
-    if(existing) return existing;
     const marker = node.dataset?.supportRadarShortcut ? 'support.radar'
-      : node.dataset?.attendanceCard ? 'attendance.today'
-        : node.dataset?.phaseCAccountApprovalCard ? 'account.signup-requests'
+      : node.dataset?.attendanceCard ? 'attendance.view'
+        : node.dataset?.phaseCAccountApprovalCard ? 'account.approval'
           : null;
-    const key=marker || node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim();
-    if(key) node.dataset.dashboardCardKey=String(key);
-    return key ? String(key) : null;
+    const raw=existing || marker || node.dataset?.priorityDashboardCard || node.querySelector('h3')?.textContent?.trim();
+    const key=raw ? normalizeDashboardKey(String(raw)) : null;
+    if(key) node.dataset.dashboardCardKey=key;
+    return key;
   }
 
   function isDashboardSurface() {
@@ -196,7 +213,7 @@
     const grid=dashboardGrid();
     if(!grid || grid.dataset.layoutEditing==='1') return;
     const children=[...grid.children];
-    const rank=new Map(cleanArray(order).map((key,index)=>[key,index]));
+    const rank=new Map(dashboardOrder(order).map((key,index)=>[key,index]));
     const desired=[...children].sort((a,b)=>{
       const ak=dashboardCardKey(a); const bk=dashboardCardKey(b);
       const ai=rank.has(ak)?rank.get(ak):9000;
@@ -283,6 +300,14 @@
         const prev=button('←',()=>moveCard(card,-1),true); prev.setAttribute('aria-label','카드 앞으로 이동');
         const next=button('→',()=>moveCard(card,1),true); next.setAttribute('aria-label','카드 뒤로 이동');
         tools.append(handle,prev,next);
+        if(currentRole()==='operations_manager') {
+          const remove=button('제거',()=>{
+            card.remove();
+            renderDashboardCardPicker();
+          },true);
+          remove.setAttribute('aria-label',`${card.querySelector('h3')?.textContent?.trim() || '카드'} 대시보드에서 제거`);
+          tools.append(remove);
+        }
         card.prepend(tools);
         bindCardHandle(handle,card);
       }
@@ -307,6 +332,55 @@
       card.classList.remove('dashboard-card-editable','dashboard-card-dragging');
       card.querySelector('[data-dashboard-drag-tools]')?.remove();
     });
+    el('dashboard-main')?.querySelector('[data-dashboard-card-picker]')?.remove();
+  }
+
+  function dashboardCardPicker() {
+    if(currentRole()!=='operations_manager') return null;
+    const intro=el('dashboard-main')?.querySelector(':scope > .dashboard-intro');
+    if(!intro) return null;
+    let picker=intro.querySelector('[data-dashboard-card-picker]');
+    if(!picker) {
+      picker=document.createElement('div');
+      picker.className='dashboard-card-picker';
+      picker.dataset.dashboardCardPicker='1';
+      picker.hidden=true;
+      intro.append(picker);
+    }
+    return picker;
+  }
+
+  function renderDashboardCardPicker() {
+    const picker=dashboardCardPicker();
+    if(!picker || picker.hidden) return;
+    const items=window.TaejangDashboardPriorityCards?.availableCardItems?.() || [];
+    const existing=new Set(cardOrder());
+    const candidates=items.filter(item=>!existing.has(item.key));
+    const heading=text('strong','카드 추가');
+    const help=text('p','현재 계정에서 실제로 사용할 수 있는 관리 기능만 표시합니다. 추가한 카드는 저장 후에도 유지됩니다.','help');
+    const list=document.createElement('div');
+    list.className='dashboard-card-picker-list';
+    if(!candidates.length) {
+      list.append(text('span','추가할 수 있는 카드가 더 없습니다.','help'));
+    } else {
+      candidates.forEach(item=>{
+        const add=button(`+ ${item.label}`,()=>{
+          window.TaejangDashboardPriorityCards?.addCardByKey?.(item.key);
+          decorateEditableCards();
+          renderDashboardCardPicker();
+        },true);
+        add.dataset.dashboardAddCard=item.key;
+        list.append(add);
+      });
+    }
+    picker.replaceChildren(heading,help,list);
+  }
+
+  function toggleDashboardCardPicker() {
+    const picker=dashboardCardPicker();
+    if(!picker) return;
+    picker.hidden=!picker.hidden;
+    if(!picker.hidden) renderDashboardCardPicker();
   }
 
   function dashboardEditorActions() {
@@ -326,9 +400,13 @@
   async function saveDashboardLayout() {
     try {
       const order=cardOrder();
-      await savePersonal({dashboardOrder:order});
+      const savedOrder=currentRole()==='operations_manager'
+        ? [DASHBOARD_CUSTOM_SENTINEL,...order]
+        : order;
+      await savePersonal({dashboardOrder:savedOrder});
       state.editingDashboard=false;
       clearEditableCards();
+      window.TaejangDashboardPriorityCards?.sync?.();
       injectDashboardEditor();
     } catch(error) {
       window.alert(app()?.friendlyError?.(error) || '대시보드 순서를 저장하지 못했습니다.');
@@ -336,19 +414,9 @@
   }
 
   function cancelDashboardLayout() {
-    const grid=dashboardGrid();
-    if(grid) {
-      const rank=new Map(state.dashboardSnapshot.map((key,index)=>[key,index]));
-      const children=[...grid.children];
-      children.sort((a,b)=>{
-        const ai=rank.has(dashboardCardKey(a))?rank.get(dashboardCardKey(a)):9000;
-        const bi=rank.has(dashboardCardKey(b))?rank.get(dashboardCardKey(b)):9000;
-        return ai-bi;
-      }).forEach(node=>grid.append(node));
-    }
     state.editingDashboard=false;
     clearEditableCards();
-    injectDashboardEditor();
+    document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));
   }
 
   async function resetDashboardLayout() {
@@ -380,6 +448,7 @@
     applyDashboardOrder();
     wrap.replaceChildren();
     if(state.editingDashboard) {
+      if(currentRole()==='operations_manager') wrap.append(button('+ 카드 추가',toggleDashboardCardPicker,true));
       wrap.append(
         button('저장',saveDashboardLayout),
         button('취소',cancelDashboardLayout,true),
@@ -624,7 +693,7 @@
       const personal=document.createElement('section'); personal.className='platform-settings-card';
       personal.append(
         text('h3','내 화면 옵션'),
-        text('p','사이드바의 “메뉴 편집”과 대시보드의 “대시보드 편집”에서 현재 화면을 보며 순서만 바꿀 수 있습니다. 메뉴 표시 설정은 아래 직책·역할별 관리에만 사용합니다.','help')
+        text('p','사이드바의 “메뉴 편집”에서 메뉴 순서를 바꿀 수 있고, 운영총괄은 “대시보드 편집”에서 카드 추가·제거·순서 변경을 할 수 있습니다. 메뉴 표시 설정은 아래 직책·역할별 관리에만 사용합니다.','help')
       );
       shell.append(personal);
 
@@ -706,11 +775,13 @@
       const result=await app().rpc('get_my_ui_preferences',{p_role_code:role});
       state.collapsedSections=new Set(cleanArray(result?.collapsed_sections));
       state.dashboardOrder=dashboardOrder(result?.dashboard_order);
+      state.dashboardCustomized=dashboardCustomized(result?.dashboard_order);
       state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
       state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
     } catch {
       state.collapsedSections=new Set();
       state.dashboardOrder=[];
+      state.dashboardCustomized=false;
       state.sidebarSectionOrder=[];
       state.sidebarMenuOrder=[];
     }
@@ -761,6 +832,8 @@
     refresh,
     renderSettings,
     getDashboardOrder:()=>state.dashboardOrder.slice(),
+    isDashboardCustomized:()=>state.dashboardCustomized,
+    normalizeDashboardKey,
     getSidebarPreference:()=>sidebarPreference(),
     isDashboardEditing:()=>state.editingDashboard,
     applyRoleVisibility,
