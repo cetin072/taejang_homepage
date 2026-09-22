@@ -184,7 +184,19 @@
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 
-  FEATURE_MODULES.forEach(([source, key]) => {
-    void loadScriptOnce(source, key).then(showAggregateFailure);
-  });
+  let branchesStarted = false;
+
+  function startFeatureBranches() {
+    if (branchesStarted) return;
+    branchesStarted = true;
+    FEATURE_MODULES.forEach(([source, key]) => {
+      void loadScriptOnce(source, key).then(showAggregateFailure);
+    });
+  }
+
+  // Branch code must not execute until Auth + v2 access context have settled and
+  // the authenticated Core has published its first usable state. This also
+  // prevents Branch self-start hooks from observing a legacy/partial persona.
+  if (window.TaejangAppLifecycle?.isReady?.()) startFeatureBranches();
+  else document.addEventListener('taejang-app-ready', startFeatureBranches, { once: true });
 })();
