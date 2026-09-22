@@ -124,7 +124,7 @@ test('attendance location distinguishes unavailable and timeout browser failures
 });
 
 test('attendance clients distinguish location, server, duplicate, and in-flight states without changing server contracts', () => {
-  for (const file of ['app/assets/worker-mobile-v1.js', 'app/assets/employee-common-home-v1.js']) {
+  for (const file of ['app/assets/employee-common-home-v1.js']) {
     const client = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     assert.match(client, /attendanceInFlight\[eventType\]/);
     assert.match(client, /getBestPosition/);
@@ -141,10 +141,13 @@ test('attendance clients distinguish location, server, duplicate, and in-flight 
   assert.match(source, /enableHighAccuracy: true/);
   assert.match(source, /if \(best && reason\?\.code !== 1\) return finish\(best\)/);
   assert.doesNotMatch(source, /sampleTimer = setTimeout\(\(\) => finish\(best/);
+  const registry = fs.readFileSync(path.join(__dirname, '..', 'app/assets/app-ui.js'), 'utf8');
+  assert.doesNotMatch(registry, /worker-mobile-v1\.js/);
+  assert.match(registry, /employee-common-home-v1\.js/);
 });
 
 test('attendance exception retry count only tracks real location failures', () => {
-  for (const file of ['app/assets/worker-mobile-v1.js', 'app/assets/employee-common-home-v1.js']) {
+  for (const file of ['app/assets/employee-common-home-v1.js']) {
     const client = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
     assert.match(client, /result\?\.code !== 'LOCATION_UNCERTAIN'\) attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
     assert.match(client, /if \(stage === 'server'\) \{[\s\S]*attempts\[eventType\] = Math\.max\(0, attempts\[eventType\] - 1\)/);
