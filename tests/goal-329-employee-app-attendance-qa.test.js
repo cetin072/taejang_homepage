@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 const migration = read('supabase/migrations/20260922010000_goal_329_employee_app_attendance_qa.sql');
+const anytimeQa = read('supabase/migrations/20260922013000_goal_329_anytime_attendance_qa.sql');
 const registry = read('mobile/src/features/common/employee-feature-registry.ts');
 const home = read('mobile/app/index.tsx');
 const api = read('mobile/src/features/attendance/attendance-api.ts');
@@ -45,10 +46,12 @@ test('Goal 329 operations QA uses a dedicated capability and a no-write server v
   assert.match(qa, /coalesce\(p_has_qa_clock_in, false\),\s*true/);
   assert.match(qa, /'writes_attendance', false/);
   assert.doesNotMatch(qa, /\binsert\s+into\b|\bupdate\s+public\.|\bdelete\s+from\b/i);
+  const anytimeQaRpc = functionBlock(anytimeQa, 'qa_validate_attendance_event');
+  assert.match(anytimeQaRpc, /coalesce\(p_has_qa_clock_in, false\),\s*true/);
 });
 
 test('Goal 329 real attendance and QA share the same validation helper while only real attendance delegates to the writer', () => {
-  const validation = functionBlock(migration, 'private_validate_attendance_attempt', 'record_attendance_event');
+  const validation = functionBlock(anytimeQa, 'private_validate_attendance_attempt', 'record_attendance_event');
   assert.match(validation, /private_attendance_is_workday/);
   assert.match(validation, /private_attendance_distance_m/);
   assert.match(validation, /LOCATION_UNCERTAIN/);
@@ -57,7 +60,7 @@ test('Goal 329 real attendance and QA share the same validation helper while onl
   assert.match(validation, /p_allow_non_workday/);
   assert.match(validation, /'is_workday', public\.private_attendance_is_workday\(work_day\)/);
 
-  const real = functionBlock(migration, 'record_attendance_event', 'qa_validate_attendance_event');
+  const real = functionBlock(anytimeQa, 'record_attendance_event', 'qa_validate_attendance_event');
   assert.match(real, /private_attendance_employee_uuid_for_profile/);
   assert.match(real, /private_validate_attendance_attempt/);
   assert.match(real, /private_record_attendance_event_pre149/);
