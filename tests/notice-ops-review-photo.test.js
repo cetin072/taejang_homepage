@@ -37,6 +37,7 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.match(media, /MAX_FILE_BYTES = 8 \* 1024 \* 1024/);
   assert.match(media, /image\/jpeg/);
   assert.match(media, /x-upsert': 'false'/);
+  assert.doesNotMatch(media, /'Cache-Control': '3600'/);
   assert.match(media, /signedUrl/);
   assert.match(media, /dialog\.showModal\(\)/);
   assert.match(worker, /renderGallery/);
