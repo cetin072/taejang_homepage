@@ -125,6 +125,7 @@
   }
 
   function showEmployeeHome() {
+    injectStyles();
     const home = buildHome();
     const shell = document.getElementById('desktop-app-shell');
     if (!home || !shell) return;
