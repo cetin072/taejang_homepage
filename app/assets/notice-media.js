@@ -158,7 +158,11 @@
     });
     const raw = payload?.signedURL || payload?.signedUrl;
     if (!raw) throw new Error('NOTICE_MEDIA_SIGN_FAILED');
-    return /^https?:\/\//i.test(raw) ? raw : `${config.url}${raw.startsWith('/') ? '' : '/'}${raw}`;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    const normalized = raw.startsWith('/') ? raw : `/${raw}`;
+    return normalized.startsWith('/storage/v1/')
+      ? `${config.url}${normalized}`
+      : `${config.url}/storage/v1${normalized}`;
   }
 
   async function resolve(items) {
