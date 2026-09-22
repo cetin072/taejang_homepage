@@ -45,7 +45,7 @@ test('promotion lead gets direct recoverable delete without duplicate sidebar or
   assert.match(master, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
   assert.match(master, /'기존 글 관리', '홍보글 관리·복구'/);
   assert.match(master, /'홈페이지 내용 관리'/);
-  assert.doesNotMatch(master, /공지 관리/);
+  assert.match(master, /공지 관리/);
   assert.doesNotMatch(nav, /promotion_lead:\s*\[/);
   assert.match(workflow, /PROMOTION_UNPUBLISHED_ARCHIVE_REQUIRES_NO_PUBLIC_HISTORY/);
 });
