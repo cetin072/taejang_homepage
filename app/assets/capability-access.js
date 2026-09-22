@@ -49,12 +49,6 @@
     });
   }
 
-  function isMissingV2(error) {
-    const message = String(error?.message || '');
-    return error?.status === 404
-      || /get_my_access_context_v2|PGRST202|function.*does not exist/i.test(message);
-  }
-
   function ensureUiGates() {
     if (window.TaejangCapabilityUiGates) return Promise.resolve();
     if (uiGatesPromise) return uiGatesPromise;
@@ -85,10 +79,6 @@
       const app = window.TaejangApp;
       if (!app?.rpc) return null;
 
-      // Install a safe legacy contract immediately. Migrated feature modules must
-      // use their old role/route guard while hasCapabilityContract() is false.
-      installApi(app.getContext?.(), 1);
-
       try {
         const context = await app.rpc('get_my_access_context_v2');
         if (!context || Number(context.access_contract_version) < 2) throw new Error('INVALID_CAPABILITY_CONTEXT');
@@ -106,14 +96,13 @@
         }));
         return context;
       } catch (error) {
-        if (!isMissingV2(error)) {
-          console.warn('Capability context unavailable; keeping legacy route guards for this session.', error);
-        }
-        installApi(app.getContext?.(), 1);
+        // Access presentation must not silently regress to copied role checks
+        // when the v2 server contract is unavailable. RPC/RLS remain final.
+        installApi(null, 0);
         document.dispatchEvent(new CustomEvent('taejang-capabilities-ready', {
-          detail: { version: 1, capabilities: [], fallback: true },
+          detail: { version: 0, capabilities: [], error: true },
         }));
-        return app.getContext?.() || null;
+        throw error;
       } finally {
         refreshPromise = null;
       }
