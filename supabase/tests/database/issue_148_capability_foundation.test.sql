@@ -90,12 +90,14 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
-    ilike '%not employee_row.attendance_required%'
-  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
-    ilike '%profile_roles%'
-  and pg_get_functiondef('public.private_create_attendance_correction_pre148(uuid,date,text,text,timestamptz,text)'::regprocedure)
-    ilike '%operations_manager%',
-  'actual attendance eligibility remains separate from capability visibility and uses employee/account policy'
+    ilike '%private_employee_is_attendance_subject%'
+  and pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
+    ilike '%attendance_required%'
+  and pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
+    not ilike '%operations_manager%'
+  and pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
+    not ilike '%profile_roles%',
+  'actual attendance eligibility remains separate from capability visibility and follows Employee.attendance_required'
 );
 
 select * from finish();
