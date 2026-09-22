@@ -39,8 +39,9 @@
     '직원관리 요청':'employee.change-requests',
     '팀 직원 관리':'employee.team',
     '홈페이지 수정 승인':'homepage.change-approval',
-    '오늘 출근부':'attendance.today',
-    '지원사업 레이더':'support.radar'
+    '오늘 출근부':'attendance.view',
+    '지원사업 레이더':'support.radar',
+    '공지 관리':'notice.manage'
   });
 
   function featureUnavailable(key, label) {
@@ -218,6 +219,11 @@
         label: '업무 배정',
         run: () => openPanel('today-admin-panel'),
         capabilities: ['task.manage']
+      },
+      {
+        label: '공지 관리',
+        run: () => openPanel('notice-admin-panel'),
+        capabilities: ['notice.manage']
       },
       {
         label: '근태·급여관리',
