@@ -452,7 +452,7 @@
       const linkLabel = ui.element('notice-link-label').value.trim();
       const importance = ui.element('notice-importance').value;
       const requiresAcknowledgement = ui.element('notice-requires-ack').checked;
-      const reason = ui.element('notice-reason').value.trim();
+      const reason = ui.element('notice-reason').value.trim() || '공지 작성·수정';
       if (Boolean(linkUrl) !== Boolean(linkLabel)) throw new Error('LINK_PAIR_REQUIRED');
       if (linkUrl && !ui.safeHttpsUrl(linkUrl)) throw new Error('INVALID_HTTPS_LINK');
       if (requiresAcknowledgement && importance === 'normal') throw new Error('IMPORTANT_ACK_ONLY');
