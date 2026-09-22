@@ -31,6 +31,7 @@ type AccessContext = {
   capabilities?: string[];
   actual_roles?: AccessRole[];
   effective_roles?: AccessRole[];
+  work_platform_available?: boolean;
 };
 
 function messageOf(error: unknown, fallback: string) {
@@ -226,6 +227,7 @@ export default function HomeScreen() {
       }
       setAccess(data as AccessContext);
     } catch (nextError) {
+      setAccess(null);
       setAccessError(messageOf(nextError, '계정 상태를 확인하지 못했습니다.'));
     } finally {
       setAccessLoading(false);

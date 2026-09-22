@@ -11,7 +11,13 @@ test('employee app refreshes capability access whenever the app returns active',
   assert.match(home, /return \(\) => subscription\.remove\(\)/);
 });
 
-test('work platform remains capability-driven and never grants access from role labels alone', () => {
-  assert.match(registry, /const workPlatformEnabled = active && hasAny\(capabilities, WORK_PLATFORM_CAPABILITIES\)/);
+test('work platform availability is consumed from the server-declared access context', () => {
+  assert.match(registry, /work_platform_available\?: boolean/);
+  assert.match(registry, /const workPlatformEnabled = active && access\?\.work_platform_available === true/);
+  assert.doesNotMatch(registry, /WORK_PLATFORM_CAPABILITIES|function hasAny/);
   assert.doesNotMatch(registry, /operations_manager.*workPlatformEnabled|super_admin.*workPlatformEnabled/);
+});
+
+test('failed access refresh clears prior presentation access instead of trusting it', () => {
+  assert.match(home, /catch \(nextError\) \{\s*setAccess\(null\);\s*setAccessError/s);
 });
