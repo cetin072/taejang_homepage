@@ -15,25 +15,26 @@
   const PRIORITY_CARD_KEYS = Object.freeze({
     '근태·급여관리':'payroll.manage',
     '가입 승인':'account.approval',
-    '신입 가입 승인':'account.signup-requests',
-    '직원관리 요청':'employee.change-requests',
-    '팀 직원 관리':'employee.team',
-    '중요 홍보 승인':'promotion.operations.review',
-    '홍보 검토 대기':'promotion.review.pending',
+    '신입 가입 승인':'account.approval',
+    '직원관리 요청':'employee.manage',
+    '팀 직원 관리':'employee.manage',
+    '중요 홍보 승인':'promotion.review',
+    '홍보 검토 대기':'promotion.review',
     '홍보자료 작성':'promotion.write',
     '보완 요청받은 글':'promotion.revision',
-    '홍보 상신 검토':'promotion.ceo.review',
-    '홈페이지 수정 승인':'homepage.change-approval',
-    '오늘 출근부':'attendance.today',
-    '지원사업 레이더':'support.radar'
+    '홍보 상신 검토':'promotion.review',
+    '홈페이지 수정 승인':'homepage.content',
+    '오늘 출근부':'attendance.view',
+    '지원사업 레이더':'support.radar',
+    '공지 관리':'notice.manage'
   });
   const DEFAULT_CARD_KEY_ORDER = Object.freeze({
-    operations_manager: ['payroll.manage','account.signup-requests','employee.change-requests','promotion.operations.review','homepage.change-approval','support.radar'],
-    promotion_lead: ['employee.team','promotion.review.pending','promotion.write','attendance.today','support.radar'],
-    department_lead: ['employee.team','attendance.today'],
-    field_lead: ['attendance.today'],
-    ceo: ['promotion.ceo.review'],
-    super_admin: ['account.approval','account.signup-requests'],
+    operations_manager: ['payroll.manage','account.approval','employee.manage','promotion.review','homepage.content','support.radar'],
+    promotion_lead: ['employee.manage','promotion.review','promotion.write','attendance.view','support.radar'],
+    department_lead: ['employee.manage','attendance.view'],
+    field_lead: ['attendance.view'],
+    ceo: ['promotion.review'],
+    super_admin: ['account.approval'],
     promotion_staff: ['promotion.revision','promotion.write']
   });
   let rendering = false;
@@ -66,16 +67,76 @@
   }
 
   function titleOf(node) { return node.querySelector('h3')?.textContent?.trim() || ''; }
+  function normalizeCardKey(value) {
+    return window.TaejangPlatformUiSettings?.normalizeDashboardKey?.(value) || value || '';
+  }
   function cardKey(node) {
     const title = node.dataset?.priorityDashboardCard || titleOf(node);
-    const key = node.dataset?.dashboardCardKey
+    const raw = node.dataset?.dashboardCardKey
       || (node.dataset?.supportRadarShortcut ? 'support.radar' : null)
-      || (node.dataset?.attendanceCard ? 'attendance.today' : null)
-      || (node.dataset?.phaseCAccountApprovalCard ? 'account.signup-requests' : null)
+      || (node.dataset?.attendanceCard ? 'attendance.view' : null)
+      || (node.dataset?.phaseCAccountApprovalCard ? 'account.approval' : null)
       || PRIORITY_CARD_KEYS[title]
       || title;
+    const key = normalizeCardKey(raw);
     if (key) node.dataset.dashboardCardKey = key;
     return key || '';
+  }
+
+  function navigationNodeForKey(key) {
+    return [...document.querySelectorAll('#app-nav [data-menu-key]')]
+      .find(node => node.dataset.menuKey === key) || null;
+  }
+
+  function availableCardItems() {
+    const registry = window.TaejangPlatformNavigationRegistry;
+    if (!registry?.items) return [];
+    return registry.items()
+      .filter(item => !item.public && item.section && item.key !== 'dashboard' && item.key !== 'platform.settings')
+      .filter(item => {
+        const capabilities = Array.isArray(item.capabilities) ? item.capabilities : [];
+        if (app()?.hasCapabilityContract?.() && capabilities.length && !capabilities.some(capability => app().can?.(capability))) return false;
+        const node = navigationNodeForKey(item.key);
+        return Boolean(node && node.dataset?.capabilityDenied !== '1' && node.dataset?.roleHidden !== '1' && node.dataset?.navSuppressed !== '1');
+      });
+  }
+
+  function openNavigationKey(key) {
+    const node = navigationNodeForKey(key);
+    if (!node) return;
+    if (node.tagName === 'A') {
+      if (node.target === '_blank') window.open(node.href, '_blank', 'noopener,noreferrer');
+      else window.location.href = node.href;
+      return;
+    }
+    node.click();
+  }
+
+  function shortcutCard(item) {
+    const node = card(
+      item.label,
+      `${item.label} 기능을 대시보드에서 바로 엽니다.`,
+      undefined,
+      { label: `${item.label} 열기`, run: () => openNavigationKey(item.key) }
+    );
+    node.dataset.dashboardCardKey = item.key;
+    node.dataset.dashboardShortcutCard = '1';
+    const status = node.querySelector('.status-label');
+    if (status) status.textContent = '바로가기';
+    return node;
+  }
+
+  function addCardByKey(key, targetGrid = null) {
+    const grid = targetGrid || main()?.querySelector('.dashboard-grid');
+    if (!grid) return null;
+    const normalized = normalizeCardKey(key);
+    const existing = [...grid.children].find(node => cardKey(node) === normalized);
+    if (existing) return existing;
+    const item = availableCardItems().find(candidate => candidate.key === normalized);
+    if (!item) return null;
+    const node = shortcutCard(item);
+    grid.append(node);
+    return node;
   }
 
   function mergeSavedOrder(saved, master) {
@@ -99,8 +160,13 @@
 
   function removeLowPriorityOperationsCards(currentRoute, grid) {
     if (currentRoute !== 'operations_manager') return;
+    const settings = window.TaejangPlatformUiSettings;
+    const customized = Boolean(settings?.isDashboardCustomized?.());
+    const selected = new Set(settings?.getDashboardOrder?.() || []);
     [...grid.children].forEach(node => {
-      if (OPERATIONS_DASHBOARD_HIDDEN.has(titleOf(node))) node.remove();
+      if (!OPERATIONS_DASHBOARD_HIDDEN.has(titleOf(node))) return;
+      if (customized && selected.has(cardKey(node))) return;
+      node.remove();
     });
   }
 
@@ -150,13 +216,36 @@
     } catch { /* Optional summary only. */ }
   }
 
+  function syncCustomizedOperationsCards(currentRoute, grid) {
+    const settings = window.TaejangPlatformUiSettings;
+    if (currentRoute !== 'operations_manager' || !settings?.isDashboardCustomized?.()) return;
+    const selected = [...new Set((settings.getDashboardOrder?.() || []).map(normalizeCardKey))];
+    const seen = new Set();
+    [...grid.children].forEach(node => {
+      const key = cardKey(node);
+      if (!selected.includes(key) || seen.has(key)) {
+        node.remove();
+        return;
+      }
+      seen.add(key);
+    });
+    selected.forEach(key => {
+      if (!seen.has(key)) {
+        const node = addCardByKey(key, grid);
+        if (node) seen.add(key);
+      }
+    });
+  }
+
   function reorderCards(currentRoute, grid) {
     if (grid.dataset.layoutEditing === '1' || window.TaejangPlatformUiSettings?.isDashboardEditing?.()) return;
-    const personal = window.TaejangPlatformUiSettings?.getDashboardOrder?.() || [];
+    const settings = window.TaejangPlatformUiSettings;
+    const personal = settings?.getDashboardOrder?.() || [];
     const children = [...grid.children];
     const visibleKeys = children.map(cardKey);
     const master = defaultCardKeyOrder(currentRoute, visibleKeys);
-    const order = personal.length ? mergeSavedOrder(personal, master) : master;
+    const customized = currentRoute === 'operations_manager' && Boolean(settings?.isDashboardCustomized?.());
+    const order = customized ? personal : (personal.length ? mergeSavedOrder(personal, master) : master);
     const desired = [...children].sort((a, b) => {
       const ai = order.indexOf(cardKey(a));
       const bi = order.indexOf(cardKey(b));
@@ -187,6 +276,7 @@
       await addHomepageApprovalCard(currentRoute, grid);
       if (grid.isConnected) {
         removeLowPriorityOperationsCards(currentRoute, grid);
+        syncCustomizedOperationsCards(currentRoute, grid);
         reorderCards(currentRoute, grid);
       }
     } finally { rendering = false; }
@@ -212,5 +302,13 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangDashboardPriorityCards = { sync, CARD_ORDER, DEFAULT_CARD_KEY_ORDER, defaultCardKeyOrder, OPERATIONS_DASHBOARD_HIDDEN };
+  window.TaejangDashboardPriorityCards = {
+    sync,
+    CARD_ORDER,
+    DEFAULT_CARD_KEY_ORDER,
+    defaultCardKeyOrder,
+    OPERATIONS_DASHBOARD_HIDDEN,
+    availableCardItems,
+    addCardByKey
+  };
 })();
