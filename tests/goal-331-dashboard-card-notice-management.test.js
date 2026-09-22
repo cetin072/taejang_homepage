@@ -17,10 +17,12 @@ const noticeAdmin = read('app/assets/notice-admin.js');
 const workspace = read('app/assets/app-workspace-surface.js');
 const css = read('app/assets/dashboard-shell.css');
 
-test('Goal 331 restores notice management as a canonical capability-gated menu', () => {
+test('Goal 331 exposes separate canonical notice create and management menus', () => {
+  assert.match(registry, /key:'notice\.create', label:'공지 등록', section:'업무 운영', capabilities:\['notice\.manage'\]/);
   assert.match(registry, /key:'notice\.manage', label:'공지 관리', section:'업무 운영', capabilities:\['notice\.manage'\]/);
-  assert.match(shell, /label: '공지 관리'[\s\S]*openPanel\('notice-admin-panel'\)[\s\S]*notice\.manage/);
-  assert.match(nav, /items: \['업무 배정', '공지 관리'\]/);
+  assert.match(shell, /label: '공지 등록'[\s\S]*openPanel\('notice-admin-panel', 'create'\)[\s\S]*notice\.manage/);
+  assert.match(shell, /label: '공지 관리'[\s\S]*openPanel\('notice-admin-panel', 'manage'\)[\s\S]*notice\.manage/);
+  assert.match(nav, /items: \['업무 배정', '공지 등록', '공지 관리'\]/);
   const retired = nav.slice(nav.indexOf('const RETIRED_NAVIGATION'), nav.indexOf('const LABEL_RENAMES'));
   assert.doesNotMatch(retired, /'공지 관리'/);
   assert.match(workspace, /'notice-admin-panel': '공지 관리'/);
