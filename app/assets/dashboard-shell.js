@@ -41,6 +41,7 @@
     '홈페이지 수정 승인':'homepage.change-approval',
     '오늘 출근부':'attendance.view',
     '지원사업 레이더':'support.radar',
+    '공지 등록':'notice.create',
     '공지 관리':'notice.manage'
   });
 
