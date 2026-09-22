@@ -29,7 +29,7 @@ test('Goal 331 restores notice management as a canonical capability-gated menu',
 test('Goal 331 reuses the existing notice editor for create, update and preview', () => {
   assert.match(noticeAdmin, /list_manageable_notices/);
   assert.match(noticeAdmin, /save_notice/);
-  assert.match(noticeAdmin, /button\('공지 수정'/);
+  assert.match(noticeAdmin, /const editLabel = [^\n]*'공지 수정'/);
   assert.match(noticeAdmin, /button\('미리보기'/);
   assert.match(noticeAdmin, /function renderPreview\(\)/);
   assert.match(noticeAdmin, /reset-notice-form/);
