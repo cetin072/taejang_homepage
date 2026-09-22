@@ -30,12 +30,13 @@
       getRoute: () => 'general_worker',
       getContext: () => ({
         display_name: '일반직원 QA',
-        role_simulation: { can_switch: true, active: true, role_code: 'general_worker' }
+        role_simulation: { can_switch: true, active: false, role_code: null }
       }),
       friendlyError: error => error?.message || '오류',
       rpc: async (name) => {
         if (name === 'get_my_attendance_today') {
           return {
+            attendance_required: true,
             is_workday: true,
             clock_in: state.clockIn,
             clock_out: null
@@ -72,7 +73,6 @@
       }
     };
   </script>
-  <script src="../../app/assets/worker-mobile-v1.js"></script>
   <script src="../../app/assets/employee-common-home-v1.js"></script>
   <script src="../../app/assets/role-screen-polish.js"></script>
   <script>
@@ -89,11 +89,14 @@
         }));
         await wait(260);
 
-        const home = document.getElementById('worker-mobile-home');
-        assert(home, '일반직원 홈이 생성되지 않음');
-        assert(document.body.classList.contains('general-worker-mode'), '일반직원 전용 화면 모드 누락');
-        assert(document.getElementById('general-worker-board').classList.contains('worker-v1-hidden'), '구형 일반직원 화면이 숨겨지지 않음');
-        assert(home.hidden === false, '일반직원 홈이 숨김 상태임');
+        const home = document.getElementById('employee-common-home');
+        assert(home, '공통 일반직원 홈이 생성되지 않음');
+        assert(document.body.classList.contains('employee-home-mode'), '공통 직원 홈 화면 모드 누락');
+        assert(!document.body.classList.contains('general-worker-mode'), '구형 일반직원 화면 모드가 다시 활성화됨');
+        assert(document.getElementById('general-worker-board').hidden === true, '구형 일반직원 보드가 숨겨지지 않음');
+        assert(document.getElementById('general-worker-board').classList.contains('worker-v1-hidden'), '구형 일반직원 보드 복구 가드 누락');
+        assert(home.hidden === false, '공통 일반직원 홈이 숨김 상태임');
+        assert(!document.getElementById('worker-mobile-home'), '삭제된 worker-mobile 홈이 다시 생성됨');
         assert(home.textContent.includes('일반직원 QA님, 안녕하세요'), '일반직원 인사말 누락');
         assert(home.textContent.includes('오늘 출퇴근'), '출퇴근 카드 누락');
         assert(home.textContent.includes('꼭 확인하세요'), '공지 카드 누락');
@@ -101,7 +104,7 @@
         assert(home.textContent.includes('중요공지'), '중요 공지 표시 누락');
 
         const homeStyle = getComputedStyle(home);
-        const card = home.querySelector('.worker-card');
+        const card = home.querySelector('.employee-card');
         const cardStyle = getComputedStyle(card);
         assert(homeStyle.display === 'grid', `일반직원 홈 레이아웃 CSS 미적용: ${homeStyle.display}`);
         assert(parseFloat(cardStyle.borderRadius) >= 16, `일반직원 카드 디자인 미적용: ${cardStyle.borderRadius}`);
@@ -114,9 +117,6 @@
         const roleButton = [...simulationCard.querySelectorAll('button')].find(button => button.textContent.trim() === '일반직원');
         assert(roleButton, '일반직원 역할 체험 버튼 누락');
         assert(parseFloat(getComputedStyle(roleButton).borderRadius) >= 10, '역할 체험 버튼이 브라우저 기본 디자인으로 노출됨');
-
-        const employeeHome = document.getElementById('employee-common-home');
-        assert(!employeeHome || employeeHome.hidden, '일반직원 화면에서 공통 직원 홈이 중복 노출됨');
 
         const clockIn = buttonByText('출근했습니다');
         assert(clockIn, '출근 버튼 누락');
