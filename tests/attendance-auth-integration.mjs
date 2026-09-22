@@ -172,20 +172,43 @@ const noAttendanceRecord = await rpc('record_attendance_event', noAttendance.tok
 equal(noAttendanceRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false account cannot record attendance even with valid GPS');
 
 const executive = await createLinkedEmployee({
-  email: 'attendance-executive@example.test', name: '근태 제외 운영총괄', role: 'operations_manager', attendanceRequired: true, positionCode: 'operations_manager',
+  email: 'attendance-executive@example.test', name: '근태 대상 운영총괄', role: 'operations_manager', attendanceRequired: true, positionCode: 'operations_manager',
 });
 const executiveToday = await rpc('get_my_attendance_today', executive.token, {});
-equal(executiveToday.data?.attendance_required, false, 'operations manager is excluded from personal attendance even when attendance_required is true');
+equal(executiveToday.data?.attendance_required, true, 'operations-manager role does not override Employee.attendance_required=true');
 const executiveRecord = await rpc('record_attendance_event', executive.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(executiveRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'operations manager cannot create personal attendance records');
+equal(executiveRecord.data?.code, 'ATTENDANCE_RECORDED', 'attendance-required operations manager follows the same real attendance writer');
 
 const ceo = await createLinkedEmployee({
-  email: 'attendance-ceo@example.test', name: '근태 제외 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
+  email: 'attendance-ceo@example.test', name: '근태 대상 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
 });
 const ceoToday = await rpc('get_my_attendance_today', ceo.token, {});
-equal(ceoToday.data?.attendance_required, false, 'CEO is excluded from personal attendance even when attendance_required is true');
+equal(ceoToday.data?.attendance_required, true, 'CEO role does not override Employee.attendance_required=true');
+
+const qaExecutive = await createLinkedEmployee({
+  email: 'attendance-qa-executive@example.test', name: '근태 QA 운영총괄', role: 'operations_manager', attendanceRequired: false, positionCode: 'operations_manager',
+});
+const qaBefore = sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`);
+const qaClockIn = await rpc('qa_validate_attendance_event', qaExecutive.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(qaClockIn.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can run no-write clock-in QA even when attendance_required=false');
+equal(qaClockIn.data?.writes_attendance, false, 'attendance QA explicitly reports that it does not write attendance');
+const qaClockOut = await rpc('qa_validate_attendance_event', qaExecutive.token, {
+  p_event_type: 'clock_out',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: true,
+});
+equal(qaClockOut.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can continue the no-write QA flow through clock-out');
+equal(sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`), qaBefore, 'operations attendance QA creates zero raw attendance rows');
 
 const worker = await createLinkedEmployee({
   email: 'attendance-worker@example.test', name: '근태 대상 직원', role: 'general_worker', attendanceRequired: true,
