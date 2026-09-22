@@ -311,9 +311,19 @@ const executiveCorrection = await rpc('create_attendance_correction', admin.toke
   p_event_type: 'clock_in',
   p_action: 'set_time',
   p_corrected_event_at: safeEffectiveTime,
-  p_reason: '임원 근태 제외 정책 검증',
+  p_reason: '근태 대상 운영총괄 보정 검증',
 });
-equal(executiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'excluded operations manager cannot receive manual attendance corrections');
+equal(executiveCorrection.data?.code, 'ATTENDANCE_CORRECTED', 'attendance-required operations manager can receive manual attendance corrections');
+
+const excludedExecutiveCorrection = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: qaExecutive.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: safeEffectiveTime,
+  p_reason: '근태 제외 운영총괄 보정 차단 검증',
+});
+equal(excludedExecutiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false operations manager cannot receive manual attendance corrections');
 
 const unlinkedEmployee = await rpc('create_employee', admin.token, {
   p_full_name: '계정 미연결 근태 대상', p_hired_on: '2026-09-08',
