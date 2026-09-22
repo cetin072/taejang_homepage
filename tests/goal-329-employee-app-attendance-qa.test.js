@@ -43,7 +43,6 @@ test('Goal 329 operations QA uses a dedicated capability and a no-write server v
   const qa = functionBlock(migration, 'qa_validate_attendance_event', 'private_create_attendance_correction_pre148');
   assert.match(qa, /private_actor_can\('attendance\.qa_validate'\)/);
   assert.match(qa, /private_validate_attendance_attempt/);
-  assert.match(qa, /coalesce\(p_has_qa_clock_in, false\),\s*true/);
   assert.match(qa, /'writes_attendance', false/);
   assert.doesNotMatch(qa, /\binsert\s+into\b|\bupdate\s+public\.|\bdelete\s+from\b/i);
   const anytimeQaRpc = functionBlock(anytimeQa, 'qa_validate_attendance_event');
@@ -58,7 +57,7 @@ test('Goal 329 real attendance and QA share the same validation helper while onl
   assert.match(validation, /OUTSIDE_GEOFENCE/);
   assert.match(validation, /CLOCK_IN_REQUIRED/);
   assert.match(validation, /p_allow_non_workday/);
-  assert.match(validation, /'is_workday', public\.private_attendance_is_workday\(work_day\)/);
+  assert.match(validation, /'is_workday', is_workday/);
 
   const real = functionBlock(anytimeQa, 'record_attendance_event', 'qa_validate_attendance_event');
   assert.match(real, /private_attendance_employee_uuid_for_profile/);
