@@ -87,7 +87,7 @@ export function AttendanceCard({
     failureCode: ExceptionFailureCode,
     position: AttendancePosition | null,
   ) {
-    if (mode === 'qa' || attempts.current[eventType] < 2) return;
+    if ((mode === 'qa' && today?.attendance_required === false) || attempts.current[eventType] < 2) return;
     setExceptionTarget({ eventType, failureCode, position });
   }
 
@@ -102,13 +102,15 @@ export function AttendanceCard({
       const latest = await loadMyAttendanceToday(client);
       setToday(latest);
 
-      if (mode === 'record' && latest.attendance_required === false) {
+      const qaAttempt = mode === 'qa' && latest.attendance_required === false;
+
+      if (!qaAttempt && latest.attendance_required === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show('근태 기록 제외 대상입니다.', true);
         return;
       }
 
-      if (mode === 'record' && latest.is_workday === false) {
+      if (!qaAttempt && latest.is_workday === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
         return;
@@ -122,18 +124,18 @@ export function AttendanceCard({
         },
       });
 
-      show(mode === 'qa'
+      show(qaAttempt
         ? '검수 서버에서 GPS·근무일·출입 위치를 확인하고 있습니다.'
         : '출퇴근 기록을 확인하고 있습니다.');
 
-      const result = mode === 'qa'
+      const result = qaAttempt
         ? await validateAttendanceQa(client, eventType, position, Boolean(qaClockInAt))
         : await recordAttendanceEvent(client, eventType, position);
 
-      if (result.ok || (mode === 'record' && ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || ''))) {
+      if (result.ok || (!qaAttempt && ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || ''))) {
         attempts.current[eventType] = 0;
 
-        if (mode === 'qa') {
+        if (qaAttempt) {
           if (result.writes_attendance !== false) {
             throw new Error('QA_WRITE_GUARD_FAILED');
           }
@@ -166,14 +168,14 @@ export function AttendanceCard({
         show('회사 출근 장소 안에서만 출퇴근할 수 있습니다.', true);
       } else if (result.code === 'CLOCK_IN_REQUIRED') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show(mode === 'qa' ? '먼저 검수 출근을 완료해주세요.' : '먼저 출근 처리가 완료되어야 합니다.', true);
+        show(qaAttempt ? '먼저 검수 출근을 완료해주세요.' : '먼저 출근 처리가 완료되어야 합니다.', true);
       } else if (result.code === 'NON_WORKDAY') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
       } else if (result.code === 'ATTENDANCE_NOT_REQUIRED' || result.code === 'FORBIDDEN') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(
-          mode === 'qa'
+          qaAttempt
             ? '현재 계정에는 출퇴근 검수 권한이 없습니다.'
             : '현재 계정으로는 출퇴근을 등록할 수 없습니다.',
           true,
@@ -184,7 +186,7 @@ export function AttendanceCard({
       } else {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(
-          mode === 'qa'
+          qaAttempt
             ? '출퇴근 검수 경로를 확인하지 못했습니다. 네트워크와 서버 상태를 확인해주세요.'
             : '출퇴근 기록을 처리하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.',
           true,
@@ -209,7 +211,7 @@ export function AttendanceCard({
       } else {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(
-          mode === 'qa'
+          (mode === 'qa' && today?.attendance_required === false)
             ? '검수 서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.'
             : '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.',
           true,
@@ -221,7 +223,7 @@ export function AttendanceCard({
   }
 
   async function requestException() {
-    if (mode === 'qa' || !client || !exceptionTarget || busy) return;
+    if (qaMode || !client || !exceptionTarget || busy) return;
     setBusy(exceptionTarget.eventType);
     try {
       const result = await requestAttendanceException(
@@ -244,6 +246,7 @@ export function AttendanceCard({
     }
   }
 
+  const qaMode = mode === 'qa' && today?.attendance_required === false;
   const clockIn = today?.clock_in || null;
   const clockOut = today?.clock_out || null;
   const clockedIn = completed(clockIn);
@@ -254,7 +257,7 @@ export function AttendanceCard({
   let title = '출근했습니다';
   let subtitle = today?.is_workday === false ? '오늘은 휴일입니다' : '회사에서 눌러주세요';
 
-  if (mode === 'qa') {
+  if (qaMode) {
     if (qaClockOutAt) {
       action = null;
       title = '검수 완료';
@@ -290,15 +293,15 @@ export function AttendanceCard({
     if (!action || busy || loading) return;
     if (action === 'clock_out') {
       Alert.alert(
-        mode === 'qa' ? '검수 퇴근 확인' : '퇴근 확인',
-        mode === 'qa'
+        qaMode ? '검수 퇴근 확인' : '퇴근 확인',
+        qaMode
           ? '검수용 퇴근 흐름을 확인합니다. 실제 근태에는 반영되지 않습니다.'
           : '정말 퇴근하시겠습니까?',
         [
           { text: '취소', style: 'cancel' },
           {
-            text: mode === 'qa' ? '검수 계속' : '퇴근했습니다',
-            style: mode === 'qa' ? 'default' : 'destructive',
+            text: qaMode ? '검수 계속' : '퇴근했습니다',
+            style: qaMode ? 'default' : 'destructive',
             onPress: () => void record('clock_out'),
           },
         ],
@@ -320,7 +323,7 @@ export function AttendanceCard({
 
   return (
     <View style={styles.wrap}>
-      {mode === 'qa' ? (
+      {qaMode ? (
         <Text style={styles.qaBadge}>검수 모드 · 실제 근태에 반영되지 않음</Text>
       ) : null}
 
@@ -344,7 +347,7 @@ export function AttendanceCard({
 
       {message ? <Text style={messageError ? styles.error : styles.message}>{message}</Text> : null}
 
-      {mode === 'qa' && qaClockOutAt ? (
+      {qaMode && qaClockOutAt ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="출퇴근 검수 다시 시작"
@@ -356,7 +359,7 @@ export function AttendanceCard({
         </Pressable>
       ) : null}
 
-      {mode === 'record' && exceptionTarget ? (
+      {!qaMode && exceptionTarget ? (
         <Pressable
           accessibilityRole="button"
           disabled={Boolean(busy)}
