@@ -134,10 +134,16 @@ assert.match(activities, /href="archive\.html" aria-current="page">소식·기�
 assert.match(activities, /소식·기록 전체 보기/);
 
 const styles = read('assets/css/styles.css');
+const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,
   /@media \(max-width:1000px\)\{[\s\S]*?\.desktop-nav\{display:none\}[\s\S]*?\.mobile-nav\{display:grid\}[\s\S]*?\.menu-btn\{display:none\}[\s\S]*?\.js-nav-ready \.menu-btn\{display:block\}[\s\S]*?\.js-nav-ready \.mobile-nav\{display:none\}[\s\S]*?\.js-nav-ready \.mobile-nav\.open\{display:grid\}/,
   '모바일에서는 JS가 없어도 정적 메뉴가 보이고, JS가 준비된 뒤에만 접힘 상태를 사용합니다'
+);
+assert.match(
+  mobileLayout,
+  /@media \(max-width: 760px\)[\s\S]*?\.mobile-nav\s*\{[\s\S]*?display:\s*none;[\s\S]*?\.mobile-nav\.open\s*\{[\s\S]*?display:\s*grid;/,
+  '실제 모바일 첫 페인트에서는 메뉴가 닫힌 상태로 시작해 사이드바 깜빡임이 없어야 합니다'
 );
 
 const site = read('assets/js/site.js');
