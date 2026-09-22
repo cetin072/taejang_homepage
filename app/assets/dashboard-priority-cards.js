@@ -97,7 +97,14 @@
         const capabilities = Array.isArray(item.capabilities) ? item.capabilities : [];
         if (app()?.hasCapabilityContract?.() && capabilities.length && !capabilities.some(capability => app().can?.(capability))) return false;
         const node = navigationNodeForKey(item.key);
-        return Boolean(node && node.dataset?.capabilityDenied !== '1' && node.dataset?.roleHidden !== '1' && node.dataset?.navSuppressed !== '1');
+        // The dashboard can render before the sidebar composer finishes its first
+        // pass. Capability is authoritative; when the nav node already exists we
+        // also respect role/display suppression, but a brief missing DOM node must
+        // not erase a saved dashboard selection.
+        if (!node) return true;
+        return node.dataset?.capabilityDenied !== '1'
+          && node.dataset?.roleHidden !== '1'
+          && node.dataset?.navSuppressed !== '1';
       });
   }
 
