@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,6 +31,7 @@ type AccessContext = {
   capabilities?: string[];
   actual_roles?: AccessRole[];
   effective_roles?: AccessRole[];
+  work_platform_available?: boolean;
 };
 
 function messageOf(error: unknown, fallback: string) {
@@ -225,6 +227,7 @@ export default function HomeScreen() {
       }
       setAccess(data as AccessContext);
     } catch (nextError) {
+      setAccess(null);
       setAccessError(messageOf(nextError, '계정 상태를 확인하지 못했습니다.'));
     } finally {
       setAccessLoading(false);
@@ -238,6 +241,11 @@ export default function HomeScreen() {
       return;
     }
     void refreshAccess();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void refreshAccess();
+    });
+    return () => subscription.remove();
   }, [session, refreshAccess]);
 
   const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);

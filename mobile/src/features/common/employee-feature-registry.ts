@@ -10,6 +10,7 @@ export type EmployeeAppAccess = {
   account_status?: string;
   capabilities?: string[];
   actual_roles?: Array<{ code?: string }>;
+  work_platform_available?: boolean;
 };
 
 export type EmployeeAppFeature = {
@@ -19,34 +20,11 @@ export type EmployeeAppFeature = {
   attendanceMode?: AttendanceMode;
 };
 
-const WORK_PLATFORM_CAPABILITIES = new Set([
-  'promotion.write',
-  'promotion.review_lead',
-  'promotion.review_operations',
-  'attendance.admin_view',
-  'employee.view_all',
-  'employee.create',
-  'employee.onboard',
-  'account.view_management',
-  'task.manage',
-  'schedule.manage',
-  'notice.manage',
-  'homepage.draft',
-  'homepage.review',
-]);
-
 export const EMPLOYEE_APP_FEATURE_ORDER: readonly EmployeeAppFeatureKey[] = [
   'attendance.clock',
   'notice.read',
   'work-platform.open',
 ];
-
-function hasAny(capabilities: Set<string>, candidates: Set<string>) {
-  for (const capability of capabilities) {
-    if (candidates.has(capability)) return true;
-  }
-  return false;
-}
 
 export function resolveEmployeeAppFeatures(access: EmployeeAppAccess | null | undefined) {
   const capabilities = new Set(access?.capabilities || []);
@@ -68,7 +46,7 @@ export function resolveEmployeeAppFeatures(access: EmployeeAppAccess | null | un
     reason: active ? undefined : '활성 직원 계정에서 사용할 수 있습니다.',
   });
 
-  const workPlatformEnabled = active && hasAny(capabilities, WORK_PLATFORM_CAPABILITIES);
+  const workPlatformEnabled = active && access?.work_platform_available === true;
   features.set('work-platform.open', {
     key: 'work-platform.open',
     state: workPlatformEnabled ? 'enabled' : 'disabled',

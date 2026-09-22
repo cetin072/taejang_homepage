@@ -12,6 +12,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const source = read('app/assets/ux-followup-polish.js');
 const surface = read('app/assets/app-workspace-surface.js');
 const appUi = read('app/assets/app-ui.js');
+const lifecycle = read('app/assets/app-core-lifecycle.js');
 const dashboardShell = read('app/assets/dashboard-shell.js');
 const officialChannelConfig = read('app/assets/official-channel-config.js');
 const shellCss = read('app/assets/dashboard-shell.css');
@@ -92,21 +93,24 @@ class FakeCustomEvent {
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-test('app feature modules load deterministically before the first app-ready event is released', () => {
+test('app Core publishes readiness without a whole-branch module barrier', () => {
   syntaxCheck('app/assets/app-ui.js');
+  syntaxCheck('app/assets/app-core-lifecycle.js');
   assert.match(appUi, /const FEATURE_MODULES = \[/);
-  assert.match(appUi, /Promise\.all\(/);
-  assert.match(appUi, /FEATURE_MODULES\.map\(\(\[source, key\]\) => loadScriptOnce\(source, key\)\)/);
-  assert.match(appUi, /document\.addEventListener\('taejang-app-ready',[\s\S]*event\.stopImmediatePropagation\(\)/);
-  assert.match(appUi, /featureModulesReady\.then\([\s\S]*document\.dispatchEvent\(new CustomEvent\('taejang-app-ready'/);
-  assert.match(appUi, /window\.TaejangFeatureModulesReady = featureModulesReady/);
+  assert.doesNotMatch(appUi, /Promise\.all\(/);
+  assert.match(appUi, /function startFeatureBranches\(\)/);
+  assert.match(appUi, /document\.addEventListener\('taejang-app-ready', startFeatureBranches, \{ once: true \}\)/);
+  assert.match(appUi, /FEATURE_MODULES\.forEach\(\(\[source, key\]\) =>/);
+  assert.match(appUi, /script\.dataset\.branchModule = '1'/);
+  assert.match(lifecycle, /document\.currentScript\?\.dataset\?\.branchModule === '1'/);
+  assert.match(lifecycle, /nativeAddEventListener\('taejang-app-ready'/);
   assert.ok(appUi.indexOf("assets/phase-c-account-approval.js") < appUi.indexOf("assets/employee-management.js"));
   assert.ok(appUi.indexOf("assets/employee-management.js") < appUi.indexOf("assets/role-navigation-priority.js"));
   assert.ok(appUi.indexOf("assets/role-navigation-priority.js") < appUi.indexOf("assets/ux-followup-polish.js"));
   assert.ok(appUi.indexOf("assets/issue-207-promotion-information-ux.js") < appUi.indexOf("assets/navigation-visual-stability.js"));
 });
 
-test('an early app-ready event is held until all dynamically loaded feature modules register', async () => {
+test('a late branch handler receives the already-settled Core context exactly once', async () => {
   const document = new FakeDocument();
   const window = new EventHub();
   const sandbox = {
@@ -118,38 +122,52 @@ test('an early app-ready event is held until all dynamically loaded feature modu
     clearTimeout,
     console
   };
-  vm.runInNewContext(appUi, sandbox, { filename: 'app-ui.js' });
+  vm.runInNewContext(lifecycle, sandbox, { filename: 'app-core-lifecycle.js' });
 
   let delivered = 0;
   let deliveredDetail = null;
+  document.currentScript = { dataset: { branchModule: '1' } };
   document.addEventListener('taejang-app-ready', event => {
     delivered += 1;
     deliveredDetail = event.detail;
   });
+  document.currentScript = null;
 
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route: 'operations_manager', label: '운영총괄' } }));
-  assert.equal(delivered, 0, 'ready must not escape while feature scripts are still loading');
+  await tick();
+  assert.equal(delivered, 1);
+  assert.equal(deliveredDetail.route, 'operations_manager');
 
-  await window.TaejangFeatureModulesReady;
+  document.currentScript = { dataset: { branchModule: '1' } };
+  document.addEventListener('taejang-app-ready', event => {
+    delivered += 1;
+    deliveredDetail = event.detail;
+  });
+  document.currentScript = null;
   await tick();
 
-  assert.equal(delivered, 1, 'ready must be replayed exactly once after feature modules load');
+  assert.equal(delivered, 2, 'late branch registration gets only its own lifecycle replay');
   assert.equal(deliveredDetail.route, 'operations_manager');
-  const loadedScripts = document.nodes.filter(node => node.tagName === 'SCRIPT');
-  assert.ok(loadedScripts.length >= 20, 'all feature modules should have been scheduled before replay');
-  assert.ok(loadedScripts.every(node => node.dataset.loaded === '1'));
 });
 
-test('feature module requests begin together while app-ready remains gated', async () => {
+test('feature branches do not execute before Core readiness and then start independently', () => {
   const document = new FakeDocument();
   const window = new EventHub();
   vm.runInNewContext(appUi, { window, document, CustomEvent: FakeCustomEvent, Promise, setTimeout, clearTimeout, console }, { filename: 'app-ui.js' });
 
+  assert.equal(
+    document.nodes.filter(node => node.tagName === 'SCRIPT').length,
+    0,
+    'business branches must not be requested before authenticated Core readiness'
+  );
+
+  document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', {
+    detail: { route: 'operations_manager', label: '운영총괄' }
+  }));
+
   const requested = document.nodes.filter(node => node.tagName === 'SCRIPT');
-  assert.ok(requested.length >= 20, 'all module requests should be appended before the first response resolves');
-  assert.equal(requested.filter(node => node.dataset.loaded === '1').length, 0);
-  await window.TaejangFeatureModulesReady;
-  assert.ok(requested.every(node => node.dataset.loaded === '1'));
+  assert.ok(requested.length >= 20, 'branch requests should begin after Core readiness');
+  assert.ok(requested.every(node => node.dataset.branchModule === '1'));
 });
 
 test('workspace surface guard parses and loads before feature modules', () => {

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(17);
+select plan(25);
 
 select has_table('public', 'platform_capabilities', 'capability registry exists');
 select has_table('public', 'role_capability_grants', 'role capability grant table exists');
@@ -23,6 +23,7 @@ select has_function('public', 'private_effective_role_codes', array[]::text[], '
 select has_function('public', 'private_actor_capabilities', array[]::text[], 'capability resolver exists');
 select has_function('public', 'private_actor_can', array['text'], 'server capability check helper exists');
 select has_function('public', 'get_my_access_context_v2', array[]::text[], 'v2 access context exists');
+select has_function('public', 'private_has_work_platform_access', array['text[]'], 'server-owned employee-app work-platform entry helper exists');
 
 select is(
   has_function_privilege('authenticated', 'public.private_actor_can(text)', 'EXECUTE'),
@@ -40,6 +41,42 @@ select is(
   has_function_privilege('authenticated', 'public.get_my_access_context_v2()', 'EXECUTE'),
   true,
   'authenticated client can read its own v2 access context'
+);
+
+select is(
+  has_function_privilege('authenticated', 'public.private_has_work_platform_access(text[])', 'EXECUTE'),
+  false,
+  'browser clients cannot execute the employee-app entry policy helper directly'
+);
+
+select is(
+  public.private_has_work_platform_access(array['attendance.self_record']::text[]),
+  false,
+  'general-worker self-service attendance alone does not open the internal work platform'
+);
+
+select is(
+  public.private_has_work_platform_access(array['promotion.review_lead']::text[]),
+  true,
+  'promotion-lead review capability opens the internal work platform'
+);
+
+select is(
+  public.private_has_work_platform_access(array['task.manage']::text[]),
+  true,
+  'operations capability opens the internal work platform'
+);
+
+select is(
+  public.private_has_work_platform_access(array['promotion.write']::text[]),
+  true,
+  'promotion-staff capability opens the internal work platform'
+);
+
+select is(
+  public.private_has_work_platform_access(array['support_radar.assigned_work']::text[]),
+  true,
+  'support-radar assigned-work capability opens the internal work platform'
 );
 
 select is(
@@ -86,6 +123,18 @@ select ok(
   and pg_get_functiondef('public.private_actor_capabilities()'::regprocedure)
     not ilike '%attendance.self_record%',
   'capability resolver gives operations the operational superset while technical grants remain actual-role based'
+);
+
+select ok(
+  pg_get_functiondef('public.get_my_access_context_v2()'::regprocedure)
+    ilike '%work_platform_available%'
+  and pg_get_functiondef('public.get_my_access_context_v2()'::regprocedure)
+    ilike '%private_has_work_platform_access%'
+  and pg_get_functiondef('public.get_my_access_context_v2()'::regprocedure)
+    not ilike '%promotion.write%'
+  and pg_get_functiondef('public.get_my_access_context_v2()'::regprocedure)
+    not ilike '%support_radar.assigned_work%',
+  'access context declares work-platform availability through one private server policy helper'
 );
 
 select ok(
