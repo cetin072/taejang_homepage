@@ -6,7 +6,7 @@ select plan(9);
 select has_function(
   'public',
   'private_validate_attendance_attempt',
-  array['text','double precision','double precision','double precision','boolean'],
+  array['text','double precision','double precision','double precision','boolean','boolean'],
   'shared no-write attendance validator exists'
 );
 
