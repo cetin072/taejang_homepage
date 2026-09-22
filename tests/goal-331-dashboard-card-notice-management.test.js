@@ -24,6 +24,9 @@ test('Goal 331 restores notice management as a canonical capability-gated menu',
   const retired = nav.slice(nav.indexOf('const RETIRED_NAVIGATION'), nav.indexOf('const LABEL_RENAMES'));
   assert.doesNotMatch(retired, /'공지 관리'/);
   assert.match(workspace, /'notice-admin-panel': '공지 관리'/);
+  const legacyCleanup = read('app/assets/issue-207-promotion-information-ux.js');
+  const cleanupBlock = legacyCleanup.slice(legacyCleanup.indexOf('function removeLegacyInformationNav'), legacyCleanup.indexOf('function ensureNavigation'));
+  assert.doesNotMatch(cleanupBlock, /'공지 관리'/);
 });
 
 test('Goal 331 reuses the existing notice editor for create, update and preview', () => {
@@ -42,6 +45,7 @@ test('Goal 331 lets operations manager add, remove and persist dashboard cards',
   assert.match(settings, /대시보드에서 제거/);
   assert.match(settings, /\[DASHBOARD_CUSTOM_SENTINEL,\.\.\.order\]/);
   assert.match(settings, /isDashboardCustomized/);
+  assert.match(settings, /document\.dispatchEvent\(new CustomEvent\('taejang-dashboard-refresh'\)\)/);
   assert.match(priority, /function availableCardItems\(\)/);
   assert.match(priority, /function addCardByKey\(key, targetGrid = null\)/);
   assert.match(priority, /syncCustomizedOperationsCards/);
