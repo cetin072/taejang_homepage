@@ -90,8 +90,8 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.match(html, /taejang2025@naver\.com/, `${filename} 공개 연락처는 새 이메일을 사용합니다`);
   assert.doesNotMatch(html, /info@taejang\.co\.kr/, `${filename} 공개 화면에 이전 이메일을 남기지 않습니다`);
   assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
-  assert.doesNotMatch(html, /href="staff\//, `${filename} 원본에서 임직원 진입을 숨깁니다`);
-  assert.doesNotMatch(html, /class="staff-nav"/, `${filename} 원본에서 임직원 메뉴 클래스를 숨깁니다`);
+  assert.match(html, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 원본에 임직원 진입을 정적으로 제공해 첫 페인트 레이아웃 이동을 막습니다`);
+  assert.equal((html.match(/class="staff-nav"/g) || []).length, 2, `${filename} 임직원 진입은 데스크톱·모바일에 각각 한 번만 있어야 합니다`);
   assert.doesNotMatch(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실 링크를 숨깁니다`);
   assert.match(html, /태장 소개/, `${filename} 공개 메뉴는 태장 소개를 제공합니다`);
   assert.match(html, /하는 일/, `${filename} 공개 메뉴는 하는 일 명칭을 사용합니다`);
