@@ -452,7 +452,13 @@
       const linkLabel = ui.element('notice-link-label').value.trim();
       const importance = ui.element('notice-importance').value;
       const requiresAcknowledgement = ui.element('notice-requires-ack').checked;
-      const reason = ui.element('notice-reason').value.trim() || '공지 작성·수정';
+      const status = ui.element('notice-status').value;
+      const defaultReason = status === 'inactive'
+        ? '공지 사용중지'
+        : status === 'cancelled'
+          ? '공지 취소'
+          : '공지 작성·수정';
+      const reason = ui.element('notice-reason').value.trim() || defaultReason;
       if (Boolean(linkUrl) !== Boolean(linkLabel)) throw new Error('LINK_PAIR_REQUIRED');
       if (linkUrl && !ui.safeHttpsUrl(linkUrl)) throw new Error('INVALID_HTTPS_LINK');
       if (requiresAcknowledgement && importance === 'normal') throw new Error('IMPORTANT_ACK_ONLY');
