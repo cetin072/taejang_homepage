@@ -47,6 +47,7 @@ export const testGroups = Object.freeze({
     'tests/issue-325-sidebar-accordion-stability.test.js',
     'tests/goal-327-inline-navigation-layout.test.js',
     'tests/goal-329-employee-app-attendance-qa.test.js',
+    'tests/goal-331-dashboard-card-notice-management.test.js',
     'tests/issue-221-employee-screen-switcher.test.js',
     'tests/issue-218-field-operations-foundation.test.js',
     'tests/app-failure-states.test.js',
