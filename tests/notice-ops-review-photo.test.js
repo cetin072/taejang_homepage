@@ -8,6 +8,7 @@ const admin = read('app/assets/notice-admin.js');
 const media = read('app/assets/notice-media.js');
 const worker = read('app/assets/notice-worker.js');
 const index = read('app/index.html');
+const workGuideAdmin = read('app/assets/work-guide-admin.js');
 
 test('notice review and photo contracts keep publication and direct access guarded', () => {
   assert.match(migration, /create table if not exists public\.notice_media/);
@@ -48,6 +49,11 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.match(media, /x-upsert': 'false'/);
   assert.doesNotMatch(media, /'Cache-Control': '3600'/);
   assert.match(media, /signedUrl/);
+  assert.match(media, /\$\{config\.url\}\/storage\/v1\$\{normalized\}/);
   assert.match(media, /dialog\.showModal\(\)/);
   assert.match(worker, /renderGallery/);
+  assert.match(index, /<label>공지 내용<textarea id="notice-body" maxlength="3000" rows="6" required><\/textarea><\/label>/);
+  assert.doesNotMatch(index, /id="notice-body"[^>]*data-easy-text/);
+  assert.doesNotMatch(workGuideAdmin, /설명을 더 짧고 쉬운 문장으로 나누어 적어주세요/);
+  assert.doesNotMatch(workGuideAdmin, /setCustomValidity\(/);
 });
