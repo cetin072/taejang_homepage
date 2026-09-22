@@ -290,13 +290,13 @@ export default function HomeScreen() {
             <View style={styles.loginBrand}>
               <Text style={styles.brandMark}>泰張</Text>
               <Text style={styles.title}>태장</Text>
-              <Text style={styles.eyebrow}>태장 업무플랫폼</Text>
+              <Text style={styles.eyebrow}>태장 직원앱</Text>
             </View>
 
             {signupComplete ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>가입 요청이 접수되었습니다.</Text>
-                <Text style={styles.body}>운영팀장 확인 후 태장 플랫폼을 사용할 수 있습니다.</Text>
+                <Text style={styles.body}>운영팀장 확인 후 태장 직원앱을 사용할 수 있습니다.</Text>
                 <Text style={styles.help}>이메일 확인 안내가 왔다면 먼저 확인한 뒤 로그인해주세요.</Text>
                 <Pressable
                   style={styles.formPrimary}
