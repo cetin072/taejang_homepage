@@ -29,7 +29,7 @@ test('promotion lead operational capabilities appear through the shared master s
   }
   assert.match(dashboard, /label: '업무 배정'[\s\S]*task\.manage/);
   assert.doesNotMatch(dashboard, /label: '일정 관리'/);
-  assert.doesNotMatch(dashboard, /label: '공지 관리'/);
+  assert.match(dashboard, /label: '공지 관리'[\s\S]*notice-admin-panel[\s\S]*notice\.manage/);
   assert.match(dashboard, /function masterMenuItems\(\)/);
   assert.doesNotMatch(migration, /payroll\.manage|payroll\.operator|payroll\.draft/i);
 });
