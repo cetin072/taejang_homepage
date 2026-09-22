@@ -60,6 +60,9 @@ for (const filename of publicPages) {
   assert.ok(mobileNav, `${filename} 모바일 주요 메뉴가 HTML 원본에 있어야 합니다`);
   assertHrefOrder(desktopNav, headerHrefs, `${filename} 데스크톱 메뉴`);
   assertHrefOrder(mobileNav, headerHrefs, `${filename} 모바일 메뉴`);
+  assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+  assert.match(mobileNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 모바일 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+  assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="partnership.html"'), `${filename} 임직원 메뉴는 마지막 유틸리티 항목이어야 합니다`);
 
   assert.match(
     html,
