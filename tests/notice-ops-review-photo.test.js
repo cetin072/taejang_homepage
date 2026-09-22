@@ -7,6 +7,7 @@ const migration = read('supabase/migrations/20260921002000_issue_300_notice_revi
 const admin = read('app/assets/notice-admin.js');
 const media = read('app/assets/notice-media.js');
 const worker = read('app/assets/notice-worker.js');
+const index = read('app/index.html');
 
 test('notice review and photo contracts keep publication and direct access guarded', () => {
   assert.match(migration, /create table if not exists public\.notice_media/);
@@ -31,7 +32,9 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.match(admin, /ui\.element\('notice-id'\)\.value = result\.id/);
   assert.match(admin, /NOTICE_SAVED_MEDIA_FAILED/);
   assert.match(admin, /value = '공지 작성·수정'/);
-  assert.match(admin, /value\.trim\(\) \|\| '공지 작성·수정'/);
+  assert.match(admin, /const defaultReason = status === 'inactive'/);
+  assert.match(index, /id="notice-reason" type="hidden" value="공지 작성·수정"/);
+  assert.doesNotMatch(index, /id="notice-reason"[^>]*required/);
   assert.ok(
     admin.indexOf("ui.element('notice-id').value = result.id") < admin.indexOf('await persistMedia(result.id, reason)'),
     'saved notice id is retained before media persistence so retries cannot duplicate a new notice'
