@@ -41,7 +41,7 @@
         'promotion.request_public_change', 'promotion.queue_publication', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
         'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
-        'task.manage', 'payroll.manage', 'payroll.handoff.approve',
+        'task.manage', 'notice.manage', 'payroll.manage', 'payroll.handoff.approve',
         'support_radar.management_view', 'support_radar.management_edit', 'support_radar.assigned_work',
         'platform.navigation.manage'
       ])
@@ -172,7 +172,7 @@
 
     const retiredLabels = [
       '복구·계정 관리', '일정 관리', '일정 캘린더',
-      '공지 확인', '공지 관리', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
+      '공지 확인', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
     ];
 
     function assertRetiredAbsent(current, role) {
@@ -230,7 +230,7 @@
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
         '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
-        '업무 배정', '근태·급여관리', '출근부', '근태 보정',
+        '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
         '기업 프로필', '지원사업 레이더', '내 지원사업'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
@@ -239,6 +239,7 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
+      assertOrdered(current, ['업무 배정', '공지 등록', '공지 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -264,6 +265,8 @@
       const grid = document.querySelector('#dashboard-main > .dashboard-grid');
       assert(grid?.dataset.layoutEditing === '1', '대시보드 편집 모드 진입 실패');
       assert(grid.querySelectorAll('.dashboard-drag-handle').length > 0, '대시보드 drag handle 누락');
+      assert([...dashboardActions.querySelectorAll('button')].some(node => node.textContent.trim() === '+ 카드 추가'), '운영총괄 카드 추가 버튼 누락');
+      assert(grid.querySelectorAll('[data-dashboard-drag-tools] button').length > 0, '대시보드 카드 제거/이동 도구 누락');
       const dashboardCancel = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
       dashboardCancel?.click();
       assert(grid.dataset.layoutEditing !== '1', '대시보드 편집 취소 실패');

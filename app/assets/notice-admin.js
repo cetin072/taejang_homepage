@@ -9,6 +9,7 @@
   let mediaItems = [];
   let removedMedia = [];
   let previewGeneration = 0;
+  let activeView = 'manage';
 
   const app = window.TaejangApp;
   function route() { return app?.getRoute?.() || ''; }
@@ -169,7 +170,7 @@
     preview.append(
       ui.text('p', `${ui.IMPORTANCE[importance]} · ${ui.NOTICE_KINDS[ui.element('notice-kind').value] || '공지'}`, 'card-kicker'),
       ui.text('h3', ui.element('notice-title-input').value.trim() || '공지 제목'),
-      ui.text('p', ui.element('notice-body').value || '쉬운 안내문을 적어주세요.', 'card-body')
+      ui.text('p', ui.element('notice-body').value || '공지 내용을 적어주세요.', 'notice-body')
     );
 
     await ensureMediaUrls();
@@ -232,6 +233,49 @@
       await load();
     } catch {
       showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
+    }
+  }
+
+  function noticeEditorCard() { return ui.element('notice-editor-card'); }
+  function noticePreviewCard() { return ui.element('notice-preview-card'); }
+  function noticeManageSection() { return ui.element('notice-manage-section'); }
+
+  function revealEditor({ preview = false } = {}) {
+    const editor = noticeEditorCard();
+    const previewCard = noticePreviewCard();
+    if (editor) {
+      editor.hidden = false;
+      editor.open = true;
+    }
+    if (previewCard) {
+      previewCard.hidden = false;
+      previewCard.open = preview;
+    }
+  }
+
+  function hideEditor() {
+    const editor = noticeEditorCard();
+    const previewCard = noticePreviewCard();
+    if (editor) editor.hidden = true;
+    if (previewCard) previewCard.hidden = true;
+  }
+
+  function setView(view) {
+    activeView = view === 'create' ? 'create' : 'manage';
+    const heading = ui.element('notice-admin-title');
+    const refresh = ui.element('refresh-notice-admin');
+    const manage = noticeManageSection();
+    if (heading) heading.textContent = activeView === 'create' ? '공지 등록' : '공지 관리';
+    if (refresh) refresh.hidden = activeView === 'create';
+    if (manage) manage.hidden = activeView === 'create';
+
+    if (activeView === 'create') {
+      resetForm();
+      revealEditor({ preview: true });
+      ui.element('notice-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      hideEditor();
+      if (options) void load();
     }
   }
 
@@ -328,6 +372,7 @@
     updateTargets(ui.targetId(item));
     ui.element('notice-status').value = item.status;
     ui.element('notice-reason').value = '';
+    revealEditor({ preview: scrollTo === 'preview' });
     void renderMediaEditor();
     void renderPreview();
     const target = scrollTo === 'preview' ? ui.element('notice-preview') : ui.element('notice-form');
@@ -449,8 +494,13 @@
         throw partialError;
       }
       showMessage(`공지와 사진 자료를 저장했습니다. 공지 버전은 ${result.version_no}입니다.`);
-      resetForm();
       await load();
+      if (activeView === 'create') {
+        resetForm();
+        revealEditor({ preview: true });
+      } else {
+        hideEditor();
+      }
       await app.refreshToday();
     } catch (error) {
       const message = error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
@@ -496,7 +546,10 @@
 
   function bind() {
     ui.element('notice-form').addEventListener('submit', submit);
-    ui.element('reset-notice-form').addEventListener('click', resetForm);
+    ui.element('reset-notice-form').addEventListener('click', () => {
+      resetForm();
+      revealEditor({ preview: true });
+    });
     ui.element('refresh-notice-admin').addEventListener('click', load);
     ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
@@ -518,6 +571,15 @@
   document.addEventListener('taejang-admin-options-ready', event => {
     options = event.detail.options;
     renderOptions();
-    void load();
+    void load().then(() => {
+      if (activeView === 'manage') hideEditor();
+    });
   });
+
+  document.addEventListener('taejang-open-notice-admin', event => {
+    if (!canManageNotices()) return;
+    setView(event.detail?.view);
+  });
+
+  window.TaejangNoticeAdmin = { setView, renderPreview };
 })();

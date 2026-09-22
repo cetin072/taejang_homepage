@@ -117,7 +117,7 @@
 
   function removeLegacyInformationNav(nav) {
     const legacy = new Set([
-      '공지 확인', '공지 관리', '상시 안내 관리',
+      '공지 확인', '상시 안내 관리',
       '공지·안내 관리', '공지·안내 확인'
     ]);
     [...nav.children].forEach(node => {
@@ -171,9 +171,9 @@
     if (canManageExisting) ensureExistingContentNav(nav);
     if (canManageHomepage) ensureHomepageManagementNav(nav);
 
-    // Goal #327 retires notice/guidance navigation from the operating platform.
-    // Keep the underlying notice workflows callable for legacy/internal uses, but
-    // never inject their entries back into the sidebar.
+    // Goal #327 retired employee-facing notice/guidance shortcuts. Goal #331
+    // restores the canonical capability-gated "공지 관리" entry for managers,
+    // while these older information-workflow shortcuts stay out of the sidebar.
     removeLegacyInformationNav(nav);
   }
 

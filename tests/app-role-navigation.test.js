@@ -147,7 +147,7 @@ test('all desktop roles start from the same master sidebar before capability pru
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '홍보 검토',
-    '업무 배정',
+    '업무 배정', '공지 등록', '공지 관리',
     '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
     '공식 채널'
@@ -162,7 +162,10 @@ test('all desktop roles start from the same master sidebar before capability pru
   findMenu(promotion.nav, '보완 요청받은 글').click();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
 
-  for (const [label, panel] of new Map([['업무 배정','today-admin-panel']])) {
+  for (const [label, panel] of new Map([
+    ['업무 배정','today-admin-panel'],
+    ['공지 관리','notice-admin-panel']
+  ])) {
     findMenu(operations.nav, label).click();
     assert.equal(operations.openedPanels.at(-1), panel);
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
@@ -199,7 +202,7 @@ test('central navigation uses one master order and section contract for every de
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
     '발행 대기', '기존 글 관리', '홍보글 관리·복구',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정',
+    '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '설정', '신규 사업 기획'

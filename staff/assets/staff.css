@@ -158,6 +158,10 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .notice-photo-thumb { display: block; padding: 0; border: 0; border-radius: 10px; background: transparent; cursor: zoom-in; overflow: hidden; }
 .notice-photo-thumb.is-compact img { aspect-ratio: 16 / 9; max-height: 180px; }
 .notice-preview { max-width: 520px; }
+.notice-preview .notice-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notice-preview-help { margin: 0; padding: 0 18px 12px; }
+.notice-manage-section { display:grid; gap:12px; margin-top:18px; }
+.notice-manage-section h3 { margin:0; }
 .notice-review-banner { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: #eef5ff; border: 1px solid #b8ccea; color: #26486b; font-weight: 800; }
 .notice-photo-dialog { width: min(94vw, 1000px); max-height: 92vh; padding: 14px; border: 0; border-radius: 14px; }
 .notice-photo-dialog::backdrop { background: rgba(0,0,0,.72); }

@@ -190,7 +190,13 @@ const appAutomation = `<script>
       }, 'dashboard keyboard reorder');
       action(dashboardActions, '저장')?.click();
       await waitFor(() => dashboardGrid.dataset.layoutEditing !== '1', 'dashboard edit save');
-      sessionStorage.setItem(persistedLayoutKey, JSON.stringify({ sections: savedSections, cards: savedCards }));
+      // Saving an Operations Manager dashboard now also turns the visible cards
+      // into an explicit capability-filtered selection. Wait for that sync, then
+      // persist the post-save card list as the reload expectation.
+      await sleep(300);
+      const persistedCards = cardKeys();
+      if (!persistedCards.length) throw new Error('DASHBOARD_SAVED_CARD_SELECTION_EMPTY');
+      sessionStorage.setItem(persistedLayoutKey, JSON.stringify({ sections: savedSections, cards: persistedCards }));
       window.location.reload();
     } catch (error) {
       mark('fail', String(error && error.message ? error.message : error));

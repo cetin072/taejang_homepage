@@ -11,6 +11,7 @@ test('mobile notice API reuses existing guarded Supabase RPC contracts', async (
   assert.match(api, /get_my_notice_list/);
   assert.match(api, /get_my_notice_detail/);
   assert.match(api, /acknowledge_notice/);
+  assert.match(api, /storage\.from\('notice-media'\)\.createSignedUrl/);
   assert.doesNotMatch(api, /from\(['"]notices['"]\)|\/rest\/v1\/notices/i);
 });
 
@@ -37,6 +38,8 @@ test('notice detail route can acknowledge the exact current notice version', asy
   assert.match(detail, /acknowledgeMyNotice/);
   assert.match(detail, /notice\.version_no/);
   assert.match(detail, /내용 확인했습니다/);
+  assert.match(detail, /notice\.media\.map/);
+  assert.match(detail, /<Image/);
 });
 
 test('notice route is suitable for native push deep linking', async () => {

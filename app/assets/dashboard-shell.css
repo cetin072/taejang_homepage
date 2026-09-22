@@ -288,6 +288,24 @@
   gap:8px;
   margin-top:14px;
 }
+.dashboard-card-picker {
+  display:grid;
+  gap:10px;
+  margin-top:12px;
+  padding:14px;
+  border:1px solid var(--app-border);
+  border-radius:12px;
+  background:#fff;
+}
+.dashboard-card-picker[hidden] { display:none !important; }
+.dashboard-card-picker-list {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.dashboard-card-picker-list .button {
+  min-height:38px;
+}
 .dashboard-grid[data-layout-editing="1"] .dashboard-card {
   border-style:dashed;
 }

@@ -54,11 +54,13 @@ test('Goal 327 stores personal sidebar and dashboard order independently from au
 });
 
 test('Goal 327 removes dead and information/schedule navigation while preserving safe independent links', () => {
-  for (const label of ['복구·계정 관리','일정 관리','일정 캘린더','공지 확인','공지 관리','상시 안내 관리']) {
+  for (const label of ['복구·계정 관리','일정 관리','일정 캘린더','공지 확인','상시 안내 관리']) {
     assert.doesNotMatch(registry, new RegExp(`label:'${label}'`));
     assert.doesNotMatch(shell, new RegExp(`label: '${label}'`));
   }
   assert.match(priority, /RETIRED_NAVIGATION/);
+  assert.match(registry, /key:'notice\.manage', label:'공지 관리'/);
+  assert.match(shell, /label: '공지 관리'[\s\S]*notice-admin-panel/);
   assert.match(shell, /newTab: true/);
   assert.match(shell, /node\.target = '_blank'/);
   assert.match(shell, /node\.rel = 'noopener noreferrer'/);
@@ -79,7 +81,7 @@ test('Goal 327 prevents retired menus from being re-injected by late feature mod
   assert.match(employeeManagement, /삭제 직원 복구·계정 연결/);
   assert.doesNotMatch(issue207, /navNode\(\s*'공지 관리'/);
   assert.doesNotMatch(workflowNavigation, /navButton\('일정 캘린더'/);
-  assert.match(issue207, /never inject their entries back into the sidebar/);
+  assert.match(issue207, /restores the canonical capability-gated "공지 관리" entry/);
 });
 
 test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry mutations', () => {

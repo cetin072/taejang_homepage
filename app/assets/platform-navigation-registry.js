@@ -28,6 +28,8 @@
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
     { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
+    { key:'notice.create', label:'공지 등록', section:'업무 운영', capabilities:['notice.manage'] },
+    { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'] },

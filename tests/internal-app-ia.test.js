@@ -70,7 +70,7 @@ test('promotion staff and lead use the same master sidebar order with capability
   const sections = nav.slice(nav.indexOf('const MASTER_SECTIONS'), nav.indexOf('const DESKTOP_ROLES'));
 
   assert.match(master, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
-  assert.doesNotMatch(master, /공지 관리/);
+  assert.match(master, /공지 관리/);
   assert.match(sections, /label: '홍보'/);
   assert.doesNotMatch(sections, /공지·안내/);
   assert.match(nav, /DESKTOP_ROLES\.map\(role => \[role, MASTER_ORDER\]\)/);
