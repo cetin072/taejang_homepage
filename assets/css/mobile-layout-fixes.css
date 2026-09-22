@@ -115,7 +115,12 @@
   }
 
   .mobile-nav {
+    display: none;
     padding: 8px 18px 16px;
+  }
+
+  .mobile-nav.open {
+    display: grid;
   }
 
   .mobile-nav a {
