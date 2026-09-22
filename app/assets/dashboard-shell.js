@@ -221,8 +221,15 @@
         capabilities: ['task.manage']
       },
       {
+        key: 'notice.create',
+        label: '공지 등록',
+        run: () => openPanel('notice-admin-panel', 'create'),
+        capabilities: ['notice.manage']
+      },
+      {
+        key: 'notice.manage',
         label: '공지 관리',
-        run: () => openPanel('notice-admin-panel'),
+        run: () => openPanel('notice-admin-panel', 'manage'),
         capabilities: ['notice.manage']
       },
       {
