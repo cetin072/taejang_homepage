@@ -29,12 +29,16 @@ test('Goal 331 restores notice management as a canonical capability-gated menu',
   assert.doesNotMatch(cleanupBlock, /'공지 관리'/);
 });
 
-test('Goal 331 reuses the existing notice editor for create, update and preview', () => {
+test('Goal 331 uses one canonical notice editor with separate create and manage views', () => {
   assert.match(noticeAdmin, /list_manageable_notices/);
   assert.match(noticeAdmin, /save_notice/);
   assert.match(noticeAdmin, /const editLabel = [^\n]*'공지 수정'/);
   assert.match(noticeAdmin, /button\('미리보기'/);
   assert.match(noticeAdmin, /function renderPreview\(\)/);
+  assert.match(noticeAdmin, /function setView\(view\)/);
+  assert.match(noticeAdmin, /activeView === 'create'/);
+  assert.match(noticeAdmin, /notice-editor-card/);
+  assert.match(noticeAdmin, /notice-preview-card/);
   assert.match(noticeAdmin, /reset-notice-form/);
 });
 
@@ -51,6 +55,18 @@ test('Goal 331 lets operations manager add, remove and persist dashboard cards',
   assert.match(priority, /syncCustomizedOperationsCards/);
   assert.match(priority, /capabilities\.some\(capability => app\(\)\.can/);
   assert.match(css, /\.dashboard-card-picker/);
+});
+
+test('Goal 331 notice preview preserves formatting and uploaded photos flow to the employee app', () => {
+  const css = read('staff/assets/staff.css');
+  const mobileApi = read('mobile/src/features/notices/notice-api.ts');
+  const mobileDetail = read('mobile/app/notices/[id].tsx');
+  const index = read('app/index.html');
+  assert.match(css, /\.notice-preview \.notice-body \{ white-space: pre-wrap/);
+  assert.match(index, /직원앱 미리보기/);
+  assert.doesNotMatch(index, /<option value="notice">중요공지<\/option>/);
+  assert.match(mobileApi, /storage\.from\('notice-media'\)\.createSignedUrl/);
+  assert.match(mobileDetail, /notice\.media\.map/);
 });
 
 test('Goal 331 dashboard cards open the same authorized navigation targets instead of bypassing server auth', () => {
