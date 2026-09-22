@@ -29,10 +29,11 @@ test('operations QA attendance uses the no-write RPC and never exposes exception
   assert.match(api, /qa_validate_attendance_event/);
   assert.match(api, /p_has_qa_clock_in/);
   assert.match(card, /validateAttendanceQa/);
+  assert.match(card, /const qaMode = mode === 'qa' && today\?\.attendance_required === false/);
   assert.match(card, /검수 모드 · 실제 근태에 반영되지 않음/);
   assert.match(card, /result\.writes_attendance !== false/);
-  assert.match(card, /mode === 'record' && exceptionTarget/);
-  assert.match(card, /if \(mode === 'qa' \|\|/);
+  assert.match(card, /!qaMode && exceptionTarget/);
+  assert.match(card, /mode === 'qa' && today\?\.attendance_required === false/);
 });
 
 test('employee attendance button copy is shared while excluded employees stay disabled', async () => {
