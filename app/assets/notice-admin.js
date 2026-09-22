@@ -371,7 +371,7 @@
     ui.element('notice-scope').value = item.target_scope;
     updateTargets(ui.targetId(item));
     ui.element('notice-status').value = item.status;
-    ui.element('notice-reason').value = '';
+    ui.element('notice-reason').value = '공지 작성·수정';
     revealEditor({ preview: scrollTo === 'preview' });
     void renderMediaEditor();
     void renderPreview();
