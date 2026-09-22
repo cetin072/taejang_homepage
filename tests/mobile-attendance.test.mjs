@@ -58,7 +58,7 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.match(card, /Alert\.alert/);
   assert.match(card, /정말 퇴근하시겠습니까/);
   assert.match(card, /text: '취소'/);
-  assert.match(card, /text: mode === 'qa' \? '검수 계속' : '퇴근했습니다'/);
+  assert.match(card, /text: qaMode \? '검수 계속' : '퇴근했습니다'/);
 
   const permissionBranch = card.match(/if \(error\.code === 'PERMISSION_DENIED'\)[\s\S]*?\} else \{/i)?.[0] || '';
   assert.doesNotMatch(permissionBranch, /allowException/);
