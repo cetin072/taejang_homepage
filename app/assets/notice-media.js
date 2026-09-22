@@ -29,9 +29,6 @@
     if (!file) throw new Error('NOTICE_MEDIA_FILE_REQUIRED');
     if (!MIME_EXTENSIONS[file.type]) throw new Error('NOTICE_MEDIA_TYPE_INVALID');
     if (file.size > MAX_SOURCE_FILE_BYTES) throw new Error('NOTICE_MEDIA_TOO_LARGE');
-    if (file.type === 'image/gif' && file.size > MAX_UPLOAD_FILE_BYTES) {
-      throw new Error('NOTICE_MEDIA_GIF_TOO_LARGE');
-    }
     return true;
   }
 
@@ -65,15 +62,13 @@
 
   async function optimizeForUpload(file) {
     validateFile(file);
-    if (file.type === 'image/gif') return file;
-
     const image = await loadImage(file);
     const sourceWidth = Number(image.naturalWidth || image.width || 0);
     const sourceHeight = Number(image.naturalHeight || image.height || 0);
     if (!sourceWidth || !sourceHeight) throw new Error('NOTICE_MEDIA_DECODE_FAILED');
 
     const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(sourceWidth, sourceHeight));
-    if (scale === 1 && file.size <= TARGET_UPLOAD_FILE_BYTES) return file;
+    if (file.type !== 'image/gif' && scale === 1 && file.size <= TARGET_UPLOAD_FILE_BYTES) return file;
 
     const width = Math.max(1, Math.round(sourceWidth * scale));
     const height = Math.max(1, Math.round(sourceHeight * scale));
