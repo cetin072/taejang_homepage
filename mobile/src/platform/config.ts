@@ -27,7 +27,7 @@ export async function loadPublicPlatformConfig(fetchImpl: typeof fetch = fetch):
   });
 
   if (!response.ok) {
-    throw new Error(`태장 업무플랫폼 설정을 불러오지 못했습니다. (${response.status})`);
+    throw new Error(`태장 직원앱 연결 설정을 불러오지 못했습니다. (${response.status})`);
   }
 
   const body = (await response.json()) as {
@@ -37,7 +37,7 @@ export async function loadPublicPlatformConfig(fetchImpl: typeof fetch = fetch):
   };
 
   if (typeof body.url !== 'string' || !body.url || typeof body.publishableKey !== 'string' || !body.publishableKey) {
-    throw new Error('태장 업무플랫폼 로그인 설정이 아직 준비되지 않았습니다.');
+    throw new Error('태장 직원앱 로그인 설정이 아직 준비되지 않았습니다.');
   }
 
   return {
