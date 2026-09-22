@@ -52,10 +52,12 @@ select ok(
 
 select ok(
   pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
-    ilike '%ceo%'
+    not ilike '%ceo%'
   and pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
-    ilike '%operations_manager%',
-  'CEO and operations manager are explicitly excluded from personal attendance'
+    not ilike '%operations_manager%'
+  and pg_get_functiondef('public.private_employee_is_attendance_subject(uuid)'::regprocedure)
+    not ilike '%profile_roles%',
+  'attendance eligibility no longer depends on executive role or position labels'
 );
 
 select ok(

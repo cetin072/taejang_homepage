@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AttendanceCard } from '@/src/features/attendance/attendance-card';
 import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
+import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
 import { usePlatform } from '@/src/providers/platform-provider';
 
@@ -30,22 +31,6 @@ type AccessContext = {
   actual_roles?: AccessRole[];
   effective_roles?: AccessRole[];
 };
-
-const WORK_PLATFORM_CAPABILITIES = new Set([
-  'promotion.write',
-  'promotion.review_lead',
-  'promotion.review_operations',
-  'attendance.admin_view',
-  'employee.view_all',
-  'employee.create',
-  'employee.onboard',
-  'account.view_management',
-  'task.manage',
-  'schedule.manage',
-  'notice.manage',
-  'homepage.draft',
-  'homepage.review',
-]);
 
 function messageOf(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -131,23 +116,27 @@ function PrimaryButton({
   onPress,
   minHeight,
   secondary = false,
+  disabled = false,
 }: {
   title: string;
   subtitle?: string;
   onPress: () => void;
   minHeight: number;
   secondary?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryAction,
         { minHeight },
         secondary ? styles.platformAction : null,
-        pressed ? styles.actionPressed : null,
+        disabled ? styles.actionDisabled : null,
+        pressed && !disabled ? styles.actionPressed : null,
       ]}
     >
       <Text style={[styles.primaryActionTitle, secondary ? styles.platformActionTitle : null]}>{title}</Text>
@@ -251,17 +240,17 @@ export default function HomeScreen() {
     void refreshAccess();
   }, [session, refreshAccess]);
 
-  const capabilities = useMemo(() => new Set(access?.capabilities || []), [access?.capabilities]);
-  const canOpenWorkPlatform = [...capabilities].some(capability => WORK_PLATFORM_CAPABILITIES.has(capability));
-  const primaryCount = canOpenWorkPlatform ? 3 : 2;
+  const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);
+  const attendanceFeature = employeeFeatures.get('attendance.clock');
+  const noticeFeature = employeeFeatures.get('notice.read');
+  const workPlatformFeature = employeeFeatures.get('work-platform.open');
+  const canOpenWorkPlatform = workPlatformFeature?.state === 'enabled';
+  const primaryCount = 3;
   const actionHeight = useMemo(() => {
-    const reserved = canOpenWorkPlatform ? 300 : 270;
-    const available = Math.max(360, windowHeight - reserved);
+    const available = Math.max(360, windowHeight - 300);
     const raw = Math.floor((available - (primaryCount - 1) * 14) / primaryCount);
-    return canOpenWorkPlatform
-      ? Math.max(138, Math.min(174, raw))
-      : Math.max(176, Math.min(224, raw));
-  }, [canOpenWorkPlatform, primaryCount, windowHeight]);
+    return Math.max(138, Math.min(174, raw));
+  }, [primaryCount, windowHeight]);
 
   if (phase === 'loading') {
     return (
@@ -301,13 +290,13 @@ export default function HomeScreen() {
             <View style={styles.loginBrand}>
               <Text style={styles.brandMark}>泰張</Text>
               <Text style={styles.title}>태장</Text>
-              <Text style={styles.eyebrow}>태장 업무플랫폼</Text>
+              <Text style={styles.eyebrow}>태장 직원앱</Text>
             </View>
 
             {signupComplete ? (
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>가입 요청이 접수되었습니다.</Text>
-                <Text style={styles.body}>운영팀장 확인 후 태장 플랫폼을 사용할 수 있습니다.</Text>
+                <Text style={styles.body}>운영팀장 확인 후 태장 직원앱을 사용할 수 있습니다.</Text>
                 <Text style={styles.help}>이메일 확인 안내가 왔다면 먼저 확인한 뒤 로그인해주세요.</Text>
                 <Pressable
                   style={styles.formPrimary}
@@ -612,14 +601,20 @@ export default function HomeScreen() {
           ) : null}
 
           <View style={styles.actions}>
-            <AttendanceCard minHeight={actionHeight} />
-            <NoticeHomeAction minHeight={actionHeight} />
-            {canOpenWorkPlatform ? (
+            {attendanceFeature?.state !== 'hidden' ? (
+              <AttendanceCard
+                minHeight={actionHeight}
+                mode={attendanceFeature?.attendanceMode || 'record'}
+              />
+            ) : null}
+            {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
+            {workPlatformFeature?.state !== 'hidden' ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
-                subtitle="내 업무와 관리 기능"
+                subtitle={canOpenWorkPlatform ? '내 업무와 관리 기능' : workPlatformFeature?.reason}
                 minHeight={actionHeight}
                 secondary
+                disabled={!canOpenWorkPlatform || platformOpening}
                 onPress={() => void openWorkPlatform()}
               />
             ) : null}
@@ -772,6 +767,7 @@ const styles = StyleSheet.create({
   },
   platformAction: { backgroundColor: '#e7eee7', borderColor: '#9db2a2' },
   actionPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
+  actionDisabled: { opacity: 0.5 },
   primaryActionTitle: { color: '#173f31', fontSize: 29, fontWeight: '900', letterSpacing: -0.6 },
   platformActionTitle: { color: '#234e3a' },
   primaryActionSubtitle: { color: '#60746a', fontSize: 15, fontWeight: '700' },

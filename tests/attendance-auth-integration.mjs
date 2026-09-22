@@ -172,20 +172,75 @@ const noAttendanceRecord = await rpc('record_attendance_event', noAttendance.tok
 equal(noAttendanceRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false account cannot record attendance even with valid GPS');
 
 const executive = await createLinkedEmployee({
-  email: 'attendance-executive@example.test', name: '근태 제외 운영총괄', role: 'operations_manager', attendanceRequired: true, positionCode: 'operations_manager',
+  email: 'attendance-executive@example.test', name: '근태 대상 운영총괄', role: 'operations_manager', attendanceRequired: true, positionCode: 'operations_manager',
 });
 const executiveToday = await rpc('get_my_attendance_today', executive.token, {});
-equal(executiveToday.data?.attendance_required, false, 'operations manager is excluded from personal attendance even when attendance_required is true');
+equal(executiveToday.data?.attendance_required, true, 'operations-manager role does not override Employee.attendance_required=true');
 const executiveRecord = await rpc('record_attendance_event', executive.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(executiveRecord.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'operations manager cannot create personal attendance records');
+equal(executiveRecord.data?.code, 'ATTENDANCE_RECORDED', 'attendance-required operations manager follows the same real attendance writer');
 
 const ceo = await createLinkedEmployee({
-  email: 'attendance-ceo@example.test', name: '근태 제외 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
+  email: 'attendance-ceo@example.test', name: '근태 대상 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
 });
 const ceoToday = await rpc('get_my_attendance_today', ceo.token, {});
-equal(ceoToday.data?.attendance_required, false, 'CEO is excluded from personal attendance even when attendance_required is true');
+equal(ceoToday.data?.attendance_required, true, 'CEO role does not override Employee.attendance_required=true');
+
+const qaExecutive = await createLinkedEmployee({
+  email: 'attendance-qa-executive@example.test', name: '근태 QA 운영총괄', role: 'operations_manager', attendanceRequired: false, positionCode: 'operations_manager',
+});
+const qaBefore = sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`);
+const qaCorrectionsBefore = sql(`select count(*) from public.attendance_corrections where employee_uuid='${qaExecutive.employeeUuid}'::uuid`);
+const qaConfirmationsBefore = sql('select count(*) from public.attendance_confirmation_revisions');
+const qaPayrollSnapshotsBefore = sql('select count(*) from public.payroll_confirmed_attendance_snapshots');
+const qaPayrollRunsBefore = sql('select count(*) from public.payroll_calculation_runs');
+const qaTodayBefore = await rpc('get_my_attendance_today', qaExecutive.token, {});
+equal(qaTodayBefore.data?.attendance_required, false, 'QA operations manager remains an excluded attendance subject before validation');
+const qaClockIn = await rpc('qa_validate_attendance_event', qaExecutive.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(qaClockIn.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can run no-write clock-in QA even when attendance_required=false');
+equal(qaClockIn.data?.writes_attendance, false, 'attendance QA explicitly reports that it does not write attendance');
+const qaClockOut = await rpc('qa_validate_attendance_event', qaExecutive.token, {
+  p_event_type: 'clock_out',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: true,
+});
+equal(qaClockOut.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can continue the no-write QA flow through clock-out');
+equal(sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`), qaBefore, 'operations attendance QA creates zero raw attendance rows');
+equal(sql(`select count(*) from public.attendance_corrections where employee_uuid='${qaExecutive.employeeUuid}'::uuid`), qaCorrectionsBefore, 'operations attendance QA creates zero correction rows');
+equal(sql('select count(*) from public.attendance_confirmation_revisions'), qaConfirmationsBefore, 'operations attendance QA creates zero confirmation revisions');
+equal(sql('select count(*) from public.payroll_confirmed_attendance_snapshots'), qaPayrollSnapshotsBefore, 'operations attendance QA creates zero payroll attendance snapshots');
+equal(sql('select count(*) from public.payroll_calculation_runs'), qaPayrollRunsBefore, 'operations attendance QA creates zero payroll calculation runs');
+const qaTodayAfter = await rpc('get_my_attendance_today', qaExecutive.token, {});
+equal(qaTodayAfter.data?.attendance_required, qaTodayBefore.data?.attendance_required, 'QA leaves employee attendance eligibility unchanged');
+equal(qaTodayAfter.data?.clock_in ?? null, qaTodayBefore.data?.clock_in ?? null, 'QA leaves real clock-in state unchanged');
+equal(qaTodayAfter.data?.clock_out ?? null, qaTodayBefore.data?.clock_out ?? null, 'QA leaves real clock-out state unchanged');
+
+const leadQaDenied = await rpc('qa_validate_attendance_event', lead.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(leadQaDenied.data?.code, 'FORBIDDEN', 'promotion lead cannot execute operations-only attendance QA');
+
+const noAttendanceQaDenied = await rpc('qa_validate_attendance_event', noAttendance.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(noAttendanceQaDenied.data?.code, 'FORBIDDEN', 'ordinary employee cannot execute operations-only attendance QA');
 
 const worker = await createLinkedEmployee({
   email: 'attendance-worker@example.test', name: '근태 대상 직원', role: 'general_worker', attendanceRequired: true,
@@ -270,9 +325,19 @@ const executiveCorrection = await rpc('create_attendance_correction', admin.toke
   p_event_type: 'clock_in',
   p_action: 'set_time',
   p_corrected_event_at: safeEffectiveTime,
-  p_reason: '임원 근태 제외 정책 검증',
+  p_reason: '근태 대상 운영총괄 보정 검증',
 });
-equal(executiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'excluded operations manager cannot receive manual attendance corrections');
+equal(executiveCorrection.data?.code, 'ATTENDANCE_CORRECTED', 'attendance-required operations manager can receive manual attendance corrections');
+
+const excludedExecutiveCorrection = await rpc('create_attendance_correction', admin.token, {
+  p_employee_uuid: qaExecutive.employeeUuid,
+  p_work_date: workDate,
+  p_event_type: 'clock_in',
+  p_action: 'set_time',
+  p_corrected_event_at: safeEffectiveTime,
+  p_reason: '근태 제외 운영총괄 보정 차단 검증',
+});
+equal(excludedExecutiveCorrection.data?.code, 'ATTENDANCE_NOT_REQUIRED', 'attendance_required=false operations manager cannot receive manual attendance corrections');
 
 const unlinkedEmployee = await rpc('create_employee', admin.token, {
   p_full_name: '계정 미연결 근태 대상', p_hired_on: '2026-09-08',

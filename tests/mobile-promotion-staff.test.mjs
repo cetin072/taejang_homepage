@@ -69,9 +69,13 @@ test('official channel footer uses canonical public URLs and local branded image
   assert.doesNotMatch(footer, /mark:\s*'泰'|mark:\s*'N'|mark:\s*'▶'/);
 });
 
-test('employee home uses one capability-driven work-platform action instead of role-specific home shortcuts', async () => {
+test('employee home uses one shared feature registry instead of role-specific home shortcuts', async () => {
   const home = await text('mobile/app/index.tsx');
-  assert.match(home, /WORK_PLATFORM_CAPABILITIES/);
+  const registry = await text('mobile/src/features/common/employee-feature-registry.ts');
+  assert.match(home, /resolveEmployeeAppFeatures/);
+  assert.match(registry, /work-platform\.open/);
+  assert.match(registry, /attendance\.clock/);
+  assert.match(registry, /notice\.read/);
   assert.match(home, /업무 플랫폼 열기/);
   assert.match(home, /OfficialChannelsFooter/);
   assert.doesNotMatch(home, /PromotionStaffShortcut/);

@@ -86,15 +86,16 @@ test('operations manager can enter server-backed general worker simulation', () 
   assert.match(bridge, /운영총괄 복귀/);
 });
 
-test('operations manager employee home stays available but personal attendance is removed by server policy', () => {
+test('employee attendance eligibility is data-driven while operations manager keeps the employee home', () => {
   const bridge = read('app/assets/employee-common-home-v1.js');
   const integrity = read('app/assets/attendance-integrity-ui.js');
-  const migration = read('supabase/migrations/20260908233000_issue_149_attendance_executive_exclusion_and_corrections.sql');
+  const migration = read('supabase/migrations/20260922010000_goal_329_employee_app_attendance_qa.sql');
   assert.match(bridge, /ALL_EMPLOYEE_HOME_ROLES = new Set\(\['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
   assert.match(bridge, /currentRoute === 'operations_manager'\) installDashboardReturn\(\)/);
   assert.match(integrity, /attendance_required !== false/);
-  assert.match(migration, /'ceo', 'operations_manager'/);
-  assert.match(migration, /private_employee_is_attendance_subject/);
+  assert.match(migration, /e\.attendance_required/);
+  const subject = migration.match(/create or replace function public\.private_employee_is_attendance_subject[\s\S]*?create or replace function public\.private_validate_attendance_attempt/)?.[0] || '';
+  assert.doesNotMatch(subject, /ceo|operations_manager|profile_roles|positions/i);
 });
 
 test('attendance database enforces one event per person/date/type and role boundaries', () => {

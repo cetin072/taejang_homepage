@@ -33,7 +33,13 @@ export type AttendanceResult = {
   code?: string;
   status?: string;
   event_at?: string;
+  server_time?: string;
   can_request_exception?: boolean;
+  qa_mode?: boolean;
+  writes_attendance?: boolean;
+  accuracy_m?: number;
+  distance_m?: number;
+  work_date?: string;
 };
 
 export async function loadMyAttendanceToday(client: PlatformSupabaseClient): Promise<AttendanceToday> {
@@ -55,6 +61,24 @@ export async function recordAttendanceEvent(
     p_latitude: position.latitude,
     p_longitude: position.longitude,
     p_accuracy_m: position.accuracy,
+  });
+  if (error) throw error;
+  return (data || {}) as AttendanceResult;
+}
+
+
+export async function validateAttendanceQa(
+  client: PlatformSupabaseClient,
+  eventType: AttendanceEventType,
+  position: AttendancePosition,
+  hasQaClockIn: boolean,
+): Promise<AttendanceResult> {
+  const { data, error } = await client.rpc('qa_validate_attendance_event', {
+    p_event_type: eventType,
+    p_latitude: position.latitude,
+    p_longitude: position.longitude,
+    p_accuracy_m: position.accuracy,
+    p_has_qa_clock_in: hasQaClockIn,
   });
   if (error) throw error;
   return (data || {}) as AttendanceResult;

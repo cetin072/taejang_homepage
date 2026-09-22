@@ -32,6 +32,7 @@ test('mobile attendance reuses existing server RPC contracts', async () => {
   assert.match(api, /get_my_attendance_today/);
   assert.match(api, /record_attendance_event/);
   assert.match(api, /request_attendance_exception/);
+  assert.match(api, /qa_validate_attendance_event/);
   assert.match(api, /holiday_work_assigned/);
   assert.doesNotMatch(api, /attendance_events|attendance_locations|service_role/i);
 });
@@ -57,7 +58,7 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.match(card, /Alert\.alert/);
   assert.match(card, /정말 퇴근하시겠습니까/);
   assert.match(card, /text: '취소'/);
-  assert.match(card, /text: '퇴근하기'/);
+  assert.match(card, /text: qaMode \? '검수 계속' : '퇴근했습니다'/);
 
   const permissionBranch = card.match(/if \(error\.code === 'PERMISSION_DENIED'\)[\s\S]*?\} else \{/i)?.[0] || '';
   assert.doesNotMatch(permissionBranch, /allowException/);
@@ -69,5 +70,5 @@ test('employee mobile home always keeps one attendance block before notice even 
   const notices = home.indexOf('<NoticeHomeAction');
   assert.ok(attendance >= 0 && notices > attendance, 'attendance action must precede notices');
   assert.doesNotMatch(home, /canRecordAttendance\s*\?\s*<AttendanceCard/);
-  assert.match(home, /<AttendanceCard minHeight=\{actionHeight\}/);
+  assert.match(home, /<AttendanceCard[\s\S]*?minHeight=\{actionHeight\}/);
 });
