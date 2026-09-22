@@ -62,7 +62,6 @@
       method: 'POST',
       headers: {
         'Content-Type': file.type,
-        'Cache-Control': '3600',
         'x-upsert': 'false',
       },
       body: file,
