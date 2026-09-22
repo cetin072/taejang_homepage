@@ -98,7 +98,8 @@ test('app Core publishes readiness without a whole-branch module barrier', () =>
   syntaxCheck('app/assets/app-core-lifecycle.js');
   assert.match(appUi, /const FEATURE_MODULES = \[/);
   assert.doesNotMatch(appUi, /Promise\.all\(/);
-  assert.doesNotMatch(appUi, /document\.addEventListener\('taejang-app-ready'/);
+  assert.match(appUi, /function startFeatureBranches\(\)/);
+  assert.match(appUi, /document\.addEventListener\('taejang-app-ready', startFeatureBranches, \{ once: true \}\)/);
   assert.match(appUi, /FEATURE_MODULES\.forEach\(\(\[source, key\]\) =>/);
   assert.match(appUi, /script\.dataset\.branchModule = '1'/);
   assert.match(lifecycle, /document\.currentScript\?\.dataset\?\.branchModule === '1'/);
@@ -149,13 +150,23 @@ test('a late branch handler receives the already-settled Core context exactly on
   assert.equal(deliveredDetail.route, 'operations_manager');
 });
 
-test('feature module requests begin together without delaying Core readiness', () => {
+test('feature branches do not execute before Core readiness and then start independently', () => {
   const document = new FakeDocument();
   const window = new EventHub();
   vm.runInNewContext(appUi, { window, document, CustomEvent: FakeCustomEvent, Promise, setTimeout, clearTimeout, console }, { filename: 'app-ui.js' });
 
+  assert.equal(
+    document.nodes.filter(node => node.tagName === 'SCRIPT').length,
+    0,
+    'business branches must not be requested before authenticated Core readiness'
+  );
+
+  document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', {
+    detail: { route: 'operations_manager', label: '운영총괄' }
+  }));
+
   const requested = document.nodes.filter(node => node.tagName === 'SCRIPT');
-  assert.ok(requested.length >= 20, 'all module requests should be appended before the first response resolves');
+  assert.ok(requested.length >= 20, 'branch requests should begin after Core readiness');
   assert.ok(requested.every(node => node.dataset.branchModule === '1'));
 });
 
