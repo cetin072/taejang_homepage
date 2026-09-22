@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -238,6 +239,11 @@ export default function HomeScreen() {
       return;
     }
     void refreshAccess();
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void refreshAccess();
+    });
+    return () => subscription.remove();
   }, [session, refreshAccess]);
 
   const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);
