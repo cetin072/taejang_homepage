@@ -63,7 +63,9 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   const appConfig = JSON.parse(await text('mobile/app.json'));
   const app = await text('mobile/app/index.tsx');
   assert.equal(appConfig.expo.name, '태장');
-  assert.match(app, /태장 업무플랫폼/);
+  assert.match(app, /태장 직원앱/);
+  assert.match(app, /업무 플랫폼 열기/);
+  assert.doesNotMatch(app, /태장 업무플랫폼/);
   assert.match(app, /가입 요청/);
   assert.match(app, /비밀번호 찾기/);
   assert.match(app, /비밀번호 보기/);
