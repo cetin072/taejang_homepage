@@ -51,7 +51,8 @@ create or replace function public.private_validate_attendance_attempt(
   p_latitude double precision,
   p_longitude double precision,
   p_accuracy_m double precision,
-  p_virtual_clock_in boolean default false
+  p_virtual_clock_in boolean default false,
+  p_allow_non_workday boolean default false
 )
 returns jsonb
 language plpgsql
@@ -79,7 +80,8 @@ begin
     return jsonb_build_object('ok', false, 'code', 'INVALID_LOCATION');
   end if;
 
-  if not public.private_attendance_is_workday(work_day) then
+  if not public.private_attendance_is_workday(work_day)
+     and not coalesce(p_allow_non_workday, false) then
     return jsonb_build_object(
       'ok', false,
       'code', 'NON_WORKDAY',
@@ -150,6 +152,7 @@ begin
     'code', 'ATTENDANCE_VALIDATED',
     'work_date', work_day,
     'event_type', p_event_type,
+    'is_workday', public.private_attendance_is_workday(work_day),
     'server_time', now(),
     'accuracy_m', p_accuracy_m,
     'distance_m', distance_value,
@@ -159,14 +162,14 @@ end;
 $$;
 
 alter function public.private_validate_attendance_attempt(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) owner to postgres;
 revoke all on function public.private_validate_attendance_attempt(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) from public, anon, authenticated;
 
 comment on function public.private_validate_attendance_attempt(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) is
   'Shared no-write validation for real employee attendance and operations-manager employee-app QA.';
 
@@ -212,6 +215,7 @@ begin
     p_latitude,
     p_longitude,
     p_accuracy_m,
+    false,
     false
   );
 
@@ -262,7 +266,8 @@ begin
     p_latitude,
     p_longitude,
     p_accuracy_m,
-    coalesce(p_has_qa_clock_in, false)
+    coalesce(p_has_qa_clock_in, false),
+    true
   );
 
   if not coalesce((validation ->> 'ok')::boolean, false) then
@@ -279,17 +284,17 @@ end;
 $$;
 
 alter function public.qa_validate_attendance_event(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) owner to postgres;
 revoke all on function public.qa_validate_attendance_event(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) from public, anon;
 grant execute on function public.qa_validate_attendance_event(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) to authenticated;
 
 comment on function public.qa_validate_attendance_event(
-  text,double precision,double precision,double precision,boolean
+  text,double precision,double precision,double precision,boolean,boolean
 ) is
   'Operations-manager employee-app QA: runs GPS/workday/geofence/server validation and returns only a result. It never writes attendance, corrections, confirmations, or payroll state.';
 
