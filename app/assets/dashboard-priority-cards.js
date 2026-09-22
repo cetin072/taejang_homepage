@@ -219,7 +219,9 @@
   function syncCustomizedOperationsCards(currentRoute, grid) {
     const settings = window.TaejangPlatformUiSettings;
     if (currentRoute !== 'operations_manager' || !settings?.isDashboardCustomized?.()) return;
-    const selected = [...new Set((settings.getDashboardOrder?.() || []).map(normalizeCardKey))];
+    const allowedKeys = new Set(availableCardItems().map(item => item.key));
+    const selected = [...new Set((settings.getDashboardOrder?.() || []).map(normalizeCardKey))]
+      .filter(key => allowedKeys.has(key));
     const seen = new Set();
     [...grid.children].forEach(node => {
       const key = cardKey(node);
