@@ -230,7 +230,7 @@
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
         '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
-        '업무 배정', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
+        '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
         '기업 프로필', '지원사업 레이더', '내 지원사업'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
@@ -239,7 +239,7 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
-      assertOrdered(current, ['업무 배정', '공지 관리'], '운영총괄 업무 운영');
+      assertOrdered(current, ['업무 배정', '공지 등록', '공지 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
