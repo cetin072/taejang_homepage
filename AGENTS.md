@@ -28,6 +28,14 @@
 - 업무수첩 등 내부 프로젝트에서 이미 검증한 모바일·알림·입력 처리 계약은 새로 발명하지 않고 우선 재사용 가능성을 검토합니다.
 - 신규 유료 서비스나 비용 발생 인프라는 기존 승인 규칙대로 사용자 승인 없이 도입하지 않습니다.
 
+## 모바일 앱 장기 개발·배포 기준
+
+- 태장 직원용 모바일 앱 작업에서는 [`docs/operations/MOBILE_APP_DEVELOPMENT_STANDARD.md`](docs/operations/MOBILE_APP_DEVELOPMENT_STANDARD.md)를 장기 기준으로 사용합니다.
+- 모바일은 기존 Auth/RLS/attendance/promotion/notice 서버 계약을 재사용하고, 출퇴근·geofence·권한·승인 판정을 앱에 중복 구현하지 않습니다.
+- 위치·알림 등 권한은 최소한으로 사용하며, background location은 명시적 사용자 승인과 정책 검토 없이 도입하지 않습니다.
+- Android Play 배포에서는 package/versionCode/signing/secret, AAB, 실기기 QA, backend 하위호환, 테스트 트랙과 Production 승인선을 모바일 표준에 따라 관리합니다.
+- Supabase는 runtime data/Auth/RLS/서버 계약의 source of truth이며, 개발 정책·장기 기획 메모 저장소로 사용하지 않습니다.
+
 ## 문서 로딩 경량화
 
 모든 작업에서 모든 운영문서를 다시 읽지 않습니다. 프로젝트 `AGENTS.md`를 일상 작업의 압축 기준으로 사용하고 작업 위험도에 따라 필요한 문서만 추가로 확인합니다.
