@@ -20,6 +20,7 @@ const attendance = read('app/assets/attendance-admin.js');
 const correctionUi = read('app/assets/attendance-integrity-ui.js');
 const simulation = read('app/assets/phase-c-role-simulation.js');
 const onboarding = read('supabase/migrations/20260919235000_issue_274_mobile_onboarding_holiday.sql');
+const employeeAppAttendance = read('supabase/migrations/20260922010000_goal_329_employee_app_attendance_qa.sql');
 
 test('promotion lead operational capabilities appear through the shared master sidebar without gaining payroll management', () => {
   for (const capability of ['task.manage', 'schedule.manage', 'notice.manage']) {
@@ -82,14 +83,12 @@ test('promotion lead onboarding stays limited to general worker and promotion st
   assert.match(onboarding, /private_actor_can\('employee\.onboard'\)/);
 });
 
-test('attendance subject policy reads actual account roles and role preview discloses that boundary', () => {
-  const policy = read('supabase/migrations/20260919123500_issue_249_attendance_lead_correction_policy.sql');
-  assert.match(policy, /not employee_row\.attendance_required/);
-  assert.match(policy, /in \('ceo', 'operations_manager'\)/);
-  assert.match(policy, /from public\.account_person_links apl/);
-  assert.match(policy, /join public\.profile_roles pr on pr\.profile_id = apl\.profile_id and pr\.revoked_at is null/);
+test('attendance subject policy is employee-data driven and role preview still discloses actual-account attendance', () => {
+  const subject = employeeAppAttendance.match(/create or replace function public\.private_employee_is_attendance_subject[\s\S]*?create or replace function public\.private_validate_attendance_attempt/)?.[0] || '';
+  assert.match(subject, /attendance_required/);
+  assert.match(subject, /employment_status = 'active'/);
+  assert.doesNotMatch(subject, /ceo|operations_manager|profile_roles|positions/i);
   assert.match(simulation, /권한만 운영팀장으로 미리보기 중이며 근태 대상 여부는 실제 계정 기준입니다/);
-  assert.doesNotMatch(policy, /private_effective_role_codes\(\)/);
 });
 
 test('attendance correction uses an accessible time dialog and explains server codes', () => {
