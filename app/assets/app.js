@@ -175,6 +175,7 @@
       const script = document.createElement('script');
       script.src = source;
       script.defer = true;
+      script.dataset.branchModule = '1';
       script.addEventListener('load', resolve, { once: true });
       script.addEventListener('error', reject, { once: true });
       document.body.append(script);
@@ -716,9 +717,8 @@
       friendlyError
     };
     await resolveCapabilityContext();
-    await loadManagerModules();
-    showManagerModuleStatus();
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
+    void loadManagerModules().then(showManagerModuleStatus);
   }
 
   function clearHandoffFromUrl() {

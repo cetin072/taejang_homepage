@@ -126,8 +126,7 @@ test('failed feature module becomes a visible retry state instead of silent succ
   };
 
   vm.runInNewContext(appUiSource, sandbox, { filename: 'app-ui.js' });
-  await window.TaejangFeatureModulesReady;
-  await tick();
+  await new Promise(resolve => setTimeout(resolve, 8));
 
   assert.equal(window.TaejangFeatureHealth.hasFailed('employee-management'), true);
   const notice = document.querySelector('[data-feature-health-notice]');
