@@ -210,6 +210,24 @@ const qaClockOut = await rpc('qa_validate_attendance_event', qaExecutive.token, 
 equal(qaClockOut.data?.code, 'QA_ATTENDANCE_VALIDATED', 'operations manager can continue the no-write QA flow through clock-out');
 equal(sql(`select count(*) from public.attendance_events where profile_id='${qaExecutive.id}'::uuid`), qaBefore, 'operations attendance QA creates zero raw attendance rows');
 
+const leadQaDenied = await rpc('qa_validate_attendance_event', lead.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(leadQaDenied.data?.code, 'FORBIDDEN', 'promotion lead cannot execute operations-only attendance QA');
+
+const noAttendanceQaDenied = await rpc('qa_validate_attendance_event', noAttendance.token, {
+  p_event_type: 'clock_in',
+  p_latitude: officeLat,
+  p_longitude: officeLong,
+  p_accuracy_m: 10,
+  p_has_qa_clock_in: false,
+});
+equal(noAttendanceQaDenied.data?.code, 'FORBIDDEN', 'ordinary employee cannot execute operations-only attendance QA');
+
 const worker = await createLinkedEmployee({
   email: 'attendance-worker@example.test', name: '근태 대상 직원', role: 'general_worker', attendanceRequired: true,
 });
