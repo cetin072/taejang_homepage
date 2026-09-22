@@ -424,8 +424,9 @@
       await savePersonal({dashboardOrder:[]});
       state.editingDashboard=false;
       clearEditableCards();
-      window.TaejangDashboardPriorityCards?.sync?.();
-      injectDashboardEditor();
+      // Re-render the dashboard immediately so removed/conditional default cards
+      // are rebuilt now rather than only appearing after a manual page refresh.
+      document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));
     } catch(error) {
       window.alert(app()?.friendlyError?.(error) || '대시보드 기본값을 복원하지 못했습니다.');
     }
