@@ -74,16 +74,28 @@
 
   function recoverGeneralWorkerScreen() {
     if (route() !== 'general_worker') return;
+    document.getElementById('general-worker-board')?.classList.add('worker-v1-hidden');
+
+    const employeeHome = document.getElementById('employee-common-home');
+    if (employeeHome) {
+      document.body.classList.remove('general-worker-mode');
+      document.body.classList.add('employee-home-mode');
+      employeeHome.hidden = false;
+
+      const workerHome = document.getElementById('worker-mobile-home');
+      if (workerHome) workerHome.hidden = true;
+      return;
+    }
+
+    // Compatibility fallback only: the canonical production surface is now
+    // employee-common-home. Keep the old worker surface usable only if a stale
+    // or partially loaded client still created it.
+    const workerHome = document.getElementById('worker-mobile-home');
+    if (!workerHome) return;
     installWorkerFallbackStyles();
     document.body.classList.add('general-worker-mode');
     document.body.classList.remove('employee-home-mode');
-    document.getElementById('general-worker-board')?.classList.add('worker-v1-hidden');
-
-    const workerHome = document.getElementById('worker-mobile-home');
-    if (workerHome) workerHome.hidden = false;
-
-    const employeeHome = document.getElementById('employee-common-home');
-    if (employeeHome) employeeHome.hidden = true;
+    workerHome.hidden = false;
   }
 
   function fixTopbarIdentity() {
