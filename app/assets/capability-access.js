@@ -8,10 +8,20 @@
   let queuedReadyDetail = null;
   let uiGatesPromise = null;
 
+  const FAILED_ACCESS_CONTEXT = Object.freeze({
+    access_contract_version: 0,
+    roles: [],
+    actual_roles: [],
+    effective_roles: [],
+    capabilities: [],
+    role_simulation: { can_switch: false, active: false, role_code: null, expires_at: null }
+  });
+
   const array = value => Array.isArray(value) ? value : [];
   const roleCodes = value => array(value).map(role => typeof role === 'string' ? role : role?.code).filter(Boolean);
 
   function effectiveRoute(app) {
+    if (Number(accessContext?.access_contract_version || 0) === 0) return null;
     const effectiveRoles = app.getEffectiveRoles?.() || [];
     const resolved = window.TaejangAuthRouting?.resolveRoleRoute?.(effectiveRoles);
     return resolved?.code || app.getActualRoute?.() || null;
@@ -98,7 +108,7 @@
       } catch (error) {
         // Access presentation must not silently regress to copied role checks
         // when the v2 server contract is unavailable. RPC/RLS remain final.
-        installApi(null, 0);
+        installApi(FAILED_ACCESS_CONTEXT, 0);
         document.dispatchEvent(new CustomEvent('taejang-capabilities-ready', {
           detail: { version: 0, capabilities: [], error: true },
         }));
