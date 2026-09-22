@@ -127,8 +127,16 @@
     mountPanels();
     hidePanels(id);
     if (id === 'today-admin-panel') configureTodayAdmin(view);
+    if (id === 'notice-admin-panel') {
+      const noticeView = view === 'create' ? 'create' : 'manage';
+      document.dispatchEvent(new CustomEvent('taejang-open-notice-admin', { detail: { view: noticeView } }));
+    }
     const topbar = byId('desktop-page-title');
-    if (topbar) topbar.textContent = PANEL_TITLES[id] || '업무';
+    if (topbar) {
+      topbar.textContent = id === 'notice-admin-panel' && view === 'create'
+        ? '공지 등록'
+        : (PANEL_TITLES[id] || '업무');
+    }
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = true;
   }
