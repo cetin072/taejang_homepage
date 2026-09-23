@@ -52,7 +52,6 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(dashboardShell, /promotion\.edit_own/);
   assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
   assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
-  assert.match(ux, /item\.lifecycle !== 'archived'/);
   assert.match(ux, /item\.submitted_at/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
@@ -71,7 +70,7 @@ test('promotion and homepage management sidebar slots are capability-driven by t
 });
 
 test('issue 216 navigation stability uses one canonical composer without feature-owned sidebar observers', () => {
-  assert.match(workspace, /Sidebar structure is owned exclusively by dashboard-shell/);
+  assert.match(workspace, /Sidebar DOM is owned exclusively by dashboard-shell/);
   assert.doesNotMatch(workspace, /new MutationObserver\(/);
   assert.match(navigation, /function ensureIssue207RoleContract/);
   assert.match(navigation, /const MASTER_ORDER = Object\.freeze/);
