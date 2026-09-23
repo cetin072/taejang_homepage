@@ -73,6 +73,50 @@
     if (api) return api();
     window.TaejangFeatureHealth?.showFailure?.('가입 승인 기능');
   }
+  function openPromotionWrite() {
+    closeSidebar();
+    const route = window.TaejangApp?.getRoute?.();
+    if (route === 'operations_manager' && typeof window.TaejangOperationsPromotionWriter?.open === 'function') {
+      return window.TaejangOperationsPromotionWriter.open();
+    }
+    return openPromotion('write');
+  }
+  function openSentPromotion() {
+    closeSidebar();
+    const api = window.TaejangIssue207Ux?.openSent;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('보낸 글 기능');
+  }
+  function openExistingPromotion() {
+    closeSidebar();
+    const api = window.TaejangPublicationAdmin?.openPublicationAdmin;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('기존 글 관리 기능');
+  }
+  function openHomepageManagement() {
+    closeSidebar();
+    const api = window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement;
+    if (typeof api === 'function') return api();
+    document.dispatchEvent(new CustomEvent('taejang-open-homepage-content'));
+  }
+  function openHomepageDirect() {
+    closeSidebar();
+    const api = window.TaejangOperationsHomepageDirect?.open;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('홈페이지 직접 수정 기능');
+  }
+  function openAttendance() {
+    closeSidebar();
+    const api = window.TaejangAttendanceAdmin?.openAttendance;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('출근부 기능');
+  }
+  function openAttendanceCorrection() {
+    closeSidebar();
+    const api = window.TaejangAttendanceIntegrity?.openCorrectionScreen;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('근태 보정 기능');
+  }
   function openSupport(view) {
     closeSidebar();
     if (view === 'mywork') {
@@ -207,21 +251,54 @@
         capabilities: ['employee.onboard', 'account.approve', 'account.reject']
       },
       {
+        key: 'promotion.write',
         label: '홍보 글 작성',
-        run: () => openPromotion('write'),
+        run: openPromotionWrite,
         dataKey: 'promotion-write',
-        capabilities: ['promotion.write']
+        capabilities: ['promotion.write','promotion.edit_any_unpublished']
       },
       {
+        key: 'promotion.revision',
         label: '보완 요청받은 글',
         run: () => openPromotion('revision'),
         dataKey: 'promotion-returned',
-        capabilities: ['promotion.edit_own']
+        capabilities: ['promotion.edit_own','promotion.edit_any_unpublished']
       },
       {
+        key: 'promotion.sent',
+        label: '보낸 글',
+        run: openSentPromotion,
+        capabilities: ['promotion.write']
+      },
+      {
+        key: 'promotion.review',
         label: '홍보 검토',
         run: () => openPromotion('review'),
         capabilities: ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo']
+      },
+      {
+        key: 'promotion.publication',
+        label: '발행 대기',
+        run: () => openPromotion('review'),
+        capabilities: ['promotion.queue_publication']
+      },
+      {
+        key: 'promotion.existing',
+        label: '기존 글 관리',
+        run: openExistingPromotion,
+        capabilities: ['promotion.manage_recent_public','promotion.archive','promotion.restore']
+      },
+      {
+        key: 'homepage.content',
+        label: '홈페이지 내용 관리',
+        run: openHomepageManagement,
+        capabilities: ['homepage.draft','homepage.review','homepage.approve_apply']
+      },
+      {
+        key: 'homepage.direct',
+        label: '홈페이지 직접 수정',
+        run: openHomepageDirect,
+        capabilities: ['homepage.direct_edit']
       },
       {
         label: '업무 배정',
@@ -239,6 +316,18 @@
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel', 'manage'),
         capabilities: ['notice.manage']
+      },
+      {
+        key: 'attendance.view',
+        label: '출근부',
+        run: openAttendance,
+        capabilities: ['attendance.admin_view']
+      },
+      {
+        key: 'attendance.correct',
+        label: '근태 보정',
+        run: openAttendanceCorrection,
+        capabilities: ['attendance.correct']
       },
       {
         label: '근태·급여관리',
