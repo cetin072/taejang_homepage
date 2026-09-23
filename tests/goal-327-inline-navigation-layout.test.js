@@ -23,8 +23,10 @@ const supportRadar = read('app/assets/support-radar.js');
 const attendance = read('app/assets/attendance-admin.js');
 const accountApproval = read('app/assets/phase-c-account-approval.js');
 
-test('Goal 327 keeps regular navigation and cards non-draggable until inline edit mode', () => {
-  assert.match(settings, /button\('메뉴 편집',startSidebarLayout,true\)/);
+test('Goal 327 keeps regular navigation and cards non-draggable until Settings edit mode', () => {
+  assert.match(settings, /사이드바 메뉴 순서 편집/);
+  assert.match(settings, /startSidebarLayout\(\)/);
+  assert.match(settings, /일반 사이드바에는 편집 버튼을 두지 않아/);
   assert.match(settings, /button\('대시보드 편집',startDashboardLayout,true\)/);
   assert.match(settings, /handle\.draggable=true/);
   assert.doesNotMatch(settings, /card\.draggable=true/);
@@ -33,10 +35,13 @@ test('Goal 327 keeps regular navigation and cards non-draggable until inline edi
   assert.match(settings, /state\.editingDashboard/);
 });
 
-test('Goal 327 inline editors expose only save, cancel, and reset actions', () => {
-  assert.match(settings, /button\('저장',saveSidebarLayout\)/);
-  assert.match(settings, /button\('취소',cancelSidebarLayout,true\)/);
-  assert.match(settings, /button\('기본값',resetSidebarLayout,true\)/);
+test('Goal 327 Settings editor exposes only save, cancel, and reset actions', () => {
+  assert.match(settings, /메뉴 순서 저장/);
+  assert.match(settings, /편집 취소/);
+  assert.match(settings, /기본 순서로/);
+  assert.match(settings, /saveSidebarLayout/);
+  assert.match(settings, /cancelSidebarLayout/);
+  assert.match(settings, /resetSidebarLayout/);
   assert.match(settings, /button\('저장',saveDashboardLayout\)/);
   assert.doesNotMatch(settings, /window\.confirm\('내 대시보드/);
 });
