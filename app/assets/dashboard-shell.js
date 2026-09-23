@@ -73,6 +73,65 @@
     if (api) return api();
     window.TaejangFeatureHealth?.showFailure?.('가입 승인 기능');
   }
+  function openPromotionWrite() {
+    closeSidebar();
+    const route = window.TaejangApp?.getRoute?.();
+    if (route === 'operations_manager' && typeof window.TaejangOperationsPromotionWriter?.open === 'function') {
+      return window.TaejangOperationsPromotionWriter.open();
+    }
+    return openPromotion('write');
+  }
+  function openSentPromotion() {
+    closeSidebar();
+    const api = window.TaejangIssue207Ux?.openSent;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('보낸 글 기능');
+  }
+  function openExistingPromotion() {
+    closeSidebar();
+    const api = window.TaejangPublicationAdmin?.openPublicationAdmin;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('기존 글 관리 기능');
+  }
+  function openHomepageManagement() {
+    closeSidebar();
+    const canonical = window.TaejangIssue146?.openHomepageSlots;
+    if (typeof canonical === 'function') return canonical();
+    const fallback = window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement;
+    if (typeof fallback === 'function') return fallback();
+    document.dispatchEvent(new CustomEvent('taejang-open-homepage-content'));
+  }
+  function openHomepageDirect() {
+    closeSidebar();
+    const api = window.TaejangOperationsHomepageDirect?.open;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('홈페이지 직접 수정 기능');
+  }
+  function openAttendance() {
+    closeSidebar();
+    const api = window.TaejangAttendanceAdmin?.openAttendance;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('출근부 기능');
+  }
+  function openAttendanceCorrection() {
+    closeSidebar();
+    const api = window.TaejangAttendanceIntegrity?.openCorrectionScreen;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('근태 보정 기능');
+  }
+  function openSupport(view) {
+    closeSidebar();
+    if (view === 'mywork') {
+      if (featureUnavailable('support-radar-my-work', '내 지원사업 기능')) return;
+      const openMyWork = window.TaejangSupportRadarMyWork?.renderList;
+      if (typeof openMyWork === 'function') return openMyWork();
+      return window.TaejangFeatureHealth?.showFailure?.('내 지원사업 기능');
+    }
+    if (featureUnavailable('support-radar', '지원사업 기능')) return;
+    const open = window.TaejangSupportRadar?.open;
+    if (typeof open === 'function') return open(view === 'profile' ? 'profile' : 'dashboard');
+    window.TaejangFeatureHealth?.showFailure?.('지원사업 기능');
+  }
   function button(label, action) { const node = text('button', label, 'button button-quiet'); node.type = 'button'; node.addEventListener('click', action); return node; }
   function closeSidebar() { const shell = el('desktop-app-shell'); if (!shell) return; shell.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded', 'false'); }
   function card(title, body, { value, action, state } = {}) {
@@ -155,29 +214,23 @@
       node.dataset.phaseCV2Nav = 'revision';
     }
   }
-  function makeOfficialChannelGroup() {
-    const group = document.createElement('section');
-    group.className = 'app-nav-channel-group';
-    group.dataset.officialChannelGroup = '1';
-    group.dataset.navSection = 'official_channels';
-    group.setAttribute('aria-label', '공식 채널');
-    const label = text('p', '공식 채널', 'app-nav-group-label');
-    group.append(label);
+  function makeOfficialChannelLinks() {
     const channels = window.TaejangOfficialChannels?.list || [];
-    channels.forEach(channel => {
+    return channels.map(channel => {
       const link = document.createElement('a');
       link.href = channel.href;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = channel.label;
-      link.className = 'app-nav-official-channel';
+      link.className = 'app-nav-item app-nav-official-channel';
       link.dataset.officialChannelLink = channel.id;
       link.dataset.channel = channel.id;
+      link.dataset.menuKey = `public.${channel.id}`;
       link.setAttribute('aria-label', `${channel.label} 새 탭에서 열기`);
-      group.append(link);
+      return link;
     });
-    return group;
   }
+
   function masterMenuItems() {
     return [
       { label: '대시보드', run: goDashboard, current: true },
@@ -200,21 +253,54 @@
         capabilities: ['employee.onboard', 'account.approve', 'account.reject']
       },
       {
+        key: 'promotion.write',
         label: '홍보 글 작성',
-        run: () => openPromotion('write'),
+        run: openPromotionWrite,
         dataKey: 'promotion-write',
-        capabilities: ['promotion.write']
+        capabilities: ['promotion.write','promotion.edit_any_unpublished']
       },
       {
+        key: 'promotion.revision',
         label: '보완 요청받은 글',
         run: () => openPromotion('revision'),
         dataKey: 'promotion-returned',
-        capabilities: ['promotion.edit_own']
+        capabilities: ['promotion.edit_own','promotion.edit_any_unpublished']
       },
       {
+        key: 'promotion.sent',
+        label: '보낸 글',
+        run: openSentPromotion,
+        capabilities: ['promotion.write']
+      },
+      {
+        key: 'promotion.review',
         label: '홍보 검토',
         run: () => openPromotion('review'),
         capabilities: ['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo']
+      },
+      {
+        key: 'promotion.publication',
+        label: '발행 대기',
+        run: () => openPromotion('review'),
+        capabilities: ['promotion.queue_publication']
+      },
+      {
+        key: 'promotion.existing',
+        label: '기존 글 관리',
+        run: openExistingPromotion,
+        capabilities: ['promotion.manage_recent_public','promotion.archive','promotion.restore']
+      },
+      {
+        key: 'homepage.content',
+        label: '홈페이지 내용 관리',
+        run: openHomepageManagement,
+        capabilities: ['homepage.draft','homepage.review','homepage.approve_apply']
+      },
+      {
+        key: 'homepage.direct',
+        label: '홈페이지 직접 수정',
+        run: openHomepageDirect,
+        capabilities: ['homepage.direct_edit']
       },
       {
         label: '업무 배정',
@@ -232,6 +318,18 @@
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel', 'manage'),
         capabilities: ['notice.manage']
+      },
+      {
+        key: 'attendance.view',
+        label: '출근부',
+        run: openAttendance,
+        capabilities: ['attendance.admin_view']
+      },
+      {
+        key: 'attendance.correct',
+        label: '근태 보정',
+        run: openAttendanceCorrection,
+        capabilities: ['attendance.correct']
       },
       {
         label: '근태·급여관리',
@@ -257,30 +355,21 @@
       {
         key: 'support.profile',
         label: '기업 프로필',
-        href: 'index.html?support=profile',
-        capabilities: ['support_radar.management_view', 'support_radar.management_edit'],
-        newTab: true
+        run: () => openSupport('profile'),
+        capabilities: ['support_radar.management_view', 'support_radar.management_edit']
       },
       {
         key: 'support.radar',
         label: '지원사업 레이더',
-        href: 'index.html?support=radar',
-        capabilities: ['support_radar.management_view'],
-        newTab: true
+        run: () => openSupport('radar'),
+        capabilities: ['support_radar.management_view']
       },
       {
         key: 'support.mywork',
         label: '내 지원사업',
-        href: 'index.html?support=mywork',
-        capabilities: ['support_radar.assigned_work'],
-        newTab: true
+        run: () => openSupport('mywork'),
+        capabilities: ['support_radar.assigned_work']
       },
-      {
-        key: 'platform.settings',
-        label: '설정',
-        run: () => document.dispatchEvent(new CustomEvent('taejang-open-platform-settings')),
-        capabilities: ['platform.navigation.manage']
-      }
     ];
   }
 
@@ -310,7 +399,7 @@
       nav.append(node);
     });
 
-    nav.append(makeOfficialChannelGroup());
+    nav.append(...makeOfficialChannelLinks());
   }
 
   async function dashboardData(route) {
@@ -387,6 +476,31 @@
     link.href = '../index.html'; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'button button-quiet'; link.textContent = '홈페이지'; link.dataset.homepageAction = '1';
     actions.insertBefore(link, el('desktop-logout-button'));
   }
+
+  function ensureSettingsAction() {
+    const actions = document.querySelector('.app-user-actions');
+    if (!actions) return;
+    const current = actions.querySelector('[data-platform-settings-action]');
+    const app = window.TaejangApp;
+    const allowed = app?.hasCapabilityContract?.()
+      ? app.can?.('platform.navigation.manage') === true
+      : app?.getRoute?.() === 'operations_manager';
+    if (!allowed) {
+      current?.remove();
+      return;
+    }
+    if (current) return;
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'button button-quiet';
+    node.textContent = '설정';
+    node.dataset.platformSettingsAction = '1';
+    node.addEventListener('click', () => {
+      closeSidebar();
+      document.dispatchEvent(new CustomEvent('taejang-open-platform-settings'));
+    });
+    actions.insertBefore(node, actions.querySelector('[data-homepage-action]') || el('desktop-logout-button'));
+  }
   function bindBrandToDashboard() {
     document.querySelectorAll('.staff-brand, .app-logo').forEach(brand => {
       brand.href = '#'; brand.setAttribute('aria-label', '업무 대시보드로 이동');
@@ -401,7 +515,7 @@
     setDashboardTopbar(route);
     el('desktop-user-label').textContent = `${window.TaejangApp.getContext().display_name || '사용자'} · ${event.detail.label}`;
     menu(route);
-    bindBrandToDashboard(); ensureHomepageAction();
+    bindBrandToDashboard(); ensureHomepageAction(); ensureSettingsAction();
     const shell = el('desktop-app-shell');
     if (!shell.dataset.ready) {
       shell.dataset.ready = 'true';
