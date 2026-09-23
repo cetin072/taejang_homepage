@@ -31,16 +31,17 @@ test('Issue 325 orders canonical menus by actual work flow', () => {
   const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
   assertOrdered(master, [
     '직원 관리','신규 직원 등록','가입 승인',
-    '홍보 글 작성','보완 요청받은 글','보낸 글','홍보 검토','발행 대기','기존 글 관리','홍보글 관리·복구',
+    '홍보 글 작성','보완 요청받은 글','보낸 글','홍보 검토','발행 대기','기존 글 관리',
     '홈페이지 내용 관리','홈페이지 직접 수정',
     '업무 배정','공지 등록','공지 관리',
     '출근부','근태 보정','근태·급여관리','외부 급여초안 상신','외부 급여초안 검토',
-    '기업 프로필','지원사업 레이더','내 지원사업','설정'
+    '기업 프로필','지원사업 레이더','내 지원사업'
   ]);
 });
 
 test('Issue 325 uses real clickable category headings instead of tiny pseudo labels', () => {
   assert.match(registry, /const SECTIONS = Object\.freeze/);
+  assert.match(registry, /key:'official_channels', label:'공식 채널'/);
   assert.match(nav, /function sectionToggle\(nav, section\)/);
   assert.match(nav, /dataset\.navSectionToggle = '1'/);
   assert.match(nav, /aria-expanded/);
@@ -49,6 +50,15 @@ test('Issue 325 uses real clickable category headings instead of tiny pseudo lab
   assert.match(css, /\.app-nav-section-title[\s\S]*font-size:1\.02rem/);
   assert.match(css, /\[data-nav-section\]:not\(\.app-nav-section-toggle\)[\s\S]*font-size:\.91rem/);
   assert.doesNotMatch(accent, /content:\s*attr\(data-section-label\)/);
+});
+
+test('Issue 325 keeps dashboard first and Official Channels last while Settings moves to topbar', () => {
+  assert.doesNotMatch(nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS')), /'설정'/);
+  assert.match(nav, /key: 'official_channels', label: '공식 채널'/);
+  assert.match(nav, /key === 'dashboard'[\s\S]*return -10000/);
+  assert.match(nav, /sectionKey === 'official_channels'[\s\S]*return 10000/);
+  assert.match(settings, /section\.key!=='official_channels'/);
+  assert.match(shell, /function ensureSettingsAction\(\)/);
 });
 
 test('Issue 325 whole sidebar never collapses and category collapse persists per profile and role', () => {
@@ -90,11 +100,17 @@ test('Issue 325 stops support my-work from injecting another sidebar group', () 
   const setup = myWork.slice(myWork.indexOf('function setup()'), myWork.indexOf("document.addEventListener('taejang-app-ready'"));
   assert.doesNotMatch(setup, /injectNav/);
   assert.match(shell, /key: 'support\.mywork'/);
-  assert.match(shell, /index\.html\?support=mywork/);
+  assert.match(shell, /openSupport\('mywork'\)/);
+  assert.doesNotMatch(shell, /index\.html\?support=mywork/);
 });
 
-test('Issue 325 removes duplicate standalone public-homepage menu because Official Channels already owns it', () => {
+test('Issue 325 keeps public channels out of business menu builders and composes them as one canonical category', () => {
   const master = shell.slice(shell.indexOf('function masterMenuItems'), shell.indexOf('function menu'));
   assert.doesNotMatch(master, /key: 'public\.homepage'/);
-  assert.match(shell, /makeOfficialChannelGroup/);
+  assert.match(shell, /function makeOfficialChannelLinks\(\)/);
+  assert.doesNotMatch(shell, /makeOfficialChannelGroup/);
+  assert.match(nav, /key: 'official_channels', label: '공식 채널'/);
+  assert.match(registry, /key:'public\.homepage'[\s\S]*section:'공식 채널'/);
+  assert.match(registry, /key:'public\.blog'[\s\S]*section:'공식 채널'/);
+  assert.match(registry, /key:'public\.youtube'[\s\S]*section:'공식 채널'/);
 });
