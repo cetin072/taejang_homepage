@@ -13,6 +13,7 @@
       "versionCode": 1
     },
     "plugins": [
+      "./plugins/with-release-upload-signing",
       "expo-router",
       "expo-secure-store",
       "expo-notifications",

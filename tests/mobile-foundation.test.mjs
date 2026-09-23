@@ -77,7 +77,7 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 
-test('mobile CI generates a clean lock then builds an ARM64 Android artifact', async () => {
+test('mobile CI keeps ARM64 device QA on an explicitly debug-signed APK', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
   assert.match(workflow, /rm -f package-lock\.json/);
   assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);
@@ -86,6 +86,36 @@ test('mobile CI generates a clean lock then builds an ARM64 Android artifact', a
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
-  assert.match(workflow, /assembleRelease -PreactNativeArchitectures=arm64-v8a/);
+  assert.match(workflow, /assembleDebug -PreactNativeArchitectures=arm64-v8a/);
+  assert.match(workflow, /outputs\/apk\/debug\/app-debug\.apk/);
   assert.match(workflow, /taejang-employee-mobile-arm64-apk/);
+});
+
+test('release prebuild removes Expo debug signing and requires the protected upload-signing workflow', async () => {
+  const appConfig = JSON.parse(await text('mobile/app.json'));
+  const plugin = await text('mobile/plugins/with-release-upload-signing.js');
+
+  assert.ok(appConfig.expo.plugins.includes('./plugins/with-release-upload-signing'));
+  assert.match(plugin, /signingConfig signingConfigs\\\.debug/);
+  assert.match(plugin, /Signing is injected only by the protected Google Play AAB workflow/);
+  assert.match(plugin, /Refuse to create an ambiguous release build/);
+});
+
+test('Play AAB job is upload-key signed, skips PR secrets, and inspects the release output', async () => {
+  const workflow = await text('.github/workflows/mobile-app.yml');
+
+  assert.match(workflow, /android-play-aab:/);
+  assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(workflow, /inputs\.build_play_aab/);
+  assert.match(workflow, /ANDROID_UPLOAD_KEYSTORE_BASE64/);
+  assert.match(workflow, /ANDROID_UPLOAD_KEY_ALIAS/);
+  assert.match(workflow, /ANDROID_UPLOAD_KEYSTORE_PASSWORD/);
+  assert.match(workflow, /ANDROID_UPLOAD_KEY_PASSWORD/);
+  assert.match(workflow, /bundleRelease/);
+  assert.match(workflow, /android\.injected\.signing\.store\.file/);
+  assert.match(workflow, /jarsigner -verify -strict -certs/);
+  assert.match(workflow, /CN=Android Debug/);
+  assert.match(workflow, /base\/lib\/arm64-v8a/);
+  assert.match(workflow, /ACCESS_BACKGROUND_LOCATION/);
+  assert.match(workflow, /taejang-employee-mobile-play-aab/);
 });
