@@ -211,7 +211,7 @@
     target.append(section);
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
-      const items = arr(workspace?.my_items).filter(item => item.lifecycle !== 'needs_revision' && (item.submitted_at || ['review_pending','approved','scheduled','published','hidden','archived'].includes(item.lifecycle)));
+      const items = arr(workspace?.my_items).filter(item => item.lifecycle !== 'needs_revision' && item.lifecycle !== 'archived' && (item.submitted_at || ['review_pending','approved','scheduled','published','hidden'].includes(item.lifecycle)));
       section.replaceChildren();
       const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
       if (!items.length) grid.append(text('p', '아직 운영팀장에게 보낸 글이 없습니다.', 'empty'));
