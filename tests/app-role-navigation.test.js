@@ -61,7 +61,7 @@ class Document extends Hub {
   querySelectorAll(selector) { if (selector === '.staff-brand, .app-logo') return []; return []; }
 }
 class FakeCustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } }
-function menuLabel(item) { return item.dataset?.navSection === 'official_channels' ? '공식 채널' : item.textContent; }
+function menuLabel(item) { return item.textContent; }
 function menuLabels(nav) { return nav.children.map(menuLabel); }
 function findMenu(nav, label) { return nav.children.find(item => menuLabel(item) === label); }
 const nextTurn = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -83,7 +83,11 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
     TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
-    TaejangOfficialChannels: { list: [] },
+    TaejangOfficialChannels: { list: [
+      { id: 'homepage', label: '홈페이지', href: '../index.html' },
+      { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+      { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+    ] },
     TaejangEmployeeManagement: { openEmployeeManagement: view => employeeViews.push(view || 'existing') },
     TaejangAccountApproval: { openAccountApproval: () => { approvalOpens += 1; } },
     TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
@@ -133,8 +137,9 @@ test('accent theme keeps restrained colors while real accordion headings own sid
   assert.doesNotMatch(accentCss, /content:\s*attr\(data-section-label\)/);
   assert.match(dashboardCss, /\.app-nav > \.app-nav-section-toggle/);
   assert.match(dashboardCss, /\.app-nav-section-title/);
-  assert.match(accentCss, /\.app-nav-channel-group\s*\{/);
-  assert.match(accentCss, /\.app-nav-group-label\s*\{/);
+  assert.match(accentCss, /data-section-key="official_channels"/);
+  assert.doesNotMatch(accentCss, /\.app-nav-channel-group\s*\{/);
+  assert.doesNotMatch(accentCss, /\.app-nav-group-label\s*\{/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="youtube"\]/);
 });
@@ -158,7 +163,7 @@ test('all desktop roles start from the same master sidebar before capability pru
     '업무 배정', '공지 등록', '공지 관리',
     '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
-    '공식 채널'
+    '홈페이지', '공식 블로그', '공식 유튜브'
   ];
 
   const promotion = await makeDashboard('promotion_staff');
@@ -228,21 +233,24 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_SECTIONS\]\)/);
   assert.doesNotMatch(navPriority, /promotion_staff:\s*\[/);
   assert.doesNotMatch(navPriority, /operations_manager:\s*\[/);
-  assert.match(navPriority, /dataset\?\.navSection === 'official_channels'/);
+  assert.match(navPriority, /key: 'official_channels', label: '공식 채널'/);
+  assert.doesNotMatch(navPriority, /navSection === 'official_channels'\) return 9000/);
 });
 
-test('official channels are shared public links in the common desktop sidebar', () => {
+test('official channels use the same canonical accordion hierarchy as other sidebar categories', () => {
   assert.match(source, /TaejangOfficialChannels\?\.list/);
   assertOrdered(officialChannelConfig, ['homepage', 'blog', 'youtube']);
   assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
   assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
   assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
-  assert.match(source, /dataset\.navSection = 'official_channels'/);
-  assert.match(source, /nav\.append\(makeOfficialChannelGroup\(\)\)/);
+  assert.match(source, /function makeOfficialChannelLinks\(\)/);
+  assert.match(source, /dataset\.menuKey = `public\.\$\{channel\.id\}`/);
+  assert.match(source, /nav\.append\(\.\.\.makeOfficialChannelLinks\(\)\)/);
+  assert.doesNotMatch(source, /makeOfficialChannelGroup/);
   assert.doesNotMatch(officialChannels, /ALLOWED_ROLES/);
   assert.match(officialChannels, /taejang-official-channels-ready/);
-  assert.match(officialChannels, /function reconcileGroup\(group\)/);
-  assert.match(officialChannels, /group\.replaceChildren\(label, \.\.\.expected\.map\(makeLink\)\)/);
+  assert.match(officialChannels, /:scope > \[data-official-channel-link\]/);
+  assert.doesNotMatch(officialChannels, /function makeGroup|app-nav-channel-group/);
   assert.match(officialChannelConfig, /taejang-official-channels-ready/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
