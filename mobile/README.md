@@ -48,7 +48,7 @@ Issue #227의 Android 직원앱 1차 통합 구현입니다.
 - cold-start deep link
 - 다중기기/token rotation 실기기 QA
 - 홍보직원 실제 계정 작성→상신→보완→재상신 Human QA
-- Play 내부테스트/공개배포
+- Play 비공개 테스트(Closed testing)/공개배포
 
 ## 안전선
 
@@ -59,3 +59,9 @@ Issue #227의 Android 직원앱 1차 통합 구현입니다.
 - 운영팀장/운영총괄 관리자 UI를 native로 재작성하지 않습니다.
 - Push 실패가 공지 저장을 롤백시키지 않습니다.
 - Production DB/Edge Function/FCM/Play 공개 배포는 별도 사용자 승인 전 금지입니다.
+
+## Google Play 정책 페이지
+
+- 직원앱 개인정보처리방침: `https://taejang.co.kr/employee-app-privacy.html`
+- 계정 삭제 요청: `https://taejang.co.kr/account-deletion.html`
+- 현재 배포 전략과 Play Console 입력 기준: `docs/operations/GOOGLE_PLAY_CLOSED_TESTING_RUNBOOK.md`
