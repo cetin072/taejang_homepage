@@ -156,6 +156,32 @@
       }
       assert(samples.every(signature => signature === initial), `${role}: 정착 후 보이는 메뉴 순서/내용이 다시 변함`);
     }
+    async function assertSidebarScrollStable(role) {
+      const sidebar = document.getElementById('app-sidebar');
+      const nav = document.getElementById('app-nav');
+      const style = getComputedStyle(sidebar);
+      assert(style.overflowY === 'auto' || style.overflowY === 'scroll', `${role}: 데스크톱 사이드바가 독립 스크롤 영역이 아님`);
+      assert(style.overscrollBehaviorY === 'contain', `${role}: 하단 wheel scroll chaining 방지 누락`);
+      assert(style.overflowAnchor === 'none', `${role}: 브라우저 scroll anchoring 방지 누락`);
+      const maxScroll = Math.max(0, sidebar.scrollHeight - sidebar.clientHeight);
+      assert(maxScroll > 0, `${role}: 사이드바 스크롤 테스트에 필요한 overflow가 없음`);
+      sidebar.scrollTop = maxScroll;
+      await wait(30);
+      const baseline = {
+        scrollTop: sidebar.scrollTop,
+        scrollHeight: sidebar.scrollHeight,
+        clientHeight: sidebar.clientHeight,
+        signature: navSignature()
+      };
+      for (let index = 0; index < 8; index += 1) {
+        await wait(80);
+        assert(Math.abs(sidebar.scrollTop - baseline.scrollTop) < 1, `${role}: 하단에서 scrollTop이 흔들림`);
+        assert(sidebar.scrollHeight === baseline.scrollHeight, `${role}: 하단에서 sidebar 높이가 반복 변경됨`);
+        assert(sidebar.clientHeight === baseline.clientHeight, `${role}: 하단에서 sidebar viewport 높이가 반복 변경됨`);
+        assert(navSignature() === baseline.signature, `${role}: 하단에서 메뉴 DOM이 반복 변경됨`);
+      }
+      sidebar.scrollTop = 0;
+    }
 
     async function enterRole(role, label) {
       currentRoute = role;
@@ -303,6 +329,7 @@
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
+        await assertSidebarScrollStable('operations_manager');
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
 
