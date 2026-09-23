@@ -90,6 +90,19 @@ test('employee preview page creates an isolated tab session and then loads the r
   assert.match(previewPage, /QA_STAGING_ONLY/);
 });
 
+test('inner employee app keeps the target session isolated from the operator persistent session', () => {
+  assert.ok(appSource.includes("const QA_PREVIEW_MARKER_KEY = 'taejang-qa-account-preview-v1';"));
+  assert.ok(appSource.includes('function usesIsolatedPreviewSession()'));
+  assert.ok(appSource.includes("host.startsWith('deploy-preview-')"));
+  assert.ok(appSource.includes("host.endsWith('--taejang-homepage.netlify.app')"));
+  assert.ok(appSource.includes('window.parent !== window'));
+  assert.ok(appSource.includes('sessionStorage.getItem(QA_PREVIEW_MARKER_KEY)'));
+  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      return sessionStorage.getItem(SESSION_KEY);'));
+  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));'));
+  assert.doesNotMatch(previewPage, /localStorage\.setItem\(SESSION_KEY/);
+  assert.doesNotMatch(previewPage, /localStorage\.removeItem\(SESSION_KEY/);
+});
+
 test('successful employee preview always removes the loading overlay on mobile', () => {
   assert.match(previewPage, /\.qa-state\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
   assert.match(previewPage, /state\.hidden\s*=\s*true;/);
