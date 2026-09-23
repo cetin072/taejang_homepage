@@ -74,7 +74,7 @@
   }
 
   function sidebarSectionKeys() { return registry()?.sections?.().map(section=>section.key) || []; }
-  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
+  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section && item.key!=='promotion.archive').map(item=>item.key) || []; }
   function sidebarPreference() {
     return {
       sectionOrder:mergeSavedOrder(state.sidebarSectionOrder,sidebarSectionKeys()),
@@ -84,6 +84,10 @@
 
   function currentRole() {
     return app()?.getRoute?.() || null;
+  }
+
+  function canEditSidebar() {
+    return app()?.can?.('platform.navigation.manage') === true;
   }
 
   function menuKey(node) {
@@ -495,7 +499,12 @@
   function sidebarEditorActions() {
     const sidebar=el('app-sidebar');
     if(!sidebar) return null;
-    let wrap=sidebar.querySelector('[data-sidebar-layout-actions]');
+    const existing=sidebar.querySelector('[data-sidebar-layout-actions]');
+    if(!canEditSidebar()) {
+      existing?.remove();
+      return null;
+    }
+    let wrap=existing;
     if(!wrap) {
       wrap=document.createElement('div');
       wrap.className='sidebar-layout-actions';
@@ -645,9 +654,22 @@
 
   function injectSidebarEditor() {
     const nav=sidebarNav();
+    if(!nav) return;
+    if(!canEditSidebar()) {
+      state.editingSidebar=false;
+      clearEditableSidebar();
+      el('app-sidebar')?.querySelector('[data-sidebar-layout-actions]')?.remove();
+      return;
+    }
     const wrap=sidebarEditorActions();
-    if(!nav || !wrap) return;
+    if(!wrap) return;
     bindSidebarDropTargets();
+    const mode=state.editingSidebar ? 'edit' : 'view';
+    if(wrap.dataset.sidebarEditorMode===mode) {
+      if(state.editingSidebar) decorateEditableSidebar();
+      return;
+    }
+    wrap.dataset.sidebarEditorMode=mode;
     wrap.replaceChildren();
     if(state.editingSidebar) {
       wrap.append(button('저장',saveSidebarLayout),button('취소',cancelSidebarLayout,true),button('기본값',resetSidebarLayout,true));
@@ -697,6 +719,17 @@
         text('h3','내 화면 옵션'),
         text('p','사이드바의 “메뉴 편집”에서 메뉴 순서를 바꿀 수 있고, 운영총괄은 “대시보드 편집”에서 카드 추가·제거·순서 변경을 할 수 있습니다. 메뉴 표시 설정은 아래 직책·역할별 관리에만 사용합니다.','help')
       );
+      if(window.TaejangOperationsDeleteControls?.openArchiveHub) {
+        const archive=document.createElement('section');
+        archive.className='platform-settings-card';
+        archive.append(
+          text('h3','보관함'),
+          text('p','삭제한 공지·일정·안내와 홍보글은 일반 업무 목록에서 숨기고 여기에서만 확인·복구합니다.','help'),
+          button('보관함 열기',()=>window.TaejangOperationsDeleteControls.openArchiveHub(),true)
+        );
+        shell.append(archive);
+      }
+
       shell.append(personal);
 
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card';
@@ -736,7 +769,7 @@
         checklist.replaceChildren();
         const overrides=roleVisibilityMap(context,select.value);
         const sections=new Map();
-        registry().items().filter(item=>!item.public).forEach(item=>{
+        registry().items().filter(item=>!item.public && item.key!=='promotion.archive').forEach(item=>{
           const section=item.section||'기본';
           if(!sections.has(section)) sections.set(section,[]);
           sections.get(section).push(item);
