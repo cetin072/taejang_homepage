@@ -37,7 +37,7 @@
     const style = document.createElement('style');
     style.dataset.employeeCommonHome = '1';
     style.textContent = `
-      body.employee-home-mode { background:#f6f6f2; }
+      body.employee-home-mode { background:#f6f6f2; overflow-y:auto !important; overflow-x:hidden; }
       body.employee-home-mode .staff-shell { width:min(100%,560px); margin:0 auto; padding:0 16px 32px; }
       body.employee-home-mode .staff-header { min-height:68px; position:sticky; top:0; z-index:20; background:rgba(246,246,242,.96); backdrop-filter:blur(10px); }
       body.employee-home-mode .staff-brand { font-size:24px; font-weight:900; text-decoration:none; }
@@ -552,6 +552,10 @@
     bindBrand();
     document.body.classList.remove('general-worker-mode');
     document.body.classList.add('employee-home-mode');
+    // renderEntry marks every non-general-worker route as desktop-app-mode.
+    // Role-preview routes reload directly into employee home, so release that
+    // sidebar-only body scroll lock here as well as in showEmployeeHome().
+    document.body.classList.remove('desktop-app-mode');
     const legacyBoard = document.getElementById('general-worker-board');
     if (legacyBoard) legacyBoard.hidden = true;
     const home = buildHome();
