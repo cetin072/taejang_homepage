@@ -116,6 +116,14 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
+test('desktop platform owns one viewport so sidebar and page scroll do not fight at the bottom', () => {
+  assert.match(appSource, /classList\.toggle\('desktop-app-mode', route\.code !== 'general_worker'\)/);
+  assert.match(dashboardCss, /body\.desktop-app-mode\s*\{[\s\S]*overflow:\s*hidden/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.desktop-app-shell[\s\S]*height:\s*100dvh/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.app-sidebar[\s\S]*position:\s*relative[\s\S]*overflow-y:\s*auto/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.app-workspace[\s\S]*overflow-y:\s*auto/);
+});
+
 test('accent theme keeps restrained colors while real accordion headings own sidebar categories', () => {
   assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
   assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
@@ -232,6 +240,10 @@ test('official channels are shared public links in the common desktop sidebar', 
   assert.match(source, /dataset\.navSection = 'official_channels'/);
   assert.match(source, /nav\.append\(makeOfficialChannelGroup\(\)\)/);
   assert.doesNotMatch(officialChannels, /ALLOWED_ROLES/);
+  assert.match(officialChannels, /taejang-official-channels-ready/);
+  assert.match(officialChannels, /function reconcileGroup\(group\)/);
+  assert.match(officialChannels, /group\.replaceChildren\(label, \.\.\.expected\.map\(makeLink\)\)/);
+  assert.match(officialChannelConfig, /taejang-official-channels-ready/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
 });
