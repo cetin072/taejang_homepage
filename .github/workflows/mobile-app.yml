@@ -187,7 +187,10 @@ jobs:
         run: |
           AAB=app/build/outputs/bundle/release/app-release.aab
           test -s "$AAB"
-          jarsigner -verify -strict -certs "$AAB"
+          # Play upload keys are normally self-signed. Plain verification still
+          # checks JAR signature integrity; -strict incorrectly promotes the
+          # expected self-signed certificate warning to a release-blocking error.
+          jarsigner -verify -certs "$AAB"
           ! keytool -printcert -jarfile "$AAB" | grep -Eiq 'CN=Android Debug'
           unzip -l "$AAB" | grep -q 'base/lib/arm64-v8a/'
           MANIFEST=app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
