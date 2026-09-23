@@ -80,13 +80,15 @@ test('Goal 327 uses stable, geometry-safe visual affordances', () => {
 });
 
 
-test('Goal 327 prevents retired menus from being re-injected by late feature modules', () => {
+test('Goal 327 prevents feature modules from re-owning canonical sidebar entries', () => {
   assert.doesNotMatch(issue146, /navButton\('복구·계정 관리'/);
   assert.doesNotMatch(issue146, /navButton\('홍보 작성'/);
   assert.match(employeeManagement, /삭제 직원 복구·계정 연결/);
-  assert.doesNotMatch(issue207, /navNode\(\s*'공지 관리'/);
+  assert.doesNotMatch(issue207, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(workflowNavigation, /navButton\('일정 캘린더'/);
-  assert.match(issue207, /restores the canonical capability-gated "공지 관리" entry/);
+  assert.match(shell, /key: 'notice\.manage'[\s\S]*공지 관리/);
+  assert.match(shell, /key: 'homepage\.content'[\s\S]*홈페이지 내용 관리/);
+  assert.match(shell, /key: 'attendance\.view'[\s\S]*출근부/);
 });
 
 test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry mutations', () => {
