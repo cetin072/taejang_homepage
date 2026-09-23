@@ -112,9 +112,25 @@
   }
 
   function showDashboard() {
+    mountPanels();
     hidePanels();
     const dashboard = byId('dashboard-main');
     if (dashboard) dashboard.hidden = false;
+  }
+
+  function bindNavigationSurfaceReset() {
+    const nav = byId('app-nav');
+    if (!nav || nav.dataset.workspaceSurfaceResetBound === '1') return;
+    nav.dataset.workspaceSurfaceResetBound = '1';
+    nav.addEventListener('click', event => {
+      const target = event.target?.closest?.('button, a');
+      if (!target || !nav.contains(target)) return;
+      if (target.dataset?.navSectionToggle === '1') return;
+      if (target.tagName === 'A' && target.target === '_blank') return;
+      // Every in-app sidebar destination starts from one canonical surface state.
+      // The destination handler may immediately open another legacy panel again.
+      showDashboard();
+    }, true);
   }
 
   function openPanel(id, view = null) {
@@ -144,12 +160,23 @@
   function start() {
     injectStyle();
     mountPanels();
+    bindNavigationSurfaceReset();
   }
 
   document.addEventListener('taejang-open-app-panel', event => openPanel(event.detail?.id, event.detail?.view), true);
   document.addEventListener('taejang-dashboard-refresh', showDashboard, true);
   document.addEventListener('taejang-open-employee-management', showDashboard, true);
   document.addEventListener('taejang-open-promotion-workspace', showDashboard, true);
+  document.addEventListener('taejang-open-homepage-content', showDashboard, true);
+  document.addEventListener('taejang-open-account-approval', showDashboard, true);
+  document.addEventListener('taejang-open-platform-settings', showDashboard, true);
+
+  window.TaejangAppWorkspaceSurface = {
+    showDashboard,
+    openPanel,
+    hidePanels,
+    mountPanels
+  };
 
   start();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
