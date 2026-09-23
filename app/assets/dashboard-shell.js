@@ -73,6 +73,19 @@
     if (api) return api();
     window.TaejangFeatureHealth?.showFailure?.('가입 승인 기능');
   }
+  function openSupport(view) {
+    closeSidebar();
+    if (view === 'mywork') {
+      if (featureUnavailable('support-radar-my-work', '내 지원사업 기능')) return;
+      const openMyWork = window.TaejangSupportRadarMyWork?.renderList;
+      if (typeof openMyWork === 'function') return openMyWork();
+      return window.TaejangFeatureHealth?.showFailure?.('내 지원사업 기능');
+    }
+    if (featureUnavailable('support-radar', '지원사업 기능')) return;
+    const open = window.TaejangSupportRadar?.open;
+    if (typeof open === 'function') return open(view === 'profile' ? 'profile' : 'dashboard');
+    window.TaejangFeatureHealth?.showFailure?.('지원사업 기능');
+  }
   function button(label, action) { const node = text('button', label, 'button button-quiet'); node.type = 'button'; node.addEventListener('click', action); return node; }
   function closeSidebar() { const shell = el('desktop-app-shell'); if (!shell) return; shell.classList.remove('sidebar-open'); el('sidebar-toggle')?.setAttribute('aria-expanded', 'false'); }
   function card(title, body, { value, action, state } = {}) {
@@ -257,23 +270,20 @@
       {
         key: 'support.profile',
         label: '기업 프로필',
-        href: 'index.html?support=profile',
-        capabilities: ['support_radar.management_view', 'support_radar.management_edit'],
-        newTab: true
+        run: () => openSupport('profile'),
+        capabilities: ['support_radar.management_view', 'support_radar.management_edit']
       },
       {
         key: 'support.radar',
         label: '지원사업 레이더',
-        href: 'index.html?support=radar',
-        capabilities: ['support_radar.management_view'],
-        newTab: true
+        run: () => openSupport('radar'),
+        capabilities: ['support_radar.management_view']
       },
       {
         key: 'support.mywork',
         label: '내 지원사업',
-        href: 'index.html?support=mywork',
-        capabilities: ['support_radar.assigned_work'],
-        newTab: true
+        run: () => openSupport('mywork'),
+        capabilities: ['support_radar.assigned_work']
       },
       {
         key: 'platform.settings',
