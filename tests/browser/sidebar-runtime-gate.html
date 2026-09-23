@@ -261,25 +261,27 @@
       const dashboard = document.getElementById('dashboard-main');
       const panels = ['today-admin-panel','schedule-admin-panel','notice-admin-panel','guidance-admin-panel']
         .map(id => document.getElementById(id));
-      const notice = document.getElementById('notice-admin-panel');
       const internal = visibleLeafItems().filter(node =>
         node.tagName === 'BUTTON'
         && node.dataset.navSectionToggle !== '1'
       );
+      const panelTargets = new Set(['업무 배정','공지 등록','공지 관리']);
 
-      for (const target of internal) {
-        const label = clean(target);
-        dashboard.hidden = true;
-        panels.forEach(panel => { panel.hidden = panel !== notice; });
-        target.click();
-        await wait(30);
+      for (const sourcePanel of panels) {
+        for (const target of internal) {
+          const label = clean(target);
+          dashboard.hidden = true;
+          panels.forEach(panel => { panel.hidden = panel !== sourcePanel; });
+          target.click();
+          await wait(20);
 
-        if (['업무 배정','공지 등록','공지 관리'].includes(label)) {
-          assert(dashboard.hidden === true, `${label}: 관리 패널 진입 시 대시보드가 동시에 노출됨`);
-          assert(panels.some(panel => panel.hidden === false), `${label}: 관리 패널이 열리지 않음`);
-        } else {
-          assert(dashboard.hidden === false, `${label}: 공지 관리 이후 메뉴 전환이 막힘`);
-          assert(panels.every(panel => panel.hidden === true), `${label}: 이전 관리 패널이 남아 있음`);
+          if (panelTargets.has(label)) {
+            assert(dashboard.hidden === true, `${sourcePanel.id} → ${label}: 관리 패널 진입 시 대시보드가 동시에 노출됨`);
+            assert(panels.some(panel => panel.hidden === false), `${sourcePanel.id} → ${label}: 관리 패널이 열리지 않음`);
+          } else {
+            assert(dashboard.hidden === false, `${sourcePanel.id} → ${label}: 이전 관리 패널 때문에 메뉴 전환이 막힘`);
+            assert(panels.every(panel => panel.hidden === true), `${sourcePanel.id} → ${label}: 이전 관리 패널이 남아 있음`);
+          }
         }
       }
     }
