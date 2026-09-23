@@ -137,7 +137,6 @@
   // script arrives after the shell is available.
   const FEATURE_MODULES = [
     ['assets/platform-ui-settings.js', 'platform-ui-settings'],
-    ['assets/issue-223-promotion-meta-stale-guard.js', 'issue-223-promotion-meta-stale-guard'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
