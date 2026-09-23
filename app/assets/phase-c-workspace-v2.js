@@ -724,7 +724,7 @@
   }
 
   function syncNavigation() {
-    // Canonical sidebar DOM is owned by dashboard-shell only.
+    // Sidebar structure is owned exclusively by dashboard-shell; feature modules do not mutate it.
   }
 
   function syncDashboardActions() {
