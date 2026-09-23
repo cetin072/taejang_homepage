@@ -10,7 +10,6 @@
     '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '설정',
     '신규 사업 기획'
   ]);
 
@@ -268,12 +267,23 @@
     const registry = window.TaejangPlatformNavigationRegistry;
     const preference=window.TaejangPlatformUiSettings?.getSidebarPreference?.();
     const sectionRank=new Map((preference?.sectionOrder || []).map((key,index)=>[key,index]));
+    const nodeRank = node => {
+      const item = registry?.itemForNode?.(node);
+      const key = item?.key || registry?.keyForNode?.(node);
+      const sectionKey = registry?.sectionForItem?.(item)?.key || null;
+      if (key === 'dashboard' || cleanLabel(node) === '대시보드') return -10000;
+      if (sectionKey === 'official_channels') return 10000;
+      if (sectionKey && sectionRank.has(sectionKey)) return sectionRank.get(sectionKey);
+      if (sectionKey) {
+        const defaultIndex = MASTER_SECTIONS.findIndex(section => section.key === sectionKey);
+        return defaultIndex >= 0 ? defaultIndex : 8000;
+      }
+      if (CHECKING.has(cleanLabel(node)) || node.dataset?.featureStatus === 'checking') return 9000;
+      return 8500;
+    };
     const orderedNodes=[...sortedNodes].sort((a,b)=>{
-      const aKey=registry?.sectionForItem?.(registry?.itemForNode?.(a))?.key;
-      const bKey=registry?.sectionForItem?.(registry?.itemForNode?.(b))?.key;
-      const aRank=sectionRank.has(aKey) ? sectionRank.get(aKey) : 9000;
-      const bRank=sectionRank.has(bKey) ? sectionRank.get(bKey) : 9000;
-      return aRank-bRank || sortedNodes.indexOf(a)-sortedNodes.indexOf(b);
+      const diff = nodeRank(a) - nodeRank(b);
+      return diff || sortedNodes.indexOf(a)-sortedNodes.indexOf(b);
     });
     const desired = [];
     let previousSectionKey = null;
