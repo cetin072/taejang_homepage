@@ -138,7 +138,6 @@
   const FEATURE_MODULES = [
     ['assets/platform-ui-settings.js', 'platform-ui-settings'],
     ['assets/issue-223-promotion-meta-stale-guard.js', 'issue-223-promotion-meta-stale-guard'],
-    ['assets/official-channel-config.js', 'official-channel-config'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
@@ -174,7 +173,6 @@
     ['assets/support-radar-result-record.js', 'support-radar-result-record'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
-    ['assets/official-channel-links.js', 'official-channel-links'],
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
