@@ -34,19 +34,47 @@
    This prevents bottom-of-menu wheel input from chaining into the page and
    disables browser scroll anchoring while late capability/navigation modules settle. */
 @media (min-width: 901px) {
-  .app-sidebar {
-    position: sticky;
-    top: 0;
-    align-self: start;
-    height: 100vh;
-    max-height: 100vh;
+  body.desktop-app-mode {
+    overflow: hidden;
+  }
+  body.desktop-app-mode .staff-shell {
+    padding-bottom: 0;
+  }
+  body.desktop-app-mode .desktop-app-shell {
+    height: 100dvh;
+    min-height: 0;
+    margin-bottom: 0;
+    overflow: hidden;
+  }
+  body.desktop-app-mode .app-sidebar {
+    position: relative;
+    top: auto;
+    align-self: stretch;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
     overflow-anchor: none;
   }
-  .app-nav { overflow-anchor: none; }
+  body.desktop-app-mode .app-nav {
+    overflow-anchor: none;
+  }
+  body.desktop-app-mode .app-workspace {
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    overflow-anchor: none;
+  }
+  body.desktop-app-mode .app-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 24;
+  }
 }
 .app-logo { color: #fff; font-size: 1.25rem; font-weight: 900; text-decoration: none; padding: 8px; }
 .app-logo span { display: block; margin-top: 3px; font-size: .78rem; font-weight: 700; opacity: .78; }
