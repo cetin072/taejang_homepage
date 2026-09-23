@@ -35,20 +35,42 @@
     return group;
   }
 
+  function reconcileGroup(group) {
+    const expected = channels();
+    if (!group || !expected.length) return false;
+    const current = [...group.querySelectorAll(':scope > [data-official-channel-link]')];
+    const same = current.length === expected.length && expected.every((channel, index) => {
+      const node = current[index];
+      return node?.dataset?.officialChannelLink === channel.id
+        && node?.textContent?.trim() === channel.label
+        && node?.getAttribute?.('href') === channel.href;
+    });
+    if (same) return false;
+
+    const label = group.querySelector(':scope > .app-nav-group-label') || document.createElement('p');
+    label.className = 'app-nav-group-label';
+    label.textContent = '공식 채널';
+    group.replaceChildren(label, ...expected.map(makeLink));
+    return true;
+  }
+
   function sync() {
     const nav = document.getElementById('app-nav');
     if (!nav) return;
-    // Public official channels are safe links and belong to the shared desktop sidebar.
-    // dashboard-shell creates this group on the authoritative first render.
-    // Keep this module only as a compatibility fallback for older shells.
-    if (nav.querySelector('[data-official-channel-group]')) return;
-
     [...nav.children].forEach(node => {
-      if ((node.textContent || '').trim() === '홈페이지' && node.tagName === 'A') node.remove();
+      if ((node.textContent || '').trim() === '홈페이지' && node.tagName === 'A' && !node.dataset.officialChannelLink) node.remove();
     });
-    nav.append(makeGroup());
+
+    let group = nav.querySelector('[data-official-channel-group]');
+    if (!group) {
+      group = makeGroup();
+      nav.append(group);
+    }
+    const changed = reconcileGroup(group);
+    if (changed) document.dispatchEvent(new CustomEvent('taejang-official-channels-rendered'));
   }
 
+  document.addEventListener('taejang-official-channels-ready', () => queueMicrotask(sync));
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 0));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 0));
 
