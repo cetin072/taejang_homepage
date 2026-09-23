@@ -685,6 +685,7 @@
     state.boardDate = koreanToday();
     element('loading-panel').hidden = true;
     document.body.classList.toggle('general-worker-mode', route.code === 'general_worker');
+    document.body.classList.toggle('desktop-app-mode', route.code !== 'general_worker');
     element('desktop-app-shell').hidden = route.code === 'general_worker';
     element('app-panel').hidden = true;
     element('general-worker-board').hidden = route.code !== 'general_worker';
@@ -714,7 +715,6 @@
       refreshToday: loadTodayBoard,
       refreshAdmin: loadAdminData,
       getAdminOptions: () => state.adminOptions,
-      getSession: () => state.session,
       friendlyError
     };
     await resolveCapabilityContext();
