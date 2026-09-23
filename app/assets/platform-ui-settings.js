@@ -633,6 +633,7 @@
   function startSidebarLayout() {
     state.sidebarSnapshot={sectionOrder:state.sidebarSectionOrder.slice(),menuOrder:state.sidebarMenuOrder.slice()};
     state.editingSidebar=true;
+    bindSidebarDropTargets();
     decorateEditableSidebar();
   }
 
