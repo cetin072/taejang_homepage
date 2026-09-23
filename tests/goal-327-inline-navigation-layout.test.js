@@ -23,8 +23,10 @@ const supportRadar = read('app/assets/support-radar.js');
 const attendance = read('app/assets/attendance-admin.js');
 const accountApproval = read('app/assets/phase-c-account-approval.js');
 
-test('Goal 327 keeps regular navigation and cards non-draggable until inline edit mode', () => {
-  assert.match(settings, /button\('메뉴 편집',startSidebarLayout,true\)/);
+test('Goal 327 keeps regular navigation and cards non-draggable until Settings edit mode', () => {
+  assert.match(settings, /사이드바 메뉴 순서 편집/);
+  assert.match(settings, /startSidebarLayout\(\)/);
+  assert.match(settings, /일반 사이드바에는 편집 버튼을 두지 않아/);
   assert.match(settings, /button\('대시보드 편집',startDashboardLayout,true\)/);
   assert.match(settings, /handle\.draggable=true/);
   assert.doesNotMatch(settings, /card\.draggable=true/);
@@ -33,10 +35,13 @@ test('Goal 327 keeps regular navigation and cards non-draggable until inline edi
   assert.match(settings, /state\.editingDashboard/);
 });
 
-test('Goal 327 inline editors expose only save, cancel, and reset actions', () => {
-  assert.match(settings, /button\('저장',saveSidebarLayout\)/);
-  assert.match(settings, /button\('취소',cancelSidebarLayout,true\)/);
-  assert.match(settings, /button\('기본값',resetSidebarLayout,true\)/);
+test('Goal 327 Settings editor exposes only save, cancel, and reset actions', () => {
+  assert.match(settings, /메뉴 순서 저장/);
+  assert.match(settings, /편집 취소/);
+  assert.match(settings, /기본 순서로/);
+  assert.match(settings, /saveSidebarLayout/);
+  assert.match(settings, /cancelSidebarLayout/);
+  assert.match(settings, /resetSidebarLayout/);
   assert.match(settings, /button\('저장',saveDashboardLayout\)/);
   assert.doesNotMatch(settings, /window\.confirm\('내 대시보드/);
 });
@@ -75,13 +80,15 @@ test('Goal 327 uses stable, geometry-safe visual affordances', () => {
 });
 
 
-test('Goal 327 prevents retired menus from being re-injected by late feature modules', () => {
+test('Goal 327 prevents feature modules from re-owning canonical sidebar entries', () => {
   assert.doesNotMatch(issue146, /navButton\('복구·계정 관리'/);
   assert.doesNotMatch(issue146, /navButton\('홍보 작성'/);
   assert.match(employeeManagement, /삭제 직원 복구·계정 연결/);
-  assert.doesNotMatch(issue207, /navNode\(\s*'공지 관리'/);
+  assert.doesNotMatch(issue207, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(workflowNavigation, /navButton\('일정 캘린더'/);
-  assert.match(issue207, /restores the canonical capability-gated "공지 관리" entry/);
+  assert.match(shell, /key: 'notice\.manage'[\s\S]*공지 관리/);
+  assert.match(shell, /key: 'homepage\.content'[\s\S]*홈페이지 내용 관리/);
+  assert.match(shell, /key: 'attendance\.view'[\s\S]*출근부/);
 });
 
 test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry mutations', () => {
@@ -90,12 +97,14 @@ test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry m
   assert.doesNotMatch(hoverBlock, /\b(?:margin|padding|width|height|min-height|max-height|font-size|font-weight|transform)\s*:/);
 });
 
-test('Goal 327 uses stable dashboard keys and opens independent payroll/support tools in new tabs', () => {
+test('Goal 327 uses stable dashboard keys and keeps payroll external while support stays in-platform', () => {
   assert.match(dashboardPriority, /DEFAULT_CARD_KEY_ORDER/);
   assert.match(dashboardPriority, /mergeSavedOrder/);
   assert.match(dashboardPriority, /window\.open\('payroll\/live\.html', '_blank', 'noopener,noreferrer'\)/);
   assert.match(supportRadar, /dashboardCardKey = 'support\.radar'/);
-  assert.match(supportRadar, /window\.open\('index\.html\?support=radar', '_blank', 'noopener,noreferrer'\)/);
+  assert.match(supportRadar, /button\('레이더 열기', \(\) => open\('dashboard'\)\)/);
+  assert.match(supportRadar, /button\('기업 프로필', renderProfile, true\)/);
+  assert.doesNotMatch(supportRadar, /window\.open\('index\.html\?support=/);
   assert.match(attendance, /dashboardCardKey = 'attendance\.today'/);
   assert.match(accountApproval, /dashboardCardKey = 'account\.signup-requests'/);
 });

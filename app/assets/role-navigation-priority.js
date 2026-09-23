@@ -5,22 +5,22 @@
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 대기', '기존 글 관리', '홍보글 관리·복구',
+    '발행 대기', '기존 글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '설정',
     '신규 사업 기획'
   ]);
 
   const MASTER_SECTIONS = Object.freeze([
     { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
-    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리', '홍보글 관리·복구'] },
+    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리'] },
     { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
     { key: 'operations', label: '업무 운영', items: ['업무 배정', '공지 등록', '공지 관리'] },
     { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
-    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] }
+    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
+    { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
   ]);
 
   const DESKTOP_ROLES = Object.freeze([
@@ -38,7 +38,7 @@
 
   const CHECKING = new Set(['신규 사업 기획']);
   const RETIRED_NAVIGATION = new Set([
-    '복구·계정 관리', '일정 관리', '일정 캘린더',
+    '복구·계정 관리', '일정 관리', '일정 캘린더', '홍보글 관리·복구', '홍보글 보관·복구',
     '공지 확인', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
   ]);
   const LABEL_RENAMES = new Map([
@@ -93,7 +93,7 @@
   }
 
   function normalizeLabel(node) {
-    if (!node || node.dataset?.navSection === 'official_channels' || node.dataset?.navSectionToggle === '1') return;
+    if (!node || node.dataset?.navSectionToggle === '1') return;
     const current = cleanLabel(node);
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
@@ -195,7 +195,6 @@
 
   function priority(node) {
     if (node.dataset?.navSuppressed === '1') return 11000;
-    if (node.dataset?.navSection === 'official_channels') return 9000;
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset?.featureStatus === 'checking') return 10000;
     const registry = window.TaejangPlatformNavigationRegistry;
@@ -268,12 +267,23 @@
     const registry = window.TaejangPlatformNavigationRegistry;
     const preference=window.TaejangPlatformUiSettings?.getSidebarPreference?.();
     const sectionRank=new Map((preference?.sectionOrder || []).map((key,index)=>[key,index]));
+    const nodeRank = node => {
+      const item = registry?.itemForNode?.(node);
+      const key = item?.key || registry?.keyForNode?.(node);
+      const sectionKey = registry?.sectionForItem?.(item)?.key || null;
+      if (key === 'dashboard' || cleanLabel(node) === '대시보드') return -10000;
+      if (sectionKey === 'official_channels') return 10000;
+      if (sectionKey && sectionRank.has(sectionKey)) return sectionRank.get(sectionKey);
+      if (sectionKey) {
+        const defaultIndex = MASTER_SECTIONS.findIndex(section => section.key === sectionKey);
+        return defaultIndex >= 0 ? defaultIndex : 8000;
+      }
+      if (CHECKING.has(cleanLabel(node)) || node.dataset?.featureStatus === 'checking') return 9000;
+      return 8500;
+    };
     const orderedNodes=[...sortedNodes].sort((a,b)=>{
-      const aKey=registry?.sectionForItem?.(registry?.itemForNode?.(a))?.key;
-      const bKey=registry?.sectionForItem?.(registry?.itemForNode?.(b))?.key;
-      const aRank=sectionRank.has(aKey) ? sectionRank.get(aKey) : 9000;
-      const bRank=sectionRank.has(bKey) ? sectionRank.get(bKey) : 9000;
-      return aRank-bRank || sortedNodes.indexOf(a)-sortedNodes.indexOf(b);
+      const diff = nodeRank(a) - nodeRank(b);
+      return diff || sortedNodes.indexOf(a)-sortedNodes.indexOf(b);
     });
     const desired = [];
     let previousSectionKey = null;
@@ -293,16 +303,15 @@
       desired.push(node);
     });
 
-    const official = [...nav.children].filter(node => node.dataset?.navSection === 'official_channels' || node.dataset?.officialChannelGroup);
     const other = [...nav.children].filter(node =>
       !desired.includes(node)
-      && !official.includes(node)
       && node.dataset?.navSectionToggle !== '1'
+      && !node.dataset?.officialChannelGroup
       && !node.dataset?.supportRadarNavGroup
       && !node.dataset?.supportMyWorkNav
     );
 
-    return [...desired, ...other, ...official];
+    return [...desired, ...other];
   }
 
   function refreshSectionVisibility() {
@@ -348,6 +357,7 @@
       ensurePayrollEntry(nav, currentRole);
       ensurePayrollHandoffEntry(nav, currentRole);
       removeLegacySupportGroups(nav);
+      nav.querySelectorAll(':scope > [data-official-channel-group]').forEach(node => node.remove());
       ensureIssue207RoleContract(nav);
       menuNodes(nav).forEach(normalizeLabel);
       menuNodes(nav).filter(node => RETIRED_NAVIGATION.has(cleanLabel(node))).forEach(node=>node.remove());

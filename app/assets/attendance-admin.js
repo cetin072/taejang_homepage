@@ -851,14 +851,7 @@
   }
 
   function addNavigation() {
-    if (!can('attendance.admin_view')) return;
-    const nav = document.getElementById('app-nav');
-    if (!nav || nav.querySelector('[data-attendance-nav]')) return;
-    const button = el('button', '출근부', 'button button-quiet');
-    button.type = 'button'; button.dataset.attendanceNav = '1';
-    button.addEventListener('click', () => openAttendance());
-    const homepage = [...nav.children].find(child => child.textContent?.trim() === '홈페이지');
-    if (homepage) nav.insertBefore(button, homepage); else nav.append(button);
+    // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
 
   function addDashboardCard() {
@@ -878,10 +871,10 @@
     grid.prepend(card);
   }
 
-  function sync() { addNavigation(); addDashboardCard(); }
+  function sync() { addDashboardCard(); }
   injectStyles();
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
   document.addEventListener('taejang-capabilities-ready', () => setTimeout(sync, 0));
-  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, allExcelRows };
+  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, allExcelRows, addNavigation };
 })();

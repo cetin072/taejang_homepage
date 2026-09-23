@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
+const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
 const staffIndex = fs.readFileSync(path.join(root, 'staff/index.html'), 'utf8');
 const dashboardCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.css'), 'utf8');
@@ -61,7 +62,7 @@ class Document extends Hub {
   querySelectorAll(selector) { if (selector === '.staff-brand, .app-logo') return []; return []; }
 }
 class FakeCustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } }
-function menuLabel(item) { return item.dataset?.navSection === 'official_channels' ? '공식 채널' : item.textContent; }
+function menuLabel(item) { return item.textContent; }
 function menuLabels(nav) { return nav.children.map(menuLabel); }
 function findMenu(nav, label) { return nav.children.find(item => menuLabel(item) === label); }
 const nextTurn = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -83,7 +84,11 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
     TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
-    TaejangOfficialChannels: { list: [] },
+    TaejangOfficialChannels: { list: [
+      { id: 'homepage', label: '홈페이지', href: '../index.html' },
+      { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+      { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+    ] },
     TaejangEmployeeManagement: { openEmployeeManagement: view => employeeViews.push(view || 'existing') },
     TaejangAccountApproval: { openAccountApproval: () => { approvalOpens += 1; } },
     TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
@@ -116,6 +121,14 @@ test('sidebar has explicit readable default, active, hover and checking colors',
   assert.match(dashboardCss, /\.app-nav > button\[aria-current="page"\][\s\S]*color:\s*var\(--sidebar-active-text\)/);
 });
 
+test('desktop platform owns one viewport so sidebar and page scroll do not fight at the bottom', () => {
+  assert.match(appSource, /classList\.toggle\('desktop-app-mode', route\.code !== 'general_worker'\)/);
+  assert.match(dashboardCss, /body\.desktop-app-mode\s*\{[\s\S]*overflow:\s*hidden/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.desktop-app-shell[\s\S]*height:\s*100dvh/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.app-sidebar[\s\S]*position:\s*relative[\s\S]*overflow-y:\s*auto/);
+  assert.match(dashboardCss, /body\.desktop-app-mode \.app-workspace[\s\S]*overflow-y:\s*auto/);
+});
+
 test('accent theme keeps restrained colors while real accordion headings own sidebar categories', () => {
   assert.match(accentCss, /--app-accent-gold:\s*#b48632/);
   assert.match(accentCss, /--app-accent-blue:\s*#4f7080/);
@@ -125,8 +138,9 @@ test('accent theme keeps restrained colors while real accordion headings own sid
   assert.doesNotMatch(accentCss, /content:\s*attr\(data-section-label\)/);
   assert.match(dashboardCss, /\.app-nav > \.app-nav-section-toggle/);
   assert.match(dashboardCss, /\.app-nav-section-title/);
-  assert.match(accentCss, /\.app-nav-channel-group\s*\{/);
-  assert.match(accentCss, /\.app-nav-group-label\s*\{/);
+  assert.match(accentCss, /data-section-key="official_channels"/);
+  assert.doesNotMatch(accentCss, /\.app-nav-channel-group\s*\{/);
+  assert.doesNotMatch(accentCss, /\.app-nav-group-label\s*\{/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="blog"\]/);
   assert.match(accentCss, /app-nav-official-channel\[data-channel="youtube"\]/);
 });
@@ -146,11 +160,12 @@ test('all desktop roles start from the same master sidebar before capability pru
   const expected = [
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 글 작성', '보완 요청받은 글', '홍보 검토',
+    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리',
+    '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '공지 등록', '공지 관리',
-    '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
-    '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
-    '공식 채널'
+    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '기업 프로필', '지원사업 레이더', '내 지원사업',
+    '홈페이지', '공식 블로그', '공식 유튜브'
   ];
 
   const promotion = await makeDashboard('promotion_staff');
@@ -171,6 +186,13 @@ test('all desktop roles start from the same master sidebar before capability pru
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
+});
+
+test('platform Settings is a top-right utility instead of a sidebar row', async () => {
+  assert.doesNotMatch(source.slice(source.indexOf('function masterMenuItems'), source.indexOf('function menu')), /label: '설정'/);
+  assert.match(source, /function ensureSettingsAction\(\)/);
+  assert.match(source, /platform\.navigation\.manage/);
+  assert.match(source, /data-platform-settings-action/);
 });
 
 test('operations mobile menu actions close the sidebar and dispatch one destination action', async () => {
@@ -200,17 +222,18 @@ test('central navigation uses one master order and section contract for every de
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 대기', '기존 글 관리', '홍보글 관리·복구',
+    '발행 대기', '기존 글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '설정', '신규 사업 기획'
+    '신규 사업 기획'
   ]);
 
   assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
   assert.match(navPriority, /label:\s*'직원·계정'/);
   assert.match(navPriority, /label:\s*'홍보'/);
+  assert.doesNotMatch(masterBlock, /홍보글 관리·복구/);
   assert.match(navPriority, /label:\s*'홈페이지'/);
   assert.match(navPriority, /label:\s*'업무 운영'/);
   assert.doesNotMatch(navPriority.slice(masterStart, navPriority.indexOf('const DESKTOP_ROLES')), /label:\s*'공지·안내'/);
@@ -219,18 +242,25 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /DESKTOP_ROLES\.map\(role => \[role, MASTER_SECTIONS\]\)/);
   assert.doesNotMatch(navPriority, /promotion_staff:\s*\[/);
   assert.doesNotMatch(navPriority, /operations_manager:\s*\[/);
-  assert.match(navPriority, /dataset\?\.navSection === 'official_channels'/);
+  assert.match(navPriority, /key: 'official_channels', label: '공식 채널'/);
+  assert.doesNotMatch(navPriority, /navSection === 'official_channels'\) return 9000/);
 });
 
-test('official channels are shared public links in the common desktop sidebar', () => {
+test('official channels use the same canonical accordion hierarchy as other sidebar categories', () => {
   assert.match(source, /TaejangOfficialChannels\?\.list/);
   assertOrdered(officialChannelConfig, ['homepage', 'blog', 'youtube']);
   assert.ok(officialChannelConfig.indexOf("label: '홈페이지'") < officialChannelConfig.indexOf("label: '공식 블로그'"));
   assert.ok(officialChannelConfig.indexOf("label: '공식 블로그'") < officialChannelConfig.indexOf("label: '공식 유튜브'"));
   assert.match(officialChannelConfig, /https:\/\/youtube\.com\/@taejangofficial/);
-  assert.match(source, /dataset\.navSection = 'official_channels'/);
-  assert.match(source, /nav\.append\(makeOfficialChannelGroup\(\)\)/);
+  assert.match(source, /function makeOfficialChannelLinks\(\)/);
+  assert.match(source, /dataset\.menuKey = `public\.\$\{channel\.id\}`/);
+  assert.match(source, /nav\.append\(\.\.\.makeOfficialChannelLinks\(\)\)/);
+  assert.doesNotMatch(source, /makeOfficialChannelGroup/);
   assert.doesNotMatch(officialChannels, /ALLOWED_ROLES/);
+  assert.match(officialChannels, /taejang-official-channels-ready/);
+  assert.match(officialChannels, /:scope > \[data-official-channel-link\]/);
+  assert.doesNotMatch(officialChannels, /function makeGroup|app-nav-channel-group/);
+  assert.match(officialChannelConfig, /taejang-official-channels-ready/);
   assert.match(officialChannels, /target = '_blank'/);
   assert.match(officialChannels, /rel = 'noopener noreferrer'/);
 });
@@ -252,9 +282,10 @@ test('signup pending copy is neutral and rejection becomes a blocked audited acc
   assert.match(signupRejection, /revoke all on function public\.record_pending_decision/);
 });
 
-test('priority presentation and visual polish load after feature modules without changing permissions', () => {
-  assert.ok(appUi.indexOf("assets/official-channel-links.js") > appUi.indexOf("assets/menu-status.js"));
-  assert.ok(appUi.indexOf("assets/role-navigation-priority.js") > appUi.indexOf("assets/official-channel-links.js"));
+test('official channel config is Core-static while visual navigation polish remains Branch-only', () => {
+  assert.match(appIndex, /assets\/official-channel-config\.js/);
+  assert.doesNotMatch(appUi, /assets\/official-channel-config\.js/);
+  assert.doesNotMatch(appUi, /assets\/official-channel-links\.js/);
   assert.ok(appUi.indexOf("assets/dashboard-priority-cards.js") > appUi.indexOf("assets/role-navigation-priority.js"));
   assert.match(appUi, /loadStyleOnce\('assets\/dashboard-accent-theme\.css'/);
   assert.doesNotMatch(navPriority, /rpc\(/);
@@ -284,13 +315,15 @@ test('checking business planning is clearly marked, remains last and keeps role 
   assert.match(navPriority, /CHECKING = new Set\(\['신규 사업 기획'\]\)/);
 });
 
-test('optional authoring and direct homepage editing are capability-driven sidebar tools', () => {
+test('optional authoring and direct homepage editing are capability-driven but do not own sidebar DOM', () => {
   assert.match(operationsWriter, /hasCapabilityContract/);
   assert.match(operationsWriter, /promotion\.edit_any_unpublished/);
-  assert.match(operationsWriter, /dataset\.capabilityAny/);
+  assert.doesNotMatch(operationsWriter, /new MutationObserver\(addNavigation\)/);
   assert.match(operationsHomepage, /hasCapabilityContract/);
   assert.match(operationsHomepage, /homepage\.direct_edit/);
-  assert.match(operationsHomepage, /node\.textContent = '홈페이지 직접 수정'/);
+  assert.doesNotMatch(operationsHomepage, /new MutationObserver/);
+  assert.match(source, /key: 'promotion\.write'[\s\S]*promotion\.edit_any_unpublished/);
+  assert.match(source, /key: 'homepage\.direct'[\s\S]*homepage\.direct_edit/);
 });
 
 test('attendance navigation is capability-driven with legacy role fallback only', () => {

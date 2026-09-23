@@ -25,29 +25,15 @@ test('issue 181 promotion hardening is loaded after the live workspace and targe
   assert.doesNotMatch(live, /data-pilot-review-section|pilot-review-card|pilot-review-actions/);
 });
 
-test('promotion lead gets direct recoverable delete without duplicate sidebar or intro delete entry points', () => {
+test('promotion recovery stays out of the active sidebar and review intro', () => {
+  const deleteUx = read('app/assets/promotion-approved-delete-ux.js');
+  const master = read('app/assets/role-navigation-priority.js');
   const live = read('app/assets/issue-181-promotion-live-ux.js');
-  const fallback = read('app/assets/promotion-approved-delete-ux.js');
-  const nav = read('app/assets/role-navigation-priority.js');
-  const workflow = read('supabase/migrations/20260908031219_issue_146_operations_permissions_and_homepage_workflow.sql');
-
-  assert.match(live, /archive_unpublished_promotion_content/);
-  assert.match(live, /issue181ReviewDelete/);
-  assert.doesNotMatch(live, /delete_promotion_content/);
-  assert.match(live, /issue181ManagementShortcuts/);
-  assert.match(live, /공개글 관리/);
-  assert.match(live, /미발행 글 정리/);
-
-  assert.match(fallback, /function issue181UnifiedLeadManagement\(\)/);
-  assert.match(fallback, /if \(issue181UnifiedLeadManagement\(\)\) \{[\s\S]*nav\.hidden = true/);
-  assert.match(fallback, /if \(!canArchive\(\) \|\| issue181UnifiedLeadManagement\(\)\) return/);
-  const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
-  assert.match(master, /'홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토'/);
-  assert.match(master, /'기존 글 관리', '홍보글 관리·복구'/);
-  assert.match(master, /'홈페이지 내용 관리'/);
-  assert.match(master, /공지 관리/);
-  assert.doesNotMatch(nav, /promotion_lead:\s*\[/);
-  assert.match(workflow, /PROMOTION_UNPUBLISHED_ARCHIVE_REQUIRES_NO_PUBLIC_HISTORY/);
+  assert.match(deleteUx, /function syncNavigation\(\)[\s\S]*Compatibility no-op/);
+  assert.match(deleteUx, /function syncReviewEntry\(\)[\s\S]*promotion-approved-delete-entry/);
+  const activeMaster = master.slice(master.indexOf('const MASTER_ORDER'), master.indexOf('const DESKTOP_ROLES'));
+  assert.doesNotMatch(activeMaster, /홍보글 관리·복구/);
+  assert.doesNotMatch(live, /미발행 글 정리/);
 });
 
 test('promotion lead review labels communicate publish, schedule, and next-review outcomes', () => {

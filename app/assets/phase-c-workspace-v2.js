@@ -724,31 +724,7 @@
   }
 
   function syncNavigation() {
-    const nav = document.getElementById('app-nav');
-    const currentRoute = route();
-    if (!nav || !currentRoute) return;
-    [...nav.querySelectorAll('button')].forEach(node => {
-      if (node.textContent.trim() === '신규 사업 기획') node.remove();
-    });
-    if (can('promotion.write', currentRoute === 'promotion_staff')) {
-      const write = replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
-      if (!nav.querySelector('[data-phase-c-v2-nav="revision"]')) {
-        const revision = navButton('수정·보완 요청', () => openPromotion('revision'), 'revision');
-        if (write) nav.insertBefore(revision, write); else nav.append(revision);
-      }
-    }
-    if (can('promotion.review_lead', currentRoute === 'promotion_lead')) {
-      replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
-      replaceButton(nav, '홍보 작성', () => openPromotion('write'), 'write');
-    }
-    if (canAny(['promotion.review_operations', 'promotion.review_ceo'], currentRoute === 'operations_manager' || currentRoute === 'ceo')) {
-      replaceButton(nav, '홍보 검토', () => openPromotion('review'), 'review');
-    }
-    if (canAny(['homepage.draft', 'homepage.review', 'homepage.approve_apply'], ['promotion_lead', 'operations_manager'].includes(currentRoute)) && !nav.querySelector('[data-phase-c-v2-nav="homepage"]')) {
-      const homepageLink = [...nav.querySelectorAll('a')].find(node => node.textContent.trim() === '홈페이지');
-      const node = navButton('홈페이지 내용 관리', openHomepageManagement, 'homepage');
-      if (homepageLink) nav.insertBefore(node, homepageLink); else nav.append(node);
-    }
+    // Sidebar structure is owned exclusively by dashboard-shell; feature modules do not mutate it.
   }
 
   function syncDashboardActions() {
@@ -954,7 +930,6 @@
   }
 
   function syncAll() {
-    syncNavigation();
     syncDashboardActions();
   }
 
@@ -972,15 +947,6 @@
 
   document.addEventListener('taejang-app-ready', () => setTimeout(syncAll, 120));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(syncAll, 160));
-
-  const observer = new MutationObserver(() => setTimeout(syncAll, 30));
-  const start = () => {
-    const shell = document.getElementById('desktop-app-shell');
-    if (shell) observer.observe(shell, { childList: true, subtree: true });
-    if (window.TaejangApp) syncAll();
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-  else start();
 
   window.TaejangPromotionWorkspaceV2Api = { openPromotion, openHomepageManagement, uploadImage };
 })();

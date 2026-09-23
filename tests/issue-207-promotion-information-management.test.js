@@ -44,52 +44,43 @@ test('issue 207 capability kinds stay inside the platform capability contract', 
   assert.doesNotMatch(migration, /'operation'/);
 });
 
-test('promotion writing uses canonical shared sidebar labels with capability registration', () => {
-  assert.match(ux, /navNode\('홍보 글 작성'/);
-  assert.match(ux, /promotion\.write/);
-  assert.match(ux, /'보낸 글'/);
-  assert.match(ux, /'보완 요청받은 글'/);
-  assert.match(ux, /promotion\.edit_own/);
+test('promotion writing uses canonical shared sidebar labels owned by dashboard shell', () => {
+  assert.match(dashboardShell, /key: 'promotion\.write'[\s\S]*홍보 글 작성/);
+  assert.match(dashboardShell, /key: 'promotion\.revision'[\s\S]*보완 요청받은 글/);
+  assert.match(dashboardShell, /key: 'promotion\.sent'[\s\S]*보낸 글/);
+  assert.match(dashboardShell, /promotion\.write/);
+  assert.match(dashboardShell, /promotion\.edit_own/);
   assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
   assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
   assert.match(ux, /item\.submitted_at/);
+  assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
 
-test('promotion and homepage management sidebar slots are capability-driven', () => {
-  assert.match(ux, /canManageExisting/);
-  assert.match(ux, /promotion\.manage_recent_public/);
-  assert.match(ux, /promotion\.archive/);
-  assert.match(ux, /ensureExistingContentNav\(nav\)/);
-  assert.match(ux, /canManageHomepage/);
-  assert.match(ux, /homepage\.draft/);
-  assert.match(ux, /homepage\.review/);
-  assert.match(ux, /homepage\.approve_apply/);
-  assert.match(ux, /ensureHomepageManagementNav\(nav\)/);
-  assert.match(ux, /node\.dataset\.phaseCPublicationAdmin = '1'/);
-  assert.match(ux, /node\.dataset\.phaseCV2Nav = 'homepage'/);
-  assert.doesNotMatch(ux, /navNode\(\s*'공지 관리'/);
-  assert.match(ux, /restores the canonical capability-gated "공지 관리" entry/);
+test('promotion and homepage management sidebar slots are capability-driven by the canonical shell', () => {
+  assert.match(dashboardShell, /key: 'promotion\.existing'[\s\S]*promotion\.manage_recent_public[\s\S]*promotion\.archive/);
+  assert.match(dashboardShell, /key: 'homepage\.content'[\s\S]*homepage\.draft[\s\S]*homepage\.review[\s\S]*homepage\.approve_apply/);
+  assert.match(dashboardShell, /function openExistingPromotion\(\)/);
+  assert.match(dashboardShell, /function openHomepageManagement\(\)/);
   assert.match(ux, /openInformationHub/);
-  assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
-  assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
-  assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
+  assert.match(dashboardShell, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
+  assert.match(dashboardShell, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
+  assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(ux, /MutationObserver/);
+  assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
 });
 
-test('issue 216 navigation stability now uses the canonical accordion composer', () => {
-  assert.match(workspace, /navButton\('수정·보완 요청'/, 'legacy workspace source remains tolerated and normalized');
+test('issue 216 navigation stability uses one canonical composer without feature-owned sidebar observers', () => {
+  assert.match(workspace, /Sidebar structure is owned exclusively by dashboard-shell/);
+  assert.doesNotMatch(workspace, /new MutationObserver\(/);
   assert.match(navigation, /function ensureIssue207RoleContract/);
   assert.match(navigation, /const MASTER_ORDER = Object\.freeze/);
   assert.match(navigation, /const MASTER_SECTIONS = Object\.freeze/);
   assert.match(navigation, /LABEL_RENAMES/);
-  assert.match(navigation, /\['수정·보완 요청', '보완 요청받은 글'\]/);
   assert.match(navigation, /function removeLegacySupportGroups/);
   assert.doesNotMatch(navigation, /supportGroupPriority/);
   assert.match(navigation, /'출근부', '근태 보정', '근태·급여관리'/);
-  assert.doesNotMatch(navigation, /\[0, 120, 360, 850\]\.forEach/);
   assert.match(navigation, /navigationComposerObserver/);
   assert.match(navigation, /observe\(nav, \{ childList: true, subtree: false \}\)/);
-  assert.match(navigation, /taejang-navigation-changed/);
   assert.match(navigationStability, /INITIAL_SETTLE_MS = 190/);
   assert.match(navigationStability, /style\.visibility = 'hidden'/);
   assert.match(navigationStability, /taejang-navigation-stable/);

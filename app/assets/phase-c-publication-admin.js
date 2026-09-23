@@ -359,23 +359,8 @@
   }
 
   function ensureNav() {
-    const nav = document.getElementById('app-nav');
-    const currentRoute = route();
-    if (!nav || !ELIGIBLE_ROLES.has(currentRoute)) return;
-    let node = nav.querySelector('[data-phase-c-publication-admin]');
-    if (!node) {
-      node = document.createElement('button');
-      node.type = 'button';
-      node.dataset.phaseCPublicationAdmin = '1';
-      node.addEventListener('click', openPublicationAdmin);
-      nav.append(node);
-    }
-    node.textContent = '기존 글 관리';
+    // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
-
-  document.addEventListener('taejang-app-ready', () => setTimeout(ensureNav, 0));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(ensureNav, 0));
-  window.addEventListener('pageshow', () => setTimeout(ensureNav, 0));
 
   window.TaejangPublicationAdmin = { openPublicationAdmin, ensureNav };
 })();

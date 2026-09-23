@@ -277,33 +277,8 @@
   }
 
   function addNavigation() {
-    if (!canDirectEdit()) return;
-    const nav = document.getElementById('app-nav');
-    if (!nav || nav.querySelector('[data-operations-homepage-direct]')) return;
-    const node = document.createElement('button');
-    node.type = 'button';
-    node.textContent = '홈페이지 직접 수정';
-    node.dataset.operationsHomepageDirect = '1';
-    node.addEventListener('click', openWorkspace);
-    const approval = [...nav.querySelectorAll('button')].find(item => item.textContent.trim() === '홈페이지 내용 관리');
-    const homepage = [...nav.querySelectorAll('a')].find(item => item.textContent.trim() === '홈페이지');
-    if (approval) nav.insertBefore(node, approval);
-    else if (homepage) nav.insertBefore(node, homepage);
-    else nav.append(node);
+    // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
-
-  function sync() { setTimeout(addNavigation, 150); }
-  injectStyles();
-  document.addEventListener('taejang-app-ready', sync);
-  document.addEventListener('taejang-dashboard-refresh', sync);
-  const observer = new MutationObserver(() => addNavigation());
-  const start = () => {
-    const nav = document.getElementById('app-nav');
-    if (nav) observer.observe(nav, { childList: true });
-    addNavigation();
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
-  else start();
 
   window.TaejangOperationsHomepageDirect = { open: openWorkspace, openEditor: renderEditor };
 })();

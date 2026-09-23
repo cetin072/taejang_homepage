@@ -108,4 +108,5 @@
     metadataFor,
     classifyUrl
   });
+  document.dispatchEvent(new CustomEvent('taejang-official-channels-ready'));
 })();

@@ -319,13 +319,7 @@
     published.textContent = '공개글 관리';
     published.addEventListener('click', () => document.querySelector('[data-phase-c-publication-admin]')?.click());
 
-    const unpublished = document.createElement('button');
-    unpublished.type = 'button';
-    unpublished.className = 'button button-quiet';
-    unpublished.textContent = '미발행 글 정리';
-    unpublished.addEventListener('click', () => document.querySelector('[data-issue146-nav="promotion-archive"]')?.click());
-
-    actions.append(published, unpublished);
+    actions.append(published);
     intro.append(actions);
   }
 
