@@ -126,18 +126,22 @@ const appAutomation = `<script>
       const nav = document.getElementById('app-nav');
       const sectionKeys = () => [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')]
         .map(node => node.dataset.sectionKey);
-      const sidebarActions = await waitFor(
-        () => document.querySelector('[data-sidebar-layout-actions]'),
-        'sidebar layout editor'
+      const topbarSettings = await waitFor(
+        () => document.querySelector('[data-platform-settings-action]'),
+        'topbar settings entry'
       );
-      const action = (container, label) => [...container.querySelectorAll('button')]
+      topbarSettings.click();
+      await waitFor(() => document.querySelector('.platform-settings-shell'), 'platform settings screen');
+      const settingsAction = label => [...document.querySelectorAll('.platform-settings-shell button')]
         .find(button => button.textContent.trim() === label);
       const defaultSections = sectionKeys();
       if (defaultSections.length < 2) throw new Error('SIDEBAR_SECTION_TEST_DATA_MISSING');
-      action(sidebarActions, '메뉴 편집')?.click();
+
+      await waitFor(() => settingsAction('사이드바 메뉴 순서 편집'), 'settings sidebar editor entry');
+      settingsAction('사이드바 메뉴 순서 편집')?.click();
       await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit mode');
-      if ([...sidebarActions.querySelectorAll('button')].map(button => button.textContent.trim()).join('|') !== '저장|취소|기본값') {
-        throw new Error('SIDEBAR_EDITOR_ACTIONS_MISMATCH');
+      for (const label of ['메뉴 순서 저장', '편집 취소', '기본 순서로']) {
+        await waitFor(() => settingsAction(label), 'sidebar editor action ' + label);
       }
       const sectionHandle = nav.querySelector('[data-sidebar-drag-handle="section"]');
       if (!sectionHandle?.draggable) throw new Error('SIDEBAR_HANDLE_NOT_DRAGGABLE');
@@ -151,11 +155,12 @@ const appAutomation = `<script>
       const routeBeforeBlockedClick = window.TaejangApp.getRoute();
       normalMenu?.click();
       if (window.TaejangApp.getRoute() !== routeBeforeBlockedClick) throw new Error('SIDEBAR_EDIT_NAVIGATION_NOT_BLOCKED');
-      action(sidebarActions, '취소')?.click();
+      settingsAction('편집 취소')?.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit cancel');
       if (sectionKeys().join('|') !== defaultSections.join('|')) throw new Error('SIDEBAR_CANCEL_DID_NOT_RESTORE');
 
-      action(sidebarActions, '메뉴 편집')?.click();
+      await waitFor(() => settingsAction('사이드바 메뉴 순서 편집'), 'settings sidebar editor restart');
+      settingsAction('사이드바 메뉴 순서 편집')?.click();
       await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit restart');
       nav.querySelector('[data-sidebar-drag-handle="section"]')
         .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
@@ -163,7 +168,7 @@ const appAutomation = `<script>
         const order = sectionKeys();
         return order[0] !== defaultSections[0] ? order : null;
       }, 'sidebar saved reorder');
-      action(sidebarActions, '저장')?.click();
+      settingsAction('메뉴 순서 저장')?.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit save');
 
       const dashboardActions = await waitFor(
@@ -302,7 +307,7 @@ const accessContext = Object.freeze({
   display_name: '운영총괄 브라우저검수',
   profile: Object.freeze({ id: '00000000-0000-4000-8000-000000000111', display_name: '운영총괄 브라우저검수' }),
   roles: Object.freeze([{ code: 'operations_manager', name: '운영총괄' }]),
-  capabilities: Object.freeze(['payroll.manage']),
+  capabilities: Object.freeze(['payroll.manage', 'platform.navigation.manage']),
 });
 
 const server = createServer(async (request, response) => {
