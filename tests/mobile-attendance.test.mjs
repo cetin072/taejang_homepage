@@ -34,17 +34,26 @@ test('mobile attendance reuses existing server RPC contracts', async () => {
   assert.match(api, /request_attendance_exception/);
   assert.match(api, /qa_validate_attendance_event/);
   assert.match(api, /holiday_work_assigned/);
+  assert.match(api, /server_time/);
+  assert.match(api, /clock_in_available/);
+  assert.match(api, /clock_in_available_at/);
   assert.doesNotMatch(api, /attendance_events|attendance_locations|service_role/i);
 });
 
-test('holiday action stays visible but re-checks server authorization before GPS', async () => {
+test('holiday and pre-06:00 states disable the single attendance action before GPS', async () => {
   const card = await text('mobile/src/features/attendance/attendance-card.tsx');
   const serverCheck = card.indexOf('const latest = await loadMyAttendanceToday(client)');
   const locationCheck = card.indexOf('position = await getBestAttendancePosition');
-  assert.ok(serverCheck >= 0 && locationCheck > serverCheck, 'server day status must be rechecked before GPS');
-  assert.match(card, /오늘은 휴일입니다\. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다/);
-  assert.match(card, /let action: AttendanceEventType \| null = 'clock_in'/);
-  assert.doesNotMatch(card, /today\?\.is_workday !== false \? \(/);
+  assert.ok(serverCheck >= 0 && locationCheck > serverCheck, 'server action state must be rechecked before GPS');
+  assert.match(card, /today\?\.is_workday === false/);
+  assert.match(card, /title = '오늘은 출근일이 아닙니다'/);
+  assert.match(card, /today\?\.clock_in_available === false/);
+  assert.match(card, /title = '출근 전입니다'/);
+  assert.match(card, /오전 6시부터 출근할 수 있습니다/);
+  assert.match(card, /holiday_work_assigned/);
+  assert.match(card, /휴일근무일입니다 · 회사에서 눌러주세요/);
+  assert.match(card, /setTimeout\(\(\) => void refresh\(\), waitMs \+ 250\)/);
+  assert.doesNotMatch(card, /오전 11시부터|11시부터 퇴근/);
 });
 
 test('employee attendance UX preserves hard geofence failure and conservative exceptions', async () => {
@@ -52,6 +61,7 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.match(card, /OUTSIDE_GEOFENCE/);
   assert.match(card, /LOCATION_UNCERTAIN/);
   assert.match(card, /CLOCK_IN_REQUIRED/);
+  assert.match(card, /CLOCK_IN_TOO_EARLY/);
   assert.match(card, /PERMISSION_DENIED/);
   assert.match(card, /attempts\.current\[eventType\] < 2/);
   assert.match(card, /관리자 확인 요청/);
