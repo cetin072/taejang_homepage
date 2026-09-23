@@ -381,26 +381,18 @@
   }
 
   function addCorrectionNavigation() {
-    if (!canCorrect()) return;
-    const nav = document.getElementById('app-nav');
-    if (!nav || nav.querySelector('[data-attendance-correction-nav]')) return;
-    const button = correctionActionButton('근태 보정');
-    button.dataset.attendanceCorrectionNav = '1';
-    button.addEventListener('click', openCorrectionScreen);
-    const homepage = [...nav.children].find(child => child.textContent?.trim() === '홈페이지');
-    if (homepage) nav.insertBefore(button, homepage); else nav.append(button);
+    // Compatibility no-op. dashboard-shell owns all sidebar nodes.
   }
 
   function sync() {
     injectStyles();
-    addCorrectionNavigation();
     setTimeout(enforceAttendanceSubjectUi, 0);
     setTimeout(enforceAttendanceSubjectUi, 250);
   }
 
   document.addEventListener('taejang-app-ready', sync);
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(addCorrectionNavigation, 100));
-  document.addEventListener('taejang-capabilities-ready', () => setTimeout(addCorrectionNavigation, 0));
+  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(enforceAttendanceSubjectUi, 100));
+  document.addEventListener('taejang-capabilities-ready', () => setTimeout(enforceAttendanceSubjectUi, 0));
   async function addMissingTime({ employeeUuid, workDate, eventType }) {
     return createCorrection({
       employeeUuid,
@@ -411,5 +403,5 @@
     });
   }
 
-  window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi, addMissingTime };
+  window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi, addMissingTime, addCorrectionNavigation };
 })();
