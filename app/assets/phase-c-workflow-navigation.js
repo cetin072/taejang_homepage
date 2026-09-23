@@ -68,44 +68,7 @@
   }
 
   function syncNavigation() {
-    const nav = document.getElementById('app-nav');
-    const currentRoute = route();
-    if (!nav || !currentRoute) return;
-
-    [...nav.querySelectorAll('button')].forEach(node => {
-      if (node.textContent.trim() === '신규 사업 기획') node.remove();
-    });
-    [...document.querySelectorAll('.quick-links button')].forEach(node => {
-      if (node.textContent.trim() === '신규 사업 기획') node.remove();
-    });
-
-    const canPublication = can('promotion.queue_publication', ['promotion_lead', 'operations_manager']);
-    if (canPublication && !nav.querySelector('[data-phase-c-nav="publication"]')) {
-      insertBeforeHomepage(
-        nav,
-        navButton('발행 대기', openPublication, 'publication', ['promotion.queue_publication'])
-      );
-    }
-
-    // Goal #327 retires schedule/calendar navigation from the operating platform.
-    // Scheduling data and backend contracts remain intact for any dependent flows.
-
-    const homepageCapabilities = ['homepage.draft', 'homepage.review', 'homepage.approve_apply'];
-    const canHomepageContent = canAny(homepageCapabilities, ['promotion_lead', 'operations_manager']);
-    if (canHomepageContent) {
-      const existing = [...nav.querySelectorAll('button')]
-        .find(node => node.textContent.trim() === '홈페이지 내용 관리');
-      if (existing && !existing.dataset.phaseCHomepageRebound) {
-        const replacement = navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content', homepageCapabilities);
-        replacement.dataset.phaseCHomepageRebound = '1';
-        existing.replaceWith(replacement);
-      } else if (!existing && !nav.querySelector('[data-phase-c-nav="homepage-content"]')) {
-        insertBeforeHomepage(
-          nav,
-          navButton('홈페이지 내용 관리', openHomepageContent, 'homepage-content', homepageCapabilities)
-        );
-      }
-    }
+    // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
 
   function sectionByHeading(target, heading) {
@@ -394,7 +357,6 @@
     if (syncing) return;
     syncing = true;
     try {
-      syncNavigation();
       await syncDashboard();
       await applyPromotionMode();
       enhanceHomepageCatalog();
