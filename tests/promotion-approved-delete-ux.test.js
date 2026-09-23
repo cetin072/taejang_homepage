@@ -26,6 +26,9 @@ test('issue 181 promotion hardening is loaded after the live workspace and targe
 });
 
 test('promotion recovery stays out of the active sidebar and review intro', () => {
+  const deleteUx = read('app/assets/promotion-approved-delete-ux.js');
+  const master = read('app/assets/role-navigation-priority.js');
+  const live = read('app/assets/issue-181-promotion-live-ux.js');
   assert.match(deleteUx, /function syncNavigation\(\)[\s\S]*Compatibility no-op/);
   assert.match(deleteUx, /function syncReviewEntry\(\)[\s\S]*promotion-approved-delete-entry/);
   assert.doesNotMatch(master, /홍보글 관리·복구/);
