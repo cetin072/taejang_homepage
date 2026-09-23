@@ -913,26 +913,13 @@
   }
 
   function syncNavigation() {
-    const nav = document.getElementById('app-nav');
-    if (!nav || !ALLOWED_ROUTES.has(route()) || nav.querySelector('[data-employee-management-nav]')) return;
-    const node = button(route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리', () => openEmployeeManagement('existing'), true);
-    node.dataset.employeeManagementNav = '1';
-    const accountApproval = [...nav.children].find(child => child.textContent?.includes('가입 승인'));
-    const homepage = [...nav.children].find(child => child.textContent?.trim() === '홈페이지');
-    nav.insertBefore(node, accountApproval || homepage || null);
+    // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
 
-  function sync() { syncNavigation(); }
   injectStyles();
-  document.addEventListener('taejang-open-employee-management', () => openEmployeeManagement('existing'));
-  document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
-  const start = () => {
-    const shell = document.getElementById('desktop-app-shell');
-    if (!shell) return;
-    new MutationObserver(() => setTimeout(sync, 25)).observe(shell, { childList: true, subtree: true });
-    sync();
-  };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
+  document.addEventListener('taejang-open-employee-management', event => {
+    openEmployeeManagement(event.detail?.view || 'existing');
+  });
+
   window.TaejangEmployeeManagement = { openEmployeeManagement, openSensitiveBulkTools, compressEmployeePhoto };
 })();
