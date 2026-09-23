@@ -665,11 +665,6 @@
 
     if (['promotion_lead', 'operations_manager'].includes(currentRoute)) {
       replaceHomepageNav(nav);
-      if (!nav.querySelector('[data-issue146-nav="promotion-archive"]')) {
-        const homepage = nav.querySelector('[data-issue146-nav="homepage"]');
-        const node = navButton('홍보글 관리·복구', openPromotionArchive, 'promotion-archive');
-        if (homepage) nav.insertBefore(node, homepage); else nav.append(node);
-      }
     }
 
     // Goal #327: the master sidebar owns promotion writing, and the rare
