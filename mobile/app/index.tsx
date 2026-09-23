@@ -23,6 +23,9 @@ import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-featu
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
 import { usePlatform } from '@/src/providers/platform-provider';
 
+const APP_PRIVACY_URL = 'https://taejang.co.kr/employee-app-privacy.html';
+const ACCOUNT_DELETION_URL = 'https://taejang.co.kr/account-deletion.html';
+
 type AccessRole = { code?: string; name?: string };
 type AccessContext = {
   account_status?: string;
@@ -146,6 +149,35 @@ function PrimaryButton({
         </Text>
       ) : null}
     </Pressable>
+  );
+}
+
+function PolicyLinks({ compact = false }: { compact?: boolean }) {
+  const openUrl = (url: string, label: string) => {
+    void Linking.openURL(url).catch(() => {
+      Alert.alert('페이지 열기', `${label} 페이지를 열지 못했습니다. 잠시 후 다시 시도해주세요.`);
+    });
+  };
+
+  return (
+    <View style={[styles.policyLinks, compact ? styles.policyLinksCompact : null]}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="개인정보처리방침"
+        onPress={() => openUrl(APP_PRIVACY_URL, '개인정보처리방침')}
+        style={styles.policyLinkButton}
+      >
+        <Text style={styles.policyLinkText}>개인정보처리방침</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel="계정 삭제 요청"
+        onPress={() => openUrl(ACCOUNT_DELETION_URL, '계정 삭제 요청')}
+        style={styles.policyLinkButton}
+      >
+        <Text style={styles.policyDeleteText}>계정 삭제 요청</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -507,6 +539,7 @@ export default function HomeScreen() {
                 {message ? <Text style={styles.errorText}>{message}</Text> : null}
               </View>
             )}
+            <PolicyLinks />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -536,6 +569,7 @@ export default function HomeScreen() {
         <Pressable style={styles.textAction} onPress={() => void run(signOut)}>
           <Text style={styles.textActionLabel}>로그아웃</Text>
         </Pressable>
+        <PolicyLinks />
       </View>
     );
   }
@@ -553,6 +587,7 @@ export default function HomeScreen() {
         <Pressable style={styles.textAction} onPress={() => void run(signOut)}>
           <Text style={styles.textActionLabel}>로그아웃</Text>
         </Pressable>
+        <PolicyLinks />
       </View>
     );
   }
@@ -567,6 +602,7 @@ export default function HomeScreen() {
         <Pressable style={styles.smallButton} onPress={() => void run(signOut)}>
           <Text style={styles.smallButtonText}>로그아웃</Text>
         </Pressable>
+        <PolicyLinks />
       </View>
     );
   }
@@ -593,10 +629,13 @@ export default function HomeScreen() {
 
           {settingsOpen ? (
             <View style={styles.settingsPanel}>
-              <Text style={styles.help}>{access.display_name || '태장 직원'} 계정</Text>
-              <Pressable onPress={() => void run(signOut)} style={styles.logoutButton}>
-                <Text style={styles.logoutText}>{busy ? '처리 중…' : '로그아웃'}</Text>
-              </Pressable>
+              <View style={styles.settingsRow}>
+                <Text style={styles.help}>{access.display_name || '태장 직원'} 계정</Text>
+                <Pressable onPress={() => void run(signOut)} style={styles.logoutButton}>
+                  <Text style={styles.logoutText}>{busy ? '처리 중…' : '로그아웃'}</Text>
+                </Pressable>
+              </View>
+              <PolicyLinks compact />
             </View>
           ) : null}
 
@@ -743,16 +782,35 @@ const styles = StyleSheet.create({
   settingsButton: { minHeight: 42, minWidth: 52, alignItems: 'center', justifyContent: 'center' },
   settingsText: { color: '#66766d', fontSize: 13, fontWeight: '800' },
   settingsPanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
     padding: 12,
     borderRadius: 14,
     backgroundColor: '#ebece5',
   },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   logoutButton: { paddingHorizontal: 12, paddingVertical: 9 },
   logoutText: { color: '#7c3932', fontSize: 13, fontWeight: '900' },
+  policyLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  policyLinksCompact: { justifyContent: 'flex-start' },
+  policyLinkButton: {
+    minHeight: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  policyLinkText: { color: '#35624d', fontSize: 13, fontWeight: '800' },
+  policyDeleteText: { color: '#7c3932', fontSize: 13, fontWeight: '800' },
   actions: { gap: 14 },
   primaryAction: {
     alignItems: 'center',
