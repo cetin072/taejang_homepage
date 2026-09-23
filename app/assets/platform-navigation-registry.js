@@ -7,7 +7,8 @@
     { key:'homepage', label:'홈페이지' },
     { key:'operations', label:'업무 운영' },
     { key:'payroll', label:'근태·급여' },
-    { key:'support', label:'지원사업' }
+    { key:'support', label:'지원사업' },
+    { key:'official_channels', label:'공식 채널' }
   ]);
 
   const ITEMS = Object.freeze([
@@ -42,8 +43,9 @@
 
     { key:'platform.settings', label:'설정', section:null, capabilities:['platform.navigation.manage'], locked:true },
 
-    // Public homepage/blog/youtube are shown in the separate Official Channels group.
-    { key:'public.homepage', label:'홈페이지', section:'공개 채널', public:true }
+    { key:'public.homepage', label:'홈페이지', section:'공식 채널', public:true, locked:true },
+    { key:'public.blog', label:'공식 블로그', section:'공식 채널', public:true, locked:true },
+    { key:'public.youtube', label:'공식 유튜브', section:'공식 채널', public:true, locked:true }
   ]);
 
   const ALIASES = Object.freeze({
