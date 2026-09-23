@@ -640,41 +640,10 @@
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Navigation integration. Replacing existing nodes removes old event handlers
-  // without modifying the large legacy modules.
-  // -------------------------------------------------------------------------
-  function navButton(label, handler, key) {
-    const node = button(label, () => { closeSidebar(); handler(); }, true);
-    node.className = '';
-    node.dataset.issue146Nav = key;
-    return node;
-  }
-
-  function replaceHomepageNav(nav) {
-    const old = [...nav.querySelectorAll('button')].find(node => node.textContent.trim() === '홈페이지 내용 관리');
-    if (!old || old.dataset.issue146Nav === 'homepage') return;
-    old.replaceWith(navButton('홈페이지 내용 관리', openHomepageSlots, 'homepage'));
-  }
-
+  // Sidebar DOM is owned by dashboard-shell. This module only enhances
+  // employee forms and exposes homepage/archive actions to the canonical shell.
   function syncNavigation() {
-    const nav = document.getElementById('app-nav');
-    const currentRoute = route();
-    if (!nav || !currentRoute) return;
     enhanceEmployeeForms(document);
-
-    if (['promotion_lead', 'operations_manager'].includes(currentRoute)) {
-      replaceHomepageNav(nav);
-      if (!nav.querySelector('[data-issue146-nav="promotion-archive"]')) {
-        const homepage = nav.querySelector('[data-issue146-nav="homepage"]');
-        const node = navButton('홍보글 관리·복구', openPromotionArchive, 'promotion-archive');
-        if (homepage) nav.insertBefore(node, homepage); else nav.append(node);
-      }
-    }
-
-    // Goal #327: the master sidebar owns promotion writing, and the rare
-    // employee/account recovery tools are reached from Employee Management.
-    // Do not re-inject either as late sidebar nodes.
   }
 
   function scheduleNavSync() {
