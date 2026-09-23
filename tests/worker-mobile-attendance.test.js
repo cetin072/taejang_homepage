@@ -85,6 +85,16 @@ test('operations manager employee-home entry injects common employee styling bef
   assert.match(match[1], /injectStyles\(\);[\s\S]*const home = buildHome\(\);/);
 });
 
+test('employee home releases the desktop sidebar scroll lock and restores it for the role dashboard', () => {
+  const source = read('app/assets/employee-common-home-v1.js');
+  const home = source.match(/function showEmployeeHome\(\) \{([\s\S]*?)\n  \}/);
+  const dashboard = source.match(/function showRoleDashboard\(\) \{([\s\S]*?)\n  \}/);
+  assert.ok(home, 'showEmployeeHome should exist');
+  assert.ok(dashboard, 'showRoleDashboard should exist');
+  assert.match(home[1], /classList\.remove\('desktop-app-mode'\)/);
+  assert.match(dashboard[1], /classList\.toggle\('desktop-app-mode', route\(\) !== 'general_worker'\)/);
+});
+
 test('general worker, promotion staff, and lead share the common employee home while only work roles get shortcuts', () => {
   const source = read('app/assets/employee-common-home-v1.js');
   assert.match(source, /\['general_worker', 'promotion_staff', 'promotion_lead'\]\.includes\(currentRoute\)/);

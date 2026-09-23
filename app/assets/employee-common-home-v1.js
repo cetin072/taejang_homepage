@@ -143,6 +143,9 @@
     shell.hidden = true;
     home.hidden = false;
     document.body.classList.add('employee-home-mode');
+    // The desktop sidebar shell intentionally locks body scrolling.
+    // Employee home lives outside that shell, so it must use normal page scrolling.
+    document.body.classList.remove('desktop-app-mode');
     home.scrollIntoView({ block: 'start' });
     void Promise.all([loadAttendance(), loadNotices()]);
   }
@@ -153,6 +156,7 @@
     if (!home || !shell) return;
     home.hidden = true;
     document.body.classList.remove('employee-home-mode');
+    document.body.classList.toggle('desktop-app-mode', route() !== 'general_worker');
     shell.hidden = false;
     document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));
     document.getElementById('dashboard-main')?.scrollIntoView({ block: 'start' });
