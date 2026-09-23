@@ -602,6 +602,7 @@ export default function HomeScreen() {
         <Pressable style={styles.smallButton} onPress={() => void run(signOut)}>
           <Text style={styles.smallButtonText}>로그아웃</Text>
         </Pressable>
+        <PolicyLinks />
       </View>
     );
   }
