@@ -200,7 +200,7 @@ test('central navigation uses one master order and section contract for every de
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 대기', '기존 글 관리', '홍보글 관리·복구',
+    '발행 대기', '기존 글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
@@ -211,6 +211,7 @@ test('central navigation uses one master order and section contract for every de
   assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
   assert.match(navPriority, /label:\s*'직원·계정'/);
   assert.match(navPriority, /label:\s*'홍보'/);
+  assert.doesNotMatch(masterBlock, /홍보글 관리·복구/);
   assert.match(navPriority, /label:\s*'홈페이지'/);
   assert.match(navPriority, /label:\s*'업무 운영'/);
   assert.doesNotMatch(navPriority.slice(masterStart, navPriority.indexOf('const DESKTOP_ROLES')), /label:\s*'공지·안내'/);
