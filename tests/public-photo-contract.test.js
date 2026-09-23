@@ -22,8 +22,15 @@ assert.ok(exists('images/homepage/photo-01.webp'), 'PHOTO 01 과거 자산은 �
 
 assert.match(index, /data-photo-slot="02"[^>]*>[\s\S]*?<img src="images\/homepage\/photo-02\.webp"/, 'PHOTO 02는 현재 민화 작업 사진을 사용합니다');
 assert.match(index, /data-photo-slot="03"[^>]*>[\s\S]*?<img src="assets\/images\/business\/environment-cleanup-group\.webp"/, 'PHOTO 03 편집 식별자는 최신 승인 환경정비 단체사진을 사용합니다');
-for (const number of ['04', '05', '06']) {
-  assert.match(index, new RegExp(`data-photo-slot="${number}"[^>]*>[\\s\\S]*?<img src="images\\/homepage\\/photo-${number}\\.webp"`), `PHOTO ${number}는 현재 고정 일터 사진을 사용합니다`);
+const workplacePhotos = {
+  '04': 'assets/images/workplace/packing-preparation.webp',
+  '05': 'assets/images/workplace/packing-sealing.webp',
+  '06': 'assets/images/workplace/packing-completion-check.webp'
+};
+for (const [number, source] of Object.entries(workplacePhotos)) {
+  const escapedSource = source.replaceAll('/', '\\/').replaceAll('.', '\\.');
+  assert.match(index, new RegExp(`data-photo-slot="${number}"[^>]*>[\\s\\S]*?<img src="${escapedSource}"`), `PHOTO ${number}는 준비·포장·확인 역할에 맞는 최신 일터 사진을 사용합니다`);
+  assert.ok(exists(source), `${source} 최신 일터 사진 자산이 존재합니다`);
 }
 assert.match(about, /data-photo-slot="07"[^>]*>[\s\S]*?<img src="images\/homepage\/photo-07\.webp"/, 'PHOTO 07은 회사소개 대표사진을 사용합니다');
 assert.match(about, /data-photo-slot="08"[^>]*>[\s\S]*?<img src="images\/homepage\/photo-08-about-preview\.webp"/, 'about PHOTO 08은 승인된 미리보기 파생본을 사용합니다');

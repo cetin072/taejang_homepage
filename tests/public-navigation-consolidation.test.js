@@ -125,9 +125,9 @@ for (const href of [
 
 const staticPhotoExpectations = [
   ['02', 'images/homepage/photo-02.webp'],
-  ['04', 'images/homepage/photo-04.webp'],
-  ['05', 'images/homepage/photo-05.webp'],
-  ['06', 'images/homepage/photo-06.webp']
+  ['04', 'assets/images/workplace/packing-preparation.webp'],
+  ['05', 'assets/images/workplace/packing-sealing.webp'],
+  ['06', 'assets/images/workplace/packing-completion-check.webp']
 ];
 for (const [slot, src] of staticPhotoExpectations) {
   const pattern = new RegExp(`data-photo-slot="${slot}"[^>]*>[\\s\\S]*?<img src="${src.replaceAll('.', '\\.')}"`);
