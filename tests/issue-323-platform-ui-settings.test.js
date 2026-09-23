@@ -29,14 +29,17 @@ test('Issue 323 gives every canonical menu a stable unique key', () => {
   assert.match(registry, /key:'support\.profile', label:'기업 프로필'/);
 });
 
-test('master sidebar marks menu keys and includes support routes and operations settings', () => {
+test('master sidebar marks menu keys and support routes while operations Settings lives in the topbar', () => {
   assert.match(shell, /node\.dataset\.menuKey = menuKey/);
   assert.match(shell, /node\.dataset\.masterMenuItem = '1'/);
   assert.match(shell, /function openSupport\(view\)/);
   assert.match(shell, /label: '지원사업 레이더'[\s\S]*openSupport\('radar'\)/);
   assert.match(shell, /label: '기업 프로필'[\s\S]*openSupport\('profile'\)/);
   assert.match(shell, /label: '내 지원사업'[\s\S]*openSupport\('mywork'\)/);
-  assert.match(shell, /label: '설정'[\s\S]*platform\.navigation\.manage/);
+  assert.doesNotMatch(shell.slice(shell.indexOf('function masterMenuItems'), shell.indexOf('function menu')), /label: '설정'/);
+  assert.match(shell, /function ensureSettingsAction\(\)/);
+  assert.match(shell, /platform\.navigation\.manage/);
+  assert.match(shell, /data-platform-settings-action/);
   assert.match(shell, /taejang-open-platform-settings/);
 });
 
