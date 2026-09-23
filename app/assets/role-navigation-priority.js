@@ -20,7 +20,8 @@
     { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
     { key: 'operations', label: '업무 운영', items: ['업무 배정', '공지 등록', '공지 관리'] },
     { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
-    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] }
+    { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
+    { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
   ]);
 
   const DESKTOP_ROLES = Object.freeze([
@@ -93,7 +94,7 @@
   }
 
   function normalizeLabel(node) {
-    if (!node || node.dataset?.navSection === 'official_channels' || node.dataset?.navSectionToggle === '1') return;
+    if (!node || node.dataset?.navSectionToggle === '1') return;
     const current = cleanLabel(node);
     const renamed = LABEL_RENAMES.get(current);
     if (renamed) node.textContent = renamed;
@@ -195,7 +196,6 @@
 
   function priority(node) {
     if (node.dataset?.navSuppressed === '1') return 11000;
-    if (node.dataset?.navSection === 'official_channels') return 9000;
     const label = cleanLabel(node);
     if (CHECKING.has(label) || node.dataset?.featureStatus === 'checking') return 10000;
     const registry = window.TaejangPlatformNavigationRegistry;
@@ -293,16 +293,15 @@
       desired.push(node);
     });
 
-    const official = [...nav.children].filter(node => node.dataset?.navSection === 'official_channels' || node.dataset?.officialChannelGroup);
     const other = [...nav.children].filter(node =>
       !desired.includes(node)
-      && !official.includes(node)
       && node.dataset?.navSectionToggle !== '1'
+      && !node.dataset?.officialChannelGroup
       && !node.dataset?.supportRadarNavGroup
       && !node.dataset?.supportMyWorkNav
     );
 
-    return [...desired, ...other, ...official];
+    return [...desired, ...other];
   }
 
   function refreshSectionVisibility() {
@@ -348,6 +347,7 @@
       ensurePayrollEntry(nav, currentRole);
       ensurePayrollHandoffEntry(nav, currentRole);
       removeLegacySupportGroups(nav);
+      nav.querySelectorAll(':scope > [data-official-channel-group]').forEach(node => node.remove());
       ensureIssue207RoleContract(nav);
       menuNodes(nav).forEach(normalizeLabel);
       menuNodes(nav).filter(node => RETIRED_NAVIGATION.has(cleanLabel(node))).forEach(node=>node.remove());
