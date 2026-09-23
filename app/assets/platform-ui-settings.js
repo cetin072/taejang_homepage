@@ -711,6 +711,17 @@
         shell.append(archive);
       }
 
+      if(app()?.can?.('employee.sensitive_identity_manage') && window.TaejangEmployeeManagement?.openSensitiveBulkTools) {
+        const sensitive=document.createElement('section');
+        sensitive.className='platform-settings-card';
+        sensitive.append(
+          text('h3','직원 민감정보 도구'),
+          text('p','주민등록번호 일괄등록처럼 평소에는 필요 없는 관리도구를 여기에서만 엽니다.','help'),
+          button('주민등록번호 일괄등록 열기',()=>window.TaejangEmployeeManagement.openSensitiveBulkTools(),true)
+        );
+        shell.append(sensitive);
+      }
+
       shell.append(personal);
 
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card';
