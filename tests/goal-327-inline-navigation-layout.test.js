@@ -90,12 +90,14 @@ test('Goal 327 CSS remains balanced and hover/focus affordances avoid geometry m
   assert.doesNotMatch(hoverBlock, /\b(?:margin|padding|width|height|min-height|max-height|font-size|font-weight|transform)\s*:/);
 });
 
-test('Goal 327 uses stable dashboard keys and opens independent payroll/support tools in new tabs', () => {
+test('Goal 327 uses stable dashboard keys and keeps payroll external while support stays in-platform', () => {
   assert.match(dashboardPriority, /DEFAULT_CARD_KEY_ORDER/);
   assert.match(dashboardPriority, /mergeSavedOrder/);
   assert.match(dashboardPriority, /window\.open\('payroll\/live\.html', '_blank', 'noopener,noreferrer'\)/);
   assert.match(supportRadar, /dashboardCardKey = 'support\.radar'/);
-  assert.match(supportRadar, /window\.open\('index\.html\?support=radar', '_blank', 'noopener,noreferrer'\)/);
+  assert.match(supportRadar, /button\('레이더 열기', \(\) => open\('dashboard'\)\)/);
+  assert.match(supportRadar, /button\('기업 프로필', renderProfile, true\)/);
+  assert.doesNotMatch(supportRadar, /window\.open\('index\.html\?support=/);
   assert.match(attendance, /dashboardCardKey = 'attendance\.today'/);
   assert.match(accountApproval, /dashboardCardKey = 'account\.signup-requests'/);
 });
