@@ -77,6 +77,30 @@ export function AttendanceCard({
     void refresh();
   }, [client, session, refresh]);
 
+  useEffect(() => {
+    if (
+      !today
+      || today.is_workday === false
+      || today.clock_in_available !== false
+      || !today.server_time
+      || !today.clock_in_available_at
+    ) return;
+
+    const serverNow = new Date(today.server_time).getTime();
+    const availableAt = new Date(today.clock_in_available_at).getTime();
+    const waitMs = availableAt - serverNow;
+    if (!Number.isFinite(waitMs) || waitMs <= 0) return;
+
+    const timer = setTimeout(() => void refresh(), waitMs + 250);
+    return () => clearTimeout(timer);
+  }, [
+    refresh,
+    today?.clock_in_available,
+    today?.clock_in_available_at,
+    today?.is_workday,
+    today?.server_time,
+  ]);
+
   function show(text: string, error = false) {
     setMessage(text);
     setMessageError(error);
@@ -112,7 +136,13 @@ export function AttendanceCard({
 
       if (!qaAttempt && latest.is_workday === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
+        show('오늘은 출근일이 아닙니다.', true);
+        return;
+      }
+
+      if (!qaAttempt && eventType === 'clock_in' && latest.clock_in_available === false) {
+        attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
+        show('오전 6시부터 출근할 수 있습니다.', true);
         return;
       }
 
@@ -169,6 +199,10 @@ export function AttendanceCard({
       } else if (result.code === 'CLOCK_IN_REQUIRED') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(qaAttempt ? '먼저 검수 출근을 완료해주세요.' : '먼저 출근 처리가 완료되어야 합니다.', true);
+      } else if (result.code === 'CLOCK_IN_TOO_EARLY') {
+        attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
+        show('오전 6시부터 출근할 수 있습니다.', true);
+        await refresh();
       } else if (result.code === 'NON_WORKDAY') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show('오늘은 휴일입니다. 휴일근무가 지정된 직원만 출퇴근할 수 있습니다.', true);
@@ -255,7 +289,7 @@ export function AttendanceCard({
 
   let action: AttendanceEventType | null = 'clock_in';
   let title = '출근했습니다';
-  let subtitle = today?.is_workday === false ? '오늘은 휴일입니다' : '회사에서 눌러주세요';
+  let subtitle = '회사에서 눌러주세요';
 
   if (qaMode) {
     if (qaClockOutAt) {
@@ -287,6 +321,16 @@ export function AttendanceCard({
     action = 'clock_out';
     title = '퇴근했습니다';
     subtitle = `출근 ${formatTime(clockIn?.event_at)}`;
+  } else if (today?.is_workday === false) {
+    action = null;
+    title = '오늘은 출근일이 아닙니다';
+    subtitle = today?.day_reason || '휴일입니다';
+  } else if (today?.clock_in_available === false) {
+    action = null;
+    title = '출근 전입니다';
+    subtitle = '오전 6시부터 출근할 수 있습니다';
+  } else if (today?.holiday_work_assigned) {
+    subtitle = '휴일근무일입니다 · 회사에서 눌러주세요';
   }
 
   function handleAction() {
