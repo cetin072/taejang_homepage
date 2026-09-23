@@ -41,6 +41,7 @@ test('Issue 325 orders canonical menus by actual work flow', () => {
 
 test('Issue 325 uses real clickable category headings instead of tiny pseudo labels', () => {
   assert.match(registry, /const SECTIONS = Object\.freeze/);
+  assert.match(registry, /key:'official_channels', label:'공식 채널'/);
   assert.match(nav, /function sectionToggle\(nav, section\)/);
   assert.match(nav, /dataset\.navSectionToggle = '1'/);
   assert.match(nav, /aria-expanded/);
@@ -94,8 +95,13 @@ test('Issue 325 stops support my-work from injecting another sidebar group', () 
   assert.doesNotMatch(shell, /index\.html\?support=mywork/);
 });
 
-test('Issue 325 removes duplicate standalone public-homepage menu because Official Channels already owns it', () => {
+test('Issue 325 keeps public channels out of business menu builders and composes them as one canonical category', () => {
   const master = shell.slice(shell.indexOf('function masterMenuItems'), shell.indexOf('function menu'));
   assert.doesNotMatch(master, /key: 'public\.homepage'/);
-  assert.match(shell, /makeOfficialChannelGroup/);
+  assert.match(shell, /function makeOfficialChannelLinks\(\)/);
+  assert.doesNotMatch(shell, /makeOfficialChannelGroup/);
+  assert.match(nav, /key: 'official_channels', label: '공식 채널'/);
+  assert.match(registry, /key:'public\.homepage'[\s\S]*section:'공식 채널'/);
+  assert.match(registry, /key:'public\.blog'[\s\S]*section:'공식 채널'/);
+  assert.match(registry, /key:'public\.youtube'[\s\S]*section:'공식 채널'/);
 });
