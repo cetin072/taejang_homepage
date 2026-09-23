@@ -35,7 +35,7 @@ test('Issue 325 orders canonical menus by actual work flow', () => {
     '홈페이지 내용 관리','홈페이지 직접 수정',
     '업무 배정','공지 등록','공지 관리',
     '출근부','근태 보정','근태·급여관리','외부 급여초안 상신','외부 급여초안 검토',
-    '기업 프로필','지원사업 레이더','내 지원사업','설정'
+    '기업 프로필','지원사업 레이더','내 지원사업'
   ]);
 });
 
@@ -50,6 +50,15 @@ test('Issue 325 uses real clickable category headings instead of tiny pseudo lab
   assert.match(css, /\.app-nav-section-title[\s\S]*font-size:1\.02rem/);
   assert.match(css, /\[data-nav-section\]:not\(\.app-nav-section-toggle\)[\s\S]*font-size:\.91rem/);
   assert.doesNotMatch(accent, /content:\s*attr\(data-section-label\)/);
+});
+
+test('Issue 325 keeps dashboard first and Official Channels last while Settings moves to topbar', () => {
+  assert.doesNotMatch(nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS')), /'설정'/);
+  assert.match(nav, /key: 'official_channels', label: '공식 채널'/);
+  assert.match(nav, /key === 'dashboard'[\s\S]*return -10000/);
+  assert.match(nav, /sectionKey === 'official_channels'[\s\S]*return 10000/);
+  assert.match(settings, /section\.key!=='official_channels'/);
+  assert.match(shell, /function ensureSettingsAction\(\)/);
 });
 
 test('Issue 325 whole sidebar never collapses and category collapse persists per profile and role', () => {
