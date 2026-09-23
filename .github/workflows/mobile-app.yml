@@ -90,6 +90,16 @@ jobs:
         env:
           CI: '1'
         run: npx expo prebuild --platform android --no-install
+      - name: Verify generated Android launcher resources
+        working-directory: mobile/android
+        run: |
+          test -s app/src/main/res/mipmap-hdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
+          test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
       - name: Build standalone ARM64 debug APK
         working-directory: mobile/android
         env:
@@ -140,6 +150,16 @@ jobs:
         env:
           CI: '1'
         run: npx expo prebuild --platform android --no-install
+      - name: Verify generated Android launcher resources
+        working-directory: mobile/android
+        run: |
+          test -s app/src/main/res/mipmap-hdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
+          test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
       - name: Restore upload keystore outside the checkout
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/taejang-play-upload.jks
