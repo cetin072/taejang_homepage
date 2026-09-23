@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
   <link rel="stylesheet" href="../../app/assets/dashboard-accent-theme.css">
 </head>
-<body>
+<body class="desktop-app-mode">
   <section id="desktop-app-shell" class="desktop-app-shell">
     <aside id="app-sidebar" class="app-sidebar">
       <nav id="app-nav" class="app-nav"></nav>
@@ -100,6 +100,7 @@
   <script src="../../app/assets/platform-navigation-registry.js"></script>
   <script src="../../app/assets/app-workspace-surface.js"></script>
   <script src="../../app/assets/dashboard-shell.js"></script>
+  <script src="../../app/assets/official-channel-links.js"></script>
   <script src="../../app/assets/platform-ui-settings.js"></script>
   <script src="../../app/assets/capability-ui-gates.js"></script>
   <script src="../../app/assets/attendance-admin.js"></script>
@@ -158,29 +159,62 @@
     }
     async function assertSidebarScrollStable(role) {
       const sidebar = document.getElementById('app-sidebar');
+      const workspace = document.querySelector('.app-workspace');
+      const shell = document.getElementById('desktop-app-shell');
       const nav = document.getElementById('app-nav');
-      const style = getComputedStyle(sidebar);
-      assert(style.overflowY === 'auto' || style.overflowY === 'scroll', `${role}: 데스크톱 사이드바가 독립 스크롤 영역이 아님`);
-      assert(style.overscrollBehaviorY === 'contain', `${role}: 하단 wheel scroll chaining 방지 누락`);
-      assert(style.overflowAnchor === 'none', `${role}: 브라우저 scroll anchoring 방지 누락`);
+      const sidebarStyle = getComputedStyle(sidebar);
+      const workspaceStyle = getComputedStyle(workspace);
+      const bodyStyle = getComputedStyle(document.body);
+      assert(bodyStyle.overflow === 'hidden' || bodyStyle.overflowY === 'hidden', `${role}: 데스크톱 전체 페이지 스크롤이 남아 있음`);
+      assert(sidebarStyle.position === 'relative', `${role}: sticky sidebar가 남아 있어 outer scroll과 충돌할 수 있음`);
+      assert(sidebarStyle.overflowY === 'auto' || sidebarStyle.overflowY === 'scroll', `${role}: 데스크톱 사이드바가 독립 스크롤 영역이 아님`);
+      assert(workspaceStyle.overflowY === 'auto' || workspaceStyle.overflowY === 'scroll', `${role}: 본문도 독립 스크롤 영역이어야 함`);
+      assert(sidebarStyle.overscrollBehaviorY === 'contain', `${role}: 하단 wheel scroll chaining 방지 누락`);
+      assert(sidebarStyle.overflowAnchor === 'none', `${role}: 브라우저 scroll anchoring 방지 누락`);
+      assert(Math.abs(shell.getBoundingClientRect().height - window.innerHeight) < 2, `${role}: 앱 shell이 viewport 높이로 고정되지 않음`);
+
       const maxScroll = Math.max(0, sidebar.scrollHeight - sidebar.clientHeight);
       assert(maxScroll > 0, `${role}: 사이드바 스크롤 테스트에 필요한 overflow가 없음`);
       sidebar.scrollTop = maxScroll;
       await wait(30);
+      const baseRect = sidebar.getBoundingClientRect();
       const baseline = {
         scrollTop: sidebar.scrollTop,
         scrollHeight: sidebar.scrollHeight,
         clientHeight: sidebar.clientHeight,
+        top: baseRect.top,
+        height: baseRect.height,
         signature: navSignature()
       };
       for (let index = 0; index < 8; index += 1) {
         await wait(80);
+        const rect = sidebar.getBoundingClientRect();
         assert(Math.abs(sidebar.scrollTop - baseline.scrollTop) < 1, `${role}: 하단에서 scrollTop이 흔들림`);
         assert(sidebar.scrollHeight === baseline.scrollHeight, `${role}: 하단에서 sidebar 높이가 반복 변경됨`);
         assert(sidebar.clientHeight === baseline.clientHeight, `${role}: 하단에서 sidebar viewport 높이가 반복 변경됨`);
+        assert(Math.abs(rect.top - baseline.top) < 0.51 && Math.abs(rect.height - baseline.height) < 0.51, `${role}: 하단에서 sidebar 자체 위치가 흔들림`);
         assert(navSignature() === baseline.signature, `${role}: 하단에서 메뉴 DOM이 반복 변경됨`);
       }
       sidebar.scrollTop = 0;
+    }
+
+    async function assertLateOfficialChannelsRestore() {
+      const nav = document.getElementById('app-nav');
+      const group = nav.querySelector('[data-official-channel-group]');
+      assert(group, '공식 채널 그룹 누락');
+      assert(group.querySelectorAll('[data-official-channel-link]').length === 0, '테스트 시작 시 공식 채널은 아직 미로딩 상태여야 함');
+
+      window.TaejangOfficialChannels.list = [
+        { id: 'homepage', label: '홈페이지', href: '../index.html' },
+        { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+        { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+      ];
+      document.dispatchEvent(new CustomEvent('taejang-official-channels-ready'));
+      await wait(30);
+
+      const links = [...group.querySelectorAll('[data-official-channel-link]')];
+      assert(links.length === 3, '공식 채널 설정이 늦게 도착해도 링크 3개가 복구되어야 함');
+      assert(links.map(link => link.textContent.trim()).join('|') === '홈페이지|공식 블로그|공식 유튜브', '공식 채널 링크 순서/명칭 오류');
     }
 
     async function enterRole(role, label) {
@@ -329,6 +363,7 @@
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
+        await assertLateOfficialChannelsRestore();
         await assertSidebarScrollStable('operations_manager');
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
