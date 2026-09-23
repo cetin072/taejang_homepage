@@ -2,6 +2,7 @@
   'use strict';
 
   const SESSION_KEY = 'taejang-staff-session-v1';
+  const QA_PREVIEW_MARKER_KEY = 'taejang-qa-account-preview-v1';
   const MANAGER_ROLES = new Set(['super_admin', 'operations_manager', 'department_lead', 'field_lead']);
   const PANEL_CAPABILITIES = Object.freeze({
     'today-admin-panel': 'task.manage',
@@ -50,7 +51,16 @@
     label.textContent = text;
   }
 
+  function isQaEmployeePreview() {
+    try { return Boolean(sessionStorage.getItem(QA_PREVIEW_MARKER_KEY)); }
+    catch { return false; }
+  }
+
   function readStoredSession() {
+    if (isQaEmployeePreview()) {
+      return sessionStorage.getItem(SESSION_KEY);
+    }
+
     const persistent = localStorage.getItem(SESSION_KEY);
     if (persistent) return persistent;
 
@@ -64,6 +74,11 @@
 
   function storeSession(session) {
     state.session = session;
+    if (isQaEmployeePreview()) {
+      if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      else sessionStorage.removeItem(SESSION_KEY);
+      return;
+    }
     if (session) {
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       sessionStorage.removeItem(SESSION_KEY);
