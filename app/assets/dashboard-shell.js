@@ -279,12 +279,6 @@
         run: () => openSupport('mywork'),
         capabilities: ['support_radar.assigned_work']
       },
-      {
-        key: 'platform.settings',
-        label: '설정',
-        run: () => document.dispatchEvent(new CustomEvent('taejang-open-platform-settings')),
-        capabilities: ['platform.navigation.manage']
-      }
     ];
   }
 
@@ -391,6 +385,31 @@
     link.href = '../index.html'; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'button button-quiet'; link.textContent = '홈페이지'; link.dataset.homepageAction = '1';
     actions.insertBefore(link, el('desktop-logout-button'));
   }
+
+  function ensureSettingsAction() {
+    const actions = document.querySelector('.app-user-actions');
+    if (!actions) return;
+    const current = actions.querySelector('[data-platform-settings-action]');
+    const app = window.TaejangApp;
+    const allowed = app?.hasCapabilityContract?.()
+      ? app.can?.('platform.navigation.manage') === true
+      : app?.getRoute?.() === 'operations_manager';
+    if (!allowed) {
+      current?.remove();
+      return;
+    }
+    if (current) return;
+    const node = document.createElement('button');
+    node.type = 'button';
+    node.className = 'button button-quiet';
+    node.textContent = '설정';
+    node.dataset.platformSettingsAction = '1';
+    node.addEventListener('click', () => {
+      closeSidebar();
+      document.dispatchEvent(new CustomEvent('taejang-open-platform-settings'));
+    });
+    actions.insertBefore(node, actions.querySelector('[data-homepage-action]') || el('desktop-logout-button'));
+  }
   function bindBrandToDashboard() {
     document.querySelectorAll('.staff-brand, .app-logo').forEach(brand => {
       brand.href = '#'; brand.setAttribute('aria-label', '업무 대시보드로 이동');
@@ -405,7 +424,7 @@
     setDashboardTopbar(route);
     el('desktop-user-label').textContent = `${window.TaejangApp.getContext().display_name || '사용자'} · ${event.detail.label}`;
     menu(route);
-    bindBrandToDashboard(); ensureHomepageAction();
+    bindBrandToDashboard(); ensureHomepageAction(); ensureSettingsAction();
     const shell = el('desktop-app-shell');
     if (!shell.dataset.ready) {
       shell.dataset.ready = 'true';
