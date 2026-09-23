@@ -19,6 +19,10 @@
         <div class="app-user-actions"><span id="desktop-user-label"></span><button id="desktop-logout-button" type="button">logout</button></div>
       </header>
       <main id="dashboard-main"></main>
+      <section id="today-admin-panel" hidden><h2>업무 배정</h2></section>
+      <section id="schedule-admin-panel" hidden><h2>일정 관리</h2></section>
+      <section id="notice-admin-panel" hidden><h2>공지 관리</h2></section>
+      <section id="guidance-admin-panel" hidden><h2>상시 안내 관리</h2></section>
     </div>
   </section>
   <button id="logout-button" type="button">logout</button>
@@ -94,6 +98,7 @@
     };
   </script>
   <script src="../../app/assets/platform-navigation-registry.js"></script>
+  <script src="../../app/assets/app-workspace-surface.js"></script>
   <script src="../../app/assets/dashboard-shell.js"></script>
   <script src="../../app/assets/platform-ui-settings.js"></script>
   <script src="../../app/assets/capability-ui-gates.js"></script>
@@ -228,48 +233,55 @@
     function assertOperationsContract(current) {
       for (const required of [
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
-        '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
+        '홍보 검토', '홍보 글 작성', '기존 글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
         '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
-        '기업 프로필', '지원사업 레이더', '내 지원사업'
+        '기업 프로필', '지원사업 레이더', '내 지원사업', '설정'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
       }
       assertRetiredAbsent(current, 'operations_manager');
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
-      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
+      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리'], '운영총괄 홍보');
       assertOrdered(current, ['업무 배정', '공지 등록', '공지 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
 
-    function assertInlineEditors() {
+    function assertSidebarEditorMovedOut() {
       const sidebarActions = document.querySelector('[data-sidebar-layout-actions]');
-      assert(sidebarActions, '사이드바 메뉴 편집 진입점 누락');
-      const menuEdit = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '메뉴 편집');
-      assert(menuEdit, '메뉴 편집 버튼 누락');
-      menuEdit.click();
+      assert(!sidebarActions, '사이드바 하단에 메뉴 편집 UI가 다시 노출됨');
       const nav = document.getElementById('app-nav');
-      assert(nav.dataset.layoutEditing === '1', '사이드바 편집 모드 진입 실패');
-      assert(nav.querySelectorAll('[data-sidebar-drag-handle]').length > 0, '사이드바 drag handle 누락');
-      const cancel = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
-      cancel?.click();
-      assert(nav.dataset.layoutEditing !== '1', '사이드바 편집 취소 실패');
+      assert(nav.dataset.layoutEditing !== '1', '일반 사이드바가 편집 모드로 남아 있음');
+      assert(nav.querySelectorAll('[data-sidebar-drag-handle]').length === 0, '일반 사이드바에 drag handle이 남아 있음');
+    }
 
-      const dashboardActions = document.querySelector('[data-dashboard-layout-actions]');
-      assert(dashboardActions, '대시보드 편집 진입점 누락');
-      const dashboardEdit = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '대시보드 편집');
-      assert(dashboardEdit, '대시보드 편집 버튼 누락');
-      dashboardEdit.click();
-      const grid = document.querySelector('#dashboard-main > .dashboard-grid');
-      assert(grid?.dataset.layoutEditing === '1', '대시보드 편집 모드 진입 실패');
-      assert(grid.querySelectorAll('.dashboard-drag-handle').length > 0, '대시보드 drag handle 누락');
-      assert([...dashboardActions.querySelectorAll('button')].some(node => node.textContent.trim() === '+ 카드 추가'), '운영총괄 카드 추가 버튼 누락');
-      assert(grid.querySelectorAll('[data-dashboard-drag-tools] button').length > 0, '대시보드 카드 제거/이동 도구 누락');
-      const dashboardCancel = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
-      dashboardCancel?.click();
-      assert(grid.dataset.layoutEditing !== '1', '대시보드 편집 취소 실패');
+    async function assertPanelToSidebarTransitions() {
+      const dashboard = document.getElementById('dashboard-main');
+      const panels = ['today-admin-panel','schedule-admin-panel','notice-admin-panel','guidance-admin-panel']
+        .map(id => document.getElementById(id));
+      const notice = document.getElementById('notice-admin-panel');
+      const internal = visibleLeafItems().filter(node =>
+        node.tagName === 'BUTTON'
+        && node.dataset.navSectionToggle !== '1'
+      );
+
+      for (const target of internal) {
+        const label = clean(target);
+        dashboard.hidden = true;
+        panels.forEach(panel => { panel.hidden = panel !== notice; });
+        target.click();
+        await wait(30);
+
+        if (['업무 배정','공지 등록','공지 관리'].includes(label)) {
+          assert(dashboard.hidden === true, `${label}: 관리 패널 진입 시 대시보드가 동시에 노출됨`);
+          assert(panels.some(panel => panel.hidden === false), `${label}: 관리 패널이 열리지 않음`);
+        } else {
+          assert(dashboard.hidden === false, `${label}: 공지 관리 이후 메뉴 전환이 막힘`);
+          assert(panels.every(panel => panel.hidden === true), `${label}: 이전 관리 패널이 남아 있음`);
+        }
+      }
     }
 
     window.addEventListener('load', async () => {
@@ -289,7 +301,8 @@
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
-        assertInlineEditors();
+        assertSidebarEditorMovedOut();
+        await assertPanelToSidebarTransitions();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {
