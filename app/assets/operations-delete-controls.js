@@ -207,68 +207,47 @@
     card.append(actions);
   }
 
-  function renderArchivedSection(config, items, list) {
-    list.querySelector(`[data-${config.archiveSectionAttribute}]`)?.remove();
-    if (!items.length) return;
-
-    const section = document.createElement('section');
-    section.setAttribute(`data-${config.archiveSectionAttribute}`, '1');
-    section.className = 'dashboard-section';
-    const heading = document.createElement('h3');
-    heading.textContent = `보관함 ${items.length}건`;
-    section.append(heading);
-
-    items.forEach(item => {
-      const card = document.createElement('article');
-      card.className = 'admin-record-card';
-      const kicker = document.createElement('p');
-      kicker.className = 'card-kicker';
-      kicker.textContent = `보관됨 · 이전 상태 ${item.archive_previous_status || '-'}`;
-      const title = document.createElement('h4');
-      title.textContent = item.title || config.kind;
-      const help = document.createElement('p');
-      help.className = 'help';
-      const actor = item.archived_by_name ? ` · ${item.archived_by_name}` : '';
-      const reason = item.archive_reason ? ` · ${item.archive_reason}` : '';
-      help.textContent = `${formatDateTime(item.archived_at)}${actor}${reason}`;
-      card.append(kicker, title, help);
-
-      const actions = document.createElement('div');
-      actions.className = 'quick-links';
-      const restore = actionButton('복구', () => restoreItem({
-        config,
-        item,
-        refresh: async () => document.getElementById(config.refreshId)?.click()
-      }));
-      restore.dataset.recoveryAction = 'restore';
-      actions.append(restore);
-      appendHistoryButton(config, item, card, actions);
-      card.append(actions);
-      section.append(card);
-    });
-    list.append(section);
+  function recoveryConfigs() {
+    return [
+      {
+        key: 'schedules', listId: 'schedule-admin-list', refreshId: 'refresh-schedule-admin',
+        dataAttribute: 'ops-recovery-schedule', archiveSectionAttribute: 'ops-archive-schedule',
+        kind: '일정', targetType: 'schedule_item', archiveRpc: 'archive_schedule_item',
+        restoreRpc: 'restore_schedule_item', idArg: 'p_schedule_id',
+        load: () => app().rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
+      },
+      {
+        key: 'notices', listId: 'notice-admin-list', refreshId: 'refresh-notice-admin',
+        dataAttribute: 'ops-recovery-notice', archiveSectionAttribute: 'ops-archive-notice',
+        kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice',
+        restoreRpc: 'restore_notice', idArg: 'p_notice_id',
+        load: () => app().rpc('list_manageable_notices', { p_limit: 200 })
+      },
+      {
+        key: 'guidance', listId: 'guidance-admin-list', refreshId: 'refresh-guidance-admin',
+        dataAttribute: 'ops-recovery-guidance', archiveSectionAttribute: 'ops-archive-guidance',
+        kind: '안내', targetType: 'staff_guidance', archiveRpc: 'archive_staff_guidance',
+        restoreRpc: 'restore_staff_guidance', idArg: 'p_guidance_id',
+        load: () => app().rpc('list_manageable_staff_guidance', { p_limit: 200 })
+      }
+    ];
   }
 
   async function decorateIndexedList(config) {
     if (!isOperations() || busy.has(config.key)) return;
     const list = document.getElementById(config.listId);
     if (!list) return;
+    list.querySelector(`:scope > [data-${config.archiveSectionAttribute}]`)?.remove();
     const cards = [...list.querySelectorAll(':scope > .admin-record-card')];
-    const archivedSection = list.querySelector(`:scope > [data-${config.archiveSectionAttribute}]`);
-    if (archivedSection && cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;
+    if (cards.length && cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;
     busy.add(config.key);
     try {
-      const [activeRows, archivedRows] = await Promise.all([
-        config.load(),
-        app().rpc('get_archived_recovery_items', { p_resource_type: config.targetType, p_limit: 100 })
-      ]);
+      const activeRows = await config.load();
       const activeItems = Array.isArray(activeRows) ? activeRows : [];
-      const archivedItems = Array.isArray(archivedRows) ? archivedRows : [];
       cards.forEach((card, index) => {
         const item = activeItems[index];
         if (item) decorateActiveCard(config, item, card);
       });
-      renderArchivedSection(config, archivedItems, list);
     } catch {
       // Keep the existing management list usable when optional recovery UI fails.
     } finally {
@@ -276,30 +255,98 @@
     }
   }
 
+  function archiveCard(config, item) {
+    const card = document.createElement('article');
+    card.className = 'admin-record-card';
+    const kicker = document.createElement('p');
+    kicker.className = 'card-kicker';
+    kicker.textContent = `보관됨 · 이전 상태 ${item.archive_previous_status || '-'}`;
+    const title = document.createElement('h4');
+    title.textContent = item.title || config.kind;
+    const help = document.createElement('p');
+    help.className = 'help';
+    const actor = item.archived_by_name ? ` · ${item.archived_by_name}` : '';
+    const reason = item.archive_reason ? ` · ${item.archive_reason}` : '';
+    help.textContent = `${formatDateTime(item.archived_at)}${actor}${reason}`;
+    const actions = document.createElement('div');
+    actions.className = 'quick-links';
+    const restore = actionButton('복구', () => restoreItem({
+      config,
+      item,
+      refresh: openArchiveHub
+    }));
+    restore.dataset.recoveryAction = 'restore';
+    actions.append(restore);
+    appendHistoryButton(config, item, card, actions);
+    card.append(kicker, title, help, actions);
+    return card;
+  }
+
+  async function openArchiveHub() {
+    if (!isOperations()) return;
+    const main = document.getElementById('dashboard-main');
+    if (!main) return;
+    const title = document.getElementById('desktop-page-title');
+    if (title) title.textContent = '보관함';
+    main.replaceChildren(Object.assign(document.createElement('p'), {
+      className: 'message',
+      textContent: '삭제 보관된 항목을 불러오고 있습니다.'
+    }));
+    try {
+      const configs = recoveryConfigs();
+      const rows = await Promise.all(configs.map(config =>
+        app().rpc('get_archived_recovery_items', { p_resource_type: config.targetType, p_limit: 100 })
+      ));
+      const shell = document.createElement('div');
+      shell.className = 'platform-settings-shell';
+      const intro = document.createElement('header');
+      intro.className = 'dashboard-intro';
+      intro.append(
+        Object.assign(document.createElement('p'), { className: 'eyebrow', textContent: '설정 · 보관함' }),
+        Object.assign(document.createElement('h2'), { textContent: '삭제된 항목 보관함' }),
+        Object.assign(document.createElement('p'), { textContent: '일반 업무 목록에서는 삭제된 항목을 숨기고, 복구가 필요할 때만 이 화면에서 확인합니다.' })
+      );
+      const promotion = actionButton('홍보글 보관함 열기', () => {
+        if (typeof window.TaejangIssue146?.openPromotionArchive === 'function') {
+          window.TaejangIssue146.openPromotionArchive();
+        } else {
+          window.TaejangFeatureHealth?.showFailure?.('홍보글 보관함');
+        }
+      });
+      intro.append(promotion);
+      shell.append(intro);
+
+      configs.forEach((config, index) => {
+        const items = Array.isArray(rows[index]) ? rows[index] : [];
+        const section = document.createElement('section');
+        section.className = 'platform-settings-card';
+        const heading = document.createElement('h3');
+        heading.textContent = `${config.kind} 보관함 · ${items.length}건`;
+        section.append(heading);
+        if (!items.length) {
+          section.append(Object.assign(document.createElement('p'), {
+            className: 'help',
+            textContent: `보관된 ${config.kind}이 없습니다.`
+          }));
+        } else {
+          items.forEach(item => section.append(archiveCard(config, item)));
+        }
+        shell.append(section);
+      });
+      main.replaceChildren(shell);
+      main.focus();
+    } catch (error) {
+      main.replaceChildren(Object.assign(document.createElement('p'), {
+        className: 'message error',
+        textContent: app()?.friendlyError?.(error) || '보관함을 불러오지 못했습니다.'
+      }));
+    }
+  }
+
   function sync() {
     if (!isOperations()) return;
     decorateEmployees();
-    decorateIndexedList({
-      key: 'schedules', listId: 'schedule-admin-list', refreshId: 'refresh-schedule-admin',
-      dataAttribute: 'ops-recovery-schedule', archiveSectionAttribute: 'ops-archive-schedule',
-      kind: '일정', targetType: 'schedule_item', archiveRpc: 'archive_schedule_item',
-      restoreRpc: 'restore_schedule_item', idArg: 'p_schedule_id',
-      load: () => app().rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
-    });
-    decorateIndexedList({
-      key: 'notices', listId: 'notice-admin-list', refreshId: 'refresh-notice-admin',
-      dataAttribute: 'ops-recovery-notice', archiveSectionAttribute: 'ops-archive-notice',
-      kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice',
-      restoreRpc: 'restore_notice', idArg: 'p_notice_id',
-      load: () => app().rpc('list_manageable_notices', { p_limit: 200 })
-    });
-    decorateIndexedList({
-      key: 'guidance', listId: 'guidance-admin-list', refreshId: 'refresh-guidance-admin',
-      dataAttribute: 'ops-recovery-guidance', archiveSectionAttribute: 'ops-archive-guidance',
-      kind: '안내', targetType: 'staff_guidance', archiveRpc: 'archive_staff_guidance',
-      restoreRpc: 'restore_staff_guidance', idArg: 'p_guidance_id',
-      load: () => app().rpc('list_manageable_staff_guidance', { p_limit: 200 })
-    });
+    recoveryConfigs().forEach(config => decorateIndexedList(config));
   }
 
   function scheduleSync() {
@@ -336,5 +383,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
-  window.TaejangOperationsDeleteControls = { sync };
+  window.TaejangOperationsDeleteControls = { sync, openArchiveHub };
 })();
