@@ -113,7 +113,8 @@ test('Play AAB job is upload-key signed, skips PR secrets, and inspects the rele
   assert.match(workflow, /ANDROID_UPLOAD_KEY_PASSWORD/);
   assert.match(workflow, /bundleRelease/);
   assert.match(workflow, /android\.injected\.signing\.store\.file/);
-  assert.match(workflow, /jarsigner -verify -strict -certs/);
+  assert.match(workflow, /jarsigner -verify -certs/);
+  assert.doesNotMatch(workflow, /jarsigner -verify -strict/);
   assert.match(workflow, /CN=Android Debug/);
   assert.match(workflow, /base\/lib\/arm64-v8a/);
   assert.match(workflow, /ACCESS_BACKGROUND_LOCATION/);
