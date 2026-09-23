@@ -85,7 +85,10 @@ test('normal manager lists stay clean while operations receives a dedicated arch
   assert.match(recoveryFeed, /archived_at is not null/g);
   assert.match(recoveryFeed, /RECOVERY_ARCHIVE_READ_FORBIDDEN/);
   assert.match(controls, /get_archived_recovery_items/);
-  assert.match(controls, /보관함/);
+  assert.match(controls, /async function openArchiveHub/);
+  assert.match(controls, /삭제된 항목 보관함/);
+  const activeList = controls.slice(controls.indexOf('async function decorateIndexedList'), controls.indexOf('function archiveCard'));
+  assert.doesNotMatch(activeList, /get_archived_recovery_items/, 'normal management lists must not append deleted records');
 });
 
 test('recovery UI requires confirmation and reason, supports restore, and exposes readable target history', () => {
@@ -108,13 +111,12 @@ test('recovery UI requires confirmation and reason, supports restore, and expose
   assert.match(controls, /변경: \$\{before \|\| '-'\} → \$\{after \|\| '-'\}/);
 });
 
-test('recovery observer avoids repeatedly reloading the archive section it just rendered', () => {
-  assert.match(controls, /archivedSection && cards\.every/);
-  assert.match(controls, /data-ops-archive-schedule/);
-  assert.match(controls, /data-ops-archive-notice/);
-  assert.match(controls, /data-ops-archive-guidance/);
+test('recovery observer decorates only active lists while archive hub is opened explicitly', () => {
+  assert.match(controls, /function recoveryConfigs\(\)/);
   assert.match(controls, /function hasRelevantAddedNode\(records\)/);
   assert.match(controls, /if \(hasRelevantAddedNode\(records\)\) scheduleSync\(\)/);
+  assert.match(controls, /window\.TaejangOperationsDeleteControls = \{ sync, openArchiveHub \}/);
+  assert.doesNotMatch(controls, /function renderArchivedSection/);
 });
 
 test('target audit is business-scoped and not the raw technical audit browser', () => {
