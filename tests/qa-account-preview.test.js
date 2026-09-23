@@ -74,7 +74,8 @@ test('employee experience tab keeps return controls in the persistent top bar wi
 test('employee preview page creates an isolated tab session and then loads the real app', () => {
   assert.match(previewPage, /taejang-staff-session-v1/);
   assert.match(previewPage, /sessionStorage\.setItem\(SESSION_KEY/);
-  assert.doesNotMatch(previewPage, /localStorage/);
+  assert.match(previewPage, /localStorage\.getItem\(SESSION_KEY\)/, 'wrapper may read the canonical operator session');
+  assert.doesNotMatch(previewPage, /localStorage\.(?:setItem|removeItem)\(SESSION_KEY/, 'wrapper must never overwrite the operator session');
   assert.match(previewPage, /\/auth\/v1\/verify/);
   assert.match(previewPage, /token_hash/);
   assert.match(previewPage, /frame\.src = '\/app\/'/);
@@ -108,6 +109,13 @@ test('employee preview handoff remains isolated and does not replace the operato
   assert.match(previewPage, /sessionStorage\.removeItem\(SESSION_KEY\)/);
   assert.match(previewPage, /showTargetSession/);
   assert.match(previewPage, /window\.opener = null/);
+});
+
+test('inner app prefers the isolated QA target session and never migrates it into operator localStorage', () => {
+  assert.match(appSource, /QA_PREVIEW_MARKER_KEY = 'taejang-qa-account-preview-v1'/);
+  assert.match(appSource, /function isQaEmployeePreview\(\)/);
+  assert.match(appSource, /if \(isQaEmployeePreview\(\)\) \{\s*return sessionStorage\.getItem\(SESSION_KEY\)/s);
+  assert.match(appSource, /if \(isQaEmployeePreview\(\)\) \{[\s\S]*sessionStorage\.setItem\(SESSION_KEY, JSON\.stringify\(session\)\)[\s\S]*return;/);
 });
 
 test('switching from a role preset to a real employee clears the preset before target session creation', () => {
