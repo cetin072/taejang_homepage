@@ -55,7 +55,11 @@
     window.confirm = () => true;
     window.prompt = () => '테스트';
     window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
-    window.TaejangOfficialChannels = { list: [] };
+    window.TaejangOfficialChannels = { list: [
+      { id: 'homepage', label: '홈페이지', href: '../index.html' },
+      { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+      { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+    ] };
     window.TaejangIssue181PromotionLiveUx = {};
     window.TaejangSupportRadarLifecycle = { emit() {} };
     window.TaejangSupportRadarAccess = {
@@ -100,7 +104,6 @@
   <script src="../../app/assets/platform-navigation-registry.js"></script>
   <script src="../../app/assets/app-workspace-surface.js"></script>
   <script src="../../app/assets/dashboard-shell.js"></script>
-  <script src="../../app/assets/official-channel-links.js"></script>
   <script src="../../app/assets/platform-ui-settings.js"></script>
   <script src="../../app/assets/capability-ui-gates.js"></script>
   <script src="../../app/assets/attendance-admin.js"></script>
@@ -198,27 +201,28 @@
       sidebar.scrollTop = 0;
     }
 
-    async function assertLateOfficialChannelsRestore() {
+    async function assertOfficialChannelsFinal() {
       const nav = document.getElementById('app-nav');
-      assert(nav.querySelectorAll(':scope > [data-official-channel-link]').length === 0, '테스트 시작 시 공식 채널은 아직 미로딩 상태여야 함');
-
-      window.TaejangOfficialChannels.list = [
-        { id: 'homepage', label: '홈페이지', href: '../index.html' },
-        { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
-        { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
-      ];
-      document.dispatchEvent(new CustomEvent('taejang-official-channels-ready'));
-      await wait(80);
       window.TaejangRoleNavigationPriority?.reorder?.();
       await wait(30);
 
       const toggle = nav.querySelector(':scope > [data-nav-section-toggle="1"][data-section-key="official_channels"]');
       const links = [...nav.querySelectorAll(':scope > [data-official-channel-link]')];
-      assert(toggle, '공식 채널이 다른 카테고리와 같은 상위 접기/펼치기 구조가 아님');
-      assert(toggle.querySelector('.app-nav-section-title')?.textContent.trim() === '공식 채널', '공식 채널 상위 제목 오류');
-      assert(links.length === 3, '공식 채널 설정이 늦게 도착해도 링크 3개가 복구되어야 함');
-      assert(links.every(link => link.dataset.navSection === 'official_channels'), '공식 채널 하위 링크가 표준 카테고리에 속하지 않음');
-      assert(links.map(link => link.textContent.trim()).join('|') === '홈페이지|공식 블로그|공식 유튜브', '공식 채널 링크 순서/명칭 오류');
+      assert(toggle, '공식 채널이 표준 상위 카테고리로 구성되지 않음');
+      assert(toggle.querySelector('.app-nav-section-title')?.textContent.trim() === '공식 채널', '공식 채널 제목 오류');
+      assert(links.length === 3, '공식 채널 링크 3개 누락');
+      assert(links.every(link => link.dataset.navSection === 'official_channels'), '공식 채널 하위 링크가 표준 section에 속하지 않음');
+      assert(links.map(link => link.textContent.trim()).join('|') === '홈페이지|공식 블로그|공식 유튜브', '공식 채널 링크 순서 오류');
+
+      const visible = visibleItems();
+      const dashboard = find('대시보드');
+      assert(visible[0] === dashboard, '대시보드는 사이드바 최상단에 고정되어야 함');
+      const officialToggleIndex = visible.indexOf(toggle);
+      assert(officialToggleIndex >= 0, '공식 채널 카테고리 누락');
+      assert(visible.slice(officialToggleIndex + 1).every(node => node.dataset.navSection === 'official_channels'), '공식 채널 뒤에 업무 메뉴가 남아 있음');
+      assert(!visibleLeafItems().some(node => clean(node) === '설정'), '설정이 사이드바에 남아 있음');
+      const settingsAction = document.querySelector('[data-platform-settings-action]');
+      assert(settingsAction, '설정이 우측 상단 유틸리티로 이동하지 않음');
 
       toggle.click();
       await wait(20);
@@ -307,7 +311,7 @@
         '홍보 검토', '홍보 글 작성', '기존 글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
         '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
-        '기업 프로필', '지원사업 레이더', '내 지원사업', '설정'
+        '기업 프로필', '지원사업 레이더', '내 지원사업'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
       }
@@ -374,7 +378,7 @@
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
-        await assertLateOfficialChannelsRestore();
+        await assertOfficialChannelsFinal();
         await assertSidebarScrollStable('operations_manager');
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
