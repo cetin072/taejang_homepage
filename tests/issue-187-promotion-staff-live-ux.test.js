@@ -14,6 +14,7 @@ const qaSource = fs.readFileSync(path.join(root, 'app/assets/issue-187-promotion
 const issue181 = fs.readFileSync(path.join(root, 'app/assets/issue-181-promotion-live-ux.js'), 'utf8');
 const channelConfig = fs.readFileSync(path.join(root, 'app/assets/official-channel-config.js'), 'utf8');
 const appUi = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
+const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const roleNavigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260913070500_issue_192_upper_review_archive_guard.sql'), 'utf8');
@@ -63,7 +64,7 @@ function runPreviewReveal() {
   return calls;
 }
 
-test('issue 192 promotion modules parse and official channel config loads before promotion modules', () => {
+test('issue 192 promotion modules parse and official channel config is Core-static before promotion Branch modules', () => {
   [
     'app/assets/official-channel-config.js',
     'app/assets/dashboard-shell.js',
@@ -75,9 +76,10 @@ test('issue 192 promotion modules parse and official channel config loads before
   ].forEach(syntaxCheck);
   assert.doesNotThrow(() => new Function(publicFeed.replace('export default async', 'const handler = async')));
   assert.doesNotThrow(() => new Function(externalMeta.replace(/^import[^\n]+\n/gm, '').replace('export default async', 'const handler = async')));
-  assert.match(appUi, /assets\/official-channel-config\.js/);
-  assert.ok(appUi.indexOf('assets/official-channel-config.js') < appUi.indexOf('assets/phase-c-workspace-v2.js'));
-  assert.ok(appUi.indexOf('assets/official-channel-config.js') < appUi.indexOf('assets/issue-181-promotion-live-ux.js'));
+  assert.match(appIndex, /assets\/official-channel-config\.js/);
+  assert.doesNotMatch(appUi, /assets\/official-channel-config\.js/);
+  assert.ok(appUi.indexOf('assets/phase-c-workspace-v2.js') >= 0);
+  assert.ok(appUi.indexOf('assets/issue-181-promotion-live-ux.js') >= 0);
 });
 
 test('routine promotion and office staff hide support-radar navigation without changing server capabilities', () => {
