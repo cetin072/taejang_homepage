@@ -95,8 +95,10 @@
   }
   function openHomepageManagement() {
     closeSidebar();
-    const api = window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement;
-    if (typeof api === 'function') return api();
+    const canonical = window.TaejangIssue146?.openHomepageSlots;
+    if (typeof canonical === 'function') return canonical();
+    const fallback = window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement;
+    if (typeof fallback === 'function') return fallback();
     document.dispatchEvent(new CustomEvent('taejang-open-homepage-content'));
   }
   function openHomepageDirect() {
