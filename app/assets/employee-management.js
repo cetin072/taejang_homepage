@@ -94,8 +94,48 @@
   }
 
   function session() {
-    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
-    catch { return {}; }
+    const live = app()?.getSession?.();
+    if (live?.access_token) return live;
+    try {
+      const raw = localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY) || '{}';
+      return JSON.parse(raw);
+    } catch { return {}; }
+  }
+
+  function validAccessToken(token) {
+    return typeof token === 'string' && token.split('.').length === 3;
+  }
+
+  async function compressEmployeePhoto(file) {
+    if (!file) return null;
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
+    if (file.size > 20 * 1024 * 1024) throw new Error('원본 사진은 20MB 이하로 올려주세요.');
+
+    const bitmap = await createImageBitmap(file);
+    const maxEdge = 1024;
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(result => result ? resolve(result) : reject(new Error('PHOTO_COMPRESSION_FAILED')), 'image/webp', 0.72);
+    });
+    return {
+      blob,
+      type: 'image/webp',
+      extension: 'webp',
+      originalBytes: file.size,
+      compressedBytes: blob.size
+    };
   }
 
   async function config() {
@@ -108,27 +148,31 @@
 
   async function uploadEmployeePhoto(employee, photoType, file) {
     if (!file) return null;
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
-    const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type];
-    const path = `${employee.id}/${photoType}/${crypto.randomUUID()}.${ext}`;
+    const optimized = await compressEmployeePhoto(file);
+    const path = `${employee.id}/${photoType}/${crypto.randomUUID()}.${optimized.extension}`;
     const encoded = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const auth = session();
+    if (!validAccessToken(auth.access_token)) {
+      throw new Error('로그인 정보가 갱신되지 않았습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.');
+    }
     const response = await fetch(`${cfg.url}/storage/v1/object/employee-private-media/${encoded}`, {
       method: 'POST',
       headers: {
         apikey: cfg.publishableKey,
         Authorization: `Bearer ${auth.access_token}`,
-        'Content-Type': file.type,
+        'Content-Type': optimized.type,
         'x-upsert': 'false'
       },
-      body: file
+      body: optimized.blob
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
+      const message = payload?.message || payload?.error || '';
+      if (response.status === 401 || /Invalid Compact JWS|JWT/i.test(message)) {
+        throw new Error('로그인 세션이 만료되었습니다. 새로고침 후 다시 로그인해 주세요.');
+      }
+      throw new Error(message || '사진을 저장하지 못했습니다.');
     }
     return path;
   }
@@ -137,6 +181,7 @@
     if (!path) return null;
     const cfg = await config();
     const auth = session();
+    if (!validAccessToken(auth.access_token)) return null;
     const encoded = path.split('/').map(encodeURIComponent).join('/');
     const response = await fetch(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
       method: 'POST',
@@ -765,6 +810,35 @@
     return tabs;
   }
 
+  async function openSensitiveBulkTools() {
+    closeSidebar();
+    const target = main();
+    if (!target) return;
+    document.getElementById('desktop-page-title').textContent = '직원 민감정보 관리';
+    target.replaceChildren(el('p', '민감정보 관리도구를 불러오고 있습니다.', 'message'));
+    try {
+      const context = await app().rpc('get_employee_management_context');
+      if (!context?.can_manage_sensitive_identity) {
+        target.replaceChildren(el('p', '이 기능을 사용할 권한이 없습니다.', 'message error'));
+        return;
+      }
+      const shell = el('section', null, 'employee-management');
+      const intro = el('header', null, 'dashboard-intro');
+      intro.append(
+        el('p', '설정 · 직원관리', 'eyebrow'),
+        el('h2', '주민등록번호 일괄등록'),
+        el('p', '평소 직원 목록에서는 숨기고, 필요할 때만 사용하는 민감정보 관리도구입니다.')
+      );
+      const panel = bulkResidentImportPanel(context);
+      shell.append(intro);
+      if (panel) shell.append(panel);
+      target.replaceChildren(shell);
+      target.focus();
+    } catch (error) {
+      target.replaceChildren(el('p', app().friendlyError?.(error) || '민감정보 관리도구를 불러오지 못했습니다.', 'message error'));
+    }
+  }
+
   async function openEmployeeManagement(view = activeEmployeeView) {
     closeSidebar();
     if (!ALLOWED_ROUTES.has(route())) return;
@@ -786,11 +860,6 @@
         intro.append(rareActions);
       }
       shell.append(intro, employeeViewTabs(context));
-
-      if (activeEmployeeView === 'existing' && context.can_manage_sensitive_identity) {
-        const bulkPanel = bulkResidentImportPanel(context);
-        if (bulkPanel) shell.append(bulkPanel);
-      }
 
       if (activeEmployeeView === 'new') {
         const createSection = el('section', null, 'dashboard-section');
@@ -865,5 +934,5 @@
     sync();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
-  window.TaejangEmployeeManagement = { openEmployeeManagement };
+  window.TaejangEmployeeManagement = { openEmployeeManagement, openSensitiveBulkTools, compressEmployeePhoto };
 })();
