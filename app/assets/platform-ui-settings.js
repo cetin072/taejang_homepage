@@ -73,7 +73,7 @@
     return result;
   }
 
-  function sidebarSectionKeys() { return registry()?.sections?.().map(section=>section.key) || []; }
+  function sidebarSectionKeys() { return registry()?.sections?.().filter(section=>section.key!=='official_channels').map(section=>section.key) || []; }
   function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section && item.key!=='promotion.archive').map(item=>item.key) || []; }
   function sidebarPreference() {
     return {
@@ -551,7 +551,7 @@
     if(!nav) return;
     nav.dataset.layoutEditing='1';
     [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(node=>{
-      if(node.querySelector('[data-sidebar-drag-handle]')) return;
+      if(node.dataset.sectionKey==='official_channels' || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='section';
       handle.tabIndex=0;
