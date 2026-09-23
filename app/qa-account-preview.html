@@ -147,12 +147,16 @@
 
       function readOperatorSession() {
         try {
-          const stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-          if (stored?.access_token) return stored;
-        } catch { /* try opener next */ }
-        try {
           const openerSession = window.opener?.TaejangApp?.getSession?.();
           if (openerSession?.access_token) return openerSession;
+        } catch { /* try canonical browser storage next */ }
+        try {
+          const persistent = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+          if (persistent?.access_token) return persistent;
+        } catch { /* try copied legacy tab storage next */ }
+        try {
+          const stored = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
+          if (stored?.access_token) return stored;
         } catch { /* handled below */ }
         throw new Error('QA_OPERATOR_SESSION_MISSING');
       }

@@ -74,7 +74,12 @@ test('employee experience tab keeps return controls in the persistent top bar wi
 test('employee preview page creates an isolated tab session and then loads the real app', () => {
   assert.match(previewPage, /taejang-staff-session-v1/);
   assert.match(previewPage, /sessionStorage\.setItem\(SESSION_KEY/);
-  assert.doesNotMatch(previewPage, /localStorage/);
+  assert.ok(previewPage.includes('localStorage.getItem(SESSION_KEY)'));
+  assert.ok(previewPage.includes('window.opener?.TaejangApp?.getSession?.()'));
+  const openerRead = previewPage.indexOf('window.opener?.TaejangApp?.getSession?.()');
+  const persistentRead = previewPage.indexOf('localStorage.getItem(SESSION_KEY)');
+  const legacyTabRead = previewPage.indexOf('sessionStorage.getItem(SESSION_KEY)');
+  assert.ok(openerRead >= 0 && persistentRead > openerRead && legacyTabRead > persistentRead);
   assert.match(previewPage, /\/auth\/v1\/verify/);
   assert.match(previewPage, /token_hash/);
   assert.match(previewPage, /frame\.src = '\/app\/'/);
@@ -83,6 +88,19 @@ test('employee preview page creates an isolated tab session and then loads the r
   assert.match(previewPage, /window\.addEventListener\('pagehide'/);
   assert.match(previewPage, /deploy-preview-/);
   assert.match(previewPage, /QA_STAGING_ONLY/);
+});
+
+test('inner employee app keeps the target session isolated from the operator persistent session', () => {
+  assert.ok(appSource.includes("const QA_PREVIEW_MARKER_KEY = 'taejang-qa-account-preview-v1';"));
+  assert.ok(appSource.includes('function usesIsolatedPreviewSession()'));
+  assert.ok(appSource.includes("host.startsWith('deploy-preview-')"));
+  assert.ok(appSource.includes("host.endsWith('--taejang-homepage.netlify.app')"));
+  assert.ok(appSource.includes('window.parent !== window'));
+  assert.ok(appSource.includes('sessionStorage.getItem(QA_PREVIEW_MARKER_KEY)'));
+  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      return sessionStorage.getItem(SESSION_KEY);'));
+  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));'));
+  assert.doesNotMatch(previewPage, /localStorage\.setItem\(SESSION_KEY/);
+  assert.doesNotMatch(previewPage, /localStorage\.removeItem\(SESSION_KEY/);
 });
 
 test('successful employee preview always removes the loading overlay on mobile', () => {
