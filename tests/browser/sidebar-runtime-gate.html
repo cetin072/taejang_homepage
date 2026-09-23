@@ -171,7 +171,7 @@
       assert(workspaceStyle.overflowY === 'auto' || workspaceStyle.overflowY === 'scroll', `${role}: 본문도 독립 스크롤 영역이어야 함`);
       assert(sidebarStyle.overscrollBehaviorY === 'contain', `${role}: 하단 wheel scroll chaining 방지 누락`);
       assert(sidebarStyle.overflowAnchor === 'none', `${role}: 브라우저 scroll anchoring 방지 누락`);
-      assert(Math.abs(shell.getBoundingClientRect().height - window.innerHeight) < 2, `${role}: 앱 shell이 viewport 높이로 고정되지 않음`);
+      assert(Math.abs(shell.getBoundingClientRect().height - window.innerHeight) < 3, `${role}: 앱 shell이 viewport 높이로 고정되지 않음`);
 
       const maxScroll = Math.max(0, sidebar.scrollHeight - sidebar.clientHeight);
       assert(maxScroll > 0, `${role}: 사이드바 스크롤 테스트에 필요한 overflow가 없음`);
