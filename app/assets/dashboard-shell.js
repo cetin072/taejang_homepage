@@ -168,29 +168,23 @@
       node.dataset.phaseCV2Nav = 'revision';
     }
   }
-  function makeOfficialChannelGroup() {
-    const group = document.createElement('section');
-    group.className = 'app-nav-channel-group';
-    group.dataset.officialChannelGroup = '1';
-    group.dataset.navSection = 'official_channels';
-    group.setAttribute('aria-label', '공식 채널');
-    const label = text('p', '공식 채널', 'app-nav-group-label');
-    group.append(label);
+  function makeOfficialChannelLinks() {
     const channels = window.TaejangOfficialChannels?.list || [];
-    channels.forEach(channel => {
+    return channels.map(channel => {
       const link = document.createElement('a');
       link.href = channel.href;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.textContent = channel.label;
-      link.className = 'app-nav-official-channel';
+      link.className = 'app-nav-item app-nav-official-channel';
       link.dataset.officialChannelLink = channel.id;
       link.dataset.channel = channel.id;
+      link.dataset.menuKey = `public.${channel.id}`;
       link.setAttribute('aria-label', `${channel.label} 새 탭에서 열기`);
-      group.append(link);
+      return link;
     });
-    return group;
   }
+
   function masterMenuItems() {
     return [
       { label: '대시보드', run: goDashboard, current: true },
@@ -320,7 +314,7 @@
       nav.append(node);
     });
 
-    nav.append(makeOfficialChannelGroup());
+    nav.append(...makeOfficialChannelLinks());
   }
 
   async function dashboardData(route) {
