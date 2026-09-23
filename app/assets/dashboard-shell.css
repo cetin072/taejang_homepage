@@ -29,6 +29,25 @@
 
 .desktop-app-shell { min-height: calc(100vh - 72px); display: grid; grid-template-columns: 248px minmax(0, 1fr); width: min(100vw - 32px, 1480px); margin: 0 calc((min(100vw - 32px, 1480px) - min(100% - 32px, 980px)) / -2) 40px; border: 1px solid var(--app-border); border-radius: 20px; overflow: clip; background: var(--app-background); box-shadow: var(--app-shadow); }
 .app-sidebar { display: grid; align-content: start; gap: 20px; padding: 24px 16px; background: var(--sidebar-bg); color: var(--sidebar-text); }
+
+/* Desktop sidebar is its own stable scroll surface.
+   This prevents bottom-of-menu wheel input from chaining into the page and
+   disables browser scroll anchoring while late capability/navigation modules settle. */
+@media (min-width: 901px) {
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+    overflow-anchor: none;
+  }
+  .app-nav { overflow-anchor: none; }
+}
 .app-logo { color: #fff; font-size: 1.25rem; font-weight: 900; text-decoration: none; padding: 8px; }
 .app-logo span { display: block; margin-top: 3px; font-size: .78rem; font-weight: 700; opacity: .78; }
 .app-nav { display: grid; gap: 5px; align-content: start; }
@@ -125,7 +144,7 @@
 
 @media (max-width: 900px) {
   .desktop-app-shell { grid-template-columns: 1fr; width: min(100% - 20px, 980px); margin: 0 auto 28px; overflow: visible; }
-  .app-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(84vw, 310px); height: 100dvh; overflow-y: auto; overscroll-behavior: contain; transform: translateX(-105%); transition: transform .18s ease; box-shadow: 12px 0 30px rgba(0,0,0,.22); }
+  .app-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 30; width: min(84vw, 310px); height: 100dvh; overflow-y: auto; overflow-x:hidden; overscroll-behavior: contain; scrollbar-gutter:stable; overflow-anchor:none; transform: translateX(-105%); transition: transform .18s ease; box-shadow: 12px 0 30px rgba(0,0,0,.22); }
   .desktop-app-shell.sidebar-open .app-sidebar { transform: translateX(0); }
   /* Keep role switching available on the normal mobile screen, but never let the
      fixed switcher cover the open sidebar or its official-channel links. */
