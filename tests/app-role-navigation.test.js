@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
+const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
 const staffIndex = fs.readFileSync(path.join(root, 'staff/index.html'), 'utf8');
 const dashboardCss = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.css'), 'utf8');
@@ -162,7 +163,7 @@ test('all desktop roles start from the same master sidebar before capability pru
     '홍보 글 작성', '보완 요청받은 글', '홍보 검토',
     '업무 배정', '공지 등록', '공지 관리',
     '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
-    '기업 프로필', '지원사업 레이더', '내 지원사업', '설정',
+    '기업 프로필', '지원사업 레이더', '내 지원사업',
     '홈페이지', '공식 블로그', '공식 유튜브'
   ];
 
@@ -184,6 +185,13 @@ test('all desktop roles start from the same master sidebar before capability pru
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
+});
+
+test('platform Settings is a top-right utility instead of a sidebar row', async () => {
+  assert.doesNotMatch(source.slice(source.indexOf('function masterMenuItems'), source.indexOf('function menu')), /label: '설정'/);
+  assert.match(source, /function ensureSettingsAction\(\)/);
+  assert.match(source, /platform\.navigation\.manage/);
+  assert.match(source, /data-platform-settings-action/);
 });
 
 test('operations mobile menu actions close the sidebar and dispatch one destination action', async () => {
@@ -218,7 +226,7 @@ test('central navigation uses one master order and section contract for every de
     '업무 배정', '공지 등록', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '설정', '신규 사업 기획'
+    '신규 사업 기획'
   ]);
 
   assert.match(navPriority, /const MASTER_SECTIONS = Object\.freeze/);
@@ -273,9 +281,10 @@ test('signup pending copy is neutral and rejection becomes a blocked audited acc
   assert.match(signupRejection, /revoke all on function public\.record_pending_decision/);
 });
 
-test('priority presentation and visual polish load after feature modules without changing permissions', () => {
-  assert.ok(appUi.indexOf("assets/official-channel-links.js") > appUi.indexOf("assets/menu-status.js"));
-  assert.ok(appUi.indexOf("assets/role-navigation-priority.js") > appUi.indexOf("assets/official-channel-links.js"));
+test('official channel config is Core-static while visual navigation polish remains Branch-only', () => {
+  assert.match(appIndex, /assets\/official-channel-config\.js/);
+  assert.doesNotMatch(appUi, /assets\/official-channel-config\.js/);
+  assert.doesNotMatch(appUi, /assets\/official-channel-links\.js/);
   assert.ok(appUi.indexOf("assets/dashboard-priority-cards.js") > appUi.indexOf("assets/role-navigation-priority.js"));
   assert.match(appUi, /loadStyleOnce\('assets\/dashboard-accent-theme\.css'/);
   assert.doesNotMatch(navPriority, /rpc\(/);
