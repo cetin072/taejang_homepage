@@ -5,14 +5,20 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "scheme": "taejangstaff",
+    "icon": "./assets/taejang-launcher-icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.cetin072.taejang.staff",
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 1
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/taejang-adaptive-foreground.png",
+        "backgroundColor": "#FDFCFD"
+      }
     },
     "plugins": [
+      "./plugins/with-release-upload-signing",
       "expo-router",
       "expo-secure-store",
       "expo-notifications",
