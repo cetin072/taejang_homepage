@@ -202,6 +202,29 @@ Closed testing의 실제 첫 릴리스 전:
 
 현재 GitHub CI의 standalone APK는 개발·실기기 QA 산출물이며 Play 제출용 AAB 및 장기 서명 운영과 구분한다.
 
+### Issue #333 Play AAB signing pipeline
+
+현재 Expo 프로젝트에는 EAS 설정(`eas.json`)이나 Expo project ID가 없으므로, 이번 Closed testing AAB에는 EAS를 새로 연결하지 않는다. 대신 Play App Signing을 전제로 한 Android **upload key**를 GitHub Actions의 repository secrets에서만 복원해 AAB를 서명한다. Google Play는 업로드 후 자체 app-signing key로 사용자 배포 APK를 서명하며, 이 workflow는 Play Console에 업로드하거나 어떤 트랙도 게시하지 않는다.
+
+- workflow: `.github/workflows/mobile-app.yml`의 `android-play-aab`
+- 실행: Actions의 수동 실행(`workflow_dispatch`)에서 `build_play_aab`을 선택한 승인된 release build만 수행한다.
+- artifact: `taejang-employee-mobile-play-aab`
+- AAB 파일: `app-release.aab`
+- PR 및 일반 `main` push: signing secret을 읽지 않으며, Play AAB job은 skip한다. 기존 ARM64 APK QA job은 계속 실행한다.
+
+workflow 실행 전 repository secrets에 아래 네 값을 등록한다. 이 값이 하나라도 없으면 Play AAB job은 실행하지 않으며 debug signing으로 대체하지 않는다.
+
+- `ANDROID_UPLOAD_KEYSTORE_BASE64`: upload keystore(`.jks`) 전체를 Base64로 인코딩한 값
+- `ANDROID_UPLOAD_KEY_ALIAS`: upload key alias
+- `ANDROID_UPLOAD_KEYSTORE_PASSWORD`: keystore 비밀번호
+- `ANDROID_UPLOAD_KEY_PASSWORD`: key 비밀번호
+
+upload keystore는 소유자가 생성·보관하고, GitHub Secrets 외의 승인된 복구 보관소에도 안전하게 백업한다. keystore 파일, Base64 문자열, 비밀번호, service-account JSON은 저장소·Issue·PR·빌드 로그에 넣지 않는다. 첫 AAB 업로드 시 Play Console의 Play App Signing 안내를 확인하고 upload key로 제출한다. 이후 업데이트도 같은 upload key를 사용한다.
+
+workflow는 release AAB 존재, JAR 서명 유효성, Android debug certificate 미사용, arm64 native library, package, target SDK 36 이상, foreground location/notification 권한, background location 부재를 검증한 뒤에만 artifact를 남긴다.
+
+기존 `android-standalone`은 실기기 QA 전용 ARM64 **debug APK**를 만든다. 이 APK는 Play 제출물이 아니며, release 변형은 upload key가 주입된 `android-play-aab`에서만 생성한다.
+
 ## 10. Closed testing 운영
 
 - 1차로 사용자 본인을 테스터 목록에 등록할 수 있다.

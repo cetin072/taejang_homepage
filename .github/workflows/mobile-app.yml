@@ -1,6 +1,13 @@
 name: Taejang Mobile App
 
 on:
+  workflow_dispatch:
+    inputs:
+      build_play_aab:
+        description: Build the signed Google Play AAB using configured repository secrets
+        required: true
+        default: false
+        type: boolean
   pull_request:
     paths:
       - 'mobile/**'
@@ -83,15 +90,117 @@ jobs:
         env:
           CI: '1'
         run: npx expo prebuild --platform android --no-install
-      - name: Build standalone ARM64 APK
+      - name: Verify generated Android launcher resources
+        working-directory: mobile/android
+        run: |
+          test -s app/src/main/res/mipmap-hdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
+          test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
+      - name: Build standalone ARM64 debug APK
         working-directory: mobile/android
         env:
           NODE_ENV: production
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
-      - name: Upload standalone APK
+        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon
+      - name: Upload standalone debug APK
         uses: actions/upload-artifact@v4
         with:
           name: taejang-employee-mobile-arm64-apk
-          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+
+  android-play-aab:
+    # This job is deliberately excluded from pull requests. GitHub does not expose
+    # repository secrets to untrusted PR code, and a release must never silently
+    # fall back to the Android debug keystore.
+    if: github.event_name == 'workflow_dispatch' && inputs.build_play_aab
+    needs: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Refresh lockfile for pinned Expo patch versions
+        working-directory: mobile
+        run: |
+          rm -f package-lock.json
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Install generated locked dependencies
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: Generate Android project
+        working-directory: mobile
+        env:
+          CI: '1'
+        run: npx expo prebuild --platform android --no-install
+      - name: Verify generated Android launcher resources
+        working-directory: mobile/android
+        run: |
+          test -s app/src/main/res/mipmap-hdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp
+          test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
+          test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
+      - name: Restore upload keystore outside the checkout
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/taejang-play-upload.jks
+        run: |
+          test -n "$ANDROID_UPLOAD_KEYSTORE_BASE64"
+          test -n "$ANDROID_UPLOAD_KEY_ALIAS"
+          test -n "$ANDROID_UPLOAD_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_UPLOAD_KEY_PASSWORD"
+          printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$ANDROID_UPLOAD_KEYSTORE_PASSWORD" -alias "$ANDROID_UPLOAD_KEY_ALIAS" > /dev/null
+      - name: Build signed Google Play AAB
+        working-directory: mobile/android
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/taejang-play-upload.jks
+          NODE_ENV: production
+        run: |
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$ANDROID_UPLOAD_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_UPLOAD_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_UPLOAD_KEY_PASSWORD" \
+            --no-daemon
+      - name: Inspect signed Play AAB and merged release manifest
+        working-directory: mobile/android
+        run: |
+          AAB=app/build/outputs/bundle/release/app-release.aab
+          test -s "$AAB"
+          jarsigner -verify -strict -certs "$AAB"
+          ! keytool -printcert -jarfile "$AAB" | grep -Eiq 'CN=Android Debug'
+          unzip -l "$AAB" | grep -q 'base/lib/arm64-v8a/'
+          MANIFEST=app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          test -s "$MANIFEST"
+          grep -q 'package="com.cetin072.taejang.staff"' "$MANIFEST"
+          grep -Eq 'targetSdkVersion="3[6-9]|targetSdkVersion="[4-9][0-9]' "$MANIFEST"
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MANIFEST"
+          grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"
+          ! grep -q 'android.permission.ACCESS_BACKGROUND_LOCATION' "$MANIFEST"
+      - name: Upload signed Play AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: taejang-employee-mobile-play-aab
+          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14

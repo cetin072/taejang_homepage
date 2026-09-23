@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import test from 'node:test';
 
 async function text(path) {
@@ -38,6 +38,21 @@ test('account deletion web resource is explicit and does not ask for passwords',
 
 test('Android Play identity has an explicit initial versionCode', async () => {
   const app = JSON.parse(await text('mobile/app.json'));
+  assert.equal(app.expo.name, '태장');
+  assert.equal(app.expo.version, '0.1.0');
   assert.equal(app.expo.android.package, 'com.cetin072.taejang.staff');
   assert.equal(app.expo.android.versionCode, 1);
+  assert.equal(app.expo.android.adaptiveIcon.backgroundColor, '#FDFCFD');
+  assert.equal(app.expo.android.adaptiveIcon.foregroundImage, './assets/taejang-adaptive-foreground.png');
+  assert.equal(app.expo.icon, './assets/taejang-launcher-icon.png');
+  assert.equal(app.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-location')[1].isAndroidBackgroundLocationEnabled, false);
+
+  const [launcher, foreground] = await Promise.all([
+    stat(new URL('../mobile/assets/taejang-launcher-icon.png', import.meta.url)),
+    stat(new URL('../mobile/assets/taejang-adaptive-foreground.png', import.meta.url)),
+  ]);
+  assert.ok(launcher.size > 0);
+  assert.ok(foreground.size > 0);
+  const signature = (await readFile(new URL('../mobile/assets/taejang-launcher-icon.png', import.meta.url))).subarray(0, 8);
+  assert.deepEqual([...signature], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
