@@ -714,6 +714,7 @@
       refreshToday: loadTodayBoard,
       refreshAdmin: loadAdminData,
       getAdminOptions: () => state.adminOptions,
+      getSession: () => state.session,
       friendlyError
     };
     await resolveCapabilityContext();
