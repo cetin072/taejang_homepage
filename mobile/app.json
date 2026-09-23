@@ -9,7 +9,8 @@
     "newArchEnabled": true,
     "android": {
       "package": "com.cetin072.taejang.staff",
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",
