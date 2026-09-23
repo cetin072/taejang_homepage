@@ -63,8 +63,8 @@ test('promotion and homepage management sidebar slots are capability-driven by t
   assert.match(dashboardShell, /function openExistingPromotion\(\)/);
   assert.match(dashboardShell, /function openHomepageManagement\(\)/);
   assert.match(ux, /openInformationHub/);
-  assert.match(ux, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
-  assert.match(ux, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
+  assert.match(dashboardShell, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
+  assert.match(dashboardShell, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(ux, /MutationObserver/);
   assert.doesNotMatch(ux, /archive\.html\?admin_inventory=/);
