@@ -52,86 +52,8 @@
     return target;
   }
 
-  function cleanLabel(node) {
-    return String(node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
-  }
-
-  function findNav(labels) {
-    const values = new Set(Array.isArray(labels) ? labels : [labels]);
-    return [...(document.getElementById('app-nav')?.children || [])].find(node => values.has(cleanLabel(node))) || null;
-  }
-
-  function navNode(label, run, key, capabilities = []) {
-    const node = document.createElement('button');
-    node.type = 'button';
-    node.textContent = label;
-    node.dataset.issue207Nav = key;
-    if (capabilities.length) node.dataset.capabilityAny = capabilities.join('|');
-    node.addEventListener('click', run);
-    return node;
-  }
-
-  function openPromotion(mode) {
-    const api = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
-    if (typeof api === 'function') return api(mode);
-    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
-  }
-
-  function openExistingContent() {
-    if (window.TaejangPublicationAdmin?.openPublicationAdmin) {
-      window.TaejangPublicationAdmin.openPublicationAdmin();
-      return;
-    }
-    window.alert('기존 글 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
-  }
-
-  function openHomepageManagement() {
-    if (window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement) {
-      window.TaejangPromotionWorkspaceV2Api.openHomepageManagement();
-      return;
-    }
-    window.alert('홈페이지 내용 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
-  }
-
-  function ensureExistingContentNav(nav) {
-    let node = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
-    if (!node) {
-      node = navNode('기존 글 관리', openExistingContent, 'existing-content', ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore']);
-      node.dataset.phaseCPublicationAdmin = '1';
-      nav.append(node);
-    }
-    node.textContent = '기존 글 관리';
-    return node;
-  }
-
-  function ensureHomepageManagementNav(nav) {
-    let node = nav.querySelector('[data-phase-c-v2-nav="homepage"]') || findNav('홈페이지 내용 관리');
-    if (!node) {
-      node = navNode('홈페이지 내용 관리', openHomepageManagement, 'homepage-management', ['homepage.draft', 'homepage.review', 'homepage.approve_apply']);
-      node.dataset.phaseCV2Nav = 'homepage';
-      nav.append(node);
-    }
-    node.textContent = '홈페이지 내용 관리';
-    return node;
-  }
-
-  function removeLegacyInformationNav(nav) {
-    const legacy = new Set([
-      '공지 확인', '상시 안내 관리',
-      '공지·안내 관리', '공지·안내 확인'
-    ]);
-    [...nav.children].forEach(node => {
-      if (legacy.has(cleanLabel(node))) node.remove();
-    });
-  }
-
   function ensureNavigation() {
-    // Compatibility no-op: the canonical sidebar is rendered once by
-    // dashboard-shell and filtered by the shared registry/capability gates.
-  }
-
-  function scheduleNavigation() {
-    // Retained for callers from older polish code; intentionally does not touch DOM.
+    // Compatibility no-op: dashboard-shell is the only sidebar DOM owner.
   }
 
   function cleanupWriteScreen() {
