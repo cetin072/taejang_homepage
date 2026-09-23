@@ -48,8 +48,8 @@ test('dashboard uses safe workflow RPCs and no removed schedule or notice shortc
   assert.doesNotMatch(shell, /get_my_schedule_list|get_my_notice_list/);
 });
 
-test('manager UI is loaded only after the active capability context is verified', () => {
-  assert.match(app, /await loadManagerModules\(\)/);
+test('manager branches begin only after the active Core capability context is verified', () => {
+  assert.match(app, /void loadManagerModules\(\)\.then\(showManagerModuleStatus\)/);
   assert.match(app, /await resolveCapabilityContext\(\)/);
   assert.match(app, /window\.TaejangCapabilityAccess\.refresh\(\)/);
   assert.match(app, /\.filter\(module => canManage\(module\.capability\)\)/);
@@ -57,6 +57,8 @@ test('manager UI is loaded only after the active capability context is verified'
   assert.match(app, /get_my_access_context/);
   assert.match(app, /window\.history\.replaceState\(null, '', window\.location\.pathname\)/);
   assert.match(app, /Promise\.allSettled\(modules\.map\(module => loadScript\(module\.source\)\)\)/);
+  assert.match(app, /script\.dataset\.branchModule = '1'/);
+  assert.ok(app.indexOf("document.dispatchEvent(new CustomEvent('taejang-app-ready'") < app.indexOf('void loadManagerModules()'));
   assert.match(html, /id="app-status-message"/);
 });
 

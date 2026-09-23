@@ -11,6 +11,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const migration = read('supabase/migrations/20260919142000_issue_250_attendance_fingerprint_evidence.sql');
 const admin = read('app/assets/attendance-admin.js');
 const index = read('app/index.html');
+const appUi = read('app/assets/app-ui.js');
 
 test('fingerprint Excel evidence is operational attendance data, not a new payroll permission path', () => {
   assert.match(migration, /attendance\.evidence_import/);
@@ -34,10 +35,12 @@ test('identity resolution prefers reviewed mapping or exact employee id and neve
   assert.doesNotMatch(migration, /full_name\s*=\s*p_source/i);
 });
 
-test('platform shell reuses the existing XLSX parser and loads attendance administration', () => {
+test('platform shell reuses the existing XLSX parser and registers attendance administration once through the feature registry', () => {
   assert.match(index, /payroll-attendance-xlsx\.js/);
-  assert.match(index, /attendance-admin\.js/);
-  assert.match(index, /attendance-integrity-ui\.js/);
+  assert.doesNotMatch(index, /<script src="assets\/attendance-admin\.js"/);
+  assert.doesNotMatch(index, /<script src="assets\/attendance-integrity-ui\.js"/);
+  assert.match(appUi, /\['assets\/attendance-admin\.js', 'attendance-admin'\]/);
+  assert.match(appUi, /\['assets\/attendance-integrity-ui\.js', 'attendance-integrity-ui'\]/);
   assert.match(admin, /TaejangPayrollAttendanceXlsx/);
   assert.match(admin, /parseXlsxFile/);
   assert.match(admin, /import_attendance_external_evidence/);

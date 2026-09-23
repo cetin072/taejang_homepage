@@ -88,6 +88,7 @@ test('operations master sidebar is grouped by the shared final work categories',
   assert.doesNotMatch(sections, /공지·안내/);
   assert.match(sections, /label: '근태·급여'/);
   assert.doesNotMatch(nav, /작업 매뉴얼/);
-  assert.match(nav, /dataset\?\.navSection === 'official_channels'/);
+  assert.match(sections, /key: 'official_channels', label: '공식 채널', items: \['홈페이지', '공식 블로그', '공식 유튜브'\]/);
+  assert.doesNotMatch(nav, /navSection === 'official_channels'\) return 9000/);
   assert.match(nav, /return 10000/);
 });

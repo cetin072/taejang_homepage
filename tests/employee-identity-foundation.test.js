@@ -70,6 +70,11 @@ test('employee photos use isolated guarded private storage without breaking prom
   assert.match(employeeUi, /storage\/v1\/object\/employee-private-media/);
   assert.match(employeeUi, /storage\/v1\/object\/sign\/employee-private-media/);
   assert.doesNotMatch(employeeUi, /storage\/v1\/object\/public\/employee-private-media/);
+  assert.match(employeeUi, /localStorage\.getItem\(SESSION_KEY\)/, 'photo upload reads the canonical persistent staff session');
+  assert.match(employeeUi, /createImageBitmap\(file\)/);
+  assert.match(employeeUi, /canvas\.toBlob[\s\S]*image\/webp[\s\S]*0\.72/);
+  assert.match(employeeUi, /maxEdge = 1024/);
+  assert.match(employeeUi, /Invalid Compact JWS\|JWT/);
 });
 
 test('employee management UI supports direct ops management and team requests without editable employee id', () => {

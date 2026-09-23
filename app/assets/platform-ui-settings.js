@@ -73,8 +73,8 @@
     return result;
   }
 
-  function sidebarSectionKeys() { return registry()?.sections?.().map(section=>section.key) || []; }
-  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
+  function sidebarSectionKeys() { return registry()?.sections?.().filter(section=>section.key!=='official_channels').map(section=>section.key) || []; }
+  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section && item.key!=='promotion.archive').map(item=>item.key) || []; }
   function sidebarPreference() {
     return {
       sectionOrder:mergeSavedOrder(state.sidebarSectionOrder,sidebarSectionKeys()),
@@ -84,6 +84,10 @@
 
   function currentRole() {
     return app()?.getRoute?.() || null;
+  }
+
+  function canEditSidebar() {
+    return app()?.can?.('platform.navigation.manage') === true;
   }
 
   function menuKey(node) {
@@ -493,16 +497,10 @@
   }
 
   function sidebarEditorActions() {
-    const sidebar=el('app-sidebar');
-    if(!sidebar) return null;
-    let wrap=sidebar.querySelector('[data-sidebar-layout-actions]');
-    if(!wrap) {
-      wrap=document.createElement('div');
-      wrap.className='sidebar-layout-actions';
-      wrap.dataset.sidebarLayoutActions='1';
-      sidebar.append(wrap);
-    }
-    return wrap;
+    // Goal #340 Human QA: sidebar layout editing is controlled from Settings.
+    // Keeping controls out of the sidebar avoids bottom-of-sidebar reflow/jitter.
+    el('app-sidebar')?.querySelector('[data-sidebar-layout-actions]')?.remove();
+    return null;
   }
 
   function bindSidebarHandle(handle,type,key) {
@@ -553,7 +551,7 @@
     if(!nav) return;
     nav.dataset.layoutEditing='1';
     [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')].forEach(node=>{
-      if(node.querySelector('[data-sidebar-drag-handle]')) return;
+      if(node.dataset.sectionKey==='official_channels' || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='section';
       handle.tabIndex=0;
@@ -564,7 +562,8 @@
     });
     [...nav.querySelectorAll(':scope > [data-menu-key][data-nav-section]')].forEach(node=>{
       const key=menuKey(node);
-      if(!key || node.querySelector('[data-sidebar-drag-handle]')) return;
+      const item=key ? registry()?.byKey?.(key) : null;
+      if(!key || item?.public || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='menu';
       handle.tabIndex=0;
@@ -614,7 +613,6 @@
       await savePersonal({sidebarSectionOrder:state.sidebarSectionOrder,sidebarMenuOrder:state.sidebarMenuOrder});
       state.editingSidebar=false;
       clearEditableSidebar();
-      injectSidebarEditor();
     } catch(error) { window.alert(app()?.friendlyError?.(error)||'메뉴 순서를 저장하지 못했습니다.'); }
   }
 
@@ -624,7 +622,6 @@
     state.editingSidebar=false;
     clearEditableSidebar();
     window.TaejangRoleNavigationPriority?.reorder?.();
-    injectSidebarEditor();
   }
 
   async function resetSidebarLayout() {
@@ -632,7 +629,6 @@
       await savePersonal({sidebarSectionOrder:[],sidebarMenuOrder:[]});
       state.editingSidebar=false;
       clearEditableSidebar();
-      injectSidebarEditor();
     } catch(error) { window.alert(app()?.friendlyError?.(error)||'기본 메뉴 순서를 복원하지 못했습니다.'); }
   }
 
@@ -640,20 +636,13 @@
     state.sidebarSnapshot={sectionOrder:state.sidebarSectionOrder.slice(),menuOrder:state.sidebarMenuOrder.slice()};
     state.editingSidebar=true;
     decorateEditableSidebar();
-    injectSidebarEditor();
   }
 
   function injectSidebarEditor() {
-    const nav=sidebarNav();
-    const wrap=sidebarEditorActions();
-    if(!nav || !wrap) return;
-    bindSidebarDropTargets();
-    wrap.replaceChildren();
-    if(state.editingSidebar) {
-      wrap.append(button('저장',saveSidebarLayout),button('취소',cancelSidebarLayout,true),button('기본값',resetSidebarLayout,true));
-      decorateEditableSidebar();
-    } else {
-      wrap.append(button('메뉴 편집',startSidebarLayout,true));
+    sidebarEditorActions();
+    if (!canEditSidebar() && state.editingSidebar) {
+      state.editingSidebar=false;
+      clearEditableSidebar();
     }
   }
 
@@ -695,8 +684,45 @@
       const personal=document.createElement('section'); personal.className='platform-settings-card';
       personal.append(
         text('h3','내 화면 옵션'),
-        text('p','사이드바의 “메뉴 편집”에서 메뉴 순서를 바꿀 수 있고, 운영총괄은 “대시보드 편집”에서 카드 추가·제거·순서 변경을 할 수 있습니다. 메뉴 표시 설정은 아래 직책·역할별 관리에만 사용합니다.','help')
+        text('p','메뉴 순서 편집은 설정 화면에서만 시작합니다. 일반 사이드바에는 편집 버튼을 두지 않아 업무 중 화면 흔들림을 막습니다.','help')
       );
+      if(canEditSidebar()) {
+        const sidebarActions=document.createElement('div');
+        sidebarActions.className='quick-links';
+        if(state.editingSidebar) {
+          sidebarActions.append(
+            button('메뉴 순서 저장',async()=>{await saveSidebarLayout();await renderSettings();}),
+            button('편집 취소',()=>{cancelSidebarLayout();void renderSettings();},true),
+            button('기본 순서로',async()=>{await resetSidebarLayout();await renderSettings();},true)
+          );
+          personal.append(text('p','왼쪽 사이드바의 ⋮⋮ 손잡이를 드래그하거나 화살표 키로 순서를 바꾼 뒤 저장하세요.','help'));
+        } else {
+          sidebarActions.append(button('사이드바 메뉴 순서 편집',()=>{startSidebarLayout();void renderSettings();},true));
+        }
+        personal.append(sidebarActions);
+      }
+      if(window.TaejangOperationsDeleteControls?.openArchiveHub) {
+        const archive=document.createElement('section');
+        archive.className='platform-settings-card';
+        archive.append(
+          text('h3','보관함'),
+          text('p','삭제한 공지·일정·안내와 홍보글은 일반 업무 목록에서 숨기고 여기에서만 확인·복구합니다.','help'),
+          button('보관함 열기',()=>window.TaejangOperationsDeleteControls.openArchiveHub(),true)
+        );
+        shell.append(archive);
+      }
+
+      if(app()?.can?.('employee.sensitive_identity_manage') && window.TaejangEmployeeManagement?.openSensitiveBulkTools) {
+        const sensitive=document.createElement('section');
+        sensitive.className='platform-settings-card';
+        sensitive.append(
+          text('h3','직원 민감정보 도구'),
+          text('p','주민등록번호 일괄등록처럼 평소에는 필요 없는 관리도구를 여기에서만 엽니다.','help'),
+          button('주민등록번호 일괄등록 열기',()=>window.TaejangEmployeeManagement.openSensitiveBulkTools(),true)
+        );
+        shell.append(sensitive);
+      }
+
       shell.append(personal);
 
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card';
@@ -736,7 +762,7 @@
         checklist.replaceChildren();
         const overrides=roleVisibilityMap(context,select.value);
         const sections=new Map();
-        registry().items().filter(item=>!item.public).forEach(item=>{
+        registry().items().filter(item=>!item.public && item.key!=='promotion.archive').forEach(item=>{
           const section=item.section||'기본';
           if(!sections.has(section)) sections.set(section,[]);
           sections.get(section).push(item);
@@ -801,7 +827,7 @@
     new MutationObserver(()=>queueMicrotask(()=>{
       applyRoleVisibility();
       applySectionCollapse();
-      if(!state.editingSidebar) injectSidebarEditor();
+      injectSidebarEditor();
     })).observe(nav,{childList:true,subtree:false});
   }
 

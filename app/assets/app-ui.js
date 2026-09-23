@@ -72,6 +72,7 @@
       script.src = source;
       script.async = false;
       script.dataset[dataKey.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())] = '1';
+      script.dataset.branchModule = '1';
       script.addEventListener('load', () => {
         script.dataset.loaded = '1';
         resolve({ source, key: dataKey, ok: true });
@@ -131,14 +132,11 @@
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
   loadStyleOnce('assets/support-radar.css', 'support-radar');
 
-  // Start independent feature requests together, but do not release app-ready until
-  // every module has registered or failed. `async = false` keeps dynamically
-  // inserted classic scripts executing in insertion order.
+  // Branch requests begin independently. The authenticated Core owns the first
+  // usable shell; branch handlers receive its stored ready detail even if their
+  // script arrives after the shell is available.
   const FEATURE_MODULES = [
-    ['assets/capability-access.js', 'capability-access'],
     ['assets/platform-ui-settings.js', 'platform-ui-settings'],
-    ['assets/issue-223-promotion-meta-stale-guard.js', 'issue-223-promotion-meta-stale-guard'],
-    ['assets/official-channel-config.js', 'official-channel-config'],
     ['assets/support-radar-access.js', 'support-radar-access'],
     ['assets/app-workspace-surface.js', 'app-workspace-surface'],
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
@@ -174,7 +172,6 @@
     ['assets/support-radar-result-record.js', 'support-radar-result-record'],
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
-    ['assets/official-channel-links.js', 'official-channel-links'],
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
@@ -184,39 +181,19 @@
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 
-  let modulesReady = false;
-  let replayingReady = false;
-  let queuedReadyDetail = null;
-  let replayScheduled = false;
+  let branchesStarted = false;
 
-  const featureModulesReady = Promise.all(
-    FEATURE_MODULES.map(([source, key]) => loadScriptOnce(source, key))
-  ).then(() => {
-    modulesReady = true;
-    Promise.resolve().then(showAggregateFailure);
-  });
-
-  function scheduleReadyReplay() {
-    if (replayScheduled) return;
-    replayScheduled = true;
-    featureModulesReady.then(() => {
-      replayScheduled = false;
-      if (!queuedReadyDetail) return;
-      const detail = queuedReadyDetail;
-      queuedReadyDetail = null;
-      replayingReady = true;
-      document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail }));
-      replayingReady = false;
-      showAggregateFailure();
+  function startFeatureBranches() {
+    if (branchesStarted) return;
+    branchesStarted = true;
+    FEATURE_MODULES.forEach(([source, key]) => {
+      void loadScriptOnce(source, key).then(showAggregateFailure);
     });
   }
 
-  document.addEventListener('taejang-app-ready', event => {
-    if (replayingReady || modulesReady) return;
-    queuedReadyDetail = event.detail || {};
-    event.stopImmediatePropagation();
-    scheduleReadyReplay();
-  }, true);
-
-  window.TaejangFeatureModulesReady = featureModulesReady;
+  // Branch code must not execute until Auth + v2 access context have settled and
+  // the authenticated Core has published its first usable state. This also
+  // prevents Branch self-start hooks from observing a legacy/partial persona.
+  if (window.TaejangAppLifecycle?.isReady?.()) startFeatureBranches();
+  else document.addEventListener('taejang-app-ready', startFeatureBranches, { once: true });
 })();

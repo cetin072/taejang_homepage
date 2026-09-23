@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
   <link rel="stylesheet" href="../../app/assets/dashboard-accent-theme.css">
 </head>
-<body>
+<body class="desktop-app-mode">
   <section id="desktop-app-shell" class="desktop-app-shell">
     <aside id="app-sidebar" class="app-sidebar">
       <nav id="app-nav" class="app-nav"></nav>
@@ -19,6 +19,10 @@
         <div class="app-user-actions"><span id="desktop-user-label"></span><button id="desktop-logout-button" type="button">logout</button></div>
       </header>
       <main id="dashboard-main"></main>
+      <section id="today-admin-panel" hidden><h2>업무 배정</h2></section>
+      <section id="schedule-admin-panel" hidden><h2>일정 관리</h2></section>
+      <section id="notice-admin-panel" hidden><h2>공지 관리</h2></section>
+      <section id="guidance-admin-panel" hidden><h2>상시 안내 관리</h2></section>
     </div>
   </section>
   <button id="logout-button" type="button">logout</button>
@@ -51,7 +55,11 @@
     window.confirm = () => true;
     window.prompt = () => '테스트';
     window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
-    window.TaejangOfficialChannels = { list: [] };
+    window.TaejangOfficialChannels = { list: [
+      { id: 'homepage', label: '홈페이지', href: '../index.html' },
+      { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
+      { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
+    ] };
     window.TaejangIssue181PromotionLiveUx = {};
     window.TaejangSupportRadarLifecycle = { emit() {} };
     window.TaejangSupportRadarAccess = {
@@ -94,6 +102,7 @@
     };
   </script>
   <script src="../../app/assets/platform-navigation-registry.js"></script>
+  <script src="../../app/assets/app-workspace-surface.js"></script>
   <script src="../../app/assets/dashboard-shell.js"></script>
   <script src="../../app/assets/platform-ui-settings.js"></script>
   <script src="../../app/assets/capability-ui-gates.js"></script>
@@ -150,6 +159,77 @@
         samples.push(navSignature());
       }
       assert(samples.every(signature => signature === initial), `${role}: 정착 후 보이는 메뉴 순서/내용이 다시 변함`);
+    }
+    async function assertSidebarScrollStable(role) {
+      const sidebar = document.getElementById('app-sidebar');
+      const workspace = document.querySelector('.app-workspace');
+      const shell = document.getElementById('desktop-app-shell');
+      const nav = document.getElementById('app-nav');
+      const sidebarStyle = getComputedStyle(sidebar);
+      const workspaceStyle = getComputedStyle(workspace);
+      const bodyStyle = getComputedStyle(document.body);
+      assert(bodyStyle.overflow === 'hidden' || bodyStyle.overflowY === 'hidden', `${role}: 데스크톱 전체 페이지 스크롤이 남아 있음`);
+      assert(sidebarStyle.position === 'relative', `${role}: sticky sidebar가 남아 있어 outer scroll과 충돌할 수 있음`);
+      assert(sidebarStyle.overflowY === 'auto' || sidebarStyle.overflowY === 'scroll', `${role}: 데스크톱 사이드바가 독립 스크롤 영역이 아님`);
+      assert(workspaceStyle.overflowY === 'auto' || workspaceStyle.overflowY === 'scroll', `${role}: 본문도 독립 스크롤 영역이어야 함`);
+      assert(sidebarStyle.overscrollBehaviorY === 'contain', `${role}: 하단 wheel scroll chaining 방지 누락`);
+      assert(sidebarStyle.overflowAnchor === 'none', `${role}: 브라우저 scroll anchoring 방지 누락`);
+      assert(Math.abs(shell.getBoundingClientRect().height - window.innerHeight) < 3, `${role}: 앱 shell이 viewport 높이로 고정되지 않음`);
+
+      const maxScroll = Math.max(0, sidebar.scrollHeight - sidebar.clientHeight);
+      assert(maxScroll > 0, `${role}: 사이드바 스크롤 테스트에 필요한 overflow가 없음`);
+      sidebar.scrollTop = maxScroll;
+      await wait(30);
+      const baseRect = sidebar.getBoundingClientRect();
+      const baseline = {
+        scrollTop: sidebar.scrollTop,
+        scrollHeight: sidebar.scrollHeight,
+        clientHeight: sidebar.clientHeight,
+        top: baseRect.top,
+        height: baseRect.height,
+        signature: navSignature()
+      };
+      for (let index = 0; index < 8; index += 1) {
+        await wait(80);
+        const rect = sidebar.getBoundingClientRect();
+        assert(Math.abs(sidebar.scrollTop - baseline.scrollTop) < 1, `${role}: 하단에서 scrollTop이 흔들림`);
+        assert(sidebar.scrollHeight === baseline.scrollHeight, `${role}: 하단에서 sidebar 높이가 반복 변경됨`);
+        assert(sidebar.clientHeight === baseline.clientHeight, `${role}: 하단에서 sidebar viewport 높이가 반복 변경됨`);
+        assert(Math.abs(rect.top - baseline.top) < 0.51 && Math.abs(rect.height - baseline.height) < 0.51, `${role}: 하단에서 sidebar 자체 위치가 흔들림`);
+        assert(navSignature() === baseline.signature, `${role}: 하단에서 메뉴 DOM이 반복 변경됨`);
+      }
+      sidebar.scrollTop = 0;
+    }
+
+    async function assertOfficialChannelsFinal() {
+      const nav = document.getElementById('app-nav');
+      window.TaejangRoleNavigationPriority?.reorder?.();
+      await wait(30);
+
+      const toggle = nav.querySelector(':scope > [data-nav-section-toggle="1"][data-section-key="official_channels"]');
+      const links = [...nav.querySelectorAll(':scope > [data-official-channel-link]')];
+      assert(toggle, '공식 채널이 표준 상위 카테고리로 구성되지 않음');
+      assert(toggle.querySelector('.app-nav-section-title')?.textContent.trim() === '공식 채널', '공식 채널 제목 오류');
+      assert(links.length === 3, '공식 채널 링크 3개 누락');
+      assert(links.every(link => link.dataset.navSection === 'official_channels'), '공식 채널 하위 링크가 표준 section에 속하지 않음');
+      assert(links.map(link => link.textContent.trim()).join('|') === '홈페이지|공식 블로그|공식 유튜브', '공식 채널 링크 순서 오류');
+
+      const visible = visibleItems();
+      const dashboard = find('대시보드');
+      assert(visible[0] === dashboard, '대시보드는 사이드바 최상단에 고정되어야 함');
+      const officialToggleIndex = visible.indexOf(toggle);
+      assert(officialToggleIndex >= 0, '공식 채널 카테고리 누락');
+      assert(visible.slice(officialToggleIndex + 1).every(node => node.dataset.navSection === 'official_channels'), '공식 채널 뒤에 업무 메뉴가 남아 있음');
+      assert(!visibleLeafItems().some(node => clean(node) === '설정'), '설정이 사이드바에 남아 있음');
+      const settingsAction = document.querySelector('[data-platform-settings-action]');
+      assert(settingsAction, '설정이 우측 상단 유틸리티로 이동하지 않음');
+
+      toggle.click();
+      await wait(20);
+      assert(links.every(link => link.hidden), '공식 채널 접기가 하위 링크에 적용되지 않음');
+      toggle.click();
+      await wait(20);
+      assert(links.every(link => !link.hidden), '공식 채널 펼치기가 하위 링크에 적용되지 않음');
     }
 
     async function enterRole(role, label) {
@@ -228,7 +308,7 @@
     function assertOperationsContract(current) {
       for (const required of [
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
-        '홍보 검토', '홍보 글 작성', '기존 글 관리', '홍보글 관리·복구',
+        '홍보 검토', '홍보 글 작성', '기존 글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
         '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
         '기업 프로필', '지원사업 레이더', '내 지원사업'
@@ -238,38 +318,47 @@
       assertRetiredAbsent(current, 'operations_manager');
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
-      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리', '홍보글 관리·복구'], '운영총괄 홍보');
+      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리'], '운영총괄 홍보');
       assertOrdered(current, ['업무 배정', '공지 등록', '공지 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
 
-    function assertInlineEditors() {
+    function assertSidebarEditorMovedOut() {
       const sidebarActions = document.querySelector('[data-sidebar-layout-actions]');
-      assert(sidebarActions, '사이드바 메뉴 편집 진입점 누락');
-      const menuEdit = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '메뉴 편집');
-      assert(menuEdit, '메뉴 편집 버튼 누락');
-      menuEdit.click();
+      assert(!sidebarActions, '사이드바 하단에 메뉴 편집 UI가 다시 노출됨');
       const nav = document.getElementById('app-nav');
-      assert(nav.dataset.layoutEditing === '1', '사이드바 편집 모드 진입 실패');
-      assert(nav.querySelectorAll('[data-sidebar-drag-handle]').length > 0, '사이드바 drag handle 누락');
-      const cancel = [...sidebarActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
-      cancel?.click();
-      assert(nav.dataset.layoutEditing !== '1', '사이드바 편집 취소 실패');
+      assert(nav.dataset.layoutEditing !== '1', '일반 사이드바가 편집 모드로 남아 있음');
+      assert(nav.querySelectorAll('[data-sidebar-drag-handle]').length === 0, '일반 사이드바에 drag handle이 남아 있음');
+    }
 
-      const dashboardActions = document.querySelector('[data-dashboard-layout-actions]');
-      assert(dashboardActions, '대시보드 편집 진입점 누락');
-      const dashboardEdit = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '대시보드 편집');
-      assert(dashboardEdit, '대시보드 편집 버튼 누락');
-      dashboardEdit.click();
-      const grid = document.querySelector('#dashboard-main > .dashboard-grid');
-      assert(grid?.dataset.layoutEditing === '1', '대시보드 편집 모드 진입 실패');
-      assert(grid.querySelectorAll('.dashboard-drag-handle').length > 0, '대시보드 drag handle 누락');
-      assert([...dashboardActions.querySelectorAll('button')].some(node => node.textContent.trim() === '+ 카드 추가'), '운영총괄 카드 추가 버튼 누락');
-      assert(grid.querySelectorAll('[data-dashboard-drag-tools] button').length > 0, '대시보드 카드 제거/이동 도구 누락');
-      const dashboardCancel = [...dashboardActions.querySelectorAll('button')].find(node => node.textContent.trim() === '취소');
-      dashboardCancel?.click();
-      assert(grid.dataset.layoutEditing !== '1', '대시보드 편집 취소 실패');
+    async function assertPanelToSidebarTransitions() {
+      const dashboard = document.getElementById('dashboard-main');
+      const panels = ['today-admin-panel','schedule-admin-panel','notice-admin-panel','guidance-admin-panel']
+        .map(id => document.getElementById(id));
+      const internal = visibleLeafItems().filter(node =>
+        node.tagName === 'BUTTON'
+        && node.dataset.navSectionToggle !== '1'
+      );
+      const panelTargets = new Set(['업무 배정','공지 등록','공지 관리']);
+
+      for (const sourcePanel of panels) {
+        for (const target of internal) {
+          const label = clean(target);
+          dashboard.hidden = true;
+          panels.forEach(panel => { panel.hidden = panel !== sourcePanel; });
+          target.click();
+          await wait(20);
+
+          if (panelTargets.has(label)) {
+            assert(dashboard.hidden === true, `${sourcePanel.id} → ${label}: 관리 패널 진입 시 대시보드가 동시에 노출됨`);
+            assert(panels.some(panel => panel.hidden === false), `${sourcePanel.id} → ${label}: 관리 패널이 열리지 않음`);
+          } else {
+            assert(dashboard.hidden === false, `${sourcePanel.id} → ${label}: 이전 관리 패널 때문에 메뉴 전환이 막힘`);
+            assert(panels.every(panel => panel.hidden === true), `${sourcePanel.id} → ${label}: 이전 관리 패널이 남아 있음`);
+          }
+        }
+      }
     }
 
     window.addEventListener('load', async () => {
@@ -289,7 +378,10 @@
         assertOperationsContract(current);
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
-        assertInlineEditors();
+        await assertOfficialChannelsFinal();
+        await assertSidebarScrollStable('operations_manager');
+        assertSidebarEditorMovedOut();
+        await assertPanelToSidebarTransitions();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {

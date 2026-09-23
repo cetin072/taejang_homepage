@@ -89,6 +89,14 @@ test('bulk resident import is atomic, operations-only, and never echoes resident
   assert.doesNotMatch(bulkMigration, /jsonb_build_object\([^;]*resident_number/i);
 });
 
+test('employee UI keeps bulk resident import out of the normal employee list and exposes it as an explicit tool', () => {
+  assert.match(employeeUi, /async function openSensitiveBulkTools\(\)/);
+  assert.match(employeeUi, /평소 직원 목록에서는 숨기고/);
+  const management = employeeUi.slice(employeeUi.indexOf('async function openEmployeeManagement'), employeeUi.indexOf('function syncNavigation'));
+  assert.doesNotMatch(management, /bulkResidentImportPanel\(context\)/);
+  assert.match(employeeUi, /window\.TaejangEmployeeManagement = \{ openEmployeeManagement, openSensitiveBulkTools, compressEmployeePhoto \}/);
+});
+
 test('employee UI supports safe spreadsheet paste without persisting resident values client-side', () => {
   assert.match(employeeUi, /bulk_set_employee_resident_registration_numbers/);
   assert.match(employeeUi, /residentNumberChecksumValid/);

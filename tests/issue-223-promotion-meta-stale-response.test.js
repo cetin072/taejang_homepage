@@ -9,6 +9,7 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const guardSource = fs.readFileSync(path.join(root, 'app/assets/issue-223-promotion-meta-stale-guard.js'), 'utf8');
 const appUiSource = fs.readFileSync(path.join(root, 'app/assets/app-ui.js'), 'utf8');
+const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const workspaceSource = fs.readFileSync(path.join(root, 'app/assets/phase-c-workspace-v2.js'), 'utf8');
 
 function loadGuard({ currentUrl, responseStatus = 200 } = {}) {
@@ -36,13 +37,15 @@ function loadGuard({ currentUrl, responseStatus = 200 } = {}) {
   return { window, input, calls: () => calls };
 }
 
-test('Issue #223 guard loads before official metadata observer and active composer workspace', () => {
-  const guardIndex = appUiSource.indexOf("['assets/issue-223-promotion-meta-stale-guard.js', 'issue-223-promotion-meta-stale-guard']");
-  const officialIndex = appUiSource.indexOf("['assets/official-channel-config.js', 'official-channel-config']");
+test('Issue #223 stale guard is Core-static before official metadata observer and Branch composer', () => {
+  const guardIndex = appIndex.indexOf('assets/issue-223-promotion-meta-stale-guard.js');
+  const officialIndex = appIndex.indexOf('assets/official-channel-config.js');
   const workspaceIndex = appUiSource.indexOf("['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2']");
-  assert.ok(guardIndex >= 0, 'Issue #223 stale-response guard must be loaded');
-  assert.ok(guardIndex < officialIndex, 'guard must reject stale responses before the official metadata observer sees them');
-  assert.ok(officialIndex < workspaceIndex, 'official metadata observer should remain installed before the composer workspace');
+  assert.ok(guardIndex >= 0, 'Issue #223 stale-response guard must be Core-loaded');
+  assert.ok(officialIndex > guardIndex, 'stale guard must wrap fetch before the official metadata observer');
+  assert.ok(workspaceIndex >= 0, 'active promotion composer remains a Branch module');
+  assert.doesNotMatch(appUiSource, /issue-223-promotion-meta-stale-guard/);
+  assert.doesNotMatch(appUiSource, /official-channel-config/);
 });
 
 test('one metadata request remains one network call when URL is unchanged', async () => {
