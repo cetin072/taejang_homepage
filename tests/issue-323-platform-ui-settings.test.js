@@ -32,8 +32,10 @@ test('Issue 323 gives every canonical menu a stable unique key', () => {
 test('master sidebar marks menu keys and includes support routes and operations settings', () => {
   assert.match(shell, /node\.dataset\.menuKey = menuKey/);
   assert.match(shell, /node\.dataset\.masterMenuItem = '1'/);
-  assert.match(shell, /label: '지원사업 레이더'[\s\S]*index\.html\?support=radar/);
-  assert.match(shell, /label: '기업 프로필'[\s\S]*index\.html\?support=profile/);
+  assert.match(shell, /function openSupport\(view\)/);
+  assert.match(shell, /label: '지원사업 레이더'[\s\S]*openSupport\('radar'\)/);
+  assert.match(shell, /label: '기업 프로필'[\s\S]*openSupport\('profile'\)/);
+  assert.match(shell, /label: '내 지원사업'[\s\S]*openSupport\('mywork'\)/);
   assert.match(shell, /label: '설정'[\s\S]*platform\.navigation\.manage/);
   assert.match(shell, /taejang-open-platform-settings/);
 });
@@ -85,12 +87,22 @@ test('dashboard editor supports drag ordering, save and reset', () => {
   assert.match(dashboard, /grid\.dataset\.layoutEditing === '1'/);
 });
 
-test('support radar and company profile use URL routes instead of injecting their old management menu group', () => {
+test('support radar keeps deep-link recovery but sidebar actions stay in the current platform', () => {
   const setup = support.slice(support.indexOf('function setup()'), support.indexOf("document.addEventListener('taejang-app-ready'"));
   assert.match(setup, /requestedView\(\)/);
   assert.doesNotMatch(setup, /injectNavigation\(\)/);
-  assert.match(support, /index\.html\?support=radar/);
-  assert.match(support, /index\.html\?support=profile/);
+  assert.match(shell, /openSupport\('radar'\)/);
+  assert.match(shell, /openSupport\('profile'\)/);
+  assert.doesNotMatch(shell, /href: 'index\.html\?support=/);
+  assert.doesNotMatch(support, /window\.open\('index\.html\?support=/);
+});
+
+test('sidebar personal editing is operations-only and archive access lives under settings', () => {
+  assert.match(settings, /function canEditSidebar\(\)/);
+  assert.match(settings, /platform\.navigation\.manage/);
+  assert.match(settings, /sidebarEditorMode/);
+  assert.match(settings, /보관함 열기/);
+  assert.match(settings, /TaejangOperationsDeleteControls\.openArchiveHub/);
 });
 
 test('UI settings module is part of the protected feature-module load barrier', () => {
