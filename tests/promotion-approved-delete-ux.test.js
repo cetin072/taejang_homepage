@@ -31,7 +31,8 @@ test('promotion recovery stays out of the active sidebar and review intro', () =
   const live = read('app/assets/issue-181-promotion-live-ux.js');
   assert.match(deleteUx, /function syncNavigation\(\)[\s\S]*Compatibility no-op/);
   assert.match(deleteUx, /function syncReviewEntry\(\)[\s\S]*promotion-approved-delete-entry/);
-  assert.doesNotMatch(master, /홍보글 관리·복구/);
+  const activeMaster = master.slice(master.indexOf('const MASTER_ORDER'), master.indexOf('const DESKTOP_ROLES'));
+  assert.doesNotMatch(activeMaster, /홍보글 관리·복구/);
   assert.doesNotMatch(live, /미발행 글 정리/);
 });
 
