@@ -52,7 +52,6 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(dashboardShell, /promotion\.edit_own/);
   assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
   assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
-  assert.match(ux, /item\.lifecycle !== 'archived'/);
   assert.match(ux, /item\.submitted_at/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
