@@ -562,7 +562,8 @@
     });
     [...nav.querySelectorAll(':scope > [data-menu-key][data-nav-section]')].forEach(node=>{
       const key=menuKey(node);
-      if(!key || node.querySelector('[data-sidebar-drag-handle]')) return;
+      const item=key ? registry()?.byKey?.(key) : null;
+      if(!key || item?.public || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='menu';
       handle.tabIndex=0;
