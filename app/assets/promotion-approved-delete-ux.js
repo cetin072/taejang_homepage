@@ -33,23 +33,7 @@
   }
 
   function syncReviewEntry() {
-    const currentRoute = route();
-    if (!canArchive() || issue181UnifiedLeadManagement()) return;
-    const title = document.getElementById('desktop-page-title')?.textContent?.trim();
-    if (!['홍보 검토', '홍보 관리', '홍보 승인 검토'].includes(title)) return;
-    const intro = document.querySelector('#dashboard-main .dashboard-intro');
-    if (!intro || intro.querySelector('[data-promotion-approved-delete-entry]')) return;
-
-    const actions = document.createElement('div');
-    actions.className = 'quick-links';
-    actions.dataset.promotionApprovedDeleteEntry = '1';
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'button button-quiet';
-    button.textContent = currentRoute === 'promotion_lead' ? '미발행 글 삭제' : '미발행 글 관리·복구';
-    button.addEventListener('click', openPromotionManagement);
-    actions.append(button);
-    intro.append(actions);
+    document.querySelector('[data-promotion-approved-delete-entry]')?.remove();
   }
 
   function lifecycleLabel(value) {
