@@ -57,6 +57,7 @@ export const testGroups = Object.freeze({
     'tests/qa-account-preview-return.test.js',
     'tests/mobile-sidebar-dismiss.test.js',
     'tests/role-based-dashboard-shells.test.js',
+  'tests/sidebar-single-owner-stability.test.js',
     'tests/phase1-integrated-readiness.test.js',
     'tests/test-manifest-coverage.test.js',
     'tests/notification-push-foundation.test.js',
