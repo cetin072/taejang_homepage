@@ -200,9 +200,7 @@
 
     async function assertLateOfficialChannelsRestore() {
       const nav = document.getElementById('app-nav');
-      const group = nav.querySelector('[data-official-channel-group]');
-      assert(group, '공식 채널 그룹 누락');
-      assert(group.querySelectorAll('[data-official-channel-link]').length === 0, '테스트 시작 시 공식 채널은 아직 미로딩 상태여야 함');
+      assert(nav.querySelectorAll(':scope > [data-official-channel-link]').length === 0, '테스트 시작 시 공식 채널은 아직 미로딩 상태여야 함');
 
       window.TaejangOfficialChannels.list = [
         { id: 'homepage', label: '홈페이지', href: '../index.html' },
@@ -210,11 +208,24 @@
         { id: 'youtube', label: '공식 유튜브', href: 'https://youtube.com/@taejangofficial' }
       ];
       document.dispatchEvent(new CustomEvent('taejang-official-channels-ready'));
+      await wait(80);
+      window.TaejangRoleNavigationPriority?.reorder?.();
       await wait(30);
 
-      const links = [...group.querySelectorAll('[data-official-channel-link]')];
+      const toggle = nav.querySelector(':scope > [data-nav-section-toggle="1"][data-section-key="official_channels"]');
+      const links = [...nav.querySelectorAll(':scope > [data-official-channel-link]')];
+      assert(toggle, '공식 채널이 다른 카테고리와 같은 상위 접기/펼치기 구조가 아님');
+      assert(toggle.querySelector('.app-nav-section-title')?.textContent.trim() === '공식 채널', '공식 채널 상위 제목 오류');
       assert(links.length === 3, '공식 채널 설정이 늦게 도착해도 링크 3개가 복구되어야 함');
+      assert(links.every(link => link.dataset.navSection === 'official_channels'), '공식 채널 하위 링크가 표준 카테고리에 속하지 않음');
       assert(links.map(link => link.textContent.trim()).join('|') === '홈페이지|공식 블로그|공식 유튜브', '공식 채널 링크 순서/명칭 오류');
+
+      toggle.click();
+      await wait(20);
+      assert(links.every(link => link.hidden), '공식 채널 접기가 하위 링크에 적용되지 않음');
+      toggle.click();
+      await wait(20);
+      assert(links.every(link => !link.hidden), '공식 채널 펼치기가 하위 링크에 적용되지 않음');
     }
 
     async function enterRole(role, label) {
