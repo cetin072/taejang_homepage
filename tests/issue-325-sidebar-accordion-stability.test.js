@@ -31,7 +31,7 @@ test('Issue 325 orders canonical menus by actual work flow', () => {
   const master = nav.slice(nav.indexOf('const MASTER_ORDER'), nav.indexOf('const MASTER_SECTIONS'));
   assertOrdered(master, [
     '직원 관리','신규 직원 등록','가입 승인',
-    '홍보 글 작성','보완 요청받은 글','보낸 글','홍보 검토','발행 대기','기존 글 관리','홍보글 관리·복구',
+    '홍보 글 작성','보완 요청받은 글','보낸 글','홍보 검토','발행 대기','기존 글 관리',
     '홈페이지 내용 관리','홈페이지 직접 수정',
     '업무 배정','공지 등록','공지 관리',
     '출근부','근태 보정','근태·급여관리','외부 급여초안 상신','외부 급여초안 검토',
@@ -90,7 +90,8 @@ test('Issue 325 stops support my-work from injecting another sidebar group', () 
   const setup = myWork.slice(myWork.indexOf('function setup()'), myWork.indexOf("document.addEventListener('taejang-app-ready'"));
   assert.doesNotMatch(setup, /injectNav/);
   assert.match(shell, /key: 'support\.mywork'/);
-  assert.match(shell, /index\.html\?support=mywork/);
+  assert.match(shell, /openSupport\('mywork'\)/);
+  assert.doesNotMatch(shell, /index\.html\?support=mywork/);
 });
 
 test('Issue 325 removes duplicate standalone public-homepage menu because Official Channels already owns it', () => {
