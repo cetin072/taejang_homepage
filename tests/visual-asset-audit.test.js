@@ -29,7 +29,13 @@ const policy = read('docs/operations/ASSET_POLICY.md');
 const sitePolish = read('assets/css/site-polish.css');
 
 assert.match(content, /id: "work-together"[\s\S]*thumbnail: "images\/homepage\/photo-04\.webp"[\s\S]*thumbnailAlt: "상자를 조립하고 포장 테이프 작업을 하는 두 작업자"/);
-assert.match(content, /id: "packing-care"[\s\S]*thumbnail: "images\/homepage\/photo-06\.webp"[\s\S]*thumbnailAlt: "상자를 접고 테이프로 포장하는 작업자의 손"/);
+assert.match(content, /id: "packing-care"[\s\S]*thumbnail: "assets\/images\/workplace\/packing-labeling\.webp"[\s\S]*thumbnailAlt: "작업자가 포장 상자에 배송 라벨을 붙이는 모습"/);
+for (const relativePath of [
+  'assets/images/workplace/packing-preparation.webp',
+  'assets/images/workplace/packing-sealing.webp',
+  'assets/images/workplace/packing-completion-check.webp',
+  'assets/images/workplace/packing-labeling.webp'
+]) assert.ok(fs.existsSync(path.join(root, relativePath)), `${relativePath} 공개용 최적화 사진이 존재합니다`);
 assert.match(business, /images\/homepage\/photo-02\.webp/);
 assert.match(business, /images\/homepage\/photo-05\.webp/);
 assert.match(communityEsg, /assets\/images\/business\/environment-cleanup-group\.webp|assets\/js\/community-esg\.js/);

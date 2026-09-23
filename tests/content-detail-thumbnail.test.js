@@ -46,7 +46,7 @@ assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)
 assert.match(listing, /backLabel: '← 일터 이야기 목록으로'/);
 for (const [imagePath, alt] of [
   ['assets/images/workplace/minhwa-fish-scale-painting.webp', '붓으로 잉어 민화의 비늘을 채색하는 작업 모습'],
-  ['images/homepage/photo-06.webp', '상자를 접고 테이프로 포장하는 작업자의 손'],
+  ['assets/images/workplace/packing-labeling.webp', '작업자가 포장 상자에 배송 라벨을 붙이는 모습'],
   ['images/homepage/photo-04.webp', '상자를 조립하고 포장 테이프 작업을 하는 두 작업자']
 ]) {
   const imageFile = path.join(root, imagePath);
