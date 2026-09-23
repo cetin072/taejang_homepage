@@ -52,139 +52,8 @@
     return target;
   }
 
-  function cleanLabel(node) {
-    return String(node?.textContent || '').replace(/\s*·\s*점검중\s*$/, '').trim();
-  }
-
-  function findNav(labels) {
-    const values = new Set(Array.isArray(labels) ? labels : [labels]);
-    return [...(document.getElementById('app-nav')?.children || [])].find(node => values.has(cleanLabel(node))) || null;
-  }
-
-  function navNode(label, run, key, capabilities = []) {
-    const node = document.createElement('button');
-    node.type = 'button';
-    node.textContent = label;
-    node.dataset.issue207Nav = key;
-    if (capabilities.length) node.dataset.capabilityAny = capabilities.join('|');
-    node.addEventListener('click', run);
-    return node;
-  }
-
-  function openPromotion(mode) {
-    const api = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
-    if (typeof api === 'function') return api(mode);
-    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
-  }
-
-  function openExistingContent() {
-    if (window.TaejangPublicationAdmin?.openPublicationAdmin) {
-      window.TaejangPublicationAdmin.openPublicationAdmin();
-      return;
-    }
-    window.alert('기존 글 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
-  }
-
-  function openHomepageManagement() {
-    if (window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement) {
-      window.TaejangPromotionWorkspaceV2Api.openHomepageManagement();
-      return;
-    }
-    window.alert('홈페이지 내용 관리 기능을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
-  }
-
-  function ensureExistingContentNav(nav) {
-    let node = nav.querySelector('[data-phase-c-publication-admin]') || findNav(['홍보 글 관리', '기존 글 관리']);
-    if (!node) {
-      node = navNode('기존 글 관리', openExistingContent, 'existing-content', ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore']);
-      node.dataset.phaseCPublicationAdmin = '1';
-      nav.append(node);
-    }
-    node.textContent = '기존 글 관리';
-    return node;
-  }
-
-  function ensureHomepageManagementNav(nav) {
-    let node = nav.querySelector('[data-phase-c-v2-nav="homepage"]') || findNav('홈페이지 내용 관리');
-    if (!node) {
-      node = navNode('홈페이지 내용 관리', openHomepageManagement, 'homepage-management', ['homepage.draft', 'homepage.review', 'homepage.approve_apply']);
-      node.dataset.phaseCV2Nav = 'homepage';
-      nav.append(node);
-    }
-    node.textContent = '홈페이지 내용 관리';
-    return node;
-  }
-
-  function removeLegacyInformationNav(nav) {
-    const legacy = new Set([
-      '공지 확인', '상시 안내 관리',
-      '공지·안내 관리', '공지·안내 확인'
-    ]);
-    [...nav.children].forEach(node => {
-      if (legacy.has(cleanLabel(node))) node.remove();
-    });
-  }
-
   function ensureNavigation() {
-    const nav = document.getElementById('app-nav');
-    if (!nav || !route()) return;
-
-    const canWrite = can('promotion.write', ['promotion_staff', 'promotion_lead', 'operations_manager']);
-    const canEditOwn = can('promotion.edit_own', ['promotion_staff']);
-    const canManageExisting = canAny(
-      ['promotion.manage_recent_public', 'promotion.archive', 'promotion.restore'],
-      ['promotion_lead', 'operations_manager']
-    );
-    const canManageHomepage = canAny(
-      ['homepage.draft', 'homepage.review', 'homepage.approve_apply'],
-      ['promotion_lead', 'operations_manager']
-    );
-    const write = findNav(['홍보 작성', '새 홍보글 작성', '홍보 글 작성']);
-    if (write) {
-      write.textContent = '홍보 글 작성';
-      write.dataset.capabilityAny = 'promotion.write';
-    } else if (canWrite) {
-      const node = navNode('홍보 글 작성', () => openPromotion('write'), 'write', ['promotion.write']);
-      node.dataset.phaseCV2Nav = 'write';
-      nav.append(node);
-    }
-
-    const revision = findNav(['수정·보완 요청', '보완 요청받은 글']);
-    if (revision) {
-      revision.textContent = '보완 요청받은 글';
-      revision.dataset.capabilityAny = 'promotion.edit_own|promotion.edit_any_unpublished';
-    } else if (canEditOwn) {
-      const node = navNode(
-        '보완 요청받은 글',
-        () => openPromotion('revision'),
-        'revision',
-        ['promotion.edit_own', 'promotion.edit_any_unpublished']
-      );
-      node.dataset.phaseCV2Nav = 'revision';
-      nav.append(node);
-    }
-
-    if (canWrite && !nav.querySelector('[data-issue207-nav="sent"]')) {
-      nav.append(navNode('보낸 글', openSent, 'sent', ['promotion.write']));
-    }
-
-    if (canManageExisting) ensureExistingContentNav(nav);
-    if (canManageHomepage) ensureHomepageManagementNav(nav);
-
-    // Goal #327 retired employee-facing notice/guidance shortcuts. Goal #331
-    // restores the canonical capability-gated "공지 관리" entry for managers,
-    // while these older information-workflow shortcuts stay out of the sidebar.
-    removeLegacyInformationNav(nav);
-  }
-
-  function scheduleNavigation() {
-    if (navigationScheduled) return;
-    navigationScheduled = true;
-    setTimeout(() => {
-      navigationScheduled = false;
-      ensureNavigation();
-      document.dispatchEvent(new CustomEvent('taejang-navigation-changed'));
-    }, 0);
+    // Compatibility no-op: dashboard-shell is the single sidebar DOM owner.
   }
 
   function cleanupWriteScreen() {
@@ -412,14 +281,10 @@
     [120, 400].forEach(delay => setTimeout(decorateReviewSubmitters, delay));
   }
 
-  document.addEventListener('taejang-app-ready', scheduleNavigation);
-  document.addEventListener('taejang-dashboard-refresh', scheduleNavigation);
   document.addEventListener('taejang-open-promotion-workspace', event => {
-    scheduleNavigation();
     if (event.detail?.mode === 'write') scheduleWriteCleanup();
     if (event.detail?.mode === 'review') scheduleReviewDecoration();
   });
-  window.addEventListener('pageshow', scheduleNavigation);
 
   window.TaejangIssue207Ux = { openSent, openInformationHub, openInformationRead, ensureNavigation, cleanupWriteScreen };
 })();
