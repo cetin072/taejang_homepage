@@ -3,8 +3,8 @@
 
   const channels = () => window.TaejangOfficialChannels?.list || [];
 
-  function removeExisting(nav) {
-    nav?.querySelectorAll?.('[data-official-channel-group], [data-official-channel-link]')?.forEach?.(node => node.remove());
+  function menuKey(channel) {
+    return `public.${channel.id}`;
   }
 
   function makeLink(channel) {
@@ -13,61 +13,56 @@
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
     link.textContent = channel.label;
-    link.className = 'app-nav-official-channel';
+    link.className = 'app-nav-item app-nav-official-channel';
     link.dataset.officialChannelLink = channel.id;
     link.dataset.channel = channel.id;
+    link.dataset.menuKey = menuKey(channel);
     link.setAttribute('aria-label', `${channel.label} 새 탭에서 열기`);
     return link;
   }
 
-  function makeGroup() {
-    const group = document.createElement('section');
-    group.className = 'app-nav-channel-group';
-    group.dataset.officialChannelGroup = '1';
-    group.dataset.navSection = 'official_channels';
-    group.setAttribute('aria-label', '공식 채널');
-
-    const label = document.createElement('p');
-    label.className = 'app-nav-group-label';
-    label.textContent = '공식 채널';
-    group.append(label);
-    channels().forEach(channel => group.append(makeLink(channel)));
-    return group;
-  }
-
-  function reconcileGroup(group) {
-    const expected = channels();
-    if (!group || !expected.length) return false;
-    const current = [...group.querySelectorAll(':scope > [data-official-channel-link]')];
-    const same = current.length === expected.length && expected.every((channel, index) => {
-      const node = current[index];
-      return node?.dataset?.officialChannelLink === channel.id
-        && node?.textContent?.trim() === channel.label
-        && node?.getAttribute?.('href') === channel.href;
-    });
-    if (same) return false;
-
-    const label = group.querySelector(':scope > .app-nav-group-label') || document.createElement('p');
-    label.className = 'app-nav-group-label';
-    label.textContent = '공식 채널';
-    group.replaceChildren(label, ...expected.map(makeLink));
-    return true;
+  function sameLink(node, channel) {
+    return node
+      && node.dataset?.officialChannelLink === channel.id
+      && node.dataset?.menuKey === menuKey(channel)
+      && node.textContent?.trim() === channel.label
+      && node.getAttribute?.('href') === channel.href;
   }
 
   function sync() {
     const nav = document.getElementById('app-nav');
-    if (!nav) return;
-    [...nav.children].forEach(node => {
-      if ((node.textContent || '').trim() === '홈페이지' && node.tagName === 'A' && !node.dataset.officialChannelLink) node.remove();
+    const expected = channels();
+    if (!nav || !expected.length) return;
+
+    nav.querySelectorAll(':scope > [data-official-channel-group]').forEach(node => node.remove());
+
+    const existing = new Map(
+      [...nav.querySelectorAll(':scope > [data-official-channel-link]')]
+        .map(node => [node.dataset.officialChannelLink, node])
+    );
+    let changed = false;
+
+    expected.forEach(channel => {
+      let node = existing.get(channel.id);
+      if (!sameLink(node, channel)) {
+        const replacement = makeLink(channel);
+        if (node) node.replaceWith(replacement);
+        else nav.append(replacement);
+        node = replacement;
+        changed = true;
+      }
+      existing.delete(channel.id);
     });
 
-    let group = nav.querySelector('[data-official-channel-group]');
-    if (!group) {
-      group = makeGroup();
-      nav.append(group);
+    existing.forEach(node => {
+      node.remove();
+      changed = true;
+    });
+
+    if (changed) {
+      window.TaejangRoleNavigationPriority?.schedule?.();
+      document.dispatchEvent(new CustomEvent('taejang-official-channels-rendered'));
     }
-    const changed = reconcileGroup(group);
-    if (changed) document.dispatchEvent(new CustomEvent('taejang-official-channels-rendered'));
   }
 
   document.addEventListener('taejang-official-channels-ready', () => queueMicrotask(sync));
