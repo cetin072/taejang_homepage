@@ -74,7 +74,12 @@ test('employee experience tab keeps return controls in the persistent top bar wi
 test('employee preview page creates an isolated tab session and then loads the real app', () => {
   assert.match(previewPage, /taejang-staff-session-v1/);
   assert.match(previewPage, /sessionStorage\.setItem\(SESSION_KEY/);
-  assert.doesNotMatch(previewPage, /localStorage/);
+  assert.match(previewPage, /localStorage\\.getItem\\(SESSION_KEY/);
+  assert.match(previewPage, /window\\.opener\\?\\.TaejangApp\\?\\.getSession/);
+  const openerRead = previewPage.indexOf('window.opener?.TaejangApp?.getSession?.()');
+  const persistentRead = previewPage.indexOf('localStorage.getItem(SESSION_KEY)');
+  const legacyTabRead = previewPage.indexOf('sessionStorage.getItem(SESSION_KEY)');
+  assert.ok(openerRead >= 0 && persistentRead > openerRead && legacyTabRead > persistentRead);
   assert.match(previewPage, /\/auth\/v1\/verify/);
   assert.match(previewPage, /token_hash/);
   assert.match(previewPage, /frame\.src = '\/app\/'/);
