@@ -336,6 +336,9 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_access_context') {
       return json(response, 200, accessContext);
     }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_access_context_v2') {
+      return json(response, 200, { ...accessContext, access_contract_version: 2 });
+    }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_ui_preferences') {
       return json(response, 200, uiPreferences);
     }
