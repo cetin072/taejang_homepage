@@ -58,6 +58,8 @@ test('notice detail renders the RPC text before independent signed-media loading
   assert.match(api, /catch\s*\{\s*return null;/);
   assert.match(detail, /<NoticePhoto/);
   assert.match(detail, /사진을 불러오지 못했습니다/);
+  assert.match(detail, /cache:\s*'force-cache'/);
+  assert.match(detail, /resizeMethod="resize"/);
   assert.match(provider, /clearNoticeCache\(userId\)/);
 });
 

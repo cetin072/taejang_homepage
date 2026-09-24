@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,13 +8,28 @@ import { PolicyLinks } from '@/src/features/common/policy-links';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '버전 정보 없음';
+type AccessContext = { display_name?: string | null };
 
 export default function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { session, signOut } = usePlatform();
+  const { client, session, signOut } = usePlatform();
   const [busy, setBusy] = useState(false);
-  const displayName = session?.user.user_metadata?.display_name || session?.user.email || '태장 직원';
+  const [access, setAccess] = useState<AccessContext | null>(null);
+  const fallbackDisplayName = session?.user.user_metadata?.display_name || session?.user.email || '태장 직원';
+  const displayName = access?.display_name?.trim() || fallbackDisplayName;
+
+  useEffect(() => {
+    let active = true;
+    setAccess(null);
+    if (!client || !session) return () => { active = false; };
+
+    void client.rpc('get_my_access_context_v2').then(({ data, error }) => {
+      if (!active || error || !data || typeof data !== 'object' || Array.isArray(data)) return;
+      setAccess(data as AccessContext);
+    });
+    return () => { active = false; };
+  }, [client, session?.user.id]);
 
   async function handleSignOut() {
     if (busy) return;

@@ -151,6 +151,14 @@ function PrimaryButton({
   );
 }
 
+function AccountSettingsAction({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="설정" onPress={onPress} style={styles.textAction}>
+      <Text style={styles.textActionLabel}>설정</Text>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const {
     phase,
@@ -535,6 +543,7 @@ export default function HomeScreen() {
         <Pressable style={styles.smallButton} onPress={() => void refreshAccess()}>
           <Text style={styles.smallButtonText}>다시 확인</Text>
         </Pressable>
+        <AccountSettingsAction onPress={() => router.push('/settings')} />
         <Pressable style={styles.textAction} onPress={() => void run(signOut)}>
           <Text style={styles.textActionLabel}>로그아웃</Text>
         </Pressable>
@@ -553,6 +562,7 @@ export default function HomeScreen() {
         <Pressable style={styles.smallButton} onPress={() => void refreshAccess()}>
           <Text style={styles.smallButtonText}>{accessLoading ? '확인 중…' : '승인 상태 확인'}</Text>
         </Pressable>
+        <AccountSettingsAction onPress={() => router.push('/settings')} />
         <Pressable style={styles.textAction} onPress={() => void run(signOut)}>
           <Text style={styles.textActionLabel}>로그아웃</Text>
         </Pressable>
@@ -568,6 +578,7 @@ export default function HomeScreen() {
         <Text style={styles.brandMark}>泰張</Text>
         <Text style={styles.title}>현재 이용할 수 없습니다.</Text>
         <Text style={styles.bodyCenter}>계정 상태는 담당자에게 문의해주세요.</Text>
+        <AccountSettingsAction onPress={() => router.push('/settings')} />
         <Pressable style={styles.smallButton} onPress={() => void run(signOut)}>
           <Text style={styles.smallButtonText}>로그아웃</Text>
         </Pressable>

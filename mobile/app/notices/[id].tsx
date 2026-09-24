@@ -49,7 +49,14 @@ function NoticePhoto({
   }, [client, item, userId]);
 
   if (signedUrl) {
-    return <Image accessibilityLabel={item.alt_text || '공지 사진'} source={{ uri: signedUrl }} style={styles.photo} />;
+    return (
+      <Image
+        accessibilityLabel={item.alt_text || '공지 사진'}
+        resizeMethod="resize"
+        source={{ uri: signedUrl, cache: 'force-cache' }}
+        style={styles.photo}
+      />
+    );
   }
 
   return (

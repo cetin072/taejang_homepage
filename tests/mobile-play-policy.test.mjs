@@ -6,13 +6,17 @@ async function text(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('employee app keeps deletion out of the login screen and exposes it only in authenticated settings', async () => {
+test('employee app keeps deletion out of the login screen and exposes it to every authenticated account through settings', async () => {
   const home = await text('mobile/app/index.tsx');
   const settings = await text('mobile/app/settings.tsx');
   const links = await text('mobile/src/features/common/policy-links.tsx');
   assert.match(home, /<PolicyLinks\s*\/>/);
   assert.doesNotMatch(home, /계정 삭제 요청|account-deletion/);
   assert.match(settings, /<PolicyLinks includeAccountDeletion\s*\/>/);
+  assert.match(settings, /get_my_access_context_v2/);
+  assert.match(settings, /access\?\.display_name\?\.trim\(\)/);
+  assert.match(home, /access\?\.account_status === 'pending'[\s\S]*?<AccountSettingsAction onPress=\{\(\) => router\.push\('\/settings'\)\}/);
+  assert.match(home, /access\?\.account_status !== 'active'[\s\S]*?<AccountSettingsAction onPress=\{\(\) => router\.push\('\/settings'\)\}/);
   assert.match(settings, /앱 버전/);
   assert.match(settings, /로그아웃/);
   assert.match(links, /employee-app-privacy\.html/);

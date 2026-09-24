@@ -16,10 +16,17 @@ export function getCachedNotices(userId: string, limit: number): NoticeSummary[]
 
 export function cacheNotices(userId: string, items: NoticeSummary[], limit: number): NoticeSummary[] {
   const previous = noticeCache.get(userId);
-  const nextItems = !previous || limit >= previous.limit
+  // A short response is the complete current result set. In particular, a home
+  // refresh returning no notices must retire an older, broader list cache.
+  const responseIsComplete = items.length < limit;
+  const replacePrevious = !previous || limit >= previous.limit || responseIsComplete;
+  const nextItems = replacePrevious
     ? items
     : [...items, ...previous.items.filter(item => !items.some(next => next.id === item.id))];
-  noticeCache.set(userId, { items: nextItems, limit: Math.max(limit, previous?.limit ?? 0) });
+  noticeCache.set(userId, {
+    items: nextItems,
+    limit: replacePrevious ? limit : Math.max(limit, previous?.limit ?? 0),
+  });
   return nextItems.slice(0, limit);
 }
 
