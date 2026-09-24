@@ -193,8 +193,16 @@ const appAutomation = `<script>
         'dashboard edit mode'
       );
       const cardKeys = () => [...dashboardGrid.children].map(card => card.dataset.dashboardCardKey);
+      if (cardKeys().length < 2) {
+        action(dashboardActions, '+ 카드 추가')?.click();
+        const addCard = await waitFor(
+          () => document.querySelector('[data-dashboard-add-card]'),
+          'dashboard card add action'
+        );
+        addCard.click();
+      }
+      await waitFor(() => cardKeys().length >= 2, 'dashboard card test data');
       const defaultCards = cardKeys();
-      if (defaultCards.length < 2) throw new Error('DASHBOARD_CARD_TEST_DATA_MISSING');
       if ([...dashboardGrid.querySelectorAll('.dashboard-card')].some(card => card.draggable)) {
         throw new Error('DASHBOARD_CARD_WHOLE_DRAG_ENABLED');
       }
@@ -319,7 +327,7 @@ const accessContext = Object.freeze({
   display_name: '운영총괄 브라우저검수',
   profile: Object.freeze({ id: '00000000-0000-4000-8000-000000000111', display_name: '운영총괄 브라우저검수' }),
   roles: Object.freeze([{ code: 'operations_manager', name: '운영총괄' }]),
-  capabilities: Object.freeze(['payroll.manage', 'platform.navigation.manage']),
+  capabilities: Object.freeze(['payroll.manage', 'notice.manage', 'platform.navigation.manage']),
 });
 
 const server = createServer(async (request, response) => {
