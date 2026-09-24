@@ -56,8 +56,12 @@ export async function loadNoticeMediaUrl(
   client: PlatformSupabaseClient,
   item: NoticeMediaItem,
 ): Promise<string | null> {
-  const { data, error } = await client.storage.from('notice-media').createSignedUrl(item.storage_path, 3600);
-  return error ? null : data?.signedUrl || null;
+  try {
+    const { data, error } = await client.storage.from('notice-media').createSignedUrl(item.storage_path, 3600);
+    return error ? null : data?.signedUrl || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadMyNoticeDetail(client: PlatformSupabaseClient, noticeId: string): Promise<NoticeDetail> {

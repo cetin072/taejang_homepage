@@ -55,6 +55,7 @@ test('notice detail renders the RPC text before independent signed-media loading
   const provider = await text('mobile/src/providers/platform-provider.tsx');
   assert.match(api, /export async function loadNoticeMediaUrl/);
   assert.doesNotMatch(api, /media:\s*await/);
+  assert.match(api, /catch\s*\{\s*return null;/);
   assert.match(detail, /<NoticePhoto/);
   assert.match(detail, /사진을 불러오지 못했습니다/);
   assert.match(provider, /clearNoticeCache\(userId\)/);
