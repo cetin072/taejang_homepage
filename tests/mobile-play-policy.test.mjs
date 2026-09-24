@@ -6,13 +6,18 @@ async function text(path) {
   return readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 }
 
-test('employee app exposes privacy and account deletion resources in app UI', async () => {
+test('employee app keeps deletion out of the login screen and exposes it only in authenticated settings', async () => {
   const home = await text('mobile/app/index.tsx');
-  assert.match(home, /https:\/\/taejang\.co\.kr\/employee-app-privacy\.html/);
-  assert.match(home, /https:\/\/taejang\.co\.kr\/account-deletion\.html/);
-  assert.match(home, /개인정보처리방침/);
-  assert.match(home, /계정 삭제 요청/);
-  assert.match(home, /accessibilityRole="link"/);
+  const settings = await text('mobile/app/settings.tsx');
+  const links = await text('mobile/src/features/common/policy-links.tsx');
+  assert.match(home, /<PolicyLinks\s*\/>/);
+  assert.doesNotMatch(home, /계정 삭제 요청|account-deletion/);
+  assert.match(settings, /<PolicyLinks includeAccountDeletion\s*\/>/);
+  assert.match(settings, /앱 버전/);
+  assert.match(settings, /로그아웃/);
+  assert.match(links, /employee-app-privacy\.html/);
+  assert.match(links, /account-deletion\.html/);
+  assert.match(links, /accessibilityRole="link"/);
 });
 
 test('employee app privacy policy documents actual mobile data handling', async () => {
@@ -36,12 +41,12 @@ test('account deletion web resource is explicit and does not ask for passwords',
   assert.match(deletion, /mailto:taejang2025@naver\.com/);
 });
 
-test('Android Play identity has an explicit initial versionCode', async () => {
+test('Android Play identity advances the next closed-test versionCode', async () => {
   const app = JSON.parse(await text('mobile/app.json'));
   assert.equal(app.expo.name, '태장');
-  assert.equal(app.expo.version, '0.1.0');
+  assert.equal(app.expo.version, '0.1.1');
   assert.equal(app.expo.android.package, 'com.cetin072.taejang.staff');
-  assert.equal(app.expo.android.versionCode, 1);
+  assert.equal(app.expo.android.versionCode, 2);
   assert.equal(app.expo.android.adaptiveIcon.backgroundColor, '#FDFCFD');
   assert.equal(app.expo.android.adaptiveIcon.foregroundImage, './assets/taejang-adaptive-foreground.png');
   assert.equal(app.expo.icon, './assets/taejang-launcher-icon.png');

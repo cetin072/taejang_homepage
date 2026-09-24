@@ -1,23 +1,30 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { loadMyNotices, noticeDeepLinkPath, type NoticeSummary } from './notice-api';
+import { cacheNotices, getCachedNotices } from './notice-cache';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 export function NoticeHomeAction({ minHeight = 164 }: { minHeight?: number }) {
   const router = useRouter();
   const { client, session } = usePlatform();
-  const [items, setItems] = useState<NoticeSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const userId = session?.user.id;
+  const [items, setItems] = useState<NoticeSummary[]>(() => userId ? getCachedNotices(userId, 4) : []);
+  const [cacheUserId, setCacheUserId] = useState(userId);
+  const [loading, setLoading] = useState(() => !userId || getCachedNotices(userId, 4).length === 0);
 
   const load = useCallback(async () => {
     if (!client || !session) return;
-    setLoading(true);
+    const cached = getCachedNotices(session.user.id, 4);
+    setCacheUserId(session.user.id);
+    setItems(cached);
+    setLoading(cached.length === 0);
     try {
-      setItems(await loadMyNotices(client, 4));
+      const fresh = await loadMyNotices(client, 4);
+      setItems(cacheNotices(session.user.id, fresh, 4));
     } catch {
-      setItems([]);
+      if (cached.length === 0) setItems([]);
     } finally {
       setLoading(false);
     }
@@ -27,24 +34,32 @@ export function NoticeHomeAction({ minHeight = 164 }: { minHeight?: number }) {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') void load();
+    });
+    return () => subscription.remove();
+  }, [load]);
+
   function open() {
-    if (items.length === 1) {
-      router.push(noticeDeepLinkPath(items[0].id));
+    if (visibleItems.length === 1) {
+      router.push(noticeDeepLinkPath(visibleItems[0].id));
       return;
     }
     router.push('/notices');
   }
 
-  const unread = items.filter(item => item.is_new || (item.requires_acknowledgement && !item.acknowledged)).length;
+  const visibleItems = cacheUserId === userId ? items : [];
+  const unread = visibleItems.filter(item => item.is_new || (item.requires_acknowledgement && !item.acknowledged)).length;
   const subtitle = loading
     ? '확인 중…'
-    : items.length === 0
+    : visibleItems.length === 0
       ? '현재 공지 확인'
       : unread > 0
         ? `새로 확인할 공지 ${unread}건`
-        : items.length === 1
+        : visibleItems.length === 1
           ? '공지 1건'
-          : `공지 ${items.length}건`;
+          : `공지 ${visibleItems.length}건`;
 
   return (
     <Pressable

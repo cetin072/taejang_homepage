@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { loadMyNotices, noticeDeepLinkPath, type NoticeSummary } from '@/src/features/notices/notice-api';
+import { cacheNotices, getCachedNotices } from '@/src/features/notices/notice-cache';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function badge(item: NoticeSummary) {
@@ -17,18 +18,24 @@ export default function NoticeListScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { client, session } = usePlatform();
-  const [items, setItems] = useState<NoticeSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const userId = session?.user.id;
+  const [items, setItems] = useState<NoticeSummary[]>(() => userId ? getCachedNotices(userId, 20) : []);
+  const [cacheUserId, setCacheUserId] = useState(userId);
+  const [loading, setLoading] = useState(() => !userId || getCachedNotices(userId, 20).length === 0);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!client || !session) return;
-    setLoading(true);
+    const cached = getCachedNotices(session.user.id, 20);
+    setCacheUserId(session.user.id);
+    setItems(cached);
+    setLoading(cached.length === 0);
     setError('');
     try {
-      setItems(await loadMyNotices(client, 20));
+      const fresh = await loadMyNotices(client, 20);
+      setItems(cacheNotices(session.user.id, fresh, 20));
     } catch {
-      setError('공지를 불러오지 못했습니다. 다시 시도해주세요.');
+      if (cached.length === 0) setError('공지를 불러오지 못했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -37,6 +44,17 @@ export default function NoticeListScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') void load();
+    });
+    return () => subscription.remove();
+  }, [load]);
+
+  const visibleItems = cacheUserId === userId ? items : [];
+  const hasCachedItems = visibleItems.length > 0;
+  const showInitialLoading = loading || cacheUserId !== userId;
 
   return (
     <View style={[styles.page, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
@@ -48,27 +66,27 @@ export default function NoticeListScreen() {
         <Text style={styles.eyebrow}>태장</Text>
         <Text style={styles.title}>공지사항</Text>
 
-        {loading ? (
+        {showInitialLoading && !hasCachedItems ? (
           <View style={styles.loading}>
             <ActivityIndicator />
             <Text style={styles.help}>공지를 확인하고 있습니다.</Text>
           </View>
         ) : null}
 
-        {!loading && error ? (
+        {!hasCachedItems && !showInitialLoading && error ? (
           <Pressable onPress={() => void load()} style={styles.emptyCard}>
             <Text style={styles.error}>{error}</Text>
             <Text style={styles.retry}>다시 시도</Text>
           </Pressable>
         ) : null}
 
-        {!loading && !error && items.length === 0 ? (
+        {!hasCachedItems && !showInitialLoading && !error ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>현재 확인할 공지가 없습니다.</Text>
           </View>
         ) : null}
 
-        {!loading && !error ? items.map(item => (
+        {(hasCachedItems || (!showInitialLoading && !error)) ? visibleItems.map(item => (
           <Pressable
             key={item.id}
             accessibilityRole="button"
