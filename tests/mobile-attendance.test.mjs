@@ -9,7 +9,7 @@ async function text(path) {
 test('mobile attendance pins Expo Location and requests foreground use only', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   const app = JSON.parse(await text('mobile/app.json'));
-  assert.equal(pkg.dependencies['expo-location'], '57.0.19');
+  assert.equal(pkg.dependencies['expo-location'], '57.0.20');
   const plugin = app.expo.plugins.find(item => Array.isArray(item) && item[0] === 'expo-location');
   assert.ok(plugin, 'expo-location config plugin must be present');
   assert.equal(plugin[1].isAndroidBackgroundLocationEnabled, false);
