@@ -181,6 +181,7 @@ const appAutomation = `<script>
       );
       saveSidebar.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit save');
+      document.querySelector('.staff-brand, .app-logo')?.click();
 
       const dashboardActions = await waitFor(
         () => document.querySelector('[data-dashboard-layout-actions]'),
