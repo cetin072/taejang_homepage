@@ -192,7 +192,11 @@ equal(executiveToday.data?.attendance_required, true, 'operations-manager role d
 const executiveRecord = await rpc('record_attendance_event', executive.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(executiveRecord.data?.code, 'ATTENDANCE_RECORDED', 'attendance-required operations manager follows the same real attendance writer');
+equal(
+  executiveRecord.data?.code,
+  executiveToday.data?.clock_in_available ? 'ATTENDANCE_RECORDED' : 'CLOCK_IN_TOO_EARLY',
+  'attendance-required operations manager follows the same server-authoritative clock-in opening rule',
+);
 
 const ceo = await createLinkedEmployee({
   email: 'attendance-ceo@example.test', name: '근태 대상 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
@@ -260,23 +264,40 @@ const worker = await createLinkedEmployee({
 });
 const workerToday = await rpc('get_my_attendance_today', worker.token, {});
 equal(workerToday.data?.attendance_required, true, 'active linked attendance-required Employee can record attendance');
+const clockInOpen = workerToday.data?.clock_in_available === true;
 
 const outside = await rpc('record_attendance_event', worker.token, {
   p_event_type: 'clock_in', p_latitude: officeLat + 0.01, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(outside.data?.code, 'OUTSIDE_GEOFENCE', 'Employee gating preserves the existing geofence rejection');
+equal(
+  outside.data?.code,
+  clockInOpen ? 'OUTSIDE_GEOFENCE' : 'CLOCK_IN_TOO_EARLY',
+  'Employee clock-in enforces the opening rule before the existing geofence validation',
+);
 
 const validRecord = await rpc('record_attendance_event', worker.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(validRecord.data?.code, 'ATTENDANCE_RECORDED', 'eligible Employee records attendance with valid office GPS');
-check(validRecord.data?.event_at, 'attendance record uses server-generated event time');
+equal(
+  validRecord.data?.code,
+  clockInOpen ? 'ATTENDANCE_RECORDED' : 'CLOCK_IN_TOO_EARLY',
+  'eligible Employee clock-in keeps the server-authoritative opening rule',
+);
 
 const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
-// Reuse the server-generated raw event timestamp so this behavior test is
-// independent of the hour at which CI happens to run. It is guaranteed to be
-// on the tested work date and never in the future.
-const safeEffectiveTime = validRecord.data.event_at;
+// Corrections below require one raw clock-in. When the production rule correctly
+// blocks a real clock-in before 06:00, create only this isolated DB fixture;
+// production clock-in behavior remains asserted above.
+const safeEffectiveTime = clockInOpen
+  ? validRecord.data?.event_at
+  : sql(`insert into public.attendance_events (
+      profile_id, work_date, event_type, status, event_at, requested_at,
+      latitude, longitude, accuracy_m, distance_m, location_id
+    ) values (
+      '${worker.id}'::uuid, (now() at time zone 'Asia/Seoul')::date, 'clock_in', 'recorded', now(), now(),
+      ${officeLat}, ${officeLong}, 10, 0, '${officeId}'::uuid
+    ) returning event_at::text`);
+check(safeEffectiveTime, 'correction fixture has a server-time raw clock-in event');
 const correction = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: worker.employeeUuid,
   p_work_date: workDate,
