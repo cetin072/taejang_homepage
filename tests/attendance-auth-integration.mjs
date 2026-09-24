@@ -288,15 +288,20 @@ const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
 // Corrections below require one raw clock-in. When the production rule correctly
 // blocks a real clock-in before 06:00, create only this isolated DB fixture;
 // production clock-in behavior remains asserted above.
-const safeEffectiveTime = clockInOpen
-  ? validRecord.data?.event_at
-  : sql(`insert into public.attendance_events (
+if (!clockInOpen) {
+  sql(`insert into public.attendance_events (
       profile_id, work_date, event_type, status, event_at, requested_at,
       latitude, longitude, accuracy_m, distance_m, location_id
     ) values (
       '${worker.id}'::uuid, (now() at time zone 'Asia/Seoul')::date, 'clock_in', 'recorded', now(), now(),
       ${officeLat}, ${officeLong}, 10, 0, '${officeId}'::uuid
-    ) returning event_at::text`);
+    )`);
+}
+const safeEffectiveTime = sql(`select to_char(event_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  from public.attendance_events
+  where profile_id='${worker.id}'::uuid
+    and work_date=(now() at time zone 'Asia/Seoul')::date
+    and event_type='clock_in'`);
 check(safeEffectiveTime, 'correction fixture has a server-time raw clock-in event');
 const correction = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: worker.employeeUuid,
