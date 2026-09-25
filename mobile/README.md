@@ -1,4 +1,4 @@
-# 태장 직원앱 Android
+# 태장 직원앱 Android (0.1.2)
 
 Issue #227의 Android 직원앱 1차 통합 구현입니다.
 
@@ -39,6 +39,15 @@ Issue #227의 Android 직원앱 1차 통합 구현입니다.
 - Expo ticket + receipt 추적
 - DeviceNotRegistered 정리
 - 알림 탭 → 정확한 `/notices/[id]` deep link
+
+### 0.1.2 운영 기반
+
+- 공개 `staff-config`의 비밀 없는 업데이트/점검 정책
+- 선택 업데이트(`나중에`/`업데이트`)와 최소 버전 기반 필수 업데이트
+- 설치 버전당 한 번만 보이는 변경사항
+- 승인된 태장 launcher 자산을 사용한 native splash
+- foreground session refresh, 알림 권한 설정, 안전한 지원 진단
+- 정책 변수와 운영 경계: [`docs/planning/GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md`](../docs/planning/GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md)
 
 ## 아직 실제 배포 전 확인이 필요한 것
 

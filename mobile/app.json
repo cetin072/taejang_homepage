@@ -2,16 +2,21 @@
   "expo": {
     "name": "태장",
     "slug": "taejang-employee-mobile",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "orientation": "portrait",
     "scheme": "taejangstaff",
     "icon": "./assets/taejang-launcher-icon.png",
+    "splash": {
+      "image": "./assets/taejang-launcher-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FDFCFD"
+    },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "android": {
       "package": "com.cetin072.taejang.staff",
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "foregroundImage": "./assets/taejang-adaptive-foreground.png",
         "backgroundColor": "#FDFCFD"

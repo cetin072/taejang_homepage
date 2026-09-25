@@ -6,6 +6,7 @@ import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, 
 import { disableCurrentPushDevice } from '@/src/notifications/push-registration';
 import { clearNoticeCache } from '@/src/features/notices/notice-cache';
 import { getApiBaseUrl, loadPublicPlatformConfig, type PublicPlatformConfig } from '@/src/platform/config';
+import { friendlyError } from '@/src/platform/friendly-error';
 import { createPlatformSupabaseClient, type PlatformSupabaseClient } from '@/src/platform/supabase';
 
 type PlatformPhase = 'loading' | 'ready' | 'error';
@@ -71,14 +72,22 @@ export function PlatformProvider({ children }: PropsWithChildren) {
         });
         authSubscription = authData.subscription;
 
-        if (AppState.currentState === 'active') nextClient.auth.startAutoRefresh();
+        const refreshForegroundSession = async () => {
+          nextClient.auth.startAutoRefresh();
+          const { data: current } = await nextClient.auth.getSession();
+          if (!current.session) return;
+          const { data: refreshed, error: refreshError } = await nextClient.auth.refreshSession();
+          if (!refreshError && alive) setSession(refreshed.session);
+        };
+
+        if (AppState.currentState === 'active') void refreshForegroundSession();
         appStateSubscription = AppState.addEventListener('change', (nextState) => {
-          if (nextState === 'active') nextClient.auth.startAutoRefresh();
+          if (nextState === 'active') void refreshForegroundSession();
           else nextClient.auth.stopAutoRefresh();
         });
       } catch (nextError) {
         if (!alive) return;
-        setError(nextError instanceof Error ? nextError.message : '태장 앱 초기화에 실패했습니다.');
+        setError(friendlyError(nextError, '태장 앱을 연결하지 못했습니다. 잠시 후 다시 시도해주세요.'));
         setPhase('error');
       }
     })();

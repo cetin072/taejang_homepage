@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -24,6 +25,7 @@ import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
 import { usePlatform } from '@/src/providers/platform-provider';
+import { friendlyError } from '@/src/platform/friendly-error';
 
 type AccessRole = { code?: string; name?: string };
 type AccessContext = {
@@ -35,7 +37,7 @@ type AccessContext = {
 };
 
 function messageOf(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return friendlyError(error, fallback);
 }
 
 function formatDate(date: Date) {
@@ -248,6 +250,13 @@ export default function HomeScreen() {
     }
     void refreshAccess();
   }, [session, refreshAccess]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') void refreshAccess();
+    });
+    return () => subscription.remove();
+  }, [refreshAccess]);
 
   const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);
   const attendanceFeature = employeeFeatures.get('attendance.clock');
