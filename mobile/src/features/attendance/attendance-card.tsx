@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   loadMyAttendanceToday,
@@ -32,6 +32,28 @@ function formatTime(value: string | null | undefined) {
 
 function completed(event: AttendanceEvent | null) {
   return Boolean(event && ['recorded', 'exception_approved', 'corrected'].includes(event.status));
+}
+
+function attendanceLine(event: AttendanceEvent | null) {
+  if (!event) return { time: '아직 기록 없음', status: '' };
+
+  const requestedAt = formatTime(event.requested_at);
+  const effectiveTime = formatTime(event.event_at);
+
+  switch (event.status) {
+    case 'recorded':
+      return { time: effectiveTime || '기록 확인 중', status: '기록됨' };
+    case 'exception_pending':
+      return { time: requestedAt || '요청 시각 확인 중', status: '관리자 확인 중' };
+    case 'exception_approved':
+      return { time: effectiveTime || requestedAt || '승인 시각 확인 중', status: '예외 승인' };
+    case 'exception_rejected':
+      return { time: requestedAt || '요청 시각 확인 중', status: '예외 반려됨' };
+    case 'corrected':
+      return { time: effectiveTime || '보정 시각 확인 중', status: '관리자 보정' };
+    case 'correction_invalidated':
+      return { time: '기록 없음', status: '관리자 보정으로 무효' };
+  }
 }
 
 export function AttendanceCard({
@@ -76,6 +98,13 @@ export function AttendanceCard({
     if (!client || !session) return;
     void refresh();
   }, [client, session, refresh]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') void refresh();
+    });
+    return () => subscription.remove();
+  }, [refresh]);
 
   useEffect(() => {
     if (
@@ -286,6 +315,10 @@ export function AttendanceCard({
   const clockedIn = completed(clockIn);
   const clockedOut = completed(clockOut);
   const pending = clockIn?.status === 'exception_pending' || clockOut?.status === 'exception_pending';
+  const invalidated = clockIn?.status === 'correction_invalidated'
+    || clockOut?.status === 'correction_invalidated';
+  const clockInLine = attendanceLine(clockIn);
+  const clockOutLine = attendanceLine(clockOut);
 
   let action: AttendanceEventType | null = 'clock_in';
   let title = '출근했습니다';
@@ -313,6 +346,10 @@ export function AttendanceCard({
     action = null;
     title = '관리자 확인 중';
     subtitle = '요청한 출퇴근 기록을 확인하고 있습니다';
+  } else if (invalidated) {
+    action = null;
+    title = '관리자 보정 확인 필요';
+    subtitle = '오늘 기록이 무효 처리되었습니다. 담당자에게 문의해주세요';
   } else if (clockedOut) {
     action = null;
     title = '오늘 근무 완료';
@@ -389,6 +426,22 @@ export function AttendanceCard({
         {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
       </Pressable>
 
+      {!qaMode && today && today.attendance_required !== false ? (
+        <View accessibilityLabel="오늘 출퇴근 기록" style={styles.todaySummary}>
+          <Text style={styles.todaySummaryTitle}>오늘 출퇴근</Text>
+          <View style={styles.todaySummaryRow}>
+            <Text style={styles.todaySummaryLabel}>출근</Text>
+            <Text style={styles.todaySummaryValue}>{clockInLine.time}</Text>
+            {clockInLine.status ? <Text style={styles.todaySummaryStatus}>{clockInLine.status}</Text> : null}
+          </View>
+          <View style={styles.todaySummaryRow}>
+            <Text style={styles.todaySummaryLabel}>퇴근</Text>
+            <Text style={styles.todaySummaryValue}>{clockOutLine.time}</Text>
+            {clockOutLine.status ? <Text style={styles.todaySummaryStatus}>{clockOutLine.status}</Text> : null}
+          </View>
+        </View>
+      ) : null}
+
       {message ? <Text style={messageError ? styles.error : styles.message}>{message}</Text> : null}
 
       {qaMode && qaClockOutAt ? (
@@ -419,6 +472,19 @@ export function AttendanceCard({
 
 const styles = StyleSheet.create({
   wrap: { gap: 9 },
+  todaySummary: {
+    gap: 7,
+    padding: 13,
+    borderWidth: 1,
+    borderColor: '#c8d6cc',
+    borderRadius: 14,
+    backgroundColor: '#f7faf7',
+  },
+  todaySummaryTitle: { color: '#274d3c', fontSize: 14, fontWeight: '900' },
+  todaySummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  todaySummaryLabel: { width: 34, color: '#52685d', fontSize: 14, fontWeight: '800' },
+  todaySummaryValue: { flex: 1, color: '#173f31', fontSize: 15, fontWeight: '900' },
+  todaySummaryStatus: { color: '#52685d', fontSize: 13, fontWeight: '700', textAlign: 'right' },
   qaBadge: {
     alignSelf: 'center',
     paddingHorizontal: 12,

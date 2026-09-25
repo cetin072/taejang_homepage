@@ -74,6 +74,20 @@ test('employee attendance UX preserves hard geofence failure and conservative ex
   assert.doesNotMatch(permissionBranch, /allowException/);
 });
 
+test('employee attendance shows server-authoritative exception and correction results on foreground refresh', async () => {
+  const card = await text('mobile/src/features/attendance/attendance-card.tsx');
+
+  assert.match(card, /AppState\.addEventListener\('change'/);
+  assert.match(card, /nextState === 'active'/);
+  assert.match(card, /exception_pending/);
+  assert.match(card, /exception_approved/);
+  assert.match(card, /exception_rejected/);
+  assert.match(card, /correction_invalidated/);
+  assert.match(card, /오늘 출퇴근/);
+  assert.match(card, /관리자 보정 확인 필요/);
+  assert.match(card, /action = null;/);
+});
+
 test('employee mobile home always keeps one attendance block before notice even for non-attendance roles', async () => {
   const home = await text('mobile/app/index.tsx');
   const attendance = home.indexOf('<AttendanceCard');
