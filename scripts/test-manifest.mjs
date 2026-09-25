@@ -60,6 +60,8 @@ export const testGroups = Object.freeze({
     'tests/phase1-integrated-readiness.test.js',
     'tests/test-manifest-coverage.test.js',
     'tests/notification-push-foundation.test.js',
+    'tests/goal-375-self-profile.test.mjs',
+    'tests/uar-preview-runtime.test.mjs',
     'tests/support-radar-capability.test.js',
     'tests/support-radar-foundation.test.js',
     'tests/support-radar-company-profile.test.js',

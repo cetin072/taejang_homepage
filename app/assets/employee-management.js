@@ -723,6 +723,7 @@
   function requestSummary(context, request) {
     const changes = request.requested_changes || {};
     const bits = [];
+    if (request.proposed_phone) bits.push(`연락처: ${request.proposed_phone}`);
     if (changes.full_name) bits.push(`이름: ${changes.full_name}`);
     if (changes.hired_on) bits.push(`입사일: ${changes.hired_on}`);
     if (changes.department_id) bits.push(`부서: ${optionName(context.departments, changes.department_id) || changes.department_id}`);
@@ -742,7 +743,10 @@
       if (action !== 'approve') comment = window.prompt(action === 'changes_requested' ? '보완할 내용을 적어주세요.' : '반려 이유를 적어주세요.', '') || '';
       if (action !== 'approve' && !comment.trim()) return;
       try {
-        await app().rpc('review_employee_change_request', { p_request_id: request.id, p_action: action, p_comment: comment.trim() || null });
+        await app().rpc(
+          request.kind === 'employee_contact' ? 'review_employee_contact_change_request' : 'review_employee_change_request',
+          { p_request_id: request.id, p_action: action, p_comment: comment.trim() || null }
+        );
         await openEmployeeManagement('existing');
       } catch (error) { window.alert(app().friendlyError?.(error) || '요청을 처리하지 못했습니다.'); }
     };
@@ -805,7 +809,7 @@
       }
 
       if (isOps) {
-        const requests = arr(context.change_requests);
+        const requests = [...arr(context.change_requests), ...arr(context.self_service_contact_requests)];
         const review = el('section', null, 'dashboard-section'); review.append(el('h2', `팀장 요청 ${requests.length ? `· ${requests.length}건` : ''}`));
         const grid = el('div', null, 'employee-request-grid');
         if (!requests.length) grid.append(el('p', '현재 승인 대기 요청이 없습니다.', 'empty'));

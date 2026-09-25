@@ -8,12 +8,27 @@ if (base.protocol !== 'https:') throw new Error('UAR_PREVIEW_RUNTIME_HTTPS_REQUI
 
 async function get(pathname, expectJson = false) {
   const url = new URL(pathname, `${previewUrl}/`).toString();
-  const response = await fetch(url, { redirect: 'follow', cache: 'no-store' });
-  const body = expectJson ? await response.json().catch(() => null) : await response.text();
-  if (!response.ok) {
-    throw new Error(`UAR_PREVIEW_RUNTIME_HTTP_${response.status}:${url}`);
+  // Netlify can publish the deploy-preview status a few seconds before every
+  // static route is visible. Retry only transient deployment responses; a
+  // final 404 or any non-transient failure remains a hard UAR failure.
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, { redirect: 'follow', cache: 'no-store' });
+    } catch (error) {
+      if (attempt === 5) throw error;
+      await new Promise(resolve => setTimeout(resolve, 5_000));
+      continue;
+    }
+    const body = expectJson ? await response.json().catch(() => null) : await response.text();
+    if (response.ok) return { url, body, response };
+    const transient = response.status === 404 || response.status === 429 || response.status >= 500;
+    if (!transient || attempt === 5) {
+      throw new Error(`UAR_PREVIEW_RUNTIME_HTTP_${response.status}:${url}`);
+    }
+    await new Promise(resolve => setTimeout(resolve, 5_000));
   }
-  return { url, body, response };
+  throw new Error(`UAR_PREVIEW_RUNTIME_RETRY_EXHAUSTED:${url}`);
 }
 
 // /staff/ is the authentication entry surface; /app/ is the protected work shell.
