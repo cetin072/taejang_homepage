@@ -26,6 +26,7 @@ import {
   type PromotionItem,
   type PromotionWorkspace,
 } from '@/src/features/promotion/promotion-api';
+import { canUsePromotionAuthoring, type EmployeeAppAccess } from '@/src/features/common/employee-feature-registry';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 const EMPTY_DRAFT: PromotionDraftInput = {
@@ -116,10 +117,15 @@ export default function PromotionScreen() {
     if (!client || !session) return;
     setLoading(true);
     try {
-      const next = await loadPromotionWorkspace(client);
-      if (next.role !== 'promotion_staff') {
-        throw new Error('홍보직원 모바일 작성 권한이 없습니다.');
+      const { data: access, error: accessError } = await client.rpc('get_my_access_context_v2');
+      if (accessError) throw accessError;
+      if (!access || typeof access !== 'object' || Array.isArray(access)) {
+        throw new Error('계정 권한을 확인하지 못했습니다.');
       }
+      if (!canUsePromotionAuthoring(access as EmployeeAppAccess)) {
+        throw new Error('현재 계정에는 홍보 작성 권한이 없습니다.');
+      }
+      const next = await loadPromotionWorkspace(client);
       setWorkspace(next);
     } catch (error) {
       setWorkspace(null);

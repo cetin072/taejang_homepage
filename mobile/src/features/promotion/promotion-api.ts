@@ -32,7 +32,6 @@ export type PromotionItem = {
 };
 
 export type PromotionWorkspace = {
-  role: 'promotion_staff' | 'promotion_lead' | 'operations_manager' | 'ceo';
   my_items: PromotionItem[];
   review_items: unknown[];
   publication_items: unknown[];

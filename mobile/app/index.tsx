@@ -24,6 +24,7 @@ import { OfficialChannelsFooter } from '@/src/features/common/official-channels-
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
+import { PromotionStaffShortcut } from '@/src/features/promotion/promotion-staff-shortcut';
 import { ScheduleHomeAction } from '@/src/features/schedules/schedule-home-action';
 import { TodayWorkAction } from '@/src/features/today/today-work-action';
 import { usePlatform } from '@/src/providers/platform-provider';
@@ -263,6 +264,7 @@ export default function HomeScreen() {
   const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);
   const attendanceFeature = employeeFeatures.get('attendance.clock');
   const noticeFeature = employeeFeatures.get('notice.read');
+  const promotionFeature = employeeFeatures.get('promotion.author');
   const workPlatformFeature = employeeFeatures.get('work-platform.open');
   const canOpenWorkPlatform = workPlatformFeature?.state === 'enabled';
   const primaryCount = 3;
@@ -628,6 +630,7 @@ export default function HomeScreen() {
             <TodayWorkAction minHeight={actionHeight} />
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
             <ScheduleHomeAction minHeight={actionHeight} />
+            <PromotionStaffShortcut enabled={promotionFeature?.state === 'enabled'} />
             {workPlatformFeature?.state !== 'hidden' ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}

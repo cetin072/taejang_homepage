@@ -5,28 +5,31 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { loadPromotionWorkspace, type PromotionWorkspace } from './promotion-api';
 import { usePlatform } from '@/src/providers/platform-provider';
 
-export function PromotionStaffShortcut() {
+export function PromotionStaffShortcut({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const { client, session } = usePlatform();
   const [workspace, setWorkspace] = useState<PromotionWorkspace | null>(null);
 
   const load = useCallback(async () => {
-    if (!client || !session) return;
+    if (!enabled || !client || !session) {
+      setWorkspace(null);
+      return;
+    }
     try {
       const next = await loadPromotionWorkspace(client);
-      if (next.role === 'promotion_staff') setWorkspace(next);
-      else setWorkspace(null);
+      setWorkspace(next);
     } catch {
-      // General workers and manager roles intentionally see no mobile promotion-authoring card.
+      // The server remains the source of truth and a failed guarded read never
+      // exposes an authoring entry point.
       setWorkspace(null);
     }
-  }, [client, session]);
+  }, [client, enabled, session]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  if (!workspace) return null;
+  if (!enabled || !workspace) return null;
 
   const needsRevision = workspace.my_items.filter(item => item.lifecycle === 'needs_revision').length;
   const reviewPending = workspace.my_items.filter(item => item.lifecycle === 'review_pending').length;
@@ -38,7 +41,7 @@ export function PromotionStaffShortcut() {
       style={styles.card}
       onPress={() => router.push('/promotion')}
     >
-      <Text style={styles.eyebrow}>홍보직원 업무</Text>
+      <Text style={styles.eyebrow}>홍보 업무</Text>
       <Text style={styles.title}>홍보글 작성·상신</Text>
       <Text style={styles.body}>
         {needsRevision
