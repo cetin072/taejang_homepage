@@ -5,6 +5,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260918133000_notification_push_foundation.sql'), 'utf8');
+const lockScreenPrivacyMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20260925072012_goal_371_notice_push_lock_screen_privacy.sql'), 'utf8');
 const dispatcher = fs.readFileSync(path.join(root, 'supabase/functions/notification-dispatch/index.ts'), 'utf8');
 
 test('notification device registry and outbox remain private database boundaries', () => {
@@ -81,6 +82,19 @@ test('dispatcher logs operational counts but never push token or notice payload 
     assert.doesNotMatch(call, /expo_push_token|title|body|noticeId|push_token/i);
   }
   assert.doesNotMatch(dispatcher, /console\.(?:log|info|debug)\([^\n]*(?:token|title|body)/i);
+});
+
+test('lock-screen push copy is generic while the exact notice deep link remains opaque', () => {
+  const claim = lockScreenPrivacyMigration.match(/create or replace function public\.private_claim_notification_push_batch\([\s\S]*?\$\$;/i)?.[0] || '';
+
+  assert.match(claim, /security definer[\s\S]*?set search_path = ''/i);
+  assert.match(claim, /'body', '새 공지가 도착했습니다\. 앱에서 확인해주세요\.'/);
+  assert.doesNotMatch(claim, /'body', notice\.title/);
+  assert.match(claim, /'target', 'notice'/);
+  assert.match(claim, /'noticeId', notice\.id/);
+  assert.match(claim, /'noticeVersion', notice\.version_no/);
+  assert.match(claim, /profile\.account_status = 'active'/);
+  assert.match(claim, /device\.active/);
 });
 
 test('dispatcher requires internal secret header and contains no hardcoded secret', () => {

@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 select has_table('public', 'notification_devices', 'notification device table exists');
 select has_table('public', 'notification_events', 'notification event outbox exists');
@@ -88,6 +88,16 @@ select ok(
   and pg_get_functiondef('public.private_cancel_stale_notification_deliveries()'::regprocedure)
     ilike '%notice.status <> ''published''%',
   'stale or unpublished notice deliveries are cancelled before dispatch'
+);
+
+select ok(
+  pg_get_functiondef('public.private_claim_notification_push_batch(uuid,integer)'::regprocedure)
+    like '%새 공지가 도착했습니다. 앱에서 확인해주세요.%'
+  and pg_get_functiondef('public.private_claim_notification_push_batch(uuid,integer)'::regprocedure)
+    not like '%''body'', notice.title%'
+  and pg_get_functiondef('public.private_claim_notification_push_batch(uuid,integer)'::regprocedure)
+    like '%''noticeId'', notice.id%',
+  'lock-screen copy is generic while the exact notice deep link remains server-owned'
 );
 
 select * from finish();
