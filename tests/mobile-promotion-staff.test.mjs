@@ -25,9 +25,11 @@ test('promotion draft preserves existing publication metadata and creates a slug
   assert.match(api, /p_related_organization: nullable\(input\.relatedOrganization\)/);
 });
 
-test('promotion composer is promotion-staff-only and keeps manager review decisions out of employee input', async () => {
+test('promotion composer is server-capability gated and keeps manager review decisions out of employee input', async () => {
   const screen = await text('mobile/app/promotion/index.tsx');
-  assert.match(screen, /next\.role !== 'promotion_staff'/);
+  assert.match(screen, /get_my_access_context_v2/);
+  assert.match(screen, /canUsePromotionAuthoring/);
+  assert.doesNotMatch(screen, /\bpromotion_staff\b|\bpromotion_lead\b|\boperations_manager\b|\bceo\b/);
   assert.match(screen, /홈페이지 글/);
   assert.match(screen, /외부 콘텐츠/);
   assert.match(screen, /보도자료/);
@@ -48,10 +50,14 @@ test('promotion staff sees actual latest feedback and can revise then resubmit',
   assert.match(screen, /운영팀장에게 상신했습니다/);
 });
 
-test('promotion staff shortcut does not expose mobile authoring to manager roles', async () => {
+test('promotion shortcut is driven by the server-declared promotion capability, not role literals', async () => {
   const shortcut = await text('mobile/src/features/promotion/promotion-staff-shortcut.tsx');
-  assert.match(shortcut, /next\.role === 'promotion_staff'/);
-  assert.doesNotMatch(shortcut, /next\.role === 'promotion_lead'/);
+  const registry = await text('mobile/src/features/common/employee-feature-registry.ts');
+  assert.match(shortcut, /\{ enabled \}/);
+  assert.match(shortcut, /if \(!enabled \|\| !client \|\| !session\)/);
+  assert.doesNotMatch(shortcut, /\bpromotion_staff\b|\bpromotion_lead\b|\boperations_manager\b|\bceo\b/);
+  assert.match(registry, /promotion\.author/);
+  assert.match(registry, /capabilities\.has\('promotion\.write'\)/);
   assert.match(shortcut, /setWorkspace\(null\)/);
 });
 
@@ -76,7 +82,8 @@ test('employee home uses one shared feature registry instead of role-specific ho
   assert.match(registry, /work-platform\.open/);
   assert.match(registry, /attendance\.clock/);
   assert.match(registry, /notice\.read/);
+  assert.match(registry, /promotion\.author/);
   assert.match(home, /업무 플랫폼 열기/);
+  assert.match(home, /PromotionStaffShortcut enabled=\{promotionFeature\?\.state === 'enabled'\}/);
   assert.match(home, /OfficialChannelsFooter/);
-  assert.doesNotMatch(home, /PromotionStaffShortcut/);
 });

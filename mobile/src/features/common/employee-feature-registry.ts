@@ -1,6 +1,7 @@
 export type EmployeeAppFeatureKey =
   | 'attendance.clock'
   | 'notice.read'
+  | 'promotion.author'
   | 'work-platform.open';
 
 export type EmployeeAppFeatureState = 'enabled' | 'disabled' | 'hidden';
@@ -38,6 +39,7 @@ const WORK_PLATFORM_CAPABILITIES = new Set([
 export const EMPLOYEE_APP_FEATURE_ORDER: readonly EmployeeAppFeatureKey[] = [
   'attendance.clock',
   'notice.read',
+  'promotion.author',
   'work-platform.open',
 ];
 
@@ -68,6 +70,14 @@ export function resolveEmployeeAppFeatures(access: EmployeeAppAccess | null | un
     reason: active ? undefined : '활성 직원 계정에서 사용할 수 있습니다.',
   });
 
+  const promotionAuthoringEnabled = active && capabilities.has('promotion.write');
+  features.set('promotion.author', {
+    key: 'promotion.author',
+    // This only determines whether the mobile shortcut is useful. The existing
+    // promotion RPCs remain the authority for every read and write.
+    state: promotionAuthoringEnabled ? 'enabled' : 'hidden',
+  });
+
   const workPlatformEnabled = active && hasAny(capabilities, WORK_PLATFORM_CAPABILITIES);
   features.set('work-platform.open', {
     key: 'work-platform.open',
@@ -76,4 +86,8 @@ export function resolveEmployeeAppFeatures(access: EmployeeAppAccess | null | un
   });
 
   return features;
+}
+
+export function canUsePromotionAuthoring(access: EmployeeAppAccess | null | undefined) {
+  return resolveEmployeeAppFeatures(access).get('promotion.author')?.state === 'enabled';
 }
