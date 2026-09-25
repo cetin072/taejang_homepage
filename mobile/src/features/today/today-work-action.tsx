@@ -14,6 +14,7 @@ export function TodayWorkAction({ minHeight = 164 }: { minHeight?: number }) {
   const { client, session } = usePlatform();
   const [tasks, setTasks] = useState<TodayWork[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async () => {
     if (!client || !session) return;
@@ -21,8 +22,10 @@ export function TodayWorkAction({ minHeight = 164 }: { minHeight?: number }) {
     try {
       const board = await loadMyTodayWork(client);
       setTasks(publishedTasks(board.tasks));
+      setLoadFailed(false);
     } catch {
       setTasks([]);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -42,7 +45,9 @@ export function TodayWorkAction({ minHeight = 164 }: { minHeight?: number }) {
   const first = tasks[0];
   const subtitle = loading
     ? '확인 중…'
-    : tasks.length === 0
+    : loadFailed
+      ? '불러오지 못했습니다. 다시 확인해주세요'
+      : tasks.length === 0
       ? '오늘은 안내된 업무가 없습니다'
       : tasks.length === 1
         ? first.title

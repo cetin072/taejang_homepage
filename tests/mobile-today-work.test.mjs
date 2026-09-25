@@ -16,6 +16,7 @@ test('today work reuses the guarded server board without employee progress write
   assert.match(action, /task\.status === 'published'/);
   assert.match(action, /AppState\.addEventListener\('change'/);
   assert.match(action, /router\.push\('\/today'\)/);
+  assert.match(action, /불러오지 못했습니다\. 다시 확인해주세요/);
   assert.match(screen, /오늘 해야 할 일을 확인한 뒤 현장 안내에 따라주세요/);
   assert.match(screen, /index \+ 1}번째 업무/);
   assert.doesNotMatch(screen, /완료 처리|진행률|실적|작업 시작/);
