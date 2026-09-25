@@ -86,6 +86,8 @@ test('mobile CI keeps ARM64 device QA on an explicitly debug-signed APK', async 
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
+  assert.match(workflow, /timeout-minutes: 45/);
+  assert.match(workflow, /cache: gradle/);
   assert.match(workflow, /assembleDebug -PreactNativeArchitectures=arm64-v8a/);
   assert.match(workflow, /outputs\/apk\/debug\/app-debug\.apk/);
   assert.match(workflow, /taejang-employee-mobile-arm64-apk/);

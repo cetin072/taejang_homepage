@@ -65,7 +65,10 @@ jobs:
   android-standalone:
     needs: typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # A clean React Native native build can take longer than 25 minutes on a
+    # cold hosted runner. Keep the ARM64 device artifact as a required check
+    # instead of cancelling a healthy compiler during its first dependency build.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -77,6 +80,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
         run: |
@@ -137,6 +141,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
         run: |
