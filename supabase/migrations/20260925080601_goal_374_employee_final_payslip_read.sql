@@ -24,10 +24,14 @@ begin
     'total_deduction', row.total_deduction, 'net_pay', row.net_pay,
     'confirmed_at', row.confirmed_at
   ) order by row.payroll_month desc)
-  from public.payroll_confirmed_deduction_history row
-  where row.employee_uuid = employee_id
-    and row.source_kind = 'payroll_ledger_confirmed'
-    and row.record_role = 'as_paid'), '[]'::jsonb);
+  from (
+    select distinct on (history.payroll_month) history.*
+    from public.payroll_confirmed_deduction_history history
+    where history.employee_uuid = employee_id
+      and history.source_kind = 'payroll_ledger_confirmed'
+      and history.record_role = 'as_paid'
+    order by history.payroll_month desc, history.revision_no desc
+  ) row), '[]'::jsonb);
 end;
 $$;
 
