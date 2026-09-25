@@ -24,6 +24,7 @@ import { OfficialChannelsFooter } from '@/src/features/common/official-channels-
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
+import { ScheduleHomeAction } from '@/src/features/schedules/schedule-home-action';
 import { TodayWorkAction } from '@/src/features/today/today-work-action';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { friendlyError } from '@/src/platform/friendly-error';
@@ -626,6 +627,7 @@ export default function HomeScreen() {
             ) : null}
             <TodayWorkAction minHeight={actionHeight} />
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
+            <ScheduleHomeAction minHeight={actionHeight} />
             {workPlatformFeature?.state !== 'hidden' ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
