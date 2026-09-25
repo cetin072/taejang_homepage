@@ -4,7 +4,51 @@ export type PublicPlatformConfig = {
   supabaseUrl: string;
   publishableKey: string;
   environmentLabel: string | null;
+  mobileRelease: PublicMobileReleasePolicy;
 };
+
+export type PublicMobileReleasePolicy = {
+  latestVersion: string | null;
+  latestVersionCode: number | null;
+  minimumVersion: string | null;
+  minimumVersionCode: number | null;
+  forceUpdate: boolean;
+  updateTitle: string | null;
+  updateMessage: string | null;
+  storeUrl: string | null;
+  releaseNotesVersion: string | null;
+  releaseNotes: string | null;
+  maintenanceMode: boolean;
+  maintenanceMessage: string | null;
+};
+
+function optionalText(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function positiveInteger(value: unknown) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function publicMobileReleasePolicy(value: unknown): PublicMobileReleasePolicy {
+  const raw = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return {
+    latestVersion: optionalText(raw.latest_version),
+    latestVersionCode: positiveInteger(raw.latest_version_code),
+    minimumVersion: optionalText(raw.minimum_version),
+    minimumVersionCode: positiveInteger(raw.minimum_version_code),
+    forceUpdate: raw.force_update === true,
+    updateTitle: optionalText(raw.update_title),
+    updateMessage: optionalText(raw.update_message),
+    storeUrl: optionalText(raw.store_url),
+    releaseNotesVersion: optionalText(raw.release_notes_version),
+    releaseNotes: optionalText(raw.release_notes),
+    maintenanceMode: raw.maintenance_mode === true,
+    maintenanceMessage: optionalText(raw.maintenance_message),
+  };
+}
 
 function normalizeApiBaseUrl(value: string) {
   const raw = value.trim().replace(/\/$/, '');
@@ -34,6 +78,7 @@ export async function loadPublicPlatformConfig(fetchImpl: typeof fetch = fetch):
     url?: unknown;
     publishableKey?: unknown;
     environmentLabel?: unknown;
+    mobileRelease?: unknown;
   };
 
   if (typeof body.url !== 'string' || !body.url || typeof body.publishableKey !== 'string' || !body.publishableKey) {
@@ -44,5 +89,6 @@ export async function loadPublicPlatformConfig(fetchImpl: typeof fetch = fetch):
     supabaseUrl: body.url,
     publishableKey: body.publishableKey,
     environmentLabel: typeof body.environmentLabel === 'string' ? body.environmentLabel : null,
+    mobileRelease: publicMobileReleasePolicy(body.mobileRelease),
   };
 }
