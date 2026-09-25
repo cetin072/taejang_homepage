@@ -80,7 +80,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
         run: |
@@ -141,7 +140,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
       - name: Refresh lockfile for pinned Expo patch versions
         working-directory: mobile
         run: |
