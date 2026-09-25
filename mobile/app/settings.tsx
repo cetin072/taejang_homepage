@@ -88,6 +88,12 @@ export default function SettingsScreen() {
           <PolicyLinks includeAccountDeletion />
         </View>
         {session ? (
+          <Pressable accessibilityRole="button" accessibilityLabel="내 정보 열기" onPress={() => router.push('/profile')} style={styles.utilityButton}>
+            <Text style={styles.utilityButtonTitle}>내 정보</Text>
+            <Text style={styles.utilityButtonHelp}>기본 정보와 연락처 변경 요청을 확인합니다</Text>
+          </Pressable>
+        ) : null}
+        {session ? (
           <Pressable accessibilityRole="button" accessibilityLabel="공지 알림 설정" disabled={notificationBusy} onPress={() => void handleNotifications()} style={[styles.utilityButton, notificationBusy ? styles.disabled : null]}>
             <Text style={styles.utilityButtonTitle}>{notificationBusy ? '알림을 확인하고 있습니다…' : '공지 알림 설정'}</Text>
             <Text style={styles.utilityButtonHelp}>중요 공지를 알림으로 받습니다</Text>
