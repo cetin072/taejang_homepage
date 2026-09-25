@@ -3,16 +3,19 @@ import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 
 import { noticeDeepLinkPath } from '@/src/features/notices/notice-api';
+import { scheduleDeepLinkPath } from '@/src/features/schedules/schedule-api';
 import { registerCurrentPushDevice } from './push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
 
-function noticeIdFromResponse(response: Notifications.NotificationResponse | null) {
+function deepLinkPathFromResponse(response: Notifications.NotificationResponse | null) {
   const data = response?.notification.request.content.data as {
     target?: unknown;
     noticeId?: unknown;
+    scheduleId?: unknown;
   } | undefined;
-  if (data?.target !== 'notice' || typeof data.noticeId !== 'string' || !data.noticeId) return null;
-  return data.noticeId;
+  if (data?.target === 'notice' && typeof data.noticeId === 'string' && data.noticeId) return noticeDeepLinkPath(data.noticeId);
+  if (data?.target === 'schedule' && typeof data.scheduleId === 'string' && data.scheduleId) return scheduleDeepLinkPath(data.scheduleId);
+  return null;
 }
 
 export function PushNotificationBridge() {
@@ -26,9 +29,9 @@ export function PushNotificationBridge() {
 
   useEffect(() => {
     const open = async (response: Notifications.NotificationResponse | null) => {
-      const noticeId = noticeIdFromResponse(response);
-      if (!noticeId) return;
-      router.push(noticeDeepLinkPath(noticeId));
+      const path = deepLinkPathFromResponse(response);
+      if (!path) return;
+      router.push(path);
       await Notifications.clearLastNotificationResponseAsync();
     };
 
