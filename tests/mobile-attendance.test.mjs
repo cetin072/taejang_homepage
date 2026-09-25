@@ -91,8 +91,9 @@ test('employee attendance shows server-authoritative exception and correction re
 test('employee mobile home always keeps one attendance block before notice even for non-attendance roles', async () => {
   const home = await text('mobile/app/index.tsx');
   const attendance = home.indexOf('<AttendanceCard');
+  const today = home.indexOf('<TodayWorkAction');
   const notices = home.indexOf('<NoticeHomeAction');
-  assert.ok(attendance >= 0 && notices > attendance, 'attendance action must precede notices');
+  assert.ok(attendance >= 0 && today > attendance && notices > today, 'attendance must precede Today Work and notices');
   assert.doesNotMatch(home, /canRecordAttendance\s*\?\s*<AttendanceCard/);
   assert.match(home, /<AttendanceCard[\s\S]*?minHeight=\{actionHeight\}/);
 });

@@ -24,6 +24,7 @@ import { OfficialChannelsFooter } from '@/src/features/common/official-channels-
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
+import { TodayWorkAction } from '@/src/features/today/today-work-action';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { friendlyError } from '@/src/platform/friendly-error';
 
@@ -623,6 +624,7 @@ export default function HomeScreen() {
                 mode={attendanceFeature?.attendanceMode || 'record'}
               />
             ) : null}
+            <TodayWorkAction minHeight={actionHeight} />
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
             {workPlatformFeature?.state !== 'hidden' ? (
               <PrimaryButton

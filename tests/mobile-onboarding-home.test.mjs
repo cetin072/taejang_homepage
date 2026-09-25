@@ -34,9 +34,10 @@ test('pending native account gets only a simple approval-waiting state', async (
   assert.match(home, /승인 상태 확인/);
 });
 
-test('active mobile home has at most attendance, notice, and one work-platform primary action', async () => {
+test('active mobile home has attendance, Today Work, notice, and one work-platform primary action', async () => {
   const home = await text('mobile/app/index.tsx');
   assert.equal((home.match(/<AttendanceCard/g) || []).length, 1);
+  assert.equal((home.match(/<TodayWorkAction/g) || []).length, 1);
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
   assert.match(home, /justifyContent:\s*'space-between'/);
   assert.match(home, /actionHeight/);
