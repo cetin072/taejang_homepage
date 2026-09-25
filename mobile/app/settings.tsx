@@ -87,6 +87,10 @@ export default function SettingsScreen() {
         <View style={styles.links}>
           <PolicyLinks includeAccountDeletion />
         </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="급여명세 보기" onPress={() => router.push('/payslips')} style={styles.utilityButton}>
+          <Text style={styles.utilityButtonTitle}>급여명세</Text>
+          <Text style={styles.utilityButtonHelp}>확정된 내 급여명세를 확인합니다</Text>
+        </Pressable>
         {session ? (
           <Pressable accessibilityRole="button" accessibilityLabel="공지 알림 설정" disabled={notificationBusy} onPress={() => void handleNotifications()} style={[styles.utilityButton, notificationBusy ? styles.disabled : null]}>
             <Text style={styles.utilityButtonTitle}>{notificationBusy ? '알림을 확인하고 있습니다…' : '공지 알림 설정'}</Text>
