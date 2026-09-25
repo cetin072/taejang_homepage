@@ -129,8 +129,9 @@ sql(`insert into public.attendance_calendar_overrides(work_date,is_workday,reaso
      values ((now() at time zone 'Asia/Seoul')::date,true,'CI 강제 근무일','${admin.id}'::uuid,now())
      on conflict(work_date) do update set is_workday=true,reason='CI 강제 근무일',updated_by='${admin.id}'::uuid,updated_at=now()`);
 
-const officeRaw = sql("select latitude::text || '|' || longitude::text || '|' || radius_m::text from public.attendance_locations where code='taejang_main' and active limit 1");
-const [officeLat, officeLong, officeRadius] = officeRaw.split('|').map(Number);
+const officeRaw = sql("select id::text || '|' || latitude::text || '|' || longitude::text || '|' || radius_m::text from public.attendance_locations where code='taejang_main' and active limit 1");
+const [officeId, officeLatText, officeLongText, officeRadiusText] = officeRaw.split('|');
+const [officeLat, officeLong, officeRadius] = [officeLatText, officeLongText, officeRadiusText].map(Number);
 check(Number.isFinite(officeLat) && Number.isFinite(officeLong), 'resolve attendance office coordinates');
 equal(officeRadius, 60, 'existing 60m attendance geofence remains unchanged');
 
@@ -140,12 +141,24 @@ const lead = await createLinkedEmployee({
 const leadToday = await rpc('get_my_attendance_today', lead.token, {});
 equal(leadToday.data?.attendance_required, true, 'attendance-required promotion lead is an attendance subject regardless of role');
 
+// The server-authoritative 06:00 clock-in opening rule is intentionally left
+// untouched. Seed the prerequisite valid clock-in in this isolated database so
+// the exception-review path below is deterministic at every CI run time.
+const leadClockInFixtureId = sql(`insert into public.attendance_events (
+  profile_id, work_date, event_type, status, event_at, requested_at,
+  latitude, longitude, accuracy_m, distance_m, location_id
+) values (
+  '${lead.id}'::uuid, (now() at time zone 'Asia/Seoul')::date, 'clock_in', 'recorded', now(), now(),
+  ${officeLat}, ${officeLong}, 10, 0, '${officeId}'::uuid
+) returning id::text`);
+check(Boolean(leadClockInFixtureId), 'seed a valid clock-in prerequisite for the time-independent clock-out exception fixture');
+
 const ownException = await rpc('request_attendance_exception', lead.token, {
-  p_event_type: 'clock_in', p_failure_code: 'POSITION_UNAVAILABLE',
+  p_event_type: 'clock_out', p_failure_code: 'POSITION_UNAVAILABLE',
   p_latitude: null, p_longitude: null, p_accuracy_m: null,
 });
-equal(ownException.data?.code, 'EXCEPTION_REQUESTED', 'attendance subject can request a genuine GPS exception');
-const leadEventId = sql(`select id::text from public.attendance_events where profile_id='${lead.id}'::uuid and event_type='clock_in' order by created_at desc limit 1`);
+equal(ownException.data?.code, 'EXCEPTION_REQUESTED', 'attendance subject can request a genuine GPS clock-out exception after a valid clock-in');
+const leadEventId = sql(`select id::text from public.attendance_events where profile_id='${lead.id}'::uuid and event_type='clock_out' order by created_at desc limit 1`);
 check(Boolean(leadEventId), 'resolve pending self-review event');
 
 const selfReview = await rpc('review_attendance_exception', lead.token, {
@@ -179,7 +192,11 @@ equal(executiveToday.data?.attendance_required, true, 'operations-manager role d
 const executiveRecord = await rpc('record_attendance_event', executive.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(executiveRecord.data?.code, 'ATTENDANCE_RECORDED', 'attendance-required operations manager follows the same real attendance writer');
+equal(
+  executiveRecord.data?.code,
+  executiveToday.data?.clock_in_available ? 'ATTENDANCE_RECORDED' : 'CLOCK_IN_TOO_EARLY',
+  'attendance-required operations manager follows the same server-authoritative clock-in opening rule',
+);
 
 const ceo = await createLinkedEmployee({
   email: 'attendance-ceo@example.test', name: '근태 대상 대표이사', role: 'ceo', attendanceRequired: true, positionCode: 'ceo',
@@ -247,23 +264,45 @@ const worker = await createLinkedEmployee({
 });
 const workerToday = await rpc('get_my_attendance_today', worker.token, {});
 equal(workerToday.data?.attendance_required, true, 'active linked attendance-required Employee can record attendance');
+const clockInOpen = workerToday.data?.clock_in_available === true;
 
 const outside = await rpc('record_attendance_event', worker.token, {
   p_event_type: 'clock_in', p_latitude: officeLat + 0.01, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(outside.data?.code, 'OUTSIDE_GEOFENCE', 'Employee gating preserves the existing geofence rejection');
+equal(
+  outside.data?.code,
+  clockInOpen ? 'OUTSIDE_GEOFENCE' : 'CLOCK_IN_TOO_EARLY',
+  'Employee clock-in enforces the opening rule before the existing geofence validation',
+);
 
 const validRecord = await rpc('record_attendance_event', worker.token, {
   p_event_type: 'clock_in', p_latitude: officeLat, p_longitude: officeLong, p_accuracy_m: 10,
 });
-equal(validRecord.data?.code, 'ATTENDANCE_RECORDED', 'eligible Employee records attendance with valid office GPS');
-check(validRecord.data?.event_at, 'attendance record uses server-generated event time');
+equal(
+  validRecord.data?.code,
+  clockInOpen ? 'ATTENDANCE_RECORDED' : 'CLOCK_IN_TOO_EARLY',
+  'eligible Employee clock-in keeps the server-authoritative opening rule',
+);
 
 const workDate = sql("select (now() at time zone 'Asia/Seoul')::date::text");
-// Reuse the server-generated raw event timestamp so this behavior test is
-// independent of the hour at which CI happens to run. It is guaranteed to be
-// on the tested work date and never in the future.
-const safeEffectiveTime = validRecord.data.event_at;
+// Corrections below require one raw clock-in. When the production rule correctly
+// blocks a real clock-in before 06:00, create only this isolated DB fixture;
+// production clock-in behavior remains asserted above.
+if (!clockInOpen) {
+  sql(`insert into public.attendance_events (
+      profile_id, work_date, event_type, status, event_at, requested_at,
+      latitude, longitude, accuracy_m, distance_m, location_id
+    ) values (
+      '${worker.id}'::uuid, (now() at time zone 'Asia/Seoul')::date, 'clock_in', 'recorded', now(), now(),
+      ${officeLat}, ${officeLong}, 10, 0, '${officeId}'::uuid
+    )`);
+}
+const safeEffectiveTime = sql(`select to_char(event_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+  from public.attendance_events
+  where profile_id='${worker.id}'::uuid
+    and work_date=(now() at time zone 'Asia/Seoul')::date
+    and event_type='clock_in'`);
+check(safeEffectiveTime, 'correction fixture has a server-time raw clock-in event');
 const correction = await rpc('create_attendance_correction', admin.token, {
   p_employee_uuid: worker.employeeUuid,
   p_work_date: workDate,

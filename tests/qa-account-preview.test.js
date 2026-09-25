@@ -97,8 +97,8 @@ test('inner employee app keeps the target session isolated from the operator per
   assert.ok(appSource.includes("host.endsWith('--taejang-homepage.netlify.app')"));
   assert.ok(appSource.includes('window.parent !== window'));
   assert.ok(appSource.includes('sessionStorage.getItem(QA_PREVIEW_MARKER_KEY)'));
-  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      return sessionStorage.getItem(SESSION_KEY);'));
-  assert.ok(appSource.includes('if (usesIsolatedPreviewSession()) {\n      if (session) sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));'));
+  assert.match(appSource, /if \(usesIsolatedPreviewSession\(\)\) \{\s*return sessionStorage\.getItem\(SESSION_KEY\);/);
+  assert.match(appSource, /if \(usesIsolatedPreviewSession\(\)\) \{\s*if \(session\) sessionStorage\.setItem\(SESSION_KEY, JSON\.stringify\(session\)\);/);
   assert.doesNotMatch(previewPage, /localStorage\.setItem\(SESSION_KEY/);
   assert.doesNotMatch(previewPage, /localStorage\.removeItem\(SESSION_KEY/);
 });

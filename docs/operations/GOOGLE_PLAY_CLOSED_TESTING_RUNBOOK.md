@@ -23,7 +23,7 @@ Android package: `com.cetin072.taejang.staff`
 - 유형: 앱
 - 가격: 무료
 - 최초 Android versionCode: `1`
-- 현재 표시 버전: `0.1.0`
+- 현재 Play candidate: versionName `0.1.1` / versionCode `2`
 
 패키지명은 최초 Play 업로드 이후 장기 식별자로 취급한다. 새 Play 빌드마다 versionCode를 증가시킨다.
 

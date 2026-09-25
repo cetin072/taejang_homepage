@@ -52,18 +52,16 @@ export async function loadMyNotices(client: PlatformSupabaseClient, limit = 20):
   return assertArray(data) as NoticeSummary[];
 }
 
-async function resolveNoticeMedia(
+export async function loadNoticeMediaUrl(
   client: PlatformSupabaseClient,
-  items: NoticeMediaItem[] | undefined,
-): Promise<NoticeMediaItem[]> {
-  const list = Array.isArray(items) ? items : [];
-  return Promise.all(list.map(async item => {
+  item: NoticeMediaItem,
+): Promise<string | null> {
+  try {
     const { data, error } = await client.storage.from('notice-media').createSignedUrl(item.storage_path, 3600);
-    return {
-      ...item,
-      signed_url: error ? null : data?.signedUrl || null,
-    };
-  }));
+    return error ? null : data?.signedUrl || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function loadMyNoticeDetail(client: PlatformSupabaseClient, noticeId: string): Promise<NoticeDetail> {
@@ -75,7 +73,8 @@ export async function loadMyNoticeDetail(client: PlatformSupabaseClient, noticeI
   const detail = data as NoticeDetail;
   return {
     ...detail,
-    media: await resolveNoticeMedia(client, detail.media),
+    // Keep guarded media metadata, but never block notice text on Storage URLs.
+    media: Array.isArray(detail.media) ? detail.media.map(item => ({ ...item, signed_url: null })) : [],
   };
 }
 

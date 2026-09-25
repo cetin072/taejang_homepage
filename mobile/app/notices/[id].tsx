@@ -7,14 +7,64 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   acknowledgeMyNotice,
   loadMyNoticeDetail,
+  loadNoticeMediaUrl,
   type NoticeDetail,
+  type NoticeMediaItem,
 } from '@/src/features/notices/notice-api';
+import { cacheNoticeMediaUrl, getCachedNoticeMediaUrl } from '@/src/features/notices/notice-cache';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function importanceLabel(value: NoticeDetail['importance']) {
   if (value === 'urgent') return '긴급공지';
   if (value === 'important') return '중요공지';
   return '공지';
+}
+
+function NoticePhoto({
+  client,
+  userId,
+  item,
+}: {
+  client: NonNullable<ReturnType<typeof usePlatform>['client']>;
+  userId: string;
+  item: NoticeMediaItem;
+}) {
+  const [signedUrl, setSignedUrl] = useState(() => getCachedNoticeMediaUrl(userId, item.id));
+  const [loading, setLoading] = useState(() => !getCachedNoticeMediaUrl(userId, item.id));
+
+  useEffect(() => {
+    let active = true;
+    const cached = getCachedNoticeMediaUrl(userId, item.id);
+    setSignedUrl(cached);
+    setLoading(!cached);
+    if (cached) return () => { active = false; };
+
+    void loadNoticeMediaUrl(client, item).then(url => {
+      if (!active) return;
+      if (url) cacheNoticeMediaUrl(userId, item.id, url);
+      setSignedUrl(url);
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [client, item, userId]);
+
+  if (signedUrl) {
+    return (
+      <Image
+        accessibilityLabel={item.alt_text || '공지 사진'}
+        resizeMethod="resize"
+        source={{ uri: signedUrl, cache: 'force-cache' }}
+        style={styles.photo}
+      />
+    );
+  }
+
+  return (
+    <View style={styles.photoPlaceholder}>
+      {loading ? <ActivityIndicator /> : null}
+      <Text style={styles.photoHelp}>{loading ? '사진을 준비하고 있습니다.' : '사진을 불러오지 못했습니다.'}</Text>
+    </View>
+  );
 }
 
 export default function NoticeDetailScreen() {
@@ -97,17 +147,10 @@ export default function NoticeDetailScreen() {
             <Text style={styles.title}>{notice.title}</Text>
             <Text style={styles.body}>{notice.body_easy}</Text>
 
-            {notice.media?.length ? (
+            {notice.media?.length && client ? (
               <View style={styles.gallery}>
                 {notice.media.map(item => (
-                  item.signed_url ? (
-                    <Image
-                      key={item.id}
-                      accessibilityLabel={item.alt_text || '공지 사진'}
-                      source={{ uri: item.signed_url }}
-                      style={styles.photo}
-                    />
-                  ) : null
+                  <NoticePhoto key={item.id} client={client} userId={session.user.id} item={item} />
                 ))}
               </View>
             ) : null}
@@ -160,6 +203,17 @@ const styles = StyleSheet.create({
   body: { color: '#344b40', fontSize: 17, lineHeight: 27 },
   gallery: { gap: 12 },
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 14, backgroundColor: '#eef2ef' },
+  photoPlaceholder: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    padding: 20,
+    borderRadius: 14,
+    backgroundColor: '#eef2ef',
+  },
+  photoHelp: { color: '#60746a', fontSize: 14, fontWeight: '700', textAlign: 'center' },
   meta: { color: '#60746a', fontSize: 14, lineHeight: 21 },
   help: { color: '#60746a', fontSize: 14 },
   error: { color: '#9b2c2c', fontSize: 15, lineHeight: 22 },

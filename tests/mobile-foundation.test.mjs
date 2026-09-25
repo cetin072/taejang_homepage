@@ -9,8 +9,8 @@ async function text(path) {
 test('Taejang mobile foundation pins the reused Expo 57 compatible stack', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   assert.equal(pkg.main, 'expo-router/entry');
-  assert.equal(pkg.dependencies.expo, '57.0.24');
-  assert.equal(pkg.dependencies['expo-router'], '57.0.22');
+  assert.equal(pkg.dependencies.expo, '57.0.25');
+  assert.equal(pkg.dependencies['expo-router'], '57.0.23');
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);

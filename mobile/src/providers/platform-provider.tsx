@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
 import { disableCurrentPushDevice } from '@/src/notifications/push-registration';
+import { clearNoticeCache } from '@/src/features/notices/notice-cache';
 import { getApiBaseUrl, loadPublicPlatformConfig, type PublicPlatformConfig } from '@/src/platform/config';
 import { createPlatformSupabaseClient, type PlatformSupabaseClient } from '@/src/platform/supabase';
 
@@ -178,6 +179,7 @@ export function PlatformProvider({ children }: PropsWithChildren) {
       },
       signOut: async () => {
         if (!client) return;
+        const userId = session?.user.id;
         try {
           await disableCurrentPushDevice(client);
         } catch {
@@ -185,6 +187,7 @@ export function PlatformProvider({ children }: PropsWithChildren) {
         }
         const { error: signOutError } = await client.auth.signOut();
         if (signOutError) throw signOutError;
+        clearNoticeCache(userId);
       },
     }),
     [phase, config, client, session, error],

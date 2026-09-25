@@ -123,20 +123,26 @@ const appAutomation = `<script>
         return;
       }
 
+      document.querySelector('[data-platform-settings-action]')?.click();
+      const settingsActions = await waitFor(
+        () => [...document.querySelectorAll('#dashboard-main button')]
+          .find(button => button.textContent.trim() === '사이드바 메뉴 순서 편집'),
+        'settings sidebar layout editor'
+      );
       const nav = document.getElementById('app-nav');
       const sectionKeys = () => [...nav.querySelectorAll(':scope > [data-nav-section-toggle="1"]')]
         .map(node => node.dataset.sectionKey);
-      const sidebarActions = await waitFor(
-        () => document.querySelector('[data-sidebar-layout-actions]'),
-        'sidebar layout editor'
-      );
       const action = (container, label) => [...container.querySelectorAll('button')]
         .find(button => button.textContent.trim() === label);
       const defaultSections = sectionKeys();
       if (defaultSections.length < 2) throw new Error('SIDEBAR_SECTION_TEST_DATA_MISSING');
-      action(sidebarActions, '메뉴 편집')?.click();
+      settingsActions.click();
       await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit mode');
-      if ([...sidebarActions.querySelectorAll('button')].map(button => button.textContent.trim()).join('|') !== '저장|취소|기본값') {
+      const sidebarActions = await waitFor(
+        () => document.querySelector('#dashboard-main .quick-links'),
+        'settings sidebar edit actions'
+      );
+      if ([...sidebarActions.querySelectorAll('button')].map(button => button.textContent.trim()).join('|') !== '메뉴 순서 저장|편집 취소|기본 순서로') {
         throw new Error('SIDEBAR_EDITOR_ACTIONS_MISMATCH');
       }
       const sectionHandle = nav.querySelector('[data-sidebar-drag-handle="section"]');
@@ -151,11 +157,16 @@ const appAutomation = `<script>
       const routeBeforeBlockedClick = window.TaejangApp.getRoute();
       normalMenu?.click();
       if (window.TaejangApp.getRoute() !== routeBeforeBlockedClick) throw new Error('SIDEBAR_EDIT_NAVIGATION_NOT_BLOCKED');
-      action(sidebarActions, '취소')?.click();
+      action(sidebarActions, '편집 취소')?.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit cancel');
       if (sectionKeys().join('|') !== defaultSections.join('|')) throw new Error('SIDEBAR_CANCEL_DID_NOT_RESTORE');
 
-      action(sidebarActions, '메뉴 편집')?.click();
+      const restart = await waitFor(
+        () => [...document.querySelectorAll('#dashboard-main button')]
+          .find(button => button.textContent.trim() === '사이드바 메뉴 순서 편집'),
+        'settings sidebar edit restart action'
+      );
+      restart.click();
       await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit restart');
       nav.querySelector('[data-sidebar-drag-handle="section"]')
         .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
@@ -163,8 +174,14 @@ const appAutomation = `<script>
         const order = sectionKeys();
         return order[0] !== defaultSections[0] ? order : null;
       }, 'sidebar saved reorder');
-      action(sidebarActions, '저장')?.click();
+      const saveSidebar = await waitFor(
+        () => [...document.querySelectorAll('#dashboard-main button')]
+          .find(button => button.textContent.trim() === '메뉴 순서 저장'),
+        'settings sidebar save action'
+      );
+      saveSidebar.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit save');
+      document.querySelector('.staff-brand, .app-logo')?.click();
 
       const dashboardActions = await waitFor(
         () => document.querySelector('[data-dashboard-layout-actions]'),
@@ -176,8 +193,16 @@ const appAutomation = `<script>
         'dashboard edit mode'
       );
       const cardKeys = () => [...dashboardGrid.children].map(card => card.dataset.dashboardCardKey);
+      if (cardKeys().length < 2) {
+        action(dashboardActions, '+ 카드 추가')?.click();
+        const addCard = await waitFor(
+          () => document.querySelector('[data-dashboard-add-card]'),
+          'dashboard card add action'
+        );
+        addCard.click();
+      }
+      await waitFor(() => cardKeys().length >= 2, 'dashboard card test data');
       const defaultCards = cardKeys();
-      if (defaultCards.length < 2) throw new Error('DASHBOARD_CARD_TEST_DATA_MISSING');
       if ([...dashboardGrid.querySelectorAll('.dashboard-card')].some(card => card.draggable)) {
         throw new Error('DASHBOARD_CARD_WHOLE_DRAG_ENABLED');
       }
@@ -302,7 +327,7 @@ const accessContext = Object.freeze({
   display_name: '운영총괄 브라우저검수',
   profile: Object.freeze({ id: '00000000-0000-4000-8000-000000000111', display_name: '운영총괄 브라우저검수' }),
   roles: Object.freeze([{ code: 'operations_manager', name: '운영총괄' }]),
-  capabilities: Object.freeze(['payroll.manage']),
+  capabilities: Object.freeze(['payroll.manage', 'notice.manage', 'platform.navigation.manage']),
 });
 
 const server = createServer(async (request, response) => {
@@ -320,8 +345,17 @@ const server = createServer(async (request, response) => {
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_access_context') {
       return json(response, 200, accessContext);
     }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_access_context_v2') {
+      return json(response, 200, { ...accessContext, access_contract_version: 2 });
+    }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_my_ui_preferences') {
       return json(response, 200, uiPreferences);
+    }
+    if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/get_platform_navigation_settings') {
+      return json(response, 200, {
+        roles: [{ code: 'operations_manager', name: '운영총괄' }],
+        visibility: [],
+      });
     }
     if (request.method === 'POST' && url.pathname === '/rest/v1/rpc/save_my_ui_preferences') {
       const payload = await requestJson(request);
