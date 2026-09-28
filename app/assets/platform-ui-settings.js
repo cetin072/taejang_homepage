@@ -653,7 +653,7 @@
     return map;
   }
 
-  function settingsCheckbox(item,visible) {
+  function settingsCheckbox(item,visible,roleCode) {
     const label=document.createElement('label');
     label.className='platform-settings-check';
     const input=document.createElement('input');
@@ -662,7 +662,7 @@
     input.checked=item.locked ? true : visible;
     input.disabled=Boolean(item.locked);
     const copy=document.createElement('span');
-    copy.append(text('strong',item.label),text('small',item.section || '기본'));
+    copy.append(text('strong',item.roleLabels?.[roleCode] || item.label),text('small',item.section || '기본'));
     label.append(input,copy);
     return label;
   }
@@ -762,7 +762,11 @@
         checklist.replaceChildren();
         const overrides=roleVisibilityMap(context,select.value);
         const sections=new Map();
-        registry().items().filter(item=>!item.public && item.section).forEach(item=>{
+        const navigation=registry();
+        navigation.items()
+          .filter(item=>!item.public && item.section)
+          .filter(item=>navigation.visibleForRole?.(item,select.value)!==false)
+          .forEach(item=>{
           const section=item.section||'기본';
           if(!sections.has(section)) sections.set(section,[]);
           sections.get(section).push(item);
@@ -770,7 +774,7 @@
         sections.forEach((items,name)=>{
           const group=document.createElement('fieldset');group.className='platform-settings-group';
           const legend=document.createElement('legend');legend.textContent=name;group.append(legend);
-          items.forEach(item=>group.append(settingsCheckbox(item,overrides.has(item.key)?overrides.get(item.key):true)));
+          items.forEach(item=>group.append(settingsCheckbox(item,overrides.has(item.key)?overrides.get(item.key):true,select.value)));
           checklist.append(group);
         });
       }
