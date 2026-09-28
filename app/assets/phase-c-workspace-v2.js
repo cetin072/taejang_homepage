@@ -578,6 +578,52 @@
     await openPromotion('review');
   }
 
+  function publicationSchedule(raw) {
+    if (!raw?.trim()) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) throw new Error('게시 예약일은 YYYY-MM-DD 형식으로 입력해 주세요.');
+    return `${raw.trim()}T00:00:00+09:00`;
+  }
+
+  async function queuePublication(item) {
+    try {
+      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 바로 대기함에 넣으려면 비워두세요.', '');
+      if (raw === null) return;
+      await app().rpc('queue_promotion_revision', {
+        p_content_id: item.content_id,
+        p_scheduled_for: publicationSchedule(raw)
+      });
+      await openPromotion('review');
+    } catch (error) {
+      window.alert(app().friendlyError?.(error) || error.message || '발행 대기함에 넣지 못했습니다.');
+    }
+  }
+
+  function publicationQueue(workspace) {
+    if (!can('promotion.queue_publication', workspace.role === 'promotion_lead')) return null;
+    const section = el('section', null, 'dashboard-section');
+    section.append(el('h2', '홈페이지 발행 대기'));
+    const grid = el('div', null, 'phase-c-v2-grid');
+    const items = arr(workspace.publication_items);
+    if (!items.length) grid.append(el('p', '현재 최종 승인된 발행 대상이 없습니다.', 'empty'));
+    items.forEach(item => {
+      const card = contentCard(item, false);
+      const actions = card.querySelector('.quick-links');
+      if (item.queue_status === 'queued' || item.lifecycle === 'scheduled') {
+        actions.append(el('span', item.scheduled_for ? `예약: ${item.scheduled_for}` : '발행 대기함 등록 완료', 'status-label'));
+      } else {
+        actions.append(button('발행 대기함에 넣기', () => queuePublication(item)));
+      }
+      const previewLink = document.createElement('a');
+      previewLink.href = '../promotion-preview/';
+      previewLink.className = 'button button-quiet';
+      previewLink.textContent = '공개 결과 경로 확인';
+      actions.append(previewLink);
+      grid.append(card);
+    });
+    section.append(grid);
+    return section;
+  }
+
   async function renderLeadEdit(detail) {
     const target = main();
     document.getElementById('desktop-page-title').textContent = '홍보자료 직접 수정';
@@ -680,6 +726,8 @@
     if (!items.length) grid.append(el('p', '현재 검토 대기 안건이 없습니다.', 'empty'));
     for (const item of items) grid.append(await reviewCard(item, workspace));
     target.append(grid);
+    const publication = publicationQueue(workspace);
+    if (publication) target.append(publication);
   }
 
   async function openPromotion(mode = 'review') {

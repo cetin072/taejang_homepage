@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixtures = [
   { file: 'general-worker-browser-gate.html', marker: 'GENERAL_WORKER_BROWSER_GATE_PASS' },
   { file: 'promotion-browser-gate.html', marker: 'PROMOTION_BROWSER_GATE_PASS' },
+  { file: 'promotion-v2-publication-gate.html', marker: 'PROMOTION_V2_PUBLICATION_GATE_PASS' },
   { file: 'sidebar-runtime-gate.html', marker: 'SIDEBAR_RUNTIME_GATE_PASS' }
 ];
 
