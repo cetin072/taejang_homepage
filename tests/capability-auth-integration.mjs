@@ -111,6 +111,7 @@ for (const code of [
   'homepage.direct_edit', 'attendance.admin_view', 'attendance.correct', 'attendance.self_record',
   'task.manage', 'schedule.manage', 'notice.manage', 'guidance.manage', 'simulation.start_lower_role',
 ]) check(opsCaps.has(code), `operations manager receives operational superset capability ${code}`);
+check(!opsCaps.has('promotion.queue_publication'), 'operations manager does not receive promotion-lead publication queue authority');
 check(!opsCaps.has('technical.bootstrap_super_admin'), 'operations manager does not inherit technical bootstrap capability');
 check(!opsCaps.has('audit.system_raw_read'), 'operations manager does not inherit raw system audit capability');
 
@@ -152,6 +153,10 @@ check(promotionStaffCaps.has('attendance.self_record'), 'ordinary promotion staf
 check(!promotionStaffCaps.has('promotion.edit_any_unpublished'), 'promotion staff cannot edit every unpublished draft');
 check(!promotionStaffCaps.has('employee.create'), 'promotion staff cannot create Employee records');
 check(!promotionStaffCaps.has('task.manage'), 'promotion staff does not gain task management');
+
+const promotionLead = await fixture('capability-promotion-lead@example.test', '권한 테스트 운영팀장', ['promotion_lead']);
+const promotionLeadCaps = capabilities(await accessContext(promotionLead));
+check(promotionLeadCaps.has('promotion.queue_publication'), 'promotion lead retains explicit publication queue capability');
 
 const departmentLead = await fixture('capability-department-lead@example.test', '권한 테스트 부서팀장', ['department_lead']);
 const departmentLeadCaps = capabilities(await accessContext(departmentLead));

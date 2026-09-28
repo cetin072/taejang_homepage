@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const root = path.join(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
+const navigationRegistry = fs.readFileSync(path.join(root, 'app/assets/platform-navigation-registry.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(root, 'app/assets/app.js'), 'utf8');
 const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const staffCss = fs.readFileSync(path.join(root, 'staff/assets/staff.css'), 'utf8');
@@ -84,6 +85,7 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
     TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
+    TaejangPromotionWorkspaceV2Api: { openPromotion: mode => promotionModes.push(mode) },
     TaejangOfficialChannels: { list: [
       { id: 'homepage', label: '홈페이지', href: '../index.html' },
       { id: 'blog', label: '공식 블로그', href: 'https://blog.naver.com/taejang-official' },
@@ -95,6 +97,7 @@ async function makeDashboard(route) {
     location: { href: '' }
   };
   const sandbox = { window, document, CustomEvent: FakeCustomEvent, Intl, Date, Set, Array, Promise, console };
+  vm.runInNewContext(navigationRegistry, sandbox, { filename: 'platform-navigation-registry.js' });
   vm.runInNewContext(source, sandbox, { filename: 'dashboard-shell.js' });
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route, label: route } }));
   await nextTurn();
@@ -156,26 +159,45 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
   assert.equal(qa.document.getElementById('desktop-role-label').textContent, '');
 });
 
-test('all desktop roles start from the same master sidebar before capability pruning', async () => {
-  const expected = [
-    '대시보드',
-    '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리',
-    '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '공지 등록', '공지 관리',
-    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
-    '기업 프로필', '지원사업 레이더', '내 지원사업',
-    '홈페이지', '공식 블로그', '공식 유튜브'
-  ];
-
+test('promotion sidebar visibility follows role work while retaining capabilities and one canonical destination per item', async () => {
   const promotion = await makeDashboard('promotion_staff');
+  const lead = await makeDashboard('promotion_lead');
   const operations = await makeDashboard('operations_manager');
-  assert.deepEqual(menuLabels(promotion.nav), expected);
-  assert.deepEqual(menuLabels(operations.nav), expected);
+  const ceo = await makeDashboard('ceo');
+
+  const visible = qa => new Set(menuLabels(qa.nav));
+  for (const qa of [promotion, lead, operations, ceo]) {
+    const keys = qa.nav.children.map(item => item.dataset.menuKey).filter(Boolean);
+    assert.equal(keys.length, new Set(keys).size, 'a role has no duplicated canonical menu key');
+  }
+  const actualKeys = new Set([promotion, lead, operations, ceo]
+    .flatMap(qa => qa.nav.children.map(item => item.dataset.menuKey).filter(Boolean)));
+  const expectedKeys = [...lead.window.TaejangPlatformNavigationRegistry.items()]
+    .filter(item => item.key !== 'platform.settings')
+    .map(item => item.key)
+    .sort();
+  assert.deepEqual([...actualKeys].sort(), expectedKeys, 'every canonical business-navigation leaf has a live sidebar destination');
+  for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert.ok(visible(promotion).has(label));
+  for (const label of ['홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(!visible(promotion).has(label));
+  for (const label of ['홍보 글 작성', '홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(visible(lead).has(label));
+  for (const label of ['보완 요청받은 글', '보낸 글']) assert.ok(!visible(lead).has(label));
+  for (const label of ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리']) assert.ok(visible(operations).has(label));
+  for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert.ok(!visible(operations).has(label));
+  assert.ok(visible(ceo).has('홍보 검토'));
+  assert.ok(!visible(ceo).has('발행 관리'));
+
+  assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
+  assert.equal(menuLabels(lead.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 상신');
+  assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 검토');
 
   findMenu(promotion.nav, '홍보 글 작성').click();
   findMenu(promotion.nav, '보완 요청받은 글').click();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
+  findMenu(lead.nav, '홍보 검토').click();
+  findMenu(lead.nav, '발행 관리').click();
+  assert.deepEqual(lead.promotionModes, ['review', 'publication']);
+  findMenu(operations.nav, '발행 현황').click();
+  assert.deepEqual(operations.promotionModes, ['publication']);
 
   for (const [label, panel] of new Map([
     ['업무 배정','today-admin-panel'],
@@ -186,6 +208,18 @@ test('all desktop roles start from the same master sidebar before capability pru
     findMenu(operations.nav, '대시보드').click(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
+});
+
+test('role navigation visibility is independent from capability grants and user menu order', () => {
+  assert.match(navigationRegistry, /visibleRoles:\['promotion_staff','promotion_lead'\]/);
+  assert.match(navigationRegistry, /visibleRoles:\['promotion_staff'\]/);
+  assert.match(navigationRegistry, /visibleRoles:\['promotion_lead','operations_manager'\]/);
+  assert.match(navigationRegistry, /capabilities:\['promotion\.write','promotion\.edit_any_unpublished'\]/);
+  assert.doesNotMatch(navigationRegistry, /key:'promotion\.publication'[^\n]*promotion\.queue_publication/);
+  assert.match(fs.readFileSync(path.join(root, 'app/assets/phase-c-workspace-v2.js'), 'utf8'), /can\('promotion\.queue_publication'/);
+  const menu = source.slice(source.indexOf('function menu('), source.indexOf('async function dashboardData'));
+  assert.match(menu, /visibleForRole[\s\S]*nav\.append\(node\)/);
+  assert.doesNotMatch(menu, /getSidebarPreference|menuOrder/);
 });
 
 test('platform Settings is a top-right utility instead of a sidebar row', async () => {
@@ -222,9 +256,9 @@ test('central navigation uses one master order and section contract for every de
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 대기', '기존 글 관리',
+    '발행 관리', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '공지 등록', '공지 관리',
+    '업무 배정', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'

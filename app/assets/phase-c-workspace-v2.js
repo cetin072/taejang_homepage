@@ -22,7 +22,7 @@
     hidden: '숨김',
     archived: '보관'
   };
-  const STAGE_LABELS = { lead: '홍보팀장', operations: '운영총괄', ceo: '대표이사' };
+  const STAGE_LABELS = { lead: '운영팀장', operations: '운영총괄', ceo: '대표이사' };
   const HOMEPAGE_PAGES = {
     home: ['메인 페이지', [['hero', '첫 화면 소개'], ['about', '태장 소개 요약'], ['business', '지금 태장이 하는 일'], ['workplace', '태장의 일터'], ['recent_activities', '활동 기록'], ['partnership', '협력 안내'], ['contact', '문의']]],
     about: ['태장 소개', [['page_hero', '페이지 상단 소개'], ['at_a_glance', '태장 한눈에 보기'], ['name_meaning', '태장이라는 이름'], ['greeting', '대표 인사말'], ['values', '태장이 일하는 기준'], ['history', '태장의 발걸음'], ['about_cta', '협력·문의 안내']]],
@@ -578,6 +578,80 @@
     await openPromotion('review');
   }
 
+  function publicationSchedule(raw) {
+    if (!raw?.trim()) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) throw new Error('게시 예약일은 YYYY-MM-DD 형식으로 입력해 주세요.');
+    return `${raw.trim()}T00:00:00+09:00`;
+  }
+
+  async function queuePublication(item) {
+    try {
+      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 바로 대기함에 넣으려면 비워두세요.', '');
+      if (raw === null) return;
+      await app().rpc('queue_promotion_revision', {
+        p_content_id: item.content_id,
+        p_scheduled_for: publicationSchedule(raw)
+      });
+      await openPromotion('publication');
+    } catch (error) {
+      window.alert(app().friendlyError?.(error) || error.message || '발행 대기함에 넣지 못했습니다.');
+    }
+  }
+
+  async function renderPublication(workspace) {
+    const role = workspace.role;
+    if (!['promotion_lead', 'operations_manager'].includes(role)) {
+      main().replaceChildren(el('p', '발행 현황을 볼 수 있는 권한이 없습니다.', 'message error'));
+      return;
+    }
+    const title = role === 'promotion_lead' ? '발행 관리' : '발행 현황';
+    document.getElementById('desktop-page-title').textContent = title;
+    const target = main();
+    const intro = renderIntro('홈페이지 발행', title, role === 'promotion_lead'
+      ? '최종 승인이 끝난 콘텐츠를 발행 대기함에 등록하거나 게시일을 예약합니다.'
+      : '최종 승인, 발행 대기, 예약 현황을 조회합니다. 발행 대기 등록과 예약 지정은 운영팀장이 담당합니다.');
+    target.replaceChildren(intro);
+    target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
+    try {
+      const items = arr(await app().rpc('get_promotion_publication_overview'));
+      const section = el('section', null, 'dashboard-section phase-c-publication-page');
+      section.append(el('h2', `발행 대상 ${items.length}건`));
+      const grid = el('div', null, 'phase-c-v2-grid');
+      if (!items.length) grid.append(el('p', '현재 최종 승인된 발행 대상이 없습니다.', 'empty'));
+      const canQueue = role === 'promotion_lead' && can('promotion.queue_publication', true);
+      items.forEach(item => {
+        const card = el('article', null, 'dashboard-card phase-c-publication-card');
+        const status = item.queue_status === 'queued' ? '발행 대기함' : item.lifecycle === 'scheduled' ? '예약됨' : '최종 승인';
+        card.append(el('span', status, 'status-label'), el('h3', item.title || '제목 없음'));
+        if (item.hero_image_url) {
+          const image = document.createElement('img');
+          image.src = item.hero_image_url;
+          image.alt = `${item.title || '홍보 콘텐츠'} 대표 이미지`;
+          image.loading = 'lazy';
+          card.append(image);
+        }
+        if (item.summary) card.append(el('p', item.summary));
+        if (item.requested_publish_date) card.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
+        if (item.scheduled_for) card.append(el('p', `예약 ${item.scheduled_for}`));
+        const actions = el('div', null, 'quick-links');
+        if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
+          actions.append(button('발행 대기함에 넣기', () => queuePublication(item)));
+        }
+        const previewLink = document.createElement('a');
+        previewLink.href = '../promotion-preview/';
+        previewLink.className = 'button button-quiet';
+        previewLink.textContent = '공개 결과 경로 확인';
+        actions.append(previewLink);
+        card.append(actions);
+        grid.append(card);
+      });
+      section.append(grid);
+      target.replaceChildren(intro, section);
+    } catch (error) {
+      target.replaceChildren(intro, el('p', app().friendlyError?.(error) || '발행 현황을 불러오지 못했습니다.', 'message error'));
+    }
+  }
+
   async function renderLeadEdit(detail) {
     const target = main();
     document.getElementById('desktop-page-title').textContent = '홍보자료 직접 수정';
@@ -695,6 +769,7 @@
       const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
       const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
       const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (mode === 'publication') return renderPublication(workspace);
       if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
       if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
       if (mode === 'write' && canWrite) return renderWrite(workspace);

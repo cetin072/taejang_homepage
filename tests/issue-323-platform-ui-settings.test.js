@@ -60,6 +60,13 @@ test('role menu visibility is display-only and composes with capability hiding',
   assert.match(settings, /메뉴 표시 설정은 기능 권한을 추가하지 않습니다/);
 });
 
+test('role menu checklist follows visibleRoles and role-specific navigation labels', () => {
+  assert.match(settings, /filter\(item=>navigation\.visibleForRole\?\.\(item,select\.value\)!==false\)/);
+  assert.match(settings, /item\.roleLabels\?\.\[roleCode\] \|\| item\.label/);
+  assert.match(settings, /settingsCheckbox\(item,overrides\.has\(item\.key\)\?overrides\.get\(item\.key\):true,select\.value\)/);
+  assert.match(shell, /visibleForRole\?\.\(registryItem, _route\) === false/);
+});
+
 test('database stores role navigation separately from personal UI preferences', () => {
   assert.match(migration, /create table if not exists public\.role_navigation_visibility/);
   assert.match(migration, /create table if not exists public\.profile_ui_preferences/);

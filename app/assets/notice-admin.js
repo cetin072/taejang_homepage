@@ -264,9 +264,11 @@
     activeView = view === 'create' ? 'create' : 'manage';
     const heading = ui.element('notice-admin-title');
     const refresh = ui.element('refresh-notice-admin');
+    const create = ui.element('new-notice-admin');
     const manage = noticeManageSection();
     if (heading) heading.textContent = activeView === 'create' ? '공지 등록' : '공지 관리';
     if (refresh) refresh.hidden = activeView === 'create';
+    if (create) create.hidden = activeView === 'create';
     if (manage) manage.hidden = activeView === 'create';
 
     if (activeView === 'create') {
@@ -558,6 +560,7 @@
       resetForm();
       revealEditor({ preview: true });
     });
+    ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
     ui.element('refresh-notice-admin').addEventListener('click', load);
     ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
