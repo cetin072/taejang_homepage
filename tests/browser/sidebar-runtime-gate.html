@@ -36,13 +36,13 @@
         'employee.view_scoped', 'employee.request_change',
         'promotion.write', 'promotion.review_lead', 'promotion.edit_own', 'promotion.archive', 'promotion.restore',
         'promotion.manage_recent_public', 'promotion.request_public_change', 'promotion.queue_publication', 'information.submit',
-        'attendance.admin_view', 'homepage.draft', 'homepage.review', 'support_radar.assigned_work'
+        'attendance.admin_view', 'homepage.draft', 'homepage.review', 'support_radar.assigned_work', 'payroll.handoff.review'
       ]),
       operations_manager: new Set([
         'employee.view_all', 'employee.create', 'employee.onboard', 'account.approve', 'account.reject',
         'promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.edit_own', 'promotion.edit_any_unpublished',
         'promotion.archive', 'promotion.restore', 'promotion.hide', 'promotion.republish', 'promotion.manage_recent_public',
-        'promotion.request_public_change', 'promotion.queue_publication', 'information.review',
+        'promotion.request_public_change', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
         'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
         'task.manage', 'notice.manage', 'payroll.manage', 'payroll.handoff.approve',
@@ -201,6 +201,30 @@
       sidebar.scrollTop = 0;
     }
 
+    async function assertMobileSidebarActions(role) {
+      assert(window.innerWidth <= 900, `${role}: mobile gate did not use a mobile viewport`);
+      const shell = document.getElementById('desktop-app-shell');
+      const sidebar = document.getElementById('app-sidebar');
+      const toggle = document.getElementById('sidebar-toggle');
+      assert(getComputedStyle(sidebar).position === 'fixed', `${role}: mobile sidebar is not an off-canvas panel`);
+      assert(sidebar.getBoundingClientRect().width <= window.innerWidth * .84 + 1, `${role}: mobile sidebar exceeds its width limit`);
+      toggle.click();
+      await wait(40);
+      assert(shell.classList.contains('sidebar-open'), `${role}: mobile menu did not open`);
+      assert(sidebar.getBoundingClientRect().left >= -1, `${role}: opened mobile menu remains off screen`);
+      const publication = find(role === 'operations_manager' ? '발행 현황' : '발행 관리');
+      assert(publication, `${role}: publication menu is not available on mobile`);
+      publication.click();
+      await wait(100);
+      assert(!shell.classList.contains('sidebar-open'), `${role}: choosing a menu did not close the mobile sidebar`);
+      assert(document.getElementById('desktop-page-title').textContent === (role === 'operations_manager' ? '발행 현황' : '발행 관리'), `${role}: mobile publication entry opened the wrong destination`);
+      if (role === 'operations_manager') {
+        assert(![...document.querySelectorAll('#dashboard-main button')].some(button => button.textContent.trim() === '발행 대기함에 넣기'), `${role}: mobile screen exposed queue action`);
+      }
+      find('대시보드').click();
+      await wait(80);
+    }
+
     async function assertOfficialChannelsFinal() {
       const nav = document.getElementById('app-nav');
       window.TaejangRoleNavigationPriority?.reorder?.();
@@ -293,14 +317,18 @@
       for (const required of ['대시보드', '홍보 글 작성', '보낸 글', '보완 요청받은 글']) {
         assert(current.includes(required), `홍보직원 필수 메뉴 누락: ${required}`);
       }
+      for (const hidden of ['홍보 검토', '발행 관리', '공개 홍보글 관리']) {
+        assert(!current.includes(hidden), `홍보직원에게 불필요한 홍보 메뉴가 노출됨: ${hidden}`);
+      }
       assertRetiredAbsent(current, 'promotion_staff');
       assertNoDuplicateLeafLabels('promotion_staff');
     }
 
     function assertLeadContract(current) {
-      for (const required of ['대시보드', '홍보 글 작성', '홍보 검토', '기존 글 관리', '홈페이지 내용 관리', '직원 관리', '신규 직원 등록', '출근부']) {
+      for (const required of ['대시보드', '홍보 글 작성', '홍보 검토', '발행 관리', '공개 홍보글 관리', '홈페이지 내용 관리', '직원 관리', '신규 직원 등록', '출근부', '외부 급여초안 상신']) {
         assert(current.includes(required), `운영팀장 필수 메뉴 누락: ${required}`);
       }
+      for (const hidden of ['보완 요청받은 글', '보낸 글']) assert(!current.includes(hidden), `운영팀장 1차 메뉴에 직원 상태 메뉴가 노출됨: ${hidden}`);
       assertRetiredAbsent(current, 'promotion_lead');
       assertNoDuplicateLeafLabels('promotion_lead');
     }
@@ -308,18 +336,22 @@
     function assertOperationsContract(current) {
       for (const required of [
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
-        '홍보 검토', '홍보 글 작성', '기존 글 관리',
+        '홍보 승인 검토', '발행 현황', '공개 홍보글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
-        '업무 배정', '공지 등록', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
-        '기업 프로필', '지원사업 레이더', '내 지원사업'
+        '업무 배정', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
+        '기업 프로필', '지원사업 레이더', '내 지원사업', '외부 급여초안 검토'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
       }
+      for (const hidden of ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 관리', '외부 급여초안 상신']) {
+        assert(!current.includes(hidden), `운영총괄 1차 메뉴에서 숨겨야 할 업무가 노출됨: ${hidden}`);
+      }
+      assert(current.filter(label => label.startsWith('공지')).join('|') === '공지 관리', '공지 등록/관리가 sidebar에 중복 노출됨');
       assertRetiredAbsent(current, 'operations_manager');
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
-      assertOrdered(current, ['홍보 글 작성', '홍보 검토', '기존 글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['업무 배정', '공지 등록', '공지 관리'], '운영총괄 업무 운영');
+      assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
+      assertOrdered(current, ['업무 배정', '공지 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -340,7 +372,7 @@
         node.tagName === 'BUTTON'
         && node.dataset.navSectionToggle !== '1'
       );
-      const panelTargets = new Set(['업무 배정','공지 등록','공지 관리']);
+      const panelTargets = new Set(['업무 배정','공지 관리']);
 
       for (const sourcePanel of panels) {
         for (const target of internal) {
@@ -379,7 +411,8 @@
         await assertNoPostSettleJitter('operations_manager');
         await assertFocusGeometryStable('operations_manager');
         await assertOfficialChannelsFinal();
-        await assertSidebarScrollStable('operations_manager');
+        if (window.innerWidth <= 900) await assertMobileSidebarActions('operations_manager');
+        else await assertSidebarScrollStable('operations_manager');
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
 

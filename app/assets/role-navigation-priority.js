@@ -4,10 +4,10 @@
   const MASTER_ORDER = Object.freeze([
     '대시보드',
     '직원 관리', '신규 직원 등록', '가입 승인',
-    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
-    '발행 대기', '기존 글 관리',
+    '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '홍보 승인 검토',
+    '발행 관리', '발행 현황', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '공지 등록', '공지 관리',
+    '업무 배정', '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'
@@ -15,9 +15,9 @@
 
   const MASTER_SECTIONS = Object.freeze([
     { key: 'employee-account', label: '직원·계정', items: ['직원 관리', '신규 직원 등록', '가입 승인'] },
-    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 대기', '기존 글 관리'] },
+    { key: 'promotion', label: '홍보', items: ['홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토', '발행 관리', '공개 홍보글 관리'] },
     { key: 'homepage', label: '홈페이지', items: ['홈페이지 내용 관리', '홈페이지 직접 수정'] },
-    { key: 'operations', label: '업무 운영', items: ['업무 배정', '공지 등록', '공지 관리'] },
+    { key: 'operations', label: '업무 운영', items: ['업무 배정', '공지 관리'] },
     { key: 'payroll', label: '근태·급여', items: ['출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토'] },
     { key: 'support', label: '지원사업', items: ['기업 프로필', '지원사업 레이더', '내 지원사업'] },
     { key: 'official_channels', label: '공식 채널', items: ['홈페이지', '공식 블로그', '공식 유튜브'] }
@@ -51,9 +51,12 @@
     ['홍보글 승인·검토', '홍보 검토'],
     ['홍보 관리', '홍보 검토'],
     ['승인·검토', '홍보 검토'],
-    ['글 관리', '기존 글 관리'],
-    ['홍보 글 관리', '기존 글 관리'],
-    ['공개글 관리', '기존 글 관리'],
+    ['글 관리', '공개 홍보글 관리'],
+    ['홍보 글 관리', '공개 홍보글 관리'],
+    ['공개글 관리', '공개 홍보글 관리'],
+    ['발행 대기', '발행 관리'],
+    ['기존 글 관리', '공개 홍보글 관리'],
+    ['공지 등록', '공지 관리'],
     ['홍보글 보관·복구', '홍보글 관리·복구'],
     ['안내 관리', '상시 안내 관리']
   ]);
@@ -171,8 +174,10 @@
 
   function ensurePayrollHandoffEntry(nav, currentRole) {
     if (!nav) return null;
-    const canApprove = capabilityAllowed('payroll.handoff.approve', currentRole === 'operations_manager');
-    const canReview = capabilityAllowed('payroll.handoff.review', currentRole === 'promotion_lead');
+    const canApprove = currentRole === 'operations_manager'
+      && capabilityAllowed('payroll.handoff.approve', true);
+    const canReview = currentRole === 'promotion_lead'
+      && capabilityAllowed('payroll.handoff.review', true);
     if (!canApprove && !canReview) return null;
 
     const label = canApprove ? '외부 급여초안 검토' : '외부 급여초안 상신';

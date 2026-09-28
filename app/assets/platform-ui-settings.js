@@ -47,7 +47,7 @@
     '홈페이지 수정 승인':'homepage.content', 'homepage.change-approval':'homepage.content',
     '오늘 출근부':'attendance.view', 'attendance.today':'attendance.view',
     '지원사업 레이더':'support.radar',
-    '공지 등록':'notice.create',
+    '공지 등록':'notice.manage',
     '공지 관리':'notice.manage'
   });
   const normalizeDashboardKey = key => DASHBOARD_KEY_ALIASES[key] || key;
@@ -74,7 +74,7 @@
   }
 
   function sidebarSectionKeys() { return registry()?.sections?.().filter(section=>section.key!=='official_channels').map(section=>section.key) || []; }
-  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section && item.key!=='promotion.archive').map(item=>item.key) || []; }
+  function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
   function sidebarPreference() {
     return {
       sectionOrder:mergeSavedOrder(state.sidebarSectionOrder,sidebarSectionKeys()),
@@ -762,7 +762,7 @@
         checklist.replaceChildren();
         const overrides=roleVisibilityMap(context,select.value);
         const sections=new Map();
-        registry().items().filter(item=>!item.public && item.key!=='promotion.archive').forEach(item=>{
+        registry().items().filter(item=>!item.public && item.section).forEach(item=>{
           const section=item.section||'기본';
           if(!sections.has(section)) sections.set(section,[]);
           sections.get(section).push(item);

@@ -214,75 +214,8 @@
     }
   }
 
-  function scheduleValue(raw) {
-    if (!raw?.trim()) return null;
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) throw new Error('게시 예약일을 YYYY-MM-DD 형식으로 입력해 주세요.');
-    return `${raw.trim()}T00:00:00+09:00`;
-  }
-
   async function openPublication() {
-    closeSidebar();
-    const target = main();
-    const currentRoute = route();
-    if (!target || !['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
-    document.getElementById('desktop-page-title').textContent = '발행 대기';
-    target.replaceChildren(text('p', '발행 대기 목록을 불러오고 있습니다.', 'message'));
-    try {
-      const items = array(await app().rpc('get_promotion_publication_overview'));
-      const intro = document.createElement('header');
-      intro.className = 'dashboard-intro';
-      intro.append(
-        text('p', '홈페이지 발행', 'eyebrow'),
-        text('h2', '최종 승인 · 발행 대기'),
-        text('p', currentRoute === 'promotion_lead'
-          ? '최종 승인된 콘텐츠를 확인하고 발행 대기함 또는 예약 상태를 관리합니다.'
-          : '최종 승인된 콘텐츠와 현재 발행 대기 상태를 조회합니다. 운영총괄은 이 화면에서 발행 상태를 변경하지 않습니다.')
-      );
-      target.replaceChildren(intro);
-      const section = document.createElement('section');
-      section.className = 'dashboard-section';
-      section.append(text('h2', `발행 대상 ${items.length}건`));
-      const grid = document.createElement('div');
-      grid.className = 'phase-c-workflow-grid';
-      if (!items.length) grid.append(text('p', '현재 최종 승인된 발행 대상이 없습니다.', 'empty'));
-      items.forEach(item => {
-        const card = document.createElement('article');
-        card.className = 'dashboard-card phase-c-publication-card';
-        card.append(text('span', item.queue_status === 'queued' ? '발행 대기함' : item.lifecycle === 'scheduled' ? '예약됨' : '최종 승인', 'status-label'));
-        card.append(text('h3', item.title || '제목 없음'));
-        if (item.hero_image_url) {
-          const image = document.createElement('img');
-          image.src = item.hero_image_url;
-          image.alt = `${item.title || '콘텐츠'} 대표 이미지`;
-          image.loading = 'lazy';
-          card.append(image);
-        }
-        if (item.summary) card.append(text('p', item.summary));
-        const meta = document.createElement('div');
-        meta.className = 'phase-c-publication-meta';
-        meta.append(text('span', item.requested_publish_date ? `게시 희망일 ${item.requested_publish_date}` : '게시 희망일 미정'));
-        if (item.scheduled_for) meta.append(text('span', `예약 ${item.scheduled_for}`));
-        card.append(meta);
-        if (currentRoute === 'promotion_lead' && !item.queue_status) {
-          card.append(button('발행 대기함에 넣기', async () => {
-            const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 바로 대기함에 넣으려면 비워두세요.', '');
-            if (raw === null) return;
-            try {
-              await app().rpc('queue_promotion_revision', {
-                p_content_id: item.content_id,
-                p_scheduled_for: scheduleValue(raw)
-              });
-              openPublication();
-            } catch (error) { window.alert(app().friendlyError(error)); }
-          }, false));
-        }
-        grid.append(card);
-      });
-      section.append(grid);
-      target.append(section);
-    } catch (error) {
-      target.replaceChildren(text('p', app().friendlyError(error), 'message error'));
-    }
+    openPromotion('publication');
   }
 
   async function syncDashboard() {

@@ -31,7 +31,7 @@ if (previewUrl) {
   if (parsed.protocol !== 'https:') throw new Error('PROMOTION_BROWSER_GATE_PREVIEW_MUST_BE_HTTPS');
 }
 
-function runFixture(spec) {
+function runFixture(spec, viewport) {
   const fixture = path.join(root, 'tests/browser', spec.file);
   if (!existsSync(fixture)) throw new Error(`PROMOTION_BROWSER_GATE_FIXTURE_MISSING:${spec.file}`);
 
@@ -40,6 +40,7 @@ function runFixture(spec) {
   if (previewUrl) {
     let html = readFileSync(fixture, 'utf8');
     html = html.replaceAll('src="../../app/assets/', `src="${previewUrl}/app/assets/`);
+    html = html.replaceAll('href="../../app/assets/', `href="${previewUrl}/app/assets/`);
     tempDir = mkdtempSync(path.join(os.tmpdir(), 'taejang-promotion-preview-'));
     fixtureTarget = path.join(tempDir, spec.file);
     writeFileSync(fixtureTarget, html, 'utf8');
@@ -49,6 +50,8 @@ function runFixture(spec) {
   try {
     const result = spawnSync(chrome, [
       '--headless=new',
+      `--window-size=${viewport.size}`,
+      '--force-device-scale-factor=1',
       '--no-sandbox',
       '--disable-gpu',
       '--disable-dev-shm-usage',
@@ -76,11 +79,17 @@ function runFixture(spec) {
       const failure = result.stdout.match(/[A-Z_]+_GATE_FAIL:[^<]*/)?.[0] || `${spec.marker} missing`;
       throw new Error(`PROMOTION_BROWSER_GATE_FAILED:${spec.file}: ${failure}`);
     }
-    console.log(`${spec.marker}:${previewUrl ? 'PREVIEW' : 'LOCAL'}`);
+    console.log(`${spec.marker}:${previewUrl ? 'PREVIEW' : 'LOCAL'}:${viewport.label}`);
   } finally {
     if (tempDir) rmSync(tempDir, { recursive: true, force: true });
   }
 }
 
-for (const fixture of fixtures) runFixture(fixture);
+const viewports = [
+  { label: 'PC', size: '1440,1000' },
+  { label: 'MOBILE', size: '390,844' }
+];
+for (const viewport of viewports) {
+  for (const fixture of fixtures) runFixture(fixture, viewport);
+}
 console.log(previewUrl ? 'PROMOTION_PREVIEW_BROWSER_GATE_PASS' : 'PROMOTION_BROWSER_GATE_PASS');

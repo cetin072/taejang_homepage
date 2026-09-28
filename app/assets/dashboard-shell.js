@@ -41,7 +41,7 @@
     '홈페이지 수정 승인':'homepage.change-approval',
     '오늘 출근부':'attendance.view',
     '지원사업 레이더':'support.radar',
-    '공지 등록':'notice.create',
+    '공지 등록':'notice.manage',
     '공지 관리':'notice.manage'
   });
 
@@ -59,7 +59,7 @@
     if (featureUnavailable('phase-c-workspace-v2', '홍보 업무 기능')) return;
     const open = window.TaejangPromotionWorkspaceV2Api?.openPromotion;
     if (typeof open === 'function') return open(mode);
-    document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode } }));
+    window.TaejangFeatureHealth?.showFailure?.('홍보 업무 기능');
   }
   function openEmployee(view = 'existing') {
     if (featureUnavailable('employee-management', '직원 관리 기능')) return;
@@ -280,13 +280,12 @@
       },
       {
         key: 'promotion.publication',
-        label: '발행 대기',
-        run: () => openPromotion('review'),
-        capabilities: ['promotion.queue_publication']
+        label: '발행 관리',
+        run: () => openPromotion('publication')
       },
       {
         key: 'promotion.existing',
-        label: '기존 글 관리',
+        label: '공개 홍보글 관리',
         run: openExistingPromotion,
         capabilities: ['promotion.manage_recent_public','promotion.archive','promotion.restore']
       },
@@ -306,12 +305,6 @@
         label: '업무 배정',
         run: () => openPanel('today-admin-panel'),
         capabilities: ['task.manage']
-      },
-      {
-        key: 'notice.create',
-        label: '공지 등록',
-        run: () => openPanel('notice-admin-panel', 'create'),
-        capabilities: ['notice.manage']
       },
       {
         key: 'notice.manage',
@@ -339,6 +332,7 @@
         newTab: true
       },
       {
+        key: 'payroll.handoff.review',
         label: '외부 급여초안 상신',
         href: 'payroll/handoff.html',
         dataKey: 'payroll-handoff-submit',
@@ -346,6 +340,7 @@
         newTab: true
       },
       {
+        key: 'payroll.handoff.approve',
         label: '외부 급여초안 검토',
         href: 'payroll/handoff.html',
         dataKey: 'payroll-handoff-review',
@@ -378,17 +373,21 @@
     nav.replaceChildren();
 
     masterMenuItems().forEach(item => {
+      const registry = window.TaejangPlatformNavigationRegistry;
+      const registryItem = item.key ? registry?.byKey?.(item.key) : null;
+      if (registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;
+      const label = registryItem?.roleLabels?.[_route] || item.label;
       const node = item.href ? document.createElement('a') : document.createElement('button');
       if (item.href) {
         node.href = item.href;
-        node.textContent = item.label;
+        node.textContent = label;
         if (item.newTab) {
           node.target = '_blank';
           node.rel = 'noopener noreferrer';
         }
       } else {
         node.type = 'button';
-        node.textContent = item.label;
+        node.textContent = label;
         node.addEventListener('click', () => {
           closeSidebar();
           item.run();

@@ -17,12 +17,16 @@ const noticeAdmin = read('app/assets/notice-admin.js');
 const workspace = read('app/assets/app-workspace-surface.js');
 const css = read('app/assets/dashboard-shell.css');
 
-test('Goal 331 exposes separate canonical notice create and management menus', () => {
-  assert.match(registry, /key:'notice\.create', label:'공지 등록', section:'업무 운영', capabilities:\['notice\.manage'\]/);
+test('Goal 331 keeps one canonical notice-management menu with an in-panel create action', () => {
+  assert.doesNotMatch(registry, /key:'notice\.create'/);
   assert.match(registry, /key:'notice\.manage', label:'공지 관리', section:'업무 운영', capabilities:\['notice\.manage'\]/);
-  assert.match(shell, /label: '공지 등록'[\s\S]*openPanel\('notice-admin-panel', 'create'\)[\s\S]*notice\.manage/);
   assert.match(shell, /label: '공지 관리'[\s\S]*openPanel\('notice-admin-panel', 'manage'\)[\s\S]*notice\.manage/);
-  assert.match(nav, /items: \['업무 배정', '공지 등록', '공지 관리'\]/);
+  assert.match(nav, /items: \['업무 배정', '공지 관리'\]/);
+  assert.match(shell, /'공지 등록':'notice\.manage'/);
+  assert.match(priority, /'공지 등록':'notice\.manage'/);
+  assert.match(read('app/index.html'), /id="new-notice-admin"[^>]*>새 공지 작성/);
+  assert.match(noticeAdmin, /ui\.element\('new-notice-admin'\)\.addEventListener\('click', \(\) => setView\('create'\)\)/);
+  assert.match(noticeAdmin, /if \(create\) create\.hidden = activeView === 'create'/);
   const retired = nav.slice(nav.indexOf('const RETIRED_NAVIGATION'), nav.indexOf('const LABEL_RENAMES'));
   assert.doesNotMatch(retired, /'공지 관리'/);
   assert.match(workspace, /'notice-admin-panel': '공지 관리'/);

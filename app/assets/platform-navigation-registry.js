@@ -17,25 +17,22 @@
     { key:'employee.manage', label:'직원 관리', section:'직원·계정', capabilities:['employee.view_all','employee.view_scoped'] },
     { key:'employee.new', label:'신규 직원 등록', section:'직원·계정', capabilities:['employee.create','employee.request_change'] },
     { key:'account.approval', label:'가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
-    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'] },
-    { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'] },
-    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'] },
-    { key:'promotion.review', label:'홍보 검토', section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'] },
-    { key:'promotion.publication', label:'발행 대기', section:'홍보', capabilities:['promotion.queue_publication'] },
-    { key:'promotion.existing', label:'기존 글 관리', section:'홍보', capabilities:['promotion.manage_recent_public','promotion.archive','promotion.restore'] },
-    { key:'promotion.archive', label:'홍보글 관리·복구', section:'홍보', capabilities:['promotion.archive','promotion.restore','promotion.hide','promotion.republish'] },
-
+    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead'] },
+    { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff'] },
+    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff'] },
+    { key:'promotion.review', label:'홍보 검토', roleLabels:{ operations_manager:'홍보 승인 검토' }, section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },
+    { key:'promotion.publication', label:'발행 관리', roleLabels:{ operations_manager:'발행 현황' }, section:'홍보', capabilities:[], visibleRoles:['promotion_lead','operations_manager'] },
+    { key:'promotion.existing', label:'공개 홍보글 관리', section:'홍보', capabilities:['promotion.manage_recent_public','promotion.archive','promotion.restore'], visibleRoles:['promotion_lead','operations_manager'] },
     { key:'homepage.content', label:'홈페이지 내용 관리', section:'홈페이지', capabilities:['homepage.draft','homepage.review','homepage.approve_apply'] },
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
     { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
-    { key:'notice.create', label:'공지 등록', section:'업무 운영', capabilities:['notice.manage'] },
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'] },
-    { key:'payroll.handoff.review', label:'외부 급여초안 상신', section:'근태·급여', capabilities:['payroll.handoff.review'] },
-    { key:'payroll.handoff.approve', label:'외부 급여초안 검토', section:'근태·급여', capabilities:['payroll.handoff.approve'] },
+    { key:'payroll.handoff.review', label:'외부 급여초안 상신', section:'근태·급여', capabilities:['payroll.handoff.review'], visibleRoles:['promotion_lead'] },
+    { key:'payroll.handoff.approve', label:'외부 급여초안 검토', section:'근태·급여', capabilities:['payroll.handoff.approve'], visibleRoles:['operations_manager'] },
 
     { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
     { key:'support.radar', label:'지원사업 레이더', section:'지원사업', capabilities:['support_radar.management_view'] },
@@ -61,7 +58,11 @@
     '글 관리':'promotion.existing',
     '홍보 글 관리':'promotion.existing',
     '공개글 관리':'promotion.existing',
-    '홍보글 보관·복구':'promotion.archive',
+    '기존 글 관리':'promotion.existing',
+    '발행 대기':'promotion.publication',
+    '발행 현황':'promotion.publication',
+    '홍보 검토 대기':'promotion.review',
+    '홍보 승인 검토':'promotion.review',
     '안내 관리':'guidance.manage'
   });
 
@@ -105,6 +106,11 @@
     return item?.section ? sectionByLabel.get(item.section) || null : null;
   }
 
+  function visibleForRole(itemOrKey, role) {
+    const item = typeof itemOrKey === 'string' ? byKey.get(itemOrKey) : itemOrKey;
+    return !item?.visibleRoles || item.visibleRoles.includes(role);
+  }
+
   window.TaejangPlatformNavigationRegistry = {
     ITEMS,
     SECTIONS,
@@ -118,6 +124,7 @@
     itemForLabel,
     keyForNode,
     itemForNode,
+    visibleForRole,
     orderIndex,
     cleanLabel
   };

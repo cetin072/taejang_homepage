@@ -592,36 +592,64 @@
         p_content_id: item.content_id,
         p_scheduled_for: publicationSchedule(raw)
       });
-      await openPromotion('review');
+      await openPromotion('publication');
     } catch (error) {
       window.alert(app().friendlyError?.(error) || error.message || '발행 대기함에 넣지 못했습니다.');
     }
   }
 
-  function publicationQueue(workspace) {
-    if (!can('promotion.queue_publication', workspace.role === 'promotion_lead')) return null;
-    const section = el('section', null, 'dashboard-section');
-    section.append(el('h2', '홈페이지 발행 대기'));
-    const grid = el('div', null, 'phase-c-v2-grid');
-    const items = arr(workspace.publication_items);
-    if (!items.length) grid.append(el('p', '현재 최종 승인된 발행 대상이 없습니다.', 'empty'));
-    items.forEach(item => {
-      const card = contentCard(item, false);
-      const actions = card.querySelector('.quick-links');
-      if (item.queue_status === 'queued' || item.lifecycle === 'scheduled') {
-        actions.append(el('span', item.scheduled_for ? `예약: ${item.scheduled_for}` : '발행 대기함 등록 완료', 'status-label'));
-      } else {
-        actions.append(button('발행 대기함에 넣기', () => queuePublication(item)));
-      }
-      const previewLink = document.createElement('a');
-      previewLink.href = '../promotion-preview/';
-      previewLink.className = 'button button-quiet';
-      previewLink.textContent = '공개 결과 경로 확인';
-      actions.append(previewLink);
-      grid.append(card);
-    });
-    section.append(grid);
-    return section;
+  async function renderPublication(workspace) {
+    const role = workspace.role;
+    if (!['promotion_lead', 'operations_manager'].includes(role)) {
+      main().replaceChildren(el('p', '발행 현황을 볼 수 있는 권한이 없습니다.', 'message error'));
+      return;
+    }
+    const title = role === 'promotion_lead' ? '발행 관리' : '발행 현황';
+    document.getElementById('desktop-page-title').textContent = title;
+    const target = main();
+    const intro = renderIntro('홈페이지 발행', title, role === 'promotion_lead'
+      ? '최종 승인이 끝난 콘텐츠를 발행 대기함에 등록하거나 게시일을 예약합니다.'
+      : '최종 승인, 발행 대기, 예약 현황을 조회합니다. 발행 대기 등록과 예약 지정은 운영팀장이 담당합니다.');
+    target.replaceChildren(intro);
+    target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
+    try {
+      const items = arr(await app().rpc('get_promotion_publication_overview'));
+      const section = el('section', null, 'dashboard-section phase-c-publication-page');
+      section.append(el('h2', `발행 대상 ${items.length}건`));
+      const grid = el('div', null, 'phase-c-v2-grid');
+      if (!items.length) grid.append(el('p', '현재 최종 승인된 발행 대상이 없습니다.', 'empty'));
+      const canQueue = role === 'promotion_lead' && can('promotion.queue_publication', true);
+      items.forEach(item => {
+        const card = el('article', null, 'dashboard-card phase-c-publication-card');
+        const status = item.queue_status === 'queued' ? '발행 대기함' : item.lifecycle === 'scheduled' ? '예약됨' : '최종 승인';
+        card.append(el('span', status, 'status-label'), el('h3', item.title || '제목 없음'));
+        if (item.hero_image_url) {
+          const image = document.createElement('img');
+          image.src = item.hero_image_url;
+          image.alt = `${item.title || '홍보 콘텐츠'} 대표 이미지`;
+          image.loading = 'lazy';
+          card.append(image);
+        }
+        if (item.summary) card.append(el('p', item.summary));
+        if (item.requested_publish_date) card.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
+        if (item.scheduled_for) card.append(el('p', `예약 ${item.scheduled_for}`));
+        const actions = el('div', null, 'quick-links');
+        if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
+          actions.append(button('발행 대기함에 넣기', () => queuePublication(item)));
+        }
+        const previewLink = document.createElement('a');
+        previewLink.href = '../promotion-preview/';
+        previewLink.className = 'button button-quiet';
+        previewLink.textContent = '공개 결과 경로 확인';
+        actions.append(previewLink);
+        card.append(actions);
+        grid.append(card);
+      });
+      section.append(grid);
+      target.replaceChildren(intro, section);
+    } catch (error) {
+      target.replaceChildren(intro, el('p', app().friendlyError?.(error) || '발행 현황을 불러오지 못했습니다.', 'message error'));
+    }
   }
 
   async function renderLeadEdit(detail) {
@@ -726,8 +754,6 @@
     if (!items.length) grid.append(el('p', '현재 검토 대기 안건이 없습니다.', 'empty'));
     for (const item of items) grid.append(await reviewCard(item, workspace));
     target.append(grid);
-    const publication = publicationQueue(workspace);
-    if (publication) target.append(publication);
   }
 
   async function openPromotion(mode = 'review') {
@@ -743,6 +769,7 @@
       const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
       const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
       const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (mode === 'publication') return renderPublication(workspace);
       if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
       if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
       if (mode === 'write' && canWrite) return renderWrite(workspace);
