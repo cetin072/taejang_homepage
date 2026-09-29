@@ -1,0 +1,10 @@
+begin;
+select plan(7);
+select has_function('public','get_my_final_payslip_list',array[]::text[],'employee final payslip list RPC exists');
+select has_function('public','get_my_final_payslip',array['date'],'employee final payslip detail RPC exists');
+select is(has_function_privilege('anon','public.get_my_final_payslip_list()','execute'),false,'anonymous callers cannot read payslips');
+select is(has_function_privilege('authenticated','public.get_my_final_payslip_list()','execute'),true,'active authenticated callers reach guarded list');
+select is(has_table_privilege('authenticated','public.payroll_confirmed_deduction_history','select'),false,'employees cannot read payroll history directly');
+select ok(pg_get_functiondef('public.get_my_final_payslip(date)'::regprocedure) ilike '%payroll_ledger_confirmed%' and pg_get_functiondef('public.get_my_final_payslip(date)'::regprocedure) ilike '%record_role = ''as_paid''%','only final as-paid ledger rows are exposed');
+select ok(pg_get_functiondef('public.get_my_final_payslip(date)'::regprocedure) not ilike '%payroll_employee_results%' and pg_get_functiondef('public.get_my_final_payslip(date)'::regprocedure) not ilike '%calculate%','payslip reader has no draft calculation path');
+select * from finish(); rollback;
