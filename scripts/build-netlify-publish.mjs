@@ -34,6 +34,9 @@ const PUBLIC_ROOT_FILES = Object.freeze([
 ]);
 
 const PUBLIC_DIRECTORIES = Object.freeze(['assets', 'images', 'app', 'staff']);
+const REQUIRED_BINARY_FILES = Object.freeze([
+  'app/assets/monthly-client-document-package.zip'
+]);
 const ALLOWED_STATIC_EXTENSIONS = new Set([
   '.html', '.css', '.js', '.mjs', '.json', '.webmanifest',
   '.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.ico', '.avif',
@@ -84,5 +87,6 @@ await mkdir(outputRoot, { recursive: true });
 
 for (const file of PUBLIC_ROOT_FILES) await copyRequiredFile(file);
 for (const directory of PUBLIC_DIRECTORIES) await copyRequiredDirectory(directory);
+for (const file of REQUIRED_BINARY_FILES) await copyRequiredFile(file);
 
 console.log(`Netlify publish bundle created at ${outputRoot}`);
