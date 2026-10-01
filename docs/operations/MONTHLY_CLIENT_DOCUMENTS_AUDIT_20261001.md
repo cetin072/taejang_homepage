@@ -30,3 +30,7 @@
 runtime 구현, capability/DB migration, 문서 생성, 기능/권한 테스트, 9월 golden, 10월 시나리오, Deploy Preview 대표 흐름, PC/mobile 자체 검수는 미수행이다. planning-only Draft PR/Preview가 생겨도 기능 구현 또는 기능 QA PASS로 보고하지 않는다.
 
 기존 작업 폴더의 모바일 미커밋 변경은 포함하지 않았고 별도 managed worktree를 사용했다. 기존 정상 Core를 재작성하거나 계약값을 추정하지 않았다. 원본 자료가 제공되면 같은 브랜치/PR에서 구현을 이어간다.
+
+## 후속 메일 구현 기록
+
+사용자가 2026-10-01 표준 메일 요구사항과 9월 메일 golden 숫자를 추가 제공했다. app/assets/monthly-client-document-email.js에 순수 생성 모듈을 작성했고 tests/monthly-client-document-email.test.js를 기존 platformStatic 그룹에 등록했다. 담당자 DB/편집·복사 UI/실제 PDF 비교는 아직 구현되지 않았다. 기존 원본 부재 기록은 전체 문서 양식/4사 계약/계산식에 대해 계속 유효하며 메일 표시 fixture 부재는 해소되었다.
