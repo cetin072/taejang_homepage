@@ -21,7 +21,7 @@ test('Goal 331 keeps one canonical notice-management menu with an in-panel creat
   assert.doesNotMatch(registry, /key:'notice\.create'/);
   assert.match(registry, /key:'notice\.manage', label:'공지 관리', section:'업무 운영', capabilities:\['notice\.manage'\]/);
   assert.match(shell, /label: '공지 관리'[\s\S]*openPanel\('notice-admin-panel', 'manage'\)[\s\S]*notice\.manage/);
-  assert.match(nav, /items: \['업무 배정', '공지 관리'\]/);
+  assert.match(nav, /items: \['업무 배정', '공지 관리', '거래처 문서 관리'\]/);
   assert.match(shell, /'공지 등록':'notice\.manage'/);
   assert.match(priority, /'공지 등록':'notice\.manage'/);
   assert.match(read('app/index.html'), /id="new-notice-admin"[^>]*>새 공지 작성/);

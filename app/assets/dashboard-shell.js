@@ -313,6 +313,12 @@
         capabilities: ['notice.manage']
       },
       {
+        key: 'monthly_client_documents.manage',
+        label: '거래처 문서 관리',
+        run: () => window.MonthlyClientDocuments?.open?.(),
+        capabilities: ['monthly_client_documents.manage']
+      },
+      {
         key: 'attendance.view',
         label: '출근부',
         run: openAttendance,

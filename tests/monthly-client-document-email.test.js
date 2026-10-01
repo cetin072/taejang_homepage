@@ -11,7 +11,7 @@ function fixture() {
       yearMonth: '2026-09', serviceDate: '2026-09-22', serviceLocation: '[TEST] 수행 장소',
       safetyEducation: 'outdoor', programs: [{ name: '환경보호 캠페인 버스킹', enabled: true }],
     },
-    company: { id: 'test-a', name: '[TEST] 회사 A', pdfFilename: '2026-09_[TEST] 회사 A_공문견적결과보고서.pdf' },
+    company: { id: 'test-a', name: '[TEST] 회사 A', attachmentLabel: '01. 26년 9월 장애인 고용산입 현황 및 용역비 안내_[TEST] 회사 A' },
     calculation: {
       yearMonth: '2026-09', companyId: 'test-a', totalCredit: 41, equityRate: 17.5,
       appliedHeadcount: 7, supplyAmount: 6345500, vatIncludedAmount: 6980050, unitPrice: 906500,
@@ -30,7 +30,7 @@ test('user supplied September mail golden: numbers, weekday and core wording', (
     '야외 현장 안전교육', '환경보호 캠페인 버스킹', '시민 대상 인식 개선 활동',
     '현장 사진은 압축파일로 함께 보내드립니다.', '세금계산서는 별도 발행할 예정',
   ]) assert.ok(output.body.includes(expected), expected);
-  assert.deepEqual(output.attachments, ['1. 2026-09_[TEST] 회사 A_공문견적결과보고서.pdf 1부', '2. 9월 현장 사진자료 압축파일 1건']);
+  assert.deepEqual(output.attachments, ['1. 01. 26년 9월 장애인 고용산입 현황 및 용역비 안내_[TEST] 회사 A 1부', '2. 9월 현장 사진자료 압축파일 1건']);
 });
 
 test('removing or disabling a program removes every busking mention', () => {
@@ -45,7 +45,7 @@ test('removing or disabling a program removes every busking mention', () => {
 test('indoor video education replaces outdoor wording', () => {
   const input = fixture(); input.monthly.safetyEducation = 'indoor_video';
   const body = email.generate(input).body;
-  assert.match(body, /실내 영상 안전교육/); assert.doesNotMatch(body, /야외/);
+  assert.match(body, /실내 안전교육\(영상 교육\)/); assert.doesNotMatch(body, /야외/);
 });
 
 test('photos OFF removes photo paragraph, ESG paragraph and ZIP attachment together', () => {
@@ -53,13 +53,13 @@ test('photos OFF removes photo paragraph, ESG paragraph and ZIP attachment toget
   const output = email.generate(input);
   assert.doesNotMatch(output.body, /사진|압축파일|ESG|홍보 연계/);
   assert.equal(output.attachments.length, 1);
-  assert.match(output.body, /\.pdf 1부/);
+  assert.match(output.body, /9월 장애인 고용산입 현황 및 용역비 안내/);
 });
 
 test('October scenario changes every month, date, weekday and filename without September text', () => {
   const input = fixture();
-  input.monthly = { ...input.monthly, yearMonth: '2026-10', serviceDate: '2026-10-22', programs: [], safetyEducation: 'indoor_video' };
-  input.calculation.yearMonth = '2026-10'; input.company.pdfFilename = '2026-10_[TEST] 회사 A_공문견적결과보고서.pdf';
+  input.monthly = { ...input.monthly, yearMonth: '2026-10', serviceDate: '2026-10-22', programs: [], safetyEducation: 'indoor' };
+  input.calculation.yearMonth = '2026-10'; input.company.attachmentLabel = '10월 장애인 고용산입 현황 및 용역비 안내_[TEST] 회사 A';
   const output = email.generate(input);
   assert.match(output.subject, /2026년 10월/); assert.match(output.body, /2026년 10월 22일\(목\)/);
   assert.match(output.body, /10월 현장 사진자료/); assert.doesNotMatch(output.body, /9월|2026-09|버스킹/);
@@ -114,11 +114,13 @@ test('invalid, missing and unsafe numeric values never become a plausible mail',
   assert.throws(() => email.generate(input), /INVALID_CALCULATION/);
 });
 
-test('incorrect PDF filename cannot produce another company or month attachment', () => {
-  for (const filename of ['2026-09_other.pdf', '2026-10_[TEST] 회사 A.pdf', '2026-09_[TEST] 회사 A.txt', '2026-09_[TEST] 회사 A.pdf\nsecret']) {
-    const input = fixture(); input.company.pdfFilename = filename;
-    assert.throws(() => email.generate(input), /INVALID_PDF_FILENAME/);
+test('email attachment display labels are separate from DOCX filenames', () => {
+  for (const attachmentLabel of ['10월 장애인 고용산입 현황 및 용역비 안내_[TEST] 회사 A', '9월 다른 회사', '9월 장애인 고용산입 현황 및 용역비 안내_[TEST] 회사 A\nsecret']) {
+    const input = fixture(); input.company.attachmentLabel = attachmentLabel;
+    assert.throws(() => email.generate(input), /INVALID_ATTACHMENT_LABEL/);
   }
+  const input = fixture(); input.company.attachmentLabel = '01. 26년 9월 스캔 문서_[TEST] 회사 A';
+  assert.deepEqual(email.generate(input).attachments[0], '1. 01. 26년 9월 스캔 문서_[TEST] 회사 A 1부');
 });
 
 test('unknown education, invalid month and ambiguous ON/OFF values are rejected', () => {
@@ -135,5 +137,5 @@ test('unknown education, invalid month and ambiguous ON/OFF values are rejected'
 
 test('additional program wording uses the natural Korean object particle', () => {
   assert.match(email.activityParagraph('outdoor', [{ name: '음악 연주', enabled: true }]), /음악 연주를 함께 진행/);
-  assert.match(email.activityParagraph('indoor_video', [{ name: '환경 정비', enabled: true }, { name: '문화 공연', enabled: true }]), /환경 정비, 문화 공연을 함께 진행/);
+  assert.match(email.activityParagraph('indoor', [{ name: '환경 정비', enabled: true }, { name: '문화 공연', enabled: true }]), /환경 정비, 문화 공연을 함께 진행/);
 });

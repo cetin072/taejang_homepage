@@ -26,6 +26,8 @@ export const testGroups = Object.freeze({
     'tests/capability-access-foundation.test.js',
     'tests/capability-ui-gates.test.js',
     'tests/monthly-client-document-email.test.js',
+    'tests/monthly-client-document-core.test.js',
+    'tests/monthly-client-document-access.test.js',
     'tests/issue-148-promotion-homepage-capability-contract.test.js',
     'tests/external-content-meta-guard.test.js',
     'tests/internal-app-ia.test.js',

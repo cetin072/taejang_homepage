@@ -11,7 +11,7 @@
   const numberFormat = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 20 });
   const educationLabels = Object.freeze({
     outdoor: '야외 현장 안전교육',
-    indoor_video: '실내 영상 안전교육',
+    indoor: '실내 안전교육(영상 교육)',
   });
 
   function requiredText(value, field) {
@@ -34,7 +34,7 @@
   }
 
   function activityParagraph(safetyEducation, programs = []) {
-    const education = educationLabels[safetyEducation];
+    const education = educationLabels[safetyEducation === 'indoor_video' ? 'indoor' : safetyEducation];
     if (!education) throw new Error('INVALID_SAFETY_EDUCATION');
     if (!Array.isArray(programs)) throw new Error('INVALID_PROGRAMS');
     const enabled = programs.filter(program => {
@@ -75,10 +75,15 @@
     const serviceDate = dateLabel(monthly.serviceDate);
     const location = requiredText(monthly.serviceLocation, 'SERVICE_LOCATION');
     const activity = activityParagraph(monthly.safetyEducation, monthly.programs);
-    const filename = requiredText(company.pdfFilename, 'PDF_FILENAME');
-    if (!filename.toLowerCase().endsWith('.pdf') || /[\r\n]/.test(filename)
-      || !filename.includes(yearMonth) || !filename.includes(companyName)) throw new Error('INVALID_PDF_FILENAME');
-    const attachments = [`1. ${filename} 1부`];
+    const attachmentDisplayName = company.attachmentDisplayName === undefined
+      ? companyName : requiredText(company.attachmentDisplayName, 'ATTACHMENT_DISPLAY_NAME');
+    const attachmentLabel = company.attachmentLabel === undefined
+      ? `${String(year).slice(2)}년 ${month}월 장애인 고용산입 현황 및 용역비 안내_${attachmentDisplayName}`
+      : requiredText(company.attachmentLabel, 'ATTACHMENT_LABEL');
+    if (/[\r\n]/.test(attachmentLabel) || !attachmentLabel.includes(String(month)) || !attachmentLabel.includes(attachmentDisplayName)) {
+      throw new Error('INVALID_ATTACHMENT_LABEL');
+    }
+    const attachments = [`1. ${attachmentLabel} 1부`];
     if (includePhotos) attachments.push(`2. ${month}월 현장 사진자료 압축파일 1건`);
     const photoParagraph = includePhotos
       ? '\n\n현장 사진은 압축파일로 함께 보내드립니다.\n귀사 ESG 활동 자료로 활용하실 수 있으며,\n별도 홍보 연계가 필요하시면 말씀해 주시기 바랍니다.'

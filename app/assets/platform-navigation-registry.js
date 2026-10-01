@@ -28,6 +28,7 @@
 
     { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
+    { key:'monthly_client_documents.manage', label:'거래처 문서 관리', section:'업무 운영', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'] },

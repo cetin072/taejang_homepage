@@ -34,3 +34,11 @@ runtime 구현, capability/DB migration, 문서 생성, 기능/권한 테스트,
 ## 후속 메일 구현 기록
 
 사용자가 2026-10-01 표준 메일 요구사항과 9월 메일 golden 숫자를 추가 제공했다. app/assets/monthly-client-document-email.js에 순수 생성 모듈을 작성했고 tests/monthly-client-document-email.test.js를 기존 platformStatic 그룹에 등록했다. 담당자 DB/편집·복사 UI/실제 PDF 비교는 아직 구현되지 않았다. 기존 원본 부재 기록은 전체 문서 양식/4사 계약/계산식에 대해 계속 유효하며 메일 표시 fixture 부재는 해소되었다.
+
+## 사용자 제공 원본 및 감사 정정 — 2026-10-01
+
+이후 사용자가 `taejang-docgen-codex-handoff.zip`을 제공했다. `core.js`, `ui.html`, `taejang-docgen.html`, `tpl.json`, `pkg.zip`을 대조하여 기존 감사의 원본 미확보 blocker는 해소됐다. 4사 Artifact 기본값, deterministic 계산식, 공문·견적서·결과보고서 WordprocessingML template, DOCX package skeleton, 2026-09 golden과 2026-10 scenario를 확인했다. 첨부 ZIP·추출 텍스트는 공개 저장소에 추가하지 않고 실행에 필요한 template/package asset과 최소 회사 설정만 반영한다.
+
+기존 기획의 PDF 전제는 원본과 달라 폐기했다. 결과물은 회사별 3쪽 DOCX, 4사 합본 12쪽 DOCX이며 파일명도 `.docx`로 바꾼다. PDF 엔진을 추가하지 않는다. 회사 기본값에는 범한 override 6명과 Artifact의 지급기한(삼현/청우 10일)을 포함하되, 후자의 계약상 법률 사실성을 주장하지 않고 변경 가능한 운영 기본값으로 취급한다.
+
+이 정정은 당시 조사 메모를 삭제하지 않고 과거 검색 결과로 보존한다. 현재 구현·테스트·Preview 진행 상황은 [MONTHLY_CLIENT_DOCUMENTS_V1.md](../planning/MONTHLY_CLIENT_DOCUMENTS_V1.md)와 Draft PR #388에서 대조한다. 로컬 계산·메일 단위 테스트와 DOCX XML 구조 검증은 추가했으며 clean migration replay/pgTAP, Preview browser flow, PC/mobile QA 및 Word/LibreOffice 직접 렌더는 아직 별도 확인 대상이다.
