@@ -163,3 +163,21 @@ test('common note is validated and duplicate month copy returns a clear code', (
     assert.match(source, /finally[\s\S]*?render\(\);\s*report\(message,isError\)/, `${action} reports after render`);
   }
 });
+
+
+test('Netlify publish bundle explicitly includes the DOCX package binary', () => {
+  const build = read('scripts/build-netlify-publish.mjs');
+  assert.match(build, /REQUIRED_BINARY_FILES[\s\S]*?app\/assets\/monthly-client-document-package\.zip/);
+  assert.match(build, /for \(const file of REQUIRED_BINARY_FILES\) await copyRequiredFile\(file\)/);
+});
+
+test('confirmed monthly snapshot keeps DOCX output selection independent from saved data', () => {
+  const ui = read('app/assets/monthly-client-documents.js');
+  assert.match(ui, /let outputSelection = new Set\(ids\)/);
+  assert.match(ui, /outputSelection = new Set\(state\.companies\.filter\(company => company\.enabled\)\.map\(company => company\.id\)\)/);
+  assert.match(ui, /합본에 포함/);
+  assert.match(ui, /company\.enabled && outputSelection\.has\(company\.id\)/);
+  assert.match(ui, /const selected = state\.companies\.filter\(company => company\.enabled && outputSelection\.has\(company\.id\)\)/);
+  const fingerprintSource = ui.slice(ui.indexOf('function fingerprint'), ui.indexOf('function assertActiveMonth'));
+  assert.doesNotMatch(fingerprintSource, /outputSelection/);
+});
