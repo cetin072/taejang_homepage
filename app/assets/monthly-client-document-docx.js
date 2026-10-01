@@ -2,10 +2,10 @@
 (function (root, factory) {
   'use strict';
   const core = root.MonthlyClientDocumentCore || (typeof require === 'function' ? require('./monthly-client-document-core.js') : null);
-  const api = factory(core);
+  const api = factory(root, core);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.MonthlyClientDocumentDocx = api;
-})(typeof globalThis === 'object' ? globalThis : this, function (core) {
+})(typeof globalThis === 'object' ? globalThis : this, function (root, core) {
   'use strict';
   if (!core) throw new Error('MONTHLY_DOCUMENT_CORE_REQUIRED');
   const TEMPLATE_VERSION = 'claude-template-1';

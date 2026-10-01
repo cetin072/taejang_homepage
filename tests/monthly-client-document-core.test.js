@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
 const JSZip = require('../app/assets/vendor/jszip-3.10.1.min.js');
 const core = require('../app/assets/monthly-client-document-core.js');
 const docx = require('../app/assets/monthly-client-document-docx.js');
@@ -86,6 +87,30 @@ test('invalid calculation inputs and client/contract overages are blocked', () =
   }
   assert.ok(core.calculate(common(), { ...companies[0], override: 8 }).warnings.length);
   assert.ok(core.calculate(common(), { ...companies[0], cap: 5 }).warnings.length);
+});
+
+test('browser-style DOCX runtime uses the global JSZip without root reference errors', async () => {
+  const rootDir = path.resolve(__dirname, '..');
+  const source = await fs.readFile(path.join(rootDir, 'app/assets/monthly-client-document-docx.js'), 'utf8');
+  const template = JSON.parse(await fs.readFile(path.join(rootDir, 'app/assets/monthly-client-document-template.json'), 'utf8'));
+  const packageBytes = await fs.readFile(path.join(rootDir, 'app/assets/monthly-client-document-package.zip'));
+  const context = {
+    JSZip,
+    MonthlyClientDocumentCore: core,
+    console,
+  };
+  context.globalThis = context;
+  vm.runInNewContext(source, context, { filename: 'monthly-client-document-docx.js' });
+  assert.equal(typeof context.MonthlyClientDocumentDocx?.createDocx, 'function');
+  const buffer = await context.MonthlyClientDocumentDocx.createDocx({
+    template,
+    packageBytes,
+    common: common(),
+    companies: [companies[0]],
+    type: 'nodebuffer',
+  });
+  assert.ok(Buffer.isBuffer(buffer));
+  assert.ok(buffer.length > 1000);
 });
 
 test('DOCX generation replaces every token and does not mix companies in single-company files', async () => {
