@@ -21,6 +21,9 @@ test('monthly document assets load locally before the feature and no CDN runtime
   const email = read('app/assets/monthly-client-document-email.js');
   assert.ok(appUi.indexOf('vendor/jszip-3.10.1.min.js') < appUi.indexOf('monthly-client-document-docx.js'));
   assert.ok(appUi.indexOf('monthly-client-document-core.js') < appUi.indexOf('monthly-client-documents.js'));
+  const eagerModules = appUi.slice(appUi.indexOf('const FEATURE_MODULES'), appUi.indexOf('const MONTHLY_DOCUMENT_MODULES'));
+  assert.doesNotMatch(eagerModules, /jszip-3\.10\.1|monthly-client-document-(?:core|docx|email|s)/);
+  assert.match(appUi, /TaejangMonthlyClientDocumentsLoader = async \(\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)[\s\S]*?MONTHLY_DOCUMENT_MODULES/);
   assert.doesNotMatch(email, /pdfFilename|INVALID_PDF_FILENAME|\.pdf/);
   assert.match(email, /indoor: '실내 안전교육\(영상 교육\)'/);
   assert.match(email, /attachmentLabel/);
@@ -61,4 +64,40 @@ test('month switching protects unsaved inputs and edited mail photo preference',
   assert.match(ui, /저장하지 않은 변경이 있습니다\. 저장하지 않고 지난달 snapshot에서 새 월을 만들까요\?/);
   const applyDraft = ui.slice(ui.indexOf('function applyNewEmailDraft'), ui.indexOf('async function copyText'));
   assert.doesNotMatch(applyDraft, /\[data-email-photos\]'\)\.checked = true/);
+});
+
+test('month identity changes only through the atomic load flow and snapshots cannot be cross-saved', () => {
+  const ui = read('app/assets/monthly-client-documents.js');
+  assert.doesNotMatch(ui, /field\('연도',\s*state\.common\.year|field\('월',\s*state\.common\.month/);
+  assert.match(ui, /const key = monthKey\(state\.common\.year, state\.common\.month\);[\s\S]*?record && monthKey\(record\.year, record\.month\) !== key/);
+  assert.match(ui, /async function loadMonth\(year, month, redraw = true, requireNew = false\)[\s\S]*?record = result \|\| null; revision = Number\(record\?\.revision \|\| 0\);[\s\S]*?activeMonthKey = monthKey\(year, month\);[\s\S]*?savedFingerprint = fingerprint\(\);/);
+  assert.match(ui, /async function startNewMonth\(\)[\s\S]*?loadMonth\(year,month,true,true\)/);
+  assert.match(ui, /async function copyPrevious\(\)[\s\S]*?monthly_client_documents_copy_previous[\s\S]*?loadMonth\(year,month,false\)/);
+  assert.match(ui, /async function saveMonth\(\)[\s\S]*?assertActiveMonth\(\)/);
+});
+
+test('historic snapshots cannot be submitted as current company defaults', () => {
+  const ui = read('app/assets/monthly-client-documents.js');
+  const saveDefaults = ui.slice(ui.indexOf('async function saveDefaults'), ui.indexOf('async function open'));
+  assert.match(ui, /defaultsDraft: \(data\.defaults \|\| \[\]\)\.map/);
+  assert.match(ui, /state\.defaultsDraft\.forEach/);
+  assert.match(saveDefaults, /p_company_defaults:state\.defaultsDraft\.map/);
+  assert.doesNotMatch(saveDefaults, /p_company_defaults:state\.companies/);
+  assert.match(ui, /현재 회사 기본값 저장/);
+  assert.match(ui, /열린 월 snapshot은 변경하지 않았습니다/);
+  assert.match(ui, /function fingerprint\(\) \{ return JSON\.stringify\(\{ common: state\.common, companies: state\.companies \}\); \}/);
+});
+
+test('common note is validated and duplicate month copy returns a clear code', () => {
+  const migration = read('supabase/migrations/20261001100000_monthly_client_documents.sql');
+  assert.match(migration, /jsonb_typeof\(v_common->'note'\) is distinct from 'string'[\s\S]*?INVALID_COMMON_NOTE/);
+  assert.match(migration, /on conflict\(year,month\) do nothing returning \* into current_row;[\s\S]*?MONTH_ALREADY_EXISTS/);
+  const ui = read('app/assets/monthly-client-documents.js');
+  assert.match(ui, /MONTH_ALREADY_EXISTS[\s\S]*?이미 저장된 월입니다/);
+  for (const action of ['confirmMonth','unconfirmMonth','copyPrevious']) {
+    const start = ui.indexOf(`async function ${action}`);
+    const end = ui.indexOf('\n  async function ', start + 1);
+    const source = ui.slice(start, end < 0 ? ui.length : end);
+    assert.match(source, /finally[\s\S]*?render\(\);\s*report\(message,isError\)/, `${action} reports after render`);
+  }
 });

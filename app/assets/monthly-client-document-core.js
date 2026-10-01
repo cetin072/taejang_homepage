@@ -45,6 +45,7 @@
     validateDate(common.perfDate, 'SERVICE_DATE');
     if (typeof common.place !== 'string' || !common.place.trim()) throw new Error('INVALID_PLACE');
     if (!['outdoor', 'indoor'].includes(common.safety)) throw new Error('INVALID_SAFETY');
+    if (typeof common.note !== 'string') throw new Error('INVALID_COMMON_NOTE');
     for (const key of ['severe', 'mildF', 'mildM']) finite(common[key], key.toUpperCase(), { integer: true });
     finite(common.base, 'BASE');
     finite(common.rate, 'RATE', { max: 100 });
@@ -154,7 +155,7 @@
     const programLines = [common.safety === 'outdoor' ? '야외 현장 안전교육 — 작업 전 현장에서 실시하는 안전수칙 교육 및 보호장구 점검' : '실내 안전교육(영상 교육) — 작업 전 안전수칙 교육 및 참석 확인 서명',
       ...extras.map(item => item.description.trim() ? `${item.name.trim()} — ${item.description.trim()}` : item.name.trim()), '지역사회 환경정비 — 공원·거리 일원 폐기물 수거 및 환경 정비'];
     const listC = programLines.map((value, index) => `${'가나다라마바사아'[index]}. ${value}`);
-    const reducedNote = calculation.reduced ? `, 귀사 지분율 ${share}% 기준 최대 산입 ${calculation.calculatedHeadcount}명 중 귀사와 협의한 ${n}명을 적용하였습니다.` : ' 실제 산입 인원을 기준으로 정산합니다.';
+    const reducedNote = calculation.reduced ? ` 귀사 지분율 ${share}% 기준 최대 산입 ${calculation.calculatedHeadcount}명 중 귀사와 협의한 ${n}명을 적용하였습니다.` : ' 실제 산입 인원을 기준으로 정산합니다.';
     const simple = {
       NAME: company.name, SEQ: seq, DATE: date.dot, YM: ym, YY: String(year).slice(2), M: String(month), PERF: service.kor,
       PLACE: common.place, SUPPLY: formatAmount(calculation.supplyAmount), VAT: formatAmount(calculation.vatAmount),
@@ -163,7 +164,9 @@
       Q1: `· 본 견적은 자회사형 장애인 표준사업장 용역계약(별첨2, 용역 제공 기준)에 의거하며,${reducedNote}`,
       Q2: `· 1인당 단가 ${formatAmount(calculation.unitPrice)}원(부담기초액 ${formatAmount(common.base)}원 × ${common.rate}%) × 산입 ${n}명 = 공급가액 ${formatAmount(calculation.supplyAmount)}원.`,
       Q3: `· 용역 내역: ${[education, ...extras.map(item => item.name.trim()), '지역사회 환경정비(폐기물 수거)'].join(', ')} — ${service.dotw} 수행.`,
-      R_SAFE: `· 작업 전 ${education} 실시 및 참석 확인 서명 징구`,
+      R_SAFE: common.safety === 'outdoor'
+        ? '· 작업 전 야외 현장 안전교육 실시 및 보호장구 점검, 참석 확인 서명 징구'
+        : '· 작업 전 실내 안전교육(영상 교육) 실시 및 참석 확인 서명 징구',
       R_PHOTO: `· 현장 사진자료 별도 첨부 — 압축파일 1건 (${[common.safety === 'outdoor' ? '야외 안전교육' : '실내 안전교육', ...extras.map(item => item.name.trim()), common.place.replace(/\s*일원$/, ''), '단체사진'].join(' / ')})`,
     };
     const listR = [common.safety === 'outdoor' ? '야외 현장 안전교육 및 보호장구 점검' : '실내 안전교육(영상 교육)',

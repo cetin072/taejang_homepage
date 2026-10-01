@@ -51,6 +51,15 @@ test('October 2026 scenario keeps the source numbering, weekday, no-program outp
   assert.equal(docx.filename(input, [companies[0]]), '26년 10월_범한메카텍_공문+견적서+결과보고서.docx');
 });
 
+test('DOCX source wording restores reduced quote punctuation and outdoor safety check', () => {
+  const input = common();
+  const reduced = core.buildContent(input, companies[0], core.calculate(input, companies[0])).simple;
+  assert.match(reduced.Q1, /용역 제공 기준\)에 의거하며, 귀사 지분율 19(?:\.0)?%/);
+  assert.doesNotMatch(reduced.Q1, /,,/);
+  assert.equal(reduced.R_SAFE, '· 작업 전 야외 현장 안전교육 실시 및 보호장구 점검, 참석 확인 서명 징구');
+  for (const note of [null, 1, {}]) assert.throws(() => core.calculate({ ...input, note }, companies[0]), /INVALID_COMMON_NOTE/);
+});
+
 test('strict ISO dates are timezone independent and reject impossible days', () => {
   assert.equal(core.dateLabel('2026-09-22').kor, '2026년 9월 22일(화)');
   assert.equal(core.dateLabel('2026-10-20').kor, '2026년 10월 20일(화)');
@@ -87,10 +96,15 @@ test('DOCX generation replaces every token and does not mix companies in single-
       assert.ok(xml.includes(`2026-09-0${index + 1}`));
       assert.ok(xml.includes('906,500'));
       assert.ok(xml.includes('야외 현장 안전교육'));
+      assert.ok(xml.includes('보호장구 점검, 참석 확인 서명 징구'));
       assert.ok(xml.includes('창원 팔용근린공원 일원'));
       assert.ok(xml.includes('2026. 9. 30.'));
       assert.ok(xml.includes('2026년 9월 22일(화)'));
-      if (index === 0) assert.ok(xml.includes('5,439,000'));
+      if (index === 0) {
+        assert.ok(xml.includes('5,439,000'));
+        assert.ok(xml.includes('용역 제공 기준)에 의거하며, 귀사 지분율'));
+        assert.ok(!xml.includes('의거하며,,'));
+      }
       if (index === 1) assert.ok(xml.includes('6,345,500'));
       if (index === 2) assert.ok(xml.includes('4,532,500'));
       if (index === 3) assert.ok(xml.includes('6,345,500'));

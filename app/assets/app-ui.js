@@ -130,16 +130,10 @@
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
   loadStyleOnce('assets/support-radar.css', 'support-radar');
-  loadStyleOnce('assets/monthly-client-documents.css', 'monthly-client-documents');
-
   // Start independent feature requests together, but do not release app-ready until
   // every module has registered or failed. `async = false` keeps dynamically
   // inserted classic scripts executing in insertion order.
   const FEATURE_MODULES = [
-    ['assets/vendor/jszip-3.10.1.min.js', 'jszip-monthly-documents'],
-    ['assets/monthly-client-document-core.js', 'monthly-client-document-core'],
-    ['assets/monthly-client-document-docx.js', 'monthly-client-document-docx'],
-    ['assets/monthly-client-document-email.js', 'monthly-client-document-email'],
     ['assets/capability-access.js', 'capability-access'],
     ['assets/platform-ui-settings.js', 'platform-ui-settings'],
     ['assets/support-radar-access.js', 'support-radar-access'],
@@ -183,9 +177,33 @@
     ['assets/ux-followup-polish.js', 'ux-followup-polish'],
     ['assets/issue-207-promotion-information-ux.js', 'issue-207-promotion-information-ux'],
     ['assets/role-screen-polish.js', 'role-screen-polish'],
-    ['assets/navigation-visual-stability.js', 'navigation-visual-stability'],
-    ['assets/monthly-client-documents.js', 'monthly-client-documents']
+    ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
+
+  const MONTHLY_DOCUMENT_MODULES = [
+    ['assets/vendor/jszip-3.10.1.min.js', 'jszip-monthly-documents'],
+    ['assets/monthly-client-document-core.js', 'monthly-client-document-core'],
+    ['assets/monthly-client-document-docx.js', 'monthly-client-document-docx'],
+    ['assets/monthly-client-document-email.js', 'monthly-client-document-email'],
+    ['assets/monthly-client-documents.js', 'monthly-client-documents'],
+  ];
+  let monthlyDocumentsLoading = null;
+  window.TaejangMonthlyClientDocumentsLoader = async () => {
+    if (window.TaejangApp?.can?.('monthly_client_documents.manage') !== true) return;
+    if (!monthlyDocumentsLoading) monthlyDocumentsLoading = (async () => {
+      loadStyleOnce('assets/monthly-client-documents.css', 'monthly-client-documents');
+      for (const [source, key] of MONTHLY_DOCUMENT_MODULES) {
+        const result = await loadScriptOnce(source, key);
+        if (!result.ok) throw new Error(`${key} failed to load`);
+      }
+      if (typeof window.MonthlyClientDocuments?.open !== 'function') throw new Error('monthly-client-documents API unavailable');
+      window.MonthlyClientDocuments.open();
+    })().catch(() => {
+      monthlyDocumentsLoading = null;
+      showFeatureFailure('거래처 문서 관리');
+    });
+    return monthlyDocumentsLoading;
+  };
 
   let modulesReady = false;
   let replayingReady = false;

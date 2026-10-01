@@ -133,6 +133,9 @@ begin
   if coalesce(v_common->>'safety','') not in ('outdoor','indoor') then
     raise exception using errcode='22023', message='INVALID_SAFETY';
   end if;
+  if jsonb_typeof(v_common->'note') is distinct from 'string' then
+    raise exception using errcode='22023', message='INVALID_COMMON_NOTE';
+  end if;
   if jsonb_typeof(v_common->'extras') is distinct from 'array' then raise exception using errcode='22023', message='INVALID_EXTRAS'; end if;
   for v_extra in select value from jsonb_array_elements(v_common->'extras') loop
     if jsonb_typeof(v_extra) is distinct from 'object' or coalesce(v_extra->>'name','')<>trim(coalesce(v_extra->>'name',''))
@@ -344,7 +347,9 @@ begin
   next_payload := jsonb_set(next_payload,'{common,extras}','[]'::jsonb,true);
   next_payload := jsonb_set(next_payload,'{companies}',coalesce((select jsonb_agg(jsonb_set(value,'{note}','""'::jsonb,true) order by (value->>'seq')::integer) from jsonb_array_elements(prior_payload->'companies')),'[]'::jsonb),true);
   insert into public.monthly_client_document_sets(year,month,payload,created_by,updated_by)
-    values(p_year,p_month,next_payload,auth.uid(),auth.uid()) returning * into current_row;
+    values(p_year,p_month,next_payload,auth.uid(),auth.uid())
+    on conflict(year,month) do nothing returning * into current_row;
+  if not found then raise exception using errcode='P0001',message='MONTH_ALREADY_EXISTS'; end if;
   return jsonb_build_object('year',current_row.year,'month',current_row.month,'status',current_row.status,'revision',current_row.revision,'payload',current_row.payload,
     'calculationVersion',current_row.calculation_version,'templateVersion',current_row.template_version);
 end; $$;

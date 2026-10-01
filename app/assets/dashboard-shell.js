@@ -315,7 +315,7 @@
       {
         key: 'monthly_client_documents.manage',
         label: '거래처 문서 관리',
-        run: () => window.MonthlyClientDocuments?.open?.(),
+        run: () => window.TaejangMonthlyClientDocumentsLoader?.(),
         capabilities: ['monthly_client_documents.manage']
       },
       {

@@ -23,6 +23,7 @@
     if (options.step !== undefined) input.step = options.step;
     if (options.placeholder) input.placeholder = options.placeholder;
     if (options.checked !== undefined) input.checked = options.checked;
+    input.dataset.mcdScope = options.scope || 'snapshot';
     input.addEventListener('input', () => onChange(input.type === 'checkbox' ? input.checked : input.value));
     input.addEventListener('change', () => onChange(input.type === 'checkbox' ? input.checked : input.value));
     label.append(input); return label;
@@ -33,7 +34,8 @@
   };
   const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
   const currentCapability = () => window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
-  let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', busy = false, emailState = null;
+  let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', activeMonthKey = '', loadSequence = 0,
+    busy = false, emailState = null, newMonthTarget = null;
   const emailDrafts = new Map();
 
   function commonFromDefaults(year, month) {
@@ -46,7 +48,17 @@
   function report(message, error = false) {
     statusNode.textContent = message; statusNode.classList.toggle('error', error); statusNode.hidden = !message;
   }
-  function fingerprint() { return JSON.stringify(state); }
+  function fingerprint() { return JSON.stringify({ common: state.common, companies: state.companies }); }
+  function assertActiveMonth() {
+    const key = monthKey(state.common.year, state.common.month);
+    if (key !== activeMonthKey || (record && monthKey(record.year, record.month) !== key) || (!record && revision !== 0)) {
+      throw new Error('MONTH_IDENTITY_MISMATCH');
+    }
+  }
+  function friendlyError(error) {
+    const message = error?.message || String(error);
+    return message.includes('MONTH_ALREADY_EXISTS') ? '이미 저장된 월입니다. 저장된 월 불러오기를 사용하세요.' : message;
+  }
   function latestCalculations() {
     const active = state.companies.filter(company => company.enabled);
     const used = new Set();
@@ -108,7 +120,8 @@
     });
     root.querySelector('[data-mcd-save]').disabled = confirmed || busy;
     root.querySelector('[data-mcd-unconfirm]').disabled = !confirmed || busy;
-    root.querySelectorAll('.mcd-field input,.mcd-field textarea,.mcd-field select').forEach(node => { node.disabled = confirmed || busy; });
+    root.querySelectorAll('[data-mcd-scope="snapshot"]').forEach(node => { node.disabled = confirmed || busy; });
+    root.querySelectorAll('[data-mcd-scope="company-default"]').forEach(node => { node.disabled = busy; });
     root.querySelector('[data-mcd-confirm]').setAttribute('aria-describedby', 'mcd-warnings');
   }
 
@@ -234,24 +247,27 @@
     root.querySelector('.mcd-header').append(el('p', '업무 운영 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
       el('p', '월별 snapshot을 저장하고 확정한 뒤 회사별 또는 4사 DOCX를 생성합니다.'));
     const top = el('section', undefined, 'mcd-panel'); top.append(el('h3', '기준 월'));
-    const pickers = el('div', undefined, 'mcd-grid');
-    pickers.append(field('연도', state.common.year, 'number', value => { state.common.year = Number(value); changed(); }, { min: 2000, max: 9999, required: true }),
-      field('월', state.common.month, 'number', value => { state.common.month = Number(value); changed(); }, { min: 1, max: 12, required: true }));
-    top.append(pickers);
+    top.append(el('p', `${state.common.year}년 ${state.common.month}월`, 'mcd-current-month'));
     const select = el('select'); select.dataset.mcdHistory = '1';
     const options = [...state.history].sort((a,b) => `${b.year}-${b.month}`.localeCompare(`${a.year}-${a.month}`));
     options.forEach(item => { const option = el('option', `${item.year}년 ${item.month}월 · ${item.status === 'confirmed' ? '확정' : '작성중'}`); option.value = monthKey(item.year,item.month); select.append(option); });
-    select.value = monthKey(state.common.year, state.common.month);
+    const prompt = el('option', '월을 선택하세요'); prompt.value = ''; select.prepend(prompt);
+    select.value = state.history.some(item => monthKey(item.year,item.month) === activeMonthKey) ? activeMonthKey : '';
     select.addEventListener('change', () => {
       if (fingerprint() !== savedFingerprint && !window.confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 다른 월을 불러올까요?')) {
         render(); return;
       }
-      loadMonth(...select.value.split('-').map(Number));
+      if (select.value) loadMonth(...select.value.split('-').map(Number)).catch(error => report(`월 불러오기 실패: ${friendlyError(error)}`, true));
     });
     top.append(field('저장된 월 불러오기', '', '', () => {})); top.lastChild.replaceChildren(el('span', '저장된 월 불러오기'), select);
-    top.append(el('p', `상태: ${record?.status === 'confirmed' ? '확정' : '작성중'} · revision ${revision}`, 'mcd-status-line'));
+    top.append(el('p', `상태: ${record ? (record.status === 'confirmed' ? '확정' : '작성중') : '새 월 · 아직 저장 안 됨'} · revision ${revision}`, 'mcd-status-line'));
+    if (!newMonthTarget) newMonthTarget = { year: state.common.year, month: state.common.month };
+    const targetFields = el('div', undefined, 'mcd-grid');
+    targetFields.append(field('새 월 연도', newMonthTarget.year, 'number', value => { newMonthTarget.year = value === '' ? '' : Number(value); }, { min: 2000, max: 9999, required: true }),
+      field('새 월', newMonthTarget.month, 'number', value => { newMonthTarget.month = value === '' ? '' : Number(value); }, { min: 1, max: 12, required: true }));
+    top.append(targetFields);
     const actions = el('div', undefined, 'mcd-actions');
-    actions.append(button('지난달 기준 새 월 복사', copyPrevious), button('회사 기본값 저장', saveDefaults)); top.append(actions); root.append(top);
+    actions.append(button('빈 새 월 시작', startNewMonth), button('지난달 설정 복사', copyPrevious)); top.append(actions); root.append(top);
 
     const commonPanel = el('section', undefined, 'mcd-panel'); commonPanel.append(el('h3', '공통 입력'));
     const grid = el('div', undefined, 'mcd-grid');
@@ -263,13 +279,13 @@
     commonField('중증 근로자(명)', 'severe', 'number', { min: 0, required: true }); commonField('경증 여성(명)', 'mildF', 'number', { min: 0, required: true });
     commonField('경증 남성(명)', 'mildM', 'number', { min: 0, required: true }); commonField('부담기초액(원)', 'base', 'number', { min: 0, required: true });
     commonField('지원비율(%)', 'rate', 'number', { min: 0, max: 100, step: '0.1', required: true });
-    commonPanel.append(grid, field('공문 2항 공통 문구', state.common.note, 'textarea', value => { state.common.note = value; changed(); }));
+    commonPanel.append(grid, field('공문 2항 공통 문구', state.common.note, 'textarea', value => { state.common.note = value; changed(); }, { scope: 'snapshot' }));
     const extras = el('div', undefined, 'mcd-extras');
     state.common.extras.forEach((extra,index) => {
       const row = el('div', undefined, 'mcd-grid mcd-extra');
       const remove = button('삭제', () => { state.common.extras.splice(index,1); render(); }); remove.disabled = !editableInput() || busy;
-      row.append(field('추가 프로그램 이름', extra.name, 'text', value => { extra.name=value; changed(); }),
-        field('설명', extra.description, 'text', value => { extra.description=value; changed(); }),
+      row.append(field('추가 프로그램 이름', extra.name, 'text', value => { extra.name=value; changed(); }, { scope: 'snapshot' }),
+        field('설명', extra.description, 'text', value => { extra.description=value; changed(); }, { scope: 'snapshot' }),
         remove); extras.append(row);
     });
     const addExtra = button('+ 프로그램 추가', () => { state.common.extras.push({ name:'', description:'' }); render(); });
@@ -279,10 +295,10 @@
     state.companies.forEach((company,index) => {
       const card = el('article', undefined, `mcd-company${company.enabled ? '' : ' off'}`);
       const title = el('h4'); const enabled = el('input'); enabled.type='checkbox'; enabled.checked=company.enabled;
-      enabled.disabled = record?.status === 'confirmed' || busy;
+      enabled.disabled = record?.status === 'confirmed' || busy; enabled.dataset.mcdScope='snapshot';
       enabled.addEventListener('change', () => { company.enabled=enabled.checked; changed(); }); title.append(enabled, el('span', ` ${company.key}`)); card.append(title);
       const fields = el('div', undefined, 'mcd-grid');
-      const companyField = (label,key,type='text',opts={}) => fields.append(field(label,company[key],type,value=>{company[key]=type==='number'?(value===''?'':Number(value)):value;changed();},opts));
+      const companyField = (label,key,type='text',opts={}) => fields.append(field(label,company[key],type,value=>{company[key]=type==='number'?(value===''?'':Number(value)):value;changed();},{...opts,scope:'snapshot'}));
       companyField('수신 상호(등록증 표기)','name','text',{required:true}); companyField('지분율(%)','share','number',{min:0,max:100,step:'0.1',required:true});
       companyField('계약 상한(명)','cap','number',{min:0,required:true}); companyField('적용 인원 override (비우면 자동)','override','number',{min:0});
       companyField('지급기한(일)','pay','number',{min:1,required:true}); companyField('문서 순번','seq','number',{min:1,max:99,required:true});
@@ -294,6 +310,19 @@
       const emailButton = button('메일 초안', () => showEmail(company)); emailButton.disabled = !company.enabled;
       companyActions.append(companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
     }); root.append(companyPanel);
+    const defaultsPanel = el('section', undefined, 'mcd-panel'); defaultsPanel.dataset.mcdCompanyDefaults='1';
+    defaultsPanel.append(el('h3', '현재 회사 기본값'), el('p', '새 월을 빈 상태로 시작할 때 사용하는 기본 설정입니다. 이미 열린 월 snapshot에는 적용되지 않습니다.'));
+    state.defaultsDraft.forEach(company => {
+      const card = el('article', undefined, 'mcd-company-default'); card.append(el('h4', company.key));
+      const fields = el('div', undefined, 'mcd-grid');
+      const defaultField = (label,key,type='text',opts={}) => fields.append(field(label,company[key],type,value=>{company[key]=type==='number'?(value===''?'':Number(value)):value;},{...opts,scope:'company-default'}));
+      defaultField('기본 수신 상호','name','text',{required:true}); defaultField('기본 지분율(%)','share','number',{min:0,max:100,step:'0.1',required:true});
+      defaultField('기본 계약 상한(명)','cap','number',{min:0,required:true}); defaultField('기본 적용 인원 override','override','number',{min:0});
+      defaultField('기본 지급기한(일)','pay','number',{min:1,required:true}); defaultField('기본 문서 순번','seq','number',{min:1,max:99,required:true});
+      card.append(fields); defaultsPanel.append(card);
+    });
+    const defaultsActions = el('div', undefined, 'mcd-actions'); defaultsActions.append(button('현재 회사 기본값 저장', saveDefaults));
+    defaultsPanel.append(defaultsActions); root.append(defaultsPanel);
     const resultPanel = el('section', undefined, 'mcd-panel'); resultPanel.append(el('h3', '계산 요약'));
     const warnings = el('div'); warnings.id='mcd-warnings'; warnings.dataset.mcdWarnings='1'; warnings.setAttribute('role','alert'); resultPanel.append(warnings);
     const summary = el('div'); summary.dataset.mcdSummary='1'; resultPanel.append(summary);
@@ -314,25 +343,35 @@
   async function loadData() {
     if (!currentCapability()) throw new Error('FORBIDDEN');
     const data = await rpc('monthly_client_documents_get');
-    state = { defaults: data.defaults || [], history: data.months || [], common: null, companies: null };
+    state = { defaults: data.defaults || [], defaultsDraft: (data.defaults || []).map(item => ({ ...item })), history: data.months || [], common: null, companies: null };
     if (!ids.every(id => state.defaults.some(item => item.id === id))) throw new Error('회사 기본값을 불러오지 못했습니다.');
     const now = new Date(); const month = now.getMonth() + 1;
     await loadMonth(now.getFullYear(), month, false);
   }
-  async function loadMonth(year, month, redraw = true) {
+  async function loadMonth(year, month, redraw = true, requireNew = false) {
     if (month < 1 || month > 12 || year < 2000 || year > 9999) return report('연도와 월을 확인하세요.', true);
-    const result = await rpc('monthly_client_documents_get_month', { p_year: year, p_month: month });
-    record = result || null; revision = Number(record?.revision || 0);
-    const payload = record?.payload;
-    const values = payload?.common ? payload : defaultsToMonth(state.defaults,year,month);
-    state.common = { ...commonFromDefaults(year,month), ...values.common, year, month, extras: Array.isArray(values.common.extras) ? values.common.extras : [] };
-    state.companies = ids.map(id => ({ ...state.defaults.find(item=>item.id===id), ...(values.companies || []).find(item=>item.id===id), enabled: (values.companies || []).find(item=>item.id===id)?.enabled ?? true }));
-    savedFingerprint = fingerprint();
-    if (redraw && root) render();
+    const request = ++loadSequence;
+    const updateScreen = redraw && root && state?.common;
+    if (updateScreen) { busy=true; drawSummary(); }
+    try {
+      const result = await rpc('monthly_client_documents_get_month', { p_year: year, p_month: month });
+      if (request !== loadSequence) return;
+      if (requireNew && result) throw new Error('MONTH_ALREADY_EXISTS');
+      record = result || null; revision = Number(record?.revision || 0);
+      const payload = record?.payload;
+      const values = payload?.common ? payload : defaultsToMonth(state.defaults,year,month);
+      state.common = { ...commonFromDefaults(year,month), ...values.common, year, month, extras: Array.isArray(values.common.extras) ? values.common.extras : [] };
+      state.companies = ids.map(id => ({ ...state.defaults.find(item=>item.id===id), ...(values.companies || []).find(item=>item.id===id), enabled: (values.companies || []).find(item=>item.id===id)?.enabled ?? true }));
+      activeMonthKey = monthKey(year, month);
+      savedFingerprint = fingerprint();
+    } finally {
+      if (updateScreen && request === loadSequence) { busy=false; render(); }
+    }
   }
   async function saveMonth() {
     let message = '', isError = false;
     try {
+      assertActiveMonth();
       busy=true; drawSummary();
       const response = await rpc('monthly_client_documents_save', { p_year: state.common.year, p_month: state.common.month,
         p_payload: { common: state.common, companies: state.companies }, p_expected_revision: revision });
@@ -342,25 +381,38 @@
     finally { busy=false; render(); report(message, isError); }
   }
   async function confirmMonth() {
+    let message = '', isError = false;
     try {
+      assertActiveMonth();
       const { warnings } = latestCalculations(); if(warnings.length) throw new Error(warnings.join(' '));
       busy=true; drawSummary(); record = await rpc('monthly_client_documents_confirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision});
-      revision=Number(record.revision); state.history=await rpc('monthly_client_documents_list'); savedFingerprint=fingerprint(); report('월을 확정했습니다.');
-    } catch(error) { report(`확정 실패: ${error.message || error}`,true); }
-    finally { busy=false; render(); }
+      revision=Number(record.revision); state.history=await rpc('monthly_client_documents_list'); savedFingerprint=fingerprint(); message='월을 확정했습니다.';
+    } catch(error) { message=`확정 실패: ${friendlyError(error)}`; isError=true; }
+    finally { busy=false; render(); report(message,isError); }
   }
   async function unconfirmMonth() {
-    try { busy=true; drawSummary(); record=await rpc('monthly_client_documents_unconfirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision}); revision=Number(record.revision); state.history=await rpc('monthly_client_documents_list'); savedFingerprint=fingerprint(); report('확정을 해제했습니다.'); }
-    catch(error){report(`확정 해제 실패: ${error.message || error}`,true);} finally{busy=false;render();}
+    let message = '', isError = false;
+    try { assertActiveMonth(); busy=true; drawSummary(); record=await rpc('monthly_client_documents_unconfirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision}); revision=Number(record.revision); state.history=await rpc('monthly_client_documents_list'); savedFingerprint=fingerprint(); message='확정을 해제했습니다.'; }
+    catch(error){message=`확정 해제 실패: ${friendlyError(error)}`;isError=true;} finally{busy=false;render();report(message,isError);}
+  }
+  async function startNewMonth() {
+    if (fingerprint() !== savedFingerprint && !window.confirm('저장하지 않은 snapshot 변경이 있습니다. 저장하지 않고 새 빈 월을 시작할까요?')) return;
+    const year=Number(newMonthTarget?.year), month=Number(newMonthTarget?.month);
+    try { await loadMonth(year,month,true,true); }
+    catch(error) { report(`새 월 시작 실패: ${friendlyError(error)}`,true); }
   }
   async function copyPrevious() {
     if (fingerprint() !== savedFingerprint && !window.confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 지난달 snapshot에서 새 월을 만들까요?')) return;
-    try { busy=true; const year=state.common.year,month=state.common.month; record=await rpc('monthly_client_documents_copy_previous',{p_year:year,p_month:month}); revision=Number(record.revision); await loadMonth(year,month,false); state.history=await rpc('monthly_client_documents_list'); report('지난달 snapshot에서 새 작성중 월을 만들었습니다.'); render(); }
-    catch(error){report(`월 복사 실패: ${error.message || error}`,true);} finally{busy=false;}
+    const year=Number(newMonthTarget?.year), month=Number(newMonthTarget?.month);
+    let message='',isError=false;
+    try { busy=true; await rpc('monthly_client_documents_copy_previous',{p_year:year,p_month:month}); await loadMonth(year,month,false); state.history=await rpc('monthly_client_documents_list'); message='지난달 설정을 복사해 새 작성중 월을 만들었습니다.'; }
+    catch(error){message=`월 복사 실패: ${friendlyError(error)}`;isError=true;} finally{busy=false;render();report(message,isError);}
   }
   async function saveDefaults() {
-    try { await rpc('monthly_client_documents_save_company_defaults',{p_company_defaults:state.companies}); state.defaults=await rpc('monthly_client_documents_company_defaults'); report('회사 기본값을 저장했습니다. 현재 월 snapshot은 유지됩니다.'); }
-    catch(error){report(`기본값 저장 실패: ${error.message || error}`,true);}
+    let message='',isError=false;
+    try { await rpc('monthly_client_documents_save_company_defaults',{p_company_defaults:state.defaultsDraft.map(({id,key,name,share,cap,override,pay,seq})=>({id,key,name,share,cap,override,pay,seq}))}); state.defaults=await rpc('monthly_client_documents_company_defaults'); state.defaultsDraft=state.defaults.map(item=>({...item})); message='현재 회사 기본값을 저장했습니다. 열린 월 snapshot은 변경하지 않았습니다.'; }
+    catch(error){message=`기본값 저장 실패: ${friendlyError(error)}`;isError=true;}
+    render(); report(message,isError);
   }
   async function open() {
     const main=document.getElementById('dashboard-main'); if(!main) return;
