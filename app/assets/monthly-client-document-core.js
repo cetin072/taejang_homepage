@@ -72,6 +72,18 @@
     return company;
   }
 
+  function normalizeCommon(common) {
+    validateCommon(common);
+    return {
+      ...common,
+      extras: common.extras.map(extra => ({
+        ...extra,
+        name: extra.name.trim(),
+        description: extra.description.trim(),
+      })),
+    };
+  }
+
   function calculate(common, company) {
     validateCommon(common);
     validateCompany(company);
@@ -175,5 +187,5 @@
     return { simple, listC, listR };
   }
 
-  return Object.freeze({ VERSION, calculate, validateCommon, validateCompany, validateDate, dateLabel, buildContent, formatAmount, koreanNumber, esc });
+  return Object.freeze({ VERSION, calculate, validateCommon, normalizeCommon, validateCompany, validateDate, dateLabel, buildContent, formatAmount, koreanNumber, esc });
 });

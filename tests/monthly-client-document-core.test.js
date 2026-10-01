@@ -60,6 +60,14 @@ test('DOCX source wording restores reduced quote punctuation and outdoor safety 
   for (const note of [null, 1, {}]) assert.throws(() => core.calculate({ ...input, note }, companies[0]), /INVALID_COMMON_NOTE/);
 });
 
+test('additional program fields are trimmed before saving while preserving internal spaces and rejecting description-only rows', () => {
+  const normalized = core.normalizeCommon({ ...common(), extras: [
+    { name: '  환경 보호  캠페인  ', description: '  시민 대상  거리 공연  ' },
+  ] });
+  assert.deepEqual(normalized.extras, [{ name: '환경 보호  캠페인', description: '시민 대상  거리 공연' }]);
+  assert.throws(() => core.normalizeCommon({ ...common(), extras: [{ name: '  ', description: ' 설명 ' }] }), /INVALID_EXTRA_0/);
+});
+
 test('strict ISO dates are timezone independent and reject impossible days', () => {
   assert.equal(core.dateLabel('2026-09-22').kor, '2026년 9월 22일(화)');
   assert.equal(core.dateLabel('2026-10-20').kor, '2026년 10월 20일(화)');

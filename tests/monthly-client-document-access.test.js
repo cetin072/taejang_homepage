@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
@@ -23,10 +24,69 @@ test('monthly document assets load locally before the feature and no CDN runtime
   assert.ok(appUi.indexOf('monthly-client-document-core.js') < appUi.indexOf('monthly-client-documents.js'));
   const eagerModules = appUi.slice(appUi.indexOf('const FEATURE_MODULES'), appUi.indexOf('const MONTHLY_DOCUMENT_MODULES'));
   assert.doesNotMatch(eagerModules, /jszip-3\.10\.1|monthly-client-document-(?:core|docx|email|s)/);
-  assert.match(appUi, /TaejangMonthlyClientDocumentsLoader = async \(\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)[\s\S]*?MONTHLY_DOCUMENT_MODULES/);
+  const loader = appUi.slice(appUi.indexOf('function ensureMonthlyDocumentModulesLoaded'), appUi.indexOf('let modulesReady = false;'));
+  assert.match(loader, /TaejangMonthlyClientDocumentsLoader = async \(\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)/);
+  assert.match(loader, /ensureMonthlyDocumentModulesLoaded\(\)[\s\S]*?MonthlyClientDocuments\.open\(\)/);
+  assert.match(loader, /MONTHLY_DOCUMENT_MODULES/);
   assert.doesNotMatch(email, /pdfFilename|INVALID_PDF_FILENAME|\.pdf/);
   assert.match(email, /indoor: '실내 안전교육\(영상 교육\)'/);
   assert.match(email, /attachmentLabel/);
+});
+
+test('monthly document loader caches module loading but opens the feature on every authorized entry', async () => {
+  const source = read('app/assets/app-ui.js');
+  const start = source.indexOf('  let monthlyDocumentsLoading = null;');
+  const end = source.indexOf('  let modulesReady = false;', start);
+  assert.ok(start >= 0 && end > start, 'loader block is present');
+  const loaderSource = source.slice(start, end);
+  const modules = [
+    ['assets/vendor/jszip-3.10.1.min.js', 'jszip-monthly-documents'],
+    ['assets/monthly-client-document-core.js', 'monthly-client-document-core'],
+    ['assets/monthly-client-document-docx.js', 'monthly-client-document-docx'],
+    ['assets/monthly-client-document-email.js', 'monthly-client-document-email'],
+    ['assets/monthly-client-documents.js', 'monthly-client-documents'],
+  ];
+  let canEnter = true;
+  let openCount = 0;
+  let failureCount = 0;
+  const loadCounts = new Map();
+  const context = {
+    MONTHLY_DOCUMENT_MODULES: modules,
+    window: {
+      TaejangApp: { can: capability => capability === 'monthly_client_documents.manage' && canEnter },
+      MonthlyClientDocuments: { open: async () => { openCount += 1; } },
+    },
+    loadStyleOnce() {},
+    loadScriptOnce: async (_source, key) => {
+      loadCounts.set(key, (loadCounts.get(key) || 0) + 1);
+      return { ok: true };
+    },
+    showFeatureFailure: () => { failureCount += 1; },
+  };
+  vm.runInNewContext(loaderSource, context);
+  await context.window.TaejangMonthlyClientDocumentsLoader();
+  await context.window.TaejangMonthlyClientDocumentsLoader();
+
+  assert.equal(openCount, 2);
+  assert.equal(failureCount, 0);
+  assert.deepEqual([...loadCounts.values()], [1, 1, 1, 1, 1]);
+
+  let unauthorizedLoads = 0;
+  let unauthorizedOpens = 0;
+  const unauthorized = {
+    MONTHLY_DOCUMENT_MODULES: modules,
+    window: {
+      TaejangApp: { can: () => false },
+      MonthlyClientDocuments: { open: () => { unauthorizedOpens += 1; } },
+    },
+    loadStyleOnce() {},
+    loadScriptOnce: async () => { unauthorizedLoads += 1; return { ok: true }; },
+    showFeatureFailure: () => { failureCount += 1; },
+  };
+  vm.runInNewContext(loaderSource, unauthorized);
+  await unauthorized.window.TaejangMonthlyClientDocumentsLoader();
+  assert.equal(unauthorizedLoads, 0);
+  assert.equal(unauthorizedOpens, 0);
 });
 
 test('database migration gates every table and RPC with the operations-only capability', () => {
@@ -74,7 +134,9 @@ test('month identity changes only through the atomic load flow and snapshots can
   assert.match(ui, /async function startNewMonth\(\)[\s\S]*?loadMonth\(year,month,true,true\)/);
   assert.match(ui, /async function copyPrevious\(\)[\s\S]*?monthly_client_documents_copy_previous[\s\S]*?loadMonth\(year,month,false\)/);
   assert.match(ui, /async function saveMonth\(\)[\s\S]*?assertActiveMonth\(\)/);
+  assert.match(ui, /async function saveMonth\(\)[\s\S]*?state\.common = window\.MonthlyClientDocumentCore\.normalizeCommon\(state\.common\);[\s\S]*?p_payload: \{ common: state\.common/);
 });
+
 
 test('historic snapshots cannot be submitted as current company defaults', () => {
   const ui = read('app/assets/monthly-client-documents.js');

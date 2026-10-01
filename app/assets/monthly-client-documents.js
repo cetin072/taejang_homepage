@@ -372,6 +372,7 @@
     let message = '', isError = false;
     try {
       assertActiveMonth();
+      state.common = window.MonthlyClientDocumentCore.normalizeCommon(state.common);
       busy=true; drawSummary();
       const response = await rpc('monthly_client_documents_save', { p_year: state.common.year, p_month: state.common.month,
         p_payload: { common: state.common, companies: state.companies }, p_expected_revision: revision });

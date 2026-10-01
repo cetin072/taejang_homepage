@@ -188,8 +188,7 @@
     ['assets/monthly-client-documents.js', 'monthly-client-documents'],
   ];
   let monthlyDocumentsLoading = null;
-  window.TaejangMonthlyClientDocumentsLoader = async () => {
-    if (window.TaejangApp?.can?.('monthly_client_documents.manage') !== true) return;
+  function ensureMonthlyDocumentModulesLoaded() {
     if (!monthlyDocumentsLoading) monthlyDocumentsLoading = (async () => {
       loadStyleOnce('assets/monthly-client-documents.css', 'monthly-client-documents');
       for (const [source, key] of MONTHLY_DOCUMENT_MODULES) {
@@ -197,12 +196,20 @@
         if (!result.ok) throw new Error(`${key} failed to load`);
       }
       if (typeof window.MonthlyClientDocuments?.open !== 'function') throw new Error('monthly-client-documents API unavailable');
-      window.MonthlyClientDocuments.open();
     })().catch(() => {
       monthlyDocumentsLoading = null;
-      showFeatureFailure('거래처 문서 관리');
+      throw new Error('monthly-client-documents modules failed to load');
     });
     return monthlyDocumentsLoading;
+  }
+  window.TaejangMonthlyClientDocumentsLoader = async () => {
+    if (window.TaejangApp?.can?.('monthly_client_documents.manage') !== true) return;
+    try {
+      await ensureMonthlyDocumentModulesLoaded();
+      await window.MonthlyClientDocuments.open();
+    } catch {
+      showFeatureFailure('거래처 문서 관리');
+    }
   };
 
   let modulesReady = false;
