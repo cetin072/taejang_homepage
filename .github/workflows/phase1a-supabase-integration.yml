@@ -92,6 +92,7 @@ jobs:
           set +a
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/capability-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/monthly-client-documents-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/issue-309-sensitive-identity-auth-integration.mjs
