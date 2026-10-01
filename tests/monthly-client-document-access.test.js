@@ -31,6 +31,9 @@ test('database migration gates every table and RPC with the operations-only capa
   assert.match(migration, /'monthly_client_documents\.manage', 'operational', true/);
   assert.match(migration, /create policy monthly_client_document_company_defaults_manage[\s\S]*?public\.private_actor_can\('monthly_client_documents\.manage'\)/);
   assert.match(migration, /create policy monthly_client_document_sets_manage[\s\S]*?public\.private_actor_can\('monthly_client_documents\.manage'\)/);
+  assert.match(migration, /create policy monthly_client_document_company_defaults_manage\s+on public\.monthly_client_document_company_defaults for select/);
+  assert.match(migration, /create policy monthly_client_document_sets_manage\s+on public\.monthly_client_document_sets for select/);
+  assert.doesNotMatch(migration, /grant\s+select\s*,\s*insert|grant\s+insert|grant\s+update/i);
   assert.doesNotMatch(migration, /insert into public\.role_capability_grants[\s\S]*?monthly_client_documents\.manage/);
   for (const fn of ['get','get_month','list','save','confirm','unconfirm','copy_previous','company_defaults','save_company_defaults']) {
     assert.ok(migration.includes(`public.monthly_client_documents_${fn}`), fn);

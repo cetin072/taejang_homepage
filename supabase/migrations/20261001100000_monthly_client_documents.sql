@@ -68,18 +68,16 @@ alter table public.monthly_client_document_company_defaults enable row level sec
 alter table public.monthly_client_document_sets enable row level security;
 
 create policy monthly_client_document_company_defaults_manage
-on public.monthly_client_document_company_defaults for all to authenticated
-using (public.private_actor_can('monthly_client_documents.manage'))
-with check (public.private_actor_can('monthly_client_documents.manage'));
+on public.monthly_client_document_company_defaults for select to authenticated
+using (public.private_actor_can('monthly_client_documents.manage'));
 
 create policy monthly_client_document_sets_manage
-on public.monthly_client_document_sets for all to authenticated
-using (public.private_actor_can('monthly_client_documents.manage'))
-with check (public.private_actor_can('monthly_client_documents.manage'));
+on public.monthly_client_document_sets for select to authenticated
+using (public.private_actor_can('monthly_client_documents.manage'));
 
 revoke all on public.monthly_client_document_company_defaults, public.monthly_client_document_sets from public, anon;
-grant select, insert, update on public.monthly_client_document_company_defaults to authenticated;
-grant select, insert, update on public.monthly_client_document_sets to authenticated;
+grant select on public.monthly_client_document_company_defaults to authenticated;
+grant select on public.monthly_client_document_sets to authenticated;
 
 create or replace function private.monthly_client_documents_calculate(p_year integer, p_month integer, p_payload jsonb, p_require_ready boolean)
 returns jsonb
