@@ -354,14 +354,15 @@ end; $$;
 create or replace function public.monthly_client_documents_save_company_defaults(p_company_defaults jsonb)
 returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare item jsonb; v_company_id text; v_ids text[]:=array[]::text[]; v_sequences integer[]:=array[]::integer[]; v_sequence integer;
+declare item jsonb; v_company_id text; v_expected_key text; v_ids text[]:=array[]::text[]; v_sequences integer[]:=array[]::integer[]; v_sequence integer;
 begin
   if not public.private_actor_can('monthly_client_documents.manage') then raise exception using errcode='42501',message='FORBIDDEN'; end if;
   if jsonb_typeof(p_company_defaults) is distinct from 'array' or jsonb_array_length(p_company_defaults)<>4 then raise exception using errcode='22023',message='INVALID_COMPANY_DEFAULTS'; end if;
   for item in select value from jsonb_array_elements(p_company_defaults) loop
     v_company_id:=item->>'id';
+    v_expected_key:=case v_company_id when 'beomhan' then '범한메카텍' when 'samhyeon' then '삼현' when 'cheongwoo-bj' then '청우비제이' when 'hyundai-bng-steel' then '현대비앤지스틸' else null end;
     if v_company_id is null or v_company_id=any(v_ids)
-      or item->>'key' is distinct from case v_company_id when 'beomhan' then '범한메카텍' when 'samhyeon' then '삼현' when 'cheongwoo-bj' then '청우비제이' when 'hyundai-bng-steel' then '현대비앤지스틸' else null end
+      or v_expected_key is null or item->>'key' is distinct from v_expected_key
       or jsonb_typeof(item->'share') is distinct from 'number' or jsonb_typeof(item->'cap') is distinct from 'number'
       or jsonb_typeof(item->'pay') is distinct from 'number' or jsonb_typeof(item->'seq') is distinct from 'number'
       or jsonb_typeof(item->'name') is distinct from 'string' or trim(coalesce(item->>'name',''))='' or (item->>'share') !~ '^[0-9]+(\.[0-9]+)?$'
