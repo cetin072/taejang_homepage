@@ -36,6 +36,7 @@
   const currentCapability = () => window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
   let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', activeMonthKey = '', loadSequence = 0,
     busy = false, emailState = null, newMonthTarget = null;
+  let outputSelection = new Set(ids);
   const emailDrafts = new Map();
 
   function commonFromDefaults(year, month) {
@@ -113,7 +114,8 @@
     } catch (error) { ready = false; warningsTarget.append(el('p', `⚠ ${error.message || '계산 입력을 확인하세요.'}`, 'mcd-warning')); }
     const confirmed = record?.status === 'confirmed';
     root.querySelector('[data-mcd-confirm]').disabled = !ready || confirmed || busy || !record || fingerprint() !== savedFingerprint;
-    root.querySelector('[data-mcd-docx-all]').disabled = !ready || !confirmed || busy;
+    root.querySelector('[data-mcd-docx-all]').disabled = !ready || !confirmed || busy
+      || !state.companies.some(company => company.enabled && outputSelection.has(company.id));
     root.querySelectorAll('[data-mcd-docx-one]').forEach(node => {
       const company = state.companies.find(item => item.id === node.dataset.companyId);
       node.disabled = !ready || !confirmed || busy || !company?.enabled;
@@ -296,7 +298,13 @@
       const card = el('article', undefined, `mcd-company${company.enabled ? '' : ' off'}`);
       const title = el('h4'); const enabled = el('input'); enabled.type='checkbox'; enabled.checked=company.enabled;
       enabled.disabled = record?.status === 'confirmed' || busy; enabled.dataset.mcdScope='snapshot';
-      enabled.addEventListener('change', () => { company.enabled=enabled.checked; changed(); }); title.append(enabled, el('span', ` ${company.key}`)); card.append(title);
+      enabled.addEventListener('change', () => {
+        company.enabled=enabled.checked;
+        if (!company.enabled) outputSelection.delete(company.id);
+        else outputSelection.add(company.id);
+        changed();
+      });
+      title.append(enabled, el('span', ` ${company.key} · 이 달 대상`)); card.append(title);
       const fields = el('div', undefined, 'mcd-grid');
       const companyField = (label,key,type='text',opts={}) => fields.append(field(label,company[key],type,value=>{company[key]=type==='number'?(value===''?'':Number(value)):value;changed();},{...opts,scope:'snapshot'}));
       companyField('수신 상호(등록증 표기)','name','text',{required:true}); companyField('지분율(%)','share','number',{min:0,max:100,step:'0.1',required:true});
@@ -308,7 +316,16 @@
     const companyDocx = button('DOCX 받기', async () => { try { await downloadCompanies([company]); } catch (error) { report(error.message,true); } });
       companyDocx.dataset.mcdDocxOne = '1'; companyDocx.dataset.companyId = company.id; companyDocx.disabled = !company.enabled;
       const emailButton = button('메일 초안', () => showEmail(company)); emailButton.disabled = !company.enabled;
-      companyActions.append(companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
+      const outputCheck = el('input'); outputCheck.type='checkbox';
+      outputCheck.checked = company.enabled && outputSelection.has(company.id);
+      outputCheck.disabled = busy || !company.enabled;
+      outputCheck.addEventListener('change', () => {
+        if (outputCheck.checked) outputSelection.add(company.id);
+        else outputSelection.delete(company.id);
+        drawSummary();
+      });
+      const outputLabel = el('label', undefined, 'mcd-check'); outputLabel.append(outputCheck, el('span', '합본에 포함'));
+      companyActions.append(outputLabel, companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
     }); root.append(companyPanel);
     const defaultsPanel = el('section', undefined, 'mcd-panel'); defaultsPanel.dataset.mcdCompanyDefaults='1';
     defaultsPanel.append(el('h3', '현재 회사 기본값'), el('p', '새 월을 빈 상태로 시작할 때 사용하는 기본 설정입니다. 이미 열린 월 snapshot에는 적용되지 않습니다.'));
@@ -330,7 +347,10 @@
     const save = button('저장', saveMonth, true); save.dataset.mcdSave='1';
     const confirm = button('확정', confirmMonth, true); confirm.dataset.mcdConfirm='1';
     const unconfirm = button('확정 해제', unconfirmMonth); unconfirm.dataset.mcdUnconfirm='1';
-    const docxAll = button('선택 회사 DOCX 합본', async () => { try { const active = state.companies.filter(company=>company.enabled); await downloadCompanies(active); } catch(error){ report(error.message,true); } }); docxAll.dataset.mcdDocxAll='1';
+    const docxAll = button('선택 회사 DOCX 합본', async () => { try {
+      const selected = state.companies.filter(company => company.enabled && outputSelection.has(company.id));
+      await downloadCompanies(selected);
+    } catch(error){ report(error.message,true); } }); docxAll.dataset.mcdDocxAll='1';
     outputActions.append(save,confirm,unconfirm,docxAll); resultPanel.append(outputActions); root.append(resultPanel);
     const notice = el('p', undefined, 'mcd-inline-status'); notice.dataset.mcdStatus='1'; notice.hidden=true; root.append(notice); statusNode = notice;
     drawSummary();
@@ -362,6 +382,7 @@
       const values = payload?.common ? payload : defaultsToMonth(state.defaults,year,month);
       state.common = { ...commonFromDefaults(year,month), ...values.common, year, month, extras: Array.isArray(values.common.extras) ? values.common.extras : [] };
       state.companies = ids.map(id => ({ ...state.defaults.find(item=>item.id===id), ...(values.companies || []).find(item=>item.id===id), enabled: (values.companies || []).find(item=>item.id===id)?.enabled ?? true }));
+      outputSelection = new Set(state.companies.filter(company => company.enabled).map(company => company.id));
       activeMonthKey = monthKey(year, month);
       savedFingerprint = fingerprint();
     } finally {
