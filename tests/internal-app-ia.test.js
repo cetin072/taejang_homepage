@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8').replace(/\r\n/g, '\n');
 const employee = read('app/assets/employee-management.js');
 const workspace = read('app/assets/phase-c-workspace-v2.js');
+const homepage = read('app/assets/issue-146-end-to-end.js');
 const publication = read('app/assets/phase-c-publication-admin.js');
 const nav = read('app/assets/role-navigation-priority.js');
 const migration = read('supabase/migrations/20260904174500_team_lead_position_guard.sql');
@@ -17,6 +18,7 @@ const migration = read('supabase/migrations/20260904174500_team_lead_position_gu
 for (const file of [
   'app/assets/employee-management.js',
   'app/assets/phase-c-workspace-v2.js',
+  'app/assets/issue-146-end-to-end.js',
   'app/assets/phase-c-publication-admin.js',
   'app/assets/role-navigation-priority.js'
 ]) {
@@ -43,20 +45,20 @@ test('team lead new employee requests are server-limited to strictly subordinate
   assert.doesNotMatch(updateBlock, /private_team_lead_can_assign_position/);
 });
 
-test('loaded Phase C workspace owns homepage change-request compare and submission UX', () => {
-  assert.match(workspace, /function buildHomepageForm/);
-  assert.match(workspace, /document\.createElement\('iframe'\)/);
-  assert.match(workspace, /currentSummary\.readOnly = true/);
-  assert.match(workspace, /현재 공개 문구/);
-  assert.match(workspace, /새 문구/);
-  assert.match(workspace, /수정 이유/);
-  assert.match(workspace, /create_homepage_change_request/);
-  assert.match(workspace, /운영총괄에게 수정 요청/);
-  assert.match(workspace, /review_homepage_change_request/);
+test('canonical Issue 146 owner owns homepage compare, upload, and approval UX', () => {
+  assert.match(homepage, /function openHomepageSlots/);
+  assert.match(homepage, /document\.createElement\('iframe'\)/);
+  assert.match(homepage, /'변경 전'/);
+  assert.match(homepage, /'변경 후'/);
+  assert.match(homepage, /수정 이유/);
+  assert.match(homepage, /create_homepage_slot_change_request/);
+  assert.match(homepage, /운영총괄에게 상신/);
+  assert.match(homepage, /review_homepage_change_request/);
+  assert.doesNotMatch(workspace, /openHomepageManagement|HOMEPAGE_PAGES/);
 });
 
 test('publication admin explains the lightweight existing-content scope and escalation path', () => {
-  assert.match(publication, /기존 글 관리/);
+  assert.match(publication, /공개 홍보글 관리/);
   assert.match(publication, /플랫폼에서 작성된 공개글/);
   assert.match(publication, /정적·ChatGPT·블로그·유튜브/);
   assert.match(publication, /전체 소식·기록 열기/);
