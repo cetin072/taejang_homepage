@@ -272,7 +272,7 @@
     linkButton.addEventListener('click', () => renderEditor('link'));
     imageButton.addEventListener('click', () => renderEditor('image'));
     entry.append(textButton, linkButton, imageButton);
-    const note = el('p', '홍보팀장이 올린 홈페이지 수정 요청을 검토하는 기존 “홈페이지 내용 관리” 메뉴는 그대로 유지됩니다.', 'help');
+    const note = el('p', '운영팀장이 올린 홈페이지 수정 요청을 검토하는 기존 “홈페이지 내용 관리” 메뉴는 그대로 유지됩니다.', 'help');
     target.replaceChildren(intro, entry, note);
   }
 
