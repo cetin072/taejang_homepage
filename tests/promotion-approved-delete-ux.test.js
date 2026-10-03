@@ -36,13 +36,16 @@ test('promotion recovery stays out of the active sidebar and review intro', () =
   assert.doesNotMatch(live, /미발행 글 정리/);
 });
 
-test('promotion lead review labels communicate publish, schedule, and next-review outcomes', () => {
+test('canonical review renderer keeps approval separate from publication management', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
-  assert.match(live, /승인·공개/);
-  assert.match(live, /승인·예약/);
-  assert.match(live, /승인·다음 검토/);
-  assert.match(live, /홈페이지에 즉시 공개/);
-  assert.match(live, /00:00\(한국시간\)/);
+  const workspace = read('app/assets/phase-c-workspace-v2.js');
+  assert.match(workspace, /최종 승인/);
+  assert.match(workspace, /승인·운영총괄 검토/);
+  assert.match(workspace, /승인·대표이사 검토/);
+  assert.match(workspace, /detail\.required_stage === 'lead'[\s\S]*운영총괄 상신/);
+  assert.match(workspace, /detail\.required_stage !== 'ceo'[\s\S]*대표이사 상신/);
+  assert.match(live, /공개와 예약은 별도 발행 관리/);
+  assert.doesNotMatch(live, /승인·공개|승인·예약|홈페이지에 즉시 공개/);
 });
 
 test('link source classification uses the shared official-channel config and preserves manual text', () => {
@@ -98,13 +101,14 @@ test('public feed labels official homepage blog youtube and external links disti
 });
 
 test('homepage major-section publication boundary remains operations-manager final', () => {
-  const workspace = read('app/assets/phase-c-workspace-v2.js');
-  assert.match(workspace, /homepage\.draft/);
-  assert.match(workspace, /homepage\.review/);
-  assert.match(workspace, /homepage\.approve_apply/);
-  assert.match(workspace, /currentRoute === 'operations_manager'/);
-  assert.match(workspace, /운영총괄에게 수정 요청/);
-  assert.match(workspace, /최종 승인/);
+  const homepage = read('app/assets/issue-146-end-to-end.js');
+  const capability = read('supabase/migrations/20260910110300_issue_148_homepage_capability_wrappers.sql');
+  assert.match(capability, /private_actor_can\('homepage\.draft'\)/);
+  assert.match(capability, /private_actor_can\('homepage\.review'\)/);
+  assert.match(capability, /private_actor_can\('homepage\.approve_apply'\)/);
+  assert.match(homepage, /currentRoute === 'operations_manager'/);
+  assert.match(homepage, /운영총괄에게 상신/);
+  assert.match(homepage, /승인하고 공개 반영/);
 });
 
 test('published promotion deletion policy remains outside the direct unpublished delete UX', () => {

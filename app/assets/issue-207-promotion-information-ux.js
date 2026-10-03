@@ -59,10 +59,6 @@
   function cleanupWriteScreen() {
     const target = main();
     if (!target) return;
-    [...target.querySelectorAll('.dashboard-section')].forEach(section => {
-      const heading = section.querySelector('h2')?.textContent.trim();
-      if (heading === '내 작성글' || heading === '내가 작성한 홍보자료') section.remove();
-    });
     const introTitle = target.querySelector('.dashboard-intro h2');
     if (introTitle && /새 홍보자료 작성|새 태장 소식 작성/.test(introTitle.textContent)) introTitle.textContent = '새 홍보글 작성';
   }
@@ -80,7 +76,7 @@
     target.append(section);
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
-      const items = arr(workspace?.my_items).filter(item => item.lifecycle !== 'needs_revision' && (item.submitted_at || ['review_pending','approved','scheduled','published','hidden','archived'].includes(item.lifecycle)));
+      const items = arr(workspace?.my_items).filter(item => ['review_pending','approved','scheduled','published','hidden','archived'].includes(item.lifecycle));
       section.replaceChildren();
       const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
       if (!items.length) grid.append(text('p', '아직 운영팀장에게 보낸 글이 없습니다.', 'empty'));

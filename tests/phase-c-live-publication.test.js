@@ -14,11 +14,13 @@ const compatibilityPath = 'supabase/migrations/20260903225000_phase_c_live_publi
 const recoverableDeletePath = 'supabase/migrations/20260903230000_phase_c_recoverable_publication_delete.sql';
 const operationsDeletePath = 'supabase/migrations/20260904133000_operations_manager_recoverable_delete.sql';
 const issue207PolicyPath = 'supabase/migrations/20260914073000_issue207_final_public_delete_policy.sql';
+const explicitPublicationPath = 'supabase/migrations/20261003114500_promotion_explicit_publication_step.sql';
 const migration = read(migrationPath);
 const compatibility = read(compatibilityPath);
 const recoverableDelete = read(recoverableDeletePath);
 const operationsDelete = read(operationsDeletePath);
 const issue207Policy = read(issue207PolicyPath);
+const explicitPublication = read(explicitPublicationPath);
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -40,9 +42,15 @@ test('live publication browser and Netlify modules compile', () => {
   syntaxCheck('app/assets/phase-c-publication-admin.js');
 });
 
-test('final approval moves content to published while hidden content stays out of public feed', () => {
+test('latest publication policy separates final approval from explicit publish or schedule', () => {
   assert.match(migration, /promotion_contents_publish_after_approval/);
-  assert.match(migration, /set lifecycle = 'published'/);
+  assert.match(explicitPublication, /drop trigger if exists promotion_contents_publish_after_approval/);
+  assert.match(explicitPublication, /current_user_is_promotion_lead\(\)/);
+  assert.match(explicitPublication, /private_actor_can\('promotion\.queue_publication'\)/);
+  assert.match(explicitPublication, /content_row\.lifecycle <> 'approved'/);
+  assert.match(explicitPublication, /p_scheduled_for is not null and p_scheduled_for > now\(\)/);
+  assert.match(explicitPublication, /private_queue_promotion_revision_pre148/);
+  assert.match(explicitPublication, /set lifecycle = 'published'/);
   assert.match(migration, /where content\.lifecycle = 'published'/);
   assert.doesNotMatch(migration.match(/create or replace function public\.list_public_promotion_feed\(\)[\s\S]*?\$\$;/)?.[0] || '', /hidden/);
 });
@@ -85,7 +93,7 @@ test('underlying promotion delete primitive remains recoverable rather than phys
   assert.match(operationsDelete, /content\.lifecycle <> 'archived'/);
 });
 
-test('legacy publication queue remains compatible after immediate live publication', () => {
+test('publication queue remains compatible with approved, published and scheduled lifecycle history', () => {
   const approvalCheck = compatibility.match(/create or replace function public\.promotion_revision_is_fully_approved[\s\S]*?\$\$;/)?.[0] || '';
   assert.match(approvalCheck, /'approved'::public\.promotion_lifecycle/);
   assert.match(approvalCheck, /'published'::public\.promotion_lifecycle/);

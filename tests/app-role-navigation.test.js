@@ -340,6 +340,8 @@ test('operations dashboard is approval-focused and hides routine lookup cards', 
   assert.match(dashboardPriority, /currentRoute === 'operations_manager' && !requests\.length/);
   assert.match(dashboardPriority, /get_employee_management_context/);
   assert.match(dashboardPriority, /get_homepage_change_requests/);
+  assert.match(dashboardPriority, /TaejangIssue146\?\.openHomepageSlots/);
+  assert.doesNotMatch(dashboardPriority, /TaejangHomepageContent\?\.open/);
 });
 
 test('checking business planning is clearly marked, remains last and keeps role in topbar', () => {

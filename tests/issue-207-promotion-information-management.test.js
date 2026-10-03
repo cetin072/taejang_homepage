@@ -50,8 +50,10 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(dashboardShell, /key: 'promotion\.sent'[\s\S]*보낸 글/);
   assert.match(dashboardShell, /promotion\.write/);
   assert.match(dashboardShell, /promotion\.edit_own/);
-  assert.match(ux, /heading === '내 작성글' \|\| heading === '내가 작성한 홍보자료'/);
-  assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
+  assert.match(workspace, /filter\(item => item\.lifecycle === 'draft'\)/);
+  assert.match(workspace, /임시저장한 글/);
+  assert.doesNotMatch(ux, /section\.remove\(\)/);
+  assert.match(ux, /\['review_pending','approved','scheduled','published','hidden','archived'\]\.includes\(item\.lifecycle\)/);
   assert.match(ux, /item\.submitted_at/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
@@ -62,7 +64,8 @@ test('promotion and homepage management sidebar slots are capability-driven by t
   assert.match(dashboardShell, /function openExistingPromotion\(\)/);
   assert.match(dashboardShell, /function openHomepageManagement\(\)/);
   assert.match(ux, /openInformationHub/);
-  assert.match(dashboardShell, /window\.TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
+  assert.match(dashboardShell, /window\.TaejangIssue146\?\.openHomepageSlots/);
+  assert.doesNotMatch(dashboardShell, /TaejangPromotionWorkspaceV2Api\?\.openHomepageManagement/);
   assert.match(dashboardShell, /window\.TaejangPublicationAdmin\?\.openPublicationAdmin/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(ux, /MutationObserver/);

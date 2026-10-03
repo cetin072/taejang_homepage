@@ -20,14 +20,6 @@
     return route() === 'promotion_lead' && (app()?.can?.('promotion.review_lead') ?? true);
   }
 
-  function kstToday() {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const value = key => parts.find(part => part.type === key)?.value || '';
-    return `${value('year')}-${value('month')}-${value('day')}`;
-  }
-
   function suggestSource(urlValue, metadata = null) {
     return window.TaejangOfficialChannels?.classifyUrl?.(urlValue, metadata) || '';
   }
@@ -275,89 +267,21 @@
     }
   }
 
-  function requestedDateFromCard(card) {
-    const text = [...card.querySelectorAll('p')]
-      .map(node => node.textContent || '')
-      .find(value => value.trim().startsWith('게시 희망일 '));
-    return text ? text.trim().replace(/^게시 희망일\s+/, '') : '';
-  }
-
-  function decorateApproval(actions, item, card) {
-    const approve = [...actions.querySelectorAll('button')]
-      .find(node => /^승인(?:$|·)/.test(node.textContent.trim()));
-    if (!approve) return;
-    const requestedDate = requestedDateFromCard(card);
-    const finalAtLead = item.required_stage === 'lead';
-    if (finalAtLead) {
-      approve.textContent = requestedDate && requestedDate > kstToday() ? '승인·예약' : '승인·공개';
-    } else {
-      approve.textContent = '승인·다음 검토';
-    }
-    if (approve.dataset.issue181ConfirmBound === '1') return;
-    approve.dataset.issue181ConfirmBound = '1';
-    approve.addEventListener('click', event => {
-      const label = approve.textContent.trim();
-      let message = '';
-      if (label === '승인·공개') message = '승인하면 홈페이지에 즉시 공개됩니다. 계속할까요?';
-      if (label === '승인·예약') message = `${requestedDate} 00:00(한국시간)에 공개 예약됩니다. 계속할까요?`;
-      if (message && !window.confirm(message)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-      }
-    }, true);
-  }
-
-  function addManagementShortcuts(intro) {
-    if (intro.querySelector('[data-issue181-management-shortcuts]')) return;
-    const actions = document.createElement('div');
-    actions.className = 'quick-links';
-    actions.dataset.issue181ManagementShortcuts = '1';
-
-    const published = document.createElement('button');
-    published.type = 'button';
-    published.className = 'button button-quiet';
-    published.textContent = '공개글 관리';
-    published.addEventListener('click', () => document.querySelector('[data-phase-c-publication-admin]')?.click());
-
-    actions.append(published);
-    intro.append(actions);
-  }
-
-  function syncLeadNavigation() {
-    const nav = document.getElementById('app-nav');
-    if (!nav) return;
-    const published = nav.querySelector('[data-phase-c-publication-admin]');
-    const unpublished = nav.querySelector('[data-issue146-nav="promotion-archive"]');
-    if (isPromotionLead()) {
-      if (published) { published.hidden = true; published.dataset.issue181MergedHidden = '1'; }
-      if (unpublished) { unpublished.hidden = true; unpublished.dataset.issue181MergedHidden = '1'; }
-    } else {
-      [published, unpublished].forEach(node => {
-        if (node?.dataset.issue181MergedHidden) {
-          node.hidden = false;
-          delete node.dataset.issue181MergedHidden;
-        }
-      });
-    }
-  }
-
   async function syncLeadReview() {
     if (!isPromotionLead() || leadSyncBusy) return;
     const target = main();
     const topTitle = document.getElementById('desktop-page-title');
-    if (!target || !['홍보 검토', '홍보 관리'].includes(topTitle?.textContent?.trim())) return;
+    if (!target || topTitle?.textContent?.trim() !== '홍보 검토') return;
     const intro = target.querySelector(':scope > .dashboard-intro');
     const grid = target.querySelector(':scope > .phase-c-v2-grid');
     if (!intro || !grid) return;
 
     leadSyncBusy = true;
     try {
-      topTitle.textContent = '홍보 관리';
       const heading = intro.querySelector('h2');
       const copy = [...intro.querySelectorAll(':scope > p')].at(-1);
-      if (heading) heading.textContent = '홍보 관리';
-      if (copy) copy.textContent = '검토 대기 글의 미리보기·수정·보완 요청·승인·상신을 처리합니다. 상위 결재선에서 돌아온 글은 삭제할 수 없습니다.';
-      addManagementShortcuts(intro);
+      if (heading) heading.textContent = '홍보 검토';
+      if (copy) copy.textContent = '검토 대기 글의 미리보기·수정·보완 요청·승인·상신만 처리합니다. 공개와 예약은 별도 발행 관리에서 진행합니다.';
 
       const workspace = await app().rpc('get_my_promotion_workspace');
       const items = Array.isArray(workspace?.review_items) ? workspace.review_items : [];
@@ -391,7 +315,6 @@
           if (edit?.nextSibling) actions.insertBefore(remove, edit.nextSibling);
           else actions.append(remove);
         }
-        decorateApproval(actions, item, card);
       }
     } catch {
       // Existing safe fallback menus remain in the DOM even if enhancement fails.
@@ -407,7 +330,6 @@
     refreshAutomaticSourceClassification();
     enhanceLeadEditSource();
     protectImportedText();
-    syncLeadNavigation();
     syncLeadReview();
   }
 

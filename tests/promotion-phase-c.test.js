@@ -71,7 +71,7 @@ test('V2 owns a separate approved-publication screen and queue after the legacy 
   assert.match(workspace, /get_promotion_publication_overview/);
   assert.match(workspace, /promotion\.queue_publication/);
   assert.match(workspace, /queue_promotion_revision/);
-  assert.match(workspace, /발행 대기함에 넣기/);
+  assert.match(workspace, /공개\/예약 설정/);
   assert.match(workspace, /공개 결과 경로 확인/);
   assert.match(workspace, /role === 'promotion_lead' && can\('promotion\.queue_publication'/);
   assert.doesNotMatch(workspace.slice(workspace.indexOf('async function renderReview'), workspace.indexOf('async function openPromotion')), /publicationQueue|queue_promotion_revision/);

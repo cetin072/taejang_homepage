@@ -8,6 +8,7 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const workspacePath = path.join(root, 'app/assets/phase-c-workspace-v2.js');
+const issue146Path = path.join(root, 'app/assets/issue-146-end-to-end.js');
 const appUiPath = path.join(root, 'app/assets/app-ui.js');
 const directHomepagePath = path.join(root, 'app/assets/operations-homepage-direct.js');
 const metaPath = path.join(root, 'netlify/functions/external-content-meta.mjs');
@@ -24,6 +25,7 @@ function checkSyntax(file) {
 
 test('only current Phase C workspace modules are used for active UX assertions', () => {
   checkSyntax(workspacePath);
+  checkSyntax(issue146Path);
   checkSyntax(appUiPath);
   checkSyntax(directHomepagePath);
   checkSyntax(metaPath);
@@ -95,7 +97,7 @@ test('current V2 separates writing, revision, review and operations handoff', ()
     "openPromotion('review')",
     'request_promotion_changes_via_lead',
     'get_promotion_review_handoff',
-    '홍보팀장에게 보완 요청',
+    '운영팀장에게 보완 요청',
     '홍보직원에게 보완 전달'
   ]) assert.ok(workspace.includes(marker), `missing current workflow marker: ${marker}`);
 
@@ -134,21 +136,23 @@ test('current homepage content management uses guarded existing-section requests
     'service_role'
   ]) assert.ok(homepageBoundarySql.includes(marker), `missing homepage boundary marker: ${marker}`);
 
-  const workspace = fs.readFileSync(workspacePath, 'utf8');
+  const homepage = fs.readFileSync(issue146Path, 'utf8');
   for (const marker of [
     '홈페이지 내용 관리',
-    '홈페이지 글 수정',
-    '홈페이지 사진 수정',
-    '현재 공개 홈페이지 미리보기',
-    '현재 공개 문구',
-    '새 문구',
+    '현재 공개본과 비교한 뒤 수정합니다',
+    'get_homepage_content_slots',
+    'create_homepage_slot_change_request',
+    'PC Preview',
+    'Mobile Preview',
+    '새 사진을 선택해 주세요.',
     '수정 이유',
-    '운영총괄에게 수정 요청',
-    '최종 승인'
-  ]) assert.ok(workspace.includes(marker), `missing current homepage UX marker: ${marker}`);
-  assert.match(workspace, /document\.createElement\('iframe'\)/);
-  assert.match(workspace, /currentSummary\.readOnly = true/);
-  assert.doesNotMatch(workspace, /section_content/);
+    '운영총괄에게 상신',
+    '승인하고 공개 반영'
+  ]) assert.ok(homepage.includes(marker), `missing canonical homepage UX marker: ${marker}`);
+  assert.match(homepage, /document\.createElement\('iframe'\)/);
+  assert.match(homepage, /file\.type = 'file'/);
+  assert.match(homepage, /uploadHomepageImage/);
+  assert.doesNotMatch(homepage, /section_content/);
 });
 
 test('operations-manager direct homepage editing remains a separate explicit privileged surface', () => {
