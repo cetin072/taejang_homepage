@@ -53,7 +53,7 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(workspace, /filter\(item => item\.lifecycle === 'draft'\)/);
   assert.match(workspace, /임시저장한 글/);
   assert.doesNotMatch(ux, /section\.remove\(\)/);
-  assert.match(ux, /item\.lifecycle !== 'needs_revision'/);
+  assert.match(ux, /\['review_pending','approved','scheduled','published','hidden','archived'\]\.includes\(item\.lifecycle\)/);
   assert.match(ux, /item\.submitted_at/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
