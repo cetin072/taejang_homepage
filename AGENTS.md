@@ -105,6 +105,15 @@
 - 추가 OpenAI API 결제, 외부 유료 API 또는 유료 자동화 서비스는 사용자 승인 없이 도입하지 않습니다.
 - 사용자가 ChatGPT 기획방과 Codex 사이에서 긴 지시문·결과를 반복 운반하지 않도록 GitHub Issue/PR과 운영문서를 공유 상태의 기준으로 사용합니다.
 
+### Learning Loop v0 파일럿
+
+- 이 파일럿의 로컬 SOP는 [`docs/operations/skills/learning-loop-v0/SKILL.md`](docs/operations/skills/learning-loop-v0/SKILL.md)입니다.
+- 사용자가 별도로 `Lesson 등록`을 요청하기를 기다리지 않습니다. **실질적인 개발 작업을 마칠 때** 다음 신호가 실제로 있었는지만 짧게 판정합니다: 사용자에 의한 개발 방식/판단 교정, 반복 실패, 사용자가 발견한 기계적 사전 검출 가능 버그, 재사용 가능한 더 단순·안전한 성공 절차, 기존 Rule/Skill/Gate 미준수.
+- 신호가 없으면 아무 기록도 남기지 않습니다. 매 작업마다 회고 문서를 만들지 않습니다.
+- 신호가 있으면 현재 작업의 **기존 Issue 또는 Draft PR에만** `Learning Loop v0` 형식의 짧은 후보를 남깁니다. 별도 Issue·중앙 규칙·Skill을 자동 생성하지 않습니다.
+- 후보는 태장 프로젝트 로컬이 기본입니다. 둘 이상의 프로젝트 반복 또는 보안·권한·데이터 무결성 같은 보편 위험이 확인되기 전에는 중앙 공통 규칙으로 승격하지 않습니다.
+- 이 파일럿은 Hook/background observer/별도 DB를 사용하지 않으며, 본 작업의 테스트·검수·승인 게이트보다 우선하지 않습니다.
+
 ### 사용자 Preview QA Gate
 
 - 중앙 source of truth는 `cetin072/ai-development-system`의 [`DEVELOPMENT_CONSTITUTION.md`](https://github.com/cetin072/ai-development-system/blob/main/DEVELOPMENT_CONSTITUTION.md), [`AI_DEVELOPMENT_STANDARD.md`](https://github.com/cetin072/ai-development-system/blob/main/AI_DEVELOPMENT_STANDARD.md), 특히 [`docs/PREVIEW_QA_GATE.md`](https://github.com/cetin072/ai-development-system/blob/main/docs/PREVIEW_QA_GATE.md)입니다.
