@@ -99,13 +99,14 @@ test('public feed labels official homepage blog youtube and external links disti
 });
 
 test('homepage major-section publication boundary remains operations-manager final', () => {
-  const workspace = read('app/assets/phase-c-workspace-v2.js');
-  assert.match(workspace, /homepage\.draft/);
-  assert.match(workspace, /homepage\.review/);
-  assert.match(workspace, /homepage\.approve_apply/);
-  assert.match(workspace, /currentRoute === 'operations_manager'/);
-  assert.match(workspace, /운영총괄에게 수정 요청/);
-  assert.match(workspace, /최종 승인/);
+  const homepage = read('app/assets/issue-146-end-to-end.js');
+  const capability = read('supabase/migrations/20260910110300_issue_148_homepage_capability_wrappers.sql');
+  assert.match(capability, /private_actor_can\('homepage\.draft'\)/);
+  assert.match(capability, /private_actor_can\('homepage\.review'\)/);
+  assert.match(capability, /private_actor_can\('homepage\.approve_apply'\)/);
+  assert.match(homepage, /currentRoute === 'operations_manager'/);
+  assert.match(homepage, /운영총괄에게 상신/);
+  assert.match(homepage, /승인하고 공개 반영/);
 });
 
 test('published promotion deletion policy remains outside the direct unpublished delete UX', () => {
