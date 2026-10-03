@@ -97,9 +97,7 @@
     closeSidebar();
     const canonical = window.TaejangIssue146?.openHomepageSlots;
     if (typeof canonical === 'function') return canonical();
-    const fallback = window.TaejangPromotionWorkspaceV2Api?.openHomepageManagement;
-    if (typeof fallback === 'function') return fallback();
-    document.dispatchEvent(new CustomEvent('taejang-open-homepage-content'));
+    window.TaejangFeatureHealth?.showFailure?.('홈페이지 내용 관리 기능');
   }
   function openHomepageDirect() {
     closeSidebar();
