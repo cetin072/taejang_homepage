@@ -8,7 +8,7 @@
     field_lead: [],
     ceo: ['홍보 상신 검토'],
     super_admin: ['계정 승인 확인'],
-    promotion_staff: ['수정·보완 요청', '홍보자료 작성']
+    promotion_staff: ['보완 요청받은 글', '홍보자료 작성']
   };
 
   const OPERATIONS_DASHBOARD_HIDDEN = new Set(['오늘 출근부']);
@@ -219,7 +219,11 @@
       if (!pending.length || !grid.isConnected) return;
       grid.append(card('홈페이지 수정 승인', '운영팀장이 요청한 홈페이지 글·사진 변경을 확인하세요.', `${pending.length}건`, {
         label: '홈페이지 요청 검토',
-        run: () => window.TaejangHomepageContent?.open?.()
+        run: () => {
+          const open = window.TaejangIssue146?.openHomepageSlots;
+          if (typeof open === 'function') return open();
+          window.TaejangFeatureHealth?.showFailure?.('홈페이지 내용 관리 기능');
+        }
       }));
     } catch { /* Optional summary only. */ }
   }
