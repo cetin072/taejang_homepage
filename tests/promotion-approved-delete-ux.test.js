@@ -36,13 +36,12 @@ test('promotion recovery stays out of the active sidebar and review intro', () =
   assert.doesNotMatch(live, /미발행 글 정리/);
 });
 
-test('promotion lead review labels communicate publish, schedule, and next-review outcomes', () => {
+test('promotion lead review labels keep approval separate from publication management', () => {
   const live = read('app/assets/issue-181-promotion-live-ux.js');
-  assert.match(live, /승인·공개/);
-  assert.match(live, /승인·예약/);
+  assert.match(live, /최종 승인/);
   assert.match(live, /승인·다음 검토/);
-  assert.match(live, /홈페이지에 즉시 공개/);
-  assert.match(live, /00:00\(한국시간\)/);
+  assert.match(live, /공개와 예약은 별도 발행 관리/);
+  assert.doesNotMatch(live, /승인·공개|승인·예약|홈페이지에 즉시 공개/);
 });
 
 test('link source classification uses the shared official-channel config and preserves manual text', () => {
