@@ -59,10 +59,6 @@
   function cleanupWriteScreen() {
     const target = main();
     if (!target) return;
-    [...target.querySelectorAll('.dashboard-section')].forEach(section => {
-      const heading = section.querySelector('h2')?.textContent.trim();
-      if (heading === '내 작성글' || heading === '내가 작성한 홍보자료') section.remove();
-    });
     const introTitle = target.querySelector('.dashboard-intro h2');
     if (introTitle && /새 홍보자료 작성|새 태장 소식 작성/.test(introTitle.textContent)) introTitle.textContent = '새 홍보글 작성';
   }
