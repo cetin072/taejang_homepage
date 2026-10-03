@@ -580,7 +580,7 @@
       });
       await openPromotion('publication');
     } catch (error) {
-      window.alert(app().friendlyError?.(error) || error.message || '발행 대기함에 넣지 못했습니다.');
+      window.alert(app().friendlyError?.(error) || error.message || '공개/예약을 처리하지 못했습니다.');
     }
   }
 
@@ -595,7 +595,7 @@
     const target = main();
     const intro = renderIntro('홈페이지 발행', title, role === 'promotion_lead'
       ? '최종 승인이 끝난 콘텐츠를 지금 공개하거나 게시일을 예약합니다.'
-      : '최종 승인, 발행 대기, 예약 현황을 조회합니다. 발행 대기 등록과 예약 지정은 운영팀장이 담당합니다.');
+      : '최종 승인과 예약 현황을 조회합니다. 공개와 예약 지정은 운영팀장이 담당합니다.');
     target.replaceChildren(intro);
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
     try {
