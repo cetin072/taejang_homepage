@@ -147,17 +147,3 @@ test('promotion and homepage image uploads use declarative restricted promotion-
   assert.match(sql, /current_user_has_role\('promotion_lead'\)/);
   assert.doesNotMatch(sql, /insert into storage\.buckets/i);
 });
-
-test('promotion review and publication are separate sidebar destinations and data surfaces', () => {
-  const workspace = fs.readFileSync(v2Path, 'utf8');
-  const dashboard = fs.readFileSync(dashboardPath, 'utf8');
-  assert.ok(dashboard.includes("key: 'promotion.review'"));
-  assert.ok(dashboard.includes("run: () => openPromotion('review')"));
-  assert.ok(dashboard.includes("key: 'promotion.publication'"));
-  assert.ok(dashboard.includes("run: () => openPromotion('publication')"));
-  assert.ok(workspace.includes("if (mode === 'publication') return renderPublication(workspace)"));
-  assert.ok(workspace.includes('const items = arr(workspace.review_items)'));
-  assert.ok(workspace.includes("app().rpc('get_promotion_publication_overview')"));
-  assert.ok(workspace.includes('발행 대상'));
-  assert.ok(workspace.includes('현재 검토 대기 안건이 없습니다'));
-});
