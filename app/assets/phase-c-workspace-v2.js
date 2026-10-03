@@ -572,7 +572,7 @@
 
   async function queuePublication(item) {
     try {
-      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 지금 공개하려면 비워두세요.', '');
+      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 지금 공개하려면 비워두세요.', item.requested_publish_date || '');
       if (raw === null) return;
       await app().rpc('queue_promotion_revision', {
         p_content_id: item.content_id,
@@ -705,8 +705,12 @@
         }, true));
       } else {
         actions.append(button('보완 요청', () => reviewAction(detail, 'changes_requested'), true));
-        actions.append(button(detail.required_stage === 'lead' ? '최종 승인' : '승인·다음 검토', () => reviewAction(detail, 'approve')));
-        actions.append(button('운영총괄 상신', () => reviewAction(detail, 'escalate_to_operations'), true));
+        if (detail.required_stage === 'lead') {
+          actions.append(button('최종 승인', () => reviewAction(detail, 'approve')));
+          actions.append(button('운영총괄 상신', () => reviewAction(detail, 'escalate_to_operations'), true));
+        } else {
+          actions.append(button('승인·운영총괄 검토', () => reviewAction(detail, 'approve')));
+        }
       }
     } else if (workspace.role === 'operations_manager') {
       actions.append(button(detail.required_stage === 'ceo' ? '승인·대표이사 검토' : '최종 승인', () => reviewAction(detail, 'approve')));
@@ -718,7 +722,9 @@
           await openPromotion('review');
         } catch (error) { window.alert(app().friendlyError?.(error) || '보완 요청을 처리하지 못했습니다.'); }
       }, true));
-      actions.append(button('대표이사 상신', () => reviewAction(detail, 'escalate_to_ceo'), true));
+      if (detail.required_stage !== 'ceo') {
+        actions.append(button('대표이사 상신', () => reviewAction(detail, 'escalate_to_ceo'), true));
+      }
       actions.append(button('검토 보류', () => reviewAction(detail, 'on_hold'), true));
     } else {
       actions.append(button('최종 승인', () => reviewAction(detail, 'approve')));
