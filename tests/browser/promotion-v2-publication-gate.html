@@ -47,12 +47,17 @@
             publication_items: [{ ...state.publication }]
           };
         }
-        if (name === 'get_promotion_publication_overview') return [{ ...state.publication }];
+        if (name === 'get_promotion_publication_overview') return state.publication.lifecycle === 'published' ? [] : [{ ...state.publication }];
         if (name === 'queue_promotion_revision') {
           state.queueCalls.push({ ...body });
-          state.publication.queue_status = 'queued';
           state.publication.scheduled_for = body.p_scheduled_for || null;
-          if (body.p_scheduled_for) state.publication.lifecycle = 'scheduled';
+          if (body.p_scheduled_for) {
+            state.publication.queue_status = 'queued';
+            state.publication.lifecycle = 'scheduled';
+          } else {
+            state.publication.queue_status = null;
+            state.publication.lifecycle = 'published';
+          }
           return { ok: true, code: 'QUEUED' };
         }
         return null;
@@ -77,8 +82,8 @@
         assert(document.getElementById('desktop-page-title').textContent === '발행 관리', 'lead publication mode destination title mismatch');
         assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 1건'), 'publication overview did not load its own data');
 
-        let queueButton = buttonByText('발행 대기함에 넣기');
-        assert(queueButton, 'V2 발행 대기 버튼 누락');
+        let queueButton = buttonByText('공개/예약 설정');
+        assert(queueButton, 'V2 공개/예약 버튼 누락');
         assert([...document.querySelectorAll('#dashboard-main a')]
           .some(link => link.textContent.trim() === '공개 결과 경로 확인'), '공개 결과 경로 링크 누락');
 
@@ -86,27 +91,27 @@
         queueButton.click();
         await wait(80);
 
-        assert(state.queueCalls.length === 1, '빈 예약일 발행 RPC 호출 횟수 오류');
+        assert(state.queueCalls.length === 1, '즉시 공개 RPC 호출 횟수 오류');
         assert(state.queueCalls[0].p_content_id === state.publication.content_id, '발행 RPC content_id 불일치');
-        assert(state.queueCalls[0].p_scheduled_for === null, '빈 예약일은 null이어야 함');
-        assert(!buttonByText('발행 대기함에 넣기'), 'queued 상태에서 중복 발행 버튼이 남아 있음');
-        assert(document.getElementById('dashboard-main').textContent.includes('발행 대기함'), 'queued 상태 표시 누락');
+        assert(state.queueCalls[0].p_scheduled_for === null, '즉시 공개는 예약 시간이 null이어야 함');
+        assert(!buttonByText('공개/예약 설정'), '공개 완료 뒤 발행 버튼이 남아 있음');
+        assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 0건'), '공개 완료 항목이 발행 관리에 남아 있음');
 
         state.publication.queue_status = null;
         state.publication.lifecycle = 'approved';
         state.publication.scheduled_for = null;
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('publication');
 
-        state.promptResponses.push('2026-10-01');
-        queueButton = buttonByText('발행 대기함에 넣기');
-        assert(queueButton, '예약 발행 버튼 재렌더링 실패');
+        state.promptResponses.push('2026-10-10');
+        queueButton = buttonByText('공개/예약 설정');
+        assert(queueButton, '예약 설정 버튼 재렌더링 실패');
         queueButton.click();
         await wait(80);
 
         assert(state.queueCalls.length === 2, '예약 발행 RPC 호출 횟수 오류');
-        assert(state.queueCalls[1].p_scheduled_for === '2026-10-01T00:00:00+09:00', '예약일 KST 변환 오류');
-        assert(!buttonByText('발행 대기함에 넣기'), 'scheduled 상태에서 중복 발행 버튼이 남아 있음');
-        assert(document.getElementById('dashboard-main').textContent.includes('예약 2026-10-01T00:00:00+09:00'), '예약 완료 상태 표시 누락');
+        assert(state.queueCalls[1].p_scheduled_for === '2026-10-10T00:00:00+09:00', '예약일 KST 변환 오류');
+        assert(!buttonByText('공개/예약 설정'), '예약 상태에서 중복 발행 버튼이 남아 있음');
+        assert(document.getElementById('dashboard-main').textContent.includes('예약 2026-10-10T00:00:00+09:00'), '예약 완료 상태 표시 누락');
         assert([...document.querySelectorAll('#dashboard-main a')]
           .some(link => link.textContent.trim() === '공개 결과 경로 확인'), '예약 후 공개 결과 경로 링크 누락');
 
@@ -114,7 +119,7 @@
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('publication');
         assert(document.getElementById('desktop-page-title').textContent === '발행 현황', 'operations-manager publication mode title mismatch');
         assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 1건'), 'operations manager cannot read publication overview');
-        assert(!buttonByText('발행 대기함에 넣기'), 'operations manager unexpectedly received a queue action');
+        assert(!buttonByText('공개/예약 설정'), 'operations manager unexpectedly received a queue action');
 
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('review');
         assert(document.getElementById('desktop-page-title').textContent === '홍보 승인 검토', 'operations-manager review did not return to its separate destination');
