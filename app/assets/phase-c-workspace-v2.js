@@ -22,7 +22,7 @@
     hidden: '숨김',
     archived: '보관'
   };
-  const STAGE_LABELS = { lead: '홍보팀장', operations: '운영총괄', ceo: '대표이사' };
+  const STAGE_LABELS = { lead: '운영팀장', operations: '운영총괄', ceo: '대표이사' };
   const HOMEPAGE_PAGES = {
     home: ['메인 페이지', [['hero', '첫 화면 소개'], ['about', '태장 소개 요약'], ['business', '지금 태장이 하는 일'], ['workplace', '태장의 일터'], ['recent_activities', '활동 기록'], ['partnership', '협력 안내'], ['contact', '문의']]],
     about: ['태장 소개', [['page_hero', '페이지 상단 소개'], ['at_a_glance', '태장 한눈에 보기'], ['name_meaning', '태장이라는 이름'], ['greeting', '대표 인사말'], ['values', '태장이 일하는 기준'], ['history', '태장의 발걸음'], ['about_cta', '협력·문의 안내']]],
@@ -724,8 +724,8 @@
       }
     } else if (workspace.role === 'operations_manager') {
       actions.append(button('승인', () => reviewAction(detail, 'approve')));
-      actions.append(button('홍보팀장에게 보완 요청', async () => {
-        const comment = window.prompt('홍보팀장에게 내려보낼 보완 내용을 적어주세요.', '');
+      actions.append(button('운영팀장에게 보완 요청', async () => {
+        const comment = window.prompt('운영팀장에게 내려보낼 보완 내용을 적어주세요.', '');
         if (!comment?.trim()) return;
         try {
           await app().rpc('request_promotion_changes_via_lead', { p_content_id: detail.content_id, p_comment: comment.trim() });
