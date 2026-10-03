@@ -7,6 +7,7 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const v2Path = path.join(root, 'app/assets/phase-c-workspace-v2.js');
+const issue146Path = path.join(root, 'app/assets/issue-146-end-to-end.js');
 const roleLabelsPath = path.join(root, 'app/assets/phase-c-role-labels.js');
 const accountApprovalPath = path.join(root, 'app/assets/phase-c-account-approval.js');
 const roleSimulationPath = path.join(root, 'app/assets/phase-c-role-simulation.js');
@@ -28,12 +29,14 @@ function syntax(file) {
 
 test('Phase C workspace V2 compiles and is the only loaded Phase C workspace overlay', () => {
   syntax(v2Path);
+  syntax(issue146Path);
   syntax(roleLabelsPath);
   syntax(accountApprovalPath);
   syntax(roleSimulationPath);
   syntax(appUiPath);
   const appUi = fs.readFileSync(appUiPath, 'utf8');
   assert.match(appUi, /phase-c-workspace-v2\.js/);
+  assert.match(appUi, /issue-146-end-to-end\.js/);
   assert.match(appUi, /phase-c-role-labels\.js/);
   assert.match(appUi, /phase-c-account-approval\.js/);
   assert.match(appUi, /phase-c-role-simulation\.js/);
@@ -124,12 +127,17 @@ test('highest-authority role preset remains server-enforced inside employee scre
 
 test('promotion and homepage image uploads use declarative restricted promotion-media storage', () => {
   const source = fs.readFileSync(v2Path, 'utf8');
+  const homepage = fs.readFileSync(issue146Path, 'utf8');
   assert.match(source, /storage\/v1\/object\/promotion-media/);
   assert.match(source, /storage\/v1\/object\/public\/promotion-media/);
   assert.match(source, /8 \* 1024 \* 1024/);
-  assert.match(source, /홈페이지 내용 관리/);
-  assert.match(source, /홈페이지 사진 수정/);
-  assert.match(source, /새 사진 파일/);
+  assert.doesNotMatch(source, /openHomepageManagement|HOMEPAGE_PAGES/);
+  assert.match(homepage, /openHomepageSlots/);
+  assert.match(homepage, /storage\/v1\/object\/promotion-media/);
+  assert.match(homepage, /storage\/v1\/object\/public\/promotion-media/);
+  assert.match(homepage, /8 \* 1024 \* 1024/);
+  assert.match(homepage, /file\.accept = 'image\/jpeg,image\/png,image\/webp,image\/gif'/);
+  assert.match(homepage, /create_homepage_slot_change_request/);
 
   const config = fs.readFileSync(configPath, 'utf8');
   assert.match(config, /\[storage\]\s+enabled = true/s);
