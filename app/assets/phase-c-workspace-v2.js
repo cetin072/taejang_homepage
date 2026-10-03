@@ -572,7 +572,7 @@
 
   async function queuePublication(item) {
     try {
-      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 바로 대기함에 넣으려면 비워두세요.', '');
+      const raw = window.prompt('게시 예약일이 있으면 YYYY-MM-DD로 입력하세요. 지금 공개하려면 비워두세요.', '');
       if (raw === null) return;
       await app().rpc('queue_promotion_revision', {
         p_content_id: item.content_id,
@@ -594,7 +594,7 @@
     document.getElementById('desktop-page-title').textContent = title;
     const target = main();
     const intro = renderIntro('홈페이지 발행', title, role === 'promotion_lead'
-      ? '최종 승인이 끝난 콘텐츠를 발행 대기함에 등록하거나 게시일을 예약합니다.'
+      ? '최종 승인이 끝난 콘텐츠를 지금 공개하거나 게시일을 예약합니다.'
       : '최종 승인, 발행 대기, 예약 현황을 조회합니다. 발행 대기 등록과 예약 지정은 운영팀장이 담당합니다.');
     target.replaceChildren(intro);
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
@@ -607,7 +607,7 @@
       const canQueue = role === 'promotion_lead' && can('promotion.queue_publication', true);
       items.forEach(item => {
         const card = el('article', null, 'dashboard-card phase-c-publication-card');
-        const status = item.queue_status === 'queued' ? '발행 대기함' : item.lifecycle === 'scheduled' ? '예약됨' : '최종 승인';
+        const status = item.lifecycle === 'scheduled' ? '예약됨' : item.queue_status === 'queued' ? '발행 대기' : '최종 승인';
         card.append(el('span', status, 'status-label'), el('h3', item.title || '제목 없음'));
         if (item.hero_image_url) {
           const image = document.createElement('img');
@@ -621,7 +621,7 @@
         if (item.scheduled_for) card.append(el('p', `예약 ${item.scheduled_for}`));
         const actions = el('div', null, 'quick-links');
         if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
-          actions.append(button('발행 대기함에 넣기', () => queuePublication(item)));
+          actions.append(button('공개/예약 설정', () => queuePublication(item)));
         }
         const previewLink = document.createElement('a');
         previewLink.href = '../promotion-preview/';
