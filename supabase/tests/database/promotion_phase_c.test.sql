@@ -13,7 +13,20 @@ select has_type('public', 'promotion_lifecycle', 'promotion lifecycle enum exist
 select has_type('public', 'promotion_review_stage', 'promotion review stage enum exists');
 select has_function('public', 'guard_promotion_review_stage_decision', 'review-stage decision guard function exists');
 select has_trigger('public', 'promotion_review_requests', 'promotion_review_stage_decision_guard', 'review-stage decision guard trigger exists');
-select has_trigger('public', 'promotion_contents', 'promotion_contents_publish_after_approval', 'final approval has an immediate publication trigger');
+select ok(
+  not exists (
+    select 1
+    from pg_trigger trigger_row
+    join pg_class relation on relation.oid = trigger_row.tgrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'promotion_contents'
+      and trigger_row.tgname = 'promotion_contents_publish_after_approval'
+      and not trigger_row.tgisinternal
+  ),
+  'final approval stays approved until the explicit publication step'
+);
+select has_function('public', 'queue_promotion_revision', 'explicit publication RPC exists');
 
 select is(
   (select count(*)::integer from pg_class relation join pg_namespace namespace on namespace.oid = relation.relnamespace
