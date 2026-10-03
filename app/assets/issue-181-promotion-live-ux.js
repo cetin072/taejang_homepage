@@ -267,13 +267,6 @@
     }
   }
 
-  function decorateApproval(actions, item) {
-    const approve = [...actions.querySelectorAll('button')]
-      .find(node => /^승인(?:$|·)/.test(node.textContent.trim()));
-    if (!approve) return;
-    approve.textContent = item.required_stage === 'lead' ? '최종 승인' : '승인·다음 검토';
-  }
-
   async function syncLeadReview() {
     if (!isPromotionLead() || leadSyncBusy) return;
     const target = main();
@@ -322,7 +315,6 @@
           if (edit?.nextSibling) actions.insertBefore(remove, edit.nextSibling);
           else actions.append(remove);
         }
-        decorateApproval(actions, item, card);
       }
     } catch {
       // Existing safe fallback menus remain in the DOM even if enhancement fails.
