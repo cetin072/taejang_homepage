@@ -705,11 +705,11 @@
         }, true));
       } else {
         actions.append(button('보완 요청', () => reviewAction(detail, 'changes_requested'), true));
-        actions.append(button('승인', () => reviewAction(detail, 'approve')));
+        actions.append(button(detail.required_stage === 'lead' ? '최종 승인' : '승인·다음 검토', () => reviewAction(detail, 'approve')));
         actions.append(button('운영총괄 상신', () => reviewAction(detail, 'escalate_to_operations'), true));
       }
     } else if (workspace.role === 'operations_manager') {
-      actions.append(button('승인', () => reviewAction(detail, 'approve')));
+      actions.append(button(detail.required_stage === 'ceo' ? '승인·대표이사 검토' : '최종 승인', () => reviewAction(detail, 'approve')));
       actions.append(button('운영팀장에게 보완 요청', async () => {
         const comment = window.prompt('운영팀장에게 내려보낼 보완 내용을 적어주세요.', '');
         if (!comment?.trim()) return;
@@ -721,7 +721,7 @@
       actions.append(button('대표이사 상신', () => reviewAction(detail, 'escalate_to_ceo'), true));
       actions.append(button('검토 보류', () => reviewAction(detail, 'on_hold'), true));
     } else {
-      actions.append(button('승인', () => reviewAction(detail, 'approve')));
+      actions.append(button('최종 승인', () => reviewAction(detail, 'approve')));
       actions.append(button('보완 요청', () => reviewAction(detail, 'changes_requested'), true));
       actions.append(button('반려', () => reviewAction(detail, 'rejected'), true));
       actions.append(button('검토 보류', () => reviewAction(detail, 'on_hold'), true));
