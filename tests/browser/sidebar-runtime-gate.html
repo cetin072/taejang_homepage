@@ -234,7 +234,7 @@
       assert(!shell.classList.contains('sidebar-open'), `${role}: choosing a menu did not close the mobile sidebar`);
       assert(document.getElementById('desktop-page-title').textContent === (role === 'operations_manager' ? '발행 현황' : '발행 관리'), `${role}: mobile publication entry opened the wrong destination`);
       if (role === 'operations_manager') {
-        assert(![...document.querySelectorAll('#dashboard-main button')].some(button => button.textContent.trim() === '발행 대기함에 넣기'), `${role}: mobile screen exposed queue action`);
+        assert(![...document.querySelectorAll('#dashboard-main button')].some(button => button.textContent.trim() === '공개/예약 설정'), `${role}: mobile screen exposed queue action`);
       }
       find('대시보드').click();
       await wait(80);
