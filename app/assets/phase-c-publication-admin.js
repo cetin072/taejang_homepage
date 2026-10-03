@@ -308,11 +308,11 @@
     const currentRoute = route();
     if (!ELIGIBLE_ROLES.has(currentRoute)) return;
     const isOperations = currentRoute === 'operations_manager';
-    const target = setPage('기존 글 관리', isOperations
+    const target = setPage('공개 홍보글 관리', isOperations
       ? '운영총괄에게 올라온 기존 공개글 수정 요청을 검토합니다.'
       : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
     if (!target) return;
-    const loading = el('p', '기존 글을 불러오고 있습니다.', 'message');
+    const loading = el('p', '공개 홍보글을 불러오고 있습니다.', 'message');
     target.append(loading);
 
     try {
@@ -353,7 +353,7 @@
         }
       }
     } catch (error) {
-      loading.textContent = friendly(error, '기존 글을 불러오지 못했습니다.');
+      loading.textContent = friendly(error, '공개 홍보글을 불러오지 못했습니다.');
       loading.classList.add('error');
     }
   }
