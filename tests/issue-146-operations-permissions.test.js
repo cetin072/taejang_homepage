@@ -11,6 +11,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const migration = read('supabase/migrations/20260908031219_issue_146_operations_permissions_and_homepage_workflow.sql');
 const employeeUi = read('app/assets/employee-management.js');
 const workspaceUi = read('app/assets/phase-c-workspace-v2.js');
+const homepageUi = read('app/assets/issue-146-end-to-end.js');
 
 test('Issue #146 forward migration keeps immutable Employee identity while allowing global lead registration', () => {
   assert.match(migration, /create or replace function public\.create_employee/);
@@ -42,15 +43,17 @@ test('homepage requests remain allow-listed and offer current-state plus desktop
   for (const page of ['activities', 'greeting', 'why_minhwa', 'location', 'resources']) assert.match(migration, new RegExp(`page_key = '${page}'`));
   assert.match(migration, /create or replace function public\.create_homepage_change_request/);
   assert.match(migration, /current_user_has_role\('promotion_lead'\) or public\.private_is_operations_manager/);
-  assert.match(workspaceUi, /현재 공개 문구/);
-  assert.match(workspaceUi, /PC 미리보기/);
-  assert.match(workspaceUi, /모바일 미리보기/);
-  assert.match(workspaceUi, /p_current_summary: currentSummary\.value\.trim\(\) \|\| null/);
+  assert.match(homepageUi, /'변경 전'/);
+  assert.match(homepageUi, /PC Preview/);
+  assert.match(homepageUi, /Mobile Preview/);
+  assert.match(homepageUi, /p_current_summary: currentValue \|\| null/);
+  assert.match(homepageUi, /create_homepage_slot_change_request/);
 });
 
 test('employee and promotion workspace browser modules parse after the superset changes', () => {
   assert.doesNotThrow(() => new vm.Script(employeeUi, { filename: 'employee-management.js' }));
   assert.doesNotThrow(() => new vm.Script(workspaceUi, { filename: 'phase-c-workspace-v2.js' }));
+  assert.doesNotThrow(() => new vm.Script(homepageUi, { filename: 'issue-146-end-to-end.js' }));
   assert.match(employeeUi, /promotion_lead_global/);
   assert.match(employeeUi, /'조회 가능한 직원'/);
   assert.match(workspaceUi, /WRITE_ROLES = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
