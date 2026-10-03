@@ -147,3 +147,15 @@ test('promotion and homepage image uploads use declarative restricted promotion-
   assert.match(sql, /current_user_has_role\('promotion_lead'\)/);
   assert.doesNotMatch(sql, /insert into storage\.buckets/i);
 });
+
+test('promotion review and publication are separate sidebar destinations and data surfaces', () => {
+  const workspace = fs.readFileSync(v2Path, 'utf8');
+  const dashboard = fs.readFileSync(dashboardPath, 'utf8');
+  assert.match(dashboard, /key: 'promotion\.review'[\s\S]*openPromotion\('review'\)/);
+  assert.match(dashboard, /key: 'promotion\.publication'[\s\S]*openPromotion\('publication'\)/);
+  assert.match(workspace, /if \(mode === 'publication'\) return renderPublication\(workspace\)/);
+  assert.match(workspace, /const items = arr\(workspace\.review_items\)/);
+  assert.match(workspace, /get_promotion_publication_overview/);
+  assert.match(workspace, /발행 대상/);
+  assert.match(workspace, /현재 검토 대기 안건이 없습니다/);
+});
