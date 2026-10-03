@@ -497,11 +497,11 @@
     document.getElementById('desktop-page-title').textContent = '홍보 작성';
     target.replaceChildren(renderIntro('홍보 업무', '새 홍보자료 작성', '제목과 본문 중심으로 작성하세요. 게시주소·요약·대표 이미지 같은 기술 항목은 자동으로 처리합니다.'));
     target.append(buildComposer());
-    const mine = arr(workspace.my_items).filter(item => item.lifecycle !== 'needs_revision');
+    const mine = arr(workspace.my_items).filter(item => item.lifecycle === 'draft');
     const section = el('section', null, 'dashboard-section');
-    section.append(el('h2', role === 'promotion_lead' ? '내가 작성한 홍보자료' : '내 작성글'));
+    section.append(el('h2', '임시저장한 글'));
     const grid = el('div', null, 'phase-c-v2-grid');
-    if (!mine.length) grid.append(el('p', '아직 작성한 홍보자료가 없습니다.', 'empty'));
+    if (!mine.length) grid.append(el('p', '현재 임시저장한 홍보자료가 없습니다.', 'empty'));
     mine.forEach(item => grid.append(contentCard(item)));
     section.append(grid);
     target.append(section);
