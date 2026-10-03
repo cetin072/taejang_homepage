@@ -55,7 +55,7 @@ test('board-style promotion composer hides technical fields and keeps user-facin
   }
 });
 
-test('promotion lead keeps its stable permission code while displaying as 홍보팀장', () => {
+test('promotion lead keeps its stable permission code while displaying as 운영팀장', () => {
   const labels = fs.readFileSync(roleLabelsPath, 'utf8');
   const routing = fs.readFileSync(routingPath, 'utf8');
   const dashboard = fs.readFileSync(dashboardPath, 'utf8');
@@ -64,7 +64,7 @@ test('promotion lead keeps its stable permission code while displaying as 홍보
 
   assert.match(labels, /const LEGACY = '홍보팀장'/);
   assert.match(labels, /const CURRENT = '운영팀장'/);
-  assert.match(workspace, /const STAGE_LABELS = \{ lead: '홍보팀장', operations: '운영총괄', ceo: '대표이사' \}/);
+  assert.match(workspace, /const STAGE_LABELS = \{ lead: '운영팀장', operations: '운영총괄', ceo: '대표이사' \}/);
   assert.match(routing, /\['promotion_lead', 'promotion', '운영팀장'\]/);
   assert.match(routing, /\['promotion_staff', 'promotion', '홍보직원'\]/);
   assert.match(dashboard, /promotion_lead: \['대시보드'/);
