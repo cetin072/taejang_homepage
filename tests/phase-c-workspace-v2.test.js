@@ -147,3 +147,4 @@ test('promotion and homepage image uploads use declarative restricted promotion-
   assert.match(sql, /current_user_has_role\('promotion_lead'\)/);
   assert.doesNotMatch(sql, /insert into storage\.buckets/i);
 });
+
