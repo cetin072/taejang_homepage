@@ -40,8 +40,10 @@ test('canonical review renderer keeps approval separate from publication managem
   const live = read('app/assets/issue-181-promotion-live-ux.js');
   const workspace = read('app/assets/phase-c-workspace-v2.js');
   assert.match(workspace, /최종 승인/);
-  assert.match(workspace, /승인·다음 검토/);
+  assert.match(workspace, /승인·운영총괄 검토/);
   assert.match(workspace, /승인·대표이사 검토/);
+  assert.match(workspace, /detail\.required_stage === 'lead'[\s\S]*운영총괄 상신/);
+  assert.match(workspace, /detail\.required_stage !== 'ceo'[\s\S]*대표이사 상신/);
   assert.match(live, /공개와 예약은 별도 발행 관리/);
   assert.doesNotMatch(live, /승인·공개|승인·예약|홈페이지에 즉시 공개/);
 });
