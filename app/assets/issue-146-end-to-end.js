@@ -430,36 +430,35 @@
   }
 
   async function deletePromotionMediaObjects(paths) {
-    const targets = arr(paths).filter(Boolean);
+    const targets = arr(paths).filter(Boolean).map(String);
     if (!targets.length) return;
     const auth = session();
     if (!auth.access_token) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
     const cfg = await config();
-    for (const path of targets) {
-      const encodedPath = String(path).split('/').map(encodeURIComponent).join('/');
-      let response;
-      try {
-        response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
-          method: 'DELETE',
-          headers: {
-            apikey: cfg.publishableKey,
-            Authorization: `Bearer ${auth.access_token}`
-          }
-        });
-      } catch (error) {
-        console.warn('[promotion-media-delete]', { stage: 'storage-delete', status: 0, message: error?.message || null });
-        throw new Error('원본 사진 삭제 중 네트워크 문제가 발생했습니다. 글은 아직 영구삭제하지 않았습니다.');
-      }
-      if (!response.ok && response.status !== 404) {
-        const payload = await response.json().catch(() => null);
-        console.warn('[promotion-media-delete]', {
-          stage: 'storage-delete',
-          status: response.status,
-          code: payload?.errorCode || payload?.code || payload?.error || null,
-          message: payload?.message || null
-        });
-        throw new Error('원본 사진을 삭제하지 못했습니다. 글은 아직 영구삭제하지 않았습니다.');
-      }
+    let response;
+    try {
+      response = await fetch(`${cfg.url}/storage/v1/object/promotion-media`, {
+        method: 'DELETE',
+        headers: {
+          apikey: cfg.publishableKey,
+          Authorization: `Bearer ${auth.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prefixes: targets })
+      });
+    } catch (error) {
+      console.warn('[promotion-media-delete]', { stage: 'storage-delete', status: 0, message: error?.message || null });
+      throw new Error('원본 사진 삭제 중 네트워크 문제가 발생했습니다. 글은 아직 영구삭제하지 않았습니다.');
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      console.warn('[promotion-media-delete]', {
+        stage: 'storage-delete',
+        status: response.status,
+        code: payload?.errorCode || payload?.code || payload?.error || null,
+        message: payload?.message || null
+      });
+      throw new Error('원본 사진을 삭제하지 못했습니다. 글은 아직 영구삭제하지 않았습니다.');
     }
   }
 
