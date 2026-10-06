@@ -49,6 +49,14 @@ select ok(not has_table_privilege('authenticated', 'public.promotion_deletion_re
 select ok(not has_function_privilege('anon', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'anonymous users cannot save promotion drafts');
 select ok(has_function_privilege('authenticated', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'authenticated users can call guarded promotion draft RPC');
 select ok(has_function_privilege('authenticated', 'public.submit_promotion_revision(uuid)', 'EXECUTE'), 'authenticated users can call guarded promotion submit RPC');
+select ok(
+  position('lead_stage_auto_satisfied' in pg_get_functiondef('public.submit_promotion_revision(uuid)'::regprocedure)) > 0,
+  'promotion-lead submission records automatic lead-stage satisfaction'
+);
+select ok(
+  position('private_submit_promotion_revision_pre148' in pg_get_functiondef('public.submit_promotion_revision(uuid)'::regprocedure)) > 0,
+  'non-lead submissions retain the established guarded submission implementation'
+);
 select ok(not has_function_privilege('authenticated', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'browser users cannot read static export candidates');
 select ok(has_function_privilege('service_role', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'service role alone can read static export candidates');
 select ok(not has_function_privilege('authenticated', 'public.list_homepage_change_publish_candidates()', 'EXECUTE'), 'browser users cannot read approved homepage change publish candidates');
