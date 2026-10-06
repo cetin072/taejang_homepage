@@ -1,0 +1,80 @@
+name: Batched Production Release
+
+on:
+  schedule:
+    - cron: '20 0 * * *'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Emergency release: bypass 48 hours; changes and daily cap still required'
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Check without modifying the marker or pushing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: taejang-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize temporary paths
+        run: |
+          echo "RELEASE_PLAN_PATH=$RUNNER_TEMP/production-release-plan.json" >> "$GITHUB_ENV"
+          echo "PUBLISHED_DEPLOY_PATH=$RUNNER_TEMP/published-production.json" >> "$GITHUB_ENV"
+      - name: Read successful public Production deployment
+        run: curl --fail --silent --show-error --location --max-time 30 --output "$PUBLISHED_DEPLOY_PATH" "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f"
+      - name: Plan release
+        id: plan
+        run: node scripts/production-release-plan.mjs
+      - name: Check existing main protection
+        if: steps.plan.outputs.status == 'READY' && env.DRY_RUN == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/rules/branches/main" > "$RUNNER_TEMP/main-rules.json"
+          node -e 'const fs=require("fs");const rules=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+"/main-rules.json"));if(rules.some(r=>["pull_request","required_status_checks"].includes(r.type)))throw Error("PROTECTION_BLOCKED: retain existing rules; marker-only release PR needs review");'
+      - name: Create marker-only release and push if main is still current
+        id: release
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          node scripts/production-release.mjs
+      - name: Verify publicly deployed release
+        if: steps.release.outputs.status == 'PUSHED'
+        env:
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent --show-error --location --max-time 15 "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f" \
+              | node -e 'let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{try{const d=JSON.parse(s).published_deploy;process.exit(d.state==="ready"&&d.context==="production"&&d.commit_ref===process.env.RELEASE_SHA?0:1)}catch{process.exit(1)}})'; then
+              echo 'Production release confirmed'
+              exit 0
+            fi
+            sleep 30
+          done
+          echo 'Production release was not observed; do not retry deploy automatically' >&2
+          exit 1
