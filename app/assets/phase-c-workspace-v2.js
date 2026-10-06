@@ -619,6 +619,28 @@
     }
   }
 
+  async function archivePromotionAsOperations(item, reopen = () => openPromotion('publication')) {
+    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제(보관)하는 사유를 입력해 주세요.`, '')?.trim();
+    if (!reason) return;
+    if (!window.confirm('삭제(보관)하면 공개·예약·발행 목록에서 내려가며, 보관함에서 복구할 수 있습니다. 계속할까요?')) return;
+    try {
+      await app().rpc('archive_promotion_content', {
+        p_content_id: item.content_id,
+        p_confirm_title: item.title || '',
+        p_reason: reason
+      });
+      await reopen();
+    } catch (error) {
+      window.alert(app().friendlyError?.(error) || error.message || '삭제(보관)하지 못했습니다.');
+    }
+  }
+
+  function openPromotionArchiveManager() {
+    const api = window.TaejangIssue146?.openPromotionArchive;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('홍보글 보관·영구삭제 기능');
+  }
+
   async function renderPublication(workspace) {
     const role = workspace.role;
     if (!['promotion_lead', 'operations_manager'].includes(role)) {
@@ -632,6 +654,11 @@
       ? '최종 승인이 끝난 콘텐츠를 지금 공개하거나 게시일을 예약합니다.'
       : '최종 승인과 예약 현황을 조회합니다. 공개와 예약 지정은 운영팀장이 담당합니다.');
     target.replaceChildren(intro);
+    if (role === 'operations_manager') {
+      const tools = el('div', null, 'quick-links');
+      tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+      target.append(tools);
+    }
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
     try {
       const items = arr(await app().rpc('get_promotion_publication_overview'));
@@ -658,6 +685,9 @@
         if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
           actions.append(button('공개/예약 설정', () => queuePublication(item)));
         }
+        if (role === 'operations_manager') {
+          actions.append(button('삭제(보관)', () => archivePromotionAsOperations(item), true));
+        }
         const previewLink = document.createElement('a');
         previewLink.href = '../promotion-preview/';
         previewLink.className = 'button button-quiet';
@@ -667,7 +697,13 @@
         grid.append(card);
       });
       section.append(grid);
-      target.replaceChildren(intro, section);
+      if (role === 'operations_manager') {
+        const tools = el('div', null, 'quick-links');
+        tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+        target.replaceChildren(intro, tools, section);
+      } else {
+        target.replaceChildren(intro, section);
+      }
     } catch (error) {
       target.replaceChildren(intro, el('p', app().friendlyError?.(error) || '발행 현황을 불러오지 못했습니다.', 'message error'));
     }
