@@ -199,7 +199,9 @@
         arr(archived).forEach(item => {
           const card = el('article', null, 'issue146-card');
           card.append(el('span', item.archive_kind === 'published' ? '공개 이력 있음' : '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
-          card.append(el('p', `복구 시 이전 상태: ${item.previous_lifecycle || '확인 필요'}`, 'issue146-muted'));
+          card.append(el('p', ['published', 'hidden'].includes(item.previous_lifecycle)
+            ? '복구 후: 숨김 상태 · 다시 공개하려면 별도 공개 처리가 필요합니다.'
+            : `복구 후: ${item.previous_lifecycle || '이전 상태 확인 필요'}`, 'issue146-muted'));
           const actions = el('div', null, 'quick-links');
           actions.append(button('복구', async () => {
             const reason = promptReason('복구 사유를 입력해 주세요.');
