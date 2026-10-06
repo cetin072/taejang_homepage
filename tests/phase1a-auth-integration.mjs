@@ -45,6 +45,24 @@ async function api(path, { method = 'GET', token, body, headers = {} } = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
+async function binaryApi(path, { method = 'GET', token, body, headers = {} } = {}) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    method,
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${token || publishableKey}`,
+      ...headers,
+    },
+    body,
+  });
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch { data = text; }
+  }
+  return { ok: response.ok, status: response.status, data };
+}
+
 async function signUp(email, displayName) {
   const result = await api('/auth/v1/signup', {
     method: 'POST',
@@ -189,6 +207,79 @@ const approveLead = await rpc('approve_signup_request_with_employee', admin.toke
   p_role_code: 'promotion_lead', p_reason_summary: 'CI 운영팀장 계정 승인',
 });
 equal(approveLead.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links a promotion-lead account');
+
+const promotionPng = Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,8,215,99,248,207,192,240,31,0,5,0,1,255,137,153,61,29,0,0,0,0,73,69,78,68,174,66,96,130]);
+const promotionMediaPath = `${lead.id}/ci/promotion-authoring.png`;
+const encodedPromotionMediaPath = promotionMediaPath.split('/').map(encodeURIComponent).join('/');
+const promotionMediaUpload = await binaryApi(`/storage/v1/object/promotion-media/${encodedPromotionMediaPath}`, {
+  method: 'POST',
+  token: lead.token,
+  headers: { 'Content-Type': 'image/png', 'x-upsert': 'false' },
+  body: promotionPng,
+});
+check(promotionMediaUpload.ok, `promotion lead uploads an actual promotion-media object: ${JSON.stringify(promotionMediaUpload.data)}`);
+const promotionMediaRead = await binaryApi(`/storage/v1/object/public/promotion-media/${encodedPromotionMediaPath}`);
+check(promotionMediaRead.ok, 'promotion-media upload is publicly readable from the configured public bucket');
+const canonicalPromotionMediaUrl = `https://local-storage.example.test/storage/v1/object/public/promotion-media/${encodedPromotionMediaPath}`;
+
+const leadDirectDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article',
+  p_slug: 'ci-promotion-lead-direct-publish',
+  p_title: 'CI 1호 기업 3차 봉사활동',
+  p_summary: '일반 숫자는 상위 검토 사유가 아님',
+  p_public_body: '2026년 10월 1호 기업의 3차 봉사활동 기록',
+  p_byline_kind: 'company',
+  p_hero_image_url: canonicalPromotionMediaUrl,
+  p_public_media: [{ url: canonicalPromotionMediaUrl, kind: 'selected', alt: 'CI 홍보 사진' }],
+  p_people_photo: 'no',
+  p_number_or_amount: 'no',
+  p_change_reason: 'CI 운영팀장 일반 글 작성',
+});
+equal(leadDirectDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves a normal homepage article with uploaded media');
+const leadDirectSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadDirectDraft.data.content_id });
+equal(leadDirectSubmit.data?.code, 'PROMOTION_SUBMITTED', 'promotion lead submits own homepage article');
+equal(leadDirectSubmit.data?.lead_stage_auto_satisfied, true, 'promotion lead submission auto-satisfies the lead stage without a manual task');
+equal(leadDirectSubmit.data?.required_stage, 'lead', 'ordinary numeric text remains at lead-level policy when disclosure is no');
+equal(leadDirectSubmit.data?.next_stage, null, 'ordinary promotion-lead article has no upper review task');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'approved', 'ordinary promotion-lead article reaches approved without self-review');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='pending'`), '0', 'promotion lead does not receive a pending review for their own submission');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='approved' and decision_comment='운영팀장 직접 작성: lead 수동 검토 단계 자동 충족'`), '1', 'lead-stage system satisfaction is recorded for downstream approval invariants');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '0', 'ordinary promotion-lead article does not create an operations review');
+equal(sql(`select hero_image_url from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains the persisted hero image');
+equal(sql(`select public_media->0->>'url' from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains in persisted public_media');
+
+const leadDirectPublish = await rpc('queue_promotion_revision', lead.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_scheduled_for: null,
+});
+equal(leadDirectPublish.data?.code, 'PROMOTION_PUBLISHED', 'promotion lead explicitly publishes the approved article');
+const publicFeed = await rpc('list_public_promotion_feed', lead.token, {});
+check(Array.isArray(publicFeed.data) && publicFeed.data.some(item =>
+  item.content_id === leadDirectDraft.data.content_id
+  && item.hero_image_url === canonicalPromotionMediaUrl
+  && item.public_media?.[0]?.url === canonicalPromotionMediaUrl
+), 'published promotion feed keeps the uploaded hero/public media');
+
+const leadUpperDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article',
+  p_slug: 'ci-promotion-lead-upper-review',
+  p_title: 'CI 중요 금액 검토 글',
+  p_summary: '중요 금액은 상위 검토 유지',
+  p_public_body: '계약 관련 중요 금액 검토가 필요한 글',
+  p_byline_kind: 'company',
+  p_public_media: [],
+  p_people_photo: 'no',
+  p_number_or_amount: 'yes',
+  p_change_reason: 'CI 운영팀장 상위 검토 글',
+});
+equal(leadUpperDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves an upper-review article');
+const leadUpperSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadUpperDraft.data.content_id });
+equal(leadUpperSubmit.data?.lead_stage_auto_satisfied, true, 'upper-review lead submission still skips manual self-review');
+equal(leadUpperSubmit.data?.required_stage, 'operations', 'explicit important number keeps operations review requirement');
+equal(leadUpperSubmit.data?.next_stage, 'operations', 'upper-review lead submission moves directly to operations');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadUpperDraft.data.content_id}'::uuid`), 'review_pending', 'upper-review article remains pending');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='lead' and decision='pending'`), '0', 'upper-review lead submission has no manual lead self-review');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '1', 'upper-review lead submission creates the required operations review');
 
 const lowerRoleDraft = await rpc('save_promotion_draft', lead.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft', p_title: 'CI 운영팀장 초안',
