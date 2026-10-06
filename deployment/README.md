@@ -1,55 +1,71 @@
 # Batched Netlify Production releases
 
-Production policy is 48 hours between releases and at most one release per KST
-date. Deploy Previews continue to build. Only the dedicated Production release
-job has `contents: write`; repository defaults and other workflows are unchanged.
+Production releases require actual deployment input changes, at least 48 hours
+between regular releases, and at most one release per KST date. Preview builds
+remain enabled. The daily planner runs at 09:20 KST.
 
-The daily check runs at 09:20 KST. It compares actual deploy inputs against the
-successful public Netlify deployment SHA and uses its `published_at` for the
-48-hour window. A failed attempt's checked-in marker does not replace this public
-source. Marker attempts also respect the same daily/window limits to avoid
-repeated paid attempts. Documentation, tests, and marker-only changes do not
-count as pending site updates.
+Only the dedicated Production release job grants contents: write,
+pull-requests: write and actions: write to the default GITHUB_TOKEN. Repository
+default permissions remain read, and other workflow permissions are unchanged.
+The separately approved "Allow GitHub Actions to create and approve pull
+requests" setting is enabled for PR creation. The workflow never approves
+reviews, changes protection, creates a PAT or adds bypass actors.
 
-Results:
-- `NO_CHANGES`: no deploy input changed.
-- `WAITING_WINDOW`: less than 48 hours since successful Production or last attempt.
-- `WAITING_DAILY_LIMIT`: a successful release or attempt already occurred on this KST date.
-- `READY`: the policy permits a release.
-- `RETRY_NOOP`: main changed after planning, or the KST date changed; no push.
-- `PROTECTION_BLOCKED`: existing main rules require a PR or CI; no marker mutation/push.
-- `DRY_RUN_READY`: main and policy are current, but the requested dry-run publishes nothing.
+The planner compares deployment inputs with the successful public Netlify SHA
+and uses its published_at. Documentation, tests and marker changes alone do
+not count. NO_CHANGES and WAITING_WINDOW / WAITING_DAILY_LIMIT create no release
+branch or PR. Manual workflow_dispatch defaults to dry_run=true. Manual
+force=true bypasses only 48 hours; changes and the KST daily cap remain required.
 
-Manual workflow dispatch defaults to `dry_run=true`. `force=true` is accepted
-only on manual dispatch, still requires deploy input changes, and cannot bypass
-the daily limit. It bypasses only the 48-hour window.
+READY creates a new codex/production-release-* branch at exact current main,
+modifies only app/release/production.json, checks cached filenames before commit,
+checks main again before push, and pushes exclusively to that new branch.
+An existing open release PR blocks duplicate creation.
 
-The release executor checks clean tracked state, fetches main again before
-marker creation, stages only `app/release/production.json`, verifies
-`git diff --cached --name-only`, checks main again before commit and push, and
-uses a non-forced push. A concurrent merge or protection rule rejects the push.
-The Netlify gate compares the current commit with its first parent and requires
-a marker-only commit whose source SHA equals that parent. Introducing the first
-marker does not publish the policy PR.
+The workflow creates a marker-only PR to main, explicitly dispatches
+public-homepage-checks.yml and phase1a-supabase-integration.yml, and verifies
+new workflow_dispatch runs and required jobs at the exact release head SHA.
+It never relies on pull_request events triggered by GITHUB_TOKEN or reuses
+past CI success. Failed or timed-out CI leaves the PR open for inspection,
+blocks merge, and prevents automatic creation of repeated release PRs.
 
-After push, the workflow polls public Netlify deployment metadata for the exact
-release commit. Verification failure does not trigger an automatic redeploy.
+Immediately before squash merge it rechecks both runs, the PR head, remote diff
+and marker content, actual public Production time, KST date, and current main.
+The diff must contain exactly app/release/production.json. The marker must have
+interval_days=2, previous release_attempt + 1, and source_main_sha=current main.
+Stale releases are closed without merge and replanned by a later run.
 
-## Integration holds before merge
+GitHub's merge API pins the PR head but has no atomic expected-base parameter.
+The workflow checks main immediately before merge; the Netlify gate additionally
+requires the squash commit's first parent to equal marker source_main_sha.
+A main race therefore blocks Production even if GitHub accepted the squash.
+Existing required checks and protection remain enforced by GitHub.
 
-The current active repository ruleset requires a PR and the two existing CI
-checks, with no bypass actors. Direct GITHUB_TOKEN pushes are therefore blocked.
-The workflow preserves these rules and explicitly reports PROTECTION_BLOCKED.
-A marker-only release PR is an alternative requiring a separate workflow design;
-this change does not grant pull-request write permission or modify Actions settings.
+Only a marker-only squash commit passes the Git Production gate. Ordinary main
+commits and the initial policy PR skip Production. After merge the workflow
+checks that public Netlify Production is ready at the exact squash SHA. A failed
+deployment is not retried: an unpublished previous marker attempt blocks future
+automatic attempts until investigated. No emergency CLI/API upload is used.
 
-Authenticated Netlify API inspection on 2026-10-06 found zero external Build
-Hooks. The Production branch is main and the base directory is the repository
-root. No Hook was deleted or changed. The site setting
-`prevent_non_git_prod_deploys` is false, so authenticated CLI/API uploads can
-bypass the Git gate. This setting was not changed. The project cannot be marked
-PASS until this remaining Production path is addressed. Enforcing Git-based
-Production deployments can close it while preserving Preview deployments.
+## Verified service configuration, 2026-10-06
 
-Functions, Forms, Supabase runtime behavior and application schedules are outside
-this change. No Production deployment should be run solely to test this policy.
+- Main retains Protect main: required PR, both existing required CI checks,
+  approving review count 0, no bypass actors.
+- Netlify Production branch remains main; base directory remains the repo root.
+- Authenticated Build Hook count is 0.
+- prevent_non_git_prod_deploys=true, explicitly approved by the user.
+- An authenticated non-Git Production API request with an unuploaded file digest
+  was rejected with Forbidden. No files were uploaded or Production published.
+- This setting restricts deployment methods. Existing Functions, Forms,
+  Supabase and public runtime configuration are unchanged.
+
+## Verification boundary
+
+Local Git fixtures test unchanged remote main, marker-only branch commits,
+stale planning, ordinary Production skips and marker-only squash allowance.
+API fixtures test PR creation, explicit dispatch, exact-head success, failure,
+duplicates, stale main, changed marker/head/files and daily revalidation.
+PR #397 CI and Deploy Preview are checked separately at its latest head.
+Live automated marker PR/CI/squash/Production verification must occur only after
+the user reviews the final report and authorizes proceeding with the policy PR.
+No Production force release is part of pre-merge verification.
