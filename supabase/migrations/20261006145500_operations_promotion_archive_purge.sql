@@ -13,7 +13,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 declare
   actor_id uuid := auth.uid();
 begin
@@ -32,7 +32,7 @@ begin
     p_reason
   );
 end;
-$;
+$$;
 
 
 create or replace function public.private_promotion_media_delete_allowed()
@@ -41,12 +41,12 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select (select auth.uid()) is not null
     and public.current_profile_is_active()
     and public.current_user_has_role('operations_manager')
     and public.private_actor_can('promotion.archive');
-$;
+$$;
 
 create or replace function public.get_archived_promotion_media_paths(
   p_content_id uuid
@@ -56,7 +56,7 @@ language plpgsql
 stable
 security definer
 set search_path = ''
-as $
+as $$
 declare
   actor_id uuid := auth.uid();
   content_row public.promotion_contents%rowtype;
@@ -139,7 +139,7 @@ begin
 
   return paths;
 end;
-$;
+$$;
 
 alter function public.private_promotion_media_delete_allowed() owner to postgres;
 alter function public.get_archived_promotion_media_paths(uuid) owner to postgres;
