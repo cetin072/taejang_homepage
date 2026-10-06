@@ -18,6 +18,7 @@
       archiveCalls: [],
       permanentCalls: [],
       restoreCalls: [],
+      storageDeleteCalls: [],
       candidates: [{
         content_id: '11111111-1111-4111-8111-111111111111',
         title: '승인완료 테스트 글',
@@ -34,9 +35,24 @@
       }]
     };
 
+    sessionStorage.setItem('taejang-staff-session-v1', JSON.stringify({ access_token: 'test-access-token' }));
     window.alert = message => { throw new Error(`unexpected alert: ${message}`); };
     window.confirm = () => true;
     window.prompt = () => state.prompts.shift() ?? null;
+    window.fetch = async (url, options = {}) => {
+      const value = String(url);
+      if (value.includes('/.netlify/functions/staff-config')) {
+        return new Response(JSON.stringify({
+          url: 'https://supabase.example.test',
+          publishableKey: 'sb_publishable_test'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (value.includes('/storage/v1/object/promotion-media/') && options.method === 'DELETE') {
+        state.storageDeleteCalls.push({ url: value, options });
+        return new Response('', { status: 200 });
+      }
+      throw new Error(`unexpected fetch: ${value}`);
+    };
 
     window.TaejangApp = {
       getRoute: () => 'operations_manager',
@@ -44,6 +60,11 @@
       rpc: async (name, body = {}) => {
         if (name === 'get_unpublished_promotion_archive_candidates') return state.candidates.map(item => ({ ...item }));
         if (name === 'get_promotion_archive_admin') return state.archived.map(item => ({ ...item }));
+        if (name === 'get_archived_promotion_media_paths') {
+          return body.p_content_id === '22222222-2222-4222-8222-222222222222'
+            ? ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/2026-10-06/purge.png']
+            : [];
+        }
         if (name === 'archive_promotion_content') {
           state.archiveCalls.push({ ...body });
           const index = state.candidates.findIndex(item => item.content_id === body.p_content_id);
@@ -106,6 +127,10 @@
         permanentButton.click();
         await wait(60);
 
+        assert(state.storageDeleteCalls.length === 1, 'exclusive promotion-media object was not deleted');
+        assert(state.storageDeleteCalls[0].url.includes('/promotion-media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/2026-10-06/purge.png'), 'promotion-media delete path mismatch');
+        assert(state.storageDeleteCalls[0].options.method === 'DELETE', 'promotion-media cleanup did not use DELETE');
+        assert(state.storageDeleteCalls[0].options.headers.Authorization === 'Bearer test-access-token', 'promotion-media cleanup auth header missing');
         assert(state.permanentCalls.length === 1, 'permanent delete RPC not called');
         assert(state.permanentCalls[0].p_content_id === '22222222-2222-4222-8222-222222222222', 'permanent delete target mismatch');
         assert(state.permanentCalls[0].p_confirm_title === '보관 테스트 글', 'permanent delete title mismatch');
