@@ -445,10 +445,23 @@ equal(restoreOldPublished.data?.lifecycle, 'hidden', 'restored published content
 equal(restoreOldPublished.data?.explicit_republish_required, true, 'restored published content requires explicit republish');
 equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published content restores safely as hidden');
 
+const cleanupMediaPath = `${admin.id}/ci/permanent-delete.png`;
+const encodedCleanupMediaPath = cleanupMediaPath.split('/').map(encodeURIComponent).join('/');
+const cleanupMediaUpload = await binaryApi(`/storage/v1/object/promotion-media/${encodedCleanupMediaPath}`, {
+  method: 'POST',
+  token: admin.token,
+  headers: { 'Content-Type': 'image/png', 'x-upsert': 'false' },
+  body: promotionPng,
+});
+check(cleanupMediaUpload.ok, `operations manager uploads promotion media for permanent-delete verification: ${JSON.stringify(cleanupMediaUpload.data)}`);
+const cleanupMediaUrl = `https://local-storage.example.test/storage/v1/object/public/promotion-media/${cleanupMediaPath}`;
+
 const approvedCleanup = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-approved-ops-cleanup', p_title: 'CI 승인완료 정리 글',
   p_summary: 'CI', p_public_body: 'CI approved cleanup verification', p_byline_kind: 'company',
-  p_public_media: [], p_people_photo: 'no', p_number_or_amount: 'no', p_change_reason: 'CI 승인완료 정리 생성',
+  p_hero_image_url: cleanupMediaUrl,
+  p_public_media: [{ url: cleanupMediaUrl, kind: 'selected', alt: 'CI 영구삭제 사진' }],
+  p_people_photo: 'no', p_number_or_amount: 'no', p_change_reason: 'CI 승인완료 정리 생성',
 });
 equal(approvedCleanup.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates an item for approved cleanup verification');
 sql(`update public.promotion_contents set lifecycle='approved' where id='${approvedCleanup.data.content_id}'::uuid`);
@@ -488,6 +501,21 @@ const badPermanentConfirmation = await rpc('permanently_delete_archived_promotio
 });
 check(!badPermanentConfirmation.ok, 'permanent deletion rejects a missing exact confirmation phrase');
 equal(badPermanentConfirmation.data?.message, 'PROMOTION_PERMANENT_DELETE_CONFIRMATION_REQUIRED', 'permanent deletion requires exact 영구삭제 confirmation');
+
+const cleanupMediaPaths = await rpc('get_archived_promotion_media_paths', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+});
+check(cleanupMediaPaths.ok, `archived promotion media-path lookup failed: ${JSON.stringify(cleanupMediaPaths.data)}`);
+check(Array.isArray(cleanupMediaPaths.data) && cleanupMediaPaths.data.length === 1, 'exclusive archived promotion media path is returned exactly once');
+equal(cleanupMediaPaths.data[0], cleanupMediaPath, 'exclusive archived promotion media path matches uploaded object');
+
+const cleanupMediaDelete = await binaryApi(`/storage/v1/object/promotion-media/${encodedCleanupMediaPath}`, {
+  method: 'DELETE',
+  token: admin.token,
+});
+check(cleanupMediaDelete.ok, `operations manager deletes exclusive promotion-media object: ${JSON.stringify(cleanupMediaDelete.data)}`);
+const cleanupMediaReadAfterDelete = await binaryApi(`/storage/v1/object/public/promotion-media/${encodedCleanupMediaPath}`);
+check(!cleanupMediaReadAfterDelete.ok, 'deleted promotion-media object is no longer publicly readable');
 
 const approvedCleanupRevisionId = approvedCleanup.data.revision_id;
 const permanentDelete = await rpc('permanently_delete_archived_promotion_content', admin.token, {
