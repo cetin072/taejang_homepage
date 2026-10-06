@@ -149,6 +149,20 @@ revoke all on function public.get_archived_promotion_media_paths(uuid) from publ
 grant execute on function public.private_promotion_media_delete_allowed() to authenticated;
 grant execute on function public.get_archived_promotion_media_paths(uuid) to authenticated;
 
+drop policy if exists "promotion media operations delete select" on storage.objects;
+create policy "promotion media operations delete select"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'promotion-media'
+  and storage.allow_any_operation(array[
+    'object.delete',
+    'object.delete_many'
+  ])
+  and public.private_promotion_media_delete_allowed()
+);
+
 drop policy if exists "promotion media operations delete" on storage.objects;
 create policy "promotion media operations delete"
 on storage.objects
