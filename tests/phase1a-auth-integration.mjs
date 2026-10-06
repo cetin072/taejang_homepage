@@ -45,6 +45,24 @@ async function api(path, { method = 'GET', token, body, headers = {} } = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
+async function binaryApi(path, { method = 'GET', token, body, headers = {} } = {}) {
+  const response = await fetch(`${apiUrl}${path}`, {
+    method,
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${token || publishableKey}`,
+      ...headers,
+    },
+    body,
+  });
+  const text = await response.text();
+  let data = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch { data = text; }
+  }
+  return { ok: response.ok, status: response.status, data };
+}
+
 async function signUp(email, displayName) {
   const result = await api('/auth/v1/signup', {
     method: 'POST',
@@ -190,6 +208,98 @@ const approveLead = await rpc('approve_signup_request_with_employee', admin.toke
 });
 equal(approveLead.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and explicitly links a promotion-lead account');
 
+const promotionPng = Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,8,215,99,248,207,192,240,31,0,5,0,1,255,137,153,61,29,0,0,0,0,73,69,78,68,174,66,96,130]);
+const promotionMediaPath = `${lead.id}/ci/promotion-authoring.png`;
+const encodedPromotionMediaPath = promotionMediaPath.split('/').map(encodeURIComponent).join('/');
+const promotionMediaUpload = await binaryApi(`/storage/v1/object/promotion-media/${encodedPromotionMediaPath}`, {
+  method: 'POST',
+  token: lead.token,
+  headers: { 'Content-Type': 'image/png', 'x-upsert': 'false' },
+  body: promotionPng,
+});
+check(promotionMediaUpload.ok, `promotion lead uploads an actual promotion-media object: ${JSON.stringify(promotionMediaUpload.data)}`);
+const promotionMediaRead = await binaryApi(`/storage/v1/object/public/promotion-media/${encodedPromotionMediaPath}`);
+check(promotionMediaRead.ok, 'promotion-media upload is publicly readable from the configured public bucket');
+const canonicalPromotionMediaUrl = `https://local-storage.example.test/storage/v1/object/public/promotion-media/${encodedPromotionMediaPath}`;
+
+const leadDirectDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article',
+  p_slug: 'ci-promotion-lead-direct-publish',
+  p_title: 'CI 1호 기업 3차 봉사활동',
+  p_summary: '일반 숫자는 상위 검토 사유가 아님',
+  p_public_body: '2026년 10월 1호 기업의 3차 봉사활동 기록',
+  p_byline_kind: 'company',
+  p_hero_image_url: canonicalPromotionMediaUrl,
+  p_public_media: [{ url: canonicalPromotionMediaUrl, kind: 'selected', alt: 'CI 홍보 사진' }],
+  p_people_photo: 'no',
+  p_number_or_amount: 'no',
+  p_change_reason: 'CI 운영팀장 일반 글 작성',
+});
+equal(leadDirectDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves a normal homepage article with uploaded media');
+const leadDirectSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadDirectDraft.data.content_id });
+equal(leadDirectSubmit.data?.code, 'PROMOTION_SUBMITTED', 'promotion lead submits own homepage article');
+equal(leadDirectSubmit.data?.self_review_forbidden, true, 'promotion lead submission explicitly forbids self review');
+equal(leadDirectSubmit.data?.required_stage, 'operations', 'promotion-lead-authored homepage article requires operations approval');
+equal(leadDirectSubmit.data?.next_stage, 'operations', 'promotion-lead-authored homepage article goes directly to operations');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'review_pending', 'promotion-lead-authored article remains pending until operations approves');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead'`), '0', 'promotion lead submission creates no lead self-review row before operations approval');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '1', 'promotion-lead-authored article creates an operations review');
+equal(sql(`select hero_image_url from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains the persisted hero image');
+equal(sql(`select public_media->0->>'url' from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains in persisted public_media');
+
+const selfApprovalAttempt = await rpc('review_promotion_revision', lead.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_action: 'approve',
+  p_comment: 'CI 자기승인 차단 확인',
+  p_revisit_at: null,
+});
+check(!selfApprovalAttempt.ok && selfApprovalAttempt.status === 403, 'promotion lead cannot approve their own submitted revision');
+equal(selfApprovalAttempt.data?.message, 'PROMOTION_SELF_REVIEW_FORBIDDEN', 'self-review denial is explicit at the RPC boundary');
+
+const operationsApproval = await rpc('review_promotion_revision', admin.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_action: 'approve',
+  p_comment: 'CI 운영총괄 승인',
+  p_revisit_at: null,
+});
+check(operationsApproval.ok, `operations approval failed: ${JSON.stringify(operationsApproval.data)}`);
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'approved', 'article becomes approved only after operations approval');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='approved' and decided_by_profile_id='${admin.id}'::uuid`), '1', 'operations approval is recorded with operations as decider');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='approved' and requested_by_profile_id='${lead.id}'::uuid and decided_by_profile_id='${admin.id}'::uuid`), '1', 'compatibility lead approval is recorded only by the operations approver, never by the author');
+
+const leadDirectPublish = await rpc('queue_promotion_revision', lead.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_scheduled_for: null,
+});
+equal(leadDirectPublish.data?.code, 'PROMOTION_PUBLISHED', 'promotion lead can publish only after operations approval');
+const publicFeed = await rpc('list_public_promotion_feed', lead.token, {});
+check(Array.isArray(publicFeed.data) && publicFeed.data.some(item =>
+  item.content_id === leadDirectDraft.data.content_id
+  && item.hero_image_url === canonicalPromotionMediaUrl
+  && item.public_media?.[0]?.url === canonicalPromotionMediaUrl
+), 'published promotion feed keeps the uploaded hero/public media');
+
+const leadUpperDraft = await rpc('save_promotion_draft', lead.token, {
+  p_content_type: 'homepage_article',
+  p_slug: 'ci-promotion-lead-upper-review',
+  p_title: 'CI 중요 금액 검토 글',
+  p_summary: '중요 금액은 상위 검토 유지',
+  p_public_body: '계약 관련 중요 금액 검토가 필요한 글',
+  p_byline_kind: 'company',
+  p_public_media: [],
+  p_people_photo: 'no',
+  p_number_or_amount: 'yes',
+  p_change_reason: 'CI 운영팀장 상위 검토 글',
+});
+equal(leadUpperDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves an upper-review article');
+const leadUpperSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadUpperDraft.data.content_id });
+equal(leadUpperSubmit.data?.self_review_forbidden, true, 'upper-review lead submission also forbids self review');
+equal(leadUpperSubmit.data?.required_stage, 'operations', 'explicit important number retains operations review requirement');
+equal(leadUpperSubmit.data?.next_stage, 'operations', 'upper-review lead submission moves directly to operations');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadUpperDraft.data.content_id}'::uuid`), 'review_pending', 'upper-review article remains pending');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='lead'`), '0', 'upper-review lead submission has no self-review row');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '1', 'upper-review lead submission creates the required operations review');
+
 const lowerRoleDraft = await rpc('save_promotion_draft', lead.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-lower-role-draft', p_title: 'CI 운영팀장 초안',
   p_summary: 'CI', p_public_body: 'CI lower-role draft', p_byline_kind: 'company',
@@ -316,6 +426,113 @@ equal(matureChangeApproval.data?.status, 'approved', 'operations manager approve
 equal(matureChangeApproval.data?.applied, true, 'approved promotion modification is applied to a new immutable revision');
 equal(sql(`select revision.title from public.promotion_contents content join public.promotion_content_revisions revision on revision.id = content.current_revision_id where content.id = '${maturePromotion.data.content_id}'::uuid`), 'CI 24시간 경과 수정 승인 글', 'approved post-24-hour modification becomes the current promotion revision');
 equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'post-24-hour modification keeps the already-published content public');
+
+const oldPublishedArchive = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id,
+  p_confirm_title: 'CI 24시간 경과 수정 승인 글',
+  p_reason: 'CI 운영총괄 오래된 게시글 보관',
+});
+equal(oldPublishedArchive.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager can recoverably archive a published post older than 24 hours');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'archived', 'old published post moves to archived');
+equal(sql(`select archive_snapshot->>'previous_lifecycle' from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'archive snapshot preserves published lifecycle');
+equal(sql(`select archive_snapshot->>'archive_kind' from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'archive snapshot records public history');
+const restoreOldPublished = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id,
+  p_reason: 'CI 오래된 게시글 복구 검증',
+});
+equal(restoreOldPublished.data?.code, 'PROMOTION_CONTENT_RESTORED', 'operations manager can restore the archived published post');
+equal(restoreOldPublished.data?.lifecycle, 'hidden', 'restored published content returns hidden instead of auto-republishing');
+equal(restoreOldPublished.data?.explicit_republish_required, true, 'restored published content requires explicit republish');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published content restores safely as hidden');
+
+const cleanupMediaPath = `${admin.id}/ci/permanent-delete.png`;
+const encodedCleanupMediaPath = cleanupMediaPath.split('/').map(encodeURIComponent).join('/');
+const cleanupMediaUpload = await binaryApi(`/storage/v1/object/promotion-media/${encodedCleanupMediaPath}`, {
+  method: 'POST',
+  token: admin.token,
+  headers: { 'Content-Type': 'image/png', 'x-upsert': 'false' },
+  body: promotionPng,
+});
+check(cleanupMediaUpload.ok, `operations manager uploads promotion media for permanent-delete verification: ${JSON.stringify(cleanupMediaUpload.data)}`);
+const cleanupMediaUrl = `https://local-storage.example.test/storage/v1/object/public/promotion-media/${cleanupMediaPath}`;
+
+const approvedCleanup = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-approved-ops-cleanup', p_title: 'CI 승인완료 정리 글',
+  p_summary: 'CI', p_public_body: 'CI approved cleanup verification', p_byline_kind: 'company',
+  p_hero_image_url: cleanupMediaUrl,
+  p_public_media: [{ url: cleanupMediaUrl, kind: 'selected', alt: 'CI 영구삭제 사진' }],
+  p_people_photo: 'no', p_number_or_amount: 'no', p_change_reason: 'CI 승인완료 정리 생성',
+});
+equal(approvedCleanup.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates an item for approved cleanup verification');
+sql(`update public.promotion_contents set lifecycle='approved' where id='${approvedCleanup.data.content_id}'::uuid`);
+const archiveApproved = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_reason: 'CI 승인완료 테스트 글 보관',
+});
+equal(archiveApproved.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager can archive an approved unpublished post');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), 'archived', 'approved unpublished post moves to archived');
+equal(sql(`select archive_snapshot->>'previous_lifecycle' from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), 'approved', 'approved lifecycle is preserved for restore');
+const restoreApproved = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_reason: 'CI 승인완료 글 복구',
+});
+equal(restoreApproved.data?.lifecycle, 'approved', 'approved unpublished post restores to approved');
+const archiveApprovedAgain = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_reason: 'CI 영구삭제 전 재보관',
+});
+equal(archiveApprovedAgain.data?.code, 'PROMOTION_CONTENT_DELETED', 'approved post can be archived again before permanent deletion');
+
+const leadPermanentDelete = await rpc('permanently_delete_archived_promotion_content', lead.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '영구삭제',
+  p_reason: 'CI 운영팀장 권한 차단',
+});
+check(!leadPermanentDelete.ok && leadPermanentDelete.status === 403, 'promotion lead cannot permanently delete archived promotion content');
+
+const badPermanentConfirmation = await rpc('permanently_delete_archived_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '삭제',
+  p_reason: 'CI 잘못된 영구삭제 확인문구',
+});
+check(!badPermanentConfirmation.ok, 'permanent deletion rejects a missing exact confirmation phrase');
+equal(badPermanentConfirmation.data?.message, 'PROMOTION_PERMANENT_DELETE_CONFIRMATION_REQUIRED', 'permanent deletion requires exact 영구삭제 confirmation');
+
+const cleanupMediaPaths = await rpc('get_archived_promotion_media_paths', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+});
+check(cleanupMediaPaths.ok, `archived promotion media-path lookup failed: ${JSON.stringify(cleanupMediaPaths.data)}`);
+check(Array.isArray(cleanupMediaPaths.data) && cleanupMediaPaths.data.length === 1, 'exclusive archived promotion media path is returned exactly once');
+equal(cleanupMediaPaths.data[0], cleanupMediaPath, 'exclusive archived promotion media path matches uploaded object');
+
+const cleanupMediaDelete = await binaryApi('/storage/v1/object/promotion-media', {
+  method: 'DELETE',
+  token: admin.token,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ prefixes: [cleanupMediaPath] }),
+});
+check(cleanupMediaDelete.ok, `operations manager deletes exclusive promotion-media object: ${JSON.stringify(cleanupMediaDelete.data)}`);
+const cleanupMediaReadAfterDelete = await binaryApi(`/storage/v1/object/public/promotion-media/${encodedCleanupMediaPath}`);
+check(!cleanupMediaReadAfterDelete.ok, 'deleted promotion-media object is no longer publicly readable');
+
+const approvedCleanupRevisionId = approvedCleanup.data.revision_id;
+const permanentDelete = await rpc('permanently_delete_archived_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '영구삭제',
+  p_reason: 'CI 테스트 콘텐츠 영구삭제',
+});
+equal(permanentDelete.data?.code, 'PROMOTION_CONTENT_PERMANENTLY_DELETED', 'operations manager permanently deletes an archived promotion item');
+equal(permanentDelete.data?.recoverable, false, 'permanent deletion explicitly reports non-recoverable');
+equal(sql(`select count(*) from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), '0', 'permanently deleted promotion content row is removed');
+equal(sql(`select count(*) from public.promotion_content_revisions where content_id='${approvedCleanup.data.content_id}'::uuid`), '0', 'permanently deleted promotion revisions are removed');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${approvedCleanupRevisionId}'::uuid`), '0', 'permanently deleted promotion review rows are removed');
+equal(sql(`select count(*) from public.promotion_publication_queue where revision_id='${approvedCleanupRevisionId}'::uuid`), '0', 'permanently deleted promotion publication queue rows are removed');
+equal(sql(`select count(*) from public.audit_logs where target_id='${approvedCleanup.data.content_id}' and action='promotion_content_permanently_deleted'`), '1', 'permanent deletion preserves an audit tombstone');
 
 const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',

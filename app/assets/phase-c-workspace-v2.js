@@ -104,17 +104,9 @@
       .phase-c-review-source.returned { background:#fff1db; color:#805400; }
       .phase-c-review-note { white-space:pre-line; padding:11px 12px; border-radius:10px; background:#fff8e8; color:#5f4a13; }
       .phase-c-edit-page { max-width:980px; }
-      .phase-c-homepage-entry { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
-      .phase-c-homepage-entry button { min-height:130px; padding:20px; border:1px solid var(--app-border); border-radius:14px; background:#fff; text-align:left; cursor:pointer; }
-      .phase-c-homepage-entry strong { display:block; margin-bottom:8px; font-size:1.12rem; }
-      .phase-c-homepage-form { max-width:900px; padding:22px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
-      .phase-c-homepage-preview { width:100%; height:520px; border:1px solid var(--app-border); border-radius:12px; background:#fff; }
-      .phase-c-homepage-preview.mobile { width:390px; max-width:100%; margin-inline:auto; }
-      .phase-c-homepage-request-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
-      .phase-c-homepage-request { min-height:170px; }
       .phase-c-upload-status { margin:0; color:var(--app-muted); font-size:.92rem; }
-      @media(max-width:1100px){.phase-c-v2-grid,.phase-c-homepage-request-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
-      @media(max-width:760px){.phase-c-v2-grid,.phase-c-homepage-request-grid,.phase-c-homepage-entry,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}.phase-c-homepage-preview{height:420px;}}
+      @media(max-width:1100px){.phase-c-v2-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-photo-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+      @media(max-width:760px){.phase-c-v2-grid,.phase-c-board-row{grid-template-columns:1fr;}.phase-c-photo-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-link-preview{grid-template-columns:1fr;}.phase-c-link-preview img{width:100%;max-width:260px;}}
       @media(max-width:480px){.phase-c-photo-grid{grid-template-columns:1fr;}}
     `;
     document.head.append(style);
@@ -155,31 +147,63 @@
     } catch { return null; }
   }
 
+  function uploadUserId(auth) {
+    return auth?.user?.id || auth?.user_id || jwtSubject(auth?.access_token || '');
+  }
+
+  function storageUploadFailure(response, payload) {
+    const status = Number(response?.status || 0);
+    const code = payload?.errorCode || payload?.code || payload?.error || null;
+    const serverMessage = payload?.message || null;
+    console.warn('[promotion-media-upload]', {
+      stage: 'storage-post',
+      status,
+      code,
+      message: serverMessage
+    });
+    if (status === 401) return new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
+    if (status === 403) return new Error('사진 저장 권한을 확인할 수 없습니다. 관리자에게 문의해 주세요.');
+    if (status === 413) return new Error('사진 크기가 업로드 제한을 초과했습니다.');
+    if (status >= 500) return new Error('사진 저장 서버 문제로 업로드하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    return new Error(`사진 저장 서버에서 업로드를 거부했습니다.${status ? ` (오류 ${status})` : ''}`);
+  }
+
   async function uploadImage(file) {
     if (!file) throw new Error('사진을 선택해 주세요.');
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
     if (file.size > 8 * 1024 * 1024) throw new Error('사진 1장은 8MB 이하로 올려주세요.');
     const auth = session();
-    const userId = jwtSubject(auth.access_token || '');
-    if (!auth.access_token || !userId) throw new Error('로그인 정보를 다시 확인해 주세요.');
+    const userId = uploadUserId(auth);
+    if (!auth.access_token || !userId) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
     const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
     const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
-    const response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
-      method: 'POST',
-      headers: {
-        apikey: cfg.publishableKey,
-        Authorization: `Bearer ${auth.access_token}`,
-        'Content-Type': file.type,
-        'x-upsert': 'false'
-      },
-      body: file
-    });
+    let response;
+    try {
+      response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
+        method: 'POST',
+        headers: {
+          apikey: cfg.publishableKey,
+          Authorization: `Bearer ${auth.access_token}`,
+          'Content-Type': file.type,
+          'x-upsert': 'false'
+        },
+        body: file
+      });
+    } catch (error) {
+      console.warn('[promotion-media-upload]', {
+        stage: 'storage-post',
+        status: 0,
+        code: 'NETWORK_ERROR',
+        message: error?.message || null
+      });
+      throw new Error('네트워크 문제로 사진을 업로드하지 못했습니다. 연결을 확인해 주세요.');
+    }
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
-      throw new Error(payload?.message || payload?.error || '사진을 업로드하지 못했습니다.');
+      throw storageUploadFailure(response, payload);
     }
     return `${cfg.url}/storage/v1/object/public/promotion-media/${encodedPath}`;
   }
@@ -199,10 +223,6 @@
 
   function summaryFromBody(body) {
     return (body || '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
-  }
-
-  function containsNumbers(body) {
-    return /\d|%|₩|원|만원|억원/.test(body || '') ? 'yes' : 'no';
   }
 
   function mediaFromExisting(item) {
@@ -262,7 +282,7 @@
       p_hero_image_url: formState.heroImage || publicMedia[0]?.url || null,
       p_public_media: publicMedia,
       p_people_photo: publicMedia.length || formState.heroImage ? 'unsure' : 'no',
-      p_number_or_amount: containsNumbers(body),
+      p_number_or_amount: formState.numberOrAmount.value,
       p_requested_publish_date: formState.date.value || null,
       p_change_reason: existingItem ? '홍보 콘텐츠 수정·보완본 저장' : '홍보 콘텐츠 초안 저장'
     };
@@ -272,7 +292,8 @@
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
       if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
-      await openPromotion(submitAfterSave ? (route() === 'promotion_staff' ? 'write' : 'review') : 'write');
+      const nextMode = submitAfterSave && route() === 'operations_manager' ? 'review' : 'write';
+      await openPromotion(nextMode);
     } catch (error) {
       window.alert(app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
     } finally {
@@ -303,10 +324,20 @@
     title.placeholder = '제목을 입력하세요';
     const date = input('date');
     date.value = existingItem?.requested_publish_date || '';
+    const numberOrAmount = select([
+      ['no', '아니오'],
+      ['yes', '예'],
+      ['unsure', '잘 모르겠음']
+    ]);
+    numberOrAmount.value = existingItem?.number_or_amount || 'no';
 
     const topRow = el('div', null, 'phase-c-board-row');
     topRow.append(field('글 종류', type), field('게시 희망일 (선택)', date, '정하지 않아도 됩니다.'));
-    form.append(topRow, field('제목', title));
+    form.append(
+      topRow,
+      field('제목', title),
+      field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액처럼 상위 검토가 필요한 수치만 예로 선택하세요. 1호·3차·연도 같은 일반 숫자는 아니오입니다.')
+    );
 
     const externalWrap = el('div', null, 'phase-c-link-tools');
     const external = input('url');
@@ -362,7 +393,7 @@
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, external, body, media, heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
+    const state = { type, title, date, numberOrAmount, external, body, media, heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
     renderMediaEditor(mediaGrid, media, () => {});
     fileInput.addEventListener('change', async () => {
       const files = [...(fileInput.files || [])];
@@ -391,7 +422,11 @@
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
-    const submit = button(existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청', () => savePromotion(state, true, existingItem), false);
+    const leadAuthor = route() === 'promotion_lead';
+    const submitLabel = leadAuthor
+      ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
+      : (existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청');
+    const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
     if (existingItem) actions.append(button('수정 취소', () => { editingContentId = null; openPromotion('revision'); }, true));
@@ -584,6 +619,28 @@
     }
   }
 
+  async function archivePromotionAsOperations(item, reopen = () => openPromotion('publication')) {
+    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제(보관)하는 사유를 입력해 주세요.`, '')?.trim();
+    if (!reason) return;
+    if (!window.confirm('삭제(보관)하면 공개·예약·발행 목록에서 내려가며, 보관함에서 복구할 수 있습니다. 계속할까요?')) return;
+    try {
+      await app().rpc('archive_promotion_content', {
+        p_content_id: item.content_id,
+        p_confirm_title: item.title || '',
+        p_reason: reason
+      });
+      await reopen();
+    } catch (error) {
+      window.alert(app().friendlyError?.(error) || error.message || '삭제(보관)하지 못했습니다.');
+    }
+  }
+
+  function openPromotionArchiveManager() {
+    const api = window.TaejangIssue146?.openPromotionArchive;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('홍보글 보관·영구삭제 기능');
+  }
+
   async function renderPublication(workspace) {
     const role = workspace.role;
     if (!['promotion_lead', 'operations_manager'].includes(role)) {
@@ -597,6 +654,11 @@
       ? '최종 승인이 끝난 콘텐츠를 지금 공개하거나 게시일을 예약합니다.'
       : '최종 승인과 예약 현황을 조회합니다. 공개와 예약 지정은 운영팀장이 담당합니다.');
     target.replaceChildren(intro);
+    if (role === 'operations_manager') {
+      const tools = el('div', null, 'quick-links');
+      tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+      target.append(tools);
+    }
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
     try {
       const items = arr(await app().rpc('get_promotion_publication_overview'));
@@ -623,6 +685,9 @@
         if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
           actions.append(button('공개/예약 설정', () => queuePublication(item)));
         }
+        if (role === 'operations_manager') {
+          actions.append(button('삭제(보관)', () => archivePromotionAsOperations(item), true));
+        }
         const previewLink = document.createElement('a');
         previewLink.href = '../promotion-preview/';
         previewLink.className = 'button button-quiet';
@@ -632,7 +697,13 @@
         grid.append(card);
       });
       section.append(grid);
-      target.replaceChildren(intro, section);
+      if (role === 'operations_manager') {
+        const tools = el('div', null, 'quick-links');
+        tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+        target.replaceChildren(intro, tools, section);
+      } else {
+        target.replaceChildren(intro, section);
+      }
     } catch (error) {
       target.replaceChildren(intro, el('p', app().friendlyError?.(error) || '발행 현황을 불러오지 못했습니다.', 'message error'));
     }

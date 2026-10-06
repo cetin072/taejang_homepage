@@ -26,13 +26,15 @@ test('public export is allow-listed, checksummed, and removes internal fields', 
   artifact.checksum = 'broken'; assert.throws(() => exporter.validateCandidate(artifact), /checksum/i);
 });
 
-test('promotion composer keeps risk routing system-managed and supports staff and lead authoring', () => {
-  for (const label of ['새 홍보자료 작성', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '미리보기']) assert.match(workspace, new RegExp(label));
+test('promotion composer keeps risk routing explicit and supports staff and lead authoring', () => {
+  for (const label of ['새 홍보자료 작성', '저장 후 승인 요청', '열어 수정', '보완해서 새 수정본 만들기', '미리보기', '중요 금액·수치 포함']) assert.match(workspace, new RegExp(label));
   assert.match(workspace, /const WRITE_ROLES = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
   assert.match(workspace, /renderMediaEditor/);
   assert.match(workspace, /p_public_media: publicMedia/);
   assert.match(workspace, /p_people_photo: publicMedia\.length/);
-  assert.match(workspace, /p_number_or_amount: containsNumbers\(body\)/);
+  assert.match(workspace, /p_number_or_amount: formState\.numberOrAmount\.value/);
+  assert.match(workspace, /existingItem\?\.number_or_amount \|\| 'no'/);
+  assert.doesNotMatch(workspace, /function containsNumbers|containsNumbers\(body\)/);
   assert.match(workspace, /save_promotion_draft/);
   assert.match(workspace, /submit_promotion_revision/);
   assert.match(workspace, /p_content_id:\s*existingItem\?\.content_id/);

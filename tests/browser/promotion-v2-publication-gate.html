@@ -18,6 +18,7 @@
       role: 'promotion_lead',
       promptResponses: [],
       queueCalls: [],
+      archiveCalls: [],
       publication: {
         content_id: '11111111-1111-4111-8111-111111111111',
         title: '발행 검수 글',
@@ -31,6 +32,7 @@
     window.alert = () => {};
     window.confirm = () => true;
     window.prompt = () => state.promptResponses.shift() ?? '';
+    window.TaejangIssue146 = { openPromotionArchive: () => { state.archiveManagerOpened = true; } };
     window.TaejangApp = {
       getRoute: () => state.role,
       hasCapabilityContract: () => true,
@@ -47,7 +49,7 @@
             publication_items: [{ ...state.publication }]
           };
         }
-        if (name === 'get_promotion_publication_overview') return state.publication.lifecycle === 'published' ? [] : [{ ...state.publication }];
+        if (name === 'get_promotion_publication_overview') return ['published', 'archived'].includes(state.publication.lifecycle) ? [] : [{ ...state.publication }];
         if (name === 'queue_promotion_revision') {
           state.queueCalls.push({ ...body });
           state.publication.scheduled_for = body.p_scheduled_for || null;
@@ -59,6 +61,13 @@
             state.publication.lifecycle = 'published';
           }
           return { ok: true, code: 'QUEUED' };
+        }
+        if (name === 'archive_promotion_content') {
+          state.archiveCalls.push({ ...body });
+          state.publication.lifecycle = 'archived';
+          state.publication.queue_status = null;
+          state.publication.scheduled_for = null;
+          return { ok: true, code: 'PROMOTION_CONTENT_DELETED', recoverable_archive_preserved: true };
         }
         return null;
       }
@@ -120,6 +129,18 @@
         assert(document.getElementById('desktop-page-title').textContent === '발행 현황', 'operations-manager publication mode title mismatch');
         assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 1건'), 'operations manager cannot read publication overview');
         assert(!buttonByText('공개/예약 설정'), 'operations manager unexpectedly received a queue action');
+        assert(buttonByText('보관함·영구삭제'), 'operations manager archive manager entry missing');
+        const archiveButton = buttonByText('삭제(보관)');
+        assert(archiveButton, 'operations manager archive action missing for approved/scheduled item');
+
+        state.promptResponses.push('테스트 글 정리');
+        archiveButton.click();
+        await wait(80);
+
+        assert(state.archiveCalls.length === 1, 'operations archive RPC call count mismatch');
+        assert(state.archiveCalls[0].p_content_id === state.publication.content_id, 'operations archive content_id mismatch');
+        assert(state.archiveCalls[0].p_confirm_title === state.publication.title, 'operations archive title confirmation mismatch');
+        assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 0건'), 'archived item remained in publication overview');
 
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('review');
         assert(document.getElementById('desktop-page-title').textContent === '홍보 승인 검토', 'operations-manager review did not return to its separate destination');

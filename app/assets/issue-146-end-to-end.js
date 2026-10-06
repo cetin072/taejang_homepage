@@ -150,10 +150,10 @@
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '홍보 콘텐츠 안전관리', 'eyebrow'),
-        el('h2', currentRoute === 'operations_manager' ? '보관하고 다시 복구할 수 있습니다' : '공개 전 글은 보관할 수 있습니다'),
+        el('h2', currentRoute === 'operations_manager' ? '삭제(보관)·복구·영구삭제' : '공개 전 글은 보관할 수 있습니다'),
         el('p', currentRoute === 'operations_manager'
-          ? '사용자에게는 삭제처럼 보이지만 원문·수정이력·감사기록은 남고 필요하면 복구할 수 있습니다.'
-          : '아직 한 번도 공개되지 않은 글만 보관할 수 있습니다. 공개된 글은 “홍보글 관리”에서 숨김 또는 삭제 요청을 사용합니다.')
+          ? '삭제(보관)는 원문·수정이력·감사기록을 남겨 복구할 수 있습니다. 영구삭제는 보관된 글에만 가능하며 복구할 수 없습니다.'
+          : '아직 한 번도 공개되지 않은 글만 보관할 수 있습니다. 공개된 글은 “공개 홍보글 관리”에서 운영총괄이 삭제(보관)할 수 있습니다.')
       );
       shell.append(intro);
 
@@ -166,12 +166,22 @@
         card.append(el('span', item.lifecycle || '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
         card.append(el('p', `${item.owner_name || '작성자 미확인'} · ${item.content_type || '홍보글'}`, 'issue146-muted'));
         const actions = el('div', null, 'quick-links');
-        actions.append(button('보관', async () => {
-          const reason = promptReason('보관 사유를 입력해 주세요.');
+        actions.append(button(currentRoute === 'operations_manager' ? '삭제(보관)' : '보관', async () => {
+          const reason = promptReason(currentRoute === 'operations_manager' ? '삭제(보관) 사유를 입력해 주세요.' : '보관 사유를 입력해 주세요.');
           if (!reason) return;
-          if (!window.confirm('공개 전 글을 보관하시겠습니까? 원문과 이력은 남습니다.')) return;
+          if (!window.confirm(currentRoute === 'operations_manager'
+            ? '이 글을 삭제(보관)하시겠습니까? 원문과 이력은 남고 복구할 수 있습니다.'
+            : '공개 전 글을 보관하시겠습니까? 원문과 이력은 남습니다.')) return;
           try {
-            await app().rpc('archive_unpublished_promotion_content', { p_content_id: item.content_id, p_reason: reason });
+            if (currentRoute === 'operations_manager') {
+              await app().rpc('archive_promotion_content', {
+                p_content_id: item.content_id,
+                p_confirm_title: item.title || '',
+                p_reason: reason
+              });
+            } else {
+              await app().rpc('archive_unpublished_promotion_content', { p_content_id: item.content_id, p_reason: reason });
+            }
             await openPromotionArchive();
           } catch (error) { window.alert(friendly(error, '홍보글을 보관하지 못했습니다.')); }
         }));
@@ -189,8 +199,11 @@
         arr(archived).forEach(item => {
           const card = el('article', null, 'issue146-card');
           card.append(el('span', item.archive_kind === 'published' ? '공개 이력 있음' : '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
-          card.append(el('p', `복구 시 이전 상태: ${item.previous_lifecycle || '확인 필요'}`, 'issue146-muted'));
-          card.append(button('복구', async () => {
+          card.append(el('p', ['published', 'hidden'].includes(item.previous_lifecycle)
+            ? '복구 후: 숨김 상태 · 다시 공개하려면 별도 공개 처리가 필요합니다.'
+            : `복구 후: ${item.previous_lifecycle || '이전 상태 확인 필요'}`, 'issue146-muted'));
+          const actions = el('div', null, 'quick-links');
+          actions.append(button('복구', async () => {
             const reason = promptReason('복구 사유를 입력해 주세요.');
             if (!reason) return;
             try {
@@ -198,6 +211,34 @@
               await openPromotionArchive();
             } catch (error) { window.alert(friendly(error, '홍보글을 복구하지 못했습니다.')); }
           }));
+          actions.append(button('영구삭제', async () => {
+            const expectedTitle = item.title || '';
+            const confirmedTitle = window.prompt('영구삭제할 글의 제목을 정확히 입력해 주세요.', '')?.trim();
+            if (confirmedTitle === undefined || confirmedTitle === null) return;
+            if (confirmedTitle !== expectedTitle) {
+              window.alert('제목이 일치하지 않습니다.');
+              return;
+            }
+            const confirmation = window.prompt('복구할 수 없습니다. 계속하려면 “영구삭제”를 입력해 주세요.', '')?.trim();
+            if (confirmation !== '영구삭제') return;
+            const reason = promptReason('영구삭제 사유를 입력해 주세요.');
+            if (!reason) return;
+            if (!window.confirm('정말 영구삭제하시겠습니까? 이 작업은 복구할 수 없습니다.')) return;
+            try {
+              const mediaPaths = arr(await app().rpc('get_archived_promotion_media_paths', {
+                p_content_id: item.content_id
+              }));
+              await deletePromotionMediaObjects(mediaPaths);
+              await app().rpc('permanently_delete_archived_promotion_content', {
+                p_content_id: item.content_id,
+                p_confirm_title: expectedTitle,
+                p_confirmation: confirmation,
+                p_reason: reason
+              });
+              await openPromotionArchive();
+            } catch (error) { window.alert(friendly(error, '홍보글을 영구삭제하지 못했습니다.')); }
+          }, true));
+          card.append(actions);
           archiveGrid.append(card);
         });
         archiveSection.append(archiveGrid);
@@ -386,6 +427,39 @@
       const padded = part.padEnd(Math.ceil(part.length / 4) * 4, '=');
       return JSON.parse(atob(padded)).sub || null;
     } catch { return null; }
+  }
+
+  async function deletePromotionMediaObjects(paths) {
+    const targets = arr(paths).filter(Boolean).map(String);
+    if (!targets.length) return;
+    const auth = session();
+    if (!auth.access_token) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
+    const cfg = await config();
+    let response;
+    try {
+      response = await fetch(`${cfg.url}/storage/v1/object/promotion-media`, {
+        method: 'DELETE',
+        headers: {
+          apikey: cfg.publishableKey,
+          Authorization: `Bearer ${auth.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prefixes: targets })
+      });
+    } catch (error) {
+      console.warn('[promotion-media-delete]', { stage: 'storage-delete', status: 0, message: error?.message || null });
+      throw new Error('원본 사진 삭제 중 네트워크 문제가 발생했습니다. 글은 아직 영구삭제하지 않았습니다.');
+    }
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      console.warn('[promotion-media-delete]', {
+        stage: 'storage-delete',
+        status: response.status,
+        code: payload?.errorCode || payload?.code || payload?.error || null,
+        message: payload?.message || null
+      });
+      throw new Error('원본 사진을 삭제하지 못했습니다. 글은 아직 영구삭제하지 않았습니다.');
+    }
   }
 
   async function uploadHomepageImage(file) {

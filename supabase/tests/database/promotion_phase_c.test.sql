@@ -49,6 +49,18 @@ select ok(not has_table_privilege('authenticated', 'public.promotion_deletion_re
 select ok(not has_function_privilege('anon', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'anonymous users cannot save promotion drafts');
 select ok(has_function_privilege('authenticated', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'authenticated users can call guarded promotion draft RPC');
 select ok(has_function_privilege('authenticated', 'public.submit_promotion_revision(uuid)', 'EXECUTE'), 'authenticated users can call guarded promotion submit RPC');
+select ok(
+  position('PROMOTION_SELF_REVIEW_FORBIDDEN' in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)) > 0,
+  'promotion review RPC forbids author self review'
+);
+select ok(
+  position('operations' in pg_get_functiondef('public.submit_promotion_revision(uuid)'::regprocedure)) > 0,
+  'promotion-lead submissions enter operations review'
+);
+select ok(
+  position('private_submit_promotion_revision_pre148' in pg_get_functiondef('public.submit_promotion_revision(uuid)'::regprocedure)) > 0,
+  'non-lead submissions retain the established guarded submission implementation'
+);
 select ok(not has_function_privilege('authenticated', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'browser users cannot read static export candidates');
 select ok(has_function_privilege('service_role', 'public.list_promotion_public_export_candidates()', 'EXECUTE'), 'service role alone can read static export candidates');
 select ok(not has_function_privilege('authenticated', 'public.list_homepage_change_publish_candidates()', 'EXECUTE'), 'browser users cannot read approved homepage change publish candidates');
@@ -61,8 +73,59 @@ select ok(not has_function_privilege('anon', 'public.get_promotion_publication_a
 select ok(has_function_privilege('authenticated', 'public.get_promotion_publication_admin()', 'EXECUTE'), 'authenticated users can call the guarded publication administration RPC');
 select ok(not has_function_privilege('anon', 'public.set_promotion_visibility(uuid,boolean,text)', 'EXECUTE'), 'anonymous visitors cannot hide or restore content');
 select ok(has_function_privilege('authenticated', 'public.set_promotion_visibility(uuid,boolean,text)', 'EXECUTE'), 'authenticated users can call guarded hide and restore RPC');
-select ok(not has_function_privilege('anon', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous visitors cannot permanently delete content');
-select ok(has_function_privilege('authenticated', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call the guarded operations-only permanent delete RPC');
+select ok(not has_function_privilege('anon', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous visitors cannot call the legacy guarded promotion delete endpoint');
+select ok(has_function_privilege('authenticated', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call the legacy guarded promotion delete endpoint');
+select has_function('public', 'archive_promotion_content', 'operations recoverable promotion archive RPC exists');
+select has_function('public', 'permanently_delete_archived_promotion_content', 'operations irreversible promotion delete RPC exists');
+select has_function('public', 'get_archived_promotion_media_paths', 'archived promotion exclusive-media lookup RPC exists');
+select has_function('public', 'private_promotion_media_delete_allowed', 'promotion-media delete policy helper exists');
+select ok(not has_function_privilege('anon', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous users cannot archive promotion content');
+select ok(has_function_privilege('authenticated', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations archive RPC');
+select ok(not has_function_privilege('anon', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'anonymous users cannot permanently delete archived promotion content');
+select ok(has_function_privilege('authenticated', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations permanent-delete RPC');
+select ok(not has_function_privilege('anon', 'public.get_archived_promotion_media_paths(uuid)', 'EXECUTE'), 'anonymous users cannot list archived promotion media paths');
+select ok(has_function_privilege('authenticated', 'public.get_archived_promotion_media_paths(uuid)', 'EXECUTE'), 'authenticated users can call guarded archived promotion media-path RPC');
+select ok(
+  exists (
+    select 1
+    from pg_policies
+    where schemaname='storage'
+      and tablename='objects'
+      and policyname='promotion media operations delete'
+      and cmd='DELETE'
+  ),
+  'promotion-media operations delete policy exists'
+);
+select ok(
+  exists (
+    select 1
+    from pg_policies
+    where schemaname='storage'
+      and tablename='objects'
+      and policyname='promotion media operations delete select'
+      and cmd='SELECT'
+      and qual ilike '%allow_any_operation%'
+      and qual ilike '%object.delete%'
+  ),
+  'promotion-media delete lookup SELECT policy is operation-scoped to Storage delete'
+);
+select ok(
+  position('private_delete_promotion_content_pre148' in pg_get_functiondef('public.archive_promotion_content(uuid,text,text)'::regprocedure)) > 0,
+  'operations archive reuses the established recoverable archive implementation'
+);
+select ok(
+  position('PROMOTION_PERMANENT_DELETE_REQUIRES_ARCHIVED' in pg_get_functiondef('public.permanently_delete_archived_promotion_content(uuid,text,text,text)'::regprocedure)) > 0,
+  'permanent deletion requires archived lifecycle'
+);
+select ok(
+  position('영구삭제' in pg_get_functiondef('public.permanently_delete_archived_promotion_content(uuid,text,text,text)'::regprocedure)) > 0,
+  'permanent deletion requires the explicit irreversible confirmation phrase'
+);
+select ok(
+  position('homepage_change_requests' in pg_get_functiondef('public.get_archived_promotion_media_paths(uuid)'::regprocedure)) > 0
+  and position('homepage_live_overrides' in pg_get_functiondef('public.get_archived_promotion_media_paths(uuid)'::regprocedure)) > 0,
+  'media cleanup excludes homepage-reused promotion-media objects'
+);
 
 select ok(
   exists (

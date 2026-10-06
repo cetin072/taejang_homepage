@@ -13,6 +13,16 @@
     rejected: '반려',
     approved: '승인 완료'
   };
+  const LIFECYCLE_LABELS = {
+    draft: '작성 중',
+    review_pending: '승인 대기',
+    needs_revision: '보완 필요',
+    approved: '승인 완료',
+    scheduled: '게시 예정',
+    published: '게시 완료',
+    hidden: '숨김',
+    archived: '보관'
+  };
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
@@ -96,6 +106,28 @@
     } catch (error) {
       window.alert(friendly(error, '글을 정리하지 못했습니다.'));
     }
+  }
+
+  async function archiveAsOperations(item) {
+    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제(보관)하는 사유를 입력해 주세요.`, '')?.trim();
+    if (!reason) return;
+    if (!window.confirm('삭제(보관)하면 사용자 화면과 발행 목록에서 내려가고, 보관함에서 복구할 수 있습니다. 계속할까요?')) return;
+    try {
+      await app().rpc('archive_promotion_content', {
+        p_content_id: item.content_id,
+        p_confirm_title: item.title || '',
+        p_reason: reason
+      });
+      await openPublicationAdmin();
+    } catch (error) {
+      window.alert(friendly(error, '글을 삭제(보관)하지 못했습니다.'));
+    }
+  }
+
+  function openArchiveManager() {
+    const api = window.TaejangIssue146?.openPromotionArchive;
+    if (typeof api === 'function') return api();
+    window.TaejangFeatureHealth?.showFailure?.('홍보글 보관·영구삭제 기능');
   }
 
   async function submitChangeRequest(payload) {
@@ -276,20 +308,24 @@
     const card = document.createElement('article');
     card.className = 'dashboard-card phase-c-v2-card';
     const recent = within24Hours(item.published_at);
-    card.append(el('span', `${TYPE_LABELS[item.content_type] || '홍보 글'} · ${item.lifecycle === 'hidden' ? '숨김' : '공개'}`, 'status-label'));
+    const isPublic = ['published', 'hidden'].includes(item.lifecycle);
+    card.append(el('span', `${TYPE_LABELS[item.content_type] || '홍보 글'} · ${LIFECYCLE_LABELS[item.lifecycle] || item.lifecycle || '상태 미확인'}`, 'status-label'));
     card.append(el('h3', item.title || '제목 없음'));
     if (item.published_at) card.append(el('p', `공개 시각 ${formatDate(item.published_at)}`, 'help'));
     const actions = document.createElement('div');
     actions.className = 'quick-links';
-    const publicLink = document.createElement('a');
-    publicLink.href = `../promotion.html?id=${encodeURIComponent(item.content_id)}`;
-    publicLink.target = '_blank';
-    publicLink.rel = 'noopener noreferrer';
-    publicLink.className = 'button button-quiet';
-    publicLink.textContent = '공개 화면';
-    actions.append(publicLink);
 
-    if (role === 'promotion_lead') {
+    if (isPublic) {
+      const publicLink = document.createElement('a');
+      publicLink.href = `../promotion.html?id=${encodeURIComponent(item.content_id)}`;
+      publicLink.target = '_blank';
+      publicLink.rel = 'noopener noreferrer';
+      publicLink.className = 'button button-quiet';
+      publicLink.textContent = '공개 화면';
+      actions.append(publicLink);
+    }
+
+    if (role === 'promotion_lead' && isPublic) {
       if (recent) {
         actions.append(
           button('수정', () => openChangeForm(item, true), true),
@@ -300,6 +336,11 @@
         actions.append(el('span', '24시간 경과 · 삭제 불가', 'help'));
       }
     }
+
+    if (role === 'operations_manager') {
+      actions.append(button('삭제(보관)', () => archiveAsOperations(item), true));
+    }
+
     card.append(actions);
     return card;
   }
@@ -309,7 +350,7 @@
     if (!ELIGIBLE_ROLES.has(currentRoute)) return;
     const isOperations = currentRoute === 'operations_manager';
     const target = setPage('공개 홍보글 관리', isOperations
-      ? '운영총괄에게 올라온 기존 공개글 수정 요청을 검토합니다.'
+      ? '플랫폼 홍보글의 현재 상태를 확인하고 삭제(보관)할 수 있습니다. 보관된 글은 복구하거나 영구삭제할 수 있습니다.'
       : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
     if (!target) return;
     const loading = el('p', '공개 홍보글을 불러오고 있습니다.', 'message');
@@ -326,6 +367,20 @@
       loading.remove();
 
       if (isOperations) {
+        const tools = document.createElement('div');
+        tools.className = 'quick-links';
+        tools.append(button('보관함·영구삭제', openArchiveManager, true));
+        target.append(tools);
+
+        const contentSection = document.createElement('section');
+        contentSection.className = 'dashboard-section';
+        contentSection.append(el('h2', `플랫폼 홍보글 ${items.length}건`));
+        const contentGrid = document.createElement('div'); contentGrid.className = 'phase-c-v2-grid';
+        if (!items.length) contentGrid.append(el('p', '현재 관리할 홍보글이 없습니다.', 'empty'));
+        items.forEach(item => contentGrid.append(itemCard(item, currentRoute)));
+        contentSection.append(contentGrid);
+        target.append(contentSection);
+
         const requestSection = document.createElement('section');
         requestSection.className = 'dashboard-section';
         requestSection.append(el('h2', `수정 요청 ${requests.filter(item => item.status === 'pending').length}건`));

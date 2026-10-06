@@ -117,3 +117,34 @@ test('published promotion deletion policy remains outside the direct unpublished
   assert.match(workflow, /interval '24 hours'/);
   assert.match(workflow, /PROMOTION_DELETE_REQUEST_REQUIRES_24_HOURS/);
 });
+
+
+test('operations manager has separate archive and archived-only permanent delete authority', () => {
+  const cleanup = read('supabase/migrations/20261006145500_operations_promotion_archive_purge.sql');
+  const publication = read('app/assets/phase-c-publication-admin.js');
+  const workspace = read('app/assets/phase-c-workspace-v2.js');
+  const issue146 = read('app/assets/issue-146-end-to-end.js');
+
+  assert.match(cleanup, /create or replace function public\.archive_promotion_content/);
+  assert.match(cleanup, /private_delete_promotion_content_pre148/);
+  assert.match(cleanup, /current_user_has_role\('operations_manager'\)/);
+  assert.match(cleanup, /create or replace function public\.permanently_delete_archived_promotion_content/);
+  assert.match(cleanup, /PROMOTION_PERMANENT_DELETE_REQUIRES_ARCHIVED/);
+  assert.match(cleanup, /p_confirmation[\s\S]*'영구삭제'/);
+  assert.match(cleanup, /promotion_content_permanently_deleted/);
+  assert.match(cleanup, /delete from public\.promotion_content_revisions/);
+  assert.match(cleanup, /delete from public\.promotion_contents/);
+
+  assert.match(workspace, /button\('삭제\(보관\)'/);
+  assert.match(workspace, /archive_promotion_content/);
+  assert.match(workspace, /보관함·영구삭제/);
+
+  assert.match(publication, /role === 'operations_manager'/);
+  assert.match(publication, /button\('삭제\(보관\)'/);
+  assert.match(publication, /archive_promotion_content/);
+  assert.match(publication, /보관함·영구삭제/);
+
+  assert.match(issue146, /button\('영구삭제'/);
+  assert.match(issue146, /permanently_delete_archived_promotion_content/);
+  assert.match(issue146, /복구할 수 없습니다/);
+});
