@@ -1,5 +1,6 @@
 [build]
   command = "npm run build:netlify"
+  ignore = "node ./scripts/netlify-production-gate.mjs"
   publish = "dist"
 
 [functions]

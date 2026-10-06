@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "mode": "BATCHED",
+  "production_interval_days": 2,
+  "max_production_deploys_per_day": 1
+}
