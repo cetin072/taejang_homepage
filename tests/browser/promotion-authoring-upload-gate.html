@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>promotion authoring upload gate</title>
+</head>
+<body>
+  <section id="desktop-app-shell">
+    <button id="sidebar-toggle" type="button" aria-expanded="false">menu</button>
+    <h1 id="desktop-page-title">홍보 작성</h1>
+    <main id="dashboard-main"></main>
+  </section>
+  <pre id="result">RUNNING</pre>
+
+  <script>
+    const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    const payload = btoa(JSON.stringify({ sub: userId })).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+    const accessToken = `header.${payload}.signature`;
+    sessionStorage.setItem('taejang-staff-session-v1', JSON.stringify({
+      access_token: accessToken,
+      user: { id: userId }
+    }));
+
+    const state = {
+      storageCalls: [],
+      saveCalls: [],
+      submitCalls: [],
+      uploadFailureStatus: null
+    };
+
+    window.alert = message => { throw new Error(`unexpected alert: ${message}`); };
+    window.confirm = () => true;
+    window.prompt = () => '';
+
+    window.fetch = async (url, options = {}) => {
+      const value = String(url);
+      if (value.includes('/.netlify/functions/staff-config')) {
+        return new Response(JSON.stringify({
+          url: 'https://supabase.example.test',
+          publishableKey: 'sb_publishable_test'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (value.includes('/storage/v1/object/promotion-media/')) {
+        state.storageCalls.push({ url: value, options });
+        if (state.uploadFailureStatus) {
+          return new Response(JSON.stringify({
+            statusCode: state.uploadFailureStatus,
+            error: 'Forbidden',
+            message: 'new row violates row-level security policy'
+          }), { status: state.uploadFailureStatus, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(JSON.stringify({ Key: 'ok' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      throw new Error(`unexpected fetch: ${value}`);
+    };
+
+    window.TaejangApp = {
+      getRoute: () => 'promotion_lead',
+      hasCapabilityContract: () => true,
+      can: capability => [
+        'promotion.write',
+        'promotion.edit_own',
+        'promotion.review_lead',
+        'promotion.queue_publication'
+      ].includes(capability),
+      friendlyError: error => error?.message || '오류',
+      rpc: async (name, body = {}) => {
+        if (name === 'get_my_promotion_workspace') {
+          return { role: 'promotion_lead', my_items: [], review_items: [], publication_items: [] };
+        }
+        if (name === 'save_promotion_draft') {
+          state.saveCalls.push(structuredClone(body));
+          return {
+            ok: true,
+            code: 'PROMOTION_DRAFT_SAVED',
+            content_id: '11111111-1111-4111-8111-111111111111',
+            revision_id: '22222222-2222-4222-8222-222222222222'
+          };
+        }
+        if (name === 'submit_promotion_revision') {
+          state.submitCalls.push(structuredClone(body));
+          return { ok: true, code: 'PROMOTION_SUBMITTED', lead_stage_auto_satisfied: true };
+        }
+        return null;
+      }
+    };
+  </script>
+  <script src="../../app/assets/phase-c-workspace-v2.js"></script>
+  <script>
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const assert = (condition, message) => { if (!condition) throw new Error(message); };
+    const controlByLabel = label => [...document.querySelectorAll('.phase-c-board-form label')]
+      .find(node => node.querySelector('span')?.textContent.trim() === label)
+      ?.querySelector('input, textarea, select');
+    const buttonByText = value => [...document.querySelectorAll('#dashboard-main button')]
+      .find(node => node.textContent.trim() === value);
+
+    window.addEventListener('load', async () => {
+      const output = document.getElementById('result');
+      try {
+        await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
+
+        const title = controlByLabel('제목');
+        const disclosure = controlByLabel('중요 금액·수치 포함');
+        const body = document.querySelector('.phase-c-editor-shell textarea');
+        const fileInput = document.querySelector('.phase-c-editor-toolbar input[type="file"]');
+        assert(title && disclosure && body && fileInput, '작성 폼 핵심 입력 누락');
+        assert(disclosure.value === 'no', '중요 금액·수치 기본값은 아니오여야 함');
+
+        title.value = '1호 기업 3차 봉사활동';
+        body.value = '2026년 10월 1호 기업의 3차 봉사활동 기록입니다.';
+        const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82]);
+        const file = new File([png], 'post-image.png', { type: 'image/png' });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        fileInput.files = transfer.files;
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        await wait(100);
+
+        assert(state.storageCalls.length === 1, '사진 Storage POST가 1회 실행되어야 함');
+        const storage = state.storageCalls[0];
+        assert(storage.url.includes(`/storage/v1/object/promotion-media/${userId}/`), 'Storage 경로 첫 폴더가 auth 사용자 UUID가 아님');
+        assert(storage.options.method === 'POST', 'Storage 업로드 method가 POST가 아님');
+        assert(storage.options.headers.Authorization === `Bearer ${accessToken}`, 'Storage 업로드 인증 헤더 누락');
+        assert(storage.options.headers['Content-Type'] === 'image/png', 'Storage MIME 헤더 불일치');
+        assert(storage.options.body instanceof File, '실제 File 객체가 Storage body로 전달되지 않음');
+        assert(document.querySelectorAll('.phase-c-photo-card img').length === 1, '업로드 성공 사진 미리보기 누락');
+        assert(document.querySelector('.phase-c-upload-status')?.textContent.includes('1장 첨부됨'), '업로드 완료 상태 표시 누락');
+
+        const submit = buttonByText('저장 후 승인 요청');
+        assert(submit, '저장 후 승인 요청 버튼 누락');
+        submit.click();
+        await wait(100);
+
+        assert(state.saveCalls.length === 1, '홍보 초안 저장 RPC 호출 누락');
+        const saved = state.saveCalls[0];
+        assert(saved.p_number_or_amount === 'no', '1호·3차·연도 같은 일반 숫자가 중요 수치로 자동 판정됨');
+        assert(Array.isArray(saved.p_public_media) && saved.p_public_media.length === 1, '업로드 사진이 public_media에 저장되지 않음');
+        assert(saved.p_public_media[0].url.includes('/storage/v1/object/public/promotion-media/'), 'public_media 공개 URL 계약 불일치');
+        assert(saved.p_hero_image_url === saved.p_public_media[0].url, '첫 사진이 대표 이미지로 연결되지 않음');
+        assert(state.submitCalls.length === 1, '승인 요청 RPC 호출 누락');
+        assert(state.submitCalls[0].p_content_id === '11111111-1111-4111-8111-111111111111', '승인 요청 content_id 불일치');
+
+        state.uploadFailureStatus = 403;
+        let denied = null;
+        try {
+          await window.TaejangPromotionWorkspaceV2Api.uploadImage(new File([png], 'denied.png', { type: 'image/png' }));
+        } catch (error) {
+          denied = error;
+        }
+        assert(denied?.message.includes('사진 저장 권한'), 'Storage 403을 사용자 친화적 권한 오류로 구분하지 못함');
+
+        output.textContent = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';
+        document.title = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';
+      } catch (error) {
+        output.textContent = `PROMOTION_AUTHORING_UPLOAD_GATE_FAIL:${error.message}`;
+        document.title = 'PROMOTION_AUTHORING_UPLOAD_GATE_FAIL';
+      }
+    });
+  </script>
+</body>
+</html>
