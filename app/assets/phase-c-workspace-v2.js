@@ -292,7 +292,8 @@
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
       if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
-      await openPromotion(submitAfterSave ? (route() === 'promotion_staff' ? 'write' : 'review') : 'write');
+      const nextMode = submitAfterSave && route() === 'operations_manager' ? 'review' : 'write';
+      await openPromotion(nextMode);
     } catch (error) {
       window.alert(app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
     } finally {
@@ -421,7 +422,11 @@
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
-    const submit = button(existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청', () => savePromotion(state, true, existingItem), false);
+    const leadAuthor = route() === 'promotion_lead';
+    const submitLabel = leadAuthor
+      ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
+      : (existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청');
+    const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
     if (existingItem) actions.append(button('수정 취소', () => { editingContentId = null; openPromotion('revision'); }, true));
