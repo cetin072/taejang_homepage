@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>promotion archive delete gate</title>
+</head>
+<body>
+  <section id="desktop-app-shell">
+    <button id="sidebar-toggle" type="button" aria-expanded="false">menu</button>
+    <h1 id="desktop-page-title">대시보드</h1>
+    <main id="dashboard-main"></main>
+  </section>
+  <pre id="result">RUNNING</pre>
+
+  <script>
+    const state = {
+      prompts: [],
+      archiveCalls: [],
+      permanentCalls: [],
+      restoreCalls: [],
+      candidates: [{
+        content_id: '11111111-1111-4111-8111-111111111111',
+        title: '승인완료 테스트 글',
+        content_type: 'homepage_article',
+        lifecycle: 'approved',
+        owner_name: '운영팀장'
+      }],
+      archived: [{
+        content_id: '22222222-2222-4222-8222-222222222222',
+        title: '보관 테스트 글',
+        content_type: 'homepage_article',
+        previous_lifecycle: 'published',
+        archive_kind: 'published'
+      }]
+    };
+
+    window.alert = message => { throw new Error(`unexpected alert: ${message}`); };
+    window.confirm = () => true;
+    window.prompt = () => state.prompts.shift() ?? null;
+
+    window.TaejangApp = {
+      getRoute: () => 'operations_manager',
+      friendlyError: error => error?.message || '오류',
+      rpc: async (name, body = {}) => {
+        if (name === 'get_unpublished_promotion_archive_candidates') return state.candidates.map(item => ({ ...item }));
+        if (name === 'get_promotion_archive_admin') return state.archived.map(item => ({ ...item }));
+        if (name === 'archive_promotion_content') {
+          state.archiveCalls.push({ ...body });
+          const index = state.candidates.findIndex(item => item.content_id === body.p_content_id);
+          if (index >= 0) {
+            const [item] = state.candidates.splice(index, 1);
+            state.archived.push({ ...item, previous_lifecycle: item.lifecycle, archive_kind: 'unpublished' });
+          }
+          return { ok: true, code: 'PROMOTION_CONTENT_DELETED', recoverable_archive_preserved: true };
+        }
+        if (name === 'restore_promotion_content') {
+          state.restoreCalls.push({ ...body });
+          return { ok: true, code: 'PROMOTION_CONTENT_RESTORED' };
+        }
+        if (name === 'permanently_delete_archived_promotion_content') {
+          state.permanentCalls.push({ ...body });
+          const index = state.archived.findIndex(item => item.content_id === body.p_content_id);
+          if (index >= 0) state.archived.splice(index, 1);
+          return { ok: true, code: 'PROMOTION_CONTENT_PERMANENTLY_DELETED', recoverable: false };
+        }
+        return null;
+      }
+    };
+  </script>
+  <script src="../../app/assets/issue-146-end-to-end.js"></script>
+  <script>
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const assert = (condition, message) => { if (!condition) throw new Error(message); };
+    const cardByTitle = title => [...document.querySelectorAll('.issue146-card')]
+      .find(card => card.querySelector('h3')?.textContent.trim() === title);
+    const buttonByText = (root, label) => [...root.querySelectorAll('button')]
+      .find(button => button.textContent.trim() === label);
+
+    window.addEventListener('load', async () => {
+      const output = document.getElementById('result');
+      try {
+        await window.TaejangIssue146.openPromotionArchive();
+        assert(document.getElementById('desktop-page-title').textContent === '홍보글 보관·복구', 'archive manager page title mismatch');
+        assert(document.getElementById('dashboard-main').textContent.includes('삭제(보관)·복구·영구삭제'), 'archive manager intro missing');
+
+        const approvedCard = cardByTitle('승인완료 테스트 글');
+        assert(approvedCard, 'approved unpublished candidate missing');
+        const archiveButton = buttonByText(approvedCard, '삭제(보관)');
+        assert(archiveButton, 'operations archive button missing');
+        state.prompts.push('승인완료 테스트 글 정리');
+        archiveButton.click();
+        await wait(60);
+
+        assert(state.archiveCalls.length === 1, 'archive RPC not called');
+        assert(state.archiveCalls[0].p_content_id === '11111111-1111-4111-8111-111111111111', 'archive target mismatch');
+        assert(state.archiveCalls[0].p_confirm_title === '승인완료 테스트 글', 'archive title confirmation mismatch');
+        assert(!cardByTitle('승인완료 테스트 글') || !buttonByText(cardByTitle('승인완료 테스트 글'), '삭제(보관)'), 'archived candidate remained in active list');
+
+        const permanentCard = cardByTitle('보관 테스트 글');
+        assert(permanentCard, 'archived item missing');
+        assert(buttonByText(permanentCard, '복구'), 'restore action missing');
+        const permanentButton = buttonByText(permanentCard, '영구삭제');
+        assert(permanentButton, 'permanent delete action missing');
+
+        state.prompts.push('보관 테스트 글', '영구삭제', '테스트 영구삭제 사유');
+        permanentButton.click();
+        await wait(60);
+
+        assert(state.permanentCalls.length === 1, 'permanent delete RPC not called');
+        assert(state.permanentCalls[0].p_content_id === '22222222-2222-4222-8222-222222222222', 'permanent delete target mismatch');
+        assert(state.permanentCalls[0].p_confirm_title === '보관 테스트 글', 'permanent delete title mismatch');
+        assert(state.permanentCalls[0].p_confirmation === '영구삭제', 'permanent delete confirmation phrase mismatch');
+        assert(state.permanentCalls[0].p_reason === '테스트 영구삭제 사유', 'permanent delete reason mismatch');
+        assert(!cardByTitle('보관 테스트 글'), 'permanently deleted item remained in archive list');
+
+        output.textContent = 'PROMOTION_ARCHIVE_DELETE_GATE_PASS';
+        document.title = 'PROMOTION_ARCHIVE_DELETE_GATE_PASS';
+      } catch (error) {
+        output.textContent = `PROMOTION_ARCHIVE_DELETE_GATE_FAIL:${error.message}`;
+        document.title = 'PROMOTION_ARCHIVE_DELETE_GATE_FAIL';
+      }
+    });
+  </script>
+</body>
+</html>
