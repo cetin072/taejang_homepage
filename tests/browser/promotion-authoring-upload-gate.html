@@ -82,7 +82,7 @@
         }
         if (name === 'submit_promotion_revision') {
           state.submitCalls.push(structuredClone(body));
-          return { ok: true, code: 'PROMOTION_SUBMITTED', lead_stage_auto_satisfied: true };
+          return { ok: true, code: 'PROMOTION_SUBMITTED', self_review_forbidden: true, next_stage: 'operations' };
         }
         return null;
       }
@@ -130,8 +130,8 @@
         assert(document.querySelectorAll('.phase-c-photo-card img').length === 1, '업로드 성공 사진 미리보기 누락');
         assert(document.querySelector('.phase-c-editor-toolbar .phase-c-upload-status')?.textContent.includes('1장 첨부됨'), '업로드 완료 상태 표시 누락');
 
-        const submit = buttonByText('저장 후 승인 요청');
-        assert(submit, '저장 후 승인 요청 버튼 누락');
+        const submit = buttonByText('저장 후 운영총괄 승인 요청');
+        assert(submit, '운영팀장용 운영총괄 승인 요청 버튼 누락');
         submit.click();
         await wait(100);
 
