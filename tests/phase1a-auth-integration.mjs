@@ -238,21 +238,40 @@ const leadDirectDraft = await rpc('save_promotion_draft', lead.token, {
 equal(leadDirectDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves a normal homepage article with uploaded media');
 const leadDirectSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadDirectDraft.data.content_id });
 equal(leadDirectSubmit.data?.code, 'PROMOTION_SUBMITTED', 'promotion lead submits own homepage article');
-equal(leadDirectSubmit.data?.lead_stage_auto_satisfied, true, 'promotion lead submission auto-satisfies the lead stage without a manual task');
-equal(leadDirectSubmit.data?.required_stage, 'lead', 'ordinary numeric text remains at lead-level policy when disclosure is no');
-equal(leadDirectSubmit.data?.next_stage, null, 'ordinary promotion-lead article has no upper review task');
-equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'approved', 'ordinary promotion-lead article reaches approved without self-review');
-equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='pending'`), '0', 'promotion lead does not receive a pending review for their own submission');
-equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='approved' and decision_comment='운영팀장 직접 작성: lead 수동 검토 단계 자동 충족'`), '1', 'lead-stage system satisfaction is recorded for downstream approval invariants');
-equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '0', 'ordinary promotion-lead article does not create an operations review');
+equal(leadDirectSubmit.data?.self_review_forbidden, true, 'promotion lead submission explicitly forbids self review');
+equal(leadDirectSubmit.data?.required_stage, 'operations', 'promotion-lead-authored homepage article requires operations approval');
+equal(leadDirectSubmit.data?.next_stage, 'operations', 'promotion-lead-authored homepage article goes directly to operations');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'review_pending', 'promotion-lead-authored article remains pending until operations approves');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead'`), '0', 'promotion lead submission creates no lead self-review row before operations approval');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '1', 'promotion-lead-authored article creates an operations review');
 equal(sql(`select hero_image_url from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains the persisted hero image');
 equal(sql(`select public_media->0->>'url' from public.promotion_content_revisions where id='${leadDirectDraft.data.revision_id}'::uuid`), canonicalPromotionMediaUrl, 'uploaded promotion photo remains in persisted public_media');
+
+const selfApprovalAttempt = await rpc('review_promotion_revision', lead.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_action: 'approve',
+  p_comment: 'CI 자기승인 차단 확인',
+  p_revisit_at: null,
+});
+check(!selfApprovalAttempt.ok && selfApprovalAttempt.status === 403, 'promotion lead cannot approve their own submitted revision');
+equal(selfApprovalAttempt.data?.message, 'PROMOTION_SELF_REVIEW_FORBIDDEN', 'self-review denial is explicit at the RPC boundary');
+
+const operationsApproval = await rpc('review_promotion_revision', admin.token, {
+  p_content_id: leadDirectDraft.data.content_id,
+  p_action: 'approve',
+  p_comment: 'CI 운영총괄 승인',
+  p_revisit_at: null,
+});
+check(operationsApproval.ok, `operations approval failed: ${JSON.stringify(operationsApproval.data)}`);
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'approved', 'article becomes approved only after operations approval');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='approved' and decided_by_profile_id='${admin.id}'::uuid`), '1', 'operations approval is recorded with operations as decider');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='approved' and requested_by_profile_id='${lead.id}'::uuid and decided_by_profile_id='${admin.id}'::uuid`), '1', 'compatibility lead approval is recorded only by the operations approver, never by the author');
 
 const leadDirectPublish = await rpc('queue_promotion_revision', lead.token, {
   p_content_id: leadDirectDraft.data.content_id,
   p_scheduled_for: null,
 });
-equal(leadDirectPublish.data?.code, 'PROMOTION_PUBLISHED', 'promotion lead explicitly publishes the approved article');
+equal(leadDirectPublish.data?.code, 'PROMOTION_PUBLISHED', 'promotion lead can publish only after operations approval');
 const publicFeed = await rpc('list_public_promotion_feed', lead.token, {});
 check(Array.isArray(publicFeed.data) && publicFeed.data.some(item =>
   item.content_id === leadDirectDraft.data.content_id
@@ -274,11 +293,11 @@ const leadUpperDraft = await rpc('save_promotion_draft', lead.token, {
 });
 equal(leadUpperDraft.data?.code, 'PROMOTION_DRAFT_SAVED', 'promotion lead saves an upper-review article');
 const leadUpperSubmit = await rpc('submit_promotion_revision', lead.token, { p_content_id: leadUpperDraft.data.content_id });
-equal(leadUpperSubmit.data?.lead_stage_auto_satisfied, true, 'upper-review lead submission still skips manual self-review');
-equal(leadUpperSubmit.data?.required_stage, 'operations', 'explicit important number keeps operations review requirement');
+equal(leadUpperSubmit.data?.self_review_forbidden, true, 'upper-review lead submission also forbids self review');
+equal(leadUpperSubmit.data?.required_stage, 'operations', 'explicit important number retains operations review requirement');
 equal(leadUpperSubmit.data?.next_stage, 'operations', 'upper-review lead submission moves directly to operations');
 equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadUpperDraft.data.content_id}'::uuid`), 'review_pending', 'upper-review article remains pending');
-equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='lead' and decision='pending'`), '0', 'upper-review lead submission has no manual lead self-review');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='lead'`), '0', 'upper-review lead submission has no self-review row');
 equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadUpperDraft.data.revision_id}'::uuid and stage='operations' and decision='pending'`), '1', 'upper-review lead submission creates the required operations review');
 
 const lowerRoleDraft = await rpc('save_promotion_draft', lead.token, {
