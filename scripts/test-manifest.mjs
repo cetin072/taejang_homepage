@@ -94,6 +94,7 @@ export const testGroups = Object.freeze({
     'tests/content-detail-thumbnail.test.js',
     'tests/hero-video-slider.test.js',
     'tests/netlify-publish-boundary.test.js',
+    'tests/production-release-policy.test.mjs',
     'tests/visual-asset-audit.test.js'
   ]),
   stagingSafety: Object.freeze([
