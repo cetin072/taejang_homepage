@@ -427,6 +427,81 @@ equal(matureChangeApproval.data?.applied, true, 'approved promotion modification
 equal(sql(`select revision.title from public.promotion_contents content join public.promotion_content_revisions revision on revision.id = content.current_revision_id where content.id = '${maturePromotion.data.content_id}'::uuid`), 'CI 24시간 경과 수정 승인 글', 'approved post-24-hour modification becomes the current promotion revision');
 equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'post-24-hour modification keeps the already-published content public');
 
+const oldPublishedArchive = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id,
+  p_confirm_title: 'CI 24시간 경과 수정 승인 글',
+  p_reason: 'CI 운영총괄 오래된 게시글 보관',
+});
+equal(oldPublishedArchive.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager can recoverably archive a published post older than 24 hours');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'archived', 'old published post moves to archived');
+equal(sql(`select archive_snapshot->>'previous_lifecycle' from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'archive snapshot preserves published lifecycle');
+equal(sql(`select archive_snapshot->>'archive_kind' from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'archive snapshot records public history');
+const restoreOldPublished = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: maturePromotion.data.content_id,
+  p_reason: 'CI 오래된 게시글 복구 검증',
+});
+equal(restoreOldPublished.data?.code, 'PROMOTION_CONTENT_RESTORED', 'operations manager can restore the archived published post');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'published lifecycle is restored after recoverable archive');
+
+const approvedCleanup = await rpc('save_operations_promotion_draft', admin.token, {
+  p_content_type: 'homepage_article', p_slug: 'ci-approved-ops-cleanup', p_title: 'CI 승인완료 정리 글',
+  p_summary: 'CI', p_public_body: 'CI approved cleanup verification', p_byline_kind: 'company',
+  p_public_media: [], p_people_photo: 'no', p_number_or_amount: 'no', p_change_reason: 'CI 승인완료 정리 생성',
+});
+equal(approvedCleanup.data?.code, 'PROMOTION_DRAFT_SAVED', 'operations manager creates an item for approved cleanup verification');
+sql(`update public.promotion_contents set lifecycle='approved' where id='${approvedCleanup.data.content_id}'::uuid`);
+const archiveApproved = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_reason: 'CI 승인완료 테스트 글 보관',
+});
+equal(archiveApproved.data?.code, 'PROMOTION_CONTENT_DELETED', 'operations manager can archive an approved unpublished post');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), 'archived', 'approved unpublished post moves to archived');
+equal(sql(`select archive_snapshot->>'previous_lifecycle' from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), 'approved', 'approved lifecycle is preserved for restore');
+const restoreApproved = await rpc('restore_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_reason: 'CI 승인완료 글 복구',
+});
+equal(restoreApproved.data?.lifecycle, 'approved', 'approved unpublished post restores to approved');
+const archiveApprovedAgain = await rpc('archive_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_reason: 'CI 영구삭제 전 재보관',
+});
+equal(archiveApprovedAgain.data?.code, 'PROMOTION_CONTENT_DELETED', 'approved post can be archived again before permanent deletion');
+
+const leadPermanentDelete = await rpc('permanently_delete_archived_promotion_content', lead.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '영구삭제',
+  p_reason: 'CI 운영팀장 권한 차단',
+});
+check(!leadPermanentDelete.ok && leadPermanentDelete.status === 403, 'promotion lead cannot permanently delete archived promotion content');
+
+const badPermanentConfirmation = await rpc('permanently_delete_archived_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '삭제',
+  p_reason: 'CI 잘못된 영구삭제 확인문구',
+});
+check(!badPermanentConfirmation.ok, 'permanent deletion rejects a missing exact confirmation phrase');
+equal(badPermanentConfirmation.data?.message, 'PROMOTION_PERMANENT_DELETE_CONFIRMATION_REQUIRED', 'permanent deletion requires exact 영구삭제 confirmation');
+
+const approvedCleanupRevisionId = approvedCleanup.data.revision_id;
+const permanentDelete = await rpc('permanently_delete_archived_promotion_content', admin.token, {
+  p_content_id: approvedCleanup.data.content_id,
+  p_confirm_title: 'CI 승인완료 정리 글',
+  p_confirmation: '영구삭제',
+  p_reason: 'CI 테스트 콘텐츠 영구삭제',
+});
+equal(permanentDelete.data?.code, 'PROMOTION_CONTENT_PERMANENTLY_DELETED', 'operations manager permanently deletes an archived promotion item');
+equal(permanentDelete.data?.recoverable, false, 'permanent deletion explicitly reports non-recoverable');
+equal(sql(`select count(*) from public.promotion_contents where id='${approvedCleanup.data.content_id}'::uuid`), '0', 'permanently deleted promotion content row is removed');
+equal(sql(`select count(*) from public.promotion_content_revisions where content_id='${approvedCleanup.data.content_id}'::uuid`), '0', 'permanently deleted promotion revisions are removed');
+equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${approvedCleanupRevisionId}'::uuid`), '0', 'permanently deleted promotion review rows are removed');
+equal(sql(`select count(*) from public.promotion_publication_queue where revision_id='${approvedCleanupRevisionId}'::uuid`), '0', 'permanently deleted promotion publication queue rows are removed');
+equal(sql(`select count(*) from public.audit_logs where target_id='${approvedCleanup.data.content_id}' and action='promotion_content_permanently_deleted'`), '1', 'permanent deletion preserves an audit tombstone');
+
 const freshPromotion = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-fresh-deletion', p_title: 'CI 신규 공개 글',
   p_summary: 'CI', p_public_body: 'CI deletion eligibility verification', p_byline_kind: 'company',
