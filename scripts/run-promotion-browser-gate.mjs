@@ -9,6 +9,7 @@ const fixtures = [
   { file: 'general-worker-browser-gate.html', marker: 'GENERAL_WORKER_BROWSER_GATE_PASS' },
   { file: 'promotion-browser-gate.html', marker: 'PROMOTION_BROWSER_GATE_PASS' },
   { file: 'promotion-authoring-upload-gate.html', marker: 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS' },
+  { file: 'promotion-archive-delete-gate.html', marker: 'PROMOTION_ARCHIVE_DELETE_GATE_PASS' },
   { file: 'promotion-v2-publication-gate.html', marker: 'PROMOTION_V2_PUBLICATION_GATE_PASS' },
   { file: 'sidebar-runtime-gate.html', marker: 'SIDEBAR_RUNTIME_GATE_PASS' }
 ];
