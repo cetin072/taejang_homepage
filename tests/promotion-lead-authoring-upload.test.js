@@ -35,16 +35,17 @@ test('promotion photo upload reports safe diagnostics without changing the stora
   assert.doesNotMatch(workspace, /console\.(?:log|warn)\([^\n]*(?:access_token|Authorization)/);
 });
 
-test('promotion lead submission skips a pending self-review but preserves upper review and explicit publication', () => {
+test('promotion lead submission requires operations approval and forbids self review', () => {
   assert.match(migration, /current_user_has_role\('promotion_lead'\)/);
   assert.match(migration, /return public\.private_submit_promotion_revision_pre148\(p_content_id\)/);
-  assert.match(migration, /'lead',[\s\S]*'approved'/);
-  assert.match(migration, /lead_stage_auto_satisfied/);
-  assert.match(migration, /if effective_stage = 'lead'/);
-  assert.match(migration, /lifecycle = 'approved'/);
+  assert.match(migration, /greatest\([\s\S]*'operations'::public\.promotion_review_stage/);
   assert.match(migration, /lifecycle = 'review_pending'/);
-  assert.match(migration, /'operations'/);
-  assert.doesNotMatch(migration, /update\s+public\.promotion_contents[\s\S]*where\s+id\s+in\s*\(/i);
+  assert.match(migration, /values \([\s\S]*revision_row\.id,[\s\S]*'operations',[\s\S]*actor_id/);
+  assert.match(migration, /PROMOTION_SELF_REVIEW_FORBIDDEN/);
+  assert.match(migration, /pending_stage = 'operations'/);
+  assert.match(migration, /decided_by_profile_id,[\s\S]*actor_id/);
+  assert.match(migration, /운영총괄 승인으로 작성자 자체검토 없이 lead 검토 충족/);
+  assert.doesNotMatch(migration, /lead_stage_auto_satisfied|운영팀장 직접 작성: lead 수동 검토 단계 자동 충족/);
 });
 
 test('browser gate exercises a real File object through upload, save and submit', () => {
@@ -54,6 +55,7 @@ test('browser gate exercises a real File object through upload, save and submit'
   assert.match(browserGate, /p_public_media/);
   assert.match(browserGate, /p_hero_image_url/);
   assert.match(browserGate, /p_number_or_amount === 'no'/);
+  assert.match(browserGate, /저장 후 운영총괄 승인 요청/);
   assert.match(browserGate, /사진 저장 권한/);
   assert.match(browserRunner, /promotion-authoring-upload-gate\.html/);
 });
