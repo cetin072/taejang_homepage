@@ -172,6 +172,7 @@ begin
   -- Defense in depth for legacy/stale lead-review rows:
   -- an author can never review their own current revision.
   if actor_id = revision_row.author_profile_id
+     and public.current_user_has_role('promotion_lead')
      and normalized_action in (
        'approve',
        'changes_requested',
