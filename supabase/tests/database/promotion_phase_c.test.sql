@@ -97,6 +97,19 @@ select ok(
   'promotion-media operations delete policy exists'
 );
 select ok(
+  exists (
+    select 1
+    from pg_policies
+    where schemaname='storage'
+      and tablename='objects'
+      and policyname='promotion media operations delete select'
+      and cmd='SELECT'
+      and qual ilike '%allow_any_operation%'
+      and qual ilike '%object.delete%'
+  ),
+  'promotion-media delete lookup SELECT policy is operation-scoped to Storage delete'
+);
+select ok(
   position('private_delete_promotion_content_pre148' in pg_get_functiondef('public.archive_promotion_content(uuid,text,text)'::regprocedure)) > 0,
   'operations archive reuses the established recoverable archive implementation'
 );
