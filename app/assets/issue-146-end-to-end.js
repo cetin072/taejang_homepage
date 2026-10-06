@@ -225,6 +225,10 @@
             if (!reason) return;
             if (!window.confirm('정말 영구삭제하시겠습니까? 이 작업은 복구할 수 없습니다.')) return;
             try {
+              const mediaPaths = arr(await app().rpc('get_archived_promotion_media_paths', {
+                p_content_id: item.content_id
+              }));
+              await deletePromotionMediaObjects(mediaPaths);
               await app().rpc('permanently_delete_archived_promotion_content', {
                 p_content_id: item.content_id,
                 p_confirm_title: expectedTitle,
@@ -423,6 +427,40 @@
       const padded = part.padEnd(Math.ceil(part.length / 4) * 4, '=');
       return JSON.parse(atob(padded)).sub || null;
     } catch { return null; }
+  }
+
+  async function deletePromotionMediaObjects(paths) {
+    const targets = arr(paths).filter(Boolean);
+    if (!targets.length) return;
+    const auth = session();
+    if (!auth.access_token) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
+    const cfg = await config();
+    for (const path of targets) {
+      const encodedPath = String(path).split('/').map(encodeURIComponent).join('/');
+      let response;
+      try {
+        response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
+          method: 'DELETE',
+          headers: {
+            apikey: cfg.publishableKey,
+            Authorization: `Bearer ${auth.access_token}`
+          }
+        });
+      } catch (error) {
+        console.warn('[promotion-media-delete]', { stage: 'storage-delete', status: 0, message: error?.message || null });
+        throw new Error('원본 사진 삭제 중 네트워크 문제가 발생했습니다. 글은 아직 영구삭제하지 않았습니다.');
+      }
+      if (!response.ok && response.status !== 404) {
+        const payload = await response.json().catch(() => null);
+        console.warn('[promotion-media-delete]', {
+          stage: 'storage-delete',
+          status: response.status,
+          code: payload?.errorCode || payload?.code || payload?.error || null,
+          message: payload?.message || null
+        });
+        throw new Error('원본 사진을 삭제하지 못했습니다. 글은 아직 영구삭제하지 않았습니다.');
+      }
+    }
   }
 
   async function uploadHomepageImage(file) {
