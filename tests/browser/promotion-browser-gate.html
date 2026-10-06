@@ -26,7 +26,9 @@
     let currentRoute = 'promotion_staff';
     let openedPromotionMode = null;
     let homepageManagementOpened = false;
+    let promotionArchiveManagerOpened = false;
     let failInformationSave = false;
+    const archivePromotionCalls = [];
     const fakeMetadata = {
       url: 'https://www.youtube.com/watch?v=taejang-test',
       title: '태장 공식 영상',
@@ -70,6 +72,9 @@
     });
 
     window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
+    window.TaejangIssue146 = {
+      openPromotionArchive() { promotionArchiveManagerOpened = true; }
+    };
     window.TaejangSupportRadarAccess = { canManagementView: () => false };
     window.TaejangPromotionWorkspaceV2Api = {
       openPromotion(mode) { openedPromotionMode = mode; },
@@ -116,6 +121,12 @@
           return { ok: true, request_id: informationRequests[0].id, status: 'pending' };
         }
         if (name === 'review_information_publication_request') return { ok: true, status: args.p_action === 'approve' ? 'approved' : args.p_action };
+        if (name === 'archive_promotion_content') {
+          archivePromotionCalls.push({ ...args });
+          const index = publicationItems.findIndex(item => item.content_id === args.p_content_id);
+          if (index >= 0) publicationItems.splice(index, 1);
+          return { ok: true, code: 'PROMOTION_CONTENT_DELETED', recoverable_archive_preserved: true };
+        }
         return null;
       }
     };
@@ -211,6 +222,26 @@
         assert(recentCard && recentCard.textContent.includes('24시간 내 삭제'), '24시간 이내 공개글 직접 정리 경로 누락');
         assert(oldCard && oldCard.textContent.includes('수정 요청'), '24시간 경과 공개글 수정 요청 경로 누락');
         assert(oldCard.textContent.includes('24시간 경과 · 삭제 불가'), '24시간 경과 공개글 삭제 차단 안내 누락');
+        
+        currentRoute = 'operations_manager';
+        await window.TaejangPublicationAdmin.openPublicationAdmin();
+        const opsPublicationMain = document.getElementById('dashboard-main');
+        assert(opsPublicationMain.textContent.includes('플랫폼 홍보글 2건'), '운영총괄 홍보글 전체 관리 목록 누락');
+        const opsOldCard = [...opsPublicationMain.querySelectorAll('.dashboard-card')]
+          .find(card => card.textContent.includes('24시간 지난 공개글'));
+        assert(opsOldCard, '운영총괄 게시글 카드 누락');
+        const opsArchiveButton = buttonByText(opsOldCard, '삭제(보관)');
+        assert(opsArchiveButton, '운영총괄 게시된 글 삭제(보관) 버튼 누락');
+        opsArchiveButton.click();
+        await wait(40);
+        assert(archivePromotionCalls.length === 1, '운영총괄 게시글 보관 RPC 호출 누락');
+        assert(archivePromotionCalls[0].p_content_id === '22222222-2222-4222-8222-222222222222', '운영총괄 보관 대상 content_id 불일치');
+        assert(!document.getElementById('dashboard-main').textContent.includes('24시간 지난 공개글'), '보관된 게시글이 관리 목록에 남아 있음');
+        const archiveManagerButton = buttonByText(document.getElementById('dashboard-main'), '보관함·영구삭제');
+        assert(archiveManagerButton, '운영총괄 보관함·영구삭제 진입 버튼 누락');
+        archiveManagerButton.click();
+        assert(promotionArchiveManagerOpened, '보관함·영구삭제 화면 진입 실패');
+
 
         await window.TaejangIssue207Ux.openInformationHub();
         assert(document.getElementById('desktop-page-title').textContent === '공지 관리', '운영팀장 공지 관리 제목 불일치');
