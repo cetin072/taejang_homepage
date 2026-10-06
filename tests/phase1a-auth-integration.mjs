@@ -441,7 +441,9 @@ const restoreOldPublished = await rpc('restore_promotion_content', admin.token, 
   p_reason: 'CI 오래된 게시글 복구 검증',
 });
 equal(restoreOldPublished.data?.code, 'PROMOTION_CONTENT_RESTORED', 'operations manager can restore the archived published post');
-equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'published', 'published lifecycle is restored after recoverable archive');
+equal(restoreOldPublished.data?.lifecycle, 'hidden', 'restored published content returns hidden instead of auto-republishing');
+equal(restoreOldPublished.data?.explicit_republish_required, true, 'restored published content requires explicit republish');
+equal(sql(`select lifecycle::text from public.promotion_contents where id = '${maturePromotion.data.content_id}'::uuid`), 'hidden', 'published content restores safely as hidden');
 
 const approvedCleanup = await rpc('save_operations_promotion_draft', admin.token, {
   p_content_type: 'homepage_article', p_slug: 'ci-approved-ops-cleanup', p_title: 'CI 승인완료 정리 글',
