@@ -509,9 +509,11 @@ check(cleanupMediaPaths.ok, `archived promotion media-path lookup failed: ${JSON
 check(Array.isArray(cleanupMediaPaths.data) && cleanupMediaPaths.data.length === 1, 'exclusive archived promotion media path is returned exactly once');
 equal(cleanupMediaPaths.data[0], cleanupMediaPath, 'exclusive archived promotion media path matches uploaded object');
 
-const cleanupMediaDelete = await binaryApi(`/storage/v1/object/promotion-media/${encodedCleanupMediaPath}`, {
+const cleanupMediaDelete = await binaryApi('/storage/v1/object/promotion-media', {
   method: 'DELETE',
   token: admin.token,
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ prefixes: [cleanupMediaPath] }),
 });
 check(cleanupMediaDelete.ok, `operations manager deletes exclusive promotion-media object: ${JSON.stringify(cleanupMediaDelete.data)}`);
 const cleanupMediaReadAfterDelete = await binaryApi(`/storage/v1/object/public/promotion-media/${encodedCleanupMediaPath}`);
