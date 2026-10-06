@@ -77,10 +77,25 @@ select ok(not has_function_privilege('anon', 'public.delete_promotion_content(uu
 select ok(has_function_privilege('authenticated', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call the legacy guarded promotion delete endpoint');
 select has_function('public', 'archive_promotion_content', 'operations recoverable promotion archive RPC exists');
 select has_function('public', 'permanently_delete_archived_promotion_content', 'operations irreversible promotion delete RPC exists');
+select has_function('public', 'get_archived_promotion_media_paths', 'archived promotion exclusive-media lookup RPC exists');
+select has_function('public', 'private_promotion_media_delete_allowed', 'promotion-media delete policy helper exists');
 select ok(not has_function_privilege('anon', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous users cannot archive promotion content');
 select ok(has_function_privilege('authenticated', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations archive RPC');
 select ok(not has_function_privilege('anon', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'anonymous users cannot permanently delete archived promotion content');
 select ok(has_function_privilege('authenticated', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations permanent-delete RPC');
+select ok(not has_function_privilege('anon', 'public.get_archived_promotion_media_paths(uuid)', 'EXECUTE'), 'anonymous users cannot list archived promotion media paths');
+select ok(has_function_privilege('authenticated', 'public.get_archived_promotion_media_paths(uuid)', 'EXECUTE'), 'authenticated users can call guarded archived promotion media-path RPC');
+select ok(
+  exists (
+    select 1
+    from pg_policies
+    where schemaname='storage'
+      and tablename='objects'
+      and policyname='promotion media operations delete'
+      and cmd='DELETE'
+  ),
+  'promotion-media operations delete policy exists'
+);
 select ok(
   position('private_delete_promotion_content_pre148' in pg_get_functiondef('public.archive_promotion_content(uuid,text,text)'::regprocedure)) > 0,
   'operations archive reuses the established recoverable archive implementation'
@@ -92,6 +107,11 @@ select ok(
 select ok(
   position('영구삭제' in pg_get_functiondef('public.permanently_delete_archived_promotion_content(uuid,text,text,text)'::regprocedure)) > 0,
   'permanent deletion requires the explicit irreversible confirmation phrase'
+);
+select ok(
+  position('homepage_change_requests' in pg_get_functiondef('public.get_archived_promotion_media_paths(uuid)'::regprocedure)) > 0
+  and position('homepage_live_overrides' in pg_get_functiondef('public.get_archived_promotion_media_paths(uuid)'::regprocedure)) > 0,
+  'media cleanup excludes homepage-reused promotion-media objects'
 );
 
 select ok(
