@@ -73,8 +73,26 @@ select ok(not has_function_privilege('anon', 'public.get_promotion_publication_a
 select ok(has_function_privilege('authenticated', 'public.get_promotion_publication_admin()', 'EXECUTE'), 'authenticated users can call the guarded publication administration RPC');
 select ok(not has_function_privilege('anon', 'public.set_promotion_visibility(uuid,boolean,text)', 'EXECUTE'), 'anonymous visitors cannot hide or restore content');
 select ok(has_function_privilege('authenticated', 'public.set_promotion_visibility(uuid,boolean,text)', 'EXECUTE'), 'authenticated users can call guarded hide and restore RPC');
-select ok(not has_function_privilege('anon', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous visitors cannot permanently delete content');
-select ok(has_function_privilege('authenticated', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call the guarded operations-only permanent delete RPC');
+select ok(not has_function_privilege('anon', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous visitors cannot call the legacy guarded promotion delete endpoint');
+select ok(has_function_privilege('authenticated', 'public.delete_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call the legacy guarded promotion delete endpoint');
+select has_function('public', 'archive_promotion_content', 'operations recoverable promotion archive RPC exists');
+select has_function('public', 'permanently_delete_archived_promotion_content', 'operations irreversible promotion delete RPC exists');
+select ok(not has_function_privilege('anon', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'anonymous users cannot archive promotion content');
+select ok(has_function_privilege('authenticated', 'public.archive_promotion_content(uuid,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations archive RPC');
+select ok(not has_function_privilege('anon', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'anonymous users cannot permanently delete archived promotion content');
+select ok(has_function_privilege('authenticated', 'public.permanently_delete_archived_promotion_content(uuid,text,text,text)', 'EXECUTE'), 'authenticated users can call guarded operations permanent-delete RPC');
+select ok(
+  position('private_delete_promotion_content_pre148' in pg_get_functiondef('public.archive_promotion_content(uuid,text,text)'::regprocedure)) > 0,
+  'operations archive reuses the established recoverable archive implementation'
+);
+select ok(
+  position('PROMOTION_PERMANENT_DELETE_REQUIRES_ARCHIVED' in pg_get_functiondef('public.permanently_delete_archived_promotion_content(uuid,text,text,text)'::regprocedure)) > 0,
+  'permanent deletion requires archived lifecycle'
+);
+select ok(
+  position('영구삭제' in pg_get_functiondef('public.permanently_delete_archived_promotion_content(uuid,text,text,text)'::regprocedure)) > 0,
+  'permanent deletion requires the explicit irreversible confirmation phrase'
+);
 
 select ok(
   exists (
