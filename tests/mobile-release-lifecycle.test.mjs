@@ -30,7 +30,7 @@ test('version policy compares semantic versions and Android versionCode safely',
   assert.equal(compareSemanticVersions('broken', '1.0.0'), null);
   assert.equal(decideUpdate({ version: '0.1.1', versionCode: 2 }, { ...basePolicy, latestVersion: '0.1.2', latestVersionCode: 3 }), 'optional');
   assert.equal(decideUpdate({ version: '0.1.1', versionCode: 2 }, { ...basePolicy, minimumVersion: '0.1.2', minimumVersionCode: 3 }), 'forced');
-  assert.equal(decideUpdate({ version: '0.1.2', versionCode: 3 }, { ...basePolicy, latestVersion: '0.1.2', latestVersionCode: 3, forceUpdate: true }), 'none');
+  assert.equal(decideUpdate({ version: '0.1.3', versionCode: 4 }, { ...basePolicy, latestVersion: '0.1.3', latestVersionCode: 4, forceUpdate: true }), 'none');
 });
 
 test('release lifecycle has a centrally supplied public policy without secrets', async () => {
@@ -66,10 +66,10 @@ test('update, maintenance, release notes, and simple recovery UX remain visible 
   assert.match(errors, /로그인 시간이 만료/);
 });
 
-test('0.1.2 splash uses the approved Taejang launcher asset without a fake delay', async () => {
+test('0.1.3 splash uses the approved Taejang launcher asset without a fake delay', async () => {
   const app = JSON.parse(await text('mobile/app.json'));
-  assert.equal(app.expo.version, '0.1.2');
-  assert.equal(app.expo.android.versionCode, 3);
+  assert.equal(app.expo.version, '0.1.3');
+  assert.equal(app.expo.android.versionCode, 4);
   assert.equal(app.expo.splash.image, './assets/taejang-launcher-icon.png');
   assert.equal(app.expo.splash.resizeMode, 'contain');
   assert.equal(app.expo.splash.backgroundColor, '#FDFCFD');
@@ -79,3 +79,4 @@ test('0.1.2 splash uses the approved Taejang launcher asset without a fake delay
   assert.equal(splash.backgroundColor, app.expo.splash.backgroundColor);
   assert.equal(splash.imageWidth, 224);
 });
+
