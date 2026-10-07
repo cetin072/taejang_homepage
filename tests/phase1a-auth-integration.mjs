@@ -327,6 +327,7 @@ const approvePromotionStaff = await rpc('approve_signup_request_with_employee', 
   p_role_code: 'promotion_staff', p_reason_summary: 'CI 홍보직원 계정 승인',
 });
 equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
+await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 const lowerRoleCrossDraftEdit = await rpc('save_promotion_draft', promotionStaff.token, {
   p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_title: '권한 없는 수정',
   p_byline_kind: 'company', p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 차단',
@@ -692,5 +693,4 @@ equal(clearOpsOnlySimulation.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations 
 const restoredContext = await rpc('get_my_access_context', admin.token, {});
 equal(restoredContext.data?.role_simulation?.active, false, 'ending simulation restores the actual operations-manager context');
 
-await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 console.log(`Phase 1A Auth integration passed: ${assertions} assertions`);
