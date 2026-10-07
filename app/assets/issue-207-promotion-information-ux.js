@@ -68,7 +68,23 @@
   }
 
   async function openSent() {
-    const target = setPage('보낸 글', '홍보 업무', '운영팀장에게 상신했거나 승인·게시 단계로 넘어간 내 글만 모아봅니다. 새 글 작성 화면과 분리했습니다.');
+    const currentRole = route();
+    const copies = {
+      promotion_staff: {
+        intro: '운영팀장에게 상신했거나 승인·게시 단계로 넘어간 내가 직접 작성한 글만 모아봅니다.',
+        empty: '아직 운영팀장에게 보낸 글이 없습니다.'
+      },
+      promotion_lead: {
+        intro: '운영총괄에게 상신했거나 승인·게시 단계로 넘어간 내가 직접 작성한 글만 모아봅니다.',
+        empty: '아직 운영총괄에게 상신한 글이 없습니다.'
+      },
+      operations_manager: {
+        intro: '운영팀장에게 검토 요청했거나 승인·게시 단계로 넘어간 내가 직접 작성한 글만 모아봅니다.',
+        empty: '아직 운영팀장에게 검토 요청한 글이 없습니다.'
+      }
+    };
+    const copy = copies[currentRole] || copies.promotion_staff;
+    const target = setPage('보낸 글', '홍보 업무', copy.intro);
     if (!target) return;
     const section = document.createElement('section');
     section.className = 'dashboard-section';
@@ -76,10 +92,13 @@
     target.append(section);
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
-      const items = arr(workspace?.my_items).filter(item => ['review_pending','approved','scheduled','published','hidden','archived'].includes(item.lifecycle));
+      const items = arr(workspace?.my_items).filter(item =>
+        item?.is_owner === true
+        && ['review_pending','approved','scheduled','published','hidden','archived'].includes(item.lifecycle)
+      );
       section.replaceChildren();
       const grid = document.createElement('div'); grid.className = 'phase-c-v2-grid';
-      if (!items.length) grid.append(text('p', '아직 운영팀장에게 보낸 글이 없습니다.', 'empty'));
+      if (!items.length) grid.append(text('p', copy.empty, 'empty'));
       items.forEach(item => {
         const card = document.createElement('article'); card.className = 'dashboard-card phase-c-v2-card';
         card.append(text('span', lifecycleLabel[item.lifecycle] || item.lifecycle, 'status-label'), text('h3', item.title || '제목 없음'));
