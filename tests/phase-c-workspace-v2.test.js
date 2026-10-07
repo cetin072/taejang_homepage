@@ -58,6 +58,15 @@ test('board-style promotion composer hides technical fields and keeps user-facin
   }
 });
 
+test('promotion review hold is immediate, listed separately, and resumable', () => {
+  const source = fs.readFileSync(v2Path, 'utf8');
+  assert.match(source, /workspace\.held_items/);
+  assert.match(source, /검토 보류/);
+  assert.match(source, /resume_promotion_review/);
+  assert.doesNotMatch(source, /다시 확인할 날짜를 YYYY-MM-DD로 적어주세요/);
+  assert.doesNotMatch(source, /날짜 형식을 확인해 주세요/);
+});
+
 test('promotion lead keeps its stable permission code while displaying as 운영팀장', () => {
   const labels = fs.readFileSync(roleLabelsPath, 'utf8');
   const routing = fs.readFileSync(routingPath, 'utf8');
