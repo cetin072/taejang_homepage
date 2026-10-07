@@ -9,9 +9,11 @@ select has_function(
   'promotion review wrapper exists'
 );
 
-select unlike(
-  pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure),
-  '%PROMOTION_REVISIT_DATE_REQUIRED%',
+select ok(
+  position(
+    'PROMOTION_REVISIT_DATE_REQUIRED'
+    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+  ) = 0,
   'review hold no longer requires a revisit date'
 );
 
