@@ -24,7 +24,7 @@ select ok(
       and trigger_row.tgname = 'promotion_contents_publish_after_approval'
       and not trigger_row.tgisinternal
   ),
-  'final approval stays approved until the explicit publication step'
+  'no global approval trigger auto-publishes every approval stage'
 );
 select has_function('public', 'queue_promotion_revision', 'explicit publication RPC exists');
 
