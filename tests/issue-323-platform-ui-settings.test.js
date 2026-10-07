@@ -62,7 +62,8 @@ test('role menu visibility is display-only and composes with capability hiding',
 
 test('operations manager can see the canonical promotion writer when capability permits', () => {
   assert.match(registry, /key:'promotion\.write'[\s\S]*visibleRoles:\['promotion_staff','promotion_lead','operations_manager'\]/);
-  assert.match(shell, /route === 'operations_manager'[\s\S]*TaejangOperationsPromotionWriter\?\.open/);
+  assert.match(shell, /function openPromotionWrite\(\)[\s\S]*return openPromotion\('write'\)/);
+  assert.doesNotMatch(shell, /TaejangOperationsPromotionWriter/);
 });
 
 test('role menu checklist follows visibleRoles and role-specific navigation labels', () => {
