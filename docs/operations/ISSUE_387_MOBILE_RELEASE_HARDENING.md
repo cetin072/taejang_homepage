@@ -2,7 +2,7 @@
 
 상태: 구현·격리 CI 검증 후보. 운영 적용/병합/Play 제출은 수행하지 않음.
 기준: #387, #368 독립감사, docs/planning/GOAL_375_MOBILE_SELF_PROFILE_V1.md.
-기준 main: b17e72aa115448ffe440d287f4f2f1934d8c6bf7.
+시작 기준 main: b17e72aa115448ffe440d287f4f2f1934d8c6bf7. 작업 중 #401이 반영되어 최종 검증은 최신 origin/main 02302f47을 병합한 head에서 수행한다. CI 실행 위치 충돌만 해결했고 #401 모바일 diff는 없다.
 
 ## 읽기 전용 운영 점검 — 2026-10-07
 

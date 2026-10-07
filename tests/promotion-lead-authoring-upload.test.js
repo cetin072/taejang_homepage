@@ -21,6 +21,16 @@ test('promotion authoring uses explicit disclosure choice instead of guessing fr
   assert.doesNotMatch(workspace, /function containsNumbers|containsNumbers\(body\)/);
 });
 
+test('promotion authoring reads the live app session before browser-storage fallbacks and can refresh it', () => {
+  assert.match(workspace, /app\(\)\?\.getSession\?\.\(\)/);
+  assert.match(workspace, /storedSession\(window\.localStorage\)/);
+  assert.match(workspace, /storedSession\(window\.sessionStorage\)/);
+  assert.match(workspace, /app\(\)\?\.refreshSession/);
+  assert.match(workspace, /tokenExpiresSoon/);
+  assert.match(workspace, /response\.status === 401/);
+  assert.match(workspace, /response\.status === 403 && payload\?\.error === 'FORBIDDEN'/);
+});
+
 test('promotion photo upload reports safe diagnostics without changing the storage contract', () => {
   assert.match(workspace, /uploadUserId/);
   assert.match(workspace, /auth\?\.user\?\.id \|\| auth\?\.user_id \|\| jwtSubject/);

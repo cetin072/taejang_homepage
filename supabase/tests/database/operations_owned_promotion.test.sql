@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select has_column('public','promotion_content_revisions','operations_owned_publication','explicit operations authoring lane exists');
+select ok(not has_function_privilege('anon','public.queue_operations_owned_promotion(uuid,timestamptz)','execute'),'anon cannot call direct publication');
+select ok(has_function_privilege('authenticated','public.queue_operations_owned_promotion(uuid,timestamptz)','execute'),'guarded operations-owned RPC available');
+select ok(not has_function_privilege('authenticated','public.private_prepare_operations_owned_promotion(uuid,boolean,boolean)','execute'),'internal preparation unavailable to browser');
+select ok(not has_function_privilege('authenticated','public.private_promotion_revision_is_fully_approved_before_ops_owned(uuid,uuid)','execute'),'original invariant remains internal');
+select is(public.promotion_required_stage('homepage_article','ceo','no')::text,'ceo','CEO byline classification unchanged');
+select * from finish();
+rollback;

@@ -60,6 +60,12 @@ test('role menu visibility is display-only and composes with capability hiding',
   assert.match(settings, /메뉴 표시 설정은 기능 권한을 추가하지 않습니다/);
 });
 
+test('operations manager can see the canonical promotion writer when capability permits', () => {
+  assert.match(registry, /key:'promotion\.write'[\s\S]*visibleRoles:\['promotion_staff','promotion_lead','operations_manager'\]/);
+  assert.match(shell, /function openPromotionWrite\(\)[\s\S]*return openPromotion\('write'\)/);
+  assert.doesNotMatch(shell, /TaejangOperationsPromotionWriter/);
+});
+
 test('role menu checklist follows visibleRoles and role-specific navigation labels', () => {
   assert.match(settings, /filter\(item=>navigation\.visibleForRole\?\.\(item,select\.value\)!==false\)/);
   assert.match(settings, /item\.roleLabels\?\.\[roleCode\] \|\| item\.label/);

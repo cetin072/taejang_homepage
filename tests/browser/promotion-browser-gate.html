@@ -97,13 +97,29 @@
               role: currentRoute,
               my_items: [
                 { content_id: 'returned-1', title: '보완 글', lifecycle: 'needs_revision' },
-                { content_id: 'sent-1', title: '보낸 글 예시', lifecycle: 'review_pending', submitted_at: new Date(now - 1000).toISOString() }
+                { content_id: 'sent-1', title: '보낸 글 예시', lifecycle: 'review_pending', submitted_at: new Date(now - 1000).toISOString(), is_owner: true }
               ],
               review_items: []
             };
           }
           if (currentRoute === 'promotion_lead') {
-            return { role: currentRoute, my_items: [], review_items: [{ content_id: 'lead-1', title: '상신 후 반송', required_stage: 'operations' }] };
+            return {
+              role: currentRoute,
+              my_items: [
+                { content_id: 'lead-sent-1', title: '운영팀장 본인 상신 글', lifecycle: 'review_pending', submitted_at: new Date(now - 2000).toISOString(), is_owner: true, is_assignee: true },
+                { content_id: 'staff-assigned-1', title: '팀원 검토 배정 글', lifecycle: 'review_pending', submitted_at: new Date(now - 3000).toISOString(), is_owner: false, is_assignee: true }
+              ],
+              review_items: [{ content_id: 'lead-1', title: '상신 후 반송', required_stage: 'operations' }]
+            };
+          }
+          if (currentRoute === 'operations_manager') {
+            return {
+              role: currentRoute,
+              my_items: [
+                { content_id: 'ops-sent-1', title: '운영총괄 본인 검토 요청 글', lifecycle: 'review_pending', submitted_at: new Date(now - 4000).toISOString(), is_owner: true, is_assignee: true }
+              ],
+              review_items: []
+            };
           }
           return { role: currentRoute, my_items: [], review_items: [] };
         }
@@ -215,6 +231,12 @@
         assert(leadLabels.includes('홈페이지 내용 관리'), '운영팀장 홈페이지 내용 관리 메뉴 자동 복구 실패');
         assert(leadLabels.includes('공지 관리'), '운영팀장 공지 관리 메뉴 누락');
         assert(!leadLabels.some(label => label.includes('안내')), '운영팀장 메뉴에 안내 용어가 남아 있음');
+
+        await window.TaejangIssue207Ux.openSent();
+        const leadSentMain = document.getElementById('dashboard-main');
+        assert(leadSentMain.textContent.includes('운영총괄에게 상신'), '운영팀장 보낸 글 안내가 운영총괄 상신 흐름을 설명하지 않음');
+        assert(leadSentMain.textContent.includes('운영팀장 본인 상신 글'), '운영팀장 본인 상신 글이 보낸 글에 표시되지 않음');
+        assert(!leadSentMain.textContent.includes('팀원 검토 배정 글'), '팀원 검토 배정 글이 운영팀장 보낸 글에 섞임');
 
         document.querySelector('[data-phase-c-v2-nav="homepage"]').click();
         assert(homepageManagementOpened, '홈페이지 내용 관리 복구 메뉴가 기존 관리 기능을 열지 않음');

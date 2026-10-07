@@ -37,7 +37,7 @@ test('promotion composer keeps risk routing explicit and supports staff and lead
   assert.doesNotMatch(workspace, /function containsNumbers|containsNumbers\(body\)/);
   assert.match(workspace, /save_promotion_draft/);
   assert.match(workspace, /submit_promotion_revision/);
-  assert.match(workspace, /p_content_id:\s*existingItem\?\.content_id/);
+  assert.match(workspace, /p_content_id:\s*formState\.savedContentId \|\| existingItem\?\.content_id/);
   assert.doesNotMatch(workspace, /p_minimum_review_stage/);
   assert.doesNotMatch(workspace, /총괄 등기이사/);
 });
