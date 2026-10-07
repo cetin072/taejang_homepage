@@ -27,7 +27,8 @@ test('app UI uses one production employee-home renderer while keeping shared PWA
   assert.match(source, /employee-common-home-v1\.js/);
   assert.match(source, /attendance-admin\.js/);
   assert.match(source, /attendance-integrity-ui\.js/);
-  assert.match(source, /operations-promotion-writer\.js/);
+  assert.doesNotMatch(source, /operations-promotion-writer\.js/);
+  assert.match(source, /phase-c-workspace-v2\.js/);
   assert.match(source, /operations-homepage-direct\.js/);
 });
 
