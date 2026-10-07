@@ -274,11 +274,11 @@
       p_title: title,
       p_summary: summaryFromBody(body),
       p_public_body: body.trim() || null,
-      p_external_url: formState.type.value === 'external_content' ? (formState.external.value.trim() || null) : null,
+      p_external_url: formState.external.value.trim() || null,
       p_byline: null,
       p_byline_kind: 'company',
       p_related_organization: null,
-      p_source_reference_url: formState.type.value === 'external_content' ? (formState.external.value.trim() || null) : null,
+      p_source_reference_url: formState.external.value.trim() || null,
       p_hero_image_url: formState.heroImage || publicMedia[0]?.url || null,
       p_public_media: publicMedia,
       p_people_photo: publicMedia.length || formState.heroImage ? 'unsure' : 'no',
@@ -721,7 +721,7 @@
     const form = el('form', null, 'phase-c-board-form');
     form.addEventListener('submit', event => event.preventDefault());
     form.append(field('제목', title), field('본문', body));
-    if (detail.content_type === 'external_content') form.append(field('외부 링크', external));
+    form.append(field('연결 링크 (선택)', external, '네이버 블로그·유튜브·인터넷 기사 등 관련 주소를 연결할 수 있습니다.'));
     form.append(field('게시 희망일 (선택)', date));
     const actions = el('div', null, 'quick-links');
     actions.append(button('수정본 저장', async () => {
@@ -731,7 +731,7 @@
           p_content_id: detail.content_id,
           p_title: title.value.trim(),
           p_public_body: body.value.trim() || null,
-          p_external_url: detail.content_type === 'external_content' ? (external.value.trim() || null) : null,
+          p_external_url: external.value.trim() || null,
           p_requested_publish_date: date.value || null
         });
         await openPromotion('review');
