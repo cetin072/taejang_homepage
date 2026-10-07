@@ -63,6 +63,46 @@
     return element;
   }
 
+  function appendLinkifiedText(parent, value) {
+    const text = String(value || '');
+    const pattern = /https?:\/\/[^\s<>"']+/gi;
+    let cursor = 0;
+    for (const match of text.matchAll(pattern)) {
+      const raw = match[0];
+      const start = match.index ?? 0;
+      if (start > cursor) parent.append(document.createTextNode(text.slice(cursor, start)));
+
+      let href = raw;
+      let trailing = '';
+      while (/[),.!?;:\]\}，。！？；：]$/.test(href)) {
+        trailing = href.slice(-1) + trailing;
+        href = href.slice(0, -1);
+      }
+
+      let valid = false;
+      try {
+        const parsed = new URL(href);
+        valid = parsed.protocol === 'https:' || parsed.protocol === 'http:';
+      } catch {
+        valid = false;
+      }
+
+      if (valid) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = href;
+        parent.append(link);
+      } else {
+        parent.append(document.createTextNode(raw));
+      }
+      if (trailing) parent.append(document.createTextNode(trailing));
+      cursor = start + raw.length;
+    }
+    if (cursor < text.length) parent.append(document.createTextNode(text.slice(cursor)));
+  }
+
   function renderEntry(entry) {
     const article = document.createElement('article');
     article.id = entry.slug;
@@ -80,7 +120,11 @@
       image.loading = 'lazy';
       article.append(image);
     }
-    if (entry.public_body) article.append(node('div', entry.public_body, 'body'));
+    if (entry.public_body) {
+      const body = node('div', null, 'body');
+      appendLinkifiedText(body, entry.public_body);
+      article.append(body);
+    }
     if (entry.external_url) {
       const link = document.createElement('a');
       link.href = entry.external_url;
