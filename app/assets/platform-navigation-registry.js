@@ -19,7 +19,7 @@
     { key:'account.approval', label:'가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
     { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
     { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff'] },
-    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff'] },
+    { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
     { key:'promotion.review', label:'홍보 검토', roleLabels:{ operations_manager:'홍보 승인 검토' }, section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },
     { key:'promotion.publication', label:'발행 관리', roleLabels:{ operations_manager:'발행 현황' }, section:'홍보', capabilities:[], visibleRoles:['promotion_lead','operations_manager'] },
     { key:'promotion.existing', label:'공개 홍보글 관리', section:'홍보', capabilities:['promotion.manage_recent_public','promotion.archive','promotion.restore'], visibleRoles:['promotion_lead','operations_manager'] },
