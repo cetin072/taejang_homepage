@@ -12,7 +12,7 @@ select has_function(
 select ok(
   position(
     'PROMOTION_REVISIT_DATE_REQUIRED'
-    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+    in pg_get_functiondef('public.private_review_promotion_revision_before_operations_auto_publish(uuid,text,text,date)'::regprocedure)
   ) = 0,
   'review hold no longer requires a revisit date'
 );
