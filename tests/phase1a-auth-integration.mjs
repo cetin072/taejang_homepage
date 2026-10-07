@@ -264,15 +264,12 @@ const operationsApproval = await rpc('review_promotion_revision', admin.token, {
   p_revisit_at: null,
 });
 check(operationsApproval.ok, `operations approval failed: ${JSON.stringify(operationsApproval.data)}`);
-equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'approved', 'article becomes approved only after operations approval');
+equal(operationsApproval.data?.code, 'PROMOTION_OPERATIONS_FINAL_APPROVED_AND_PUBLISHED', 'operations final approval reports immediate publication');
+equal(operationsApproval.data?.published, true, 'operations final approval response marks publication');
+equal(sql(`select lifecycle::text from public.promotion_contents where id='${leadDirectDraft.data.content_id}'::uuid`), 'published', 'article publishes immediately after operations final approval');
 equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='operations' and decision='approved' and decided_by_profile_id='${admin.id}'::uuid`), '1', 'operations approval is recorded with operations as decider');
 equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${leadDirectDraft.data.revision_id}'::uuid and stage='lead' and decision='approved' and requested_by_profile_id='${lead.id}'::uuid and decided_by_profile_id='${admin.id}'::uuid`), '1', 'compatibility lead approval is recorded only by the operations approver, never by the author');
 
-const leadDirectPublish = await rpc('queue_promotion_revision', lead.token, {
-  p_content_id: leadDirectDraft.data.content_id,
-  p_scheduled_for: null,
-});
-equal(leadDirectPublish.data?.code, 'PROMOTION_PUBLISHED', 'promotion lead can publish only after operations approval');
 const publicFeed = await rpc('list_public_promotion_feed', lead.token, {});
 check(Array.isArray(publicFeed.data) && publicFeed.data.some(item =>
   item.content_id === leadDirectDraft.data.content_id
