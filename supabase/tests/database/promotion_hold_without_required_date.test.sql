@@ -17,27 +17,35 @@ select ok(
   'review hold no longer requires a revisit date'
 );
 
-select like(
-  pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure),
-  '%if normalized_action = ''on_hold'' then%',
+select ok(
+  position(
+    'if normalized_action = ''on_hold'' then'
+    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+  ) > 0,
   'review wrapper owns immediate hold handling'
 );
 
-select like(
-  pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure),
-  '%revisit_at = p_revisit_at%',
+select ok(
+  position(
+    'revisit_at = p_revisit_at'
+    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+  ) > 0,
   'optional revisit date is preserved when explicitly supplied'
 );
 
-select like(
-  pg_get_functiondef('public.get_my_promotion_workspace()'::regprocedure),
-  '%''held_items''%',
+select ok(
+  position(
+    '''held_items'''
+    in pg_get_functiondef('public.get_my_promotion_workspace()'::regprocedure)
+  ) > 0,
   'promotion workspace returns held review items'
 );
 
-select like(
-  pg_get_functiondef('public.get_my_promotion_workspace()'::regprocedure),
-  '%pending.decision = ''pending''%',
+select ok(
+  position(
+    'pending.decision = ''pending'''
+    in pg_get_functiondef('public.get_my_promotion_workspace()'::regprocedure)
+  ) > 0,
   'resumed reviews are excluded from held items'
 );
 
