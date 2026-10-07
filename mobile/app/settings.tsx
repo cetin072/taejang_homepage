@@ -6,6 +6,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PolicyLinks } from '@/src/features/common/policy-links';
+import { appVariantLabel, isQaApp } from '@/src/platform/app-variant';
 import { registerCurrentPushDevice } from '@/src/notifications/push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
 
@@ -80,6 +81,12 @@ export default function SettingsScreen() {
           <Text style={styles.backText}>← 홈</Text>
         </Pressable>
         <Text style={styles.title}>설정</Text>
+        {isQaApp ? (
+          <View style={styles.qaBanner} accessibilityLabel="태장 QA 검수용 앱">
+            <Text style={styles.qaBannerTitle}>{appVariantLabel()}</Text>
+            <Text style={styles.qaBannerHelp}>검수용 앱 · Google Play의 태장 앱과 별도로 설치됩니다</Text>
+          </View>
+        ) : null}
         <View style={styles.account}>
           <Text numberOfLines={2} style={styles.name}>{displayName}</Text>
           <Text style={styles.help}>내 계정</Text>
@@ -127,6 +134,9 @@ const styles = StyleSheet.create({
   back: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center' },
   backText: { color: '#35624d', fontSize: 16, fontWeight: '800' },
   title: { color: '#173f31', fontSize: 32, fontWeight: '900' },
+  qaBanner: { gap: 4, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#d6bd65', backgroundColor: '#fff8d8' },
+  qaBannerTitle: { color: '#6b5314', fontSize: 17, fontWeight: '900' },
+  qaBannerHelp: { color: '#7d692d', fontSize: 13, fontWeight: '700', lineHeight: 19 },
   account: { gap: 5, padding: 20, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d7ded8' },
   name: { color: '#173f31', fontSize: 21, fontWeight: '900', lineHeight: 29 },
   help: { color: '#60746a', fontSize: 14, fontWeight: '700' },
