@@ -97,6 +97,7 @@ sql(`update public.account_person_links set revoked_at=null,revoked_by=null wher
 const scoped = await signup(`issue387-scoped-${unique}@example.test`, 'Issue387 scoped reviewer');
 activateWithRole(scoped,'department_lead');
 sql(`update public.profiles set department_id='${departmentId}'::uuid where id='${scoped.id}'::uuid`);
+const hadScopedReview = sql("select count(*) from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='department_lead' and g.capability_code='employee.review_change_requests'") !== '0';
 sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.review_change_requests' from public.roles where code='department_lead' on conflict do nothing");
 const outWorker = await signup(`issue387-out-${unique}@example.test`,'Issue387 out of scope',{phone:'010-3870-1001',hired_on:'2026-09-25',signup_channel:'native_employee'});
 const outsideDepartment=sql(`insert into public.departments(code,name,sort_order) values ('issue387_${unique.replaceAll('-', '_')}','Issue387 outside',999) returning id`).split('\n')[0];
@@ -146,4 +147,5 @@ for (const method of ['POST','PATCH','DELETE']) {
 }
 check(!(await rpc('private_can_review_employee_contact',scoped,{p_target_profile_id:worker.id})).ok,'private authorization helper is not exposed');
 
+if (!hadScopedReview) sql("delete from public.role_capability_grants g using public.roles r where g.role_id=r.id and r.code='department_lead' and g.capability_code='employee.review_change_requests'");
 console.log(`Goal #375 self-profile Auth and Data API integration passed: ${assertions} assertions`);
