@@ -57,6 +57,11 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(ux, /item\?\.is_owner === true/);
   assert.match(ux, /role_simulation\?\.active === true/);
   assert.match(ux, /역할 미리보기에서는 개인별 보낸 글을 표시하지 않습니다/);
+  assert.match(workspace, /workspace\.held_items/);
+  assert.match(workspace, /resume_promotion_review/);
+  assert.match(workspace, /'검토 보류'/);
+  assert.doesNotMatch(workspace, /다시 확인할 날짜를 YYYY-MM-DD로 적어주세요/);
+  assert.doesNotMatch(workspace, /날짜 형식을 확인해 주세요/);
   assert.match(ux, /promotion_lead:[\s\S]*운영총괄에게 상신/);
   assert.match(ux, /operations_manager:[\s\S]*운영팀장에게 검토 요청/);
   assert.match(workspace, /TaejangIssue207Ux\?\.openSent/);
