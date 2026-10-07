@@ -27,6 +27,54 @@
     return '원문 보기 ↗';
   }
 
+
+  function appendLinkifiedText(parent, value) {
+    const text = String(value || '');
+    const pattern = /https?:\/\/[^\s<>"']+/gi;
+    let cursor = 0;
+    for (const match of text.matchAll(pattern)) {
+      const raw = match[0];
+      const start = match.index ?? 0;
+      if (start > cursor) parent.append(document.createTextNode(text.slice(cursor, start)));
+
+      let href = raw;
+      let trailing = '';
+      while (/[),.!?;:\]\}，。！？；：]$/.test(href)) {
+        trailing = href.slice(-1) + trailing;
+        href = href.slice(0, -1);
+      }
+
+      let valid = false;
+      try {
+        const parsed = new URL(href);
+        valid = parsed.protocol === 'https:' || parsed.protocol === 'http:';
+      } catch {
+        valid = false;
+      }
+
+      if (valid) {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'article-inline-link';
+        link.textContent = href;
+        parent.append(link);
+      } else {
+        parent.append(document.createTextNode(raw));
+      }
+      if (trailing) parent.append(document.createTextNode(trailing));
+      cursor = start + raw.length;
+    }
+    if (cursor < text.length) parent.append(document.createTextNode(text.slice(cursor)));
+  }
+
+  function paragraphNode(value) {
+    const paragraph = el('p');
+    appendLinkifiedText(paragraph, value);
+    return paragraph;
+  }
+
   function unavailable(message) {
     const article = el('article', null, 'article article-empty');
     article.append(el('h1', '공개된 글을 찾을 수 없습니다'));
@@ -91,7 +139,7 @@
       .split(/\n\s*\n/)
       .map(value => value.trim())
       .filter(Boolean);
-    if (paragraphs.length) paragraphs.forEach(paragraph => body.append(el('p', paragraph)));
+    if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
     else body.append(el('p', item.summary || '공개된 본문이 없습니다.'));
     article.append(body);
 
