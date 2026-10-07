@@ -894,7 +894,7 @@
         }
       }
     } else if (workspace.role === 'operations_manager') {
-      actions.append(button(detail.required_stage === 'ceo' ? '승인·대표이사 검토' : '최종 승인', () => reviewAction(detail, 'approve')));
+      actions.append(button(detail.required_stage === 'ceo' ? '승인·대표이사 검토' : '최종 승인·즉시 공개', () => reviewAction(detail, 'approve')));
       actions.append(button('운영팀장에게 보완 요청', async () => {
         const comment = window.prompt('운영팀장에게 내려보낼 보완 내용을 적어주세요.', '');
         if (!comment?.trim()) return;

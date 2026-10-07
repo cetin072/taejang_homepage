@@ -62,5 +62,23 @@ export async function operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admi
   // Preserve staff chain independently of operations lane.
   const staffFlow=await draft({},staff,false);await rpc('submit_promotion_revision',staff.token,{p_content_id:staffFlow.content_id});equal(pending(staffFlow.revision_id),'lead','staff lead review unchanged');
   check((await review(staffFlow,lead)).ok,'lead approves staff ordinary item');check((await rpc('queue_promotion_revision',lead.token,{p_content_id:staffFlow.content_id})).ok,'lead publishes staff item');
+
+  // When operations is the real final approver, approval itself publishes.
+  const importantStaff=await draft({p_number_or_amount:'yes'},staff,false);
+  check((await rpc('submit_promotion_revision',staff.token,{p_content_id:importantStaff.content_id})).ok,'important staff submit');
+  equal(pending(importantStaff.revision_id),'lead','important staff starts at lead');
+  check((await review(importantStaff,lead)).ok,'lead advances important staff item');
+  equal(pending(importantStaff.revision_id),'operations','important staff reaches operations final review');
+  check((await review(importantStaff,admin)).ok,'operations final approval succeeds');
+  equal(state(importantStaff.content_id),'published','operations final approval immediately publishes important staff item');
+  check((await rpc('list_public_promotion_feed',null,{})).data.some(i=>i.content_id===importantStaff.content_id),'operations-final-approved staff item is in public feed');
+
+  const leadFinal=await draft({},lead,false);
+  check((await rpc('submit_promotion_revision',lead.token,{p_content_id:leadFinal.content_id})).ok,'lead-owned submit to operations');
+  equal(pending(leadFinal.revision_id),'operations','lead-owned item reaches operations');
+  check((await review(leadFinal,admin)).ok,'operations approves lead-owned item');
+  equal(state(leadFinal.content_id),'published','operations final approval immediately publishes lead-owned item');
+  check((await rpc('list_public_promotion_feed',null,{})).data.some(i=>i.content_id===leadFinal.content_id),'operations-final-approved lead item is in public feed');
+
   console.log('OPERATIONS_OWNED_PROMOTION_AUTH_PASS');
 }

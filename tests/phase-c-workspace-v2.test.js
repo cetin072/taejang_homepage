@@ -67,6 +67,12 @@ test('promotion review hold is immediate, listed separately, and resumable', () 
   assert.doesNotMatch(source, /날짜 형식을 확인해 주세요/);
 });
 
+test('operations final approval clearly communicates immediate publication', () => {
+  const source = fs.readFileSync(v2Path, 'utf8');
+  assert.match(source, /최종 승인·즉시 공개/);
+  assert.match(source, /승인·대표이사 검토/);
+});
+
 test('promotion lead keeps its stable permission code while displaying as 운영팀장', () => {
   const labels = fs.readFileSync(roleLabelsPath, 'utf8');
   const routing = fs.readFileSync(routingPath, 'utf8');
