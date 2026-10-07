@@ -179,10 +179,10 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.deepEqual([...actualKeys].sort(), expectedKeys, 'every canonical business-navigation leaf has a live sidebar destination');
   for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert.ok(visible(promotion).has(label));
   for (const label of ['홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(!visible(promotion).has(label));
-  for (const label of ['홍보 글 작성', '홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(visible(lead).has(label));
-  for (const label of ['보완 요청받은 글', '보낸 글']) assert.ok(!visible(lead).has(label));
-  for (const label of ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리']) assert.ok(visible(operations).has(label));
-  for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert.ok(!visible(operations).has(label));
+  for (const label of ['홍보 글 작성', '보낸 글', '홍보 검토', '발행 관리', '공개 홍보글 관리']) assert.ok(visible(lead).has(label));
+  for (const label of ['보완 요청받은 글']) assert.ok(!visible(lead).has(label));
+  for (const label of ['홍보 글 작성', '보낸 글', '홍보 승인 검토', '발행 현황', '공개 홍보글 관리']) assert.ok(visible(operations).has(label));
+  for (const label of ['보완 요청받은 글']) assert.ok(!visible(operations).has(label));
   assert.ok(visible(ceo).has('홍보 검토'));
   assert.ok(!visible(ceo).has('발행 관리'));
 
@@ -196,8 +196,9 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   findMenu(lead.nav, '홍보 검토').click();
   findMenu(lead.nav, '발행 관리').click();
   assert.deepEqual(lead.promotionModes, ['review', 'publication']);
+  findMenu(operations.nav, '홍보 글 작성').click();
   findMenu(operations.nav, '발행 현황').click();
-  assert.deepEqual(operations.promotionModes, ['publication']);
+  assert.deepEqual(operations.promotionModes, ['write', 'publication']);
 
   for (const [label, panel] of new Map([
     ['업무 배정','today-admin-panel'],
@@ -211,7 +212,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
 });
 
 test('role navigation visibility is independent from capability grants and user menu order', () => {
-  assert.match(navigationRegistry, /visibleRoles:\['promotion_staff','promotion_lead'\]/);
+  assert.match(navigationRegistry, /visibleRoles:\['promotion_staff','promotion_lead','operations_manager'\]/);
   assert.match(navigationRegistry, /visibleRoles:\['promotion_staff'\]/);
   assert.match(navigationRegistry, /visibleRoles:\['promotion_lead','operations_manager'\]/);
   assert.match(navigationRegistry, /capabilities:\['promotion\.write','promotion\.edit_any_unpublished'\]/);
@@ -352,6 +353,8 @@ test('checking business planning is clearly marked, remains last and keeps role 
 });
 
 test('optional authoring and direct homepage editing are capability-driven but do not own sidebar DOM', () => {
+  assert.doesNotMatch(appUi, /operations-promotion-writer\.js/);
+  assert.doesNotMatch(source, /TaejangOperationsPromotionWriter/);
   assert.match(operationsWriter, /hasCapabilityContract/);
   assert.match(operationsWriter, /promotion\.edit_any_unpublished/);
   assert.doesNotMatch(operationsWriter, /new MutationObserver\(addNavigation\)/);

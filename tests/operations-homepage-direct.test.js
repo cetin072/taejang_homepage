@@ -15,8 +15,9 @@ const publicFunction = read('netlify/functions/public-homepage-overrides.mjs');
 const migration = read('supabase/migrations/20260904021000_operations_manager_direct_homepage_overrides.sql');
 const authoringMigration = read('supabase/migrations/20260904023000_operations_manager_optional_promotion_authoring.sql');
 
-test('operations optional tools are loaded and scripts parse', () => {
-  assert.match(appUi, /operations-promotion-writer\.js/);
+test('operations optional tools keep one canonical promotion writer and the direct homepage editor', () => {
+  assert.doesNotMatch(appUi, /operations-promotion-writer\.js/);
+  assert.match(appUi, /phase-c-workspace-v2\.js/);
   assert.match(appUi, /operations-homepage-direct\.js/);
   assert.doesNotThrow(() => new Function(editor));
   assert.doesNotThrow(() => new Function(writer));
@@ -33,14 +34,14 @@ test('operations homepage editor remains a secondary sidebar tool', () => {
   assert.doesNotMatch(editor, /dashboard-card[^\n]*홈페이지 직접 수정/);
 });
 
-test('operations can optionally author posts and external links but submission still enters lead review', () => {
-  assert.match(writer, /route\(\) !== 'operations_manager'/);
-  assert.match(writer, /홍보 글 작성/);
-  assert.match(writer, /태장 소식/);
-  assert.match(writer, /외부 기사·콘텐츠/);
-  assert.match(writer, /save_operations_promotion_draft/);
-  assert.match(writer, /submit_operations_promotion_revision/);
-  assert.match(writer, /기존 운영팀장 검토 흐름/);
+test('operations can optionally author through the canonical writer and submission still enters lead review', () => {
+  const canonicalWriter = read('app/assets/phase-c-workspace-v2.js');
+  assert.match(canonicalWriter, /태장 소식 \(홈페이지\)/);
+  assert.match(canonicalWriter, /링크에서 제목·썸네일·본문 가져오기/);
+  assert.match(canonicalWriter, /사진 추가/);
+  assert.match(canonicalWriter, /save_operations_promotion_draft/);
+  assert.match(canonicalWriter, /submit_operations_promotion_revision/);
+  assert.match(canonicalWriter, /운영팀장 검토 요청/);
   assert.match(authoringMigration, /current_user_has_role\('operations_manager'\)/);
   assert.match(authoringMigration, /insert into public\.promotion_review_requests[\s\S]*values \(revision_row\.id, 'lead', actor_id\)/);
   assert.doesNotMatch(authoringMigration, /set lifecycle = 'published'/);
