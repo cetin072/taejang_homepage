@@ -54,6 +54,10 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.match(workspace, /임시저장한 글/);
   assert.doesNotMatch(ux, /section\.remove\(\)/);
   assert.match(ux, /\['review_pending','approved','scheduled','published','hidden','archived'\]\.includes\(item\.lifecycle\)/);
+  assert.match(ux, /item\?\.is_owner === true/);
+  assert.match(ux, /promotion_lead:[\s\S]*운영총괄에게 상신/);
+  assert.match(ux, /operations_manager:[\s\S]*운영팀장에게 검토 요청/);
+  assert.match(workspace, /TaejangIssue207Ux\?\.openSent/);
   assert.match(ux, /item\.submitted_at/);
   assert.doesNotMatch(ux, /nav\.append\(|insertBefore\(/);
 });
