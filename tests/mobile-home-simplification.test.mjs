@@ -48,6 +48,7 @@ function renderHome(access, phase = 'ready') {
     if (name.endsWith('notice-home-action')) return { NoticeHomeAction: 'NoticeHomeAction' };
     if (name.endsWith('official-channels-footer')) return { OfficialChannelsFooter: 'OfficialChannelsFooter' };
     if (name.endsWith('policy-links')) return { PolicyLinks: 'PolicyLinks' };
+    if (name.endsWith('app-variant')) return { isQaApp: false, appVariantLabel: () => '태장' };
     if (name.endsWith('friendly-error')) return { friendlyError: (_error, fallback) => fallback };
     if (name === 'expo-linking' || name === '@react-native-community/datetimepicker') return {};
     throw new Error(`unexpected home dependency (hidden features must not load): ${name}`);
