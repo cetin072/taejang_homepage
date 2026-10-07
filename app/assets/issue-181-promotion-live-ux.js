@@ -248,10 +248,13 @@
     rpcWrapped = true;
   }
 
-  async function archiveReviewItem(item) {
+  async function archiveReviewItem(item, returnedFromOperations = false) {
     const reason = window.prompt(`“${item.title || '홍보글'}” 삭제 이유를 적어주세요.`, '')?.trim();
     if (!reason) return;
-    if (!window.confirm('이 미발행 홍보글을 삭제할까요? 원문·수정이력·감사기록은 보존됩니다.')) return;
+    const confirmation = returnedFromOperations
+      ? '운영총괄 보완요청으로 돌아온 이 글을 삭제(보관)할까요? 글은 목록에서 빠지지만 원문·수정이력·감사기록은 보존됩니다.'
+      : '이 미발행 홍보글을 삭제할까요? 원문·수정이력·감사기록은 보존됩니다.';
+    if (!window.confirm(confirmation)) return;
     try {
       await app().rpc('archive_unpublished_promotion_content', {
         p_content_id: item.content_id,
@@ -262,7 +265,7 @@
       const code = String(error?.message || error?.code || '');
       const upperReviewLocked = code.includes('PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED');
       window.alert(upperReviewLocked
-        ? '운영총괄 또는 대표이사 결재선에 올라간 글은 운영팀장이 삭제할 수 없습니다. 수정·보완 후 다시 상신해 주세요.'
+        ? '상신 대기·승인·대표이사 결재 중인 글은 운영팀장이 삭제할 수 없습니다. 운영총괄이 보완요청으로 되돌려 보낸 글만 삭제(보관)할 수 있습니다.'
         : (app()?.friendlyError?.(error) || error?.message || '홍보글을 삭제하지 못했습니다.'));
     }
   }
@@ -300,21 +303,22 @@
         try { handoff = await app().rpc('get_promotion_review_handoff', { p_content_id: item.content_id }); }
         catch { handoff = null; }
 
-        const existingDelete = actions.querySelector('[data-issue181-review-delete]');
-        if (handoff) {
-          existingDelete?.remove();
-        } else if (!existingDelete) {
-          const remove = document.createElement('button');
-          remove.type = 'button';
-          remove.className = 'button button-quiet';
-          remove.textContent = '삭제';
-          remove.dataset.issue181ReviewDelete = '1';
-          remove.title = '복구 가능한 삭제입니다. 상위 결재선에 올라간 글은 삭제할 수 없습니다.';
-          remove.addEventListener('click', () => archiveReviewItem(item));
+        let existingDelete = actions.querySelector('[data-issue181-review-delete]');
+        if (!existingDelete) {
+          existingDelete = document.createElement('button');
+          existingDelete.type = 'button';
+          existingDelete.className = 'button button-quiet';
+          existingDelete.dataset.issue181ReviewDelete = '1';
           const edit = [...actions.querySelectorAll('button')].find(node => node.textContent.trim() === '직접 수정');
-          if (edit?.nextSibling) actions.insertBefore(remove, edit.nextSibling);
-          else actions.append(remove);
+          if (edit?.nextSibling) actions.insertBefore(existingDelete, edit.nextSibling);
+          else actions.append(existingDelete);
         }
+
+        existingDelete.textContent = handoff ? '삭제(보관)' : '삭제';
+        existingDelete.title = handoff
+          ? '운영총괄 보완요청으로 돌아온 미발행 글을 복구 가능하게 보관합니다.'
+          : '복구 가능한 삭제입니다. 상위 결재선에 올라간 글은 삭제할 수 없습니다.';
+        existingDelete.onclick = () => archiveReviewItem(item, Boolean(handoff));
       }
     } catch {
       // Existing safe fallback menus remain in the DOM even if enhancement fails.
