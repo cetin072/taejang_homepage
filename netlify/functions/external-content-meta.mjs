@@ -45,6 +45,32 @@ async function assertPublicHttps(raw) {
   return url;
 }
 
+export function normalizeNaverBlogTarget(raw) {
+  let parsed;
+  try { parsed = new URL(String(raw || '').trim()); } catch { return null; }
+  const host = parsed.hostname.toLowerCase();
+  if (!['blog.naver.com', 'm.blog.naver.com'].includes(host)) return null;
+
+  let blogId = '';
+  let logNo = '';
+  const segments = parsed.pathname.split('/').filter(Boolean);
+  if (/^PostView\.naver$/i.test(segments[0] || '')) {
+    blogId = String(parsed.searchParams.get('blogId') || '').trim();
+    logNo = String(parsed.searchParams.get('logNo') || '').trim();
+  } else if (segments.length >= 2) {
+    blogId = segments[0];
+    logNo = segments[1];
+  }
+
+  if (!/^[A-Za-z0-9_.-]+$/.test(blogId) || !/^\d+$/.test(logNo)) return null;
+  return {
+    blogId,
+    logNo,
+    fetchUrl: 'https://m.blog.naver.com/' + encodeURIComponent(blogId) + '/' + encodeURIComponent(logNo),
+    canonicalUrl: 'https://blog.naver.com/' + encodeURIComponent(blogId) + '/' + encodeURIComponent(logNo)
+  };
+}
+
 function decodeHtml(value = '') {
   return value
     .replace(/&nbsp;/gi, ' ')
@@ -130,7 +156,7 @@ function extractJsonLdArticleBody(html) {
   return null;
 }
 
-function extractArticleText(html) {
+export function extractArticleText(html) {
   const structured = extractJsonLdArticleBody(html);
   if (structured) {
     const text = cleanArticleText(structured);
@@ -145,6 +171,21 @@ function extractArticleText(html) {
   const text = cleanArticleText(candidate);
   if (text.length < 120) return null;
   return text.slice(0, ARTICLE_TEXT_MAX);
+}
+
+export function extractNaverBlogText(html) {
+  const patterns = [
+    /class=["'][^"']*se-main-container[^"']*["'][^>]*>([\s\S]*?)(?=<[^>]+(?:id=["']ad-bottom-portal["']|class=["'][^"']*post_footer))/i,
+    /id=["']postViewArea["'][^>]*>([\s\S]*?)(?=<[^>]+class=["'][^"']*post_footer)/i,
+    /class=["'][^"']*se3_view[^"']*["'][^>]*>([\s\S]*?)(?=<[^>]+class=["'][^"']*post_footer)/i
+  ];
+  for (const pattern of patterns) {
+    const fragment = html.match(pattern)?.[1] || '';
+    if (!fragment) continue;
+    const text = cleanArticleText(fragment);
+    if (text.length >= 40) return text.slice(0, ARTICLE_TEXT_MAX);
+  }
+  return null;
 }
 
 function decodeEmbeddedUrl(value = '') {
@@ -254,7 +295,8 @@ async function authorizePromotionRequest(request) {
 }
 
 async function fetchHtml(initialUrl) {
-  let current = await assertPublicHttps(initialUrl);
+  const naverTarget = normalizeNaverBlogTarget(initialUrl);
+  let current = await assertPublicHttps(naverTarget?.fetchUrl || initialUrl);
   for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 7000);
@@ -279,7 +321,12 @@ async function fetchHtml(initialUrl) {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.toLowerCase().includes('text/html')) throw new Error('NOT_HTML');
     const html = await readLimited(response);
-    return { html, finalUrl: current };
+    return {
+      html,
+      finalUrl: naverTarget ? new URL(naverTarget.canonicalUrl) : current,
+      fetchedUrl: current,
+      naverTarget
+    };
   }
   throw new Error('FETCH_FAILED');
 }
@@ -301,13 +348,15 @@ export default async (request) => {
   if (!rawUrl) return json(400, { error: 'URL_REQUIRED' });
 
   try {
-    const { html, finalUrl } = await fetchHtml(rawUrl);
+    const { html, finalUrl, fetchedUrl, naverTarget } = await fetchHtml(rawUrl);
     const title = meta(html, 'og:title') || meta(html, 'twitter:title', 'name') || titleTag(html);
     const description = meta(html, 'og:description') || meta(html, 'description', 'name') || meta(html, 'twitter:description', 'name');
     const imageRaw = meta(html, 'og:image') || meta(html, 'twitter:image', 'name');
     const siteName = meta(html, 'og:site_name');
-    const image = imageRaw ? new URL(imageRaw, finalUrl).toString() : null;
-    const articleText = extractArticleText(html);
+    const image = imageRaw ? new URL(imageRaw, fetchedUrl || finalUrl).toString() : null;
+    const articleText = naverTarget
+      ? (extractNaverBlogText(html) || extractArticleText(html))
+      : extractArticleText(html);
     const channelUrl = extractYouTubeChannelUrl(html, finalUrl);
     return json(200, {
       url: finalUrl.toString(),
