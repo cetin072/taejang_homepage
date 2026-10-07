@@ -22,11 +22,12 @@ test('today work reuses the guarded server board without employee progress write
   assert.doesNotMatch(screen, /완료 처리|진행률|실적|작업 시작/);
 });
 
-test('mobile home keeps Today Work between attendance and notices', async () => {
+test('mobile home leaves Today Work off the primary list while its route is retained', async () => {
   const home = await text('mobile/app/index.tsx');
   const attendance = home.indexOf('<AttendanceCard');
-  const today = home.indexOf('<TodayWorkAction');
   const notices = home.indexOf('<NoticeHomeAction');
 
-  assert.ok(attendance >= 0 && today > attendance && notices > today);
+  assert.ok(attendance >= 0 && notices > attendance);
+  assert.doesNotMatch(home, /TodayWorkAction|loadMyTodayBoard|get_my_today_board/);
+  assert.match(await text('mobile/app/today.tsx'), /loadMyTodayWork/);
 });

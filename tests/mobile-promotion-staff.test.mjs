@@ -84,6 +84,7 @@ test('employee home uses one shared feature registry instead of role-specific ho
   assert.match(registry, /notice\.read/);
   assert.match(registry, /promotion\.author/);
   assert.match(home, /업무 플랫폼 열기/);
-  assert.match(home, /PromotionStaffShortcut enabled=\{promotionFeature\?\.state === 'enabled'\}/);
+  assert.doesNotMatch(home, /PromotionStaffShortcut|loadPromotionWorkspace/);
+  assert.match(home, /\{canOpenWorkPlatform \? \(/);
   assert.match(home, /OfficialChannelsFooter/);
 });

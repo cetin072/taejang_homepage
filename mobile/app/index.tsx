@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   AppState,
   Alert,
   KeyboardAvoidingView,
@@ -20,13 +19,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AttendanceCard } from '@/src/features/attendance/attendance-card';
+import { BrandLoadingView } from '@/src/features/common/brand-loading-view';
 import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
-import { PromotionStaffShortcut } from '@/src/features/promotion/promotion-staff-shortcut';
-import { ScheduleHomeAction } from '@/src/features/schedules/schedule-home-action';
-import { TodayWorkAction } from '@/src/features/today/today-work-action';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { friendlyError } from '@/src/platform/friendly-error';
 
@@ -264,10 +261,9 @@ export default function HomeScreen() {
   const employeeFeatures = useMemo(() => resolveEmployeeAppFeatures(access), [access]);
   const attendanceFeature = employeeFeatures.get('attendance.clock');
   const noticeFeature = employeeFeatures.get('notice.read');
-  const promotionFeature = employeeFeatures.get('promotion.author');
   const workPlatformFeature = employeeFeatures.get('work-platform.open');
   const canOpenWorkPlatform = workPlatformFeature?.state === 'enabled';
-  const primaryCount = 3;
+  const primaryCount = canOpenWorkPlatform ? 3 : 2;
   const actionHeight = useMemo(() => {
     const available = Math.max(360, windowHeight - 300);
     const raw = Math.floor((available - (primaryCount - 1) * 14) / primaryCount);
@@ -275,14 +271,7 @@ export default function HomeScreen() {
   }, [primaryCount, windowHeight]);
 
   if (phase === 'loading') {
-    return (
-      <View style={[styles.center, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}>
-        <StatusBar style="dark" />
-        <Text style={styles.brandMark}>泰張</Text>
-        <ActivityIndicator size="large" />
-        <Text style={styles.statusText}>태장을 연결하고 있습니다.</Text>
-      </View>
-    );
+    return <BrandLoadingView />;
   }
 
   if (phase === 'error') {
@@ -536,15 +525,8 @@ export default function HomeScreen() {
     );
   }
 
-  if (accessLoading && !access) {
-    return (
-      <View style={[styles.center, { paddingTop: 24 + insets.top, paddingBottom: 24 + insets.bottom }]}>
-        <StatusBar style="dark" />
-        <Text style={styles.brandMark}>泰張</Text>
-        <ActivityIndicator size="large" />
-        <Text style={styles.statusText}>계정 상태를 확인하고 있습니다.</Text>
-      </View>
-    );
+  if (!access && !accessError) {
+    return <BrandLoadingView />;
   }
 
   if (accessError && !access) {
@@ -627,14 +609,11 @@ export default function HomeScreen() {
                 mode={attendanceFeature?.attendanceMode || 'record'}
               />
             ) : null}
-            <TodayWorkAction minHeight={actionHeight} />
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
-            <ScheduleHomeAction minHeight={actionHeight} />
-            <PromotionStaffShortcut enabled={promotionFeature?.state === 'enabled'} />
-            {workPlatformFeature?.state !== 'hidden' ? (
+            {canOpenWorkPlatform ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
-                subtitle={canOpenWorkPlatform ? '내 업무와 관리 기능' : workPlatformFeature?.reason}
+                subtitle="내 업무와 관리 기능"
                 minHeight={actionHeight}
                 secondary
                 disabled={!canOpenWorkPlatform || platformOpening}
@@ -671,7 +650,6 @@ const styles = StyleSheet.create({
   body: { color: '#3d5148', fontSize: 16, lineHeight: 24 },
   bodyCenter: { color: '#3d5148', fontSize: 16, lineHeight: 25, textAlign: 'center' },
   help: { color: '#66766d', fontSize: 13, lineHeight: 20 },
-  statusText: { color: '#43584d', fontSize: 15, fontWeight: '700' },
   card: {
     gap: 14,
     padding: 20,
