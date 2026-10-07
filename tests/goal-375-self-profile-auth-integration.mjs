@@ -71,6 +71,10 @@ async function forbiddenSelf(label) {
 await forbiddenSelf('suspended profile');
 sql(`update public.profiles set account_status='departed' where id='${worker.id}'::uuid`);
 await forbiddenSelf('departed profile');
+for (const state of ['pending','deleted']) {
+  sql(`update public.profiles set account_status='${state}' where id='${worker.id}'::uuid`);
+  await forbiddenSelf(state+' profile');
+}
 sql(`update public.profiles set account_status='active' where id='${worker.id}'::uuid`);
 sql(`update public.employees set archived_at=now(),archived_by='${reviewer.id}'::uuid,archive_reason='Issue387 fixture' where id='${employeeId}'::uuid`);
 await forbiddenSelf('archived employee with active account and live link');
@@ -95,7 +99,7 @@ activateWithRole(scoped,'department_lead');
 sql(`update public.profiles set department_id='${departmentId}'::uuid where id='${scoped.id}'::uuid`);
 sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.review_change_requests' from public.roles where code='department_lead' on conflict do nothing");
 const outWorker = await signup(`issue387-out-${unique}@example.test`,'Issue387 out of scope',{phone:'010-3870-1001',hired_on:'2026-09-25',signup_channel:'native_employee'});
-const outsideDepartment=sql(`insert into public.departments(code,name,sort_order) values ('issue387-${unique}','Issue387 outside',999) returning id`).split('\n')[0];
+const outsideDepartment=sql(`insert into public.departments(code,name,sort_order) values ('issue387_${unique.replaceAll('-', '_')}','Issue387 outside',999) returning id`).split('\n')[0];
 const outApproval=await rpc('approve_employee_signup_request',reviewer,{p_target_profile_id:outWorker.id,p_department_id:outsideDepartment,p_position_id:positionId,p_role_code:'general_worker',p_reason_summary:'Issue387 isolated scope fixture'});
 check(outApproval.ok && outApproval.data?.ok,'out-of-scope employee fixture approved');
 const outRequest=await rpc('submit_my_employee_contact_change_request',outWorker,{p_phone:'010-3870-1002'});
@@ -120,8 +124,19 @@ for (const action of ['changes_requested','reject','approve']) {
 const allQueue=await rpc('get_employee_management_context',reviewer);
 check(allQueue.ok && allQueue.data.self_service_contact_requests.some(row=>row.id===outRequest.data.request_id),'operations reviewer retains full-scope queue');
 check((await rpc('review_employee_contact_change_request',reviewer,{p_request_id:outRequest.data.request_id,p_action:'approve'})).ok,'operations reviewer retains full-scope approval');
+// A target leaving the eligible set must disappear from the queue and be denied.
+const archivedPending=await rpc('submit_my_employee_contact_change_request',worker,{p_phone:'010-3870-0010'});
+check(archivedPending.ok && archivedPending.data?.ok,'pending request exists before archive');
+sql(`update public.employees set archived_at=now(),archived_by='${reviewer.id}'::uuid,archive_reason='Issue387 fixture' where id='${employeeId}'::uuid`);
+const archivedQueue=await rpc('get_employee_management_context',reviewer);
+check(archivedQueue.ok && !archivedQueue.data.self_service_contact_requests.some(row=>row.id===archivedPending.data.request_id),'archived target disappears from full-scope queue');
+for (const action of ['approve','changes_requested','reject']) equal((await rpc('review_employee_contact_change_request',reviewer,{p_request_id:archivedPending.data.request_id,p_action:action})).status,403,'archived target review denied: '+action);
+sql(`update public.employees set archived_at=null,archived_by=null,archive_reason=null where id='${employeeId}'::uuid`);
+check((await rpc('review_employee_contact_change_request',reviewer,{p_request_id:archivedPending.data.request_id,p_action:'reject'})).ok,'restored target request can be decided');
 // Worker is granted the same scoped reviewer role so self approval is tested WITH capability.
 activateWithRole(worker,'department_lead');
+const selfCapabilities=await rpc('get_my_access_context_v2',worker);
+check(selfCapabilities.ok && selfCapabilities.data.capabilities.includes('employee.review_change_requests'),'self decision fixture actually holds review capability');
 const own=await rpc('submit_my_employee_contact_change_request',worker,{p_phone:'010-3870-0007'});
 for (const action of ['approve','changes_requested','reject']) equal((await rpc('review_employee_contact_change_request',worker,{p_request_id:own.data.request_id,p_action:action})).status,403,'capable reviewer cannot decide own request: '+action);
 check(!(await rpc('get_employee_management_context',outWorker)).ok,'ordinary employee cannot list other employee requests');
