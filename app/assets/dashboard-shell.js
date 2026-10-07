@@ -75,10 +75,6 @@
   }
   function openPromotionWrite() {
     closeSidebar();
-    const route = window.TaejangApp?.getRoute?.();
-    if (route === 'operations_manager' && typeof window.TaejangOperationsPromotionWriter?.open === 'function') {
-      return window.TaejangOperationsPromotionWriter.open();
-    }
     return openPromotion('write');
   }
   function openSentPromotion() {
