@@ -18,6 +18,7 @@ const appIndex = fs.readFileSync(path.join(root, 'app/index.html'), 'utf8');
 const dashboard = fs.readFileSync(path.join(root, 'app/assets/dashboard-shell.js'), 'utf8');
 const roleNavigation = fs.readFileSync(path.join(root, 'app/assets/role-navigation-priority.js'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20260913070500_issue_192_upper_review_archive_guard.sql'), 'utf8');
+const returnedArchiveMigration = fs.readFileSync(path.join(root, 'supabase/migrations/20261007123000_promotion_lead_returned_archive.sql'), 'utf8');
 const promotionDetail = fs.readFileSync(path.join(root, 'assets/js/promotion-detail.js'), 'utf8');
 const publicFeed = read('netlify/functions/public-promotion-feed.mjs');
 const externalMeta = fs.readFileSync(path.join(root, 'netlify/functions/external-content-meta.mjs'), 'utf8');
@@ -139,11 +140,18 @@ test('external metadata returns channel identity for YouTube page ownership chec
 
 test('upper approval history blocks promotion-lead deletion in UI and server contract', () => {
   assert.match(issue181, /get_promotion_review_handoff/);
-  assert.match(issue181, /if \(handoff\) \{\s*existingDelete\?\.remove\(\)/);
+  assert.match(issue181, /existingDelete\.textContent = handoff \? '삭제\(보관\)' : '삭제'/);
+  assert.match(issue181, /archiveReviewItem\(item, Boolean\(handoff\)\)/);
   assert.match(issue181, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
   assert.match(migration, /review\.stage in \('operations', 'ceo'\)/);
   assert.match(migration, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
   assert.match(migration, /public\.archive_unpublished_promotion_content/);
+  assert.match(returnedArchiveMigration, /returned_from_operations/);
+  assert.match(returnedArchiveMigration, /operations_review\.decision = 'changes_requested'/);
+  assert.match(returnedArchiveMigration, /lead_review\.decision = 'pending'/);
+  assert.match(returnedArchiveMigration, /not has_ceo_review_history/);
+  assert.match(returnedArchiveMigration, /archive_snapshot = jsonb_build_object/);
+  assert.match(returnedArchiveMigration, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
 });
 
 test('preview reveal helper actually scrolls the generated panel into view', () => {
