@@ -125,9 +125,44 @@
     return `post-${parts}-${token}`;
   }
 
-  function session() {
-    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
+  function storedSession(storage) {
+    try { return JSON.parse(storage?.getItem?.(SESSION_KEY) || '{}'); }
     catch { return {}; }
+  }
+
+  function session() {
+    const live = app()?.getSession?.();
+    if (live?.access_token || live?.refresh_token) return live;
+    const persistent = storedSession(window.localStorage);
+    if (persistent?.access_token || persistent?.refresh_token) return persistent;
+    return storedSession(window.sessionStorage);
+  }
+
+  function jwtPayload(token) {
+    try {
+      const part = token.split('.')[1].replaceAll('-', '+').replaceAll('_', '/');
+      const padded = part.padEnd(Math.ceil(part.length / 4) * 4, '=');
+      return JSON.parse(atob(padded));
+    } catch { return null; }
+  }
+
+  function tokenExpiresSoon(token) {
+    const exp = Number(jwtPayload(token)?.exp || 0);
+    return Number.isFinite(exp) && exp > 0 && exp * 1000 <= Date.now() + 60_000;
+  }
+
+  async function refreshAuthSession() {
+    if (typeof app()?.refreshSession !== 'function') return null;
+    const refreshed = await app().refreshSession();
+    return refreshed ? session() : null;
+  }
+
+  async function authenticatedSession() {
+    let auth = session();
+    if ((!auth?.access_token || tokenExpiresSoon(auth.access_token)) && auth?.refresh_token) {
+      auth = await refreshAuthSession() || auth;
+    }
+    return auth;
   }
 
   async function config() {
@@ -140,11 +175,7 @@
   }
 
   function jwtSubject(token) {
-    try {
-      const part = token.split('.')[1].replaceAll('-', '+').replaceAll('_', '/');
-      const padded = part.padEnd(Math.ceil(part.length / 4) * 4, '=');
-      return JSON.parse(atob(padded)).sub || null;
-    } catch { return null; }
+    return jwtPayload(token)?.sub || null;
   }
 
   function uploadUserId(auth) {
@@ -173,25 +204,35 @@
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
     if (file.size > 8 * 1024 * 1024) throw new Error('사진 1장은 8MB 이하로 올려주세요.');
-    const auth = session();
-    const userId = uploadUserId(auth);
+    let auth = await authenticatedSession();
+    let userId = uploadUserId(auth);
     if (!auth.access_token || !userId) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
     const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
     const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
+    const postUpload = currentAuth => fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
+      method: 'POST',
+      headers: {
+        apikey: cfg.publishableKey,
+        Authorization: `Bearer ${currentAuth.access_token}`,
+        'Content-Type': file.type,
+        'x-upsert': 'false'
+      },
+      body: file
+    });
+
     let response;
     try {
-      response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
-        method: 'POST',
-        headers: {
-          apikey: cfg.publishableKey,
-          Authorization: `Bearer ${auth.access_token}`,
-          'Content-Type': file.type,
-          'x-upsert': 'false'
-        },
-        body: file
-      });
+      response = await postUpload(auth);
+      if (response.status === 401) {
+        const refreshed = await refreshAuthSession();
+        if (refreshed?.access_token) {
+          auth = refreshed;
+          userId = uploadUserId(auth) || userId;
+          response = await postUpload(auth);
+        }
+      }
     } catch (error) {
       console.warn('[promotion-media-upload]', {
         stage: 'storage-post',
@@ -209,14 +250,25 @@
   }
 
   async function fetchExternalMeta(url) {
-    const auth = session();
+    let auth = await authenticatedSession();
     if (!auth.access_token) throw new Error('로그인 정보를 확인할 수 없습니다.');
-    const response = await fetch('/.netlify/functions/external-content-meta', {
+
+    const requestMeta = currentAuth => fetch('/.netlify/functions/external-content-meta', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.access_token}` },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentAuth.access_token}` },
       body: JSON.stringify({ url })
     });
-    const payload = await response.json().catch(() => null);
+
+    let response = await requestMeta(auth);
+    let payload = await response.json().catch(() => null);
+    if ((response.status === 401 || (response.status === 403 && payload?.error === 'FORBIDDEN'))) {
+      const refreshed = await refreshAuthSession();
+      if (refreshed?.access_token) {
+        auth = refreshed;
+        response = await requestMeta(auth);
+        payload = await response.json().catch(() => null);
+      }
+    }
     if (!response.ok) throw new Error(payload?.message || '링크 정보를 가져오지 못했습니다.');
     return payload || {};
   }
