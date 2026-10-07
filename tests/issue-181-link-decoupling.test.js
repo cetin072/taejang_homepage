@@ -32,10 +32,11 @@ test('draft RPC wrapper persists linked URL independently of content type', () =
   assert.match(live, /set_promotion_link_source/);
   assert.match(live, /p_link_source_type: sourceType/);
 
-  // The legacy workspace still builds its save payload from content_type. The
-  // Issue #181 runtime wrapper must therefore remain loaded after it and repair
-  // the live payload before the RPC reaches Supabase.
-  assert.match(workspace, /formState\.type\.value === 'external_content'/);
+  // The canonical workspace now persists a linked URL for every content type.
+  // The Issue #181 wrapper remains as a compatibility guard for older/direct edit paths.
+  assert.match(workspace, /p_external_url: formState\.external\.value\.trim\(\) \|\| null/);
+  assert.match(workspace, /p_source_reference_url: formState\.external\.value\.trim\(\) \|\| null/);
+  assert.doesNotMatch(workspace, /formState\.type\.value === 'external_content' \? \(formState\.external/);
 });
 
 test('visible composer may remove a link while hidden legacy lead edit preserves it', () => {

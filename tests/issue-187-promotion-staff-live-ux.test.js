@@ -75,7 +75,7 @@ test('issue 192 promotion modules parse and official channel config is Core-stat
     'assets/js/promotion-detail.js'
   ].forEach(syntaxCheck);
   assert.doesNotThrow(() => new Function(publicFeed.replace('export default async', 'const handler = async')));
-  assert.doesNotThrow(() => new Function(externalMeta.replace(/^import[^\n]+\n/gm, '').replace('export default async', 'const handler = async')));
+  assert.doesNotThrow(() => new Function(externalMeta.replace(/^import[^\n]+\n/gm, '').replace(/^export function /gm, 'function ').replace('export default async', 'const handler = async')));
   assert.match(appIndex, /assets\/official-channel-config\.js/);
   assert.doesNotMatch(appUi, /assets\/official-channel-config\.js/);
   assert.ok(appUi.indexOf('assets/phase-c-workspace-v2.js') >= 0);

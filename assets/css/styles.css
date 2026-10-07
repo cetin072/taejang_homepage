@@ -331,6 +331,7 @@ button{cursor:pointer}
 .article-header h1{font:800 clamp(29px,4vw,40px)/1.45 var(--myeongjo);color:var(--green-deep);margin:10px 0}
 .article-meta{display:flex;gap:12px;align-items:center;font-size:13px;color:var(--green)}
 .article-body p{font-size:16.5px;line-height:2;margin:0 0 22px}
+.article-body .article-inline-link{overflow-wrap:anywhere;word-break:break-word;text-decoration:underline;text-underline-offset:.14em}
 .article-body h2{font:700 24px var(--myeongjo);color:var(--green-deep);margin:40px 0 14px}
 .article-body figure{margin:34px 0}
 .article-body .article-representative-media{overflow:hidden;max-height:480px;aspect-ratio:16/9}
