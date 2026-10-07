@@ -644,10 +644,6 @@
       const reason = window.prompt('대표이사 확인이 필요한 이유를 적어주세요.', '');
       if (!reason?.trim()) return;
       comment = `요약: ${summary.trim()}\n확인 이유: ${reason.trim()}`;
-    } else if (action === 'on_hold') {
-      comment = window.prompt('보류 사유가 있으면 적어주세요.', '')?.trim() || null;
-      revisit = window.prompt('다시 확인할 날짜를 YYYY-MM-DD로 적어주세요.', '');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(revisit || '')) { window.alert('날짜 형식을 확인해 주세요.'); return; }
     }
     await app().rpc('review_promotion_revision', {
       p_content_id: detail.content_id,
@@ -876,6 +872,34 @@
     if (!items.length) grid.append(el('p', '현재 검토 대기 안건이 없습니다.', 'empty'));
     for (const item of items) grid.append(await reviewCard(item, workspace));
     target.append(grid);
+
+    const heldItems = arr(workspace.held_items);
+    const heldSection = el('section', null, 'dashboard-section');
+    heldSection.append(el('h2', '검토 보류'));
+    const heldGrid = el('div', null, 'phase-c-v2-grid');
+    if (!heldItems.length) {
+      heldGrid.append(el('p', '현재 검토 보류한 안건이 없습니다.', 'empty'));
+    } else {
+      heldItems.forEach(item => {
+        const card = el('article', null, 'dashboard-card phase-c-v2-card promotion-card');
+        card.append(el('span', '검토 보류', 'status-label'), el('h3', item.title || '제목 없음'));
+        if (item.decision_comment) card.append(el('p', `보류 메모: ${item.decision_comment}`, 'phase-c-review-note'));
+        if (item.held_at) card.append(el('p', `보류 ${new Date(item.held_at).toLocaleString('ko-KR')}`, 'help'));
+        const actions = el('div', null, 'quick-links');
+        actions.append(button('검토 재개', async () => {
+          try {
+            await app().rpc('resume_promotion_review', { p_content_id: item.content_id });
+            await openPromotion('review');
+          } catch (error) {
+            window.alert(app().friendlyError?.(error) || '검토를 재개하지 못했습니다.');
+          }
+        }));
+        card.append(actions);
+        heldGrid.append(card);
+      });
+    }
+    heldSection.append(heldGrid);
+    target.append(heldSection);
   }
 
   async function openPromotion(mode = 'review') {
