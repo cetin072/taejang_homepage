@@ -305,7 +305,12 @@ async function fetchHtml(initialUrl) {
       response = await fetch(current, {
         redirect: 'manual',
         signal: controller.signal,
-        headers: { 'User-Agent': 'TaejangPreviewBot/1.0 (+https://taejang.co.kr)' }
+        headers: naverTarget
+          ? {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36',
+              'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8'
+            }
+          : { 'User-Agent': 'TaejangPreviewBot/1.0 (+https://taejang.co.kr)' }
       });
     } finally {
       clearTimeout(timer);
