@@ -55,6 +55,8 @@ test('promotion writing uses canonical shared sidebar labels owned by dashboard 
   assert.doesNotMatch(ux, /section\.remove\(\)/);
   assert.match(ux, /\['review_pending','approved','scheduled','published','hidden','archived'\]\.includes\(item\.lifecycle\)/);
   assert.match(ux, /item\?\.is_owner === true/);
+  assert.match(ux, /role_simulation\?\.active === true/);
+  assert.match(ux, /역할 미리보기에서는 개인별 보낸 글을 표시하지 않습니다/);
   assert.match(ux, /promotion_lead:[\s\S]*운영총괄에게 상신/);
   assert.match(ux, /operations_manager:[\s\S]*운영팀장에게 검토 요청/);
   assert.match(workspace, /TaejangIssue207Ux\?\.openSent/);
