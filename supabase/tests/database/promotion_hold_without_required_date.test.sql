@@ -35,7 +35,7 @@ select ok(
 
 select ok(
   position(
-    '''held_items'''
+    'held_items jsonb'
     in pg_get_functiondef('public.get_my_promotion_workspace()'::regprocedure)
   ) > 0,
   'promotion workspace returns held review items'
