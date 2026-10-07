@@ -45,12 +45,12 @@ test('account deletion web resource is explicit and does not ask for passwords',
   assert.match(deletion, /mailto:taejang2025@naver\.com/);
 });
 
-test('Android Play identity advances the 0.1.2 closed-test candidate versionCode', async () => {
+test('Android Play identity advances the 0.1.3 closed-test candidate versionCode', async () => {
   const app = JSON.parse(await text('mobile/app.json'));
   assert.equal(app.expo.name, '태장');
-  assert.equal(app.expo.version, '0.1.2');
+  assert.equal(app.expo.version, '0.1.3');
   assert.equal(app.expo.android.package, 'com.cetin072.taejang.staff');
-  assert.equal(app.expo.android.versionCode, 3);
+  assert.equal(app.expo.android.versionCode, 4);
   assert.equal(app.expo.android.adaptiveIcon.backgroundColor, '#FDFCFD');
   assert.equal(app.expo.android.adaptiveIcon.foregroundImage, './assets/taejang-adaptive-foreground.png');
   assert.equal(app.expo.icon, './assets/taejang-launcher-icon.png');

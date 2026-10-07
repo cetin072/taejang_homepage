@@ -1,6 +1,6 @@
 # 태장 직원앱 Google Play 비공개 테스트 제출 기준
 
-기준일: 2026-09-23  
+기준일: 2026-10-08  
 대상 앱: 태장 직원앱  
 Android package: `com.cetin072.taejang.staff`
 
@@ -23,7 +23,8 @@ Android package: `com.cetin072.taejang.staff`
 - 유형: 앱
 - 가격: 무료
 - 최초 Android versionCode: `1`
-- 현재 Play candidate: versionName `0.1.1` / versionCode `2`
+- 현재 Play 배포: versionName `0.1.2` / versionCode `3`
+- 다음 Closed Testing candidate: versionName `0.1.3` / versionCode `4`
 
 패키지명은 최초 Play 업로드 이후 장기 식별자로 취급한다. 새 Play 빌드마다 versionCode를 증가시킨다.
 
@@ -223,7 +224,7 @@ upload keystore는 소유자가 생성·보관하고, GitHub Secrets 외의 승�
 
 workflow는 release AAB 존재, JAR 서명 유효성, Android debug certificate 미사용, arm64 native library, package, target SDK 36 이상, foreground location/notification 권한, background location 부재를 검증한 뒤에만 artifact를 남긴다.
 
-기존 `android-standalone`은 실기기 QA 전용 ARM64 **debug APK**를 만든다. 이 APK는 Play 제출물이 아니며, release 변형은 upload key가 주입된 `android-play-aab`에서만 생성한다.
+기존 `android-standalone`은 실기기 QA 전용 ARM64 **self-contained release-mode APK**를 만들되 QA/debug signing key를 사용한다. 이 APK는 Play 제출물이 아니며, Play 제출 AAB는 upload key가 주입된 `android-play-aab`에서만 생성한다.
 
 ## 10. Closed testing 운영
 
