@@ -65,6 +65,8 @@ jobs:
   android-standalone:
     needs: typecheck
     runs-on: ubuntu-latest
+    env:
+      TAEJANG_APP_VARIANT: qa
     # A clean React Native native build can take longer than 25 minutes on a
     # cold hosted runner. Keep the ARM64 device artifact as a required check
     # instead of cancelling a healthy compiler during its first dependency build.
@@ -102,7 +104,8 @@ jobs:
           test -s app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp
           test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-          grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
+          grep -q '<color name="iconBackground">#F3E7A7</color>' app/src/main/res/values/colors.xml
+          grep -q '<string name="app_name">태장 QA</string>' app/src/main/res/values/strings.xml
       - name: Build standalone ARM64 QA release APK
         working-directory: mobile/android
         env:
@@ -116,16 +119,19 @@ jobs:
             -Pandroid.injected.signing.key.alias=androiddebugkey \
             -Pandroid.injected.signing.key.password=android \
             --no-daemon
-      - name: Verify standalone QA APK embeds the JS bundle
+      - name: Verify standalone QA APK identity and embedded JS bundle
         working-directory: mobile/android
         run: |
           APK=app/build/outputs/apk/release/app-release.apk
           test -s "$APK"
           unzip -l "$APK" | grep -q 'assets/index.android.bundle'
+          MANIFEST=app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
+          test -s "$MANIFEST"
+          grep -q 'package="com.cetin072.taejang.staff.qa"' "$MANIFEST"
       - name: Upload standalone QA release APK
         uses: actions/upload-artifact@v4
         with:
-          name: taejang-employee-mobile-qa-release-apk
+          name: taejang-employee-mobile-qa-app-apk
           path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
@@ -139,6 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      TAEJANG_APP_VARIANT: production
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
