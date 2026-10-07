@@ -77,7 +77,7 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });
 
-test('mobile CI keeps ARM64 device QA on an explicitly debug-signed APK', async () => {
+test('mobile CI keeps ARM64 device QA on a self-contained release-mode APK', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
   assert.match(workflow, /rm -f package-lock\.json/);
   assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);
@@ -87,9 +87,11 @@ test('mobile CI keeps ARM64 device QA on an explicitly debug-signed APK', async 
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /expo prebuild --platform android --no-install/);
   assert.match(workflow, /timeout-minutes: 45/);
-  assert.match(workflow, /assembleDebug -PreactNativeArchitectures=arm64-v8a/);
-  assert.match(workflow, /outputs\/apk\/debug\/app-debug\.apk/);
-  assert.match(workflow, /taejang-employee-mobile-arm64-apk/);
+  assert.match(workflow, /assembleRelease/);
+  assert.match(workflow, /android\.injected\.signing\.store\.file/);
+  assert.match(workflow, /assets\/index\.android\.bundle/);
+  assert.match(workflow, /outputs\/apk\/release\/app-release\.apk/);
+  assert.match(workflow, /taejang-employee-mobile-qa-release-apk/);
 });
 
 test('release prebuild removes Expo debug signing and requires the protected upload-signing workflow', async () => {
