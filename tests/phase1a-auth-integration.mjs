@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { operationsOwnedPromotionChecks } from './operations-owned-promotion-auth.mjs';
 import { execFileSync } from 'node:child_process';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
@@ -691,4 +692,5 @@ equal(clearOpsOnlySimulation.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations 
 const restoredContext = await rpc('get_my_access_context', admin.token, {});
 equal(restoredContext.data?.role_simulation?.active, false, 'ending simulation restores the actual operations-manager context');
 
+await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 console.log(`Phase 1A Auth integration passed: ${assertions} assertions`);

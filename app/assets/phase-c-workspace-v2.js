@@ -311,7 +311,12 @@
     });
   }
 
-  async function savePromotion(formState, submitAfterSave, existingItem) {
+  async function savePromotion(formState, action, existingItem) {
+    const submitAfterSave = action === true;
+    if (formState.uploading) return;
+    if (action === 'schedule' && (!formState.scheduleDate.value || new Date(publicationSchedule(formState.scheduleDate.value)).getTime() <= Date.now())) {
+      window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return;
+    }
     const body = formState.body.value;
     const title = formState.title.value.trim();
     if (!title) { window.alert('제목을 입력해 주세요.'); return; }
@@ -320,16 +325,16 @@
     }
     const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined }));
     const payload = {
-      p_content_id: existingItem?.content_id || null,
+      p_content_id: formState.savedContentId || existingItem?.content_id || null,
       p_content_type: formState.type.value,
-      p_slug: existingItem?.slug || makeSlug(),
+      p_slug: formState.savedSlug || existingItem?.slug || makeSlug(),
       p_title: title,
       p_summary: summaryFromBody(body),
       p_public_body: body.trim() || null,
       p_external_url: formState.external.value.trim() || null,
-      p_byline: null,
-      p_byline_kind: 'company',
-      p_related_organization: null,
+      p_byline: existingItem?.byline || null,
+      p_byline_kind: formState.bylineKind?.value || existingItem?.byline_kind || 'company',
+      p_related_organization: existingItem?.related_organization || null,
       p_source_reference_url: formState.external.value.trim() || null,
       p_hero_image_url: formState.heroImage || publicMedia[0]?.url || null,
       p_public_media: publicMedia,
@@ -342,15 +347,27 @@
       formState.saveButtons.forEach(node => { node.disabled = true; });
       const isOperations = can('promotion.edit_any_unpublished', route() === 'operations_manager');
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
+      formState.savedContentId = saved.content_id;
+      formState.savedSlug = payload.p_slug;
+      if (action === 'publish' || action === 'schedule') {
+        await app().rpc('queue_operations_owned_promotion', {
+          p_content_id: saved.content_id,
+          p_scheduled_for: action === 'schedule' ? publicationSchedule(formState.scheduleDate.value) : null
+        });
+        editingContentId = null;
+        await openPromotion('publication');
+        return;
+      }
+      if (action === 'ceo') await app().rpc('submit_operations_owned_promotion_for_ceo', { p_content_id: saved.content_id });
       if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
-      if (submitAfterSave && typeof window.TaejangIssue207Ux?.openSent === 'function') {
+      if ((submitAfterSave || action === 'ceo') && typeof window.TaejangIssue207Ux?.openSent === 'function') {
         await window.TaejangIssue207Ux.openSent();
         return;
       }
       await openPromotion('write');
     } catch (error) {
-      window.alert(app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
+      window.alert(error.message?.includes('CEO_APPROVAL_REQUIRED') ? '대표이사 확인이 필요한 글입니다. 대표이사 승인 요청 후 공개해 주세요.' : app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
     } finally {
       formState.saveButtons.forEach(node => { node.disabled = false; });
     }
@@ -366,12 +383,16 @@
     form.className = 'phase-c-board-form';
     form.addEventListener('submit', event => event.preventDefault());
 
+    const operationsAuthor = route() === 'operations_manager';
     const type = select([
       ['homepage_article', '태장 소식 (홈페이지)'],
       ['external_content', '외부 기사·콘텐츠'],
       ['press_release', '보도자료']
     ]);
     type.value = existingItem?.content_type || 'homepage_article';
+    const bylineKind = select([['company', '회사 명의'], ['ceo', '대표이사 명의'], ['other', '기타 명의']]);
+    bylineKind.value = existingItem?.byline_kind || 'company';
+    const scheduleDate = input('date');
     const title = input();
     title.value = existingItem?.title || '';
     title.maxLength = 160;
@@ -394,6 +415,7 @@
       field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액처럼 상위 검토가 필요한 수치만 예로 선택하세요. 1호·3차·연도 같은 일반 숫자는 아니오입니다.')
     );
 
+    if (operationsAuthor) form.append(field('작성 명의', bylineKind, '대표이사 명의는 대표이사 확인 후 공개할 수 있습니다.'));
     const externalWrap = el('div', null, 'phase-c-link-tools');
     const external = input('url');
     external.value = existingItem?.external_url || '';
@@ -448,12 +470,14 @@
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, numberOrAmount, external, body, media, heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
+    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
     renderMediaEditor(mediaGrid, media, () => {});
     fileInput.addEventListener('change', async () => {
       const files = [...(fileInput.files || [])];
       if (!files.length) return;
       if (media.length + files.length > 12) { window.alert('사진은 최대 12장까지 올릴 수 있습니다.'); fileInput.value = ''; return; }
+      state.uploading = true;
+      state.saveButtons.forEach(node => { node.disabled = true; });
       uploadLabel.style.pointerEvents = 'none';
       uploadStatus.textContent = '사진을 업로드하고 있습니다.';
       try {
@@ -468,6 +492,8 @@
         window.alert(error.message || '사진 업로드에 실패했습니다.');
         uploadStatus.textContent = '사진 업로드 실패';
       } finally {
+        state.uploading = false;
+        state.saveButtons.forEach(node => { node.disabled = false; });
         uploadLabel.style.pointerEvents = '';
         fileInput.value = '';
       }
@@ -479,15 +505,28 @@
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
     const currentRole = route();
     const leadAuthor = currentRole === 'promotion_lead';
-    const operationsAuthor = currentRole === 'operations_manager';
     const submitLabel = leadAuthor
       ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
       : operationsAuthor
-        ? (existingItem ? '저장 후 운영팀장 재검토 요청' : '저장 후 운영팀장 검토 요청')
+        ? '운영팀장 검토 요청'
         : (existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청');
     const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
+    if (operationsAuthor && (!existingItem || existingItem.is_owner === true)) {
+      const publish = button('바로 공개', () => savePromotion(state, 'publish', existingItem));
+      const ceo = button('대표이사 승인 요청', () => savePromotion(state, 'ceo', existingItem));
+      const schedule = button('예약 공개', () => savePromotion(state, 'schedule', existingItem));
+      const scheduleField = field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.');
+      form.append(scheduleField);
+      state.saveButtons.push(publish, ceo, schedule);
+      actions.append(publish, ceo, schedule);
+      const syncCeoGate = () => {
+        const needsCeo = bylineKind.value === 'ceo' || existingItem?.minimum_review_stage === 'ceo';
+        ceo.hidden = !needsCeo; publish.hidden = needsCeo; schedule.hidden = needsCeo; scheduleField.hidden = needsCeo;
+      };
+      bylineKind.addEventListener('change', syncCeoGate); syncCeoGate();
+    }
     if (existingItem) actions.append(button('수정 취소', () => { editingContentId = null; openPromotion('revision'); }, true));
     form.append(actions);
     section.append(form);
@@ -707,7 +746,7 @@
     const target = main();
     const intro = renderIntro('홈페이지 발행', title, role === 'promotion_lead'
       ? '최종 승인이 끝난 콘텐츠를 지금 공개하거나 게시일을 예약합니다.'
-      : '최종 승인과 예약 현황을 조회합니다. 공개와 예약 지정은 운영팀장이 담당합니다.');
+      : '본인이 직접 작성하고 승인이 완료된 글은 공개·예약할 수 있습니다. 다른 작성자의 글은 기존 운영팀장 발행 흐름을 따릅니다.');
     target.replaceChildren(intro);
     if (role === 'operations_manager') {
       const tools = el('div', null, 'quick-links');
@@ -717,6 +756,7 @@
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
     try {
       const items = arr(await app().rpc('get_promotion_publication_overview'));
+      const ownItems = new Map(arr(workspace.my_items).map(item => [item.content_id, item]));
       const section = el('section', null, 'dashboard-section phase-c-publication-page');
       section.append(el('h2', `발행 대상 ${items.length}건`));
       const grid = el('div', null, 'phase-c-v2-grid');
@@ -739,6 +779,18 @@
         const actions = el('div', null, 'quick-links');
         if (canQueue && item.queue_status !== 'queued' && item.lifecycle !== 'scheduled') {
           actions.append(button('공개/예약 설정', () => queuePublication(item)));
+        }
+        if (role === 'operations_manager' && ownItems.get(item.content_id)?.operations_owned_publication === true && ownItems.get(item.content_id)?.is_owner === true && item.lifecycle === 'approved') {
+          const actualDate = input('date');
+          actions.append(button('바로 공개', async () => {
+            try { await app().rpc('queue_operations_owned_promotion', { p_content_id: item.content_id, p_scheduled_for: null }); await openPromotion('publication'); }
+            catch (error) { window.alert(app().friendlyError?.(error) || error.message); }
+          }));
+          actions.append(field('실제 예약일', actualDate), button('예약 공개', async () => {
+            if (!actualDate.value || new Date(publicationSchedule(actualDate.value)).getTime() <= Date.now()) { window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return; }
+            try { await app().rpc('queue_operations_owned_promotion', { p_content_id: item.content_id, p_scheduled_for: publicationSchedule(actualDate.value) }); await openPromotion('publication'); }
+            catch (error) { window.alert(app().friendlyError?.(error) || error.message); }
+          }));
         }
         if (role === 'operations_manager') {
           actions.append(button('삭제(보관)', () => archivePromotionAsOperations(item), true));
@@ -818,7 +870,10 @@
       main().querySelector('.dashboard-intro')?.after(previewCard(detail));
     }, true));
 
-    if (workspace.role === 'promotion_lead') {
+    if (workspace.role === 'promotion_lead' && item.operations_owned_publication === true) {
+      actions.append(button('보완 요청', () => reviewAction(detail, 'changes_requested'), true));
+      actions.append(button(detail.required_stage === 'ceo' ? '검토 완료·대표이사 확인' : '검토 완료', () => reviewAction(detail, 'approve')));
+    } else if (workspace.role === 'promotion_lead') {
       actions.append(button('직접 수정', () => renderLeadEdit(detail), true));
       if (handoff) {
         actions.append(button('홍보직원에게 보완 전달', async () => {

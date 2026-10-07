@@ -90,6 +90,7 @@ jobs:
           set -a
           source /tmp/taejang-supabase.env
           set +a
+          # tests/operations-owned-promotion-auth.mjs runs inside the Phase 1A Auth fixtures below.
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/monthly-client-documents-auth-integration.mjs

@@ -1,0 +1,47 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>operations-owned promotion gate</title>
+<section id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></section><pre id="result">RUNNING</pre>
+<script>
+let role='operations_manager', current=null,failPublish=false,simulation=false;
+const items=[],calls=[],alerts=[];
+window.alert=m=>alerts.push(m);window.confirm=()=>true;
+window.TaejangApp={getRoute:()=>role,getContext:()=>({role_simulation:{active:simulation}}),hasCapabilityContract:()=>true,can:cap=>cap==='promotion.queue_publication'?role==='promotion_lead':cap==='promotion.edit_any_unpublished'?role==='operations_manager':true,friendlyError:e=>e.message,
+rpc:async(name,args={})=>{
+calls.push({name,args});
+if(name==='get_my_promotion_workspace')return {role,my_items:items.map(i=>({...i})),review_items:[],held_items:[]};
+if(name==='save_operations_promotion_draft'||name==='save_promotion_draft'){
+ current=items.find(i=>i.content_id===args.p_content_id);
+ if(!current){current={content_id:'qa-'+items.length,revision_id:'rev-'+items.length,is_owner:true};items.push(current)}
+ Object.assign(current,{title:args.p_title,lifecycle:'draft',content_type:args.p_content_type,public_body:args.p_public_body,slug:args.p_slug,byline_kind:args.p_byline_kind,number_or_amount:args.p_number_or_amount,public_media:args.p_public_media,hero_image_url:args.p_hero_image_url});
+ return {content_id:current.content_id,revision_id:current.revision_id};
+}
+if(name==='queue_operations_owned_promotion'){if(failPublish)throw Error('test publication failure');Object.assign(current,{lifecycle:args.p_scheduled_for?'scheduled':'published',operations_owned_publication:true,scheduled_for:args.p_scheduled_for});return {ok:true};}
+if(name==='submit_operations_promotion_revision'||name==='submit_operations_owned_promotion_for_ceo'){current.lifecycle='review_pending';current.submitted_at=new Date().toISOString();return {ok:true};}
+if(name==='get_promotion_publication_overview')return items.filter(i=>['approved','scheduled'].includes(i.lifecycle)).map(i=>({...i}));
+return [];
+}};
+</script>
+<script src="../../app/assets/phase-c-workspace-v2.js"></script><script src="../../app/assets/issue-207-promotion-information-ux.js"></script>
+<script>
+const tick=()=>new Promise(r=>setTimeout(r,30));const check=(v,m)=>{if(!v)throw Error(m)};
+const button=t=>[...document.querySelectorAll('#dashboard-main button')].find(n=>n.textContent===t&&!n.hidden);
+const field=t=>[...document.querySelectorAll('label')].find(n=>n.querySelector('span')?.textContent===t)?.querySelector('input,select,textarea');
+const write=async(title='QA')=>{await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');field('제목').value=title;document.querySelector('textarea').value='QA body';};
+window.addEventListener('load',async()=>{try{
+await write('temporary');check(button('임시저장')&&button('운영팀장 검토 요청')&&button('바로 공개')&&button('예약 공개'),'operations four choices');check(field('실제 예약일').type==='date','native actual-date picker');
+button('임시저장').click();await tick();check(document.querySelector('#dashboard-main').textContent.includes('임시저장한 글')&&document.querySelector('#dashboard-main').textContent.includes('temporary'),'draft card remains in writer');
+await window.TaejangIssue207Ux.openSent();check(!document.querySelector('#dashboard-main').textContent.includes('temporary'),'draft excluded from sent');
+await write('direct');button('바로 공개').click();await tick();check(calls.at(-2)?.name==='queue_operations_owned_promotion'||calls.some(c=>c.name==='queue_operations_owned_promotion'&&c.args.p_scheduled_for===null),'scoped direct RPC');check(current.lifecycle==='published','direct result');
+await write('future');field('게시 희망일 (선택)').value='2040-01-01';field('실제 예약일').value='2041-01-01';button('예약 공개').click();await tick();check(current.scheduled_for==='2041-01-01T00:00:00+09:00','actual date distinct from wished date');
+await write('advisory');button('운영팀장 검토 요청').click();await tick();check(current.lifecycle==='review_pending'&&document.querySelector('#dashboard-main').textContent.includes('advisory'),'optional request opens own sent list');
+await write('CEO');field('작성 명의').value='ceo';field('작성 명의').dispatchEvent(new Event('change'));check(button('대표이사 승인 요청')&&!button('바로 공개')&&!button('예약 공개'),'CEO UX gate');button('대표이사 승인 요청').click();await tick();check(calls.some(c=>c.name==='submit_operations_owned_promotion_for_ceo'),'CEO request RPC');
+await write('failure preservation');failPublish=true;button('바로 공개').click();await tick();check(field('제목').value==='failure preservation'&&document.querySelector('textarea').value==='QA body','failed publication retains input');const before=items.length;failPublish=false;button('바로 공개').click();await tick();check(items.length===before,'retry reuses saved draft ID');
+// Completed advisory/CEO own item can publish from existing publication management.
+current=items.find(i=>i.title==='advisory');current.lifecycle='approved';current.operations_owned_publication=true;
+await window.TaejangPromotionWorkspaceV2Api.openPromotion('publication');check(button('바로 공개')&&button('예약 공개'),'approved own publication actions');
+current.is_owner=false;await window.TaejangPromotionWorkspaceV2Api.openPromotion('publication');check(!button('바로 공개'),'foreign item has no operations-owned action');
+role='promotion_staff';await write();check(!button('바로 공개')&&!button('예약 공개')&&button('저장 후 승인 요청'),'staff workflow unchanged');
+role='promotion_lead';await write();check(!button('바로 공개')&&button('저장 후 운영총괄 승인 요청'),'lead operations approval unchanged');
+role='operations_manager';simulation=true;await window.TaejangIssue207Ux.openSent();check(!document.querySelector('#dashboard-main').textContent.includes('advisory'),'role preview sent protection');
+document.querySelector('#result').textContent='OPERATIONS_OWNED_PROMOTION_GATE_PASS';
+}catch(e){document.querySelector('#result').textContent='OPERATIONS_OWNED_PROMOTION_GATE_FAIL:'+e.message;}});
+</script></html>
