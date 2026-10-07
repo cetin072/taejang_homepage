@@ -20,7 +20,7 @@ select ok(
 select ok(
   position(
     'if normalized_action = ''on_hold'' then'
-    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+    in pg_get_functiondef('public.private_review_promotion_revision_before_operations_auto_publish(uuid,text,text,date)'::regprocedure)
   ) > 0,
   'review wrapper owns immediate hold handling'
 );
@@ -28,7 +28,7 @@ select ok(
 select ok(
   position(
     'revisit_at = p_revisit_at'
-    in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)
+    in pg_get_functiondef('public.private_review_promotion_revision_before_operations_auto_publish(uuid,text,text,date)'::regprocedure)
   ) > 0,
   'optional revisit date is preserved when explicitly supplied'
 );
