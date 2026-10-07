@@ -344,8 +344,11 @@
       const saved = await app().rpc(isOperations ? 'save_operations_promotion_draft' : 'save_promotion_draft', payload);
       if (submitAfterSave) await app().rpc(isOperations ? 'submit_operations_promotion_revision' : 'submit_promotion_revision', { p_content_id: saved.content_id });
       editingContentId = null;
-      const nextMode = submitAfterSave && route() === 'operations_manager' ? 'review' : 'write';
-      await openPromotion(nextMode);
+      if (submitAfterSave && typeof window.TaejangIssue207Ux?.openSent === 'function') {
+        await window.TaejangIssue207Ux.openSent();
+        return;
+      }
+      await openPromotion('write');
     } catch (error) {
       window.alert(app().friendlyError?.(error) || error.message || '저장하지 못했습니다.');
     } finally {
@@ -474,10 +477,14 @@
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
-    const leadAuthor = route() === 'promotion_lead';
+    const currentRole = route();
+    const leadAuthor = currentRole === 'promotion_lead';
+    const operationsAuthor = currentRole === 'operations_manager';
     const submitLabel = leadAuthor
       ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
-      : (existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청');
+      : operationsAuthor
+        ? (existingItem ? '저장 후 운영팀장 재검토 요청' : '저장 후 운영팀장 검토 요청')
+        : (existingItem ? '저장 후 다시 승인 요청' : '저장 후 승인 요청');
     const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
