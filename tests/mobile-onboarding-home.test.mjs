@@ -23,7 +23,7 @@ test('native signup asks only for the five applicant-owned fields', async () => 
   assert.match(provider, /phone:\s*normalizedPhone/);
   assert.match(provider, /hired_on:\s*normalizedHiredOn/);
 
-  const signupSection = home.slice(home.indexOf('신입직원 가입 요청'), home.indexOf('if (accessLoading'));
+  const signupSection = home.slice(home.indexOf('신입직원 가입 요청'), home.indexOf('if (!access && !accessError)'));
   assert.doesNotMatch(signupSection, /부서 선택|직책 선택|업무 권한 선택|근태 기록 대상|work_group/i);
 });
 
@@ -34,10 +34,10 @@ test('pending native account gets only a simple approval-waiting state', async (
   assert.match(home, /승인 상태 확인/);
 });
 
-test('active mobile home has attendance, Today Work, notice, and one work-platform primary action', async () => {
+test('active mobile home has attendance, notice, and one capability-gated work-platform primary action', async () => {
   const home = await text('mobile/app/index.tsx');
   assert.equal((home.match(/<AttendanceCard/g) || []).length, 1);
-  assert.equal((home.match(/<TodayWorkAction/g) || []).length, 1);
+  assert.doesNotMatch(home, /TodayWorkAction|ScheduleHomeAction|PromotionStaffShortcut/);
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
   assert.match(home, /justifyContent:\s*'space-between'/);
   assert.match(home, /actionHeight/);

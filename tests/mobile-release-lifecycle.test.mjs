@@ -73,4 +73,9 @@ test('0.1.2 splash uses the approved Taejang launcher asset without a fake delay
   assert.equal(app.expo.splash.image, './assets/taejang-launcher-icon.png');
   assert.equal(app.expo.splash.resizeMode, 'contain');
   assert.equal(app.expo.splash.backgroundColor, '#FDFCFD');
+  const splash = app.expo.plugins.find(plugin => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen')[1];
+  assert.equal(splash.image, app.expo.splash.image);
+  assert.equal(splash.resizeMode, 'contain');
+  assert.equal(splash.backgroundColor, app.expo.splash.backgroundColor);
+  assert.equal(splash.imageWidth, 224);
 });

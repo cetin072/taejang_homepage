@@ -20,10 +20,10 @@ test('upcoming schedule uses guarded server reads and no employee schedule mutat
   assert.match(home, /AppState\.addEventListener\('change'/);
 });
 
-test('schedule is a simple home destination and native push can deep-link safely', async () => {
+test('schedule stays off home while native push can still deep-link safely', async () => {
   const home = await text('mobile/app/index.tsx');
   const bridge = await text('mobile/src/notifications/push-notification-bridge.tsx');
-  assert.ok(home.indexOf('<ScheduleHomeAction') > home.indexOf('<NoticeHomeAction'));
+  assert.doesNotMatch(home, /ScheduleHomeAction|loadMyScheduleList|get_my_schedule_list/);
   assert.match(bridge, /data\?\.target === 'schedule'/);
   assert.match(bridge, /scheduleDeepLinkPath/);
 });
