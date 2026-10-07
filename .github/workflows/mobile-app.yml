@@ -103,16 +103,30 @@ jobs:
           test -s app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           grep -q '@mipmap/ic_launcher_foreground' app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           grep -q '<color name="iconBackground">#FDFCFD</color>' app/src/main/res/values/colors.xml
-      - name: Build standalone ARM64 debug APK
+      - name: Build standalone ARM64 QA release APK
         working-directory: mobile/android
         env:
           NODE_ENV: production
-        run: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a --no-daemon
-      - name: Upload standalone debug APK
+        run: |
+          test -s app/debug.keystore
+          ./gradlew assembleRelease \
+            -PreactNativeArchitectures=arm64-v8a \
+            -Pandroid.injected.signing.store.file="$PWD/app/debug.keystore" \
+            -Pandroid.injected.signing.store.password=android \
+            -Pandroid.injected.signing.key.alias=androiddebugkey \
+            -Pandroid.injected.signing.key.password=android \
+            --no-daemon
+      - name: Verify standalone QA APK embeds the JS bundle
+        working-directory: mobile/android
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          unzip -l "$APK" | grep -q 'assets/index.android.bundle'
+      - name: Upload standalone QA release APK
         uses: actions/upload-artifact@v4
         with:
-          name: taejang-employee-mobile-arm64-apk
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: taejang-employee-mobile-qa-release-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 7
 
