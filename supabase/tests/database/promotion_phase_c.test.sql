@@ -50,7 +50,7 @@ select ok(not has_function_privilege('anon', 'public.save_promotion_draft(uuid,p
 select ok(has_function_privilege('authenticated', 'public.save_promotion_draft(uuid,public.promotion_content_type,text,text,text,text,text,text,public.promotion_byline_kind,text,text,text,jsonb,public.promotion_disclosure_answer,public.promotion_disclosure_answer,date,text)', 'EXECUTE'), 'authenticated users can call guarded promotion draft RPC');
 select ok(has_function_privilege('authenticated', 'public.submit_promotion_revision(uuid)', 'EXECUTE'), 'authenticated users can call guarded promotion submit RPC');
 select ok(
-  position('PROMOTION_SELF_REVIEW_FORBIDDEN' in pg_get_functiondef('public.review_promotion_revision(uuid,text,text,date)'::regprocedure)) > 0,
+  position('PROMOTION_SELF_REVIEW_FORBIDDEN' in pg_get_functiondef('public.private_review_promotion_revision_before_operations_auto_publish(uuid,text,text,date)'::regprocedure)) > 0,
   'promotion review RPC forbids author self review'
 );
 select ok(
