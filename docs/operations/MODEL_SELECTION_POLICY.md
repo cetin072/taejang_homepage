@@ -2,7 +2,7 @@
 
 상태: **태장 프로젝트 운영 기준**
 
-이 문서는 태장 저장소에서 Codex가 작업 시작 때 바로 읽을 수 있도록 모델·추론 선택과 비용 통제 원칙을 정리한다. 프로젝트 고유 `AGENTS.md`, `PROJECT_CHARTER.md`, 확정 기획과 현재 GitHub Issue가 더 엄격하면 더 엄격한 기준을 우선한다.
+이 문서는 태장 저장소의 Codex 모델·추론 선택과 비용 통제 원칙을 정리한다. 선택이 애매하거나 작업 위험도 재평가가 필요할 때 확인하며, 매 작업마다 전문을 다시 읽는 필수 절차는 아니다. 프로젝트 고유 `AGENTS.md`, `PROJECT_CHARTER.md`, 확정 기획과 현재 GitHub Issue가 더 엄격하면 더 엄격한 기준을 우선한다.
 
 ## 1. 기본 원칙
 
@@ -121,7 +121,7 @@ Sol 사용 전에 가능하면 **왜 Terra / High가 충분하지 않은지 한 
 ## 8. 비용 절약 원칙
 
 - 매 실행마다 저장소 전체를 처음부터 재탐색하지 않는다.
-- 기본 탐색 순서는 `AGENTS.md → PROJECT_CHARTER.md → 현재 Goal/Epic → 현재 Issue → 관련 planning → 기존 Draft PR/review`다.
+- 기본 문맥은 `AGENTS.md + 현재 요청/Issue + 인접 코드·관련 테스트`다. 기존 작업이면 해당 Draft PR/review를 추가한다. 헌장·Goal·planning·중앙 원문은 `AGENTS.md`의 작업별 읽기 조건에 해당할 때만 확인한다.
 - 현재 Issue와 관련 없는 과거 문서·PR은 필요한 근거가 있을 때만 추가로 연다.
 - 변경 직후에는 targeted test를 먼저 실행한다.
 - 전체 회귀·CI·Deploy Preview는 완료 또는 중요 gate 직전에 실행한다.
