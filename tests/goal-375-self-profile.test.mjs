@@ -39,3 +39,19 @@ test('Goal #375 reuses the existing web reviewer surface without a direct employ
   assert.match(employeeManagement, /self_service_contact_requests/);
   assert.match(employeeManagement, /request\.kind === 'employee_contact'/);
 });
+
+test('Issue #387 corrects eligibility and reuses one private scope guard for list and review', async () => {
+  const sql = await text('supabase/migrations/20261007073309_issue_387_self_profile_scope_hardening.sql');
+  assert.match(sql, /employee\.archived_at is null/);
+  assert.match(sql, /employee\.employment_status in \('active', 'leave'\)/);
+  assert.match(sql, /account_link\.revoked_at is null/);
+  assert.match(sql, /auth\.uid\(\) <> p_target_profile_id/);
+  assert.match(sql, /private_employee_scope_allowed\(target\.employee_uuid\)/);
+  assert.match(sql, /private_actor_can\('employee\.view_all'\)/);
+  assert.match(sql, /private_actor_can\('employee\.view_scoped'\)/);
+  assert.match(sql, /private_can_review_employee_contact\(request_row\.profile_id\)/);
+  assert.match(sql, /private_can_review_employee_contact\(request\.profile_id\)/);
+  assert.match(sql, /revoke all on function public\.private_can_review_employee_contact\(uuid\) from public, anon, authenticated/);
+  assert.doesNotMatch(sql, /current_user_has_role|grant.*role|add column.*phone/i);
+  assert.match(sql, /left join public\.departments department/);
+});

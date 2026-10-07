@@ -107,3 +107,78 @@ const inactiveCount = Number(sql(`select count(*) from public.notification_devic
 assert.equal(inactiveCount, 0, 'no active push device remains after disable');
 
 console.log('Notification push Auth/Data API integration: PASS');
+
+// Issue #387: exercise generic payload and outbox lifecycle through service Data API.
+const serviceKey=process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SERVICE_ROLE_KEY;
+assert.ok(serviceKey,'local service role key required for dispatcher integration');
+const serviceRpc=(name,body={})=>rpc(name,serviceKey,body);
+const installation2='00000000-0000-4000-8000-000000000904';
+const r=await rpc('register_my_notification_device',active.token,{p_installation_id:installation2,p_provider:'expo',p_push_token:'ExpoPushToken[issue387-device-token-004]',p_platform:'android',p_app_version:'0.1.2'});
+assert.equal(r.data?.code,'NOTIFICATION_DEVICE_REGISTERED');
+function notice(importance='normal') {
+  return sql(`insert into public.notices(notice_kind,importance,title,body_easy,publish_start_at,status,published_at,target_scope,target_profile_id,change_reason,created_by,updated_by)
+    values('safety','${importance}','PRIVATE TITLE 387','PRIVATE BODY 387',now()-interval '1 minute','published',now(),'profile','${active.id}'::uuid,'Issue387 fixture','${active.id}'::uuid,'${active.id}'::uuid) returning id`).split('\n')[0];
+}
+let claimNo=10;
+async function claim(limit=50) {
+  const id='00000000-0000-4000-8000-'+String(claimNo++).padStart(12,'0');
+  const result=await serviceRpc('private_claim_notification_push_batch',{p_claim_token:id,p_limit:limit});
+  assert.ok(result.ok,JSON.stringify(result.data));
+  return {id,items:result.data};
+}
+const normal=notice();
+const urgent=notice('urgent');
+const deniedClaim=await rpc('private_claim_notification_push_batch',active.token,{p_claim_token:'00000000-0000-4000-8000-000000000099',p_limit:1});
+assert.equal(deniedClaim.status,403,'employee cannot obtain provider payload');
+const first=await claim(1);
+assert.equal(first.items.length,1);
+assert.equal(first.items[0].data.noticeId,urgent,'urgent notice claimed before normal');
+assert.equal(first.items[0].priority,'high');
+assert.equal(first.items[0].title,'태장 중요공지');
+function privateCopy(item) {
+  assert.equal(item.body,'새 공지가 도착했습니다. 앱에서 확인해주세요.');
+  assert.deepEqual(Object.keys(item.data).sort(),['noticeId','noticeVersion','target']);
+  assert.equal(item.data.target,'notice');
+  assert.equal(item.data.noticeVersion,1);
+  assert.ok(!JSON.stringify(item).includes('PRIVATE TITLE') && !JSON.stringify(item).includes('PRIVATE BODY'));
+}
+privateCopy(first.items[0]);
+const delivery=first.items[0].delivery_id;
+const retry=await serviceRpc('private_complete_notification_push_ticket',{p_delivery_id:delivery,p_claim_token:first.id,p_outcome:'retry',p_error_code:'TEST_RETRY',p_retry_seconds:30});
+assert.equal(retry.data,true,'ticket retry returns to outbox');
+sql(`update public.notification_deliveries set next_attempt_at=now()-interval '1 second' where id='${delivery}'::uuid`);
+const second=await claim();
+const retried=second.items.find(item=>item.delivery_id===delivery);
+assert.ok(retried,'retry claimed again');
+second.items.forEach(privateCopy);
+assert.equal(sql(`select attempt_count from public.notification_deliveries where id='${delivery}'::uuid`),'2');
+assert.ok(second.items.some(item=>item.data.noticeId===normal && item.title==='태장 새 공지' && item.priority==='default'));
+assert.equal((await serviceRpc('private_complete_notification_push_ticket',{p_delivery_id:delivery,p_claim_token:second.id,p_outcome:'accepted',p_ticket_id:'issue387-ticket'})).data,true);
+// Version drift cancels queued/retry/sending; accepted receipts remain trackable.
+sql(`update public.notices set status='archived' where id='${urgent}'::uuid`);
+const normalDelivery=second.items.find(item=>item.data.noticeId===normal).delivery_id;
+sql(`update public.notices set version_no=2 where id='${normal}'::uuid`);
+await claim();
+assert.equal(sql(`select status from public.notification_deliveries where id='${normalDelivery}'::uuid`),'cancelled','stale sending version cancelled');
+assert.equal(sql(`select status from public.notification_deliveries where id='${delivery}'::uuid`),'accepted','stale notice preserves accepted receipt tracking');
+sql(`update public.notification_deliveries set accepted_at=now()-interval '16 minutes' where id='${delivery}'::uuid`);
+const receiptClaim=await serviceRpc('private_claim_notification_receipt_batch',{p_claim_token:first.id,p_limit:100});
+assert.ok(receiptClaim.ok && receiptClaim.data.some(item=>item.delivery_id===delivery));
+assert.equal((await serviceRpc('private_complete_notification_push_receipt',{p_delivery_id:delivery,p_claim_token:first.id,p_outcome:'delivered'})).data,true);
+// Stale queued event and stale queued delivery cancel before dispatch.
+const stale=notice();
+sql(`update public.notices set status='archived' where id='${stale}'::uuid`);
+const staleDeliveryNotice=notice();
+sql('select public.private_expand_due_notice_push_events(20)');
+sql(`update public.notices set status='archived' where id='${staleDeliveryNotice}'::uuid`);
+await claim();
+assert.equal(sql(`select status from public.notification_events where notice_id='${stale}'::uuid`),'cancelled','stale event cancelled');
+assert.equal(sql(`select d.status from public.notification_deliveries d join public.notification_events e on e.id=d.event_id where e.notice_id='${staleDeliveryNotice}'::uuid`),'cancelled','stale queued delivery cancelled');
+const guarded=notice();
+sql('select public.private_expand_due_notice_push_events(20)');
+await rpc('disable_my_notification_device',active.token,{p_installation_id:installation2});
+assert.ok(!(await claim()).items.some(item=>item.data.noticeId===guarded),'disabled device never claimed');
+await rpc('register_my_notification_device',active.token,{p_installation_id:installation2,p_provider:'expo',p_push_token:'ExpoPushToken[issue387-device-token-004]',p_platform:'android',p_app_version:'0.1.2'});
+sql(`update public.profiles set account_status='suspended' where id='${active.id}'::uuid`);
+assert.ok(!(await claim()).items.some(item=>item.data.noticeId===guarded),'suspended account never claimed');
+console.log('Issue #387 generic push payload, urgent ordering, guards, stale cancellation and retry/receipt integration: PASS');

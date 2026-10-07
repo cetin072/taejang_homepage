@@ -103,3 +103,13 @@ test('dispatcher requires internal secret header and contains no hardcoded secre
   assert.doesNotMatch(dispatcher, /NOTIFICATION_DISPATCH_KEY\s*=\s*['"][^'"]+['"]/);
   assert.doesNotMatch(dispatcher, /sb_secret_|service_role\s*[:=]\s*['"][A-Za-z0-9._-]+['"]/i);
 });
+
+test('Issue #387 keeps push privacy migration forward-only with unchanged lifecycle and opaque data', () => {
+  const before = migration.match(/create or replace function public\.private_claim_notification_push_batch\([\s\S]*?\$\$;/i)[0];
+  const after = lockScreenPrivacyMigration.match(/create or replace function public\.private_claim_notification_push_batch\([\s\S]*?\$\$;/i)[0];
+  assert.equal(after, before.replace("'body', notice.title", "'body', '새 공지가 도착했습니다. 앱에서 확인해주세요.'"));
+  assert.match(after, /notice\.version_no = event\.notice_version/);
+  assert.match(after, /private_cancel_stale_notification_deliveries\(\)/);
+  assert.match(after, /private_expand_due_notice_push_events\(20\)/);
+  assert.match(after, /'high' else 'default'/);
+});
