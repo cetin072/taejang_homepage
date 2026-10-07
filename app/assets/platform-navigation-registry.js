@@ -17,7 +17,7 @@
     { key:'employee.manage', label:'직원 관리', section:'직원·계정', capabilities:['employee.view_all','employee.view_scoped'] },
     { key:'employee.new', label:'신규 직원 등록', section:'직원·계정', capabilities:['employee.create','employee.request_change'] },
     { key:'account.approval', label:'가입 승인', section:'직원·계정', capabilities:['employee.onboard','account.approve','account.reject'] },
-    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead'] },
+    { key:'promotion.write', label:'홍보 글 작성', section:'홍보', capabilities:['promotion.write','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff','promotion_lead','operations_manager'] },
     { key:'promotion.revision', label:'보완 요청받은 글', section:'홍보', capabilities:['promotion.edit_own','promotion.edit_any_unpublished'], visibleRoles:['promotion_staff'] },
     { key:'promotion.sent', label:'보낸 글', section:'홍보', capabilities:['promotion.write'], visibleRoles:['promotion_staff'] },
     { key:'promotion.review', label:'홍보 검토', roleLabels:{ operations_manager:'홍보 승인 검토' }, section:'홍보', capabilities:['promotion.review_lead','promotion.review_operations','promotion.review_ceo'], visibleRoles:['promotion_lead','operations_manager','ceo'] },
