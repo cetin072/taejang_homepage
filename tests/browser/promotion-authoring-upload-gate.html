@@ -16,16 +16,24 @@
     const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     const payload = btoa(JSON.stringify({ sub: userId })).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
     const accessToken = `header.${payload}.signature`;
-    sessionStorage.setItem('taejang-staff-session-v1', JSON.stringify({
+    const refreshedAccessToken = `header.${payload}.refreshed`;
+    let currentSession = {
       access_token: accessToken,
+      refresh_token: 'refresh-token',
       user: { id: userId }
-    }));
+    };
+    localStorage.setItem('taejang-staff-session-v1', JSON.stringify(currentSession));
+    sessionStorage.removeItem('taejang-staff-session-v1');
 
     const state = {
       storageCalls: [],
+      externalMetaCalls: [],
       saveCalls: [],
       submitCalls: [],
-      uploadFailureStatus: null
+      refreshCalls: 0,
+      uploadFailureStatus: null,
+      uploadUnauthorizedOnce: false,
+      externalUnauthorizedOnce: true
     };
 
     window.alert = message => { throw new Error(`unexpected alert: ${message}`); };
@@ -40,8 +48,33 @@
           publishableKey: 'sb_publishable_test'
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
+      if (value.includes('/.netlify/functions/external-content-meta')) {
+        state.externalMetaCalls.push({ url: value, options });
+        if (state.externalUnauthorizedOnce) {
+          state.externalUnauthorizedOnce = false;
+          return new Response(JSON.stringify({ error: 'FORBIDDEN' }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({
+          url: 'https://blog.naver.com/taejang-official/224367547159',
+          title: '태장 링크 테스트',
+          description: '링크 설명',
+          image: 'https://example.test/thumb.jpg',
+          article_text: '링크에서 가져온 본문'
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
       if (value.includes('/storage/v1/object/promotion-media/')) {
         state.storageCalls.push({ url: value, options });
+        if (state.uploadUnauthorizedOnce) {
+          state.uploadUnauthorizedOnce = false;
+          return new Response(JSON.stringify({
+            statusCode: 401,
+            error: 'Unauthorized',
+            message: 'JWT expired'
+          }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
         if (state.uploadFailureStatus) {
           return new Response(JSON.stringify({
             statusCode: state.uploadFailureStatus,
@@ -59,6 +92,13 @@
 
     window.TaejangApp = {
       getRoute: () => 'promotion_lead',
+      getSession: () => currentSession,
+      refreshSession: async () => {
+        state.refreshCalls += 1;
+        currentSession = { ...currentSession, access_token: refreshedAccessToken };
+        localStorage.setItem('taejang-staff-session-v1', JSON.stringify(currentSession));
+        return true;
+      },
       hasCapabilityContract: () => true,
       can: capability => [
         'promotion.write',
@@ -105,10 +145,22 @@
 
         const title = controlByLabel('제목');
         const disclosure = controlByLabel('중요 금액·수치 포함');
+        const external = controlByLabel('외부 링크');
         const body = document.querySelector('.phase-c-editor-shell textarea');
         const fileInput = document.querySelector('.phase-c-editor-toolbar input[type="file"]');
-        assert(title && disclosure && body && fileInput, '작성 폼 핵심 입력 누락');
+        assert(title && disclosure && external && body && fileInput, '작성 폼 핵심 입력 누락');
         assert(disclosure.value === 'no', '중요 금액·수치 기본값은 아니오여야 함');
+        assert(!sessionStorage.getItem('taejang-staff-session-v1'), '검수 전제: sessionStorage는 비어 있어야 함');
+
+        external.value = 'https://blog.naver.com/taejang-official/224367547159';
+        buttonByText('링크에서 제목·썸네일·본문 가져오기').click();
+        await wait(100);
+        assert(state.externalMetaCalls.length === 2, '링크 메타 인증 실패 후 1회 재시도하지 않음');
+        assert(state.refreshCalls === 1, '링크 메타 인증 실패에서 세션 갱신이 실행되지 않음');
+        assert(state.externalMetaCalls[0].options.headers.Authorization === `Bearer ${accessToken}`, '링크 메타 최초 인증 토큰 불일치');
+        assert(state.externalMetaCalls[1].options.headers.Authorization === `Bearer ${refreshedAccessToken}`, '링크 메타 재시도에 갱신 토큰 미사용');
+        assert(title.value === '태장 링크 테스트', '링크 메타 제목 반영 실패');
+        assert(body.value === '링크에서 가져온 본문', '링크 메타 본문 반영 실패');
 
         title.value = '1호 기업 3차 봉사활동';
         body.value = '2026년 10월 1호 기업의 3차 봉사활동 기록입니다.';
@@ -124,7 +176,7 @@
         const storage = state.storageCalls[0];
         assert(storage.url.includes(`/storage/v1/object/promotion-media/${userId}/`), 'Storage 경로 첫 폴더가 auth 사용자 UUID가 아님');
         assert(storage.options.method === 'POST', 'Storage 업로드 method가 POST가 아님');
-        assert(storage.options.headers.Authorization === `Bearer ${accessToken}`, 'Storage 업로드 인증 헤더 누락');
+        assert(storage.options.headers.Authorization === `Bearer ${refreshedAccessToken}`, 'Storage 업로드가 현재 앱 세션 토큰을 사용하지 않음');
         assert(storage.options.headers['Content-Type'] === 'image/png', 'Storage MIME 헤더 불일치');
         assert(storage.options.body instanceof File, '실제 File 객체가 Storage body로 전달되지 않음');
         assert(document.querySelectorAll('.phase-c-photo-card img').length === 1, '업로드 성공 사진 미리보기 누락');
@@ -143,6 +195,14 @@
         assert(saved.p_hero_image_url === saved.p_public_media[0].url, '첫 사진이 대표 이미지로 연결되지 않음');
         assert(state.submitCalls.length === 1, '승인 요청 RPC 호출 누락');
         assert(state.submitCalls[0].p_content_id === '11111111-1111-4111-8111-111111111111', '승인 요청 content_id 불일치');
+
+        state.uploadUnauthorizedOnce = true;
+        const retryUrl = await window.TaejangPromotionWorkspaceV2Api.uploadImage(new File([png], 'retry.png', { type: 'image/png' }));
+        assert(retryUrl.includes('/storage/v1/object/public/promotion-media/'), 'Storage 401 후 재시도 업로드 실패');
+        assert(state.refreshCalls === 2, 'Storage 401에서 세션 갱신이 실행되지 않음');
+        const retryCalls = state.storageCalls.slice(-2);
+        assert(retryCalls.length === 2, 'Storage 401 재시도 호출 수 불일치');
+        assert(retryCalls[1].options.headers.Authorization === `Bearer ${refreshedAccessToken}`, 'Storage 재시도에 갱신 토큰 미사용');
 
         state.uploadFailureStatus = 403;
         let denied = null;
