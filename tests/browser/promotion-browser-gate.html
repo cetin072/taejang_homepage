@@ -29,6 +29,7 @@
     let promotionArchiveManagerOpened = false;
     let failInformationSave = false;
     const archivePromotionCalls = [];
+    const archiveReturnedPromotionCalls = [];
     const fakeMetadata = {
       url: 'https://www.youtube.com/watch?v=taejang-test',
       title: '태장 공식 영상',
@@ -121,6 +122,10 @@
           return { ok: true, request_id: informationRequests[0].id, status: 'pending' };
         }
         if (name === 'review_information_publication_request') return { ok: true, status: args.p_action === 'approve' ? 'approved' : args.p_action };
+        if (name === 'archive_unpublished_promotion_content') {
+          archiveReturnedPromotionCalls.push({ ...args });
+          return { ok: true, code: 'PROMOTION_UNPUBLISHED_ARCHIVED', recoverable_archive_preserved: true, returned_from_operations: true };
+        }
         if (name === 'archive_promotion_content') {
           archivePromotionCalls.push({ ...args });
           const index = publicationItems.findIndex(item => item.content_id === args.p_content_id);
@@ -276,7 +281,14 @@
         main.innerHTML = '<header class="dashboard-intro"><h2>홍보 검토</h2><p>검토</p></header><section class="phase-c-v2-grid"><article class="phase-c-v2-card"><h3>상신 후 반송</h3><div class="quick-links"><button type="button">직접 수정</button></div></article></section>';
         window.TaejangIssue181PromotionLiveUx.sync();
         await wait(120);
-        assert(!main.querySelector('[data-issue181-review-delete]'), '운영총괄 반송 글에 삭제 버튼이 노출됨');
+        const returnedDelete = main.querySelector('[data-issue181-review-delete]');
+        assert(returnedDelete, '운영총괄 보완요청 반송 글에 삭제(보관) 버튼 누락');
+        assert(returnedDelete.textContent.trim() === '삭제(보관)', '반송 글 삭제 버튼 문구 불일치');
+        returnedDelete.click();
+        await wait(40);
+        assert(archiveReturnedPromotionCalls.length === 1, '반송 글 삭제(보관) RPC 호출 누락');
+        assert(archiveReturnedPromotionCalls[0].p_content_id === 'lead-1', '반송 글 삭제 대상 불일치');
+        assert(archiveReturnedPromotionCalls[0].p_reason === '브라우저 검수 사유', '반송 글 삭제 사유 전달 누락');
 
         const preview = document.createElement('section');
         preview.className = 'promotion-preview-panel';
