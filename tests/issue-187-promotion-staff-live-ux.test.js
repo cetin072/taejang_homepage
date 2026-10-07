@@ -139,7 +139,8 @@ test('external metadata returns channel identity for YouTube page ownership chec
 
 test('upper approval history blocks promotion-lead deletion in UI and server contract', () => {
   assert.match(issue181, /get_promotion_review_handoff/);
-  assert.match(issue181, /if \(handoff\) \{\s*existingDelete\?\.remove\(\)/);
+  assert.match(issue181, /existingDelete\.textContent = handoff \? '삭제\(보관\)' : '삭제'/);
+  assert.match(issue181, /archiveReviewItem\(item, Boolean\(handoff\)\)/);
   assert.match(issue181, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
   assert.match(migration, /review\.stage in \('operations', 'ceo'\)/);
   assert.match(migration, /PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED/);
