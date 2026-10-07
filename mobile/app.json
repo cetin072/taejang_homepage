@@ -2,7 +2,7 @@
   "expo": {
     "name": "태장",
     "slug": "taejang-employee-mobile",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "orientation": "portrait",
     "scheme": "taejangstaff",
     "icon": "./assets/taejang-launcher-icon.png",
@@ -16,7 +16,7 @@
     "android": {
       "package": "com.cetin072.taejang.staff",
       "softwareKeyboardLayoutMode": "resize",
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/taejang-adaptive-foreground.png",
         "backgroundColor": "#FDFCFD"
