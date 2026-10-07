@@ -113,3 +113,11 @@ test('Issue #387 keeps push privacy migration forward-only with unchanged lifecy
   assert.match(after, /private_expand_due_notice_push_events\(20\)/);
   assert.match(after, /'high' else 'default'/);
 });
+
+test('notification lifecycle fixtures use actual board status values', () => {
+  const schema=fs.readFileSync(path.join(root,'supabase/migrations/20260723000200_general_worker_today_board.sql'),'utf8');
+  const enumDefinition=schema.match(/create type public\.board_record_status as enum \(([\s\S]*?)\);/)[1];
+  const allowed=new Set([...enumDefinition.matchAll(/'([^']+)'/g)].map(match=>match[1]));
+  const integration=fs.readFileSync(path.join(root,'tests/notification-push-auth-integration.mjs'),'utf8');
+  for (const match of integration.matchAll(/update public\.notices set status='([^']+)'/g)) assert.ok(allowed.has(match[1]), 'unknown notice fixture status: '+match[1]);
+});

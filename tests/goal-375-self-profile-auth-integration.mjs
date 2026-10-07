@@ -72,7 +72,7 @@ await forbiddenSelf('suspended profile');
 sql(`update public.profiles set account_status='departed' where id='${worker.id}'::uuid`);
 await forbiddenSelf('departed profile');
 for (const state of ['pending','deleted']) {
-  sql(`update public.profiles set account_status='${state}' where id='${worker.id}'::uuid`);
+  sql(`update public.profiles set account_status='${state}', approved_at=case when '${state}'='pending' then null else approved_at end where id='${worker.id}'::uuid`);
   await forbiddenSelf(state+' profile');
 }
 sql(`update public.profiles set account_status='active' where id='${worker.id}'::uuid`);

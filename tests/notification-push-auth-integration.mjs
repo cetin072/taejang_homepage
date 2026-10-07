@@ -155,7 +155,7 @@ assert.equal(sql(`select attempt_count from public.notification_deliveries where
 assert.ok(second.items.some(item=>item.data.noticeId===normal && item.title==='태장 새 공지' && item.priority==='default'));
 assert.equal((await serviceRpc('private_complete_notification_push_ticket',{p_delivery_id:delivery,p_claim_token:second.id,p_outcome:'accepted',p_ticket_id:'issue387-ticket'})).data,true);
 // Version drift cancels queued/retry/sending; accepted receipts remain trackable.
-sql(`update public.notices set status='archived' where id='${urgent}'::uuid`);
+sql(`update public.notices set status='cancelled' where id='${urgent}'::uuid`);
 const normalDelivery=second.items.find(item=>item.data.noticeId===normal).delivery_id;
 sql(`update public.notices set version_no=2 where id='${normal}'::uuid`);
 await claim();
@@ -167,10 +167,10 @@ assert.ok(receiptClaim.ok && receiptClaim.data.some(item=>item.delivery_id===del
 assert.equal((await serviceRpc('private_complete_notification_push_receipt',{p_delivery_id:delivery,p_claim_token:first.id,p_outcome:'delivered'})).data,true);
 // Stale queued event and stale queued delivery cancel before dispatch.
 const stale=notice();
-sql(`update public.notices set status='archived' where id='${stale}'::uuid`);
+sql(`update public.notices set status='cancelled' where id='${stale}'::uuid`);
 const staleDeliveryNotice=notice();
 sql('select public.private_expand_due_notice_push_events(20)');
-sql(`update public.notices set status='archived' where id='${staleDeliveryNotice}'::uuid`);
+sql(`update public.notices set status='cancelled' where id='${staleDeliveryNotice}'::uuid`);
 await claim();
 assert.equal(sql(`select status from public.notification_events where notice_id='${stale}'::uuid`),'cancelled','stale event cancelled');
 assert.equal(sql(`select d.status from public.notification_deliveries d join public.notification_events e on e.id=d.event_id where e.notice_id='${staleDeliveryNotice}'::uuid`),'cancelled','stale queued delivery cancelled');
