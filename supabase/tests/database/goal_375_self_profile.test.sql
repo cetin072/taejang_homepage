@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(18);
 
 select has_table('public', 'employee_self_service_contact_requests', 'self-service contact request ledger exists');
 select has_function('public', 'get_my_employee_profile', array[]::text[], 'employee profile read model exists');
@@ -25,5 +25,11 @@ select ok(
   'employee submission cannot update canonical contact data'
 );
 
+select ok(not has_table_privilege('authenticated', 'public.employee_self_service_contact_requests', 'UPDATE'), 'clients cannot decide requests directly');
+select ok(not has_table_privilege('authenticated', 'public.employee_self_service_contact_requests', 'DELETE'), 'clients cannot delete requests directly');
+select ok(not has_function_privilege('authenticated','public.private_can_review_employee_contact(uuid)','EXECUTE'), 'scope helper is private');
+select ok(pg_get_functiondef('public.private_active_employee_for_profile(uuid)'::regprocedure) like '%employee.archived_at is null%', 'archived employees fail closed');
+select ok(pg_get_functiondef('public.get_employee_management_context()'::regprocedure) like '%private_can_review_employee_contact(request.profile_id)%', 'queue uses shared target guard');
+select ok(pg_get_functiondef('public.review_employee_contact_change_request(uuid,text,text)'::regprocedure) like '%private_can_review_employee_contact(request_row.profile_id)%', 'known request IDs use same guard');
 select * from finish();
 rollback;
