@@ -84,8 +84,16 @@ export async function operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admi
  const policy=await draft();current=policy.revision_id;
  sql(`update public.promotion_contents set lifecycle='published',published_at=now(),minimum_review_stage='ceo' where id='${policy.content_id}'`);
  check(!(await edit(policy)).ok,'company byline with CEO minimum still denied');
- sql(`update public.profiles set account_status='suspended' where id='${admin.id}'`);
- check(!(await edit(policy)).ok,'inactive profile denied');
- sql(`update public.profiles set account_status='active' where id='${admin.id}'`);
+ const otherDraft=await rpc('save_operations_promotion_draft',other.token,{
+  p_content_type:'homepage_article',p_slug:`ci-inactive-${randomUUID()}`,p_title:'Other owned',p_public_body:'QA',
+  p_byline_kind:'company',p_people_photo:'no',p_number_or_amount:'no',p_public_media:[]
+ });
+ check(otherDraft.ok,'separate operations own draft');
+ check((await rpc('queue_operations_owned_promotion',other.token,{p_content_id:otherDraft.data.content_id})).ok,'separate operations own published');
+ current=otherDraft.data.revision_id;
+ const activeEdit=await edit(otherDraft.data,other);check(activeEdit.ok,'same separate operations allowed while active');current=activeEdit.data.revision_id;
+ sql(`update public.profiles set account_status='suspended' where id='${other.id}'`);
+ check(!(await edit(otherDraft.data,other)).ok,'inactive otherwise eligible profile denied');
+ sql(`update public.profiles set account_status='active' where id='${other.id}'`);
  console.log('OPERATIONS_PUBLIC_TEXT_EDIT_AUTH_PASS');
 }
