@@ -152,6 +152,62 @@
 .promotion-form input, .promotion-form select, .promotion-form textarea { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--app-border); border-radius: 8px; background: #fff; color: var(--app-text); font: inherit; }
 .promotion-form textarea { min-height: 88px; resize: vertical; }
 .promotion-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+
+/* Compact administrator fields: one spacing/size contract across workspace
+   screens; never touch the simple general-worker view or payroll-specialist UI. */
+#desktop-app-shell .app-compact-container { container-type: inline-size; }
+#desktop-app-shell .app-compact-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 10px 12px;
+}
+#desktop-app-shell .app-compact-fields > label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  font-weight: 800;
+}
+#desktop-app-shell .app-compact-fields :is(select, input:not([type="checkbox"]), textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+}
+#desktop-app-shell .app-compact-fields input[type="checkbox"] {
+  width: 22px;
+  min-height: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  justify-self: start;
+}
+#desktop-app-shell .dashboard-main :is(.form-grid, .employee-form-grid, .promotion-form-grid) > label {
+  min-width: 0;
+  margin: 0;
+}
+/* The remaining manager editors already provide grid spacing themselves.
+   Remove inherited 16px staff-page label margins without redesigning editors. */
+#desktop-app-shell .dashboard-main :is(
+  .phase-c-board-form,
+  .operations-homepage-form form,
+  .support-radar-form
+) label {
+  min-width: 0;
+  margin: 0;
+}
+/* Use the actual card/form width rather than screen width (sidebar consumes
+   substantial desktop space). Small screens keep accessible full-width fields. */
+@container (max-width: 640px) {
+  #desktop-app-shell .app-compact-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 420px) {
+  #desktop-app-shell .app-compact-fields { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  #desktop-app-shell .app-compact-fields { grid-template-columns: minmax(0, 1fr); }
+}
 .field-help { color: var(--app-muted); font-size: .85rem; font-weight: 600; line-height: 1.5; }
 .promotion-media-fields { margin: 4px 0 0; padding: 16px; border: 1px solid var(--app-border); border-radius: 12px; }
 .promotion-media-fields legend { padding: 0 6px; font-weight: 850; }

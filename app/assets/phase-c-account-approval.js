@@ -110,7 +110,7 @@
   }
 
   function requestCard(profile, options) {
-    const card = el('article', null, 'dashboard-card');
+    const card = el('article', null, 'dashboard-card phase-c-signup-approval-card app-compact-container');
     card.dataset.signupApprovalCard = profile.id;
     card.append(el('span', '신입 가입 요청', 'status-label'));
     card.append(el('h3', profile.display_name || '이름 없음'));
@@ -121,7 +121,9 @@
       ['전화번호', profile.phone || '-'],
       ['입사일', profile.hired_on || '-']
     ].forEach(([label, value]) => {
-      applicant.append(el('dt', label), el('dd', value));
+      const item = el('div', null, 'phase-c-signup-applicant-item');
+      item.append(el('dt', label), el('dd', value));
+      applicant.append(item);
     });
 
     const form = el('div', null, 'phase-c-signup-approval-form');
@@ -145,14 +147,18 @@
     rejectReason.maxLength = 300;
     rejectReason.placeholder = '예: 입사 취소, 잘못된 신청';
 
-    form.append(
+    const identityFields = el('div', null, 'app-compact-fields');
+    identityFields.append(
       field('부서', department),
       field('직책', position),
-      field('업무 권한', role),
-      attendanceField,
+      field('업무 권한', role)
+    );
+    const decisionReasons = el('div', null, 'phase-c-signup-reasons');
+    decisionReasons.append(
       field('승인 처리 사유', reason),
       field('거절 사유', rejectReason)
     );
+    form.append(identityFields, attendanceField, decisionReasons);
 
     const help = el(
       'p',
@@ -178,15 +184,22 @@
     const style = document.createElement('style');
     style.dataset.phaseCAccountApproval = '1';
     style.textContent = [
-      '.phase-c-signup-approval-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}',
-      '.phase-c-signup-applicant{display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;margin:12px 0;padding:12px;border-radius:12px;background:#f7f8f4;}',
-      '.phase-c-signup-applicant dt{font-weight:900;color:#52665b}.phase-c-signup-applicant dd{margin:0;word-break:break-all;}',
-      '.phase-c-signup-approval-form{display:grid;gap:10px;margin-top:12px;}',
-      '.phase-c-signup-approval-form label{display:grid;gap:6px;font-weight:800;}',
-      '.phase-c-signup-approval-form select,.phase-c-signup-approval-form input[type="text"]{width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--app-border);border-radius:9px;background:#fff;font:inherit;}',
-      '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:42px;}',
-      '.phase-c-signup-check input{width:20px;height:20px;}',
-      '@media(max-width:760px){.phase-c-signup-approval-grid{grid-template-columns:1fr;}}'
+      '.phase-c-signup-approval-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:1100px;}',
+      '.phase-c-signup-approval-card{min-width:0;min-height:0;gap:8px;padding:18px;}',
+      '.phase-c-signup-approval-card h3{margin:0;}',
+      '.phase-c-signup-applicant{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0;padding:12px;border-radius:12px;background:#f7f8f4;}',
+      '.phase-c-signup-applicant-item{display:grid;gap:3px;min-width:0;}',
+      '.phase-c-signup-applicant dt{font-size:.82rem;font-weight:900;color:#52665b}.phase-c-signup-applicant dd{margin:0;font-weight:700;overflow-wrap:anywhere;}',
+      '.phase-c-signup-approval-form{display:grid;gap:10px;margin-top:4px;}',
+      '.phase-c-signup-approval-form label{display:grid;gap:5px;margin:0;min-width:0;font-weight:800;}',
+      '.phase-c-signup-approval-form select,.phase-c-signup-approval-form input[type="text"]{width:100%;min-width:0;min-height:44px;padding:9px 10px;border:1px solid var(--app-border);border-radius:9px;background:#fff;font:inherit;}',
+      '.phase-c-signup-reasons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}',
+      '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:44px;}',
+      '.phase-c-signup-check input{width:22px;min-height:22px;height:22px;margin:0;padding:0;}',
+      '.phase-c-signup-approval-card .help{margin:2px 0;line-height:1.5;font-size:.85rem;}',
+      '.phase-c-signup-approval-card .quick-links{gap:8px;}',
+      '@container(max-width:640px){.phase-c-signup-applicant{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-signup-reasons{grid-template-columns:minmax(0,1fr);}}',
+      '@container(max-width:420px){.phase-c-signup-applicant{grid-template-columns:minmax(0,1fr);}}'
     ].join('\n');
     document.head.append(style);
   }

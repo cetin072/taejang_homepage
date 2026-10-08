@@ -11,6 +11,7 @@ export const testGroups = Object.freeze({
     'tests/promotion-lead-authoring-upload.test.js',
     'tests/pilot-management-ux.test.js',
     'tests/issue-418-signup-approval-role-code.test.js',
+    'tests/issue-420-compact-admin-form-layout.test.js',
     'tests/phase-c-workspace-v2.test.js',
     'tests/phase-c-live-publication.test.js',
     'tests/promotion-approved-delete-ux.test.js',
