@@ -91,7 +91,8 @@ test('mobile CI keeps ARM64 device QA on a self-contained release-mode APK', asy
   assert.match(workflow, /android\.injected\.signing\.store\.file/);
   assert.match(workflow, /assets\/index\.android\.bundle/);
   assert.match(workflow, /outputs\/apk\/release\/app-release\.apk/);
-  assert.match(workflow, /taejang-employee-mobile-qa-release-apk/);
+  assert.match(workflow, /TAEJANG_APP_VARIANT: qa/);
+  assert.match(workflow, /taejang-employee-mobile-qa-app-apk/);
 });
 
 test('release prebuild removes Expo debug signing and requires the protected upload-signing workflow', async () => {
@@ -108,6 +109,7 @@ test('Play AAB job is upload-key signed, skips PR secrets, and inspects the rele
   const workflow = await text('.github/workflows/mobile-app.yml');
 
   assert.match(workflow, /android-play-aab:/);
+  assert.match(workflow, /TAEJANG_APP_VARIANT: production/);
   assert.match(workflow, /github\.event_name == 'workflow_dispatch'/);
   assert.match(workflow, /inputs\.build_play_aab/);
   assert.match(workflow, /ANDROID_UPLOAD_KEYSTORE_BASE64/);
