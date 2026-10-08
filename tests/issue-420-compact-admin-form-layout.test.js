@@ -40,6 +40,7 @@ test('shared manager compact field grid is responsive but never overrides genera
   assert.match(css,/@media \(max-width: 760px\)/);
   assert.match(css,/\.app-compact-fields :is\(select, input:not\(\[type="checkbox"\]\), textarea\)[\s\S]*?min-height:\s*44px/);
   assert.match(css,/#desktop-app-shell \.dashboard-main :is\(\.form-grid, \.employee-form-grid, \.promotion-form-grid\) > label/);
+  assert.match(css,/\.phase-c-board-form,[\s\S]*?\.operations-homepage-form form,[\s\S]*?\.support-radar-form/);
   assert.doesNotMatch(css,/(?:^|\n)\s*body\s+label\s*\{/);
   assert.match(browser,/COMPACT_ADMIN_FORM_GATE_PASS/);
   assert.match(runner,/compact-admin-form-gate\.html/);
