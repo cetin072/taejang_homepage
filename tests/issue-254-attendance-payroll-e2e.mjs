@@ -495,7 +495,7 @@ equal(targetMonth.cells.find((cell,index)=>monthModel.dates[index]===correctedDa
 const monthBytes=monthXlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel));
 equal(Buffer.from(monthBytes).readUInt32LE(0),0x04034b50,'monthly XLSX is a valid ZIP package');
 check(!Buffer.from(monthBytes).toString('utf8').includes('gross_pay'),'general monthly workbook does not join salary data');
-const personal=xlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel,[targetMonth],'선택 직원'));
+const personal=monthXlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel,[targetMonth],'선택 직원'));
 check(personal.length>1000,'personal monthly XLSX preserves all 30 days');
 const ledgerContext=await rpc('get_payroll_operator_ledger_context',admin.token,{p_payroll_month:'2026-09-01'});
 check(ledgerContext.ok && Array.isArray(ledgerContext.data?.employees),'stored company draft can be read through the existing payroll ledger');
