@@ -39,7 +39,7 @@ test('empty month exports valid headers and zero employees',()=>{
 test('classification uses real metadata, preserves unlinked employees and never infers disability/test from role or name',()=>{
  const real=monthly.classify({...person,account_linked:false,display_name:'테스트라는 실제 이름',role:'general_worker'},{department_name:'운영',position_name:'일반 근로자',attendance_required:true});
  assert.equal(real.department,'운영');assert.equal(real.testAccount,false);assert.equal(real.account,'미연결');assert.equal(real.job,'일반 근로자');assert.equal('disability' in real,false);assert.equal(monthly.matches(real,{accounts:'normal'}),true);
- assert.equal(monthly.classify(person).department,'미배정');assert.equal(monthly.classify(person).groupState,'미확인');
+ assert.equal(monthly.classify(person).department,'미확인');assert.equal(monthly.classify(person).groupState,'미확인');
  const hidden=monthly.classify({...person,account_linked:true,account_active:false});assert.equal(monthly.matches(hidden,{accounts:'normal'}),false);assert.equal(monthly.matches(hidden,{accounts:'all'}),true);
  assert.equal(monthly.matches(monthly.classify({...person,is_test_account:true}),{accounts:'normal'}),false);
 });

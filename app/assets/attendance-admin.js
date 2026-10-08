@@ -801,7 +801,7 @@
       const field=el('label',title), select=document.createElement('select'); select.dataset.filterKey=key;
       select.addEventListener('change',()=>{filters[key]=select.value;render();});field.append(select);bar.append(field);controls.push([key,select]);
     });
-    bar.append(el('p','장애 여부: 보호 인사자료·별도 승인 필요. 테스트 여부는 명시적 표식만 사용하며 미확인 계정을 이름으로 추정하지 않습니다.','attendance-evidence-help'));
+    bar.append(el('p','부서·직무·재직은 현재 직원정보, 작업반·팀장은 조회일(월별 말일)의 배정 기준입니다. 장애 여부: 보호 인사자료·별도 승인 필요. 테스트 여부는 명시적 표식만 사용하며 미확인 계정을 이름으로 추정하지 않습니다.','attendance-evidence-help'));
     bar.refresh = () => {
       search.value=filters.search;check.checked=filters.reviewOnly;
       controls.forEach(([key,select])=>{
@@ -903,13 +903,12 @@
     }
     async function load(force = false) {
       if (loading || (loaded && !force)) return;
-      loading = true; query.disabled = true; excel.disabled = true;
+      loading = true; query.disabled = true; excel.disabled = true; month.disabled = true;
       const selectedMonth = month.value;
       try {
         const helper = window.TaejangAttendanceMonthly;
         const dates = helper.monthDates(selectedMonth);
-        const ledger = await app().rpc('get_confirmed_attendance_period', {p_period_start:dates[0],p_period_end:dates.at(-1),p_employee_uuid:null,p_include_reopened:false});
-        if (!Array.isArray(ledger?.rows)) throw new Error('LEDGER_UNAVAILABLE');
+
         const daily = {};
         // Bounded parallel reads; each missing day remains explicitly unavailable.
         for (let offset = 0; offset < dates.length; offset += 4) {
@@ -926,12 +925,16 @@
         }
         if (!panel.isConnected) return;
         const metadata=await classificationMetadata(dates.at(-1));
+        const ledger=await app().rpc('get_confirmed_attendance_period',{p_period_start:dates[0],p_period_end:dates.at(-1),p_employee_uuid:null,p_include_reopened:false});
+        if (!Array.isArray(ledger?.rows)) throw new Error('LEDGER_UNAVAILABLE');
+        if (!panel.isConnected) return;
+        detail.replaceChildren();
         model = helper.buildMonth({month:selectedMonth,ledger,daily,employees:[...metadata.values()]});
         model.rows=model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid))));loaded = true;
         render(); excel.disabled = model.failedDays.length > 0;
       } catch {
         results.prepend(el('p', '월간 출근부를 불러오지 못했습니다. 선택 월과 이전 조회 내용은 유지됩니다.', 'message error'));
-      } finally { loading = false; query.disabled = false; }
+      } finally { loading = false; query.disabled = false; month.disabled = false; }
     }
     query.addEventListener('click', () => load(true));
     month.addEventListener('change', () => { loaded = false; excel.disabled = true; });

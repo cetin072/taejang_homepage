@@ -19,12 +19,12 @@
       const raw=record.record_snapshot?.attendance_status;
       const code=(typeof raw==='object' ? raw?.status : raw) || 'work';
       const missing=code==='work' && (!record.clock_in_at || !record.clock_out_at);
-      return {label:missing?'누락':labels[code] || '확인 필요',code,confirmed:true,review:missing || code==='review_required',clockIn:time(record.clock_in_at),clockOut:time(record.clock_out_at),record};
+      return {label:missing?'누락':labels[code] || '확인 필요',code,confirmed:true,review:missing || code==='review_required' || !Object.hasOwn(labels,code),clockIn:time(record.clock_in_at),clockOut:time(record.clock_out_at),record};
     }
     if (!day) return {label:'조회 실패',confirmed:false,review:true,clockIn:'',clockOut:''};
     if (!live) {
       const outside=(employee?.hired_on && date<employee.hired_on)||(employee?.departed_on && date>employee.departed_on);
-      return {label:outside?'재직기간 밖':'비대상',confirmed:false,review:false,clockIn:'',clockOut:''};
+      return {label:outside?'재직기간 밖':(day.workday?.is_workday===false ? '휴일·비대상' : '비대상'),confirmed:false,review:false,clockIn:'',clockOut:''};
     }
     const code=live.attendance_status?.status || 'work';
     const holiday=day.workday?.is_workday===false && !(day.assignments || []).some(r=>String(r.employee_uuid)===String(employee.employee_uuid));
@@ -72,7 +72,7 @@
     const knownAccount = linked?.account_status || (row.account_linked === true ? (row.account_active === true ? 'active' : row.account_active === false ? 'inactive' : null) : null);
     return {
       ...row,
-      department: metadata.department_name || '미배정',
+      department: metadata.department_name || (Object.hasOwn(metadata,'department_name') ? '미배정' : '미확인'),
       job: metadata.position_name || '미확인',
       groups: metadata.groups || [],
       leaders: metadata.leaders || [],
