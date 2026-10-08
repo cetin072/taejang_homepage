@@ -58,7 +58,6 @@ window.TAEJANG_CONTENT = {
       thumbnailAlt: "작업자가 포장 상자에 배송 라벨을 붙이는 모습",
       thumbnailObjectPosition: "50% 52%",
       thumbnailDetail: "natural",
-      thumbnailDetail: "natural",
       thumb: null,
       hero: null,
       gallery: [],
