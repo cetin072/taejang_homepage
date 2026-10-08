@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import http from 'node:http';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const playwright=require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const monthly=require('../app/assets/attendance-monthly.js');
+const root=path.resolve('.');
+const output=process.env.ATTENDANCE_QA_OUTPUT || path.join(os.tmpdir(),'taejang-issue-426');await fs.mkdir(output,{recursive:true});
+const month='2026-09',dates=monthly.monthDates(month);
+const good={employee_uuid:'fixture-normal',employee_id:'V001',display_name:'가상 정상 직원',account_active:true,account_linked:true,attendance_status:{status:'work'},clock_in:{event_at:'2026-09-01T09:00:00+09:00',status:'recorded'},clock_out:{event_at:'2026-09-01T18:00:00+09:00',status:'recorded'}};
+const missing={...good,employee_uuid:'fixture-missing',employee_id:'V002',display_name:'가상 누락 직원',clock_out:null};
+const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uuid:good.employee_uuid,employee_id_at_confirmation:good.employee_id,display_name_at_confirmation:good.display_name,work_date:d,clock_in_at:d+'T09:00:00+09:00',clock_out_at:d+'T18:00:00+09:00',record_snapshot:{attendance_status:'work'},revision_no:1,record_fingerprint:'fixture-'+d}))};
+const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:16px;font-family:Arial,sans-serif;--app-border:#ddd}.button{padding:8px;border:1px solid #aac;background:#fff;border-radius:8px;cursor:pointer}button:focus-visible,summary:focus-visible{outline:3px solid blue}[hidden]{display:none!important}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
+const rows=${JSON.stringify([good,missing])};const ledger=${JSON.stringify(ledger)};
+window.fail=false;window.calls=[];
+window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
+ calls.push({name,p});if(window.fail)throw Error('fixture network failure');
+ if(name==='get_attendance_admin_today')return {work_date:p.p_work_date,rows};
+ if(name==='get_attendance_external_evidence')return {rows:[]};
+ if(name==='get_attendance_confirmation_status')return {is_confirmed:false,blockers:[]};
+ if(name==='get_attendance_workday_status')return {is_workday:true};
+ if(name==='get_attendance_holiday_work_assignments')return {rows:[]};
+ if(name==='get_confirmed_attendance_period')return ledger;
+ if(name==='get_employee_management_context')return {employees:[{id:rows[0].employee_uuid,department_name:'가상 부서',position_name:'일반 근로자',employment_status:'active',attendance_required:true,linked_profile:{account_status:'active'}},{id:rows[1].employee_uuid,department_name:null,position_name:'직원',employment_status:'active',attendance_required:true}]};
+ throw Error('Unhandled fixture RPC '+name);
+}};
+</script><script src="/app/assets/payroll-ledger-xlsx.js"></script><script src="/app/assets/attendance-monthly.js"></script><script src="/app/assets/attendance-admin.js"></script></body></html>`;
+const server=http.createServer(async(req,res)=>{try{if(req.url==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;}const file=path.resolve(root,'.'+req.url);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('Content-Type','application/javascript; charset=utf-8');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+const browser=await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
+const errors=[];
+try{
+ for(const [device,width,height] of [['pc',1440,1000],['mobile',390,844]]){
+  const context=await browser.newContext({viewport:{width,height},acceptDownloads:true});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:'+server.address().port);await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));
+  await page.getByRole('button',{name:'월별',exact:true}).waitFor();
+  assert.match(await page.locator('.attendance-compact').first().innerText(),/가상 누락/);
+  assert.equal(await page.locator('.attendance-compact[open]').count(),0);
+  await page.screenshot({path:path.join(output,device+'-daily.png'),fullPage:true});
+  await page.getByRole('button',{name:'월별',exact:true}).click();
+  await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('[data-attendance-monthly] .attendance-toolbar button:last-child').disabled);
+  assert.equal(await page.locator('.attendance-matrix thead th').count(),31);
+  const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/2026-09.*\.xlsx$/);await download.saveAs(path.join(output,device+'-monthly.xlsx'));
+  await page.getByRole('button',{name:'가상 정상 직원',exact:true}).click();const personalPromise=page.waitForEvent('download');await page.getByRole('button',{name:'개인 월간 Excel'}).click();await (await personalPromise).saveAs(path.join(output,device+'-personal.xlsx'));
+  await page.screenshot({path:path.join(output,device+'-monthly.png'),fullPage:true});
+  const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));assert.ok(bounds.scroll<=bounds.width+1,'page has horizontal overflow');
+  await page.locator('input[type=month]').fill('2026-10');await page.evaluate(()=>window.fail=true);await page.getByRole('button',{name:'월간 조회',exact:true}).click();await page.getByText('월간 출근부를 불러오지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.locator('input[type=month]').inputValue(),'2026-10');assert.equal(await page.locator('.attendance-matrix').count(),1);
+  await page.evaluate(()=>window.fail=false);
+  await page.getByRole('button',{name:'상세·보정 이력',exact:true}).click();await page.getByRole('button',{name:'근태 시간 보정·보정 이력'}).waitFor();
+  await context.close();
+ }
+ assert.deepEqual(errors,[]);console.log('PASS PC/mobile fixture UI, monthly/personal downloads, failure preservation. Artifacts: '+output);
+}finally{await browser.close();await new Promise(r=>server.close(r));}

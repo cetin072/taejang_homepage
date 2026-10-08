@@ -141,6 +141,8 @@
     ['assets/mobile-sidebar-dismiss.js', 'mobile-sidebar-dismiss'],
     ['assets/pwa-install.js', 'pwa-install'],
     ['assets/attendance-location.js', 'attendance-location'],
+    ['assets/payroll-ledger-xlsx.js', 'attendance-xlsx-writer'],
+    ['assets/attendance-monthly.js', 'attendance-monthly'],
     ['assets/attendance-admin.js', 'attendance-admin'],
     ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],

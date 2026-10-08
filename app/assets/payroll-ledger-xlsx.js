@@ -253,6 +253,36 @@
     return storedZip(files);
   }
 
+
+  // Reuse ZIP, XML escaping and literal string cells for non-payroll tables.
+  function buildTableWorkbookXlsx(sheets) {
+    const files = [
+      { name: '_rels/.rels', content: '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>' },
+      { name: 'xl/styles.xml', content: STYLES_XML },
+    ];
+    const overrides=[], relationships=[], names=[];
+    sheets.forEach((sheet,index)=>{
+      const id=index+1, last=columnName(sheet.headers.length-1);
+      names.push('<sheet name="'+xml(sheet.name)+'" sheetId="'+id+'" r:id="rId'+id+'"/>');
+      overrides.push('<Override PartName="/xl/worksheets/sheet'+id+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>');
+      relationships.push('<Relationship Id="rId'+id+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+id+'.xml"/>');
+      const rows=[
+        '<row r="1" ht="26" customHeight="1">'+cellXml(sheet.title,'A1',1)+'</row>',
+        '<row r="2">'+cellXml(sheet.note,'A2',4)+'</row>',
+        '<row r="3" ht="38" customHeight="1">'+sheet.headers.map((v,c)=>cellXml(v,columnName(c)+'3',2)).join('')+'</row>',
+        ...sheet.rows.map((row,r)=>'<row r="'+(r+4)+'" ht="42" customHeight="1">'+row.map((v,c)=>cellXml(v,columnName(c)+(r+4))).join('')+'</row>')
+      ];
+      files.push({name:'xl/worksheets/sheet'+id+'.xml',content:'<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane xSplit="2" ySplit="3" topLeftCell="C4" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols>'+sheet.headers.map((v,c)=>'<col min="'+(c+1)+'" max="'+(c+1)+'" width="'+(sheet.widths?.[c] || 24)+'" customWidth="1"/>').join('')+'</cols><sheetData>'+rows.join('')+'</sheetData><autoFilter ref="A3:'+last+Math.max(3,sheet.rows.length+3)+'"/><mergeCells count="2"><mergeCell ref="A1:'+last+'1"/><mergeCell ref="A2:'+last+'2"/></mergeCells></worksheet>'});
+    });
+    relationships.push('<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>');
+    files.push(
+      {name:'[Content_Types].xml',content:'<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+overrides.join('')+'</Types>'},
+      {name:'xl/workbook.xml',content:'<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+names.join('')+'</sheets></workbook>'},
+      {name:'xl/_rels/workbook.xml.rels',content:'<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+relationships.join('')+'</Relationships>'}
+    );
+    return storedZip(files);
+  }
+
   function downloadPayrollLedgerXlsx(context, month) {
     const bytes = buildPayrollLedgerXlsx(context, month);
     const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -273,6 +303,7 @@
     statusLabel,
     buildPayrollLedgerMatrix,
     buildPayrollLedgerXlsx,
+    buildTableWorkbookXlsx,
     downloadPayrollLedgerXlsx,
   });
 });
