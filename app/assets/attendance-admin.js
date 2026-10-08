@@ -861,7 +861,7 @@
     let model = null, loading = false, loaded = false;
     function visibleRows() { return (model?.rows || []).filter(r => matchesSearch(r) && (!filters.reviewOnly || r.reviewDays > 0)); }
     function exportRows(rows, scope) {
-      try { window.TaejangAttendanceMonthly.download(model, rows, window.TaejangPayrollLedgerXlsx, scope); }
+      try { window.TaejangAttendanceMonthly.download(model, rows, window.TaejangAttendanceMonthlyXlsx, scope); }
       catch { window.alert('Excel을 만들지 못했습니다. 조회한 내용은 유지됩니다. 다시 시도하세요.'); }
     }
     excel.addEventListener('click', () => exportRows(visibleRows(), filters.search || filters.reviewOnly ? '현재 검색·필터' : '전체'));

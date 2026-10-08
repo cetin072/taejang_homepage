@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const monthly=require('../app/assets/attendance-monthly.js');
-const writer=require('../app/assets/payroll-ledger-xlsx.js');
+const writer=require('../app/assets/attendance-monthly-xlsx.js');
 const month='2026-09', dates=monthly.monthDates(month);
 const person={employee_uuid:'synthetic-1',employee_id:'=1+1',display_name:'가상 직원',account_active:true};
 function fixture(){return {month,daily:Object.fromEntries(dates.map(d=>[d,{rows:[person],workday:{is_workday:true}}])),ledger:{rows:[],period_fingerprint:'synthetic'}};}

@@ -13,6 +13,7 @@ const engine = require('../app/assets/payroll-engine.js');
 const preflight = require('../app/assets/payroll-preflight.js');
 const monthly = require('../app/assets/attendance-monthly.js');
 const xlsx = require('../app/assets/payroll-ledger-xlsx.js');
+const monthXlsx = require('../app/assets/attendance-monthly-xlsx.js');
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -491,7 +492,7 @@ equal(monthModel.rows.filter(row=>row.employee_uuid===worker.employeeUuid).lengt
 equal(monthModel.dates[0],'2026-09-01','monthly Excel starts at calendar day one');
 equal(monthModel.dates.at(-1),'2026-09-30','monthly Excel includes the last calendar day');
 equal(targetMonth.cells.find((cell,index)=>monthModel.dates[index]===correctedDate).clockOut,'18:00','monthly XLSX uses the corrected confirmed time in KST');
-const monthBytes=xlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel));
+const monthBytes=monthXlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel));
 equal(Buffer.from(monthBytes).readUInt32LE(0),0x04034b50,'monthly XLSX is a valid ZIP package');
 check(!Buffer.from(monthBytes).toString('utf8').includes('gross_pay'),'general monthly workbook does not join salary data');
 const personal=xlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel,[targetMonth],'선택 직원'));

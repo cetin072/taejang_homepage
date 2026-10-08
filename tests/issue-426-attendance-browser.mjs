@@ -30,7 +30,7 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_employee_management_context')return {employees:[{id:rows[0].employee_uuid,department_name:'가상 부서',position_name:'일반 근로자',employment_status:'active',attendance_required:true,linked_profile:{account_status:'active'}},{id:rows[1].employee_uuid,department_name:null,position_name:'직원',employment_status:'active',attendance_required:true}]};
  throw Error('Unhandled fixture RPC '+name);
 }};
-</script><script src="/app/assets/payroll-ledger-xlsx.js"></script><script src="/app/assets/attendance-monthly.js"></script><script src="/app/assets/attendance-admin.js"></script></body></html>`;
+</script><script src="/app/assets/attendance-monthly-xlsx.js"></script><script src="/app/assets/attendance-monthly.js"></script><script src="/app/assets/attendance-admin.js"></script></body></html>`;
 const server=http.createServer(async(req,res)=>{try{if(req.url==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;}const file=path.resolve(root,'.'+req.url);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('Content-Type','application/javascript; charset=utf-8');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
