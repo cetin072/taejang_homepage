@@ -302,7 +302,7 @@ window.TAEJANG_CONTENT = {
         title: "환경정비 활동",
         filename: "activity-3.jpg",
         orientation: "가로형",
-        note: "참여자의 사진 공개 동의를 확인하고 안전 장비 착용이 보이는 장면"
+        note: "참여자 단체사진 공개 승인과 현수막·협력사 로고의 원본 보존을 확인"
       },
       sections: [
         {
