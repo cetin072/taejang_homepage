@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { operationsOwnedPromotionChecks } from './operations-owned-promotion-auth.mjs';
+import { operationsPublicTextEditChecks } from './operations-public-text-edit-auth.mjs';
 import { execFileSync } from 'node:child_process';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
@@ -325,6 +326,7 @@ const approvePromotionStaff = await rpc('approve_signup_request_with_employee', 
 });
 equal(approvePromotionStaff.data?.code, 'EMPLOYEE_ACCOUNT_APPROVED', 'operations manager approves and links a promotion-staff account');
 await operationsOwnedPromotionChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
+await operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admin,lead,staff:promotionStaff,departmentId:promotionDepartment.data[0].id,positionId:position.data[0].id,check,equal});
 const lowerRoleCrossDraftEdit = await rpc('save_promotion_draft', promotionStaff.token, {
   p_content_id: lowerRoleDraft.data.content_id, p_content_type: 'homepage_article', p_title: '권한 없는 수정',
   p_byline_kind: 'company', p_public_media: [], p_people_photo: 'unsure', p_number_or_amount: 'unsure', p_change_reason: 'CI 차단',

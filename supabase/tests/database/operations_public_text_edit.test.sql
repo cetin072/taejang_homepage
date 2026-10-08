@@ -1,0 +1,10 @@
+begin;
+select plan(6);
+select has_function('public','operations_update_public_promotion_text',array['uuid','uuid','text','text','text','text']);
+select ok(has_function_privilege('authenticated','public.operations_update_public_promotion_text(uuid,uuid,text,text,text,text)','execute'),'authenticated guarded RPC');
+select ok(not has_function_privilege('anon','public.operations_update_public_promotion_text(uuid,uuid,text,text,text,text)','execute'),'anonymous blocked');
+select ok(not has_function_privilege('authenticated','public.private_can_operations_edit_public_promotion(uuid)','execute'),'internal predicate blocked');
+select ok(has_function_privilege('authenticated','public.get_operations_public_promotion_edit(uuid)','execute'),'guarded hidden detail reader');
+select ok(not has_function_privilege('authenticated','public.private_get_promotion_publication_admin_before_text_edit()','execute'),'private original reader blocked');
+select * from finish();
+rollback;
