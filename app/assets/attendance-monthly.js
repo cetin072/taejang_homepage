@@ -66,6 +66,35 @@
       {name:'일별 상세',title:`태장 ${model.month} 근태 상세`,note,headers:['사번','이름','날짜','상태','출근(KST)','퇴근(KST)','확정','예외','revision','원장 근거'],rows:rows.flatMap(r=>r.cells.map((c,i)=>[r.employee_id || '미등록',r.display_name || '미등록',model.dates[i],c.label,c.clockIn,c.clockOut,c.confirmed?'확정':'미확정/비대상',c.review?'확인 필요':'',c.record?.revision_no || '',c.record?.record_fingerprint || '']))}
     ];
   }
+
+  function classify(row, metadata = {}) {
+    const linked = metadata.linked_profile;
+    const knownAccount = linked?.account_status || (row.account_linked === true ? (row.account_active === true ? 'active' : row.account_active === false ? 'inactive' : null) : null);
+    return {
+      ...row,
+      department: metadata.department_name || '미배정',
+      job: metadata.position_name || '미확인',
+      groups: metadata.groups || [],
+      leaders: metadata.leaders || [],
+      groupState: metadata.groupsKnown ? ((metadata.groups || []).length ? '배정' : '미배정') : '미확인',
+      leaderState: metadata.groupsKnown ? ((metadata.leaders || []).length ? '배정' : '미배정') : '미확인',
+      employment: metadata.employment_status || '미확인',
+      attendance: typeof metadata.attendance_required === 'boolean' ? (metadata.attendance_required ? '대상' : '비대상') : '미확인',
+      account: knownAccount ? (knownAccount === 'active' ? '활성' : '비활성·삭제') : (row.account_linked === false ? '미연결' : '미확인'),
+      // No name/email/position heuristic is evidence of a test identity.
+      testAccount: metadata.is_test_account === true || row.is_test_account === true,
+    };
+  }
+  function matches(row, filters) {
+    const query = (filters.search || '').trim().toLocaleLowerCase();
+    if (!(String(row.display_name || '') + ' ' + String(row.employee_id || '')).toLocaleLowerCase().includes(query)) return false;
+    if (filters.accounts !== 'all' && (row.account === '비활성·삭제' || row.testAccount)) return false;
+    for (const key of ['department', 'job', 'employment', 'attendance']) if (filters[key] && row[key] !== filters[key]) return false;
+    if (filters.group && !(row.groups || []).includes(filters.group) && row.groupState !== filters.group) return false;
+    if (filters.leader && !(row.leaders || []).includes(filters.leader) && (row.leaders?.length || 0 || row.leaderState !== filters.leader)) return false;
+    return true;
+  }
+
   function download(model,rows,writer,scope='전체') {
     const bytes=writer.buildTableWorkbookXlsx(workbookSheets(model,rows,scope));
     const url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
@@ -74,5 +103,5 @@
     document.body.append(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  return Object.freeze({monthDates,time,buildMonth,workbookSheets,download});
+  return Object.freeze({monthDates,time,buildMonth,workbookSheets,download,classify,matches});
 });

@@ -35,3 +35,21 @@ test('empty month exports valid headers and zero employees',()=>{
  const model=monthly.buildMonth(f);assert.equal(model.rows.length,0);assert.equal(monthly.workbookSheets(model)[0].rows.length,0);
  assert.ok(writer.buildTableWorkbookXlsx(monthly.workbookSheets(model)).length>1000);
 });
+
+test('classification uses real metadata, preserves unlinked employees and never infers disability/test from role or name',()=>{
+ const real=monthly.classify({...person,account_linked:false,display_name:'테스트라는 실제 이름',role:'general_worker'},{department_name:'운영',position_name:'일반 근로자',attendance_required:true});
+ assert.equal(real.department,'운영');assert.equal(real.testAccount,false);assert.equal(real.account,'미연결');assert.equal(real.job,'일반 근로자');assert.equal('disability' in real,false);assert.equal(monthly.matches(real,{accounts:'normal'}),true);
+ assert.equal(monthly.classify(person).department,'미배정');assert.equal(monthly.classify(person).groupState,'미확인');
+ const hidden=monthly.classify({...person,account_linked:true,account_active:false});assert.equal(monthly.matches(hidden,{accounts:'normal'}),false);assert.equal(monthly.matches(hidden,{accounts:'all'}),true);
+ assert.equal(monthly.matches(monthly.classify({...person,is_test_account:true}),{accounts:'normal'}),false);
+});
+test('filters match actual multiple group/leader assignments and unassigned states',()=>{
+ const row=monthly.classify(person,{groups:['작업반 A','작업반 B'],leaders:['확인 팀장'],groupsKnown:true,department_name:'생산',position_name:'근로자',attendance_required:true,employment_status:'active'});
+ assert.equal(monthly.matches(row,{accounts:'all',group:'작업반 B',leader:'확인 팀장',department:'생산',attendance:'대상'}),true);
+ assert.equal(monthly.matches(row,{accounts:'all',group:'미배정'}),false);
+ assert.equal(monthly.matches(monthly.classify(person,{groupsKnown:true}),{accounts:'all',group:'미배정',leader:'미배정'}),true);
+});
+test('large monthly XLSX uses bounded ZIP writes',()=>{
+ const rows=Array.from({length:150},(_,i)=>Array.from({length:34},()=>`가상 근태 ${i} 미확정 누락`));
+ assert.ok(writer.buildTableWorkbookXlsx([{name:'월간',title:'가상 월간',note:'test',headers:Array(34).fill('날짜'),rows}]).length>500000);
+});

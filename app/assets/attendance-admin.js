@@ -7,7 +7,7 @@
   let currentWorkDate = null;
   let requestVersion = 0;
   let activeTab = 'daily';
-  const filters = { search: '', reviewOnly: false };
+  const filters = { search: '', reviewOnly: false, accounts: 'normal', department: '', job: '', group: '', leader: '', employment: '', attendance: '' };
 
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
@@ -69,7 +69,8 @@
       .attendance-matrix td span{display:block;white-space:nowrap}
       .attendance-detail-tools{margin:12px 0;border:1px solid #c8d5cd;border-radius:10px;padding:10px}
       .attendance-detail-tools>summary{cursor:pointer;font-weight:800;min-height:32px}
-      .attendance-toolbar input,.attendance-toolbar select{min-height:40px;max-width:100%;font:inherit;padding:6px}
+      .attendance-toolbar input:not([type=checkbox]),.attendance-toolbar select{min-height:40px;max-width:100%;font:inherit;padding:6px}
+      .attendance-toolbar input[type=checkbox]{width:18px;min-height:18px;height:18px}
       .attendance-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:18px 0; }
       .attendance-summary article { padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-summary strong { display:block; margin-top:6px; font-size:28px; }
@@ -416,11 +417,11 @@
       toolbar.append(importButton, fileInput);
     }
 
-    toolbar.append(el(
+    toolbar.append(folded('GPS·지문 비교 안내', el(
       'p',
       'GPS와 지문 Excel은 원본 근거로 따로 보존합니다. 5분 이내 차이는 정상 후보로 표시하고, 누락·큰 차이·미매칭만 우선 확인합니다.',
       'attendance-evidence-help'
-    ));
+    )));
     return toolbar;
   }
 
@@ -572,11 +573,12 @@
     panel.append(
       el('h3', confirmed ? `일일 근태 확정 v${revision?.revision_no || ''}` : '일일 근태 확정'),
       el('p', confirmed
-        ? `확정 시각: ${revision?.confirmed_at ? new Date(revision.confirmed_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'} · snapshot ${revision?.snapshot_fingerprint || '-'}`
+        ? `확정 시각: ${revision?.confirmed_at ? new Date(revision.confirmed_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '-'}`
         : pending.length
           ? `확정 전 해결할 항목이 ${pending.length}건 있습니다. 출근·퇴근 누락은 실제 시간을 입력하고, 판단이 필요한 예외만 확인 사유를 남긴 뒤 하루 전체를 확정합니다.`
           : '모든 필수 확인 항목이 해소되었습니다. 이 날짜의 전체 출근부를 한 번에 확정할 수 있습니다.'),
     );
+    if (confirmed) panel.append(folded('확정 원장 근거', el('p', 'snapshot ' + (revision?.snapshot_fingerprint || '-'))));
     if (blockers.length) {
       const list = el('ul', null, 'attendance-confirmation-blockers');
       blockers.forEach(blocker => {
@@ -597,7 +599,7 @@
         }
         list.append(item);
       });
-      panel.append(list);
+      panel.append(folded('확정 전 확인 항목 ' + pending.length + '건', list));
     }
     if (can('attendance.confirm')) {
       const actions = el('div', null, 'attendance-confirmation-actions');
@@ -775,14 +777,14 @@
       buttons.push([key, button]); bar.append(button);
     });
     function update() {
-      buttons.forEach(([key, button]) => { button.setAttribute('aria-pressed', String(activeTab === key)); panels[key].hidden = activeTab !== key; });
+      buttons.forEach(([key, button]) => { button.setAttribute('aria-pressed', String(activeTab === key)); panels[key].hidden = activeTab !== key; if(activeTab===key)panels[key].querySelectorAll('.attendance-toolbar').forEach(bar=>bar.refresh?.()); });
     }
     update();
-    if (activeTab === 'monthly') panels.monthly.load();
+    if (activeTab === 'monthly') queueMicrotask(() => panels.monthly.load());
     return bar;
   }
 
-  function searchToolbar(render) {
+  function searchToolbar(render, getRows = () => []) {
     const bar = el('section', null, 'attendance-toolbar');
     const label = el('label', '이름·사번 검색'), search = document.createElement('input');
     search.type = 'search'; search.value = filters.search;
@@ -792,10 +794,62 @@
     check.type = 'checkbox'; check.checked = filters.reviewOnly;
     check.addEventListener('change', () => { filters.reviewOnly = check.checked; render(); });
     checkLabel.append(check, document.createTextNode('확인 필요만'));
+
     bar.append(label, checkLabel);
-    return bar;
+    const controls = [];
+    [['department','부서'],['group','팀·작업반'],['leader','담당 팀장(배정 관계)'],['job','직무·직책(장애 여부 아님)'],['attendance','근태 대상'],['employment','재직상태'],['accounts','계정 표시']].forEach(([key,title])=>{
+      const field=el('label',title), select=document.createElement('select'); select.dataset.filterKey=key;
+      select.addEventListener('change',()=>{filters[key]=select.value;render();});field.append(select);bar.append(field);controls.push([key,select]);
+    });
+    bar.append(el('p','장애 여부: 보호 인사자료·별도 승인 필요. 테스트 여부는 명시적 표식만 사용하며 미확인 계정을 이름으로 추정하지 않습니다.','attendance-evidence-help'));
+    bar.refresh = () => {
+      search.value=filters.search;check.checked=filters.reviewOnly;
+      controls.forEach(([key,select])=>{
+        const rows=getRows();
+        const values= key==='accounts' ? [['normal','정상 명단(비활성·확인된 테스트 숨김)'],['all','전체 이력 포함']] : [['','전체'],...([...new Set(rows.flatMap(r=>key==='group' ? (r.groups?.length?r.groups:[r.groupState]) : key==='leader' ? (r.leaders?.length?r.leaders:[r.leaderState]) : [r[key]]).filter(Boolean))].sort().map(v=>[v,v]))];
+        select.replaceChildren(...values.map(([value,text])=>new Option(text,value,false,value===filters[key])));
+        if(filters[key] && !values.some(([value])=>value===filters[key]))select.append(new Option(filters[key],filters[key],true,true));
+      });
+    };
+    bar.refresh();return bar;
   }
-  const matchesSearch = row => (String(row.display_name || '') + ' ' + String(row.employee_id || '')).toLocaleLowerCase().includes(filters.search.trim().toLocaleLowerCase());
+  const matchesSearch = row => window.TaejangAttendanceMonthly.matches(row, filters);
+
+
+  async function classificationMetadata(onDate) {
+    const metadata = new Map();
+    if (can('employee.view_all') || can('employee.view_scoped')) {
+      try {
+        const context=await app().rpc('get_employee_management_context');
+        for(const employee of context?.employees || []) {
+          // Select ordinary organization fields; never retain protected HR values.
+          const {id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on}=employee;
+          metadata.set(String(id),{id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on,linked_profile:employee.linked_profile?{account_status:employee.linked_profile.account_status}:null});
+        }
+      } catch { /* Unavailable scoped metadata stays explicitly unconfirmed. */ }
+    }
+    if ((can('field.membership.manage') || can('field.assignment.manage')) && can('task.manage')) {
+      try {
+        const options=await app().rpc('get_today_board_admin_options');
+        const groups=options?.work_groups || [];
+        let allGroupsReadable=true;
+        for(const group of groups) {
+          try {
+            const members=await app().rpc('list_field_work_group_members',{p_work_group_id:group.id,p_on_date:onDate});
+            if(!Array.isArray(members)){allGroupsReadable=false;continue;}
+            const leaders=members.filter(m=>m.member_type==='lead').map(m=>m.name);
+            for(const member of members){
+              const id=String(member.employee_uuid),meta=metadata.get(id) || {id};
+              meta.groups=[...new Set([...(meta.groups || []),group.name])];meta.leaders=[...new Set([...(meta.leaders || []),...leaders])];meta.groupsKnown=true;
+              metadata.set(id,meta);
+            }
+          } catch { allGroupsReadable=false; /* One forbidden group does not expand scope or block attendance. */ }
+        }
+        if(allGroupsReadable && can('employee.view_all'))for(const meta of metadata.values())meta.groupsKnown=true;
+      } catch { /* Keep group/leader classification as unconfirmed. */ }
+    }
+    return metadata;
+  }
 
   function monthlyPanel(workDate) {
     const panel = el('section'); panel.dataset.attendanceMonthly = '1';
@@ -813,6 +867,7 @@
     excel.addEventListener('click', () => exportRows(visibleRows(), filters.search || filters.reviewOnly ? '현재 검색·필터' : '전체'));
     function render() {
       if (!model) return;
+      filterBar.refresh();
       const rows = visibleRows(), table = el('table', null, 'attendance-matrix');
       table.append(el('caption', model.month + ' 직원별 월간 근태'));
       const head = el('thead'), tr = el('tr'); tr.append(el('th', '직원'));
@@ -835,7 +890,8 @@
           });
           detail.replaceChildren(list); detail.scrollIntoView({block:'nearest'});
         });
-        person.append(button, el('span', row.employee_id || '사번 미등록')); line.append(person);
+        person.append(button, el('span', row.employee_id || '사번 미등록'));
+        person.append(el('span', row.department + ' · ' + row.account)); line.append(person);
         row.cells.forEach(cell => { const td = el('td'); td.dataset.review = String(cell.review); td.append(el('span', cell.label), el('span', (cell.clockIn || '-') + '~' + (cell.clockOut || '-'))); line.append(td); });
         body.append(line);
       });
@@ -869,7 +925,9 @@
           }));
         }
         if (!panel.isConnected) return;
-        model = helper.buildMonth({month:selectedMonth,ledger,daily}); loaded = true;
+        const metadata=await classificationMetadata(dates.at(-1));
+        model = helper.buildMonth({month:selectedMonth,ledger,daily,employees:[...metadata.values()]});
+        model.rows=model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid))));loaded = true;
         render(); excel.disabled = model.failedDays.length > 0;
       } catch {
         results.prepend(el('p', '월간 출근부를 불러오지 못했습니다. 선택 월과 이전 조회 내용은 유지됩니다.', 'message error'));
@@ -878,7 +936,8 @@
     query.addEventListener('click', () => load(true));
     month.addEventListener('change', () => { loaded = false; excel.disabled = true; });
     toolbar.append(label, query, excel);
-    panel.append(toolbar, searchToolbar(render), results, detail);
+    const filterBar=searchToolbar(render,()=>model?.rows || []);
+    panel.append(toolbar, filterBar, results, detail);
     panel.load = load;
     return panel;
   }
@@ -915,7 +974,9 @@
       const dayStatus = workdayAvailable ? dayStatusResult.value : null;
       const holidayAssignments = holidayAssignmentsAvailable ? holidayAssignmentsResult.value : null;
       currentWorkDate = data?.work_date || requestedWorkDate;
-      const rows = Array.isArray(data?.rows) ? data.rows : [];
+      const metadata=await classificationMetadata(currentWorkDate);
+      if(version!==requestVersion)return;
+      const rows=data.rows.map(row=>window.TaejangAttendanceMonthly.classify(row,metadata.get(String(row.employee_uuid))));
       const evidenceRows = Array.isArray(evidenceData?.rows) ? evidenceData.rows : [];
       const fingerprintImported = evidenceRows.some(item => item.source_system === EVIDENCE_SOURCE);
       const byEmployee = new Map();
@@ -930,14 +991,13 @@
       const comparisons = evidenceAvailable
         ? rows.map(row => {
           const comparison = compareEvidence(row, byEmployee.get(String(row.employee_uuid)) || [], fingerprintImported);
+          const assigned=(holidayAssignments?.rows || []).some(r=>String(r.employee_uuid)===String(row.employee_uuid));
+          if(dayStatus?.is_workday===false && !assigned && !row.clock_in?.event_at && !row.clock_out?.event_at && dayStatusCode(row)==='work')return {label:'휴일',needsReview:false};
           const missing = dayStatusCode(row) === 'work' && (!good(row.clock_in) || !good(row.clock_out));
           return missing ? { label: '출퇴근 누락 · 확인', needsReview: true } : comparison;
         })
         : rows.map(() => ({ label: '지문 근거자료 서버 동기화 필요', needsReview: true }));
-      const reviewCount = comparisons.filter(item => item.needsReview).length
-        + unmatched.length
-        + rows.filter(row => row.clock_in?.status === 'exception_pending' || row.clock_out?.status === 'exception_pending').length;
-      const alignedCount = comparisons.filter(item => !item.needsReview && fingerprintImported).length;
+      const reviewCount = rows.filter((row,index)=>comparisons[index].needsReview || row.clock_in?.status==='exception_pending' || row.clock_out?.status==='exception_pending').length;
 
       const intro = el('header', null, 'dashboard-intro');
       const back = el('button', '대시보드로', 'button button-quiet'); back.type = 'button';
@@ -985,7 +1045,7 @@
       const dailyPanel=el('section'),detailPanel=el('section'),monthly=monthlyPanel(currentWorkDate);
       const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel});
       const pieces=[intro,tabs];
-      dailyPanel.append(makeToolbar(currentWorkDate),summary,searchToolbar(renderDaily));
+      dailyPanel.append(makeToolbar(currentWorkDate),summary,searchToolbar(renderDaily,()=>rows));
       if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('지문 근거자료'));
       if(!workdayAvailable||!holidayAssignmentsAvailable)detailPanel.append(syncRequiredPanel('휴일근무 지정'));
       else { const holidayPanel=holidayWorkPanel(dayStatus,holidayAssignments,rows,currentWorkDate);if(holidayPanel)detailPanel.append(folded('휴일근무 지정',holidayPanel)); }

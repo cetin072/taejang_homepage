@@ -227,7 +227,7 @@
       const offset = output.length;
       push32(output, 0x04034b50); push16(output, 20); push16(output, 0x0800); push16(output, 0);
       push16(output, 0); push16(output, 0); push32(output, crc); push32(output, data.length); push32(output, data.length);
-      push16(output, name.length); push16(output, 0); output.push(...name, ...data);
+      push16(output, name.length); push16(output, 0); output.push(...name); for (const byte of data) output.push(byte);
 
       push32(central, 0x02014b50); push16(central, 20); push16(central, 20); push16(central, 0x0800); push16(central, 0);
       push16(central, 0); push16(central, 0); push32(central, crc); push32(central, data.length); push32(central, data.length);

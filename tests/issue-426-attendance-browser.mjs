@@ -13,8 +13,9 @@ const month='2026-09',dates=monthly.monthDates(month);
 const good={employee_uuid:'fixture-normal',employee_id:'V001',display_name:'가상 정상 직원',account_active:true,account_linked:true,attendance_status:{status:'work'},clock_in:{event_at:'2026-09-01T09:00:00+09:00',status:'recorded'},clock_out:{event_at:'2026-09-01T18:00:00+09:00',status:'recorded'}};
 const missing={...good,employee_uuid:'fixture-missing',employee_id:'V002',display_name:'가상 누락 직원',clock_out:null};
 const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uuid:good.employee_uuid,employee_id_at_confirmation:good.employee_id,display_name_at_confirmation:good.display_name,work_date:d,clock_in_at:d+'T09:00:00+09:00',clock_out_at:d+'T18:00:00+09:00',record_snapshot:{attendance_status:'work'},revision_no:1,record_fingerprint:'fixture-'+d}))};
+const deleted={...good,employee_uuid:'fixture-deleted',employee_id:'V003',display_name:'가상 삭제 계정',account_active:false};
 const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:16px;font-family:Arial,sans-serif;--app-border:#ddd}.button{padding:8px;border:1px solid #aac;background:#fff;border-radius:8px;cursor:pointer}button:focus-visible,summary:focus-visible{outline:3px solid blue}[hidden]{display:none!important}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
-const rows=${JSON.stringify([good,missing])};const ledger=${JSON.stringify(ledger)};
+const rows=${JSON.stringify([good,missing,deleted])};const ledger=${JSON.stringify(ledger)};
 window.fail=false;window.calls=[];
 window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
  calls.push({name,p});if(window.fail)throw Error('fixture network failure');
@@ -24,6 +25,8 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_attendance_workday_status')return {is_workday:true};
  if(name==='get_attendance_holiday_work_assignments')return {rows:[]};
  if(name==='get_confirmed_attendance_period')return ledger;
+ if(name==='get_today_board_admin_options')return {work_groups:[{id:'fixture-group',name:'가상 작업반'}]};
+ if(name==='list_field_work_group_members')return [{employee_uuid:rows[0].employee_uuid,name:rows[0].display_name,member_type:'worker'},{employee_uuid:'fixture-leader',name:'가상 배정 팀장',member_type:'lead'}];
  if(name==='get_employee_management_context')return {employees:[{id:rows[0].employee_uuid,department_name:'가상 부서',position_name:'일반 근로자',employment_status:'active',attendance_required:true,linked_profile:{account_status:'active'}},{id:rows[1].employee_uuid,department_name:null,position_name:'직원',employment_status:'active',attendance_required:true}]};
  throw Error('Unhandled fixture RPC '+name);
 }};
@@ -39,6 +42,14 @@ try{
   await page.getByRole('button',{name:'월별',exact:true}).waitFor();
   assert.match(await page.locator('.attendance-compact').first().innerText(),/가상 누락/);
   assert.equal(await page.locator('.attendance-compact[open]').count(),0);
+  assert.equal(await page.locator('.attendance-compact').count(),2);
+  await page.locator('select[data-filter-key=accounts]:visible').selectOption('all');assert.equal(await page.locator('.attendance-compact').count(),3);
+  await page.locator('select[data-filter-key=accounts]:visible').selectOption('normal');
+  await page.locator('select[data-filter-key=department]:visible').selectOption('가상 부서');assert.equal(await page.locator('.attendance-compact').count(),1);
+  await page.locator('select[data-filter-key=department]:visible').selectOption('');
+  await page.locator('select[data-filter-key=group]:visible').selectOption('가상 작업반');assert.equal(await page.locator('.attendance-compact').count(),1);
+  await page.locator('select[data-filter-key=group]:visible').selectOption('');
+  await page.locator('.attendance-compact summary').first().focus();await page.keyboard.press('Enter');assert.equal(await page.locator('.attendance-compact[open]').count(),1);await page.keyboard.press('Enter');
   await page.screenshot({path:path.join(output,device+'-daily.png'),fullPage:true});
   await page.getByRole('button',{name:'월별',exact:true}).click();
   await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('[data-attendance-monthly] .attendance-toolbar button:last-child').disabled);
@@ -50,6 +61,8 @@ try{
   await page.locator('input[type=month]').fill('2026-10');await page.evaluate(()=>window.fail=true);await page.getByRole('button',{name:'월간 조회',exact:true}).click();await page.getByText('월간 출근부를 불러오지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.locator('input[type=month]').inputValue(),'2026-10');assert.equal(await page.locator('.attendance-matrix').count(),1);
   await page.evaluate(()=>window.fail=false);
   await page.getByRole('button',{name:'상세·보정 이력',exact:true}).click();await page.getByRole('button',{name:'근태 시간 보정·보정 이력'}).waitFor();
+  await page.evaluate(()=>{TaejangApp.can=()=>false;window.calls=[];});
+  await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));assert.equal(await page.evaluate(()=>calls.length),0,'unauthorized UI performs no attendance reads');
   await context.close();
  }
  assert.deepEqual(errors,[]);console.log('PASS PC/mobile fixture UI, monthly/personal downloads, failure preservation. Artifacts: '+output);
