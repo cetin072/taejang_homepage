@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
+import { appVariantLabel } from '@/src/platform/app-variant';
 import { getApiBaseUrl } from '@/src/platform/config';
 import { usePlatform } from '@/src/providers/platform-provider';
 
@@ -38,6 +39,7 @@ export default function SupportScreen() {
         <Text style={styles.title}>앱 정보와 연결 진단</Text>
         <Text style={styles.description}>비밀번호, 로그인 토큰, 위치 정보는 표시하지 않습니다.</Text>
         <View style={styles.card}>
+          <Row label="앱 종류" value={appVariantLabel()} />
           <Row label="앱 버전" value={appVersion} />
           <Row label="빌드 번호" value={String(build)} />
           <Row label="기기" value={`${Constants.platform?.android ? 'Android' : '지원 기기'}`} />

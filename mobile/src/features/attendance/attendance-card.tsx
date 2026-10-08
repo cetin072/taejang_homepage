@@ -140,7 +140,7 @@ export function AttendanceCard({
     failureCode: ExceptionFailureCode,
     position: AttendancePosition | null,
   ) {
-    if ((mode === 'qa' && today?.attendance_required === false) || attempts.current[eventType] < 2) return;
+    if (mode === 'qa' || attempts.current[eventType] < 2) return;
     setExceptionTarget({ eventType, failureCode, position });
   }
 
@@ -156,6 +156,12 @@ export function AttendanceCard({
       setToday(latest);
 
       const qaAttempt = mode === 'qa' && latest.attendance_required === false;
+
+      if (mode === 'qa' && !qaAttempt) {
+        attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
+        show('QA 앱에서는 실제 근태를 기록하지 않습니다. 출퇴근 검수 권한 계정으로 확인해주세요.', true);
+        return;
+      }
 
       if (!qaAttempt && latest.attendance_required === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
@@ -274,7 +280,7 @@ export function AttendanceCard({
       } else {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(
-          (mode === 'qa' && today?.attendance_required === false)
+          mode === 'qa'
             ? '검수 서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.'
             : '서버와 연결하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해주세요.',
           true,
@@ -309,7 +315,7 @@ export function AttendanceCard({
     }
   }
 
-  const qaMode = mode === 'qa' && today?.attendance_required === false;
+  const qaMode = mode === 'qa';
   const clockIn = today?.clock_in || null;
   const clockOut = today?.clock_out || null;
   const clockedIn = completed(clockIn);
@@ -325,7 +331,11 @@ export function AttendanceCard({
   let subtitle = '회사에서 눌러주세요';
 
   if (qaMode) {
-    if (qaClockOutAt) {
+    if (today?.attendance_required !== false) {
+      action = null;
+      title = 'QA 출퇴근 검수 전용';
+      subtitle = '실제 근태는 기록하지 않습니다 · 검수 권한 계정으로 확인해주세요';
+    } else if (qaClockOutAt) {
       action = null;
       title = '검수 완료';
       subtitle = `${formatTime(qaClockInAt)} – ${formatTime(qaClockOutAt)} · 실제 근태 미반영`;

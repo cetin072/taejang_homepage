@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compact admin form browser regression</title>
+  <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
+  <style>
+    body { margin:0; font:16px/1.5 "Malgun Gothic", sans-serif; background:#f3f6f4; }
+    .desktop-app-shell { width:100%; margin:0; border-radius:0; box-shadow:none; }
+    .app-workspace { min-width:0; }
+    .app-topbar { min-height:65px; }
+    #dashboard-main { width:min(100% - 28px, 1180px); padding:12px 0 24px; }
+    #result { position:fixed; right:5px; bottom:5px; z-index:50; font-size:10px; background:#fff; }
+  </style>
+</head>
+<body class="desktop-app-mode">
+  <div id="desktop-app-shell" class="desktop-app-shell">
+    <aside class="app-sidebar"><div>태장</div></aside>
+    <div class="app-workspace">
+      <header class="app-topbar"><button id="sidebar-toggle">메뉴</button><h1 id="desktop-page-title">가입 승인</h1></header>
+      <main id="dashboard-main" class="dashboard-main"></main>
+    </div>
+  </div>
+  <pre id="result">RUNNING</pre>
+  <script>
+    const calls=[];
+    let approvalShouldFail=false;
+    window.alert=(message)=>calls.push({name:'alert',message});
+    window.TaejangApp={
+      hasCapabilityContract:()=>true,
+      can:key=>key==='employee.onboard',
+      getRoute:()=> 'operations_manager',
+      friendlyError:error=>error.message,
+      rpc:async(name,args)=>{
+        calls.push({name,args});
+        if(name==='list_employee_signup_requests'){
+          return [{id:'fixture-person',display_name:'가상 직원',work_email:'fixture@example.test',phone:'010-1111-2222',hired_on:'2026-10-08'}];
+        }
+        if(name==='get_employee_signup_approval_options'){
+          return {departments:[{id:'dep-uuid',code:'logistics',name:'물류'}],
+            positions:[{id:'position-uuid',code:'department_lead',name:'부서 팀장'}],
+            roles:[{id:'role-uuid',code:'general_worker',name:'일반 근로자'}]};
+        }
+        if(name==='approve_employee_signup_request'){
+          return approvalShouldFail?{ok:false,code:'INVALID_ROLE'}:{ok:true};
+        }
+        throw new Error('unexpected RPC '+name);
+      }
+    };
+  </script>
+  <script src="../../app/assets/phase-c-account-approval.js"></script>
+  <script>
+    (async()=>{
+      const check=(ok,message)=>{if(!ok)throw new Error(message)};
+      await window.TaejangAccountApproval.openAccountApproval();
+      const card=document.querySelector('.phase-c-signup-approval-card');
+      const fields=card?.querySelector('.app-compact-fields');
+      const reasons=card?.querySelector('.phase-c-signup-reasons');
+      const applicant=card?.querySelector('.phase-c-signup-applicant');
+      check(card&&fields&&reasons&&applicant,'compact layout nodes exist');
+      check(fields.querySelectorAll('select').length===3,'three select controls');
+      check(reasons.querySelectorAll('input[type="text"]').length===2,'both independent decision reasons');
+      check(applicant.querySelectorAll('.phase-c-signup-applicant-item').length===3,'three applicant summary items');
+      const selects=[...fields.querySelectorAll('select')];
+      selects[0].value='dep-uuid';selects[1].value='position-uuid';selects[2].value='general_worker';
+      check(selects[2].value==='general_worker'&&selects[2].value!=='role-uuid','role code, not UUID');
+      const columns=getComputedStyle(fields).gridTemplateColumns.trim().split(/\s+/).length;
+      const width=document.documentElement.clientWidth;
+      const desktop=width>900;
+      check(columns===(desktop?3:1),'expected responsive columns '+columns+' at width '+width);
+      const rects=selects.map(s=>s.getBoundingClientRect());
+      if(desktop){
+        check(Math.max(...rects.map(x=>x.top))-Math.min(...rects.map(x=>x.top))<=4,'desktop fields share one row');
+      }else{
+        check(rects[0].bottom<rects[1].top&&rects[1].bottom<rects[2].top,'mobile fields stack without overlap');
+      }
+      check(selects.every(s=>s.getBoundingClientRect().height>=44),'all selects have accessible touch height');
+      check(card.getBoundingClientRect().width<=width,'card fits viewport');
+      check(document.body.scrollWidth<=window.innerWidth+3,'no horizontal overflow');
+      const buttons=[...card.querySelectorAll('button')];
+      check(buttons.some(b=>b.textContent==='직원 생성 후 가입 승인'),'approve action preserved');
+      check(buttons.some(b=>b.textContent==='가입 거절'),'reject action preserved');
+      const attendance=card.querySelector('.phase-c-signup-check input[type="checkbox"]');
+      check(attendance&&attendance.checked,'attendance setting preserved');
+      buttons.find(b=>b.textContent==='직원 생성 후 가입 승인').click();
+      await new Promise(resolve=>setTimeout(resolve,30));
+      const approval=calls.find(x=>x.name==='approve_employee_signup_request');
+      check(approval?.args?.p_department_id==='dep-uuid','department stays UUID');
+      check(approval?.args?.p_position_id==='position-uuid','position stays UUID');
+      check(approval?.args?.p_role_code==='general_worker','role sent as code');
+      check(approval?.args?.p_attendance_required===true,'attendance flag preserved');
+      document.getElementById('result').textContent='COMPACT_ADMIN_FORM_GATE_PASS:'+width+':'+columns;
+    })().catch(error=>{
+      document.getElementById('result').textContent='COMPACT_ADMIN_FORM_GATE_FAIL:'+error.message;
+    });
+  </script>
+</body>
+</html>

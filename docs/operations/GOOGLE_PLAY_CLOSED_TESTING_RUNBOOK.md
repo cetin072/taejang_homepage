@@ -201,7 +201,7 @@ Closed testing의 실제 첫 릴리스 전:
 - 비밀키/keystore/서비스계정 파일 저장소 커밋 금지
 - AAB 설치 후 실제 Galaxy 기기에서 로그인/출퇴근/공지/재실행 확인
 
-현재 GitHub CI의 standalone APK는 개발·실기기 QA 산출물이며 Play 제출용 AAB 및 장기 서명 운영과 구분한다.
+현재 GitHub CI의 standalone APK는 별도 package `com.cetin072.taejang.staff.qa`의 **태장 QA** 앱이다. Google Play의 태장을 삭제하지 않고 동시 설치하며 세션도 분리된다. Play 제출용 AAB 및 장기 서명 운영과 구분한다. 설치·업데이트·삭제 절차는 [MOBILE_QA_APP_RUNBOOK.md](MOBILE_QA_APP_RUNBOOK.md)를 따른다.
 
 ### Issue #333 Play AAB signing pipeline
 
