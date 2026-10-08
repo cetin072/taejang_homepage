@@ -187,6 +187,16 @@
   min-width: 0;
   margin: 0;
 }
+/* The remaining manager editors already provide grid spacing themselves.
+   Remove inherited 16px staff-page label margins without redesigning editors. */
+#desktop-app-shell .dashboard-main :is(
+  .phase-c-board-form,
+  .operations-homepage-form form,
+  .support-radar-form
+) label {
+  min-width: 0;
+  margin: 0;
+}
 /* Use the actual card/form width rather than screen width (sidebar consumes
    substantial desktop space). Small screens keep accessible full-width fields. */
 @container (max-width: 640px) {
