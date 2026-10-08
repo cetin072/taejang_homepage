@@ -7,6 +7,7 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixtures = [
   { file: 'operations-public-text-edit-gate.html', marker: 'OPERATIONS_PUBLIC_TEXT_EDIT_GATE_PASS' },
+  { file: 'compact-admin-form-gate.html', marker: 'COMPACT_ADMIN_FORM_GATE_PASS' },
   { file: 'operations-owned-promotion-gate.html', marker: 'OPERATIONS_OWNED_PROMOTION_GATE_PASS' },
   { file: 'general-worker-browser-gate.html', marker: 'GENERAL_WORKER_BROWSER_GATE_PASS' },
   { file: 'promotion-browser-gate.html', marker: 'PROMOTION_BROWSER_GATE_PASS' },
