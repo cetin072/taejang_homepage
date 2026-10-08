@@ -169,7 +169,7 @@
   }
 
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
-    const form = el('form', null, 'employee-form');
+    const form = el('form', null, 'employee-form app-compact-container');
     const name = input('text', employee?.full_name || ''); name.required = true; name.maxLength = 80;
     const hired = input('date', employee?.hired_on || ''); hired.required = true;
     const department = select(context.departments, employee?.department_id || context.department_id || context.departments?.[0]?.id || '');
@@ -184,7 +184,7 @@
     if (!employee) { status.value = 'active'; status.disabled = true; departed.disabled = true; }
     if (!positionItems.length) position.disabled = true;
 
-    const grid = el('div', null, 'employee-form-grid');
+    const grid = el('div', null, 'employee-form-grid app-compact-fields');
     grid.append(
       field('이름', name),
       field('입사일', hired),
