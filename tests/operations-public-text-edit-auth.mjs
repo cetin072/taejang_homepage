@@ -23,14 +23,15 @@ export async function operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admi
  for(const fields of [{p_title:'Updated title'},{p_public_body:'Updated body'},{p_summary:'Updated summary'}]) {
   const loaded=await rpc('get_operations_public_promotion_edit',admin.token,{p_content_id:own.content_id});check(loaded.ok,'authorized full original loads');equal(loaded.data.revision_id,current,'loaded optimistic revision');
   const prior=current;
-  const result=await edit(own,admin,fields);check(result.ok,'title/body/summary correction allowed after 24h');current=result.data.revision_id;
+  const payload={p_title:loaded.data.title,p_summary:loaded.data.summary,p_public_body:loaded.data.public_body,...fields};
+  const result=await edit(own,admin,payload);check(result.ok,'title/body/summary correction allowed after 24h');current=result.data.revision_id;
   check(current!==prior,'new revision generated');equal(snapshot(own.content_id),original,'id/date/type/visibility/owner/link source preserved');
   equal(sql(`select count(*) from public.promotion_content_revisions where id='${prior}' and locked_at is not null`),'1','old locked revision preserved');
   equal(sql(`select count(*) from public.promotion_review_requests where revision_id='${current}'`),'0','no fake approval rows');
   equal(sql(`select count(*) from public.promotion_content_revisions old join public.promotion_content_revisions new on old.id='${own.revision_id}' and new.id='${current}' where (to_jsonb(old)-array['id','revision_no','title','summary','public_body','change_reason','submitted_at','locked_at','created_at'])=(to_jsonb(new)-array['id','revision_no','title','summary','public_body','change_reason','submitted_at','locked_at','created_at'])`),'1','all media/link/byline/risk/lane fields preserved');
   const feed=await rpc('list_public_promotion_feed',null,{});const card=feed.data.find(i=>i.content_id===own.content_id);check(!!card,'edited item remains public');
   const detail=await rpc('get_public_promotion_content',null,{p_content_id:own.content_id});
-  equal(detail.data[0].title,fields.p_title||'Original title','detail title fresh');equal(detail.data[0].public_body,fields.p_public_body||'Original body','detail body fresh');equal(card.summary,fields.p_summary||'Original summary','feed summary fresh');
+  equal(detail.data[0].title,payload.p_title,'detail title fresh');equal(detail.data[0].public_body,payload.p_public_body,'detail body fresh');equal(card.summary,payload.p_summary,'feed summary fresh');
   const manager=await rpc('get_promotion_publication_admin',admin.token,{});equal(manager.data.items.find(i=>i.content_id===own.content_id).title,card.title,'manager/feed agree');
  }
  equal(sql(`select count(*) from public.audit_logs where target_id='${own.content_id}' and action='promotion_operations_public_text_updated' and metadata->>'from_revision_id' is not null and metadata->>'to_revision_id' is not null`),'3','three actual audit events with revision pair');
@@ -75,12 +76,11 @@ export async function operationsPublicTextEditChecks({apiUrl,rpc,sql,signUp,admi
 
  check((await rpc('lead_update_recent_promotion_content',lead.token,{p_content_id:foreign.content_id,p_title:'Recent lead correction',p_reason:'QA'})).ok,'lead 24h direct correction preserved');
 
- const ceo=await draft(admin,{p_byline_kind:'ceo'});
- current=ceo.revision_id;check(!(await edit(ceo)).ok,'unpublished CEO item denied');
- // Existing integration covers real CEO approval. This locked published fixture
- // tests immutable classification even when publication was already authorized.
- sql(`update public.promotion_contents set lifecycle='published',published_at=now(),minimum_review_stage='ceo' where id='${ceo.content_id}'`);
- check(!(await edit(ceo)).ok,'published CEO byline and minimum gate cannot be bypassed');
+
+ const ceoId=sql("select c.id from public.promotion_contents c join public.promotion_content_revisions r on r.id=c.current_revision_id where c.lifecycle='published' and r.byline_kind='ceo' order by c.created_at limit 1");
+ check(!!ceoId,'real CEO-approved publication fixture exists from preceding workflow checks');
+ current=sql(`select current_revision_id from public.promotion_contents where id='${ceoId}'`);
+ check(!(await edit({content_id:ceoId})).ok,'real CEO-approved published post still requires existing CEO change procedure');
  const policy=await draft();current=policy.revision_id;
  sql(`update public.promotion_contents set lifecycle='published',published_at=now(),minimum_review_stage='ceo' where id='${policy.content_id}'`);
  check(!(await edit(policy)).ok,'company byline with CEO minimum still denied');

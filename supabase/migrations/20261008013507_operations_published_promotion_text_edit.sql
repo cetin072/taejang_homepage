@@ -76,7 +76,11 @@ begin
  update public.promotion_contents set current_revision_id=new_r.id,updated_at=now() where id=c.id;
  perform public.private_append_audit(actor_id,'promotion_operations_public_text_updated','promotion_content',c.id::text,
   'success',left(reason,300),jsonb_build_object('from_revision_id',old_r.id,'to_revision_id',new_r.id,
-  'published_at',c.published_at,'lifecycle',c.lifecycle,'changed_fields',jsonb_build_array('title','summary','public_body')));
+  'published_at',c.published_at,'lifecycle',c.lifecycle,'changed_fields',(select coalesce(jsonb_agg(field),'[]'::jsonb) from (
+   select 'title' as field where old_r.title is distinct from new_r.title
+   union all select 'summary' where old_r.summary is distinct from new_r.summary
+   union all select 'public_body' where old_r.public_body is distinct from new_r.public_body
+  ) changed)));
  return jsonb_build_object('ok',true,'content_id',c.id,'revision_id',new_r.id,'published_at',c.published_at);
 end; $$;
 
