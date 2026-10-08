@@ -39,7 +39,10 @@ const communityStart = community.indexOf('data-static-fallback="community-esg"')
 assert.ok(communityStart >= 0, 'community-esg fallback 표시가 있어야 합니다');
 const communityEnd = community.indexOf('</section>', communityStart);
 const communityFallback = community.slice(communityStart, communityEnd >= 0 ? communityEnd : undefined);
-assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 2, 'community-esg fallback은 승인된 활동 기록 2건 이상을 포함해야 합니다');
+assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 3, 'community-esg fallback은 활동 기록 3건 이상을 포함해야 합니다');
+assert.match(communityFallback, /activities\.html\?id=environment-cleanup-third/);
+assert.match(archiveFallback, /activities\.html\?id=environment-cleanup-third/);
+assert.match(activityFallback, /activities\.html\?id=environment-cleanup-third/);
 assert.match(communityFallback, /activities\.html\?id=environment-cleanup-second/);
 assert.match(communityFallback, /activities\.html\?id=environment-cleanup-first/);
 
@@ -57,7 +60,7 @@ for (const title of approvedActivityTitles) {
   assert.match(activityFallback, new RegExp(title), `${title}은 활동 목록 fallback에 있어야 합니다`);
 }
 
-for (const title of ['두 번째 환경정비 활동을 진행했습니다', '첫 환경정비 활동을 진행했습니다']) {
+for (const title of ['세 번째 환경정비 활동을 진행했습니다', '두 번째 환경정비 활동을 진행했습니다', '첫 환경정비 활동을 진행했습니다']) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
   assert.match(communityFallback, new RegExp(title), `${title}은 community-esg fallback에 있어야 합니다`);
 }

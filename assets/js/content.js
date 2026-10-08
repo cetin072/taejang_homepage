@@ -279,6 +279,47 @@ window.TAEJANG_CONTENT = {
       ]
     },
     {
+      id: "environment-cleanup-third",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.09.22",
+      title: "세 번째 환경정비 활동을 진행했습니다",
+      summary: "태장이 세 번째 지역사회 환경정비 활동을 진행하며 참여자들과 함께 현장에 나섰습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/archive/environment-cleanup-third.webp",
+      thumbnailAlt: "2026년 9월 22일 환경정비 활동에 참여한 태장과 협력 참여자들의 단체사진",
+      thumbnailObjectPosition: "50% 52%",
+      thumbnailDetail: "natural",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      listingPhoto: {
+        title: "환경정비 활동",
+        filename: "activity-3.jpg",
+        orientation: "가로형"
+      },
+      photo: {
+        title: "환경정비 활동",
+        filename: "activity-3.jpg",
+        orientation: "가로형",
+        note: "참여자 단체사진 공개 승인과 현수막·협력사 로고의 원본 보존을 확인"
+      },
+      sections: [
+        {
+          paragraphs: ["태장은 2026년 9월 22일 세 번째 지역사회 환경정비 활동을 진행했습니다."]
+        },
+        {
+          heading: "함께한 현장",
+          paragraphs: ["태장 구성원과 협력 참여자들이 함께하는 환경정비 활동의 현장을 사진으로 기록했습니다."]
+        },
+        {
+          heading: "지역사회와 함께",
+          paragraphs: ["태장은 지역사회에서 진행한 활동을 꾸준히 기록하고 다음 협력 기회를 살펴보겠습니다."]
+        }
+      ]
+    },
+    {
       id: "standard-workplace-certification",
       status: "published",
       category: "회사 소식",
