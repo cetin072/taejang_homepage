@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { noticeDeepLinkPath } from '@/src/features/notices/notice-api';
 import { scheduleDeepLinkPath } from '@/src/features/schedules/schedule-api';
 import { registerCurrentPushDevice } from './push-registration';
+import { isQaApp } from '@/src/platform/app-variant';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function deepLinkPathFromResponse(response: Notifications.NotificationResponse | null) {
@@ -23,7 +24,7 @@ export function PushNotificationBridge() {
   const { client, session } = usePlatform();
 
   useEffect(() => {
-    if (!client || !session) return;
+    if (!client || !session || isQaApp) return;
     void registerCurrentPushDevice(client, { requestPermission: false }).catch(() => undefined);
   }, [client, session?.access_token]);
 

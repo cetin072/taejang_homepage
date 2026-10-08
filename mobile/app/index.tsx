@@ -24,6 +24,7 @@ import { OfficialChannelsFooter } from '@/src/features/common/official-channels-
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
+import { isQaApp } from '@/src/platform/app-variant';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { friendlyError } from '@/src/platform/friendly-error';
 
@@ -301,7 +302,7 @@ export default function HomeScreen() {
             <View style={styles.loginBrand}>
               <Text style={styles.brandMark}>泰張</Text>
               <Text style={styles.title}>태장</Text>
-              <Text style={styles.eyebrow}>태장 직원앱</Text>
+              <Text style={styles.eyebrow}>{isQaApp ? '태장 QA · 검수용 앱' : '태장 직원앱'}</Text>
             </View>
 
             {signupComplete ? (
@@ -591,6 +592,7 @@ export default function HomeScreen() {
             <View style={styles.homeBrand}>
               <Text style={styles.brandMarkSmall}>泰張</Text>
               <Text style={styles.homeTitle}>태장</Text>
+              {isQaApp ? <Text style={styles.qaAppBadge}>QA</Text> : null}
             </View>
             <Pressable
               accessibilityRole="button"
@@ -606,7 +608,7 @@ export default function HomeScreen() {
             {attendanceFeature?.state !== 'hidden' ? (
               <AttendanceCard
                 minHeight={actionHeight}
-                mode={attendanceFeature?.attendanceMode || 'record'}
+                mode={isQaApp ? 'qa' : (attendanceFeature?.attendanceMode || 'record')}
               />
             ) : null}
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
@@ -741,6 +743,16 @@ const styles = StyleSheet.create({
   homeHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   homeBrand: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   homeTitle: { color: '#173f31', fontSize: 27, fontWeight: '900', letterSpacing: -0.6 },
+  qaAppBadge: {
+    overflow: 'hidden',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#f3e7a7',
+    color: '#6b5314',
+    fontSize: 12,
+    fontWeight: '900',
+  },
   settingsButton: { minHeight: 42, minWidth: 52, alignItems: 'center', justifyContent: 'center' },
   settingsText: { color: '#66766d', fontSize: 13, fontWeight: '800' },
   actions: { gap: 14 },

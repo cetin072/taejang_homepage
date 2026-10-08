@@ -2,6 +2,7 @@ import * as Linking from 'expo-linking';
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { isQaApp } from './app-variant';
 import { secureSessionStorage } from './secure-storage';
 import { DEFAULT_PLAY_STORE_URL, decideUpdate, installedAppVersion } from './release-policy';
 import { usePlatform } from '@/src/providers/platform-provider';
@@ -13,7 +14,7 @@ export function UpdateLifecycle() {
   const installed = useMemo(installedAppVersion, []);
   const [optionalDismissed, setOptionalDismissed] = useState(false);
   const [releaseNotesVisible, setReleaseNotesVisible] = useState(false);
-  const policy = config?.mobileRelease;
+  const policy = isQaApp ? null : config?.mobileRelease;
   const update = policy ? decideUpdate(installed, policy) : 'none';
   const maintenanceVisible = Boolean(policy?.maintenanceMode);
   const storeUrl = policy?.storeUrl || DEFAULT_PLAY_STORE_URL;
