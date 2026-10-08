@@ -28,7 +28,7 @@
     document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
   }
 
-  function selectControl(items, placeholder) {
+  function selectControl(items, placeholder, valueKey = 'id') {
     const select = document.createElement('select');
     select.required = true;
     const empty = document.createElement('option');
@@ -37,7 +37,8 @@
     select.append(empty);
     (Array.isArray(items) ? items : []).forEach(item => {
       const option = document.createElement('option');
-      option.value = item.id || item.code;
+      // Department/position RPC inputs are UUIDs; role RPC input is its code.
+      option.value = item[valueKey] || '';
       option.textContent = item.name;
       select.append(option);
     });
@@ -73,7 +74,14 @@
       if (!result?.ok) throw new Error(result?.code || 'APPROVAL_FAILED');
       await openAccountApproval();
     } catch (error) {
-      window.alert(app().friendlyError?.(error) || error.message || '가입 승인을 처리하지 못했습니다.');
+      const code = error?.message || error?.code;
+      const reasonByCode = {
+        INVALID_ROLE: '선택한 업무 권한을 확인할 수 없습니다. 새로고침 후 다시 선택해 주세요.',
+        ROLE_NOT_AVAILABLE: '현재 사용할 수 없는 업무 권한입니다. 다른 권한을 선택하거나 관리자에게 문의해 주세요.',
+        SIGNUP_APPROVAL_FORBIDDEN: '현재 계정에는 신입직원 가입 승인 권한이 없습니다.',
+        PROFILE_NOT_PENDING: '이미 처리된 가입 요청입니다. 목록을 새로고침해 주세요.',
+      };
+      window.alert(reasonByCode[code] || app().friendlyError?.(error) || error.message || '가입 승인을 처리하지 못했습니다.');
       setCardBusy(card, false);
     }
   }
@@ -119,7 +127,7 @@
     const form = el('div', null, 'phase-c-signup-approval-form');
     const department = selectControl(options?.departments, '부서 선택');
     const position = selectControl(options?.positions, '직책 선택');
-    const role = selectControl(options?.roles, '업무 권한 선택');
+    const role = selectControl(options?.roles, '업무 권한 선택', 'code');
 
     const attendance = document.createElement('input');
     attendance.type = 'checkbox';
