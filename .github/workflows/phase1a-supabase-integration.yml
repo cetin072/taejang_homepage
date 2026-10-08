@@ -1,3 +1,4 @@
+# tests/operations-public-text-edit-auth.mjs runs through phase1a-auth-integration.mjs.
 name: Phase 1A Supabase Integration
 
 on:

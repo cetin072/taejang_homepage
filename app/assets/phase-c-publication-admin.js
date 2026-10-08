@@ -134,23 +134,40 @@
     await app().rpc('create_public_content_change_request', payload);
   }
 
-  async function openChangeForm(item, direct) {
-    const target = setPage(direct ? '기존 글 수정' : '기존 글 수정 요청', direct
+  async function openChangeForm(item, direct, operations = false) {
+    const target = setPage(operations ? '게시글 수정' : direct ? '기존 글 수정' : '기존 글 수정 요청', operations
+      ? '제목·요약·본문을 정정합니다. 최초 게시일, 주소, 사진·첨부·링크와 이전 원문은 보존됩니다.' : direct
       ? '공개 후 24시간 이내 플랫폼 작성 글만 운영팀장이 직접 수정합니다. 수정 이력과 감사기록은 보존됩니다.'
       : '공개 후 24시간이 지난 글은 삭제하지 않고 운영총괄에게 수정 요청만 상신합니다.');
     if (!target) return;
 
-    const detail = item?.content_id ? await fetchPublicDetail(item.content_id) : null;
+    let detail;
+    if (operations) {
+      try {
+        detail = await app().rpc('get_operations_public_promotion_edit', { p_content_id: item.content_id });
+      } catch (error) {
+        target.append(el('p', friendly(error, '수정할 글을 불러오지 못했습니다.'), 'message error'));
+        target.append(button('목록으로', openPublicationAdmin, true));
+        return;
+      }
+      if (!detail?.revision_id) {
+        target.append(el('p', '현재 원문을 확인할 수 없습니다. 목록에서 다시 불러오세요.', 'message error'));
+        target.append(button('목록으로', openPublicationAdmin, true));
+        return;
+      }
+    } else {
+      detail = item?.content_id ? await fetchPublicDetail(item.content_id) : null;
+    }
     const form = document.createElement('form');
     form.className = 'phase-c-board-form';
     form.addEventListener('submit', event => event.preventDefault());
 
     const title = document.createElement('input');
-    title.maxLength = 500;
+    title.maxLength = operations ? 160 : 500;
     title.value = detail?.title || item?.title || '';
     const summary = document.createElement('textarea');
     summary.rows = 4;
-    summary.maxLength = 4000;
+    summary.maxLength = operations ? 500 : 4000;
     summary.value = detail?.summary || item?.summary || '';
     const body = document.createElement('textarea');
     body.rows = 9;
@@ -158,16 +175,31 @@
     body.value = detail?.public_body || '';
     const reason = document.createElement('textarea');
     reason.rows = 3;
-    reason.maxLength = 1000;
+    reason.maxLength = operations ? 300 : 1000;
+    if (operations) reason.value = '게시 후 문구 정정';
+    let saving = false;
 
     form.append(field('제목', title), field('요약', summary), field('본문', body), field('수정 사유', reason));
     form.append(button(direct ? '수정 반영' : '운영총괄에게 수정 요청', async () => {
-      if (!reason.value.trim()) {
+      if (saving) return;
+      if (!operations && !reason.value.trim()) {
         window.alert('수정 사유를 적어주세요.');
         return;
       }
+      saving = true;
+      form.querySelectorAll('button').forEach(node => { node.disabled = true; });
       try {
-        if (direct) {
+        if (operations) {
+          await app().rpc('operations_update_public_promotion_text', {
+            p_content_id: item.content_id,
+            p_expected_revision_id: detail.revision_id,
+            p_title: title.value.trim(),
+            p_summary: summary.value.trim() || null,
+            p_public_body: body.value.trim() || null,
+            p_reason: reason.value.trim() || '게시 후 문구 정정'
+          });
+          window.alert('게시글 수정이 반영되었습니다. 목록의 공개 화면에서 확인할 수 있습니다.');
+        } else if (direct) {
           await app().rpc('lead_update_recent_promotion_content', {
             p_content_id: item.content_id,
             p_title: title.value.trim(),
@@ -190,9 +222,14 @@
         }
         await openPublicationAdmin();
       } catch (error) {
-        window.alert(friendly(error, '수정 내용을 저장하지 못했습니다.'));
+        window.alert(error?.message?.includes('PROMOTION_PUBLIC_EDIT_REVISION_CONFLICT')
+          ? '다른 사람이 먼저 수정했습니다. 입력 내용은 유지됩니다. 목록에서 최신 글을 다시 불러와 내용을 비교해 주세요.'
+          : friendly(error, '수정 내용을 저장하지 못했습니다.'));
+      } finally {
+        saving = false;
+        form.querySelectorAll('button').forEach(node => { node.disabled = false; });
       }
-    }), button('목록으로', openPublicationAdmin, true));
+    }), button(operations ? '취소' : '목록으로', openPublicationAdmin, true));
 
     const section = document.createElement('section');
     section.className = 'dashboard-section promotion-composer';
@@ -338,6 +375,9 @@
     }
 
     if (role === 'operations_manager') {
+      if (isPublic && item.can_operations_edit_text === true) {
+        actions.append(button('게시글 수정', () => openChangeForm(item, true, true), true));
+      }
       actions.append(button('삭제(보관)', () => archiveAsOperations(item), true));
     }
 
@@ -350,7 +390,7 @@
     if (!ELIGIBLE_ROLES.has(currentRoute)) return;
     const isOperations = currentRoute === 'operations_manager';
     const target = setPage('공개 홍보글 관리', isOperations
-      ? '플랫폼 홍보글의 현재 상태를 확인하고 삭제(보관)할 수 있습니다. 보관된 글은 복구하거나 영구삭제할 수 있습니다.'
+      ? '본인 작성 또는 본인 최종 승인 일반 공개글의 문구를 수정하고 삭제(보관)할 수 있습니다. 보관된 글은 복구하거나 영구삭제할 수 있습니다.'
       : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
     if (!target) return;
     const loading = el('p', '공개 홍보글을 불러오고 있습니다.', 'message');

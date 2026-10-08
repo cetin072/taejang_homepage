@@ -1,0 +1,56 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>public text edit gate</title>
+<body><div id="desktop-app-shell"><button id="sidebar-toggle"></button><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><pre id="result">RUNNING</pre>
+<script>
+let role='operations_manager', fail=false, failLoad=false;
+const calls=[],alerts=[];
+const original={content_id:'own',revision_id:'r1',title:'기존 제목',summary:'기존 요약',public_body:'기존 본문'};
+const items=[
+ {content_id:'own',title:'기존 제목',lifecycle:'published',content_type:'homepage_article',published_at:new Date(Date.now()-172800000).toISOString(),can_operations_edit_text:true},
+ {content_id:'hidden',title:'숨김 글',lifecycle:'hidden',can_operations_edit_text:true},
+ {content_id:'foreign',title:'권한 없는 글',lifecycle:'published',can_operations_edit_text:false},
+ {content_id:'ceo',title:'대표이사 글',lifecycle:'published',can_operations_edit_text:false}
+];
+window.alert=s=>alerts.push(s);window.confirm=()=>true;
+window.fetch=async()=>new Response(JSON.stringify({item:{title:'팀장 원문',summary:'요약',public_body:'본문'}}));
+window.TaejangApp={getRoute:()=>role,friendlyError:e=>e.message,rpc:async(name,args={})=>{
+ calls.push({name,args});
+ if(name==='get_promotion_publication_admin')return {items};
+ if(name==='list_public_content_change_requests')return [];
+ if(name==='get_operations_public_promotion_edit'){if(failLoad)throw Error('failed load');return {...original,content_id:args.p_content_id};}
+ if(name==='operations_update_public_promotion_text'){if(fail)throw Error('PROMOTION_PUBLIC_EDIT_REVISION_CONFLICT');return {ok:true,revision_id:'r2'};}
+ return {ok:true};
+}};
+</script><script src="../../app/assets/phase-c-publication-admin.js"></script>
+<script>
+(async()=>{
+ const assert=(v,m)=>{if(!v)throw Error(m)};
+ const settle=()=>new Promise(r=>setTimeout(r,10));
+ const text=()=>document.getElementById('dashboard-main').textContent;
+ const click=label=>{const b=[...document.querySelectorAll('button')].find(b=>b.textContent===label);assert(b,'button '+label);b.click();};
+ await window.TaejangPublicationAdmin.openPublicationAdmin();
+ assert([...document.querySelectorAll('button')].filter(b=>b.textContent==='게시글 수정').length===2,'authorized published and hidden only');
+ click('게시글 수정');await settle();
+ const controls=document.querySelectorAll('form input,form textarea');
+ assert(controls[0].value===original.title&&controls[1].value===original.summary&&controls[2].value===original.public_body,'automatic exact current text');
+ assert(controls[3].value==='게시 후 문구 정정','short default reason');
+ assert(!![...document.querySelectorAll('button')].find(b=>b.textContent==='취소'),'cancel');
+ controls[0].value='수정 제목';controls[1].value='수정 요약';controls[2].value='수정 본문';controls[3].value='';
+ fail=true;click('수정 반영');await settle();
+ assert(controls[0].value==='수정 제목'&&controls[1].value==='수정 요약'&&controls[2].value==='수정 본문','failure keeps input');
+ assert(alerts.at(-1).includes('다른 사람이 먼저 수정'),'clear conflict guidance');
+ assert(![...document.querySelectorAll('button')].some(b=>b.disabled),'failed controls recover');
+ fail=false;click('수정 반영');await settle();
+ const saved=calls.filter(c=>c.name==='operations_update_public_promotion_text').at(-1).args;
+ assert(saved.p_expected_revision_id==='r1'&&saved.p_title==='수정 제목'&&saved.p_summary==='수정 요약'&&saved.p_public_body==='수정 본문','optimistic revision and only text sent');
+ assert(saved.p_reason==='게시 후 문구 정정','blank reason default');
+ assert(Object.keys(saved).length===6,'no media/type/risk/visibility mutation');
+ assert(alerts.at(-1).includes('반영'),'success notice');
+ assert(!!document.querySelector('a[href="../promotion.html?id=own"]'),'public screen link kept');
+ failLoad=true;click('게시글 수정');await settle();assert(!document.querySelector('form'),'load failure never blank edit form');
+ failLoad=false;await window.TaejangPublicationAdmin.openPublicationAdmin();click('게시글 수정');await settle();click('취소');await settle();assert(text().includes('공개 홍보글 관리'),'cancel back to list');
+ role='promotion_lead';items[0].published_at=new Date(Date.now()-3600000).toISOString();await window.TaejangPublicationAdmin.openPublicationAdmin();
+ assert(!text().includes('게시글 수정'),'lead gets no ops button');assert(text().includes('수정 요청')&&text().includes('수정'),'lead existing recent and late paths');
+ role='promotion_staff';const before=text();await window.TaejangPublicationAdmin.openPublicationAdmin();assert(text()===before,'staff cannot open management');
+ document.getElementById('result').textContent='OPERATIONS_PUBLIC_TEXT_EDIT_GATE_PASS';
+})().catch(e=>document.getElementById('result').textContent='FAIL: '+e.stack);
+</script></body></html>
