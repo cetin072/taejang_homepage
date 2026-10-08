@@ -128,6 +128,21 @@ jobs:
           MANIFEST=app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
           test -s "$MANIFEST"
           grep -q 'package="com.cetin072.taejang.staff.qa"' "$MANIFEST"
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)
+          test -x "$AAPT"
+          "$AAPT" dump badging "$APK" > /tmp/taejang-qa-apk-badging.txt
+          cat /tmp/taejang-qa-apk-badging.txt
+          grep -q "package: name='com.cetin072.taejang.staff.qa'" /tmp/taejang-qa-apk-badging.txt
+          grep -q "application-label:'태장 QA'" /tmp/taejang-qa-apk-badging.txt
+          grep -q "native-code: 'arm64-v8a'" /tmp/taejang-qa-apk-badging.txt
+          ! grep -q 'application-debuggable' /tmp/taejang-qa-apk-badging.txt
+          "$AAPT" dump xmltree "$APK" AndroidManifest.xml > /tmp/taejang-qa-apk-manifest.txt
+          grep -q '"taejangstaffqa"' /tmp/taejang-qa-apk-manifest.txt
+          ! grep -q 'sharedUserId' /tmp/taejang-qa-apk-manifest.txt
+          APK_SIGNER="$(dirname "$AAPT")/apksigner"
+          test -x "$APK_SIGNER"
+          "$APK_SIGNER" verify --print-certs "$APK" > /tmp/taejang-qa-apk-signature.txt
+          grep -Eiq 'certificate DN:.*CN=Android Debug' /tmp/taejang-qa-apk-signature.txt
       - name: Upload standalone QA release APK
         uses: actions/upload-artifact@v4
         with:

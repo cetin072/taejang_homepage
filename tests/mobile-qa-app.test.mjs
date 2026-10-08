@@ -29,6 +29,12 @@ test('production and QA variants share one source while keeping separate Android
   const production = loadConfigFor(undefined);
   const qa = loadConfigFor('qa');
 
+  assert.deepEqual(loadConfigFor('production'), production);
+  assert.equal(production.version, '0.1.3');
+  assert.equal(production.android.versionCode, 4);
+  assert.deepEqual(production.splash, baseExpoConfig().splash);
+  assert.deepEqual(production.plugins, baseExpoConfig().plugins);
+  assert.equal(production.icon, baseExpoConfig().icon);
   assert.equal(production.name, '태장');
   assert.equal(production.android.package, 'com.cetin072.taejang.staff');
   assert.equal(production.scheme, 'taejangstaff');
@@ -82,6 +88,13 @@ test('mobile CI builds QA package side-by-side and protects production AAB ident
   const workflow = await text('.github/workflows/mobile-app.yml');
 
   assert.match(workflow, /TAEJANG_APP_VARIANT: qa/);
+  assert.ok(workflow.includes('dump badging'));
+  assert.ok(workflow.includes("application-label:'태장 QA'"));
+  assert.ok(workflow.includes("native-code: 'arm64-v8a'"));
+  assert.ok(workflow.includes('verify --print-certs'));
+  assert.ok(workflow.includes('dump xmltree'));
+  assert.ok(workflow.includes('keytool -printcert -jarfile'));
+  assert.ok(workflow.includes('! grep -q \'application-debuggable\''));
   assert.match(workflow, /com\.cetin072\.taejang\.staff\.qa/);
   assert.match(workflow, /태장 QA/);
   assert.match(workflow, /taejang-employee-mobile-qa-app-apk/);
