@@ -28,7 +28,7 @@ function hooks() {
       useState(initial) {
         const index = cursor++;
         if (!(index in values)) values[index] = initial;
-        return [values[index], value => { values[index] = value; }];
+        return [values[index], value => { values[index] = typeof value === 'function' ? value(values[index]) : value; }];
       },
       useRef(initial) {
         const index = cursor++;
@@ -58,30 +58,44 @@ const native = {
   AppState: { addEventListener: () => ({ remove() {} }) },
   Alert: { alert: (_title, _message, buttons) => buttons.at(-1).onPress() },
 };
-async function attendance({ required = false, mode = 'qa', result = { ok: true, writes_attendance: false, server_time: '2026-10-08T01:00:00Z' }, locationFailure = false } = {}) {
+async function attendance({
+  required = false,
+  mode = 'qa',
+  previewScenario = 'today',
+  calendarDay = { work_date: '2026-10-09', is_workday: false, reason: '한글날' },
+  result = { ok: true, writes_attendance: false, server_time: '2026-10-08T01:00:00Z' },
+  locationFailure = false,
+} = {}) {
   const h = hooks(), calls = [];
-  let latestRequired = required;
+  let latestRequired = required, locationRequests = 0;
   const client = { rpc: async (name, args) => {
     calls.push({ name, args });
-    if (name === 'get_my_attendance_today') return { data: { attendance_required: latestRequired, clock_in: null, clock_out: null } };
+    if (name === 'get_my_attendance_today') return { data: {
+      work_date: '2026-10-09', attendance_required: latestRequired,
+      is_workday: true, clock_in_available: true, clock_in: null, clock_out: null,
+    } };
+    if (name === 'get_attendance_workday_status') return { data: calendarDay };
     return { data: result };
   } };
   const api = load('mobile/src/features/attendance/attendance-api.ts', {});
+  const previewState = load('mobile/src/features/qa/qa-preview-state.ts', {});
   class AttendanceLocationError extends Error { constructor() { super('location'); this.code = 'TIMEOUT'; } }
   const card = load('mobile/src/features/attendance/attendance-card.tsx', {
     react: h.react, 'react-native': native, './attendance-api': api,
     './attendance-location': { AttendanceLocationError, getBestAttendancePosition: async () => {
+      locationRequests++;
       if (locationFailure) throw new AttendanceLocationError();
       return { latitude: 1, longitude: 1, accuracy: 5 };
     } },
+    '@/src/features/qa/qa-preview-state': previewState,
     '@/src/providers/platform-provider': { usePlatform: () => ({ client, session: {} }) },
   });
-  const render = () => { h.begin(); return nodes(card.AttendanceCard({ mode })); };
+  const render = () => { h.begin(); return nodes(card.AttendanceCard({ mode, previewScenario })); };
   render();
   for (const effect of h.effects.splice(0)) effect();
   await settle();
   return {
-    calls, render, changeRequired(value) { latestRequired = value; },
+    calls, render, locationRequests: () => locationRequests, changeRequired(value) { latestRequired = value; },
     async press() {
       const button = render().find(node => node?.type === 'Pressable');
       button.props.onPress();
@@ -89,7 +103,7 @@ async function attendance({ required = false, mode = 'qa', result = { ok: true, 
     },
   };
 }
-const mutations = fixture => fixture.calls.filter(call => call.name !== 'get_my_attendance_today');
+const mutations = fixture => fixture.calls.filter(call => !['get_my_attendance_today', 'get_attendance_workday_status'].includes(call.name));
 
 test('QA required employee is disabled; stale eligibility is rechecked before any location/write', async () => {
   const blocked = await attendance({ required: true });
@@ -184,4 +198,53 @@ test('QA skips automatic push enrollment while notification routes stay active; 
     await settle();
     assert.deepEqual(routes, ['/notices/fixture', '/schedules/fixture']);
   }
+});
+
+test('Hangul Day preview shows server-matching holiday label, disables clock-in and never requests GPS', async () => {
+  const fixture = await attendance({ mode: 'preview', previewScenario: 'hangul', required: false });
+  const button = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(button.props.disabled, true);
+  assert.equal(button.props.accessibilityLabel, '오늘은 출근일이 아닙니다');
+  assert.ok(fixture.render().includes('한글날'));
+  await fixture.press();
+  assert.deepEqual(mutations(fixture), []);
+  assert.equal(fixture.locationRequests(), 0);
+});
+
+test('QA today uses canonical server KST calendar instead of operator attendance exemption', async () => {
+  const fixture = await attendance({ mode: 'preview', previewScenario: 'today', required: false });
+  assert.deepEqual(fixture.calls.map(call => call.name).sort(),
+    ['get_attendance_workday_status', 'get_my_attendance_today']);
+  const button = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(button.props.disabled, true);
+  assert.ok(fixture.render().includes('한글날'));
+  await fixture.press();
+  assert.deepEqual(mutations(fixture), []);
+});
+
+test('weekday employee preview shares the production button and confirmation flow with zero writes', async () => {
+  const fixture = await attendance({ mode: 'preview', previewScenario: 'workday', required: false });
+  const first = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(first.props.disabled, false);
+  assert.equal(first.props.accessibilityLabel, '출근했습니다');
+  await fixture.press();
+  assert.ok(fixture.render().includes('퇴근했습니다'));
+  await fixture.press();
+  assert.ok(fixture.render().includes('오늘 근무 완료'));
+  assert.ok(fixture.render().includes('다시 체험'));
+  assert.deepEqual(mutations(fixture), []);
+  assert.equal(fixture.locationRequests(), 0);
+});
+
+test('server calendar failure in QA preview fails closed instead of faking an eligible weekday', async () => {
+  const fixture = await attendance({
+    mode: 'preview',
+    previewScenario: 'today',
+    calendarDay: { work_date: '2026-10-09', is_workday: null, reason: '한글날' },
+  });
+  const button = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(button.props.disabled, true);
+  assert.ok(fixture.render().includes('서버 근무일 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
+  await fixture.press();
+  assert.deepEqual(mutations(fixture), []);
 });
