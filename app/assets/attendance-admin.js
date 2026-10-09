@@ -860,11 +860,28 @@
     const results = el('div'), detail = el('div'); detail.setAttribute('aria-live', 'polite');
     let model = null, loading = false, loaded = false;
     function visibleRows() { return (model?.rows || []).filter(r => matchesSearch(r) && (!filters.reviewOnly || r.reviewDays > 0)); }
-    function exportRows(rows, scope) {
-      try { window.TaejangAttendanceMonthly.download(model, rows, window.TaejangAttendanceMonthlyXlsx, scope); }
+    function exportScope(rows) {
+      const parts=[filters.accounts==='all' ? '비활성·삭제 계정 포함' : '비활성·확인된 테스트 계정 제외'];
+      if(filters.search.trim())parts.push('검색='+filters.search.trim());
+      if(filters.reviewOnly)parts.push('확인 필요만');
+      for(const [key,label] of [['department','부서'],['group','팀·작업반'],['leader','담당 팀장'],['job','직무'],['attendance','근태 대상'],['employment','재직상태']]) {
+        if(filters[key])parts.push(label+'='+filters[key]);
+      }
+      parts.push('표시 직원 '+rows.length+'명');
+      return parts.join(' / ');
+    }
+    function exportRows(rows, scope, personal=false) {
+      if(!model || !loaded || loading || model.month!==month.value || model.failedDays.length) {
+        window.alert('현재 선택한 월을 다시 조회한 뒤 Excel을 내려받으세요.');
+        return;
+      }
+      try { window.TaejangAttendanceMonthly.download(model, rows, window.TaejangAttendanceMonthlyXlsx, scope, personal); }
       catch { window.alert('Excel을 만들지 못했습니다. 조회한 내용은 유지됩니다. 다시 시도하세요.'); }
     }
-    excel.addEventListener('click', () => exportRows(visibleRows(), filters.search || filters.reviewOnly ? '현재 검색·필터' : '전체'));
+    excel.addEventListener('click', () => {
+      const rows=visibleRows();
+      exportRows(rows, exportScope(rows));
+    });
     function render() {
       if (!model) return;
       filterBar.refresh();
@@ -878,7 +895,7 @@
         const button = el('button', row.display_name || '미등록', 'button button-quiet'); button.type = 'button';
         button.addEventListener('click', () => {
           const list = el('div');
-          const personal = el('button', '개인 월간 Excel', 'button'); personal.type = 'button'; personal.addEventListener('click', () => exportRows([row], '선택 직원'));
+          const personal = el('button', '개인 월간 Excel', 'button'); personal.type = 'button'; personal.addEventListener('click', () => exportRows([row], '선택 직원', true));
           list.append(el('h3', row.display_name || '직원'), personal);
           row.cells.forEach((cell, index) => {
             const day = el('div', null, 'attendance-ledger-row');
@@ -903,7 +920,7 @@
     }
     async function load(force = false) {
       if (loading || (loaded && !force)) return;
-      loading = true; query.disabled = true; excel.disabled = true; month.disabled = true;
+      loading = true; loaded = false; query.disabled = true; excel.disabled = true; month.disabled = true;
       const selectedMonth = month.value;
       try {
         const helper = window.TaejangAttendanceMonthly;
@@ -937,7 +954,7 @@
       } finally { loading = false; query.disabled = false; month.disabled = false; }
     }
     query.addEventListener('click', () => load(true));
-    month.addEventListener('change', () => { loaded = false; excel.disabled = true; });
+    month.addEventListener('change', () => { loaded = false; excel.disabled = true; detail.replaceChildren(); });
     toolbar.append(label, query, excel);
     const filterBar=searchToolbar(render,()=>model?.rows || []);
     panel.append(toolbar, filterBar, results, detail);

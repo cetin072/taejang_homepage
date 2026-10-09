@@ -82,7 +82,7 @@
     return {month,dates,rows,queriedAt,asOfDay,fingerprint:ledger?.period_fingerprint || '',failedDays:dates.filter(d=>!daily[d])};
   }
   function workbookSheets(model,rows=model.rows,scope='전체') {
-    const note=`${model.dates[0]}~${model.dates.at(-1)} / ${scope} / 조회 ${model.queriedAt} / 한국시간 / 원장 ${model.fingerprint || '미등록'} / 미확정은 급여 인정시간이 아님`;
+    const note=`${model.dates[0]}~${model.dates.at(-1)} / ${scope} / 조회시각(UTC) ${new Date(model.queriedAt).toISOString()} / 출퇴근시각(KST) / 원장 ${model.fingerprint || '미등록'} / 미확정은 급여 인정시간이 아님`;
     return [
       {name:'월간 출근부',title:`태장 ${model.month} 월간 출근부`,note,headers:['사번','이름',...model.dates,'확정일수','확인 필요일수'],rows:rows.map(r=>[r.employee_id || '미등록',r.display_name || '미등록',...r.cells.map(c=>`${c.label}${c.clockIn || c.clockOut ? ` ${c.clockIn || '-'}~${c.clockOut || '-'}`:''}`),r.confirmedDays,r.reviewDays])},
       {name:'일별 상세',title:`태장 ${model.month} 근태 상세`,note,headers:['사번','이름','날짜','상태','출근(KST)','퇴근(KST)','확정','예외','revision','원장 근거'],rows:rows.flatMap(r=>r.cells.map((c,i)=>[r.employee_id || '미등록',r.display_name || '미등록',model.dates[i],c.label,c.clockIn,c.clockOut,c.confirmed?'확정':'미확정/비대상',c.review?'확인 필요':'',c.record?.revision_no || '',c.record?.record_fingerprint || '']))}
@@ -117,11 +117,11 @@
     return true;
   }
 
-  function download(model,rows,writer,scope='전체') {
+  function download(model,rows,writer,scope='전체',personal=false) {
     const bytes=writer.buildTableWorkbookXlsx(workbookSheets(model,rows,scope));
     const url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
     const anchor=document.createElement('a');
-    anchor.href=url;anchor.download=`태장_월간출근부_${model.month}${rows.length===1?'_개인':''}.xlsx`;
+    anchor.href=url;anchor.download=`태장_월간출근부_${model.month}${personal?'_개인':''}.xlsx`;
     document.body.append(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
