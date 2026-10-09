@@ -24,7 +24,7 @@
     const article = document.createElement('article');
     article.className = 'community-esg-record';
     const link = document.createElement('a');
-    link.href = `activities.html?id=${encodeURIComponent(activity.id)}`;
+    link.href = `activities/${encodeURIComponent(activity.id)}.html`;
     link.setAttribute('aria-label', `${activity.title} 자세히 보기`);
 
     const media = document.createElement('div');

@@ -114,6 +114,20 @@ test('dynamic sitemap lists only internally published public promotion URLs', as
   } finally { env.restore(); }
 });
 
+test('external-only linked content is not indexed as a duplicate Taejang article', async () => {
+  const external = { ...full, content_type: 'external_content', external_url: 'https://example.org/source' };
+  const env = setup({ detail: [external] });
+  try {
+    const response = await handler(new Request('https://preview.example/promotion.html?id=' + id), context);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /<meta name="robots" content="noindex, follow">/);
+    assert.doesNotMatch(html, /<meta name="robots" content="index, follow">/);
+    assert.doesNotMatch(html, /"@type":"Article"/);
+    assert.match(html, /href="https:\/\/example\.org\/source"/);
+  } finally { env.restore(); }
+});
+
 test('public RPC outage fails closed without disclosing content', async () => {
   const env = setup({ error: true });
   try {
