@@ -471,6 +471,8 @@ check(
 
 // Issue #426: attendance-only cross-check. Keep payroll calculation E2E unchanged.
 // The same confirmed attendance is displayed in the monthly register and Excel without HR fields.
+const originalEvidenceFingerprint=sql(`select md5(jsonb_agg(to_jsonb(event) order by event.id)::text) from public.attendance_events event where profile_id='${worker.id}'::uuid`);
+check(originalEvidenceFingerprint && originalEvidenceFingerprint !== 'null', 'synthetic worker has immutable raw event evidence');
 const period = await rpc('get_confirmed_attendance_period', lead.token, {
   p_period_start:'2026-09-01',p_period_end:'2026-09-30',p_employee_uuid:null,p_include_reopened:false,
 });
@@ -502,7 +504,8 @@ const forbiddenMonth=await rpc('get_confirmed_attendance_period',worker.token,{
 });
 check(!forbiddenMonth.ok && forbiddenMonth.status===403,
   'ordinary worker cannot access another employee confirmed monthly register');
-const rawRowCount=sql("select count(*) from public.attendance_events where profile_id='"+worker.id+"'::uuid");
-check(Number(rawRowCount)>0,'read-only attendance workbook conversion leaves original attendance evidence intact');
+const afterExportEvidenceFingerprint=sql(`select md5(jsonb_agg(to_jsonb(event) order by event.id)::text) from public.attendance_events event where profile_id='${worker.id}'::uuid`);
+equal(afterExportEvidenceFingerprint, originalEvidenceFingerprint,
+  'monthly read model and Excel generation never modify raw attendance evidence');
 
 console.log(`Issue #254 confirmed-attendance → payroll E2E passed with ${assertions} assertions.`);
