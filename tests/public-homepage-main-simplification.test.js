@@ -375,6 +375,12 @@ for (const [filename, html] of Object.entries(pages).concat([['privacy.html', pr
     const localPath = href.split(/[?#]/)[0];
     if (!localPath) continue;
     const resolved = localPath.endsWith('/') ? `${localPath}index.html` : localPath;
+    // Article files are generated in dist from approved content at publish time.
+    const generated = resolved.match(/^(activities|workplace)\/([a-z0-9-]+)\.html$/);
+    if (generated) {
+      assert.ok(contentData.includes('id: "' + generated[2] + '"'), `${filename}의 생성형 상세 링크 ${href}는 콘텐츠 원본에 존재해야 합니다`);
+      continue;
+    }
     assert.equal(fs.existsSync(path.join(root, resolved)), true, `${filename}의 내부 링크 ${href} 대상이 존재해야 합니다`);
   }
 }
