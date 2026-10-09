@@ -632,6 +632,7 @@ export default function HomeScreen() {
           <View style={styles.actions}>
             {attendanceFeature?.state !== 'hidden' ? (
               <AttendanceCard
+                key={isQaApp ? `${qaInspection}:${qaDayScenario}` : 'production'}
                 minHeight={actionHeight}
                 mode={isQaApp
                   ? (qaInspection === 'preview' ? 'preview' : 'qa')
