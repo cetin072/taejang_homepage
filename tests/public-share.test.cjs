@@ -40,6 +40,8 @@ class FakeElement {
     if (selector === 'h1') return { textContent: '세 번째 환경정비 활동을 진행했습니다' };
     if (selector === '.article-header .lead') return { textContent: '환경정비 현장입니다' };
     if (selector === '.back-link--bottom') return this.bottom || null;
+    if (selector === '.card-link') return this.children.find(x => x.className.split(' ').includes('card-link')) || null;
+    if (selector === '[data-public-external-share]') return this.children.find(x => x.attributes['data-public-external-share'] === '') || null;
     if (selector === '[data-public-share]') return this.children.find(x => x.attributes['data-public-share'] === '') || null;
     return null;
   }
@@ -181,4 +183,118 @@ test('both static story templates and promotion detail load shared module before
   const promotion = fs.readFileSync('assets/js/promotion-detail.js', 'utf8');
   assert.match(promotion, /window\.TAEJANG_PUBLIC_SHARE\?\.mount\(article/);
   assert.match(promotion, /item\.content_type !== 'external_content'/);
+});
+
+function makeExternalCard(url = 'https://blog.naver.com/taejang-official/224427291403') {
+  const card = new FakeElement('article');
+  card.className = 'card card--hub';
+  const originalLink = new FakeElement('a');
+  originalLink.className = 'card-link';
+  originalLink.href = url;
+  card.append(originalLink);
+  return { card, originalLink };
+}
+
+test('archive shares the original external URL, not Taejang article/archive URLs', async () => {
+  const original = 'https://blog.naver.com/taejang-official/224427291403';
+  const calls = [];
+  const app = setup({ navigator: { clipboard: { writeText: async url => calls.push(url) } } });
+  const { card, originalLink } = makeExternalCard(original);
+  assert.equal(app.window.TAEJANG_PUBLIC_SHARE.mountExternalCard(card, {
+    url: original, title: '태장 블로그 환경정비 이야기', status: 'published'
+  }), true);
+  const panel = card.querySelector('[data-public-external-share]');
+  assert.equal(card.children[0], originalLink, 'Original link remains the first child');
+  assert.equal(card.children[1], panel, 'Interactive panel is a sibling, never nested inside the link');
+  assert.equal(originalLink.href, original);
+  assert.equal(panel.tag, 'details');
+  const summary = find(panel, e => e.tag === 'summary');
+  assert.equal(summary.textContent, '원문 공유');
+  const copied = find(panel, e => e.tag === 'button' && e.textContent === '원문 URL 복사');
+  const input = find(panel, e => e.tag === 'input');
+  assert.equal(input.value, original);
+  await copied.click();
+  assert.deepEqual(calls, [original]);
+  assert.equal(find(panel, e => e.attributes.role === 'status').textContent, '원문 주소를 복사했습니다.');
+  assert.equal(app.window.TAEJANG_PUBLIC_SHARE.mountExternalCard(card, {
+    url: original, title: '중복', status: 'published'
+  }), false);
+  assert.equal(card.children.length, 2);
+});
+
+test('external approved video and news links preserve their original domain in social targets', () => {
+  for (const url of [
+    'https://www.youtube.com/watch?v=FbEOcteBSJ4',
+    'https://news.example.kr/article/19?ref=archive'
+  ]) {
+    const { card } = makeExternalCard(url);
+    const app = setup();
+    assert.equal(app.window.TAEJANG_PUBLIC_SHARE.mountExternalCard(card, {
+      url, title: '외부 공개 기사', status: 'published'
+    }), true);
+    const panel = card.querySelector('[data-public-external-share]');
+    for(const [label,host,key] of [
+      ['네이버','share.naver.com','url'], ['X','x.com','url'], ['Facebook','www.facebook.com','u']
+    ]) {
+      const link=linkByText(panel,label);
+      assert.ok(link);
+      const share=new URL(link.href);
+      assert.equal(share.host,host);
+      assert.equal(share.searchParams.get(key),url);
+      assert.equal(link.target,'_blank');
+      assert.equal(link.rel,'noopener noreferrer');
+    }
+  }
+});
+
+test('external panel rejects unpublished, internal, unsafe and placeholder source URLs', () => {
+  const app = setup();
+  for(const props of [
+    {url:'https://blog.naver.com/taejang-official/224427291403',title:'숨김',status:'draft'},
+    {url:'https://taejang.co.kr/archive.html',title:'내부',status:'published'},
+    {url:'http://blog.naver.com/taejang-official/224427291403',title:'HTTP',status:'published'},
+    {url:'javascript:alert(1)',title:'위험',status:'published'},
+    {url:'https://name:secret@blog.naver.com/a',title:'인증정보',status:'published'},
+    {url:'https://example.com/fake',title:'가짜',status:'published'},
+    {url:'https://blog.naver.com/taejang-official/224427291403',title:'',status:'published'}
+  ]) {
+    const {card}=makeExternalCard();
+    assert.equal(app.window.TAEJANG_PUBLIC_SHARE.mountExternalCard(card,props),false);
+    assert.equal(card.children.length,1);
+  }
+});
+
+test('external mobile share uses original URL; clipboard fallback selects readonly original', async () => {
+  const original='https://www.youtube.com/watch?v=FbEOcteBSJ4';
+  const shared=[];
+  const app=setup({navigator:{
+    share:async data=>{shared.push(data);},
+    clipboard:{writeText:async()=>{throw new Error('CLIPBOARD_DENIED')}}
+  }});
+  const {card}=makeExternalCard(original);
+  assert.equal(app.window.TAEJANG_PUBLIC_SHARE.mountExternalCard(card,{
+    url:original,title:'태장 공식 유튜브',status:'published'
+  }),true);
+  const panel=card.querySelector('[data-public-external-share]');
+  await find(panel,e=>e.tag==='button'&&e.textContent==='기기 공유').click();
+  assert.equal(shared[0].url,original);
+  assert.equal(shared[0].title,'태장 공식 유튜브');
+  await find(panel,e=>e.tag==='button'&&e.textContent==='원문 URL 복사').click();
+  const input=find(panel,e=>e.tag==='input');
+  assert.equal(input.readOnly,true);
+  assert.equal(input.focuses,1);
+  assert.equal(input.selections,1);
+  assert.equal(find(panel,e=>e.attributes.role==='status').textContent,'원문 주소를 선택했습니다. 직접 복사해 주세요.');
+});
+
+test('archive loads share helper before content hub and keeps original links untouched', () => {
+  const html=fs.readFileSync('archive.html','utf8');
+  const hub=fs.readFileSync('assets/js/content-hub.js','utf8');
+  assert.match(html, /assets\/css\/public-share\.css/);
+  assert.ok(html.indexOf('src="assets/js/public-share.js"') < html.indexOf('src="assets/js/content-hub.js"'));
+  assert.match(hub, /window\.TAEJANG_PUBLIC_SHARE\?\.mountExternalCard\(article/);
+  assert.match(hub, /link\.href = item\.externalUrl/);
+  assert.match(hub, /link\.target = '_blank'/);
+  assert.match(hub, /link\.rel = 'noopener noreferrer'/);
+  assert.match(hub, /item\.type === 'external'/);
 });
