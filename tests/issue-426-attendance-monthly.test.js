@@ -49,6 +49,54 @@ test('filters match actual multiple group/leader assignments and unassigned stat
  assert.equal(monthly.matches(row,{accounts:'all',group:'미배정'}),false);
  assert.equal(monthly.matches(monthly.classify(person,{groupsKnown:true}),{accounts:'all',group:'미배정',leader:'미배정'}),true);
 });
+test('KST as-of labels future attendance as scheduled rather than missing',()=>{
+ const futureMonth='2026-10',days=monthly.monthDates(futureMonth);
+ const f={
+  month:futureMonth,
+  queriedAt:'2026-10-08T15:05:00Z', // Already 2026-10-09 in Korea.
+  daily:Object.fromEntries(days.map(d=>[d,{rows:[person],workday:{is_workday:true}}])),
+  ledger:{rows:[],period_fingerprint:'future-fixture'}
+ };
+ f.daily['2026-10-12'].workday.is_workday=false;
+ const model=monthly.buildMonth(f),employee=model.rows[0];
+ assert.equal(model.asOfDay,'2026-10-09');
+ assert.match(employee.cells[8].label,/누락.*미확정/,'today is not silently marked complete');
+ assert.equal(employee.cells[9].label,'근무 예정');
+ assert.equal(employee.cells[9].review,false,'tomorrow is not a missing punch');
+ assert.equal(employee.cells[11].label,'휴일 예정');
+ assert.equal(employee.cells[29].label,'근무 예정');
+ assert.equal(employee.reviewDays,9,'future dates do not inflate exception totals');
+ const exported=monthly.workbookSheets(model)[0].rows[0];
+ assert.match(exported[11],/근무 예정/,'monthly Excel uses the same status');
+ assert.doesNotMatch(exported[11],/09:00|18:00|누락/,'no synthetic clock times or missing label');
+});
+test('approved historical scheduled work is distinct from unresolved confirmed missing clocks',()=>{
+ const f=fixture();
+ const confirmed=(date,flags)=>({
+  ...person,employee_id_at_confirmation:person.employee_id,
+  display_name_at_confirmation:person.display_name,work_date:date,
+  clock_in_at:null,clock_out_at:null,revision_no:1,
+  record_snapshot:{attendance_status:'work',...flags}
+ });
+ f.ledger.rows=[
+  confirmed(dates[0],{historical_default_present:true,payroll_decision:'actual_scheduled'}),
+  confirmed(dates[1],{historical_default_present:false,payroll_decision:'actual_scheduled'}),
+ ];
+ const row=monthly.buildMonth(f).rows[0];
+ assert.equal(row.cells[0].label,'기준근무 확정 · 시각 미기재');
+ assert.equal(row.cells[0].confirmed,true);
+ assert.equal(row.cells[0].review,false);
+ assert.equal(row.cells[0].clockIn,'');
+ assert.equal(row.cells[0].clockOut,'');
+ assert.equal(row.cells[1].label,'누락 · 확정 확인 필요');
+ assert.equal(row.cells[1].confirmed,true);
+ assert.equal(row.cells[1].review,true);
+ const detail=monthly.workbookSheets(monthly.buildMonth(f))[1];
+ assert.equal(detail.rows[0][3],'기준근무 확정 · 시각 미기재');
+ assert.equal(detail.rows[0][4],'');
+ assert.equal(detail.rows[0][5],'');
+});
+
 test('large monthly XLSX uses bounded ZIP writes',()=>{
  const rows=Array.from({length:150},(_,i)=>Array.from({length:34},()=>`가상 근태 ${i} 미확정 누락`));
  assert.ok(writer.buildTableWorkbookXlsx([{name:'월간',title:'가상 월간',note:'test',headers:Array(34).fill('날짜'),rows}]).length>500000);
