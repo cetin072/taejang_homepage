@@ -61,6 +61,9 @@ const native = {
 async function attendance({
   required = false,
   mode = 'qa',
+  isWorkday = true,
+  dayReason = '근무일',
+  clockInAvailable = true,
   previewScenario = 'today',
   calendarDay = { work_date: '2026-10-09', is_workday: false, reason: '한글날' },
   result = { ok: true, writes_attendance: false, server_time: '2026-10-08T01:00:00Z' },
@@ -72,7 +75,8 @@ async function attendance({
     calls.push({ name, args });
     if (name === 'get_my_attendance_today') return { data: {
       work_date: '2026-10-09', attendance_required: latestRequired,
-      is_workday: true, clock_in_available: true, clock_in: null, clock_out: null,
+      is_workday: isWorkday, day_reason: dayReason,
+      clock_in_available: clockInAvailable, clock_in: null, clock_out: null,
     } };
     if (name === 'get_attendance_workday_status') return { data: calendarDay };
     return { data: result };
@@ -245,6 +249,26 @@ test('server calendar failure in QA preview fails closed instead of faking an el
   const button = fixture.render().find(node => node?.type === 'Pressable');
   assert.equal(button.props.disabled, true);
   assert.ok(fixture.render().includes('서버 근무일 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'));
+  await fixture.press();
+  assert.deepEqual(mutations(fixture), []);
+});
+
+test('production ordinary employee respects Hangul Day server closure and blocks attendance', async () => {
+  const fixture = await attendance({ mode: 'record', required: true, isWorkday: false, dayReason: '한글날' });
+  const button = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(button.props.disabled, true);
+  assert.equal(button.props.accessibilityLabel, '오늘은 출근일이 아닙니다');
+  assert.ok(fixture.render().includes('한글날'));
+  await fixture.press();
+  assert.deepEqual(mutations(fixture), []);
+  assert.equal(fixture.locationRequests(), 0);
+});
+
+test('production ordinary employee cannot check in before the server opens at 06:00 KST', async () => {
+  const fixture = await attendance({ mode: 'record', required: true, isWorkday: true, clockInAvailable: false });
+  const button = fixture.render().find(node => node?.type === 'Pressable');
+  assert.equal(button.props.disabled, true);
+  assert.equal(button.props.accessibilityLabel, '출근 전입니다');
   await fixture.press();
   assert.deepEqual(mutations(fixture), []);
 });
