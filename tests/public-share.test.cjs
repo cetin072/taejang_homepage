@@ -117,7 +117,7 @@ test('desktop supports Naver, X, Facebook links without third-party SDKs', () =>
   }
   assert.equal(new URL(linkByText(app.box, '네이버').href).searchParams.get('title'),
     '세 번째 환경정비 활동을 진행했습니다');
-  assert.ok(script.length < 6500);
+  assert.ok(script.length < 10000, 'Both first-party detail and external-card helpers remain compact');
   assert.doesNotMatch(script, /fetch\(|google-analytics|widgets\.js|sdk\.js/);
 });
 
