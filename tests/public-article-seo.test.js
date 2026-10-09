@@ -6,9 +6,15 @@ const { existsSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const vm = require('node:vm');
 const test = require('node:test');
 
 const repo = path.resolve(__dirname, '..');
+const source = { window: {} };
+vm.runInNewContext(readFileSync(path.join(repo, 'assets/js/content.js'), 'utf8'), source);
+const approved = ['activities', 'workplace'].flatMap(type => source.window.TAEJANG_CONTENT[type]
+  .filter(item => item.status === 'published').map(item => ({ type, item })));
+const baseSitemapCount = (readFileSync(path.join(repo, 'sitemap.xml'), 'utf8').match(/<url>/g) || []).length;
 
 test('published activity and workplace stories are crawlable without JS', () => {
   const folder = mkdtempSync(path.join(os.tmpdir(), 'taejang-articles-'));
@@ -20,7 +26,7 @@ test('published activity and workplace stories are crawlable without JS', () => 
       encoding: 'utf8'
     });
     assert.equal(run.status, 0, run.stdout + '\n' + run.stderr);
-    assert.match(run.stdout, /Generated 10 search-ready public article pages/);
+    assert.ok(run.stdout.includes(`Generated ${approved.length} search-ready public article pages`));
 
     const pages = [
       'activities/environment-cleanup-third.html',
@@ -43,6 +49,9 @@ test('published activity and workplace stories are crawlable without JS', () => 
       assert.doesNotMatch(html, /<h1>요청한 글을 찾을 수 없습니다<\/h1>/);
     }
 
+    const monthOnly = readFileSync(path.join(dist, 'activities/staff-birthday-2026-08.html'), 'utf8');
+    assert.doesNotMatch(monthOnly, /"datePublished":"2026-08"/, 'Do not invent a day for month-only stories');
+
     const cleanup = readFileSync(path.join(dist, pages[0]), 'utf8');
     assert.match(cleanup, /<title>세 번째 환경정비 활동을 진행했습니다 \| 농업회사법인 태장 주식회사<\/title>/);
     assert.match(cleanup, /<meta property="og:image" content="https:\/\/taejang.co.kr\/assets\/images\/archive\/environment-cleanup-third.webp">/);
@@ -53,7 +62,17 @@ test('published activity and workplace stories are crawlable without JS', () => 
     for (const route of pages) {
       assert.ok(map.includes('<loc>https://taejang.co.kr/' + route + '</loc>'));
     }
-    assert.equal((map.match(/<url>/g) || []).length, 21, '11 base URLs + 10 published articles');
+    assert.equal((map.match(/<url>/g) || []).length, baseSitemapCount + approved.length,
+      'Sitemap includes one generated URL for each approved article');
+    const redirects = readFileSync(path.join(dist, '_redirects'), 'utf8').trim().split(/\r?\n/);
+    assert.equal(redirects.length, approved.length, 'Only published article URLs have old-link redirects');
+    for (const { type, item } of approved) {
+      const route = `${type}/${item.id}.html`;
+      assert.ok(existsSync(path.join(dist, route)), 'Every published article exists as HTML: ' + route);
+      assert.ok(map.includes('<loc>https://taejang.co.kr/' + route + '</loc>'));
+      assert.ok(redirects.includes(`/${type}.html id=${item.id} /${route} 301!`),
+        'Legacy ?id= safely redirects to published canonical URL: ' + route);
+    }
     assert.doesNotMatch(map, /blog\.naver\.com|youtube\.com|\/staff\//, 'No external or private URLs');
 
     const archive = readFileSync(path.join(dist, 'archive.html'), 'utf8');

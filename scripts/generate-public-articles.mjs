@@ -139,7 +139,7 @@ function renderDocument(template, group, item, siblings) {
         headline: item.title,
         description,
         articleSection: item.category,
-        datePublished: article.isoDate,
+        ...( /^\d{4}-\d{2}-\d{2}$/.test(article.isoDate) ? { datePublished: article.isoDate } : {}),
         image: article.photo,
         author: { '@type': 'Organization', name: '농업회사법인 태장 주식회사' },
         publisher: { '@type': 'Organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
@@ -164,6 +164,7 @@ export async function generatePublicArticles({ repoRoot, outputRoot }) {
   const content = context.window.TAEJANG_CONTENT;
   if (!content) throw new Error('Approved public content unavailable');
   const urls = [];
+  const legacyRedirects = [];
   for (const group of GROUPS) {
     const template = await readFile(path.join(repoRoot, group.page), 'utf8');
     const entries = Array.isArray(content[group.key]) ? content[group.key] : [];
@@ -176,8 +177,12 @@ export async function generatePublicArticles({ repoRoot, outputRoot }) {
       await mkdir(path.dirname(dest), { recursive: true });
       await writeFile(dest, html, 'utf8');
       urls.push(ORIGIN + '/' + relative);
+      // Preserve known approved legacy ?id= links without indexing a duplicate detail URL.
+      legacyRedirects.push(`/${group.page} id=${item.id} /${relative} 301!`);
     }
   }
+  // Netlify _redirects precede netlify.toml and only redirect approved IDs.
+  await writeFile(path.join(outputRoot, '_redirects'), legacyRedirects.join('\n') + '\n', 'utf8');
   const sitemapPath = path.join(outputRoot, 'sitemap.xml');
   let sitemap = await readFile(sitemapPath, 'utf8');
   const missing = urls.filter(url => !sitemap.includes('<loc>' + xmlText(url) + '</loc>'));
