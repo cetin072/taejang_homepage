@@ -3,7 +3,7 @@
 .public-share h2{font:700 21px/1.4 var(--myeongjo,serif);color:var(--green-deep,#244333);margin:0 0 8px}
 .public-share-hint{color:var(--ink-soft,#5e675f);font-size:14px;line-height:1.6;margin:0 0 17px}
 .public-share-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
-.public-share-actions .public-share-button,.public-share-actions .public-share-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid var(--line,#cdd5c9);border-radius:9px;background:#fff;color:var(--green-deep,#244333);font:700 14px/1.35 inherit;text-decoration:none;cursor:pointer}
+.public-share-actions .public-share-button,.public-share-actions .public-share-link{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:9px 14px;border:1px solid var(--line,#cdd5c9);border-radius:9px;background:#fff;color:var(--green-deep,#244333);font:700 14px/1.35 system-ui,sans-serif;text-decoration:none;cursor:pointer}
 .public-share-actions .public-share-button--primary{background:var(--green-deep,#244333);color:#fff;border-color:var(--green-deep,#244333)}
 .public-share-actions :is(button,a):focus-visible{outline:3px solid #568b65;outline-offset:3px}
 .public-share-url-label{display:block;font-size:12px;font-weight:700;color:var(--ink-soft,#5e675f)}
