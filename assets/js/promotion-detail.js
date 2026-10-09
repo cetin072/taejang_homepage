@@ -6,6 +6,9 @@
 
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id') || '';
+  // Netlify has already rendered the public, approved article into the initial HTML.
+  // Keep that content available even if client JS or the API fails later.
+  if (target.querySelector('[data-seo-promotion-id]')?.getAttribute('data-seo-promotion-id') === id) return;
 
   function el(tag, text, className) {
     const node = document.createElement(tag);
