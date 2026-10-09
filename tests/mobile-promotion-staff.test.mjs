@@ -85,6 +85,8 @@ test('employee home uses one shared feature registry instead of role-specific ho
   assert.match(registry, /promotion\.author/);
   assert.match(home, /업무 플랫폼 열기/);
   assert.doesNotMatch(home, /PromotionStaffShortcut|loadPromotionWorkspace/);
-  assert.match(home, /\{canOpenWorkPlatform \? \(/);
+  assert.match(home, /showWorkPlatform = isQaApp \? showQaWorkPlatform\(qaPersona\) : canOpenWorkPlatform/);
+  assert.match(home, /\{showWorkPlatform \? \(/);
+  assert.match(home, /disabled=\{!canOpenWorkPlatform \|\| platformOpening\}/);
   assert.match(home, /OfficialChannelsFooter/);
 });
