@@ -133,7 +133,9 @@ export function AttendanceCard({
       return next;
     } catch {
       if (requestId !== readSequence.current) return null;
-      setToday(null);
+      // Keep the existing Production/QA-server error behavior. Only preview
+      // must drop stale simulated day data when its calendar read fails.
+      if (mode === 'preview') setToday(null);
       setMessage(mode === 'preview'
         ? '서버 근무일 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'
         : '출퇴근 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
