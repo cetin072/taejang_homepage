@@ -71,6 +71,7 @@ async function attendance({
 } = {}) {
   const h = hooks(), calls = [];
   let latestRequired = required, locationRequests = 0;
+  let onAppStateChange = null;
   const client = { rpc: async (name, args) => {
     calls.push({ name, args });
     if (name === 'get_my_attendance_today') return { data: {
@@ -85,7 +86,15 @@ async function attendance({
   const previewState = load('mobile/src/features/qa/qa-preview-state.ts', {});
   class AttendanceLocationError extends Error { constructor() { super('location'); this.code = 'TIMEOUT'; } }
   const card = load('mobile/src/features/attendance/attendance-card.tsx', {
-    react: h.react, 'react-native': native, './attendance-api': api,
+    react: h.react,
+    'react-native': {
+      ...native,
+      AppState: { addEventListener: (_event, callback) => {
+        onAppStateChange = callback;
+        return { remove() {} };
+      } },
+    },
+    './attendance-api': api,
     './attendance-location': { AttendanceLocationError, getBestAttendancePosition: async () => {
       locationRequests++;
       if (locationFailure) throw new AttendanceLocationError();
@@ -100,6 +109,10 @@ async function attendance({
   await settle();
   return {
     calls, render, locationRequests: () => locationRequests, changeRequired(value) { latestRequired = value; },
+    async foreground() {
+      if (onAppStateChange) onAppStateChange('active');
+      await settle();
+    },
     async press() {
       const button = render().find(node => node?.type === 'Pressable');
       button.props.onPress();
@@ -233,8 +246,12 @@ test('weekday employee preview shares the production button and confirmation flo
   assert.equal(first.props.accessibilityLabel, '출근했습니다');
   await fixture.press();
   assert.ok(fixture.render().includes('퇴근했습니다'));
+  await fixture.foreground();
+  assert.ok(fixture.render().includes('퇴근했습니다'), 'same-day foreground should retain the simulated clock-in');
   await fixture.press();
   assert.ok(fixture.render().includes('오늘 근무 완료'));
+  await fixture.foreground();
+  assert.ok(fixture.render().includes('오늘 근무 완료'), 'same-day foreground should retain the completed simulated day');
   assert.ok(fixture.render().includes('다시 체험'));
   assert.deepEqual(mutations(fixture), []);
   assert.equal(fixture.locationRequests(), 0);
