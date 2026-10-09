@@ -3,6 +3,7 @@ import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native
 
 import {
   loadMyAttendanceToday,
+  loadAttendanceWorkdayStatus,
   recordAttendanceEvent,
   requestAttendanceException,
   validateAttendanceQa,
@@ -16,9 +17,10 @@ import {
   type AttendancePosition,
 } from './attendance-location';
 import { usePlatform } from '@/src/providers/platform-provider';
+import { buildQaPreviewDay, type QaDayScenario } from '@/src/features/qa/qa-preview-state';
 
 type ExceptionFailureCode = 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'LOCATION_UNCERTAIN';
-export type AttendanceCardMode = 'record' | 'qa';
+export type AttendanceCardMode = 'record' | 'qa' | 'preview';
 
 function formatTime(value: string | null | undefined) {
   if (!value) return '';
@@ -59,9 +61,11 @@ function attendanceLine(event: AttendanceEvent | null) {
 export function AttendanceCard({
   minHeight = 164,
   mode = 'record',
+  previewScenario = 'today',
 }: {
   minHeight?: number;
   mode?: AttendanceCardMode;
+  previewScenario?: QaDayScenario;
 }) {
   const { client, session } = usePlatform();
   const [today, setToday] = useState<AttendanceToday | null>(null);
@@ -77,22 +81,69 @@ export function AttendanceCard({
     position: AttendancePosition | null;
   } | null>(null);
   const attempts = useRef<Record<AttendanceEventType, number>>({ clock_in: 0, clock_out: 0 });
+  const readSequence = useRef(0);
+  const previewMode = mode === 'preview';
 
   const refresh = useCallback(async () => {
+    const requestId = ++readSequence.current;
     if (!client || !session) return null;
     setLoading(true);
     try {
-      const next = await loadMyAttendanceToday(client);
+      let next: AttendanceToday;
+      if (mode === 'preview') {
+        if (previewScenario === 'today') {
+          // Both RPCs are read-only. Server owns the KST date, holiday policy,
+          // and 06:00 opening rule even when the operator has no attendance duty.
+          const [calendar, actualToday] = await Promise.all([
+            loadAttendanceWorkdayStatus(client),
+            loadMyAttendanceToday(client),
+          ]);
+          if (
+            calendar.work_date !== actualToday.work_date
+            || typeof actualToday.clock_in_available !== 'boolean'
+          ) {
+            throw new Error('서버 근무일 기준을 확인하지 못했습니다.');
+          }
+          next = {
+            ...buildQaPreviewDay('today', calendar),
+            clock_in_available: actualToday.clock_in_available,
+            clock_in_available_at: actualToday.clock_in_available_at,
+            server_time: actualToday.server_time,
+          };
+        } else {
+          next = buildQaPreviewDay(previewScenario);
+        }
+      } else {
+        next = await loadMyAttendanceToday(client);
+      }
+      if (requestId !== readSequence.current) return null;
       setToday(next);
       return next;
     } catch {
-      setMessage('출퇴근 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+      if (requestId !== readSequence.current) return null;
+      setToday(null);
+      setMessage(mode === 'preview'
+        ? '서버 근무일 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.'
+        : '출퇴근 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
       setMessageError(true);
       return null;
     } finally {
-      setLoading(false);
+      if (requestId === readSequence.current) setLoading(false);
     }
-  }, [client, session]);
+  }, [client, session, mode, previewScenario]);
+
+  useEffect(() => {
+    // A new QA scenario never inherits the previous scenario's simulated clock.
+    setQaClockInAt(null);
+    setQaClockOutAt(null);
+    setExceptionTarget(null);
+    attempts.current = { clock_in: 0, clock_out: 0 };
+    if (mode === 'preview') {
+      setToday(null);
+      setMessage('');
+      setMessageError(false);
+    }
+  }, [mode, previewScenario]);
 
   useEffect(() => {
     if (!client || !session) return;
@@ -108,7 +159,8 @@ export function AttendanceCard({
 
   useEffect(() => {
     if (
-      !today
+      mode === 'preview' && previewScenario !== 'today'
+      || !today
       || today.is_workday === false
       || today.clock_in_available !== false
       || !today.server_time
@@ -124,6 +176,8 @@ export function AttendanceCard({
     return () => clearTimeout(timer);
   }, [
     refresh,
+    mode,
+    previewScenario,
     today?.clock_in_available,
     today?.clock_in_available_at,
     today?.is_workday,
@@ -140,11 +194,25 @@ export function AttendanceCard({
     failureCode: ExceptionFailureCode,
     position: AttendancePosition | null,
   ) {
-    if (mode === 'qa' || attempts.current[eventType] < 2) return;
+    if (mode !== 'record' || attempts.current[eventType] < 2) return;
     setExceptionTarget({ eventType, failureCode, position });
   }
 
   async function record(eventType: AttendanceEventType) {
+    if (previewMode) {
+      // No network, GPS or mutation can be reached by the in-memory employee
+      // scenario. The same real employee card renders the simulated result.
+      if (!today || today.attendance_required !== true || today.is_workday !== true || busy) return;
+      if (eventType === 'clock_in' && (today.clock_in_available === false || today.clock_in)) return;
+      if (eventType === 'clock_out' && (!completed(today.clock_in) || today.clock_out)) return;
+      const timestamp = new Date().toISOString();
+      setToday(current => current ? {
+        ...current,
+        [eventType]: { status: 'recorded', event_at: timestamp, requested_at: timestamp },
+      } : current);
+      show(eventType === 'clock_in' ? '출근이 기록되었습니다.' : '퇴근이 기록되었습니다.');
+      return;
+    }
     if (!client || busy) return;
     setBusy(eventType);
     setExceptionTarget(null);
@@ -292,7 +360,7 @@ export function AttendanceCard({
   }
 
   async function requestException() {
-    if (qaMode || !client || !exceptionTarget || busy) return;
+    if (mode !== 'record' || !client || !exceptionTarget || busy) return;
     setBusy(exceptionTarget.eventType);
     try {
       const result = await requestAttendanceException(
@@ -330,7 +398,11 @@ export function AttendanceCard({
   let title = '출근했습니다';
   let subtitle = '회사에서 눌러주세요';
 
-  if (qaMode) {
+  if (previewMode && !today) {
+    action = null;
+    title = '근무일 상태 확인 중';
+    subtitle = '근무일 정보를 확인할 수 있을 때 체험할 수 있습니다';
+  } else if (qaMode) {
     if (today?.attendance_required !== false) {
       action = null;
       title = 'QA 출퇴근 검수 전용';
@@ -403,6 +475,13 @@ export function AttendanceCard({
     void record(action);
   }
 
+  function resetPreview() {
+    if (busy || !previewMode) return;
+    setToday(current => current ? { ...current, clock_in: null, clock_out: null } : current);
+    setMessage('');
+    setMessageError(false);
+  }
+
   function resetQa() {
     if (busy) return;
     setQaClockInAt(null);
@@ -453,6 +532,17 @@ export function AttendanceCard({
       ) : null}
 
       {message ? <Text style={messageError ? styles.error : styles.message}>{message}</Text> : null}
+
+      {previewMode && clockedOut ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="직원 화면 체험 다시 시작"
+          onPress={resetPreview}
+          style={styles.qaResetButton}
+        >
+          <Text style={styles.qaResetText}>다시 체험</Text>
+        </Pressable>
+      ) : null}
 
       {qaMode && qaClockOutAt ? (
         <Pressable
