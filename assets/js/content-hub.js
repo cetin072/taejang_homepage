@@ -20,7 +20,7 @@
       publishedAt: typeof activity.date === 'string' ? activity.date.replaceAll('.', '-') : '',
       featured: Boolean(activity.hub.featured),
       status: activity.status,
-      detailUrl: `activities.html?id=${encodeURIComponent(activity.id)}`,
+      detailUrl: `activities/${encodeURIComponent(activity.id)}.html`,
       series: activity.series || ''
     }));
   const baseItems = [...internalActivityItems, ...explicitHubItems];
