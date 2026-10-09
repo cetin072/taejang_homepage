@@ -37,9 +37,25 @@ test('hosted payroll workflow preserves an active role simulation around QA', ()
 });
 
 
-test('hosted payroll browser targets exact-head deploy preview on pull requests', () => {
+test('hosted payroll manual run requires explicit operator, approval, and exact reviewed PR Preview', () => {
+  const triggers = workflow.slice(workflow.indexOf('on:\n'), workflow.indexOf('\npermissions:'));
+  assert.match(triggers, /^  workflow_dispatch:/m);
+  assert.doesNotMatch(triggers, /^  (?:pull_request|pull_request_target|push|schedule|workflow_run|repository_dispatch):/m);
+  assert.match(workflow, /github\.actor == 'cetin072'/);
+  assert.match(workflow, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(workflow, /inputs\.staging_write_approval == 'APPROVE_STAGING_PAYROLL_WRITE'/);
+  assert.match(workflow, /STOP_UNAPPROVED_DISPATCH/);
+  assert.match(workflow, /STOP_STAGING_WRITE_NOT_APPROVED/);
+  assert.match(workflow, /STOP_STALE_PR_OR_UNTRUSTED_HEAD/);
+  assert.match(workflow, /STOP_EXACT_HEAD_PREVIEW_NOT_READY/);
+  assert.match(workflow, /\.head\.repo\.full_name == \$repo and \.head\.sha == \$sha/);
+  assert.match(workflow, /netlify\/taejang-homepage\/deploy-preview/);
+  const approvalGate = workflow.indexOf('- name: Verify explicit approval');
+  const firstWrite = workflow.indexOf('- name: Create one-time active top-authority handoff');
+  assert.ok(approvalGate >= 0 && firstWrite > approvalGate, 'no Staging Auth/payroll write before manual preflight');
   assert.match(workflow, /PAYROLL_HOSTED_PREVIEW_SITE/);
   assert.match(workflow, /deploy-preview-\{0\}--taejang-homepage\.netlify\.app/);
+  assert.match(workflow, /inputs\.reviewed_pr_number/);
   assert.match(source, /BROWSER_SITE = process\.env\.PAYROLL_HOSTED_PREVIEW_SITE \|\| SITE/);
   assert.match(source, /EXACT_HEAD_PREVIEW_NOT_READY/);
 });
