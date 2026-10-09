@@ -19,6 +19,39 @@ function fail(status = 404) {
   });
 }
 
+// Match the original public promotion renderer's safe linkification.
+function linkifyParagraph(value) {
+  const text = String(value || '');
+  const pattern = /https?:\/\/[^\s<>"']+/gi;
+  let cursor = 0;
+  let output = '';
+  for (const match of text.matchAll(pattern)) {
+    const start = match.index ?? 0;
+    output += escapeHtml(text.slice(cursor, start));
+    const original = match[0];
+    let href = original;
+    let trailing = '';
+    while (/[),.!?;:\]\}，。！？；：]$/.test(href)) {
+      trailing = href.slice(-1) + trailing;
+      href = href.slice(0, -1);
+    }
+    let valid = false;
+    try {
+      const parsed = new URL(href);
+      valid = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch { /* keep malformed addresses as harmless text */ }
+    if (valid) {
+      output += '<a class="article-inline-link" href="' + escapeHtml(href) +
+        '" target="_blank" rel="noopener noreferrer">' + escapeHtml(href) + '</a>' +
+        escapeHtml(trailing);
+    } else {
+      output += escapeHtml(original);
+    }
+    cursor = start + original.length;
+  }
+  return (output + escapeHtml(text.slice(cursor))).replace(/\n/g, '<br>');
+}
+
 function imageFor(item) {
   const media = Array.isArray(item.public_media) ? item.public_media : [];
   const selected = media.find(entry => typeof entry?.url === 'string' && /^https:\/\//.test(entry.url));
@@ -76,7 +109,7 @@ function articleHtml(item) {
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
       '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
-    .map(text => '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>').join('\n');
+    .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)
     .map(entry => '<figure class="article-gallery-item"><img src="' + escapeHtml(entry.url) +
       '" alt="' + escapeHtml(entry.alt || title) + '" loading="lazy" decoding="async"></figure>').join('');

@@ -124,3 +124,18 @@ test('public RPC outage fails closed without disclosing content', async () => {
     }
   } finally { env.restore(); }
 });
+
+test('SSR keeps clickable safe in-body URLs and escapes markup', async () => {
+  const text = '관련 소식 https://taejang.co.kr/archive.html?a=1&b=2).\n<script>alert(1)</script>';
+  const env = setup({ detail: [{ ...full, public_body: text }] });
+  try {
+    const response = await handler(new Request('https://preview.example/promotion.html?id=' + id), context);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /<a class="article-inline-link" href="https:\/\/taejang\.co\.kr\/archive\.html\?a=1&amp;b=2" target="_blank" rel="noopener noreferrer">/);
+    assert.match(html, /<\/a>\)\./);
+    assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+  } finally { env.restore(); }
+});
+
