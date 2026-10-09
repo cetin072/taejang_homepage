@@ -62,7 +62,10 @@ export function QaPreviewControls({
         onPress={onToggle}
         style={styles.header}
       >
-        <Text style={styles.headerText}>QA · {personaLabel} 시점 · {inspectionLabel}</Text>
+        <View style={styles.headerSummary}>
+          <Text style={styles.headerText}>QA · {personaLabel} 시점 · {inspectionLabel}</Text>
+          <Text style={styles.headerSafety}>실제 근태에 반영되지 않습니다</Text>
+        </View>
         <Text style={styles.headerToggle}>{open ? '접기 ▲' : '변경 ▼'}</Text>
       </Pressable>
       {open ? (
@@ -102,7 +105,9 @@ export function QaPreviewControls({
 const styles = StyleSheet.create({
   wrap: { borderRadius: 14, borderWidth: 1, borderColor: '#dbcc94', backgroundColor: '#fffaf0', overflow: 'hidden' },
   header: { minHeight: 48, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 13, paddingVertical: 8 },
-  headerText: { flex: 1, color: '#6b5314', fontSize: 13, fontWeight: '800', lineHeight: 19 },
+  headerSummary: { flex: 1, gap: 1 },
+  headerText: { color: '#6b5314', fontSize: 13, fontWeight: '800', lineHeight: 19 },
+  headerSafety: { color: '#876b2d', fontSize: 12, fontWeight: '700', lineHeight: 17 },
   headerToggle: { color: '#6b5314', fontSize: 12, fontWeight: '800' },
   content: { gap: 9, padding: 13, paddingTop: 3, borderTopWidth: 1, borderTopColor: '#e7dcb4' },
   label: { color: '#5d4a13', fontSize: 13, fontWeight: '900' },
