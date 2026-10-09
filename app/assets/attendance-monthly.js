@@ -14,12 +14,28 @@
     if (!value || !Number.isFinite(Date.parse(value))) return '';
     return new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value));
   }
-  function cell(record,live,day,employee,date) {
+  function kstDay(value) {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) throw new Error('INVALID_QUERY_TIME');
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+      timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'
+    }).formatToParts(date).filter(part=>part.type!=='literal').map(part=>[part.type,part.value]));
+    return parts.year + '-' + parts.month + '-' + parts.day;
+  }
+  function cell(record,live,day,employee,date,asOfDay) {
     if (record) {
-      const raw=record.record_snapshot?.attendance_status;
+      const snapshot=record.record_snapshot || {};
+      const raw=snapshot.attendance_status;
       const code=(typeof raw==='object' ? raw?.status : raw) || 'work';
       const missing=code==='work' && (!record.clock_in_at || !record.clock_out_at);
-      return {label:missing?'누락':labels[code] || '확인 필요',code,confirmed:true,review:missing || code==='review_required' || !Object.hasOwn(labels,code),clockIn:time(record.clock_in_at),clockOut:time(record.clock_out_at),record};
+      // Historical approved scheduled work intentionally has no fabricated GPS times.
+      const scheduled=missing && snapshot.payroll_decision==='actual_scheduled'
+        && String(snapshot.historical_default_present)==='true';
+      return {
+        label:scheduled ? '기준근무 확정 · 시각 미기재' : missing ? '누락 · 확정 확인 필요' : labels[code] || '확인 필요',
+        code,confirmed:true,review:(!scheduled && missing) || code==='review_required' || !Object.hasOwn(labels,code),
+        clockIn:time(record.clock_in_at),clockOut:time(record.clock_out_at),record
+      };
     }
     if (!day) return {label:'조회 실패',confirmed:false,review:true,clockIn:'',clockOut:''};
     if (!live) {
@@ -28,15 +44,21 @@
     }
     const code=live.attendance_status?.status || 'work';
     const holiday=day.workday?.is_workday===false && !(day.assignments || []).some(r=>String(r.employee_uuid)===String(employee.employee_uuid));
+    // A future workday without a recorded event is a plan, never a missed punch.
+    if (date>asOfDay && !live.clock_in?.event_at && !live.clock_out?.event_at) {
+      const label=holiday && code==='work' ? '휴일 예정' : code==='work' ? '근무 예정' : (labels[code] || '확인 필요') + ' 예정';
+      return {label,code,confirmed:false,review:code==='review_required' || !Object.hasOwn(labels,code),clockIn:'',clockOut:''};
+    }
     if (holiday && code==='work' && !live.clock_in?.event_at && !live.clock_out?.event_at) return {label:'휴일',confirmed:false,review:false,clockIn:'',clockOut:''};
     const valid=e=>e?.event_at && !['exception_pending','exception_rejected','correction_invalidated'].includes(e.status);
     const clockIn=valid(live.clock_in)?time(live.clock_in.event_at):'';
     const clockOut=valid(live.clock_out)?time(live.clock_out.event_at):'';
     const missing=code==='work' && (!clockIn || !clockOut);
-    return {label:`${missing?'누락':labels[code] || '확인 필요'} · 미확정`,code,confirmed:false,review:true,clockIn,clockOut};
+    return {label:(missing?'누락':labels[code] || '확인 필요')+' · 미확정',code,confirmed:false,review:true,clockIn,clockOut};
   }
+
   function buildMonth({month,ledger,daily,employees=[],queriedAt=new Date().toISOString()}) {
-    const dates=monthDates(month),people=new Map(),records=new Map();
+    const dates=monthDates(month),asOfDay=kstDay(queriedAt),people=new Map(),records=new Map();
     const metadata=new Map(employees.map(e=>[String(e.id),e]));
     // Metadata never adds identities beyond the attendance-authorized roster.
     for (const r of ledger?.rows || []) {
@@ -52,12 +74,12 @@
     const rows=[...people.values()].map(person=>{
       const meta=metadata.get(String(person.employee_uuid)) || {};
       const employee={...meta,...person};
-      employee.cells=dates.map(date=>cell(records.get(`${person.employee_uuid}|${date}`),daily[date]?.rows?.find(r=>String(r.employee_uuid)===String(person.employee_uuid)),daily[date],employee,date));
+      employee.cells=dates.map(date=>cell(records.get(`${person.employee_uuid}|${date}`),daily[date]?.rows?.find(r=>String(r.employee_uuid)===String(person.employee_uuid)),daily[date],employee,date,asOfDay));
       employee.confirmedDays=employee.cells.filter(c=>c.confirmed).length;
       employee.reviewDays=employee.cells.filter(c=>c.review).length;
       return employee;
     }).sort((a,b)=>b.reviewDays-a.reviewDays || String(a.employee_id || '').localeCompare(String(b.employee_id || ''),'ko'));
-    return {month,dates,rows,queriedAt,fingerprint:ledger?.period_fingerprint || '',failedDays:dates.filter(d=>!daily[d])};
+    return {month,dates,rows,queriedAt,asOfDay,fingerprint:ledger?.period_fingerprint || '',failedDays:dates.filter(d=>!daily[d])};
   }
   function workbookSheets(model,rows=model.rows,scope='전체') {
     const note=`${model.dates[0]}~${model.dates.at(-1)} / ${scope} / 조회 ${model.queriedAt} / 한국시간 / 원장 ${model.fingerprint || '미등록'} / 미확정은 급여 인정시간이 아님`;
