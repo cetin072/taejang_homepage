@@ -117,7 +117,19 @@ export function AttendanceCard({
         next = await loadMyAttendanceToday(client);
       }
       if (requestId !== readSequence.current) return null;
-      setToday(next);
+      if (mode === 'preview') {
+        // Simulated attendance must survive background → foreground on the
+        // same simulated workday, just as a real employee's saved clock does.
+        // A new workday or changed holiday policy always resets it.
+        setToday(current => (
+          current && current.work_date === next.work_date
+            && current.is_workday === true && next.is_workday === true
+            ? { ...next, clock_in: current.clock_in, clock_out: current.clock_out }
+            : next
+        ));
+      } else {
+        setToday(next);
+      }
       return next;
     } catch {
       if (requestId !== readSequence.current) return null;
