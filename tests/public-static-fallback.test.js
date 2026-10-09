@@ -26,7 +26,7 @@ function assertFallbackCards(html, key, minimum) {
   const block = html.slice(start, nextSection >= 0 ? nextSection : undefined);
   const count = (block.match(/data-static-fallback-card/g) || []).length;
   assert.ok(count >= minimum, `${key} fallback은 최소 ${minimum}개의 승인 콘텐츠 카드를 포함해야 합니다`);
-  assert.match(block, /<a class="card-link" href="[^"?]+(?:\.html)?\?id=[^"]+"/i, `${key} fallback 카드는 실제 상세 글로 연결되어야 합니다`);
+  assert.match(block, /<a class="card-link" href="(?:activities|workplace)\/[a-z0-9-]+\.html"/i, `${key} fallback 카드는 실제 상세 글로 연결되어야 합니다`);
   return block;
 }
 
@@ -40,11 +40,11 @@ assert.ok(communityStart >= 0, 'community-esg fallback 표시가 있어야 합�
 const communityEnd = community.indexOf('</section>', communityStart);
 const communityFallback = community.slice(communityStart, communityEnd >= 0 ? communityEnd : undefined);
 assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 3, 'community-esg fallback은 활동 기록 3건 이상을 포함해야 합니다');
-assert.match(communityFallback, /activities\.html\?id=environment-cleanup-third/);
-assert.match(archiveFallback, /activities\.html\?id=environment-cleanup-third/);
-assert.match(activityFallback, /activities\.html\?id=environment-cleanup-third/);
-assert.match(communityFallback, /activities\.html\?id=environment-cleanup-second/);
-assert.match(communityFallback, /activities\.html\?id=environment-cleanup-first/);
+assert.match(communityFallback, /activities\/environment-cleanup-third\.html/);
+assert.match(archiveFallback, /activities\/environment-cleanup-third\.html/);
+assert.match(activityFallback, /activities\/environment-cleanup-third\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-second\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-first\.html/);
 
 assert.doesNotMatch(index, /data-recent-activities\s+hidden/, '메인 활동 기록은 JS 없이도 표시되어야 합니다');
 

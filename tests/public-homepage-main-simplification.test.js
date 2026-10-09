@@ -179,7 +179,7 @@ assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효�
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
 assert.match(partnership, /id="partnership-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '협력 문의 폼은 필수 입력 안내를 제공합니다');
-assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
+assert.match(index, /href="activities\/terrarium-business-start-2026-08\.html">테라리움 사업 이야기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
