@@ -18,6 +18,7 @@ function load(path, require) {
 }
 
 const registry = load('mobile/src/features/common/employee-feature-registry.ts', () => { throw new Error('unexpected registry dependency'); });
+const qaState = load('mobile/src/features/qa/qa-preview-state.ts', () => { throw new Error('unexpected QA state dependency'); });
 const jsx = (type, props) => ({ type, props });
 const native = Object.fromEntries(['View', 'Text', 'Pressable', 'ScrollView', 'Image', 'KeyboardAvoidingView', 'TextInput'].map(name => [name, name]));
 native.StyleSheet = { create: styles => styles };
@@ -30,11 +31,11 @@ const brand = load('mobile/src/features/common/brand-loading-view.tsx', name => 
   throw new Error(`unexpected brand dependency: ${name}`);
 });
 
-function renderHome(access, phase = 'ready', qa = false) {
+function renderHome(access, phase = 'ready', qa = false, persona = 'operations_lead') {
   const home = load('mobile/app/index.tsx', name => {
     if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
     if (name === 'react') return {
-      useState: initial => [initial === null ? access : initial, () => {}],
+      useState: initial => [initial === null ? access : initial === 'operations_lead' ? persona : initial, () => {}],
       useMemo: fn => fn(), useCallback: fn => fn, useEffect: () => {},
     };
     if (name === 'react-native') return native;
@@ -43,6 +44,8 @@ function renderHome(access, phase = 'ready', qa = false) {
     if (name === 'expo-status-bar') return { StatusBar: 'StatusBar' };
     if (name.endsWith('platform-provider')) return { usePlatform: () => ({ phase, session: { user: { id: 'fixture' } } }) };
     if (name.endsWith('employee-feature-registry')) return registry;
+    if (name.endsWith('qa-preview-state')) return qaState;
+    if (name.endsWith('qa-preview-controls')) return { QaPreviewControls: 'QaPreviewControls' };
     if (name.endsWith('brand-loading-view')) return brand;
     if (name.endsWith('attendance-card')) return { AttendanceCard: 'AttendanceCard' };
     if (name.endsWith('notice-home-action')) return { NoticeHomeAction: 'NoticeHomeAction' };
@@ -98,11 +101,28 @@ test('connection and first access load render only the same proportional logo wi
   }
 });
 
-test('QA home always renders QA attendance even without a QA capability', () => {
-  for (const capabilities of [[], ['attendance.qa_validate']]) {
+test('QA defaults to operations team lead and previews the actual employee attendance card', () => {
+  for (const capabilities of [[], ['attendance.qa_validate'], ['employee.view_all']]) {
     const rendered = renderHome({ account_status: 'active', capabilities }, 'ready', true);
-    assert.equal(rendered.find(node => node?.type === 'AttendanceCard').props.mode, 'qa');
-    assert.ok(rendered.includes('QA'));
+    const card = rendered.find(node => node?.type === 'AttendanceCard');
+    const toolbar = rendered.find(node => node?.type === 'QaPreviewControls');
+    const platform = rendered.find(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기');
+    assert.equal(card.props.mode, 'preview');
+    assert.equal(card.props.previewScenario, 'today');
+    assert.equal(toolbar.props.persona, 'operations_lead');
+    assert.equal(toolbar.props.inspection, 'preview');
+    assert.equal(Boolean(platform), true);
+    assert.equal(platform.props.disabled, !capabilities.includes('employee.view_all'));
   }
-  assert.equal(renderHome({ account_status: 'active', capabilities: [] }).find(node => node?.type === 'AttendanceCard').props.mode, 'record');
+});
+
+test('QA general employee perspective hides work platform without changing account capabilities', () => {
+  const access = { account_status: 'active', capabilities: ['employee.view_all'] };
+  const staff = renderHome(access, 'ready', true, 'employee');
+  assert.equal(staff.some(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기'), false);
+  assert.equal(staff.find(node => node?.type === 'AttendanceCard').props.mode, 'preview');
+  assert.equal(staff.find(node => node?.type === 'NoticeHomeAction')?.type, 'NoticeHomeAction');
+  const production = renderHome(access);
+  assert.equal(production.find(node => node?.type === 'AttendanceCard').props.mode, 'record');
+  assert.equal(production.some(node => node?.type === 'QaPreviewControls'), false);
 });

@@ -24,6 +24,13 @@ import { OfficialChannelsFooter } from '@/src/features/common/official-channels-
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
+import { QaPreviewControls } from '@/src/features/qa/qa-preview-controls';
+import {
+  showQaWorkPlatform,
+  type QaDayScenario,
+  type QaHomePersona,
+  type QaInspectionMode,
+} from '@/src/features/qa/qa-preview-state';
 import { isQaApp } from '@/src/platform/app-variant';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { friendlyError } from '@/src/platform/friendly-error';
@@ -196,6 +203,10 @@ export default function HomeScreen() {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessError, setAccessError] = useState('');
   const [platformOpening, setPlatformOpening] = useState(false);
+  const [qaControlsOpen, setQaControlsOpen] = useState(false);
+  const [qaPersona, setQaPersona] = useState<QaHomePersona>('operations_lead');
+  const [qaInspection, setQaInspection] = useState<QaInspectionMode>('preview');
+  const [qaDayScenario, setQaDayScenario] = useState<QaDayScenario>('today');
 
   async function run(action: () => Promise<void>) {
     if (busy) return;
@@ -264,7 +275,8 @@ export default function HomeScreen() {
   const noticeFeature = employeeFeatures.get('notice.read');
   const workPlatformFeature = employeeFeatures.get('work-platform.open');
   const canOpenWorkPlatform = workPlatformFeature?.state === 'enabled';
-  const primaryCount = canOpenWorkPlatform ? 3 : 2;
+  const showWorkPlatform = isQaApp ? showQaWorkPlatform(qaPersona) : canOpenWorkPlatform;
+  const primaryCount = showWorkPlatform ? 3 : 2;
   const actionHeight = useMemo(() => {
     const available = Math.max(360, windowHeight - 300);
     const raw = Math.floor((available - (primaryCount - 1) * 14) / primaryCount);
@@ -604,18 +616,35 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
+          {isQaApp ? (
+            <QaPreviewControls
+              open={qaControlsOpen}
+              onToggle={() => setQaControlsOpen(value => !value)}
+              persona={qaPersona}
+              onPersonaChange={setQaPersona}
+              inspection={qaInspection}
+              onInspectionChange={setQaInspection}
+              scenario={qaDayScenario}
+              onScenarioChange={setQaDayScenario}
+            />
+          ) : null}
+
           <View style={styles.actions}>
             {attendanceFeature?.state !== 'hidden' ? (
               <AttendanceCard
+                key={isQaApp ? `${qaInspection}:${qaDayScenario}` : 'production'}
                 minHeight={actionHeight}
-                mode={isQaApp ? 'qa' : (attendanceFeature?.attendanceMode || 'record')}
+                mode={isQaApp
+                  ? (qaInspection === 'preview' ? 'preview' : 'qa')
+                  : (attendanceFeature?.attendanceMode || 'record')}
+                previewScenario={qaDayScenario}
               />
             ) : null}
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
-            {canOpenWorkPlatform ? (
+            {showWorkPlatform ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
-                subtitle="내 업무와 관리 기능"
+                subtitle={canOpenWorkPlatform ? '내 업무와 관리 기능' : '현재 로그인 계정에는 접근 권한이 없습니다'}
                 minHeight={actionHeight}
                 secondary
                 disabled={!canOpenWorkPlatform || platformOpening}
