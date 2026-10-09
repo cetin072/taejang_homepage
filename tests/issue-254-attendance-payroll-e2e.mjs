@@ -11,6 +11,8 @@ const coreApi = require('../prototypes/payroll-backend/edge-runtime/payroll-calc
 const adapter = require('../app/assets/payroll-db-input-adapter.js');
 const engine = require('../app/assets/payroll-engine.js');
 const preflight = require('../app/assets/payroll-preflight.js');
+const monthly = require('../app/assets/attendance-monthly.js');
+const monthXlsx = require('../app/assets/attendance-monthly-xlsx.js');
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -19,6 +21,11 @@ const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
 assert.ok(serviceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY or SERVICE_ROLE_KEY is required');
+// This fixture performs destructive setup. Reject hosted destinations before signup or any write.
+const destination = new URL(apiUrl);
+assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(destination.hostname), 'Synthetic E2E requires isolated localhost Supabase; hosted/Staging writes are forbidden');
+assert.ok(['http:', 'https:'].includes(destination.protocol), 'Unexpected local API protocol');
+assert.equal(projectId, 'taejang-homepage-phase1a', 'Use only the disposable repository integration project');
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -98,6 +105,8 @@ function sqlAsync(statement) {
     });
   });
 }
+
+databaseContainer(); // Require the expected local Docker DB before creating fixture identities.
 
 const admin = await signUp('issue-254-payroll-admin@example.test', 'Issue 254 급여 운영자');
 sql(`update public.profiles set account_status='active', status_changed_at=now(), status_changed_by='${admin.id}'::uuid where id='${admin.id}'::uuid`);
@@ -458,5 +467,45 @@ check(
   !afterExceptionalConfirmation.data?.blockers?.some(item => item.work_date === noEvidenceWeekendDate),
   'a separate no-evidence weekend still has no artificial day-unconfirmed blocker',
 );
+
+
+// Issue #426: attendance-only cross-check. Keep payroll calculation E2E unchanged.
+// The same confirmed attendance is displayed in the monthly register and Excel without HR fields.
+const originalEvidenceFingerprint=sql(`select md5(jsonb_agg(to_jsonb(event) order by event.id)::text) from public.attendance_events event where profile_id='${worker.id}'::uuid`);
+check(originalEvidenceFingerprint && originalEvidenceFingerprint !== 'null', 'synthetic worker has immutable raw event evidence');
+const period = await rpc('get_confirmed_attendance_period', lead.token, {
+  p_period_start:'2026-09-01',p_period_end:'2026-09-30',p_employee_uuid:null,p_include_reopened:false,
+});
+check(period.ok && Array.isArray(period.data?.rows), 'lead reads the protected September period ledger');
+const monthDaily={};
+for(const date of monthly.monthDates('2026-09')) {
+  const roster=await rpc('get_attendance_admin_today',lead.token,{p_work_date:date});
+  const workday=await rpc('get_attendance_workday_status',lead.token,{p_work_date:date});
+  check(roster.ok && workday.ok, 'local daily roster/calendar are available for '+date);
+  const assignments=await rpc('get_attendance_holiday_work_assignments',lead.token,{p_work_date:date});
+  check(assignments.ok,'local holiday assignment scope is readable for '+date);
+  monthDaily[date]={...roster.data,workday:workday.data,assignments:assignments.data?.rows || []};
+}
+const monthModel=monthly.buildMonth({month:'2026-09',ledger:period.data,daily:monthDaily});
+const targetMonth=monthModel.rows.find(row=>row.employee_uuid===worker.employeeUuid);
+check(targetMonth,'synthetic worker appears once in the monthly roster');
+equal(monthModel.rows.filter(row=>row.employee_uuid===worker.employeeUuid).length,1,'monthly projection does not duplicate linked accounts');
+equal(monthModel.dates[0],'2026-09-01','monthly Excel starts at calendar day one');
+equal(monthModel.dates.at(-1),'2026-09-30','monthly Excel includes the last calendar day');
+equal(targetMonth.cells.find((cell,index)=>monthModel.dates[index]===correctedDate).clockOut,'18:00','monthly XLSX uses the corrected confirmed time in KST');
+const monthBytes=monthXlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel));
+equal(Buffer.from(monthBytes).readUInt32LE(0),0x04034b50,'monthly XLSX is a valid ZIP package');
+check(!Buffer.from(monthBytes).toString('utf8').includes('gross_pay'),'general monthly workbook does not join salary data');
+const personal=monthXlsx.buildTableWorkbookXlsx(monthly.workbookSheets(monthModel,[targetMonth],'선택 직원'));
+check(personal.length>1000,'personal monthly XLSX preserves all 30 days');
+const forbiddenMonth=await rpc('get_confirmed_attendance_period',worker.token,{
+  p_period_start:'2026-09-01',p_period_end:'2026-09-30',
+  p_employee_uuid:lead.employeeUuid,p_include_reopened:true
+});
+check(!forbiddenMonth.ok && forbiddenMonth.status===403,
+  'ordinary worker cannot access another employee confirmed monthly register');
+const afterExportEvidenceFingerprint=sql(`select md5(jsonb_agg(to_jsonb(event) order by event.id)::text) from public.attendance_events event where profile_id='${worker.id}'::uuid`);
+equal(afterExportEvidenceFingerprint, originalEvidenceFingerprint,
+  'monthly read model and Excel generation never modify raw attendance evidence');
 
 console.log(`Issue #254 confirmed-attendance → payroll E2E passed with ${assertions} assertions.`);

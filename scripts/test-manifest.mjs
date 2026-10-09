@@ -42,6 +42,7 @@ export const testGroups = Object.freeze({
     'tests/issue-251-attendance-confirmation-revisions.test.js',
     'tests/issue-252-confirmed-attendance-ledger.test.js',
     'tests/issue-253-confirmed-payroll-attendance-snapshot.test.js',
+    'tests/issue-426-attendance-monthly.test.js',
     'tests/issue-280-web-admin-human-e2e.test.js',
     'tests/issue-282-attendance-human-check.test.js',
     'tests/issue-286-attendance-historical-backfill.test.js',

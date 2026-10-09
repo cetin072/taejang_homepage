@@ -34,3 +34,19 @@ jobs:
 
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
+
+      - name: Install existing browser dependency
+        run: npm ci
+
+      - name: Run attendance PC and mobile fixture QA
+        env:
+          ATTENDANCE_QA_OUTPUT: attendance-qa-artifacts
+        run: node tests/issue-426-attendance-browser.mjs
+
+      - name: Keep synthetic attendance screenshots and XLSX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendance-pc-mobile-xlsx
+          path: attendance-qa-artifacts/
+          if-no-files-found: ignore
