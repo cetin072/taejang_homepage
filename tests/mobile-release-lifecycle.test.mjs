@@ -29,7 +29,7 @@ test('version policy compares semantic versions and Android versionCode safely',
   assert.equal(compareSemanticVersions('1.0.0-beta.1', '1.0.0'), -1);
   assert.equal(compareSemanticVersions('broken', '1.0.0'), null);
   assert.equal(decideUpdate({ version: '0.1.1', versionCode: 2 }, { ...basePolicy, latestVersion: '0.1.2', latestVersionCode: 3 }), 'optional');
-  assert.equal(decideUpdate({ version: '0.1.1', versionCode: 2 }, { ...basePolicy, minimumVersion: '0.1.2', minimumVersionCode: 3 }), 'forced');
+  assert.equal(decideUpdate({ version: '0.1.1', versionCode: 2 }, { ...basePolicy, latestVersion: '0.1.2', latestVersionCode: 3, minimumVersion: '0.1.2', minimumVersionCode: 3 }), 'forced');
   assert.equal(decideUpdate({ version: '0.1.3', versionCode: 4 }, { ...basePolicy, latestVersion: '0.1.3', latestVersionCode: 4, forceUpdate: true }), 'none');
 });
 

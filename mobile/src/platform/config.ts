@@ -92,3 +92,23 @@ export async function loadPublicPlatformConfig(fetchImpl: typeof fetch = fetch):
     mobileRelease: publicMobileReleasePolicy(body.mobileRelease),
   };
 }
+
+// Policy refresh is independent of Auth/client initialization. A failed check
+// must never reset the session or put the employee home back into loading.
+export async function loadPublicMobileReleasePolicy(fetchImpl: typeof fetch = fetch): Promise<PublicMobileReleasePolicy> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetchImpl(`${getApiBaseUrl()}/.netlify/functions/staff-config`, {
+      headers: { accept: 'application/json' }, cache: 'no-store', signal: controller.signal,
+    });
+    if (!response.ok) throw new Error('UPDATE_POLICY_UNAVAILABLE');
+    const body = await response.json();
+    if (!body || typeof body !== 'object' || !body.mobileRelease || typeof body.mobileRelease !== 'object' || Array.isArray(body.mobileRelease)) {
+      throw new Error('UPDATE_POLICY_INVALID');
+    }
+    return publicMobileReleasePolicy(body.mobileRelease);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
