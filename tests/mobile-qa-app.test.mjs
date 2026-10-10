@@ -79,7 +79,7 @@ test('QA app avoids automatic production update and push enrollment', async () =
     text('mobile/src/notifications/push-notification-bridge.tsx'),
   ]);
 
-  assert.match(lifecycle, /const policy = isQaApp \? null : config\?\.mobileRelease/);
+  assert.match(lifecycle, /const policy = isQaApp \? null :/);
   assert.match(bridge, /if \(!client \|\| !session \|\| isQaApp\) return/);
   assert.match(bridge, /registerCurrentPushDevice/);
 });

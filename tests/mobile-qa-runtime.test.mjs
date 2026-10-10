@@ -149,7 +149,8 @@ test('QA suppresses production forced/optional/minimum update and maintenance UI
     const lifecycle = load('mobile/src/platform/update-lifecycle.tsx', {
       react: h.react, 'react-native': native, 'expo-linking': {},
       './app-variant': { isQaApp: qa }, './secure-storage': { secureSessionStorage: {} },
-      './release-policy': { installedAppVersion: () => ({ version: '0.1.3', versionCode: 4 }), decideUpdate: () => { decisions++; return 'forced'; } },
+      './release-policy': { installedAppVersion: () => ({ version: '0.1.3', versionCode: 4 }), decideUpdate: () => { decisions++; return 'forced'; }, updateTargetKey: () => 'test-target' },
+      './config': {},
       '@/src/providers/platform-provider': { usePlatform: () => ({ config: { mobileRelease: { forceUpdate: true, minimumVersionCode: 999, maintenanceMode: true } } }) },
     });
     h.begin(); const rendered = lifecycle.UpdateLifecycle();
