@@ -115,6 +115,90 @@
     return true;
   }
 
-  window.TAEJANG_PUBLIC_SHARE = { mount };
+  // The archive preserves third-party ownership: share the approved SOURCE URL,
+  // never archive.html or a fabricated Taejang canonical for outside content.
+  function externalSourceUrl(value) {
+    if (typeof value !== 'string') return '';
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.origin === ORIGIN ||
+          url.username || url.password ||
+          /^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/i.test(url.hostname) ||
+          /(?:^|\.)example\.(?:com|org|net)$/i.test(url.hostname)) return '';
+      return url.href;
+    } catch { return ''; }
+  }
+
+  function mountExternalCard(article, options = {}) {
+    if (!article || options.status !== 'published' ||
+        article.querySelector('[data-public-external-share]') ||
+        !article.querySelector('.card-link')) return false;
+    const original = externalSourceUrl(options.url);
+    const title = String(options.title || '').trim();
+    if (!original || !title) return false;
+
+    // A sibling of the card's original link; NEVER put interactive controls
+    // inside the existing <a> or change its destination.
+    const panel = node('details', undefined, 'public-external-share');
+    panel.setAttribute('data-public-external-share', '');
+    const summary = node('summary', '원문 공유');
+    summary.setAttribute('aria-label', title + ' 원문 공유 옵션');
+    panel.append(summary);
+    const body = node('div', undefined, 'public-external-share-body');
+    const actions = node('div', undefined, 'public-share-actions');
+    const copyButton = node('button', '원문 URL 복사', 'public-share-button public-share-button--primary');
+    copyButton.type = 'button';
+
+    const canNative = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+    if (canNative) {
+      const nativeButton = node('button', '기기 공유', 'public-share-button');
+      nativeButton.type = 'button';
+      nativeButton.addEventListener('click', async () => {
+        try {
+          await navigator.share({ title, url: original });
+          status.textContent = '공유 요청을 완료했습니다.';
+        } catch (error) {
+          if (error?.name !== 'AbortError') status.textContent = '공유할 수 없습니다. 원문 URL 복사를 이용해 주세요.';
+        }
+      });
+      actions.append(nativeButton);
+    }
+    actions.append(copyButton);
+    actions.append(shareLink('네이버', 'https://share.naver.com/web/shareView', { url: original, title }));
+    actions.append(shareLink('X', 'https://x.com/intent/tweet', { url: original, text: title }));
+    actions.append(shareLink('Facebook', 'https://www.facebook.com/sharer/sharer.php', { u: original }));
+    body.append(actions);
+
+    const label = node('label', '원문 주소', 'public-share-url-label');
+    const input = node('input', undefined, 'public-share-url');
+    input.type = 'url';
+    input.readOnly = true;
+    input.spellcheck = false;
+    input.value = original;
+    label.append(input);
+    body.append(label);
+    const status = node('p', '', 'public-share-status');
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    body.append(status);
+    panel.append(body);
+
+    copyButton.addEventListener('click', async () => {
+      try {
+        if (typeof navigator?.clipboard?.writeText !== 'function') throw new Error('CLIPBOARD_UNAVAILABLE');
+        await navigator.clipboard.writeText(original);
+        status.textContent = '원문 주소를 복사했습니다.';
+      } catch {
+        input.focus();
+        input.select();
+        status.textContent = '원문 주소를 선택했습니다. 직접 복사해 주세요.';
+      }
+    });
+
+    article.append(panel);
+    return true;
+  }
+
+  window.TAEJANG_PUBLIC_SHARE = { mount, mountExternalCard };
   document.querySelectorAll('article.article').forEach((article) => mount(article));
 }());

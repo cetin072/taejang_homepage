@@ -10,3 +10,12 @@
 .public-share-url{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:10px 12px;border:1px solid var(--line,#cdd5c9);border-radius:8px;background:#fff;color:var(--ink,#29342c);font:400 13px/1.5 sans-serif;text-overflow:ellipsis}
 .public-share-status{margin:8px 0 0;color:var(--green-deep,#244333);font-size:13px;line-height:1.5;min-height:1em}
 @media(max-width:620px){.public-share{padding:16px;margin:28px 0 20px}.public-share-actions>*{flex:1 1 auto}}
+
+/* Archive-only original-source sharing: never nest interactive controls inside card links. */
+.public-external-share{padding:0 16px 16px;border-top:1px solid var(--line,#d6d9d1)}
+.public-external-share>summary{display:flex;align-items:center;min-height:44px;cursor:pointer;list-style-position:inside;font-size:14px;font-weight:700;color:var(--green-deep,#244333)}
+.public-external-share>summary:focus-visible{outline:3px solid #568b65;outline-offset:2px;border-radius:6px}
+.public-external-share-body{padding:4px 0 0}
+.public-external-share .public-share-actions{margin:0 0 14px}
+.public-external-share .public-share-url-label{font-weight:600}
+@media(max-width:620px){.public-external-share{padding:0 14px 14px}.public-external-share .public-share-actions>*{flex:1 1 auto}}
