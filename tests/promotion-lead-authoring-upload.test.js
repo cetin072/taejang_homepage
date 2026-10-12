@@ -69,3 +69,14 @@ test('browser gate exercises a real File object through upload, save and submit'
   assert.match(browserGate, /사진 저장 권한/);
   assert.match(browserRunner, /promotion-authoring-upload-gate\.html/);
 });
+
+
+test('lead and operations V2 link importer explains YouTube metadata limits without dropping Blog body support', () => {
+  assert.match(workspace, /fetchExternalMeta\(external\.value\.trim\(\)\)/);
+  assert.match(workspace, /metadata\.site_name === 'YouTube'/);
+  assert.match(workspace, /유튜브 영상 제목·썸네일을 가져왔습니다/);
+  assert.match(workspace, /영상 본문은 직접 작성해 주세요/);
+  assert.match(workspace, /if \(metadata\.article_text\) body\.value = metadata\.article_text\.slice/);
+  assert.match(workspace, /if \(metadata\.title\) title\.value = metadata\.title/);
+  assert.match(workspace, /state\.heroImage = metadata\.image \|\| state\.heroImage/);
+});

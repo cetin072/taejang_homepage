@@ -442,7 +442,9 @@
         copy.append(el('strong', metadata.title || '제목 정보 없음'));
         if (metadata.description) copy.append(el('p', metadata.description));
         metaPreview.append(copy);
-        metaStatus.textContent = metadata.article_text ? '제목·썸네일·본문을 가져왔습니다.' : '가져올 수 있는 링크 정보를 반영했습니다.';
+        metaStatus.textContent = metadata.site_name === 'YouTube'
+          ? (metadata.image ? '유튜브 영상 제목·썸네일을 가져왔습니다. 영상 본문은 직접 작성해 주세요.' : '유튜브 영상 제목을 가져왔습니다. 영상 본문은 직접 작성해 주세요.')
+          : metadata.article_text ? '제목·썸네일·본문을 가져왔습니다.' : '가져올 수 있는 링크 정보를 반영했습니다.';
       } catch (error) {
         metaStatus.textContent = error.message || '링크 정보를 가져오지 못했습니다.';
       } finally { metaButton.disabled = false; }
