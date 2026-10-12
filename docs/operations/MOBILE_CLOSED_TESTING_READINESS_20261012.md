@@ -9,13 +9,13 @@
 
 | 항목 | 현재 근거 / 결정 |
 | --- | --- |
-| 저장소 versionName / versionCode | `0.1.3` / `4` — 이번 준비에서 변경하지 않음 |
+| 다음 출시 versionName / versionCode | **`0.1.4` / `5` — 2026-10-12 사용자 Console 확인 및 지시로 확정** |
 | 정식 package / scheme | `com.cetin072.taejang.staff` / `taejangstaff` |
 | QA package / scheme | `com.cetin072.taejang.staff.qa` / `taejangstaffqa` |
-| 이전 운영 문서의 배포 기록 | `0.1.2` / `3`; 현재 Play 상태를 증명하지 않음 |
-| Play 전체 업로드 최고 versionCode | **미확인 — Console 접근 차단으로 직접 확인하지 못함** |
-| code 4가 한 번도 업로드되지 않았다면 | `0.1.3` / `4` 후보 유지 가능; 사용자 확인 후 확정 |
-| code 4가 이미 업로드됐다면 | `0.1.4` / `5` 후보. 최고 code가 5 이상이면 그보다 큰 사용 가능한 code 필요 |
+| 현재 Play 트랙 | 비공개 테스트 - Alpha — 사용자 Console 확인 |
+| Play 전체 업로드 최고 versionCode | **`4` / `0.1.3` — 사용자 Console 확인(2026-10-12), 이미 사용됨** |
+| 버전 결정 | code 4 재사용 금지. 다음 후보 `0.1.4` / `5`로 app/package/lock/identity 테스트 동기화 |
+| 업로드 직전 재확인 | 다른 업로드로 code 5가 사용됐다면 중단하고 새 번호를 사용자와 확정 |
 
 Play Console의 App bundle explorer와 모든 트랙(Internal/Closed/Open/Production), 초안/비활성 산출물을 대조해 최고 업로드 code와 확인 시각을 기록한다. 현재 설치한 휴대폰의 버전이나 GitHub AAB 빌드 이력만으로 미사용 번호를 판단하지 않는다. 미확인 번호를 바꾸거나 서명 AAB를 만들어 제출 후보로 확정하지 않는다. 번호가 바뀌면 관련 identity/release 회귀 테스트도 함께 수정하고 exact-head CI/APK를 다시 만든다.
 
@@ -38,7 +38,7 @@ Play Console의 App bundle explorer와 모든 트랙(Internal/Closed/Open/Produc
 
 ## 사용자용 업데이트 내용 초안
 
-버전 번호는 Console 확인 후 채운다.
+출시 후보: **0.1.4 / versionCode 5**.
 
 - 설정 화면에서 개인정보 및 계정 삭제 안내를 더 쉽게 구분할 수 있습니다.
 - 새 버전이 설치 가능한 경우 Google Play 업데이트 안내를 받을 수 있습니다.
@@ -63,7 +63,7 @@ QA 앱에는 정식 Play 업데이트 팝업을 넣지 않는다. 선택/필수 
 ## 정식 AAB와 기존 키의 연속성
 
 - 기존 `.github/workflows/mobile-app.yml`의 `android-play-aab`를 그대로 재사용한다. `TAEJANG_APP_VARIANT=production`, 기존 4개 `ANDROID_UPLOAD_*` secrets 이름을 유지한다. 이번 준비에서는 비밀값을 읽거나 새로 만들지 않는다.
-- 서명 AAB는 **최고 code 확인 → 버전 확정 → Galaxy QA → 사용자 서명 빌드 승인** 뒤, 검수한 정확한 branch/SHA에 `build_play_aab=true`를 명시해 만든다. 현재 버전 Gate가 미해결이므로 이번 실행에서 dispatch하지 않는다.
+- 서명 AAB는 **최고 code 확인 → 버전 확정 → Galaxy QA → 사용자 서명 빌드 승인** 뒤, 검수한 정확한 branch/SHA에 `build_play_aab=true`를 명시해 만든다. 버전 Gate는 사용자 확인으로 해소됐다. 사용자가 서명 AAB 빌드를 아직 금지했으므로 이번 실행에서 dispatch하지 않는다.
 - 기존 workflow는 release에 debug 키가 암묵 적용되지 않도록 하고, JAR 서명/Android Debug 인증서 금지/package/ARM64/target SDK 36+/권한/백그라운드 위치 부재를 검사한다. QA APK에도 Manifest 검사를 적용한다.
 - 네 secret 이름의 존재는 실제 keystore 동일성을 증명하지 않는다. 빌드된 AAB의 **공개 upload 인증서 SHA-256 fingerprint**를 Play Console App integrity의 Upload key certificate와 대조한다. Play가 설치 APK를 서명하는 app-signing certificate는 upload certificate와 구분한다. 불일치 시 업로드하지 말고 키 소유자에게 확인한다. 비밀키/비밀번호를 로그·PR에 남기지 않는다.
 - 기존 앱→새 앱 무삭제 업데이트는 **동일 정식 package + Play app-signing key + 더 높은 사용 가능 code**를 실제 Play 설치로 확인한다. QA debug APK를 정식 앱 위에 덮어씌우지 않는다.
@@ -83,7 +83,7 @@ QA 앱에는 정식 Play 업데이트 팝업을 넣지 않는다. 선택/필수 
 
 ## 남은 사람 Gate
 
-- 최고 Play upload code/실제 트랙·설치 가능 상태, upload certificate 일치.
+- 최고 Play upload code 4 / Alpha 확인은 완료. 업로드 직전 code 5 미사용 재확인, 새 버전 설치 가능 상태 및 upload certificate 일치는 후속 검수.
 - Galaxy 동시 설치/읽기·모의 출퇴근/가독성/세션/기기 권한과 실제 정식 업데이트 설치.
 - 실제 Push 수신은 기존 EAS/FCM/dispatcher 구성이 갖춰진 뒤 검수.
 - Draft PR 수용/병합, 서명 AAB 빌드, Play 제출/게시, 운영 MOBILE_* 변경은 각각 사용자 승인. Production 공개는 별도 승인.
