@@ -128,6 +128,10 @@ jobs:
           MANIFEST=app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml
           test -s "$MANIFEST"
           grep -q 'package="com.cetin072.taejang.staff.qa"' "$MANIFEST"
+          grep -Eq 'targetSdkVersion="3[6-9]|targetSdkVersion="[4-9][0-9]' "$MANIFEST"
+          grep -q 'android.permission.ACCESS_FINE_LOCATION' "$MANIFEST"
+          grep -q 'android.permission.POST_NOTIFICATIONS' "$MANIFEST"
+          ! grep -q 'android.permission.ACCESS_BACKGROUND_LOCATION' "$MANIFEST"
           AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -n 1)
           test -x "$AAPT"
           "$AAPT" dump badging "$APK" > /tmp/taejang-qa-apk-badging.txt
