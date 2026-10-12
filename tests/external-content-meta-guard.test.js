@@ -75,3 +75,84 @@ test('Naver blog and ordinary news body extraction both remain supported', () =>
     </article></body></html>`;
   assert.match(metaModule.extractArticleText(newsHtml) || '', /일반 뉴스 기사 본문/);
 });
+
+
+test('YouTube public videos and Shorts are normalized to a trusted oEmbed request', () => {
+  const id = 'dVMKJtBjCQA';
+  const expected = 'https://www.youtube.com/watch?v=' + id;
+  for (const url of [
+    'https://www.youtube.com/watch?v=' + id + '&feature=share',
+    'https://youtube.com/shorts/' + id + '?si=test',
+    'https://m.youtube.com/watch?v=' + id,
+    'https://youtu.be/' + id + '?si=test',
+    'https://youtube.com/live/' + id,
+    'https://youtube.com/embed/' + id,
+  ]) {
+    const target = metaModule.normalizeYouTubeVideoTarget(url);
+    assert.equal(target?.videoId, id, url);
+    assert.equal(new URL(target.oembedUrl).origin, 'https://www.youtube.com');
+    assert.equal(new URL(target.oembedUrl).searchParams.get('url'), expected);
+    assert.equal(new URL(target.oembedUrl).searchParams.get('format'), 'json');
+    assert.ok(target.canonicalUrl.startsWith('https://www.youtube.com/'));
+  }
+  assert.equal(metaModule.normalizeYouTubeVideoTarget('https://youtube.com/shorts/' + id)?.canonicalUrl,
+    'https://www.youtube.com/shorts/' + id);
+});
+
+test('YouTube normalization denies spoofed hosts, insecure URLs and malformed video IDs', () => {
+  const invalid = [
+    'http://www.youtube.com/watch?v=dVMKJtBjCQA',
+    'https://youtube.com.attacker.example/watch?v=dVMKJtBjCQA',
+    'https://www.youtube.com.evil.example/watch?v=dVMKJtBjCQA',
+    'https://www.youtube.com:444/watch?v=dVMKJtBjCQA',
+    'https://user:pass@www.youtube.com/watch?v=dVMKJtBjCQA',
+    'https://youtu.be/dVMKJtBjCQA/other',
+    'https://youtu.be/dVMKJtBjCQ',
+    'https://www.youtube.com/watch?v=not-a-video-id',
+    'https://www.youtube.com/playlist?list=PL123',
+    'https://www.youtube.com/@taejangofficial',
+    'https://www.youtube.com/redirect?url=https://evil.example'
+  ];
+  for (const url of invalid) assert.equal(metaModule.normalizeYouTubeVideoTarget(url), null, url);
+});
+
+test('YouTube oEmbed uses explicit public metadata and validated channel and thumbnail URLs', () => {
+  const target = metaModule.normalizeYouTubeVideoTarget('https://www.youtube.com/shorts/dVMKJtBjCQA');
+  const good = metaModule.parseYouTubeOEmbed(target, {
+    title: '  태장 영상  ',
+    thumbnail_url: 'https://i.ytimg.com/vi/dVMKJtBjCQA/hqdefault.jpg',
+    author_name: '태장',
+    author_url: 'https://www.youtube.com/@taejangofficial'
+  });
+  assert.deepEqual(good, {
+    url: 'https://www.youtube.com/shorts/dVMKJtBjCQA',
+    title: '태장 영상',
+    description: null,
+    image: 'https://i.ytimg.com/vi/dVMKJtBjCQA/hqdefault.jpg',
+    site_name: 'YouTube',
+    article_text: null,
+    channel_url: 'https://www.youtube.com/@taejangofficial'
+  });
+  const untrusted = metaModule.parseYouTubeOEmbed(target, {
+    title: '외부 링크',
+    thumbnail_url: 'https://i.ytimg.com.evil.example/poster.jpg',
+    author_url: 'https://www.youtube.com.evil.example/@taejangofficial'
+  });
+  assert.equal(untrusted.image, null);
+  assert.equal(untrusted.channel_url, null);
+  assert.throws(() => metaModule.parseYouTubeOEmbed(target, { title: '' }), /YOUTUBE_METADATA_UNAVAILABLE/);
+  assert.throws(() => metaModule.parseYouTubeOEmbed(target, null), /YOUTUBE_METADATA_UNAVAILABLE/);
+});
+
+test('YouTube oEmbed fetch retains authentication, DNS/SSRF, 7s timeout, 128KB and safe error UI', () => {
+  assert.match(source, /const youtubeTarget = normalizeYouTubeVideoTarget\(rawUrl\)/);
+  assert.match(source, /if \(youtubeTarget\) return json\(200, await fetchYouTubeOEmbed\(youtubeTarget\)\)/);
+  assert.match(source, /const endpoint = await assertPublicHttps\(target\.oembedUrl\)/);
+  assert.match(source, /readLimited\(response, 128_000\)/);
+  assert.match(source, /redirect: 'manual'/);
+  assert.match(source, /7000/);
+  assert.match(source, /YOUTUBE_METADATA_UNAVAILABLE/);
+  assert.match(source, /유튜브 영상 정보를 가져오지 못했습니다/);
+  assert.match(source, /consume_external_content_meta_quota/);
+  assert.match(source, /normalizeNaverBlogTarget/);
+});
