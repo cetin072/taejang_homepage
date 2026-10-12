@@ -166,6 +166,13 @@
     }
 
     target.replaceChildren(article);
+    if (item.content_type !== 'external_content') {
+      window.TAEJANG_PUBLIC_SHARE?.mount(article, {
+        url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
+        title: item.title,
+        description: item.summary
+      });
+    }
   }
 
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {

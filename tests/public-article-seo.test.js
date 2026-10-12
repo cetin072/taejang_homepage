@@ -46,6 +46,8 @@ test('published activity and workplace stories are crawlable without JS', () => 
       assert.match(html, /<h1>[^<]+<\/h1>/);
       assert.match(html, /class="article-body"/);
       assert.doesNotMatch(html, /<script src="assets\/js\/listing.js"/);
+      assert.match(html, /<script src="assets\/js\/public-share.js"><\/script>/);
+      assert.match(html, /assets\/css\/public-share\.css/);
       assert.doesNotMatch(html, /<h1>요청한 글을 찾을 수 없습니다<\/h1>/);
     }
 
