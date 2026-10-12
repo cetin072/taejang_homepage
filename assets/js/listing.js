@@ -93,7 +93,7 @@
 
   function card(item) {
     return `<article class="card" data-category="${item.category}">
-      <a class="card-link" href="${config.page}?id=${encodeURIComponent(item.id)}" aria-label="${item.title} 자세히 보기">
+      <a class="card-link" href="${type}/${encodeURIComponent(item.id)}.html" aria-label="${item.title} 자세히 보기">
         ${cardMedia(item)}
         <div class="card-body">
           <span class="tag tag--subtle">${item.category}</span>
@@ -192,7 +192,7 @@
     return `<section class="related-posts" aria-labelledby="related-posts-title">
       <h2 id="related-posts-title">${config.relatedTitle}</h2>
       <div class="related-posts-grid">
-        ${items.map((related) => `<a class="related-post" href="${config.page}?id=${encodeURIComponent(related.id)}">
+        ${items.map((related) => `<a class="related-post" href="${type}/${encodeURIComponent(related.id)}.html">
           <span class="related-post-meta"><span class="tag tag--subtle">${related.category}</span><time datetime="${dateTimeValue(related.date)}">${related.date}</time></span>
           <h3>${related.title}</h3>
           <p>${related.summary}</p>

@@ -41,7 +41,7 @@ assert.match(publicStyles, /\.card:hover \.card-media img\[src\$="environment-cl
 assert.equal(runtime.window.TAEJANG_CONTENT.hub.length, 0, '내부 활동 허브 객체를 수동으로 중복하지 않습니다');
 assert.match(hubScript, /internalActivityItems/);
 assert.match(hubScript, /activity\.hub/);
-assert.match(hubScript, /activities\.html\?id=/);
+assert.ok(hubScript.includes('activities/${encodeURIComponent(activity.id)}.html'));
 
 assert.match(communityPage, /COMMUNITY &amp; ESG/);
 assert.match(communityPage, /지역에서 필요한 일을,<br>꾸준히 이어갑니다/);
@@ -57,7 +57,7 @@ assert.match(communityPage, /assets\/images\/business\/environment-cleanup-group
 assert.match(communityPage, /assets\/images\/archive\/environment-cleanup-first\.webp/);
 
 assert.match(communityScript, /activity\.series === 'community-esg'/);
-assert.match(communityScript, /activities\.html\?id=/);
+assert.ok(communityScript.includes('activities/${encodeURIComponent(activity.id)}.html'));
 assert.match(communityScript, /const staticFallbackCount = list\.querySelectorAll\('\[data-static-fallback-card\]'\)\.length/);
 assert.match(communityScript, /if \(!records\.length\) \{[\s\S]*?staticFallbackCount[\s\S]*?return;/, '동적 데이터가 없으면 정적 fallback을 지우지 않습니다');
 assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/, '동적 데이터가 있으면 정적 fallback을 최신 데이터로 교체합니다');

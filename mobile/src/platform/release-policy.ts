@@ -31,7 +31,17 @@ function olderThan(installed: InstalledAppVersion, version: string | null, versi
 }
 
 export function decideUpdate(installed: InstalledAppVersion, policy: PublicMobileReleasePolicy): UpdateDecision {
-  const requiresMinimum = olderThan(installed, policy.minimumVersion, policy.minimumVersionCode);
+  // latest is the published, installable ceiling, never a planned candidate.
+  const latestKnown = policy.latestVersionCode !== null || semanticParts(policy.latestVersion) !== null;
+  if (!latestKnown) return 'none';
+  const minimumAboveLatest = policy.minimumVersionCode !== null && policy.latestVersionCode !== null
+    ? policy.minimumVersionCode > policy.latestVersionCode
+    : compareSemanticVersions(policy.minimumVersion, policy.latestVersion) === 1;
+  if (minimumAboveLatest) return 'none';
+  const minimumComparable = policy.minimumVersionCode !== null && installed.versionCode !== null
+    ? policy.latestVersionCode !== null
+    : compareSemanticVersions(policy.minimumVersion, policy.latestVersion) !== null;
+  const requiresMinimum = minimumComparable && olderThan(installed, policy.minimumVersion, policy.minimumVersionCode);
   if (requiresMinimum || (policy.forceUpdate && olderThan(installed, policy.latestVersion, policy.latestVersionCode))) {
     return 'forced';
   }
@@ -39,7 +49,7 @@ export function decideUpdate(installed: InstalledAppVersion, policy: PublicMobil
 }
 
 export function installedAppVersion(): InstalledAppVersion {
-  const manifestVersion = Constants.expoConfig?.version || Constants.nativeAppVersion || '0.0.0';
+  const manifestVersion = Constants.nativeAppVersion || Constants.expoConfig?.version || '0.0.0';
   const rawCode = Constants.nativeBuildVersion || Constants.expoConfig?.android?.versionCode;
   const versionCode = typeof rawCode === 'number'
     ? rawCode
@@ -48,3 +58,16 @@ export function installedAppVersion(): InstalledAppVersion {
 }
 
 export const DEFAULT_PLAY_STORE_URL = 'market://details?id=com.cetin072.taejang.staff';
+export const PLAY_STORE_WEB_URL = 'https://play.google.com/store/apps/details?id=com.cetin072.taejang.staff';
+
+export function updateTargetKey(policy: PublicMobileReleasePolicy) {
+  return policy.latestVersionCode !== null ? `code:${policy.latestVersionCode}` : `version:${policy.latestVersion}`;
+}
+
+export async function openPlayStore(openURL: (url: string) => Promise<unknown>) {
+  try {
+    await openURL(DEFAULT_PLAY_STORE_URL);
+  } catch {
+    await openURL(PLAY_STORE_WEB_URL);
+  }
+}

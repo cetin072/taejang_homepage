@@ -31,6 +31,15 @@ export type AttendanceToday = {
   clock_out: AttendanceEvent | null;
 };
 
+// Read-only company calendar response, independent of the logged-in employee's
+// attendance_required flag. The server chooses the current date in Asia/Seoul.
+export type AttendanceWorkdayStatus = {
+  work_date: string;
+  is_workday: boolean;
+  reason: string | null;
+  source?: string;
+};
+
 export type AttendanceResult = {
   ok?: boolean;
   code?: string;
@@ -52,6 +61,24 @@ export async function loadMyAttendanceToday(client: PlatformSupabaseClient): Pro
     throw new Error('출퇴근 정보를 불러오지 못했습니다.');
   }
   return data as AttendanceToday;
+}
+
+export async function loadAttendanceWorkdayStatus(
+  client: PlatformSupabaseClient,
+): Promise<AttendanceWorkdayStatus> {
+  const { data, error } = await client.rpc('get_attendance_workday_status');
+  if (error) throw error;
+  if (
+    !data
+    || typeof data !== 'object'
+    || Array.isArray(data)
+    || typeof data.work_date !== 'string'
+    || typeof data.is_workday !== 'boolean'
+    || (data.reason != null && typeof data.reason !== 'string')
+  ) {
+    throw new Error('서버 근무일 달력을 확인하지 못했습니다.');
+  }
+  return data as AttendanceWorkdayStatus;
 }
 
 export async function recordAttendanceEvent(

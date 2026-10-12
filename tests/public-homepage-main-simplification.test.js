@@ -129,7 +129,7 @@ for (const [filename, name] of Object.entries(breadcrumbNames)) {
 }
 assert.doesNotMatch(site, /breadcrumbNames|data-breadcrumb-jsonld/, 'Breadcrumb JSON-LD를 런타임으로 주입하지 않습니다');
 
-assert.equal(robots.replace(/\r\n?/g, '\n').trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml', 'robots.txt는 기존 크롤링 정책과 공식 sitemap 주소를 유지합니다');
+assert.equal(robots.replace(/\r\n?/g, '\n').trim(), 'User-agent: *\nAllow: /\nSitemap: https://taejang.co.kr/sitemap.xml\nSitemap: https://taejang.co.kr/sitemap-promotions.xml', 'robots.txt는 정적 및 실시간 승인글 sitemap을 안내합니다');
 assert.doesNotMatch(sitemap, /taejang-homepage\.netlify\.app/, '공개 sitemap에 Netlify 기본 주소를 남기지 않습니다');
 for (const url of Object.values(canonicalUrls)) assert.match(sitemap, new RegExp(`<loc>${escapeRegExp(url)}</loc>`), `sitemap은 ${url}을 포함합니다`);
 
@@ -179,7 +179,7 @@ assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효�
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
 assert.match(partnership, /id="partnership-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '협력 문의 폼은 필수 입력 안내를 제공합니다');
-assert.match(index, /href="activities\.html\?id=terrarium-business-start-2026-08">테라리움 사업 이야기/);
+assert.match(index, /href="activities\/terrarium-business-start-2026-08\.html">테라리움 사업 이야기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
@@ -375,6 +375,12 @@ for (const [filename, html] of Object.entries(pages).concat([['privacy.html', pr
     const localPath = href.split(/[?#]/)[0];
     if (!localPath) continue;
     const resolved = localPath.endsWith('/') ? `${localPath}index.html` : localPath;
+    // Article files are generated in dist from approved content at publish time.
+    const generated = resolved.match(/^(activities|workplace)\/([a-z0-9-]+)\.html$/);
+    if (generated) {
+      assert.ok(contentData.includes('id: "' + generated[2] + '"'), `${filename}의 생성형 상세 링크 ${href}는 콘텐츠 원본에 존재해야 합니다`);
+      continue;
+    }
     assert.equal(fs.existsSync(path.join(root, resolved)), true, `${filename}의 내부 링크 ${href} 대상이 존재해야 합니다`);
   }
 }

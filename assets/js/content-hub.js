@@ -20,7 +20,7 @@
       publishedAt: typeof activity.date === 'string' ? activity.date.replaceAll('.', '-') : '',
       featured: Boolean(activity.hub.featured),
       status: activity.status,
-      detailUrl: `activities.html?id=${encodeURIComponent(activity.id)}`,
+      detailUrl: `activities/${encodeURIComponent(activity.id)}.html`,
       series: activity.series || ''
     }));
   const baseItems = [...internalActivityItems, ...explicitHubItems];
@@ -148,6 +148,13 @@
     appendText(body, 'span', item.type === 'external' ? `${linkText(item)} ↗` : linkText(item), 'text-link');
     link.append(body);
     article.append(link);
+    if (item.type === 'external') {
+      window.TAEJANG_PUBLIC_SHARE?.mountExternalCard(article, {
+        url: item.externalUrl,
+        title: item.title,
+        status: item.status
+      });
+    }
     return article;
   }
 

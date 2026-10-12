@@ -59,7 +59,10 @@ test('QA runtime is visibly labeled and attendance fails closed to the no-write 
     text('mobile/app/support.tsx'),
   ]);
 
-  assert.match(home, /isQaApp \? 'qa' : \(attendanceFeature\?\.attendanceMode \|\| 'record'\)/);
+  assert.match(home, /qaInspection === 'preview' \? 'preview' : 'qa'/);
+  assert.match(home, /previewScenario=\{qaDayScenario\}/);
+  assert.match(home, /showQaWorkPlatform\(qaPersona\)/);
+  assert.match(home, /QaPreviewControls/);
   assert.match(home, /태장 QA · 검수용 앱/);
   assert.match(home, /qaAppBadge/);
   assert.match(card, /const qaMode = mode === 'qa';/);
@@ -79,7 +82,7 @@ test('QA app avoids automatic production update and push enrollment', async () =
     text('mobile/src/notifications/push-notification-bridge.tsx'),
   ]);
 
-  assert.match(lifecycle, /const policy = isQaApp \? null : config\?\.mobileRelease/);
+  assert.match(lifecycle, /const policy = isQaApp \? null :/);
   assert.match(bridge, /if \(!client \|\| !session \|\| isQaApp\) return/);
   assert.match(bridge, /registerCurrentPushDevice/);
 });

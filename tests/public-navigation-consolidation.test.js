@@ -171,7 +171,7 @@ assert.match(liveOverrides, /Static homepage remains the fallback/, '관리자 l
 assert.match(liveOverrides, /catch \{[\s\S]*?Static homepage remains the fallback/, 'live override 네트워크 실패는 정적 홈페이지를 파괴하지 않습니다');
 
 const content = read('assets/js/content.js');
-assert.match(read('assets/js/content-hub.js'), /detailUrl: `activities\.html\?id=\$\{encodeURIComponent\(activity\.id\)\}`/);
+assert.match(read('assets/js/content-hub.js'), /detailUrl: `activities\/\$\{encodeURIComponent\(activity\.id\)\}\.html`/);
 assert.equal(fs.existsSync(path.join(root, 'activities.html')), true);
 assert.equal(fs.existsSync(path.join(root, 'thanks.html')), true);
 

@@ -71,6 +71,39 @@ export function normalizeNaverBlogTarget(raw) {
   };
 }
 
+
+export function normalizeYouTubeVideoTarget(raw) {
+  let url;
+  try { url = new URL(String(raw || '').trim()); } catch { return null; }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
+  const host = url.hostname.toLowerCase();
+  if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be'].includes(host)) return null;
+  const parts = url.pathname.split('/').filter(Boolean);
+  let id = '';
+  let form = 'watch';
+  if (host === 'youtu.be') {
+    if (parts.length !== 1) return null;
+    id = parts[0];
+  } else if (parts.length === 1 && parts[0] === 'watch') {
+    id = url.searchParams.get('v') || '';
+  } else if (parts.length === 2 && ['shorts', 'live', 'embed'].includes(parts[0])) {
+    form = parts[0];
+    id = parts[1];
+  } else {
+    return null;
+  }
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return null;
+  const watchUrl = 'https://www.youtube.com/watch?v=' + id;
+  const canonicalUrl = ['shorts', 'live'].includes(form)
+    ? 'https://www.youtube.com/' + form + '/' + id
+    : watchUrl;
+  return {
+    videoId: id,
+    canonicalUrl,
+    oembedUrl: 'https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent(watchUrl)
+  };
+}
+
 function decodeHtml(value = '') {
   return value
     .replace(/&nbsp;/gi, ' ')
@@ -225,6 +258,45 @@ function extractYouTubeChannelUrl(html, finalUrl) {
   return null;
 }
 
+
+export function parseYouTubeOEmbed(target, payload) {
+  if (!target || !payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('YOUTUBE_METADATA_UNAVAILABLE');
+  }
+  const title = typeof payload.title === 'string' ? payload.title.trim().slice(0, 300) : '';
+  if (!title) throw new Error('YOUTUBE_METADATA_UNAVAILABLE');
+  let image = null;
+  if (typeof payload.thumbnail_url === 'string') {
+    try {
+      const thumbnail = new URL(payload.thumbnail_url);
+      const hostname = thumbnail.hostname.toLowerCase();
+      if (thumbnail.protocol === 'https:' && !thumbnail.username && !thumbnail.password &&
+          (hostname === 'i.ytimg.com' || /^i[0-9]+[.]ytimg[.]com$/.test(hostname))) {
+        image = thumbnail.toString();
+      }
+    } catch { /* An invalid image is not authoritative metadata. */ }
+  }
+  let channelUrl = null;
+  if (typeof payload.author_url === 'string') {
+    try {
+      const channel = new URL(payload.author_url);
+      if (channel.protocol === 'https:' && !channel.username && !channel.password && !channel.port &&
+          ['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(channel.hostname.toLowerCase())) {
+        channelUrl = channel.toString();
+      }
+    } catch { /* Do not forward untrusted channel identity. */ }
+  }
+  return {
+    url: target.canonicalUrl,
+    title,
+    description: null,
+    image,
+    site_name: 'YouTube',
+    article_text: null,
+    channel_url: channelUrl
+  };
+}
+
 async function readLimited(response, maxBytes = 1_000_000) {
   const length = Number(response.headers.get('content-length') || 0);
   if (length && length > maxBytes) throw new Error('PAGE_TOO_LARGE');
@@ -294,6 +366,33 @@ async function authorizePromotionRequest(request) {
   return { allowed: true, status: 200 };
 }
 
+
+async function fetchYouTubeOEmbed(target) {
+  // Canonical, allowlisted YouTube URL only; never fetch an arbitrary oEmbed endpoint.
+  const endpoint = await assertPublicHttps(target.oembedUrl);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    const response = await fetch(endpoint, {
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; TaejangMetadataPreview/1.0)',
+        Accept: 'application/json'
+      }
+    });
+    if (!response.ok || !(response.headers.get('content-type') || '').toLowerCase().includes('application/json')) {
+      throw new Error('YOUTUBE_METADATA_UNAVAILABLE');
+    }
+    const text = await readLimited(response, 128_000);
+    let payload;
+    try { payload = JSON.parse(text); } catch { throw new Error('YOUTUBE_METADATA_UNAVAILABLE'); }
+    return parseYouTubeOEmbed(target, payload);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchHtml(initialUrl) {
   const naverTarget = normalizeNaverBlogTarget(initialUrl);
   let current = await assertPublicHttps(naverTarget?.fetchUrl || initialUrl);
@@ -352,7 +451,9 @@ export default async (request) => {
   const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
   if (!rawUrl) return json(400, { error: 'URL_REQUIRED' });
 
+  const youtubeTarget = normalizeYouTubeVideoTarget(rawUrl);
   try {
+    if (youtubeTarget) return json(200, await fetchYouTubeOEmbed(youtubeTarget));
     const { html, finalUrl, fetchedUrl, naverTarget } = await fetchHtml(rawUrl);
     const title = meta(html, 'og:title') || meta(html, 'twitter:title', 'name') || titleTag(html);
     const description = meta(html, 'og:description') || meta(html, 'description', 'name') || meta(html, 'twitter:description', 'name');
@@ -373,6 +474,12 @@ export default async (request) => {
       channel_url: channelUrl
     });
   } catch (error) {
+    if (youtubeTarget) {
+      return json(422, {
+        error: error?.name === 'AbortError' ? 'FETCH_TIMEOUT' : 'YOUTUBE_METADATA_UNAVAILABLE',
+        message: '유튜브 영상 정보를 가져오지 못했습니다. 공개 영상인지 확인하거나 제목과 사진을 직접 입력해 주세요.'
+      });
+    }
     const code = error?.name === 'AbortError' ? 'FETCH_TIMEOUT' : (error?.message || 'FETCH_FAILED');
     return json(422, { error: code });
   }
