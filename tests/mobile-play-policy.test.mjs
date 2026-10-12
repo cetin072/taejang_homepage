@@ -67,3 +67,15 @@ test('Android Play identity advances the 0.1.3 closed-test candidate versionCode
   const signature = (await readFile(new URL('../mobile/assets/taejang-launcher-icon.png', import.meta.url))).subarray(0, 8);
   assert.deepEqual([...signature], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
+
+test('settings moves sensitive policy links below logout into a separated footer', async () => {
+  const settings = await text('mobile/app/settings.tsx');
+  const account = settings.indexOf('<View style={styles.account}>');
+  const logout = settings.indexOf('accessibilityLabel="로그아웃"');
+  const footer = settings.indexOf('<View style={styles.policySection}>');
+  assert.ok(account >= 0 && logout > account && footer > logout, 'policy footer should follow account and logout');
+  const footerMarkup = settings.slice(footer, settings.indexOf('</ScrollView>', footer));
+  assert.match(footerMarkup, /<PolicyLinks includeAccountDeletion\s*\/>/);
+  assert.match(settings, /policySection:\s*\{[^}]*marginTop:\s*28/);
+  assert.match(settings, /policySection:\s*\{[^}]*borderTopWidth:\s*1/);
+});

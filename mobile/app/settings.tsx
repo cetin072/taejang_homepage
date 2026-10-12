@@ -91,9 +91,6 @@ export default function SettingsScreen() {
           <Text numberOfLines={2} style={styles.name}>{displayName}</Text>
           <Text style={styles.help}>내 계정</Text>
         </View>
-        <View style={styles.links}>
-          <PolicyLinks includeAccountDeletion />
-        </View>
         {session ? (
           <Pressable accessibilityRole="button" accessibilityLabel="내 정보 열기" onPress={() => router.push('/profile')} style={styles.utilityButton}>
             <Text style={styles.utilityButtonTitle}>내 정보</Text>
@@ -123,6 +120,12 @@ export default function SettingsScreen() {
         >
           <Text style={styles.logoutText}>{busy ? '로그아웃 중…' : '로그아웃'}</Text>
         </Pressable>
+        <View style={styles.policySection}>
+          <Text style={styles.policySectionTitle}>개인정보 및 계정 안내</Text>
+          <View style={styles.links}>
+            <PolicyLinks includeAccountDeletion />
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -140,6 +143,8 @@ const styles = StyleSheet.create({
   account: { gap: 5, padding: 20, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d7ded8' },
   name: { color: '#173f31', fontSize: 21, fontWeight: '900', lineHeight: 29 },
   help: { color: '#60746a', fontSize: 14, fontWeight: '700' },
+  policySection: { marginTop: 28, paddingTop: 18, borderTopWidth: 1, borderColor: '#d7ded8', gap: 8 },
+  policySectionTitle: { color: '#60746a', fontSize: 14, fontWeight: '800' },
   links: { alignItems: 'flex-start', paddingVertical: 2 },
   versionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderColor: '#d7ded8' },
   versionLabel: { color: '#344b40', fontSize: 16, fontWeight: '800' },
