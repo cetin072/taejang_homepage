@@ -12,6 +12,8 @@
   let activeView = 'manage';
   let savedStatus = 'draft';
   let saving = false;
+  let savedPublishStart = null;
+  let publicationUncertain = false;
 
   const app = window.TaejangApp;
   function route() { return app?.getRoute?.() || ''; }
@@ -257,6 +259,7 @@
       showMessage('상신 사유를 입력해주세요.', true);
       return;
     }
+    saving = true;
     showMessage('운영총괄에게 공지를 상신하고 있습니다.');
     try {
       const result = await app.rpc('submit_notice_for_operations_review', {
@@ -268,6 +271,8 @@
       showMessage('운영총괄 검토 대기 — 직원 비공개');
     } catch {
       showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
+    } finally {
+      saving = false;
     }
   }
 
@@ -374,6 +379,8 @@
     ui.element('notice-id').value = '';
     clearMediaState();
     savedStatus = 'draft';
+    savedPublishStart = null;
+    publicationUncertain = false;
     setDateTime('notice-publish-start', new Date());
     ui.element('notice-publish-mode').value = 'now';
     ui.element('notice-additional-settings').open = false;
@@ -387,6 +394,8 @@
   function fillForm(item, { scrollTo = 'form' } = {}) {
     if (saving) return;
     savedStatus = item.status;
+    savedPublishStart = item.publish_start_at;
+    publicationUncertain = false;
     ui.element('notice-publish-mode').value = 'scheduled';
     clearMediaState();
     mediaItems = ui.array(item.media).map(existingMedia);
@@ -510,11 +519,19 @@
     if (saving) return;
     saving = true;
     const action = event.submitter?.value || (savedStatus === 'draft' ? 'draft' : 'save');
-    const previousStatus = savedStatus;
+    let previousStatus = savedStatus;
     let bodySaved = false;
     let controls = [];
     showMessage('');
     try {
+      // A lost publish response must be reconciled before retrying any write.
+      if (publicationUncertain) {
+        const rows = await app.rpc('list_manageable_notices', { p_limit: 200 });
+        const current = ui.array(rows).find(item => item.id === ui.element('notice-id').value);
+        if (!current) throw new Error('PUBLISH_RESULT_UNKNOWN');
+        savedStatus = previousStatus = current.status;
+        publicationUncertain = false;
+      }
       const target = ui.targetPayload(ui.element('notice-scope'), ui.element('notice-target'));
       const linkUrl = ui.element('notice-link-url').value.trim();
       const linkLabel = ui.element('notice-link-label').value.trim();
@@ -535,8 +552,12 @@
       if (mediaItems.length > (mediaApi()?.MAX_PHOTOS || 10)) throw new Error('NOTICE_MEDIA_LIMIT');
       if (mediaItems.some(item => !String(item.alt_text || '').trim())) throw new Error('NOTICE_MEDIA_ALT_REQUIRED');
 
-      const publishStart = savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now'
+      let publishStart = savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now'
         ? new Date().toISOString() : readDateTime('notice-publish-start', true);
+      const unchangedStart = savedPublishStart
+        && ui.kstDate(savedPublishStart) === ui.element('notice-publish-start-date').value
+        && ui.kstTime(savedPublishStart) === ui.element('notice-publish-start-time').value;
+      if (savedStatus !== 'draft' && unchangedStart) publishStart = savedPublishStart;
       const publishEnd = readDateTime('notice-publish-end');
       if (publishEnd && new Date(publishEnd) <= new Date(publishStart)) throw new Error('INVALID_PERIOD');
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
@@ -587,7 +608,9 @@
       }
       let reviewState = '';
       if (action === 'publish') {
+        publicationUncertain = true;
         const published = await app.rpc('save_notice', { ...payload, p_notice_id: result.id, p_status: 'published' });
+        publicationUncertain = false;
         if (!published?.ok) throw new Error(published?.code || 'PUBLISH_FAILED');
         savedStatus = 'published';
       } else if (action === 'review') {
@@ -597,6 +620,8 @@
         reviewState = 'submitted';
       }
       ui.element('notice-status').value = savedStatus;
+      savedPublishStart = publishStart;
+      setDateTime('notice-publish-start', publishStart);
       const label = exposureLabel({ status: savedStatus, publish_start_at: publishStart, publish_end_at: publishEnd, review_state: reviewState });
       const loaded = await load({ preserveMessage: true });
       showMessage(`${label} · ${payload.p_title}${loaded ? '' : ' — 목록 새로고침 실패. 저장은 완료됐습니다.'}`);
@@ -619,10 +644,12 @@
                     : error.message === 'NOTICE_MEDIA_TYPE_INVALID' ? '사진은 JPG·PNG·WEBP·GIF 파일만 사용할 수 있습니다.'
                           : error.message === 'NOTICE_MEDIA_TOO_LARGE' ? '원본 사진은 15MB 이하 파일을 사용해주세요.'
                             : error.message === 'OPERATIONS_REVIEW_REQUIRED' ? '운영팀장은 공지를 작성 중으로 저장한 뒤 운영총괄에게 상신할 수 있습니다.'
-                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : '초안은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.')
+                            : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'}은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.`)
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
-      showMessage(bodySaved && error.message !== 'NOTICE_SAVED_MEDIA_FAILED'
+      showMessage(publicationUncertain
+        ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
+        : bodySaved && error.message !== 'NOTICE_SAVED_MEDIA_FAILED'
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
       ui.element('notice-additional-settings').open = true;
     } finally {
@@ -671,7 +698,7 @@
       revealEditor({ preview: true });
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
-    ui.element('refresh-notice-admin').addEventListener('click', load);
+    ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
     ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', () => { void renderPreview(); });

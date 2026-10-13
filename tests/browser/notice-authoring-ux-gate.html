@@ -19,9 +19,10 @@ window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:()=>true
  if(name==='list_manageable_notices'){if(failList)throw Error('list failed');return structuredClone(rows);}
  if(name==='save_notice'){
   if(role==='promotion_lead'&&args.p_status!=='draft')return {ok:false,code:'OPERATIONS_REVIEW_REQUIRED'};
-  if(failPublish&&args.p_status==='published')throw Error('publish failed');
+  if(failPublish===true&&args.p_status==='published')throw Error('publish failed');
   let row=rows.find(r=>r.id===args.p_notice_id);if(!row){row={id:'notice-'+(++serial),media:[]};rows.push(row);}
   Object.assign(row,Object.fromEntries(Object.entries(args).map(([k,v])=>[k.replace(/^p_/,''),v])));row.id=args.p_notice_id||row.id;row.version_no=++version;
+  if(failPublish==='after'&&args.p_status==='published')throw Error('lost response');
   return {ok:true,id:row.id,version_no:version};
  }
  if(name==='add_notice_media'){const row=rows.find(r=>r.id===args.p_notice_id);const id='media-'+calls.length;row.media.push({id,storage_path:args.p_storage_path,mime_type:args.p_mime_type,alt_text:args.p_alt_text,display_order:args.p_display_order});return {ok:true,id};}
@@ -51,24 +52,27 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-title-input').focus();el('notice-title-input').dispatchEvent(new Event('input',{bubbles:true}));await wait();check(document.activeElement===el('notice-title-input'),'preview retains keyboard focus');
  check(el('notice-title-input').labels.length===1&&el('notice-body').labels.length===1,'label associations');
  await press('notice-save-draft');check(rows.at(-1).status==='draft'&&msg().includes('초안 저장됨')&&msg().includes('직원 비공개'),'private draft and persistent result');
+ el('notice-scope').value='department';el('notice-scope').dispatchEvent(new Event('change'));el('notice-target').value='dep';await press('notice-save-draft');check(el('notice-target').value==='dep','target preserved after refresh');
  const firstId=el('notice-id').value;check(firstId&&el('notice-title-input').value==='직원 공지','saved id and input retained');
  window.TaejangNoticeAdmin.setView('manage');await wait();check(msg().includes('초안 저장됨'),'result survives navigation to list');
  await start();confirmAnswer=false;const before=rows.length;await press('notice-publish');check(rows.length===before,'cancel confirmation creates nothing');confirmAnswer=true;
  const nowBefore=Date.now();await press('notice-publish');check(rows.at(-1).status==='published'&&new Date(rows.at(-1).publish_start_at)>=nowBefore,'now publishes with current instant');
  check(msg().includes('현재 공개됨')&&confirmations.at(-1).includes('전체 직원')&&confirmations.at(-1).includes('KST'),'visibility and target confirmation');
  el('notice-body').value='게시 중 정정';el('notice-status').value='draft';await press('notice-save-existing');check(rows.at(-1).status==='published','existing published cannot accidentally become draft');
+ check(new Date(rows.at(-1).publish_start_at)>=nowBefore,'edit keeps exact actual publication time');
  el('notice-status').value='cancelled';await press('notice-save-existing');check(rows.at(-1).status==='cancelled'&&msg().includes('취소'),'intentional cancellation');
  el('notice-status').value='inactive';await press('notice-save-existing');check(rows.at(-1).status==='inactive','intentional inactivity');
  await start();const tomorrow=new Date(Date.now()+86400000);el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change'));el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(tomorrow);el('notice-publish-start-time').value='17:30';el('notice-publish-start-time').dispatchEvent(new Event('change',{bubbles:true}));
  check(el('notice-publish').textContent==='게시 예약','future explicit action');await press('notice-publish');check(msg().includes('게시 예약됨')&&!msg().includes('현재 공개됨')&&rows.at(-1).publish_start_at.includes('17:30'),'reservation preserved');
- await start();await photo(2);failUploadAt=uploadCount+2;const adds=calls.filter(c=>c.name==='add_notice_media').length;await press('notice-publish');
+ await start();await photo(2);el('notice-media-editor').querySelectorAll('button')[1].click();await wait();check(el('notice-preview').querySelector('img').alt==='사진1','reordered preview');el('notice-media-editor').querySelectorAll('button')[3].click();await wait();failUploadAt=uploadCount+2;const adds=calls.filter(c=>c.name==='add_notice_media').length;await press('notice-publish');
  const failedId=el('notice-id').value;check(rows.at(-1).status==='draft'&&failedId&&msg().includes('직원에게 공개·상신하지 않았습니다'),'photo failure cannot prematurely publish');
  check(el('notice-title-input').value==='직원 공지'&&rows.at(-1).media.length===1,'input and first registration kept');
  failUploadAt=0;const rowCount=rows.length;await press('notice-publish');check(el('notice-id').value===failedId&&rows.length===rowCount&&rows.at(-1).media.length===2,'retry no duplicate notice/media');
  check(calls.filter(c=>c.name==='add_notice_media').length===adds+2,'completed photo not reuploaded');
  check([...el('notice-preview').querySelectorAll('img')].map(i=>i.alt).join(',')==='사진0,사진1','preview media order');
- await photo(1);failUploadAt=uploadCount+1;await press('notice-save-existing');check(rows.at(-1).status==='published'&&msg().includes('이미 직원에게 반영됐을 수'),'existing public partial failure honest');failUploadAt=0;
- await start();failPublish=true;await press('notice-publish');check(rows.at(-1).status==='draft'&&el('notice-id').value&&msg().includes('직원 비공개'),'final publish failure keeps reusable draft');failPublish=false;await press('notice-publish');check(rows.at(-1).status==='published','publish retry works');
+ await photo(1);failUploadAt=uploadCount+1;await press('notice-save-existing');check(rows.at(-1).status==='published'&&msg().includes('이미 직원에게 반영됐을 수'),'existing public partial failure honest');failUploadAt=0;await press('notice-save-existing');const archivedBefore=calls.filter(c=>c.name==='archive_notice_media').length;el('notice-media-editor').querySelectorAll('button')[2].click();await wait();await photo(1);failUploadAt=uploadCount+1;await press('notice-save-existing');failUploadAt=0;await press('notice-save-existing');check(calls.filter(c=>c.name==='archive_notice_media').length===archivedBefore+1,'completed removal not repeated after retry');
+ await start();failPublish=true;await press('notice-publish');check(rows.at(-1).status==='draft'&&el('notice-id').value&&msg().includes('공개 여부'),'final publish response uncertainty keeps reusable draft');failPublish=false;await press('notice-publish');check(rows.at(-1).status==='published','publish retry works');
+ await start();failPublish='after';await press('notice-publish');const lostId=el('notice-id').value;check(msg().includes('공개 여부')&&rows.at(-1).status==='published','lost committed response never promises privacy');failPublish=false;const callOffset=calls.length;await press('notice-publish');check(calls.slice(callOffset).filter(c=>c.name==='save_notice').every(c=>c.args.p_status==='published')&&el('notice-id').value===lostId,'reconcile prevents retry downgrading published content');
  await start();el('notice-link-url').value='https://example.test';await press('notice-save-draft');check(msg().includes('함께 입력')&&el('notice-additional-settings').open,'advanced pair error visible');
  el('notice-link-url').value='not-url';el('notice-additional-settings').open=false;await press('notice-save-draft');check(el('notice-additional-settings').open&&msg().includes('필수항목'),'native invalid reveals folded fields');
  await start();el('notice-importance').value='important';el('notice-additional-settings').open=false;el('notice-requires-ack').checked=true;await press('notice-save-draft');check(rows.at(-1).requires_acknowledgement,'valid folded required defaults');
