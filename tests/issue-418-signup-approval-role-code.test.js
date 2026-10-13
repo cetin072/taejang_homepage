@@ -162,7 +162,7 @@ test('team lead approval cannot proceed without employee ID typed and identity c
   number.value = 'TJ-274001';
   checkboxes[0].checked = false;
   await approveButton.listeners.click();
-  assert.match(ui.alerts.at(-1), /신원/);
+  assert.match(ui.alerts.at(-1), /인적사항/);
   assert.equal(ui.calls.filter(x => x.name === 'approve_existing_employee_signup_request').length, 0);
 });
 
