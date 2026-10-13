@@ -53,10 +53,16 @@
     ui.element('notice-save-existing').hidden = draft;
     ui.element('notice-management-settings').hidden = draft || !isOperations();
     [...ui.element('notice-status').options].forEach(option => {
-      option.disabled = option.value !== savedStatus && !['cancelled', 'inactive'].includes(option.value);
+      option.disabled = !isOperations() ? option.value !== 'draft'
+        : option.value !== savedStatus && !['published', 'cancelled', 'inactive'].includes(option.value);
     });
     const now = draft && ui.element('notice-publish-mode').value === 'now';
     ui.element('notice-publish-mode-label').hidden = !draft;
+    ui.element('notice-publish-mode-label').firstChild.textContent = isPromotionLead() ? '희망 게시 시각' : '게시 시각';
+    ui.element('notice-publish-mode').options[0].textContent = isPromotionLead() ? '검토 후 게시 (희망)' : '지금 게시';
+    ui.element('notice-publish-help').textContent = isPromotionLead()
+      ? '희망 시각은 초안에만 저장됩니다. 실제 게시·예약은 운영총괄이 검토 후 결정합니다.'
+      : '지금 게시하면 확인 후 현재 한국 시각(KST)으로 게시합니다. 지정한 예약시각은 날짜·시간 지정에서 사용합니다.';
     for (const suffix of ['date', 'time']) {
       ui.element(`notice-publish-start-${suffix}`).disabled = now;
     }
@@ -539,7 +545,7 @@
       const requiresAcknowledgement = ui.element('notice-requires-ack').checked;
       if (action === 'publish' && !isOperations()) throw new Error('OPERATIONS_REVIEW_REQUIRED');
       const status = action === 'publish' ? 'published' : savedStatus === 'draft' ? 'draft'
-        : ['cancelled', 'inactive'].includes(ui.element('notice-status').value) ? ui.element('notice-status').value : savedStatus;
+        : ['published', 'cancelled', 'inactive'].includes(ui.element('notice-status').value) ? ui.element('notice-status').value : savedStatus;
       const defaultReason = status === 'inactive'
         ? '공지 사용중지'
         : status === 'cancelled'
