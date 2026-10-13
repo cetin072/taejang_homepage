@@ -110,6 +110,15 @@ equal(published.data?.code, 'NOTICE_SAVED', 'operations manager edits and publis
 const reviewedList = await rpc('list_manageable_notices', operations.token, { p_limit: 200 });
 check(reviewedList.data.some(item => item.id === promotionDraft.data.id && item.review_state === 'reviewed'), 'published submission records operations review');
 
+// Issue #446: an owner is not authorized to overwrite an operations-approved notice.
+const approvedDowngrade = await rpc('save_notice', promotion.token, noticePayload({
+  p_notice_id: promotionDraft.data.id, p_status: 'draft', p_title: '446 forged approved downgrade',
+  ...target('department', department('promotion'))
+}));
+check(!approvedDowngrade.ok || approvedDowngrade.data?.ok === false,
+  '446 BLOCK APPROVED DOWNGRADE: lead cannot erase publication/review with legacy draft save');
+console.log('NOTICE_446_APPROVED_DOWNGRADE_GUARD_PASS');
+
 const path = `${promotionDraft.data.id}/issue300.png`;
 const png = Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,8,215,99,248,207,192,240,31,0,5,0,1,255,137,153,61,29,0,0,0,0,73,69,78,68,174,66,96,130]);
 const upload = await request(`/storage/v1/object/notice-media/${encodeURIComponent(path)}`, {
