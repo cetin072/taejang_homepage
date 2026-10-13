@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_column('public','notices','lead_notice_mode','server-owned origin marker');
+select has_column('public','notices','lead_direct_published_at','immutable direct publication evidence');
+select ok(not has_function_privilege('anon','public.save_lead_notice(uuid,public.notice_kind,public.notice_importance,text,text,timestamptz,timestamptz,date,date,text,text,uuid,uuid,text,text,boolean,public.today_target_scope,uuid,uuid,uuid,public.board_record_status,text,boolean)','EXECUTE'),'anon cannot call lead writer');
+select ok(has_function_privilege('authenticated','public.save_lead_notice(uuid,public.notice_kind,public.notice_importance,text,text,timestamptz,timestamptz,date,date,text,text,uuid,uuid,text,text,boolean,public.today_target_scope,uuid,uuid,uuid,public.board_record_status,text,boolean)','EXECUTE'),'authenticated guarded writer');
+select ok(not has_function_privilege('authenticated','public.private_notice_lead_actor()','EXECUTE'),'actor helper private');
+select ok(not has_function_privilege('authenticated','public.private_notice_write_target(uuid,public.today_target_scope,uuid,uuid,uuid)','EXECUTE'),'write target helper private');
+select ok(not has_function_privilege('authenticated','public.private_save_notice_before446(uuid,public.notice_kind,public.notice_importance,text,text,timestamptz,timestamptz,date,date,text,text,uuid,uuid,text,text,boolean,public.today_target_scope,uuid,uuid,uuid,public.board_record_status,text)','EXECUTE'),'legacy writer cannot bypass guard');
+select ok(not has_function_privilege('anon','public.list_manageable_notices(integer)','EXECUTE'),'list remains authenticated only');
+select * from finish();
+rollback;

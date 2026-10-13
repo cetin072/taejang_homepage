@@ -264,3 +264,14 @@
 - DB schema/roles/RLS/RPC/ack/push/Storage 계약과 실제 운영 데이터는 변경하지 않는다. 서버 원자성 개선은 후속 판단이며 이번 UI 변경에 포함하지 않는다.
 
 구현 대조·320/390/1280 브라우저 및 권한 회귀 근거는 해당 Draft PR에 기록한다.
+
+## 2026-10-13 확정: 운영팀장 일상공지 직접 게시 2차 (#446)
+
+Issue #446의 사용자 승인 정책을 적용한다. #445 작성기를 재사용하며 공통 플랫폼 엔진으로 추상화하지 않고 태장 공지 Domain에 둔다.
+
+- 실제 active promotion_lead + 기존 notice.manage 조건으로 전용 guarded RPC를 사용한다. 전사 대상, normal, ack=false, general/external_activity/training/transport/materials/clothing/company_life만 직접 게시·예약 가능하다.
+- 그 외 분류/중요도/ack 및 근무정책·인사·급여·안전·중요 입장은 초안→운영총괄 검토·게시를 유지한다. 게시 전 대상·KST 시각·분류·중요도와 일상 안내 확인을 제공하며 텍스트 위험을 완벽히 자동 판정한다고 주장하지 않는다.
+- 서버 소유 출처와 직접 발행 시각을 가산 기록한다. 기존 데이터는 NULL 그대로 두며 backfill하지 않는다. 직접 경로의 본인 공지만 수정·중지하고 타인/과거/상신·승인/운영총괄 인수 자료는 직접 관리하지 못한다. 상신 중 자료는 수정 잠금이다.
+- 기존 save_notice(draft) 우회와 사진 metadata/Storage 관리도 동일 소유 경계로 제한한다. 직원 읽기·ack·outbox·잠금화면 메시지 계약은 유지한다.
+- 신규 공지는 notice-admin 작성기 하나로 통일한다. 구 information_publication_requests의 기존 pending/changes_requested/처리 이력과 보완 재상신은 그대로 유지한다.
+- 새 글 draft→사진 등록 확인→최종 게시/상신, 응답 불명 시 파일/입력/ID 보존 원칙을 유지한다. 물리 삭제나 운영 데이터·계정 변경 없이 격리 DB에서 검증한다.

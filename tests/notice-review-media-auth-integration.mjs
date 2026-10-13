@@ -172,6 +172,76 @@ for (const status of ['cancelled','inactive']) {
   const stoppedRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
   check(!stoppedRead.ok, `444 ${status} notice not exposed`);
 }
+// #446: real roles, company-only guarded writer, ownership evidence and Storage.
+const routinePayload = overrides => noticePayload({ ...target('company'), p_notice_kind:'general', p_importance:'normal', p_requires_acknowledgement:false, p_confirm_routine:true, ...overrides });
+const leadSave = overrides => rpc('save_lead_notice', promotion.token, routinePayload(overrides));
+const refused = (result,message) => check(!result.ok || result.data?.ok===false,message);
+const otherLead = await signUp('issue446-other-lead@example.test','Issue 446 다른 운영팀장');
+await approve(adminToken,otherLead,department('promotion'),position('staff'),'promotion_lead');
+let ownedId;
+for (const kind of ['general','external_activity','training','transport','materials','clothing','company_life']) {
+ const draft=await leadSave({p_notice_kind:kind,p_title:'446 '+kind});equal(draft.data?.code,'NOTICE_SAVED','446 allowed kind draft '+kind);
+ const id=draft.data.id;
+ const privateRead=await rpc('get_my_notice_detail',outsider.token,{p_notice_id:id});check(!privateRead.ok,'446 draft private '+kind);
+ const post=await leadSave({p_notice_id:id,p_notice_kind:kind,p_status:'published',p_title:'446 '+kind});equal(post.data?.code,'NOTICE_SAVED','446 publish allowed kind '+kind);
+ const companyRead=await rpc('get_my_notice_detail',outsider.token,{p_notice_id:id});check(companyRead.ok&&companyRead.data.title==='446 '+kind,'446 company recipient different department '+kind);
+ ownedId=id;
+}
+refused(await leadSave({p_status:'published'}),'446 cannot skip draft phase');
+for(const kind of ['safety','working_hours','holiday','work_location']){
+ const draft=await leadSave({p_notice_kind:kind});equal(draft.data?.lead_notice_mode,'review','446 sensitive draft routes to review '+kind);
+ refused(await leadSave({p_notice_id:draft.data.id,p_notice_kind:kind,p_status:'published'}),'446 sensitive kind cannot publish '+kind);
+ refused(await leadSave({p_notice_id:draft.data.id,p_status:'published'}),'446 review draft cannot launder classification '+kind);
+}
+for(const importance of ['important','urgent'])refused(await leadSave({p_notice_id:ownedId,p_importance:importance,p_status:'published'}),'446 importance escalation denied '+importance);
+refused(await leadSave({p_notice_id:ownedId,p_requires_acknowledgement:true,p_status:'published'}),'446 acknowledgement escalation denied');
+refused(await leadSave({p_notice_id:ownedId,p_status:'published',p_confirm_routine:false}),'446 affirmative routine confirmation required');
+for(const scope of ['department','work_group','profile'])refused(await leadSave({...target(scope,department('promotion'))}),'446 rejects noncompany target '+scope);
+refused(await leadSave({p_target_department_id:department('promotion')}),'446 mismatched company ids denied');
+refused(await rpc('save_lead_notice',recipient.token,routinePayload({})),'446 employee cannot call guarded writer');
+refused(await rpc('save_lead_notice',operations.token,routinePayload({})),'446 operations uses unchanged original writer');
+refused(await rpc('save_lead_notice',otherLead.token,routinePayload({p_notice_id:ownedId,p_status:'inactive'})),'446 other lead cannot stop own direct notice');
+refused(await leadSave({p_notice_id:promotionDraft.data.id,p_status:'published'}),'446 creator cannot use direct path on operations-approved manuscript');
+refused(await leadSave({p_notice_id:privateDraft.data.id,p_status:'inactive'}),'446 cannot stop someone elses legacy notice');
+refused(await rpc('save_notice',promotion.token,noticePayload({...target('company'),p_notice_id:ownedId,p_status:'draft'})),'446 old writer cannot downgrade direct published notice');
+refused(await leadSave({p_notice_id:ownedId,p_status:'draft'}),'446 dedicated writer cannot downgrade published notice');
+refused(await leadSave({p_notice_id:ownedId,p_status:'cancelled'}),'446 lead cannot forge arbitrary status');
+refused(await rpc('save_lead_notice',promotion.token,{...routinePayload({}),p_created_by:otherLead.id}),'446 cannot spoof creator parameter');
+const rawPatch=await request('/rest/v1/notices?id=eq.'+ownedId,{method:'PATCH',token:promotion.token,headers:{'Content-Type':'application/json'},body:JSON.stringify({lead_notice_mode:'routine',created_by:promotion.id})});check(!rawPatch.ok,'446 markers not client writable');
+const rawDelete=await request('/rest/v1/notices?id=eq.'+ownedId,{method:'DELETE',token:promotion.token});check(!rawDelete.ok,'446 no physical notice delete');
+const mediaPath=ownedId+'/446-own.png';
+const leadUpload=await request('/storage/v1/object/notice-media/'+encodeURIComponent(mediaPath),{method:'POST',token:promotion.token,headers:{'Content-Type':'image/png','x-upsert':'false'},body:png});check(leadUpload.ok,'446 owner uploads own routine photo');
+const ownMedia=await rpc('add_notice_media',promotion.token,{p_notice_id:ownedId,p_storage_path:mediaPath,p_mime_type:'image/png',p_alt_text:'446 photo',p_display_order:0});equal(ownMedia.data?.code,'NOTICE_MEDIA_ADDED','446 own photo metadata');
+const foreignUpload=await request('/storage/v1/object/notice-media/'+encodeURIComponent(ownedId+'/446-forged.png'),{method:'POST',token:otherLead.token,headers:{'Content-Type':'image/png','x-upsert':'false'},body:png});check(!foreignUpload.ok,'446 other lead cannot upload into owner notice');
+refused(await rpc('update_notice_media',otherLead.token,{p_media_id:ownMedia.data.id,p_alt_text:'forged',p_display_order:0}),'446 other lead cannot mutate media');
+refused(await rpc('archive_notice_media',otherLead.token,{p_media_id:ownMedia.data.id,p_reason:'forged'}),'446 other lead cannot archive media');
+const foreignDelete=await request('/storage/v1/object/notice-media/'+encodeURIComponent(mediaPath),{method:'DELETE',token:otherLead.token});check(!foreignDelete.ok,'446 other lead cannot delete Storage object');
+refused(await rpc('add_notice_media',promotion.token,{p_notice_id:ownedId,p_storage_path:promotionDraft.data.id+'/forged.png',p_mime_type:'image/png',p_alt_text:'forged',p_display_order:1}),'446 forged media path denied');
+const edit=await leadSave({p_notice_id:ownedId,p_status:'published',p_title:'446 edited'});equal(edit.data?.code,'NOTICE_SAVED','446 own published edit');
+const edited=await rpc('get_my_notice_detail',recipient.token,{p_notice_id:ownedId});check(edited.ok&&edited.data.title==='446 edited'&&edited.data.media.length===1,'446 id and media survive edit');
+const stopped=await leadSave({p_notice_id:ownedId,p_status:'inactive'});equal(stopped.data?.code,'NOTICE_SAVED','446 owner stops publication');
+const stoppedView=await rpc('get_my_notice_detail',recipient.token,{p_notice_id:ownedId});check(!stoppedView.ok,'446 stopped hidden from employee');
+const leadHistory=await rpc('list_manageable_notices',promotion.token,{p_limit:200});check(leadHistory.data.some(n=>n.id===ownedId&&n.status==='inactive'&&n.lead_direct_published_at),'446 stopped owned history remains manageable');
+const scheduledDraft=await leadSave({p_title:'446 reservation'});const scheduledId=scheduledDraft.data.id;
+const scheduled=await leadSave({p_notice_id:scheduledId,p_status:'published',p_publish_start_at:new Date(Date.now()+86400000).toISOString(),p_publish_end_at:new Date(Date.now()+172800000).toISOString()});equal(scheduled.data?.code,'NOTICE_SAVED','446 lead reserves');
+check(!(await rpc('get_my_notice_detail',outsider.token,{p_notice_id:scheduledId})).ok,'446 reservation unavailable before start');
+const privateMediaPath=scheduledId+'/446-reservation.png';check((await request('/storage/v1/object/notice-media/'+encodeURIComponent(privateMediaPath),{method:'POST',token:promotion.token,headers:{'Content-Type':'image/png','x-upsert':'false'},body:png})).ok,'446 owner uploads scheduled photo');
+check(!(await request('/storage/v1/object/authenticated/notice-media/'+encodeURIComponent(privateMediaPath),{token:otherLead.token})).ok,'446 private scheduled photo unreadable by other lead');
+const expired=await leadSave({p_notice_id:scheduledId,p_status:'published',p_publish_start_at:new Date(Date.now()-7200000).toISOString(),p_publish_end_at:new Date(Date.now()-3600000).toISOString()});equal(expired.data?.code,'NOTICE_SAVED','446 past window preserved by server');
+check(!(await rpc('get_my_notice_detail',outsider.token,{p_notice_id:scheduledId})).ok,'446 expired notice unavailable');
+const reviewDraft=await leadSave({p_notice_kind:'safety',p_importance:'important',p_requires_acknowledgement:true});equal(reviewDraft.data?.code,'NOTICE_SAVED','446 sensitive company draft');
+const reviewId=reviewDraft.data.id;
+equal((await rpc('submit_notice_for_operations_review',promotion.token,{p_notice_id:reviewId,p_reason:'446 safety review'})).data?.code,'NOTICE_SUBMITTED_FOR_REVIEW','446 company draft existing submit path');
+refused(await leadSave({p_notice_id:reviewId}),'446 submitted record locked against lead edits');
+const opsPublish=await rpc('save_notice',operations.token,noticePayload({...target('company'),p_notice_id:reviewId,p_status:'published'}));equal(opsPublish.data?.code,'NOTICE_SAVED','446 operations publishes sensitive company notice');
+refused(await leadSave({p_notice_id:reviewId,p_status:'inactive'}),'446 creator cannot stop reviewed own manuscript');
+const reviewed=await rpc('list_manageable_notices',operations.token,{p_limit:200});check(reviewed.data.some(n=>n.id===reviewId&&n.review_state==='reviewed'&&n.reviewed_by===operations.id),'446 approval history preserved');
+const takeover=await rpc('save_notice',operations.token,noticePayload({...target('company'),p_notice_id:scheduledId,p_status:'published',p_notice_kind:'general',p_importance:'normal',p_requires_acknowledgement:false}));equal(takeover.data?.code,'NOTICE_SAVED','446 operations can take over direct notice');
+refused(await leadSave({p_notice_id:scheduledId,p_status:'inactive'}),'446 operations takeover revokes lead direct control');
+const suspend=await rpc('change_account_status',adminToken,{p_target_profile_id:otherLead.id,p_new_status:'suspended',p_reason_summary:'446 isolated active guard'});equal(suspend.data?.code,'STATUS_CHANGED','446 suspend synthetic lead');
+refused(await rpc('save_lead_notice',otherLead.token,routinePayload({})),'446 inactive actor denied');
+console.log('NOTICE_446_ROUTINE_AUTH_PASS');
+
 console.log('NOTICE_AUTHORING_UX_AUTH_PASS');
 
 console.log(`Issue 300 notice review/media Auth, RLS, and Storage integration passed: ${assertions} assertions`);
