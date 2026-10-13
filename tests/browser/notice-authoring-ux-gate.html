@@ -8,23 +8,29 @@ const realMedia=window.TaejangNoticeMedia;
 // Load the real form rather than keeping a second markup owner in the fixture.
 const xhr=new XMLHttpRequest();xhr.open('GET','../../app/index.html',false);xhr.send();
 const source=new DOMParser().parseFromString(xhr.responseText,'text/html');
-const panel=source.getElementById('notice-admin-panel');panel.hidden=false;const shell=document.createElement('div');shell.id='desktop-app-shell';shell.append(panel);document.body.append(shell);
+const panel=source.getElementById('notice-admin-panel');panel.hidden=false;const shell=document.createElement('div');shell.id='desktop-app-shell';shell.append(panel);const legacyMain=document.createElement('main');legacyMain.id='dashboard-main';shell.append(legacyMain);const heading=document.createElement('h1');heading.id='desktop-page-title';shell.append(heading);document.body.append(shell);
 let role='operations_manager', failUploadAt=0, uploadCount=0, failPublish=false, failList=false, confirmAnswer=true, version=0, serial=0;
 const rows=[],calls=[],confirmations=[],removedFiles=[];
 let loseMediaResponse=false, omitSavedNotice='';
 window.confirm=message=>{confirmations.push(message);return confirmAnswer};
 window.prompt=()=> '검토 요청';
-window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:()=>true,getBoardDate:()=> '2026-10-13',refreshToday:async()=>{},rpc:async(name,args={})=>{
+window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:key=>key==='information.review'?role==='operations_manager':true,getBoardDate:()=> '2026-10-13',refreshToday:async()=>{},rpc:async(name,args={})=>{
  calls.push({name,args:structuredClone(args)});
  if(name==='list_manageable_schedules')return [];
- if(name==='list_manageable_notices'){if(failList)throw Error('list failed');if(omitSavedNotice==='200')return Array.from({length:200},(_,i)=>({id:'outside-'+i,media:[]}));if(omitSavedNotice==='inactive')return [];return structuredClone(rows);}
- if(name==='save_notice'){
-  if(role==='promotion_lead'&&args.p_status!=='draft')return {ok:false,code:'OPERATIONS_REVIEW_REQUIRED'};
+ if(name==='get_my_notice_list')return rows.filter(r=>r.status==='published'&&new Date(r.publish_start_at)<=new Date()&&(!r.publish_end_at||new Date(r.publish_end_at)>new Date()));
+ if(name==='get_my_notice_detail'){const r=rows.find(r=>r.id===args.p_notice_id);if(!r||r.status!=='published'||new Date(r.publish_start_at)>new Date())throw Error('not current');return structuredClone(r);}
+ if(name==='list_manageable_notices'){if(failList)throw Error('list failed');if(omitSavedNotice==='200')return Array.from({length:200},(_,i)=>({id:'outside-'+i,media:[]}));if(omitSavedNotice==='inactive')return [];return structuredClone(rows.map(row=>({...row,can_lead_edit:row.created_route==='promotion_lead'&&row.review_state!=='submitted'&&row.lead_notice_mode!=='operations'})));}
+ if(name==='list_information_publication_requests')return [{id:'legacy-pending',information_kind:'notice',status:'pending',title:'기존 대기 공지'},{id:'legacy-change',information_kind:'notice',status:'changes_requested',title:'기존 보완 공지'},{id:'legacy-approved',information_kind:'notice',status:'approved',title:'기존 승인 이력'}];
+ if(name==='save_information_publication_request')return {ok:true};
+ if(name==='review_information_publication_request')return {ok:true};
+ if(name==='save_notice'||name==='save_lead_notice'){
+  if(name==='save_notice'&&role==='promotion_lead'&&args.p_status!=='draft')return {ok:false,code:'OPERATIONS_REVIEW_REQUIRED'};
   if(failPublish===true&&args.p_status==='published')throw Error('publish failed');
-  let row=rows.find(r=>r.id===args.p_notice_id);if(!row){row={id:'notice-'+(++serial),media:[]};rows.push(row);}
+  let row=rows.find(r=>r.id===args.p_notice_id);if(!row){row={id:'notice-'+(++serial),media:[],created_route:role};rows.push(row);}
   Object.assign(row,Object.fromEntries(Object.entries(args).map(([k,v])=>[k.replace(/^p_/,''),v])));row.id=args.p_notice_id||row.id;row.version_no=++version;
+  if(name==='save_lead_notice')row.lead_notice_mode=args.p_notice_kind==='safety'||args.p_importance!=='normal'||args.p_requires_acknowledgement||row.lead_notice_mode==='review'?'review':'routine';
   if(failPublish==='after'&&args.p_status==='published')throw Error('lost response');
-  return {ok:true,id:row.id,version_no:version};
+  return {ok:true,id:row.id,version_no:version,lead_notice_mode:row.lead_notice_mode};
  }
  if(name==='add_notice_media'){const row=rows.find(r=>r.id===args.p_notice_id);const id='media-'+calls.length;row.media.push({id,storage_path:args.p_storage_path,mime_type:args.p_mime_type,alt_text:args.p_alt_text,display_order:args.p_display_order});if(loseMediaResponse==='conflict')return {ok:false,code:'23505'};if(loseMediaResponse)throw Error('registered but response lost');return {ok:true,id};}
  if(name==='update_notice_media'){const m=rows.flatMap(r=>r.media).find(m=>m.id===args.p_media_id);Object.assign(m,{alt_text:args.p_alt_text,display_order:args.p_display_order});return {ok:true};}
@@ -32,9 +38,9 @@ window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:()=>true
  if(name==='submit_notice_for_operations_review'){rows.find(r=>r.id===args.p_notice_id).review_state='submitted';return {ok:true};}
  throw Error('Unexpected RPC '+name);
 }};
-window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=> 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',remove:async storagePath=>{removedFiles.push(storagePath)},openLightbox:()=>{},upload:async(id,file)=>{uploadCount++;if(uploadCount===failUploadAt)throw Error('upload failed');return {storage_path:id+'/'+uploadCount+'.png',mime_type:'image/png'};}};
+window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=> 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',renderGallery:async(container,items)=>{items.forEach(item=>{const img=document.createElement('img');img.alt=item.alt_text;img.src='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';container.append(img);});},remove:async storagePath=>{removedFiles.push(storagePath)},openLightbox:()=>{},upload:async(id,file)=>{uploadCount++;if(uploadCount===failUploadAt)throw Error('upload failed');return {storage_path:id+'/'+uploadCount+'.png',mime_type:'image/png'};}};
 </script>
-<script src="../../app/assets/staff-information-ui.js"></script><script src="../../app/assets/notice-admin.js"></script>
+<script src="../../app/assets/issue-207-promotion-information-ux.js"></script><script src="../../app/assets/staff-information-ui.js"></script><script src="../../app/assets/notice-admin.js"></script>
 <script>
 (async()=>{
  const check=(v,m)=>{if(!v)throw Error(m)};const el=id=>document.getElementById(id);
@@ -98,23 +104,39 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-link-url').value='not-url';el('notice-additional-settings').open=false;await press('notice-save-draft');check(el('notice-additional-settings').open&&msg().includes('필수항목'),'native invalid reveals folded fields');
  await start();el('notice-importance').value='important';el('notice-additional-settings').open=false;el('notice-requires-ack').checked=true;await press('notice-save-draft');check(rows.at(-1).requires_acknowledgement,'valid folded required defaults');
  await start();failList=true;await press('notice-save-draft');check(msg().includes('저장은 완료')&&msg().includes('초안 저장됨'),'list failure never reports save failure');failList=false;
- role='promotion_lead';await start();check(el('notice-publish').hidden&&!el('notice-submit-review').hidden,'lead draft review only');check(el('notice-publish-help').textContent.includes('운영총괄이 검토'),'lead scheduling described as proposal only');await press('notice-submit-review');check(rows.at(-1).status==='draft'&&rows.at(-1).review_state==='submitted'&&msg().includes('운영총괄 검토 대기'),'lead draft then existing submit RPC');
- const submittedWrites=calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length;
- check(el('notice-submit-review').disabled&&el('notice-submit-review').textContent==='운영총괄 검토 대기'&&el('notice-save-draft').disabled,'submitted unedited draft locked in waiting state');
- await press('notice-submit-review');
- el('notice-submit-review').disabled=false;await press('notice-submit-review');el('notice-save-draft').disabled=false;await press('notice-save-draft');
- check(calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length===submittedWrites,'duplicate and forced submit cause no write');
- el('notice-body').value+='\n보완 내용';el('notice-body').dispatchEvent(new Event('input',{bubbles:true}));
- check(!el('notice-submit-review').disabled&&!el('notice-save-draft').disabled,'editing unlocks resubmission');
- await press('notice-submit-review');
- check(calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length===submittedWrites+2&&el('notice-submit-review').disabled,'only edited resubmission uses existing save and review once');
- window.TaejangNoticeAdmin.setView('manage');await wait();
- const submittedCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='직원 공지'&&card.textContent.includes('운영총괄 검토 대기'));
- submittedCard.querySelector('button').click();await wait();check(el('notice-submit-review').disabled,'reopened submitted notice stays waiting');
- await photo(1);check(!el('notice-submit-review').disabled,'photo addition is an edit eligible for resubmission');
- const publishCalls=calls.filter(c=>c.name==='save_notice'&&c.args.p_status==='published').length;
- el('notice-publish').hidden=false;await press('notice-publish');check(calls.filter(c=>c.name==='save_notice'&&c.args.p_status==='published').length===publishCalls,'forged lead publish click guarded');
+ role='promotion_lead';await start();
+ check(!el('notice-publish').hidden&&!el('notice-submit-review').hidden&&el('notice-scope').value==='company','lead routine company direct and optional review');
+ await press('notice-publish');check(msg().includes('일상 안내인지 확인'),'routine declaration required');
+ el('notice-routine-confirm').checked=true;await press('notice-publish');
+ check(rows.at(-1).status==='published'&&rows.at(-1).lead_notice_mode==='routine','lead direct publish through dedicated rpc');
+ check(calls.filter(c=>c.name==='save_lead_notice').slice(-2).map(c=>c.args.p_status).join(',')==='draft,published','lead private photos then final publish');
+ const exactTime=rows.at(-1).publish_start_at;el('notice-body').value+=' 정정';el('notice-body').dispatchEvent(new Event('input',{bubbles:true}));el('notice-routine-confirm').checked=true;await press('notice-save-existing');check(rows.at(-1).status==='published'&&rows.at(-1).publish_start_at===exactTime,'lead edit preserves status and exact start');
+ el('notice-status').value='inactive';el('notice-status').dispatchEvent(new Event('change',{bubbles:true}));el('notice-routine-confirm').checked=true;await press('notice-save-existing');check(rows.at(-1).status==='inactive','lead stop supported');
+ await start();el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change',{bubbles:true}));el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(new Date(Date.now()+86400000));el('notice-publish-start-time').value='17:30';el('notice-routine-confirm').checked=true;await press('notice-publish');check(msg().includes('게시 예약됨')&&rows.at(-1).publish_start_at.includes('17:30'),'lead reservation');
+ for(const kind of ['safety','working_hours','holiday','work_location']){await start();el('notice-kind').value=kind;el('notice-kind').dispatchEvent(new Event('change',{bubbles:true}));check(el('notice-publish').hidden&&!el('notice-submit-review').hidden,'sensitive classification keeps review '+kind);}
+ await start();el('notice-importance').value='important';el('notice-importance').dispatchEvent(new Event('change',{bubbles:true}));check(el('notice-publish').hidden,'important requires review');
+ el('notice-importance').value='normal';el('notice-requires-ack').checked=true;el('notice-requires-ack').dispatchEvent(new Event('change',{bubbles:true}));check(el('notice-publish').hidden,'ack requires review');
+ await start();el('notice-kind').value='safety';el('notice-kind').dispatchEvent(new Event('change',{bubbles:true}));await press('notice-submit-review');check(rows.at(-1).status==='draft'&&rows.at(-1).review_state==='submitted'&&msg().includes('운영총괄 검토 대기'),'sensitive company review uses existing submit');
+ const submittedWrites=calls.filter(c=>['save_notice','save_lead_notice','submit_notice_for_operations_review'].includes(c.name)).length;
+ check(el('notice-submit-review').disabled&&el('notice-save-draft').disabled,'submitted record readonly');
+ await press('notice-submit-review');el('notice-submit-review').disabled=false;await press('notice-submit-review');check(calls.filter(c=>['save_notice','save_lead_notice','submit_notice_for_operations_review'].includes(c.name)).length===submittedWrites,'duplicate submitted write blocked');
+ el('notice-body').value+='無断';el('notice-body').dispatchEvent(new Event('input',{bubbles:true}));check(el('notice-save-draft').disabled,'submitted manuscript cannot be casually overwritten');
+ const publishCalls=calls.filter(c=>c.name==='save_lead_notice'&&c.args.p_status==='published').length;el('notice-publish').hidden=false;el('notice-publish').disabled=false;await press('notice-publish');check(calls.filter(c=>c.name==='save_lead_notice'&&c.args.p_status==='published').length===publishCalls,'submitted forced publish blocked');
+ await start();await photo(2);failUploadAt=uploadCount+2;el('notice-routine-confirm').checked=true;await press('notice-publish');const leadFailedId=el('notice-id').value;check(rows.at(-1).status==='draft'&&leadFailedId&&msg().includes('공개·상신하지 않았습니다'),'lead upload failure stays draft');failUploadAt=0;el('notice-routine-confirm').checked=true;await press('notice-publish');check(el('notice-id').value===leadFailedId&&rows.at(-1).media.length===2,'lead upload retry no duplicate');
+ await window.TaejangIssue207Ux.openInformationHub();check(!el('dashboard-main').querySelector('form')&&el('dashboard-main').textContent.includes('기존 대기 공지')&&el('dashboard-main').textContent.includes('기존 승인 이력'),'legacy new composer removed, pending/history retained');
+ let canonicalEntry=false;document.addEventListener('taejang-open-app-panel',event=>{if(event.detail.id==='notice-admin-panel')canonicalEntry=true;},{once:true});[...el('dashboard-main').querySelectorAll('button')].find(b=>b.textContent==='새 공지 작성').click();check(canonicalEntry,'legacy new entry routes to existing notice-admin');
+ [...el('dashboard-main').querySelectorAll('button')].find(b=>b.textContent==='보완해서 다시 상신').click();await wait();check(!!el('dashboard-main').querySelector('form')&&el('dashboard-main').textContent.includes('보완 후 다시 상신'),'legacy changes_requested still editable');
+ role='operations_manager';await window.TaejangIssue207Ux.openInformationHub();check([...el('dashboard-main').querySelectorAll('button')].some(b=>b.textContent==='승인·게시'),'legacy operations pending approval retained');
  role='super_admin';await start();check(!el('notice-publish').hidden,'super admin publish action');check(el('notice-kind').value==='general','each new notice resets kind');el('notice-kind').value='safety';el('notice-title-input').value='기존 안전 공지';await press('notice-save-draft');window.TaejangNoticeAdmin.setView('manage');await wait();const safetyCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='기존 안전 공지');safetyCard.querySelector('button').click();await wait();check(el('notice-kind').value==='safety','editing preserves original kind');
+ role='general_worker';el('notice-admin-panel').hidden=true;
+ document.body.append(source.getElementById('notice-screen'),source.getElementById('open-notice-list'));
+ const workerScript=document.createElement('script');workerScript.src=document.querySelector('script[src$="notice-admin.js"]').src.replace('notice-admin.js','notice-worker.js');await new Promise((resolve,reject)=>{workerScript.onload=resolve;workerScript.onerror=reject;document.body.append(workerScript);});
+ document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'general_worker'}}));
+ document.dispatchEvent(new CustomEvent('taejang-open-notice',{detail:{id:leadFailedId,fromToday:false}}));await wait();
+ check(el('notice-detail-title').textContent==='직원 공지'&&el('notice-detail-content').textContent.includes('첫 문단'),'employee renderer receives routine notice');
+ check(el('notice-detail-content').querySelector('.notice-body').compareDocumentPosition(el('notice-detail-content').querySelector('.notice-photo-gallery'))&Node.DOCUMENT_POSITION_FOLLOWING,'employee body before photos preserved');
+ check(el('notice-detail-content').querySelectorAll('.notice-photo-gallery img').length===2&&!el('notice-ack-slot').textContent,'routine photo order and acknowledgement-free employee view');
+ check(document.body.scrollWidth<=innerWidth+2,'employee notice fits viewport');
  const canvas=document.createElement('canvas');canvas.width=2400;canvas.height=1800;const ctx=canvas.getContext('2d');ctx.fillStyle='#008800';ctx.fillRect(0,0,2400,1800);
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const optimized=await realMedia.optimizeForUpload(new File([blob],'large.png',{type:'image/png'}));
  const bitmap=await createImageBitmap(optimized);check(bitmap.width<=1600&&bitmap.height<=1600&&optimized.size<=2*1024*1024,'real existing photo compression');bitmap.close();
