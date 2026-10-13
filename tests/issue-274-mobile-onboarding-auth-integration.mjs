@@ -115,38 +115,93 @@ sql(`insert into public.people(id,full_name) values('${existingPersonId}'::uuid,
 sql(`insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required)
      values('${existingEmployeeUuid}'::uuid,'TJ-274001','${existingPersonId}'::uuid,'${departmentId}'::uuid,'${positionId}'::uuid,'2026-09-01',true)`);
 
-const approval = await rpc('approve_employee_signup_request', lead, {
+const employeeCountBefore = sql('select count(*) from public.employees');
+const personCountBefore = sql('select count(*) from public.people');
+const candidates = await rpc('list_existing_employee_signup_candidates', lead);
+check(candidates.ok && candidates.data.some(e => e.employee_uuid === existingEmployeeUuid && e.employee_id === 'TJ-274001'),
+  'lead sees minimally scoped existing unlinked employee option');
+check(!candidates.data.some(e => 'rrn' in e || 'phone' in e || 'salary' in e || 'photo' in e),
+  'candidate list does not disclose RRN, phone, salary or private media');
+
+const duplicateCreate = await rpc('approve_employee_signup_request', lead, {
   p_target_profile_id: applicant.id,
   p_department_id: departmentId,
   p_position_id: positionId,
   p_role_code: 'general_worker',
   p_attendance_required: true,
-  p_reason_summary: 'Issue274 신입 가입 승인 통합테스트',
+  p_reason_summary: 'must never create another Employee for an existing worker'
 });
-check(approval.ok && approval.data?.code === 'EMPLOYEE_SIGNUP_APPROVED', 'lead approves new hire atomically');
-check(approval.data?.employee_uuid && approval.data.employee_uuid !== existingEmployeeUuid, 'same-name existing Employee is not silently matched');
-check(/^TJ-\d+$/.test(approval.data?.employee_id || ''), 'server issues employee_id');
-equal(sql(`select account_status::text from public.profiles where id='${applicant.id}'::uuid`), 'active', 'approved applicant becomes active');
-equal(sql(`select count(*) from public.account_person_links where profile_id='${applicant.id}'::uuid and revoked_at is null`), '1', 'approved account has one Person link');
-equal(sql(`select count(*) from public.employees e join public.account_person_links l on l.person_id=e.person_id where l.profile_id='${applicant.id}'::uuid and e.id='${approval.data.employee_uuid}'::uuid`), '1', 'approval-created Employee is linked');
-equal(sql(`select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='${applicant.id}'::uuid and pr.revoked_at is null and r.code='general_worker'`), '1', 'safe role is assigned');
+check(duplicateCreate.ok && duplicateCreate.data?.code === 'EXISTING_EMPLOYEE_LINK_REQUIRED',
+  'lead cannot create any new Employee via mobile signup approval');
+equal(sql('select count(*) from public.employees'),employeeCountBefore,'blocked create preserves employee count');
+
+const mismatchRejected = await rpc('approve_existing_employee_signup_request', lead, {
+  p_target_profile_id: applicant.id,
+  p_employee_uuid: existingEmployeeUuid,
+  p_role_code: 'general_worker',
+  p_confirm_employee_id: 'TJ-274001',
+  p_identity_mismatch_confirmed: false,
+  p_reason_summary: '가입 신청 입사일과 기존 기록 차이 확인'
+});
+check(!mismatchRejected.ok,'lead cannot link mismatched hired-on without explicit confirmation');
+equal(sql(`select account_status::text from public.profiles where id='${applicant.id}'::uuid`),
+  'pending','mismatch rejection leaves applicant pending');
+
+const wrongEmployeeNo = await rpc('approve_existing_employee_signup_request', lead, {
+  p_target_profile_id: applicant.id,
+  p_employee_uuid: existingEmployeeUuid,
+  p_role_code: 'general_worker',
+  p_confirm_employee_id: 'TJ-INCORRECT',
+  p_identity_mismatch_confirmed: true,
+  p_reason_summary: '입사일 재확인'
+});
+check(!wrongEmployeeNo.ok,'wrong employee number cannot link account');
+
+const approval = await rpc('approve_existing_employee_signup_request', lead, {
+  p_target_profile_id: applicant.id,
+  p_employee_uuid: existingEmployeeUuid,
+  p_role_code: 'general_worker',
+  p_confirm_employee_id: 'TJ-274001',
+  p_identity_mismatch_confirmed: true,
+  p_reason_summary: '기존 기록 입사일과 신청 입사일 차이를 확인한 계정 연결'
+});
+check(approval.ok && approval.data?.code === 'EMPLOYEE_ACCOUNT_APPROVED',
+  'lead approves an existing employee without creating another');
+equal(approval.data?.employee_uuid,existingEmployeeUuid,'same existing Employee used');
+equal(approval.data?.employee_id,'TJ-274001','same immutable employee number used');
+equal(sql('select count(*) from public.employees'),employeeCountBefore,'linking creates no Employee');
+equal(sql('select count(*) from public.people'),personCountBefore,'linking creates no Person');
+equal(sql(`select account_status::text from public.profiles where id='${applicant.id}'::uuid`),
+  'active','linked applicant becomes active');
+equal(sql(`select count(*) from public.account_person_links where profile_id='${applicant.id}'::uuid and person_id='${existingPersonId}'::uuid and revoked_at is null`),
+  '1','applicant links to correct existing Person');
+equal(sql(`select count(*) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='${applicant.id}'::uuid and pr.revoked_at is null and r.code='general_worker'`),
+  '1','safe worker role assigned');
+const remaining = await rpc('list_existing_employee_signup_candidates',lead);
+check(!remaining.data.some(e=>e.employee_uuid===existingEmployeeUuid),'linked employee removed from candidate list');
+check(!(await rpc('approve_existing_employee_signup_request',lead,{
+  p_target_profile_id:applicant.id,p_employee_uuid:existingEmployeeUuid,
+  p_role_code:'general_worker',p_confirm_employee_id:'TJ-274001'})).ok,
+  'cannot approve the already active signup a second time');
 
 const unsafeApplicant = await signup(
   'issue274-unsafe-' + unique + '@example.test',
   'Issue274 권한차단',
-  { phone: '010-9999-0000', hired_on: '2026-09-22', signup_channel: 'native_employee' },
+  { phone: '010-9999-0000', hired_on: '2026-09-22', signup_channel: 'native_employee' }
 );
-const unsafe = await rpc('approve_employee_signup_request', lead, {
+const unsafe = await rpc('approve_existing_employee_signup_request', lead, {
   p_target_profile_id: unsafeApplicant.id,
-  p_department_id: departmentId,
-  p_position_id: positionId,
+  p_employee_uuid: existingEmployeeUuid,
   p_role_code: 'promotion_lead',
-  p_attendance_required: true,
-  p_reason_summary: '권한 차단 테스트',
+  p_confirm_employee_id: 'TJ-274001',
+  p_identity_mismatch_confirmed: true,
+  p_reason_summary: '승격 차단 시험'
 });
-check(unsafe.ok && unsafe.data?.code === 'ROLE_NOT_ASSIGNABLE', 'promotion lead cannot grant promotion_lead');
-equal(sql(`select account_status::text from public.profiles where id='${unsafeApplicant.id}'::uuid`), 'pending', 'unsafe request stays pending');
-equal(sql(`select count(*) from public.account_person_links where profile_id='${unsafeApplicant.id}'::uuid and revoked_at is null`), '0', 'unsafe approval creates no link');
+check(!unsafe.ok,'promotion lead cannot grant promotion_lead via existing link endpoint');
+equal(sql(`select account_status::text from public.profiles where id='${unsafeApplicant.id}'::uuid`),
+  'pending','privilege escalation request leaves target pending');
+equal(sql(`select count(*) from public.account_person_links where profile_id='${unsafeApplicant.id}'::uuid and revoked_at is null`),
+  '0','unsafe request creates no link');
 
 const holiday = await rpc('set_attendance_holiday_work_assignment', lead, {
   p_employee_uuid: approval.data.employee_uuid,
