@@ -267,7 +267,7 @@ declare result jsonb;
 begin
  if public.private_notice_lead_actor() then
   if p_status is distinct from 'draft' then return jsonb_build_object('ok',false,'code','OPERATIONS_REVIEW_REQUIRED'); end if;
-  if p_target_scope='company' or (p_notice_id is not null and not public.current_user_can_manage_notice(p_notice_id)) then
+  if p_target_scope='company' or (p_notice_id is not null and (not public.current_user_can_manage_notice(p_notice_id) or exists(select 1 from public.notices where id=p_notice_id and (status<>'draft' or lead_notice_mode is not null)))) then
    return jsonb_build_object('ok',false,'code','FORBIDDEN_NOTICE_OWNERSHIP');
   end if;
  end if;
@@ -416,7 +416,7 @@ begin
 
   select * into item from public.notices where id = p_notice_id;
   if item.id is null then return false; end if;
-  if public.private_notice_lead_actor() and item.created_by=auth.uid() and (item.lead_notice_mode is not null or public.current_user_can_manage_today_target(item.target_scope,item.target_department_id,item.target_work_group_id,item.target_profile_id)) then return true; end if;
+  if public.private_notice_lead_actor() and item.created_by=auth.uid() and ((item.lead_notice_mode is not null and item.target_scope='company') or public.current_user_can_manage_today_target(item.target_scope,item.target_department_id,item.target_work_group_id,item.target_profile_id)) then return true; end if;
 
   return public.private_notice_is_current(item)
     and public.today_target_matches_current_user(
@@ -441,7 +441,7 @@ begin
   'can_lead_direct_publish',n.lead_notice_mode='routine' and public.current_user_can_manage_notice(n.id)
     and public.private_notice_is_routine(n.notice_kind,n.importance,n.requires_acknowledgement)) order by n.created_at desc)
   from (select * from public.notices x where x.created_by=auth.uid() and
-   (x.lead_notice_mode is not null or public.current_user_can_manage_today_target(x.target_scope,x.target_department_id,x.target_work_group_id,x.target_profile_id))
+   ((x.lead_notice_mode is not null and x.target_scope='company') or public.current_user_can_manage_today_target(x.target_scope,x.target_department_id,x.target_work_group_id,x.target_profile_id))
    order by x.created_at desc limit p_limit) n),'[]'::jsonb);
 end; $$;
 revoke all on function public.list_manageable_notices(integer) from public,anon;

@@ -208,6 +208,7 @@ refused(await leadSave({p_notice_id:promotionDraft.data.id,p_status:'published'}
 refused(await leadSave({p_notice_id:privateDraft.data.id,p_status:'inactive'}),'446 cannot stop someone elses legacy notice');
 refused(await rpc('save_notice',promotion.token,noticePayload({...target('company'),p_notice_id:ownedId,p_status:'draft'})),'446 old writer cannot downgrade direct published notice');
 refused(await leadSave({p_notice_id:ownedId,p_status:'draft'}),'446 dedicated writer cannot downgrade published notice');
+refused(await rpc('save_notice',promotion.token,noticePayload({...target('department',department('promotion')),p_notice_id:ownedId,p_status:'draft'})),'446 cannot launder direct notice through forged legacy department target');
 refused(await leadSave({p_notice_id:ownedId,p_status:'cancelled'}),'446 lead cannot forge arbitrary status');
 refused(await rpc('save_lead_notice',promotion.token,{...routinePayload({}),p_created_by:otherLead.id}),'446 cannot spoof creator parameter');
 const rawPatch=await request('/rest/v1/notices?id=eq.'+ownedId,{method:'PATCH',token:promotion.token,headers:{'Content-Type':'application/json'},body:JSON.stringify({lead_notice_mode:'routine',created_by:promotion.id})});check(!rawPatch.ok,'446 markers not client writable');
@@ -241,6 +242,9 @@ refused(await leadSave({p_notice_id:reviewId,p_status:'inactive'}),'446 creator 
 const reviewed=await rpc('list_manageable_notices',operations.token,{p_limit:200});check(reviewed.data.some(n=>n.id===reviewId&&n.review_state==='reviewed'&&n.reviewed_by===operations.id),'446 approval history preserved');
 const takeover=await rpc('save_notice',operations.token,noticePayload({...target('company'),p_notice_id:scheduledId,p_status:'published',p_notice_kind:'general',p_importance:'normal',p_requires_acknowledgement:false}));equal(takeover.data?.code,'NOTICE_SAVED','446 operations can take over direct notice');
 refused(await leadSave({p_notice_id:scheduledId,p_status:'inactive'}),'446 operations takeover revokes lead direct control');
+const retarget=await rpc('save_notice',operations.token,noticePayload({...target('profile',outsider.id),p_notice_id:scheduledId,p_status:'published'}));equal(retarget.data?.code,'NOTICE_SAVED','446 operations private retarget still works');
+const ownerListAfterRetarget=await rpc('list_manageable_notices',promotion.token,{p_limit:200});check(!ownerListAfterRetarget.data.some(n=>n.id===scheduledId),'446 origin ownership does not reveal operations private retarget');
+check(!(await request('/storage/v1/object/authenticated/notice-media/'+encodeURIComponent(privateMediaPath),{token:promotion.token})).ok,'446 origin ownership cannot read foreign private photo');
 const suspend=await rpc('change_account_status',adminToken,{p_target_profile_id:otherLead.id,p_new_status:'suspended',p_reason_summary:'446 isolated active guard'});equal(suspend.data?.code,'STATUS_CHANGED','446 suspend synthetic lead');
 refused(await rpc('save_lead_notice',otherLead.token,routinePayload({})),'446 inactive actor denied');
 console.log('NOTICE_446_ROUTINE_AUTH_PASS');

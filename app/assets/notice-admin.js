@@ -93,7 +93,7 @@
     ui.element('notice-publish').textContent = ui.element('notice-publish-mode').value === 'scheduled'
       && new Date(`${ui.element('notice-publish-start-date').value}T${ui.element('notice-publish-start-time').value || '00:00'}:00+09:00`) > new Date() ? '게시 예약' : '게시하기';
     ui.element('notice-edit-state').textContent = !draft
-      ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
+      ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
       : waiting ? '운영총괄 검토·승인 자료입니다. 운영팀장은 직접 수정·중지할 수 없습니다.'
       : isPromotionLead() ? direct ? '내 일상 공지입니다. 직접 게시·예약할 수 있습니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '이 분류·중요도·기존 원고는 운영총괄 검토가 필요합니다. 비공개 저장 후 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
     if (isPromotionLead() && !leadEditable) {
