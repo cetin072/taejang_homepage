@@ -315,6 +315,7 @@
     style.textContent = [
       '.phase-c-signup-approval-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:1100px;}',
       '.phase-c-signup-approval-card{min-width:0;min-height:0;gap:8px;padding:18px;}',
+      '.phase-c-signup-approval-card [hidden]{display:none!important;}',
       '.phase-c-signup-approval-card h3{margin:0;}',
       '.phase-c-signup-applicant{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0;padding:12px;border-radius:12px;background:#f7f8f4;}',
       '.phase-c-signup-applicant-item{display:grid;gap:3px;min-width:0;}',
