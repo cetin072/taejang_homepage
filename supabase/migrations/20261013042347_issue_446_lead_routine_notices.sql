@@ -433,6 +433,7 @@ revoke all on function public.private_list_manageable_notices_before446(integer)
 create function public.list_manageable_notices(p_limit integer default 200) returns jsonb
 language plpgsql stable security definer set search_path='' as $$
 begin
+ if not public.current_profile_is_active() or not public.private_actor_can('notice.manage') then raise exception using errcode='42501',message='FORBIDDEN'; end if;
  if not public.private_notice_lead_actor() then return public.private_list_manageable_notices_before446(p_limit); end if;
  if p_limit not between 1 and 500 then raise exception using errcode='22023',message='INVALID_LIMIT'; end if;
  return coalesce((select jsonb_agg(to_jsonb(n)||jsonb_build_object('media',public.private_notice_media_json(n.id),

@@ -12,6 +12,8 @@
   let activeView = 'manage';
   let savedStatus = 'draft';
   let reviewPending = false;
+  let leadMode = null;
+  let leadEditable = true;
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
@@ -20,6 +22,20 @@
   function route() { return app?.getRoute?.() || ''; }
   function isOperations() { return route() === 'operations_manager' || route() === 'super_admin'; }
   function isPromotionLead() { return route() === 'promotion_lead'; }
+
+  const ROUTINE_KINDS = new Set(['general','external_activity','training','transport','materials','clothing','company_life']);
+  function canLeadPublish() {
+    return isPromotionLead() && leadEditable && !reviewPending && leadMode !== 'review'
+      && (leadMode === 'routine' || !ui.element('notice-id').value)
+      && ui.element('notice-scope').value === 'company'
+      && ROUTINE_KINDS.has(ui.element('notice-kind').value)
+      && ui.element('notice-importance').value === 'normal' && !ui.element('notice-requires-ack').checked;
+  }
+  async function saveNotice(payload) {
+    const dedicated = isPromotionLead() && (payload.p_target_scope === 'company' || leadMode);
+    return app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
+      ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
+  }
 
   function showMessage(value, error = false) {
     ui.message('notice-admin-message', value, error);
@@ -31,7 +47,7 @@
 
   function renderOptions() {
     if (!options) return;
-    ui.fillScopeSelect(ui.element('notice-scope'), options);
+    ui.fillScopeSelect(ui.element('notice-scope'), { ...options, company_allowed: options.company_allowed || isPromotionLead() });
     updateTargets(ui.element('notice-target').value);
     ui.fillSelect(
       ui.element('notice-related-guide'),
@@ -42,30 +58,33 @@
     const status = ui.element('notice-status');
     const draftOnly = isPromotionLead() && !isOperations();
     [...status.options].forEach(option => { option.disabled = draftOnly && option.value !== 'draft'; });
-    if (draftOnly) status.value = 'draft';
+    if (draftOnly && savedStatus === 'draft') status.value = 'draft';
     updateActions();
   }
 
   function updateActions() {
     const draft = savedStatus === 'draft';
     ui.element('notice-save-draft').hidden = !draft;
-    ui.element('notice-publish').hidden = !draft || !isOperations();
-    const waiting = reviewPending && isPromotionLead();
+    const direct = canLeadPublish();
+    ui.element('notice-publish').hidden = !draft || !(isOperations() || direct);
+    ui.element('notice-routine-confirm-label').hidden = !direct;
+    ui.element('notice-routine-policy').hidden = !isPromotionLead();
+    const waiting = (reviewPending || !leadEditable) && isPromotionLead();
     ui.element('notice-submit-review').hidden = !draft || !isPromotionLead();
     ui.element('notice-submit-review').disabled = saving || waiting;
     ui.element('notice-save-draft').disabled = saving || waiting;
     ui.element('notice-submit-review').textContent = waiting ? '운영총괄 검토 대기' : '비공개 저장 후 운영총괄 상신';
     ui.element('notice-save-existing').hidden = draft;
-    ui.element('notice-management-settings').hidden = draft || !isOperations();
+    ui.element('notice-management-settings').hidden = draft || !(isOperations() || direct);
     [...ui.element('notice-status').options].forEach(option => {
-      option.disabled = !isOperations() ? option.value !== 'draft'
+      option.disabled = !isOperations() ? !(option.value === savedStatus || (direct && option.value === 'inactive'))
         : option.value !== savedStatus && !['published', 'cancelled', 'inactive'].includes(option.value);
     });
     const now = draft && ui.element('notice-publish-mode').value === 'now';
     ui.element('notice-publish-mode-label').hidden = !draft;
-    ui.element('notice-publish-mode-label').firstChild.textContent = isPromotionLead() ? '희망 게시 시각' : '게시 시각';
-    ui.element('notice-publish-mode').options[0].textContent = isPromotionLead() ? '검토 후 게시 (희망)' : '지금 게시';
-    ui.element('notice-publish-help').textContent = isPromotionLead()
+    ui.element('notice-publish-mode-label').firstChild.textContent = isPromotionLead() && !direct ? '희망 게시 시각' : '게시 시각';
+    ui.element('notice-publish-mode').options[0].textContent = isPromotionLead() && !direct ? '검토 후 게시 (희망)' : '지금 게시';
+    ui.element('notice-publish-help').textContent = isPromotionLead() && !direct
       ? '희망 시각은 초안에만 저장됩니다. 실제 게시·예약은 운영총괄이 검토 후 결정합니다.'
       : '지금 게시하면 확인 후 현재 한국 시각(KST)으로 게시합니다. 지정한 예약시각은 날짜·시간 지정에서 사용합니다.';
     for (const suffix of ['date', 'time']) {
@@ -75,11 +94,16 @@
       && new Date(`${ui.element('notice-publish-start-date').value}T${ui.element('notice-publish-start-time').value || '00:00'}:00+09:00`) > new Date() ? '게시 예약' : '게시하기';
     ui.element('notice-edit-state').textContent = !draft
       ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
-      : waiting ? '운영총괄 검토 대기입니다. 내용을 수정한 뒤 다시 상신할 수 있습니다.'
-      : isPromotionLead() ? '직원에게 비공개로 저장합니다. 게시하려면 운영총괄에게 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
+      : waiting ? '운영총괄 검토·승인 자료입니다. 운영팀장은 직접 수정·중지할 수 없습니다.'
+      : isPromotionLead() ? direct ? '내 일상 공지입니다. 직접 게시·예약할 수 있습니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '이 분류·중요도·기존 원고는 운영총괄 검토가 필요합니다. 비공개 저장 후 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
+    if (isPromotionLead() && !leadEditable) {
+      [...ui.element('notice-form').elements].forEach(node => { if (node.id !== 'reset-notice-form') node.disabled = true; });
+    }
   }
 
   function markReviewEdited() {
+    if (isPromotionLead() && !leadEditable) return;
+    ui.element('notice-routine-confirm').checked = false;
     reviewPending = false;
     updateActions();
   }
@@ -374,13 +398,14 @@
         ui.text('h3', item.title),
         ui.text('p', `게시 시작: ${ui.formatDateTime(item.publish_start_at)}`, 'help')
       );
+      if (item.lead_notice_mode) card.append(ui.text('p', item.lead_notice_mode === 'routine' ? '내 일상 공지 · 직접 게시 경로' : '운영총괄 검토 경로', 'help'));
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
       if (item.creator_display_name) card.append(ui.text('p', `작성: ${item.creator_display_name}`, 'help'));
 
-      const editLabel = isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
+      const editLabel = isPromotionLead() && item.can_lead_edit !== true ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
       card.append(button(editLabel, () => fillForm(item)), button('미리보기', () => previewItem(item)));
 
-      if (isPromotionLead() && item.status === 'draft') {
+      if (isPromotionLead() && item.status === 'draft' && item.can_lead_edit === true) {
         if (item.review_state === 'submitted') {
           const waiting = button('운영총괄 검토 대기', () => {});
           waiting.disabled = true;
@@ -396,7 +421,10 @@
   }
 
   function resetForm() {
+    [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
     ui.element('notice-form').reset();
+    leadMode = null;
+    leadEditable = true;
     ui.element('notice-id').value = '';
     clearMediaState();
     savedStatus = 'draft';
@@ -416,6 +444,10 @@
 
   function fillForm(item, { scrollTo = 'form' } = {}) {
     if (saving) return;
+    [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
+    leadMode = item.lead_notice_mode || null;
+    leadEditable = item.can_lead_edit === true;
+    ui.element('notice-routine-confirm').checked = false;
     savedStatus = item.status;
     reviewPending = item.review_state === 'submitted';
     savedPublishStart = item.publish_start_at;
@@ -545,6 +577,7 @@
   async function submit(event) {
     event.preventDefault();
     if (saving) return;
+    if (isPromotionLead() && !leadEditable) { showMessage('검토·승인된 자료는 직접 수정할 수 없습니다.', true); return; }
     const action = event.submitter?.value || (savedStatus === 'draft' ? 'draft' : 'save');
     if (isPromotionLead() && reviewPending && ['review', 'draft'].includes(action)) return;
     saving = true;
@@ -566,7 +599,7 @@
       const linkLabel = ui.element('notice-link-label').value.trim();
       const importance = ui.element('notice-importance').value;
       const requiresAcknowledgement = ui.element('notice-requires-ack').checked;
-      if (action === 'publish' && !isOperations()) throw new Error('OPERATIONS_REVIEW_REQUIRED');
+      if (action === 'publish' && !(isOperations() || canLeadPublish())) throw new Error('OPERATIONS_REVIEW_REQUIRED');
       const status = action === 'publish' ? 'published' : savedStatus === 'draft' ? 'draft'
         : ['published', 'cancelled', 'inactive'].includes(ui.element('notice-status').value) ? ui.element('notice-status').value : savedStatus;
       const defaultReason = status === 'inactive'
@@ -575,6 +608,7 @@
           ? '공지 취소'
           : '공지 작성·수정';
       const reason = ui.element('notice-reason').value.trim() || defaultReason;
+      if (isPromotionLead() && status !== 'draft' && !ui.element('notice-routine-confirm').checked) throw new Error('ROUTINE_CONFIRM_REQUIRED');
       if (Boolean(linkUrl) !== Boolean(linkLabel)) throw new Error('LINK_PAIR_REQUIRED');
       if (linkUrl && !ui.safeHttpsUrl(linkUrl)) throw new Error('INVALID_HTTPS_LINK');
       if (requiresAcknowledgement && importance === 'normal') throw new Error('IMPORTANT_ACK_ONLY');
@@ -592,7 +626,7 @@
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
       if (action === 'publish' || status !== savedStatus) {
         const targetLabel = [ui.element('notice-scope').selectedOptions[0]?.textContent, ui.element('notice-target').selectedOptions[0]?.textContent].filter(Boolean).join(' · ');
-        if (!window.confirm(`${ui.element('notice-title-input').value}\n대상: ${targetLabel}\n게시 시작: ${ui.formatDateTime(publishStart)} (KST)\n게시 종료: ${publishEnd ? ui.formatDateTime(publishEnd) : '종료 없음'}\n${status === 'published' ? new Date(publishStart) > new Date() ? '이 시각에 게시를 예약할까요?' : '직원에게 지금 게시할까요?' : '공지 ' + ui.STATUS[status] + '를 적용할까요?'}`)) return;
+        if (!window.confirm(`${ui.element('notice-title-input').value}\n대상: ${targetLabel}\n분류: ${ui.NOTICE_KINDS[ui.element('notice-kind').value]} · ${ui.IMPORTANCE[importance]}\n게시 시작: ${ui.formatDateTime(publishStart)} (KST)\n게시 종료: ${publishEnd ? ui.formatDateTime(publishEnd) : '종료 없음'}\n${status === 'published' ? new Date(publishStart) > new Date() ? '이 시각에 게시를 예약할까요?' : '직원에게 지금 게시할까요?' : '공지 ' + ui.STATUS[status] + '를 적용할까요?'}`)) return;
       }
       controls = [...ui.element('notice-form').elements].map(node => [node, node.disabled]);
       controls.forEach(([node]) => { node.disabled = true; });
@@ -618,7 +652,7 @@
         p_change_reason: reason,
       };
       // A new/unpublished notice stays private until every photo is registered.
-      const result = await app.rpc('save_notice', { ...payload, p_status: previousStatus === 'draft' ? 'draft' : status });
+      const result = await saveNotice({ ...payload, p_status: previousStatus === 'draft' ? 'draft' : status });
       if (!result?.ok) throw new Error(result?.code || 'SAVE_FAILED');
 
       // Persist the saved id before photo work starts. If a later upload/RPC
@@ -626,6 +660,7 @@
       // creating a duplicate notice.
       ui.element('notice-id').value = result.id;
       bodySaved = true;
+      leadMode = result.lead_notice_mode || leadMode;
       savedStatus = previousStatus === 'draft' ? 'draft' : status;
       ui.element('notice-status').value = savedStatus;
       try {
@@ -639,7 +674,7 @@
       let reviewState = '';
       if (action === 'publish') {
         publicationUncertain = true;
-        const published = await app.rpc('save_notice', { ...payload, p_notice_id: result.id, p_status: 'published' });
+        const published = await saveNotice({ ...payload, p_notice_id: result.id, p_status: 'published' });
         publicationUncertain = false;
         if (!published?.ok) throw new Error(published?.code || 'PUBLISH_FAILED');
         savedStatus = 'published';
@@ -649,6 +684,7 @@
         if (!submitted?.ok) throw new Error(submitted?.code || 'SUBMIT_FAILED');
         reviewState = 'submitted';
         reviewPending = true;
+        if (isPromotionLead()) leadEditable = false;
       }
       ui.element('notice-status').value = savedStatus;
       savedPublishStart = publishStart;
@@ -662,7 +698,8 @@
       await renderPreview();
       await app.refreshToday().catch(() => {});
     } catch (error) {
-      const message = error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
+      const message = error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
+        : error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
         ? `${savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 반영됐을 수 있습니다. ' : '현재 공지는 직원 비공개로 유지됩니다. '}사진 등록 여부를 확인하지 못해 추가 등록과 파일 삭제를 중단했습니다. 업로드 파일·입력·공지 ID를 보존했습니다.`
         : error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'
         : error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
@@ -724,7 +761,8 @@
       showMessage('필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
     ui.element('notice-form').addEventListener('change', event => {
-      if (event.target.id !== 'notice-photo-input') markReviewEdited();
+      if (event.target.id === 'notice-routine-confirm') updateActions();
+      else if (event.target.id !== 'notice-photo-input') markReviewEdited();
     });
     ui.element('reset-notice-form').addEventListener('click', () => {
       if (saving) return;
@@ -737,7 +775,8 @@
     ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', event => {
-      if (event.target.id !== 'notice-photo-input') markReviewEdited();
+      if (event.target.id === 'notice-routine-confirm') updateActions();
+      else if (event.target.id !== 'notice-photo-input') markReviewEdited();
       void renderPreview();
     });
   }

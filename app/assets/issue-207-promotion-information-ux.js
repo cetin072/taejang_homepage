@@ -251,7 +251,7 @@
     const isOperations = can('information.review', ['operations_manager']);
     const target = setPage('공지 관리', '공지', isOperations
       ? '운영팀장이 상신한 공지를 검토하고 승인·게시합니다.'
-      : '새 공지를 작성해 운영총괄에게 상신합니다. 운영팀장은 직접 게시할 수 없습니다.');
+      : '기존 공지 상신·보완·처리 이력을 확인합니다. 새 공지는 통합 공지 작성기를 사용하세요.');
     if (!target) return;
     const loading = text('p', '공지 상신 내역을 불러오고 있습니다.', 'message');
     target.append(loading);
@@ -261,7 +261,10 @@
       if (!isOperations) {
         const edit = requests.find(item => item.id === informationEditingId && item.status === 'changes_requested');
         const composer = document.createElement('section'); composer.className = 'dashboard-section promotion-composer';
-        composer.append(text('h2', edit ? '보완 후 다시 상신' : '새 공지 작성'), informationForm(edit || null));
+        if (edit) composer.append(text('h2', '보완 후 다시 상신'), informationForm(edit));
+        else composer.append(text('p', '새 직원 공지는 통합 작성기에서 작성합니다.'), button('새 공지 작성', () => {
+          document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id: 'notice-admin-panel', view: 'create' } }));
+        }));
         target.append(composer);
       }
       const section = document.createElement('section'); section.className = 'dashboard-section';

@@ -198,6 +198,9 @@ refused(await leadSave({p_notice_id:ownedId,p_requires_acknowledgement:true,p_st
 refused(await leadSave({p_notice_id:ownedId,p_status:'published',p_confirm_routine:false}),'446 affirmative routine confirmation required');
 for(const scope of ['department','work_group','profile'])refused(await leadSave({...target(scope,department('promotion'))}),'446 rejects noncompany target '+scope);
 refused(await leadSave({p_target_department_id:department('promotion')}),'446 mismatched company ids denied');
+refused(await leadSave({p_related_schedule_id:otherLead.id}),'446 forged related schedule denied');
+refused(await leadSave({p_related_work_guide_id:otherLead.id}),'446 forged related guide denied');
+refused(await rpc('save_lead_notice',undefined,routinePayload({})),'446 anonymous writer denied');
 refused(await rpc('save_lead_notice',recipient.token,routinePayload({})),'446 employee cannot call guarded writer');
 refused(await rpc('save_lead_notice',operations.token,routinePayload({})),'446 operations uses unchanged original writer');
 refused(await rpc('save_lead_notice',otherLead.token,routinePayload({p_notice_id:ownedId,p_status:'inactive'})),'446 other lead cannot stop own direct notice');
