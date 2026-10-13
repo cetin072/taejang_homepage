@@ -8,7 +8,7 @@ const realMedia=window.TaejangNoticeMedia;
 // Load the real form rather than keeping a second markup owner in the fixture.
 const xhr=new XMLHttpRequest();xhr.open('GET','../../app/index.html',false);xhr.send();
 const source=new DOMParser().parseFromString(xhr.responseText,'text/html');
-const panel=source.getElementById('notice-admin-panel');panel.hidden=false;document.body.append(panel);
+const panel=source.getElementById('notice-admin-panel');panel.hidden=false;const shell=document.createElement('div');shell.id='desktop-app-shell';shell.append(panel);document.body.append(shell);
 let role='operations_manager', failUploadAt=0, uploadCount=0, failPublish=false, failList=false, confirmAnswer=true, version=0, serial=0;
 const rows=[],calls=[],confirmations=[];
 window.confirm=message=>{confirmations.push(message);return confirmAnswer};

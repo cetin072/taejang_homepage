@@ -142,7 +142,7 @@ check(!draftRead.ok, '444 draft not exposed to recipient before photos/publish')
 const scheduledLead = await rpc('save_notice', promotion.token, noticePayload({ ...uxTarget, p_status: 'published', p_publish_start_at: new Date(Date.now()+86400000).toISOString() }));
 equal(scheduledLead.data?.code, 'OPERATIONS_REVIEW_REQUIRED', '444 server rejects lead scheduled publication too');
 const futureTime = new Date(Date.now()+86400000).toISOString();
-const reserved = await rpc('save_notice', operations.token, noticePayload({ ...uxTarget, p_notice_id: privateDraft.data.id, p_status: 'published', p_publish_start_at: futureTime }));
+const reserved = await rpc('save_notice', operations.token, noticePayload({ ...uxTarget, p_notice_id: privateDraft.data.id, p_status: 'published', p_publish_start_at: futureTime, p_publish_end_at: new Date(Date.now()+172800000).toISOString() }));
 equal(reserved.data?.code, 'NOTICE_SAVED', '444 operations schedules draft with same id');
 const earlyRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
 check(!earlyRead.ok, '444 reserved notice unavailable before its start');
