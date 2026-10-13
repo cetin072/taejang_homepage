@@ -11,6 +11,7 @@
   let previewGeneration = 0;
   let activeView = 'manage';
   let savedStatus = 'draft';
+  let reviewPending = false;
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
@@ -49,7 +50,11 @@
     const draft = savedStatus === 'draft';
     ui.element('notice-save-draft').hidden = !draft;
     ui.element('notice-publish').hidden = !draft || !isOperations();
+    const waiting = reviewPending && isPromotionLead();
     ui.element('notice-submit-review').hidden = !draft || !isPromotionLead();
+    ui.element('notice-submit-review').disabled = saving || waiting;
+    ui.element('notice-save-draft').disabled = saving || waiting;
+    ui.element('notice-submit-review').textContent = waiting ? '운영총괄 검토 대기' : '비공개 저장 후 운영총괄 상신';
     ui.element('notice-save-existing').hidden = draft;
     ui.element('notice-management-settings').hidden = draft || !isOperations();
     [...ui.element('notice-status').options].forEach(option => {
@@ -70,7 +75,13 @@
       && new Date(`${ui.element('notice-publish-start-date').value}T${ui.element('notice-publish-start-time').value || '00:00'}:00+09:00`) > new Date() ? '게시 예약' : '게시하기';
     ui.element('notice-edit-state').textContent = !draft
       ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
+      : waiting ? '운영총괄 검토 대기입니다. 내용을 수정한 뒤 다시 상신할 수 있습니다.'
       : isPromotionLead() ? '직원에게 비공개로 저장합니다. 게시하려면 운영총괄에게 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
+  }
+
+  function markReviewEdited() {
+    reviewPending = false;
+    updateActions();
   }
 
   function exposureLabel(item) {
@@ -138,6 +149,7 @@
     const next = index + direction;
     if (next < 0 || next >= mediaItems.length) return;
     [mediaItems[index], mediaItems[next]] = [mediaItems[next], mediaItems[index]];
+    markReviewEdited();
     void renderMediaEditor();
     void renderPreview();
   }
@@ -148,6 +160,7 @@
     if (item.kind === 'existing') removedMedia.push(item);
     if (item.kind === 'pending' && item.signed_url) URL.revokeObjectURL(item.signed_url);
     mediaItems.splice(index, 1);
+    markReviewEdited();
     void renderMediaEditor();
     void renderPreview();
   }
@@ -273,12 +286,14 @@
         p_reason: reason.trim(),
       });
       if (!result?.ok) throw new Error(result?.code || 'SUBMIT_FAILED');
+      if (ui.element('notice-id').value === item.id) reviewPending = true;
       await load({ preserveMessage: true });
       showMessage('운영총괄 검토 대기 — 직원 비공개');
     } catch {
       showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
     } finally {
       saving = false;
+      updateActions();
     }
   }
 
@@ -385,6 +400,8 @@
     ui.element('notice-id').value = '';
     clearMediaState();
     savedStatus = 'draft';
+    reviewPending = false;
+    ui.element('notice-kind').value = 'general';
     savedPublishStart = null;
     publicationUncertain = false;
     setDateTime('notice-publish-start', new Date());
@@ -400,6 +417,7 @@
   function fillForm(item, { scrollTo = 'form' } = {}) {
     if (saving) return;
     savedStatus = item.status;
+    reviewPending = item.review_state === 'submitted';
     savedPublishStart = item.publish_start_at;
     publicationUncertain = false;
     ui.element('notice-publish-mode').value = 'scheduled';
@@ -490,7 +508,9 @@
         // Keep successful registrations as existing media before the next upload.
         const uploaded = item.uploaded || await api.upload(noticeId, item.file);
         if (item.uploaded) {
-          const rows = await app.rpc('list_manageable_notices', { p_limit: 200 });
+          const rows = await app.rpc('list_manageable_notices', { p_limit: 200 }).catch(() => {
+            throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
+          });
           const registered = ui.array(rows).find(row => row.id === noticeId)?.media?.find(photo => photo.storage_path === uploaded.storage_path);
           if (registered) {
             URL.revokeObjectURL(item.signed_url);
@@ -498,6 +518,9 @@
             index -= 1;
             continue;
           }
+          // A capped/filtered list cannot prove that registration failed.
+          // Never re-register or delete an object whose result is uncertain.
+          throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
         }
         item.uploaded = uploaded;
         const result = await app.rpc('add_notice_media', {
@@ -506,11 +529,10 @@
           p_mime_type: uploaded.mime_type,
           p_alt_text: item.alt_text.trim(),
           p_display_order: index,
-        });
+        }).catch(() => { throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN'); });
         if (!result?.ok) {
-          await api.remove(uploaded.storage_path).catch(() => {});
-          delete item.uploaded;
-          throw new Error(result?.code || 'NOTICE_MEDIA_REGISTER_FAILED');
+          // Preserve the uploaded object even on an ambiguous/conflicting response.
+          throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
         }
         URL.revokeObjectURL(item.signed_url);
         Object.assign(item, existingMedia({ ...uploaded, id: result.id, alt_text: item.alt_text }));
@@ -523,8 +545,9 @@
   async function submit(event) {
     event.preventDefault();
     if (saving) return;
-    saving = true;
     const action = event.submitter?.value || (savedStatus === 'draft' ? 'draft' : 'save');
+    if (isPromotionLead() && reviewPending && ['review', 'draft'].includes(action)) return;
+    saving = true;
     let previousStatus = savedStatus;
     let bodySaved = false;
     let controls = [];
@@ -608,7 +631,8 @@
       try {
         await persistMedia(result.id, reason);
       } catch (mediaError) {
-        const partialError = new Error('NOTICE_SAVED_MEDIA_FAILED');
+        const partialError = new Error(mediaError.message === 'NOTICE_MEDIA_REGISTRATION_UNKNOWN'
+          ? 'NOTICE_SAVED_MEDIA_UNCERTAIN' : 'NOTICE_SAVED_MEDIA_FAILED');
         partialError.cause = mediaError;
         throw partialError;
       }
@@ -624,6 +648,7 @@
         const submitted = await app.rpc('submit_notice_for_operations_review', { p_notice_id: result.id, p_reason: reason });
         if (!submitted?.ok) throw new Error(submitted?.code || 'SUBMIT_FAILED');
         reviewState = 'submitted';
+        reviewPending = true;
       }
       ui.element('notice-status').value = savedStatus;
       savedPublishStart = publishStart;
@@ -637,7 +662,9 @@
       await renderPreview();
       await app.refreshToday().catch(() => {});
     } catch (error) {
-      const message = error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'
+      const message = error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
+        ? `${savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 반영됐을 수 있습니다. ' : '현재 공지는 직원 비공개로 유지됩니다. '}사진 등록 여부를 확인하지 못해 추가 등록과 파일 삭제를 중단했습니다. 업로드 파일·입력·공지 ID를 보존했습니다.`
+        : error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'
         : error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
         : error.message.includes('DATE_TIME') ? '게시 날짜와 시간을 함께 입력해주세요.'
           : error.message === 'LINK_PAIR_REQUIRED' ? '링크 표시명과 HTTPS 주소를 함께 입력해주세요.'
@@ -655,7 +682,7 @@
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
       showMessage(publicationUncertain
         ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
-        : bodySaved && error.message !== 'NOTICE_SAVED_MEDIA_FAILED'
+        : bodySaved && !['NOTICE_SAVED_MEDIA_FAILED', 'NOTICE_SAVED_MEDIA_UNCERTAIN'].includes(error.message)
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
       ui.element('notice-additional-settings').open = true;
     } finally {
@@ -678,6 +705,7 @@
         api.validateFile(file);
         mediaItems.push(pendingMedia(file));
       });
+      markReviewEdited();
       void renderMediaEditor();
       void renderPreview();
     } catch (error) {
@@ -695,8 +723,9 @@
       if (details) details.open = true;
       showMessage('필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
-    ui.element('notice-publish-mode').addEventListener('change', updateActions);
-    ui.element('notice-form').addEventListener('change', updateActions);
+    ui.element('notice-form').addEventListener('change', event => {
+      if (event.target.id !== 'notice-photo-input') markReviewEdited();
+    });
     ui.element('reset-notice-form').addEventListener('click', () => {
       if (saving) return;
       resetForm();
@@ -707,7 +736,10 @@
     ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
     ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
-    ui.element('notice-form').addEventListener('input', () => { void renderPreview(); });
+    ui.element('notice-form').addEventListener('input', event => {
+      if (event.target.id !== 'notice-photo-input') markReviewEdited();
+      void renderPreview();
+    });
   }
 
   function canManageNotices() {

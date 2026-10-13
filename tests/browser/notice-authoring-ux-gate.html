@@ -10,13 +10,14 @@ const xhr=new XMLHttpRequest();xhr.open('GET','../../app/index.html',false);xhr.
 const source=new DOMParser().parseFromString(xhr.responseText,'text/html');
 const panel=source.getElementById('notice-admin-panel');panel.hidden=false;const shell=document.createElement('div');shell.id='desktop-app-shell';shell.append(panel);document.body.append(shell);
 let role='operations_manager', failUploadAt=0, uploadCount=0, failPublish=false, failList=false, confirmAnswer=true, version=0, serial=0;
-const rows=[],calls=[],confirmations=[];
+const rows=[],calls=[],confirmations=[],removedFiles=[];
+let loseMediaResponse=false, omitSavedNotice='';
 window.confirm=message=>{confirmations.push(message);return confirmAnswer};
 window.prompt=()=> '검토 요청';
 window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:()=>true,getBoardDate:()=> '2026-10-13',refreshToday:async()=>{},rpc:async(name,args={})=>{
  calls.push({name,args:structuredClone(args)});
  if(name==='list_manageable_schedules')return [];
- if(name==='list_manageable_notices'){if(failList)throw Error('list failed');return structuredClone(rows);}
+ if(name==='list_manageable_notices'){if(failList)throw Error('list failed');if(omitSavedNotice==='200')return Array.from({length:200},(_,i)=>({id:'outside-'+i,media:[]}));if(omitSavedNotice==='inactive')return [];return structuredClone(rows);}
  if(name==='save_notice'){
   if(role==='promotion_lead'&&args.p_status!=='draft')return {ok:false,code:'OPERATIONS_REVIEW_REQUIRED'};
   if(failPublish===true&&args.p_status==='published')throw Error('publish failed');
@@ -25,13 +26,13 @@ window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:()=>true
   if(failPublish==='after'&&args.p_status==='published')throw Error('lost response');
   return {ok:true,id:row.id,version_no:version};
  }
- if(name==='add_notice_media'){const row=rows.find(r=>r.id===args.p_notice_id);const id='media-'+calls.length;row.media.push({id,storage_path:args.p_storage_path,mime_type:args.p_mime_type,alt_text:args.p_alt_text,display_order:args.p_display_order});return {ok:true,id};}
+ if(name==='add_notice_media'){const row=rows.find(r=>r.id===args.p_notice_id);const id='media-'+calls.length;row.media.push({id,storage_path:args.p_storage_path,mime_type:args.p_mime_type,alt_text:args.p_alt_text,display_order:args.p_display_order});if(loseMediaResponse==='conflict')return {ok:false,code:'23505'};if(loseMediaResponse)throw Error('registered but response lost');return {ok:true,id};}
  if(name==='update_notice_media'){const m=rows.flatMap(r=>r.media).find(m=>m.id===args.p_media_id);Object.assign(m,{alt_text:args.p_alt_text,display_order:args.p_display_order});return {ok:true};}
  if(name==='archive_notice_media'){rows.forEach(r=>{r.media=r.media.filter(m=>m.id!==args.p_media_id)});return {ok:true};}
  if(name==='submit_notice_for_operations_review'){rows.find(r=>r.id===args.p_notice_id).review_state='submitted';return {ok:true};}
  throw Error('Unexpected RPC '+name);
 }};
-window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=> 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',remove:async()=>{},openLightbox:()=>{},upload:async(id,file)=>{uploadCount++;if(uploadCount===failUploadAt)throw Error('upload failed');return {storage_path:id+'/'+uploadCount+'.png',mime_type:'image/png'};}};
+window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=> 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',remove:async storagePath=>{removedFiles.push(storagePath)},openLightbox:()=>{},upload:async(id,file)=>{uploadCount++;if(uploadCount===failUploadAt)throw Error('upload failed');return {storage_path:id+'/'+uploadCount+'.png',mime_type:'image/png'};}};
 </script>
 <script src="../../app/assets/staff-information-ui.js"></script><script src="../../app/assets/notice-admin.js"></script>
 <script>
@@ -44,6 +45,7 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  document.dispatchEvent(new Event('taejang-app-ready'));
  document.dispatchEvent(new CustomEvent('taejang-admin-options-ready',{detail:{options:{company_allowed:true,departments:[{id:'dep',name:'부서'}],work_groups:[],profiles:[],work_guides:[]}}}));await wait();await start();
  if(location.search.includes('capture')){el('notice-title-input').value='직원 교육 안내';el('notice-body').value='내일 오전 10시에 안전교육을 진행합니다.\n교육실로 모여주세요.';await window.TaejangNoticeAdmin.renderPreview();el('result').textContent='NOTICE_CAPTURE_READY';return;}
+ check(el('notice-kind').value==='general','new notice defaults to general with folded settings');
  check(!el('notice-save-draft').hidden&&!el('notice-publish').hidden&&el('notice-submit-review').hidden,'operations explicit actions');
  const title=el('notice-title-input').getBoundingClientRect(),body=el('notice-body').getBoundingClientRect();
  check(title.top<body.top&&body.top<el('notice-photo-input').getBoundingClientRect().top,'title body photos order');
@@ -71,6 +73,25 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  check(calls.filter(c=>c.name==='add_notice_media').length===adds+2,'completed photo not reuploaded');
  check([...el('notice-preview').querySelectorAll('img')].map(i=>i.alt).join(',')==='사진0,사진1','preview media order');
  await photo(1);failUploadAt=uploadCount+1;await press('notice-save-existing');check(rows.at(-1).status==='published'&&msg().includes('이미 직원에게 반영됐을 수'),'existing public partial failure honest');failUploadAt=0;await press('notice-save-existing');const archivedBefore=calls.filter(c=>c.name==='archive_notice_media').length;el('notice-media-editor').querySelectorAll('button')[2].click();await wait();await photo(1);failUploadAt=uploadCount+1;await press('notice-save-existing');failUploadAt=0;await press('notice-save-existing');check(calls.filter(c=>c.name==='archive_notice_media').length===archivedBefore+1,'completed removal not repeated after retry');
+ // Registered object with a lost response must never be deleted/re-registered
+ // merely because the capped/filtered management list omits its notice.
+ for (const missing of ['200','inactive','conflict']) {
+  await start();
+  if(missing==='inactive'){await press('notice-publish');el('notice-status').value='inactive';await press('notice-save-existing');}
+  await photo(1);loseMediaResponse=missing==='conflict'?'conflict':true;
+  const action=missing==='inactive'?'notice-save-existing':'notice-publish';
+  await press(action);const id=el('notice-id').value;const row=rows.find(r=>r.id===id);const path=row.media[0].storage_path;
+  check(id&&row.media.length===1,'lost media response still registered server side '+missing);
+  const added=calls.filter(c=>c.name==='add_notice_media').length;
+  loseMediaResponse=false;omitSavedNotice=missing==='conflict'?'200':missing;
+  await press(action);
+  check(calls.filter(c=>c.name==='add_notice_media').length===added,'missing list cannot trigger re-registration '+missing);
+  check(!removedFiles.includes(path)&&row.media.length===1,'registered storage object preserved '+missing);
+  check(el('notice-id').value===id&&el('notice-title-input').value==='직원 공지'&&msg().includes('추가 등록과 파일 삭제를 중단'),'uncertain registration keeps input id and explanation '+missing);
+  check(row.status===(missing==='inactive'?'inactive':'draft'),'uncertain registration never prematurely publishes '+missing);
+  omitSavedNotice='';await press(action);
+  check(row.media.length===1&&calls.filter(c=>c.name==='add_notice_media').length===added,'readback recovery keeps single media '+missing);
+ }
  await start();failPublish=true;await press('notice-publish');check(rows.at(-1).status==='draft'&&el('notice-id').value&&msg().includes('공개 여부'),'final publish response uncertainty keeps reusable draft');failPublish=false;await press('notice-publish');check(rows.at(-1).status==='published','publish retry works');
  await start();failPublish='after';await press('notice-publish');const lostId=el('notice-id').value;check(msg().includes('공개 여부')&&rows.at(-1).status==='published','lost committed response never promises privacy');failPublish=false;const callOffset=calls.length;await press('notice-publish');check(calls.slice(callOffset).filter(c=>c.name==='save_notice').every(c=>c.args.p_status==='published')&&el('notice-id').value===lostId,'reconcile prevents retry downgrading published content');
  await start();el('notice-link-url').value='https://example.test';await press('notice-save-draft');check(msg().includes('함께 입력')&&el('notice-additional-settings').open,'advanced pair error visible');
@@ -78,9 +99,22 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  await start();el('notice-importance').value='important';el('notice-additional-settings').open=false;el('notice-requires-ack').checked=true;await press('notice-save-draft');check(rows.at(-1).requires_acknowledgement,'valid folded required defaults');
  await start();failList=true;await press('notice-save-draft');check(msg().includes('저장은 완료')&&msg().includes('초안 저장됨'),'list failure never reports save failure');failList=false;
  role='promotion_lead';await start();check(el('notice-publish').hidden&&!el('notice-submit-review').hidden,'lead draft review only');check(el('notice-publish-help').textContent.includes('운영총괄이 검토'),'lead scheduling described as proposal only');await press('notice-submit-review');check(rows.at(-1).status==='draft'&&rows.at(-1).review_state==='submitted'&&msg().includes('운영총괄 검토 대기'),'lead draft then existing submit RPC');
+ const submittedWrites=calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length;
+ check(el('notice-submit-review').disabled&&el('notice-submit-review').textContent==='운영총괄 검토 대기'&&el('notice-save-draft').disabled,'submitted unedited draft locked in waiting state');
+ await press('notice-submit-review');
+ el('notice-submit-review').disabled=false;await press('notice-submit-review');el('notice-save-draft').disabled=false;await press('notice-save-draft');
+ check(calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length===submittedWrites,'duplicate and forced submit cause no write');
+ el('notice-body').value+='\n보완 내용';el('notice-body').dispatchEvent(new Event('input',{bubbles:true}));
+ check(!el('notice-submit-review').disabled&&!el('notice-save-draft').disabled,'editing unlocks resubmission');
+ await press('notice-submit-review');
+ check(calls.filter(c=>c.name==='save_notice'||c.name==='submit_notice_for_operations_review').length===submittedWrites+2&&el('notice-submit-review').disabled,'only edited resubmission uses existing save and review once');
+ window.TaejangNoticeAdmin.setView('manage');await wait();
+ const submittedCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='직원 공지'&&card.textContent.includes('운영총괄 검토 대기'));
+ submittedCard.querySelector('button').click();await wait();check(el('notice-submit-review').disabled,'reopened submitted notice stays waiting');
+ await photo(1);check(!el('notice-submit-review').disabled,'photo addition is an edit eligible for resubmission');
  const publishCalls=calls.filter(c=>c.name==='save_notice'&&c.args.p_status==='published').length;
  el('notice-publish').hidden=false;await press('notice-publish');check(calls.filter(c=>c.name==='save_notice'&&c.args.p_status==='published').length===publishCalls,'forged lead publish click guarded');
- role='super_admin';await start();check(!el('notice-publish').hidden,'super admin publish action');
+ role='super_admin';await start();check(!el('notice-publish').hidden,'super admin publish action');check(el('notice-kind').value==='general','each new notice resets kind');el('notice-kind').value='safety';el('notice-title-input').value='기존 안전 공지';await press('notice-save-draft');window.TaejangNoticeAdmin.setView('manage');await wait();const safetyCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='기존 안전 공지');safetyCard.querySelector('button').click();await wait();check(el('notice-kind').value==='safety','editing preserves original kind');
  const canvas=document.createElement('canvas');canvas.width=2400;canvas.height=1800;const ctx=canvas.getContext('2d');ctx.fillStyle='#008800';ctx.fillRect(0,0,2400,1800);
  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));const optimized=await realMedia.optimizeForUpload(new File([blob],'large.png',{type:'image/png'}));
  const bitmap=await createImageBitmap(optimized);check(bitmap.width<=1600&&bitmap.height<=1600&&optimized.size<=2*1024*1024,'real existing photo compression');bitmap.close();
