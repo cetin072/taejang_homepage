@@ -46,14 +46,17 @@ test('active mobile home has attendance, notice, and one capability-gated work-p
   assert.doesNotMatch(home, /로그인 상태|중요공지 알림 준비|직원앱 준비 완료/);
 });
 
-test('web onboarding UI creates the employee during approval instead of selecting a pre-created employee', async () => {
+test('web approval links existing employee first; new hire is a separate operations-only action', async () => {
   const approval = await text('app/assets/phase-c-account-approval.js');
   assert.match(approval, /employee\.onboard/);
+  assert.match(approval, /approve_existing_employee_signup_request/);
+  assert.match(approval, /list_existing_employee_signup_candidates/);
+  assert.match(approval, /기존 직원 연결 후 가입 승인/);
   assert.match(approval, /approve_employee_signup_request/);
-  assert.match(approval, /list_employee_signup_requests/);
-  assert.match(approval, /get_employee_signup_approval_options/);
-  assert.match(approval, /직원 생성 후 가입 승인/);
-  assert.doesNotMatch(approval, /get_signup_employee_options|연결할 직원 선택/);
+  assert.match(approval, /신규 직원 생성 후 가입 승인/);
+  assert.match(approval, /route\(\) === 'operations_manager'/);
+  assert.match(approval, /confirmEmployeeId/);
+  assert.match(approval, /mismatchConfirmed/);
 });
 
 test('holiday work UI is explicit per employee and does not treat arbitrary work notes as authorization', async () => {
