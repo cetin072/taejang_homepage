@@ -85,14 +85,20 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(safeDefaults, /p\.code='general_worker' then 0/);
 });
 
-test('native signup approval creates Employee atomically while legacy bypass remains blocked', () => {
+test('existing employee signup link is preferred and new hire remains operations-only', () => {
+  const existingLink = read('supabase/migrations/20261013004000_existing_employee_mobile_signup_link.sql');
   assert.match(approvalUi, /list_employee_signup_requests/);
   assert.match(approvalUi, /get_employee_signup_approval_options/);
+  assert.match(approvalUi, /list_existing_employee_signup_candidates/);
+  assert.match(approvalUi, /approve_existing_employee_signup_request/);
+  assert.match(approvalUi, /기존 직원 연결 후 가입 승인/);
   assert.match(approvalUi, /approve_employee_signup_request/);
-  assert.match(approvalUi, /직원 생성 후 가입 승인/);
-  assert.match(approvalUi, /이름이나 전화번호로 기존 직원을 자동 연결하지 않습니다/);
-  assert.doesNotMatch(approvalUi, /get_signup_employee_options|연결할 직원 선택/);
+  assert.match(approvalUi, /신규 직원 생성 후 가입 승인/);
 
+  assert.match(existingLink, /EXISTING_EMPLOYEE_LINK_REQUIRED/);
+  assert.match(existingLink, /EMPLOYEE_NUMBER_CONFIRMATION_MISMATCH/);
+  assert.match(existingLink, /SIGNUP_IDENTITY_MISMATCH_REQUIRES_CONFIRMATION/);
+  assert.match(existingLink, /private_approve_signup_request_with_employee_pre148/);
   assert.match(onboarding, /private_insert_employee/);
   assert.match(onboarding, /'employee\.onboard'/);
   assert.match(onboarding, /ROLE_NOT_ASSIGNABLE/);
