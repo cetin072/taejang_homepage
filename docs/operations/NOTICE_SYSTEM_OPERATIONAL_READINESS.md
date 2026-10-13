@@ -116,7 +116,7 @@ where n.nspname='public' and p.proname in
   'private_notice_is_routine','private_notice_write_target','list_manageable_notices');
 ```
 
-save_lead_notice는 authenticated만 실행 가능해야 한다. 내부 helper/old writer는 PUBLIC/anon/authenticated 실행 불가, 직접 테이블 UPDATE/DELETE 권한은 없어야 한다. 기존 Storage policies와 current_user_can_manage_notice OID 연결을 유지한다. 기대값은 [pgTAP](../../supabase/tests/database/lead_routine_notice.test.sql) と [Auth integration](../../tests/notice-review-media-auth-integration.mjs)를 따른다.
+save_lead_notice는 authenticated만 실행 가능해야 한다. 내부 helper/old writer는 PUBLIC/anon/authenticated 실행 불가, 직접 테이블 UPDATE/DELETE 권한은 없어야 한다. 기존 Storage policies와 current_user_can_manage_notice OID 연결을 유지한다. 기대값은 [pgTAP](../../supabase/tests/database/lead_routine_notice.test.sql)과 [Auth integration](../../tests/notice-review-media-auth-integration.mjs)를 따른다.
 
 실패 대응:
 
@@ -134,3 +134,14 @@ save_lead_notice는 authenticated만 실행 가능해야 한다. 내부 helper/o
 Issue #428 위험: Hosted Payroll workflow는 active이며 현재 pull_request paths가 남아 있다. 이번 변경 경로(app/assets/notice-admin.js, tests/browser/notice-authoring-ux-gate.html, 이 문서)는 해당 경로와 일치하지 않음을 확인했다. payroll/workflow/급여 migration 파일 변경·수동 Hosted E2E dispatch는 하지 않는다. PR 직전 실제 diff와 workflow path를 다시 대조한다.
 
 참조: [공식 Supabase migrations](https://supabase.com/docs/guides/deployment/database-migrations), [Supabase changelog](https://supabase.com/changelog) (현재 TLS cipher 종료 예고는 이번 SQL 변경과 무관, SDK/프로젝트 설정 변경 없음).
+
+
+### 이번 구현 커밋의 검증 완료
+
+구현 커밋 `3884e9c9fadfe69d8d846ac18157251e131b9294`:
+- [격리 DB CI](https://github.com/cetin072/taejang_homepage/actions/runs/38368669110): clean replay/lint PASS, security advisors No issues found, pgTAP819 PASS, 공지 Auth/RLS/Storage145 및 전체 연관 회귀 PASS.
+- [Browser](https://github.com/cetin072/taejang_homepage/actions/runs/38368668912), [UAR](https://github.com/cetin072/taejang_homepage/actions/runs/38368668979), [Public](https://github.com/cetin072/taejang_homepage/actions/runs/38368668988) PASS.
+- 로컬 static543, 모바일 공지/캐시/일정10, 푸시·알림·release29, build PASS.
+- Netlify `6acde9f48e4d3e07b812efeb` ready/commit_ref 구현 커밋 일치. immutable Preview runtime 경로, 작성기/구 진입 JS와 Git blob byte 일치, 320/390/1280 전체 fixture PASS.
+- [브라우저 캡처](https://github.com/cetin072/taejang_homepage/actions/runs/38368668912/artifacts/11798685335). 합성 역할 테스트이며 Hosted 실제 쓰기/Android 기기 수용 검수를 뜻하지 않는다.
+- Hosted Payroll 새 실행 없음. 최신 main 대비 behind0/충돌 없음 확인. 문서 정리만 후속 commit하며 웹/SQL 소스는 이 구현 커밋과 동일하게 유지한다.
