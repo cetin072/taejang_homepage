@@ -133,4 +133,36 @@ equal(archived.data?.code, 'NOTICE_MEDIA_ARCHIVED', 'operations archives photo m
 const noMedia = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: promotionDraft.data.id });
 equal(noMedia.data.media.length, 0, 'archived photo no longer appears for worker');
 
+// Issue #444 UI uses these unchanged RPCs in private-save -> media -> publish order.
+const uxTarget = target('department', department('promotion'));
+const privateDraft = await rpc('save_notice', operations.token, noticePayload({ ...uxTarget, p_requires_acknowledgement: false, p_importance: 'normal', p_title: 'Issue 444 private first' }));
+equal(privateDraft.data?.code, 'NOTICE_SAVED', '444 operations first saves private draft');
+const draftRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
+check(!draftRead.ok, '444 draft not exposed to recipient before photos/publish');
+const scheduledLead = await rpc('save_notice', promotion.token, noticePayload({ ...uxTarget, p_status: 'published', p_publish_start_at: new Date(Date.now()+86400000).toISOString() }));
+equal(scheduledLead.data?.code, 'OPERATIONS_REVIEW_REQUIRED', '444 server rejects lead scheduled publication too');
+const futureTime = new Date(Date.now()+86400000).toISOString();
+const reserved = await rpc('save_notice', operations.token, noticePayload({ ...uxTarget, p_notice_id: privateDraft.data.id, p_status: 'published', p_publish_start_at: futureTime, p_publish_end_at: new Date(Date.now()+172800000).toISOString() }));
+equal(reserved.data?.code, 'NOTICE_SAVED', '444 operations schedules draft with same id');
+const earlyRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
+check(!earlyRead.ok, '444 reserved notice unavailable before its start');
+const visiblePayload = noticePayload({ ...uxTarget, p_notice_id: privateDraft.data.id, p_status: 'published', p_title: 'Issue 444 immediate' });
+const immediate = await rpc('save_notice', operations.token, visiblePayload);
+equal(immediate.data?.code, 'NOTICE_SAVED', '444 operations can make notice current');
+const visibleRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
+check(visibleRead.ok && visibleRead.data.title === 'Issue 444 immediate', '444 target recipient sees current published notice');
+const deniedRead = await rpc('get_my_notice_detail', outsider.token, { p_notice_id: privateDraft.data.id });
+check(!deniedRead.ok, '444 different department never sees notice');
+const existingEdit = await rpc('save_notice', operations.token, { ...visiblePayload, p_title: 'Issue 444 published edit' });
+equal(existingEdit.data?.code, 'NOTICE_SAVED', '444 existing edit retains published status');
+const editedRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
+equal(editedRead.data?.title, 'Issue 444 published edit', '444 published edit immediately visible within target');
+for (const status of ['cancelled','inactive']) {
+  const stopped = await rpc('save_notice', operations.token, { ...visiblePayload, p_status: status });
+  equal(stopped.data?.code, 'NOTICE_SAVED', `444 intentional ${status} remains supported`);
+  const stoppedRead = await rpc('get_my_notice_detail', recipient.token, { p_notice_id: privateDraft.data.id });
+  check(!stoppedRead.ok, `444 ${status} notice not exposed`);
+}
+console.log('NOTICE_AUTHORING_UX_AUTH_PASS');
+
 console.log(`Issue 300 notice review/media Auth, RLS, and Storage integration passed: ${assertions} assertions`);
