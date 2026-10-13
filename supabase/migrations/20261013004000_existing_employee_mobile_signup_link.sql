@@ -139,7 +139,7 @@ begin
     'role_code', normalized_role
   );
 end;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.approve_employee_signup_request(p_target_profile_id uuid, p_department_id uuid, p_position_id uuid, p_role_code text, p_attendance_required boolean DEFAULT true, p_reason_summary text DEFAULT NULL::text)
@@ -289,7 +289,7 @@ begin
     'role_code', normalized_role
   );
 end;
-$function$
+$function$;
 
 
 -- Minimal, safe selector: only unlinked active employees; no RRN, phone, email,
