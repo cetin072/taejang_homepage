@@ -52,6 +52,16 @@ async function assertLayout(page, name) {
   assert.deepEqual(metric.clipped, [], name + ': clipped text');
   return metric;
 }
+async function assertMenuStyle(link, background, name) {
+  const style = await link.evaluate(el => {
+    const s = getComputedStyle(el);
+    return { color: s.color, background: s.backgroundColor, border: s.borderTopColor, width: s.borderTopWidth };
+  });
+  assert.equal(style.color, 'rgb(27, 67, 50)', name + ': clear dark-green text');
+  assert.equal(style.background, background, name + ': secondary background');
+  assert.equal(style.border, 'rgb(196, 214, 199)', name + ': soft green border');
+  assert.equal(style.width, '1px', name + ': thin border');
+}
 let browser;
 try {
   browser = await playwright.chromium.launch({
@@ -84,6 +94,18 @@ try {
     }));
     assert.equal(await currentLink.getAttribute('aria-current'), 'page',
       name + ': active employee-app menu on actual route ' + JSON.stringify(routeDebug));
+    await assertMenuStyle(currentLink, 'rgb(234, 243, 238)', name + ': current page');
+    if (width > 1000) {
+      const header = await page.locator('.desktop-nav').evaluate(el => {
+        const links = [...el.querySelectorAll('a')].map(a => a.getBoundingClientRect());
+        return { overlap: links.some((box, i) => i > 0 && box.left < links[i - 1].right),
+          sameRow: links.every(box => Math.abs((box.top + box.bottom) / 2 - (links[0].top + links[0].bottom) / 2) < 2),
+          contact: getComputedStyle(el.querySelector('.nav-cta')).backgroundColor };
+      });
+      assert.equal(header.overlap, false, name + ': desktop links do not overlap');
+      assert.equal(header.sameRow, true, name + ': desktop links stay on one row');
+      assert.equal(header.contact, 'rgb(45, 106, 79)', name + ': contact CTA retains priority');
+    }
     const metric = await assertLayout(page, name);
     const visual = await page.evaluate(() => {
       const columns = selector => getComputedStyle(document.querySelector(selector)).gridTemplateColumns.trim().split(/\s+/).length;
@@ -155,6 +177,7 @@ try {
     if (width <= 1000) {
       await page.locator('[data-menu-button]').click();
       assert.equal(await page.locator('#mobile-nav').isVisible(), true);
+      await assertMenuStyle(mobileAppLink, 'rgb(245, 240, 232)', name + ': mobile default');
       assert.equal(await mobileAppLink.isVisible(), true);
       if (name === 'mobile') {
         await page.screenshot({ path: path.join(output, 'homepage-app-menu-mobile.png') });
@@ -162,8 +185,15 @@ try {
       await mobileAppLink.click();
     } else {
       assert.equal(await desktopAppLink.isVisible(), true);
-      assert.equal(await desktopAppLink.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(20, 124, 155)',
-        name + ': employee app header is a visible blue button');
+      await assertMenuStyle(desktopAppLink, 'rgb(245, 240, 232)', name + ': desktop default');
+      await desktopAppLink.hover();
+      await page.waitForTimeout(250);
+      await assertMenuStyle(desktopAppLink, 'rgb(234, 243, 238)', name + ': hover');
+      await page.mouse.move(0, 0);
+      await desktopAppLink.focus();
+      await page.waitForTimeout(250);
+      await assertMenuStyle(desktopAppLink, 'rgb(234, 243, 238)', name + ': focus');
+      assert.equal(await desktopAppLink.evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
       await desktopAppLink.click();
     }
     await page.waitForURL(url => isLandingRoute(url.href));
@@ -186,19 +216,37 @@ try {
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
   const motion = await motionPage.locator('.employee-app-art-notice').evaluate(el => {
-    const s = getComputedStyle(el); return { name: s.animationName, count: s.animationIterationCount, fill: s.animationFillMode };
+    const s = getComputedStyle(el); return { name: s.animationName, count: s.animationIterationCount, fill: s.animationFillMode, duration: s.animationDuration, delay: s.animationDelay };
   });
   assert.equal(motion.name, 'employee-app-arrive');
   assert.equal(motion.count, '1');
   assert.equal(motion.fill, 'none');
-  await motionPage.waitForTimeout(1800);
+  assert.equal(motion.duration, '1.25s');
+  assert.equal(motion.delay, '0.35s');
+  await motionPage.waitForTimeout(600);
+  await motionPage.screenshot({ path: path.join(output, 'employee-app-motion-in-progress.png') });
+  await motionPage.waitForTimeout(1500);
   assert.equal(await motionPage.evaluate(() => document.getAnimations().length), 0, 'all motion finishes');
+  const finalArt = await motionPage.locator('.employee-app-art-arrive, .employee-app-art-notice, .employee-app-art-leave').evaluateAll(els => els.map(el => ({ opacity: getComputedStyle(el).opacity, transform: getComputedStyle(el).transform })));
+  assert.equal(finalArt.length, 3);
+  assert.ok(finalArt.every(s => s.opacity === '1' && s.transform === 'none'), 'all hero artwork remains opaque at its final position');
+  await motionPage.screenshot({ path: path.join(output, 'employee-app-motion-finished.png'), fullPage: true });
   await assertLayout(motionPage, 'motion-finished');
   // Text-only enlargement catches fixed-height clipping independently of viewport reflow.
   await motionPage.addStyleTag({ content: 'main p, main dd, main dt, main a, main h3 { font-size: 200% !important; }' });
   await assertLayout(motionPage, 'text-200');
   await motionPage.screenshot({ path: path.join(output, 'employee-app-text-200.png'), fullPage: true });
   await normal.close();
+  if (process.env.EMPLOYEE_APP_QA_BASE) {
+    const cleanPage = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    await cleanPage.goto(base + '/employee-app', { waitUntil: 'networkidle' });
+    assert.ok(isLandingRoute(cleanPage.url()), 'hosted clean URL stays on landing');
+    const cleanMenu = cleanPage.locator('.desktop-nav .employee-app-nav');
+    assert.equal(await cleanMenu.getAttribute('aria-current'), 'page', 'hosted clean URL current menu');
+    await assertMenuStyle(cleanMenu, 'rgb(234, 243, 238)', 'hosted clean URL');
+    await cleanPage.screenshot({ path: path.join(output, 'employee-app-clean-url.png') });
+    await cleanPage.close();
+  }
   await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ base, results, noJS: true, finiteMotion: motion, text200: true }, null, 2));
   console.log('PASS no-JS navigation/content, finite motion, 200% text enlargement');
 } finally {

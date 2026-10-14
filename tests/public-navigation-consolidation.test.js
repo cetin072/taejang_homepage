@@ -158,10 +158,10 @@ assert.match(activities, /href="archive\.html" aria-current="page">소식·기�
 assert.match(activities, /소식·기록 전체 보기/);
 
 const styles = read('assets/css/styles.css');
-assert.match(styles, /\.desktop-nav \.employee-app-nav\{[\s\S]*?background:var\(--brand-blue\)/,
-  'desktop employee app navigation has a visible accent');
-assert.match(styles, /\.mobile-nav \.employee-app-nav\{[\s\S]*?background:var\(--brand-blue\)/,
-  'mobile employee app navigation has a visible accent');
+assert.match(styles, /\.desktop-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
+  'desktop employee app navigation is a quiet green secondary action');
+assert.match(styles, /\.mobile-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
+  'mobile employee app navigation keeps the same secondary hierarchy');
 const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,
