@@ -35,6 +35,8 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 // Optional hosted base runs the same checks on the real Deploy Preview; no writes/API mutations.
 const base = process.env.EMPLOYEE_APP_QA_BASE || 'http://127.0.0.1:' + server.address().port;
 const results = [];
+const landingLink = (page, region = 'footer') => page.locator(region).getByRole('link', { name: '직원앱 소개', exact: true });
+const isLandingRoute = url => /\/employee-app(?:\.html)?\/?$/.test(new URL(url).pathname);
 async function assertLayout(page, name) {
   const metric = await page.evaluate(() => ({
     viewport: innerWidth, document: document.documentElement.scrollWidth,
@@ -122,21 +124,24 @@ try {
     await page.keyboard.press('Enter');
     await page.waitForURL(url => url.hash === '#note-attendance');
     assert.equal(new URL(page.url()).hash, '#note-attendance');
-    await page.locator('footer a[href="employee-app.html"]').focus();
-    assert.equal(await page.locator('footer a[href="employee-app.html"]').evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
+    const footerHref = await landingLink(page).getAttribute('href');
+    assert.ok(isLandingRoute(new URL(footerHref, page.url()).href), name + ': footer resolves to the employee-app route');
+    await landingLink(page).focus();
+    assert.equal(await landingLink(page).evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
     await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
-    assert.equal(await page.locator('header a[href="employee-app.html"]').count(), 0);
-    assert.equal(await page.locator('footer a[href="employee-app.html"]').count(), 1);
+    assert.equal(await landingLink(page, 'header').count(), 0);
+    assert.equal(await landingLink(page).count(), 1);
     if (width < 1000) {
       await page.locator('[data-menu-button]').click();
       assert.equal(await page.locator('#mobile-nav').isVisible(), true);
       await page.keyboard.press('Escape');
     }
-    await page.locator('footer a[href="employee-app.html"]').click();
-    assert.equal(new URL(page.url()).pathname, '/employee-app.html');
-    results.push({ name, width, ...metric, ...visual, pass: true });
+    await landingLink(page).click();
+    await page.waitForURL(url => isLandingRoute(url.href));
+    assert.ok(isLandingRoute(page.url()), name + ': homepage footer opens landing');
+    results.push({ name, width, footerHref, ...metric, ...visual, pass: true });
     console.log('PASS employee landing + homepage: ' + name);
     await context.close();
   }
