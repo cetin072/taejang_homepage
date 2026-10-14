@@ -90,6 +90,7 @@ export const testGroups = Object.freeze({
     'tests/naver-blog-archive.test.js',
     'tests/public-static-fallback.test.js',
     'tests/public-article-seo.test.js',
+    'tests/employee-app-landing.test.js',
     'tests/public-promotion-seo-edge.test.mjs',
     'tests/public-share.test.cjs',
     'tests/public-image-budget.test.js',

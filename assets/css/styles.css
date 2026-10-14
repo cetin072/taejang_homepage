@@ -89,6 +89,34 @@ button{cursor:pointer}
 .desktop-nav .nav-cta:visited,.desktop-nav .nav-cta[aria-current="page"]{color:#fff}
 .desktop-nav .nav-cta:hover,.desktop-nav .nav-cta:focus-visible{background:var(--green-deep);color:#fff}
 .desktop-nav .nav-cta:active{background:#143b2d;color:#fff;transform:translateY(0)}
+
+/* Public employee-app entry: quiet secondary action beside the contact CTA. */
+.desktop-nav .employee-app-nav{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:9px 13px;border-radius:5px;
+  border:1px solid #C4D6C7;
+  background:var(--beige);color:var(--green-deep);font-weight:800;white-space:nowrap;
+}
+.desktop-nav .employee-app-nav:hover,
+.desktop-nav .employee-app-nav:focus-visible,
+.desktop-nav a.employee-app-nav[aria-current="page"]{
+  background:var(--green-soft);color:var(--green-deep);
+}
+.mobile-nav .employee-app-nav{
+  display:flex;align-items:center;min-height:54px;
+  margin:9px 0;padding:12px 16px;border:1px solid #C4D6C7;border-radius:5px;
+  background:var(--beige);color:var(--green-deep);font-weight:800;
+}
+.mobile-nav .employee-app-nav:hover,
+.mobile-nav .employee-app-nav:focus-visible,
+.mobile-nav .employee-app-nav[aria-current="page"]{
+  background:var(--green-soft);color:var(--green-deep);
+}
+@media (min-width:1001px) and (max-width:1160px){
+  .header-inner{gap:12px}
+  .desktop-nav{gap:13px}
+  .desktop-nav .employee-app-nav{padding-inline:10px}
+}
 .menu-btn{display:none;border:0;background:transparent;font-size:25px;color:var(--green-deep)}
 .mobile-nav{display:none;border-top:1px solid var(--line);padding:18px 24px 26px;background:#fff}
 .mobile-nav.open{display:grid}

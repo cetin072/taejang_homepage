@@ -16,6 +16,7 @@ const publicPages = [
   'workplace.html',
   'activities.html',
   'community-esg.html',
+  'employee-app.html',
   'archive.html',
   'partnership.html',
   'resources.html',
@@ -23,8 +24,8 @@ const publicPages = [
   'location.html'
 ];
 
-const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html'];
-const footerHrefs = [...headerHrefs, 'location.html'];
+const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'employee-app.html'];
+const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'location.html'];
 const compactFooterPages = new Set(['resources.html']);
 
 function assertHrefOrder(fragment, hrefs, message) {
@@ -60,10 +61,20 @@ for (const filename of publicPages) {
   assert.ok(mobileNav, `${filename} 모바일 주요 메뉴가 HTML 원본에 있어야 합니다`);
   assertHrefOrder(desktopNav, headerHrefs, `${filename} 데스크톱 메뉴`);
   assertHrefOrder(mobileNav, headerHrefs, `${filename} 모바일 메뉴`);
+  for (const [surface, fragment] of [['desktop', desktopNav], ['mobile', mobileNav]]) {
+    assert.equal((fragment.match(/class="employee-app-nav"/g) || []).length, 1,
+      `${filename} ${surface} must have exactly one visible employee-app menu entry`);
+    assert.match(fragment, /<a class="employee-app-nav" href="employee-app\.html"(?: aria-current="page")?>직원앱<\/a>/,
+      `${filename} ${surface} uses the normal accessible link`);
+  }
+  if (filename === 'employee-app.html') {
+    assert.equal((html.match(/class="employee-app-nav" href="employee-app\.html" aria-current="page"/g) || []).length, 2,
+      'the employee-app page marks its desktop/mobile current link before JavaScript');
+  }
   if (filename !== 'resources.html') {
     assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
     assert.match(mobileNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 모바일 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
-    assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="partnership.html"'), `${filename} 임직원 메뉴는 마지막 유틸리티 항목이어야 합니다`);
+    assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="employee-app.html"'), `${filename} 임직원 메뉴는 마지막 유틸리티 항목이어야 합니다`);
   }
 
   assert.match(
@@ -106,6 +117,14 @@ for (const filename of publicPages) {
   }
 }
 
+// Promotion detail shares the public header but retains its compact employee entry.
+const promotion = read('promotion.html');
+for (const selector of [/\<nav class="desktop-nav"[^>]*>[\s\S]*?<\/nav>/, /\<nav class="mobile-nav"[^>]*>[\s\S]*?<\/nav>/]) {
+  const nav = promotion.match(selector)?.[0] || '';
+  assertHrefOrder(nav, headerHrefs, 'promotion detail employee app link');
+  assert.equal((nav.match(/class="employee-app-nav"/g) || []).length, 1);
+}
+
 const index = read('index.html');
 assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.doesNotMatch(index, /href="activities\.html">태장의 활동 보기/);
@@ -139,6 +158,10 @@ assert.match(activities, /href="archive\.html" aria-current="page">소식·기�
 assert.match(activities, /소식·기록 전체 보기/);
 
 const styles = read('assets/css/styles.css');
+assert.match(styles, /\.desktop-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
+  'desktop employee app navigation is a quiet green secondary action');
+assert.match(styles, /\.mobile-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
+  'mobile employee app navigation keeps the same secondary hierarchy');
 const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,
@@ -156,6 +179,7 @@ assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/, '핵심 공개 메뉴를 JS 배열
 assert.doesNotMatch(site, /FOOTER_LINKS/, '핵심 푸터 바로가기를 JS 배열로 다시 생성하지 않습니다');
 assert.doesNotMatch(site, /nav\.replaceChildren\(\)/, '공개 헤더를 JS에서 비우고 재생성하지 않습니다');
 assert.doesNotMatch(site, /shortcuts\.querySelectorAll\('a'\)\.forEach\(link => link\.remove\(\)\)/, '푸터 바로가기를 삭제 후 재생성하지 않습니다');
+assert.match(site, /\['employee-app\.html', '직원앱'\]/, 'the public static menu contract includes employee app');
 assert.match(site, /function markCurrentNavigation\(\)/, 'JS는 기존 정적 메뉴에 현재 페이지 상태만 보강합니다');
 assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 비파괴적으로 보강합니다');
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);

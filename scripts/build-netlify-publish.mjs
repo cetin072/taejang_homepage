@@ -22,6 +22,7 @@ const PUBLIC_ROOT_FILES = Object.freeze([
   'partnership.html',
   'privacy.html',
   'employee-app-privacy.html',
+  'employee-app.html',
   'account-deletion.html',
   'promotion.html',
   'resources.html',
