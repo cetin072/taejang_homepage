@@ -1,70 +1,28 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { loadMyNotices, noticeDeepLinkPath, type NoticeSummary } from './notice-api';
-import { cacheNotices, getCachedNotices } from './notice-cache';
-import { usePlatform } from '@/src/providers/platform-provider';
+import { noticeDeepLinkPath } from './notice-api';
+import { isRecentlyPublished, noticeDate, unreadNotices } from './notice-read-state';
+import { NOTICE_LIST_LIMIT, useMyNotices } from './use-my-notices';
 
 export function NoticeHomeAction({ minHeight = 164 }: { minHeight?: number }) {
   const router = useRouter();
-  const { client, session } = usePlatform();
-  const userId = session?.user.id;
-  const [items, setItems] = useState<NoticeSummary[]>(() => userId ? getCachedNotices(userId, 4) : []);
-  const [cacheUserId, setCacheUserId] = useState(userId);
-  const [loading, setLoading] = useState(() => !userId || getCachedNotices(userId, 4).length === 0);
-
-  const load = useCallback(async () => {
-    if (!client || !session) return;
-    const cached = getCachedNotices(session.user.id, 4);
-    setCacheUserId(session.user.id);
-    setItems(cached);
-    setLoading(cached.length === 0);
-    try {
-      const fresh = await loadMyNotices(client, 4);
-      setItems(cacheNotices(session.user.id, fresh, 4));
-    } catch {
-      if (cached.length === 0) setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [client, session]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', nextState => {
-      if (nextState === 'active') void load();
-    });
-    return () => subscription.remove();
-  }, [load]);
-
+  const { items, versions, loading, error, retry } = useMyNotices();
+  const unread = unreadNotices(items, versions);
+  const latest = unread[0];
+  const recent = unread.some(item => isRecentlyPublished(item));
+  const ready = !loading && !error;
   function open() {
-    if (visibleItems.length === 1) {
-      router.push(noticeDeepLinkPath(visibleItems[0].id));
-      return;
-    }
+    if (error) { void retry(); return; }
+    if (ready && latest) { router.push(noticeDeepLinkPath(latest.id)); return; }
     router.push('/notices');
   }
 
-  const visibleItems = cacheUserId === userId ? items : [];
-  const unread = visibleItems.filter(item => item.is_new || (item.requires_acknowledgement && !item.acknowledged)).length;
-  const subtitle = loading
-    ? '확인 중…'
-    : visibleItems.length === 0
-      ? '현재 공지 확인'
-      : unread > 0
-        ? `새로 확인할 공지 ${unread}건`
-        : visibleItems.length === 1
-          ? '공지 1건'
-          : `공지 ${visibleItems.length}건`;
-
   return (
+    <View style={styles.container}>
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="공지사항 열기"
+      accessibilityLabel={error || (ready && latest ? `${latest.title} 공지 내용 확인하기` : '공지사항 열기')}
       onPress={open}
       style={({ pressed }) => [
         styles.action,
@@ -74,14 +32,34 @@ export function NoticeHomeAction({ minHeight = 164 }: { minHeight?: number }) {
     >
       <View style={styles.copy}>
         <Text style={styles.title}>공지사항</Text>
-        <Text style={styles.subtitle}>{subtitle}</Text>
+        {loading ? <Text style={styles.subtitle}>확인 중…</Text> : error ? (
+          <Text style={styles.error}>{error}</Text>
+        ) : latest ? (<>
+          <Text style={recent ? styles.newBadge : styles.subtitle}>
+            {recent ? '● 새 공지' : '미확인 공지'} {unread.length}건{items.length === NOTICE_LIST_LIMIT ? ' 이상' : ''}
+          </Text>
+          <Text style={styles.subtitle}>{noticeDate(latest)} · {latest.importance === 'urgent' ? '긴급 공지' : latest.importance === 'important' ? '중요 공지' : '일반 공지'}</Text>
+          <Text numberOfLines={2} style={styles.noticeTitle}>{latest.title}</Text>
+          {recent ? <Text style={styles.subtitle}>새로운 공지가 등록되었습니다.</Text> : null}
+          <Text style={styles.link}>공지 내용 확인하기 →</Text>
+        </>) : <Text style={styles.subtitle}>새로운 공지가 없습니다.</Text>}
       </View>
-      {unread > 0 ? <View style={styles.dot} /> : null}
+      {ready && recent ? <View style={styles.dot} /> : null}
     </Pressable>
+    <Pressable accessibilityRole="button" onPress={() => router.push('/notices')} style={styles.history}>
+      <Text style={styles.link}>지난 공지 보기 →</Text>
+    </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { gap: 4 },
+  history: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  link: { color: '#35624d', fontSize: 16, fontWeight: '800' },
+  error: { color: '#8b2f2f', fontSize: 16, textAlign: 'center' },
+  newBadge: { color: '#a13024', fontSize: 18, fontWeight: '800' },
+  noticeTitle: { color: '#173f31', fontSize: 21, fontWeight: '800', textAlign: 'center' },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -94,7 +72,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   pressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
-  copy: { alignItems: 'center', gap: 10 },
+  copy: { flex: 1, alignItems: 'center', gap: 10 },
   title: { color: '#173f31', fontSize: 31, fontWeight: '900', letterSpacing: -0.6 },
   subtitle: { color: '#60746a', fontSize: 15, fontWeight: '700' },
   dot: {
