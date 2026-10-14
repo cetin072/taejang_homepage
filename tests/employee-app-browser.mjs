@@ -95,11 +95,13 @@ try {
     await page.keyboard.press('Tab');
     assert.equal(await page.locator('.skip-link').evaluate(el => el === document.activeElement), true, name + ': keyboard skip link');
     await page.keyboard.press('Enter');
+    await page.waitForURL(url => url.hash === '#main-content');
     assert.equal(new URL(page.url()).hash, '#main-content');
     await page.locator('.employee-app-hero-link').focus();
     assert.equal(await page.locator('.employee-app-hero-link').evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
     assert.ok((await page.locator('.employee-app-hero-link').boundingBox()).height >= 44);
     await page.keyboard.press('Enter');
+    await page.waitForURL(url => url.hash === '#developer-notes');
     assert.equal(new URL(page.url()).hash, '#developer-notes');
     if (width < 1000) {
       const menu = page.locator('[data-menu-button]');
@@ -114,7 +116,10 @@ try {
     }
     await page.locator('.employee-app-note-link').first().focus();
     await page.keyboard.press('Enter');
+    await page.waitForURL(url => url.hash === '#note-attendance');
     assert.equal(new URL(page.url()).hash, '#note-attendance');
+    await page.locator('footer a[href="employee-app.html"]').focus();
+    assert.equal(await page.locator('footer a[href="employee-app.html"]').evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
     await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
