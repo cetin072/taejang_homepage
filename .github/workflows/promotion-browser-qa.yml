@@ -38,6 +38,11 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Run notice authoring exact viewport QA
+        env:
+          NOTICE_QA_OUTPUT: notice-qa-artifacts
+        run: node tests/notice-authoring-browser.mjs
+
       - name: Run attendance PC and mobile fixture QA
         env:
           ATTENDANCE_QA_OUTPUT: attendance-qa-artifacts
@@ -49,4 +54,12 @@ jobs:
         with:
           name: attendance-pc-mobile-xlsx
           path: attendance-qa-artifacts/
+          if-no-files-found: ignore
+
+      - name: Keep synthetic notice authoring screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notice-authoring-320-390-1280
+          path: notice-qa-artifacts/
           if-no-files-found: ignore

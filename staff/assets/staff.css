@@ -198,3 +198,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
   .guide-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .guide-filters .button { min-height: 52px; padding-inline: 8px; }
 }
+
+/* Issue #444: reuse compact fields; contain authoring changes to the notice form. */
+#notice-form > label { display: block; margin: 14px 0; font-weight: 700; }
+#notice-form :is(input:not([type="checkbox"]), select, textarea) { min-width: 0; max-width: 100%; font-size: 1rem; }
+#notice-form :is(input:not([type="checkbox"]):not([type="hidden"]), select, button) { min-height: 44px; }
+#notice-form > details { margin-top: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+#notice-form summary { cursor: pointer; font-weight: 800; }
+#notice-form .form-actions { flex-wrap: wrap; }
+#notice-form .form-actions button { white-space: normal; }
