@@ -7,6 +7,10 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const playwright = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+// Fail closed if the hosted workflow accidentally falls back to the local server.
+if (process.env.EMPLOYEE_APP_QA_REQUIRE_HOSTED === '1') {
+  assert.match(process.env.EMPLOYEE_APP_QA_BASE || '', /^https:\/\//, 'hosted QA requires an explicit HTTPS Preview URL');
+}
 const root = path.resolve('dist');
 const output = process.env.EMPLOYEE_APP_QA_OUTPUT || path.join(os.tmpdir(), 'taejang-employee-app-qa');
 await fs.mkdir(output, { recursive: true });

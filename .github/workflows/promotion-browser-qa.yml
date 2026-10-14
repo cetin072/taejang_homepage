@@ -67,20 +67,21 @@ jobs:
           UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_TOKEN: ${{ github.token }}
           EMPLOYEE_APP_QA_OUTPUT: employee-app-preview-qa-artifacts
+          EMPLOYEE_APP_QA_REQUIRE_HOSTED: "1"
         run: |
           python3 - <<'PYTHON'
           import importlib.util
           import os
           import pathlib
+          import subprocess
           spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
           uar = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(uar)
           contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
           preview = uar.wait_for_preview(contract, os.environ.copy())
-          with open(os.environ['GITHUB_ENV'], 'a') as output:
-              output.write(f'EMPLOYEE_APP_QA_BASE={preview}\n')
+          subprocess.run(['node', 'tests/employee-app-browser.mjs'], check=True,
+                         env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
           PYTHON
-          node tests/employee-app-browser.mjs
 
       - name: Keep exact-head Preview screenshots and browser results
         if: always()
