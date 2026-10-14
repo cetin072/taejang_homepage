@@ -10,7 +10,7 @@ test('mobile remote push dependencies and project id are explicit', async () => 
   const pkg = JSON.parse(await text('mobile/package.json'));
   const env = await text('mobile/.env.example');
   assert.equal(pkg.dependencies['expo-device'], '57.0.2');
-  assert.equal(pkg.dependencies['expo-crypto'], '57.0.3');
+  assert.equal(pkg.dependencies['expo-crypto'], '57.0.4');
   assert.match(env, /EXPO_PUBLIC_EAS_PROJECT_ID=/);
   assert.doesNotMatch(env, /EXPO_PUSH_ACCESS_TOKEN|SERVICE_ROLE|PRIVATE_KEY/i);
 });
