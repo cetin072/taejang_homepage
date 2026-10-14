@@ -135,9 +135,13 @@
     if (!publishEndAuto) return;
     let start;
     try {
-      start = ui.element('notice-publish-mode').value === 'now'
-        ? new Date()
-        : new Date(readDateTime('notice-publish-start', true));
+      if (ui.element('notice-publish-mode').value === 'now') {
+        start = new Date();
+      } else {
+        const scheduled = readDateTime('notice-publish-start', true);
+        if (!scheduled) return; // Empty start must not become the Unix epoch.
+        start = new Date(scheduled);
+      }
     } catch {
       return; // Wait for complete scheduled date and time.
     }

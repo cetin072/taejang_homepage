@@ -86,6 +86,12 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(new Date(Date.now()+2*86400000));
  el('notice-publish-start-date').dispatchEvent(new Event('change',{bubbles:true}));
  check(endInstant()===manualEnd,'manual end date stays unchanged when start changes');
+ await start();
+ el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change',{bubbles:true}));
+ const beforeEmptyStart=endInstant();
+ el('notice-publish-start-date').value='';el('notice-publish-start-time').value='';
+ el('notice-publish-start-date').dispatchEvent(new Event('change',{bubbles:true}));
+ check(endInstant()===beforeEmptyStart,'blank scheduled start never resets expiry to 1970');
  await start();el('notice-title-input').value='종료일 없는 검수 공지';
  el('notice-publish-end-date').value='';el('notice-publish-end-date').dispatchEvent(new Event('change',{bubbles:true}));
  el('notice-publish-end-time').value='';el('notice-publish-end-time').dispatchEvent(new Event('change',{bubbles:true}));
