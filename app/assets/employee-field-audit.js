@@ -284,8 +284,10 @@
         photoMessage.textContent=backendSaved?'사진 등록은 처리됐으나 재조회 확인에 실패했습니다. 최신 상태를 다시 불러오세요.':
           (app().friendlyError?.(error)||error.message||'사진 업로드 실패');
         photoMessage.classList.add('error');
-        if(backendSaved){pick.textContent='최신 상태 다시 불러오기';pick.addEventListener('click',()=>load({keepSelection:true}),{once:true});}
-        else pick.disabled=false;
+        if(backendSaved){
+          pick.textContent='사진 등록 확인 필요';
+          photoSection.append(button('최신 상태 다시 확인',()=>load({keepSelection:true}),true));
+        } else pick.disabled=false;
       }
     });
     photoSection.append(pick,file,photoMessage);
