@@ -52,6 +52,9 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  document.dispatchEvent(new CustomEvent('taejang-admin-options-ready',{detail:{options:{company_allowed:true,departments:[{id:'dep',name:'부서'}],work_groups:[],profiles:[],work_guides:[]}}}));await wait();await start();
  if(location.search.includes('capture')){el('notice-title-input').value='직원 교육 안내';el('notice-body').value='내일 오전 10시에 안전교육을 진행합니다.\n교육실로 모여주세요.';await window.TaejangNoticeAdmin.renderPreview();el('result').textContent='NOTICE_CAPTURE_READY';return;}
  check(el('notice-kind').value==='general','new notice defaults to general with folded settings');
+ const endInstant=()=>Date.parse(TaejangStaffInformationUI.toKstIso(el('notice-publish-end-date').value,el('notice-publish-end-time').value));
+ check(Math.abs(endInstant()-(Date.now()+7*86400000))<65000,'new notice end defaults to seven days after now');
+ check(document.body.textContent.includes('기본 게시기간은 시작부터 7일'),'default expiry is explained');
  check(!el('notice-save-draft').hidden&&!el('notice-publish').hidden&&el('notice-submit-review').hidden,'operations explicit actions');
  const title=el('notice-title-input').getBoundingClientRect(),body=el('notice-body').getBoundingClientRect();
  check(title.top<body.top&&body.top<el('notice-photo-input').getBoundingClientRect().top,'title body photos order');
@@ -72,6 +75,27 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-status').value='inactive';await press('notice-save-existing');check(rows.at(-1).status==='inactive','intentional inactivity');el('notice-status').value='published';await press('notice-save-existing');check(rows.at(-1).status==='published','existing intentional reactivation remains supported');
  await start();const tomorrow=new Date(Date.now()+86400000);el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change'));el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(tomorrow);el('notice-publish-start-time').value='17:30';el('notice-publish-start-time').dispatchEvent(new Event('change',{bubbles:true}));
  check(el('notice-publish').textContent==='게시 예약','future explicit action');await press('notice-publish');check(msg().includes('게시 예약됨')&&!msg().includes('현재 공개됨')&&rows.at(-1).publish_start_at.includes('17:30'),'reservation preserved');
+ check(Math.abs(Date.parse(rows.at(-1).publish_end_at)-Date.parse(rows.at(-1).publish_start_at)-7*86400000)<65000,'scheduled start keeps default seven-day duration');
+ await start();const chosen=new Date(Date.now()+11*86400000);
+ el('notice-publish-end-date').value=TaejangStaffInformationUI.kstDate(chosen);
+ el('notice-publish-end-date').dispatchEvent(new Event('change',{bubbles:true}));
+ el('notice-publish-end-time').value='12:40';
+ el('notice-publish-end-time').dispatchEvent(new Event('change',{bubbles:true}));
+ const manualEnd=endInstant();
+ el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change',{bubbles:true}));
+ el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(new Date(Date.now()+2*86400000));
+ el('notice-publish-start-date').dispatchEvent(new Event('change',{bubbles:true}));
+ check(endInstant()===manualEnd,'manual end date stays unchanged when start changes');
+ await start();
+ el('notice-publish-end-date').value='';el('notice-publish-end-date').dispatchEvent(new Event('change',{bubbles:true}));
+ el('notice-publish-end-time').value='';el('notice-publish-end-time').dispatchEvent(new Event('change',{bubbles:true}));
+ await press('notice-publish');
+ check(rows.at(-1).status==='published'&&rows.at(-1).publish_end_at===null,'explicit empty end is allowed');
+ window.TaejangNoticeAdmin.setView('manage');await wait();
+ const unbounded=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='직원 공지'&&card.textContent.includes('현재 공개됨'));
+ check(unbounded,'unbounded notice is listed');
+ unbounded.querySelector('button').click();await wait();
+ check(el('notice-publish-end-date').value===''&&el('notice-publish-end-time').value==='','editing retains an old blank expiry');
  await start();await photo(2);el('notice-media-editor').querySelectorAll('button')[1].click();await wait();check(el('notice-preview').querySelector('img').alt==='사진1','reordered preview');el('notice-media-editor').querySelectorAll('button')[3].click();await wait();failUploadAt=uploadCount+2;const adds=calls.filter(c=>c.name==='add_notice_media').length;await press('notice-publish');
  const failedId=el('notice-id').value;check(rows.at(-1).status==='draft'&&failedId&&msg().includes('직원에게 공개·상신하지 않았습니다'),'photo failure cannot prematurely publish');
  check(el('notice-title-input').value==='직원 공지'&&rows.at(-1).media.length===1,'input and first registration kept');
