@@ -25,7 +25,8 @@
     ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·문의']
+    ['partnership.html', '협력·문의'],
+    ['employee-app.html', '직원앱']
   ];
   const STATIC_FOOTER_CONTRACT = [
     ['about.html', '태장 소개'],

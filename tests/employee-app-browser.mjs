@@ -59,7 +59,8 @@ try {
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' })
   });
   for (const [name, width, height] of [
-    ['pc', 1440, 900], ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 720],
+    ['pc', 1440, 900], ['desktop-min', 1001, 900], ['desktop-medium', 1120, 900],
+    ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 720],
     // CSS viewport equivalent to desktop 1440 at 200%/400%; not a physical-device claim.
     ['reflow-200', 720, 450], ['reflow-400', 360, 225]
   ]) {
@@ -74,6 +75,9 @@ try {
     assert.equal(await page.locator('.employee-app-feature').count(), 3);
     assert.equal(await page.locator('.employee-app-note').count(), 2);
     assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
+    assert.equal(await page.locator('header .desktop-nav .employee-app-nav').count(), 1);
+    assert.equal(await page.locator('header .mobile-nav .employee-app-nav').count(), 1);
+    assert.equal(await page.locator('header .desktop-nav .employee-app-nav').getAttribute('aria-current'), 'page');
     const metric = await assertLayout(page, name);
     const visual = await page.evaluate(() => {
       const columns = selector => getComputedStyle(document.querySelector(selector)).gridTemplateColumns.trim().split(/\s+/).length;
@@ -131,16 +135,33 @@ try {
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
     await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
-    assert.equal(await landingLink(page, 'header').count(), 0);
-    assert.equal(await landingLink(page).count(), 1);
-    if (width < 1000) {
+    const desktopAppLink = page.locator('header .desktop-nav a.employee-app-nav');
+    const mobileAppLink = page.locator('header .mobile-nav a.employee-app-nav');
+    assert.equal(await desktopAppLink.count(), 1, name + ': desktop header includes employee app');
+    assert.equal(await mobileAppLink.count(), 1, name + ': mobile header includes employee app');
+    assert.equal(await landingLink(page).count(), 1, name + ': legacy footer entry remains');
+    if (name === 'pc') {
+      await landingLink(page).click();
+      await page.waitForURL(url => isLandingRoute(url.href));
+      await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
+      await page.screenshot({ path: path.join(output, 'homepage-app-menu-pc.png') });
+    }
+    if (width <= 1000) {
       await page.locator('[data-menu-button]').click();
       assert.equal(await page.locator('#mobile-nav').isVisible(), true);
-      await page.keyboard.press('Escape');
+      assert.equal(await mobileAppLink.isVisible(), true);
+      if (name === 'mobile') {
+        await page.screenshot({ path: path.join(output, 'homepage-app-menu-mobile.png') });
+      }
+      await mobileAppLink.click();
+    } else {
+      assert.equal(await desktopAppLink.isVisible(), true);
+      assert.equal(await desktopAppLink.evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(20, 124, 155)',
+        name + ': employee app header is a visible blue button');
+      await desktopAppLink.click();
     }
-    await landingLink(page).click();
     await page.waitForURL(url => isLandingRoute(url.href));
-    assert.ok(isLandingRoute(page.url()), name + ': homepage footer opens landing');
+    assert.ok(isLandingRoute(page.url()), name + ': homepage header opens landing');
     results.push({ name, width, footerHref, ...metric, ...visual, pass: true });
     console.log('PASS employee landing + homepage: ' + name);
     await context.close();

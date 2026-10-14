@@ -17,7 +17,8 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   const sitemap = read('sitemap.xml');
   const testManifest = read('scripts/test-manifest.mjs');
   assert.match(home, /<footer class="footer">[\s\S]*?<a href="employee-app\.html">직원앱 소개<\/a>/);
-  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 1);
+  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 3, "home header desktop/mobile and footer should link the app");
+  assert.equal((home.match(/class="employee-app-nav"/g) || []).length, 2);
   assert.match(build, /'employee-app\.html'/);
   assert.match(sitemap, /<loc>https:\/\/taejang\.co\.kr\/employee-app\.html<\/loc>/);
   assert.match(testManifest, /'tests\/employee-app-landing\.test\.js'/);
@@ -35,16 +36,16 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   assert.equal(new Set(ids).size, ids.length, 'all page ids must be unique');
 });
 
-test('content clearly distinguishes available features, goals, and draft improvements', () => {
+test('content shows working features and feedback records without unreleased claims', () => {
   for (const title of ['출근 기록', '공지 확인', '퇴근 기록']) {
     assert.ok(page.includes('<h3>' + title + '</h3>'), title + ' feature card is missing');
   }
-  for (const label of ['화면 읽기', '글자 확대', '직원의 의견', '개선 검토 중', '개발·검수 중']) {
+  for (const label of ['화면 읽기', '글자 확대', '직원의 의견', '개선 포인트', '중요한 기준']) {
     assert.ok(page.includes(label), 'accessibility or status content is missing: ' + label);
   }
   assert.match(page, /datetime="2026-10-14"[\s\S]*?출퇴근 버튼을 더 쉽게/);
-  assert.match(page, /datetime="2026-10-14"[\s\S]*?공지사항을 더 단순하게/);
-  assert.match(page, /앱에 적용 완료되었다는 뜻이 아니며/);
+  assert.match(page, /datetime="2026-09-22"[\s\S]*?공지사항을 더 단순하게/);
+  assert.doesNotMatch(page, /업무 플랫폼|개선 검토 중|개발·검수 중|계속 개선할 방향|정식 공개 다운로드|준비 중/, 'no small-scope platform or pending-style copy on public page');
   assert.doesNotMatch(page, /중증장애인우선기업|WCAG (?:AA|AAA) 인증/);
   assert.doesNotMatch(page, /href="[^"]*\.apk"|href="https:\/\/play\.google\.com/);
   assert.doesNotMatch(page, /(?:주민등록번호|장애 유형|실명 공개):/);
@@ -59,7 +60,7 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /<section class="section employee-app-notes" id="developer-notes"/);
   assert.match(page, /aria-labelledby="developer-notes-title"/);
   assert.match(css, /@media \(max-width: 760px\)/);
-  assert.match(page, /권한이 있는 직원에게만 제공/);
+  assert.doesNotMatch(page, /업무 플랫폼/);
   assert.match(page, /실제 앱 화면과는 다릅니다/);
   assert.equal((page.match(/class="employee-app-note-flow"/g) || []).length, 2);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
