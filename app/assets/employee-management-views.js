@@ -42,7 +42,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel, bulkResidentImportPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary }) {
     function avatar(employee, path = employee.profile_photo_path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -73,19 +73,27 @@
       const count = el('h2');
       const filters = el('div', null, 'employee-filters');
       const search = input('search', listState.search); search.placeholder = '이름 또는 직원번호';
-      const employment = select([{ id:'', name:'전체' }, { id:'active', name:'재직 (휴직 포함)' }, { id:'departed', name:'퇴직' }], listState.employment);
+      const employment = select([{ id:'active', name:'재직 (휴직 포함) · 기본' }, { id:'', name:'전체' }, { id:'departed', name:'퇴직' }], listState.employment);
       const account = select([{ id:'', name:'전체' }, { id:'linked', name:'앱 연결' }, { id:'unlinked', name:'앱 미연결' }, { id:'review', name:'연결 확인 필요' }], listState.account);
       const photo = select([{ id:'', name:'전체' }, { id:'yes', name:'사진 있음' }, { id:'no', name:'사진 없음' }], listState.photo);
       filters.append(field('직원 검색', search), field('재직 상태', employment), field('앱 계정', account), field('업무용 사진', photo));
       const head = el('div', null, 'employee-list-head'); head.setAttribute('aria-hidden', 'true');
       ['사진', '직원번호', '이름', '부서', '직책', '재직', '앱 계정', '근태', '사진', '점검'].forEach(label => head.append(el('span', label)));
-      const list = el('div', null, 'employee-list'); list.setAttribute('role', 'list');
+      const list = el('div', null, 'employee-list');
       const render = () => {
         const filtered = filterEmployees(employees, listState, reviewIds);
         count.textContent = `직원 목록 · ${filtered.length}명 / 전체 ${employees.length}명`;
         list.replaceChildren();
         if (!filtered.length) list.append(el('p', '조건에 맞는 직원이 없습니다.', 'empty'));
-        filtered.forEach(employee => {
+        let rows = null;
+        const ordered = filtered.filter(employee => employee.employment_status !== 'departed').concat(filtered.filter(employee => employee.employment_status === 'departed'));
+        ordered.forEach((employee, index) => {
+          const departed = employee.employment_status === 'departed';
+          if (!rows || departed !== (ordered[index - 1]?.employment_status === 'departed')) {
+            const group = el('section', null, departed ? 'employee-list-departed' : 'employee-list-employed');
+            if (!listState.employment) group.append(el('h3', departed ? '퇴직 직원' : '재직 직원', 'employee-list-group-title'));
+            rows = el('div'); rows.setAttribute('role', 'list'); group.append(rows); list.append(group);
+          }
           const item = el('div'); item.setAttribute('role', 'listitem');
           const row = button('', () => selectEmployee(employee.id)); row.className = 'employee-list-row'; row.dataset.employeeId = employee.id;
           const account = accountState(employee, reviewIds);
@@ -100,7 +108,7 @@
           row.append(el('span', employee.profile_photo_path ? '사진 있음' : '사진 없음', 'employee-list-photo'));
           const review = el('span', null, 'employee-list-review');
           review.append(account.review ? badge('연결 확인 필요', true) : el('span', '—')); row.append(review);
-          item.append(row); list.append(item);
+          item.append(row); rows.append(item);
         });
       };
       [[search, 'search', 'input'], [employment, 'employment', 'change'], [account, 'account', 'change'], [photo, 'photo', 'change']].forEach(([control, key, event]) => {
@@ -171,7 +179,6 @@
             ['국민연금', nationalPensionAgeLabel(employee.national_pension_age_status)], ['고용보험', employmentInsuranceAgeLabel(employee.employment_insurance_age_status)]
           ]));
           tool('주민번호·보험연령 관리', () => sensitiveIdentityPanel(context, employee));
-          tool('주민번호 일괄등록 도구 (조회 가능한 직원 전체)', () => bulkResidentImportPanel(context));
         }
         if (context.access_level === 'operations_manager') tool('4대보험 공제 ON/OFF', () => insuranceDeductionPanel(employee));
       }
