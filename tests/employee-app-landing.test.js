@@ -63,6 +63,14 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.doesNotMatch(page, /업무 플랫폼/);
   assert.match(page, /실제 앱 화면과는 다릅니다/);
   assert.equal((page.match(/class="employee-app-note-flow"/g) || []).length, 2);
+  assert.doesNotMatch(page, /이 기록 링크|employee-app-note-link/, 'no misleading self-link on notes');
+  assert.doesNotMatch(css, /\.employee-app-note-link\b/, 'remove now unused self-link style');
+  assert.match(page, /<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6"/,
+    'diverse environments icon is a phone, not a human silhouette');
+  assert.match(page, /<text x="19\.5" y="28"[^>]*>Aa<\/text>/, 'icon shows scalable readable text');
+  assert.match(css, /\.employee-app-art-arrive \{ animation: employee-app-arrive 3\.2s/);
+  assert.match(css, /\.employee-app-art-leave \{ animation: employee-app-arrive 3\.2s[^;]+2\.15s;/);
+  assert.match(css, /\.employee-app-feature-art \{ animation: employee-app-emphasis 2\.4s/);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
   assert.match(css, /prefers-reduced-motion: no-preference/);
   assert.match(css, /prefers-reduced-motion: reduce/);

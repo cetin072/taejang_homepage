@@ -85,6 +85,8 @@ try {
     assert.equal(await page.locator('.employee-app-feature').count(), 3);
     assert.equal(await page.locator('.employee-app-note').count(), 2);
     assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
+    assert.equal(await page.locator('a.employee-app-note-link').count(), 0);
+    assert.equal(await page.locator('.employee-app-principle-list svg rect').count(), 1, 'use a phone-style icon instead of the old person glyph');
     assert.equal(await page.locator('header .desktop-nav .employee-app-nav').count(), 1);
     assert.equal(await page.locator('header .mobile-nav .employee-app-nav').count(), 1);
     const currentLink = page.locator('header .desktop-nav .employee-app-nav');
@@ -152,10 +154,9 @@ try {
       assert.equal(await menu.evaluate(el => el === document.activeElement), true);
       assert.ok((await menu.boundingBox()).width >= 44);
     }
-    await page.locator('.employee-app-note-link').first().focus();
-    await page.keyboard.press('Enter');
-    await page.waitForURL(url => url.hash === '#note-attendance');
-    assert.equal(new URL(page.url()).hash, '#note-attendance');
+    assert.equal(await page.locator('.employee-app-note-link').count(), 0, name + ': no misleading self-links');
+    assert.equal(await page.locator('#note-attendance h3').innerText(), '출퇴근 버튼을 더 쉽게');
+    assert.equal(await page.locator('#note-notice h3').innerText(), '공지사항을 더 단순하게');
     const footerHref = await landingLink(page).getAttribute('href');
     assert.ok(isLandingRoute(new URL(footerHref, page.url()).href), name + ': footer resolves to the employee-app route');
     await landingLink(page).focus();
@@ -221,11 +222,30 @@ try {
   assert.equal(motion.name, 'employee-app-arrive');
   assert.equal(motion.count, '1');
   assert.equal(motion.fill, 'none');
-  assert.equal(motion.duration, '1.25s');
-  assert.equal(motion.delay, '0.35s');
-  await motionPage.waitForTimeout(600);
+  assert.equal(motion.duration, '3.2s', 'hero components should appear noticeably slower');
+  assert.equal(motion.delay, '1.15s', 'hero cards should appear in a relaxed sequence');
+  for (const [selector, delay] of [
+    ['.employee-app-art-arrive', '0.15s'],
+    ['.employee-app-art-notice', '1.15s'],
+    ['.employee-app-art-leave', '2.15s']
+  ]) {
+    const timing = await motionPage.locator(selector).evaluate(el => {
+      const style = getComputedStyle(el);
+      return { duration: style.animationDuration, delay: style.animationDelay, count: style.animationIterationCount };
+    });
+    assert.deepEqual(timing, { duration: '3.2s', delay, count: '1' }, selector + ': slow, finite hero animation');
+  }
+  for (const [index, delay] of [[0, '0.35s'], [1, '1.1s'], [2, '1.85s']]) {
+    const timing = await motionPage.locator('.employee-app-feature-art').nth(index).evaluate(el => {
+      const style = getComputedStyle(el);
+      return { duration: style.animationDuration, delay: style.animationDelay, count: style.animationIterationCount };
+    });
+    assert.deepEqual(timing, { duration: '2.4s', delay, count: '1' }, 'guide illustration follows slower one-time pacing');
+  }
+  await motionPage.waitForTimeout(1750);
+  assert.ok(await motionPage.evaluate(() => document.getAnimations().length > 0), 'motion still running during first seconds');
   await motionPage.screenshot({ path: path.join(output, 'employee-app-motion-in-progress.png') });
-  await motionPage.waitForTimeout(1500);
+  await motionPage.waitForFunction(() => document.getAnimations().length === 0, undefined, { timeout: 9000 });
   assert.equal(await motionPage.evaluate(() => document.getAnimations().length), 0, 'all motion finishes');
   const finalArt = await motionPage.locator('.employee-app-art-arrive, .employee-app-art-notice, .employee-app-art-leave').evaluateAll(els => els.map(el => ({ opacity: getComputedStyle(el).opacity, transform: getComputedStyle(el).transform })));
   assert.equal(finalArt.length, 3);

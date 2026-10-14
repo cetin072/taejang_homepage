@@ -59,7 +59,6 @@
 .employee-app-note-flow > div:not(:last-child)::after { position: absolute; top: 0; right: -22px; color: var(--green); content: '→'; }
 .employee-app-note-flow dt { margin-bottom: 12px; color: var(--green); font-size: 15px; font-weight: 800; }
 .employee-app-note-flow dd { margin: 0; font-size: 16px; line-height: 1.85; }
-.employee-app-note-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 16px; color: var(--green); font-size: 14px; font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
 .employee-app-note:hover h3, .employee-app-note:focus-within h3 { color: var(--green); }
 .employee-app-guide-inner { display: flex; align-items: center; justify-content: space-between; gap: 40px; }
 .employee-app-guide-inner > div { max-width: 680px; }
@@ -69,15 +68,15 @@
 .employee-app-page .menu-btn { min-width: 44px; min-height: 44px; }
 /* No hidden content or animation fill-mode: all information is present from first paint. */
 @media (prefers-reduced-motion: no-preference) {
-  .employee-app-art-arrive { animation: employee-app-arrive 1.25s cubic-bezier(.22, .61, .36, 1) .1s; }
-  .employee-app-art-notice { animation: employee-app-arrive 1.25s cubic-bezier(.22, .61, .36, 1) .35s; }
-  .employee-app-art-leave { animation: employee-app-arrive 1.25s cubic-bezier(.22, .61, .36, 1) .6s; }
-  .employee-app-feature-art { animation: employee-app-emphasis .8s ease-out .35s; }
-  .employee-app-feature:nth-child(2) .employee-app-feature-art { animation-delay: .6s; }
-  .employee-app-feature:nth-child(3) .employee-app-feature-art { animation-delay: .85s; }
+  .employee-app-art-arrive { animation: employee-app-arrive 3.2s cubic-bezier(.22, .61, .36, 1) .15s; }
+  .employee-app-art-notice { animation: employee-app-arrive 3.2s cubic-bezier(.22, .61, .36, 1) 1.15s; }
+  .employee-app-art-leave { animation: employee-app-arrive 3.2s cubic-bezier(.22, .61, .36, 1) 2.15s; }
+  .employee-app-feature-art { animation: employee-app-emphasis 2.4s cubic-bezier(.22, .61, .36, 1) .35s; }
+  .employee-app-feature:nth-child(2) .employee-app-feature-art { animation-delay: 1.1s; }
+  .employee-app-feature:nth-child(3) .employee-app-feature-art { animation-delay: 1.85s; }
   .employee-app-note h3 { transition: color .2s ease; }
 }
-@keyframes employee-app-arrive { from { transform: translateY(8px); opacity: .7; } to { transform: translateY(0); opacity: 1; } }
+@keyframes employee-app-arrive { from { transform: translateY(12px); opacity: .65; } to { transform: translateY(0); opacity: 1; } }
 @keyframes employee-app-emphasis { 50% { transform: translateY(-4px); } }
 @media (max-width: 900px) {
   .employee-app-hero-layout { column-gap: 24px; }
