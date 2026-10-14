@@ -18,7 +18,7 @@ test('mobile notice API reuses existing guarded Supabase RPC contracts', async (
 test('home notice action opens the latest unread notice and always offers history', async () => {
   const home = await text('mobile/src/features/notices/notice-home-action.tsx');
   assert.match(home, /noticeDeepLinkPath\(latest.id\)/);
-  assert.match(home, /지난 공지 보기/);
+  assert.match(home, /공지 전체 보기/);
   assert.match(home, /numberOfLines=\{2\}/);
 });
 

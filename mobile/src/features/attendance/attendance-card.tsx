@@ -512,7 +512,7 @@ export function AttendanceCard({
       {previewMode ? (
         <Text style={styles.qaBadge}>가상 체험 · GPS 위치 검사 안 함 · 실제 근태 저장 안 함</Text>
       ) : qaMode ? (
-        <Text style={styles.qaBadge}>GPS·서버 검수 · 실제 근태 저장 안 함</Text>
+        <Text style={styles.qaBadge}>검수 모드 · 실제 근태에 반영되지 않음 · GPS·서버 위치 검사</Text>
       ) : null}
 
       <Pressable
