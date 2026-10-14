@@ -149,19 +149,19 @@
 
   async function decorateEmployees() {
     if (!isOperations() || busy.has('employees')) return;
-    const cards = [...document.querySelectorAll('.employee-grid .employee-card')];
+    const cards = [...document.querySelectorAll('[data-employee-profile]')];
     if (!cards.length || cards.every(card => card.querySelector('[data-ops-employee-tools]'))) return;
     busy.add('employees');
     try {
       const context = await app().rpc('get_employee_management_context');
       const employees = Array.isArray(context?.employees) ? context.employees : [];
-      const byId = new Map(employees.map(employee => [employee.employee_id, employee]));
+      const byId = new Map(employees.map(employee => [employee.id, employee]));
       cards.forEach(card => {
         if (card.querySelector('[data-ops-employee-tools]')) return;
-        const employeeId = card.querySelector('.status-label')?.textContent?.trim();
+        const employeeId = card.dataset.employeeProfile;
         const employee = byId.get(employeeId);
         if (!employee) return;
-        const actions = card.querySelector('.quick-links');
+        const actions = card.querySelector('[data-employee-record-actions]');
         if (!actions) return;
 
         const tools = document.createElement('span');
@@ -312,8 +312,8 @@
     return records.some(record => [...record.addedNodes].some(node => {
       if (node.nodeType !== 1) return false;
       if (node.matches?.('[data-ops-archive-schedule], [data-ops-archive-notice], [data-ops-archive-guidance]')) return false;
-      if (node.matches?.('.employee-card, .admin-record-card, .employee-grid, #schedule-admin-list, #notice-admin-list, #guidance-admin-list')) return true;
-      return !!node.querySelector?.('.employee-card, .admin-record-card');
+      if (node.matches?.('[data-employee-profile], .admin-record-card, #schedule-admin-list, #notice-admin-list, #guidance-admin-list')) return true;
+      return !!node.querySelector?.('[data-employee-profile], .admin-record-card');
     }));
   }
 
