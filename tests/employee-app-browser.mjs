@@ -10,7 +10,6 @@ const playwright = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve('dist');
 const output = process.env.EMPLOYEE_APP_QA_OUTPUT || path.join(os.tmpdir(), 'taejang-employee-app-qa');
 await fs.mkdir(output, { recursive: true });
-
 const types = new Map([
   ['.html', 'text/html; charset=utf-8'], ['.css', 'text/css; charset=utf-8'],
   ['.js', 'application/javascript; charset=utf-8'], ['.png', 'image/png'],
@@ -19,73 +18,148 @@ const types = new Map([
 const server = http.createServer(async (req, res) => {
   try {
     const requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-    const relative = requested === '/' ? '/index.html' : requested;
-    const file = path.resolve(root, '.' + relative);
+    const file = path.resolve(root, '.' + (requested === '/' ? '/index.html' : requested));
     if (!file.startsWith(root + path.sep)) throw new Error('invalid path');
-    const body = await fs.readFile(file);
     res.setHeader('Content-Type', types.get(path.extname(file)) || 'application/octet-stream');
-    res.end(body);
+    res.end(await fs.readFile(file));
   } catch {
     res.statusCode = 404;
     res.end('Not found');
   }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-const base = 'http://127.0.0.1:' + server.address().port;
+// Optional hosted base runs the same checks on the real Deploy Preview; no writes/API mutations.
+const base = process.env.EMPLOYEE_APP_QA_BASE || 'http://127.0.0.1:' + server.address().port;
+const results = [];
+async function assertLayout(page, name) {
+  const metric = await page.evaluate(() => ({
+    viewport: innerWidth, document: document.documentElement.scrollWidth,
+    overflow: [...document.querySelectorAll('main *, header *, footer *')]
+      .filter(el => { const b = el.getBoundingClientRect(); return b.width > 0 && (b.right > innerWidth + 1 || b.left < -1); })
+      .slice(0, 8).map(el => el.tagName + '.' + el.getAttribute('class')),
+    clipped: [...document.querySelectorAll('main h1, main h2, main h3, main p, main dd, main a')]
+      .filter(el => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).display !== 'inline')
+      .map(el => el.textContent.slice(0, 50))
+  }));
+  assert.ok(metric.document <= metric.viewport + 1, name + ': horizontal overflow: ' + JSON.stringify(metric));
+  assert.deepEqual(metric.overflow, [], name + ': off-screen elements');
+  assert.deepEqual(metric.clipped, [], name + ': clipped text');
+  return metric;
+}
 let browser;
 try {
   browser = await playwright.chromium.launch({
     headless: true,
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' })
   });
-  for (const [name, width, height, expectedColumns] of [
-    ['pc', 1440, 900, 2],
-    ['mobile', 390, 844, 1],
-    ['narrow', 320, 720, 1]
+  for (const [name, width, height] of [
+    ['pc', 1440, 900], ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 720],
+    // CSS viewport equivalent to desktop 1440 at 200%/400%; not a physical-device claim.
+    ['reflow-200', 720, 450], ['reflow-400', 360, 225]
   ]) {
     const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const response = await page.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
-    assert.equal(response?.status(), 200, name + ': HTML route must resolve');
-    await page.locator('#developer-notes .employee-app-note').last().waitFor();
+    const response = await page.goto(base + '/employee-app.html', { waitUntil: 'networkidle' });
+    assert.equal(response?.status(), 200, name + ': HTML route');
+    await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator('h1').count(), 1);
     assert.equal(await page.locator('.employee-app-feature').count(), 3);
     assert.equal(await page.locator('.employee-app-note').count(), 2);
-    const metric = await page.evaluate(() => {
-      const notes = document.querySelector('.employee-app-notes-grid');
+    assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
+    const metric = await assertLayout(page, name);
+    const visual = await page.evaluate(() => {
+      const columns = selector => getComputedStyle(document.querySelector(selector)).gridTemplateColumns.trim().split(/\s+/).length;
+      const box = selector => document.querySelector(selector).getBoundingClientRect();
       return {
-        viewport: window.innerWidth,
-        document: document.documentElement.scrollWidth,
-        columns: getComputedStyle(notes).gridTemplateColumns.trim().split(/\s+/).length,
-        stylesLoaded: getComputedStyle(notes).display === 'grid',
+        features: columns('.employee-app-feature-grid'), flow: columns('.employee-app-note-flow'),
+        heroCopy: box('.employee-app-hero-copy').bottom, heroArt: box('.employee-app-hero-art').top,
+        heroArtBottom: box('.employee-app-hero-art').bottom, heroButton: box('.employee-app-hero-link').top,
         motion: getComputedStyle(document.documentElement).scrollBehavior,
-        overflow: [...document.querySelectorAll('main *, header *, footer *')]
-          .filter(el => { const box = el.getBoundingClientRect(); return box.width > 0 && (box.right > innerWidth + 1 || box.left < -1); })
-          .slice(0, 6).map(el => el.tagName + '.' + el.className)
+        animations: document.getAnimations().length
       };
     });
-    assert.ok(metric.document <= metric.viewport + 1, name + ': horizontal overflow: ' + JSON.stringify(metric));
-    assert.deepEqual(metric.overflow, [], name + ': elements off-screen: ' + JSON.stringify(metric));
-    assert.equal(metric.stylesLoaded, true, name + ': styles must load');
-    assert.equal(metric.columns, expectedColumns, name + ': responsive note layout');
-    assert.equal(metric.motion, 'auto', name + ': reduced-motion preference');
-    assert.deepEqual(errors, [], name + ': uncaught browser errors');
-    await page.screenshot({ path: path.join(output, 'employee-app-' + width + '.png'), fullPage: true });
+    assert.equal(visual.features, width <= 760 ? 1 : 3);
+    assert.equal(visual.flow, width <= 760 ? 1 : 3);
+    if (width <= 760) {
+      assert.ok(visual.heroCopy <= visual.heroArt && visual.heroArtBottom <= visual.heroButton, name + ': mobile title → description → illustration → button');
+    }
+    assert.equal(visual.motion, 'auto');
+    assert.equal(visual.animations, 0, name + ': reduced motion disables all landing motion');
+    const positions = () => page.locator('.employee-app-hero-layout, .employee-app-feature-grid, .employee-app-timeline').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; }));
+    const before = await positions();
+    await page.waitForTimeout(300);
+    assert.deepEqual(await positions(), before, name + ': stable layout');
+    await page.screenshot({ path: path.join(output, 'employee-app-' + name + '.png'), fullPage: true });
+    await page.keyboard.press('Tab');
+    assert.equal(await page.locator('.skip-link').evaluate(el => el === document.activeElement), true, name + ': keyboard skip link');
+    await page.keyboard.press('Enter');
+    assert.equal(new URL(page.url()).hash, '#main-content');
+    await page.locator('.employee-app-hero-link').focus();
+    assert.equal(await page.locator('.employee-app-hero-link').evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
+    assert.ok((await page.locator('.employee-app-hero-link').boundingBox()).height >= 44);
+    await page.keyboard.press('Enter');
+    assert.equal(new URL(page.url()).hash, '#developer-notes');
     if (width < 1000) {
       const menu = page.locator('[data-menu-button]');
-      await menu.click();
-      assert.equal(await menu.getAttribute('aria-expanded'), 'true', name + ': mobile menu expands');
+      await menu.focus();
+      await page.keyboard.press('Enter');
+      assert.equal(await menu.getAttribute('aria-expanded'), 'true');
       assert.equal(await page.locator('#mobile-nav').isVisible(), true);
-      await menu.click();
-      assert.equal(await menu.getAttribute('aria-expanded'), 'false', name + ': mobile menu closes');
+      await page.keyboard.press('Escape');
+      assert.equal(await menu.getAttribute('aria-expanded'), 'false');
+      assert.equal(await menu.evaluate(el => el === document.activeElement), true);
+      assert.ok((await menu.boundingBox()).width >= 44);
     }
-    await page.locator('a[href="#developer-notes"]').click();
-    assert.equal(new URL(page.url()).hash, '#developer-notes', name + ': developer notes jump link works');
-    console.log('PASS employee app landing: ' + name + ', width=' + width + ', notes=' + metric.columns + ' columns');
+    await page.locator('.employee-app-note-link').first().focus();
+    await page.keyboard.press('Enter');
+    assert.equal(new URL(page.url()).hash, '#note-attendance');
+    assert.deepEqual(errors, [], name + ': uncaught browser errors');
+    // Regression: shared homepage footer entry and header/menu still work.
+    await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
+    assert.equal(await page.locator('header a[href="employee-app.html"]').count(), 0);
+    assert.equal(await page.locator('footer a[href="employee-app.html"]').count(), 1);
+    if (width < 1000) {
+      await page.locator('[data-menu-button]').click();
+      assert.equal(await page.locator('#mobile-nav').isVisible(), true);
+      await page.keyboard.press('Escape');
+    }
+    await page.locator('footer a[href="employee-app.html"]').click();
+    assert.equal(new URL(page.url()).pathname, '/employee-app.html');
+    results.push({ name, width, ...metric, ...visual, pass: true });
+    console.log('PASS employee landing + homepage: ' + name);
     await context.close();
   }
+  const noJS = await browser.newContext({ viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
+  const staticPage = await noJS.newPage();
+  await staticPage.goto(base + '/employee-app.html');
+  assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);
+  for (const selector of ['.employee-app-hero-message', '.employee-app-note-flow', '.employee-app-feature']) {
+    assert.equal(await staticPage.locator(selector).first().isVisible(), true);
+  }
+  await assertLayout(staticPage, 'no-JS');
+  await staticPage.screenshot({ path: path.join(output, 'employee-app-no-js.png'), fullPage: true });
+  await noJS.close();
+  const normal = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
+  const motionPage = await normal.newPage();
+  await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
+  const motion = await motionPage.locator('.employee-app-art-notice').evaluate(el => {
+    const s = getComputedStyle(el); return { name: s.animationName, count: s.animationIterationCount, fill: s.animationFillMode };
+  });
+  assert.equal(motion.name, 'employee-app-arrive');
+  assert.equal(motion.count, '1');
+  assert.equal(motion.fill, 'none');
+  await motionPage.waitForTimeout(1800);
+  assert.equal(await motionPage.evaluate(() => document.getAnimations().length), 0, 'all motion finishes');
+  await assertLayout(motionPage, 'motion-finished');
+  // Text-only enlargement catches fixed-height clipping independently of viewport reflow.
+  await motionPage.addStyleTag({ content: 'main p, main dd, main dt, main a, main h3 { font-size: 200% !important; }' });
+  await assertLayout(motionPage, 'text-200');
+  await motionPage.screenshot({ path: path.join(output, 'employee-app-text-200.png'), fullPage: true });
+  await normal.close();
+  await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ base, results, noJS: true, finiteMotion: motion, text200: true }, null, 2));
+  console.log('PASS no-JS navigation/content, finite motion, 200% text enlargement');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

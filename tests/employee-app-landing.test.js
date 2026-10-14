@@ -36,7 +36,7 @@ test('landing is static, reachable, and retains shared public navigation', () =>
 });
 
 test('content clearly distinguishes available features, goals, and draft improvements', () => {
-  for (const title of ['출퇴근 관리', '공지사항 확인', '업무 플랫폼 연결']) {
+  for (const title of ['출근 기록', '공지 확인', '퇴근 기록']) {
     assert.ok(page.includes('<h3>' + title + '</h3>'), title + ' feature card is missing');
   }
   for (const label of ['화면 읽기', '글자 확대', '직원의 의견', '개선 검토 중', '개발·검수 중']) {
@@ -58,8 +58,14 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /<script type="application\/ld\+json">[\s\S]*?"@type":"BreadcrumbList"/);
   assert.match(page, /<section class="section employee-app-notes" id="developer-notes"/);
   assert.match(page, /aria-labelledby="developer-notes-title"/);
-  assert.match(css, /@media\(max-width:900px\)/);
-  assert.match(css, /\.employee-app-notes-grid\{grid-template-columns:1fr\}/);
+  assert.match(css, /@media \(max-width: 760px\)/);
+  assert.match(page, /권한이 있는 직원에게만 제공/);
+  assert.match(page, /실제 앱 화면과는 다릅니다/);
+  assert.equal((page.match(/class="employee-app-note-flow"/g) || []).length, 2);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
-  assert.doesNotMatch(css, /animation:|@keyframes|transform:/, 'landing needs no movement');
+  assert.match(css, /prefers-reduced-motion: no-preference/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(css, /infinite|animation-fill-mode|visibility:\s*hidden|opacity:\s*0[;\s}]/);
+  assert.doesNotMatch(page, /<video|<canvas|<iframe/);
+  assert.equal((page.match(/<script[^>]*src=/g) || []).length, 1, 'reuse only the existing public-site script');
 });

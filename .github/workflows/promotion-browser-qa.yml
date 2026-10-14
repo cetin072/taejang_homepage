@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  statuses: read
 
 concurrency:
   group: promotion-browser-qa-${{ github.event.pull_request.number || github.ref }}
@@ -16,7 +17,7 @@ jobs:
   browser-gate:
     name: Promotion representative browser flow
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -59,6 +60,35 @@ jobs:
         run: |
           npm run build:netlify
           node tests/employee-app-browser.mjs
+
+      - name: Verify employee-app landing on exact-head Deploy Preview
+        if: github.event_name == 'pull_request'
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          EMPLOYEE_APP_QA_OUTPUT: employee-app-preview-qa-artifacts
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util
+          import os
+          import pathlib
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'EMPLOYEE_APP_QA_BASE={preview}\n')
+          PYTHON
+          node tests/employee-app-browser.mjs
+
+      - name: Keep exact-head Preview screenshots and browser results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-app-preview-qa
+          path: employee-app-preview-qa-artifacts/
+          if-no-files-found: ignore
 
       - name: Keep employee app landing screenshots
         if: always()

@@ -32,7 +32,7 @@
 <meta name="twitter:image" content="https://taejang.co.kr/images/og-taejang.png">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://taejang.co.kr/"},{"@type":"ListItem","position":2,"name":"직원앱 소개","item":"https://taejang.co.kr/employee-app.html"}]}</script>
 </head>
-<body>
+<body class="employee-app-page">
 <a class="skip-link" href="#main-content">본문 바로가기</a>
 <header class="site-header">
   <div class="container header-inner">
@@ -45,83 +45,172 @@
 
 <main id="main-content">
   <section class="page-hero employee-app-hero" aria-labelledby="employee-app-title">
-    <div class="container">
-      <div class="eyebrow">TAEJANG EMPLOYEE APP</div>
-      <h1 class="title" id="employee-app-title">태장 직원앱</h1>
-      <p class="employee-app-hero-message">현장의 의견이 앱을 바꿉니다.</p>
-      <p class="lead">누구나 쉽고 편하게 일할 수 있도록,<br class="employee-app-wide-break"> 직원들의 실제 사용 경험을 바탕으로 함께 개선하는 업무 앱입니다.</p>
+    <div class="container employee-app-hero-layout">
+      <div class="employee-app-hero-copy">
+        <div class="eyebrow">TAEJANG EMPLOYEE APP <span class="employee-app-label">직원의 하루와 함께</span></div>
+        <h1 class="title" id="employee-app-title">태장 직원앱</h1>
+        <p class="employee-app-hero-message">현장의 의견이<br>앱을 바꿉니다.</p>
+        <p class="lead">출퇴근 기록부터 공지 확인까지.<br>직원들의 사용 경험을 듣고,<br>더 쉽고 편한 앱으로 함께 바꿔갑니다.</p>
+      </div>
+      <figure class="employee-app-hero-art">
+        <svg viewBox="0 0 540 440" aria-hidden="true" focusable="false" class="employee-app-illustration">
+          <circle cx="276" cy="222" r="181" class="art-soft"/>
+          <circle cx="276" cy="222" r="205" fill="none" class="art-line" stroke-dasharray="3 10"/>
+          <path d="M82 344c35-12 35-45 26-64-29 14-35 40-26 64Z" class="art-green"/>
+          <path d="M83 344c-32-5-50-27-45-50 30 2 48 24 45 50Z" class="art-soft" stroke="currentColor" stroke-width="2"/>
+          <path d="M83 353v-49M442 134c0-24 18-39 38-43-1 25-16 41-38 43Zm0 0c-22-2-34-16-35-33 22 0 36 15 35 33Z" fill="none" stroke="currentColor" stroke-width="2"/>
+          <ellipse cx="276" cy="397" rx="115" ry="12" class="art-deep" opacity=".08"/>
+          <g>
+            <rect x="166" y="34" width="218" height="354" rx="34" class="art-deep"/>
+            <rect x="175" y="43" width="200" height="336" rx="27" fill="white"/>
+            <rect x="236" y="53" width="78" height="8" rx="4" class="art-deep"/>
+            <path d="M199 89h43" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+            <circle cx="350" cy="89" r="7" class="art-green"/>
+            <circle cx="275" cy="189" r="68" class="art-soft"/>
+            <circle cx="275" cy="189" r="46" fill="white" stroke="currentColor" stroke-width="3"/>
+            <path d="M275 163v26l20 13" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M239 284h73M225 303h100" class="art-line" stroke-width="7" stroke-linecap="round"/>
+            <path d="M246 353h58" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g class="employee-app-art-arrive">
+            <rect x="22" y="122" width="158" height="86" rx="16" fill="white" class="art-line"/>
+            <circle cx="56" cy="155" r="17" class="art-green"/>
+            <path d="m49 155 5 5 9-11" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="83" y="161" class="art-text">출근 기록</text>
+            <path d="M43 185h74" class="art-line" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g class="employee-app-art-notice">
+            <rect x="354" y="219" width="164" height="100" rx="16" fill="white" class="art-line"/>
+            <path d="M378 240h24v27h-24Z" class="art-soft" stroke="currentColor" stroke-width="2"/>
+            <path d="M384 247h12m-12 7h12m-12 7h7" stroke="currentColor" stroke-width="2"/>
+            <text x="416" y="260" class="art-text">공지 확인</text>
+            <path d="M378 289h100" class="art-line" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <g class="employee-app-art-leave">
+            <circle cx="152" cy="332" r="29" class="art-green"/>
+            <path d="M141 332h23m-9-9 9 9-9 9" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+        <figcaption>직원앱의 역할을 담은 안내용 그림입니다.<br>실제 앱 화면과는 다릅니다.</figcaption>
+      </figure>
       <a class="btn employee-app-hero-link" href="#developer-notes">함께 만든 변화 보기 <span aria-hidden="true">↓</span></a>
     </div>
   </section>
 
-  <section class="section" id="app-features" aria-labelledby="app-features-title">
+  <section class="section employee-app-features" id="app-features" aria-labelledby="app-features-title">
     <div class="container">
-      <div class="eyebrow">WHAT THE APP DOES</div>
-      <h2 class="title" id="app-features-title">직원의 하루에 필요한 기능</h2>
-      <p class="employee-app-section-intro">현재 태장 직원앱에서 사용하는 기능을 간단하게 소개합니다.</p>
+      <div class="eyebrow">DAILY GUIDE <span class="employee-app-label">하루의 필요한 순간</span></div>
+      <h2 class="title" id="app-features-title">오늘 필요한 일,<br class="employee-app-mobile-break"> 쉽게 확인하세요.</h2>
+      <p class="employee-app-section-intro">현재 사용하는 기능입니다. 정해진 순서 없이, 필요한 때 확인하세요.</p>
       <div class="employee-app-feature-grid">
         <article class="employee-app-feature">
-          <span class="employee-app-feature-number" aria-hidden="true">01</span>
-          <h3>출퇴근 관리</h3>
-          <p>출근과 퇴근을 기록하고 근무 상태를 확인합니다.</p>
+          <div class="employee-app-feature-art" aria-hidden="true">
+            <svg viewBox="0 0 240 150" focusable="false">
+              <circle cx="120" cy="76" r="65" class="art-soft"/>
+              <path d="M103 115V39h53v76" fill="white" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M82 77h51m-13-13 13 13-13 13M76 116h99" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="147" cy="78" r="3" class="art-green"/>
+              <path d="M58 37v-8m-4 4h8" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <span class="employee-app-feature-label">일을 시작할 때</span>
+          <h3>출근 기록</h3>
+          <p>출근을 기록하고 현재 근무 상태를 확인합니다.</p>
         </article>
         <article class="employee-app-feature">
-          <span class="employee-app-feature-number" aria-hidden="true">02</span>
-          <h3>공지사항 확인</h3>
-          <p>직원에게 필요한 공지를 앱에서 확인합니다.</p>
+          <div class="employee-app-feature-art" aria-hidden="true">
+            <svg viewBox="0 0 240 150" focusable="false">
+              <circle cx="120" cy="76" r="65" class="art-soft"/>
+              <rect x="85" y="30" width="75" height="92" rx="7" fill="white" stroke="currentColor" stroke-width="3"/>
+              <path d="M102 51h41m-41 16h41m-41 16h24" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              <circle cx="157" cy="109" r="21" class="art-green"/>
+              <path d="m148 109 6 6 11-13" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="employee-app-feature-label">소식이 궁금할 때</span>
+          <h3>공지 확인</h3>
+          <p>직원에게 필요한 회사 소식을 앱에서 확인합니다.</p>
         </article>
         <article class="employee-app-feature">
-          <span class="employee-app-feature-number" aria-hidden="true">03</span>
-          <h3>업무 플랫폼 연결</h3>
-          <p>업무 권한에 따라 회사의 업무 플랫폼으로 연결합니다.</p>
+          <div class="employee-app-feature-art" aria-hidden="true">
+            <svg viewBox="0 0 240 150" focusable="false">
+              <circle cx="120" cy="76" r="65" class="art-soft"/>
+              <path d="M87 115V39h53v76" fill="white" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+              <path d="M116 77h55m-13-13 13 13-13 13M76 116h99" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="101" cy="78" r="3" class="art-green"/>
+              <path d="M179 33v-8m-4 4h8" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <span class="employee-app-feature-label">하루 일을 마칠 때</span>
+          <h3>퇴근 기록</h3>
+          <p>퇴근을 기록하고 오늘의 근무 상태를 확인합니다.</p>
         </article>
       </div>
+      <p class="employee-app-platform"><strong>업무 플랫폼 연결</strong> 업무 플랫폼 진입은 권한이 있는 직원에게만 제공됩니다.</p>
     </div>
   </section>
 
-  <section class="section beige employee-app-principles" id="accessibility-principles" aria-labelledby="accessibility-title">
-    <div class="container employee-app-principle-layout">
-      <div>
-        <div class="eyebrow">DESIGNED WITH PEOPLE</div>
-        <h2 class="title" id="accessibility-title">많은 기능보다<br>쉽게 쓰는 경험</h2>
-        <p class="employee-app-section-intro">태장은 장애인 근로자를 포함한 실제 사용자들의 의견에서 개선점을 찾습니다. 특정 사용자를 구분하기보다 누구나 이해하기 쉬운 앱을 만드는 것이 목표입니다.</p>
-        <p class="employee-app-principle-note">아래 내용은 개발 방향입니다. 화면 읽기·글자 확대 등 접근성은 실제 기기와 사용자 경험을 통해 계속 점검하고 개선합니다.</p>
+  <section class="section green-soft employee-app-principles" id="accessibility-principles" aria-labelledby="accessibility-title">
+    <div class="container">
+      <div class="eyebrow">DESIGNED WITH PEOPLE <span class="employee-app-label">쉽게 쓰는 경험</span></div>
+      <h2 class="title" id="accessibility-title">많은 기능보다, 쉽게 쓰는 경험</h2>
+      <p class="employee-app-section-intro">불편함을 듣는 것에서 시작합니다.<br>실제 직원의 의견을 반영하며 다음 방향으로 개선합니다.</p>
+      <div class="employee-app-principle-layout">
+        <figure class="employee-app-principle-art">
+          <div class="employee-app-reading-example" aria-hidden="true">
+            <span class="employee-app-example-label">한눈에 이해하는 안내</span>
+            <span class="employee-app-large-type">크고 또렷하게<span class="employee-app-type-line"></span></span>
+            <div class="employee-app-state-example"><svg viewBox="0 0 40 40" focusable="false"><circle cx="20" cy="20" r="19" fill="currentColor"/><path d="m11 20 6 6 12-14" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>완료 상태도 명확하게</span></div>
+            <span class="employee-app-example-space">여유 있는 글자와 간격</span>
+          </div>
+          <figcaption>읽기 쉬운 글자와 상태 안내를 위한 디자인 방향 예시입니다.</figcaption>
+        </figure>
+        <ul class="employee-app-principle-list">
+          <li><span aria-hidden="true">Aa</span><div><h3>단순한 화면, 읽기 쉬운 글자</h3><p>필요한 일만 또렷하게. 문장과 화면 구성을 간결하게 다듬습니다.</p></div></li>
+          <li><span aria-hidden="true">✓</span><div><h3>명확한 상태, 누르기 편한 버튼</h3><p>지금 상태와 다음 행동을 구분하고, 버튼의 크기와 간격을 살핍니다.</p></div></li>
+          <li><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="9" r="4" fill="currentColor"/><path d="M11 18h26m-13 0v12m0-1-9 12m9-12 9 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><div><h3>다양한 사용 환경도 함께</h3><p>화면 읽기와 글자 확대를 고려하고, 실제 직원의 의견으로 점검합니다.</p></div></li>
+        </ul>
       </div>
-      <ol class="employee-app-principle-list">
-        <li><span aria-hidden="true">01</span><div><h3>단순하고 직관적으로</h3><p>필요한 행동을 쉽게 찾을 수 있도록 화면을 정리합니다.</p></div></li>
-        <li><span aria-hidden="true">02</span><div><h3>읽기 쉬운 표현으로</h3><p>글자와 상태 안내를 명확하게 만들고 혼동되는 문구를 고칩니다.</p></div></li>
-        <li><span aria-hidden="true">03</span><div><h3>누르기 편한 버튼으로</h3><p>버튼 크기와 조작 과정을 실제 사용 환경에서 살핍니다.</p></div></li>
-        <li><span aria-hidden="true">04</span><div><h3>접근성도 함께 점검하며</h3><p>화면 읽기, 글자 확대, 동작 효과 감소 등 다양한 사용 환경을 고려합니다.</p></div></li>
-        <li><span aria-hidden="true">05</span><div><h3>직원의 의견으로 개선하며</h3><p>발견한 불편함과 수정 이유를 기록하고 다음 개선에 반영합니다.</p></div></li>
-      </ol>
+      <p class="employee-app-principle-note"><strong>계속 개선할 방향입니다.</strong> 화면 읽기·글자 확대 등은 실제 기기와 사용자 경험을 통해 점검합니다. 접근성 인증이나 모든 환경의 검증 완료를 뜻하지 않습니다.</p>
     </div>
   </section>
 
   <section class="section employee-app-notes" id="developer-notes" aria-labelledby="developer-notes-title">
     <div class="container">
-      <div class="eyebrow">DEVELOPER NOTES</div>
+      <div class="eyebrow">DEVELOPER NOTES <span class="employee-app-label">의견이 변화가 되는 과정</span></div>
       <h2 class="title" id="developer-notes-title">함께 만든 변화</h2>
-      <p class="employee-app-section-intro">직원들의 의견에서 어떤 문제를 발견했고, 왜 바꾸려 하는지 남깁니다. 개선 기록은 실제 앱 적용 여부와 구분해 표시합니다.</p>
-      <div class="employee-app-notes-grid">
-        <article class="employee-app-note" aria-labelledby="note-attendance-title">
+      <p class="employee-app-section-intro">어떤 의견을 들었고, 어떻게 바꾸려 하는지.<br>개선의 이유와 지금의 상태를 함께 남깁니다.</p>
+      <!-- Add a new article with a unique id, date, status and the same three-stage dl. -->
+      <div class="employee-app-timeline">
+        <article class="employee-app-note" id="note-attendance" aria-labelledby="note-attendance-title">
           <div class="employee-app-note-meta">
             <time datetime="2026-10-14">2026.10.14</time>
             <span class="employee-app-note-status">개선 검토 중</span>
           </div>
-          <h3 id="note-attendance-title">출퇴근 버튼을 더 쉽게</h3>
-          <p><strong>개선 배경</strong> 일부 직원이 ‘출근했습니다’와 ‘퇴근했습니다’라는 버튼을 헷갈린다는 의견을 전했습니다.</p>
-          <p><strong>개선 방향</strong> 버튼 문구를 ‘출근하기’와 ‘퇴근하기’로 구분하고, 출근 완료 후 카드 전환 효과와 짧은 진동을 도입하는 방안을 검토하고 있습니다.</p>
-          <p><strong>목표</strong> 현재 상태와 다음에 할 행동을 쉽게 이해하도록 만드는 것입니다.</p>
+          <div class="employee-app-note-content">
+            <h3 id="note-attendance-title">출퇴근 버튼을 더 쉽게</h3>
+            <dl class="employee-app-note-flow">
+              <div><dt>직원의 의견</dt><dd>출근과 퇴근 버튼이 행동인지, 완료 표시인지 헷갈린다는 의견이 있었습니다.</dd></div>
+              <div><dt>개선 방향</dt><dd>‘출근하기’와 ‘퇴근하기’를 구분하고, 완료 후 카드 전환과 짧은 진동을 검토합니다.</dd></div>
+              <div><dt>현재 진행 상태</dt><dd>문구와 완료 안내를 검토 중입니다. 카드 전환·진동은 아직 적용 완료되지 않았습니다.</dd></div>
+            </dl>
+            <a class="employee-app-note-link" href="#note-attendance" aria-label="출퇴근 버튼을 더 쉽게 기록 링크">이 기록 링크 <span aria-hidden="true">↗</span></a>
+          </div>
         </article>
-        <article class="employee-app-note" aria-labelledby="note-notice-title">
+        <article class="employee-app-note" id="note-notice" aria-labelledby="note-notice-title">
           <div class="employee-app-note-meta">
             <time datetime="2026-10-14">2026.10.14</time>
             <span class="employee-app-note-status employee-app-note-status--in-progress">개발·검수 중</span>
           </div>
-          <h3 id="note-notice-title">공지사항을 더 단순하게</h3>
-          <p><strong>개선 배경</strong> 공지 화면에 비슷한 표현이 반복되고 설명이 많아 중요한 내용이 한눈에 들어오지 않는 문제가 발견되었습니다.</p>
-          <p><strong>개선 방향</strong> 중복 표현을 줄이고 날짜, 중요도, 읽음 상태, 제목과 내용 보기를 중심으로 화면을 정리하고 있습니다.</p>
-          <p><strong>목표</strong> 공지를 쉽게 알아보고 다음 행동을 빠르게 선택하도록 돕는 것입니다.</p>
+          <div class="employee-app-note-content">
+            <h3 id="note-notice-title">공지사항을 더 단순하게</h3>
+            <dl class="employee-app-note-flow">
+              <div><dt>개선 배경</dt><dd>비슷한 표현과 긴 설명 때문에 중요한 공지를 한눈에 찾기 어려웠습니다.</dd></div>
+              <div><dt>개선 방향</dt><dd>중복 표현을 줄이고 제목, 날짜, 미확인 개수와 내용 보기를 중심으로 정리합니다.</dd></div>
+              <div><dt>현재 진행 상태</dt><dd>개발·검수 중입니다. 실제 기기 확인과 앱 반영을 마친 뒤 적용 상태를 갱신합니다.</dd></div>
+            </dl>
+            <a class="employee-app-note-link" href="#note-notice" aria-label="공지사항을 더 단순하게 기록 링크">이 기록 링크 <span aria-hidden="true">↗</span></a>
+          </div>
         </article>
       </div>
       <p class="employee-app-notes-disclaimer">2026년 10월 14일 기준 작성한 개선 기록입니다. ‘개선 검토 중’과 ‘개발·검수 중’은 앱에 적용 완료되었다는 뜻이 아니며, 적용 여부를 확인한 뒤 상태를 갱신합니다.</p>
