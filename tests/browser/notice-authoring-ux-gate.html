@@ -86,13 +86,13 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(new Date(Date.now()+2*86400000));
  el('notice-publish-start-date').dispatchEvent(new Event('change',{bubbles:true}));
  check(endInstant()===manualEnd,'manual end date stays unchanged when start changes');
- await start();
+ await start();el('notice-title-input').value='종료일 없는 검수 공지';
  el('notice-publish-end-date').value='';el('notice-publish-end-date').dispatchEvent(new Event('change',{bubbles:true}));
  el('notice-publish-end-time').value='';el('notice-publish-end-time').dispatchEvent(new Event('change',{bubbles:true}));
  await press('notice-publish');
  check(rows.at(-1).status==='published'&&rows.at(-1).publish_end_at===null,'explicit empty end is allowed');
  window.TaejangNoticeAdmin.setView('manage');await wait();
- const unbounded=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='직원 공지'&&card.textContent.includes('현재 공개됨'));
+ const unbounded=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='종료일 없는 검수 공지'&&card.textContent.includes('현재 공개됨'));
  check(unbounded,'unbounded notice is listed');
  unbounded.querySelector('button').click();await wait();
  check(el('notice-publish-end-date').value===''&&el('notice-publish-end-time').value==='','editing retains an old blank expiry');
