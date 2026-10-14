@@ -68,23 +68,31 @@ async function attendance({
   calendarDay = { work_date: '2026-10-09', is_workday: false, reason: '한글날' },
   result = { ok: true, writes_attendance: false, server_time: '2026-10-08T01:00:00Z' },
   locationFailure = false,
+  locationCode = 'TIMEOUT',
+  persistRecord = false,
 } = {}) {
   const h = hooks(), calls = [];
   let latestRequired = required, locationRequests = 0;
+  let recordedIn = null, recordedOut = null;
   let onAppStateChange = null;
   const client = { rpc: async (name, args) => {
     calls.push({ name, args });
     if (name === 'get_my_attendance_today') return { data: {
       work_date: '2026-10-09', attendance_required: latestRequired,
       is_workday: isWorkday, day_reason: dayReason,
-      clock_in_available: clockInAvailable, clock_in: null, clock_out: null,
+      clock_in_available: clockInAvailable, clock_in: recordedIn, clock_out: recordedOut,
     } };
     if (name === 'get_attendance_workday_status') return { data: calendarDay };
+    if (persistRecord && name === 'record_attendance_event' && result.ok) {
+      const event = { status: 'recorded', event_at: '2026-10-09T01:00:00Z', requested_at: null };
+      if (args.p_event_type === 'clock_in') recordedIn = event;
+      else recordedOut = event;
+    }
     return { data: result };
   } };
   const api = load('mobile/src/features/attendance/attendance-api.ts', {});
   const previewState = load('mobile/src/features/qa/qa-preview-state.ts', {});
-  class AttendanceLocationError extends Error { constructor() { super('location'); this.code = 'TIMEOUT'; } }
+  class AttendanceLocationError extends Error { constructor() { super('location'); this.code = locationCode; } }
   const card = load('mobile/src/features/attendance/attendance-card.tsx', {
     react: h.react,
     'react-native': {
@@ -109,6 +117,7 @@ async function attendance({
   await settle();
   return {
     calls, render, locationRequests: () => locationRequests, changeRequired(value) { latestRequired = value; },
+    openClockIn() { clockInAvailable = true; },
     async foreground() {
       if (onAppStateChange) onAppStateChange('active');
       await settle();
@@ -289,4 +298,54 @@ test('production ordinary employee cannot check in before the server opens at 06
   assert.equal(button.props.accessibilityLabel, '출근 전입니다');
   await fixture.press();
   assert.deepEqual(mutations(fixture), []);
+});
+
+
+test('production server state progresses from 06:00 opening through clock-in/out and survives foreground refresh', async () => {
+  const fixture = await attendance({ mode: 'record', required: true, clockInAvailable: false, persistRecord: true, result: { ok: true } });
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.disabled, true);
+  fixture.openClockIn();
+  await fixture.foreground();
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.disabled, false);
+  await fixture.press();
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근했습니다');
+  await fixture.foreground();
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근했습니다');
+  await fixture.press();
+  assert.ok(fixture.render().includes('오늘 근무 완료'));
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.disabled, true);
+  await fixture.foreground();
+  await fixture.press();
+  assert.deepEqual(mutations(fixture).map(call => [call.name, call.args.p_event_type]),
+    [['record_attendance_event', 'clock_in'], ['record_attendance_event', 'clock_out']]);
+});
+
+test('denied location never writes attendance or offers an exception after repeated taps', async () => {
+  for (const mode of ['record', 'qa']) {
+    const fixture = await attendance({ mode, required: mode === 'record', locationFailure: true, locationCode: 'PERMISSION_DENIED' });
+    await fixture.press(); await fixture.press();
+    assert.deepEqual(mutations(fixture), []);
+    assert.ok(fixture.render().includes('출퇴근을 위해 휴대폰의 위치 권한을 허용해주세요.'));
+    assert.equal(fixture.render().includes('관리자 확인 요청'), false);
+  }
+});
+
+test('SecureStore adapter restores a long session on module restart and removes all chunks on signout', async () => {
+  const disk = new Map();
+  const secureStore = {
+    getItemAsync: async key => disk.get(key) ?? null,
+    setItemAsync: async (key, value) => { disk.set(key, value); },
+    deleteItemAsync: async key => { disk.delete(key); },
+  };
+  const freshStorage = () => load('mobile/src/platform/secure-storage.ts', { 'expo-secure-store': secureStore }).secureSessionStorage;
+  const key = 'fixture-session', session = JSON.stringify({ fixture: 'x'.repeat(4000) });
+  await freshStorage().setItem(key, session);
+  assert.equal(await freshStorage().getItem(key), session);
+  await freshStorage().setItem(key, 'refreshed-fixture');
+  assert.equal(await freshStorage().getItem(key), 'refreshed-fixture');
+  assert.equal(disk.size, 1, 'refresh retires old chunks');
+  await freshStorage().setItem(key, session);
+  await freshStorage().removeItem(key);
+  assert.equal(await freshStorage().getItem(key), null);
+  assert.equal(disk.size, 0, 'signout must leave no session chunk behind');
 });

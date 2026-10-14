@@ -79,6 +79,10 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: supabase db lint --level error --fail-on error
 
+      - name: Inspect isolated security advisors
+        if: steps.scope.outputs.run_full == 'true'
+        run: supabase db advisors --local --type security --level warn --fail-on error
+
       - name: Run pgTAP security tests
         if: steps.scope.outputs.run_full == 'true'
         run: supabase test db supabase/tests/database/*.test.sql
