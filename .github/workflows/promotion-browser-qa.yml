@@ -48,6 +48,19 @@ jobs:
           ATTENDANCE_QA_OUTPUT: attendance-qa-artifacts
         run: node tests/issue-426-attendance-browser.mjs
 
+      - name: Run employee list and profile PC and mobile fixture QA
+        env:
+          EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
+        run: node tests/issue-451-employee-profile-browser.mjs
+
+      - name: Keep synthetic employee screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-list-profile-1440-390
+          path: employee-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Keep synthetic attendance screenshots and XLSX
         if: always()
         uses: actions/upload-artifact@v4
