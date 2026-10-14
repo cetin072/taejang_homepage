@@ -9,29 +9,29 @@
 .employee-app-feature{min-width:0;padding:30px 28px;border:1px solid var(--line);background:#fff}
 .employee-app-feature-number{color:var(--green);font:800 16px var(--myeongjo)}
 .employee-app-feature h3{margin:18px 0 12px;color:var(--green-deep);font:800 21px/1.5 var(--myeongjo)}
-.employee-app-feature p{margin:0;font-size:15px;line-height:1.85}
+.employee-app-feature p{margin:0;font-size:16px;line-height:1.85}
 .employee-app-principle-layout{display:grid;grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr);gap:60px;align-items:start}
 .employee-app-principle-layout .employee-app-section-intro{margin-bottom:18px}
-.employee-app-principle-note{margin:0;padding:16px 0 0;border-top:1px solid var(--line);font-size:14px;line-height:1.9;color:var(--ink)}
+.employee-app-principle-note{margin:0;padding:16px 0 0;border-top:1px solid var(--line);font-size:15px;line-height:1.9;color:var(--ink)}
 .employee-app-principle-list{margin:0;padding:0;list-style:none}
 .employee-app-principle-list li{display:grid;grid-template-columns:44px minmax(0,1fr);gap:16px;padding:15px 0 18px;border-bottom:1px solid var(--line)}
 .employee-app-principle-list li:first-child{padding-top:0}
 .employee-app-principle-list li>span{color:var(--green);font:800 19px/1.6 var(--myeongjo)}
 .employee-app-principle-list h3{margin:0 0 4px;color:var(--green-deep);font-size:17px;line-height:1.55}
-.employee-app-principle-list p{margin:0;font-size:14px;line-height:1.85}
+.employee-app-principle-list p{margin:0;font-size:15px;line-height:1.85}
 .employee-app-notes-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
 .employee-app-note{min-width:0;border:1px solid var(--line);background:#fff;padding:28px}
 .employee-app-note-meta{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;color:var(--ink-soft);font-size:13px}
 .employee-app-note-status{display:inline-block;padding:5px 10px;border-radius:3px;background:#ece7da;color:#51462c;font-size:12px;font-weight:800}
 .employee-app-note-status--in-progress{background:#e7f2ec;color:#1b4332}
 .employee-app-note h3{margin:20px 0 18px;font:800 22px/1.5 var(--myeongjo);color:var(--green-deep)}
-.employee-app-note p{margin:0;font-size:14px;line-height:1.9}
+.employee-app-note p{margin:0;font-size:15px;line-height:1.9}
 .employee-app-note p+p{margin-top:14px}
 .employee-app-note p strong{display:block;margin-bottom:3px;font-weight:800;color:var(--green-deep)}
-.employee-app-notes-disclaimer{margin:23px 0 0;padding:15px 18px;border-left:3px solid var(--green);background:var(--green-soft);color:var(--ink);font-size:13px;line-height:1.9}
+.employee-app-notes-disclaimer{margin:23px 0 0;padding:15px 18px;border-left:3px solid var(--green);background:var(--green-soft);color:var(--ink);font-size:14px;line-height:1.9}
 .employee-app-guide-inner{display:flex;align-items:center;justify-content:space-between;gap:40px}
 .employee-app-guide-inner>div{max-width:720px}
-.employee-app-guide-inner p{margin:0;font-size:15px;line-height:1.95}
+.employee-app-guide-inner p{margin:0;font-size:16px;line-height:1.95}
 .employee-app-policy-link{flex:0 0 auto;color:var(--green-deep);font-weight:800;text-decoration:underline;text-underline-offset:4px}
 .employee-app-policy-link:hover{color:var(--green)}
 @media(max-width:900px){

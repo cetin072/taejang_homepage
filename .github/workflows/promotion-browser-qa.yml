@@ -53,6 +53,21 @@ jobs:
           EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
         run: node tests/issue-451-employee-profile-browser.mjs
 
+      - name: Run employee-app landing browser QA at PC and mobile sizes
+        env:
+          EMPLOYEE_APP_QA_OUTPUT: employee-app-qa-artifacts
+        run: |
+          npm run build:netlify
+          node tests/employee-app-browser.mjs
+
+      - name: Keep employee app landing screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-app-landing-1440-390-320
+          path: employee-app-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Keep synthetic employee screenshots
         if: always()
         uses: actions/upload-artifact@v4
