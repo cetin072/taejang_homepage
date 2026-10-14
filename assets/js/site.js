@@ -56,6 +56,7 @@
 
   function currentPageName() {
     const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
+    if (path === 'employee-app') return 'employee-app.html'; // Netlify clean URL
     return path.endsWith('.html') ? path : 'index.html';
   }
 
