@@ -17,7 +17,7 @@ jobs:
   browser-gate:
     name: Promotion representative browser flow
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
 
     steps:
       - name: Check out repository
@@ -53,6 +53,46 @@ jobs:
         env:
           EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
         run: node tests/issue-451-employee-profile-browser.mjs
+
+      - name: Keep synthetic employee screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-list-profile-1440-390
+          path: employee-qa-artifacts/
+          if-no-files-found: ignore
+
+      - name: Keep synthetic attendance screenshots and XLSX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendance-pc-mobile-xlsx
+          path: attendance-qa-artifacts/
+          if-no-files-found: ignore
+
+      - name: Keep synthetic notice authoring screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notice-authoring-320-390-1280
+          path: notice-qa-artifacts/
+          if-no-files-found: ignore
+
+  employee-app-gate:
+    name: Employee app landing local and exact-head Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install existing browser dependency
+        run: npm ci
 
       - name: Run employee-app landing browser QA at PC and mobile sizes
         env:
@@ -97,28 +137,4 @@ jobs:
         with:
           name: employee-app-landing-1440-390-320
           path: employee-app-qa-artifacts/
-          if-no-files-found: ignore
-
-      - name: Keep synthetic employee screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: employee-list-profile-1440-390
-          path: employee-qa-artifacts/
-          if-no-files-found: ignore
-
-      - name: Keep synthetic attendance screenshots and XLSX
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: attendance-pc-mobile-xlsx
-          path: attendance-qa-artifacts/
-          if-no-files-found: ignore
-
-      - name: Keep synthetic notice authoring screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: notice-authoring-320-390-1280
-          path: notice-qa-artifacts/
           if-no-files-found: ignore
