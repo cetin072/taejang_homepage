@@ -147,8 +147,15 @@ test('actual home UI shows title/date/count, routes latest directly, keeps histo
   assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
   ui.filter(x => x.type === 'Pressable')[1].props.onPress(); assert.equal(routes.at(-1), '/notices');
+  assert.ok(ui.find(x => x.props?.accessibilityLabel === '공지 전체 보기').props.style, 'list action is inside notice card');
   state = { ...state, versions: { a: 1, b: 1 } };
-  assert.ok(render().includes('새로운 공지가 없습니다.'));
+  ui = render();
+  assert.ok(ui.includes('✓ 확인한 최근 공지'), 'read recent notice stays visible for three days');
+  assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
+  assert.ok(!ui.includes('● 새 공지'));
+  ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
+  state = { ...state, items: [notice('old', { publish_start_at: '2026-01-01T00:00:00Z' })], versions: { old: 1 } };
+  assert.ok(render().includes('새로운 공지가 없습니다.'), 'old read notice leaves home');
   state = { ...state, error: '공지 정보를 불러오지 못했습니다. 다시 시도' };
   ui = render(); assert.ok(ui.includes(state.error)); assert.ok(!ui.includes('새로운 공지가 없습니다.'));
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(retries, 1);

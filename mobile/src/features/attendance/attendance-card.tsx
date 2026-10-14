@@ -224,7 +224,9 @@ export function AttendanceCard({
         ...current,
         [eventType]: { status: 'recorded', event_at: timestamp, requested_at: timestamp },
       } : current);
-      show(eventType === 'clock_in' ? '출근이 기록되었습니다.' : '퇴근이 기록되었습니다.');
+      show(eventType === 'clock_in'
+        ? '출근 화면 체험 완료 · 실제 근태는 저장되지 않았습니다.'
+        : '퇴근 화면 체험 완료 · 실제 근태는 저장되지 않았습니다.');
       return;
     }
     if (!client || busy) return;
@@ -507,8 +509,10 @@ export function AttendanceCard({
 
   return (
     <View style={styles.wrap}>
-      {qaMode ? (
-        <Text style={styles.qaBadge}>검수 모드 · 실제 근태에 반영되지 않음</Text>
+      {previewMode ? (
+        <Text style={styles.qaBadge}>가상 체험 · GPS 위치 검사 안 함 · 실제 근태 저장 안 함</Text>
+      ) : qaMode ? (
+        <Text style={styles.qaBadge}>GPS·서버 검수 · 실제 근태 저장 안 함</Text>
       ) : null}
 
       <Pressable
@@ -530,17 +534,17 @@ export function AttendanceCard({
       </Pressable>
 
       {!qaMode && today && today.attendance_required !== false ? (
-        <View accessibilityLabel="오늘 출퇴근 기록" style={styles.todaySummary}>
-          <Text style={styles.todaySummaryTitle}>오늘 출퇴근</Text>
+        <View accessibilityLabel={previewMode ? "가상 출퇴근 기록" : "오늘 출퇴근 기록"} style={styles.todaySummary}>
+          <Text style={styles.todaySummaryTitle}>{previewMode ? "가상 출퇴근 내역 · 실제 기록 아님" : "오늘 출퇴근"}</Text>
           <View style={styles.todaySummaryRow}>
             <Text style={styles.todaySummaryLabel}>출근</Text>
             <Text style={styles.todaySummaryValue}>{clockInLine.time}</Text>
-            {clockInLine.status ? <Text style={styles.todaySummaryStatus}>{clockInLine.status}</Text> : null}
+            {clockInLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockInLine.status}</Text> : null}
           </View>
           <View style={styles.todaySummaryRow}>
             <Text style={styles.todaySummaryLabel}>퇴근</Text>
             <Text style={styles.todaySummaryValue}>{clockOutLine.time}</Text>
-            {clockOutLine.status ? <Text style={styles.todaySummaryStatus}>{clockOutLine.status}</Text> : null}
+            {clockOutLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockOutLine.status}</Text> : null}
           </View>
         </View>
       ) : null}
