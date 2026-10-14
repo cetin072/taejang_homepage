@@ -77,7 +77,13 @@ try {
     assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
     assert.equal(await page.locator('header .desktop-nav .employee-app-nav').count(), 1);
     assert.equal(await page.locator('header .mobile-nav .employee-app-nav').count(), 1);
-    assert.equal(await page.locator('header .desktop-nav .employee-app-nav').getAttribute('aria-current'), 'page');
+    const currentLink = page.locator('header .desktop-nav .employee-app-nav');
+    const routeDebug = await page.evaluate(() => ({
+      path: location.pathname,
+      menuLink: document.querySelector('header .desktop-nav .employee-app-nav')?.getAttribute('href')
+    }));
+    assert.equal(await currentLink.getAttribute('aria-current'), 'page',
+      name + ': active employee-app menu on actual route ' + JSON.stringify(routeDebug));
     const metric = await assertLayout(page, name);
     const visual = await page.evaluate(() => {
       const columns = selector => getComputedStyle(document.querySelector(selector)).gridTemplateColumns.trim().split(/\s+/).length;

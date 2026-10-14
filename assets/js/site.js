@@ -61,10 +61,11 @@
   }
 
   function normalizedHref(link) {
-    return (link.getAttribute('href') || '')
+    const normalized = (link.getAttribute('href') || '')
       .split(/[?#]/)[0]
       .replace(/^\.\//, '')
       .replace(/^\//, '');
+    return normalized === 'employee-app' ? 'employee-app.html' : normalized;
   }
 
   function isCurrentNavigationTarget(page, targetPage, href) {

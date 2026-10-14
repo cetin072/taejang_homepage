@@ -213,7 +213,7 @@ function anchor(href, label, classes = []) {
   return new MockElement('a', { attrs: { href }, textContent: label, classes });
 }
 
-function runSiteRuntime(pathname = '/index.html') {
+function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false) {
   const document = new MockDocument();
   const desktop = new MockElement('nav', { classes: ['desktop-nav'] });
   const mobile = new MockElement('nav', { dataset: { mobileNav: '' } });
@@ -226,8 +226,9 @@ function runSiteRuntime(pathname = '/index.html') {
     ['employee-app.html', '직원앱']
   ];
   navItems.forEach(([href, label], index) => {
-    desktop.appendChild(anchor(href, label, index === 4 ? ['nav-cta'] : []));
-    mobile.appendChild(anchor(href, label));
+    const target = cleanEmployeeHref && href === 'employee-app.html' ? '/employee-app' : href;
+    desktop.appendChild(anchor(target, label, index === 4 ? ['nav-cta'] : []));
+    mobile.appendChild(anchor(target, label));
   });
 
   const menuButton = new MockElement('button', {
@@ -257,7 +258,7 @@ function runSiteRuntime(pathname = '/index.html') {
   });
 
   for (const nav of [desktop, mobile]) {
-    const link = nav.querySelectorAll(':scope > a').find(candidate => candidate.href === 'employee-app.html');
+    const link = nav.querySelectorAll(':scope > a').find(candidate => candidate.href === 'employee-app.html' || candidate.href === '/employee-app');
     assert.ok(link, 'employee-app link is preserved from static HTML');
     assert.equal(link.getAttribute('aria-current'), pathname === '/employee-app' ? 'page' : null,
       'Netlify clean URL preserves the employee-app active navigation state');
@@ -406,6 +407,7 @@ function assertInquiryFormContract() {
 
 runSiteRuntime();
 runSiteRuntime('/employee-app');
+runSiteRuntime('/employee-app', true);
 runHeroRuntime();
 runCommunityFallbackRuntime();
 assertInquiryFormContract();
