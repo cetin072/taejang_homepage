@@ -11,7 +11,7 @@
   let currentContext = null;
   let activeEmployeeView = 'existing';
   let selectedEmployeeId = null;
-  const listState = { search: '', employment: '', account: '', photo: '' };
+  const listState = { search: '', employment: 'active', account: '', photo: '' };
   let loadSequence = 0;
 
   const el = (tag, value, className) => {
@@ -82,6 +82,8 @@
       .employee-list-row:hover { background:#f4f7f5; }
       .employee-list-row > span { min-width:0; overflow-wrap:anywhere; }
       .employee-list-name { font-weight:800; }
+      .employee-list-group-title { margin:16px 0 10px; font-size:1rem; }
+      .employee-list-departed:has(.employee-list-group-title) { margin-top:24px; padding-top:4px; border-top:1px solid var(--app-border); }
       .employee-badge { display:inline-block; padding:3px 7px; border-radius:5px; background:#eef3ef; color:#315443; font-size:.8rem; line-height:1.5; }
       .employee-badge-warning { background:#fff4df; color:#6a4d13; }
       .employee-badges { display:flex; flex-wrap:wrap; gap:6px; }
@@ -786,7 +788,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel, bulkResidentImportPanel,
+      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary
     });
   }
@@ -823,6 +825,14 @@
       shell.append(createSection); target.replaceChildren(shell); return;
     }
     shell.append(views.employeeList(context));
+    if (context.can_manage_sensitive_identity) {
+      const bulk = el('details'); bulk.append(el('summary', '일괄 작업'));
+      bulk.addEventListener('toggle', () => {
+        if (bulk.open && !bulk.querySelector('section')) {
+          const panel = bulkResidentImportPanel(context); if (panel) bulk.append(panel);
+        }
+      }); shell.append(bulk);
+    }
     const requests = isOps ? [...arr(context.change_requests), ...arr(context.self_service_contact_requests)] : arr(context.change_requests);
     if (requests.length) {
       const review = el('details'); review.append(el('summary', isOps ? '팀장·직원 요청 · ' + requests.length + '건' : '내 요청 상태 · ' + requests.length + '건'));

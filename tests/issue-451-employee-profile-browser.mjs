@@ -44,8 +44,16 @@ try {
     const count = async(n)=>assert.equal(await page.locator('.employee-list-row').count(),n);
     const setFail = value=>page.evaluate(value=>{window.fail=value;},value);
     const file = ()=>page.locator('.employee-photo-actions input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
-    await load(); await count(50); await fits();
+    await load(); await count(49); await fits();
+    assert.equal(await page.getByLabel('재직 상태',{exact:true}).inputValue(),'active');
+    assert.equal(await page.locator('[data-employee-id="fixture-48"]').count(),0);
+    await page.getByLabel('재직 상태',{exact:true}).selectOption(''); await count(50);
+    assert.deepEqual(await page.locator('.employee-list-group-title').allTextContents(),['재직 직원','퇴직 직원']);
+    assert.equal(await page.locator('.employee-list-row').last().getAttribute('data-employee-id'),'fixture-48');
     assert.equal(await page.locator('.employee-grid,.employee-card,.employee-form,.employee-sensitive-section').count(),0);
+    await page.getByText('일괄 작업',{exact:true}).click();
+    await page.getByLabel('주민등록번호 일괄등록 붙여넣기').waitFor();
+    await page.getByText('일괄 작업',{exact:true}).click();
     await page.screenshot({path:path.join(output,device+'-list.png')});
     assert.ok((await page.locator('.employee-list-row').first().boundingBox()).height < (device==='pc'?100:230));
     assert.match(await page.locator('[data-employee-id="fixture-0"]').innerText(),/앱 연결됨/);
@@ -75,6 +83,8 @@ try {
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
     await open(); await fits();
+    assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
+    assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
     assert.equal(await page.locator('.employee-profile-section').count(),5);
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
@@ -144,6 +154,7 @@ try {
       fixtureContext.employees[3].protected=true;
     });
     await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement()); await open(3);
+    assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.getByRole('button',{name:'수정',exact:true}).count(),0);
     assert.equal(await page.getByRole('button',{name:'증명사진 변경',exact:true}).count(),0);
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click(); await open();
