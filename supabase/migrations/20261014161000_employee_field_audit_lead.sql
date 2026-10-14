@@ -140,7 +140,7 @@ begin
        and photo.is_current
      order by photo.created_at desc limit 1
    ),
-   'identity_verified',coalesce(audit.identity_verified,false),
+   'identity_verified',coalesce(audit.identity_verified,false) and audit.checked_at >= employee.updated_at,
    'app_install_status',coalesce(audit.app_install_status,'unchecked'),
    'audit_note',coalesce(audit.note,''),
    'audit_checked_at',audit.checked_at,
