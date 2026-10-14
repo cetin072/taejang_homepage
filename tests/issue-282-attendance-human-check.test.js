@@ -24,10 +24,10 @@ test('sidebar uses one canonical new-employee label while capabilities decide di
   assert.match(navigation, /\['신규 직원 등록 요청', '신규 직원 등록'\]|신규 직원 등록 요청/);
 });
 
-test('promotion lead direct registration wording continues inside employee management tabs', () => {
-  assert.match(employeeManagement, /\['operations_manager', 'promotion_lead_global'\]\.includes\(context\.access_level\)/);
-  assert.match(employeeManagement, /\['new', '신규 직원 등록'\]/);
-  assert.match(employeeManagement, /\['new', '신규 직원 등록 요청'\]/);
+test('promotion lead direct registration and team request wording survive the separate registration screen', () => {
+  assert.match(employeeManagement, /context\.access_level === 'promotion_lead_global'/);
+  assert.match(employeeManagement, /isOps \|\| isGlobalPromotionLead \? '신규 직원 등록' : '신규 직원 등록 요청'/);
+  assert.match(employeeManagement, /makeEmployeeForm\(context, null, !\(isOps \|\| isGlobalPromotionLead\)\)/);
 });
 
 test('attendance correction makes selection the primary time input and typing secondary', () => {
