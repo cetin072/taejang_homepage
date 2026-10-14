@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="index, follow">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<link rel="apple-touch-icon" href="images/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/styles.css">
+<link rel="stylesheet" href="assets/css/visual-hierarchy.css">
+<link rel="stylesheet" href="assets/css/employee-app.css">
+<meta name="description" content="현장의 의견이 앱을 바꿉니다. 태장 직원앱의 주요 기능과 직원 의견을 반영하는 개선 과정, 개발자 노트를 소개합니다.">
+<title>태장 직원앱 | 현장의 의견이 앱을 바꿉니다</title>
+<link rel="canonical" href="https://taejang.co.kr/employee-app.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="농업회사법인 태장 주식회사">
+<meta property="og:title" content="태장 직원앱 | 현장의 의견이 앱을 바꿉니다">
+<meta property="og:description" content="직원들의 실제 사용 경험을 바탕으로 함께 개선하는 태장 직원앱과 개발자 노트를 소개합니다.">
+<meta property="og:url" content="https://taejang.co.kr/employee-app.html">
+<meta property="og:image" content="https://taejang.co.kr/images/og-taejang.png">
+<meta property="og:image:secure_url" content="https://taejang.co.kr/images/og-taejang.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="농업회사법인 태장 주식회사 로고">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="태장 직원앱 | 현장의 의견이 앱을 바꿉니다">
+<meta name="twitter:description" content="직원들의 실제 사용 경험을 바탕으로 함께 개선하는 태장 직원앱과 개발자 노트를 소개합니다.">
+<meta name="twitter:image" content="https://taejang.co.kr/images/og-taejang.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://taejang.co.kr/"},{"@type":"ListItem","position":2,"name":"직원앱 소개","item":"https://taejang.co.kr/employee-app.html"}]}</script>
+</head>
+<body>
+<a class="skip-link" href="#main-content">본문 바로가기</a>
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="brand" href="index.html" aria-label="태장 홈페이지"><img src="images/logo.png" alt="농업회사법인 태장 주식회사"><span class="brand-mark">泰張</span></a>
+    <nav class="desktop-nav" aria-label="주요 메뉴"><a href="about.html">태장 소개</a><a href="business.html">하는 일</a><a href="workplace.html">우리의 일터</a><a href="archive.html">소식·기록</a><a class="nav-cta" href="partnership.html">협력·문의</a><a class="staff-nav" href="staff/" aria-label="임직원 페이지">임직원</a></nav>
+    <button class="menu-btn" type="button" data-menu-button aria-expanded="false" aria-controls="mobile-nav" aria-label="메뉴 열기">☰</button>
+  </div>
+  <nav class="mobile-nav" id="mobile-nav" data-mobile-nav aria-label="모바일 메뉴"><a href="about.html">태장 소개</a><a href="business.html">하는 일</a><a href="workplace.html">우리의 일터</a><a href="archive.html">소식·기록</a><a href="partnership.html">협력·문의</a><a class="staff-nav" href="staff/" aria-label="임직원 페이지">임직원</a></nav>
+</header>
+
+<main id="main-content">
+  <section class="page-hero employee-app-hero" aria-labelledby="employee-app-title">
+    <div class="container">
+      <div class="eyebrow">TAEJANG EMPLOYEE APP</div>
+      <h1 class="title" id="employee-app-title">태장 직원앱</h1>
+      <p class="employee-app-hero-message">현장의 의견이 앱을 바꿉니다.</p>
+      <p class="lead">누구나 쉽고 편하게 일할 수 있도록,<br class="employee-app-wide-break"> 직원들의 실제 사용 경험을 바탕으로 함께 개선하는 업무 앱입니다.</p>
+      <a class="btn employee-app-hero-link" href="#developer-notes">함께 만든 변화 보기 <span aria-hidden="true">↓</span></a>
+    </div>
+  </section>
+
+  <section class="section" id="app-features" aria-labelledby="app-features-title">
+    <div class="container">
+      <div class="eyebrow">WHAT THE APP DOES</div>
+      <h2 class="title" id="app-features-title">직원의 하루에 필요한 기능</h2>
+      <p class="employee-app-section-intro">현재 태장 직원앱에서 사용하는 기능을 간단하게 소개합니다.</p>
+      <div class="employee-app-feature-grid">
+        <article class="employee-app-feature">
+          <span class="employee-app-feature-number" aria-hidden="true">01</span>
+          <h3>출퇴근 관리</h3>
+          <p>출근과 퇴근을 기록하고 근무 상태를 확인합니다.</p>
+        </article>
+        <article class="employee-app-feature">
+          <span class="employee-app-feature-number" aria-hidden="true">02</span>
+          <h3>공지사항 확인</h3>
+          <p>직원에게 필요한 공지를 앱에서 확인합니다.</p>
+        </article>
+        <article class="employee-app-feature">
+          <span class="employee-app-feature-number" aria-hidden="true">03</span>
+          <h3>업무 플랫폼 연결</h3>
+          <p>업무 권한에 따라 회사의 업무 플랫폼으로 연결합니다.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section beige employee-app-principles" id="accessibility-principles" aria-labelledby="accessibility-title">
+    <div class="container employee-app-principle-layout">
+      <div>
+        <div class="eyebrow">DESIGNED WITH PEOPLE</div>
+        <h2 class="title" id="accessibility-title">많은 기능보다<br>쉽게 쓰는 경험</h2>
+        <p class="employee-app-section-intro">태장은 장애인 근로자를 포함한 실제 사용자들의 의견에서 개선점을 찾습니다. 특정 사용자를 구분하기보다 누구나 이해하기 쉬운 앱을 만드는 것이 목표입니다.</p>
+        <p class="employee-app-principle-note">아래 내용은 개발 방향입니다. 화면 읽기·글자 확대 등 접근성은 실제 기기와 사용자 경험을 통해 계속 점검하고 개선합니다.</p>
+      </div>
+      <ol class="employee-app-principle-list">
+        <li><span aria-hidden="true">01</span><div><h3>단순하고 직관적으로</h3><p>필요한 행동을 쉽게 찾을 수 있도록 화면을 정리합니다.</p></div></li>
+        <li><span aria-hidden="true">02</span><div><h3>읽기 쉬운 표현으로</h3><p>글자와 상태 안내를 명확하게 만들고 혼동되는 문구를 고칩니다.</p></div></li>
+        <li><span aria-hidden="true">03</span><div><h3>누르기 편한 버튼으로</h3><p>버튼 크기와 조작 과정을 실제 사용 환경에서 살핍니다.</p></div></li>
+        <li><span aria-hidden="true">04</span><div><h3>접근성도 함께 점검하며</h3><p>화면 읽기, 글자 확대, 동작 효과 감소 등 다양한 사용 환경을 고려합니다.</p></div></li>
+        <li><span aria-hidden="true">05</span><div><h3>직원의 의견으로 개선하며</h3><p>발견한 불편함과 수정 이유를 기록하고 다음 개선에 반영합니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section employee-app-notes" id="developer-notes" aria-labelledby="developer-notes-title">
+    <div class="container">
+      <div class="eyebrow">DEVELOPER NOTES</div>
+      <h2 class="title" id="developer-notes-title">함께 만든 변화</h2>
+      <p class="employee-app-section-intro">직원들의 의견에서 어떤 문제를 발견했고, 왜 바꾸려 하는지 남깁니다. 개선 기록은 실제 앱 적용 여부와 구분해 표시합니다.</p>
+      <div class="employee-app-notes-grid">
+        <article class="employee-app-note" aria-labelledby="note-attendance-title">
+          <div class="employee-app-note-meta">
+            <time datetime="2026-10-14">2026.10.14</time>
+            <span class="employee-app-note-status">개선 검토 중</span>
+          </div>
+          <h3 id="note-attendance-title">출퇴근 버튼을 더 쉽게</h3>
+          <p><strong>개선 배경</strong> 일부 직원이 ‘출근했습니다’와 ‘퇴근했습니다’라는 버튼을 헷갈린다는 의견을 전했습니다.</p>
+          <p><strong>개선 방향</strong> 버튼 문구를 ‘출근하기’와 ‘퇴근하기’로 구분하고, 출근 완료 후 카드 전환 효과와 짧은 진동을 도입하는 방안을 검토하고 있습니다.</p>
+          <p><strong>목표</strong> 현재 상태와 다음에 할 행동을 쉽게 이해하도록 만드는 것입니다.</p>
+        </article>
+        <article class="employee-app-note" aria-labelledby="note-notice-title">
+          <div class="employee-app-note-meta">
+            <time datetime="2026-10-14">2026.10.14</time>
+            <span class="employee-app-note-status employee-app-note-status--in-progress">개발·검수 중</span>
+          </div>
+          <h3 id="note-notice-title">공지사항을 더 단순하게</h3>
+          <p><strong>개선 배경</strong> 공지 화면에 비슷한 표현이 반복되고 설명이 많아 중요한 내용이 한눈에 들어오지 않는 문제가 발견되었습니다.</p>
+          <p><strong>개선 방향</strong> 중복 표현을 줄이고 날짜, 중요도, 읽음 상태, 제목과 내용 보기를 중심으로 화면을 정리하고 있습니다.</p>
+          <p><strong>목표</strong> 공지를 쉽게 알아보고 다음 행동을 빠르게 선택하도록 돕는 것입니다.</p>
+        </article>
+      </div>
+      <p class="employee-app-notes-disclaimer">2026년 10월 14일 기준 작성한 개선 기록입니다. ‘개선 검토 중’과 ‘개발·검수 중’은 앱에 적용 완료되었다는 뜻이 아니며, 적용 여부를 확인한 뒤 상태를 갱신합니다.</p>
+    </div>
+  </section>
+
+  <section class="section beige employee-app-guide" aria-labelledby="employee-app-guide-title">
+    <div class="container employee-app-guide-inner">
+      <div>
+        <div class="eyebrow">APP INFORMATION</div>
+        <h2 class="title" id="employee-app-guide-title">직원앱 이용 안내</h2>
+        <p>현재 태장 임직원을 대상으로 사용하는 앱입니다. 설치와 계정에 관한 안내는 사내 담당자를 통해 제공합니다. 정식 공개 다운로드 안내는 출시 상태를 확인한 뒤 추가합니다.</p>
+      </div>
+      <a class="employee-app-policy-link" href="employee-app-privacy.html">직원앱 개인정보처리방침 보기 <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div class="footer-top"><div><img src="images/logo-white.png" alt="농업회사법인 태장 주식회사"><p>장애인과 함께 오래 일할 기회를 만드는 자회사형 장애인 표준사업장입니다.</p></div><div><h3>바로가기</h3><a href="about.html">태장 소개</a><a href="business.html">하는 일</a><a href="workplace.html">우리의 일터</a><a href="archive.html">소식·기록</a><a href="partnership.html">협력·문의</a><a href="location.html">오시는 길</a><a href="employee-app.html" aria-current="page">직원앱 소개</a></div><div><h3>연락처</h3><a href="tel:0552938626">055-293-8626</a><a href="mailto:taejang2025@naver.com">taejang2025@naver.com</a><p>경남 창원시 의창구 평산로 33<br>신화 더 플렉스시티 422·423호</p></div></div>
+    <div class="footer-bottom"><div>농업회사법인 태장 주식회사 · 대표이사 이영희<br>사업자등록번호 157-86-03535<br>© <span data-current-year></span> TAEJANG. All rights reserved.<p class="footer-signature">Website planned and operated by Taejang</p></div><div><a href="privacy.html">개인정보처리방침</a> · <a href="terms.html">이용약관</a></div></div>
+  </div>
+</footer>
+<script src="assets/js/site.js"></script>
+</body>
+</html>
