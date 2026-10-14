@@ -102,6 +102,10 @@ try {
       await page.locator('.employee-photo-actions .error').waitFor();
       assert.equal(await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).count(),0);
       assert.equal(await page.locator('.employee-photo-actions input[type=file]').first().evaluate(node=>node.files.length),1);
+      if (failure === 'storage' || failure === 'db') {
+        await setFail(''); await page.getByRole('button',{name:'사진 저장 재시도',exact:true}).click();
+        await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).waitFor();
+      }
       if (failure === 'mismatch') {
         await page.getByRole('button',{name:'최신 정보 다시 불러오기',exact:true}).click();
         await page.getByText('등록 결과를 아직 확인하지 못했습니다. 다시 불러와 확인해 주세요.',{exact:true}).waitFor();

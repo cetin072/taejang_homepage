@@ -88,8 +88,8 @@
         filtered.forEach(employee => {
           const item = el('div'); item.setAttribute('role', 'listitem');
           const row = button('', () => selectEmployee(employee.id)); row.className = 'employee-list-row'; row.dataset.employeeId = employee.id;
-          row.setAttribute('aria-label', `${employee.full_name} · ${employee.employee_id} 인사카드 열기`);
           const account = accountState(employee, reviewIds);
+          row.setAttribute('aria-label', `${employee.full_name} · ${employee.employee_id} · ${statusLabel(employee.employment_status)} · ${account.label}${account.review ? ' · 연결 확인 필요' : ''} 인사카드 열기`);
           row.append(avatar(employee));
           [
             [employee.employee_id, 'id'], [employee.full_name, 'name'], [employee.department_name || '미배정', 'department'],

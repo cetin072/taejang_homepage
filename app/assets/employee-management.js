@@ -74,7 +74,7 @@
       .employee-management .button,.employee-management summary { min-height:44px; }
       .employee-management :is(button,input,select,summary):focus-visible { outline:3px solid #316c55; outline-offset:3px; }
       .employee-filters { display:grid; grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr)); gap:12px; margin-bottom:14px; }
-      .employee-filters label { display:grid; gap:5px; color:var(--app-muted); font-size:.88rem; }
+      .employee-filters label { display:grid; gap:5px; margin:0; color:var(--app-muted); font-size:.88rem; }
       .employee-filters input,.employee-filters select { width:100%; min-width:0; min-height:44px; padding:9px; border:1px solid var(--app-border); border-radius:8px; background:#fff; font:inherit; }
       .employee-list-head,.employee-list-row { display:grid; grid-template-columns:40px minmax(85px,.9fr) minmax(100px,1.2fr) minmax(100px,1.2fr) minmax(60px,.7fr) 55px minmax(100px,1fr) 70px 70px minmax(95px,1fr); gap:10px; align-items:center; }
       .employee-list-head { padding:10px 12px; font-size:.78rem; color:var(--app-muted); border-bottom:1px solid var(--app-border); }
@@ -698,7 +698,9 @@
     wrap.append(action, file, message);
     file.addEventListener('change', async () => {
       const selected = file.files?.[0]; if (!selected) return;
+      wrap.querySelector('[data-photo-retry]')?.remove();
       action.disabled = true; action.textContent = '사진 저장 중'; message.textContent = '';
+      message.classList.remove('error');
       let registered = false;
       let path = null;
       const direct = photoType === 'profile' || context.access_level === 'operations_manager';
@@ -732,6 +734,9 @@
             try { if (await refreshEmployeeManagement(verifyStoredPhoto)) showSuccess(); }
             catch { retry.disabled = false; message.textContent = '등록 결과를 아직 확인하지 못했습니다. 다시 불러와 확인해 주세요.'; }
           }, true); wrap.append(retry);
+        } else {
+          const retry = button('사진 저장 재시도', () => file.dispatchEvent(new Event('change')), true);
+          retry.dataset.photoRetry = '1'; wrap.append(retry);
         }
       }
     });
