@@ -61,6 +61,14 @@ try {
     throw new Error('drag fixture not ready: '+status+'; browser errors: '+browserErrors.join('; '),{cause:error});
   }
   await page.locator('#app-nav [data-menu-key="notice.manage"]').waitFor();
+  // The small isolated fixture omits the real outer staff-shell wrapper;
+  // its legacy negative margin otherwise puts the sidebar at x=-189.
+  // Keep the actual application's CSS but make this test shell visible.
+  await page.evaluate(() => {
+    const root=document.getElementById('desktop-app-shell');
+    root.style.margin='0';
+    root.style.width='min(100vw - 32px, 1480px)';
+  });
   await before('notice.manage','task.manage');
   await page.locator('[data-platform-settings-action]').click();
   await page.getByRole('button',{name:'사이드바 메뉴 순서 편집'}).click();
