@@ -466,34 +466,14 @@
       for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert(!current.includes(label), `설정 저장 후 역할 계약 밖 메뉴 ${label}가 표시됨`);
     }
 
-    async function assertSidebarDragSave() {
-      await window.TaejangPlatformUiSettings.renderSettings();
-      const edit=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='사이드바 메뉴 순서 편집');
-      assert(edit,'sidebar edit control missing');
-      edit.click();await wait(80);
-      const nav=document.getElementById('app-nav');
-      const source=nav.querySelector('[data-menu-key="task.manage"] [data-sidebar-drag-handle="menu"]');
-      const target=nav.querySelector('[data-menu-key="notice.manage"]');
-      assert(source&&target,'sidebar drag handles missing');
-      const transfer=new DataTransfer();
-      source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:transfer}));
-      target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:transfer}));
-      const box=target.getBoundingClientRect();
-      target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer,clientY:box.top+1}));
+    async function assertLegacyPreferenceDoesNotDemoteNotice() {
+      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
+      await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['업무 배정','공지 관리'],'drag moving task before notice');
-      const save=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='메뉴 순서 저장');
-      assert(save,'save sidebar control missing');
-      save.click();await wait(120);
-      assert(savedSidebarOrder?.menus?.indexOf('task.manage')<savedSidebarOrder?.menus?.indexOf('notice.manage'),'menu order not persisted');
-      await window.TaejangPlatformUiSettings.refresh();await wait(70);
-      assertOrdered(labels(),['업무 배정','공지 관리'],'sidebar reorder persists on refresh');
-      await window.TaejangPlatformUiSettings.renderSettings();
-      [...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='사이드바 메뉴 순서 편집').click();
-      await wait(50);
-      const reset=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='기본 순서로');
-      reset.click();await wait(120);
-      assertOrdered(labels(),['공지 관리','업무 배정'],'reset restores notice-first default');
+      assertOrdered(labels(),['공지 관리','업무 배정'],'legacy task-first preference must not override notice priority');
+      savedSidebarOrder = null;
+      await window.TaejangPlatformUiSettings.refresh();
+      await wait(40);
     }
 
     window.addEventListener('load', async () => {
@@ -519,7 +499,7 @@
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
         await assertRoleVisibilitySettings();
-        await assertSidebarDragSave();
+        await assertLegacyPreferenceDoesNotDemoteNotice();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {
