@@ -121,8 +121,18 @@
       link.classList.remove('nav-cta');
       link.removeAttribute('aria-current');
       link.setAttribute('aria-label', '임직원 페이지');
-      // The employee entry is a separate utility item and always stays rightmost.
-      if (nav.lastElementChild !== link) nav.appendChild(link);
+      // Desktop sign-in stays last; on mobile the lower-priority app guide follows sign-in.
+      if (nav === document.querySelector('[data-mobile-nav]')) {
+        const guideLink = [...nav.querySelectorAll(':scope > a')].find(candidate =>
+          candidate.classList.contains('employee-app-nav') || normalizedHref(candidate) === 'employee-app.html'
+        );
+        if (guideLink) {
+          const links = [...nav.querySelectorAll(':scope > a')];
+          if (links.indexOf(link) !== links.indexOf(guideLink) - 1) nav.insertBefore(link, guideLink);
+        } else if (nav.lastElementChild !== link) nav.appendChild(link);
+      } else if (nav.lastElementChild !== link) {
+        nav.appendChild(link);
+      }
     });
   }
 

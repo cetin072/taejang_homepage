@@ -74,7 +74,9 @@ for (const filename of publicPages) {
   if (filename !== 'resources.html') {
     assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
     assert.match(mobileNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 모바일 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
-    assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="employee-app.html"'), `${filename} 임직원 메뉴는 마지막 유틸리티 항목이어야 합니다`);
+    assert.ok(desktopNav.indexOf('href="staff/"') > desktopNav.indexOf('href="employee-app.html"'), `${filename} 데스크톱 임직원 메뉴는 마지막 항목이어야 합니다`);
+    assert.ok(mobileNav.indexOf('href="staff/"') > mobileNav.indexOf('href="partnership.html"'), `${filename} 모바일 직원용 메뉴는 공개 메뉴 아래에 분리합니다`);
+    assert.ok(mobileNav.indexOf('href="staff/"') < mobileNav.indexOf('href="employee-app.html"'), `${filename} 모바일 직원앱 소개는 임직원 로그인 아래에 둡니다`);
   }
 
   assert.match(
@@ -162,6 +164,9 @@ assert.match(styles, /\.desktop-nav \.employee-app-nav\{[^}]*background:var\(--b
   'desktop employee app navigation is a quiet green secondary action');
 assert.match(styles, /\.mobile-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
   'mobile employee app navigation keeps the same secondary hierarchy');
+assert.match(styles, /\.mobile-nav a\[href="partnership\.html"\][\s\S]*?background:var\(--green\);color:#fff/, 'contact retains primary mobile CTA');
+assert.match(styles, /\.mobile-nav \.employee-app-nav\{[\s\S]*?background:transparent/, 'app guide has no filled mobile button');
+assert.match(styles, /\.mobile-nav \.employee-app-nav\[aria-current="page"\]\{[\s\S]*?background:transparent/, 'current app menu stays understated');
 const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,

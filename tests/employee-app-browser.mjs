@@ -96,7 +96,14 @@ try {
     }));
     assert.equal(await currentLink.getAttribute('aria-current'), 'page',
       name + ': active employee-app menu on actual route ' + JSON.stringify(routeDebug));
-    await assertMenuStyle(currentLink, 'rgb(234, 243, 238)', name + ': current page');
+    await assertMenuStyle(currentLink, 'rgb(234, 243, 238)', name + ': desktop current page');
+    const mobileOrder = await page.locator('header .mobile-nav > a').evaluateAll(els => els.map(el => ({
+      label: el.textContent.trim(), href: el.getAttribute('href')
+    })));
+    const mobileStaffIndex = mobileOrder.findIndex(item => item.href === 'staff/');
+    const mobileGuideIndex = mobileOrder.findIndex(item => /employee-app(?:\.html)?$/.test(item.href || ''));
+    assert.equal(mobileGuideIndex, mobileStaffIndex + 1, name + ': mobile app guide follows staff login');
+    assert.equal(mobileGuideIndex, mobileOrder.length - 1, name + ': mobile app guide is the last menu item');
     if (width > 1000) {
       const header = await page.locator('.desktop-nav').evaluate(el => {
         const links = [...el.querySelectorAll('a')].map(a => a.getBoundingClientRect());
@@ -178,7 +185,20 @@ try {
     if (width <= 1000) {
       await page.locator('[data-menu-button]').click();
       assert.equal(await page.locator('#mobile-nav').isVisible(), true);
-      await assertMenuStyle(mobileAppLink, 'rgb(245, 240, 232)', name + ': mobile default');
+      const mobileStyle = await mobileAppLink.evaluate(el => {
+        const s = getComputedStyle(el);
+        const nav = el.closest('.mobile-nav');
+        return {
+          background: s.backgroundColor, borderLeftWidth: s.borderLeftWidth,
+          borderLeftColor: s.borderLeftColor, color: s.color,
+          contact: getComputedStyle(nav.querySelector('a[href="partnership.html"]')).backgroundColor
+        };
+      });
+      assert.equal(mobileStyle.background, 'rgba(0, 0, 0, 0)', name + ': app guide has no button fill');
+      assert.equal(mobileStyle.borderLeftWidth, '2px', name + ': app guide is indented with a fine divider');
+      assert.equal(mobileStyle.borderLeftColor, 'rgb(196, 214, 199)', name + ': subtle divider');
+      assert.equal(mobileStyle.color, 'rgb(27, 67, 50)', name + ': app guide readable');
+      assert.equal(mobileStyle.contact, 'rgb(45, 106, 79)', name + ': contact is the primary mobile CTA');
       assert.equal(await mobileAppLink.isVisible(), true);
       if (name === 'mobile') {
         await page.screenshot({ path: path.join(output, 'homepage-app-menu-mobile.png') });
@@ -203,7 +223,34 @@ try {
     console.log('PASS employee landing + homepage: ' + name);
     await context.close();
   }
-  const noJS = await browser.newContext({ viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
+  // Exercise the actual sign-in panel with a local-only public config mock: no credentials or Auth requests.
+  for (const [name, width, height] of [['pc', 1440, 900], ['mobile', 390, 844], ['narrow', 320, 720]]) {
+    const staffContext = await browser.newContext({ viewport: { width, height } });
+    await staffContext.addInitScript(() => {
+      window.TAEJANG_STAFF_CONFIG = { url: 'https://unused.invalid', publishableKey: 'test-public-config-only' };
+    });
+    const staffPage = await staffContext.newPage();
+    const visit = await staffPage.goto(base + '/staff/index.html', { waitUntil: 'domcontentloaded' });
+    assert.equal(visit?.status(), 200, name + ': staff login route works');
+    await staffPage.locator('#login-panel').waitFor({ state: 'visible', timeout: 10000 });
+    assert.ok(await staffPage.locator('#login-form input[name="email"]').isVisible(), name + ': username remains visible');
+    assert.ok(await staffPage.locator('#login-form input[name="password"]').isVisible(), name + ': password remains visible');
+    const guide = staffPage.locator('#login-panel .staff-app-guide');
+    assert.equal(await guide.count(), 1, name + ': one app introduction inside sign-in');
+    const appLink = guide.getByRole('link', { name: /직원앱 소개·이용 안내 보기/ });
+    assert.ok(await appLink.isVisible(), name + ': app introduction is visible and not another login button');
+    assert.ok((await appLink.boundingBox()).height >= 44, name + ': app guide meets touch target');
+    assert.ok(isLandingRoute(new URL(await appLink.getAttribute('href'), staffPage.url()).href), name + ': app guide goes to the landing page');
+    const authBefore = await staffPage.locator('#login-form input').evaluateAll(inputs => inputs.map(input => input.value));
+    assert.ok(authBefore.every(value => !value), name + ': do not fill any real credentials');
+    await staffPage.screenshot({ path: path.join(output, 'staff-login-app-guide-' + name + '.png'), fullPage: true });
+    await appLink.click();
+    await staffPage.waitForURL(url => isLandingRoute(url.href));
+    assert.ok(isLandingRoute(staffPage.url()), name + ': app link navigates to landing without submitting the form');
+    await staffContext.close();
+    console.log('PASS staff login app guide: ' + name);
+  }
+    const noJS = await browser.newContext({ viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
   const staticPage = await noJS.newPage();
   await staticPage.goto(base + '/employee-app.html');
   assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);

@@ -28,6 +28,13 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   assert.match(page, /href="assets\/css\/styles\.css"/);
   assert.match(page, /href="assets\/css\/employee-app\.css"/);
   assert.match(page, /src="assets\/js\/site\.js"/);
+  const mobile = page.match(/<nav class="mobile-nav"[^>]*>[\s\S]*?<\/nav>/)?.[0] || '';
+  assert.ok(mobile.indexOf('href="staff/"') < mobile.indexOf('href="employee-app.html"'), 'employee app guide follows sign-in in mobile menu');
+  const login = read('staff/index.html');
+  const loginPanel = login.match(/<section id="login-panel"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(loginPanel, /href="\.\.\/employee-app\.html">직원앱 소개·이용 안내 보기/);
+  assert.match(read('staff/assets/login.css'), /\.staff-app-guide-link\{[\s\S]*?min-height:44px/);
+  assert.doesNotMatch(loginPanel, /https:\/\/play\.google\.com|href="[^"]+\.apk"/);
   assert.match(page, /class="skip-link" href="#main-content"/);
   assert.match(page, /<main id="main-content">/);
   assert.equal((page.match(/<h1\b/g) || []).length, 1);
