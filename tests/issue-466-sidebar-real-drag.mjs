@@ -58,7 +58,19 @@ try {
   await page.getByRole('button',{name:'사이드바 메뉴 순서 편집'}).click();
   await page.locator('#app-nav[data-layout-editing="1"]').waitFor();
 
+  await page.evaluate(() => {
+    window.__dragEvents = [];
+    for (const kind of ['mousedown','pointerdown','dragstart','dragover','drop','dragend','mouseup']) {
+      document.getElementById('app-nav').addEventListener(kind, event => {
+        if (window.__dragEvents.length > 150) return;
+        const target = event.target.closest?.('[data-menu-key]') || event.target;
+        window.__dragEvents.push({ kind, menu: target.dataset?.menuKey || null, x: event.clientX, y: event.clientY });
+      }, true);
+    }
+  });
   await dragMenu('task.manage','notice.manage');
+  const eventEvidence=await page.evaluate(() => window.__dragEvents);
+  console.log('ACTUAL_DRAG_EVENTS:',JSON.stringify(eventEvidence.slice(-45)));
   await before('task.manage','notice.manage');
   await page.screenshot({path:path.join(output,'mouse-drag-before-save.png')});
   await page.getByRole('button',{name:'메뉴 순서 저장'}).click();
