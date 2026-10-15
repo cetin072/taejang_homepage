@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "source_main_sha": "1cf1101fcb210ee3ec01184288f146993353466d",
-  "released_at_utc": "2026-10-14T05:58:50.000Z",
-  "released_on_kst": "2026-10-14",
+  "source_main_sha": "071189fd9fbcca77ec01032ebd7754d0e74426e8",
+  "released_at_utc": "2026-10-15T04:47:15.945Z",
+  "released_on_kst": "2026-10-15",
   "interval_days": 2,
-  "release_attempt": 5
+  "release_attempt": 6
 }
