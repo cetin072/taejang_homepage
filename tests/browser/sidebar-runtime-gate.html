@@ -31,6 +31,7 @@
   <script>
     let currentRoute = 'promotion_staff';
     let savedRoleVisibility = null;
+    let savedSidebarOrder = null;
     const roleCapabilities = {
       promotion_staff: new Set(['promotion.write', 'promotion.edit_own']),
       promotion_lead: new Set([
@@ -77,7 +78,7 @@
       friendlyError: error => error?.message || '오류',
       rpc: async (name, body = {}) => {
         if (name === 'get_my_ui_preferences') return {
-          role_code: currentRoute, collapsed_sections: [], sidebar_section_order: [], sidebar_menu_order: [], dashboard_order: []
+          role_code: currentRoute, collapsed_sections: [], sidebar_section_order: savedSidebarOrder?.sections || [], sidebar_menu_order: savedSidebarOrder?.menus || [], dashboard_order: []
         };
         if (name === 'get_my_navigation_visibility') return { hidden_menu_keys: [] };
         if (name === 'get_platform_navigation_settings') return {
@@ -94,13 +95,18 @@
           ]
         };
         if (name === 'save_role_navigation_visibility') { savedRoleVisibility = body; return { ok: true }; }
-        if (name === 'save_my_ui_preferences') return {
+        if (name === 'save_my_ui_preferences') {
+          if (body.p_sidebar_section_order !== null || body.p_sidebar_menu_order !== null) {
+            savedSidebarOrder = { sections: body.p_sidebar_section_order || [], menus: body.p_sidebar_menu_order || [] };
+          }
+          return {
           role_code: currentRoute,
           collapsed_sections: [],
           sidebar_section_order: body.p_sidebar_section_order || [],
           sidebar_menu_order: body.p_sidebar_menu_order || [],
           dashboard_order: body.p_dashboard_order || []
-        };
+          };
+        }
         if (name === 'save_my_sidebar_sections') return { ok: true };
         if (name === 'get_my_schedule_list') return [];
         if (name === 'get_my_notice_list') return [];
@@ -366,7 +372,7 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['업무 배정', '공지 관리'], '운영총괄 업무 운영');
+      assertOrdered(current, ['공지 관리', '업무 배정'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -460,6 +466,36 @@
       for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert(!current.includes(label), `설정 저장 후 역할 계약 밖 메뉴 ${label}가 표시됨`);
     }
 
+    async function assertSidebarDragSave() {
+      await window.TaejangPlatformUiSettings.renderSettings();
+      const edit=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='사이드바 메뉴 순서 편집');
+      assert(edit,'sidebar edit control missing');
+      edit.click();await wait(80);
+      const nav=document.getElementById('app-nav');
+      const source=nav.querySelector('[data-menu-key="task.manage"] [data-sidebar-drag-handle="menu"]');
+      const target=nav.querySelector('[data-menu-key="notice.manage"]');
+      assert(source&&target,'sidebar drag handles missing');
+      const transfer=new DataTransfer();
+      source.dispatchEvent(new DragEvent('dragstart',{bubbles:true,dataTransfer:transfer}));
+      target.dispatchEvent(new DragEvent('dragover',{bubbles:true,cancelable:true,dataTransfer:transfer}));
+      const box=target.getBoundingClientRect();
+      target.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:transfer,clientY:box.top+1}));
+      await wait(40);
+      assertOrdered(labels(),['업무 배정','공지 관리'],'drag moving task before notice');
+      const save=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='메뉴 순서 저장');
+      assert(save,'save sidebar control missing');
+      save.click();await wait(120);
+      assert(savedSidebarOrder?.menus?.indexOf('task.manage')<savedSidebarOrder?.menus?.indexOf('notice.manage'),'menu order not persisted');
+      await window.TaejangPlatformUiSettings.refresh();await wait(70);
+      assertOrdered(labels(),['업무 배정','공지 관리'],'sidebar reorder persists on refresh');
+      await window.TaejangPlatformUiSettings.renderSettings();
+      [...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='사이드바 메뉴 순서 편집').click();
+      await wait(50);
+      const reset=[...document.querySelectorAll('#dashboard-main button')].find(node=>node.textContent.trim()==='기본 순서로');
+      reset.click();await wait(120);
+      assertOrdered(labels(),['공지 관리','업무 배정'],'reset restores notice-first default');
+    }
+
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
       try {
@@ -483,6 +519,7 @@
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
         await assertRoleVisibilitySettings();
+        await assertSidebarDragSave();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {
