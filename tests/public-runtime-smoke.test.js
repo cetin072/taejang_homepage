@@ -72,6 +72,16 @@ class MockElement {
     return child;
   }
 
+  insertBefore(child, reference) {
+    const prior = child.parentElement;
+    if (prior) prior.children = prior.children.filter(item => item !== child);
+    const index = this.children.indexOf(reference);
+    if (index < 0) return this.appendChild(child);
+    child.parentElement = this;
+    this.children.splice(index, 0, child);
+    return child;
+  }
+
   append(...children) {
     children.forEach((child) => this.appendChild(child));
   }
@@ -289,6 +299,14 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false) {
   const mobileStaff = mobile.querySelectorAll(':scope > a').filter((link) => link.classList.contains('staff-nav'));
   assert.equal(desktopStaff.length, 1, '필드 파일럿 임직원 진입점을 데스크톱에 한 번만 추가합니다');
   assert.equal(mobileStaff.length, 1, '필드 파일럿 임직원 진입점을 모바일에 한 번만 추가합니다');
+  const desktopOrder = desktop.querySelectorAll(':scope > a').map(link => link.href);
+  const mobileOrder = mobile.querySelectorAll(':scope > a').map(link => link.href);
+  const mobileGuide = mobileOrder.findIndex(href => /employee-app(?:\.html)?$/.test(href));
+  assert.equal(desktopOrder.at(-1), 'staff/', 'desktop sign-in stays the last utility link');
+  assert.equal(mobileOrder[mobileGuide - 1], 'staff/', 'mobile staff sign-in precedes the app guide');
+  assert.equal(mobileOrder.at(-1), mobileOrder[mobileGuide], 'mobile app guide is the final menu link');
+  assert.equal(mobileOrder.filter(href => href === 'staff/').length, 1);
+  assert.equal(mobileOrder.filter(href => /employee-app(?:\.html)?$/.test(href)).length, 1);
 }
 
 function runHeroRuntime() {

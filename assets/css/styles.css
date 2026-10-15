@@ -102,16 +102,6 @@ button{cursor:pointer}
 .desktop-nav a.employee-app-nav[aria-current="page"]{
   background:var(--green-soft);color:var(--green-deep);
 }
-.mobile-nav .employee-app-nav{
-  display:flex;align-items:center;min-height:54px;
-  margin:9px 0;padding:12px 16px;border:1px solid #C4D6C7;border-radius:5px;
-  background:var(--beige);color:var(--green-deep);font-weight:800;
-}
-.mobile-nav .employee-app-nav:hover,
-.mobile-nav .employee-app-nav:focus-visible,
-.mobile-nav .employee-app-nav[aria-current="page"]{
-  background:var(--green-soft);color:var(--green-deep);
-}
 @media (min-width:1001px) and (max-width:1160px){
   .header-inner{gap:12px}
   .desktop-nav{gap:13px}
@@ -122,6 +112,36 @@ button{cursor:pointer}
 .mobile-nav.open{display:grid}
 .mobile-nav a{padding:13px 0;border-bottom:1px solid var(--line);font-weight:700;color:var(--green-deep)}
 .mobile-nav a[aria-current="page"]{color:var(--green)}
+
+/* Mobile menu: contact remains the primary action; staff sign-in and app guide form one quiet utility group. */
+@media (max-width:1000px){
+  .mobile-nav a[href*="partnership"]{
+    min-height:54px;margin:8px 0 14px;padding:12px 16px;
+    border:0;border-radius:5px;background:var(--green);color:#fff;
+  }
+  .mobile-nav a[href*="partnership"]:hover,
+  .mobile-nav a[href*="partnership"]:focus-visible,
+  .mobile-nav a[href*="partnership"][aria-current="page"]{
+    background:var(--green-deep);color:#fff;
+  }
+  .mobile-nav .staff-nav{
+    margin-top:8px;padding-top:14px;border-top:1px solid var(--line);
+  }
+  .mobile-nav .employee-app-nav{
+    display:flex;align-items:center;min-height:54px;
+    margin:0 0 2px 14px;padding:10px 10px 10px 16px;
+    border:0;border-left:2px solid #C4D6C7;border-radius:0;
+    background:transparent;color:var(--green-deep);font-size:15px;font-weight:700;
+  }
+  .mobile-nav .employee-app-nav:hover,
+  .mobile-nav .employee-app-nav:focus-visible{
+    background:var(--green-soft);color:var(--green-deep);
+  }
+  .mobile-nav .employee-app-nav[aria-current="page"]{
+    background:transparent;color:var(--green-deep);
+    border-left-color:var(--green);font-weight:800;
+  }
+}
 
 /* Announcement */
 .announcement{background:var(--green);color:#fff;text-align:center;padding:10px 20px;font-size:13.5px}
