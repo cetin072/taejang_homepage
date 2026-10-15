@@ -37,7 +37,15 @@ async function dragMenu(sourceKey, targetKey) {
   assert.equal(await source.getAttribute('draggable'),'true','actual menu row must be draggable');
   const from = await source.boundingBox(), to = await target.boundingBox();
   assert.ok(from && to, 'drag endpoints must be on-screen');
-  await page.mouse.move(from.x + from.width - 17, from.y + from.height / 2);
+  const sx=from.x + from.width - 17, sy=from.y + from.height / 2;
+  const hit=await page.evaluate(({x,y})=>{
+    const element=document.elementFromPoint(x,y);
+    return {x,y,tag:element?.tagName,text:element?.textContent?.slice(0,80),
+      nav:Boolean(element?.closest('#app-nav')), menu:element?.closest('[data-menu-key]')?.dataset.menuKey,
+      shell:document.getElementById('desktop-app-shell')?.className};
+  },{x:sx,y:sy});
+  console.log('DRAG_HIT',JSON.stringify({from,to,hit}));
+  await page.mouse.move(sx,sy);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width - 30, from.y + from.height / 2 + 9,{steps:5});
   await page.mouse.move(to.x + to.width - 18,to.y + Math.min(10,to.height / 4),{steps:24});
