@@ -60,6 +60,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 #notice-admin-panel > .section-heading { flex-wrap: wrap; }
 .notice-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.notice-admin-actions .button { min-height: 44px; }
 @media (max-width: 600px) {
   .notice-admin-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
 }
