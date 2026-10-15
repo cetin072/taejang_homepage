@@ -504,9 +504,9 @@
   }
 
   function bindSidebarHandle(handle,type,key) {
+    handle.draggable=true;
     if(handle.dataset.bound==='1') return;
     handle.dataset.bound='1';
-    handle.draggable=true;
     const move=type==='section' ? moveSidebarSection : moveSidebarMenu;
     const targetFor=point=>{
       const candidate=document.elementFromPoint(point.clientX,point.clientY);
