@@ -188,10 +188,11 @@ try {
       const mobileStyle = await mobileAppLink.evaluate(el => {
         const s = getComputedStyle(el);
         const nav = el.closest('.mobile-nav');
+        const contact = [...nav.querySelectorAll('a')].find(link => link.textContent.trim() === '협력·문의');
         return {
           background: s.backgroundColor, borderLeftWidth: s.borderLeftWidth,
           borderLeftColor: s.borderLeftColor, color: s.color,
-          contact: getComputedStyle(nav.querySelector('a[href="partnership.html"]')).backgroundColor
+          contact: contact ? getComputedStyle(contact).backgroundColor : null
         };
       });
       assert.equal(mobileStyle.background, 'rgba(0, 0, 0, 0)', name + ': app guide has no button fill');

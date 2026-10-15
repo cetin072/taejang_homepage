@@ -115,13 +115,13 @@ button{cursor:pointer}
 
 /* Mobile menu: contact remains the primary action; staff sign-in and app guide form one quiet utility group. */
 @media (max-width:1000px){
-  .mobile-nav a[href="partnership.html"]{
+  .mobile-nav a[href*="partnership"]{
     min-height:54px;margin:8px 0 14px;padding:12px 16px;
     border:0;border-radius:5px;background:var(--green);color:#fff;
   }
-  .mobile-nav a[href="partnership.html"]:hover,
-  .mobile-nav a[href="partnership.html"]:focus-visible,
-  .mobile-nav a[href="partnership.html"][aria-current="page"]{
+  .mobile-nav a[href*="partnership"]:hover,
+  .mobile-nav a[href*="partnership"]:focus-visible,
+  .mobile-nav a[href*="partnership"][aria-current="page"]{
     background:var(--green-deep);color:#fff;
   }
   .mobile-nav .staff-nav{
