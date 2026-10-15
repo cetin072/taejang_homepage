@@ -39,6 +39,11 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Run real mouse sidebar drag/save/reload QA
+        env:
+          SIDEBAR_DRAG_QA_OUTPUT: sidebar-drag-qa-artifacts
+        run: node tests/issue-466-sidebar-real-drag.mjs
+
       - name: Run notice authoring exact viewport QA
         env:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
