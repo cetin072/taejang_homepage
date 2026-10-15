@@ -54,6 +54,19 @@ jobs:
           EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
         run: node tests/issue-451-employee-profile-browser.mjs
 
+      - name: Run staff field audit PC and mobile fixture QA
+        env:
+          FIELD_AUDIT_QA_OUTPUT: field-audit-qa-artifacts
+        run: node tests/issue-456-field-audit-browser.mjs
+
+      - name: Keep staff field audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-field-audit-1440-390
+          path: field-audit-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Keep synthetic employee screenshots
         if: always()
         uses: actions/upload-artifact@v4

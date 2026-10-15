@@ -157,6 +157,7 @@
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
     ['assets/employee-management-views.js', 'employee-management-views'],
     ['assets/employee-management.js', 'employee-management'],
+    ['assets/employee-field-audit.js', 'employee-field-audit'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
     ['assets/issue-146-end-to-end.js', 'issue-146-end-to-end'],
     ['assets/promotion-approved-delete-ux.js', 'promotion-approved-delete-ux'],

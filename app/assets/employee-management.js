@@ -814,6 +814,13 @@
       activeEmployeeView = activeEmployeeView === 'new' ? 'existing' : 'new'; selectedEmployeeId = null;
       renderEmployeeManagement(currentContext);
     }, true));
+    if (isOps || isGlobalPromotionLead) {
+      intro.append(button('📋 직원 현장 전수조사', () => {
+        const open = window.TaejangEmployeeFieldAudit?.open;
+        if (typeof open === 'function') return open();
+        window.TaejangFeatureHealth?.showFailure?.('직원 현장 전수조사');
+      }, true));
+    }
     shell.append(intro);
     if (activeEmployeeView === 'new') {
       const createSection = el('section', null, 'dashboard-section');
@@ -888,5 +895,5 @@
   injectStyles();
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));
 
-  window.TaejangEmployeeManagement = { openEmployeeManagement };
+  window.TaejangEmployeeManagement = { openEmployeeManagement, uploadEmployeePhoto };
 })();
