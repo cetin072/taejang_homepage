@@ -467,10 +467,14 @@
     }
 
     async function assertLegacyPreferenceDoesNotDemoteNotice() {
-      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
+      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.create','notice.manage','monthly_client_documents.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
       assertOrdered(labels(),['공지 관리','업무 배정'],'legacy task-first preference must not override notice priority');
+      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
+      await window.TaejangPlatformUiSettings.refresh();
+      await wait(40);
+      assertOrdered(labels(),['업무 배정','공지 관리'],'explicit modern custom order remains respected');
       savedSidebarOrder = null;
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
