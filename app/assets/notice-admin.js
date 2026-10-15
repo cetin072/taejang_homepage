@@ -766,7 +766,13 @@
         ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
         : bodySaved && !['NOTICE_SAVED_MEDIA_FAILED', 'NOTICE_SAVED_MEDIA_UNCERTAIN'].includes(error.message)
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
-      ui.element('notice-additional-settings').open = true;
+      if (['LINK_PAIR_REQUIRED', 'INVALID_HTTPS_LINK'].includes(error.message)) {
+        const destination = !ui.element('notice-link-url').value.trim() ? 'notice-link-url'
+          : !ui.element('notice-link-label').value.trim() ? 'notice-link-label' : 'notice-link-url';
+        ui.element(destination).focus();
+      } else {
+        ui.element('notice-additional-settings').open = true;
+      }
     } finally {
       controls.forEach(([node, disabled]) => { node.disabled = disabled; });
       saving = false;
@@ -803,7 +809,9 @@
     ui.element('notice-form').addEventListener('invalid', event => {
       const details = event.target.closest('details');
       if (details) details.open = true;
-      showMessage('필수항목과 입력 형식을 확인해주세요.', true);
+      showMessage(event.target.id === 'notice-link-url'
+        ? '관련 링크는 올바른 HTTPS 주소(https://)를 입력해주세요.'
+        : '필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
     ui.element('notice-form').addEventListener('change', event => {
       if (event.target.id === 'notice-routine-confirm') updateActions();
