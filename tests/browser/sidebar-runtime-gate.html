@@ -471,7 +471,6 @@
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
       assertOrdered(labels(),['공지 관리','업무 배정'],'legacy task-first preference must not override notice priority');
-      // A newly saved explicit order has no legacy slot and must remain editable.
       savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
@@ -484,6 +483,16 @@
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
       try {
+        if (location.search.includes('realMouseDrag')) {
+          // Deterministic setup for a separate Playwright pointer E2E.
+          // Avoid the lengthy representative-role test manipulating menus
+          // while the human-like drag interaction is in progress.
+          currentRoute = 'operations_manager';
+          document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'operations_manager',label:'운영총괄'}}));
+          await wait(450);
+          output.textContent = 'SIDEBAR_RUNTIME_DRAG_READY';
+          return;
+        }
         let current = await enterRole('promotion_staff', '홍보직원');
         assertStaffContract(current);
         await assertNoPostSettleJitter('promotion_staff');
