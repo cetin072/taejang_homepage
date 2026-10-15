@@ -60,9 +60,23 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-title-input').focus();el('notice-title-input').dispatchEvent(new Event('input',{bubbles:true}));await wait();check(document.activeElement===el('notice-title-input'),'preview retains keyboard focus');
  check(el('notice-title-input').labels.length===1&&el('notice-body').labels.length===1,'label associations');
  await press('notice-save-draft');check(rows.at(-1).status==='draft'&&msg().includes('초안 저장됨')&&msg().includes('직원 비공개'),'private draft and persistent result');
- el('notice-scope').value='department';el('notice-scope').dispatchEvent(new Event('change'));el('notice-target').value='dep';await press('notice-save-draft');check(el('notice-target').value==='dep','target preserved after refresh');
+ check(!el('notice-scope')&&!el('notice-target'),'audience controls are removed');
+ check(el('notice-target-summary').textContent.includes('전체 직원'),'all-staff audience visible without input');
+ check(rows.at(-1).target_scope==='company'&&rows.at(-1).target_department_id===null&&rows.at(-1).target_work_group_id===null&&rows.at(-1).target_profile_id===null,'new notice has company audience and no specific targets');
+ await press('notice-save-draft');check(rows.at(-1).target_scope==='company','all-staff target survives refresh');
  const firstId=el('notice-id').value;check(firstId&&el('notice-title-input').value==='직원 공지','saved id and input retained');
  window.TaejangNoticeAdmin.setView('manage');await wait();check(msg().includes('초안 저장됨'),'result survives navigation to list');
+ // Simulate a legacy notice that originally targeted one department; edits must retain that audience.
+ const legacyRow=rows.find(row=>row.id===firstId);
+ legacyRow.target_scope='department';legacyRow.target_department_id='dep';
+ await press('refresh-notice-admin');
+ const legacyCard=[...el('notice-admin-list').querySelectorAll('.admin-record-card')].find(card=>card.querySelector('h3')?.textContent==='직원 공지');
+ check(!!legacyCard,'legacy scoped notice stays manageable');
+ legacyCard.querySelector('button').click();await wait();
+ check(el('notice-target-summary').textContent.includes('기존 공지 대상')&&el('notice-target-summary').textContent.includes('부서'),'legacy targeting is clearly disclosed');
+ await press('notice-save-draft');
+ check(legacyRow.target_scope==='department'&&legacyRow.target_department_id==='dep','legacy notice edit cannot silently broaden scope');
+ window.TaejangNoticeAdmin.setView('manage');
  await start();confirmAnswer=false;const before=rows.length;await press('notice-publish');check(rows.length===before,'cancel confirmation creates nothing');confirmAnswer=true;
  const nowBefore=Date.now();await press('notice-publish');check(rows.at(-1).status==='published'&&new Date(rows.at(-1).publish_start_at)>=nowBefore,'now publishes with current instant');
  check(msg().includes('현재 공개됨')&&confirmations.at(-1).includes('전체 직원')&&confirmations.at(-1).includes('KST'),'visibility and target confirmation');
@@ -105,7 +119,7 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  await start();el('notice-importance').value='important';el('notice-additional-settings').open=false;el('notice-requires-ack').checked=true;await press('notice-save-draft');check(rows.at(-1).requires_acknowledgement,'valid folded required defaults');
  await start();failList=true;await press('notice-save-draft');check(msg().includes('저장은 완료')&&msg().includes('초안 저장됨'),'list failure never reports save failure');failList=false;
  role='promotion_lead';await start();
- check(!el('notice-publish').hidden&&!el('notice-submit-review').hidden&&el('notice-scope').value==='company','lead routine company direct and optional review');
+ check(!el('notice-publish').hidden&&!el('notice-submit-review').hidden&&el('notice-target-summary').textContent.includes('전체 직원'),'lead routine company direct and optional review');
  await press('notice-publish');check(msg().includes('일상 안내인지 확인'),'routine declaration required');
  el('notice-routine-confirm').checked=true;await press('notice-publish');
  check(rows.at(-1).status==='published'&&rows.at(-1).lead_notice_mode==='routine','lead direct publish through dedicated rpc');
