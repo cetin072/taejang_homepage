@@ -35,6 +35,13 @@ test('Goal 327 keeps regular navigation and cards non-draggable until Settings e
   assert.match(settings, /state\.editingDashboard/);
 });
 
+test('Issue 463 master notice-first sidebar and connected drag/drop', () => {
+  assert.ok(registry.indexOf("key:'notice.manage'") < registry.indexOf("key:'task.manage'"));
+  assert.ok(priority.includes("'공지 관리', '업무 배정'"));
+  assert.ok(shell.indexOf("key: 'notice.manage'") < shell.indexOf("label: '업무 배정'"));
+  assert.match(settings,/state\.editingSidebar=true;\s*bindSidebarDropTargets\(\);\s*decorateEditableSidebar\(\)/);
+});
+
 test('Goal 327 Settings editor exposes only save, cancel, and reset actions', () => {
   assert.match(settings, /메뉴 순서 저장/);
   assert.match(settings, /편집 취소/);
