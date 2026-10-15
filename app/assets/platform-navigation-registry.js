@@ -26,8 +26,8 @@
     { key:'homepage.content', label:'홈페이지 내용 관리', section:'홈페이지', capabilities:['homepage.draft','homepage.review','homepage.approve_apply'] },
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
-    { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
+    { key:'task.manage', label:'업무 배정', section:'업무 운영', capabilities:['task.manage'] },
     { key:'monthly_client_documents.manage', label:'거래처 문서 관리', section:'업무 운영', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },

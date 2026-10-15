@@ -14,7 +14,7 @@ test('monthly document route belongs to the operations manager and existing side
   assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '거래처 문서 관리',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
   assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'업무 운영',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
   assert.match(priority, /label: '업무 운영', items: \[[^\]]*'거래처 문서 관리'/);
-  assert.match(priority, /'업무 배정', '공지 관리', '거래처 문서 관리'/);
+  assert.match(priority, /'공지 관리', '업무 배정', '거래처 문서 관리'/);
 });
 
 test('monthly document assets load locally before the feature and no CDN runtime dependency remains', () => {

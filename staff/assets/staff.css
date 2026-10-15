@@ -58,6 +58,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .profile-summary dt { color: var(--muted); font-size: .88rem; }
 .profile-summary dd { margin: 6px 0 0; font-weight: 800; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#notice-admin-panel > .section-heading { flex-wrap: wrap; }
+.notice-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.notice-admin-actions .button { min-height: 44px; }
+@media (max-width: 600px) {
+  .notice-admin-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
+}
 .account-list { display: grid; gap: 16px; }
 .account-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
 .account-card h3 { margin: 0 0 4px; }

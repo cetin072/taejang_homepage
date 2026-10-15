@@ -73,6 +73,24 @@
     return result;
   }
 
+  function normalizeLegacySidebarMenuOrder(value) {
+    const saved = uniqueArray(value);
+    // Old settings still include a retired "notice.create" slot. Apply the
+    // newly approved notice-first order once without discarding other choices.
+    // After the user explicitly saves the current editor, that obsolete marker
+    // disappears and their new drag order is respected across reloads.
+    if (!saved.includes('notice.create')) return saved;
+    const next = saved.filter(key => key !== 'notice.create');
+    const noticeIndex = next.indexOf('notice.manage');
+    const otherIndices = ['task.manage','monthly_client_documents.manage']
+      .map(key => next.indexOf(key)).filter(index => index >= 0);
+    if (noticeIndex >= 0 && otherIndices.length && noticeIndex > Math.min(...otherIndices)) {
+      next.splice(noticeIndex, 1);
+      next.splice(Math.min(...otherIndices), 0, 'notice.manage');
+    }
+    return next;
+  }
+
   function sidebarSectionKeys() { return registry()?.sections?.().filter(section=>section.key!=='official_channels').map(section=>section.key) || []; }
   function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
   function sidebarPreference() {
@@ -635,6 +653,7 @@
   function startSidebarLayout() {
     state.sidebarSnapshot={sectionOrder:state.sidebarSectionOrder.slice(),menuOrder:state.sidebarMenuOrder.slice()};
     state.editingSidebar=true;
+    bindSidebarDropTargets();
     decorateEditableSidebar();
   }
 
@@ -809,7 +828,7 @@
       state.dashboardOrder=dashboardOrder(result?.dashboard_order);
       state.dashboardCustomized=dashboardCustomized(result?.dashboard_order);
       state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
-      state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
+      state.sidebarMenuOrder=normalizeLegacySidebarMenuOrder(result?.sidebar_menu_order);
     } catch {
       state.collapsedSections=new Set();
       state.dashboardOrder=[];
