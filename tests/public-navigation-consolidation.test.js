@@ -162,8 +162,6 @@ assert.match(activities, /소식·기록 전체 보기/);
 const styles = read('assets/css/styles.css');
 assert.match(styles, /\.desktop-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
   'desktop employee app navigation is a quiet green secondary action');
-assert.match(styles, /\.mobile-nav \.employee-app-nav\{[^}]*background:var\(--beige\);color:var\(--green-deep\)/,
-  'mobile employee app navigation keeps the same secondary hierarchy');
 assert.match(styles, /\.mobile-nav a\[href="partnership\.html"\][\s\S]*?background:var\(--green\);color:#fff/, 'contact retains primary mobile CTA');
 assert.match(styles, /\.mobile-nav \.employee-app-nav\{[\s\S]*?background:transparent/, 'app guide has no filled mobile button');
 assert.match(styles, /\.mobile-nav \.employee-app-nav\[aria-current="page"\]\{[\s\S]*?background:transparent/, 'current app menu stays understated');
