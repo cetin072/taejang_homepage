@@ -123,6 +123,7 @@
     ui.element('notice-publish-help').textContent = isPromotionLead() && !direct
       ? '희망 시각은 초안에만 저장됩니다. 실제 게시·예약은 운영총괄이 검토 후 결정합니다.'
       : '지금 게시하면 확인 후 현재 한국 시각(KST)으로 게시합니다. 지정한 예약시각은 날짜·시간 지정에서 사용합니다.';
+    ui.element('notice-start-fields').hidden = now;
     for (const suffix of ['date', 'time']) {
       ui.element(`notice-publish-start-${suffix}`).disabled = now;
     }
@@ -370,7 +371,8 @@
     }
     if (previewCard) {
       previewCard.hidden = false;
-      previewCard.open = preview;
+      // A live preview is always immediately below the writing form, including edit mode.
+      previewCard.open = true;
     }
   }
 
