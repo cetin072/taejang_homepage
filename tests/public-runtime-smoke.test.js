@@ -71,7 +71,7 @@ class MockElement {
     this.children.push(child);
     return child;
   }
-  
+
   insertBefore(child, reference) {
     const prior = child.parentElement;
     if (prior) prior.children = prior.children.filter(item => item !== child);
