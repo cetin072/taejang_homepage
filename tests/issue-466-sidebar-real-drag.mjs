@@ -45,8 +45,14 @@ async function dragMenu(sourceKey, targetKey) {
   await page.waitForTimeout(180);
 }
 try {
-  await page.goto(pathToFileURL(fixture).href);
-  await page.waitForFunction(() => document.getElementById('result')?.textContent === 'SIDEBAR_RUNTIME_GATE_PASS',null,{timeout:40000});
+  await page.goto(pathToFileURL(fixture).href + '?realMouseDrag');
+  try {
+    await page.waitForFunction(() => document.getElementById('result')?.textContent === 'SIDEBAR_RUNTIME_DRAG_READY',null,{timeout:12000});
+  } catch (error) {
+    const status=await page.locator('#result').innerText().catch(()=>'<missing result>');
+    throw new Error('drag fixture not ready: '+status+'; browser errors: '+browserErrors.join('; '),{cause:error});
+  }
+  await page.locator('#app-nav [data-menu-key="notice.manage"]').waitFor();
   await before('notice.manage','task.manage');
   await page.locator('[data-platform-settings-action]').click();
   await page.getByRole('button',{name:'사이드바 메뉴 순서 편집'}).click();
