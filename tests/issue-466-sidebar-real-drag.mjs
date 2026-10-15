@@ -47,32 +47,32 @@ async function dragMenu(sourceKey, targetKey) {
 try {
   await page.goto(pathToFileURL(fixture).href);
   await page.waitForFunction(() => document.getElementById('result')?.textContent === 'SIDEBAR_RUNTIME_GATE_PASS',null,{timeout:40000});
-  await before('promotion.publication','promotion.existing');
+  await before('notice.manage','task.manage');
   await page.locator('[data-platform-settings-action]').click();
   await page.getByRole('button',{name:'사이드바 메뉴 순서 편집'}).click();
   await page.locator('#app-nav[data-layout-editing="1"]').waitFor();
 
-  await dragMenu('promotion.existing','promotion.publication');
-  await before('promotion.existing','promotion.publication');
+  await dragMenu('task.manage','notice.manage');
+  await before('task.manage','notice.manage');
   await page.screenshot({path:path.join(output,'mouse-drag-before-save.png')});
   await page.getByRole('button',{name:'메뉴 순서 저장'}).click();
   await page.waitForTimeout(160);
   await page.evaluate(async () => await window.TaejangPlatformUiSettings.refresh());
   await page.waitForTimeout(100);
-  await before('promotion.existing','promotion.publication');
+  await before('task.manage','notice.manage');
 
   // Re-enter edit mode after save; ensure draggable re-enabled and keyboard
   // control still works without introducing a second handler.
   await page.getByRole('button',{name:'사이드바 메뉴 순서 편집'}).click();
-  const moved = page.locator('#app-nav > [data-menu-key="promotion.existing"]');
+  const moved = page.locator('#app-nav > [data-menu-key="task.manage"]');
   assert.equal(await moved.getAttribute('draggable'),'true','second edit session must be draggable');
   await moved.focus();
   await page.keyboard.press('ArrowDown');
   await page.waitForTimeout(100);
-  await before('promotion.publication','promotion.existing');
+  await before('notice.manage','task.manage');
   await page.getByRole('button',{name:'기본 순서로'}).click();
   await page.waitForTimeout(170);
-  await before('promotion.publication','promotion.existing');
+  await before('notice.manage','task.manage');
   await page.screenshot({path:path.join(output,'reset-default.png')});
   assert.deepEqual(browserErrors,[], 'unexpected JavaScript errors during real drag');
   console.log('REAL_SIDEBAR_MOUSE_DRAG_PASS');
