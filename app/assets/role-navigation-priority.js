@@ -204,6 +204,10 @@
     if (CHECKING.has(label) || node.dataset?.featureStatus === 'checking') return 10000;
     const registry = window.TaejangPlatformNavigationRegistry;
     const key = registry?.keyForNode?.(node);
+    // Until the shared menu-order editor is deployed, put Notices first in
+    // Operations even when a legacy per-profile order still puts Tasks first.
+    // Other saved menu positions remain unchanged.
+    if (key === 'notice.manage') return -1000;
     const preference=window.TaejangPlatformUiSettings?.getSidebarPreference?.();
     const item=key ? registry?.byKey?.(key) : null;
     if(key && item?.section) {
