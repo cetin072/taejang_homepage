@@ -17,6 +17,8 @@ const browser = await chromium.launch({
   ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' })
 });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const browserErrors = [];
+page.on('pageerror',error => browserErrors.push(error.message));
 const order = async () => await page.locator('#app-nav > [data-menu-key]').evaluateAll(
   items => items.filter(item=>!item.hidden).map(item=>item.dataset.menuKey)
 );
@@ -72,6 +74,7 @@ try {
   await page.waitForTimeout(170);
   await before('promotion.publication','promotion.existing');
   await page.screenshot({path:path.join(output,'reset-default.png')});
+  assert.deepEqual(browserErrors,[], 'unexpected JavaScript errors during real drag');
   console.log('REAL_SIDEBAR_MOUSE_DRAG_PASS');
 } finally {
   await browser.close();
