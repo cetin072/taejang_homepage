@@ -52,7 +52,7 @@
         <p class="employee-app-hero-message">현장의 의견이<br>앱을 바꿉니다.</p>
         <p class="lead">출퇴근 기록부터 공지 확인까지.<br>직원들의 사용 경험을 듣고,<br>더 쉽고 편한 앱으로 함께 바꿔갑니다.</p>
       </div>
-      <figure class="employee-app-hero-art">
+      <figure class="employee-app-hero-art" data-hero-motion>
         <svg viewBox="0 0 540 440" aria-hidden="true" focusable="false" class="employee-app-illustration">
           <circle cx="276" cy="222" r="181" class="art-soft"/>
           <circle cx="276" cy="222" r="205" fill="none" class="art-line" stroke-dasharray="3 10"/>
@@ -67,15 +67,16 @@
             <path d="M199 89h43" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
             <circle cx="350" cy="89" r="7" class="art-green"/>
             <circle cx="275" cy="189" r="68" class="art-soft"/>
-            <circle cx="275" cy="189" r="46" fill="white" stroke="currentColor" stroke-width="3"/>
-            <path d="M275 163v26l20 13" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle id="hero-clock-face" cx="275" cy="189" r="46" fill="white" stroke="currentColor" stroke-width="3"/>
+            <path id="hero-record-line" d="M253 190 L269 205 L300 169" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M239 284h73M225 303h100" class="art-line" stroke-width="7" stroke-linecap="round"/>
             <path d="M246 353h58" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
           </g>
-          <g class="employee-app-art-arrive">
-            <rect x="22" y="122" width="158" height="86" rx="16" fill="white" class="art-line"/>
+          <path id="hero-record-bridge" d="M229 189 H208 Q200 189 200 181 V173 Q200 165 192 165 H180" pathLength="1" stroke="#2D6A4F" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0"/>
+<g class="employee-app-art-arrive">
+            <rect id="hero-arrival-surface" x="22" y="122" width="158" height="86" rx="16" fill="white" class="art-line"/>
             <circle cx="56" cy="155" r="17" class="art-green"/>
-            <path d="m49 155 5 5 9-11" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path id="hero-card-check" pathLength="1" d="m49 155 5 5 9-11" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
             <text x="83" y="161" class="art-text">출근 기록</text>
             <path d="M43 185h74" class="art-line" stroke-width="4" stroke-linecap="round"/>
           </g>
@@ -92,7 +93,7 @@
           </g>
         </svg>
         <figcaption>직원앱의 역할을 담은 안내용 그림입니다.<br>실제 앱 화면과는 다릅니다.</figcaption>
-      </figure>
+      <div class="employee-app-motion-controls" data-hero-controls hidden><button type="button" data-hero-pause>일시정지</button><button type="button" data-hero-replay>다시 보기</button></div></figure>
       <a class="btn employee-app-hero-link" href="#developer-notes">함께 만든 변화 보기 <span aria-hidden="true">↓</span></a>
     </div>
   </section>
@@ -177,7 +178,7 @@
     <div class="container">
       <div class="eyebrow">DEVELOPER NOTES <span class="employee-app-label">의견이 변화가 되는 과정</span></div>
       <h2 class="title" id="developer-notes-title">함께 만든 변화</h2>
-      <p class="employee-app-section-intro">직원 의견이 나온 날짜와 불편을 줄이기 위해 정리한 기준을 기록합니다.</p>
+      <p class="employee-app-section-intro">직원 의견이 나온 날짜와 불편을 줄이기 위해 정리한 기준을 기록합니다. 아래 비교는 개선 방향이며, 기능의 배포 완료를 뜻하지 않습니다.</p>
       <!-- Record feedback dates and improvement reasoning, without implying unshipped features are live. -->
       <div class="employee-app-timeline">
         <article class="employee-app-note" id="note-attendance" aria-labelledby="note-attendance-title">
@@ -186,11 +187,17 @@
           </div>
           <div class="employee-app-note-content">
             <h3 id="note-attendance-title">출퇴근 버튼을 더 쉽게</h3>
-            <dl class="employee-app-note-flow">
-              <div><dt>직원의 의견</dt><dd>출근과 퇴근 버튼이 행동인지, 완료 표시인지 헷갈린다는 의견이 있었습니다.</dd></div>
-              <div><dt>개선 포인트</dt><dd>행동을 나타내는 문구와 완료 표시를 구분하는 방식을 정리했습니다. 카드 전환과 짧은 진동에 대한 의견도 함께 나눴습니다.</dd></div>
-              <div><dt>중요한 기준</dt><dd>누르기 전에는 무엇을 할지, 누른 뒤에는 무엇이 완료됐는지 한눈에 알 수 있어야 합니다.</dd></div>
-            </dl>
+            <div class="employee-app-comparison" data-comparison>
+              <p class="employee-app-comparison-caption">Before / After <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
+              <div class="employee-app-note-flow">
+                <div class="employee-app-flip"><div class="employee-app-flip-inner">
+                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">BEFORE · 이전의 불편함</span>직원의 의견</dt><dd>출근과 퇴근 버튼이 행동인지, 완료 표시인지 헷갈린다는 의견이 있었습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">AFTER · 개선 방향</span>개선 포인트</dt><dd>행동을 나타내는 문구와 완료 표시를 구분하는 방식을 정리했습니다. 카드 전환과 짧은 진동에 대한 의견도 함께 나눴습니다.</dd></dl>
+                </div></div>
+                <dl class="employee-app-criterion"><dt>중요한 기준</dt><dd>누르기 전에는 무엇을 할지, 누른 뒤에는 무엇이 완료됐는지 한눈에 알 수 있어야 합니다.</dd></dl>
+              </div>
+              <div class="employee-app-motion-controls" data-card-controls hidden><button type="button" data-card-replay>다시 보기</button><button type="button" data-card-compare>두 내용 함께 보기</button></div>
+            </div>
           </div>
         </article>
         <article class="employee-app-note" id="note-notice" aria-labelledby="note-notice-title">
@@ -199,11 +206,17 @@
           </div>
           <div class="employee-app-note-content">
             <h3 id="note-notice-title">공지사항을 더 단순하게</h3>
-            <dl class="employee-app-note-flow">
-              <div><dt>개선 배경</dt><dd>비슷한 표현과 긴 설명 때문에 중요한 공지를 한눈에 찾기 어려웠습니다.</dd></div>
-              <div><dt>개선 포인트</dt><dd>중복 표현을 줄이고 제목, 날짜, 미확인 개수와 내용 보기에 집중하는 방식을 정리했습니다.</dd></div>
-              <div><dt>중요한 기준</dt><dd>중요한 공지 내용을 빠르게 찾고 다음 행동을 쉽게 선택할 수 있어야 합니다.</dd></div>
-            </dl>
+            <div class="employee-app-comparison" data-comparison>
+              <p class="employee-app-comparison-caption">Before / After <span>직원 의견을 바탕으로 정리한 개선 방향</span></p>
+              <div class="employee-app-note-flow">
+                <div class="employee-app-flip"><div class="employee-app-flip-inner">
+                  <dl class="employee-app-face employee-app-before"><dt><span class="employee-app-face-label">BEFORE · 이전의 불편함</span>개선 배경</dt><dd>비슷한 표현과 긴 설명 때문에 중요한 공지를 한눈에 찾기 어려웠습니다.</dd></dl>
+                  <dl class="employee-app-face employee-app-after"><dt><span class="employee-app-face-label">AFTER · 개선 방향</span>개선 포인트</dt><dd>중복 표현을 줄이고 제목, 날짜, 미확인 개수와 내용 보기에 집중하는 방식을 정리했습니다.</dd></dl>
+                </div></div>
+                <dl class="employee-app-criterion"><dt>중요한 기준</dt><dd>중요한 공지 내용을 빠르게 찾고 다음 행동을 쉽게 선택할 수 있어야 합니다.</dd></dl>
+              </div>
+              <div class="employee-app-motion-controls" data-card-controls hidden><button type="button" data-card-replay>다시 보기</button><button type="button" data-card-compare>두 내용 함께 보기</button></div>
+            </div>
           </div>
         </article>
       </div>
@@ -229,5 +242,6 @@
   </div>
 </footer>
 <script src="assets/js/site.js"></script>
+<script src="assets/js/employee-app-motion.js"></script>
 </body>
 </html>

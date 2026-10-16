@@ -1,3 +1,6 @@
+import { exerciseMotion } from './helpers/employee-app-motion-checks.mjs';
+import { checkReadinessBoundary } from './helpers/public-page-ready-checks.mjs';
+import { gotoPublicReady } from './helpers/public-page-ready.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -68,6 +71,7 @@ try {
     headless: true,
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' })
   });
+  await checkReadinessBoundary(browser, output);
   for (const [name, width, height] of [
     ['pc', 1440, 900], ['desktop-min', 1001, 900], ['desktop-medium', 1120, 900],
     ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 720],
@@ -78,7 +82,7 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const response = await page.goto(base + '/employee-app.html', { waitUntil: 'networkidle' });
+    const response = await gotoPublicReady(page, base + '/employee-app.html', output);
     assert.equal(response?.status(), 200, name + ': HTML route');
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator('h1').count(), 1);
@@ -128,7 +132,7 @@ try {
       };
     });
     assert.equal(visual.features, width <= 760 ? 1 : 3);
-    assert.equal(visual.flow, width <= 760 ? 1 : 3);
+    assert.equal(visual.flow, 1, 'static semantic comparison container');
     if (width <= 760) {
       assert.ok(visual.heroCopy <= visual.heroArt && visual.heroArtBottom <= visual.heroButton, name + ': mobile title → description → illustration → button');
     }
@@ -170,7 +174,7 @@ try {
     assert.equal(await landingLink(page).evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
-    await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
+    await gotoPublicReady(page, base + '/index.html', output);
     const desktopAppLink = page.locator('header .desktop-nav a.employee-app-nav');
     const mobileAppLink = page.locator('header .mobile-nav a.employee-app-nav');
     assert.equal(await desktopAppLink.count(), 1, name + ': desktop header includes employee app');
@@ -179,7 +183,7 @@ try {
     if (name === 'pc') {
       await landingLink(page).click();
       await page.waitForURL(url => isLandingRoute(url.href));
-      await page.goto(base + '/index.html', { waitUntil: 'networkidle' });
+      await gotoPublicReady(page, base + '/index.html', output);
       await page.screenshot({ path: path.join(output, 'homepage-app-menu-pc.png') });
     }
     if (width <= 1000) {
@@ -264,42 +268,8 @@ try {
   const normal = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
-  const motion = await motionPage.locator('.employee-app-art-notice').evaluate(el => {
-    const s = getComputedStyle(el); return { name: s.animationName, count: s.animationIterationCount, fill: s.animationFillMode, duration: s.animationDuration, delay: s.animationDelay };
-  });
-  assert.equal(motion.name, 'employee-app-arrive');
-  assert.equal(motion.count, '1');
-  assert.equal(motion.fill, 'none');
-  assert.equal(motion.duration, '3.2s', 'hero components should appear noticeably slower');
-  assert.equal(motion.delay, '1.15s', 'hero cards should appear in a relaxed sequence');
-  for (const [selector, delay] of [
-    ['.employee-app-art-arrive', '0.15s'],
-    ['.employee-app-art-notice', '1.15s'],
-    ['.employee-app-art-leave', '2.15s']
-  ]) {
-    const timing = await motionPage.locator(selector).evaluate(el => {
-      const style = getComputedStyle(el);
-      return { duration: style.animationDuration, delay: style.animationDelay, count: style.animationIterationCount };
-    });
-    assert.deepEqual(timing, { duration: '3.2s', delay, count: '1' }, selector + ': slow, finite hero animation');
-  }
-  for (const [index, delay] of [[0, '0.35s'], [1, '1.1s'], [2, '1.85s']]) {
-    const timing = await motionPage.locator('.employee-app-feature-art').nth(index).evaluate(el => {
-      const style = getComputedStyle(el);
-      return { duration: style.animationDuration, delay: style.animationDelay, count: style.animationIterationCount };
-    });
-    assert.deepEqual(timing, { duration: '2.4s', delay, count: '1' }, 'guide illustration follows slower one-time pacing');
-  }
-  await motionPage.waitForTimeout(1750);
-  assert.ok(await motionPage.evaluate(() => document.getAnimations().length > 0), 'motion still running during first seconds');
-  await motionPage.screenshot({ path: path.join(output, 'employee-app-motion-in-progress.png') });
-  await motionPage.waitForFunction(() => document.getAnimations().length === 0, undefined, { timeout: 9000 });
-  assert.equal(await motionPage.evaluate(() => document.getAnimations().length), 0, 'all motion finishes');
-  const finalArt = await motionPage.locator('.employee-app-art-arrive, .employee-app-art-notice, .employee-app-art-leave').evaluateAll(els => els.map(el => ({ opacity: getComputedStyle(el).opacity, transform: getComputedStyle(el).transform })));
-  assert.equal(finalArt.length, 3);
-  assert.ok(finalArt.every(s => s.opacity === '1' && s.transform === 'none'), 'all hero artwork remains opaque at its final position');
-  await motionPage.screenshot({ path: path.join(output, 'employee-app-motion-finished.png'), fullPage: true });
-  await assertLayout(motionPage, 'motion-finished');
+  await exerciseMotion(motionPage, output, assertLayout);
+  const motion = { hero: 'approved V2.1 5200ms', card: '3200ms reading + 1000ms single half-turn' };
   // Text-only enlargement catches fixed-height clipping independently of viewport reflow.
   await motionPage.addStyleTag({ content: 'main p, main dd, main dt, main a, main h3 { font-size: 200% !important; }' });
   await assertLayout(motionPage, 'text-200');
@@ -307,7 +277,7 @@ try {
   await normal.close();
   if (process.env.EMPLOYEE_APP_QA_BASE) {
     const cleanPage = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
-    await cleanPage.goto(base + '/employee-app', { waitUntil: 'networkidle' });
+    await gotoPublicReady(cleanPage, base + '/employee-app', output);
     assert.ok(isLandingRoute(cleanPage.url()), 'hosted clean URL stays on landing');
     const cleanMenu = cleanPage.locator('.desktop-nav .employee-app-nav');
     assert.equal(await cleanMenu.getAttribute('aria-current'), 'page', 'hosted clean URL current menu');
