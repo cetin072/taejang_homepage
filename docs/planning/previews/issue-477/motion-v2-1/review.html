@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>태장 HERO V2 / V2.1 비교</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#F5F0E8;color:#1B4332;font:16px/1.7 'Nanum Gothic','Malgun Gothic',sans-serif}main{max-width:1520px;margin:auto;padding:28px 24px}h1{font-size:28px;line-height:1.5}h2{font-size:20px}p{margin:0 0 14px}nav{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}button,a{font:inherit;color:inherit}button{padding:9px 16px;min-height:44px;border:1px solid #2D6A4F;border-radius:6px;background:white}button[aria-pressed=true],[data-command=replay]{background:#2D6A4F;color:white}a{display:inline-flex;align-items:center;min-height:44px;text-underline-offset:4px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}.pair.mobile{grid-template-columns:repeat(2,minmax(0,390px));justify-content:center}section{min-width:0}.window{width:100%;height:calc(1100px * var(--scale,1));overflow:hidden;border:1px solid #DDD8CE;background:white}iframe{display:block;width:1440px;height:1100px;border:0;transform:scale(var(--scale,1));transform-origin:top left}.mobile .window{height:calc(1550px * var(--scale,1))}.mobile iframe{width:390px;height:1550px}:focus-visible{outline:3px solid #1B4332;outline-offset:3px}@media(max-width:850px){.pair,.pair.mobile{grid-template-columns:1fr}h1{font-size:24px}}[hidden]{display:none!important}small{display:block;margin-top:20px}
+</style>
+<main>
+<h1>확인된 기록, 출근 카드에 남다</h1>
+<p>HERO V2 6.8초 ↔ V2.1 5.2초 · 독립 검토 반영 비교 시안 · 본 홈페이지 미적용</p>
+<p>V2.1은 중앙 확인을 지우지 않고 대비와 선 굵기를 낮춰 초점을 카드로 넘깁니다. 연결선은 1.5배 굵게, 핵심 전환은 같은 시간에, 정리와 마지막 대기는 짧게 조정했습니다.</p>
+<nav aria-label="비교 화면 폭"><button data-width="pc" aria-pressed="false">PC 1440px</button><button data-width="mobile" aria-pressed="true">모바일 390px</button><a href="hero-motion.html" target="_blank">V2.1 원래 크기로 ↗</a><a href="hero-v2.html" target="_blank">V2 원래 크기로 ↗</a></nav>
+<nav class="playback" aria-label="동기 재생 및 주요 프레임"><button data-command="replay">함께 처음부터 재생</button><button data-command="pause">함께 일시정지</button><button data-command="0">시작</button><button data-command="3400">초점 전달 3.4초</button><button data-command="3900">카드 완성 3.9초</button><button data-command="5200">동일 시각 5.2초</button><button data-command="end">각 시안 정적 끝</button></nav>
+<p role="status" aria-live="polite" data-status>두 시안을 함께 재생해 속도와 시선 이동을 비교하세요.</p>
+<div class="pair mobile"><section><h2>V2 · 6.8초 / 원본 유지</h2><div class="window"><iframe title="HERO V2 6.8초" src="hero-v2.html?motion=manual"></iframe></div></section><section><h2>V2.1 · 5.2초 / 초점 전달</h2><div class="window"><iframe title="HERO V2.1 5.2초" src="hero-motion.html?motion=manual"></iframe></div></section></div>
+<small>두 화면은 동일한 실제 1440px 또는 390px 뷰포트에서 렌더되고 이 비교 도구 안에서만 축소됩니다. 재생은 같은 이벤트에서 시작하고 각자의 길이에서 정지합니다. 실제 앱 UI·근태 처리 순서를 뜻하지 않는 설명용 그림입니다. 모션 감소 환경에서는 정적 완성 그림을 표시합니다. 실제 기기 검수·디자인 승인은 아직 남아 있습니다.</small>
+</main>
+<script>
+const pair=document.querySelector('.pair'),frames=[...document.querySelectorAll('iframe')];
+function size(){const width=pair.classList.contains('mobile')?390:1440;document.querySelectorAll('.window').forEach(w=>w.style.setProperty('--scale',Math.min(1,w.clientWidth/width)));}
+new ResizeObserver(size).observe(pair);
+document.querySelectorAll('[data-width]').forEach(b=>b.addEventListener('click',()=>{pair.classList.toggle('mobile',b.dataset.width==='mobile');document.querySelectorAll('[data-width]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));size();}));
+document.querySelectorAll('[data-command]').forEach(b=>b.addEventListener('click',()=>{try{const controllers=frames.map(f=>f.contentWindow.TaejangHeroStudy);const cmd=b.dataset.command;controllers.forEach(c=>{if(cmd==='replay')c.play(true);else if(cmd==='pause')c.pause();else c.seek(cmd==='end'?c.duration:Math.min(Number(cmd),c.duration));});document.querySelector('[data-status]').textContent=cmd==='replay'?'동시에 시작했습니다. V2.1은 5.2초, V2는 6.8초에서 멈춥니다.':cmd==='pause'?'두 시안을 멈췄습니다.':cmd==='end'?'각 시안의 완성된 정적 그림입니다.':`${Number(cmd)/1000}초의 같은 시각입니다.`;}catch{document.querySelector('[data-status]').textContent='화면을 준비 중입니다. 잠시 후 다시 눌러 주세요.';}}));
+size();if(location.protocol==='file:'){document.querySelector('.playback').hidden=true;document.querySelector('[data-status]').textContent='파일로 열면 각 화면 안의 다시 보기를 사용하세요. 동시 제어는 로컬 서버에서 지원합니다.';}
+</script>
+</html>

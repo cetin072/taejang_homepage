@@ -1,0 +1,31 @@
+{
+  "exactViewports": [
+    1440,
+    390
+  ],
+  "frames": [
+    0,
+    3400,
+    3900,
+    5200
+  ],
+  "coreTimingIdenticalAtMs": [
+    0,
+    600,
+    1400,
+    1900,
+    2300,
+    3000,
+    3200,
+    3400,
+    3900
+  ],
+  "replayStartDifferenceMs": 0.4999999990686774,
+  "pause": true,
+  "endTimes": [
+    6800,
+    5200
+  ],
+  "outerMobileOverflow": false,
+  "errors": []
+}

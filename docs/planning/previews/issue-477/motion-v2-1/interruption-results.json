@@ -1,0 +1,8 @@
+{
+  "viewportExitPause": true,
+  "reentryNoReplay": true,
+  "midplayReducedMotionFinal": true,
+  "reduceRemovedNoReplay": true,
+  "visibilityEventFixturePause": true,
+  "beforeprintEventFixtureFinal": true
+}
