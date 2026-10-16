@@ -527,7 +527,7 @@
         });
         if (!result?.ok) throw new Error(result?.code || '저장된 주민번호를 찾지 못했습니다.');
         const digits = String(result.resident_number || '');
-        if (!/^\\d{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
+        if (!/^[0-9]{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
         const shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
         shown.setAttribute('aria-label','열람한 직원 주민등록번호');
         const hide = () => {shown.textContent = '';shown.remove();hideButton.remove();reveal.disabled=false;};
