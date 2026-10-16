@@ -45,14 +45,14 @@ select is(
 );
 
 select ok(
-  exists (
+  not exists (
     select 1
     from public.role_capability_grants grant_row
     join public.roles role on role.id = grant_row.role_id
     where role.code = 'promotion_lead'
-      and grant_row.capability_code = 'payroll.handoff.review'
+      and grant_row.capability_code like 'payroll.%'
   ),
-  'promotion lead receives handoff review capability'
+  'promotion lead has zero payroll capabilities'
 );
 select is(
   (select operations_manager_auto_grant from public.platform_capabilities where code = 'payroll.handoff.review'),

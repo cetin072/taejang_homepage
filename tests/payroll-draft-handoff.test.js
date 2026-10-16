@@ -46,10 +46,15 @@ test('duplicate and revision semantics are keyed by external draft revision', ()
   assert.match(contract, /rejected[\s\S]*동일 revision.*terminal/i);
 });
 
-test('operations manager remains a superset of promotion lead handoff operations', () => {
-  const reviewerHelper = sql.match(/create or replace function public\.private_payroll_handoff_reviewer_allowed\(\)[\s\S]*?\$\$;/i)?.[0] || '';
-  assert.match(reviewerHelper, /promotion_lead/i);
+test('handoff review is restricted to actual operations managers after the approved role change', () => {
+  const migration = read('supabase/migrations/20261016033659_lead_compensation_access_denial.sql');
+  const reviewerHelper = migration.match(/create or replace function public\.private_payroll_handoff_reviewer_allowed\(\)[\s\S]*?\$\$;/i)?.[0] || '';
+  assert.doesNotMatch(reviewerHelper, /promotion_lead/i);
   assert.match(reviewerHelper, /operations_manager/i);
+  assert.match(reviewerHelper, /private_actual_role_codes/);
+  assert.match(reviewerHelper, /private_actor_can\('payroll.handoff.review'\)/);
+  assert.match(migration, /delete from public.role_capability_grants/);
+  assert.doesNotMatch(migration, /(?:update|delete from) public\.(?:payroll_|employees|profiles|audit)/);
   assert.match(sql, /payroll\.handoff\.approve/i);
 });
 
