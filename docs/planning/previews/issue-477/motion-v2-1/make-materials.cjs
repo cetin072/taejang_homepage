@@ -35,7 +35,12 @@ const shell=(title,body)=>`<!doctype html><html lang="ko"><meta charset="utf-8">
  const frames=page.frames().filter(f=>/hero-(v2|motion)\.html/.test(f.url()));assert.equal(frames.length,2);
  for(const [mode,width]of[['pc',1440],['mobile',390]]){
   await page.locator(`[data-width="${mode}"]`).click();
+  await page.waitForTimeout(80);
   for(const f of frames)assert.equal(await f.evaluate(()=>innerWidth),width);
+  const artWidths=await Promise.all(frames.map(f=>f.locator('.employee-app-hero-art svg').evaluate(e=>e.getBoundingClientRect().width)));
+  await page.locator('[data-focus]').click();
+  for(let i=0;i<frames.length;i++)assert.ok(Math.abs((await frames[i].locator('.employee-app-hero-art svg').evaluate(e=>e.getBoundingClientRect().width))-artWidths[i])<1,'focus view preserves native illustration size');
+  await page.locator('[data-focus]').click();
   for(const t of[0,3400,3900,5200]){await page.locator(`[data-command="${t}"]`).click();for(const f of frames)assert.equal((await f.evaluate(()=>TaejangHeroStudy.inspect())).time,t);}
  }
  for(const t of[0,600,1400,1900,2300,3000,3200,3400,3900]){
@@ -43,11 +48,12 @@ const shell=(title,body)=>`<!doctype html><html lang="ko"><meta charset="utf-8">
   for(const f of frames){await f.evaluate(t=>TaejangHeroStudy.seek(t),t);signatures.push(await f.evaluate(()=>({shape:document.querySelector('#hero-record-line').getAttribute('d'),travel:document.querySelector('#hero-record-bridge').style.strokeDashoffset,check:document.querySelector('#hero-card-check').style.strokeDashoffset})));}
   assert.deepEqual(signatures[0],signatures[1],'core morph, connection and check timing preserved');
  }
+ await page.screenshot({path:path.join(out,'review-focus.png'),fullPage:true});
  await page.locator('[data-command="replay"]').click();await page.waitForTimeout(200);
  const times=await Promise.all(frames.map(f=>f.evaluate(()=>TaejangHeroStudy.inspect())));assert.ok(times.every(s=>s.state==='playing'));assert.ok(Math.abs(times[0].time-times[1].time)<80);
  await page.locator('[data-command="pause"]').click();for(const f of frames)assert.equal((await f.evaluate(()=>TaejangHeroStudy.inspect())).state,'paused');
  await page.locator('[data-command="end"]').click();assert.deepEqual(await Promise.all(frames.map(f=>f.evaluate(()=>TaejangHeroStudy.inspect().time))),[6800,5200]);
  await page.setViewportSize({width:390,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- assert.deepEqual(errors,[]);fs.writeFileSync(path.join(__dirname,'comparison-results.json'),JSON.stringify({exactViewports:[1440,390],frames:[0,3400,3900,5200],coreTimingIdenticalAtMs:[0,600,1400,1900,2300,3000,3200,3400,3900],replayStartDifferenceMs:Math.abs(times[0].time-times[1].time),pause:true,endTimes:[6800,5200],outerMobileOverflow:false,errors},null,2));
+ assert.deepEqual(errors,[]);fs.writeFileSync(path.join(__dirname,'comparison-results.json'),JSON.stringify({exactViewports:[1440,390],focusViewNativeArtSizePreserved:true,frames:[0,3400,3900,5200],coreTimingIdenticalAtMs:[0,600,1400,1900,2300,3000,3200,3400,3900],replayStartDifferenceMs:Math.abs(times[0].time-times[1].time),pause:true,endTimes:[6800,5200],outerMobileOverflow:false,errors},null,2));
  console.log('PASS comparison controls, keyframe boards and actual-mobile closeups');
 }finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

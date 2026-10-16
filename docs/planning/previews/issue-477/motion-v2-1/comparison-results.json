@@ -3,6 +3,7 @@
     1440,
     390
   ],
+  "focusViewNativeArtSizePreserved": true,
   "frames": [
     0,
     3400,
@@ -20,7 +21,7 @@
     3400,
     3900
   ],
-  "replayStartDifferenceMs": 0.4999999990686774,
+  "replayStartDifferenceMs": 0.200000000745149,
   "pause": true,
   "endTimes": [
     6800,
