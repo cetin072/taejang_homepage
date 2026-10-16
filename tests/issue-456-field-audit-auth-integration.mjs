@@ -166,9 +166,15 @@ equal(fullRoster.data?.can_manage_resident_number,true,
   'lead can manage resident IDs separately from general sensitive-insurance authority');
 equal(fullRoster.data?.can_manage_sensitive_identity,false,
   'lead still cannot manage payroll insurance exceptions');
-check(!leadCaps.data.capabilities.some(c=>c.startsWith('payroll.')
-      || c==='employee.sensitive_identity_manage' || c==='employee.id_photo_manage'),
- 'resident ID permission does not grant payroll, insurance or identity-photo capability');
+check(!leadCaps.data.capabilities.some(c=>c==='employee.sensitive_identity_manage'
+      || c==='employee.id_photo_manage'),
+ 'new resident ID permission does not grant broad insurance or identity-photo capability');
+// A separate historical payroll.handoff.review grant exists; this employee-card
+// change does not expand it, and worker-level payroll details must remain denied.
+const salaryDenied=await rpc('get_employee_insurance_deduction_settings',lead,{
+ p_employee_uuid:foreign.id,p_payroll_month:'2026-10-01'
+});
+check(!salaryDenied.ok,'operations lead cannot access per-employee insurance deduction settings');
 check(visibleStaff.every(e=>!('resident_number' in e)||e.resident_number===undefined),
  'full national ID is never returned with roster');
 // Synthetic, non-production, per-run checksum-valid fixture avoids collision
