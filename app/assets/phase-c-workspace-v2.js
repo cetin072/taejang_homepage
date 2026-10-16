@@ -90,16 +90,16 @@
       .phase-c-board-form textarea { min-height:330px; resize:vertical; line-height:1.75; }
       [data-composer-layout="writing-first"] .phase-c-board-form label { margin:0; }
       [data-composer-layout="writing-first"] .phase-c-board-form>h3 { margin:0; }
-      .phase-c-composer-options { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:start; }
+      .phase-c-composer-options { align-items:start; }
+      .phase-c-schedule-field { max-width:360px; }
+      .phase-c-board-form .phase-c-schedule-field[hidden] { display:none; }
       .phase-c-composer-options>label[hidden] { display:none; }
       .phase-c-composer-preview { padding:14px; border:1px solid var(--app-border); border-radius:12px; overflow-wrap:anywhere; }
       .phase-c-composer-preview .promotion-preview-panel { margin:0; }
       .phase-c-composer-preview .promotion-preview-panel>img { max-width:100%; max-height:360px; object-fit:contain; }
       .phase-c-photo-order { display:flex; flex-wrap:wrap; gap:6px; }
       .phase-c-board-row { display:grid; grid-template-columns:minmax(180px,.4fr) 1fr; gap:14px; }
-      .phase-c-board-row.phase-c-composer-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
-      @media(max-width:900px){.phase-c-board-row.phase-c-composer-options{grid-template-columns:repeat(2,minmax(0,1fr));}}
-      @media(max-width:480px){.phase-c-board-row.phase-c-composer-options{grid-template-columns:1fr;}}
+      .phase-c-board-row.phase-c-composer-options { grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); }
       .phase-c-editor-shell { border:1px solid var(--app-border); border-radius:12px; overflow:hidden; background:#fff; }
       .phase-c-editor-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-bottom:1px solid var(--app-border); background:#f7faf8; }
       .phase-c-editor-toolbar .button { min-height:40px; padding:8px 12px; }
@@ -434,6 +434,11 @@
     topRow.append(typeField, field('게시 희망일 (선택)', date),
       field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액은 예, 연도·차수는 아니오를 선택하세요.'));
     if (operationsAuthor) topRow.append(field('작성 명의', bylineKind, '대표이사 명의는 대표이사 확인 후 공개합니다.'));
+    const operationsOwnPublication = operationsAuthor && (!existingItem || existingItem.is_owner === true);
+    const scheduleField = operationsOwnPublication
+      ? field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.')
+      : null;
+    if (scheduleField) scheduleField.classList.add('phase-c-schedule-field');
     form.append(field('제목', title));
     const externalWrap = el('div', null, 'phase-c-link-tools');
     const external = input('url');
@@ -538,7 +543,10 @@
       }
     });
     editor.append(toolbar, mediaGrid);
-    form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow, externalWrap);
+    // The staff-approved writing order is shared by all three authoring roles.
+    form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
+    if (scheduleField) form.append(scheduleField);
+    form.append(externalWrap);
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
@@ -552,12 +560,10 @@
     const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
-    if (operationsAuthor && (!existingItem || existingItem.is_owner === true)) {
+    if (operationsOwnPublication) {
       const publish = button('바로 공개', () => savePromotion(state, 'publish', existingItem));
       const ceo = button('대표이사 승인 요청', () => savePromotion(state, 'ceo', existingItem));
       const schedule = button('예약 공개', () => savePromotion(state, 'schedule', existingItem));
-      const scheduleField = field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.');
-      form.append(scheduleField);
       state.saveButtons.push(publish, ceo, schedule);
       actions.append(publish, ceo, schedule);
       const syncCeoGate = () => {
