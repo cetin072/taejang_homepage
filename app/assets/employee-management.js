@@ -476,6 +476,7 @@
   // Full number exists only in a short-lived DOM text node after explicit reveal.
   function residentNumberPanel(context, employee) {
     if (!context.can_manage_resident_number
+      || employee.can_manage_resident_number_for_employee !== true
       || (employee.protected && context.access_level !== 'operations_manager')) return null;
     const wrap = el('section', null, 'employee-resident-number-controls');
     const registered = Boolean(employee.resident_number_registered);
