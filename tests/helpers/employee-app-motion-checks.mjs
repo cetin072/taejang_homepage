@@ -70,5 +70,9 @@ export async function exerciseMotion(page, output, assertLayout) {
   await page.evaluate(() => dispatchEvent(new Event('beforeprint')));
   assert.equal(await page.locator('.is-flipping').count(), 0, 'print fixture restores both faces');
   await page.emulateMedia({ media: 'screen' });
+  // Capture the page from its real top; fixed header/focus must not be painted
+  // halfway down a full-page image after inspecting the lower cards.
+  await page.evaluate(() => { document.activeElement?.blur(); scrollTo({ top: 0, behavior: 'instant' }); });
+  await page.waitForFunction(() => scrollY === 0);
   await page.screenshot({ path: path.join(output, 'employee-app-motion-finished.png'), fullPage: true });
 }
