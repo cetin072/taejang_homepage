@@ -85,6 +85,14 @@ select ok(
  and position('updated_at' in pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))>0,
  'existing company roster and safe employee correction reused');
 select ok(
+ position('private_actual_role_codes' in pg_get_functiondef('public.private_can_manage_employee_resident_number(uuid)'::regprocedure))>0
+ and position('executive_director' in pg_get_functiondef('public.private_can_manage_employee_resident_number(uuid)'::regprocedure))>0,
+ 'actual role and position prevent RRN access to unlinked executives');
+select ok(
+ position('can_manage_resident_number_for_employee' in
+ pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))>0,
+ 'roster exposes individual permission boolean, never raw RRN');
+select ok(
  position('employee.resident_number_manage' in pg_get_functiondef('public.get_employee_management_context()'::regprocedure))>0
  and position('decrypted_secrets' in pg_get_functiondef('public.get_employee_management_context()'::regprocedure))=0,
  'roster carries RRN registered flag only, never plaintext');
