@@ -14,6 +14,7 @@
   let reviewPending = false;
   let leadMode = null;
   let leadEditable = true;
+  let leadBackendUnavailable = false;
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
@@ -32,8 +33,12 @@
   function isPromotionLead() { return route() === 'promotion_lead'; }
 
   const ROUTINE_KINDS = new Set(['general','external_activity','training','transport','materials','clothing','company_life']);
+  function canEditLeadItem(item) {
+    return item.can_lead_edit === true || (item.can_lead_edit === undefined
+      && !item.lead_notice_mode && item.status === 'draft' && (!item.review_state || item.review_state === 'none'));
+  }
   function canLeadPublish() {
-    return isPromotionLead() && leadEditable && !reviewPending && leadMode !== 'review'
+    return isPromotionLead() && !leadBackendUnavailable && leadEditable && !reviewPending && leadMode !== 'review'
       && (leadMode === 'routine' || !ui.element('notice-id').value)
       && (!existingAudience || existingAudience.p_target_scope === 'company')
       && ROUTINE_KINDS.has(ui.element('notice-kind').value)
@@ -41,8 +46,22 @@
   }
   async function saveNotice(payload) {
     const dedicated = isPromotionLead() && (payload.p_target_scope === 'company' || leadMode);
-    return app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
-      ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
+    if (dedicated && leadBackendUnavailable) throw new Error('LEAD_NOTICE_BACKEND_UNAVAILABLE');
+    try {
+      return await app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
+        ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
+    } catch (error) {
+      // A missing schema-cache function is definitive. Network/permission errors
+      // must retain the existing uncertain-response handling, without a retry write.
+      if (dedicated && error.status === 404
+        && ((error.code === 'PGRST202' && /save_lead_notice/.test(error.message))
+          || /Could not find the function public\.save_lead_notice\b.*schema cache/i.test(error.message))) {
+        leadBackendUnavailable = true;
+        publicationUncertain = false;
+        throw new Error('LEAD_NOTICE_BACKEND_UNAVAILABLE');
+      }
+      throw error;
+    }
   }
 
   function showMessage(value, error = false) {
@@ -132,6 +151,7 @@
     ui.element('notice-edit-state').textContent = !draft
       ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
       : waiting ? '운영총괄 검토·승인 자료입니다. 운영팀장은 직접 수정·중지할 수 없습니다.'
+      : isPromotionLead() && leadBackendUnavailable ? '공지 서버 기능 반영이 필요합니다. 새 전 직원 공지의 저장·게시·상신은 완료되지 않았습니다. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
       : isPromotionLead() ? direct ? '내 일상 공지입니다. 직접 게시·예약할 수 있습니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '이 분류·중요도·기존 원고는 운영총괄 검토가 필요합니다. 비공개 저장 후 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
     if (isPromotionLead() && !leadEditable) {
       [...ui.element('notice-form').elements].forEach(node => { if (node.id !== 'reset-notice-form') node.disabled = true; });
@@ -440,10 +460,10 @@
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
       if (item.creator_display_name) card.append(ui.text('p', `작성: ${item.creator_display_name}`, 'help'));
 
-      const editLabel = isPromotionLead() && item.can_lead_edit !== true ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
+      const editLabel = isPromotionLead() && !canEditLeadItem(item) ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
       card.append(button(editLabel, () => fillForm(item)), button('미리보기', () => previewItem(item)));
 
-      if (isPromotionLead() && item.status === 'draft' && item.can_lead_edit === true) {
+      if (isPromotionLead() && item.status === 'draft' && canEditLeadItem(item)) {
         if (item.review_state === 'submitted') {
           const waiting = button('운영총괄 검토 대기', () => {});
           waiting.disabled = true;
@@ -486,7 +506,7 @@
     if (saving) return;
     [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
     leadMode = item.lead_notice_mode || null;
-    leadEditable = item.can_lead_edit === true;
+    leadEditable = canEditLeadItem(item);
     ui.element('notice-routine-confirm').checked = false;
     savedStatus = item.status;
     reviewPending = item.review_state === 'submitted';
@@ -743,7 +763,13 @@
       await renderPreview();
       await app.refreshToday().catch(() => {});
     } catch (error) {
-      const message = error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
+      const message = error.message === 'LEAD_NOTICE_BACKEND_UNAVAILABLE' ? '공지 서버 준비가 완료되지 않았습니다 (PGRST202). 새 전 직원 공지의 저장·게시·상신을 완료하지 못했습니다. 입력·예약 시각·사진을 유지합니다. 관리자에게 공지 DB 기능 반영을 요청해주세요. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
+        : error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
+        : error.message === 'LEAD_COMPANY_ONLY' ? '운영팀장 직접 공지는 전체 직원 대상으로만 작성할 수 있습니다.'
+        : error.message === 'LEAD_PUBLIC_CHANGE_FORBIDDEN' ? '게시된 공지를 초안으로 바꾸거나 민감 공지로 직접 수정할 수 없습니다. 운영총괄 검토를 요청해주세요.'
+        : error.message === 'LEAD_DRAFT_FIRST' ? '비공개 초안을 먼저 저장해야 합니다. 입력을 유지했으니 비공개 저장부터 다시 시도해주세요.'
+        : error.message === 'NOTICE_NOT_SUBMITTABLE' ? '이미 상신됐거나 현재 상태에서 상신할 수 없는 공지입니다. 목록에서 최신 상태를 확인해주세요.'
+        : error.message === 'INVALID_NOTICE' ? '서버가 공지 입력값을 거부했습니다. 제목·본문 길이와 기간·링크를 확인해주세요 (22023).'
         : error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
         ? `${savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 반영됐을 수 있습니다. ' : '현재 공지는 직원 비공개로 유지됩니다. '}사진 등록 여부를 확인하지 못해 추가 등록과 파일 삭제를 중단했습니다. 업로드 파일·입력·공지 ID를 보존했습니다.`
         : error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'

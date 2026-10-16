@@ -57,3 +57,18 @@ test('notice photo UI preserves safe authoring, preview, and worker lightbox beh
   assert.doesNotMatch(workGuideAdmin, /설명을 더 짧고 쉬운 문장으로 나누어 적어주세요/);
   assert.doesNotMatch(workGuideAdmin, /setCustomValidity\(/);
 });
+
+
+test('RPC errors preserve structured server code and status for notice diagnosis', async () => {
+  const source = read('app/assets/app.js').replace(/\r\n/g, '\n');
+  const match = source.match(/async function request\(path,[\s\S]*?\n  }(?=\n\n  async function rpc)/);
+  assert.ok(match);
+  for (const [status, code, message] of [[404, 'PGRST202', 'Could not find public.save_lead_notice'], [400, '22023', 'INVALID_NOTICE']]) {
+    const request = new Function('fetch', 'state', `return (${match[0]})`)(
+      async () => new Response(JSON.stringify({ code, message }), { status }),
+      { config: { url: 'https://synthetic.invalid', publishableKey: 'fixture' }, session: { access_token: 'fixture' } }
+    );
+    await assert.rejects(() => request('/rest/v1/rpc/save_lead_notice', { method: 'POST', body: {} }),
+      error => error.code === code && error.status === status && error.message === message);
+  }
+});
