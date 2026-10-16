@@ -160,6 +160,10 @@ equal(visibleStaff.find(e=>e.id===foreign.id)?.app_install_status,'not_installed
   'field verification is reused inside the employee card');
 check(visibleStaff.find(e=>e.id===foreign.id)?.can_edit_basic,
   'cross-team general worker can be corrected through guarded direct RPC');
+check(visibleStaff.find(e=>e.id===foreign.id)?.can_manage_resident_number_for_employee,
+  'real worker supports audited resident-number confirmation');
+check(!visibleStaff.find(e=>e.id===boss.id)?.can_manage_resident_number_for_employee,
+  'unlinked managerial role is not given lead RRN access');
 equal(visibleStaff.find(e=>e.id===boss.id)?.can_edit_basic,false,
   'managerial employee is not directly editable');
 equal(fullRoster.data?.can_manage_resident_number,true,
@@ -213,6 +217,11 @@ const bulkAttempt=await rpc('bulk_set_employee_resident_registration_numbers',le
  p_rows:[{employee_uuid:foreign.id,resident_number:syntheticResident}]
 });
 check(!bulkAttempt.ok,'new lead permission does not enable bulk resident-number writes');
+const unlinkedManagerView=await rpc('get_employee_resident_registration_number',lead,{
+ p_employee_uuid:boss.id,p_purpose:'support_program'
+});
+check(!unlinkedManagerView.ok,
+  'lead cannot reveal unlinked leadership employee resident ID based only on missing role-link flag');
 db(`insert into public.account_person_links(profile_id,person_id,linked_by,reason)
  values('${ops.id}'::uuid,'${boss.person}'::uuid,'${ops.id}'::uuid,'Synthetic protected manager identity');`);
 const protectedRrn=await rpc('set_employee_resident_registration_number',lead,{
