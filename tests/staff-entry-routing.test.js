@@ -21,7 +21,7 @@ test('public homepage shows the staff entry only through the approved field pilo
   assert.doesNotMatch(site, /employeeIcon/);
 });
 
-test('public staff navigation stays rightmost and stable while core public links remain static HTML', () => {
+test('desktop staff sign-in stays last, while mobile app guide follows it without runtime rebuilding', () => {
   const site = read('assets/js/site.js');
   const polish = read('assets/css/site-polish.css');
   const visual = read('assets/css/visual-hierarchy.css');
@@ -31,7 +31,9 @@ test('public staff navigation stays rightmost and stable while core public links
   assert.match(site, /function markCurrentNavigation\(\)/);
   assert.match(site, /function syncEmployeeEntry\(\)/);
   assert.match(site, /link\.classList\.add\('staff-nav'\)/);
-  assert.match(site, /if \(nav\.lastElementChild !== link\) nav\.appendChild\(link\)/);
+  assert.match(site, /nav === document\.querySelector\('\[data-mobile-nav\]'\)/);
+  assert.match(site, /nav\.insertBefore\(link, guideLink\)/);
+  assert.match(site, /else if \(nav\.lastElementChild !== link\)/);
   assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/);
   assert.doesNotMatch(site, /nav\.replaceChildren\(\)/);
   assert.doesNotMatch(site, /employeeIcon/);
@@ -58,6 +60,19 @@ test('staff entry keeps login and sign-up as separate chosen actions', () => {
   assert.match(html, /id="refresh-status"/);
   assert.doesNotMatch(html, /name="requested_role_code"/);
   assert.doesNotMatch(html, /설치 안내는 준비 중입니다/);
+});
+
+test('staff sign-in provides an informational employee-app guide below account actions', () => {
+  const html = read('staff/index.html');
+  const css = read('staff/assets/login.css');
+  const login = html.match(/<section id="login-panel"[\s\S]*?<\/section>/)?.[0] || '';
+  assert.ok(login.includes('id="login-form"'));
+  assert.match(login, /id="show-recovery"[\s\S]*?class="staff-app-guide"/, 'guide follows login and account recovery actions');
+  assert.match(login, /<aside class="staff-app-guide" aria-labelledby="staff-app-guide-title">/);
+  assert.match(login, /href="\.\.\/employee-app\.html">직원앱 소개·이용 안내 보기/);
+  assert.match(css, /\.staff-app-guide-link\{[\s\S]*?min-height:44px/);
+  assert.doesNotMatch(login, /play\.google\.com|\.apk|앱 설치하기/);
+  assert.equal((html.match(/class="staff-app-guide"/g) || []).length, 1, 'only login panel contains app guide');
 });
 
 test('staff entry shows an immediate loading message before its connection check completes', () => {

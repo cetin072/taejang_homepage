@@ -14,10 +14,19 @@
   let reviewPending = false;
   let leadMode = null;
   let leadEditable = true;
+  let leadBackendUnavailable = false;
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
   let publishEndAuto = false;
+  // Default every new notice to the company, preserving legacy targeted edits.
+  let existingAudience = null;
+  const COMPANY_AUDIENCE = Object.freeze({
+    p_target_scope: 'company',
+    p_target_department_id: null,
+    p_target_work_group_id: null,
+    p_target_profile_id: null
+  });
 
   const app = window.TaejangApp;
   function route() { return app?.getRoute?.() || ''; }
@@ -25,31 +34,77 @@
   function isPromotionLead() { return route() === 'promotion_lead'; }
 
   const ROUTINE_KINDS = new Set(['general','external_activity','training','transport','materials','clothing','company_life']);
+  function canEditLeadItem(item) {
+    return item.can_lead_edit === true || (item.can_lead_edit === undefined
+      && !item.lead_notice_mode && item.status === 'draft' && (!item.review_state || item.review_state === 'none'));
+  }
   function canLeadPublish() {
-    return isPromotionLead() && leadEditable && !reviewPending && leadMode !== 'review'
+    return isPromotionLead() && !leadBackendUnavailable && leadEditable && !reviewPending && leadMode !== 'review'
       && (leadMode === 'routine' || !ui.element('notice-id').value)
-      && ui.element('notice-scope').value === 'company'
+      && (!existingAudience || existingAudience.p_target_scope === 'company')
       && ROUTINE_KINDS.has(ui.element('notice-kind').value)
       && ui.element('notice-importance').value === 'normal' && !ui.element('notice-requires-ack').checked;
   }
   async function saveNotice(payload) {
     const dedicated = isPromotionLead() && (payload.p_target_scope === 'company' || leadMode);
-    return app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
-      ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
+    if (dedicated && leadBackendUnavailable) throw new Error('LEAD_NOTICE_BACKEND_UNAVAILABLE');
+    try {
+      return await app.rpc(dedicated ? 'save_lead_notice' : 'save_notice', dedicated
+        ? { ...payload, p_confirm_routine: ui.element('notice-routine-confirm').checked } : payload);
+    } catch (error) {
+      // A missing schema-cache function is definitive. Network/permission errors
+      // must retain the existing uncertain-response handling, without a retry write.
+      if (dedicated && error.status === 404
+        && ((error.code === 'PGRST202' && /save_lead_notice/.test(error.message))
+          || /Could not find the function public\.save_lead_notice\b.*schema cache/i.test(error.message))) {
+        leadBackendUnavailable = true;
+        publicationUncertain = false;
+        throw new Error('LEAD_NOTICE_BACKEND_UNAVAILABLE');
+      }
+      throw error;
+    }
   }
 
   function showMessage(value, error = false) {
     ui.message('notice-admin-message', value, error);
   }
 
-  function updateTargets(selected = '') {
-    ui.fillTargetSelect(ui.element('notice-scope'), ui.element('notice-target'), options, selected);
+  function audiencePayload() {
+    if (!existingAudience || existingAudience.p_target_scope === 'company') return { ...COMPANY_AUDIENCE };
+    const requiredKey = {
+      department: 'p_target_department_id',
+      work_group: 'p_target_work_group_id',
+      profile: 'p_target_profile_id'
+    }[existingAudience.p_target_scope];
+    if (!requiredKey || !existingAudience[requiredKey]) throw new Error('NOTICE_TARGET_UNAVAILABLE');
+    return { ...existingAudience };
+  }
+
+  function audienceLabel(target) {
+    const scope = target.p_target_scope;
+    if (scope === 'company') return '전체 직원';
+    const detail = {
+      department: [options?.departments, target.p_target_department_id, '부서'],
+      work_group: [options?.work_groups, target.p_target_work_group_id, '작업반'],
+      profile: [options?.profiles, target.p_target_profile_id, '개인']
+    }[scope];
+    if (!detail) return '확인되지 않은 기존 대상';
+    const [rows, id, label] = detail;
+    const name = ui.array(rows).find(row => row.id === id)?.name;
+    return name ? `${label} · ${name}` : `${label} · 기존 설정`;
+  }
+
+  function updateAudienceSummary() {
+    const note = ui.element('notice-target-summary');
+    if (!note) return;
+    note.textContent = existingAudience && existingAudience.p_target_scope !== 'company'
+      ? `기존 공지 대상: ${audienceLabel(existingAudience)} (수정 시 원래 대상 유지)`
+      : '게시 대상: 전체 직원 (자동 적용)';
   }
 
   function renderOptions() {
     if (!options) return;
-    ui.fillScopeSelect(ui.element('notice-scope'), { ...options, company_allowed: options.company_allowed || isPromotionLead() });
-    updateTargets(ui.element('notice-target').value);
+    updateAudienceSummary();
     ui.fillSelect(
       ui.element('notice-related-guide'),
       options.work_guides.filter(guide => guide.status === 'published'),
@@ -88,6 +143,7 @@
     ui.element('notice-publish-help').textContent = isPromotionLead() && !direct
       ? '희망 시각은 초안에만 저장됩니다. 실제 게시·예약은 운영총괄이 검토 후 결정합니다.'
       : '지금 게시하면 확인 후 현재 한국 시각(KST)으로 게시합니다. 지정한 예약시각은 날짜·시간 지정에서 사용합니다.';
+    ui.element('notice-start-fields').hidden = now;
     for (const suffix of ['date', 'time']) {
       ui.element(`notice-publish-start-${suffix}`).disabled = now;
     }
@@ -96,6 +152,7 @@
     ui.element('notice-edit-state').textContent = !draft
       ? savedStatus === 'published' ? '게시 상태를 유지합니다. 저장하면 직원에게 반영됩니다 (대상·기간 조건부). 사진은 순차 반영됩니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '현재 취소·사용 중지 상태를 유지하여 저장합니다.'
       : waiting ? '운영총괄 검토·승인 자료입니다. 운영팀장은 직접 수정·중지할 수 없습니다.'
+      : isPromotionLead() && leadBackendUnavailable ? '공지 서버 기능 반영이 필요합니다. 새 전 직원 공지의 저장·게시·상신은 완료되지 않았습니다. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
       : isPromotionLead() ? direct ? '내 일상 공지입니다. 직접 게시·예약할 수 있습니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '이 분류·중요도·기존 원고는 운영총괄 검토가 필요합니다. 비공개 저장 후 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
     if (isPromotionLead() && !leadEditable) {
       [...ui.element('notice-form').elements].forEach(node => { if (node.id !== 'reset-notice-form') node.disabled = true; });
@@ -131,28 +188,28 @@
     return ui.toKstIso(date, time);
   }
 
+  // Only new notices receive the default; a manual end or blank ending is authoritative.
   function syncDefaultPublishEnd() {
     if (!publishEndAuto) return;
     let start;
     try {
-      if (ui.element('notice-publish-mode').value === 'now') {
-        start = new Date();
-      } else {
+      if (ui.element('notice-publish-mode').value === 'now') start = new Date();
+      else {
         const scheduled = readDateTime('notice-publish-start', true);
-        if (!scheduled) return; // Empty start must not become the Unix epoch.
+        if (!scheduled) return;
         start = new Date(scheduled);
       }
     } catch {
-      return; // Wait for complete scheduled date and time.
+      return; // Incomplete schedule: never produce a 1970 expiration.
     }
     if (Number.isNaN(start.getTime())) return;
-    setDateTime('notice-publish-end', new Date(start.getTime() + 7 * 24 * 60 * 60 * 1000));
+    setDateTime('notice-publish-end', new Date(start.getTime() + 7 * 86400000));
   }
 
   function notePublishPeriodEdit(event) {
     const id = event.target?.id || '';
     if (id === 'notice-publish-end-date' || id === 'notice-publish-end-time') {
-      publishEndAuto = false; // Including deliberately clearing both fields.
+      publishEndAuto = false; // Includes intentional clearing.
     } else if (id === 'notice-publish-mode' || id === 'notice-publish-start-date' || id === 'notice-publish-start-time') {
       syncDefaultPublishEnd();
     }
@@ -362,7 +419,8 @@
     }
     if (previewCard) {
       previewCard.hidden = false;
-      previewCard.open = preview;
+      // A live preview is always immediately below the writing form, including edit mode.
+      previewCard.open = true;
     }
   }
 
@@ -430,10 +488,10 @@
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
       if (item.creator_display_name) card.append(ui.text('p', `작성: ${item.creator_display_name}`, 'help'));
 
-      const editLabel = isPromotionLead() && item.can_lead_edit !== true ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
+      const editLabel = isPromotionLead() && !canEditLeadItem(item) ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
       card.append(button(editLabel, () => fillForm(item)), button('미리보기', () => previewItem(item)));
 
-      if (isPromotionLead() && item.status === 'draft' && item.can_lead_edit === true) {
+      if (isPromotionLead() && item.status === 'draft' && canEditLeadItem(item)) {
         if (item.review_state === 'submitted') {
           const waiting = button('운영총괄 검토 대기', () => {});
           waiting.disabled = true;
@@ -458,6 +516,8 @@
     savedStatus = 'draft';
     reviewPending = false;
     ui.element('notice-kind').value = 'general';
+    existingAudience = null;
+    updateAudienceSummary();
     savedPublishStart = null;
     publicationUncertain = false;
     setDateTime('notice-publish-start', new Date());
@@ -476,13 +536,13 @@
     if (saving) return;
     [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
     leadMode = item.lead_notice_mode || null;
-    leadEditable = item.can_lead_edit === true;
+    leadEditable = canEditLeadItem(item);
     ui.element('notice-routine-confirm').checked = false;
     savedStatus = item.status;
     reviewPending = item.review_state === 'submitted';
     savedPublishStart = item.publish_start_at;
     publicationUncertain = false;
-    publishEndAuto = false; // Never override an existing window.
+    publishEndAuto = false; // Existing notices retain their stored expiry.
     ui.element('notice-publish-mode').value = 'scheduled';
     clearMediaState();
     mediaItems = ui.array(item.media).map(existingMedia);
@@ -506,8 +566,13 @@
     ui.element('notice-link-url').value = item.related_link_url || '';
     ui.element('notice-link-label').value = item.related_link_label || '';
     ui.element('notice-requires-ack').checked = Boolean(item.requires_acknowledgement);
-    ui.element('notice-scope').value = item.target_scope;
-    updateTargets(ui.targetId(item));
+    existingAudience = {
+      p_target_scope: item.target_scope,
+      p_target_department_id: item.target_department_id || null,
+      p_target_work_group_id: item.target_work_group_id || null,
+      p_target_profile_id: item.target_profile_id || null
+    };
+    updateAudienceSummary();
     ui.element('notice-status').value = item.status;
     ui.element('notice-reason').value = '공지 작성·수정';
     updateActions();
@@ -625,7 +690,7 @@
         savedStatus = previousStatus = current.status;
         publicationUncertain = false;
       }
-      const target = ui.targetPayload(ui.element('notice-scope'), ui.element('notice-target'));
+      const target = audiencePayload();
       const linkUrl = ui.element('notice-link-url').value.trim();
       const linkLabel = ui.element('notice-link-label').value.trim();
       const importance = ui.element('notice-importance').value;
@@ -652,12 +717,12 @@
         && ui.kstDate(savedPublishStart) === ui.element('notice-publish-start-date').value
         && ui.kstTime(savedPublishStart) === ui.element('notice-publish-start-time').value;
       if (savedStatus !== 'draft' && unchangedStart) publishStart = savedPublishStart;
-      if (publishEndAuto) syncDefaultPublishEnd(); // For 'now', use actual save time.
+      if (publishEndAuto) syncDefaultPublishEnd(); // 'Now' is calculated when saving.
       const publishEnd = readDateTime('notice-publish-end');
       if (publishEnd && new Date(publishEnd) <= new Date(publishStart)) throw new Error('INVALID_PERIOD');
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
       if (action === 'publish' || status !== savedStatus) {
-        const targetLabel = [ui.element('notice-scope').selectedOptions[0]?.textContent, ui.element('notice-target').selectedOptions[0]?.textContent].filter(Boolean).join(' · ');
+        const targetLabel = audienceLabel(target);
         if (!window.confirm(`${ui.element('notice-title-input').value}\n대상: ${targetLabel}\n분류: ${ui.NOTICE_KINDS[ui.element('notice-kind').value]} · ${ui.IMPORTANCE[importance]}\n게시 시작: ${ui.formatDateTime(publishStart)} (KST)\n게시 종료: ${publishEnd ? ui.formatDateTime(publishEnd) : '종료 없음'}\n${status === 'published' ? new Date(publishStart) > new Date() ? '이 시각에 게시를 예약할까요?' : '직원에게 지금 게시할까요?' : '공지 ' + ui.STATUS[status] + '를 적용할까요?'}`)) return;
       }
       controls = [...ui.element('notice-form').elements].map(node => [node, node.disabled]);
@@ -730,11 +795,17 @@
       await renderPreview();
       await app.refreshToday().catch(() => {});
     } catch (error) {
-      const message = error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
+      const message = error.message === 'LEAD_NOTICE_BACKEND_UNAVAILABLE' ? '공지 서버 준비가 완료되지 않았습니다 (PGRST202). 새 전 직원 공지의 저장·게시·상신을 완료하지 못했습니다. 입력·예약 시각·사진을 유지합니다. 관리자에게 공지 DB 기능 반영을 요청해주세요. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
+        : error.message === 'ROUTINE_CONFIRM_REQUIRED' ? '근무제도·인사·급여·안전사고·중요 입장이 아닌 일상 안내인지 확인해주세요.'
+        : error.message === 'LEAD_COMPANY_ONLY' ? '운영팀장 직접 공지는 전체 직원 대상으로만 작성할 수 있습니다.'
+        : error.message === 'LEAD_PUBLIC_CHANGE_FORBIDDEN' ? '게시된 공지를 초안으로 바꾸거나 민감 공지로 직접 수정할 수 없습니다. 운영총괄 검토를 요청해주세요.'
+        : error.message === 'LEAD_DRAFT_FIRST' ? '비공개 초안을 먼저 저장해야 합니다. 입력을 유지했으니 비공개 저장부터 다시 시도해주세요.'
+        : error.message === 'NOTICE_NOT_SUBMITTABLE' ? '이미 상신됐거나 현재 상태에서 상신할 수 없는 공지입니다. 목록에서 최신 상태를 확인해주세요.'
+        : error.message === 'INVALID_NOTICE' ? '서버가 공지 입력값을 거부했습니다. 제목·본문 길이와 기간·링크를 확인해주세요 (22023).'
         : error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
         ? `${savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 반영됐을 수 있습니다. ' : '현재 공지는 직원 비공개로 유지됩니다. '}사진 등록 여부를 확인하지 못해 추가 등록과 파일 삭제를 중단했습니다. 업로드 파일·입력·공지 ID를 보존했습니다.`
         : error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'
-        : error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
+        : error.message === 'NOTICE_TARGET_UNAVAILABLE' ? '기존 공지 게시 대상 정보가 불완전하여 수정할 수 없습니다. 운영총괄에게 확인해주세요.'
         : error.message.includes('DATE_TIME') ? '게시 날짜와 시간을 함께 입력해주세요.'
           : error.message === 'LINK_PAIR_REQUIRED' ? '링크 표시명과 HTTPS 주소를 함께 입력해주세요.'
             : error.message === 'INVALID_HTTPS_LINK' ? '관련 링크는 올바른 HTTPS 주소만 사용할 수 있습니다.'
@@ -753,7 +824,13 @@
         ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
         : bodySaved && !['NOTICE_SAVED_MEDIA_FAILED', 'NOTICE_SAVED_MEDIA_UNCERTAIN'].includes(error.message)
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
-      ui.element('notice-additional-settings').open = true;
+      if (['LINK_PAIR_REQUIRED', 'INVALID_HTTPS_LINK'].includes(error.message)) {
+        const destination = !ui.element('notice-link-url').value.trim() ? 'notice-link-url'
+          : !ui.element('notice-link-label').value.trim() ? 'notice-link-label' : 'notice-link-url';
+        ui.element(destination).focus();
+      } else {
+        ui.element('notice-additional-settings').open = true;
+      }
     } finally {
       controls.forEach(([node, disabled]) => { node.disabled = disabled; });
       saving = false;
@@ -790,7 +867,9 @@
     ui.element('notice-form').addEventListener('invalid', event => {
       const details = event.target.closest('details');
       if (details) details.open = true;
-      showMessage('필수항목과 입력 형식을 확인해주세요.', true);
+      showMessage(event.target.id === 'notice-link-url'
+        ? '관련 링크는 올바른 HTTPS 주소(https://)를 입력해주세요.'
+        : '필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
     ui.element('notice-form').addEventListener('change', event => {
       notePublishPeriodEdit(event);
@@ -805,7 +884,6 @@
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
     ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
-    ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', event => {
       notePublishPeriodEdit(event);

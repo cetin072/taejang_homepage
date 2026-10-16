@@ -296,15 +296,15 @@
         capabilities: ['homepage.direct_edit']
       },
       {
-        label: '업무 배정',
-        run: () => openPanel('today-admin-panel'),
-        capabilities: ['task.manage']
-      },
-      {
         key: 'notice.manage',
         label: '공지 관리',
         run: () => openPanel('notice-admin-panel', 'manage'),
         capabilities: ['notice.manage']
+      },
+      {
+        label: '업무 배정',
+        run: () => openPanel('today-admin-panel'),
+        capabilities: ['task.manage']
       },
       {
         key: 'monthly_client_documents.manage',
@@ -373,6 +373,8 @@
     nav.replaceChildren();
 
     masterMenuItems().forEach(item => {
+      // Deny stale capability contexts and role previews before rendering payroll links.
+      if (item.capabilities?.some(code => code.startsWith('payroll.')) && _route !== 'operations_manager') return;
       const registry = window.TaejangPlatformNavigationRegistry;
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;

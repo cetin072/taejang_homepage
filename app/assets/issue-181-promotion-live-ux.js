@@ -105,7 +105,7 @@
       .find(node => node.textContent.includes('링크'));
     if (metaButton) metaButton.textContent = '링크 정보 가져오기';
 
-    if (linkTools.dataset.issue181TypeDecoupled === '1') return;
+    if (composer.dataset.composerLayout === 'writing-first' || linkTools.dataset.issue181TypeDecoupled === '1') return;
     linkTools.dataset.issue181TypeDecoupled = '1';
     const typeSelect = composer.querySelector('.phase-c-board-row select');
     if (!typeSelect) return;
@@ -170,6 +170,7 @@
         if (titleInput && previousTitle.trim()) titleInput.value = previousTitle;
         if (body && previousBody.trim()) body.value = previousBody;
         if (body && finalSourceType === 'external' && !previousBody.trim()) body.value = '';
+        body?.dispatchEvent(new Event('input', { bubbles: true }));
         if (status) {
           const fetchFailed = /가져오지 못|실패|확인할 수 없/.test(status.textContent || '');
           if (fetchFailed) {
