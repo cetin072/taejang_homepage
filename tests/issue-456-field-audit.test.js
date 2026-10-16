@@ -10,14 +10,16 @@ const controller = read('app/assets/employee-management.js');
 const boot = read('app/assets/app-ui.js');
 const sql = read('supabase/migrations/20261014161000_employee_field_audit_lead.sql');
 
-test('field audit module parses and connects to the existing employee list, not new menus',()=>{
+test('staff management has one surface: no redundant survey entry or loading',()=>{
   assert.doesNotThrow(()=>new vm.Script(moduleSource));
-  assert.match(controller,/📋 직원 현장 전수조사/);
-  assert.match(controller,/TaejangEmployeeFieldAudit\?\.open/);
+  assert.doesNotThrow(()=>new vm.Script(controller));
+  assert.doesNotThrow(()=>new vm.Script(read('app/assets/employee-management-views.js')));
+  assert.doesNotMatch(controller,/📋 직원 현장 전수조사|TaejangEmployeeFieldAudit\?\.open/);
+  assert.doesNotMatch(boot,/assets\/employee-field-audit\.js', 'employee-field-audit'/);
   assert.match(controller,/TaejangEmployeeManagement = \{ openEmployeeManagement, uploadEmployeePhoto \}/);
   assert.match(boot,/assets\/employee-management\.js', 'employee-management'/);
-  assert.match(boot,/assets\/employee-field-audit\.js', 'employee-field-audit'/);
-  assert.ok(boot.indexOf('assets/employee-field-audit.js')>boot.indexOf('assets/employee-management.js'));
+  assert.match(read('app/assets/employee-management-views.js'),/앱 설치 및 현장 확인/);
+  assert.match(read('app/assets/employee-management-views.js'),/주민등록번호 등록·조회/);
 });
 
 test('manual app status is separate from account linkage, push devices, and attendance activity',()=>{
@@ -52,4 +54,23 @@ test('new RPCs limit lead authority to basic workers and keep payroll, employee 
   assert.match(sql,/EMPLOYEE_BASIC_STALE_RELOAD_REQUIRED/);
   assert.match(sql,/private_append_audit/);
   assert.doesNotMatch(sql,/update public\.profiles\s+set|update auth\.users\s+set|delete from public\.employees|private_insert_employee/);
+});
+
+test('lead resident access is single-employee and Vault-backed without salary escalation',()=>{
+  const privacy=read('supabase/migrations/20261016100000_lead_staff_roster_resident_number.sql');
+  assert.match(privacy,/employee\.resident_number_manage/);
+  assert.match(privacy,/private_can_manage_employee_resident_number/);
+  assert.match(privacy,/vault\.decrypted_secrets/);
+  assert.match(privacy,/employee_resident_number_viewed/);
+  assert.match(privacy,/EMPLOYEE_RESIDENT_NUMBER_FORBIDDEN/);
+  assert.match(privacy,/p_purpose not in \('support_program','employee_administration'\)/);
+  assert.match(privacy,/private_employee_is_protected/);
+  assert.doesNotMatch(privacy,/insert into public\.role_capability_grants[^;]*payroll\./i);
+  assert.doesNotMatch(privacy,/grant execute on function public\.bulk_set_employee_resident_registration_numbers/);
+  assert.match(controller,/get_employee_resident_registration_number/);
+  assert.match(controller,/set_employee_resident_registration_number/);
+  assert.match(controller,/window\.setTimeout\(hide,30000\)/);
+  assert.doesNotMatch(controller,/localStorage\.setItem\([^)]*resident|sessionStorage\.setItem\([^)]*resident/i);
+  assert.match(controller,/update_employee_field_audit_basic/);
+  assert.match(read('app/assets/employee-management-views.js'),/현장 확인 저장/);
 });
