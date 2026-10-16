@@ -73,6 +73,20 @@
     return result;
   }
 
+  function normalizeLegacySidebarMenuOrder(value) {
+    const saved = uniqueArray(value);
+    if (!saved.includes('notice.create')) return saved;
+    const next = saved.filter(key => key !== 'notice.create');
+    const noticeIndex = next.indexOf('notice.manage');
+    const otherIndices = ['task.manage','monthly_client_documents.manage']
+      .map(key => next.indexOf(key)).filter(index => index >= 0);
+    if (noticeIndex >= 0 && otherIndices.length && noticeIndex > Math.min(...otherIndices)) {
+      next.splice(noticeIndex, 1);
+      next.splice(Math.min(...otherIndices), 0, 'notice.manage');
+    }
+    return next;
+  }
+
   function sidebarSectionKeys() { return registry()?.sections?.().filter(section=>section.key!=='official_channels').map(section=>section.key) || []; }
   function sidebarMenuKeys() { return registry()?.items?.().filter(item=>!item.public && item.section).map(item=>item.key) || []; }
   function sidebarPreference() {
@@ -275,7 +289,7 @@
       if(event.key==='ArrowDown' || event.key==='ArrowRight') { event.preventDefault(); moveCard(card,1); }
     });
     handle.addEventListener('pointerdown',event=>{
-      if(event.pointerType==='mouse') return;
+      if(event.pointerType==='mouse' || !event.target.closest('[data-sidebar-drag-handle]')) return;
       event.preventDefault();
       const finish=up=>{
         const target=document.elementFromPoint(up.clientX,up.clientY)?.closest?.('.dashboard-card');
@@ -504,9 +518,9 @@
   }
 
   function bindSidebarHandle(handle,type,key) {
+    handle.draggable=true;
     if(handle.dataset.bound==='1') return;
     handle.dataset.bound='1';
-    handle.draggable=true;
     const move=type==='section' ? moveSidebarSection : moveSidebarMenu;
     const targetFor=point=>{
       const candidate=document.elementFromPoint(point.clientX,point.clientY);
@@ -554,11 +568,11 @@
       if(node.dataset.sectionKey==='official_channels' || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='section';
-      handle.tabIndex=0;
-      handle.setAttribute('role','button');
-      handle.setAttribute('aria-label',`${node.dataset.sectionKey} 카테고리 순서 변경`);
+      handle.setAttribute('aria-hidden','true');
       node.append(handle);
-      bindSidebarHandle(handle,'section',node.dataset.sectionKey);
+      // The actual button must be draggable. A draggable span nested inside
+      // a native button does not reliably start real pointer dragging.
+      bindSidebarHandle(node,'section',node.dataset.sectionKey);
     });
     [...nav.querySelectorAll(':scope > [data-menu-key][data-nav-section]')].forEach(node=>{
       const key=menuKey(node);
@@ -566,11 +580,9 @@
       if(!key || item?.public || node.querySelector('[data-sidebar-drag-handle]')) return;
       const handle=text('span','⋮⋮','sidebar-drag-handle');
       handle.dataset.sidebarDragHandle='menu';
-      handle.tabIndex=0;
-      handle.setAttribute('role','button');
-      handle.setAttribute('aria-label',`${key} 메뉴 순서 변경`);
+      handle.setAttribute('aria-hidden','true');
       node.append(handle);
-      bindSidebarHandle(handle,'menu',key);
+      bindSidebarHandle(node,'menu',key);
     });
   }
 
@@ -579,6 +591,8 @@
     if(!nav) return;
     delete nav.dataset.layoutEditing;
     nav.querySelectorAll('[data-sidebar-drag-handle]').forEach(node=>node.remove());
+    // Restore normal clickable menus outside edit mode.
+    nav.querySelectorAll('[data-bound="1"][draggable="true"]').forEach(node=>{node.draggable=false;});
     nav.querySelectorAll('.sidebar-item-dragging').forEach(node=>node.classList.remove('sidebar-item-dragging'));
   }
 
@@ -635,6 +649,7 @@
   function startSidebarLayout() {
     state.sidebarSnapshot={sectionOrder:state.sidebarSectionOrder.slice(),menuOrder:state.sidebarMenuOrder.slice()};
     state.editingSidebar=true;
+    bindSidebarDropTargets();
     decorateEditableSidebar();
   }
 
@@ -695,7 +710,7 @@
             button('편집 취소',()=>{cancelSidebarLayout();void renderSettings();},true),
             button('기본 순서로',async()=>{await resetSidebarLayout();await renderSettings();},true)
           );
-          personal.append(text('p','왼쪽 사이드바의 ⋮⋮ 손잡이를 드래그하거나 화살표 키로 순서를 바꾼 뒤 저장하세요.','help'));
+          personal.append(text('p','왼쪽 사이드바에서 메뉴 행을 마우스로 끌거나, 키보드 방향키로 순서를 바꾸고 저장하세요. 현재는 내 화면에만 저장되며 공통 메뉴 순서는 별도 적용됩니다.','help'));
         } else {
           sidebarActions.append(button('사이드바 메뉴 순서 편집',()=>{startSidebarLayout();void renderSettings();},true));
         }
@@ -809,7 +824,7 @@
       state.dashboardOrder=dashboardOrder(result?.dashboard_order);
       state.dashboardCustomized=dashboardCustomized(result?.dashboard_order);
       state.sidebarSectionOrder=uniqueArray(result?.sidebar_section_order);
-      state.sidebarMenuOrder=uniqueArray(result?.sidebar_menu_order);
+      state.sidebarMenuOrder=normalizeLegacySidebarMenuOrder(result?.sidebar_menu_order);
     } catch {
       state.collapsedSections=new Set();
       state.dashboardOrder=[];

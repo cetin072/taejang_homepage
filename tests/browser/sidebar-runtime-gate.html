@@ -31,6 +31,7 @@
   <script>
     let currentRoute = 'promotion_staff';
     let savedRoleVisibility = null;
+    let savedSidebarOrder = null;
     const roleCapabilities = {
       promotion_staff: new Set(['promotion.write', 'promotion.edit_own']),
       promotion_lead: new Set([
@@ -77,7 +78,7 @@
       friendlyError: error => error?.message || '오류',
       rpc: async (name, body = {}) => {
         if (name === 'get_my_ui_preferences') return {
-          role_code: currentRoute, collapsed_sections: [], sidebar_section_order: [], sidebar_menu_order: [], dashboard_order: []
+          role_code: currentRoute, collapsed_sections: [], sidebar_section_order: savedSidebarOrder?.sections || [], sidebar_menu_order: savedSidebarOrder?.menus || [], dashboard_order: []
         };
         if (name === 'get_my_navigation_visibility') return { hidden_menu_keys: [] };
         if (name === 'get_platform_navigation_settings') return {
@@ -94,13 +95,18 @@
           ]
         };
         if (name === 'save_role_navigation_visibility') { savedRoleVisibility = body; return { ok: true }; }
-        if (name === 'save_my_ui_preferences') return {
+        if (name === 'save_my_ui_preferences') {
+          if (body.p_sidebar_section_order !== null || body.p_sidebar_menu_order !== null) {
+            savedSidebarOrder = { sections: body.p_sidebar_section_order || [], menus: body.p_sidebar_menu_order || [] };
+          }
+          return {
           role_code: currentRoute,
           collapsed_sections: [],
           sidebar_section_order: body.p_sidebar_section_order || [],
           sidebar_menu_order: body.p_sidebar_menu_order || [],
           dashboard_order: body.p_dashboard_order || []
-        };
+          };
+        }
         if (name === 'save_my_sidebar_sections') return { ok: true };
         if (name === 'get_my_schedule_list') return [];
         if (name === 'get_my_notice_list') return [];
@@ -366,7 +372,7 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['업무 배정', '공지 관리'], '운영총괄 업무 운영');
+      assertOrdered(current, ['공지 관리', '업무 배정'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -460,9 +466,33 @@
       for (const label of ['홍보 글 작성', '보완 요청받은 글', '보낸 글']) assert(!current.includes(label), `설정 저장 후 역할 계약 밖 메뉴 ${label}가 표시됨`);
     }
 
+    async function assertLegacyPreferenceDoesNotDemoteNotice() {
+      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.create','notice.manage','monthly_client_documents.manage'] };
+      await window.TaejangPlatformUiSettings.refresh();
+      await wait(40);
+      assertOrdered(labels(),['공지 관리','업무 배정'],'legacy task-first preference must not override notice priority');
+      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
+      await window.TaejangPlatformUiSettings.refresh();
+      await wait(40);
+      assertOrdered(labels(),['업무 배정','공지 관리'],'explicit modern custom order remains respected');
+      savedSidebarOrder = null;
+      await window.TaejangPlatformUiSettings.refresh();
+      await wait(40);
+    }
+
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
       try {
+        if (location.search.includes('realMouseDrag')) {
+          // Deterministic setup for a separate Playwright pointer E2E.
+          // Avoid the lengthy representative-role test manipulating menus
+          // while the human-like drag interaction is in progress.
+          currentRoute = 'operations_manager';
+          document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'operations_manager',label:'운영총괄'}}));
+          await wait(450);
+          output.textContent = 'SIDEBAR_RUNTIME_DRAG_READY';
+          return;
+        }
         let current = await enterRole('promotion_staff', '홍보직원');
         assertStaffContract(current);
         await assertNoPostSettleJitter('promotion_staff');
@@ -483,6 +513,7 @@
         assertSidebarEditorMovedOut();
         await assertPanelToSidebarTransitions();
         await assertRoleVisibilitySettings();
+        await assertLegacyPreferenceDoesNotDemoteNotice();
 
         output.textContent = 'SIDEBAR_RUNTIME_GATE_PASS';
       } catch (error) {

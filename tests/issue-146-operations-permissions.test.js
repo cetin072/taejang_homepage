@@ -55,7 +55,7 @@ test('employee and promotion workspace browser modules parse after the superset 
   assert.doesNotThrow(() => new vm.Script(workspaceUi, { filename: 'phase-c-workspace-v2.js' }));
   assert.doesNotThrow(() => new vm.Script(homepageUi, { filename: 'issue-146-end-to-end.js' }));
   assert.match(employeeUi, /promotion_lead_global/);
-  assert.match(employeeUi, /'조회 가능한 직원'/);
+  assert.match(employeeUi, /views\.employeeList\(context\)/);
   assert.match(workspaceUi, /WRITE_ROLES = new Set\(\['promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
   assert.match(workspaceUi, /save_operations_promotion_draft/);
 });

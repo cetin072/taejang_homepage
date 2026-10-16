@@ -25,7 +25,8 @@
     ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·문의']
+    ['partnership.html', '협력·문의'],
+    ['employee-app.html', '직원앱']
   ];
   const STATIC_FOOTER_CONTRACT = [
     ['about.html', '태장 소개'],
@@ -55,14 +56,16 @@
 
   function currentPageName() {
     const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
+    if (path === 'employee-app') return 'employee-app.html'; // Netlify clean URL
     return path.endsWith('.html') ? path : 'index.html';
   }
 
   function normalizedHref(link) {
-    return (link.getAttribute('href') || '')
+    const normalized = (link.getAttribute('href') || '')
       .split(/[?#]/)[0]
       .replace(/^\.\//, '')
       .replace(/^\//, '');
+    return normalized === 'employee-app' ? 'employee-app.html' : normalized;
   }
 
   function isCurrentNavigationTarget(page, targetPage, href) {
@@ -118,8 +121,18 @@
       link.classList.remove('nav-cta');
       link.removeAttribute('aria-current');
       link.setAttribute('aria-label', '임직원 페이지');
-      // The employee entry is a separate utility item and always stays rightmost.
-      if (nav.lastElementChild !== link) nav.appendChild(link);
+      // Desktop sign-in stays last; on mobile the lower-priority app guide follows sign-in.
+      if (nav === document.querySelector('[data-mobile-nav]')) {
+        const guideLink = [...nav.querySelectorAll(':scope > a')].find(candidate =>
+          candidate.classList.contains('employee-app-nav') || normalizedHref(candidate) === 'employee-app.html'
+        );
+        if (guideLink) {
+          const links = [...nav.querySelectorAll(':scope > a')];
+          if (links.indexOf(link) !== links.indexOf(guideLink) - 1) nav.insertBefore(link, guideLink);
+        } else if (nav.lastElementChild !== link) nav.appendChild(link);
+      } else if (nav.lastElementChild !== link) {
+        nav.appendChild(link);
+      }
     });
   }
 

@@ -58,6 +58,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 .profile-summary dt { color: var(--muted); font-size: .88rem; }
 .profile-summary dd { margin: 6px 0 0; font-weight: 800; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#notice-admin-panel > .section-heading { flex-wrap: wrap; }
+.notice-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-left: auto; }
+.notice-admin-actions .button { min-height: 44px; }
+@media (max-width: 600px) {
+  .notice-admin-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
+}
 .account-list { display: grid; gap: 16px; }
 .account-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
 .account-card h3 { margin: 0 0 4px; }
@@ -207,3 +213,47 @@ input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible
 #notice-form summary { cursor: pointer; font-weight: 800; }
 #notice-form .form-actions { flex-wrap: wrap; }
 #notice-form .form-actions button { white-space: normal; }
+
+
+/* Issue #465: the common notice workflow reads top-down without hiding
+   important fields behind multiple nested panels. */
+#notice-form .notice-period {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+}
+#notice-form .notice-period-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 10px;
+}
+#notice-form .notice-period-heading strong { font-size: 1rem; }
+#notice-form .notice-period-heading .help { margin: 0; }
+#notice-form .notice-period-fields {
+  display: grid;
+  grid-template-columns: minmax(135px,1.2fr) repeat(4,minmax(115px,1fr));
+  gap: 10px;
+}
+#notice-form .notice-start-fields { display: contents; }
+#notice-form .notice-period-fields label,
+#notice-form .notice-link-fields label { display: grid; gap: 5px; min-width: 0; margin: 0; font-weight: 700; }
+#notice-form .notice-period > #notice-publish-help { margin: 8px 0 0; font-size: .89rem; }
+#notice-form .notice-link-fields {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+#notice-admin-panel #notice-preview-card { margin-top: 12px; }
+@media (max-width: 1100px) {
+  #notice-form .notice-period-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 560px) {
+  #notice-form .notice-period-fields,
+  #notice-form .notice-link-fields { grid-template-columns: 1fr; }
+  #notice-form .notice-period { padding: 12px; }
+}

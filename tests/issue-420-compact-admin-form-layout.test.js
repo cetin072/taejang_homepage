@@ -12,23 +12,26 @@ const css=read('app/assets/dashboard-shell.css');
 const browser=read('tests/browser/compact-admin-form-gate.html');
 const runner=read('scripts/run-promotion-browser-gate.mjs');
 
-test('approved signup inputs are compact while retaining immutable approval contracts',()=>{
+test('existing employee linking and separate ops new-hire inputs stay compact and guarded',()=>{
   assert.match(approval,/phase-c-signup-approval-card app-compact-container/);
-  assert.match(approval,/const identityFields = el\('div', null, 'app-compact-fields'\)/);
-  assert.match(approval,/identityFields\.append\(/);
-  assert.match(approval,/field\('부서', department\)/);
-  assert.match(approval,/field\('직책', position\)/);
-  assert.match(approval,/field\('업무 권한', role\)/);
+  assert.match(approval,/const existingFields = el\('div', null, 'phase-c-signup-approval-form'\)/);
+  assert.match(approval,/const newFields = el\('div', null, 'app-compact-fields'\)/);
+  assert.match(approval,/newFields\.append\(field\('부서', department\), field\('직책', position\), attendanceField\)/);
+  assert.match(approval,/field\('앱 업무 권한', role\)/);
+  assert.match(approval,/field\('기존 직원번호 재확인', confirmEmployeeId\)/);
   assert.match(approval,/const decisionReasons = el\('div', null, 'phase-c-signup-reasons'\)/);
   assert.match(approval,/field\('승인 처리 사유', reason\)/);
   assert.match(approval,/field\('거절 사유', rejectReason\)/);
-  assert.match(approval,/form\.append\(identityFields, attendanceField, decisionReasons\)/);
+  assert.match(approval,/form\.append\(field\('승인 방식', mode\), existingFields, newFields, field\('앱 업무 권한', role\), decisionReasons\)/);
   assert.match(approval,/selectControl\(options\?\.roles, '업무 권한 선택', 'code'\)/);
   assert.match(approval,/p_role_code: controls\.role\.value/);
+  assert.match(approval,/p_employee_uuid: candidate\.employee_uuid/);
+  assert.match(approval,/p_confirm_employee_id: controls\.confirmEmployeeId\.value\.trim\(\)/);
   assert.match(approval,/p_department_id: controls\.department\.value/);
   assert.match(approval,/p_position_id: controls\.position\.value/);
   assert.match(approval,/p_attendance_required: controls\.attendance\.checked/);
-  assert.match(approval,/직원 생성 후 가입 승인/);
+  assert.match(approval,/기존 직원 연결 후 가입 승인/);
+  assert.match(approval,/신규 직원 생성 후 가입 승인/);
   assert.match(approval,/가입 거절/);
 });
 

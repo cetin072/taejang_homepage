@@ -18,6 +18,14 @@
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
+  // Default every new notice to the company, preserving legacy targeted edits.
+  let existingAudience = null;
+  const COMPANY_AUDIENCE = Object.freeze({
+    p_target_scope: 'company',
+    p_target_department_id: null,
+    p_target_work_group_id: null,
+    p_target_profile_id: null
+  });
 
   const app = window.TaejangApp;
   function route() { return app?.getRoute?.() || ''; }
@@ -32,7 +40,7 @@
   function canLeadPublish() {
     return isPromotionLead() && !leadBackendUnavailable && leadEditable && !reviewPending && leadMode !== 'review'
       && (leadMode === 'routine' || !ui.element('notice-id').value)
-      && ui.element('notice-scope').value === 'company'
+      && (!existingAudience || existingAudience.p_target_scope === 'company')
       && ROUTINE_KINDS.has(ui.element('notice-kind').value)
       && ui.element('notice-importance').value === 'normal' && !ui.element('notice-requires-ack').checked;
   }
@@ -58,14 +66,42 @@
     ui.message('notice-admin-message', value, error);
   }
 
-  function updateTargets(selected = '') {
-    ui.fillTargetSelect(ui.element('notice-scope'), ui.element('notice-target'), options, selected);
+  function audiencePayload() {
+    if (!existingAudience || existingAudience.p_target_scope === 'company') return { ...COMPANY_AUDIENCE };
+    const requiredKey = {
+      department: 'p_target_department_id',
+      work_group: 'p_target_work_group_id',
+      profile: 'p_target_profile_id'
+    }[existingAudience.p_target_scope];
+    if (!requiredKey || !existingAudience[requiredKey]) throw new Error('NOTICE_TARGET_UNAVAILABLE');
+    return { ...existingAudience };
+  }
+
+  function audienceLabel(target) {
+    const scope = target.p_target_scope;
+    if (scope === 'company') return '전체 직원';
+    const detail = {
+      department: [options?.departments, target.p_target_department_id, '부서'],
+      work_group: [options?.work_groups, target.p_target_work_group_id, '작업반'],
+      profile: [options?.profiles, target.p_target_profile_id, '개인']
+    }[scope];
+    if (!detail) return '확인되지 않은 기존 대상';
+    const [rows, id, label] = detail;
+    const name = ui.array(rows).find(row => row.id === id)?.name;
+    return name ? `${label} · ${name}` : `${label} · 기존 설정`;
+  }
+
+  function updateAudienceSummary() {
+    const note = ui.element('notice-target-summary');
+    if (!note) return;
+    note.textContent = existingAudience && existingAudience.p_target_scope !== 'company'
+      ? `기존 공지 대상: ${audienceLabel(existingAudience)} (수정 시 원래 대상 유지)`
+      : '게시 대상: 전체 직원 (자동 적용)';
   }
 
   function renderOptions() {
     if (!options) return;
-    ui.fillScopeSelect(ui.element('notice-scope'), { ...options, company_allowed: options.company_allowed || isPromotionLead() });
-    updateTargets(ui.element('notice-target').value);
+    updateAudienceSummary();
     ui.fillSelect(
       ui.element('notice-related-guide'),
       options.work_guides.filter(guide => guide.status === 'published'),
@@ -104,6 +140,7 @@
     ui.element('notice-publish-help').textContent = isPromotionLead() && !direct
       ? '희망 시각은 초안에만 저장됩니다. 실제 게시·예약은 운영총괄이 검토 후 결정합니다.'
       : '지금 게시하면 확인 후 현재 한국 시각(KST)으로 게시합니다. 지정한 예약시각은 날짜·시간 지정에서 사용합니다.';
+    ui.element('notice-start-fields').hidden = now;
     for (const suffix of ['date', 'time']) {
       ui.element(`notice-publish-start-${suffix}`).disabled = now;
     }
@@ -352,7 +389,8 @@
     }
     if (previewCard) {
       previewCard.hidden = false;
-      previewCard.open = preview;
+      // A live preview is always immediately below the writing form, including edit mode.
+      previewCard.open = true;
     }
   }
 
@@ -448,6 +486,8 @@
     savedStatus = 'draft';
     reviewPending = false;
     ui.element('notice-kind').value = 'general';
+    existingAudience = null;
+    updateAudienceSummary();
     savedPublishStart = null;
     publicationUncertain = false;
     setDateTime('notice-publish-start', new Date());
@@ -493,8 +533,13 @@
     ui.element('notice-link-url').value = item.related_link_url || '';
     ui.element('notice-link-label').value = item.related_link_label || '';
     ui.element('notice-requires-ack').checked = Boolean(item.requires_acknowledgement);
-    ui.element('notice-scope').value = item.target_scope;
-    updateTargets(ui.targetId(item));
+    existingAudience = {
+      p_target_scope: item.target_scope,
+      p_target_department_id: item.target_department_id || null,
+      p_target_work_group_id: item.target_work_group_id || null,
+      p_target_profile_id: item.target_profile_id || null
+    };
+    updateAudienceSummary();
     ui.element('notice-status').value = item.status;
     ui.element('notice-reason').value = '공지 작성·수정';
     updateActions();
@@ -612,7 +657,7 @@
         savedStatus = previousStatus = current.status;
         publicationUncertain = false;
       }
-      const target = ui.targetPayload(ui.element('notice-scope'), ui.element('notice-target'));
+      const target = audiencePayload();
       const linkUrl = ui.element('notice-link-url').value.trim();
       const linkLabel = ui.element('notice-link-label').value.trim();
       const importance = ui.element('notice-importance').value;
@@ -643,7 +688,7 @@
       if (publishEnd && new Date(publishEnd) <= new Date(publishStart)) throw new Error('INVALID_PERIOD');
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
       if (action === 'publish' || status !== savedStatus) {
-        const targetLabel = [ui.element('notice-scope').selectedOptions[0]?.textContent, ui.element('notice-target').selectedOptions[0]?.textContent].filter(Boolean).join(' · ');
+        const targetLabel = audienceLabel(target);
         if (!window.confirm(`${ui.element('notice-title-input').value}\n대상: ${targetLabel}\n분류: ${ui.NOTICE_KINDS[ui.element('notice-kind').value]} · ${ui.IMPORTANCE[importance]}\n게시 시작: ${ui.formatDateTime(publishStart)} (KST)\n게시 종료: ${publishEnd ? ui.formatDateTime(publishEnd) : '종료 없음'}\n${status === 'published' ? new Date(publishStart) > new Date() ? '이 시각에 게시를 예약할까요?' : '직원에게 지금 게시할까요?' : '공지 ' + ui.STATUS[status] + '를 적용할까요?'}`)) return;
       }
       controls = [...ui.element('notice-form').elements].map(node => [node, node.disabled]);
@@ -721,7 +766,7 @@
         : error.message === 'NOTICE_SAVED_MEDIA_UNCERTAIN'
         ? `${savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 반영됐을 수 있습니다. ' : '현재 공지는 직원 비공개로 유지됩니다. '}사진 등록 여부를 확인하지 못해 추가 등록과 파일 삭제를 중단했습니다. 업로드 파일·입력·공지 ID를 보존했습니다.`
         : error.message === 'INVALID_PERIOD' ? '게시 종료 시각은 시작 시각보다 뒤여야 하며, 게시할 때 종료 시각이 지나지 않아야 합니다.'
-        : error.message === 'TARGET_REQUIRED' ? '대상을 선택해주세요.'
+        : error.message === 'NOTICE_TARGET_UNAVAILABLE' ? '기존 공지 게시 대상 정보가 불완전하여 수정할 수 없습니다. 운영총괄에게 확인해주세요.'
         : error.message.includes('DATE_TIME') ? '게시 날짜와 시간을 함께 입력해주세요.'
           : error.message === 'LINK_PAIR_REQUIRED' ? '링크 표시명과 HTTPS 주소를 함께 입력해주세요.'
             : error.message === 'INVALID_HTTPS_LINK' ? '관련 링크는 올바른 HTTPS 주소만 사용할 수 있습니다.'
@@ -740,7 +785,13 @@
         ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
         : bodySaved && !['NOTICE_SAVED_MEDIA_FAILED', 'NOTICE_SAVED_MEDIA_UNCERTAIN'].includes(error.message)
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
-      ui.element('notice-additional-settings').open = true;
+      if (['LINK_PAIR_REQUIRED', 'INVALID_HTTPS_LINK'].includes(error.message)) {
+        const destination = !ui.element('notice-link-url').value.trim() ? 'notice-link-url'
+          : !ui.element('notice-link-label').value.trim() ? 'notice-link-label' : 'notice-link-url';
+        ui.element(destination).focus();
+      } else {
+        ui.element('notice-additional-settings').open = true;
+      }
     } finally {
       controls.forEach(([node, disabled]) => { node.disabled = disabled; });
       saving = false;
@@ -777,7 +828,9 @@
     ui.element('notice-form').addEventListener('invalid', event => {
       const details = event.target.closest('details');
       if (details) details.open = true;
-      showMessage('필수항목과 입력 형식을 확인해주세요.', true);
+      showMessage(event.target.id === 'notice-link-url'
+        ? '관련 링크는 올바른 HTTPS 주소(https://)를 입력해주세요.'
+        : '필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
     ui.element('notice-form').addEventListener('change', event => {
       if (event.target.id === 'notice-routine-confirm') updateActions();
@@ -791,7 +844,6 @@
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
     ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
-    ui.element('notice-scope').addEventListener('change', () => updateTargets());
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', event => {
       if (event.target.id === 'notice-routine-confirm') updateActions();

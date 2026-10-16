@@ -28,7 +28,8 @@ for (const file of [
 }
 
 test('employee management separates existing staff from new registration requests', () => {
-  assert.match(employee, /기존 직원 관리/);
+  assert.match(employee, /직원 목록/);
+  assert.match(employee, /\+ 직원 등록/);
   assert.match(employee, /신규 직원 등록 요청/);
   assert.match(employee, /activeEmployeeView/);
   assert.match(employee, /context\.new_employee_positions/);
