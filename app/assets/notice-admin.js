@@ -18,6 +18,7 @@
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
+  let publishEndAuto = false;
   // Default every new notice to the company, preserving legacy targeted edits.
   let existingAudience = null;
   const COMPANY_AUDIENCE = Object.freeze({
@@ -185,6 +186,33 @@
     if (!date && !time) return null;
     if (!date || !time) throw new Error(required ? 'DATE_TIME_REQUIRED' : 'DATE_TIME_PAIR_REQUIRED');
     return ui.toKstIso(date, time);
+  }
+
+  // Only new notices receive the default; a manual end or blank ending is authoritative.
+  function syncDefaultPublishEnd() {
+    if (!publishEndAuto) return;
+    let start;
+    try {
+      if (ui.element('notice-publish-mode').value === 'now') start = new Date();
+      else {
+        const scheduled = readDateTime('notice-publish-start', true);
+        if (!scheduled) return;
+        start = new Date(scheduled);
+      }
+    } catch {
+      return; // Incomplete schedule: never produce a 1970 expiration.
+    }
+    if (Number.isNaN(start.getTime())) return;
+    setDateTime('notice-publish-end', new Date(start.getTime() + 7 * 86400000));
+  }
+
+  function notePublishPeriodEdit(event) {
+    const id = event.target?.id || '';
+    if (id === 'notice-publish-end-date' || id === 'notice-publish-end-time') {
+      publishEndAuto = false; // Includes intentional clearing.
+    } else if (id === 'notice-publish-mode' || id === 'notice-publish-start-date' || id === 'notice-publish-start-time') {
+      syncDefaultPublishEnd();
+    }
   }
 
   function existingMedia(item) {
@@ -494,6 +522,8 @@
     publicationUncertain = false;
     setDateTime('notice-publish-start', new Date());
     ui.element('notice-publish-mode').value = 'now';
+    publishEndAuto = true;
+    syncDefaultPublishEnd();
     ui.element('notice-additional-settings').open = false;
     ui.element('notice-status').value = 'draft';
     ui.element('notice-importance').value = 'normal';
@@ -512,6 +542,7 @@
     reviewPending = item.review_state === 'submitted';
     savedPublishStart = item.publish_start_at;
     publicationUncertain = false;
+    publishEndAuto = false; // Existing notices retain their stored expiry.
     ui.element('notice-publish-mode').value = 'scheduled';
     clearMediaState();
     mediaItems = ui.array(item.media).map(existingMedia);
@@ -686,6 +717,7 @@
         && ui.kstDate(savedPublishStart) === ui.element('notice-publish-start-date').value
         && ui.kstTime(savedPublishStart) === ui.element('notice-publish-start-time').value;
       if (savedStatus !== 'draft' && unchangedStart) publishStart = savedPublishStart;
+      if (publishEndAuto) syncDefaultPublishEnd(); // 'Now' is calculated when saving.
       const publishEnd = readDateTime('notice-publish-end');
       if (publishEnd && new Date(publishEnd) <= new Date(publishStart)) throw new Error('INVALID_PERIOD');
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
@@ -840,6 +872,7 @@
         : '필수항목과 입력 형식을 확인해주세요.', true);
     }, true);
     ui.element('notice-form').addEventListener('change', event => {
+      notePublishPeriodEdit(event);
       if (event.target.id === 'notice-routine-confirm') updateActions();
       else if (event.target.id !== 'notice-photo-input') markReviewEdited();
     });
@@ -853,6 +886,7 @@
     ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', event => {
+      notePublishPeriodEdit(event);
       if (event.target.id === 'notice-routine-confirm') updateActions();
       else if (event.target.id !== 'notice-photo-input') markReviewEdited();
       void renderPreview();
