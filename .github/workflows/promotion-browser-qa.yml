@@ -49,6 +49,19 @@ jobs:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
         run: node tests/notice-authoring-browser.mjs
 
+      - name: Run promotion composer exact viewport QA
+        env:
+          PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
+        run: node tests/promotion-composer-browser.mjs
+
+      - name: Keep promotion composer screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-composer-320-390-768-1440
+          path: promotion-composer-qa-artifacts
+          if-no-files-found: ignore
+
       - name: Run attendance PC and mobile fixture QA
         env:
           ATTENDANCE_QA_OUTPUT: attendance-qa-artifacts
