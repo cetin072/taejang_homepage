@@ -218,6 +218,8 @@
 
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
     const form = el('form', null, 'employee-form app-compact-container');
+    const leadDirectEdit = Boolean(employee && context.access_level === 'promotion_lead_global'
+      && employee.can_edit_basic && employee.updated_at);
     const name = input('text', employee?.full_name || ''); name.required = true; name.maxLength = 80;
     const hired = input('date', employee?.hired_on || ''); hired.required = true;
     const department = select(context.departments, employee?.department_id || context.department_id || context.departments?.[0]?.id || '');
@@ -228,8 +230,9 @@
     ], employee?.employment_status || 'active');
     const departed = input('date', employee?.departed_on || '');
     const attendance = input('checkbox'); attendance.checked = employee ? !!employee.attendance_required : true;
-    if (teamRequest) department.disabled = true;
+    if (teamRequest && !leadDirectEdit) department.disabled = true;
     if (!employee) { status.value = 'active'; status.disabled = true; departed.disabled = true; }
+    if (leadDirectEdit) { status.disabled = true; departed.disabled = true; }
     if (!positionItems.length) position.disabled = true;
 
     const grid = el('div', null, 'employee-form-grid app-compact-fields');
@@ -243,7 +246,7 @@
       field('근태 대상', attendance, '체크하면 출퇴근 관리 대상입니다.')
     );
     const actions = el('div', null, 'quick-links');
-    const submit = button(employee ? (teamRequest ? '수정 요청 보내기' : '직원정보 저장') : (teamRequest ? '등록 요청 보내기' : '직원 등록'), () => {});
+    const submit = button(employee ? (leadDirectEdit || !teamRequest ? '직원정보 저장' : '수정 요청 보내기') : (teamRequest ? '등록 요청 보내기' : '직원 등록'), () => {});
     submit.type = 'submit';
     if (!positionItems.length) submit.disabled = true;
     actions.append(submit); form.append(grid, actions);
@@ -267,6 +270,16 @@
           await app().rpc('submit_employee_change_request', {
             p_request_type: 'new_employee', p_employee_uuid: null,
             p_requested_changes: { full_name: name.value.trim(), hired_on: hired.value, position_id: position.value, attendance_required: attendance.checked }
+          });
+        } else if (!saved && employee && leadDirectEdit) {
+          await app().rpc('update_employee_field_audit_basic', {
+            p_employee_uuid: employee.id,
+            p_expected_updated_at: employee.updated_at,
+            p_full_name: name.value.trim(),
+            p_hired_on: hired.value,
+            p_department_id: department.value,
+            p_position_id: position.value,
+            p_attendance_required: attendance.checked
           });
         } else if (!saved && employee && !teamRequest) {
           await app().rpc('update_employee_core', {
@@ -457,6 +470,84 @@
       employed_after_65_excluded: '65세 이후 신규고용 · 적용 제외 확인',
       continuity_review_required: '65세 이후 · 연속가입 확인 필요'
     })[status] || status || '확인 필요';
+  }
+
+  // Separate capability: single-employee RRN registration/view, never payroll.
+  // Full number exists only in a short-lived DOM text node after explicit reveal.
+  function residentNumberPanel(context, employee) {
+    if (!context.can_manage_resident_number
+      || (employee.protected && context.access_level !== 'operations_manager')) return null;
+    const wrap = el('section', null, 'employee-resident-number-controls');
+    const registered = Boolean(employee.resident_number_registered);
+    const message = el('p', '', 'help'); message.setAttribute('role','status');
+    wrap.append(el('p', registered ? '주민번호 암호화 등록됨' : '주민번호 미등록', 'help'));
+    if (context.access_level !== 'operations_manager') {
+      const form = el('form', null, 'employee-resident-register-form');
+      const number = input('password');
+      number.maxLength = 14;
+      number.autocomplete = 'off';
+      number.inputMode = 'numeric';
+      number.placeholder = '000000-0000000';
+      number.setAttribute('aria-label', '직원 주민등록번호 등록');
+      const submit = button(registered ? '주민번호 정정 저장' : '주민번호 등록', () => {});
+      submit.type = 'submit';
+      form.append(field('주민등록번호', number, '개별 지원사업 및 고용 행정 확인용입니다. 번호는 Vault에 암호화 저장됩니다.'), submit);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!number.value.trim()) return;
+        if (registered && !window.confirm('기존 주민번호를 새 번호로 교체하시겠습니까?')) return;
+        submit.disabled = true;
+        const value = number.value.trim();
+        number.value = '';
+        try {
+          const result = await app().rpc('set_employee_resident_registration_number', {
+            p_employee_uuid:employee.id, p_resident_number:value
+          });
+          if (!result?.ok) throw new Error(result?.code || '저장 오류');
+          await refreshEmployeeManagement();
+        } catch(error) {
+          message.textContent = app().friendlyError?.(error) || error.message || '주민번호를 저장하지 못했습니다.';
+          message.classList.add('error');
+          submit.disabled = false;
+        }
+      });
+      wrap.append(form);
+    }
+
+    const purpose = select([
+      {id:'support_program',name:'지원사업 서류 확인'},
+      {id:'employee_administration',name:'입사·인사정보 대조'}
+    ],'support_program');
+    const reveal = button('주민번호 조회', async () => {
+      if (!window.confirm('업무상 필요한 직원 한 명의 주민번호만 일시적으로 표시합니다. 조회 이력이 기록됩니다. 계속하시겠습니까?')) return;
+      reveal.disabled = true;
+      try {
+        const result = await app().rpc('get_employee_resident_registration_number', {
+          p_employee_uuid:employee.id, p_purpose:purpose.value
+        });
+        if (!result?.ok) throw new Error(result?.code || '저장된 주민번호를 찾지 못했습니다.');
+        const digits = String(result.resident_number || '');
+        if (!/^\\d{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
+        const shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
+        shown.setAttribute('aria-label','열람한 직원 주민등록번호');
+        const hide = () => {shown.textContent = '';shown.remove();hideButton.remove();reveal.disabled=false;};
+        const hideButton = button('번호 숨기기',hide,true);
+        wrap.querySelector('.employee-resident-reveal')?.remove();
+        wrap.querySelector('[data-resident-hide]')?.remove();
+        hideButton.dataset.residentHide='1';
+        wrap.append(shown,hideButton);
+        window.setTimeout(hide,30000);
+        message.textContent='30초 후 자동으로 숨겨집니다.';
+      } catch(error) {
+        message.textContent=app().friendlyError?.(error) || error.message || '주민번호를 확인하지 못했습니다.';
+        message.classList.add('error');
+        reveal.disabled=false;
+      }
+    }, true);
+    const row = el('div',null,'quick-links');
+    row.append(field('조회 사유',purpose),reveal);
+    wrap.append(row,message);
+    return wrap;
   }
 
   function sensitiveIdentityPanel(context, employee) {
@@ -788,8 +879,16 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel,
-      nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary
+      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel,
+      nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
+      saveEmployeeAppCheck: async (employee, values) => {
+        const result = await app().rpc('update_employee_field_audit', {
+          p_employee_uuid:employee.id,p_identity_verified:values.verified,
+          p_app_install_status:values.status,p_note:values.note || ''
+        });
+        if(!result?.ok) throw new Error(result?.code || '현장 확인 저장 실패');
+        await refreshEmployeeManagement();
+      }
     });
   }
 
@@ -814,13 +913,6 @@
       activeEmployeeView = activeEmployeeView === 'new' ? 'existing' : 'new'; selectedEmployeeId = null;
       renderEmployeeManagement(currentContext);
     }, true));
-    if (isOps || isGlobalPromotionLead) {
-      intro.append(button('📋 직원 현장 전수조사', () => {
-        const open = window.TaejangEmployeeFieldAudit?.open;
-        if (typeof open === 'function') return open();
-        window.TaejangFeatureHealth?.showFailure?.('직원 현장 전수조사');
-      }, true));
-    }
     shell.append(intro);
     if (activeEmployeeView === 'new') {
       const createSection = el('section', null, 'dashboard-section');
