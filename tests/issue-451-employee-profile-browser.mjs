@@ -178,6 +178,7 @@ try {
       fixtureContext.employees[0].can_edit_basic=true;
       fixtureContext.employees[0].updated_at='2026-10-15T00:00:00Z';
       fixtureContext.employees[0].resident_number_registered=false;
+      fixtureContext.employees[0].can_manage_resident_number_for_employee=true;
       fixtureContext.employees[0].identity_verified=false;
       fixtureContext.employees[0].app_install_status='unchecked';
       const original=window.TaejangApp.rpc;
