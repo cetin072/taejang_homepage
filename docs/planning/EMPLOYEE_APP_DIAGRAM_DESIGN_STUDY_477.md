@@ -1,5 +1,7 @@
 # 직원앱 랜딩페이지 다이어그램 디자인 검토 — Issue #477
 
+> 2026-10-17 V2 보완: 아래는 1차 정적 구조 기준선으로 보존한다. 최신 요청은 **HERO 모션그래픽 작동 시안 우선 평가**이며 A안의 실제 모션 적용은 그 뒤 결정한다. [V2 콘티](previews/issue-477/motion-v2/STORYBOARD.md) · [작동 시안·비교·검수 기록](previews/issue-477/motion-v2/NOTE.md). 기존 A/B 제안을 최종 구현·배포 승인으로 취급하지 않는다.
+
 - 작성: 2026-10-16
 - 상태: **검토 중 / 홈페이지 미구현 / 사용자 디자인 선택 대기**
 - 기획 원본: [Issue #477](https://github.com/cetin072/taejang_homepage/issues/477)
