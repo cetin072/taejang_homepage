@@ -21,9 +21,9 @@ returns boolean language sql stable security definer set search_path='' as $$
  and public.current_profile_is_active()
  and public.private_actor_can('employee.resident_number_manage')
  and (
-   public.current_user_has_role('operations_manager')
+   'operations_manager'=any(public.private_actual_role_codes())
    or (
-     public.current_user_has_role('promotion_lead')
+     'promotion_lead'=any(public.private_actual_role_codes())
      and not public.private_employee_is_protected(p_employee_uuid)
    )
  )
