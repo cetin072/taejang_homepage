@@ -166,7 +166,9 @@
         if (!privateHidden) box.append(avatar(employee, path, label));
         box.append(el('p', privateHidden ? '현재 권한으로 등록 상태·사진 조회 불가' : path ? '등록됨' : '미등록', 'employee-photo-status'));
         if (type === 'profile' || context.access_level === 'operations_manager'
-          || (!employee.protected && employee.department_id === context.department_id))
+          || (!employee.protected
+            && (context.access_level !== 'promotion_lead_global'
+              || employee.department_id === context.department_id)))
           box.append(photoPicker(employee, type, context));
         photoGrid.append(box);
       }); photos.append(photoGrid);
