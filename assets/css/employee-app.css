@@ -99,6 +99,7 @@
 .employee-app-motion-controls { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; margin-top: 16px; }
 .employee-app-motion-controls[hidden] { display: none; }
 .employee-app-hero-art .employee-app-motion-controls { justify-content: center; }
+.employee-app-hero-controls-slot { display: flow-root; min-height: 60px; }
 .employee-app-motion-controls button { min-height: 44px; padding: 8px 14px; border: 1px solid #8ca895; border-radius: 6px; background: transparent; color: var(--green-deep); font: 700 14px/1.5 var(--gothic); cursor: pointer; }
 .employee-app-motion-controls button:disabled { color: var(--ink-soft); border-color: var(--line); cursor: default; }
 .employee-app-motion-controls button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
@@ -141,5 +142,5 @@
   .is-flipping .employee-app-flip { perspective: none; }
   .is-flipping .employee-app-flip-inner { grid-template-columns: minmax(0, 1fr); gap: 12px; transform: none !important; }
   .is-flipping .employee-app-face { grid-area: auto; transform: none; backface-visibility: visible; }
-  .employee-app-motion-controls, #hero-record-bridge { display: none !important; }
+  .employee-app-motion-controls, .employee-app-hero-controls-slot, #hero-record-bridge { display: none !important; }
 }

@@ -272,16 +272,20 @@ try {
   assert.equal(await staticPage.locator('.employee-app-motion-controls:visible').count(), 0);
   await staticPage.screenshot({ path: path.join(output, 'employee-app-no-js.png'), fullPage: true });
   await noJS.close();
-  const normal = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });
+  const motion = { hero: 'approved V2.1 5200ms', card: '3200ms reading + 1000ms single half-turn' };
+  for (const width of [1440, 390, 320]) {
+  const normal = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
-  await exerciseMotion(motionPage, output, assertLayout);
-  const motion = { hero: 'approved V2.1 5200ms', card: '3200ms reading + 1000ms single half-turn' };
+  const motionOutput = path.join(output, 'motion-' + width);
+  await fs.mkdir(motionOutput, { recursive: true });
+  await exerciseMotion(motionPage, motionOutput, assertLayout);
   // Text-only enlargement catches fixed-height clipping independently of viewport reflow.
   await motionPage.addStyleTag({ content: 'main p, main dd, main dt, main a, main h3 { font-size: 200% !important; }' });
   await assertLayout(motionPage, 'text-200');
   await motionPage.screenshot({ path: path.join(output, 'employee-app-text-200.png'), fullPage: true });
   await normal.close();
+  }
   if (process.env.EMPLOYEE_APP_QA_BASE) {
     const cleanPage = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     await gotoPublicReady(cleanPage, base + '/employee-app', output);

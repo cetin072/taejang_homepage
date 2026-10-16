@@ -50,5 +50,25 @@ export async function exerciseMotion(page, output, assertLayout) {
   assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change does not replay');
+  await hero.scrollIntoViewIfNeeded();
+  await replay.click();
+  await page.waitForTimeout(250);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => document.querySelector('[data-hero-motion]').dataset.time === '5200', undefined, { timeout: 1000 });
+  assert.equal(await hero.getAttribute('data-time'), '5200', 'live reduce interrupts SVG to its final frame');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.equal(await hero.getAttribute('data-state'), 'ended');
+  const firstCard = page.locator('[data-comparison]').first();
+  await firstCard.scrollIntoViewIfNeeded();
+  await firstCard.locator('[data-card-replay]').click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => !document.querySelector('.is-flipping'), undefined, { timeout: 1000 });
+  assert.equal(await page.locator('.is-flipping').count(), 0, 'live reduce cancels a running card');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await firstCard.locator('[data-card-replay]').click();
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate(() => dispatchEvent(new Event('beforeprint')));
+  assert.equal(await page.locator('.is-flipping').count(), 0, 'print fixture restores both faces');
+  await page.emulateMedia({ media: 'screen' });
   await page.screenshot({ path: path.join(output, 'employee-app-motion-finished.png'), fullPage: true });
 }
