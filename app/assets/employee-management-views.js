@@ -136,7 +136,12 @@
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
       ]); basic.append(values);
-      if (!employee.protected || context.access_level === 'operations_manager') {
+      const isGlobalLead = context.access_level === 'promotion_lead_global';
+      const canEditInThisCard = context.access_level === 'operations_manager'
+        || (!employee.protected
+          && (!isGlobalLead || employee.can_edit_basic
+            || employee.department_id === context.department_id));
+      if (canEditInThisCard) {
         const edit = button('수정', () => {
           const form = makeEmployeeForm(context, employee, context.access_level !== 'operations_manager'); form.dataset.employeeEditForm = '1';
           const cancel = button('취소', () => { form.remove(); values.hidden = false; edit.hidden = false; edit.focus(); }, true);
@@ -144,7 +149,7 @@
         }, true);
         const basicTitle = el('div', null, 'employee-basic-title');
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
-      } else basic.append(el('p', '보호 계정은 팀장에서 수정 요청할 수 없습니다.', 'employee-protected-note'));
+      } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
       const appSection = section('앱 계정');
       const profile = employee.linked_profile;
@@ -160,7 +165,9 @@
         const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
         if (!privateHidden) box.append(avatar(employee, path, label));
         box.append(el('p', privateHidden ? '현재 권한으로 등록 상태·사진 조회 불가' : path ? '등록됨' : '미등록', 'employee-photo-status'));
-        if (type === 'profile' || !employee.protected || context.access_level === 'operations_manager') box.append(photoPicker(employee, type, context));
+        if (type === 'profile' || context.access_level === 'operations_manager'
+          || (!employee.protected && employee.department_id === context.department_id))
+          box.append(photoPicker(employee, type, context));
         photoGrid.append(box);
       }); photos.append(photoGrid);
 
