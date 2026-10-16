@@ -173,7 +173,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   const actualKeys = new Set([promotion, lead, operations, ceo]
     .flatMap(qa => qa.nav.children.map(item => item.dataset.menuKey).filter(Boolean)));
   const expectedKeys = [...lead.window.TaejangPlatformNavigationRegistry.items()]
-    .filter(item => item.key !== 'platform.settings')
+    .filter(item => item.key !== 'platform.settings' && item.visibleRoles?.length !== 0)
     .map(item => item.key)
     .sort();
   assert.deepEqual([...actualKeys].sort(), expectedKeys, 'every canonical business-navigation leaf has a live sidebar destination');
@@ -187,7 +187,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.ok(!visible(ceo).has('발행 관리'));
 
   assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
-  assert.equal(menuLabels(lead.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 상신');
+  assert.equal(menuLabels(lead.nav).filter(label => /급여/.test(label)).length, 0, 'lead has no payroll menu even with stale capabilities');
   assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 검토');
 
   findMenu(promotion.nav, '홍보 글 작성').click();

@@ -373,6 +373,8 @@
     nav.replaceChildren();
 
     masterMenuItems().forEach(item => {
+      // Deny stale capability contexts and role previews before rendering payroll links.
+      if (item.capabilities?.some(code => code.startsWith('payroll.')) && _route !== 'operations_manager') return;
       const registry = window.TaejangPlatformNavigationRegistry;
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;

@@ -176,7 +176,7 @@
     if (!nav) return null;
     const canApprove = currentRole === 'operations_manager'
       && capabilityAllowed('payroll.handoff.approve', true);
-    const canReview = currentRole === 'promotion_lead'
+    const canReview = currentRole === 'operations_manager'
       && capabilityAllowed('payroll.handoff.review', true);
     if (!canApprove && !canReview) return null;
 
