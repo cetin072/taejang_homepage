@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  statuses: read
 
 concurrency:
   group: promotion-browser-qa-${{ github.event.pull_request.number || github.ref }}
@@ -38,10 +39,28 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Run real mouse sidebar drag/save/reload QA
+        env:
+          SIDEBAR_DRAG_QA_OUTPUT: sidebar-drag-qa-artifacts
+        run: node tests/issue-466-sidebar-real-drag.mjs
+
       - name: Run notice authoring exact viewport QA
         env:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
         run: node tests/notice-authoring-browser.mjs
+
+      - name: Run promotion composer exact viewport QA
+        env:
+          PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
+        run: node tests/promotion-composer-browser.mjs
+
+      - name: Keep promotion composer screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-composer-320-390-768-1440
+          path: promotion-composer-qa-artifacts
+          if-no-files-found: ignore
 
       - name: Run attendance PC and mobile fixture QA
         env:
@@ -52,6 +71,19 @@ jobs:
         env:
           EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
         run: node tests/issue-451-employee-profile-browser.mjs
+
+      - name: Run staff field audit PC and mobile fixture QA
+        env:
+          FIELD_AUDIT_QA_OUTPUT: field-audit-qa-artifacts
+        run: node tests/issue-456-field-audit-browser.mjs
+
+      - name: Keep staff field audit screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-field-audit-1440-390
+          path: field-audit-qa-artifacts/
+          if-no-files-found: ignore
 
       - name: Keep synthetic employee screenshots
         if: always()
@@ -75,4 +107,65 @@ jobs:
         with:
           name: notice-authoring-320-390-1280
           path: notice-qa-artifacts/
+          if-no-files-found: ignore
+
+  employee-app-gate:
+    name: Employee app landing local and exact-head Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install existing browser dependency
+        run: npm ci
+
+      - name: Run employee-app landing browser QA at PC and mobile sizes
+        env:
+          EMPLOYEE_APP_QA_OUTPUT: employee-app-qa-artifacts
+        run: |
+          npm run build:netlify
+          node tests/employee-app-browser.mjs
+
+      - name: Verify employee-app landing on exact-head Deploy Preview
+        if: github.event_name == 'pull_request'
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          EMPLOYEE_APP_QA_OUTPUT: employee-app-preview-qa-artifacts
+          EMPLOYEE_APP_QA_REQUIRE_HOSTED: "1"
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util
+          import os
+          import pathlib
+          import subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          subprocess.run(['node', 'tests/employee-app-browser.mjs'], check=True,
+                         env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+          PYTHON
+
+      - name: Keep exact-head Preview screenshots and browser results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-app-preview-qa
+          path: employee-app-preview-qa-artifacts/
+          if-no-files-found: ignore
+
+      - name: Keep employee app landing screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-app-landing-1440-390-320
+          path: employee-app-qa-artifacts/
           if-no-files-found: ignore

@@ -72,6 +72,16 @@ class MockElement {
     return child;
   }
 
+  insertBefore(child, reference) {
+    const prior = child.parentElement;
+    if (prior) prior.children = prior.children.filter(item => item !== child);
+    const index = this.children.indexOf(reference);
+    if (index < 0) return this.appendChild(child);
+    child.parentElement = this;
+    this.children.splice(index, 0, child);
+    return child;
+  }
+
   append(...children) {
     children.forEach((child) => this.appendChild(child));
   }
@@ -213,7 +223,7 @@ function anchor(href, label, classes = []) {
   return new MockElement('a', { attrs: { href }, textContent: label, classes });
 }
 
-function runSiteRuntime() {
+function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false) {
   const document = new MockDocument();
   const desktop = new MockElement('nav', { classes: ['desktop-nav'] });
   const mobile = new MockElement('nav', { dataset: { mobileNav: '' } });
@@ -222,11 +232,13 @@ function runSiteRuntime() {
     ['business.html', '하는 일'],
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
-    ['partnership.html', '협력·문의']
+    ['partnership.html', '협력·문의'],
+    ['employee-app.html', '직원앱']
   ];
   navItems.forEach(([href, label], index) => {
-    desktop.appendChild(anchor(href, label, index === 4 ? ['nav-cta'] : []));
-    mobile.appendChild(anchor(href, label));
+    const target = cleanEmployeeHref && href === 'employee-app.html' ? '/employee-app' : href;
+    desktop.appendChild(anchor(target, label, index === 4 ? ['nav-cta'] : []));
+    mobile.appendChild(anchor(target, label));
   });
 
   const menuButton = new MockElement('button', {
@@ -250,11 +262,17 @@ function runSiteRuntime() {
 
   vm.runInNewContext(read('assets/js/site.js'), {
     document,
-    window: { location: { pathname: '/index.html' } },
+    window: { location: { pathname } },
     console,
     Date
   });
 
+  for (const nav of [desktop, mobile]) {
+    const link = nav.querySelectorAll(':scope > a').find(candidate => candidate.href === 'employee-app.html' || candidate.href === '/employee-app');
+    assert.ok(link, 'employee-app link is preserved from static HTML');
+    assert.equal(link.getAttribute('aria-current'), pathname === '/employee-app' ? 'page' : null,
+      'Netlify clean URL preserves the employee-app active navigation state');
+  }
   assert.equal(document.documentElement.classList.contains('js-nav-ready'), true, '메뉴 이벤트가 연결된 뒤에만 JS 메뉴 모드가 활성화됩니다');
   menuButton.dispatch('click');
   assert.equal(mobile.classList.contains('open'), true, '모바일 메뉴 버튼으로 메뉴를 엽니다');
@@ -281,6 +299,14 @@ function runSiteRuntime() {
   const mobileStaff = mobile.querySelectorAll(':scope > a').filter((link) => link.classList.contains('staff-nav'));
   assert.equal(desktopStaff.length, 1, '필드 파일럿 임직원 진입점을 데스크톱에 한 번만 추가합니다');
   assert.equal(mobileStaff.length, 1, '필드 파일럿 임직원 진입점을 모바일에 한 번만 추가합니다');
+  const desktopOrder = desktop.querySelectorAll(':scope > a').map(link => link.href);
+  const mobileOrder = mobile.querySelectorAll(':scope > a').map(link => link.href);
+  const mobileGuide = mobileOrder.findIndex(href => /employee-app(?:\.html)?$/.test(href));
+  assert.equal(desktopOrder.at(-1), 'staff/', 'desktop sign-in stays the last utility link');
+  assert.equal(mobileOrder[mobileGuide - 1], 'staff/', 'mobile staff sign-in precedes the app guide');
+  assert.equal(mobileOrder.at(-1), mobileOrder[mobileGuide], 'mobile app guide is the final menu link');
+  assert.equal(mobileOrder.filter(href => href === 'staff/').length, 1);
+  assert.equal(mobileOrder.filter(href => /employee-app(?:\.html)?$/.test(href)).length, 1);
 }
 
 function runHeroRuntime() {
@@ -398,6 +424,8 @@ function assertInquiryFormContract() {
 }
 
 runSiteRuntime();
+runSiteRuntime('/employee-app');
+runSiteRuntime('/employee-app', true);
 runHeroRuntime();
 runCommunityFallbackRuntime();
 assertInquiryFormContract();

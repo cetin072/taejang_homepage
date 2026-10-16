@@ -34,6 +34,7 @@
   }
 
   function simplifyPromotionStaffType(composer) {
+    if (composer.dataset.composerLayout === 'writing-first') return;
     if (route() !== 'promotion_staff' || !isNewPromotionComposer(composer)) return;
     const heading = composer.querySelector('h2');
     if (heading) heading.textContent = '새 태장 소식 작성';

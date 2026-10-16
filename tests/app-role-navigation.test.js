@@ -173,7 +173,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   const actualKeys = new Set([promotion, lead, operations, ceo]
     .flatMap(qa => qa.nav.children.map(item => item.dataset.menuKey).filter(Boolean)));
   const expectedKeys = [...lead.window.TaejangPlatformNavigationRegistry.items()]
-    .filter(item => item.key !== 'platform.settings')
+    .filter(item => item.key !== 'platform.settings' && item.visibleRoles?.length !== 0)
     .map(item => item.key)
     .sort();
   assert.deepEqual([...actualKeys].sort(), expectedKeys, 'every canonical business-navigation leaf has a live sidebar destination');
@@ -187,7 +187,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.ok(!visible(ceo).has('발행 관리'));
 
   assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
-  assert.equal(menuLabels(lead.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 상신');
+  assert.equal(menuLabels(lead.nav).filter(label => /급여/.test(label)).length, 0, 'lead has no payroll menu even with stale capabilities');
   assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 검토');
 
   findMenu(promotion.nav, '홍보 글 작성').click();
@@ -259,7 +259,7 @@ test('central navigation uses one master order and section contract for every de
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
     '발행 관리', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '업무 배정', '공지 관리',
+    '공지 관리', '업무 배정',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'
