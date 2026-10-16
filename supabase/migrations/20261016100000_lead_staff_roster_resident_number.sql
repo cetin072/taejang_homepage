@@ -25,6 +25,15 @@ returns boolean language sql stable security definer set search_path='' as $$
    or (
      'promotion_lead'=any(public.private_actual_role_codes())
      and not public.private_employee_is_protected(p_employee_uuid)
+     -- Even an unlinked CEO/executive must not become readable merely because
+     -- protected-profile role links are not yet present.
+     and exists(
+       select 1 from public.employees employee
+       join public.positions position on position.id=employee.position_id
+       where employee.id=p_employee_uuid and position.code not in
+         ('ceo','executive_director','operations_manager',
+          'system_super_admin','department_lead')
+     )
    )
  )
  and exists(select 1 from public.employees employee
