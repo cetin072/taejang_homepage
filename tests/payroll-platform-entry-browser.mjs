@@ -145,7 +145,7 @@ const appAutomation = `<script>
       if ([...sidebarActions.querySelectorAll('button')].map(button => button.textContent.trim()).join('|') !== '메뉴 순서 저장|편집 취소|기본 순서로') {
         throw new Error('SIDEBAR_EDITOR_ACTIONS_MISMATCH');
       }
-      const sectionHandle = nav.querySelector('[data-sidebar-drag-handle="section"]');
+      const sectionHandle = nav.querySelector('[data-sidebar-drag-handle="section"]')?.closest('[data-nav-section-toggle="1"]');
       if (!sectionHandle?.draggable) throw new Error('SIDEBAR_HANDLE_NOT_DRAGGABLE');
       sectionHandle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
       const changedSections = await waitFor(() => {
@@ -168,7 +168,7 @@ const appAutomation = `<script>
       );
       restart.click();
       await waitFor(() => nav.dataset.layoutEditing === '1', 'sidebar edit restart');
-      nav.querySelector('[data-sidebar-drag-handle="section"]')
+      nav.querySelector('[data-sidebar-drag-handle="section"]')?.closest('[data-nav-section-toggle="1"]')
         .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
       const savedSections = await waitFor(() => {
         const order = sectionKeys();
