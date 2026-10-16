@@ -42,7 +42,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck }) {
     function avatar(employee, path = employee.profile_photo_path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -136,7 +136,12 @@
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
       ]); basic.append(values);
-      if (!employee.protected || context.access_level === 'operations_manager') {
+      const isGlobalLead = context.access_level === 'promotion_lead_global';
+      const canEditInThisCard = context.access_level === 'operations_manager'
+        || (!employee.protected
+          && (!isGlobalLead || employee.can_edit_basic
+            || employee.department_id === context.department_id));
+      if (canEditInThisCard) {
         const edit = button('수정', () => {
           const form = makeEmployeeForm(context, employee, context.access_level !== 'operations_manager'); form.dataset.employeeEditForm = '1';
           const cancel = button('취소', () => { form.remove(); values.hidden = false; edit.hidden = false; edit.focus(); }, true);
@@ -144,7 +149,7 @@
         }, true);
         const basicTitle = el('div', null, 'employee-basic-title');
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
-      } else basic.append(el('p', '보호 계정은 팀장에서 수정 요청할 수 없습니다.', 'employee-protected-note'));
+      } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
       const appSection = section('앱 계정');
       const profile = employee.linked_profile;
@@ -160,9 +165,54 @@
         const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
         if (!privateHidden) box.append(avatar(employee, path, label));
         box.append(el('p', privateHidden ? '현재 권한으로 등록 상태·사진 조회 불가' : path ? '등록됨' : '미등록', 'employee-photo-status'));
-        if (type === 'profile' || !employee.protected || context.access_level === 'operations_manager') box.append(photoPicker(employee, type, context));
+        if (type === 'profile' || context.access_level === 'operations_manager'
+          || (!employee.protected
+            && (context.access_level !== 'promotion_lead_global'
+              || employee.department_id === context.department_id)))
+          box.append(photoPicker(employee, type, context));
         photoGrid.append(box);
       }); photos.append(photoGrid);
+
+      // Keep the staff audit inside the existing card instead of a second menu.
+      if ((context.access_level === 'promotion_lead_global'
+           || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
+        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card');
+        visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
+        const auditForm = el('form',null,'employee-app-audit-form');
+        const confirmation = input('checkbox');
+        confirmation.checked=Boolean(employee.identity_verified);
+        const install=select([
+          {id:'unchecked',name:'설치 미확인'},
+          {id:'installed',name:'현장 설치 및 로그인 확인'},
+          {id:'not_installed',name:'미설치 · 설치 안내 필요'},
+          {id:'login_error',name:'로그인 오류 · 지원 필요'}
+        ],employee.app_install_status || 'unchecked');
+        const note=input('text',employee.audit_note || '');note.maxLength=300;
+        note.placeholder='설치 안내나 로그인 오류 등 비민감 메모';
+        const save=button('현장 확인 저장',()=>{});save.type='submit';
+        const feedback=el('p','', 'help');feedback.setAttribute('role','status');
+        auditForm.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),
+          field('현장 메모',note),save,feedback);
+        auditForm.addEventListener('submit',async ev=>{
+          ev.preventDefault();save.disabled=true;
+          try{
+            await saveEmployeeAppCheck(employee,{verified:confirmation.checked,status:install.value,note:note.value});
+          } catch(error){
+            feedback.textContent=error.message||'현장 확인을 저장하지 못했습니다.';
+            feedback.classList.add('error');save.disabled=false;
+          }
+        });
+        visit.append(auditForm);
+      }
+
+      if (context.can_manage_resident_number) {
+        if (context.access_level === 'promotion_lead_global') {
+          const resident = section('주민등록번호 등록·조회', 'employee-sensitive-section');
+          resident.append(el('p','지원사업 및 고용 인사확인용입니다. 번호는 저장 시 암호화하고, 필요 시 한 명씩 조회합니다. 급여는 조회할 수 없습니다.','help'));
+          resident.append(residentNumberPanel(context,employee)
+            || el('p','보호 직원의 주민번호는 운영총괄이 관리합니다.','help'));
+        }
+      }
 
       if (context.can_manage_sensitive_identity || context.access_level === 'operations_manager') {
         const sensitive = section('민감정보 / 보험', 'employee-sensitive-section');
@@ -172,6 +222,11 @@
           details.addEventListener('toggle', () => { if (details.open && !details.querySelector('form,section')) { const panel = createPanel(); if (panel) details.append(panel); } });
           sensitive.append(details);
         };
+        if (context.access_level === 'operations_manager'
+            && context.can_manage_resident_number) {
+          const reveal=residentNumberPanel(context,employee);
+          if(reveal)sensitive.append(reveal);
+        }
         if (context.can_manage_sensitive_identity) {
           sensitive.append(meta([
             ['주민번호', employee.resident_number_registered ? '암호화 등록됨' : '미등록'], ['생년월일', employee.birth_date || '—'],
