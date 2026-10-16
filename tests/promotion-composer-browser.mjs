@@ -76,9 +76,9 @@ try{
    await page.getByRole('button',{name:lifecycle==='draft'?'열어 수정':'보완해서 새 수정본 만들기',exact:true}).click();await page.waitForTimeout(60);
    assert.match(await live.innerText(),/기존 본문/);assert.equal(await body.inputValue(),'기존 본문');
   }
-  // The same writing-first composer must serve staff, lead and operations.
-  // Verify real DOM order, live preview and controls rather than only JS markers.
-  for(const role of ['promotion_lead','operations_manager']){
+  // Operations is the reference composer; lead and staff are restricted views.
+  // Verify runtime DOM order, live preview and controls rather than only JS markers.
+  for(const role of ['operations_manager','promotion_lead']){
    await page.evaluate(async r=>{testRole=r;await TaejangPromotionWorkspaceV2Api.openPromotion('write');document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace',{detail:{mode:'write'}}));},role);await page.waitForTimeout(300);
    assert.equal(await page.locator('[data-promotion-composer="v2"]').count(),1,'one composer for '+role);
    const layout=await page.evaluate(()=>{
@@ -91,7 +91,7 @@ try{
      options:classIndex('phase-c-composer-options'),schedule:classIndex('phase-c-schedule-field'),
      link:classIndex('phase-c-link-tools'),actions:classIndex('quick-links')};
    });
-   assert.equal(layout.mode,'writing-first','reuse staff layout for '+role);
+   assert.equal(layout.mode,'writing-first','project operations layout for '+role);
    const sharedOrder=[layout.title,layout.body,layout.photo,layout.preview,layout.options,layout.link,layout.actions];
    assert.ok(sharedOrder.every((index,i)=>index>=0&&(i===0||index>sharedOrder[i-1])),'same title/body/photo/preview/options/link/actions order for '+role);
    assert.equal(layout.schedule>=0,role==='operations_manager','operations-only reservation input');
@@ -125,7 +125,13 @@ try{
    assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'no horizontal overflow for '+role+' at '+width);
    await page.screenshot({path:path.join(output,`promotion-${role}-${width}.png`),fullPage:true});
   }
-  await page.evaluate(async()=>{testRole='promotion_staff';testItems=[];await TaejangPromotionWorkspaceV2Api.openPromotion('write')});await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
+  await page.evaluate(async()=>{testRole='promotion_staff';testItems=[];await TaejangPromotionWorkspaceV2Api.openPromotion('write')});
+  const staffLayout=await page.evaluate(()=>{const form=document.querySelector('.phase-c-board-form');return [...form.children].map(n=>n.classList.contains('phase-c-composer-options')?'options':n.classList.contains('phase-c-composer-preview')?'preview':n.classList.contains('phase-c-link-tools')?'link':n.classList.contains('quick-links')?'actions':n.textContent?.trim()?.slice(0,2))});
+  assert.equal(await page.locator('.phase-c-board-composer').getAttribute('data-composer-layout'),'writing-first','staff uses shared operations composer');
+  assert.equal(await page.locator('.phase-c-composer-options > label').filter({hasText:'글 종류'}).isVisible(),false,'staff cannot select operations content type');
+  assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).count(),0,'staff cannot bypass operations publishing');
+  assert.ok(staffLayout.indexOf('preview')<staffLayout.indexOf('options')&&staffLayout.indexOf('options')<staffLayout.indexOf('link')&&staffLayout.indexOf('link')<staffLayout.indexOf('actions'),'staff follows operations authoring sequence');
+  await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'viewport fits');
   await page.screenshot({path:path.join(output,`promotion-${width}.png`),fullPage:true});assert.deepEqual(errors,[]);
   console.log(`PROMOTION_COMPOSER_PASS:${width}:${preview?'PREVIEW':'LOCAL'}`);await context.close();

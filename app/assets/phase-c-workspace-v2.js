@@ -6,6 +6,15 @@
   const SESSION_KEY = 'taejang-staff-session-v1';
   const PROMOTION_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
   const WRITE_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
+  // Operations is the canonical authoring UI; the other roles only remove controls.
+  // This is presentation configuration, never authorization. Server capabilities/RLS still decide.
+  function composerUiForRole(role) {
+    const operations = { chooseType: true, chooseByline: true, publishOwn: true };
+    if (role === 'operations_manager') return operations;
+    if (role === 'promotion_lead') return { ...operations, chooseByline: false, publishOwn: false };
+    if (role === 'promotion_staff') return { ...operations, chooseType: false, chooseByline: false, publishOwn: false };
+    return { chooseType: false, chooseByline: false, publishOwn: false };
+  }
   const REVIEW_ROLES = new Set(['promotion_lead', 'operations_manager', 'ceo']);
   const TYPE_LABELS = {
     homepage_article: '태장 소식',
@@ -394,17 +403,19 @@
   }
 
   function buildComposer(existingItem = null) {
+    const currentRole = route();
+    const roleUi = composerUiForRole(currentRole);
     const section = el('section', null, 'phase-c-board-composer');
     section.dataset.promotionComposer = 'v2';
     section.dataset.composerLayout = 'writing-first';
-    section.append(el('h2', existingItem ? '홍보자료 수정' : route() === 'promotion_staff' ? '새 태장 소식 작성' : '새 홍보자료 작성'));
+    section.append(el('h2', existingItem ? '홍보자료 수정' : currentRole === 'promotion_staff' ? '새 태장 소식 작성' : '새 홍보자료 작성'));
     section.append(el('p', existingItem ? '보완할 내용을 고쳐 새 수정본으로 저장합니다. 이전 제출본은 그대로 보존됩니다.' : '제목과 본문을 작성하고 사진을 첨부하세요.', 'help'));
 
     const form = document.createElement('form');
     form.className = 'phase-c-board-form';
     form.addEventListener('submit', event => event.preventDefault());
 
-    const operationsAuthor = route() === 'operations_manager';
+    const operationsAuthor = roleUi.chooseByline;
     const type = select([
       ['homepage_article', '태장 소식 (홈페이지)'],
       ['external_content', '외부 기사·콘텐츠'],
@@ -430,11 +441,11 @@
 
     const topRow = el('div', null, 'phase-c-board-row phase-c-composer-options');
     const typeField = field('글 종류', type);
-    typeField.hidden = route() === 'promotion_staff' && !existingItem;
+    typeField.hidden = !roleUi.chooseType && !existingItem;
     topRow.append(typeField, field('게시 희망일 (선택)', date),
       field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액은 예, 연도·차수는 아니오를 선택하세요.'));
     if (operationsAuthor) topRow.append(field('작성 명의', bylineKind, '대표이사 명의는 대표이사 확인 후 공개합니다.'));
-    const operationsOwnPublication = operationsAuthor && (!existingItem || existingItem.is_owner === true);
+    const operationsOwnPublication = roleUi.publishOwn && (!existingItem || existingItem.is_owner === true);
     const scheduleField = operationsOwnPublication
       ? field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.')
       : null;
@@ -543,14 +554,13 @@
       }
     });
     editor.append(toolbar, mediaGrid);
-    // The staff-approved writing order is shared by all three authoring roles.
+    // The operations-manager reference order is shared by all authoring roles.
     form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
     if (scheduleField) form.append(scheduleField);
     form.append(externalWrap);
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
-    const currentRole = route();
     const leadAuthor = currentRole === 'promotion_lead';
     const submitLabel = leadAuthor
       ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
