@@ -171,7 +171,12 @@ check(!leadCaps.data.capabilities.some(c=>c.startsWith('payroll.')
  'resident ID permission does not grant payroll, insurance or identity-photo capability');
 check(visibleStaff.every(e=>!('resident_number' in e)||e.resident_number===undefined),
  'full national ID is never returned with roster');
-const syntheticResident=['600102','1','234567'].join('');
+// Synthetic, non-production, per-run checksum-valid fixture avoids collision
+// with other isolated integrations sharing this test database.
+const digits12='9003071'+String(crypto.randomInt(0,100000)).padStart(5,'0');
+const checksumWeights=[2,3,4,5,6,7,8,9,2,3,4,5];
+const rrnCheck=(11-(checksumWeights.reduce((n,w,i)=>n+Number(digits12[i])*w,0)%11))%10;
+const syntheticResident=digits12+String(rrnCheck);
 const saveResident=await rpc('set_employee_resident_registration_number',lead,{
  p_employee_uuid:foreign.id,p_resident_number:syntheticResident
 });
