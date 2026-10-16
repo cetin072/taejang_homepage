@@ -1,0 +1,12 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
+const old=read('../motion-v2/hero-motion.html'),copy=read('hero-v2.html'),next=read('hero-motion.html');
+assert.equal(copy,old,'V2 reference byte-identical');
+const main=s=>s.match(/<main[\s\S]*?<\/main>/)[0];
+const withoutArt=s=>main(s).replace(/<figure class="employee-app-hero-art"[\s\S]*?<\/figure>/,'<ART>');
+assert.equal(withoutArt(old),withoutArt(next),'all main DOM except illustration unchanged');
+const caption=s=>s.match(/<figure class="employee-app-hero-art"[\s\S]*?<figcaption[\s\S]*?<\/figcaption>/)[0].split('<figcaption')[1];
+assert.equal(caption(old),caption(next));
+const light=hex=>{const rgb=hex.match(/../g).map(c=>parseInt(c,16)/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4);return rgb.reduce((s,v,i)=>s+v*[.2126,.7152,.0722][i],0);};
+const contrast=(1.05)/(light('688071')+.05);assert.ok(contrast>=3,'muted decorative confirmation remains perceptible');
+console.log(JSON.stringify({v2ByteIdentical:true,mainTextAndCTAUnchanged:true,captionUnchanged:true,mutedMarkWhiteContrast:contrast}));
