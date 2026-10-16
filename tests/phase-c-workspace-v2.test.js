@@ -50,7 +50,7 @@ test('board-style promotion composer hides technical fields and keeps user-facin
   for (const marker of [
     '태장 소식 (홈페이지)', '외부 기사·콘텐츠', '보도자료',
     '링크에서 제목·썸네일·본문 가져오기', '사진 추가',
-    '게시주소·요약·대표 이미지 같은 기술 항목은 자동으로 처리합니다.',
+    '제목과 본문을 작성한 뒤 저장하거나 승인 요청하세요.',
     "openPromotion('revision')", "openPromotion('edit')"
   ]) assert.ok(source.includes(marker), `missing V2 marker: ${marker}`);
   for (const technicalLabel of ['게시 주소(영문·숫자·하이픈)', '자료 확인 링크(내부)', '대표 이미지 링크']) {
