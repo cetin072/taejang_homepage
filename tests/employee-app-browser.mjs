@@ -138,6 +138,11 @@ try {
     }
     assert.equal(visual.motion, 'auto');
     assert.equal(visual.animations, 0, name + ': reduced motion disables all landing motion');
+    assert.equal(await page.locator('.employee-app-face').count(), 4);
+    assert.equal(await page.locator('.is-flipping').count(), 0, name + ': static two-sided comparison');
+    const fontFaces = await page.evaluate(() => [...document.fonts].filter(font => font.status === 'loaded').map(font => font.family));
+    assert.ok(fontFaces.some(font => font.includes('Nanum Gothic')), name + ': actual body font loaded');
+    assert.ok(fontFaces.some(font => font.includes('Nanum Myeongjo')), name + ': actual title font loaded');
     const positions = () => page.locator('.employee-app-hero-layout, .employee-app-feature-grid, .employee-app-timeline').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; }));
     const before = await positions();
     await page.waitForTimeout(300);
@@ -263,6 +268,8 @@ try {
     assert.equal(await staticPage.locator(selector).first().isVisible(), true);
   }
   await assertLayout(staticPage, 'no-JS');
+  assert.equal(await staticPage.locator('.employee-app-face').count(), 4);
+  assert.equal(await staticPage.locator('.employee-app-motion-controls:visible').count(), 0);
   await staticPage.screenshot({ path: path.join(output, 'employee-app-no-js.png'), fullPage: true });
   await noJS.close();
   const normal = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'no-preference' });

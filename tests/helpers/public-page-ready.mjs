@@ -20,6 +20,10 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
     };
     page.on('requestfinished', request => end(request, null));
     page.on('requestfailed', request => end(request, request.failure()?.errorText));
+    page.on('response', response => {
+      const item = tracker.pending.get(response.request());
+      if (item) item.status = response.status();
+    });
     trackers.set(page, tracker);
   }
   const origin = new URL(url).origin;
@@ -53,7 +57,7 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
     assert.deepEqual(await boxes(), before, 'page layout has settled');
     // The local static bundle deliberately has no Functions server. Public feed
     // failures use the existing static fallback; CSS/JS/fonts/images may not fail.
-    const failed = tracker.events.filter(item => relevant(item) && item.failure &&
+    const failed = tracker.events.filter(item => relevant(item) && (item.failure || item.status >= 400) &&
       !new URL(item.url).pathname.startsWith('/.netlify/functions/'));
     assert.deepEqual(failed, [], 'critical visual resource requests must succeed');
     return response;
