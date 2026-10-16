@@ -221,6 +221,8 @@ begin
     'attendance_required', e.attendance_required,
     -- Non-payroll employee-card fields only.
     'updated_at', e.updated_at,
+    'can_manage_resident_number_for_employee',
+      public.private_can_manage_employee_resident_number(e.id),
     'can_edit_basic',
       is_promotion_lead and public.private_actor_can('employee.field_audit_manage')
         and e.employment_status in ('active','leave')
