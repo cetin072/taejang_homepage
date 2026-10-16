@@ -24,7 +24,7 @@ window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:key=>key
  if(name==='save_information_publication_request')return {ok:true};
  if(name==='review_information_publication_request')return {ok:true};
  if(name==='save_notice'||name==='save_lead_notice'){
-  if(name==='save_lead_notice'&&missingLeadRpc){const e=new Error('Could not find the function public.save_lead_notice in the schema cache');e.status=404;throw e;}
+  if(name==='save_lead_notice'&&(missingLeadRpc===true||(missingLeadRpc==='publish'&&args.p_status==='published'))){const e=new Error('Could not find the function public.save_lead_notice in the schema cache');e.status=404;e.code='PGRST202';throw e;}
   if(name==='save_notice'&&role==='promotion_lead'&&args.p_status!=='draft')return {ok:false,code:'OPERATIONS_REVIEW_REQUIRED'};
   if(failPublish===true&&args.p_status==='published')throw Error('publish failed');
   let row=rows.find(r=>r.id===args.p_notice_id);if(!row){row={id:'notice-'+(++serial),media:[],created_route:role};rows.push(row);}
@@ -155,16 +155,22 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  [...el('dashboard-main').querySelectorAll('button')].find(b=>b.textContent==='보완해서 다시 상신').click();await wait();check(!!el('dashboard-main').querySelector('form')&&el('dashboard-main').textContent.includes('보완 후 다시 상신'),'legacy changes_requested still editable');
  role='operations_manager';await window.TaejangIssue207Ux.openInformationHub();check([...el('dashboard-main').querySelectorAll('button')].some(b=>b.textContent==='승인·게시'),'legacy operations pending approval retained');
  role='super_admin';await start();check(!el('notice-publish').hidden,'super admin publish action');check(el('notice-kind').value==='general','each new notice resets kind');el('notice-kind').value='safety';el('notice-title-input').value='기존 안전 공지';await press('notice-save-draft');window.TaejangNoticeAdmin.setView('manage');await wait();const safetyCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='기존 안전 공지');safetyCard.querySelector('button').click();await wait();check(el('notice-kind').value==='safety','editing preserves original kind');
- role='promotion_lead';await start();await photo(1);missingLeadRpc=true;
+ role='promotion_lead';await start();el('notice-title-input').value='10월 23일 태장 임직원 환경정비활동 안내';el('notice-publish-mode').value='scheduled';el('notice-publish-mode').dispatchEvent(new Event('change'));
+ const reportedDate=new Date(Math.max(new Date('2026-10-19T00:00:00+09:00').getTime(),Date.now()+86400000));el('notice-publish-start-date').value=TaejangStaffInformationUI.kstDate(reportedDate);el('notice-publish-start-time').value='09:00';
+ await press('notice-save-draft');check(rows.at(-1).media.length===0&&rows.at(-1).status==='draft'&&rows.at(-1).publish_start_at.includes('09:00'),'reported future 09 KST no-photo draft works with migrated server');
+ el('notice-routine-confirm').checked=true;await press('notice-publish');check(rows.at(-1).status==='published'&&msg().includes('게시 예약됨'),'reported no-photo routine reservation works');
+ role='promotion_lead';await start();await photo(1);const finalMissing=location.search.includes('missing-final');missingLeadRpc=finalMissing?'publish':true;
  const beforeMissing=rows.length, beforeLegacy=calls.filter(c=>c.name==='save_notice').length;
  el('notice-routine-confirm').checked=true;await press('notice-publish');
- check(msg().includes('서버 준비')&&el('notice-title-input').value==='직원 공지'&&!el('notice-id').value&&rows.length===beforeMissing,'missing RPC explicitly blocks without claiming save or losing input');
+ check(msg().includes('서버 준비')&&el('notice-title-input').value==='직원 공지'&&(finalMissing?!!el('notice-id').value:!el('notice-id').value)&&rows.length===beforeMissing+(finalMissing?1:0),'missing RPC explicitly blocks without claiming save or losing input');
+ if(finalMissing)check(msg().includes('공지 내용은 저장됐습니다')&&!msg().includes('공개 여부는 아직 확정'),'definitive missing final RPC reports saved draft and failed publication');
  check(el('notice-publish').hidden&&calls.filter(c=>c.name==='save_notice').length===beforeLegacy,'missing RPC never falls back to privileged publish');
  check(el('notice-preview').querySelector('img')?.alt==='사진0','missing RPC preserves pending photo');
- el('notice-title-input').value='구 서버 초안';el('notice-scope').value='department';el('notice-scope').dispatchEvent(new Event('change'));el('notice-target').value='dep';
- await press('notice-save-draft');check(rows.at(-1).status==='draft'&&calls.at(-1).name!=='save_lead_notice'&&el('notice-id').value,'legacy permitted target draft remains usable');
- window.TaejangNoticeAdmin.setView('manage');await wait();const legacyDraftCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='구 서버 초안');check(legacyDraftCard,'legacy draft listed: '+el('notice-admin-list').textContent.slice(-600));legacyDraftCard.querySelector('button').click();await wait();check(!el('notice-save-draft').disabled,'legacy response without new flag keeps draft editable');
- await press('notice-submit-review');check(rows.at(-1).review_state==='submitted'&&msg().includes('검토 대기'),'legacy permitted draft can still submit to operations');
+ // Existing legacy records keep their original target; new company records never silently fall back.
+ const oldDraft={...rows.find(r=>r.id===leadFailedId),id:'legacy-draft-compat',title:'구 서버 초안',status:'draft',review_state:'none',lead_notice_mode:undefined,target_scope:'department',target_department_id:'dep',media:[]};rows.push(oldDraft);
+ await press('refresh-notice-admin');window.TaejangNoticeAdmin.setView('manage');await wait();const legacyDraftCard=[...el('notice-admin-list').children].find(card=>card.querySelector('h3')?.textContent==='구 서버 초안');check(legacyDraftCard,'legacy draft listed');legacyDraftCard.querySelector('button').click();await wait();check(!el('notice-save-draft').disabled,'legacy response without new flag keeps draft editable');
+ await press('notice-save-draft');check(oldDraft.target_scope==='department'&&oldDraft.target_department_id==='dep','legacy target remains intact');
+ await press('notice-submit-review');check(oldDraft.review_state==='submitted'&&msg().includes('검토 대기'),'legacy permitted draft can still submit to operations');
  missingLeadRpc=false;
  role='general_worker';el('notice-admin-panel').hidden=true;
  document.body.append(source.getElementById('notice-screen'),source.getElementById('open-notice-list'));

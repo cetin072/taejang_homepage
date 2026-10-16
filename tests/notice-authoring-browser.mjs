@@ -36,6 +36,12 @@ try {
     assert.equal(result, 'NOTICE_AUTHORING_UX_GATE_PASS:' + width, result + '\n' + errors.join('\n'));
     assert.deepEqual(errors, []);
     console.log(result + (preview ? ':PREVIEW' : ':LOCAL'));
+    if (width === 390) {
+      await page.goto(pathToFileURL(target).href + '?missing-final');
+      await page.waitForFunction(() => /NOTICE_AUTHORING_UX_GATE_(PASS|FAIL)/.test(document.getElementById('result').textContent), null, { timeout: 20000 });
+      assert.equal(await page.locator('#result').innerText(), 'NOTICE_AUTHORING_UX_GATE_PASS:' + width);
+      console.log('NOTICE_FINAL_RPC_MISSING_PASS:390');
+    }
     await page.goto(pathToFileURL(target).href + '?capture');
     await page.waitForFunction(() => document.getElementById('result').textContent === 'NOTICE_CAPTURE_READY');
     assert.equal(await page.evaluate(() => document.documentElement.clientWidth), width);
