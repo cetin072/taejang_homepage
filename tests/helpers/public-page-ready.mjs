@@ -29,7 +29,11 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
   const origin = new URL(url).origin;
   tracker.events = [];
   tracker.pending.clear();
-  const relevant = item => item.main && !new URL(item.url).pathname.startsWith('/.netlify/scripts/') &&
+  // Chrome can cancel a redundant favicon during a rapid same-tab navigation.
+  // Verify that asset independently below instead of treating its cancellation
+  // as a page-rendering failure.
+  const isFavicon = item => item.type === 'other' && /\/favicon\.[a-z]+$/i.test(new URL(item.url).pathname);
+  const relevant = item => item.main && !isFavicon(item) && !new URL(item.url).pathname.startsWith('/.netlify/scripts/') &&
     (new URL(item.url).origin === origin || ['font', 'stylesheet', 'image'].includes(item.type));
   try {
     const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
@@ -50,6 +54,12 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
         const box = image.getBoundingClientRect(); return box.bottom > 0 && box.top < innerHeight;
       }).every(image => image.complete && image.naturalWidth > 0), undefined, { timeout });
     assert.ok(await page.locator('main h1').isVisible(), 'actual page heading is visible');
+    const icon = await page.locator('link[rel="icon"]').first().getAttribute('href').catch(() => null);
+    if (icon) {
+      const response = await page.request.get(new URL(icon, page.url()).href, { timeout });
+      assert.equal(response.status(), 200, 'favicon asset is actually available');
+      assert.ok((await response.body()).length > 0, 'favicon asset is not empty');
+    }
     const boxes = () => page.locator('header, main, footer').evaluateAll(elements => elements.map(el => {
       const b = el.getBoundingClientRect(); return [b.x, b.y, b.width, b.height];
     }));
