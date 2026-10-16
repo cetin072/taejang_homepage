@@ -53,6 +53,7 @@
 
 - 공개 웹은 HTML/CSS/JavaScript의 정적 기본 내용을 유지한다. JavaScript 실패에도 핵심 정보·이동·연락·승인된 기본 이미지가 남아야 하며 최신 공개 데이터는 그 위에 보강한다.
 - 내부 Web은 인증·역할 확인 후 핵심 Shell·메뉴를 함께 확정한다. 별도 후처리 모듈의 메뉴 재주입이나 선택 기능의 실패가 핵심 화면을 막지 않게 한다.
+- 공통 업무 UI는 **운영총괄을 설계·검수 기준**으로 삼고 다른 직책은 동일 구현에서 권한에 맞게 축소한다. UI 공통화가 서버 권한 상속을 뜻하지 않으며 직원 접근성 화면 등 목적이 다른 예외는 유지한다. 세부 기준은 `docs/PLATFORM_CONSTITUTION.md` §4.
 - 직원앱은 기존 서버의 인증·근태·홍보·공지 계약을 재사용한다. 출퇴근·위치·권한·승인 판단을 클라이언트에 중복 구현하지 않는다. 위치·알림 권한은 최소 사용하고 background location은 별도 승인·정책 검토 없이 도입하지 않는다.
 - 실제 명령은 `package.json`, 배포 설정은 `netlify.toml`을 기준으로 확인한다. 현재 Netlify 게시 대상은 빌드 산출물 `dist`이며 저장소 루트가 아니다. Supabase는 런타임 데이터·Auth·RLS의 기준이며 개발 기획 메모 저장소가 아니다.
 - 변경 직후 diff·문법·관련 테스트부터 실행하고, 완료/중요 Gate 직전에 필요한 회귀·CI를 확인한다. 공개 웹은 `npm run test:public`, 내부 플랫폼은 `npm run test:platform-static`, 급여는 `npm run test:payroll`, staging 안전은 `npm run test:staging-safety`, 배포 산출물은 `npm run build:netlify`를 변경 범위에 맞춰 선택한다. 테스트 이름만으로 실제 DB·브라우저 검증까지 통과했다고 보지 않는다.

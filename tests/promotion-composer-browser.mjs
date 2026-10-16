@@ -76,13 +76,62 @@ try{
    await page.getByRole('button',{name:lifecycle==='draft'?'열어 수정':'보완해서 새 수정본 만들기',exact:true}).click();await page.waitForTimeout(60);
    assert.match(await live.innerText(),/기존 본문/);assert.equal(await body.inputValue(),'기존 본문');
   }
-  for(const role of ['promotion_lead','operations_manager']){
+  // Operations is the reference composer; lead and staff are restricted views.
+  // Verify runtime DOM order, live preview and controls rather than only JS markers.
+  for(const role of ['operations_manager','promotion_lead']){
    await page.evaluate(async r=>{testRole=r;await TaejangPromotionWorkspaceV2Api.openPromotion('write');document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace',{detail:{mode:'write'}}));},role);await page.waitForTimeout(300);
-   for(const kind of ['homepage_article','external_content','press_release']){await page.locator('.phase-c-composer-options select').first().selectOption(kind);assert.ok(await link.isVisible());}
+   assert.equal(await page.locator('[data-promotion-composer="v2"]').count(),1,'one composer for '+role);
+   const layout=await page.evaluate(()=>{
+    const composer=document.querySelector('.phase-c-board-composer');
+    const children=[...composer.querySelector('.phase-c-board-form').children];
+    const labelIndex=name=>children.findIndex(n=>n.tagName==='LABEL'&&n.querySelector(':scope > span')?.textContent===name);
+    const classIndex=name=>children.findIndex(n=>n.classList.contains(name));
+    return {mode:composer.dataset.composerLayout,title:labelIndex('제목'),body:labelIndex('본문'),
+     photo:classIndex('phase-c-editor-shell'),preview:classIndex('phase-c-composer-preview'),
+     options:classIndex('phase-c-composer-options'),schedule:classIndex('phase-c-schedule-field'),
+     link:classIndex('phase-c-link-tools'),actions:classIndex('quick-links')};
+   });
+   assert.equal(layout.mode,'writing-first','project operations layout for '+role);
+   const sharedOrder=[layout.title,layout.body,layout.photo,layout.preview,layout.options,layout.link,layout.actions];
+   assert.ok(sharedOrder.every((index,i)=>index>=0&&(i===0||index>sharedOrder[i-1])),'same title/body/photo/preview/options/link/actions order for '+role);
+   assert.equal(layout.schedule>=0,role==='operations_manager','operations-only reservation input');
+   if(role==='operations_manager')assert.ok(layout.options<layout.schedule&&layout.schedule<layout.link,'schedule grouped with optional settings before links');
+   const beforeWrites=await page.evaluate(()=>testCalls.filter(call=>call.name.startsWith('save_')).length);
+   await title.fill(role+' 홍보 글쓰기');await body.fill(role+' 작성 미리보기 확인\n둘째 줄');
+   assert.match(await live.innerText(),new RegExp(role+' 작성 미리보기 확인'));
+   assert.equal(await page.evaluate(()=>testCalls.filter(call=>call.name.startsWith('save_')).length),beforeWrites,'preview never writes for '+role);
+   for(const kind of ['homepage_article','external_content','press_release']){
+    await page.locator('.phase-c-composer-options select').first().selectOption(kind);
+    assert.ok(await link.isVisible(),'linked source stays available for '+role+': '+kind);
+   }
    assert.ok(await page.getByRole('button',{name:role==='promotion_lead'?'저장 후 운영총괄 승인 요청':'운영팀장 검토 요청',exact:true}).isVisible());
-   if(role==='operations_manager'){await page.locator('.phase-c-composer-options select').nth(2).selectOption('ceo');assert.ok(await page.getByRole('button',{name:'대표이사 승인 요청',exact:true}).isVisible());assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).isVisible(),false);}
+   if(role==='promotion_lead'){
+    assert.equal(await page.locator('.phase-c-schedule-field').count(),0,'lead cannot schedule operations-owned publication');
+    assert.equal(await page.locator('.phase-c-composer-options').getByText('작성 명의',{exact:true}).count(),0,'lead cannot choose operations byline');
+    assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).count(),0,'lead does not get operations publishing control');
+   }else{
+    const byline=page.locator('.phase-c-composer-options select').nth(2);
+    assert.ok(await page.locator('.phase-c-schedule-field').isVisible(),'operations schedule input available');
+    assert.ok(await page.getByRole('button',{name:'바로 공개',exact:true}).isVisible(),'operations original direct publishing action retained');
+    await byline.selectOption('ceo');
+    assert.ok(await page.getByRole('button',{name:'대표이사 승인 요청',exact:true}).isVisible(),'CEO review retained');
+    assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).isVisible(),false,'CEO gate blocks direct publishing');
+    assert.equal(await page.locator('.phase-c-schedule-field').isVisible(),false,'CEO schedule input hidden');
+    await byline.selectOption('company');
+    assert.ok(await page.locator('.phase-c-schedule-field').isVisible(),'ordinary schedule input restored');
+    await page.locator('.phase-c-schedule-field input[type=date]').fill('2026-11-02');
+    assert.ok(await page.getByRole('button',{name:'예약 공개',exact:true}).isVisible(),'original reservation action preserved');
+   }
+   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'no horizontal overflow for '+role+' at '+width);
+   await page.screenshot({path:path.join(output,`promotion-${role}-${width}.png`),fullPage:true});
   }
-  await page.evaluate(async()=>{testRole='promotion_staff';testItems=[];await TaejangPromotionWorkspaceV2Api.openPromotion('write')});await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
+  await page.evaluate(async()=>{testRole='promotion_staff';testItems=[];await TaejangPromotionWorkspaceV2Api.openPromotion('write')});
+  const staffLayout=await page.evaluate(()=>{const form=document.querySelector('.phase-c-board-form');return [...form.children].map(n=>n.classList.contains('phase-c-composer-options')?'options':n.classList.contains('phase-c-composer-preview')?'preview':n.classList.contains('phase-c-link-tools')?'link':n.classList.contains('quick-links')?'actions':n.textContent?.trim()?.slice(0,2))});
+  assert.equal(await page.locator('.phase-c-board-composer').getAttribute('data-composer-layout'),'writing-first','staff uses shared operations composer');
+  assert.equal(await page.locator('.phase-c-composer-options > label').filter({hasText:'글 종류'}).isVisible(),false,'staff cannot select operations content type');
+  assert.equal(await page.getByRole('button',{name:'바로 공개',exact:true}).count(),0,'staff cannot bypass operations publishing');
+  assert.ok(staffLayout.indexOf('preview')<staffLayout.indexOf('options')&&staffLayout.indexOf('options')<staffLayout.indexOf('link')&&staffLayout.indexOf('link')<staffLayout.indexOf('actions'),'staff follows operations authoring sequence');
+  await title.fill('환경정비활동 안내');await body.fill('함께 활동한 내용을 작성합니다.\n사진과 자료를 확인해주세요.');
   assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth+2),'viewport fits');
   await page.screenshot({path:path.join(output,`promotion-${width}.png`),fullPage:true});assert.deepEqual(errors,[]);
   console.log(`PROMOTION_COMPOSER_PASS:${width}:${preview?'PREVIEW':'LOCAL'}`);await context.close();
