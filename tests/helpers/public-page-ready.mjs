@@ -54,7 +54,7 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
         const box = image.getBoundingClientRect(); return box.bottom > 0 && box.top < innerHeight;
       }).every(image => image.complete && image.naturalWidth > 0), undefined, { timeout });
     assert.ok(await page.locator('main h1').isVisible(), 'actual page heading is visible');
-    const icon = await page.locator('link[rel="icon"]').first().getAttribute('href').catch(() => null);
+    const icon = await page.locator('link[rel="icon"]').evaluateAll(links => links[0]?.getAttribute('href'));
     if (icon) {
       const response = await page.request.get(new URL(icon, page.url()).href, { timeout });
       assert.equal(response.status(), 200, 'favicon asset is actually available');
