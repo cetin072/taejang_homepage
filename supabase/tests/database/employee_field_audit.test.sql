@@ -65,12 +65,17 @@ select ok(exists(
  select 1 from public.role_capability_grants grantrow join public.roles role on role.id=grantrow.role_id
  where role.code='promotion_lead' and grantrow.capability_code='employee.resident_number_manage'),
  'lead granted narrow RRN capability');
+-- Preserve the existing independent payroll draft-handoff workflow;
+-- the employee-card/RRN feature must not grant payroll or broad insurance rights.
 select ok(not exists(
  select 1 from public.role_capability_grants grantrow join public.roles role on role.id=grantrow.role_id
- where role.code='promotion_lead' and (grantrow.capability_code like 'payroll.%'
-   or grantrow.capability_code='employee.sensitive_identity_manage'
-   or grantrow.capability_code='employee.id_photo_manage')),
- 'lead gets no salary, broad insurance or ID-photo capability');
+ where role.code='promotion_lead' and grantrow.capability_code in
+ ('employee.sensitive_identity_manage','employee.id_photo_manage')),
+ 'new RRN permission does not grant broad insurance or ID-photo access');
+select ok(
+ position('gross_summary_amount' in pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))=0
+ and position('payroll_' in pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))=0,
+ 'lead employee management roster does not expose salary values or payroll results');
 select ok(
  position('vault.decrypted_secrets' in pg_get_functiondef('public.get_employee_resident_registration_number(uuid,text)'::regprocedure))>0
  and position('employee_resident_number_viewed' in pg_get_functiondef('public.get_employee_resident_registration_number(uuid,text)'::regprocedure))>0,
