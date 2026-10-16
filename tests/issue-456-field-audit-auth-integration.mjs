@@ -148,4 +148,74 @@ check(opsRoster.ok && opsRoster.data.employees.some(e=>e.id===foreign.id),
  'operations manager can view same company audit data');
 check(db(`select count(*)::int from public.employee_field_audits where employee_uuid='${foreign.id}'::uuid`) === '1',
  'one per-employee field audit record');
+
+// Issue #471: same management card now enumerates the company for promotion lead.
+const fullRoster=await rpc('get_employee_management_context',lead);
+check(fullRoster.ok,'promotion lead can open existing staff management API');
+const visibleStaff=fullRoster.data?.employees||[];
+check(visibleStaff.some(e=>e.id===home.id)&&visibleStaff.some(e=>e.id===foreign.id)
+      &&visibleStaff.some(e=>e.id===boss.id),
+  'single employee management view enumerates all departments');
+equal(visibleStaff.find(e=>e.id===foreign.id)?.app_install_status,'not_installed',
+  'field verification is reused inside the employee card');
+check(visibleStaff.find(e=>e.id===foreign.id)?.can_edit_basic,
+  'cross-team general worker can be corrected through guarded direct RPC');
+equal(visibleStaff.find(e=>e.id===boss.id)?.can_edit_basic,false,
+  'managerial employee is not directly editable');
+equal(fullRoster.data?.can_manage_resident_number,true,
+  'lead can manage resident IDs separately from general sensitive-insurance authority');
+equal(fullRoster.data?.can_manage_sensitive_identity,false,
+  'lead still cannot manage payroll insurance exceptions');
+check(!leadCaps.data.capabilities.some(c=>c.startsWith('payroll.')
+      || c==='employee.sensitive_identity_manage' || c==='employee.id_photo_manage'),
+ 'resident ID permission does not grant payroll, insurance or identity-photo capability');
+check(visibleStaff.every(e=>!('resident_number' in e)||e.resident_number===undefined),
+ 'full national ID is never returned with roster');
+const syntheticResident=['600102','1','234567'].join('');
+const saveResident=await rpc('set_employee_resident_registration_number',lead,{
+ p_employee_uuid:foreign.id,p_resident_number:syntheticResident
+});
+check(saveResident.ok && saveResident.data?.ok,'lead can save one existing worker resident ID');
+const refreshed=await rpc('get_employee_management_context',lead);
+check(refreshed.ok && refreshed.data.employees.find(e=>e.id===foreign.id)?.resident_number_registered,
+ 'registered state appears in the existing staff card');
+check(!JSON.stringify(refreshed.data).includes(syntheticResident),
+ 'full national ID never appears in employee-list API');
+const reveal=await rpc('get_employee_resident_registration_number',lead,{
+ p_employee_uuid:foreign.id,p_purpose:'support_program'
+});
+check(reveal.ok && reveal.data?.ok && reveal.data.resident_number===syntheticResident,
+ 'purpose-gated single worker RRN can be revealed');
+const unexpectedPurpose=await rpc('get_employee_resident_registration_number',lead,{
+ p_employee_uuid:foreign.id,p_purpose:'download_all'
+});
+check(!unexpectedPurpose.ok,'unapproved resident-number purpose rejected');
+const ordinaryView=await rpc('get_employee_resident_registration_number',unprivileged,{
+ p_employee_uuid:foreign.id,p_purpose:'employee_administration'
+});
+check(!ordinaryView.ok,'ordinary worker cannot reveal coworkers national IDs');
+const ordinarySave=await rpc('set_employee_resident_registration_number',unprivileged,{
+ p_employee_uuid:foreign.id,p_resident_number:syntheticResident
+});
+check(!ordinarySave.ok,'ordinary worker cannot edit national IDs');
+const bulkAttempt=await rpc('bulk_set_employee_resident_registration_numbers',lead,{
+ p_rows:[{employee_uuid:foreign.id,resident_number:syntheticResident}]
+});
+check(!bulkAttempt.ok,'new lead permission does not enable bulk resident-number writes');
+db(`insert into public.account_person_links(profile_id,person_id,linked_by,reason)
+ values('${ops.id}'::uuid,'${boss.person}'::uuid,'${ops.id}'::uuid,'Synthetic protected manager identity');`);
+const protectedRrn=await rpc('set_employee_resident_registration_number',lead,{
+ p_employee_uuid:boss.id,p_resident_number:syntheticResident
+});
+check(!protectedRrn.ok,'lead cannot edit resident ID for protected operations account');
+const protectedView=await rpc('get_employee_resident_registration_number',lead,{
+ p_employee_uuid:boss.id,p_purpose:'support_program'
+});
+check(!protectedView.ok,'lead cannot reveal protected account resident ID');
+equal(db(`select count(*)::int from public.audit_logs where action='employee_resident_number_viewed' and target_id='${foreign.id}'`),
+  '1','exactly one successful RRN reveal logged');
+check(!db(`select metadata::text from public.audit_logs where action='employee_resident_number_viewed' and target_id='${foreign.id}' order by created_at desc limit 1`).includes(syntheticResident),
+ 'audit metadata never stores full national ID');
+// This suite contains only synthetic identities; no hosted credentials or real staff.
+
 console.log('ISSUE_456_FIELD_AUDIT_AUTH_PASS assertions='+assertions);
