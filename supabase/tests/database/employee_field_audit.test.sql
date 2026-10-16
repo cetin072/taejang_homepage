@@ -51,5 +51,38 @@ select ok(
  position('notification_devices' in pg_get_functiondef('public.get_employee_field_audit()'::regprocedure))=0
  and position('signup_phone' in pg_get_functiondef('public.get_employee_field_audit()'::regprocedure))=0,
  'roster does not infer installation from push and does not leak phone');
+select has_function('public','get_employee_resident_registration_number',
+  array['uuid','text'],'single employee RRN explicit purpose reveal RPC exists');
+select has_function('public','private_can_manage_employee_resident_number',
+  array['uuid'],'guarded private single employee resident access');
+select ok(
+  has_function_privilege('authenticated','public.get_employee_resident_registration_number(uuid,text)','EXECUTE')
+  and not has_function_privilege('anon','public.get_employee_resident_registration_number(uuid,text)','EXECUTE'),
+ 'authenticated guarded reveal and no anonymous reveal');
+select ok(not has_function_privilege('authenticated','public.private_can_manage_employee_resident_number(uuid)','EXECUTE'),
+ 'private resident capability decision is not a public RPC');
+select ok(exists(
+ select 1 from public.role_capability_grants grantrow join public.roles role on role.id=grantrow.role_id
+ where role.code='promotion_lead' and grantrow.capability_code='employee.resident_number_manage'),
+ 'lead granted narrow RRN capability');
+select ok(not exists(
+ select 1 from public.role_capability_grants grantrow join public.roles role on role.id=grantrow.role_id
+ where role.code='promotion_lead' and (grantrow.capability_code like 'payroll.%'
+   or grantrow.capability_code='employee.sensitive_identity_manage'
+   or grantrow.capability_code='employee.id_photo_manage')),
+ 'lead gets no salary, broad insurance or ID-photo capability');
+select ok(
+ position('vault.decrypted_secrets' in pg_get_functiondef('public.get_employee_resident_registration_number(uuid,text)'::regprocedure))>0
+ and position('employee_resident_number_viewed' in pg_get_functiondef('public.get_employee_resident_registration_number(uuid,text)'::regprocedure))>0,
+ 'on-demand RRN reveal uses Vault and audit');
+select ok(
+ position('employee.field_audit_manage' in pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))>0
+ and position('updated_at' in pg_get_functiondef('public.private_get_employee_management_context_pre148()'::regprocedure))>0,
+ 'existing company roster and safe employee correction reused');
+select ok(
+ position('employee.resident_number_manage' in pg_get_functiondef('public.get_employee_management_context()'::regprocedure))>0
+ and position('decrypted_secrets' in pg_get_functiondef('public.get_employee_management_context()'::regprocedure))=0,
+ 'roster carries RRN registered flag only, never plaintext');
+
 select * from finish();
 rollback;
