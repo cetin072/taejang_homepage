@@ -75,13 +75,14 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6"/,
     'diverse environments icon is a phone, not a human silhouette');
   assert.match(page, /<text x="19\.5" y="28"[^>]*>Aa<\/text>/, 'icon shows scalable readable text');
-  assert.match(css, /\.employee-app-art-arrive \{ animation: employee-app-arrive 3\.2s/);
-  assert.match(css, /\.employee-app-art-leave \{ animation: employee-app-arrive 3\.2s[^;]+2\.15s;/);
-  assert.match(css, /\.employee-app-feature-art \{ animation: employee-app-emphasis 2\.4s/);
+  assert.match(page, /data-hero-motion/);
+  assert.match(page, /data-card-replay/);
+  assert.match(page, /AFTER · 개선 방향/);
+  assert.match(read('assets/js/employee-app-motion.js'), /const duration = 5200/);
   assert.match(read('assets/css/styles.css'), /@media \(prefers-reduced-motion:reduce\)/);
-  assert.match(css, /prefers-reduced-motion: no-preference/);
+
   assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(css, /infinite|animation-fill-mode|visibility:\s*hidden|opacity:\s*0[;\s}]/);
+  assert.doesNotMatch(css, /infinite/);
   assert.doesNotMatch(page, /<video|<canvas|<iframe/);
-  assert.equal((page.match(/<script[^>]*src=/g) || []).length, 1, 'reuse only the existing public-site script');
+  assert.deepEqual([...page.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]), ['assets/js/site.js', 'assets/js/employee-app-motion.js'], 'one isolated local motion controller, no external runtime');
 });
