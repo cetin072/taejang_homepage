@@ -78,9 +78,10 @@
   }
   function setupCard(root) {
     const inner = root.querySelector('.employee-app-flip-inner');
+    const face = root.querySelector('.employee-app-flip');
     const controls = root.querySelector('[data-card-controls]');
     const compare = controls.querySelector('[data-card-compare]');
-    let animation = null, played = false;
+    let animation = null, played = false, cardVisible = false;
     function staticView() {
       animation?.cancel(); animation = null;
       root.classList.remove('is-flipping', 'is-after');
@@ -97,23 +98,46 @@
       root.dataset.state = 'playing';
       animation = inner.animate([
         { transform: 'rotateY(0deg)', offset: 0 },
-        { transform: 'rotateY(0deg)', offset: 3200 / 4200, easing: 'cubic-bezier(.45,0,.2,1)' },
+        { transform: 'rotateY(0deg)', offset: 2000 / 3000, easing: 'cubic-bezier(.45,0,.2,1)' },
         { transform: 'rotateY(180deg)', offset: 1 }
-      ], { duration: 4200, easing: 'linear' });
+      ], { duration: 3000, easing: 'linear' });
       animation.onfinish = finish;
     }
     controls.querySelector('[data-card-replay]').addEventListener('click', play);
-    compare.addEventListener('click', staticView);
+    compare.addEventListener('click', () => { played = true; staticView(); });
+    // Trigger only when the actual card, not the earlier section heading,
+    // is substantially in view. Tall cards still work with text zoom.
     const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !played && !reduce.matches) play();
-      else if (!entries[0].isIntersecting && animation) finish();
-    }, { threshold: .45 });
+      const entry = entries[0];
+      const visibleHeight = entry.intersectionRect.height;
+      const requiredHeight = Math.min(entry.boundingClientRect.height * .6, innerHeight * .38);
+      cardVisible = entry.isIntersecting && visibleHeight >= requiredHeight;
+      if (!cardVisible || document.hidden || reduce.matches) {
+        if (animation?.playState === 'running') {
+          animation.pause();
+          root.dataset.state = 'paused';
+        }
+      } else if (animation?.playState === 'paused') {
+        animation.play();
+        root.dataset.state = 'playing';
+      } else if (!played) {
+        play();
+      }
+    }, { threshold: [0, .15, .3, .45, .6, .75, 1], rootMargin: '0px 0px -12% 0px' });
     staticView();
     // Reserve both faces' maximum height before they enter the viewport.
     if (!reduce.matches) root.classList.add('is-flipping');
-    observer.observe(root);
+    observer.observe(face);
     cleanups.push(() => { played = true; staticView(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden && animation) finish(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && animation?.playState === 'running') {
+        animation.pause();
+        root.dataset.state = 'paused';
+      } else if (!document.hidden && cardVisible && animation?.playState === 'paused' && !reduce.matches) {
+        animation.play();
+        root.dataset.state = 'playing';
+      }
+    });
   }
   try {
     setupHero();

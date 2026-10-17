@@ -29,9 +29,9 @@ export async function exerciseMotion(page, output, assertLayout) {
     assert.match(tree, /BEFORE/); assert.match(tree, /AFTER/);
     assert.equal(await card.locator('dd').count(), 3, 'both faces and principle remain in DOM');
     await page.screenshot({ path: path.join(output, id + '-before.png') });
-    await page.waitForTimeout(2900);
+    await page.waitForTimeout(1650);
     assert.equal(await card.locator('.employee-app-flip-inner').evaluate(el => getComputedStyle(el).transform), 'matrix(1, 0, 0, 1, 0, 0)', 'front has a real reading hold');
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(750);
     await assertLayout(page, id + '-turning');
     await page.screenshot({ path: path.join(output, id + '-turning.png') });
     await page.waitForFunction(id => document.querySelector('#' + id + ' [data-comparison]').dataset.state === 'ended', id);
@@ -75,4 +75,40 @@ export async function exerciseMotion(page, output, assertLayout) {
   await page.evaluate(() => { document.activeElement?.blur(); scrollTo({ top: 0, behavior: 'instant' }); });
   await page.waitForFunction(() => scrollY === 0);
   await page.screenshot({ path: path.join(output, 'employee-app-motion-finished.png'), fullPage: true });
+}
+
+
+/** A card must start only when scrolled into view; leaving must not consume its one replay. */
+export async function exerciseScrollTriggeredCards(page) {
+  const cards = page.locator('[data-comparison]');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(180);
+  for (const card of await cards.all()) {
+    assert.equal(await card.getAttribute('data-state'), 'comparison',
+      'below-the-fold card must not auto-play on initial navigation');
+  }
+
+  const card = cards.first();
+  const face = card.locator('.employee-app-flip');
+  await face.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(() => document.querySelector('[data-comparison]').dataset.state === 'playing');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForFunction(() => document.querySelector('[data-comparison]').dataset.state === 'paused');
+  const getTime = () => card.locator('.employee-app-flip-inner')
+    .evaluate(el => el.getAnimations()[0]?.currentTime);
+  const atExit = await getTime();
+  assert.ok(Number.isFinite(atExit), 'animation remains pending after leaving viewport');
+  await page.waitForTimeout(250);
+  assert.ok(Math.abs((await getTime()) - atExit) < 12,
+    'scrolling away pauses instead of skipping directly to After');
+
+  await face.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForFunction(() => document.querySelector('[data-comparison]').dataset.state === 'playing');
+  await card.locator('[data-card-compare]').click();
+  assert.equal(await card.getAttribute('data-state'), 'comparison');
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  await face.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForTimeout(180);
+  assert.equal(await card.getAttribute('data-state'), 'comparison',
+    'explicit two-sides comparison should not restart the flip on re-entry');
 }

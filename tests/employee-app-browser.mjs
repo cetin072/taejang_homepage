@@ -1,4 +1,4 @@
-import { exerciseMotion } from './helpers/employee-app-motion-checks.mjs';
+import { exerciseMotion, exerciseScrollTriggeredCards } from './helpers/employee-app-motion-checks.mjs';
 import { checkReadinessBoundary } from './helpers/public-page-ready-checks.mjs';
 import { gotoPublicReady } from './helpers/public-page-ready.mjs';
 import assert from 'node:assert/strict';
@@ -272,13 +272,14 @@ try {
   assert.equal(await staticPage.locator('.employee-app-motion-controls:visible').count(), 0);
   await staticPage.screenshot({ path: path.join(output, 'employee-app-no-js.png'), fullPage: true });
   await noJS.close();
-  const motion = { hero: 'approved V2.1 5200ms', card: '3200ms reading + 1000ms single half-turn' };
+  const motion = { hero: 'approved V2.1 5200ms', card: '2000ms reading + 1000ms single half-turn, card in-view trigger and viewport pause/resume' };
   for (const width of [1440, 390, 320]) {
   const normal = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
   const motionOutput = path.join(output, 'motion-' + width);
   await fs.mkdir(motionOutput, { recursive: true });
+  await exerciseScrollTriggeredCards(motionPage);
   await exerciseMotion(motionPage, motionOutput, assertLayout);
   // Text-only enlargement catches fixed-height clipping independently of viewport reflow.
   await motionPage.addStyleTag({ content: 'main p, main dd, main dt, main a, main h3 { font-size: 200% !important; }' });
