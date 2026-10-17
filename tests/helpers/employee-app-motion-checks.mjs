@@ -22,7 +22,13 @@ export async function exerciseMotion(page, output, assertLayout) {
     const id = await card.evaluate(el => el.closest('article').id);
     await card.scrollIntoViewIfNeeded();
     await card.locator('[data-card-replay]').focus(); await page.keyboard.press('Enter');
-    const bounds = () => card.boundingBox();
+    // getBoundingClientRect is viewport-relative. Browser focus and scroll
+    // anchoring may move the viewport by a few pixels while the page layout
+    // remains identical; compare document coordinates to catch actual shifts.
+    const bounds = () => card.evaluate(el => {
+      const b = el.getBoundingClientRect();
+      return { x: b.x + scrollX, y: b.y + scrollY, width: b.width, height: b.height };
+    });
     const before = await bounds();
     assert.equal(await card.getAttribute('data-state'), 'playing');
     const tree = await card.ariaSnapshot();
