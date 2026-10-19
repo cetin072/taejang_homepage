@@ -1,0 +1,215 @@
+// Official public-feed collector. Updates only the reviewed, static archive data.
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const TARGET = path.join(ROOT, 'assets/js/official-channel-updates.js');
+const START = '/* OFFICIAL_ITEMS_START */';
+const END = '/* OFFICIAL_ITEMS_END */';
+const BLOG = 'taejang-official';
+const FEED = 'https://rss.blog.naver.com/' + BLOG + '.xml';
+const HANDLE = 'https://www.youtube.com/@taejangofficial/videos';
+const ANCHOR = Date.parse('2026-10-22T00:10:00Z');
+const DEFAULT_IMAGE = 'images/og-taejang.png';
+
+function decode(value) {
+  return String(value || '').replace(/^<!\[CDATA\[([\s\S]*?)\]\]>$/, '$1')
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&#([0-9]+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replace(/&(amp|lt|gt|quot|apos|nbsp);/gi, (_, n) => ({
+      amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' '
+    })[n.toLowerCase()]);
+}
+function blocks(xml, tag) {
+  const expression = new RegExp('<' + tag + '\\b[^>]*>([\\s\\S]*?)</' + tag + '>', 'gi');
+  return [...xml.matchAll(expression)].map((match) => match[1]);
+}
+function field(xml, tag) { return decode(blocks(xml, tag)[0] || '').trim(); }
+function koreaDate(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime()) || date.getTime() > Date.now() + 86400000) return '';
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).format(date);
+}
+export function naverId(value) {
+  try {
+    const url = new URL(String(value || '').replace(/&amp;/g, '&'));
+    if (!['blog.naver.com', 'm.blog.naver.com'].includes(url.hostname)) return '';
+    const segments = url.pathname.split('/').filter(Boolean);
+    let id = '';
+    if (segments[0] === BLOG) id = segments[1] || '';
+    else if (segments[0] === 'PostView.naver' && url.searchParams.get('blogId') === BLOG) {
+      id = url.searchParams.get('logNo') || '';
+    }
+    return /^\d{10,14}$/.test(id) ? id : '';
+  } catch { return ''; }
+}
+export function parseNaver(xml) {
+  if (!/<rss\b/i.test(xml)) throw new Error('Naver RSS expected');
+  const entries = blocks(xml, 'item');
+  if (!entries.length) throw new Error('Naver RSS has no entries');
+  const items = new Map();
+  for (const entry of entries) {
+    const id = naverId(field(entry, 'link') || field(entry, 'guid'));
+    const title = field(entry, 'title').replace(/<[^>]*>/g, '').trim();
+    const publishedAt = koreaDate(field(entry, 'pubDate'));
+    if (!id || !title || !publishedAt || title.length > 220) continue;
+    const record = {
+      id: 'naver-blog-' + id,
+      type: 'external', source: 'naver-blog',
+      publisher: '태장 공식 블로그', category: '회사소식',
+      title, summary: '태장 공식 블로그의 「' + title.slice(0, 100) + '」 기록입니다.',
+      thumbnail: DEFAULT_IMAGE, thumbnailAlt: '태장 공식 블로그 로고',
+      publishedAt, sourcePublishedAt: publishedAt, archiveDateBasis: 'source-publication-date',
+      featured: false, status: 'published',
+      externalUrl: 'https://blog.naver.com/' + BLOG + '/' + id,
+      externalLabel: '네이버 블로그에서 보기'
+    };
+    items.set(record.id, record);
+  }
+  if (!items.size) throw new Error('No verified public Naver records');
+  return [...items.values()];
+}
+export function parseYoutube(xml, channelId) {
+  if (!/<feed\b/i.test(xml)) throw new Error('YouTube Atom expected');
+  const entries = blocks(xml, 'entry');
+  const items = new Map();
+  for (const entry of entries) {
+    const id = field(entry, 'yt:videoId');
+    const title = field(entry, 'title').replace(/<[^>]*>/g, '').trim();
+    const publishedAt = koreaDate(field(entry, 'published'));
+    if (field(entry, 'yt:channelId') !== channelId || !/^[\w-]{11}$/.test(id) ||
+        !title || title.length > 220 || !publishedAt) continue;
+    const record = {
+      id: 'youtube-' + id,
+      type: 'external', source: 'youtube',
+      publisher: '태장 공식 유튜브', category: '회사소식',
+      title, summary: '태장 공식 유튜브에 게시된 「' + title.slice(0, 100) + '」 영상입니다.',
+      thumbnail: 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg',
+      thumbnailAlt: title + ' 영상 썸네일',
+      publishedAt, featured: false, status: 'published',
+      externalUrl: 'https://www.youtube.com/watch?v=' + id,
+      externalLabel: '유튜브에서 보기'
+    };
+    items.set(record.id, record);
+  }
+  if (entries.length && !items.size) throw new Error('YouTube channel verification failed');
+  return [...items.values()];
+}
+export function channelIdFromHtml(html) {
+  const patterns = [
+    /<meta\s+itemprop=["']channelId["']\s+content=["'](UC[\w-]{22})["']/i,
+    /"externalId"\s*:\s*"(UC[\w-]{22})"/,
+    /"channelId"\s*:\s*"(UC[\w-]{22})"/
+  ];
+  for (const pattern of patterns) {
+    const result = html.match(pattern);
+    if (result) return result[1];
+  }
+  throw new Error('Official channel ID not found');
+}
+async function getText(url, limit = 2000000) {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; TaejangArchive/1.0)',
+      Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, text/html'
+    },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) throw new Error(new URL(url).hostname + ': HTTP ' + response.status);
+  if (new URL(response.url).hostname !== new URL(url).hostname) {
+    throw new Error('Unexpected cross-host redirect');
+  }
+  const text = await response.text();
+  if (text.length > limit) throw new Error('Source response too large');
+  return text;
+}
+async function youtubeFeed() {
+  const id = channelIdFromHtml(await getText(HANDLE));
+  return parseYoutube(await getText('https://www.youtube.com/feeds/videos.xml?channel_id=' + id), id);
+}
+async function existing() {
+  const text = await readFile(TARGET, 'utf8');
+  const start = text.indexOf(START);
+  const end = text.indexOf(END);
+  if (start < 0 || end <= start || text.indexOf(START, start + 1) !== -1 ||
+      text.indexOf(END, end + 1) !== -1) throw new Error('Invalid archive data markers');
+  const current = JSON.parse(text.slice(start + START.length, end).trim());
+  if (!Array.isArray(current)) throw new Error('Invalid archive data');
+  const sources = await Promise.all([
+    'assets/js/naver-blog-archive.js', 'assets/js/external-content.js', 'assets/js/content.js'
+  ].map((file) => readFile(path.join(ROOT, file), 'utf8')));
+  const known = new Set(current.map((item) => item.id));
+  for (const match of sources[0].matchAll(/\['(\d{10,14})',/g)) {
+    known.add('naver-blog-' + match[1]);
+  }
+  for (const source of sources) {
+    for (const m of source.matchAll(/naver-blog-(\d{10,14})/g)) known.add('naver-blog-' + m[1]);
+    for (const m of source.matchAll(/youtube-([\w-]{11})/g)) known.add('youtube-' + m[1]);
+  }
+  return { text, start, end, current, known };
+}
+export function isDue(value) {
+  const days = Math.floor((new Date(value).getTime() - ANCHOR) / 86400000);
+  return days >= 0 && days % 3 === 0;
+}
+export function mergeEntries(current, fetched, known) {
+  const added = [];
+  const seen = new Set();
+  for (const item of fetched) {
+    if (known.has(item.id) || seen.has(item.id)) continue;
+    if (!/^(naver-blog-\d{10,14}|youtube-[\w-]{11})$/.test(item.id)) continue;
+    if (item.status !== 'published' || !/^\d{4}-\d{2}-\d{2}$/.test(item.publishedAt)) continue;
+    seen.add(item.id);
+    added.push(item);
+  }
+  const merged = [...current, ...added].sort((a, b) =>
+    b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
+  return { merged, added };
+}
+export async function synchronize({ apply = false,
+  naver = () => getText(FEED).then(parseNaver), youtube = youtubeFeed } = {}) {
+  const data = await existing();
+  const results = await Promise.allSettled([naver(), youtube()]);
+  const errors = [];
+  const fetched = [];
+  for (let index = 0; index < results.length; index++) {
+    const result = results[index];
+    if (result.status === 'fulfilled') fetched.push(...result.value);
+    else errors.push((index ? 'youtube: ' : 'naver: ') + String(result.reason?.message || result.reason));
+  }
+  if (errors.length === 2) throw new Error('Both feeds failed: ' + errors.join('; '));
+  const { merged, added } = mergeEntries(data.current, fetched, data.known);
+  if (apply && added.length) {
+    const output = data.text.slice(0, data.start + START.length) + '\n' +
+      JSON.stringify(merged, null, 2) + '\n  ' + data.text.slice(data.end);
+    await writeFile(TARGET, output, 'utf8');
+  }
+  const report = {
+    feedOk: { naver: results[0].status === 'fulfilled', youtube: results[1].status === 'fulfilled' },
+    sourceItems: fetched.length, existingUpdates: data.current.length,
+    newItems: added.length, added: added.map((x) => ({ id: x.id, title: x.title })),
+    errors, applied: apply && added.length > 0
+  };
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    await writeFile(process.env.GITHUB_STEP_SUMMARY,
+      '\n### Official channel sync\n\n' + JSON.stringify(report, null, 2) + '\n', { flag: 'a' });
+  }
+  for (const error of errors) console.warn('::warning::' + error);
+  console.log(JSON.stringify(report, null, 2));
+  return report;
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const mode = process.argv[2] || '--check';
+  if (mode === '--due') {
+    const due = isDue(new Date());
+    if (process.env.GITHUB_OUTPUT) {
+      await writeFile(process.env.GITHUB_OUTPUT, 'due=' + String(due) + '\n', { flag: 'a' });
+    }
+    console.log(due ? 'DUE' : 'SKIP');
+  } else if (mode === '--check' || mode === '--apply') {
+    await synchronize({ apply: mode === '--apply' });
+  } else throw new Error('Expected --due, --check or --apply');
+}
