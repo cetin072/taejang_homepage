@@ -1,7 +1,6 @@
 (() => {
   'use strict';
 
-  const SESSION_KEY = 'taejang-staff-session-v1';
   const ALLOWED_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
@@ -69,11 +68,27 @@
   }
 
 
-  function session() {
-    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
-    catch { return {}; }
+  // Use the same active session as app RPCs. Production login lives in
+  // localStorage; isolated preview sessions can live in sessionStorage.
+  // Reading sessionStorage alone previously sent 'Bearer undefined' to Storage.
+  async function employeeStorageRequest(url, options) {
+    const client = app();
+    const send = () => {
+      const token = client?.getSession?.()?.access_token;
+      if (typeof token !== 'string' || !token.trim()) {
+        throw new Error('로그인 상태를 확인할 수 없습니다. 다시 로그인한 후 사진을 저장해 주세요.');
+      }
+      return fetch(url, {
+        ...options,
+        headers: { ...options.headers, Authorization: 'Bearer ' + token }
+      });
+    };
+    let response = await send();
+    if (response.status === 401 && typeof client?.refreshSession === 'function'
+      && await client.refreshSession()) response = await send();
+    return response;
   }
-
+ 
   async function config() {
     if (cachedConfig) return cachedConfig;
     const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
@@ -91,19 +106,22 @@
     const path = `${employee.id}/${photoType}/${crypto.randomUUID()}.${ext}`;
     const encoded = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
-    const auth = session();
-    const response = await fetch(`${cfg.url}/storage/v1/object/employee-private-media/${encoded}`, {
+    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/employee-private-media/${encoded}`, {
       method: 'POST',
       headers: {
         apikey: cfg.publishableKey,
-        Authorization: `Bearer ${auth.access_token}`,
         'Content-Type': file.type,
         'x-upsert': 'false'
       },
       body: file
     });
     if (!response.ok) {
+      if (response.status === 401) throw new Error('로그인이 만료됐습니다. 다시 로그인한 후 사진을 저장해 주세요.');
+      if (response.status === 403) throw new Error('이 사진을 저장할 권한이 없습니다.');
       const payload = await response.json().catch(() => null);
+      if (/Invalid Compact JWS|JWT/i.test(payload?.message || '')) {
+        throw new Error('사진 인증을 확인하지 못했습니다. 다시 로그인한 후 시도해 주세요.');
+      }
       throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
     }
     return path;
@@ -112,11 +130,10 @@
   async function signedPhotoUrl(path) {
     if (!path) return null;
     const cfg = await config();
-    const auth = session();
     const encoded = path.split('/').map(encodeURIComponent).join('/');
-    const response = await fetch(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
+    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
       method: 'POST',
-      headers: { apikey: cfg.publishableKey, Authorization: `Bearer ${auth.access_token}`, 'Content-Type': 'application/json' },
+      headers: { apikey: cfg.publishableKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ expiresIn: 600 })
     });
     if (!response.ok) return null;

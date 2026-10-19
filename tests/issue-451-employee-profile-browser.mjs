@@ -102,6 +102,8 @@ try {
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
     assert.equal(await page.locator('.employee-profile-section').count(),6);
+    const sectionColors=await page.locator('.employee-profile-section').evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
+    assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
     await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
     await page.locator('.employee-photo-grid').scrollIntoViewIfNeeded();
@@ -147,7 +149,11 @@ try {
       // Reset UI between failed phases; all state is synthetic and local.
       await setFail(''); await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement()); await open();
     }
+    // The visible app session, not stale sessionStorage, owns Storage auth.
+    // Expired JWT gets one existing app refresh and retries exactly once.
+    await page.evaluate(()=>{fixtureAccessToken='synthetic-expired';fixtureRefreshCount=0;});
     await file(); await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired Storage session refreshed once');
     assert.equal(await page.evaluate(()=>objects.size>0),true);
     assert.ok(await page.evaluate(()=>calls.findIndex(call=>call.name==='storage'&&call.method==='POST') < calls.findIndex(call=>call.name==='set_employee_photo')));
     assert.match(await page.locator('.employee-photo-grid').innerText(),/등록됨/);
