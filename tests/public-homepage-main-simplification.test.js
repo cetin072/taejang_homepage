@@ -342,7 +342,8 @@ assert.match(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter
 assert.doesNotMatch(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?overflow-x:\s*auto/);
 
 assert.match(resources, /name="robots" content="noindex,nofollow"/);
-assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업과 역량|기업 협력|href="staff\//);
+assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업과 역량|기업 협력/);
+assert.equal((resources.match(/class="staff-nav"/g) || []).length, 2, 'resources shares the authored public header without runtime insertion');
 for (const page of [privacy, terms]) {
   assert.equal((page.match(/<meta name="robots"/g) || []).length, 1);
   assert.match(page, /name="robots" content="noindex,follow"/);

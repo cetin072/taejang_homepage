@@ -9,6 +9,7 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const page = read('employee-app.html');
+const main = page.match(/<main\b[\s\S]*?<\/main>/)?.[0] || '';
 const css = read('assets/css/employee-app.css');
 
 test('landing is static, reachable, and retains shared public navigation', () => {
@@ -52,7 +53,7 @@ test('content shows working features and feedback records without unreleased cla
   }
   assert.match(page, /datetime="2026-10-14"[\s\S]*?출퇴근 버튼을 더 쉽게/);
   assert.match(page, /datetime="2026-09-22"[\s\S]*?공지사항을 더 단순하게/);
-  assert.doesNotMatch(page, /업무 플랫폼|개선 검토 중|개발·검수 중|계속 개선할 방향|정식 공개 다운로드|준비 중/, 'no small-scope platform or pending-style copy on public page');
+  assert.doesNotMatch(main, /업무 플랫폼|개선 검토 중|개발·검수 중|계속 개선할 방향|정식 공개 다운로드|준비 중/, 'app content stays distinct from the shared platform login navigation');
   assert.doesNotMatch(page, /중증장애인우선기업|WCAG (?:AA|AAA) 인증/);
   assert.doesNotMatch(page, /href="[^"]*\.apk"|href="https:\/\/play\.google\.com/);
   assert.doesNotMatch(page, /(?:주민등록번호|장애 유형|실명 공개):/);
@@ -67,7 +68,7 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(page, /<section class="section employee-app-notes" id="developer-notes"/);
   assert.match(page, /aria-labelledby="developer-notes-title"/);
   assert.match(css, /@media \(max-width: 760px\)/);
-  assert.doesNotMatch(page, /업무 플랫폼/);
+  assert.doesNotMatch(main, /업무 플랫폼/);
   assert.match(page, /실제 앱 화면과는 다릅니다/);
   assert.equal((page.match(/class="employee-app-note-flow"/g) || []).length, 2);
   assert.doesNotMatch(page, /이 기록 링크|employee-app-note-link/, 'no misleading self-link on notes');

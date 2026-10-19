@@ -1,6 +1,7 @@
 import { exerciseMotion, exerciseScrollTriggeredCards } from './helpers/employee-app-motion-checks.mjs';
 import { checkReadinessBoundary } from './helpers/public-page-ready-checks.mjs';
 import { gotoPublicReady } from './helpers/public-page-ready.mjs';
+import { exercisePublicHeaders } from './helpers/public-header-checks.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -25,7 +26,7 @@ const types = new Map([
 const server = http.createServer(async (req, res) => {
   try {
     const requested = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-    const file = path.resolve(root, '.' + (requested === '/' ? '/index.html' : requested));
+    const file = path.resolve(root, '.' + (requested.endsWith('/') ? requested + 'index.html' : requested));
     if (!file.startsWith(root + path.sep)) throw new Error('invalid path');
     res.setHeader('Content-Type', types.get(path.extname(file)) || 'application/octet-stream');
     res.end(await fs.readFile(file));
@@ -55,15 +56,14 @@ async function assertLayout(page, name) {
   assert.deepEqual(metric.clipped, [], name + ': clipped text');
   return metric;
 }
-async function assertMenuStyle(link, background, name) {
+async function assertMenuStyle(link, background, name, color = 'rgb(27, 67, 50)') {
   const style = await link.evaluate(el => {
     const s = getComputedStyle(el);
     return { color: s.color, background: s.backgroundColor, border: s.borderTopColor, width: s.borderTopWidth };
   });
-  assert.equal(style.color, 'rgb(27, 67, 50)', name + ': clear dark-green text');
+  assert.equal(style.color, color, name + ': readable brand text');
   assert.equal(style.background, background, name + ': secondary background');
-  assert.equal(style.border, 'rgb(196, 214, 199)', name + ': soft green border');
-  assert.equal(style.width, '1px', name + ': thin border');
+  assert.equal(style.width, '0px', name + ': no app button border');
 }
 let browser;
 try {
@@ -72,6 +72,7 @@ try {
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' })
   });
   await checkReadinessBoundary(browser, output);
+  await exercisePublicHeaders(browser, base, root, output);
   for (const [name, width, height] of [
     ['pc', 1440, 900], ['desktop-min', 1001, 900], ['desktop-medium', 1120, 900],
     ['tablet', 768, 1024], ['mobile', 390, 844], ['narrow', 320, 720],
@@ -100,7 +101,7 @@ try {
     }));
     assert.equal(await currentLink.getAttribute('aria-current'), 'page',
       name + ': active employee-app menu on actual route ' + JSON.stringify(routeDebug));
-    await assertMenuStyle(currentLink, 'rgb(234, 243, 238)', name + ': desktop current page');
+    await assertMenuStyle(currentLink, 'rgba(0, 0, 0, 0)', name + ': desktop current page', 'rgb(45, 106, 79)');
     const mobileOrder = await page.locator('header .mobile-nav > a').evaluateAll(els => els.map(el => ({
       label: el.textContent.trim(), href: el.getAttribute('href')
     })));
@@ -205,8 +206,10 @@ try {
         };
       });
       assert.equal(mobileStyle.background, 'rgba(0, 0, 0, 0)', name + ': app guide has no button fill');
-      assert.equal(mobileStyle.borderLeftWidth, '2px', name + ': app guide is indented with a fine divider');
-      assert.equal(mobileStyle.borderLeftColor, 'rgb(196, 214, 199)', name + ': subtle divider');
+      assert.equal(mobileStyle.borderLeftWidth, '0px', name + ': app guide has no nested-menu divider');
+      const alignment = await mobileAppLink.evaluate(el => ({ app: el.getBoundingClientRect().left, staff: el.closest('nav').querySelector('.staff-nav').getBoundingClientRect().left, padding: getComputedStyle(el).paddingLeft }));
+      assert.equal(alignment.app, alignment.staff, name + ': independent utility links align');
+      assert.equal(alignment.padding, '0px', name + ': no app indentation');
       assert.equal(mobileStyle.color, 'rgb(27, 67, 50)', name + ': app guide readable');
       assert.equal(mobileStyle.contact, 'rgb(45, 106, 79)', name + ': contact is the primary mobile CTA');
       assert.equal(await mobileAppLink.isVisible(), true);
@@ -216,14 +219,14 @@ try {
       await mobileAppLink.click();
     } else {
       assert.equal(await desktopAppLink.isVisible(), true);
-      await assertMenuStyle(desktopAppLink, 'rgb(245, 240, 232)', name + ': desktop default');
+      await assertMenuStyle(desktopAppLink, 'rgba(0, 0, 0, 0)', name + ': desktop default');
       await desktopAppLink.hover();
       await page.waitForTimeout(250);
-      await assertMenuStyle(desktopAppLink, 'rgb(234, 243, 238)', name + ': hover');
+      await assertMenuStyle(desktopAppLink, 'rgba(0, 0, 0, 0)', name + ': hover', 'rgb(45, 106, 79)');
       await page.mouse.move(0, 0);
       await desktopAppLink.focus();
       await page.waitForTimeout(250);
-      await assertMenuStyle(desktopAppLink, 'rgb(234, 243, 238)', name + ': focus');
+      await assertMenuStyle(desktopAppLink, 'rgba(0, 0, 0, 0)', name + ': focus', 'rgb(45, 106, 79)');
       assert.equal(await desktopAppLink.evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
       await desktopAppLink.click();
     }
@@ -293,7 +296,7 @@ try {
     assert.ok(isLandingRoute(cleanPage.url()), 'hosted clean URL stays on landing');
     const cleanMenu = cleanPage.locator('.desktop-nav .employee-app-nav');
     assert.equal(await cleanMenu.getAttribute('aria-current'), 'page', 'hosted clean URL current menu');
-    await assertMenuStyle(cleanMenu, 'rgb(234, 243, 238)', 'hosted clean URL');
+    await assertMenuStyle(cleanMenu, 'rgba(0, 0, 0, 0)', 'hosted clean URL', 'rgb(45, 106, 79)');
     await cleanPage.screenshot({ path: path.join(output, 'employee-app-clean-url.png') });
     await cleanPage.close();
   }
