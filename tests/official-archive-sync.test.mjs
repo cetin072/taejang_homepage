@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { parseNaver, parseYoutube, channelIdFromHtml, naverId, isDue,
+import { parseNaver, parseYoutube, channelIdFromHtml, blogImageFromHtml, naverId, isDue,
   mergeEntries, synchronize } from '../scripts/sync-official-archive.mjs';
 
 const CHANNEL = 'UC' + 'a'.repeat(22);
@@ -52,6 +52,15 @@ test('YouTube importer verifies channel identity and leaves foreign videos out',
 test('YouTube channel page ID is validated', () => {
   assert.equal(channelIdFromHtml('<meta itemprop="channelId" content="' + CHANNEL + '">'), CHANNEL);
   assert.throws(() => channelIdFromHtml('<div>no channel data</div>'));
+});
+
+test('Naver card photos require validated official HTTPS OG image origin', () => {
+  const allowed = 'https://blogthumb.pstatic.net/some-image.JPEG?type=w2';
+  assert.equal(blogImageFromHtml('<meta property="og:image" content="' + allowed + '">'), allowed);
+  assert.equal(blogImageFromHtml('<meta property="og:image" content="https://evil.example/fake.jpg">'), '');
+  assert.equal(blogImageFromHtml('<meta property="og:image" content="http://blogthumb.pstatic.net/unsafe.jpg">'), '');
+  assert.equal(blogImageFromHtml('<meta property="og:image" content="https://blogthumb.pstatic.net.evil.test/img.jpg">'), '');
+  assert.equal(blogImageFromHtml('missing image metadata'), '');
 });
 
 test('72-hour dates stay correct across month and year boundaries', () => {
