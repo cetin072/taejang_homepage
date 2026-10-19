@@ -1,3 +1,4 @@
+import { checkProductionDatabase } from '../scripts/production-release-health.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -308,4 +309,32 @@ test('stale, stalled and approval-required existing releases report without dupl
     assert.equal((await orchestrate(fixture.options)).status, status);
     assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
   }
+});
+
+test('database preflight reads only migration history over bounded authenticated API and never applies SQL', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'taejang-release-db-preflight-'));
+  const originalCwd = process.cwd();
+  try {
+    git(temp, 'init', '-b', 'main'); configure(temp);
+    writeFileSync(path.join(temp, 'README.md'), 'baseline');
+    const publishedSha = commit(temp, 'baseline');
+    mkdirSync(path.join(temp, 'supabase/migrations'), { recursive: true });
+    writeFileSync(path.join(temp, 'supabase/migrations/20261019000000_required_server.sql'), '-- test fixture');
+    const head = commit(temp, 'server dependency'); process.chdir(temp);
+    const calls = [];
+    const options = { publishedSha, head, token: 'synthetic-test-token', projectRef: 'a'.repeat(20),
+      fetcher: async (url, request) => { calls.push({ url, request }); return { ok: true, json: async () => [] }; } };
+    assert.equal((await checkProductionDatabase(options)).status, 'DB_NOT_READY');
+    assert.equal(calls.length, 1);
+    assert.equal(JSON.parse(calls[0].request.body).query, 'select version, name from supabase_migrations.schema_migrations order by version');
+    assert.equal(calls[0].request.method, 'POST');
+    assert.match(calls[0].url, /^https:\/\/api\.supabase\.com\/v1\/projects\/a{20}\/database\/query$/);
+    assert.ok(calls[0].request.signal);
+    assert.equal((await checkProductionDatabase({ ...options, token: '' })).status, 'DB_PREFLIGHT_AUTH_UNAVAILABLE');
+    assert.equal(calls.length, 1);
+    assert.equal((await checkProductionDatabase({ ...options, fetcher: async () => ({ ok: true, json: async () => [{ name: 'required_server', version: '20261019000000' }] }) })).status, 'READY');
+    await assert.rejects(checkProductionDatabase({ ...options, fetcher: async () => ({ ok: false, status: 403, text: async () => 'secret failure body' }) }), /^Error: DB_PREFLIGHT_HTTP_403$/);
+    assert.equal(git(temp, 'status', '--porcelain'), '');
+    assert.equal(git(temp, 'rev-parse', 'HEAD'), head);
+  } finally { process.chdir(originalCwd); rmSync(temp, { recursive: true, force: true }); }
 });
