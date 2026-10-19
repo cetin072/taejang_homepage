@@ -241,7 +241,7 @@
     const section = document.createElement('section');
     section.className = 'dashboard-section';
     section.append(el('h2', '기타 공개글 수정 요청'));
-    section.append(el('p', 'ChatGPT 지시로 정적 반영된 글, 블로그·유튜브·언론 연결글은 자동으로 전부 불러오지 않습니다. 공개 소식·기록에서 해당 글을 확인한 뒤 주소와 수정 내용을 적어 운영총괄에게 상신하세요.', 'help'));
+    section.append(el('p', '이 목록에 표시되지 않는 공개 글도 수정 요청할 수 있습니다. ‘공개 소식·기록’에서 해당 글의 주소를 확인한 뒤, 수정할 내용과 이유를 작성하여 운영총괄에게 요청해 주세요.', 'help'));
 
     const openArchive = document.createElement('a');
     openArchive.href = '../archive.html';

@@ -46,6 +46,7 @@
   }
 
   function field(label, control) {
+    control.setAttribute('aria-label', label);
     const wrap = document.createElement('label');
     wrap.append(el('span', label), control);
     return wrap;
@@ -175,7 +176,7 @@
     card.append(el('span', '앱 가입 요청', 'status-label'));
     card.append(el('h3', profile.display_name || '이름 없음'));
 
-    const applicant = el('dl', null, 'phase-c-signup-applicant');
+    const applicant = el('dl', null, 'phase-c-signup-applicant app-summary-list');
     [
       ['이메일', profile.work_email || '-'],
       ['전화번호', profile.phone || '-'],

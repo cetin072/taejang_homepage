@@ -74,6 +74,7 @@
 
     window.TaejangFeatureHealth = { hasFailed: () => false, showFailure() {} };
     window.TaejangIssue146 = {
+      openHomepageSlots() { homepageManagementOpened = true; },
       openPromotionArchive() { promotionArchiveManagerOpened = true; }
     };
     window.TaejangSupportRadarAccess = { canManagementView: () => false };
@@ -85,7 +86,7 @@
       getRoute: () => currentRoute,
       getContext: () => ({ display_name: '브라우저검수', roles: [{ code: currentRoute }] }),
       getEffectiveRoles: () => [currentRoute],
-      can: capability => capability === 'promotion.review_lead' || capability === 'promotion.write' || capability === 'promotion.edit_own',
+      can: capability => (capability === 'information.review' && currentRoute === 'operations_manager') || capability === 'promotion.review_lead' || capability === 'promotion.write' || capability === 'promotion.edit_own',
       hasCapabilityContract: () => true,
       friendlyError: error => error?.message || '오류',
       rpc: async (name, args = {}) => {
@@ -179,11 +180,10 @@
         await wait(320);
 
         const staffLabels = labels();
-        assert(staffLabels.includes('새 홍보글 작성'), 'Issue 207 새 홍보글 작성 메뉴 누락');
+        assert(staffLabels.includes('홍보 글 작성'), 'Issue 207 새 홍보글 작성 메뉴 누락');
         assert(staffLabels.includes('보낸 글'), 'Issue 207 보낸 글 메뉴 누락');
         assert(staffLabels.includes('보완 요청받은 글'), 'Issue 207 보완 요청받은 글 메뉴 누락');
-        assert(staffLabels.includes('공지 확인'), 'Issue 207 공지 확인 메뉴 누락');
-        assert(!staffLabels.some(label => label.includes('안내')), '공지 메뉴에 안내 용어가 남아 있음');
+        assert(!staffLabels.includes('공지·안내'), '공지 메뉴에 안내 용어가 남아 있음');
         assert(!staffLabels.includes('수정·보완 요청'), '구형 반환 메뉴명이 남아 있음');
         assert(document.querySelectorAll('[data-phase-c-v2-nav="revision"]').length === 1, '반환 글 메뉴가 중복 생성됨');
 
@@ -197,7 +197,7 @@
         assert(returnedCard, '대시보드 반환 글 카드 누락');
         assert(returnedCard.textContent.includes('1건'), '반환 글 건수 누락');
 
-        document.querySelector('[data-issue207-nav="sent"]').click();
+        document.querySelector('[data-menu-key="promotion.sent"]').click();
         await wait(30);
         assert(document.getElementById('desktop-page-title').textContent === '보낸 글', '보낸 글 화면이 작성 화면과 분리되지 않음');
         assert(document.getElementById('dashboard-main').textContent.includes('보낸 글 예시'), '보낸 글 목록을 표시하지 못함');
@@ -218,19 +218,15 @@
         assert(window.TaejangOfficialChannels.classifyUrl('https://www.youtube.com/watch?v=taejang-test') === 'taejang_youtube', '공식 유튜브 개별 영상 메타데이터 분류 실패');
 
         currentRoute = 'promotion_lead';
-        const nav = document.getElementById('app-nav');
-        nav.replaceChildren();
-        ['대시보드', '홍보 작성', '홍보 검토'].forEach(label => {
-          const node = document.createElement('button'); node.type = 'button'; node.textContent = label; nav.append(node);
-        });
-        window.TaejangIssue207Ux.ensureNavigation();
+        document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'promotion_lead',label:'운영팀장'}}));
+        await wait(80);
         const leadLabels = labels();
-        assert(leadLabels.includes('새 홍보글 작성'), '운영팀장 새 홍보글 메뉴 누락');
-        assert(leadLabels.includes('승인·검토'), '운영팀장 승인·검토 메뉴 누락');
-        assert(leadLabels.includes('기존 글 관리'), '운영팀장 기존 글 관리 메뉴 자동 복구 실패');
+        assert(leadLabels.includes('홍보 글 작성'), '운영팀장 새 홍보글 메뉴 누락');
+        assert(leadLabels.includes('홍보 검토'), '운영팀장 승인·검토 메뉴 누락');
+        assert(leadLabels.includes('공개 홍보글 관리'), '운영팀장 기존 글 관리 메뉴 자동 복구 실패');
         assert(leadLabels.includes('홈페이지 내용 관리'), '운영팀장 홈페이지 내용 관리 메뉴 자동 복구 실패');
         assert(leadLabels.includes('공지 관리'), '운영팀장 공지 관리 메뉴 누락');
-        assert(!leadLabels.some(label => label.includes('안내')), '운영팀장 메뉴에 안내 용어가 남아 있음');
+        assert(!leadLabels.includes('공지·안내'), '운영팀장 메뉴에 안내 용어가 남아 있음');
 
         await window.TaejangIssue207Ux.openSent();
         const leadSentMain = document.getElementById('dashboard-main');
@@ -238,7 +234,7 @@
         assert(leadSentMain.textContent.includes('운영팀장 본인 상신 글'), '운영팀장 본인 상신 글이 보낸 글에 표시되지 않음');
         assert(!leadSentMain.textContent.includes('팀원 검토 배정 글'), '팀원 검토 배정 글이 운영팀장 보낸 글에 섞임');
 
-        document.querySelector('[data-phase-c-v2-nav="homepage"]').click();
+        buttonByText(document.getElementById('app-nav'),'홈페이지 내용 관리').click();
         assert(homepageManagementOpened, '홈페이지 내용 관리 복구 메뉴가 기존 관리 기능을 열지 않음');
 
         await window.TaejangPublicationAdmin.openPublicationAdmin();
@@ -270,10 +266,18 @@
         assert(promotionArchiveManagerOpened, '보관함·영구삭제 화면 진입 실패');
 
 
+        currentRoute = 'promotion_lead';
         await window.TaejangIssue207Ux.openInformationHub();
         assert(document.getElementById('desktop-page-title').textContent === '공지 관리', '운영팀장 공지 관리 제목 불일치');
         assert(document.getElementById('dashboard-main').textContent.includes('새 공지 작성'), '운영팀장 공지 작성 화면 누락');
         assert(!document.getElementById('dashboard-main').textContent.includes('상시 안내'), '운영팀장 공지 화면에 안내 유형이 남아 있음');
+
+        // New notices open the unified composer. Legacy changes-requested notices
+        // still retain their edit/re-submit path and failure preservation.
+        informationRequests[0].status='changes_requested';
+        await window.TaejangIssue207Ux.openInformationHub();
+        buttonByText(document.getElementById('dashboard-main'),'보완해서 다시 상신').click();
+        await wait(40);
         const titleInput = fieldByLabel('제목');
         const bodyInput = fieldByLabel('내용');
         const reasonInput = fieldByLabel('상신 사유');
@@ -281,13 +285,14 @@
         bodyInput.value = '저장 실패 보존 본문';
         reasonInput.value = '저장 실패 보존 사유';
         failInformationSave = true;
-        buttonByText(document.getElementById('dashboard-main'), '운영총괄에게 상신').click();
+        buttonByText(document.getElementById('dashboard-main'), '보완 후 다시 상신').click();
         await wait(40);
         assert(titleInput.value === '저장 실패 보존 제목', '공지 저장 실패 후 제목이 유실됨');
         assert(bodyInput.value === '저장 실패 보존 본문', '공지 저장 실패 후 본문이 유실됨');
         assert(reasonInput.value === '저장 실패 보존 사유', '공지 저장 실패 후 상신 사유가 유실됨');
         failInformationSave = false;
 
+        informationRequests[0].status='pending';
         currentRoute = 'operations_manager';
         await window.TaejangIssue207Ux.openInformationHub();
         const opsMain = document.getElementById('dashboard-main');

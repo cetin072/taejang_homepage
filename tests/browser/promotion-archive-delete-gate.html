@@ -47,7 +47,7 @@
           publishableKey: 'sb_publishable_test'
         }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
-      if (value.includes('/storage/v1/object/promotion-media/') && options.method === 'DELETE') {
+      if (value.endsWith('/storage/v1/object/promotion-media') && options.method === 'DELETE') {
         state.storageDeleteCalls.push({ url: value, options });
         return new Response('', { status: 200 });
       }
@@ -128,7 +128,7 @@
         await wait(60);
 
         assert(state.storageDeleteCalls.length === 1, 'exclusive promotion-media object was not deleted');
-        assert(state.storageDeleteCalls[0].url.includes('/promotion-media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/2026-10-06/purge.png'), 'promotion-media delete path mismatch');
+        assert(JSON.parse(state.storageDeleteCalls[0].options.body).prefixes[0] === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/2026-10-06/purge.png', 'promotion-media delete path mismatch');
         assert(state.storageDeleteCalls[0].options.method === 'DELETE', 'promotion-media cleanup did not use DELETE');
         assert(state.storageDeleteCalls[0].options.headers.Authorization === 'Bearer test-access-token', 'promotion-media cleanup auth header missing');
         assert(state.permanentCalls.length === 1, 'permanent delete RPC not called');

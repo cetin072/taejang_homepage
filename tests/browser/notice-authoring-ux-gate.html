@@ -11,12 +11,12 @@ const source=new DOMParser().parseFromString(xhr.responseText,'text/html');
 const panel=source.getElementById('notice-admin-panel');panel.hidden=false;const shell=document.createElement('div');shell.id='desktop-app-shell';shell.append(panel);const legacyMain=document.createElement('main');legacyMain.id='dashboard-main';shell.append(legacyMain);const heading=document.createElement('h1');heading.id='desktop-page-title';shell.append(heading);document.body.append(shell);
 let role='operations_manager', failUploadAt=0, uploadCount=0, failPublish=false, failList=false, confirmAnswer=true, version=0, serial=0;
 const rows=[],calls=[],confirmations=[],removedFiles=[];
-let loseMediaResponse=false, omitSavedNotice='', missingLeadRpc=false;
+let loseMediaResponse=false, omitSavedNotice='', missingLeadRpc=false, failSchedules=false;
 window.confirm=message=>{confirmations.push(message);return confirmAnswer};
 window.prompt=()=> '검토 요청';
 window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:key=>key==='information.review'?role==='operations_manager':true,getBoardDate:()=> '2026-10-13',refreshToday:async()=>{},rpc:async(name,args={})=>{
  calls.push({name,args:structuredClone(args)});
- if(name==='list_manageable_schedules')return [];
+ if(name==='list_manageable_schedules'){if(failSchedules)throw Error('optional schedules unavailable');return [];}
  if(name==='get_my_notice_list')return rows.filter(r=>r.status==='published'&&new Date(r.publish_start_at)<=new Date()&&(!r.publish_end_at||new Date(r.publish_end_at)>new Date()));
  if(name==='get_my_notice_detail'){const r=rows.find(r=>r.id===args.p_notice_id);if(!r||r.status!=='published'||new Date(r.publish_start_at)>new Date())throw Error('not current');return structuredClone(r);}
  if(name==='list_manageable_notices'){if(failList)throw Error('list failed');if(omitSavedNotice==='200')return Array.from({length:200},(_,i)=>({id:'outside-'+i,media:[]}));if(omitSavedNotice==='inactive')return [];return structuredClone(rows.map(row=>({...row,can_lead_edit:missingLeadRpc?undefined:row.created_route==='promotion_lead'&&row.review_state!=='submitted'&&row.lead_notice_mode!=='operations'})));}
@@ -76,6 +76,10 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  el('notice-title-input').focus();el('notice-title-input').dispatchEvent(new Event('input',{bubbles:true}));await wait();check(document.activeElement===el('notice-title-input'),'preview retains keyboard focus');
  check(el('notice-title-input').labels.length===1&&el('notice-body').labels.length===1,'label associations');
  await press('notice-save-draft');check(rows.at(-1).status==='draft'&&msg().includes('초안 저장됨')&&msg().includes('직원 비공개'),'private draft and persistent result');
+ check(!el('notice-manage-section').hidden&&el('notice-admin-title').textContent==='공지 관리','saving create returns to visible management list');
+ check(el('notice-admin-list').querySelector('[data-saved-notice="1"]')?.dataset.noticeId===el('notice-id').value,'saved notice is marked by stable id');
+ const findSaved=[...el('notice-admin-message').querySelectorAll('button')].find(b=>b.textContent==='저장한 공지 목록에서 확인');check(findSaved,'saved result offers direct list confirmation');findSaved.click();check(document.activeElement.dataset.noticeId===el('notice-id').value,'saved notice link focuses exact record');
+ failSchedules=true;await press('refresh-notice-admin');check(el('notice-admin-list').querySelector('[data-saved-notice="1"]'),'optional schedule failure cannot hide notice list');failSchedules=false;
  check(!el('notice-scope')&&!el('notice-target'),'audience controls are removed');
  check(el('notice-target-summary').textContent.includes('전체 직원'),'all-staff audience visible without input');
  check(rows.at(-1).target_scope==='company'&&rows.at(-1).target_department_id===null&&rows.at(-1).target_work_group_id===null&&rows.at(-1).target_profile_id===null,'new notice has company audience and no specific targets');
@@ -167,6 +171,7 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  await start();el('notice-importance').value='important';el('notice-importance').dispatchEvent(new Event('change',{bubbles:true}));check(el('notice-publish').hidden,'important requires review');
  el('notice-importance').value='normal';el('notice-requires-ack').checked=true;el('notice-requires-ack').dispatchEvent(new Event('change',{bubbles:true}));check(el('notice-publish').hidden,'ack requires review');
  await start();el('notice-kind').value='safety';el('notice-kind').dispatchEvent(new Event('change',{bubbles:true}));await press('notice-submit-review');check(rows.at(-1).status==='draft'&&rows.at(-1).review_state==='submitted'&&msg().includes('운영총괄 검토 대기'),'sensitive company review uses existing submit');
+ check(!el('notice-manage-section').hidden&&el('notice-admin-list').querySelector('[data-saved-notice="1"]')?.dataset.noticeId===el('notice-id').value,'lead submitted notice immediately appears in common management list');
  const submittedWrites=calls.filter(c=>['save_notice','save_lead_notice','submit_notice_for_operations_review'].includes(c.name)).length;
  check(el('notice-submit-review').disabled&&el('notice-save-draft').disabled,'submitted record readonly');
  await press('notice-submit-review');el('notice-submit-review').disabled=false;await press('notice-submit-review');check(calls.filter(c=>['save_notice','save_lead_notice','submit_notice_for_operations_review'].includes(c.name)).length===submittedWrites,'duplicate submitted write blocked');

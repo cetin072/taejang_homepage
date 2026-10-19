@@ -1,3 +1,4 @@
+import { checkProductionDatabase } from '../scripts/production-release-health.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -41,13 +42,13 @@ test('policy stays at two days and one Production per day; workflow has narrowly
   assert.doesNotMatch(source, /CACHED_COMMIT_REF/);
   const workflow = readFileSync(path.join(root, '.github/workflows/production-release.yml'), 'utf8');
   assert.match(workflow, /permissions:\s+contents: read/);
-  assert.match(workflow, /permissions:\s+contents: write/);
-  assert.equal((workflow.match(/contents: write/g) || []).length, 1);
+  assert.match(workflow, /NETLIFY_PRODUCTION_BUILD_HOOK/);
+  assert.doesNotMatch(workflow, /create-github-app-token|contents: write|pull-requests: write/);
   assert.doesNotMatch(workflow, /secrets: write|\bPAT\b|pull_request_target/);
   assert.match(workflow, /group: taejang-production-release\s+cancel-in-progress: false/);
-  assert.match(workflow, /github.event_name == 'workflow_dispatch' && inputs.force/);
-  assert.match(workflow, /pull-requests: write/);
-  assert.match(workflow, /actions: write/);
+  assert.doesNotMatch(workflow, /inputs\.force|FORCE:/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /scheduled-netlify-release\.mjs check/);
   assert.doesNotMatch(workflow, /PROTECTION_BLOCKED/);
 });
 
@@ -55,19 +56,19 @@ test('public Production time uses successful published_at, including KST midnigh
   const publicRelease = publishedRelease({ published_deploy: { context: 'production', state: 'ready', commit_ref: 'd'.repeat(40), published_at: '2026-10-03T15:01:00Z' } });
   assert.equal(publicRelease.released_on_kst, '2026-10-04');
   assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-05T15:00:59Z') }).status, 'WAITING_WINDOW');
-  assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-04T05:00:00Z'), force: true, eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
+  assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-04T05:00:00Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
   assert.throws(() => publishedRelease({ published_deploy: { context: 'deploy-preview' } }), /INVALID_PUBLIC_PRODUCTION/);
 });
 
-test('release planning enforces no-change, 48-hour, KST daily and manual force conditions', () => {
+test('release planning enforces no-change, 48-hour, KST daily and rejects force bypass', () => {
   assert.equal(plan({ changedFiles: [] }).status, 'NO_CHANGES');
-  assert.equal(plan({ changedFiles: ['docs/guide.md', markerPath], force: true, eventName: 'workflow_dispatch' }).status, 'NO_CHANGES');
+  assert.equal(plan({ changedFiles: ['docs/guide.md', markerPath], eventName: 'workflow_dispatch' }).status, 'NO_CHANGES');
   assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z') }).status, 'WAITING_WINDOW');
   assert.equal(plan({ now: new Date('2026-10-05T07:07:18.979Z') }).status, 'WAITING_WINDOW');
   assert.equal(plan({ now: new Date('2026-10-05T07:07:18.980Z') }).status, 'READY');
-  assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z'), force: true, eventName: 'workflow_dispatch' }).status, 'READY');
-  assert.equal(plan({ now: new Date('2026-10-03T14:59:59Z'), force: true, eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
-  assert.throws(() => plan({ force: true, eventName: 'schedule' }), /FORCE_REQUIRES_WORKFLOW_DISPATCH/);
+  assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_WINDOW');
+  assert.equal(plan({ now: new Date('2026-10-03T14:59:59Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
+  assert.throws(() => plan({ force: true, eventName: 'schedule' }), /FORCE_RELEASE_DISABLED/);
   assert.throws(() => plan({ policy: { ...policy, production_interval_days: 1 } }), /Unexpected Production release policy/);
   // A failed attempt's checked-in source must not replace the last public source.
   const failedAttempt = { ...baseline, source_main_sha: 'c'.repeat(40), released_at_utc: '2026-10-04T07:00:00Z', released_on_kst: '2026-10-04', release_attempt: 1 };
@@ -189,19 +190,21 @@ function orchestrationFixture(overrides = {}) {
     status: 'BRANCH_CREATED', branch: 'codex/production-release-test', head, previous: baseline,
     marker: { ...baseline, source_main_sha: sha, released_at_utc: '2026-10-06T07:00:00Z', released_on_kst: '2026-10-06', release_attempt: 1 },
   };
-  const calls = [], dispatched = new Set();
+  const calls = [];
+  let created = false;
   const run = (workflow) => ({
-    id: workflow === requiredWorkflows[0][0] ? 1 : 2, event: 'workflow_dispatch',
+    id: workflow === requiredWorkflows[0][0] ? 1 : 2, event: 'pull_request', pull_requests: [{ number: 42 }],
     head_sha: head, head_branch: prepared.branch, status: 'completed', conclusion: 'success', ...overrides.run,
   });
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
     if (route.startsWith('/pulls?')) return overrides.open || [];
-    if (method === 'POST' && route === '/pulls') return { number: 42, html_url: 'https://example.invalid/pr/42' };
+    if (route.startsWith('/git/matching-refs/')) return overrides.orphan ? [{ ref: 'refs/heads/codex/production-release-orphan', object: { sha: 'orphan' } }] : [];
+    if (route === '/commits/orphan/pulls?per_page=1') return [];
+    if (method === 'POST' && route === '/pulls') { created = true; return { number: 42, html_url: 'https://example.invalid/pr/42' }; }
     if (route === '/git/ref/heads/main') return { object: { sha: overrides.main || sha } };
     for (const [workflow] of requiredWorkflows) {
-      if (route.includes('/workflows/' + workflow + '/dispatches')) { dispatched.add(workflow); return null; }
-      if (route.includes('/workflows/' + workflow + '/runs?')) return { workflow_runs: dispatched.has(workflow) ? [run(workflow)] : [] };
+      if (route.includes('/workflows/' + workflow + '/runs?')) return { workflow_runs: created || overrides.open ? [run(workflow)] : [] };
     }
     if (/^\/actions\/runs\/[12]\/jobs/.test(route)) {
       const index = Number(route.split('/')[3]) - 1;
@@ -221,7 +224,7 @@ function orchestrationFixture(overrides = {}) {
     options: {
       plan: plan(), dryRun: false, api, prepare: () => prepared,
       published: async () => overrides.published || baseline,
-      sleep: async () => {}, now: () => new Date('2026-10-06T07:00:00Z'),
+      sleep: async () => {}, preflight: async () => overrides.database || { status: 'READY' }, now: () => new Date('2026-10-06T07:00:00Z'),
     },
   };
 }
@@ -232,19 +235,19 @@ test('NO_CHANGES creates zero PRs and deployments; existing open release prevent
   assert.equal((await orchestrate({ ...fixture.options, plan: plan({ changedFiles: [] }), prepare })).status, 'NO_CHANGES');
   assert.equal(fixture.calls.length, 0);
   assert.equal(preparations, 0);
-  const duplicate = orchestrationFixture({ open: [{ head: { ref: 'codex/production-release-existing' } }] });
+  const duplicate = orchestrationFixture({ open: [{ number: 42, head: { ref: 'codex/production-release-existing', sha: 'c'.repeat(40) }, created_at: '2026-10-06T06:59:00Z' }] });
   assert.equal((await orchestrate({ ...duplicate.options, prepare })).status, 'OPEN_RELEASE_PR');
   assert.equal(preparations, 0);
   assert.equal(duplicate.calls.some(call => call.method !== 'GET'), false);
 });
-test('marker-only PR explicitly dispatches both workflows and squash merges after exact-head SUCCESS', async () => {
+test('marker-only PR waits for genuine PR workflows and squash merges after exact-head SUCCESS', async () => {
   const fixture = orchestrationFixture();
   const result = await orchestrate(fixture.options);
   assert.equal(result.status, 'MERGED');
   assert.deepEqual(result.ci_runs, [1, 2]);
   const created = fixture.calls.find(call => call.method === 'POST' && call.route === '/pulls');
   assert.deepEqual({ base: created.body.base, head: created.body.head }, { base: 'main', head: fixture.prepared.branch });
-  assert.equal(fixture.calls.filter(call => call.route.endsWith('/dispatches')).length, 2);
+  assert.equal(fixture.calls.filter(call => call.route.endsWith('/dispatches')).length, 0);
   for (const dispatch of fixture.calls.filter(call => call.route.endsWith('/dispatches'))) assert.equal(dispatch.body.ref, fixture.prepared.branch);
   assert.deepEqual(fixture.calls.find(call => call.route.endsWith('/merge')).body, { sha: fixture.prepared.head, merge_method: 'squash' });
 });
@@ -269,9 +272,123 @@ test('stale main closes release PR without merge; new public release blocks same
   assert.equal(daily.calls.some(call => call.route.endsWith('/merge')), false);
 });
 test('exact-head CI never accepts a success from a different SHA or skipped required job', () => {
-  const run = { event: 'workflow_dispatch', head_sha: 'head', status: 'completed', conclusion: 'success' };
+  const run = { event: 'pull_request', pull_requests: [{ number: 42 }], head_sha: 'head', status: 'completed', conclusion: 'success' };
   const jobs = [{ head_sha: 'head', name: 'required', status: 'completed', conclusion: 'success' }];
-  assert.equal(exactHeadSuccess(run, jobs, 'head', 'required'), true);
-  assert.equal(exactHeadSuccess(run, jobs, 'old', 'required'), false);
-  assert.equal(exactHeadSuccess(run, [{ ...jobs[0], conclusion: 'skipped' }], 'head', 'required'), false);
+  assert.equal(exactHeadSuccess(run, jobs, 'head', 'required', 42), true);
+  assert.equal(exactHeadSuccess(run, jobs, 'old', 'required', 42), false);
+  assert.equal(exactHeadSuccess(run, [{ ...jobs[0], conclusion: 'skipped' }], 'head', 'required', 42), false);
+});
+
+test('DB incompatibility stops before branch/PR creation and is rechecked immediately before merge', async () => {
+  const blocked = orchestrationFixture({ database: { status: 'DB_NOT_READY', missing: ['required.sql'] } });
+  let preparations = 0;
+  assert.equal((await orchestrate({ ...blocked.options, prepare: () => { preparations++; return blocked.prepared; } })).status, 'DB_NOT_READY');
+  assert.equal(preparations, 0);
+  assert.equal(blocked.calls.length, 0);
+  const changed = orchestrationFixture(); let checks = 0;
+  assert.equal((await orchestrate({ ...changed.options, preflight: async () => ++checks === 1 ? { status: 'READY' } : { status: 'DB_NOT_READY' } })).status, 'DB_NOT_READY');
+  assert.equal(changed.calls.some(call => call.route.endsWith('/merge')), false);
+});
+
+test('action-required and missing PR checks stop without a dispatch, retry or merge', async () => {
+  for (const run of [{ conclusion: 'action_required' }, { head_branch: 'other-branch' }]) {
+    const fixture = orchestrationFixture({ run });
+    await assert.rejects(orchestrate(fixture.options), /REQUIRED_CI_APPROVAL_REQUIRED|REQUIRED_CI_TIMEOUT/);
+    assert.equal(fixture.calls.some(call => call.route.endsWith('/dispatches') || call.route.endsWith('/merge') || call.route.endsWith('/rerun')), false);
+    assert.equal(fixture.calls.filter(call => call.method === 'POST' && call.route === '/pulls').length, 1);
+  }
+});
+
+test('stale, stalled and approval-required existing releases report without duplicate PRs or automatic recovery writes', async () => {
+  const open = [{ number: 42, html_url: 'https://example.invalid/pr/42', head: { ref: 'codex/production-release-existing', sha: 'c'.repeat(40) }, created_at: '2026-10-06T06:00:00Z' }];
+  for (const [overrides, status] of [
+    [{ open }, 'RELEASE_PR_STALLED'],
+    [{ open, run: { conclusion: 'action_required' } }, 'REQUIRED_CI_APPROVAL_REQUIRED'],
+    [{ open, marker: { ...baseline, source_main_sha: 'old-main' } }, 'STALE_RELEASE_PR'],
+    [{ open, marker: { ...baseline, source_main_sha: 'b'.repeat(40), released_on_kst: '2026-10-05' } }, 'STALE_RELEASE_PR'],
+  ]) {
+    const fixture = orchestrationFixture(overrides);
+    assert.equal((await orchestrate(fixture.options)).status, status);
+    assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
+  }
+});
+
+test('database preflight reads only migration history over bounded authenticated API and never applies SQL', async () => {
+  const temp = mkdtempSync(path.join(tmpdir(), 'taejang-release-db-preflight-'));
+  const originalCwd = process.cwd();
+  try {
+    git(temp, 'init', '-b', 'main'); configure(temp);
+    writeFileSync(path.join(temp, 'README.md'), 'baseline');
+    const publishedSha = commit(temp, 'baseline');
+    mkdirSync(path.join(temp, 'supabase/migrations'), { recursive: true });
+    writeFileSync(path.join(temp, 'supabase/migrations/20261019000000_required_server.sql'), '-- test fixture');
+    const head = commit(temp, 'server dependency'); process.chdir(temp);
+    const calls = [];
+    const options = { publishedSha, head, token: 'synthetic-test-token', projectRef: 'a'.repeat(20),
+      fetcher: async (url, request) => { calls.push({ url, request }); return { ok: true, json: async () => [] }; } };
+    assert.equal((await checkProductionDatabase(options)).status, 'DB_NOT_READY');
+    assert.equal(calls.length, 1);
+    assert.equal(JSON.parse(calls[0].request.body).query, 'select version, name from supabase_migrations.schema_migrations order by version');
+    assert.equal(JSON.parse(calls[0].request.body).read_only, true);
+    assert.equal(calls[0].request.method, 'POST');
+    assert.match(calls[0].url, /^https:\/\/api\.supabase\.com\/v1\/projects\/a{20}\/database\/query$/);
+    assert.ok(calls[0].request.signal);
+    assert.equal((await checkProductionDatabase({ ...options, token: '' })).status, 'DB_PREFLIGHT_AUTH_UNAVAILABLE');
+    assert.equal(calls.length, 1);
+    assert.equal((await checkProductionDatabase({ ...options, fetcher: async () => ({ ok: true, json: async () => [{ name: 'required_server', version: '20261019000000' }] }) })).status, 'READY');
+    await assert.rejects(checkProductionDatabase({ ...options, fetcher: async () => ({ ok: false, status: 403, text: async () => 'secret failure body' }) }), /^Error: DB_PREFLIGHT_HTTP_403$/);
+    assert.equal(git(temp, 'status', '--porcelain'), '');
+    assert.equal(git(temp, 'rev-parse', 'HEAD'), head);
+  } finally { process.chdir(originalCwd); rmSync(temp, { recursive: true, force: true }); }
+});
+
+
+test('orphan branch after failed PR creation blocks repeated branch pushes on subsequent runs', async () => {
+  const fixture = orchestrationFixture({ orphan: true });
+  let preparations = 0;
+  assert.equal((await orchestrate({ ...fixture.options, prepare: () => { preparations++; return fixture.prepared; } })).status, 'ORPHAN_RELEASE_BRANCH');
+  assert.equal(preparations, 0);
+  assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
+});
+
+
+test('branch dry-run evaluates actual origin/main and never includes unmerged Draft web changes',()=>{
+  const cwd=mkdtempSync(path.join(tmpdir(),'taejang-release-main-plan-'));
+  try {
+    git(cwd,'init','-b','main');configure(cwd);
+    mkdirSync(path.join(cwd,'app/release'),{recursive:true});
+    mkdirSync(path.join(cwd,'deployment'),{recursive:true});
+    writeFileSync(path.join(cwd,'index.html'),'published');
+    writeMarker(cwd,baseline.source_main_sha,0);
+    writeFileSync(path.join(cwd,'deployment/release-policy.json'),JSON.stringify(policy));
+    const main=commit(cwd,'published main');
+    git(cwd,'update-ref','refs/remotes/origin/main',main);
+    git(cwd,'checkout','-b','codex/draft-web-feature');
+    writeFileSync(path.join(cwd,'index.html'),'unmerged Draft change');
+    const draft=commit(cwd,'Draft only');
+    const published=path.join(cwd,'published.json');
+    writeFileSync(published,JSON.stringify({published_deploy:{context:'production',state:'ready',commit_ref:main,published_at:'2026-10-19T08:04:16.329Z'}}));
+    const actual=spawnSync(process.execPath,[path.join(root,'scripts/production-release-plan.mjs')],{cwd,encoding:'utf8',env:{...process.env,DRY_RUN:'true',GITHUB_REF:'refs/heads/codex/draft-web-feature',PUBLISHED_DEPLOY_PATH:published,GITHUB_EVENT_NAME:'workflow_dispatch',RELEASE_PLAN_PATH:'',RELEASE_SCHEDULE_PATH:'',GITHUB_OUTPUT:''}});
+    assert.equal(actual.status,0,actual.stderr);
+    const result=JSON.parse(actual.stdout);
+    assert.equal(result.source_main_sha,main);
+    assert.deepEqual(result.deploy_input_changes,[]);
+    assert.equal(git(cwd,'rev-parse','HEAD'),draft);
+    assert.equal(git(cwd,'rev-parse','origin/main'),main);
+  }finally{rmSync(cwd,{recursive:true,force:true})}
+});
+
+
+test('unrelated open PR pagination and preserved merged release branches do not permanently block automation',async()=>{
+  const fixture=orchestrationFixture();
+  const base=fixture.options.api;
+  const api=async(method,route,body)=>{
+    if(route.startsWith('/pulls?'))return route.endsWith('page=1')?Array.from({length:100},(_,i)=>({number:i,head:{ref:'codex/unrelated-'+i}})):[];
+    if(route.startsWith('/git/matching-refs/'))return Array.from({length:101},(_,i)=>({ref:'refs/heads/codex/production-release-'+i+'-1',object:{sha:'archived-'+i}}));
+    if(/^\/commits\/archived-\d+\/pulls/.test(route))return [{state:'closed',merged_at:'2026-10-01T00:00:00Z'}];
+    return base(method,route,body);
+  };
+  let prepared=0;
+  const result=await orchestrate({...fixture.options,dryRun:true,api,prepare:()=>{prepared++;return {status:'DRY_RUN_READY'}}});
+  assert.equal(result.status,'DRY_RUN_READY');assert.equal(prepared,1);
 });

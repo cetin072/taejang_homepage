@@ -12,6 +12,7 @@ export const testGroups = Object.freeze({
     'tests/pilot-management-ux.test.js',
     'tests/issue-418-signup-approval-role-code.test.js',
     'tests/issue-420-compact-admin-form-layout.test.js',
+    'tests/admin-ui-patterns.test.js',
     'tests/phase-c-workspace-v2.test.js',
     'tests/phase-c-live-publication.test.js',
     'tests/promotion-approved-delete-ux.test.js',
@@ -85,10 +86,12 @@ export const testGroups = Object.freeze({
     'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
+    'tests/scheduled-netlify-release.test.mjs',
     'tests/public-homepage-main-simplification.test.js',
     'tests/public-navigation-consolidation.test.js',
     'tests/public-external-content.test.js',
     'tests/naver-blog-archive.test.js',
+    'tests/official-archive-sync.test.mjs',
     'tests/public-static-fallback.test.js',
     'tests/public-article-seo.test.js',
     'tests/employee-app-landing.test.js',
@@ -104,6 +107,8 @@ export const testGroups = Object.freeze({
     'tests/hero-video-slider.test.js',
     'tests/netlify-publish-boundary.test.js',
     'tests/production-release-policy.test.mjs',
+    'tests/production-release-health.test.mjs',
+    'tests/production-release-schedule.test.mjs',
     'tests/visual-asset-audit.test.js'
   ]),
   stagingSafety: Object.freeze([

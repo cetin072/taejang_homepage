@@ -27,9 +27,9 @@ const browser = await playwright.chromium.launch({headless:true,...(process.env.
 const errors = [];
 const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfIoAAAAASUVORK5CYII=','base64');
 try {
-  for (const [device,width,height] of [['pc',1440,1000],['mobile',390,844]]) {
+  for (const [device,width,height] of [['pc',1440,1000],['mobile',390,844],['narrow',320,844],['tablet',768,1024]]) {
     const context = await browser.newContext({viewport:{width,height}}), page = await context.newPage();
-    page.on('pageerror',error=>errors.push(error.message));
+    page.on('pageerror',error=>{errors.push(error.message);console.error('BROWSER_ERROR',error.stack);});
     await page.route('https://fixture.invalid/**', route=>route.fulfill({contentType:'image/png',body:image}));
     const load = async()=>{
       await page.goto('http://127.0.0.1:'+server.address().port);
@@ -82,12 +82,32 @@ try {
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
+
     await open(); await fits();
+    const auditCheck=page.getByRole('checkbox',{name:'인적사항 대조 완료',exact:true});
+    await auditCheck.focus();
+    const wasChecked=await auditCheck.isChecked();
+    await page.keyboard.press('Space');
+    assert.equal(await auditCheck.isChecked(),!wasChecked,'keyboard toggles native audit checkbox');
+    await page.keyboard.press('Space');
+    const checkBox=await auditCheck.boundingBox();
+    assert.ok(checkBox.width<=24&&checkBox.height<=24,'checkbox keeps native compact dimensions');
+    const checkLabel=await auditCheck.locator('..').boundingBox();
+    assert.ok(checkLabel.height>=44,'checkbox label remains a full touch target');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>n===document.activeElement),true,'predictable audit keyboard order');
+    assert.ok(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>parseFloat(getComputedStyle(n).outlineWidth)>=2),'visible keyboard focus');
+
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
     assert.equal(await page.locator('.employee-profile-section').count(),6);
+    const sectionColors=await page.locator('.employee-profile-section').evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
+    assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
+    await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
+    await page.locator('.employee-photo-grid').scrollIntoViewIfNeeded();
+    await page.screenshot({path:path.join(output,device+'-photos-and-audit.png'),fullPage:true});
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('취소할 가상 이름');
     await fits();
@@ -129,7 +149,11 @@ try {
       // Reset UI between failed phases; all state is synthetic and local.
       await setFail(''); await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement()); await open();
     }
+    // The visible app session, not stale sessionStorage, owns Storage auth.
+    // Expired JWT gets one existing app refresh and retries exactly once.
+    await page.evaluate(()=>{fixtureAccessToken='synthetic-expired';fixtureRefreshCount=0;});
     await file(); await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired Storage session refreshed once');
     assert.equal(await page.evaluate(()=>objects.size>0),true);
     assert.ok(await page.evaluate(()=>calls.findIndex(call=>call.name==='storage'&&call.method==='POST') < calls.findIndex(call=>call.name==='set_employee_photo')));
     assert.match(await page.locator('.employee-photo-grid').innerText(),/등록됨/);
@@ -229,6 +253,16 @@ try {
     await page.evaluate(()=>{window.fixtureRoute='general_worker';document.getElementById('dashboard-main').textContent='일반 직원 기존 화면';});
     await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
     assert.equal(await page.locator('#dashboard-main').innerText(),'일반 직원 기존 화면');
+
+    // New-hire form shares the same native checkbox contract, without saving.
+    await page.evaluate(()=>{fixtureRoute='operations_manager';fixtureContext.access_level='operations_manager';});
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement('new'));
+    await page.getByRole('button',{name:'직원 등록',exact:true}).waitFor();
+    await fits();
+    const attendance=page.getByRole('checkbox',{name:'근태 대상',exact:true});
+    const attendanceBox=await attendance.boundingBox();
+    assert.ok(attendanceBox.width<=24&&attendanceBox.height<=24,'new-hire checkbox remains compact');
+    await page.screenshot({path:path.join(output,device+'-registration.png'),fullPage:true});
     await context.close();
     console.log('EMPLOYEE_PROFILE_BROWSER_PASS:'+device+':'+(preview?'PREVIEW':'LOCAL'));
   }

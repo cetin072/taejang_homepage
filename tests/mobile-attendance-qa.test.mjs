@@ -40,8 +40,8 @@ test('operations QA attendance uses the no-write RPC and never exposes exception
 test('employee attendance button copy is shared while excluded employees stay disabled', async () => {
   const card = await text('mobile/src/features/attendance/attendance-card.tsx');
 
-  assert.match(card, /title = '출근했습니다'/);
-  assert.match(card, /title = '퇴근했습니다'/);
+  assert.match(card, /title = '출근하기'/);
+  assert.match(card, /title = '퇴근하기'/);
   assert.match(card, /근태 기록 제외 대상입니다/);
   assert.match(card, /다시 검수/);
 });
