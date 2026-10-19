@@ -44,7 +44,7 @@ try {
     publish_start_at:iso(-hour),publish_end_at:iso(hour*24),published_at:iso(-hour),created_at:iso(-hour*24),updated_at:iso(-hour),
     requires_acknowledgement:false,media:[],version_no:1,created_route:'operations_manager',creator_display_name:'합성 운영총괄',...extra});
    rows.splice(0,rows.length,
-    make('pub-b','같은 시각 B'),make('pub-a','같은 시각 A'),
+    make('pub-b','같은 시각 B'),make('pub-a','같은 시각 A',{importance:'important',requires_acknowledgement:true}),
     make('scheduled','다음 주 교육 안내',{publish_start_at:iso(hour*24),publish_end_at:iso(hour*48)}),
     make('review','안전 안내 검토 대기',{status:'draft',review_state:'submitted'}),
     make('draft','행사 안내 비공개 초안',{status:'draft'}),
@@ -59,7 +59,7 @@ try {
      calls.push({name,args});if(historyFixture.failRead)throw Error('synthetic read failure');
      const row=rows.find(item=>item.id===args.p_notice_id);if(!row)throw Error('NOTICE_READ_FORBIDDEN');
      const item=structuredClone(row),editable=!row.archived_at&&(role==='operations_manager'||row.created_route===role&&row.review_state!=='submitted');
-     return {...item,...(historyFixture.staleRead?{body_easy:'stale body'}:{}),can_edit:editable,can_lead_edit:editable,can_archive:role==='operations_manager'&&!row.archived_at,can_restore:role==='operations_manager'&&!!row.archived_at};
+     return {...item,...(historyFixture.staleRead?{body_easy:'stale body'}:{}),can_edit:editable,can_lead_edit:editable,can_read_ack_summary:role==='operations_manager',can_archive:role==='operations_manager'&&!row.archived_at,can_restore:role==='operations_manager'&&!!row.archived_at};
     }
     if(name==='list_manageable_notices_page'){
      calls.push({name,args});
@@ -176,6 +176,7 @@ try {
   await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="pub-a"]').waitFor();
   await page.evaluate(()=>{role='promotion_lead';TaejangNoticeAdmin.setView('manage')});
   await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 보기 (검토·게시 이력)',exact:true}).click();
+  assert.equal(await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'확인 현황',exact:true}).count(),0,'read permission does not show forbidden acknowledgement controls');
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
   await capture('lead-readonly');

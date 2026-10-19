@@ -615,7 +615,9 @@
         }
       }
 
-      if (item.requires_acknowledgement) card.append(button('확인 현황', () => showAckSummary(item, summary)), summary);
+      const canReadAck = item.can_read_ack_summary === true || (item.can_read_ack_summary === undefined
+        && !(isPromotionLead() && item.target_scope === 'company'));
+      if (item.requires_acknowledgement && canReadAck) card.append(button('확인 현황', () => showAckSummary(item, summary)), summary);
       list.append(card);
     });
   }

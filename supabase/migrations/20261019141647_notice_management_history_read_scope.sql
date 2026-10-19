@@ -23,6 +23,8 @@ returns jsonb language sql stable security definer set search_path='' as $$
   'creator_display_name',creator.display_name,
   'submitter_display_name',submitter.display_name,
   'can_edit',n.archived_at is null and public.current_user_can_manage_notice(n.id),
+  'can_read_ack_summary',public.current_user_can_manage_today_target(
+    n.target_scope,n.target_department_id,n.target_work_group_id,n.target_profile_id),
   'can_lead_edit',n.archived_at is null and public.current_user_can_manage_notice(n.id),
   'can_lead_direct_publish',n.lead_notice_mode='routine' and n.archived_at is null
     and public.current_user_can_manage_notice(n.id)
