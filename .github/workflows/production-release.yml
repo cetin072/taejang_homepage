@@ -1,18 +1,15 @@
 name: Batched Production Release
-run-name: "Production release | ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'dry-run' || 'live' }}"
+run-name: "Production release | ${{ github.event_name == 'schedule' && 'live' || 'read-only dry-run' }}"
 
 on:
   schedule:
+    # Daily wake-up; fixed 48-hour slots are computed across month/year boundaries.
     - cron: '20 8 * * *'
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: 'Plan without creating a release branch, PR, or deployment'
-        type: boolean
-        default: true
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: taejang-production-release
@@ -20,119 +17,35 @@ concurrency:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && vars.NETLIFY_PRODUCTION_RELEASE_ENABLED == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 75
-    outputs:
-      failure_category: ${{ steps.slot.outcome == 'failure' && 'SLOT_HISTORY' || steps.plan.outcome == 'failure' && 'PLANNING' || steps.identity.outcome == 'failure' && 'APP_CONFIGURATION' || steps.app-token.outcome == 'failure' && 'APP_AUTHENTICATION' || steps.app-scope.outcome == 'failure' && 'APP_SCOPE' || steps.release.outcome == 'failure' && 'DB_CI_OR_PROTECTED_MERGE' || steps.published.outcome == 'failure' && 'PUBLICATION_NOT_CONFIRMED' || 'JOB_OR_SETUP_FAILURE' }}
-    permissions:
-      contents: read
-      actions: read
-      issues: write
-    env:
-      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Initialize temporary paths
-        run: |
-          echo "RELEASE_PLAN_PATH=$RUNNER_TEMP/production-release-plan.json" >> "$GITHUB_ENV"
-          echo "RELEASE_SCHEDULE_PATH=$RUNNER_TEMP/production-release-schedule.json" >> "$GITHUB_ENV"
-          echo "PUBLISHED_DEPLOY_PATH=$RUNNER_TEMP/published-production.json" >> "$GITHUB_ENV"
-      - name: Admit only one live check per fixed slot
-        id: slot
+      - name: Verify fixed-slot release regressions
+        run: node --test tests/scheduled-netlify-release.test.mjs
+      - name: Check approved main and request one Git build only when due
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/production-release-schedule.mjs
-      - name: Read successful public Production deployment
-        if: steps.slot.outputs.status == 'DUE' || env.DRY_RUN == 'true'
-        run: curl --fail --silent --show-error --location --max-time 30 --output "$PUBLISHED_DEPLOY_PATH" "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f"
-      - name: Plan release
-        if: steps.slot.outputs.status == 'DUE' || env.DRY_RUN == 'true'
-        id: plan
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/production-release-plan.mjs
-      - name: Require configured release identity
-        id: identity
-        if: steps.plan.outputs.status == 'READY' || (github.event_name == 'workflow_dispatch' && env.DRY_RUN == 'true')
-        env:
-          APP_ID: ${{ vars.PRODUCTION_RELEASE_APP_ID }}
-          APP_KEY: ${{ secrets.PRODUCTION_RELEASE_APP_PRIVATE_KEY }}
-        run: |
-          if [[ -z "$APP_ID" || -z "$APP_KEY" ]]; then
-            echo 'RELEASE_AUTH_NOT_CONFIGURED: configure the approved repository-scoped GitHub App' >&2
-            exit 1
-          fi
-      - uses: actions/create-github-app-token@v2
-        id: app-token
-        if: steps.plan.outputs.status == 'READY' || (github.event_name == 'workflow_dispatch' && env.DRY_RUN == 'true')
-        with:
-          app-id: ${{ vars.PRODUCTION_RELEASE_APP_ID }}
-          private-key: ${{ secrets.PRODUCTION_RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
-          permission-contents: write
-          permission-pull-requests: write
-          permission-actions: read
-      - name: Verify repository-scoped App authentication
-        id: app-scope
-        if: steps.app-token.outputs.token != ''
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: |
-          gh api installation/repositories --jq '.repositories | map(.full_name)' > "$RUNNER_TEMP/release-app-repositories.json"
-          node --input-type=module -e 'import {readFileSync} from "node:fs";const repos=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/release-app-repositories.json","utf8"));if(repos.length!==1||repos[0]!==process.env.GITHUB_REPOSITORY)throw new Error("APP_REPOSITORY_SCOPE_MISMATCH");console.log("Release App authentication and single repository scope verified")'
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows?per_page=1" --jq '.total_count' > /dev/null
-      - name: Create marker-only PR, await genuine PR CI, and squash when current
-        if: steps.plan.outputs.status == 'READY'
-        id: release
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NETLIFY_PRODUCTION_BUILD_HOOK: ${{ github.event_name == 'schedule' && secrets.NETLIFY_PRODUCTION_BUILD_HOOK || '' }}
+          RELEASE_RESULT_PATH: ${{ runner.temp }}/production-release-result.json
+          SUPABASE_ACCESS_TOKEN: ${{ github.event_name == 'schedule' && secrets.SUPABASE_ACCESS_TOKEN || '' }}
           PRODUCTION_SUPABASE_PROJECT_REF: jgsxpdflgkqroecfjzxq
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if [[ "$DRY_RUN" == "false" && "${{ steps.plan.outputs.status }}" == "READY" ]]; then
-            gh auth setup-git
-          fi
-          node scripts/production-release.mjs
-      - name: Verify publicly deployed squash commit
-        id: published
-        if: steps.release.outputs.status == 'MERGED'
-        env:
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
-        run: node scripts/production-release-health.mjs
-      - name: Record check result
-        if: success()
-        env:
-          RELEASE_RESULT: ${{ steps.published.outputs.status || steps.release.outputs.status || steps.plan.outputs.status || steps.slot.outputs.status }}
-        run: |
-          echo "Production check: $RELEASE_RESULT" >> "$GITHUB_STEP_SUMMARY"
-          node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs";const s=JSON.parse(readFileSync(process.env.RELEASE_SCHEDULE_PATH,"utf8"));appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Next fixed check: "+s.next_check_utc+"\n")'
-
-  report-failure:
-    needs: release
-    if: always() && github.ref == 'refs/heads/main' && (needs.release.result == 'failure' || needs.release.result == 'cancelled')
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - uses: actions/checkout@v4
+        run: node scripts/scheduled-netlify-release.mjs check deployment/release-policy.json
+      - name: Retain check result
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          ref: main
-          persist-credentials: false
-      - name: Update existing release incident, including job timeout
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_FAILURE_CATEGORY: ${{ needs.release.outputs.failure_category || 'JOB_CANCELLED_OR_TIMED_OUT' }}
-        run: node scripts/production-release-report.mjs
+          name: production-release-result
+          path: ${{ runner.temp }}/production-release-result.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Record failure
+        if: failure()
+        run: echo 'Release check failed. See this run. Previous published Production remains authoritative; retry at next fixed slot.' >> "$GITHUB_STEP_SUMMARY"

@@ -217,4 +217,7 @@ async function main() {
     if (result.release_sha) appendFileSync(process.env.GITHUB_OUTPUT, 'release_sha=' + result.release_sha + '\n');
   }
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+// Historical marker-PR helpers remain regression fixtures. The old CLI cannot merge main.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  throw new Error('LEGACY_RELEASE_DISABLED_USE_SCHEDULED_NETLIFY_CHECK');
+}

@@ -1,5 +1,15 @@
 # Issue #438: fixed 48-hour Production checks
 
+## 2026-10-19 통합 정상화 지시로 변경
+
+사용자가 세 프로젝트 공통으로 기존 인증을 우선하고 App 요구를 재검토하도록 지시했다.
+기존 고정 48시간 슬롯·최신 승인 main 비교·실제 공개 SHA·DB readiness는 유지한다.
+배포 마커 PR 생성/자동 main 병합/App 요구는 폐기하고, repository별 Netlify Git
+Build Hook 1개와 schedule-only Secret으로 대체한다. 일반 main 빌드를 중단하고
+build.command에서도 요청 SHA·슬롯·유효시간을 검증한다. 실패는 다음 슬롯에서 재시도한다.
+현재 운영 계약과 검증 경계는 `docs/operations/NETLIFY_48H_PRODUCTION.md`를 우선한다.
+아래 App/marker PR 설명은 변경 전 이력이며 현재 활성화 조건이 아니다.
+
 Status: confirmed 2026-10-19 by the user Goal; implementation on existing PR #481.
 This replaces the earlier daily 09:20 / moving-interval schedule and manual force
 exception. Existing architecture, GitHub App, CI, DB and Netlify gates are reused.

@@ -107,16 +107,14 @@ test('expired marker-only orphan history is preserved and cannot permanently blo
   }
 });
 
-test('workflow authenticates repository-limited App in dry-run and reports auth/job timeouts without bypass',()=>{
+test('workflow uses read-only GitHub token and a schedule-only Netlify hook without merge privileges',()=>{
   const workflow=readFileSync(new URL('../.github/workflows/production-release.yml',import.meta.url),'utf8');
   assert.match(workflow,/cron: '20 8 \* \* \*'/);
   assert.doesNotMatch(workflow,/\*\/2|inputs\.force/);
-  assert.match(workflow,/RELEASE_AUTH_NOT_CONFIGURED/);
-  assert.match(workflow,/repositories: \$\{\{ github.event.repository.name \}\}/);
-  assert.match(workflow,/if: steps.plan.outputs.status == 'READY' \|\| \(github.event_name == 'workflow_dispatch'/);
-  assert.match(workflow,/report-failure:[\s\S]*needs: release[\s\S]*needs.release.result == 'cancelled'/);
-  assert.match(workflow,/steps.published.outputs.status \|\| steps.release.outputs.status/);
-  assert.match(workflow,/if: steps.plan.outputs.status == 'READY'\r?\n\s+id: release/);
+  assert.match(workflow,/github.event_name == 'schedule' && secrets.NETLIFY_PRODUCTION_BUILD_HOOK/);
+  assert.doesNotMatch(workflow,/APP_PRIVATE_KEY|APP_ID|create-github-app-token|contents: write|pull-requests: write/);
+  assert.match(workflow,/if: always\(\)/);
+  assert.match(workflow,/if: failure\(\)/);
 });
 
 test('off-day and already checked slots stop before public Production fetch and content comparison',async()=>{
@@ -124,7 +122,6 @@ test('off-day and already checked slots stop before public Production fetch and 
   const result=await readSchedule({policy,env:{GITHUB_REPOSITORY:'example/repo',GITHUB_RUN_ID:'100',GH_TOKEN:'synthetic'},now:new Date('2026-10-20T08:20:00Z'),fetcher:async(url)=>{calls.push(url);return {ok:true,json:async()=>({...run,created_at:'2026-10-20T08:20:00Z'})}}});
   assert.equal(result.status,'WAITING_SLOT');assert.equal(calls.length,1);
   const workflow=readFileSync(new URL('../.github/workflows/production-release.yml',import.meta.url),'utf8');
-  assert.ok(workflow.indexOf('run: node scripts/production-release-schedule.mjs')<workflow.indexOf('Read successful public Production deployment'));
-  assert.match(workflow,/Read successful public Production deployment\r?\n\s+if: steps.slot.outputs.status == 'DUE' \|\| env.DRY_RUN == 'true'/);
-  assert.match(workflow,/Plan release\r?\n\s+if: steps.slot.outputs.status == 'DUE' \|\| env.DRY_RUN == 'true'/);
+  assert.match(workflow,/scheduled-netlify-release\.mjs check deployment\/release-policy.json/);
+  assert.match(workflow,/persist-credentials: false/);
 });

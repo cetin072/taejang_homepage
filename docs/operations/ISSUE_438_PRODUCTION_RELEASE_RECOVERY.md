@@ -115,3 +115,8 @@ rejected that proposed remote side effect while #480 is still a safety barrier.
 Existing stale PR reporting remains, and #480 retirement stays conditional on
 actual authenticated activation. Proven old marker-only orphan refs are only
 classified/ignored read-only, never deleted. App setup is still a human gate.
+# 2026-10-19 운영 계약 변경
+
+현재 기준은 [NETLIFY_48H_PRODUCTION.md](NETLIFY_48H_PRODUCTION.md)다.
+사용자의 세 프로젝트 통합 정상화 지시로 App 및 배포용 marker PR 경로를
+Netlify Git Build Hook으로 대체한다. 아래는 이전 장애·복구 조사 기록이다.

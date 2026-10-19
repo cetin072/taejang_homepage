@@ -42,13 +42,13 @@ test('policy stays at two days and one Production per day; workflow has narrowly
   assert.doesNotMatch(source, /CACHED_COMMIT_REF/);
   const workflow = readFileSync(path.join(root, '.github/workflows/production-release.yml'), 'utf8');
   assert.match(workflow, /permissions:\s+contents: read/);
-  assert.match(workflow, /actions\/create-github-app-token@v2/);
-  assert.equal((workflow.match(/permission-contents: write/g) || []).length, 1);
+  assert.match(workflow, /NETLIFY_PRODUCTION_BUILD_HOOK/);
+  assert.doesNotMatch(workflow, /create-github-app-token|contents: write|pull-requests: write/);
   assert.doesNotMatch(workflow, /secrets: write|\bPAT\b|pull_request_target/);
   assert.match(workflow, /group: taejang-production-release\s+cancel-in-progress: false/);
   assert.doesNotMatch(workflow, /inputs\.force|FORCE:/);
-  assert.match(workflow, /permission-pull-requests: write/);
-  assert.match(workflow, /permission-actions: read/);
+  assert.match(workflow, /actions: read/);
+  assert.match(workflow, /scheduled-netlify-release\.mjs check/);
   assert.doesNotMatch(workflow, /PROTECTION_BLOCKED/);
 });
 
