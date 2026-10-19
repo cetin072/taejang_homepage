@@ -18,7 +18,9 @@ const server=http.createServer(async(req,res)=>{
   const file=decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/,''),absolute=path.resolve(root,file);
   assert.ok(absolute.startsWith(root+path.sep));
   let body=await load(file);
-  if(file.endsWith('.html')&&preview)body=body.replaceAll('../../app/',preview+'/app/').replaceAll('../../staff/',preview+'/staff/');
+  if(file.endsWith('.html')&&preview)body=body.replaceAll('src="../../app/assets/','src="'+preview+'/app/assets/')
+    .replaceAll('href="../../app/assets/','href="'+preview+'/app/assets/')
+    .replaceAll('href="../../staff/assets/','href="'+preview+'/staff/assets/');
   res.setHeader('Content-Type',file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css':'application/javascript');res.end(body);
  }catch(error){res.statusCode=404;res.end('Missing fixture asset');}
 });
@@ -45,6 +47,7 @@ try{
   await page.locator('.employee-list-row').first().waitFor();
   await capture('employee-list');
   if(!baseline){
+   assert.equal(await page.getByLabel('정렬',{exact:true}).locator('option').count(),6);
    assert.equal(await page.locator('.employee-list-row').first().getAttribute('data-employee-id'),'fixture-2');
    assert.match(await page.locator('[data-employee-id="fixture-3"]').innerText(),/직책 미지정/);
    await page.getByLabel('정렬',{exact:true}).selectOption('employee_desc');
@@ -63,7 +66,7 @@ try{
    await page.evaluate(()=>{fixtureRoute='promotion_lead';fixtureContext.access_level='promotion_lead_global';fixtureContext.can_manage_sensitive_identity=false;TaejangEmployeeManagement.openEmployeeManagement();});
    await page.locator('[data-employee-id="fixture-2"]').click();
    assert.equal(await page.locator('.employee-sensitive-section').count(),0);
-   assert.match(await page.locator('.employee-section-photos').innerText(),/現在|현재 권한으로 등록 상태·사진 조회 불가/);
+   assert.match(await page.locator('.employee-section-photos').innerText(),/현재 권한으로 등록 상태·사진 조회 불가/);
    assert.equal(await page.locator('.employee-photo-grid img[alt*="증명사진"]').count(),0);
   }
   await page.goto(base+'/tests/browser/notice-authoring-ux-gate.html?capture');
