@@ -51,7 +51,7 @@ export function QaPreviewControls({
   onScenarioChange,
 }: QaPreviewControlsProps) {
   const personaLabel = persona === 'operations_lead' ? '운영팀장' : '일반 직원';
-  const inspectionLabel = inspection === 'preview' ? QA_DAY_LABELS[scenario] : 'GPS·서버 검수';
+  const inspectionLabel = inspection === 'preview' ? `${QA_DAY_LABELS[scenario]} · 가상(GPS 미검사)` : 'GPS·서버 검수';
 
   return (
     <View style={styles.wrap}>
@@ -64,7 +64,7 @@ export function QaPreviewControls({
       >
         <View style={styles.headerSummary}>
           <Text style={styles.headerText}>QA · {personaLabel} 시점 · {inspectionLabel}</Text>
-          <Text style={styles.headerSafety}>실제 근태에 반영되지 않습니다</Text>
+          <Text style={styles.headerSafety}>{inspection === 'preview' ? '화면 체험만 · 위치 검사 없음 · 근태 미반영' : '실제 GPS 위치 검사 · 근태 미반영'}</Text>
         </View>
         <Text style={styles.headerToggle}>{open ? '접기 ▲' : '변경 ▼'}</Text>
       </Pressable>
@@ -92,7 +92,7 @@ export function QaPreviewControls({
           ) : null}
           <Text style={styles.explanation}>
             {inspection === 'preview'
-              ? '직원 화면 체험은 실제 근태를 저장하지 않습니다. 오늘의 휴일 여부만 서버 달력을 읽고, 예시 날짜는 모의 상태입니다.'
+              ? '직원 화면 체험은 GPS 위치를 검사하지 않는 가상 시뮬레이션입니다. 실제 근태는 저장하지 않으며, 오늘의 휴일 여부만 서버 달력을 읽습니다.'
               : '실제 GPS와 서버의 검수용 경로를 확인합니다. 검수 권한이 없는 계정에서는 안전하게 차단됩니다.'}
           </Text>
           <Text style={styles.explanation}>시점 전환은 화면 구성만 변경합니다. 로그인 계정의 권한·공지 접근 범위는 그대로입니다.</Text>

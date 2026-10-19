@@ -263,6 +263,9 @@ test('weekday employee preview shares the production button and confirmation flo
   await fixture.foreground();
   assert.ok(fixture.render().includes('오늘 근무 완료'), 'same-day foreground should retain the completed simulated day');
   assert.ok(fixture.render().includes('다시 체험'));
+  assert.ok(fixture.render().includes('가상 체험 · GPS 위치 검사 안 함 · 실제 근태 저장 안 함'));
+  assert.ok(fixture.render().includes('가상 출퇴근 내역 · 실제 기록 아님'));
+  assert.equal(fixture.render().includes('기록됨'), false, 'preview must not imply real attendance');
   assert.deepEqual(mutations(fixture), []);
   assert.equal(fixture.locationRequests(), 0);
 });

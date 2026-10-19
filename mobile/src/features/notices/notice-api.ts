@@ -43,7 +43,8 @@ export type NoticeDetail = NoticeSummary & {
 };
 
 function assertArray(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
+  if (!Array.isArray(value)) throw new Error('공지 목록을 불러오지 못했습니다.');
+  return value;
 }
 
 export async function loadMyNotices(client: PlatformSupabaseClient, limit = 20): Promise<NoticeSummary[]> {

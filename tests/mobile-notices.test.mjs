@@ -15,26 +15,23 @@ test('mobile notice API reuses existing guarded Supabase RPC contracts', async (
   assert.doesNotMatch(api, /from\(['"]notices['"]\)|\/rest\/v1\/notices/i);
 });
 
-test('home notice action sends one active notice directly to detail and multiple to list', async () => {
-  const homeAction = await text('mobile/src/features/notices/notice-home-action.tsx');
-  assert.match(homeAction, /visibleItems\.length === 1/);
-  assert.match(homeAction, /router\.push\(noticeDeepLinkPath\(visibleItems\[0\]\.id\)\)/);
-  assert.match(homeAction, /router\.push\('\/notices'\)/);
-  assert.match(homeAction, /공지사항/);
+test('home notice action opens the latest unread notice and always offers history', async () => {
+  const home = await text('mobile/src/features/notices/notice-home-action.tsx');
+  assert.match(home, /noticeDeepLinkPath\(latest.id\)/);
+  assert.match(home, /전체 목록 보기/);
+  assert.match(home, /numberOfLines=\{fontScale > 1 \? undefined : 2\}/);
 });
 
-test('notice list route uses large current-notice cards and handles empty state', async () => {
+test('notice list shares the focus-aware cached loader and keeps the empty state', async () => {
   const list = await text('mobile/app/notices/index.tsx');
-  const cache = await text('mobile/src/features/notices/notice-cache.ts');
-  assert.match(list, /loadMyNotices/);
-  assert.match(list, /getCachedNotices/);
-  assert.match(list, /cacheNotices/);
-  assert.match(list, /cached\.length === 0/);
+  const loader = await text('mobile/src/features/notices/use-my-notices.ts');
+  assert.match(list, /useMyNotices/);
+  assert.match(loader, /getCachedNotices/);
+  assert.match(loader, /cacheNotices/);
+  assert.match(loader, /useFocusEffect/);
   assert.match(list, /현재 확인할 공지가 없습니다/);
   assert.match(list, /noticeDeepLinkPath/);
   assert.match(list, /minHeight:\s*118/);
-  assert.match(cache, /Map<string, NoticeCacheEntry>/);
-  assert.match(cache, /userId/);
 });
 
 test('notice detail route can acknowledge the exact current notice version', async () => {
