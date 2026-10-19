@@ -56,8 +56,7 @@
 
   function currentPageName() {
     const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
-    if (path === 'employee-app') return 'employee-app.html'; // Netlify clean URL
-    return path.endsWith('.html') ? path : 'index.html';
+    return path.endsWith('.html') ? path : path + '.html'; // Netlify clean URLs
   }
 
   function normalizedHref(link) {
@@ -65,7 +64,8 @@
       .split(/[?#]/)[0]
       .replace(/^\.\//, '')
       .replace(/^\//, '');
-    return normalized === 'employee-app' ? 'employee-app.html' : normalized;
+    if (normalized === 'staff') return 'staff/';
+    return normalized && !normalized.includes('.') && !normalized.endsWith('/') ? normalized + '.html' : normalized;
   }
 
   function isCurrentNavigationTarget(page, targetPage, href) {

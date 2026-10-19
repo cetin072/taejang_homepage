@@ -5,6 +5,10 @@ import { gotoPublicReady } from './public-page-ready.mjs';
 
 const order = ['about.html','business.html','workplace.html','archive.html','partnership.html','staff/','employee-app.html'];
 const hrefs = nav => [...nav.querySelectorAll(':scope > a')].map(a => a.getAttribute('href'));
+const canonicalHref = href => {
+  const relative = href.replace(/^\//,'');
+  return relative==='staff/' ? relative : relative.replace(/\.html$/,'')+'.html';
+};
 
 async function headerReady(page,url) {
   const response=await page.goto(url,{waitUntil:'domcontentloaded'});
@@ -55,8 +59,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       // feed. Keep the existing whole-landing readiness gate unchanged below.
       await headerReady(page,base+'/'+file);
       const first = await page.evaluate(()=>window.__headerBefore);
-      assert.deepEqual(first,[order,order],file+': first authored order on both surfaces');
-      for (const selector of ['.desktop-nav','[data-mobile-nav]']) assert.deepEqual(await page.locator(selector).evaluate(hrefs),order,file+': runtime order');
+      assert.deepEqual(first.map(links=>links.map(canonicalHref)),[order,order],file+': first authored order on both surfaces, including Netlify pretty URLs');
+      for (const selector of ['.desktop-nav','[data-mobile-nav]']) assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,file+': runtime order');
       await page.waitForTimeout(120);
       assert.deepEqual(await page.evaluate(()=>window.__headerMutations),[],file+': no runtime header insertion/removal/reorder');
       if(width===390) {
@@ -90,7 +94,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       await gotoPublicReady(page,base+'/index.html',output);
       if(width===390)await page.locator('[data-menu-button]').click();
       const selector=width===390?'[data-mobile-nav]':'.desktop-nav';
-      await page.locator(selector+' a[href="'+target+'"]').click();
+      await page.locator(selector+' > a').nth(order.indexOf(target)).click();
       await page.waitForURL(url=>url.pathname===('/'+target)||url.pathname===('/'+target.replace(/\.html$/,''))||target==='staff/'&&/\/staff\/?$/.test(url.pathname));
       assert.equal((await page.request.get(page.url())).status(),200,target+': destination HTTP200');
     }
@@ -112,7 +116,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
   for(const width of[1440,390]){
     const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
     const page=await context.newPage();await page.goto(base+'/index.html');
-    for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual(await page.locator(selector).evaluate(hrefs),order,'no-JS authored order');
+    for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,'no-JS authored order including pretty URLs');
     assert.ok(await page.locator(width===390?'[data-mobile-nav]':'.desktop-nav').isVisible(),'no-JS navigation remains visible');
     await context.close();
   }

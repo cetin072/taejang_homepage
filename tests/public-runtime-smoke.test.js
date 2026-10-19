@@ -321,6 +321,7 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
   assert.equal(mobileOrder.at(-1), mobileOrder[mobileGuide], 'mobile app guide is the final menu link');
   assert.equal(mobileOrder.filter(href => href === 'staff/').length, 1);
   assert.equal(mobileOrder.filter(href => /employee-app(?:\.html)?$/.test(href)).length, 1);
+  if (pathname === '/about') assert.equal(desktop.querySelectorAll(':scope > a')[0].getAttribute('aria-current'),'page','public pretty URL retains its current-page annotation');
 }
 
 function runHeroRuntime() {
@@ -441,6 +442,7 @@ runSiteRuntime();
 runSiteRuntime('/employee-app');
 runSiteRuntime('/employee-app', true);
 runSiteRuntime('/index.html', false, false);
+runSiteRuntime('/about', true);
 runHeroRuntime();
 runCommunityFallbackRuntime();
 assertInquiryFormContract();
