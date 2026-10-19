@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -274,11 +275,14 @@ equal(exactAfter.data?.publish_start_at,exactBefore.data.publish_start_at,'exact
 equal(exactAfter.data?.media?.[0]?.alt_text,'Corrected photo','photo readback');
 const employeeAfter=await rpc('get_my_notice_detail',recipient.token,{p_notice_id:historyId});
 check(employeeAfter.ok&&employeeAfter.data.body_easy==='Corrected published body'&&employeeAfter.data.version_no===exactAfter.data.version_no,'employee app sees corrected same-ID version');
-const fixtureServiceKey=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SERVICE_ROLE_KEY;
-check(Boolean(fixtureServiceKey),'isolated notification audit requires local service credential');
-const versionEvents=await request('/rest/v1/notification_events?select=notice_version&notice_id=eq.'+historyId,{token:fixtureServiceKey});
-check(versionEvents.ok&&versionEvents.data.some(event=>event.notice_version===exactAfter.data.version_no),'corrected published version has a notification event');
-equal(versionEvents.data.filter(event=>event.notice_version===exactAfter.data.version_no).length,1,'one event per corrected version, no duplicate event');
+// The outbox is intentionally not exposed by Data API. Inspect only this local
+// synthetic notice via the same Docker/psql boundary as the push regression.
+check(/^[0-9a-f-]{36}$/i.test(historyId)&&Number.isInteger(exactAfter.data.version_no),'safe isolated event identifiers');
+const fixtureContainer=execFileSync('docker',['ps','--filter','name=supabase_db_taejang-homepage-phase1a','--format','{{.ID}}'],{encoding:'utf8'}).trim();
+check(Boolean(fixtureContainer),'isolated outbox container exists');
+const versionEventCount=execFileSync('docker',['exec',fixtureContainer,'psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-tA','-c',
+ `select count(*) from public.notification_events where notice_id='${historyId}'::uuid and notice_version=${exactAfter.data.version_no}`],{encoding:'utf8'}).trim();
+equal(versionEventCount,'1','corrected published version has exactly one notification event');
 const historyAudit=await rpc('get_target_audit_trail',operations.token,{p_target_type:'notice',p_target_id:historyId,p_limit:100});
 check(historyAudit.ok&&historyAudit.data.some(row=>row.action==='notice_updated'||row.action==='notice_published'),'same-ID correction audit retained');
 const leadRead=await rpc('get_manageable_notice',promotion.token,{p_notice_id:historyId});

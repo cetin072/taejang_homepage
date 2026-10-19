@@ -512,7 +512,7 @@
 }
 /* Notice management uses one list owner across roles and archive views. */
 .notice-list-filters { display:flex; flex-wrap:wrap; gap:.65rem; align-items:end; margin-block:1rem; }
-.notice-list-filters label { display:grid; gap:.3rem; flex:1 1 135px; min-width:0; }
+.notice-list-filters label { display:grid; gap:.3rem; flex:1 1 135px; min-width:0; margin:0; }
 .notice-list-filters label:first-child { flex:2 1 220px; }
 .notice-list-filters input,.notice-list-filters select { width:100%; min-width:0; }
 .notice-list-group { margin:1.2rem 0 .2rem; padding-bottom:.4rem; border-bottom:1px solid #d8dee5; }

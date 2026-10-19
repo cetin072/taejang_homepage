@@ -27,6 +27,7 @@
   let legacyList = false;
   let createResponseUncertain = false;
   let pendingWrite = null;
+  let pendingPublication = null;
   let publishEndAuto = false;
   // Default every new notice to the company, preserving legacy targeted edits.
   let existingAudience = null;
@@ -236,6 +237,8 @@
       storage_path: item.storage_path,
       mime_type: item.mime_type,
       alt_text: item.alt_text || '공지 사진',
+      saved_alt_text: item.alt_text || '공지 사진',
+      saved_display_order: item.display_order,
       signed_url: null,
     };
   }
@@ -485,6 +488,7 @@
     const previousView = activeView;
     activeView = ['create','archive'].includes(view) ? view : 'manage';
     if (previousView !== activeView) ui.element('notice-list-filters').reset();
+    if (previousView !== activeView && !pendingWrite && !publicationUncertain && !createResponseUncertain) showMessage('');
     renderViewChrome();
 
     if (activeView === 'create') {
@@ -570,19 +574,21 @@
       }
       const summary = ui.text('p', '', 'help');
       const review = reviewLabel(item);
+      const stateLabel = { active:'게시 중',scheduled:'예약 게시',review:'운영총괄 검토 대기',draft:'비공개 초안',expired:'게시기간 종료',cancelled:'취소',inactive:'사용 중지',archived:'보관' }[state];
       card.append(
-        ui.text('p', `${ui.IMPORTANCE[item.importance]} · ${exposureLabel(item)} · v${item.version_no}`, 'card-kicker'),
+        ui.text('p', `${stateLabel} · ${ui.IMPORTANCE[item.importance]} · v${item.version_no}`, 'card-kicker'),
         ui.text('h3', ''),
-        ui.text('p', `게시일: ${ui.formatDateTime(item.published_at || item.publish_start_at)} · 시작: ${ui.formatDateTime(item.publish_start_at)} · 종료: ${item.publish_end_at ? ui.formatDateTime(item.publish_end_at) : '종료 없음'} (KST)`, 'help')
+        ui.text('p', `게시: ${ui.formatDateTime(item.published_at || item.publish_start_at)} · 종료: ${item.publish_end_at ? ui.formatDateTime(item.publish_end_at) : '종료 없음'} (KST)`, 'help')
       );
+      if (state === 'scheduled') card.append(ui.text('p', `공개 예정: ${ui.formatDateTime(item.publish_start_at)} (KST)`, 'help'));
       const title = document.createElement('a');
       title.href = '#notice-editor-card'; title.textContent = item.title;
       title.addEventListener('click', event => { event.preventDefault(); void openItem(item, { readOnly: true }); });
       card.querySelector('h3').append(title);
       if (item.archived_at) card.append(ui.text('p', `보관: ${ui.formatDateTime(item.archived_at)} (KST) · ${item.archive_reason || ''}`, 'help'));
-      if (item.lead_notice_mode) card.append(ui.text('p', item.lead_notice_mode === 'routine' ? '운영팀장 직접 게시 경로' : '운영총괄 검토·처리 경로', 'help'));
+      const sourceLabel = item.lead_notice_mode === 'routine' ? ' · 운영팀장 직접 게시 경로' : item.lead_notice_mode ? ' · 운영총괄 검토·처리 경로' : '';
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
-      if (item.creator_display_name) card.append(ui.text('p', `작성: ${item.creator_display_name}`, 'help'));
+      card.append(ui.text('p', `작성: ${item.creator_display_name || '작성자 기록 없음'}${sourceLabel}`, 'help'));
 
       const editable = !item.archived_at && item.can_edit !== false && (isOperations() || canEditLeadItem(item));
       const editLabel = !editable ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
@@ -623,6 +629,7 @@
     savedPublishStart = null;
     savedPublishEnd = null;
     publicationUncertain = false;
+    pendingPublication = null;
     setDateTime('notice-publish-start', new Date());
     ui.element('notice-publish-mode').value = 'now';
     publishEndAuto = true;
@@ -648,6 +655,7 @@
     savedPublishStart = item.publish_start_at;
     savedPublishEnd = item.publish_end_at;
     publicationUncertain = false;
+    pendingPublication = null;
     publishEndAuto = false; // Existing notices retain their stored expiry.
     ui.element('notice-publish-mode').value = 'scheduled';
     clearMediaState();
@@ -776,12 +784,15 @@
       const item = mediaItems[index];
       if (!String(item.alt_text || '').trim()) throw new Error('NOTICE_MEDIA_ALT_REQUIRED');
       if (item.kind === 'existing') {
+        if (item.saved_alt_text === item.alt_text.trim() && item.saved_display_order === index) continue;
         const result = await app.rpc('update_notice_media', {
           p_media_id: item.id,
           p_alt_text: item.alt_text.trim(),
           p_display_order: index,
         });
         if (!result?.ok) throw new Error(result?.code || 'NOTICE_MEDIA_UPDATE_FAILED');
+        item.saved_alt_text = item.alt_text.trim();
+        item.saved_display_order = index;
       } else {
         // Keep successful registrations as existing media before the next upload.
         const uploaded = item.uploaded || await api.upload(noticeId, item.file);
@@ -813,7 +824,7 @@
           throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
         }
         URL.revokeObjectURL(item.signed_url);
-        Object.assign(item, existingMedia({ ...uploaded, id: result.id, alt_text: item.alt_text }));
+        Object.assign(item, existingMedia({ ...uploaded, id: result.id, alt_text: item.alt_text, display_order: index }));
         delete item.file;
         delete item.uploaded;
       }
@@ -849,14 +860,18 @@
       if (pendingWrite) {
         const current = await readNotice(pendingWrite.id);
         if (!matchesSaved(current, pendingWrite.payload)) throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
-        reconciledWrite = { ok: true, id: current.id, version_no: current.version_no, lead_notice_mode: current.lead_notice_mode };
+        reconciledWrite = current;
         pendingWrite = null;
       }
       if (publicationUncertain) {
         const current = await readNotice(ui.element('notice-id').value);
         if (!current) throw new Error('PUBLISH_RESULT_UNKNOWN');
+        if (current.status === 'published' && pendingPublication && matchesSaved(current, pendingPublication)) reconciledWrite = current;
         savedStatus = previousStatus = current.status;
+        savedPublishStart = current.publish_start_at;
+        savedPublishEnd = current.publish_end_at;
         publicationUncertain = false;
+        pendingPublication = null;
       }
       const target = audiencePayload();
       const linkUrl = ui.element('notice-link-url').value.trim();
@@ -922,7 +937,9 @@
       const writePayload = { ...payload, p_status: previousStatus === 'draft' ? 'draft' : status };
       let result;
       try {
-        result = reconciledWrite || await saveNotice(writePayload);
+        result = reconciledWrite && matchesSaved(reconciledWrite, writePayload)
+          ? { ok: true, id: reconciledWrite.id, version_no: reconciledWrite.version_no, lead_notice_mode: reconciledWrite.lead_notice_mode }
+          : await saveNotice(writePayload);
       } catch (error) {
         if (error.message !== 'LEAD_NOTICE_BACKEND_UNAVAILABLE' && (!error.status || error.status >= 500)) {
           if (writePayload.p_notice_id) pendingWrite = { id: writePayload.p_notice_id, payload: writePayload };
@@ -950,10 +967,12 @@
         throw partialError;
       }
       let reviewState = '';
-      if (action === 'publish') {
+      if (action === 'publish' && previousStatus === 'draft') {
         publicationUncertain = true;
-        const published = await saveNotice({ ...payload, p_notice_id: result.id, p_status: 'published' });
+        pendingPublication = { ...payload, p_notice_id: result.id, p_status: 'published' };
+        const published = await saveNotice(pendingPublication);
         publicationUncertain = false;
+        pendingPublication = null;
         if (!published?.ok) throw new Error(published?.code || 'PUBLISH_FAILED');
         savedStatus = 'published';
       } else if (action === 'review') {

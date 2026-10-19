@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 import time
 import urllib.request
+import urllib.parse
 
 REQUIRED_CHECKS = [
     "static_regression",
@@ -97,7 +98,12 @@ def wait_for_preview(contract: dict, env: dict) -> str:
                 if not target:
                     fail(f"Preview status {context} succeeded without target_url")
                 print(f"Exact-head preview ready: {target}")
-                return target
+                # Netlify status URLs may include a PR entry path (/app/).
+                # Downstream checks append their own public/app paths.
+                parsed = urllib.parse.urlsplit(target)
+                if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+                    fail("Preview status must provide an HTTPS origin without credentials")
+                return f"{parsed.scheme}://{parsed.netloc}"
             if state in {"failure", "error"}:
                 fail(f"Preview status {context} failed with state={state}")
         time.sleep(10)
