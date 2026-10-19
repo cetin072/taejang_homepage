@@ -34,6 +34,16 @@
 - Actions가 만든 PR은 `GITHUB_TOKEN` 보호 동작으로 통상 PR CI가 자동 트리거되지 않는다. 수집 작업 내 `npm run test:public`, 자체 테스트, `npm run build:netlify`를 실행하되 **PR Preview / GitHub 필수 검사는 최종 HEAD에서 별도로 확인**해야 병합 가능하다.
 - 기존 Production 배포 48시간 슬롯은 이 자동화와 완전히 독립적이다.
 
+## 외부 이미지 표시 안정화 (2026-10-20)
+
+- Naver `blogthumb.pstatic.net` 직접 브라우저 호출은 ORB/핫링크 정책에 따라 카드에서 실패할 수 있다.
+- 원본 `assets/js/official-channel-updates.js`의 제목/원본URL/게시일/검증된 썸네일 URL은 변경하지 않는다.
+- Netlify `npm run build:netlify`의 기존 정적 출력 생성 단계에서 `scripts/localize-official-thumbnails.mjs`가 **공식 블로그의 확인된 HTTPS 이미지 URL만 서버 측에서 읽고** 실이미지 바이트/크기/콘텐츠 유형을 검사한다.
+- 허용한 이미지 형식(jpeg/png/webp)은 `dist/assets/images/archive/naver-blog-<logNo>.<ext>`로 생성하고, **dist의 아카이브 JS만** 같은 출처 경로로 치환한다. 원본 저장소/DB 변경 없음.
+- 서버 측 다운로드 실패 또는 비정상 파일은 기존 태장 로고로 대체한다. 외부 URL 직접 재시도나 웹 브라우저 프록시·유료 API를 도입하지 않는다.
+- Snapshot 변환은 자동 수집으로 들어오는 미래 신규 블로그 게시물에도 똑같이 적용된다. GitHub Actions는 기존처럼 Draft PR만 작성하고, 배포는 기존 고정 48시간 Production 게이트를 따른다.
+- Netlify 빌드 출력의 `Official Naver thumbnail snapshot` 집계에서 local/fallback 수를 확인하고, 실제 Preview의 카드 사진을 PC·모바일에서 확인한다. 로컬 회귀 테스트만으로 이미지 실제 다운로드 성공을 주장하지 않는다.
+
 ## 검증
 
 `node --test tests/official-archive-sync.test.mjs`

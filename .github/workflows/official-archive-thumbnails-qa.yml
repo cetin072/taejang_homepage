@@ -1,0 +1,70 @@
+name: Official Archive Thumbnail Browser QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/localize-official-thumbnails.mjs'
+      - 'scripts/build-netlify-publish.mjs'
+      - 'assets/js/official-channel-updates.js'
+      - 'tests/official-archive-thumbnails-browser.mjs'
+      - '.github/workflows/official-archive-thumbnails-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: archive-thumbnail-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  archive-images:
+    name: Official Naver thumbnails actual Chrome PC/mobile
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Require Chrome and install existing browser dependency
+        run: |
+          command -v google-chrome || command -v google-chrome-stable
+          npm ci
+
+      - name: Resolve exact-head Netlify Deploy Preview with existing QA helper
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util
+          import os
+          import pathlib
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as out:
+              out.write('ARCHIVE_PREVIEW_URL=' + preview.rstrip('/') + '\n')
+          PYTHON
+
+      - name: Decode all 38 official Naver images in real PC and mobile Chrome
+        env:
+          ARCHIVE_THUMB_QA_OUTPUT: archive-thumbnail-browser-qa
+        run: node tests/official-archive-thumbnails-browser.mjs
+
+      - name: Keep PC and mobile snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: official-archive-thumbnails-1440-390
+          path: archive-thumbnail-browser-qa/
+          if-no-files-found: ignore
+          retention-days: 7
