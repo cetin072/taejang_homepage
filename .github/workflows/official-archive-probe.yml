@@ -1,0 +1,25 @@
+name: Official Archive Source Probe
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'scripts/sync-official-archive.mjs'
+      - 'assets/js/official-channel-updates.js'
+      - '.github/workflows/official-archive-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Read-only public source discovery
+        continue-on-error: true
+        run: node scripts/sync-official-archive.mjs --check
