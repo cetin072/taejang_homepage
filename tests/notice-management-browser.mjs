@@ -104,6 +104,34 @@ try {
   assert.equal(await page.locator('#notice-id').inputValue(),'pub-a');
   assert.deepEqual(await page.evaluate(()=>[rows.filter(r=>r.id==='pub-a').length,rows.find(r=>r.id==='pub-a').status,rows.find(r=>r.id==='pub-a').body_easy]),[1,'published','운영총괄 공개 공지 본문 정정']);
   await capture('published-edit');
+  // Exercise the production shared transport inside real Chrome as well as the
+  // UI. Only HTTP/Auth fixtures are synthetic; no alternate transport is copied.
+  await page.evaluate(async asset=>{
+   const source=await (await fetch(asset)).text();
+   const code=source.slice(source.indexOf('  let sessionRefresh = null;'),source.indexOf('  async function context()'));
+   if(!code.includes('retryAuthentication'))throw Error('preview lacks authentication fix');
+   const backend=TaejangApp.rpc;
+   const state={config:{url:'https://notice-fixture.invalid',publishableKey:'fixture-public'},session:{access_token:'expired',refresh_token:'fixture-refresh',user:{id:'fixture-ops'}}};
+   window.noticeTransportMetrics={rejected:0,refreshes:0,acceptedSaves:0};
+   const fixtureFetch=async(url,options)=>{
+    if(url.includes('/auth/v1/token?')){
+     noticeTransportMetrics.refreshes++;
+     return new Response(JSON.stringify({access_token:'fresh',refresh_token:'fixture-rotated',user:{id:'fixture-ops'}}),{status:200});
+    }
+    const name=url.split('/rpc/')[1];
+    if(name==='save_notice'&&options.headers.Authorization==='Bearer expired'){
+     noticeTransportMetrics.rejected++;return new Response(JSON.stringify({code:'PGRST303',message:'JWT expired'}),{status:401});
+    }
+    if(name==='save_notice')noticeTransportMetrics.acceptedSaves++;
+    return new Response(JSON.stringify(await backend(name,JSON.parse(options.body))),{status:200});
+   };
+   const make=new Function('state','fetch','storeSession','clearSession',code+';return {rpc};');
+   TaejangApp.rpc=make(state,fixtureFetch,session=>{state.session=session},()=>{state.session=null}).rpc;
+  },(preview||base)+'/app/assets/app.js');
+  await page.locator('#notice-body').fill('만료 세션의 공개 공지 정정');await page.locator('#notice-save-existing').click();
+  await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
+  assert.deepEqual(await page.evaluate(()=>noticeTransportMetrics),{rejected:1,refreshes:1,acceptedSaves:1});
+  assert.equal(await page.locator('#notice-id').inputValue(),'pub-a');await capture('expired-session-edit');
   // A stale read must not be reported as a confirmed save.
   await page.locator('#notice-body').fill('서버 재조회 대조');await page.evaluate(()=>{historyFixture.staleRead=true});
   await page.locator('#notice-save-existing').click();
@@ -129,6 +157,21 @@ try {
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
   assert.equal(await page.locator('#notice-body').isDisabled(),true);
   await page.locator('#back-notice-admin').click();await page.locator('[data-notice-id="expired"]').waitFor();
+  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'보관',exact:true}).click();
+  await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
+  assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='archive_notice').at(-1).args.p_notice_id),'pub-b','archive action uses displayed ID after sorting');
+  await page.locator('#archive-notice-admin').click();await page.locator('[data-notice-id="pub-b"]').waitFor();
+  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'복구',exact:true}).click();
+  await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
+  await page.locator('#notice-list-from').fill('2099-01-01');await page.locator('#notice-list-filters').getByRole('button',{name:'검색',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.startsWith('0 / 0'));
+  await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="archived"]').waitFor();
+  await page.locator('#back-notice-admin').click();await page.locator('[data-notice-id="pub-b"]').waitFor();
+  assert.equal(await page.evaluate(()=>rows.find(row=>row.id==='pub-b').status),'published','explicit restore preserves previous publication policy');
+  await page.locator('#notice-list-status').selectOption('expired');await page.locator('#notice-list-filters').getByRole('button',{name:'검색',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelectorAll('#notice-admin-list article').length===1);
+  assert.equal(await page.locator('#notice-admin-list article').getAttribute('data-notice-id'),'expired');
+  await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="pub-a"]').waitFor();
   await page.evaluate(()=>{role='promotion_lead';TaejangNoticeAdmin.setView('manage')});
   await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 보기 (검토·게시 이력)',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');

@@ -7,6 +7,7 @@ export const testGroups = Object.freeze({
     'tests/staff-schedules-notices.test.js',
     'tests/notice-ops-review-photo.test.js',
     'tests/notice-management-history.test.js',
+    'tests/app-rpc-auth-refresh.test.js',
     'tests/frequent-staff-guidance.test.js',
     'tests/promotion-phase-c.test.js',
     'tests/promotion-lead-authoring-upload.test.js',

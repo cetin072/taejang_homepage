@@ -412,11 +412,14 @@
         p_reason: reason.trim(),
       });
       if (!result?.ok) throw new Error(result?.code || 'SUBMIT_FAILED');
+      const verified = await readNotice(item.id);
+      if (verified?.id !== item.id || verified.status !== 'draft' || verified.review_state !== 'submitted') throw new Error('SUBMIT_RESULT_UNVERIFIED');
       if (ui.element('notice-id').value === item.id) reviewPending = true;
+      ui.element('notice-list-filters').reset();
       const loaded = await load({ preserveMessage: true });
-      showSavedNotice(item.id, `운영총괄 검토 대기 — 직원 비공개 · ${item.title}`, loaded);
+      showSavedNotice(item.id, `운영총괄 검토 대기 — 직원 비공개 · ${verified.title}`, loaded);
     } catch {
-      showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
+      showMessage('공지 상신 결과를 확인하지 못했습니다. 서버에 이미 접수됐을 수 있어 자동 재상신하지 않습니다. 입력을 유지하며 목록에서 최신 상태를 확인해주세요.', true);
     } finally {
       saving = false;
       updateActions();
@@ -1046,6 +1049,8 @@
       const verificationError = ['NOTICE_READBACK_UNAVAILABLE','NOTICE_SAVE_RESULT_UNKNOWN'].includes(error.message);
       showMessage(createResponseUncertain && !ui.element('notice-id').value
         ? '새 공지 저장 응답을 확인하지 못했습니다. 중복 생성을 막기 위해 새 저장을 중단했습니다. 입력과 사진을 보존합니다. 목록에서 저장 여부를 확인해주세요. 자동 재저장은 하지 않습니다.'
+        : error.status === 401 && error.code === 'PGRST303'
+        ? '로그인 세션을 갱신하지 못해 요청이 거부됐습니다. 입력·사진·공지 ID를 보존했습니다. 다시 로그인한 뒤 저장해주세요. 인증 오류 외의 저장 요청은 자동 재전송하지 않습니다.'
         : verificationError || pendingWrite
         ? '저장 결과 확인이 필요합니다. 동일 공지 ID의 서버 내용·버전·사진 재조회를 확인하지 못해 저장 완료로 표시하지 않습니다. 입력과 ID를 보존하며 자동 재게시하지 않습니다.'
         : publicationUncertain

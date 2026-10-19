@@ -2,6 +2,9 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -38,7 +41,7 @@ async function signUp(email, displayName) {
     body: JSON.stringify({ email, password, data: { display_name: displayName } })
   });
   check(result.ok, `signup failed for ${email}`);
-  return { id: result.data.user.id, token: result.data.access_token, displayName };
+  return { id: result.data.user.id, token: result.data.access_token, displayName, session: result.data };
 }
 
 async function approve(adminToken, account, departmentId, positionId, role) {
@@ -313,6 +316,39 @@ const archivePage=await rpc('list_manageable_notices_page',operations.token,{p_a
 equal(archivePage.data?.items?.[0]?.id,historyId,'archive search finds original record without data movement');
 check(!(await rpc('get_manageable_notice',promotion.token,{p_notice_id:historyId})).ok,'foreign archive not disclosed');
 check((await rpc('restore_notice',operations.token,{p_notice_id:historyId,p_reason:'Isolated restore flow'})).data?.ok,'existing restore RPC retains history');
+
+// Reproduce the hosted PGRST303 path with genuinely expired, signed JWTs from
+// the isolated GoTrue container. Never print the local signing secret or tokens.
+const localSigningSecret=execFileSync('docker',['exec','supabase_auth_taejang-homepage-phase1a','printenv','GOTRUE_JWT_SECRET'],{encoding:'utf8'}).trim();
+check(Boolean(localSigningSecret),'isolated JWT signer is available');
+const appSource=readFileSync('app/assets/app.js','utf8');
+const realTransport=appSource.slice(appSource.indexOf('  let sessionRefresh = null;'),appSource.indexOf('  async function context()'));
+check(realTransport.includes('retryAuthentication'),'test uses refreshed production RPC transport');
+async function verifyExpiredNoticeWrite(actor,name,payload){
+ const before=await rpc('get_manageable_notice',actor.token,{p_notice_id:payload.p_notice_id});
+ const claims={...JSON.parse(Buffer.from(actor.token.split('.')[1],'base64url')),exp:Math.floor(Date.now()/1000)-3600};
+ const unsigned=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')+'.'+Buffer.from(JSON.stringify(claims)).toString('base64url');
+ const expiredToken=unsigned+'.'+createHmac('sha256',localSigningSecret).update(unsigned).digest('base64url');
+ const rejected=await rpc(name,expiredToken,payload);
+ equal(rejected.status,401,'expired notice write rejected before execution');equal(rejected.data?.code,'PGRST303','real claims-expiration error reproduced');
+ const transportState={config:{url:apiUrl,publishableKey:key},session:{...actor.session,access_token:expiredToken}};
+ const transportCalls=[];
+ const sandbox={state:transportState,fetch:async(url,options)=>{
+  const result=await fetch(url,options);transportCalls.push({path:new URL(url).pathname,status:result.status});return result;
+ },storeSession:session=>{transportState.session=session},clearSession:()=>{transportState.session=null}};
+ vm.runInNewContext(realTransport+'\nglobalThis.transportRpc=rpc;',sandbox);
+ const saved=await sandbox.transportRpc(name,payload);
+ equal(saved.id,payload.p_notice_id,'refresh recovers same-ID write');
+ const after=await rpc('get_manageable_notice',transportState.session.access_token,{p_notice_id:payload.p_notice_id});
+ equal(after.data.version_no,before.data.version_no+1,'authentication retry executes one update only');
+ equal(after.data.body_easy,payload.p_body_easy,'post-refresh correction readback');
+ equal(transportCalls.filter(call=>call.path==='/auth/v1/token').length,1,'one actual GoTrue refresh');
+ equal(transportCalls.filter(call=>call.path==='/rest/v1/rpc/'+name&&call.status===200).length,1,'one accepted RPC mutation');
+}
+await verifyExpiredNoticeWrite(operations,'save_notice',historyPayload({p_notice_id:historyId,p_title:'History refreshed correction',p_body_easy:'Corrected after expired operations session'}));
+const expiredLeadDraft=await leadSave({p_title:'History lead refresh draft'});
+await verifyExpiredNoticeWrite(promotion,'save_lead_notice',routinePayload({p_notice_id:expiredLeadDraft.data.id,p_status:'published',p_confirm_routine:true,p_body_easy:'Published after expired lead session'}));
+console.log('NOTICE_EXPIRED_SESSION_AUTH_PASS');
 // >200 records: private drafts create no employee publication notifications.
 for(let offset=0;offset<205;offset+=10){
  const chunk=await Promise.all(Array.from({length:Math.min(10,205-offset)},(_,i)=>rpc('save_notice',operations.token,historyPayload({p_title:'Pagination isolation '+String(offset+i).padStart(3,'0'),p_status:'draft'}))));
