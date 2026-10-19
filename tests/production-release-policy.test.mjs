@@ -41,13 +41,13 @@ test('policy stays at two days and one Production per day; workflow has narrowly
   assert.doesNotMatch(source, /CACHED_COMMIT_REF/);
   const workflow = readFileSync(path.join(root, '.github/workflows/production-release.yml'), 'utf8');
   assert.match(workflow, /permissions:\s+contents: read/);
-  assert.match(workflow, /permissions:\s+contents: write/);
-  assert.equal((workflow.match(/contents: write/g) || []).length, 1);
+  assert.match(workflow, /actions\/create-github-app-token@v2/);
+  assert.equal((workflow.match(/permission-contents: write/g) || []).length, 1);
   assert.doesNotMatch(workflow, /secrets: write|\bPAT\b|pull_request_target/);
   assert.match(workflow, /group: taejang-production-release\s+cancel-in-progress: false/);
   assert.match(workflow, /github.event_name == 'workflow_dispatch' && inputs.force/);
-  assert.match(workflow, /pull-requests: write/);
-  assert.match(workflow, /actions: write/);
+  assert.match(workflow, /permission-pull-requests: write/);
+  assert.match(workflow, /permission-actions: read/);
   assert.doesNotMatch(workflow, /PROTECTION_BLOCKED/);
 });
 
@@ -189,19 +189,19 @@ function orchestrationFixture(overrides = {}) {
     status: 'BRANCH_CREATED', branch: 'codex/production-release-test', head, previous: baseline,
     marker: { ...baseline, source_main_sha: sha, released_at_utc: '2026-10-06T07:00:00Z', released_on_kst: '2026-10-06', release_attempt: 1 },
   };
-  const calls = [], dispatched = new Set();
+  const calls = [];
+  let created = false;
   const run = (workflow) => ({
-    id: workflow === requiredWorkflows[0][0] ? 1 : 2, event: 'workflow_dispatch',
+    id: workflow === requiredWorkflows[0][0] ? 1 : 2, event: 'pull_request', pull_requests: [{ number: 42 }],
     head_sha: head, head_branch: prepared.branch, status: 'completed', conclusion: 'success', ...overrides.run,
   });
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
     if (route.startsWith('/pulls?')) return overrides.open || [];
-    if (method === 'POST' && route === '/pulls') return { number: 42, html_url: 'https://example.invalid/pr/42' };
+    if (method === 'POST' && route === '/pulls') { created = true; return { number: 42, html_url: 'https://example.invalid/pr/42' }; }
     if (route === '/git/ref/heads/main') return { object: { sha: overrides.main || sha } };
     for (const [workflow] of requiredWorkflows) {
-      if (route.includes('/workflows/' + workflow + '/dispatches')) { dispatched.add(workflow); return null; }
-      if (route.includes('/workflows/' + workflow + '/runs?')) return { workflow_runs: dispatched.has(workflow) ? [run(workflow)] : [] };
+      if (route.includes('/workflows/' + workflow + '/runs?')) return { workflow_runs: created || overrides.open ? [run(workflow)] : [] };
     }
     if (/^\/actions\/runs\/[12]\/jobs/.test(route)) {
       const index = Number(route.split('/')[3]) - 1;
@@ -221,7 +221,7 @@ function orchestrationFixture(overrides = {}) {
     options: {
       plan: plan(), dryRun: false, api, prepare: () => prepared,
       published: async () => overrides.published || baseline,
-      sleep: async () => {}, now: () => new Date('2026-10-06T07:00:00Z'),
+      sleep: async () => {}, preflight: async () => overrides.database || { status: 'READY' }, now: () => new Date('2026-10-06T07:00:00Z'),
     },
   };
 }
@@ -232,19 +232,19 @@ test('NO_CHANGES creates zero PRs and deployments; existing open release prevent
   assert.equal((await orchestrate({ ...fixture.options, plan: plan({ changedFiles: [] }), prepare })).status, 'NO_CHANGES');
   assert.equal(fixture.calls.length, 0);
   assert.equal(preparations, 0);
-  const duplicate = orchestrationFixture({ open: [{ head: { ref: 'codex/production-release-existing' } }] });
+  const duplicate = orchestrationFixture({ open: [{ number: 42, head: { ref: 'codex/production-release-existing', sha: 'c'.repeat(40) }, created_at: '2026-10-06T06:59:00Z' }] });
   assert.equal((await orchestrate({ ...duplicate.options, prepare })).status, 'OPEN_RELEASE_PR');
   assert.equal(preparations, 0);
   assert.equal(duplicate.calls.some(call => call.method !== 'GET'), false);
 });
-test('marker-only PR explicitly dispatches both workflows and squash merges after exact-head SUCCESS', async () => {
+test('marker-only PR waits for genuine PR workflows and squash merges after exact-head SUCCESS', async () => {
   const fixture = orchestrationFixture();
   const result = await orchestrate(fixture.options);
   assert.equal(result.status, 'MERGED');
   assert.deepEqual(result.ci_runs, [1, 2]);
   const created = fixture.calls.find(call => call.method === 'POST' && call.route === '/pulls');
   assert.deepEqual({ base: created.body.base, head: created.body.head }, { base: 'main', head: fixture.prepared.branch });
-  assert.equal(fixture.calls.filter(call => call.route.endsWith('/dispatches')).length, 2);
+  assert.equal(fixture.calls.filter(call => call.route.endsWith('/dispatches')).length, 0);
   for (const dispatch of fixture.calls.filter(call => call.route.endsWith('/dispatches'))) assert.equal(dispatch.body.ref, fixture.prepared.branch);
   assert.deepEqual(fixture.calls.find(call => call.route.endsWith('/merge')).body, { sha: fixture.prepared.head, merge_method: 'squash' });
 });
@@ -269,9 +269,43 @@ test('stale main closes release PR without merge; new public release blocks same
   assert.equal(daily.calls.some(call => call.route.endsWith('/merge')), false);
 });
 test('exact-head CI never accepts a success from a different SHA or skipped required job', () => {
-  const run = { event: 'workflow_dispatch', head_sha: 'head', status: 'completed', conclusion: 'success' };
+  const run = { event: 'pull_request', pull_requests: [{ number: 42 }], head_sha: 'head', status: 'completed', conclusion: 'success' };
   const jobs = [{ head_sha: 'head', name: 'required', status: 'completed', conclusion: 'success' }];
-  assert.equal(exactHeadSuccess(run, jobs, 'head', 'required'), true);
-  assert.equal(exactHeadSuccess(run, jobs, 'old', 'required'), false);
-  assert.equal(exactHeadSuccess(run, [{ ...jobs[0], conclusion: 'skipped' }], 'head', 'required'), false);
+  assert.equal(exactHeadSuccess(run, jobs, 'head', 'required', 42), true);
+  assert.equal(exactHeadSuccess(run, jobs, 'old', 'required', 42), false);
+  assert.equal(exactHeadSuccess(run, [{ ...jobs[0], conclusion: 'skipped' }], 'head', 'required', 42), false);
+});
+
+test('DB incompatibility stops before branch/PR creation and is rechecked immediately before merge', async () => {
+  const blocked = orchestrationFixture({ database: { status: 'DB_NOT_READY', missing: ['required.sql'] } });
+  let preparations = 0;
+  assert.equal((await orchestrate({ ...blocked.options, prepare: () => { preparations++; return blocked.prepared; } })).status, 'DB_NOT_READY');
+  assert.equal(preparations, 0);
+  assert.equal(blocked.calls.length, 0);
+  const changed = orchestrationFixture(); let checks = 0;
+  assert.equal((await orchestrate({ ...changed.options, preflight: async () => ++checks === 1 ? { status: 'READY' } : { status: 'DB_NOT_READY' } })).status, 'DB_NOT_READY');
+  assert.equal(changed.calls.some(call => call.route.endsWith('/merge')), false);
+});
+
+test('action-required and missing PR checks stop without a dispatch, retry or merge', async () => {
+  for (const run of [{ conclusion: 'action_required' }, { head_branch: 'other-branch' }]) {
+    const fixture = orchestrationFixture({ run });
+    await assert.rejects(orchestrate(fixture.options), /REQUIRED_CI_APPROVAL_REQUIRED|REQUIRED_CI_TIMEOUT/);
+    assert.equal(fixture.calls.some(call => call.route.endsWith('/dispatches') || call.route.endsWith('/merge') || call.route.endsWith('/rerun')), false);
+    assert.equal(fixture.calls.filter(call => call.method === 'POST' && call.route === '/pulls').length, 1);
+  }
+});
+
+test('stale, stalled and approval-required existing releases report without duplicate PRs or automatic recovery writes', async () => {
+  const open = [{ number: 42, html_url: 'https://example.invalid/pr/42', head: { ref: 'codex/production-release-existing', sha: 'c'.repeat(40) }, created_at: '2026-10-06T06:00:00Z' }];
+  for (const [overrides, status] of [
+    [{ open }, 'RELEASE_PR_STALLED'],
+    [{ open, run: { conclusion: 'action_required' } }, 'REQUIRED_CI_APPROVAL_REQUIRED'],
+    [{ open, marker: { ...baseline, source_main_sha: 'old-main' } }, 'STALE_RELEASE_PR'],
+    [{ open, marker: { ...baseline, source_main_sha: 'b'.repeat(40), released_on_kst: '2026-10-05' } }, 'STALE_RELEASE_PR'],
+  ]) {
+    const fixture = orchestrationFixture(overrides);
+    assert.equal((await orchestrate(fixture.options)).status, status);
+    assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
+  }
 });

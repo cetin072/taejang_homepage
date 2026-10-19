@@ -1,71 +1,94 @@
 # Batched Netlify Production releases
 
-Production releases require actual deployment input changes, at least 48 hours
-between regular releases, and at most one release per KST date. Preview builds
-remain enabled. The daily planner runs at 09:20 KST.
+Production requires real deployment input changes, at least 48 hours between
+regular published releases, and at most one release per Asia/Seoul date.
+The planner checks daily at 09:20 KST; that schedule is not a promise of an exact
+48-hour publication time. Actions may start late. Manual dispatch defaults to
+`dry_run=true`; `force=true` bypasses only 48 hours, never daily limits or gates.
 
-Only the dedicated Production release job grants contents: write,
-pull-requests: write and actions: write to the default GITHUB_TOKEN. Repository
-default permissions remain read, and other workflow permissions are unchanged.
-The separately approved "Allow GitHub Actions to create and approve pull
-requests" setting is enabled for PR creation. The workflow never approves
-reviews, changes protection, creates a PAT or adds bypass actors.
+## Release identity and required checks (Issue #438)
 
-The planner compares deployment inputs with the successful public Netlify SHA
-and uses its published_at. Documentation, tests and marker changes alone do
-not count. NO_CHANGES and WAITING_WINDOW / WAITING_DAILY_LIMIT create no release
-branch or PR. Manual workflow_dispatch defaults to dry_run=true. Manual
-force=true bypasses only 48 hours; changes and the KST daily cap remain required.
+The default GITHUB_TOKEN cannot provide unattended PR checks: PRs created with
+it enter approval-required state. A successful workflow_dispatch is not a
+substitute for the PR's required check. Do not add empty commits, fake statuses,
+bypass actors, approve checks automatically, or weaken Protect main.
 
-READY creates a new codex/production-release-* branch at exact current main,
-modifies only app/release/production.json, checks cached filenames before commit,
-checks main again before push, and pushes exclusively to that new branch.
-An existing open release PR blocks duplicate creation.
+After explicit administrator approval, install a repository-scoped GitHub App
+with Contents write, Pull requests write, Actions read and implicit Metadata read.
+No administration, workflow-write or bypass permission is requested. Configure:
 
-The workflow creates a marker-only PR to main, explicitly dispatches
-public-homepage-checks.yml and phase1a-supabase-integration.yml, and verifies
-new workflow_dispatch runs and required jobs at the exact release head SHA.
-It never relies on pull_request events triggered by GITHUB_TOKEN or reuses
-past CI success. Failed or timed-out CI leaves the PR open for inspection,
-blocks merge, and prevents automatic creation of repeated release PRs.
+- repository variable `PRODUCTION_RELEASE_APP_ID`
+- repository secret `PRODUCTION_RELEASE_APP_PRIVATE_KEY`
 
-Immediately before squash merge it rechecks both runs, the PR head, remote diff
-and marker content, actual public Production time, KST date, and current main.
-The diff must contain exactly app/release/production.json. The marker must have
-interval_days=2, previous release_attempt + 1, and source_main_sha=current main.
-Stale releases are closed without merge and replanned by a later run.
+Use GitHub settings to enter the private key; never paste it into issues or logs.
+`actions/create-github-app-token@v2` restricts the installation token to this repo
+and revokes it at job end. The checkout does not persist credentials; authenticated
+Git uses the job's App token. Missing App configuration fails before creating a
+release branch/PR. Dry-run uses read access and never creates a release.
 
-GitHub's merge API pins the PR head but has no atomic expected-base parameter.
-The workflow checks main immediately before merge; the Netlify gate additionally
-requires the squash commit's first parent to equal marker source_main_sha.
-A main race therefore blocks Production even if GitHub accepted the squash.
-Existing required checks and protection remain enforced by GitHub.
+The default token has Contents read and Issues write solely for updating the
+existing incident #438. Other workflows and repository default permissions stay
+unchanged. App creation/installation and secret provisioning require a human;
+this implementation does not create them or assume they are already configured.
 
-Only a marker-only squash commit passes the Git Production gate. Ordinary main
-commits and the initial policy PR skip Production. After merge the workflow
-checks that public Netlify Production is ready at the exact squash SHA. A failed
-deployment is not retried: an unpublished previous marker attempt blocks future
-automatic attempts until investigated. No emergency CLI/API upload is used.
+Official sources:
+- https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow
+- https://github.com/actions/create-github-app-token
 
-## Verified service configuration, 2026-10-06
+## Database compatibility
 
-- Main retains Protect main: required PR, both existing required CI checks,
-  approving review count 0, no bypass actors.
-- Netlify Production branch remains main; base directory remains the repo root.
-- Authenticated Build Hook count is 0.
-- prevent_non_git_prod_deploys=true, explicitly approved by the user.
-- An authenticated non-Git Production API request with an unuploaded file digest
-  was rejected with Forbidden. No files were uploaded or Production published.
-- This setting restricts deployment methods. Existing Functions, Forms,
-  Supabase and public runtime configuration are unchanged.
+Before branch creation and again just before merge, compare added migrations
+between the actual public Production SHA and planned main with live migration
+history. `SUPABASE_ACCESS_TOKEN` is the existing credential; the preflight makes
+only a catalog SELECT through the Supabase Management API. It does not read
+employee data, create accounts or apply migrations. The configured backend ref
+must be confirmed against public staff-config before rollout.
 
-## Verification boundary
+Missing migrations return DB_NOT_READY. Modified/deleted/renamed migrations
+require explicit review. A live timestamp may differ from Git history, so match
+the exact normalized migration name; unrelated foreign migrations do not qualify.
+The history gate is conservative evidence of application, not proof of correct
+ACL/RLS/function bodies or permission to apply anything. Separate sensitive DB
+backup, isolated restore and post-application readback approvals still apply.
 
-Local Git fixtures test unchanged remote main, marker-only branch commits,
-stale planning, ordinary Production skips and marker-only squash allowance.
-API fixtures test PR creation, explicit dispatch, exact-head success, failure,
-duplicates, stale main, changed marker/head/files and daily revalidation.
-PR #397 CI and Deploy Preview are checked separately at its latest head.
-Live automated marker PR/CI/squash/Production verification must occur only after
-the user reviews the final report and authorizes proceeding with the policy PR.
-No Production force release is part of pre-merge verification.
+## Execution and failure handling
+
+READY creates one codex/production-release-* branch from exact latest main and
+changes only app/release/production.json. Genuine pull_request runs must identify
+the exact head, PR number and both required successful jobs. Polls are bounded
+(15 minutes per workflow, at most 30 minutes total); no rerun/dispatch substitutes.
+Failed, missing, wrong-source or approval-required checks block the merge.
+
+An existing release PR prevents duplicates. Its source/date, required checks and
+age are inspected: stale, approval-required, failed, not-started or stalled (>30
+minutes) releases become incidents, rather than silently returning a healthy no-op.
+Existing PRs are never automatically merged just because an earlier run passed.
+The operator repairs the cause and revalidates all gates before resuming.
+
+Before squash merge, recheck remote head, exact marker-only diff/content, latest
+main, both required runs, public release time/date and database readiness. The
+Netlify first-parent marker gate remains unchanged and blocks a stale-base race.
+Only Git marker-only squash releases can publish. Ordinary main commits skip.
+
+After merge, poll actual published_deploy for ready + production + exact squash
+SHA, for a bounded time. Preview, main merge, build readiness and a previous
+published SHA never count as success. Timeout/failure does not redeploy; an
+unpublished marker blocks subsequent automatic attempts pending investigation.
+
+Failures update one bot-owned comment on existing Issue #438 and write the run
+URL to the Actions job summary. Comments use a fixed non-sensitive message and
+do not include environment/credentials or remote error bodies. Repeated failures
+update the existing alert, not a new issue/comment each time. GitHub notification
+preferences control delivery; this is not an external paging service.
+
+## Production protection and recovery
+
+Preserve Protect main, exact required check names, no bypass actors, marker-only
+squash and Netlify prevent_non_git_prod_deploys. No CLI/manual Production upload.
+If a deploy fails, the previous published deploy remains active. A bad published
+release requires a reviewed forward fix/revert and the normal CI/marker release
+path; do not silently restore deploys or mutate the DB as recovery.
+
+This change is not active until its Draft PR is reviewed and merged. App setup
+and live automatic-PR reproduction remain separate rollout gates. See
+`docs/operations/ISSUE_438_PRODUCTION_RELEASE_RECOVERY.md` for current evidence.

@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { markerPath, planRelease, publishedRelease } from './production-release-plan.mjs';
+import { classifyRequiredRun, checkProductionDatabase, safeReleaseStatuses } from './production-release-health.mjs';
 
 export const requiredWorkflows = [
   ['public-homepage-checks.yml', 'Public source and launch regression'],
@@ -31,10 +32,8 @@ export function validateMerge({ plan, main, head, expectedHead, files, marker, p
     now, force: plan.force, eventName: plan.event_name,
   }).status;
 }
-export function exactHeadSuccess(run, jobs, sha, requiredJob) {
-  return run.event === 'workflow_dispatch' && run.head_sha === sha && run.status === 'completed'
-    && run.conclusion === 'success' && jobs.some(job => job.head_sha === sha && job.name === requiredJob
-      && job.status === 'completed' && job.conclusion === 'success');
+export function exactHeadSuccess(run, jobs, sha, requiredJob, pr) {
+  return classifyRequiredRun(run, jobs, { sha, pr, job: requiredJob }) === 'SUCCESS';
 }
 // Only this operation pushes Git objects, exclusively to a new release branch.
 export function release({ planPath, dryRun = true, branch = prefix + process.env.GITHUB_RUN_ID + '-' + process.env.GITHUB_RUN_ATTEMPT }) {
@@ -65,17 +64,35 @@ export function release({ planPath, dryRun = true, branch = prefix + process.env
   git('push', 'origin', 'HEAD:refs/heads/' + branch);
   return { status: 'BRANCH_CREATED', branch, head: git('rev-parse', 'HEAD'), previous, marker: JSON.parse(readFileSync(markerPath, 'utf8')) };
 }
-export async function orchestrate({ plan, dryRun, api, prepare, published, sleep, now = () => new Date() }) {
+export async function orchestrate({ plan, dryRun, api, prepare, published, sleep, preflight, now = () => new Date() }) {
   if (plan.status !== 'READY') return { status: plan.status };
+  if (!preflight) throw new Error('DB_PREFLIGHT_REQUIRED');
+  const database = await preflight();
+  if (database.status !== 'READY') return database;
   const open = await api('GET', '/pulls?state=open&base=main&per_page=100');
   if (open.length === 100) throw new Error('OPEN_PR_LIST_INCOMPLETE');
-  if (open.some(pr => pr.head.ref.startsWith(prefix))) return { status: 'OPEN_RELEASE_PR' };
+  const existing = open.find(pr => pr.head.ref.startsWith(prefix));
+  if (existing) {
+    const markerResponse = await api('GET', '/contents/' + markerPath + '?ref=' + existing.head.sha);
+    const marker = JSON.parse(Buffer.from(markerResponse.content, 'base64').toString('utf8'));
+    if (marker.source_main_sha !== plan.source_main_sha || marker.released_on_kst !== kst(now())) return { status: 'STALE_RELEASE_PR', pr: existing.html_url };
+    for (const [workflow, job] of requiredWorkflows) {
+      const listing = await api('GET', '/actions/workflows/' + workflow + '/runs?event=pull_request&head_sha=' + existing.head.sha + '&per_page=100');
+      const run = listing.workflow_runs.find(run => run.pull_requests?.some(item => item.number === existing.number));
+      const jobs = run?.status === 'completed' && run.conclusion === 'success'
+        ? (await api('GET', '/actions/runs/' + run.id + '/jobs?per_page=100')).jobs : [];
+      const state = classifyRequiredRun(run, jobs, { sha: existing.head.sha, pr: existing.number, job });
+      if (state !== 'SUCCESS' && state !== 'REQUIRED_CI_PENDING') return { status: state, pr: existing.html_url };
+    }
+    const age = now() - new Date(existing.created_at);
+    return { status: Number.isFinite(age) && age >= 0 && age <= 30 * 60_000 ? 'OPEN_RELEASE_PR' : 'RELEASE_PR_STALLED', pr: existing.html_url };
+  }
   if (dryRun) return prepare();
   const prepared = prepare();
   if (prepared.status !== 'BRANCH_CREATED') return prepared;
   const pr = await api('POST', '/pulls', {
     base: 'main', head: prepared.branch, title: 'chore: batched Production release',
-    body: 'Automated marker-only release. Source main: ' + plan.source_main_sha + '\nRequired CI is explicitly dispatched and verified at ' + prepared.head + '.',
+    body: 'Automated marker-only release. Source main: ' + plan.source_main_sha + '\nGenuine pull_request CI is required at ' + prepared.head + '.',
   });
   const discard = async () => {
     await api('PATCH', '/pulls/' + pr.number, { state: 'closed' });
@@ -83,19 +100,17 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
   };
   const runs = [];
   for (const [workflow, job] of requiredWorkflows) {
-    const before = await api('GET', '/actions/workflows/' + workflow + '/runs?event=workflow_dispatch&per_page=100');
-    const previousIds = new Set(before.workflow_runs.map(run => run.id));
-    await api('POST', '/actions/workflows/' + workflow + '/dispatches', { ref: prepared.branch });
     let selected;
-    for (let attempt = 0; attempt < 120; attempt++) {
+    for (let attempt = 0; attempt < 60; attempt++) {
       if ((await api('GET', '/git/ref/heads/main')).object.sha !== plan.source_main_sha) return discard();
-      const listing = await api('GET', '/actions/workflows/' + workflow + '/runs?event=workflow_dispatch&per_page=100');
-      const candidates = listing.workflow_runs.filter(run => !previousIds.has(run.id) && run.head_sha === prepared.head && run.head_branch === prepared.branch);
+      const listing = await api('GET', '/actions/workflows/' + workflow + '/runs?event=pull_request&head_sha=' + prepared.head + '&per_page=100');
+      const candidates = listing.workflow_runs.filter(run => run.head_sha === prepared.head && run.head_branch === prepared.branch && run.pull_requests?.some(item => item.number === pr.number));
       if (candidates.length > 1) throw new Error('AMBIGUOUS_CI_RUN');
       selected = candidates[0];
+      if (selected?.conclusion === 'action_required') throw new Error('REQUIRED_CI_APPROVAL_REQUIRED');
       if (selected?.status === 'completed') {
         const jobs = await api('GET', '/actions/runs/' + selected.id + '/jobs?per_page=100');
-        if (!exactHeadSuccess(selected, jobs.jobs, prepared.head, job)) throw new Error('REQUIRED_CI_FAILED: ' + workflow);
+        if (!exactHeadSuccess(selected, jobs.jobs, prepared.head, job, pr.number)) throw new Error('REQUIRED_CI_FAILED: ' + workflow);
         break;
       }
       await sleep(15_000);
@@ -107,7 +122,7 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
   for (const run of runs) {
     const actual = await api('GET', '/actions/runs/' + run.id);
     const jobs = await api('GET', '/actions/runs/' + run.id + '/jobs?per_page=100');
-    if (!exactHeadSuccess(actual, jobs.jobs, prepared.head, run.job)) throw new Error('REQUIRED_CI_FAILED');
+    if (!exactHeadSuccess(actual, jobs.jobs, prepared.head, run.job, pr.number)) throw new Error('REQUIRED_CI_FAILED');
   }
   const currentPr = await api('GET', '/pulls/' + pr.number);
   if (currentPr.state !== 'open' || currentPr.base.ref !== 'main' || currentPr.head.ref !== prepared.branch) throw new Error('RELEASE_PR_CHANGED');
@@ -122,6 +137,9 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
     files: files.map(file => file.filename), marker, previous: prepared.previous, published: latestPublic, now: now(),
   });
   if (status !== 'READY') return discard();
+  const finalDatabase = await preflight();
+  if (finalDatabase.status !== 'READY') return finalDatabase;
+  if ((await api('GET', '/git/ref/heads/main')).object.sha !== plan.source_main_sha) return discard();
   const merged = await api('PUT', '/pulls/' + pr.number + '/merge', { sha: prepared.head, merge_method: 'squash' });
   if (!merged.merged) throw new Error('PROTECTED_MERGE_REJECTED');
   // A race after the final base check is also fail-closed by Netlify's first-parent marker gate.
@@ -138,7 +156,7 @@ async function main() {
       method, headers: { Authorization: 'Bearer ' + process.env.GH_TOKEN, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(30_000),
     });
-    if (!response.ok) throw new Error('GitHub API ' + method + ' ' + route + ': ' + response.status + ' ' + await response.text());
+    if (!response.ok) throw new Error('GitHub API ' + method + ' ' + route + ': ' + response.status);
     return response.status === 204 ? null : response.json();
   };
   const published = async () => {
@@ -151,10 +169,13 @@ async function main() {
     && git('log', '-1', '--format=%H', '--', markerPath) !== (await published()).source_main_sha) throw new Error('PREVIOUS_RELEASE_UNPUBLISHED: no automatic redeploy');
   const result = await orchestrate({
     plan, dryRun: process.env.DRY_RUN !== 'false', api, published,
+    preflight: async () => checkProductionDatabase({ publishedSha: (await published()).source_main_sha, head: plan.source_main_sha,
+      token: process.env.SUPABASE_ACCESS_TOKEN, projectRef: process.env.PRODUCTION_SUPABASE_PROJECT_REF }),
     prepare: () => release({ planPath: process.env.RELEASE_PLAN_PATH, dryRun: process.env.DRY_RUN !== 'false' }),
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   });
   console.log(JSON.stringify(result));
+  if (!safeReleaseStatuses.has(result.status)) throw new Error('RELEASE_BLOCKED: ' + result.status);
   if (process.env.GITHUB_OUTPUT) {
     appendFileSync(process.env.GITHUB_OUTPUT, 'status=' + result.status + '\n');
     if (result.release_sha) appendFileSync(process.env.GITHUB_OUTPUT, 'release_sha=' + result.release_sha + '\n');
