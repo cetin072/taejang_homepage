@@ -3,6 +3,7 @@
 <title>직원관리 합성 QA</title>
 <link rel="stylesheet" href="../../staff/assets/staff.css">
 <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
+  <link rel="stylesheet" href="../../app/assets/employee-management.css">
 <style>
 *{box-sizing:border-box}
 body{margin:0;font:16px/1.5 'Malgun Gothic',sans-serif;background:#f4f6f4;color:#21382d}
@@ -15,7 +16,8 @@ body{margin:0;font:16px/1.5 'Malgun Gothic',sans-serif;background:#f4f6f4;color:
 <main id="dashboard-main" class="dashboard-main"></main></div></div>
 <script>
 window.fixtureRoute='operations_manager'; window.calls=[]; window.fail=''; window.alerts=[]; window.alert=message=>alerts.push(message);
-sessionStorage.setItem('taejang-staff-session-v1',JSON.stringify({access_token:'synthetic-only'}));
+sessionStorage.setItem('taejang-staff-session-v1',JSON.stringify({access_token:'stale-session-storage-token'}));
+window.fixtureAccessToken='synthetic-only';window.fixtureRefreshCount=0;
 const employees=Array.from({length:50},(_,i)=>({id:'fixture-'+i,employee_id:'TJ-'+String(i+1).padStart(6,'0'),full_name:i===49?'가상 매우 긴 이름을 가진 직원 테스트':'가상직원 '+String(i+1).padStart(2,'0'),department_id:'dept',department_name:i===49?'가상 매우 긴 부서 이름과 조직명 표시 검수 부서':'포장팀',position_id:'position',position_name:'사원',hired_on:'2026-01-02',departed_on:i===48?'2026-09-01':null,employment_status:i===48?'departed':i===47?'leave':'active',attendance_required:i%3!==0,linked_profile:i%2?null:{id:'profile-'+i,display_name:'가상 앱직원',work_email:'synthetic@example.test',account_status:i===4?'suspended':i===6?'pending':'active'},profile_photo_path:i===2?'fixture-2/profile/existing.png':null,resident_number_registered:true,birth_date:'2000-01-01',age_years:26}));
 employees[1].full_name=employees[0].full_name;
 window.fixtureContext={access_level:'operations_manager',can_manage_sensitive_identity:true,employees,departments:[{id:'dept',name:'포장팀'}],positions:[{id:'position',name:'사원'}],new_employee_positions:[{id:'position',name:'사원'}],change_requests:[],self_service_contact_requests:[]};
@@ -25,6 +27,7 @@ window.fetch=async(url,options={})=>{
   if(url==='/.netlify/functions/staff-config')return new Response(JSON.stringify({url:'https://fixture.invalid',publishableKey:'synthetic-key'}));
   if(String(url).startsWith('https://fixture.invalid/storage/v1/object/')){
     calls.push({name:'storage',url,method:options.method});
+    if(!['Bearer synthetic-only','Bearer synthetic-refreshed'].includes(options.headers?.Authorization))return new Response(JSON.stringify({message:'Invalid Compact JWS'}),{status:401});
     if(fail==='storage')return new Response(JSON.stringify({message:'합성 Storage 실패'}),{status:500});
     if(String(url).includes('/object/sign/'))return new Response(JSON.stringify({signedURL:'/object/sign/employee-private-media/fixture.png?token=synthetic'}));
     objects.set(String(url).split('/employee-private-media/')[1],options.body);
@@ -32,7 +35,7 @@ window.fetch=async(url,options={})=>{
   }
   return realFetch(url,options);
 };
-window.TaejangApp={getRoute:()=>fixtureRoute,hasCapabilityContract:()=>true,can:()=>fixtureRoute==='operations_manager',friendlyError:error=>error.message,rpc:async(name,args)=>{
+window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtureAccessToken}),refreshSession:async()=>{fixtureRefreshCount++;fixtureAccessToken='synthetic-refreshed';return true;},hasCapabilityContract:()=>true,can:()=>fixtureRoute==='operations_manager',friendlyError:error=>error.message,rpc:async(name,args)=>{
   calls.push({name,args});
   if(name==='get_employee_management_context'){
     if(fail==='context'||fail==='refresh'){if(fail==='refresh')window.fail='';throw Error('합성 context 실패');}

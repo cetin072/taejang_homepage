@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Compact admin form browser regression</title>
+  <link rel="stylesheet" href="../../staff/assets/staff.css">
   <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
   <style>
     body { margin:0; font:16px/1.5 "Malgun Gothic", sans-serif; background:#f3f6f4; }
@@ -27,6 +28,7 @@
     const calls=[];
     let approvalShouldFail=false;
     window.alert=(message)=>calls.push({name:'alert',message});
+    window.confirm=()=>true;
     window.TaejangApp={
       hasCapabilityContract:()=>true,
       can:key=>key==='employee.onboard',
@@ -37,6 +39,7 @@
         if(name==='list_employee_signup_requests'){
           return [{id:'fixture-person',display_name:'가상 직원',work_email:'fixture@example.test',phone:'010-1111-2222',hired_on:'2026-10-08'}];
         }
+        if(name==='list_existing_employee_signup_candidates')return [];
         if(name==='get_employee_signup_approval_options'){
           return {departments:[{id:'dep-uuid',code:'logistics',name:'물류'}],
             positions:[{id:'position-uuid',code:'department_lead',name:'부서 팀장'}],
@@ -55,16 +58,19 @@
       const check=(ok,message)=>{if(!ok)throw new Error(message)};
       await window.TaejangAccountApproval.openAccountApproval();
       const card=document.querySelector('.phase-c-signup-approval-card');
+      if(new URLSearchParams(location.search).has('capture')) { document.getElementById('result').textContent='ADMIN_APPROVAL_CAPTURE_READY'; return; }
+      const mode=card.querySelector('select'); mode.value='new'; mode.dispatchEvent(new Event('change'));
       const fields=card?.querySelector('.app-compact-fields');
       const reasons=card?.querySelector('.phase-c-signup-reasons');
       const applicant=card?.querySelector('.phase-c-signup-applicant');
       check(card&&fields&&reasons&&applicant,'compact layout nodes exist');
-      check(fields.querySelectorAll('select').length===3,'three select controls');
+      check(fields.querySelectorAll('select').length===2,'department and position selects');
       check(reasons.querySelectorAll('input[type="text"]').length===2,'both independent decision reasons');
       check(applicant.querySelectorAll('.phase-c-signup-applicant-item').length===3,'three applicant summary items');
       const selects=[...fields.querySelectorAll('select')];
-      selects[0].value='dep-uuid';selects[1].value='position-uuid';selects[2].value='general_worker';
-      check(selects[2].value==='general_worker'&&selects[2].value!=='role-uuid','role code, not UUID');
+      selects[0].value='dep-uuid';selects[1].value='position-uuid';
+      const role=[...card.querySelectorAll('label')].find(n=>n.textContent.includes('앱 업무 권한')).querySelector('select');role.value='general_worker';
+      check(role.value==='general_worker'&&role.value!=='role-uuid','role code, not UUID');
       const columns=getComputedStyle(fields).gridTemplateColumns.trim().split(/\s+/).length;
       const width=document.documentElement.clientWidth;
       const desktop=width>900;
@@ -73,17 +79,17 @@
       if(desktop){
         check(Math.max(...rects.map(x=>x.top))-Math.min(...rects.map(x=>x.top))<=4,'desktop fields share one row');
       }else{
-        check(rects[0].bottom<rects[1].top&&rects[1].bottom<rects[2].top,'mobile fields stack without overlap');
+        check(rects[0].bottom<rects[1].top,'mobile fields stack without overlap');
       }
       check(selects.every(s=>s.getBoundingClientRect().height>=44),'all selects have accessible touch height');
       check(card.getBoundingClientRect().width<=width,'card fits viewport');
       check(document.body.scrollWidth<=window.innerWidth+3,'no horizontal overflow');
       const buttons=[...card.querySelectorAll('button')];
-      check(buttons.some(b=>b.textContent==='직원 생성 후 가입 승인'),'approve action preserved');
+      check(buttons.some(b=>b.textContent==='신규 직원 생성 후 가입 승인'),'approve action preserved');
       check(buttons.some(b=>b.textContent==='가입 거절'),'reject action preserved');
-      const attendance=card.querySelector('.phase-c-signup-check input[type="checkbox"]');
+      const attendance=fields.querySelector('input[type="checkbox"]');
       check(attendance&&attendance.checked,'attendance setting preserved');
-      buttons.find(b=>b.textContent==='직원 생성 후 가입 승인').click();
+      buttons.find(b=>b.textContent==='신규 직원 생성 후 가입 승인').click();
       await new Promise(resolve=>setTimeout(resolve,30));
       const approval=calls.find(x=>x.name==='approve_employee_signup_request');
       check(approval?.args?.p_department_id==='dep-uuid','department stays UUID');

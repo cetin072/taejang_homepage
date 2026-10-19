@@ -60,7 +60,7 @@
     }
 
     function meta(pairs) {
-      const dl = el('dl', null, 'employee-meta');
+      const dl = el('dl', null, 'employee-meta app-summary-list');
       pairs.forEach(([label, value]) => {
         const row = el('div'); row.append(el('dt', label), el('dd', value ?? '—')); dl.append(row);
       });
@@ -131,7 +131,7 @@
         const node = el('section', null, `employee-profile-section ${className}`); node.append(el('h3', label)); card.append(node); return node;
       };
 
-      const basic = section('기본 인사정보');
+      const basic = section('기본 인사정보', 'employee-section-basic');
       const values = meta([
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
@@ -151,7 +151,7 @@
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
       } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
-      const appSection = section('앱 계정');
+      const appSection = section('앱 계정', 'employee-section-account');
       const profile = employee.linked_profile;
       const profileStatus = ({ active:'활성', inactive:'비활성', suspended:'정지', deleted:'삭제', pending:'승인 대기' })[profile?.account_status] || '확인 필요';
       appSection.append(meta([
@@ -159,7 +159,7 @@
         ['연결된 Profile', profile?.display_name || '—'], ['Profile 상태', profile ? profileStatus : '—'],
         ['이메일', profile?.work_email || '표시 가능한 정보 없음'], ['연결 점검', account.review ? '연결 확인 필요' : '현재 조회 범위에서 추가 경고 없음']
       ]));
-      const photos = section('사진'); const photoGrid = el('div', null, 'employee-photo-grid');
+      const photos = section('사진', 'employee-section-photos'); const photoGrid = el('div', null, 'employee-photo-grid');
       [['profile', '업무용 사진', employee.profile_photo_path], ['id_photo', '증명사진', employee.id_photo_path]].forEach(([type, label, path]) => {
         const box = el('div'); box.append(el('h4', label));
         const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
@@ -176,9 +176,9 @@
       // Keep the staff audit inside the existing card instead of a second menu.
       if ((context.access_level === 'promotion_lead_global'
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
-        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card');
+        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card employee-section-audit');
         visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
-        const auditForm = el('form',null,'employee-app-audit-form');
+        const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container');
         const confirmation = input('checkbox');
         confirmation.checked=Boolean(employee.identity_verified);
         const install=select([
@@ -191,8 +191,11 @@
         note.placeholder='설치 안내나 로그인 오류 등 비민감 메모';
         const save=button('현장 확인 저장',()=>{});save.type='submit';
         const feedback=el('p','', 'help');feedback.setAttribute('role','status');
-        auditForm.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),
-          field('현장 메모',note),save,feedback);
+
+        const fields = el('div',null,'app-compact-fields');
+        fields.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),field('현장 메모',note));
+        const actions = el('div',null,'quick-links'); actions.append(save);
+        auditForm.append(fields,actions,feedback);
         auditForm.addEventListener('submit',async ev=>{
           ev.preventDefault();save.disabled=true;
           try{
@@ -238,7 +241,7 @@
         if (context.access_level === 'operations_manager') tool('4대보험 공제 ON/OFF', () => insuranceDeductionPanel(employee));
       }
 
-      const record = section('기록 / 점검');
+      const record = section('기록 / 점검', 'employee-section-record');
       record.append(el('p', `앱 계정: ${account.label}`));
       if (account.review) record.append(el('p', '연결 확인 필요 — 같은 이름·입사일의 연결/미연결 기록 또는 확인되지 않은 계정 상태가 있습니다. 중복 확정이 아니며 별도 확인이 필요합니다.', 'employee-protected-note'));
       else record.append(el('p', '현재 조회 가능한 정보에서 추가 연결 경고가 없습니다.', 'help'));
