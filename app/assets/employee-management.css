@@ -6,7 +6,7 @@
 .employee-management :is(h2,h3,p,dd,span) { overflow-wrap:anywhere; }
 .employee-management .button,.employee-management summary { min-height:44px; }
 .employee-management :is(button,input,select,summary):focus-visible { outline:3px solid #316c55; outline-offset:3px; }
-.employee-filters { display:grid; grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr)); gap:12px; margin-bottom:14px; }
+.employee-filters { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); gap:12px; margin-bottom:14px; }
 .employee-filters label { display:grid; gap:5px; margin:0; color:var(--app-muted); font-size:.88rem; }
 .employee-filters input,.employee-filters select { width:100%; min-width:0; min-height:44px; padding:9px; border:1px solid var(--app-border); border-radius:8px; background:#fff; font:inherit; }
 .employee-list-head,.employee-list-row { display:grid; grid-template-columns:40px minmax(85px,.9fr) minmax(100px,1.2fr) minmax(100px,1.2fr) minmax(60px,.7fr) 55px minmax(100px,1fr) 70px 70px minmax(95px,1fr); gap:10px; align-items:center; }
@@ -76,6 +76,8 @@
 .employee-list-row .employee-avatar { width:40px; height:40px; border-radius:8px; }
 .employee-avatar-frame { display:block; flex-shrink:0; }
 .employee-avatar-placeholder { display:grid; place-items:center; font-weight:900; color:var(--app-muted); }
+.employee-profile-head .employee-avatar { width:120px; height:120px; object-position:center 30%; }
+@media(max-width:760px){.employee-profile-head .employee-avatar{width:100px;height:100px}.employee-profile-head{gap:12px}}
 .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
 .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
 .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }

@@ -10,6 +10,7 @@
   let removedMedia = [];
   let previewGeneration = 0;
   let activeView = 'manage';
+  let savedNoticeId = null;
   let savedStatus = 'draft';
   let reviewPending = false;
   let leadMode = null;
@@ -168,11 +169,12 @@
 
   function exposureLabel(item) {
     if (item.review_state === 'submitted') return '운영총괄 검토 대기 — 직원 비공개';
-    if (item.status === 'draft') return '초안 저장됨 — 직원 비공개';
+    if (item.status === 'draft') return '비공개 초안 · 초안 저장됨 — 직원 비공개';
+    if (item.status === 'cancelled' || item.status === 'inactive') return `취소·사용 중지 · ${ui.STATUS[item.status]}`;
     if (item.status !== 'published') return ui.STATUS[item.status] || item.status;
-    if (new Date(item.publish_start_at) > new Date()) return `게시 예약됨 — ${ui.formatDateTime(item.publish_start_at)} (KST) 공개 예정`;
-    if (item.publish_end_at && new Date(item.publish_end_at) <= new Date()) return '게시기간 종료 — 직원 비공개';
-    return '현재 공개됨 — 직원앱에서 확인 가능 (대상·기간 조건부)';
+    if (new Date(item.publish_start_at) > new Date()) return `예약 게시 · 게시 예약됨 — ${ui.formatDateTime(item.publish_start_at)} (KST) 공개 예정`;
+    if (item.publish_end_at && new Date(item.publish_end_at) <= new Date()) return '게시 종료 · 게시기간 종료 — 직원 비공개';
+    return '게시 중 · 현재 공개됨 — 직원앱에서 확인 가능 (대상·기간 조건부)';
   }
 
   function setDateTime(prefix, value) {
@@ -396,8 +398,8 @@
       });
       if (!result?.ok) throw new Error(result?.code || 'SUBMIT_FAILED');
       if (ui.element('notice-id').value === item.id) reviewPending = true;
-      await load({ preserveMessage: true });
-      showMessage('운영총괄 검토 대기 — 직원 비공개');
+      const loaded = await load({ preserveMessage: true });
+      showSavedNotice(item.id, `운영총괄 검토 대기 — 직원 비공개 · ${item.title}`, loaded);
     } catch {
       showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
     } finally {
@@ -431,9 +433,7 @@
     if (previewCard) previewCard.hidden = true;
   }
 
-  function setView(view) {
-    if (saving) return;
-    activeView = view === 'create' ? 'create' : 'manage';
+  function renderViewChrome() {
     const heading = ui.element('notice-admin-title');
     const refresh = ui.element('refresh-notice-admin');
     const create = ui.element('new-notice-admin');
@@ -442,6 +442,33 @@
     if (refresh) refresh.hidden = activeView === 'create';
     if (create) create.hidden = activeView === 'create';
     if (manage) manage.hidden = activeView === 'create';
+  }
+
+  function showSavedNotice(id, message, loaded) {
+    savedNoticeId = id;
+    activeView = 'manage';
+    renderViewChrome();
+    renderList();
+    const found = loaded && notices.some(item => item.id === id);
+    showMessage(`저장 완료 · ${message}${!loaded ? ' — 목록 새로고침 실패. 저장은 완료됐습니다.' : !found ? ' — 현재 조회 목록에서 찾지 못했습니다. 저장된 원고는 아래에서 확인할 수 있습니다.' : ''}`);
+    if (found) {
+      const viewSaved = button('저장한 공지 목록에서 확인', () => {
+        const card = [...ui.element('notice-admin-list').children].find(node => node.dataset.noticeId === id);
+        card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card?.focus({ preventScroll: true });
+      });
+      ui.element('notice-admin-message').append(document.createTextNode(' '), viewSaved);
+    }
+    const resultMessage = ui.element('notice-admin-message');
+    resultMessage.tabIndex = -1;
+    resultMessage.focus({ preventScroll: true });
+    resultMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function setView(view) {
+    if (saving) return;
+    activeView = view === 'create' ? 'create' : 'manage';
+    renderViewChrome();
 
     if (activeView === 'create') {
       resetForm();
@@ -477,6 +504,12 @@
     notices.forEach(item => {
       const card = document.createElement('article');
       card.className = 'admin-record-card';
+      card.dataset.noticeId = item.id;
+      card.tabIndex = -1;
+      if (item.id === savedNoticeId) {
+        card.dataset.savedNotice = '1';
+        card.append(ui.text('p', '방금 저장한 공지', 'notice-review-banner'));
+      }
       const summary = ui.text('p', '', 'help');
       const review = reviewLabel(item);
       card.append(
@@ -588,12 +621,14 @@
     ui.element('refresh-notice-admin').disabled = true;
     if (!preserveMessage) showMessage('공지 목록을 불러오고 있습니다.');
     try {
-      const [noticeRows, scheduleRows] = await Promise.all([
+      const [noticeResult, scheduleResult] = await Promise.allSettled([
         app.rpc('list_manageable_notices', { p_limit: 200 }),
         app.rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
       ]);
-      notices = ui.array(noticeRows);
-      schedules = ui.array(scheduleRows).map(item => ({ id: item.id, title: item.title }));
+      if (noticeResult.status !== 'fulfilled') throw noticeResult.reason;
+      notices = ui.array(noticeResult.value);
+      // The optional schedule picker cannot hide a successfully loaded notice list.
+      if (scheduleResult.status === 'fulfilled') schedules = ui.array(scheduleResult.value).map(item => ({ id: item.id, title: item.title }));
       renderOptions();
       renderList();
       if (!preserveMessage) showMessage('');
@@ -788,7 +823,7 @@
       setDateTime('notice-publish-start', publishStart);
       const label = exposureLabel({ status: savedStatus, publish_start_at: publishStart, publish_end_at: publishEnd, review_state: reviewState });
       const loaded = await load({ preserveMessage: true });
-      showMessage(`${label} · ${payload.p_title}${loaded ? '' : ' — 목록 새로고침 실패. 저장은 완료됐습니다.'}`);
+      showSavedNotice(result.id, `${label} · ${payload.p_title}`, loaded);
       // Keep the saved id, input and result visible. A new notice is an explicit action.
       revealEditor({ preview: true });
       await renderMediaEditor();
