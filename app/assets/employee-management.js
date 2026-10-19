@@ -10,7 +10,7 @@
   let currentContext = null;
   let activeEmployeeView = 'existing';
   let selectedEmployeeId = null;
-  const listState = { search: '', employment: 'active', account: '', photo: '' };
+  const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
 
   const el = (tag, value, className) => {

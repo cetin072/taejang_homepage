@@ -45,6 +45,11 @@ jobs:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
         run: node tests/admin-ui-browser.mjs
 
+      - name: Run employee sorting and notice saved-result role QA
+        env:
+          ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
+        run: node tests/admin-employee-notice-browser.mjs
+
       - name: Keep synthetic admin UI screenshots
         if: always()
         uses: actions/upload-artifact@v4
