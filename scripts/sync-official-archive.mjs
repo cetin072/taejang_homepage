@@ -190,7 +190,7 @@ export async function synchronize({ apply = false,
   const report = {
     feedOk: { naver: results[0].status === 'fulfilled', youtube: results[1].status === 'fulfilled' },
     sourceItems: fetched.length, existingUpdates: data.current.length,
-    newItems: added.length, added: added.map((x) => ({ id: x.id, title: x.title })),
+    newItems: added.length, added: added.map((x) => ({ id: x.id, title: x.title, date: x.publishedAt, url: x.externalUrl })),
     errors, applied: apply && added.length > 0
   };
   if (process.env.GITHUB_STEP_SUMMARY) {
