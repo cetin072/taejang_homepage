@@ -47,3 +47,32 @@ jobs:
             }
           }
           NODE
+
+      - name: Inspect every new blog card photo
+        continue-on-error: true
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const source = await readFile('assets/js/official-channel-updates.js', 'utf8');
+          const list = JSON.parse(source.split('/* OFFICIAL_ITEMS_START */')[1].split('/* OFFICIAL_ITEMS_END */')[0]);
+          const blog = list.filter(item => item.source === 'naver-blog');
+          const results = [];
+          for (const item of blog) {
+            const id = item.id.slice('naver-blog-'.length);
+            try {
+              const response = await fetch('https://m.blog.naver.com/taejang-official/' + id, {
+                headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(12000)
+              });
+              const html = await response.text();
+              const meta = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i) ||
+                html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image/i);
+              const url = meta?.[1] || '';
+              if (response.status !== 200 || !url.startsWith('https://blogthumb.pstatic.net/')) throw Error('No verified official thumbnail');
+              results.push({ id: item.id, url });
+            } catch (error) {
+              results.push({ id: item.id, error: String(error?.message || error) });
+            }
+          }
+          console.log('ARCHIVE_IMAGES_BEGIN' + JSON.stringify(results) + 'ARCHIVE_IMAGES_END');
+          NODE
