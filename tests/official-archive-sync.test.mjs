@@ -111,3 +111,12 @@ test('Client-side updates use the existing hub and do not touch original entries
   vm.runInNewContext(script, { window }, { timeout: 1000 });
   assert.equal(window.TAEJANG_CONTENT.hub.length, total);
 });
+
+test('New public channel updates are archive-only and execute before card rendering', async () => {
+  const archive = await readFile(new URL('../archive.html', import.meta.url), 'utf8');
+  const homepage = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const script = 'assets/js/official-channel-updates.js';
+  assert.ok(archive.includes('<script src="' + script + '"></script>'));
+  assert.ok(archive.indexOf(script) < archive.indexOf('assets/js/content-hub.js'));
+  assert.ok(!homepage.includes(script), 'Homepage recent activity preview must remain unchanged');
+});
