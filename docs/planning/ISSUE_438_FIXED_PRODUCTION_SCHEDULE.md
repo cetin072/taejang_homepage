@@ -58,3 +58,21 @@ The 2026-10-19 reference Production is 8489a19980c12317337728d42ccdf84c07ed3a5e,
 published 17:04:16 KST. That is historical evidence, not a substitute for live
 published_deploy verification. Operational DB recovery and approved migrations
 were completed under #474; this work performs no new operational DB mutation.
+
+## Final implementation notes and rollout evidence
+
+- Slot admission now precedes public Production fetch and git content comparison;
+  off-day/duplicate/missed live slots stop before either operation. NO_CHANGES
+  also skips the release step itself, including local git identity setup.
+- Failure alerts use a fixed allowlist of safe categories (App configuration,
+  authentication/scope, slot history, planning, DB/CI/protected merge,
+  unconfirmed publication, timeout/setup). Arbitrary remote errors are not echoed.
+- Unrelated open PRs are paginated (up to ten pages, fail closed on incomplete
+  history). Normal archived release refs have no arbitrary 100-ref cutoff.
+  Proven old marker-only orphan refs remain untouched; unknown refs still alert.
+- Local release tests at code commit 28a6576990ffbf7a5ce5f8a10b77f397260bff88:
+  40/40 PASS, including the >100 unrelated PR/archived-ref case.
+  Earlier hosted CI at 8919c519 is separate evidence; it cannot substitute for
+  exact final PR-head CI. Check the live PR before rollout.
+- Human App provisioning, real read-only authentication and protected activation
+  remain pending. Production and #480 are preserved until that transition.
