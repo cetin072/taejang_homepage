@@ -8,6 +8,7 @@ test('notice history adds read scope without replacing writers, RLS, approval or
  assert.match(migration,/n\.created_by=auth\.uid\(\)/);
  assert.match(migration,/'can_edit',n\.archived_at is null and public\.current_user_can_manage_notice/);
  assert.match(migration,/'can_read_ack_summary',public\.current_user_can_manage_today_target/);
+ assert.match(migration,/else to_jsonb\(n\)-array\['change_reason','created_by','updated_by'/);
  assert.doesNotMatch(migration,/create (?:or replace )?function public\.(?:save_notice|save_lead_notice|current_user_can_manage_notice|submit_notice)/i);
  assert.doesNotMatch(migration,/\b(?:create|alter|drop) (?:table|policy)|\b(?:insert into|update public|delete from)\b/i);
  assert.doesNotMatch(migration,/alter function public\.current_user_can_view_notice/);

@@ -18,7 +18,10 @@ $$;
 
 create function public.private_notice_management_json(p_notice_id uuid)
 returns jsonb language sql stable security definer set search_path='' as $$
- select to_jsonb(n)||jsonb_build_object(
+ select (case when n.created_by=auth.uid() or public.current_user_can_manage_today_target(
+   n.target_scope,n.target_department_id,n.target_work_group_id,n.target_profile_id) then to_jsonb(n)
+  else to_jsonb(n)-array['change_reason','created_by','updated_by','submitted_for_review_by','reviewed_by',
+   'archived_by','archive_reason','archive_previous_status'] end)||jsonb_build_object(
   'media',public.private_notice_media_json(n.id),
   'creator_display_name',creator.display_name,
   'submitter_display_name',submitter.display_name,

@@ -263,6 +263,7 @@ const historyId=historySave.data.id;
 const exactBefore=await rpc('get_manageable_notice',operations.token,{p_notice_id:historyId});
 check(exactBefore.ok&&exactBefore.data.id===historyId&&exactBefore.data.can_edit,'exact operations detail');
 check(exactBefore.data.can_read_ack_summary===true,'operations keeps acknowledgement summary access');
+check(Object.hasOwn(exactBefore.data,'change_reason'),'authorized management retains original edit metadata');
 const historyPhotoPath=historyId+'/history-edit.png';
 check((await request('/storage/v1/object/notice-media/'+encodeURIComponent(historyPhotoPath),{method:'POST',token:operations.token,headers:{'Content-Type':'image/png','x-upsert':'false'},body:png})).ok,'operations uploads published notice photo');
 const historyPhoto=await rpc('add_notice_media',operations.token,{p_notice_id:historyId,p_storage_path:historyPhotoPath,p_mime_type:'image/png',p_alt_text:'Before photo edit',p_display_order:0});
@@ -292,6 +293,7 @@ check(historyAudit.ok&&historyAudit.data.some(row=>row.action==='notice_updated'
 const leadRead=await rpc('get_manageable_notice',promotion.token,{p_notice_id:historyId});
 check(leadRead.ok&&leadRead.data.can_edit===false&&leadRead.data.can_lead_edit===false,'lead can read other publisher but cannot edit');
 check(leadRead.data.can_read_ack_summary===false,'read-only company notice never grants acknowledgement management');
+check(!Object.hasOwn(leadRead.data,'change_reason')&&!Object.hasOwn(leadRead.data,'updated_by'),'new foreign-public read scope excludes internal edit reasons and actor IDs');
 check(!(await rpc('get_notice_ack_summary',promotion.token,{p_notice_id:historyId})).ok,'acknowledgement summary remains server denied');
 check((await request('/storage/v1/object/authenticated/notice-media/'+encodeURIComponent(historyPhotoPath),{token:promotion.token})).ok,'lead can read published company photo');
 refused(await rpc('save_notice',promotion.token,historyPayload({p_notice_id:historyId})),'read permission never authorizes original writer');
