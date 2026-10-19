@@ -95,6 +95,10 @@ test('Client-side updates use the existing hub and do not touch original entries
   const script = await readFile(new URL('../assets/js/official-channel-updates.js', import.meta.url), 'utf8');
   const window = { TAEJANG_CONTENT: { hub: [{ id: 'existing', title: '기존 글' }] } };
   vm.runInNewContext(script, { window }, { timeout: 1000 });
-  assert.equal(window.TAEJANG_CONTENT.hub.length, 1);
+  const total = window.TAEJANG_CONTENT.hub.length;
+  assert.ok(total >= 1);
   assert.equal(window.TAEJANG_CONTENT.hub[0].title, '기존 글');
+  assert.equal(new Set(window.TAEJANG_CONTENT.hub.map((item) => item.id)).size, total);
+  vm.runInNewContext(script, { window }, { timeout: 1000 });
+  assert.equal(window.TAEJANG_CONTENT.hub.length, total);
 });
