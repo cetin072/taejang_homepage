@@ -110,6 +110,38 @@ export function channelIdFromHtml(html) {
   }
   throw new Error('Official channel ID not found');
 }
+// Only image metadata belonging to the official Naver blog; never fetch arbitrary OG URLs.
+export function blogImageFromHtml(html) {
+  const candidate = String(html || '').match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i)
+    || String(html || '').match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image/i);
+  if (!candidate) return '';
+  try {
+    const parsed = new URL(decode(candidate[1]));
+    return parsed.protocol === 'https:' && parsed.hostname === 'blogthumb.pstatic.net'
+      && parsed.href.length <= 1000 ? parsed.href : '';
+  } catch { return ''; }
+}
+async function addVerifiedBlogImages(entries) {
+  const naver = entries.filter((entry) => entry.source === 'naver-blog');
+  // Limit simultaneous requests. Source articles are already public and official.
+  for (let offset = 0; offset < naver.length; offset += 4) {
+    await Promise.all(naver.slice(offset, offset + 4).map(async (entry) => {
+      const id = entry.id.slice('naver-blog-'.length);
+      try {
+        const html = await getText('https://m.blog.naver.com/' + BLOG + '/' + id, 1000000);
+        const thumbnail = blogImageFromHtml(html);
+        if (!thumbnail) throw new Error('No valid OG image');
+        entry.thumbnail = thumbnail;
+        entry.thumbnailAlt = entry.title + ' 관련 태장 공식 블로그 대표사진';
+      } catch {
+        // Never fail the archive or guess a photo because image metadata is unavailable.
+        entry.thumbnail = DEFAULT_IMAGE;
+        entry.thumbnailAlt = '태장 공식 블로그 로고';
+      }
+    }));
+  }
+}
+
 async function getText(url, limit = 2000000) {
   const response = await fetch(url, {
     headers: {
@@ -183,6 +215,7 @@ export async function synchronize({ apply = false,
   if (errors.length === 2) throw new Error('Both feeds failed: ' + errors.join('; '));
   const { merged, added } = mergeEntries(data.current, fetched, data.known);
   if (apply && added.length) {
+    await addVerifiedBlogImages(added);
     const output = data.text.slice(0, data.start + START.length) + '\n' +
       JSON.stringify(merged, null, 2) + '\n  ' + data.text.slice(data.end);
     await writeFile(TARGET, output, 'utf8');
