@@ -2,5 +2,8 @@
   "version": 1,
   "mode": "BATCHED",
   "production_interval_days": 2,
-  "max_production_deploys_per_day": 1
+  "max_production_deploys_per_day": 1,
+  "schedule_anchor_utc": "2026-10-19T08:20:00.000Z",
+  "schedule_interval_hours": 48,
+  "schedule_window_hours": 24
 }

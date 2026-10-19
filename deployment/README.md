@@ -1,10 +1,30 @@
 # Batched Netlify Production releases
 
-Production requires real deployment input changes, at least 48 hours between
-regular published releases, and at most one release per Asia/Seoul date.
-The planner checks daily at 09:20 KST; that schedule is not a promise of an exact
-48-hour publication time. Actions may start late. Manual dispatch defaults to
-`dry_run=true`; `force=true` bypasses only 48 hours, never daily limits or gates.
+Production requires web deployment input changes, at least 48 actual hours since
+successful public publication, and at most one release per Asia/Seoul date.
+The daily 17:20 KST trigger is only a wake-up: fixed slots are counted from
+2026-10-19 17:20 KST, with the first check on **2026-10-21 17:20 KST**, then
+Oct 23/25/27 and every 48 hours across month/year boundaries. The anchor is not
+a release. Never use day-of-month `*/2` or reset the clock after NO_CHANGES.
+
+A trigger may evaluate only the first 24 hours of its fixed slot. Its actual
+Actions created_at must belong to that slot; a delayed old/off-day trigger never
+catches up in another slot. Current/earlier live Actions runs (including failed,
+cancelled and queued checks) consume that slot. Reruns cannot release again.
+Read-only dry-runs do not consume it. Actions concurrency serializes execution;
+the public 48-hour/KST cap is rechecked before merge. Late publication may make
+the next fixed slot WAITING_WINDOW; later slots stay anchored, not postponed.
+
+Compare actual published_deploy.commit_ref with latest main, excluding Draft
+PRs. Static published assets, Netlify Functions/shared code, root dependencies,
+Netlify configuration and both the publish builder and its article-generator
+import count. Documentation/tests/.github/mobile/ios/android/release-marker-only
+changes do not. NO_CHANGES creates no branch, PR, marker, commit or Netlify API
+write. Only the Actions result/summary records it; the next fixed slot is unchanged.
+
+Manual dispatch defaults to `dry_run=true`, including App authentication checks.
+There is no force/48-hour bypass. A dispatch on an unmerged branch is allowed only
+in dry-run and evaluates origin/main, never that Draft PR as deployable content.
 
 ## Release identity and required checks (Issue #438)
 
@@ -24,9 +44,9 @@ Use GitHub settings to enter the private key; never paste it into issues or logs
 `actions/create-github-app-token@v2` restricts the installation token to this repo
 and revokes it at job end. The checkout does not persist credentials; authenticated
 Git uses the job's App token. Missing App configuration fails before creating a
-release branch/PR. Dry-run uses read access and never creates a release.
+release branch/PR. Dry-run verifies a real repository-limited App token using GETs and never creates a release.
 
-The default token has Contents read and Issues write solely for updating the
+The default token has Contents read, Actions read for slot history, and Issues write solely for updating the
 existing incident #438. Other workflows and repository default permissions stay
 unchanged. App creation/installation and secret provisioning require a human;
 this implementation does not create them or assume they are already configured.
@@ -61,7 +81,10 @@ Failed, missing, wrong-source or approval-required checks block the merge.
 
 A pushed release branch without any associated PR blocks further branch creation
 (ORPHAN_RELEASE_BRANCH), preventing infinite retries after PR-creation failure.
-An existing release PR prevents duplicates. Its source/date, required checks and
+A marker-only orphan at least 24 hours before the new slot, with the expected
+single parent and an ancestor source proven through compare, is preserved but
+no longer blocks a later slot. No ref is deleted or rewritten. Ambiguous/new
+orphans remain incidents. An existing release PR prevents duplicates. Its source/date, required checks and
 age are inspected: stale, approval-required, failed, not-started or stalled (>30
 minutes) releases become incidents, rather than silently returning a healthy no-op.
 Existing PRs are never automatically merged just because an earlier run passed.
@@ -77,7 +100,7 @@ SHA, for a bounded time. Preview, main merge, build readiness and a previous
 published SHA never count as success. Timeout/failure does not redeploy; an
 unpublished marker blocks subsequent automatic attempts pending investigation.
 
-Failures update one bot-owned comment on existing Issue #438 and write the run
+A separate failure job also handles release-job cancellation/timeouts. Failures update one bot-owned comment on existing Issue #438 and write the run
 URL to the Actions job summary. Comments use a fixed non-sensitive message and
 do not include environment/credentials or remote error bodies. Repeated failures
 update the existing alert, not a new issue/comment each time. GitHub notification
@@ -90,6 +113,11 @@ squash and Netlify prevent_non_git_prod_deploys. No CLI/manual Production upload
 If a deploy fails, the previous published deploy remains active. A bad published
 release requires a reviewed forward fix/revert and the normal CI/marker release
 path; do not silently restore deploys or mutate the DB as recovery.
+
+Transition order: finish #481 CI, configure and authenticate the dedicated App
+with a read-only branch dry-run, then protected-merge #481, verify the active
+schedule/authenticated main dry-run, and only then retire stale Draft #480.
+Never merge #480 or remove its old-scheduler safety barrier early.
 
 This change is not active until its Draft PR is reviewed and merged. App setup
 and live automatic-PR reproduction remain separate rollout gates. See

@@ -105,6 +105,7 @@ export const testGroups = Object.freeze({
     'tests/netlify-publish-boundary.test.js',
     'tests/production-release-policy.test.mjs',
     'tests/production-release-health.test.mjs',
+    'tests/production-release-schedule.test.mjs',
     'tests/visual-asset-audit.test.js'
   ]),
   stagingSafety: Object.freeze([

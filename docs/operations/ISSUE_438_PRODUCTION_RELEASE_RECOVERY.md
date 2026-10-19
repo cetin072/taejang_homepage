@@ -95,3 +95,23 @@ service, paid dependency, protected-rule edit or main/Production modification.
 Commands and final exact-head results belong in the linked Draft PR. The planning
 source is the user's 2026-10-19 Production recovery instruction plus Issue #438
 and deployment/release-policy.json; this document records its approved scope.
+
+
+## Superseding authorized Goal: fixed slots, 2026-10-19
+
+The earlier safety hold above is historical. #474 recovery/Vault/Storage and the
+three approved migrations were completed, and one-time protected release #483
+published 8489a19980c12317337728d42ccdf84c07ed3a5e at 17:04:16 KST. No further
+DB mutation is part of this scheduler work. Latest source is always re-read.
+
+The user now authorizes finishing #481, then protected merge/activation after
+required CI and real dedicated App authentication, followed by safe #480 cleanup.
+Confirmed specification: docs/planning/ISSUE_438_FIXED_PRODUCTION_SCHEDULE.md.
+Anchor 2026-10-19 17:20 KST; first check Oct 21 17:20, then fixed 48h slots.
+NO_CHANGES and failures never reset that clock. No force bypass remains.
+
+Generic automatic closing of old PRs was not added: automatic approval review
+rejected that proposed remote side effect while #480 is still a safety barrier.
+Existing stale PR reporting remains, and #480 retirement stays conditional on
+actual authenticated activation. Proven old marker-only orphan refs are only
+classified/ignored read-only, never deleted. App setup is still a human gate.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyRequiredRun, databaseReadiness, publicDeployReady } from '../scripts/production-release-health.mjs';
+import { classifyRequiredRun, databaseReadiness, publicDeployReady, verifyPublishedRelease } from '../scripts/production-release-health.mjs';
 import { reportReleaseFailure } from '../scripts/production-release-report.mjs';
 
 const expected = { sha: 'a'.repeat(40), pr: 480, job: 'Migration, pgTAP, Auth and RLS' };
@@ -60,4 +60,19 @@ test('a human comment with the incident marker cannot be overwritten', async () 
   await reportReleaseFailure({ runUrl: 'https://example.invalid/run', sha: expected.sha,
     api: async (method, route) => { calls.push({ method, route }); return method === 'GET' ? [{ id: 99, user: { login: 'human' }, body: '<!-- production-release-incident:v1 --> human' }] : {}; } });
   assert.equal(calls[1].method, 'POST');
+});
+
+test('a merged SHA is never PUBLISHED when Netlify errors, remains old, or returns Preview; reads are bounded', async () => {
+  const sha='d'.repeat(40);
+  for(const deploy of [
+    {state:'error',context:'production',commit_ref:sha},
+    {state:'ready',context:'production',commit_ref:'e'.repeat(40)},
+    {state:'ready',context:'deploy-preview',commit_ref:sha},
+  ]) {
+    let reads=0,waits=0;
+    await assert.rejects(verifyPublishedRelease({sha,attempts:2,published:async()=>{reads++;return {published_deploy:deploy}},wait:async()=>{waits++}}),/PRODUCTION_PUBLICATION_NOT_CONFIRMED/);
+    assert.equal(reads,2);assert.equal(waits,1);
+  }
+  await assert.rejects(verifyPublishedRelease({sha,attempts:2,published:async()=>{throw new Error('synthetic network error')},wait:async()=>{}}),/PRODUCTION_PUBLICATION_NOT_CONFIRMED/);
+  assert.deepEqual(await verifyPublishedRelease({sha,published:async()=>({published_deploy:{state:'ready',context:'production',commit_ref:sha}}),wait:async()=>{throw new Error('not needed')}}),{status:'PUBLISHED',release_sha:sha});
 });

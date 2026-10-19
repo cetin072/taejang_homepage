@@ -1,4 +1,6 @@
 import { spawnSync } from 'node:child_process';
+import { appendFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 
 export function classifyRequiredRun(run, jobs, { sha, pr, job }) {
   if (!run) return 'REQUIRED_CI_NOT_STARTED';
@@ -52,4 +54,29 @@ export function publicDeployReady(snapshot, sha) {
   return deploy?.state === 'ready' && deploy.context === 'production' && deploy.commit_ref === sha;
 }
 
-export const safeReleaseStatuses = new Set(['NO_CHANGES', 'WAITING_WINDOW', 'WAITING_DAILY_LIMIT', 'DRY_RUN_READY', 'MERGED', 'RETRY_NOOP', 'OPEN_RELEASE_PR']);
+export const safeReleaseStatuses = new Set(['WAITING_SLOT', 'MISSED_SLOT', 'SLOT_ALREADY_CHECKED', 'NO_CHANGES', 'WAITING_WINDOW', 'WAITING_DAILY_LIMIT', 'DRY_RUN_READY', 'MERGED', 'RETRY_NOOP', 'OPEN_RELEASE_PR']);
+
+// Observation retries only; never request a build or publish an existing deployment.
+export async function verifyPublishedRelease({ sha, published, wait, attempts = 30 }) {
+  if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('INVALID_RELEASE_SHA');
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try { if (publicDeployReady(await published(), sha)) return { status: 'PUBLISHED', release_sha: sha }; }
+    catch { /* Temporary observation failures never count as publication. */ }
+    if (attempt + 1 < attempts) await wait(30_000);
+  }
+  throw new Error('PRODUCTION_PUBLICATION_NOT_CONFIRMED');
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const result = await verifyPublishedRelease({
+    sha: process.env.RELEASE_SHA,
+    published: async () => {
+      const response = await fetch('https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f', { signal: AbortSignal.timeout(15_000) });
+      if (!response.ok) throw new Error('PUBLIC_PRODUCTION_UNAVAILABLE');
+      return response.json();
+    },
+    wait: ms => new Promise(resolve => setTimeout(resolve, ms)),
+  });
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'status=PUBLISHED\n');
+  console.log(JSON.stringify(result));
+}

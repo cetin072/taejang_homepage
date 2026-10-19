@@ -1,14 +1,11 @@
 name: Batched Production Release
+run-name: "Production release | ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'dry-run' || 'live' }}"
 
 on:
   schedule:
-    - cron: '20 0 * * *'
+    - cron: '20 8 * * *'
   workflow_dispatch:
     inputs:
-      force:
-        description: 'Emergency release: bypass 48 hours; changes and daily cap still required'
-        type: boolean
-        default: false
       dry_run:
         description: 'Plan without creating a release branch, PR, or deployment'
         type: boolean
@@ -23,19 +20,19 @@ concurrency:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     runs-on: ubuntu-latest
     timeout-minutes: 75
     permissions:
       contents: read
+      actions: read
       issues: write
     env:
-      FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -49,9 +46,11 @@ jobs:
         run: curl --fail --silent --show-error --location --max-time 30 --output "$PUBLISHED_DEPLOY_PATH" "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f"
       - name: Plan release
         id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: node scripts/production-release-plan.mjs
       - name: Require configured release identity
-        if: steps.plan.outputs.status == 'READY' && env.DRY_RUN == 'false'
+        if: steps.plan.outputs.status == 'READY' || (github.event_name == 'workflow_dispatch' && env.DRY_RUN == 'true')
         env:
           APP_ID: ${{ vars.PRODUCTION_RELEASE_APP_ID }}
           APP_KEY: ${{ secrets.PRODUCTION_RELEASE_APP_PRIVATE_KEY }}
@@ -62,7 +61,7 @@ jobs:
           fi
       - uses: actions/create-github-app-token@v2
         id: app-token
-        if: steps.plan.outputs.status == 'READY' && env.DRY_RUN == 'false'
+        if: steps.plan.outputs.status == 'READY' || (github.event_name == 'workflow_dispatch' && env.DRY_RUN == 'true')
         with:
           app-id: ${{ vars.PRODUCTION_RELEASE_APP_ID }}
           private-key: ${{ secrets.PRODUCTION_RELEASE_APP_PRIVATE_KEY }}
@@ -71,6 +70,14 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
           permission-actions: read
+      - name: Verify repository-scoped App authentication
+        if: steps.app-token.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh api installation/repositories --jq '.repositories | map(.full_name)' > "$RUNNER_TEMP/release-app-repositories.json"
+          node --input-type=module -e 'import {readFileSync} from "node:fs";const repos=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/release-app-repositories.json","utf8"));if(repos.length!==1||repos[0]!==process.env.GITHUB_REPOSITORY)throw new Error("APP_REPOSITORY_SCOPE_MISMATCH");console.log("Release App authentication and single repository scope verified")'
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows?per_page=1" --jq '.total_count' > /dev/null
       - name: Create marker-only PR, await genuine PR CI, and squash when current
         id: release
         env:
@@ -85,25 +92,33 @@ jobs:
           fi
           node scripts/production-release.mjs
       - name: Verify publicly deployed squash commit
+        id: published
         if: steps.release.outputs.status == 'MERGED'
         env:
           RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+        run: node scripts/production-release-health.mjs
+      - name: Record check result
+        if: success()
+        env:
+          RELEASE_RESULT: ${{ steps.published.outputs.status || steps.release.outputs.status || steps.plan.outputs.status }}
         run: |
-          set -euo pipefail
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --location --max-time 15 "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f" \
-              | node --input-type=module -e 'import {publicDeployReady} from "./scripts/production-release-health.mjs";let s="";process.stdin.on("data",x=>s+=x);process.stdin.on("end",()=>{try{process.exit(publicDeployReady(JSON.parse(s),process.env.RELEASE_SHA)?0:1)}catch{process.exit(1)}})'; then
-              echo 'Production release confirmed at exact squash SHA'
-              exit 0
-            fi
-            sleep 30
-          done
-          echo 'Production was not observed; do not retry deploy automatically' >&2
-          exit 1
+          echo "Production check: $RELEASE_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs";const p=JSON.parse(readFileSync(process.env.RELEASE_PLAN_PATH,"utf8"));appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Next fixed check: "+p.schedule.next_check_utc+"\n")'
 
-      - name: Report blocked or failed release on existing incident
-        if: failure()
+  report-failure:
+    needs: release
+    if: always() && github.ref == 'refs/heads/main' && (needs.release.result == 'failure' || needs.release.result == 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Update existing release incident, including job timeout
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          node scripts/production-release-report.mjs
+        run: node scripts/production-release-report.mjs

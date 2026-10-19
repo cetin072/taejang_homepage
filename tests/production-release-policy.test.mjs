@@ -46,7 +46,7 @@ test('policy stays at two days and one Production per day; workflow has narrowly
   assert.equal((workflow.match(/permission-contents: write/g) || []).length, 1);
   assert.doesNotMatch(workflow, /secrets: write|\bPAT\b|pull_request_target/);
   assert.match(workflow, /group: taejang-production-release\s+cancel-in-progress: false/);
-  assert.match(workflow, /github.event_name == 'workflow_dispatch' && inputs.force/);
+  assert.doesNotMatch(workflow, /inputs\.force|FORCE:/);
   assert.match(workflow, /permission-pull-requests: write/);
   assert.match(workflow, /permission-actions: read/);
   assert.doesNotMatch(workflow, /PROTECTION_BLOCKED/);
@@ -56,19 +56,19 @@ test('public Production time uses successful published_at, including KST midnigh
   const publicRelease = publishedRelease({ published_deploy: { context: 'production', state: 'ready', commit_ref: 'd'.repeat(40), published_at: '2026-10-03T15:01:00Z' } });
   assert.equal(publicRelease.released_on_kst, '2026-10-04');
   assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-05T15:00:59Z') }).status, 'WAITING_WINDOW');
-  assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-04T05:00:00Z'), force: true, eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
+  assert.equal(plan({ publishedMarker: publicRelease, now: new Date('2026-10-04T05:00:00Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
   assert.throws(() => publishedRelease({ published_deploy: { context: 'deploy-preview' } }), /INVALID_PUBLIC_PRODUCTION/);
 });
 
-test('release planning enforces no-change, 48-hour, KST daily and manual force conditions', () => {
+test('release planning enforces no-change, 48-hour, KST daily and rejects force bypass', () => {
   assert.equal(plan({ changedFiles: [] }).status, 'NO_CHANGES');
-  assert.equal(plan({ changedFiles: ['docs/guide.md', markerPath], force: true, eventName: 'workflow_dispatch' }).status, 'NO_CHANGES');
+  assert.equal(plan({ changedFiles: ['docs/guide.md', markerPath], eventName: 'workflow_dispatch' }).status, 'NO_CHANGES');
   assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z') }).status, 'WAITING_WINDOW');
   assert.equal(plan({ now: new Date('2026-10-05T07:07:18.979Z') }).status, 'WAITING_WINDOW');
   assert.equal(plan({ now: new Date('2026-10-05T07:07:18.980Z') }).status, 'READY');
-  assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z'), force: true, eventName: 'workflow_dispatch' }).status, 'READY');
-  assert.equal(plan({ now: new Date('2026-10-03T14:59:59Z'), force: true, eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
-  assert.throws(() => plan({ force: true, eventName: 'schedule' }), /FORCE_REQUIRES_WORKFLOW_DISPATCH/);
+  assert.equal(plan({ now: new Date('2026-10-04T07:00:00Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_WINDOW');
+  assert.equal(plan({ now: new Date('2026-10-03T14:59:59Z'), eventName: 'workflow_dispatch' }).status, 'WAITING_DAILY_LIMIT');
+  assert.throws(() => plan({ force: true, eventName: 'schedule' }), /FORCE_RELEASE_DISABLED/);
   assert.throws(() => plan({ policy: { ...policy, production_interval_days: 1 } }), /Unexpected Production release policy/);
   // A failed attempt's checked-in source must not replace the last public source.
   const failedAttempt = { ...baseline, source_main_sha: 'c'.repeat(40), released_at_utc: '2026-10-04T07:00:00Z', released_on_kst: '2026-10-04', release_attempt: 1 };
@@ -349,4 +349,31 @@ test('orphan branch after failed PR creation blocks repeated branch pushes on su
   assert.equal((await orchestrate({ ...fixture.options, prepare: () => { preparations++; return fixture.prepared; } })).status, 'ORPHAN_RELEASE_BRANCH');
   assert.equal(preparations, 0);
   assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
+});
+
+
+test('branch dry-run evaluates actual origin/main and never includes unmerged Draft web changes',()=>{
+  const cwd=mkdtempSync(path.join(tmpdir(),'taejang-release-main-plan-'));
+  try {
+    git(cwd,'init','-b','main');configure(cwd);
+    mkdirSync(path.join(cwd,'app/release'),{recursive:true});
+    mkdirSync(path.join(cwd,'deployment'),{recursive:true});
+    writeFileSync(path.join(cwd,'index.html'),'published');
+    writeMarker(cwd,baseline.source_main_sha,0);
+    writeFileSync(path.join(cwd,'deployment/release-policy.json'),JSON.stringify(policy));
+    const main=commit(cwd,'published main');
+    git(cwd,'update-ref','refs/remotes/origin/main',main);
+    git(cwd,'checkout','-b','codex/draft-web-feature');
+    writeFileSync(path.join(cwd,'index.html'),'unmerged Draft change');
+    const draft=commit(cwd,'Draft only');
+    const published=path.join(cwd,'published.json');
+    writeFileSync(published,JSON.stringify({published_deploy:{context:'production',state:'ready',commit_ref:main,published_at:'2026-10-19T08:04:16.329Z'}}));
+    const actual=spawnSync(process.execPath,[path.join(root,'scripts/production-release-plan.mjs')],{cwd,encoding:'utf8',env:{...process.env,DRY_RUN:'true',GITHUB_REF:'refs/heads/codex/draft-web-feature',PUBLISHED_DEPLOY_PATH:published,GITHUB_EVENT_NAME:'workflow_dispatch',RELEASE_PLAN_PATH:'',GITHUB_OUTPUT:''}});
+    assert.equal(actual.status,0,actual.stderr);
+    const result=JSON.parse(actual.stdout);
+    assert.equal(result.source_main_sha,main);
+    assert.deepEqual(result.deploy_input_changes,[]);
+    assert.equal(git(cwd,'rev-parse','HEAD'),draft);
+    assert.equal(git(cwd,'rev-parse','origin/main'),main);
+  }finally{rmSync(cwd,{recursive:true,force:true})}
 });

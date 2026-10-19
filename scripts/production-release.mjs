@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { markerPath, planRelease, publishedRelease } from './production-release-plan.mjs';
+import { currentSlot } from './production-release-schedule.mjs';
 import { classifyRequiredRun, checkProductionDatabase, safeReleaseStatuses } from './production-release-health.mjs';
 
 export const requiredWorkflows = [
@@ -22,6 +23,7 @@ export function mainMatches(planned, local, remote) {
   return planned === local && planned === remote;
 }
 export function validateMerge({ plan, main, head, expectedHead, files, marker, previous, published, now = new Date() }) {
+  if (plan.schedule && !currentSlot(plan.schedule, now)) return 'MISSED_SLOT';
   if (main !== plan.source_main_sha || head !== expectedHead || kst(now) !== kst(new Date(plan.planned_at_utc))) return 'RETRY_NOOP';
   markerOnly(files);
   if (marker.version !== 1 || marker.interval_days !== 2 || marker.release_attempt !== previous.release_attempt + 1
@@ -39,7 +41,8 @@ export function exactHeadSuccess(run, jobs, sha, requiredJob, pr) {
 export function release({ planPath, dryRun = true, branch = prefix + process.env.GITHUB_RUN_ID + '-' + process.env.GITHUB_RUN_ATTEMPT }) {
   const plan = JSON.parse(readFileSync(planPath, 'utf8'));
   if (plan.status !== 'READY') return { status: plan.status };
-  if (plan.force && (plan.event_name !== 'workflow_dispatch' || process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch')) throw new Error('FORCE_REQUIRES_WORKFLOW_DISPATCH');
+  if (plan.force) throw new Error('FORCE_RELEASE_DISABLED');
+  if (plan.schedule && !currentSlot(plan.schedule, new Date())) return { status: 'MISSED_SLOT' };
   if (git('status', '--porcelain', '--untracked-files=no')) throw new Error('TRACKED_WORKTREE_NOT_CLEAN');
   git('fetch', 'origin', 'main');
   if (!mainMatches(plan.source_main_sha, git('rev-parse', 'HEAD'), git('rev-parse', 'origin/main'))) return { status: 'RETRY_NOOP' };
@@ -66,6 +69,7 @@ export function release({ planPath, dryRun = true, branch = prefix + process.env
 }
 export async function orchestrate({ plan, dryRun, api, prepare, published, sleep, preflight, now = () => new Date() }) {
   if (plan.status !== 'READY') return { status: plan.status };
+  if (plan.schedule && !currentSlot(plan.schedule, now())) return { status: 'MISSED_SLOT' };
   if (!preflight) throw new Error('DB_PREFLIGHT_REQUIRED');
   const database = await preflight();
   if (database.status !== 'READY') return database;
@@ -93,7 +97,23 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
   if (releaseRefs.length > 100) throw new Error('RELEASE_REF_LIST_REQUIRES_REVIEW');
   for (const ref of releaseRefs) {
     const associated = await api('GET', '/commits/' + ref.object.sha + '/pulls?per_page=1');
-    if (!associated.length) return { status: 'ORPHAN_RELEASE_BRANCH', branch: ref.ref };
+    if (!associated.length) {
+      // Read-only classification: preserve every ref and every open PR.
+      // A marker-only orphan from a prior slot can no longer publish or block forever.
+      if (plan.schedule && /^refs\/heads\/codex\/production-release-\d+-\d+$/.test(ref.ref)) {
+        const commit = await api('GET', '/commits/' + ref.object.sha);
+        if (commit.parents?.length === 1 && commit.files?.length === 1 && commit.files[0].filename === markerPath
+          && Date.parse(commit.commit?.committer?.date) <= Date.parse(plan.schedule.slot.start_utc) - 24 * 3_600_000) {
+          const response = await api('GET', '/contents/' + markerPath + '?ref=' + ref.object.sha);
+          const marker = JSON.parse(Buffer.from(response.content, 'base64').toString('utf8'));
+          if (marker.source_main_sha === commit.parents[0].sha) {
+            const comparison = await api('GET', '/compare/' + marker.source_main_sha + '...' + plan.source_main_sha);
+            if (['ahead', 'identical'].includes(comparison.status)) continue;
+          }
+        }
+      }
+      return { status: 'ORPHAN_RELEASE_BRANCH', branch: ref.ref };
+    }
   }
   if (dryRun) return prepare();
   const prepared = prepare();
