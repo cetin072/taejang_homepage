@@ -36,7 +36,7 @@ let stage = 'initial';
 function workspace() {
   const status = stage === 'initial' ? 'draft' : stage === 'reviewing' ? 'lead_review' : 'submitted';
   return {
-    viewer_kind: 'promotion_lead',
+    viewer_kind: 'operations_manager',
     items: [{
       handoff_id: HANDOFF_ID,
       payroll_period: '2026-09-01',
@@ -185,4 +185,4 @@ if (!stdout.includes('id="payroll-handoff-browser-result"') || !stdout.includes(
   throw new Error(`PAYROLL_HANDOFF_BROWSER_FAILED\n${stderr.slice(-2500)}`);
 }
 
-console.log('Payroll handoff browser PASS: external draft summary renders and promotion lead reviews/submits it.');
+console.log('Payroll handoff browser PASS: external draft summary renders and operations manager reviews/submits it.');

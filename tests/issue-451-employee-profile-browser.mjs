@@ -86,7 +86,7 @@ try {
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.locator('.employee-profile-section').count(),5);
+    assert.equal(await page.locator('.employee-profile-section').count(),6);
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('취소할 가상 이름');
@@ -167,6 +167,63 @@ try {
     await page.locator('.employee-photo-actions input[type=file]').nth(1).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
     await page.getByText('증명사진 변경 요청 완료 · 승인 후 반영됩니다.',{exact:true}).waitFor();
     assert.match(await page.locator('.employee-photo-grid').innerText(),/조회 불가/);
+    await fits();
+
+    // Operations lead must use ONE staff card, not a second survey page.
+    await page.evaluate(()=>{
+      window.fixtureRoute='promotion_lead';
+      fixtureContext.access_level='promotion_lead_global';
+      fixtureContext.can_manage_resident_number=true;
+      fixtureContext.can_manage_sensitive_identity=false;
+      fixtureContext.employees[0].can_edit_basic=true;
+      fixtureContext.employees[0].updated_at='2026-10-15T00:00:00Z';
+      fixtureContext.employees[0].resident_number_registered=false;
+      fixtureContext.employees[0].can_manage_resident_number_for_employee=true;
+      fixtureContext.employees[0].identity_verified=false;
+      fixtureContext.employees[0].app_install_status='unchecked';
+      const original=window.TaejangApp.rpc;
+      window.TaejangApp.rpc=async (name,args)=>{
+        if(name==='get_employee_resident_registration_number'){
+          window.calls.push({name,args});
+          return {ok:true,resident_number:'9003071234569'};
+        }
+        if(name==='update_employee_field_audit_basic'){
+          window.calls.push({name,args});
+          return {ok:true};
+        }
+        if(name==='update_employee_field_audit'){
+          window.calls.push({name,args});
+          fixtureContext.employees[0].app_install_status=args.p_app_install_status;
+          fixtureContext.employees[0].identity_verified=args.p_identity_verified;
+          return {ok:true};
+        }
+        return original(name,args);
+      };
+    });
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+    await count(49);
+    assert.equal(await page.getByText('직원 현장 전수조사',{exact:true}).count(),0);
+    await open(0);
+    await page.getByText('주민등록번호 등록·조회',{exact:true}).waitFor();
+    await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden by default');
+    const confirmDialog=dialog=>dialog.accept();
+    page.on('dialog',confirmDialog);
+    await page.getByRole('button',{name:'주민번호 조회',exact:true}).click();
+    await page.locator('.employee-resident-reveal').waitFor();
+    assert.match(await page.locator('.employee-resident-reveal').innerText(),/^[0-9]{6}-[0-9]{7}$/);
+    await page.getByRole('button',{name:'번호 숨기기',exact:true}).click();
+    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden again');
+    const checkForm=page.locator('.employee-app-audit-form');
+    await checkForm.getByLabel('앱 설치 상태',{exact:true}).selectOption('not_installed');
+    await checkForm.getByRole('button',{name:'현장 확인 저장',exact:true}).click();
+    await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_field_audit'
+        &&call.args.p_app_install_status==='not_installed')),true);
+    await page.getByRole('button',{name:'수정',exact:true}).click();
+    await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_field_audit_basic')),true);
+    page.off('dialog',confirmDialog);
     await fits();
 
     await page.evaluate(()=>{window.fixtureRoute='general_worker';document.getElementById('dashboard-main').textContent='일반 직원 기존 화면';});

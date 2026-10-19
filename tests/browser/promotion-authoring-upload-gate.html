@@ -146,7 +146,7 @@
         const title = controlByLabel('제목');
         const disclosure = controlByLabel('중요 금액·수치 포함');
         const external = controlByLabel('외부 링크');
-        const body = document.querySelector('.phase-c-editor-shell textarea');
+        const body = controlByLabel('본문');
         const fileInput = document.querySelector('.phase-c-editor-toolbar input[type="file"]');
         assert(title && disclosure && external && body && fileInput, '작성 폼 핵심 입력 누락');
         assert(disclosure.value === 'no', '중요 금액·수치 기본값은 아니오여야 함');

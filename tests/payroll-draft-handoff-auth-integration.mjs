@@ -7,6 +7,8 @@ const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 assert.ok(apiUrl && publishableKey, 'Supabase local environment is required');
+assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(apiUrl).hostname)
+  && projectId === 'taejang-homepage-phase1a', 'disposable local Supabase only');
 
 async function api(path, { method = 'POST', token, body } = {}) {
   const response = await fetch(`${apiUrl}${path}`, {
@@ -87,19 +89,19 @@ const tech = await fixture('payroll-handoff-tech@example.test', '급여 Handoff 
 const techWorkspace = await rpc('get_my_payroll_draft_handoff_workspace', tech.token);
 assert.equal(techWorkspace.status, 403, 'technical super-admin has no payroll handoff authority');
 
-const directTable = await api('/rest/v1/payroll_draft_handoffs?select=*', { method: 'GET', token: lead.token });
+const directTable = await api('/rest/v1/payroll_draft_handoffs?select=*', { method: 'GET', token: ops2.token });
 assert.ok(!directTable.ok, 'lead cannot read handoff table through Data API directly');
 
-const registered = await rpc('register_external_payroll_draft_handoff', lead.token, draftPayload('SEPTEMBER-PAYROLL', 1));
+const registered = await rpc('register_external_payroll_draft_handoff', ops2.token, draftPayload('SEPTEMBER-PAYROLL', 1));
 assert.equal(registered.data?.code, 'PAYROLL_HANDOFF_DRAFT_REGISTERED', 'external draft revision 1 is registered');
 const handoffV1 = registered.data?.handoff_id;
 assert.ok(handoffV1, 'registration returns protected handoff id');
 
-const reused = await rpc('register_external_payroll_draft_handoff', lead.token, draftPayload('SEPTEMBER-PAYROLL', 1));
+const reused = await rpc('register_external_payroll_draft_handoff', ops2.token, draftPayload('SEPTEMBER-PAYROLL', 1));
 assert.equal(reused.data?.code, 'PAYROLL_HANDOFF_DRAFT_REUSED', 'same immutable revision is idempotent');
 
-const leadWorkspace = await rpc('get_my_payroll_draft_handoff_workspace', lead.token);
-assert.ok(leadWorkspace.ok && leadWorkspace.data?.viewer_kind === 'promotion_lead', 'lead receives handoff workspace');
+const leadWorkspace = await rpc('get_my_payroll_draft_handoff_workspace', ops2.token);
+assert.ok(leadWorkspace.ok && leadWorkspace.data?.viewer_kind === 'operations_manager', 'lead receives handoff workspace');
 const visibleV1 = leadWorkspace.data.items.find(item => item.handoff_id === handoffV1);
 assert.equal(visibleV1.external_draft_id, 'SEPTEMBER-PAYROLL');
 assert.equal(visibleV1.external_draft_revision, 1);
@@ -107,9 +109,9 @@ assert.equal(visibleV1.employee_count, 25);
 assert.equal(Number(visibleV1.gross_summary_amount), 25000000);
 assert.equal(visibleV1.confirmed_attendance_version, 'v1');
 
-const startV1 = await rpc('start_payroll_draft_handoff_review', lead.token, { p_handoff_id: handoffV1 });
+const startV1 = await rpc('start_payroll_draft_handoff_review', ops2.token, { p_handoff_id: handoffV1 });
 assert.equal(startV1.data?.code, 'PAYROLL_HANDOFF_REVIEW_STARTED', 'lead starts review');
-const submitV1 = await rpc('submit_payroll_draft_handoff', lead.token, {
+const submitV1 = await rpc('submit_payroll_draft_handoff', ops2.token, {
   p_handoff_id: handoffV1,
   p_lead_note: '확정 근태와 외부 급여초안 요약을 확인했습니다.'
 });
@@ -127,27 +129,27 @@ const changes = await rpc('request_payroll_draft_handoff_changes', ops.token, {
 });
 assert.equal(changes.data?.code, 'PAYROLL_HANDOFF_CHANGES_REQUESTED', 'operations manager can request changes');
 
-const sameRevisionResubmit = await rpc('submit_payroll_draft_handoff', lead.token, {
+const sameRevisionResubmit = await rpc('submit_payroll_draft_handoff', ops2.token, {
   p_handoff_id: handoffV1,
   p_lead_note: '같은 revision 재상신 시도'
 });
 assert.ok(!sameRevisionResubmit.ok, 'changes_requested revision cannot be resubmitted in place');
 
-const revisionConflict = await rpc('register_external_payroll_draft_handoff', lead.token, {
+const revisionConflict = await rpc('register_external_payroll_draft_handoff', ops2.token, {
   ...draftPayload('SEPTEMBER-PAYROLL', 1),
   p_source_fingerprint: 'changed-same-revision'
 });
 assert.ok(!revisionConflict.ok, 'same revision cannot silently change its immutable source');
 
-const registeredV2 = await rpc('register_external_payroll_draft_handoff', lead.token, draftPayload('SEPTEMBER-PAYROLL', 2, {
+const registeredV2 = await rpc('register_external_payroll_draft_handoff', ops2.token, draftPayload('SEPTEMBER-PAYROLL', 2, {
   gross: 25100000,
   attendanceVersion: 'v2'
 }));
 assert.equal(registeredV2.data?.code, 'PAYROLL_HANDOFF_DRAFT_REGISTERED', 'changes_requested requires a higher new revision');
 const handoffV2 = registeredV2.data?.handoff_id;
 
-await rpc('start_payroll_draft_handoff_review', lead.token, { p_handoff_id: handoffV2 });
-await rpc('submit_payroll_draft_handoff', lead.token, {
+await rpc('start_payroll_draft_handoff_review', ops2.token, { p_handoff_id: handoffV2 });
+await rpc('submit_payroll_draft_handoff', ops2.token, {
   p_handoff_id: handoffV2,
   p_lead_note: '보완된 revision 2와 확정 근태를 확인했습니다.'
 });
@@ -166,9 +168,9 @@ const decision = await rpc('get_payroll_draft_handoff_decision', ops.token, {
 assert.equal(decision.data?.status, 'approved', 'protected pull/read contract exposes approved result');
 assert.equal(decision.data?.external_draft_revision, 2);
 
-const rejectRegistered = await rpc('register_external_payroll_draft_handoff', lead.token, draftPayload('SEPTEMBER-REJECT', 1));
-await rpc('start_payroll_draft_handoff_review', lead.token, { p_handoff_id: rejectRegistered.data?.handoff_id });
-await rpc('submit_payroll_draft_handoff', lead.token, {
+const rejectRegistered = await rpc('register_external_payroll_draft_handoff', ops2.token, draftPayload('SEPTEMBER-REJECT', 1));
+await rpc('start_payroll_draft_handoff_review', ops2.token, { p_handoff_id: rejectRegistered.data?.handoff_id });
+await rpc('submit_payroll_draft_handoff', ops2.token, {
   p_handoff_id: rejectRegistered.data?.handoff_id,
   p_lead_note: '반려 흐름 검증용 상신'
 });
@@ -198,4 +200,45 @@ const selfApproval = await rpc('approve_payroll_draft_handoff', ops2.token, {
 });
 assert.equal(selfApproval.status, 403, 'same actor cannot self-approve a handoff they reviewed');
 
-console.log('Payroll draft handoff Auth/Data API integration: PASS');
+const worker = await fixture('payroll-handoff-worker@example.test', '일반 직원', 'general_worker');
+const payrollSnapshot = () => sql(`select jsonb_build_object(
+ 'handoffs',(select coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]'::jsonb) from public.payroll_draft_handoffs t),
+ 'audit',(select count(*) from public.audit_logs),
+ 'results',(select count(*) from public.payroll_employee_results),
+ 'confirmed',(select count(*) from public.payroll_confirmed_attendance_snapshots))::text`);
+const beforeDenials = payrollSnapshot();
+const probes = [
+ ['get_my_payroll_draft_handoff_workspace', {}],
+ ['register_external_payroll_draft_handoff', draftPayload('FORBIDDEN-LEAD', 1)],
+ ['start_payroll_draft_handoff_review', {p_handoff_id:handoffV1}],
+ ['submit_payroll_draft_handoff', {p_handoff_id:handoffV1,p_lead_note:'검토 완료'}],
+ ['get_payroll_draft_handoff_decision', {p_payroll_period:'2026-09-01',p_external_draft_id:'SEPTEMBER-PAYROLL',p_external_draft_revision:2}],
+ ['request_payroll_draft_handoff_changes', {p_handoff_id:handoffV1,p_operations_note:'보완'}],
+ ['reject_payroll_draft_handoff', {p_handoff_id:handoffV1,p_operations_note:'반려'}],
+ ['approve_payroll_draft_handoff', {p_handoff_id:handoffV1,p_operations_note:'승인'}],
+ ['get_payroll_operator_month_context', {p_payroll_month:'2026-09-01'}],
+ ['get_payroll_employee_payslip_draft', {p_payroll_month:'2026-09-01',p_employee_uuid:'00000000-0000-4000-8000-000000000001'}],
+ ['get_employee_insurance_deduction_settings', {p_payroll_month:'2026-09-01',p_employee_uuid:'00000000-0000-4000-8000-000000000001'}]
+];
+for (const account of [lead, worker]) {
+  const context = await rpc('get_my_access_context_v2', account.token);
+  assert.ok(context.ok);
+  assert.equal(context.data.capabilities.filter(c => c.startsWith('payroll.')).length, 0);
+  for (const [name, body] of probes) {
+    const denied = await rpc(name, account.token, body);
+    assert.equal(denied.status, 403, name + ' must deny a real non-ops JWT');
+  }
+  for (const table of ['payroll_employee_results', 'payroll_confirmed_deduction_history', 'payroll_draft_handoffs']) {
+    const denied = await api('/rest/v1/' + table + '?select=*', {method:'GET', token:account.token});
+    assert.ok(!denied.ok || (Array.isArray(denied.data) && denied.data.length === 0), 'no direct payroll table disclosure: ' + table);
+  }
+}
+assert.equal(payrollSnapshot(), beforeDenials, 'denied requests preserve payroll rows and audit history');
+// Preview is evaluated separately from the actual ops JWT/role.
+sql(`insert into public.role_simulation_modes(profile_id,role_code,expires_at) values ('${ops2.id}','promotion_lead',now()+interval '5 minutes')`);
+assert.equal((await rpc('get_my_payroll_draft_handoff_workspace', ops2.token)).status, 403);
+assert.equal((await rpc('get_payroll_operator_month_context', ops2.token, {p_payroll_month:'2026-09-01'})).status, 403);
+sql(`delete from public.role_simulation_modes where profile_id='${ops2.id}'`);
+assert.ok((await rpc('get_my_payroll_draft_handoff_workspace', ops2.token)).ok);
+assert.ok((await rpc('get_my_access_context_v2', worker.token)).ok, 'worker app identity remains accessible');
+console.log('Payroll draft handoff Auth/Data API integration: PASS; real lead/worker JWT denied, ops preserved, preview narrowed, rows preserved');

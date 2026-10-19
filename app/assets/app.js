@@ -122,6 +122,7 @@
     if (!response.ok) {
       const error = new Error(payload?.message || payload?.msg || `REQUEST_${response.status}`);
       error.status = response.status;
+      error.code = typeof payload?.code === 'string' ? payload.code : null;
       throw error;
     }
     return payload;

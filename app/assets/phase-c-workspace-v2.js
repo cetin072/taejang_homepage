@@ -6,6 +6,15 @@
   const SESSION_KEY = 'taejang-staff-session-v1';
   const PROMOTION_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager', 'ceo']);
   const WRITE_ROLES = new Set(['promotion_staff', 'promotion_lead', 'operations_manager']);
+  // Operations is the canonical authoring UI; the other roles only remove controls.
+  // This is presentation configuration, never authorization. Server capabilities/RLS still decide.
+  function composerUiForRole(role) {
+    const operations = { chooseType: true, chooseByline: true, publishOwn: true };
+    if (role === 'operations_manager') return operations;
+    if (role === 'promotion_lead') return { ...operations, chooseByline: false, publishOwn: false };
+    if (role === 'promotion_staff') return { ...operations, chooseType: false, chooseByline: false, publishOwn: false };
+    return { chooseType: false, chooseByline: false, publishOwn: false };
+  }
   const REVIEW_ROLES = new Set(['promotion_lead', 'operations_manager', 'ceo']);
   const TYPE_LABELS = {
     homepage_article: '태장 소식',
@@ -88,7 +97,18 @@
       .phase-c-board-form label { display:grid; gap:7px; font-weight:800; }
       .phase-c-board-form input,.phase-c-board-form select,.phase-c-board-form textarea { width:100%; min-height:46px; padding:11px 12px; border:1px solid var(--app-border); border-radius:10px; background:#fff; color:var(--app-text); font:inherit; }
       .phase-c-board-form textarea { min-height:330px; resize:vertical; line-height:1.75; }
+      [data-composer-layout="writing-first"] .phase-c-board-form label { margin:0; }
+      [data-composer-layout="writing-first"] .phase-c-board-form>h3 { margin:0; }
+      .phase-c-composer-options { align-items:start; }
+      .phase-c-schedule-field { max-width:360px; }
+      .phase-c-board-form .phase-c-schedule-field[hidden] { display:none; }
+      .phase-c-composer-options>label[hidden] { display:none; }
+      .phase-c-composer-preview { padding:14px; border:1px solid var(--app-border); border-radius:12px; overflow-wrap:anywhere; }
+      .phase-c-composer-preview .promotion-preview-panel { margin:0; }
+      .phase-c-composer-preview .promotion-preview-panel>img { max-width:100%; max-height:360px; object-fit:contain; }
+      .phase-c-photo-order { display:flex; flex-wrap:wrap; gap:6px; }
       .phase-c-board-row { display:grid; grid-template-columns:minmax(180px,.4fr) 1fr; gap:14px; }
+      .phase-c-board-row.phase-c-composer-options { grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); }
       .phase-c-editor-shell { border:1px solid var(--app-border); border-radius:12px; overflow:hidden; background:#fff; }
       .phase-c-editor-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-bottom:1px solid var(--app-border); background:#f7faf8; }
       .phase-c-editor-toolbar .button { min-height:40px; padding:8px 12px; }
@@ -306,7 +326,16 @@
         renderMediaEditor(container, media, onChange);
         onChange();
       }, true);
-      card.append(image, alt, remove);
+      const order = el('div', null, 'phase-c-photo-order');
+      [-1, 1].forEach(delta => {
+        const move = button(delta < 0 ? '앞으로' : '뒤로', () => {
+          const [entry] = media.splice(index, 1); media.splice(index + delta, 0, entry);
+          renderMediaEditor(container, media, onChange); onChange();
+        }, true);
+        move.disabled = index + delta < 0 || index + delta >= media.length;
+        order.append(move);
+      });
+      card.append(image, alt, remove, order);
       container.append(card);
     });
   }
@@ -374,16 +403,19 @@
   }
 
   function buildComposer(existingItem = null) {
+    const currentRole = route();
+    const roleUi = composerUiForRole(currentRole);
     const section = el('section', null, 'phase-c-board-composer');
     section.dataset.promotionComposer = 'v2';
-    section.append(el('h2', existingItem ? '홍보자료 수정' : '새 홍보자료 작성'));
-    section.append(el('p', existingItem ? '보완할 내용을 고쳐 새 수정본으로 저장합니다. 이전 제출본은 그대로 보존됩니다.' : '일반 게시판처럼 글 종류, 제목, 본문과 사진만 중심으로 작성하면 됩니다.', 'help'));
+    section.dataset.composerLayout = 'writing-first';
+    section.append(el('h2', existingItem ? '홍보자료 수정' : currentRole === 'promotion_staff' ? '새 태장 소식 작성' : '새 홍보자료 작성'));
+    section.append(el('p', existingItem ? '보완할 내용을 고쳐 새 수정본으로 저장합니다. 이전 제출본은 그대로 보존됩니다.' : '제목과 본문을 작성하고 사진을 첨부하세요.', 'help'));
 
     const form = document.createElement('form');
     form.className = 'phase-c-board-form';
     form.addEventListener('submit', event => event.preventDefault());
 
-    const operationsAuthor = route() === 'operations_manager';
+    const operationsAuthor = roleUi.chooseByline;
     const type = select([
       ['homepage_article', '태장 소식 (홈페이지)'],
       ['external_content', '외부 기사·콘텐츠'],
@@ -407,15 +439,18 @@
     ]);
     numberOrAmount.value = existingItem?.number_or_amount || 'no';
 
-    const topRow = el('div', null, 'phase-c-board-row');
-    topRow.append(field('글 종류', type), field('게시 희망일 (선택)', date, '정하지 않아도 됩니다.'));
-    form.append(
-      topRow,
-      field('제목', title),
-      field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액처럼 상위 검토가 필요한 수치만 예로 선택하세요. 1호·3차·연도 같은 일반 숫자는 아니오입니다.')
-    );
-
-    if (operationsAuthor) form.append(field('작성 명의', bylineKind, '대표이사 명의는 대표이사 확인 후 공개할 수 있습니다.'));
+    const topRow = el('div', null, 'phase-c-board-row phase-c-composer-options');
+    const typeField = field('글 종류', type);
+    typeField.hidden = !roleUi.chooseType && !existingItem;
+    topRow.append(typeField, field('게시 희망일 (선택)', date),
+      field('중요 금액·수치 포함', numberOrAmount, '매출·계약금액은 예, 연도·차수는 아니오를 선택하세요.'));
+    if (operationsAuthor) topRow.append(field('작성 명의', bylineKind, '대표이사 명의는 대표이사 확인 후 공개합니다.'));
+    const operationsOwnPublication = roleUi.publishOwn && (!existingItem || existingItem.is_owner === true);
+    const scheduleField = operationsOwnPublication
+      ? field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.')
+      : null;
+    if (scheduleField) scheduleField.classList.add('phase-c-schedule-field');
+    form.append(field('제목', title));
     const externalWrap = el('div', null, 'phase-c-link-tools');
     const external = input('url');
     external.value = existingItem?.external_url || '';
@@ -431,6 +466,7 @@
         if (metadata.article_text) body.value = metadata.article_text.slice(0, 30000);
         else if (metadata.description && !body.value.trim()) body.value = metadata.description;
         state.heroImage = metadata.image || state.heroImage;
+        if (metadata.image) state.coverFromMedia = false;
         metaPreview.replaceChildren();
         if (metadata.image) {
           const image = document.createElement('img');
@@ -442,6 +478,7 @@
         copy.append(el('strong', metadata.title || '제목 정보 없음'));
         if (metadata.description) copy.append(el('p', metadata.description));
         metaPreview.append(copy);
+        renderLivePreview();
         metaStatus.textContent = metadata.site_name === 'YouTube'
           ? (metadata.image ? '유튜브 영상 제목·썸네일을 가져왔습니다. 영상 본문은 직접 작성해 주세요.' : '유튜브 영상 제목을 가져왔습니다. 영상 본문은 직접 작성해 주세요.')
           : metadata.article_text ? '제목·썸네일·본문을 가져왔습니다.' : '가져올 수 있는 링크 정보를 반영했습니다.';
@@ -452,7 +489,7 @@
     const metaStatus = el('p', '', 'phase-c-upload-status');
     const metaPreview = el('div', null, 'phase-c-link-preview');
     externalWrap.append(field('외부 링크', external), metaButton, metaStatus, metaPreview);
-    form.append(externalWrap);
+    // Optional link tools follow the writing area; they do not select the workflow.
 
     const body = document.createElement('textarea');
     body.value = existingItem?.public_body || '';
@@ -472,12 +509,26 @@
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
-    renderMediaEditor(mediaGrid, media, () => {});
+    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: !existingItem?.hero_image_url || media.some(entry => entry.url === existingItem.hero_image_url), heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
+    const livePreview = el('section', null, 'phase-c-composer-preview');
+    livePreview.dataset.composerPreview = '1';
+    function renderLivePreview() {
+      livePreview.replaceChildren(el('h3', '게시글 미리보기'), previewCard({
+        content_type: type.value, title: title.value, public_body: body.value,
+        hero_image_url: state.heroImage, public_media: media,
+        external_url: external.value.trim(), requested_publish_date: date.value
+      }, { live: true }));
+    }
+    function mediaChanged() {
+      if (state.coverFromMedia) state.heroImage = media[0]?.url || null;
+      renderLivePreview();
+    }
+    renderMediaEditor(mediaGrid, media, mediaChanged);
     fileInput.addEventListener('change', async () => {
       const files = [...(fileInput.files || [])];
       if (!files.length) return;
       if (media.length + files.length > 12) { window.alert('사진은 최대 12장까지 올릴 수 있습니다.'); fileInput.value = ''; return; }
+      if (!media.length) state.coverFromMedia = true;
       state.uploading = true;
       state.saveButtons.forEach(node => { node.disabled = true; });
       uploadLabel.style.pointerEvents = 'none';
@@ -487,25 +538,29 @@
           const url = await uploadImage(file);
           media.push({ url, alt: file.name.replace(/\.[^.]+$/, ''), kind: 'selected' });
         }
-        if (!state.heroImage && media[0]) state.heroImage = media[0].url;
-        renderMediaEditor(mediaGrid, media, () => {});
+        if ((state.coverFromMedia || !state.heroImage) && media[0]) { state.heroImage = media[0].url; state.coverFromMedia = true; }
+        renderMediaEditor(mediaGrid, media, mediaChanged);
         uploadStatus.textContent = `${media.length}장 첨부됨`;
       } catch (error) {
         window.alert(error.message || '사진 업로드에 실패했습니다.');
         uploadStatus.textContent = '사진 업로드 실패';
       } finally {
+        renderMediaEditor(mediaGrid, media, mediaChanged);
+        mediaChanged();
         state.uploading = false;
         state.saveButtons.forEach(node => { node.disabled = false; });
         uploadLabel.style.pointerEvents = '';
         fileInput.value = '';
       }
     });
-    editor.append(toolbar, body, mediaGrid);
-    form.append(field('본문', editor, '글과 사진을 한 화면에서 작성합니다. 첨부 사진은 게시물 본문 이미지로 함께 저장됩니다.'));
+    editor.append(toolbar, mediaGrid);
+    // The operations-manager reference order is shared by all authoring roles.
+    form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
+    if (scheduleField) form.append(scheduleField);
+    form.append(externalWrap);
 
     const actions = el('div', null, 'quick-links');
     const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
-    const currentRole = route();
     const leadAuthor = currentRole === 'promotion_lead';
     const submitLabel = leadAuthor
       ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
@@ -515,12 +570,10 @@
     const submit = button(submitLabel, () => savePromotion(state, true, existingItem), false);
     state.saveButtons.push(save, submit);
     actions.append(save, submit);
-    if (operationsAuthor && (!existingItem || existingItem.is_owner === true)) {
+    if (operationsOwnPublication) {
       const publish = button('바로 공개', () => savePromotion(state, 'publish', existingItem));
       const ceo = button('대표이사 승인 요청', () => savePromotion(state, 'ceo', existingItem));
       const schedule = button('예약 공개', () => savePromotion(state, 'schedule', existingItem));
-      const scheduleField = field('실제 예약일', scheduleDate, '게시 희망일과 별개입니다. 선택한 날짜 오전 0시(한국 시간)에 공개합니다.');
-      form.append(scheduleField);
       state.saveButtons.push(publish, ceo, schedule);
       actions.append(publish, ceo, schedule);
       const syncCeoGate = () => {
@@ -533,21 +586,15 @@
     form.append(actions);
     section.append(form);
 
-    const updateType = () => {
-      externalWrap.hidden = type.value !== 'external_content';
-      if (type.value !== 'external_content') {
-        external.value = '';
-        metaStatus.textContent = '';
-        metaPreview.replaceChildren();
-      }
-    };
-    type.addEventListener('change', updateType);
-    updateType();
+    form.addEventListener('input', renderLivePreview);
+    form.addEventListener('change', renderLivePreview);
+    renderLivePreview();
     return section;
   }
 
-  function previewCard(item) {
+  function previewCard(item, { live = false } = {}) {
     const panel = el('section', null, 'dashboard-section promotion-preview-panel');
+    if (live) panel.classList.add('promotion-preview-live');
     panel.append(el('p', TYPE_LABELS[item.content_type] || '홍보자료', 'eyebrow'), el('h2', item.title || '제목 없음'));
     if (item.requested_publish_date) panel.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
     if (item.hero_image_url) {
@@ -570,14 +617,18 @@
     }
     if (item.external_url) {
       const link = document.createElement('a');
-      link.href = item.external_url;
+      try {
+        const url = new URL(item.external_url);
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error('UNSAFE_LINK');
+        link.href = url.href;
+      } catch { link.hidden = true; }
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       link.className = 'button button-quiet';
       link.textContent = '원문 보기';
       panel.append(link);
     }
-    panel.append(button('미리보기 닫기', () => panel.remove(), true));
+    if (!live) panel.append(button('미리보기 닫기', () => panel.remove(), true));
     return panel;
   }
 
@@ -589,7 +640,7 @@
     if (item.requested_publish_date) card.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
     const actions = el('div', null, 'quick-links');
     actions.append(button('미리보기', () => {
-      main().querySelector('.promotion-preview-panel')?.remove();
+      main().querySelector('.promotion-preview-panel:not(.promotion-preview-live)')?.remove();
       main().querySelector('.dashboard-intro')?.after(previewCard(item));
     }, true));
     if (allowEdit && ['draft', 'needs_revision'].includes(item.lifecycle)) {
@@ -630,7 +681,7 @@
     const target = main();
     const role = workspace.role;
     document.getElementById('desktop-page-title').textContent = '홍보 작성';
-    target.replaceChildren(renderIntro('홍보 업무', '새 홍보자료 작성', '제목과 본문 중심으로 작성하세요. 게시주소·요약·대표 이미지 같은 기술 항목은 자동으로 처리합니다.'));
+    target.replaceChildren(renderIntro('홍보 업무', '새 홍보자료 작성', '제목과 본문을 작성한 뒤 저장하거나 승인 요청하세요.'));
     target.append(buildComposer());
     const mine = arr(workspace.my_items).filter(item => item.lifecycle === 'draft');
     const section = el('section', null, 'dashboard-section');
@@ -868,7 +919,7 @@
     if (detail.previous_stage_comment) card.append(el('p', `이전 검토 의견\n${detail.previous_stage_comment}`, 'phase-c-review-note'));
     const actions = el('div', null, 'quick-links');
     actions.append(button('미리보기', () => {
-      main().querySelector('.promotion-preview-panel')?.remove();
+      main().querySelector('.promotion-preview-panel:not(.promotion-preview-live)')?.remove();
       main().querySelector('.dashboard-intro')?.after(previewCard(detail));
     }, true));
 
