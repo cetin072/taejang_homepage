@@ -510,3 +510,24 @@
   .dashboard-layout-actions .button { width:100%; justify-content:center; }
   .sidebar-layout-actions { grid-template-columns:1fr; }
 }
+/* Notice management uses one list owner across roles and archive views. */
+.notice-list-filters { display:flex; flex-wrap:wrap; gap:.65rem; align-items:end; margin-block:1rem; }
+.notice-list-filters label { display:grid; gap:.3rem; flex:1 1 135px; min-width:0; }
+.notice-list-filters label:first-child { flex:2 1 220px; }
+.notice-list-filters input,.notice-list-filters select { width:100%; min-width:0; }
+.notice-list-group { margin:1.2rem 0 .2rem; padding-bottom:.4rem; border-bottom:1px solid #d8dee5; }
+#notice-admin-list .notice-list-row { padding:.85rem 1rem; border-left:4px solid #b6bec8; gap:.25rem; }
+#notice-admin-list .notice-list-row h3 { margin:.25rem 0; font-size:1.05rem; overflow-wrap:anywhere; }
+#notice-admin-list .notice-list-row p { margin:.25rem 0; }
+#notice-admin-list .notice-list-row h3 a { color:inherit; text-decoration:underline; text-underline-offset:.2em; }
+#notice-admin-list .notice-state-active { background:#f2f9f4; border-left-color:#5a946a; }
+#notice-admin-list .notice-state-scheduled { background:#f0f6fd; border-left-color:#6597cf; }
+#notice-admin-list .notice-state-review { background:#fffbed; border-left-color:#b99a36; }
+#notice-admin-list .notice-state-expired { background:#f3f4f5; border-left-color:#89929b; }
+.notice-row-actions { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.5rem; }
+.notice-row-actions .button { padding:.4rem .7rem; min-height:44px; }
+@media(max-width:600px) {
+  .notice-list-filters { gap:.5rem; }
+  .notice-list-filters label:first-child { flex-basis:100%; }
+  #notice-admin-list .notice-list-row { padding:.7rem; }
+}

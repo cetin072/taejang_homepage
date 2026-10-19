@@ -16,6 +16,7 @@ window.confirm=message=>{confirmations.push(message);return confirmAnswer};
 window.prompt=()=> '검토 요청';
 window.TaejangApp={getRoute:()=>role,hasCapabilityContract:()=>true,can:key=>key==='information.review'?role==='operations_manager':true,getBoardDate:()=> '2026-10-13',refreshToday:async()=>{},rpc:async(name,args={})=>{
  calls.push({name,args:structuredClone(args)});
+ if(['get_manageable_notice','list_manageable_notices_page'].includes(name)){const e=Error('legacy backend fixture');e.code='PGRST202';throw e;}
  if(name==='list_manageable_schedules'){if(failSchedules)throw Error('optional schedules unavailable');return [];}
  if(name==='get_my_notice_list')return rows.filter(r=>r.status==='published'&&new Date(r.publish_start_at)<=new Date()&&(!r.publish_end_at||new Date(r.publish_end_at)>new Date()));
  if(name==='get_my_notice_detail'){const r=rows.find(r=>r.id===args.p_notice_id);if(!r||r.status!=='published'||new Date(r.publish_start_at)>new Date())throw Error('not current');return structuredClone(r);}
@@ -157,7 +158,7 @@ window.TaejangNoticeMedia={MAX_PHOTOS:10,validateFile:()=>{},signedUrl:async()=>
  await start();el('notice-link-url').value='https://example.test';await press('notice-save-draft');check(msg().includes('함께 입력')&&document.activeElement===el('notice-link-label')&&!el('notice-additional-settings').open,'link pair error focuses visible link label');
  el('notice-link-url').value='not-url';el('notice-additional-settings').open=false;await press('notice-save-draft');check(!el('notice-additional-settings').open&&msg().includes('HTTPS'),'invalid HTTPS shows inline guidance without opening unrelated settings');
  await start();el('notice-importance').value='important';el('notice-additional-settings').open=false;el('notice-requires-ack').checked=true;await press('notice-save-draft');check(rows.at(-1).requires_acknowledgement,'valid folded required defaults');
- await start();failList=true;await press('notice-save-draft');check(msg().includes('저장은 완료')&&msg().includes('초안 저장됨'),'list failure never reports save failure');failList=false;
+ await start();failList=true;await press('notice-save-draft');check(msg().startsWith('저장 결과 확인이 필요')&&!msg().startsWith('저장 완료')&&el('notice-id').value,'unverified readback must not claim success');failList=false;
  role='promotion_lead';await start();
  check(!el('notice-publish').hidden&&!el('notice-submit-review').hidden&&el('notice-target-summary').textContent.includes('전체 직원'),'lead routine company direct and optional review');
  await press('notice-publish');check(msg().includes('일상 안내인지 확인'),'routine declaration required');

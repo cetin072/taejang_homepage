@@ -68,6 +68,19 @@ jobs:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
         run: node tests/notice-authoring-browser.mjs
 
+      - name: Run notice history, same-ID correction and archive role QA
+        env:
+          NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
+        run: node tests/notice-management-browser.mjs
+
+      - name: Keep notice history PC and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notice-history-390-1440
+          path: notice-history-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Run promotion composer exact viewport QA
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
