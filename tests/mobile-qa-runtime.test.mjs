@@ -70,13 +70,48 @@ async function attendance({
   locationFailure = false,
   locationCode = 'TIMEOUT',
   persistRecord = false,
+  reduced = false, autoAnimation = true, hapticFailure = false, recordGate = null, serverFailure = false, refreshFailure = false, initialClockIn = null,
 } = {}) {
   const h = hooks(), calls = [];
   let latestRequired = required, locationRequests = 0;
-  let recordedIn = null, recordedOut = null;
+  let recordedIn = initialClockIn, recordedOut = null;
+  const animations = [], pendingAnimations = [], haptics = [], appListeners = [];
+  let motionListener, active = 'active', recordFinished = false, confirmations = 0;
+  class Value {
+    constructor(value) { this.value = value; }
+    setValue(value) { this.value = value; }
+    stopAnimation() {}
+    interpolate(config) { return { value: this, config }; }
+  }
+  const feedbackNative = {
+    ...native, Platform: { OS: 'android' },
+    Animated: { Value, View: 'AnimatedView', timing: (value, config) => ({ start(callback) {
+      animations.push(config);
+      const finish = () => { value.setValue(config.toValue); callback({ finished: true }); };
+      if (autoAnimation) finish(); else pendingAnimations.push(finish);
+    } }) },
+    AccessibilityInfo: { isReduceMotionEnabled: async () => reduced, addEventListener: (_event, callback) => {
+      motionListener = callback; return { remove() {} };
+    } },
+    AppState: { get currentState() { return active; }, addEventListener: (_event, callback) => {
+      appListeners.push(callback); return { remove() {} };
+    } },
+  };
+  const feedback = load('mobile/src/features/attendance/attendance-feedback.ts', {
+    react: h.react, 'react-native': feedbackNative,
+    'expo-haptics': { AndroidHaptics: { Confirm: 'confirm' }, performAndroidHapticsAsync: async type => {
+      haptics.push(type); if (hapticFailure) throw Error('no motor');
+    } },
+  });
   let onAppStateChange = null;
   const client = { rpc: async (name, args) => {
     calls.push({ name, args });
+    if (name === 'get_my_attendance_today' && recordFinished && refreshFailure) throw Error('refresh offline');
+    if (name === 'record_attendance_event' || name === 'qa_validate_attendance_event') {
+      if (recordGate) await recordGate;
+      if (serverFailure) throw Error('offline');
+      recordFinished = true;
+    }
     if (name === 'get_my_attendance_today') return { data: {
       work_date: '2026-10-09', attendance_required: latestRequired,
       is_workday: isWorkday, day_reason: dayReason,
@@ -95,10 +130,12 @@ async function attendance({
   class AttendanceLocationError extends Error { constructor() { super('location'); this.code = locationCode; } }
   const card = load('mobile/src/features/attendance/attendance-card.tsx', {
     react: h.react,
+    './attendance-feedback': feedback,
     'react-native': {
-      ...native,
+      ...feedbackNative,
+      Alert: { alert: (_title, _message, buttons) => { confirmations++; buttons.at(-1).onPress(); } },
       AppState: { addEventListener: (_event, callback) => {
-        onAppStateChange = callback;
+        onAppStateChange = callback; appListeners.push(callback);
         return { remove() {} };
       } },
     },
@@ -116,10 +153,14 @@ async function attendance({
   for (const effect of h.effects.splice(0)) effect();
   await settle();
   return {
+    animations, haptics, finishAnimation: () => pendingAnimations.shift()?.(),
+    reduceMotion(value) { motionListener(value); },
+    async background() { active = 'background'; appListeners.forEach(fn => fn('background')); await settle(); },
+    confirmations: () => confirmations,
     calls, render, locationRequests: () => locationRequests, changeRequired(value) { latestRequired = value; },
     openClockIn() { clockInAvailable = true; },
     async foreground() {
-      if (onAppStateChange) onAppStateChange('active');
+      active = 'active'; appListeners.forEach(fn => fn('active'));
       await settle();
     },
     async press() {
@@ -253,15 +294,15 @@ test('weekday employee preview shares the production button and confirmation flo
   const fixture = await attendance({ mode: 'preview', previewScenario: 'workday', required: false });
   const first = fixture.render().find(node => node?.type === 'Pressable');
   assert.equal(first.props.disabled, false);
-  assert.equal(first.props.accessibilityLabel, '출근했습니다');
+  assert.equal(first.props.accessibilityLabel, '출근하기');
   await fixture.press();
-  assert.ok(fixture.render().includes('퇴근했습니다'));
+  assert.ok(fixture.render().includes('퇴근하기'));
   await fixture.foreground();
-  assert.ok(fixture.render().includes('퇴근했습니다'), 'same-day foreground should retain the simulated clock-in');
+  assert.ok(fixture.render().includes('퇴근하기'), 'same-day foreground should retain the simulated clock-in');
   await fixture.press();
-  assert.ok(fixture.render().includes('오늘 근무 완료'));
+  assert.ok(fixture.render().includes('✓ 오늘 근무 완료'));
   await fixture.foreground();
-  assert.ok(fixture.render().includes('오늘 근무 완료'), 'same-day foreground should retain the completed simulated day');
+  assert.ok(fixture.render().includes('✓ 오늘 근무 완료'), 'same-day foreground should retain the completed simulated day');
   assert.ok(fixture.render().includes('다시 체험'));
   assert.ok(fixture.render().includes('가상 체험 · GPS 위치 검사 안 함 · 실제 근태 저장 안 함'));
   assert.ok(fixture.render().includes('가상 출퇴근 내역 · 실제 기록 아님'));
@@ -311,11 +352,11 @@ test('production server state progresses from 06:00 opening through clock-in/out
   await fixture.foreground();
   assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.disabled, false);
   await fixture.press();
-  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근했습니다');
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
   await fixture.foreground();
-  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근했습니다');
+  assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
   await fixture.press();
-  assert.ok(fixture.render().includes('오늘 근무 완료'));
+  assert.ok(fixture.render().includes('✓ 오늘 근무 완료'));
   assert.equal(fixture.render().find(node => node?.type === 'Pressable').props.disabled, true);
   await fixture.foreground();
   await fixture.press();
@@ -351,4 +392,83 @@ test('SecureStore adapter restores a long session on module restart and removes 
   await freshStorage().removeItem(key);
   assert.equal(await freshStorage().getItem(key), null);
   assert.equal(disk.size, 0, 'signout must leave no session chunk behind');
+});
+
+
+test('confirmed clock-in turns edge-on once, blocks same-frame taps and clock-out until the full 260ms transition ends', async () => {
+  let release; const gate = new Promise(resolve => { release = resolve; });
+  const f = await attendance({ mode: 'record', required: true, persistRecord: true, result: { ok: true }, autoAnimation: false, recordGate: gate });
+  const press = f.render().find(n => n.type === 'Pressable');
+  press.props.onPress(); press.props.onPress(); await settle();
+  assert.equal(mutations(f).length, 1); assert.equal(f.haptics.length, 0); assert.equal(f.animations.length, 0);
+  release(); await settle();
+  let button = f.render().find(n => n.type === 'Pressable');
+  assert.equal(f.haptics.length, 1); assert.equal(f.animations.length, 1);
+  assert.equal(button.props.disabled, true); assert.equal(button.props.accessibilityLabel, '출근하기');
+  await f.press(); assert.equal(mutations(f).length, 1);
+  f.finishAnimation();
+  button = f.render().find(n => n.type === 'Pressable');
+  assert.equal(button.props.accessibilityLabel, '퇴근하기'); assert.equal(button.props.disabled, true);
+  assert.ok(f.render().some(n => typeof n === 'string' && n.includes('출근 완료')));
+  f.finishAnimation();
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.disabled, false);
+  assert.deepEqual(f.animations.map(a => [a.toValue, a.duration, a.useNativeDriver]), [[90,130,true],[0,130,true]]);
+  await f.press();
+  assert.equal(f.confirmations(), 1); assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 2);
+  assert.ok(f.render().includes('✓ 오늘 근무 완료'));
+  await f.foreground(); f.render();
+  assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 2);
+});
+
+test('reduce motion uses immediate text; changing it during a turn cancels remaining motion without losing saved state', async () => {
+  const reduced = await attendance({ mode: 'preview', previewScenario: 'workday', reduced: true });
+  await reduced.press();
+  assert.equal(reduced.animations.length, 0); assert.equal(reduced.haptics.length, 1);
+  assert.equal(reduced.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
+  const f = await attendance({ mode: 'preview', previewScenario: 'workday', autoAnimation: false });
+  await f.press(); f.reduceMotion(true);
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
+  assert.equal(f.render().find(n => n.type === 'Pressable').props.disabled, false);
+  f.finishAnimation(); assert.equal(f.animations.length, 1);
+  await f.foreground(); assert.equal(f.haptics.length, 1);
+});
+
+test('GPS denial, server errors, already-recorded/approved responses and failed confirmation reads never signal a fresh success', async () => {
+  for (const options of [
+    { locationFailure: true, locationCode: 'PERMISSION_DENIED' },
+    { locationFailure: true }, { serverFailure: true },
+    { result: { ok: false, code: 'OUTSIDE_GEOFENCE' } },
+    { result: { ok: false, code: 'ALREADY_RECORDED' } },
+    { result: { ok: true, code: 'EXCEPTION_APPROVED' } }, { refreshFailure: true },
+  ]) {
+    const f = await attendance({ mode: 'record', required: true, persistRecord: true, result: { ok: true }, ...options });
+    await f.press(); assert.equal(f.haptics.length, 0); assert.equal(f.animations.length, 0);
+  }
+});
+
+test('initial restored attendance and foreground reads never animate; unsupported haptics do not change a successful result', async () => {
+  const restored = await attendance({ mode: 'record', required: true, initialClockIn: { status: 'recorded', event_at: '2026-10-19T00:02:00Z' } });
+  assert.equal(restored.render().find(n => n.type === 'Pressable').props.accessibilityLabel, '퇴근하기');
+  await restored.foreground(); assert.equal(restored.animations.length, 0); assert.equal(restored.haptics.length, 0);
+  const f = await attendance({ mode: 'preview', previewScenario: 'workday', hapticFailure: true });
+  await f.press(); assert.ok(f.render().includes('퇴근하기')); assert.equal(f.haptics.length, 1);
+  assert.equal(f.animations.length, 2); assert.deepEqual(mutations(f), []); assert.equal(f.locationRequests(), 0);
+});
+
+test('QA write guard suppresses feedback; safe QA validates then gives one feedback and never records attendance', async () => {
+  const blocked = await attendance({ result: { ok: true, writes_attendance: true } });
+  await blocked.press(); assert.equal(blocked.haptics.length, 0); assert.equal(blocked.animations.length, 0);
+  const f = await attendance(); await f.press();
+  assert.equal(f.haptics.length, 1); assert.equal(f.animations.length, 2);
+  assert.deepEqual(mutations(f).map(c => c.name), ['qa_validate_attendance_event']);
+});
+
+test('background interrupts rotation without replay; accessibility state follows busy and disabled state', async () => {
+  const f = await attendance({ mode: 'preview', previewScenario: 'workday', autoAnimation: false });
+  await f.press(); let button = f.render().find(n => n.type === 'Pressable');
+  assert.equal(button.props.accessibilityState.busy, true); assert.equal(button.props.accessibilityState.disabled, true);
+  await f.background(); f.finishAnimation(); await f.foreground();
+  button = f.render().find(n => n.type === 'Pressable');
+  assert.equal(button.props.accessibilityState.busy, false); assert.equal(button.props.accessibilityLabel, '퇴근하기');
+  assert.equal(f.animations.length, 1); assert.equal(f.haptics.length, 1);
 });
