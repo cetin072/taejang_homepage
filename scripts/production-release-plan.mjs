@@ -52,7 +52,9 @@ async function main() {
   if (!/^[0-9a-f]{40}$/.test(publishedMarker.source_main_sha)) throw new Error('Invalid public release source SHA');
   git('merge-base', '--is-ancestor', publishedMarker.source_main_sha, head);
   const changedFiles = git('diff', '--name-only', publishedMarker.source_main_sha, head, '--').split(/\r?\n/);
-  const schedule = await readSchedule({ policy, env: preview ? { ...process.env, GITHUB_RUN_ID: '' } : process.env });
+  const schedule = process.env.RELEASE_SCHEDULE_PATH
+    ? JSON.parse(readFileSync(process.env.RELEASE_SCHEDULE_PATH, 'utf8'))
+    : await readSchedule({ policy, env: preview ? { ...process.env, GITHUB_RUN_ID: '' } : process.env });
   const plan = { ...planRelease({ policy, marker, publishedMarker, head, changedFiles, eventName: process.env.GITHUB_EVENT_NAME }), schedule };
   if (schedule.status !== 'DUE') plan.status = schedule.status;
   if (process.env.RELEASE_PLAN_PATH) writeFileSync(process.env.RELEASE_PLAN_PATH, JSON.stringify(plan, null, 2) + '\n');

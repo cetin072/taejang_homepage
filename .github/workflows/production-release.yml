@@ -41,10 +41,18 @@ jobs:
       - name: Initialize temporary paths
         run: |
           echo "RELEASE_PLAN_PATH=$RUNNER_TEMP/production-release-plan.json" >> "$GITHUB_ENV"
+          echo "RELEASE_SCHEDULE_PATH=$RUNNER_TEMP/production-release-schedule.json" >> "$GITHUB_ENV"
           echo "PUBLISHED_DEPLOY_PATH=$RUNNER_TEMP/published-production.json" >> "$GITHUB_ENV"
+      - name: Admit only one live check per fixed slot
+        id: slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/production-release-schedule.mjs
       - name: Read successful public Production deployment
+        if: steps.slot.outputs.status == 'DUE' || env.DRY_RUN == 'true'
         run: curl --fail --silent --show-error --location --max-time 30 --output "$PUBLISHED_DEPLOY_PATH" "https://api.netlify.com/api/v1/sites/9caa5a1a-f86d-4a9f-aed4-f560e1c2101f"
       - name: Plan release
+        if: steps.slot.outputs.status == 'DUE' || env.DRY_RUN == 'true'
         id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -79,6 +87,7 @@ jobs:
           node --input-type=module -e 'import {readFileSync} from "node:fs";const repos=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/release-app-repositories.json","utf8"));if(repos.length!==1||repos[0]!==process.env.GITHUB_REPOSITORY)throw new Error("APP_REPOSITORY_SCOPE_MISMATCH");console.log("Release App authentication and single repository scope verified")'
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows?per_page=1" --jq '.total_count' > /dev/null
       - name: Create marker-only PR, await genuine PR CI, and squash when current
+        if: steps.plan.outcome == 'success'
         id: release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
@@ -100,10 +109,10 @@ jobs:
       - name: Record check result
         if: success()
         env:
-          RELEASE_RESULT: ${{ steps.published.outputs.status || steps.release.outputs.status || steps.plan.outputs.status }}
+          RELEASE_RESULT: ${{ steps.published.outputs.status || steps.release.outputs.status || steps.plan.outputs.status || steps.slot.outputs.status }}
         run: |
           echo "Production check: $RELEASE_RESULT" >> "$GITHUB_STEP_SUMMARY"
-          node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs";const p=JSON.parse(readFileSync(process.env.RELEASE_PLAN_PATH,"utf8"));appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Next fixed check: "+p.schedule.next_check_utc+"\n")'
+          node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs";const s=JSON.parse(readFileSync(process.env.RELEASE_SCHEDULE_PATH,"utf8"));appendFileSync(process.env.GITHUB_STEP_SUMMARY,"Next fixed check: "+s.next_check_utc+"\n")'
 
   report-failure:
     needs: release

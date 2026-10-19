@@ -368,7 +368,7 @@ test('branch dry-run evaluates actual origin/main and never includes unmerged Dr
     const draft=commit(cwd,'Draft only');
     const published=path.join(cwd,'published.json');
     writeFileSync(published,JSON.stringify({published_deploy:{context:'production',state:'ready',commit_ref:main,published_at:'2026-10-19T08:04:16.329Z'}}));
-    const actual=spawnSync(process.execPath,[path.join(root,'scripts/production-release-plan.mjs')],{cwd,encoding:'utf8',env:{...process.env,DRY_RUN:'true',GITHUB_REF:'refs/heads/codex/draft-web-feature',PUBLISHED_DEPLOY_PATH:published,GITHUB_EVENT_NAME:'workflow_dispatch',RELEASE_PLAN_PATH:'',GITHUB_OUTPUT:''}});
+    const actual=spawnSync(process.execPath,[path.join(root,'scripts/production-release-plan.mjs')],{cwd,encoding:'utf8',env:{...process.env,DRY_RUN:'true',GITHUB_REF:'refs/heads/codex/draft-web-feature',PUBLISHED_DEPLOY_PATH:published,GITHUB_EVENT_NAME:'workflow_dispatch',RELEASE_PLAN_PATH:'',RELEASE_SCHEDULE_PATH:'',GITHUB_OUTPUT:''}});
     assert.equal(actual.status,0,actual.stderr);
     const result=JSON.parse(actual.stdout);
     assert.equal(result.source_main_sha,main);

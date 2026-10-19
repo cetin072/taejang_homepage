@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
 export const liveRunTitle = 'Production release | live';
 const hour = 3_600_000;
 
@@ -66,4 +69,13 @@ export async function readSchedule({ policy, env = process.env, now = new Date()
   const runs = await get('/actions/workflows/production-release.yml/runs?' + query);
   if (!Array.isArray(runs.workflow_runs) || runs.total_count > runs.workflow_runs.length || runs.workflow_runs.length >= 100) throw new Error('SLOT_HISTORY_INCOMPLETE');
   return evaluateSchedule({ policy, run, previousRuns: runs.workflow_runs, now });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const policy = JSON.parse(readFileSync('deployment/release-policy.json', 'utf8'));
+  const preview = process.env.DRY_RUN === 'true' && process.env.GITHUB_REF !== 'refs/heads/main';
+  const schedule = await readSchedule({ policy, env: preview ? { ...process.env, GITHUB_RUN_ID: '' } : process.env });
+  if (process.env.RELEASE_SCHEDULE_PATH) writeFileSync(process.env.RELEASE_SCHEDULE_PATH, JSON.stringify(schedule, null, 2) + '\n');
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, 'status=' + schedule.status + '\n');
+  console.log(JSON.stringify(schedule));
 }
