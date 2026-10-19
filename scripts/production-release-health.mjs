@@ -38,7 +38,7 @@ export async function checkProductionDatabase({ publishedSha, head, token, proje
   if (!token || !/^[a-z]{20}$/.test(projectRef || '')) return { status: 'DB_PREFLIGHT_AUTH_UNAVAILABLE' };
   const response = await fetcher(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: 'select version, name from supabase_migrations.schema_migrations order by version' }),
+    body: JSON.stringify({ query: 'select version, name from supabase_migrations.schema_migrations order by version', read_only: true }),
     signal: AbortSignal.timeout(30_000),
   });
   if (!response.ok) throw new Error(`DB_PREFLIGHT_HTTP_${response.status}`);

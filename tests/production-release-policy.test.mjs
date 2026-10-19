@@ -329,6 +329,7 @@ test('database preflight reads only migration history over bounded authenticated
     assert.equal((await checkProductionDatabase(options)).status, 'DB_NOT_READY');
     assert.equal(calls.length, 1);
     assert.equal(JSON.parse(calls[0].request.body).query, 'select version, name from supabase_migrations.schema_migrations order by version');
+    assert.equal(JSON.parse(calls[0].request.body).read_only, true);
     assert.equal(calls[0].request.method, 'POST');
     assert.match(calls[0].url, /^https:\/\/api\.supabase\.com\/v1\/projects\/a{20}\/database\/query$/);
     assert.ok(calls[0].request.signal);
