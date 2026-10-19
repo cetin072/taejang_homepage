@@ -87,6 +87,14 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
     const age = now() - new Date(existing.created_at);
     return { status: Number.isFinite(age) && age >= 0 && age <= 30 * 60_000 ? 'OPEN_RELEASE_PR' : 'RELEASE_PR_STALLED', pr: existing.html_url };
   }
+  // A failed POST /pulls may leave a pushed release branch without a PR.
+  // Never create another branch on each scheduled run in that state.
+  const releaseRefs = await api('GET', '/git/matching-refs/heads/' + prefix);
+  if (releaseRefs.length > 100) throw new Error('RELEASE_REF_LIST_REQUIRES_REVIEW');
+  for (const ref of releaseRefs) {
+    const associated = await api('GET', '/commits/' + ref.object.sha + '/pulls?per_page=1');
+    if (!associated.length) return { status: 'ORPHAN_RELEASE_BRANCH', branch: ref.ref };
+  }
   if (dryRun) return prepare();
   const prepared = prepare();
   if (prepared.status !== 'BRANCH_CREATED') return prepared;

@@ -199,6 +199,8 @@ function orchestrationFixture(overrides = {}) {
   const api = async (method, route, body) => {
     calls.push({ method, route, body });
     if (route.startsWith('/pulls?')) return overrides.open || [];
+    if (route.startsWith('/git/matching-refs/')) return overrides.orphan ? [{ ref: 'refs/heads/codex/production-release-orphan', object: { sha: 'orphan' } }] : [];
+    if (route === '/commits/orphan/pulls?per_page=1') return [];
     if (method === 'POST' && route === '/pulls') { created = true; return { number: 42, html_url: 'https://example.invalid/pr/42' }; }
     if (route === '/git/ref/heads/main') return { object: { sha: overrides.main || sha } };
     for (const [workflow] of requiredWorkflows) {
@@ -337,4 +339,13 @@ test('database preflight reads only migration history over bounded authenticated
     assert.equal(git(temp, 'status', '--porcelain'), '');
     assert.equal(git(temp, 'rev-parse', 'HEAD'), head);
   } finally { process.chdir(originalCwd); rmSync(temp, { recursive: true, force: true }); }
+});
+
+
+test('orphan branch after failed PR creation blocks repeated branch pushes on subsequent runs', async () => {
+  const fixture = orchestrationFixture({ orphan: true });
+  let preparations = 0;
+  assert.equal((await orchestrate({ ...fixture.options, prepare: () => { preparations++; return fixture.prepared; } })).status, 'ORPHAN_RELEASE_BRANCH');
+  assert.equal(preparations, 0);
+  assert.equal(fixture.calls.some(call => call.method !== 'GET'), false);
 });

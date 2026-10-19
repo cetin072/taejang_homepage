@@ -59,6 +59,8 @@ the exact head, PR number and both required successful jobs. Polls are bounded
 (15 minutes per workflow, at most 30 minutes total); no rerun/dispatch substitutes.
 Failed, missing, wrong-source or approval-required checks block the merge.
 
+A pushed release branch without any associated PR blocks further branch creation
+(ORPHAN_RELEASE_BRANCH), preventing infinite retries after PR-creation failure.
 An existing release PR prevents duplicates. Its source/date, required checks and
 age are inspected: stale, approval-required, failed, not-started or stalled (>30
 minutes) releases become incidents, rather than silently returning a healthy no-op.
