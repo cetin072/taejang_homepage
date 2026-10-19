@@ -33,6 +33,7 @@ try {
   await page.goto(base+'/tests/browser/notice-authoring-ux-gate.html?capture');
   await page.waitForFunction(()=>document.getElementById('result').textContent==='NOTICE_CAPTURE_READY');
   await page.addScriptTag({url:(preview||base)+'/app/assets/operations-delete-controls.js'});
+  await page.addScriptTag({url:(preview||base)+'/app/assets/ux-followup-polish.js'});
   await page.evaluate(()=>{
    const iso=offset=>new Date(Date.now()+offset).toISOString(),hour=3600000;
    const make=(id,title,extra={})=>({id,title,body_easy:'합성 공지 본문\n둘째 문단',notice_kind:'general',importance:'normal',
@@ -89,6 +90,8 @@ try {
   await page.locator('[data-notice-id="pub-a"]').waitFor();
   await capture('manage');
   if(baseline){await context.close();continue;}
+  assert.equal(await page.locator('[data-notice-advanced-settings]').count(),0,'legacy polish cannot rearrange canonical notice controls');
+  assert.equal(await page.locator('#notice-publish-end-date').evaluate(node=>!!node.closest('.notice-period')),true,'period remains in canonical period section');
   assert.deepEqual((await page.locator('#notice-admin-list article').evaluateAll(nodes=>nodes.map(node=>node.dataset.noticeId))).slice(0,2),['pub-a','pub-b']);
   assert.equal(await page.locator('#notice-admin-list article').last().getAttribute('data-notice-id'),'expired');
   assert.equal(await page.locator('[data-ops-archive-notice]').count(),0,'no second archive owner');
@@ -106,6 +109,10 @@ try {
   await page.locator('#notice-save-existing').click();
   await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 결과 확인이 필요'));
   assert.equal(await page.locator('#notice-body').inputValue(),'서버 재조회 대조');await page.evaluate(()=>{historyFixture.staleRead=false});
+  const verifiedRetryWrites=await page.evaluate(()=>calls.filter(call=>call.name==='save_notice').length);
+  await page.locator('#notice-save-existing').click();
+  await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
+  assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='save_notice').length),verifiedRetryWrites,'readback retry verifies without repeating committed edit');
   // Lost committed edit response reconciles by exact ID, no duplicate body write.
   await page.locator('#notice-body').fill('응답 유실 정정');await page.evaluate(()=>{historyFixture.loseSave=true});
   await page.locator('#notice-save-existing').click();

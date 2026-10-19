@@ -460,6 +460,11 @@
     ui.element('archive-notice-admin').hidden = activeView !== 'manage';
     ui.element('back-notice-admin').hidden = activeView !== 'archive';
     ui.element('notice-manage-title').textContent = activeView === 'archive' ? '보관 · 취소 · 사용 중지 공지' : '등록된 공지';
+    for (const option of ui.element('notice-list-status').options) {
+      const archiveStatus = ['cancelled','inactive','archived'].includes(option.value);
+      option.hidden = Boolean(option.value) && archiveStatus !== (activeView === 'archive');
+      option.disabled = option.hidden;
+    }
   }
 
   function showSavedNotice(id, message, loaded, view = 'manage') {
@@ -861,6 +866,8 @@
         const current = await readNotice(pendingWrite.id);
         if (!matchesSaved(current, pendingWrite.payload)) throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
         reconciledWrite = current;
+        savedPublishStart = current.publish_start_at;
+        savedPublishEnd = current.publish_end_at;
         pendingWrite = null;
       }
       if (publicationUncertain) {
@@ -896,11 +903,12 @@
 
       let publishStart = savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now'
         ? new Date().toISOString() : readDateTime('notice-publish-start', true);
+      if (reconciledWrite && savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now') publishStart = reconciledWrite.publish_start_at;
       const unchangedStart = savedPublishStart
         && ui.kstDate(savedPublishStart) === ui.element('notice-publish-start-date').value
         && ui.kstTime(savedPublishStart) === ui.element('notice-publish-start-time').value;
       if (savedStatus !== 'draft' && unchangedStart) publishStart = savedPublishStart;
-      if (publishEndAuto) syncDefaultPublishEnd(); // 'Now' is calculated when saving.
+      if (publishEndAuto && !reconciledWrite) syncDefaultPublishEnd(); // Never move an already committed period while reconciling.
       let publishEnd = readDateTime('notice-publish-end');
       if (savedPublishEnd && ui.kstDate(savedPublishEnd) === ui.element('notice-publish-end-date').value
         && ui.kstTime(savedPublishEnd) === ui.element('notice-publish-end-time').value) publishEnd = savedPublishEnd;
@@ -987,11 +995,16 @@
       savedPublishStart = publishStart;
       savedPublishEnd = publishEnd;
       setDateTime('notice-publish-start', publishStart);
-      const verified = await readNotice(result.id).catch(() => { throw new Error('NOTICE_READBACK_UNAVAILABLE'); });
-      if (!matchesSaved(verified, { ...payload, p_status: savedStatus }) || verified.version_no < result.version_no
+      const finalPayload = { ...payload, p_notice_id: result.id, p_status: savedStatus };
+      const verified = await readNotice(result.id).catch(() => {
+        pendingWrite = { id: result.id, payload: finalPayload };
+        throw new Error('NOTICE_READBACK_UNAVAILABLE');
+      });
+      if (!matchesSaved(verified, finalPayload) || verified.version_no < result.version_no
         || (reviewState && verified.review_state !== reviewState)
         || ui.array(verified.media).length !== mediaItems.length
         || mediaItems.some((photo,index) => !ui.array(verified.media).some(stored => stored.id === photo.id && stored.alt_text === photo.alt_text.trim() && stored.display_order === index))) {
+        pendingWrite = { id: result.id, payload: finalPayload };
         throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
       }
       const label = exposureLabel(verified);
