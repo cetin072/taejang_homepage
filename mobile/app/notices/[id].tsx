@@ -1,6 +1,6 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Button, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ import {
   type NoticeMediaItem,
 } from '@/src/features/notices/notice-api';
 import { cacheNoticeMediaUrl, getCachedNoticeMediaUrl } from '@/src/features/notices/notice-cache';
+import { noticeReadStore } from '@/src/features/notices/notice-read-state';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function importanceLabel(value: NoticeDetail['importance']) {
@@ -73,6 +74,11 @@ export default function NoticeDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const noticeId = typeof params.id === 'string' ? params.id : '';
   const { client, session } = usePlatform();
+  const request = useRef(0);
+  const userId = session?.user.id;
+  const [noticeOwner, setNoticeOwner] = useState('');
+  const [readError, setReadError] = useState('');
+  const [readRetry, setReadRetry] = useState(0);
   const [notice, setNotice] = useState<NoticeDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [ackBusy, setAckBusy] = useState(false);
@@ -80,35 +86,61 @@ export default function NoticeDetailScreen() {
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
-    if (!client || !session || !noticeId) return;
+    if (!client || !userId || !noticeId) return;
+    const token = ++request.current;
     setLoading(true);
+    setAckBusy(false);
+    setNotice(null);
+    setReadError('');
+    setMessage('');
     setError('');
     try {
-      setNotice(await loadMyNoticeDetail(client, noticeId));
+      const fresh = await loadMyNoticeDetail(client, noticeId);
+      if (token !== request.current) return;
+      setNoticeOwner(`${userId}:${noticeId}`);
+      setNotice(fresh);
     } catch {
+      if (token !== request.current) return;
       setError('이 공지를 지금 불러올 수 없습니다. 다시 확인해주세요.');
     } finally {
-      setLoading(false);
+      if (token === request.current) setLoading(false);
     }
-  }, [client, session, noticeId]);
+  }, [client, userId, noticeId]);
 
-  useEffect(() => {
-    if (!client || !session || !noticeId) return;
+  useFocusEffect(useCallback(() => {
     void load();
-  }, [client, session, noticeId, load]);
+    return () => { request.current++; };
+  }, [load]));
+
+  // Runs after the successful text render. Photos load independently.
+  useEffect(() => {
+    if (loading || error || !notice || !userId || notice.requires_acknowledgement
+      || noticeOwner !== `${userId}:${noticeId}`) return;
+    let active = true;
+    void noticeReadStore.markRead(userId, notice).then(() => {
+      if (active) setReadError('');
+    }).catch(() => {
+      if (active) setReadError('읽음 상태를 저장하지 못했습니다. 다시 시도해주세요.');
+    });
+    return () => { active = false; };
+  }, [notice, noticeOwner, noticeId, userId, loading, error, readRetry]);
 
   async function acknowledge() {
-    if (!client || !notice || ackBusy) return;
+    if (!client || !notice || ackBusy || noticeOwner !== `${userId}:${noticeId}`) return;
+    const token = request.current;
     setAckBusy(true);
     setMessage('');
     try {
       await acknowledgeMyNotice(client, notice.id, notice.version_no);
-      setNotice(await loadMyNoticeDetail(client, notice.id));
+      const fresh = await loadMyNoticeDetail(client, notice.id);
+      if (token !== request.current) return;
+      setNotice(fresh);
       setMessage('공지 내용을 확인했습니다.');
     } catch (nextError) {
+      if (token !== request.current) return;
       setMessage(nextError instanceof Error ? nextError.message : '공지 확인을 저장하지 못했습니다.');
     } finally {
-      setAckBusy(false);
+      if (token === request.current) setAckBusy(false);
     }
   }
 
@@ -141,7 +173,7 @@ export default function NoticeDetailScreen() {
           </View>
         ) : null}
 
-        {!loading && notice ? (
+        {!loading && !error && notice && noticeOwner === `${userId}:${noticeId}` ? (
           <View style={styles.card}>
             <Text style={styles.eyebrow}>{importanceLabel(notice.importance)}</Text>
             <Text style={styles.title}>{notice.title}</Text>
@@ -170,6 +202,7 @@ export default function NoticeDetailScreen() {
               )
             ) : null}
 
+            {readError ? <View><Text style={styles.error}>{readError}</Text><Button title="읽음 저장 다시 시도" onPress={() => setReadRetry(value => value + 1)} /></View> : null}
             {message ? <Text style={styles.message}>{message}</Text> : null}
           </View>
         ) : null}

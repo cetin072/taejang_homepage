@@ -82,8 +82,8 @@ test('Goal 329 operations attendance QA is explicit, reusable, and cannot reques
   assert.match(api, /qa_validate_attendance_event/);
   assert.match(card, /mode = 'record'/);
   assert.match(card, /검수 모드 · 실제 근태에 반영되지 않음/);
-  assert.match(card, /출근했습니다/);
-  assert.match(card, /퇴근했습니다/);
+  assert.match(card, /출근하기/);
+  assert.match(card, /퇴근하기/);
   assert.match(card, /validateAttendanceQa/);
   assert.match(card, /const qaMode = mode === 'qa';/);
   assert.match(card, /result\.writes_attendance !== false/);
