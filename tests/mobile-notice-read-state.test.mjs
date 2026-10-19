@@ -76,6 +76,8 @@ function hooks() {
   };
 }
 const native = Object.fromEntries(['View', 'Text', 'Pressable', 'ScrollView', 'Button', 'Image', 'ActivityIndicator'].map(x => [x, x]));
+let fontScale = 1;
+native.useWindowDimensions = () => ({ fontScale });
 native.StyleSheet = { create: value => value };
 
 test('general reads persist across process restart, isolate users, and reappear for a new version', async () => {
@@ -143,14 +145,22 @@ test('actual home UI shows title/date/count, routes latest directly, keeps histo
   });
   const render = () => nodes(component.NoticeHomeAction({}));
   let ui = render();
-  assert.match(ui.filter(x => typeof x === 'string' || typeof x === 'number').join(' '), /새 공지.*2.*공지 a/s);
+  assert.match(ui.filter(x => typeof x === 'string' || typeof x === 'number').join(' '), /미확인.*2.*공지 a/s);
   assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
   ui.filter(x => x.type === 'Pressable')[1].props.onPress(); assert.equal(routes.at(-1), '/notices');
-  assert.ok(ui.find(x => x.props?.accessibilityLabel === '공지 전체 보기').props.style, 'list action is inside notice card');
+  assert.ok(ui.find(x => x.props?.accessibilityLabel === '전체 목록 보기').props.style, 'list action is inside notice card');
+  assert.equal(ui.filter(x => x === '공지사항').length, 1);
+  assert.ok(ui.includes('내용 보기 →'));
+  fontScale = 2;
+  assert.equal(render().find(x => x.props?.style?.fontSize === 21).props.numberOfLines, undefined);
+  fontScale = 1;
+  state = { ...state, items: [notice('urgent', { importance: 'urgent' })], versions: {} };
+  assert.ok(render().some(x => typeof x === 'string' && x.includes(' · 긴급')));
+  state = { ...state, items: [notice('a'), notice('b', { publish_start_at: '2026-01-01T00:00:00Z' })] };
   state = { ...state, versions: { a: 1, b: 1 } };
   ui = render();
-  assert.ok(ui.includes('✓ 확인한 최근 공지'), 'read recent notice stays visible for three days');
+  assert.ok(ui.some(x => typeof x === 'string' && x.includes('✓ 읽음')), 'read recent notice stays visible for three days');
   assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
   assert.ok(!ui.includes('● 새 공지'));
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
