@@ -1,0 +1,80 @@
+[
+  {
+    "width": 1440,
+    "variant": "baseline",
+    "cls": 0.0010194583175931284,
+    "longTasks": [
+      104
+    ],
+    "frames": 383,
+    "p95": 16.800000000000182,
+    "over50": 2,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:4180/assets/css/employee-app.css",
+        "bytes": 9720
+      }
+    ]
+  },
+  {
+    "width": 1440,
+    "variant": "integrated",
+    "cls": 0.0010492785544061857,
+    "longTasks": [
+      150
+    ],
+    "frames": 392,
+    "p95": 16.800000000000182,
+    "over50": 1,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:4180/assets/css/employee-app.css",
+        "bytes": 11854
+      },
+      {
+        "name": "http://127.0.0.1:4180/assets/js/employee-app-motion.js",
+        "bytes": 6764
+      }
+    ],
+    "state": "ended"
+  },
+  {
+    "width": 390,
+    "variant": "baseline",
+    "cls": 0.022513316911997466,
+    "longTasks": [
+      140
+    ],
+    "frames": 388,
+    "p95": 16.800000000000182,
+    "over50": 1,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:4180/assets/css/employee-app.css",
+        "bytes": 9720
+      }
+    ]
+  },
+  {
+    "width": 390,
+    "variant": "integrated",
+    "cls": 0.02260144735280152,
+    "longTasks": [
+      166
+    ],
+    "frames": 390,
+    "p95": 16.800000000000182,
+    "over50": 1,
+    "resources": [
+      {
+        "name": "http://127.0.0.1:4180/assets/css/employee-app.css",
+        "bytes": 11854
+      },
+      {
+        "name": "http://127.0.0.1:4180/assets/js/employee-app-motion.js",
+        "bytes": 6764
+      }
+    ],
+    "state": "ended"
+  }
+]
