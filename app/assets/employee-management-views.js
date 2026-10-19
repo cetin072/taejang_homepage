@@ -60,7 +60,7 @@
     }
 
     function meta(pairs) {
-      const dl = el('dl', null, 'employee-meta');
+      const dl = el('dl', null, 'employee-meta app-summary-list');
       pairs.forEach(([label, value]) => {
         const row = el('div'); row.append(el('dt', label), el('dd', value ?? '—')); dl.append(row);
       });
@@ -178,7 +178,7 @@
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
         const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card');
         visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
-        const auditForm = el('form',null,'employee-app-audit-form');
+        const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container');
         const confirmation = input('checkbox');
         confirmation.checked=Boolean(employee.identity_verified);
         const install=select([
@@ -191,8 +191,11 @@
         note.placeholder='설치 안내나 로그인 오류 등 비민감 메모';
         const save=button('현장 확인 저장',()=>{});save.type='submit';
         const feedback=el('p','', 'help');feedback.setAttribute('role','status');
-        auditForm.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),
-          field('현장 메모',note),save,feedback);
+
+        const fields = el('div',null,'app-compact-fields');
+        fields.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),field('현장 메모',note));
+        const actions = el('div',null,'quick-links'); actions.append(save);
+        auditForm.append(fields,actions,feedback);
         auditForm.addEventListener('submit',async ev=>{
           ev.preventDefault();save.disabled=true;
           try{

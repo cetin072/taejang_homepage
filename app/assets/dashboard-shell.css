@@ -192,11 +192,36 @@
 #desktop-app-shell .dashboard-main :is(
   .phase-c-board-form,
   .operations-homepage-form form,
+  .operations-writer form,
   .support-radar-form
 ) label {
   min-width: 0;
   margin: 0;
 }
+
+/* GOV.UK Summary List: dt/dd rows, separators and responsive reflow.
+   Adapted to existing tokens. See docs/operations/ADMIN_UI_PATTERN_REUSE.md. */
+#desktop-app-shell .app-summary-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 24px; margin:0; }
+#desktop-app-shell .app-summary-list > div { display:grid; grid-template-columns:minmax(88px,30%) minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid var(--app-border); min-width:0; align-items:baseline; }
+#desktop-app-shell .app-summary-list dt { color:var(--app-muted); font-size:.88rem; font-weight:600; }
+#desktop-app-shell .app-summary-list dd { margin:0; min-width:0; font-weight:750; overflow-wrap:anywhere; }
+#desktop-app-shell label.app-check-field { display:grid; grid-template-columns:22px minmax(0,1fr); align-content:center; align-items:center; gap:6px 10px; min-height:44px; margin:0; }
+#desktop-app-shell label.app-check-field > input[type="checkbox"] { grid-column:1; grid-row:1; width:22px; height:22px; min-height:22px; margin:0; padding:0; accent-color:var(--app-brand); }
+#desktop-app-shell label.app-check-field > :is(span,small) { grid-column:2; }
+#desktop-app-shell .dashboard-main :is(.check-label,.phase-c-signup-check) { margin:0; min-height:44px; align-items:center; line-height:1.5; }
+#desktop-app-shell .dashboard-main :is(.check-label,.phase-c-signup-check) input[type="checkbox"] { flex:0 0 22px; width:22px; height:22px; min-height:22px; margin:0; padding:0; accent-color:var(--app-brand); }
+#desktop-app-shell .dashboard-main :is(.employee-form,.promotion-form,.phase-c-board-form,.operations-homepage-form form,.operations-writer form,.phase-c-signup-approval-form) :is(input,select,textarea) { color:var(--app-text); }
+#desktop-app-shell .dashboard-main :is(.employee-form,.promotion-form,.phase-c-board-form,.operations-homepage-form form,.operations-writer form,.phase-c-signup-approval-form) :is(input,select,textarea):focus-visible { outline:3px solid var(--focus,#e2a700); outline-offset:2px; }
+#desktop-app-shell .dashboard-main :is(.phase-c-board-form,.operations-homepage-form form,.operations-writer form,.phase-c-signup-approval-form) label { line-height:1.5; }
+#desktop-app-shell .dashboard-main :is(.promotion-form,.phase-c-board-form,.operations-homepage-form form,.operations-writer form,.phase-c-signup-approval-card) .quick-links { padding-top:12px; border-top:1px solid var(--app-border); }
+#desktop-app-shell .dashboard-main .quick-links > .button { white-space:normal; overflow-wrap:anywhere; line-height:1.45; }
+@media (max-width:760px) {
+  #desktop-app-shell .app-summary-list { grid-template-columns:minmax(0,1fr); }
+}
+@media (max-width:360px) {
+  #desktop-app-shell .app-summary-list > div { grid-template-columns:minmax(0,1fr); gap:4px; }
+}
+
 /* Use the actual card/form width rather than screen width (sidebar consumes
    substantial desktop space). Small screens keep accessible full-width fields. */
 @container (max-width: 640px) {

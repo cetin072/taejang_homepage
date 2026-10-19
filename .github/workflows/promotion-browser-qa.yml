@@ -33,11 +33,25 @@ jobs:
         run: |
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
+      - name: Install existing browser dependency
+        run: npm ci
+
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 
-      - name: Install existing browser dependency
-        run: npm ci
+
+      - name: Run synthetic admin UI keyboard and form QA
+        env:
+          ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
+        run: node tests/admin-ui-browser.mjs
+
+      - name: Keep synthetic admin UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-ui-320-390-768-1440
+          path: admin-ui-qa-artifacts/
+          if-no-files-found: ignore
 
       - name: Run real mouse sidebar drag/save/reload QA
         env:

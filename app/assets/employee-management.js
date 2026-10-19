@@ -36,9 +36,16 @@
   function field(label, control, help) {
     const wrap = document.createElement('label');
     control.setAttribute('aria-label', label);
-    wrap.append(el('span', label));
-    if (help) wrap.append(el('small', help, 'field-help'));
-    wrap.append(control);
+
+    if (control.type === 'checkbox') {
+      wrap.className = 'app-check-field';
+      wrap.append(control, el('span', label));
+      if (help) wrap.append(el('small', help, 'field-help'));
+    } else {
+      wrap.append(el('span', label));
+      if (help) wrap.append(el('small', help, 'field-help'));
+      wrap.append(control);
+    }
     return wrap;
   }
 
@@ -61,82 +68,6 @@
     return node;
   }
 
-  function injectStyles() {
-    if (document.querySelector('style[data-employee-management]')) return;
-    const style = document.createElement('style');
-    style.dataset.employeeManagement = '1';
-    style.textContent = `
-      .employee-management { display:grid; gap:20px; }
-      .employee-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; }
-      .employee-management,.employee-management * { box-sizing:border-box; }
-      .employee-management :is(section,div,dl,dd,form,label,details) { min-width:0; }
-      .employee-management :is(h2,h3,p,dd,span) { overflow-wrap:anywhere; }
-      .employee-management .button,.employee-management summary { min-height:44px; }
-      .employee-management :is(button,input,select,summary):focus-visible { outline:3px solid #316c55; outline-offset:3px; }
-      .employee-filters { display:grid; grid-template-columns:minmax(200px,2fr) repeat(3,minmax(120px,1fr)); gap:12px; margin-bottom:14px; }
-      .employee-filters label { display:grid; gap:5px; margin:0; color:var(--app-muted); font-size:.88rem; }
-      .employee-filters input,.employee-filters select { width:100%; min-width:0; min-height:44px; padding:9px; border:1px solid var(--app-border); border-radius:8px; background:#fff; font:inherit; }
-      .employee-list-head,.employee-list-row { display:grid; grid-template-columns:40px minmax(85px,.9fr) minmax(100px,1.2fr) minmax(100px,1.2fr) minmax(60px,.7fr) 55px minmax(100px,1fr) 70px 70px minmax(95px,1fr); gap:10px; align-items:center; }
-      .employee-list-head { padding:10px 12px; font-size:.78rem; color:var(--app-muted); border-bottom:1px solid var(--app-border); }
-      .employee-list-row { width:100%; min-height:68px; padding:12px; text-align:left; border:0; border-bottom:1px solid var(--app-border); background:#fff; color:var(--app-text,#1b3026); font:inherit; font-size:.88rem; cursor:pointer; }
-      .employee-list-row:hover { background:#f4f7f5; }
-      .employee-list-row > span { min-width:0; overflow-wrap:anywhere; }
-      .employee-list-name { font-weight:800; }
-      .employee-list-group-title { margin:16px 0 10px; font-size:1rem; }
-      .employee-list-departed:has(.employee-list-group-title) { margin-top:24px; padding-top:4px; border-top:1px solid var(--app-border); }
-      .employee-badge { display:inline-block; padding:3px 7px; border-radius:5px; background:#eef3ef; color:#315443; font-size:.8rem; line-height:1.5; }
-      .employee-badge-warning { background:#fff4df; color:#6a4d13; }
-      .employee-badges { display:flex; flex-wrap:wrap; gap:6px; }
-      .employee-profile { display:grid; gap:24px; }
-      .employee-profile > .button { justify-self:start; width:auto; }
-      .employee-basic-title { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:16px; }
-      .employee-basic-title h3 { margin:0; }
-      .employee-profile-head { display:flex; gap:16px; align-items:center; }
-      .employee-profile-head h2 { margin:0 0 6px; }
-      .employee-profile-section { padding:22px 0; border-top:1px solid var(--app-border); }
-      .employee-profile-section h3 { margin:0 0 16px; }
-      .employee-profile-section .employee-form { margin-top:16px; }
-      .employee-sensitive-section { padding:20px; border-left:3px solid #b5a276; background:#faf9f5; }
-      .employee-photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
-      .employee-photo-grid .employee-avatar { width:100px; height:120px; }
-      .employee-photo-status { font-size:.88rem; }
-      .employee-avatar { display:block; flex-shrink:0; width:64px; height:64px; border-radius:10px; object-fit:cover; background:#edf2ee; border:1px solid var(--app-border); }
-      .employee-list-row .employee-avatar { width:40px; height:40px; border-radius:8px; }
-      .employee-avatar-frame { display:block; flex-shrink:0; }
-      .employee-avatar-placeholder { display:grid; place-items:center; font-weight:900; color:var(--app-muted); }
-      .employee-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px 12px; margin:0; }
-      .employee-meta div { display:grid; gap:2px; }
-      .employee-meta dt { color:var(--app-muted); font-size:.82rem; }
-      .employee-meta dd { margin:0; font-weight:750; }
-      .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
-      .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
-      .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }
-      .employee-sensitive-bulk .message { margin:0; white-space:pre-line; }
-      .employee-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-      .employee-form label { display:grid; gap:6px; font-weight:800; }
-      .employee-form input,.employee-form select { width:100%; min-height:44px; padding:9px 10px; border:1px solid var(--app-border); border-radius:9px; background:#fff; font:inherit; }
-      .employee-request-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-      .employee-photo-actions { display:grid; gap:8px; }
-      .employee-photo-actions input[type="file"] { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
-      .employee-protected-note { padding:9px 10px; border-radius:9px; background:#fff4df; color:#6a4d13; font-weight:700; }
-      @media(max-width:1100px){
-        .employee-list-head { display:none; }
-        .employee-list-row { grid-template-columns:40px minmax(0,1fr) minmax(0,1fr); gap:6px 12px; }
-        .employee-list-row > :is(.employee-avatar,.employee-avatar-frame) { grid-column:1; grid-row:1/5; align-self:start; }
-        .employee-list-row .employee-list-name { grid-column:2; grid-row:1; }
-        .employee-list-row .employee-list-id { grid-column:2; grid-row:2; }
-        .employee-list-row .employee-list-department { grid-column:2; grid-row:3; }
-        .employee-list-row .employee-list-position { grid-column:2; grid-row:4; }
-        .employee-list-row .employee-list-employment { grid-column:3; grid-row:1; }
-        .employee-list-row .employee-list-account { grid-column:3; grid-row:2; }
-        .employee-list-row .employee-list-attendance { grid-column:3; grid-row:3; }
-        .employee-list-row .employee-list-photo { grid-column:3; grid-row:4; }
-        .employee-list-row .employee-list-review { grid-column:2/4; }
-      }
-      @media(max-width:760px){.employee-request-grid,.employee-form-grid,.employee-photo-grid{grid-template-columns:1fr}.employee-filters{grid-template-columns:1fr 1fr}.employee-filters label:first-child{grid-column:1/-1}.employee-meta{grid-template-columns:1fr}.employee-form,.employee-sensitive-section{padding:14px}.employee-toolbar{align-items:stretch}.employee-profile-head{align-items:flex-start}}
-    `;
-    document.head.append(style);
-  }
 
   function session() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
@@ -985,7 +916,6 @@
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
 
-  injectStyles();
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));
 
   window.TaejangEmployeeManagement = { openEmployeeManagement, uploadEmployeePhoto };
