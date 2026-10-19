@@ -73,8 +73,14 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
   if (!preflight) throw new Error('DB_PREFLIGHT_REQUIRED');
   const database = await preflight();
   if (database.status !== 'READY') return database;
-  const open = await api('GET', '/pulls?state=open&base=main&per_page=100');
-  if (open.length === 100) throw new Error('OPEN_PR_LIST_INCOMPLETE');
+  const open = [];
+  for (let page = 1; page <= 10; page++) {
+    const rows = await api('GET', '/pulls?state=open&base=main&per_page=100&page=' + page);
+    if (!Array.isArray(rows)) throw new Error('OPEN_PR_LIST_INVALID');
+    open.push(...rows);
+    if (rows.length < 100) break;
+    if (page === 10) throw new Error('OPEN_PR_LIST_INCOMPLETE');
+  }
   const existing = open.find(pr => pr.head.ref.startsWith(prefix));
   if (existing) {
     const markerResponse = await api('GET', '/contents/' + markerPath + '?ref=' + existing.head.sha);
@@ -94,7 +100,7 @@ export async function orchestrate({ plan, dryRun, api, prepare, published, sleep
   // A failed POST /pulls may leave a pushed release branch without a PR.
   // Never create another branch on each scheduled run in that state.
   const releaseRefs = await api('GET', '/git/matching-refs/heads/' + prefix);
-  if (releaseRefs.length > 100) throw new Error('RELEASE_REF_LIST_REQUIRES_REVIEW');
+  if (!Array.isArray(releaseRefs)) throw new Error('RELEASE_REF_LIST_INVALID');
   for (const ref of releaseRefs) {
     const associated = await api('GET', '/commits/' + ref.object.sha + '/pulls?per_page=1');
     if (!associated.length) {

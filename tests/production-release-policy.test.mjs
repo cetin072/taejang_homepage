@@ -377,3 +377,18 @@ test('branch dry-run evaluates actual origin/main and never includes unmerged Dr
     assert.equal(git(cwd,'rev-parse','origin/main'),main);
   }finally{rmSync(cwd,{recursive:true,force:true})}
 });
+
+
+test('unrelated open PR pagination and preserved merged release branches do not permanently block automation',async()=>{
+  const fixture=orchestrationFixture();
+  const base=fixture.options.api;
+  const api=async(method,route,body)=>{
+    if(route.startsWith('/pulls?'))return route.endsWith('page=1')?Array.from({length:100},(_,i)=>({number:i,head:{ref:'codex/unrelated-'+i}})):[];
+    if(route.startsWith('/git/matching-refs/'))return Array.from({length:101},(_,i)=>({ref:'refs/heads/codex/production-release-'+i+'-1',object:{sha:'archived-'+i}}));
+    if(/^\/commits\/archived-\d+\/pulls/.test(route))return [{state:'closed',merged_at:'2026-10-01T00:00:00Z'}];
+    return base(method,route,body);
+  };
+  let prepared=0;
+  const result=await orchestrate({...fixture.options,dryRun:true,api,prepare:()=>{prepared++;return {status:'DRY_RUN_READY'}}});
+  assert.equal(result.status,'DRY_RUN_READY');assert.equal(prepared,1);
+});
