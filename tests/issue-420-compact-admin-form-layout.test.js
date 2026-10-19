@@ -55,7 +55,7 @@ test('staff core form reuses compact grid; sensitive and insurance forms keep ex
   assert.match(core,/employee-form-grid app-compact-fields/);
   const rest=employee.slice(employee.indexOf('function normalizeResidentNumber('));
   assert.doesNotMatch(rest,/employee-form-grid app-compact-fields/);
-  assert.match(employee,/\.employee-form-grid\s*\{\s*display:grid;\s*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(read('app/assets/employee-management.css'),/\.employee-form-grid\s*\{\s*display:grid;\s*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 test('signup applicant summary uses a compact 3-item row and responsive decision reasons',()=>{

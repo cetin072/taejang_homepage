@@ -56,6 +56,7 @@
     return node;
   };
   const field = (label, control, help = '') => {
+    control.setAttribute('aria-label', label);
     const wrap = document.createElement('label');
     wrap.append(el('span', label));
     if (help) wrap.append(el('small', help, 'field-help'));
@@ -95,6 +96,7 @@
   }
 
   function prepareWorkspace() {
+    injectStyles();
     document.getElementById('desktop-app-shell')?.classList.remove('sidebar-open');
     document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
     for (const id of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {

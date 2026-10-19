@@ -41,9 +41,48 @@
     });
   }
 
+  const compareText = (a, b) => String(a || '').localeCompare(String(b || ''), 'ko', { numeric: true });
+
+  function positionRanks(positions) {
+    // The existing RPC orders positions by DB sort_order (with general_worker
+    // first for the new-hire default), but currently omits the numeric field.
+    const rows = arr(positions);
+    return new Map(rows.map((position, index) => [position.id, {
+      ...position, rank: Number.isFinite(position.sort_order) ? position.sort_order : index
+    }]));
+  }
+
+  function positionIssue(employee, ranks) {
+    if (!employee.position_id) return '직책 미지정';
+    const position = ranks.get(employee.position_id);
+    if (!position || (employee.position_name && employee.position_name !== position.name)) return '직책 정보 확인 필요';
+    return '';
+  }
+
+  function sortEmployees(employees, positions, sort = 'position') {
+    const ranks = positionRanks(positions);
+    const byId = (a, b) => compareText(a.employee_id, b.employee_id) || compareText(a.id, b.id);
+    return arr(employees).slice().sort((a, b) => {
+      const departed = Number(a.employment_status === 'departed') - Number(b.employment_status === 'departed');
+      if (departed) return departed;
+      // Unknown/mismatched positions are a separate group, never guessed.
+      const unknown = Number(Boolean(positionIssue(a, ranks))) - Number(Boolean(positionIssue(b, ranks)));
+      if (unknown) return unknown;
+      if (sort === 'employee_desc') return -byId(a, b);
+      if (sort === 'name') return compareText(a.full_name, b.full_name) || byId(a, b);
+      if (sort === 'department') return compareText(a.department_name, b.department_name) || byId(a, b);
+      if (sort === 'hired') return compareText(b.hired_on, a.hired_on) || byId(a, b);
+      if (sort === 'employee_asc') return byId(a, b);
+      if (positionIssue(a, ranks) || positionIssue(b, ranks)) return byId(a, b);
+      const ap = ranks.get(a.position_id), bp = ranks.get(b.position_id);
+      return Number(ap?.code === 'general_worker') - Number(bp?.code === 'general_worker')
+        || (ap?.rank ?? Infinity) - (bp?.rank ?? Infinity) || byId(a, b);
+    });
+  }
+
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
   function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck }) {
-    function avatar(employee, path = employee.profile_photo_path, label = '업무용 사진') {
+    function avatar(employee, path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
       const image = el('img', null, 'employee-avatar'); image.alt = `${employee.full_name} ${label}`;
@@ -60,7 +99,7 @@
     }
 
     function meta(pairs) {
-      const dl = el('dl', null, 'employee-meta');
+      const dl = el('dl', null, 'employee-meta app-summary-list');
       pairs.forEach(([label, value]) => {
         const row = el('div'); row.append(el('dt', label), el('dd', value ?? '—')); dl.append(row);
       });
@@ -76,7 +115,12 @@
       const employment = select([{ id:'active', name:'재직 (휴직 포함) · 기본' }, { id:'', name:'전체' }, { id:'departed', name:'퇴직' }], listState.employment);
       const account = select([{ id:'', name:'전체' }, { id:'linked', name:'앱 연결' }, { id:'unlinked', name:'앱 미연결' }, { id:'review', name:'연결 확인 필요' }], listState.account);
       const photo = select([{ id:'', name:'전체' }, { id:'yes', name:'사진 있음' }, { id:'no', name:'사진 없음' }], listState.photo);
-      filters.append(field('직원 검색', search), field('재직 상태', employment), field('앱 계정', account), field('업무용 사진', photo));
+      const sort = select([
+        { id:'position', name:'직책 높은 순 (기본)' }, { id:'employee_asc', name:'직원번호 오름차순' },
+        { id:'employee_desc', name:'직원번호 내림차순' }, { id:'name', name:'이름 가나다순' },
+        { id:'department', name:'부서별' }, { id:'hired', name:'입사일 최신순' }
+      ], listState.sort || 'position');
+      filters.append(field('직원 검색', search), field('재직 상태', employment), field('앱 계정', account), field('업무용 사진', photo), field('정렬', sort));
       const head = el('div', null, 'employee-list-head'); head.setAttribute('aria-hidden', 'true');
       ['사진', '직원번호', '이름', '부서', '직책', '재직', '앱 계정', '근태', '사진', '점검'].forEach(label => head.append(el('span', label)));
       const list = el('div', null, 'employee-list');
@@ -86,22 +130,25 @@
         list.replaceChildren();
         if (!filtered.length) list.append(el('p', '조건에 맞는 직원이 없습니다.', 'empty'));
         let rows = null;
-        const ordered = filtered.filter(employee => employee.employment_status !== 'departed').concat(filtered.filter(employee => employee.employment_status === 'departed'));
+        const ordered = sortEmployees(filtered, context.positions, listState.sort);
+        const ranks = positionRanks(context.positions);
         ordered.forEach((employee, index) => {
           const departed = employee.employment_status === 'departed';
-          if (!rows || departed !== (ordered[index - 1]?.employment_status === 'departed')) {
+          const issue = positionIssue(employee, ranks);
+          const previousIssue = ordered[index - 1] && positionIssue(ordered[index - 1], ranks);
+          if (!rows || departed !== (ordered[index - 1]?.employment_status === 'departed') || Boolean(issue) !== Boolean(previousIssue)) {
             const group = el('section', null, departed ? 'employee-list-departed' : 'employee-list-employed');
-            if (!listState.employment) group.append(el('h3', departed ? '퇴직 직원' : '재직 직원', 'employee-list-group-title'));
+            if (!listState.employment || issue) group.append(el('h3', `${departed ? '퇴직 직원' : '재직 직원'}${issue ? ' · 직책 확인 필요' : ''}`, 'employee-list-group-title'));
             rows = el('div'); rows.setAttribute('role', 'list'); group.append(rows); list.append(group);
           }
           const item = el('div'); item.setAttribute('role', 'listitem');
           const row = button('', () => selectEmployee(employee.id)); row.className = 'employee-list-row'; row.dataset.employeeId = employee.id;
           const account = accountState(employee, reviewIds);
           row.setAttribute('aria-label', `${employee.full_name} · ${employee.employee_id} · ${statusLabel(employee.employment_status)} · ${account.label}${account.review ? ' · 연결 확인 필요' : ''} 인사카드 열기`);
-          row.append(avatar(employee));
+          row.append(avatar(employee, employee.profile_photo_path));
           [
             [employee.employee_id, 'id'], [employee.full_name, 'name'], [employee.department_name || '미배정', 'department'],
-            [employee.position_name || '미지정', 'position'], [statusLabel(employee.employment_status), 'employment']
+            [issue || employee.position_name || ranks.get(employee.position_id)?.name || '미지정', 'position'], [statusLabel(employee.employment_status), 'employment']
           ].forEach(([value, name]) => row.append(el('span', value, `employee-list-${name}`)));
           const accountCell = el('span', null, 'employee-list-account'); accountCell.append(badge(account.label, account.review)); row.append(accountCell);
           row.append(el('span', employee.attendance_required ? '근태 대상' : '근태 제외', 'employee-list-attendance'));
@@ -111,7 +158,7 @@
           item.append(row); rows.append(item);
         });
       };
-      [[search, 'search', 'input'], [employment, 'employment', 'change'], [account, 'account', 'change'], [photo, 'photo', 'change']].forEach(([control, key, event]) => {
+      [[search, 'search', 'input'], [employment, 'employment', 'change'], [account, 'account', 'change'], [photo, 'photo', 'change'], [sort, 'sort', 'change']].forEach(([control, key, event]) => {
         control.addEventListener(event, () => { listState[key] = control.value; render(); });
       });
       render(); section.append(count, filters, head, list); return section;
@@ -126,12 +173,12 @@
       title.append(heading, el('p', employee.employee_id), el('p', `${employee.department_name || '미배정'} · ${employee.position_name || '미지정'}`));
       const badges = el('div', null, 'employee-badges'); badges.append(badge(statusLabel(employee.employment_status)), badge(account.label), badge(employee.attendance_required ? '근태 대상' : '근태 제외'));
       if (account.review) badges.append(badge('연결 확인 필요', true)); title.append(badges);
-      head.append(avatar(employee), title); card.append(back, head);
+      head.append(avatar(employee, employee.profile_photo_path), title); card.append(back, head);
       const section = (label, className = '') => {
         const node = el('section', null, `employee-profile-section ${className}`); node.append(el('h3', label)); card.append(node); return node;
       };
 
-      const basic = section('기본 인사정보');
+      const basic = section('기본 인사정보', 'employee-section-basic');
       const values = meta([
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
@@ -151,7 +198,7 @@
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
       } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
-      const appSection = section('앱 계정');
+      const appSection = section('앱 계정', 'employee-section-account');
       const profile = employee.linked_profile;
       const profileStatus = ({ active:'활성', inactive:'비활성', suspended:'정지', deleted:'삭제', pending:'승인 대기' })[profile?.account_status] || '확인 필요';
       appSection.append(meta([
@@ -159,7 +206,7 @@
         ['연결된 Profile', profile?.display_name || '—'], ['Profile 상태', profile ? profileStatus : '—'],
         ['이메일', profile?.work_email || '표시 가능한 정보 없음'], ['연결 점검', account.review ? '연결 확인 필요' : '현재 조회 범위에서 추가 경고 없음']
       ]));
-      const photos = section('사진'); const photoGrid = el('div', null, 'employee-photo-grid');
+      const photos = section('사진', 'employee-section-photos'); const photoGrid = el('div', null, 'employee-photo-grid');
       [['profile', '업무용 사진', employee.profile_photo_path], ['id_photo', '증명사진', employee.id_photo_path]].forEach(([type, label, path]) => {
         const box = el('div'); box.append(el('h4', label));
         const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
@@ -176,9 +223,9 @@
       // Keep the staff audit inside the existing card instead of a second menu.
       if ((context.access_level === 'promotion_lead_global'
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
-        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card');
+        const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card employee-section-audit');
         visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
-        const auditForm = el('form',null,'employee-app-audit-form');
+        const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container');
         const confirmation = input('checkbox');
         confirmation.checked=Boolean(employee.identity_verified);
         const install=select([
@@ -191,8 +238,11 @@
         note.placeholder='설치 안내나 로그인 오류 등 비민감 메모';
         const save=button('현장 확인 저장',()=>{});save.type='submit';
         const feedback=el('p','', 'help');feedback.setAttribute('role','status');
-        auditForm.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),
-          field('현장 메모',note),save,feedback);
+
+        const fields = el('div',null,'app-compact-fields');
+        fields.append(field('인적사항 대조 완료',confirmation),field('앱 설치 상태',install),field('현장 메모',note));
+        const actions = el('div',null,'quick-links'); actions.append(save);
+        auditForm.append(fields,actions,feedback);
         auditForm.addEventListener('submit',async ev=>{
           ev.preventDefault();save.disabled=true;
           try{
@@ -238,7 +288,7 @@
         if (context.access_level === 'operations_manager') tool('4대보험 공제 ON/OFF', () => insuranceDeductionPanel(employee));
       }
 
-      const record = section('기록 / 점검');
+      const record = section('기록 / 점검', 'employee-section-record');
       record.append(el('p', `앱 계정: ${account.label}`));
       if (account.review) record.append(el('p', '연결 확인 필요 — 같은 이름·입사일의 연결/미연결 기록 또는 확인되지 않은 계정 상태가 있습니다. 중복 확정이 아니며 별도 확인이 필요합니다.', 'employee-protected-note'));
       else record.append(el('p', '현재 조회 가능한 정보에서 추가 연결 경고가 없습니다.', 'help'));
@@ -256,7 +306,7 @@
     }
     return { employeeList, employeeProfile };
   }
-  const api = { create, connectionReviewIds, accountState, filterEmployees };
+  const api = { create, connectionReviewIds, accountState, filterEmployees, sortEmployees, positionRanks, positionIssue };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.TaejangEmployeeViews = api;
 })();
