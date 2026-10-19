@@ -1,0 +1,89 @@
+name: Official Channel Archive Sync
+
+on:
+  schedule:
+    # Daily wake-up. Node admits only 72-hour slots from 2026-10-22 09:10 KST.
+    - cron: '10 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: taejang-official-archive-sync
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Resolve exact three-day calendar slot
+        id: slot
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "due=false" >> "$GITHUB_OUTPUT"
+            echo "Manual runs are read-only."
+          else
+            node scripts/sync-official-archive.mjs --due
+          fi
+
+      - name: Manual inspection (never pushes or creates a PR)
+        if: github.event_name == 'workflow_dispatch'
+        run: node scripts/sync-official-archive.mjs --check
+
+      - name: Find verified public content and update only archive data
+        if: steps.slot.outputs.due == 'true'
+        run: node scripts/sync-official-archive.mjs --apply
+
+      - name: Run deterministic public tests and build
+        if: steps.slot.outputs.due == 'true'
+        run: |
+          node --test tests/official-archive-sync.test.mjs
+          npm run test:public
+          npm run build:netlify
+          git diff --check
+
+      - name: Propose archive additions for human review
+        if: steps.slot.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- assets/js/official-channel-updates.js; then
+            echo "NO_CHANGES: skip commit, PR and deployment." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          pending=$(gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/official-archive-"))] | length')
+          if [ "$pending" -gt 0 ]; then
+            echo "::warning::Existing archive PR awaits review; no second PR was created."
+            echo "PENDING_REVIEW: existing archive PR remains authoritative." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="automation/official-archive-$(date -u +%Y%m%d)"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
+            echo "::warning::This slot already created a branch; refusing duplicate publication."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add -- assets/js/official-channel-updates.js
+          git commit -m "content(archive): collect new official blog and YouTube posts"
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --draft --base main --head "$branch" \
+            --title "content(archive): new official Blog / YouTube posts" \
+            --body "Automatically discovered official public posts. Original links, publication dates, unique IDs, and the existing card renderer are preserved. Human review and protected-main merge are mandatory. No direct Production deployment; the existing fixed 48-hour release policy is unchanged. Feed check and public regression evidence: see this workflow run."
+          echo "CREATED_DRAFT_PR: awaiting review, not published." >> "$GITHUB_STEP_SUMMARY"
