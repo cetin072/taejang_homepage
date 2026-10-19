@@ -10,6 +10,6 @@
 - 재사용: RN Animated(native driver), Expo SDK57 공식 expo-haptics57.0.3(기존 프로젝트에 없어서 추가), Android View.performHapticFeedback Confirm(강제 플래그 없음). 기존 APK의 VIBRATE 권한을 확인했으며 권한 확대 없음. OS/하드웨어가 효과를 생략해도 텍스트가 주 수단. 외부 모션 프레임워크/설정 메뉴 없음.
 - 검증: 실제 RN 컴포넌트/훅 VM 실행 회귀, 동작 줄이기 변경/회전 중간/중복탭/실패/QA/실제 RPC/재조회/기기 재시작/효과 오류. Android ARM64 통합 APK는 #450을 조상으로 하는 별도 Draft의 exact HEAD. Galaxy 터치/TalkBack/시스템 촉각/글자 확대는 사람 검수.
 - 제외: 새 설정/다크모드/읽어주기/AI/쉬운말 자동변환/실제 데이터/DB/Auth/RLS/서명 AAB/Play/운영 정책/고정 QA 변경.
-- 병합 순서: #450 승인·main 반영 후 이 stacked PR base를 main으로 변경하고 최신 main/CI 다시 검증. 어떤 병합·Ready·운영 배포도 이번 자동 수행 대상 아님.
+- 병합 순서: #450 승인·main 반영 후 이 PR의 남은 diff 및 최신 main/CI를 다시 검증. 소스는 #450 위에 쌓되 main 대상 필수 pull_request CI가 실행되도록 비교 base는 main으로 둔다. 어떤 병합·Ready·운영 배포도 이번 자동 수행 대상 아님.
 
 공식 근거: https://reactnative.dev/docs/animated , https://reactnative.dev/docs/accessibilityinfo , https://docs.expo.dev/versions/latest/sdk/haptics/ . 버전별 동작은 설치된 RN0.86.3/Expo haptics57.0.3 소스와 대조. 구현/자동검수/실기 미확인 대조는 PR 최종 기록에 남긴다.

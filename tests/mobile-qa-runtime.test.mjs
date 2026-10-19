@@ -87,7 +87,7 @@ async function attendance({
     ...native, Platform: { OS: 'android' },
     Animated: { Value, View: 'AnimatedView', timing: (value, config) => ({ start(callback) {
       animations.push(config);
-      const finish = () => { value.setValue(config.toValue); callback({ finished: true }); };
+      const finish = (finished = true) => { if (finished) value.setValue(config.toValue); callback({ finished }); };
       if (autoAnimation) finish(); else pendingAnimations.push(finish);
     } }) },
     AccessibilityInfo: { isReduceMotionEnabled: async () => reduced, addEventListener: (_event, callback) => {
@@ -153,7 +153,7 @@ async function attendance({
   for (const effect of h.effects.splice(0)) effect();
   await settle();
   return {
-    animations, haptics, finishAnimation: () => pendingAnimations.shift()?.(),
+    animations, haptics, finishAnimation: (finished = true) => pendingAnimations.shift()?.(finished),
     reduceMotion(value) { motionListener(value); },
     async background() { active = 'background'; appListeners.forEach(fn => fn('background')); await settle(); },
     confirmations: () => confirmations,
@@ -470,5 +470,14 @@ test('background interrupts rotation without replay; accessibility state follows
   await f.background(); f.finishAnimation(); await f.foreground();
   button = f.render().find(n => n.type === 'Pressable');
   assert.equal(button.props.accessibilityState.busy, false); assert.equal(button.props.accessibilityLabel, '퇴근하기');
+  assert.equal(f.animations.length, 1); assert.equal(f.haptics.length, 1);
+});
+
+
+test('native animation cancellation releases the action lock and keeps confirmed attendance text', async () => {
+  const f = await attendance({ mode: 'preview', previewScenario: 'workday', autoAnimation: false });
+  await f.press(); f.finishAnimation(false);
+  const button = f.render().find(n => n.type === 'Pressable');
+  assert.equal(button.props.disabled, false); assert.equal(button.props.accessibilityLabel, '퇴근하기');
   assert.equal(f.animations.length, 1); assert.equal(f.haptics.length, 1);
 });

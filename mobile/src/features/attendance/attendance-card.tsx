@@ -537,7 +537,7 @@ export function AttendanceCard({
       <Animated.View style={{ transform: [{ perspective: 1000 }, { rotateY: feedback.angle.interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) }] }}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={busy ? '확인 중' : feedback.face?.title || title}
+          accessibilityLabel={loading ? '출퇴근 확인 중' : busy ? '확인 중' : feedback.face?.title || title}
           accessibilityState={{ disabled: loading || Boolean(busy) || feedback.turning || !action, busy: Boolean(busy) || feedback.turning }}
           accessibilityHint={action === 'clock_out' ? '퇴근 확인창을 엽니다' : undefined}
           disabled={loading || Boolean(busy) || feedback.turning || !action}

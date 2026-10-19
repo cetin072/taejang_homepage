@@ -56,7 +56,8 @@ export function useAttendanceFeedback() {
     setFace(outgoing);
     const token = ++generation.current;
     Animated.timing(angle, { toValue: 90, duration: 130, useNativeDriver: true }).start(({ finished }) => {
-      if (!finished || token !== generation.current || !mounted.current) return;
+      if (token !== generation.current || !mounted.current) return;
+      if (!finished) { cancel(); return; }
       // Change copy edge-on, then return from -90 to 0. Text is never mirrored.
       setFace(null);
       angle.setValue(-90);
