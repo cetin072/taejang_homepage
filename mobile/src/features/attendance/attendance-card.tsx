@@ -556,18 +556,23 @@ export function AttendanceCard({
         </Pressable>
       </Animated.View>
 
-      {!qaMode && today && today.attendance_required !== false ? (
+      {!qaMode && today && today.attendance_required !== false && (clockIn || clockOut) ? (
         <View accessibilityLabel={previewMode ? "가상 출퇴근 기록" : "오늘 출퇴근 기록"} style={styles.todaySummary}>
-          <Text style={styles.todaySummaryTitle}>{previewMode ? "가상 출퇴근 내역 · 실제 기록 아님" : "오늘 출퇴근"}</Text>
-          <View style={styles.todaySummaryRow}>
-            <Text style={styles.todaySummaryLabel}>출근</Text>
-            <Text style={styles.todaySummaryValue}>{clockInLine.time}</Text>
-            {clockInLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockInLine.status}</Text> : null}
-          </View>
-          <View style={styles.todaySummaryRow}>
-            <Text style={styles.todaySummaryLabel}>퇴근</Text>
-            <Text style={styles.todaySummaryValue}>{clockOutLine.time}</Text>
-            {clockOutLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockOutLine.status}</Text> : null}
+          {previewMode ? <Text style={styles.todaySummaryTitle}>가상 출퇴근 내역 · 실제 기록 아님</Text> : null}
+          <View style={styles.todaySummaryChips}>
+            {([{ event: clockIn, label: '출근', line: clockInLine }, { event: clockOut, label: '퇴근', line: clockOutLine }]).map(item => item.event ? (
+              <View
+                key={item.label}
+                accessible
+                accessibilityLabel={`${previewMode ? '가상 ' : ''}${item.label} ${item.line.time}${previewMode ? ', 실제 기록 아님' : item.line.status ? `, ${item.line.status}` : ''}`}
+                style={styles.recordChip}
+              >
+                <Text style={styles.recordChipText}>{item.label} {item.line.time}</Text>
+                {!previewMode && item.line.status && item.line.status !== '기록됨' ? (
+                  <Text style={styles.recordChipStatus}>{item.line.status}</Text>
+                ) : null}
+              </View>
+            ) : null)}
           </View>
         </View>
       ) : null}
@@ -613,19 +618,22 @@ export function AttendanceCard({
 
 const styles = StyleSheet.create({
   wrap: { gap: 9 },
-  todaySummary: {
-    gap: 7,
-    padding: 13,
+  todaySummary: { gap: 7 },
+  todaySummaryTitle: { color: '#52685d', fontSize: 13, fontWeight: '600' },
+  todaySummaryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recordChip: {
+    maxWidth: '100%',
+    flexShrink: 1,
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#c8d6cc',
-    borderRadius: 14,
-    backgroundColor: '#f7faf7',
+    borderColor: '#d9e2d9',
+    borderRadius: 12,
+    backgroundColor: '#f1f4f0',
   },
-  todaySummaryTitle: { color: '#274d3c', fontSize: 14, fontWeight: '900' },
-  todaySummaryRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  todaySummaryLabel: { minWidth: 34, color: '#52685d', fontSize: 14, fontWeight: '800' },
-  todaySummaryValue: { flex: 1, color: '#173f31', fontSize: 15, fontWeight: '900' },
-  todaySummaryStatus: { color: '#52685d', fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  recordChipText: { color: '#52685d', fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  recordChipStatus: { color: '#52685d', fontSize: 13, flexShrink: 1 },
   qaBadge: {
     alignSelf: 'center',
     paddingHorizontal: 12,

@@ -395,7 +395,7 @@ test('SecureStore adapter restores a long session on module restart and removes 
 });
 
 
-test('confirmed clock-in turns edge-on once, blocks same-frame taps and clock-out until the full 260ms transition ends', async () => {
+test('confirmed clock-in turns edge-on once, blocks same-frame taps and clock-out until the full 420ms transition ends', async () => {
   let release; const gate = new Promise(resolve => { release = resolve; });
   const f = await attendance({ mode: 'record', required: true, persistRecord: true, result: { ok: true }, autoAnimation: false, recordGate: gate });
   const press = f.render().find(n => n.type === 'Pressable');
@@ -412,7 +412,7 @@ test('confirmed clock-in turns edge-on once, blocks same-frame taps and clock-ou
   assert.ok(f.render().some(n => typeof n === 'string' && n.includes('출근 완료')));
   f.finishAnimation();
   assert.equal(f.render().find(n => n.type === 'Pressable').props.disabled, false);
-  assert.deepEqual(f.animations.map(a => [a.toValue, a.duration, a.useNativeDriver]), [[90,130,true],[0,130,true]]);
+  assert.deepEqual(f.animations.map(a => [a.toValue, a.duration, a.useNativeDriver]), [[90,210,true],[0,210,true]]);
   await f.press();
   assert.equal(f.confirmations(), 1); assert.equal(f.haptics.length, 2); assert.equal(f.animations.length, 2);
   assert.ok(f.render().includes('✓ 오늘 근무 완료'));
@@ -480,4 +480,23 @@ test('native animation cancellation releases the action lock and keeps confirmed
   const button = f.render().find(n => n.type === 'Pressable');
   assert.equal(button.props.disabled, false); assert.equal(button.props.accessibilityLabel, '퇴근하기');
   assert.equal(f.animations.length, 1); assert.equal(f.haptics.length, 1);
+});
+
+
+test('supporting attendance chips only show present events, wrap large text and preserve simulated/exception labels', async () => {
+  const f = await attendance({ mode: 'preview', previewScenario: 'workday', reduced: true });
+  const chips = () => f.render().filter(n => n.type === 'View' && n.props?.accessible === true);
+  assert.equal(chips().length, 0, 'no placeholder clock-in/out before attendance');
+  await f.press();
+  assert.equal(chips().length, 1); assert.match(chips()[0].props.accessibilityLabel, /가상 출근.*실제 기록 아님/);
+  assert.ok(!f.render().some(n => typeof n === 'string' && n.includes('아직 기록 없음')));
+  const chipText = f.render().find(n => n.type === 'Text' && n.props?.style?.fontSize === 15 && n.props?.style?.fontWeight === '600');
+  assert.equal(chipText.props.numberOfLines, undefined); assert.equal(chipText.props.allowFontScaling, undefined);
+  assert.equal(chips()[0].props.style.maxWidth, '100%');
+  await f.press(); assert.equal(chips().length, 2);
+  assert.match(chips()[1].props.accessibilityLabel, /가상 퇴근.*실제 기록 아님/);
+  const exception = await attendance({ mode: 'record', required: true, initialClockIn: { status: 'exception_pending', event_at: null, requested_at: '2026-10-19T00:02:00Z' } });
+  const pendingChip = exception.render().find(n => n.type === 'View' && n.props?.accessible === true);
+  assert.match(pendingChip.props.accessibilityLabel, /출근.*관리자 확인 중/);
+  assert.ok(exception.render().includes('관리자 확인 중'));
 });
