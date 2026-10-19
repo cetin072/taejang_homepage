@@ -10,6 +10,9 @@ const root=process.cwd(),baseline=process.env.NOTICE_BASELINE_REF;
 const preview=(process.env.PREVIEW_URL||'').replace(/\/$/,'');
 const output=process.env.NOTICE_HISTORY_QA_OUTPUT||path.join(os.tmpdir(),'taejang-notice-history');
 await fs.mkdir(output,{recursive:true});
+const transportSource=preview
+ ?await (async()=>{const result=await fetch(preview+'/app/assets/app.js');assert.equal(result.status,200);return result.text()})()
+ :await fs.readFile(path.join(root,'app/assets/app.js'),'utf8');
 const server=http.createServer(async(req,res)=>{
  try {
   const file=decodeURIComponent(req.url.split('?')[0]).replace(/^\/+/,''),absolute=path.resolve(root,file);
@@ -106,8 +109,7 @@ try {
   await capture('published-edit');
   // Exercise the production shared transport inside real Chrome as well as the
   // UI. Only HTTP/Auth fixtures are synthetic; no alternate transport is copied.
-  await page.evaluate(async asset=>{
-   const source=await (await fetch(asset)).text();
+  await page.evaluate(source=>{
    const code=source.slice(source.indexOf('  let sessionRefresh = null;'),source.indexOf('  async function context()'));
    if(!code.includes('retryAuthentication'))throw Error('preview lacks authentication fix');
    const backend=TaejangApp.rpc;
@@ -127,7 +129,7 @@ try {
    };
    const make=new Function('state','fetch','storeSession','clearSession',code+';return {rpc};');
    TaejangApp.rpc=make(state,fixtureFetch,session=>{state.session=session},()=>{state.session=null}).rpc;
-  },(preview||base)+'/app/assets/app.js');
+  },transportSource);
   await page.locator('#notice-body').fill('만료 세션의 공개 공지 정정');await page.locator('#notice-save-existing').click();
   await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
   assert.deepEqual(await page.evaluate(()=>noticeTransportMetrics),{rejected:1,refreshes:1,acceptedSaves:1});
