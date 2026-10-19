@@ -86,6 +86,14 @@
       image.alt = item.thumbnailAlt || `${item.title} 썸네일`;
       image.loading = 'lazy';
       image.decoding = 'async';
+      if (item.source === 'naver-blog') {
+        image.addEventListener('error', () => {
+          // Naver CDN photos may refuse third-party hotlinks; retain a valid company card.
+          if (image.getAttribute('src') !== 'images/og-taejang.png') {
+            image.src = 'images/og-taejang.png';
+          }
+        });
+      }
       media.append(image);
     } else {
       const slot = document.createElement('div');
