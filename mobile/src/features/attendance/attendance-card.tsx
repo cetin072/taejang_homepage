@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   loadMyAttendanceToday,
@@ -18,6 +18,8 @@ import {
 } from './attendance-location';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { buildQaPreviewDay, type QaDayScenario } from '@/src/features/qa/qa-preview-state';
+
+import { useAttendanceFeedback } from './attendance-feedback';
 
 type ExceptionFailureCode = 'POSITION_UNAVAILABLE' | 'TIMEOUT' | 'LOCATION_UNCERTAIN';
 export type AttendanceCardMode = 'record' | 'qa' | 'preview';
@@ -82,6 +84,9 @@ export function AttendanceCard({
   } | null>(null);
   const attempts = useRef<Record<AttendanceEventType, number>>({ clock_in: 0, clock_out: 0 });
   const readSequence = useRef(0);
+  const operation = useRef(false);
+  const confirmationOpen = useRef(false);
+  const feedback = useAttendanceFeedback();
   const previewMode = mode === 'preview';
 
   const refresh = useCallback(async () => {
@@ -148,6 +153,7 @@ export function AttendanceCard({
 
   useEffect(() => {
     // A new QA scenario never inherits the previous scenario's simulated clock.
+    feedback.cancel();
     setQaClockInAt(null);
     setQaClockOutAt(null);
     setExceptionTarget(null);
@@ -213,12 +219,14 @@ export function AttendanceCard({
   }
 
   async function record(eventType: AttendanceEventType) {
+    if (operation.current || feedback.locked.current) return;
     if (previewMode) {
       // No network, GPS or mutation can be reached by the in-memory employee
       // scenario. The same real employee card renders the simulated result.
       if (!today || today.attendance_required !== true || today.is_workday !== true || busy) return;
       if (eventType === 'clock_in' && (today.clock_in_available === false || today.clock_in)) return;
       if (eventType === 'clock_out' && (!completed(today.clock_in) || today.clock_out)) return;
+      operation.current = true;
       const timestamp = new Date().toISOString();
       setToday(current => current ? {
         ...current,
@@ -227,9 +235,12 @@ export function AttendanceCard({
       show(eventType === 'clock_in'
         ? '출근 화면 체험 완료 · 실제 근태는 저장되지 않았습니다.'
         : '퇴근 화면 체험 완료 · 실제 근태는 저장되지 않았습니다.');
+      feedback.success(eventType, { title, subtitle });
+      operation.current = false;
       return;
     }
     if (!client || busy) return;
+    operation.current = true;
     setBusy(eventType);
     setExceptionTarget(null);
     attempts.current[eventType] += 1;
@@ -296,11 +307,14 @@ export function AttendanceCard({
               ? '검수 출근 정상 · GPS와 서버 경로가 정상이며 실제 근태에는 반영되지 않았습니다.'
               : '검수 퇴근 정상 · 출근·퇴근 검수 흐름이 정상이며 실제 근태에는 반영되지 않았습니다.',
           );
+          feedback.success(eventType, { title, subtitle });
           return;
         }
 
-        show(eventType === 'clock_in' ? '출근이 기록되었습니다.' : '퇴근이 기록되었습니다.');
-        await refresh();
+        show(eventType === 'clock_in' ? '✓ 출근 완료 · 기록되었습니다.' : '✓ 퇴근 완료 · 기록되었습니다.');
+        const confirmed = await refresh();
+        if (result.ok && !['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || '')
+          && completed(confirmed?.[eventType] || null)) feedback.success(eventType, { title, subtitle });
         return;
       }
 
@@ -371,12 +385,14 @@ export function AttendanceCard({
         );
       }
     } finally {
+      operation.current = false;
       setBusy(null);
     }
   }
 
   async function requestException() {
-    if (mode !== 'record' || !client || !exceptionTarget || busy) return;
+    if (mode !== 'record' || !client || !exceptionTarget || busy || operation.current) return;
+    operation.current = true;
     setBusy(exceptionTarget.eventType);
     try {
       const result = await requestAttendanceException(
@@ -395,6 +411,7 @@ export function AttendanceCard({
     } catch {
       show('관리자 확인 요청을 처리하지 못했습니다.', true);
     } finally {
+      operation.current = false;
       setBusy(null);
     }
   }
@@ -411,8 +428,8 @@ export function AttendanceCard({
   const clockOutLine = attendanceLine(clockOut);
 
   let action: AttendanceEventType | null = 'clock_in';
-  let title = '출근했습니다';
-  let subtitle = '회사에서 눌러주세요';
+  let title = '출근하기';
+  let subtitle = '회사에서 눌러주세요.';
 
   if (previewMode && !today) {
     action = null;
@@ -429,11 +446,11 @@ export function AttendanceCard({
       subtitle = `${formatTime(qaClockInAt)} – ${formatTime(qaClockOutAt)} · 실제 근태 미반영`;
     } else if (qaClockInAt) {
       action = 'clock_out';
-      title = '퇴근했습니다';
+      title = '퇴근하기';
       subtitle = `검수 출근 ${formatTime(qaClockInAt)} · 실제 근태 미반영`;
     } else {
       action = 'clock_in';
-      title = '출근했습니다';
+      title = '출근하기';
       subtitle = '검수용 버튼 · 실제 근태에 반영되지 않음';
     }
   } else if (today?.attendance_required === false) {
@@ -450,12 +467,12 @@ export function AttendanceCard({
     subtitle = '오늘 기록이 무효 처리되었습니다. 담당자에게 문의해주세요';
   } else if (clockedOut) {
     action = null;
-    title = '오늘 근무 완료';
-    subtitle = `${formatTime(clockIn?.event_at)} – ${formatTime(clockOut?.event_at)}`;
+    title = '✓ 오늘 근무 완료';
+    subtitle = `출근 ${formatTime(clockIn?.event_at)} / 퇴근 ${formatTime(clockOut?.event_at)}`;
   } else if (clockedIn) {
     action = 'clock_out';
-    title = '퇴근했습니다';
-    subtitle = `출근 ${formatTime(clockIn?.event_at)}`;
+    title = '퇴근하기';
+    subtitle = `✓ 출근 완료 ${formatTime(clockIn?.event_at)}`;
   } else if (today?.is_workday === false) {
     action = null;
     title = '오늘은 출근일이 아닙니다';
@@ -469,22 +486,23 @@ export function AttendanceCard({
   }
 
   function handleAction() {
-    if (!action || busy || loading) return;
+    if (!action || busy || loading || operation.current || feedback.locked.current || confirmationOpen.current) return;
     if (action === 'clock_out') {
+      confirmationOpen.current = true;
       Alert.alert(
         qaMode ? '검수 퇴근 확인' : '퇴근 확인',
         qaMode
           ? '검수용 퇴근 흐름을 확인합니다. 실제 근태에는 반영되지 않습니다.'
           : '정말 퇴근하시겠습니까?',
         [
-          { text: '취소', style: 'cancel' },
+          { text: '취소', style: 'cancel', onPress: () => { confirmationOpen.current = false; } },
           {
-            text: qaMode ? '검수 계속' : '퇴근했습니다',
+            text: qaMode ? '검수 계속' : '퇴근하기',
             style: qaMode ? 'default' : 'destructive',
-            onPress: () => void record('clock_out'),
+            onPress: () => { confirmationOpen.current = false; void record('clock_out'); },
           },
         ],
-        { cancelable: true },
+        { cancelable: true, onDismiss: () => { confirmationOpen.current = false; } },
       );
       return;
     }
@@ -492,14 +510,15 @@ export function AttendanceCard({
   }
 
   function resetPreview() {
-    if (busy || !previewMode) return;
+    if (busy || feedback.locked.current || !previewMode) return;
+    feedback.cancel();
     setToday(current => current ? { ...current, clock_in: null, clock_out: null } : current);
     setMessage('');
     setMessageError(false);
   }
 
   function resetQa() {
-    if (busy) return;
+    if (busy || feedback.locked.current) return;
     setQaClockInAt(null);
     setQaClockOutAt(null);
     setExceptionTarget(null);
@@ -515,41 +534,50 @@ export function AttendanceCard({
         <Text style={styles.qaBadge}>검수 모드 · 실제 근태에 반영되지 않음 · GPS·서버 위치 검사</Text>
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={title}
-        disabled={loading || Boolean(busy) || !action}
-        onPress={handleAction}
-        style={({ pressed }) => [
-          styles.action,
-          { minHeight },
-          (!action || loading) ? styles.actionInactive : null,
-          pressed && action ? styles.actionPressed : null,
-        ]}
-      >
-        <Text style={styles.actionTitle}>
-          {busy ? '확인 중…' : loading ? '출퇴근 확인 중…' : title}
-        </Text>
-        {subtitle ? <Text style={styles.actionSubtitle}>{subtitle}</Text> : null}
-      </Pressable>
+      <Animated.View style={{ transform: [{ perspective: 1000 }, { rotateY: feedback.angle.interpolate({ inputRange: [-90, 90], outputRange: ['-90deg', '90deg'] }) }] }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={loading ? '출퇴근 확인 중' : busy ? '확인 중' : feedback.face?.title || title}
+          accessibilityState={{ disabled: loading || Boolean(busy) || feedback.turning || !action, busy: Boolean(busy) || feedback.turning }}
+          accessibilityHint={action === 'clock_out' ? '퇴근 확인창을 엽니다' : undefined}
+          disabled={loading || Boolean(busy) || feedback.turning || !action}
+          onPress={handleAction}
+          style={({ pressed }) => [
+            styles.action,
+            { minHeight },
+            (!action || loading) ? styles.actionInactive : null,
+            pressed && action ? styles.actionPressed : null,
+          ]}
+        >
+          <Text style={styles.actionTitle}>
+            {busy ? '확인 중…' : loading ? '출퇴근 확인 중…' : feedback.face?.title || title}
+          </Text>
+          {(feedback.face?.subtitle || subtitle) ? <Text style={styles.actionSubtitle}>{feedback.face?.subtitle || subtitle}</Text> : null}
+        </Pressable>
+      </Animated.View>
 
-      {!qaMode && today && today.attendance_required !== false ? (
+      {!qaMode && today && today.attendance_required !== false && (clockIn || clockOut) ? (
         <View accessibilityLabel={previewMode ? "가상 출퇴근 기록" : "오늘 출퇴근 기록"} style={styles.todaySummary}>
-          <Text style={styles.todaySummaryTitle}>{previewMode ? "가상 출퇴근 내역 · 실제 기록 아님" : "오늘 출퇴근"}</Text>
-          <View style={styles.todaySummaryRow}>
-            <Text style={styles.todaySummaryLabel}>출근</Text>
-            <Text style={styles.todaySummaryValue}>{clockInLine.time}</Text>
-            {clockInLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockInLine.status}</Text> : null}
-          </View>
-          <View style={styles.todaySummaryRow}>
-            <Text style={styles.todaySummaryLabel}>퇴근</Text>
-            <Text style={styles.todaySummaryValue}>{clockOutLine.time}</Text>
-            {clockOutLine.status ? <Text style={styles.todaySummaryStatus}>{previewMode ? '체험' : clockOutLine.status}</Text> : null}
+          {previewMode ? <Text style={styles.todaySummaryTitle}>가상 출퇴근 내역 · 실제 기록 아님</Text> : null}
+          <View style={styles.todaySummaryChips}>
+            {([{ event: clockIn, label: '출근', line: clockInLine }, { event: clockOut, label: '퇴근', line: clockOutLine }]).map(item => item.event ? (
+              <View
+                key={item.label}
+                accessible
+                accessibilityLabel={`${previewMode ? '가상 ' : ''}${item.label} ${item.line.time}${previewMode ? ', 실제 기록 아님' : item.line.status ? `, ${item.line.status}` : ''}`}
+                style={styles.recordChip}
+              >
+                <Text style={styles.recordChipText}>{item.label} {item.line.time}</Text>
+                {!previewMode && item.line.status && item.line.status !== '기록됨' ? (
+                  <Text style={styles.recordChipStatus}>{item.line.status}</Text>
+                ) : null}
+              </View>
+            ) : null)}
           </View>
         </View>
       ) : null}
 
-      {message ? <Text style={messageError ? styles.error : styles.message}>{message}</Text> : null}
+      {message ? <Text accessibilityLiveRegion="polite" style={messageError ? styles.error : styles.message}>{message}</Text> : null}
 
       {previewMode && clockedOut ? (
         <Pressable
@@ -590,19 +618,22 @@ export function AttendanceCard({
 
 const styles = StyleSheet.create({
   wrap: { gap: 9 },
-  todaySummary: {
-    gap: 7,
-    padding: 13,
+  todaySummary: { gap: 7 },
+  todaySummaryTitle: { color: '#52685d', fontSize: 13, fontWeight: '600' },
+  todaySummaryChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recordChip: {
+    maxWidth: '100%',
+    flexShrink: 1,
+    gap: 3,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#c8d6cc',
-    borderRadius: 14,
-    backgroundColor: '#f7faf7',
+    borderColor: '#d9e2d9',
+    borderRadius: 12,
+    backgroundColor: '#f1f4f0',
   },
-  todaySummaryTitle: { color: '#274d3c', fontSize: 14, fontWeight: '900' },
-  todaySummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  todaySummaryLabel: { width: 34, color: '#52685d', fontSize: 14, fontWeight: '800' },
-  todaySummaryValue: { flex: 1, color: '#173f31', fontSize: 15, fontWeight: '900' },
-  todaySummaryStatus: { color: '#52685d', fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  recordChipText: { color: '#52685d', fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  recordChipStatus: { color: '#52685d', fontSize: 13, flexShrink: 1 },
   qaBadge: {
     alignSelf: 'center',
     paddingHorizontal: 12,
@@ -623,9 +654,9 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#173f31',
   },
-  actionInactive: { backgroundColor: '#879b8d' },
+  actionInactive: { backgroundColor: '#4b6355' },
   actionPressed: { opacity: 0.88, transform: [{ scale: 0.99 }] },
-  actionTitle: { color: '#ffffff', fontSize: 31, fontWeight: '900', letterSpacing: -0.6 },
+  actionTitle: { color: '#ffffff', fontSize: 31, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
   actionSubtitle: { color: '#e4efe8', fontSize: 15, fontWeight: '700', textAlign: 'center' },
   message: {
     padding: 11,
