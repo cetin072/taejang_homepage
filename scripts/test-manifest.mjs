@@ -85,6 +85,7 @@ export const testGroups = Object.freeze({
     'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
+    'tests/scheduled-netlify-release.test.mjs',
     'tests/public-homepage-main-simplification.test.js',
     'tests/public-navigation-consolidation.test.js',
     'tests/public-external-content.test.js',
@@ -104,6 +105,8 @@ export const testGroups = Object.freeze({
     'tests/hero-video-slider.test.js',
     'tests/netlify-publish-boundary.test.js',
     'tests/production-release-policy.test.mjs',
+    'tests/production-release-health.test.mjs',
+    'tests/production-release-schedule.test.mjs',
     'tests/visual-asset-audit.test.js'
   ]),
   stagingSafety: Object.freeze([

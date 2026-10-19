@@ -1,6 +1,6 @@
 [build]
-  command = "npm run build:netlify"
-  ignore = "node ./scripts/netlify-production-gate.mjs"
+  command = "node scripts/scheduled-netlify-release.mjs guard deployment/release-policy.json && npm run build:netlify"
+  ignore = "node ./scripts/scheduled-netlify-release.mjs ignore"
   publish = "dist"
 
 [functions]

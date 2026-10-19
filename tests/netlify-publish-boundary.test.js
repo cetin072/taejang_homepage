@@ -87,7 +87,7 @@ test('Netlify publish build excludes repository internals and legacy development
 
 test('Netlify config publishes dist, keeps Functions separate, and sets low-risk response headers', () => {
   const config = readFileSync(path.join(repoRoot, 'netlify.toml'), 'utf8');
-  assert.match(config, /command\s*=\s*"npm run build:netlify"/);
+  assert.match(config, /command\s*=\s*"node scripts\/scheduled-netlify-release\.mjs guard deployment\/release-policy\.json && npm run build:netlify"/);
   assert.match(config, /publish\s*=\s*"dist"/);
   assert.match(config, /\[functions\][\s\S]*directory\s*=\s*"netlify\/functions"/);
   assert.match(config, /X-Content-Type-Options\s*=\s*"nosniff"/);
