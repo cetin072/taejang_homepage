@@ -32,7 +32,7 @@ export function NoticeHomeAction({ minHeight = 132 }: { minHeight?: number }) {
       <Text accessibilityRole="header" style={styles.title}>공지사항</Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={error || (ready && latest ? `${latest.title}, ${isUnread ? '미확인' : '읽음'}, 내용 보기` : '공지사항 열기')}
+        accessibilityLabel={error || (ready && latest ? `${noticeDate(latest)}, ${latest.importance === 'urgent' ? '긴급, ' : latest.importance === 'important' ? '중요, ' : ''}${isUnread ? `미확인 ${unread.length}건${items.length === NOTICE_LIST_LIMIT ? ' 이상' : ''}` : '읽음'}, ${latest.title}, 내용 보기` : '공지사항 열기')}
         onPress={open}
         style={({ pressed }) => [styles.primary, pressed ? styles.pressed : null]}
       >

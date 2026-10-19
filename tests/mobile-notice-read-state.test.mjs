@@ -157,12 +157,13 @@ test('actual home UI shows title/date/count, routes latest directly, keeps histo
   fontScale = 1;
   state = { ...state, items: [notice('urgent', { importance: 'urgent' })], versions: {} };
   assert.ok(render().some(x => typeof x === 'string' && x.includes(' · 긴급')));
+  assert.match(render().find(x => x.type === 'Pressable').props.accessibilityLabel, /긴급, 미확인 1건.*내용 보기/);
   state = { ...state, items: [notice('a'), notice('b', { publish_start_at: '2026-01-01T00:00:00Z' })] };
   state = { ...state, versions: { a: 1, b: 1 } };
   ui = render();
   assert.ok(ui.some(x => typeof x === 'string' && x.includes('✓ 읽음')), 'read recent notice stays visible for three days');
   assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
-  assert.ok(!ui.includes('● 새 공지'));
+  assert.ok(!ui.some(x => x.props?.style?.color === '#a13024'), 'read notice has no red new highlight');
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
   state = { ...state, items: [notice('old', { publish_start_at: '2026-01-01T00:00:00Z' })], versions: { old: 1 } };
   assert.ok(render().includes('새로운 공지가 없습니다.'), 'old read notice leaves home');
