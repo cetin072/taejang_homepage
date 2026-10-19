@@ -116,6 +116,7 @@ test('workflow authenticates repository-limited App in dry-run and reports auth/
   assert.match(workflow,/if: steps.plan.outputs.status == 'READY' \|\| \(github.event_name == 'workflow_dispatch'/);
   assert.match(workflow,/report-failure:[\s\S]*needs: release[\s\S]*needs.release.result == 'cancelled'/);
   assert.match(workflow,/steps.published.outputs.status \|\| steps.release.outputs.status/);
+  assert.match(workflow,/if: steps.plan.outputs.status == 'READY'\r?\n\s+id: release/);
 });
 
 test('off-day and already checked slots stop before public Production fetch and content comparison',async()=>{

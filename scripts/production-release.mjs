@@ -199,7 +199,9 @@ async function main() {
     plan, dryRun: process.env.DRY_RUN !== 'false', api, published,
     preflight: async () => checkProductionDatabase({ publishedSha: (await published()).source_main_sha, head: plan.source_main_sha,
       token: process.env.SUPABASE_ACCESS_TOKEN, projectRef: process.env.PRODUCTION_SUPABASE_PROJECT_REF }),
-    prepare: () => release({ planPath: process.env.RELEASE_PLAN_PATH, dryRun: process.env.DRY_RUN !== 'false' }),
+    prepare: () => process.env.DRY_RUN === 'true' && process.env.GITHUB_REF !== 'refs/heads/main'
+      ? { status: 'DRY_RUN_READY' }
+      : release({ planPath: process.env.RELEASE_PLAN_PATH, dryRun: process.env.DRY_RUN !== 'false' }),
     sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   });
   console.log(JSON.stringify(result));

@@ -23,6 +23,8 @@ jobs:
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.dry_run)
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    outputs:
+      failure_category: ${{ steps.slot.outcome == 'failure' && 'SLOT_HISTORY' || steps.plan.outcome == 'failure' && 'PLANNING' || steps.identity.outcome == 'failure' && 'APP_CONFIGURATION' || steps.app-token.outcome == 'failure' && 'APP_AUTHENTICATION' || steps.app-scope.outcome == 'failure' && 'APP_SCOPE' || steps.release.outcome == 'failure' && 'DB_CI_OR_PROTECTED_MERGE' || steps.published.outcome == 'failure' && 'PUBLICATION_NOT_CONFIRMED' || 'JOB_OR_SETUP_FAILURE' }}
     permissions:
       contents: read
       actions: read
@@ -58,6 +60,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/production-release-plan.mjs
       - name: Require configured release identity
+        id: identity
         if: steps.plan.outputs.status == 'READY' || (github.event_name == 'workflow_dispatch' && env.DRY_RUN == 'true')
         env:
           APP_ID: ${{ vars.PRODUCTION_RELEASE_APP_ID }}
@@ -79,6 +82,7 @@ jobs:
           permission-pull-requests: write
           permission-actions: read
       - name: Verify repository-scoped App authentication
+        id: app-scope
         if: steps.app-token.outputs.token != ''
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -87,7 +91,7 @@ jobs:
           node --input-type=module -e 'import {readFileSync} from "node:fs";const repos=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/release-app-repositories.json","utf8"));if(repos.length!==1||repos[0]!==process.env.GITHUB_REPOSITORY)throw new Error("APP_REPOSITORY_SCOPE_MISMATCH");console.log("Release App authentication and single repository scope verified")'
           gh api "repos/$GITHUB_REPOSITORY/actions/workflows?per_page=1" --jq '.total_count' > /dev/null
       - name: Create marker-only PR, await genuine PR CI, and squash when current
-        if: steps.plan.outcome == 'success'
+        if: steps.plan.outputs.status == 'READY'
         id: release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
@@ -130,4 +134,5 @@ jobs:
       - name: Update existing release incident, including job timeout
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_FAILURE_CATEGORY: ${{ needs.release.outputs.failure_category || 'JOB_CANCELLED_OR_TIMED_OUT' }}
         run: node scripts/production-release-report.mjs

@@ -76,3 +76,12 @@ test('a merged SHA is never PUBLISHED when Netlify errors, remains old, or retur
   await assert.rejects(verifyPublishedRelease({sha,attempts:2,published:async()=>{throw new Error('synthetic network error')},wait:async()=>{}}),/PRODUCTION_PUBLICATION_NOT_CONFIRMED/);
   assert.deepEqual(await verifyPublishedRelease({sha,published:async()=>({published_deploy:{state:'ready',context:'production',commit_ref:sha}}),wait:async()=>{throw new Error('not needed')}}),{status:'PUBLISHED',release_sha:sha});
 });
+
+test('failure notifications report only fixed safe cause categories, never arbitrary remote text',async()=>{
+  for(const category of ['APP_AUTHENTICATION','PUBLICATION_NOT_CONFIRMED','JOB_CANCELLED_OR_TIMED_OUT','Bearer synthetic-secret']) {
+    let posted;
+    await reportReleaseFailure({category,runUrl:'https://example.invalid/run',sha:expected.sha,api:async(method,route,body)=>{if(method==='GET')return [];posted=body.body;return {}}});
+    assert.match(posted,new RegExp('Cause: '+(category.startsWith('Bearer')?'CHECK_RUN_LOGS':category)));
+    assert.doesNotMatch(posted,/synthetic-secret|Bearer/);
+  }
+});
