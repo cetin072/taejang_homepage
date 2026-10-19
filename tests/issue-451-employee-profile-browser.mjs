@@ -102,6 +102,7 @@ try {
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
     assert.equal(await page.locator('.employee-profile-section').count(),6);
+    await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
     await page.locator('.employee-photo-grid').scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,device+'-photos-and-audit.png'),fullPage:true});

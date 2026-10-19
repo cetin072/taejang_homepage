@@ -40,7 +40,7 @@
 ## 성능·변경 경계
 
 - 새 runtime dependency, CDN, 외부 CSS/아이콘/폰트 요청 0.
-- 직원 JS gzip 13,875→12,219B, shell CSS 4,626→5,143B, 분리한 직원 CSS 1,946B. 세 파일 합계 gzip +807B, 캐시 가능한 정적 CSS 요청 +1. 실제 네트워크 성능 수치와 동일시하지 않는다.
+- 직원 JS gzip 13,875→12,219B, shell CSS 4,626→5,162B, 분리한 직원 CSS 1,946B. 세 파일 합계 gzip +826B, 캐시 가능한 정적 CSS 요청 +1. 실제 네트워크 성능 수치와 동일시하지 않는다.
 - 일반 input의 폭·높이가 checkbox를 덮지 않도록 분리했다. 전용 스타일 소유권은 employee-management.css 하나이며 공유 summary/check/action은 기존 dashboard-shell.css에 둔다.
 - 홈페이지/운영총괄 홍보 writer에서 정의만 된 기존 전용 style 함수를 화면 준비 때 호출하도록 복구했다.
 - 서버 RPC·역할 판정·데이터 모델·RLS·Netlify 설정·Production release marker 변경 0.

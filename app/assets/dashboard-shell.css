@@ -208,6 +208,7 @@
 #desktop-app-shell label.app-check-field { display:grid; grid-template-columns:22px minmax(0,1fr); align-content:center; align-items:center; gap:6px 10px; min-height:44px; margin:0; }
 #desktop-app-shell label.app-check-field > input[type="checkbox"] { grid-column:1; grid-row:1; width:22px; height:22px; min-height:22px; margin:0; padding:0; accent-color:var(--app-brand); }
 #desktop-app-shell label.app-check-field > :is(span,small) { grid-column:2; }
+#desktop-app-shell .app-compact-fields > :is(.app-check-field,.phase-c-signup-check) { align-self:end; }
 #desktop-app-shell .dashboard-main :is(.check-label,.phase-c-signup-check) { margin:0; min-height:44px; align-items:center; line-height:1.5; }
 #desktop-app-shell .dashboard-main :is(.check-label,.phase-c-signup-check) input[type="checkbox"] { flex:0 0 22px; width:22px; height:22px; min-height:22px; margin:0; padding:0; accent-color:var(--app-brand); }
 #desktop-app-shell .dashboard-main :is(.employee-form,.promotion-form,.phase-c-board-form,.operations-homepage-form form,.operations-writer form,.phase-c-signup-approval-form) :is(input,select,textarea) { color:var(--app-text); }

@@ -33,7 +33,6 @@ try{
    try{
     if(preview){
      let html=readFileSync(fixture,'utf8');
-     html=html.replace('<head>','<head><base href="'+pathToFileURL(path.dirname(fixture)+path.sep).href+'">');
      for(const directory of ['app/assets','staff/assets','assets'])
       html=html.replaceAll('../../'+directory+'/',preview+'/'+directory+'/');
      tempDir=mkdtempSync(path.join(os.tmpdir(),'taejang-promotion-preview-'));
