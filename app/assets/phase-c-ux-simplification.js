@@ -146,7 +146,7 @@
     section.dataset.phaseCLeadEditPage = '1';
     section.append(text('h2', detail.title || '홍보자료 수정'));
     const form = document.createElement('form');
-    form.className = 'promotion-form';
+    form.className = 'promotion-form app-authoring';
 
     const field = (labelText, control) => {
       const label = document.createElement('label');

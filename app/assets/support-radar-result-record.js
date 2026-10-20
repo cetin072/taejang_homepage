@@ -109,7 +109,7 @@
     }
 
     const controls = document.createElement('div');
-    controls.className = 'support-radar-grid';
+    controls.className = 'support-radar-grid app-authoring-inline';
 
     const status = document.createElement('select');
     [['', '결과 선택'], ['selected', '선정'], ['not_selected', '미선정'], ['cancelled', '취소']].forEach(([value, label]) => {

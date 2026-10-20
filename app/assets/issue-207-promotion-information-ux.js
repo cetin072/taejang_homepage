@@ -159,7 +159,7 @@
 
   function informationForm(request = null) {
     const form = document.createElement('form');
-    form.className = 'phase-c-board-form';
+    form.className = 'phase-c-board-form app-authoring';
     form.addEventListener('submit', event => event.preventDefault());
     const category = document.createElement('select');
     Object.entries(noticeKinds).forEach(([value, label]) => category.append(option(value, label)));

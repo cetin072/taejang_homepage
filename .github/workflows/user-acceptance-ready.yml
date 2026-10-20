@@ -40,3 +40,7 @@ jobs:
 
       - name: Run enforced UAR gate
         run: python3 .github/scripts/user_acceptance_ready.py
+
+      - name: Verify optional-release Preview function response
+        if: github.event_name == 'pull_request'
+        run: node tests/mobile-optional-release-preview.mjs

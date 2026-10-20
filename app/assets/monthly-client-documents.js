@@ -178,8 +178,8 @@
     let dialog = emailState?.companyId === company.id ? emailState.dialog : null;
     const existingState = emailState?.companyId === company.id ? emailState : null;
     if (!dialog) {
-      dialog = el('dialog', undefined, 'mcd-email-dialog'); dialog.setAttribute('aria-labelledby', 'mcd-email-title');
-      const form = el('form'); form.method = 'dialog';
+      dialog = el('dialog', undefined, 'mcd-email-dialog app-authoring-dialog'); dialog.setAttribute('aria-labelledby', 'mcd-email-title');
+      const form = el('form', undefined, 'app-authoring'); form.method = 'dialog';
       form.append(el('h2', `${company.key} 메일 초안`, '',));
       form.firstChild.id = 'mcd-email-title';
       const stale = el('p', '문서 데이터가 변경되었습니다. 새 자동초안을 적용할 수 있습니다.', 'mcd-warning'); stale.dataset.mcdEmailStale = '1'; stale.hidden = true; form.append(stale);
@@ -248,7 +248,7 @@
     root.append(el('header', undefined, 'mcd-header'));
     root.querySelector('.mcd-header').append(el('p', '업무 운영 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
       el('p', '월별 snapshot을 저장하고 확정한 뒤 회사별 또는 4사 DOCX를 생성합니다.'));
-    const top = el('section', undefined, 'mcd-panel'); top.append(el('h3', '기준 월'));
+    const top = el('section', undefined, 'mcd-panel app-authoring'); top.append(el('h3', '기준 월'));
     top.append(el('p', `${state.common.year}년 ${state.common.month}월`, 'mcd-current-month'));
     const select = el('select'); select.dataset.mcdHistory = '1';
     const options = [...state.history].sort((a,b) => `${b.year}-${b.month}`.localeCompare(`${a.year}-${a.month}`));
@@ -271,7 +271,7 @@
     const actions = el('div', undefined, 'mcd-actions');
     actions.append(button('빈 새 월 시작', startNewMonth), button('지난달 설정 복사', copyPrevious)); top.append(actions); root.append(top);
 
-    const commonPanel = el('section', undefined, 'mcd-panel'); commonPanel.append(el('h3', '공통 입력'));
+    const commonPanel = el('section', undefined, 'mcd-panel app-authoring'); commonPanel.append(el('h3', '공통 입력'));
     const grid = el('div', undefined, 'mcd-grid');
     const commonField = (label, key, type = 'text', opts = {}) => grid.append(field(label, state.common[key], type,
       value => { state.common[key] = type === 'number' ? (value === '' ? '' : Number(value)) : value; changed(); }, opts));
@@ -293,7 +293,7 @@
     const addExtra = button('+ 프로그램 추가', () => { state.common.extras.push({ name:'', description:'' }); render(); });
     addExtra.disabled = !editableInput() || busy; extras.append(addExtra); commonPanel.append(extras); root.append(commonPanel);
 
-    const companyPanel = el('section', undefined, 'mcd-panel'); companyPanel.append(el('h3', '회사별 snapshot 설정'));
+    const companyPanel = el('section', undefined, 'mcd-panel app-authoring'); companyPanel.append(el('h3', '회사별 snapshot 설정'));
     state.companies.forEach((company,index) => {
       const card = el('article', undefined, `mcd-company${company.enabled ? '' : ' off'}`);
       const title = el('h4'); const enabled = el('input'); enabled.type='checkbox'; enabled.checked=company.enabled;
@@ -327,7 +327,7 @@
       const outputLabel = el('label', undefined, 'mcd-check'); outputLabel.append(outputCheck, el('span', '합본에 포함'));
       companyActions.append(outputLabel, companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
     }); root.append(companyPanel);
-    const defaultsPanel = el('section', undefined, 'mcd-panel'); defaultsPanel.dataset.mcdCompanyDefaults='1';
+    const defaultsPanel = el('section', undefined, 'mcd-panel app-authoring'); defaultsPanel.dataset.mcdCompanyDefaults='1';
     defaultsPanel.append(el('h3', '현재 회사 기본값'), el('p', '새 월을 빈 상태로 시작할 때 사용하는 기본 설정입니다. 이미 열린 월 snapshot에는 적용되지 않습니다.'));
     state.defaultsDraft.forEach(company => {
       const card = el('article', undefined, 'mcd-company-default'); card.append(el('h4', company.key));
@@ -340,7 +340,7 @@
     });
     const defaultsActions = el('div', undefined, 'mcd-actions'); defaultsActions.append(button('현재 회사 기본값 저장', saveDefaults));
     defaultsPanel.append(defaultsActions); root.append(defaultsPanel);
-    const resultPanel = el('section', undefined, 'mcd-panel'); resultPanel.append(el('h3', '계산 요약'));
+    const resultPanel = el('section', undefined, 'mcd-panel app-authoring'); resultPanel.append(el('h3', '계산 요약'));
     const warnings = el('div'); warnings.id='mcd-warnings'; warnings.dataset.mcdWarnings='1'; warnings.setAttribute('role','alert'); resultPanel.append(warnings);
     const summary = el('div'); summary.dataset.mcdSummary='1'; resultPanel.append(summary);
     const outputActions = el('div', undefined, 'mcd-actions');

@@ -89,6 +89,7 @@ export const testGroups = Object.freeze({
   ]),
   publicHomepage: Object.freeze([
     'tests/scheduled-netlify-release.test.mjs',
+    'tests/mobile-optional-release-config.test.mjs',
     'tests/public-homepage-main-simplification.test.js',
     'tests/public-navigation-consolidation.test.js',
     'tests/public-external-content.test.js',

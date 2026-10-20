@@ -45,6 +45,39 @@ jobs:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
         run: node tests/admin-ui-browser.mjs
 
+      - name: Verify shared authoring controls and original functional gates
+        env:
+          AUTHORING_QA_OUTPUT: authoring-ui-qa-artifacts
+        run: node tests/admin-authoring-browser.mjs
+
+      - name: Verify shared authoring on exact-head Deploy Preview
+        if: github.event_name == 'pull_request'
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          AUTHORING_QA_OUTPUT: authoring-ui-preview-qa-artifacts
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util, os, pathlib, subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          subprocess.run(['node', 'tests/admin-authoring-browser.mjs'], check=True,
+                         env={**os.environ, 'PREVIEW_URL': preview})
+          PYTHON
+
+      - name: Keep shared authoring screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-authoring-1440-768-390-320
+          path: |
+            authoring-ui-qa-artifacts/
+            authoring-ui-preview-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Run employee sorting and notice saved-result role QA
         env:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
@@ -193,9 +226,22 @@ jobs:
           uar = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(uar)
           contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
-          preview = uar.wait_for_preview(contract, os.environ.copy())
-          subprocess.run(['node', 'tests/employee-app-browser.mjs'], check=True,
-                         env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+          import traceback
+          def annotate(message):
+              message = message[-5000:].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print('::error title=Employee app Hosted Preview::' + message, flush=True)
+          try:
+              preview = uar.wait_for_preview(contract, os.environ.copy())
+              result = subprocess.run(['node', 'tests/employee-app-browser.mjs'], text=True,
+                                      capture_output=True, env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+              print(result.stdout, end='')
+              print(result.stderr, end='')
+              if result.returncode:
+                  annotate(result.stderr or result.stdout)
+              raise SystemExit(result.returncode)
+          except Exception:
+              annotate(traceback.format_exc())
+              raise
           PYTHON
 
       - name: Keep exact-head Preview screenshots and browser results

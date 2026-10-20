@@ -88,7 +88,7 @@
       && await client.refreshSession()) response = await send();
     return response;
   }
- 
+
   async function config() {
     if (cachedConfig) return cachedConfig;
     const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
@@ -165,7 +165,7 @@
   }
 
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
-    const form = el('form', null, 'employee-form app-compact-container');
+    const form = el('form', null, 'employee-form app-compact-container app-authoring');
     const leadDirectEdit = Boolean(employee && context.access_level === 'promotion_lead_global'
       && employee.can_edit_basic && employee.updated_at);
     const name = input('text', employee?.full_name || ''); name.required = true; name.maxLength = 80;
@@ -343,7 +343,7 @@
   function bulkResidentImportPanel(context) {
     if (!context.can_manage_sensitive_identity) return null;
     const section = el('section', null, 'dashboard-section');
-    const box = el('div', null, 'employee-sensitive-bulk');
+    const box = el('div', null, 'employee-sensitive-bulk app-authoring');
     const textarea = document.createElement('textarea');
     textarea.autocomplete = 'off';
     textarea.spellcheck = false;
@@ -431,7 +431,7 @@
     const message = el('p', '', 'help'); message.setAttribute('role','status');
     wrap.append(el('p', registered ? '주민번호 암호화 등록됨' : '주민번호 미등록', 'help'));
     if (context.access_level !== 'operations_manager') {
-      const form = el('form', null, 'employee-resident-register-form');
+      const form = el('form', null, 'employee-resident-register-form app-authoring');
       const number = input('password');
       number.maxLength = 14;
       number.autocomplete = 'off';
@@ -493,7 +493,7 @@
         reveal.disabled=false;
       }
     }, true);
-    const row = el('div',null,'quick-links');
+    const row = el('div',null,'quick-links app-authoring-inline');
     row.append(field('조회 사유',purpose),reveal);
     wrap.append(row,message);
     return wrap;
@@ -501,7 +501,7 @@
 
   function sensitiveIdentityPanel(context, employee) {
     if (!context.can_manage_sensitive_identity) return null;
-    const form = el('form', null, 'employee-form');
+    const form = el('form', null, 'employee-form app-authoring');
     form.dataset.sensitiveIdentityForm = '1';
 
     const registered = !!employee.resident_number_registered;
@@ -551,7 +551,7 @@
     }, true);
     if (!registered) flagSave.disabled = true;
 
-    const grid = el('div', null, 'employee-form-grid');
+    const grid = el('div', null, 'employee-form-grid app-form-grid');
     grid.append(
       field('주민등록번호', rrn, '공식 4대보험 행정과 연령 판정에만 사용합니다. 원문은 Vault에 암호화됩니다.'),
       field('국민연금 18세 미만', under18, '본인 제외 신청이 확인된 경우에만 체크합니다.'),
@@ -617,7 +617,7 @@
   }
 
   function insuranceDeductionPanel(employee) {
-    const form = el('form', null, 'employee-form');
+    const form = el('form', null, 'employee-form app-authoring');
     form.dataset.insuranceDeductionForm = '1';
 
     const month = input('month', seoulCurrentMonth());
@@ -706,7 +706,7 @@
 
     month.addEventListener('change', loadSettings);
 
-    const grid = el('div', null, 'employee-form-grid');
+    const grid = el('div', null, 'employee-form-grid app-form-grid');
     grid.append(
       field('적용 시작월', month, '이 월부터 이후 급여에 적용됩니다. 다음 변경월 전까지 유지됩니다.'),
       field('국민연금', pension, '노무사 안내대로 공제함/공제 안 함만 선택합니다.'),

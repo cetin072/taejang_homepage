@@ -696,7 +696,7 @@
       header.append(text('p','운영총괄 설정','eyebrow'),text('h2','플랫폼 설정'),text('p','직책별로 보일 메뉴를 정하고 내 화면 배치를 조정합니다. 메뉴 표시 설정은 기능 권한을 추가하지 않습니다.'));
       shell.append(header);
 
-      const personal=document.createElement('section'); personal.className='platform-settings-card';
+      const personal=document.createElement('section'); personal.className='platform-settings-card app-authoring';
       personal.append(
         text('h3','내 화면 옵션'),
         text('p','메뉴 순서 편집은 설정 화면에서만 시작합니다. 일반 사이드바에는 편집 버튼을 두지 않아 업무 중 화면 흔들림을 막습니다.','help')
@@ -718,7 +718,7 @@
       }
       if(window.TaejangOperationsDeleteControls?.openArchiveHub) {
         const archive=document.createElement('section');
-        archive.className='platform-settings-card';
+        archive.className='platform-settings-card app-authoring';
         archive.append(
           text('h3','보관함'),
           text('p','삭제한 공지·일정·안내와 홍보글은 일반 업무 목록에서 숨기고 여기에서만 확인·복구합니다.','help'),
@@ -729,7 +729,7 @@
 
       if(app()?.can?.('employee.sensitive_identity_manage') && window.TaejangEmployeeManagement?.openSensitiveBulkTools) {
         const sensitive=document.createElement('section');
-        sensitive.className='platform-settings-card';
+        sensitive.className='platform-settings-card app-authoring';
         sensitive.append(
           text('h3','직원 민감정보 도구'),
           text('p','주민등록번호 일괄등록처럼 평소에는 필요 없는 관리도구를 여기에서만 엽니다.','help'),
@@ -740,7 +740,7 @@
 
       shell.append(personal);
 
-      const roleCard=document.createElement('section'); roleCard.className='platform-settings-card';
+      const roleCard=document.createElement('section'); roleCard.className='platform-settings-card app-authoring';
       roleCard.append(text('h3','직책·역할별 사이드바 메뉴'));
       const select=document.createElement('select'); select.className='platform-settings-role-select';
       (context.roles||[]).forEach(role=>{

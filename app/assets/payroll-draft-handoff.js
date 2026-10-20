@@ -201,7 +201,7 @@
 
     if (item.can_start_review || item.can_submit || item.can_decide) {
       const actions = document.createElement('div');
-      actions.className = 'payroll-handoff-actions';
+      actions.className = 'payroll-handoff-actions app-authoring';
 
       if (item.can_start_review) {
         const copy = document.createElement('p');

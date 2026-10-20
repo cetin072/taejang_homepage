@@ -40,9 +40,9 @@
   border-radius:var(--app-radius);
   background:var(--employee-section-bg);
 }
-.employee-section-basic { --employee-section-accent:#225c8b; --employee-section-stroke:#bcd6ed; --employee-section-bg:#eff6fd; }
+.employee-section-basic { --employee-section-accent:var(--authoring-basic-accent); --employee-section-stroke:var(--authoring-basic-stroke); --employee-section-bg:var(--authoring-basic-surface); }
 .employee-section-account { --employee-section-accent:#176e60; --employee-section-stroke:#b8dfd2; --employee-section-bg:#effaf5; }
-.employee-section-photos { --employee-section-accent:#865a14; --employee-section-stroke:#ecd9ad; --employee-section-bg:#fff8ea; }
+.employee-section-photos { --employee-section-accent:var(--authoring-media-accent); --employee-section-stroke:var(--authoring-media-stroke); --employee-section-bg:var(--authoring-media-surface); }
 .employee-section-audit { --employee-section-accent:#624a97; --employee-section-stroke:#d8ccef; --employee-section-bg:#f7f3ff; }
 .employee-section-record { --employee-section-accent:#4e6372; --employee-section-stroke:#d5e0e6; --employee-section-bg:#f5f8fa; }
 .employee-profile-section.employee-sensitive-section { --employee-section-accent:#88512a; --employee-section-stroke:#e9d2b7; --employee-section-bg:#fcf6ed; }
@@ -83,8 +83,8 @@
 .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }
 .employee-sensitive-bulk .message { margin:0; white-space:pre-line; }
 .employee-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.employee-form label { display:grid; gap:6px; margin:0; font-weight:750; }
-.employee-form input:not([type="checkbox"]),.employee-form select { width:100%; min-height:44px; padding:9px 10px; border:1px solid var(--app-border); border-radius:9px; background:#fff; font:inherit; }
+
+
 .employee-request-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .employee-photo-actions { display:grid; justify-items:start; gap:8px; }
 .employee-photo-actions .error { max-width:38ch; padding:8px 10px; border-left:3px solid #a23b32; border-radius:7px; background:#fff1ee; color:#862f29; font-size:.875rem; }
