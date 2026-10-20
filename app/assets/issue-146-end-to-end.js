@@ -544,6 +544,7 @@
       let activeSlot = null;
       let previewOriginal = null;
       let draftMode = true;
+      let resetButton = null;
 
       const slotsForPage = () => slotList.filter(slot => slot.page_key === pageSelect.value);
       const refreshSlotSelect = () => {
@@ -582,8 +583,10 @@
           currentBox.textContent = currentValue || '(빈 문구)';
           proposedBox.textContent = textArea.value || '(빈 문구)';
         } else {
-          currentValue = node.getAttribute('src') || '';
-          currentImageAlt = node.getAttribute('alt') || '';
+          // The public iframe loads its live override asynchronously; use the
+          // authenticated slot snapshot as the source of current applied data.
+          currentValue = activeSlot.live_value || node.getAttribute('src') || '';
+          currentImageAlt = activeSlot.live_image_alt || node.getAttribute('alt') || '';
           previewOriginal = { src: currentValue, alt: currentImageAlt };
           currentBox.textContent = `${currentValue}\n대체텍스트: ${currentImageAlt || '(없음)'}`;
           proposedBox.textContent = uploadedImageUrl ? `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}` : '새 사진을 선택해 주세요.';
@@ -591,6 +594,7 @@
       };
       const refreshActiveSlot = () => {
         activeSlot = slotList.find(slot => slot.slot_key === slotSelect.value) || slotsForPage()[0] || null;
+        if (resetButton) resetButton.hidden = !activeSlot?.live_value;
         if (!activeSlot) return;
         textArea.hidden = activeSlot.slot_kind !== 'text';
         file.hidden = activeSlot.slot_kind !== 'image';
@@ -664,6 +668,26 @@
           await openHomepageSlots(activeSlot.slot_key);
         } catch (error) { window.alert(friendly(error, '홈페이지에 직접 반영하지 못했습니다.')); }
       }));
+      if (currentRoute === 'operations_manager') {
+        resetButton = button('기본 홈페이지 내용으로 되돌리기', async () => {
+          if (!activeSlot?.live_value) return;
+          if (!window.confirm('현재 적용한 수정값을 해제하고 기존 공개 홈페이지 기본값으로 되돌릴까요?')) return;
+          const resetReason = promptReason('기본값으로 되돌리는 사유를 입력해 주세요.');
+          if (!resetReason) return;
+          resetButton.disabled = true;
+          try {
+            await app().rpc('delete_homepage_slot_override', {
+              p_slot_key: activeSlot.slot_key, p_reason: resetReason
+            });
+            await openHomepageSlots(activeSlot.slot_key);
+          } catch (error) {
+            window.alert(friendly(error, '홈페이지 기본값 복구에 실패했습니다.'));
+            resetButton.disabled = false;
+          }
+        }, true);
+        resetButton.hidden = true;
+        formActions.append(resetButton);
+      }
       form.append(formActions);
       shell.append(form);
 
