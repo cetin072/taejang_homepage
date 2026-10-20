@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -9,6 +13,7 @@ const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const password = 'Phase1A-Test-Only-2026!';
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(key, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
+assert.ok(['127.0.0.1','localhost','kong'].includes(new URL(apiUrl).hostname), 'notice fixture writes require an isolated DB');
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -36,7 +41,7 @@ async function signUp(email, displayName) {
     body: JSON.stringify({ email, password, data: { display_name: displayName } })
   });
   check(result.ok, `signup failed for ${email}`);
-  return { id: result.data.user.id, token: result.data.access_token, displayName };
+  return { id: result.data.user.id, token: result.data.access_token, displayName, session: result.data };
 }
 
 async function approve(adminToken, account, departmentId, positionId, role) {
@@ -248,6 +253,123 @@ check(!(await request('/storage/v1/object/authenticated/notice-media/'+encodeURI
 const suspend=await rpc('change_account_status',adminToken,{p_target_profile_id:otherLead.id,p_new_status:'suspended',p_reason_summary:'446 isolated active guard'});equal(suspend.data?.code,'STATUS_CHANGED','446 suspend synthetic lead');
 refused(await rpc('save_lead_notice',otherLead.token,routinePayload({})),'446 inactive actor denied');
 console.log('NOTICE_446_ROUTINE_AUTH_PASS');
+
+// Writes below are synthetic, isolated CI fixtures, never hosted user notices.
+check(['127.0.0.1','localhost','kong'].includes(new URL(apiUrl).hostname),'history writes require an isolated DB');
+const historyPayload = overrides => noticePayload({...target('company'),p_title:'History ops published',p_status:'published',...overrides});
+const historySave=await rpc('save_notice',operations.token,historyPayload({}));
+equal(historySave.data?.code,'NOTICE_SAVED','operations creates company publication');
+const historyId=historySave.data.id;
+const exactBefore=await rpc('get_manageable_notice',operations.token,{p_notice_id:historyId});
+check(exactBefore.ok&&exactBefore.data.id===historyId&&exactBefore.data.can_edit,'exact operations detail');
+check(exactBefore.data.can_read_ack_summary===true,'operations keeps acknowledgement summary access');
+check(Object.hasOwn(exactBefore.data,'change_reason'),'authorized management retains original edit metadata');
+const historyPhotoPath=historyId+'/history-edit.png';
+check((await request('/storage/v1/object/notice-media/'+encodeURIComponent(historyPhotoPath),{method:'POST',token:operations.token,headers:{'Content-Type':'image/png','x-upsert':'false'},body:png})).ok,'operations uploads published notice photo');
+const historyPhoto=await rpc('add_notice_media',operations.token,{p_notice_id:historyId,p_storage_path:historyPhotoPath,p_mime_type:'image/png',p_alt_text:'Before photo edit',p_display_order:0});
+equal(historyPhoto.data?.code,'NOTICE_MEDIA_ADDED','published photo registration');
+const historyEdited=await rpc('save_notice',operations.token,historyPayload({p_notice_id:historyId,p_title:'History corrected',p_body_easy:'Corrected published body',p_publish_start_at:exactBefore.data.publish_start_at,p_publish_end_at:exactBefore.data.publish_end_at,p_related_link_url:'https://example.com/history',p_related_link_label:'History link'}));
+equal(historyEdited.data?.id,historyId,'operations correction keeps exact ID');
+check(historyEdited.data.version_no>exactBefore.data.version_no,'correction increments version');
+check((await rpc('update_notice_media',operations.token,{p_media_id:historyPhoto.data.id,p_alt_text:'Corrected photo',p_display_order:0})).data?.ok,'operations edits published photo metadata');
+const exactAfter=await rpc('get_manageable_notice',operations.token,{p_notice_id:historyId});
+equal(exactAfter.data?.body_easy,'Corrected published body','body readback confirms actual update');
+equal(exactAfter.data?.status,'published','published status preserved');
+equal(exactAfter.data?.target_scope,'company','audience preserved');
+equal(exactAfter.data?.publish_start_at,exactBefore.data.publish_start_at,'exact timestamp preserved');
+equal(exactAfter.data?.media?.[0]?.alt_text,'Corrected photo','photo readback');
+const employeeAfter=await rpc('get_my_notice_detail',recipient.token,{p_notice_id:historyId});
+check(employeeAfter.ok&&employeeAfter.data.body_easy==='Corrected published body'&&employeeAfter.data.version_no===exactAfter.data.version_no,'employee app sees corrected same-ID version');
+// The outbox is intentionally not exposed by Data API. Inspect only this local
+// synthetic notice via the same Docker/psql boundary as the push regression.
+check(/^[0-9a-f-]{36}$/i.test(historyId)&&Number.isInteger(exactAfter.data.version_no),'safe isolated event identifiers');
+const fixtureContainer=execFileSync('docker',['ps','--filter','name=supabase_db_taejang-homepage-phase1a','--format','{{.ID}}'],{encoding:'utf8'}).trim();
+check(Boolean(fixtureContainer),'isolated outbox container exists');
+const versionEventCount=execFileSync('docker',['exec',fixtureContainer,'psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-tA','-c',
+ `select count(*) from public.notification_events where notice_id='${historyId}'::uuid and notice_version=${exactAfter.data.version_no}`],{encoding:'utf8'}).trim();
+equal(versionEventCount,'1','corrected published version has exactly one notification event');
+const historyAudit=await rpc('get_target_audit_trail',operations.token,{p_target_type:'notice',p_target_id:historyId,p_limit:100});
+check(historyAudit.ok&&historyAudit.data.some(row=>row.action==='notice_updated'||row.action==='notice_published'),'same-ID correction audit retained');
+const leadRead=await rpc('get_manageable_notice',promotion.token,{p_notice_id:historyId});
+check(leadRead.ok&&leadRead.data.can_edit===false&&leadRead.data.can_lead_edit===false,'lead can read other publisher but cannot edit');
+check(leadRead.data.can_read_ack_summary===false,'read-only company notice never grants acknowledgement management');
+check(!Object.hasOwn(leadRead.data,'change_reason')&&!Object.hasOwn(leadRead.data,'updated_by'),'new foreign-public read scope excludes internal edit reasons and actor IDs');
+check(!(await rpc('get_notice_ack_summary',promotion.token,{p_notice_id:historyId})).ok,'acknowledgement summary remains server denied');
+check((await request('/storage/v1/object/authenticated/notice-media/'+encodeURIComponent(historyPhotoPath),{token:promotion.token})).ok,'lead can read published company photo');
+refused(await rpc('save_notice',promotion.token,historyPayload({p_notice_id:historyId})),'read permission never authorizes original writer');
+refused(await leadSave({p_notice_id:historyId,p_status:'inactive'}),'read permission never authorizes lead writer');
+refused(await rpc('update_notice_media',promotion.token,{p_media_id:historyPhoto.data.id,p_alt_text:'forged',p_display_order:0}),'read permission never authorizes media edits');
+check(!(await rpc('archive_notice',promotion.token,{p_notice_id:historyId,p_reason:'forged'})).ok,'read permission cannot archive foreign publication');
+const historyExpired=await rpc('save_notice',operations.token,historyPayload({p_title:'History expired',p_publish_start_at:new Date(Date.now()-7200000).toISOString(),p_publish_end_at:new Date(Date.now()-3600000).toISOString()}));
+const historyScheduled=await rpc('save_notice',operations.token,historyPayload({p_title:'History future private',p_publish_start_at:new Date(Date.now()+3600000).toISOString()}));
+const historyPrivate=await rpc('save_notice',operations.token,historyPayload({...target('department',department('operations')),p_title:'History unauthorized department'}));
+const historyDraft=await rpc('save_notice',operations.token,historyPayload({p_title:'History foreign draft',p_status:'draft'}));
+const leadPage=await rpc('list_manageable_notices_page',promotion.token,{p_limit:100,p_search:'History'});
+check(leadPage.ok&&leadPage.data.items.some(row=>row.id===historyId)&&leadPage.data.items.some(row=>row.id===historyExpired.data.id),'lead reads published and expired company history');
+for(const hidden of [historyScheduled,historyPrivate,historyDraft]){
+ check(!leadPage.data.items.some(row=>row.id===hidden.data.id),'page excludes unauthorized or not-yet-public foreign item');
+ check(!(await rpc('get_manageable_notice',promotion.token,{p_notice_id:hidden.data.id})).ok,'exact read enforces same privacy boundary');
+}
+check(!(await rpc('get_my_notice_detail',recipient.token,{p_notice_id:historyExpired.data.id})).ok,'expired history is not current employee content');
+check(!(await rpc('list_manageable_notices_page',recipient.token,{})).ok,'ordinary employee cannot query management history');
+check(!(await rpc('list_manageable_notices_page',undefined,{})).ok,'anonymous history denied');
+check(!(await rpc('private_notice_management_json',promotion.token,{p_notice_id:historyId})).ok,'private JSON helper not executable by client');
+check((await rpc('archive_notice',operations.token,{p_notice_id:historyId,p_reason:'Isolated archive flow'})).data?.ok,'explicit existing archive RPC');
+const archivedDetail=await rpc('get_manageable_notice',operations.token,{p_notice_id:historyId});
+check(archivedDetail.data.archived_at&&archivedDetail.data.can_edit===false&&archivedDetail.data.can_restore,'archive readable and immutable until restore');
+const archivePage=await rpc('list_manageable_notices_page',operations.token,{p_archive:true,p_search:'History corrected'});
+equal(archivePage.data?.items?.[0]?.id,historyId,'archive search finds original record without data movement');
+check(!(await rpc('get_manageable_notice',promotion.token,{p_notice_id:historyId})).ok,'foreign archive not disclosed');
+check((await rpc('restore_notice',operations.token,{p_notice_id:historyId,p_reason:'Isolated restore flow'})).data?.ok,'existing restore RPC retains history');
+
+// Reproduce the hosted PGRST303 path with genuinely expired, signed JWTs from
+// the isolated GoTrue container. Never print the local signing secret or tokens.
+const localSigningSecret=execFileSync('docker',['exec','supabase_auth_taejang-homepage-phase1a','printenv','GOTRUE_JWT_SECRET'],{encoding:'utf8'}).trim();
+check(Boolean(localSigningSecret),'isolated JWT signer is available');
+const appSource=readFileSync('app/assets/app.js','utf8');
+const realTransport=appSource.slice(appSource.indexOf('  let sessionRefresh = null;'),appSource.indexOf('  async function context()'));
+check(realTransport.includes('retryAuthentication'),'test uses refreshed production RPC transport');
+async function verifyExpiredNoticeWrite(actor,name,payload){
+ const before=await rpc('get_manageable_notice',actor.token,{p_notice_id:payload.p_notice_id});
+ const claims={...JSON.parse(Buffer.from(actor.token.split('.')[1],'base64url')),exp:Math.floor(Date.now()/1000)-3600};
+ const unsigned=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url')+'.'+Buffer.from(JSON.stringify(claims)).toString('base64url');
+ const expiredToken=unsigned+'.'+createHmac('sha256',localSigningSecret).update(unsigned).digest('base64url');
+ const rejected=await rpc(name,expiredToken,payload);
+ equal(rejected.status,401,'expired notice write rejected before execution');equal(rejected.data?.code,'PGRST303','real claims-expiration error reproduced');
+ const transportState={config:{url:apiUrl,publishableKey:key},session:{...actor.session,access_token:expiredToken}};
+ const transportCalls=[];
+ const sandbox={state:transportState,fetch:async(url,options)=>{
+  const result=await fetch(url,options);transportCalls.push({path:new URL(url).pathname,status:result.status});return result;
+ },storeSession:session=>{transportState.session=session},clearSession:()=>{transportState.session=null}};
+ vm.runInNewContext(realTransport+'\nglobalThis.transportRpc=rpc;',sandbox);
+ const saved=await sandbox.transportRpc(name,payload);
+ equal(saved.id,payload.p_notice_id,'refresh recovers same-ID write');
+ const after=await rpc('get_manageable_notice',transportState.session.access_token,{p_notice_id:payload.p_notice_id});
+ equal(after.data.version_no,before.data.version_no+1,'authentication retry executes one update only');
+ equal(after.data.body_easy,payload.p_body_easy,'post-refresh correction readback');
+ equal(transportCalls.filter(call=>call.path==='/auth/v1/token').length,1,'one actual GoTrue refresh');
+ equal(transportCalls.filter(call=>call.path==='/rest/v1/rpc/'+name&&call.status===200).length,1,'one accepted RPC mutation');
+}
+await verifyExpiredNoticeWrite(operations,'save_notice',historyPayload({p_notice_id:historyId,p_title:'History refreshed correction',p_body_easy:'Corrected after expired operations session'}));
+const expiredLeadDraft=await leadSave({p_title:'History lead refresh draft'});
+await verifyExpiredNoticeWrite(promotion,'save_lead_notice',routinePayload({p_notice_id:expiredLeadDraft.data.id,p_status:'published',p_confirm_routine:true,p_body_easy:'Published after expired lead session'}));
+console.log('NOTICE_EXPIRED_SESSION_AUTH_PASS');
+// >200 records: private drafts create no employee publication notifications.
+for(let offset=0;offset<205;offset+=10){
+ const chunk=await Promise.all(Array.from({length:Math.min(10,205-offset)},(_,i)=>rpc('save_notice',operations.token,historyPayload({p_title:'Pagination isolation '+String(offset+i).padStart(3,'0'),p_status:'draft'}))));
+ check(chunk.every(result=>result.data?.ok),'isolated pagination fixture saves');
+}
+const pages=[];
+for(const offset of [0,100,200]){
+ const page=await rpc('list_manageable_notices_page',operations.token,{p_limit:100,p_offset:offset,p_search:'Pagination isolation'});
+ check(page.ok&&page.data.total===205,'server count includes records beyond old 200 cap');
+ pages.push(...page.data.items);
+ equal(page.data.has_more,offset<200,'has-more boundary');
+}
+equal(new Set(pages.map(row=>row.id)).size,205,'stable paging finds every unique record');
+const oldestSearch=await rpc('list_manageable_notices_page',operations.token,{p_search:'Pagination isolation 000'});
+equal(oldestSearch.data?.total,1,'server search finds oldest record beyond first page');
+console.log('NOTICE_HISTORY_EDIT_AUTH_PASS');
 
 console.log('NOTICE_AUTHORING_UX_AUTH_PASS');
 
