@@ -92,6 +92,7 @@ export const testGroups = Object.freeze({
     'tests/mobile-optional-release-config.test.mjs',
     'tests/public-homepage-main-simplification.test.js',
     'tests/public-navigation-consolidation.test.js',
+    'tests/public-contact-email-only.test.js',
     'tests/public-external-content.test.js',
     'tests/naver-blog-archive.test.js',
     'tests/official-archive-sync.test.mjs',

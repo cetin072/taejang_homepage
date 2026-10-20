@@ -168,7 +168,7 @@ assert.match(business, /기업·기관이 함께 만들 수 있는 현재 사업
 assert.match(workplace, /직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
 assert.match(workplace, /직무를 이해하고<br>함께 익히는 방식/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
-assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*055-293-8626[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
+assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
 assert.match(location, /location-pin-icon/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
@@ -183,7 +183,7 @@ assert.match(index, /href="activities\/terrarium-business-start-2026-08\.html">�
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
-assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>[\s\S]*?전화, 이메일, 오시는 길 확인 또는 문의 폼으로 편하게 연락해 주세요\./, '문의 영역은 실제 연락 수단과 폼에 집중합니다');
+assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>[\s\S]*?이메일이나 홈페이지 문의폼으로 연락해 주세요\./, '문의 영역은 이메일과 문의폼으로 안내합니다');
 assert.equal((index.match(/지속 가능한/g) || []).length, 2, 'Hero 제목과 회사 정의 보조문구에서만 사용합니다');
 assert.match(index, /2026\.08[\s\S]*신규 사업장 개소[\s\S]*2026\.07[\s\S]*자회사형 장애인 표준사업장 인증[\s\S]*2025\.06[\s\S]*법인 설립/);
 assert.match(index, /id="inquiry-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '홈 문의 폼은 필수 입력 안내를 제공합니다');
