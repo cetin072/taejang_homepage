@@ -36,8 +36,10 @@
   };
 
   function currentPageName() {
+    // Netlify serves both /about and /about.html. Keep the slot's canonical
+    // public_path for either URL, instead of treating every clean URL as index.
     const page = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
-    return page.endsWith('.html') ? page : 'index.html';
+    return page.endsWith('.html') ? page : page + '.html';
   }
 
   function setText(target, value) {
@@ -72,6 +74,20 @@
     const target = registeredTarget(item);
     if (!target || typeof item.image_url !== 'string') return false;
     if (target instanceof HTMLImageElement) {
+      const originalSrc = target.getAttribute('src');
+      const originalAlt = target.getAttribute('alt') || '';
+      // A revoked or unreachable media object cannot blank an approved
+      // static photo. Revert its src/alt on error without hiding the figure.
+      const fallback = () => {
+        target.removeEventListener('error', fallback);
+        if (originalSrc) {
+          target.src = originalSrc;
+          target.alt = originalAlt;
+        }
+      };
+      if (originalSrc && originalSrc !== item.image_url) {
+        target.addEventListener('error', fallback, { once: true });
+      }
       target.src = item.image_url;
       target.alt = item.image_alt || target.alt || '태장 홈페이지 사진';
       const slot = target.closest('[data-photo-slot]');
