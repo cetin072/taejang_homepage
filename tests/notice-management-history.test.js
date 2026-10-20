@@ -1,6 +1,6 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const migration=fs.readFileSync('supabase/migrations/20261019141647_notice_management_history_read_scope.sql','utf8');
+const migration=fs.readFileSync('supabase/migrations/20261019162322_notice_management_history_read_scope.sql','utf8');
 const client=fs.readFileSync('app/assets/notice-admin.js','utf8');
 const recovery=fs.readFileSync('app/assets/operations-delete-controls.js','utf8');
 test('notice history adds read scope without replacing writers, RLS, approval or data',()=>{
