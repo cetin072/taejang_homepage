@@ -118,6 +118,8 @@ test('Operations recovery reuses the authenticated audited slot delete RPC and h
   const canonical = await readFile(new URL('../app/assets/issue-146-end-to-end.js', import.meta.url), 'utf8');
   assert.match(canonical, /if \(currentRoute === 'operations_manager'\) \{\s*resetButton = button\('기본 홈페이지 내용으로 되돌리기'/);
   assert.match(canonical, /if \(resetButton\) resetButton\.hidden = !activeSlot\?\.live_value/);
+  assert.match(canonical, /currentValue = activeSlot\.live_value \|\| node\.getAttribute\('src'\)/);
+  assert.match(canonical, /currentImageAlt = activeSlot\.live_image_alt \|\| node\.getAttribute\('alt'\)/);
   assert.match(canonical, /if \(!activeSlot\?\.live_value\) return/);
   assert.match(canonical, /window\.confirm\('현재 적용한 수정값을 해제하고 기존 공개 홈페이지 기본값으로 되돌릴까요\?'\)/);
   assert.match(canonical, /promptReason\('기본값으로 되돌리는 사유를 입력해 주세요\.'\)/);
