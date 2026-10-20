@@ -66,10 +66,10 @@ test('update, maintenance, release notes, and simple recovery UX remain visible 
   assert.match(errors, /로그인 시간이 만료/);
 });
 
-test('0.1.4 splash uses the approved Taejang launcher asset without a fake delay', async () => {
+test('0.1.5 splash uses the approved Taejang launcher asset without a fake delay', async () => {
   const app = JSON.parse(await text('mobile/app.json'));
-  assert.equal(app.expo.version, '0.1.4');
-  assert.equal(app.expo.android.versionCode, 5);
+  assert.equal(app.expo.version, '0.1.5');
+  assert.equal(app.expo.android.versionCode, 6);
   assert.equal(app.expo.splash.image, './assets/taejang-launcher-icon.png');
   assert.equal(app.expo.splash.resizeMode, 'contain');
   assert.equal(app.expo.splash.backgroundColor, '#FDFCFD');

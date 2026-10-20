@@ -23,10 +23,10 @@ Android package: `com.cetin072.taejang.staff`
 - 유형: 앱
 - 가격: 무료
 - 최초 Android versionCode: `1`
-- 사용자 Console 확인(2026-10-12): 최고 업로드 versionName `0.1.3` / versionCode `4`, 비공개 테스트 - Alpha. code 4는 이미 사용됨
-- 다음 출시 candidate: versionName `0.1.4` / versionCode `5` — 사용자 지시로 확정. 실제 업로드 직전 최고 code를 다시 확인
+- Console 직접 확인(2026-10-19): 전체 App Bundle 5개(code1~5), 최고 `0.1.4` / code`5`, 비공개 테스트 - Alpha 전체 출시/테스터에게 제공. code5 재사용 불가
+- 다음 출시 candidate: **`0.1.5` / versionCode `6`** — Issue #484에서 충돌을 확인하고 사용자가 명시 승인. 업로드 직전 최고 code 재확인
 
-패키지명은 최초 Play 업로드 이후 장기 식별자로 취급한다. 새 Play 빌드마다 versionCode를 증가시킨다. 모든 트랙/초안의 최고 업로드 code를 확인한 뒤에만 다음 번호를 확정한다. 통합 검사·단일 APK 전달·서명·정책 활성화 순서는 [2026-10-12 출시 준비](MOBILE_CLOSED_TESTING_READINESS_20261012.md)를 따른다.
+패키지명은 최초 Play 업로드 이후 장기 식별자로 취급한다. 새 Play 빌드마다 versionCode를 증가시킨다. 모든 트랙/초안의 최고 업로드 code를 확인한 뒤에만 다음 번호를 확정한다. 현재 출시 절차는 [Issue #484 운영 기록](ISSUE_484_PLAY_OPTIONAL_UPDATE_RELEASE.md)을 따른다. 이전 통합 검사·단일 APK 전달·서명·정책 활성화 순서는 [2026-10-12 출시 준비](MOBILE_CLOSED_TESTING_READINESS_20261012.md)를 따른다.
 
 ## 3. 개인정보·계정 삭제 URL
 
