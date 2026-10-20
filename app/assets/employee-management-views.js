@@ -225,7 +225,7 @@
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
         const visit = section('앱 설치 및 현장 확인', 'employee-audit-inside-card employee-section-audit');
         visit.append(el('p','계정 연결 및 출퇴근 기록만으로 실제 앱 설치를 확정하지 않습니다. 직원 휴대폰에서 확인해 주세요.','help'));
-        const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container');
+        const auditForm = el('form',null,'employee-app-audit-form employee-form app-compact-container app-authoring');
         const confirmation = input('checkbox');
         confirmation.checked=Boolean(employee.identity_verified);
         const install=select([

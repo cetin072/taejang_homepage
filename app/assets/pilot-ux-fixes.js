@@ -63,8 +63,8 @@
       .pilot-public-preview img { display:block; width:100%; max-height:520px; object-fit:cover; border-radius:12px; margin:18px 0 24px; }
       .pilot-public-body { white-space:pre-wrap; line-height:1.85; font-size:1.02rem; }
       .pilot-lead-editor { margin:16px 0; padding:16px; border:1px solid var(--app-border); border-radius:12px; background:#fafbf9; }
-      .pilot-lead-editor label { display:grid; gap:6px; margin:10px 0; font-weight:750; }
-      .pilot-lead-editor input,.pilot-lead-editor textarea { min-height:44px; padding:10px 12px; border:1px solid var(--app-border); border-radius:8px; font:inherit; }
+
+
       .pilot-lead-editor textarea { min-height:180px; resize:vertical; }
       .pilot-meta-result { margin:8px 0 0; padding:10px; border-radius:8px; background:#eef4ef; font-size:.9rem; }
       .pilot-meta-image { display:block; width:min(100%,260px); max-height:150px; object-fit:cover; margin-top:8px; border-radius:8px; }
@@ -427,7 +427,7 @@
   }
 
   function leadEditor(detail, onSaved) {
-    const panel = el('div', null, 'pilot-lead-editor');
+    const panel = el('div', null, 'pilot-lead-editor app-authoring');
     const title = document.createElement('input'); title.value = detail.title || '';
     const body = document.createElement('textarea'); body.value = detail.public_body || '';
     const external = document.createElement('input'); external.type = 'url'; external.value = detail.external_url || '';

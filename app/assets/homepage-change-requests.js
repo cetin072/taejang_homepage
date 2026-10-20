@@ -214,7 +214,7 @@
     );
 
     const form = document.createElement('form');
-    form.className = 'promotion-form';
+    form.className = 'promotion-form app-authoring';
     const pageSelect = select(Object.entries(PAGE_CATALOG).map(([key, page]) => [key, page.label]));
     const sectionSelect = select(PAGE_CATALOG.home.sections);
     const kindSelect = select([['text', '글 수정'], ['image', '사진 수정']]);
@@ -325,7 +325,7 @@
     updateSections(); updateKind();
 
     const grid = document.createElement('div');
-    grid.className = 'promotion-form-grid';
+    grid.className = 'promotion-form-grid app-form-grid';
     grid.append(pageField, sectionField, kindField);
     form.append(grid, pageLinkSlot, previewWrap, currentField, textField, imageField, altField, reasonField);
     const actions = document.createElement('div'); actions.className = 'quick-links';

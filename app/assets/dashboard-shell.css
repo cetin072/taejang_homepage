@@ -1,3 +1,4 @@
+@import url("./admin-authoring.css");
 :root {
   --app-background: #f3f6f4;
   --app-card: #ffffff;
@@ -148,8 +149,8 @@
 
 .promotion-composer { padding: 22px; border: 1px solid var(--app-border); border-radius: var(--app-radius); background: var(--app-card); }
 .promotion-form { display: grid; gap: 14px; }
-.promotion-form label { display: grid; gap: 6px; color: var(--app-text); font-weight: 750; min-width: 0; }
-.promotion-form input, .promotion-form select, .promotion-form textarea { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--app-border); border-radius: 8px; background: #fff; color: var(--app-text); font: inherit; }
+
+
 .promotion-form textarea { min-height: 88px; resize: vertical; }
 .promotion-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
