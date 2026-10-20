@@ -226,9 +226,22 @@ jobs:
           uar = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(uar)
           contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
-          preview = uar.wait_for_preview(contract, os.environ.copy())
-          subprocess.run(['node', 'tests/employee-app-browser.mjs'], check=True,
-                         env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+          import traceback
+          def annotate(message):
+              message = message[-5000:].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print('::error title=Employee app Hosted Preview::' + message, flush=True)
+          try:
+              preview = uar.wait_for_preview(contract, os.environ.copy())
+              result = subprocess.run(['node', 'tests/employee-app-browser.mjs'], text=True,
+                                      capture_output=True, env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+              print(result.stdout, end='')
+              print(result.stderr, end='')
+              if result.returncode:
+                  annotate(result.stderr or result.stdout)
+              raise SystemExit(result.returncode)
+          except Exception:
+              annotate(traceback.format_exc())
+              raise
           PYTHON
 
       - name: Keep exact-head Preview screenshots and browser results
