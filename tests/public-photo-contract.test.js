@@ -33,7 +33,7 @@ for (const [number, source] of Object.entries(workplacePhotos)) {
   assert.ok(exists(source), `${source} 최신 일터 사진 자산이 존재합니다`);
 }
 assert.match(about, /data-photo-slot="07"[^>]*>[\s\S]*?<img src="images\/homepage\/photo-07\.webp"/, 'PHOTO 07은 회사소개 대표사진을 사용합니다');
-assert.match(about, /data-photo-slot="08"[^>]*>[\s\S]*?<img src="images\/homepage\/photo-08-about-preview\.webp"/, 'about PHOTO 08은 승인된 미리보기 파생본을 사용합니다');
+assert.match(about, /data-photo-slot="08"[^>]*>[\s\S]*?<img src="images\/homepage\/lee-younghee-portrait-2026\.webp"/, 'about PHOTO 08은 승인된 대표이사 프로필 사진을 사용합니다');
 assert.match(greeting, /<img src="images\/homepage\/photo-08\.webp" alt="농업회사법인 태장 주식회사 대표이사 이영희"/, '대표 인사말 상세는 공식 PHOTO 08을 사용합니다');
 
 const configuredSlots = [...photoSlots.matchAll(/^\s*'([0-9]{2})':\s*\{/gm)].map((match) => match[1]);

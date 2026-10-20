@@ -104,6 +104,7 @@ export const testGroups = Object.freeze({
     'tests/public-image-budget.test.js',
     'tests/public-hero-connection.test.js',
     'tests/public-photo-contract.test.js',
+    'tests/about-ceo-portrait.test.mjs',
     'tests/public-runtime-smoke.test.js',
     'tests/business-section-hierarchy.test.js',
     'tests/community-esg.test.js',
