@@ -1,0 +1,62 @@
+name: Homepage PHOTO 08 Preview QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'assets/js/homepage-live-overrides.js'
+      - 'supabase/migrations/*about_greeting_photo_slot.sql'
+      - 'tests/homepage-about-photo08-browser.mjs'
+      - 'tests/homepage-about-photo08-slot.test.mjs'
+      - '.github/workflows/homepage-about-photo08-qa.yml'
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: homepage-about-photo08-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  about-photo08:
+    name: PHOTO08 approved override and fallback Chrome QA
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install existing Chrome browser test dependency
+        run: |
+          command -v google-chrome || command -v google-chrome-stable
+          npm ci
+      - name: Resolve exact-HEAD deploy Preview
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util
+          import os
+          import pathlib
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as output:
+              output.write('ABOUT_PHOTO_QA_BASE=' + preview.rstrip('/') + '\n')
+          PYTHON
+      - name: Verify real PC/mobile image switch and static recovery without DB writes
+        env:
+          ABOUT_PHOTO_QA_OUTPUT: about-photo-qa-artifacts
+        run: node tests/homepage-about-photo08-browser.mjs
+      - name: Preserve screenshots and test outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: about-photo08-live-fallback-1440-390
+          path: about-photo-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
