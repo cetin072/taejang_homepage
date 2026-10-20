@@ -583,8 +583,10 @@
           currentBox.textContent = currentValue || '(빈 문구)';
           proposedBox.textContent = textArea.value || '(빈 문구)';
         } else {
-          currentValue = node.getAttribute('src') || '';
-          currentImageAlt = node.getAttribute('alt') || '';
+          // The public iframe loads its live override asynchronously; use the
+          // authenticated slot snapshot as the source of current applied data.
+          currentValue = activeSlot.live_value || node.getAttribute('src') || '';
+          currentImageAlt = activeSlot.live_image_alt || node.getAttribute('alt') || '';
           previewOriginal = { src: currentValue, alt: currentImageAlt };
           currentBox.textContent = `${currentValue}\n대체텍스트: ${currentImageAlt || '(없음)'}`;
           proposedBox.textContent = uploadedImageUrl ? `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}` : '새 사진을 선택해 주세요.';
