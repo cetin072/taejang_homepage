@@ -1,6 +1,33 @@
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
+// Media emulation updates the preference before the queued change handler has
+// necessarily updated the controls. Observe that user-visible transition before
+// switching back, otherwise rapid protocol calls can coalesce the change events.
+async function setReducedMotion(page, reduced) {
+  await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
+  await page.waitForFunction(expected => {
+    const controls = [...document.querySelectorAll('.employee-app-motion-controls')];
+    return matchMedia('(prefers-reduced-motion: reduce)').matches === expected
+      && controls.length === 3 && controls.every(el => {
+        const style = getComputedStyle(el);
+        return el.hidden === expected && (expected
+          ? style.display === 'none'
+          : style.display !== 'none' && style.visibility === 'visible' && el.getClientRects().length > 0);
+      });
+  }, reduced, { timeout: 1000 });
+  assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change leaves cards static');
+  if (reduced) assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
+  assert.equal(await page.locator('.employee-app-flip-inner').evaluateAll(els => els.reduce((n, el) => n + el.getAnimations().length, 0)), 0, 'preference change leaves no card animation');
+  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-state'), 'ended');
+  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-time'), '5200');
+  // Cross rendering frames after the handler: a restored control must not
+  // quietly schedule a new SVG/card playback without an explicit user action.
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  assert.equal(await page.locator('[data-hero-motion]').getAttribute('data-state'), 'ended', 'preference change does not replay HERO');
+  assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change does not replay cards');
+}
+
 export async function exerciseMotion(page, output, assertLayout) {
   const hero = page.locator('[data-hero-motion]');
   const replay = hero.locator('[data-hero-replay]');
@@ -51,26 +78,26 @@ export async function exerciseMotion(page, output, assertLayout) {
     assert.ok(faces.every(face => face.transform === 'none'));
     assert.ok(faces[0].b.bottom <= faces[1].b.top || faces[0].b.right <= faces[1].b.left, 'static faces do not overlap');
   }
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setReducedMotion(page, true);
   assert.equal(await page.locator('.is-flipping').count(), 0, 'live reduced-motion change reveals both sides');
   assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await setReducedMotion(page, false);
   assert.equal(await page.locator('.is-flipping').count(), 0, 'preference change does not replay');
   await hero.scrollIntoViewIfNeeded();
   await replay.click();
   await page.waitForTimeout(250);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setReducedMotion(page, true);
   await page.waitForFunction(() => document.querySelector('[data-hero-motion]').dataset.time === '5200', undefined, { timeout: 1000 });
   assert.equal(await hero.getAttribute('data-time'), '5200', 'live reduce interrupts SVG to its final frame');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await setReducedMotion(page, false);
   assert.equal(await hero.getAttribute('data-state'), 'ended');
   const firstCard = page.locator('[data-comparison]').first();
   await firstCard.scrollIntoViewIfNeeded();
   await firstCard.locator('[data-card-replay]').click();
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await setReducedMotion(page, true);
   await page.waitForFunction(() => !document.querySelector('.is-flipping'), undefined, { timeout: 1000 });
   assert.equal(await page.locator('.is-flipping').count(), 0, 'live reduce cancels a running card');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await setReducedMotion(page, false);
   await firstCard.locator('[data-card-replay]').click();
   await page.emulateMedia({ media: 'print' });
   await page.evaluate(() => dispatchEvent(new Event('beforeprint')));

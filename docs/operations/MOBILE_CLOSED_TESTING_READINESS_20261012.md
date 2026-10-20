@@ -1,5 +1,7 @@
 # 태장 직원앱 다음 Closed Testing 출시 준비 — 2026-10-12
 
+> 이 문서는 2026-10-12 준비 이력이다. 2026-10-19 Console 직접 확인에서 code5 사용을 확인했고, 현재 승인 후보는 0.1.5/code6이다. 최신 상태는 [Issue #484 출시 절차](ISSUE_484_PLAY_OPTIONAL_UPDATE_RELEASE.md) 및 Issue #484를 따른다.
+
 관련 Goal: [#368](https://github.com/cetin072/taejang_homepage/issues/368), [#369](https://github.com/cetin072/taejang_homepage/issues/369).
 기준 main: `c25973849dbb5f31a5bde4f80a255c49cf4eb661`.
 적용 기획: [GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md](../planning/GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md).
