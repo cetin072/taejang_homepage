@@ -24,7 +24,7 @@ create policy "public_read_optional_app_release" on public.mobile_optional_relea
 insert into public.mobile_optional_release_policy
   (singleton_id, enabled, latest_version, latest_version_code, update_title, update_message, store_url)
 values
-  (1, false, '0.1.5', 6, '새 버전이 있습니다',
-   '태장 앱의 새로운 버전이 나왔습니다. Google Play에서 업데이트해주세요.',
+  (1, false, '0.1.5', 6, '새로운 업데이트가 있습니다',
+   E'태장 직원앱의 새로운 버전이 나왔습니다.\n\n지금 업데이트하시겠습니까?',
    'https://play.google.com/store/apps/details?id=com.cetin072.taejang.staff')
 on conflict (singleton_id) do nothing;

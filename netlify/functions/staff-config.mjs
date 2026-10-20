@@ -17,7 +17,8 @@ function optionalText(value) {
 }
 
 function positiveInteger(value) {
-  const number = Number.parseInt(String(value || ''), 10);
+  const raw = String(value || '').trim();
+  const number = /^[1-9]\d*$/.test(raw) ? Number(raw) : NaN;
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 }
 
@@ -52,8 +53,6 @@ export function validOptionalRelease(row) {
     update_title: row.update_title,
     update_message: row.update_message,
     store_url: PLAY_URL,
-    minimum_version: null,
-    minimum_version_code: null,
     force_update: false,
   };
 }
@@ -94,7 +93,9 @@ export async function buildStaffConfig({ env = process.env, fetchImpl = fetch } 
 
   const isStaging = env.APP_ENV === 'staging';
   const environmentLabel = isStaging ? (env.APP_ENV_LABEL || '비운영 검수환경') : null;
-  const baseline = mobileReleasePolicy(env);
+  // V1 supplies optional notices only, including during an outage. Existing
+  // minimum/maintenance settings are owned by the separate baseline policy.
+  const baseline = { ...mobileReleasePolicy(env), force_update: false, store_url: PLAY_URL };
   const liveOptional = await loadRuntimeOptionalRelease(url, publishableKey, fetchImpl);
   return new Response(JSON.stringify({
     url,
