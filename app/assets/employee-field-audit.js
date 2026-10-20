@@ -216,7 +216,7 @@
     section.append(facts);
 
     const checkForm = document.createElement('form');
-    checkForm.className = 'employee-field-audit-form';
+    checkForm.className = 'employee-field-audit-form app-authoring';
     checkForm.append(node('h4','① 현장 확인 결과'));
     const checked = input('checkbox');
     checked.checked=Boolean(employee.identity_verified);
@@ -254,7 +254,7 @@
     });
     section.append(checkForm);
 
-    const photoSection=node('section',null,'employee-field-audit-form');
+    const photoSection=node('section',null,'employee-field-audit-form app-authoring');
     photoSection.append(node('h4','② 얼굴사진 촬영·등록'),
       node('p','업무용 직원 얼굴사진만 등록합니다. 주민등록증 등 증명서 사진은 이곳에 올리지 마세요.','help'));
     const photoMessage=node('p','', 'help');photoMessage.setAttribute('role','status');
@@ -295,7 +295,7 @@
 
     if (employee.can_edit_basic) {
       const basic=document.createElement('form');
-      basic.className='employee-field-audit-form';
+      basic.className='employee-field-audit-form app-authoring';
       basic.append(node('h4','③ 기본정보 교정'));
       const name=input('text',employee.full_name);name.maxLength=80;name.required=true;
       const hired=input('date',employee.hired_on);hired.required=true;
@@ -347,9 +347,11 @@
       .employee-field-audit-stat{display:flex;flex-direction:column;gap:4px;padding:15px;border:1px solid var(--app-border,#d3ddd6);border-radius:12px;background:#fff;}
       .employee-field-audit-stat strong{font-size:1.3rem;color:#124c37;}
       .employee-field-audit-filters{display:grid;grid-template-columns:2fr 1fr;gap:12px;}
-      .employee-field-audit-field{display:grid;gap:5px;min-width:0;font-weight:700;}
+      .employee-field-audit-filters .employee-field-audit-field{display:grid;gap:5px;min-width:0;font-weight:700;}
+      .employee-field-audit-filters :is(input,select){box-sizing:border-box;width:100%;min-height:44px;border:1px solid #afc3b8;border-radius:9px;padding:9px;background:#fff;font:inherit;}
+
       .employee-field-audit-field>span{font-size:.9rem;}
-      .employee-field-audit :is(input:not([type=checkbox]),select,textarea){box-sizing:border-box;width:100%;min-height:44px;border:1px solid #afc3b8;border-radius:9px;padding:9px;background:#fff;font:inherit;}
+
       .employee-field-audit-list{display:grid;gap:8px;}
       .employee-field-audit-row{display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:left;width:100%;min-height:74px;padding:12px 15px;background:#fff;border:1px solid #d8e2da;border-radius:11px;color:#233e31;cursor:pointer;}
       .employee-field-audit-row:hover,.employee-field-audit-row:focus-visible{outline:2px solid #2a7955;outline-offset:1px;}

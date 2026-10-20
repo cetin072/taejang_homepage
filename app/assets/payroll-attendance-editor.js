@@ -279,6 +279,7 @@
       const cell = getCell(employee, workDate);
       const term = currentTerm(employee.employee_uuid, workDate);
       const tr = document.createElement('tr');
+      tr.classList.add('app-authoring-inline');
       tr.innerHTML = `
         <td>${employee.employee_id || '—'}</td>
         <td class="payroll-attendance-name">${employee.name || '—'}</td>

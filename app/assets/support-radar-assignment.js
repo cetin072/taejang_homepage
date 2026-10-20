@@ -105,7 +105,7 @@
       const assignedIds=new Set(assignments.map(item=>item.profile_id));
       const available=candidates.filter(item=>!assignedIds.has(item.profile_id));
       if(available.length){
-        const controls=document.createElement('div'); controls.className='support-radar-grid';
+        const controls=document.createElement('div'); controls.className='support-radar-grid app-authoring-inline';
         const select=document.createElement('select'); select.setAttribute('aria-label','지원사업 담당자 선택');
         const first=document.createElement('option'); first.value=''; first.textContent='담당자 선택'; select.append(first);
         available.forEach(item=>{const option=document.createElement('option');option.value=item.profile_id;option.textContent=[item.display_name,item.department,item.position].filter(Boolean).join(' · ');select.append(option);});

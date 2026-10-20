@@ -1,0 +1,86 @@
+/* Single owner for administrative authoring. Opt in at the existing renderer;
+   no DOM observer, role renderer, field schema, or submission behaviour. */
+:root {
+  --authoring-gap: 14px;
+  --authoring-control-height: 44px;
+  --authoring-radius: 9px;
+  --authoring-stroke: #cfdcd4;
+  --authoring-accent: #50665c;
+  --authoring-surface: #fff;
+  --authoring-basic-accent: #225c8b;
+  --authoring-basic-stroke: #bcd6ed;
+  --authoring-basic-surface: #eff6fd;
+  --authoring-media-accent: #865a14;
+  --authoring-media-stroke: #ecd9ad;
+  --authoring-media-surface: #fff8ea;
+}
+.app-authoring, .app-authoring-inline { min-width:0; max-width:100%; color:var(--app-text,#1b3026); }
+.app-authoring, .app-authoring-inline, .app-authoring *, .app-authoring-inline * { box-sizing:border-box; }
+/* The shell ID raises only opted-in forms above legacy module control rules.
+   Dialogs and payroll standalone pages share the same declarations. */
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) .app-authoring {
+  display:grid; gap:var(--authoring-gap); margin-block:12px; padding:18px 20px;
+  border:1px solid var(--authoring-stroke); border-left:4px solid var(--authoring-basic-accent);
+  border-radius:var(--app-radius,14px); background:var(--authoring-surface);
+  line-height:1.5;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(label,.app-form-field) {
+  min-width:0; margin:0; display:grid; align-content:start; gap:6px;
+  font-size:.92rem; font-weight:750; line-height:1.5; overflow-wrap:anywhere;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select,textarea) {
+  box-sizing:border-box; width:100%; max-width:100%; min-width:0;
+  min-height:var(--authoring-field-height,var(--authoring-control-height)); padding:10px 12px;
+  border:1px solid var(--authoring-stroke); border-inline-start-width:var(--authoring-required-width,1px); border-radius:var(--authoring-radius);
+  background:#fff; color:var(--app-text,#1b3026); font:inherit; font-weight:400; line-height:1.5;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) textarea { --authoring-field-height:var(--authoring-textarea-height,120px); resize:vertical; }
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :required { --authoring-required-width:3px; }
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) label:has(> :is(input[type=checkbox],input[type=radio])) {
+  display:flex; align-items:center; gap:9px; min-height:var(--authoring-control-height); font-weight:650;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(input[type=checkbox],input[type=radio]) {
+  flex:0 0 22px; width:22px; height:22px; min-height:22px; margin:0; padding:0;
+  accent-color:var(--app-brand,#176e60);
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(input,select,textarea,button,summary):focus-visible {
+  outline:3px solid var(--focus,#e2a700); outline-offset:3px;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) .app-authoring :is(.help,.field-help,small) {
+  margin:0; color:var(--app-muted,#51665b); font-size:.85rem; font-weight:500; line-height:1.5; overflow-wrap:anywhere;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) .app-authoring :is(.error,.message.error) {
+  padding:9px 12px; border-left:3px solid #a23b32; border-radius:7px; background:#fff1ee; color:#862f29; overflow-wrap:anywhere;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) .app-authoring .app-form-section, .app-form-section, .app-authoring > .support-radar-section {
+  min-width:0; margin:0; padding:var(--authoring-section-padding,16px); display:grid; gap:var(--authoring-gap);
+  border:1px solid var(--authoring-stroke); border-left:4px solid var(--authoring-accent);
+  border-radius:var(--app-radius,14px); background:var(--authoring-surface);
+}
+.app-form-section--basic { --authoring-accent:var(--authoring-basic-accent); --authoring-stroke:var(--authoring-basic-stroke); --authoring-surface:var(--authoring-basic-surface); }
+.app-form-section--media { --authoring-accent:var(--authoring-media-accent); --authoring-stroke:var(--authoring-media-stroke); --authoring-surface:var(--authoring-media-surface); }
+.app-form-section > :is(h3,h4,legend) { margin:0; color:var(--authoring-accent); font-size:1rem; font-weight:800; }
+.app-form-section > legend { padding:0 6px; }
+.app-form-body { --authoring-textarea-height:240px; }
+.app-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--authoring-gap); min-width:0; }
+.app-form-wide { grid-column:1/-1; }
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(.form-actions,.quick-links,.app-form-actions,.mcd-actions,.payroll-handoff-action-row) {
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding-top:12px; border-top:1px solid var(--authoring-stroke);
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(.button,.payroll-button) {
+  min-width:0; max-width:100%; min-height:var(--authoring-control-height); padding:10px 14px;
+  border:1px solid var(--app-brand,#176e60); border-radius:var(--authoring-radius);
+  background:var(--app-brand,#176e60); color:#fff; font:inherit; font-weight:750;
+  white-space:normal; overflow-wrap:anywhere; line-height:1.5; cursor:pointer;
+}
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :is(.button-quiet,.secondary) { background:#fff; color:var(--app-brand,#176e60); }
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) .button-danger { background:#fff1ee; border-color:#a23b32; color:#862f29; }
+:is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :disabled { opacity:.6; cursor:not-allowed; }
+/* Never let grid/flex opt-in make permission-controlled or native hidden nodes visible. */
+:is(.app-authoring,.app-authoring-inline,.app-form-section)[hidden],
+:is(.app-authoring,.app-authoring-inline) [hidden] { display:none !important; }
+@media(max-width:760px) {
+  :is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) .app-authoring { padding:14px 12px; }
+  .app-form-grid { grid-template-columns:minmax(0,1fr); }
+  :root { --authoring-section-padding:12px; }
+}

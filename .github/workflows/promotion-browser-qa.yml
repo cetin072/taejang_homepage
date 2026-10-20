@@ -45,6 +45,19 @@ jobs:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
         run: node tests/admin-ui-browser.mjs
 
+      - name: Verify shared authoring controls and original functional gates
+        env:
+          AUTHORING_QA_OUTPUT: authoring-ui-qa-artifacts
+        run: node tests/admin-authoring-browser.mjs
+
+      - name: Keep shared authoring screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-authoring-1440-768-390-320
+          path: authoring-ui-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Run employee sorting and notice saved-result role QA
         env:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts

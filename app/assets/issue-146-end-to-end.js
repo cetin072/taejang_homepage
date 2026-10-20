@@ -64,7 +64,7 @@
       .issue146-card{display:grid;gap:10px;padding:16px;border:1px solid var(--app-border);border-radius:14px;background:#fff}
       .issue146-card h3,.issue146-card p{margin:0}.issue146-muted{color:var(--app-muted);font-size:.92rem}
       .issue146-section{display:grid;gap:14px}.issue146-form{display:grid;gap:12px;padding:18px;border:1px solid var(--app-border);border-radius:14px;background:#fff}
-      .issue146-form label{display:grid;gap:6px;font-weight:800}.issue146-form input,.issue146-form select,.issue146-form textarea{width:100%;min-height:44px;padding:9px 10px;border:1px solid var(--app-border);border-radius:9px;background:#fff;font:inherit}
+
       .issue146-form textarea{min-height:150px;resize:vertical}.issue146-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .issue146-preview{width:100%;height:560px;border:1px solid var(--app-border);border-radius:12px;background:#fff}.issue146-preview.mobile{width:390px;max-width:100%;margin-inline:auto;height:680px}
       .issue146-compare{display:grid;grid-template-columns:1fr 1fr;gap:12px}.issue146-compare>div{padding:14px;border:1px solid var(--app-border);border-radius:12px;background:#fafcfb;white-space:pre-wrap}
@@ -162,7 +162,7 @@
       const pendingGrid = el('div', null, 'issue146-grid');
       if (!arr(candidates).length) pendingGrid.append(el('p', '현재 보관할 공개 전 글이 없습니다.', 'message'));
       arr(candidates).forEach(item => {
-        const card = el('article', null, 'issue146-card');
+        const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', item.lifecycle || '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
         card.append(el('p', `${item.owner_name || '작성자 미확인'} · ${item.content_type || '홍보글'}`, 'issue146-muted'));
         const actions = el('div', null, 'quick-links');
@@ -197,7 +197,7 @@
         const archiveGrid = el('div', null, 'issue146-grid');
         if (!arr(archived).length) archiveGrid.append(el('p', '보관된 홍보글이 없습니다.', 'message'));
         arr(archived).forEach(item => {
-          const card = el('article', null, 'issue146-card');
+          const card = el('article', null, 'issue146-card app-authoring-inline');
           card.append(el('span', item.archive_kind === 'published' ? '공개 이력 있음' : '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
           card.append(el('p', ['published', 'hidden'].includes(item.previous_lifecycle)
             ? '복구 후: 숨김 상태 · 다시 공개하려면 별도 공개 처리가 필요합니다.'
@@ -279,7 +279,7 @@
       const recoveryGrid = el('div', null, 'issue146-grid');
       if (!arr(archivedEmployees).length) recoveryGrid.append(el('p', '현재 복구할 직원이 없습니다.', 'message'));
       arr(archivedEmployees).forEach(employee => {
-        const card = el('article', null, 'issue146-card');
+        const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', employee.employee_id, 'issue146-badge'), el('h3', employee.full_name));
         card.append(el('p', `${employee.department_name || '미배정'} · ${employee.position_name || ''}`, 'issue146-muted'));
         if (employee.archive_reason) card.append(el('p', `삭제 사유: ${employee.archive_reason}`));
@@ -308,7 +308,7 @@
       linksSection.append(el('h2', '직원 ↔ 로그인 계정 연결'));
       const linkGrid = el('div', null, 'issue146-grid');
       employees.filter(employee => !employee.archived).forEach(employee => {
-        const card = el('article', null, 'issue146-card');
+        const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', employee.employee_id, 'issue146-badge'), el('h3', employee.full_name));
         card.append(el('p', `${employee.department_name || '미배정'} · ${employee.position_name || ''}`, 'issue146-muted'));
         if (employee.linked_profile_id) {
@@ -349,7 +349,7 @@
       accounts.append(el('h2', '계정 상태·소속·직책·운영 역할'));
       const accountGrid = el('div', null, 'issue146-grid');
       profiles.forEach(profile => {
-        const card = el('article', null, 'issue146-card');
+        const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', profile.account_status, 'issue146-badge'), el('h3', profile.display_name || '이름 없음'));
         if (profile.work_email) card.append(el('p', profile.work_email, 'issue146-muted'));
 
@@ -519,7 +519,7 @@
       );
       shell.append(intro);
 
-      const form = el('section', null, 'issue146-form');
+      const form = el('section', null, 'issue146-form app-authoring');
       form.append(el('h2', '수정 초안'));
       const pageSelect = document.createElement('select');
       const pageKeys = [...new Set(slotList.map(slot => slot.page_key))];
@@ -672,7 +672,7 @@
       const requestGrid = el('div', null, 'issue146-grid');
       if (!arr(requests).length) requestGrid.append(el('p', '현재 수정 요청이 없습니다.', 'message'));
       arr(requests).forEach(request => {
-        const card = el('article', null, 'issue146-card');
+        const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', request.status, 'issue146-badge'), el('h3', request.slot_label || `${request.page_key} · ${request.section_key}`));
         if (request.current_summary) card.append(el('p', `변경 전: ${request.current_summary}`));
         if (request.proposed_text) card.append(el('p', `변경 후: ${request.proposed_text}`));

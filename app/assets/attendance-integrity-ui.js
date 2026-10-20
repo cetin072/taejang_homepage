@@ -141,9 +141,10 @@
         ? kstTime(currentRecord.event_at)
         : eventType === 'clock_in' ? '09:00' : '18:00';
       const dialog = document.createElement('dialog');
-      dialog.className = 'attendance-correction-dialog';
+      dialog.className = 'attendance-correction-dialog app-authoring-dialog';
       dialog.setAttribute('aria-labelledby', 'attendance-correction-dialog-title');
       const form = document.createElement('form');
+      form.classList.add('app-authoring');
       form.method = 'dialog';
       const title = node('h2', isSetTime
         ? `${eventType === 'clock_in' ? '출근' : '퇴근'} 시간 ${isMissingBackfill ? '추가' : '정정'}`

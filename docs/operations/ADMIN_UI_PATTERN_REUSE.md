@@ -30,8 +30,8 @@
 ## 소유권과 로딩
 
 - staff/assets/staff.css: 인증·직원 기본 UI. 전역 규칙은 변경하지 않는다.
-- app/assets/dashboard-shell.css: 관리자 shell, 기존 compact field, 반복 사용하는 summary/check/action/focus 규칙. #desktop-app-shell 안으로 범위를 제한한다.
-- app/assets/employee-management.css: 직원 목록/상세/사진/민감 섹션/전용 form. employee-management.js의 style 삽입을 제거하고 app/index.html에서 정적 로드한다.
+- app/assets/dashboard-shell.css: 관리자 shell, 기존 compact field와 summary. 관리자 작성 control/section/action/focus는 import하는 `admin-authoring.css`가 소유한다. 작성기별 적용·예외와 신규 규칙은 [관리자 작성 UI](ADMIN_AUTHORING_UI.md)를 따른다.
+- app/assets/employee-management.css: 직원 목록/상세/사진/민감 섹션의 고유 배치. 공통 form/label/control은 admin-authoring.css에 위임한다. employee-management.js의 style 삽입을 제거하고 app/index.html에서 정적 로드한다.
 - 나머지 모듈의 자체 레이아웃은 해당 모듈이 소유한다. accent theme/후처리 CSS에 이번 override를 쌓지 않는다.
 - 패키지·CDN·외부 CSS 요청 추가 0. 직원 CSS는 기존 JS 내 CSS를 분리한 정적 요청 1개이며 캐시 가능하다. 스타일은 JS 실행을 기다리지 않고 로드한다.
 - 불필요한 framework/adapter/component registry는 추가하지 않는다. upstream 전체 업데이트 대신 UI 담당자가 패턴과 접근성 근거를 변경 때 재검토한다.

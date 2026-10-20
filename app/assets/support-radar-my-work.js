@@ -83,7 +83,7 @@
         const nextAction=employeeNextAction(a.next_action);
         progress.append(text('p',`현재: ${statusLabel(a.status)}`));
         if(nextAction)progress.append(text('p',`다음 행동: ${nextAction}`,'support-radar-note'));
-        const controls=document.createElement('div');controls.className='support-radar-grid';
+        const controls=document.createElement('div');controls.className='support-radar-grid app-authoring-inline';
         const select=document.createElement('select');
         [['reviewing','검토 중'],['contacting_agency','기관 문의'],['collecting_documents','자료 수집'],['drafting_application','신청서 작성'],['ready_to_submit','제출 준비'],['submitted','제출 완료'],['selected','선정'],['not_selected','미선정'],['cancelled','취소']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;option.selected=value===a.status;select.append(option);});
         const next=document.createElement('input');next.type='text';next.maxLength=2000;next.placeholder='다음 행동 예: 공단 담당자에게 자격 문의';next.value=nextAction;

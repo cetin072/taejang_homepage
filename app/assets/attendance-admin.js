@@ -221,7 +221,7 @@
   }
 
   function dayStatusControl(row, workDate, confirmed) {
-    const wrap = el('div', null, 'attendance-day-status');
+    const wrap = el('div', null, 'attendance-day-status app-authoring-inline');
     const current = dayStatusCode(row);
     const select = document.createElement('select');
     select.setAttribute('aria-label', `${row.display_name || '직원'} 근태 상태`);
@@ -449,7 +449,7 @@
     );
     const list = el('div', null, 'attendance-unmatched-list');
     unmatched.forEach(item => {
-      const line = el('div', null, 'attendance-unmatched-row');
+      const line = el('div', null, 'attendance-unmatched-row app-authoring-inline');
       line.append(el('span', `${item.source_display_name || '이름 없음'} · ${item.source_employee_key || '외부번호 없음'} · 출근 ${time(item.clock_in_at)} / 퇴근 ${time(item.clock_out_at)}`));
       if (can('attendance.evidence_import') && item.source_employee_key) {
         const select = document.createElement('select');
