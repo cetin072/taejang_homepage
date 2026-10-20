@@ -20,7 +20,8 @@ for(const [kind,width,height] of [['pc',1440,1000],['mobile',390,844]]) {
  await page.setContent(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <style>body{box-sizing:border-box;margin:0;background:#f5f8f6;color:#173e2e;font:16px/1.5 Arial,sans-serif}
  .dashboard-main{padding:14px;margin:0 auto;max-width:1180px;min-width:0;}.button{padding:10px;border-radius:9px;border:1px solid #6d997d;min-height:44px;background:#eff6f0;cursor:pointer}</style>
- </head><body><main id="dashboard-main" class="dashboard-main"></main></body></html>`);
+ </head><body><div id="desktop-app-shell"><main id="dashboard-main" class="dashboard-main"></main></div></body></html>`);
+ await page.addStyleTag({path:'app/assets/admin-authoring.css'});
  await page.evaluate(()=>{
  const staff=Array.from({length:50},(_,i)=>({
  id:'fixture-456-'+i,employee_id:'TJ-000'+String(i+1).padStart(3,'0'),

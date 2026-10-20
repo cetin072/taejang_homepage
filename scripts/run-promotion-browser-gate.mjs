@@ -21,15 +21,18 @@ const fixtures=[
 ];
 const preview=String(process.env.PREVIEW_URL||'').replace(/\/$/,'');
 if(preview&&new URL(preview).protocol!=='https:')throw Error('PROMOTION_BROWSER_GATE_PREVIEW_MUST_BE_HTTPS');
-const browser=await chromium.launch({headless:true,args:['--allow-file-access-from-files'],
- ...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
+let browser,activeFixture='browser launch',diagnostics=[];
 try{
+ browser=await chromium.launch({headless:true,args:['--allow-file-access-from-files'],
+  ...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
  for(const [label,width,height] of [['PC',1440,1000],['MOBILE',390,844]]){
   for(const [file,marker] of fixtures){
+   activeFixture=label+':'+file;diagnostics=[];
    const fixture=path.join(root,'tests/browser',file);
    if(!existsSync(fixture))throw Error('PROMOTION_BROWSER_GATE_FIXTURE_MISSING:'+file);
    let target=fixture,tempDir=null;
    const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
+   page.on('pageerror',error=>diagnostics.push(String(error.stack||error)));
    try{
     if(preview){
      let html=readFileSync(fixture,'utf8');
@@ -53,5 +56,10 @@ try{
    }
   }
  }
-}finally{await browser.close();}
+}catch(error){
+ const message=[String(error.stack||error),...diagnostics].join('\n').slice(-5000)
+  .replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+ console.error('::error title=Promotion browser gate '+activeFixture+'::'+message);
+ throw error;
+}finally{await browser?.close();}
 console.log('PROMOTION_BROWSER_GATE_PASS');

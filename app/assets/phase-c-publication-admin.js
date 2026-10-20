@@ -159,7 +159,7 @@
       detail = item?.content_id ? await fetchPublicDetail(item.content_id) : null;
     }
     const form = document.createElement('form');
-    form.className = 'phase-c-board-form';
+    form.className = 'phase-c-board-form app-authoring';
     form.addEventListener('submit', event => event.preventDefault());
 
     const title = document.createElement('input');
@@ -252,7 +252,7 @@
     section.append(openArchive);
 
     const form = document.createElement('form');
-    form.className = 'phase-c-board-form';
+    form.className = 'phase-c-board-form app-authoring';
     form.addEventListener('submit', event => event.preventDefault());
     const url = document.createElement('input'); url.placeholder = '예: https://taejang.co.kr/archive.html#...'; url.maxLength = 2000;
     const currentTitle = document.createElement('input'); currentTitle.maxLength = 500;

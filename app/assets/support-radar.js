@@ -374,7 +374,7 @@
     root.append(header(profile.version ? `기업 프로필 v${profile.version} 수정` : '첫 기업 프로필 만들기', '저장할 때마다 새 버전이 만들어집니다. 과거 지원사업 평가는 당시 버전을 계속 참조합니다.', [button('취소', renderProfile, true)]));
 
     const form = document.createElement('form');
-    form.className = 'support-radar-form';
+    form.className = 'support-radar-form app-authoring';
 
     const basic = section('1. 회사 기본정보', '지원사업 자격 판정의 기본값입니다.');
     const basicGrid = document.createElement('div'); basicGrid.className = 'support-radar-grid';

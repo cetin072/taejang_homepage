@@ -56,11 +56,11 @@
     style.dataset.operationsPromotionWriter = '1';
     style.textContent = `
       .operations-writer { max-width:980px; padding:22px; border:1px solid var(--app-border); border-radius:16px; background:#fff; }
-      .operations-writer form { display:grid; gap:16px; }
-      .operations-writer label { display:grid; gap:7px; font-weight:800; }
-      .operations-writer input,.operations-writer select,.operations-writer textarea { width:100%; min-height:46px; padding:11px 12px; border:1px solid var(--app-border); border-radius:10px; background:#fff; color:var(--app-text); font:inherit; }
+
+
+
       .operations-writer textarea { min-height:280px; resize:vertical; line-height:1.7; }
-      .operations-writer-media { display:grid; gap:10px; padding:14px; border:1px solid var(--app-border); border-radius:12px; background:#f8faf9; }
+
       .operations-writer-media img { width:min(100%,520px); max-height:340px; object-fit:cover; border-radius:10px; }
       .operations-writer-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
       .operations-writer-card { padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
@@ -107,6 +107,7 @@
 
       const section = el('section', null, 'operations-writer');
       const form = document.createElement('form');
+      form.classList.add('app-authoring');
       form.addEventListener('submit', event => event.preventDefault());
       const type = select([
         ['homepage_article', '태장 소식'],
@@ -117,10 +118,11 @@
       const title = input(); title.maxLength = 160; title.value = current?.title || ''; title.placeholder = '제목을 입력하세요';
       const external = input('url'); external.maxLength = 1000; external.value = current?.external_url || ''; external.placeholder = 'https://...';
       const date = input('date'); date.value = current?.requested_publish_date || '';
-      const body = document.createElement('textarea'); body.maxLength = 30000; body.value = current?.public_body || ''; body.placeholder = '본문을 입력하세요.';
+      const body = document.createElement('textarea');
+    body.classList.add('app-form-body'); body.maxLength = 30000; body.value = current?.public_body || ''; body.placeholder = '본문을 입력하세요.';
       const externalWrap = field('외부 링크', external, '외부 기사·콘텐츠를 선택했을 때만 사용합니다.');
 
-      const mediaBox = el('div', null, 'operations-writer-media');
+      const mediaBox = el('div', null, 'operations-writer-media app-form-section app-form-section--media');
       const file = input('file'); file.accept = 'image/jpeg,image/png,image/webp,image/gif';
       const alt = input(); alt.maxLength = 300; alt.placeholder = '사진 설명';
       let imageUrl = current?.hero_image_url || null;

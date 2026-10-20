@@ -41,7 +41,7 @@
         if(data.latest_review){panel.append(text('p',`${data.latest_review.reviewer_name||'담당자'} · ${reviewKindLabel(data.latest_review.review_kind)}${data.latest_review.note?` · ${data.latest_review.note}`:''}`,'support-radar-note'));}
       }
       if(canMark()){
-        const controls=document.createElement('div');controls.className='support-radar-grid';
+        const controls=document.createElement('div');controls.className='support-radar-grid app-authoring-inline';
         const kind=document.createElement('select');
         [['initial','초기 검토'],['eligibility','자격 검토'],['application','신청 준비 검토'],['result','결과 검토'],['other','기타 검토']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;kind.append(option);});
         const note=document.createElement('input');note.type='text';note.maxLength=2000;note.placeholder='검토 메모(선택)';

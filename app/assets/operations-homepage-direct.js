@@ -83,9 +83,9 @@
       .operations-homepage-entry button { min-height:120px; padding:20px; border:1px solid var(--app-border); border-radius:16px; background:#fff; text-align:left; cursor:pointer; }
       .operations-homepage-entry strong { display:block; margin-bottom:8px; font-size:1.15rem; }
       .operations-homepage-form { max-width:900px; padding:22px; border:1px solid var(--app-border); border-radius:16px; background:#fff; }
-      .operations-homepage-form form { display:grid; gap:16px; }
-      .operations-homepage-form label { display:grid; gap:7px; font-weight:800; }
-      .operations-homepage-form input,.operations-homepage-form select,.operations-homepage-form textarea { width:100%; min-height:46px; padding:11px 12px; border:1px solid var(--app-border); border-radius:10px; background:#fff; color:var(--app-text); font:inherit; }
+
+
+
       .operations-homepage-form textarea { min-height:150px; resize:vertical; line-height:1.65; }
       .operations-homepage-preview { display:grid; gap:10px; padding:14px; border:1px solid var(--app-border); border-radius:12px; background:#f8faf9; }
       .operations-homepage-preview img { width:min(100%,520px); max-height:340px; object-fit:cover; border-radius:10px; }
@@ -152,6 +152,7 @@
       intro.append(el('p', '운영총괄 전용', 'eyebrow'), el('h2', title), el('p', '저장하면 승인 절차 없이 홈페이지에 바로 반영됩니다. 변경이력은 감사로그에 남고 언제든 기본값으로 되돌릴 수 있습니다.'));
       const formWrap = el('section', null, 'operations-homepage-form');
       const form = document.createElement('form');
+      form.classList.add('app-authoring');
       form.addEventListener('submit', event => event.preventDefault());
       const slot = select(options);
       const currentBox = el('div');

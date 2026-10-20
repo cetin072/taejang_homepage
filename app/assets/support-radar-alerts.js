@@ -115,7 +115,7 @@
     const rareLabel=document.createElement('label'); rareLabel.className='check-label'; rareLabel.append(rare,document.createTextNode(' 희소 전국공모'));
     const forceLabel=document.createElement('label'); forceLabel.className='check-label'; forceLabel.append(force,document.createTextNode(' 긴급 확인에 반드시 표시'));
     const note=document.createElement('input'); note.type='text'; note.maxLength=1000; note.placeholder='표시 이유 또는 확인 메모'; note.value=data.note||'';
-    const controls=document.createElement('div'); controls.className='support-radar-grid'; controls.append(rareLabel,forceLabel,note,button('중요 표시 저장',()=>saveFlags(rare.checked,force.checked,note.value)));
+    const controls=document.createElement('div'); controls.className='support-radar-grid app-authoring-inline'; controls.append(rareLabel,forceLabel,note,button('중요 표시 저장',()=>saveFlags(rare.checked,force.checked,note.value)));
     panel.append(controls);
 
     const evalHeading=headings.find(node=>node.textContent==='태장 적합도');

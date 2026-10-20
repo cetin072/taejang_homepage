@@ -94,22 +94,21 @@
       .phase-c-v2-card .quick-links { margin-top:auto; }
       .phase-c-board-composer { max-width:980px; padding:24px; border:1px solid var(--app-border); border-radius:16px; background:#fff; box-shadow:0 5px 16px rgba(22,53,38,.04); }
       .phase-c-board-form { display:grid; gap:18px; }
-      .phase-c-board-form label { display:grid; gap:7px; font-weight:800; }
-      .phase-c-board-form input,.phase-c-board-form select,.phase-c-board-form textarea { width:100%; min-height:46px; padding:11px 12px; border:1px solid var(--app-border); border-radius:10px; background:#fff; color:var(--app-text); font:inherit; }
+
+
       .phase-c-board-form textarea { min-height:330px; resize:vertical; line-height:1.75; }
-      [data-composer-layout="writing-first"] .phase-c-board-form label { margin:0; }
       [data-composer-layout="writing-first"] .phase-c-board-form>h3 { margin:0; }
       .phase-c-composer-options { align-items:start; }
       .phase-c-schedule-field { max-width:360px; }
       .phase-c-board-form .phase-c-schedule-field[hidden] { display:none; }
       .phase-c-composer-options>label[hidden] { display:none; }
-      .phase-c-composer-preview { padding:14px; border:1px solid var(--app-border); border-radius:12px; overflow-wrap:anywhere; }
+      .phase-c-composer-preview { overflow-wrap:anywhere; }
       .phase-c-composer-preview .promotion-preview-panel { margin:0; }
       .phase-c-composer-preview .promotion-preview-panel>img { max-width:100%; max-height:360px; object-fit:contain; }
       .phase-c-photo-order { display:flex; flex-wrap:wrap; gap:6px; }
       .phase-c-board-row { display:grid; grid-template-columns:minmax(180px,.4fr) 1fr; gap:14px; }
       .phase-c-board-row.phase-c-composer-options { grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr)); }
-      .phase-c-editor-shell { border:1px solid var(--app-border); border-radius:12px; overflow:hidden; background:#fff; }
+      .phase-c-editor-shell { overflow:hidden; }
       .phase-c-editor-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:10px; border-bottom:1px solid var(--app-border); background:#f7faf8; }
       .phase-c-editor-toolbar .button { min-height:40px; padding:8px 12px; }
       .phase-c-editor-shell textarea { border:0; border-radius:0; outline:none; }
@@ -412,7 +411,7 @@
     section.append(el('p', existingItem ? '보완할 내용을 고쳐 새 수정본으로 저장합니다. 이전 제출본은 그대로 보존됩니다.' : '제목과 본문을 작성하고 사진을 첨부하세요.', 'help'));
 
     const form = document.createElement('form');
-    form.className = 'phase-c-board-form';
+    form.className = 'phase-c-board-form app-authoring';
     form.addEventListener('submit', event => event.preventDefault());
 
     const operationsAuthor = roleUi.chooseByline;
@@ -492,10 +491,11 @@
     // Optional link tools follow the writing area; they do not select the workflow.
 
     const body = document.createElement('textarea');
+    body.classList.add('app-form-body');
     body.value = existingItem?.public_body || '';
     body.maxLength = 30000;
     body.placeholder = '본문을 입력하세요. 아래 ‘사진 추가’ 버튼으로 사진도 함께 올릴 수 있습니다.';
-    const editor = el('div', null, 'phase-c-editor-shell');
+    const editor = el('div', null, 'phase-c-editor-shell app-form-section app-form-section--media app-form-body');
     const toolbar = el('div', null, 'phase-c-editor-toolbar');
     const uploadLabel = el('label', null, 'button button-quiet');
     uploadLabel.textContent = '사진 추가';
@@ -510,7 +510,7 @@
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
     const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: !existingItem?.hero_image_url || media.some(entry => entry.url === existingItem.hero_image_url), heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
-    const livePreview = el('section', null, 'phase-c-composer-preview');
+    const livePreview = el('section', null, 'phase-c-composer-preview app-form-section');
     livePreview.dataset.composerPreview = '1';
     function renderLivePreview() {
       livePreview.replaceChildren(el('h3', '게시글 미리보기'), previewCard({
@@ -560,7 +560,7 @@
     form.append(externalWrap);
 
     const actions = el('div', null, 'quick-links');
-    const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem));
+    const save = button(existingItem ? '수정본 저장' : '임시저장', () => savePromotion(state, false, existingItem), true);
     const leadAuthor = currentRole === 'promotion_lead';
     const submitLabel = leadAuthor
       ? (existingItem ? '저장 후 운영총괄 재승인 요청' : '저장 후 운영총괄 승인 요청')
@@ -875,10 +875,11 @@
     const intro = renderIntro('홍보 검토', '홍보자료 직접 수정', '선택한 검토 건만 별도 화면에서 수정합니다. 카드가 길어지는 방식은 사용하지 않습니다.');
     const section = el('section', null, 'dashboard-section phase-c-edit-page');
     const title = input(); title.value = detail.title || ''; title.maxLength = 160; title.required = true;
-    const body = document.createElement('textarea'); body.value = detail.public_body || ''; body.rows = 14; body.maxLength = 30000;
+    const body = document.createElement('textarea');
+    body.classList.add('app-form-body'); body.value = detail.public_body || ''; body.rows = 14; body.maxLength = 30000;
     const external = input('url'); external.value = detail.external_url || '';
     const date = input('date'); date.value = detail.requested_publish_date || '';
-    const form = el('form', null, 'phase-c-board-form');
+    const form = el('form', null, 'phase-c-board-form app-authoring');
     form.addEventListener('submit', event => event.preventDefault());
     form.append(field('제목', title), field('본문', body));
     form.append(field('연결 링크 (선택)', external, '네이버 블로그·유튜브·인터넷 기사 등 관련 주소를 연결할 수 있습니다.'));

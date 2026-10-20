@@ -197,7 +197,7 @@
       : selectControl([{ id: 'existing', name: '기존 직원 연결' }], '승인 방식 선택');
     mode.value = 'existing';
 
-    const form = el('div', null, 'phase-c-signup-approval-form');
+    const form = el('div', null, 'phase-c-signup-approval-form app-authoring');
     const employeeOptions = employees.map(item => ({
       id: item.employee_uuid,
       name: `${item.employee_id} · ${item.full_name} (${item.department_name || '-'}, 입사 ${item.hired_on || '-'})`
@@ -260,7 +260,7 @@
 
     const help = el('p', '기존 직원 연결은 직원번호·입사일·근태·급여 기록을 그대로 유지합니다. 신규 직원 생성은 운영총괄만 별도로 선택할 수 있습니다.', 'help');
 
-    const actions = el('div', null, 'quick-links');
+    const actions = el('div', null, 'quick-links app-authoring-inline');
     const controls = { mode, employee, employees, employeeInfo, confirmEmployeeId, identityConfirmed,
       mismatchConfirmed, department, position, role, attendance, reason };
     const approveButton = button('기존 직원 연결 후 가입 승인', () => approve(profile, controls, card));
@@ -322,8 +322,6 @@
       '.phase-c-signup-applicant-item{display:grid;gap:3px;min-width:0;}',
       '.phase-c-signup-applicant dt{font-size:.82rem;font-weight:900;color:#52665b}.phase-c-signup-applicant dd{margin:0;font-weight:700;overflow-wrap:anywhere;}',
       '.phase-c-signup-approval-form{display:grid;gap:10px;margin-top:4px;}',
-      '.phase-c-signup-approval-form label{display:grid;gap:5px;margin:0;min-width:0;font-weight:800;}',
-      '.phase-c-signup-approval-form select,.phase-c-signup-approval-form input[type="text"]{width:100%;min-width:0;min-height:44px;padding:9px 10px;border:1px solid var(--app-border);border-radius:9px;background:#fff;font:inherit;}',
       '.phase-c-signup-reasons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}',
       '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:44px;}',
       '.phase-c-signup-check input{width:22px;min-height:22px;height:22px;margin:0;padding:0;}',
