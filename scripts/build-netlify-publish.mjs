@@ -1,6 +1,7 @@
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { generatePublicArticles } from './generate-public-articles.mjs';
+import { localizeOfficialThumbnails } from './localize-official-thumbnails.mjs';
 
 const repoRoot = process.cwd();
 const outputRoot = path.resolve(process.env.TAEJANG_PUBLISH_DIR || path.join(repoRoot, 'dist'));
@@ -92,5 +93,6 @@ for (const directory of PUBLIC_DIRECTORIES) await copyRequiredDirectory(director
 for (const file of REQUIRED_BINARY_FILES) await copyRequiredFile(file);
 
 const generated = await generatePublicArticles({ repoRoot, outputRoot });
+await localizeOfficialThumbnails({ outputRoot });
 console.log(`Generated ${generated.pages} search-ready public article pages`);
 console.log(`Netlify publish bundle created at ${outputRoot}`);

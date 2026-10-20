@@ -68,6 +68,28 @@ jobs:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
         run: node tests/notice-authoring-browser.mjs
 
+      - name: Capture notice management before change
+        if: github.event_name == 'pull_request'
+        env:
+          NOTICE_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
+          NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
+        run: |
+          git fetch --no-tags --depth=1 origin "$NOTICE_BASELINE_REF"
+          node tests/notice-management-browser.mjs
+
+      - name: Run notice history, same-ID correction and archive role QA
+        env:
+          NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
+        run: node tests/notice-management-browser.mjs
+
+      - name: Keep notice history PC and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notice-history-390-1440
+          path: notice-history-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Run promotion composer exact viewport QA
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
@@ -135,6 +157,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Verify exact-head Preview origin normalization
+        run: python3 tests/preview-status-origin-test.py
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

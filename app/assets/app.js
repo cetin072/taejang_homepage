@@ -108,18 +108,29 @@
     window.location.replace(`../staff/${query}`);
   }
 
-  async function request(path, { method = 'GET', body } = {}) {
+  let sessionRefresh = null;
+  async function request(path, { method = 'GET', body } = {}, retryAuthentication = true) {
+    const requestToken = state.session?.access_token;
+    const requestUser = state.session?.user?.id;
     const response = await fetch(`${state.config.url}${path}`, {
       method,
       headers: {
         apikey: state.config.publishableKey,
-        Authorization: `Bearer ${state.session.access_token}`,
+        Authorization: `Bearer ${requestToken}`,
         'Content-Type': 'application/json'
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     });
     const payload = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) {
+      // JWT claims are rejected before RPC execution. Refresh and retry once;
+      // network/5xx/permission failures must never replay a business write.
+      if (retryAuthentication && path.startsWith('/rest/v1/rpc/') && response.status === 401 && payload?.code === 'PGRST303') {
+        const alreadyRefreshed = state.session?.access_token && state.session.access_token !== requestToken;
+        if ((alreadyRefreshed || await refreshSession()) && (!requestUser || state.session?.user?.id === requestUser)) {
+          return request(path, { method, body }, false);
+        }
+      }
       const error = new Error(payload?.message || payload?.msg || `REQUEST_${response.status}`);
       error.status = response.status;
       error.code = typeof payload?.code === 'string' ? payload.code : null;
@@ -133,30 +144,34 @@
   }
 
   async function refreshSession() {
+    if (sessionRefresh) return sessionRefresh;
     if (!state.session?.refresh_token) return false;
-    try {
-      const response = await fetch(`${state.config.url}/auth/v1/token?grant_type=refresh_token`, {
-        method: 'POST',
-        headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: state.session.refresh_token })
-      });
-      if (!response.ok) throw new Error('REFRESH_FAILED');
-      state.session = await response.json();
-      storeSession(state.session);
-      return true;
-    } catch {
-      clearSession();
-      return false;
-    }
+    const refreshingSession = state.session;
+    sessionRefresh = (async () => {
+      try {
+        const response = await fetch(`${state.config.url}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshingSession.refresh_token })
+        });
+        if (!response.ok) throw new Error('REFRESH_FAILED');
+        const refreshed = await response.json();
+        // A late refresh must not resurrect a logged-out/replaced account.
+        if (state.session !== refreshingSession) return false;
+        storeSession(refreshed);
+        return true;
+      } catch {
+        if (state.session === refreshingSession) clearSession();
+        return false;
+      } finally {
+        sessionRefresh = null;
+      }
+    })();
+    return sessionRefresh;
   }
 
   async function context() {
-    try {
-      return await rpc('get_my_access_context');
-    } catch (error) {
-      if (error.status === 401 && await refreshSession()) return rpc('get_my_access_context');
-      throw error;
-    }
+    return rpc('get_my_access_context');
   }
 
   function roleCodes() {

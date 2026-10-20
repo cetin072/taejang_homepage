@@ -56,8 +56,7 @@
 
   function currentPageName() {
     const path = window.location.pathname.split('/').filter(Boolean).pop() || 'index.html';
-    if (path === 'employee-app') return 'employee-app.html'; // Netlify clean URL
-    return path.endsWith('.html') ? path : 'index.html';
+    return path.endsWith('.html') ? path : path + '.html'; // Netlify clean URLs
   }
 
   function normalizedHref(link) {
@@ -65,7 +64,8 @@
       .split(/[?#]/)[0]
       .replace(/^\.\//, '')
       .replace(/^\//, '');
-    return normalized === 'employee-app' ? 'employee-app.html' : normalized;
+    if (normalized === 'staff') return 'staff/';
+    return normalized && !normalized.includes('.') && !normalized.endsWith('/') ? normalized + '.html' : normalized;
   }
 
   function isCurrentNavigationTarget(page, targetPage, href) {
@@ -78,7 +78,9 @@
     if (!nav) return;
     contract.forEach(([href, label]) => {
       const found = [...nav.querySelectorAll(':scope > a')].some(link => {
-        return normalizedHref(link) === href && link.textContent.trim() === label;
+        const title = (link.querySelector('.nav-entry-label') || link).textContent.trim();
+        const expected = nav.hasAttribute('data-mobile-nav') && href === 'employee-app.html' ? '직원앱 안내' : label;
+        return normalizedHref(link) === href && title === expected;
       });
       if (!found) console.warn(`${scopeLabel} 정적 링크 누락: ${label} (${href})`);
     });
@@ -104,35 +106,17 @@
 
   function syncEmployeeEntry() {
     document.querySelectorAll('.desktop-nav, [data-mobile-nav]').forEach(nav => {
-      let link = [...nav.querySelectorAll(':scope > a')].find(candidate => {
+      const link = [...nav.querySelectorAll(':scope > a')].find(candidate => {
         return candidate.classList.contains('staff-nav') || normalizedHref(candidate) === 'staff/';
       });
-      if (!employeeEntryEnabled()) {
-        link?.remove();
+      if (!link) {
+        console.warn('공개 메뉴 정적 링크 누락: 임직원 (staff/)');
         return;
       }
-      if (!link) {
-        link = document.createElement('a');
-        nav.appendChild(link);
-      }
-      link.href = 'staff/';
-      link.textContent = '임직원';
-      link.classList.add('staff-nav');
-      link.classList.remove('nav-cta');
+      // HTML owns labels and order on both surfaces. This gate only controls
+      // optional pilot visibility; it is not an authentication boundary.
+      link.hidden = !employeeEntryEnabled();
       link.removeAttribute('aria-current');
-      link.setAttribute('aria-label', '임직원 페이지');
-      // Desktop sign-in stays last; on mobile the lower-priority app guide follows sign-in.
-      if (nav === document.querySelector('[data-mobile-nav]')) {
-        const guideLink = [...nav.querySelectorAll(':scope > a')].find(candidate =>
-          candidate.classList.contains('employee-app-nav') || normalizedHref(candidate) === 'employee-app.html'
-        );
-        if (guideLink) {
-          const links = [...nav.querySelectorAll(':scope > a')];
-          if (links.indexOf(link) !== links.indexOf(guideLink) - 1) nav.insertBefore(link, guideLink);
-        } else if (nav.lastElementChild !== link) nav.appendChild(link);
-      } else if (nav.lastElementChild !== link) {
-        nav.appendChild(link);
-      }
     });
   }
 

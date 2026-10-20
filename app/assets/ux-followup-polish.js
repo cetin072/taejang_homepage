@@ -15,6 +15,9 @@
 
   function simplifyNoticeForm() {
     const form = byId('notice-form');
+    // The canonical editor already owns period/link placement and validation.
+    // Do not move its controls into a second, independently managed details UI.
+    if (form?.dataset.noticeEditorOwner === 'notice-admin') return true;
     if (!form || form.dataset.progressiveDisclosure) return false;
     form.dataset.progressiveDisclosure = '1';
 

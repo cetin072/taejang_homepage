@@ -1,0 +1,273 @@
+{
+  "scope": "shared header only; whole-landing checks run separately",
+  "cases": 38,
+  "results": [
+    {
+      "file": "about.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "archive.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "business.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "community-esg.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "employee-app.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "greeting.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "index.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "location.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "partnership.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "promotion.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "resources.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "why-minhwa.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "workplace.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/environment-cleanup-first.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/environment-cleanup-second.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/environment-cleanup-third.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/new-workplace-opening.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/staff-birthday-2026-08.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/standard-workplace-certification.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities/terrarium-business-start-2026-08.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "workplace/minhwa-one-stroke.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "workplace/packing-care.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "workplace/work-together.html",
+      "width": 1440,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "about.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "activities.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "archive.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "business.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "community-esg.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "employee-app.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "greeting.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "index.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "location.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "partnership.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "promotion.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "resources.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "why-minhwa.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    },
+    {
+      "file": "workplace.html",
+      "width": 390,
+      "firstPaintOrder": true,
+      "noRuntimeReorder": true
+    }
+  ],
+  "clickRoutes": [
+    "about.html",
+    "business.html",
+    "workplace.html",
+    "archive.html",
+    "partnership.html",
+    "staff/",
+    "employee-app.html"
+  ],
+  "credentialsSubmitted": false,
+  "externalBodyImages": {
+    "count": 28,
+    "hosts": [
+      "blogthumb.pstatic.net"
+    ],
+    "errors": [
+      "net::ERR_BLOCKED_BY_ORB"
+    ],
+    "status": "unchanged archive feed image warnings; not header verification"
+  },
+  "landing": {
+    "viewports": [
+      1440,
+      1120,
+      1001,
+      768,
+      720,
+      390,
+      360,
+      320
+    ],
+    "heroMs": 5200,
+    "cardReadMs": 2000,
+    "cardTurnMs": 1000,
+    "noJS": true,
+    "reducedMotion": true,
+    "text200": true,
+    "loginMockOnly": true
+  }
+}

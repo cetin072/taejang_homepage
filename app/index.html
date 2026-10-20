@@ -410,19 +410,35 @@
       <div class="section-heading">
         <div><p class="eyebrow">관리자 공지</p><h2 id="notice-admin-title">공지 작성·검토·게시</h2></div>
         <div class="notice-admin-actions" role="group" aria-label="공지 관리 작업">
-          <button id="new-notice-admin" class="button" type="button">새 공지 작성</button>
-          <button id="refresh-notice-admin" class="button button-quiet" type="button">공지 새로고침</button>
+          <button id="new-notice-admin" class="button" type="button">+ 공지 등록</button>
+          <button id="archive-notice-admin" class="button button-quiet" type="button">보관함</button>
+          <button id="back-notice-admin" class="button button-quiet" type="button" hidden>공지 관리로 돌아가기</button>
+          <button id="refresh-notice-admin" class="button button-quiet" type="button" aria-label="공지 새로고침" title="공지 새로고침">↻</button>
         </div>
       </div>
       <p class="easy-writing-help">운영총괄은 공지를 직접 작성·게시할 수 있습니다. 필요한 내용은 충분히 적고, 읽기 편하도록 문단과 줄바꿈을 사용하세요. 사진 자료는 공지 본문과 함께 직원 화면에 표시됩니다.</p>
       <p id="notice-admin-message" class="message" role="status" aria-live="polite" hidden></p>
       <section id="notice-manage-section" class="notice-manage-section" aria-labelledby="notice-manage-title">
         <h3 id="notice-manage-title">등록된 공지</h3>
+        <form id="notice-list-filters" class="notice-list-filters" role="search">
+          <label>제목 검색<input id="notice-list-search" type="search" maxlength="120" placeholder="공지 제목"></label>
+          <label>상태<select id="notice-list-status"><option value="">모든 상태</option>
+            <option value="active">게시 중</option><option value="scheduled">예약 게시</option><option value="review">검토 대기</option>
+            <option value="draft">비공개 초안</option><option value="expired">게시기간 종료</option>
+            <option value="cancelled">취소</option><option value="inactive">사용 중지</option><option value="archived">보관</option>
+          </select></label>
+          <label>시작일 (KST)<input id="notice-list-from" type="date"></label>
+          <label>종료일 (KST)<input id="notice-list-until" type="date"></label>
+          <button class="button button-quiet" type="submit">검색</button>
+          <button id="notice-clear-filters" class="button button-quiet" type="button">초기화</button>
+        </form>
+        <p id="notice-list-summary" class="help" role="status"></p>
         <div id="notice-admin-list" class="card-list"></div>
+        <button id="notice-list-more" class="button button-quiet" type="button" hidden>공지 더 보기</button>
       </section>
       <details id="notice-editor-card" class="editor-card" open>
         <summary>공지 작성·수정</summary>
-        <form id="notice-form" class="app-compact-container">
+        <form id="notice-form" class="app-compact-container" data-notice-editor-owner="notice-admin">
           <input id="notice-id" type="hidden">
           <section class="notice-period" aria-label="게시 기간">
             <div class="notice-period-heading">

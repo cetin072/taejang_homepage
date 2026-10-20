@@ -286,13 +286,8 @@
       restoreRpc: 'restore_schedule_item', idArg: 'p_schedule_id',
       load: () => app().rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
     });
-    decorateIndexedList({
-      key: 'notices', listId: 'notice-admin-list', refreshId: 'refresh-notice-admin',
-      dataAttribute: 'ops-recovery-notice', archiveSectionAttribute: 'ops-archive-notice',
-      kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice',
-      restoreRpc: 'restore_notice', idArg: 'p_notice_id',
-      load: () => app().rpc('list_manageable_notices', { p_limit: 200 })
-    });
+    // Notice list/archive/filter ownership belongs to notice-admin. A second
+    // query paired by array index can target the wrong ID after sorting.
     decorateIndexedList({
       key: 'guidance', listId: 'guidance-admin-list', refreshId: 'refresh-guidance-admin',
       dataAttribute: 'ops-recovery-guidance', archiveSectionAttribute: 'ops-archive-guidance',
@@ -336,5 +331,16 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
 
+  window.TaejangRecoveryControls = {
+    decorateNoticeCard(item, card, refresh) {
+      if (!isOperations()) return;
+      const config = { kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice', restoreRpc: 'restore_notice', idArg: 'p_notice_id' };
+      const actions = card.querySelector('.notice-row-actions');
+      if (!actions) return;
+      if (item.can_archive === true) actions.append(actionButton('보관', () => archiveItem({ config, item, refresh })));
+      if (item.can_restore === true) actions.append(actionButton('복구', () => restoreItem({ config, item, refresh })));
+      appendHistoryButton(config, item, card, actions);
+    }
+  };
   window.TaejangOperationsDeleteControls = { sync };
 })();

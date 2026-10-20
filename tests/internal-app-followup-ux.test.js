@@ -263,6 +263,8 @@ test('admin panels mount inside the app workspace before they can open', () => {
 });
 
 test('notice authoring keeps a short default form and moves optional fields into details once', () => {
+  assert.match(source, /form\?\.dataset\.noticeEditorOwner === 'notice-admin'/);
+  assert.match(read('app/index.html'), /data-notice-editor-owner="notice-admin"/);
   assert.match(source, /상세 설정 · 필요할 때만/);
   assert.match(source, /제목·중요도·게시 시작·대상·내용만 먼저 적으세요/);
   for (const id of [
