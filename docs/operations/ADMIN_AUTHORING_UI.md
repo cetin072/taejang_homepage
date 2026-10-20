@@ -2,7 +2,7 @@
 
 상태: 사용자 요청에 따른 구현, Draft 검증 단계. 운영총괄을 기준으로 같은 렌더러를 재사용한다. main 병합·Production 배포·고정 QA 교체는 별도 최종 승인 전 실행하지 않는다.
 
-기준 main: `b4df2ed66e03a8ba2e00efe56b079445b78dba7c`. PR #487의 section/summary/check/action, #490의 직원사진·정렬, #491의 공지 목록/동일 ID 재조회 계약을 기준으로 조사했다. API의 PR 본문/리뷰 조회는 현재 네트워크 정책으로 차단되어 Git에 병합된 실제 변경과 문서를 읽었다.
+기준 main: `b4df2ed66e03a8ba2e00efe56b079445b78dba7c`. PR #487의 section/summary/check/action, #490의 직원사진·정렬, #491의 공지 목록/동일 ID 재조회 계약을 기준으로 조사했다. 조사 시 API 접근이 차단되어 Git의 실제 병합 변경과 문서를 읽었다. 이후 API가 복구되어 Draft PR #494를 생성했다.
 
 ## 단일 소유자
 
@@ -105,7 +105,7 @@
 
 ## 검증 경계
 
-- `tests/admin-authoring-browser.mjs`: 실제 HTML 폼 7개와 직원등록·가입승인·홍보작성·지원 프로필 렌더러, 1440/768/390/320px, 44px 입력/22px checkbox/공통 radius 토큰 변경 전파/hidden 보존/가로 넘침. 기존 10개 기능 gate를 PC·모바일 HTTP로 실행한다. 지원 프로필 저장 실패의 원문 보존을 직접 확인한다.
+- `tests/admin-authoring-browser.mjs`: 실제 HTML 폼 7개와 직원등록·가입승인·홍보작성·지원 프로필 렌더러, 1440/768/390/320px, 44px 입력/22px checkbox/공통 radius 토큰 변경 전파/hidden 보존/가로 넘침. 기존 11개 기능 gate를 PC·모바일 HTTP로 실행한다. 지원 프로필 저장 실패의 원문 보존을 직접 확인한다.
 - 기존 `admin-ui-browser.mjs`: 홈페이지 저장 실패 입력 보존, 권한 없는 direct edit 거부, 가입승인 입력과 keyboard. 기존 notice/promotion/employee 테스트의 저장·첨부·미리보기·승인·동일 ID 재조회 검증을 그대로 실행한다.
 - mock 데이터를 쓰는 browser/단위검사와 실제 서버 검증을 구분한다. 공통화 연결은 모든 위 대상에서 확인했지만 모든 업무 경로의 실제 서버 쓰기를 수행하지 않는다.
-- 추가 조치 필요: 원격 CI와 exact-head 통합 Deploy Preview 검증. 네트워크의 GitHub API·Netlify 접근이 복구된 뒤 Draft PR/실배포 SHA를 대조한다. 실제 직원·급여·운영공지 변경으로 검증하지 않는다.
+- 원격 검증: Draft PR #494와 exact-head 통합 Deploy Preview를 대조한다. 해당 배포 CSS/JS·실제 form HTML을 사용하는 browser 검사도 CI에 등록했다. 최종 결과는 PR의 현재 HEAD 검사와 QA 기록을 따른다. 실제 직원·급여·운영공지 변경으로 검증하지 않는다.

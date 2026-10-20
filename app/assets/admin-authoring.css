@@ -32,7 +32,7 @@
   box-sizing:border-box; width:100%; max-width:100%; min-width:0;
   min-height:var(--authoring-field-height,var(--authoring-control-height)); padding:10px 12px;
   border:1px solid var(--authoring-stroke); border-inline-start-width:var(--authoring-required-width,1px); border-radius:var(--authoring-radius);
-  background:#fff; color:var(--app-text,#1b3026); font:inherit; font-weight:400; line-height:1.5;
+  background:#fff; color:var(--app-text,#1b3026); font:inherit; font-size:1rem; font-weight:400; line-height:1.5;
 }
 :is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) textarea { --authoring-field-height:var(--authoring-textarea-height,120px); resize:vertical; }
 :is(#desktop-app-shell,.app-authoring-dialog,.payroll-shell) :is(.app-authoring,.app-authoring-inline) :required { --authoring-required-width:3px; }

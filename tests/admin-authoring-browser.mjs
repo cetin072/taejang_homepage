@@ -7,11 +7,19 @@ import {execFileSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),{chromium}=require('playwright');
 const root=process.cwd(), baseline=process.env.AUTHORING_BASELINE_REF;
+const preview=(process.env.PREVIEW_URL||'').replace(/\/$/,'');
+if(preview)assert.equal(new URL(preview).protocol,'https:');
 const output=process.env.AUTHORING_QA_OUTPUT||path.join(os.tmpdir(),'taejang-authoring-ui');
 await fs.mkdir(output,{recursive:true});
-const load=async file=>baseline&&/^(app|staff)\//.test(file)
-  ?execFileSync('git',['show',baseline+':'+file],{encoding:'utf8'})
-  :fs.readFile(path.join(root,file),'utf8');
+const load=async file=>{
+  if(preview&&/^(app|staff)\//.test(file)){
+    const response=await fetch(preview+'/'+file,{signal:AbortSignal.timeout(20000)});
+    assert.ok(response.ok,'deployed asset: '+file);return response.text();
+  }
+  return baseline&&/^(app|staff)\//.test(file)
+    ?execFileSync('git',['show',baseline+':'+file],{encoding:'utf8'})
+    :fs.readFile(path.join(root,file),'utf8');
+};
 const styles='<meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css">';
 const shell=content=>`<!doctype html><html lang="ko"><head><meta charset="utf-8">${styles}<style>body{margin:0;padding:16px;background:#f4f7f5}#desktop-app-shell{max-width:1080px;margin:auto}.dashboard-main{padding:0;min-width:0}h1{font-size:1.3rem}</style></head><body><div id="desktop-app-shell"><h1 id="desktop-page-title">관리자 작성 UI · 합성 검증</h1><main id="dashboard-main" class="dashboard-main">${content}</main></div></body></html>`;
 const server=http.createServer(async(req,res)=>{
@@ -29,7 +37,13 @@ const server=http.createServer(async(req,res)=>{
       assert.ok(absolute.startsWith(root+path.sep));body=await load(file);
       if(file==='tests/browser/promotion-authoring-upload-gate.html')body=body.replace('<head>','<head>'+styles);
     }
-    res.setHeader('Content-Type',name.endsWith('.css')?'text/css':name.endsWith('.js')?'application/javascript':'text/html; charset=utf-8');res.end(body);
+    const html=!/\.(css|js|mjs)$/.test(name);
+    if(preview&&html)for(const directory of ['app/assets','staff/assets']){
+      body=body.replaceAll('../../'+directory+'/',preview+'/'+directory+'/')
+        .replaceAll('href="/'+directory+'/', 'href="'+preview+'/'+directory+'/')
+        .replaceAll('src="/'+directory+'/', 'src="'+preview+'/'+directory+'/');
+    }
+    res.setHeader('Content-Type',name.endsWith('.css')?'text/css':/\.(js|mjs)$/.test(name)?'application/javascript':'text/html; charset=utf-8');res.end(body);
   }catch(e){res.statusCode=404;res.end(e.message);}
 });
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -39,7 +53,7 @@ try{
   if(!baseline){
     // Run the original behavioural assertions over HTTP as well as the visual
     // checks below. Managed Chrome can disable file:// fixture navigation.
-    const gates=['operations-public-text-edit','compact-admin-form','operations-owned-promotion','general-worker-browser','promotion-browser','promotion-authoring-upload','promotion-archive-delete','promotion-public-link-rendering','promotion-v2-publication','sidebar-runtime'];
+    const gates=['operations-public-text-edit','compact-admin-form','operations-owned-promotion','general-worker-browser','promotion-browser','promotion-authoring-upload','promotion-archive-delete','promotion-public-link-rendering','promotion-v2-publication','sidebar-runtime','notice-authoring-ux'];
     for(const width of [1440,390])for(const gate of gates){
       const page=await browser.newPage({viewport:{width,height:1000}});
       await page.goto(base+'/tests/browser/'+gate+'-gate.html');
@@ -61,6 +75,7 @@ try{
         assert.ok(await control.count(),name+' has real visible input');
         assert.equal(await control.evaluate(el=>getComputedStyle(el).borderRadius),'9px',name+' common radius');
         assert.ok((await control.boundingBox()).height>=44,name+' touch target');
+        assert.ok(await control.evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),name+' readable mobile input');
         // One token change must reach unrelated real renderers, not copied CSS.
         const tokenStyle=await page.addStyleTag({content:':root{--authoring-radius:17px}'});
         assert.equal(await control.evaluate(el=>getComputedStyle(el).borderRadius),'17px',name+' shares live token');
@@ -98,6 +113,6 @@ try{
     await page.waitForFunction(()=>window.__supportSaved===true);
     assert.equal(await company.inputValue(),'합성 기업 입력 보존','support failure retains input');
     assert.deepEqual(errors,[],'no page errors at '+width);
-    console.log('ADMIN_AUTHORING_BROWSER_PASS:'+width+':'+(baseline?'BASELINE':'LOCAL'));await page.close();
+    console.log('ADMIN_AUTHORING_BROWSER_PASS:'+width+':'+(baseline?'BASELINE':preview?'PREVIEW':'LOCAL'));await page.close();
   }
 }finally{await browser.close();await new Promise(r=>server.close(r));}

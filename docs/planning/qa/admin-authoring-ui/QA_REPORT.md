@@ -5,7 +5,7 @@
 
 ## 구현과 적용 범위
 
-공통 소유자는 `app/assets/admin-authoring.css`다. shell의 단일 import와 standalone 급여 페이지 link로 로드한다. 6,698 bytes / gzip 1,699 bytes. 신규 JS 런타임·의존성·CDN·역할별 렌더러·DB migration은 없다.
+공통 소유자는 `app/assets/admin-authoring.css`다. shell의 단일 import와 standalone 급여 페이지 link로 로드한다. 6,714 bytes / gzip 1,701 bytes. 신규 JS 런타임·의존성·CDN·역할별 렌더러·DB migration은 없다.
 
 실제 작성 소유자에 `app-authoring` 또는 `app-authoring-inline`을 명시하고 반복 label/control 선언을 제거했다. 업무별 DOM ID·필드·이벤트·RPC·저장 후 재조회·Session/JWT·승인선은 보존한다. 섹션·직원 기본/첨부 색상은 동일 토큰을 사용한다. 긴 본문은 폭과 최소 높이를 확보하고 임시저장/상신 버튼을 구분한다.
 
@@ -18,7 +18,7 @@
 | npm test | PASS — 1,209 (578 platform + 114 public + 517 payroll), 실패/skip 0 | 실제 기존 suite, DB 서버 실행과 구분 |
 | staging safety | PASS — 16, 실패/skip 0 | 기존 안전 guard |
 | build:netlify | PASS | dist/app/assets/admin-authoring.css 포함. 외부 Naver 이미지 38건 fetch 실패로 기존 local fallback 사용; 제품 소스·공개글 변경 없음 |
-| 기존 기능 gate HTTP | PASS — 10개 × PC/모바일 = 20 | 공개글 편집·가입승인·운영총괄 홍보·일반직원·홍보·사진첨부·보관/복구·링크·발행·사이드바 |
+| 기존 기능 gate HTTP | PASS — 11개 × PC/모바일 = 22 | 공개글 편집·가입승인·운영총괄 홍보·일반직원·홍보·사진첨부·보관/복구·링크·발행·사이드바 |
 | 공통 작성기 반응형/토큰 | PASS — 11개 × 4해상도 = 44 | 1440/768/390/320. 정적 실제 form 7개 + 직원등록/가입승인/홍보/지원 프로필. radius를 17px로 바꾸어 모든 renderer에 전파 확인 후 원복. 필수 테두리·섹션·44px 입력·22px checkbox·hidden 보존·overflow 확인 |
 | 지원사업 실패 입력 보존 | PASS — 4해상도 | 실제 renderer의 저장 RPC를 합성 실패시켜 회사명 보존 확인 |
 | admin-ui-browser | PASS — 4해상도 | 가입승인 기존/신규/사유, 키보드·체크박스, 홈페이지 수정 실패 입력 보존·권한 거부 |
@@ -27,8 +27,8 @@
 | 현장조사 기존 browser | PASS — 1440/390 | 기존 50명 합성 자료·사진 업로드 재시도·교정 실패 보존·필터. 공통 stylesheet와 shell 범위를 fixture에 로드 |
 | 급여 handoff 기존 자동화 | PASS — 390, Playwright 전송 | 기존 server/workspace/session/automation의 결과 노드가 pass. raw --dump-dom은 이 Chrome에서 종료하지 않아 중지; 같은 fixture/assertion을 Playwright로 실행. 실제 급여 미접근 |
 | diff/문법/서버 범위 | PASS | git diff --check, 신규 browser 문법. supabase/netlify/functions/staff/mobile 변경 0 |
-| 원격 CI | 미확인 | GitHub API proxy 403. 로컬 통과를 CI 통과라고 표시하지 않음 |
-| 개발 Deploy Preview | 미확인 | Draft PR/API·실제 Netlify 배포 및 exact-head 검증 필요. 고정 QA·Production 미변경 |
+| 원격 CI | 미확인 | 최초 HEAD는 공지 입력 16px 검사 실패. 원인 재현 후 수정하고 정확한 CI 결과는 PR 현재 HEAD를 따른다 |
+| 개발 Deploy Preview | 미확인 | Draft PR #494 생성. Netlify ready/commit_ref 대조 및 Preview 자산을 사용하는 browser CI 추가. 고정 QA·Production 미변경 |
 
 개발 환경의 기본 샌드박스는 일부 자식 프로세스 실행을 EPERM으로 차단하므로 허용된 실행 권한에서 같은 검사를 수행했다. file:// 탐색을 Chrome 정책이 차단해 기존 fixture를 HTTP로 실행했다. 새 `admin-authoring-browser.mjs`는 원래 기능 gate 결과 노드를 정확히 검사하며, script 안 PASS 문자열을 결과로 사용하지 않는다.
 
@@ -66,6 +66,8 @@ baseline 캡처: `AUTHORING_BASELINE_REF=b4df2ed66e03a8ba2e00efe56b079445b78dba7
 
 ## 남은 검수·승인
 
-Git push는 플랫폼 HTTPS 인증 경로로 가능하나 `api.github.com`은 proxy에서 Forbidden이다. 환경 설정 초안에는 GitHub/Netlify 허용 도메인이 이미 있지만 실행 중 환경에는 적용되지 않았다. 값/권한을 우회하지 않는다. 접근 복구 후 같은 branch로 Draft PR을 만들고 exact-head CI/Netlify 개발 Preview를 검증해야 한다. 사용자에게 최종 수용 검수를 요청할 준비가 됐다고 표시하지 않는다.
+Draft PR #494를 생성했다. 최초 API proxy 403은 이후 복구되어 Netlify API의 ready/HEAD를 확인했다. 클라우드에서 Preview hostname으로 직접 요청하는 것은 여전히 차단되어, GitHub CI에서 기존 UAR의 exact-head Preview 선택을 재사용해 배포된 HTML/CSS/JS로 동일 browser 검증을 수행한다. 실제 인증/권한 검증은 기존 CI 결과와 구분한다. 최종 CI·배포 ID·HEAD는 PR 검증 기록에서 대조한다.
 
 모든 개별 업무 경로에서 서버 쓰기를 실행한 것은 아니다. 인사·주민번호·급여·근태·공지·사진의 실제 데이터 변경 0, 로그인 계정 초기화 0, 운영 배포/고정 QA 교체 0이다. 실제 인증 환경의 최종 통합 Preview·휴대폰 키보드/카메라 사용감은 후속 확인 대상이다.
+
+최초 CI의 공지 작성 UX gate가 입력 글자 16px 미만을 검출했다. 같은 fixture로 로컬 재현 후 공통 control의 font-size를 1rem으로 고정했다. 기존 공지 gate를 새 shared HTTP 검사에도 포함하고 16px 이상 assertion을 추가했다. 기능 assertion을 완화하지 않았다.

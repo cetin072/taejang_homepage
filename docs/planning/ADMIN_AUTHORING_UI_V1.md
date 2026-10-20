@@ -8,7 +8,7 @@
 - 섹션/입력/버튼/도움말/첨부/미리보기의 규칙은 `../operations/ADMIN_AUTHORING_UI.md`에서 단일 기준으로 관리한다. 기존 form DOM ID와 RPC payload·JWT·RLS·승인선은 변경하지 않는다.
 - 범위: 관리자 전체 등록·수정 입력. 원래 정상인 조회/필터, 공개 홈페이지·직원앱·모바일앱, 브라우저 native 위험 확인은 제외한다. 급여/근태 표의 전문 배치·스크롤은 보존하고 셀 입력만 공통화한다.
 - 자동 검증: 합성 데이터의 1440/768/390/320px 전후 캡처, 실제 공통 토큰 변경 전파, 숨김 권한/체크박스/keyboard/overflow, 기존 저장·상신·승인·첨부·미리보기·오류 입력 보존 gate.
-- 외부 조건: GitHub API·Netlify 접근이 필요하다. 현재 Git HTTPS 접근과 달리 API는 proxy 403으로 차단된다. 실제 서버 데이터를 테스트로 수정하지 않는다.
+- 외부 조건: GitHub API·Netlify 접근이 필요하다. 조사 당시 API proxy 403이었으나 이후 GitHub/Netlify API가 복구되어 PR #494를 생성했다. 실제 서버 데이터를 테스트로 수정하지 않는다.
 - 배포 경계: Draft PR 및 해당 HEAD의 개발 Deploy Preview만 준비한다. 사용자 최종 승인 전 main merge·Ready 전환·Production·고정 QA 강제 교체 금지.
 
 | 확정 항목 | 현재 결과 |
@@ -17,5 +17,5 @@
 | 공통 폼/입력/버튼/섹션과 대상 renderer 연결 | 구현 완료: CSS·기존 owner class opt-in |
 | 역할별 복사본·신규 framework·DB 계약 추가 금지 | 준수: 스타일·class 중심 diff, DB/서버 미변경 |
 | PC/태블릿/모바일·기능 회귀·전후 캡처 | 로컬 검증 진행: QA_REPORT에 실제 결과 기록 |
-| Draft PR·exact-head CI·통합 개발 Preview | 추가 조치 필요: API/Preview 접근 복구 후 검증 |
+| Draft PR·exact-head CI·통합 개발 Preview | Draft PR #494 생성. 최신 HEAD의 CI·배포 자산 browser 검증 결과 대조 필요 |
 | 사용자 통합 검수·병합·운영 배포 | 미실행: 최종 승인 이후 |
