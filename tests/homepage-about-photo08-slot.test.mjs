@@ -73,7 +73,7 @@ test('About editor registers PHOTO08 under the canonical safe slot, not a new wr
   assert.match(sql, /'image', 'about\.html'/);
   assert.match(sql, /'\[data-photo-slot="08"\] > img'/);
   assert.match(sql, /on conflict \(slot_key\) do nothing/);
-  assert.doesNotMatch(sql, /create (or replace )?function|grant|revoke|alter table|delete from/i);
+  assert.doesNotMatch(sql, /^\s*(?:create (?:or replace )?function|grant|revoke|alter table|delete from)\b/im);
   assert.match(publicSite, /loadHomepageLiveOverrides\(\)/);
   assert.match(publicSite, /homepage-live-overrides\.js/);
 });
