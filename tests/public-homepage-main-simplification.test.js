@@ -239,7 +239,7 @@ assert.match(about, /<strong>4개 기업 참여<\/strong><span>네 개 기업이
 assert.match(about, /사업과 직무<\/strong><span>민화·문화 굿즈와 포장·검수, 지역사회공헌 활동을 운영하며 테라리움 제조상품을 개발하고 있습니다\./);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
-assert.match(about, /images\/homepage\/photo-08-about-preview\.webp/);
+assert.match(about, /images\/homepage\/lee-younghee-portrait-2026\.webp/);
 assert.match(greeting, /class="story-side story-side--static"[\s\S]*images\/homepage\/photo-08\.webp/);
 assert.match(read('assets/css/story-pages.css'), /\.story-side--static \{ position: static; \}/);
 
