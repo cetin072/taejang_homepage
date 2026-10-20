@@ -115,7 +115,7 @@ for (const filename of publicPages) {
   } else {
     assert.match(footer, /class="footer-top"/, `${filename} 표준 푸터 상단 영역이 있어야 합니다`);
     assertHrefOrder(footer, footerHrefs, `${filename} 푸터 바로가기`);
-    assert.match(footer, /href="tel:0552938626">055-293-8626<\/a>/, `${filename} 푸터 전화번호를 동일하게 유지합니다`);
+    assert.doesNotMatch(footer, /href="tel:|055[\s.-]?293[\s.-]?8626/, `${filename} 푸터에는 공개 전화번호·전화 링크가 없어야 합니다`);
     assert.match(footer, /href="mailto:taejang2025@naver\.com">taejang2025@naver\.com<\/a>/, `${filename} 푸터 이메일을 동일하게 유지합니다`);
     assert.match(footer, /경남 창원시 의창구 평산로 33<br>신화 더 플렉스시티 422·423호/, `${filename} 푸터 주소를 동일하게 유지합니다`);
   }

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -52,6 +52,22 @@ test('Netlify publish build keeps public homepage and internal app entry points'
       'staff/reset-password.html',
       'staff/manifest.webmanifest'
     ]) assertPresent(outputRoot, relativePath);
+    // Include generated public article HTML: removing a number only from the homepage
+    // must not accidentally leave it in the SEO/static publish output.
+    const phonePattern = /tel:|["']telephone["']\s*:|0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}/i;
+    const publicHtml = readdirSync(outputRoot).filter(file => file.endsWith('.html'))
+      .map(file => path.join(outputRoot, file));
+    for (const subdir of ['activities', 'workplace']) {
+      const directory = path.join(outputRoot, subdir);
+      if (existsSync(directory)) {
+        publicHtml.push(...readdirSync(directory).filter(file => file.endsWith('.html'))
+          .map(file => path.join(directory, file)));
+      }
+    }
+    for (const file of publicHtml) {
+      assert.doesNotMatch(readFileSync(file, 'utf8'), phonePattern,
+        path.relative(outputRoot, file) + ': no public telephone in published HTML');
+    }
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });
   }
