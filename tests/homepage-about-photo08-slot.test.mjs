@@ -112,3 +112,18 @@ test('An override from another page never replaces the CEO photograph', async ()
   await settle();
   assert.equal(testBed.image.src, 'images/homepage/photo-08-about-preview.webp');
 });
+
+
+test('Operations recovery reuses the authenticated audited slot delete RPC and hides from lead', async () => {
+  const canonical = await readFile(new URL('../app/assets/issue-146-end-to-end.js', import.meta.url), 'utf8');
+  assert.match(canonical, /if \(currentRoute === 'operations_manager'\) \{\s*resetButton = button\('기본 홈페이지 내용으로 되돌리기'/);
+  assert.match(canonical, /if \(resetButton\) resetButton\.hidden = !activeSlot\?\.live_value/);
+  assert.match(canonical, /if \(!activeSlot\?\.live_value\) return/);
+  assert.match(canonical, /window\.confirm\('현재 적용한 수정값을 해제하고 기존 공개 홈페이지 기본값으로 되돌릴까요\?'\)/);
+  assert.match(canonical, /promptReason\('기본값으로 되돌리는 사유를 입력해 주세요\.'\)/);
+  assert.match(canonical, /app\(\)\.rpc\('delete_homepage_slot_override', \{[\s\S]*?p_slot_key: activeSlot\.slot_key, p_reason: resetReason/);
+  const baseline = await readFile(new URL('../supabase/migrations/20260908055000_issue_146_homepage_live_workflow.sql', import.meta.url), 'utf8');
+  assert.match(baseline, /create or replace function public\.delete_homepage_slot_override\(/);
+  assert.match(baseline, /current_user_has_role\('operations_manager'\)/);
+  assert.match(baseline, /homepage_live_override_deleted/);
+});
