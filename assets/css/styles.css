@@ -83,29 +83,27 @@ button{cursor:pointer}
 .desktop-nav a{font-size:14px}
 .desktop-nav a:hover{color:var(--green)}
 .desktop-nav a[aria-current="page"]:not(.nav-cta){color:var(--green);font-weight:800}
-.desktop-nav .staff-nav{font-size:12px;color:var(--ink-soft);padding:6px 8px;border-left:1px solid var(--line)}
+.desktop-nav .staff-nav{display:inline-flex;align-items:center;min-height:44px;font-size:14px;color:var(--ink-soft);padding:6px 8px 6px 18px;border-left:1px solid var(--line);white-space:nowrap}
 .desktop-nav .staff-nav:hover{color:var(--green-deep)}
 .desktop-nav .nav-cta{padding:10px 18px;background:var(--green);color:#fff;border-radius:4px}
 .desktop-nav .nav-cta:visited,.desktop-nav .nav-cta[aria-current="page"]{color:#fff}
 .desktop-nav .nav-cta:hover,.desktop-nav .nav-cta:focus-visible{background:var(--green-deep);color:#fff}
 .desktop-nav .nav-cta:active{background:#143b2d;color:#fff;transform:translateY(0)}
 
-/* Public employee-app entry: quiet secondary action beside the contact CTA. */
+/* HTML owns menu order. Contact is the only filled action; app guide is a quiet utility. */
 .desktop-nav .employee-app-nav{
   display:inline-flex;align-items:center;justify-content:center;
-  min-height:44px;padding:9px 13px;border-radius:5px;
-  border:1px solid #C4D6C7;
-  background:var(--beige);color:var(--green-deep);font-weight:800;white-space:nowrap;
+  min-height:44px;padding:9px 0;border:0;
+  background:transparent;color:var(--green-deep);font-size:14px;font-weight:400;white-space:nowrap;
 }
 .desktop-nav .employee-app-nav:hover,
 .desktop-nav .employee-app-nav:focus-visible,
 .desktop-nav a.employee-app-nav[aria-current="page"]{
-  background:var(--green-soft);color:var(--green-deep);
+  background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:5px;
 }
 @media (min-width:1001px) and (max-width:1160px){
   .header-inner{gap:12px}
   .desktop-nav{gap:13px}
-  .desktop-nav .employee-app-nav{padding-inline:10px}
 }
 .menu-btn{display:none;border:0;background:transparent;font-size:25px;color:var(--green-deep)}
 .mobile-nav{display:none;border-top:1px solid var(--line);padding:18px 24px 26px;background:#fff}
@@ -113,7 +111,7 @@ button{cursor:pointer}
 .mobile-nav a{padding:13px 0;border-bottom:1px solid var(--line);font-weight:700;color:var(--green-deep)}
 .mobile-nav a[aria-current="page"]{color:var(--green)}
 
-/* Mobile menu: contact remains the primary action; staff sign-in and app guide form one quiet utility group. */
+/* Mobile utilities are independent, aligned links, never a nested app submenu. */
 @media (max-width:1000px){
   .mobile-nav a[href*="partnership"]{
     min-height:54px;margin:8px 0 14px;padding:12px 16px;
@@ -124,22 +122,21 @@ button{cursor:pointer}
   .mobile-nav a[href*="partnership"][aria-current="page"]{
     background:var(--green-deep);color:#fff;
   }
-  .mobile-nav .staff-nav{
-    margin-top:8px;padding-top:14px;border-top:1px solid var(--line);
-  }
+  .mobile-nav .staff-nav,
   .mobile-nav .employee-app-nav{
-    display:flex;align-items:center;min-height:54px;
-    margin:0 0 2px 14px;padding:10px 10px 10px 16px;
-    border:0;border-left:2px solid #C4D6C7;border-radius:0;
-    background:transparent;color:var(--green-deep);font-size:15px;font-weight:700;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:64px;
+    margin:0;padding:12px 0;
+    border:0;border-radius:0;
+    background:transparent;color:var(--green-deep);font-size:16px;font-weight:700;
   }
+  .mobile-nav .nav-entry-description{font-size:14px;font-weight:400;line-height:1.6;color:var(--ink-soft)}
   .mobile-nav .employee-app-nav:hover,
   .mobile-nav .employee-app-nav:focus-visible{
-    background:var(--green-soft);color:var(--green-deep);
+    background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:4px;
   }
   .mobile-nav .employee-app-nav[aria-current="page"]{
     background:transparent;color:var(--green-deep);
-    border-left-color:var(--green);font-weight:800;
+    font-weight:800;text-decoration:underline;text-underline-offset:4px;
   }
 }
 
@@ -420,6 +417,7 @@ button{cursor:pointer}
   /* Progressive enhancement: without JS the static mobile navigation remains
      visible. site.js adds .js-nav-ready only after the toggle is bound. */
   .mobile-nav{display:grid}
+  html:not(.js-nav-ready) .mobile-nav{display:grid}
   .menu-btn{display:none}
   .js-nav-ready .menu-btn{display:block}
   .js-nav-ready .mobile-nav{display:none}
