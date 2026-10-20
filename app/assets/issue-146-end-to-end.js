@@ -544,6 +544,7 @@
       let activeSlot = null;
       let previewOriginal = null;
       let draftMode = true;
+      let resetButton = null;
 
       const slotsForPage = () => slotList.filter(slot => slot.page_key === pageSelect.value);
       const refreshSlotSelect = () => {
@@ -591,6 +592,7 @@
       };
       const refreshActiveSlot = () => {
         activeSlot = slotList.find(slot => slot.slot_key === slotSelect.value) || slotsForPage()[0] || null;
+        if (resetButton) resetButton.hidden = !activeSlot?.live_value;
         if (!activeSlot) return;
         textArea.hidden = activeSlot.slot_kind !== 'text';
         file.hidden = activeSlot.slot_kind !== 'image';
@@ -664,6 +666,26 @@
           await openHomepageSlots(activeSlot.slot_key);
         } catch (error) { window.alert(friendly(error, '홈페이지에 직접 반영하지 못했습니다.')); }
       }));
+      if (currentRoute === 'operations_manager') {
+        resetButton = button('기본 홈페이지 내용으로 되돌리기', async () => {
+          if (!activeSlot?.live_value) return;
+          if (!window.confirm('현재 적용한 수정값을 해제하고 기존 공개 홈페이지 기본값으로 되돌릴까요?')) return;
+          const resetReason = promptReason('기본값으로 되돌리는 사유를 입력해 주세요.');
+          if (!resetReason) return;
+          resetButton.disabled = true;
+          try {
+            await app().rpc('delete_homepage_slot_override', {
+              p_slot_key: activeSlot.slot_key, p_reason: resetReason
+            });
+            await openHomepageSlots(activeSlot.slot_key);
+          } catch (error) {
+            window.alert(friendly(error, '홈페이지 기본값 복구에 실패했습니다.'));
+            resetButton.disabled = false;
+          }
+        }, true);
+        resetButton.hidden = true;
+        formActions.append(resetButton);
+      }
       form.append(formActions);
       shell.append(form);
 
