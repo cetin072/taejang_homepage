@@ -19,6 +19,15 @@
   let saving = false;
   let savedPublishStart = null;
   let publicationUncertain = false;
+  let editorReadonly = false;
+  let savedPublishEnd = null;
+  let listGeneration = 0;
+  let pageTotal = 0;
+  let hasMore = false;
+  let legacyList = false;
+  let createResponseUncertain = false;
+  let pendingWrite = null;
+  let pendingPublication = null;
   let publishEndAuto = false;
   // Default every new notice to the company, preserving legacy targeted edits.
   let existingAudience = null;
@@ -155,8 +164,12 @@
       : waiting ? '운영총괄 검토·승인 자료입니다. 운영팀장은 직접 수정·중지할 수 없습니다.'
       : isPromotionLead() && leadBackendUnavailable ? '공지 서버 기능 반영이 필요합니다. 새 전 직원 공지의 저장·게시·상신은 완료되지 않았습니다. 기존 초안은 기존 대상으로 관리할 수 있습니다.'
       : isPromotionLead() ? direct ? '내 일상 공지입니다. 직접 게시·예약할 수 있습니다. 수정하면 버전이 바뀌며 알림이 다시 발송될 수 있습니다.' : '이 분류·중요도·기존 원고는 운영총괄 검토가 필요합니다. 비공개 저장 후 상신하세요.' : '비공개 저장은 직원에게 보이지 않습니다. 게시하기는 대상과 시각 확인 후 실행합니다.';
-    if (isPromotionLead() && !leadEditable) {
+    if (editorReadonly || (isPromotionLead() && !leadEditable)) {
       [...ui.element('notice-form').elements].forEach(node => { if (node.id !== 'reset-notice-form') node.disabled = true; });
+    }
+    if (editorReadonly) {
+      for (const id of ['notice-save-draft','notice-save-existing','notice-publish','notice-submit-review']) ui.element(id).hidden = true;
+      ui.element('notice-edit-state').textContent = '조회 전용 공지입니다. 조회 권한은 수정·게시·승인 권한과 다릅니다. 보관된 공지는 복구 전 수정할 수 없습니다.';
     }
   }
 
@@ -224,6 +237,8 @@
       storage_path: item.storage_path,
       mime_type: item.mime_type,
       alt_text: item.alt_text || '공지 사진',
+      saved_alt_text: item.alt_text || '공지 사진',
+      saved_display_order: item.display_order,
       signed_url: null,
     };
   }
@@ -397,11 +412,14 @@
         p_reason: reason.trim(),
       });
       if (!result?.ok) throw new Error(result?.code || 'SUBMIT_FAILED');
+      const verified = await readNotice(item.id);
+      if (verified?.id !== item.id || verified.status !== 'draft' || verified.review_state !== 'submitted') throw new Error('SUBMIT_RESULT_UNVERIFIED');
       if (ui.element('notice-id').value === item.id) reviewPending = true;
+      ui.element('notice-list-filters').reset();
       const loaded = await load({ preserveMessage: true });
-      showSavedNotice(item.id, `운영총괄 검토 대기 — 직원 비공개 · ${item.title}`, loaded);
+      showSavedNotice(item.id, `운영총괄 검토 대기 — 직원 비공개 · ${verified.title}`, loaded);
     } catch {
-      showMessage('공지를 상신하지 못했습니다. 작성 중 상태와 권한을 확인해주세요.', true);
+      showMessage('공지 상신 결과를 확인하지 못했습니다. 서버에 이미 접수됐을 수 있어 자동 재상신하지 않습니다. 입력을 유지하며 목록에서 최신 상태를 확인해주세요.', true);
     } finally {
       saving = false;
       updateActions();
@@ -438,22 +456,30 @@
     const refresh = ui.element('refresh-notice-admin');
     const create = ui.element('new-notice-admin');
     const manage = noticeManageSection();
-    if (heading) heading.textContent = activeView === 'create' ? '공지 등록' : '공지 관리';
+    if (heading) heading.textContent = activeView === 'create' ? '공지 등록' : activeView === 'archive' ? '공지 보관함' : '공지 관리';
     if (refresh) refresh.hidden = activeView === 'create';
     if (create) create.hidden = activeView === 'create';
     if (manage) manage.hidden = activeView === 'create';
+    ui.element('archive-notice-admin').hidden = activeView !== 'manage';
+    ui.element('back-notice-admin').hidden = activeView !== 'archive';
+    ui.element('notice-manage-title').textContent = activeView === 'archive' ? '보관 · 취소 · 사용 중지 공지' : '등록된 공지';
+    for (const option of ui.element('notice-list-status').options) {
+      const archiveStatus = ['cancelled','inactive','archived'].includes(option.value);
+      option.hidden = Boolean(option.value) && archiveStatus !== (activeView === 'archive');
+      option.disabled = option.hidden;
+    }
   }
 
-  function showSavedNotice(id, message, loaded) {
+  function showSavedNotice(id, message, loaded, view = 'manage') {
     savedNoticeId = id;
-    activeView = 'manage';
+    activeView = view;
     renderViewChrome();
     renderList();
     const found = loaded && notices.some(item => item.id === id);
     showMessage(`저장 완료 · ${message}${!loaded ? ' — 목록 새로고침 실패. 저장은 완료됐습니다.' : !found ? ' — 현재 조회 목록에서 찾지 못했습니다. 저장된 원고는 아래에서 확인할 수 있습니다.' : ''}`);
     if (found) {
       const viewSaved = button('저장한 공지 목록에서 확인', () => {
-        const card = [...ui.element('notice-admin-list').children].find(node => node.dataset.noticeId === id);
+        const card = ui.element('notice-admin-list').querySelector(`[data-notice-id="${CSS.escape(id)}"]`);
         card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         card?.focus({ preventScroll: true });
       });
@@ -467,7 +493,10 @@
 
   function setView(view) {
     if (saving) return;
-    activeView = view === 'create' ? 'create' : 'manage';
+    const previousView = activeView;
+    activeView = ['create','archive'].includes(view) ? view : 'manage';
+    if (previousView !== activeView) ui.element('notice-list-filters').reset();
+    if (previousView !== activeView && !pendingWrite && !publicationUncertain && !createResponseUncertain) showMessage('');
     renderViewChrome();
 
     if (activeView === 'create') {
@@ -481,7 +510,44 @@
   }
 
   function previewItem(item) {
-    fillForm(item, { scrollTo: 'preview' });
+    void openItem(item, { scrollTo: 'preview', readOnly: true });
+  }
+
+  const missingRpc = error => error?.code === 'PGRST202';
+  async function readNotice(id) {
+    try { return await app.rpc('get_manageable_notice', { p_notice_id: id }); }
+    catch (error) {
+      if (!missingRpc(error)) throw error;
+      // Compatibility only while the reviewed migration awaits approval. Never
+      // treat absence from a limited list as proof that a write failed.
+      const rows = await app.rpc('list_manageable_notices', { p_limit: 500 });
+      const item = ui.array(rows).find(row => row.id === id);
+      if (!item) throw new Error('NOTICE_READBACK_UNAVAILABLE');
+      return item;
+    }
+  }
+  async function openItem(item, settings = {}) {
+    if (saving) return;
+    try {
+      const current = await readNotice(item.id);
+      fillForm(current, settings);
+    } catch { showMessage('공지 최신 내용을 확인하지 못했습니다. 기존 입력을 보존합니다. 새로고침 후 다시 확인해주세요.', true); }
+  }
+
+  function exposure(item) {
+    if (item.archived_at) return 'archived';
+    if (['inactive','cancelled'].includes(item.status)) return item.status;
+    if (item.review_state === 'submitted') return 'review';
+    if (item.status === 'draft') return 'draft';
+    if (item.publish_end_at && Date.parse(item.publish_end_at) <= Date.now()) return 'expired';
+    return Date.parse(item.publish_start_at) > Date.now() ? 'scheduled' : 'active';
+  }
+  const isArchived = item => Boolean(item.archived_at) || ['inactive','cancelled'].includes(item.status);
+  function sortNotices(rows) {
+    const rank = item => activeView === 'archive' ? 0 : exposure(item) === 'active' ? 0 : exposure(item) === 'expired' ? 2 : 1;
+    const instant = item => Date.parse(activeView === 'archive' ? item.archived_at || item.updated_at || item.created_at
+      : exposure(item) === 'expired' ? item.publish_end_at : item.published_at || item.publish_start_at || item.created_at) || 0;
+    return [...rows].sort((a,b) => rank(a)-rank(b) || instant(b)-instant(a) || String(a.id).localeCompare(String(b.id), 'en'));
   }
 
   function reviewLabel(item) {
@@ -501,9 +567,13 @@
       list.append(ui.text('p', '등록된 공지가 없습니다.', 'empty'));
       return;
     }
-    notices.forEach(item => {
+    let group = '';
+    sortNotices(notices).forEach(item => {
+      const state = exposure(item);
+      const nextGroup = activeView === 'archive' ? '보관 자료' : state === 'active' ? '게시 중인 공지' : state === 'expired' ? '게시기간 종료' : '게시 예정 · 검토 대기 · 초안';
+      if (group !== nextGroup) { list.append(ui.text('h4', nextGroup, 'notice-list-group')); group = nextGroup; }
       const card = document.createElement('article');
-      card.className = 'admin-record-card';
+      card.className = `admin-record-card notice-list-row notice-state-${state}`;
       card.dataset.noticeId = item.id;
       card.tabIndex = -1;
       if (item.id === savedNoticeId) {
@@ -512,17 +582,28 @@
       }
       const summary = ui.text('p', '', 'help');
       const review = reviewLabel(item);
+      const stateLabel = { active:'게시 중',scheduled:'예약 게시',review:'운영총괄 검토 대기',draft:'비공개 초안',expired:'게시기간 종료',cancelled:'취소',inactive:'사용 중지',archived:'보관' }[state];
       card.append(
-        ui.text('p', `${ui.IMPORTANCE[item.importance]} · ${exposureLabel(item)} · v${item.version_no}`, 'card-kicker'),
-        ui.text('h3', item.title),
-        ui.text('p', `게시 시작: ${ui.formatDateTime(item.publish_start_at)}`, 'help')
+        ui.text('p', `${stateLabel} · ${ui.IMPORTANCE[item.importance]} · v${item.version_no}`, 'card-kicker'),
+        ui.text('h3', ''),
+        ui.text('p', `게시: ${ui.formatDateTime(item.published_at || item.publish_start_at)} · 종료: ${item.publish_end_at ? ui.formatDateTime(item.publish_end_at) : '종료 없음'} (KST)`, 'help')
       );
-      if (item.lead_notice_mode) card.append(ui.text('p', item.lead_notice_mode === 'routine' ? '내 일상 공지 · 직접 게시 경로' : '운영총괄 검토 경로', 'help'));
+      if (state === 'scheduled') card.append(ui.text('p', `공개 예정: ${ui.formatDateTime(item.publish_start_at)} (KST)`, 'help'));
+      const title = document.createElement('a');
+      title.href = '#notice-editor-card'; title.textContent = item.title;
+      title.addEventListener('click', event => { event.preventDefault(); void openItem(item, { readOnly: true }); });
+      card.querySelector('h3').append(title);
+      if (item.archived_at) card.append(ui.text('p', `보관: ${ui.formatDateTime(item.archived_at)} (KST) · ${item.archive_reason || ''}`, 'help'));
+      const sourceLabel = item.lead_notice_mode === 'routine' ? ' · 운영팀장 직접 게시 경로' : item.lead_notice_mode ? ' · 운영총괄 검토·처리 경로' : '';
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
-      if (item.creator_display_name) card.append(ui.text('p', `작성: ${item.creator_display_name}`, 'help'));
+      card.append(ui.text('p', `작성: ${item.creator_display_name || '작성자 기록 없음'}${sourceLabel}`, 'help'));
 
-      const editLabel = isPromotionLead() && !canEditLeadItem(item) ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
-      card.append(button(editLabel, () => fillForm(item)), button('미리보기', () => previewItem(item)));
+      const editable = !item.archived_at && item.can_edit !== false && (isOperations() || canEditLeadItem(item));
+      const editLabel = !editable ? '공지 보기 (검토·게시 이력)' : isOperations() && item.review_state === 'submitted' ? '상신 공지 검토·수정' : '공지 수정';
+      const actions = ui.text('div', '', 'notice-row-actions');
+      actions.append(button(editLabel, () => void openItem(item, { readOnly: !editable })), button('미리보기', () => previewItem(item)));
+      card.append(actions);
+      window.TaejangRecoveryControls?.decorateNoticeCard(item, card, () => load({ preserveMessage: true }));
 
       if (isPromotionLead() && item.status === 'draft' && canEditLeadItem(item)) {
         if (item.review_state === 'submitted') {
@@ -534,12 +615,16 @@
         }
       }
 
-      if (item.requires_acknowledgement) card.append(button('확인 현황', () => showAckSummary(item, summary)), summary);
+      const canReadAck = item.can_read_ack_summary === true || (item.can_read_ack_summary === undefined
+        && !(isPromotionLead() && item.target_scope === 'company'));
+      if (item.requires_acknowledgement && canReadAck) card.append(button('확인 현황', () => showAckSummary(item, summary)), summary);
       list.append(card);
     });
   }
 
   function resetForm() {
+    editorReadonly = false;
+    pendingWrite = null;
     [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
     ui.element('notice-form').reset();
     leadMode = null;
@@ -552,7 +637,9 @@
     existingAudience = null;
     updateAudienceSummary();
     savedPublishStart = null;
+    savedPublishEnd = null;
     publicationUncertain = false;
+    pendingPublication = null;
     setDateTime('notice-publish-start', new Date());
     ui.element('notice-publish-mode').value = 'now';
     publishEndAuto = true;
@@ -565,16 +652,20 @@
     void renderPreview();
   }
 
-  function fillForm(item, { scrollTo = 'form' } = {}) {
+  function fillForm(item, { scrollTo = 'form', readOnly = false } = {}) {
     if (saving) return;
     [...ui.element('notice-form').elements].forEach(node => { node.disabled = false; });
     leadMode = item.lead_notice_mode || null;
     leadEditable = canEditLeadItem(item);
+    editorReadonly = readOnly || Boolean(item.archived_at) || item.can_edit === false;
+    pendingWrite = null;
     ui.element('notice-routine-confirm').checked = false;
     savedStatus = item.status;
     reviewPending = item.review_state === 'submitted';
     savedPublishStart = item.publish_start_at;
+    savedPublishEnd = item.publish_end_at;
     publicationUncertain = false;
+    pendingPublication = null;
     publishEndAuto = false; // Existing notices retain their stored expiry.
     ui.element('notice-publish-mode').value = 'scheduled';
     clearMediaState();
@@ -616,28 +707,70 @@
     target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  async function load({ preserveMessage = false } = {}) {
+  function queryPayload(offset = 0) {
+    const until = ui.element('notice-list-until').value;
+    return { p_limit: 50, p_offset: offset, p_archive: activeView === 'archive',
+      p_search: ui.element('notice-list-search').value.trim() || null,
+      p_status: ui.element('notice-list-status').value || null,
+      p_from: ui.element('notice-list-from').value ? ui.toKstIso(ui.element('notice-list-from').value, '00:00') : null,
+      p_until: until ? new Date(Date.parse(ui.toKstIso(until, '00:00')) + 86400000).toISOString() : null };
+  }
+  async function fetchNoticePage(offset) {
+    const query = queryPayload(offset);
+    try {
+      const result = await app.rpc('list_manageable_notices_page', query);
+      if (!Array.isArray(result?.items) || !Number.isInteger(result.total)) throw new Error('INVALID_NOTICE_PAGE');
+      legacyList = false;
+      return result;
+    } catch (error) {
+      if (!missingRpc(error)) throw error;
+      legacyList = true;
+      const all = ui.array(await app.rpc('list_manageable_notices', { p_limit: 500 }));
+      const rows = all.filter(item => isArchived(item) === query.p_archive
+        && (!query.p_search || String(item.title).toLocaleLowerCase('ko').includes(query.p_search.toLocaleLowerCase('ko')))
+        && (!query.p_status || exposure(item) === query.p_status)
+        && (!query.p_from || Date.parse(item.archived_at || item.published_at || item.publish_start_at || item.created_at) >= Date.parse(query.p_from))
+        && (!query.p_until || Date.parse(item.archived_at || item.published_at || item.publish_start_at || item.created_at) < Date.parse(query.p_until)));
+      return { items: sortNotices(rows), total: rows.length, has_more: false };
+    }
+  }
+  async function load({ preserveMessage = false, more = false } = {}) {
     if (!options) return;
+    const generation = ++listGeneration;
     ui.element('refresh-notice-admin').disabled = true;
+    ui.element('notice-list-more').disabled = true;
     if (!preserveMessage) showMessage('공지 목록을 불러오고 있습니다.');
     try {
       const [noticeResult, scheduleResult] = await Promise.allSettled([
-        app.rpc('list_manageable_notices', { p_limit: 200 }),
+        fetchNoticePage(more ? notices.length : 0),
         app.rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
       ]);
       if (noticeResult.status !== 'fulfilled') throw noticeResult.reason;
-      notices = ui.array(noticeResult.value);
+      if (generation !== listGeneration) return false;
+      const page = noticeResult.value;
+      notices = more ? [...new Map([...notices,...page.items].map(item => [item.id,item])).values()] : page.items;
+      pageTotal = page.total;
+      hasMore = page.has_more;
       // The optional schedule picker cannot hide a successfully loaded notice list.
       if (scheduleResult.status === 'fulfilled') schedules = ui.array(scheduleResult.value).map(item => ({ id: item.id, title: item.title }));
       renderOptions();
       renderList();
+      ui.element('notice-list-summary').textContent = legacyList
+        ? '서버 목록 기능 업데이트 필요 · 최대 500건의 제한된 목록입니다. 전체 검색·타인 공지·보관 자료 조회는 아직 확인할 수 없습니다.'
+        : `${notices.length} / ${pageTotal}건 · ${activeView === 'archive' ? '최근 보관·중지순' : '최근 발행순 (같은 시각은 공지 ID순)'} · 날짜는 ${activeView === 'archive' ? '보관일, 보관일이 없으면 게시일' : '게시일'} 기준 · KST`;
+      ui.element('notice-list-more').hidden = !hasMore;
       if (!preserveMessage) showMessage('');
       return true;
     } catch {
+      if (generation !== listGeneration) return false;
+      ui.element('notice-list-summary').textContent = '목록 조회 실패 — 이전 결과입니다. 검색 결과가 없다는 뜻이 아닙니다.';
       if (!preserveMessage) showMessage('공지 목록을 불러오지 못했습니다. 잠시 후 다시 시도하세요.', true);
       return false;
     } finally {
-      ui.element('refresh-notice-admin').disabled = false;
+      if (generation === listGeneration) {
+        ui.element('refresh-notice-admin').disabled = false;
+        ui.element('notice-list-more').disabled = false;
+      }
     }
   }
 
@@ -661,20 +794,23 @@
       const item = mediaItems[index];
       if (!String(item.alt_text || '').trim()) throw new Error('NOTICE_MEDIA_ALT_REQUIRED');
       if (item.kind === 'existing') {
+        if (item.saved_alt_text === item.alt_text.trim() && item.saved_display_order === index) continue;
         const result = await app.rpc('update_notice_media', {
           p_media_id: item.id,
           p_alt_text: item.alt_text.trim(),
           p_display_order: index,
         });
         if (!result?.ok) throw new Error(result?.code || 'NOTICE_MEDIA_UPDATE_FAILED');
+        item.saved_alt_text = item.alt_text.trim();
+        item.saved_display_order = index;
       } else {
         // Keep successful registrations as existing media before the next upload.
         const uploaded = item.uploaded || await api.upload(noticeId, item.file);
         if (item.uploaded) {
-          const rows = await app.rpc('list_manageable_notices', { p_limit: 200 }).catch(() => {
+          const current = await readNotice(noticeId).catch(() => {
             throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
           });
-          const registered = ui.array(rows).find(row => row.id === noticeId)?.media?.find(photo => photo.storage_path === uploaded.storage_path);
+          const registered = current.media?.find(photo => photo.storage_path === uploaded.storage_path);
           if (registered) {
             URL.revokeObjectURL(item.signed_url);
             Object.assign(item, existingMedia(registered));
@@ -698,16 +834,27 @@
           throw new Error('NOTICE_MEDIA_REGISTRATION_UNKNOWN');
         }
         URL.revokeObjectURL(item.signed_url);
-        Object.assign(item, existingMedia({ ...uploaded, id: result.id, alt_text: item.alt_text }));
+        Object.assign(item, existingMedia({ ...uploaded, id: result.id, alt_text: item.alt_text, display_order: index }));
         delete item.file;
         delete item.uploaded;
       }
     }
   }
 
+  function matchesSaved(item, payload) {
+    if (!item || (payload.p_notice_id && item.id !== payload.p_notice_id)) return false;
+    return Object.entries(payload).every(([key,value]) => {
+      if (['p_notice_id','p_change_reason','p_confirm_routine'].includes(key)) return true;
+      const stored = item[key.slice(2)];
+      if (key === 'p_publish_start_at' || key === 'p_publish_end_at') return value ? Date.parse(stored) === Date.parse(value) : !stored;
+      return (typeof value === 'string' ? value.trim() || null : value ?? null)
+        === (typeof stored === 'string' ? stored.trim() || null : stored ?? null);
+    });
+  }
+
   async function submit(event) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || editorReadonly) return;
     if (isPromotionLead() && !leadEditable) { showMessage('검토·승인된 자료는 직접 수정할 수 없습니다.', true); return; }
     const action = event.submitter?.value || (savedStatus === 'draft' ? 'draft' : 'save');
     if (isPromotionLead() && reviewPending && ['review', 'draft'].includes(action)) return;
@@ -718,12 +865,25 @@
     showMessage('');
     try {
       // A lost publish response must be reconciled before retrying any write.
+      if (createResponseUncertain && !ui.element('notice-id').value) throw new Error('CREATE_RESPONSE_UNKNOWN');
+      let reconciledWrite = null;
+      if (pendingWrite) {
+        const current = await readNotice(pendingWrite.id);
+        if (!matchesSaved(current, pendingWrite.payload)) throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
+        reconciledWrite = current;
+        savedPublishStart = current.publish_start_at;
+        savedPublishEnd = current.publish_end_at;
+        pendingWrite = null;
+      }
       if (publicationUncertain) {
-        const rows = await app.rpc('list_manageable_notices', { p_limit: 200 });
-        const current = ui.array(rows).find(item => item.id === ui.element('notice-id').value);
+        const current = await readNotice(ui.element('notice-id').value);
         if (!current) throw new Error('PUBLISH_RESULT_UNKNOWN');
+        if (current.status === 'published' && pendingPublication && matchesSaved(current, pendingPublication)) reconciledWrite = current;
         savedStatus = previousStatus = current.status;
+        savedPublishStart = current.publish_start_at;
+        savedPublishEnd = current.publish_end_at;
         publicationUncertain = false;
+        pendingPublication = null;
       }
       const target = audiencePayload();
       const linkUrl = ui.element('notice-link-url').value.trim();
@@ -748,12 +908,15 @@
 
       let publishStart = savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now'
         ? new Date().toISOString() : readDateTime('notice-publish-start', true);
+      if (reconciledWrite && savedStatus === 'draft' && ui.element('notice-publish-mode').value === 'now') publishStart = reconciledWrite.publish_start_at;
       const unchangedStart = savedPublishStart
         && ui.kstDate(savedPublishStart) === ui.element('notice-publish-start-date').value
         && ui.kstTime(savedPublishStart) === ui.element('notice-publish-start-time').value;
       if (savedStatus !== 'draft' && unchangedStart) publishStart = savedPublishStart;
-      if (publishEndAuto) syncDefaultPublishEnd(); // 'Now' is calculated when saving.
-      const publishEnd = readDateTime('notice-publish-end');
+      if (publishEndAuto && !reconciledWrite) syncDefaultPublishEnd(); // Never move an already committed period while reconciling.
+      let publishEnd = readDateTime('notice-publish-end');
+      if (savedPublishEnd && ui.kstDate(savedPublishEnd) === ui.element('notice-publish-end-date').value
+        && ui.kstTime(savedPublishEnd) === ui.element('notice-publish-end-time').value) publishEnd = savedPublishEnd;
       if (publishEnd && new Date(publishEnd) <= new Date(publishStart)) throw new Error('INVALID_PERIOD');
       if (action === 'publish' && publishEnd && new Date(publishEnd) <= new Date()) throw new Error('INVALID_PERIOD');
       if (action === 'publish' || status !== savedStatus) {
@@ -784,8 +947,21 @@
         p_change_reason: reason,
       };
       // A new/unpublished notice stays private until every photo is registered.
-      const result = await saveNotice({ ...payload, p_status: previousStatus === 'draft' ? 'draft' : status });
+      const writePayload = { ...payload, p_status: previousStatus === 'draft' ? 'draft' : status };
+      let result;
+      try {
+        result = reconciledWrite && matchesSaved(reconciledWrite, writePayload)
+          ? { ok: true, id: reconciledWrite.id, version_no: reconciledWrite.version_no, lead_notice_mode: reconciledWrite.lead_notice_mode }
+          : await saveNotice(writePayload);
+      } catch (error) {
+        if (error.message !== 'LEAD_NOTICE_BACKEND_UNAVAILABLE' && (!error.status || error.status >= 500)) {
+          if (writePayload.p_notice_id) pendingWrite = { id: writePayload.p_notice_id, payload: writePayload };
+          else createResponseUncertain = true;
+        }
+        throw error;
+      }
       if (!result?.ok) throw new Error(result?.code || 'SAVE_FAILED');
+      if (!result.id || (payload.p_notice_id && result.id !== payload.p_notice_id)) throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
 
       // Persist the saved id before photo work starts. If a later upload/RPC
       // fails, retrying the still-open form must update this notice instead of
@@ -804,10 +980,12 @@
         throw partialError;
       }
       let reviewState = '';
-      if (action === 'publish') {
+      if (action === 'publish' && previousStatus === 'draft') {
         publicationUncertain = true;
-        const published = await saveNotice({ ...payload, p_notice_id: result.id, p_status: 'published' });
+        pendingPublication = { ...payload, p_notice_id: result.id, p_status: 'published' };
+        const published = await saveNotice(pendingPublication);
         publicationUncertain = false;
+        pendingPublication = null;
         if (!published?.ok) throw new Error(published?.code || 'PUBLISH_FAILED');
         savedStatus = 'published';
       } else if (action === 'review') {
@@ -820,10 +998,25 @@
       }
       ui.element('notice-status').value = savedStatus;
       savedPublishStart = publishStart;
+      savedPublishEnd = publishEnd;
       setDateTime('notice-publish-start', publishStart);
-      const label = exposureLabel({ status: savedStatus, publish_start_at: publishStart, publish_end_at: publishEnd, review_state: reviewState });
+      const finalPayload = { ...payload, p_notice_id: result.id, p_status: savedStatus };
+      const verified = await readNotice(result.id).catch(() => {
+        pendingWrite = { id: result.id, payload: finalPayload };
+        throw new Error('NOTICE_READBACK_UNAVAILABLE');
+      });
+      if (!matchesSaved(verified, finalPayload) || verified.version_no < result.version_no
+        || (reviewState && verified.review_state !== reviewState)
+        || ui.array(verified.media).length !== mediaItems.length
+        || mediaItems.some((photo,index) => !ui.array(verified.media).some(stored => stored.id === photo.id && stored.alt_text === photo.alt_text.trim() && stored.display_order === index))) {
+        pendingWrite = { id: result.id, payload: finalPayload };
+        throw new Error('NOTICE_SAVE_RESULT_UNKNOWN');
+      }
+      const label = exposureLabel(verified);
+      activeView = isArchived(verified) ? 'archive' : 'manage';
+      ui.element('notice-list-filters').reset();
       const loaded = await load({ preserveMessage: true });
-      showSavedNotice(result.id, `${label} · ${payload.p_title}`, loaded);
+      showSavedNotice(result.id, `${label} · ${verified.title}`, loaded, activeView);
       // Keep the saved id, input and result visible. A new notice is an explicit action.
       revealEditor({ preview: true });
       await renderMediaEditor();
@@ -855,7 +1048,14 @@
                             : error.message === 'NOTICE_SAVED_MEDIA_FAILED' ? (savedStatus === 'published' ? '공개 공지 내용과 일부 사진은 이미 직원에게 반영됐을 수 있습니다. 사진 저장에 실패했습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.' : `${savedStatus === 'draft' ? '초안' : ui.STATUS[savedStatus] + ' 공지'}은 저장됐지만 사진 저장에 실패했습니다. 직원에게 공개·상신하지 않았습니다. 입력과 공지 ID는 유지됩니다. 다시 저장해주세요.`)
                             : error.message.startsWith('FORBIDDEN') ? '이 범위의 공지나 사진 자료를 수정할 권한이 없습니다.'
                           : '공지를 저장하지 못했습니다. 게시기간·대상·필수항목·사진을 확인해주세요.';
-      showMessage(publicationUncertain
+      const verificationError = ['NOTICE_READBACK_UNAVAILABLE','NOTICE_SAVE_RESULT_UNKNOWN'].includes(error.message);
+      showMessage(createResponseUncertain && !ui.element('notice-id').value
+        ? '새 공지 저장 응답을 확인하지 못했습니다. 중복 생성을 막기 위해 새 저장을 중단했습니다. 입력과 사진을 보존합니다. 목록에서 저장 여부를 확인해주세요. 자동 재저장은 하지 않습니다.'
+        : error.status === 401 && error.code === 'PGRST303'
+        ? '로그인 세션을 갱신하지 못해 요청이 거부됐습니다. 입력·사진·공지 ID를 보존했습니다. 다시 로그인한 뒤 저장해주세요. 인증 오류 외의 저장 요청은 자동 재전송하지 않습니다.'
+        : verificationError || pendingWrite
+        ? '저장 결과 확인이 필요합니다. 동일 공지 ID의 서버 내용·버전·사진 재조회를 확인하지 못해 저장 완료로 표시하지 않습니다. 입력과 ID를 보존하며 자동 재게시하지 않습니다.'
+        : publicationUncertain
         ? '게시 응답을 확인하지 못했습니다. 공개 여부는 아직 확정할 수 없습니다. 입력과 공지 ID는 유지되며, 다시 저장하면 먼저 서버 상태를 확인합니다.'
         : bodySaved && !['NOTICE_SAVED_MEDIA_FAILED', 'NOTICE_SAVED_MEDIA_UNCERTAIN'].includes(error.message)
         ? `공지 내용은 저장됐습니다 (${savedStatus === 'draft' ? '직원 비공개' : '현재 상태 유지'}). 게시·상신을 완료하지 못했습니다. ${message}` : message, true);
@@ -918,6 +1118,11 @@
       revealEditor({ preview: true });
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
+    ui.element('archive-notice-admin').addEventListener('click', () => setView('archive'));
+    ui.element('back-notice-admin').addEventListener('click', () => setView('manage'));
+    ui.element('notice-list-filters').addEventListener('submit', event => { event.preventDefault(); if (!saving) void load(); });
+    ui.element('notice-clear-filters').addEventListener('click', () => { if (!saving) { ui.element('notice-list-filters').reset(); void load(); } });
+    ui.element('notice-list-more').addEventListener('click', () => { if (!saving) void load({ more: true }); });
     ui.element('refresh-notice-admin').addEventListener('click', () => { if (!saving) void load(); });
     ui.element('notice-photo-input').addEventListener('change', addSelectedPhotos);
     ui.element('notice-form').addEventListener('input', event => {
