@@ -1,0 +1,8 @@
+{
+  "commit": "2115ada603ca17a2ac1aa84d24c75bb9c4953088",
+  "files_sha256": {
+    "config.ts": "803f75c69978d140e9087fec2b621ea809c204dd9125d264870df23bc8b661a5",
+    "release-policy.ts": "e162cbbedd0bf0916728ac48360c042ca51466db96a59db497da82f60e0f42b5",
+    "update-lifecycle.tsx": "e435875d236ce6c19123dfd74117c624a2c6bcb6281c814eac1c0c309e937650"
+  }
+}

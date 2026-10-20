@@ -85,12 +85,28 @@ test('seed specification defaults to two TEST accounts and keeps the full nine-a
   assert.doesNotMatch(seed, /@taejang\.co\.kr/i);
 });
 
-test('only staging config enables the non-production label returned to the app', () => {
+test('only staging config enables the non-production label returned to the app', async () => {
   const config = read('netlify/functions/staff-config.mjs');
   const app = read('app/assets/app.js');
   const html = read('app/index.html');
-  assert.match(config, /process\.env\.APP_ENV === 'staging'/);
+  // Staging isolation must hold with both default and injected environment values.
+  assert.match(config, /(?:process\.)?env\.APP_ENV === 'staging'/);
   assert.match(config, /environmentLabel = isStaging/);
   assert.match(app, /showEnvironmentLabel\(state\.config\)/);
   assert.match(html, /id="nonproduction-label"[^>]*hidden/);
+
+  const { buildStaffConfig } = await import('../netlify/functions/staff-config.mjs');
+  const env = {
+    APP_ENV: 'staging',
+    SUPABASE_URL: 'https://staging.invalid',
+    SUPABASE_PUBLISHABLE_KEY: 'public-test-only',
+  };
+  const unavailable = async () => ({ ok: false });
+  const staging = await (await buildStaffConfig({ env, fetchImpl: unavailable })).json();
+  const production = await (await buildStaffConfig({
+    env: { ...env, APP_ENV: 'production' },
+    fetchImpl: unavailable,
+  })).json();
+  assert.equal(staging.environmentLabel, '비운영 검수환경');
+  assert.equal(production.environmentLabel, null);
 });

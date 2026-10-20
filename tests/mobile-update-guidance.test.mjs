@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
+import { buildStaffConfig } from '../netlify/functions/staff-config.mjs';
 
 const ts = createRequire(new URL('../mobile/package.json', import.meta.url))('typescript');
 const jsx = (type, props) => ({ type, props });
@@ -36,7 +38,7 @@ function nodes(tree) {
   return [tree, ...nodes(tree.props?.children)];
 }
 
-function fixture(initialPolicy = optional, qa = false) {
+function fixture(initialPolicy = optional, qa = false, legacy = false) {
   const states = [], dependencies = [], pending = [], cleanups = [];
   let cursor = 0, listener, nextPolicy = initialPolicy, fetchFailure = false;
   const urls = [], fetches = [], failUrls = new Set();
@@ -59,8 +61,8 @@ function fixture(initialPolicy = optional, qa = false) {
     StyleSheet: { create: value => value }, AppState: { currentState: 'active', addEventListener: (_event, fn) => {
       listener = fn; return { remove() { listener = undefined; } };
     } } };
-  const lifecycle = load('mobile/src/platform/update-lifecycle.tsx', {
-    react, 'react-native': native, './app-variant': { isQaApp: qa }, './release-policy': release,
+  const lifecycle = load(legacy ? 'tests/fixtures/mobile-0.1.3/update-lifecycle.tsx.txt' : 'mobile/src/platform/update-lifecycle.tsx', {
+    react, 'react-native': native, './app-variant': { isQaApp: qa }, './release-policy': legacy ? legacyRelease : release,
     './config': { loadPublicMobileReleasePolicy: async () => {
       fetches.push('policy'); if (fetchFailure) throw new Error('offline'); return nextPolicy;
     } },
@@ -96,20 +98,19 @@ test('versionCode is authoritative and an unpublished/malformed minimum cannot f
   assert.equal(release.decideUpdate(installed, base), 'none');
 });
 
-test('startup latest has no prompt; optional later survives rerender/resume but a new target and forced policy reappear', async () => {
+test('startup latest has no prompt; optional later survives rerender/resume across optional target changes; forced policy remains separate', async () => {
   const latest = fixture({ ...base, latestVersion: installed.version, latestVersionCode: 4 });
   await latest.flush(); assert.equal(latest.visible().length, 0); assert.equal(latest.fetches.length, 0); latest.dispose();
   const app = fixture(); await app.flush();
-  assert.ok(app.visible().includes('태장 앱의 새로운 버전이 나왔습니다.'));
-  assert.ok(app.button('나중에')); assert.ok(app.button('업데이트'));
+  assert.ok(app.visible().includes('새로운 업데이트가 있습니다'));
+  assert.ok(app.button('나중에')); assert.ok(app.button('업데이트하기'));
   await app.press('나중에'); assert.equal(app.visible().length, 0);
   app.render(); assert.equal(app.visible().length, 0);
   await app.resume(); assert.equal(app.visible().length, 0); assert.equal(app.fetches.length, 1);
   await app.activeAgain(); assert.equal(app.fetches.length, 1);
-  await app.resume({ ...optional, latestVersionCode: 6 }); assert.ok(app.button('업데이트'));
-  await app.press('나중에');
+  await app.resume({ ...optional, latestVersionCode: 6 }); assert.equal(app.visible().length, 0);
   await app.resume({ ...optional, latestVersionCode: 6, forceUpdate: true });
-  assert.ok(app.button('업데이트')); assert.equal(app.button('나중에'), undefined); app.dispose();
+  assert.ok(app.button('업데이트하기')); assert.equal(app.button('나중에'), undefined); app.dispose();
 });
 
 test('forced update only has update, Android back cannot dismiss it, and offline policy refresh releases the stale gate', async () => {
@@ -118,20 +119,20 @@ test('forced update only has update, Android back cannot dismiss it, and offline
   assert.ok(app.visible().includes('최신 버전으로 업데이트한 후 이용할 수 있습니다.'));
   assert.equal(app.button('나중에'), undefined);
   app.render().find(n => n?.type === 'Modal' && n.props.visible).props.onRequestClose();
-  assert.ok(app.button('업데이트'));
+  assert.ok(app.button('업데이트하기'));
   await app.resume(forced, true); assert.equal(app.visible().length, 0);
-  await app.resume(forced); assert.ok(app.button('업데이트')); app.dispose();
+  await app.resume(forced); assert.ok(app.button('업데이트하기')); app.dispose();
 });
 
 test('Play uses the canonical production package, falls back to HTTPS, and retains a retry button on both failures', async () => {
   const app = fixture({ ...optional, storeUrl: 'https://wrong-app.example/' }); await app.flush();
-  await app.press('업데이트'); assert.deepEqual(app.urls, [release.DEFAULT_PLAY_STORE_URL]);
+  await app.press('업데이트하기'); assert.deepEqual(app.urls, [release.DEFAULT_PLAY_STORE_URL]);
   app.failUrls.add(release.DEFAULT_PLAY_STORE_URL);
-  await app.press('업데이트'); assert.deepEqual(app.urls.slice(-2), [release.DEFAULT_PLAY_STORE_URL, release.PLAY_STORE_WEB_URL]);
+  await app.press('업데이트하기'); assert.deepEqual(app.urls.slice(-2), [release.DEFAULT_PLAY_STORE_URL, release.PLAY_STORE_WEB_URL]);
   app.failUrls.add(release.PLAY_STORE_WEB_URL);
-  await app.press('업데이트');
+  await app.press('업데이트하기');
   assert.ok(app.visible().some(n => n?.props?.accessibilityRole === 'alert'));
-  assert.ok(app.button('업데이트')); assert.equal(app.button('업데이트').props.disabled, false); app.dispose();
+  assert.ok(app.button('업데이트하기')); assert.equal(app.button('업데이트하기').props.disabled, false); app.dispose();
 });
 
 test('QA never renders production updates/maintenance, fetches a production policy, or opens Play', async () => {
@@ -144,7 +145,7 @@ test('update modal has scroll, scalable text and large labeled buttons, and neve
   assert.equal(app.render().filter(n => n?.type === 'Modal' && n.props.visible).length, 1);
   assert.ok(app.visible().some(n => n?.type === 'ScrollView'));
   assert.ok(app.visible().some(n => n?.props?.accessibilityRole === 'header'));
-  for (const label of ['나중에', '업데이트']) assert.ok(app.button(label).props.style.minHeight >= 48);
+  for (const label of ['나중에', '업데이트하기']) assert.ok(app.button(label).props.style.minHeight >= 48);
   for (const node of app.visible().filter(n => n?.type === 'Text')) assert.notEqual(node.props.allowFontScaling, false);
   await app.press('나중에'); assert.ok(app.visible().includes('변경사항')); app.dispose();
 });
@@ -166,4 +167,45 @@ test('policy refresh parses the existing public endpoint, rejects HTTP/malformed
     options.signal.addEventListener('abort', () => reject(new Error('aborted')));
   }));
   abortRequest(); await assert.rejects(request, /aborted/);
+});
+
+
+test('a fresh app process may prompt again after later; current and higher installed codes stay quiet', async () => {
+  const policy = { ...base, latestVersion: '0.1.5', latestVersionCode: 6 };
+  const app = fixture(policy); await app.flush();
+  assert.ok(app.visible().includes('새로운 업데이트가 있습니다'));
+  assert.ok(app.visible().includes('태장 직원앱의 새로운 버전이 나왔습니다.\n\n지금 업데이트하시겠습니까?'));
+  await app.press('나중에'); await app.resume(); assert.equal(app.visible().length, 0); app.dispose();
+  const restarted = fixture(policy); await restarted.flush(); assert.ok(restarted.button('업데이트하기')); restarted.dispose();
+  for (const code of [6, 7]) assert.equal(release.decideUpdate({ version: '0.1.5', versionCode: code }, policy), 'none');
+  for (const code of [4, 5]) assert.equal(release.decideUpdate({ version: '0.1.3', versionCode: code }, policy), 'optional');
+});
+
+
+const legacyRelease = load('tests/fixtures/mobile-0.1.3/release-policy.ts.txt', {
+  'expo-constants': { expoConfig: { version: '0.1.3', android: { versionCode: 4 } }, nativeBuildVersion: '4' },
+});
+test('frozen Play 0.1.3 source consumes runtime staff-config, offers later/HTTPS Play, and only checks at cold start', async () => {
+  const source = JSON.parse(readFileSync(new URL('fixtures/mobile-0.1.3/source.json', import.meta.url)));
+  assert.equal(source.commit, '2115ada603ca17a2ac1aa84d24c75bb9c4953088');
+  for (const [file, digest] of Object.entries(source.files_sha256)) {
+    const content = readFileSync(new URL(`fixtures/mobile-0.1.3/${file}.txt`, import.meta.url));
+    assert.equal(createHash('sha256').update(content).digest('hex'), digest);
+  }
+  const response = await buildStaffConfig({ env: { SUPABASE_URL:'https://fixture.supabase.co', SUPABASE_PUBLISHABLE_KEY:'public-test' },
+    fetchImpl: async () => ({ ok:true, json:async () => [{ enabled:true, latest_version:'0.1.5', latest_version_code:6,
+      update_title:'새로운 업데이트가 있습니다', update_message:'태장 직원앱의 새로운 버전이 나왔습니다.\n\n지금 업데이트하시겠습니까?',
+      store_url:release.PLAY_STORE_WEB_URL }] }) });
+  const raw = await response.json();
+  const oldConfig = load('tests/fixtures/mobile-0.1.3/config.ts.txt');
+  const config = await oldConfig.loadPublicPlatformConfig(async () => ({ ok:true, json:async () => raw }));
+  for (const code of [4, 5, 6, 7]) {
+    assert.equal(legacyRelease.decideUpdate({ version:'0.1.3', versionCode:code }, config.mobileRelease), code < 6 ? 'optional' : 'none');
+  }
+  const app = fixture(config.mobileRelease, false, true); await app.flush();
+  assert.ok(app.visible().includes('새로운 업데이트가 있습니다'));
+  await app.press('업데이트'); assert.deepEqual(app.urls, [release.PLAY_STORE_WEB_URL]);
+  await app.press('나중에 업데이트'); assert.equal(app.visible().length, 0);
+  await app.resume(); assert.equal(app.visible().length, 0); assert.equal(app.fetches.length, 0); app.dispose();
+  const restarted = fixture(config.mobileRelease, false, true); await restarted.flush(); assert.ok(restarted.button('업데이트')); restarted.dispose();
 });

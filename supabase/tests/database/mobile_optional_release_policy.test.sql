@@ -1,0 +1,36 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(25);
+
+select has_table('public', 'mobile_optional_release_policy', 'public metadata has one dedicated table');
+select ok((select relrowsecurity from pg_class where oid='public.mobile_optional_release_policy'::regclass), 'RLS enabled');
+select is((select count(*)::int from public.mobile_optional_release_policy), 1, 'single disabled seed');
+select is((select enabled from public.mobile_optional_release_policy), false, 'migration never activates a release');
+select is((select latest_version_code from public.mobile_optional_release_policy), 6, 'candidate code 6');
+select is((select update_title from public.mobile_optional_release_policy), '새로운 업데이트가 있습니다', 'approved title');
+select is((select count(*)::int from information_schema.columns where table_schema='public' and table_name='mobile_optional_release_policy' and column_name in ('force_update','minimum_version','minimum_version_code','profile_id','employee_id')), 0, 'no forcing, minimum or employee fields');
+select is((select count(*)::int from pg_policy where polrelid='public.mobile_optional_release_policy'::regclass and polcmd <> 'r'), 0, 'no write policy');
+select ok(has_table_privilege('anon','public.mobile_optional_release_policy','SELECT'), 'anon select grant');
+select ok(has_table_privilege('authenticated','public.mobile_optional_release_policy','SELECT'), 'authenticated select grant');
+select ok(not has_table_privilege('anon','public.mobile_optional_release_policy','INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), 'anon has no mutation privileges');
+select ok(not has_table_privilege('authenticated','public.mobile_optional_release_policy','INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'), 'authenticated has no mutation privileges');
+select throws_ok($$update public.mobile_optional_release_policy set store_url='https://other.example/app'$$, '23514', null, 'external download URL rejected');
+select throws_ok($$update public.mobile_optional_release_policy set latest_version_code=0$$, '23514', null, 'invalid code rejected');
+select throws_ok($$update public.mobile_optional_release_policy set latest_version='not-a-version'$$, '23514', null, 'invalid version rejected');
+select throws_ok($$update public.mobile_optional_release_policy set singleton_id=2$$, '23514', null, 'second singleton rejected');
+
+set local role anon;
+select is((select count(*)::int from public.mobile_optional_release_policy), 1, 'anon actually reads via RLS');
+select throws_ok($$update public.mobile_optional_release_policy set enabled=true$$, '42501', null, 'anon update denied');
+select throws_ok($$delete from public.mobile_optional_release_policy$$, '42501', null, 'anon delete denied');
+select throws_ok($$insert into public.mobile_optional_release_policy select * from public.mobile_optional_release_policy$$, '42501', null, 'anon insert denied');
+reset role;
+set local role authenticated;
+select is((select count(*)::int from public.mobile_optional_release_policy), 1, 'authenticated actually reads via RLS');
+select throws_ok($$update public.mobile_optional_release_policy set enabled=true$$, '42501', null, 'employee update denied');
+select throws_ok($$delete from public.mobile_optional_release_policy$$, '42501', null, 'employee delete denied');
+select throws_ok($$insert into public.mobile_optional_release_policy select * from public.mobile_optional_release_policy$$, '42501', null, 'employee insert denied');
+reset role;
+select is((select enabled from public.mobile_optional_release_policy), false, 'attempts did not activate the policy');
+select * from finish();
+rollback;

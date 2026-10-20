@@ -4,7 +4,7 @@ import { AppState, Modal, Pressable, ScrollView, StyleSheet, Text, View } from '
 
 import { isQaApp } from './app-variant';
 import { secureSessionStorage } from './secure-storage';
-import { decideUpdate, installedAppVersion, openPlayStore, updateTargetKey } from './release-policy';
+import { decideUpdate, installedAppVersion, openPlayStore } from './release-policy';
 import { loadPublicMobileReleasePolicy, type PublicMobileReleasePolicy } from './config';
 import { usePlatform } from '@/src/providers/platform-provider';
 
@@ -13,7 +13,7 @@ const RELEASE_NOTES_KEY_PREFIX = 'taejang.mobile.release-notes.seen.';
 export function UpdateLifecycle() {
   const { config } = usePlatform();
   const installed = useMemo(installedAppVersion, []);
-  const [dismissedTarget, setDismissedTarget] = useState<string | null>(null);
+  const [optionalDismissed, setOptionalDismissed] = useState(false);
   const [refreshedPolicy, setRefreshedPolicy] = useState<PublicMobileReleasePolicy | null | undefined>(undefined);
   const [storeOpening, setStoreOpening] = useState(false);
   const [storeError, setStoreError] = useState('');
@@ -21,8 +21,7 @@ export function UpdateLifecycle() {
   const policy = isQaApp ? null : refreshedPolicy === undefined ? config?.mobileRelease : refreshedPolicy;
   const update = policy ? decideUpdate(installed, policy) : 'none';
   const maintenanceVisible = Boolean(policy?.maintenanceMode);
-  const target = policy ? updateTargetKey(policy) : null;
-  const updateVisible = !maintenanceVisible && (update === 'forced' || (update === 'optional' && dismissedTarget !== target));
+  const updateVisible = !maintenanceVisible && (update === 'forced' || (update === 'optional' && !optionalDismissed));
 
   useEffect(() => {
     if (isQaApp) return;
@@ -82,14 +81,14 @@ export function UpdateLifecycle() {
           <Pressable accessibilityRole="button" accessibilityLabel="고객센터 문의하기" onPress={() => void Linking.openURL('https://taejang.co.kr/#contact')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>문의하기</Text></Pressable>
         </View></View>
       </Modal>
-      <Modal animationType="fade" transparent visible={updateVisible} statusBarTranslucent onRequestClose={() => { if (update === 'optional') setDismissedTarget(target); }}>
+      <Modal animationType="fade" transparent visible={updateVisible} statusBarTranslucent onRequestClose={() => { if (update === 'optional') setOptionalDismissed(true); }}>
         <View style={styles.backdrop}><View accessibilityViewIsModal style={styles.updateCard}>
           <ScrollView contentContainerStyle={styles.updateContent}>
-            <Text accessibilityRole="header" style={styles.title}>{policy.updateTitle || (update === 'forced' ? '태장 앱을 업데이트해주세요.' : '태장 앱의 새로운 버전이 나왔습니다.')}</Text>
-            {policy.updateMessage || update === 'forced' ? <Text style={styles.message}>{policy.updateMessage || '최신 버전으로 업데이트한 후 이용할 수 있습니다.'}</Text> : null}
+            <Text accessibilityRole="header" style={styles.title}>{policy.updateTitle || (update === 'forced' ? '태장 앱을 업데이트해주세요.' : '새로운 업데이트가 있습니다')}</Text>
+            <Text style={styles.message}>{policy.updateMessage || (update === 'forced' ? '최신 버전으로 업데이트한 후 이용할 수 있습니다.' : '태장 직원앱의 새로운 버전이 나왔습니다.\n\n지금 업데이트하시겠습니까?')}</Text>
             {storeError ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={styles.message}>{storeError}</Text> : null}
-            {update === 'optional' ? <Pressable accessibilityRole="button" accessibilityLabel="나중에" onPress={() => setDismissedTarget(target)} style={styles.laterButton}><Text style={styles.laterButtonText}>나중에</Text></Pressable> : null}
-            <Pressable accessibilityRole="button" accessibilityLabel="업데이트" accessibilityState={{ disabled: storeOpening, busy: storeOpening }} disabled={storeOpening} onPress={() => void openStore()} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{storeOpening ? 'Play 스토어 여는 중…' : '업데이트'}</Text></Pressable>
+            {update === 'optional' ? <Pressable accessibilityRole="button" accessibilityLabel="나중에" onPress={() => setOptionalDismissed(true)} style={styles.laterButton}><Text style={styles.laterButtonText}>나중에</Text></Pressable> : null}
+            <Pressable accessibilityRole="button" accessibilityLabel="업데이트하기" accessibilityState={{ disabled: storeOpening, busy: storeOpening }} disabled={storeOpening} onPress={() => void openStore()} style={styles.primaryButton}><Text style={styles.primaryButtonText}>{storeOpening ? 'Play 스토어 여는 중…' : '업데이트하기'}</Text></Pressable>
           </ScrollView>
         </View></View>
       </Modal>
