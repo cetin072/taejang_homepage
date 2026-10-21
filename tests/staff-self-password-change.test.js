@@ -18,7 +18,7 @@ test('own password grant, change and revoke only, never use privileged endpoints
  assert.equal(await changePassword(values,config,fetcher),true);
  assert.equal(calls.length,3);
  assert.match(calls[0].u,/grant_type=password/);
- assert.deepEqual(JSON.parse(calls[1].opt.body),{password:values.next});
+ assert.deepEqual(JSON.parse(calls[1].opt.body),{password:values.next,current_password:values.current});
  assert.equal(calls[1].opt.headers.Authorization,'Bearer '+'s'.repeat(40));
  assert.match(calls[2].u,/logout/);
  for(const x of calls){assert.equal(x.opt.credentials,'omit');assert.equal(x.opt.cache,'no-store');}
