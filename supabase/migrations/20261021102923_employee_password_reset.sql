@@ -52,7 +52,9 @@ begin
        where pr.profile_id=actor and pr.revoked_at is null and r.active
        and r.code in ('operations_manager','promotion_lead') and pr.scope_type='company')
  then return jsonb_build_object('ok',false,'code','FORBIDDEN'); end if;
- ops:='operations_manager'=any(public.private_actual_role_codes());
+ ops:=exists(select 1 from public.profile_roles pr join public.roles r on r.id=pr.role_id
+   where pr.profile_id=actor and pr.revoked_at is null and r.active
+     and r.code='operations_manager' and pr.scope_type='company');
  select * into e from public.employees where id=p_employee_uuid;
  if not found or e.archived_at is not null or e.employment_status<>'active' or e.departed_on is not null
  then return jsonb_build_object('ok',false,'code','EMPLOYEE_UNAVAILABLE'); end if;

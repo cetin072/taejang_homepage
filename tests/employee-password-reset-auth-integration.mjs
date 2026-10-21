@@ -58,6 +58,10 @@ sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
 for(const t of [worker,promo])check((await option(lead,t)).data?.ok,'lead allowed ordinary roles');
 check(!(await option(lead,office)).data?.ok,'lead cannot reset office role');
 check((await option(ops,office)).data?.ok,'operations broader ordinary scope');
+const scopedActor=await fixture('reset-scoped-actor','promotion_lead','department_lead');
+sql(`insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
+ select '${scopedActor.id}',id,'self','${ops.id}' from public.roles where code='operations_manager'`);
+check(!(await option(scopedActor,office)).data?.ok,'self-scoped operations role never expands company lead scope');
 for(const actor of [ops,lead])for(const target of [ops,lead,ceo,tech,dual])
  check(!(await option(actor,target)).data?.ok,'self, peers, privileged multi-role and executives protected');
 check(!(await option(worker,promo)).data?.ok,'ordinary actor forbidden');
