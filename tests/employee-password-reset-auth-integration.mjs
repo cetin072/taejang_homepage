@@ -61,6 +61,9 @@ check((await option(ops,office)).data?.ok,'operations broader ordinary scope');
 for(const actor of [ops,lead])for(const target of [ops,lead,ceo,tech,dual])
  check(!(await option(actor,target)).data?.ok,'self, peers, privileged multi-role and executives protected');
 check(!(await option(worker,promo)).data?.ok,'ordinary actor forbidden');
+const revokedActor=await fixture('reset-revoked-actor','promotion_lead','department_lead');
+await api('/auth/v1/logout?scope=local',{token:revokedActor.token,method:'POST'});
+check(!(await option(revokedActor,worker)).data?.ok,'revoked session cannot use still-unexpired JWT');
 check(!(await rpc('finish_employee_password_reset',lead.token,{p_request_id:crypto.randomUUID(),p_result:'SUCCESS'})).ok,'client cannot forge completion');
 check(!(await api('/rest/v1/employee_reset_exceptions',{token:lead.token})).ok,'exceptions inaccessible to browser');
 const changed=await fixture('reset-changed');
@@ -84,6 +87,7 @@ check(!(await option(ops,same1)).data?.ok,'namesake blocked');
 const boosted=await fixture('reset-boosted');
 sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.password_reset' from public.roles where code='general_worker'");
 check(!(await option(ops,boosted)).data?.ok,'ordinary role with elevated capability protected');
+check(!(await option(boosted,promo)).data?.ok,'forged capability without actual manager role cannot reset');
 sql("delete from public.role_capability_grants where capability_code='employee.password_reset' and role_id=(select id from public.roles where code='general_worker')");
 check(!(await reserve(lead,promo,{p_employee_number:worker.number})).data?.ok,'number substitution blocked');
 check(!(await reserve(lead,promo,{p_profile_id:worker.id})).data?.ok,'Auth ID substitution blocked');
@@ -105,6 +109,7 @@ try {
  check(ready,'isolated Edge ready');
  check((await edge(ops,worker,{},'https://deploy-preview-500--taejang-homepage.netlify.app')).status===403,'Preview denied');
  check((await api('/functions/v1/employee-password-reset',{token:'expired.invalid.jwt',body:body(worker),origin:'http://localhost:3000'})).status===401,'invalid JWT blocked');
+ check((await edge(ops,worker,{current_password:''})).status===400,'OTP bearer alone without password reauthentication insufficient');
  const resetter=await fixture('reset-fresh-ops','operations_manager','operations_manager');
  const target=await fixture('reset-live-target');
  const snapshot=()=>sql(`select jsonb_build_object('employee',to_jsonb(e),'person',to_jsonb(p),'profile',to_jsonb(pr),
@@ -136,7 +141,9 @@ try {
  const auditText=sql(`select coalesce(jsonb_agg(to_jsonb(a))::text,'') from public.audit_logs a where target_id='${target.e}'`);
  check(!auditText.includes(reset.data.temporary_password)&&!auditText.includes(initial)&&!auditText.includes(next),'audit excludes credentials');
  const mt=await fixture('reset-manual-target');
- sql(`insert into public.employee_reset_exceptions(slot,employee_uuid,profile_id,expires_at) values(1,'${mt.e}','${mt.id}',now()+interval '1 hour')`);
+ sql(`insert into public.employee_reset_exceptions(slot,employee_uuid,profile_id,expires_at) values(1,'${mt.e}','${mt.id}',now()-interval '1 minute')`);
+ check(!(await option(resetter,mt)).data?.manual_allowed,'expired exception denied');
+ sql("update public.employee_reset_exceptions set expires_at=now()+interval '1 hour' where slot=1");
  check((await option(resetter,mt)).data?.manual_allowed,'manual exception bound to target and actor');
  check(!(await option(lead,mt)).data?.manual_allowed,'lead never allowed manual');
  check((await edge(resetter,mt,{mode:'manual',temporary_password:'8135792468135792'})).ok,'real Admin manual reset');

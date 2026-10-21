@@ -45,6 +45,8 @@ declare
  roles text[]; ops boolean; person_name text;
 begin
  if actor is null or not public.current_profile_is_active()
+    or not exists(select 1 from auth.sessions s where s.user_id=actor
+       and s.id::text=auth.jwt()->>'session_id')
     or not public.private_actor_can('employee.password_reset')
     or not exists(select 1 from public.profile_roles pr join public.roles r on r.id=pr.role_id
        where pr.profile_id=actor and pr.revoked_at is null and r.active

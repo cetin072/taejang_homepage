@@ -59,6 +59,12 @@ test('manual is not a default; supplied value only reaches Auth, explicit policy
  assert.equal(r.status,422);assert.equal((await r.json()).code,'POLICY_REJECTED');
  assert.equal(h.calls.find(c=>c[0]==='finish_employee_password_reset')[1].p_result,'POLICY_REJECTED');
 });
+test('short approved numeric input is delegated to Auth policy, never silently replaced',async()=>{
+ const h=harness({updateError:{status:422}});
+ const r=await h.request({...body,mode:'manual',temporary_password:'1234'});
+ assert.equal(r.status,422);
+ assert.equal(h.calls.find(c=>c[0]==='update')[2].password,'1234');
+});
 test('uncertain mutations and failed final audit never disclose credentials or silently unlock',async()=>{
  for(const o of [{throwUpdate:true},{finish:false},{updateError:{status:500,message:'sensitive'}}]){
   const h=harness(o);const r=await h.request();const result=await r.json();

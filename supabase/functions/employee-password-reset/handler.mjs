@@ -56,14 +56,16 @@ export function createHandler({ createClient, env, fetcher = fetch }) {
       if(Number(req.headers.get('content-length')||0)>4096)return reply(400,'INVALID_INPUT');
       const raw=await req.text();
       if(raw.length>4096)return reply(400,'INVALID_INPUT');
-      const body=JSON.parse(raw);
+      let body;
+      try { body=JSON.parse(raw); } catch { return reply(400,'INVALID_INPUT'); }
+      if(!body || typeof body!=='object' || Array.isArray(body))return reply(400,'INVALID_INPUT');
       const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if(!uuid.test(body.employee_uuid)||!uuid.test(body.profile_id)
         ||!/^TJ-[0-9]{6,}$/.test(body.employee_number)
         ||typeof body.reason!=='string'||body.reason.trim().length<5||body.reason.length>300
         ||!['random','manual'].includes(body.mode)||body.identity_verified!==true
         ||typeof body.current_password!=='string'||!body.current_password||body.current_password.length>256
-        ||(body.mode==='manual' && (typeof body.temporary_password!=='string'||!/^\d{6,128}$/.test(body.temporary_password))))
+        ||(body.mode==='manual' && (typeof body.temporary_password!=='string'||!/^\d{1,128}$/.test(body.temporary_password))))
         return reply(400,'INVALID_INPUT');
       const user=createClient(url,anon,{...options,global:{headers:{Authorization:'Bearer '+token}}});
       const {data:reserved,error:reserveError}=await user.rpc('reserve_employee_password_reset',{
