@@ -7,6 +7,21 @@ import { spawnSync } from 'node:child_process';
 import { calendarSlot, evaluateSchedule, publishedDeploy, decide, deployInput, validateHook, guard, trigger, runCycle, HOOK_TITLE } from '../scripts/scheduled-netlify-release.mjs';
 
 const config = JSON.parse(readFileSync(new URL('../deployment/release-policy.json', import.meta.url), 'utf8'));
+
+test('backup schedule keeps original 17:20 KST slot and safe late wake-ups', () => {
+  const yaml = readFileSync(new URL('../.github/workflows/production-release.yml', import.meta.url), 'utf8');
+  const crons = [...yaml.matchAll(/- cron: '([^']+)'/g)].map(item => item[1]);
+  assert.deepEqual(crons, ['20 8 * * *', '47 8 * * *', '17 9 * * *', '47 9 * * *']);
+  const anchor = Date.parse(config.schedule_anchor_utc);
+  assert.equal(new Date(anchor + 48 * 3600000).toISOString(), '2026-10-21T08:20:00.000Z');
+  const currentSlot = calendarSlot(config, new Date('2026-10-23T09:47:00.000Z'));
+  assert.equal(currentSlot.status, 'DUE');
+  const first = { id: 100, head_branch: 'main', event: 'schedule', run_attempt: 1, created_at: '2026-10-23T08:20:00.000Z' };
+  const backup = { ...first, id: 101, created_at: '2026-10-23T09:47:00.000Z' };
+  assert.equal(evaluateSchedule(config, backup, [first, backup], new Date('2026-10-23T09:47:20.000Z')).status, 'SLOT_ALREADY_CHECKED');
+});
+
+
 const a = 'a'.repeat(40), b = 'b'.repeat(40);
 const due = new Date('2026-10-21T08:20:00Z');
 const published = { id: 'published-old', state: 'ready', context: 'production', commit_ref: a, published_at: '2026-10-18T08:00:00Z' };

@@ -5,6 +5,11 @@ on:
   schedule:
     # Daily wake-up; fixed 48-hour slots are computed across month/year boundaries.
     - cron: '20 8 * * *'
+    # GitHub may delay or drop one cron event. Independent later wake-ups
+    # are deduplicated by evaluateSchedule using the same fixed 48h slot.
+    - cron: '47 8 * * *'
+    - cron: '17 9 * * *'
+    - cron: '47 9 * * *'
   workflow_dispatch:
 
 permissions:
