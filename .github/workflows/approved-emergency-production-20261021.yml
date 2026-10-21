@@ -1,0 +1,44 @@
+# One-off response to the missed 2026-10-21 GitHub schedule.
+# Requires an exact SHA-bearing comment by cetin072 on this merged PR.
+# Permanently expires at 2026-10-22 00:00 KST; existing production guards stay enabled.
+name: Approved emergency Production 2026-10-21
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: taejang-production-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.issue.number == 502 &&
+      github.event.comment.user.login == 'cetin072' &&
+      startsWith(github.event.comment.body, '/release-once 2026-10-21 ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify emergency authorization guards
+        run: node --test tests/one-time-approved-release-20261021.test.mjs
+      - name: Publish approved main once using existing Netlify Build Hook
+        env:
+          RELEASE_PR_NUMBER: "502"
+          GH_TOKEN: ${{ github.token }}
+          NETLIFY_PRODUCTION_BUILD_HOOK: ${{ secrets.NETLIFY_PRODUCTION_BUILD_HOOK }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PRODUCTION_SUPABASE_PROJECT_REF: jgsxpdflgkqroecfjzxq
+        run: node scripts/one-time-approved-release-20261021.mjs
