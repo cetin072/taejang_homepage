@@ -91,10 +91,11 @@
       .attendance-compare { font-size:14px; font-weight:800; line-height:1.45; }
       .attendance-compare[data-review="true"] { color:#9a5c09; }
       .attendance-review-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-      .attendance-unmatched { margin:14px 0; padding:14px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; }
+      .attendance-unmatched { min-width:0; overflow-wrap:anywhere; margin:14px 0; padding:14px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; }
       .attendance-unmatched-list { display:grid; gap:10px; margin-top:10px; }
       .attendance-unmatched-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-      .attendance-unmatched-row select { min-height:38px; padding:6px 8px; }
+      .attendance-unmatched-row > * { min-width:0; max-width:100%; }
+      .attendance-unmatched-row select { min-width:0; max-width:100%; flex:1 1 260px; min-height:38px; padding:6px 8px; }
       .attendance-confirmation { margin:14px 0; padding:16px; border:1px solid #aac7b4; border-radius:14px; background:#f5fbf6; }
       .attendance-confirmation[data-confirmed="true"] { border-color:#7da88c; background:#edf8ef; }
       .attendance-confirmation[data-blocked="true"] { border-color:#e2c68d; background:#fff8e9; }

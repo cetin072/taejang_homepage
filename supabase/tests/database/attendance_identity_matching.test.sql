@@ -80,5 +80,10 @@ select is(has_function_privilege('authenticated','public.private_save_attendance
 select is(has_function_privilege('anon','public.save_attendance_source_identity_mapping(text,text,uuid,text,date,uuid,boolean,boolean)','execute'),false,'anonymous writer denied');
 select is((select count(*)::integer from public.attendance_external_evidence where work_date='2026-10-19'),43,'all original rows and conflicting evidence remain');
 select is((select count(*)::integer from original_raw original left join public.attendance_external_evidence e on e.id=original.id where e.id is null or to_jsonb(e) is distinct from original.payload),0,'all 42 original payloads remain byte-for-byte equivalent after mapping');
+insert into public.work_groups(id,department_id,name) values('50640000-0000-0000-0000-000000000001',(select id from public.departments where code='production'),'가상 배정팀');
+insert into public.work_group_employee_memberships(work_group_id,employee_uuid,start_date,assigned_by) values('50640000-0000-0000-0000-000000000001','50620000-0000-0000-0000-000000000001','2026-01-01','50600000-0000-0000-0000-000000000001');
+select ok(public.private_attendance_identity_context('fingerprint_excel','DEVICE-1','2026-10-19')->'candidates'->0->>'team_name' is null,'matching does not expand field group read scope');
+insert into public.profile_roles(profile_id,role_id,granted_by) select '50600000-0000-0000-0000-000000000001',id,'50600000-0000-0000-0000-000000000001' from public.roles where code='operations_manager';
+select is(public.private_attendance_identity_context('fingerprint_excel','DEVICE-1','2026-10-19')->'candidates'->0->>'team_name','가상 배정팀','authorized team label uses Employee membership without requiring a linked account');
 select * from finish();
 rollback;

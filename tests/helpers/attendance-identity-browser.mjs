@@ -49,6 +49,7 @@ export async function verifyIdentityUi(page, preview) {
  });
  await page.evaluate(()=>window.TaejangAttendanceAdmin.openAttendance('2026-10-19'));
  await page.getByText('미매칭 수동 연결·기존 연결 확인/변경',{exact:true}).click();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+1),true,'PC/mobile manual choices must not overflow');
  await page.getByRole('combobox',{name:'가상근로자0 연결할 직원',exact:true}).selectOption('other-person');
  await page.evaluate(()=>{
    window.confirm=message=>{window.identityConfirmations.push(message);return !message.includes('명시적으로 교체');};

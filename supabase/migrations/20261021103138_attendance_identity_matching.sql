@@ -20,9 +20,10 @@ returns jsonb language sql stable security definer set search_path='' as $$
  ), eligible as (
    select e.id,e.employee_id,p.full_name,d.name as department_name,pos.name as position_name,
      (select string_agg(distinct g.name,', ' order by g.name)
-       from public.work_group_members m join public.work_groups g on g.id=m.work_group_id
-       join public.account_person_links l on l.profile_id=m.profile_id and l.revoked_at is null
-       where l.person_id=e.person_id and m.start_date<=p_day and (m.end_date is null or m.end_date>=p_day)
+       from public.work_group_employee_memberships m join public.work_groups g on g.id=m.work_group_id
+       where m.employee_uuid=e.id and m.start_date<=p_day and (m.end_date is null or m.end_date>=p_day)
+         and (public.private_actor_can_manage_field_group('field.assignment.manage',g.id)
+           or public.private_actor_can_manage_field_group('field.membership.manage',g.id))
      ) as team_name
    from public.employees e join public.people p on p.id=e.person_id
    left join public.departments d on d.id=e.department_id left join public.positions pos on pos.id=e.position_id
