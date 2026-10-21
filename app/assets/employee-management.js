@@ -831,7 +831,7 @@
         if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
         const open=button('비밀번호 초기화',()=>{
           if(open.disabled)return;
-          const dialog=el('dialog',null,'employee-reset-confirm app-authoring');
+          const dialog=el('dialog',null,'employee-reset-confirm');
           dialog.setAttribute('aria-label','비밀번호 초기화 확인');
           dialog.append(el('h3',employee.full_name+' 직원의 비밀번호를 초기화하시겠습니까?'),
             el('p','기존 비밀번호는 사용할 수 없게 됩니다.'),

@@ -109,4 +109,6 @@
 .employee-reset-confirm { width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:24px; border:1px solid var(--line,#d8dfdb); border-radius:14px; background:#fff; color:inherit; }
 .employee-reset-confirm::backdrop { background:rgb(0 0 0 / 48%); }
 .employee-reset-confirm h3 { margin-top:0; font-size:1.15rem; overflow-wrap:anywhere; }
+.employee-reset-confirm p { margin:16px 0; line-height:1.5; }
+.employee-reset-confirm .quick-links { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; }
 .employee-reset-panel output { display:block; margin:12px 0; font-size:1.4rem; letter-spacing:.06em; overflow-wrap:anywhere; }

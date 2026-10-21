@@ -55,6 +55,8 @@ try{
   await load();
   const dialog=page.getByRole('dialog',{name:'비밀번호 초기화 확인'});
   await dialog.waitFor();
+  const bounds=await dialog.boundingBox();
+  assert.ok(Math.abs(bounds.y+bounds.height/2-480)<2,'confirmation centered in viewport');
   assert.equal(await dialog.locator('input,select,textarea').count(),0,'confirmation has no input');
   assert.match(await dialog.textContent(),/직원 본인의 요청을 확인했다면/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'responsive confirmation');
