@@ -226,3 +226,40 @@ test('extension filtering rejects renamed unrecognized uploads before DB and kee
   await assert.rejects(parser.parseXlsxFile({ name:'empty.xls', async arrayBuffer(){return new ArrayBuffer(0);} }),
     /attendance_xls_size_unsupported/);
 });
+
+
+test('legacy reader is fetched only for XLS, shared across concurrent picks, never on staff startup', async () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname,'../app/assets/payroll-attendance-xlsx.js'),'utf8');
+  const queued=[];
+  const sandbox={
+    module:{exports:{}}, TextDecoder, TextEncoder, Blob, console,
+    document:{
+      readyState:'loading',
+      addEventListener(){},
+      createElement(tag){assert.equal(tag,'script');return {};},
+      head:{append(node){queued.push(node);}}
+    }
+  };
+  vm.runInNewContext(source,sandbox,{timeout:2000});
+  const api=sandbox.TaejangPayrollAttendanceXlsx;
+  assert.equal(queued.length,0,'No legacy parser fetch on ordinary app initialization');
+  await assert.rejects(api.parseXlsxFile({name:'unsupported.txt',arrayBuffer(){throw Error('no read');}}),
+    /attendance_excel_format_required/);
+  assert.equal(queued.length,0,'Unsupported format does not load scripts');
+  const selected={name:'근태이력_20261019.xls',arrayBuffer(){throw Error('stub should handle data');}};
+  const pending=[api.parseXlsxFile(selected),api.parseXlsxFile(selected)];
+  assert.equal(queued.length,1,'Concurrent selections share one dynamic vendor parser request');
+  assert.equal(queued[0].src,'/app/assets/payroll-attendance-xls.js');
+  sandbox.TaejangPayrollAttendanceXls={
+    async parseXlsFile(file){return {best:{sheetName:'anonymous',name:file.name}};}
+  };
+  queued[0].onload();
+  const results=await Promise.all(pending);
+  assert.equal(results[0].best.name,'근태이력_20261019.xls');
+  assert.equal(results[1].best.name,results[0].best.name);
+  await api.parseXlsxFile(selected);
+  assert.equal(queued.length,1,'Loaded module is reused on subsequent imports');
+});
