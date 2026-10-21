@@ -24,6 +24,7 @@ const WORK_PLATFORM_CAPABILITIES = new Set([
   'promotion.write',
   'promotion.review_lead',
   'promotion.review_operations',
+  'promotion.review_ceo',
   'attendance.admin_view',
   'employee.view_all',
   'employee.create',

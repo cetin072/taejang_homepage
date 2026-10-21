@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Compact admin form browser regression</title>
+  <link rel="stylesheet" href="../../staff/assets/staff.css">
+  <link rel="stylesheet" href="../../app/assets/dashboard-shell.css">
+  <style>
+    body { margin:0; font:16px/1.5 "Malgun Gothic", sans-serif; background:#f3f6f4; }
+    .desktop-app-shell { width:100%; margin:0; border-radius:0; box-shadow:none; }
+    .app-workspace { min-width:0; }
+    .app-topbar { min-height:65px; }
+    #dashboard-main { width:min(100% - 28px, 1180px); padding:12px 0 24px; }
+    #result { position:fixed; right:5px; bottom:5px; z-index:50; font-size:10px; background:#fff; }
+  </style>
+</head>
+<body class="desktop-app-mode">
+  <div id="desktop-app-shell" class="desktop-app-shell">
+    <aside class="app-sidebar"><div>태장</div></aside>
+    <div class="app-workspace">
+      <header class="app-topbar"><button id="sidebar-toggle">메뉴</button><h1 id="desktop-page-title">가입 승인</h1></header>
+      <main id="dashboard-main" class="dashboard-main"></main>
+    </div>
+  </div>
+  <pre id="result">RUNNING</pre>
+  <script>
+    const calls=[]; let fail=true, approved=false;
+    window.alert=message=>calls.push({name:'alert',message}); window.confirm=()=>true;
+    window.TaejangApp={hasCapabilityContract:()=>true,can:key=>key==='employee.onboard',getRoute:()=> 'operations_manager',friendlyError:e=>e.message,
+      rpc:async(name,args)=>{
+        calls.push({name,args});
+        if(name==='list_employee_signup_requests') return approved?[]:[{id:'fixture-profile',display_name:'가상 임원',work_email:'fixture@example.test',hired_on:'2026-06-01'}];
+        if(name==='list_existing_employee_signup_candidates')return [{employee_uuid:'fixture-employee',employee_id:'TJ-504001',full_name:'가상 임원',department_name:null,position_name:'대표이사',hired_on:'2026-06-01'}];
+        if(name==='get_employee_signup_approval_options')return {departments:[],positions:[],roles:[{id:'role-uuid',code:'ceo',name:'대표이사'}]};
+        if(name==='approve_existing_employee_signup_request'){if(fail)throw Error('합성 네트워크 실패'); approved=true;return {ok:true};}
+        throw Error('Unexpected RPC '+name);
+      }};
+  </script>
+  <script src="../../app/assets/phase-c-account-approval.js"></script>
+  <script>
+  (async()=>{
+    const check=(ok,message)=>{if(!ok)throw Error(message)};
+    await TaejangAccountApproval.openAccountApproval();
+    const card=document.querySelector('.phase-c-signup-approval-card');
+    const select=label=>card.querySelector('select[aria-label="'+label+'"]');
+    const employee=select('기존 직원 선택'),role=select('앱 업무 권한');
+    check(select('승인 방식').value==='existing','existing link default');
+    check(employee.options.length===2 && employee.options[1].textContent.includes('부서 미지정'),'department-less employee displayed');
+    check(employee.value==='' && role.value==='','no name-based automatic selection');
+    check(role.options[1].value==='ceo','CEO option uses role code');
+    employee.value='fixture-employee';employee.dispatchEvent(new Event('change'));
+    role.value='ceo';
+    const number=card.querySelector('input[aria-label="기존 직원번호 재확인"]'); number.value='TJ-504001';
+    card.querySelector('.phase-c-signup-check input').checked=true;
+    const submit=card.querySelector('[data-approve-signup]');
+    submit.click();await new Promise(r=>setTimeout(r,40));
+    check(calls.some(c=>c.name==='alert'),'failure explained');
+    check(number.value==='TJ-504001' && employee.value==='fixture-employee' && role.value==='ceo','failure preserves inputs');
+    check(!submit.disabled,'retry available');
+    const before=card.getBoundingClientRect();let mutations=0;
+    const observer=new MutationObserver(()=>mutations++);observer.observe(card,{childList:true,subtree:true});
+    await new Promise(r=>setTimeout(r,350));observer.disconnect();
+    const after=card.getBoundingClientRect();check(mutations===0 && before.top===after.top && before.height===after.height,'settled card stable');
+    check(document.documentElement.scrollWidth<=innerWidth+3,'no horizontal overflow');
+    fail=false;submit.click();await new Promise(r=>setTimeout(r,40));
+    const approval=calls.find(c=>c.name==='approve_existing_employee_signup_request');
+    check(approval.args.p_role_code==='ceo' && approval.args.p_employee_uuid==='fixture-employee' && approval.args.p_confirm_employee_id==='TJ-504001','explicit CEO link submitted');
+    check(!calls.some(c=>c.name==='approve_employee_signup_request'),'no new Employee path');
+    check(!document.querySelector('.phase-c-signup-approval-card'),'approved request removed on refresh');
+    document.getElementById('result').textContent='SIGNUP_CEO_GATE_PASS:'+innerWidth;
+  })().catch(e=>document.getElementById('result').textContent='SIGNUP_CEO_GATE_FAIL:'+e.message);
+  </script></body></html>
