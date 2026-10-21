@@ -92,8 +92,8 @@
       .attendance-compare[data-review="true"] { color:#9a5c09; }
       .attendance-review-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
       .attendance-unmatched { min-width:0; overflow-wrap:anywhere; margin:14px 0; padding:14px; border:1px solid #e2c68d; border-radius:14px; background:#fff8e9; }
-      .attendance-unmatched-list { display:grid; gap:10px; margin-top:10px; }
-      .attendance-unmatched-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+      .attendance-unmatched-list { min-width:0; grid-template-columns:minmax(0,1fr); display:grid; gap:10px; margin-top:10px; }
+      .attendance-unmatched-row { min-width:0; width:100%; box-sizing:border-box; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
       .attendance-unmatched-row > * { min-width:0; max-width:100%; }
       .attendance-unmatched-row select { min-width:0; max-width:100%; flex:1 1 260px; min-height:38px; padding:6px 8px; }
       .attendance-confirmation { margin:14px 0; padding:16px; border:1px solid #aac7b4; border-radius:14px; background:#f5fbf6; }
@@ -522,7 +522,9 @@
         line.append(el('strong', context.name_reused ? '연결 중지: 같은 지문기 번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
         list.append(line); return;
       }
-      line.append(el('span', item.employee_uuid ? '현재 연결됨' : context.candidates.length > 1 ? '동명이인: 사번·부서·팀·직책을 비교하여 직접 선택해 주세요.' : context.candidates.length === 0 ? '이름 일치 후보 없음 · 재직기간과 등록 정보를 확인해 주세요.' : '이름 정확 일치 후보'));
+      const currentEmployee = context.employees.find(employee => employee.employee_uuid === item.employee_uuid);
+      const currentLabel = currentEmployee ? employeeIdentityLabel(currentEmployee) : ('직원정보 미확인 · ' + item.employee_uuid);
+      line.append(el('span', item.employee_uuid ? ('현재 연결: ' + currentLabel) : context.candidates.length > 1 ? '동명이인: 사번·부서·팀·직책을 비교하여 직접 선택해 주세요.' : context.candidates.length === 0 ? '이름 일치 후보 없음 · 재직기간과 등록 정보를 확인해 주세요.' : '이름 정확 일치 후보'));
       if (can('attendance.evidence_import') && item.source_employee_key) {
         const select = document.createElement('select'); select.setAttribute('aria-label', (item.source_display_name || item.source_employee_key) + ' 연결할 직원');
         select.append(new Option('연결할 직원 선택', ''));
@@ -533,7 +535,7 @@
           const employee = context.employees.find(e => e.employee_uuid === select.value);
           if (!employee || !window.confirm(item.source_employee_key + ' · ' + (item.source_display_name || '') + ' → ' + employeeIdentityLabel(employee) + '\n저장된 과거 자료에도 적용됩니다. 연결하시겠습니까?')) return;
           const replace = Boolean(item.employee_uuid && item.employee_uuid !== select.value);
-          if (replace && !window.confirm('기존 직원 연결(' + item.employee_uuid + ')을 다른 직원으로 변경합니다. 과거 근거의 연결도 바뀝니다. 명시적으로 교체하시겠습니까?')) return;
+          if (replace && !window.confirm('기존 직원 연결(' + currentLabel + ')을 다른 직원으로 변경합니다. 과거 근거의 연결도 바뀝니다. 명시적으로 교체하시겠습니까?')) return;
           void connectIdentities([{item,employeeUuid:select.value,replace}],workDate,false,panel);
         });
         line.append(select, button);
