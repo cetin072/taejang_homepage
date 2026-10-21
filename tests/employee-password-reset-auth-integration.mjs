@@ -114,6 +114,7 @@ try {
  check((await edge(ops,worker,{},'https://deploy-preview-500--taejang-homepage.netlify.app')).status===403,'Preview denied');
  check((await api('/functions/v1/employee-password-reset',{token:'expired.invalid.jwt',body:body(worker),origin:'http://localhost:3000'})).status===401,'invalid JWT blocked');
  check((await edge(worker,promo)).status===403,'ordinary role direct Edge call denied');
+ check(Number(sql(`select count(*) from public.employee_reset_attempts where actor_id='${worker.id}' and state='denied' and code='FORBIDDEN' and reason='현장 로그인 지원'`))===1,'simplified denied requests retain fixed-reason durable audit');
  check((await edge(ops,worker,{current_password:''})).status===400,'old credential interface rejected');
  const resetter=await fixture('reset-fresh-ops','operations_manager','operations_manager');
  const target=await fixture('reset-live-target');

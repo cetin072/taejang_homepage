@@ -21,7 +21,7 @@ declare opt jsonb; reservation jsonb;
 begin
  if p_request_confirmed is distinct from true then return jsonb_build_object('ok',false,'code','INVALID_INPUT'); end if;
  opt:=public.employee_password_reset_option(p_employee_uuid);
- if not coalesce((opt->>'ok')::boolean,false) then return opt; end if;
+ -- Even denied targets pass through the original rate-limit/denial audit path.
  -- Resolve the number/Auth link on the server; reuse locks, limits and durable audit.
  reservation:=public.reserve_employee_password_reset(p_employee_uuid,opt->>'employee_number',
    (opt->>'profile_id')::uuid,'현장 로그인 지원','random',true);
