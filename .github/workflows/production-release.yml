@@ -10,6 +10,10 @@ on:
     - cron: '47 8 * * *'
     - cron: '17 9 * * *'
     - cron: '47 9 * * *'
+    # Final catch-up shortly before the prior 24-hour slot expires.
+    # Real publication can happen after the last same-day wake-up; never
+    # relax the actual 48-hour minimum or duplicate-release guards.
+    - cron: '47 7 * * *'
   workflow_dispatch:
 
 permissions:

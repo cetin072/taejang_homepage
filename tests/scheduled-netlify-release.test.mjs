@@ -11,7 +11,7 @@ const config = JSON.parse(readFileSync(new URL('../deployment/release-policy.jso
 test('backup schedule keeps original 17:20 KST slot and safe late wake-ups', () => {
   const yaml = readFileSync(new URL('../.github/workflows/production-release.yml', import.meta.url), 'utf8');
   const crons = [...yaml.matchAll(/- cron: '([^']+)'/g)].map(item => item[1]);
-  assert.deepEqual(crons, ['20 8 * * *', '47 8 * * *', '17 9 * * *', '47 9 * * *']);
+  assert.deepEqual(crons, ['20 8 * * *', '47 8 * * *', '17 9 * * *', '47 9 * * *', '47 7 * * *']);
   const anchor = Date.parse(config.schedule_anchor_utc);
   assert.equal(new Date(anchor + 48 * 3600000).toISOString(), '2026-10-21T08:20:00.000Z');
   const currentSlot = calendarSlot(config, new Date('2026-10-23T09:47:00.000Z'));
@@ -85,6 +85,23 @@ test('an unfinished, unknown or late-finishing prior check keeps the same slot s
       preflight: forbidden, post: forbidden });
     assert.equal(result.status,'SLOT_ALREADY_CHECKED');
   }
+});
+
+test('last-window catch-up is within the same 48h slot and can recover a very late prior publication', async () => {
+  const publishedLate = { ...published, published_at: '2026-10-21T10:05:00Z' };
+  const fallback = { ...run, id: 406, created_at: '2026-10-24T07:47:00Z' };
+  const early = ['2026-10-23T08:20:00Z','2026-10-23T08:47:00Z','2026-10-23T09:17:00Z','2026-10-23T09:47:00Z']
+    .map((at,i)=>({ ...run, id: 401+i, created_at: at, status:'completed',
+       updated_at:new Date(Date.parse(at)+60000).toISOString() }));
+  const at = new Date('2026-10-24T07:47:08Z'), cutoff=Date.parse(publishedLate.published_at)+48*3600000;
+  assert.equal(calendarSlot(config,fallback.created_at).status,'DUE');
+  assert.equal(calendarSlot(config,fallback.created_at).slot.index,2);
+  assert.equal(evaluateSchedule(config,fallback,[...early,fallback],at,cutoff).status,'DUE');
+  let posts=0;
+  const outcome=await cycle({now:()=>at, snapshot:async()=>({...snapshot,published_deploy:publishedLate}),
+    api:async path=>path.includes('/actions/runs/')?fallback:{total_count:5,workflow_runs:[...early,fallback]},
+    post:async()=>{posts++;return{status:'PUBLISHED'};}});
+  assert.equal(outcome.status,'PUBLISHED');assert.equal(posts,1);
 });
 
 test('creation time owns slot; retries, simultaneous and cancelled/failed/no-change checks cannot publish twice', () => {
