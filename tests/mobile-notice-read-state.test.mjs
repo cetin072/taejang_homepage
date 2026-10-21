@@ -176,7 +176,14 @@ test('home and full list reuse native cards: 0–5 notices, stable publication o
       card.find(x => x.type === 'Pressable').props.onPress();
       assert.equal(routes.at(-1), `/notices/${count - 1}`);
       assert.equal(card.filter(x => x.type === 'Pressable').length, 1);
-      assert.match(card.find(x => x.props?.style?.fontSize === 13).props.children, /1월/);
+      assert.equal(card.filter(x => x.type === 'Text').length, 1, 'no separate publication date on home or full-list cards');
+      assert.equal(card.find(x => x.type === 'Text').props.children, selected[0].props.item.title);
+      assert.equal(card.find(x => x.type === 'Pressable').props.accessibilityLabel,
+        `${selected[0].props.item.title}${selected[0].props.unread ? ', 미확인' : ''}, 공지 열기`);
+      const unreadCard = nodes(cards.NoticeListCard({ item: selected[0].props.item, unread: true }));
+      assert.equal(unreadCard.find(x => x.type === 'Pressable').props.accessibilityLabel,
+        `${selected[0].props.item.title}, 미확인, 공지 열기`);
+      assert.equal(unreadCard.filter(x => x.type === 'View').length, 1, 'unread dot remains visible');
     }
   }
   state.items = [notice('z', { publish_start_at: '2026-01-01T00:00:00Z' }), notice('a', { publish_start_at: '2026-01-01T00:00:00Z' })];
