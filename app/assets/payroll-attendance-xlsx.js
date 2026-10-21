@@ -314,9 +314,39 @@
     return Object.freeze({ sheets: Object.freeze(analyses), best: analyses[0] || null });
   }
 
+  let legacyXlsLoad = null;
+  async function legacyXlsParser() {
+    if (globalThis.TaejangPayrollAttendanceXls?.parseXlsFile) return globalThis.TaejangPayrollAttendanceXls;
+    if (typeof document === 'undefined') throw new Error('attendance_xls_parser_unavailable');
+    if (!legacyXlsLoad) {
+      legacyXlsLoad = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/app/assets/payroll-attendance-xls.js';
+        script.onload = () => {
+          const api = globalThis.TaejangPayrollAttendanceXls;
+          if (api?.parseXlsFile) resolve(api);
+          else reject(new Error('attendance_xls_parser_unavailable'));
+        };
+        script.onerror = () => reject(new Error('attendance_xls_parser_unavailable'));
+        document.head.append(script);
+      }).catch(error => {
+        legacyXlsLoad = null; // A later retry after a transient asset failure is allowed.
+        throw error;
+      });
+    }
+    return legacyXlsLoad;
+  }
+
   async function parseXlsxFile(file) {
     if (!file || typeof file.arrayBuffer !== 'function') throw new Error('attendance_file_required');
-    if (!/\.xlsx$/i.test(file.name || '')) throw new Error('attendance_xlsx_required');
+    const name = String(file.name || '');
+    if (/\.xls$/i.test(name)) {
+      // Only operator-selected legacy files fetch this locally hosted parser;
+      // .xlsx use and the ordinary employee app shell remain unchanged.
+      const legacy = await legacyXlsParser();
+      return legacy.parseXlsFile(file);
+    }
+    if (!/\.xlsx$/i.test(name)) throw new Error('attendance_excel_format_required');
     return parseXlsxArrayBuffer(await file.arrayBuffer());
   }
 
@@ -332,11 +362,6 @@
 
   async function previewSelectedFile(file, previewNode) {
     if (!previewNode || !file) return;
-    if (/\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '')) {
-      previewNode.textContent = '구형 .xls 형식입니다. 실제 보안업체 파일을 확인한 뒤 전용 매핑 여부를 결정합니다. 아직 DB에는 등록하지 않습니다.';
-      previewNode.dataset.state = 'review';
-      return;
-    }
     previewNode.textContent = 'Excel 구조를 읽고 있습니다…';
     previewNode.dataset.state = 'loading';
     try {

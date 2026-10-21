@@ -332,6 +332,17 @@
     return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
   }
 
+  function fingerprintExcelError(error) {
+    const code = String(error?.message || '');
+    if (code === 'attendance_excel_format_required') return '엑셀 파일(.xls 또는 .xlsx)을 선택해 주세요.';
+    if (code === 'attendance_xls_parser_unavailable') return '구형 Excel 읽기 도구를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.';
+    if (code === 'attendance_xls_size_unsupported') return '8MB 이하 지문인식기 Excel 파일을 선택해 주세요.';
+    if (/^(attendance_xls_|xlsx_zip_|xlsx_entry_|xlsx_xml_)/.test(code)) {
+      return 'Excel 파일이 손상되었거나 지원하지 않는 형식입니다. 지문인식기에서 원본을 다시 내려받아 주세요.';
+    }
+    return code || '파일을 확인해 주세요.';
+  }
+
   async function importFingerprintFile(file, workDate) {
     if (!can('attendance.evidence_import')) return;
     const helper = window.TaejangPayrollAttendanceXlsx;
@@ -385,7 +396,7 @@
       window.alert(message);
       await openAttendance(workDate);
     } catch (error) {
-      window.alert(`지문 출근부를 가져오지 못했습니다. ${error?.message || '파일을 확인해주세요.'}`);
+      window.alert(`지문 출근부를 가져오지 못했습니다. ${fingerprintExcelError(error)}`);
     }
   }
 
@@ -404,7 +415,7 @@
     if (can('attendance.evidence_import')) {
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
-      fileInput.accept = '.xlsx';
+      fileInput.accept = '.xls,.xlsx';
       fileInput.hidden = true;
       const importButton = el('button', '지문 Excel 가져오기', 'button button-quiet');
       importButton.type = 'button';

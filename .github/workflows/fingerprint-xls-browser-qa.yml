@@ -1,0 +1,55 @@
+name: Fingerprint XLS Browser QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/assets/payroll-attendance-xls.js'
+      - 'app/assets/payroll-attendance-xlsx.js'
+      - 'app/assets/attendance-admin.js'
+      - 'tests/attendance-vendor-xls-browser.mjs'
+      - 'tests/helpers/anonymous-fingerprint-xls.cjs'
+      - '.github/workflows/fingerprint-xls-browser-qa.yml'
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: fingerprint-xls-qa-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vendor-xls:
+    name: Genuine CFB-BIFF8 file in Chrome (PC/mobile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install existing Chrome browser dependency
+        run: |
+          command -v google-chrome || command -v google-chrome-stable
+          npm ci
+      - name: Require exact-HEAD Netlify Deploy Preview
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util
+          import os
+          import pathlib
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as out:
+              out.write('ATTENDANCE_XLS_PREVIEW_URL=' + preview.rstrip('/') + '\n')
+          PYTHON
+      - name: Parse anonymous biometric XLS in deployed browser on PC and mobile
+        run: node tests/attendance-vendor-xls-browser.mjs
