@@ -5,7 +5,12 @@ const { pushBuildConfig } = require('./push-build-config.cjs');
 
 module.exports = ({ config }) => {
   const qa = String(process.env.TAEJANG_APP_VARIANT || '').trim().toLowerCase() === 'qa';
-  const android = config.android || {};
+  const android = { ...(config.android || {}) };
+  const extra = { ...(config.extra || {}) };
+  // EAS CLI may write production defaults into app.json. Never let QA silently
+  // inherit those credentials/config paths when its own pair is absent.
+  delete android.googleServicesFile;
+  delete extra.eas;
   const adaptiveIcon = android.adaptiveIcon || {};
   const androidPackage = qa ? QA_PACKAGE : android.package;
   const push = pushBuildConfig(process.env, androidPackage);
@@ -24,7 +29,7 @@ module.exports = ({ config }) => {
       },
     },
     extra: {
-      ...(config.extra || {}),
+      ...extra,
       appVariant: qa ? 'qa' : 'production',
       pushConfigured: push.configured,
       ...(push.configured ? { eas: { projectId: push.projectId } } : {}),

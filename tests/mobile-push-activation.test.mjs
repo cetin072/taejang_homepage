@@ -15,6 +15,24 @@ const google = { project_info: { project_number: '123' }, client: [
   { client_info: { android_client_info: { package_name: qaPackage } } },
 ] };
 
+test('QA config strips inherited production EAS and google-services defaults', () => {
+  const config = require('./app.config.js');
+  const keys = ['TAEJANG_APP_VARIANT', 'EXPO_PUBLIC_EAS_PROJECT_ID_QA', 'ANDROID_GOOGLE_SERVICES_FILE', 'TAEJANG_PUSH_CONFIG_REQUIRED'];
+  const before = keys.map(key => process.env[key]);
+  try {
+    for (const key of keys) delete process.env[key];
+    process.env.TAEJANG_APP_VARIANT = 'qa';
+    const value = config({ config: { android: { package: 'com.cetin072.taejang.staff', googleServicesFile: 'production.json' },
+      extra: { eas: { projectId } } } });
+    assert.equal(value.android.package, qaPackage);
+    assert.equal(value.android.googleServicesFile, undefined);
+    assert.equal(value.extra.eas, undefined);
+    assert.equal(value.extra.pushConfigured, false);
+  } finally {
+    keys.forEach((key, index) => { if (before[index] === undefined) delete process.env[key]; else process.env[key] = before[index]; });
+  }
+});
+
 test('native config rejects private credentials, package mixups, partial config and QA production fallback', () => {
   const root = mkdtempSync(join(tmpdir(), 'taejang-push-config-'));
   try {
