@@ -93,13 +93,31 @@ try {
   await page.locator('[data-notice-id="pub-a"]').waitFor();
   await capture('manage');
   if(baseline){await context.close();continue;}
+  const openEdit=async id=>{
+   await page.locator(`[data-notice-id="${id}"]`).getByRole('button',{name:'공지 수정',exact:true}).click();
+   await page.waitForFunction(noticeId=>!document.getElementById('notice-editor-page').hidden
+    &&document.getElementById('notice-id').value===noticeId,id);
+  };
   assert.equal(await page.locator('[data-notice-advanced-settings]').count(),0,'legacy polish cannot rearrange canonical notice controls');
   assert.equal(await page.locator('#notice-publish-end-date').evaluate(node=>!!node.closest('.notice-period')),true,'period remains in canonical period section');
   assert.deepEqual((await page.locator('#notice-admin-list article').evaluateAll(nodes=>nodes.map(node=>node.dataset.noticeId))).slice(0,2),['pub-a','pub-b']);
   assert.equal(await page.locator('#notice-admin-list article').last().getAttribute('data-notice-id'),'expired');
   assert.equal(await page.locator('[data-ops-archive-notice]').count(),0,'no second archive owner');
-  await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 수정',exact:true}).click();
-  await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');
+  await openEdit('pub-a');
+  assert.equal(await page.locator('#notice-manage-section').isVisible(),false,'list is hidden on the editor page');
+  assert.equal(await page.locator('#notice-admin-title').textContent(),'공지 수정');
+  assert.equal(await page.locator('#notice-back-from-editor').isVisible(),true,'top back is visible');
+  assert.equal(await page.locator('#notice-editor-bottom-back').isVisible(),true,'bottom back is visible');
+  // Declining to discard changes must keep the independent editor open.
+  await page.locator('#notice-body').fill('저장하지 않은 변경');
+  await page.evaluate(()=>{confirmAnswer=false});
+  await page.locator('#notice-back-from-editor').click();
+  assert.equal(await page.locator('#notice-editor-page').isVisible(),true,'declined exit keeps editor');
+  await page.evaluate(()=>{confirmAnswer=true});
+  await page.locator('#notice-back-from-editor').click();
+  await page.locator('[data-notice-id="pub-a"]').waitFor();
+  assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'confirmed exit returns to list');
+  await openEdit('pub-a');
   await page.locator('#notice-body').fill('운영총괄 공개 공지 본문 정정');
   await page.locator('#notice-link-url').fill('https://example.com/notice');await page.locator('#notice-link-label').fill('자료 보기');
   await page.locator('#notice-save-existing').click();
@@ -107,6 +125,9 @@ try {
   assert.equal(await page.locator('#notice-id').inputValue(),'pub-a');
   assert.deepEqual(await page.evaluate(()=>[rows.filter(r=>r.id==='pub-a').length,rows.find(r=>r.id==='pub-a').status,rows.find(r=>r.id==='pub-a').body_easy]),[1,'published','운영총괄 공개 공지 본문 정정']);
   await capture('published-edit');
+  assert.equal(await page.locator('#notice-manage-section').isVisible(),true,'successful save returns to list');
+  assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'saved editor does not remain below the list');
+  await openEdit('pub-a');
   // Exercise the production shared transport inside real Chrome as well as the
   // UI. Only HTTP/Auth fixtures are synthetic; no alternate transport is copied.
   await page.evaluate(source=>{
@@ -134,6 +155,7 @@ try {
   await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
   assert.deepEqual(await page.evaluate(()=>noticeTransportMetrics),{rejected:1,refreshes:1,acceptedSaves:1});
   assert.equal(await page.locator('#notice-id').inputValue(),'pub-a');await capture('expired-session-edit');
+  await openEdit('pub-a');
   // A stale read must not be reported as a confirmed save.
   await page.locator('#notice-body').fill('서버 재조회 대조');await page.evaluate(()=>{historyFixture.staleRead=true});
   await page.locator('#notice-save-existing').click();
@@ -143,6 +165,7 @@ try {
   await page.locator('#notice-save-existing').click();
   await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
   assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='save_notice').length),verifiedRetryWrites,'readback retry verifies without repeating committed edit');
+  await openEdit('pub-a');
   // Lost committed edit response reconciles by exact ID, no duplicate body write.
   await page.locator('#notice-body').fill('응답 유실 정정');await page.evaluate(()=>{historyFixture.loseSave=true});
   await page.locator('#notice-save-existing').click();
@@ -156,9 +179,11 @@ try {
   await capture('archive');
   await page.locator('[data-notice-id="archived"] h3 a').click();
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='archived');
+  assert.equal(await page.locator('#notice-manage-section').isVisible(),false,'archive details use separate readonly page');
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
   assert.equal(await page.locator('#notice-body').isDisabled(),true);
-  await page.locator('#back-notice-admin').click();await page.locator('[data-notice-id="expired"]').waitFor();
+  await page.locator('#notice-editor-bottom-back').click();
+  await page.locator('[data-notice-id="archived"]').waitFor();
   await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'보관',exact:true}).click();
   await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='archive_notice').at(-1).args.p_notice_id),'pub-b','archive action uses displayed ID after sorting');
@@ -176,6 +201,7 @@ try {
   await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="pub-a"]').waitFor();
   await page.evaluate(()=>{role='promotion_lead';TaejangNoticeAdmin.setView('manage')});
   await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 보기 (검토·게시 이력)',exact:true}).click();
+  assert.equal(await page.locator('#notice-admin-title').textContent(),'공지 상세','read-only role opens detail page');
   assert.equal(await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'확인 현황',exact:true}).count(),0,'read permission does not show forbidden acknowledgement controls');
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
