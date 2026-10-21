@@ -29,7 +29,7 @@ export async function changePassword(values,config,fetcher=fetch) {
  if(typeof token!=='string'||token.length<32)throw Error('NO_SESSION');
  const privateHeaders={...headers,Authorization:'Bearer '+token};
  try {
-   let update;try{update=await call('/auth/v1/user',{method:'PUT',headers:privateHeaders,body:JSON.stringify({password:next})});}
+   let update;try{update=await call('/auth/v1/user',{method:'PUT',headers:privateHeaders,body:JSON.stringify({password:next,current_password:current})});}
    catch{throw Error('NETWORK');}
    if(update.status===429)throw Error('RATE_LIMIT');
    if(update.status===400||update.status===422)throw Error('NEW_PASSWORD_REJECTED');
