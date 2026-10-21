@@ -9,6 +9,7 @@ on:
       - 'app/assets/attendance-admin.js'
       - 'tests/attendance-vendor-xls-browser.mjs'
       - 'tests/helpers/anonymous-fingerprint-xls.cjs'
+      - 'tests/helpers/attendance-identity-browser.mjs'
       - '.github/workflows/fingerprint-xls-browser-qa.yml'
 
 permissions:

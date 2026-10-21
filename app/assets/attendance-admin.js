@@ -436,50 +436,110 @@
     return toolbar;
   }
 
-  async function mapUnmatchedEvidence(evidence, employeeUuid, workDate) {
-    if (!can('attendance.evidence_import') || !evidence?.source_employee_key || !employeeUuid) return;
-    const result = await app().rpc('save_attendance_source_identity_mapping', {
-      p_source_system: evidence.source_system || EVIDENCE_SOURCE,
-      p_source_employee_key: evidence.source_employee_key,
+  let identitySaving = false;
+  const employeeIdentityLabel = employee => [employee.display_name || '직원', employee.employee_id || '사번 미등록',
+    employee.department_name || '부서 미확인', employee.team_name || '팀 미확인', employee.position_name || '직책 미확인'].join(' · ');
+  const mappingError = code => ({
+    FORBIDDEN: '직원 연결 권한이 없습니다.',
+    SOURCE_IDENTITY_CONFLICT: '같은 번호의 이름 또는 근태 시각이 충돌합니다. 원본을 확인한 뒤 연결을 중지해 주세요.',
+    IDENTITY_MAPPING_CHANGED: '기존 연결이 변경되었습니다. 새로 조회한 뒤 다시 확인해 주세요.',
+    REPLACEMENT_CONFIRMATION_REQUIRED: '기존 직원 연결 교체를 별도로 확인해야 합니다.',
+    CANDIDATE_CHANGED: '일치 후보가 바뀌었습니다. 새로 조회한 뒤 확인해 주세요.',
+    INVALID_ATTENDANCE_EMPLOYEE: '재직기간 또는 근태 대상 조건을 확인해 주세요.',
+  }[code] || '직원 연결을 저장하지 못했습니다. 새로 조회해 결과를 확인해 주세요.');
+
+  async function saveIdentity(item, employeeUuid, workDate, automatic = false, replace = false) {
+    return app().rpc('save_attendance_source_identity_mapping', {
+      p_source_system: item.source_system || EVIDENCE_SOURCE,
+      p_source_employee_key: item.source_employee_key,
       p_employee_uuid: employeeUuid,
-      p_reason: '운영팀장 지문 출근부 직원 연결',
+      p_reason: automatic ? '운영팀장 이름 정확 일치 후보 확인 후 일괄 연결' : '운영팀장 지문 출근부 직원 연결 확인',
+      p_work_date: workDate,
+      p_expected_employee_uuid: item.identity?.mapping_employee_uuid || null,
+      p_confirm_replace: replace,
+      p_auto_candidate: automatic,
     });
-    if (!result?.ok) {
-      window.alert('직원 연결을 저장하지 못했습니다.');
-      return;
-    }
+  }
+
+  async function connectIdentities(items, workDate, automatic, panel) {
+    if (identitySaving || !can('attendance.evidence_import')) return;
+    identitySaving = true;
+    const controls = [...panel.querySelectorAll('button,select')];
+    controls.forEach(control => { control.disabled = true; });
+    let saved = 0, failure = '';
+    try {
+      for (const {item, employeeUuid, replace} of items) {
+        const result = await saveIdentity(item, employeeUuid, workDate, automatic, replace);
+        if (!result?.ok) { failure = mappingError(result?.code); break; }
+        saved += 1;
+      }
+    } catch { failure = '통신 오류로 연결 결과가 불확실합니다. 새로 조회하여 확인해 주세요.'; }
+    finally { identitySaving = false; controls.forEach(control => { control.disabled = false; }); }
+    window.alert('직원 연결 ' + saved + '명 완료 · 중지/미처리 ' + (items.length - saved) + '명' + (failure ? '\n' + failure : ''));
     await openAttendance(workDate);
   }
 
-  function unmatchedPanel(unmatched, rows, workDate) {
-    if (!unmatched.length) return null;
+  function unmatchedPanel(unmatched, rows, workDate, evidenceData = {}) {
+    evidenceData ||= {};
+    const evidenceRows = evidenceData.rows || unmatched;
+    if (!evidenceRows.length) return null;
     const panel = el('section', null, 'attendance-unmatched');
-    panel.append(
-      el('strong', `직원 미매칭 지문자료 ${unmatched.length}건`),
-      el('p', '사번/사용자번호를 태장 직원과 한 번 연결하면 다음 파일부터 같은 직원으로 인식합니다.')
-    );
+    panel.append(el('strong', '직원 미매칭 지문자료 ' + unmatched.length + '건 (현재 상태)'),
+      el('p', '사번/사용자번호를 태장 직원과 한 번 연결하면 다음 파일부터 같은 직원으로 인식합니다. 조회만으로 연결을 저장하지 않습니다.'));
+    const batches = evidenceData.batches || [];
+    panel.append(el('p', '원본 ' + (evidenceData.raw_row_count ?? evidenceRows.length) + '행 · 비교 근거 ' + evidenceRows.length + '건 · 원본 배치 ' + batches.length + '개. 동일 직원·날짜·시각의 원본은 함께 보존합니다.'));
+    const provenance = el('details'); provenance.append(el('summary', '원본 배치와 수집 당시 수치'));
+    batches.forEach(batch => provenance.append(el('p', (batch.source_file_name || '파일') + ' · 수집 당시 전체 ' + batch.import_row_count + '행 / 미매칭 ' + batch.import_unmatched_count + '행 · 해시 ' + batch.source_fingerprint)));
+    panel.append(provenance);
+    // One action per device identity, even if multiple raw rows/batches exist.
+    const identities = [...new Map(evidenceRows.map(item => [JSON.stringify([item.source_system,item.source_employee_key || item.id]), item])).values()];
+    const safe = identities.filter(item => !item.employee_uuid && item.source_employee_key && item.identity?.candidate_employee_uuid
+      && !item.identity.name_reused && !item.identity.time_conflict && !item.identity.mapping_employee_uuid);
+    panel.append(el('p', '안전한 이름 일치 후보 ' + safe.length + '명'));
+    if (can('attendance.evidence_import') && safe.length) {
+      const preview = el('details'); preview.open = true;
+      preview.append(el('summary', '일괄 연결 전 직원번호·이름·대상 직원 확인'));
+      safe.forEach(item => {
+        const candidate = item.identity.candidates.find(employee => employee.employee_uuid === item.identity.candidate_employee_uuid);
+        preview.append(el('p', item.source_employee_key + ' · ' + item.source_display_name + ' → ' + employeeIdentityLabel(candidate)));
+      });
+      const bulk = el('button', '일치 직원 일괄 연결', 'button button-quiet'); bulk.type = 'button';
+      bulk.addEventListener('click', () => {
+        const lines = safe.map(item => item.source_employee_key + ' · ' + item.source_display_name + ' → ' + employeeIdentityLabel(item.identity.candidates.find(e => e.employee_uuid === item.identity.candidate_employee_uuid)));
+        if (!window.confirm('다음 ' + safe.length + '명을 연결합니다. 저장된 과거 자료에도 적용됩니다.\n\n' + lines.join('\n'))) return;
+        void connectIdentities(safe.map(item => ({item,employeeUuid:item.identity.candidate_employee_uuid,replace:false})),workDate,true,panel);
+      });
+      preview.append(bulk); panel.append(preview);
+    }
     const list = el('div', null, 'attendance-unmatched-list');
-    unmatched.forEach(item => {
-      const line = el('div', null, 'attendance-unmatched-row app-authoring-inline');
-      line.append(el('span', `${item.source_display_name || '이름 없음'} · ${item.source_employee_key || '외부번호 없음'} · 출근 ${time(item.clock_in_at)} / 퇴근 ${time(item.clock_out_at)}`));
+    identities.forEach(item => {
+      const context = item.identity;
+      const line = el('div', null, 'attendance-unmatched-row');
+      line.append(el('span', (item.source_display_name || '이름 없음') + ' · ' + (item.source_employee_key || '외부번호 없음') + ' · 출근 ' + time(item.clock_in_at) + ' / 퇴근 ' + time(item.clock_out_at)));
+      if (!context) { line.append(el('span', '안전한 직원 연결 서버 동기화 필요')); list.append(line); return; }
+      if (context.name_reused || context.time_conflict) {
+        line.append(el('strong', context.name_reused ? '연결 중지: 같은 지문기 번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
+        list.append(line); return;
+      }
+      line.append(el('span', item.employee_uuid ? '현재 연결됨' : context.candidates.length > 1 ? '동명이인: 사번·부서·팀·직책을 비교하여 직접 선택해 주세요.' : context.candidates.length === 0 ? '이름 일치 후보 없음 · 재직기간과 등록 정보를 확인해 주세요.' : '이름 정확 일치 후보'));
       if (can('attendance.evidence_import') && item.source_employee_key) {
-        const select = document.createElement('select');
+        const select = document.createElement('select'); select.setAttribute('aria-label', (item.source_display_name || item.source_employee_key) + ' 연결할 직원');
         select.append(new Option('연결할 직원 선택', ''));
-        rows.forEach(row => select.append(new Option(
-          `${row.display_name || '직원'} · ${row.employee_id || ''}`,
-          row.employee_uuid
-        )));
-        const button = el('button', '직원 연결', 'button button-quiet');
-        button.type = 'button';
+        context.employees.forEach(employee => select.append(new Option(employeeIdentityLabel(employee),employee.employee_uuid)));
+        const button = el('button', item.employee_uuid ? '직원 연결 변경' : '직원 연결', 'button button-quiet'); button.type = 'button';
         button.addEventListener('click', () => {
-          if (!select.value) return;
-          void mapUnmatchedEvidence(item, select.value, workDate);
+          if (!select.value || identitySaving) return;
+          const employee = context.employees.find(e => e.employee_uuid === select.value);
+          if (!employee || !window.confirm(item.source_employee_key + ' · ' + (item.source_display_name || '') + ' → ' + employeeIdentityLabel(employee) + '\n저장된 과거 자료에도 적용됩니다. 연결하시겠습니까?')) return;
+          const replace = Boolean(item.employee_uuid && item.employee_uuid !== select.value);
+          if (replace && !window.confirm('기존 직원 연결(' + item.employee_uuid + ')을 다른 직원으로 변경합니다. 과거 근거의 연결도 바뀝니다. 명시적으로 교체하시겠습니까?')) return;
+          void connectIdentities([{item,employeeUuid:select.value,replace}],workDate,false,panel);
         });
         line.append(select, button);
       }
       list.append(line);
     });
-    panel.append(list);
+    const manual = el('details'); manual.append(el('summary', '미매칭 수동 연결·기존 연결 확인/변경'),list); panel.append(manual);
     return panel;
   }
 
@@ -1085,7 +1145,7 @@
       const correction=el('button','근태 시간 보정·보정 이력','button');correction.type='button';
       correction.addEventListener('click',()=>window.TaejangAttendanceIntegrity?.openCorrectionScreen());
       if(can('attendance.correct'))detailPanel.append(correction);
-      const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate);
+      const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate,evidenceData);
       if(unmatchedNode)dailyPanel.append(folded('미매칭 지문자료 '+unmatched.length+'건',unmatchedNode,true));
       dailyPanel.append(list);pieces.push(dailyPanel,monthly,detailPanel);
       target.replaceChildren(...pieces);

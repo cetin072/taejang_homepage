@@ -44,6 +44,7 @@ export const testGroups = Object.freeze({
     'tests/issue-223-promotion-meta-stale-response.test.js',
     'tests/issue-249-attendance-lead-correction-policy.test.js',
     'tests/issue-250-attendance-fingerprint-evidence.test.js',
+    'tests/attendance-identity-matching.test.js',
     'tests/issue-251-attendance-confirmation-revisions.test.js',
     'tests/issue-252-confirmed-attendance-ledger.test.js',
     'tests/issue-253-confirmed-payroll-attendance-snapshot.test.js',
