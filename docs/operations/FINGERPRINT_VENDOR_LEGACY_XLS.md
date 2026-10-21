@@ -11,7 +11,7 @@
 ## 최소 수정
 
 - Draft PR #213의 기존 검증된 `app/assets/payroll-attendance-xls.js` **순수 읽기 코드만 대상 브랜치로 복사**. 해당 Draft PR의 미완료 급여 기능이나 DB 마이그레이션에 런타임 의존 없음.
-- `app/index.html`에서 기존 XLSX 파서 전에 독립 `.xls` 파서를 로드.
+- 기존 공용 XLSX 분석기에서 `.xls`를 고른 경우에만 독립 `.xls` 파서를 **지연 로딩**한다. 일반 직원·관리자 첫 화면 로딩에는 추가 JS를 요구하지 않는다.
 - 기존 `TaejangPayrollAttendanceXlsx.parseXlsxFile(file)`은 `.xls`일 때 기존 BIFF/HTML 파서에 위임, `.xlsx`는 기존 ZIP/XML 경로 유지.
 - 출근부 가져오기 버튼에서 `accept=.xls,.xlsx`로 수정. 서버 `import_attendance_external_evidence` RPC, 사번 매칭, SHA-256 원본 해시, 중복 방지, 직원 권한 검증, 출근 확정 정책 모두 그대로 유지.
 - 신뢰할 수 없는 파일을 읽을 때 브라우저 내부 처리 및 8 MiB 안전 한도; 외부 변환 API 또는 사용자 개인정보 전송 서비스 없음.
