@@ -835,7 +835,12 @@
           form.autocomplete='off';
           const number=input();number.required=true;number.placeholder=employee.employee_id;
           const identity=input('checkbox');identity.required=true;
-          const reason=input();reason.required=true;reason.minLength=5;reason.maxLength=300;
+          const reason=select([
+            {id:'',name:'사유를 선택하세요'},
+            {id:'로그인 정보 분실',name:'로그인 정보 분실'},
+            {id:'현장 로그인 지원',name:'현장 로그인 지원'},
+            {id:'현장 신원 확인 후 복구',name:'현장 신원 확인 후 복구'}
+          ],'');reason.required=true;
           const current=input('password');current.required=true;current.autocomplete='current-password';current.maxLength=256;
           const mode=select([{id:'random',name:'직원별 무작위 숫자 16자리 (권장)'},
             ...(opt.manual_allowed?[{id:'manual',name:'승인된 1회 직접 입력 (운영총괄)'}]:[])],'random');
@@ -849,7 +854,7 @@
           form.append(el('p',employee.full_name+' · '+employee.employee_id+' · '+opt.email),
             el('p','직원에게 직접 신원을 확인하세요. 사유에 비밀번호나 개인정보를 적지 마세요.','help'),
             field('직원번호 다시 입력',number),field('직원 신원 직접 확인 완료',identity),
-            field('초기화 사유 (5자 이상)',reason),field('발급 방식',mode),manualField,
+            field('초기화 사유',reason),field('발급 방식',mode),manualField,
             field('관리자 본인 현재 비밀번호',current),actions,status);
           wrap.append(form);number.focus();
           form.addEventListener('submit',async event=>{

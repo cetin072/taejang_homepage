@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHandler,numericPassword} from '../supabase/functions/employee-password-reset/handler.mjs';
 const id='11111111-1111-4111-8111-111111111111';
-const body={employee_uuid:id,profile_id:id,employee_number:'TJ-000001',reason:'현장 본인 확인 후 복구',mode:'random',identity_verified:true,current_password:'synthetic-current'};
+const body={employee_uuid:id,profile_id:id,employee_number:'TJ-000001',reason:'현장 신원 확인 후 복구',mode:'random',identity_verified:true,current_password:'synthetic-current'};
 function harness(overrides={}) {
  const calls=[];
  const env={SUPABASE_URL:'http://127.0.0.1:54321',SUPABASE_SERVICE_ROLE_KEY:'synthetic-server',SUPABASE_ANON_KEY:'synthetic-public',EMPLOYEE_PASSWORD_RESET_ENABLED:'true',...overrides.env};
@@ -35,6 +35,7 @@ test('default disabled, production preview blocked, expired actor and input deni
   [{},body,'https://deploy-preview-500--taejang-homepage.netlify.app',403],
   [{actorError:{}},body,undefined,401],[{}, {...body,identity_verified:false},undefined,400],
   [{}, {...body,mode:'manual',temporary_password:'letters'},undefined,400]
+  ,[{},{...body,reason:'credential accidentally pasted 123456789'},undefined,400]
  ]) {const h=harness(o);assert.equal((await h.request(data,origin)).status,status);assert.equal(h.calls.some(c=>c[0]==='update'),false);}
 });
 test('server target deny, IDOR, limits, failed reauth, ban, link race stop Admin update',async()=>{

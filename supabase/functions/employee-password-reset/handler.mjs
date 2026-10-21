@@ -62,7 +62,7 @@ export function createHandler({ createClient, env, fetcher = fetch }) {
       const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if(!uuid.test(body.employee_uuid)||!uuid.test(body.profile_id)
         ||!/^TJ-[0-9]{6,}$/.test(body.employee_number)
-        ||typeof body.reason!=='string'||body.reason.trim().length<5||body.reason.length>300
+        ||!['로그인 정보 분실','현장 로그인 지원','현장 신원 확인 후 복구'].includes(body.reason)
         ||!['random','manual'].includes(body.mode)||body.identity_verified!==true
         ||typeof body.current_password!=='string'||!body.current_password||body.current_password.length>256
         ||(body.mode==='manual' && (typeof body.temporary_password!=='string'||!/^\d{1,128}$/.test(body.temporary_password))))

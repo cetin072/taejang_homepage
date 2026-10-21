@@ -106,8 +106,7 @@ begin
  if actor is null or not public.current_profile_is_active() then
    return jsonb_build_object('ok',false,'code','FORBIDDEN'); end if;
  -- No credential field is accepted by any database RPC.
- if p_reason is null or char_length(btrim(p_reason)) not between 5 and 300
-    or p_reason ~ '[0-9]{4}' or p_reason ~* '(password|token|secret|비밀번호|비밀키)'
+ if p_reason is null or p_reason not in ('로그인 정보 분실','현장 로그인 지원','현장 신원 확인 후 복구')
     or p_mode is null or p_mode not in ('random','manual')
  then return jsonb_build_object('ok',false,'code','INVALID_INPUT'); end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(actor::text,500));

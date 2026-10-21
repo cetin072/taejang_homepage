@@ -2,10 +2,13 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = process.cwd();
+const output = process.env.EMPLOYEE_RESET_QA_OUTPUT || path.join(tmpdir(),'taejang-password-reset-qa');
+await fs.mkdir(output,{recursive:true});
 const preview = String(process.env.EMPLOYEE_PREVIEW_URL || '').replace(/\/$/, '');
 let html = await fs.readFile('tests/browser/employee-profile-gate.html', 'utf8');
 html = html.replaceAll('../../app/assets/', (preview || '') + '/app/assets/').replaceAll('../../staff/assets/', (preview || '') + '/staff/assets/');
@@ -48,10 +51,10 @@ try{
    await page.getByRole('button',{name:'비밀번호 초기화',exact:true}).click();
   };
   await load();
-  const reason=page.getByLabel('초기화 사유 (5자 이상)',{exact:true});
+  const reason=page.getByLabel('초기화 사유',{exact:true});
   await page.getByLabel('직원번호 다시 입력').fill('TJ-000003');
   await page.getByLabel('직원 신원 직접 확인 완료').check();
-  await reason.fill('현장 신원 확인 후 복구');
+  await reason.selectOption('현장 신원 확인 후 복구');
   await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
   await page.getByRole('button',{name:'대상 확인 후 초기화'}).click();
   await page.getByText('관리자 본인 비밀번호를 다시 확인하세요.',{exact:true}).waitFor();
@@ -59,6 +62,8 @@ try{
   assert.equal(await page.getByLabel('관리자 본인 현재 비밀번호').inputValue(),'');
   assert.equal(await page.getByLabel('직원번호 다시 입력').inputValue(),'TJ-000003');
   await page.getByLabel('발급 방식').selectOption('manual');
+  // Only synthetic identity/reason fields are captured; credential inputs are empty.
+  await page.screenshot({path:path.join(output,'reset-form-'+width+(preview?'-preview':'-local')+'.png'),fullPage:true});
   await page.getByLabel('확정된 임시 비밀번호').fill('8135792468135792');
   await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
   await page.evaluate(()=>{window.resetFailure=false;});
@@ -71,7 +76,7 @@ try{
   assert.equal(await page.getByLabel('일회 표시 임시 비밀번호').count(),0);
   await load(true);
   await page.getByLabel('직원번호 다시 입력').fill('TJ-000003');await page.getByLabel('직원 신원 직접 확인 완료').check();
-  await reason.fill('현장 신원 확인 후 복구');await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
+  await reason.selectOption('현장 신원 확인 후 복구');await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
   await page.getByRole('button',{name:'대상 확인 후 초기화'}).click();
   await page.getByText('Preview에서는 운영 계정을 초기화할 수 없습니다.',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>resetCalls),0,'production reset never sent from preview');
