@@ -19,7 +19,7 @@ jobs:
   publish:
     if: >-
       github.event.issue.pull_request != null &&
-      github.event.issue.number == 999999 &&
+      github.event.issue.number == 502 &&
       github.event.comment.user.login == 'cetin072' &&
       startsWith(github.event.comment.body, '/release-once 2026-10-21 ')
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
         run: node --test tests/one-time-approved-release-20261021.test.mjs
       - name: Publish approved main once using existing Netlify Build Hook
         env:
-          RELEASE_PR_NUMBER: "999999"
+          RELEASE_PR_NUMBER: "502"
           GH_TOKEN: ${{ github.token }}
           NETLIFY_PRODUCTION_BUILD_HOOK: ${{ secrets.NETLIFY_PRODUCTION_BUILD_HOOK }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
