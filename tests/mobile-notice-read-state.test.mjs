@@ -134,42 +134,78 @@ test('latest unread is chronological despite server importance order; date uses 
   assert.match(r.noticeDate(latest), /10월 13일/);
 });
 
-test('actual home UI shows title/date/count, routes latest directly, keeps history and retries errors', () => {
-  const r = readModule(memory()), routes = [];
+test('home and full list reuse native cards: 0–5 notices, stable publication order, read retention, navigation and errors', () => {
+  const r = readModule(memory()), routes = [], api = load('mobile/src/features/notices/notice-api.ts');
   let retries = 0;
-  let state = { items: [notice('a'), notice('b', { publish_start_at: '2026-01-01T00:00:00Z' })], versions: {}, loading: false, error: '', retry: () => retries++ };
-  const component = load('mobile/src/features/notices/notice-home-action.tsx', {
-    'expo-router': { useRouter: () => ({ push: path => routes.push(path) }) }, 'react-native': native,
-    './notice-api': { noticeDeepLinkPath: id => `/notices/${id}` }, './notice-read-state': r,
-    './use-my-notices': { NOTICE_LIST_LIMIT: 200, useMyNotices: () => state },
+  let state = { items: [], versions: {}, loading: false, error: '', retry: () => retries++ };
+  const router = { push: path => routes.push(path), replace: path => routes.push(path) };
+  const cards = load('mobile/src/features/notices/notice-list-card.tsx', {
+    'expo-router': { useRouter: () => router }, 'react-native': native,
+    './notice-api': api, './notice-read-state': r,
   });
-  const render = () => nodes(component.NoticeHomeAction({}));
-  let ui = render();
-  assert.match(ui.filter(x => typeof x === 'string' || typeof x === 'number').join(' '), /미확인.*2.*공지 a/s);
-  assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
-  ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
-  ui.filter(x => x.type === 'Pressable')[1].props.onPress(); assert.equal(routes.at(-1), '/notices');
-  assert.ok(ui.find(x => x.props?.accessibilityLabel === '전체 목록 보기').props.style, 'list action is inside notice card');
-  assert.equal(ui.filter(x => x === '공지사항').length, 1);
-  assert.ok(ui.includes('내용 보기 →'));
+  const component = load('mobile/src/features/notices/notice-home-action.tsx', {
+    'expo-router': { useRouter: () => router }, 'react-native': native,
+    './notice-api': api, './notice-read-state': r, './notice-list-card': cards,
+    './use-my-notices': { useMyNotices: () => state },
+  });
+  const list = load('mobile/app/notices/index.tsx', {
+    'expo-router': { useRouter: () => router }, 'react-native': native,
+    'expo-status-bar': { StatusBar: 'StatusBar' },
+    'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
+    '@/src/features/notices/notice-api': api, '@/src/features/notices/notice-read-state': r,
+    '@/src/features/notices/notice-list-card': cards,
+    '@/src/features/notices/use-my-notices': { useMyNotices: () => state },
+  });
+  const render = () => nodes(component.NoticeHomeAction());
+  for (let count = 0; count <= 5; count++) {
+    state.items = Array.from({ length: count }, (_, i) => notice(`${i}`, {
+      publish_start_at: `2026-01-0${i + 1}T00:00:00Z`, importance: i ? 'normal' : 'urgent',
+    }));
+    const original = [...state.items];
+    const ui = render();
+    const selected = ui.filter(x => x.type === cards.NoticeListCard);
+    assert.equal(selected.length, Math.min(count, 3));
+    assert.deepEqual(selected.map(x => x.props.item.id), original.toReversed().slice(0, 3).map(x => x.id));
+    assert.deepEqual(state.items, original, 'shared cache is not mutated');
+    assert.equal(ui.includes('현재 등록된 공지사항이 없습니다.'), count === 0);
+    assert.equal(nodes(list.default()).filter(x => x.type === cards.NoticeListCard).length, count);
+    assert.equal(ui.filter(x => x.props?.accessibilityLabel === '전체 공지 보기').length, 1);
+    assert.equal(ui.some(x => typeof x === 'string' && /미확인.*건|내용 보기/.test(x)), false);
+    if (selected.length) {
+      const card = nodes(cards.NoticeListCard(selected[0].props));
+      card.find(x => x.type === 'Pressable').props.onPress();
+      assert.equal(routes.at(-1), `/notices/${count - 1}`);
+      assert.equal(card.filter(x => x.type === 'Pressable').length, 1);
+      assert.match(card.find(x => x.props?.style?.fontSize === 13).props.children, /1월/);
+    }
+  }
+  state.items = [notice('z', { publish_start_at: '2026-01-01T00:00:00Z' }), notice('a', { publish_start_at: '2026-01-01T00:00:00Z' })];
+  state.versions = { z: 1, a: 1 };
+  let ui = render(), selected = ui.filter(x => x.type === cards.NoticeListCard);
+  assert.deepEqual(selected.map(x => x.props.item.id), ['z', 'a'], 'equal dates preserve server order');
+  assert.ok(selected.every(x => !x.props.unread), 'old read notices stay visible without dots');
+  state.versions = {};
+  assert.ok(render().filter(x => x.type === cards.NoticeListCard).every(x => x.props.unread));
+  const long = notice('long', { title: '매우 긴 공지 제목 '.repeat(100) });
   fontScale = 2;
-  assert.equal(render().find(x => x.props?.style?.fontSize === 21).props.numberOfLines, undefined);
+  const title = nodes(cards.NoticeListCard({ item: long })).find(x => x.props?.numberOfLines);
+  assert.equal(title.props.numberOfLines, 2);
+  assert.equal(title.props.ellipsizeMode, 'tail');
+  assert.equal(title.props.children, long.title, 'full title remains available to accessibility');
   fontScale = 1;
-  state = { ...state, items: [notice('urgent', { importance: 'urgent' })], versions: {} };
-  assert.ok(render().some(x => typeof x === 'string' && x.includes(' · 긴급')));
-  assert.match(render().find(x => x.type === 'Pressable').props.accessibilityLabel, /긴급, 미확인 1건.*내용 보기/);
-  state = { ...state, items: [notice('a'), notice('b', { publish_start_at: '2026-01-01T00:00:00Z' })] };
-  state = { ...state, versions: { a: 1, b: 1 } };
-  ui = render();
-  assert.ok(ui.some(x => typeof x === 'string' && x.includes('✓ 읽음')), 'read recent notice stays visible for three days');
-  assert.equal(ui.find(x => x.props?.numberOfLines === 2).props.children, '공지 a');
-  assert.ok(!ui.some(x => x.props?.style?.color === '#a13024'), 'read notice has no red new highlight');
-  ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(routes.at(-1), '/notices/a');
-  state = { ...state, items: [notice('old', { publish_start_at: '2026-01-01T00:00:00Z' })], versions: { old: 1 } };
-  assert.ok(render().includes('새로운 공지가 없습니다.'), 'old read notice leaves home');
-  state = { ...state, error: '공지 정보를 불러오지 못했습니다. 다시 시도' };
-  ui = render(); assert.ok(ui.includes(state.error)); assert.ok(!ui.includes('새로운 공지가 없습니다.'));
+  ui.find(x => x.props?.accessibilityLabel === '전체 공지 보기').props.onPress();
+  assert.equal(routes.at(-1), '/notices');
+  nodes(list.default()).find(x => x.type === 'Pressable').props.onPress();
+  assert.equal(routes.at(-1), '/');
+  state = { ...state, items: [], loading: true };
+  assert.ok(render().includes('공지를 확인하고 있습니다.'));
+  assert.ok(!render().includes('현재 등록된 공지사항이 없습니다.'));
+  state = { ...state, loading: false, error: '공지 정보를 불러오지 못했습니다. 다시 시도' };
+  ui = render(); assert.ok(ui.includes(state.error));
+  assert.ok(!ui.includes('현재 등록된 공지사항이 없습니다.'));
   ui.find(x => x.type === 'Pressable').props.onPress(); assert.equal(retries, 1);
+  state.items = [notice()];
+  assert.equal(render().filter(x => x.type === cards.NoticeListCard).length, 1, 'cached cards remain usable on refresh failure');
 });
 
 function loaderHarness() {

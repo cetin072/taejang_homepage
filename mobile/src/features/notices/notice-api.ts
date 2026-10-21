@@ -47,6 +47,11 @@ function assertArray(value: unknown): unknown[] {
   return value;
 }
 
+// Sort a copy so the shared cache and the server's ordering for ties stay intact.
+export function noticesNewestFirst(items: readonly NoticeSummary[]): NoticeSummary[] {
+  return [...items].sort((a, b) => Date.parse(b.publish_start_at) - Date.parse(a.publish_start_at));
+}
+
 export async function loadMyNotices(client: PlatformSupabaseClient, limit = 20): Promise<NoticeSummary[]> {
   const { data, error } = await client.rpc('get_my_notice_list', { p_limit: limit });
   if (error) throw error;
