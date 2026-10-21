@@ -316,7 +316,15 @@
 
   async function parseXlsxFile(file) {
     if (!file || typeof file.arrayBuffer !== 'function') throw new Error('attendance_file_required');
-    if (!/\.xlsx$/i.test(file.name || '')) throw new Error('attendance_xlsx_required');
+    const name = String(file.name || '');
+    if (/\.xls$/i.test(name)) {
+      // The same on-device, deterministic BIFF/HTML reader used by the
+      // independently developed payroll importer. No remote file conversion.
+      const legacy = globalThis.TaejangPayrollAttendanceXls;
+      if (!legacy?.parseXlsFile) throw new Error('attendance_xls_parser_unavailable');
+      return legacy.parseXlsFile(file);
+    }
+    if (!/\.xlsx$/i.test(name)) throw new Error('attendance_excel_format_required');
     return parseXlsxArrayBuffer(await file.arrayBuffer());
   }
 
@@ -332,11 +340,6 @@
 
   async function previewSelectedFile(file, previewNode) {
     if (!previewNode || !file) return;
-    if (/\.xls$/i.test(file.name || '') && !/\.xlsx$/i.test(file.name || '')) {
-      previewNode.textContent = '구형 .xls 형식입니다. 실제 보안업체 파일을 확인한 뒤 전용 매핑 여부를 결정합니다. 아직 DB에는 등록하지 않습니다.';
-      previewNode.dataset.state = 'review';
-      return;
-    }
     previewNode.textContent = 'Excel 구조를 읽고 있습니다…';
     previewNode.dataset.state = 'loading';
     try {
