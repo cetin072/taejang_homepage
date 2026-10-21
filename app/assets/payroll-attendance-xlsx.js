@@ -314,14 +314,36 @@
     return Object.freeze({ sheets: Object.freeze(analyses), best: analyses[0] || null });
   }
 
+  let legacyXlsLoad = null;
+  async function legacyXlsParser() {
+    if (globalThis.TaejangPayrollAttendanceXls?.parseXlsFile) return globalThis.TaejangPayrollAttendanceXls;
+    if (typeof document === 'undefined') throw new Error('attendance_xls_parser_unavailable');
+    if (!legacyXlsLoad) {
+      legacyXlsLoad = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = '/app/assets/payroll-attendance-xls.js';
+        script.onload = () => {
+          const api = globalThis.TaejangPayrollAttendanceXls;
+          if (api?.parseXlsFile) resolve(api);
+          else reject(new Error('attendance_xls_parser_unavailable'));
+        };
+        script.onerror = () => reject(new Error('attendance_xls_parser_unavailable'));
+        document.head.append(script);
+      }).catch(error => {
+        legacyXlsLoad = null; // A later retry after a transient asset failure is allowed.
+        throw error;
+      });
+    }
+    return legacyXlsLoad;
+  }
+
   async function parseXlsxFile(file) {
     if (!file || typeof file.arrayBuffer !== 'function') throw new Error('attendance_file_required');
     const name = String(file.name || '');
     if (/\.xls$/i.test(name)) {
-      // The same on-device, deterministic BIFF/HTML reader used by the
-      // independently developed payroll importer. No remote file conversion.
-      const legacy = globalThis.TaejangPayrollAttendanceXls;
-      if (!legacy?.parseXlsFile) throw new Error('attendance_xls_parser_unavailable');
+      // Only operator-selected legacy files fetch this locally hosted parser;
+      // .xlsx use and the ordinary employee app shell remain unchanged.
+      const legacy = await legacyXlsParser();
       return legacy.parseXlsFile(file);
     }
     if (!/\.xlsx$/i.test(name)) throw new Error('attendance_excel_format_required');
