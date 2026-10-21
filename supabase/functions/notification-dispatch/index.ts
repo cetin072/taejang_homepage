@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 type JsonRecord = Record<string, unknown>;
 type PushItem = {
   delivery_id: string;
+  device_id: string;
   expo_push_token: string;
   title: string;
   body: string;
@@ -94,6 +95,24 @@ async function completeTicket(
 }
 
 async function dispatchPushBatch() {
+  // Fail closed until the separately approved activation and backlog review.
+  if (Deno.env.get('NOTIFICATION_DISPATCH_ENABLED') !== 'true') {
+    return { blocked: 'DISPATCH_DISABLED', claimed: 0 };
+  }
+  const startAt = Deno.env.get('NOTIFICATION_DISPATCH_START_AT') || '';
+  const deviceId = Deno.env.get('NOTIFICATION_CANARY_DEVICE_ID') || '';
+  const noticeId = Deno.env.get('NOTIFICATION_CANARY_NOTICE_ID') || '';
+  // This activation release deliberately supports ONE test device/notice only.
+  // Enabling organization-wide dispatch needs a separately reviewed change.
+  if (!Number.isFinite(Date.parse(startAt)) || !deviceId || !noticeId) {
+    return { blocked: 'CANARY_CONFIGURATION_REQUIRED', claimed: 0 };
+  }
+  const { data: backlog, error: backlogError } = await internalClient
+    .from('notification_events').select('id').lt('created_at', startAt)
+    .in('status', ['queued', 'expanded']).limit(1);
+  if (backlogError) throw backlogError;
+  if (backlog?.length) return { blocked: 'BACKLOG_REVIEW_REQUIRED', claimed: 0 };
+
   const claimToken = crypto.randomUUID();
   const { data, error } = await internalClient.rpc('private_claim_notification_push_batch', {
     p_claim_token: claimToken,
@@ -103,6 +122,27 @@ async function dispatchPushBatch() {
 
   const items = asArray<PushItem>(data);
   if (!items.length) return { claimed: 0, accepted: 0, retry: 0, failed: 0, unregistered: 0 };
+
+  // Recheck the claimed rows, not a preflight snapshot: a concurrently published
+  // notice or registration must never widen the approved canary send scope.
+  const { data: deliveries, error: deliveriesError } = await internalClient
+    .from('notification_deliveries').select('id,event_id')
+    .in('id', items.map(item => item.delivery_id));
+  if (deliveriesError) throw deliveriesError;
+  const { data: events, error: eventsError } = await internalClient
+    .from('notification_events').select('id,created_at,notice_id')
+    .in('id', (deliveries || []).map(row => row.event_id));
+  if (eventsError) throw eventsError;
+  const inScope = deliveries?.length === items.length && events?.length &&
+    items.every(item => item.device_id === deviceId && item.data.noticeId === noticeId) &&
+    events.every(event => event.notice_id === noticeId && Date.parse(event.created_at) >= Date.parse(startAt));
+  if (!inScope) {
+    const { error: releaseError } = await internalClient.rpc('private_release_notification_push_claim', {
+      p_claim_token: claimToken, p_error_code: 'CANARY_SCOPE_BLOCKED',
+    });
+    if (releaseError) throw releaseError;
+    return { blocked: 'CANARY_SCOPE_BLOCKED', claimed: items.length, accepted: 0 };
+  }
 
   const messages = items.map(item => ({
     to: item.expo_push_token,
@@ -120,17 +160,20 @@ async function dispatchPushBatch() {
       method: 'POST',
       headers: expoHeaders(),
       body: JSON.stringify(messages),
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
-    await internalClient.rpc('private_release_notification_push_claim', {
-      p_claim_token: claimToken,
-      p_error_code: 'EXPO_NETWORK_ERROR',
-    });
-    return { claimed: items.length, accepted: 0, retry: items.length, failed: 0, unregistered: 0 };
+    // A lost HTTP response can hide an accepted send. Never resend that unknown
+    // outcome automatically; retain a failed row for operator reconciliation.
+    await Promise.all(items.map(item => completeTicket(
+      item.delivery_id, claimToken, 'failed', null, 'EXPO_SEND_OUTCOME_UNKNOWN', 0,
+    )));
+    return { claimed: items.length, accepted: 0, retry: 0, failed: items.length, unregistered: 0 };
   }
 
   if (!response.ok) {
-    const retryable = response.status === 429 || response.status >= 500;
+    // Retry only an explicit rejection; server errors may hide an accepted send.
+    const retryable = response.status === 429;
     if (retryable) {
       await internalClient.rpc('private_release_notification_push_claim', {
         p_claim_token: claimToken,
@@ -140,7 +183,8 @@ async function dispatchPushBatch() {
     }
 
     await Promise.all(items.map(item =>
-      completeTicket(item.delivery_id, claimToken, 'failed', null, `EXPO_HTTP_${response.status}`, 0)
+      completeTicket(item.delivery_id, claimToken, 'failed', null,
+        response.status >= 500 ? 'EXPO_SEND_OUTCOME_UNKNOWN' : `EXPO_HTTP_${response.status}`, 0)
     ));
     return { claimed: items.length, accepted: 0, retry: 0, failed: items.length, unregistered: 0 };
   }
@@ -211,6 +255,7 @@ async function checkPushReceipts() {
       method: 'POST',
       headers: expoHeaders(),
       body: JSON.stringify({ ids: items.map(item => item.ticket_id) }),
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     await Promise.all(items.map(item => completeReceipt(item.delivery_id, claimToken, 'pending', 'EXPO_RECEIPT_NETWORK')));
@@ -293,11 +338,8 @@ Deno.serve(async req => {
     const result = mode === 'dispatch' ? await dispatchPushBatch() : await checkPushReceipts();
     safeLog('notification_dispatch_completed', { mode, ...result });
     return responseJson(200, { ok: true, mode, ...result });
-  } catch (error) {
-    const code = error && typeof error === 'object' && 'message' in error
-      ? String((error as { message?: unknown }).message || 'NOTIFICATION_DISPATCH_FAILED')
-      : 'NOTIFICATION_DISPATCH_FAILED';
-    safeLog('notification_dispatch_failed', { mode, code: code.slice(0, 120) });
+  } catch {
+    safeLog('notification_dispatch_failed', { mode });
     return responseJson(500, { ok: false, code: 'NOTIFICATION_DISPATCH_FAILED' });
   }
 });

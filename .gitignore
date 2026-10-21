@@ -6,4 +6,7 @@ scripts/staging/.qa-manifest.json
 .supabase/
 supabase/.temp/
 node_modules/
+mobile/.push/
+mobile/google-services*.json
+**/*service-account*.json
 dist/

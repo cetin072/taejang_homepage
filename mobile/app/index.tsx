@@ -640,7 +640,7 @@ export default function HomeScreen() {
                 previewScenario={qaDayScenario}
               />
             ) : null}
-            {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction minHeight={actionHeight} /> : null}
+            {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction /> : null}
             {showWorkPlatform ? (
               <PrimaryButton
                 title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}

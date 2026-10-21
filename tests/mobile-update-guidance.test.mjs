@@ -189,7 +189,8 @@ test('frozen Play 0.1.3 source consumes runtime staff-config, offers later/HTTPS
   const source = JSON.parse(readFileSync(new URL('fixtures/mobile-0.1.3/source.json', import.meta.url)));
   assert.equal(source.commit, '2115ada603ca17a2ac1aa84d24c75bb9c4953088');
   for (const [file, digest] of Object.entries(source.files_sha256)) {
-    const content = readFileSync(new URL(`fixtures/mobile-0.1.3/${file}.txt`, import.meta.url));
+    // The recorded Git blob is LF; Windows checkout CRLF must not change its identity.
+    const content = readFileSync(new URL(`fixtures/mobile-0.1.3/${file}.txt`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     assert.equal(createHash('sha256').update(content).digest('hex'), digest);
   }
   const response = await buildStaffConfig({ env: { SUPABASE_URL:'https://fixture.supabase.co', SUPABASE_PUBLISHABLE_KEY:'public-test' },

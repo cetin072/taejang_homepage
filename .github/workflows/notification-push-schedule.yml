@@ -1,0 +1,40 @@
+name: Notification Push Canary (approval required)
+
+on:
+  workflow_dispatch:
+  # Inert until both protected environment approval and the opt-in variable.
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notification-push-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    if: vars.NOTIFICATION_PUSH_CANARY_ENABLED == 'true'
+    environment: notification-push-production
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Dispatch approved canary and reconcile receipts
+        env:
+          DISPATCH_URL: ${{ secrets.NOTIFICATION_DISPATCH_URL }}
+          DISPATCH_KEY: ${{ secrets.NOTIFICATION_DISPATCH_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DISPATCH_URL"
+          test -n "$DISPATCH_KEY"
+          for MODE in dispatch receipts; do
+            curl --fail --silent --show-error --max-time 60 \
+              -X POST "$DISPATCH_URL" \
+              -H "content-type: application/json" \
+              -H "x-taejang-notification-key: $DISPATCH_KEY" \
+              --data "{\"mode\":\"$MODE\"}" \
+              --output "$RUNNER_TEMP/notification-result.json"
+            node -e 'const r=require(process.argv[1]); if (!r.ok || r.blocked) process.exit(1); console.log(JSON.stringify({mode:r.mode, claimed:r.claimed, accepted:r.accepted, delivered:r.delivered}));' "$RUNNER_TEMP/notification-result.json"
+          done
