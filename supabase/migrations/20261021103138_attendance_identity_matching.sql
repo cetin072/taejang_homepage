@@ -147,7 +147,7 @@ revoke all on function public.save_attendance_source_identity_mapping(text,text,
 grant execute on function public.save_attendance_source_identity_mapping(text,text,uuid,text,date,uuid,boolean,boolean) to authenticated;
 
 create or replace function public.save_attendance_source_identity_mapping(p_source_system text,p_source_employee_key text,p_employee_uuid uuid,p_reason text)
-returns jsonb language plpgsql security definer set search_path='' as $
+returns jsonb language plpgsql security definer set search_path='' as $$
 declare existing_employee uuid;
 begin
  if (select auth.uid()) is null or not public.private_actor_can('attendance.evidence_import') then

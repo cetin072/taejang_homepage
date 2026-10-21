@@ -18,3 +18,9 @@ test('operator UI requires confirmation and handles partial saves without claimi
  assert.match(admin,/명시적으로 교체/);assert.match(admin,/중지\/미처리/);
  assert.match(admin,/p_auto_candidate: automatic/);assert.match(admin,/연결 중지/);
 });
+
+test('every function body retains paired PostgreSQL dollar quotes after editing',()=>{
+ const definitions=[...sql.matchAll(/create or replace function /g)].length;
+ assert.equal([...sql.matchAll(/as \$\$/g)].length,definitions);
+ assert.equal([...sql.matchAll(/^\$\$;/gm)].length,definitions);
+});
