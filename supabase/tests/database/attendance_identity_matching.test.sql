@@ -30,6 +30,7 @@ select is(public.import_attendance_external_evidence('fingerprint_excel','synthe
 select is(public.import_attendance_external_evidence('fingerprint_excel','synthetic-a.xls','506-synthetic-file-a','근태',(select rows from fixture_rows))->>'code','DUPLICATE_IMPORT','same file reimport is idempotent');
 select is(public.import_attendance_external_evidence('fingerprint_excel','synthetic-b.xlsx','506-synthetic-file-b','근태',(select rows from fixture_rows))->>'code','ATTENDANCE_EVIDENCE_IMPORTED','different hash preserved');
 select is((select count(*)::integer from public.attendance_external_evidence where work_date='2026-10-19'),42,'both raw batches have 42 rows');
+create temporary table original_raw as select id,to_jsonb(e) as payload from public.attendance_external_evidence e where work_date='2026-10-19';
 select is((select count(*)::integer from public.private_attendance_distinct_external_evidence('2026-10-19')),21,'same identity day and times count once');
 select is((select count(*)::integer from jsonb_array_elements(public.get_attendance_external_evidence('2026-10-19')->'rows') r where r->'identity'->>'candidate_employee_uuid' is not null),21,'21 unique current-name candidates despite 16 departed historical names');
 select is((select count(*)::integer from public.attendance_source_identity_mappings where source_system='fingerprint_excel'),0,'view never writes mapping');
@@ -46,6 +47,10 @@ select is((select count(*)::integer from jsonb_array_elements(public.get_attenda
 select is((select count(*)::integer from public.audit_logs where action='attendance_source_identity_mapped' and actor_profile_id='50600000-0000-0000-0000-000000000001'),1,'existing audit writer records manual or bulk link');
 select is((public.get_attendance_external_evidence('2026-10-19')->'batches'->0->>'import_unmatched_count')::integer,21,'import-time unmatched remains immutable');
 select is((public.get_attendance_external_evidence('2026-10-19')->>'current_unmatched_count')::integer,20,'current unmatched is computed dynamically');
+select is(public.save_attendance_source_identity_mapping('fingerprint_excel','DEVICE-1','50620000-0000-0000-0000-000000000001','기존 호출 재시도')->>'code','IDENTITY_MAPPING_UNCHANGED','legacy signature retains idempotent same-employee link');
+select is(public.save_attendance_source_identity_mapping('fingerprint_excel','DEVICE-1','50620000-0000-0000-0000-000000000002','기존 호출 교체 차단')->>'code','REPLACEMENT_CONFIRMATION_REQUIRED','legacy signature cannot bypass replacement confirmation');
+select is(public.import_attendance_external_evidence('fingerprint_excel','next-day.xls','506-synthetic-next-day','근태','[{"work_date":"2026-10-20","source_employee_key":"DEVICE-1","source_display_name":"가상근로자1","clock_in":"08:47","clock_out":"12:01"}]')->>'matched_count','1','next file reuses saved device mapping');
+select is((select count(*)::integer from jsonb_array_elements(public.private_attendance_confirmation_blockers_pre286('2026-10-19')) b where b->>'type'='fingerprint_ambiguous' and b->>'employee_uuid'='50620000-0000-0000-0000-000000000001'),0,'identical raw batches do not create a false confirmation ambiguity');
 -- Two current employees with identical names: never an automatic candidate.
 update public.people set full_name='가상근로자2' where id='50610000-0000-0000-0000-000000000022';
 select is(jsonb_array_length(public.private_attendance_identity_context('fingerprint_excel','DEVICE-2','2026-10-19')->'candidates'),2,'two homonyms visible for manual comparison');
@@ -74,5 +79,6 @@ select ok(pg_get_functiondef('public.private_attendance_confirmation_blockers_pr
 select is(has_function_privilege('authenticated','public.private_save_attendance_identity_pre506(text,text,uuid,text)','execute'),false,'original writer cannot bypass reviewed guards');
 select is(has_function_privilege('anon','public.save_attendance_source_identity_mapping(text,text,uuid,text,date,uuid,boolean,boolean)','execute'),false,'anonymous writer denied');
 select is((select count(*)::integer from public.attendance_external_evidence where work_date='2026-10-19'),43,'all original rows and conflicting evidence remain');
+select is((select count(*)::integer from original_raw original left join public.attendance_external_evidence e on e.id=original.id where e.id is null or to_jsonb(e) is distinct from original.payload),0,'all 42 original payloads remain byte-for-byte equivalent after mapping');
 select * from finish();
 rollback;

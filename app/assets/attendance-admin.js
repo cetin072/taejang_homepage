@@ -476,7 +476,7 @@
     } catch { failure = '통신 오류로 연결 결과가 불확실합니다. 새로 조회하여 확인해 주세요.'; }
     finally { identitySaving = false; controls.forEach(control => { control.disabled = false; }); }
     window.alert('직원 연결 ' + saved + '명 완료 · 중지/미처리 ' + (items.length - saved) + '명' + (failure ? '\n' + failure : ''));
-    await openAttendance(workDate);
+    if (saved > 0 || !failure) await openAttendance(workDate);
   }
 
   function unmatchedPanel(unmatched, rows, workDate, evidenceData = {}) {

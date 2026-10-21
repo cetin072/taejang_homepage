@@ -1,6 +1,9 @@
 -- Issue #506: reviewed candidates; no raw evidence or confirmed record mutations.
 begin;
 
+create index if not exists attendance_external_identity_history_idx
+ on public.attendance_external_evidence(source_system,source_employee_key,work_date);
+
 create or replace function public.private_attendance_identity_name(p_name text)
 returns text language sql immutable set search_path='' as $$
  select btrim(coalesce(p_name,''), E' \t\r\n' || chr(160) || chr(12288));
@@ -143,12 +146,18 @@ revoke all on function public.save_attendance_source_identity_mapping(text,text,
 grant execute on function public.save_attendance_source_identity_mapping(text,text,uuid,text,date,uuid,boolean,boolean) to authenticated;
 
 create or replace function public.save_attendance_source_identity_mapping(p_source_system text,p_source_employee_key text,p_employee_uuid uuid,p_reason text)
-returns jsonb language plpgsql security definer set search_path='' as $$
+returns jsonb language plpgsql security definer set search_path='' as $
+declare existing_employee uuid;
 begin
  if (select auth.uid()) is null or not public.private_actor_can('attendance.evidence_import') then
    return jsonb_build_object('ok',false,'code','FORBIDDEN');
  end if;
- return public.save_attendance_source_identity_mapping(p_source_system,p_source_employee_key,p_employee_uuid,p_reason,null,null,false,false);
+ select employee_uuid into existing_employee from public.attendance_source_identity_mappings
+ where source_system=btrim(p_source_system) and source_employee_key=btrim(p_source_employee_key) and status='active';
+ if existing_employee is not null and existing_employee<>p_employee_uuid then
+   return jsonb_build_object('ok',false,'code','REPLACEMENT_CONFIRMATION_REQUIRED');
+ end if;
+ return public.save_attendance_source_identity_mapping(p_source_system,p_source_employee_key,p_employee_uuid,p_reason,null,existing_employee,false,false);
 end;
 $$;
 revoke all on function public.save_attendance_source_identity_mapping(text,text,uuid,text) from public,anon;
