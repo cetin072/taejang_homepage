@@ -141,3 +141,21 @@ const restore = await rpc('set_role_simulation_mode', ops.token, { p_role_code: 
 assert.equal(restore.data?.code, 'ROLE_SIMULATION_CLEARED', 'operations manager restores actual authority');
 
 console.log('Attendance capability Auth/Data API integration: PASS');
+
+// Issue #506: named overload is exercised through real PostgREST/Auth, not just SQL.
+const identityParameters={p_source_system:'fingerprint_excel',p_source_employee_key:'synthetic-506-missing',
+ p_employee_uuid:missingEmployee,p_reason:'익명 연결 권한 회귀',p_work_date:workDate,
+ p_expected_employee_uuid:null,p_confirm_replace:false,p_auto_candidate:false};
+for(const actor of [ops,lead]) {
+ const result=await rpc('save_attendance_source_identity_mapping',actor.token,identityParameters);
+ assert.ok(result.ok,'named mapping overload is exposed unambiguously through PostgREST');
+ assert.equal(result.data?.code,'INVALID_ATTENDANCE_EMPLOYEE','authorized actor reaches server employment checks');
+ const evidence=await rpc('get_attendance_external_evidence',actor.token,{p_work_date:workDate});
+ assert.ok(evidence.ok && Array.isArray(evidence.data?.rows) && Array.isArray(evidence.data?.batches),'current evidence and preserved batches readable');
+}
+const ordinaryIdentityActor=await fixture('identity506-api-worker@example.test','가상 매칭 일반직원','general_worker');
+for(const actor of [tech,ordinaryIdentityActor]) {
+ const result=await rpc('save_attendance_source_identity_mapping',actor.token,identityParameters);
+ assert.equal(result.data?.code,'FORBIDDEN','ordinary and technical accounts cannot modify device mappings');
+}
+console.log('Issue 506 identity Auth/Data API checks passed');
