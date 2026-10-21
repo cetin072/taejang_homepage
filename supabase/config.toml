@@ -94,3 +94,7 @@ enabled = false
 # then uses the service role internally to atomically consume it.
 [functions.web-auth-handoff]
 verify_jwt = false
+
+# The function validates bearer identity with Auth and rechecks DB authorization.
+[functions.employee-password-reset]
+verify_jwt = false

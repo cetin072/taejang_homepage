@@ -50,6 +50,43 @@ test('fixed slots survive 900 transitions, leap days, month/year boundaries and 
   }
   assert.equal(calendarSlot(config, '2026-10-20T08:20:00Z').status, 'WAITING_SLOT');
 });
+test('a safe 18:47 KST wake-up can release after earlier wake-ups were too early for the real 48 hours', async () => {
+  // Real Production publication was Oct 21 at 18:31:26 KST, AFTER the 17:20 fixed slot.
+  const released = { ...published, published_at: '2026-10-21T09:31:26Z' };
+  const late = { ...run, id: 404, created_at: '2026-10-23T09:47:00Z' };
+  const early = ['2026-10-23T08:20:00Z', '2026-10-23T08:47:00Z', '2026-10-23T09:17:00Z']
+    .map((time, i) => ({ ...run, id: i+401, created_at: time,
+      status: 'completed', updated_at: new Date(Date.parse(time) + 60000).toISOString() }));
+  assert.equal(evaluateSchedule(config, late, [...early, late], new Date('2026-10-23T09:47:10Z'),
+    Date.parse(released.published_at) + 48 * 3600000).status, 'DUE');
+  let posts = 0;
+  const out = await cycle({ now: () => new Date('2026-10-23T09:47:10Z'),
+    snapshot: async () => ({ ...snapshot, published_deploy: released }),
+    api: async path => path.includes('/actions/runs/') ? late : { total_count: 4, workflow_runs: [...early,late] },
+    post: async () => { posts++; return { status: 'PUBLISHED' }; }
+  });
+  assert.equal(out.status, 'PUBLISHED'); assert.equal(posts, 1);
+});
+test('an unfinished, unknown or late-finishing prior check keeps the same slot safely blocked', async () => {
+  const released = { ...published, published_at: '2026-10-21T09:31:26Z' };
+  const late = { ...run, id: 509, created_at: '2026-10-23T09:47:00Z' };
+  const early = { ...run, id: 508, created_at: '2026-10-23T09:17:00Z' };
+  const now = new Date('2026-10-23T09:47:10Z');
+  for (const other of [
+    { ...early, status: 'in_progress' },
+    { ...early, status: 'completed' },
+    { ...early, status: 'completed', updated_at: '2026-10-23T09:35:00Z' }
+  ]) {
+    const cutoff = Date.parse(released.published_at) + 48 * 3600000;
+    assert.equal(evaluateSchedule(config, late, [other,late], now, cutoff).status,'SLOT_ALREADY_CHECKED');
+    const result = await cycle({ now: () => now,
+      snapshot: async () => ({ ...snapshot, published_deploy: released }),
+      api: async path => path.includes('/actions/runs/') ? late : { total_count: 2, workflow_runs: [other, late] },
+      preflight: forbidden, post: forbidden });
+    assert.equal(result.status,'SLOT_ALREADY_CHECKED');
+  }
+});
+
 test('creation time owns slot; retries, simultaneous and cancelled/failed/no-change checks cannot publish twice', () => {
   for (const conclusion of ['failure', 'cancelled', 'success', null]) {
     assert.equal(evaluateSchedule(config, run, [{ ...run, id: 99, conclusion }], due).status, 'SLOT_ALREADY_CHECKED');
@@ -74,9 +111,9 @@ test('native mobile, tests and documentation changes do not create a deployment'
   assert.equal(deployInput(config, changed), true);
   assert.equal(deployInput(config, changed.replace(/[^/]+$/, 'a.test.mjs')), false);
 });
-test('off-day and duplicate checks stop before even reading Production or comparing content', async () => {
+test('off-day stops before reading Production; duplicate checks never perform a release', async () => {
   assert.equal((await cycle({ api: async () => ({ ...run, created_at: '2026-10-20T08:20:00Z' }), snapshot: forbidden })).status, 'WAITING_SLOT');
-  assert.equal((await cycle({ api: async route => route.includes('/actions/runs/') ? run : { total_count: 2, workflow_runs: [run, { ...run, id: 99 }] }, snapshot: forbidden })).status, 'SLOT_ALREADY_CHECKED');
+  assert.equal((await cycle({ api: async route => route.includes('/actions/runs/') ? run : { total_count: 2, workflow_runs: [run, { ...run, id: 99 }] }, preflight: forbidden, post: forbidden })).status, 'SLOT_ALREADY_CHECKED');
 });
 test('incomplete history, wrong repository and non-main scheduled runs fail closed', async () => {
   await assert.rejects(cycle({ api: async route => route.includes('/actions/runs/') ? run : { total_count: 2, workflow_runs: [run] } }), /SLOT_HISTORY_INCOMPLETE/);

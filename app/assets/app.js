@@ -762,6 +762,21 @@
     await loadManagerModules();
     showManagerModuleStatus();
     document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
+    // #501 is released separately. Show this only after its route is available.
+    fetch('/staff/change-password.html', { cache: 'no-store', credentials: 'omit', redirect: 'error' })
+      .then(response => response.ok ? response.text() : '')
+      .then(html => {
+        if (!html.includes('id="change-password-form"')) return;
+        ['app-panel', 'general-worker-board'].forEach(id => {
+          const parent = element(id);
+          if (!parent || parent.querySelector('[data-self-change-reminder]')) return;
+          const reminder = document.createElement('p'); reminder.className = 'message';
+          reminder.dataset.selfChangeReminder = '1';
+          const link = document.createElement('a'); link.href = '/staff/change-password.html';
+          link.textContent = '임시 비밀번호를 받았다면 여기를 눌러 내 비밀번호로 변경하세요.';
+          reminder.append(link); parent.prepend(reminder);
+        });
+      }).catch(() => {});
   }
 
   function clearHandoffFromUrl() {

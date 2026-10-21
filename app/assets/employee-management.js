@@ -819,6 +819,98 @@
     card.append(actions); return card;
   }
 
+
+  function passwordResetPanel(employee) {
+    const wrap=el('div',null,'employee-reset-panel');
+    const feedback=el('p','초기화 가능 여부 확인 중…','help');feedback.setAttribute('role','status');wrap.append(feedback);
+    if(!app()?.can?.('employee.password_reset')) {feedback.textContent='초기화 권한이 없습니다.';return wrap;}
+    (async()=>{
+      try {
+        const opt=await app().rpc('employee_password_reset_option',{p_employee_uuid:employee.id});
+        if(!wrap.isConnected)return;
+        if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
+        const open=button('비밀번호 초기화',()=>{
+          open.disabled=true;
+          const form=el('form',null,'employee-form app-authoring');
+          form.autocomplete='off';
+          const number=input();number.required=true;number.placeholder=employee.employee_id;
+          const identity=input('checkbox');identity.required=true;
+          const reason=select([
+            {id:'',name:'사유를 선택하세요'},
+            {id:'로그인 정보 분실',name:'로그인 정보 분실'},
+            {id:'현장 로그인 지원',name:'현장 로그인 지원'},
+            {id:'현장 신원 확인 후 복구',name:'현장 신원 확인 후 복구'}
+          ],'');reason.required=true;
+          const current=input('password');current.required=true;current.autocomplete='current-password';current.maxLength=256;
+          const mode=select([{id:'random',name:'직원별 무작위 숫자 16자리 (권장)'},
+            ...(opt.manual_allowed?[{id:'manual',name:'승인된 1회 직접 입력 (운영총괄)'}]:[])],'random');
+          const temporary=input('password');temporary.inputMode='numeric';temporary.autocomplete='new-password';temporary.maxLength=128;
+          const manualField=field('확정된 임시 비밀번호',temporary);manualField.hidden=true;
+          mode.addEventListener('change',()=>{temporary.value='';manualField.hidden=mode.value!=='manual';temporary.required=mode.value==='manual';});
+          const status=el('p','','message');status.setAttribute('role','status');
+          const submit=button('대상 확인 후 초기화',()=>{});submit.type='submit';
+          const cancel=button('취소',()=>{form.reset();form.remove();open.disabled=false;open.focus();},true);
+          const actions=el('div',null,'quick-links');actions.append(submit,cancel);
+          form.append(el('p',employee.full_name+' · '+employee.employee_id+' · '+opt.email),
+            el('p','직원에게 직접 신원을 확인하세요. 사유에 비밀번호나 개인정보를 적지 마세요.','help'),
+            field('직원번호 다시 입력',number),field('직원 신원 직접 확인 완료',identity),
+            field('초기화 사유',reason),field('발급 방식',mode),manualField,
+            field('관리자 본인 현재 비밀번호',current),actions,status);
+          wrap.append(form);number.focus();
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(submit.disabled)return;
+            if(number.value.trim()!==employee.employee_id){status.textContent='직원번호를 확인하세요.';return;}
+            if(!window.confirm(employee.full_name+' · '+employee.employee_id+' · '+opt.email+' 계정을 초기화합니까?'))return;
+            submit.disabled=true;cancel.disabled=true;
+            try{
+              const cfg=await config();
+              const base=new URL(cfg.url);
+              const local=/^(localhost|127\.0\.0\.1)$/.test(base.hostname);
+              if(location.origin!=='https://taejang.co.kr'&&!local)throw Error('Preview에서는 운영 계정을 초기화할 수 없습니다.');
+              if(!local&&(base.protocol!=='https:'||!base.hostname.endsWith('.supabase.co')))throw Error('서버 설정을 확인하세요.');
+              const token=app()?.getSession?.()?.access_token;
+              if(!token)throw Error('다시 로그인하세요.');
+              const response=await fetch(base.origin+'/functions/v1/employee-password-reset',{
+                method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(30000),
+                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                body:JSON.stringify({employee_uuid:employee.id,employee_number:number.value.trim(),profile_id:opt.profile_id,
+                  identity_verified:identity.checked,reason:reason.value.trim(),mode:mode.value,
+                  current_password:current.value,...(mode.value==='manual'?{temporary_password:temporary.value}:{})})
+              });
+              current.value='';temporary.value='';
+              const result=await response.json();
+              if(!response.ok||!result.ok) {
+                const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
+                  SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',
+                  REAUTH_FAILED:'관리자 본인 비밀번호를 다시 확인하세요.',RATE_LIMITED:'요청이 많습니다. 잠시 후 다시 시도하세요.',
+                  POLICY_REJECTED:'서버 비밀번호 보안정책에서 거부했습니다. 자동 발급을 선택하거나 운영총괄에게 문의하세요.',
+                  RESULT_UNKNOWN:'처리 결과 확인이 필요합니다. 다시 실행하지 말고 운영총괄에게 문의하세요.',
+                  REQUEST_PENDING:'이전 요청 결과 확인이 필요합니다. 중복 실행하지 마세요.'};
+                throw Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+              }
+              form.reset();form.replaceChildren(el('h4','초기화 완료'));
+              const secret=el('output',result.temporary_password);secret.setAttribute('aria-label','일회 표시 임시 비밀번호');
+              const hide=button('전달 완료 · 비밀번호 지우기',()=>{secret.textContent='';form.replaceChildren(el('p','전달 완료. 직원앱에서 본인 비밀번호 변경 후 새 비밀번호로 로그인하세요.'));},true);
+              form.append(secret,el('p','이 화면에서 한 번만 표시됩니다. 직원에게 직접 전달한 뒤 즉시 변경하도록 안내하세요.'),
+                el('p','본인 변경: https://taejang.co.kr/staff/change-password.html'),hide);
+              const clear=()=>{secret.textContent='';};
+              setTimeout(clear,60000);window.addEventListener('pagehide',clear,{once:true});
+              document.addEventListener('visibilitychange',()=>{if(document.hidden)clear();},{once:true});
+            }catch(error){
+              current.value='';temporary.value='';
+              status.textContent=error.name==='TimeoutError'?'응답을 확인하지 못했습니다. 재실행 전에 운영총괄에게 처리 결과를 확인하세요.':error.message;
+              // Keep target/reason/identity inputs; credentials never survive a failed submission.
+              submit.disabled=false;cancel.disabled=false;
+            }
+          });
+        },true);
+        feedback.textContent='임시 비밀번호 전달 후 직원이 이메일 없이 본인 비밀번호로 변경합니다.';
+        wrap.append(open);
+      }catch{feedback.textContent='초기화 서비스가 준비되지 않았습니다.';}
+    })();
+    return wrap;
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
@@ -828,7 +920,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel,
+      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {
