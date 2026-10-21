@@ -4,7 +4,6 @@ import {execFileSync,spawn} from 'node:child_process';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {pathToFileURL} from 'node:url';
 const base=process.env.API_URL||process.env.SUPABASE_URL;
 assert.match(base||'',/^http:\/\/(127\.0\.0\.1|localhost):\d+$/,'local Auth mandatory');
 const anon=process.env.ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -37,11 +36,12 @@ async function fixture(label,role='general_worker',position='general_worker'){
  sql(`insert into public.account_person_links(profile_id,person_id,linked_by,reason)
  select '${id}',person_id,'${id}','isolated fixture' from public.employees where id='${e}'`);
  const number=sql(`select employee_id from public.employees where id='${e}'`);
- return {id,token:a.data.access_token,e,number,email:label+'@example.test'};
+ const login=await api('/auth/v1/token?grant_type=password',{body:{email:label+'@example.test',password:initial}});
+ check(login.ok&&login.data.access_token,'fixture recent password authentication');
+ return {id,token:login.data.access_token,signupToken:a.data.access_token,e,number,email:label+'@example.test'};
 }
 const option=(actor,t)=>rpc('employee_password_reset_option',actor.token,{p_employee_uuid:t.e});
-const body=(t,o={})=>({employee_uuid:t.e,employee_number:t.number,profile_id:t.id,reason:'현장 신원 확인 후 복구',
- mode:'random',identity_verified:true,current_password:initial,...o});
+const body=(t,o={})=>({employee_uuid:t.e,request_confirmed:true,...o});
 const reserve=(actor,t,o={})=>rpc('reserve_employee_password_reset',actor.token,{
  p_employee_uuid:t.e,p_employee_number:t.number,p_profile_id:t.id,p_reason:'현장 신원 확인 후 복구',p_mode:'random',p_identity_verified:true,...o});
 const edge=(actor,t,o={},origin='http://localhost:3000')=>api('/functions/v1/employee-password-reset',{token:actor.token,body:body(t,o),origin});
@@ -113,7 +113,9 @@ try {
  check(ready,'isolated Edge ready');
  check((await edge(ops,worker,{},'https://deploy-preview-500--taejang-homepage.netlify.app')).status===403,'Preview denied');
  check((await api('/functions/v1/employee-password-reset',{token:'expired.invalid.jwt',body:body(worker),origin:'http://localhost:3000'})).status===401,'invalid JWT blocked');
- check((await edge(ops,worker,{current_password:''})).status===400,'OTP bearer alone without password reauthentication insufficient');
+ check((await edge(worker,promo)).status===403,'ordinary role direct Edge call denied');
+ check(Number(sql(`select count(*) from public.employee_reset_attempts where actor_id='${worker.id}' and state='denied' and code='FORBIDDEN' and reason='현장 로그인 지원'`))===1,'simplified denied requests retain fixed-reason durable audit');
+ check((await edge(ops,worker,{current_password:''})).status===400,'old credential interface rejected');
  const resetter=await fixture('reset-fresh-ops','operations_manager','operations_manager');
  const target=await fixture('reset-live-target');
  const snapshot=()=>sql(`select jsonb_build_object('employee',to_jsonb(e),'person',to_jsonb(p),'profile',to_jsonb(pr),
@@ -125,15 +127,26 @@ try {
  check(ledgerTables.length>0,'existing attendance/payroll ledger tables found');
  const ledgerSnapshot=()=>sql(ledgerTables.map(name=>"select '"+name+"' as ledger,md5(coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text)::text,'')) as digest from public.\""+name+"\" t").join(' union all '));
  const ledgersBefore=ledgerSnapshot();
- check((await edge(resetter,target,{current_password:'definitely incorrect'})).data?.code==='REAUTH_FAILED','real Auth rejects wrong actor password');
+ const link=await api('/auth/v1/admin/generate_link',{token:serverKey,body:{type:'magiclink',email:resetter.email}});
+ const magic=await api('/auth/v1/verify',{body:{type:'magiclink',token_hash:link.data.hashed_token}});
+ check(magic.ok&&magic.data.access_token,'isolated magic-link session established');
+ check((await edge({...resetter,token:magic.data.access_token},target)).data?.code==='REAUTH_REQUIRED','magic-link session is not recent password authentication');
+ const claims=JSON.parse(Buffer.from(resetter.token.split('.')[1],'base64url'));
+ const recent=amr=>sql(`begin; select set_config('request.jwt.claims','${JSON.stringify({...claims,amr})}',true); select public.private_employee_reset_recent_auth(); rollback;`).split('\n').includes('t');
+ for(const amr of [null,{},[],[{method:'token_refresh',timestamp:Math.floor(Date.now()/1000)}],
+   [{method:'password',timestamp:Math.floor(Date.now()/1000)-601}],
+   [{method:'password',timestamp:Math.floor(Date.now()/1000)+300}],
+   [{method:'password',timestamp:'not-a-number'}]])check(!recent(amr),'missing, stale, refresh-only, future or malformed AMR denied');
+ check(recent(claims.amr),'signed password AMR accepted with live session');
+ check(!(await rpc('private_employee_reset_recent_auth',resetter.token)).ok,'private session helper not exposed');
+ const tampered=resetter.token.split('.');tampered[1]=Buffer.from(JSON.stringify({...claims,amr:[{method:'password',timestamp:Math.floor(Date.now()/1000)+99999}]})).toString('base64url');
+ check((await api('/functions/v1/employee-password-reset',{token:tampered.join('.'),body:body(target),origin:'http://localhost:3000'})).status===401,'tampered AMR token rejected by Auth');
  const reset=await edge(resetter,target);
  check(reset.ok&&/^\d{16}$/.test(reset.data?.temporary_password),'real Edge Admin random numeric reset');
  check((await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:reset.data.temporary_password}})).data?.user?.id===target.id,'existing UID login with temporary credential');
  check(!(await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:initial}})).ok,'old credential rejected');
- // Execute exact #501 source without modifying that PR; rewrite only the test transport.
- const source=execFileSync('git',['show','90cf9d6af8490b005d1a8ae0865cdd85c133460c:staff/assets/change-password-api.mjs'],{encoding:'utf8'});
- const modulePath=path.join(temp,'self-change.mjs');await writeFile(modulePath,source);
- const {changePassword}=await import(pathToFileURL(modulePath));
+ // Exercise the integrated #501 module shipped by this exact HEAD.
+ const {changePassword}=await import('../staff/assets/change-password-api.mjs');
  const next='Personal-Changed-2026!z';
  await changePassword({email:target.email,current:reset.data.temporary_password,next,confirm:next},
  {url:'https://isolated.supabase.co',publishableKey:anon},(url,o)=>fetch(url.replace('https://isolated.supabase.co',base),o));
@@ -150,8 +163,8 @@ try {
  sql("update public.employee_reset_exceptions set expires_at=now()+interval '1 hour' where slot=1");
  check((await option(resetter,mt)).data?.manual_allowed,'manual exception bound to target and actor');
  check(!(await option(lead,mt)).data?.manual_allowed,'lead never allowed manual');
- check((await edge(resetter,mt,{mode:'manual',temporary_password:'8135792468135792'})).ok,'real Admin manual reset');
- check(!(await option(resetter,mt)).data?.manual_allowed,'exception consumed once');
+ check((await edge(resetter,mt,{mode:'manual',temporary_password:'8135792468135792'})).status===400,'manual input absent from simplified endpoint');
+ check((await option(resetter,mt)).data?.manual_allowed,'operational exception data preserved without consumption');
  const limited=await fixture('reset-limited','operations_manager','operations_manager');
  for(let i=0;i<5;i++)await reserve(limited,worker,{p_employee_number:'TJ-999999'});
  check((await reserve(limited,promo)).data?.code==='RATE_LIMITED','persistent actor limit');
