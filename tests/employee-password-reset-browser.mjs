@@ -16,14 +16,16 @@ const setup = `<script>
 const originalRpc=TaejangApp.rpc;
 TaejangApp.rpc=async(name,args)=>name==='employee_password_reset_option'?
  {ok:true,profile_id:'synthetic-profile',employee_number:'TJ-000003',email:'synthetic@example.test',manual_allowed:true}:originalRpc(name,args);
-window.confirm=()=>true;
-window.resetCalls=0;window.resetFailure=true;window.productionConfig=false;
+
+window.resetCalls=0;window.resetFailure=true;window.uncertain=false;window.productionConfig=false;
 const previousFetch=window.fetch;
 window.fetch=async(url,options)=>{
  if(url==='/.netlify/functions/staff-config')return new Response(JSON.stringify({url:productionConfig?'https://jgsxpdflgkqroecfjzxq.supabase.co':'http://127.0.0.1:54321',publishableKey:'synthetic-only'}));
  if(String(url).includes('/functions/v1/employee-password-reset')){
    resetCalls++;
-   return new Response(JSON.stringify(resetFailure?{ok:false,code:'REAUTH_FAILED'}:{ok:true,temporary_password:'8135792468135792'}),{status:resetFailure?403:200});
+   window.lastResetBody=JSON.parse(options.body);
+   if(window.uncertain)throw Error('synthetic dropped response');
+   return new Response(JSON.stringify(resetFailure?{ok:false,code:'REAUTH_REQUIRED'}:{ok:true,temporary_password:'8135792468135792'}),{status:resetFailure?403:200});
  }
  return previousFetch(url,options);
 };
@@ -51,33 +53,42 @@ try{
    await page.getByRole('button',{name:'비밀번호 초기화',exact:true}).click();
   };
   await load();
-  const reason=page.getByLabel('초기화 사유',{exact:true});
-  await page.getByLabel('직원번호 다시 입력').fill('TJ-000003');
-  await page.getByLabel('직원 신원 직접 확인 완료').check();
-  await reason.selectOption('현장 신원 확인 후 복구');
-  await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
-  await page.getByRole('button',{name:'대상 확인 후 초기화'}).click();
-  await page.getByText('관리자 본인 비밀번호를 다시 확인하세요.',{exact:true}).waitFor();
-  assert.equal(await reason.inputValue(),'현장 신원 확인 후 복구');
-  assert.equal(await page.getByLabel('관리자 본인 현재 비밀번호').inputValue(),'');
-  assert.equal(await page.getByLabel('직원번호 다시 입력').inputValue(),'TJ-000003');
-  await page.getByLabel('발급 방식').selectOption('manual');
-  // Only synthetic identity/reason fields are captured; credential inputs are empty.
-  await page.screenshot({path:path.join(output,'reset-form-'+width+(preview?'-preview':'-local')+'.png'),fullPage:true});
-  await page.getByLabel('확정된 임시 비밀번호').fill('8135792468135792');
-  await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
-  await page.evaluate(()=>{window.resetFailure=false;});
-  await page.getByRole('button',{name:'대상 확인 후 초기화'}).click();
+  const dialog=page.getByRole('dialog',{name:'비밀번호 초기화 확인'});
+  await dialog.waitFor();
+  assert.equal(await dialog.locator('input,select,textarea').count(),0,'confirmation has no input');
+  assert.match(await dialog.textContent(),/직원 본인의 요청을 확인했다면/);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'responsive confirmation');
+  await page.screenshot({path:path.join(output,'reset-confirm-'+width+(preview?'-preview':'-local')+'.png'),fullPage:true});
+  await dialog.getByRole('button',{name:'취소',exact:true}).click();
+  assert.equal(await page.evaluate(()=>resetCalls),0,'cancel has no mutation');
+  const open=page.getByRole('button',{name:'비밀번호 초기화',exact:true});
+  await open.click();await dialog.getByRole('button',{name:'초기화',exact:true}).click();
+  await page.getByText('안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',{exact:true}).waitFor();
+  assert.equal(await open.isEnabled(),true);
+  await page.clock.install();
+  await page.evaluate(()=>{
+   window.resetFailure=false;window.copied='';
+   Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{window.copied=value;}},configurable:true});
+  });
+  await open.click();await dialog.getByRole('button',{name:'초기화',exact:true}).click();
   const secret=page.getByLabel('일회 표시 임시 비밀번호');await secret.waitFor();
   assert.equal(await secret.textContent(),'8135792468135792');
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'responsive form');
+  assert.equal(await open.isDisabled(),true,'duplicate button disabled');
+  assert.deepEqual(await page.evaluate(()=>Object.keys(lastResetBody).sort()),['employee_uuid','request_confirmed']);
+  await page.getByRole('button',{name:'비밀번호 복사',exact:true}).click();
+  assert.equal(await page.evaluate(()=>copied==='8135792468135792'),true,'copy without logging secret');
   assert.equal(await page.evaluate(()=>Object.values(localStorage).join('').includes('8135792468135792')||Object.values(sessionStorage).join('').includes('8135792468135792')),false);
-  await page.getByRole('button',{name:'전달 완료 · 비밀번호 지우기'}).click();
-  assert.equal(await page.getByLabel('일회 표시 임시 비밀번호').count(),0);
+  await page.clock.fastForward(59000);assert.equal(await secret.textContent(),'8135792468135792');
+  await page.clock.fastForward(1000);assert.equal(await page.getByLabel('일회 표시 임시 비밀번호').count(),0,'60 second expiry clears output');
+  await page.screenshot({path:path.join(output,'reset-cleared-'+width+(preview?'-preview':'-local')+'.png'),fullPage:true});
+  await load();
+  await page.evaluate(()=>{window.resetFailure=false;window.uncertain=true;});
+  await dialog.getByRole('button',{name:'초기화',exact:true}).click();
+  await page.getByText('처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.',{exact:true}).waitFor();
+  assert.equal(await open.isDisabled(),true,'uncertain response cannot be retried');
+  assert.equal(await page.evaluate(()=>resetCalls),1);
   await load(true);
-  await page.getByLabel('직원번호 다시 입력').fill('TJ-000003');await page.getByLabel('직원 신원 직접 확인 완료').check();
-  await reason.selectOption('현장 신원 확인 후 복구');await page.getByLabel('관리자 본인 현재 비밀번호').fill('synthetic-only');
-  await page.getByRole('button',{name:'대상 확인 후 초기화'}).click();
+  await dialog.getByRole('button',{name:'초기화',exact:true}).click();
   await page.getByText('Preview에서는 운영 계정을 초기화할 수 없습니다.',{exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>resetCalls),0,'production reset never sent from preview');
   await page.close();
