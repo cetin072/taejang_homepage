@@ -404,7 +404,7 @@
     if (can('attendance.evidence_import')) {
       const fileInput = document.createElement('input');
       fileInput.type = 'file';
-      fileInput.accept = '.xlsx';
+      fileInput.accept = '.xls,.xlsx';
       fileInput.hidden = true;
       const importButton = el('button', '지문 Excel 가져오기', 'button button-quiet');
       importButton.type = 'button';
