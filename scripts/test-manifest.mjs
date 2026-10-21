@@ -3,6 +3,7 @@ export const testGroups = Object.freeze({
     'tests/phase1a-security-foundation.test.js',
     'tests/staff-entry-routing.test.js',
     'tests/staff-password-recovery.test.js',
+    'tests/staff-self-password-change.test.js',
     'tests/general-worker-today-board.test.js',
     'tests/staff-schedules-notices.test.js',
     'tests/notice-ops-review-photo.test.js',
