@@ -103,11 +103,15 @@ try {
   assert.deepEqual((await page.locator('#notice-admin-list article').evaluateAll(nodes=>nodes.map(node=>node.dataset.noticeId))).slice(0,2),['pub-a','pub-b']);
   assert.equal(await page.locator('#notice-admin-list article').last().getAttribute('data-notice-id'),'expired');
   assert.equal(await page.locator('[data-ops-archive-notice]').count(),0,'no second archive owner');
+  await page.locator('#notice-list-search').fill('같은 시각 A');
+  await page.locator('#notice-list-filters').getByRole('button',{name:'검색',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('1 / 1'));
   await openEdit('pub-a');
   assert.equal(await page.locator('#notice-manage-section').isVisible(),false,'list is hidden on the editor page');
   assert.equal(await page.locator('#notice-admin-title').textContent(),'공지 수정');
   assert.equal(await page.locator('#notice-back-from-editor').isVisible(),true,'top back is visible');
   assert.equal(await page.locator('#notice-editor-bottom-back').isVisible(),true,'bottom back is visible');
+  await capture('editor');
   // Declining to discard changes must keep the independent editor open.
   await page.locator('#notice-body').fill('저장하지 않은 변경');
   await page.evaluate(()=>{confirmAnswer=false});
@@ -117,6 +121,9 @@ try {
   await page.locator('#notice-back-from-editor').click();
   await page.locator('[data-notice-id="pub-a"]').waitFor();
   assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'confirmed exit returns to list');
+  assert.equal(await page.locator('#notice-list-search').inputValue(),'같은 시각 A','edit return keeps list search');
+  await page.locator('#notice-clear-filters').click();
+  await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('6 / 6'));
   await openEdit('pub-a');
   await page.locator('#notice-body').fill('운영총괄 공개 공지 본문 정정');
   await page.locator('#notice-link-url').fill('https://example.com/notice');await page.locator('#notice-link-label').fill('자료 보기');
@@ -184,6 +191,8 @@ try {
   assert.equal(await page.locator('#notice-body').isDisabled(),true);
   await page.locator('#notice-editor-bottom-back').click();
   await page.locator('[data-notice-id="archived"]').waitFor();
+  await page.locator('#back-notice-admin').click();
+  await page.locator('[data-notice-id="pub-b"]').waitFor();
   await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'보관',exact:true}).click();
   await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='archive_notice').at(-1).args.p_notice_id),'pub-b','archive action uses displayed ID after sorting');
@@ -201,6 +210,7 @@ try {
   await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="pub-a"]').waitFor();
   await page.evaluate(()=>{role='promotion_lead';TaejangNoticeAdmin.setView('manage')});
   await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 보기 (검토·게시 이력)',exact:true}).click();
+  await page.waitForFunction(()=>document.getElementById('notice-admin-title').textContent==='공지 상세');
   assert.equal(await page.locator('#notice-admin-title').textContent(),'공지 상세','read-only role opens detail page');
   assert.equal(await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'확인 현황',exact:true}).count(),0,'read permission does not show forbidden acknowledgement controls');
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');
