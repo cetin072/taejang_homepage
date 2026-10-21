@@ -8,6 +8,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fixtures=[
+ ['issue-504-signup-ceo-gate.html','SIGNUP_CEO_GATE_PASS'],
  ['operations-public-text-edit-gate.html','OPERATIONS_PUBLIC_TEXT_EDIT_GATE_PASS'],
  ['compact-admin-form-gate.html','COMPACT_ADMIN_FORM_GATE_PASS'],
  ['operations-owned-promotion-gate.html','OPERATIONS_OWNED_PROMOTION_GATE_PASS'],
