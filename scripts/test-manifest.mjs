@@ -168,6 +168,7 @@ export const testGroups = Object.freeze({
     'tests/payroll-ledger-xlsx.test.js',
     'tests/payroll-ledger-validator.test.js',
     'tests/payroll-attendance-xlsx.test.js',
+    'tests/payroll-attendance-xls.test.js',
     'tests/payroll-attendance-editor-backend.test.js',
     'tests/payroll-editor-term-scope.test.js',
     'tests/payroll-attendance-operator-ux.test.js',
