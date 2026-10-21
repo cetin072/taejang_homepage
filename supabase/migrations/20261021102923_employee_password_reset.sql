@@ -107,6 +107,9 @@ begin
     or p_mode is null or p_mode not in ('random','manual')
  then return jsonb_build_object('ok',false,'code','INVALID_INPUT'); end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(actor::text,500));
+ -- Bound storage and reauthentication attempts even when the target is forged.
+ if (select count(*) from public.employee_reset_attempts where actor_id=actor and created_at>now()-interval '15 minutes')>=5
+ then return jsonb_build_object('ok',false,'code','RATE_LIMITED'); end if;
  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_employee_uuid::text,501));
  opt:=public.employee_password_reset_option(p_employee_uuid);
  if not coalesce((opt->>'ok')::boolean,false) then result:=opt->>'code';
@@ -115,8 +118,8 @@ begin
  elsif p_mode='manual' and not (opt->>'manual_allowed')::boolean then result:='MANUAL_FORBIDDEN';
  elsif exists(select 1 from public.employee_reset_attempts where employee_uuid=p_employee_uuid
        and state in ('reserved','executing')) then result:='REQUEST_PENDING';
- elsif (select count(*) from public.employee_reset_attempts where actor_id=actor and created_at>now()-interval '15 minutes')>=5
-    or (select count(*) from public.employee_reset_attempts where employee_uuid=p_employee_uuid and created_at>now()-interval '1 hour')>=3
+ elsif (select count(*) from public.employee_reset_attempts where employee_uuid=p_employee_uuid
+       and state<>'denied' and created_at>now()-interval '1 hour')>=3
  then result:='RATE_LIMITED'; end if;
  insert into public.employee_reset_attempts(actor_id,employee_uuid,profile_id,employee_number,reason,mode,state,code)
  values(actor,p_employee_uuid,case when result='RESERVED' then p_profile_id end,

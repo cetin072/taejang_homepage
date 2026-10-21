@@ -112,6 +112,10 @@ try {
  'roles',(select jsonb_agg(to_jsonb(r)) from public.profile_roles r where r.profile_id=pr.id))::text
  from public.employees e join public.people p on p.id=e.person_id join public.profiles pr on pr.id='${target.id}' where e.id='${target.e}'`);
  const before=snapshot();
+ const ledgerTables=sql("select tablename from pg_catalog.pg_tables where schemaname='public' and tablename ~ '(attendance|payroll|payslip)' order by tablename").split('\n').filter(Boolean);
+ check(ledgerTables.length>0,'existing attendance/payroll ledger tables found');
+ const ledgerSnapshot=()=>sql(ledgerTables.map(name=>"select '"+name+"' as ledger,md5(coalesce(jsonb_agg(to_jsonb(t) order by to_jsonb(t)::text)::text,'')) as digest from public.\""+name+"\" t").join(' union all '));
+ const ledgersBefore=ledgerSnapshot();
  check((await edge(resetter,target,{current_password:'definitely incorrect'})).data?.code==='REAUTH_FAILED','real Auth rejects wrong actor password');
  const reset=await edge(resetter,target);
  check(reset.ok&&/^\d{16}$/.test(reset.data?.temporary_password),'real Edge Admin random numeric reset');
@@ -127,6 +131,7 @@ try {
  check((await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:next}})).data?.user?.id===target.id,'#501 self-change then new app login preserves UID');
  check(!(await api('/auth/v1/token?grant_type=password',{body:{email:target.email,password:reset.data.temporary_password}})).ok,'temporary credential rejected after self-change');
  check(before===snapshot(),'Employee number, personnel, Person, Profile, links, roles unchanged');
+ check(ledgersBefore===ledgerSnapshot(),'all existing attendance/payroll/payslip ledgers unchanged');
  check(Number(sql(`select count(*) from public.audit_logs where target_id='${target.e}' and action='employee_credential_reset_finished' and outcome='success'`))===1,'one durable success audit');
  const auditText=sql(`select coalesce(jsonb_agg(to_jsonb(a))::text,'') from public.audit_logs a where target_id='${target.e}'`);
  check(!auditText.includes(reset.data.temporary_password)&&!auditText.includes(initial)&&!auditText.includes(next),'audit excludes credentials');
