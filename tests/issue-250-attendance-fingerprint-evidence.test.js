@@ -37,7 +37,8 @@ test('identity resolution prefers reviewed mapping or exact employee id and neve
 
 test('platform shell reuses the existing XLSX parser and registers attendance administration once through the feature registry', () => {
   assert.match(index, /payroll-attendance-xlsx\.js/);
-  assert.match(index, /payroll-attendance-xls\.js/);
+  assert.doesNotMatch(index, /<script[^>]*payroll-attendance-xls\.js/, 'legacy reader is loaded on demand');
+  assert.match(read('app/assets/payroll-attendance-xlsx.js'), /script\.src = '\/app\/assets\/payroll-attendance-xls\.js'/);
   assert.match(admin, /fileInput\.accept = '\.xls,\.xlsx'/);
   assert.match(read('app/assets/payroll-attendance-xlsx.js'), /TaejangPayrollAttendanceXls/);
   assert.doesNotMatch(index, /<script src="assets\/attendance-admin\.js"/);
