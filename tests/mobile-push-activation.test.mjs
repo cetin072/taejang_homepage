@@ -8,7 +8,7 @@ import test from 'node:test';
 
 const require = createRequire(new URL('../mobile/package.json', import.meta.url));
 const ts = require('typescript');
-const { pushBuildConfig, validateGoogleServices } = require('./push-build-config.cjs');
+const { pushBuildConfig, validateGoogleServices, parseGoogleServices } = require('./push-build-config.cjs');
 const qaPackage = 'com.cetin072.taejang.staff.qa';
 const projectId = 'd37ba52b-0010-4000-8000-000000000001';
 const google = { project_info: { project_number: '123' }, client: [
@@ -38,6 +38,8 @@ test('native config rejects private credentials, package mixups, partial config 
   try {
     writeFileSync(join(root, 'google.json'), JSON.stringify(google));
     assert.throws(() => validateGoogleServices({ type: 'service_account' }, qaPackage), /EXPECTED_PUBLIC/);
+    assert.throws(() => parseGoogleServices('private-sensitive-fixture'), error =>
+      error.message === 'PUSH_INVALID_PUBLIC_GOOGLE_SERVICES_JSON');
     assert.throws(() => validateGoogleServices(google, 'com.cetin072.taejang.staff'), /PACKAGE_MISMATCH/);
     assert.equal(pushBuildConfig({ TAEJANG_APP_VARIANT: 'qa', EXPO_PUBLIC_EAS_PROJECT_ID: projectId }, qaPackage, root).configured, false);
     assert.throws(() => pushBuildConfig({ TAEJANG_PUSH_CONFIG_REQUIRED: 'true' }, qaPackage, root), /PROJECT_ID_REQUIRED/);

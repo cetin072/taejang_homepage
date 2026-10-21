@@ -48,7 +48,7 @@ EAS/native 설정, 권한, Token 발급, 서버 권한/저장 오류를 구분�
 
 - 승인 후 `notification-dispatch`만 배포한다. 기존 dispatch header로 인증하므로 이 함수에 한해서
   `--no-verify-jwt`를 사용하고 내부 `x-taejang-notification-key` 검증은 유지한다.
-- Supabase **Project Settings → Edge Functions → Secrets** 또는 CLI로 별도 승인된 키를 등록:
+- Supabase 프로젝트 **Edge Functions → Secrets** 또는 CLI로 별도 승인된 키를 등록:
   `NOTIFICATION_DISPATCH_KEY`, (Expo 보안 설정 사용 시) `EXPO_PUSH_ACCESS_TOKEN`.
   `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`는 Edge 런타임 기존 값을 재사용한다.
 - 최초 배포는 `NOTIFICATION_DISPATCH_ENABLED=false`. 발송하지 않고 인증/disabled 응답만 확인한다.

@@ -2,6 +2,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function parseGoogleServices(text) {
+  try { return JSON.parse(text); }
+  catch { throw new Error('PUSH_INVALID_PUBLIC_GOOGLE_SERVICES_JSON'); }
+}
 function validateGoogleServices(value, packageName) {
   if (!value || value.type === 'service_account' || value.private_key) throw new Error('PUSH_EXPECTED_PUBLIC_GOOGLE_SERVICES');
   const clients = Array.isArray(value.client) ? value.client : [];
@@ -18,7 +22,7 @@ function pushBuildConfig(env, androidPackage, root = __dirname) {
   if (!projectId && !file && !required) return { configured: false };
   if (!UUID.test(projectId)) throw new Error('PUSH_EAS_PROJECT_ID_REQUIRED');
   if (!file || !fs.existsSync(path.resolve(root, file))) throw new Error('PUSH_GOOGLE_SERVICES_FILE_REQUIRED');
-  validateGoogleServices(JSON.parse(fs.readFileSync(path.resolve(root, file), 'utf8')), androidPackage);
+  validateGoogleServices(parseGoogleServices(fs.readFileSync(path.resolve(root, file), 'utf8')), androidPackage);
   return { configured: true, projectId, googleServicesFile: file };
 }
-module.exports = { pushBuildConfig, validateGoogleServices };
+module.exports = { pushBuildConfig, validateGoogleServices, parseGoogleServices };

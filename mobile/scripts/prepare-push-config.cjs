@@ -1,14 +1,14 @@
 // Public Firebase client configuration only. FCM service-account keys belong in EAS.
 const fs = require('node:fs');
 const path = require('node:path');
-const { pushBuildConfig, validateGoogleServices } = require('../push-build-config.cjs');
+const { pushBuildConfig, validateGoogleServices, parseGoogleServices } = require('../push-build-config.cjs');
 const root = path.resolve(__dirname, '..');
 const qa = process.env.TAEJANG_APP_VARIANT === 'qa';
 const variant = qa ? 'qa' : 'production';
 const packageName = 'com.cetin072.taejang.staff' + (qa ? '.qa' : '');
 const encoded = process.env.GOOGLE_SERVICES_JSON_BASE64 || '';
 if (encoded) {
-  const json = JSON.parse(Buffer.from(encoded, 'base64').toString('utf8'));
+  const json = parseGoogleServices(Buffer.from(encoded, 'base64').toString('utf8'));
   validateGoogleServices(json, packageName);
   const file = path.join(root, '.push', 'google-services-' + variant + '.json');
   fs.mkdirSync(path.dirname(file), { recursive: true });
