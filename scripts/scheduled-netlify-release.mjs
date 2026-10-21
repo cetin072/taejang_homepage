@@ -18,7 +18,7 @@ export function calendarSlot(config, at) {
     slot: due ? { index, start_utc: new Date(start).toISOString(), expires_utc: new Date(start + 24 * HOUR).toISOString() } : null,
     next_check_utc: new Date(anchor + Math.max(1, index + 1) * 48 * HOUR).toISOString() };
 }
-export function evaluateSchedule(config, run, history, now) {
+export function evaluateSchedule(config, run, history, now, eligibleAt = null) {
   if (!run?.id || run.head_branch !== 'main' || run.event !== 'schedule') throw new Error('INVALID_LIVE_RUN');
   const result = calendarSlot(config, run.created_at);
   if (result.status !== 'DUE') return result;
@@ -27,7 +27,14 @@ export function evaluateSchedule(config, run, history, now) {
   for (const other of history) {
     if (other.id === run.id || other.event !== 'schedule' || other.head_branch !== 'main') continue;
     if (Date.parse(other.created_at) > Date.parse(run.created_at) || (other.created_at === run.created_at && BigInt(other.id) > BigInt(run.id))) continue;
-    if (calendarSlot(config, other.created_at).slot?.index === result.slot.index) return { ...result, status: 'SLOT_ALREADY_CHECKED' };
+    if (calendarSlot(config, other.created_at).slot?.index !== result.slot.index) continue;
+    // The prior wake-up can only be ignored when it completed before the
+    // minimum 48-hour interval elapsed. All uncertain, incomplete or later
+    // checks still block a second release attempt in this same slot.
+    if (eligibleAt !== null && Date.parse(other.created_at) < eligibleAt
+      && other.status === 'completed' && Number.isFinite(Date.parse(other.updated_at))
+      && Date.parse(other.updated_at) < eligibleAt) continue;
+    return { ...result, status: 'SLOT_ALREADY_CHECKED' };
   }
   return result;
 }
@@ -97,7 +104,7 @@ export async function trigger(config, payload, hookUrl, { fetcher = fetch, wait 
 }
 export async function runCycle({ config, env, api, snapshot, head, files, preflight, refresh, post, now = () => new Date() }) {
   const dryRun = env.GITHUB_EVENT_NAME !== 'schedule';
-  let schedule = calendarSlot(config, now()), run;
+  let schedule = calendarSlot(config, now()), run, published;
   if (!dryRun) {
     if (env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_REPOSITORY !== config.repository) throw new Error('MAIN_SCHEDULE_REQUIRED');
     run = await api('/actions/runs/' + env.GITHUB_RUN_ID);
@@ -106,10 +113,14 @@ export async function runCycle({ config, env, api, snapshot, head, files, prefli
     const query = new URLSearchParams({ branch: 'main', per_page: '100', created: schedule.slot.start_utc + '..' + schedule.slot.expires_utc });
     const history = await api('/actions/workflows/' + config.workflow + '/runs?' + query);
     if (!Array.isArray(history.workflow_runs) || history.total_count > history.workflow_runs.length || history.workflow_runs.length >= 100) throw new Error('SLOT_HISTORY_INCOMPLETE');
-    schedule = evaluateSchedule(config, run, history.workflow_runs, now());
+    // Before deduplication, compare prior wake-up completion against the
+    // actual published Production timestamp plus the strict 48-hour delay.
+    published = publishedDeploy(await snapshot(), config.site_id);
+    schedule = evaluateSchedule(config, run, history.workflow_runs, now(),
+      Date.parse(published.published_at) + 48 * HOUR);
     if (schedule.status !== 'DUE') return schedule;
   }
-  const published = publishedDeploy(await snapshot(), config.site_id);
+  published ??= publishedDeploy(await snapshot(), config.site_id);
   const sha = await head();
   const plan = { ...decide(config, published, sha, await files(published.commit_ref, sha), now()),
     next_check_utc: schedule.next_check_utc };

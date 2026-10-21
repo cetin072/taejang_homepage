@@ -81,7 +81,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
     function avatar(employee, path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -206,6 +206,9 @@
         ['연결된 Profile', profile?.display_name || '—'], ['Profile 상태', profile ? profileStatus : '—'],
         ['이메일', profile?.work_email || '표시 가능한 정보 없음'], ['연결 점검', account.review ? '연결 확인 필요' : '현재 조회 범위에서 추가 경고 없음']
       ]));
+      if (!profile) appSection.append(el('p','계정 발급 필요','help'));
+      else if (!account.review && profile.account_status==='active' && employee.employment_status==='active' && passwordResetPanel)
+        appSection.append(passwordResetPanel(employee));
       const photos = section('사진', 'employee-section-photos'); const photoGrid = el('div', null, 'employee-photo-grid');
       [['profile', '업무용 사진', employee.profile_photo_path], ['id_photo', '증명사진', employee.id_photo_path]].forEach(([type, label, path]) => {
         const box = el('div'); box.append(el('h4', label));
