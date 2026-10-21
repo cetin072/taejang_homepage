@@ -537,3 +537,17 @@
   .notice-list-filters label:first-child { flex-basis:100%; }
   #notice-admin-list .notice-list-row { padding:.7rem; }
 }
+
+/* Notice editing is a dedicated in-app screen, never a form below the list. */
+.notice-editor-page { min-width:0; width:100%; max-width:1100px; margin-inline:auto; }
+.notice-editor-page[hidden] { display:none !important; }
+.notice-editor-page-heading { padding:12px 2px 18px; border-bottom:1px solid var(--app-border,#d8dee5); }
+.notice-editor-page-heading .eyebrow { margin:0 0 5px; }
+.notice-editor-page-heading h3 { margin:0; font-size:clamp(1.2rem,2vw,1.5rem); line-height:1.4; overflow-wrap:anywhere; }
+.notice-editor-page-heading .help { margin:7px 0 0; overflow-wrap:anywhere; }
+.notice-editor-page-footer { display:flex; flex-wrap:wrap; gap:10px; padding:20px 0; }
+.notice-editor-page :is(#notice-editor-card,#notice-preview-card) { margin-block:16px; }
+@media (max-width:600px) {
+  .notice-editor-page-heading { padding:10px 0 14px; }
+  .notice-editor-page-footer .button { min-height:44px; }
+}
