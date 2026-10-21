@@ -12,7 +12,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: emergency-production-taejang-2026-10-21
+  group: taejang-production-release
   cancel-in-progress: false
 
 jobs:
