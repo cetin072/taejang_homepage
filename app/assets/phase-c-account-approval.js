@@ -200,10 +200,12 @@
     const form = el('div', null, 'phase-c-signup-approval-form app-authoring');
     const employeeOptions = employees.map(item => ({
       id: item.employee_uuid,
-      name: `${item.employee_id} · ${item.full_name} (${item.department_name || '-'}, 입사 ${item.hired_on || '-'})`
+      name: `${item.employee_id} · ${item.full_name} (${item.department_name || '부서 미지정'}, 입사 ${item.hired_on || '-'})`
     }));
     const employee = selectControl(employeeOptions, '연결할 기존 직원번호 선택');
-    const employeeInfo = el('p', '자동 연결은 하지 않습니다. 직원번호를 선택한 뒤 신청자와 대조해 주세요.', 'help');
+    const employeeInfo = el('p', employees.length
+      ? '자동 연결은 하지 않습니다. 직원번호를 선택한 뒤 신청자와 대조해 주세요.'
+      : '연결 가능한 기존 직원이 없습니다. 기존 인사카드와 계정 연결 상태를 먼저 확인해 주세요. 목록이 비어 있다는 이유로 신규 직원을 생성하지 마세요.', 'help');
     const confirmEmployeeId = document.createElement('input');
     confirmEmployeeId.type = 'text';
     confirmEmployeeId.maxLength = 30;
@@ -284,7 +286,7 @@
       const normalized = value => String(value || '').replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
       const nameMatched = normalized(profile.display_name) === normalized(match.full_name);
       const hiredMatched = String(profile.hired_on || '').slice(0, 10) === String(match.hired_on || '').slice(0, 10);
-      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '-'} / 입사 ${match.hired_on || '-'}`
+      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '부서 미지정'} / 입사 ${match.hired_on || '-'}`
         + (nameMatched && hiredMatched
           ? ' · 신청 정보와 일치합니다. 직원번호를 다시 확인해 주세요.'
           : ' · 신청 이름 또는 입사일이 다릅니다! 직원에게 직접 확인한 뒤 승인해 주세요.');

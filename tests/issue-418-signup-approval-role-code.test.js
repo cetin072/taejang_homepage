@@ -10,6 +10,9 @@ const source = readFileSync(path.join(__dirname, '../app/assets/phase-c-account-
 
 function fixture({
   role = 'promotion_lead',
+  assignableRole = 'general_worker',
+  employeeDepartment = '생산',
+  emptyEmployees = false,
   approvalResult = { ok: true, code: 'EMPLOYEE_ACCOUNT_APPROVED' },
   applicantName = '기존 직원',
   applicantHiredOn = '2026-10-08',
@@ -86,12 +89,12 @@ function fixture({
         return {
           departments: [{ id: departmentId, code: 'production', name: '생산' }],
           positions: [{ id: positionId, code: 'general_worker', name: '일반 근로자' }],
-          roles: [{ id: roleId, code: 'general_worker', name: '일반 근로자' }]
+          roles: [{ id: roleId, code: assignableRole, name: assignableRole === 'ceo' ? '대표이사' : '일반 근로자' }]
         };
       }
       if (name === 'list_existing_employee_signup_candidates') {
-        return [{ employee_uuid: employeeUuid, employee_id: 'TJ-274001', full_name: employeeName,
-          department_name: '생산', position_name: '일반 근로자', hired_on: employeeHiredOn }];
+        return emptyEmployees ? [] : [{ employee_uuid: employeeUuid, employee_id: 'TJ-274001', full_name: employeeName,
+          department_name: employeeDepartment, position_name: '일반 근로자', hired_on: employeeHiredOn }];
       }
       if (name === 'approve_existing_employee_signup_request' || name === 'approve_employee_signup_request') {
         return approvalResult;
@@ -222,4 +225,26 @@ test('approval UI does not grant role capabilities and uses separate existing/ne
   assert.match(source, /approve_employee_signup_request/);
   assert.match(source, /list_existing_employee_signup_candidates/);
   assert.doesNotMatch(source, /create_role|grant_capability|create_employee_role/);
+});
+
+test('operations can submit server-offered CEO role with an explicitly confirmed department-less Employee', async () => {
+  const ui = fixture({ role: 'operations_manager', assignableRole: 'ceo', employeeDepartment: null });
+  const { employee, businessRole, approveButton } = await ui.selectExisting();
+  assert.match(employee.children[1].textContent, /부서 미지정/);
+  assert.equal(businessRole.value, 'ceo');
+  await approveButton.listeners.click();
+  const approval = ui.calls.find(x => x.name === 'approve_existing_employee_signup_request');
+  assert.equal(approval.args.p_role_code, 'ceo');
+  assert.equal(approval.args.p_employee_uuid, ui.employeeUuid);
+  assert.equal(ui.calls.some(x => x.name === 'approve_employee_signup_request'), false);
+});
+
+test('empty candidate list never silently switches to employee creation', async () => {
+  const ui = fixture({ role: 'operations_manager', emptyEmployees: true });
+  const { selects, approveButton } = await ui.open();
+  assert.equal(selects[0].value, 'existing');
+  assert.equal(selects[1].children.length, 1);
+  selects[4].value = 'general_worker';
+  await approveButton.listeners.click();
+  assert.equal(ui.calls.some(x => x.name.startsWith('approve_')), false);
 });

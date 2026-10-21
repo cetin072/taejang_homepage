@@ -67,12 +67,12 @@ function renderHome(access, phase = 'ready', qa = false, persona = 'operations_l
 }
 
 test('rendered employee home only mounts attendance, notice and eligible work-platform entry', () => {
-  for (const capabilities of [[], ['unrelated.read'], ['promotion.write'], ['promotion.review_lead'], ['employee.view_all']]) {
+  for (const capabilities of [[], ['unrelated.read'], ['promotion.write'], ['promotion.review_lead'], ['promotion.review_ceo'], ['employee.view_all']]) {
     const nodes = renderHome({ account_status: 'active', capabilities });
     const cards = nodes.filter(node => ['AttendanceCard', 'NoticeHomeAction'].includes(node?.type));
     assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'NoticeHomeAction']);
     const platform = nodes.filter(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기');
-    assert.equal(platform.length, capabilities.some(code => ['promotion.write', 'promotion.review_lead', 'employee.view_all'].includes(code)) ? 1 : 0);
+    assert.equal(platform.length, capabilities.some(code => ['promotion.write', 'promotion.review_lead', 'promotion.review_ceo', 'employee.view_all'].includes(code)) ? 1 : 0);
     assert.equal(nodes.filter(node => node?.type === 'OfficialChannelsFooter').length, 1);
     assert.equal(nodes.filter(node => node?.props?.accessibilityLabel === '설정').length, 1);
   }
@@ -125,4 +125,11 @@ test('QA general employee perspective hides work platform without changing accou
   const production = renderHome(access);
   assert.equal(production.find(node => node?.type === 'AttendanceCard').props.mode, 'record');
   assert.equal(production.some(node => node?.type === 'QaPreviewControls'), false);
+});
+
+test('CEO capability enables mobile platform entry only for active server-confirmed accounts', () => {
+  for (const status of ['pending','suspended','departed','deleted']) {
+    assert.equal(registry.resolveEmployeeAppFeatures({ account_status: status, capabilities: ['promotion.review_ceo'] }).get('work-platform.open').state, 'disabled');
+  }
+  assert.equal(registry.resolveEmployeeAppFeatures({ account_status: 'active', actual_roles: [{code: 'ceo'}] }).get('work-platform.open').state, 'disabled');
 });
