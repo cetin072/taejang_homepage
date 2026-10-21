@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { noticeDeepLinkPath } from '@/src/features/notices/notice-api';
 import { scheduleDeepLinkPath } from '@/src/features/schedules/schedule-api';
@@ -22,16 +22,25 @@ function deepLinkPathFromResponse(response: Notifications.NotificationResponse |
 export function PushNotificationBridge() {
   const router = useRouter();
   const { client, session } = usePlatform();
+  const opened = useRef(new Set<string>());
 
   useEffect(() => {
     if (!client || !session || isQaApp) return;
     void registerCurrentPushDevice(client, { requestPermission: false }).catch(() => undefined);
+    const tokenSubscription = Notifications.addPushTokenListener(() => {
+      void registerCurrentPushDevice(client, { requestPermission: false }).catch(() => undefined);
+    });
+    return () => tokenSubscription.remove();
   }, [client, session?.access_token]);
 
   useEffect(() => {
     const open = async (response: Notifications.NotificationResponse | null) => {
+      if (!session) return; // Preserve the native pending response through login.
       const path = deepLinkPathFromResponse(response);
       if (!path) return;
+      const key = [session.user.id, response?.notification.request.identifier, response?.actionIdentifier].join(':');
+      if (opened.current.has(key)) return;
+      opened.current.add(key);
       router.push(path);
       await Notifications.clearLastNotificationResponseAsync();
     };
@@ -41,7 +50,7 @@ export function PushNotificationBridge() {
       void open(response);
     });
     return () => subscription.remove();
-  }, [router]);
+  }, [router, session?.user.id]);
 
   return null;
 }

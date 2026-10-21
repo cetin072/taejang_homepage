@@ -27,11 +27,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: supabase/setup-cli@v1
         with:
           version: 2.109.1
       - name: Run notification push static contract
-        run: node --test tests/notification-push-foundation.test.js
+        run: node --test tests/notification-push-foundation.test.js tests/notification-push-dispatch.test.mjs
       - name: Start isolated Supabase
         run: supabase start
       - name: Reapply migrations from clean database
