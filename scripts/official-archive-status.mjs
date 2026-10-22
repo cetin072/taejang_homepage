@@ -1,6 +1,7 @@
 // Persist only public collection metadata. Reuse Actions summary/cache/artifacts.
 import { readFile, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
+import { operationStatus } from './sync-official-archive.mjs';
 
 async function read(file) {
   try { return JSON.parse(await readFile(file, 'utf8')); }
@@ -21,8 +22,7 @@ if (report.collectedAt && process.env.GITHUB_EVENT_NAME === 'schedule') {
 }
 state.pendingReview = pending;
 const collectionStatus = report.status || state.lastCollection?.status;
-state.status = collectionStatus === 'FAIL' || collectionStatus === 'PARTIAL' ? collectionStatus
-  : pending.length ? 'PENDING_REVIEW' : collectionStatus || 'NO_CHANGES';
+state.status = operationStatus(collectionStatus, pending.length);
 await writeFile(process.env.ARCHIVE_STATE, JSON.stringify(state, null, 2));
 await writeFile(process.env.GITHUB_STEP_SUMMARY,
   '\n### Official archive operation status\n\n```json\n' + JSON.stringify(state, null, 2) + '\n```\n', { flag: 'a' });

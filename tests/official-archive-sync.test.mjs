@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { parseNaver, parseYoutube, channelIdFromHtml, blogImageFromHtml, naverId, isDue,
-  mergeEntries, synchronize, slotAt } from '../scripts/sync-official-archive.mjs';
+  mergeEntries, synchronize, slotAt, operationStatus } from '../scripts/sync-official-archive.mjs';
 
 const CHANNEL = 'UC' + 'a'.repeat(22);
 const RSS = '<rss version="2.0"><channel><item>' +
@@ -114,6 +114,14 @@ test('Both healthy feeds with no additions report NO_CHANGES', async () => {
   const report = await synchronize({ naver: async () => [], youtube: async () => [] });
   assert.equal(report.status, 'NO_CHANGES');
   assert.equal(report.applied, false);
+});
+
+test('Pending review is visible without hiding a channel failure', () => {
+  assert.equal(operationStatus('PASS', 1), 'PENDING_REVIEW');
+  assert.equal(operationStatus('NO_CHANGES', 1), 'PENDING_REVIEW');
+  assert.equal(operationStatus('PARTIAL', 1), 'PARTIAL');
+  assert.equal(operationStatus('FAIL', 1), 'FAIL');
+  assert.equal(operationStatus('NO_CHANGES', 0), 'NO_CHANGES');
 });
 
 test('Client-side updates use the existing hub and do not touch original entries', async () => {

@@ -187,6 +187,10 @@ export function slotAt(value) {
   const elapsed = new Date(value).getTime() - ANCHOR;
   return elapsed < 0 ? null : new Date(ANCHOR + Math.floor(elapsed / (72 * 3600000)) * 72 * 3600000).toISOString();
 }
+export function operationStatus(collectionStatus, pendingCount) {
+  return ['FAIL', 'PARTIAL'].includes(collectionStatus) ? collectionStatus
+    : pendingCount > 0 ? 'PENDING_REVIEW' : collectionStatus || 'NO_CHANGES';
+}
 export function isDue(value, lastCompletedSlot) {
   if (lastCompletedSlot !== undefined) return !!slotAt(value) && slotAt(value) !== lastCompletedSlot;
   const days = Math.floor((new Date(value).getTime() - ANCHOR) / 86400000);
