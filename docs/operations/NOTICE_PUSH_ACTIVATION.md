@@ -101,3 +101,26 @@ dispatch/receipts는 동일 직렬 job이며 curl 자동 재전송은 없다. bl
 - [Expo Android FCM v1 credentials](https://docs.expo.dev/push-notifications/fcm-credentials/)
 
 현재 단계: 연결 코드·검증·QA 빌드 준비. 자격증명 연결, 운영 적용, 기기 Token, 실제 Galaxy 수신은 미확인.
+
+
+## 2026-10-22 단일 Galaxy 자동화 절차 (현재 사용자 승인 범위)
+이 절은 과거 수동 canary 절차를 자동화 한 건 검증에 한해 대체한다. 운영 전체 활성화 승인이 아니다.
+승인받은 통합 앱은 #518 bc758c7dbbd2877adf6259953c707cf836206385. 발송기는 #514에서 수정하며 UI/APK를 재개발하지 않는다.
+
+1. 실제 main/PR HEAD/공개 staff-config 프로젝트와 Supabase ref를 재대조. 기기 ID·활성 소유 계정 일치, cancelled10/queued0/delivery0을 읽는다. 원문·기존 계정/기기/RLS를 수정하지 않는다.
+2. 격리 CI에서 migration/pgTAP/Auth/동시 Data API claim/다른 행 보존 테스트 및 Edge 단위·딥링크 회귀를 통과시킨다. 통합 fixture는 loopback URL+격리 Docker guard로 공유 서버 실행을 거절한다.
+3. 새 migration의 private_claim_notification_canary만 적용. 이 helper는 기존 notice-current/target helper와 notification_events/deliveries 및 ticket/receipt 완료 RPC를 재사용하며 global claim/expand/cancel은 호출하지 않는다. anon/authenticated EXECUTE는 없다. 기존 RPC/트리거/RLS/권한은 변경하지 않는다.
+4. 기존 공식 Secrets에 NOTIFICATION_DISPATCH_KEY를 안전하게 연결하고 **NOTIFICATION_DISPATCH_ENABLED=false**로 최초 배포한다. key/토큰을 채팅·소스·로그에 기록하지 않는다. 관리 인증이 없으면 MCP 배포와 공식 대시보드 Secrets를 확인하며 무단 키 추출·service_role 노출로 우회하지 않는다.
+5. 잘못된 key=403, 올바른 key+OFF=DISPATCH_DISABLED/claim0 및 큐 불변을 검증한다. 허용 범위 mismatch/cancelled/병렬/불명 결과 검사는 격리 DB에서 시행한다. 공유 서버의 다른 직원·기기를 바꾸거나 추가 시험 공지를 만들지 않는다.
+6. 개인(profile) 대상의 새 필수 확인 공지 **초안1건**을 기존 관리 RPC로 저장하고 notice ID/다음 게시 version을 확정한다. company/department 대상 금지. 아래 공개 scope만 Edge Secrets에 연결한다.
+   - NOTIFICATION_CANARY_DEVICE_ID = 사전 대조한 단일 UUID
+   - NOTIFICATION_CANARY_NOTICE_ID = 이번 새 초안 UUID
+   - NOTIFICATION_CANARY_NOTICE_VERSION = 게시 버전 정수
+   - NOTIFICATION_DISPATCH_START_AT = 승인된 실행 시작 UTC ISO8601
+   - NOTIFICATION_DISPATCH_END_AT = 시작보다 뒤, 최대1시간; 시간 밖 dispatch 차단
+7. 같은 내부 key를 Supabase Vault에 암호화 보관한다. pg_cron 작업은 pg_net으로 /functions/v1/notification-dispatch의 dispatch 및 receipts를 매분 호출한다. Secrets key와 Vault key는 같아야 하며 어느 값도 결과로 SELECT하지 않는다. key는 cron.command에 직접 저장하지 않고 Vault name으로 조회한다. pg_cron 공식 문서: https://supabase.com/docs/guides/functions/schedule-functions
+8. enabled=true → 예약 활성 확인 → 해당 초안 게시. **게시 뒤 Expo send API·수동 dispatch HTTP/SQL을 실행하지 않는다.** cron.job_run_details 및 해당 Edge 응답/로그, exact event/delivery의 시각·상태만 읽는다. receipt는 기존15분 지연 후 예약 조회한다. 수동 receipt 조회도 새 발송과 구분하지만 가능한 예약 경로를 사용한다.
+9. ticket/receipt 후 cron을 중지하고 enabled=false로 되돌린다. END_AT 경계도 남겨 발송을 fail-closed한다. queue/delivery/원문을 삭제·reset하지 않는다. 다른 event/delivery preimage와 비교한다.
+10. 자동 검사를 끝낸 뒤 사용자에게 Galaxy 수신→터치→정확한 테스트 상세→명시적 확인을 요청한다. 확인 기록은 사람이 버튼을 누른 경우에만 생성돼야 한다. 일반 직원 자동화 OFF/필수 GitHub schedule opt-in OFF를 확인하고 PR에 기록한다.
+
+초기 상태 및 OFF/CI/배포/예약/게시/ticket/receipt/단말 검수는 각각 별도 상태로 보고한다. 이 절차 문서 자체는 실행 완료 증거가 아니다.
