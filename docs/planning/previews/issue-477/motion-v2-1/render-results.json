@@ -1,0 +1,20 @@
+{
+  "scope": "Chrome frame review media, not professional quality certification",
+  "media": [
+    {
+      "file": "v2-v21-once.gif",
+      "frames": 77,
+      "durationMs": 6800,
+      "loop": null,
+      "bytes": 2576948
+    },
+    {
+      "file": "hero-motion-once.gif",
+      "frames": 63,
+      "durationMs": 5200,
+      "loop": null,
+      "bytes": 1167060
+    }
+  ],
+  "acceptance": "pending user evaluation"
+}
