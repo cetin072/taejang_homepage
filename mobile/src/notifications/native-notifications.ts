@@ -12,7 +12,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export async function requestNativeNotificationPermission() {
+export async function ensureNativeNotificationChannel() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(NOTICE_CHANNEL_ID, {
       name: '태장 중요공지',
@@ -22,7 +22,10 @@ export async function requestNativeNotificationPermission() {
       vibrationPattern: [0, 180, 120, 180],
     });
   }
+}
 
+export async function requestNativeNotificationPermission() {
+  await ensureNativeNotificationChannel();
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return current;
   return Notifications.requestPermissionsAsync();

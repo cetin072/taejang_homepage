@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { appVariantLabel, isQaApp } from '@/src/platform/app-variant';
-import { registerCurrentPushDevice } from '@/src/notifications/push-registration';
+import { pushRegistrationMessage, registerCurrentPushDevice } from '@/src/notifications/push-registration';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '버전 정보 없음';
@@ -53,19 +53,13 @@ export default function SettingsScreen() {
     setNotificationBusy(true);
     try {
       const result = await registerCurrentPushDevice(client, { requestPermission: true });
-      if (result.status === 'registered') {
-        Alert.alert('알림 설정', '중요 공지 알림을 받을 준비가 되었습니다.');
-      } else if (result.status === 'permission_required') {
-        Alert.alert('알림 설정', '휴대폰 설정에서 태장 앱의 알림을 허용해주세요.', [
+      if (result.status === 'permission_required') {
+        Alert.alert('알림 설정', pushRegistrationMessage(result.status), [
           { text: '나중에' },
           { text: '설정 열기', onPress: () => void Linking.openSettings() },
         ]);
-      } else if (result.status === 'physical_device_required') {
-        Alert.alert('알림 설정', '알림은 실제 휴대폰에서 설정할 수 있습니다.');
-      } else if (result.status === 'project_not_configured') {
-        Alert.alert('알림 설정', '알림 연결을 준비 중입니다. 잠시 후 다시 시도해주세요.');
       } else {
-        Alert.alert('알림 설정', '이 기기에서는 알림 설정을 지원하지 않습니다.');
+        Alert.alert('알림 설정', pushRegistrationMessage(result.status));
       }
     } catch {
       Alert.alert('알림 설정', '알림을 설정하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해주세요.');

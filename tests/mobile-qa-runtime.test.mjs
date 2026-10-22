@@ -249,19 +249,22 @@ test('QA skips automatic push enrollment while notification routes stay active; 
       'expo-notifications': {
         getLastNotificationResponseAsync: async () => null, clearLastNotificationResponseAsync: async () => {},
         addNotificationResponseReceivedListener: fn => { listener = fn; return { remove() {} }; },
+        addPushTokenListener: () => ({ remove() {} }),
       },
       '@/src/features/notices/notice-api': { noticeDeepLinkPath: id => `/notices/${id}` },
       '@/src/features/schedules/schedule-api': { scheduleDeepLinkPath: id => `/schedules/${id}` },
       './push-registration': { registerCurrentPushDevice: async (_client, options) => registrations.push(options) },
       '@/src/platform/app-variant': { isQaApp: qa },
-      '@/src/providers/platform-provider': { usePlatform: () => ({ client: {}, session: { access_token: 'fixture' } }) },
+      '@/src/providers/platform-provider': { usePlatform: () => ({ client: {}, session: { access_token: 'fixture', user: { id: 'tester' } } }) },
     });
     h.begin(); bridge.PushNotificationBridge();
     for (const effect of h.effects.splice(0)) effect();
     await settle();
     assert.equal(registrations.length, qa ? 0 : 1);
     for (const target of ['notice', 'schedule']) {
-      listener({ notification: { request: { content: { data: { target, [`${target}Id`]: 'fixture' } } } } });
+      const response = { notification: { request: { identifier: target, content: { data: { target, [`${target}Id`]: 'fixture' } } } } };
+      listener(response);
+      listener(response); // OS cold/warm delivery of the same tap opens only once.
     }
     await settle();
     assert.deepEqual(routes, ['/notices/fixture', '/schedules/fixture']);
@@ -277,6 +280,31 @@ test('Hangul Day preview shows server-matching holiday label, disables clock-in 
   await fixture.press();
   assert.deepEqual(mutations(fixture), []);
   assert.equal(fixture.locationRequests(), 0);
+});
+
+test('cold notice response survives login, then opens exactly once without acknowledging', async () => {
+  const h = hooks(), routes = [];
+  let session = null, cleared = 0, listener;
+  const response = { actionIdentifier: 'default', notification: { request: { identifier: 'notice-cold',
+    content: { data: { target: 'notice', noticeId: 'notice-1' } } } } };
+  const router = { push: path => routes.push(path) };
+  const bridge = load('mobile/src/notifications/push-notification-bridge.tsx', {
+    react: h.react, 'expo-router': { useRouter: () => router },
+    'expo-notifications': {
+      getLastNotificationResponseAsync: async () => response,
+      clearLastNotificationResponseAsync: async () => { cleared++; },
+      addNotificationResponseReceivedListener: fn => { listener = fn; return { remove() {} }; },
+    },
+    '@/src/features/notices/notice-api': { noticeDeepLinkPath: id => `/notices/${id}` },
+    '@/src/features/schedules/schedule-api': { scheduleDeepLinkPath: id => `/schedules/${id}` },
+    './push-registration': {}, '@/src/platform/app-variant': { isQaApp: true },
+    '@/src/providers/platform-provider': { usePlatform: () => ({ client: null, session }) },
+  });
+  const render = async () => { h.begin(); bridge.PushNotificationBridge(); for (const effect of h.effects.splice(0)) effect(); await settle(); };
+  await render(); assert.equal(routes.length, 0); assert.equal(cleared, 0);
+  session = { user: { id: 'tester' }, access_token: 'fixture' };
+  await render(); listener(response); await settle();
+  assert.deepEqual(routes, ['/notices/notice-1']); assert.equal(cleared, 1);
 });
 
 test('QA today uses canonical server KST calendar instead of operator attendance exemption', async () => {

@@ -7,6 +7,11 @@ const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 assert.ok(apiUrl && publishableKey, 'Supabase local environment is required');
+// Destructive fixtures are allowed ONLY in the CI-created local Supabase instance.
+assert.ok(['127.0.0.1','localhost','[::1]'].includes(new URL(apiUrl).hostname),
+  'REFUSE_HOSTED_NOTIFICATION_TEST: isolated loopback Supabase required');
+assert.equal(projectId,'taejang-homepage-phase1a','REFUSE_UNEXPECTED_DB_CONTAINER');
+
 
 async function api(path, { method = 'POST', token, body } = {}) {
   const response = await fetch(`${apiUrl}${path}`, {
@@ -182,3 +187,56 @@ await rpc('register_my_notification_device',active.token,{p_installation_id:inst
 sql(`update public.profiles set account_status='suspended' where id='${active.id}'::uuid`);
 assert.ok(!(await claim()).items.some(item=>item.data.noticeId===guarded),'suspended account never claimed');
 console.log('Issue #387 generic push payload, urgent ordering, guards, stale cancellation and retry/receipt integration: PASS');
+// These fixtures run only after the loopback URL + isolated Docker container guards above.
+const q=value=>"'"+value+"'";
+const fixtureUpdate=(table,set,where)=>sql('update public.'+table+' set '+set+' where '+where);
+fixtureUpdate('profiles',"account_status='active'",'id='+q(active.id));
+const canaryDevice=sql('select id from public.notification_devices where installation_id='+q(installation2)+' and active');
+const canaryNotice=notice(), unrelatedNotice=notice();
+const scope={p_device_id:canaryDevice,p_notice_id:canaryNotice,p_notice_version:1,p_start_at:new Date(Date.now()-60000).toISOString()};
+const canary=(overrides={})=>serviceRpc('private_claim_notification_canary',{...scope,p_claim_token:crypto.randomUUID(),p_mode:'dispatch',...overrides});
+for(const token of [active.token,other.token,publishableKey]) {
+  assert.ok(!(await rpc('private_claim_notification_canary',token,{...scope,p_claim_token:crypto.randomUUID(),p_mode:'dispatch'})).ok,'scoped claim is service-only');
+}
+for(const params of [{p_notice_version:2},{p_start_at:new Date(Date.now()+60000).toISOString()},
+  {p_device_id:'00000000-0000-4000-8000-000000009999'}]) {
+  assert.deepEqual((await canary(params)).data,[],'wrong version/cutoff/device excluded');
+}
+fixtureUpdate('notification_events',"status='cancelled'",'notice_id='+q(canaryNotice));
+assert.deepEqual((await canary()).data,[],'cancelled event is never revived');
+fixtureUpdate('notices','version_no=version_no','id='+q(canaryNotice));
+assert.deepEqual((await canary()).data,[],'trigger upsert does not revive cancelled event');
+const approvedNotice=notice(); scope.p_notice_id=approvedNotice;
+const otherTarget=sql("insert into public.notices(notice_kind,importance,title,body_easy,change_reason,publish_start_at,status,published_at,target_scope,target_profile_id,created_by,updated_by) values('safety','normal','other','fixture','Scoped canary fixture',now()-interval '1 minute','published',now(),'profile',"+q(other.id)+','+q(active.id)+','+q(active.id)+") returning id").split('\n')[0];
+assert.deepEqual((await canary({p_notice_id:otherTarget})).data,[],'other account target excluded');
+const unrelatedSnapshot=()=>sql("select jsonb_build_object('events',(select jsonb_agg(e order by e.id) from public.notification_events e where notice_id<>"+q(approvedNotice)+"),'deliveries',(select jsonb_agg(d order by d.id) from public.notification_deliveries d where event_id not in(select id from public.notification_events where notice_id="+q(approvedNotice)+")))::text");
+const before=unrelatedSnapshot();
+const parallel=await Promise.all(Array.from({length:5},()=>canary()));
+parallel.forEach(r=>assert.ok(r.ok,JSON.stringify(r.data)));
+const claimed=parallel.flatMap(r=>r.data);
+assert.equal(claimed.length,1,'five parallel Data API workers claim once');
+assert.equal(claimed[0].device_id,canaryDevice); assert.equal(claimed[0].data.noticeId,approvedNotice); privateCopy(claimed[0]);
+assert.deepEqual((await canary()).data,[],'sending is not reclaimed');
+assert.equal(unrelatedSnapshot(),before,'unrelated outbox rows unchanged byte-for-byte');
+assert.equal(sql('select status from public.notification_events where notice_id='+q(unrelatedNotice)),'queued');
+const sendClaim=sql('select claim_token from public.notification_deliveries where id='+q(claimed[0].delivery_id));
+const validate=()=>canary({p_mode:'validate',p_claim_token:sendClaim});
+assert.equal((await validate()).data.length,1);
+fixtureUpdate('notification_devices','active=false','id='+q(canaryDevice));
+assert.deepEqual((await validate()).data,[],'device invalidation checked immediately before send');
+fixtureUpdate('notification_devices','active=true','id='+q(canaryDevice));
+fixtureUpdate('profiles',"account_status='suspended'",'id='+q(active.id));
+assert.deepEqual((await validate()).data,[],'account invalidation checked before send');
+fixtureUpdate('profiles',"account_status='active'",'id='+q(active.id));
+await serviceRpc('private_complete_notification_push_ticket',{p_delivery_id:claimed[0].delivery_id,p_claim_token:sendClaim,p_outcome:'failed',p_error_code:'EXPO_SEND_OUTCOME_UNKNOWN'});
+assert.deepEqual((await canary()).data,[],'unknown result is never resent');
+const receiptNotice=notice(); scope.p_notice_id=receiptNotice;
+const receiptItem=(await canary()).data[0];
+const receiptToken=sql('select claim_token from public.notification_deliveries where id='+q(receiptItem.delivery_id));
+await serviceRpc('private_complete_notification_push_ticket',{p_delivery_id:receiptItem.delivery_id,p_claim_token:receiptToken,p_outcome:'accepted',p_ticket_id:'canary-fixture-ticket'});
+fixtureUpdate('notification_deliveries',"accepted_at=now()-interval '16 minutes'",'id='+q(receiptItem.delivery_id));
+const receiptClaims=await Promise.all(Array.from({length:4},()=>canary({p_mode:'receipts'})));
+receiptClaims.forEach(r=>assert.ok(r.ok,JSON.stringify(r.data)));
+assert.equal(receiptClaims.flatMap(r=>r.data).length,1,'receipt parallel-safe and scoped');
+assert.deepEqual((await canary()).data,[],'accepted receipt can never become a new send');
+console.log('Scoped canary DB/Auth, eligibility, cancellation, other-row preservation, parallel claims and no-resend: PASS');
