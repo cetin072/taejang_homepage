@@ -60,33 +60,22 @@ export function createHandler({ createClient, env, fetcher = fetch }) {
       try { body=JSON.parse(raw); } catch { return reply(400,'INVALID_INPUT'); }
       if(!body || typeof body!=='object' || Array.isArray(body))return reply(400,'INVALID_INPUT');
       const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if(!uuid.test(body.employee_uuid)||!uuid.test(body.profile_id)
-        ||!/^TJ-[0-9]{6,}$/.test(body.employee_number)
-        ||!['로그인 정보 분실','현장 로그인 지원','현장 신원 확인 후 복구'].includes(body.reason)
-        ||!['random','manual'].includes(body.mode)||body.identity_verified!==true
-        ||typeof body.current_password!=='string'||!body.current_password||body.current_password.length>256
-        ||(body.mode==='manual' && (typeof body.temporary_password!=='string'||!/^\d{1,128}$/.test(body.temporary_password))))
+      if(!uuid.test(body.employee_uuid)||body.request_confirmed!==true
+        ||Object.keys(body).some(k=>!['employee_uuid','request_confirmed'].includes(k)))
         return reply(400,'INVALID_INPUT');
       const user=createClient(url,anon,{...options,global:{headers:{Authorization:'Bearer '+token}}});
-      const {data:reserved,error:reserveError}=await user.rpc('reserve_employee_password_reset',{
-        p_employee_uuid:body.employee_uuid,p_employee_number:body.employee_number,p_profile_id:body.profile_id,
-        p_reason:body.reason.trim(),p_mode:body.mode,p_identity_verified:true
+      // PostgREST verifies this JWT; DB resolves identity and checks signed AMR + live session.
+      const {data:reserved,error:reserveError}=await user.rpc('reserve_employee_password_reset_simple',{
+        p_employee_uuid:body.employee_uuid,p_request_confirmed:true
       });
       if(reserveError)return reply(403,'RESERVATION_FAILED');
       if(!reserved?.ok)return reply(reserved?.code==='RATE_LIMITED'?429:403,reserved?.code||'FORBIDDEN');
       requestId=reserved.request_id;
-      // Password reauthentication is separate from the existing browser session.
-      // OTP/magic-link access alone is insufficient for this sensitive action.
-      const reauth=createClient(url,anon,options);
-      const {data:verified,error:verifyError}=await reauth.auth.signInWithPassword({email:actor.email,password:body.current_password});
-      body.current_password='';
-      if(verifyError||verified?.user?.id!==actor.id||!verified?.session?.access_token){
-        await finish('REAUTH_FAILED');return reply(403,'REAUTH_FAILED');
-      }
-      try {await reauth.auth.signOut({scope:'local'});} catch {/* ephemeral session; no credentials logged */}
-      const {data:targetData,error:targetError}=await admin.auth.admin.getUserById(body.profile_id);
+      const profileId=reserved.option?.profile_id;
+      if(!uuid.test(profileId)){await finish('TARGET_CHANGED');return reply(403,'TARGET_CHANGED');}
+      const {data:targetData,error:targetError}=await admin.auth.admin.getUserById(profileId);
       const target=targetData?.user;
-      if(targetError||!target?.id||target.id!==body.profile_id||!target.email_confirmed_at
+      if(targetError||!target?.id||target.id!==profileId||!target.email_confirmed_at
         ||(target.banned_until&&new Date(target.banned_until).getTime()>Date.now())
         ||target.deleted_at||target.is_anonymous
         ||target.email?.toLowerCase()!==reserved.option?.email?.toLowerCase()){
@@ -94,11 +83,11 @@ export function createHandler({ createClient, env, fetcher = fetch }) {
       }
       const {data:begun,error:beginError}=await user.rpc('begin_employee_password_reset',{p_request_id:requestId});
       if(beginError||!begun?.ok||begun.profile_id!==target.id||begun.email?.toLowerCase()!==target.email.toLowerCase()){
-        await finish('TARGET_CHANGED');return reply(403,'TARGET_CHANGED');
+        await finish(begun?.code==='REAUTH_REQUIRED'?'REAUTH_FAILED':'TARGET_CHANGED');
+        return reply(403,begun?.code==='REAUTH_REQUIRED'?'REAUTH_REQUIRED':'TARGET_CHANGED');
       }
       executing=true;
-      let password=body.mode==='manual'?body.temporary_password:numericPassword();
-      body.temporary_password='';
+      let password=numericPassword();
       const {error:updateError}=await admin.auth.admin.updateUserById(target.id,{password});
       if(updateError){
         // Only explicit policy rejection proves no mutation. Other failures are ambiguous.
