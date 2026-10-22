@@ -508,9 +508,14 @@
       || window.confirm('저장하지 않은 변경사항이 있습니다. 목록으로 돌아가면 현재 수정 내용이 사라집니다. 계속할까요?');
   }
 
+  function hasUnsavedEditor() {
+    return isEditorView() && !ui.element('notice-admin-panel').hidden
+      && (saving || pendingWrite || pendingPublication || publicationUncertain || createResponseUncertain
+        || (editorBaseline !== null && editorBaseline !== editorSnapshot()));
+  }
+
   function returnToNoticeList() {
-    if (!isEditorView() || !confirmLeaveEditor()) return;
-    setView(editorReturnView);
+    if (!isEditorView() || !setView(editorReturnView)) return;
     const title = ui.element('notice-manage-title');
     title.tabIndex = -1;
     title.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -542,7 +547,7 @@
   }
 
   function setView(view) {
-    if (saving) return;
+    if (saving || (hasUnsavedEditor() && !confirmLeaveEditor())) return false;
     const previousView = activeView;
     const nextView = ['create','archive'].includes(view) ? view : 'manage';
     if (nextView === 'create' && !isEditorView()) editorReturnView = previousView === 'archive' ? 'archive' : 'manage';
@@ -564,6 +569,7 @@
       hideEditor();
       if (options) void load({ preserveMessage: Boolean(ui.element('notice-admin-message').textContent) });
     }
+    return true;
   }
 
   function previewItem(item) {
@@ -1078,7 +1084,6 @@
       }
       const label = exposureLabel(verified);
       activeView = isArchived(verified) ? 'archive' : 'manage';
-      ui.element('notice-list-filters').reset();
       const loaded = await load({ preserveMessage: true });
       showSavedNotice(result.id, `${label} · ${verified.title}`, loaded, activeView);
       // A successful save returns to the list. Never leave the editor open below it.
@@ -1161,6 +1166,21 @@
   }
 
   function bind() {
+    window.addEventListener('beforeunload', event => {
+      if (!hasUnsavedEditor()) return;
+      event.preventDefault();
+      event.returnValue = '';
+    });
+    // Keep this form's guard local while covering existing shell navigation.
+    document.addEventListener('click', event => {
+      const target = event.target.closest?.('[data-master-menu-item], .staff-brand, .app-logo, [data-platform-settings-action], #desktop-logout-button, #logout-button');
+      if (!target || target.dataset.menuKey === 'notice.manage' || target.dataset.menuKey === 'notice.create'
+        || target.target === '_blank' || !hasUnsavedEditor()) return;
+      if (!confirmLeaveEditor()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
     ui.element('notice-form').addEventListener('submit', submit);
     ui.element('notice-form').addEventListener('invalid', event => {
       const details = event.target.closest('details');
@@ -1175,8 +1195,7 @@
       else if (event.target.id !== 'notice-photo-input') markReviewEdited();
     });
     ui.element('reset-notice-form').addEventListener('click', () => {
-      if (isEditorView() && !confirmLeaveEditor()) return;
-      setView('create');
+      if (!setView('create')) return;
       showMessage('새 공지를 작성합니다. 이전 저장 결과는 공지 관리 목록에서 확인할 수 있습니다.');
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));

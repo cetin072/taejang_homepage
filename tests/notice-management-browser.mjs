@@ -28,7 +28,7 @@ const server=http.createServer(async(req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
 try {
- for(const width of [390,1440]) {
+ for(const width of [320,390,1440]) {
   const context=await browser.newContext({viewport:{width,height:1000},isMobile:width===390,hasTouch:width===390});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -104,6 +104,7 @@ try {
   assert.equal(await page.locator('#notice-admin-list article').last().getAttribute('data-notice-id'),'expired');
   assert.equal(await page.locator('[data-ops-archive-notice]').count(),0,'no second archive owner');
   await page.locator('#notice-list-search').fill('같은 시각 A');
+  await page.locator('#notice-list-status').selectOption('active');
   await page.locator('#notice-list-filters').getByRole('button',{name:'검색',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('1 / 1'));
   await openEdit('pub-a');
@@ -114,7 +115,18 @@ try {
   await capture('editor');
   // Declining to discard changes must keep the independent editor open.
   await page.locator('#notice-body').fill('저장하지 않은 변경');
+  const blockedUnload=await page.evaluate(()=>{
+   const event=new Event('beforeunload',{cancelable:true});window.dispatchEvent(event);return event.defaultPrevented;
+  });
+  assert.equal(blockedUnload,true,'browser exit guards unsaved input');
   await page.evaluate(()=>{confirmAnswer=false});
+  const blockedNavigation=await page.evaluate(()=>{
+   const nav=document.createElement('button');nav.dataset.masterMenuItem='1';nav.dataset.menuKey='task.manage';
+   let navigated=false;nav.addEventListener('click',()=>{navigated=true});document.body.append(nav);nav.click();nav.remove();return !navigated;
+  });
+  assert.equal(blockedNavigation,true,'declining shell navigation preserves editor');
+  await page.evaluate(()=>TaejangNoticeAdmin.setView('create'));
+  assert.equal(await page.locator('#notice-body').inputValue(),'저장하지 않은 변경','declined new notice preserves input');
   await page.locator('#notice-back-from-editor').click();
   assert.equal(await page.locator('#notice-editor-page').isVisible(),true,'declined exit keeps editor');
   await page.evaluate(()=>{confirmAnswer=true});
@@ -122,8 +134,7 @@ try {
   await page.locator('[data-notice-id="pub-a"]').waitFor();
   assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'confirmed exit returns to list');
   assert.equal(await page.locator('#notice-list-search').inputValue(),'같은 시각 A','edit return keeps list search');
-  await page.locator('#notice-clear-filters').click();
-  await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('6 / 6'));
+  assert.equal(await page.locator('#notice-list-status').inputValue(),'active','edit return keeps status filter');
   await openEdit('pub-a');
   await page.locator('#notice-body').fill('운영총괄 공개 공지 본문 정정');
   await page.locator('#notice-link-url').fill('https://example.com/notice');await page.locator('#notice-link-label').fill('자료 보기');
@@ -134,6 +145,11 @@ try {
   await capture('published-edit');
   assert.equal(await page.locator('#notice-manage-section').isVisible(),true,'successful save returns to list');
   assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'saved editor does not remain below the list');
+  assert.equal(await page.locator('#notice-list-search').inputValue(),'같은 시각 A','successful save preserves search');
+  assert.equal(await page.locator('#notice-list-status').inputValue(),'active','successful save preserves status filter');
+  assert.equal(await page.locator('[data-notice-id="pub-a"]').getAttribute('data-saved-notice'),'1','saved notice is highlighted');
+  await page.locator('#notice-clear-filters').click();
+  await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('6 / 6'));
   await openEdit('pub-a');
   // Exercise the production shared transport inside real Chrome as well as the
   // UI. Only HTTP/Auth fixtures are synthetic; no alternate transport is copied.
@@ -216,6 +232,20 @@ try {
   await page.waitForFunction(()=>document.getElementById('notice-id').value==='pub-a');
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
   await capture('lead-readonly');
+  await page.locator('#notice-editor-bottom-back').click();
+  await page.evaluate(()=>{
+   rows.push(historyFixture.make('lead-own','운영팀장 일상 안내',{created_route:'promotion_lead',lead_notice_mode:'routine'}));
+   TaejangNoticeAdmin.setView('manage');
+  });
+  await openEdit('lead-own');
+  await page.locator('#notice-body').fill('운영팀장 본인 공지 수정');
+  await page.locator('#notice-routine-confirm').check();
+  await page.locator('#notice-save-existing').click();
+  await page.waitForFunction(()=>document.getElementById('notice-admin-message').textContent.startsWith('저장 완료'));
+  assert.equal(await page.locator('#notice-editor-page').isVisible(),false,'lead own edit returns to list');
+  assert.equal(await page.evaluate(()=>rows.find(row=>row.id==='lead-own').body_easy),'운영팀장 본인 공지 수정');
+  assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='save_lead_notice').at(-1).args.p_notice_id),'lead-own','lead uses existing guarded save RPC');
+  await capture('lead-saved');
   await page.evaluate(()=>{role='operations_manager';rows.splice(0,rows.length,...Array.from({length:205},(_,i)=>historyFixture.make('page-'+String(i).padStart(3,'0'),'과거 공지 '+String(i).padStart(3,'0'),{status:'draft'})));TaejangNoticeAdmin.setView('manage')});
   await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.includes('50 / 205'));
   for(const count of [100,150,200,205]){
