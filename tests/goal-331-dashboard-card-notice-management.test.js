@@ -26,7 +26,9 @@ test('Goal 331 keeps one canonical notice-management menu with an in-panel creat
   assert.match(priority, /'공지 등록':'notice\.manage'/);
   assert.match(read('app/index.html'), /id="new-notice-admin"[^>]*>\+ 공지 등록/);
   assert.match(noticeAdmin, /ui\.element\('new-notice-admin'\)\.addEventListener\('click', \(\) => setView\('create'\)\)/);
-  assert.match(noticeAdmin, /if \(create\) create\.hidden = activeView === 'create'/);
+  assert.match(noticeAdmin, /if \(create\) create\.hidden = editing/);
+  assert.match(noticeAdmin, /if \(manage\) manage\.hidden = editing/);
+  assert.match(noticeAdmin, /ui\.element\('notice-editor-page'\)\.hidden = !editing/);
   const retired = nav.slice(nav.indexOf('const RETIRED_NAVIGATION'), nav.indexOf('const LABEL_RENAMES'));
   assert.doesNotMatch(retired, /'공지 관리'/);
   assert.match(workspace, /'notice-admin-panel': '공지 관리'/);
@@ -45,6 +47,8 @@ test('Goal 331 uses one canonical notice editor with separate create and manage 
   assert.match(noticeAdmin, /activeView === 'create'/);
   assert.match(noticeAdmin, /notice-editor-card/);
   assert.match(noticeAdmin, /notice-preview-card/);
+  assert.match(noticeAdmin, /activeView = editorReadonly \? 'detail' : 'edit'/);
+  assert.match(read('app/index.html'), /id="notice-editor-page"[^>]*hidden/);
   assert.match(noticeAdmin, /reset-notice-form/);
 });
 

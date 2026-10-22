@@ -413,6 +413,7 @@
           <button id="new-notice-admin" class="button" type="button">+ 공지 등록</button>
           <button id="archive-notice-admin" class="button button-quiet" type="button">보관함</button>
           <button id="back-notice-admin" class="button button-quiet" type="button" hidden>공지 관리로 돌아가기</button>
+          <button id="notice-back-from-editor" class="button button-quiet" type="button" hidden>← 공지 목록으로</button>
           <button id="refresh-notice-admin" class="button button-quiet" type="button" aria-label="공지 새로고침" title="공지 새로고침">↻</button>
         </div>
       </div>
@@ -436,6 +437,12 @@
         <div id="notice-admin-list" class="card-list"></div>
         <button id="notice-list-more" class="button button-quiet" type="button" hidden>공지 더 보기</button>
       </section>
+      <section id="notice-editor-page" class="notice-editor-page" aria-labelledby="notice-editor-page-title" hidden>
+        <header class="notice-editor-page-heading">
+          <p class="eyebrow">공지 관리 · 편집 화면</p>
+          <h3 id="notice-editor-page-title" tabindex="-1">공지 수정</h3>
+          <p id="notice-editor-page-context" class="help"></p>
+        </header>
       <details id="notice-editor-card" class="editor-card" open>
         <summary>공지 작성·수정</summary>
         <form id="notice-form" class="app-compact-container app-authoring" data-notice-editor-owner="notice-admin">
@@ -521,6 +528,10 @@
         <p class="help notice-preview-help">입력한 제목·본문 줄바꿈·공백과 사진 순서를 직원앱에서 확인할 때와 같은 순서로 미리 봅니다.</p>
         <div id="notice-preview" class="guide-preview notice-preview"></div>
       </details>
+        <div class="notice-editor-page-footer">
+          <button id="notice-editor-bottom-back" class="button button-quiet" type="button">← 공지 목록으로</button>
+        </div>
+      </section>
     </section>
 
     <section id="guidance-admin-panel" class="panel admin-today" hidden aria-labelledby="guidance-admin-title">
