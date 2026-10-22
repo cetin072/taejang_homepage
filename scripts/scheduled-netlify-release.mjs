@@ -138,7 +138,60 @@ export async function runCycle({ config, env, api, snapshot, head, files, prefli
     source_main_sha: sha, run_id: String(run.id), run_created_at: run.created_at,
     slot_index: schedule.slot.index, issued_at: now().toISOString() }) };
 }
+// One user-authorized exception on 2026-10-22 for Taejang ONLY.
+// Expires tonight KST; never alters the 48-hour cron, normal scheduled guard or policy.
+export const ONE_OFF_20261022 = Object.freeze({
+  kind: 'taejang-one-off-20261022',
+  previous_deploy_id: '6ad8865bbaba5eab44351aab',
+  previous_commit_ref: '8ab1e66c3cc3da633304f58aa394cd145c1b7f8a',
+  expires_at: '2026-10-22T15:00:00.000Z',
+});
+export function validateOneOffHook(config, env, now) {
+  if (env.CONTEXT !== 'production') return null;
+  let body;
+  const raw = env.INCOMING_HOOK_BODY || '';
+  try { body = JSON.parse(raw); } catch {
+    try { body = JSON.parse(decodeURIComponent(raw)); } catch { return null; }
+  }
+  if (body?.release_kind !== ONE_OFF_20261022.kind) return null;
+  const current = new Date(now).getTime();
+  const issued = Date.parse(body.issued_at);
+  const valid = config.repository === 'cetin072/taejang_homepage'
+    && config.site_id === '9caa5a1a-f86d-4a9f-aed4-f560e1c2101f'
+    && env.BRANCH === 'main' && env.INCOMING_HOOK_TITLE === HOOK_TITLE
+    && SHA.test(env.COMMIT_REF || '') && env.COMMIT_REF === body.source_main_sha
+    && body.repository === config.repository && body.site_id === config.site_id
+    && body.version === 1 && /^\d+$/.test(String(body.run_id))
+    && body.previous_commit_ref === ONE_OFF_20261022.previous_commit_ref
+    && body.previous_deploy_id === ONE_OFF_20261022.previous_deploy_id
+    && Number.isFinite(current) && Number.isFinite(issued)
+    && issued >= Date.parse('2026-10-22T10:00:00.000Z')
+    && issued <= current && current - issued <= 90 * 60000
+    && current < Date.parse(ONE_OFF_20261022.expires_at);
+  if (!valid) throw new Error('ONE_OFF_HOOK_INVALID');
+  return body;
+}
 export async function guard(config, env = process.env, { fetcher = fetch, now = new Date() } = {}) {
+  const oneOff = validateOneOffHook(config, env, now);
+  if (oneOff) {
+    const published = publishedDeploy(await publicSite(config, fetcher), config.site_id);
+    if (published.id !== ONE_OFF_20261022.previous_deploy_id
+      || published.commit_ref !== ONE_OFF_20261022.previous_commit_ref) {
+      throw new Error('ONE_OFF_PUBLICATION_CHANGED');
+    }
+    if (config.marker_path) {
+      const markerPath = resolve(config.marker_path);
+      let previous = {};
+      try { previous = JSON.parse(readFileSync(markerPath, 'utf8')); } catch {}
+      mkdirSync(dirname(markerPath), { recursive: true });
+      writeFileSync(markerPath, JSON.stringify({ ...previous,
+        source_main_sha: oneOff.source_main_sha, released_at_utc: new Date(now).toISOString(),
+        released_on_kst: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now),
+        interval_days: 2, release_attempt: (previous.release_attempt || 0) + 1,
+        release_run_id: oneOff.run_id, release_type: ONE_OFF_20261022.kind }, null, 2) + '\n');
+    }
+    return { status: 'ONE_OFF_PRODUCTION_ALLOWED', source_main_sha: oneOff.source_main_sha };
+  }
   const payload = validateHook(config, env, now);
   if (!payload) return { status: 'PREVIEW_ALLOWED' };
   const published = publishedDeploy(await publicSite(config, fetcher), config.site_id);
