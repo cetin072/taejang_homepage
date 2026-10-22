@@ -67,6 +67,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAEJANG_APP_VARIANT: qa
+      EXPO_PUBLIC_EAS_PROJECT_ID_QA: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID_QA }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ vars.ANDROID_GOOGLE_SERVICES_JSON_BASE64_QA }}
     # A clean React Native native build can take longer than 25 minutes on a
     # cold hosted runner. Keep the ARM64 device artifact as a required check
     # instead of cancelling a healthy compiler during its first dependency build.
@@ -90,6 +92,8 @@ jobs:
       - name: Install generated locked dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
+      - name: Validate and prepare public Android push configuration
+        run: node mobile/scripts/prepare-push-config.cjs
       - name: Generate Android project
         working-directory: mobile
         env:
@@ -165,6 +169,9 @@ jobs:
     timeout-minutes: 30
     env:
       TAEJANG_APP_VARIANT: production
+      TAEJANG_PUSH_CONFIG_REQUIRED: 'true'
+      EXPO_PUBLIC_EAS_PROJECT_ID: ${{ vars.EXPO_PUBLIC_EAS_PROJECT_ID }}
+      GOOGLE_SERVICES_JSON_BASE64: ${{ vars.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
@@ -192,7 +199,10 @@ jobs:
         working-directory: mobile
         env:
           CI: '1'
-        run: npx expo prebuild --platform android --no-install
+        run: |
+          node scripts/prepare-push-config.cjs
+          # The script's GITHUB_ENV export applies to subsequent steps.
+          ANDROID_GOOGLE_SERVICES_FILE=.push/google-services-production.json npx expo prebuild --platform android --no-install
       - name: Verify generated Android launcher resources
         working-directory: mobile/android
         run: |

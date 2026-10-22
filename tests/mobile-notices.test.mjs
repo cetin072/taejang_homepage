@@ -15,11 +15,11 @@ test('mobile notice API reuses existing guarded Supabase RPC contracts', async (
   assert.doesNotMatch(api, /from\(['"]notices['"]\)|\/rest\/v1\/notices/i);
 });
 
-test('home notice action opens the latest unread notice and always offers history', async () => {
+test('home notice section reuses individual cards and always offers history', async () => {
   const home = await text('mobile/src/features/notices/notice-home-action.tsx');
-  assert.match(home, /noticeDeepLinkPath\(latest.id\)/);
-  assert.match(home, /전체 목록 보기/);
-  assert.match(home, /numberOfLines=\{fontScale > 1 \? undefined : 2\}/);
+  assert.match(home, /<NoticeListCard/);
+  assert.match(home, /전체 공지 보기/);
+  assert.match(home, /noticesNewestFirst\(items\).slice\(0, 3\)/);
 });
 
 test('notice list shares the focus-aware cached loader and keeps the empty state', async () => {
@@ -30,8 +30,8 @@ test('notice list shares the focus-aware cached loader and keeps the empty state
   assert.match(loader, /cacheNotices/);
   assert.match(loader, /useFocusEffect/);
   assert.match(list, /현재 확인할 공지가 없습니다/);
-  assert.match(list, /noticeDeepLinkPath/);
-  assert.match(list, /minHeight:\s*118/);
+  assert.match(list, /NoticeListCard/);
+  assert.match(list, /noticesNewestFirst\(visibleItems\)/);
 });
 
 test('notice detail route can acknowledge the exact current notice version', async () => {

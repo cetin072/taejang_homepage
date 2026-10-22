@@ -49,6 +49,25 @@
       .attendance-correction-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
       .attendance-correction-note{margin-top:6px;font-size:14px;line-height:1.45;color:#555}
       .attendance-correction-history{margin-top:6px;padding:8px 10px;border-radius:10px;background:#f5f5f1;font-size:14px;line-height:1.5}
+
+      .attendance-correction-list{display:grid;gap:8px}
+      .attendance-correction-list .attendance-row{display:grid;grid-template-columns:minmax(130px,.65fr) repeat(2,minmax(0,1fr));gap:12px;align-items:start;padding:10px 12px;border:1px solid var(--app-border,#ddd);border-radius:10px;background:#fff}
+      .attendance-correction-list .attendance-person{display:grid;gap:2px;grid-column:auto;font-size:16px;line-height:1.4;overflow-wrap:anywhere}
+      .attendance-correction-list .attendance-person span{font-size:13px;font-weight:400;color:#53675d}
+      .attendance-correction-list .attendance-cell{min-width:0;padding:0;border:0;font-size:14px;line-height:1.4}
+      .attendance-correction-event{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+      .attendance-correction-event .eyebrow{margin:0;font-size:13px}
+      .attendance-correction-list .attendance-cell strong{font-size:15px}
+      .attendance-correction-list .attendance-correction-actions{margin-top:4px;gap:6px}
+      .attendance-correction-list .button{min-height:36px;padding:5px 10px;font-size:14px;line-height:1.4}
+      .attendance-correction-list .attendance-correction-note{margin:4px 0 0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .attendance-correction-list .attendance-correction-history{margin:4px 0 0;padding:0;background:transparent;font-size:13px}
+      .attendance-correction-history summary{cursor:pointer;min-height:24px}
+      .attendance-correction-history ul{margin:4px 0;padding-left:20px;overflow-wrap:anywhere}
+      .attendance-correction-feedback{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:25;width:max-content;max-width:min(520px,calc(100vw - 32px));margin:0;padding:10px 14px;border:1px solid var(--app-border,#ccc);border-radius:10px;background:#edf5ef;color:#163c2b;box-shadow:0 4px 20px #0002;font-size:14px;line-height:1.5;overflow-wrap:anywhere;pointer-events:none;box-sizing:border-box}
+      .attendance-correction-feedback:empty{display:none}
+      @media(max-width:760px){.attendance-correction-list .attendance-row{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-correction-list .attendance-person{grid-column:1/-1}.attendance-correction-list .button{min-height:44px}}
+      @media(max-width:480px){.attendance-correction-list .attendance-row{grid-template-columns:1fr}.attendance-correction-list .attendance-person{grid-column:auto}.attendance-correction-list .attendance-cell+.attendance-cell{padding-top:8px;border-top:1px solid var(--app-border,#ddd)}}
       .attendance-correction-dialog{width:min(520px,calc(100vw - 28px));padding:0;border:0;border-radius:16px;box-shadow:0 20px 64px rgba(0,0,0,.24)}
       .attendance-correction-dialog::backdrop{background:rgba(15,23,42,.48)}
       .attendance-correction-dialog form{display:grid;gap:14px;padding:22px}
@@ -133,7 +152,7 @@
     }[code] || `근태 보정을 처리하지 못했습니다${code ? ` (${code})` : ''}.`;
   }
 
-  function openCorrectionDialog({ workDate, eventType, action, currentRecord }) {
+  function openCorrectionDialog({ workDate, eventType, action, currentRecord, onSave }) {
     return new Promise(resolve => {
       const isSetTime = action === 'set_time';
       const isMissingBackfill = isSetTime && !currentRecord?.event_at;
@@ -238,7 +257,9 @@
       dialog.append(form);
       document.body.append(dialog);
 
-      form.addEventListener('submit', event => {
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
         if (event.submitter?.value !== 'save') return;
         const timeValue = isSetTime ? `${hourSelect?.value || ''}:${minuteSelect?.value || ''}` : '';
         const reason = reasonInput?.value.trim() || null;
@@ -252,8 +273,22 @@
           event.preventDefault();
           error.textContent = '기존 기록을 변경하거나 무효화할 때는 사유를 5자 이상 입력해야 합니다.';
           reasonInput?.focus();
+          return;
+        }
+        submit.disabled = true;
+        cancel.disabled = true;
+        error.textContent = '저장 중입니다…';
+        try {
+          await onSave({ correctedEventAt: isSetTime ? isoForKstInput(workDate, timeValue) : null, reason, isMissingBackfill });
+          dialog.close('save');
+        } catch (saveError) {
+          error.textContent = saveError.message || '저장하지 못했습니다. 입력을 확인하고 다시 시도해주세요.';
+        } finally {
+          submit.disabled = false;
+          cancel.disabled = false;
         }
       });
+      dialog.addEventListener('cancel', event => { if (submit.disabled) event.preventDefault(); });
       dialog.addEventListener('close', () => {
         const saved = dialog.returnValue === 'save';
         const value = saved ? {
@@ -269,24 +304,25 @@
     });
   }
 
-  async function createCorrection({ employeeUuid, workDate, eventType, action, currentRecord }) {
-    if (!canCorrect()) return;
-    const input = await openCorrectionDialog({ workDate, eventType, action, currentRecord });
-    if (!input) return false;
-
-    const result = await app().rpc('create_attendance_correction', {
-      p_employee_uuid: employeeUuid,
-      p_work_date: workDate,
-      p_event_type: eventType,
-      p_action: action,
-      p_corrected_event_at: input.correctedEventAt,
-      p_reason: input.reason
+  async function createCorrection({ employeeUuid, workDate, eventType, action, currentRecord, notify = true }) {
+    if (!canCorrect()) return false;
+    const input = await openCorrectionDialog({
+      workDate, eventType, action, currentRecord,
+      onSave: async input => {
+        if (!canCorrect()) throw new Error(correctionErrorMessage('FORBIDDEN'));
+        const result = await app().rpc('create_attendance_correction', {
+          p_employee_uuid: employeeUuid,
+          p_work_date: workDate,
+          p_event_type: eventType,
+          p_action: action,
+          p_corrected_event_at: input.correctedEventAt,
+          p_reason: input.reason
+        });
+        if (!result?.ok) throw new Error(correctionErrorMessage(result?.code));
+      }
     });
-
-    if (!result?.ok) {
-      throw new Error(correctionErrorMessage(result?.code));
-    }
-    window.alert(input.isMissingBackfill ? '누락 시간을 저장했습니다. 입력자와 입력시각은 자동 기록됩니다.' : '근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
+    if (!input) return false;
+    if (notify) window.alert(input.isMissingBackfill ? '누락 시간을 저장했습니다. 입력자와 입력시각은 자동 기록됩니다.' : '근태 보정 이력을 저장했습니다. 원본 기록은 그대로 보존됩니다.');
     return true;
   }
 
@@ -320,59 +356,122 @@
     const back = correctionActionButton('대시보드로');
     back.addEventListener('click', () => document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh')));
     intro.append(back);
-    const list = node('section', null, 'attendance-list');
-    main.replaceChildren(intro, toolbar, list);
+    const feedback = node('p', '', 'attendance-correction-feedback');
+    feedback.setAttribute('role', 'status');
+    feedback.setAttribute('aria-live', 'polite');
+    const list = node('section', null, 'attendance-list attendance-correction-list');
+    main.replaceChildren(intro, toolbar, feedback, list);
+    let version = 0;
+
+    const makeRow = (row, workDate, history) => {
+      const line = node('article', null, 'attendance-row attendance-correction-row');
+      line.dataset.employeeUuid = row.employee_uuid;
+      const person = node('div', null, 'attendance-person');
+      person.append(node('strong', row.display_name || '직원'), node('span', row.employee_id || '직원번호 없음'));
+      line.append(person);
+      for (const [eventType, labelText] of [['clock_in', '출근'], ['clock_out', '퇴근']]) {
+        const record = row[eventType];
+        const cell = node('div', null, 'attendance-cell');
+        const heading = node('div', null, 'attendance-correction-event');
+        heading.append(node('span', labelText, 'eyebrow'), node('strong', (record?.event_at ? kstTime(record.event_at) : '-') + ' · ' + statusLabel(record)));
+        cell.append(heading);
+        const actions = node('div', null, 'attendance-correction-actions');
+        const bindAction = (action, text) => {
+          const button = correctionActionButton(text);
+          button.dataset.correctionAction = eventType + '-' + action;
+          button.addEventListener('click', async () => {
+            if (line.dataset.busy === 'true') return;
+            line.dataset.busy = 'true';
+            line.setAttribute('aria-busy', 'true');
+            const selectedVersion = version;
+            const workspace = main.closest('.app-workspace');
+            const scroller = workspace && /auto|scroll/.test(getComputedStyle(workspace).overflowY) ? workspace : document.scrollingElement;
+            const dialogScroll = scroller.scrollTop;
+            let saved = false;
+            try {
+              saved = await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action, currentRecord: record, notify: false });
+              if (!list.isConnected || version !== selectedVersion) return;
+              scroller.scrollTo({ top: dialogScroll, behavior: 'instant' });
+              if (!saved) return;
+              feedback.textContent = row.display_name + ' · ' + labelText + ' 보정을 저장했습니다. 원본 기록은 그대로 보존됩니다.';
+              // The existing RPC returns a whole day. Keep every other DOM row
+              // and only replace the employee whose effective record changed.
+              const data = await app().rpc('get_attendance_admin_today', { p_work_date: workDate });
+              const updated = data?.rows?.find(item => item.employee_uuid === row.employee_uuid);
+              if (!updated) throw new Error('UPDATED_EMPLOYEE_NOT_FOUND');
+              const updatedHistory = await correctionHistory(row.employee_uuid, workDate);
+              if (!list.isConnected || version !== selectedVersion || dateInput.value !== workDate) return;
+              const top = line.getBoundingClientRect().top;
+              const scroll = scroller.scrollTop;
+              const opened = [...line.querySelectorAll('details[open]')].map(el => el.dataset.eventType);
+              const replacement = makeRow(updated, workDate, updatedHistory);
+              replacement.querySelectorAll('details').forEach(el => { el.open = opened.includes(el.dataset.eventType); });
+              line.replaceWith(replacement);
+              const focus = [...replacement.querySelectorAll('button')].find(el => el.dataset.correctionAction === button.dataset.correctionAction) || replacement.querySelector('button');
+              focus?.focus({ preventScroll: true });
+              scroller.scrollTo({ top: scroll + replacement.getBoundingClientRect().top - top, behavior: 'instant' });
+            } catch (error) {
+              if (!list.isConnected || version !== selectedVersion) return;
+              if (saved) {
+                // A successful append must never be retried as another write
+                // merely because the subsequent read failed.
+                line.dataset.stale = 'true';
+                feedback.textContent = row.display_name + ' · 저장은 완료됐지만 화면을 갱신하지 못했습니다. 다시 저장하지 말고 출근부 조회를 눌러주세요.';
+              } else {
+                feedback.textContent = error.message || '근태 보정을 처리하지 못했습니다.';
+              }
+            } finally {
+              line.dataset.busy = 'false';
+              line.setAttribute('aria-busy', 'false');
+              if (line.dataset.stale === 'true') line.querySelectorAll('button').forEach(el => { el.disabled = true; });
+            }
+          });
+          actions.append(button);
+        };
+        bindAction('set_time', record?.event_at ? '시간 정정' : '누락 시간 추가');
+        if (record?.event_at) bindAction('invalidate', '무효 처리');
+        cell.append(actions);
+        const related = history.filter(item => item.event_type === eventType);
+        if (related.length) {
+          const details = node('details', null, 'attendance-correction-history');
+          details.dataset.eventType = eventType;
+          const summary = node('summary', '보정 이력 ' + related.length + '건 · 보기/숨기기');
+          const entries = node('ul');
+          related.forEach(item => entries.append(node('li', (item.corrected_event_at ? kstTime(item.corrected_event_at) + ' · ' : '') + (item.reason || '누락 시간 추가'))));
+          details.append(summary, entries);
+          cell.append(details);
+        }
+        const reason = record?.correction_reason || related[0]?.reason;
+        if (reason) {
+          const note = node('p', '최근 보정: ' + reason, 'attendance-correction-note');
+          note.title = note.textContent;
+          cell.append(note);
+        }
+        line.append(cell);
+      }
+      return line;
+    };
 
     const render = async () => {
       const workDate = dateInput.value;
       if (!workDate) return;
+      const selectedVersion = ++version;
+      feedback.textContent = '';
       list.replaceChildren(node('p', '출근부를 불러오고 있습니다.', 'message'));
       try {
         const data = await app().rpc('get_attendance_admin_today', { p_work_date: workDate });
         const rows = Array.isArray(data?.rows) ? data.rows : [];
-        list.replaceChildren();
-        if (!rows.length) {
-          list.append(node('p', '이 날짜에 현재 근태 대상 직원이 없습니다.', 'empty'));
-          return;
-        }
+        const fragment = document.createDocumentFragment();
         for (const row of rows) {
-          const line = node('article', null, 'attendance-row');
-          line.append(node('div', `${row.display_name || '직원'} · ${row.employee_id || ''}`, 'attendance-person'));
-          for (const [eventType, labelText] of [['clock_in', '출근'], ['clock_out', '퇴근']]) {
-            const record = row[eventType];
-            const cell = node('div', null, 'attendance-cell');
-            cell.append(
-              node('span', labelText, 'eyebrow'),
-              node('strong', `${record?.event_at ? kstTime(record.event_at) : '-'} · ${statusLabel(record)}`)
-            );
-            if (record?.correction_reason) cell.append(node('p', `최근 보정: ${record.correction_reason}`, 'attendance-correction-note'));
-            const actions = node('div', null, 'attendance-correction-actions');
-            const setTime = correctionActionButton(record?.event_at ? '시간 정정' : '누락 시간 추가');
-            setTime.addEventListener('click', async () => {
-              try {
-                if (await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'set_time', currentRecord: record })) await render();
-              } catch (error) { window.alert(error.message || '근태 보정을 처리하지 못했습니다.'); }
-            });
-            actions.append(setTime);
-            if (record?.event_at) {
-              const invalidate = correctionActionButton('무효 처리');
-              invalidate.addEventListener('click', async () => {
-                try {
-                  if (await createCorrection({ employeeUuid: row.employee_uuid, workDate, eventType, action: 'invalidate', currentRecord: record })) await render();
-                } catch (error) { window.alert(error.message || '근태 보정을 처리하지 못했습니다.'); }
-              });
-              actions.append(invalidate);
-            }
-            cell.append(actions);
-            const history = await correctionHistory(row.employee_uuid, workDate);
-            const related = history.filter(item => item.event_type === eventType);
-            if (related.length) cell.append(node('p', `보정 이력 ${related.length}건 · 최신 사유: ${related[0].reason}`, 'attendance-correction-history'));
-            line.append(cell);
-          }
-          list.append(line);
+          if (!list.isConnected || selectedVersion !== version) return;
+          const history = await correctionHistory(row.employee_uuid, workDate);
+          fragment.append(makeRow(row, workDate, history));
         }
+        if (!list.isConnected || selectedVersion !== version) return;
+        list.replaceChildren(fragment);
+        if (!rows.length) list.append(node('p', '이 날짜에 현재 근태 대상 직원이 없습니다.', 'empty'));
       } catch {
-        list.replaceChildren(node('p', '출근부를 불러오지 못했습니다.', 'message error'));
+        if (list.isConnected && selectedVersion === version) list.replaceChildren(node('p', '출근부를 불러오지 못했습니다.', 'message error'));
       }
     };
 

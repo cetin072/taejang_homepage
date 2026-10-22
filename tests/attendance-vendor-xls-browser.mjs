@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { chromium } from 'playwright';
+import { verifyIdentityUi } from './helpers/attendance-identity-browser.mjs';
 
 const require = createRequire(import.meta.url);
 const {simpleBiffWorkbook,wrapInLegacyCfb} = require('./helpers/anonymous-fingerprint-xls.cjs');
@@ -58,7 +59,8 @@ try {
         return false;
       });
       assert.equal(invalidFormatRejected,true,'Fake old Excel bytes must not be silently treated as records');
-      console.log(JSON.stringify({width:viewport.width,format:'OLE/BIFF8',rows:value.parsed,
+      await verifyIdentityUi(page, preview);
+      console.log(JSON.stringify({identityUi:'PASS',width:viewport.width,format:'OLE/BIFF8',rows:value.parsed,
         invalidRows:value.invalid,onDemandReader:value.legacyLoaded}));
     } finally {
       await page.close();

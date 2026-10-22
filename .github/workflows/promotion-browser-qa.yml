@@ -39,6 +39,27 @@ jobs:
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 
+      - name: Verify employee credential reset PC and mobile flow
+        run: node tests/employee-password-reset-browser.mjs
+
+      - name: Verify employee reset assets on exact-head Preview
+        if: github.event_name == 'pull_request'
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util, os, pathlib, subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          subprocess.run(['node', 'tests/employee-password-reset-browser.mjs'],
+                         env={**os.environ, 'EMPLOYEE_PREVIEW_URL': preview}, check=True)
+          PYTHON
+
+
 
       - name: Run synthetic admin UI keyboard and form QA
         env:
@@ -56,6 +77,7 @@ jobs:
           UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_TOKEN: ${{ github.token }}
           AUTHORING_QA_OUTPUT: authoring-ui-preview-qa-artifacts
+          CORRECTION_QA_OUTPUT: authoring-ui-preview-qa-artifacts/attendance-correction
         run: |
           python3 - <<'PYTHON'
           import importlib.util, os, pathlib, subprocess
@@ -65,6 +87,8 @@ jobs:
           contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
           preview = uar.wait_for_preview(contract, os.environ.copy())
           subprocess.run(['node', 'tests/admin-authoring-browser.mjs'], check=True,
+                         env={**os.environ, 'PREVIEW_URL': preview})
+          subprocess.run(['node', 'tests/attendance-correction-browser.mjs'], check=True,
                          env={**os.environ, 'PREVIEW_URL': preview})
           PYTHON
 
@@ -139,7 +163,10 @@ jobs:
       - name: Run attendance PC and mobile fixture QA
         env:
           ATTENDANCE_QA_OUTPUT: attendance-qa-artifacts
-        run: node tests/issue-426-attendance-browser.mjs
+          CORRECTION_QA_OUTPUT: attendance-qa-artifacts/correction
+        run: |
+          node tests/issue-426-attendance-browser.mjs
+          node tests/attendance-correction-browser.mjs
 
       - name: Run employee list and profile PC and mobile fixture QA
         env:

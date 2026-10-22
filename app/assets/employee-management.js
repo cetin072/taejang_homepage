@@ -819,6 +819,96 @@
     card.append(actions); return card;
   }
 
+
+  function passwordResetPanel(employee) {
+    const wrap=el('div',null,'employee-reset-panel');
+    const feedback=el('p','초기화 가능 여부 확인 중…','help');feedback.setAttribute('role','status');wrap.append(feedback);
+    if(!app()?.can?.('employee.password_reset')) {feedback.textContent='초기화 권한이 없습니다.';return wrap;}
+    (async()=>{
+      try {
+        const opt=await app().rpc('employee_password_reset_option',{p_employee_uuid:employee.id});
+        if(!wrap.isConnected)return;
+        if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
+        const open=button('비밀번호 초기화',()=>{
+          if(open.disabled)return;
+          const dialog=el('dialog',null,'employee-reset-confirm');
+          dialog.setAttribute('aria-label','비밀번호 초기화 확인');
+          dialog.append(el('h3',employee.full_name+' 직원의 비밀번호를 초기화하시겠습니까?'),
+            el('p','기존 비밀번호는 사용할 수 없게 됩니다.'),
+            el('p','직원 본인의 요청을 확인했다면 계속 진행하세요.'));
+          const cancel=button('취소',()=>dialog.close(),true);
+          const confirm=button('초기화',async()=>{
+            if(open.disabled)return;
+            open.disabled=true;dialog.close();feedback.textContent='초기화 중…';
+            let sent=false;
+            try {
+              const cfg=await config(),base=new URL(cfg.url);
+              const local=/^(localhost|127\.0\.0\.1)$/.test(base.hostname);
+              if(location.origin!=='https://taejang.co.kr'&&!local)throw Error('Preview에서는 운영 계정을 초기화할 수 없습니다.');
+              if(!local&&(base.protocol!=='https:'||!base.hostname.endsWith('.supabase.co')))throw Error('서버 설정을 확인하세요.');
+              const token=app()?.getSession?.()?.access_token;
+              if(!token)throw Error('다시 로그인하세요.');
+              sent=true;
+              const response=await fetch(base.origin+'/functions/v1/employee-password-reset',{
+                method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(30000),
+                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                body:JSON.stringify({employee_uuid:employee.id,request_confirmed:true})
+              });
+              const result=await response.json();
+              if(!response.ok||!result.ok) {
+                const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
+                  SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',
+                  REAUTH_REQUIRED:'안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',
+                  LOGIN_REQUIRED:'다시 로그인한 뒤 진행하세요.',
+                  RATE_LIMITED:'요청이 많습니다. 잠시 후 다시 시도하세요.',
+                  POLICY_REJECTED:'서버 비밀번호 보안정책에서 거부했습니다. 운영총괄에게 문의하세요.',
+                  RESULT_UNKNOWN:'처리 결과 확인이 필요합니다. 다시 실행하지 말고 운영총괄에게 문의하세요.',
+                  REQUEST_PENDING:'이전 요청 결과 확인이 필요합니다. 중복 실행하지 마세요.'};
+                // Only explicit non-mutation responses allow another attempt.
+                if(['RESET_NOT_READY','SELF_CHANGE_NOT_READY','REAUTH_REQUIRED','LOGIN_REQUIRED','RATE_LIMITED',
+                  'POLICY_REJECTED','INVALID_INPUT','FORBIDDEN','PROTECTED_ACCOUNT','TARGET_CHANGED',
+                  'AUTH_UNAVAILABLE','RESERVATION_FAILED','ORIGIN_FORBIDDEN'].includes(result.code))sent=false;
+                throw Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+              }
+              if(!/^\d{16}$/.test(result.temporary_password))throw Error('처리 결과 확인이 필요합니다. 재실행하지 마세요.');
+              feedback.textContent='초기화 완료';
+              const resultPanel=el('div');
+              const secret=el('output',result.temporary_password);secret.setAttribute('aria-label','일회 표시 임시 비밀번호');
+              result.temporary_password='';
+              const copy=button('비밀번호 복사',async()=>{
+                if(!secret.textContent)return;
+                try {await navigator.clipboard.writeText(secret.textContent);copy.textContent='복사 완료';}
+                catch {feedback.textContent='복사하지 못했습니다. 표시된 비밀번호를 직원에게 직접 전달하세요.';}
+              },true);
+              let timer;
+              const clear=()=>{
+                secret.textContent='';copy.disabled=true;clearTimeout(timer);
+                window.removeEventListener('pagehide',clear);document.removeEventListener('visibilitychange',onVisibility);
+                resultPanel.replaceChildren(el('p','임시 비밀번호를 숨겼습니다. 직원 본인 변경 페이지에서 새 비밀번호로 변경하도록 안내하세요.'));
+              };
+              const onVisibility=()=>{if(document.hidden)clear();};
+              const hide=button('전달 완료 · 비밀번호 지우기',clear,true);
+              resultPanel.append(secret,copy,el('p','한 번만 표시되며 60초 후 숨겨집니다. 직원에게 직접 전달하세요.'),
+                el('p','본인 변경: https://taejang.co.kr/staff/change-password.html'),hide);
+              if(wrap.isConnected)wrap.append(resultPanel);else clear();
+              timer=setTimeout(clear,60000);window.addEventListener('pagehide',clear);
+              document.addEventListener('visibilitychange',onVisibility);
+            } catch(error) {
+              feedback.textContent=sent?'처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.':error.message;
+              open.disabled=sent;
+            }
+          });
+          const actions=el('div',null,'quick-links');actions.append(cancel,confirm);dialog.append(actions);
+          dialog.addEventListener('close',()=>{dialog.remove();open.focus();},{once:true});
+          wrap.append(dialog);dialog.showModal();cancel.focus();
+        },true);
+        feedback.textContent='';
+        wrap.append(open);
+      } catch {feedback.textContent='초기화 서비스가 준비되지 않았습니다.';}
+    })();
+    return wrap;
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
@@ -828,7 +918,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel,
+      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {

@@ -24,7 +24,8 @@ Android package: `com.cetin072.taejang.staff`
 - 가격: 무료
 - 최초 Android versionCode: `1`
 - Console 직접 확인(2026-10-19): 전체 App Bundle 5개(code1~5), 최고 `0.1.4` / code`5`, 비공개 테스트 - Alpha 전체 출시/테스터에게 제공. code5 재사용 불가
-- 다음 출시 candidate: **`0.1.5` / versionCode `6`** — Issue #484에서 충돌을 확인하고 사용자가 명시 승인. 업로드 직전 최고 code 재확인
+- 2026-10-20 확인 이력: **`0.1.5` / versionCode `6`**는 Closed Testing Alpha에 게시되고 Galaxy에서 무삭제 업데이트 성공([Issue #484](https://github.com/cetin072/taejang_homepage/issues/484)).
+- 2026-10-22 사용자 QA 수용 후 **다음 준비 후보: `0.1.6` / versionCode `7`**. 아직 Play 업로드/심사/게시된 버전이 아니며 전체 트랙·초안 최고 code 확인 후 제출. [0.1.6 출시 체크리스트](MOBILE_RELEASE_0_1_6_20261022.md).
 
 패키지명은 최초 Play 업로드 이후 장기 식별자로 취급한다. 새 Play 빌드마다 versionCode를 증가시킨다. 모든 트랙/초안의 최고 업로드 code를 확인한 뒤에만 다음 번호를 확정한다. 현재 출시 절차는 [Issue #484 운영 기록](ISSUE_484_PLAY_OPTIONAL_UPDATE_RELEASE.md)을 따른다. 이전 통합 검사·단일 APK 전달·서명·정책 활성화 순서는 [2026-10-12 출시 준비](MOBILE_CLOSED_TESTING_READINESS_20261012.md)를 따른다.
 

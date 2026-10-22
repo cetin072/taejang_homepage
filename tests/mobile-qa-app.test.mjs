@@ -30,8 +30,8 @@ test('production and QA variants share one source while keeping separate Android
   const qa = loadConfigFor('qa');
 
   assert.deepEqual(loadConfigFor('production'), production);
-  assert.equal(production.version, '0.1.5');
-  assert.equal(production.android.versionCode, 6);
+  assert.equal(production.version, '0.1.6');
+  assert.equal(production.android.versionCode, 7);
   assert.deepEqual(production.splash, baseExpoConfig().splash);
   assert.deepEqual(production.plugins, baseExpoConfig().plugins);
   assert.equal(production.icon, baseExpoConfig().icon);

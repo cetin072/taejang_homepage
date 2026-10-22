@@ -126,3 +126,12 @@ test('QA general employee perspective hides work platform without changing accou
   assert.equal(production.find(node => node?.type === 'AttendanceCard').props.mode, 'record');
   assert.equal(production.some(node => node?.type === 'QaPreviewControls'), false);
 });
+
+
+test('staff and QA operations lead mount the same notice section without attendance sizing', () => {
+  const access = { account_status: 'active', capabilities: ['employee.view_all'] };
+  const staff = renderHome(access).find(node => node?.type === 'NoticeHomeAction');
+  const qa = renderHome(access, 'ready', true, 'operations_lead').find(node => node?.type === 'NoticeHomeAction');
+  assert.deepEqual({ ...qa.props }, { ...staff.props });
+  assert.equal(staff.props.minHeight, undefined);
+});

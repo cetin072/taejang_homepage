@@ -1,0 +1,51 @@
+# User-authorized, Taejang-only, expiring 2026-10-22 Production exception.
+# This file is triggered only by the initial main merge of THIS workflow file.
+# Existing 48-hour regular workflow, cron and release policy are not modified.
+name: Taejang emergency one-off Production 2026-10-22
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/taejang-emergency-one-off-20261022.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: taejang-production-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.repository == 'cetin072/taejang_homepage' &&
+      github.ref == 'refs/heads/main' &&
+      github.run_attempt == 1 &&
+      contains(github.event.head_commit.message, '[taejang-production-once-20261022]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify scheduled guard and one-off authorizations
+        run: node --test tests/scheduled-netlify-release.test.mjs tests/emergency-netlify-release-20261022.test.mjs
+      - name: Build and test public site
+        run: |
+          npm ci
+          npm run build:netlify
+          npm run test:public
+      - name: Publish approved main to Taejang ONLY and verify Netlify Production
+        env:
+          RELEASE_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          GH_TOKEN: ${{ github.token }}
+          NETLIFY_PRODUCTION_BUILD_HOOK: ${{ secrets.NETLIFY_PRODUCTION_BUILD_HOOK }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PRODUCTION_SUPABASE_PROJECT_REF: jgsxpdflgkqroecfjzxq
+        run: node scripts/emergency-netlify-release-20261022.mjs

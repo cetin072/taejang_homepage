@@ -18,7 +18,7 @@ export function calendarSlot(config, at) {
     slot: due ? { index, start_utc: new Date(start).toISOString(), expires_utc: new Date(start + 24 * HOUR).toISOString() } : null,
     next_check_utc: new Date(anchor + Math.max(1, index + 1) * 48 * HOUR).toISOString() };
 }
-export function evaluateSchedule(config, run, history, now) {
+export function evaluateSchedule(config, run, history, now, eligibleAt = null) {
   if (!run?.id || run.head_branch !== 'main' || run.event !== 'schedule') throw new Error('INVALID_LIVE_RUN');
   const result = calendarSlot(config, run.created_at);
   if (result.status !== 'DUE') return result;
@@ -27,7 +27,14 @@ export function evaluateSchedule(config, run, history, now) {
   for (const other of history) {
     if (other.id === run.id || other.event !== 'schedule' || other.head_branch !== 'main') continue;
     if (Date.parse(other.created_at) > Date.parse(run.created_at) || (other.created_at === run.created_at && BigInt(other.id) > BigInt(run.id))) continue;
-    if (calendarSlot(config, other.created_at).slot?.index === result.slot.index) return { ...result, status: 'SLOT_ALREADY_CHECKED' };
+    if (calendarSlot(config, other.created_at).slot?.index !== result.slot.index) continue;
+    // The prior wake-up can only be ignored when it completed before the
+    // minimum 48-hour interval elapsed. All uncertain, incomplete or later
+    // checks still block a second release attempt in this same slot.
+    if (eligibleAt !== null && Date.parse(other.created_at) < eligibleAt
+      && other.status === 'completed' && Number.isFinite(Date.parse(other.updated_at))
+      && Date.parse(other.updated_at) < eligibleAt) continue;
+    return { ...result, status: 'SLOT_ALREADY_CHECKED' };
   }
   return result;
 }
@@ -97,7 +104,7 @@ export async function trigger(config, payload, hookUrl, { fetcher = fetch, wait 
 }
 export async function runCycle({ config, env, api, snapshot, head, files, preflight, refresh, post, now = () => new Date() }) {
   const dryRun = env.GITHUB_EVENT_NAME !== 'schedule';
-  let schedule = calendarSlot(config, now()), run;
+  let schedule = calendarSlot(config, now()), run, published;
   if (!dryRun) {
     if (env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_REPOSITORY !== config.repository) throw new Error('MAIN_SCHEDULE_REQUIRED');
     run = await api('/actions/runs/' + env.GITHUB_RUN_ID);
@@ -106,10 +113,14 @@ export async function runCycle({ config, env, api, snapshot, head, files, prefli
     const query = new URLSearchParams({ branch: 'main', per_page: '100', created: schedule.slot.start_utc + '..' + schedule.slot.expires_utc });
     const history = await api('/actions/workflows/' + config.workflow + '/runs?' + query);
     if (!Array.isArray(history.workflow_runs) || history.total_count > history.workflow_runs.length || history.workflow_runs.length >= 100) throw new Error('SLOT_HISTORY_INCOMPLETE');
-    schedule = evaluateSchedule(config, run, history.workflow_runs, now());
+    // Before deduplication, compare prior wake-up completion against the
+    // actual published Production timestamp plus the strict 48-hour delay.
+    published = publishedDeploy(await snapshot(), config.site_id);
+    schedule = evaluateSchedule(config, run, history.workflow_runs, now(),
+      Date.parse(published.published_at) + 48 * HOUR);
     if (schedule.status !== 'DUE') return schedule;
   }
-  const published = publishedDeploy(await snapshot(), config.site_id);
+  published ??= publishedDeploy(await snapshot(), config.site_id);
   const sha = await head();
   const plan = { ...decide(config, published, sha, await files(published.commit_ref, sha), now()),
     next_check_utc: schedule.next_check_utc };
@@ -127,7 +138,60 @@ export async function runCycle({ config, env, api, snapshot, head, files, prefli
     source_main_sha: sha, run_id: String(run.id), run_created_at: run.created_at,
     slot_index: schedule.slot.index, issued_at: now().toISOString() }) };
 }
+// One user-authorized exception on 2026-10-22 for Taejang ONLY.
+// Expires tonight KST; never alters the 48-hour cron, normal scheduled guard or policy.
+export const ONE_OFF_20261022 = Object.freeze({
+  kind: 'taejang-one-off-20261022',
+  previous_deploy_id: '6ad8865bbaba5eab44351aab',
+  previous_commit_ref: '8ab1e66c3cc3da633304f58aa394cd145c1b7f8a',
+  expires_at: '2026-10-22T15:00:00.000Z',
+});
+export function validateOneOffHook(config, env, now) {
+  if (env.CONTEXT !== 'production') return null;
+  let body;
+  const raw = env.INCOMING_HOOK_BODY || '';
+  try { body = JSON.parse(raw); } catch {
+    try { body = JSON.parse(decodeURIComponent(raw)); } catch { return null; }
+  }
+  if (body?.release_kind !== ONE_OFF_20261022.kind) return null;
+  const current = new Date(now).getTime();
+  const issued = Date.parse(body.issued_at);
+  const valid = config.repository === 'cetin072/taejang_homepage'
+    && config.site_id === '9caa5a1a-f86d-4a9f-aed4-f560e1c2101f'
+    && env.BRANCH === 'main' && env.INCOMING_HOOK_TITLE === HOOK_TITLE
+    && SHA.test(env.COMMIT_REF || '') && env.COMMIT_REF === body.source_main_sha
+    && body.repository === config.repository && body.site_id === config.site_id
+    && body.version === 1 && /^\d+$/.test(String(body.run_id))
+    && body.previous_commit_ref === ONE_OFF_20261022.previous_commit_ref
+    && body.previous_deploy_id === ONE_OFF_20261022.previous_deploy_id
+    && Number.isFinite(current) && Number.isFinite(issued)
+    && issued >= Date.parse('2026-10-22T10:00:00.000Z')
+    && issued <= current && current - issued <= 90 * 60000
+    && current < Date.parse(ONE_OFF_20261022.expires_at);
+  if (!valid) throw new Error('ONE_OFF_HOOK_INVALID');
+  return body;
+}
 export async function guard(config, env = process.env, { fetcher = fetch, now = new Date() } = {}) {
+  const oneOff = validateOneOffHook(config, env, now);
+  if (oneOff) {
+    const published = publishedDeploy(await publicSite(config, fetcher), config.site_id);
+    if (published.id !== ONE_OFF_20261022.previous_deploy_id
+      || published.commit_ref !== ONE_OFF_20261022.previous_commit_ref) {
+      throw new Error('ONE_OFF_PUBLICATION_CHANGED');
+    }
+    if (config.marker_path) {
+      const markerPath = resolve(config.marker_path);
+      let previous = {};
+      try { previous = JSON.parse(readFileSync(markerPath, 'utf8')); } catch {}
+      mkdirSync(dirname(markerPath), { recursive: true });
+      writeFileSync(markerPath, JSON.stringify({ ...previous,
+        source_main_sha: oneOff.source_main_sha, released_at_utc: new Date(now).toISOString(),
+        released_on_kst: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now),
+        interval_days: 2, release_attempt: (previous.release_attempt || 0) + 1,
+        release_run_id: oneOff.run_id, release_type: ONE_OFF_20261022.kind }, null, 2) + '\n');
+    }
+    return { status: 'ONE_OFF_PRODUCTION_ALLOWED', source_main_sha: oneOff.source_main_sha };
+  }
   const payload = validateHook(config, env, now);
   if (!payload) return { status: 'PREVIEW_ALLOWED' };
   const published = publishedDeploy(await publicSite(config, fetcher), config.site_id);

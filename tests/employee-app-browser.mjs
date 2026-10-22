@@ -83,7 +83,9 @@ try {
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const response = await gotoPublicReady(page, base + '/employee-app.html', output);
+    // Hosted Deploy Preview can stall while starting its CDN route; keep all rendering assertions unchanged.
+    const response = await gotoPublicReady(page, base + '/employee-app.html', output,
+      base.startsWith('https://') ? 90000 : 30000);
     assert.equal(response?.status(), 200, name + ': HTML route');
     await page.evaluate(() => document.fonts.ready);
     assert.equal(await page.locator('h1').count(), 1);

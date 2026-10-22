@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 type JsonRecord = Record<string, unknown>;
 type PushItem = {
   delivery_id: string;
+  device_id: string;
   expo_push_token: string;
   title: string;
   body: string;
@@ -14,8 +15,6 @@ type ReceiptItem = { delivery_id: string; ticket_id: string };
 const SEND_URL = 'https://exp.host/--/api/v2/push/send';
 const RECEIPT_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 const JSON_HEADERS = { 'content-type': 'application/json; charset=utf-8' };
-const MAX_DISPATCH_BATCH = 100;
-const MAX_RECEIPT_BATCH = 500;
 
 function envRequired(name: string) {
   const value = Deno.env.get(name)?.trim();
@@ -68,7 +67,7 @@ function receiptErrorCode(receipt: unknown) {
 
 const supabaseUrl = envRequired('SUPABASE_URL');
 const serviceRoleKey = envRequired('SUPABASE_SERVICE_ROLE_KEY');
-const dispatchKey = envRequired('NOTIFICATION_DISPATCH_KEY');
+const dispatchKey = Deno.env.get('NOTIFICATION_DISPATCH_KEY')?.trim();
 
 const internalClient = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -82,7 +81,7 @@ async function completeTicket(
   errorCode: string | null,
   retrySeconds = 60,
 ) {
-  const { error } = await internalClient.rpc('private_complete_notification_push_ticket', {
+  const { data, error } = await internalClient.rpc('private_complete_notification_push_ticket', {
     p_delivery_id: deliveryId,
     p_claim_token: claimToken,
     p_outcome: outcome,
@@ -93,17 +92,52 @@ async function completeTicket(
   if (error) throw error;
 }
 
+function canaryConfiguration(requireEnabled: boolean) {
+  if (requireEnabled && Deno.env.get('NOTIFICATION_DISPATCH_ENABLED') !== 'true') {
+    return { blocked: 'DISPATCH_DISABLED' };
+  }
+  const startAt = Deno.env.get('NOTIFICATION_DISPATCH_START_AT') || '';
+  const endAt = Deno.env.get('NOTIFICATION_DISPATCH_END_AT') || '';
+  const deviceId = Deno.env.get('NOTIFICATION_CANARY_DEVICE_ID') || '';
+  const noticeId = Deno.env.get('NOTIFICATION_CANARY_NOTICE_ID') || '';
+  const version = Number(Deno.env.get('NOTIFICATION_CANARY_NOTICE_VERSION'));
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!Number.isFinite(Date.parse(startAt)) || !Number.isFinite(Date.parse(endAt)) ||
+      Date.parse(endAt) <= Date.parse(startAt) || Date.parse(endAt) - Date.parse(startAt) > 3600000 ||
+      !uuid.test(deviceId) || !uuid.test(noticeId) || !Number.isSafeInteger(version) || version < 1) {
+    return { blocked: 'CANARY_CONFIGURATION_REQUIRED' };
+  }
+  if (requireEnabled && (Date.now() < Date.parse(startAt) || Date.now() >= Date.parse(endAt))) {
+    return { blocked: 'CANARY_WINDOW_CLOSED' };
+  }
+  return { params: { p_device_id: deviceId, p_notice_id: noticeId,
+    p_notice_version: version, p_start_at: startAt } };
+}
+
 async function dispatchPushBatch() {
+  const gate = canaryConfiguration(true);
+  if ('blocked' in gate) return { ...gate, claimed: 0 };
   const claimToken = crypto.randomUUID();
-  const { data, error } = await internalClient.rpc('private_claim_notification_push_batch', {
-    p_claim_token: claimToken,
-    p_limit: MAX_DISPATCH_BATCH,
+  const { data, error } = await internalClient.rpc('private_claim_notification_canary', {
+    ...gate.params, p_claim_token: claimToken, p_mode: 'dispatch',
   });
   if (error) throw error;
-
   const items = asArray<PushItem>(data);
   if (!items.length) return { claimed: 0, accepted: 0, retry: 0, failed: 0, unregistered: 0 };
-
+  // Revalidate current account/device/notice/version immediately before transport.
+  const checked = await internalClient.rpc('private_claim_notification_canary', {
+    ...gate.params, p_claim_token: claimToken, p_mode: 'validate',
+  });
+  if (checked.error) throw checked.error;
+  const fresh = asArray<PushItem>(checked.data);
+  if (items.length !== 1 || fresh.length !== 1 || fresh[0].delivery_id !== items[0].delivery_id ||
+      fresh[0].expo_push_token !== items[0].expo_push_token ||
+      fresh[0].device_id !== gate.params.p_device_id ||
+      fresh[0].data.noticeId !== gate.params.p_notice_id ||
+      fresh[0].data.noticeVersion !== gate.params.p_notice_version) {
+    await Promise.all(items.map(item => completeTicket(item.delivery_id, claimToken, 'failed', null, 'CANARY_SCOPE_BLOCKED', 0)));
+    return { blocked: 'CANARY_SCOPE_BLOCKED', claimed: items.length, accepted: 0 };
+  }
   const messages = items.map(item => ({
     to: item.expo_push_token,
     title: item.title,
@@ -120,28 +154,21 @@ async function dispatchPushBatch() {
       method: 'POST',
       headers: expoHeaders(),
       body: JSON.stringify(messages),
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
-    await internalClient.rpc('private_release_notification_push_claim', {
-      p_claim_token: claimToken,
-      p_error_code: 'EXPO_NETWORK_ERROR',
-    });
-    return { claimed: items.length, accepted: 0, retry: items.length, failed: 0, unregistered: 0 };
+    // A lost HTTP response can hide an accepted send. Never resend that unknown
+    // outcome automatically; retain a failed row for operator reconciliation.
+    await Promise.all(items.map(item => completeTicket(
+      item.delivery_id, claimToken, 'failed', null, 'EXPO_SEND_OUTCOME_UNKNOWN', 0,
+    )));
+    return { claimed: items.length, accepted: 0, retry: 0, failed: items.length, unregistered: 0 };
   }
 
   if (!response.ok) {
-    const retryable = response.status === 429 || response.status >= 500;
-    if (retryable) {
-      await internalClient.rpc('private_release_notification_push_claim', {
-        p_claim_token: claimToken,
-        p_error_code: `EXPO_HTTP_${response.status}`,
-      });
-      return { claimed: items.length, accepted: 0, retry: items.length, failed: 0, unregistered: 0 };
-    }
-
-    await Promise.all(items.map(item =>
-      completeTicket(item.delivery_id, claimToken, 'failed', null, `EXPO_HTTP_${response.status}`, 0)
-    ));
+    // One-device activation never automatically retries even an explicit rejection.
+    await Promise.all(items.map(item => completeTicket(item.delivery_id, claimToken, 'failed', null,
+      response.status >= 500 ? 'EXPO_SEND_OUTCOME_UNKNOWN' : `EXPO_HTTP_${response.status}`, 0)));
     return { claimed: items.length, accepted: 0, retry: 0, failed: items.length, unregistered: 0 };
   }
 
@@ -168,8 +195,8 @@ async function dispatchPushBatch() {
       unregistered += 1;
       await completeTicket(item.delivery_id, claimToken, 'device_unregistered', null, code, 0);
     } else if (code === 'MessageRateExceeded') {
-      retry += 1;
-      await completeTicket(item.delivery_id, claimToken, 'retry', null, code, 120);
+      failed += 1;
+      await completeTicket(item.delivery_id, claimToken, 'failed', null, code, 0);
     } else {
       failed += 1;
       await completeTicket(item.delivery_id, claimToken, 'failed', null, code, 0);
@@ -195,10 +222,11 @@ async function completeReceipt(
 }
 
 async function checkPushReceipts() {
+  const gate = canaryConfiguration(false);
+  if ('blocked' in gate) return { ...gate, claimed: 0 };
   const claimToken = crypto.randomUUID();
-  const { data, error } = await internalClient.rpc('private_claim_notification_receipt_batch', {
-    p_claim_token: claimToken,
-    p_limit: MAX_RECEIPT_BATCH,
+  const { data, error } = await internalClient.rpc('private_claim_notification_canary', {
+    ...gate.params, p_claim_token: claimToken, p_mode: 'receipts',
   });
   if (error) throw error;
 
@@ -211,6 +239,7 @@ async function checkPushReceipts() {
       method: 'POST',
       headers: expoHeaders(),
       body: JSON.stringify({ ids: items.map(item => item.ticket_id) }),
+      signal: AbortSignal.timeout(15000),
     });
   } catch {
     await Promise.all(items.map(item => completeReceipt(item.delivery_id, claimToken, 'pending', 'EXPO_RECEIPT_NETWORK')));
@@ -275,7 +304,7 @@ Deno.serve(async req => {
   if (req.method !== 'POST') return responseJson(405, { ok: false, code: 'METHOD_NOT_ALLOWED' });
 
   const providedKey = req.headers.get('x-taejang-notification-key')?.trim() || '';
-  if (!providedKey || providedKey !== dispatchKey) {
+  if (!dispatchKey || !providedKey || providedKey !== dispatchKey) {
     return responseJson(403, { ok: false, code: 'NOTIFICATION_DISPATCH_FORBIDDEN' });
   }
 
@@ -293,11 +322,8 @@ Deno.serve(async req => {
     const result = mode === 'dispatch' ? await dispatchPushBatch() : await checkPushReceipts();
     safeLog('notification_dispatch_completed', { mode, ...result });
     return responseJson(200, { ok: true, mode, ...result });
-  } catch (error) {
-    const code = error && typeof error === 'object' && 'message' in error
-      ? String((error as { message?: unknown }).message || 'NOTIFICATION_DISPATCH_FAILED')
-      : 'NOTIFICATION_DISPATCH_FAILED';
-    safeLog('notification_dispatch_failed', { mode, code: code.slice(0, 120) });
+  } catch {
+    safeLog('notification_dispatch_failed', { mode });
     return responseJson(500, { ok: false, code: 'NOTIFICATION_DISPATCH_FAILED' });
   }
 });
