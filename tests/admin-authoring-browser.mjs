@@ -13,8 +13,18 @@ const output=process.env.AUTHORING_QA_OUTPUT||path.join(os.tmpdir(),'taejang-aut
 await fs.mkdir(output,{recursive:true});
 const load=async file=>{
   if(preview&&/^(app|staff)\//.test(file)){
-    const response=await fetch(preview+'/'+file,{signal:AbortSignal.timeout(20000)});
-    assert.ok(response.ok,'deployed asset: '+file);return response.text();
+    // Exact-head Preview may intermittently time out. Retry source reads,
+    // never fall back to local files or silently accept a missing form.
+    for(let attempt=1;attempt<=3;attempt++){
+      try{
+        const response=await fetch(preview+'/'+file,{signal:AbortSignal.timeout(20000)});
+        assert.ok(response.ok,'deployed asset: '+file+' HTTP '+response.status);
+        return await response.text();
+      }catch(error){
+        if(attempt===3)throw error;
+        await new Promise(resolve=>setTimeout(resolve,1000));
+      }
+    }
   }
   return baseline&&/^(app|staff)\//.test(file)
     ?execFileSync('git',['show',baseline+':'+file],{encoding:'utf8'})
@@ -56,7 +66,9 @@ try{
     const gates=['operations-public-text-edit','compact-admin-form','operations-owned-promotion','general-worker-browser','promotion-browser','promotion-authoring-upload','promotion-archive-delete','promotion-public-link-rendering','promotion-v2-publication','sidebar-runtime','notice-authoring-ux'];
     for(const width of [1440,390])for(const gate of gates){
       const page=await browser.newPage({viewport:{width,height:1000}});
-      await page.goto(base+'/tests/browser/'+gate+'-gate.html');
+      const result=await page.goto(base+'/tests/browser/'+gate+'-gate.html',
+        {waitUntil:'domcontentloaded',timeout:90000});
+      assert.equal(result?.status(),200,'fixture loaded: '+gate);
       await page.waitForFunction(()=>/GATE_(?:PASS|FAIL)/.test(document.getElementById('result')?.textContent||''),null,{timeout:30000});
       const expected=gate.replaceAll('-','_').toUpperCase()+'_GATE_PASS',result=await page.locator('#result').innerText();
       assert.ok(result===expected||result.startsWith(expected+':'),gate+' original functional assertions: '+result);
@@ -92,7 +104,10 @@ try{
       await page.screenshot({path:path.join(output,(baseline?'before-':'after-')+name+'-'+width+'.png'),fullPage:true});
     };
     for(const id of ['notice-form','task-form','information-form','guide-form','guide-step-form','schedule-form','guidance-form']){
-      await page.goto(base+'/static/'+id);await inspect(id);
+      const response=await page.goto(base+'/static/'+id,{timeout:90000});
+      assert.equal(response?.status(),200,'fixture loaded: '+id);
+      await page.locator('.app-authoring').first().waitFor({timeout:20000});
+      await inspect(id);
       const long=page.locator('textarea').first();
       if(await long.count())assert.ok((await long.boundingBox()).width>Math.min(width*.55,300),'long fields retain full width');
     }
