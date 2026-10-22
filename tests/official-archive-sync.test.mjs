@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { parseNaver, parseYoutube, channelIdFromHtml, blogImageFromHtml, naverId, isDue,
-  mergeEntries, synchronize } from '../scripts/sync-official-archive.mjs';
+  mergeEntries, synchronize, slotAt, operationStatus } from '../scripts/sync-official-archive.mjs';
 
 const CHANNEL = 'UC' + 'a'.repeat(22);
 const RSS = '<rss version="2.0"><channel><item>' +
@@ -98,6 +98,30 @@ test('One inaccessible source does not block verified data from the other', asyn
   assert.equal(result.feedOk.youtube, false);
   assert.equal(result.newItems, 1);
   assert.equal(result.applied, false);
+  assert.equal(result.status, 'PARTIAL');
+});
+
+test('Delayed or missed wake-up recovers the latest 72-hour slot without duplicating a completed slot', () => {
+  assert.equal(slotAt('2026-10-22T04:39:00Z'), '2026-10-22T00:10:00.000Z');
+  assert.equal(isDue('2026-10-23T00:10:00Z', null), true);
+  assert.equal(isDue('2026-10-23T00:10:00Z', '2026-10-22T00:10:00.000Z'), false);
+  assert.equal(isDue('2026-10-26T00:10:00Z', '2026-10-22T00:10:00.000Z'), true);
+  assert.equal(slotAt('2026-10-25T00:09:59Z'), '2026-10-22T00:10:00.000Z');
+  assert.equal(slotAt('2026-10-25T00:10:00Z'), '2026-10-25T00:10:00.000Z');
+});
+
+test('Both healthy feeds with no additions report NO_CHANGES', async () => {
+  const report = await synchronize({ naver: async () => [], youtube: async () => [] });
+  assert.equal(report.status, 'NO_CHANGES');
+  assert.equal(report.applied, false);
+});
+
+test('Pending review is visible without hiding a channel failure', () => {
+  assert.equal(operationStatus('PASS', 1), 'PENDING_REVIEW');
+  assert.equal(operationStatus('NO_CHANGES', 1), 'PENDING_REVIEW');
+  assert.equal(operationStatus('PARTIAL', 1), 'PARTIAL');
+  assert.equal(operationStatus('FAIL', 1), 'FAIL');
+  assert.equal(operationStatus('NO_CHANGES', 0), 'NO_CHANGES');
 });
 
 test('Client-side updates use the existing hub and do not touch original entries', async () => {

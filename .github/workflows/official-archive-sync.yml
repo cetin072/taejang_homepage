@@ -19,6 +19,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      ARCHIVE_STATE: official-archive-state.json
+      ARCHIVE_REPORT: official-archive-report.json
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,6 +29,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
+      - uses: actions/cache/restore@v4
+        if: github.event_name == 'schedule'
+        with:
+          path: ${{ env.ARCHIVE_STATE }}
+          key: official-archive-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: official-archive-state-
 
       - name: Resolve exact three-day calendar slot
         id: slot
@@ -72,7 +82,7 @@ jobs:
             echo "PENDING_REVIEW: existing archive PR remains authoritative." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          branch="automation/official-archive-$(date -u +%Y%m%d)"
+          branch="automation/official-archive-${{ steps.slot.outputs.slot }}"
           if git ls-remote --exit-code --heads origin "$branch" > /dev/null 2>&1; then
             echo "::warning::This slot already created a branch; refusing duplicate publication."
             exit 0
@@ -87,3 +97,29 @@ jobs:
             --title "content(archive): new official Blog / YouTube posts" \
             --body "Automatically discovered official public posts. Original links, publication dates, unique IDs, and the existing card renderer are preserved. Human review and protected-main merge are mandatory. No direct Production deployment; the existing fixed 48-hour release policy is unchanged. Feed check and public regression evidence: see this workflow run."
           echo "CREATED_DRAFT_PR: awaiting review, not published." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Record collection and review status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/official-archive-status.mjs
+
+      - uses: actions/cache/save@v4
+        if: always() && github.event_name == 'schedule'
+        with:
+          path: ${{ env.ARCHIVE_STATE }}
+          key: official-archive-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: official-archive-status
+          path: |
+            ${{ env.ARCHIVE_STATE }}
+            ${{ env.ARCHIVE_REPORT }}
+          retention-days: 90
+
+      - name: Surface partial collection as a failed check
+        if: always()
+        run: node --input-type=module -e "import fs from 'node:fs'; const p=process.env.ARCHIVE_REPORT; if(fs.existsSync(p) && ['PARTIAL','FAIL'].includes(JSON.parse(fs.readFileSync(p)).status)) process.exit(1);"
