@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      ARCHIVE_STATE: ${{ runner.temp }}/official-archive-state.json
-      ARCHIVE_REPORT: ${{ runner.temp }}/official-archive-report.json
+      ARCHIVE_STATE: official-archive-state.json
+      ARCHIVE_REPORT: official-archive-report.json
     steps:
       - uses: actions/checkout@v4
         with:
