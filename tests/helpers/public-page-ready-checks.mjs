@@ -16,7 +16,9 @@ export async function checkReadinessBoundary(browser, output) {
       (url.pathname === '/toolbar-test' ? '<iframe src="/toolbar"></iframe>' : '') });
   });
   const page = await context.newPage();
-  await gotoPublicReady(page, 'https://readiness.invalid/toolbar-test', output, 1000);
+  // CI browser startup may exceed 1 s before the mocked main document is ready.
+  // Keep the blocked product-stylesheet case below at 1 s: it must still fail closed.
+  await gotoPublicReady(page, 'https://readiness.invalid/toolbar-test', output, 5000);
   await assert.rejects(page.waitForLoadState('networkidle', { timeout: 200 }), /Timeout/, 'a stalled iframe can prevent networkidle after product is ready');
   await assert.rejects(gotoPublicReady(page, 'https://readiness.invalid/product-failure', output, 1000), /product requests must finish|Timeout/, 'a stalled product stylesheet still fails');
   await context.close();

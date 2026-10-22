@@ -1,6 +1,6 @@
 {
   "name": "taejang-employee-mobile",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -18,7 +18,7 @@
     "expo-haptics": "57.0.3",
     "expo-linking": "57.0.13",
     "expo-location": "57.0.22",
-    "expo-notifications": "57.0.23",
+    "expo-notifications": "57.0.24",
     "expo-router": "57.0.29",
     "expo-secure-store": "57.0.4",
     "expo-splash-screen": "57.0.10",
