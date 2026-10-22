@@ -207,7 +207,7 @@ assert.deepEqual((await canary()).data,[],'cancelled event is never revived');
 fixtureUpdate('notices','version_no=version_no','id='+q(canaryNotice));
 assert.deepEqual((await canary()).data,[],'trigger upsert does not revive cancelled event');
 const approvedNotice=notice(); scope.p_notice_id=approvedNotice;
-const otherTarget=sql("insert into public.notices(notice_kind,importance,title,body_easy,publish_start_at,status,published_at,target_scope,target_profile_id,created_by,updated_by) values('safety','normal','other','fixture',now()-interval '1 minute','published',now(),'profile',"+q(other.id)+','+q(active.id)+','+q(active.id)+") returning id").split('\n')[0];
+const otherTarget=sql("insert into public.notices(notice_kind,importance,title,body_easy,change_reason,publish_start_at,status,published_at,target_scope,target_profile_id,created_by,updated_by) values('safety','normal','other','fixture','Scoped canary fixture',now()-interval '1 minute','published',now(),'profile',"+q(other.id)+','+q(active.id)+','+q(active.id)+") returning id").split('\n')[0];
 assert.deepEqual((await canary({p_notice_id:otherTarget})).data,[],'other account target excluded');
 const unrelatedSnapshot=()=>sql("select jsonb_build_object('events',(select jsonb_agg(e order by e.id) from public.notification_events e where notice_id<>"+q(approvedNotice)+"),'deliveries',(select jsonb_agg(d order by d.id) from public.notification_deliveries d where event_id not in(select id from public.notification_events where notice_id="+q(approvedNotice)+")))::text");
 const before=unrelatedSnapshot();
