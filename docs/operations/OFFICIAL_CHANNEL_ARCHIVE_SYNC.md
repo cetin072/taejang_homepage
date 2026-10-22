@@ -1,6 +1,15 @@
 # 공식 블로그·유튜브 아카이브 자동 확인
 
-상태: Draft 구현 후보. Production 배포 또는 자동 병합이 아님.
+상태: 공식 채널 자동 수집. 콘텐츠는 Draft PR 검수 후 병합한다.
+
+## 2026-10-23 복구 검증
+
+- 공식 `@taejangofficial/videos`에서 확인한 채널 ID는 `UCMxv6IBvVjkRnn6yHKdXJSg`이다. 수집은 이 ID로 Atom을 직접 조회한다. HTML 조회는 매 실행 의존에서 제외했다.
+- 최초 실행 #39723625234는 YouTube 호스트 HTTP 404를 기록했지만 URL 경로를 남기지 않아 HTML/Atom 중 어느 요청인지는 소급 확정할 수 없다. 복구 시 실제 HTML·Atom·Naver RSS가 모두 200이며 Atom의 영상 5건이 같은 채널임을 확인했다.
+- `official-archive-status` Actions artifact와 Summary가 운영 점검 원장이다. 마지막 예약 실행·수집 시각, 출처별 성공, 신규 수, 검수 PR, 슬롯 지연 분·누락을 기록한다. 상태 cache는 재시도 판단용이며 유실돼도 원본 ID 대조와 슬롯별 원격 브랜치가 중복을 차단한다.
+- PASS / NO_CHANGES / PARTIAL / FAIL은 실제 수집 결과이며 검수 PR이 있으면 PENDING_REVIEW도 기록한다. PARTIAL은 정상 채널 자료를 보존하면서 최종 check를 실패시킨다.
+- 72시간 기준 슬롯 이후 지연 실행이나 다음 날 실행도 미완료 슬롯을 처리한다. 두 채널 정상 수집과 검수 PR 해소가 확인된 슬롯만 완료 기록한다. 피드 제공 범위보다 긴 장애는 전수 복구를 보장하지 않는다.
+- 다음 기준 슬롯: 2026-10-25 09:10 KST. 실제 Actions 시작은 지연될 수 있다. Production 48시간 정책은 별도 workflow 그대로 유지한다.
 
 ## 목적
 

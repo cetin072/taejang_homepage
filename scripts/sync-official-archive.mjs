@@ -9,7 +9,7 @@ const START = '/* OFFICIAL_ITEMS_START */';
 const END = '/* OFFICIAL_ITEMS_END */';
 const BLOG = 'taejang-official';
 const FEED = 'https://rss.blog.naver.com/' + BLOG + '.xml';
-const HANDLE = 'https://www.youtube.com/@taejangofficial/videos';
+export const YOUTUBE_CHANNEL_ID = 'UCMxv6IBvVjkRnn6yHKdXJSg';
 const ANCHOR = Date.parse('2026-10-22T00:10:00Z');
 const DEFAULT_IMAGE = 'images/og-taejang.png';
 
@@ -159,7 +159,7 @@ async function getText(url, limit = 2000000) {
   return text;
 }
 async function youtubeFeed() {
-  const id = channelIdFromHtml(await getText(HANDLE));
+  const id = YOUTUBE_CHANNEL_ID;
   return parseYoutube(await getText('https://www.youtube.com/feeds/videos.xml?channel_id=' + id), id);
 }
 async function existing() {
@@ -183,7 +183,12 @@ async function existing() {
   }
   return { text, start, end, current, known };
 }
-export function isDue(value) {
+export function slotAt(value) {
+  const elapsed = new Date(value).getTime() - ANCHOR;
+  return elapsed < 0 ? null : new Date(ANCHOR + Math.floor(elapsed / (72 * 3600000)) * 72 * 3600000).toISOString();
+}
+export function isDue(value, lastCompletedSlot) {
+  if (lastCompletedSlot !== undefined) return !!slotAt(value) && slotAt(value) !== lastCompletedSlot;
   const days = Math.floor((new Date(value).getTime() - ANCHOR) / 86400000);
   return days >= 0 && days % 3 === 0;
 }
@@ -201,7 +206,7 @@ export function mergeEntries(current, fetched, known) {
     b.publishedAt.localeCompare(a.publishedAt) || a.id.localeCompare(b.id));
   return { merged, added };
 }
-export async function synchronize({ apply = false,
+export async function synchronize({ apply = false, reportFile = null,
   naver = () => getText(FEED).then(parseNaver), youtube = youtubeFeed } = {}) {
   const data = await existing();
   const results = await Promise.allSettled([naver(), youtube()]);
@@ -212,7 +217,6 @@ export async function synchronize({ apply = false,
     if (result.status === 'fulfilled') fetched.push(...result.value);
     else errors.push((index ? 'youtube: ' : 'naver: ') + String(result.reason?.message || result.reason));
   }
-  if (errors.length === 2) throw new Error('Both feeds failed: ' + errors.join('; '));
   const { merged, added } = mergeEntries(data.current, fetched, data.known);
   if (apply && added.length) {
     await addVerifiedBlogImages(added);
@@ -221,28 +225,44 @@ export async function synchronize({ apply = false,
     await writeFile(TARGET, output, 'utf8');
   }
   const report = {
+    status: errors.length === 2 ? 'FAIL' : errors.length ? 'PARTIAL' : added.length ? 'PASS' : 'NO_CHANGES',
+    collectedAt: new Date().toISOString(),
     feedOk: { naver: results[0].status === 'fulfilled', youtube: results[1].status === 'fulfilled' },
     sourceItems: fetched.length, existingUpdates: data.current.length,
     newItems: added.length, added: added.map((x) => ({ id: x.id, title: x.title, date: x.publishedAt, url: x.externalUrl })),
     errors, applied: apply && added.length > 0
   };
+  if (reportFile) await writeFile(reportFile, JSON.stringify(report, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) {
     await writeFile(process.env.GITHUB_STEP_SUMMARY,
       '\n### Official channel sync\n\n' + JSON.stringify(report, null, 2) + '\n', { flag: 'a' });
   }
   for (const error of errors) console.warn('::warning::' + error);
   console.log(JSON.stringify(report, null, 2));
+  if (errors.length === 2) throw new Error('Both feeds failed: ' + errors.join('; '));
   return report;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2] || '--check';
   if (mode === '--due') {
-    const due = isDue(new Date());
-    if (process.env.GITHUB_OUTPUT) {
-      await writeFile(process.env.GITHUB_OUTPUT, 'due=' + String(due) + '\n', { flag: 'a' });
+    let previous = {};
+    if (process.env.ARCHIVE_STATE) {
+      try { previous = JSON.parse(await readFile(process.env.ARCHIVE_STATE, 'utf8')); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
+    const now = new Date();
+    const slot = slotAt(now);
+    const due = isDue(now, previous.lastCompletedSlot || null);
+    if (process.env.GITHUB_OUTPUT) {
+      await writeFile(process.env.GITHUB_OUTPUT, 'due=' + String(due) + '\nslot=' + (slot?.slice(0,10).replaceAll('-','') || '') + '\n', { flag: 'a' });
+    }
+    if (process.env.ARCHIVE_STATE) await writeFile(process.env.ARCHIVE_STATE, JSON.stringify({ ...previous,
+      lastScheduledRunAt: now.toISOString(), currentSlot: slot,
+      delayMinutes: slot ? Math.floor((now - new Date(slot)) / 60000) : 0,
+      missedSlot: !!slot && !!previous.lastCompletedSlot && new Date(slot) - new Date(previous.lastCompletedSlot) > 72 * 3600000
+    }, null, 2));
     console.log(due ? 'DUE' : 'SKIP');
   } else if (mode === '--check' || mode === '--apply') {
-    await synchronize({ apply: mode === '--apply' });
+    await synchronize({ apply: mode === '--apply', reportFile: process.env.ARCHIVE_REPORT });
   } else throw new Error('Expected --due, --check or --apply');
 }
