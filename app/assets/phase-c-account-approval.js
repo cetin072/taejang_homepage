@@ -83,12 +83,10 @@
       return;
     }
 
-    const confirmCopy = existing
-      ? `가입 신청: ${profile.display_name || '이름 없음'} / ${profile.hired_on || '입사일 없음'}\n`
-        + `기존 직원: ${candidate.employee_id} · ${candidate.full_name} / ${candidate.hired_on || '-'}\n`
-        + `기존 직원번호·근태·급여 기록을 유지하고 앱 계정만 연결할까요?`
-      : `정말 새로운 채용 직원이 맞나요?\n${profile.display_name || '이름 없음'}의 새 직원번호와 Employee 기록을 생성합니다.`;
-    if (!existing && !window.confirm(confirmCopy)) return;
+    if (!existing) {
+      const confirmCopy = `정말 새로운 채용 직원이 맞나요?\n${profile.display_name || '이름 없음'}의 새 직원번호와 Employee 기록을 생성합니다.`;
+      if (!window.confirm(confirmCopy)) return;
+    }
 
     setCardBusy(card, true);
     try {
@@ -250,6 +248,7 @@
     function updateEmployeeInfo() {
       const match = employees.find(item => item.employee_uuid === employee.value);
       identityConfirmed.checked = false;
+      employeeInfo.className = 'help';
       if (!match) {
         employeeInfo.textContent = '기존 직원 목록에서 연결할 직원을 선택해 주세요.';
         return;
@@ -257,7 +256,8 @@
       const normalized = value => String(value || '').replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
       const nameMatched = normalized(profile.display_name) === normalized(match.full_name);
       const hiredMatched = String(profile.hired_on || '').slice(0, 10) === String(match.hired_on || '').slice(0, 10);
-      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '-'} / 입사 ${match.hired_on || '-'}`
+      employeeInfo.className = nameMatched && hiredMatched ? 'help' : 'help phase-c-identity-mismatch';
+      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '부서 미지정'} / 입사 ${match.hired_on || '-'}`
         + (nameMatched && hiredMatched
           ? ' · 신청 정보와 일치합니다. 신원 확인에 체크하고 승인해 주세요.'
           : ' · 주의: 신청 이름 또는 입사일이 다릅니다. 본인과 확인한 뒤 신원 확인 체크박스로 승인해 주세요.');
@@ -265,6 +265,7 @@
 
     function updateMode() {
       const isExisting = mode.value !== 'new';
+      identityConfirmed.checked = false;
       existingFields.hidden = !isExisting;
       newFields.hidden = isExisting;
       approveButton.textContent = isExisting ? '기존 직원 연결 후 가입 승인' : '신규 직원 생성 후 가입 승인';
@@ -298,6 +299,7 @@
       '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:44px;}',
       '.phase-c-signup-check input{width:22px;min-height:22px;height:22px;margin:0;padding:0;}',
       '.phase-c-signup-approval-card .help{margin:2px 0;line-height:1.5;font-size:.85rem;}',
+      '.phase-c-signup-approval-card .phase-c-identity-mismatch{color:#9b2525;font-weight:700;}',
       '.phase-c-signup-approval-card .quick-links{gap:8px;}',
       '@container(max-width:640px){.phase-c-signup-applicant{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-signup-reasons{grid-template-columns:minmax(0,1fr);}}',
       '@container(max-width:420px){.phase-c-signup-applicant{grid-template-columns:minmax(0,1fr);}}'
