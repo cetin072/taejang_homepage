@@ -14,7 +14,8 @@ function fixture({
   applicantName = '기존 직원',
   applicantHiredOn = '2026-10-08',
   employeeName = '기존 직원',
-  employeeHiredOn = '2026-10-08'
+  employeeHiredOn = '2026-10-08',
+  existingCandidates = null
 } = {}) {
   const calls = [];
   const alerts = [];
@@ -90,7 +91,7 @@ function fixture({
         };
       }
       if (name === 'list_existing_employee_signup_candidates') {
-        return [{ employee_uuid: employeeUuid, employee_id: 'TJ-274001', full_name: employeeName,
+        return existingCandidates ?? [{ employee_uuid: employeeUuid, employee_id: 'TJ-274001', full_name: employeeName,
           department_name: '생산', position_name: '일반 근로자', hired_on: employeeHiredOn }];
       }
       if (name === 'approve_existing_employee_signup_request' || name === 'approve_employee_signup_request') {
@@ -122,17 +123,17 @@ function fixture({
       employee.value = employee.children[1].value;
       employee.listeners.change();
       businessRole.value = businessRole.children[1].value;
-      const number = inputs.find(x => x.placeholder?.includes('직원번호 직접 입력'));
       const checkboxes = inputs.filter(x => x.type === 'checkbox');
-      number.value = 'TJ-274001';
+      assert.equal(inputs.some(x => x.placeholder?.includes('직원번호 직접 입력')), false);
+      assert.equal(checkboxes.length, 2, 'identity verification and new-hire attendance only');
       checkboxes[0].checked = true;
-      return { mode, employee, department, position, businessRole, number, checkboxes, approveButton };
+      return { mode, employee, department, position, businessRole, checkboxes, approveButton };
     },
     calls, alerts, confirms, departmentId, positionId, employeeUuid, roleId, profileId
   };
 }
 
-test('team lead must select and confirm existing employee number; sends role CODE, never creates employee', async () => {
+test('team lead selects an existing employee and approves with one checkbox, without creating a new employee', async () => {
   const ui = fixture();
   const { mode, employee, businessRole, approveButton } = await ui.selectExisting();
   assert.equal(mode.value, 'existing');
@@ -147,35 +148,40 @@ test('team lead must select and confirm existing employee number; sends role COD
   assert.equal(approval.args.p_employee_uuid, ui.employeeUuid);
   assert.equal(approval.args.p_confirm_employee_id, 'TJ-274001');
   assert.equal(approval.args.p_role_code, 'general_worker');
-  assert.equal(approval.args.p_identity_mismatch_confirmed, false);
+  assert.equal(approval.args.p_identity_mismatch_confirmed, true);
   assert.equal(ui.calls.filter(x => x.name === 'approve_employee_signup_request').length, 0);
   assert.deepEqual(ui.alerts, []);
-  assert.equal(ui.confirms.length, 1);
+  assert.equal(ui.confirms.length, 0, 'existing staff approval should not require a second confirmation popup');
 });
 
-test('team lead approval cannot proceed without employee ID typed and identity checkbox', async () => {
+test('team lead approval requires only the identity checkbox', async () => {
   const ui = fixture();
-  const { number, checkboxes, approveButton } = await ui.selectExisting();
-  number.value = '';
-  await approveButton.listeners.click();
-  assert.match(ui.alerts.at(-1), /직원번호/);
-  number.value = 'TJ-274001';
+  const { checkboxes, approveButton } = await ui.selectExisting();
   checkboxes[0].checked = false;
   await approveButton.listeners.click();
-  assert.match(ui.alerts.at(-1), /인적사항/);
+  assert.match(ui.alerts.at(-1), /신원/);
   assert.equal(ui.calls.filter(x => x.name === 'approve_existing_employee_signup_request').length, 0);
 });
 
-test('mismatching hire date is clearly warned and requires separate confirmation', async () => {
+test('mismatching hire date shows a warning but the same identity checkbox permits approval', async () => {
   const ui = fixture({ employeeHiredOn: '2026-09-01' });
-  const { employee, checkboxes, approveButton } = await ui.selectExisting();
+  const { employee, approveButton } = await ui.selectExisting();
   assert.ok(employee.value);
-  await approveButton.listeners.click();
-  assert.match(ui.alerts.at(-1), /입사일/);
-  checkboxes[1].checked = true;
   await approveButton.listeners.click();
   const approval = ui.calls.find(x => x.name === 'approve_existing_employee_signup_request');
   assert.equal(approval.args.p_identity_mismatch_confirmed, true);
+  assert.deepEqual(ui.alerts, []);
+  assert.equal(ui.confirms.length, 0);
+});
+
+test('empty candidate list cannot approve or accidentally create an employee', async () => {
+  const ui = fixture({ existingCandidates: [] });
+  const { selects, approveButton } = await ui.open();
+  assert.equal(selects[1].children.length, 1, 'only the placeholder when no eligible employee');
+  selects[4].value = 'general_worker';
+  await approveButton.listeners.click();
+  assert.match(ui.alerts.at(-1), /선택/);
+  assert.equal(ui.calls.filter(x => x.name.startsWith('approve_')).length, 0);
 });
 
 test('lead cannot create a new employee even by manipulating mode value', async () => {
