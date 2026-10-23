@@ -7,6 +7,7 @@ const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 assert.ok(apiUrl && publishableKey, 'local Supabase env is required');
+assert.ok(['127.0.0.1','localhost','[::1]'].includes(new URL(apiUrl).hostname), 'onboarding write tests require isolated local Supabase');
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -223,5 +224,37 @@ const revoked = await rpc('set_attendance_holiday_work_assignment', lead, {
 });
 check(revoked.ok && revoked.data?.code === 'HOLIDAY_WORK_REVOKED', 'holiday work can be revoked');
 equal(sql(`select count(*) from public.attendance_holiday_work_assignments where employee_uuid='${approval.data.employee_uuid}'::uuid and revoked_at is not null`), '1', 'revocation preserves history');
+
+
+// PR #523 deployment verification: optional org labels cannot hide a candidate;
+// a second pending account cannot claim an Employee already linked by approval.
+const selectorPerson = crypto.randomUUID();
+const selectorEmployee = crypto.randomUUID();
+const selectorName = 'Issue523 isolated selector';
+sql("insert into public.people(id,full_name) values('"+selectorPerson+"','"+selectorName+"')");
+sql("insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required) values('"+selectorEmployee+"','TJ-523001','"+selectorPerson+"',null,null,'2026-10-01',false)");
+const firstSelectorAccount = await signup('issue523-first-'+unique+'@example.test',selectorName,{phone:'010-0000-0523',hired_on:'2026-10-01',signup_channel:'native_employee'});
+const secondSelectorAccount = await signup('issue523-second-'+unique+'@example.test',selectorName,{phone:'010-0000-0524',hired_on:'2026-10-01',signup_channel:'native_employee'});
+const selectorRows = await rpc('list_existing_employee_signup_candidates',lead);
+check(selectorRows.ok && selectorRows.data.some(e=>e.employee_uuid===selectorEmployee && e.department_name===null && e.position_name===null),'candidate with no department/position and no attendance requirement is visible');
+const employeeBeforeSelector = sql("select to_jsonb(e)::text from public.employees e where id='"+selectorEmployee+"'");
+const personBeforeSelector = sql("select to_jsonb(p)::text from public.people p where id='"+selectorPerson+"'");
+const countsBeforeSelector = sql('select (select count(*) from public.employees)||\'/\'||(select count(*) from public.people)');
+const selectorArgs = {p_target_profile_id:firstSelectorAccount.id,p_employee_uuid:selectorEmployee,p_role_code:'general_worker',p_confirm_employee_id:'TJ-523001',p_identity_mismatch_confirmed:true,p_reason_summary:'isolated selector approval'};
+const selectorApproval = await rpc('approve_existing_employee_signup_request',lead,selectorArgs);
+check(selectorApproval.ok && selectorApproval.data.ok,'first account explicitly links optional-org existing Employee');
+const deniedSecond = await rpc('approve_existing_employee_signup_request',lead,{...selectorArgs,p_target_profile_id:secondSelectorAccount.id});
+check(!deniedSecond.ok && deniedSecond.data.message==='EMPLOYEE_ALREADY_LINKED','different pending account cannot link an already linked Employee');
+equal(sql("select account_status::text from public.profiles where id='"+secondSelectorAccount.id+"'"),'pending','rejected second account stays pending');
+equal(sql("select count(*) from public.account_person_links where profile_id='"+secondSelectorAccount.id+"' and revoked_at is null"),'0','duplicate denial creates no second link');
+equal(sql("select count(*) from public.account_person_links where person_id='"+selectorPerson+"' and revoked_at is null"),'1','exactly one active Person-account link');
+equal(sql("select to_jsonb(e)::text from public.employees e where id='"+selectorEmployee+"'"),employeeBeforeSelector,'Employee fields and original number unchanged');
+equal(sql("select to_jsonb(p)::text from public.people p where id='"+selectorPerson+"'"),personBeforeSelector,'Person data unchanged');
+equal(sql('select (select count(*) from public.employees)||\'/\'||(select count(*) from public.people)'),countsBeforeSelector,'no duplicate Employee/Person creation');
+const selectorAfter = await rpc('list_existing_employee_signup_candidates',lead);
+check(selectorAfter.ok && !selectorAfter.data.some(e=>e.employee_uuid===selectorEmployee),'linked Employee removed from candidates');
+check(!(await rpc('list_existing_employee_signup_candidates',secondSelectorAccount)).ok,'pending account cannot list personnel');
+check(!(await rpc('list_existing_employee_signup_candidates',firstSelectorAccount)).ok,'ordinary active worker cannot list personnel');
+console.log('PR #523 selector and cross-account duplicate guard: 12 assertions passed.');
 
 console.log('Issue #274 onboarding Auth/Data API integration: ' + assertions + ' assertions passed.');
