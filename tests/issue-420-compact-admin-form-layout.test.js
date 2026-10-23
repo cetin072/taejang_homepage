@@ -18,7 +18,10 @@ test('existing employee linking and separate ops new-hire inputs stay compact an
   assert.match(approval,/const newFields = el\('div', null, 'app-compact-fields'\)/);
   assert.match(approval,/newFields\.append\(field\('부서', department\), field\('직책', position\), attendanceField\)/);
   assert.match(approval,/field\('앱 업무 권한', role\)/);
-  assert.match(approval,/field\('기존 직원번호 재확인', confirmEmployeeId\)/);
+  assert.match(approval,/field\('기존 직원 선택', employee\)/);
+  assert.match(approval,/identityField/);
+  assert.doesNotMatch(approval,/field\('기존 직원번호 재확인', confirmEmployeeId\)/);
+  assert.doesNotMatch(approval,/mismatchField/);
   assert.match(approval,/const decisionReasons = el\('div', null, 'phase-c-signup-reasons'\)/);
   assert.match(approval,/field\('승인 처리 사유', reason\)/);
   assert.match(approval,/field\('거절 사유', rejectReason\)/);
@@ -26,7 +29,8 @@ test('existing employee linking and separate ops new-hire inputs stay compact an
   assert.match(approval,/selectControl\(options\?\.roles, '업무 권한 선택', 'code'\)/);
   assert.match(approval,/p_role_code: controls\.role\.value/);
   assert.match(approval,/p_employee_uuid: candidate\.employee_uuid/);
-  assert.match(approval,/p_confirm_employee_id: controls\.confirmEmployeeId\.value\.trim\(\)/);
+  assert.match(approval,/p_confirm_employee_id: candidate\.employee_id/);
+  assert.match(approval,/p_identity_mismatch_confirmed: controls\.identityConfirmed\.checked/);
   assert.match(approval,/p_department_id: controls\.department\.value/);
   assert.match(approval,/p_position_id: controls\.position\.value/);
   assert.match(approval,/p_attendance_required: controls\.attendance\.checked/);

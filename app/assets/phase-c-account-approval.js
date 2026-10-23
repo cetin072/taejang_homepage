@@ -63,8 +63,6 @@
       return;
     }
 
-    let nameMismatch = false;
-    let hireMismatch = false;
     let candidate = null;
 
     if (existing) {
@@ -73,20 +71,8 @@
         window.alert('기존 직원번호를 선택해 주세요.');
         return;
       }
-      if (!controls.confirmEmployeeId.value.trim()
-          || controls.confirmEmployeeId.value.trim() !== candidate.employee_id) {
-        window.alert('기존 직원번호를 정확히 입력해 확인해 주세요.');
-        return;
-      }
       if (!controls.identityConfirmed.checked) {
-        window.alert('직원번호와 신청자의 인적사항을 직접 확인해 주세요.');
-        return;
-      }
-      const normalized = value => String(value || '').replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
-      nameMismatch = normalized(profile.display_name) !== normalized(candidate.full_name);
-      hireMismatch = String(profile.hired_on || '').slice(0, 10) !== String(candidate.hired_on || '').slice(0, 10);
-      if ((nameMismatch || hireMismatch) && !controls.mismatchConfirmed.checked) {
-        window.alert('이름 또는 입사일이 다릅니다. 직원 신원을 다시 확인하고 불일치 확인에 체크해 주세요.');
+        window.alert('기존 직원번호와 신청자의 신원을 확인한 뒤 체크해 주세요.');
         return;
       }
     } else if (route() !== 'operations_manager') {
@@ -97,12 +83,10 @@
       return;
     }
 
-    const confirmCopy = existing
-      ? `가입 신청: ${profile.display_name || '이름 없음'} / ${profile.hired_on || '입사일 없음'}\n`
-        + `기존 직원: ${candidate.employee_id} · ${candidate.full_name} / ${candidate.hired_on || '-'}\n`
-        + `기존 직원번호·근태·급여 기록을 유지하고 앱 계정만 연결할까요?`
-      : `정말 새로운 채용 직원이 맞나요?\n${profile.display_name || '이름 없음'}의 새 직원번호와 Employee 기록을 생성합니다.`;
-    if (!window.confirm(confirmCopy)) return;
+    if (!existing) {
+      const confirmCopy = `정말 새로운 채용 직원이 맞나요?\n${profile.display_name || '이름 없음'}의 새 직원번호와 Employee 기록을 생성합니다.`;
+      if (!window.confirm(confirmCopy)) return;
+    }
 
     setCardBusy(card, true);
     try {
@@ -111,9 +95,9 @@
           p_target_profile_id: profile.id,
           p_employee_uuid: candidate.employee_uuid,
           p_role_code: controls.role.value,
-          p_confirm_employee_id: controls.confirmEmployeeId.value.trim(),
-          p_identity_mismatch_confirmed: controls.mismatchConfirmed.checked,
-          p_reason_summary: controls.reason.value.trim() || '기존 직원번호 확인 후 앱 계정 연결'
+          p_confirm_employee_id: candidate.employee_id,
+          p_identity_mismatch_confirmed: controls.identityConfirmed.checked,
+          p_reason_summary: controls.reason.value.trim() || '기존 직원 신원 확인 후 앱 계정 연결'
         })
         : await app().rpc('approve_employee_signup_request', {
           p_target_profile_id: profile.id,
@@ -202,30 +186,20 @@
       id: item.employee_uuid,
       name: `${item.employee_id} · ${item.full_name} (${item.department_name || '-'}, 입사 ${item.hired_on || '-'})`
     }));
-    const employee = selectControl(employeeOptions, '연결할 기존 직원번호 선택');
-    const employeeInfo = el('p', '자동 연결은 하지 않습니다. 직원번호를 선택한 뒤 신청자와 대조해 주세요.', 'help');
-    const confirmEmployeeId = document.createElement('input');
-    confirmEmployeeId.type = 'text';
-    confirmEmployeeId.maxLength = 30;
-    confirmEmployeeId.placeholder = '선택한 기존 직원번호 직접 입력 (예: TJ-000001)';
+    const employee = selectControl(employeeOptions, '연결할 기존 직원 선택');
+    const employeeInfo = el('p', employees.length
+      ? `연결 가능한 기존 직원 ${employees.length}명. 직원을 선택하고 신청자와 신원을 대조해 주세요.`
+      : '연결 가능한 미연결 직원이 없습니다. 계정 연결 상태를 확인해 주세요.', 'help');
     const identityConfirmed = document.createElement('input');
     identityConfirmed.type = 'checkbox';
     const identityField = el('label', null, 'phase-c-signup-check');
     identityField.append(identityConfirmed, el('span', '기존 직원번호와 가입 신청자의 신원을 직접 확인했습니다.'));
 
-    const mismatchConfirmed = document.createElement('input');
-    mismatchConfirmed.type = 'checkbox';
-    const mismatchField = el('label', null, 'phase-c-signup-check');
-    mismatchField.append(mismatchConfirmed, el('span', '이름 또는 입사일 불일치를 직원에게 별도로 확인했습니다.'));
-    mismatchField.hidden = true;
-
     const existingFields = el('div', null, 'phase-c-signup-approval-form');
     existingFields.append(
       field('기존 직원 선택', employee),
       employeeInfo,
-      field('기존 직원번호 재확인', confirmEmployeeId),
-      identityField,
-      mismatchField
+      identityField
     );
 
     const department = selectControl(options?.departments, '부서 선택');
@@ -244,7 +218,7 @@
     const reason = document.createElement('input');
     reason.type = 'text';
     reason.maxLength = 300;
-    reason.value = '기존 직원번호 확인 후 앱 계정 연결';
+    reason.value = '기존 직원 신원 확인 후 앱 계정 연결';
 
     const rejectReason = document.createElement('input');
     rejectReason.type = 'text';
@@ -261,8 +235,8 @@
     const help = el('p', '기존 직원 연결은 직원번호·입사일·근태·급여 기록을 그대로 유지합니다. 신규 직원 생성은 운영총괄만 별도로 선택할 수 있습니다.', 'help');
 
     const actions = el('div', null, 'quick-links app-authoring-inline');
-    const controls = { mode, employee, employees, employeeInfo, confirmEmployeeId, identityConfirmed,
-      mismatchConfirmed, department, position, role, attendance, reason };
+    const controls = { mode, employee, employees, employeeInfo, identityConfirmed,
+      department, position, role, attendance, reason };
     const approveButton = button('기존 직원 연결 후 가입 승인', () => approve(profile, controls, card));
     approveButton.dataset.approveSignup = '1';
     approveButton.dataset.approveExistingSignup = '1';
@@ -274,31 +248,30 @@
     function updateEmployeeInfo() {
       const match = employees.find(item => item.employee_uuid === employee.value);
       identityConfirmed.checked = false;
-      mismatchConfirmed.checked = false;
-      confirmEmployeeId.value = '';
+      employeeInfo.className = 'help';
       if (!match) {
-        employeeInfo.textContent = '자동 연결은 하지 않습니다. 기존 직원번호와 가입 신청자의 인적사항을 대조해 주세요.';
-        mismatchField.hidden = true;
+        employeeInfo.textContent = '기존 직원 목록에서 연결할 직원을 선택해 주세요.';
         return;
       }
       const normalized = value => String(value || '').replace(/\s+/g, '').toLocaleLowerCase('ko-KR');
       const nameMatched = normalized(profile.display_name) === normalized(match.full_name);
       const hiredMatched = String(profile.hired_on || '').slice(0, 10) === String(match.hired_on || '').slice(0, 10);
-      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '-'} / 입사 ${match.hired_on || '-'}`
+      employeeInfo.className = nameMatched && hiredMatched ? 'help' : 'help phase-c-identity-mismatch';
+      employeeInfo.textContent = `기존 직원 ${match.employee_id} · ${match.full_name} · ${match.department_name || '부서 미지정'} / 입사 ${match.hired_on || '-'}`
         + (nameMatched && hiredMatched
-          ? ' · 신청 정보와 일치합니다. 직원번호를 다시 확인해 주세요.'
-          : ' · 신청 이름 또는 입사일이 다릅니다! 직원에게 직접 확인한 뒤 승인해 주세요.');
-      mismatchField.hidden = nameMatched && hiredMatched;
+          ? ' · 신청 정보와 일치합니다. 신원 확인에 체크하고 승인해 주세요.'
+          : ' · 주의: 신청 이름 또는 입사일이 다릅니다. 본인과 확인한 뒤 신원 확인 체크박스로 승인해 주세요.');
     }
 
     function updateMode() {
       const isExisting = mode.value !== 'new';
+      identityConfirmed.checked = false;
       existingFields.hidden = !isExisting;
       newFields.hidden = isExisting;
       approveButton.textContent = isExisting ? '기존 직원 연결 후 가입 승인' : '신규 직원 생성 후 가입 승인';
       approveButton.dataset.approveExistingSignup = isExisting ? '1' : '0';
       reason.value = isExisting
-        ? '기존 직원번호 확인 후 앱 계정 연결'
+        ? '기존 직원 신원 확인 후 앱 계정 연결'
         : '신규 채용 확인 후 직원 생성 및 계정 승인';
     }
 
@@ -326,6 +299,7 @@
       '.phase-c-signup-check{display:flex!important;grid-template-columns:none!important;flex-direction:row;align-items:center;gap:9px!important;min-height:44px;}',
       '.phase-c-signup-check input{width:22px;min-height:22px;height:22px;margin:0;padding:0;}',
       '.phase-c-signup-approval-card .help{margin:2px 0;line-height:1.5;font-size:.85rem;}',
+      '.phase-c-signup-approval-card .phase-c-identity-mismatch{color:#9b2525;font-weight:700;}',
       '.phase-c-signup-approval-card .quick-links{gap:8px;}',
       '@container(max-width:640px){.phase-c-signup-applicant{grid-template-columns:repeat(2,minmax(0,1fr));}.phase-c-signup-reasons{grid-template-columns:minmax(0,1fr);}}',
       '@container(max-width:420px){.phase-c-signup-applicant{grid-template-columns:minmax(0,1fr);}}'
@@ -351,7 +325,7 @@
       intro.append(
         el('p', '직원앱 계정 연결', 'eyebrow'),
         el('h2', '직원앱 가입 승인'),
-        el('p', '기존 직원은 직원번호를 확인해 계정만 연결합니다. 기존 직원번호와 근태·급여 기록은 변경하지 않습니다. 신규 직원 생성은 운영총괄만 별도로 선택합니다.')
+        el('p', '기존 직원 목록에서 연결할 직원을 선택하고 신원을 확인해 승인합니다. 직원번호와 근태·급여 기록은 변경하지 않습니다. 신규 직원 생성은 운영총괄만 별도로 선택합니다.')
       );
 
       const grid = el('section', null, 'phase-c-signup-approval-grid');
