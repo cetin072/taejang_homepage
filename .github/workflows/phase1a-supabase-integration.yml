@@ -67,6 +67,10 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: node scripts/run-test-group.mjs stagingSafety
 
+      - name: Install existing browser dependency for real isolated workflow QA
+        if: steps.scope.outputs.run_full == 'true'
+        run: npm ci
+
       - name: Start isolated local Supabase
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
@@ -109,7 +113,8 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/account-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/payroll-draft-handoff-auth-integration.mjs
-          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/today-board-auth-integration.mjs
+          # Imports tests/helpers/today-board-browser-flow.mjs against this local DB only.
+          TODAY_BOARD_BROWSER_QA=1 SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/today-board-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/staff-schedules-notices-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/notice-review-media-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/frequent-staff-guidance-auth-integration.mjs

@@ -129,6 +129,7 @@ staff-config → Auth session → access context/capability
 - build:netlify 통과, 공개 article10개 생성. 클라우드에서 Naver thumbnail42개 fetch 실패 → 기존 승인 fallback42개 사용. 외부 원격 조회까지 통과한 것으로 보고하지 않는다.
 - B: `backend-stability-browser.mjs`에서 실제 app HTML/transport/관련 controller를 HTTP로 실행. 합성 API, 실제 manager module 로드. 대상 보존→거절 보존→accepted save/read 실패→동일 ID 재저장→목록 반영, 작업방법/단계 복구·목록 retry를 1440/768/390/320에서 확인. 권한 없는 홍보직원 합성 context의 직접 panel 접근 차단. unrelated enhancement를 생략한 controller 검사이며 전체 실로그인 증거 아님.
 - B 기존: `admin-authoring-browser.mjs` 원래 기능 게이트11개×PC/모바일=22개, 입력/폼11종×4폭=44개 통과. 직원/공지/홍보/홈페이지/사이드바 원래 assertion 보존.
+- I/B: `today-board-auth-integration.mjs`의 기존 격리 합성 계정을 그대로 사용해 `tests/helpers/today-board-browser-flow.mjs`를 연결했다. 실제 `/app/` HTML·전체 script·인증·업무 API를 mock 없이 실행하며 PC1440/모바일390에서 메뉴 진입→작성→저장→목록 편집 재진입→같은 ID 수정→실제 table 재조회→대상 직원 조회/다른 작업반 비노출을 검증한다. 외부 네트워크는 차단하고 loopback Supabase만 사용한다. 이 CI 실행은 필수이며 단독 Auth suite에서 브라우저 flag가 없으면 NOT_RUN을 명시한다.
 - I: `today-board-auth-integration.mjs`에 같은 guide/step/task ID 재저장, 실제 table/상세 조회·다른 작업반 직원 비노출 검증 추가. localhost-only 사전 차단으로 공유 DB에서 이 쓰기 suite 실행 불가. 실행 CI 결과는 아래 인계 기록으로 추가한다.
 - 안전 게이트: 기존 workflow Bash 사전검사 자체를 합성 GitHub API로 실행. 정상1종·차단13종(잘못된 event/actor/ref/repo/승인/번호/SHA, 닫힌·외부·변경된 PR, 미준비·잘못된 Preview, API 실패) 통과. 현재 PR #525의 실제 GitHub/Netlify 상태에 읽기 전용 사전검사만 실행해 정상 경로도 확인했다. Hosted workflow dispatch/DB 쓰기 실행은 하지 않았다.
 - V: 기존 browser CI의 exact-HEAD Preview 대기 절차에서 새 regression 재실행·캡처 업로드. Preview 결과는 아래 인계 기록으로 추가한다.

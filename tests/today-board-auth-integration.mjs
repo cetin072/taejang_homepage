@@ -386,4 +386,11 @@ for (const blockedStatus of ['suspended', 'departed', 'deleted']) {
   }
 }
 
+if (process.env.TODAY_BOARD_BROWSER_QA === '1') {
+  const {todayBoardBrowserFlow} = await import('./helpers/today-board-browser-flow.mjs');
+  await todayBoardBrowserFlow({apiUrl,publishableKey,adminToken,groupId:groupA,
+    workerToken:workerA.token,otherWorkerToken:workerB.token});
+} else {
+  console.log('Today board real Auth/browser workflow NOT_RUN (TODAY_BOARD_BROWSER_QA=1 required)');
+}
 console.log(`Today board Auth/Data API integration passed: ${assertions} assertions`);
