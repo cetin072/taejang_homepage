@@ -66,6 +66,14 @@ select ok(
   pg_get_functiondef('public.list_existing_employee_signup_candidates()'::regprocedure))>0,
  'selector guarded for operations manager and team lead'
 );
+
+select ok(
+ position('left join public.departments' in
+  lower(pg_get_functiondef('public.list_existing_employee_signup_candidates()'::regprocedure)))>0
+ and position('left join public.positions' in
+  lower(pg_get_functiondef('public.list_existing_employee_signup_candidates()'::regprocedure)))>0,
+ 'unlinked active employees are not hidden by missing optional department or position'
+);
 select ok(
  position('signup_phone' in
   pg_get_functiondef('public.list_existing_employee_signup_candidates()'::regprocedure))=0
