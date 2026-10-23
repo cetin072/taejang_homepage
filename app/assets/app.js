@@ -637,7 +637,7 @@
       // Retain the accepted identity before readback. A failed reload must not
       // turn the next manual save of a new record into another INSERT.
       if (result.id) element(form.id.replace(/-form$/, '-id')).value = result.id;
-      if (!await loadAdminData()) {
+      if (canManage('task.manage') && !await loadAdminData()) {
         showMessage('admin-message', '저장은 처리됐으나 최신 목록을 불러오지 못했습니다. 입력은 유지했습니다. 다시 불러오기로 확인해주세요.', true);
         return false;
       }

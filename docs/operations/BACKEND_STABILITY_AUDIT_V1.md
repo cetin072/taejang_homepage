@@ -125,7 +125,7 @@ staff-config → Auth session → access context/capability
 
 ## 6. 이번 실행 결과
 
-- L: 기존 전체 `npm test`1260/1260 이후 P0 게이트 추가에 따라 payroll 재실행525/525: 합계 **1261/1261** = platform595 + public141 + payroll525, 실패/skip0. stagingSafety16/16. syntax/diff 통과.
+- L: 기존 전체 `npm test`1260/1260 이후 P0 게이트 추가에 따라 payroll 재실행525/525: 추가 권한 분리 회귀를 포함한 합계 **1262/1262** = platform596 + public141 + payroll525, 실패/skip0. stagingSafety16/16. syntax/diff 통과.
 - build:netlify 통과, 공개 article10개 생성. 클라우드에서 Naver thumbnail42개 fetch 실패 → 기존 승인 fallback42개 사용. 외부 원격 조회까지 통과한 것으로 보고하지 않는다.
 - B: `backend-stability-browser.mjs`에서 실제 app HTML/transport/관련 controller를 HTTP로 실행. 합성 API, 실제 manager module 로드. 대상 보존→거절 보존→accepted save/read 실패→동일 ID 재저장→목록 반영, 작업방법/단계 복구·목록 retry를 1440/768/390/320에서 확인. 권한 없는 홍보직원 합성 context의 직접 panel 접근 차단. unrelated enhancement를 생략한 controller 검사이며 전체 실로그인 증거 아님.
 - B 기존: `admin-authoring-browser.mjs` 원래 기능 게이트11개×PC/모바일=22개, 입력/폼11종×4폭=44개 통과. 직원/공지/홍보/홈페이지/사이드바 원래 assertion 보존.
