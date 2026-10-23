@@ -232,11 +232,15 @@ const selectorPerson = crypto.randomUUID();
 const selectorEmployee = crypto.randomUUID();
 const selectorName = 'Issue523 isolated selector';
 sql("insert into public.people(id,full_name) values('"+selectorPerson+"','"+selectorName+"')");
-sql("insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required) values('"+selectorEmployee+"','TJ-523001','"+selectorPerson+"',null,null,'2026-10-01',false)");
+// In a clean database employees.position_id is NOT NULL; verify the optional
+// department JOIN with null, and separately assert the position LEFT JOIN contract.
+sql("insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required) values('"+selectorEmployee+"','TJ-523001','"+selectorPerson+"',null,'"+positionId+"','2026-10-01',false)");
+const selectorPositionName = sql("select name from public.positions where id='"+positionId+"'");
 const firstSelectorAccount = await signup('issue523-first-'+unique+'@example.test',selectorName,{phone:'010-0000-0523',hired_on:'2026-10-01',signup_channel:'native_employee'});
 const secondSelectorAccount = await signup('issue523-second-'+unique+'@example.test',selectorName,{phone:'010-0000-0524',hired_on:'2026-10-01',signup_channel:'native_employee'});
 const selectorRows = await rpc('list_existing_employee_signup_candidates',lead);
-check(selectorRows.ok && selectorRows.data.some(e=>e.employee_uuid===selectorEmployee && e.department_name===null && e.position_name===null),'candidate with no department/position and no attendance requirement is visible');
+check(selectorRows.ok && selectorRows.data.some(e=>e.employee_uuid===selectorEmployee && e.department_name===null && e.position_name===selectorPositionName),'candidate with no department and no attendance requirement is visible');
+equal(sql("select pg_get_functiondef('public.list_existing_employee_signup_candidates()'::regprocedure) ilike '%left join public.positions%'"),'t','selector retains LEFT JOIN for optional position labels');
 const employeeBeforeSelector = sql("select to_jsonb(e)::text from public.employees e where id='"+selectorEmployee+"'");
 const personBeforeSelector = sql("select to_jsonb(p)::text from public.people p where id='"+selectorPerson+"'");
 const countsBeforeSelector = sql('select (select count(*) from public.employees)||\'/\'||(select count(*) from public.people)');
@@ -255,6 +259,6 @@ const selectorAfter = await rpc('list_existing_employee_signup_candidates',lead)
 check(selectorAfter.ok && !selectorAfter.data.some(e=>e.employee_uuid===selectorEmployee),'linked Employee removed from candidates');
 check(!(await rpc('list_existing_employee_signup_candidates',secondSelectorAccount)).ok,'pending account cannot list personnel');
 check(!(await rpc('list_existing_employee_signup_candidates',firstSelectorAccount)).ok,'ordinary active worker cannot list personnel');
-console.log('PR #523 selector and cross-account duplicate guard: 12 assertions passed.');
+console.log('PR #523 selector and cross-account duplicate guard: 13 assertions passed.');
 
 console.log('Issue #274 onboarding Auth/Data API integration: ' + assertions + ' assertions passed.');
