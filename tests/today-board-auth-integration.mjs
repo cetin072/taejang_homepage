@@ -11,6 +11,16 @@ assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
 assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(apiUrl).hostname),
   'Today board mutation tests require isolated local Supabase');
 
+// Preserve the original failure/exit status; expose bounded diagnostics when
+// the CI log archive itself is unavailable from the managed cloud network.
+process.on('uncaughtExceptionMonitor', error => {
+  if (process.env.GITHUB_ACTIONS !== 'true') return;
+  const detail = String(error.stack || error).slice(-4000)
+    .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[JWT withheld]')
+    .replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+  console.error('::error title=Today board isolated Auth integration::' + detail);
+});
+
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
 const equal = (actual, expected, message) => { assert.equal(actual, expected, message); assertions += 1; };
