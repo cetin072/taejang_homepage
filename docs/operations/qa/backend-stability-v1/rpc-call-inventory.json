@@ -1,0 +1,332 @@
+{
+  "main_sha": "627a85281d8ea78a098510d87458964a52ae03e1",
+  "scope": "Static literal RPC calls in app/**/*.js; includes dormant renderers; not a live catalog or workflow PASS.",
+  "calls_by_owner": {
+    "app/assets/app.js": [
+      "get_my_access_context",
+      "get_my_today_board",
+      "get_today_board_admin_options",
+      "list_manageable_today_records"
+    ],
+    "app/assets/attendance-admin.js": [
+      "confirm_attendance_day",
+      "get_attendance_admin_today",
+      "get_attendance_confirmation_status",
+      "get_attendance_external_evidence",
+      "get_attendance_holiday_work_assignments",
+      "get_attendance_workday_status",
+      "get_confirmed_attendance_period",
+      "get_employee_management_context",
+      "get_today_board_admin_options",
+      "import_attendance_external_evidence",
+      "list_field_work_group_members",
+      "reopen_attendance_confirmation",
+      "resolve_attendance_confirmation_exception",
+      "review_attendance_exception",
+      "save_attendance_source_identity_mapping",
+      "set_attendance_day_status",
+      "set_attendance_holiday_work_assignment"
+    ],
+    "app/assets/attendance-integrity-ui.js": [
+      "create_attendance_correction",
+      "get_attendance_admin_today",
+      "get_attendance_correction_history",
+      "get_my_attendance_today"
+    ],
+    "app/assets/capability-access.js": [
+      "get_my_access_context_v2"
+    ],
+    "app/assets/dashboard-priority-cards.js": [
+      "get_employee_management_context",
+      "get_homepage_change_requests"
+    ],
+    "app/assets/dashboard-shell.js": [
+      "get_my_promotion_workspace",
+      "list_pending_profiles"
+    ],
+    "app/assets/employee-common-home-v1.js": [
+      "acknowledge_notice",
+      "get_my_attendance_today",
+      "get_my_notice_list",
+      "qa_validate_attendance_event",
+      "record_attendance_event",
+      "request_attendance_exception",
+      "set_role_simulation_mode"
+    ],
+    "app/assets/employee-field-audit.js": [
+      "get_employee_field_audit",
+      "set_employee_photo",
+      "update_employee_field_audit",
+      "update_employee_field_audit_basic"
+    ],
+    "app/assets/employee-management.js": [
+      "bulk_set_employee_resident_registration_numbers",
+      "create_employee",
+      "employee_password_reset_option",
+      "get_employee_insurance_deduction_settings",
+      "get_employee_management_context",
+      "get_employee_resident_registration_number",
+      "set_employee_age_insurance_flags",
+      "set_employee_insurance_deduction_settings",
+      "set_employee_photo",
+      "set_employee_resident_registration_number",
+      "submit_employee_change_request",
+      "update_employee_core",
+      "update_employee_field_audit",
+      "update_employee_field_audit_basic"
+    ],
+    "app/assets/guidance-admin.js": [
+      "list_manageable_schedules",
+      "list_manageable_staff_guidance",
+      "save_staff_guidance"
+    ],
+    "app/assets/guidance-worker.js": [
+      "get_my_staff_guidance_detail",
+      "get_my_staff_guidance_list"
+    ],
+    "app/assets/homepage-change-requests.js": [
+      "create_homepage_change_request",
+      "get_homepage_change_requests",
+      "review_homepage_change_request"
+    ],
+    "app/assets/issue-146-end-to-end.js": [
+      "archive_promotion_content",
+      "archive_unpublished_promotion_content",
+      "assign_profile_organization",
+      "change_account_status",
+      "create_employee",
+      "create_homepage_slot_change_request",
+      "delete_homepage_slot_override",
+      "get_archived_employee_management",
+      "get_archived_promotion_media_paths",
+      "get_homepage_change_requests",
+      "get_homepage_content_slots",
+      "get_operations_account_management",
+      "get_promotion_archive_admin",
+      "get_unpublished_promotion_archive_candidates",
+      "link_employee_account",
+      "permanently_delete_archived_promotion_content",
+      "restore_employee",
+      "restore_promotion_content",
+      "review_homepage_change_request",
+      "save_homepage_slot_override",
+      "set_profile_roles",
+      "unlink_employee_account"
+    ],
+    "app/assets/issue-181-promotion-live-ux.js": [
+      "archive_unpublished_promotion_content",
+      "get_my_promotion_workspace",
+      "get_promotion_review_handoff"
+    ],
+    "app/assets/issue-207-promotion-information-ux.js": [
+      "get_my_notice_list",
+      "get_my_promotion_workspace",
+      "get_promotion_review_submitter",
+      "list_information_publication_requests",
+      "review_information_publication_request",
+      "save_information_publication_request"
+    ],
+    "app/assets/issue-221-employee-screen-switcher.js": [
+      "get_operations_employee_screen_personas",
+      "set_role_simulation_mode"
+    ],
+    "app/assets/monthly-client-documents.js": [
+      "monthly_client_documents_company_defaults",
+      "monthly_client_documents_confirm",
+      "monthly_client_documents_copy_previous",
+      "monthly_client_documents_get",
+      "monthly_client_documents_get_month",
+      "monthly_client_documents_list",
+      "monthly_client_documents_save",
+      "monthly_client_documents_save_company_defaults",
+      "monthly_client_documents_unconfirm"
+    ],
+    "app/assets/notice-acknowledgement.js": [
+      "acknowledge_notice"
+    ],
+    "app/assets/notice-admin.js": [
+      "add_notice_media",
+      "archive_notice_media",
+      "get_manageable_notice",
+      "get_notice_ack_summary",
+      "list_manageable_notices",
+      "list_manageable_notices_page",
+      "list_manageable_schedules",
+      "submit_notice_for_operations_review",
+      "update_notice_media"
+    ],
+    "app/assets/notice-worker.js": [
+      "get_my_notice_detail",
+      "get_my_notice_list"
+    ],
+    "app/assets/operations-delete-controls.js": [
+      "get_archived_recovery_items",
+      "get_employee_management_context",
+      "get_target_audit_trail",
+      "list_manageable_schedules",
+      "list_manageable_staff_guidance"
+    ],
+    "app/assets/operations-homepage-direct.js": [
+      "delete_homepage_live_override",
+      "get_homepage_live_overrides_admin",
+      "save_homepage_live_override"
+    ],
+    "app/assets/operations-promotion-writer.js": [
+      "get_my_promotion_workspace",
+      "save_operations_promotion_draft",
+      "submit_operations_promotion_revision"
+    ],
+    "app/assets/payroll-attendance-editor.js": [
+      "get_payroll_attendance_editor_context",
+      "save_payroll_attendance_manual_entries"
+    ],
+    "app/assets/payroll-draft-handoff.js": [
+      "get_my_payroll_draft_handoff_workspace"
+    ],
+    "app/assets/payroll-operator-live.js": [
+      "get_payroll_confirmed_attendance_readiness",
+      "get_payroll_operator_ledger_context"
+    ],
+    "app/assets/payroll-payslip-draft.js": [
+      "get_payroll_employee_payslip_draft"
+    ],
+    "app/assets/phase-c-account-approval.js": [
+      "approve_employee_signup_request",
+      "approve_existing_employee_signup_request",
+      "get_employee_signup_approval_options",
+      "list_employee_signup_requests",
+      "list_existing_employee_signup_candidates",
+      "reject_employee_signup_request"
+    ],
+    "app/assets/phase-c-publication-admin.js": [
+      "archive_promotion_content",
+      "create_public_content_change_request",
+      "get_operations_public_promotion_edit",
+      "get_promotion_publication_admin",
+      "lead_archive_recent_promotion_content",
+      "lead_update_recent_promotion_content",
+      "list_public_content_change_requests",
+      "operations_update_public_promotion_text",
+      "review_public_content_change_request"
+    ],
+    "app/assets/phase-c-role-simulation.js": [
+      "set_role_simulation_mode"
+    ],
+    "app/assets/phase-c-ux-simplification.js": [
+      "get_my_promotion_workspace",
+      "get_promotion_review_detail",
+      "lead_replace_promotion_revision"
+    ],
+    "app/assets/phase-c-workflow-navigation.js": [
+      "get_my_promotion_workspace",
+      "get_promotion_publication_overview",
+      "get_promotion_review_handoff",
+      "request_promotion_changes_via_lead",
+      "review_promotion_revision"
+    ],
+    "app/assets/phase-c-workspace-v2.js": [
+      "archive_promotion_content",
+      "get_my_promotion_feedback",
+      "get_my_promotion_workspace",
+      "get_promotion_publication_overview",
+      "get_promotion_review_detail",
+      "get_promotion_review_handoff",
+      "lead_replace_promotion_revision",
+      "queue_operations_owned_promotion",
+      "queue_promotion_revision",
+      "request_promotion_changes_via_lead",
+      "resume_promotion_review",
+      "review_promotion_revision",
+      "submit_operations_owned_promotion_for_ceo",
+      "withdraw_promotion_submission"
+    ],
+    "app/assets/pilot-ux-fixes.js": [
+      "get_my_promotion_feedback",
+      "get_my_promotion_workspace",
+      "get_my_schedule_list",
+      "get_promotion_review_detail",
+      "lead_replace_promotion_revision",
+      "review_promotion_revision",
+      "withdraw_promotion_submission"
+    ],
+    "app/assets/platform-ui-settings.js": [
+      "get_my_navigation_visibility",
+      "get_my_ui_preferences",
+      "get_platform_navigation_settings",
+      "reset_role_navigation_visibility",
+      "save_my_sidebar_sections",
+      "save_my_ui_preferences",
+      "save_role_navigation_visibility"
+    ],
+    "app/assets/schedule-admin.js": [
+      "list_manageable_schedules",
+      "save_schedule_item"
+    ],
+    "app/assets/schedule-worker.js": [
+      "get_my_schedule_detail",
+      "get_my_schedule_list"
+    ],
+    "app/assets/support-radar-alerts.js": [
+      "support_get_alert_candidates",
+      "support_get_notice_priority_flags",
+      "support_set_notice_priority_flags"
+    ],
+    "app/assets/support-radar-assignment.js": [
+      "support_assign_notice",
+      "support_list_assignable_profiles",
+      "support_unassign_notice"
+    ],
+    "app/assets/support-radar-my-work.js": [
+      "support_get_notice_detail",
+      "support_list_notices",
+      "support_update_application_status"
+    ],
+    "app/assets/support-radar-notices.js": [
+      "support_create_notice",
+      "support_create_source",
+      "support_evaluate_notice_v1",
+      "support_get_dashboard",
+      "support_get_notice_detail",
+      "support_list_notices",
+      "support_list_sources",
+      "support_set_decision",
+      "support_update_application_status"
+    ],
+    "app/assets/support-radar-profile-polish.js": [
+      "support_get_company_profile"
+    ],
+    "app/assets/support-radar-report.js": [
+      "support_get_kpis",
+      "support_get_weekly_report"
+    ],
+    "app/assets/support-radar-result-record.js": [
+      "support_update_application_status"
+    ],
+    "app/assets/support-radar-review.js": [
+      "support_get_notice_review_status",
+      "support_mark_notice_reviewed"
+    ],
+    "app/assets/support-radar.js": [
+      "support_get_company_profile",
+      "support_save_company_profile"
+    ],
+    "app/assets/work-guide-admin.js": [
+      "get_manageable_work_guide_detail",
+      "get_today_board_admin_options",
+      "list_manageable_work_guides",
+      "reorder_work_guide_steps",
+      "save_work_guide_step"
+    ],
+    "app/assets/work-guide-worker.js": [
+      "get_my_work_guide_detail",
+      "get_my_work_guide_list"
+    ],
+    "app/assets/worker-mobile-v1.js": [
+      "acknowledge_notice",
+      "get_my_attendance_today",
+      "get_my_notice_list",
+      "record_attendance_event",
+      "request_attendance_exception"
+    ]
+  }
+}

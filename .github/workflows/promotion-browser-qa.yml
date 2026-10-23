@@ -66,6 +66,11 @@ jobs:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
         run: node tests/admin-ui-browser.mjs
 
+      - name: Verify admin target preservation and accepted-save recovery
+        env:
+          STABILITY_QA_OUTPUT: backend-stability-qa-artifacts
+        run: node tests/backend-stability-browser.mjs
+
       - name: Verify shared authoring controls and original functional gates
         env:
           AUTHORING_QA_OUTPUT: authoring-ui-qa-artifacts
@@ -90,6 +95,9 @@ jobs:
                          env={**os.environ, 'PREVIEW_URL': preview})
           subprocess.run(['node', 'tests/attendance-correction-browser.mjs'], check=True,
                          env={**os.environ, 'PREVIEW_URL': preview})
+          subprocess.run(['node', 'tests/backend-stability-browser.mjs'], check=True,
+                         env={**os.environ, 'PREVIEW_URL': preview,
+                              'STABILITY_QA_OUTPUT': 'backend-stability-preview-qa-artifacts'})
           PYTHON
 
       - name: Keep shared authoring screenshots
@@ -100,6 +108,8 @@ jobs:
           path: |
             authoring-ui-qa-artifacts/
             authoring-ui-preview-qa-artifacts/
+            backend-stability-qa-artifacts/
+            backend-stability-preview-qa-artifacts/
           if-no-files-found: ignore
 
       - name: Run employee sorting and notice saved-result role QA

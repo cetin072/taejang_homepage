@@ -442,9 +442,13 @@
   }
 
   function fillSelect(select, options, { emptyLabel } = {}) {
+    const current = select.value;
     select.replaceChildren();
     if (emptyLabel !== undefined) addOption(select, '', emptyLabel);
     options.forEach(option => addOption(select, option.id, option.name || option.title));
+    // Preserve drafts across list reloads and resets of adjacent forms. If an
+    // option disappeared, require a new choice instead of silently choosing company.
+    if (current) select.value = current;
   }
 
   function scopeOptions() {
@@ -465,14 +469,15 @@
     if (scope === 'profile') options = state.adminOptions.profiles;
     fillSelect(target, options, { emptyLabel: scope === 'company' ? '전체 직원' : '대상을 선택하세요' });
     target.disabled = scope === 'company';
-    if (selectedValue) target.value = selectedValue;
+    target.value = selectedValue;
   }
 
   function renderAdminOptions() {
     for (const prefix of ['task', 'information']) {
       const scope = element(`${prefix}-scope`);
+      const target = element(`${prefix}-target`).value;
       fillSelect(scope, scopeOptions());
-      updateTargetSelect(`${prefix}-scope`, `${prefix}-target`);
+      updateTargetSelect(`${prefix}-scope`, `${prefix}-target`, target);
     }
     fillSelect(element('task-lead'), state.adminOptions.profiles, { emptyLabel: '선택하지 않음' });
     fillSelect(element('task-guide'), state.adminOptions.work_guides.filter(guide => guide.status === 'published'), { emptyLabel: '연결하지 않음' });
@@ -589,7 +594,7 @@
   }
 
   async function loadAdminData() {
-    if (!canManage('task.manage')) return;
+    if (!canManage('task.manage')) return false;
     hideMessage('admin-message');
     element('refresh-admin').disabled = true;
     try {
@@ -606,8 +611,10 @@
       }));
       if (!element('task-date').value) element('task-date').value = element('admin-board-date').value;
       if (!element('information-date').value) element('information-date').value = element('admin-board-date').value;
+      return true;
     } catch (error) {
       showMessage('admin-message', friendlyError(error), true);
+      return false;
     } finally {
       element('refresh-admin').disabled = false;
     }
@@ -627,8 +634,14 @@
     try {
       const result = await rpc(rpcName, payload);
       if (!result?.ok) throw new Error(result?.code || 'SAVE_FAILED');
+      // Retain the accepted identity before readback. A failed reload must not
+      // turn the next manual save of a new record into another INSERT.
+      if (result.id) element(form.id.replace(/-form$/, '-id')).value = result.id;
+      if (!await loadAdminData()) {
+        showMessage('admin-message', '저장은 처리됐으나 최신 목록을 불러오지 못했습니다. 입력은 유지했습니다. 다시 불러오기로 확인해주세요.', true);
+        return false;
+      }
       showMessage('admin-message', '저장했습니다. 일반 근로자에게 보이는 범위를 다시 확인해주세요.');
-      await loadAdminData();
       return true;
     } catch (error) {
       const message = error.message === 'TARGET_REQUIRED'
