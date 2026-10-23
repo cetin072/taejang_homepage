@@ -264,18 +264,24 @@ const groupTask = await saveTask(fieldLead.token, {
   ...target('work_group', groupA),
 });
 equal(groupTask.data?.code, 'DAILY_WORK_SAVED', 'field lead creates a task for the led work group');
-const groupTaskSavedAgain = await saveTask(fieldLead.token, {
-  p_assignment_id: groupTask.data.id, p_title: 'A반 포장 업무', p_start_time: '08:00', p_end_time: '09:00',
+// Keep the existing single-update audit fixture independent of recovery writes.
+const recoveryTask = await saveTask(fieldLead.token, {
+  p_title: '동일 ID 복구 검증 업무', p_start_time: '13:00', p_end_time: '14:00',
+  ...target('work_group', groupA),
+});
+equal(recoveryTask.data?.code, 'DAILY_WORK_SAVED', 'recovery scenario creates its own isolated task');
+const recoveryTaskSavedAgain = await saveTask(fieldLead.token, {
+  p_assignment_id: recoveryTask.data.id, p_title: '동일 ID 복구 검증 업무', p_start_time: '13:00', p_end_time: '14:00',
   p_lead_profile_id: fieldLead.id, p_work_guide_id: guide.data.id,
   ...target('work_group', groupA), p_change_reason: '동일 ID 재저장·대상 보존 검증',
 });
-equal(groupTaskSavedAgain.data?.id, groupTask.data.id, 'accepted task ID updates the same task');
-const storedTask = await api('/rest/v1/daily_work_assignments?select=id,target_scope,target_work_group_id&id=eq.' + groupTask.data.id, { token: adminToken });
+equal(recoveryTaskSavedAgain.data?.id, recoveryTask.data.id, 'accepted task ID updates the same task');
+const storedTask = await api('/rest/v1/daily_work_assignments?select=id,target_scope,target_work_group_id&id=eq.' + recoveryTask.data.id, { token: adminToken });
 check(storedTask.ok && storedTask.data?.length === 1, 'task exists exactly once in actual isolated DB');
 equal(storedTask.data[0].target_scope, 'work_group', 'stored task audience is not broadened to company');
 equal(storedTask.data[0].target_work_group_id, groupA, 'stored task keeps its selected group');
 const otherGroupReadback = await rpc('get_my_today_board', workerB.token, { p_board_date: '2026-07-23' });
-check(!otherGroupReadback.data.tasks.some(task => task.id === groupTask.data.id), 'related employee screen excludes other-group task after same-ID update');
+check(!otherGroupReadback.data.tasks.some(task => task.id === recoveryTask.data.id), 'related employee screen excludes other-group task after same-ID update');
 
 const otherGroupTask = await saveTask(fieldLead.token, {
   p_title: 'B반 권한 밖 업무',
