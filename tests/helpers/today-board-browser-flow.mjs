@@ -31,10 +31,11 @@ export async function todayBoardBrowserFlow({apiUrl,publishableKey,adminToken,gr
     }catch{res.statusCode=404;res.end();}
   });
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  let browser;
+  let browser, activeWidth = 'startup';
   try{
     browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
     for(const width of [1440,390]){
+      activeWidth = width;
       const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage();
       await page.addInitScript(session=>localStorage.setItem('taejang-staff-session-v1',JSON.stringify(session)),
         {access_token:adminToken,user:{id:user.id}});
@@ -43,7 +44,14 @@ export async function todayBoardBrowserFlow({apiUrl,publishableKey,adminToken,gr
         return ['127.0.0.1','localhost','[::1]'].includes(url.hostname)?route.continue():route.abort();
       });
       await page.goto('http://127.0.0.1:'+server.address().port+'/app/',{waitUntil:'domcontentloaded'});
-      await page.locator('#app-nav [data-menu-key="task.manage"]').click({timeout:20000});
+      const taskMenu = page.locator('#app-nav [data-menu-key="task.manage"]');
+      await taskMenu.waitFor({state:'attached',timeout:20000});
+      const menuToggle = page.locator('#sidebar-toggle');
+      if (await menuToggle.isVisible() && await menuToggle.getAttribute('aria-expanded') !== 'true') await menuToggle.click();
+      const operations = page.locator('#app-nav [data-nav-section-toggle="1"][data-section-key="operations"]');
+      await operations.waitFor({state:'attached'});
+      if (await operations.getAttribute('aria-expanded') === 'false') await operations.click();
+      await taskMenu.click({timeout:20000});
       await page.locator('#admin-board-date').fill('2026-07-23');
       await page.locator('#admin-board-date').dispatchEvent('change');
       await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled&&document.getElementById('task-scope').options.length>0);
@@ -80,11 +88,13 @@ export async function todayBoardBrowserFlow({apiUrl,publishableKey,adminToken,gr
       const workerBoard=await api(rpc,workerToken,args),otherBoard=await api(rpc,otherWorkerToken,args);
       assert.ok(workerBoard.tasks.some(row=>row.id===saved.id&&row.title===title+' 재조회'));
       assert.ok(!otherBoard.tasks.some(row=>row.id===saved.id));
-      console.log('ISOLATED_REAL_AUTH_BROWSER_PASS:'+width+':UI-save-table-readback-worker-scope');
+      const marker='ISOLATED_REAL_AUTH_BROWSER_PASS:'+width+':UI-save-table-readback-worker-scope';
+      console.log(marker);
+      if(process.env.GITHUB_ACTIONS==='true')console.log('::notice title=Isolated real Auth browser::'+marker);
       await context.close();
     }
   }catch(error){
-    const detail=String(error.stack||error).slice(-4000).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
+    const detail=('width='+activeWidth+'\n'+String(error.stack||error)).slice(-4000).replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
     console.error('::error title=Isolated real Auth browser workflow::'+detail);throw error;
   }finally{await browser?.close();await new Promise(resolve=>server.close(resolve));}
 }
