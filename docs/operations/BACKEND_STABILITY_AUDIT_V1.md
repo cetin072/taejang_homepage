@@ -8,7 +8,7 @@
 
 확인한 기준: `AGENTS.md`, `PROJECT_CHARTER.md`, 중앙 `DEVELOPMENT_CONSTITUTION.md`와 `WEB_ARCHITECTURE_STANDARD_V1.md`, `docs/PLATFORM_CONSTITUTION.md`, `WEB_ARCHITECTURE_ADOPTION.md`, `OPEN_SOURCE_ADOPTION.md`, `TEST_MANIFEST_AUDIT.md`, `CODEX_WORKFLOW.md`, `PHASE1_INTEGRATED_READINESS_REVIEW.md`, `PHASE1_PRODUCTION_READINESS_CHECKLIST.md`, `NOTICE_SYSTEM_OPERATIONAL_READINESS.md`, 거래처 문서 감사/확정 기획 및 최근 PR 이력.
 
-이전 문서의 PASS는 이번 결과로 승계하지 않았다. 조사 시 열린 PR에는 가입 승인 #505, 중복 직원 복구 #454, 구조 정비 #343/#347 등이 있다. #505의 권한/서버 수정과 #454의 복구 프로그램은 포함하거나 실행하지 않았다. #428의 수동 전용 수정은 기존 `fix/payroll-hosted-manual-gate-20261009` 브랜치에 있다.
+이전 문서의 PASS는 이번 결과로 승계하지 않았다. 조사 시 열린 PR에는 가입 승인 #505, 중복 직원 복구 #454, 구조 정비 #343/#347 등이 있다. #505의 권한/서버 수정과 #454의 복구 프로그램은 포함하거나 실행하지 않았다. #428의 수동 전용 수정은 기존 `fix/payroll-hosted-manual-gate-20261009`의 `f68f0c0`을 재사용하여 이번 Draft에 통합했다. 별도 PR을 추가 생성하지 않았다.
 
 | 증거 | 의미 | 증명하지 않는 것 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@
 
 - Production/고정 QA `/app/` HTTP 200. `staff-config`의 Production 연결은 `jgsxpdflgkqroecfjzxq.supabase.co`다. 실제 역할 세션과 Supabase management credential은 이번 실행환경에 없다.
 - 공개 중인 Production은 Netlify `6ada09b3d84436131970305f`, `ready`, SHA `2bb0f0397a4eb2148da701f56d9e9874a525eada`, 게시 UTC `2026-10-22T13:04:03.634Z`다. 최신 main을 운영 버전으로 간주하지 않았다.
-- 더 최신 production-context 시도 `6adb25d19d0da88a2c4dfb8a`/main `627a852...`는 `error`다. 배포 정책에 의해 거부된 시도를 실제 공개 배포로 보고하지 않는다. 48시간 릴리스 설정/마커/스케줄은 변경하지 않았다.
+- 더 최신 production-context 시도 `6adb25d19d0da88a2c4dfb8a`/main `627a852...`는 `error`다. 실패한 시도를 실제 공개 배포로 보고하지 않으며 해당 시도의 실패 원인은 이번 관측만으로 확정하지 않는다. 48시간 릴리스 설정/마커/스케줄은 변경하지 않았다.
 - 운영의 `app.js`, `work-guide-admin.js`, `platform-navigation-registry.js` 원문은 기준 main과 각각 byte 일치했다. 이번 대상 선택/작업방법 문제의 원본 코드가 운영에도 남아 있다. HTML 전체는 main과 불일치하므로 전체 배포 정합성을 주장하지 않는다.
 - 익명으로 **읽기 전용** RPC 7개(`get_my_access_context_v2`, `get_employee_management_context`, `list_existing_employee_signup_candidates`, `get_employee_field_audit`, `list_manageable_notices`, `support_get_company_profile`, `monthly_client_documents_get`) 호출: 전부 HTTP401/SQLSTATE42501. 응답 인사자료/토큰은 기록하지 않았다. 이는 익명 차단만 검증한다.
 - 운영 migration history/함수 본문/실역할 grant/RLS catalog는 NOT_VERIFIED. 익명 차단 응답으로 적용 이력이나 정상 사용자의 권한을 추정하지 않는다. DB migration/DDL/DML, 계정 초기화, 직원번호·급여·사진·근태 수정 0건.
@@ -86,7 +86,7 @@
 
 | ID | 등급 | 원인·재현 | 조치·현재 상태 |
 | --- | --- | --- | --- |
-| P0-01 (#428) | P0 | PR paths에 급여 파일/workflow가 매치되면 공유 `jgsx...`에서 실제 최고권한 handoff·role simulation DELETE/복원·급여 E2E 쓰기 실행. 2026-10-23 API 상태 `active`, 과거 PR 실행 기록 확인 | **즉시 차단**: workflow362736544 PUT disable 후 GET `disabled_manually` 확인. DB 변경 0. 이 브랜치는 위험 path를 건드리지 않음. 수동 전용 소스 수정은 기존 브랜치 유지, 별도 검토/병합 전 재활성화 금지 |
+| P0-01 (#428) | P0 | PR paths에 급여 파일/workflow가 매치되면 공유 `jgsx...`에서 실제 최고권한 handoff·role simulation DELETE/복원·급여 E2E 쓰기 실행. 2026-10-23 API 상태 `active`, 과거 PR 실행 기록 확인 | **즉시 차단**: workflow362736544 PUT disable 후 GET `disabled_manually` 확인. DB 변경 0. 차단을 재확인한 뒤 기존 f68f0c0의 수동 전용 workflow/계약 검사를 재사용. PR/push/schedule 자동 trigger 제거, main·소유자·명시 승인·정확한 열린 내부 PR HEAD·성공 Preview를 선행 검증. 별도 검토/병합·실행 승인 전 재활성화/dispatch 금지 |
 | P1-01 | P1 | `renderAdminOptions()`가 모든 선택을 재생성. 부서 한정 task를 작성하고 다른 폼 reset/목록 refresh → `company` 선택. main Chrome 재현 실패 로그 보관 | app.js 기존 선택 유지. 사라진 선택은 빈 값으로 두어 새 선택 요구. 대상 변경시 target 초기화 의미 유지. 4폭 합성 Chrome 회귀 통과 |
 | P1-02 | P1 | save 성공의 `id`를 숨은 필드에 반영하지 않음. 작업방법 기본정보 재저장 시 신규 INSERT 경로. 목록 오류를 내부에서 삼키면 성공처럼 폼 reset | accepted ID를 조회 전에 저장, reload 결과 boolean 반환. 실패시 입력/ID 유지·구분 안내, 다음 수동 저장은 동일 ID. 단계 저장에도 적용. 네트워크 불확실 쓰기 자동 재시도 추가 없음 |
 | P1-03 | P1 | work-guide 상세/단계/순서 오류에서 숨겨진 `admin-message.textContent`만 변경. 초기 목록 Promise rejection 미처리 | 기존 message 유틸리티로 unhide/error 표시, 목록 실패 catch·재시도. 읽기 실패시 편집값 유지. 실제 Chrome 검증 |
@@ -95,7 +95,7 @@
 | P2-02 | P2 | 미사용 renderer를 직접 실행하는 fixture가 남아 있음. 예: `employee-field-audit.js` 전용 test vs 현재 인사카드 내 조사. `operations-promotion-writer.js` fixture vs 현재 V2 작성 | 삭제보다 현재 entry와 테스트 소유자 연결 우선. 전용 fixture PASS를 실제 메뉴 PASS로 집계하지 않음. 현재 인사카드 테스트 별도 존재 |
 | P2-03 | P2 | 지원사업 확장 모듈은 구현됐지만 기본 dashboard의 다음 단계 안내 일부가 과거 Phase1 초기 문구 | 업무 차단 우선순위 뒤로 보류. 자동수집 준비중 표시는 의도적 제한 |
 
-건수: P0 **1건 차단/소스 후속 남음**, 미차단 확정 P0 **0건**. P1 **4건 중 이번 3건 수정, 기존 1건 별도 진행**. P2 **3건 기록/미수정**. P3 **0건 구현**. 실계정 검증 부재는 결함 건수와 별도 제한이다. 전 영역에 P0가 없음을 증명했다고 보고하지 않는다.
+건수: P0 **1건 즉시 차단·소스 수정 완료/병합 후속 남음**, 미차단 확정 P0 **0건**. P1 **4건 중 이번 3건 수정, 기존 1건 별도 진행**. P2 **3건 기록/미수정**. P3 **0건 구현**. 실계정 검증 부재는 결함 건수와 별도 제한이다. 전 영역에 P0가 없음을 증명했다고 보고하지 않는다.
 
 ## 5. 구조·재사용 판단
 
@@ -125,11 +125,12 @@ staff-config → Auth session → access context/capability
 
 ## 6. 이번 실행 결과
 
-- L: `npm test` **1260/1260** = platform595 + public141 + payroll524, 실패/skip0. stagingSafety16/16. syntax/diff 통과.
+- L: 기존 전체 `npm test`1260/1260 이후 P0 게이트 추가에 따라 payroll 재실행525/525: 합계 **1261/1261** = platform595 + public141 + payroll525, 실패/skip0. stagingSafety16/16. syntax/diff 통과.
 - build:netlify 통과, 공개 article10개 생성. 클라우드에서 Naver thumbnail42개 fetch 실패 → 기존 승인 fallback42개 사용. 외부 원격 조회까지 통과한 것으로 보고하지 않는다.
 - B: `backend-stability-browser.mjs`에서 실제 app HTML/transport/관련 controller를 HTTP로 실행. 합성 API, 실제 manager module 로드. 대상 보존→거절 보존→accepted save/read 실패→동일 ID 재저장→목록 반영, 작업방법/단계 복구·목록 retry를 1440/768/390/320에서 확인. 권한 없는 홍보직원 합성 context의 직접 panel 접근 차단. unrelated enhancement를 생략한 controller 검사이며 전체 실로그인 증거 아님.
 - B 기존: `admin-authoring-browser.mjs` 원래 기능 게이트11개×PC/모바일=22개, 입력/폼11종×4폭=44개 통과. 직원/공지/홍보/홈페이지/사이드바 원래 assertion 보존.
 - I: `today-board-auth-integration.mjs`에 같은 guide/step/task ID 재저장, 실제 table/상세 조회·다른 작업반 직원 비노출 검증 추가. localhost-only 사전 차단으로 공유 DB에서 이 쓰기 suite 실행 불가. 실행 CI 결과는 아래 인계 기록으로 추가한다.
+- 안전 게이트: 기존 workflow Bash 사전검사 자체를 합성 GitHub API로 실행. 정상1종·차단13종(잘못된 event/actor/ref/repo/승인/번호/SHA, 닫힌·외부·변경된 PR, 미준비·잘못된 Preview, API 실패) 통과. 현재 PR #525의 실제 GitHub/Netlify 상태에 읽기 전용 사전검사만 실행해 정상 경로도 확인했다. Hosted workflow dispatch/DB 쓰기 실행은 하지 않았다.
 - V: 기존 browser CI의 exact-HEAD Preview 대기 절차에서 새 regression 재실행·캡처 업로드. Preview 결과는 아래 인계 기록으로 추가한다.
 - Production: 배포·업무 쓰기 실행 안 함. **PRODUCTION_VERIFIED 부여 대상 없음.**
 
@@ -150,4 +151,4 @@ staff-config → Auth session → access context/capability
 
 ## 8. 최종 PR·CI·Preview 인계
 
-후속 실행의 정확한 HEAD/CI/Preview·검증 한계는 이 절에 갱신한다. 고정 QA를 강제로 교체하지 않으며 개발 Preview를 사용자 최종 수용 검수 완료로 보고하지 않는다.
+Draft PR: [#525](https://github.com/cetin072/taejang_homepage/pull/525). 브랜치 `fix/backend-stability-audit-v1-20261023`. 최신 HEAD·CI run·Netlify deploy ID와 검증 결과는 PR 본문에서 정확한 SHA와 함께 갱신한다(자기 SHA를 문서에 넣기 위한 불필요한 CI 재실행 방지). 개발 Preview: https://deploy-preview-525--taejang-homepage.netlify.app/app/ . 고정 QA를 강제로 교체하지 않으며 개발 Preview를 사용자 최종 수용 검수 완료로 보고하지 않는다.

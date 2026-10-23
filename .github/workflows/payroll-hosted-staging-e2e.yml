@@ -1,22 +1,32 @@
 name: Payroll Hosted Staging E2E
 
+# This workflow mutates an existing Staging payroll month and creates an Auth handoff.
+# Never run it automatically from PR, push, schedule, or another workflow.
+# Existing safety coverage for PRs runs in the isolated Phase 1A integration suite.
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'tests/payroll-hosted-e2e.mjs'
-      - 'tests/payroll-hosted-e2e-contract.test.js'
-      - '.github/workflows/payroll-hosted-staging-e2e.yml'
-      - 'supabase/functions/web-auth-handoff/**'
-      - 'app/payroll/**'
-      - 'app/assets/payroll-*.js'
-      - 'netlify/functions/payroll-calculate-proxy.mjs'
-      - 'supabase/functions/payroll-calculate/**'
-      - 'supabase/migrations/*payroll*.sql'
   workflow_dispatch:
+    inputs:
+      reviewed_pr_number:
+        description: 'Reviewed PR number for the exact Netlify Deploy Preview'
+        required: true
+        type: string
+      reviewed_head_sha:
+        description: 'Exact 40-character PR HEAD reviewed before Staging writes'
+        required: true
+        type: string
+      staging_write_approval:
+        description: 'Account handoff and 2026-07 payroll draft will be written to Staging'
+        required: true
+        type: choice
+        options:
+          - DENY
+          - APPROVE_STAGING_PAYROLL_WRITE
+        default: DENY
 
 permissions:
   contents: read
+  pull-requests: read
+  statuses: read
 
 concurrency:
   group: payroll-hosted-staging-e2e
@@ -27,12 +37,51 @@ jobs:
     name: Hosted payroll API and browser E2E
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      github.repository == 'cetin072/taejang_homepage' &&
+      github.actor == 'cetin072' &&
+      inputs.staging_write_approval == 'APPROVE_STAGING_PAYROLL_WRITE'
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       STAGING_PROJECT_REF: jgsxpdflgkqroecfjzxq
       STAGING_CONFIRM: STAGING
     steps:
+      - name: Verify explicit approval, exact PR HEAD and ready Preview (read-only)
+        shell: bash
+        env:
+          REVIEWED_PR_NUMBER: ${{ inputs.reviewed_pr_number }}
+          REVIEWED_HEAD_SHA: ${{ inputs.reviewed_head_sha }}
+          STAGING_WRITE_APPROVAL: ${{ inputs.staging_write_approval }}
+          GH_READ_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' &&
+             "$GITHUB_REPOSITORY" == 'cetin072/taejang_homepage' &&
+             "$GITHUB_REF" == 'refs/heads/main' &&
+             "$GITHUB_ACTOR" == 'cetin072' ]] || { echo 'STOP_UNAPPROVED_DISPATCH'; exit 1; }
+          [[ "$STAGING_WRITE_APPROVAL" == 'APPROVE_STAGING_PAYROLL_WRITE' ]] || { echo 'STOP_STAGING_WRITE_NOT_APPROVED'; exit 1; }
+          [[ "$REVIEWED_PR_NUMBER" =~ ^[1-9][0-9]{0,6}$ ]] || { echo 'STOP_INVALID_PR_NUMBER'; exit 1; }
+          [[ "$REVIEWED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'STOP_INVALID_PR_HEAD'; exit 1; }
+          pr_json="$(curl --fail --silent --show-error --retry 1 \
+            --header "Authorization: Bearer ${GH_READ_TOKEN}" \
+            --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${REVIEWED_PR_NUMBER}")"
+          printf '%s' "$pr_json" | jq -e \
+            --arg repo "$GITHUB_REPOSITORY" --arg sha "$REVIEWED_HEAD_SHA" \
+            '.state == "open" and .base.ref == "main" and .head.repo.full_name == $repo and .head.sha == $sha' >/dev/null \
+            || { echo 'STOP_STALE_PR_OR_UNTRUSTED_HEAD'; exit 1; }
+          status_json="$(curl --fail --silent --show-error --retry 1 \
+            --header "Authorization: Bearer ${GH_READ_TOKEN}" \
+            --header 'Accept: application/vnd.github+json' \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${REVIEWED_HEAD_SHA}/status")"
+          expected_url="https://deploy-preview-${REVIEWED_PR_NUMBER}--taejang-homepage.netlify.app"
+          printf '%s' "$status_json" | jq -e \
+            --arg url "$expected_url" \
+            '.statuses | any(.context == "netlify/taejang-homepage/deploy-preview" and .state == "success" and .target_url == $url)' >/dev/null \
+            || { echo 'STOP_EXACT_HEAD_PREVIEW_NOT_READY'; exit 1; }
+          echo 'PASS manual authorization and PR exact-head Preview status; writes may begin.'
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -93,7 +142,7 @@ jobs:
       - name: Run cheap checks, staging API smoke, then hosted Playwright
         env:
           PLAYWRIGHT_BROWSERS_PATH: 0
-          PAYROLL_HOSTED_PREVIEW_SITE: ${{ github.event.pull_request.number && format('https://deploy-preview-{0}--taejang-homepage.netlify.app', github.event.pull_request.number) || 'https://taejang.co.kr' }}
+          PAYROLL_HOSTED_PREVIEW_SITE: ${{ format('https://deploy-preview-{0}--taejang-homepage.netlify.app', inputs.reviewed_pr_number) }}
         run: npm run test:payroll-hosted
       - name: Restore pre-test role simulation state
         if: always() && env.PAYROLL_HOSTED_SIMULATION_WAS_ACTIVE == 'true'
