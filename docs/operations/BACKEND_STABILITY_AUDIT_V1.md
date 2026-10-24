@@ -153,3 +153,13 @@ staff-config → Auth session → access context/capability
 ## 8. 최종 PR·CI·Preview 인계
 
 Draft PR: [#525](https://github.com/cetin072/taejang_homepage/pull/525). 브랜치 `fix/backend-stability-audit-v1-20261023`. 최신 HEAD·CI run·Netlify deploy ID와 검증 결과는 PR 본문에서 정확한 SHA와 함께 갱신한다(자기 SHA를 문서에 넣기 위한 불필요한 CI 재실행 방지). 개발 Preview: https://deploy-preview-525--taejang-homepage.netlify.app/app/ . 고정 QA를 강제로 교체하지 않으며 개발 Preview를 사용자 최종 수용 검수 완료로 보고하지 않는다.
+
+## 9. 2026-10-24 후속 검수
+
+- 기존 구현과 별도 세션에서 PR #525의 `8c77fc30748d38d72becdc25b80389f34b40bb4a`를 새로 fetch하여 검토했다. 최신 `origin/main`은 `627a85281d8ea78a098510d87458964a52ae03e1`이며 AGENTS.md를 대조했다. 저장소와 상위 `.agents`에 추가 skill 파일은 없었다. 별도 검수 에이전트나 사람의 승인 리뷰를 받은 것은 아니다.
+- 검수 범위: 제품 코드 두 파일, 저장 성공/조회 실패 경계, 대상 선택 보존, 실제 RPC의 ID 반환, 수동 Hosted workflow의 trigger·승인·정확한 PR/Preview 선행 검사. 이 범위에서 추가 제품 결함은 재현되지 않았다. 기존 구현은 유지하고 `backend-stability-browser.mjs`에 누락됐던 실행 회귀를 추가했다.
+- 새 검사: 선택했던 부서가 갱신 목록에서 사라지면 대상이 빈 값으로 남고 저장 RPC가 실행되지 않음; 작업방법 저장 거절 시 제목/빈 ID 유지; 저장 성공 후 목록 조회 실패 시 제목/accepted ID 유지; 다음 수동 저장은 같은 ID 사용. 실제 Chromium과 합성 API, 1440/768/390/320에서 모두 통과했다. 하위 역할 패널 차단도 통과했다.
+- 로컬 `test:platform-static` 596/596, `test:staging-safety` 16/16, Hosted 계약 4/4(실제 Bash 사전검사 정상1/차단13 포함), diff/문법 검사 통과. 전체 회귀·최종 HEAD CI 결과는 PR 본문의 최신 검수 기록을 기준으로 확인한다.
+- 격리 DB 재실행을 시도했지만 로컬 Supabase 이미지 공급원 `public.ecr.aws`가 HTTP403으로 차단되어 시작하지 못했다. 운영 DB로 대체하지 않았다. 기존 HEAD의 Phase1A/Promotion/Public/Payroll/UAR 성공 상태는 GitHub 커넥터로 재조회했지만, 이것은 과거 실행이며 이번 로컬 DB 재검증 PASS가 아니다.
+- Hosted workflow 현재 비활성 상태 재조회는 CLI HTTP403 및 커넥터의 endpoint 미지원으로 막혔다. §4의 `disabled_manually`는 2026-10-23 확인 기록이다. 이번에는 설정을 변경하거나 dispatch하지 않았으며 현재 상태를 재확인했다고 주장하지 않는다.
+- 실제 역할 계정·운영 schema·실단말 검수, main 병합/Production 반영은 여전히 별도다. 운영/개인정보 쓰기0, 신규 PR0, 고정 QA 변경0. 이번 후속 결과가 운영 사용 완료나 사용자 수용 준비 완료를 뜻하지 않는다.

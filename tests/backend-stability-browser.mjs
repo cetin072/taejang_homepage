@@ -51,7 +51,7 @@ const options={company_allowed:true,departments:[{id:'d1',name:'합성 부서 1'
 async function boot(width,role='operations_manager'){
   const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage();
   const calls=[],errors=[],records={tasks:[],information:[]},guides=[];
-  const control={readFail:false,writeFail:false,detailFail:false,guideListFail:false};
+  const control={readFail:false,writeFail:false,detailFail:false,guideListFail:false,removedDepartment:false};
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(({role})=>{
     // Same early-pageshow guard as app-ui.js; this harness omits that loader.
@@ -76,7 +76,7 @@ async function boot(width,role='operations_manager'){
     if(!url.pathname.startsWith('/rest/v1/rpc/'))return route.continue();
     const name=url.pathname.split('/').pop(),args=req.postDataJSON();calls.push({name,args});
     if(name==='get_my_access_context')return send({authenticated:true,account_status:'active',display_name:'합성 검수',roles:[{code:role,name:role}]});
-    if(name==='get_today_board_admin_options')return send(options);
+    if(name==='get_today_board_admin_options')return send(control.removedDepartment?{...options,departments:options.departments.filter(d=>d.id!=='d2')}:options);
     if(name==='list_manageable_today_records')return control.readFail?send({message:'synthetic read failure'},503):send(records);
     if(name==='list_manageable_work_guides')return control.guideListFail?send({message:'synthetic list failure'},503):send(guides);
     if(name==='get_manageable_work_guide_detail')return control.detailFail?send({message:'synthetic detail failure'},503):send({guide:guides.find(g=>g.id===args.p_work_guide_id),steps:[]});
@@ -87,6 +87,7 @@ async function boot(width,role='operations_manager'){
       return send({ok:true,id});
     }
     if(name==='save_work_guide'){
+      if(control.writeFail)return send({ok:false,code:'FORBIDDEN'});
       const id=args.p_work_guide_id||'saved-guide',guide={id,title:args.p_title,department_id:args.p_department_id,
         category:args.p_category,guide_format:args.p_guide_format,audience_scope:args.p_audience_scope,status:args.p_status,step_count:0,published_step_count:0};
       guides.splice(0,guides.length,guide);return send({ok:true,id});
@@ -124,6 +125,20 @@ try{
     assert.equal(await value('task-scope'),'department','refresh/reset another form must not broaden audience');
     assert.equal(await value('task-target'),'d2');assert.equal(await value('task-lead'),'p1');
     assert.equal(await value('task-guide'),'g1');assert.equal(await value('guide-department'),'d2');
+    // An option removed during refresh must require a new explicit choice.
+    control.removedDepartment=true;
+    await page.locator('#refresh-admin').click();
+    await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled);
+    assert.equal(await value('task-scope'),'department');
+    assert.equal(await value('task-target'),'');
+    const writesBefore=calls.filter(c=>c.name==='save_daily_work_assignment').length;
+    await submit('task-form');
+    assert.equal(calls.filter(c=>c.name==='save_daily_work_assignment').length,writesBefore);
+    control.removedDepartment=false;
+    await page.locator('#refresh-admin').click();
+    await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled);
+    await page.locator('#task-target').selectOption('d2');
+    await page.locator('#guide-department').selectOption('d2');
     // A rejected write retains all input and sends the chosen target, not company.
     control.writeFail=true;await submit('task-form');
     assert.equal(await value('task-title-input'),'합성 부서 한정 업무');
@@ -143,7 +158,15 @@ try{
     // Saving the same new work guide twice must update its accepted ID.
     await page.locator('#guide-title-input').fill('합성 작업방법');
     await page.locator('#guide-reason').fill('합성 검수 사유');
-    await submit('guide-form');await submit('guide-form');
+    control.writeFail=true;await submit('guide-form');
+    assert.equal(await value('guide-id'),'');
+    assert.equal(await value('guide-title-input'),'합성 작업방법');
+    assert.equal(await page.locator('#admin-message').isVisible(),true);
+    control.writeFail=false;control.readFail=true;await submit('guide-form');
+    assert.equal(await value('guide-id'),'saved-guide');
+    assert.equal(await value('guide-title-input'),'합성 작업방법');
+    assert.match(await page.locator('#admin-message').innerText(),/저장.*불러오지/);
+    control.readFail=false;await submit('guide-form');
     assert.equal(calls.filter(c=>c.name==='save_work_guide').at(-1).args.p_work_guide_id,'saved-guide');
     await page.waitForFunction(()=>document.querySelector('#guide-manage-list button'));
     control.detailFail=true;
