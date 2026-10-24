@@ -10,6 +10,18 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const appUiSource = read('app/assets/app-ui.js');
 const dashboardSource = read('app/assets/dashboard-shell.js');
+const appSource = read('app/assets/app.js');
+
+test('accepted guide save does not require unrelated task-list permission', async () => {
+  const saveSource = appSource.slice(appSource.indexOf('  async function saveForm('), appSource.indexOf('  async function submitTask('));
+  const id = {value:''}, submit = {disabled:false};let taskReads = 0;
+  const sandbox = {rpc:async()=>({ok:true,id:'saved-guide'}),canManage:()=>false,
+    element:()=>id,hideMessage:()=>{},showMessage:()=>{},
+    loadAdminData:async()=>{taskReads++;return false;}};
+  vm.runInNewContext(saveSource+'\nglobalThis.save=saveForm;',sandbox);
+  assert.equal(await sandbox.save({id:'guide-form',querySelector:()=>submit},'save_work_guide',{}),true);
+  assert.equal(taskReads,0);assert.equal(id.value,'saved-guide');assert.equal(submit.disabled,false);
+});
 
 function datasetKey(attribute) {
   return attribute.replace(/^data-/, '').replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());

@@ -5,6 +5,7 @@
   const ui = () => window.TaejangAppUi;
   const app = () => window.TaejangApp;
   const e = id => ui().element(id);
+  const message = value => ui().message('admin-message', value, true);
 
   function fill(select, values, blank) {
     select.replaceChildren();
@@ -63,18 +64,41 @@
     setAudienceFields(); renderPreview(); e('guide-step-editor').open = true; resetStep(); renderSteps();
   }
   async function selectGuide(id) {
-    try { selected = await app().rpc('get_manageable_work_guide_detail', { p_work_guide_id: id }); fillGuide(selected); }
-    catch { e('admin-message').textContent = '작업방법을 열 수 없습니다. 권한을 확인하세요.'; }
+    try {
+      selected = await app().rpc('get_manageable_work_guide_detail', { p_work_guide_id: id });
+      fillGuide(selected);
+      return true;
+    } catch {
+      message('작업방법을 불러오지 못했습니다. 입력은 유지했습니다. 권한과 연결 상태를 확인한 뒤 다시 열어주세요.');
+      return false;
+    }
   }
   async function loadGuides() {
-    const list = await app().rpc('list_manageable_work_guides');
-    const host = e('guide-manage-list'); host.replaceChildren();
-    if (!list.length) host.append(ui().text('p', '관리할 작업방법이 없습니다. 기본정보를 새로 작성하세요.', 'empty'));
-    list.forEach(guide => {
-      const card = document.createElement('article'); card.className = 'admin-record-card';
-      card.append(ui().text('p', `${guide.status === 'published' ? '게시' : guide.status === 'inactive' ? '사용 중지' : '작성 중'} · ${guide.published_step_count}/${guide.step_count}단계 게시`, 'card-kicker'), ui().text('h4', guide.title));
-      const button = ui().text('button', '열기·수정', 'button button-quiet'); button.type = 'button'; button.addEventListener('click', () => selectGuide(guide.id)); card.append(button); host.append(card);
-    });
+    const host = e('guide-manage-list');
+    try {
+      const list = await app().rpc('list_manageable_work_guides');
+      host.replaceChildren();
+      if (!list.length) host.append(ui().text('p', '관리할 작업방법이 없습니다. 기본정보를 새로 작성하세요.', 'empty'));
+      list.forEach(guide => {
+        const card = document.createElement('article'); card.className = 'admin-record-card';
+        card.append(ui().text('p', `${guide.status === 'published' ? '게시' : guide.status === 'inactive' ? '사용 중지' : '작성 중'} · ${guide.published_step_count}/${guide.step_count}단계 게시`, 'card-kicker'), ui().text('h4', guide.title));
+        const button = ui().text('button', '열기·수정', 'button button-quiet'); button.type = 'button'; button.addEventListener('click', () => selectGuide(guide.id)); card.append(button); host.append(card);
+      });
+      return true;
+    } catch {
+      message('작업방법 목록을 불러오지 못했습니다. 다시 불러오기를 눌러 확인해주세요.');
+      if (!host.querySelector('[data-guide-retry]')) {
+        const retry = ui().text('button', '다시 불러오기', 'button button-quiet');
+        retry.type = 'button'; retry.dataset.guideRetry = '1';
+        retry.addEventListener('click', async () => {
+          retry.disabled = true;
+          try { if (await loadGuides()) ui().message('admin-message', '작업방법 목록을 다시 불러왔습니다.'); }
+          finally { retry.disabled = false; }
+        });
+        host.append(retry);
+      }
+      return false;
+    }
   }
   async function submitStep(event) {
     event.preventDefault(); if (!event.currentTarget.reportValidity() || !selected) return;
@@ -87,8 +111,14 @@
         p_image_alt: e('guide-step-image-alt').value, p_caution_text: e('guide-step-caution').value,
         p_status: e('guide-step-status').value, p_change_reason: e('guide-step-reason').value
       });
-      if (!result.ok) throw new Error(result.code); await selectGuide(selected.guide.id); await loadGuides();
-    } catch { e('admin-message').textContent = '단계를 저장하지 못했습니다. 번호·설명·이미지 설명을 확인하세요.'; }
+      if (!result.ok) throw new Error(result.code);
+      if (result.id) e('guide-step-id').value = result.id;
+      if (!await selectGuide(selected.guide.id)) {
+        message('단계 저장은 처리됐으나 최신 작업방법을 불러오지 못했습니다. 입력은 유지했습니다. 다시 열어 확인해주세요.');
+        return;
+      }
+      await loadGuides();
+    } catch { message('단계를 저장하지 못했습니다. 입력은 유지했습니다. 번호·설명·이미지 설명을 확인하세요.'); }
     finally { button.disabled = false; }
   }
   async function reorder(id, delta) {
@@ -96,7 +126,7 @@
     [steps[index], steps[index + delta]] = [steps[index + delta], steps[index]];
     const reason = window.prompt('단계 순서 변경 사유를 적으세요.'); if (!reason) return;
     try { const result = await app().rpc('reorder_work_guide_steps', { p_work_guide_id: selected.guide.id, p_step_ids: steps.map(step => step.id), p_change_reason: reason }); if (!result.ok) throw new Error(result.code); await selectGuide(selected.guide.id); }
-    catch { e('admin-message').textContent = '순서를 바꾸지 못했습니다. 다시 시도하세요.'; }
+    catch { message('순서를 바꾸지 못했습니다. 다시 시도하세요.'); }
   }
   function bind() {
     const records = document.createElement('section'); records.className = 'admin-records'; records.innerHTML = '<h3>작업방법 목록</h3><div id="guide-manage-list" class="card-list"></div>';
@@ -109,6 +139,7 @@
   }
   document.addEventListener('taejang-app-ready', async event => {
     if (app().hasCapabilityContract?.() ? !app().can?.('guidance.manage') : !app().isTodayManager()) return;
-    try { options = await app().rpc('get_today_board_admin_options'); bind(); } catch { /* The existing protected manager panel reports access errors. */ }
+    try { options = await app().rpc('get_today_board_admin_options'); bind(); }
+    catch { message('작업방법 관리 도구를 불러오지 못했습니다. 권한과 연결 상태를 확인한 뒤 새로고침해주세요.'); }
   }, { once: true });
 })();

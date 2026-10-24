@@ -8,6 +8,18 @@ const password = 'Phase1A-Test-Only-2026!';
 
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
+assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(apiUrl).hostname),
+  'Today board mutation tests require isolated local Supabase');
+
+// Preserve the original failure/exit status; expose bounded diagnostics when
+// the CI log archive itself is unavailable from the managed cloud network.
+process.on('uncaughtExceptionMonitor', error => {
+  if (process.env.GITHUB_ACTIONS !== 'true') return;
+  const detail = String(error.stack || error).slice(-4000)
+    .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, '[JWT withheld]')
+    .replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+  console.error('::error title=Today board isolated Auth integration::' + detail);
+});
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -205,6 +217,9 @@ for (const [group, userId, memberType] of [
 
 const guide = await saveGuide(adminToken);
 equal(guide.data?.code, 'WORK_GUIDE_SAVED', 'manager creates a draft work guide');
+const guideSavedAgain = await saveGuide(adminToken, { p_work_guide_id: guide.data.id });
+equal(guideSavedAgain.data?.id, guide.data.id, 'accepted guide ID updates the same record after UI recovery');
+const stepIds = [];
 for (const step of [1, 2, 3]) {
   const savedStep = await rpc('save_work_guide_step', adminToken, {
     p_step_id: null, p_work_guide_id: guide.data.id, p_step_order: step, p_title: `${step}단계`,
@@ -212,7 +227,17 @@ for (const step of [1, 2, 3]) {
     p_caution_text: null, p_status: 'published', p_change_reason: '작업방법 CI 단계 추가',
   });
   equal(savedStep.data?.code, 'WORK_GUIDE_STEP_SAVED', `manager creates guide step ${step}`);
+  stepIds.push(savedStep.data.id);
 }
+const stepSavedAgain = await rpc('save_work_guide_step', adminToken, {
+  p_step_id: stepIds[0], p_work_guide_id: guide.data.id, p_step_order: 1, p_title: '1단계 재확인',
+  p_easy_text: '1단계 작업을 확인합니다.', p_image_url: null, p_image_alt: null,
+  p_caution_text: null, p_status: 'published', p_change_reason: '저장 후 재조회 복구 동일 ID 검증',
+});
+equal(stepSavedAgain.data?.id, stepIds[0], 'accepted step ID updates instead of inserting another step');
+const guideReadback = await rpc('get_manageable_work_guide_detail', adminToken, { p_work_guide_id: guide.data.id });
+equal(guideReadback.data?.steps?.length, 3, 'guide readback has no duplicate steps');
+check(guideReadback.data.steps.some(step => step.id === stepIds[0] && step.title === '1단계 재확인'), 'saved step changes persist through real RPC readback');
 const publishedGuide = await saveGuide(adminToken, { p_work_guide_id: guide.data.id, p_status: 'published', p_change_reason: '오늘 업무 연결 전 게시' });
 equal(publishedGuide.data?.code, 'WORK_GUIDE_SAVED', 'manager publishes a guide with three steps');
 
@@ -239,6 +264,24 @@ const groupTask = await saveTask(fieldLead.token, {
   ...target('work_group', groupA),
 });
 equal(groupTask.data?.code, 'DAILY_WORK_SAVED', 'field lead creates a task for the led work group');
+// Keep the existing single-update audit fixture independent of recovery writes.
+const recoveryTask = await saveTask(fieldLead.token, {
+  p_title: '동일 ID 복구 검증 업무', p_start_time: '13:00', p_end_time: '14:00',
+  ...target('work_group', groupA),
+});
+equal(recoveryTask.data?.code, 'DAILY_WORK_SAVED', 'recovery scenario creates its own isolated task');
+const recoveryTaskSavedAgain = await saveTask(fieldLead.token, {
+  p_assignment_id: recoveryTask.data.id, p_title: '동일 ID 복구 검증 업무', p_start_time: '13:00', p_end_time: '14:00',
+  p_lead_profile_id: fieldLead.id, p_work_guide_id: guide.data.id,
+  ...target('work_group', groupA), p_change_reason: '동일 ID 재저장·대상 보존 검증',
+});
+equal(recoveryTaskSavedAgain.data?.id, recoveryTask.data.id, 'accepted task ID updates the same task');
+const storedTask = await api('/rest/v1/daily_work_assignments?select=id,target_scope,target_work_group_id&id=eq.' + recoveryTask.data.id, { token: adminToken });
+check(storedTask.ok && storedTask.data?.length === 1, 'task exists exactly once in actual isolated DB');
+equal(storedTask.data[0].target_scope, 'work_group', 'stored task audience is not broadened to company');
+equal(storedTask.data[0].target_work_group_id, groupA, 'stored task keeps its selected group');
+const otherGroupReadback = await rpc('get_my_today_board', workerB.token, { p_board_date: '2026-07-23' });
+check(!otherGroupReadback.data.tasks.some(task => task.id === recoveryTask.data.id), 'related employee screen excludes other-group task after same-ID update');
 
 const otherGroupTask = await saveTask(fieldLead.token, {
   p_title: 'B반 권한 밖 업무',
@@ -359,4 +402,11 @@ for (const blockedStatus of ['suspended', 'departed', 'deleted']) {
   }
 }
 
+if (process.env.TODAY_BOARD_BROWSER_QA === '1') {
+  const {todayBoardBrowserFlow} = await import('./helpers/today-board-browser-flow.mjs');
+  await todayBoardBrowserFlow({apiUrl,publishableKey,adminToken,groupId:groupA,
+    workerToken:workerA.token,otherWorkerToken:workerB.token});
+} else {
+  console.log('Today board real Auth/browser workflow NOT_RUN (TODAY_BOARD_BROWSER_QA=1 required)');
+}
 console.log(`Today board Auth/Data API integration passed: ${assertions} assertions`);
