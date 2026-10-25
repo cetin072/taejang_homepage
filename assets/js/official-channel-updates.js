@@ -7,6 +7,24 @@
   const items = /* OFFICIAL_ITEMS_START */
 [
   {
+    "id": "naver-blog-224443797006",
+    "type": "external",
+    "source": "naver-blog",
+    "publisher": "태장 공식 블로그",
+    "category": "회사소식",
+    "title": "정성스러운 민화 그리기와 택배 박스 접기 - 장애인 표준사업장 태장",
+    "summary": "태장 공식 블로그의 「정성스러운 민화 그리기와 택배 박스 접기 - 장애인 표준사업장 태장」 기록입니다.",
+    "thumbnail": "https://blogthumb.pstatic.net/MjAyNjEwMTZfMTU1/MDAxNzkyMTEyODg5MjE3.fg6ZX2lgZ0T0acQo7L6h4AjcJltnR88hs6VgLhM03Fgg.i-lMGqCWIJhF03WuEK6Q5Ox-VNeqYyCsOZRyvaHitEcg.JPEG/KakaoTalk_20261016_100626576.jpg?type=w2",
+    "thumbnailAlt": "정성스러운 민화 그리기와 택배 박스 접기 - 장애인 표준사업장 태장 관련 태장 공식 블로그 대표사진",
+    "publishedAt": "2026-10-23",
+    "sourcePublishedAt": "2026-10-23",
+    "archiveDateBasis": "source-publication-date",
+    "featured": false,
+    "status": "published",
+    "externalUrl": "https://blog.naver.com/taejang-official/224443797006",
+    "externalLabel": "네이버 블로그에서 보기"
+  },
+  {
     "id": "naver-blog-224443423498",
     "type": "external",
     "source": "naver-blog",
