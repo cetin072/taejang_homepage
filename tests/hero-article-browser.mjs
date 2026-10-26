@@ -69,7 +69,9 @@ try {
       assert.equal(await active.isVisible(), true);
       assert.ok(Math.abs((await slider.boundingBox()).height - initialHeight) < 1, 'slide changes do not shift card height');
       await active.locator('[data-youtube-play]').click();
-      assert.match(await active.locator('iframe').getAttribute('src'), new RegExp(`/embed/${id}\\?autoplay=1`));
+      const playerUrl = new URL(await active.locator('iframe').getAttribute('src'));
+      assert.equal(playerUrl.pathname, `/embed/${id}`);
+      assert.equal(playerUrl.searchParams.get('autoplay'), '1');
       await slider.locator('[data-hero-video-next]').click();
       assert.equal(await slider.locator('iframe').count(), 0, 'leaving video destroys player to stop playback');
       assert.equal(await active.locator('[data-youtube-play]').count(), 1);
