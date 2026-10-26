@@ -33,6 +33,24 @@
   inset: 0;
 }
 
+/* The uncropped article sets the track height, including its readable caption.
+   Keep that space when a video is selected so the page does not jump. */
+.hero-video-slider--featured { aspect-ratio: auto; }
+.hero-article { position: relative; }
+/* Only this sizing slide retains layout under the global hidden rule. */
+.hero-article[hidden] { display: block !important; visibility: hidden; pointer-events: none; }
+.hero-article-link { display: block; color: var(--green-deep, #1b4332); background: #fff; text-decoration: none; }
+.hero-article-link figure { margin: 0; }
+.hero-article-image { display: block; width: 100%; height: auto; }
+.hero-article-link figcaption { padding: 16px 20px 48px; }
+.hero-article-link figcaption strong { display: block; font-size: clamp(16px, 1.5vw, 20px); line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.hero-article-link figcaption > span { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin-top: 8px; font-size: 13px; line-height: 1.5; }
+.hero-article-read { font-weight: 700; }
+.hero-article-link:hover strong { text-decoration: underline; text-underline-offset: 4px; }
+.hero-article-link:focus-visible { outline: 3px solid var(--green, #2d6a4f); outline-offset: -5px; }
+.hero-video-slider--featured .hero-video-control { top: 30%; }
+.hero-video-slider--featured .hero-video-indicators { width: max-content; margin: 0 auto; padding: 0 6px; border-radius: 20px; background: #1b4332; }
+
 .hero-video-poster,
 .hero-video-frame {
   display: block;
