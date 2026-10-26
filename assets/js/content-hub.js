@@ -80,6 +80,12 @@
   function createMedia(item, mediaClassName = 'card-media card-media--hub') {
     const media = document.createElement('div');
     media.className = mediaClassName;
+    const placeholder = unavailable => {
+      const slot = document.createElement('div'); slot.className = 'content-photo-slot';
+      slot.setAttribute('role', 'img'); slot.setAttribute('aria-label', unavailable || `CONTENT PHOTO: ${item.title}`);
+      appendText(slot, 'span', unavailable ? '대표사진을 표시할 수 없습니다' : 'CONTENT PHOTO', 'content-photo-slot-label');
+      appendText(slot, 'strong', item.title); media.replaceChildren(slot);
+    };
     if (item.thumbnail) {
       const image = document.createElement('img');
       image.src = item.thumbnail;
@@ -94,15 +100,10 @@
           }
         });
       }
+      if (String(item.id || '').startsWith('promotion-')) image.addEventListener('error', () => placeholder('대표사진을 표시할 수 없습니다'), { once: true });
       media.append(image);
     } else {
-      const slot = document.createElement('div');
-      slot.className = 'content-photo-slot';
-      slot.setAttribute('role', 'img');
-      slot.setAttribute('aria-label', `CONTENT PHOTO: ${item.title}`);
-      appendText(slot, 'span', 'CONTENT PHOTO', 'content-photo-slot-label');
-      appendText(slot, 'strong', item.title);
-      media.append(slot);
+      placeholder(item.thumbnailUnavailable);
     }
     return media;
   }

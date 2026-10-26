@@ -1,3 +1,5 @@
+import { promotionMedia } from '../../assets/js/public-promotion-media.mjs';
+
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store, max-age=0',
@@ -21,17 +23,8 @@ function safeScriptJson(value) {
     .replaceAll('\u2029', '\\u2029');
 }
 
-function firstImage(row) {
-  // Public cards prefer images explicitly uploaded/selected into public_media.
-  // For a post with a linked source, a standalone remote og:image is reference
-  // material only because it may block hotlinking later. Legacy no-link rows may
-  // still use their stored hero image for backwards compatibility.
-  const media = Array.isArray(row?.public_media) ? row.public_media : [];
-  const selected = media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
-  if (selected) return selected;
-  const sourceType = String(row?.link_source_type || 'none');
-  if (sourceType !== 'none') return '';
-  return typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
+export function firstImage(row) {
+  return promotionMedia(row).heroUrl;
 }
 
 function firstImageAlt(row) {
@@ -59,6 +52,7 @@ function hubItem(row) {
     title: row.title,
     summary: row.summary || '',
     thumbnail: firstImage(row),
+    thumbnailUnavailable: promotionMedia(row).unavailable,
     thumbnailAlt: firstImageAlt(row),
     publishedAt: row.published_date || '',
     featured: false,

@@ -41,6 +41,9 @@ jobs:
           node tests/monthly-client-documents-browser.mjs
           node tests/platform-menu-addresses-browser.mjs
 
+      - name: Verify public promotion normal and unavailable images with isolated fixtures
+        run: node tests/public-promotion-media-browser.mjs
+
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 

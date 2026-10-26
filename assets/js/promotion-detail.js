@@ -8,7 +8,9 @@
   const id = params.get('id') || '';
   // Netlify has already rendered the public, approved article into the initial HTML.
   // Keep that content available even if client JS or the API fails later.
-  if (target.querySelector('[data-seo-promotion-id]')?.getAttribute('data-seo-promotion-id') === id) return;
+  const serverRendered = target.querySelector('[data-seo-promotion-id]')?.getAttribute('data-seo-promotion-id') === id;
+  const mediaModule = new URL('public-promotion-media.mjs', document.currentScript.src).href;
+  let mediaPolicy;
 
   function el(tag, text, className) {
     const node = document.createElement(tag);
@@ -89,6 +91,16 @@
     document.title = '글을 찾을 수 없습니다 | 태장';
   }
 
+  function imageUnavailable(figure, message) {
+    figure.classList.add('promotion-image-unavailable');
+    figure.setAttribute('role', 'img');
+    figure.setAttribute('aria-label', '사진을 표시할 수 없습니다');
+    figure.replaceChildren(el('p', message || mediaPolicy.IMAGE_UNAVAILABLE));
+  }
+  function watchImage(image, figure) {
+    image.addEventListener('error', () => imageUnavailable(figure), { once: true });
+    if (image.complete && !image.naturalWidth) imageUnavailable(figure);
+  }
   function imageNode(url, alt, className) {
     if (!/^https:\/\//.test(url || '')) return null;
     const figure = el('figure', null, className || 'article-representative-media');
@@ -98,8 +110,8 @@
     image.loading = 'lazy';
     image.decoding = 'async';
     image.referrerPolicy = 'no-referrer';
-    image.addEventListener('error', () => figure.remove(), { once: true });
     figure.append(image);
+    watchImage(image, figure);
     return figure;
   }
 
@@ -124,17 +136,14 @@
     if (item.summary) header.append(el('p', item.summary, 'lead'));
     article.append(header);
 
-    const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => /^https:\/\//.test(entry?.url || '')) : [];
-    // Explicitly selected/uploaded public media is authoritative. A remotely
-    // imported og:image from a linked source is reference material only and is
-    // never the public detail hero; legacy no-link rows keep their stored hero.
-    const storedHero = String(item.link_source_type || 'none') === 'none'
-      && /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '';
-    const heroUrl = media[0]?.url || storedHero;
+    const display = mediaPolicy.promotionMedia(item);
+    const heroUrl = display.heroUrl;
     if (heroUrl) {
-      const heroMatch = media.find(entry => entry.url === heroUrl);
-      const hero = imageNode(heroUrl, heroMatch?.alt || `${item.title} 대표사진`, 'article-representative-media');
+      const hero = imageNode(heroUrl, display.alt, 'article-representative-media');
       if (hero) article.append(hero);
+    } else if (display.unavailable) {
+      const figure = el('figure', null, 'article-representative-media');
+      imageUnavailable(figure, display.unavailable); article.append(figure);
     }
 
     const body = el('div', null, 'article-body');
@@ -146,12 +155,13 @@
     else body.append(el('p', item.summary || '공개된 본문이 없습니다.'));
     article.append(body);
 
-    const galleryItems = media.filter(entry => entry.url !== heroUrl);
+    const galleryItems = display.gallery;
     if (galleryItems.length) {
       const gallery = el('section', null, 'article-gallery');
       gallery.setAttribute('aria-label', '첨부 사진');
       galleryItems.forEach((entry, index) => {
-        const figure = imageNode(entry.url, entry.alt || `첨부 사진 ${index + 1}`, 'article-gallery-item');
+        const figure = entry.displayUrl ? imageNode(entry.displayUrl, entry.alt || `첨부 사진 ${index + 1}`, 'article-gallery-item') : el('figure', null, 'article-gallery-item');
+        if (!entry.displayUrl) imageUnavailable(figure);
         if (figure) gallery.append(figure);
       });
       article.append(gallery);
@@ -180,12 +190,17 @@
     return;
   }
 
-  fetch(`/.netlify/functions/public-promotion-feed?id=${encodeURIComponent(id)}&format=json`, { cache: 'no-store' })
+  import(mediaModule).then(policy => {
+    mediaPolicy = policy;
+    if (serverRendered) { target.querySelectorAll('figure img').forEach(image => watchImage(image, image.closest('figure'))); return null; }
+    return fetch(`/.netlify/functions/public-promotion-feed?id=${encodeURIComponent(id)}&format=json`, { cache: 'no-store' });
+  })
     .then(async response => {
+      if (!response) return;
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || '글을 불러오지 못했습니다.');
       if (!payload?.item) return unavailable();
       render(payload.item);
     })
-    .catch(() => unavailable('잠시 후 다시 확인해 주세요.'));
+    .catch(() => { if (!serverRendered) unavailable('잠시 후 다시 확인해 주세요.'); });
 }());

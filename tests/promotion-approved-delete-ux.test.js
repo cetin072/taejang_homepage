@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {execFileSync} = require('node:child_process');
 
 const root = path.join(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
@@ -92,7 +93,7 @@ test('promotion source type and future-date scheduling are durable server contra
 
 test('public feed labels official homepage blog youtube and external links distinctly', () => {
   const feed = read('netlify/functions/public-promotion-feed.mjs');
-  assert.doesNotThrow(() => new Function(feed.replace('export default async', 'const handler = async')));
+  assert.doesNotThrow(() => execFileSync(process.execPath, ['--check', path.join(root, 'netlify/functions/public-promotion-feed.mjs')], {stdio:'pipe'}));
   assert.match(feed, /태장 홈페이지에서 보기/);
   assert.match(feed, /태장 공식 블로그에서 보기/);
   assert.match(feed, /태장 공식 유튜브에서 보기/);

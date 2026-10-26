@@ -1,3 +1,5 @@
+import { promotionMedia } from '../../assets/js/public-promotion-media.mjs';
+
 // Search-readable responses for the EXISTING approved public promotion RPCs.
 // No service-role credentials, private tables, or independent publication states.
 const ORIGIN = 'https://taejang.co.kr';
@@ -53,12 +55,9 @@ function linkifyParagraph(value) {
 }
 
 function imageFor(item) {
-  const media = Array.isArray(item.public_media) ? item.public_media : [];
-  const selected = media.find(entry => typeof entry?.url === 'string' && /^https:\/\//.test(entry.url));
-  if (selected) return { url: selected.url, alt: selected.alt || item.title, media };
-  const stored = String(item.link_source_type || 'none') === 'none'
-    && /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '';
-  return { url: stored || DEFAULT_IMAGE, alt: item.title, media };
+  const display = promotionMedia(item);
+  return { url: display.heroUrl || DEFAULT_IMAGE, alt: display.alt,
+    media: display.gallery, unavailable: display.unavailable };
 }
 
 function publicLink(value) {
@@ -103,16 +102,16 @@ function articleHtml(item) {
   const summary = String(item.summary || title);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(item.published_date || '') ? item.published_date : '';
   const image = imageFor(item);
-  const media = image.media.filter(entry => publicLink(entry?.url));
+  const media = image.media;
   const leadImage = publicLink(image.url);
   const picture = leadImage && leadImage !== DEFAULT_IMAGE
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
-      '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
+      '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : (image.unavailable ? '<figure class="article-representative-media promotion-image-unavailable" role="img" aria-label="대표사진을 표시할 수 없습니다"><p>' + escapeHtml(image.unavailable) + '</p></figure>' : '');
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
     .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)
-    .map(entry => '<figure class="article-gallery-item"><img src="' + escapeHtml(entry.url) +
-      '" alt="' + escapeHtml(entry.alt || title) + '" loading="lazy" decoding="async"></figure>').join('');
+    .map(entry => entry.displayUrl ? '<figure class="article-gallery-item"><img src="' + escapeHtml(entry.displayUrl) +
+      '" alt="' + escapeHtml(entry.alt || title) + '" loading="lazy" decoding="async"></figure>' : '<figure class="article-gallery-item promotion-image-unavailable"><p>사진을 표시할 수 없습니다.</p></figure>').join('');
   const external = publicLink(item.external_url);
   const sourceLabel = item.link_source_type === 'taejang_blog' ? '태장 공식 블로그에서 보기 ↗'
     : item.link_source_type === 'taejang_youtube' ? '태장 공식 유튜브에서 보기 ↗' : '원문 보기 ↗';
