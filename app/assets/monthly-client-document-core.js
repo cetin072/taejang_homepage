@@ -37,13 +37,21 @@
     return { dot: `${year}. ${month}. ${day}.`, kor: `${year}년 ${month}월 ${day}일(${weekday})`, dotw: `${year}. ${month}. ${day}.(${weekday})` };
   }
 
-  function validateCommon(common) {
+  function validateCommon(common, { requireReady = true } = {}) {
     if (!common || typeof common !== 'object') throw new Error('MISSING_COMMON_INPUT');
     finite(common.year, 'YEAR', { min: 2000, max: 9999, integer: true });
     finite(common.month, 'MONTH', { min: 1, max: 12, integer: true });
-    validateDate(common.docDate, 'DOCUMENT_DATE');
-    validateDate(common.perfDate, 'SERVICE_DATE');
-    if (typeof common.place !== 'string' || !common.place.trim()) throw new Error('INVALID_PLACE');
+    if (requireReady || common.docDate) validateDate(common.docDate, 'DOCUMENT_DATE');
+    if (requireReady || common.perfDate) validateDate(common.perfDate, 'SERVICE_DATE');
+    if (common.perfDates !== undefined) {
+      if (!Array.isArray(common.perfDates) || !common.perfDates.length) throw new Error('INVALID_SERVICE_DATES');
+      const dates = common.perfDates.filter(value => value !== '');
+      if (requireReady && dates.length !== common.perfDates.length) throw new Error('REQUIRED_SERVICE_DATES');
+      dates.forEach(value => validateDate(value, 'SERVICE_DATE'));
+      if (new Set(dates).size !== dates.length || common.perfDates[0] !== common.perfDate) throw new Error('INVALID_SERVICE_DATES');
+    }
+    if (common.workDescription !== undefined && (typeof common.workDescription !== 'string' || (requireReady && !common.workDescription.trim()))) throw new Error('REQUIRED_WORK_DESCRIPTION');
+    if (typeof common.place !== 'string' || (requireReady && !common.place.trim())) throw new Error('INVALID_PLACE');
     if (!['outdoor', 'indoor'].includes(common.safety)) throw new Error('INVALID_SAFETY');
     if (typeof common.note !== 'string') throw new Error('INVALID_COMMON_NOTE');
     for (const key of ['severe', 'mildF', 'mildM']) finite(common[key], key.toUpperCase(), { integer: true });
@@ -72,8 +80,8 @@
     return company;
   }
 
-  function normalizeCommon(common) {
-    validateCommon(common);
+  function normalizeCommon(common, options) {
+    validateCommon(common, options);
     return {
       ...common,
       extras: common.extras.map(extra => ({
@@ -138,7 +146,7 @@
     return (code - 0xac00) % 28 ? withFinal : withoutFinal;
   }
 
-  function buildContent(common, company, calculation) {
+  function buildLegacyContent(common, company, calculation) {
     validateCommon(common); validateCompany(company);
     if (!calculation || calculation.yearMonth !== `${common.year}-${String(common.month).padStart(2, '0')}` || calculation.companyId !== company.id) {
       throw new Error('CALCULATION_DOCUMENT_MISMATCH');
@@ -187,5 +195,43 @@
     return { simple, listC, listR };
   }
 
-  return Object.freeze({ VERSION, calculate, validateCommon, normalizeCommon, validateCompany, validateDate, dateLabel, buildContent, formatAmount, koreanNumber, esc });
+  function serviceDates(common) { return common.perfDates === undefined ? [common.perfDate] : common.perfDates.slice(); }
+
+  // Conservative, visible content boundaries; text is never truncated or silently shrunk.
+  function layoutCost(value) { const text = String(value || ''); return text.length + (text.match(/\n/g) || []).length * 45; }
+  function layoutWarnings(common, companies = []) {
+    const issues = [];
+    if (serviceDates(common).length > 4) issues.push('3쪽 양식은 수행일을 최대 4회까지 지원합니다. 별도 문서 구성을 확인하세요.');
+    for (const [key, limit, label] of [['place',60,'수행 장소'],['workDescription',160,'환경정비·작업 상세'],['note',220,'공문 2항']]) {
+      if (String(common[key] || '').length > limit) issues.push(`${label}이 3쪽 양식 범위(${limit}자)를 넘습니다. 초안은 저장할 수 있으나 내용을 검토한 뒤 확정·출력하세요.`);
+    }
+    if ((common.extras || []).length > 2 || (common.extras || []).some(extra => extra.name.length > 24 || extra.description.length > 80)) issues.push('선택 프로그램은 2개, 이름 24자·설명 80자 이내에서 3쪽 출력할 수 있습니다.');
+    const paragraphs = [common.place,common.workDescription,common.note,...(common.extras || []).flatMap(e=>[e.name,e.description])];
+    if (/[\t\r\x00-\x08\x0b\x0c\x0e-\x1f]/.test([...paragraphs,...companies.flatMap(c=>[c.name,c.note])].join(''))) issues.push('탭과 특수 제어문자는 3쪽 양식에서 출력할 수 없습니다. 초안은 유지하고 일반 공백·줄바꿈으로 수정해 주세요.');
+    if (layoutCost(paragraphs.join('')) + (common.extras || []).length * 25 > 220 || paragraphs.join('').split('\n').length > 8) issues.push('월별 문구의 합계 또는 줄바꿈이 3쪽 양식 범위를 넘습니다. 내용을 줄이거나 별첨 구성을 검토하세요. 원문은 초안에 보존됩니다.');
+    if (companies.some(company => String(company.note || '').length > 220)) issues.push('회사별 공문 문구는 220자 이내에서 3쪽 출력할 수 있습니다. 초안 내용은 보존됩니다.');
+    if (companies.some(company => layoutCost([common.place,common.workDescription,company.note || common.note,...(common.extras || []).flatMap(e=>[e.name,e.description])].join('')) + (common.extras || []).length * 25 > 220)) issues.push('회사별 문구를 포함한 월별 문구 합계가 3쪽 범위를 넘습니다. 초안은 보존됩니다.');
+    if (companies.some(company => company.name.length > 40)) issues.push('회사명은 40자 이내에서 3쪽 출력할 수 있습니다. 초안은 보존됩니다.');
+    return issues;
+  }
+
+  function buildContent(common, company, calculation, { legacy = false } = {}) {
+    const content = buildLegacyContent(common, company, calculation);
+    if (legacy) return content;
+    const dates = serviceDates(common).map(dateLabel);
+    const kor = dates.map(date=>date.kor).join(' / '), dot = dates.map(date=>date.dotw).join(' / ');
+    const detail = common.workDescription?.trim() || '지역사회 환경정비';
+    const extras = common.extras.filter(item=>item.name.trim());
+    const education = common.safety === 'outdoor' ? '야외 현장 안전교육' : '실내 안전교육(영상 교육)';
+    content.simple.PERF = kor;
+    content.simple.C4 = `4. 관련 용역은 ${kor} ${common.place}에서 수행하였으며, 세부 프로그램은 다음과 같습니다.`;
+    content.simple.Q3 = `· 용역 내역: ${[education,...extras.map(e=>e.name.trim()),detail].join(', ')} — ${dot} / 장소: ${common.place}.`;
+    const educationDetail = common.safety === 'outdoor' ? '야외 현장 안전교육 — 작업 전 안전수칙 교육 및 보호장구 점검' : '실내 안전교육(영상 교육) — 작업 전 안전수칙 교육 및 참석 확인 서명';
+    const programs = [educationDetail,...extras.map(e=>e.description.trim()?`${e.name.trim()} — ${e.description.trim()}`:e.name.trim()),`환경정비·작업 — ${detail}`];
+    content.listC = programs.map((text,index)=>`${'가나다라마바사아'[index]}. ${text}`);
+    content.listR = programs.map(text=>`· ${text}`);
+    return content;
+  }
+
+  return Object.freeze({ VERSION, calculate, validateCommon, normalizeCommon, validateCompany, validateDate, dateLabel, serviceDates, layoutWarnings, buildContent, buildLegacyContent, formatAmount, koreanNumber, esc });
 });

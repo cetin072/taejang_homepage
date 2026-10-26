@@ -169,3 +169,41 @@ test('DOCX generation replaces every token and does not mix companies in single-
     await fs.rm(scratch, { recursive: true, force: true });
   }
 });
+
+const performance = () => ({...common(),month:10,docDate:'2026-10-30',perfDate:'2026-10-14',perfDates:['2026-10-14','2026-10-23'],place:'합성 검수 농원',workDescription:'농원 작업 구역 정돈과 제초',extras:[]});
+test('v2 monthly content repeats every service date, place and variable work without fixed park or optional busking',()=>{
+ const input=performance(), content=core.buildContent(input,companies[0],core.calculate(input,companies[0]));
+ for(const text of [content.simple.C4,content.simple.Q3,content.simple.PERF]){assert.match(text,/14/);assert.match(text,/23/);}
+ for(const text of [content.simple.C4,content.simple.Q3,content.simple.PLACE])assert.match(text,/농원/);
+ assert.match(content.listC.join(' '),/작업 구역 정돈과 제초/);assert.match(content.listR.join(' '),/작업 구역 정돈과 제초/);
+ assert.doesNotMatch(JSON.stringify(content),/공원|거리 일원|보행로|버스킹/);
+ assert.match(content.listC[0],/안전교육/);assert.throws(()=>core.calculate({...input,safety:'none'},companies[0]),/INVALID_SAFETY/);
+ assert.equal(core.calculate(input,companies[0]).appliedHeadcount,6);assert.equal(core.calculate(input,{...companies[0],override:7}).appliedHeadcount,7);
+ assert.equal(companies[0].override,6,'changing one month must not rewrite company defaults');
+});
+test('v2 service dates reject duplicate, impossible, mismatched primary and missing-ready values while preserving incomplete drafts',()=>{
+ for(const patch of [{perfDates:['2026-10-14','2026-10-14']},{perfDates:['2026-10-14','2026-02-30']},{perfDates:['2026-10-23']},{perfDates:['2026-10-14','']}])assert.throws(()=>core.validateCommon({...performance(),...patch}));
+ const draft={...performance(),docDate:'',perfDate:'',perfDates:[''],workDescription:''};assert.deepEqual(core.normalizeCommon(draft,{requireReady:false}),draft);
+ const partial={...draft,perfDates:['','2026-10-23']};assert.deepEqual(core.normalizeCommon(partial,{requireReady:false}),partial);
+});
+test('layout limits preserve long draft text and reject output instead of truncating or adding pages',async()=>{
+ const input={...performance(),workDescription:'긴한글내용'.repeat(100)};
+ assert.deepEqual(core.normalizeCommon(input,{requireReady:false}).workDescription,input.workDescription);
+ assert.ok(core.layoutWarnings(input,companies).length);
+ const template=JSON.parse(await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-template.json'),'utf8'));
+ const packageBytes=await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-package.zip'));
+ await assert.rejects(docx.createDocx({JSZip,template,packageBytes,common:input,companies:[companies[0]],type:'nodebuffer'}),/3쪽/);
+ assert.ok(core.layoutWarnings({...performance(),workDescription:'줄\n'.repeat(7)},companies).length,'explicit line breaks consume layout space');
+});
+test('legacy confirmed output retains the original template and new output reserves a real stamp space without a seal image',async()=>{
+ const legacy=JSON.parse(await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-template-v1.json'),'utf8'));
+ const current=JSON.parse(await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-template.json'),'utf8'));
+ const packageBytes=await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-package.zip'));
+ assert.ok(docx.supportsTemplate('claude-template-1'));assert.ok(docx.supportsTemplate('client-template-2'));
+ for(const [template,input,expected] of [[legacy,common(),'직인생략'],[current,performance(),'(직인)']]){
+  const bytes=await docx.createDocx({JSZip,template,packageBytes,common:input,companies:[companies[0]],type:'nodebuffer'});
+  const zip=await JSZip.loadAsync(bytes),xml=await zip.file('word/document.xml').async('string');assert.ok(xml.includes(expected));
+  if(template.version)assert.doesNotMatch(xml,/직인생략|공원·거리|보행로/);
+  const original=await JSZip.loadAsync(packageBytes);assert.deepEqual(Object.keys(zip.files).filter(p=>p.startsWith('word/media/')),Object.keys(original.files).filter(p=>p.startsWith('word/media/')));
+ }
+});

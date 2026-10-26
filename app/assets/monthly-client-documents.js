@@ -35,12 +35,12 @@
   const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
   const currentCapability = () => window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
   let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', activeMonthKey = '', loadSequence = 0,
-    busy = false, emailState = null, newMonthTarget = null, defaultsOpen = false;
+    busy = false, emailState = null, newMonthTarget = null, defaultsOpen = false, performanceReady = false;
   let outputSelection = new Set(ids);
   const emailDrafts = new Map();
 
   function commonFromDefaults(year, month) {
-    return { year, month, docDate: '', perfDate: '', place: '창원 팔용근린공원 일원', safety: 'outdoor', severe: 20, mildF: 0, mildM: 3,
+    return { year, month, docDate: '', perfDate: '', place: '', safety: 'outdoor', severe: 20, mildF: 0, mildM: 3,
       base: 1295000, rate: 70, note: '', extras: [] };
   }
   function defaultsToMonth(defaults, year, month) {
@@ -58,6 +58,8 @@
   }
   function friendlyError(error) {
     const message = error?.message || String(error);
+    const guidance = {REQUIRED_WORK_DESCRIPTION:'환경정비·작업 상세를 입력해 주세요.',INVALID_SERVICE_DATE:'모든 수행일을 올바른 날짜로 입력해 주세요.',INVALID_SERVICE_DATES:'수행일의 중복과 순서를 확인해 주세요.',REQUIRED_SERVICE_DATES:'추가한 수행일을 입력하거나 빈 칸을 삭제해 주세요.',INVALID_DOCUMENT_DATE:'문서 작성일을 입력해 주세요.',DOCUMENT_LAYOUT_LIMIT:'3쪽 양식 범위를 넘었습니다. 초안은 보존되며 내용 검토 후 확정·출력할 수 있습니다.'};
+    if (guidance[message]) return guidance[message];
     return message.includes('MONTH_ALREADY_EXISTS') ? '이미 저장된 월입니다. 저장된 월 불러오기를 사용하세요.' : message;
   }
   function latestCalculations() {
@@ -72,6 +74,7 @@
     });
     if (!results.length) throw new Error('회사 한 곳 이상을 선택하세요.');
     const warnings = results.flatMap(({ company, calculation }) => calculation.warnings.map(item => `${company.key}: ${item}`));
+    if (state.common.perfDates !== undefined) warnings.push(...window.MonthlyClientDocumentCore.layoutWarnings(state.common, active));
     return { results, warnings };
   }
   function updateEmailStaleness() {
@@ -91,7 +94,7 @@
     target.replaceChildren(); warningsTarget.replaceChildren();
     let ready = true;
     const versionsMatch = !record || (record.calculationVersion === window.MonthlyClientDocumentCore.VERSION
-      && record.templateVersion === window.MonthlyClientDocumentDocx.TEMPLATE_VERSION);
+      && window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion));
     if (!versionsMatch) {
       ready = false;
       warningsTarget.append(el('p', '이 월은 현재 계산/문서 원본 버전과 달라 출력할 수 없습니다. 기존 snapshot을 보존하고 호환 버전을 준비해야 합니다.', 'mcd-warning'));
@@ -111,7 +114,7 @@
       });
       tableWrap.append(table); target.append(tableWrap);
       if (warnings.length) { ready = false; warnings.forEach(message => warningsTarget.append(el('p', `⚠ ${message}`, 'mcd-warning'))); }
-    } catch (error) { ready = false; warningsTarget.append(el('p', `⚠ ${error.message || '계산 입력을 확인하세요.'}`, 'mcd-warning')); }
+    } catch (error) { ready = false; warningsTarget.append(el('p', `⚠ ${friendlyError(error) || '계산 입력을 확인하세요.'}`, 'mcd-warning')); }
     const confirmed = record?.status === 'confirmed';
     root.querySelector('[data-mcd-confirm]').disabled = !ready || confirmed || busy || !record || fingerprint() !== savedFingerprint;
     root.querySelector('[data-mcd-docx-all]').disabled = !ready || !confirmed || busy
@@ -132,10 +135,10 @@
     if (!currentCapability()) throw new Error('이 문서를 만들 권한이 없습니다.');
     if (!record || record.status !== 'confirmed' || fingerprint() !== savedFingerprint) throw new Error('저장된 확정 월만 DOCX를 받을 수 있습니다. 먼저 저장하고 확정하세요.');
     if (record.calculationVersion !== window.MonthlyClientDocumentCore.VERSION
-      || record.templateVersion !== window.MonthlyClientDocumentDocx.TEMPLATE_VERSION) throw new Error('이 월은 저장 당시 문서 원본 버전과 달라 DOCX를 재현할 수 없습니다.');
+      || !window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion)) throw new Error('이 월은 저장 당시 문서 원본 버전과 달라 DOCX를 재현할 수 없습니다.');
     const { warnings } = latestCalculations();
     if (warnings.length) throw new Error(warnings.join(' '));
-    const assets = await window.MonthlyClientDocumentDocx.loadAssets();
+    const assets = await window.MonthlyClientDocumentDocx.loadAssets(record.templateVersion);
     const blob = await window.MonthlyClientDocumentDocx.createDocx({ template: assets.template, packageBytes: assets.packageBytes,
       common: state.common, companies, type: 'blob' });
     const filename = window.MonthlyClientDocumentDocx.filename(state.common, companies);
@@ -146,7 +149,7 @@
 
   function emailFor(company, calculation, includePhotos = true) {
     return window.MonthlyClientDocumentEmail.generate({
-      monthly: { yearMonth: calculation.yearMonth, serviceDate: state.common.perfDate, serviceLocation: state.common.place,
+      monthly: { yearMonth: calculation.yearMonth, serviceDate: state.common.perfDate, serviceDates: state.common.perfDates, serviceLocation: state.common.place,
         safetyEducation: state.common.safety, programs: state.common.extras.filter(extra => extra.name.trim()).map(extra => ({ name: extra.name, enabled: true })) },
       company: { id: company.id, name: company.name, attachmentDisplayName: company.key,
         attachmentLabel: `01. ${String(state.common.year).slice(2)}년 ${state.common.month}월 장애인 고용산입 현황 및 용역비 안내_${company.key}` },
@@ -273,8 +276,9 @@
     const newDefault = button('회사 기본값으로 새 월 만들기', startNewMonth); newDefault.dataset.mcdNewMonth = '1';
     const newCopy = button('지난달을 바탕으로 새 월 만들기', copyPrevious); newCopy.dataset.mcdNewMonth = '1';
     actions.append(newDefault, newCopy);
-    top.append(el('p', '선택한 대상 월의 직전 월 설정을 가져옵니다. 예: 11월 생성 시 10월 설정 사용. 인원·장소·안전교육·비율·회사 설정은 복사하고 날짜·월별 문구·추가 프로그램은 초기화합니다. 이미 저장된 대상 월은 덮어쓰지 않습니다.')); top.append(actions); root.append(top);
+    top.append(el('p', '선택한 대상 월의 직전 월 설정을 가져옵니다. 예: 11월 생성 시 10월 설정 사용. 인원·장소·안전교육·비율·회사 설정은 복사하고 모든 수행일·환경정비 상세·월별 문구·추가 프로그램은 초기화합니다. 이미 저장된 대상 월은 덮어쓰지 않습니다.')); top.append(actions); root.append(top);
 
+    if (!performanceReady) root.append(el('p', '복수 수행일·작업 상세 입력은 DB 업데이트 적용 후 사용할 수 있습니다. 기존 확정 월의 원본 출력은 유지합니다.', 'mcd-warning'));
     const commonPanel = el('section', undefined, 'mcd-panel app-authoring'); commonPanel.append(el('h3', '공통 입력'));
     const lockNotice = el('div', undefined, 'mcd-lock-notice'); lockNotice.setAttribute('role', 'note');
     lockNotice.append(el('p', record?.status === 'confirmed' ? '확정된 월입니다. 저장된 확정 내용을 보호하기 위해 입력을 잠갔습니다.' : '작성중입니다. 수정 → 저장 → 다시 확정 순서로 진행하세요.'));
@@ -283,7 +287,22 @@
     const grid = el('div', undefined, 'mcd-grid');
     const commonField = (label, key, type = 'text', opts = {}) => grid.append(field(label, state.common[key], type,
       value => { state.common[key] = type === 'number' ? (value === '' ? '' : Number(value)) : value; changed(); }, opts));
-    commonField('문서 작성일', 'docDate', 'date', { required: true }); commonField('수행일', 'perfDate', 'date', { required: true });
+    commonField('문서 작성일', 'docDate', 'date', { required: true });
+    if (Array.isArray(state.common.perfDates)) {
+      const datesPanel = el('div', undefined, 'mcd-service-dates'); datesPanel.append(el('h4', '수행일 (복수 입력 가능)'));
+      state.common.perfDates.forEach((date, index) => {
+        const row = el('div', undefined, 'mcd-actions');
+        row.append(field(`수행일 ${index + 1}`, date, 'date', value => { state.common.perfDates[index] = value; state.common.perfDate = state.common.perfDates[0] || ''; changed(); }, { required: true }));
+        const remove = button('수행일 삭제', () => { state.common.perfDates.splice(index,1); state.common.perfDate = state.common.perfDates[0] || ''; render(); });
+        remove.disabled = !editableInput() || busy || state.common.perfDates.length === 1; row.append(remove); datesPanel.append(row);
+      });
+      const addDate = button('+ 수행일 추가', () => { state.common.perfDates.push(''); render(); }); addDate.disabled = !editableInput() || busy || state.common.perfDates.length >= 4; datesPanel.append(addDate, el('p', '최대 4회. 입력 순서대로 모든 수행일이 공문·견적서·보고서에 표시됩니다.'));
+      commonPanel.append(datesPanel, el('p', '3쪽 양식 안내: 장소 60자·작업 상세 160자, 월별 문구의 합계는 220자 공간 기준입니다. 줄바꿈 1개는 45자, 선택 프로그램 1개는 25자의 여유 공간으로 계산합니다. 범위를 넘으면 초안은 저장되며 확정·출력 전에 검토 안내를 표시합니다. 직인은 출력 후 직접 날인하세요.'));
+      commonField('환경정비·작업 상세', 'workDescription', 'textarea', { required: true, placeholder: '예: 농원 작업 구역 정돈, 잡초 제거 및 통행로 정리 (실제 수행한 내용 입력)' });
+    } else {
+      commonField('수행일', 'perfDate', 'date', { required: true });
+      if (record?.status === 'confirmed' && performanceReady) commonPanel.append(el('p', '기존 원본 양식의 확정 월입니다. 확정 해제 후 새 수행 입력을 작성·저장하면 새 양식을 사용합니다.'));
+    }
     commonField('수행 장소', 'place', 'text', { required: true });
     grid.append(field('안전교육 방식', state.common.safety, 'select', value => { state.common.safety = value; changed(); }, { choices: [['outdoor','야외 현장 안전교육'], ['indoor','실내 안전교육(영상 교육)']] }));
     commonField('중증 근로자(명)', 'severe', 'number', { min: 0, required: true }); commonField('경증 여성(명)', 'mildF', 'number', { min: 0, required: true });
@@ -365,6 +384,11 @@
     drawSummary();
   }
 
+  function enablePerformanceInputs() {
+    if (!Array.isArray(state.common.perfDates)) state.common.perfDates = [state.common.perfDate || ''];
+    if (state.common.workDescription === undefined) state.common.workDescription = '';
+  }
+
   async function rpc(name, args = {}) {
     if (!currentCapability()) throw new Error('FORBIDDEN');
     return window.TaejangApp.rpc(name, args);
@@ -372,6 +396,7 @@
   async function loadData() {
     if (!currentCapability()) throw new Error('FORBIDDEN');
     const data = await rpc('monthly_client_documents_get');
+    performanceReady = data.performanceVersion === 2;
     state = { defaults: data.defaults || [], defaultsDraft: (data.defaults || []).map(item => ({ ...item })), history: data.months || [], common: null, companies: null };
     if (!ids.every(id => state.defaults.some(item => item.id === id))) throw new Error('회사 기본값을 불러오지 못했습니다.');
     const now = new Date(); const month = now.getMonth() + 1;
@@ -390,6 +415,7 @@
       const payload = record?.payload;
       const values = payload?.common ? payload : defaultsToMonth(state.defaults,year,month);
       state.common = { ...commonFromDefaults(year,month), ...values.common, year, month, extras: Array.isArray(values.common.extras) ? values.common.extras : [] };
+      if (performanceReady && (!record || record.status !== 'confirmed' || record.templateVersion === 'client-template-2')) enablePerformanceInputs();
       state.companies = ids.map(id => ({ ...state.defaults.find(item=>item.id===id), ...(values.companies || []).find(item=>item.id===id), enabled: (values.companies || []).find(item=>item.id===id)?.enabled ?? true }));
       outputSelection = new Set(state.companies.filter(company => company.enabled).map(company => company.id));
       activeMonthKey = monthKey(year, month);
@@ -402,7 +428,8 @@
     let message = '', isError = false;
     try {
       assertActiveMonth();
-      state.common = window.MonthlyClientDocumentCore.normalizeCommon(state.common);
+      if (state.common.perfDates !== undefined && !performanceReady) throw new Error('복수 수행일 DB 업데이트 적용을 확인해 주세요.');
+      state.common = window.MonthlyClientDocumentCore.normalizeCommon(state.common, {requireReady:false});
       busy=true; drawSummary();
       const response = await rpc('monthly_client_documents_save', { p_year: state.common.year, p_month: state.common.month,
         p_payload: { common: state.common, companies: state.companies }, p_expected_revision: revision });
@@ -426,7 +453,7 @@
     let message = '', isError = false;
     try { assertActiveMonth(); busy=true; drawSummary(); const response=await rpc('monthly_client_documents_unconfirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision});
       if (!response || response.status !== 'draft' || !Number.isInteger(Number(response.revision))) throw new Error('확정 해제 응답을 확인하지 못했습니다. 새로 불러와 상태를 확인하세요.');
-      record=response; revision=Number(response.revision); state.history=state.history.map(item => monthKey(item.year,item.month) === activeMonthKey ? {...item,status:record.status,revision} : item); savedFingerprint=fingerprint(); message='확정을 해제했습니다.'; }
+      record=response; revision=Number(response.revision); if (performanceReady) enablePerformanceInputs(); state.history=state.history.map(item => monthKey(item.year,item.month) === activeMonthKey ? {...item,status:record.status,revision} : item); savedFingerprint=fingerprint(); message='확정을 해제했습니다.'; }
     catch(error){message=`확정 해제 실패: ${friendlyError(error)}`;isError=true;} finally{busy=false;render();report(message,isError);}
   }
   async function startNewMonth() {

@@ -7,6 +7,7 @@ const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
 const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 assert.ok(apiUrl && publishableKey, 'local Supabase environment is required');
+assert.ok(['localhost','127.0.0.1','[::1]'].includes(new URL(apiUrl).hostname),'synthetic monthly-document writes require a local isolated API');
 
 async function api(path, { method = 'POST', token, body = {} } = {}) {
   const response = await fetch(`${apiUrl}${path}`, {
@@ -72,5 +73,27 @@ for (const [name, parameters] of [
   const denied = await rpc(name, worker.token, parameters);
   assert.equal(denied.status, 403, `general worker is denied ${name}: ${JSON.stringify(denied.data)}`);
 }
+
+assert.equal(opsData.data.performanceVersion,2,'enhanced input is advertised only after migration');
+assert.equal(saved.data.templateVersion,'claude-template-1','legacy payload keeps its original template version');
+const v2=structuredClone(payload);Object.assign(v2.common,{year:2098,month:12,docDate:'2098-12-30',perfDate:'2098-12-14',perfDates:['2098-12-14','2098-12-23'],workDescription:'합성 농원 작업 정리',note:''});
+v2.companies[0].override=7;
+const saveV2=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:v2,p_expected_revision:0});
+assert.ok(saveV2.ok,JSON.stringify(saveV2.data));assert.equal(saveV2.data.templateVersion,'client-template-2');
+const confirmedV2=await rpc('monthly_client_documents_confirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveV2.data.revision});
+assert.ok(confirmedV2.ok,JSON.stringify(confirmedV2.data));assert.equal(confirmedV2.data.calculationSnapshot[0].appliedHeadcount,7);
+const immutableV2=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:v2,p_expected_revision:confirmedV2.data.revision});assert.equal(immutableV2.ok,false);assert.match(JSON.stringify(immutableV2.data),/CONFIRMED_MONTH_IMMUTABLE/);
+const staleUnlock=await rpc('monthly_client_documents_unconfirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveV2.data.revision});assert.equal(staleUnlock.ok,false);assert.match(JSON.stringify(staleUnlock.data),/REVISION_CONFLICT/);
+const unlockV2=await rpc('monthly_client_documents_unconfirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:confirmedV2.data.revision});assert.ok(unlockV2.ok);assert.deepEqual(unlockV2.data.payload.common.perfDates,v2.common.perfDates);
+v2.common.workDescription='수정 후에도 보존되는 합성 농원 상세';
+const resavedV2=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:v2,p_expected_revision:unlockV2.data.revision});assert.ok(resavedV2.ok);assert.deepEqual(resavedV2.data.payload,v2);
+const nextYear=await rpc('monthly_client_documents_copy_previous',ops.token,{p_year:2099,p_month:1});assert.ok(nextYear.ok,JSON.stringify(nextYear.data));
+assert.deepEqual(nextYear.data.payload.common.perfDates,['']);assert.equal(nextYear.data.payload.common.perfDate,'');assert.equal(nextYear.data.payload.common.workDescription,'');assert.deepEqual(nextYear.data.payload.common.extras,[]);assert.equal(nextYear.data.payload.common.place,v2.common.place);assert.equal(nextYear.data.payload.companies[0].override,7);
+const defaultsUnchanged=await rpc('monthly_client_documents_company_defaults',ops.token);assert.equal(defaultsUnchanged.data[0].override,6,'one month override must not alter company defaults');
+const duplicateV2=await rpc('monthly_client_documents_copy_previous',ops.token,{p_year:2099,p_month:1});assert.equal(duplicateV2.ok,false);assert.match(JSON.stringify(duplicateV2.data),/MONTH_ALREADY_EXISTS/);
+const longDraft=structuredClone(v2);longDraft.common.workDescription='긴한글'.repeat(200);
+const saveLong=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:longDraft,p_expected_revision:resavedV2.data.revision});assert.ok(saveLong.ok);assert.equal(saveLong.data.payload.common.workDescription,longDraft.common.workDescription);
+const confirmLong=await rpc('monthly_client_documents_confirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveLong.data.revision});assert.equal(confirmLong.ok,false);assert.match(JSON.stringify(confirmLong.data),/DOCUMENT_LAYOUT_LIMIT/);
+const reloadLong=await rpc('monthly_client_documents_get_month',ops.token,{p_year:2098,p_month:12});assert.equal(reloadLong.data.payload.common.workDescription,longDraft.common.workDescription);
 
 console.log('Monthly client documents Auth/Data API integration: operations_manager allowed; general_worker RPC access denied.');
