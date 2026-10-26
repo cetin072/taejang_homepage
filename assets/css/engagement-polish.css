@@ -37,7 +37,8 @@
    Keep that space when a video is selected so the page does not jump. */
 .hero-video-slider--featured { aspect-ratio: auto; }
 .hero-article { position: relative; }
-.hero-article[hidden] { display: block; visibility: hidden; pointer-events: none; }
+/* Only this sizing slide retains layout under the global hidden rule. */
+.hero-article[hidden] { display: block !important; visibility: hidden; pointer-events: none; }
 .hero-article-link { display: block; color: var(--green-deep, #1b4332); background: #fff; text-decoration: none; }
 .hero-article-link figure { margin: 0; }
 .hero-article-image { display: block; width: 100%; height: auto; }
