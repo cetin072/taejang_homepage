@@ -23,6 +23,7 @@ const equal = (actual, expected, message) => { assert.equal(actual, expected, me
 
 async function api(path, { method = 'GET', token, body } = {}) {
   const response = await fetch(`${apiUrl}${path}`, {
+    signal: AbortSignal.timeout(15000),
     method,
     headers: {
       apikey: publishableKey,
@@ -347,10 +348,13 @@ equal(interest.data?.revision, 1, 'interest saved through real JWT');
 const shared = await rpc('support_get_finder_notice_detail', ceo.token, {p_notice_id:importedId});
 equal(shared.data?.interest?.interested, true, 'CEO sees organization shared interest');
 equal(shared.data?.decision?.decision, 'hold', 'interest does not replace application decision');
+const raceStarted = Date.now();
 const race = await Promise.all([0,1].map(() => rpc('support_set_notice_interest', operations.token,
   {p_notice_id:importedId,p_interested:false,p_expected_revision:1})));
 equal(race.filter(result => result.ok).length, 1, 'one concurrent revision wins');
-equal(race.filter(result => result.data?.code === '40001').length, 1, 'stale revision denied by server');
+equal(race.filter(result => result.status === 409 && result.data?.code === 'PT409'
+  && result.data?.message === 'SUPPORT_INTEREST_REVISION_CONFLICT').length, 1, 'stale revision returns explicit HTTP 409');
+check(Date.now()-raceStarted<10000, 'business conflict returns promptly without PostgREST serialization retries');
 sql(`update public.support_notices set eligibility_summary='사람이 보완한 대상',application_process_summary='보존할 준비 메모' where id='${importedId}'`);
 await persistCollection({...collected.collection,items:collected.collection.items.map(row =>
   ({...row,title:row.title+' 정정',eligibility_summary:'수집된 새 대상'}))},transport,randomUUID());

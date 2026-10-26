@@ -15,6 +15,8 @@
 
 공식 명세의 JSON `jsonArray.item`과 기존 배열 `jsonArray`를 모두 처리한다. 공식 GET 요청에 `pageIndex=1`, `pageUnit=100`, `searchCnt=100`을 명시한다. 최신 100건의 제한된 수집이며 전체 과거 공고를 수집했다고 표시하지 않는다.
 
+실제 PostgREST 경쟁 검수에서 기존 `40001` 충돌 코드가 즉시 응답하지 않는 결함을 발견했다. PostgreSQL 직접 호출 검수만으로 드러나지 않았던 API 재시도 문제다. [Supabase 공식 설명](https://supabase.com/kb/troubleshooting/high-cpu-and-infinite-transaction-retries-when-using-custom-error-codes-in-rpc-functions)에 따라 신규 미적용 migration의 충돌 코드만 `PT409`로 바꿔 HTTP 409로 전달한다. 잠금·expected revision·권한 정책은 유지하며 실제 API에서 응답 코드/메시지와 10초 내 종료를 검사한다. 공유 DB에는 적용하지 않았다.
+
 기존 UI·식별자·수집 및 관심 RPC·revision·감사 정책을 재사용한다. 기존 목록·필터·검색·상세·신청 판단·담당자·진행·검토 메모를 보존한다. 관심은 회사 공통 보관이며 신청 판단과 독립적이다. API·DB 이름은 변경하지 않는다.
 
 ## 현재 재실행 결과
@@ -31,6 +33,10 @@
 | exact-head Preview | 원격 CI 결과로 판정 | 별도 브라우저 job에서 배포 자산과 현재 소스 일치 후 합성 RPC 화면 검사 |
 
 이전 환경의 PostgreSQL 23 PASS를 현재 실행 결과로 합산하지 않는다. 최종 CI 결과 및 Preview URL은 PR에 기록한다.
+
+초기 원격 검수에서 공통 sidebar fixture가 이전 표시명 `지원사업 레이더`를 요구하는 실패를 확인했다. 실제 canonical 메뉴를 검사하는 세 검수를 확정명으로 갱신했다. 예전 명칭의 deep-link/식별자 alias 검사는 유지한다. 보완 후 공통 promotion browser gate가 로컬 PC/모바일에서 통과했다.
+
+별도 급여 진입 검사는 `PAYROLL_PLATFORM_ENTRY_FAILED:fail:TIMEOUT:dashboard layout editor`로 실패했다. 수정 없는 main `dec4ca7e`도 별도 worktree에서 빌드 후 같은 Chrome 런타임과 명령으로 동일 오류를 재현했다. 이번 지원사업 변경의 회귀로 판정하지 않으며 급여/대시보드 코드를 임의 수정하거나 검사를 건너뛰지 않는다. 최종 CI에서도 실패하면 병합 차단 항목으로 남긴다.
 
 추가 실제 Auth 검사는 localhost와 고정 폐기 프로젝트의 Docker 컨테이너를 확인한 뒤 합성 계정을 만든다. 실제 GoTrue 로그인·JWT로 PostgREST를 호출하여 수집 저장→목록, 재수집·동시 수집 중복 방지, 관심 공유·해제·revision 경쟁, 정정/메모/판단/배정 보존, 실패 이력, 대표/직원/anon/중지/비활성 capability 쓰기 거절, 직접 테이블 접근 차단을 확인한다. 화면도 실제 로그인과 RPC로 4개 폭에서 관심·메모 저장 및 DB 재조회, 대표 조회 전용 버튼을 확인한다. 대시보드 주변 shell은 좁은 component harness이며 전체 앱 메뉴 진입 E2E와 구분한다.
 

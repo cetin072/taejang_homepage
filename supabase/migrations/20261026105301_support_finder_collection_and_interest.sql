@@ -44,7 +44,8 @@ begin
   if not found then raise exception using errcode='P0002',message='SUPPORT_NOTICE_NOT_FOUND'; end if;
   select * into previous from public.support_notice_interests where notice_id=p_notice_id;
   if coalesce(previous.revision,0)<>p_expected_revision then
-    raise exception using errcode='40001',message='SUPPORT_INTEREST_REVISION_CONFLICT';
+    -- Business revision conflicts must not trigger PostgREST serialization retries.
+    raise exception using errcode='PT409',message='SUPPORT_INTEREST_REVISION_CONFLICT';
   end if;
   if previous.notice_id is not null and previous.interested=p_interested then return to_jsonb(previous); end if;
   insert into public.support_notice_interests(notice_id,interested,revision,updated_by)

@@ -47,7 +47,7 @@ export async function supportFinderBrowserFlow({apiUrl,publishableKey,operations
         window.finderContext=await window.finderRpc('get_my_access_context_v2');
         window.TaejangApp={rpc:window.finderRpc,friendlyError:()=> '격리 검수 오류',
           can:code=>window.finderContext.capabilities.includes(code),getCapabilities:()=>window.finderContext.capabilities,
-          getEffectiveRoles:()=>window.finderContext.effective_roles.map(role=>role.code)};
+          getEffectiveRoles:()=>window.finderContext.effective_roles.map(role=>typeof role==='string'?role:role.code)};
       },{apiUrl,publishableKey});
       assert.equal(await page.evaluate(()=>window.finderSession.user.id),operations.id);
       for(const file of ['support-radar-access.js','support-radar-notices.js','support-radar-assignment.js','support-radar-review.js'])
