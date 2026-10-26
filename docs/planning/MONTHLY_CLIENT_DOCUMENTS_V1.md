@@ -142,3 +142,8 @@ Migration `20261026050441_monthly_document_performance_v2.sql`은 기존 계산 
 제공 기준 PDF `libfile_fcbfe94e1a34819183594345da87a2a1`은 지원 materialization과 한 차례 다운로드 재시도 모두 `download failed`로 실패했다. 스캔 이미지·3쪽 원본과의 시각 대조는 미완료다. 실제 직인 이미지는 읽거나 추출하지 않았다. CLI 파일 생성 후 telemetry 전송도 HTTP403으로 차단됐으나 migration 파일 생성은 성공했고 해당 전송은 재시도하지 않았다.
 
 최종 HEAD의 테스트·CI·Preview·남은 승인 상태는 Draft PR 기록을 따른다. 새 렌더 workflow는 개발 검수에만 LibreOffice Writer/Poppler/Noto CJK를 사용하며 운영 의존성이나 배포 정책을 추가하지 않는다.
+
+
+CI 보완 기록: 새 양식의 자동 행간은 LibreOffice26.2에서 5쪽을 만들었다. 새 양식에만 문단 기본 행간과 본문/제목 크기에 맞는 명시적 행간을 적용했다. 글자 크기·문구를 줄이지 않는다. 로컬26.8 및 Ubuntu26.04/LibreOffice26.2에서 새 양식 15개(3시나리오×5) 모두 개별3쪽/합본12쪽을 확인한다. 구버전은 원본을 유지하므로 로컬3/12, Ubuntu5/20이라는 기존 글꼴 의존 결과를 별도로 기록하며 새 양식 3쪽 완료 근거로 섞지 않는다. 구버전 원본 XML/직인생략 보존 회귀는 유지한다.
+
+격리 Auth CI에서는 오래된 revision 해제의 SQLSTATE40001을 PostgREST가 반복 처리하여 gateway timeout을 반환했다. 생산 RPC 오류 계약을 바꾸지 않고 같은 authenticated actor/claims의 격리 DB 호출로 정확한40001/REVISION_CONFLICT를 검증한 뒤 실제 Data API로 확정 상태·revision 보존과 정상 해제/재저장을 확인한다. HTTP 경로에서 친절한 revision 오류 대신 시간초과가 나타나는 기존 제한은 남는다.

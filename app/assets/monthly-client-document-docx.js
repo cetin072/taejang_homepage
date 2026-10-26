@@ -58,6 +58,10 @@
     if (/\{\{\w+\}\}/.test(documentXml)) throw new Error('UNREPLACED_DOCX_TOKEN');
     const zip = await JSZip.loadAsync(packageBytes);
     zip.file('word/document.xml', documentXml);
+    if (!legacy) {
+      const styles = await zip.file('word/styles.xml').async('string');
+      zip.file('word/styles.xml', styles.replace('<w:pPrDefault/>', '<w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="288" w:lineRule="exact"/></w:pPr></w:pPrDefault>'));
+    }
     return zip.generateAsync({ type, compression: 'DEFLATE' });
   }
 

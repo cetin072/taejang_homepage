@@ -83,7 +83,11 @@ assert.ok(saveV2.ok,JSON.stringify(saveV2.data));assert.equal(saveV2.data.templa
 const confirmedV2=await rpc('monthly_client_documents_confirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveV2.data.revision});
 assert.ok(confirmedV2.ok,JSON.stringify(confirmedV2.data));assert.equal(confirmedV2.data.calculationSnapshot[0].appliedHeadcount,7);
 const immutableV2=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:v2,p_expected_revision:confirmedV2.data.revision});assert.equal(immutableV2.ok,false);assert.match(JSON.stringify(immutableV2.data),/CONFIRMED_MONTH_IMMUTABLE/);
-const staleUnlock=await rpc('monthly_client_documents_unconfirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveV2.data.revision});assert.equal(staleUnlock.ok,false);assert.match(JSON.stringify(staleUnlock.data),/REVISION_CONFLICT/);
+// PostgREST retries SQLSTATE 40001 until its gateway timeout. Assert the exact
+// revision contract under the same authenticated actor in the isolated DB instead.
+sql(`begin; set local role authenticated; set local request.jwt.claims='${JSON.stringify({sub:ops.id,role:'authenticated'})}';
+ do $revision$ begin perform public.monthly_client_documents_unconfirm(2098,12,${saveV2.data.revision}); raise exception 'STALE_REVISION_ACCEPTED'; exception when sqlstate '40001' then if sqlerrm<>'REVISION_CONFLICT' then raise; end if; end $revision$; rollback;`);
+const stillConfirmed=await rpc('monthly_client_documents_get_month',ops.token,{p_year:2098,p_month:12});assert.ok(stillConfirmed.ok);assert.equal(stillConfirmed.data.status,'confirmed');assert.equal(stillConfirmed.data.revision,confirmedV2.data.revision);
 const unlockV2=await rpc('monthly_client_documents_unconfirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:confirmedV2.data.revision});assert.ok(unlockV2.ok);assert.deepEqual(unlockV2.data.payload.common.perfDates,v2.common.perfDates);
 v2.common.workDescription='수정 후에도 보존되는 합성 농원 상세';
 const resavedV2=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,p_month:12,p_payload:v2,p_expected_revision:unlockV2.data.revision});assert.ok(resavedV2.ok);assert.deepEqual(resavedV2.data.payload,v2);

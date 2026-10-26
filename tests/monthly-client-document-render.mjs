@@ -35,8 +35,13 @@ for(const scenario of scenarios){
 const strip=value=>value.replace(/\s/g,'');
 const evidence=[];
 for(const {scenario,selected,pdf} of entries){
- const info=execFileSync('pdfinfo',[pdf],{encoding:'utf8'}),pages=Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);assert.equal(pages,selected.length*3,pdf+' must contain exactly three pages per company');
- for(const [i,company] of selected.entries())for(const [j,label] of ['공문','견적서','수행 결과보고서'].entries()){
+ const info=execFileSync('pdfinfo',[pdf],{encoding:'utf8'}),pages=Number(info.match(/^Pages:\s+(\d+)/m)?.[1]);if(scenario.template.version) assert.equal(pages,selected.length*3,pdf+' must contain exactly three pages per company');
+ else assert.ok(pages>=selected.length*3,'unchanged legacy source must retain every page; its original font-dependent pagination is reported separately');
+ if(!scenario.template.version){
+  const text=execFileSync('pdftotext',[pdf,'-'],{encoding:'utf8'});for(const company of selected)assert.ok(strip(text).includes(strip(company.name)));
+  assert.ok(text.includes('직인생략'),'legacy wording must remain intact');
+ }
+ for(const [i,company] of (scenario.template.version ? selected : []).entries())for(const [j,label] of ['공문','견적서','수행 결과보고서'].entries()){
   const page=i*3+j+1,text=execFileSync('pdftotext',['-f',String(page),'-l',String(page),pdf,'-'],{encoding:'utf8'}),compact=strip(text);
   const expected=docx.filename(scenario.common,[company]);assert.ok(expected.includes(company.key));
   if(scenario.template.version || j!==1) assert.ok(compact.includes(strip(scenario.common.place)),`${pdf} page ${page} missing complete place`);
@@ -51,7 +56,7 @@ for(const {scenario,selected,pdf} of entries){
    if(!scenario.common.extras.length)assert.doesNotMatch(text,/버스킹/);
   }
  }
- evidence.push({scenario:scenario.id,file:path.relative(output,pdf),pages,companies:selected.length,completePageText:true});
+ evidence.push({scenario:scenario.id,file:path.relative(output,pdf),pages,companies:selected.length,completePageText:!!scenario.template.version,legacySourcePreserved:!scenario.template.version,threePageContract:!!scenario.template.version});
 }
 await fs.writeFile(path.join(output,'render-evidence.json'),JSON.stringify({renderer:execFileSync(process.env.SOFFICE_PATH || 'soffice',['--version'],{encoding:'utf8'}).trim(),entries:evidence},null,2));
 console.log(JSON.stringify({output,documents:entries.length,pages:evidence.map(e=>e.pages),passed:true}));
