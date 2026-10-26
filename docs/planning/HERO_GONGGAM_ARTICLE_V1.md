@@ -13,6 +13,8 @@
 
 ## 검증 경계
 
+2026-10-26 후속: 사용자가 실패 검사 수정을 요청했다. Promotion Browser QA의 exact-head 홈페이지 재방문이 기존 홍보 데이터의 `blogthumb.pstatic.net` 요청에서 `ERR_BLOCKED_BY_ORB`로 실패했다. `link_source_type=none`인 오래된 레코드의 Naver CDN OG 주소만 공개 피드에서 회사 기본 이미지로 대체한다. 명시 첨부 우선순위·다른 기존 이미지·운영 데이터는 유지한다. PR #531 전체 이미지 정책·편집 UI·SSR 변경은 가져오거나 병합하지 않는다. 회귀 테스트로 해당 레거시 주소·첨부 우선순위·유사 도메인을 확인한다.
+
 `tests/hero-article-browser.mjs`: 실제 로컬/Preview 자산을 320·390·1440px에서 검증한다. 사진 비율·decode, 캡션·가로 넘침, 사진/제목 클릭, 높이 유지, 방향키·swipe, 영상 iframe 생성·제거·poster 복원을 확인한다. 외부 기사와 YouTube iframe 응답은 격리한다. 실제 기사 서버 응답 및 YouTube 스트리밍·오디오 재생 성공을 주장하지 않는다. JS 미실행 시 첫 사진·기사 링크가 남는지도 확인한다.
 
 공개 회귀·빌드와 최신 HEAD CI·개발 Preview 상태는 PR에 누적한다. 운영 DB·계정·권한·보호 규칙·배포 설정은 변경하지 않는다. 최신 main의 72시간 정기 배포 및 독립 수동 배포 경로를 유지한다. 고정 사용자 QA는 다른 작업을 덮어쓰지 않는다.

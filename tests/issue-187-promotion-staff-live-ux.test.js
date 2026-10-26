@@ -180,6 +180,10 @@ test('public archive cards avoid linked remote og:image but preserve explicit or
   const firstImage = firstPublicImageFromSource();
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), '');
   assert.equal(firstImage({ hero_image_url: 'https://legacy.example/hero.jpg', public_media: [], link_source_type: 'none' }), 'https://legacy.example/hero.jpg');
+  assert.equal(firstImage({ hero_image_url: 'https://blogthumb.pstatic.net/legacy.jpg?type=w2', public_media: [], link_source_type: 'none' }), 'images/og-taejang.png');
+  assert.equal(firstImage({ hero_image_url: 'https://postfiles.pstatic.net/legacy.jpg', public_media: [] }), 'images/og-taejang.png');
+  assert.equal(firstImage({ hero_image_url: 'https://blogthumb.pstatic.net/legacy.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }] }), 'https://storage.example/uploaded.jpg');
+  assert.equal(firstImage({ hero_image_url: 'https://pstatic.net.example/hero.jpg', public_media: [] }), 'https://pstatic.net.example/hero.jpg');
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://storage.example/uploaded.jpg');
 });
 

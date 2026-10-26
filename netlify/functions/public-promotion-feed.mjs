@@ -31,10 +31,17 @@ function firstImage(row) {
   if (selected) return selected;
   const sourceType = String(row?.link_source_type || 'none');
   if (sourceType !== 'none') return '';
-  return typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
+  const legacyImage = typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
+  // Older imports may have no link_source_type while retaining a Naver OG URL.
+  // Do not issue a known hotlink-blocked request before showing the fallback.
+  if (/^https?:\/\/(?:[^/]+\.)?pstatic\.net(?:[/:?#]|$)/i.test(legacyImage)) {
+    return 'images/og-taejang.png';
+  }
+  return legacyImage;
 }
 
 function firstImageAlt(row) {
+  if (firstImage(row) === 'images/og-taejang.png') return '농업회사법인 태장 주식회사';
   const media = Array.isArray(row?.public_media) ? row.public_media : [];
   const match = media.find(item => typeof item?.url === 'string' && item.url === firstImage(row));
   return match?.alt || `${row?.title || '태장 소식'} 대표사진`;
