@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>Public promotion image fallback</title></head>
+<body><main data-promotion-detail><article data-seo-promotion-id="11111111-1111-4111-8111-111111111111"><img id="hero" src="../../missing-approved-photo.jpg" alt="공개 사진"></article></main><pre id="result">RUNNING</pre>
+<script>
+  history.replaceState({}, '', '?id=11111111-1111-4111-8111-111111111111');
+  window.TAEJANG_CONTENT = {hub:[]};
+  const nextPhoto='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+  document.getElementById('hero').setAttribute('data-public-image-candidates',JSON.stringify(['../../missing-approved-photo.jpg',nextPhoto]));
+</script>
+<script src="../../assets/js/public-promotion-media.js"></script>
+<script src="../../assets/js/content-hub.js"></script>
+<script src="../../assets/js/promotion-detail.js"></script>
+<script>
+  const assert=(value,message)=>{if(!value)throw Error(message);};
+  const loaded=image=>image.complete&&image.naturalWidth>0?Promise.resolve():image.decode();
+  window.addEventListener('load',async()=>{
+    const result=document.getElementById('result');
+    try {
+      const hero=document.getElementById('hero');
+      await loaded(hero);
+      assert(hero.naturalWidth===1 && hero.src===nextPhoto,'SSR hero did not recover to next attachment');
+      const card=TAEJANG_CONTENT_HUB.createMedia({title:'사진 없음'});document.body.append(card);
+      const image=card.querySelector('img');await loaded(image);
+      assert(image.src===TAEJANG_PUBLIC_MEDIA.DEFAULT_IMAGE && image.naturalWidth>0,'photo-free card has no default image');
+      const broken=TAEJANG_CONTENT_HUB.createMedia({title:'깨진 사진',thumbnail:'../../missing-card-photo.jpg'});document.body.append(broken);
+      const brokenImage=broken.querySelector('img');
+      await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('broken card fallback timed out')),8000);brokenImage.addEventListener('load',()=>{clearTimeout(timeout);resolve();},{once:true});});
+      assert(brokenImage.src===TAEJANG_PUBLIC_MEDIA.DEFAULT_IMAGE && brokenImage.naturalWidth>0,'broken card did not use default');
+      hero.dispatchEvent(new Event('error')); await loaded(hero);
+      assert(hero.src===TAEJANG_PUBLIC_MEDIA.DEFAULT_IMAGE,'hero did not use final default');
+      for(let i=0;i<4;i++)hero.dispatchEvent(new Event('error'));
+      assert(hero.src===TAEJANG_PUBLIC_MEDIA.DEFAULT_IMAGE,'default fallback loop');
+      result.textContent='PROMOTION_PUBLIC_IMAGE_GATE_PASS';
+    } catch(error){result.textContent='PROMOTION_PUBLIC_IMAGE_GATE_FAIL:'+error.message;}
+  });
+</script></body></html>

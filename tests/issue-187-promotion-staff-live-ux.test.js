@@ -50,9 +50,8 @@ function officialChannels() {
 }
 
 function firstPublicImageFromSource() {
-  const match = publicFeed.match(/function firstImage\(row\) \{([\s\S]*?)\n\}\n\nfunction firstImageAlt/);
-  assert.ok(match, 'firstImage must remain extractable for behavior tests');
-  return new Function(`return function firstImage(row) {${match[1]}\n};`)();
+  require('../assets/js/public-promotion-media.js');
+  return row => globalThis.TAEJANG_PUBLIC_MEDIA.candidates(row)[0];
 }
 
 function runPreviewReveal() {
@@ -75,7 +74,7 @@ test('issue 192 promotion modules parse and official channel config is Core-stat
     'app/assets/ux-followup-polish.js',
     'assets/js/promotion-detail.js'
   ].forEach(syntaxCheck);
-  assert.doesNotThrow(() => new Function(publicFeed.replace('export default async', 'const handler = async')));
+  assert.doesNotThrow(() => new Function(publicFeed.replace(/^import[^\n]+\n/gm, '').replace('export default async', 'const handler = async')));
   assert.doesNotThrow(() => new Function(externalMeta.replace(/^import[^\n]+\n/gm, '').replace(/^export function /gm, 'function ').replace('export default async', 'const handler = async')));
   assert.match(appIndex, /assets\/official-channel-config\.js/);
   assert.doesNotMatch(appUi, /assets\/official-channel-config\.js/);
@@ -176,11 +175,11 @@ test('successful linked image preview is explicitly reference-only for public pu
   assert.match(qaSource, /사진 추가에서 직접 업로드해 주세요/);
 });
 
-test('public archive cards avoid linked remote og:image but preserve explicit or legacy images', () => {
+test('public archive cards reject standalone external heroes and preserve approved uploaded images', () => {
   const firstImage = firstPublicImageFromSource();
-  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), '');
-  assert.equal(firstImage({ hero_image_url: 'https://legacy.example/hero.jpg', public_media: [], link_source_type: 'none' }), 'https://legacy.example/hero.jpg');
-  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://storage.example/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://storage.example/uploaded.jpg');
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), 'https://taejang.co.kr/images/og-taejang.png');
+  assert.equal(firstImage({ hero_image_url: 'https://legacy.example/hero.jpg', public_media: [], link_source_type: 'none' }), 'https://taejang.co.kr/images/og-taejang.png');
+  assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://public-example.supabase.co/storage/v1/object/public/promotion-media/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://public-example.supabase.co/storage/v1/object/public/promotion-media/uploaded.jpg');
 });
 
 test('published promotion detail aligns with archive image policy and avoids hotlink-only hero', () => {
@@ -188,8 +187,8 @@ test('published promotion detail aligns with archive image policy and avoids hot
   assert.match(promotionDetail, /태장 공식 블로그에서 보기 ↗/);
   assert.match(promotionDetail, /태장 공식 유튜브에서 보기 ↗/);
   assert.match(promotionDetail, /sourceLinkLabel\(item\.link_source_type\)/);
-  assert.match(promotionDetail, /String\(item\.link_source_type \|\| 'none'\) === 'none'/);
-  assert.match(promotionDetail, /const heroUrl = media\[0\]\?\.url \|\| storedHero/);
+  assert.match(promotionDetail, /mediaPolicy.candidates\(item\)/);
+  assert.match(promotionDetail, /presentation\?\.url \|\| candidates\[0\]/);
   assert.match(promotionDetail, /image\.referrerPolicy = 'no-referrer'/);
-  assert.match(promotionDetail, /image\.addEventListener\('error', \(\) => figure\.remove\(\)/);
+  assert.match(promotionDetail, /mediaPolicy.bind\(image, candidates\)/);
 });

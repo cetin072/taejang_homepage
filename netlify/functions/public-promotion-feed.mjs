@@ -1,3 +1,5 @@
+import '../../assets/js/public-promotion-media.js';
+const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store, max-age=0',
@@ -21,25 +23,6 @@ function safeScriptJson(value) {
     .replaceAll('\u2029', '\\u2029');
 }
 
-function firstImage(row) {
-  // Public cards prefer images explicitly uploaded/selected into public_media.
-  // For a post with a linked source, a standalone remote og:image is reference
-  // material only because it may block hotlinking later. Legacy no-link rows may
-  // still use their stored hero image for backwards compatibility.
-  const media = Array.isArray(row?.public_media) ? row.public_media : [];
-  const selected = media.find(item => typeof item?.url === 'string' && item.url)?.url || '';
-  if (selected) return selected;
-  const sourceType = String(row?.link_source_type || 'none');
-  if (sourceType !== 'none') return '';
-  return typeof row?.hero_image_url === 'string' ? row.hero_image_url : '';
-}
-
-function firstImageAlt(row) {
-  const media = Array.isArray(row?.public_media) ? row.public_media : [];
-  const match = media.find(item => typeof item?.url === 'string' && item.url === firstImage(row));
-  return match?.alt || `${row?.title || '태장 소식'} 대표사진`;
-}
-
 function linkPresentation(row) {
   const type = row?.link_source_type || 'external';
   if (type === 'taejang_homepage') return { source: 'homepage', label: '태장 홈페이지에서 보기' };
@@ -48,7 +31,7 @@ function linkPresentation(row) {
   return { source: 'press', label: '원문 보기' };
 }
 
-function hubItem(row) {
+function hubItem(row, image) {
   const external = row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || '');
   const link = linkPresentation(row);
   return {
@@ -58,8 +41,9 @@ function hubItem(row) {
     category: row.content_type === 'press_release' ? '보도자료' : row.content_type === 'external_content' ? '연결 콘텐츠' : '회사소식',
     title: row.title,
     summary: row.summary || '',
-    thumbnail: firstImage(row),
-    thumbnailAlt: firstImageAlt(row),
+    thumbnail: image.url,
+    thumbnailCandidates: image.candidates,
+    thumbnailAlt: image.alt,
     publishedAt: row.published_date || '',
     featured: false,
     status: 'published',
@@ -104,11 +88,13 @@ export default async (request) => {
         return json({ error: 'INVALID_CONTENT_ID' }, 400);
       }
       const rows = await rpc('get_public_promotion_content', { p_content_id: id });
-      return json({ item: Array.isArray(rows) && rows.length ? rows[0] : null });
+      const item = Array.isArray(rows) && rows.length ? rows[0] : null;
+      return json({ item: item ? { ...item, public_image: await mediaPolicy.resolve(item, Netlify.env.get('SUPABASE_URL')) } : null });
     }
 
     const rows = await rpc('list_public_promotion_feed', {});
-    const items = (Array.isArray(rows) ? rows : []).map(hubItem);
+    const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
+      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL')))));
     if (format === 'json') return json({ items });
 
     const script = `(() => {\n  const content = window.TAEJANG_CONTENT;\n  if (!content) return;\n  if (!Array.isArray(content.hub)) content.hub = [];\n  const items = ${safeScriptJson(items)};\n  const ids = new Set(content.hub.map(item => item && item.id));\n  items.forEach(item => { if (!ids.has(item.id)) { content.hub.push(item); ids.add(item.id); } });\n})();\n`;

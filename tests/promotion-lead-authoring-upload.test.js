@@ -78,5 +78,6 @@ test('lead and operations V2 link importer explains YouTube metadata limits with
   assert.match(workspace, /영상 본문은 직접 작성해 주세요/);
   assert.match(workspace, /if \(metadata\.article_text\) body\.value = metadata\.article_text\.slice/);
   assert.match(workspace, /if \(metadata\.title\) title\.value = metadata\.title/);
-  assert.match(workspace, /state\.heroImage = metadata\.image \|\| state\.heroImage/);
+  assert.doesNotMatch(workspace, /state\.heroImage = metadata\.image/);
+  assert.match(workspace, /원문 썸네일은 참고용/);
 });

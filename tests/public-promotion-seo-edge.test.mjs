@@ -14,7 +14,7 @@ const full = {
   published_date: '2026-10-08',
   public_body: '첫 번째 현장을 소개합니다.\n\n두 번째 현장도 기록합니다.',
   byline: '태장 홍보팀',
-  public_media: [{ url: 'https://example.org/approved-photo.webp', alt: '공개 승인된 현장' }],
+  public_media: [{ url: 'https://public-example.supabase.co/storage/v1/object/public/promotion-media/approved-photo.webp', alt: '공개 승인된 현장' }],
   link_source_type: 'none',
   external_url: ''
 };
@@ -27,6 +27,7 @@ function setup({ detail = [full], feed = [full], error = false } = {}) {
       : name === 'SUPABASE_PUBLISHABLE_KEY' ? 'public-anon-only' : undefined;
   } } };
   globalThis.fetch = async (url, request) => {
+    if (request.method === 'HEAD') return new Response(null, { status: 200, headers: { 'content-type': 'image/webp' } });
     const rpc = new URL(url).pathname.split('/').pop();
     rpcNames.push(rpc);
     assert.equal(request.method, 'POST');
@@ -52,7 +53,7 @@ test('approved promotion detail provides unique bot-readable head and body', asy
     const html = await response.text();
     assert.match(html, /<title>태장 &lt;환경&gt; 활동 &amp; 기록 \| 농업회사법인 태장 주식회사<\/title>/);
     assert.match(html, /<link rel="canonical" href="https:\/\/taejang.co.kr\/promotion.html\?id=11111111/);
-    assert.match(html, /<meta property="og:image" content="https:\/\/example.org\/approved-photo.webp">/);
+    assert.match(html, /<meta property="og:image" content="https:\/\/public-example.supabase.co\/storage\/v1\/object\/public\/promotion-media\/approved-photo.webp">/);
     assert.match(html, /<meta property="og:url" content="https:\/\/taejang.co.kr\/promotion.html\?id=/);
     assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
     assert.match(html, /"@type":"Article"/);

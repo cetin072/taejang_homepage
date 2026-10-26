@@ -1,3 +1,5 @@
+import '../../assets/js/public-promotion-media.js';
+const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 // Search-readable responses for the EXISTING approved public promotion RPCs.
 // No service-role credentials, private tables, or independent publication states.
 const ORIGIN = 'https://taejang.co.kr';
@@ -52,15 +54,6 @@ function linkifyParagraph(value) {
   return (output + escapeHtml(text.slice(cursor))).replace(/\n/g, '<br>');
 }
 
-function imageFor(item) {
-  const media = Array.isArray(item.public_media) ? item.public_media : [];
-  const selected = media.find(entry => typeof entry?.url === 'string' && /^https:\/\//.test(entry.url));
-  if (selected) return { url: selected.url, alt: selected.alt || item.title, media };
-  const stored = String(item.link_source_type || 'none') === 'none'
-    && /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '';
-  return { url: stored || DEFAULT_IMAGE, alt: item.title, media };
-}
-
 function publicLink(value) {
   if (typeof value !== 'string') return '';
   try {
@@ -102,12 +95,12 @@ function articleHtml(item) {
   const title = String(item.title || '태장 소식');
   const summary = String(item.summary || title);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(item.published_date || '') ? item.published_date : '';
-  const image = imageFor(item);
-  const media = image.media.filter(entry => publicLink(entry?.url));
+  const image = item.public_image;
+  const media = (item.public_media || []).filter(entry => mediaPolicy.persistent(entry?.url));
   const leadImage = publicLink(image.url);
-  const picture = leadImage && leadImage !== DEFAULT_IMAGE
+  const picture = leadImage
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
-      '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
+      '" data-public-image-candidates="' + escapeHtml(JSON.stringify(image.candidates)) + '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
     .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)
@@ -156,7 +149,7 @@ function renderPage(template, item) {
     headline: data.title,
     description: data.summary,
     ...(data.date ? { datePublished: data.date } : {}),
-    ...(data.image.url !== DEFAULT_IMAGE ? { image: data.image.url } : {}),
+    image: data.image.url,
     author: { '@type': 'Organization', name: '농업회사법인 태장 주식회사' },
     publisher: { '@type': 'Organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
   };
@@ -208,7 +201,9 @@ export default async function publicPromotionSeo(request, context) {
     if (!rows.length || rows[0]?.content_id !== id) return fail(404);
     const source = await context.next();
     if (!source.ok) return source;
-    const html = renderPage(await source.text(), rows[0]);
+    const item = rows[0];
+    const public_image = await mediaPolicy.resolve(item, globalThis.Netlify.env.get('SUPABASE_URL'));
+    const html = renderPage(await source.text(), { ...item, public_image });
     const headers = new Headers(source.headers);
     headers.set('Content-Type', 'text/html; charset=utf-8');
     headers.set('Cache-Control', 'no-store, max-age=0');

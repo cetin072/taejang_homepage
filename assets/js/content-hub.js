@@ -80,30 +80,14 @@
   function createMedia(item, mediaClassName = 'card-media card-media--hub') {
     const media = document.createElement('div');
     media.className = mediaClassName;
-    if (item.thumbnail) {
-      const image = document.createElement('img');
-      image.src = item.thumbnail;
-      image.alt = item.thumbnailAlt || `${item.title} 썸네일`;
-      image.loading = 'lazy';
-      image.decoding = 'async';
-      if (item.source === 'naver-blog') {
-        image.addEventListener('error', () => {
-          // Naver CDN photos may refuse third-party hotlinks; retain a valid company card.
-          if (image.getAttribute('src') !== 'images/og-taejang.png') {
-            image.src = 'images/og-taejang.png';
-          }
-        });
-      }
-      media.append(image);
-    } else {
-      const slot = document.createElement('div');
-      slot.className = 'content-photo-slot';
-      slot.setAttribute('role', 'img');
-      slot.setAttribute('aria-label', `CONTENT PHOTO: ${item.title}`);
-      appendText(slot, 'span', 'CONTENT PHOTO', 'content-photo-slot-label');
-      appendText(slot, 'strong', item.title);
-      media.append(slot);
-    }
+    const policy = globalThis.TAEJANG_PUBLIC_MEDIA;
+    const image = document.createElement('img');
+    image.src = item.thumbnail || policy.DEFAULT_IMAGE;
+    image.alt = item.thumbnailAlt || `${item.title} 썸네일`;
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    policy.bind(image, [image.getAttribute('src'), ...(item.thumbnailCandidates || [])]);
+    media.append(image);
     return media;
   }
 
