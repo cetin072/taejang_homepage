@@ -36,6 +36,11 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Verify monthly documents and menu addresses with isolated fixtures
+        run: |
+          node tests/monthly-client-documents-browser.mjs
+          node tests/platform-menu-addresses-browser.mjs
+
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 

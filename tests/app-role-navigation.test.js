@@ -84,7 +84,8 @@ async function makeDashboard(route) {
   document.addEventListener('taejang-open-employee-management', event => employeeViews.push(event.detail?.view || 'existing'));
   document.addEventListener('taejang-open-account-approval', () => { approvalOpens += 1; });
   const window = {
-    TaejangApp: { getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
+    addEventListener() {}, setTimeout,
+    TaejangApp: { hasCapabilityContract: () => true, can: () => true, getRoute: () => route, getContext: () => ({ display_name: 'QA 사용자' }), rpc: async name => name === 'get_my_promotion_workspace' ? { review_items: [], my_items: [] } : [] },
     TaejangPromotionWorkspaceV2Api: { openPromotion: mode => promotionModes.push(mode) },
     TaejangOfficialChannels: { list: [
       { id: 'homepage', label: '홈페이지', href: '../index.html' },
@@ -96,7 +97,7 @@ async function makeDashboard(route) {
     TaejangFeatureHealth: { hasFailed: () => false, showFailure() {} },
     location: { href: '' }
   };
-  const sandbox = { window, document, CustomEvent: FakeCustomEvent, Intl, Date, Set, Array, Promise, console };
+  const sandbox = { location: {href:'https://fixture.test/app/'}, URL, history: {pushState(){}}, window, document, CustomEvent: FakeCustomEvent, Intl, Date, Set, Array, Promise, console };
   vm.runInNewContext(navigationRegistry, sandbox, { filename: 'platform-navigation-registry.js' });
   vm.runInNewContext(source, sandbox, { filename: 'dashboard-shell.js' });
   document.dispatchEvent(new FakeCustomEvent('taejang-app-ready', { detail: { route, label: route } }));
@@ -152,9 +153,9 @@ test('dashboard hierarchy shows brand in sidebar, role in topbar and dashboard o
   assert.match(source, /promotion_lead:\s*\['대시보드', '출근부·홍보 검토·홍보 작성/);
   assert.match(source, /label\.textContent = ''; label\.hidden = true/);
   const qa = await makeDashboard('promotion_lead');
-  findMenu(qa.nav, '대시보드').click(); await nextTurn();
+  findMenu(qa.nav, '대시보드').click(); await nextTurn(); await nextTurn();
   assert.equal(qa.main.hidden, false);
-  assert.equal(qa.document.getElementById('desktop-page-title').textContent, '운영팀장');
+  assert.equal(qa.document.getElementById('desktop-page-title').textContent, '대시보드');
   assert.equal(qa.document.getElementById('desktop-role-label').hidden, true);
   assert.equal(qa.document.getElementById('desktop-role-label').textContent, '');
 });
@@ -190,23 +191,23 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.equal(menuLabels(lead.nav).filter(label => /급여/.test(label)).length, 0, 'lead has no payroll menu even with stale capabilities');
   assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 검토');
 
-  findMenu(promotion.nav, '홍보 글 작성').click();
-  findMenu(promotion.nav, '보완 요청받은 글').click();
+  findMenu(promotion.nav, '홍보 글 작성').click(); await nextTurn();
+  findMenu(promotion.nav, '보완 요청받은 글').click(); await nextTurn();
   assert.deepEqual(promotion.promotionModes, ['write', 'revision']);
-  findMenu(lead.nav, '홍보 검토').click();
-  findMenu(lead.nav, '발행 관리').click();
+  findMenu(lead.nav, '홍보 검토').click(); await nextTurn();
+  findMenu(lead.nav, '발행 관리').click(); await nextTurn();
   assert.deepEqual(lead.promotionModes, ['review', 'publication']);
-  findMenu(operations.nav, '홍보 글 작성').click();
-  findMenu(operations.nav, '발행 현황').click();
+  findMenu(operations.nav, '홍보 글 작성').click(); await nextTurn();
+  findMenu(operations.nav, '발행 현황').click(); await nextTurn();
   assert.deepEqual(operations.promotionModes, ['write', 'publication']);
 
   for (const [label, panel] of new Map([
     ['업무 배정','today-admin-panel'],
     ['공지 관리','notice-admin-panel']
   ])) {
-    findMenu(operations.nav, label).click();
+    findMenu(operations.nav, label).click(); await nextTurn();
     assert.equal(operations.openedPanels.at(-1), panel);
-    findMenu(operations.nav, '대시보드').click(); await nextTurn();
+    findMenu(operations.nav, '대시보드').click(); await nextTurn(); await nextTurn();
     assert.equal(operations.main.hidden, false);
   }
 });
@@ -233,17 +234,17 @@ test('platform Settings is a top-right utility instead of a sidebar row', async 
 test('operations mobile menu actions close the sidebar and dispatch one destination action', async () => {
   const operations = await makeDashboard('operations_manager');
   operations.shell.classList.add('sidebar-open');
-  findMenu(operations.nav, '직원 관리').click();
+  findMenu(operations.nav, '직원 관리').click(); await nextTurn();
   assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
   assert.deepEqual(operations.employeeViews, ['existing']);
 
   operations.shell.classList.add('sidebar-open');
-  findMenu(operations.nav, '신규 직원 등록').click();
+  findMenu(operations.nav, '신규 직원 등록').click(); await nextTurn();
   assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
   assert.deepEqual(operations.employeeViews, ['existing', 'new']);
 
   operations.shell.classList.add('sidebar-open');
-  findMenu(operations.nav, '가입 승인').click();
+  findMenu(operations.nav, '가입 승인').click(); await nextTurn();
   assert.equal(operations.shell.classList.values.has('sidebar-open'), false);
   assert.equal(operations.getApprovalOpens(), 1);
 });

@@ -104,6 +104,8 @@
 
   function sendToStaff(reason, { clear = false } = {}) {
     if (clear) clearSession();
+    const pendingView = new URLSearchParams(window.location.search).get('view');
+    if (pendingView && /^[a-z][a-z0-9_.-]{0,99}$/.test(pendingView)) sessionStorage.setItem('taejang.pending-menu-view', pendingView);
     const query = reason ? `?notice=${encodeURIComponent(reason)}` : '';
     window.location.replace(`../staff/${query}`);
   }
@@ -755,7 +757,9 @@
     element('admin-board-date').value = state.boardDate;
     element('task-date').value = state.boardDate;
     element('information-date').value = state.boardDate;
-    window.history.replaceState(null, '', window.location.pathname);
+    const requestedView = new URLSearchParams(window.location.search).get('view') || sessionStorage.getItem('taejang.pending-menu-view');
+    sessionStorage.removeItem('taejang.pending-menu-view');
+    window.history.replaceState({taejangMenuView:true}, '', window.location.pathname + (requestedView ? '?view=' + encodeURIComponent(requestedView) : ''));
     window.TaejangApp = {
       rpc,
       isTodayManager,
@@ -917,7 +921,11 @@
   element('reset-information-form').addEventListener('click', resetInformationForm);
   element('reset-guide-form').addEventListener('click', resetGuideForm);
   window.addEventListener('pageshow', verify);
-  window.addEventListener('popstate', verify);
+  window.addEventListener('popstate', event => {
+    // Menu history reuses the authenticated context; every business RPC retains its server guard.
+    if (state.route && event.state?.taejangMenuView) return;
+    verify();
+  });
 
   (async () => {
     try {
