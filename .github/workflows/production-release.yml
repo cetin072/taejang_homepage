@@ -1,20 +1,28 @@
 name: Batched Production Release
-run-name: "Production release | ${{ github.event_name == 'schedule' && 'live' || 'read-only dry-run' }}"
+run-name: "Production release | ${{ (github.event_name == 'schedule' || inputs.action == 'deploy-now') && 'live' || 'read-only dry-run' }}"
 
 on:
   schedule:
-    # Daily wake-up; fixed 48-hour slots are computed across month/year boundaries.
+    # Daily wake-up; fixed 72-hour slots are computed across month/year boundaries.
     - cron: '20 8 * * *'
     # GitHub may delay or drop one cron event. Independent later wake-ups
-    # are deduplicated by evaluateSchedule using the same fixed 48h slot.
+    # are deduplicated by evaluateSchedule using the same fixed 72h slot.
     - cron: '47 8 * * *'
     - cron: '17 9 * * *'
     - cron: '47 9 * * *'
     # Final catch-up shortly before the prior 24-hour slot expires.
-    # Real publication can happen after the last same-day wake-up; never
-    # relax the actual 48-hour minimum or duplicate-release guards.
+    # A missed earlier wake-up can use this slot; duplicate checks still stop.
     - cron: '47 7 * * *'
   workflow_dispatch:
+    inputs:
+      action:
+        description: 'deploy-now = 즉시 배포 (최신 main), dry-run = 읽기 전용 확인'
+        type: choice
+        required: true
+        default: dry-run
+        options:
+          - dry-run
+          - deploy-now
 
 permissions:
   contents: read
@@ -32,6 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.action == 'deploy-now' && 'main' || github.ref }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
@@ -39,12 +48,13 @@ jobs:
           node-version: 24
       - name: Verify fixed-slot release regressions
         run: node --test tests/scheduled-netlify-release.test.mjs
-      - name: Check approved main and request one Git build only when due
+      - name: Check main and request one scheduled or explicitly requested Git build
         env:
+          RELEASE_ACTION: ${{ inputs.action }}
           GH_TOKEN: ${{ github.token }}
-          NETLIFY_PRODUCTION_BUILD_HOOK: ${{ github.event_name == 'schedule' && secrets.NETLIFY_PRODUCTION_BUILD_HOOK || '' }}
+          NETLIFY_PRODUCTION_BUILD_HOOK: ${{ (github.event_name == 'schedule' || (inputs.action == 'deploy-now' && github.ref == 'refs/heads/main')) && secrets.NETLIFY_PRODUCTION_BUILD_HOOK || '' }}
           RELEASE_RESULT_PATH: ${{ runner.temp }}/production-release-result.json
-          SUPABASE_ACCESS_TOKEN: ${{ github.event_name == 'schedule' && secrets.SUPABASE_ACCESS_TOKEN || '' }}
+          SUPABASE_ACCESS_TOKEN: ${{ (github.event_name == 'schedule' || (inputs.action == 'deploy-now' && github.ref == 'refs/heads/main')) && secrets.SUPABASE_ACCESS_TOKEN || '' }}
           PRODUCTION_SUPABASE_PROJECT_REF: jgsxpdflgkqroecfjzxq
         run: node scripts/scheduled-netlify-release.mjs check deployment/release-policy.json
       - name: Retain check result
@@ -57,4 +67,4 @@ jobs:
           retention-days: 14
       - name: Record failure
         if: failure()
-        run: echo 'Release check failed. See this run. Previous published Production remains authoritative; retry at next fixed slot.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'Release check failed. See this run. Previous published Production remains authoritative; use a new explicit manual run or wait for the next fixed slot.' >> "$GITHUB_STEP_SUMMARY"

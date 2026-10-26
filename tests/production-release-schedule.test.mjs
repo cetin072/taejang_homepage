@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { calendarSlot, currentSlot, evaluateSchedule, readSchedule, liveRunTitle } from '../scripts/production-release-schedule.mjs';
 import { webDeployInput, planRelease } from '../scripts/production-release-plan.mjs';
 import { orchestrate } from '../scripts/production-release.mjs';
+// Historical marker-PR implementation (not used by any active workflow).
 const policy = JSON.parse(readFileSync(new URL('../deployment/release-policy.json', import.meta.url)));
+Object.assign(policy, { production_interval_days: 2, schedule_interval_hours: 48 });
 const due = '2026-10-21T08:20:00Z';
 const run = { id: 100, run_attempt: 1, created_at: due, head_branch: 'main', event: 'schedule' };
 const evaluate = (extra = {}) => evaluateSchedule({ policy, run, previousRuns: [], now: new Date(due), ...extra });
@@ -111,7 +113,7 @@ test('workflow uses read-only GitHub token and a schedule-only Netlify hook with
   const workflow=readFileSync(new URL('../.github/workflows/production-release.yml',import.meta.url),'utf8');
   assert.match(workflow,/cron: '20 8 \* \* \*'/);
   assert.doesNotMatch(workflow,/\*\/2|inputs\.force/);
-  assert.match(workflow,/github.event_name == 'schedule' && secrets.NETLIFY_PRODUCTION_BUILD_HOOK/);
+  assert.match(workflow,/inputs.action == 'deploy-now' && github.ref == 'refs\/heads\/main'/);
   assert.doesNotMatch(workflow,/APP_PRIVATE_KEY|APP_ID|create-github-app-token|contents: write|pull-requests: write/);
   assert.match(workflow,/if: always\(\)/);
   assert.match(workflow,/if: failure\(\)/);

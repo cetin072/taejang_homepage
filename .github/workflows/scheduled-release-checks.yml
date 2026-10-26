@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/scheduled-netlify-release.mjs'
       - 'tests/scheduled-netlify-release.test.mjs'
+      - 'tests/production-release-policy.test.mjs'
+      - 'tests/production-release-schedule.test.mjs'
       - 'deployment/release-policy.json'
       - 'netlify.toml'
       - '.github/workflows/production-release.yml'
@@ -20,4 +22,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node --test tests/scheduled-netlify-release.test.mjs tests/emergency-netlify-release-20261022.test.mjs
+      - run: node --test tests/scheduled-netlify-release.test.mjs tests/emergency-netlify-release-20261022.test.mjs tests/production-release-policy.test.mjs tests/production-release-schedule.test.mjs
