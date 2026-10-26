@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
+import {pathToFileURL} from 'node:url';
 import {createRequire} from 'node:module';
 import {execFileSync} from 'node:child_process';
 const require=createRequire(import.meta.url),core=require('../app/assets/monthly-client-document-core.js'),docx=require('../app/assets/monthly-client-document-docx.js'),JSZip=require('../app/assets/vendor/jszip-3.10.1.min.js');
-const output=process.env.MONTHLY_RENDER_OUTPUT || await fs.mkdtemp(path.join(os.tmpdir(),'monthly-document-render-'));
+const output=path.resolve(process.env.MONTHLY_RENDER_OUTPUT || await fs.mkdtemp(path.join(os.tmpdir(),'monthly-document-render-')));
 await fs.mkdir(output,{recursive:true});
 const current=JSON.parse(await fs.readFile(new URL('../app/assets/monthly-client-document-template.json',import.meta.url),'utf8'));
 const legacy=JSON.parse(await fs.readFile(new URL('../app/assets/monthly-client-document-template-v1.json',import.meta.url),'utf8'));
@@ -29,7 +30,7 @@ for(const scenario of scenarios){
   entries.push({scenario,selected,filename,pdf:filename.replace(/\.docx$/,'.pdf')});
  }
  const files=entries.filter(e=>e.scenario===scenario).map(e=>e.filename);
- execFileSync(process.env.SOFFICE_PATH || 'soffice',[`-env:UserInstallation=file://${path.join(output,'lo-profile')}`,'--headless','--convert-to','pdf','--outdir',folder,...files],{timeout:120000,stdio:'pipe'});
+ execFileSync(process.env.SOFFICE_PATH || 'soffice',[`-env:UserInstallation=${pathToFileURL(path.join(output,'lo-profile')).href}`,'--headless','--convert-to','pdf','--outdir',folder,...files],{timeout:120000,stdio:'pipe'});
 }
 const strip=value=>value.replace(/\s/g,'');
 const evidence=[];
