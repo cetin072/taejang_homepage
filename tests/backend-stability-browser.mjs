@@ -96,7 +96,9 @@ async function boot(width,role='operations_manager'){
     if(name==='save_work_guide_step')return send({ok:true,id:args.p_step_id||'saved-step'});
     errors.push('Unexpected RPC '+name);return send({message:'Unexpected RPC '+name},500);
   });
-  await page.goto(origin+'/app/index.html');
+  // Preview assets are fetched by this local fixture server. Wait for the DOM
+  // and explicit authenticated bootstrap below, rather than unrelated load tails.
+  await page.goto(origin+'/app/index.html',{waitUntil:'domcontentloaded',timeout:90000});
   await page.waitForFunction(()=>window.TaejangApp?.hasCapabilityContract?.(),null,{timeout:10000}).catch(async error=>{
     console.error({url:page.url(),errors,calls});throw error;
   });
