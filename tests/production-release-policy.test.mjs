@@ -11,7 +11,9 @@ import { markerOnly, mainMatches, release, orchestrate, requiredWorkflows, exact
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const gate = path.join(root, 'scripts/netlify-production-gate.mjs');
+// Historical marker-PR implementation (not used by any active workflow).
 const policy = JSON.parse(readFileSync(path.join(root, 'deployment/release-policy.json'), 'utf8'));
+Object.assign(policy, { production_interval_days: 2, schedule_interval_hours: 48 });
 const baseline = { version: 1, source_main_sha: 'a'.repeat(40), released_at_utc: '2026-10-03T07:07:18.980Z', released_on_kst: '2026-10-03', interval_days: 2, release_attempt: 0 };
 function plan(overrides = {}) {
   return planRelease({ policy, marker: baseline, head: 'b'.repeat(40), changedFiles: ['index.html'], now: new Date('2026-10-06T07:00:00Z'), eventName: 'schedule', ...overrides });
