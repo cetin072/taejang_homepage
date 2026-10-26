@@ -83,8 +83,13 @@ try {
     assert.equal(await slider.evaluate(el => document.activeElement === el), true, 'focus leaves hidden article link');
     await page.keyboard.press('ArrowLeft');
     assert.equal(await slider.getAttribute('data-hero-video-active'), '0');
-    await slider.dispatchEvent('touchstart', { changedTouches: [{ clientX: 250 }] });
-    await slider.dispatchEvent('touchend', { changedTouches: [{ clientX: 100 }] });
+    await slider.evaluate(el => {
+      const dispatch = (type, clientX) => el.dispatchEvent(new TouchEvent(type, {
+        changedTouches: [new Touch({ identifier: 1, target: el, clientX })], bubbles: true,
+      }));
+      dispatch('touchstart', 250);
+      dispatch('touchend', 100);
+    });
     assert.equal(await slider.getAttribute('data-hero-video-active'), '1');
     console.log(`PASS ${width}px: uncropped photo, readable caption, both link clicks, stable height, keyboard, swipe, two video iframe lifecycles`);
     await context.close();
