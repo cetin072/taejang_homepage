@@ -85,7 +85,7 @@ test('normal manager lists stay clean while operations receives a dedicated arch
   assert.match(recoveryFeed, /archived_at is not null/g);
   assert.match(recoveryFeed, /RECOVERY_ARCHIVE_READ_FORBIDDEN/);
   assert.match(controls, /get_archived_recovery_items/);
-  assert.match(controls, /보관함/);
+  assert.match(controls, /휴지통/);
 });
 
 test('recovery UI requires confirmation and reason, supports restore, and exposes readable target history', () => {

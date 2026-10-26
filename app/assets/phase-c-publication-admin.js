@@ -21,7 +21,7 @@
     scheduled: '게시 예정',
     published: '게시 완료',
     hidden: '숨김',
-    archived: '보관'
+    archived: '삭제됨'
   };
 
   const app = () => window.TaejangApp;
@@ -99,7 +99,7 @@
   async function archiveRecent(item) {
     const reason = window.prompt(`“${item.title}” 글을 공개 후 24시간 안에 내리는 이유를 적어주세요.`, '')?.trim();
     if (!reason) return;
-    if (!window.confirm('공개 목록에서 내립니다. 원문과 감사기록은 복구 가능하게 보존됩니다. 계속할까요?')) return;
+    if (!window.confirm('공개 목록에서 내립니다. 원문과 감사기록은 복원 가능하게 보존됩니다. 계속할까요?')) return;
     try {
       await app().rpc('lead_archive_recent_promotion_content', { p_content_id: item.content_id, p_reason: reason });
       await openPublicationAdmin();
@@ -109,9 +109,9 @@
   }
 
   async function archiveAsOperations(item) {
-    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제(보관)하는 사유를 입력해 주세요.`, '')?.trim();
+    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제하는 사유를 입력해 주세요.`, '')?.trim();
     if (!reason) return;
-    if (!window.confirm('삭제(보관)하면 사용자 화면과 발행 목록에서 내려가고, 보관함에서 복구할 수 있습니다. 계속할까요?')) return;
+    if (!window.confirm('삭제하면 사용자 화면과 발행 목록에서 내려가고, 휴지통에서 복원할 수 있습니다. 계속할까요?')) return;
     try {
       await app().rpc('archive_promotion_content', {
         p_content_id: item.content_id,
@@ -120,14 +120,14 @@
       });
       await openPublicationAdmin();
     } catch (error) {
-      window.alert(friendly(error, '글을 삭제(보관)하지 못했습니다.'));
+      window.alert(friendly(error, '글을 삭제하지 못했습니다.'));
     }
   }
 
   function openArchiveManager() {
     const api = window.TaejangIssue146?.openPromotionArchive;
     if (typeof api === 'function') return api();
-    window.TaejangFeatureHealth?.showFailure?.('홍보글 보관·영구삭제 기능');
+    window.TaejangFeatureHealth?.showFailure?.('홍보글 휴지통 기능');
   }
 
   async function submitChangeRequest(payload) {
@@ -378,7 +378,7 @@
       if (isPublic && item.can_operations_edit_text === true) {
         actions.append(button('게시글 수정', () => openChangeForm(item, true, true), true));
       }
-      actions.append(button('삭제(보관)', () => archiveAsOperations(item), true));
+      actions.append(button('삭제', () => archiveAsOperations(item), true));
     }
 
     card.append(actions);
@@ -390,7 +390,7 @@
     if (!ELIGIBLE_ROLES.has(currentRoute)) return;
     const isOperations = currentRoute === 'operations_manager';
     const target = setPage('공개 홍보글 관리', isOperations
-      ? '본인 작성 또는 본인 최종 승인 일반 공개글의 문구를 수정하고 삭제(보관)할 수 있습니다. 보관된 글은 복구하거나 영구삭제할 수 있습니다.'
+      ? '본인 작성 또는 본인 최종 승인 일반 공개글의 문구를 수정하고 삭제할 수 있습니다. 휴지통의 글은 복원하거나 영구삭제할 수 있습니다.'
       : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
     if (!target) return;
     const loading = el('p', '공개 홍보글을 불러오고 있습니다.', 'message');
@@ -409,7 +409,7 @@
       if (isOperations) {
         const tools = document.createElement('div');
         tools.className = 'quick-links';
-        tools.append(button('보관함·영구삭제', openArchiveManager, true));
+        tools.append(button('휴지통·영구삭제', openArchiveManager, true));
         target.append(tools);
 
         const contentSection = document.createElement('section');

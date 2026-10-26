@@ -121,7 +121,7 @@
         PROFILE_NOT_PENDING: '이미 처리된 가입 요청입니다. 목록을 새로고침해 주세요.',
         EMPLOYEE_ALREADY_LINKED: '해당 직원은 이미 다른 앱 계정과 연결돼 있습니다.',
         PROFILE_ALREADY_LINKED: '가입 계정이 이미 다른 직원에게 연결돼 있습니다.',
-        EMPLOYEE_NOT_AVAILABLE: '퇴사·보관됐거나 사용할 수 없는 직원입니다.',
+        EMPLOYEE_NOT_AVAILABLE: '퇴사·삭제됐거나 사용할 수 없는 직원입니다.',
         EMPLOYEE_NUMBER_CONFIRMATION_MISMATCH: '기존 직원번호 확인이 맞지 않습니다.',
         SIGNUP_IDENTITY_MISMATCH_REQUIRES_CONFIRMATION: '이름 또는 입사일 차이를 먼저 확인해 주세요.',
         SIGNUP_IDENTITY_MISMATCH_REASON_REQUIRED: '인적사항이 다른 이유를 입력해 주세요.'

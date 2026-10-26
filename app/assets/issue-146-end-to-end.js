@@ -137,8 +137,8 @@
     closeSidebar();
     const currentRoute = route();
     if (!['promotion_lead', 'operations_manager'].includes(currentRoute)) return;
-    setPageTitle(currentRoute === 'operations_manager' ? '홍보글 보관·복구' : '홍보글 보관');
-    const target = showLoading('홍보글 보관 목록을 불러오고 있습니다.');
+    setPageTitle(currentRoute === 'operations_manager' ? '홍보글 휴지통' : '홍보글 삭제');
+    const target = showLoading('홍보글 삭제 목록을 불러오고 있습니다.');
     if (!target) return;
 
     try {
@@ -150,28 +150,28 @@
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '홍보 콘텐츠 안전관리', 'eyebrow'),
-        el('h2', currentRoute === 'operations_manager' ? '삭제(보관)·복구·영구삭제' : '공개 전 글은 보관할 수 있습니다'),
+        el('h2', currentRoute === 'operations_manager' ? '삭제·복원·영구삭제' : '공개 전 글은 삭제할 수 있습니다'),
         el('p', currentRoute === 'operations_manager'
-          ? '삭제(보관)는 원문·수정이력·감사기록을 남겨 복구할 수 있습니다. 영구삭제는 보관된 글에만 가능하며 복구할 수 없습니다.'
-          : '아직 한 번도 공개되지 않은 글만 보관할 수 있습니다. 공개된 글은 “공개 홍보글 관리”에서 운영총괄이 삭제(보관)할 수 있습니다.')
+          ? '삭제는 원문·수정이력·감사기록을 남겨 복원할 수 있습니다. 영구삭제는 휴지통의 글에만 가능하며 복원할 수 없습니다.'
+          : '아직 한 번도 공개되지 않은 글만 삭제할 수 있습니다. 공개된 글은 “공개 홍보글 관리”에서 운영총괄이 삭제할 수 있습니다.')
       );
       shell.append(intro);
 
       const pendingSection = el('section', null, 'issue146-section');
       pendingSection.append(el('h2', `공개 전 글 · ${arr(candidates).length}건`));
       const pendingGrid = el('div', null, 'issue146-grid');
-      if (!arr(candidates).length) pendingGrid.append(el('p', '현재 보관할 공개 전 글이 없습니다.', 'message'));
+      if (!arr(candidates).length) pendingGrid.append(el('p', '현재 삭제할 공개 전 글이 없습니다.', 'message'));
       arr(candidates).forEach(item => {
         const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', item.lifecycle || '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
         card.append(el('p', `${item.owner_name || '작성자 미확인'} · ${item.content_type || '홍보글'}`, 'issue146-muted'));
         const actions = el('div', null, 'quick-links');
-        actions.append(button(currentRoute === 'operations_manager' ? '삭제(보관)' : '보관', async () => {
-          const reason = promptReason(currentRoute === 'operations_manager' ? '삭제(보관) 사유를 입력해 주세요.' : '보관 사유를 입력해 주세요.');
+        actions.append(button('삭제', async () => {
+          const reason = promptReason('삭제 사유를 입력해 주세요.');
           if (!reason) return;
           if (!window.confirm(currentRoute === 'operations_manager'
-            ? '이 글을 삭제(보관)하시겠습니까? 원문과 이력은 남고 복구할 수 있습니다.'
-            : '공개 전 글을 보관하시겠습니까? 원문과 이력은 남습니다.')) return;
+            ? '이 글을 삭제하시겠습니까? 원문과 이력은 남고 복원할 수 있습니다.'
+            : '공개 전 글을 삭제할까요? 원문과 이력은 남으며 운영총괄이 휴지통에서 복원할 수 있습니다.')) return;
           try {
             if (currentRoute === 'operations_manager') {
               await app().rpc('archive_promotion_content', {
@@ -183,7 +183,7 @@
               await app().rpc('archive_unpublished_promotion_content', { p_content_id: item.content_id, p_reason: reason });
             }
             await openPromotionArchive();
-          } catch (error) { window.alert(friendly(error, '홍보글을 보관하지 못했습니다.')); }
+          } catch (error) { window.alert(friendly(error, '홍보글을 삭제하지 못했습니다.')); }
         }));
         card.append(actions);
         pendingGrid.append(card);
@@ -193,23 +193,23 @@
 
       if (currentRoute === 'operations_manager') {
         const archiveSection = el('section', null, 'issue146-section');
-        archiveSection.append(el('h2', `보관된 홍보글 · ${arr(archived).length}건`));
+        archiveSection.append(el('h2', `휴지통의 홍보글 · ${arr(archived).length}건`));
         const archiveGrid = el('div', null, 'issue146-grid');
-        if (!arr(archived).length) archiveGrid.append(el('p', '보관된 홍보글이 없습니다.', 'message'));
+        if (!arr(archived).length) archiveGrid.append(el('p', '휴지통의 홍보글이 없습니다.', 'message'));
         arr(archived).forEach(item => {
           const card = el('article', null, 'issue146-card app-authoring-inline');
           card.append(el('span', item.archive_kind === 'published' ? '공개 이력 있음' : '미발행', 'issue146-badge'), el('h3', item.title || '제목 없음'));
           card.append(el('p', ['published', 'hidden'].includes(item.previous_lifecycle)
-            ? '복구 후: 숨김 상태 · 다시 공개하려면 별도 공개 처리가 필요합니다.'
-            : `복구 후: ${item.previous_lifecycle || '이전 상태 확인 필요'}`, 'issue146-muted'));
+            ? '복원 후: 숨김 상태 · 다시 공개하려면 별도 공개 처리가 필요합니다.'
+            : `복원 후: ${item.previous_lifecycle || '이전 상태 확인 필요'}`, 'issue146-muted'));
           const actions = el('div', null, 'quick-links');
-          actions.append(button('복구', async () => {
-            const reason = promptReason('복구 사유를 입력해 주세요.');
+          actions.append(button('복원', async () => {
+            const reason = promptReason('복원 사유를 입력해 주세요.');
             if (!reason) return;
             try {
               await app().rpc('restore_promotion_content', { p_content_id: item.content_id, p_reason: reason });
               await openPromotionArchive();
-            } catch (error) { window.alert(friendly(error, '홍보글을 복구하지 못했습니다.')); }
+            } catch (error) { window.alert(friendly(error, '홍보글을 복원하지 못했습니다.')); }
           }));
           actions.append(button('영구삭제', async () => {
             const expectedTitle = item.title || '';
@@ -219,11 +219,11 @@
               window.alert('제목이 일치하지 않습니다.');
               return;
             }
-            const confirmation = window.prompt('복구할 수 없습니다. 계속하려면 “영구삭제”를 입력해 주세요.', '')?.trim();
+            const confirmation = window.prompt('복원할 수 없습니다. 계속하려면 “영구삭제”를 입력해 주세요.', '')?.trim();
             if (confirmation !== '영구삭제') return;
             const reason = promptReason('영구삭제 사유를 입력해 주세요.');
             if (!reason) return;
-            if (!window.confirm('정말 영구삭제하시겠습니까? 이 작업은 복구할 수 없습니다.')) return;
+            if (!window.confirm('정말 영구삭제하시겠습니까? 이 작업은 복원할 수 없습니다.')) return;
             try {
               const mediaPaths = arr(await app().rpc('get_archived_promotion_media_paths', {
                 p_content_id: item.content_id
@@ -246,7 +246,7 @@
       }
       target.replaceChildren(shell);
     } catch (error) {
-      target.replaceChildren(el('p', friendly(error, '홍보글 보관 목록을 불러오지 못했습니다.'), 'message error'));
+      target.replaceChildren(el('p', friendly(error, '홍보글 삭제 목록을 불러오지 못했습니다.'), 'message error'));
     }
   }
 
@@ -256,8 +256,8 @@
   async function openOperationsSafety() {
     closeSidebar();
     if (route() !== 'operations_manager') return;
-    setPageTitle('직원 복구·계정 연결');
-    const target = showLoading('복구 및 계정 정보를 불러오고 있습니다.');
+    setPageTitle('직원 휴지통·계정 연결');
+    const target = showLoading('복원 및 계정 정보를 불러오고 있습니다.');
     if (!target) return;
 
     try {
@@ -269,28 +269,28 @@
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '운영총괄', 'eyebrow'),
-        el('h2', '직원 복구·계정 연결'),
-        el('p', '직원 삭제 복구, 계정 연결·해제, 상태·소속·직책·일반 운영 역할을 관리합니다. 기술 최고관리자 역할은 별도 안전영역으로 유지합니다.')
+        el('h2', '직원 휴지통·계정 연결'),
+        el('p', '직원 삭제 복원, 계정 연결·해제, 상태·소속·직책·일반 운영 역할을 관리합니다. 기술 최고관리자 역할은 별도 안전영역으로 유지합니다.')
       );
       shell.append(intro);
 
       const recovery = el('section', null, 'issue146-section');
-      recovery.append(el('h2', `삭제 보관된 직원 · ${arr(archivedEmployees).length}명`));
+      recovery.append(el('h2', `직원 휴지통 · ${arr(archivedEmployees).length}명`));
       const recoveryGrid = el('div', null, 'issue146-grid');
-      if (!arr(archivedEmployees).length) recoveryGrid.append(el('p', '현재 복구할 직원이 없습니다.', 'message'));
+      if (!arr(archivedEmployees).length) recoveryGrid.append(el('p', '현재 복원할 직원이 없습니다.', 'message'));
       arr(archivedEmployees).forEach(employee => {
         const card = el('article', null, 'issue146-card app-authoring-inline');
         card.append(el('span', employee.employee_id, 'issue146-badge'), el('h3', employee.full_name));
         card.append(el('p', `${employee.department_name || '미배정'} · ${employee.position_name || ''}`, 'issue146-muted'));
         if (employee.archive_reason) card.append(el('p', `삭제 사유: ${employee.archive_reason}`));
-        card.append(button('직원 복구', async () => {
-          const reason = promptReason('복구 사유를 입력해 주세요.');
+        card.append(button('직원 복원', async () => {
+          const reason = promptReason('복원 사유를 입력해 주세요.');
           if (!reason) return;
-          if (!window.confirm(`${employee.full_name} 직원을 복구하시겠습니까?`)) return;
+          if (!window.confirm(`${employee.full_name} 직원을 복원하시겠습니까?`)) return;
           try {
             await app().rpc('restore_employee', { p_employee_uuid: employee.id, p_reason: reason });
             await openOperationsSafety();
-          } catch (error) { window.alert(friendly(error, '직원을 복구하지 못했습니다.')); }
+          } catch (error) { window.alert(friendly(error, '직원을 복원하지 못했습니다.')); }
         }));
         recoveryGrid.append(card);
       });
@@ -401,7 +401,7 @@
       shell.append(accounts);
       target.replaceChildren(shell);
     } catch (error) {
-      target.replaceChildren(el('p', friendly(error, '복구·계정 정보를 불러오지 못했습니다.'), 'message error'));
+      target.replaceChildren(el('p', friendly(error, '복원·계정 정보를 불러오지 못했습니다.'), 'message error'));
     }
   }
 

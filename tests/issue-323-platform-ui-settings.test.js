@@ -119,7 +119,7 @@ test('sidebar personal editing is operations-only and archive access lives under
   assert.match(settings, /일반 사이드바에는 편집 버튼을 두지 않아 업무 중 화면 흔들림을 막습니다/);
   assert.match(settings, /function sidebarEditorActions\(\)[\s\S]*return null/);
   assert.match(settings, /사이드바 메뉴 순서 편집/);
-  assert.match(settings, /보관함 열기/);
+  assert.match(settings, /휴지통 열기/);
   assert.match(settings, /주민등록번호 일괄등록 열기/);
   assert.match(settings, /TaejangOperationsDeleteControls\.openArchiveHub/);
 });
