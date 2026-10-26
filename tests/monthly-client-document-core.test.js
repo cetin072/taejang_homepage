@@ -194,6 +194,8 @@ test('layout limits preserve long draft text and reject output instead of trunca
  const packageBytes=await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-package.zip'));
  await assert.rejects(docx.createDocx({JSZip,template,packageBytes,common:input,companies:[companies[0]],type:'nodebuffer'}),/3쪽/);
  assert.ok(core.layoutWarnings({...performance(),workDescription:'줄\n'.repeat(7)},companies).length,'explicit line breaks consume layout space');
+ assert.ok(core.layoutWarnings({...performance(),place:'장소\t탭'},companies).length,'tab expansion cannot silently overflow');
+ assert.ok(core.layoutWarnings(performance(),[{...companies[0],name:'합성\n회사'}]).length,'company names cannot expand into arbitrary lines');
 });
 test('legacy confirmed output retains the original template and new output reserves a real stamp space without a seal image',async()=>{
  const legacy=JSON.parse(await fs.readFile(path.join(__dirname,'../app/assets/monthly-client-document-template-v1.json'),'utf8'));

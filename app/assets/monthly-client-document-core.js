@@ -211,7 +211,7 @@
     if (layoutCost(paragraphs.join('')) + (common.extras || []).length * 25 > 220 || paragraphs.join('').split('\n').length > 8) issues.push('월별 문구의 합계 또는 줄바꿈이 3쪽 양식 범위를 넘습니다. 내용을 줄이거나 별첨 구성을 검토하세요. 원문은 초안에 보존됩니다.');
     if (companies.some(company => String(company.note || '').length > 220)) issues.push('회사별 공문 문구는 220자 이내에서 3쪽 출력할 수 있습니다. 초안 내용은 보존됩니다.');
     if (companies.some(company => layoutCost([common.place,common.workDescription,company.note || common.note,...(common.extras || []).flatMap(e=>[e.name,e.description])].join('')) + (common.extras || []).length * 25 > 220)) issues.push('회사별 문구를 포함한 월별 문구 합계가 3쪽 범위를 넘습니다. 초안은 보존됩니다.');
-    if (companies.some(company => company.name.length > 40)) issues.push('회사명은 40자 이내에서 3쪽 출력할 수 있습니다. 초안은 보존됩니다.');
+    if (companies.some(company => company.name.length > 40 || company.name.includes('\n'))) issues.push('회사명은 줄바꿈 없이 40자 이내에서 3쪽 출력할 수 있습니다. 초안은 보존됩니다.');
     return issues;
   }
 
