@@ -51,10 +51,12 @@ try {
     assert.equal(await caption.evaluate(el => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1), true);
     await article.focus();
     assert.equal(await article.evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
+    await page.screenshot({ path: path.join(output, `hero-${width}.png`), fullPage: false });
     for (const target of [photo, article.locator('strong')]) {
       const opened = context.waitForEvent('page');
       await target.click();
       const popup = await opened;
+      await popup.waitForURL(articleUrl, { waitUntil: 'domcontentloaded' });
       await popup.waitForLoadState('domcontentloaded');
       assert.equal(popup.url(), articleUrl);
       await popup.close();
