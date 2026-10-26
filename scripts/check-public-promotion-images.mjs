@@ -31,10 +31,10 @@ try {
    await page.goto(base+'/promotion.html?id='+id,{waitUntil:'networkidle'});
    await page.locator('.article-representative-media img').scrollIntoViewIfNeeded();
    await page.locator('.article-representative-media img').evaluate(image=>image.decode());
-   const result=await page.locator('.article-representative-media img').evaluate(image=>({src:image.currentSrc,width:image.naturalWidth,complete:image.complete}));
-   assert.ok(result.complete&&result.width>0);assert.equal(result.src,og);
+   const result=await page.locator('.article-representative-media img').evaluate(image=>({src:image.currentSrc,naturalWidth:image.naturalWidth,complete:image.complete}));
+   assert.ok(result.complete&&result.naturalWidth>0);assert.equal(result.src,og);
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,'horizontal overflow');
-   post.browser.push({width,...result});
+   post.browser.push({viewportWidth:width,...result});
    if(required.includes(id))await page.screenshot({path:path.join(output,id+'-'+width+'.png'),fullPage:true});
    await context.close();
   }
