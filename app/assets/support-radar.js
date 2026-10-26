@@ -24,6 +24,7 @@
   }
 
   function emit(surface, detail = {}) {
+    if (detail.root) detail.root.dataset.supportSurface = surface;
     window.TaejangSupportRadarLifecycle?.emit?.(surface, detail);
   }
 
@@ -501,6 +502,7 @@
 
   async function renderDashboard() {
     if (!canUse()) return;
+    if (window.TaejangSupportRadarNotices?.renderList) return window.TaejangSupportRadarNotices.renderList();
     state.active = true;
     closeSidebar();
     setPageTitle('지원사업 레이더');

@@ -26,8 +26,8 @@
     if(!canUse()||!state.currentNoticeId||state.loading)return;
     const root=el('dashboard-main')?.querySelector('.support-radar-shell');
     if(!root||root.querySelector('[data-support-review-panel]'))return;
-    const headings=[...root.querySelectorAll('h3')];
-    if(!headings.some(node=>node.textContent==='공고 기본정보'||node.textContent==='핵심정보'))return;
+    const baseSection=root.querySelector('[data-support-section="facts"]');
+    if(!baseSection)return;
     state.loading=true;
     try{
       const data=await window.TaejangApp.rpc('support_get_notice_review_status',{p_notice_id:state.currentNoticeId});
@@ -47,9 +47,8 @@
         const note=document.createElement('input');note.type='text';note.maxLength=2000;note.placeholder='검토 메모(선택)';
         controls.append(kind,note,button('검토 완료 표시',()=>markReviewed(kind.value,note.value)));panel.append(controls);
       }
-      const baseHeading=headings.find(node=>node.textContent==='공고 기본정보'||node.textContent==='핵심정보');
-      const baseSection=baseHeading?.closest('.support-radar-section');
-      if(baseSection)baseSection.insertAdjacentElement('afterend',panel);else root.append(panel);
+      const slot=root.querySelector('[data-support-slot="review"]');
+      if(slot)slot.append(panel);else baseSection.insertAdjacentElement('afterend',panel);
     }catch{/* detail itself remains usable if review metadata cannot be loaded */}
     finally{state.loading=false;}
   }
