@@ -160,6 +160,7 @@ test('simplified manager dashboard does not fetch removed schedule or notice sho
   document.createElement = tag => new FakeElement(tag);
 
   const window = {
+    addEventListener() {},
     TaejangApp: {
       rpc: async name => {
         if (name === 'get_my_schedule_list') throw new Error('network down');
@@ -183,7 +184,7 @@ test('permission failure is distinguished from ordinary data failure', () => {
   document.querySelector = () => null;
   document.querySelectorAll = () => [];
   document.createElement = tag => new FakeElement(tag);
-  const window = {};
+  const window = { addEventListener() {} };
   vm.runInNewContext(dashboardSource, { window, document, CustomEvent: FakeCustomEvent, console, Intl, Date, Set }, { filename: 'dashboard-shell.js' });
 
   assert.equal(window.TaejangDashboard.classifyFailure({ status: 403 }), 'forbidden');

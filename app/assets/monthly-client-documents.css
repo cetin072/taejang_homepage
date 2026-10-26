@@ -37,3 +37,7 @@
   .mcd-email-dialog { padding: 14px; }
   .mcd-email-dialog [data-email-body] { min-height: 50vh; }
 }
+
+.mcd-lock-notice { padding: 1rem; margin-bottom: 1rem; border-left: 4px solid var(--green, #28694e); background: #f1f6f3; }
+[data-mcd-company-defaults] > summary { cursor: pointer; font-weight: 700; padding: .5rem; }
+[data-mcd-company-defaults] > summary:focus-visible { outline: 3px solid #28694e; outline-offset: 3px; }

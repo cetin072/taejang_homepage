@@ -160,7 +160,7 @@
   }
   function setDashboardTopbar(route) {
     const title = el('desktop-page-title');
-    if (title) title.textContent = topbarCopy[route] || '업무';
+    if (title) title.textContent = activeView ? (window.TaejangPlatformNavigationRegistry?.byKey(activeView)?.roleLabels?.[route] || window.TaejangPlatformNavigationRegistry?.byKey(activeView)?.label || '업무 접근 안내') : (topbarCopy[route] || '업무');
     const label = el('desktop-role-label');
     if (label) { label.textContent = ''; label.hidden = true; }
   }
@@ -169,6 +169,7 @@
     const route = window.TaejangApp?.getRoute?.();
     if (route) setDashboardTopbar(route);
     document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));
+    return dashboardRender;
   }
   function renderBusinessPlanning() {
     closeSidebar();
@@ -227,21 +228,21 @@
 
   function masterMenuItems() {
     return [
-      { label: '대시보드', run: goDashboard, current: true },
+      { key: 'dashboard', label: '대시보드', run: goDashboard, current: true },
       {
-        label: '직원 관리',
+        key: 'employee.manage', label: '직원 관리',
         run: () => openEmployee('existing'),
         dataKey: 'employee-management',
         capabilities: ['employee.view_all', 'employee.view_scoped']
       },
       {
-        label: '신규 직원 등록',
+        key: 'employee.new', label: '신규 직원 등록',
         run: () => openEmployee('new'),
         dataKey: 'employee-new',
         capabilities: ['employee.create', 'employee.request_change']
       },
       {
-        label: '가입 승인',
+        key: 'account.approval', label: '가입 승인',
         run: openSignupApproval,
         dataKey: 'account-approval',
         capabilities: ['employee.onboard', 'account.approve', 'account.reject']
@@ -302,7 +303,7 @@
         capabilities: ['notice.manage']
       },
       {
-        label: '업무 배정',
+        key: 'task.manage', label: '업무 배정',
         run: () => openPanel('today-admin-panel'),
         capabilities: ['task.manage']
       },
@@ -368,6 +369,43 @@
     ];
   }
 
+  let activeView = null, openingView = false, viewDirty = false, dashboardRender = null;
+  const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
+  function mayLeaveView() {
+    return !viewDirty || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
+  }
+  async function openView(key, historyMode = 'none') {
+    if (openingView || !window.TaejangApp?.getRoute?.()) return;
+    if (key === activeView) return;
+    if (!mayLeaveView()) { if (historyMode === 'pop') history.pushState({taejangMenuView:true}, '', viewUrl(activeView || 'dashboard')); return; }
+    const item = masterMenuItems().find(candidate => candidate.key === key && candidate.run);
+    const registryItem = window.TaejangPlatformNavigationRegistry?.byKey(key);
+    const role = window.TaejangApp.getRoute();
+    const allowed = item && window.TaejangPlatformNavigationRegistry?.visibleForRole(registryItem || item, role) !== false
+      && (!item.capabilities?.length || (window.TaejangApp.hasCapabilityContract?.() && item.capabilities.some(code => window.TaejangApp.can?.(code) === true)));
+    openingView = true;
+    try {
+      closeSidebar();
+      if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key));
+      viewDirty = false; activeView = key;
+      window.TaejangAppWorkspaceSurface?.showDashboard?.();
+      if (!allowed) {
+        const notice = text('section', '', 'dashboard-section');
+        notice.append(text('h2', item ? '이 화면에 접근할 권한이 없습니다.' : '찾을 수 없는 업무 주소입니다.'), button('대시보드로', () => openView('dashboard', 'push')));
+        el('dashboard-main').replaceChildren(notice);
+      } else { await item.run(); }
+      document.querySelectorAll('#app-nav [data-menu-key]').forEach(node => {
+        if (node.dataset.menuKey === key) node.setAttribute('aria-current', 'page'); else node.removeAttribute('aria-current');
+      });
+      if (el('desktop-page-title')) el('desktop-page-title').textContent = allowed ? (registryItem?.roleLabels?.[role] || item.label) : '업무 접근 안내';
+    } finally { openingView = false; }
+  }
+  document.addEventListener('input', event => {
+    if (activeView && (document.querySelector('.app-workspace') || el('dashboard-main'))?.contains(event.target)) viewDirty = true;
+  });
+  window.addEventListener('beforeunload', event => { if (viewDirty) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('popstate', () => openView(new URL(location.href).searchParams.get('view') || 'dashboard', 'pop'));
+
   function menu(_route) {
     const nav = el('app-nav');
     nav.replaceChildren();
@@ -379,7 +417,7 @@
       const registryItem = item.key ? registry?.byKey?.(item.key) : null;
       if (registryItem && registry?.visibleForRole?.(registryItem, _route) === false) return;
       const label = registryItem?.roleLabels?.[_route] || item.label;
-      const node = item.href ? document.createElement('a') : document.createElement('button');
+      const node = document.createElement('a');
       if (item.href) {
         node.href = item.href;
         node.textContent = label;
@@ -388,11 +426,11 @@
           node.rel = 'noopener noreferrer';
         }
       } else {
-        node.type = 'button';
+        node.href = viewUrl(item.key);
         node.textContent = label;
-        node.addEventListener('click', () => {
-          closeSidebar();
-          item.run();
+        node.addEventListener('click', event => {
+          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault(); event.stopImmediatePropagation(); openView(item.key, 'push');
         });
       }
       markMenuNode(node, item);
@@ -504,13 +542,13 @@
   }
   function bindBrandToDashboard() {
     document.querySelectorAll('.staff-brand, .app-logo').forEach(brand => {
-      brand.href = '#'; brand.setAttribute('aria-label', '업무 대시보드로 이동');
+      brand.href = viewUrl('dashboard'); brand.setAttribute('aria-label', '업무 대시보드로 이동');
       if (brand.dataset.dashboardBrandBound) return;
       brand.dataset.dashboardBrandBound = '1';
-      brand.addEventListener('click', event => { event.preventDefault(); goDashboard(); });
+      brand.addEventListener('click', event => { event.preventDefault(); openView('dashboard', 'push'); });
     });
   }
-  function setup(event) {
+  async function setup(event) {
     const route = event.detail.route; if (route === worker) return;
     el('desktop-app-shell').hidden = false;
     setDashboardTopbar(route);
@@ -523,9 +561,12 @@
       const toggle = el('sidebar-toggle'); toggle.addEventListener('click', () => { const open = shell.classList.toggle('sidebar-open'); toggle.setAttribute('aria-expanded', String(open)); toggle.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기'); });
       el('desktop-logout-button').addEventListener('click', () => el('logout-button').click());
     }
-    render();
+    activeView = null; viewDirty = false;
+    // Allow all feature ready handlers and their microtasks to finish before restoring a deep link.
+    await new Promise(resolve => window.setTimeout(resolve, 0));
+    await openView(new URL(location.href).searchParams.get('view') || 'dashboard');
   }
   document.addEventListener('taejang-app-ready', setup);
-  document.addEventListener('taejang-dashboard-refresh', render);
+  document.addEventListener('taejang-dashboard-refresh', () => { dashboardRender = render(); });
   window.TaejangDashboard = { render, dashboardData, classifyFailure };
 })();

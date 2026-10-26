@@ -35,7 +35,7 @@
   const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
   const currentCapability = () => window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
   let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', activeMonthKey = '', loadSequence = 0,
-    busy = false, emailState = null, newMonthTarget = null;
+    busy = false, emailState = null, newMonthTarget = null, defaultsOpen = false;
   let outputSelection = new Set(ids);
   const emailDrafts = new Map();
 
@@ -121,7 +121,8 @@
       node.disabled = !ready || !confirmed || busy || !company?.enabled;
     });
     root.querySelector('[data-mcd-save]').disabled = confirmed || busy;
-    root.querySelector('[data-mcd-unconfirm]').disabled = !confirmed || busy;
+    root.querySelectorAll('[data-mcd-unconfirm]').forEach(node => { node.disabled = !confirmed || busy; });
+    root.querySelectorAll('[data-mcd-scope="new-month"], [data-mcd-new-month]').forEach(node => { node.disabled = busy; });
     root.querySelectorAll('[data-mcd-scope="snapshot"]').forEach(node => { node.disabled = confirmed || busy; });
     root.querySelectorAll('[data-mcd-scope="company-default"]').forEach(node => { node.disabled = busy; });
     root.querySelector('[data-mcd-confirm]').setAttribute('aria-describedby', 'mcd-warnings');
@@ -265,13 +266,20 @@
     top.append(el('p', `상태: ${record ? (record.status === 'confirmed' ? '확정' : '작성중') : '새 월 · 아직 저장 안 됨'} · revision ${revision}`, 'mcd-status-line'));
     if (!newMonthTarget) newMonthTarget = { year: state.common.year, month: state.common.month };
     const targetFields = el('div', undefined, 'mcd-grid');
-    targetFields.append(field('새 월 연도', newMonthTarget.year, 'number', value => { newMonthTarget.year = value === '' ? '' : Number(value); }, { min: 2000, max: 9999, required: true }),
-      field('새 월', newMonthTarget.month, 'number', value => { newMonthTarget.month = value === '' ? '' : Number(value); }, { min: 1, max: 12, required: true }));
+    targetFields.append(field('새 월 연도', newMonthTarget.year, 'number', value => { newMonthTarget.year = value === '' ? '' : Number(value); }, { min: 2000, max: 9999, required: true, scope: 'new-month' }),
+      field('새 월', newMonthTarget.month, 'number', value => { newMonthTarget.month = value === '' ? '' : Number(value); }, { min: 1, max: 12, required: true, scope: 'new-month' }));
     top.append(targetFields);
     const actions = el('div', undefined, 'mcd-actions');
-    actions.append(button('빈 새 월 시작', startNewMonth), button('지난달 설정 복사', copyPrevious)); top.append(actions); root.append(top);
+    const newDefault = button('회사 기본값으로 새 월 만들기', startNewMonth); newDefault.dataset.mcdNewMonth = '1';
+    const newCopy = button('지난달을 바탕으로 새 월 만들기', copyPrevious); newCopy.dataset.mcdNewMonth = '1';
+    actions.append(newDefault, newCopy);
+    top.append(el('p', '선택한 대상 월의 직전 월 설정을 가져옵니다. 예: 11월 생성 시 10월 설정 사용. 인원·장소·안전교육·비율·회사 설정은 복사하고 날짜·월별 문구·추가 프로그램은 초기화합니다. 이미 저장된 대상 월은 덮어쓰지 않습니다.')); top.append(actions); root.append(top);
 
     const commonPanel = el('section', undefined, 'mcd-panel app-authoring'); commonPanel.append(el('h3', '공통 입력'));
+    const lockNotice = el('div', undefined, 'mcd-lock-notice'); lockNotice.setAttribute('role', 'note');
+    lockNotice.append(el('p', record?.status === 'confirmed' ? '확정된 월입니다. 저장된 확정 내용을 보호하기 위해 입력을 잠갔습니다.' : '작성중입니다. 수정 → 저장 → 다시 확정 순서로 진행하세요.'));
+    if (record?.status === 'confirmed') { const unlock = button('확정 해제하고 수정', unconfirmMonth); unlock.dataset.mcdUnconfirm = '1'; lockNotice.append(unlock, el('p', '확정 해제 성공 후 수정할 수 있습니다. 수정 → 저장 → 다시 확정하세요.')); }
+    commonPanel.append(lockNotice);
     const grid = el('div', undefined, 'mcd-grid');
     const commonField = (label, key, type = 'text', opts = {}) => grid.append(field(label, state.common[key], type,
       value => { state.common[key] = type === 'number' ? (value === '' ? '' : Number(value)) : value; changed(); }, opts));
@@ -327,8 +335,9 @@
       const outputLabel = el('label', undefined, 'mcd-check'); outputLabel.append(outputCheck, el('span', '합본에 포함'));
       companyActions.append(outputLabel, companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
     }); root.append(companyPanel);
-    const defaultsPanel = el('section', undefined, 'mcd-panel app-authoring'); defaultsPanel.dataset.mcdCompanyDefaults='1';
-    defaultsPanel.append(el('h3', '현재 회사 기본값'), el('p', '새 월을 빈 상태로 시작할 때 사용하는 기본 설정입니다. 이미 열린 월 snapshot에는 적용되지 않습니다.'));
+    const defaultsPanel = el('details', undefined, 'mcd-panel app-authoring'); defaultsPanel.open = defaultsOpen;
+    defaultsPanel.addEventListener('toggle', () => { defaultsOpen = defaultsPanel.open; }); defaultsPanel.dataset.mcdCompanyDefaults='1';
+    defaultsPanel.append(el('summary', '현재 회사 기본값'), el('p', '새 월을 빈 상태로 시작할 때 사용하는 기본 설정입니다. 이미 열린 월 snapshot에는 적용되지 않습니다.'));
     state.defaultsDraft.forEach(company => {
       const card = el('article', undefined, 'mcd-company-default'); card.append(el('h4', company.key));
       const fields = el('div', undefined, 'mcd-grid');
@@ -369,7 +378,7 @@
     await loadMonth(now.getFullYear(), month, false);
   }
   async function loadMonth(year, month, redraw = true, requireNew = false) {
-    if (month < 1 || month > 12 || year < 2000 || year > 9999) return report('연도와 월을 확인하세요.', true);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12 || year < 2000 || year > 9999) return report('연도와 월을 확인하세요.', true);
     const request = ++loadSequence;
     const updateScreen = redraw && root && state?.common;
     if (updateScreen) { busy=true; drawSummary(); }
@@ -413,21 +422,26 @@
     finally { busy=false; render(); report(message,isError); }
   }
   async function unconfirmMonth() {
+    if (busy) return;
     let message = '', isError = false;
-    try { assertActiveMonth(); busy=true; drawSummary(); record=await rpc('monthly_client_documents_unconfirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision}); revision=Number(record.revision); state.history=await rpc('monthly_client_documents_list'); savedFingerprint=fingerprint(); message='확정을 해제했습니다.'; }
+    try { assertActiveMonth(); busy=true; drawSummary(); const response=await rpc('monthly_client_documents_unconfirm',{p_year:state.common.year,p_month:state.common.month,p_expected_revision:revision});
+      if (!response || response.status !== 'draft' || !Number.isInteger(Number(response.revision))) throw new Error('확정 해제 응답을 확인하지 못했습니다. 새로 불러와 상태를 확인하세요.');
+      record=response; revision=Number(response.revision); state.history=state.history.map(item => monthKey(item.year,item.month) === activeMonthKey ? {...item,status:record.status,revision} : item); savedFingerprint=fingerprint(); message='확정을 해제했습니다.'; }
     catch(error){message=`확정 해제 실패: ${friendlyError(error)}`;isError=true;} finally{busy=false;render();report(message,isError);}
   }
   async function startNewMonth() {
+    if (busy) return;
     if (fingerprint() !== savedFingerprint && !window.confirm('저장하지 않은 snapshot 변경이 있습니다. 저장하지 않고 새 빈 월을 시작할까요?')) return;
     const year=Number(newMonthTarget?.year), month=Number(newMonthTarget?.month);
     try { await loadMonth(year,month,true,true); }
     catch(error) { report(`새 월 시작 실패: ${friendlyError(error)}`,true); }
   }
   async function copyPrevious() {
+    if (busy) return;
     if (fingerprint() !== savedFingerprint && !window.confirm('저장하지 않은 변경이 있습니다. 저장하지 않고 지난달 snapshot에서 새 월을 만들까요?')) return;
     const year=Number(newMonthTarget?.year), month=Number(newMonthTarget?.month);
     let message='',isError=false;
-    try { busy=true; await rpc('monthly_client_documents_copy_previous',{p_year:year,p_month:month}); await loadMonth(year,month,false); state.history=await rpc('monthly_client_documents_list'); message='지난달 설정을 복사해 새 작성중 월을 만들었습니다.'; }
+    try { busy=true; drawSummary(); await rpc('monthly_client_documents_copy_previous',{p_year:year,p_month:month}); await loadMonth(year,month,false); state.history=await rpc('monthly_client_documents_list'); message='지난달 설정을 복사해 새 작성중 월을 만들었습니다.'; }
     catch(error){message=`월 복사 실패: ${friendlyError(error)}`;isError=true;} finally{busy=false;render();report(message,isError);}
   }
   async function saveDefaults() {

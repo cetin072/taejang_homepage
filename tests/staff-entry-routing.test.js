@@ -111,7 +111,9 @@ test('protected app rechecks access context on direct entry, refresh, and naviga
   assert.match(source, /get_my_access_context/);
   assert.match(source, /if \(!stored\) return sendToStaff\('login'\)/);
   assert.match(source, /window\.addEventListener\('pageshow', verify\)/);
-  assert.match(source, /window\.addEventListener\('popstate', verify\)/);
+  assert.match(source, /window\.addEventListener\('popstate', event =>/);
+  assert.match(source, /if \(state\.route && event\.state\?\.taejangMenuView\) return/);
+  assert.match(source, /sessionStorage\.getItem\('taejang\.pending-menu-view'\)/);
   assert.match(source, /sessionStorage\.removeItem/);
   assert.match(source, /sendToStaff\('app-error', \{ clear: false \}\)/);
   assert.match(source, /sendToStaff\('session-expired', \{ clear: true \}\)/);

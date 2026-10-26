@@ -55,7 +55,8 @@ test('manager UI is loaded only after the active capability context is verified'
   assert.match(app, /\.filter\(module => canManage\(module\.capability\)\)/);
   assert.doesNotMatch(html, /src="assets\/(work-guide-admin|schedule-admin|notice-admin)\.js"/);
   assert.match(app, /get_my_access_context/);
-  assert.match(app, /window\.history\.replaceState\(null, '', window\.location\.pathname\)/);
+  assert.match(app, /window\.history\.replaceState\(\{taejangMenuView:true\}/);
+  assert.match(app, /encodeURIComponent\(requestedView\)/);
   assert.match(app, /Promise\.allSettled\(modules\.map\(module => loadScript\(module\.source\)\)\)/);
   assert.match(html, /id="app-status-message"/);
 });

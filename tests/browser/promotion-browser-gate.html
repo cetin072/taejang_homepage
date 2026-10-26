@@ -86,7 +86,7 @@
       getRoute: () => currentRoute,
       getContext: () => ({ display_name: '브라우저검수', roles: [{ code: currentRoute }] }),
       getEffectiveRoles: () => [currentRoute],
-      can: capability => (capability === 'information.review' && currentRoute === 'operations_manager') || capability === 'promotion.review_lead' || capability === 'promotion.write' || capability === 'promotion.edit_own',
+      can: capability => (capability === 'information.review' && currentRoute === 'operations_manager') || capability === 'promotion.review_lead' || capability === 'promotion.write' || capability === 'promotion.edit_own' || (['promotion_lead','operations_manager'].includes(currentRoute) && capability === 'homepage.draft'),
       hasCapabilityContract: () => true,
       friendlyError: error => error?.message || '오류',
       rpc: async (name, args = {}) => {
@@ -168,10 +168,10 @@
     const assert = (condition, message) => {
       if (!condition) throw new Error(message);
     };
-    const labels = () => [...document.querySelectorAll('#app-nav > button')].map(node => node.textContent.trim());
+    const labels = () => [...document.querySelectorAll('#app-nav > [data-menu-key]')].map(node => node.textContent.trim());
     const fieldByLabel = label => [...document.querySelectorAll('.phase-c-board-form label')]
       .find(node => node.querySelector('span')?.textContent.trim() === label)?.querySelector('input, textarea, select');
-    const buttonByText = (root, value) => [...root.querySelectorAll('button')].find(node => node.textContent.trim() === value);
+    const buttonByText = (root, value) => [...root.querySelectorAll('button, a')].find(node => node.textContent.trim() === value);
 
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
@@ -189,7 +189,7 @@
 
         const returned = document.querySelector('[data-promotion-returned-nav]');
         assert(returned, '반환 글 메뉴 식별자 누락');
-        returned.click();
+        returned.click(); await wait(30);
         assert(openedPromotionMode === 'revision', '반환 글 메뉴가 revision 화면을 열지 않음');
 
         const returnedCard = [...document.querySelectorAll('.dashboard-card')]
