@@ -101,12 +101,12 @@
       const output = document.getElementById('result');
       try {
         await window.TaejangIssue146.openPromotionArchive();
-        assert(document.getElementById('desktop-page-title').textContent === '홍보글 보관·복구', 'archive manager page title mismatch');
-        assert(document.getElementById('dashboard-main').textContent.includes('삭제(보관)·복구·영구삭제'), 'archive manager intro missing');
+        assert(document.getElementById('desktop-page-title').textContent === '홍보글 휴지통', 'archive manager page title mismatch');
+        assert(document.getElementById('dashboard-main').textContent.includes('삭제·복원·영구삭제'), 'archive manager intro missing');
 
         const approvedCard = cardByTitle('승인완료 테스트 글');
         assert(approvedCard, 'approved unpublished candidate missing');
-        const archiveButton = buttonByText(approvedCard, '삭제(보관)');
+        const archiveButton = buttonByText(approvedCard, '삭제');
         assert(archiveButton, 'operations archive button missing');
         state.prompts.push('승인완료 테스트 글 정리');
         archiveButton.click();
@@ -115,11 +115,11 @@
         assert(state.archiveCalls.length === 1, 'archive RPC not called');
         assert(state.archiveCalls[0].p_content_id === '11111111-1111-4111-8111-111111111111', 'archive target mismatch');
         assert(state.archiveCalls[0].p_confirm_title === '승인완료 테스트 글', 'archive title confirmation mismatch');
-        assert(!cardByTitle('승인완료 테스트 글') || !buttonByText(cardByTitle('승인완료 테스트 글'), '삭제(보관)'), 'archived candidate remained in active list');
+        assert(!cardByTitle('승인완료 테스트 글') || !buttonByText(cardByTitle('승인완료 테스트 글'), '삭제'), 'archived candidate remained in active list');
 
         const permanentCard = cardByTitle('보관 테스트 글');
         assert(permanentCard, 'archived item missing');
-        assert(buttonByText(permanentCard, '복구'), 'restore action missing');
+        assert(buttonByText(permanentCard, '복원'), 'restore action missing');
         const permanentButton = buttonByText(permanentCard, '영구삭제');
         assert(permanentButton, 'permanent delete action missing');
 

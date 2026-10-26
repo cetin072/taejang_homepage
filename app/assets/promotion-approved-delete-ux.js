@@ -44,7 +44,7 @@
       const introHeading = shell.querySelector('.dashboard-intro h2');
       const introCopy = shell.querySelector('.dashboard-intro p:last-child');
       if (introHeading?.textContent.includes('공개 전 글')) introHeading.textContent = '공개 전 홍보글 삭제';
-      if (introCopy?.textContent.includes('보관')) introCopy.textContent = '아직 한 번도 공개되지 않은 글은 삭제할 수 있습니다. 원문과 수정이력은 보존되어 운영총괄이 필요할 때 복구할 수 있습니다.';
+      if ((introCopy?.textContent.includes('보관') || introCopy?.textContent.includes('삭제'))) introCopy.textContent = '아직 한 번도 공개되지 않은 글은 삭제할 수 있습니다. 원문과 수정이력은 보존되어 운영총괄이 필요할 때 복원할 수 있습니다.';
     }
 
     shell.querySelectorAll('.issue146-badge').forEach(badge => {
@@ -53,12 +53,12 @@
     });
 
     shell.querySelectorAll('button').forEach(button => {
-      if (button.textContent?.trim() !== '보관') return;
+      if (!['보관', '삭제'].includes(button.textContent?.trim())) return;
       button.textContent = '삭제';
       button.classList.add('button-danger');
       button.dataset.promotionApprovedDelete = '1';
       button.setAttribute('aria-label', '이 미발행 홍보글 삭제');
-      button.title = '삭제 후에도 원문과 수정이력은 남아 운영총괄이 복구할 수 있습니다.';
+      button.title = '삭제 후에도 원문과 수정이력은 남아 운영총괄이 복원할 수 있습니다.';
     });
   }
 

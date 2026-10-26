@@ -171,7 +171,7 @@
     }
     if (editorReadonly) {
       for (const id of ['notice-save-draft','notice-save-existing','notice-publish','notice-submit-review']) ui.element(id).hidden = true;
-      ui.element('notice-edit-state').textContent = '조회 전용 공지입니다. 조회 권한은 수정·게시·승인 권한과 다릅니다. 보관된 공지는 복구 전 수정할 수 없습니다.';
+      ui.element('notice-edit-state').textContent = '조회 전용 공지입니다. 조회 권한은 수정·게시·승인 권한과 다릅니다. 삭제된 공지는 복원 전 수정할 수 없습니다.';
     }
   }
 
@@ -462,7 +462,7 @@
     const manage = noticeManageSection();
     if (heading) heading.textContent = activeView === 'create' ? '공지 등록'
       : activeView === 'edit' ? '공지 수정' : activeView === 'detail' ? '공지 상세'
-      : activeView === 'archive' ? '공지 보관함' : '공지 관리';
+      : activeView === 'archive' ? '공지 휴지통' : '공지 관리';
     if (refresh) refresh.hidden = editing;
     if (create) create.hidden = editing;
     if (manage) manage.hidden = editing;
@@ -470,7 +470,7 @@
     ui.element('archive-notice-admin').hidden = activeView !== 'manage';
     ui.element('back-notice-admin').hidden = activeView !== 'archive';
     ui.element('notice-back-from-editor').hidden = !editing;
-    const backLabel = editorReturnView === 'archive' ? '← 보관함으로 돌아가기' : '← 공지 목록으로';
+    const backLabel = editorReturnView === 'archive' ? '← 휴지통으로 돌아가기' : '← 공지 목록으로';
     ui.element('notice-back-from-editor').textContent = backLabel;
     ui.element('notice-editor-bottom-back').textContent = backLabel;
     const editorHeading = ui.element('notice-editor-page-title');
@@ -479,7 +479,7 @@
     if (activeView === 'create') {
       ui.element('notice-editor-page-context').textContent = '제목과 본문을 작성하고 아래에서 비공개 저장 또는 게시를 선택하세요.';
     }
-    ui.element('notice-manage-title').textContent = activeView === 'archive' ? '보관 · 취소 · 사용 중지 공지' : '등록된 공지';
+    ui.element('notice-manage-title').textContent = activeView === 'archive' ? '삭제 · 취소 · 사용 중지 공지' : '등록된 공지';
     for (const option of ui.element('notice-list-status').options) {
       const archiveStatus = ['cancelled','inactive','archived'].includes(option.value);
       option.hidden = Boolean(option.value) && archiveStatus !== (activeView === 'archive');
@@ -531,7 +531,7 @@
     hideEditor();
     renderList();
     const found = loaded && notices.some(item => item.id === id);
-    showMessage(`저장 완료 · ${message}${!loaded ? ' — 목록 새로고침 실패. 저장은 완료됐습니다.' : !found ? ' — 현재 목록에서 찾지 못했습니다. 검색 조건이나 보관함을 확인해 주세요.' : ''}`);
+    showMessage(`저장 완료 · ${message}${!loaded ? ' — 목록 새로고침 실패. 저장은 완료됐습니다.' : !found ? ' — 현재 목록에서 찾지 못했습니다. 검색 조건이나 휴지통을 확인해 주세요.' : ''}`);
     if (found) {
       const viewSaved = button('저장한 공지 목록에서 확인', () => {
         const card = ui.element('notice-admin-list').querySelector(`[data-notice-id="${CSS.escape(id)}"]`);
@@ -633,7 +633,7 @@
     let group = '';
     sortNotices(notices).forEach(item => {
       const state = exposure(item);
-      const nextGroup = activeView === 'archive' ? '보관 자료' : state === 'active' ? '게시 중인 공지' : state === 'expired' ? '게시기간 종료' : '게시 예정 · 검토 대기 · 초안';
+      const nextGroup = activeView === 'archive' ? '휴지통 자료' : state === 'active' ? '게시 중인 공지' : state === 'expired' ? '게시기간 종료' : '게시 예정 · 검토 대기 · 초안';
       if (group !== nextGroup) { list.append(ui.text('h4', nextGroup, 'notice-list-group')); group = nextGroup; }
       const card = document.createElement('article');
       card.className = `admin-record-card notice-list-row notice-state-${state}`;
@@ -645,7 +645,7 @@
       }
       const summary = ui.text('p', '', 'help');
       const review = reviewLabel(item);
-      const stateLabel = { active:'게시 중',scheduled:'예약 게시',review:'운영총괄 검토 대기',draft:'비공개 초안',expired:'게시기간 종료',cancelled:'취소',inactive:'사용 중지',archived:'보관' }[state];
+      const stateLabel = { active:'게시 중',scheduled:'예약 게시',review:'운영총괄 검토 대기',draft:'비공개 초안',expired:'게시기간 종료',cancelled:'취소',inactive:'사용 중지',archived:'삭제됨' }[state];
       card.append(
         ui.text('p', `${stateLabel} · ${ui.IMPORTANCE[item.importance]} · v${item.version_no}`, 'card-kicker'),
         ui.text('h3', ''),
@@ -656,7 +656,7 @@
       title.href = '#notice-editor-card'; title.textContent = item.title;
       title.addEventListener('click', event => { event.preventDefault(); void openItem(item, { readOnly: true }); });
       card.querySelector('h3').append(title);
-      if (item.archived_at) card.append(ui.text('p', `보관: ${ui.formatDateTime(item.archived_at)} (KST) · ${item.archive_reason || ''}`, 'help'));
+      if (item.archived_at) card.append(ui.text('p', `삭제: ${ui.formatDateTime(item.archived_at)} (KST) · ${item.archive_reason || ''}`, 'help'));
       const sourceLabel = item.lead_notice_mode === 'routine' ? ' · 운영팀장 직접 게시 경로' : item.lead_notice_mode ? ' · 운영총괄 검토·처리 경로' : '';
       if (review) card.append(ui.text('p', review, 'notice-review-banner'));
       card.append(ui.text('p', `작성: ${item.creator_display_name || '작성자 기록 없음'}${sourceLabel}`, 'help'));
@@ -826,8 +826,8 @@
       renderOptions();
       renderList();
       ui.element('notice-list-summary').textContent = legacyList
-        ? '서버 목록 기능 업데이트 필요 · 최대 500건의 제한된 목록입니다. 전체 검색·타인 공지·보관 자료 조회는 아직 확인할 수 없습니다.'
-        : `${notices.length} / ${pageTotal}건 · ${activeView === 'archive' ? '최근 보관·중지순' : '최근 발행순 (같은 시각은 공지 ID순)'} · 날짜는 ${activeView === 'archive' ? '보관일, 보관일이 없으면 게시일' : '게시일'} 기준 · KST`;
+        ? '서버 목록 기능 업데이트 필요 · 최대 500건의 제한된 목록입니다. 전체 검색·타인 공지·휴지통 자료 조회는 아직 확인할 수 없습니다.'
+        : `${notices.length} / ${pageTotal}건 · ${activeView === 'archive' ? '최근 삭제·중지순' : '최근 발행순 (같은 시각은 공지 ID순)'} · 날짜는 ${activeView === 'archive' ? '삭제일, 삭제일이 없으면 게시일' : '게시일'} 기준 · KST`;
       ui.element('notice-list-more').hidden = !hasMore;
       if (!preserveMessage) showMessage('');
       return true;

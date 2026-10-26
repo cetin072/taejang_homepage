@@ -135,16 +135,16 @@ test('operations manager has separate archive and archived-only permanent delete
   assert.match(cleanup, /delete from public\.promotion_content_revisions/);
   assert.match(cleanup, /delete from public\.promotion_contents/);
 
-  assert.match(workspace, /button\('삭제\(보관\)'/);
+  assert.match(workspace, /button\('삭제'/);
   assert.match(workspace, /archive_promotion_content/);
-  assert.match(workspace, /보관함·영구삭제/);
+  assert.match(workspace, /휴지통·영구삭제/);
 
   assert.match(publication, /role === 'operations_manager'/);
-  assert.match(publication, /button\('삭제\(보관\)'/);
+  assert.match(publication, /button\('삭제'/);
   assert.match(publication, /archive_promotion_content/);
-  assert.match(publication, /보관함·영구삭제/);
+  assert.match(publication, /휴지통·영구삭제/);
 
   assert.match(issue146, /button\('영구삭제'/);
   assert.match(issue146, /permanently_delete_archived_promotion_content/);
-  assert.match(issue146, /복구할 수 없습니다/);
+  assert.match(issue146, /복원할 수 없습니다/);
 });

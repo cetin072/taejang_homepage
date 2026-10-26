@@ -209,11 +209,12 @@ try {
   await page.locator('[data-notice-id="archived"]').waitFor();
   await page.locator('#back-notice-admin').click();
   await page.locator('[data-notice-id="pub-b"]').waitFor();
-  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'보관',exact:true}).click();
+  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'삭제',exact:true}).click();
   await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
   assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='archive_notice').at(-1).args.p_notice_id),'pub-b','archive action uses displayed ID after sorting');
+  assert.equal(await page.locator('#archive-notice-admin').innerText(),'휴지통');
   await page.locator('#archive-notice-admin').click();await page.locator('[data-notice-id="pub-b"]').waitFor();
-  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'복구',exact:true}).click();
+  await page.locator('[data-notice-id="pub-b"]').getByRole('button',{name:'복원',exact:true}).click();
   await page.locator('[data-notice-id="pub-b"]').waitFor({state:'detached'});
   await page.locator('#notice-list-from').fill('2099-01-01');await page.locator('#notice-list-filters').getByRole('button',{name:'검색',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('notice-list-summary').textContent.startsWith('0 / 0'));
@@ -264,6 +265,37 @@ try {
   await page.locator('#notice-save-draft').click();
   assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='save_notice').length),createWrites,'unknown initial ID must never cause duplicate create');
   assert.equal(await page.locator('#notice-title-input').inputValue(),'최초 응답 유실 합성 공지');
+  // Exercise the same existing recovery renderer for schedule and guidance with synthetic records.
+  await page.evaluate(()=>{
+   const original=TaejangApp.rpc;
+   window.trashFixtures={schedule_item:{id:'synthetic-schedule',title:'합성 일정',status:'published'},staff_guidance:{id:'synthetic-guidance',title:'합성 안내',status:'published'}};
+   for(const [type,prefix] of [['schedule_item','schedule'],['staff_guidance','guidance']]){
+    const list=document.createElement('div');list.id=prefix+'-admin-list';document.getElementById('desktop-app-shell').append(list);
+    const refresh=document.createElement('button');refresh.id='refresh-'+prefix+'-admin';document.body.append(refresh);
+    const redraw=()=>{list.replaceChildren();if(!trashFixtures[type].archived_at){const card=document.createElement('article');card.className='admin-record-card';card.textContent=trashFixtures[type].title;list.append(card);}TaejangOperationsDeleteControls.sync();};
+    refresh.addEventListener('click',redraw);
+   }
+   TaejangApp.rpc=async(name,args={})=>{
+    const type=name.includes('schedule')?'schedule_item':name.includes('guidance')?'staff_guidance':args.p_resource_type;
+    const item=trashFixtures[type];
+    if(item&&['list_manageable_schedules','list_manageable_staff_guidance'].includes(name))return item.archived_at?[]:[item];
+    if(item&&name==='get_archived_recovery_items')return item.archived_at?[item]:[];
+    if(item&&/^(archive|restore)_(schedule_item|staff_guidance)$/.test(name)){calls.push({name,args});item.archived_at=name.startsWith('archive')?new Date().toISOString():null;return {ok:true};}
+    return original(name,args);
+   };
+   document.getElementById('refresh-schedule-admin').click();
+   document.getElementById('refresh-guidance-admin').click();
+  });
+  for(const [type,prefix] of [['schedule_item','schedule'],['staff_guidance','guidance']]){
+   const list=page.locator('#'+prefix+'-admin-list');
+   await list.getByRole('button',{name:'삭제',exact:true}).click();
+   await list.getByRole('heading',{name:'휴지통 1건'}).waitFor();
+   await list.getByRole('button',{name:'복원',exact:true}).click();
+   await list.getByRole('button',{name:'삭제',exact:true}).waitFor();
+   assert.equal(await page.evaluate(type=>!!trashFixtures[type].archived_at,type),false);
+   assert.equal(await page.evaluate(type=>calls.filter(c=>c.name==='restore_'+type).length,type),1);
+  }
+  assert.ok(await page.evaluate(()=>confirmations.some(text=>text.includes('휴지통')&&text.includes('복원할 수 있습니다'))));
   assert.deepEqual(errors,[]);
   console.log(`NOTICE_HISTORY_BROWSER_PASS:${width}${preview?':PREVIEW':':LOCAL'}`);
   await context.close();

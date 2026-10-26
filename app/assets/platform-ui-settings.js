@@ -720,9 +720,9 @@
         const archive=document.createElement('section');
         archive.className='platform-settings-card app-authoring';
         archive.append(
-          text('h3','보관함'),
-          text('p','삭제한 공지·일정·안내와 홍보글은 일반 업무 목록에서 숨기고 여기에서만 확인·복구합니다.','help'),
-          button('보관함 열기',()=>window.TaejangOperationsDeleteControls.openArchiveHub(),true)
+          text('h3','휴지통'),
+          text('p','삭제한 공지·일정·안내와 홍보글은 일반 업무 목록에서 숨기고 여기에서만 확인·복원합니다.','help'),
+          button('휴지통 열기',()=>window.TaejangOperationsDeleteControls.openArchiveHub(),true)
         );
         shell.append(archive);
       }

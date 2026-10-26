@@ -253,7 +253,7 @@
     const reason = window.prompt(`“${item.title || '홍보글'}” 삭제 이유를 적어주세요.`, '')?.trim();
     if (!reason) return;
     const confirmation = returnedFromOperations
-      ? '운영총괄 보완요청으로 돌아온 이 글을 삭제(보관)할까요? 글은 목록에서 빠지지만 원문·수정이력·감사기록은 보존됩니다.'
+      ? '운영총괄 보완요청으로 돌아온 이 글을 삭제할까요? 글은 목록에서 빠지지만 원문·수정이력·감사기록은 보존됩니다.'
       : '이 미발행 홍보글을 삭제할까요? 원문·수정이력·감사기록은 보존됩니다.';
     if (!window.confirm(confirmation)) return;
     try {
@@ -266,7 +266,7 @@
       const code = String(error?.message || error?.code || '');
       const upperReviewLocked = code.includes('PROMOTION_UNPUBLISHED_ARCHIVE_UPPER_REVIEW_LOCKED');
       window.alert(upperReviewLocked
-        ? '상신 대기·승인·대표이사 결재 중인 글은 운영팀장이 삭제할 수 없습니다. 운영총괄이 보완요청으로 되돌려 보낸 글만 삭제(보관)할 수 있습니다.'
+        ? '상신 대기·승인·대표이사 결재 중인 글은 운영팀장이 삭제할 수 없습니다. 운영총괄이 보완요청으로 되돌려 보낸 글만 삭제할 수 있습니다.'
         : (app()?.friendlyError?.(error) || error?.message || '홍보글을 삭제하지 못했습니다.'));
     }
   }
@@ -315,10 +315,10 @@
           else actions.append(existingDelete);
         }
 
-        existingDelete.textContent = handoff ? '삭제(보관)' : '삭제';
+        existingDelete.textContent = handoff ? '삭제' : '삭제';
         existingDelete.title = handoff
-          ? '운영총괄 보완요청으로 돌아온 미발행 글을 복구 가능하게 보관합니다.'
-          : '복구 가능한 삭제입니다. 상위 결재선에 올라간 글은 삭제할 수 없습니다.';
+          ? '운영총괄 보완요청으로 돌아온 미발행 글을 삭제하며 운영총괄이 휴지통에서 복원할 수 있습니다.'
+          : '복원 가능한 삭제입니다. 상위 결재선에 올라간 글은 삭제할 수 없습니다.';
         existingDelete.onclick = () => archiveReviewItem(item, Boolean(handoff));
       }
     } catch {

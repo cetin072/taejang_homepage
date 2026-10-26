@@ -253,17 +253,17 @@
         const opsOldCard = [...opsPublicationMain.querySelectorAll('.dashboard-card')]
           .find(card => card.textContent.includes('24시간 지난 공개글'));
         assert(opsOldCard, '운영총괄 게시글 카드 누락');
-        const opsArchiveButton = buttonByText(opsOldCard, '삭제(보관)');
-        assert(opsArchiveButton, '운영총괄 게시된 글 삭제(보관) 버튼 누락');
+        const opsArchiveButton = buttonByText(opsOldCard, '삭제');
+        assert(opsArchiveButton, '운영총괄 게시된 글 삭제 버튼 누락');
         opsArchiveButton.click();
         await wait(40);
         assert(archivePromotionCalls.length === 1, '운영총괄 게시글 보관 RPC 호출 누락');
         assert(archivePromotionCalls[0].p_content_id === '22222222-2222-4222-8222-222222222222', '운영총괄 보관 대상 content_id 불일치');
         assert(!document.getElementById('dashboard-main').textContent.includes('24시간 지난 공개글'), '보관된 게시글이 관리 목록에 남아 있음');
-        const archiveManagerButton = buttonByText(document.getElementById('dashboard-main'), '보관함·영구삭제');
-        assert(archiveManagerButton, '운영총괄 보관함·영구삭제 진입 버튼 누락');
+        const archiveManagerButton = buttonByText(document.getElementById('dashboard-main'), '휴지통·영구삭제');
+        assert(archiveManagerButton, '운영총괄 휴지통·영구삭제 진입 버튼 누락');
         archiveManagerButton.click();
-        assert(promotionArchiveManagerOpened, '보관함·영구삭제 화면 진입 실패');
+        assert(promotionArchiveManagerOpened, '휴지통·영구삭제 화면 진입 실패');
 
 
         currentRoute = 'promotion_lead';
@@ -309,11 +309,11 @@
         window.TaejangIssue181PromotionLiveUx.sync();
         await wait(120);
         const returnedDelete = main.querySelector('[data-issue181-review-delete]');
-        assert(returnedDelete, '운영총괄 보완요청 반송 글에 삭제(보관) 버튼 누락');
-        assert(returnedDelete.textContent.trim() === '삭제(보관)', '반송 글 삭제 버튼 문구 불일치');
+        assert(returnedDelete, '운영총괄 보완요청 반송 글에 삭제 버튼 누락');
+        assert(returnedDelete.textContent.trim() === '삭제', '반송 글 삭제 버튼 문구 불일치');
         returnedDelete.click();
         await wait(40);
-        assert(archiveReturnedPromotionCalls.length === 1, '반송 글 삭제(보관) RPC 호출 누락');
+        assert(archiveReturnedPromotionCalls.length === 1, '반송 글 삭제 RPC 호출 누락');
         assert(archiveReturnedPromotionCalls[0].p_content_id === 'lead-1', '반송 글 삭제 대상 불일치');
         assert(archiveReturnedPromotionCalls[0].p_reason === '브라우저 검수 사유', '반송 글 삭제 사유 전달 누락');
 

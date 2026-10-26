@@ -90,7 +90,7 @@ test('Goal 327 uses stable, geometry-safe visual affordances', () => {
 test('Goal 327 prevents feature modules from re-owning canonical sidebar entries', () => {
   assert.doesNotMatch(issue146, /navButton\('복구·계정 관리'/);
   assert.doesNotMatch(issue146, /navButton\('홍보 작성'/);
-  assert.match(employeeManagement, /삭제 직원 복구·계정 연결/);
+  assert.match(employeeManagement, /직원 휴지통·계정 연결/);
   assert.doesNotMatch(issue207, /nav\.append\(|insertBefore\(/);
   assert.doesNotMatch(workflowNavigation, /navButton\('일정 캘린더'/);
   assert.match(shell, /key: 'notice\.manage'[\s\S]*공지 관리/);

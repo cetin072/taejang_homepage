@@ -31,7 +31,7 @@
     if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
     const labels = {
       status: '상태', lifecycle: '공개상태', employment_status: '재직상태',
-      account_status: '계정상태', archived_at: '보관시각'
+      account_status: '계정상태', archived_at: '삭제 시각'
     };
     return Object.entries(value)
       .filter(([key, item]) => Object.hasOwn(labels, key) && item !== undefined)
@@ -46,7 +46,7 @@
     if (!isOperations()) return;
     const target = title || kind;
     const warning = extraWarning ? `\n${extraWarning}` : '';
-    if (!window.confirm(`${target}을(를) 삭제할까요?${warning}\n삭제 후 일반 관리 목록에서는 사라집니다.`)) return;
+    if (!window.confirm(`${target}을(를) 삭제할까요?${warning}\n삭제 후 일반 관리 목록에서는 사라집니다. 직원 휴지통에서 복원할 수 있습니다.`)) return;
     const reason = window.prompt(`${kind} 삭제 이유를 적어주세요.`, '테스트 자료 정리')?.trim();
     if (!reason) return;
     try {
@@ -61,15 +61,16 @@
   async function archiveItem({ config, item, refresh }) {
     if (!isOperations()) return;
     const target = item.title || config.kind;
-    if (!window.confirm(`${target}을(를) 삭제할까요?\n실제 데이터는 지우지 않고 복구 가능한 보관 상태로 전환합니다.`)) return;
-    const reason = window.prompt(`${config.kind} 삭제(보관) 이유를 적어주세요.`, '더 이상 사용하지 않음')?.trim();
+    const destination = config.targetType === 'notice' ? '직원 공지 목록에서 제외되고 휴지통에 표시됩니다.' : '일반 목록에서 제외되고 휴지통에 표시됩니다.';
+    if (!window.confirm(`${target}을(를) 삭제할까요?\n${destination} 나중에 복원할 수 있습니다.`)) return;
+    const reason = window.prompt(`${config.kind} 삭제 이유를 적어주세요.`, '더 이상 사용하지 않음')?.trim();
     if (!reason) return;
     try {
       const result = await app().rpc(config.archiveRpc, { [config.idArg]: item.id, p_reason: reason });
       if (!result?.ok) throw new Error(result?.code || 'ARCHIVE_FAILED');
       await refresh?.();
     } catch (error) {
-      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 보관하지 못했습니다.`);
+      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 삭제하지 못했습니다.`);
     }
   }
 
@@ -77,15 +78,15 @@
     if (!isOperations()) return;
     const target = item.title || config.kind;
     const previous = item.archive_previous_status ? ` 이전 상태(${item.archive_previous_status})로 돌아갑니다.` : '';
-    if (!window.confirm(`${target}을(를) 복구할까요?${previous}`)) return;
-    const reason = window.prompt(`${config.kind} 복구 이유를 적어주세요.`, '다시 사용')?.trim();
+    if (!window.confirm(`${target}을(를) 복원할까요?${previous}`)) return;
+    const reason = window.prompt(`${config.kind} 복원 이유를 적어주세요.`, '다시 사용')?.trim();
     if (!reason) return;
     try {
       const result = await app().rpc(config.restoreRpc, { [config.idArg]: item.id, p_reason: reason });
       if (!result?.ok) throw new Error(result?.code || 'RESTORE_FAILED');
       await refresh?.();
     } catch (error) {
-      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 복구하지 못했습니다.`);
+      window.alert(app()?.friendlyError?.(error) || error?.message || `${config.kind}을(를) 복원하지 못했습니다.`);
     }
   }
 
@@ -215,7 +216,7 @@
     section.setAttribute(`data-${config.archiveSectionAttribute}`, '1');
     section.className = 'dashboard-section';
     const heading = document.createElement('h3');
-    heading.textContent = `보관함 ${items.length}건`;
+    heading.textContent = `휴지통 ${items.length}건`;
     section.append(heading);
 
     items.forEach(item => {
@@ -223,7 +224,7 @@
       card.className = 'admin-record-card';
       const kicker = document.createElement('p');
       kicker.className = 'card-kicker';
-      kicker.textContent = `보관됨 · 이전 상태 ${item.archive_previous_status || '-'}`;
+      kicker.textContent = `삭제됨 · 이전 상태 ${item.archive_previous_status || '-'}`;
       const title = document.createElement('h4');
       title.textContent = item.title || config.kind;
       const help = document.createElement('p');
@@ -235,7 +236,7 @@
 
       const actions = document.createElement('div');
       actions.className = 'quick-links';
-      const restore = actionButton('복구', () => restoreItem({
+      const restore = actionButton('복원', () => restoreItem({
         config,
         item,
         refresh: async () => document.getElementById(config.refreshId)?.click()
@@ -337,8 +338,8 @@
       const config = { kind: '공지', targetType: 'notice', archiveRpc: 'archive_notice', restoreRpc: 'restore_notice', idArg: 'p_notice_id' };
       const actions = card.querySelector('.notice-row-actions');
       if (!actions) return;
-      if (item.can_archive === true) actions.append(actionButton('보관', () => archiveItem({ config, item, refresh })));
-      if (item.can_restore === true) actions.append(actionButton('복구', () => restoreItem({ config, item, refresh })));
+      if (item.can_archive === true) actions.append(actionButton('삭제', () => archiveItem({ config, item, refresh })));
+      if (item.can_restore === true) actions.append(actionButton('복원', () => restoreItem({ config, item, refresh })));
       appendHistoryButton(config, item, card, actions);
     }
   };

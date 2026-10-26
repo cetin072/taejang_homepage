@@ -986,8 +986,8 @@
       }); review.append(grid); shell.append(review);
     }
     if (isOps && typeof window.TaejangIssue146?.openOperationsSafety === 'function') {
-      const safety = el('details'); safety.append(el('summary', '직원 복구·계정 연결 도구'));
-      safety.append(button('삭제 직원 복구·계정 연결', () => window.TaejangIssue146.openOperationsSafety(), true)); shell.append(safety);
+      const safety = el('details'); safety.append(el('summary', '직원 휴지통·계정 연결 도구'));
+      safety.append(button('직원 휴지통·계정 연결', () => window.TaejangIssue146.openOperationsSafety(), true)); shell.append(safety);
     }
     target.replaceChildren(shell);
   }

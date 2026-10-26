@@ -129,8 +129,8 @@
         assert(document.getElementById('desktop-page-title').textContent === '발행 현황', 'operations-manager publication mode title mismatch');
         assert(document.getElementById('dashboard-main').textContent.includes('발행 대상 1건'), 'operations manager cannot read publication overview');
         assert(!buttonByText('공개/예약 설정'), 'operations manager unexpectedly received a queue action');
-        assert(buttonByText('보관함·영구삭제'), 'operations manager archive manager entry missing');
-        const archiveButton = buttonByText('삭제(보관)');
+        assert(buttonByText('휴지통·영구삭제'), 'operations manager archive manager entry missing');
+        const archiveButton = buttonByText('삭제');
         assert(archiveButton, 'operations manager archive action missing for approved/scheduled item');
 
         state.promptResponses.push('테스트 글 정리');

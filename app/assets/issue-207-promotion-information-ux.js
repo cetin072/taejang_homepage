@@ -24,7 +24,7 @@
   };
   const lifecycleLabel = {
     draft: '작성 중', review_pending: '승인 대기', needs_revision: '보완 필요', approved: '승인 완료',
-    scheduled: '게시 예정', published: '게시 완료', hidden: '숨김', archived: '보관'
+    scheduled: '게시 예정', published: '게시 완료', hidden: '숨김', archived: '삭제됨'
   };
   const requestStatusLabel = { pending: '승인 대기', changes_requested: '보완 요청', rejected: '반려', approved: '승인 완료' };
   const noticeKinds = {

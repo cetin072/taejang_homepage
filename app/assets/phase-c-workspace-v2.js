@@ -29,7 +29,7 @@
     scheduled: '게시 예정',
     published: '게시 완료',
     hidden: '숨김',
-    archived: '보관'
+    archived: '삭제됨'
   };
   const STAGE_LABELS = { lead: '운영팀장', operations: '운영총괄', ceo: '대표이사' };
   const app = () => window.TaejangApp;
@@ -767,9 +767,9 @@
   }
 
   async function archivePromotionAsOperations(item, reopen = () => openPromotion('publication')) {
-    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제(보관)하는 사유를 입력해 주세요.`, '')?.trim();
+    const reason = window.prompt(`“${item.title || '제목 없음'}” 글을 삭제하는 사유를 입력해 주세요.`, '')?.trim();
     if (!reason) return;
-    if (!window.confirm('삭제(보관)하면 공개·예약·발행 목록에서 내려가며, 보관함에서 복구할 수 있습니다. 계속할까요?')) return;
+    if (!window.confirm('삭제하면 공개·예약·발행 목록에서 내려가며, 휴지통에서 복원할 수 있습니다. 계속할까요?')) return;
     try {
       await app().rpc('archive_promotion_content', {
         p_content_id: item.content_id,
@@ -778,14 +778,14 @@
       });
       await reopen();
     } catch (error) {
-      window.alert(app().friendlyError?.(error) || error.message || '삭제(보관)하지 못했습니다.');
+      window.alert(app().friendlyError?.(error) || error.message || '삭제하지 못했습니다.');
     }
   }
 
   function openPromotionArchiveManager() {
     const api = window.TaejangIssue146?.openPromotionArchive;
     if (typeof api === 'function') return api();
-    window.TaejangFeatureHealth?.showFailure?.('홍보글 보관·영구삭제 기능');
+    window.TaejangFeatureHealth?.showFailure?.('홍보글 휴지통 기능');
   }
 
   async function renderPublication(workspace) {
@@ -803,7 +803,7 @@
     target.replaceChildren(intro);
     if (role === 'operations_manager') {
       const tools = el('div', null, 'quick-links');
-      tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+      tools.append(button('휴지통·영구삭제', openPromotionArchiveManager, true));
       target.append(tools);
     }
     target.append(el('p', '발행 현황을 불러오고 있습니다.', 'message'));
@@ -846,7 +846,7 @@
           }));
         }
         if (role === 'operations_manager') {
-          actions.append(button('삭제(보관)', () => archivePromotionAsOperations(item), true));
+          actions.append(button('삭제', () => archivePromotionAsOperations(item), true));
         }
         const previewLink = document.createElement('a');
         previewLink.href = '../promotion-preview/';
@@ -859,7 +859,7 @@
       section.append(grid);
       if (role === 'operations_manager') {
         const tools = el('div', null, 'quick-links');
-        tools.append(button('보관함·영구삭제', openPromotionArchiveManager, true));
+        tools.append(button('휴지통·영구삭제', openPromotionArchiveManager, true));
         target.replaceChildren(intro, tools, section);
       } else {
         target.replaceChildren(intro, section);
