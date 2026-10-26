@@ -75,6 +75,10 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
 
+      - name: Verify support finder collection and interest in disposable PostgreSQL
+        if: steps.scope.outputs.run_full == 'true'
+        run: node tests/support-radar-database.mjs
+
       - name: Reapply migrations from a clean database
         if: steps.scope.outputs.run_full == 'true'
         run: supabase db reset
@@ -131,6 +135,14 @@ jobs:
           # Run after first-super-admin bootstrap and all historical ledgers exist.
           git fetch origin 90cf9d6af8490b005d1a8ae0865cdd85c133460c
           node tests/employee-password-reset-auth-integration.mjs
+
+      - name: Keep support finder real Auth browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: support-finder-real-auth-browser
+          path: support-finder-auth-qa-artifacts/
+          if-no-files-found: ignore
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'

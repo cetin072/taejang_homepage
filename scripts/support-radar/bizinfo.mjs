@@ -37,8 +37,10 @@ export function normalize(item) {
     ...period(item.reqstBeginEndDe || item.reqstDt) };
 }
 export function parse(payload) {
-  // Official deployments use jsonArray; RSS-shaped JSON is also accepted explicitly.
-  const items = payload?.jsonArray ?? payload?.items ?? payload?.item ?? payload?.channel?.item;
+  // The official documentation wraps items in jsonArray.item; deployed feeds
+  // also return jsonArray directly as an array. Keep both explicit contracts.
+  const items = Array.isArray(payload?.jsonArray) ? payload.jsonArray
+    : payload?.jsonArray?.item ?? payload?.items ?? payload?.item ?? payload?.channel?.item;
   if (!Array.isArray(items)) throw new Error('INVALID_RESPONSE');
   const unique = new Map();
   for (const item of items) { const notice = normalize(item); unique.set(notice.source_notice_id, notice); }
@@ -67,6 +69,7 @@ export async function collect({ key, fetchImpl = fetch, previous = [], lastSucce
   const url = new URL(endpoint);
   url.searchParams.set('crtfcKey', key); url.searchParams.set('dataType', 'json');
   url.searchParams.set('searchCnt', '100'); // Bounded latest batch, not a complete historical crawl.
+  url.searchParams.set('pageUnit', '100'); url.searchParams.set('pageIndex', '1');
   try {
     const response = await fetchImpl(url, { signal: AbortSignal.timeout(15000), redirect: 'error' });
     if ([401, 403].includes(response.status)) return failure('authentication_failed');
@@ -77,6 +80,6 @@ export async function collect({ key, fetchImpl = fetch, previous = [], lastSucce
     let incoming;
     try { incoming = parse(JSON.parse(body)); } catch { return failure('invalid_response'); }
     const merged = mergeSnapshot(previous, incoming);
-    return { ...merged, status: merged.added ? 'success_new' : 'success_no_new', attempted_at: attemptedAt, last_success_at: attemptedAt };
+    return { ...merged, items: incoming, status: merged.added ? 'success_new' : 'success_no_new', attempted_at: attemptedAt, last_success_at: attemptedAt };
   } catch { return failure('network_error'); }
 }

@@ -21,7 +21,7 @@
 
   function header(title, copy, actions=[]) {
     const node=document.createElement('header'); node.className='support-radar-header';
-    const left=document.createElement('div'); left.append(text('p','지원사업 레이더','eyebrow'),text('h2',title),text('p',copy));
+    const left=document.createElement('div'); left.append(text('p','태장 지원사업 찾기','eyebrow'),text('h2',title),text('p',copy));
     const right=document.createElement('div'); right.className='support-radar-actions'; actions.forEach(item=>right.append(item));
     node.append(left,right); return node;
   }
@@ -29,6 +29,25 @@
   function stat(label,value,note='') { const node=document.createElement('article'); node.className='support-radar-stat'; node.append(text('span',label,'support-radar-muted'),text('strong',value)); if(note) node.append(text('span',note,'support-radar-muted')); return node; }
 
   const listState = { query: '', decision: 'all', deadline: 'all' };
+  async function finderRpc(name,args,legacy) {
+    try { return {data:await window.TaejangApp.rpc(name,args),available:true}; }
+    catch(error) {
+      if(!legacy||!['PGRST202','42883'].includes(error?.code)) throw error;
+      return {data:await window.TaejangApp.rpc(legacy,args),available:false};
+    }
+  }
+  function interestButton(item,onChange=()=>{}) {
+    const control=button('',async()=>{
+      control.disabled=true;
+      try {
+        const saved=await window.TaejangApp.rpc('support_set_notice_interest',{p_notice_id:item.id,p_interested:!item.interested,p_expected_revision:item.interest_revision});
+        item.interested=saved.interested;item.interest_revision=saved.revision;update();onChange();
+      } catch(error) { window.alert(error?.message?.includes('REVISION_CONFLICT')?'다른 사용자가 관심 상태를 변경했습니다. 목록을 다시 열어 확인하세요.':window.TaejangApp.friendlyError(error)); }
+      finally {control.disabled=false;}
+    },true);
+    function update(){control.textContent=item.interested?'관심 해제':'관심 보관';control.setAttribute('aria-pressed',String(item.interested));}
+    update();return control;
+  }
   function goHome() { return renderList(); }
   function goProfile() { window.TaejangSupportRadar?.open?.('profile'); }
 
@@ -73,39 +92,43 @@
     }
   }
 
-  function noticeCard(item,onOpen) {
+  function noticeCard(item,onOpen,onChange) {
     const card=document.createElement('article'); card.className='support-radar-row';
     const top=document.createElement('div'); top.className='support-radar-header';
     const left=document.createElement('div'); left.append(text('p',item.organization||'기관 미확인','eyebrow'),text('h3',item.title||'제목 없음'));
     top.append(left); card.append(top);
     const meta=document.createElement('div'); meta.className='support-radar-tag-list';
-    [`마감 ${formatDate(item.deadline_at||item.deadline)}`, ...array(item.target_regions), ...array(item.categories),
+    [`마감 ${item.application_period||formatDate(item.deadline_at||item.deadline)}`, ...array(item.target_regions), ...array(item.categories),
       item.decision ? `판단 ${({apply:'신청',hold:'보류',exclude:'제외'})[item.decision]||item.decision}` : '미결정',
       item.application_status ? statusLabel(item.application_status) : null
     ].filter(Boolean).forEach(value=>meta.append(text('span',value,'support-radar-tag')));
     card.append(meta);
     if(item.eligibility_summary) card.append(text('p',item.eligibility_summary));
     const actions=document.createElement('div'); actions.className='support-radar-actions';
-    actions.append(button('상세·원문 확인',onOpen,true)); card.append(actions);
+    actions.append(button('상세·원문 확인',onOpen,true));
+    if(item.canonical_url && /^https?:\/\//i.test(item.canonical_url)){const link=text('a','원문 열기','button button-quiet');link.href=item.canonical_url;link.target='_blank';link.rel='noopener noreferrer';actions.append(link);}
+    if(canEdit()&&typeof item.interest_revision==='number')actions.append(interestButton(item,onChange));
+    card.append(actions);
     return card;
   }
 
   async function renderList() {
     if(!canUse()) return;
-    closeSidebar(); setTitle('지원사업 전체 공고');
+    closeSidebar(); setTitle('태장 지원사업 찾기');
     const main=el('dashboard-main'); main.replaceChildren(text('p','지원사업 공고를 불러오고 있습니다.','message'));
     try {
-      const items=array(await window.TaejangApp.rpc('support_list_notices',{p_limit:200}));
+      const response=await finderRpc('support_list_finder_notices',{p_limit:200},'support_list_notices');
+      const items=array(response.data);
       const root=document.createElement('div'); root.className='support-radar-shell';
       root.dataset.supportSurface='notice-list';
-      root.append(header('지원사업 공고','공고를 찾고 원문과 마감일을 확인한 뒤 판단하세요.',[button('기업정보',goProfile,true),canEdit()?button('공고 직접 등록',renderCreateNotice,true):null].filter(Boolean)));
+      root.append(header('태장 지원사업 찾기','공고를 찾고 원문과 마감일을 확인한 뒤 판단하세요.',[button('기업정보',goProfile,true),canEdit()?button('공고 직접 등록',renderCreateNotice,true):null].filter(Boolean)));
       const sourcePanel=section('수집 상태'); sourcePanel.dataset.supportSourceStatus='1'; sourcePanel.append(text('p','연결 상태 확인 중…')); root.append(sourcePanel);
-      root.append(text('p','보류·신청 공고는 판단 필터에서 확인하세요. 관심 보관은 아직 사용할 수 없습니다.','support-radar-muted'));
+      root.append(text('p',response.available?'관심은 조직 공통 보관입니다. 신청 결정과 별개이며 보류·신청 공고는 판단 필터에서 확인하세요.':'보류·신청 공고는 판단 필터에서 확인하세요. 관심 보관은 아직 연결되지 않았습니다.','support-radar-muted'));
       const filter=section('빠른 찾기');
       const search=document.createElement('input'); search.type='search'; search.placeholder='사업명·기관·분야 검색'; search.setAttribute('aria-label','지원사업 검색');
       search.value=listState.query;
       const select=(label,values,current)=>{const node=document.createElement('select');node.setAttribute('aria-label',label);values.forEach(([value,name])=>{const option=text('option',name);option.value=value;node.append(option);});node.value=current;return node;};
-      const decisionFilter=select('판단 필터',[['all','모든 판단'],['hold','보류'],['apply','신청관리'],['exclude','제외'],['undecided','미결정']],listState.decision);
+      const decisionFilter=select('판단 필터',[['all','모든 판단'],...(response.available?[['interest','관심 보관']]:[]),['hold','보류'],['apply','신청관리'],['exclude','제외'],['undecided','미결정']],listState.decision);
       const deadlineFilter=select('마감 필터',[['all','모든 마감'],['open','마감 전'],['week','7일 내 마감'],['unknown','마감 미정']],listState.deadline);
       const list=document.createElement('div'); list.className='support-radar-list';
       const render=()=>{
@@ -115,11 +138,11 @@
         const filtered=items.filter(item=>{
           const deadline=Date.parse(item.deadline_at), known=Number.isFinite(deadline);
           return (!q||[item.title,item.organization,...array(item.categories),...array(item.target_regions)].join(' ').toLowerCase().includes(q)) &&
-            (listState.decision==='all'||(listState.decision==='undecided'?!item.decision:item.decision===listState.decision)) &&
+            (listState.decision==='all'||(listState.decision==='interest'?item.interested:listState.decision==='undecided'?!item.decision:item.decision===listState.decision)) &&
             (listState.deadline==='all'||(listState.deadline==='unknown'?!known:known&&deadline>=now&&(listState.deadline!=='week'||deadline<=now+7*86400000)));
         });
         if(!filtered.length) list.append(text('p','조건에 맞는 공고가 없습니다.','support-radar-empty'));
-        filtered.forEach(item=>list.append(noticeCard(item,()=>renderDetail(item.id))));
+        filtered.forEach(item=>list.append(noticeCard(item,()=>renderDetail(item.id),render)));
       };
       search.addEventListener('input',render); decisionFilter.addEventListener('change',render); deadlineFilter.addEventListener('change',render);
       filter.append(search,decisionFilter,deadlineFilter); root.append(filter,list);
@@ -131,12 +154,14 @@
 
   async function loadSourceStatus(panel) {
     try {
-      const sources=array(await window.TaejangApp.rpc('support_list_sources'));
+      const response=await finderRpc('support_get_collection_state',undefined,'support_list_sources');
+      const source=response.available?response.data?.source:array(response.data).find(item=>item.code==='bizinfo');
+      const run=response.available?response.data?.latest_run:null;
       if(!panel.isConnected) return;
       panel.replaceChildren(text('h3','수집 상태'));
-      const source=sources.find(item=>item.code==='bizinfo');
       if(!source) { panel.append(text('p','기업마당 미연결 · 정보원 등록이 필요합니다.')); return; }
-      const message=source.last_error_summary ? '최근 수집 실패 · 마지막 성공 자료를 확인하세요.' :
+      const labels={success_new:`새 공고 ${run?.added||0}건 · 변경 ${run?.updated||0}건`,success_no_new:`새 공고 없음 · 변경 ${run?.updated||0}건`,not_connected:'기업마당 인증 미연결',authentication_failed:'기업마당 인증 실패',http_error:'기업마당 응답 오류',network_error:'기업마당 통신 실패',invalid_response:'기업마당 응답 형식 오류'};
+      const message=run ? (labels[run.status]||'수집 결과 확인 필요') : source.last_error_summary ? '최근 수집 실패 · 마지막 성공 자료를 확인하세요.' :
         source.automation_status==='manual_only' ? '자동수집 미연결 · 수동 등록 자료입니다.' :
         source.last_success_at ? '수집 성공 이력이 있습니다. 신규 건수는 아직 제공되지 않습니다.' : '수집 성공 이력이 없습니다.';
       panel.append(text('p',message),text('p',`마지막 성공: ${source.last_success_at?new Date(source.last_success_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'없음'} · 마지막 시도: ${source.last_checked_at?new Date(source.last_checked_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}):'없음'}`,'support-radar-muted'));
@@ -151,13 +176,15 @@
     closeSidebar(); setTitle('지원사업 상세');
     const main=el('dashboard-main'); main.replaceChildren(text('p','공고 상세를 불러오고 있습니다.','message'));
     try {
-      const data=await window.TaejangApp.rpc('support_get_notice_detail',{p_notice_id:id}); const n=data.notice; const e=data.evaluation;
+      const response=await finderRpc('support_get_finder_notice_detail',{p_notice_id:id},'support_get_notice_detail');
+      const data=response.data; const n=data.notice; const e=data.evaluation;
       const root=document.createElement('div'); root.className='support-radar-shell'; root.dataset.supportSurface='notice-detail';
       root.append(header(n.title,'원문·태장 적합도·사람의 결정·신청 진행을 한 화면에서 확인합니다.',[button('전체 공고',renderList,true)]));
       const base=section('공고 기본정보'); base.dataset.supportSection='facts'; const grid=document.createElement('dl'); grid.className='app-summary-list';
       grid.append(infoRow('기관',n.implementing_organization||n.managing_organization),infoRow('신청 시작',formatDate(n.application_start_at)),infoRow('마감',n.application_period||formatDate(n.deadline_at)),infoRow('지원규모',money(n.cash_support_max||n.cash_support_min)),infoRow('현물지원',n.in_kind_available?'있음':'없음'),infoRow('자부담',n.self_funding_rate!==null&&n.self_funding_rate!==undefined?`${n.self_funding_rate}%`:(n.self_funding_required?'있음':'미확인'))); base.append(grid);
       if(n.eligibility_summary) base.append(text('p',n.eligibility_summary));
       if(n.canonical_url) { const link=document.createElement('a'); link.href=n.canonical_url; link.target='_blank'; link.rel='noopener noreferrer'; link.className='button button-quiet'; link.textContent='원문 열기'; base.append(link); }
+      if(canEdit()&&response.available)base.append(interestButton({id,interested:data.interest.interested,interest_revision:data.interest.revision}));
       root.append(base);
 
       const evalSection=section('태장 적합도');

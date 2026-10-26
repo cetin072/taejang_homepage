@@ -57,7 +57,7 @@
     const root=main?.querySelector('.support-radar-shell');
     if(!root || root.querySelector('[data-support-alert-panel]')) return;
     const heading=root.querySelector('h2');
-    if(!heading || heading.textContent!=='지원사업 레이더') return;
+    if(!heading || root.dataset.supportSurface!=='dashboard') return;
 
     state.dashboardLoading=true;
     try {

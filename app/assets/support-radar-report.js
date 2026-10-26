@@ -22,7 +22,7 @@
       ]);
       const root=document.createElement('div');root.className='support-radar-shell';
       const head=document.createElement('header');head.className='support-radar-header';
-      const left=document.createElement('div');left.append(text('p','지원사업 레이더','eyebrow'),text('h2','주간 종합보고'),text('p',`${formatDate(data.period_start)} ~ ${formatDate(data.period_end)}`));
+      const left=document.createElement('div');left.append(text('p','태장 지원사업 찾기','eyebrow'),text('h2','주간 종합보고'),text('p',`${formatDate(data.period_start)} ~ ${formatDate(data.period_end)}`));
       const actions=document.createElement('div');actions.className='support-radar-actions';actions.append(button('레이더 홈',goHome,true),button('인쇄',()=>window.print(),true));head.append(left,actions);root.append(head);
       const weekly=document.createElement('div');weekly.className='support-radar-summary';weekly.append(
         stat('새 공고',`${data.new_notices||0}건`),stat('평가 완료',`${data.evaluated||0}건`),stat('신청 결정',`${data.apply_decisions||0}건`),stat('제출',`${data.submitted||0}건`),stat('선정',`${data.selected||0}건`),stat('확보 지원금',money(data.selected_cash)),stat('확보 현물',money(data.selected_in_kind_value))
@@ -31,7 +31,7 @@
         stat('현재 열린 공고',`${data.open_count||0}건`),stat('7일 내 마감',`${data.deadline_7_count||0}건`),stat('미평가',`${data.unreviewed_count||0}건`),stat('신청 진행',`${data.application_count||0}건`)
       );root.append(current);
 
-      const kpiSection=section('누적 운영 KPI','지원사업 레이더가 실제로 놓치지 않고 신청·선정까지 이어지는지 확인합니다.');
+      const kpiSection=section('누적 운영 KPI','태장 지원사업 찾기가 실제로 놓치지 않고 신청·선정까지 이어지는지 확인합니다.');
       const kpis=document.createElement('div');kpis.className='support-radar-summary';
       const reviewHours=kpi.average_hours_discovery_to_first_review===null||kpi.average_hours_discovery_to_first_review===undefined?'아직 없음':`${kpi.average_hours_discovery_to_first_review}시간`;
       kpis.append(

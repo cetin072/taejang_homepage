@@ -2,6 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { collectAndPersist, persistCollection } from '../scripts/support-radar/persist.mjs';
+import { supportFinderBrowserFlow } from './helpers/support-finder-browser-flow.mjs';
 
 const apiUrl = process.env.SUPABASE_URL || process.env.API_URL;
 const publishableKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -9,6 +13,9 @@ const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
+// This suite creates accounts and data: reject every shared/hosted endpoint before I/O.
+assert.ok(['127.0.0.1', 'localhost', '[::1]'].includes(new URL(apiUrl).hostname), 'isolated localhost API required');
+assert.equal(projectId, 'taejang-homepage-phase1a', 'known disposable local project required');
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -87,6 +94,7 @@ function expectForbidden(result, message) {
   check(/FORBIDDEN|permission denied/i.test(detail), `${message}: expected forbidden response, got ${result.status} ${detail}`);
 }
 
+databaseContainer(); // Prove the disposable local stack exists before creating Auth fixtures.
 const operations = await signUp('support-radar-operations@example.test', '지원사업 테스트 운영총괄');
 const ceo = await signUp('support-radar-ceo@example.test', '지원사업 테스트 대표이사');
 const assignee = await signUp('support-radar-assignee@example.test', '지원사업 테스트 담당자');
@@ -302,4 +310,85 @@ for (const action of [
   check(Number(sql(`select count(*) from public.audit_logs where action='${action}'`)) >= 1, `${action} is written to audit ledger`);
 }
 
-console.log(`support-radar-auth-integration.mjs: PASS (${assertions} assertions)`);
+// Real GoTrue sessions -> PostgREST RPC -> migrated DB. Only the upstream Bizinfo
+// response is synthetic; no claim of a live authenticated Bizinfo connection.
+const fixture = JSON.parse(await fs.readFile('tests/fixtures/support-radar/bizinfo.json', 'utf8'));
+const transport = async (name, params) => {
+  const result = await rpc(name, operations.token, params);
+  check(result.ok, `${name} succeeds through authenticated PostgREST (${result.status})`);
+  return result.data;
+};
+const runId = randomUUID();
+const collected = await collectAndPersist({key:'synthetic-only', runId, rpc:transport,
+  fetchImpl:async () => new Response(JSON.stringify({jsonArray:{item:fixture.jsonArray}}))});
+equal(collected.saved.added, 2, 'documented upstream envelope persists two notices');
+const finder = await rpc('support_list_finder_notices', operations.token, {p_limit:200});
+check(finder.ok, 'finder list reads committed collection through Data API');
+const imported = finder.data.find(row => row.title === '합성 검수 공고');
+check(imported?.id && imported.canonical_url.includes('PBLN_FIXTURE_001'), 'stored source appears in finder');
+equal(imported.eligibility_summary, '중소기업', 'upstream target survives DB readback');
+equal(new Date(imported.deadline_at).toISOString(), '2026-10-31T14:59:59.000Z', 'Korean deadline survives Data API');
+const importedId = imported.id;
+const memo = await rpc('support_mark_notice_reviewed', operations.token,
+  {p_notice_id:importedId,p_review_kind:'initial',p_note:'실제 JWT 보존 메모'});
+check(memo.ok, 'review memo saved through actual JWT');
+check((await rpc('support_set_decision', operations.token,
+  {p_notice_id:importedId,p_decision:'hold',p_reason:'관심과 별도 판단'})).ok, 'hold decision saved');
+check((await rpc('support_assign_notice', operations.token,
+  {p_notice_id:importedId,p_profile_id:assignee.id,p_note:'기존 담당자 보존'})).ok, 'existing assignment saved');
+const replay = await persistCollection(collected.collection, transport, runId);
+equal(replay.id, collected.saved.id, 'identical run replay is idempotent over HTTP');
+const parallel = await Promise.all([0,1].map(() => persistCollection(collected.collection, transport, randomUUID())));
+check(parallel.every(row => row.added === 0 && row.updated === 0), 'concurrent recollection adds no duplicates');
+equal(sql("select count(*) from public.support_notice_occurrences where source_notice_id like 'PBLN_FIXTURE_%'"), '2', 'unique occurrences read back from DB');
+const interest = await rpc('support_set_notice_interest', operations.token,
+  {p_notice_id:importedId,p_interested:true,p_expected_revision:0});
+equal(interest.data?.revision, 1, 'interest saved through real JWT');
+const shared = await rpc('support_get_finder_notice_detail', ceo.token, {p_notice_id:importedId});
+equal(shared.data?.interest?.interested, true, 'CEO sees organization shared interest');
+equal(shared.data?.decision?.decision, 'hold', 'interest does not replace application decision');
+const race = await Promise.all([0,1].map(() => rpc('support_set_notice_interest', operations.token,
+  {p_notice_id:importedId,p_interested:false,p_expected_revision:1})));
+equal(race.filter(result => result.ok).length, 1, 'one concurrent revision wins');
+equal(race.filter(result => result.data?.code === '40001').length, 1, 'stale revision denied by server');
+sql(`update public.support_notices set eligibility_summary='사람이 보완한 대상',application_process_summary='보존할 준비 메모' where id='${importedId}'`);
+await persistCollection({...collected.collection,items:collected.collection.items.map(row =>
+  ({...row,title:row.title+' 정정',eligibility_summary:'수집된 새 대상'}))},transport,randomUUID());
+const corrected = await rpc('support_get_finder_notice_detail', operations.token, {p_notice_id:importedId});
+equal(corrected.data?.notice?.title, '합성 검수 공고 정정', 'source-owned title updated');
+equal(corrected.data?.notice?.eligibility_summary, '사람이 보완한 대상', 'manual target correction preserved');
+equal(corrected.data?.notice?.application_process_summary, '보존할 준비 메모', 'preparation memo preserved');
+equal(corrected.data?.decision?.decision, 'hold', 'decision preserved after recollection');
+equal(sql(`select note from public.support_notice_reviews where notice_id='${importedId}'`), '실제 JWT 보존 메모', 'review memo preserved in DB');
+equal(sql(`select note from public.support_assignments where notice_id='${importedId}'`), '기존 담당자 보존', 'assignment preserved in DB');
+const successTime = sql("select last_success_at from public.support_sources where code='bizinfo'");
+await persistCollection({status:'authentication_failed'},transport,randomUUID());
+equal(sql("select last_success_at from public.support_sources where code='bizinfo'"),successTime,'failure preserves last success');
+const collectionState = await rpc('support_get_collection_state', ceo.token);
+equal(collectionState.data?.latest_run?.status,'authentication_failed','safe failure state visible through RPC');
+for (const actor of [ceo,assignee,outsider]) {
+  expectForbidden(await rpc('support_set_notice_interest',actor.token,
+    {p_notice_id:importedId,p_interested:true,p_expected_revision:2}), 'non-operations interest writer denied');
+  expectForbidden(await rpc('support_record_bizinfo_collection',actor.token,
+    {p_run_id:randomUUID(),p_status:'success',p_items:[]}), 'non-operations collector denied');
+}
+for (const actor of [assignee,outsider]) expectForbidden(await rpc('support_list_finder_notices',actor.token), 'finder management view denied to staff');
+expectForbidden(await rpc('support_set_notice_interest',undefined,
+  {p_notice_id:importedId,p_interested:true,p_expected_revision:2}), 'anonymous writer denied');
+const directInterest = await api('/rest/v1/support_notice_interests', {method:'POST',token:operations.token,
+  body:{notice_id:noticeId,interested:true,revision:1,updated_by:operations.id}});
+check(!directInterest.ok, 'direct table write denied even to operations');
+const directRuns = await api('/rest/v1/support_collection_runs?select=id',{token:operations.token});
+check(!directRuns.ok, 'collection audit storage cannot be directly read');
+await supportFinderBrowserFlow({apiUrl,publishableKey,operations,ceo,noticeId:importedId});
+sql(`update public.profiles set account_status='suspended' where id='${operations.id}'`);
+expectForbidden(await rpc('support_set_notice_interest',operations.token,
+  {p_notice_id:importedId,p_interested:true,p_expected_revision:2}), 'suspended operations writer denied');
+sql(`update public.profiles set account_status='active' where id='${operations.id}'`);
+sql("update public.platform_capabilities set active=false where code='support_radar.management_edit'");
+expectForbidden(await rpc('support_record_bizinfo_collection',operations.token,
+  {p_run_id:randomUUID(),p_status:'success',p_items:[]}), 'disabled capability denies operations collector');
+sql("update public.platform_capabilities set active=true where code='support_radar.management_edit'");
+for (const action of ['support_interest_changed','support_collection_recorded'])
+  check(Number(sql(`select count(*) from public.audit_logs where action='${action}'`))>=1, `${action} audited`);
+console.log(`support-radar-auth-integration.mjs: PASS (${assertions} assertions; synthetic upstream, real isolated Auth/API/DB/browser)`);

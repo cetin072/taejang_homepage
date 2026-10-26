@@ -14,6 +14,23 @@ test('official field aliases, ID, source URL and Korean end-of-day are normalize
   assert.equal(rows[1].deadline_at, null);
   assert.equal(rows[1].application_period, '예산 소진 시까지');
 });
+test('official documented envelope and legacy field names match the deployed array contract', async () => {
+  const documented = { jsonArray: { title:'기업마당 지원사업정보', item:fixture.jsonArray.map(row => ({
+    seq:row.pblancId||row.seq, title:row.pblancNm||row.title, link:row.pblancUrl||row.link, author:row.jrsdInsttNm||row.author,
+    excInsttNm:row.excInsttNm, trgetNm:row.trgetNm, description:row.bsnsSumryCn||row.description, reqstDt:row.reqstBeginEndDe||row.reqstDt
+  })) } };
+  assert.deepEqual(parse(documented),parse(fixture));
+  assert.deepEqual(parse({jsonArray:{item:[]}}),[]);
+  assert.throws(()=>parse({jsonArray:{title:'missing items'}}),/INVALID_RESPONSE/);
+  const collected=await collect({key:'fixture-only',fetchImpl:async url=>{
+    assert.equal(url.searchParams.get('pageIndex'),'1');
+    assert.equal(url.searchParams.get('pageUnit'),'100');
+    assert.equal(url.searchParams.get('searchCnt'),'100');
+    return new Response(JSON.stringify(documented));
+  }});
+  assert.equal(collected.status,'success_new');
+  assert.equal(collected.items.length,2);
+});
 test('invalid, reversed and non-date periods retain source text without invented deadline', () => {
   for (const value of ['20260230 ~ 20260301','20261201 ~ 20260101','상시','미정','']) assert.equal(period(value).deadline_at,null);
   assert.equal(period('20240201 ~ 20240229').deadline_at,'2024-02-29T23:59:59+09:00');
@@ -54,4 +71,14 @@ test('success with no new notices differs from failure and advances success time
   const second=await collect({key:'fixture-key',fetchImpl:reply(fixture),previous:first.notices});
   assert.equal(second.status,'success_no_new');assert.equal(second.added,0);assert.ok(second.last_success_at);
   assert.equal((await collect({key:'fixture-key',fetchImpl:reply({jsonArray:[]})})).status,'success_no_new');
+});
+
+test('collector hands only fetched items to persistence and records missing-auth status', async () => {
+  const {collectAndPersist}=await import('../scripts/support-radar/persist.mjs');
+  const calls=[];const rpc=async(name,args)=>{calls.push({name,args});return {status:args.p_status};};
+  const runId='10000000-0000-0000-0000-000000000001';
+  await collectAndPersist({key:'fixture-key',fetchImpl:reply(fixture),previous:[{source_code:'other',source_notice_id:'old',note:'local'}],rpc,runId});
+  assert.equal(calls[0].args.p_items.length,2);assert.equal(calls[0].args.p_run_id,runId);
+  await collectAndPersist({rpc,runId});
+  assert.equal(calls[1].args.p_status,'not_connected');assert.deepEqual(calls[1].args.p_items,[]);
 });

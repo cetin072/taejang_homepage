@@ -36,7 +36,7 @@
     { key:'payroll.handoff.approve', label:'외부 급여초안 검토', section:'근태·급여', capabilities:['payroll.handoff.approve'], visibleRoles:['operations_manager'] },
 
     { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
-    { key:'support.radar', label:'지원사업 레이더', section:'지원사업', capabilities:['support_radar.management_view'] },
+    { key:'support.radar', label:'태장 지원사업 찾기', section:'지원사업', capabilities:['support_radar.management_view'] },
     { key:'support.mywork', label:'내 지원사업', section:'지원사업', capabilities:['support_radar.assigned_work'] },
 
     { key:'platform.settings', label:'설정', section:null, capabilities:['platform.navigation.manage'], locked:true },
@@ -64,6 +64,7 @@
     '발행 현황':'promotion.publication',
     '홍보 검토 대기':'promotion.review',
     '홍보 승인 검토':'promotion.review',
+    '지원사업 레이더':'support.radar',
     '안내 관리':'guidance.manage'
   });
 
