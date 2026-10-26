@@ -76,10 +76,10 @@ test('one-off build guard accepts only untouched prior Production and writes gen
       { now: at, fetcher: mismatched }), /ONE_OFF_PUBLICATION_CHANGED/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
-test('normal 48-hour workflow and policy remain untouched', () => {
+test('expired one-off does not alter the current fixed schedule', () => {
   const regular = readFileSync(new URL('../.github/workflows/production-release.yml', import.meta.url), 'utf8');
   assert.match(regular, /cron: '20 8 \* \* \*'/);
-  assert.equal(config.schedule_interval_hours, 48);
+  assert.equal(config.schedule_interval_hours, 72);
   assert.equal(config.schedule_anchor_utc, '2026-10-19T08:20:00.000Z');
   assert.equal(validateOneOffHook(config, { ...env, INCOMING_HOOK_BODY: '{}' }, at), null);
 });

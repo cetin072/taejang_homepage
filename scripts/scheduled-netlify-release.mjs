@@ -7,18 +7,19 @@ import { pathToFileURL } from 'node:url';
 
 const HOUR = 3600000;
 const SHA = /^[a-f0-9]{40}$/;
+// Existing external hook identity; its legacy name is not the schedule policy.
 export const HOOK_TITLE = '48-hour approved main';
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 export function calendarSlot(config, at) {
   const anchor = Date.parse(config.schedule_anchor_utc), time = new Date(at).getTime();
-  if (!Number.isFinite(anchor) || !Number.isFinite(time) || config.schedule_interval_hours !== 48) throw new Error('INVALID_SCHEDULE');
-  const index = Math.floor((time - anchor) / (48 * HOUR)), start = anchor + index * 48 * HOUR;
+  if (!Number.isFinite(anchor) || !Number.isFinite(time) || config.schedule_interval_hours !== 72 || config.schedule_window_hours !== 24) throw new Error('INVALID_SCHEDULE');
+  const index = Math.floor((time - anchor) / (72 * HOUR)), start = anchor + index * 72 * HOUR;
   const due = index >= 1 && time < start + 24 * HOUR;
   return { status: due ? 'DUE' : 'WAITING_SLOT',
     slot: due ? { index, start_utc: new Date(start).toISOString(), expires_utc: new Date(start + 24 * HOUR).toISOString() } : null,
-    next_check_utc: new Date(anchor + Math.max(1, index + 1) * 48 * HOUR).toISOString() };
+    next_check_utc: new Date(anchor + Math.max(1, index + 1) * 72 * HOUR).toISOString() };
 }
-export function evaluateSchedule(config, run, history, now, eligibleAt = null) {
+export function evaluateSchedule(config, run, history, now) {
   if (!run?.id || run.head_branch !== 'main' || run.event !== 'schedule') throw new Error('INVALID_LIVE_RUN');
   const result = calendarSlot(config, run.created_at);
   if (result.status !== 'DUE') return result;
@@ -28,12 +29,6 @@ export function evaluateSchedule(config, run, history, now, eligibleAt = null) {
     if (other.id === run.id || other.event !== 'schedule' || other.head_branch !== 'main') continue;
     if (Date.parse(other.created_at) > Date.parse(run.created_at) || (other.created_at === run.created_at && BigInt(other.id) > BigInt(run.id))) continue;
     if (calendarSlot(config, other.created_at).slot?.index !== result.slot.index) continue;
-    // The prior wake-up can only be ignored when it completed before the
-    // minimum 48-hour interval elapsed. All uncertain, incomplete or later
-    // checks still block a second release attempt in this same slot.
-    if (eligibleAt !== null && Date.parse(other.created_at) < eligibleAt
-      && other.status === 'completed' && Number.isFinite(Date.parse(other.updated_at))
-      && Date.parse(other.updated_at) < eligibleAt) continue;
     return { ...result, status: 'SLOT_ALREADY_CHECKED' };
   }
   return result;
@@ -55,7 +50,7 @@ export function decide(config, published, head, files, now) {
   if (!changed.length) return { status: 'NO_CHANGES', source_main_sha: head, changes: [] };
   const elapsed = new Date(now) - new Date(published.published_at);
   if (!Number.isFinite(elapsed) || elapsed < 0) throw new Error('INVALID_PUBLICATION_TIME');
-  return { status: elapsed < 48 * HOUR ? 'WAITING_WINDOW' : 'READY', source_main_sha: head, changes: changed };
+  return { status: 'READY', source_main_sha: head, changes: changed };
 }
 export function validateHook(config, env, now) {
   if (env.CONTEXT !== 'production') return null;
@@ -67,9 +62,14 @@ export function validateHook(config, env, now) {
   if (!payload || typeof payload !== 'object') throw new Error('SCHEDULED_HOOK_REQUIRED');
   const age = new Date(now) - new Date(payload.issued_at);
   if (env.BRANCH !== 'main' || env.INCOMING_HOOK_TITLE !== HOOK_TITLE
-    || payload.version !== 1 || payload.repository !== config.repository || payload.site_id !== config.site_id
+    || ![1, 3].includes(payload.version) || payload.repository !== config.repository || payload.site_id !== config.site_id
     || !SHA.test(payload.source_main_sha || '') || payload.source_main_sha !== env.COMMIT_REF
     || !/^\d+$/.test(String(payload.run_id)) || !Number.isFinite(age) || age < 0 || age > 90 * 60000) throw new Error('HOOK_SOURCE_OR_TIME_INVALID');
+  if (payload.version === 3) {
+    if (payload.mode !== 'MANUAL_MAIN' || !Number.isFinite(Date.parse(payload.run_created_at))
+      || Date.parse(payload.run_created_at) > Date.parse(payload.issued_at)) throw new Error('MANUAL_HOOK_INVALID');
+    return payload;
+  }
   const slot = calendarSlot(config, payload.run_created_at);
   if (slot.status !== 'DUE' || payload.slot_index !== slot.slot.index
     || new Date(now) < new Date(slot.slot.start_utc) || new Date(now) >= new Date(slot.slot.expires_utc)) throw new Error('HOOK_SLOT_INVALID');
@@ -103,9 +103,15 @@ export async function trigger(config, payload, hookUrl, { fetcher = fetch, wait 
   catch { throw new Error(acknowledged ? 'PUBLICATION_NOT_CONFIRMED' : 'HOOK_ACK_OR_PUBLICATION_FAILED'); }
 }
 export async function runCycle({ config, env, api, snapshot, head, files, preflight, refresh, post, now = () => new Date() }) {
-  const dryRun = env.GITHUB_EVENT_NAME !== 'schedule';
+  const manual = env.GITHUB_EVENT_NAME === 'workflow_dispatch' && env.RELEASE_ACTION === 'deploy-now';
+  const dryRun = env.GITHUB_EVENT_NAME !== 'schedule' && !manual;
   let schedule = calendarSlot(config, now()), run, published;
-  if (!dryRun) {
+  if (manual) {
+    if (env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_REPOSITORY !== config.repository) throw new Error('MAIN_MANUAL_REQUIRED');
+    run = await api('/actions/runs/' + env.GITHUB_RUN_ID);
+    if (!run?.id || run.event !== 'workflow_dispatch' || run.head_branch !== 'main') throw new Error('INVALID_MANUAL_RUN');
+    if (run.run_attempt > 1) return { status: 'RUN_ALREADY_CHECKED' };
+  } else if (!dryRun) {
     if (env.GITHUB_REF !== 'refs/heads/main' || env.GITHUB_REPOSITORY !== config.repository) throw new Error('MAIN_SCHEDULE_REQUIRED');
     run = await api('/actions/runs/' + env.GITHUB_RUN_ID);
     schedule = calendarSlot(config, run.created_at);
@@ -113,30 +119,26 @@ export async function runCycle({ config, env, api, snapshot, head, files, prefli
     const query = new URLSearchParams({ branch: 'main', per_page: '100', created: schedule.slot.start_utc + '..' + schedule.slot.expires_utc });
     const history = await api('/actions/workflows/' + config.workflow + '/runs?' + query);
     if (!Array.isArray(history.workflow_runs) || history.total_count > history.workflow_runs.length || history.workflow_runs.length >= 100) throw new Error('SLOT_HISTORY_INCOMPLETE');
-    // Before deduplication, compare prior wake-up completion against the
-    // actual published Production timestamp plus the strict 48-hour delay.
-    published = publishedDeploy(await snapshot(), config.site_id);
-    schedule = evaluateSchedule(config, run, history.workflow_runs, now(),
-      Date.parse(published.published_at) + 48 * HOUR);
+    schedule = evaluateSchedule(config, run, history.workflow_runs, now());
     if (schedule.status !== 'DUE') return schedule;
   }
   published ??= publishedDeploy(await snapshot(), config.site_id);
   const sha = await head();
-  const plan = { ...decide(config, published, sha, await files(published.commit_ref, sha), now()),
+  const plan = { ...decide(config, published, sha, await files(published.commit_ref, sha), now(), { manual }),
     next_check_utc: schedule.next_check_utc };
   if (plan.status !== 'READY') return plan;
   const ready = await preflight(published.commit_ref, sha);
   if (ready.status !== 'READY') return { ...plan, ...ready };
   if (dryRun) return { ...plan, status: 'DRY_RUN_READY', schedule_status: schedule.status };
   // Revalidate live slot, main and actual public release immediately before one POST.
-  if (evaluateSchedule(config, run, [], now()).status !== 'DUE') return { ...plan, status: 'MISSED_SLOT' };
+  if (!manual && evaluateSchedule(config, run, [], now()).status !== 'DUE') return { ...plan, status: 'MISSED_SLOT' };
   if (await refresh() !== sha) return { ...plan, status: 'MAIN_MOVED' };
   const latest = publishedDeploy(await snapshot(), config.site_id);
   if (latest.id !== published.id || latest.commit_ref !== published.commit_ref) return { ...plan, status: 'PUBLICATION_CHANGED' };
-  if (decide(config, latest, sha, plan.changes, now()).status !== 'READY') return { ...plan, status: 'WAITING_WINDOW' };
-  return { ...plan, ...await post({ version: 1, repository: config.repository, site_id: config.site_id,
+  if (decide(config, latest, sha, plan.changes, now(), { manual }).status !== 'READY') return { ...plan, status: 'WAITING_WINDOW' };
+  return { ...plan, ...await post({ version: manual ? 3 : 1, ...(manual ? { mode: 'MANUAL_MAIN' } : {}), repository: config.repository, site_id: config.site_id,
     source_main_sha: sha, run_id: String(run.id), run_created_at: run.created_at,
-    slot_index: schedule.slot.index, issued_at: now().toISOString() }) };
+    ...(manual ? {} : { slot_index: schedule.slot.index }), issued_at: now().toISOString() }) };
 }
 // One user-authorized exception on 2026-10-22 for Taejang ONLY.
 // Expires tonight KST; never alters the 48-hour cron, normal scheduled guard or policy.
@@ -196,7 +198,7 @@ export async function guard(config, env = process.env, { fetcher = fetch, now = 
   if (!payload) return { status: 'PREVIEW_ALLOWED' };
   const published = publishedDeploy(await publicSite(config, fetcher), config.site_id);
   if (published.commit_ref === payload.source_main_sha) throw new Error('ALREADY_PUBLISHED');
-  if (new Date(now) - new Date(published.published_at) < 48 * HOUR) throw new Error('WAITING_WINDOW');
+  if (new Date(now) < new Date(published.published_at)) throw new Error('INVALID_PUBLICATION_TIME');
   if (config.marker_path) {
     const markerPath = resolve(config.marker_path);
     let previous = {};
@@ -204,9 +206,9 @@ export async function guard(config, env = process.env, { fetcher = fetch, now = 
     mkdirSync(dirname(markerPath), { recursive: true });
     writeFileSync(markerPath, JSON.stringify({ ...previous, source_main_sha: payload.source_main_sha,
       released_at_utc: now.toISOString(), released_on_kst: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(now),
-      interval_days: 2, release_attempt: (previous.release_attempt || 0) + 1, release_run_id: payload.run_id }, null, 2) + '\n');
+      interval_days: config.production_interval_days, release_attempt: (previous.release_attempt || 0) + 1, release_run_id: payload.run_id }, null, 2) + '\n');
   }
-  return { status: 'SCHEDULED_PRODUCTION_ALLOWED', source_main_sha: payload.source_main_sha };
+  return { status: payload.version === 3 ? 'MANUAL_PRODUCTION_ALLOWED' : 'SCHEDULED_PRODUCTION_ALLOWED', source_main_sha: payload.source_main_sha };
 }
 async function cli() {
   const [mode, configPath] = process.argv.slice(2);
@@ -240,7 +242,7 @@ async function cli() {
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   try { await cli(); } catch (error) {
     const message = /^[A-Z][A-Z0-9_]+$/.test(error.message || '') ? error.message : 'RELEASE_CHECK_FAILED';
-    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Production check failed: ' + message + '\nPrevious public deployment remains authoritative. Retry at next 48-hour slot.\n');
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, 'Production check failed: ' + message + '\nPrevious public deployment remains authoritative. Use a new explicit manual run or wait for the next fixed slot.\n');
     if (process.env.RELEASE_RESULT_PATH) writeFileSync(process.env.RELEASE_RESULT_PATH, JSON.stringify({ status: 'FAILED', reason: message }) + '\n');
     console.error(message); process.exitCode = 1;
   }
