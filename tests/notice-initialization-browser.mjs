@@ -23,7 +23,9 @@ const server = http.createServer(async (req, res) => {
       const response = await fetch(preview + '/' + file);
       assert.equal(response.status, 200, file);
       body = await response.text();
-      assert.equal(body, await fs.readFile(path.join(root, file), 'utf8'), 'exact-head Preview asset ' + file);
+      // Netlify rewrites home links and appends its Preview toolbar to HTML.
+      // Executable/controller and style bytes must still match the tested HEAD.
+      if (/\.(js|css)$/.test(file)) assert.equal(body, await fs.readFile(path.join(root, file), 'utf8'), 'exact-head Preview asset ' + file);
     } else body = await fs.readFile(path.join(root, file), 'utf8');
     if (file === 'app/index.html') {
       // Keep actual bootstrap and panel navigation; unrelated enhancements have
@@ -79,7 +81,7 @@ async function boot(width, role, task, simulation = false) {
     if (name === 'list_manageable_notices_page') {
       if (control.delay) await new Promise(resolve => setTimeout(resolve, control.delay));
       if (control.fail) return send({ message: control.fail }, control.fail === 'FORBIDDEN' ? 403 : 503);
-      const make = (id, title, end) => ({ id, title, body_easy: '합성 공지 본문', notice_kind: 'general', importance: 'normal', status: 'published', target_scope: 'company', publish_start_at: '2026-01-01T00:00:00Z', publish_end_at: end, media: [], can_edit: control.role === 'operations_manager', can_lead_edit: false, can_read_ack_summary: false });
+      const make = (id, title, end) => ({ id, title, body_easy: '합성 공지 본문', notice_kind: 'general', importance: 'normal', status: 'published', target_scope: 'company', publish_start_at: '2026-01-01T00:00:00Z', publish_end_at: end, version_no: 1, media: [], can_edit: control.role === 'operations_manager', can_lead_edit: false, can_read_ack_summary: false });
       const items = args.p_search === '없음' ? [] : [make('published', '전 직원 공지', '2099-01-01T00:00:00Z'), make('expired', '게시기간 종료 공지', '2026-02-01T00:00:00Z')];
       return send({ items, total: items.length, has_more: false });
     }
