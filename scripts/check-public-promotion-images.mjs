@@ -28,7 +28,7 @@ try {
   const post={id,mediaCount:item.public_media.length,og,ogStatus:imageResponse.status,browser:[]};
   for(const width of report.widths){
    const context=await browser.newContext({viewport:{width,height:950}});const page=await context.newPage();
-   await page.goto(base+'/promotion.html?id='+id,{waitUntil:'networkidle'});
+   await page.goto(base+'/promotion.html?id='+id,{waitUntil:'domcontentloaded'});
    await page.locator('.article-representative-media img').scrollIntoViewIfNeeded();
    await page.locator('.article-representative-media img').evaluate(image=>image.decode());
    const result=await page.locator('.article-representative-media img').evaluate(image=>({src:image.currentSrc,naturalWidth:image.naturalWidth,complete:image.complete}));
@@ -42,8 +42,9 @@ try {
  }
  for(const route of ['/','/archive.html']){
   const context=await browser.newContext({viewport:{width:390,height:844}});const page=await context.newPage();
-  await page.goto(base+route,{waitUntil:'networkidle'});
+  await page.goto(base+route,{waitUntil:'domcontentloaded'});
   const cards=page.locator('a[href*="promotion.html?id="] img');
+  await cards.first().waitFor({state:'attached'});
   const count=await cards.count();assert.ok(count>0,'no promotion cards on '+route);
   for(let i=0;i<count;i++){const image=cards.nth(i);await image.scrollIntoViewIfNeeded();await image.evaluate(node=>node.decode());}
   const broken=await cards.evaluateAll(images=>images.filter(image=>!image.complete||!image.naturalWidth).length);
