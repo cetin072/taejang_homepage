@@ -2,14 +2,13 @@
   'use strict';
 
   const PANEL_CAPABILITIES = Object.freeze({
-    'today-admin-panel': 'task.manage',
     'schedule-admin-panel': 'schedule.manage',
     'notice-admin-panel': 'notice.manage',
     'guidance-admin-panel': 'guidance.manage'
   });
 
   const NAV_CAPABILITIES = Object.freeze({
-    '업무 배정': 'task.manage',
+    '작업 매뉴얼': 'guidance.manage',
     '일정 관리': 'schedule.manage',
     '공지 관리': 'notice.manage',
     '상시 안내 관리': 'guidance.manage',
@@ -138,7 +137,6 @@
     event.stopImmediatePropagation();
     event.preventDefault?.();
     const labels = {
-      'today-admin-panel': '업무 배정',
       'schedule-admin-panel': '일정 관리',
       'notice-admin-panel': '공지 관리',
       'guidance-admin-panel': '상시 안내 관리'

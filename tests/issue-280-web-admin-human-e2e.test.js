@@ -23,11 +23,10 @@ const onboarding = read('supabase/migrations/20260919235000_issue_274_mobile_onb
 const employeeAppAttendance = read('supabase/migrations/20260922010000_goal_329_employee_app_attendance_qa.sql');
 
 test('promotion lead operational capabilities appear through the shared master sidebar without gaining payroll management', () => {
-  for (const capability of ['task.manage', 'schedule.manage', 'notice.manage']) {
+  for (const capability of ['schedule.manage', 'notice.manage']) {
     assert.match(migration, new RegExp(`'${capability.replace('.', '\\.')}'`));
     assert.match(gates, new RegExp(`'${capability.replace('.', '\\.')}'`));
   }
-  assert.match(dashboard, /label: '업무 배정'[\s\S]*task\.manage/);
   assert.doesNotMatch(dashboard, /label: '일정 관리'/);
   assert.match(dashboard, /label: '공지 관리'[\s\S]*notice-admin-panel[\s\S]*notice\.manage/);
   assert.match(dashboard, /function masterMenuItems\(\)/);
@@ -41,8 +40,6 @@ test('promotion lead management modules initialize through capability context an
   assert.match(capabilityAccess, /taejang-capability-access-ready/);
   assert.match(app, /\{ source: 'assets\/schedule-admin\.js', capability: 'schedule\.manage' \}/);
   assert.match(app, /\{ source: 'assets\/notice-admin\.js', capability: 'notice\.manage' \}/);
-  assert.match(app, /if \(canManage\('task\.manage'\)\) await loadAdminData\(\)/);
-  assert.match(app, /if \(!canManage\('task\.manage'\)\) return;/);
   assert.match(scheduleAdmin, /app\.can\?\.\('schedule\.manage'\)/);
   assert.match(scheduleAdmin, /bind\(\);\s*resetForm\(\);/);
   assert.match(scheduleAdmin, /list_manageable_schedules/);
@@ -53,7 +50,6 @@ test('promotion lead management modules initialize through capability context an
   assert.match(noticeAdmin, /app\.rpc\('get_today_board_admin_options'\)/);
   assert.match(noticeAdmin, /list_manageable_notices/);
   assert.match(noticeAdmin, /save_notice/);
-  assert.match(workspace, /'today-admin-panel': 'task\.manage'/);
   assert.match(workspace, /'schedule-admin-panel': 'schedule\.manage'/);
   assert.match(workspace, /'notice-admin-panel': 'notice\.manage'/);
   for (const rpc of ['get_today_board_admin_options', 'list_manageable_today_records', 'save_daily_work_assignment', 'list_manageable_schedules', 'save_schedule_item', 'list_manageable_notices', 'save_notice']) {
@@ -63,8 +59,6 @@ test('promotion lead management modules initialize through capability context an
 
 test('promotion lead never loads or opens guidance administration without guidance.manage', () => {
   assert.match(app, /\{ source: 'assets\/guidance-admin\.js', capability: 'guidance\.manage' \}/);
-  assert.match(app, /\{ source: 'assets\/work-guide-admin\.js', capability: 'guidance\.manage' \}/);
-  assert.match(workspace, /app\.can\?\.\('guidance\.manage'\)/);
   assert.match(guidanceAdmin, /app\.can\?\.\('guidance\.manage'\)/);
   assert.doesNotMatch(migration, /\('promotion_lead',\s*'guidance\.manage'\)/);
   for (const rpc of ['save_work_guide', 'save_work_guide_step', 'save_staff_guidance']) {

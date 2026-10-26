@@ -251,7 +251,7 @@ test('unfinished manager manual is absent from the base shell instead of removed
 });
 
 test('admin panels mount inside the app workspace before they can open', () => {
-  for (const id of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
+  for (const id of ['schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
     assert.ok(surface.includes(`'${id}'`), `missing workspace panel ${id}`);
   }
   assert.match(surface, /document\.querySelector\('\.app-workspace'\)/);

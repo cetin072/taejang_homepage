@@ -10,7 +10,6 @@ try {
     ['virtual Auth users', `/auth/v1/admin/users?per_page=1000`],
     ['QA profiles', `/rest/v1/profiles?work_email=like.*%40${EMAIL_DOMAIN}&select=id`],
     ['QA work groups', `/rest/v1/work_groups?name=like.${encodeURIComponent(`${PREFIX}*`)}&select=id`],
-    ['QA today work', `/rest/v1/daily_work_assignments?title=like.${encodeURIComponent(`${PREFIX}*`)}&select=id`],
     ['QA work guides', `/rest/v1/work_guides?title=like.${encodeURIComponent(`${PREFIX}*`)}&select=id`],
     ['QA schedules', `/rest/v1/schedule_items?title=like.${encodeURIComponent(`${PREFIX}*`)}&select=id`],
     ['QA notices', `/rest/v1/notices?title=like.${encodeURIComponent(`${PREFIX}*`)}&select=id`],

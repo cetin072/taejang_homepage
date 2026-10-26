@@ -74,7 +74,7 @@
     injectStyles();
     document.getElementById('desktop-app-shell')?.classList.remove('sidebar-open');
     document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'false');
-    for (const id of ['today-admin-panel', 'schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
+    for (const id of ['schedule-admin-panel', 'notice-admin-panel', 'guidance-admin-panel']) {
       const panel = document.getElementById(id);
       if (panel) panel.hidden = true;
     }

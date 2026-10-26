@@ -62,7 +62,6 @@ test('Today screen follows the required read-first information order', () => {
     'today-date',
     'today-worker-name',
     'work-hours-list',
-    'task-list',
     'information-list',
     'work-guide-panel'
   ];
@@ -73,7 +72,7 @@ test('Today screen follows the required read-first information order', () => {
 });
 
 test('Today detail has no worker progress, completion, quantity, or attendance actions', () => {
-  const workerSection = HTML.match(/<section id="general-worker-board"[\s\S]*?<\/section>\s*<section id="today-admin-panel"/)?.[0] || '';
+  const workerSection = HTML.match(/<section id="general-worker-board"[\s\S]*?<\/section>\s*<section id="schedule-admin-panel"/)?.[0] || '';
   for (const forbidden of ['업무 시작', '업무 완료', '진행률', '생산수량', '실적 입력', '출근', '퇴근', '문제 보고']) {
     assert.doesNotMatch(workerSection, new RegExp(forbidden));
   }
@@ -81,9 +80,9 @@ test('Today detail has no worker progress, completion, quantity, or attendance a
 });
 
 test('empty, cancelled, guide-missing, loading, and error states use actionable easy messages', () => {
-  assert.equal(board.emptyMessage(), '오늘 등록된 업무가 없습니다. 담당 반장에게 확인하세요.');
+  assert.equal(board.emptyMessage(), '오늘 등록된 일정이나 안내가 없습니다.');
   assert.equal(board.guideMessage(null), '등록된 작업방법이 없습니다. 담당 반장에게 확인하세요.');
-  assert.match(APP, /이 업무는 취소되었습니다\. 담당 반장에게 확인하세요\./);
+  assert.doesNotMatch(APP, /renderTasks|fillTaskForm/);
   assert.match(APP, /오늘 정보를 불러오고 있습니다\./);
   assert.match(APP, /정보를 불러오지 못했습니다\. 잠시 후 새로고침해주세요\./);
 });
@@ -98,16 +97,10 @@ test('multiple tasks are sorted by start time without automatic performance judg
   assert.doesNotMatch(APP, /현재 진행|지연 판단|실적 판단|자동 완료/);
 });
 
-test('manager interface supports create, edit, cancel, deactivate, target scope, and change reason', () => {
-  for (const id of ['task-form', 'information-form', 'guide-form', 'task-scope', 'information-scope', 'task-reason', 'information-reason']) {
-    assert.match(HTML, new RegExp(`id="${id}"`));
-  }
-  assert.match(HTML, /value="cancelled">취소/);
-  assert.match(HTML, /value="inactive">사용 중지/);
-  assert.match(APP, /save_daily_work_assignment/);
-  assert.match(APP, /save_today_information_item/);
-  assert.match(APP, /fillTaskForm/);
-  assert.match(APP, /fillInformationForm/);
+test('assignment page and legacy embedded editors are removed from Web', () => {
+  for (const id of ['today-admin-panel','task-form','information-form','guide-form','task-list']) assert.doesNotMatch(HTML, new RegExp(`id="${id}"`));
+  assert.doesNotMatch(APP, /save_daily_work_assignment|save_today_information_item|fillTaskForm|fillInformationForm/);
+  for (const id of ['notice-form','schedule-form','guidance-form']) assert.match(HTML, new RegExp(`id="${id}"`));
 });
 
 test('CI runs migrations, pgTAP, legacy Auth tests, and Today Auth/Data API tests', () => {
@@ -122,7 +115,6 @@ test('CI runs migrations, pgTAP, legacy Auth tests, and Today Auth/Data API test
 test('work guide experience is modular, read-only, and has accessible step controls', () => {
   const migration = fs.readFileSync(path.join(ROOT, 'supabase/migrations/20260723000300_accessible_work_guides.sql'), 'utf8');
   const worker = fs.readFileSync(path.join(ROOT, 'app/assets/work-guide-worker.js'), 'utf8');
-  const admin = fs.readFileSync(path.join(ROOT, 'app/assets/work-guide-admin.js'), 'utf8');
   assert.match(migration, /create table public\.work_guide_steps/i);
   assert.match(migration, /unique \(work_guide_id, step_order\)/i);
   assert.match(migration, /INVALID_PUBLISHED_STEP_COUNT/);
@@ -137,7 +129,5 @@ test('work guide experience is modular, read-only, and has accessible step contr
   assert.match(HTML, /id="back-from-detail-today"/);
   assert.match(worker, /get_my_work_guide_detail/);
   assert.match(worker, /imageOrNotice/);
-  assert.match(admin, /save_work_guide_step/);
-  assert.match(admin, /reorder_work_guide_steps/);
   assert.doesNotMatch(worker, /완료|진행률|평가|점수/);
 });

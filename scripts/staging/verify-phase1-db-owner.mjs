@@ -32,7 +32,7 @@ try {
       (select count(*) from public.staff_guidance_items where title = '${PREFIX} [TEST] 자주 보는 안내' and status = 'published') as guidance;
   `);
   const row = Array.isArray(result) ? result[0] : result?.result?.[0];
-  const expected = { test_users: '2', active_profiles: '2', active_expected_roles: '2', test_departments: '1', test_groups: '1', guides: '1', assignments: '1', schedules: '1', notices: '1', guidance: '1' };
+  const expected = { test_users: '2', active_profiles: '2', active_expected_roles: '2', test_departments: '1', test_groups: '1', guides: '1', assignments: '0', schedules: '1', notices: '1', guidance: '1' };
   for (const [key, value] of Object.entries(expected)) if (String(row?.[key]) !== value) throw new Error(`DB owner verification failed for ${key}.`);
-  console.log('DB owner minimal TEST verification passed: 2 accounts, organization, and 5 information samples.');
+  console.log('DB owner minimal TEST verification passed: 2 accounts, organization, and 4 information samples; retired assignments absent.');
 } catch (error) { console.error(`STOP: ${error.message}`); process.exitCode = 2; }

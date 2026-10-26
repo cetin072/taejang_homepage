@@ -80,7 +80,7 @@ test('seed specification defaults to two TEST accounts and keeps the full nine-a
   for (const name of ['검수 최고관리자 1', '검수 최고관리자 2', '검수 대표', '검수 운영총괄', '검수 팀장', '검수 현장책임자', '검수 사무직', '검수 근로자 1', '검수 근로자 2']) assert.match(spec, new RegExp(name));
   assert.match(spec, /STAGING_FULL_QA_CONFIRM/);
   assert.match(spec, /FULL_QA/);
-  for (const label of ['오늘 업무', '일정', '중요공지', '포장 작업방법', '자주 보는 안내']) assert.match(seed, new RegExp(label));
+  for (const label of ['일정', '중요공지', '포장 작업방법', '자주 보는 안내']) assert.match(seed, new RegExp(label));
   assert.match(read('scripts/staging/shared.mjs'), /staging\.invalid/);
   assert.doesNotMatch(seed, /@taejang\.co\.kr/i);
 });

@@ -101,7 +101,7 @@ try {
         throw error;
       });
       await page.locator('[data-notice-id="expired"]').waitFor();
-      assert.equal(calls.filter(c => c.name === 'list_manageable_today_records').length, task ? 1 : 0);
+      assert.equal(calls.filter(c => c.name === 'list_manageable_today_records').length, 0);
       assert.equal(calls.filter(c => c.name === 'list_manageable_notices_page').length, 1, 'bootstrap/menu must share one in-flight query');
       await page.screenshot({ path: path.join(output, `${role}-${simulation}-${width}.png`), fullPage: true });
       control.delay = 100;

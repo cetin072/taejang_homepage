@@ -200,50 +200,6 @@
     }
   }
 
-  function managementLabels() {
-    if (!['super_admin', 'operations_manager', 'department_lead', 'field_lead'].includes(route())) return;
-    const nav = document.getElementById('app-nav');
-    if (nav) {
-      [...nav.querySelectorAll('button')].forEach(node => {
-        if (node.textContent === '오늘 관리') node.textContent = '업무 배정';
-        if (node.textContent === '작업방법 관리') node.textContent = '작업 매뉴얼';
-        if (node.textContent === '업무 배정' && !node.dataset.pilotTaskNav) {
-          node.dataset.pilotTaskNav = '1';
-          node.addEventListener('click', () => setTimeout(() => focusAdminEditor('오늘 업무 등록·수정'), 30));
-        }
-        if (node.textContent === '작업 매뉴얼' && !node.dataset.pilotGuideNav) {
-          node.dataset.pilotGuideNav = '1';
-          node.addEventListener('click', () => setTimeout(() => focusAdminEditor('작업방법 기본정보 등록·수정'), 30));
-        }
-      });
-    }
-    const target = main();
-    if (target) {
-      [...target.querySelectorAll('button')].forEach(node => {
-        if (node.textContent === '오늘 관리') node.textContent = '업무 배정';
-        if (node.textContent === '작업방법 관리') node.textContent = '작업 매뉴얼';
-      });
-      [...target.querySelectorAll('h3')].forEach(node => { if (node.textContent === '작업방법') node.textContent = '작업 매뉴얼'; });
-    }
-    const title = document.getElementById('today-admin-title');
-    if (title) title.textContent = '업무 배정·오늘 관리';
-    const summaries = [...document.querySelectorAll('#today-admin-panel details > summary')];
-    summaries.forEach(summary => {
-      if (summary.textContent.trim() === '오늘 업무 등록·수정') summary.textContent = '새 업무 배정·수정';
-      if (summary.textContent.trim() === '작업방법 기본정보 등록·수정') summary.textContent = '작업 매뉴얼 등록·수정';
-      if (summary.textContent.trim() === '작업순서 등록·수정') summary.textContent = '작업 매뉴얼 단계 등록·수정';
-    });
-  }
-
-  function focusAdminEditor(summaryText) {
-    const summaries = [...document.querySelectorAll('#today-admin-panel details > summary')];
-    const wanted = summaries.find(summary => summary.textContent.includes(summaryText.includes('오늘') ? '업무' : '매뉴얼'));
-    if (!wanted) return;
-    const details = wanted.parentElement;
-    details.open = true;
-    details.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   function findFormLabel(form, text) {
     return [...form.querySelectorAll('label')].find(label => label.querySelector(':scope > span')?.textContent.trim() === text || label.childNodes[0]?.textContent?.trim() === text);
   }
@@ -601,8 +557,7 @@
 
   function scheduleEnhancements() {
     setTimeout(() => {
-      managementLabels();
-      renderManagementCalendar();
+        renderManagementCalendar();
       enhancePromotionWorkspace();
     }, 180);
   }
@@ -613,7 +568,6 @@
   document.addEventListener('taejang-open-promotion-workspace', () => setTimeout(enhancePromotionWorkspace, 260));
 
   const observer = new MutationObserver(() => {
-    managementLabels();
     const target = main();
     const heading = target?.querySelector('.dashboard-intro h2')?.textContent || '';
     if (!['작성과 보완', '홍보 검토', '홍보 검토 · 작성'].includes(heading)) return;

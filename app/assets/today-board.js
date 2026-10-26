@@ -69,15 +69,14 @@
   }
 
   function boardState(board) {
-    const tasks = array(board?.tasks);
     const workHours = array(board?.work_hours);
     const information = array(board?.information);
-    if (!tasks.length && !workHours.length && !information.length) return 'empty';
+    if (!workHours.length && !information.length) return 'empty';
     return 'ready';
   }
 
   function emptyMessage() {
-    return '오늘 등록된 업무가 없습니다. 담당 반장에게 확인하세요.';
+    return '오늘 등록된 일정이나 안내가 없습니다.';
   }
 
   function guideMessage(guide) {

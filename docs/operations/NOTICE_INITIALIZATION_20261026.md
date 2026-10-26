@@ -1,80 +1,61 @@
-# 공지 관리 독립 초기화 — 2026-10-26
+# 공지 독립 초기화 및 업무 배정 Web 제거 — 2026-10-26
 
-## 요청 및 범위
+## 최종 승인 범위
 
-사용자 실행 지시: 공통 공지 UI 유지, 기능 초기화 독립, 서버 권한 경계 보존.
-기준: AGENTS.md, 플랫폼 헌법 §4, Web Architecture Adoption, #446, #489, 병합된 #491.
-기준 main: `219951894d0cc236f9828bb7c540bed851b5618b`.
-새 화면·라이브러리·API·migration·권한 정책 변경 없음.
+최초 요청: 공통 공지 UI 유지·초기화 독립·기존 서버 권한 보존.
+후속 사용자 지시: 홈페이지 전 직책에서 업무 배정 메뉴와 관련 항목 전체 제거.
+추가 명시 승인: 기존 저장 업무 배정도 모두 삭제, 보관/복구 화면 불필요.
+main 병합·Production 웹 배포 승인은 이 요청과 별개다.
+기준 AGENTS.md, 플랫폼 헌법 §4, #446/#489/#491. 기존 Draft PR #535에서 계속한다.
 
-## 재현으로 확인한 결함
+## 확인한 문제와 수정 구조
 
-이전 구조: `app.js/loadAdminData(task.manage)` → options/업무목록 `Promise.all`
-성공 → `taejang-admin-options-ready` → 공지 `options` 설정/조회.
-공지 메뉴 진입도 `options`가 없으면 조회를 실행하지 않았다.
-따라서 업무 API 실패 또는 task.manage 미부여 시 공지 요청 자체가 누락된다.
-실제 app.js/공지 DOM/컨트롤러를 Chrome에서 실행하고 업무 API만 503으로
-만들면, options RPC는 실행되지만 공지 목록 RPC는 0회이고 오류 안내도 없었다.
-`NOTICE_INIT_BASELINE_REF=origin/main`으로 동일 회귀를 재현할 수 있다.
+이전: loadAdminData(task.manage)의 업무/옵션 Promise.all 성공 → 옵션 이벤트 → 공지 조회.
+업무 API 503 재현 시 공지 목록 요청 0회·상태 안내 없음. options가 없으면 메뉴 진입도 조용히 종료했다.
+공지 모듈이 메뉴 진입에서 기존 공지 RPC/선택 데이터 조회를 직접 소유하도록 수정했다.
+진행 중 같은 검색 공유, 이전 계정/역할 응답 무시, 빈 결과/오류/403 구분, 기존 관련 ID 보존.
+공지 UI·쓰기 RPC/RLS·승인 정책은 그대로다. 현재 promotion_lead는 task.manage와 notice.manage 둘 다 있으므로
+실제 신고의 원인을 task 권한 미부여로 단정하지 않는다. 당시 개별 HTTP 응답은 NOT_VERIFIED.
 
-신고 당시 직원/미리보기 세션의 개별 실패 응답은 확보하지 못했다.
-따라서 재현된 구조 결함과 그 당시 특정 HTTP 실패를 동일시하지 않는다.
+최종 구조: 업무 배정 메뉴·오늘 업무 표시·입력/수정 폼·legacy 일정/공지/작업방법 관리 폼 제거.
+app.js의 업무 조회/저장/이벤트/공유 초기화 책임을 삭제했다.
+같은 옛 페이지에 들어 있던 미완성 관리자 작업방법 편집기도 제거하되 직원용 작업방법 조회/자료는 유지한다.
+새 메뉴·대체 관리 시스템·보관함을 만들지 않는다.
+별도 공지/일정/상시 안내는 자신의 옵션과 목록을 조회한다. 업무 준비 이벤트 소비자는 더 이상 없다.
+기존 메뉴 순서 설정의 task.manage 잔재는 정규화 시 제거한다. 과거 deep link/직접 open 이벤트로 복원되지 않는다.
+공유되는 직원용 작업방법 메타 스타일은 남기고 배정 전용 CSS만 삭제한다.
+일상 업무 배정과 다른 근태 휴일근무·인사 역할 배정·지원사업 담당 배정은 변경하지 않는다.
 
-## 수정 구조
+## 운영 자료 삭제 증거
 
-- 기존 메뉴 진입 → 공지 모듈이 자기 목록/옵션을 조회한다.
-- 목록은 기존 list_manageable_notices_page/get_manageable_notice를 재사용한다.
-- 관리자 옵션/일정 선택기는 별도 선택 데이터이며 실패·지연해도 목록을 막지 않는다.
-- 기존 이벤트 수신 제거. 같은 진행 중 검색은 공유하고 다른 검색의 늦은 응답은 무시한다.
-- 같은 계정의 app-ready 재실행은 입력/사진을 초기화하지 않는다.
-- 계정/유효 역할/공지 capability 변경은 이전 목록·선택·편집 상태를 지우고 늦은 응답을 버린다.
-- 옵션을 못 읽어도 기존 관련 자료/일정 ID를 입력에서 보존한다.
-- 로딩/빈 결과/실패/권한 거부를 구분한다.
-- app.js는 다른 기존 소비자의 이벤트를 유지한다. 공지 파일만 런타임 변경한다.
+공유 운영 DB: jgsxpdflgkqroecfjzxq (프로젝트 이름은 staging이나 실사용 공유 DB).
+삭제 전 daily_work_assignments 2건, field_assignment_employee_overrides 0건.
+업무 배정 FK 연결·트리거를 먼저 확인했다. 직원별 예외 FK는 RESTRICT이며 관련 행은 없었다.
+첫 다중문 요청은 requestState 오류로 실패했고, 재조회로 2건이 남아 있음을 확인했다.
+별도 원자적 DELETE는 기존 2건 및 연결 예외 0건 조건에서 실행했고 실제 반환 삭제 수는 2다.
+재조회: 업무 배정 0, 예외 0. 공지 11/일정 1/작업방법 1건은 전후 동일하다.
+공지·직원·급여·근태·Storage 수정·DB migration·권한 변경은 하지 않았다.
+업무 배정 자료를 다시 만드는 hosted QA seed 입력도 제거했다.
+과거 migration/RPC 및 공통 보안 감사 이력은 서버 호환·독립 기능 의존 때문에 임의 삭제하지 않는다.
+운영 record 삭제는 사용자 후속 승인에 따른 조치이며 최초 읽기 전용 지시와 구분한다.
 
-## 역할 및 운영 읽기 대조
+## 검증
 
-운영총괄/운영팀장은 동일한 목록·작성기·상세·미리보기를 사용한다.
-can_edit/can_lead_edit 등 기존 서버 응답으로 버튼을 제한하며 최종 쓰기 권한은 RPC/RLS에 있다.
-팀장의 타인 공개 company 공지/종료 이력 조회와 자기 routine 공지 작성·게시는 유지한다.
-타인 초안·미래 예약·승인/중요공지 수정 권한을 추가하지 않는다.
+- Web 정적 596, stagingSafety 16 및 배포 dist build를 실행한다. 최종 결과는 PR 댓글 참조.
+- 실제 app bootstrap의 390/1440 × 모든 8개 역할에서 제거된 DOM/API 및 과거 open 이벤트를 검사한다.
+- 기존 sidebar/menu 주소·키보드·실제 mouse drag/save/reload 회귀로 제거 후 메뉴 정렬을 검사한다.
+- 공지 Chrome 390/1440 × 운영총괄/팀장/팀장 미리보기 합성 계약 6조합,
+  notice.manage only·옵션 지연/실패·빈 결과·403/503·재진입/권한 갱신·새로고침을 검사한다.
+- 기존 공지 작성·사진 320/390/1280, 목록/검색/동일 ID 저장/휴지통 320/390/1440을 재사용한다.
+- 격리 localhost Auth/RPC/RLS/Storage와 실제 브라우저 공지 저장→게시→정확 ID 재조회는 기존 CI에서 실행한다.
+- 과거 배정 생성 UI 브라우저 검사는 제거 회귀로 대체한다. 과거 서버 RLS 계약 검사는 유지한다.
+- 실제 직원 hosted 로그인·쓰기·실기기는 NOT_VERIFIED. Mock/격리 DB를 실직원 검증으로 보고하지 않는다.
 
-운영 DB `jgsxpdflgkqroecfjzxq`는 이름과 달리 공유 실사용 DB다.
-읽기 전용 집계: published/company 2건. notice/manage 읽기 helper 및 옵션 RPC 계약 확인.
-promotion_lead에는 notice.manage와 task.manage 둘 다 부여돼 있었다.
-현재 직원의 task.manage 부재를 실제 원인이라고 주장하지 않는다.
-실직원 계정/공지/Storage/권한 수정 및 migration 실행 0건.
+## Preview 및 배포
 
-시작 시 Production 배포: `6addfa0c5ae783317814ade6`, commit
-`ca7431939cbeacacb20335cb55bb34bc4c0e8cd8` (Netlify readback).
-고정 qa-preview 시작 SHA: `a509e8e7109ef70532c8144e2418d95f4d618889`.
-다른 검수의 QA 소유권을 임의 교체하지 않는다. PR Preview는 개발 자동검증용이다.
-
-## 검증 증거와 한계
-
-- platformStatic 596 PASS, stagingSafety 16 PASS, Netlify dist build PASS.
-- 새 Chrome gate: 390/1440 × 운영총괄·팀장·팀장 미리보기 합성 계약 6조합.
-  업무 API 실패, notice.manage only, 옵션/일정 실패·지연, 빈 결과, 403/503,
-  재진입/중복 이벤트/새로고침/권한 취소 및 복귀를 검사한다.
-- 기존 notice-authoring 320/390/1280 및 notice-history 320/390/1440 회귀를 재사용한다.
-- 실제 DB 검증: 기존 notice-review-media Auth/RPC/RLS/Storage suite에
-  역할 미리보기 조회 및 실제 Chrome 저장→게시→정확한 ID 서버 재조회→새로고침을 연결한다.
-  localhost-only 합성 계정/공지이며 업무 API만 실패 주입한다.
-- 로컬 Docker 없음. 실제 격리 DB 결과·원격 CI/Preview 정확한 HEAD는 PR에 기록한다.
-- 실제 직원의 hosted 로그인/저장 및 실기기 검증은 NOT_VERIFIED.
-  합성 브라우저·격리 DB PASS를 실직원 hosted PASS로 보고하지 않는다.
-
-## 유사 결함 점검
-
-- schedule-admin.js: taejang-admin-options-ready에서 options를 받고 load.
-- guidance-admin.js: 같은 이벤트 의존 + 안내와 선택 일정이 Promise.all로 묶임.
-- app.js의 이벤트는 task.manage 및 업무목록 성공 후에만 발생한다.
-
-두 메뉴도 공지와 유사한 의존이 있으나, 대상/폼 상태·별도 권한을 검사해야 하므로
-이번 공지 패치에 섞지 않는다. 후속 수정 후보이며 해결 완료가 아니다.
-
-## 남은 경계
-
-Draft PR. main/Ready/Production/운영 DB 변경은 별도 승인.
-48시간 정규 배포 정책 유지. 필수 CI 및 고정 QA의 정확한 HEAD·환경·소유권
-확인 전 사용자 수용 검수를 요청하지 않는다.
+PR #535 Preview는 개발 자동검증용이며 공유 운영 DB를 가리키므로 실데이터 쓰기에 사용하지 않는다.
+Netlify HEAD/Ready/실제 JS·CSS를 확인하고 합성 API로 Preview 브라우저 gate를 실행한다.
+고정 qa-preview 시작 SHA a509e8e7109ef70532c8144e2418d95f4d618889.
+동시 검수 소유권 불명·non-fast-forward 교체가 필요하여 임의 갱신하지 않는다.
+Production 시작 deploy 6addfa0c5ae783317814ade6 / ca7431939cbeacacb20335cb55bb34bc4c0e8cd8.
+웹 Production 및 48시간 배포 정책 유지. Draft 상태에서 최종 검증 결과와 병합 승인 단계로 인계한다.

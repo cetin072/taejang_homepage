@@ -24,7 +24,7 @@ test('worker screens send an explicit KST board date and retain their five read-
   const html = read('app/index.html');
   assert.match(app, /timeZone: 'Asia\/Seoul'/);
   assert.match(schedule, /p_from_date: window\.TaejangApp\.getBoardDate\(\)/);
-  for (const id of ['task-list', 'open-work-guide-list', 'open-schedule-list', 'open-notice-list', 'open-guidance-list']) {
+  for (const id of ['open-work-guide-list', 'open-schedule-list', 'open-notice-list', 'open-guidance-list']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
 });

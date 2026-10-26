@@ -74,11 +74,11 @@
   }
 
   function normalizeLegacySidebarMenuOrder(value) {
-    const saved = uniqueArray(value);
+    const saved = uniqueArray(value).filter(key => key !== 'task.manage');
     if (!saved.includes('notice.create')) return saved;
     const next = saved.filter(key => key !== 'notice.create');
     const noticeIndex = next.indexOf('notice.manage');
-    const otherIndices = ['task.manage','monthly_client_documents.manage']
+    const otherIndices = ['monthly_client_documents.manage']
       .map(key => next.indexOf(key)).filter(index => index >= 0);
     if (noticeIndex >= 0 && otherIndices.length && noticeIndex > Math.min(...otherIndices)) {
       next.splice(noticeIndex, 1);
