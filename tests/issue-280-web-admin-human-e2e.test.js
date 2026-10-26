@@ -48,7 +48,9 @@ test('promotion lead management modules initialize through capability context an
   assert.match(scheduleAdmin, /list_manageable_schedules/);
   assert.match(scheduleAdmin, /save_schedule_item/);
   assert.match(noticeAdmin, /app\.can\?\.\('notice\.manage'\)/);
-  assert.match(noticeAdmin, /bind\(\);\s*resetForm\(\);/);
+  assert.match(noticeAdmin, /bind\(\);\s*clearAccessState\(\);/);
+  assert.doesNotMatch(noticeAdmin, /addEventListener\('taejang-admin-options-ready'/);
+  assert.match(noticeAdmin, /app\.rpc\('get_today_board_admin_options'\)/);
   assert.match(noticeAdmin, /list_manageable_notices/);
   assert.match(noticeAdmin, /save_notice/);
   assert.match(workspace, /'today-admin-panel': 'task\.manage'/);

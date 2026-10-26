@@ -314,6 +314,14 @@ check(!(await rpc('get_my_notice_detail',recipient.token,{p_notice_id:historyExp
 check(!(await rpc('list_manageable_notices_page',recipient.token,{})).ok,'ordinary employee cannot query management history');
 check(!(await rpc('list_manageable_notices_page',undefined,{})).ok,'anonymous history denied');
 check(!(await rpc('private_notice_management_json',promotion.token,{p_notice_id:historyId})).ok,'private JSON helper not executable by client');
+// A preset keeps the operator identity, whereas an actual lead has its own
+// account/ownership. Both must use the same server read/write boundary.
+equal((await rpc('set_role_simulation_mode',operations.token,{p_role_code:'promotion_lead'})).data?.code,'ROLE_SIMULATION_SET','lead role preview starts');
+const previewPage=await rpc('list_manageable_notices_page',operations.token,{p_limit:100,p_search:'History'});
+check(previewPage.ok&&previewPage.data.items.some(row=>row.id===historyId),'lead preset reads public company notice');
+check(!previewPage.data.items.some(row=>row.id===historyScheduled.data.id),'lead preset cannot read unpublished future company notice');
+check((await rpc('get_today_board_admin_options',operations.token)).ok,'lead preset independently obtains notice options');
+equal((await rpc('set_role_simulation_mode',operations.token,{p_role_code:'actual'})).data?.code,'ROLE_SIMULATION_CLEARED','operator identity restored');
 check((await rpc('archive_notice',operations.token,{p_notice_id:historyId,p_reason:'Isolated archive flow'})).data?.ok,'explicit existing archive RPC');
 const archivedDetail=await rpc('get_manageable_notice',operations.token,{p_notice_id:historyId});
 check(archivedDetail.data.archived_at&&archivedDetail.data.can_edit===false&&archivedDetail.data.can_restore,'archive readable and immutable until restore');
@@ -370,6 +378,11 @@ equal(new Set(pages.map(row=>row.id)).size,205,'stable paging finds every unique
 const oldestSearch=await rpc('list_manageable_notices_page',operations.token,{p_search:'Pagination isolation 000'});
 equal(oldestSearch.data?.total,1,'server search finds oldest record beyond first page');
 console.log('NOTICE_HISTORY_EDIT_AUTH_PASS');
+
+// The same synthetic accounts also exercise actual browser entry and guarded
+// save/publish/readback, including unrelated task API failure. No hosted writes.
+const { noticeBrowserFlow } = await import('./helpers/notice-browser-flow.mjs');
+await noticeBrowserFlow({ apiUrl, publishableKey: key, operations, lead: promotion, foreignNoticeId: historyId });
 
 console.log('NOTICE_AUTHORING_UX_AUTH_PASS');
 
