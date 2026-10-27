@@ -110,7 +110,7 @@ try{
       }
       await page.screenshot({path:path.join(output,(baseline?'before-':'after-')+name+'-'+width+'.png'),fullPage:true});
     };
-    for(const id of ['notice-form','task-form','information-form','guide-form','guide-step-form','schedule-form','guidance-form']){
+    for(const id of ['notice-form','schedule-form','guidance-form']){
       const response=await page.goto(base+'/static/'+id,{timeout:90000});
       assert.equal(response?.status(),200,'fixture loaded: '+id);
       await page.locator('.app-authoring').first().waitFor({timeout:20000});
@@ -124,7 +124,8 @@ try{
     await page.goto(base+'/tests/browser/compact-admin-form-gate.html?capture');
     await page.getByRole('button',{name:'기존 직원 연결 후 가입 승인',exact:true}).waitFor();await inspect('signup-approval');
     await page.goto(base+'/tests/browser/promotion-authoring-upload-gate.html');
-    await page.waitForFunction(()=>document.getElementById('result')?.textContent==='PROMOTION_AUTHORING_UPLOAD_GATE_PASS');
+    await page.waitForFunction(()=>/PROMOTION_AUTHORING_UPLOAD_GATE_(PASS|FAIL)/.test(document.getElementById('result')?.textContent||''));
+    assert.equal(await page.locator('#result').textContent(),'PROMOTION_AUTHORING_UPLOAD_GATE_PASS','promotion authoring fixture at '+width);
     await page.evaluate(()=>TaejangPromotionWorkspaceV2Api.openPromotion('write'));
     await page.locator('.phase-c-board-form').waitFor();await inspect('promotion-writer');
     await page.goto(base+'/support');await page.evaluate(()=>TaejangSupportRadar.renderProfile());await page.getByRole('button',{name:'기업 프로필 만들기',exact:true}).click();

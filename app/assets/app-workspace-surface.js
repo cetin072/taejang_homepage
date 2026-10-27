@@ -2,19 +2,16 @@
   'use strict';
 
   const PANEL_IDS = [
-    'today-admin-panel',
     'schedule-admin-panel',
     'notice-admin-panel',
     'guidance-admin-panel'
   ];
   const PANEL_CAPABILITIES = Object.freeze({
-    'today-admin-panel': 'task.manage',
     'schedule-admin-panel': 'schedule.manage',
     'notice-admin-panel': 'notice.manage',
     'guidance-admin-panel': 'guidance.manage'
   });
   const PANEL_TITLES = Object.freeze({
-    'today-admin-panel': '업무 배정',
     'schedule-admin-panel': '일정 관리',
     'notice-admin-panel': '공지 관리',
     'guidance-admin-panel': '상시 안내 관리'
@@ -59,58 +56,6 @@
     });
   }
 
-  function setHidden(node, hidden) {
-    if (node) node.hidden = hidden;
-  }
-
-  function configureTodayAdmin(view = null) {
-    const panel = byId('today-admin-panel');
-    if (!panel) return;
-    const workManual = view === 'work_manual';
-    const app = window.TaejangApp;
-    const canManageGuidance = app?.hasCapabilityContract?.()
-      ? Boolean(app.can?.('guidance.manage'))
-      : Boolean(app?.isTodayManager?.());
-    panel.dataset.workspaceView = workManual ? 'work_manual' : 'all';
-
-    const title = byId('today-admin-title');
-    const eyebrow = title?.parentElement?.querySelector?.('.eyebrow');
-    const topbar = byId('desktop-page-title');
-    if (workManual) {
-      if (eyebrow) eyebrow.textContent = '업무 참고';
-      if (title) title.textContent = '작업 매뉴얼 관리';
-      if (topbar) topbar.textContent = '작업 매뉴얼';
-    } else {
-      if (eyebrow) eyebrow.textContent = '관리자 검증 화면';
-      if (title) title.textContent = '오늘 정보 등록·수정';
-      if (topbar) topbar.textContent = '업무 배정';
-    }
-
-    const refresh = byId('refresh-admin');
-    const panelHelp = panel.querySelector?.(':scope > .help');
-    const boardDate = byId('admin-board-date')?.closest?.('label');
-    const todayRecords = byId('admin-records-title')?.closest?.('.admin-records');
-    const taskEditor = byId('task-form')?.closest?.('details');
-    const informationEditor = byId('information-form')?.closest?.('details');
-    const guideEditor = byId('guide-form')?.closest?.('details');
-    const stepEditor = byId('guide-step-editor');
-    const previewEditor = byId('guide-preview')?.closest?.('details');
-    const guideRecords = byId('guide-manage-list')?.closest?.('.admin-records');
-
-    setHidden(refresh, workManual);
-    setHidden(panelHelp, workManual);
-    setHidden(boardDate, workManual);
-    setHidden(todayRecords, workManual);
-    setHidden(taskEditor, workManual);
-    setHidden(informationEditor, workManual);
-    setHidden(guideEditor, !canManageGuidance);
-    setHidden(stepEditor, !canManageGuidance);
-    setHidden(previewEditor, !canManageGuidance);
-    setHidden(guideRecords, !canManageGuidance);
-
-    if (workManual && guideEditor) guideEditor.open = true;
-  }
-
   function showDashboard() {
     mountPanels();
     hidePanels();
@@ -142,7 +87,6 @@
     if (!PANEL_IDS.includes(id) || !capability || !allowed) return;
     mountPanels();
     hidePanels(id);
-    if (id === 'today-admin-panel') configureTodayAdmin(view);
     if (id === 'notice-admin-panel') {
       const noticeView = view === 'create' ? 'create' : 'manage';
       document.dispatchEvent(new CustomEvent('taejang-open-notice-admin', { detail: { view: noticeView } }));

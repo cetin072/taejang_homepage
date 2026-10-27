@@ -8,7 +8,6 @@ const TEST_ADMIN_EMAIL = qaEmail('test-admin');
 const TEST_WORKER_EMAIL = qaEmail('test-worker');
 const TEST_TITLES = {
   guide: `${PREFIX} [TEST] 포장 작업방법`,
-  assignment: `${PREFIX} [TEST] 오늘 업무`,
   schedule: `${PREFIX} [TEST] 일정`,
   notice: `${PREFIX} [TEST] 중요공지`,
   guidance: `${PREFIX} [TEST] 자주 보는 안내`
@@ -81,7 +80,6 @@ begin
   select id into v_guide_id from public.work_guides g where g.title = ${literal(TEST_TITLES.guide)} and g.department_id = v_department_id;
   if v_guide_id is null then insert into public.work_guides (department_id, title, summary_text, status, published_at, version_no, change_reason, created_by, updated_by, category, guide_format, audience_scope, audience_department_id) values (v_department_id, ${literal(TEST_TITLES.guide)}, '시험용 세 단계 작업방법입니다.', 'published', now(), 1, ${literal(`${PREFIX} minimal DB owner TEST seed`)}, v_admin_id, v_admin_id, 'packing', 'procedure', 'department', v_department_id) returning id into v_guide_id; end if;
   insert into public.work_guide_steps (work_guide_id, step_order, title, easy_text, status, created_by, updated_by) select v_guide_id, s.step_number, ${literal(`${PREFIX} [TEST] 단계 `)} || s.step_number, '시험용 작업방법 ' || s.step_number || '단계입니다.', 'published', v_admin_id, v_admin_id from generate_series(1, 3) as s(step_number) where not exists (select 1 from public.work_guide_steps ws where ws.work_guide_id = v_guide_id and ws.step_order = s.step_number);
-  insert into public.daily_work_assignments (work_date, title, location, start_time, end_time, lead_profile_id, target_scope, target_work_group_id, status, change_reason, created_by, updated_by) select (now() at time zone 'Asia/Seoul')::date, ${literal(TEST_TITLES.assignment)}, '시험 작업장', '09:00', '10:00', v_admin_id, 'work_group', v_group_id, 'published', ${literal(`${PREFIX} minimal DB owner TEST seed`)}, v_admin_id, v_admin_id where not exists (select 1 from public.daily_work_assignments a where a.work_date = (now() at time zone 'Asia/Seoul')::date and a.title = ${literal(TEST_TITLES.assignment)});
   select id into v_schedule_id from public.schedule_items s where s.title = ${literal(TEST_TITLES.schedule)} and s.target_profile_id = v_worker_id;
   if v_schedule_id is null then insert into public.schedule_items (schedule_type, title, starts_at, ends_at, all_day, location, manager_label, easy_text, target_scope, target_profile_id, status, change_reason, created_by, updated_by) values ('training', ${literal(TEST_TITLES.schedule)}, now(), now() + interval '3 days', false, '시험 교육실', '시험 관리자', '시험용 일정입니다.', 'profile', v_worker_id, 'published', ${literal(`${PREFIX} minimal DB owner TEST seed`)}, v_admin_id, v_admin_id) returning id into v_schedule_id; end if;
   select id into v_notice_id from public.notices n where n.title = ${literal(TEST_TITLES.notice)} and n.target_profile_id = v_worker_id;

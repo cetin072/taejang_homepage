@@ -3,7 +3,10 @@
 
   const ui = window.TaejangStaffInformationUI;
   const mediaApi = () => window.TaejangNoticeMedia;
-  let options = null;
+  let options = { work_guides: [] };
+  let bound = false;
+  let accessKey = null;
+  let pendingLoad = null;
   let notices = [];
   let schedules = [];
   let mediaItems = [];
@@ -112,6 +115,14 @@
     note.textContent = existingAudience && existingAudience.p_target_scope !== 'company'
       ? `기존 공지 대상: ${audienceLabel(existingAudience)} (수정 시 원래 대상 유지)`
       : '게시 대상: 전체 직원 (자동 적용)';
+  }
+
+  function selectRelated(id, value) {
+    const select = ui.element(id);
+    if (value && ![...select.options].some(option => option.value === value)) {
+      select.add(new Option('기존 연결 (목록 확인 필요)', value));
+    }
+    select.value = value || '';
   }
 
   function renderOptions() {
@@ -547,6 +558,7 @@
   }
 
   function setView(view) {
+    if (!canManageNotices()) { clearAccessState(); return false; }
     if (saving || (hasUnsavedEditor() && !confirmLeaveEditor())) return false;
     const previousView = activeView;
     const nextView = ['create','archive'].includes(view) ? view : 'manage';
@@ -567,7 +579,7 @@
       title.focus({ preventScroll: true });
     } else {
       hideEditor();
-      if (options) void load({ preserveMessage: Boolean(ui.element('notice-admin-message').textContent) });
+      void load({ preserveMessage: Boolean(ui.element('notice-admin-message').textContent) });
     }
     return true;
   }
@@ -591,8 +603,10 @@
   }
   async function openItem(item, settings = {}) {
     if (saving) return;
+    const actor = currentAccessKey();
     try {
       const current = await readNotice(item.id);
+      if (actor !== currentAccessKey() || !canManageNotices()) return;
       fillForm(current, settings);
     } catch { showMessage('공지 최신 내용을 확인하지 못했습니다. 기존 입력을 보존합니다. 새로고침 후 다시 확인해주세요.', true); }
   }
@@ -748,8 +762,8 @@
     ui.element('notice-effective-end').value = item.effective_end_date || '';
     ui.element('notice-location').value = item.location || '';
     ui.element('notice-materials').value = item.materials_text || '';
-    ui.element('notice-related-schedule').value = item.related_schedule_id || '';
-    ui.element('notice-related-guide').value = item.related_work_guide_id || '';
+    selectRelated('notice-related-schedule', item.related_schedule_id);
+    selectRelated('notice-related-guide', item.related_work_guide_id);
     ui.element('notice-link-url').value = item.related_link_url || '';
     ui.element('notice-link-label').value = item.related_link_label || '';
     ui.element('notice-requires-ack').checked = Boolean(item.requires_acknowledgement);
@@ -804,26 +818,48 @@
       return { items: sortNotices(rows), total: rows.length, has_more: false };
     }
   }
-  async function load({ preserveMessage = false, more = false } = {}) {
-    if (!options) return;
+  function load(settings = {}) {
+    if (!canManageNotices()) {
+      clearAccessState();
+      return Promise.resolve(false);
+    }
+    const key = JSON.stringify([currentAccessKey(), queryPayload(settings.more ? notices.length : 0)]);
+    if (pendingLoad?.key === key) return pendingLoad.promise;
+    const promise = loadPage(settings).finally(() => {
+      if (pendingLoad?.promise === promise) pendingLoad = null;
+    });
+    pendingLoad = { key, promise };
+    return promise;
+  }
+
+  async function loadPage({ preserveMessage = false, more = false } = {}) {
     const generation = ++listGeneration;
+    const actor = currentAccessKey();
+    const isCurrent = () => generation === listGeneration && actor === currentAccessKey() && canManageNotices();
     ui.element('refresh-notice-admin').disabled = true;
     ui.element('notice-list-more').disabled = true;
     if (!preserveMessage) showMessage('공지 목록을 불러오고 있습니다.');
+    // Notice management owns its lookups. Neither task initialization nor a
+    // failed/pending optional picker may prevent the notice list from rendering.
+    void Promise.allSettled([
+      app.rpc('get_today_board_admin_options'),
+      app.rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
+    ]).then(([optionResult, scheduleResult]) => {
+      if (!isCurrent()) return;
+      if (optionResult.status === 'fulfilled') options = { ...optionResult.value, work_guides: ui.array(optionResult.value?.work_guides) };
+      if (scheduleResult.status === 'fulfilled') schedules = ui.array(scheduleResult.value).map(item => ({ id: item.id, title: item.title }));
+      // Refreshing optional choices must not erase a selected existing link.
+      const ids = ['notice-related-guide', 'notice-related-schedule'];
+      const selected = ids.map(id => ui.element(id).value);
+      renderOptions();
+      ids.forEach((id, index) => selectRelated(id, selected[index]));
+    });
     try {
-      const [noticeResult, scheduleResult] = await Promise.allSettled([
-        fetchNoticePage(more ? notices.length : 0),
-        app.rpc('list_manageable_schedules', { p_include_past: true, p_limit: 200 })
-      ]);
-      if (noticeResult.status !== 'fulfilled') throw noticeResult.reason;
-      if (generation !== listGeneration) return false;
-      const page = noticeResult.value;
+      const page = await fetchNoticePage(more ? notices.length : 0);
+      if (!isCurrent()) return false;
       notices = more ? [...new Map([...notices,...page.items].map(item => [item.id,item])).values()] : page.items;
       pageTotal = page.total;
       hasMore = page.has_more;
-      // The optional schedule picker cannot hide a successfully loaded notice list.
-      if (scheduleResult.status === 'fulfilled') schedules = ui.array(scheduleResult.value).map(item => ({ id: item.id, title: item.title }));
-      renderOptions();
       renderList();
       ui.element('notice-list-summary').textContent = legacyList
         ? '서버 목록 기능 업데이트 필요 · 최대 500건의 제한된 목록입니다. 전체 검색·타인 공지·휴지통 자료 조회는 아직 확인할 수 없습니다.'
@@ -831,8 +867,15 @@
       ui.element('notice-list-more').hidden = !hasMore;
       if (!preserveMessage) showMessage('');
       return true;
-    } catch {
-      if (generation !== listGeneration) return false;
+    } catch (error) {
+      if (!isCurrent()) return false;
+      if (error.status === 403 || error.code === '42501' || /FORBIDDEN/.test(error.message)) {
+        notices = [];
+        ui.element('notice-admin-list').replaceChildren();
+        ui.element('notice-list-summary').textContent = '공지 조회 권한이 없습니다.';
+        showMessage('공지를 조회할 권한이 없습니다. 운영총괄에게 권한을 확인해주세요.', true);
+        return false;
+      }
       ui.element('notice-list-summary').textContent = '목록 조회 실패 — 이전 결과입니다. 검색 결과가 없다는 뜻이 아닙니다.';
       if (!preserveMessage) showMessage('공지 목록을 불러오지 못했습니다. 잠시 후 다시 시도하세요.', true);
       return false;
@@ -1166,6 +1209,8 @@
   }
 
   function bind() {
+    if (bound) return;
+    bound = true;
     window.addEventListener('beforeunload', event => {
       if (!hasUnsavedEditor()) return;
       event.preventDefault();
@@ -1222,21 +1267,49 @@
     return Boolean(app.can?.('notice.manage'));
   }
 
-  document.addEventListener('taejang-app-ready', () => {
-    if (!canManageNotices()) return;
-    bind();
-    resetForm();
-  }, { once: true });
+  function currentAccessKey() {
+    return JSON.stringify([app.getSession?.()?.user?.id || app.getContext?.()?.id || '', route(), canManageNotices()]);
+  }
 
-  document.addEventListener('taejang-admin-options-ready', event => {
-    options = event.detail.options;
-    renderOptions();
-    void load().then(() => {
-      if (activeView === 'manage') hideEditor();
-    });
+  function clearAccessState() {
+    ++listGeneration;
+    pendingLoad = null;
+    options = { work_guides: [] };
+    notices = []; schedules = [];
+    pageTotal = 0; hasMore = false;
+    savedNoticeId = null; editorBaseline = null;
+    leadBackendUnavailable = false; createResponseUncertain = false;
+    activeView = 'manage'; editorReturnView = 'manage';
+    resetForm();
+    hideEditor();
+    ui.element('notice-admin-list').replaceChildren();
+    ui.element('notice-list-filters').reset();
+    ui.element('notice-list-summary').textContent = '';
+    ui.element('notice-list-more').hidden = true;
+    ui.element('refresh-notice-admin').disabled = false;
+    showMessage(canManageNotices() ? '' : '공지 관리 권한이 없습니다.', !canManageNotices());
+  }
+
+  function initialize() {
+    const nextKey = currentAccessKey();
+    if (accessKey === nextKey) return;
+    accessKey = nextKey;
+    bind();
+    clearAccessState();
+    if (!canManageNotices()) return;
+    renderViewChrome();
+    if (!ui.element('notice-admin-panel').hidden) void load();
+  }
+
+  document.addEventListener('taejang-app-ready', initialize);
+  document.addEventListener('taejang-capabilities-ready', () => {
+    // Initial capability resolution precedes app-ready. Later role/access
+    // changes invalidate old results without rebinding or discarding same-user edits.
+    if (accessKey !== null) initialize();
   });
 
   document.addEventListener('taejang-open-notice-admin', event => {
+    initialize();
     if (!canManageNotices()) return;
     setView(event.detail?.view);
   });

@@ -36,9 +36,9 @@ test('Goal 327 keeps regular navigation and cards non-draggable until Settings e
 });
 
 test('Issue 463 master notice-first sidebar and connected drag/drop', () => {
-  assert.ok(registry.indexOf("key:'notice.manage'") < registry.indexOf("key:'task.manage'"));
-  assert.ok(priority.includes("'공지 관리', '업무 배정'"));
-  assert.ok(shell.indexOf("key: 'notice.manage'") < shell.indexOf("label: '업무 배정'"));
+  assert.doesNotMatch(registry, /task\.manage/);
+  assert.ok(priority.includes("'공지 관리', '거래처 문서 관리'"));
+  assert.doesNotMatch(shell, /업무 배정/);
   assert.match(settings,/state\.editingSidebar=true;\s*bindSidebarDropTargets\(\);\s*decorateEditableSidebar\(\)/);
 });
 

@@ -57,6 +57,9 @@
             headers: { 'Content-Type': 'application/json' }
           });
         }
+        // Keep the body pending beyond the old 100ms sleep even after the
+        // authenticated retry has reached fetch. Request count is not UI readiness.
+        await new Promise(resolve => setTimeout(resolve, 180));
         return new Response(JSON.stringify({
           url: 'https://blog.naver.com/taejang-official/224367547159',
           title: '태장 링크 테스트',
@@ -138,6 +141,16 @@
     const buttonByText = value => [...document.querySelectorAll('#dashboard-main button')]
       .find(node => node.textContent.trim() === value);
 
+    async function importLinkMetadata(timeout = 3000) {
+      const button = buttonByText('링크에서 제목·썸네일·본문 가져오기');
+      assert(button, '링크 메타 가져오기 버튼 누락');
+      button.click();
+      assert(button.disabled, '링크 메타 처리 시작 상태 누락');
+      const deadline = Date.now() + timeout;
+      while (button.disabled && Date.now() < deadline) await wait(10);
+      assert(!button.disabled, '링크 메타 처리 완료 시간 초과');
+    }
+
     window.addEventListener('load', async () => {
       const output = document.getElementById('result');
       try {
@@ -153,8 +166,7 @@
         assert(!sessionStorage.getItem('taejang-staff-session-v1'), '검수 전제: sessionStorage는 비어 있어야 함');
 
         external.value = 'https://blog.naver.com/taejang-official/224367547159';
-        buttonByText('링크에서 제목·썸네일·본문 가져오기').click();
-        await wait(100);
+        await importLinkMetadata();
         assert(state.externalMetaCalls.length === 2, '링크 메타 인증 실패 후 1회 재시도하지 않음');
         assert(state.refreshCalls === 1, '링크 메타 인증 실패에서 세션 갱신이 실행되지 않음');
         assert(state.externalMetaCalls[0].options.headers.Authorization === `Bearer ${accessToken}`, '링크 메타 최초 인증 토큰 불일치');
@@ -216,8 +228,7 @@
         // A linked article without an uploaded photo must save without its imported OG.
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
         controlByLabel('외부 링크').value = 'https://blog.naver.com/taejang-official/224367547159';
-        buttonByText('링크에서 제목·썸네일·본문 가져오기').click();
-        await wait(100);
+        await importLinkMetadata();
         buttonByText('저장 후 운영총괄 승인 요청').click();
         await wait(100);
         const noPhoto = state.saveCalls.at(-1);

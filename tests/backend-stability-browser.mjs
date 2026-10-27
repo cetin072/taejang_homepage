@@ -76,6 +76,7 @@ async function boot(width,role='operations_manager'){
     if(!url.pathname.startsWith('/rest/v1/rpc/'))return route.continue();
     const name=url.pathname.split('/').pop(),args=req.postDataJSON();calls.push({name,args});
     if(name==='get_my_access_context')return send({authenticated:true,account_status:'active',display_name:'합성 검수',roles:[{code:role,name:role}]});
+    if(name==='get_my_today_board')return send({date:'2026-10-26',display_name:'합성 직원',work_hours:[],information:[],tasks:[{id:'retired',title:'삭제 대상 업무'}]});
     if(name==='get_today_board_admin_options')return send(control.removedDepartment?{...options,departments:options.departments.filter(d=>d.id!=='d2')}:options);
     if(name==='list_manageable_today_records')return control.readFail?send({message:'synthetic read failure'},503):send(records);
     if(name==='list_manageable_work_guides')return control.guideListFail?send({message:'synthetic list failure'},503):send(guides);
@@ -95,110 +96,26 @@ async function boot(width,role='operations_manager'){
     if(name==='save_work_guide_step')return send({ok:true,id:args.p_step_id||'saved-step'});
     errors.push('Unexpected RPC '+name);return send({message:'Unexpected RPC '+name},500);
   });
-  await page.goto(origin+'/app/index.html');
+  // Preview assets are fetched by this local fixture server. Wait for the DOM
+  // and explicit authenticated bootstrap below, rather than unrelated load tails.
+  await page.goto(origin+'/app/index.html',{waitUntil:'domcontentloaded',timeout:90000});
   await page.waitForFunction(()=>window.TaejangApp?.hasCapabilityContract?.(),null,{timeout:10000}).catch(async error=>{
     console.error({url:page.url(),errors,calls});throw error;
   });
-  if(role==='operations_manager'){
-    await page.waitForFunction(()=>document.getElementById('task-scope').options.length>0&&document.getElementById('guide-manage-list'));
-    await page.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-open-app-panel',{detail:{id:'today-admin-panel'}})));
-    await page.evaluate(()=>document.querySelectorAll('#today-admin-panel details').forEach(n=>n.open=true));
-  }
   return {context,page,calls,errors,control};
 }
 try{
-  for(const width of [1440,768,390,320]){
-    const {context,page,calls,errors,control}=await boot(width);
-    const value=id=>page.locator('#'+id).inputValue();
-    const submit=async id=>{await page.locator('#'+id+' button[type="submit"]').click();await page.waitForFunction(id=>!document.querySelector('#'+id+' button[type="submit"]').disabled,id);};
-    await page.locator('#task-title-input').fill('합성 부서 한정 업무');
-    await page.locator('#task-reason').fill('합성 대상 범위 검수');
-    await page.locator('#task-location').fill('합성 작업장');
-    await page.locator('#task-scope').selectOption('department');
-    await page.locator('#task-target').selectOption('d2');
-    await page.locator('#task-lead').selectOption('p1');
-    await page.locator('#task-guide').selectOption('g1');
-    await page.locator('#guide-department').selectOption('d2');
-    await page.locator('#reset-information-form').click();
-    await page.locator('#refresh-admin').click();
-    await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled);
-    assert.equal(await value('task-scope'),'department','refresh/reset another form must not broaden audience');
-    assert.equal(await value('task-target'),'d2');assert.equal(await value('task-lead'),'p1');
-    assert.equal(await value('task-guide'),'g1');assert.equal(await value('guide-department'),'d2');
-    // An option removed during refresh must require a new explicit choice.
-    control.removedDepartment=true;
-    await page.locator('#refresh-admin').click();
-    await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled);
-    assert.equal(await value('task-scope'),'department');
-    assert.equal(await value('task-target'),'');
-    const writesBefore=calls.filter(c=>c.name==='save_daily_work_assignment').length;
-    await submit('task-form');
-    assert.equal(calls.filter(c=>c.name==='save_daily_work_assignment').length,writesBefore);
-    control.removedDepartment=false;
-    await page.locator('#refresh-admin').click();
-    await page.waitForFunction(()=>!document.getElementById('refresh-admin').disabled);
-    await page.locator('#task-target').selectOption('d2');
-    await page.locator('#guide-department').selectOption('d2');
-    // A rejected write retains all input and sends the chosen target, not company.
-    control.writeFail=true;await submit('task-form');
-    assert.equal(await value('task-title-input'),'합성 부서 한정 업무');
-    assert.equal(calls.findLast(c=>c.name==='save_daily_work_assignment')?.args.p_target_department_id,'d2',
-      'write uses the selected department; invalid fields: '+await page.locator('#task-form :invalid').evaluateAll(nodes=>nodes.map(n=>n.id).join(',')));
-    assert.equal(await page.locator('#admin-message').isVisible(),true);
-    // Accepted write + failed readback preserves its ID and input for safe recovery.
-    control.writeFail=false;control.readFail=true;await submit('task-form');
-    assert.equal(await value('task-id'),'saved-task');
-    assert.equal(await value('task-title-input'),'합성 부서 한정 업무');
-    assert.match(await page.locator('#admin-message').innerText(),/저장.*불러오지/);
-    control.readFail=false;await submit('task-form');
-    assert.equal(calls.filter(c=>c.name==='save_daily_work_assignment').at(-1).args.p_assignment_id,'saved-task');
-    assert.match(await page.locator('#admin-record-list').innerText(),/합성 부서 한정 업무/);
-    assert.equal(await value('task-id'),'');
-    assert.equal(await page.locator('#admin-message').isVisible(),true);
-    // Saving the same new work guide twice must update its accepted ID.
-    await page.locator('#guide-title-input').fill('합성 작업방법');
-    await page.locator('#guide-reason').fill('합성 검수 사유');
-    control.writeFail=true;await submit('guide-form');
-    assert.equal(await value('guide-id'),'');
-    assert.equal(await value('guide-title-input'),'합성 작업방법');
-    assert.equal(await page.locator('#admin-message').isVisible(),true);
-    control.writeFail=false;control.readFail=true;await submit('guide-form');
-    assert.equal(await value('guide-id'),'saved-guide');
-    assert.equal(await value('guide-title-input'),'합성 작업방법');
-    assert.match(await page.locator('#admin-message').innerText(),/저장.*불러오지/);
-    control.readFail=false;await submit('guide-form');
-    assert.equal(calls.filter(c=>c.name==='save_work_guide').at(-1).args.p_work_guide_id,'saved-guide');
-    await page.waitForFunction(()=>document.querySelector('#guide-manage-list button'));
-    control.detailFail=true;
-    await page.locator('#guide-manage-list button').click();
-    await page.waitForFunction(()=>document.getElementById('admin-message').textContent.includes('작업방법'));
-    assert.equal(await page.locator('#admin-message').isVisible(),true,'detail failure must be visible');
-    assert.equal(await value('guide-title-input'),'합성 작업방법');
-    control.detailFail=false;await page.locator('#guide-manage-list button').click();
-    await page.waitForFunction(()=>document.getElementById('guide-step-guide-id').value==='saved-guide');
-    await page.locator('#guide-step-title').fill('합성 단계');
-    await page.locator('#guide-step-easy-text').fill('합성 설명');
-    await page.locator('#guide-step-reason').fill('합성 단계 검수');
-    control.detailFail=true;await submit('guide-step-form');
-    assert.equal(await value('guide-step-id'),'saved-step');
-    assert.equal(await value('guide-step-title'),'합성 단계');
-    assert.match(await page.locator('#admin-message').innerText(),/저장.*불러오지/);
-    await page.locator('#guide-step-form').screenshot({path:path.join(output,'work-guide-recovery-'+width+'.png')});
-    control.guideListFail=true;control.detailFail=false;
-    await submit('guide-step-form');
-    assert.equal(calls.filter(c=>c.name==='save_work_guide_step').at(-1).args.p_step_id,'saved-step');
-    assert.equal(await page.locator('#admin-message').isVisible(),true);
-    await page.locator('#guide-manage-list').getByRole('button',{name:'다시 불러오기'}).waitFor();
-    control.guideListFail=false;
-    await page.locator('#guide-manage-list').getByRole('button',{name:'다시 불러오기'}).click();
-    await page.locator('#guide-manage-list').getByRole('button',{name:'열기·수정'}).waitFor();
-    assert.deepEqual(errors,[],'no hidden page errors or unknown API calls');
-    console.log('BACKEND_STABILITY_BROWSER_PASS:'+width);await context.close();
+  for(const width of [1440,390]){
+    for(const role of ['operations_manager','promotion_lead','promotion_staff','department_lead','field_lead','super_admin','ceo','general_worker']){
+      const {context,page,calls,errors}=await boot(width,role);
+      if(role==='general_worker')await page.waitForFunction(()=>document.getElementById('today-date').textContent);
+      assert.equal(await page.getByText('삭제 대상 업무',{exact:true}).count(),0);
+      for(const id of ['today-admin-panel','task-form','information-form','guide-form','task-list']) assert.equal(await page.locator('#'+id).count(),0,role+' removed '+id);
+      await page.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-open-app-panel',{detail:{id:'today-admin-panel'}})));
+      assert.equal(await page.locator('#today-admin-panel').count(),0,'legacy open event cannot recreate removed page');
+      assert.equal(calls.some(c=>['list_manageable_today_records','save_daily_work_assignment','save_today_information_item','save_work_guide'].includes(c.name)),false);
+      assert.deepEqual(errors,[]);
+      await context.close();console.log('ASSIGNMENT_REMOVAL_BROWSER_PASS:'+role+':'+width);
+    }
   }
-  const {context,page,calls,errors}=await boot(390,'promotion_staff');
-  await page.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-open-app-panel',{detail:{id:'today-admin-panel'}})));
-  assert.equal(await page.locator('#today-admin-panel').isVisible(),false);
-  assert.equal(calls.some(c=>c.name.startsWith('save_')||c.name==='get_today_board_admin_options'),false);
-  assert.deepEqual(errors,[]);await context.close();
-  console.log('BACKEND_STABILITY_ROLE_DENIAL_PASS:synthetic');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

@@ -198,14 +198,14 @@
       : Boolean(app?.isTodayManager?.());
   }
 
-  document.addEventListener('taejang-app-ready', () => {
+  document.addEventListener('taejang-app-ready', async () => {
     if (!canManageSchedules()) return;
     bind();
     resetForm();
+    try {
+      options = await window.TaejangApp.rpc('get_today_board_admin_options');
+      renderOptions();
+      await load();
+    } catch { showMessage('일정 관리 도구를 불러오지 못했습니다. 권한과 연결 상태를 확인한 뒤 새로고침해주세요.', true); }
   }, { once: true });
-  document.addEventListener('taejang-admin-options-ready', event => {
-    options = event.detail.options;
-    renderOptions();
-    load();
-  });
 })();

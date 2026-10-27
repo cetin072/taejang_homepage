@@ -154,6 +154,25 @@ jobs:
           NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
         run: node tests/notice-management-browser.mjs
 
+      - name: Verify independent notice bootstrap on local and exact-head Preview
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          NOTICE_INIT_QA_OUTPUT: notice-history-qa-artifacts/initialization
+        run: |
+          node tests/notice-initialization-browser.mjs
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 - <<'PYTHON'
+          import importlib.util, os, pathlib, subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          preview = uar.wait_for_preview(uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json')), os.environ.copy())
+          subprocess.run(['node', 'tests/notice-initialization-browser.mjs'], check=True,
+                         env={**os.environ, 'PREVIEW_URL': preview})
+          PYTHON
+          fi
+
       - name: Keep notice history PC and mobile screenshots
         if: always()
         uses: actions/upload-artifact@v4

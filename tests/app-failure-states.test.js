@@ -12,15 +12,9 @@ const appUiSource = read('app/assets/app-ui.js');
 const dashboardSource = read('app/assets/dashboard-shell.js');
 const appSource = read('app/assets/app.js');
 
-test('accepted guide save does not require unrelated task-list permission', async () => {
-  const saveSource = appSource.slice(appSource.indexOf('  async function saveForm('), appSource.indexOf('  async function submitTask('));
-  const id = {value:''}, submit = {disabled:false};let taskReads = 0;
-  const sandbox = {rpc:async()=>({ok:true,id:'saved-guide'}),canManage:()=>false,
-    element:()=>id,hideMessage:()=>{},showMessage:()=>{},
-    loadAdminData:async()=>{taskReads++;return false;}};
-  vm.runInNewContext(saveSource+'\nglobalThis.save=saveForm;',sandbox);
-  assert.equal(await sandbox.save({id:'guide-form',querySelector:()=>submit},'save_work_guide',{}),true);
-  assert.equal(taskReads,0);assert.equal(id.value,'saved-guide');assert.equal(submit.disabled,false);
+test('retired assignment editor cannot start task reads or writes', () => {
+  assert.doesNotMatch(appSource, /save_daily_work_assignment|list_manageable_today_records|loadAdminData|submitTask|task-form/);
+  assert.doesNotMatch(read('app/index.html'), /id="(?:today-admin-panel|task-form|task-list|information-form|guide-form)"/);
 });
 
 function datasetKey(attribute) {

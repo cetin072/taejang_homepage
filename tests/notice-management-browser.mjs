@@ -225,6 +225,7 @@ try {
   await page.waitForFunction(()=>document.querySelectorAll('#notice-admin-list article').length===1);
   assert.equal(await page.locator('#notice-admin-list article').getAttribute('data-notice-id'),'expired');
   await page.locator('#notice-clear-filters').click();await page.locator('[data-notice-id="pub-a"]').waitFor();
+  await page.waitForFunction(()=>!document.getElementById('refresh-notice-admin').disabled);
   await page.evaluate(()=>{role='promotion_lead';TaejangNoticeAdmin.setView('manage')});
   await page.locator('[data-notice-id="pub-a"]').getByRole('button',{name:'공지 보기 (검토·게시 이력)',exact:true}).click();
   await page.waitForFunction(()=>document.getElementById('notice-admin-title').textContent==='공지 상세');
@@ -234,6 +235,9 @@ try {
   assert.equal(await page.locator('#notice-save-existing').isVisible(),false);
   await capture('lead-readonly');
   await page.locator('#notice-editor-bottom-back').click();
+  // Returning starts a real list refresh. Finish that snapshot before adding
+  // synthetic backend data; reentry intentionally shares an in-flight query.
+  await page.waitForFunction(()=>!document.getElementById('refresh-notice-admin').disabled);
   await page.evaluate(()=>{
    rows.push(historyFixture.make('lead-own','운영팀장 일상 안내',{created_route:'promotion_lead',lead_notice_mode:'routine'}));
    TaejangNoticeAdmin.setView('manage');

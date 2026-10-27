@@ -303,11 +303,6 @@
         capabilities: ['notice.manage']
       },
       {
-        key: 'task.manage', label: '업무 배정',
-        run: () => openPanel('today-admin-panel'),
-        capabilities: ['task.manage']
-      },
-      {
         key: 'monthly_client_documents.manage',
         label: '거래처 문서 관리',
         run: () => window.TaejangMonthlyClientDocumentsLoader?.(),

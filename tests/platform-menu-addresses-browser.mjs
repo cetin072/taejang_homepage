@@ -29,6 +29,7 @@ const count=await p.evaluate(()=>opens.length);await p.locator('[data-menu-key="
 await p.getByLabel('합성 입력').fill('보존');p.once('dialog',d=>d.dismiss());await p.locator('[data-menu-key="notice.manage"]').click();assert.equal(await p.getByLabel('합성 입력').inputValue(),'보존');
 p.once('dialog',d=>d.accept());await p.locator('[data-menu-key="notice.manage"]').click();await p.waitForFunction(()=>document.querySelector('main h2').textContent==='notice-admin-panel');
 await p.evaluate(()=>{allowed=false;});await p.locator('[data-menu-key="attendance.view"]').click();await p.waitForFunction(()=>document.body.textContent.includes('접근할 권한이 없습니다'));
+await p.goto('http://fixture.test/?view=task.manage');await p.getByText('찾을 수 없는 업무 주소입니다.').waitFor();assert.equal(await p.locator('[data-menu-key="task.manage"]').count(),0);
 await p.goto('http://fixture.test/?view=bad-address');await p.getByText('찾을 수 없는 업무 주소입니다.').waitFor();
 await p.getByRole('button',{name:'대시보드로',exact:true}).click();await p.waitForFunction(()=>location.search.includes('dashboard'));
 await p.goto('http://fixture.test/?view=employee.manage&login=1');assert.equal(await p.evaluate(()=>opens.length),0);await p.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}})));await p.waitForFunction(()=>opens.length===1);

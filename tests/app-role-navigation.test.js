@@ -202,7 +202,6 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
   assert.deepEqual(operations.promotionModes, ['write', 'publication']);
 
   for (const [label, panel] of new Map([
-    ['업무 배정','today-admin-panel'],
     ['공지 관리','notice-admin-panel']
   ])) {
     findMenu(operations.nav, label).click(); await nextTurn();
@@ -260,7 +259,7 @@ test('central navigation uses one master order and section contract for every de
     '홍보 글 작성', '보완 요청받은 글', '보낸 글', '홍보 검토',
     '발행 관리', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
-    '공지 관리', '업무 배정',
+    '공지 관리',
     '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'

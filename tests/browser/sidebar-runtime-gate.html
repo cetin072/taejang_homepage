@@ -21,7 +21,6 @@
         <div class="app-user-actions"><span id="desktop-user-label"></span><button id="desktop-logout-button" type="button">logout</button></div>
       </header>
       <main id="dashboard-main"></main>
-      <section id="today-admin-panel" hidden><h2>업무 배정</h2></section>
       <section id="schedule-admin-panel" hidden><h2>일정 관리</h2></section>
       <section id="notice-admin-panel" hidden><h2>공지 관리</h2></section>
       <section id="guidance-admin-panel" hidden><h2>상시 안내 관리</h2></section>
@@ -49,7 +48,7 @@
         'promotion.request_public_change', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
         'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
-        'task.manage', 'notice.manage', 'payroll.manage', 'payroll.handoff.approve',
+        'notice.manage', 'monthly_client_documents.manage', 'payroll.manage', 'payroll.handoff.approve',
         'support_radar.management_view', 'support_radar.management_edit', 'support_radar.assigned_work',
         'platform.navigation.manage'
       ])
@@ -298,6 +297,7 @@
     }
 
     const retiredLabels = [
+      '업무 배정', '오늘 관리',
       '복구·계정 관리', '일정 관리', '일정 캘린더',
       '공지 확인', '상시 안내 관리', '공지·안내 관리', '공지·안내 확인'
     ];
@@ -363,7 +363,7 @@
         '대시보드', '직원 관리', '신규 직원 등록', '가입 승인',
         '홍보 글 작성', '보낸 글', '홍보 승인 검토', '발행 현황', '공개 홍보글 관리',
         '홈페이지 내용 관리', '홈페이지 직접 수정',
-        '업무 배정', '공지 관리', '근태·급여관리', '출근부', '근태 보정',
+        '공지 관리', '근태·급여관리', '출근부', '근태 보정',
         '기업 프로필', '지원사업 레이더', '내 지원사업', '외부 급여초안 검토'
       ]) {
         assert(current.includes(required), `운영총괄 필수 메뉴 누락: ${required}`);
@@ -376,7 +376,7 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['공지 관리', '업무 배정'], '운영총괄 업무 운영');
+      assertOrdered(current, ['공지 관리', '거래처 문서 관리'], '운영총괄 업무 운영');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -391,13 +391,13 @@
 
     async function assertPanelToSidebarTransitions() {
       const dashboard = document.getElementById('dashboard-main');
-      const panels = ['today-admin-panel','schedule-admin-panel','notice-admin-panel','guidance-admin-panel']
+      const panels = ['schedule-admin-panel','notice-admin-panel','guidance-admin-panel']
         .map(id => document.getElementById(id));
       const internal = visibleLeafItems().filter(node =>
         node.tagName === 'BUTTON'
         && node.dataset.navSectionToggle !== '1'
       );
-      const panelTargets = new Set(['업무 배정','공지 관리']);
+      const panelTargets = new Set(['공지 관리']);
 
       for (const sourcePanel of panels) {
         for (const target of internal) {
@@ -474,11 +474,11 @@
       savedSidebarOrder = { sections: [], menus: ['task.manage','notice.create','notice.manage','monthly_client_documents.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['공지 관리','업무 배정'],'legacy task-first preference must not override notice priority');
-      savedSidebarOrder = { sections: [], menus: ['task.manage','notice.manage','monthly_client_documents.manage'] };
+      assertOrdered(labels(),['공지 관리','거래처 문서 관리'],'legacy task-first preference must not override notice priority');
+      savedSidebarOrder = { sections: [], menus: ['monthly_client_documents.manage','notice.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['업무 배정','공지 관리'],'explicit modern custom order remains respected');
+      assertOrdered(labels(),['거래처 문서 관리','공지 관리'],'explicit modern custom order remains respected');
       savedSidebarOrder = null;
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);

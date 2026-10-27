@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const gates = fs.readFileSync('app/assets/capability-ui-gates.js', 'utf8');
 const bridge = fs.readFileSync('app/assets/capability-access.js', 'utf8');
 
-for (const capability of ['task.manage', 'schedule.manage', 'notice.manage', 'guidance.manage']) {
+for (const capability of ['schedule.manage', 'notice.manage', 'guidance.manage']) {
   assert.match(gates, new RegExp(capability.replace('.', '\\.')), `${capability} must be mapped in UI gates`);
 }
 for (const capability of ['employee.view_all', 'employee.view_scoped', 'employee.create']) {
