@@ -145,22 +145,22 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     const page=await context.newPage();await page.goto(base+'/index.html');
     for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,'no-JS authored order including pretty URLs');
     assert.ok(await page.locator(width===390?'[data-mobile-nav]':'.desktop-nav').isVisible(),'no-JS navigation remains visible');
+    if(width===390)assert.equal(await page.locator('[data-menu-button]').isVisible(),false,'no-JS fallback has no inactive toggle');
     await context.close();
   }
   // Network failure boundaries: later enhancements cannot disable the menu;
-  // failure of the small head controller must retain the authored fallback.
+  // The head controller is inlined at build time and must not depend on a
+  // network request. JavaScript-disabled fallback is checked above.
   for (const failed of ['site.js','public-navigation.js']) {
     const context=await browser.newContext({viewport:{width:390,height:1000}});
-    await context.route('**/assets/js/'+failed,route=>route.abort());
+    let requests=0;
+    await context.route('**/assets/js/'+failed,route=>{requests++;return route.abort();});
     const page=await context.newPage();
     await page.goto(base+'/about.html',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
-    if(failed==='site.js') {
-      assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false);
-      await page.locator('[data-menu-button]').click();
-    } else {
-      assert.equal(await page.locator('[data-menu-button]').isVisible(),false,'failed controller does not leave an inert menu button');
-    }
+    if(failed==='public-navigation.js')assert.equal(requests,0,'published header requires no controller download');
+    assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false);
+    await page.locator('[data-menu-button]').click();
     assert.equal(await page.locator('[data-mobile-nav]').isVisible(),true,failed+': core navigation remains usable');
     await context.close();
   }
