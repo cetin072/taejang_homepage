@@ -58,6 +58,7 @@
     if (!slides.length) return;
 
     const activeIndex = (nextIndex + slides.length) % slides.length;
+    const moveFocus = slides.some((slide, index) => index !== activeIndex && slide.contains?.(document.activeElement));
     slides.forEach((slide, index) => {
       const isActive = index === activeIndex;
       if (!isActive) restorePoster(slide);
@@ -70,6 +71,7 @@
       indicator.setAttribute('aria-current', String(index === activeIndex));
     });
     slider.dataset.heroVideoActive = String(activeIndex);
+    if (moveFocus) slider.focus({ preventScroll: true });
   }
 
   document.querySelectorAll('[data-hero-video-slider]').forEach((slider) => {
