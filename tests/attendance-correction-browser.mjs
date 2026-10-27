@@ -32,6 +32,36 @@ try{for(const width of [1440,768,390,320]){
  await page.screenshot({path:path.join(output,(baseline?'before':'after')+'-'+width+'.png')});
  if(baseline){await page.close();continue;}
  assert.equal(await page.locator('.attendance-correction-history[open]').count(),0);if(width===1440)assert.ok(stats.height<=150,'compact desktop row');
+ // Non-work days must explain the hidden timestamps and never offer a save.
+ await page.evaluate(()=>{
+   window.openedAttendanceDate=null;
+   window.TaejangAttendanceAdmin={openAttendance:async d=>{window.openedAttendanceDate=d;}};
+   rows[23].attendance_status={status:'paid_leave'};
+   rows[23].clock_in=null;rows[23].clock_out=null;
+ });
+ await page.getByRole('button',{name:'출근부 조회',exact:true}).click();
+ const nonwork=page.locator('[data-employee-uuid="synthetic-23"]');
+ await nonwork.getByText('유급휴가·월차',{exact:true}).waitFor();
+ assert.equal(await nonwork.locator('[data-correction-action]').count(),0);
+ assert.match(await nonwork.innerText(),/시간 보정 제외/);
+ assert.match(await nonwork.innerText(),/보정 이력/);
+ await nonwork.getByRole('button',{name:'근태 상태 확인',exact:true}).click();
+ assert.equal(await page.evaluate(()=>openedAttendanceDate),'2026-10-01');
+ // Server race: day status can change after the correction list was read.
+ await page.evaluate(()=>{
+   const original=TaejangApp.rpc;
+   TaejangApp.rpc=async(name,p)=>name==='create_attendance_correction'&&window.rejectNonwork
+     ?{ok:false,code:'DAY_STATUS_NOT_WORK'}:original(name,p);
+   window.rejectNonwork=true;
+ });
+ await page.locator('[data-employee-uuid="synthetic-0"] [data-correction-action="clock_in-set_time"]').click();
+ const rejected=page.getByRole('dialog');
+ await rejected.locator('textarea').fill('가상 근태 상태 변경 확인');
+ await rejected.getByRole('button',{name:'보정 저장',exact:true}).click();
+ await rejected.getByText(/정상 근무가 아닌 날짜입니다/).waitFor();
+ assert.equal(await rejected.locator('textarea').inputValue(),'가상 근태 상태 변경 확인');
+ await rejected.getByRole('button',{name:'취소',exact:true}).click();
+ await page.evaluate(()=>window.rejectNonwork=false);
  const card=i=>page.locator('[data-employee-uuid="synthetic-'+i+'"]');
  await card(7).locator('summary').first().click();await page.evaluate(()=>window.untouched=document.querySelector('[data-employee-uuid="synthetic-7"]'));
  const position=()=>page.evaluate(()=>{const w=document.querySelector('.app-workspace');return getComputedStyle(w).overflowY==='auto'?w.scrollTop:document.scrollingElement.scrollTop;});
