@@ -85,5 +85,5 @@ test('metadata and layout support sharing and mobile/reduced-motion friendly rea
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.doesNotMatch(css, /infinite/);
   assert.doesNotMatch(page, /<video|<canvas|<iframe/);
-  assert.deepEqual([...page.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]), ['assets/js/site.js', 'assets/js/employee-app-motion.js'], 'one isolated local motion controller, no external runtime');
+  assert.deepEqual([...page.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]), ['assets/js/public-navigation.js', 'assets/js/site.js', 'assets/js/employee-app-motion.js'], 'one isolated local motion controller, no external runtime');
 });

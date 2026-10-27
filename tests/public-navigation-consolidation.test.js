@@ -188,8 +188,14 @@ assert.match(site, /\['employee-app\.html', '직원앱'\]/, 'the public static m
 assert.match(site, /function markCurrentNavigation\(\)/, 'JS는 기존 정적 메뉴에 현재 페이지 상태만 보강합니다');
 assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 비파괴적으로 보강합니다');
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);
-assert.match(site, /document\.documentElement\.classList\.add\('js-nav-ready'\)/, '토글 바인딩이 끝난 뒤에만 접힘 메뉴 모드를 활성화합니다');
-assert.ok(site.indexOf("menuBtn.addEventListener('click'") < site.indexOf("classList.add('js-nav-ready')"), 'JS 준비 클래스는 메뉴 클릭 핸들러 등록 이후에 추가해야 합니다');
+const navigation = read('assets/js/public-navigation.js');
+assert.doesNotMatch(site, /js-nav-ready|function setMenu/, '공통 메뉴의 상태 소유자는 초기 navigation 코드 하나입니다');
+assert.ok(navigation.indexOf("document.addEventListener('click'") < navigation.indexOf("classList.add('js-nav-ready')"));
+for (const filename of [...publicPages, 'promotion.html']) {
+  const head = read(filename).split('</head>')[0];
+  assert.match(head, /<script src="assets\/js\/public-navigation\.js"><\/script>/, filename + ': 첫 페인트 전에 동기 navigation 핸들러를 준비합니다');
+  assert.ok(head.indexOf('public-navigation.js') < head.indexOf('rel="stylesheet"'), filename + ': 스타일보다 먼저 준비합니다');
+}
 assert.doesNotMatch(site, /function getSeoulDateKey|document\.querySelector\('\.announcement'\)|announcement\.hidden/, '종료 공지를 날짜 기준 JS로 숨기는 구형 동작을 남기지 않습니다');
 
 const photoSlots = read('assets/js/photo-slots.js');
