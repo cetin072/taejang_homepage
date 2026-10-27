@@ -47,6 +47,15 @@ try {
     const geometry = await photo.evaluate(img => ({ width: img.width, height: img.height, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight }));
     assert.ok(Math.abs(geometry.width / geometry.height - geometry.naturalWidth / geometry.naturalHeight) < .02, 'photo retains full uncropped aspect ratio');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no horizontal overflow');
+    if (width > 760) {
+      const heroBox = await page.locator('.hero--neutral').boundingBox();
+      const factsBox = await page.locator('.hero-facts').boundingBox();
+      const sliderBox = await slider.boundingBox();
+      assert.ok(Math.abs(heroBox.y + heroBox.height - factsBox.y - factsBox.height - 32) < 1,
+        'desktop facts retain 32px of green space before the next section');
+      assert.ok(factsBox.y >= sliderBox.y + sliderBox.height,
+        'desktop facts do not overlap the article or video slider');
+    }
     const caption = article.locator('figcaption');
     assert.equal(await caption.evaluate(el => el.scrollHeight <= el.clientHeight + 1 && el.scrollWidth <= el.clientWidth + 1), true);
     await article.focus();

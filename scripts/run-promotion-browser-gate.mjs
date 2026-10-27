@@ -4,6 +4,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 import {browserGateResult} from './browser-gate-result.mjs';
+import {recordBrowserDiagnostics} from './browser-network-diagnostics.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -16,6 +17,7 @@ const fixtures=[
  ['promotion-authoring-upload-gate.html','PROMOTION_AUTHORING_UPLOAD_GATE_PASS'],
  ['promotion-archive-delete-gate.html','PROMOTION_ARCHIVE_DELETE_GATE_PASS'],
  ['promotion-public-link-rendering-gate.html','PROMOTION_PUBLIC_LINK_RENDERING_GATE_PASS'],
+ ['promotion-public-image-gate.html','PROMOTION_PUBLIC_IMAGE_GATE_PASS'],
  ['promotion-v2-publication-gate.html','PROMOTION_V2_PUBLICATION_GATE_PASS'],
  ['sidebar-runtime-gate.html','SIDEBAR_RUNTIME_GATE_PASS']
 ];
@@ -32,7 +34,7 @@ try{
    if(!existsSync(fixture))throw Error('PROMOTION_BROWSER_GATE_FIXTURE_MISSING:'+file);
    let target=fixture,tempDir=null;
    const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
-   page.on('pageerror',error=>diagnostics.push(String(error.stack||error)));
+   recordBrowserDiagnostics(page,diagnostics);
    try{
     if(preview){
      let html=readFileSync(fixture,'utf8');
@@ -57,7 +59,7 @@ try{
   }
  }
 }catch(error){
- const message=[String(error.stack||error),...diagnostics].join('\n').slice(-5000)
+ const message=[String(error.stack||error),...diagnostics].join('\n').slice(-20000)
   .replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
  console.error('::error title=Promotion browser gate '+activeFixture+'::'+message);
  throw error;

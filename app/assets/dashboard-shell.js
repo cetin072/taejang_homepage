@@ -530,6 +530,11 @@
     node.textContent = '설정';
     node.dataset.platformSettingsAction = '1';
     node.addEventListener('click', () => {
+      if (!mayLeaveView()) return;
+      // Settings replaces the current surface outside openView. Invalidate its
+      // cached view so returning to that same menu renders it again.
+      activeView = null;
+      viewDirty = false;
       closeSidebar();
       document.dispatchEvent(new CustomEvent('taejang-open-platform-settings'));
     });

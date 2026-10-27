@@ -92,7 +92,7 @@ test('promotion source type and future-date scheduling are durable server contra
 
 test('public feed labels official homepage blog youtube and external links distinctly', () => {
   const feed = read('netlify/functions/public-promotion-feed.mjs');
-  assert.doesNotThrow(() => new Function(feed.replace('export default async', 'const handler = async')));
+  assert.doesNotThrow(() => new Function(feed.replace(/^import[^\n]+\n/gm, '').replace('export default async', 'const handler = async')));
   assert.match(feed, /태장 홈페이지에서 보기/);
   assert.match(feed, /태장 공식 블로그에서 보기/);
   assert.match(feed, /태장 공식 유튜브에서 보기/);

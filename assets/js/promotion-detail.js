@@ -4,6 +4,13 @@
   const target = document.querySelector('[data-promotion-detail]');
   if (!target) return;
 
+  const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
+  target.querySelectorAll('img').forEach(image => {
+    let candidates = [];
+    try { candidates = JSON.parse(image.getAttribute('data-public-image-candidates') || '[]'); } catch {}
+    mediaPolicy.bind(image, [image.getAttribute('src'), ...candidates]);
+  });
+
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id') || '';
   // Netlify has already rendered the public, approved article into the initial HTML.
@@ -89,7 +96,7 @@
     document.title = '글을 찾을 수 없습니다 | 태장';
   }
 
-  function imageNode(url, alt, className) {
+  function imageNode(url, alt, className, candidates = [url]) {
     if (!/^https:\/\//.test(url || '')) return null;
     const figure = el('figure', null, className || 'article-representative-media');
     const image = document.createElement('img');
@@ -98,7 +105,7 @@
     image.loading = 'lazy';
     image.decoding = 'async';
     image.referrerPolicy = 'no-referrer';
-    image.addEventListener('error', () => figure.remove(), { once: true });
+    mediaPolicy.bind(image, candidates);
     figure.append(image);
     return figure;
   }
@@ -124,18 +131,11 @@
     if (item.summary) header.append(el('p', item.summary, 'lead'));
     article.append(header);
 
-    const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => /^https:\/\//.test(entry?.url || '')) : [];
-    // Explicitly selected/uploaded public media is authoritative. A remotely
-    // imported og:image from a linked source is reference material only and is
-    // never the public detail hero; legacy no-link rows keep their stored hero.
-    const storedHero = String(item.link_source_type || 'none') === 'none'
-      && /^https:\/\//.test(item.hero_image_url || '') ? item.hero_image_url : '';
-    const heroUrl = media[0]?.url || storedHero;
-    if (heroUrl) {
-      const heroMatch = media.find(entry => entry.url === heroUrl);
-      const hero = imageNode(heroUrl, heroMatch?.alt || `${item.title} 대표사진`, 'article-representative-media');
-      if (hero) article.append(hero);
-    }
+    const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => mediaPolicy.persistent(entry?.url)) : [];
+    const presentation = item.public_image;
+    const candidates = presentation?.candidates || mediaPolicy.candidates(item);
+    const heroUrl = presentation?.url || candidates[0];
+    article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
     const paragraphs = String(item.public_body || '')

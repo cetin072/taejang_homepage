@@ -464,6 +464,8 @@ function createHubApi(content) {
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     setAttribute(name, value) { this.attributes[name] = value; }
+    getAttribute(name) { return name === 'src' ? this.src : this.attributes[name]; }
+    addEventListener() {}
     closest() { return null; }
   }
   const document = {
@@ -471,7 +473,9 @@ function createHubApi(content) {
     querySelector: () => null
   };
   const runtimeWindow = { TAEJANG_CONTENT: content };
-  vm.runInNewContext(contentHub, { window: runtimeWindow, document, console: { warn() {} } });
+  const sandbox = { window: runtimeWindow, document, URL, console: { warn() {} } };
+  vm.runInNewContext(read('assets/js/public-promotion-media.js'), sandbox);
+  vm.runInNewContext(contentHub, sandbox);
   return runtimeWindow.TAEJANG_CONTENT_HUB;
 }
 
@@ -488,6 +492,8 @@ function createPreviewFixture(content, count = '8') {
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     setAttribute(name, value) { this.attributes[name] = value; }
+    getAttribute(name) { return name === 'src' ? this.src : this.attributes[name]; }
+    addEventListener() {}
     closest() { return section; }
   }
   const section = new Element();
@@ -620,7 +626,7 @@ assert.equal(visiblePreview.container.children[0].children[0].children[0].childr
 assert.equal(visiblePreview.container.children[0].children[0].children[0].children[0].alt, '최신 외부 글 대표사진');
 assert.equal(visiblePreview.container.children[1].children[0].href, 'activities.html?id=second');
 assert.equal(visiblePreview.container.children[1].children[0].children[0].children[0].alt, '두 번째 글 썸네일');
-assert.equal(visiblePreview.container.children[2].children[0].children[0].children[0].children[0].textContent, 'CONTENT PHOTO');
+assert.equal(visiblePreview.container.children[2].children[0].children[0].children[0].src, 'https://taejang.co.kr/images/og-taejang.png');
 const maximumPreviewContent = { hub: Array.from({ length: 10 }, (_, index) => ({
   type: 'internal', source: 'homepage', status: 'published', title: `최신 글 ${index + 1}`, category: '소식',
   publishedAt: `2026-08-${String(index + 1).padStart(2, '0')}`, detailUrl: `activities.html?id=${index + 1}`

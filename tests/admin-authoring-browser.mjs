@@ -1,3 +1,4 @@
+import {recordBrowserDiagnostics} from '../scripts/browser-network-diagnostics.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -66,13 +67,19 @@ try{
     const gates=['operations-public-text-edit','compact-admin-form','operations-owned-promotion','general-worker-browser','promotion-browser','promotion-authoring-upload','promotion-archive-delete','promotion-public-link-rendering','promotion-v2-publication','sidebar-runtime','notice-authoring-ux'];
     for(const width of [1440,390])for(const gate of gates){
       const page=await browser.newPage({viewport:{width,height:1000}});
+      const diagnostics=recordBrowserDiagnostics(page);
+      try {
       const navigation=await page.goto(base+'/tests/browser/'+gate+'-gate.html',
         {waitUntil:'domcontentloaded',timeout:90000});
       assert.equal(navigation?.status(),200,'fixture loaded: '+gate);
       await page.waitForFunction(()=>/GATE_(?:PASS|FAIL)/.test(document.getElementById('result')?.textContent||''),null,{timeout:30000});
       const expected=gate.replaceAll('-','_').toUpperCase()+'_GATE_PASS',result=await page.locator('#result').innerText();
       assert.ok(result===expected||result.startsWith(expected+':'),gate+' original functional assertions: '+result);
-      console.log('AUTHORING_REGRESSION_PASS:'+width+':'+gate);await page.close();
+      console.log('AUTHORING_REGRESSION_PASS:'+width+':'+gate);
+      } catch(error) {
+        console.error('AUTHORING_ASSET_DIAGNOSTICS:'+gate+'\n'+diagnostics.join('\n'));
+        throw error;
+      } finally { await page.close(); }
     }
   }
   for(const width of [1440,768,390,320]){
