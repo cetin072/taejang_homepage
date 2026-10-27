@@ -108,7 +108,7 @@
     object-fit: contain;
   }
 
-  .menu-btn {
+  .js-nav-ready .menu-btn {
     display: grid;
     flex: 0 0 48px;
     font-size: 27px;

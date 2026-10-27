@@ -158,6 +158,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     if(failed==='site.js') {
       assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false);
       await page.locator('[data-menu-button]').click();
+    } else {
+      assert.equal(await page.locator('[data-menu-button]').isVisible(),false,'failed controller does not leave an inert menu button');
     }
     assert.equal(await page.locator('[data-mobile-nav]').isVisible(),true,failed+': core navigation remains usable');
     await context.close();
