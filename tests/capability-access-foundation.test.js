@@ -42,12 +42,18 @@ test('operations manager is the complete operational superset while technical au
   );
 });
 
-test('browser capability bridge is loaded before feature app-ready handlers and has safe v1 fallback', () => {
+test('browser capability bridge is loaded before feature app-ready handlers and fails closed without v2 access', () => {
   assert.match(appUi, /\['assets\/capability-access\.js', 'capability-access'\]/);
   assert.match(bridge, /get_my_access_context_v2/);
   assert.match(bridge, /app\.can = capability/);
   assert.match(bridge, /hasCapabilityContract/);
   assert.match(bridge, /event\.stopImmediatePropagation\(\)/);
   assert.match(bridge, /taejang-capabilities-ready/);
-  assert.match(bridge, /keeping legacy route guards/);
+  assert.match(bridge, /must not silently regress to copied role checks/);
+  assert.match(bridge, /FAILED_ACCESS_CONTEXT/);
+  assert.match(bridge, /access_contract_version: 0/);
+  assert.match(bridge, /effective_roles: \[\]/);
+  assert.match(bridge, /if \(Number\(accessContext\?\.access_contract_version \|\| 0\) === 0\) return null/);
+  assert.match(bridge, /installApi\(FAILED_ACCESS_CONTEXT, 0\)/);
+  assert.match(bridge, /detail: \{ version: 0, capabilities: \[\], error: true \}/);
 });

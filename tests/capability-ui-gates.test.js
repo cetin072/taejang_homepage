@@ -33,6 +33,6 @@ assert.match(gates, /MutationObserver/, 'navigation added by legacy modules is r
 
 assert.match(bridge, /capability-ui-gates\.js/, 'capability bridge preloads UI gates');
 assert.match(bridge, /await ensureUiGates\(\)/, 'app-ready replay waits until UI gates are installed');
-assert.match(bridge, /keeping legacy route guards/, 'v1 fallback remains explicit for staggered DB/client deployment');
+assert.doesNotMatch(bridge, /keeping legacy route guards/, 'v2 access errors must fail closed instead of reopening legacy role guards');
 
 console.log('capability UI gates static contract: PASS');
