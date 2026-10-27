@@ -52,7 +52,7 @@ try {for(const width of [320,390,1440]) {
  await page.screenshot({path:path.join(output,`attached-${width}.png`),fullPage:true});
  await page.getByRole('button',{name:'임시저장',exact:true}).click();
  await page.waitForFunction(()=>state.saveCalls.length===1);
- const saved=await page.evaluate(()=>state.saveCalls[0]);assert.equal(saved.p_public_media.length,1);assert.equal(saved.p_public_media[0].official_blog_post,'224446512548');assert.equal(saved.p_hero_image_url,saved.p_public_media[0].url);
+ const saved=await page.evaluate(()=>state.saveCalls[0]);assert.equal(saved.p_public_media.length,1);assert.deepEqual(Object.keys(saved.p_public_media[0]).sort(),['alt','kind','url']);assert.match(saved.p_public_media[0].url,/\/official-blog-224446512548-[0-9a-f-]{36}\.png$/i);assert.equal(saved.p_hero_image_url,saved.p_public_media[0].url);
  // Reload-equivalent: reconstruct the composer from the saved RPC media and source marker.
  await page.evaluate(saved=>{const rpc=TaejangApp.rpc;TaejangApp.rpc=async(name,args)=>name==='get_my_promotion_workspace'?{role:'promotion_lead',my_items:[{content_id:'11111111-1111-4111-8111-111111111111',lifecycle:'draft',title:saved.p_title,public_body:saved.p_public_body,external_url:saved.p_external_url,public_media:saved.p_public_media,hero_image_url:saved.p_hero_image_url}],review_items:[],publication_items:[]}:rpc(name,args);},saved);
  await page.evaluate(()=>TaejangPromotionWorkspaceV2Api.openPromotion('write'));
