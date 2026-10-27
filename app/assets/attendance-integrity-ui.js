@@ -132,6 +132,7 @@
 
   function correctionErrorMessage(code) {
     return {
+      DAY_STATUS_NOT_WORK: '정상 근무가 아닌 날짜입니다. 출근부에서 근태 상태를 확인하고, 실제 근무한 날이면 정상 근무로 변경한 뒤 시간을 보정해주세요.',
       CLOCK_IN_REQUIRED: '먼저 출근 시간을 등록해야 합니다.',
       CLOCK_OUT_EXISTS: '퇴근 기록이 남아 있어 출근만 무효 처리할 수 없습니다. 퇴근부터 정리해주세요.',
       CLOCK_OUT_BEFORE_CLOCK_IN: '퇴근 시간은 출근 시간보다 빠를 수 없습니다.',
@@ -368,12 +369,34 @@
       line.dataset.employeeUuid = row.employee_uuid;
       const person = node('div', null, 'attendance-person');
       person.append(node('strong', row.display_name || '직원'), node('span', row.employee_id || '직원번호 없음'));
+      const dayStatus = row.attendance_status?.status || 'work';
+      const isWork = dayStatus === 'work';
+      if (!isWork) {
+        const dayLabel = {
+          paid_leave: '유급휴가·월차', unpaid_absence: '무급 결근',
+          paid_holiday: '유급공휴일', off: '근태 대상 아님',
+          out_of_scope: '근태 대상 아님', blank: '상태 미확인', review_required: '상태 확인 필요'
+        }[dayStatus] || '상태 확인 필요';
+        person.append(node('span', dayLabel));
+        const guidance = node('p', '시간 보정 전 출근부에서 근태 상태를 확인해주세요.', 'attendance-correction-note');
+        guidance.style.whiteSpace = 'normal';
+        person.append(guidance);
+        const openAttendance = correctionActionButton('근태 상태 확인');
+        openAttendance.addEventListener('click', async () => {
+          if (window.TaejangAttendanceAdmin?.openAttendance) {
+            await window.TaejangAttendanceAdmin.openAttendance(workDate);
+          } else {
+            feedback.textContent = '출근부 메뉴에서 같은 날짜의 근태 상태를 확인해주세요.';
+          }
+        });
+        person.append(openAttendance);
+      }
       line.append(person);
       for (const [eventType, labelText] of [['clock_in', '출근'], ['clock_out', '퇴근']]) {
         const record = row[eventType];
         const cell = node('div', null, 'attendance-cell');
         const heading = node('div', null, 'attendance-correction-event');
-        heading.append(node('span', labelText, 'eyebrow'), node('strong', (record?.event_at ? kstTime(record.event_at) : '-') + ' · ' + statusLabel(record)));
+        heading.append(node('span', labelText, 'eyebrow'), node('strong', (record?.event_at ? kstTime(record.event_at) : '-') + ' · ' + (isWork ? statusLabel(record) : '시간 보정 제외')));
         cell.append(heading);
         const actions = node('div', null, 'attendance-correction-actions');
         const bindAction = (action, text) => {
@@ -428,8 +451,10 @@
           });
           actions.append(button);
         };
-        bindAction('set_time', record?.event_at ? '시간 정정' : '누락 시간 추가');
-        if (record?.event_at) bindAction('invalidate', '무효 처리');
+        if (isWork) {
+          bindAction('set_time', record?.event_at ? '시간 정정' : '누락 시간 추가');
+          if (record?.event_at) bindAction('invalidate', '무효 처리');
+        }
         cell.append(actions);
         const related = history.filter(item => item.event_type === eventType);
         if (related.length) {
