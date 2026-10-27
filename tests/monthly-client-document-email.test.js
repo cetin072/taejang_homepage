@@ -139,3 +139,8 @@ test('additional program wording uses the natural Korean object particle', () =>
   assert.match(email.activityParagraph('outdoor', [{ name: '음악 연주', enabled: true }]), /음악 연주를 함께 진행/);
   assert.match(email.activityParagraph('indoor', [{ name: '환경 정비', enabled: true }, { name: '문화 공연', enabled: true }]), /환경 정비, 문화 공연을 함께 진행/);
 });
+
+test('multiple monthly service dates appear without enabling an optional program', () => {
+  const input=fixture();input.monthly={...input.monthly,yearMonth:'2026-10',serviceDate:'2026-10-14',serviceDates:['2026-10-14','2026-10-23'],programs:[]};
+  input.calculation.yearMonth='2026-10';input.company.attachmentLabel=input.company.attachmentLabel.replace('9월','10월');const output=email.generate(input);assert.match(output.body,/2026년 10월 14일/);assert.match(output.body,/2026년 10월 23일/);assert.doesNotMatch(output.body,/버스킹/);
+});

@@ -134,7 +134,7 @@ test('month identity changes only through the atomic load flow and snapshots can
   assert.match(ui, /async function startNewMonth\(\)[\s\S]*?loadMonth\(year,month,true,true\)/);
   assert.match(ui, /async function copyPrevious\(\)[\s\S]*?monthly_client_documents_copy_previous[\s\S]*?loadMonth\(year,month,false\)/);
   assert.match(ui, /async function saveMonth\(\)[\s\S]*?assertActiveMonth\(\)/);
-  assert.match(ui, /async function saveMonth\(\)[\s\S]*?state\.common = window\.MonthlyClientDocumentCore\.normalizeCommon\(state\.common\);[\s\S]*?p_payload: \{ common: state\.common/);
+  assert.match(ui, /async function saveMonth\(\)[\s\S]*?state\.common = window\.MonthlyClientDocumentCore\.normalizeCommon\(state\.common, \{requireReady:false\}\);[\s\S]*?p_payload: \{ common: state\.common/);
 });
 
 
