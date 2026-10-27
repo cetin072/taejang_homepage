@@ -54,8 +54,13 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     // download without blocking CSS/fonts or the Preview toolbar.
     await page.route('**/assets/js/site.js',async route=>{
       await page.waitForFunction(()=>document.querySelectorAll('.desktop-nav,[data-mobile-nav]').length===2);
+      await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
       await page.evaluate(()=>{
         const navs=[...document.querySelectorAll('.desktop-nav,[data-mobile-nav]')];
+        window.__menuBeforeSite = {
+          ready: document.documentElement.classList.contains('js-nav-ready'),
+          visible: getComputedStyle(navs[1]).display !== 'none'
+        };
         window.__headerBefore=navs.map(n=>[...n.children].map(a=>a.getAttribute('href')));
         window.__headerMutations=[];
         navs.forEach(n=>new MutationObserver(records=>window.__headerMutations.push(...records.map(r=>r.type))).observe(n,{childList:true,subtree:true,characterData:true}));
@@ -67,6 +72,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       // feed. Keep the existing whole-landing readiness gate unchanged below.
       await headerReady(page,base+'/'+file,diagnostics);
       const first = await page.evaluate(()=>window.__headerBefore);
+      assert.deepEqual(await page.evaluate(()=>window.__menuBeforeSite),
+        {ready:true,visible:false},file+': menu is closed before later site.js enhancement, without a first-paint flash');
       assert.deepEqual(first.map(links=>links.map(canonicalHref)),[order,order],file+': first authored order on both surfaces, including Netlify pretty URLs');
       for (const selector of ['.desktop-nav','[data-mobile-nav]']) assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,file+': runtime order');
       await page.waitForTimeout(120);
@@ -89,6 +96,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
         assert.match(metrics.app,/직원앱 안내\s+앱 설치 및 사용 방법/);
         assert.equal(metrics.contact,metrics.contactCurrent?'rgb(27, 67, 50)':'rgb(45, 106, 79)',file+': contact retains its existing normal/current CTA colors');
         await page.keyboard.press('Escape');
+        assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,file+': Escape closes menu');
+        assert.equal(await page.locator('[data-menu-button]').getAttribute('aria-expanded'),'false');
       } else {
         const header=await page.locator('.header-inner').evaluate(el=>({height:el.getBoundingClientRect().height,links:[...el.querySelectorAll('nav>a')].map(a=>({top:a.getBoundingClientRect().top,bottom:a.getBoundingClientRect().bottom,left:a.getBoundingClientRect().left,right:a.getBoundingClientRect().right}))}));
         assert.equal(header.height,80,file+': desktop header height');
@@ -110,6 +119,16 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await gotoPublicReady(page,base+'/index.html',output);
     if(width===390){
       await page.locator('[data-menu-button]').click();
+      await page.locator('.site-header .brand').click();
+      await page.waitForURL(url=>/^\/(?:index(?:\.html)?)?$/.test(url.pathname));
+      await page.waitForFunction(()=>window.__menuBeforeSite?.ready);
+      assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,'logo navigates home without opening the menu');
+      await page.locator('[data-menu-button]').click();
+      await page.setViewportSize({width:1440,height:1000});
+      await page.waitForFunction(()=>!document.body.classList.contains('nav-open'));
+      await page.setViewportSize({width:390,height:1000});
+      assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,'resize resets open state and scroll lock');
+      await page.locator('[data-menu-button]').click();
       await page.screenshot({path:path.join(output,'header-mobile-390.png')});
       await page.addStyleTag({content:'.mobile-nav a,.mobile-nav .nav-entry-label{font-size:200%!important}.mobile-nav .nav-entry-description{font-size:28px!important}'});
       const app=page.locator('.mobile-nav .employee-app-nav');
@@ -126,6 +145,23 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     const page=await context.newPage();await page.goto(base+'/index.html');
     for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,'no-JS authored order including pretty URLs');
     assert.ok(await page.locator(width===390?'[data-mobile-nav]':'.desktop-nav').isVisible(),'no-JS navigation remains visible');
+    if(width===390)assert.equal(await page.locator('[data-menu-button]').isVisible(),false,'no-JS fallback has no inactive toggle');
+    await context.close();
+  }
+  // Network failure boundaries: later enhancements cannot disable the menu;
+  // The head controller is inlined at build time and must not depend on a
+  // network request. JavaScript-disabled fallback is checked above.
+  for (const failed of ['site.js','public-navigation.js']) {
+    const context=await browser.newContext({viewport:{width:390,height:1000}});
+    let requests=0;
+    await context.route('**/assets/js/'+failed,route=>{requests++;return route.abort();});
+    const page=await context.newPage();
+    await page.goto(base+'/about.html',{waitUntil:'domcontentloaded'});
+    await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
+    if(failed==='public-navigation.js')assert.equal(requests,0,'published header requires no controller download');
+    assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false);
+    await page.locator('[data-menu-button]').click();
+    assert.equal(await page.locator('[data-mobile-nav]').isVisible(),true,failed+': core navigation remains usable');
     await context.close();
   }
   await fs.writeFile(path.join(output,'public-header-results.json'),JSON.stringify({scope:'shared header only; whole-landing checks run separately',results,clickRoutes:order,credentialsSubmitted:false,externalBodyImageWarnings},null,2));

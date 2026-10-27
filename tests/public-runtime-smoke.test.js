@@ -171,6 +171,8 @@ class MockElement {
 
 function matches(element, selector) {
   if (!element || typeof element !== 'object') return false;
+  if (selector.includes(',')) return selector.split(',').some(part => matches(element, part.trim()));
+  if (selector === '[data-mobile-nav] a') return element.tagName === 'A' && element.parentElement?.dataset?.mobileNav !== undefined;
   if (selector === 'a') return element.tagName === 'A';
   if (selector.startsWith('.')) {
     const className = selector.slice(1);
@@ -269,9 +271,14 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
   const authoredNodes = [desktop, mobile].map(nav => [...nav.children]);
   const source = pilotEnabled ? read('assets/js/site.js')
     : read('assets/js/site.js').replace('const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = true;', 'const SHOW_EMPLOYEE_ENTRY_FOR_FIELD_PILOT = false;');
+  const media = new MockElement('media');
+  const window = new MockElement('window');
+  window.location = { pathname };
+  window.matchMedia = () => media;
+  vm.runInNewContext(read('assets/js/public-navigation.js'), { document, window });
   vm.runInNewContext(source, {
     document,
-    window: { location: { pathname } },
+    window,
     console,
     Date
   });
@@ -287,19 +294,28 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
       'Netlify clean URL preserves the employee-app active navigation state');
   }
   assert.equal(document.documentElement.classList.contains('js-nav-ready'), true, '메뉴 이벤트가 연결된 뒤에만 JS 메뉴 모드가 활성화됩니다');
-  menuButton.dispatch('click');
+  document.dispatch('click', { target: menuButton });
   assert.equal(mobile.classList.contains('open'), true, '모바일 메뉴 버튼으로 메뉴를 엽니다');
   assert.equal(menuButton.getAttribute('aria-expanded'), 'true');
   assert.equal(document.body.classList.contains('nav-open'), true);
 
-  mobile.querySelectorAll('a')[0].dispatch('click');
+  document.dispatch('click', { target: mobile.querySelectorAll('a')[0] });
   assert.equal(mobile.classList.contains('open'), false, '모바일 메뉴 링크 이동 시 메뉴를 닫습니다');
   assert.equal(menuButton.getAttribute('aria-expanded'), 'false');
 
-  menuButton.dispatch('click');
+  document.dispatch('click', { target: menuButton });
   document.dispatch('keydown', { key: 'Escape' });
   assert.equal(mobile.classList.contains('open'), false, 'Escape 키로 모바일 메뉴를 닫습니다');
   assert.equal(menuButton.focused, true, 'Escape로 닫은 뒤 메뉴 버튼에 초점을 돌립니다');
+
+  document.dispatch('click', { target: menuButton });
+  media.dispatch('change', { matches: true });
+  assert.equal(document.body.classList.contains('nav-open'), false, 'PC 전환 시 스크롤 잠금을 해제합니다');
+  document.dispatch('click', { target: menuButton });
+  window.dispatch('pageshow', { persisted: false });
+  assert.equal(mobile.classList.contains('open'), true, '로딩 중 사용자가 연 메뉴를 초기 pageshow가 다시 닫지 않습니다');
+  window.dispatch('pageshow', { persisted: true });
+  assert.equal(mobile.classList.contains('open'), false, '뒤로가기 복원에서도 메뉴가 닫힙니다');
 
   faqButton.dispatch('click');
   assert.equal(faqItem.classList.contains('open'), true, 'FAQ 버튼이 답변을 엽니다');

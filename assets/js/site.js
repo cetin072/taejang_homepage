@@ -192,34 +192,6 @@
   enhanceFooter();
   loadHomepageLiveOverrides();
 
-  const menuBtn = document.querySelector('[data-menu-button]');
-  const mobileNav = document.querySelector('[data-mobile-nav]');
-  if (menuBtn && mobileNav) {
-    function setMenu(open) {
-      mobileNav.classList.toggle('open', open);
-      document.body.classList.toggle('nav-open', open);
-      menuBtn.setAttribute('aria-expanded', String(open));
-      menuBtn.setAttribute('aria-label', open ? '메뉴 닫기' : '메뉴 열기');
-    }
-
-    menuBtn.addEventListener('click', function () {
-      setMenu(!mobileNav.classList.contains('open'));
-    });
-    mobileNav.querySelectorAll('a').forEach(link => link.addEventListener('click', function () {
-      setMenu(false);
-    }));
-    document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && mobileNav.classList.contains('open')) {
-        setMenu(false);
-        menuBtn.focus();
-      }
-    });
-
-    // Collapse the static mobile navigation only after every interaction handler
-    // is bound. If this script never reaches here, the no-JS navigation stays visible.
-    document.documentElement.classList.add('js-nav-ready');
-  }
-
   document.querySelectorAll('[data-faq-button]').forEach(button => {
     button.addEventListener('click', function () {
       const item = button.closest('.faq-item');

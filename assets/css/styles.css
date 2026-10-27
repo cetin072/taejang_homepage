@@ -415,7 +415,7 @@ button{cursor:pointer}
   :root{--section:76px}
   .desktop-nav{display:none}
   /* Progressive enhancement: without JS the static mobile navigation remains
-     visible. site.js adds .js-nav-ready only after the toggle is bound. */
+     visible. The head navigation controller adds .js-nav-ready after binding. */
   .mobile-nav{display:grid}
   html:not(.js-nav-ready) .mobile-nav{display:grid}
   .menu-btn{display:none}
