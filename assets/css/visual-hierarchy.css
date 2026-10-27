@@ -161,3 +161,65 @@
   .greeting--about .photo-slot--4-5 { width: min(100%, 300px); justify-self: center; }
   .location-visit-details, .inquiry-scope ul { grid-template-columns: 1fr; }
 }
+/* Compact reading lists share the same mobile layout, including static fallbacks. */
+@media (max-width: 760px) {
+  .recent-activities .section-head { gap: 10px; margin-bottom: 18px; }
+  .recent-activities .section-head .title { margin-bottom: 0; font-size: 28px; }
+  .recent-activities .section-head .eyebrow { margin-bottom: 8px; }
+
+  .recent-activities-grid,
+  .article-list[data-hub-list] { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) .card-link {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: center;
+    min-height: 124px;
+    gap: 12px;
+    padding: 10px;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) .card-media {
+    width: 96px;
+    height: 96px;
+    aspect-ratio: 1;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) .card .card-body {
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) .content-card-meta {
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) :is(.source-badge, .tag) {
+    margin: 0;
+    padding: 2px 5px;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) .card-date {
+    display: block;
+    margin: 0 0 4px;
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  :is(.recent-activities-grid, .article-list[data-hub-list]) :is(h2, h3) {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .article-list[data-hub-list] .card-body :is(p, .text-link) { display: none; }
+}
