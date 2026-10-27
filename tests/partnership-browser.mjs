@@ -56,6 +56,21 @@ async function ready(page) {
 try {
   for (const width of [320, 390, 768, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: width < 600 ? 844 : 1000 }, reducedMotion: 'reduce' });
+    let post = null;
+    let mockAction = null;
+    const blockedWrites = [];
+    // Fail closed from the first request, including Netlify's clean-URL form action.
+    // No non-read request from this context is ever sent to the network.
+    await context.route('**/*', async route => {
+      const request = route.request();
+      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
+      if (request.method() === 'POST' && mockAction && request.url() === mockAction) {
+        post = request.postData();
+        return route.fulfill({ status: 503, contentType: 'text/html; charset=utf-8', body: '<h1>개발 검수용 수신 실패</h1><p>요청은 외부로 전송되지 않았습니다. 뒤로가기로 입력을 확인합니다.</p>' });
+      }
+      blockedWrites.push({ method: request.method(), url: request.url() });
+      return route.abort('blockedbyclient');
+    });
     const page = await context.newPage();
     const errors = []; page.on('pageerror', e => errors.push(e.message));
     await ready(page);
@@ -95,14 +110,13 @@ try {
     assert.equal(await form.evaluate(el => el.checkValidity()), true);
     // All native submission fields, completion path and synthetic failure/back recovery.
     const initial = await form.evaluate(el => [...new FormData(el)]);
-    let post = null;
-    await page.route('**/thanks.html', async route => {
-      assert.equal(route.request().method(), 'POST');
-      post = route.request().postData();
-      await route.fulfill({ status: 503, contentType: 'text/html; charset=utf-8', body: '<h1>개발 검수용 수신 실패</h1><p>요청은 외부로 전송되지 않았습니다. 뒤로가기로 입력을 확인합니다.</p>' });
-    });
+    const action = new URL(await form.getAttribute('action'), page.url());
+    assert.equal(action.origin, new URL(base).origin, 'same-origin native form');
+    assert.match(action.pathname, /^\/thanks(?:\.html)?$/, 'known original or Netlify clean action');
+    mockAction = action.href;
     await page.getByRole('button', { name: '문의 보내기', exact: true }).click();
-    await page.waitForURL('**/thanks.html');
+    await page.waitForURL(url => url.href === mockAction);
+    assert.notEqual(post, null, 'the expected POST was intercepted');
     const posted = new URLSearchParams(post);
     for (const [key, value] of initial) assert.equal(posted.get(key), value, 'POST ' + key);
     assert.equal(posted.get('form-name'), 'taejang-inquiry');
@@ -121,7 +135,7 @@ try {
       await page.screenshot({ path: path.join(output, 'partnership-390-text-200.png'), fullPage: true });
     }
     assert.deepEqual(errors, [], 'page runtime errors');
-    results.push({ width, metric, faq: true, nativeValidation: true, interceptedPost: true, failureBackPreservation: true });
+    results.push({ width, metric, blockedWrites, faq: true, nativeValidation: true, interceptedPost: true, failureBackPreservation: true });
     await context.close();
   }
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
