@@ -138,7 +138,7 @@ assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp
 assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
-assert.match(pages['partnership.html'], /<h3>기업 협력·고용 연계<\/h3><p>기업·기관과 실제 업무와 협력 방식을 함께 검토합니다\.<\/p>/, '협력 카드는 협력 분야 입구로 간결하게 안내합니다');
+assert.match(pages['partnership.html'], /기업의 참여로 함께 만드는<br>지속 가능한 일자리/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
 assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
@@ -174,7 +174,7 @@ assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
 assert.doesNotMatch(partnership, /contact-location-map|<svg/);
 assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
-assert.doesNotMatch(partnership, /subsidiary-standard-|자회사형 장애인 표준사업장이란|고용률 산정 반영|고용부담금 산정에 영향을/, '상세 제도 설명은 공개 페이지에서 제외합니다');
+assert.doesNotMatch(partnership, /최소 출자금은|의무 구매량은|부담금 완전 해소|고용 실적 자동 인정/, '미확정 계약조건과 고용 보장을 게시하지 않습니다');
 assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효과|리스크를 태장이 모두 부담/, '제도 설명에 과장된 영업 문구를 사용하지 않습니다');
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
@@ -279,18 +279,16 @@ assert.ok(workplace.indexOf('data-workplace-overview') < workplace.indexOf('data
 assert.match(workplace, /일터 이야기/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
-assert.equal((partnership.match(/class="partnership-visual-card"/g) || []).length, 4);
+// Issue #544 supersedes the old four-illustration/ESG-detail layout.
+assert.equal((partnership.match(/<section\b/g) || []).length, 6);
+assert.equal((partnership.match(/class="relationship-card"/g) || []).length, 3);
+assert.match(partnership, /A · 출자 관계[\s\S]*B · 상품·용역 거래 관계[\s\S]*C · 운영·보고 관계/);
+assert.match(partnership, /출자금과 거래대금은 구분합니다/);
 assert.match(partnership, /id="environment-service"/);
-assert.match(partnership, /지역사회공헌·ESG 협력/);
-assert.match(partnership, /SOCIAL CONTRIBUTION &amp; ESG/);
-assert.match(partnership, /현재 지역 환경정비 활동을 기록하고 있으며, 기업·기관과는 현장 여건에 맞는 지역사회공헌 활동을 함께 검토합니다\./);
-assert.match(partnership, /지역사회공헌 활동 자세히 보기/);
-assert.match(partnership, /협력 검토 흐름/);
-assert.match(partnership, /사전 협의[\s\S]*현장 확인·준비[\s\S]*안전 안내·활동[\s\S]*기록·다음 협력 검토/);
-assert.equal((partnership.match(/class="service-step"/g) || []).length, 4);
-assert.match(partnership, /기업 협력·고용 연계/);
-assert.doesNotMatch(partnership, /START WITH A CONVERSATION|간단한 문의부터 시작할 수 있습니다/);
-assert.match(partnership, /href="#contact">협력·문의하기/);
+assert.match(partnership, /2026.07.24[\s\S]*준비·안전 안내[\s\S]*현장 수행[\s\S]*활동 기록/);
+assert.equal((partnership.match(/data-inquiry-type=/g) || []).length, 2);
+assert.match(partnership, /data-inquiry-type="모회사·고용 연계"/);
+assert.match(partnership, /data-inquiry-type="기업 업무·건별 프로젝트"/);
 assert.match(partnership, /<form[^>]*name="taejang-inquiry"[^>]*method="POST"[^>]*data-netlify="true"[^>]*netlify-honeypot="bot-field"/);
 assert.match(partnership, /action="\/thanks\.html"/);
 assert.match(partnership, /name="form-name" value="taejang-inquiry"/);
@@ -301,22 +299,15 @@ assert.match(partnership, /mailto:taejang2025@naver\.com/);
 assert.match(partnership, /기업 업무·건별 프로젝트/);
 assert.equal((partnership.match(/class="faq-item"/g) || []).length, 6, '협력 FAQ는 6개 질문을 제공합니다');
 assert.equal((partnership.match(/data-faq-button aria-expanded="false"/g) || []).length, 6, 'FAQ 질문은 처음에 모두 접힌 상태입니다');
-assert.match(partnership, /환경정비 등 지역사회 활동을 기업·기관과 함께 검토합니다\.[\s\S]*href="community-esg\.html"/);
-assert.ok(partnership.indexOf('id="environment-service"') < partnership.indexOf('faq-section'), 'FAQ는 ESG 상세 뒤에 배치합니다');
+assert.match(partnership, /href="community-esg\.html"/);
+assert.ok(partnership.indexOf('id="environment-service"') < partnership.indexOf('faq-section'), 'FAQ는 활동 사례 뒤에 배치합니다');
 assert.ok(partnership.indexOf('faq-section') < partnership.indexOf('id="contact"'), 'FAQ는 문의 영역 앞에 배치합니다');
 assert.match(site, /querySelectorAll\('\[data-faq-button\]'\)[\s\S]*setAttribute\('aria-expanded', 'false'\)[\s\S]*setAttribute\('aria-expanded', 'true'\)/, '기존 FAQ 아코디언 동작을 재사용합니다');
-for (const image of [
-  'partnership-parent-company-ai.webp',
-  'partnership-project-ai.webp',
-  'partnership-esg-ai.webp',
-  'partnership-community-ai.webp'
-]) {
-  assert.match(partnership, new RegExp(`assets/images/partnership/${escapeRegExp(image)}`), `협력·참여 카드가 ${image} 디자인 이미지를 사용합니다`);
-  assert.equal(fs.existsSync(path.join(root, 'assets/images/partnership', image)), true, `${image} 파일이 존재해야 합니다`);
-}
-assert.doesNotMatch(partnership, /PARENT COMPANY|ESG FIELD|COMMUNITY/, '비어 있는 카드용 텍스트 장식을 노출하지 않습니다');
-assert.match(partnershipCompact, /\.partnership-visual-media img\s*\{[\s\S]*?object-fit:\s*cover/, '협력·참여 카드 이미지는 비주얼 영역을 안정적으로 채웁니다');
-assert.match(partnershipCompact, /@media \(max-width: 760px\)[\s\S]*?\.partnership-visual-media\s*\{[\s\S]*?height:\s*170px/, '모바일 카드 미디어를 압축합니다');
+assert.doesNotMatch(partnership, /assets\/images\/partnership\/.*-ai\.webp/, '실제 사례를 기존 AI 일러스트로 증명하지 않습니다');
+assert.match(partnership, /일반 상품·용역 거래만으로 자동 적용되지 않습니다/);
+assert.match(partnership, /https:\/\/www\.kead\.or\.kr\/spdstndsyst\/cntntsPage\.do/);
+assert.match(partnershipCompact, /:not\(\.partnership-enhanced\) \.faq-a\s*\{ display: block/, 'JS off에서 답변을 읽을 수 있습니다');
+assert.match(partnershipCompact, /\.partnership-page figure img\s*\{[^}]*height: auto/, '실제 사진의 비율을 보존합니다');
 
 assert.match(archive, /<div class="eyebrow">TAEJANG ARCHIVE<\/div>/);
 assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
@@ -417,7 +408,7 @@ assert.match(engagement, /\.contact-form-card/);
 assert.match(engagement, /\.environment-service-layout/);
 assert.match(engagement, /\.workplace-work-gallery/);
 assert.match(engagement, /\.workplace-principle-list/);
-assert.match(read('assets/css/partnership-compact.css'), /\.partnership-environment \.service-steps[\s\S]*repeat\(3/);
+assert.match(partnershipCompact, /\.relationship-grid[^}]*repeat\(3/);
 assert.equal(fs.existsSync(path.join(root, 'assets/css/photo-slots.css')), false);
 
 assert.match(photoSlots, /const PHOTO_REVIEW_MODE = false/);
