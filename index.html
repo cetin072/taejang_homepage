@@ -52,10 +52,21 @@
 <main id="main-content">
   <section class="hero hero--neutral" aria-labelledby="hero-title">
     <div class="container hero-layout">
-      <div class="hero-video-slider" data-hero-video-slider tabindex="0" aria-label="태장 공식 영상 슬라이더">
-        <div class="hero-video" data-hero-video-slide data-youtube-video="FbEOcteBSJ4" data-youtube-title="태장 공식 소개영상">
+      <div class="hero-video-slider hero-video-slider--featured" data-hero-video-slider tabindex="0" aria-label="태장 기사와 공식 영상 슬라이더">
+        <div class="hero-video hero-article" data-hero-video-slide>
+          <a class="hero-article-link" href="https://www.gyeongnam.go.kr/gonggam/index.gyeong?menuCd=DOM_000001514000000000&amp;ggSeq=41900&amp;gg_depth1=12&amp;gg_depth2=02&amp;ggVolumeAndNewOldStatus=163%3ANEW#snsClose" target="_blank" rel="noopener noreferrer">
+            <figure>
+              <img class="hero-article-image" src="assets/images/home/gonggam-taejang-team.webp" srcset="assets/images/home/gonggam-taejang-team-960.webp 960w, assets/images/home/gonggam-taejang-team.webp 2048w" sizes="(max-width: 760px) 92vw, 50vw" width="2048" height="1035" alt="태장 실내 작업 공간에서 여덟 사람이 손하트를 하며 함께 찍은 단체사진" fetchpriority="high" decoding="async">
+              <figcaption>
+                <strong>민·관이 함께 만든 장애인 동행 일자리 1호점 태장(주)</strong>
+                <span>출처: 경남공감 <span class="hero-article-read">기사 읽기 ↗ (새 탭에서 열림)</span></span>
+              </figcaption>
+            </figure>
+          </a>
+        </div>
+        <div class="hero-video" data-hero-video-slide data-youtube-video="FbEOcteBSJ4" data-youtube-title="태장 공식 소개영상" hidden aria-hidden="true">
           <button class="hero-video-poster" type="button" data-youtube-play aria-label="태장 공식 소개영상 재생">
-            <img src="https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg" alt="태장 공식 소개영상 썸네일" fetchpriority="high">
+            <img src="https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg" alt="태장 공식 소개영상 썸네일" loading="lazy">
             <span class="hero-video-play" aria-hidden="true">▶</span>
           </button>
         </div>
@@ -65,11 +76,12 @@
             <span class="hero-video-play" aria-hidden="true">▶</span>
           </button>
         </div>
-        <button class="hero-video-control hero-video-control--previous" type="button" data-hero-video-previous aria-label="이전 영상 보기"><span aria-hidden="true">‹</span></button>
-        <button class="hero-video-control hero-video-control--next" type="button" data-hero-video-next aria-label="다음 영상 보기"><span aria-hidden="true">›</span></button>
-        <div class="hero-video-indicators" aria-label="영상 선택">
-          <button class="hero-video-indicator" type="button" data-hero-video-indicator="0" aria-label="첫 번째 영상 보기" aria-current="true"><span aria-hidden="true"></span></button>
-          <button class="hero-video-indicator" type="button" data-hero-video-indicator="1" aria-label="두 번째 영상 보기" aria-current="false"><span aria-hidden="true"></span></button>
+        <button class="hero-video-control hero-video-control--previous" type="button" data-hero-video-previous aria-label="이전 슬라이드 보기"><span aria-hidden="true">‹</span></button>
+        <button class="hero-video-control hero-video-control--next" type="button" data-hero-video-next aria-label="다음 슬라이드 보기"><span aria-hidden="true">›</span></button>
+        <div class="hero-video-indicators" aria-label="기사·영상 선택">
+          <button class="hero-video-indicator" type="button" data-hero-video-indicator="0" aria-label="경남공감 기사 보기" aria-current="true"><span aria-hidden="true"></span></button>
+          <button class="hero-video-indicator" type="button" data-hero-video-indicator="1" aria-label="태장 공식 소개영상 보기" aria-current="false"><span aria-hidden="true"></span></button>
+          <button class="hero-video-indicator" type="button" data-hero-video-indicator="2" aria-label="경상남도지사 축하영상 보기" aria-current="false"><span aria-hidden="true"></span></button>
         </div>
       </div>
       <div class="hero-content">

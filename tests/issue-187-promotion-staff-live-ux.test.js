@@ -179,6 +179,9 @@ test('public archive cards reject standalone external heroes and preserve approv
   const firstImage = firstPublicImageFromSource();
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [], link_source_type: 'taejang_blog' }), 'https://taejang.co.kr/images/og-taejang.png');
   assert.equal(firstImage({ hero_image_url: 'https://legacy.example/hero.jpg', public_media: [], link_source_type: 'none' }), 'https://taejang.co.kr/images/og-taejang.png');
+  for (const host of ['blogthumb.pstatic.net', 'postfiles.pstatic.net', 'pstatic.net.example']) {
+    assert.equal(firstImage({ hero_image_url: `https://${host}/legacy.jpg`, public_media: [], link_source_type: 'none' }), 'https://taejang.co.kr/images/og-taejang.png');
+  }
   assert.equal(firstImage({ hero_image_url: 'https://remote.example/og.jpg', public_media: [{ url: 'https://public-example.supabase.co/storage/v1/object/public/promotion-media/uploaded.jpg' }], link_source_type: 'taejang_blog' }), 'https://public-example.supabase.co/storage/v1/object/public/promotion-media/uploaded.jpg');
 });
 
