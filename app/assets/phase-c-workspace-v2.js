@@ -218,7 +218,7 @@
     return new Error(`사진 저장 서버에서 업로드를 거부했습니다.${status ? ` (오류 ${status})` : ''}`);
   }
 
-  async function uploadImage(file) {
+  async function uploadImage(file, { officialBlogPost = '' } = {}) {
     if (!file) throw new Error('사진을 선택해 주세요.');
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
@@ -227,7 +227,10 @@
     let userId = uploadUserId(auth);
     if (!auth.access_token || !userId) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
     const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
-    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    // Keep origin identity in the Storage key, not in public_media JSON: the
+    // existing SQL validator accepts only url/slot/kind/alt metadata fields.
+    const originMarker = /^\d{10,14}$/.test(String(officialBlogPost)) ? `official-blog-${officialBlogPost}-` : '';
+    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${originMarker}${crypto.randomUUID()}.${extension}`;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const postUpload = currentAuth => fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
@@ -299,10 +302,20 @@
     return (body || '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
   }
 
+  function officialBlogPostFromStoredImage(rawUrl) {
+    try {
+      const url = new URL(rawUrl);
+      if (url.protocol !== 'https:' || !url.pathname.includes('/storage/v1/object/public/promotion-media/')) return '';
+      // The suffix is the UUID assigned on upload; a display name is not an identity key.
+      const match = url.pathname.match(/\/official-blog-(\d{10,14})-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(?:jpg|png|webp)$/i);
+      return match?.[1] || '';
+    } catch { return ''; }
+  }
+
   function mediaFromExisting(item) {
     return arr(item?.public_media)
       .filter(entry => entry?.url)
-      .map(entry => ({ url: entry.url, alt: entry.alt || '', kind: 'selected', official_blog_post: entry.official_blog_post || undefined }))
+      .map(entry => ({ url: entry.url, alt: entry.alt || '', kind: 'selected', official_blog_post: officialBlogPostFromStoredImage(entry.url) || undefined }))
       .slice(0, 12);
   }
 
@@ -354,7 +367,7 @@
     if (!body.trim() && !formState.media.length && formState.type.value !== 'external_content') {
       window.alert('본문이나 사진을 입력해 주세요.'); return;
     }
-    const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined, ...(entry.official_blog_post ? { official_blog_post: entry.official_blog_post } : {}) }));
+    const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined }));
     const payload = {
       p_content_id: formState.savedContentId || existingItem?.content_id || null,
       p_content_type: formState.type.value,
@@ -581,7 +594,7 @@
         const decoded = await createImageBitmap(file);
         decoded.close();
         if (!current()) return;
-        const url = await uploadImage(file);
+        const url = await uploadImage(file, { officialBlogPost: key });
         if (!current()) return;
         // Append, never replace a manual photo or its selected cover.
         if (!media.some(entry => entry.url === url)) media.push({ url, alt: metadata.title || '태장 공식 블로그 대표사진', kind: 'selected', official_blog_post: key });
