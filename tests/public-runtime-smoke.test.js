@@ -312,7 +312,9 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
   media.dispatch('change', { matches: true });
   assert.equal(document.body.classList.contains('nav-open'), false, 'PC 전환 시 스크롤 잠금을 해제합니다');
   document.dispatch('click', { target: menuButton });
-  window.dispatch('pageshow');
+  window.dispatch('pageshow', { persisted: false });
+  assert.equal(mobile.classList.contains('open'), true, '로딩 중 사용자가 연 메뉴를 초기 pageshow가 다시 닫지 않습니다');
+  window.dispatch('pageshow', { persisted: true });
   assert.equal(mobile.classList.contains('open'), false, '뒤로가기 복원에서도 메뉴가 닫힙니다');
 
   faqButton.dispatch('click');

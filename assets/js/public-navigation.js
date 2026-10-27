@@ -30,7 +30,9 @@
     }
   });
   // A restored page or a change to desktop must not retain scroll locking.
-  window.addEventListener('pageshow', function () { setMenu(false); });
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted) setMenu(false);
+  });
   window.matchMedia('(min-width: 1001px)').addEventListener('change', function (event) {
     if (event.matches) setMenu(false);
   });
