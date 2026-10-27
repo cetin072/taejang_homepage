@@ -1,5 +1,6 @@
 -- Non-work statuses intentionally suppress effective timestamps. Reject a time
 -- correction before appending an unusable ledger entry; never change day status.
+-- Eligibility/off cases retain the existing private writer's validation contract.
 begin;
 create or replace function public.create_attendance_correction(
   p_employee_uuid uuid,
@@ -22,7 +23,7 @@ begin
     select 1 from public.employees e where e.id = p_employee_uuid
   ) and coalesce(public.private_attendance_effective_status(
     p_employee_uuid, p_work_date
-  ) ->> 'status', 'work') <> 'work' then
+  ) ->> 'status', 'work') in ('paid_leave', 'unpaid_absence', 'paid_holiday') then
     return jsonb_build_object('ok', false, 'code', 'DAY_STATUS_NOT_WORK');
   end if;
   return public.private_create_attendance_correction_pre148(
