@@ -59,3 +59,12 @@ Netlify HEAD/Ready/실제 JS·CSS를 확인하고 합성 API로 Preview 브라�
 동시 검수 소유권 불명·non-fast-forward 교체가 필요하여 임의 갱신하지 않는다.
 Production 시작 deploy 6addfa0c5ae783317814ade6 / ca7431939cbeacacb20335cb55bb34bc4c0e8cd8.
 웹 Production 및 48시간 배포 정책 유지. Draft 상태에서 최종 검증 결과와 병합 승인 단계로 인계한다.
+
+## 2026-10-27 후속 검수 재개
+
+최신 main `6b90423da07661b35adadb0aba520c612e438b65`를 기존 공지 브랜치에 정상 merge했다. 이미 병합된 월별 문서·홍보 이미지 구현은 그대로 보존한다.
+`64a38426ad82594d8ef5e90d7b6999338fb920b4`의 Promotion Browser QA는 공지 검사 전에 홍보 링크 메타 제목 assertion에서 실패했다. fixture가 인증 재시도 요청 수만 확인하고 고정 100ms 뒤 응답 처리 결과를 읽는 경쟁 경계를 확인했다.
+실제 제품의 fetchExternalMeta 및 클릭 handler를 Node VM에서 실행하고 두 번째 응답 JSON 완료를 지연하면, 요청 2회·인증 갱신 1회 이후에도 제목이 비어 있는 동일 실패 조건을 재현한다. 응답 완료 후에는 기존 제품 handler가 제목·본문을 정확히 반영한다. 당시 CI의 실제 스케줄링 지연 길이까지 측정한 것은 아니다.
+fixture의 두 링크 가져오기 경로만 버튼의 disabled 시작→완료 상태를 기다리도록 변경했다. 기존 토큰·재시도 횟수·제목·본문·저장/승인 assertion은 유지한다. 합성 응답을 180ms 지연해 고정 100ms 대기로 되돌리면 실패하도록 하고, 완료하지 않는 handler는 제한 시간 내 실패하는 회귀도 추가했다. workflow timeout/권한/검사 판정 및 제품 코드는 바꾸지 않았다.
+고정 QA의 #530 점유는 해당 PR의 사용 종료 댓글로 해제됨을 확인했다. 현재 QA SHA는 `fa516b7361543afbdffcb19a426f78bf4981b362`이며, 최신 필수 CI·실제 브라우저 접근·역할별 수용을 확인하기 전에는 교체하지 않는다. 기존 hosted 로그인 결과 UNKNOWN을 성공으로 취급하거나 로그인/브라우저 정책 차단을 우회하지 않는다.
+운영 DB 쓰기/seed/자료 재삭제/migration/계정/권한/자격증명/Production 변경은 하지 않는다. 최종 HEAD 및 원격 CI 결과는 PR 후속 댓글에 기록한다.

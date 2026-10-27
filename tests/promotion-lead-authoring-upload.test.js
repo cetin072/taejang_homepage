@@ -81,3 +81,53 @@ test('lead and operations V2 link importer explains YouTube metadata limits with
   assert.doesNotMatch(workspace, /state\.heroImage = metadata\.image/);
   assert.match(workspace, /원문 썸네일은 참고용/);
 });
+
+test('metadata response body can remain pending after the authenticated retry has been sent', async () => {
+  const vm = require('node:vm');
+  const metaSource = workspace.slice(workspace.indexOf('  async function fetchExternalMeta('), workspace.indexOf('  function summaryFromBody('));
+  const handlerStart = workspace.indexOf("async () => {", workspace.indexOf("const metaButton = button('링크에서"));
+  const handlerEnd = workspace.indexOf('    }, true);', handlerStart);
+  const handlerSource = workspace.slice(handlerStart, handlerEnd) + '}';
+  let releaseBody;
+  const delayedBody = new Promise(resolve => { releaseBody = resolve; });
+  let calls = 0, refreshes = 0;
+  const title = { value: '' }, body = { value: '' }, metaButton = { disabled: false };
+  const context = vm.createContext({
+    authenticatedSession: async () => ({ access_token: 'original-fixture-token' }),
+    refreshAuthSession: async () => { refreshes++; return { access_token: 'refreshed-fixture-token' }; },
+    fetch: async (_url, options) => {
+      calls++;
+      assert.equal(options.headers.Authorization, calls === 1 ? 'Bearer original-fixture-token' : 'Bearer refreshed-fixture-token');
+      return calls === 1
+        ? { status: 403, ok: false, json: async () => ({ error: 'FORBIDDEN' }) }
+        : { status: 200, ok: true, json: () => delayedBody };
+    },
+    external: { value: 'https://example.test/article' }, title, body, metaButton,
+    metaStatus: { textContent: '' }, metaPreview: { replaceChildren() {}, append() {} },
+    el: () => ({ append() {} }), renderLivePreview() {}, window: { alert() { throw Error('unexpected alert'); } }
+  });
+  vm.runInContext(metaSource, context);
+  const handler = vm.runInContext('(' + handlerSource + ')', context);
+  const helper = browserGate.slice(browserGate.indexOf('    async function importLinkMetadata('), browserGate.indexOf("    window.addEventListener('load'"));
+  let run, finished = false;
+  metaButton.click = () => { run = handler(); };
+  context.buttonByText = () => metaButton;
+  context.assert = (condition, message) => assert.ok(condition, message);
+  context.wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+  vm.runInContext(helper, context);
+  const ready = context.importLinkMetadata().then(() => { finished = true; });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  assert.equal(calls, 2);
+  assert.equal(refreshes, 1);
+  assert.equal(title.value, '', 'the old fixed-100ms assertion runs before response-body completion');
+  assert.equal(metaButton.disabled, true);
+  assert.equal(finished, false, 'readiness waits for the UI handler, not request count');
+  releaseBody({ title: '태장 링크 테스트', article_text: '링크에서 가져온 본문' });
+  await run;
+  await ready;
+  assert.equal(metaButton.disabled, false);
+  assert.equal(title.value, '태장 링크 테스트');
+  assert.equal(body.value, '링크에서 가져온 본문');
+  metaButton.click = () => { metaButton.disabled = true; };
+  await assert.rejects(context.importLinkMetadata(20), /링크 메타 처리 완료 시간 초과/);
+});
