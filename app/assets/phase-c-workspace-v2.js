@@ -554,7 +554,11 @@
       if (retry && importedLinks.has(key) && !media.some(entry => entry.official_blog_post === key)) importedLinks.delete(key);
       if (!key || importBusy || importedLinks.has(key) && !retry) return;
       if (importedLinks.has(key)) { metaStatus.textContent = '이 링크의 사진은 이미 가져왔습니다. 사진 자료에서 선택·제거할 수 있습니다.'; return; }
-      if (state.uploading || media.length >= 12) { metaStatus.textContent = '사진 업로드가 끝난 뒤 다시 시도하거나 사진 수를 줄여 주세요.'; return; }
+      if (state.uploading || media.length >= 12) {
+        state.saveButtons.forEach(node => { node.disabled = state.uploading; });
+        metaStatus.textContent = '사진 업로드가 끝난 뒤 다시 시도하거나 사진 수를 줄여 주세요.';
+        return;
+      }
       const generation = importGeneration;
       const current = () => generation === importGeneration && officialBlogKey(external.value) === key && form.isConnected;
       importBusy = true;
@@ -584,7 +588,7 @@
         importedLinks.add(key);
         if (!state.heroImage) state.heroImage = media[0]?.url || null;
         renderMediaEditor(mediaGrid, media, mediaChanged);
-        mediaChanged();
+        renderLivePreview();
         metaStatus.textContent = '공식 블로그 사진을 첨부했습니다. 사진 자료에서 제거하거나 대표사진을 바꿀 수 있습니다. 저장 후 승인 요청해 주세요.';
       } catch (error) {
         if (current()) metaStatus.textContent = (error.message || '사진 가져오기 실패') + ' 작성 내용·기존 사진은 유지됩니다. 사진 추가로 직접 첨부하거나 링크 정보 가져오기로 재시도해 주세요. 사진이 없으면 공개 화면에는 태장 기본 이미지가 표시됩니다.';
@@ -594,6 +598,7 @@
         state.saveButtons.forEach(node => { node.disabled = false; });
         fileInput.disabled = false;
         metaButton.disabled = false;
+        state.saveButtons.forEach(node => { node.disabled = state.autoPhotoPending; });
         if (generation !== importGeneration && form.isConnected) autoTimer = setTimeout(importOfficialPhoto, 450);
       }
     }

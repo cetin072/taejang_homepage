@@ -79,5 +79,17 @@ try {for(const width of [320,390,1440]) {
  await page.locator('.phase-c-photo-card').last().getByRole('button',{name:'앞으로',exact:true}).click();
  await page.locator('.phase-c-photo-card').first().getByRole('button',{name:'사진 빼기',exact:true}).click();assert.equal(await page.locator('.phase-c-photo-card').count(),1);
  const calls=await page.evaluate(()=>photoCalls);await link.fill('https://blog.naver.com/other/123');await page.waitForTimeout(800);assert.equal(await page.evaluate(()=>photoCalls),calls);
+ // A saved manually selected cover remains selected even when it is not first.
+ await page.evaluate(()=>{TaejangApp.rpc=async(name,args)=>name==='get_my_promotion_workspace'?{role:'promotion_lead',my_items:[{content_id:'11111111-1111-4111-8111-111111111111',lifecycle:'draft',title:'수동 대표사진 보존',public_body:'본문',external_url:'https://blog.naver.com/other/123',public_media:[{url:'https://supabase.example.test/storage/v1/object/public/promotion-media/manual-one.png'},{url:'https://supabase.example.test/storage/v1/object/public/promotion-media/manual-two.png'}],hero_image_url:'https://supabase.example.test/storage/v1/object/public/promotion-media/manual-two.png'}]}:null;});
+ await page.evaluate(()=>TaejangPromotionWorkspaceV2Api.openPromotion('write'));await page.getByRole('button',{name:'열어 수정',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('.phase-c-photo-card').length===2);await link.fill('https://blog.naver.com/taejang-official/999');
+ await page.waitForFunction(()=>document.querySelectorAll('.phase-c-photo-card').length===3);
+ assert.match(await page.locator('[data-composer-preview] img').first().getAttribute('src'),/manual-two.png$/);
+ // At the twelve-photo limit, skip import and leave saving available.
+ await page.evaluate(()=>{const rpc=TaejangApp.rpc;TaejangApp.rpc=async(name,args)=>{const result=await rpc(name,args);if(name==='get_my_promotion_workspace')result.my_items[0].public_media=Array.from({length:12},(_,i)=>({url:'https://supabase.example.test/storage/v1/object/public/promotion-media/manual-'+i+'.png'}));return result;};});
+ await page.evaluate(()=>TaejangPromotionWorkspaceV2Api.openPromotion('write'));await page.getByRole('button',{name:'열어 수정',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelectorAll('.phase-c-photo-card').length===12);const limitedCalls=await page.evaluate(()=>photoCalls);await link.fill('https://blog.naver.com/taejang-official/9999');
+ await page.waitForFunction(()=>document.querySelector('.phase-c-link-tools .phase-c-upload-status').textContent.includes('사진 수를 줄여'));
+ assert.equal(await page.evaluate(()=>photoCalls),limitedCalls);assert.equal(await page.getByRole('button',{name:'수정본 저장',exact:true}).isEnabled(),true);
  assert.deepEqual(errors,[]);console.log(`official photo ${width}: PASS (auto attachment/save/stale/dedup/failure/retry/remove/external)`);await page.close();
 }}finally{await browser.close();server.close();await rm(dir,{recursive:true,force:true});}
