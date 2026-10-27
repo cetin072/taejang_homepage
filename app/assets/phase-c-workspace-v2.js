@@ -364,9 +364,9 @@
       p_byline_kind: formState.bylineKind?.value || existingItem?.byline_kind || 'company',
       p_related_organization: existingItem?.related_organization || null,
       p_source_reference_url: formState.external.value.trim() || null,
-      p_hero_image_url: formState.heroImage || publicMedia[0]?.url || null,
+      p_hero_image_url: publicMedia.find(entry => entry.url === formState.heroImage)?.url || publicMedia[0]?.url || null,
       p_public_media: publicMedia,
-      p_people_photo: publicMedia.length || formState.heroImage ? 'unsure' : 'no',
+      p_people_photo: publicMedia.length ? 'unsure' : 'no',
       p_number_or_amount: formState.numberOrAmount.value,
       p_requested_publish_date: formState.date.value || null,
       p_change_reason: existingItem ? '홍보 콘텐츠 수정·보완본 저장' : '홍보 콘텐츠 초안 저장'
@@ -464,18 +464,18 @@
         if (metadata.title) title.value = metadata.title;
         if (metadata.article_text) body.value = metadata.article_text.slice(0, 30000);
         else if (metadata.description && !body.value.trim()) body.value = metadata.description;
-        state.heroImage = metadata.image || state.heroImage;
-        if (metadata.image) state.coverFromMedia = false;
+        // Imported thumbnails remain reference material only.
         metaPreview.replaceChildren();
         if (metadata.image) {
           const image = document.createElement('img');
           image.src = metadata.image;
-          image.alt = '가져온 썸네일';
+          image.alt = '원문 썸네일 참고';
           metaPreview.append(image);
         }
         const copy = el('div');
         copy.append(el('strong', metadata.title || '제목 정보 없음'));
         if (metadata.description) copy.append(el('p', metadata.description));
+        copy.append(el('p', '원문 썸네일은 참고용입니다. 공개 사진은 사진 자료에 직접 첨부해 주세요.'));
         metaPreview.append(copy);
         renderLivePreview();
         metaStatus.textContent = metadata.site_name === 'YouTube'
@@ -509,7 +509,7 @@
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: !existingItem?.hero_image_url || media.some(entry => entry.url === existingItem.hero_image_url), heroImage: existingItem?.hero_image_url || null, saveButtons: [] };
+    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: true, heroImage: media.find(entry => entry.url === existingItem?.hero_image_url)?.url || media[0]?.url || null, saveButtons: [] };
     const livePreview = el('section', null, 'phase-c-composer-preview app-form-section');
     livePreview.dataset.composerPreview = '1';
     function renderLivePreview() {
@@ -541,16 +541,16 @@
         if ((state.coverFromMedia || !state.heroImage) && media[0]) { state.heroImage = media[0].url; state.coverFromMedia = true; }
         renderMediaEditor(mediaGrid, media, mediaChanged);
         uploadStatus.textContent = `${media.length}장 첨부됨`;
+        fileInput.value = '';
       } catch (error) {
         window.alert(error.message || '사진 업로드에 실패했습니다.');
-        uploadStatus.textContent = '사진 업로드 실패';
+        uploadStatus.textContent = '사진 업로드 실패 · 작성 내용과 첨부한 사진은 유지됩니다.';
       } finally {
         renderMediaEditor(mediaGrid, media, mediaChanged);
         mediaChanged();
         state.uploading = false;
         state.saveButtons.forEach(node => { node.disabled = false; });
         uploadLabel.style.pointerEvents = '';
-        fileInput.value = '';
       }
     });
     editor.append(toolbar, mediaGrid);

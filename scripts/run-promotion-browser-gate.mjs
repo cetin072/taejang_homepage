@@ -17,6 +17,7 @@ const fixtures=[
  ['promotion-authoring-upload-gate.html','PROMOTION_AUTHORING_UPLOAD_GATE_PASS'],
  ['promotion-archive-delete-gate.html','PROMOTION_ARCHIVE_DELETE_GATE_PASS'],
  ['promotion-public-link-rendering-gate.html','PROMOTION_PUBLIC_LINK_RENDERING_GATE_PASS'],
+ ['promotion-public-image-gate.html','PROMOTION_PUBLIC_IMAGE_GATE_PASS'],
  ['promotion-v2-publication-gate.html','PROMOTION_V2_PUBLICATION_GATE_PASS'],
  ['sidebar-runtime-gate.html','SIDEBAR_RUNTIME_GATE_PASS']
 ];
