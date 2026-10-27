@@ -1,3 +1,4 @@
+import {recordBrowserDiagnostics} from '../../scripts/browser-network-diagnostics.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -10,7 +11,9 @@ const canonicalHref = href => {
   return relative==='staff/' ? relative : relative.replace(/\.html$/,'')+'.html';
 };
 
-async function headerReady(page,url) {
+async function headerReady(page,url,diagnostics) {
+  diagnostics.length=0;
+  try {
   const response=await page.goto(url,{waitUntil:'domcontentloaded'});
   assert.equal(response.status(),200,'header document');
   await page.waitForFunction(()=>document.documentElement.classList.contains('js-nav-ready') &&
@@ -18,6 +21,10 @@ async function headerReady(page,url) {
     [...document.querySelectorAll('.site-header img')].every(i=>i.complete&&i.naturalWidth>0));
   await page.evaluate(async()=>{await document.fonts.load('700 16px "Nanum Gothic"','직원앱 안내');await document.fonts.ready;});
   assert.ok(await page.locator('.site-header').isVisible());
+  } catch(error) {
+    console.error('HEADER_ASSET_DIAGNOSTICS:'+url+'\n'+diagnostics.join('\n'));
+    throw error;
+  }
 }
 
 // Real local + exact-head hosted gate. Public navigation only; no login submission,
@@ -36,6 +43,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
   for (const width of [1440,390]) {
     const context = await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
     const page = await context.newPage();
+    const diagnostics=recordBrowserDiagnostics(page);
     const errors = [];
     page.on('pageerror',e=>errors.push(e.message));
     page.on('requestfailed',r=>{
@@ -57,7 +65,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     for (const file of [...pages,...(width===1440?generated:[])]) {
       // This new gate measures shared headers, not the unrelated live archive
       // feed. Keep the existing whole-landing readiness gate unchanged below.
-      await headerReady(page,base+'/'+file);
+      await headerReady(page,base+'/'+file,diagnostics);
       const first = await page.evaluate(()=>window.__headerBefore);
       assert.deepEqual(first.map(links=>links.map(canonicalHref)),[order,order],file+': first authored order on both surfaces, including Netlify pretty URLs');
       for (const selector of ['.desktop-nav','[data-mobile-nav]']) assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,file+': runtime order');

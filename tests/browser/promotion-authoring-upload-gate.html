@@ -213,6 +213,38 @@
         }
         assert(denied?.message.includes('사진 저장 권한'), 'Storage 403을 사용자 친화적 권한 오류로 구분하지 못함');
 
+        // A linked article without an uploaded photo must save without its imported OG.
+        await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
+        controlByLabel('외부 링크').value = 'https://blog.naver.com/taejang-official/224367547159';
+        buttonByText('링크에서 제목·썸네일·본문 가져오기').click();
+        await wait(100);
+        buttonByText('저장 후 운영총괄 승인 요청').click();
+        await wait(100);
+        const noPhoto = state.saveCalls.at(-1);
+        assert(noPhoto.p_public_media.length === 0 && noPhoto.p_hero_image_url === null, '외부 OG가 사진 없는 글의 공개 대표사진으로 저장됨');
+        assert(state.submitCalls.length === 2, '사진 없는 글 승인 요청 실패');
+
+        // Exercise failure through the real input event, preserving text, existing
+        // uploads and the selected file, rather than just testing uploadImage().
+        state.uploadFailureStatus = null;
+        await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
+        controlByLabel('제목').value = '업로드 실패 보존';
+        controlByLabel('본문').value = '기존 입력 본문';
+        const failInput = document.querySelector('.phase-c-editor-toolbar input[type="file"]');
+        const goodTransfer = new DataTransfer(); goodTransfer.items.add(file);
+        failInput.files = goodTransfer.files;
+        failInput.dispatchEvent(new Event('change', { bubbles: true })); await wait(100);
+        const alerts=[]; window.alert=message=>alerts.push(message);
+        state.uploadFailureStatus=403;
+        const failedTransfer = new DataTransfer(); failedTransfer.items.add(new File([png],'keep-me.png',{type:'image/png'}));
+        failInput.files=failedTransfer.files;
+        failInput.dispatchEvent(new Event('change',{bubbles:true})); await wait(100);
+        assert(alerts.length===1, '업로드 실패 알림 누락');
+        assert(controlByLabel('제목').value==='업로드 실패 보존' && controlByLabel('본문').value==='기존 입력 본문','실패 후 작성 내용 손실');
+        assert(document.querySelectorAll('.phase-c-photo-card img').length===1,'기존 첨부 사진 손실');
+        assert(failInput.files[0]?.name==='keep-me.png','실패한 첨부 선택 손실');
+        assert(document.querySelector('.phase-c-upload-status').textContent.includes('업로드 실패'),'실패를 성공으로 표시함');
+
         output.textContent = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';
         document.title = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';
       } catch (error) {
