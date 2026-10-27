@@ -77,13 +77,25 @@ try {
       const active = slider.locator(`[data-youtube-video="${id}"]`);
       assert.equal(await active.isVisible(), true);
       assert.ok(Math.abs((await slider.boundingBox()).height - initialHeight) < 1, 'slide changes do not shift card height');
+      const videoCaption = active.locator('.hero-video-caption');
+      assert.equal(await videoCaption.isVisible(), true, 'video has a visible caption below its poster');
+      assert.equal(await active.locator('.hero-video-poster').evaluate(el => getComputedStyle(el, '::after').backgroundImage), 'none', 'featured thumbnail has no dark overlay');
+      const posterBox = await active.locator('.hero-video-poster').boundingBox();
+      const captionBox = await videoCaption.boundingBox();
+      const indicatorBox = await slider.locator('.hero-video-indicators').boundingBox();
+      assert.ok(posterBox.height >= 100 && captionBox.y >= posterBox.y + posterBox.height - 1, 'caption does not cover thumbnail or play button');
+      const textBox = await videoCaption.locator('span').boundingBox();
+      assert.ok(textBox.y + textBox.height <= indicatorBox.y, 'caption text clears slide indicators');
+      await page.screenshot({ path: path.join(output, `hero-video-${indicator}-${width}.png`), fullPage: false });
       await active.locator('[data-youtube-play]').click();
+      assert.equal(await videoCaption.isVisible(), true, 'caption persists during playback');
       const playerUrl = new URL(await active.locator('iframe').getAttribute('src'));
       assert.equal(playerUrl.pathname, `/embed/${id}`);
       assert.equal(playerUrl.searchParams.get('autoplay'), '1');
       await slider.locator('[data-hero-video-next]').click();
       assert.equal(await slider.locator('iframe').count(), 0, 'leaving video destroys player to stop playback');
       assert.equal(await active.locator('[data-youtube-play]').count(), 1);
+      assert.equal(await videoCaption.count(), 1, 'restoring poster preserves exactly one caption');
     }
     await slider.locator('[data-hero-video-indicator="0"]').click();
     await article.focus();

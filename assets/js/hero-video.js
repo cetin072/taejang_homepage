@@ -14,7 +14,7 @@
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture; web-share';
     iframe.setAttribute('allowfullscreen', '');
 
-    container.replaceChildren(iframe);
+    container.querySelector('[data-youtube-play]')?.replaceWith(iframe);
     container.classList.add('is-playing');
   }
 
@@ -40,7 +40,7 @@
     playIcon.textContent = '▶';
     poster.append(thumbnail, playIcon);
 
-    container.replaceChildren(poster);
+    iframe.replaceWith(poster);
     container.classList.remove('is-playing');
   }
 

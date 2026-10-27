@@ -57,6 +57,12 @@
 .hero-article-link:focus-visible { outline: 3px solid var(--green, #2d6a4f); outline-offset: -5px; }
 .hero-video-slider--featured .hero-video-control { top: 30%; }
 .hero-video-slider--featured .hero-video-indicators { width: max-content; margin: 0 auto; padding: 0 6px; border-radius: 20px; background: #1b4332; }
+.hero-video-slider--featured [data-youtube-video]:not([hidden]) { display: grid; grid-template-rows: minmax(0, 1fr) auto; background: #fff; }
+.hero-video-caption { padding: 16px 20px 48px; color: var(--green-deep, #1b4332); background: #fff; }
+.hero-video-caption strong { display: block; font-size: clamp(16px, 1.5vw, 20px); line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.hero-video-caption > span { display: block; margin-top: 8px; font-size: 13px; line-height: 1.5; }
+.hero-video-slider--featured .hero-video-poster { min-height: 0; background: #fff; }
+.hero-video-slider--featured .hero-video-poster::after { background: none; }
 
 .hero-video-poster,
 .hero-video-frame {
