@@ -1,5 +1,8 @@
 export const testGroups = Object.freeze({
+  supportRadarDatabase: Object.freeze(['tests/support-radar-database.mjs']),
+  supportRadarBrowser: Object.freeze(['tests/support-radar-minimal-browser.mjs']),
   platformStatic: Object.freeze([
+    'tests/support-radar-bizinfo.test.mjs',
     'tests/phase1a-security-foundation.test.js',
     'tests/staff-entry-routing.test.js',
     'tests/staff-password-recovery.test.js',

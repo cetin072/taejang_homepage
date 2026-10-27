@@ -14,6 +14,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  support-finder-gate:
+    name: Support finder local and exact-head Preview components
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Verify support finder with synthetic RPC fixtures
+        env:
+          SUPPORT_FINDER_QA_OUTPUT: support-finder-qa-artifacts/local
+        run: node tests/support-radar-minimal-browser.mjs
+      - name: Verify exact-head Preview assets and browser flow
+        if: github.event_name == 'pull_request'
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SUPPORT_FINDER_QA_OUTPUT: support-finder-qa-artifacts/preview
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util, os, pathlib, subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          subprocess.run(['node','tests/support-radar-minimal-browser.mjs'], check=True,
+                         env={**os.environ, 'PREVIEW_URL':preview})
+          PYTHON
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: support-finder-local-and-preview
+          path: support-finder-qa-artifacts/
+          if-no-files-found: ignore
+
   browser-gate:
     name: Promotion representative browser flow
     runs-on: ubuntu-latest

@@ -41,6 +41,7 @@
     '홈페이지 수정 승인':'homepage.change-approval',
     '오늘 출근부':'attendance.view',
     '지원사업 레이더':'support.radar',
+    '태장 지원사업 찾기':'support.radar',
     '공지 등록':'notice.manage',
     '공지 관리':'notice.manage'
   });
@@ -356,7 +357,7 @@
       },
       {
         key: 'support.radar',
-        label: '지원사업 레이더',
+        label: '태장 지원사업 찾기',
         run: () => openSupport('radar'),
         capabilities: ['support_radar.management_view']
       },
@@ -535,6 +536,11 @@
     node.textContent = '설정';
     node.dataset.platformSettingsAction = '1';
     node.addEventListener('click', () => {
+      if (!mayLeaveView()) return;
+      // Settings replaces the current surface outside openView. Invalidate its
+      // cached view so returning to that same menu renders it again.
+      activeView = null;
+      viewDirty = false;
       closeSidebar();
       document.dispatchEvent(new CustomEvent('taejang-open-platform-settings'));
     });

@@ -65,7 +65,7 @@
       const data=await window.TaejangApp.rpc('support_get_notice_detail',{p_notice_id:id});const n=data.notice;const e=data.evaluation;const a=data.application;
       const root=document.createElement('div');root.className='support-radar-shell';
       root.append(header(n.title,'배정된 지원사업의 핵심 판단과 내가 할 다음 행동을 확인합니다.',[button('내 지원사업 목록',renderList,true)]));
-      const summary=section('핵심정보');
+      const summary=section('핵심정보'); summary.dataset.supportSection='facts';
       summary.append(text('p',`${n.implementing_organization||n.managing_organization||'기관 미확인'} · 마감 ${formatDate(n.deadline_at)}`));
       if(n.eligibility_summary)summary.append(text('p',n.eligibility_summary,'support-radar-note'));
       if(e){

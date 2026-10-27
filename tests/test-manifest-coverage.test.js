@@ -11,6 +11,7 @@ const manifestPath = path.join(root, 'scripts', 'test-manifest.mjs');
 const workflowsDir = path.join(root, '.github', 'workflows');
 // Imported browser helpers execute through the existing local + hosted gate.
 const IMPORTED_BROWSER_HELPERS = new Map([
+  ['tests/helpers/support-finder-browser-flow.mjs', 'tests/support-radar-auth-integration.mjs'],
   ['tests/helpers/today-board-browser-flow.mjs', 'tests/today-board-auth-integration.mjs'],
   ['tests/helpers/public-header-checks.mjs', 'tests/employee-app-browser.mjs'],
   ['tests/helpers/employee-app-motion-checks.mjs', 'tests/employee-app-browser.mjs'],

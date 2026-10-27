@@ -89,7 +89,7 @@
     const assignmentPanel = root.querySelector('[data-support-assignment-panel]');
     if (assignmentPanel) assignmentPanel.insertAdjacentElement('afterend', panel);
     else {
-      const decisionHeading = [...root.querySelectorAll('h3')].find(node => node.textContent === '운영총괄 결정');
+      const decisionHeading = root.querySelector('[data-support-section="decision"] h3');
       const decisionSection = decisionHeading?.closest('.support-radar-section');
       if (decisionSection) decisionSection.insertAdjacentElement('afterend', panel);
       else root.append(panel);

@@ -11,8 +11,8 @@
   const prepLabels = new Set(['검토 중','기관 문의','자료 수집','신청서 작성','제출 준비']);
 
   function simplifyProgress(root) {
-    const heading=[...root.querySelectorAll('h3')].find(node=>node.textContent==='신청 진행'||node.textContent==='진행 현황');
-    const section=heading?.closest('.support-radar-section');
+    const section=root.querySelector('[data-support-section="progress"]');
+    const heading=section?.querySelector('h3');
     if(!section || section.dataset.supportOpsProgressSimplified==='1') return;
     section.dataset.supportOpsProgressSimplified='1';
     heading.textContent='진행 현황';
@@ -64,9 +64,7 @@
 
     simplifyProgress(root);
 
-    const headings=[...root.querySelectorAll('h3')];
-    const decisionHeading=headings.find(node=>node.textContent==='운영총괄 결정');
-    const decisionSection=decisionHeading?.closest('.support-radar-section');
+    const decisionSection=root.querySelector('[data-support-section="decision"]');
     if(!decisionSection) return;
 
     const decision=state.currentDetail?.decision?.decision;

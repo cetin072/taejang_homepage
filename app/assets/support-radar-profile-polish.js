@@ -22,8 +22,7 @@
   const STANDARD_WORKPLACE_LABEL = '장애인표준사업장';
 
   function isProfileSurface(root) {
-    const heading = root?.querySelector('h2');
-    return heading && (heading.textContent === '기업 프로필' || /기업 프로필 v\d+ 수정/.test(heading.textContent) || heading.textContent === '첫 기업 프로필 만들기');
+    return ['profile','profile-editor'].includes(root?.dataset.supportSurface);
   }
 
   function normalizeStandardWorkplaceTerminology(root) {

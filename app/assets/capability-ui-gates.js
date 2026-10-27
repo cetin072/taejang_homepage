@@ -29,6 +29,7 @@
     '출근부': ['attendance.admin_view'],
     '근태 보정': ['attendance.correct'],
     '지원사업 레이더': ['support_radar.management_view', 'support_radar.assigned_work'],
+    '태장 지원사업 찾기': ['support_radar.management_view', 'support_radar.assigned_work'],
     '기업 프로필': ['support_radar.management_view', 'support_radar.management_edit']
   });
 
