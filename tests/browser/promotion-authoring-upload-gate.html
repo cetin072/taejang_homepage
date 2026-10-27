@@ -61,7 +61,7 @@
         // authenticated retry has reached fetch. Request count is not UI readiness.
         await new Promise(resolve => setTimeout(resolve, 180));
         return new Response(JSON.stringify({
-          url: 'https://blog.naver.com/taejang-official/224367547159',
+          url: 'https://blog.naver.com/reference-only/224367547159',
           title: '태장 링크 테스트',
           description: '링크 설명',
           image: 'https://example.test/thumb.jpg',
@@ -165,7 +165,7 @@
         assert(disclosure.value === 'no', '중요 금액·수치 기본값은 아니오여야 함');
         assert(!sessionStorage.getItem('taejang-staff-session-v1'), '검수 전제: sessionStorage는 비어 있어야 함');
 
-        external.value = 'https://blog.naver.com/taejang-official/224367547159';
+        external.value = 'https://blog.naver.com/reference-only/224367547159';
         await importLinkMetadata();
         assert(state.externalMetaCalls.length === 2, '링크 메타 인증 실패 후 1회 재시도하지 않음');
         assert(state.refreshCalls === 1, '링크 메타 인증 실패에서 세션 갱신이 실행되지 않음');
@@ -227,7 +227,7 @@
 
         // A linked article without an uploaded photo must save without its imported OG.
         await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
-        controlByLabel('외부 링크').value = 'https://blog.naver.com/taejang-official/224367547159';
+        controlByLabel('외부 링크').value = 'https://blog.naver.com/reference-only/224367547159';
         await importLinkMetadata();
         buttonByText('저장 후 운영총괄 승인 요청').click();
         await wait(100);

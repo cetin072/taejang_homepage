@@ -184,7 +184,9 @@ jobs:
       - name: Run promotion composer exact viewport QA
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
-        run: node tests/promotion-composer-browser.mjs
+        run: |
+          node tests/promotion-composer-browser.mjs
+          node tests/official-blog-photo-browser.mjs
 
       - name: Keep promotion composer screenshots
         if: always()
