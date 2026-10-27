@@ -23,7 +23,7 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = process.env.PREVIEW_URL || `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}) });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : process.env.CI ? { channel: 'chrome' } : {}) });
 const results = [];
 const field = (page, name) => page.locator(`form [name="${name}"]`);
 async function layout(page, label) {
@@ -73,6 +73,8 @@ try {
     assert.equal(await field(page, 'inquiry-type').inputValue(), '모회사·고용 연계');
     await field(page, 'name').fill('개발 검수용');
     await field(page, 'organization').fill('합성 QA 기관');
+    await field(page, 'email').fill('invalid-email');
+    assert.equal(await field(page, 'email').evaluate(el => el.validity.typeMismatch), true);
     await field(page, 'email').fill('qa@example.invalid');
     await field(page, 'message').fill('개발 검수용 합성 문의입니다. 실제 전송하지 않습니다.');
     await page.getByRole('link', { name: '사업·농장 협력 문의', exact: true }).click();
