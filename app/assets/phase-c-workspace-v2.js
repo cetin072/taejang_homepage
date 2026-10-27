@@ -268,14 +268,14 @@
     return `${cfg.url}/storage/v1/object/public/promotion-media/${encodedPath}`;
   }
 
-  async function fetchExternalMeta(url) {
+  async function fetchExternalMeta(url, includeOfficialImage = false) {
     let auth = await authenticatedSession();
     if (!auth.access_token) throw new Error('로그인 정보를 확인할 수 없습니다.');
 
     const requestMeta = currentAuth => fetch('/.netlify/functions/external-content-meta', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentAuth.access_token}` },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url, include_official_image: includeOfficialImage })
     });
 
     let response = await requestMeta(auth);
@@ -288,7 +288,10 @@
         payload = await response.json().catch(() => null);
       }
     }
-    if (!response.ok) throw new Error(payload?.message || '링크 정보를 가져오지 못했습니다.');
+    if (!response.ok) {
+      const reason = ({ RATE_LIMITED: '링크 확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.', FORBIDDEN: '링크 정보를 가져올 권한이나 로그인 상태를 확인해 주세요.', FETCH_TIMEOUT: '원문 응답 시간이 초과되었습니다.' })[payload?.error];
+      throw new Error(payload?.message || reason || '원문에 연결하지 못해 링크 정보를 가져오지 못했습니다.');
+    }
     return payload || {};
   }
 
@@ -299,7 +302,7 @@
   function mediaFromExisting(item) {
     return arr(item?.public_media)
       .filter(entry => entry?.url)
-      .map(entry => ({ url: entry.url, alt: entry.alt || '', kind: 'selected' }))
+      .map(entry => ({ url: entry.url, alt: entry.alt || '', kind: 'selected', official_blog_post: entry.official_blog_post || undefined }))
       .slice(0, 12);
   }
 
@@ -341,7 +344,7 @@
 
   async function savePromotion(formState, action, existingItem) {
     const submitAfterSave = action === true;
-    if (formState.uploading) return;
+    if (formState.uploading || formState.autoPhotoPending) return;
     if (action === 'schedule' && (!formState.scheduleDate.value || new Date(publicationSchedule(formState.scheduleDate.value)).getTime() <= Date.now())) {
       window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return;
     }
@@ -351,7 +354,7 @@
     if (!body.trim() && !formState.media.length && formState.type.value !== 'external_content') {
       window.alert('본문이나 사진을 입력해 주세요.'); return;
     }
-    const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined }));
+    const publicMedia = formState.media.map(entry => ({ url: entry.url, kind: 'selected', alt: entry.alt?.trim() || undefined, ...(entry.official_blog_post ? { official_blog_post: entry.official_blog_post } : {}) }));
     const payload = {
       p_content_id: formState.savedContentId || existingItem?.content_id || null,
       p_content_type: formState.type.value,
@@ -456,13 +459,17 @@
     external.placeholder = '기사나 외부 게시물 주소를 붙여넣으세요';
     const metaButton = button('링크에서 제목·썸네일·본문 가져오기', async () => {
       if (!external.value.trim()) { window.alert('링크를 먼저 입력해 주세요.'); return; }
+      if (officialBlogKey(external.value)) { await importOfficialPhoto(true); return; }
       metaButton.disabled = true;
       metaStatus.textContent = '링크 내용을 확인하고 있습니다.';
+      const requestedUrl = external.value.trim();
+      const requestedGeneration = importGeneration;
       try {
         const metadata = await fetchExternalMeta(external.value.trim());
+        if (external.value.trim() !== requestedUrl || requestedGeneration !== importGeneration || !form.isConnected) return;
         if (metadata.url) external.value = metadata.url;
-        if (metadata.title) title.value = metadata.title;
-        if (metadata.article_text) body.value = metadata.article_text.slice(0, 30000);
+        if (metadata.title && !title.value.trim()) title.value = metadata.title;
+        if (metadata.article_text && !body.value.trim()) body.value = metadata.article_text.slice(0, 30000);
         else if (metadata.description && !body.value.trim()) body.value = metadata.description;
         // Imported thumbnails remain reference material only.
         metaPreview.replaceChildren();
@@ -486,6 +493,7 @@
       } finally { metaButton.disabled = false; }
     }, true);
     const metaStatus = el('p', '', 'phase-c-upload-status');
+    metaStatus.setAttribute('role', 'status');
     const metaPreview = el('div', null, 'phase-c-link-preview');
     externalWrap.append(field('외부 링크', external), metaButton, metaStatus, metaPreview);
     // Optional link tools follow the writing area; they do not select the workflow.
@@ -523,6 +531,85 @@
       if (state.coverFromMedia) state.heroImage = media[0]?.url || null;
       renderLivePreview();
     }
+    // One in-flight import per composer; generation invalidates results on every URL edit.
+    const importedLinks = new Set(media.map(entry => entry.official_blog_post).filter(Boolean));
+    let importGeneration = 0;
+    let importBusy = false;
+    let autoTimer;
+    function officialBlogKey(value) {
+      try {
+        const u = new URL(value.trim());
+        if (u.protocol !== 'https:' || u.username || u.password || u.port
+            || !['blog.naver.com', 'm.blog.naver.com'].includes(u.hostname)) return '';
+        const match = u.pathname.match(/^\/taejang-official\/(\d+)\/?$/);
+        if (match) return match[1];
+        if (u.pathname === '/PostView.naver' && u.searchParams.get('blogId') === 'taejang-official'
+            && /^\d+$/.test(u.searchParams.get('logNo') || '')) return u.searchParams.get('logNo');
+      } catch {}
+      return '';
+    }
+    async function importOfficialPhoto(retry = false) {
+      const key = officialBlogKey(external.value);
+      state.autoPhotoPending = false;
+      if (retry && importedLinks.has(key) && !media.some(entry => entry.official_blog_post === key)) importedLinks.delete(key);
+      if (!key || importBusy || importedLinks.has(key) && !retry) return;
+      if (importedLinks.has(key)) { metaStatus.textContent = '이 링크의 사진은 이미 가져왔습니다. 사진 자료에서 선택·제거할 수 있습니다.'; return; }
+      if (state.uploading || media.length >= 12) {
+        state.saveButtons.forEach(node => { node.disabled = state.uploading; });
+        metaStatus.textContent = '사진 업로드가 끝난 뒤 다시 시도하거나 사진 수를 줄여 주세요.';
+        return;
+      }
+      const generation = importGeneration;
+      const current = () => generation === importGeneration && officialBlogKey(external.value) === key && form.isConnected;
+      importBusy = true;
+      state.uploading = true;
+      state.saveButtons.forEach(node => { node.disabled = true; });
+      fileInput.disabled = true;
+      metaButton.disabled = true;
+      metaStatus.textContent = '태장 공식 블로그 대표사진을 가져오고 있습니다.';
+      try {
+        const metadata = await fetchExternalMeta(external.value.trim(), true);
+        if (!current()) return;
+        if (metadata.title && !title.value.trim()) title.value = metadata.title;
+        if (!body.value.trim()) body.value = (metadata.article_text || metadata.description || '').slice(0, 30000);
+        renderLivePreview();
+        if (!metadata.imported_image) throw new Error('원문에 사용 가능한 대표사진이 없거나 사진을 가져오지 못했습니다.');
+        const { base64, type } = metadata.imported_image;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(type) || typeof base64 !== 'string' || base64.length > 2000000) throw new Error('사진 형식·크기를 확인할 수 없습니다.');
+        const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
+        const decoded = await createImageBitmap(file);
+        decoded.close();
+        if (!current()) return;
+        const url = await uploadImage(file);
+        if (!current()) return;
+        // Append, never replace a manual photo or its selected cover.
+        if (!media.some(entry => entry.url === url)) media.push({ url, alt: metadata.title || '태장 공식 블로그 대표사진', kind: 'selected', official_blog_post: key });
+        importedLinks.add(key);
+        if (!state.heroImage) state.heroImage = media[0]?.url || null;
+        renderMediaEditor(mediaGrid, media, mediaChanged);
+        renderLivePreview();
+        metaStatus.textContent = '공식 블로그 사진을 첨부했습니다. 사진 자료에서 제거하거나 대표사진을 바꿀 수 있습니다. 저장 후 승인 요청해 주세요.';
+      } catch (error) {
+        if (current()) metaStatus.textContent = (error.message || '사진 가져오기 실패') + ' 작성 내용·기존 사진은 유지됩니다. 사진 추가로 직접 첨부하거나 링크 정보 가져오기로 재시도해 주세요. 사진이 없으면 공개 화면에는 태장 기본 이미지가 표시됩니다.';
+      } finally {
+        importBusy = false;
+        state.uploading = false;
+        state.saveButtons.forEach(node => { node.disabled = false; });
+        fileInput.disabled = false;
+        metaButton.disabled = false;
+        state.saveButtons.forEach(node => { node.disabled = state.autoPhotoPending; });
+        if (generation !== importGeneration && form.isConnected) autoTimer = setTimeout(importOfficialPhoto, 450);
+      }
+    }
+    external.addEventListener('input', () => {
+      importGeneration += 1;
+      state.autoPhotoPending = !!officialBlogKey(external.value) && !importedLinks.has(officialBlogKey(external.value));
+      if (state.autoPhotoPending) metaStatus.textContent = '공식 블로그 사진을 확인할 준비 중입니다.';
+      state.saveButtons.forEach(node => { node.disabled = state.autoPhotoPending || state.uploading; });
+      clearTimeout(autoTimer);
+      autoTimer = setTimeout(importOfficialPhoto, 600);
+    });
     renderMediaEditor(mediaGrid, media, mediaChanged);
     fileInput.addEventListener('change', async () => {
       const files = [...(fileInput.files || [])];

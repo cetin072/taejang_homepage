@@ -46,7 +46,7 @@ export function parseOfficialArchiveJs(source) {
   return { items, start: start + START.length, end };
 }
 
-async function fetchImage(url, request) {
+export async function fetchImage(url, request = fetch) {
   const response = await request(url, {
     redirect: 'error',
     headers: {

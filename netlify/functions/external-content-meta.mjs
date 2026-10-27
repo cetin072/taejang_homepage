@@ -1,5 +1,6 @@
 import dns from 'node:dns/promises';
 import net from 'node:net';
+import { verifiedNaverThumbnail, fetchImage } from '../../scripts/localize-official-thumbnails.mjs';
 
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -451,6 +452,15 @@ export default async (request) => {
   const rawUrl = typeof body?.url === 'string' ? body.url.trim() : '';
   if (!rawUrl) return json(400, { error: 'URL_REQUIRED' });
 
+  const officialImage = body?.include_official_image === true;
+  const officialTarget = normalizeNaverBlogTarget(rawUrl);
+  let parsed;
+  try { parsed = new URL(rawUrl); } catch {}
+  if (officialImage && (!officialTarget || officialTarget.blogId !== 'taejang-official'
+      || parsed?.protocol !== 'https:' || parsed.username || parsed.password || parsed.port
+      || parsed.pathname.split('/').filter(Boolean).length !== 2 && !/\/PostView\.naver$/i.test(parsed.pathname))) {
+    return json(400, { error: 'OFFICIAL_BLOG_REQUIRED' });
+  }
   const youtubeTarget = normalizeYouTubeVideoTarget(rawUrl);
   try {
     if (youtubeTarget) return json(200, await fetchYouTubeOEmbed(youtubeTarget));
@@ -464,7 +474,25 @@ export default async (request) => {
       ? (extractNaverBlogText(html) || extractArticleText(html))
       : extractArticleText(html);
     const channelUrl = extractYouTubeChannelUrl(html, finalUrl);
+    let importedImage = null;
+    let imageError = null;
+    if (officialImage) {
+      try {
+        // Only the official page's actual og:image; never accept an image URL from the client.
+        if (!naverTarget || naverTarget.blogId !== 'taejang-official'
+            || !normalizeNaverBlogTarget(fetchedUrl.toString())
+            || normalizeNaverBlogTarget(fetchedUrl.toString()).canonicalUrl !== naverTarget.canonicalUrl) throw new Error('OFFICIAL_PAGE_MISMATCH');
+        const safeImage = verifiedNaverThumbnail(image);
+        if (!safeImage) throw new Error('UNSUPPORTED_OFFICIAL_IMAGE');
+        await assertPublicHttps(safeImage);
+        const { data, ext } = await fetchImage(safeImage);
+        importedImage = { base64: data.toString('base64'), type: ({ jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' })[ext] };
+      } catch (error) {
+        imageError = error?.name === 'TimeoutError' ? 'IMAGE_TIMEOUT' : 'IMAGE_UNAVAILABLE';
+      }
+    }
     return json(200, {
+      ...(officialImage ? { imported_image: importedImage, image_error: imageError } : {}),
       url: finalUrl.toString(),
       title: title || null,
       description: description || null,
