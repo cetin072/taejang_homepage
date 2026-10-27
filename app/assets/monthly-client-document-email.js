@@ -72,7 +72,8 @@
     const supplyAmount = number(calculation.supplyAmount, 'SUPPLY_AMOUNT');
     const vatIncludedAmount = number(calculation.vatIncludedAmount, 'VAT_INCLUDED_AMOUNT');
     const unitPrice = number(calculation.unitPrice, 'UNIT_PRICE');
-    const serviceDate = dateLabel(monthly.serviceDate);
+    const serviceDate = (monthly.serviceDates === undefined ? [monthly.serviceDate] : monthly.serviceDates).map(dateLabel).join(' / ');
+    if (!serviceDate) throw new Error('INVALID_SERVICE_DATES');
     const location = requiredText(monthly.serviceLocation, 'SERVICE_LOCATION');
     const activity = activityParagraph(monthly.safetyEducation, monthly.programs);
     const attachmentDisplayName = company.attachmentDisplayName === undefined
