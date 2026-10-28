@@ -187,6 +187,7 @@ jobs:
         run: |
           node tests/promotion-composer-browser.mjs
           node tests/official-blog-photo-browser.mjs
+          node tests/published-photo-correction-browser.mjs
 
       - name: Keep promotion composer screenshots
         if: always()
