@@ -218,6 +218,19 @@
     return new Error(`사진 저장 서버에서 업로드를 거부했습니다.${status ? ` (오류 ${status})` : ''}`);
   }
 
+  function officialBlogKey(value) {
+    try {
+      const u = new URL(value.trim());
+      if (u.protocol !== 'https:' || u.username || u.password || u.port
+          || !['blog.naver.com', 'm.blog.naver.com'].includes(u.hostname)) return '';
+      const match = u.pathname.match(/^\/taejang-official\/(\d+)\/?$/);
+      if (match) return match[1];
+      if (u.pathname === '/PostView.naver' && u.searchParams.get('blogId') === 'taejang-official'
+          && /^\d+$/.test(u.searchParams.get('logNo') || '')) return u.searchParams.get('logNo');
+    } catch {}
+    return '';
+  }
+
   async function uploadImage(file, { officialBlogPost = '' } = {}) {
     if (!file) throw new Error('사진을 선택해 주세요.');
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -296,6 +309,28 @@
       throw new Error(payload?.message || reason || '원문에 연결하지 못해 링크 정보를 가져오지 못했습니다.');
     }
     return payload || {};
+  }
+
+  async function officialBlogFile(metadata, key) {
+    if (!metadata?.imported_image) throw new Error('원문에 사용 가능한 대표사진이 없거나 사진을 가져오지 못했습니다.');
+    const { base64, type } = metadata.imported_image;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(type) || typeof base64 !== 'string' || base64.length > 2000000) {
+      throw new Error('사진 형식·크기를 확인할 수 없습니다.');
+    }
+    const bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+    const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
+    const decoded = await createImageBitmap(file);
+    decoded.close();
+    return file;
+  }
+
+  async function importOfficialPhotoForBackfill(rawUrl) {
+    const key = officialBlogKey(rawUrl);
+    if (!key) throw new Error('태장 공식 네이버 블로그 글만 자동으로 가져올 수 있습니다.');
+    const metadata = await fetchExternalMeta(rawUrl, true);
+    const file = await officialBlogFile(metadata, key);
+    const url = await uploadImage(file, { officialBlogPost: key });
+    return { url, alt: (metadata.title || '태장 공식 블로그 대표사진').slice(0, 300) };
   }
 
   function summaryFromBody(body) {
@@ -549,18 +584,6 @@
     let importGeneration = 0;
     let importBusy = false;
     let autoTimer;
-    function officialBlogKey(value) {
-      try {
-        const u = new URL(value.trim());
-        if (u.protocol !== 'https:' || u.username || u.password || u.port
-            || !['blog.naver.com', 'm.blog.naver.com'].includes(u.hostname)) return '';
-        const match = u.pathname.match(/^\/taejang-official\/(\d+)\/?$/);
-        if (match) return match[1];
-        if (u.pathname === '/PostView.naver' && u.searchParams.get('blogId') === 'taejang-official'
-            && /^\d+$/.test(u.searchParams.get('logNo') || '')) return u.searchParams.get('logNo');
-      } catch {}
-      return '';
-    }
     async function importOfficialPhoto(retry = false) {
       const key = officialBlogKey(external.value);
       state.autoPhotoPending = false;
@@ -586,13 +609,7 @@
         if (metadata.title && !title.value.trim()) title.value = metadata.title;
         if (!body.value.trim()) body.value = (metadata.article_text || metadata.description || '').slice(0, 30000);
         renderLivePreview();
-        if (!metadata.imported_image) throw new Error('원문에 사용 가능한 대표사진이 없거나 사진을 가져오지 못했습니다.');
-        const { base64, type } = metadata.imported_image;
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(type) || typeof base64 !== 'string' || base64.length > 2000000) throw new Error('사진 형식·크기를 확인할 수 없습니다.');
-        const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-        const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
-        const decoded = await createImageBitmap(file);
-        decoded.close();
+        const file = await officialBlogFile(metadata, key);
         if (!current()) return;
         const url = await uploadImage(file, { officialBlogPost: key });
         if (!current()) return;
@@ -1210,5 +1227,5 @@
   document.addEventListener('taejang-app-ready', () => setTimeout(syncAll, 120));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(syncAll, 160));
 
-  window.TaejangPromotionWorkspaceV2Api = { openPromotion, uploadImage };
+  window.TaejangPromotionWorkspaceV2Api = { openPromotion, uploadImage, importOfficialPhotoForBackfill };
 })();

@@ -21,6 +21,7 @@ const recoverableDelete = read(recoverableDeletePath);
 const operationsDelete = read(operationsDeletePath);
 const issue207Policy = read(issue207PolicyPath);
 const explicitPublication = read(explicitPublicationPath);
+const publishedPhotoBackfill = read('supabase/migrations/20261028090500_published_promotion_missing_photo_correction.sql');
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -111,6 +112,33 @@ test('publication admin follows the Issue 207 recent-delete window and modificat
   assert.match(issue207Policy, /PROMOTION_DELETE_REQUEST_POLICY_RETIRED/);
   assert.match(issue207Policy, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
   assert.match(appUi, /phase-c-publication-admin\.js/);
+});
+
+
+test('missing-photo correction is add-only, authorized, and preserves original publication', () => {
+  for (const required of [
+    'create function public.private_can_operations_add_missing_promotion_photo',
+    "current_user_has_role('operations_manager')",
+    "private_actor_can('promotion.review_public_change')",
+    'jsonb_array_length(r.public_media)=0',
+    "q.stage='ceo'",
+    'p_confirm_source is distinct from true',
+    'storage.objects',
+    "split_part(storage_path,'/',1)<>actor_id::text",
+    'p_expected_revision_id',
+    'insert into public.promotion_content_revisions',
+    'locked_at,operations_owned_publication',
+    'promotion_missing_photo_corrected'
+  ]) assert.ok(publishedPhotoBackfill.includes(required), 'Missing photo contract: ' + required);
+  assert.ok(!publishedPhotoBackfill.toLowerCase().includes('update public.promotion_content_revisions'),
+    'Old immutable revision must never be overwritten');
+  assert.ok(!publishedPhotoBackfill.toLowerCase().includes('set published_at='),
+    'Original publication timestamp must remain stable');
+  for (const required of [
+    '누락 사진 보완', 'get_operations_missing_promotion_photo',
+    'operations_add_missing_promotion_photo', 'p_confirm_source: accepted.checked',
+    'importOfficialPhotoForBackfill'
+  ]) assert.ok(publicationAdmin.includes(required), 'Missing operator action: ' + required);
 });
 
 test('live detail page renders fetched content with DOM text nodes instead of raw HTML injection', () => {

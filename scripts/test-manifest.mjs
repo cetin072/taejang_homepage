@@ -41,6 +41,7 @@ export const testGroups = Object.freeze({
     'tests/issue-148-promotion-homepage-capability-contract.test.js',
     'tests/external-content-meta-guard.test.js',
     'tests/official-blog-photo-import.test.mjs',
+    'tests/operations-missing-promotion-photo-auth.mjs',
     'tests/internal-app-ia.test.js',
     'tests/internal-app-followup-ux.test.js',
     'tests/issue-181-link-decoupling.test.js',
