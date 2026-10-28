@@ -271,6 +271,7 @@ jobs:
         run: |
           npm run build:netlify
           node tests/employee-app-browser.mjs
+          node tests/partnership-browser.mjs
 
       - name: Verify employee-app landing on exact-head Deploy Preview
         if: github.event_name == 'pull_request'
@@ -297,6 +298,10 @@ jobs:
               preview = uar.wait_for_preview(contract, os.environ.copy())
               result = subprocess.run(['node', 'tests/employee-app-browser.mjs'], text=True,
                                       capture_output=True, env={**os.environ, 'EMPLOYEE_APP_QA_BASE': preview})
+              if result.returncode == 0:
+                  subprocess.run(['node', 'tests/partnership-browser.mjs'], check=True,
+                                 env={**os.environ, 'PREVIEW_URL': preview,
+                                      'PARTNERSHIP_QA_OUTPUT': 'partnership-preview-qa-artifacts'})
               print(result.stdout, end='')
               print(result.stderr, end='')
               if result.returncode:
@@ -312,7 +317,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: employee-app-preview-qa
-          path: employee-app-preview-qa-artifacts/
+          path: |
+            employee-app-preview-qa-artifacts/
+            partnership-preview-qa-artifacts/
           if-no-files-found: ignore
 
       - name: Keep employee app landing screenshots

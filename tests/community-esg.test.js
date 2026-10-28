@@ -69,7 +69,7 @@ assert.doesNotMatch(communityScript, /image\.src = activity\.thumbnail \|\| acti
 assert.match(read('assets/css/community-esg.css'), /\.community-esg-record-placeholder/);
 assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.match(business, /href="community-esg\.html">활동과 협력 이야기/);
-assert.match(partnership, /href="community-esg\.html">활동과 협력 이야기/);
+assert.match(partnership, /href="community-esg\.html">지역사회공헌 활동 자세히 보기/);
 assert.match(read('sitemap.xml'), /community-esg\.html/);
 
 console.log('community ESG tests: all cases passed');
