@@ -80,7 +80,7 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(employeeUi, /submit_employee_change_request/);
   assert.match(employeeUi, /review_employee_change_request/);
   assert.match(employeeUi, /직원 관리/);
-  assert.match(employeeUi, /textContent = '직원 관리'/);
+  assert.match(employeeUi, /textContent = activeEmployeeView === 'new' \? '신규 직원 등록' : '직원 관리'/);
   assert.doesNotMatch(employeeUi, /field\(['"]직원번호['"]/);
   assert.match(safeDefaults, /p\.code='general_worker' then 0/);
 });

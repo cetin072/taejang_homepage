@@ -80,7 +80,26 @@ export async function personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops,b
     check(!(await edge(actor,target)).ok,'revoked direct Edge reset denied');
     check(roleSnapshot()===originalRoles,'revocation leaves actual roles unchanged');
     console.log('PERSONAL_MENU_EMPLOYEE_AUTH_STORAGE_VAULT_EDGE_PASS');
+    const registrationGrant=allowed=>rpc('set_profile_menu_authority',ops.token,{p_profile_id:actor.id,p_menu_key:'employee.new',p_allowed:allowed,
+      p_expected_revision:allowed?0:1,p_reason:allowed?'isolated registration grant':'isolated registration revoke'});
+    check(!(await registrationGrant(true)).ok,'registration also rejects grants before adapter verification');
+    sql("update public.menu_authority_catalog set adapter_ready=true where menu_key='employee.new'");
+    check((await registrationGrant(true)).ok,'registration can be granted while employee management stays denied');
+    const registration=await rpc('get_employee_registration_context',actor.token,{});
+    check(registration.ok&&registration.data.registration_only&&registration.data.positions.length>0,'registration-only metadata loads');
+    check(Object.keys(registration.data).sort().join(',')==='access_level,departments,positions,registration_only','registration context has no employee or account information');
+    const registrationInput={p_full_name:'Registration-only synthetic',p_hired_on:'2026-01-01',p_department_id:department,p_position_id:position,p_attendance_required:true};
+    const registered=await rpc('create_employee_from_registration',actor.token,registrationInput);
+    check(registered.ok&&registered.data.employee_uuid,'registration-only grant creates employee through shared validated insert');
+    check(!(await rpc('get_employee_management_context',actor.token,{})).ok,'shared employee.create capability never restores employee roster');
+    check(!(await rpc('create_employee',actor.token,registrationInput)).ok,'registration grant cannot bypass employee-management endpoint denial');
+    check(Number(sql(`select count(*) from public.audit_logs where target_id='${registered.data.employee_uuid}' and action='employee_created' and metadata->>'menu_key'='employee.new'`))===1,'registration retains durable audit');
+    check((await registrationGrant(false)).ok,'registration grant revoked independently');
+    check(!(await rpc('get_employee_registration_context',actor.token,{})).ok,'same JWT cannot reload registration metadata after revoke');
+    check(!(await rpc('create_employee_from_registration',actor.token,registrationInput)).ok,'same JWT cannot register after revoke');
+    check(roleSnapshot()===originalRoles,'registration does not modify actual roles');
+    console.log('PERSONAL_MENU_REGISTRATION_AUTH_PASS');
   } finally {
-    sql("update public.menu_authority_catalog set adapter_ready=false where menu_key='employee.manage'");
+    sql("update public.menu_authority_catalog set adapter_ready=false where menu_key in ('employee.manage','employee.new')");
   }
 }

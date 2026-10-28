@@ -59,6 +59,24 @@ try {
  assert.equal(await field('수행일 2').inputValue(),'2026-10-23');assert.equal(await field('환경정비·작업 상세').inputValue(),'농원 작업 구역 정돈');
  const long='긴한글내용'.repeat(100);await field('환경정비·작업 상세').fill(long);await page.getByRole('button',{name:'저장',exact:true}).click();await page.waitForFunction(()=>document.body.textContent.includes('월별 snapshot을 저장했습니다.'));assert.equal(await field('환경정비·작업 상세').inputValue(),long);assert.equal(await page.getByRole('button',{name:'확정',exact:true}).isDisabled(),true);
  console.log(JSON.stringify({width,multipleDatesSavedAndReloaded:true,companyOverrideSevenDefaultsSix:true}));
+ // Preserve a late RPC response while personal permission is revoked. Neither
+ // its company data nor the previous form may reappear under the cached capability.
+ await page.evaluate(()=>{
+   window.monthlyAllowed=true;
+   window.TaejangMenuAuthority={allowed:()=>monthlyAllowed};
+   const previous=TaejangApp.rpc;
+   TaejangApp.rpc=(name,args)=>name==='monthly_client_documents_get'
+     ? new Promise(resolve=>{window.monthlyRelease=()=>resolve({defaults,months:[record],performanceVersion:2});})
+     : previous(name,args);
+   window.monthlyPending=MonthlyClientDocuments.open();
+ });
+ await page.waitForFunction(()=>typeof monthlyRelease==='function');
+ await page.evaluate(async()=>{monthlyAllowed=false;document.dispatchEvent(new CustomEvent('taejang-menu-authority-changed'));monthlyRelease();await monthlyPending;});
+ assert.equal(await page.locator('.mcd-panel,input,textarea,.mcd-email-dialog').count(),0,'revoke clears forms and late response');
+ const callsBefore=await page.evaluate(()=>calls.length);
+ await page.evaluate(()=>MonthlyClientDocuments.open());
+ assert.equal(await page.evaluate(()=>calls.length),callsBefore,'direct open cannot use stale capability after personal revoke');
+ console.log('PERSONAL_MENU_MONTHLY_DOCUMENT_BROWSER_PASS width='+width);
  await page.close();
  }
 } finally {await browser.close();}

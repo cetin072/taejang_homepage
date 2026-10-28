@@ -4,13 +4,14 @@
   const ALLOWED_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
-  const allowedRoute = () => window.TaejangMenuAuthority?.allowed('employee.manage',
+  const allowedRoute = (menu = activeEmployeeMenu) => window.TaejangMenuAuthority?.allowed(menu,
     ALLOWED_ROUTES.has(route())) ?? ALLOWED_ROUTES.has(route());
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let cachedConfig = null;
   let currentContext = null;
   let activeEmployeeView = 'existing';
+  let activeEmployeeMenu = 'employee.manage';
   let selectedEmployeeId = null;
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
@@ -220,7 +221,7 @@
       controls.forEach(control => { control.disabled = true; });
       try {
         if (!saved && !employee && !teamRequest) {
-          await app().rpc('create_employee', {
+          await app().rpc(context.registration_only ? 'create_employee_from_registration' : 'create_employee', {
             p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
             p_position_id: position.value, p_attendance_required: attendance.checked
           });
@@ -258,6 +259,12 @@
           });
         }
         saved = true;
+        if (context.registration_only) {
+          if (await refreshEmployeeManagement()) {
+            main()?.querySelector('.employee-management')?.prepend(el('p', '직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.', 'message'));
+          }
+          return;
+        }
         if (!employee) { activeEmployeeView = 'existing'; selectedEmployeeId = null; }
         await refreshEmployeeManagement();
       } catch (error) {
@@ -1002,7 +1009,7 @@
     }
     const intro = el('header', null, 'employee-toolbar');
     intro.append(el('h2', activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리'));
-    intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
+    if (!context.registration_only) intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
       activeEmployeeView = activeEmployeeView === 'new' ? 'existing' : 'new'; selectedEmployeeId = null;
       renderEmployeeManagement(currentContext);
     }, true));
@@ -1048,7 +1055,7 @@
 
   async function refreshEmployeeManagement(verify) {
     const sequence = ++loadSequence;
-    const context = await app().rpc('get_employee_management_context');
+    const context = await loadEmployeeContext();
     if (sequence !== loadSequence || !allowedRoute() || !main()?.querySelector('.employee-management')) return false;
     if (verify) verify(context);
     currentContext = context; renderEmployeeManagement(context); return true;
@@ -1056,14 +1063,18 @@
 
   async function openEmployeeManagement(view = 'existing') {
     closeSidebar();
-    if (!allowedRoute()) return;
+    const menu = view === 'new' ? 'employee.new' : 'employee.manage';
+    if (!allowedRoute(menu)) return;
+    activeEmployeeMenu = menu;
+    clearEmployeeContext();
     activeEmployeeView = ['existing', 'new'].includes(view) ? view : 'existing'; selectedEmployeeId = null;
     const sequence = ++loadSequence;
     const target = main(); if (!target) return;
-    document.getElementById('desktop-page-title').textContent = '직원 관리';
+    document.getElementById('desktop-page-title').textContent = activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리';
     const loading = el('p', '직원 정보를 불러오고 있습니다.', 'message'); target.replaceChildren(loading);
+    loading.dataset.employeeLoading = '1';
     try {
-      const context = await app().rpc('get_employee_management_context');
+      const context = await loadEmployeeContext();
       if (sequence !== loadSequence || !loading.isConnected || !allowedRoute()) return;
       currentContext = context; renderEmployeeManagement(context);
     } catch (error) {
@@ -1076,10 +1087,18 @@
   function syncNavigation() {
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
+  function loadEmployeeContext() {
+    const registrationOnly = activeEmployeeMenu === 'employee.new'
+      && window.TaejangMenuAuthority?.delegated?.('employee.new');
+    return app().rpc(registrationOnly ? 'get_employee_registration_context' : 'get_employee_management_context');
+  }
   document.addEventListener('taejang-menu-authority-changed', () => {
-    if (window.TaejangMenuAuthority?.allowed('employee.manage', true) !== false) return;
+    if (window.TaejangMenuAuthority?.allowed(activeEmployeeMenu, true) !== false) return;
     clearEmployeeContext();
-    main()?.querySelector('.employee-management')?.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    const target = main();
+    if (target?.querySelector('.employee-management,[data-employee-loading]')) {
+      target.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    }
   });
 
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));

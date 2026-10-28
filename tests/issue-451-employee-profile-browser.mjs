@@ -294,6 +294,44 @@ try {
     const attendanceBox=await attendance.boundingBox();
     assert.ok(attendanceBox.width<=24&&attendanceBox.height<=24,'new-hire checkbox remains compact');
     await page.screenshot({path:path.join(output,device+'-registration.png'),fullPage:true});
+    // A new-registration-only grant must never fetch or render an existing roster.
+    const managementReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length);
+    await page.evaluate(async()=>{
+      fixtureRoute='general_worker';window.registrationAllowed=true;window.registrationWait=false;
+      const previous=TaejangApp.rpc;
+      window.registrationMetadata={registration_only:true,access_level:'operations_manager',
+        departments:fixtureContext.departments,positions:fixtureContext.positions};
+      TaejangApp.rpc=async(name,args)=>{
+        if(name==='get_my_menu_authority')return {version:1,can_manage:false,decisions:[
+          {menu_key:'employee.manage',allowed:false},{menu_key:'employee.new',allowed:registrationAllowed}]};
+        if(name==='get_employee_registration_context'){
+          calls.push({name,args});
+          if(registrationWait)return new Promise(resolve=>{window.registrationRelease=resolve;});
+          return structuredClone(registrationMetadata);
+        }
+        if(name==='create_employee_from_registration'){calls.push({name,args});return {ok:true,employee_uuid:'synthetic-registration'};}
+        return previous(name,args);
+      };
+      await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement('new');
+    });
+    await page.getByRole('button',{name:'직원 등록',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'← 직원 목록',exact:true}).count(),0);
+    assert.equal(await page.locator('.employee-list-row,[data-employee-profile]').count(),0);
+    await page.getByLabel('이름',{exact:true}).fill('합성 등록 전용 직원');
+    await page.getByLabel('입사일',{exact:true}).fill('2026-01-01');
+    await page.getByRole('button',{name:'직원 등록',exact:true}).click();
+    await page.getByText('직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.',{exact:true}).waitFor();
+    assert.equal(await page.getByLabel('이름',{exact:true}).inputValue(),'');
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length),managementReads);
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='create_employee_from_registration').length),1);
+    await fits();
+    await page.evaluate(()=>{registrationWait=true;window.registrationLoading=TaejangEmployeeManagement.openEmployeeManagement('new');});
+    await page.waitForFunction(()=>typeof registrationRelease==='function');
+    await page.evaluate(async()=>{registrationAllowed=false;await TaejangMenuAuthority.refresh();registrationRelease(structuredClone(registrationMetadata));await registrationLoading;});
+    assert.equal(await page.locator('.employee-form,[data-employee-loading]').count(),0,'late registration metadata cannot restore revoked screen');
+    const registrationReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length);
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement('new'));
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length),registrationReads);
     await context.close();
     console.log('EMPLOYEE_PROFILE_BROWSER_PASS:'+device+':'+(preview?'PREVIEW':'LOCAL'));
   }

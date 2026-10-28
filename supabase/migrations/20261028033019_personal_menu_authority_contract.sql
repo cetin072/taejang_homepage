@@ -41,7 +41,7 @@ insert into public.menu_authority_catalog(menu_key,label,scope_summary,sensitive
  ('homepage.content','홈페이지 내용 관리','슬롯 초안·검토·승인 및 공개 반영.',array[]::text[],array['homepage.draft','homepage.review','homepage.approve_apply']),
  ('homepage.direct','홈페이지 직접 수정','승인된 safe-slot 직접 편집·반영.',array[]::text[],array['homepage.direct_edit']),
  ('notice.manage','공지 관리','전사 공지 조회·작성·수정·게시·보관·복원·첨부 관리.',array['내부 공지','첨부'],array['notice.manage']),
- ('monthly_client_documents.manage','거래처 문서 관리','거래처 문서 조회·작성·수정·제출·첨부 관리.',array['거래처 정보','계약·거래 문서'],array['monthly_client_documents.manage']),
+ ('monthly_client_documents.manage','거래처 문서 관리','월별 문서 조회·저장·확정/해제·복사, 회사 기본값, DOCX·메일 초안 생성.',array['거래처 정보','계약·거래 문서'],array['monthly_client_documents.manage']),
  ('attendance.view','출근부','전사 근태 조회 및 운영총괄 화면의 예외 검토.',array['직원 근태','근태 위치·증빙'],array['attendance.admin_view','attendance.exception_review']),
  ('attendance.correct','근태 보정','운영총괄과 동일한 근태 보정. 원본 이력 보존.',array['직원 근태'],array['attendance.correct']),
  ('payroll.manage','근태·급여관리','전사 급여 조회·계산·수정·확정·내보내기. 기존 상태 전이·확인 유지.',array['급여','공제','개인별 급여자료'],array['payroll.manage']),

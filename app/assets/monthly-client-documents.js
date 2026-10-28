@@ -33,11 +33,15 @@
     node.type = 'button'; node.addEventListener('click', action); return node;
   };
   const monthKey = (year, month) => `${year}-${String(month).padStart(2, '0')}`;
-  const currentCapability = () => window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
+  const currentCapability = () => {
+    const legacy = window.TaejangApp?.hasCapabilityContract?.() && window.TaejangApp.can?.(CAPABILITY) === true;
+    return window.TaejangMenuAuthority?.allowed(CAPABILITY, legacy) ?? legacy;
+  };
   let root, statusNode, state, record = null, revision = 0, savedFingerprint = '', activeMonthKey = '', loadSequence = 0,
     busy = false, emailState = null, newMonthTarget = null, defaultsOpen = false, performanceReady = false;
   let outputSelection = new Set(ids);
   const emailDrafts = new Map();
+  let authoritySequence = 0;
 
   function commonFromDefaults(year, month) {
     return { year, month, docDate: '', perfDate: '', place: '', safety: 'outdoor', severe: 20, mildF: 0, mildM: 3,
@@ -47,6 +51,7 @@
     return { common: commonFromDefaults(year, month), companies: defaults.map(company => ({ ...company, enabled: true, override: company.override ?? '', note: '' })) };
   }
   function report(message, error = false) {
+    if (!currentCapability() || !statusNode?.isConnected) return;
     statusNode.textContent = message; statusNode.classList.toggle('error', error); statusNode.hidden = !message;
   }
   function fingerprint() { return JSON.stringify({ common: state.common, companies: state.companies }); }
@@ -138,9 +143,12 @@
       || !window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion)) throw new Error('이 월은 저장 당시 문서 원본 버전과 달라 DOCX를 재현할 수 없습니다.');
     const { warnings } = latestCalculations();
     if (warnings.length) throw new Error(warnings.join(' '));
+    const request = authoritySequence;
     const assets = await window.MonthlyClientDocumentDocx.loadAssets(record.templateVersion);
+    if (request !== authoritySequence || !currentCapability() || !root?.isConnected) return;
     const blob = await window.MonthlyClientDocumentDocx.createDocx({ template: assets.template, packageBytes: assets.packageBytes,
       common: state.common, companies, type: 'blob' });
+    if (request !== authoritySequence || !currentCapability() || !root?.isConnected) return;
     const filename = window.MonthlyClientDocumentDocx.filename(state.common, companies);
     const url = URL.createObjectURL(blob); const anchor = el('a'); anchor.href = url; anchor.download = filename;
     document.body.append(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
@@ -247,7 +255,7 @@
   }
 
   function render() {
-    if (!currentCapability()) { report('월별 거래처 문서 관리 권한이 없습니다.', true); return; }
+    if (!currentCapability() || !root?.isConnected || !state?.common) return;
     root.replaceChildren();
     root.append(el('header', undefined, 'mcd-header'));
     root.querySelector('.mcd-header').append(el('p', '업무 운영 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
@@ -391,7 +399,10 @@
 
   async function rpc(name, args = {}) {
     if (!currentCapability()) throw new Error('FORBIDDEN');
-    return window.TaejangApp.rpc(name, args);
+    const request = authoritySequence;
+    const result = await window.TaejangApp.rpc(name, args);
+    if (request !== authoritySequence || !currentCapability()) throw new Error('MENU_AUTHORITY_CHANGED');
+    return result;
   }
   async function loadData() {
     if (!currentCapability()) throw new Error('FORBIDDEN');
@@ -478,11 +489,27 @@
     render(); report(message,isError);
   }
   async function open() {
+    if (!currentCapability()) return;
+    const request = ++authoritySequence;
     const main=document.getElementById('dashboard-main'); if(!main) return;
     main.replaceChildren(); root=el('div',undefined,'monthly-client-documents'); main.append(root);
     statusNode=el('p','정보를 불러오는 중입니다.','mcd-inline-status'); root.append(statusNode);
-    try { await loadData(); render(); } catch(error){ report(`화면을 불러오지 못했습니다: ${error.message || error}`,true); }
+    try { await loadData(); if (request === authoritySequence) render(); }
+    catch(error){ if (request === authoritySequence) report(`화면을 불러오지 못했습니다: ${error.message || error}`,true); }
   }
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (window.TaejangMenuAuthority?.allowed(CAPABILITY, true) !== false) return;
+    ++authoritySequence; ++loadSequence;
+    for (const draft of new Set([...emailDrafts.values(), emailState])) {
+      if (draft?.dialog?.open) draft.dialog.close();
+      draft?.dialog?.remove();
+    }
+    emailDrafts.clear(); emailState = null; state = null; record = null;
+    revision = 0; savedFingerprint = ''; activeMonthKey = ''; newMonthTarget = null;
+    outputSelection.clear(); busy = false; defaultsOpen = false; performanceReady = false;
+    if (root?.isConnected) root.replaceChildren(el('p', '거래처 문서 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    root = null; statusNode = null;
+  });
   document.addEventListener('taejang-monthly-client-documents-open', open);
   window.MonthlyClientDocuments = Object.freeze({ open });
 })();
