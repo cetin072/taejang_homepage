@@ -27,10 +27,9 @@
 .relationship-card p { margin: 18px 0 0; font-size: 15px; }
 .partnership-note { margin: 24px 0 0; color: var(--ink-soft); font-size: 15px; }
 .partner-company-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .65fr); gap: 40px; align-items: start; }
-.partner-company-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.partner-company-list article { padding: 22px; border: 1px solid var(--line); background: #fff; }
-.partner-company-list h3 { font: 800 22px/1.5 var(--myeongjo); margin: 8px 0 12px; overflow-wrap: anywhere; }
-.partner-company-list p { margin: 0; font-size: 15px; }
+.partner-company-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
+.partner-company-list li { display: grid; place-items: center; min-height: 82px; padding: 18px 14px; border: 1px solid var(--line); background: #fff; color: var(--green-deep); text-align: center; font: 800 22px/1.5 var(--myeongjo); overflow-wrap: anywhere; }
+.partner-company-record { margin-top: 18px; }
 .partner-company-evidence { max-width: 340px; justify-self: center; }
 .partner-company-evidence img { border: 1px solid var(--line); }
 .partnership-case { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: start; }
@@ -63,7 +62,6 @@
   .relationship-flow { grid-column: 2; grid-row: 1 / 4; }
   .relationship-card p { margin-top: 0; }
   .partner-company-layout { gap: 24px; }
-  .partner-company-list { grid-template-columns: 1fr; }
   .partnership-case { gap: 28px; }
 }
 @media (max-width: 600px) {
@@ -81,9 +79,7 @@
   .relationship-arrow { font-size: 13px; max-width: 100px; }
   .relationship-arrow [aria-hidden] { transform: none; }
   .relationship-card p { margin-top: 16px; }
-  .partner-company-list { gap: 12px; }
-  .partner-company-list article { padding: 18px 20px; }
-  .partner-company-list h3 { margin: 4px 0 8px; }
+  .partner-company-list li { min-height: 76px; padding: 14px 10px; font-size: 20px; }
   .partner-company-evidence { max-width: 260px; }
   .participation-review { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 16px; }
   .partnership-institution { padding: 22px 20px; }

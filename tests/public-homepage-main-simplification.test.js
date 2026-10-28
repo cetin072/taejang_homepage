@@ -279,6 +279,13 @@ assert.ok(workplace.indexOf('data-workplace-overview') < workplace.indexOf('data
 assert.match(workplace, /일터 이야기/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
+// User review: shared company evidence is linked once; names stay compact.
+const companySection = partnership.slice(partnership.indexOf('class="section beige partner-company-section"'), partnership.indexOf('class="section partnership-evidence"'));
+assert.equal((companySection.match(/공동출자 기록 보기/g) || []).length, 1);
+assert.equal((companySection.match(/<li>/g) || []).length, 4);
+assert.doesNotMatch(companySection, /주주로 참여해 태장의 사업 기반을 함께 만듭니다/);
+assert.match(partnership, /id="partnership-faq-title">참여 안내<\/h2>/);
+assert.doesNotMatch(partnership, /기업 담당자가 검토할 정보/);
 // Issue #544 supersedes the old four-illustration/ESG-detail layout.
 assert.equal((partnership.match(/<section\b/g) || []).length, 6);
 assert.equal((partnership.match(/class="relationship-card"/g) || []).length, 3);
