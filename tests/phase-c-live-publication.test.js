@@ -21,6 +21,7 @@ const recoverableDelete = read(recoverableDeletePath);
 const operationsDelete = read(operationsDeletePath);
 const issue207Policy = read(issue207PolicyPath);
 const explicitPublication = read(explicitPublicationPath);
+const publishedPhotoBackfill = read('supabase/migrations/20261028090500_published_promotion_missing_photo_correction.sql');
 const feedFunction = read('netlify/functions/public-promotion-feed.mjs');
 const externalContent = read('assets/js/external-content.js');
 const detailScript = read('assets/js/promotion-detail.js');
@@ -111,6 +112,29 @@ test('publication admin follows the Issue 207 recent-delete window and modificat
   assert.match(issue207Policy, /PROMOTION_DELETE_REQUEST_POLICY_RETIRED/);
   assert.match(issue207Policy, /PROMOTION_PUBLIC_DELETE_WINDOW_EXPIRED/);
   assert.match(appUi, /phase-c-publication-admin\.js/);
+});
+
+
+test('missing-photo correction is add-only, authorized, and does not forge publication history', () => {
+  assert.match(publishedPhotoBackfill, /create function public\\.private_can_operations_add_missing_promotion_photo/);
+  assert.match(publishedPhotoBackfill, /current_user_has_role\\('operations_manager'\\)/);
+  assert.match(publishedPhotoBackfill, /private_actor_can\\('promotion\\.review_public_change'\\)/);
+  assert.match(publishedPhotoBackfill, /jsonb_array_length\\(r\\.public_media\\)=0/);
+  assert.match(publishedPhotoBackfill, /q\\.stage='ceo'/);
+  assert.match(publishedPhotoBackfill, /p_confirm_source is distinct from true/);
+  assert.match(publishedPhotoBackfill, /storage\\.objects/);
+  assert.match(publishedPhotoBackfill, /split_part\\(storage_path,'\\/',1\\)<>actor_id::text/);
+  assert.match(publishedPhotoBackfill, /p_expected_revision_id/);
+  assert.match(publishedPhotoBackfill, /insert into public\\.promotion_content_revisions/);
+  assert.match(publishedPhotoBackfill, /locked_at,operations_owned_publication/);
+  assert.match(publishedPhotoBackfill, /promotion_missing_photo_corrected/);
+  assert.doesNotMatch(publishedPhotoBackfill, /update public\\.promotion_content_revisions/i);
+  assert.doesNotMatch(publishedPhotoBackfill, /set published_at\\s*=/i);
+  assert.match(publicationAdmin, /누락 사진 보완/);
+  assert.match(publicationAdmin, /get_operations_missing_promotion_photo/);
+  assert.match(publicationAdmin, /operations_add_missing_promotion_photo/);
+  assert.match(publicationAdmin, /p_confirm_source:\\s*accepted\\.checked/);
+  assert.match(publicationAdmin, /importOfficialPhotoForBackfill/);
 });
 
 test('live detail page renders fetched content with DOM text nodes instead of raw HTML injection', () => {
