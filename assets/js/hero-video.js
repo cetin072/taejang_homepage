@@ -14,7 +14,10 @@
     iframe.allow = 'autoplay; encrypted-media; picture-in-picture; web-share';
     iframe.setAttribute('allowfullscreen', '');
 
-    container.replaceChildren(iframe);
+    const poster = container.querySelector('[data-youtube-play]');
+    if (!poster) return;
+    container.insertBefore(iframe, poster);
+    poster.remove();
     container.classList.add('is-playing');
   }
 
@@ -40,7 +43,8 @@
     playIcon.textContent = '▶';
     poster.append(thumbnail, playIcon);
 
-    container.replaceChildren(poster);
+    container.insertBefore(poster, iframe);
+    iframe.remove();
     container.classList.remove('is-playing');
   }
 
