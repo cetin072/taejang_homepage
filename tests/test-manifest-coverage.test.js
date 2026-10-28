@@ -11,6 +11,7 @@ const manifestPath = path.join(root, 'scripts', 'test-manifest.mjs');
 const workflowsDir = path.join(root, '.github', 'workflows');
 // Imported helpers execute through a registered runner; verify every import edge.
 const IMPORTED_HELPERS = new Map([
+  ['tests/helpers/personal-menu-employee-auth.mjs', 'tests/employee-password-reset-auth-integration.mjs'],
   ['tests/helpers/menu-employee-adapter-test.mjs', 'tests/menu-authority-isolated.mjs'],
   ['tests/helpers/migration-function-catalog.mjs', 'tests/helpers/menu-employee-adapter-test.mjs'],
   ['tests/helpers/today-board-browser-flow.mjs', 'tests/today-board-auth-integration.mjs'],

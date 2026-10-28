@@ -839,6 +839,34 @@
         const opt=await app().rpc('employee_password_reset_option',{p_employee_uuid:employee.id});
         if(!wrap.isConnected)return;
         if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
+        let reauthForm=null;
+        const showReauthentication=()=>{
+          if(reauthForm || !wrap.isConnected)return;
+          const form=el('form',null,'app-authoring');reauthForm=form;
+          form.append(el('p','직원 화면을 나가지 않고 현재 로그인 계정을 확인합니다.'));
+          const label=el('label','내 로그인 비밀번호');
+          const password=document.createElement('input');password.type='password';
+          password.autocomplete='current-password';password.required=true;
+          label.append(password);form.append(label);
+          const verify=el('button','본인 확인 후 계속','button');verify.type='submit';
+          const cancel=button('취소',()=>{password.value='';form.remove();reauthForm=null;open.disabled=false;},true);
+          const status=el('p','','help');status.setAttribute('role','status');
+          form.append(verify,cancel,status);wrap.append(form);open.disabled=true;
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(verify.disabled)return;
+            verify.disabled=true;cancel.disabled=true;
+            let value=password.value;password.value='';
+            try {
+              if(typeof app()?.reauthenticate!=='function')throw Error('본인 확인 기능을 불러오지 못했습니다. 화면을 새로고침해주세요.');
+              await app().reauthenticate(value);value='';
+              if(!form.isConnected || window.TaejangMenuAuthority?.allowed('employee.manage',true)===false)return;
+              form.remove();reauthForm=null;open.disabled=false;
+              feedback.textContent='본인 확인을 마쳤습니다. 대상 직원을 확인하고 초기화를 진행하세요.';
+              open.click();
+            }catch(error){status.textContent=error.message||'본인 확인을 완료하지 못했습니다.';}
+            finally{value='';verify.disabled=false;cancel.disabled=false;}
+          });password.focus();
+        };
         const open=button('비밀번호 초기화',()=>{
           if(open.disabled)return;
           const dialog=el('dialog',null,'employee-reset-confirm');
@@ -868,7 +896,7 @@
               if(!response.ok||!result.ok) {
                 const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
                   SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',
-                  REAUTH_REQUIRED:'안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',
+                  REAUTH_REQUIRED:'본인 확인 시간이 지났습니다. 이 화면에서 내 로그인 비밀번호를 확인하면 계속할 수 있습니다.',
                   LOGIN_REQUIRED:'다시 로그인한 뒤 진행하세요.',
                   RATE_LIMITED:'요청이 많습니다. 잠시 후 다시 시도하세요.',
                   POLICY_REJECTED:'서버 비밀번호 보안정책에서 거부했습니다. 운영총괄에게 문의하세요.',
@@ -878,7 +906,8 @@
                 if(['RESET_NOT_READY','SELF_CHANGE_NOT_READY','REAUTH_REQUIRED','LOGIN_REQUIRED','RATE_LIMITED',
                   'POLICY_REJECTED','INVALID_INPUT','FORBIDDEN','PROTECTED_ACCOUNT','TARGET_CHANGED',
                   'AUTH_UNAVAILABLE','RESERVATION_FAILED','ORIGIN_FORBIDDEN'].includes(result.code))sent=false;
-                throw Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                const failure=Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                failure.code=result.code;throw failure;
               }
               if(!/^\d{16}$/.test(result.temporary_password))throw Error('처리 결과 확인이 필요합니다. 재실행하지 마세요.');
               feedback.textContent='초기화 완료';
@@ -906,6 +935,7 @@
             } catch(error) {
               feedback.textContent=sent?'처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.':error.message;
               open.disabled=sent;
+              if(!sent&&error.code==='REAUTH_REQUIRED')showReauthentication();
             }
           });
           const actions=el('div',null,'quick-links');actions.append(cancel,confirm);dialog.append(actions);

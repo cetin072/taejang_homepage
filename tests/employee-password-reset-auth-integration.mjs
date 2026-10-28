@@ -1,5 +1,6 @@
 // Isolated Supabase only. Never accepts hosted URLs or operational identities.
 import assert from 'node:assert/strict';
+import {personalEmployeeAuth} from './helpers/personal-menu-employee-auth.mjs';
 import {execFileSync,spawn} from 'node:child_process';
 import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -168,6 +169,7 @@ try {
  const limited=await fixture('reset-limited','operations_manager','operations_manager');
  for(let i=0;i<5;i++)await reserve(limited,worker,{p_employee_number:'TJ-999999'});
  check((await reserve(limited,promo)).data?.code==='RATE_LIMITED','persistent actor limit');
+ await personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops:resetter,base,anon});
  console.log('Issue 500 isolated Auth/Edge/self-change checks passed: '+checks);
 }finally{
  child.kill('SIGTERM');

@@ -17,6 +17,8 @@ const originalRpc=TaejangApp.rpc;
 TaejangApp.rpc=async(name,args)=>name==='employee_password_reset_option'?
  {ok:true,profile_id:'synthetic-profile',employee_number:'TJ-000003',email:'synthetic@example.test',manual_allowed:true}:originalRpc(name,args);
 
+window.reauthCalls=0;window.reauthFailure=true;
+TaejangApp.reauthenticate=async password=>{reauthCalls++;if(reauthFailure)throw Error('합성 본인 확인 실패');if(password!=='synthetic-local-password')throw Error('fixture password mismatch');};
 window.resetCalls=0;window.resetFailure=true;window.uncertain=false;window.productionConfig=false;
 const previousFetch=window.fetch;
 window.fetch=async(url,options)=>{
@@ -65,14 +67,27 @@ try{
   assert.equal(await page.evaluate(()=>resetCalls),0,'cancel has no mutation');
   const open=page.getByRole('button',{name:'비밀번호 초기화',exact:true});
   await open.click();await dialog.getByRole('button',{name:'초기화',exact:true}).click();
-  await page.getByText('안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',{exact:true}).waitFor();
-  assert.equal(await open.isEnabled(),true);
+  await page.getByText('본인 확인 시간이 지났습니다. 이 화면에서 내 로그인 비밀번호를 확인하면 계속할 수 있습니다.',{exact:true}).waitFor();
+  assert.equal(await open.isEnabled(),false);
+  await page.getByLabel('내 로그인 비밀번호',{exact:true}).fill('synthetic-wrong-password');
+  await page.getByRole('button',{name:'본인 확인 후 계속',exact:true}).click();
+  await page.getByText('합성 본인 확인 실패',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('내 로그인 비밀번호',{exact:true}).inputValue(),'');
+  assert.equal(await page.evaluate(()=>resetCalls),1,'incorrect credential never retries reset');
+  await page.evaluate(()=>window.reauthFailure=false);
+  await page.getByLabel('내 로그인 비밀번호',{exact:true}).fill('synthetic-local-password');
+  await page.getByRole('button',{name:'본인 확인 후 계속',exact:true}).click();
+  await dialog.waitFor();
+  assert.equal(await page.getByLabel('내 로그인 비밀번호',{exact:true}).count(),0);
+  assert.equal(await page.evaluate(()=>reauthCalls),2);
+  assert.equal(await page.evaluate(()=>Object.values(localStorage).join('').includes('synthetic-local-password')||Object.values(sessionStorage).join('').includes('synthetic-local-password')),false);
+  assert.equal(await page.evaluate(()=>resetCalls),1,'fresh confirmation still required before reset');
   await page.clock.install();
   await page.evaluate(()=>{
    window.resetFailure=false;window.copied='';
    Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{window.copied=value;}},configurable:true});
   });
-  await open.click();await dialog.getByRole('button',{name:'초기화',exact:true}).click();
+  await dialog.getByRole('button',{name:'초기화',exact:true}).click();
   const secret=page.getByLabel('일회 표시 임시 비밀번호');await secret.waitFor();
   assert.equal(await secret.textContent(),'8135792468135792');
   assert.equal(await open.isDisabled(),true,'duplicate button disabled');
