@@ -21,7 +21,7 @@
 - 운영총괄 본인 및 기술 최고관리자 계정을 개인 메뉴 위임 대상으로 사용하지 않는다. 실제 활성 운영총괄만 grant 관리 가능하며 하위 역할 시뮬레이션에는 개인 위임을 가져오지 않는다.
 - 계정 잠금 및 revision 비교로 동시 허용/회수 충돌을 거절한다. 기존 감사 함수를 사용한다. 개인정보 원문은 grant 감사에 기록하지 않는다.
 
-SQL은 `prototypes/menu-authority`의 **후보**다. 자동 migration 경로에 넣지 않았다. CLI가 읽기 전용 home 아래 `.supabase` 생성 단계에서 실패하여 정상 migration 생성 절차도 완료하지 못했다. 후보를 임의 timestamp 파일로 옮겨 배포하지 않는다.
+SQL은 CLI로 생성한 `20261028033019_personal_menu_authority_contract.sql` 및 `20261028033026_personal_employee_menu_adapter.sql`로 이동했다. 기존 prototype 복제본은 제거했다. `SUPABASE_HOME=/tmp/taejang-menu-supabase`라는 CLI 지원 경로를 사용해 읽기 전용 기본 홈 문제를 복구했다. 운영에 적용한 것은 아니며 두 migration 모두 실제 계정 grant나 adapter 활성화를 하지 않는다.
 
 ## 메뉴 범위 표
 
@@ -46,28 +46,30 @@ SQL은 `prototypes/menu-authority`의 **후보**다. 자동 migration 경로에 
 
 서버는 요청마다 현재 DB grant/denied를 판정한다. 위임 정보가 JWT에 남아 권한이 지속되는 구조를 만들지 않는다. 직접 URL은 메뉴 진입 시 서버 계약을 새로 확인하고, 실패하면 열지 않는다. 클라이언트는 focus/visibility 복귀와 활성 창 30초 주기로 갱신하며, 회수 이벤트에서 직원 context/선택값·진행 중 목록 응답을 무효화하고 열린 업무 화면을 지운다. 기존 capability 계약도 갱신한다.
 
-회수 전에 이미 전달된 개인정보·다운로드나 진행 중 트랜잭션을 소급 취소할 수는 없다. Storage 서명 URL의 잔여 수명/발급 정책은 별도 검증 미완료다. 이 때문에 전체 API·Storage 회수 완료라고 보고하지 않는다. 서버 adapter가 완료되면 회수 커밋 이후 새 요청의 조회/쓰기 거절을 실제 Auth/Data API로 검증한다.
+회수 전에 이미 전달된 개인정보·다운로드나 진행 중 트랜잭션을 소급 취소할 수는 없다. 새 직원 사진 조회는 서명 URL 발급 대신 Authorization을 동반한 `/storage/v1/object/authenticated/` GET을 사용한다. 회수 시 blob URL을 폐기하고 늦게 도착한 사진 응답을 버린다. 이전 버전에서 이미 발급한 서명 URL은 최대 기존 수명(600초) 동안 남을 수 있다. [Supabase 공식 다운로드 계약](https://supabase.com/docs/guides/storage/serving/downloads)에 따라 인증 다운로드를 구현했지만 실제 Storage HTTP 서비스에서의 검증은 아직 필요하다.
 
 ## 구현 대조
 
 | 항목 | 상태 |
 | --- | --- |
 | 기존 표시 체크 자동 이전 방지 | 구현 완료, seed 없음 |
-| 개인별 grant/회수·감사·revision·관리자 제한 | 후보 SQL 구현, 격리 PostgreSQL 합성 테스트 통과 |
-| 개인별 관리 UI·민감정보 범위·사유·충돌 처리 | 구현, 합성 브라우저 검사 대상 |
+| 개인별 grant/회수·감사·revision·관리자 제한 | migration 구현, 격리 PostgreSQL 합성 테스트 통과 |
+| 개인별 관리 UI·민감정보 범위·사유·충돌 처리 | 구현, 합성 Chromium 390/1440 검사 통과 |
 | 공통 메뉴 진입·표시·회수 시 context 무효화 | 부분 구현, 계약 테스트 통과 |
-| 일반 근로자에게 허용된 업무 Shell | 부분 구현, 실제 전체 앱 브라우저 검증 필요 |
-| 직원 조회의 이메일 등 운영총괄 분기 | 후보 adapter 작성; 전체 스키마 검증 미완료 |
-| 직원 관리 모든 동작·계정복구·계정 연결·Storage | 미완료, 신규 grant 활성화 금지 |
+| 일반 근로자에게 허용된 업무 Shell | 공통 Shell 직접 URL·회수 검사 통과(합성 서버 계약); 실제 Auth 연동 검증 필요 |
+| 직원 조회·등록·수정·보관/복원·사진·계정 도구 | 서버/UI adapter 구현, 실제 저장소 RPC 본문을 독립 PostgreSQL에서 합성 자료로 실행 |
+| 주민번호·보험 설정·계정복구·Storage | 서버 adapter 구현. RLS helper·복구 option 검증 통과; Vault 암복호화/실제 Storage/Edge Auth 변경 및 전체 함수 성공 경로 통합 검증 미완료 |
 | 나머지 메뉴의 기존 role 분기/API/직접 페이지 연결 | 목록·범위 설계만 완료, adapter 미구현 |
-| DB migration / 운영 개인별 grant / 배포 | 실행하지 않음 |
+| DB migration 파일 / 운영 적용·개인 grant·배포 | 파일 생성 완료 / 운영 실행 없음 |
 
 ## 검증과 제한
 
-- `node tests/menu-authority-isolated.mjs`: 네트워크 없는 독립 PostgreSQL 17, 합성 4계정. grant·회수·직접 합성 조회/쓰기·역할 fallback 차단·타 메뉴 capability 미유출·재위임 거절·비활성 계정·시뮬레이션·충돌·감사·raw-table ACL 검사. **실제 직원 RPC/RLS/Data API 통과를 뜻하지 않는다.**
+- `node tests/menu-authority-isolated.mjs`: 네트워크 없는 독립 PostgreSQL 17, 합성 계정. grant·회수·fallback·타 메뉴 capability·재위임·충돌·감사·ACL 검사와 함께 기존 migration의 실제 직원 RPC 본문을 로드한다. 운영총괄/위임자의 목록·이메일·신원정보 flag 동일성, 실제 등록·수정·사진 setter·계정 도구·이력 조회·보관/복원·비밀번호 복구 option·회수 후 직접 RPC/Storage helper 차단을 실행한다. `authenticated` 역할 조회/회수 차단과 private 함수 ACL도 확인한다. 테이블은 schema-only 합성 fixture이며 **실제 Supabase Auth/Data API/Storage/Vault 통합 통과를 뜻하지 않는다.**
 - `node --test tests/menu-authority.test.js`: 실제 브라우저 계약 모듈의 권한 결정·회수·오류시 차단·구서버 호환·계정 변경 응답 경쟁 5개.
 - `node tests/menu-authority-browser.mjs`: 실제 Chromium, 합성 관리 화면 390/1440, 허용/회수·사유·revision·미준비 메뉴 차단.
-- 기존 플랫폼 정적 회귀와 Netlify 산출물 검사를 실행한다. 최종 수치는 Draft 보고에 기록한다.
+- `tests/issue-451-employee-profile-browser.mjs`: 320/390/768/1440, 기존 직원 흐름과 일반직원·홍보직원·운영팀장의 위임 카드·수정·회수·직접 열기 차단을 검사한다. 사진은 인증 GET 응답 fixture를 사용한다.
+- `tests/platform-menu-addresses-browser.mjs`: 기존 URL/history/dirty-guard에 위임 역할 3종의 직접 URL·회수·역할 불변 검사를 추가했다.
+- 이번 변경의 직원 정적 검사 20개 통과. 이전 단계 전체 정적 613/staging 16/build 통과를 새 변경의 전체 검증으로 혼동하지 않는다.
 - 전체 Supabase Docker 이미지 다운로드는 `failed to register layer: no space left on device`로 실패했다. 작은 독립 PostgreSQL 검증으로 대체했지만 전체 Auth/RLS/Storage 검증을 대체한 것으로 취급하지 않는다.
 
 ## 운영 반영 전 action-time 승인 자료
@@ -80,4 +82,21 @@ SQL은 `prototypes/menu-authority`의 **후보**다. 자동 migration 경로에 
 4. 연동 메뉴·재위임·역할변경 제외 항목, 기존 역할 fallback 처리, 회수 및 복구 방법.
 5. 이전 grant 상태 백업과 정확한 회수 SQL/RPC. 역할 확대나 전체 grant 일괄 적용은 금지.
 
-현재 후보는 신규 grant를 전부 거절하므로 운영 승인을 요청할 완성본이 아니다. adapter·실제 API·Storage·전체 브라우저 검증 후 위 승인표를 확정한다. #546 사진 복구나 별도 Production 배포 작업과 합치지 않는다.
+현재 모든 adapter_ready는 false이므로 신규 grant를 전부 거절한다. 직원 adapter의 전체 Supabase 통합 검증 후 직원 메뉴부터 위 승인표를 확정한다. 검증이 끝나기 전에 true로 변경하지 않는다. #546 사진 복구나 별도 Production 배포 작업과 합치지 않는다.
+
+
+## 2026-10-28 후속 구현 및 다음 순서
+
+직원 메뉴 adapter는 명시적으로 열거한 기존 함수만 수정하고, 예상 함수/권한 표현이 없으면 전체 transaction을 중단한다. 전역 `current_user_has_role`과 급여 전체 operator helper는 변경하지 않는다. 직원 카드의 두 보험 설정 RPC만 직원 메뉴 권한을 추가한다. `access_level=operations_manager`는 이 메뉴의 공통 화면 동작 수준이며 실제 역할·JWT는 그대로다.
+
+직원 메뉴 안의 계정 도구는 `can_manage_roles=false`를 내려 역할 변경을 표시하지 않고 기존 역할 변경 RPC에도 capability를 부여하지 않는다. 위임된 다른 계정 및 운영총괄·최고관리자에 대한 계정 연결/상태·소속 변경과 비밀번호 복구를 보호한다. 개인별 메뉴를 받은 계정은 직원 삭제·복구 대상 보호에도 포함한다. 이 보호 범위는 권한 재위임·계정 탈취를 메뉴 권한으로 허용하지 않는 경계다.
+
+나머지 메뉴는 카탈로그 범위만 구현했으며 새 grant를 받을 수 없다. 순서:
+
+1. 직원 메뉴: 전체 migration clean reset, Supabase Auth/Data API 직접 호출, RLS/Storage 실제 업로드·인증 GET, Vault 주민번호·보험 성공/실패 경로, Edge 비밀번호 복구의 reserve→begin→Admin 변경→감사, 계정 연결·연락처 검토·보관/복원 충돌 회귀를 완료한다.
+2. 신규 직원 등록: 전사 기존 직원 목록을 보내지 않는 등록 전용 context와 단독 route를 구현한다. 직원 관리 안의 등록 동작은 이미 직원 메뉴에 포함된다.
+3. 공지·거래처 문서·출근부/보정: 각 RPC/첨부 경계와 기존 역할 검사를 메뉴별로 대조한다.
+4. 홍보·홈페이지: 작성/검토/발행/영구삭제 동작을 분리하고 기존 대표이사 승인선·공개 반영 조건을 유지한다.
+5. 지원사업·급여: 담당 범위 및 급여·내보내기 API를 분리하고 실제 역할을 요구하던 민감 경계를 개별 검증한다. 직원 보험 설정을 이유로 급여 전체를 열지 않는다.
+
+이번 작업에서 구현/검증한 직원 메뉴의 승인 후보 범위는 전사 직원 관리와 연결 계정이다. 진단 시점 관측치는 미보관 직원 32명, 연결 계정 27명이며 현황 고정값이 아니다. 실제 승인 대상 계정은 아직 지정되지 않았다. 최초 적용을 운영팀장 1계정으로 할지 등은 부모가 변경 직전 정확한 계정·메뉴·revision과 함께 확인해야 한다. 직원 이메일·주민번호 등 원문을 공개 PR에 기록하지 않는다.

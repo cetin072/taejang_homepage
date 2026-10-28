@@ -593,6 +593,7 @@
       if (el('desktop-app-shell')?.hidden) void setup({ detail: { route, label: '허용된 업무' } });
       else menu(route);
     } else {
+      el('app-nav')?.replaceChildren();
       if (el('desktop-app-shell')) el('desktop-app-shell').hidden = true;
       if (el('general-worker-board')) el('general-worker-board').hidden = false;
       document.body.classList.add('general-worker-mode');

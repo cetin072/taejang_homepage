@@ -14,6 +14,15 @@
   let selectedEmployeeId = null;
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
+  const photoUrls = new Set();
+
+  function clearEmployeeContext() {
+    ++loadSequence;
+    currentContext = null;
+    selectedEmployeeId = null;
+    for (const url of photoUrls) URL.revokeObjectURL(url);
+    photoUrls.clear();
+  }
 
   const el = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -129,26 +138,25 @@
     return path;
   }
 
-  async function signedPhotoUrl(path) {
+  async function authenticatedPhotoUrl(path) {
     if (!path) return null;
     const cfg = await config();
     const encoded = path.split('/').map(encodeURIComponent).join('/');
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
-      method: 'POST',
-      headers: { apikey: cfg.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: 600 })
+    // Authenticated reads re-run Storage RLS for every download. Do not create
+    // bearer signed URLs that remain downloadable after a menu grant is revoked.
+    const sequence = loadSequence;
+    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/authenticated/employee-private-media/${encoded}`, {
+      method: 'GET', cache: 'no-store',
+      headers: { apikey: cfg.publishableKey }
     });
     if (!response.ok) return null;
-    const payload = await response.json().catch(() => null);
-    const raw = payload?.signedURL || payload?.signedUrl;
-    if (!raw) return null;
-    if (/^https?:\/\//.test(raw)) return raw;
-    const normalized = raw.startsWith('/') ? raw : `/${raw}`;
-    return normalized.startsWith('/storage/v1/') ? `${cfg.url}${normalized}` : `${cfg.url}/storage/v1${normalized}`;
+    const blob = await response.blob();
+    if (sequence !== loadSequence || !allowedRoute()) return null;
+    const url = URL.createObjectURL(blob); photoUrls.add(url); return url;
   }
 
   async function setAvatar(image, path, wrap) {
-    const url = await signedPhotoUrl(path).catch(() => null);
+    const url = await authenticatedPhotoUrl(path).catch(() => null);
     if (!url || !(wrap || image).isConnected) return;
     if (wrap) wrap.replaceChildren(image);
     image.src = url;
@@ -1008,7 +1016,7 @@
     activeEmployeeView = ['existing', 'new'].includes(view) ? view : 'existing'; selectedEmployeeId = null;
     const sequence = ++loadSequence;
     const target = main(); if (!target) return;
-    document.getElementById('desktop-page-title').textContent = route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리';
+    document.getElementById('desktop-page-title').textContent = '직원 관리';
     const loading = el('p', '직원 정보를 불러오고 있습니다.', 'message'); target.replaceChildren(loading);
     try {
       const context = await app().rpc('get_employee_management_context');
@@ -1026,9 +1034,7 @@
   }
   document.addEventListener('taejang-menu-authority-changed', () => {
     if (window.TaejangMenuAuthority?.allowed('employee.manage', true) !== false) return;
-    ++loadSequence;
-    currentContext = null;
-    selectedEmployeeId = null;
+    clearEmployeeContext();
     main()?.querySelector('.employee-management')?.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
   });
 

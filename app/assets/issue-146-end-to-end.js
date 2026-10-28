@@ -253,9 +253,17 @@
   // -------------------------------------------------------------------------
   // Operations-manager recoveries and account <-> Employee administration.
   // -------------------------------------------------------------------------
+  let safetySequence = 0;
+  const employeeSafetyAllowed = () => window.TaejangMenuAuthority?.allowed('employee.manage', route() === 'operations_manager') ?? (route() === 'operations_manager');
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (employeeSafetyAllowed()) return;
+    ++safetySequence;
+    document.querySelector('[data-employee-safety]')?.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+  });
   async function openOperationsSafety() {
     closeSidebar();
-    if (route() !== 'operations_manager') return;
+    if (!employeeSafetyAllowed()) return;
+    const sequence = ++safetySequence;
     setPageTitle('직원 휴지통·계정 연결');
     const target = showLoading('복원 및 계정 정보를 불러오고 있습니다.');
     if (!target) return;
@@ -265,12 +273,15 @@
         app().rpc('get_archived_employee_management'),
         app().rpc('get_operations_account_management')
       ]);
+      if (sequence !== safetySequence || !employeeSafetyAllowed()) return;
       const shell = el('section', null, 'issue146-shell');
+      shell.dataset.employeeSafety = '1';
+      const canManageRoles = accountData?.can_manage_roles ?? (route() === 'operations_manager');
       const intro = el('header', null, 'dashboard-intro');
       intro.append(
         el('p', '운영총괄', 'eyebrow'),
         el('h2', '직원 휴지통·계정 연결'),
-        el('p', '직원 삭제 복원, 계정 연결·해제, 상태·소속·직책·일반 운영 역할을 관리합니다. 기술 최고관리자 역할은 별도 안전영역으로 유지합니다.')
+        el('p', '직원 삭제 복원, 계정 연결·해제, 상태·소속·직책을 관리합니다. 운영 역할 변경과 메뉴 권한 재위임은 운영총괄의 별도 권한입니다.')
       );
       shell.append(intro);
 
@@ -369,7 +380,7 @@
         positions.forEach(item => { const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; option.selected = item.id === profile.position_id; position.append(option); });
 
         const roles = el('div', null, 'issue146-checkboxes');
-        roleOptions.forEach(roleItem => {
+        (canManageRoles ? roleOptions : []).forEach(roleItem => {
           const label = document.createElement('label');
           const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = roleItem.code; checkbox.checked = arr(profile.roles).includes(roleItem.code);
           label.append(checkbox, document.createTextNode(roleItem.name || roleItem.code)); roles.append(label);
@@ -388,19 +399,22 @@
           try { await app().rpc('assign_profile_organization', { p_target_profile_id: profile.id, p_department_id: department.value || null, p_position_id: position.value || null, p_reason_summary: reason }); await openOperationsSafety(); }
           catch (error) { window.alert(friendly(error, '소속·직책을 변경하지 못했습니다.')); }
         }, true));
-        actions.append(button('운영 역할 저장', async () => {
+        if (canManageRoles) actions.append(button('운영 역할 저장', async () => {
           const reason = promptReason('역할 변경 사유를 입력해 주세요.'); if (!reason) return;
           const selected = [...roles.querySelectorAll('input:checked')].map(node => node.value);
           try { await app().rpc('set_profile_roles', { p_target_profile_id: profile.id, p_role_codes: selected, p_reason_summary: reason }); await openOperationsSafety(); }
           catch (error) { window.alert(friendly(error, '역할을 변경하지 못했습니다.')); }
         }));
-        card.append(el('p', '계정 상태', 'issue146-muted'), status, el('p', '부서 · 직책', 'issue146-muted'), department, position, el('p', '일반 운영 역할', 'issue146-muted'), roles, actions);
+        card.append(el('p', '계정 상태', 'issue146-muted'), status, el('p', '부서 · 직책', 'issue146-muted'), department, position);
+        if (canManageRoles) card.append(el('p', '일반 운영 역할', 'issue146-muted'), roles);
+        card.append(actions);
         accountGrid.append(card);
       });
       accounts.append(accountGrid);
       shell.append(accounts);
       target.replaceChildren(shell);
     } catch (error) {
+      if (sequence !== safetySequence) return;
       target.replaceChildren(el('p', friendly(error, '복원·계정 정보를 불러오지 못했습니다.'), 'message error'));
     }
   }

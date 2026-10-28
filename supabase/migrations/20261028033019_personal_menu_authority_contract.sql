@@ -1,5 +1,5 @@
--- Candidate only. NOT a production migration. No existing visibility setting is imported.
--- Apply only to an isolated database until every menu adapter has passed integration QA.
+-- Personal menu authority foundation. No existing visibility setting is imported.
+-- New grants remain blocked until each menu passes isolated Auth/RLS/Storage QA.
 begin;
 
 create table public.menu_authority_catalog (
@@ -30,7 +30,7 @@ revoke all on public.menu_authority_catalog,public.profile_menu_authority from p
 insert into public.menu_authority_catalog(menu_key,label,scope_summary,sensitive_fields,capabilities) values
  ('employee.manage','직원 관리','전사 직원 조회·등록·수정·보관·복원, 사진·신원정보 관리, 계정 연결·상태·소속 관리. 권한 재위임 및 역할 변경 제외.',
   array['이메일','연락처','신분증 사진','주민등록번호','생년월일·보험정보'],
-  array['employee.view_all','employee.view_scoped','employee.create','employee.update','employee.archive','employee.restore','employee.account_link','employee.account_unlink','employee.profile_photo_manage_scoped','employee.id_photo_manage','employee.review_change_requests','employee.sensitive_identity_manage','employee.resident_number_manage','employee.field_audit_manage','employee.password_reset','account.status_manage','account.organization_manage']),
+  array['employee.view_all','employee.view_scoped','employee.create','employee.update','employee.archive','employee.restore','employee.account_link','employee.account_unlink','employee.profile_photo_manage_scoped','employee.id_photo_manage','employee.review_change_requests','employee.sensitive_identity_manage','employee.resident_number_manage','employee.field_audit_manage','employee.password_reset','account.status_manage','account.organization_manage','account.view_management','employee.request_change']),
  ('employee.new','신규 직원 등록','신규 직원 등록에 필요한 조직·직책 조회와 등록. 기존 직원 전체 조회·계정 승인 제외.',array['성명','입사일','소속·직책'],array['employee.create']),
  ('account.approval','가입 승인','가입 신청 조회·승인·반려와 기존 직원 연결. 관리자 역할 부여 제외.',array['신청자 이메일','신청자 인사정보'],array['account.approve','account.reject','employee.onboard']),
  ('promotion.write','홍보 글 작성','운영총괄 작성 화면의 초안 작성·수정·첨부·상신.',array['미공개 홍보 원고','첨부 사진'],array['promotion.write','promotion.edit_own','promotion.edit_any_unpublished']),
@@ -70,8 +70,8 @@ $$;
 create function public.private_menu_denied(p_menu_key text)
 returns boolean language sql stable security definer set search_path='' as $$
  select not public.private_menu_authority_manager() and exists(
-   select 1 from public.profile_menu_authority g
-   where g.profile_id=auth.uid() and g.menu_key=p_menu_key and not g.allowed
+   select 1 from public.profile_menu_authority g join public.menu_authority_catalog c using(menu_key)
+   where g.profile_id=auth.uid() and g.menu_key=p_menu_key and (not g.allowed or not c.adapter_ready)
  );
 $$;
 

@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { setTimeout } from 'node:timers/promises';
+import { employeeAdapterSql } from './helpers/menu-employee-adapter-test.mjs';
 
 const name = `taejang-menu-authority-test-${process.pid}`;
 const docker = args => execFileSync('docker', args, { encoding: 'utf8', stdio: ['pipe','pipe','pipe'] });
@@ -112,9 +113,9 @@ select test_assert((select count(*)=3 from synthetic_audit),'grant and revocatio
 select test_assert((select count(*)=2 from profile_menu_authority),'failed and stale calls created no grants');
 `;
   const result = execFileSync('docker',['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'],
-    { input: bootstrap + readFileSync('prototypes/menu-authority/authority.sql','utf8') + assertions,
+    { input: bootstrap + readFileSync('supabase/migrations/20261028033019_personal_menu_authority_contract.sql','utf8') + assertions + employeeAdapterSql(),
       encoding:'utf8',stdio:['pipe','pipe','pipe'] });
-  console.log('PASS: isolated PostgreSQL personal-menu foundation and synthetic read/write boundary assertions');
+  console.log('PASS: isolated PostgreSQL foundation plus repository employee RPC adapter assertions (synthetic schema/session fixtures; not hosted Auth/Storage)');
 } catch (error) {
   console.error(error.stderr?.toString() || error.message); process.exitCode=1;
 } finally {
