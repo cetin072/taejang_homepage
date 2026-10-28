@@ -134,6 +134,167 @@
     await app().rpc('create_public_content_change_request', payload);
   }
 
+  async function openMissingPhotoCorrection(item) {
+    const target = setPage('발행글 누락 사진 보완',
+      '기존 사진이 없는 공개글에 실제 승인 사진 한 장만 추가합니다. 원문·게시일·이전 승인 이력은 보존되며 운영총괄의 정정 기록이 남습니다.');
+    if (!target) return;
+
+    let detail;
+    try {
+      detail = await app().rpc('get_operations_missing_promotion_photo', { p_content_id: item.content_id });
+      if (!detail?.revision_id || detail.public_media_count !== 0) throw new Error('누락 사진 대상이 아니거나 최근 수정된 글입니다.');
+    } catch (error) {
+      target.append(el('p', friendly(error, '사진 보완 대상을 불러오지 못했습니다.'), 'message error'),
+        button('목록으로', openPublicationAdmin, true));
+      return;
+    }
+
+    const section = el('section', null, 'dashboard-section promotion-composer');
+    const form = document.createElement('form');
+    form.className = 'phase-c-board-form app-authoring';
+    form.addEventListener('submit', event => event.preventDefault());
+    form.append(el('h3', detail.title || item.title || '홍보글'));
+    if (detail.external_url) form.append(el('p', '원본 링크: ' + detail.external_url, 'field-help'));
+
+    const photoInput = document.createElement('input');
+    photoInput.type = 'file';
+    photoInput.accept = 'image/jpeg,image/png,image/webp';
+    const alt = document.createElement('input');
+    alt.maxLength = 300;
+    alt.value = (detail.title || '태장 소식') + ' 대표사진';
+    const reason = document.createElement('textarea');
+    reason.rows = 2;
+    reason.maxLength = 300;
+    reason.value = '발행글 누락 대표사진 보완';
+    const accepted = document.createElement('input');
+    accepted.type = 'checkbox';
+    const acknowledgment = field('사진이 이 게시물의 내용과 일치하고, 공개 사용권 및 인물 사진 동의를 확인했습니다.', accepted);
+    const status = el('p', '사진을 선택하거나 공식 블로그에서 가져오세요.', 'phase-c-upload-status');
+    status.setAttribute('role', 'status');
+    const preview = document.createElement('img');
+    preview.alt = '등록 예정 대표사진 미리보기';
+    preview.hidden = true;
+    preview.style.cssText = 'display:block;max-width:100%;max-height:340px;object-fit:contain;margin:12px 0;border-radius:10px';
+    preview.style.display = 'none';
+    let imageUrl = '';
+    let imageReady = false;
+    let busy = false;
+    const save = button('사진 보완 확정', async () => {
+      if (busy || !imageUrl || !imageReady || !accepted.checked) return;
+      busy = true;
+      save.disabled = true;
+      try {
+        await preview.decode();
+        if (!window.confirm('선택한 사진 한 장을 기존 발행글에 추가합니다. 승인 이력과 게시일은 보존됩니다. 계속할까요?')) return;
+        await app().rpc('operations_add_missing_promotion_photo', {
+          p_content_id: detail.content_id,
+          p_expected_revision_id: detail.revision_id,
+          p_photo_url: imageUrl,
+          p_photo_alt: alt.value.trim() || '태장 홍보글 대표사진',
+          p_reason: reason.value.trim(),
+          p_confirm_source: accepted.checked
+        });
+        window.alert('대표사진이 등록되었습니다. 공개 페이지의 본문·목록·공유 이미지에서 확인할 수 있습니다.');
+        await openPublicationAdmin();
+      } catch (error) {
+        status.textContent = error?.message?.includes('PROMOTION_PUBLIC_EDIT_REVISION_CONFLICT')
+          ? '다른 수정본이 먼저 저장되었습니다. 현재 입력은 유지됩니다. 목록에서 최신 글을 다시 확인해 주세요.'
+          : friendly(error, '사진 보완을 반영하지 못했습니다. 선택한 사진은 유지됩니다.');
+      } finally {
+        busy = false;
+        syncSave();
+      }
+    });
+    function syncSave() {
+      save.disabled = busy || !imageUrl || !imageReady || !accepted.checked || !reason.value.trim();
+    }
+    function selectPhoto(url, description) {
+      imageUrl = url;
+      imageReady = false;
+      preview.alt = description || '등록 예정 대표사진';
+      preview.style.display = '';
+      preview.onload = () => {
+        imageReady = preview.naturalWidth > 0;
+        status.textContent = imageReady
+          ? '사진이 정상 표시됩니다. 내용·사용권 확인 후 확정할 수 있습니다.'
+          : '사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.';
+        syncSave();
+      };
+      preview.onerror = () => {
+        imageReady = false;
+        status.textContent = '사진을 열 수 없습니다. 다른 사진을 선택해 주세요.';
+        syncSave();
+      };
+      preview.src = url;
+      preview.hidden = false;
+      syncSave();
+    }
+
+    photoInput.addEventListener('change', async () => {
+      const file = photoInput.files?.[0];
+      if (!file || busy) return;
+      busy = true;
+      syncSave();
+      status.textContent = '태장 공개 사진 보관함에 업로드하고 있습니다.';
+      try {
+        const uploader = window.TaejangPromotionWorkspaceV2Api?.uploadImage;
+        if (typeof uploader !== 'function') throw new Error('기존 사진 업로드 기능을 불러오지 못했습니다.');
+        const url = await uploader(file);
+        if (!form.isConnected) return;
+        alt.value = file.name.replace(/\.[^.]+$/, '').slice(0, 300);
+        selectPhoto(url, alt.value);
+      } catch (error) {
+        status.textContent = friendly(error, '사진 업로드에 실패했습니다. 다시 선택해 주세요.');
+      } finally {
+        busy = false;
+        syncSave();
+      }
+    });
+    const photoActions = document.createElement('div');
+    photoActions.className = 'quick-links';
+    if (/^https:\/\/(?:m\.)?blog\.naver\.com\/taejang-official\/\d+/.test(detail.external_url || '')) {
+      photoActions.append(button('태장 공식 블로그 사진 가져오기', async () => {
+        if (busy) return;
+        busy = true;
+        syncSave();
+        status.textContent = '공식 블로그의 실제 사진 데이터를 확인하고 있습니다.';
+        try {
+          const importer = window.TaejangPromotionWorkspaceV2Api?.importOfficialPhotoForBackfill;
+          if (typeof importer !== 'function') throw new Error('공식 블로그 사진 가져오기 기능을 확인할 수 없습니다.');
+          const result = await importer(detail.external_url);
+          if (!form.isConnected) return;
+          alt.value = result.alt;
+          selectPhoto(result.url, result.alt);
+        } catch (error) {
+          status.textContent = friendly(error, '원본 사진을 가져오지 못했습니다.') +
+            ' 원본 접근 제한이 있다면 태장 보유 사진 파일을 직접 추가해 주세요.';
+        } finally {
+          busy = false;
+          syncSave();
+        }
+      }, true));
+    }
+    // An existing, approved, first-store opening-ceremony photo is reused only
+    // for that same specific publication. Other press stories require own media.
+    if (item.content_id === '76000275-af2c-4484-802a-bb84fec2956c') {
+      photoActions.append(button('승인된 개소식 사진 사용', () => {
+        selectPhoto('https://taejang.co.kr/assets/images/archive/opening-ceremony.webp',
+          '경남형 장애인 동행일자리 1호점 개소식');
+        alt.value = '경남형 장애인 동행일자리 1호점 개소식';
+      }, true));
+    }
+
+    form.append(field('실제 사진 파일', photoInput, '자동 대체 로고가 아닌 해당 글의 실제 사진만 등록합니다.'),
+      photoActions, preview, status, field('사진 설명', alt),
+      field('수정 사유', reason), acknowledgment);
+    accepted.addEventListener('change', syncSave);
+    reason.addEventListener('input', syncSave);
+    syncSave();
+    form.append(save, button('취소', openPublicationAdmin, true));
+    section.append(form);
+    target.append(section);
+  }
+
   async function openChangeForm(item, direct, operations = false) {
     const target = setPage(operations ? '게시글 수정' : direct ? '기존 글 수정' : '기존 글 수정 요청', operations
       ? '제목·요약·본문을 정정합니다. 최초 게시일, 주소, 사진·첨부·링크와 이전 원문은 보존됩니다.' : direct
@@ -378,6 +539,9 @@
       if (isPublic && item.can_operations_edit_text === true) {
         actions.append(button('게시글 수정', () => openChangeForm(item, true, true), true));
       }
+      if (isPublic && item.can_operations_add_missing_photo === true) {
+        actions.append(button('누락 사진 보완', () => openMissingPhotoCorrection(item), true));
+      }
       actions.append(button('삭제', () => archiveAsOperations(item), true));
     }
 
@@ -390,7 +554,7 @@
     if (!ELIGIBLE_ROLES.has(currentRoute)) return;
     const isOperations = currentRoute === 'operations_manager';
     const target = setPage('공개 홍보글 관리', isOperations
-      ? '본인 작성 또는 본인 최종 승인 일반 공개글의 문구를 수정하고 삭제할 수 있습니다. 휴지통의 글은 복원하거나 영구삭제할 수 있습니다.'
+      ? '승인된 일반 공개글의 문구를 수정하고, 사진이 없는 글에는 실제 사진을 보완할 수 있습니다. 기존 글·승인 기록은 보존됩니다.'
       : '플랫폼에서 작성된 공개글은 바로 관리하고, 정적·ChatGPT·블로그·유튜브 글은 주소를 지정해 수정 요청합니다. 전체 공개 페이지를 뒤에서 다시 불러오지 않는 가벼운 방식입니다.');
     if (!target) return;
     const loading = el('p', '공개 홍보글을 불러오고 있습니다.', 'message');
