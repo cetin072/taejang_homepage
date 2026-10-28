@@ -7,6 +7,24 @@
   const items = /* OFFICIAL_ITEMS_START */
 [
   {
+    "id": "naver-blog-224443404484",
+    "type": "external",
+    "source": "naver-blog",
+    "publisher": "태장 공식 블로그",
+    "category": "회사소식",
+    "title": "한 선씩 정성을 담아, 물고기 민화를 그리는 동료의 하루 - 장애인표준사업장 태장",
+    "summary": "태장 공식 블로그의 「한 선씩 정성을 담아, 물고기 민화를 그리는 동료의 하루 - 장애인표준사업장 태장」 기록입니다.",
+    "thumbnail": "https://blogthumb.pstatic.net/MjAyNjEwMDhfMjIy/MDAxNzkxNDIyNjk3ODk4.fvexA-1ycNy0CLDXQ7sUbMTb9QsSG7tgXt8GPUxdltUg.e7WB7W5HKz5DOSG3jMlUGUNqPT--AygFGEXvI4RpxuMg.JPEG/KakaoTalk_20261008_094344970.jpg?type=w2",
+    "thumbnailAlt": "한 선씩 정성을 담아, 물고기 민화를 그리는 동료의 하루 - 장애인표준사업장 태장 관련 태장 공식 블로그 대표사진",
+    "publishedAt": "2026-10-28",
+    "sourcePublishedAt": "2026-10-28",
+    "archiveDateBasis": "source-publication-date",
+    "featured": false,
+    "status": "published",
+    "externalUrl": "https://blog.naver.com/taejang-official/224443404484",
+    "externalLabel": "네이버 블로그에서 보기"
+  },
+  {
     "id": "naver-blog-224449863266",
     "type": "external",
     "source": "naver-blog",
