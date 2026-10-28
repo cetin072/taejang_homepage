@@ -3,6 +3,14 @@
 상태: **권한 모델 확정 / 구현 부분 완료 / 운영 적용 금지**.
 사용자 결정: 운영총괄이 사람에게 메뉴를 허용하면 직책과 무관하게 해당 메뉴의 운영총괄 화면과 업무 권한을 갖고, 필요에 따라 회수한다. 이메일 필드만 예외로 공개하는 안은 대체되었다.
 
+### 2026-10-28 직원 메뉴 통합 검증 완료
+
+`587b1e9a9ba796a4bd36cbd96e3a20b7003bcb4c`의 [Phase 1A 격리 CI](https://github.com/cetin072/taejang_homepage/actions/runs/40634753479)에서 전체 migration clean reset, DB lint/security, pgTAP 및 실제 Auth/Data API 회귀가 통과했다. 합성 일반직원에게 직원 관리만 허용해 전사 조회·등록·수정, 실제 Storage 업로드/인증 GET, Vault 암호화·목적별 조회·감사, 보험 설정, Edge reserve→begin→Admin 비밀번호 변경→감사, 보관/복원을 실행했다. 회수 후 같은 JWT의 직접 RPC·Storage 업로드/GET·Edge 초기화 차단과 실제 역할 불변도 통과했다(`PERSONAL_MENU_EMPLOYEE_AUTH_STORAGE_VAULT_EDGE_PASS`, 전체 복구 runner 160 assertions). 이전 저장공간 부족은 현재 차단 사유가 아니다.
+
+운영팀장 초기화 신고도 이 PR에 포함한다. 최근 비밀번호 인증이 만료되면 로그아웃 없이 직원 화면에서 현재 계정의 비밀번호를 확인하고 대상 초기화 확인으로 돌아간다. 10분 AMR·live session·보호 계정·rate limit·감사는 유지한다. 이 화면은 LOCAL/exact-head Preview 1440/390/320 검사 통과. 명시적 초기화 전 `LOGIN_REQUIRED`만 세션 갱신 후 한 번 재시도하며, 불확실한 결과는 재실행하지 않는다. 이 추가 갱신 동작과 실제 production transport→로컬 Auth→Edge 경로는 후속 HEAD에서 다시 검증한다.
+
+검증된 직원 adapter도 후보 migration의 `adapter_ready=false`를 유지한다. 실제 계정·메뉴 승인 및 운영 적용은 별도이며, 독립 신규 등록과 나머지 메뉴 adapter는 아래 순서로 계속 구현한다.
+
 ## 기존 계약과 변경 계약
 
 현재 `role_navigation_visibility`는 역할별 메뉴 숨김이다. 개인별 실제 권한 승인이 아니다. 기존 true/false를 신규 grant로 변환하지 않는다. 기존 `profile_roles`를 변경하거나 모든 API에서 운영총괄로 가장하지 않는다.
@@ -46,7 +54,7 @@ SQL은 CLI로 생성한 `20261028033019_personal_menu_authority_contract.sql` �
 
 서버는 요청마다 현재 DB grant/denied를 판정한다. 위임 정보가 JWT에 남아 권한이 지속되는 구조를 만들지 않는다. 직접 URL은 메뉴 진입 시 서버 계약을 새로 확인하고, 실패하면 열지 않는다. 클라이언트는 focus/visibility 복귀와 활성 창 30초 주기로 갱신하며, 회수 이벤트에서 직원 context/선택값·진행 중 목록 응답을 무효화하고 열린 업무 화면을 지운다. 기존 capability 계약도 갱신한다.
 
-회수 전에 이미 전달된 개인정보·다운로드나 진행 중 트랜잭션을 소급 취소할 수는 없다. 새 직원 사진 조회는 서명 URL 발급 대신 Authorization을 동반한 `/storage/v1/object/authenticated/` GET을 사용한다. 회수 시 blob URL을 폐기하고 늦게 도착한 사진 응답을 버린다. 이전 버전에서 이미 발급한 서명 URL은 최대 기존 수명(600초) 동안 남을 수 있다. [Supabase 공식 다운로드 계약](https://supabase.com/docs/guides/storage/serving/downloads)에 따라 인증 다운로드를 구현했지만 실제 Storage HTTP 서비스에서의 검증은 아직 필요하다.
+회수 전에 이미 전달된 개인정보·다운로드나 진행 중 트랜잭션을 소급 취소할 수는 없다. 새 직원 사진 조회는 서명 URL 발급 대신 Authorization을 동반한 `/storage/v1/object/authenticated/` GET을 사용한다. 회수 시 blob URL을 폐기하고 늦게 도착한 사진 응답을 버린다. 이전 버전에서 이미 발급한 서명 URL은 최대 기존 수명(600초) 동안 남을 수 있다. [Supabase 공식 다운로드 계약](https://supabase.com/docs/guides/storage/serving/downloads)에 따라 인증 다운로드를 구현했지만 실제 Storage HTTP 업로드/인증 GET 및 회수 차단은 587b1e9 격리 CI에서 통과했다.
 
 ## 구현 대조
 
@@ -58,7 +66,7 @@ SQL은 CLI로 생성한 `20261028033019_personal_menu_authority_contract.sql` �
 | 공통 메뉴 진입·표시·회수 시 context 무효화 | 부분 구현, 계약 테스트 통과 |
 | 일반 근로자에게 허용된 업무 Shell | 공통 Shell 직접 URL·회수 검사 통과(합성 서버 계약); 실제 Auth 연동 검증 필요 |
 | 직원 조회·등록·수정·보관/복원·사진·계정 도구 | 서버/UI adapter 구현, 실제 저장소 RPC 본문을 독립 PostgreSQL에서 합성 자료로 실행 |
-| 주민번호·보험 설정·계정복구·Storage | 서버 adapter 구현. RLS helper·복구 option 검증 통과; Vault 암복호화/실제 Storage/Edge Auth 변경 및 전체 함수 성공 경로 통합 검증 미완료 |
+| 주민번호·보험 설정·계정복구·Storage | 587b1e9 실제 격리 Auth/Storage/Vault/Edge 통합 검증 통과; 운영 미적용 |
 | 나머지 메뉴의 기존 role 분기/API/직접 페이지 연결 | 목록·범위 설계만 완료, adapter 미구현 |
 | DB migration 파일 / 운영 적용·개인 grant·배포 | 파일 생성 완료 / 운영 실행 없음 |
 
@@ -70,7 +78,7 @@ SQL은 CLI로 생성한 `20261028033019_personal_menu_authority_contract.sql` �
 - `tests/issue-451-employee-profile-browser.mjs`: 320/390/768/1440, 기존 직원 흐름과 일반직원·홍보직원·운영팀장의 위임 카드·수정·회수·직접 열기 차단을 검사한다. 사진은 인증 GET 응답 fixture를 사용한다.
 - `tests/platform-menu-addresses-browser.mjs`: 기존 URL/history/dirty-guard에 위임 역할 3종의 직접 URL·회수·역할 불변 검사를 추가했다.
 - 이번 변경의 직원 정적 검사 20개 통과. 이전 단계 전체 정적 613/staging 16/build 통과를 새 변경의 전체 검증으로 혼동하지 않는다.
-- 전체 Supabase Docker 이미지 다운로드는 `failed to register layer: no space left on device`로 실패했다. 작은 독립 PostgreSQL 검증으로 대체했지만 전체 Auth/RLS/Storage 검증을 대체한 것으로 취급하지 않는다.
+- 초기 로컬 환경에서는 전체 Supabase Docker 다운로드가 저장공간 부족으로 실패했다. 후속 587b1e9의 GitHub Actions 격리 Supabase에서 전체 Auth/RLS/Storage 검증을 완료했다. 독립 PostgreSQL 검사 자체는 실제 서비스 검증과 구분한다.
 
 ## 운영 반영 전 action-time 승인 자료
 
@@ -93,7 +101,7 @@ SQL은 CLI로 생성한 `20261028033019_personal_menu_authority_contract.sql` �
 
 나머지 메뉴는 카탈로그 범위만 구현했으며 새 grant를 받을 수 없다. 순서:
 
-1. 직원 메뉴: 전체 migration clean reset, Supabase Auth/Data API 직접 호출, RLS/Storage 실제 업로드·인증 GET, Vault 주민번호·보험 성공/실패 경로, Edge 비밀번호 복구의 reserve→begin→Admin 변경→감사, 계정 연결·연락처 검토·보관/복원 충돌 회귀를 완료한다.
+1. 직원 메뉴(587b1e9 격리 CI 완료): 전체 migration clean reset, Supabase Auth/Data API 직접 호출, RLS/Storage 실제 업로드·인증 GET, Vault 주민번호·보험 성공/실패 경로, Edge 비밀번호 복구의 reserve→begin→Admin 변경→감사, 계정 연결·연락처 검토·보관/복원 충돌 회귀를 완료한다.
 2. 신규 직원 등록: 전사 기존 직원 목록을 보내지 않는 등록 전용 context와 단독 route를 구현한다. 직원 관리 안의 등록 동작은 이미 직원 메뉴에 포함된다.
 3. 공지·거래처 문서·출근부/보정: 각 RPC/첨부 경계와 기존 역할 검사를 메뉴별로 대조한다.
 4. 홍보·홈페이지: 작성/검토/발행/영구삭제 동작을 분리하고 기존 대표이사 승인선·공개 반영 조건을 유지한다.

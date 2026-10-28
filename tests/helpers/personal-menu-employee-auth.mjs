@@ -40,6 +40,8 @@ export async function personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops,b
     };
     check((await storage(actor.token,'POST')).ok,'real Storage upload uses delegate JWT and RLS');
     check((await rpc('set_employee_photo',actor.token,{p_employee_uuid:employee,p_photo_type:'id_photo',p_storage_path:photoPath})).ok,'photo pointer saved');
+    const photoReload=await rpc('get_employee_management_context',actor.token,{});
+    check(photoReload.ok&&photoReload.data.employees.find(e=>e.id===employee)?.id_photo_path===photoPath,'saved photo pointer survives employee requery');
     check((await storage(actor.token,'GET')).ok,'authenticated Storage GET succeeds before revoke');
     const digits='820103123456';
     const weights=[2,3,4,5,6,7,8,9,2,3,4,5];

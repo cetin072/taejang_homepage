@@ -884,15 +884,29 @@
               const local=/^(localhost|127\.0\.0\.1)$/.test(base.hostname);
               if(location.origin!=='https://taejang.co.kr'&&!local)throw Error('Preview에서는 운영 계정을 초기화할 수 없습니다.');
               if(!local&&(base.protocol!=='https:'||!base.hostname.endsWith('.supabase.co')))throw Error('서버 설정을 확인하세요.');
-              const token=app()?.getSession?.()?.access_token;
+              const client=app(),session=client?.getSession?.();
+              let token=session?.access_token;
               if(!token)throw Error('다시 로그인하세요.');
-              sent=true;
-              const response=await fetch(base.origin+'/functions/v1/employee-password-reset',{
+              const send=credential=>fetch(base.origin+'/functions/v1/employee-password-reset',{
                 method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(30000),
-                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+credential,'Content-Type':'application/json'},
                 body:JSON.stringify({employee_uuid:employee.id,request_confirmed:true})
               });
-              const result=await response.json();
+              sent=true;
+              let response=await send(token),result=await response.json();
+              // LOGIN_REQUIRED is returned before reservation or Admin mutation.
+              // Renew an expired session once; never replay an uncertain reset.
+              if(response.status===401&&result.code==='LOGIN_REQUIRED'
+                &&client.getSession?.()?.access_token===token&&typeof client.refreshSession==='function'){
+                sent=false;
+                if(await client.refreshSession()){
+                  const fresh=client.getSession?.();
+                  if(fresh?.access_token&&(!session.user?.id||fresh.user?.id===session.user.id)){
+                    token=fresh.access_token;sent=true;
+                    response=await send(token);result=await response.json();
+                  }
+                }
+              }
               if(!response.ok||!result.ok) {
                 const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
                   SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',

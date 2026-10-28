@@ -19,13 +19,14 @@ TaejangApp.rpc=async(name,args)=>name==='employee_password_reset_option'?
 
 window.reauthCalls=0;window.reauthFailure=true;
 TaejangApp.reauthenticate=async password=>{reauthCalls++;if(reauthFailure)throw Error('합성 본인 확인 실패');if(password!=='synthetic-local-password')throw Error('fixture password mismatch');};
-window.resetCalls=0;window.resetFailure=true;window.uncertain=false;window.productionConfig=false;
+window.resetCalls=0;window.resetFailure=true;window.expiredOnce=false;window.uncertain=false;window.productionConfig=false;
 const previousFetch=window.fetch;
 window.fetch=async(url,options)=>{
  if(url==='/.netlify/functions/staff-config')return new Response(JSON.stringify({url:productionConfig?'https://jgsxpdflgkqroecfjzxq.supabase.co':'http://127.0.0.1:54321',publishableKey:'synthetic-only'}));
  if(String(url).includes('/functions/v1/employee-password-reset')){
    resetCalls++;
    window.lastResetBody=JSON.parse(options.body);
+   if(window.expiredOnce){window.expiredOnce=false;return new Response(JSON.stringify({ok:false,code:'LOGIN_REQUIRED'}),{status:401});}
    if(window.uncertain)throw Error('synthetic dropped response');
    return new Response(JSON.stringify(resetFailure?{ok:false,code:'REAUTH_REQUIRED'}:{ok:true,temporary_password:'8135792468135792'}),{status:resetFailure?403:200});
  }
@@ -105,6 +106,24 @@ try{
   await page.getByText('처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.',{exact:true}).waitFor();
   assert.equal(await open.isDisabled(),true,'uncertain response cannot be retried');
   assert.equal(await page.evaluate(()=>resetCalls),1);
+  await load();
+  await page.evaluate(()=>{window.expiredOnce=true;window.resetFailure=false;});
+  await dialog.getByRole('button',{name:'초기화',exact:true}).click();
+  await page.getByLabel('일회 표시 임시 비밀번호').waitFor();
+  assert.equal(await page.evaluate(()=>resetCalls),2,'explicit pre-mutation login failure retries once');
+  assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired session renews inside employee screen');
+  assert.equal(await page.getByLabel('내 로그인 비밀번호',{exact:true}).count(),0,'token renewal does not request password');
+  await load();
+  await page.evaluate(()=>{
+   window.expiredOnce=true;window.resetFailure=false;
+   let session={access_token:'synthetic-only',user:{id:'original-actor'}};
+   TaejangApp.getSession=()=>session;
+   TaejangApp.refreshSession=async()=>{fixtureRefreshCount++;session={access_token:'synthetic-other',user:{id:'other-actor'}};return true;};
+  });
+  await dialog.getByRole('button',{name:'초기화',exact:true}).click();
+  await page.getByText('다시 로그인한 뒤 진행하세요.',{exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>resetCalls),1,'account change during renewal never replays reset as another actor');
+  assert.equal(await page.getByLabel('일회 표시 임시 비밀번호').count(),0);
   await load(true);
   await dialog.getByRole('button',{name:'초기화',exact:true}).click();
   await page.getByText('Preview에서는 운영 계정을 초기화할 수 없습니다.',{exact:true}).waitFor();
