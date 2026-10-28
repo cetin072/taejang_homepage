@@ -32,12 +32,12 @@ test('desktop shell has accessible sidebar, heading, role display and logout con
   assert.match(css, /prefers-reduced-motion/);
 });
 
-test('worker stays on the simple board with a bounded desktop width and no desktop shell', () => {
+test('worker keeps the simple board unless the server grants an explicit menu workspace', () => {
   assert.match(app, /general-worker-mode/);
   assert.match(css, /general-worker-mode \.staff-shell \{ width: min\(100% - 32px, 600px\)/);
   assert.match(app, /element\('desktop-app-shell'\)\.hidden = route\.code === 'general_worker'/);
   assert.match(app, /element\('general-worker-board'\)\.hidden = route\.code !== 'general_worker'/);
-  assert.match(shell, /if \(route === worker\) return/);
+  assert.match(shell, /route === worker && !window\.TaejangMenuAuthority\?\.hasDelegatedMenus\(\)/);
 });
 
 test('dashboard uses safe workflow RPCs and no removed schedule or notice shortcuts', () => {

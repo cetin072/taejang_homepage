@@ -75,6 +75,14 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
 
+      - name: Test candidate personal menu authority in isolated PostgreSQL
+        if: steps.scope.outputs.run_full == 'true'
+        run: node tests/menu-authority-isolated.mjs
+
+      - name: Test personal menu authority administration with synthetic browser data
+        if: steps.scope.outputs.run_full == 'true'
+        run: CHROME_PATH=$(command -v google-chrome) node tests/menu-authority-browser.mjs
+
       - name: Reapply migrations from a clean database
         if: steps.scope.outputs.run_full == 'true'
         run: supabase db reset

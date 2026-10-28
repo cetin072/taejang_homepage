@@ -29,7 +29,7 @@ window.fetch=async(url,options={})=>{
     calls.push({name:'storage',url,method:options.method});
     if(!['Bearer synthetic-only','Bearer synthetic-refreshed'].includes(options.headers?.Authorization))return new Response(JSON.stringify({message:'Invalid Compact JWS'}),{status:401});
     if(fail==='storage')return new Response(JSON.stringify({message:'합성 Storage 실패'}),{status:500});
-    if(String(url).includes('/object/sign/'))return new Response(JSON.stringify({signedURL:'/object/sign/employee-private-media/fixture.png?token=synthetic'}));
+    if(String(url).includes('/object/authenticated/'))return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',{headers:{'Content-Type':'image/svg+xml'}});
     objects.set(String(url).split('/employee-private-media/')[1],options.body);
     return new Response('{}');
   }

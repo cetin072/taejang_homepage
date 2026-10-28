@@ -695,6 +695,9 @@
       const header=document.createElement('header'); header.className='dashboard-intro';
       header.append(text('p','운영총괄 설정','eyebrow'),text('h2','플랫폼 설정'),text('p','직책별로 보일 메뉴를 정하고 내 화면 배치를 조정합니다. 메뉴 표시 설정은 기능 권한을 추가하지 않습니다.'));
       shell.append(header);
+      if (window.TaejangMenuAuthority?.isManager()) {
+        shell.append(await window.TaejangMenuAuthority.administrationPanel());
+      }
 
       const personal=document.createElement('section'); personal.className='platform-settings-card app-authoring';
       personal.append(
@@ -808,6 +811,10 @@
     try {
       const result=await app().rpc('get_my_navigation_visibility',{p_role_code:role});
       state.hiddenMenuKeys=new Set(cleanArray(result?.hidden_menu_keys));
+      for (const row of window.TaejangMenuAuthority?.getSnapshot()?.decisions || []) {
+        if (row.allowed) state.hiddenMenuKeys.delete(row.menu_key);
+        else state.hiddenMenuKeys.add(row.menu_key);
+      }
     } catch {
       state.hiddenMenuKeys=new Set();
     }

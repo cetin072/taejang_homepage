@@ -31,9 +31,18 @@ async function request(path, { method = 'GET', token, body, headers = {} } = {})
   return { ok: response.ok, status: response.status, data };
 }
 
-const rpc = (name, token, body = {}) => request(`/rest/v1/rpc/${name}`, {
-  method: 'POST', token, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-});
+const rpc = async (name, token, body = {}) => {
+  const result = await request(`/rest/v1/rpc/${name}`, {
+    method: 'POST', token, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  if (name === 'list_manageable_notices') {
+    // Preserve the legacy array contract. Report protocol metadata, never notice
+    // contents, JWTs or profile data, before an array method hides the RPC error.
+    assert.ok(result.ok && Array.isArray(result.data),
+      `NOTICE_LIST_CONTRACT: status=${result.status} type=${Array.isArray(result.data) ? 'array' : typeof result.data} code=${result.data?.code || 'none'}`);
+  }
+  return result;
+};
 
 async function signUp(email, displayName) {
   const result = await request('/auth/v1/signup', {

@@ -17,7 +17,9 @@ jobs:
   browser-gate:
     name: Promotion representative browser flow
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Keep every functional gate; the expanded PC/mobile/Preview suite reaches
+    # the former five-minute job limit before employee profile checks can run.
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository

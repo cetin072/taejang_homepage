@@ -9,8 +9,11 @@ const root = path.resolve(__dirname, '..');
 const testsRoot = path.join(root, 'tests');
 const manifestPath = path.join(root, 'scripts', 'test-manifest.mjs');
 const workflowsDir = path.join(root, '.github', 'workflows');
-// Imported browser helpers execute through the existing local + hosted gate.
-const IMPORTED_BROWSER_HELPERS = new Map([
+// Imported helpers execute through a registered runner; verify every import edge.
+const IMPORTED_HELPERS = new Map([
+  ['tests/helpers/personal-menu-employee-auth.mjs', 'tests/employee-password-reset-auth-integration.mjs'],
+  ['tests/helpers/menu-employee-adapter-test.mjs', 'tests/menu-authority-isolated.mjs'],
+  ['tests/helpers/migration-function-catalog.mjs', 'tests/helpers/menu-employee-adapter-test.mjs'],
   ['tests/helpers/today-board-browser-flow.mjs', 'tests/today-board-auth-integration.mjs'],
   ['tests/helpers/notice-browser-flow.mjs', 'tests/notice-review-media-auth-integration.mjs'],
   ['tests/helpers/public-header-checks.mjs', 'tests/employee-app-browser.mjs'],
@@ -81,6 +84,16 @@ function workflowCovers(file, source) {
     .some(pattern => globToRegExp(pattern).test(file));
 }
 
+function importedHelperCovered(file, workflows, seen = new Set()) {
+  if (seen.has(file) || !IMPORTED_HELPERS.has(file)) return false;
+  seen.add(file);
+  const importer = IMPORTED_HELPERS.get(file);
+  const relative = './' + posix(path.relative(path.dirname(importer), file));
+  const source = fs.readFileSync(path.join(root, importer), 'utf8');
+  return (source.includes("'" + relative + "'") || source.includes('"' + relative + '"'))
+    && (workflowCovers(importer, workflows) || importedHelperCovered(importer, workflows, seen));
+}
+
 test('workflow test globs count as explicit execution paths', () => {
   const workflow = 'node --test tests/mobile-*.test.mjs';
   assert.equal(workflowCovers('tests/mobile-foundation.test.mjs', workflow), true);
@@ -97,10 +110,7 @@ test('every runnable test has an active manifest entry, workflow execution, or d
     !manifest.has(file)
     && !workflowCovers(file, workflows)
     && !INTENTIONAL_EXCLUSIONS.has(file)
-    && !(IMPORTED_BROWSER_HELPERS.has(file)
-      && workflowCovers(IMPORTED_BROWSER_HELPERS.get(file), workflows)
-      && fs.readFileSync(path.join(root, IMPORTED_BROWSER_HELPERS.get(file)), 'utf8')
-        .includes('./helpers/' + path.basename(file)))
+    && !importedHelperCovered(file, workflows)
   );
 
   assert.deepEqual(

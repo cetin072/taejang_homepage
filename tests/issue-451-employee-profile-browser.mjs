@@ -78,7 +78,7 @@ try {
     await page.locator('.employee-list-row').focus(); await page.keyboard.press('Enter');
     await page.locator('[data-employee-profile="fixture-2"]').waitFor();
     await page.locator('.employee-profile-head img').waitFor();
-    assert.match(await page.locator('.employee-profile-head img').getAttribute('src'), /\/storage\/v1\/object\/sign\//);
+    assert.match(await page.locator('.employee-profile-head img').getAttribute('src'), /^blob:/);
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
@@ -170,6 +170,37 @@ try {
     await page.getByLabel('이름',{exact:true}).fill('가상 신규직원'); await page.getByLabel('입사일',{exact:true}).fill('2026-10-14');
     await page.getByRole('button',{name:'직원 등록',exact:true}).click(); await page.locator('.employee-list-row').first().waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='create_employee')),true);
+
+    // Actual personal-menu contract + shared employee screen for non-manager roles.
+    await page.addScriptTag({url:'http://127.0.0.1:'+server.address().port+'/app/assets/menu-authority.js'});
+    await page.evaluate(()=>{
+      const original=TaejangApp.rpc;
+      window.personalAllowed=true;
+      TaejangApp.rpc=async(name,args)=>name==='get_my_menu_authority'
+        ? {version:1,can_manage:false,decisions:[{menu_key:'employee.manage',allowed:personalAllowed,revision:personalAllowed?1:2}]}
+        : original(name,args);
+    });
+    for (const delegatedRole of ['general_worker','promotion_staff','promotion_lead']) {
+      await page.evaluate(async role=>{fixtureRoute=role;personalAllowed=true;await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement();},delegatedRole);
+      await open();
+      assert.match(await page.locator('.employee-section-account').innerText(),/synthetic@example.test/);
+      assert.equal(await page.getByRole('button',{name:'수정',exact:true}).count(),1);
+      await page.getByRole('button',{name:'수정',exact:true}).click();
+      await page.getByLabel('이름',{exact:true}).fill('합성 위임 수정 '+delegatedRole);
+      await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+      await page.locator('[data-employee-heading]').filter({hasText:'합성 위임 수정 '+delegatedRole}).waitFor();
+      await page.evaluate(async()=>{personalAllowed=false;await TaejangMenuAuthority.refresh();});
+      assert.equal(await page.locator('[data-employee-profile]').count(),0,'revoked card and sensitive DOM cleared');
+      const countBefore=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length);
+      await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+      assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length),countBefore,'direct open after revoke cannot fetch');
+    }
+    // Restore the legacy, undecided contract for the pre-existing team-lead cases.
+    await page.evaluate(async()=>{
+      const original=TaejangApp.rpc;
+      TaejangApp.rpc=(name,args)=>name==='get_my_menu_authority'?Promise.resolve({version:1,can_manage:false,decisions:[]}):original(name,args);
+      await TaejangMenuAuthority.refresh();
+    });
 
     // Team lead contract: no sensitive fields/email/private-photo disclosure, protected employee boundary, approval requests.
     await page.evaluate(()=>{
@@ -263,6 +294,44 @@ try {
     const attendanceBox=await attendance.boundingBox();
     assert.ok(attendanceBox.width<=24&&attendanceBox.height<=24,'new-hire checkbox remains compact');
     await page.screenshot({path:path.join(output,device+'-registration.png'),fullPage:true});
+    // A new-registration-only grant must never fetch or render an existing roster.
+    const managementReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length);
+    await page.evaluate(async()=>{
+      fixtureRoute='general_worker';window.registrationAllowed=true;window.registrationWait=false;
+      const previous=TaejangApp.rpc;
+      window.registrationMetadata={registration_only:true,access_level:'operations_manager',
+        departments:fixtureContext.departments,positions:fixtureContext.positions};
+      TaejangApp.rpc=async(name,args)=>{
+        if(name==='get_my_menu_authority')return {version:1,can_manage:false,decisions:[
+          {menu_key:'employee.manage',allowed:false},{menu_key:'employee.new',allowed:registrationAllowed}]};
+        if(name==='get_employee_registration_context'){
+          calls.push({name,args});
+          if(registrationWait)return new Promise(resolve=>{window.registrationRelease=resolve;});
+          return structuredClone(registrationMetadata);
+        }
+        if(name==='create_employee_from_registration'){calls.push({name,args});return {ok:true,employee_uuid:'synthetic-registration'};}
+        return previous(name,args);
+      };
+      await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement('new');
+    });
+    await page.getByRole('button',{name:'직원 등록',exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'← 직원 목록',exact:true}).count(),0);
+    assert.equal(await page.locator('.employee-list-row,[data-employee-profile]').count(),0);
+    await page.getByLabel('이름',{exact:true}).fill('합성 등록 전용 직원');
+    await page.getByLabel('입사일',{exact:true}).fill('2026-01-01');
+    await page.getByRole('button',{name:'직원 등록',exact:true}).click();
+    await page.getByText('직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.',{exact:true}).waitFor();
+    assert.equal(await page.getByLabel('이름',{exact:true}).inputValue(),'');
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_management_context').length),managementReads);
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='create_employee_from_registration').length),1);
+    await fits();
+    await page.evaluate(()=>{registrationWait=true;window.registrationLoading=TaejangEmployeeManagement.openEmployeeManagement('new');});
+    await page.waitForFunction(()=>typeof registrationRelease==='function');
+    await page.evaluate(async()=>{registrationAllowed=false;await TaejangMenuAuthority.refresh();registrationRelease(structuredClone(registrationMetadata));await registrationLoading;});
+    assert.equal(await page.locator('.employee-form,[data-employee-loading]').count(),0,'late registration metadata cannot restore revoked screen');
+    const registrationReads=await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length);
+    await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement('new'));
+    assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='get_employee_registration_context').length),registrationReads);
     await context.close();
     console.log('EMPLOYEE_PROFILE_BROWSER_PASS:'+device+':'+(preview?'PREVIEW':'LOCAL'));
   }

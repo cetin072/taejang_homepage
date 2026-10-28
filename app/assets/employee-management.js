@@ -4,14 +4,26 @@
   const ALLOWED_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const allowedRoute = (menu = activeEmployeeMenu) => window.TaejangMenuAuthority?.allowed(menu,
+    ALLOWED_ROUTES.has(route())) ?? ALLOWED_ROUTES.has(route());
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let cachedConfig = null;
   let currentContext = null;
   let activeEmployeeView = 'existing';
+  let activeEmployeeMenu = 'employee.manage';
   let selectedEmployeeId = null;
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
+  const photoUrls = new Set();
+
+  function clearEmployeeContext() {
+    ++loadSequence;
+    currentContext = null;
+    selectedEmployeeId = null;
+    for (const url of photoUrls) URL.revokeObjectURL(url);
+    photoUrls.clear();
+  }
 
   const el = (tag, value, className) => {
     const node = document.createElement(tag);
@@ -127,26 +139,25 @@
     return path;
   }
 
-  async function signedPhotoUrl(path) {
+  async function authenticatedPhotoUrl(path) {
     if (!path) return null;
     const cfg = await config();
     const encoded = path.split('/').map(encodeURIComponent).join('/');
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/sign/employee-private-media/${encoded}`, {
-      method: 'POST',
-      headers: { apikey: cfg.publishableKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expiresIn: 600 })
+    // Authenticated reads re-run Storage RLS for every download. Do not create
+    // bearer signed URLs that remain downloadable after a menu grant is revoked.
+    const sequence = loadSequence;
+    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/authenticated/employee-private-media/${encoded}`, {
+      method: 'GET', cache: 'no-store',
+      headers: { apikey: cfg.publishableKey }
     });
     if (!response.ok) return null;
-    const payload = await response.json().catch(() => null);
-    const raw = payload?.signedURL || payload?.signedUrl;
-    if (!raw) return null;
-    if (/^https?:\/\//.test(raw)) return raw;
-    const normalized = raw.startsWith('/') ? raw : `/${raw}`;
-    return normalized.startsWith('/storage/v1/') ? `${cfg.url}${normalized}` : `${cfg.url}/storage/v1${normalized}`;
+    const blob = await response.blob();
+    if (sequence !== loadSequence || !allowedRoute()) return null;
+    const url = URL.createObjectURL(blob); photoUrls.add(url); return url;
   }
 
   async function setAvatar(image, path, wrap) {
-    const url = await signedPhotoUrl(path).catch(() => null);
+    const url = await authenticatedPhotoUrl(path).catch(() => null);
     if (!url || !(wrap || image).isConnected) return;
     if (wrap) wrap.replaceChildren(image);
     image.src = url;
@@ -210,7 +221,7 @@
       controls.forEach(control => { control.disabled = true; });
       try {
         if (!saved && !employee && !teamRequest) {
-          await app().rpc('create_employee', {
+          await app().rpc(context.registration_only ? 'create_employee_from_registration' : 'create_employee', {
             p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
             p_position_id: position.value, p_attendance_required: attendance.checked
           });
@@ -248,6 +259,12 @@
           });
         }
         saved = true;
+        if (context.registration_only) {
+          if (await refreshEmployeeManagement()) {
+            main()?.querySelector('.employee-management')?.prepend(el('p', '직원을 등록했습니다. 다음 직원을 등록할 수 있습니다.', 'message'));
+          }
+          return;
+        }
         if (!employee) { activeEmployeeView = 'existing'; selectedEmployeeId = null; }
         await refreshEmployeeManagement();
       } catch (error) {
@@ -829,6 +846,34 @@
         const opt=await app().rpc('employee_password_reset_option',{p_employee_uuid:employee.id});
         if(!wrap.isConnected)return;
         if(!opt?.ok){feedback.textContent='보호 계정 또는 연결 확인이 필요한 직원은 초기화할 수 없습니다.';return;}
+        let reauthForm=null;
+        const showReauthentication=()=>{
+          if(reauthForm || !wrap.isConnected)return;
+          const form=el('form',null,'app-authoring');reauthForm=form;
+          form.append(el('p','직원 화면을 나가지 않고 현재 로그인 계정을 확인합니다.'));
+          const label=el('label','내 로그인 비밀번호');
+          const password=document.createElement('input');password.type='password';
+          password.autocomplete='current-password';password.required=true;
+          label.append(password);form.append(label);
+          const verify=el('button','본인 확인 후 계속','button');verify.type='submit';
+          const cancel=button('취소',()=>{password.value='';form.remove();reauthForm=null;open.disabled=false;},true);
+          const status=el('p','','help');status.setAttribute('role','status');
+          form.append(verify,cancel,status);wrap.append(form);open.disabled=true;
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(verify.disabled)return;
+            verify.disabled=true;cancel.disabled=true;
+            let value=password.value;password.value='';
+            try {
+              if(typeof app()?.reauthenticate!=='function')throw Error('본인 확인 기능을 불러오지 못했습니다. 화면을 새로고침해주세요.');
+              await app().reauthenticate(value);value='';
+              if(!form.isConnected || window.TaejangMenuAuthority?.allowed('employee.manage',true)===false)return;
+              form.remove();reauthForm=null;open.disabled=false;
+              feedback.textContent='본인 확인을 마쳤습니다. 대상 직원을 확인하고 초기화를 진행하세요.';
+              open.click();
+            }catch(error){status.textContent=error.message||'본인 확인을 완료하지 못했습니다.';}
+            finally{value='';verify.disabled=false;cancel.disabled=false;}
+          });password.focus();
+        };
         const open=button('비밀번호 초기화',()=>{
           if(open.disabled)return;
           const dialog=el('dialog',null,'employee-reset-confirm');
@@ -846,19 +891,33 @@
               const local=/^(localhost|127\.0\.0\.1)$/.test(base.hostname);
               if(location.origin!=='https://taejang.co.kr'&&!local)throw Error('Preview에서는 운영 계정을 초기화할 수 없습니다.');
               if(!local&&(base.protocol!=='https:'||!base.hostname.endsWith('.supabase.co')))throw Error('서버 설정을 확인하세요.');
-              const token=app()?.getSession?.()?.access_token;
+              const client=app(),session=client?.getSession?.();
+              let token=session?.access_token;
               if(!token)throw Error('다시 로그인하세요.');
-              sent=true;
-              const response=await fetch(base.origin+'/functions/v1/employee-password-reset',{
+              const send=credential=>fetch(base.origin+'/functions/v1/employee-password-reset',{
                 method:'POST',cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.timeout(30000),
-                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+                headers:{apikey:cfg.publishableKey,Authorization:'Bearer '+credential,'Content-Type':'application/json'},
                 body:JSON.stringify({employee_uuid:employee.id,request_confirmed:true})
               });
-              const result=await response.json();
+              sent=true;
+              let response=await send(token),result=await response.json();
+              // LOGIN_REQUIRED is returned before reservation or Admin mutation.
+              // Renew an expired session once; never replay an uncertain reset.
+              if(response.status===401&&result.code==='LOGIN_REQUIRED'
+                &&client.getSession?.()?.access_token===token&&typeof client.refreshSession==='function'){
+                sent=false;
+                if(await client.refreshSession()){
+                  const fresh=client.getSession?.();
+                  if(fresh?.access_token&&(!session.user?.id||fresh.user?.id===session.user.id)){
+                    token=fresh.access_token;sent=true;
+                    response=await send(token);result=await response.json();
+                  }
+                }
+              }
               if(!response.ok||!result.ok) {
                 const messages={RESET_NOT_READY:'운영 초기화 기능과 본인 변경 경로 준비 후 사용할 수 있습니다.',
                   SELF_CHANGE_NOT_READY:'직원 본인 비밀번호 변경 경로가 아직 준비되지 않았습니다.',
-                  REAUTH_REQUIRED:'안전한 초기화를 위해 다시 로그인한 뒤 진행하세요.',
+                  REAUTH_REQUIRED:'본인 확인 시간이 지났습니다. 이 화면에서 내 로그인 비밀번호를 확인하면 계속할 수 있습니다.',
                   LOGIN_REQUIRED:'다시 로그인한 뒤 진행하세요.',
                   RATE_LIMITED:'요청이 많습니다. 잠시 후 다시 시도하세요.',
                   POLICY_REJECTED:'서버 비밀번호 보안정책에서 거부했습니다. 운영총괄에게 문의하세요.',
@@ -868,7 +927,8 @@
                 if(['RESET_NOT_READY','SELF_CHANGE_NOT_READY','REAUTH_REQUIRED','LOGIN_REQUIRED','RATE_LIMITED',
                   'POLICY_REJECTED','INVALID_INPUT','FORBIDDEN','PROTECTED_ACCOUNT','TARGET_CHANGED',
                   'AUTH_UNAVAILABLE','RESERVATION_FAILED','ORIGIN_FORBIDDEN'].includes(result.code))sent=false;
-                throw Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                const failure=Error(messages[result.code]||'초기화가 차단되었습니다. 계정 연결·권한·상태를 다시 확인하세요.');
+                failure.code=result.code;throw failure;
               }
               if(!/^\d{16}$/.test(result.temporary_password))throw Error('처리 결과 확인이 필요합니다. 재실행하지 마세요.');
               feedback.textContent='초기화 완료';
@@ -896,6 +956,7 @@
             } catch(error) {
               feedback.textContent=sent?'처리 결과를 확인하지 못했습니다. 다시 실행하지 말고 운영총괄에게 문의하세요.':error.message;
               open.disabled=sent;
+              if(!sent&&error.code==='REAUTH_REQUIRED')showReauthentication();
             }
           });
           const actions=el('div',null,'quick-links');actions.append(cancel,confirm);dialog.append(actions);
@@ -932,7 +993,7 @@
   }
 
   function renderEmployeeManagement(context) {
-    if (!ALLOWED_ROUTES.has(route())) return;
+    if (!allowedRoute()) return;
     const target = main(); if (!target) return;
     const views = getViews();
     const shell = el('section', null, 'employee-management');
@@ -948,7 +1009,7 @@
     }
     const intro = el('header', null, 'employee-toolbar');
     intro.append(el('h2', activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리'));
-    intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
+    if (!context.registration_only) intro.append(button(activeEmployeeView === 'new' ? '← 직원 목록' : '+ 직원 등록', () => {
       activeEmployeeView = activeEmployeeView === 'new' ? 'existing' : 'new'; selectedEmployeeId = null;
       renderEmployeeManagement(currentContext);
     }, true));
@@ -994,23 +1055,27 @@
 
   async function refreshEmployeeManagement(verify) {
     const sequence = ++loadSequence;
-    const context = await app().rpc('get_employee_management_context');
-    if (sequence !== loadSequence || !ALLOWED_ROUTES.has(route()) || !main()?.querySelector('.employee-management')) return false;
+    const context = await loadEmployeeContext();
+    if (sequence !== loadSequence || !allowedRoute() || !main()?.querySelector('.employee-management')) return false;
     if (verify) verify(context);
     currentContext = context; renderEmployeeManagement(context); return true;
   }
 
   async function openEmployeeManagement(view = 'existing') {
     closeSidebar();
-    if (!ALLOWED_ROUTES.has(route())) return;
+    const menu = view === 'new' ? 'employee.new' : 'employee.manage';
+    if (!allowedRoute(menu)) return;
+    activeEmployeeMenu = menu;
+    clearEmployeeContext();
     activeEmployeeView = ['existing', 'new'].includes(view) ? view : 'existing'; selectedEmployeeId = null;
     const sequence = ++loadSequence;
     const target = main(); if (!target) return;
-    document.getElementById('desktop-page-title').textContent = route() === 'operations_manager' ? '직원 관리' : '팀 직원 관리';
+    document.getElementById('desktop-page-title').textContent = activeEmployeeView === 'new' ? '신규 직원 등록' : '직원 관리';
     const loading = el('p', '직원 정보를 불러오고 있습니다.', 'message'); target.replaceChildren(loading);
+    loading.dataset.employeeLoading = '1';
     try {
-      const context = await app().rpc('get_employee_management_context');
-      if (sequence !== loadSequence || !loading.isConnected || !ALLOWED_ROUTES.has(route())) return;
+      const context = await loadEmployeeContext();
+      if (sequence !== loadSequence || !loading.isConnected || !allowedRoute()) return;
       currentContext = context; renderEmployeeManagement(context);
     } catch (error) {
       if (sequence !== loadSequence || !loading.isConnected) return;
@@ -1022,6 +1087,19 @@
   function syncNavigation() {
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
+  function loadEmployeeContext() {
+    const registrationOnly = activeEmployeeMenu === 'employee.new'
+      && window.TaejangMenuAuthority?.delegated?.('employee.new');
+    return app().rpc(registrationOnly ? 'get_employee_registration_context' : 'get_employee_management_context');
+  }
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (window.TaejangMenuAuthority?.allowed(activeEmployeeMenu, true) !== false) return;
+    clearEmployeeContext();
+    const target = main();
+    if (target?.querySelector('.employee-management,[data-employee-loading]')) {
+      target.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    }
+  });
 
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));
 

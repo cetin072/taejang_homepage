@@ -100,4 +100,49 @@ const saveLong=await rpc('monthly_client_documents_save',ops.token,{p_year:2098,
 const confirmLong=await rpc('monthly_client_documents_confirm',ops.token,{p_year:2098,p_month:12,p_expected_revision:saveLong.data.revision});assert.equal(confirmLong.ok,false);assert.match(JSON.stringify(confirmLong.data),/DOCUMENT_LAYOUT_LIMIT/);
 const reloadLong=await rpc('monthly_client_documents_get_month',ops.token,{p_year:2098,p_month:12});assert.equal(reloadLong.data.payload.common.workDescription,longDraft.common.workDescription);
 
-console.log('Monthly client documents Auth/Data API integration: operations_manager allowed; general_worker RPC access denied.');
+// Existing endpoints and both SELECT policies already consume the dedicated
+// monthly-document capability; verify personal grants through those real paths.
+const rolesBefore=sql(`select jsonb_agg(to_jsonb(r) order by id)::text from public.profile_roles r where profile_id='${worker.id}'`);
+const grantMonthly=allowed=>rpc('set_profile_menu_authority',ops.token,{p_profile_id:worker.id,p_menu_key:'monthly_client_documents.manage',p_allowed:allowed,
+  p_expected_revision:allowed?0:1,p_reason:allowed?'isolated monthly document grant':'isolated monthly document revoke'});
+assert.equal((await grantMonthly(true)).ok,false,'unverified monthly adapter cannot be granted');
+sql("update public.menu_authority_catalog set adapter_ready=true where menu_key='monthly_client_documents.manage'");
+try {
+  assert.ok((await grantMonthly(true)).ok);
+  assert.ok((await rpc('monthly_client_documents_get',worker.token)).ok);
+  const delegatedDefaults=await rpc('monthly_client_documents_company_defaults',worker.token);
+  assert.equal(delegatedDefaults.data.length,4);
+  assert.ok((await rpc('monthly_client_documents_save_company_defaults',worker.token,{p_company_defaults:delegatedDefaults.data})).ok);
+  const delegatedPayload=structuredClone(v2);
+  Object.assign(delegatedPayload.common,{year:2096,month:11,docDate:'2096-11-30',perfDate:'2096-11-14',perfDates:['2096-11-14'],workDescription:'Isolated delegated monthly work'});
+  const delegatedSaved=await rpc('monthly_client_documents_save',worker.token,{p_year:2096,p_month:11,p_payload:delegatedPayload,p_expected_revision:0});
+  assert.ok(delegatedSaved.ok,'delegate can save month');
+  const delegatedConfirmed=await rpc('monthly_client_documents_confirm',worker.token,{p_year:2096,p_month:11,p_expected_revision:delegatedSaved.data.revision});
+  assert.ok(delegatedConfirmed.ok,'delegate can confirm without changing actual role');
+  assert.ok((await rpc('monthly_client_documents_unconfirm',worker.token,{p_year:2096,p_month:11,p_expected_revision:delegatedConfirmed.data.revision})).ok);
+  assert.ok((await rpc('monthly_client_documents_copy_previous',worker.token,{p_year:2096,p_month:12})).ok);
+  const raw=async table=>{
+    const response=await fetch(`${apiUrl}/rest/v1/${table}?select=*`,{headers:{apikey:publishableKey,Authorization:'Bearer '+worker.token}});
+    return {ok:response.ok,status:response.status,data:await response.json()};
+  };
+  // The policy calls private_actor_can, whose EXECUTE remains private. This
+  // feature intentionally uses definer RPCs; a menu grant never opens raw tables.
+  for (const table of ['monthly_client_document_sets','monthly_client_document_company_defaults']) {
+    const direct=await raw(table);assert.equal(direct.status,403);assert.equal(direct.data.code,'42501');
+  }
+  assert.ok((await grantMonthly(false)).ok);
+  for (const [name,args] of [
+    ['get',{}],['list',{}],['company_defaults',{}],['save_company_defaults',{p_company_defaults:delegatedDefaults.data}],
+    ['get_month',{p_year:2096,p_month:11}],['save',{p_year:2096,p_month:11,p_payload:delegatedPayload,p_expected_revision:0}],
+    ['confirm',{p_year:2096,p_month:11,p_expected_revision:1}],['unconfirm',{p_year:2096,p_month:11,p_expected_revision:1}],
+    ['copy_previous',{p_year:2097,p_month:1}]
+  ]) assert.equal((await rpc('monthly_client_documents_'+name,worker.token,args)).status,403,'revoked direct monthly endpoint '+name);
+  for (const table of ['monthly_client_document_sets','monthly_client_document_company_defaults']) {
+    const denied=await raw(table);assert.equal(denied.status,403);assert.equal(denied.data.code,'42501','same JWT cannot read raw '+table);
+  }
+  assert.equal(sql(`select jsonb_agg(to_jsonb(r) order by id)::text from public.profile_roles r where profile_id='${worker.id}'`),rolesBefore);
+  console.log('PERSONAL_MENU_MONTHLY_DOCUMENT_AUTH_RPC_TABLE_GUARD_PASS');
+} finally {
+  sql("update public.menu_authority_catalog set adapter_ready=false where menu_key='monthly_client_documents.manage'");
+}
+console.log('Monthly client documents Auth/Data API integration: role and personal grants/revocation verified.');

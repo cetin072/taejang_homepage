@@ -35,4 +35,30 @@ await p.getByRole('button',{name:'대시보드로',exact:true}).click();await p.
 await p.goto('http://fixture.test/?view=employee.manage&login=1');assert.equal(await p.evaluate(()=>opens.length),0);await p.evaluate(()=>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}})));await p.waitForFunction(()=>opens.length===1);
 console.log(JSON.stringify({width,direct:true,reload:true,history:true,dirtyGuard:true,denied:true,invalid:true,loginDeferred:true}));await p.close();
 }
+
+// Personal delegation uses the same shell and direct URL gate without changing role.
+const delegatedFixture=fixture
+ .replace('<div id="desktop-app-shell">','<div id="general-worker-board"></div><div id="desktop-app-shell">')
+ .replace("window.allowed=true;window.role='operations_manager';", "window.allowed=false;window.personalAllowed=true;window.role=new URL(location.href).searchParams.get('role');")
+ .replace('rpc:async()=>[]',"rpc:async name=>name==='get_my_menu_authority'?{version:1,can_manage:false,decisions:[{menu_key:'employee.manage',allowed:personalAllowed}]}:[]")
+ .replace('<script src="/app/assets/dashboard-shell.js">','<script src="/app/assets/menu-authority.js"></script><script src="/app/assets/dashboard-shell.js">')
+ .replace("if(!new URL(location.href).searchParams.has('login'))document.dispatchEvent", "TaejangMenuAuthority.refresh().then(()=>document.dispatchEvent")
+ .replace("{detail:{route:role,label:'합성 역할'}}));</script>","{detail:{route:role,label:'합성 역할'}})));</script>");
+for(const role of ['general_worker','promotion_staff','promotion_lead']) {
+ const p=await b.newPage({viewport:{width:390,height:900}});const errors=[];p.on('pageerror',e=>errors.push(e.message));
+ await p.route('**/*',async r=>{
+  const u=new URL(r.request().url());
+  if(u.pathname.startsWith('/app/assets/'))return r.fulfill({contentType:'text/javascript',body:await fs.readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
+  return r.fulfill({contentType:'text/html',body:delegatedFixture});
+ });
+ await p.goto('http://fixture.test/?view=employee.manage&role='+role);
+ await p.getByRole('heading',{name:'employee.existing',exact:true}).waitFor();
+ assert.equal(await p.evaluate(()=>TaejangApp.getRoute()),role,'delegation does not impersonate operations role');
+ await p.evaluate(async()=>{personalAllowed=false;await TaejangMenuAuthority.refresh();});
+ assert.equal(await p.locator('main').innerText(),'메뉴 권한이 회수되었거나 확인되지 않습니다.');
+ assert.equal(await p.locator('[data-menu-key="employee.manage"]').count(),0,'revoked menu is removed');
+ assert.deepEqual(errors,[]);
+ await p.close();
+ console.log(JSON.stringify({role,personalDirectUrl:true,revocation:true,actualRoleUnchanged:true}));
+}
 }finally{await b.close();}

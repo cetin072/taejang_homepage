@@ -5,6 +5,7 @@
   const isOperations = () => app()?.hasCapabilityContract?.()
     ? app()?.can?.('audit.target_history.read') === true
     : app()?.getRoute?.() === 'operations_manager';
+  const employeeAuthority = () => window.TaejangMenuAuthority?.allowed('employee.manage', isOperations()) ?? isOperations();
   const busy = new Set();
   let scheduled = false;
 
@@ -43,7 +44,7 @@
   }
 
   async function confirmAndDelete({ kind, title, rpc, args, refresh, extraWarning = '' }) {
-    if (!isOperations()) return;
+    if (!(rpc === 'archive_employee' ? employeeAuthority() : isOperations())) return;
     const target = title || kind;
     const warning = extraWarning ? `\n${extraWarning}` : '';
     if (!window.confirm(`${target}을(를) 삭제할까요?${warning}\n삭제 후 일반 관리 목록에서는 사라집니다. 직원 휴지통에서 복원할 수 있습니다.`)) return;
@@ -91,7 +92,7 @@
   }
 
   async function toggleHistory({ config, item, card, button }) {
-    if (!isOperations()) return;
+    if (!(config.targetType === 'employee' ? employeeAuthority() : isOperations())) return;
     const existing = card.querySelector('[data-target-audit-panel]');
     if (existing) {
       existing.remove();
@@ -149,7 +150,7 @@
   }
 
   async function decorateEmployees() {
-    if (!isOperations() || busy.has('employees')) return;
+    if (!employeeAuthority() || busy.has('employees')) return;
     const cards = [...document.querySelectorAll('[data-employee-profile]')];
     if (!cards.length || cards.every(card => card.querySelector('[data-ops-employee-tools]'))) return;
     busy.add('employees');
@@ -278,8 +279,8 @@
   }
 
   function sync() {
-    if (!isOperations()) return;
     decorateEmployees();
+    if (!isOperations()) return;
     decorateIndexedList({
       key: 'schedules', listId: 'schedule-admin-list', refreshId: 'refresh-schedule-admin',
       dataAttribute: 'ops-recovery-schedule', archiveSectionAttribute: 'ops-archive-schedule',

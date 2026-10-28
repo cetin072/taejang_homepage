@@ -169,6 +169,36 @@
     return sessionRefresh;
   }
 
+  async function reauthenticate(password) {
+    const previous = state.session;
+    let identity = previous?.user;
+    if ((!identity?.id || !identity.email) && previous?.access_token) {
+      const current = await fetch(`${state.config.url}/auth/v1/user`, {
+        cache: 'no-store', credentials: 'omit', redirect: 'error',
+        headers: { apikey: state.config.publishableKey, Authorization: 'Bearer ' + previous.access_token }
+      });
+      if (current.ok) identity = await current.json();
+    }
+    if (state.session !== previous || !identity?.id || !identity.email) {
+      throw new Error('현재 계정을 확인할 수 없습니다. 로그인 상태를 확인해주세요.');
+    }
+    let response;
+    try {
+      response = await fetch(`${state.config.url}/auth/v1/token?grant_type=password`, {
+        method: 'POST', cache: 'no-store', credentials: 'omit', redirect: 'error',
+        headers: { apikey: state.config.publishableKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: identity.email, password })
+      });
+    } finally { password = ''; }
+    if (!response.ok) throw new Error('본인 확인에 실패했습니다. 현재 로그인 계정의 비밀번호를 확인해주세요.');
+    const fresh = await response.json();
+    if (state.session !== previous || fresh.user?.id !== identity.id || !fresh.access_token) {
+      throw new Error('계정 상태가 변경됐습니다. 직원 화면을 다시 열어주세요.');
+    }
+    storeSession(fresh);
+    return true;
+  }
+
   async function context() {
     return rpc('get_my_access_context');
   }
@@ -380,6 +410,7 @@
       getContext: () => state.context,
       getSession: () => state.session,
       refreshSession,
+      reauthenticate,
       getConfig: () => state.config,
       getBoardDate: () => state.boardDate,
       refreshToday: loadTodayBoard,
