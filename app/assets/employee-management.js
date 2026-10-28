@@ -4,6 +4,8 @@
   const ALLOWED_ROUTES = new Set(['operations_manager', 'promotion_lead', 'department_lead']);
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
+  const allowedRoute = () => window.TaejangMenuAuthority?.allowed('employee.manage',
+    ALLOWED_ROUTES.has(route())) ?? ALLOWED_ROUTES.has(route());
   const main = () => document.getElementById('dashboard-main');
   const arr = value => Array.isArray(value) ? value : [];
   let cachedConfig = null;
@@ -932,7 +934,7 @@
   }
 
   function renderEmployeeManagement(context) {
-    if (!ALLOWED_ROUTES.has(route())) return;
+    if (!allowedRoute()) return;
     const target = main(); if (!target) return;
     const views = getViews();
     const shell = el('section', null, 'employee-management');
@@ -995,14 +997,14 @@
   async function refreshEmployeeManagement(verify) {
     const sequence = ++loadSequence;
     const context = await app().rpc('get_employee_management_context');
-    if (sequence !== loadSequence || !ALLOWED_ROUTES.has(route()) || !main()?.querySelector('.employee-management')) return false;
+    if (sequence !== loadSequence || !allowedRoute() || !main()?.querySelector('.employee-management')) return false;
     if (verify) verify(context);
     currentContext = context; renderEmployeeManagement(context); return true;
   }
 
   async function openEmployeeManagement(view = 'existing') {
     closeSidebar();
-    if (!ALLOWED_ROUTES.has(route())) return;
+    if (!allowedRoute()) return;
     activeEmployeeView = ['existing', 'new'].includes(view) ? view : 'existing'; selectedEmployeeId = null;
     const sequence = ++loadSequence;
     const target = main(); if (!target) return;
@@ -1010,7 +1012,7 @@
     const loading = el('p', '직원 정보를 불러오고 있습니다.', 'message'); target.replaceChildren(loading);
     try {
       const context = await app().rpc('get_employee_management_context');
-      if (sequence !== loadSequence || !loading.isConnected || !ALLOWED_ROUTES.has(route())) return;
+      if (sequence !== loadSequence || !loading.isConnected || !allowedRoute()) return;
       currentContext = context; renderEmployeeManagement(context);
     } catch (error) {
       if (sequence !== loadSequence || !loading.isConnected) return;
@@ -1022,6 +1024,13 @@
   function syncNavigation() {
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
+  document.addEventListener('taejang-menu-authority-changed', () => {
+    if (window.TaejangMenuAuthority?.allowed('employee.manage', true) !== false) return;
+    ++loadSequence;
+    currentContext = null;
+    selectedEmployeeId = null;
+    main()?.querySelector('.employee-management')?.replaceChildren(el('p', '직원 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+  });
 
   document.addEventListener('taejang-open-employee-management', event => openEmployeeManagement(event.detail?.view || 'existing'));
 

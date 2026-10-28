@@ -83,6 +83,12 @@
     if (!nav) return;
 
     [...nav.querySelectorAll('button, a')].forEach(node => {
+      const menuKey = node.dataset?.menuKey;
+      const authority = window.TaejangMenuAuthority;
+      if (menuKey && authority?.decision(menuKey) !== undefined) {
+        applyNavigationState(node, authority.allowed(menuKey, false), menuKey);
+        return;
+      }
       const label = cleanLabel(node);
       const declaredAny = String(node.dataset?.capabilityAny || '')
         .split('|')
