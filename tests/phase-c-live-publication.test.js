@@ -115,26 +115,30 @@ test('publication admin follows the Issue 207 recent-delete window and modificat
 });
 
 
-test('missing-photo correction is add-only, authorized, and does not forge publication history', () => {
-  assert.match(publishedPhotoBackfill, /create function public\\.private_can_operations_add_missing_promotion_photo/);
-  assert.match(publishedPhotoBackfill, /current_user_has_role\\('operations_manager'\\)/);
-  assert.match(publishedPhotoBackfill, /private_actor_can\\('promotion\\.review_public_change'\\)/);
-  assert.match(publishedPhotoBackfill, /jsonb_array_length\\(r\\.public_media\\)=0/);
-  assert.match(publishedPhotoBackfill, /q\\.stage='ceo'/);
-  assert.match(publishedPhotoBackfill, /p_confirm_source is distinct from true/);
-  assert.match(publishedPhotoBackfill, /storage\\.objects/);
-  assert.match(publishedPhotoBackfill, /split_part\\(storage_path,'\\/',1\\)<>actor_id::text/);
-  assert.match(publishedPhotoBackfill, /p_expected_revision_id/);
-  assert.match(publishedPhotoBackfill, /insert into public\\.promotion_content_revisions/);
-  assert.match(publishedPhotoBackfill, /locked_at,operations_owned_publication/);
-  assert.match(publishedPhotoBackfill, /promotion_missing_photo_corrected/);
-  assert.doesNotMatch(publishedPhotoBackfill, /update public\\.promotion_content_revisions/i);
-  assert.doesNotMatch(publishedPhotoBackfill, /set published_at\\s*=/i);
-  assert.match(publicationAdmin, /누락 사진 보완/);
-  assert.match(publicationAdmin, /get_operations_missing_promotion_photo/);
-  assert.match(publicationAdmin, /operations_add_missing_promotion_photo/);
-  assert.match(publicationAdmin, /p_confirm_source:\\s*accepted\\.checked/);
-  assert.match(publicationAdmin, /importOfficialPhotoForBackfill/);
+test('missing-photo correction is add-only, authorized, and preserves original publication', () => {
+  for (const required of [
+    'create function public.private_can_operations_add_missing_promotion_photo',
+    "current_user_has_role('operations_manager')",
+    "private_actor_can('promotion.review_public_change')",
+    'jsonb_array_length(r.public_media)=0',
+    "q.stage='ceo'",
+    'p_confirm_source is distinct from true',
+    'storage.objects',
+    "split_part(storage_path,'/',1)<>actor_id::text",
+    'p_expected_revision_id',
+    'insert into public.promotion_content_revisions',
+    'locked_at,operations_owned_publication',
+    'promotion_missing_photo_corrected'
+  ]) assert.ok(publishedPhotoBackfill.includes(required), 'Missing photo contract: ' + required);
+  assert.ok(!publishedPhotoBackfill.toLowerCase().includes('update public.promotion_content_revisions'),
+    'Old immutable revision must never be overwritten');
+  assert.ok(!publishedPhotoBackfill.toLowerCase().includes('set published_at='),
+    'Original publication timestamp must remain stable');
+  for (const required of [
+    '누락 사진 보완', 'get_operations_missing_promotion_photo',
+    'operations_add_missing_promotion_photo', 'p_confirm_source: accepted.checked',
+    'importOfficialPhotoForBackfill'
+  ]) assert.ok(publicationAdmin.includes(required), 'Missing operator action: ' + required);
 });
 
 test('live detail page renders fetched content with DOM text nodes instead of raw HTML injection', () => {
