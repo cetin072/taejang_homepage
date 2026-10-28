@@ -171,8 +171,17 @@
 
   async function reauthenticate(password) {
     const previous = state.session;
-    const identity = previous?.user;
-    if (!identity?.id || !identity.email) throw new Error('현재 계정을 확인할 수 없습니다. 로그인 상태를 확인해주세요.');
+    let identity = previous?.user;
+    if ((!identity?.id || !identity.email) && previous?.access_token) {
+      const current = await fetch(`${state.config.url}/auth/v1/user`, {
+        cache: 'no-store', credentials: 'omit', redirect: 'error',
+        headers: { apikey: state.config.publishableKey, Authorization: 'Bearer ' + previous.access_token }
+      });
+      if (current.ok) identity = await current.json();
+    }
+    if (state.session !== previous || !identity?.id || !identity.email) {
+      throw new Error('현재 계정을 확인할 수 없습니다. 로그인 상태를 확인해주세요.');
+    }
     let response;
     try {
       response = await fetch(`${state.config.url}/auth/v1/token?grant_type=password`, {

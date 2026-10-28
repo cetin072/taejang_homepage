@@ -48,6 +48,10 @@ export async function personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops,b
     check(saved.ok&&saved.data.resident_number_registered,'Vault sensitive identity setter succeeds for delegate');
     check(sql(`select (decrypted_secret='${resident}')::text from vault.decrypted_secrets where name='employee_rrn_${employee}'`)==='true','Vault decryption uses original server secret');
     check(sql(`select (secret<>'${resident}')::text from vault.secrets where name='employee_rrn_${employee}'`)==='true','persisted Vault secret is encrypted');
+    const revealed=await rpc('get_employee_resident_registration_number',actor.token,{p_employee_uuid:employee,p_purpose:'employee_administration'});
+    check(revealed.ok&&revealed.data.resident_number===resident,'delegate purpose-bound Vault read succeeds');
+    check(!(await rpc('get_employee_resident_registration_number',actor.token,{p_employee_uuid:employee,p_purpose:'arbitrary'})).ok,'Vault read still requires allowed purpose');
+    check(Number(sql(`select count(*) from public.audit_logs where target_id='${employee}' and action='employee_resident_number_viewed' and outcome='success'`))===1,'Vault read retains explicit access audit');
     const insurance={p_employee_uuid:employee,p_payroll_month:'2026-10-01',p_national_pension_on:false,p_health_insurance_on:true,p_employment_insurance_on:true,p_note:'isolated employee insurance settings'};
     check((await rpc('set_employee_insurance_deduction_settings',actor.token,insurance)).ok,'delegate saves employee insurance without payroll menu');
     check((await rpc('get_employee_insurance_deduction_settings',actor.token,{p_employee_uuid:employee,p_payroll_month:'2026-10-01'})).ok,'delegate reads employee insurance');
@@ -65,6 +69,7 @@ export async function personalEmployeeAuth({fixture,rpc,sql,edge,api,check,ops,b
     for(const [name,args] of [['get_employee_management_context',{}],['update_employee_core',edit],
       ['set_employee_photo',{p_employee_uuid:employee,p_photo_type:'id_photo',p_storage_path:photoPath}],
       ['set_employee_resident_registration_number',{p_employee_uuid:employee,p_resident_number:resident}],
+      ['get_employee_resident_registration_number',{p_employee_uuid:employee,p_purpose:'employee_administration'}],
       ['set_employee_insurance_deduction_settings',insurance],['employee_password_reset_option',{p_employee_uuid:target.e}]]) {
       const denied=await rpc(name,actor.token,args);check(!denied.ok&&denied.status===403,'revoked direct employee endpoint denied: '+name);
     }

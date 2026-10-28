@@ -78,6 +78,7 @@ select test_assert(not has_function_privilege('anon','set_profile_menu_authority
 select test_assert(not has_function_privilege('authenticated','private_menu_operations(text)','EXECUTE'),'authority helper is not a public RPC');
 select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',false);
 select test_assert(jsonb_array_length(get_menu_authority_administration()->'accounts')>0,'administration uses real account status enum');
+select test_assert(private_actor_capabilities()=private_actor_capabilities_before_menu_authority(),'role-only fast path preserves existing capability set');
 select test_reject($q$select set_profile_menu_authority('00000000-0000-4000-8000-000000000002','employee.manage',true,0,'synthetic grant')$q$,'MENU_ADAPTER_NOT_READY');
 -- Only the fixture opts in. Production candidate ships ALL adapters disabled.
 update menu_authority_catalog set adapter_ready=true where menu_key='employee.manage';

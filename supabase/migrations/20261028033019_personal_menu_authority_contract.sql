@@ -88,8 +88,17 @@ $$;
 alter function public.private_actor_capabilities() rename to private_actor_capabilities_before_menu_authority;
 revoke all on function public.private_actor_capabilities_before_menu_authority() from public,anon,authenticated;
 create function public.private_actor_capabilities()
-returns text[] language sql stable security definer set search_path='' as $$
- select coalesce(array_agg(distinct candidate.code order by candidate.code),'{}'::text[])
+returns text[] language plpgsql stable security definer set search_path='' as $$
+begin
+ if not public.current_profile_is_active() then return '{}'::text[]; end if;
+ -- The common role-only path keeps the proven resolver. Do not expand the
+ -- whole menu catalog per capability, per notice, when no personal decision exists.
+ if public.private_menu_authority_manager() or not exists(
+   select 1 from public.profile_menu_authority g where g.profile_id=auth.uid()
+ ) then
+  return public.private_actor_capabilities_before_menu_authority();
+ end if;
+ return (select coalesce(array_agg(distinct candidate.code order by candidate.code),'{}'::text[])
  from (
    select unnest(public.private_actor_capabilities_before_menu_authority()) as code
    union
@@ -105,7 +114,8 @@ returns text[] language sql stable security definer set search_path='' as $$
    -- check its own menu denial; capability membership alone is insufficient.
    and not exists(select 1 from public.menu_authority_catalog granted
      where candidate.code=any(granted.capabilities) and public.private_menu_granted(granted.menu_key))
- ));
+ )));
+end;
 $$;
 
 create function public.get_my_menu_authority()

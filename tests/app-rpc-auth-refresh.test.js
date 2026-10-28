@@ -93,3 +93,12 @@ test('a late inline password response cannot restore a changed session',async()=
  api.state.session=null;release(response(200,fresh()));
  await assert.rejects(()=>pending);assert.equal(api.state.session,null);
 });
+
+test('token-only handoff sessions resolve identity from Auth before inline confirmation',async()=>{
+ const calls=[];
+ const api=harness(async url=>{calls.push(url);return url.endsWith('/auth/v1/user')
+  ?response(200,{id:'ops-fixture',email:'actor@example.test'}):response(200,fresh());});
+ delete api.state.session.user;
+ assert.equal(await api.reauthenticate('synthetic-current-password'),true);
+ assert.deepEqual(calls,['https://isolated.invalid/auth/v1/user','https://isolated.invalid/auth/v1/token?grant_type=password']);
+});

@@ -74,6 +74,7 @@ try{
   await page.getByText('합성 본인 확인 실패',{exact:true}).waitFor();
   assert.equal(await page.getByLabel('내 로그인 비밀번호',{exact:true}).inputValue(),'');
   assert.equal(await page.evaluate(()=>resetCalls),1,'incorrect credential never retries reset');
+  await page.screenshot({path:path.join(output,'reset-inline-confirmation-'+width+(preview?'-preview':'-local')+'.png'),fullPage:true});
   await page.evaluate(()=>window.reauthFailure=false);
   await page.getByLabel('내 로그인 비밀번호',{exact:true}).fill('synthetic-local-password');
   await page.getByRole('button',{name:'본인 확인 후 계속',exact:true}).click();
