@@ -9,9 +9,11 @@ const docker = args => execFileSync('docker', args, { encoding: 'utf8', stdio: [
 try {
   docker(['run','--detach','--rm','--network','none','--name',name,
     '-e','POSTGRES_HOST_AUTH_METHOD=trust','postgres:17-alpine']);
+  // The image init server accepts Unix sockets before its final restart.
+  // TCP readiness must succeed so psql cannot race that temporary server.
   let ready = false;
   for (let i = 0; i < 100; i++) {
-    try { docker(['exec',name,'pg_isready','-U','postgres']); ready = true; break; } catch {}
+    try { docker(['exec',name,'pg_isready','-h','127.0.0.1','-U','postgres']); ready = true; break; } catch {}
     await setTimeout(100);
   }
   if (!ready) throw new Error('Isolated PostgreSQL did not become ready');
@@ -116,7 +118,7 @@ select test_assert(not ('employee.view_scoped'=any(private_actor_capabilities())
 select test_assert((select count(*)=3 from synthetic_audit),'grant and revocations audited exactly once');
 select test_assert((select count(*)=2 from profile_menu_authority),'failed and stale calls created no grants');
 `;
-  const result = execFileSync('docker',['exec','-i',name,'psql','-U','postgres','-v','ON_ERROR_STOP=1'],
+  const result = execFileSync('docker',['exec','-i',name,'psql','-h','127.0.0.1','-U','postgres','-v','ON_ERROR_STOP=1'],
     { input: bootstrap + readFileSync('supabase/migrations/20261028033019_personal_menu_authority_contract.sql','utf8') + assertions + employeeAdapterSql(),
       encoding:'utf8',stdio:['pipe','pipe','pipe'] });
   console.log('PASS: isolated PostgreSQL foundation plus repository employee RPC adapter assertions (synthetic schema/session fixtures; not hosted Auth/Storage)');
