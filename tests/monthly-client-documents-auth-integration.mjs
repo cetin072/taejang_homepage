@@ -123,9 +123,13 @@ try {
   assert.ok((await rpc('monthly_client_documents_copy_previous',worker.token,{p_year:2096,p_month:12})).ok);
   const raw=async table=>{
     const response=await fetch(`${apiUrl}/rest/v1/${table}?select=*`,{headers:{apikey:publishableKey,Authorization:'Bearer '+worker.token}});
-    return {ok:response.ok,data:await response.json()};
+    return {ok:response.ok,status:response.status,data:await response.json()};
   };
-  assert.ok((await raw('monthly_client_document_sets')).data.length>0,'grant applies to existing authenticated RLS');
+  // The policy calls private_actor_can, whose EXECUTE remains private. This
+  // feature intentionally uses definer RPCs; a menu grant never opens raw tables.
+  for (const table of ['monthly_client_document_sets','monthly_client_document_company_defaults']) {
+    const direct=await raw(table);assert.equal(direct.status,403);assert.equal(direct.data.code,'42501');
+  }
   assert.ok((await grantMonthly(false)).ok);
   for (const [name,args] of [
     ['get',{}],['list',{}],['company_defaults',{}],['save_company_defaults',{p_company_defaults:delegatedDefaults.data}],
@@ -134,10 +138,10 @@ try {
     ['copy_previous',{p_year:2097,p_month:1}]
   ]) assert.equal((await rpc('monthly_client_documents_'+name,worker.token,args)).status,403,'revoked direct monthly endpoint '+name);
   for (const table of ['monthly_client_document_sets','monthly_client_document_company_defaults']) {
-    const denied=await raw(table);assert.ok(denied.ok);assert.deepEqual(denied.data,[],'same JWT RLS hides '+table);
+    const denied=await raw(table);assert.equal(denied.status,403);assert.equal(denied.data.code,'42501','same JWT cannot read raw '+table);
   }
   assert.equal(sql(`select jsonb_agg(to_jsonb(r) order by id)::text from public.profile_roles r where profile_id='${worker.id}'`),rolesBefore);
-  console.log('PERSONAL_MENU_MONTHLY_DOCUMENT_AUTH_RLS_PASS');
+  console.log('PERSONAL_MENU_MONTHLY_DOCUMENT_AUTH_RPC_TABLE_GUARD_PASS');
 } finally {
   sql("update public.menu_authority_catalog set adapter_ready=false where menu_key='monthly_client_documents.manage'");
 }
