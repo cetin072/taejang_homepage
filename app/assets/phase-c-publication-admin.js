@@ -154,7 +154,11 @@
     form.className = 'phase-c-board-form app-authoring';
     form.addEventListener('submit', event => event.preventDefault());
     form.append(el('h3', detail.title || item.title || '홍보글'));
-    if (detail.external_url) form.append(el('p', '원본 링크: ' + detail.external_url, 'field-help'));
+    if (detail.external_url) {
+      const source = el('p', '원본 링크: ' + detail.external_url, 'field-help');
+      source.style.overflowWrap = 'anywhere';
+      form.append(source);
+    }
 
     const photoInput = document.createElement('input');
     photoInput.type = 'file';
