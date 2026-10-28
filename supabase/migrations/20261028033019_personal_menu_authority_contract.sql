@@ -130,7 +130,7 @@ begin
  return jsonb_build_object(
    'menus',(select coalesce(jsonb_agg(to_jsonb(c) order by c.menu_key),'[]') from public.menu_authority_catalog c),
    'accounts',(select coalesce(jsonb_agg(jsonb_build_object('id',p.id,'display_name',p.display_name,'account_status',p.account_status) order by p.display_name,p.id),'[]')
-     from public.profiles p where p.account_status in ('active','inactive','suspended') and p.id<>auth.uid()
+     from public.profiles p where p.account_status in ('active','suspended','departed') and p.id<>auth.uid()
      and not exists(select 1 from public.profile_roles pr join public.roles r on r.id=pr.role_id
        where pr.profile_id=p.id and pr.revoked_at is null and r.active
          and r.code in ('operations_manager','super_admin'))),

@@ -1,7 +1,5 @@
 -- Schema-only fixture, no operational rows. Only exercised columns/constraints are modeled.
 create schema private;
-create type public.account_status as enum ('pending','active','inactive','suspended','departed','deleted');
-alter table public.profiles alter column account_status type public.account_status using account_status::public.account_status;
 create table private.employee_sensitive_identity (
 employee_uuid uuid,
 resident_secret_id uuid,
