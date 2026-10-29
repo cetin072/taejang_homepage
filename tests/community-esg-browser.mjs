@@ -35,7 +35,12 @@ try {
         assert.equal(await cards.count(), expected.length);
         const links = await cards.locator('a').evaluateAll(nodes => nodes.map(node => node.getAttribute('href')));
         assert.deepEqual(links, expected.map(id => `activities/environment-cleanup-${id}.html`));
-        await cards.locator('img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
+        // Lazy images outside Chrome's current loading distance are deliberately
+        // not fetched yet. Bring each into view before checking actual decoding.
+        for (const image of await cards.locator('img').all()) {
+          await image.scrollIntoViewIfNeeded();
+          await image.evaluate(img => img.decode(), undefined, { timeout: 15000 });
+        }
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${file} ${width}px ${mode}: no overflow`);
         if (file === 'community-esg.html') {
           assert.equal(await page.getByRole('link', { name: '환경정비 활동 더보기', exact: false }).count(), 2);
@@ -46,6 +51,7 @@ try {
         }
         await cards.first().scrollIntoViewIfNeeded();
         if (mode === 'runtime') await page.screenshot({ path: path.join(output, `${file}-${width}.png`) });
+        console.log(`PASS ${width}px ${mode} ${file}`);
       }
       await context.close();
     }
