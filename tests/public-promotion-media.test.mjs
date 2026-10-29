@@ -10,7 +10,7 @@ const photo = name => origin + '/storage/v1/object/public/promotion-media/' + na
 const id = '11111111-1111-4111-8111-111111111111';
 const row = { content_id: id, title: '공개 소식', content_type: 'homepage_article', public_body: '보존할 본문', public_media: [] };
 
-test('staff-written official blog cards open the source independently of article type or legacy source label', async () => {
+test('staff-written Naver blog cards open the source independently of article type or legacy source label', async () => {
   const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
   let current;
   globalThis.Netlify = { env: { get: name => name === 'SUPABASE_URL' ? origin : 'public-anon-key' } };
@@ -20,7 +20,8 @@ test('staff-written official blog cards open the source independently of article
     for (const external_url of [
       'https://blog.naver.com/taejang-official/224451317599',
       'https://m.blog.naver.com/taejang-official/224451317599?tracking=1',
-      'https://blog.naver.com/PostView.naver?blogId=taejang-official&logNo=224451317599'
+      'https://blog.naver.com/PostView.naver?blogId=taejang-official&logNo=224451317599',
+      'https://blog.naver.com/gnfeel/224377487487'
     ]) {
       for (const link_source_type of ['taejang_blog', 'none', 'external']) {
         current = { ...row, external_url, link_source_type };
@@ -41,7 +42,6 @@ test('staff-written official blog cards open the source independently of article
     for (const external_url of [undefined, '', 'not a URL', 'javascript:alert(1)',
       'http://blog.naver.com/taejang-official/123',
       'https://blog.naver.com.evil.test/taejang-official/123',
-      'https://blog.naver.com/another-blog/123',
       'https://blog.naver.com/taejang-official',
       'https://user:pass@blog.naver.com/taejang-official/123',
       'https://blog.naver.com:444/taejang-official/123',

@@ -34,16 +34,16 @@ function linkPresentation(row) {
 
 function hubItem(row, image) {
   // Linked homepage articles keep their detail page, but their card opens the
-  // official blog directly, just like the existing collected archive cards.
-  let officialBlog = false;
+  // Naver blog directly, just like the existing collected archive cards.
+  let naverBlog = false;
   try {
     const url = new URL(row.external_url);
-    officialBlog = url.protocol === 'https:' && !url.username && !url.password && !url.port
-      && normalizeNaverBlogTarget(url.href)?.blogId === 'taejang-official';
+    naverBlog = url.protocol === 'https:' && !url.username && !url.password && !url.port
+      && Boolean(normalizeNaverBlogTarget(url.href));
   } catch { /* Missing/invalid links keep the homepage detail destination. */ }
-  const external = officialBlog
+  const external = naverBlog
     || (row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || ''));
-  const link = officialBlog
+  const link = naverBlog
     ? { source: 'naver-blog', label: '네이버 블로그에서 보기' }
     : linkPresentation(row);
   return {
