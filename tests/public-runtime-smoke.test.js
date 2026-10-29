@@ -397,9 +397,10 @@ function runHeroRuntime() {
   assert.equal(slider.dataset.heroVideoActive, '1', '키보드 방향키로도 영상 슬라이드를 이동합니다');
 }
 
-function runCommunityRuntime(activities) {
+function runCommunityRuntime(activities, limit) {
   const document = new MockDocument();
   const list = new MockElement('div', { dataset: { communityEsgRecords: '', staticFallback: 'community-esg' } });
+  if (limit !== undefined) list.dataset.communityEsgLimit = String(limit);
   for (let index = 0; index < 2; index += 1) {
     list.appendChild(new MockElement('article', { dataset: { staticFallbackCard: '' } }));
   }
@@ -442,6 +443,17 @@ function runCommunityFallbackRuntime() {
   assert.equal(runtime.list.children.length, 1, '동적 활동 데이터가 있으면 fallback을 최신 승인 데이터로 교체합니다');
   assert.equal(runtime.count.textContent, '현재 공개된 활동 1건');
   assert.equal(runtime.list.children[0].className, 'community-esg-record');
+  const source = { window: {} };
+  vm.runInNewContext(read('assets/js/content.js'), source);
+  const all = source.window.TAEJANG_CONTENT.activities;
+  const recent = runCommunityRuntime(all, 3);
+  const full = runCommunityRuntime(all);
+  const titles = state => state.list.children.map(card => card.children[0].children[1].children[1].textContent);
+  assert.deepEqual(titles(recent), ['다섯 번째 환경정비 활동을 진행했습니다', '네 번째 환경정비 활동을 진행했습니다', '세 번째 환경정비 활동을 진행했습니다']);
+  assert.equal(full.list.children.length, 5);
+  assert.equal(titles(full).at(-1), '첫 환경정비 활동을 진행했습니다');
+  assert.equal(recent.count.textContent, '전체 5건 중 최근 3건');
+  assert.equal(full.count.textContent, '현재 공개된 활동 5건');
 }
 
 function assertInquiryFormContract() {
