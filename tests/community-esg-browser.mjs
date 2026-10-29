@@ -39,7 +39,13 @@ try {
         // not fetched yet. Bring each into view before checking actual decoding.
         for (const image of await cards.locator('img').all()) {
           await image.scrollIntoViewIfNeeded();
-          await image.evaluate(img => img.decode(), undefined, { timeout: 15000 });
+          if (mode === 'no-js') {
+            // Full Chrome can leave decode() promises pending with scripting off;
+            // the completed navigation already waits for these non-lazy images.
+            assert.ok(await image.evaluate(img => img.complete && img.naturalWidth > 0));
+          } else {
+            await image.evaluate(img => img.decode(), undefined, { timeout: 15000 });
+          }
         }
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${file} ${width}px ${mode}: no overflow`);
         if (file === 'community-esg.html') {
