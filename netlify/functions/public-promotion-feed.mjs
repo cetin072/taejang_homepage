@@ -1,4 +1,5 @@
 import '../../assets/js/public-promotion-media.js';
+import { normalizeNaverBlogTarget } from './external-content-meta.mjs';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -32,8 +33,19 @@ function linkPresentation(row) {
 }
 
 function hubItem(row, image) {
-  const external = row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || '');
-  const link = linkPresentation(row);
+  // Linked homepage articles keep their detail page, but their card opens the
+  // official blog directly, just like the existing collected archive cards.
+  let officialBlog = false;
+  try {
+    const url = new URL(row.external_url);
+    officialBlog = url.protocol === 'https:' && !url.username && !url.password && !url.port
+      && normalizeNaverBlogTarget(url.href)?.blogId === 'taejang-official';
+  } catch { /* Missing/invalid links keep the homepage detail destination. */ }
+  const external = officialBlog
+    || (row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || ''));
+  const link = officialBlog
+    ? { source: 'naver-blog', label: '네이버 블로그에서 보기' }
+    : linkPresentation(row);
   return {
     id: `promotion-${row.content_id}`,
     type: external ? 'external' : 'internal',

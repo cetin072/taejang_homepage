@@ -10,6 +10,52 @@ const photo = name => origin + '/storage/v1/object/public/promotion-media/' + na
 const id = '11111111-1111-4111-8111-111111111111';
 const row = { content_id: id, title: '공개 소식', content_type: 'homepage_article', public_body: '보존할 본문', public_media: [] };
 
+test('staff-written official blog cards open the source independently of article type or legacy source label', async () => {
+  const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
+  let current;
+  globalThis.Netlify = { env: { get: name => name === 'SUPABASE_URL' ? origin : 'public-anon-key' } };
+  globalThis.fetch = async () => Response.json([current]);
+  const list = async () => (await (await feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed?format=json'))).json()).items[0];
+  try {
+    for (const external_url of [
+      'https://blog.naver.com/taejang-official/224451317599',
+      'https://m.blog.naver.com/taejang-official/224451317599?tracking=1',
+      'https://blog.naver.com/PostView.naver?blogId=taejang-official&logNo=224451317599'
+    ]) {
+      for (const link_source_type of ['taejang_blog', 'none', 'external']) {
+        current = { ...row, external_url, link_source_type };
+        const before = JSON.stringify(current);
+        const item = await list();
+        assert.equal(item.type, 'external');
+        assert.equal(item.source, 'naver-blog');
+        assert.equal(item.externalLabel, '네이버 블로그에서 보기');
+        assert.equal(item.externalUrl, external_url);
+        assert.equal(item.category, '회사소식');
+        assert.equal(item.thumbnail, policy.DEFAULT_IMAGE);
+        assert.equal(item.detailUrl, undefined);
+        const detail = await (await feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed?id=' + id))).json();
+        assert.equal(detail.item.public_body, row.public_body, 'existing detail remains available');
+        assert.equal(JSON.stringify(current), before, 'published data must not be rewritten');
+      }
+    }
+    for (const external_url of [undefined, '', 'not a URL', 'javascript:alert(1)',
+      'http://blog.naver.com/taejang-official/123',
+      'https://blog.naver.com.evil.test/taejang-official/123',
+      'https://blog.naver.com/another-blog/123',
+      'https://blog.naver.com/taejang-official',
+      'https://user:pass@blog.naver.com/taejang-official/123',
+      'https://blog.naver.com:444/taejang-official/123',
+      'https://example.org/reference']) {
+      current = { ...row, external_url, link_source_type: 'taejang_blog' };
+      const item = await list();
+      assert.equal(item.type, 'internal', String(external_url));
+      assert.equal(item.detailUrl, 'promotion.html?id=' + id);
+    }
+    current = { ...row, content_type: 'external_content', external_url: 'https://example.org/article', link_source_type: 'external' };
+    assert.equal((await list()).externalUrl, current.external_url, 'existing external cards remain direct');
+  } finally { Object.assign(globalThis, previous); }
+});
+
 test('unselected imported heroes, including mislabeled none, signed and foreign URLs never become public images', () => {
   for (const link_source_type of ['none', 'external', 'taejang_blog']) {
     assert.deepEqual(policy.candidates({ ...row, link_source_type, hero_image_url: 'https://blogthumb.pstatic.net/imported.jpg' }), [policy.DEFAULT_IMAGE]);
