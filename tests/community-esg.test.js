@@ -20,7 +20,7 @@ const firstRecord = activities.find((item) => item.id === 'environment-cleanup-f
 const secondRecord = activities.find((item) => item.id === 'environment-cleanup-second');
 const thirdRecord = activities.find((item) => item.id === 'environment-cleanup-third');
 
-assert.deepEqual(Array.from(activities.filter((item) => item.series === 'community-esg'), (item) => item.id), ['environment-cleanup-first', 'environment-cleanup-second', 'environment-cleanup-third']);
+assert.deepEqual(Array.from(activities.filter((item) => item.series === 'community-esg'), (item) => item.id), ['environment-cleanup-first', 'environment-cleanup-second', 'environment-cleanup-third', 'environment-cleanup-fourth', 'environment-cleanup-fifth']);
 assert.equal(firstRecord.date, '2026.07.24');
 assert.equal(firstRecord.series, 'community-esg');
 assert.equal(firstRecord.hub.category, 'ESG·사회공헌');
@@ -50,17 +50,30 @@ assert.match(communityPage, /partnership\.html#contact/);
 assert.match(communityPage, /canonical" href="https:\/\/taejang\.co\.kr\/community-esg\.html/);
 assert.match(communityPage, /data-static-fallback="community-esg"/, '지역사회공헌 기록은 JS 없이도 정적 fallback을 제공합니다');
 assert.equal((communityPage.match(/data-static-fallback-card/g) || []).length, 3, '환경정비 기록 3건을 정적 fallback으로 유지합니다');
-assert.ok(communityPage.indexOf('세 번째 환경정비 활동을 진행했습니다') < communityPage.indexOf('두 번째 환경정비 활동을 진행했습니다'), '3차 활동은 최신순 첫 기록입니다');
-assert.ok(communityPage.indexOf('두 번째 환경정비 활동을 진행했습니다') < communityPage.indexOf('첫 환경정비 활동을 진행했습니다'), '정적 fallback은 최신순을 유지합니다');
-assert.match(communityPage, /현재 공개된 활동 3건/, 'JS 실행 전에도 현재 공개 건수를 안내합니다');
-assert.match(communityPage, /assets\/images\/business\/environment-cleanup-group\.webp/);
-assert.match(communityPage, /assets\/images\/archive\/environment-cleanup-first\.webp/);
+const archivePage = read('community-esg-records.html');
+const previewIds = [...communityPage.matchAll(/<article class="community-esg-record"[\s\S]*?href="activities\/([^"/]+)\.html"/g)].map(match => match[1]);
+const archiveIds = [...archivePage.matchAll(/<article class="community-esg-record"[\s\S]*?href="activities\/([^"/]+)\.html"/g)].map(match => match[1]);
+assert.deepEqual(previewIds, ['environment-cleanup-fifth', 'environment-cleanup-fourth', 'environment-cleanup-third']);
+assert.deepEqual(archiveIds, [...previewIds, 'environment-cleanup-second', 'environment-cleanup-first']);
+assert.equal((communityPage.match(/href="community-esg-records\.html"/g)||[]).length, 2, 'top and bottom links open the full archive');
+assert.match(communityPage, /data-community-esg-limit="3"/);
+assert.match(communityPage, /전체 5건 중 최근 3건/);
+assert.match(archivePage, /현재 공개된 활동 5건/);
+assert.match(archivePage, /canonical" href="https:\/\/taejang\.co\.kr\/community-esg-records\.html/);
+for (const [word,date] of [['fourth','2026.10.14'],['fifth','2026.10.23']]) {
+  const item = activities.find(item => item.id === 'environment-cleanup-'+word);
+  assert.equal(item.date, date);
+  assert.equal(item.thumbnailDetail,'natural');
+  assert.ok(fs.existsSync(path.join(root,item.thumbnail)));
+}
+assert.match(read('scripts/build-netlify-publish.mjs'), /'community-esg-records\.html'/);
+assert.match(read('sitemap.xml'), /community-esg-records\.html/);
 
 assert.match(communityScript, /activity\.series === 'community-esg'/);
 assert.ok(communityScript.includes('activities/${encodeURIComponent(activity.id)}.html'));
 assert.match(communityScript, /const staticFallbackCount = list\.querySelectorAll\('\[data-static-fallback-card\]'\)\.length/);
 assert.match(communityScript, /if \(!records\.length\) \{[\s\S]*?staticFallbackCount[\s\S]*?return;/, '동적 데이터가 없으면 정적 fallback을 지우지 않습니다');
-assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/, '동적 데이터가 있으면 정적 fallback을 최신 데이터로 교체합니다');
+assert.match(communityScript, /list\.replaceChildren\(\.\.\.visibleRecords\.map/, '동적 데이터가 있으면 정적 fallback을 최신 데이터로 교체합니다');
 assert.doesNotMatch(communityScript, /list\.hidden = true/, '동적 데이터 누락을 이유로 승인된 정적 기록을 숨기지 않습니다');
 assert.match(communityScript, /const imageSource = activity\.thumbnail \|\| activity\.hero \|\| activity\.thumb \|\| ''/);
 assert.match(communityScript, /if \(imageSource\)/);

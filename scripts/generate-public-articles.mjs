@@ -57,6 +57,8 @@ function paragraphs(item) {
 
 function renderArticle(group, item, siblings) {
   const itemPath = articlePath(group, item);
+  const listPage = item.series === 'community-esg' ? 'community-esg-records.html' : group.page;
+  const listLabel = item.series === 'community-esg' ? '환경정비 활동' : group.label;
   const date = String(item.date || '');
   const isoDate = date.replaceAll('.', '-');
   const source = item.thumbnail || item.hero || item.thumb || '';
@@ -76,7 +78,7 @@ function renderArticle(group, item, siblings) {
   const body = [
     '<main id="main-content">',
     '<section class="section"><div class="container">',
-    '<a class="back-link" href="' + group.page + '">← ' + group.label + ' 목록으로</a>',
+    '<a class="back-link" href="' + listPage + '">← ' + listLabel + ' 목록으로</a>',
     '<article class="article">',
     '<header class="article-header">',
     '<div class="article-meta"><span class="tag">' + htmlText(item.category) +
@@ -88,7 +90,7 @@ function renderArticle(group, item, siblings) {
       (gallery ? '<div class="article-gallery">' + gallery + '</div>' : '') + '</div>',
     related ? '<section class="related-posts" aria-label="관련 이야기"><h2>다른 태장 이야기</h2><div class="related-posts-grid">' +
       related + '</div></section>' : '',
-    '<a class="back-link back-link--bottom" href="' + group.page + '">← 목록으로</a>',
+    '<a class="back-link back-link--bottom" href="' + listPage + '">← 목록으로</a>',
     '</article></div></section>',
     '</main>'
   ].join('\n');

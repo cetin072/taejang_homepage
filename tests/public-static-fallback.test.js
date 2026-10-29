@@ -43,8 +43,8 @@ assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >
 assert.match(communityFallback, /activities\/environment-cleanup-third\.html/);
 assert.match(archiveFallback, /activities\/environment-cleanup-third\.html/);
 assert.match(activityFallback, /activities\/environment-cleanup-third\.html/);
-assert.match(communityFallback, /activities\/environment-cleanup-second\.html/);
-assert.match(communityFallback, /activities\/environment-cleanup-first\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-fourth\.html/);
+assert.match(communityFallback, /activities\/environment-cleanup-fifth\.html/);
 
 assert.doesNotMatch(index, /data-recent-activities\s+hidden/, '메인 활동 기록은 JS 없이도 표시되어야 합니다');
 
@@ -60,7 +60,7 @@ for (const title of approvedActivityTitles) {
   assert.match(activityFallback, new RegExp(title), `${title}은 활동 목록 fallback에 있어야 합니다`);
 }
 
-for (const title of ['세 번째 환경정비 활동을 진행했습니다', '두 번째 환경정비 활동을 진행했습니다', '첫 환경정비 활동을 진행했습니다']) {
+for (const title of ['다섯 번째 환경정비 활동을 진행했습니다', '네 번째 환경정비 활동을 진행했습니다', '세 번째 환경정비 활동을 진행했습니다']) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
   assert.match(communityFallback, new RegExp(title), `${title}은 community-esg fallback에 있어야 합니다`);
 }
@@ -79,7 +79,7 @@ for (const title of approvedWorkplaceTitles) {
 assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(createActivityCard\)\)/);
 assert.match(contentHub, /list\.replaceChildren\(\.\.\.visible\.map\(\(item\) => createCard\(item, 'h2'\)\)\)/);
 assert.match(listing, /list\.innerHTML = items\.length[\s\S]*?items\.map\(card\)\.join\(''\)/);
-assert.match(communityScript, /list\.replaceChildren\(\.\.\.records\.map/);
+assert.match(communityScript, /list\.replaceChildren\(\.\.\.visibleRecords\.map/);
 
 // Missing runtime data is a degradation state, not a reason to erase approved HTML.
 assert.match(homePreviews, /if \(container\.dataset\.staticFallback\)[\s\S]*?section\.hidden = false/);

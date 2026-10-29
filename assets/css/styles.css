@@ -215,6 +215,10 @@ button{cursor:pointer}
 .card-media img[src$="environment-cleanup-third.webp"],
 .community-esg-record-media img[src$="environment-cleanup-third.webp"]{object-fit:contain}
 .card:hover .card-media img[src$="environment-cleanup-third.webp"]{transform:none}
+.card-media img[src$="environment-cleanup-fourth.webp"],
+.card-media img[src$="environment-cleanup-fifth.webp"]{object-fit:contain}
+.card:hover .card-media img[src$="environment-cleanup-fourth.webp"],
+.card:hover .card-media img[src$="environment-cleanup-fifth.webp"]{transform:none}
 .card-media--notice{display:grid;place-items:center;align-content:center;gap:10px;padding:22px;background:var(--green-soft);color:var(--green-deep);text-align:center}
 .notice-media-label{font:700 22px var(--myeongjo)}
 .card-body{padding:22px}

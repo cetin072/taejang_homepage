@@ -320,6 +320,46 @@ window.TAEJANG_CONTENT = {
       ]
     },
     {
+      id: "environment-cleanup-fourth",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.10.14",
+      title: "네 번째 환경정비 활동을 진행했습니다",
+      summary: "태장은 2026년 10월 14일 네 번째 지역사회 환경정비 활동을 진행했습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/archive/environment-cleanup-fourth.webp",
+      thumbnailAlt: "2026.10.14 환경정비 활동 현수막 앞에 모인 태장 참여자들의 단체사진",
+      thumbnailDetail: "natural",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      sections: [
+        { paragraphs: ["태장은 2026년 10월 14일 네 번째 환경정비 활동을 진행했습니다."] },
+        { heading: "사진으로 남긴 활동 기록", paragraphs: ["이번 환경정비 활동에 함께한 참여자들의 모습을 단체사진으로 기록했습니다."] }
+      ]
+    },
+    {
+      id: "environment-cleanup-fifth",
+      status: "published",
+      category: "환경·사회공헌",
+      date: "2026.10.23",
+      title: "다섯 번째 환경정비 활동을 진행했습니다",
+      summary: "태장은 2026년 10월 23일 다섯 번째 지역사회 환경정비 활동을 진행했습니다.",
+      series: "community-esg",
+      thumbnail: "assets/images/archive/environment-cleanup-fifth.webp",
+      thumbnailAlt: "우리 손으로 깨끗하게! 문구와 팔용근린공원 환경정화 활동 참여자들의 모습이 담긴 이미지",
+      thumbnailDetail: "natural",
+      hub: { category: "ESG·사회공헌", featured: true },
+      thumb: null,
+      hero: null,
+      gallery: [],
+      sections: [
+        { paragraphs: ["태장은 2026년 10월 23일 다섯 번째 환경정비 활동을 진행했습니다."] },
+        { heading: "사진으로 남긴 활동 기록", paragraphs: ["이번 환경정비 활동에 함께한 참여자들의 모습을 단체사진으로 기록했습니다."] }
+      ]
+    },
+    {
       id: "standard-workplace-certification",
       status: "published",
       category: "회사 소식",
