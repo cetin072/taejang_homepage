@@ -199,7 +199,6 @@
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
     if (item.dataKey === 'payroll-mvp') node.dataset.payrollMvpNav = '1';
-    if (item.dataKey === 'payroll-handoff-review' || item.dataKey === 'payroll-handoff-submit') node.dataset.payrollHandoffNav = '1';
     if (item.dataKey === 'promotion-write') {
       node.dataset.promotionWriteNav = '1';
       node.dataset.phaseCV2Nav = 'write';
@@ -325,22 +324,6 @@
         href: 'payroll/live.html',
         dataKey: 'payroll-mvp',
         capabilities: ['payroll.manage'],
-        newTab: true
-      },
-      {
-        key: 'payroll.handoff.review',
-        label: '외부 급여초안 상신',
-        href: 'payroll/handoff.html',
-        dataKey: 'payroll-handoff-submit',
-        capabilities: ['payroll.handoff.review'],
-        newTab: true
-      },
-      {
-        key: 'payroll.handoff.approve',
-        label: '외부 급여초안 검토',
-        href: 'payroll/handoff.html',
-        dataKey: 'payroll-handoff-review',
-        capabilities: ['payroll.handoff.approve'],
         newTab: true
       },
       {

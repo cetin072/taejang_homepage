@@ -20,12 +20,9 @@ test('full phase-1 payroll management remains server-authorized for operations w
   assert.match(cards, /currentRoute !== 'operations_manager'/i);
 });
 
-test('promotion lead handoff and full payroll management remain separate capabilities in the shared sidebar', () => {
+test('full payroll management remains available after removing external handoff', () => {
   assert.match(nav, /capabilityAllowed\('payroll\.manage'/);
-  assert.match(nav, /capabilityAllowed\('payroll\.handoff\.review'/);
-  assert.match(nav, /capabilityAllowed\('payroll\.handoff\.approve'/);
-  assert.match(nav, /'외부 급여초안 상신'/);
-  assert.match(nav, /'외부 급여초안 검토'/);
+  assert.doesNotMatch(nav, /외부 급여초안|payroll\.handoff/);
   assert.match(nav, /'근태·급여관리'/);
 
   const cardBlock = cards.slice(cards.indexOf('const CARD_ORDER'), cards.indexOf('const OPERATIONS_DASHBOARD_HIDDEN'));

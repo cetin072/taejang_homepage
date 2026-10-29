@@ -8,7 +8,6 @@ const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf
 const sql = read('supabase/migrations/20260918090350_payroll_draft_handoff.sql');
 const nav = read('app/assets/role-navigation-priority.js');
 const page = read('app/payroll/handoff.html');
-const ui = read('app/assets/payroll-draft-handoff.js');
 const contract = read('docs/planning/PAYROLL_DRAFT_HANDOFF_CONTRACT_V1.md');
 
 test('approved contract uses external payroll draft identity as authoritative handoff source', () => {
@@ -33,8 +32,6 @@ test('approved six-state workflow is preserved exactly and includes rejection', 
     assert.match(sql, new RegExp("['\"]" + state + "['\"]", 'i'));
   }
   assert.doesNotMatch(sql, /submitted_to_operations|operations_approved/i);
-  assert.match(ui, /rejected/i);
-  assert.match(ui, /approved/i);
 });
 
 test('duplicate and revision semantics are keyed by external draft revision', () => {
@@ -72,22 +69,16 @@ test('audit contract records explicit state transition and external draft identi
   }
 });
 
-test('handoff UI exposes approved aggregate review summary without employee-sensitive detail', () => {
-  assert.match(nav, /payroll\/handoff\.html/);
-  assert.match(page, /assets\/payroll-draft-handoff\.js/);
-
-  for (const field of [
-    /external[_-]?draft/i,
-    /revision/i,
-    /employee[_-]?count/i,
-    /exception|review[_-]?required|unresolved/i,
-    /gross|총\s*급여|총액/i
-  ]) {
-    assert.match(ui, field);
+test('retired handoff URL is inert and navigation cannot restore the removed feature', () => {
+  assert.match(page, /외부 급여 초안 기능이 종료되었습니다/);
+  assert.match(page, /href="\.\.\/"/);
+  assert.doesNotMatch(page, /<script|<form|<button|payroll-draft-handoff/);
+  for (const file of ['role-navigation-priority.js', 'dashboard-shell.js', 'platform-navigation-registry.js', 'capability-ui-gates.js']) {
+    assert.doesNotMatch(read('app/assets/' + file), /payroll\.handoff|payroll\/handoff|외부 급여초안/);
   }
-
-  assert.doesNotMatch(page, /resident|주민등록|bank_account|계좌번호|disability|장애정보|health|건강정보/i);
-  assert.doesNotMatch(ui, /resident|주민등록|bank_account|계좌번호|disability|장애정보|health|건강정보/i);
+  for (const extension of ['js', 'css']) {
+    assert.equal(fs.existsSync(path.join(root, 'app/assets/payroll-draft-handoff.' + extension)), false);
+  }
 });
 
 test('separate payroll project has a protected pull/read decision contract', () => {

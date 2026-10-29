@@ -112,7 +112,6 @@ test('attendance roster remains visible when secondary RPCs are unavailable', ()
 test('all payroll standalone pages prioritize localStorage and migrate legacy sessions without token URLs', () => {
   const pages = [
     'app/assets/payroll-operator-live.js',
-    'app/assets/payroll-draft-handoff.js',
     'app/assets/payroll-payslip-draft.js',
     'app/assets/payroll-attendance-editor.js'
   ].map(read);
