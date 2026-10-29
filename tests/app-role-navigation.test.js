@@ -189,7 +189,7 @@ test('promotion sidebar visibility follows role work while retaining capabilitie
 
   assert.equal(menuLabels(promotion.nav).filter(label => label.startsWith('공지')).join(','), '공지 관리');
   assert.equal(menuLabels(lead.nav).filter(label => /급여/.test(label)).length, 0, 'lead has no payroll menu even with stale capabilities');
-  assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '외부 급여초안 검토');
+  assert.equal(menuLabels(operations.nav).filter(label => label.startsWith('외부 급여초안')).join(','), '');
 
   findMenu(promotion.nav, '홍보 글 작성').click(); await nextTurn();
   findMenu(promotion.nav, '보완 요청받은 글').click(); await nextTurn();
@@ -260,7 +260,7 @@ test('central navigation uses one master order and section contract for every de
     '발행 관리', '공개 홍보글 관리',
     '홈페이지 내용 관리', '홈페이지 직접 수정',
     '공지 관리',
-    '출근부', '근태 보정', '근태·급여관리', '외부 급여초안 상신', '외부 급여초안 검토',
+    '출근부', '근태 보정', '근태·급여관리',
     '기업 프로필', '지원사업 레이더', '내 지원사업',
     '신규 사업 기획'
   ]);

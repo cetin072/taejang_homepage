@@ -31,8 +31,6 @@
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
     { key:'payroll.manage', label:'근태·급여관리', section:'근태·급여', capabilities:['payroll.manage'], visibleRoles:['operations_manager'] },
-    { key:'payroll.handoff.review', label:'외부 급여초안 상신', section:'근태·급여', capabilities:['payroll.handoff.review'], visibleRoles:[] },
-    { key:'payroll.handoff.approve', label:'외부 급여초안 검토', section:'근태·급여', capabilities:['payroll.handoff.approve'], visibleRoles:['operations_manager'] },
 
     { key:'support.profile', label:'기업 프로필', section:'지원사업', capabilities:['support_radar.management_view','support_radar.management_edit'] },
     { key:'support.radar', label:'지원사업 레이더', section:'지원사업', capabilities:['support_radar.management_view'] },

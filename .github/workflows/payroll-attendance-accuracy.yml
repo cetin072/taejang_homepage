@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install existing browser test dependencies
+        run: npm ci
+
       - name: Run current platform, public and payroll regression
         run: npm test
 
@@ -48,7 +51,7 @@ jobs:
       - name: Run operations manager PC platform entry smoke
         run: node tests/payroll-platform-entry-browser.mjs
 
-      - name: Run promotion lead payroll handoff browser smoke
+      - name: Verify retired payroll handoff URL is inert
         run: node tests/payroll-draft-handoff-browser.mjs
 
       - name: Run payroll PC operator happy-path smoke
