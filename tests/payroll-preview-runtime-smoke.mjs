@@ -44,7 +44,12 @@ const handoffResponse = await fetchReady('/app/payroll/handoff.html');
 assertStayedOnPreview(handoffResponse, 'payroll handoff page');
 const handoffHtml = await handoffResponse.text();
 assert.match(handoffHtml, /외부 급여 초안 기능이 종료되었습니다/);
-assert.doesNotMatch(handoffHtml, /<script|<form|<button|payroll-draft-handoff/);
+// Netlify injects its review toolbar into Deploy Previews after publication.
+// Permit only that exact platform script; application scripts remain forbidden.
+const retiredApplicationHtml = handoffHtml.replace(
+  /<script async src="\/\.netlify\/scripts\/cdp"><\/script>/g, ''
+);
+assert.doesNotMatch(retiredApplicationHtml, /<script|<form|<button|payroll-draft-handoff/);
 
 for (const path of [
   '/app/assets/payroll-attendance-editor.js',
