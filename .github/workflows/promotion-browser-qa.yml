@@ -46,6 +46,11 @@ jobs:
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 
+      - name: Verify existing and new blog card direct navigation
+        env:
+          PROMOTION_QA_OUTPUT: admin-ui-qa-artifacts/promotion-blog-cards
+        run: node tests/promotion-blog-card-browser.mjs
+
       - name: Verify employee credential reset PC and mobile flow
         run: node tests/employee-password-reset-browser.mjs
 
