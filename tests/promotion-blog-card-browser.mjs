@@ -41,6 +41,7 @@ await mkdir(output, { recursive: true });
 try {
   for (const width of [320, 390, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 1000 } });
+    await context.route('https://taejang.co.kr/images/og-taejang.png', route => route.fulfill({ contentType: 'image/png', path: path.join(root, 'images/og-taejang.png') }));
     await context.route('https://blog.naver.com/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>원문 목적지</h1>' }));
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -48,6 +49,8 @@ try {
     const card = page.locator('[data-hub-list] article').filter({ hasText: '직원 블로그 소식' });
     const link = card.locator('a.card-link');
     await link.waitFor();
+    await link.locator('img').scrollIntoViewIfNeeded();
+    await link.locator('img').evaluate(image => image.decode());
     assert.equal(await link.getAttribute('href'), source);
     assert.equal(await link.getAttribute('target'), '_blank');
     assert.match(await link.getAttribute('rel'), /noopener noreferrer/);
