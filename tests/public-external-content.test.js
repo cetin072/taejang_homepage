@@ -125,7 +125,16 @@ const archiveDocument = {
 vm.runInNewContext(externalContent, { window: archiveWindow, document: archiveDocument });
 
 const archiveItems = archiveWindow.TAEJANG_CONTENT.hub;
-assert.equal(archiveItems.length, 12, '아카이브에서는 기존 7건 + 검증된 언론보도 5건을 함께 제공해야 합니다');
+assert.equal(archiveItems.length, 13, '아카이브는 기존 12건과 경남공감 소개 카드 1건을 제공해야 합니다');
+const gonggam = archiveItems.find(item => item.id === 'promotion-5afa2df3-d796-4dba-aa2a-26bd68308b4a');
+assert.equal(gonggam.type, 'external');
+assert.equal(gonggam.publisher, '경남공감');
+assert.equal(gonggam.thumbnail, 'assets/images/home/gonggam-taejang-team-960.webp');
+assert.ok(fs.existsSync(path.join(root, gonggam.thumbnail)));
+assert.match(gonggam.summary, /2026년 10월호/);
+assert.equal(gonggam.publishedAt, '2026-10-26');
+assert.equal(new URL(gonggam.externalUrl).searchParams.get('ggSeq'), '41900');
+assert.equal(gonggam.externalLabel, '경남공감 기사 바로 보기');
 const pressItems = archiveItems.filter(item => item.id.startsWith('press-'));
 assert.equal(pressItems.length, 5, '이번 언론보도 백필은 원문 링크가 확인된 5건이어야 합니다');
 assert.equal(new Set(pressItems.map(item => item.thumbnail)).size, 5, '언론보도 5건은 서로 다른 태장 보유 썸네일을 사용해야 합니다');
@@ -157,6 +166,6 @@ for (const item of pressItems) {
 
 assert.equal(new Set(archiveItems.map(item => item.id)).size, archiveItems.length, '아카이브 외부 콘텐츠 ID는 중복되면 안 됩니다');
 vm.runInNewContext(externalContent, { window: archiveWindow, document: archiveDocument });
-assert.equal(archiveWindow.TAEJANG_CONTENT.hub.length, 12, '아카이브 백필을 다시 실행해도 중복 등록하면 안 됩니다');
+assert.equal(archiveWindow.TAEJANG_CONTENT.hub.length, 13, '아카이브 백필을 다시 실행해도 중복 등록하면 안 됩니다');
 
 console.log('public-external-content tests: all cases passed');

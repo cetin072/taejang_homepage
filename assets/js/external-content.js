@@ -8,6 +8,25 @@
   // 기사 사진은 언론사 저작물을 복제하지 않고, 기사 내용과 가까운 태장 자체 보유 사진을 각각 다르게 사용합니다.
   const archivePressItems = [
     {
+      // Reuse the existing published record ID so the live feed cannot add a
+      // second card for the same article. Its original detail page is retained.
+      id: 'promotion-5afa2df3-d796-4dba-aa2a-26bd68308b4a',
+      type: 'external',
+      source: 'press',
+      publisher: '경남공감',
+      category: '회사소식',
+      title: '민·관이 함께 만든 장애인 동행 일자리 1호점 태장(주)',
+      summary: '경남공감 2026년 10월호에 태장이 소개됐습니다. 민·관의 협력으로 만들어진 동행 일자리의 시작과, 함께 일하는 태장 식구들의 이야기를 만나보세요.',
+      thumbnail: 'assets/images/home/gonggam-taejang-team-960.webp',
+      thumbnailAlt: '태장 실내 작업 공간에서 여덟 사람이 손하트를 하며 함께 찍은 단체사진',
+      // Keep the existing homepage publication date; the magazine issue is October.
+      publishedAt: '2026-10-26',
+      featured: false,
+      status: 'published',
+      externalUrl: 'https://www.gyeongnam.go.kr/gonggam/index.gyeong?menuCd=DOM_000001514000000000&ggSeq=41900&gg_depth1=12&gg_depth2=02&ggVolumeAndNewOldStatus=163%3ANEW',
+      externalLabel: '경남공감 기사 바로 보기'
+    },
+    {
       id: 'press-yonhap-20260812-taejang',
       type: 'external',
       source: 'press',
