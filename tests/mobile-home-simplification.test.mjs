@@ -71,7 +71,7 @@ test('rendered employee home only mounts attendance, notice and eligible work-pl
     const nodes = renderHome({ account_status: 'active', capabilities });
     const cards = nodes.filter(node => ['AttendanceCard', 'NoticeHomeAction'].includes(node?.type));
     assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'NoticeHomeAction']);
-    const platform = nodes.filter(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기');
+    const platform = nodes.filter(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
     assert.equal(platform.length, capabilities.some(code => ['promotion.write', 'promotion.review_lead', 'employee.view_all'].includes(code)) ? 1 : 0);
     assert.equal(nodes.filter(node => node?.type === 'OfficialChannelsFooter').length, 1);
     assert.equal(nodes.filter(node => node?.props?.accessibilityLabel === '설정').length, 1);
@@ -106,7 +106,7 @@ test('QA defaults to operations team lead and previews the actual employee atten
     const rendered = renderHome({ account_status: 'active', capabilities }, 'ready', true);
     const card = rendered.find(node => node?.type === 'AttendanceCard');
     const toolbar = rendered.find(node => node?.type === 'QaPreviewControls');
-    const platform = rendered.find(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기');
+    const platform = rendered.find(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
     assert.equal(card.props.mode, 'preview');
     assert.equal(card.props.previewScenario, 'today');
     assert.equal(toolbar.props.persona, 'operations_lead');
@@ -119,7 +119,7 @@ test('QA defaults to operations team lead and previews the actual employee atten
 test('QA general employee perspective hides work platform without changing account capabilities', () => {
   const access = { account_status: 'active', capabilities: ['employee.view_all'] };
   const staff = renderHome(access, 'ready', true, 'employee');
-  assert.equal(staff.some(node => node?.props?.accessibilityLabel === '업무 플랫폼 열기'), false);
+  assert.equal(staff.some(node => node?.props?.accessibilityLabel === '플랫폼 바로가기'), false);
   assert.equal(staff.find(node => node?.type === 'AttendanceCard').props.mode, 'preview');
   assert.equal(staff.find(node => node?.type === 'NoticeHomeAction')?.type, 'NoticeHomeAction');
   const production = renderHome(access);
