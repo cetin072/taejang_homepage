@@ -64,7 +64,7 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   const app = await text('mobile/app/index.tsx');
   assert.equal(appConfig.expo.name, '태장');
   assert.match(app, /태장 직원앱/);
-  assert.match(app, /업무 플랫폼 열기/);
+  assert.match(app, /플랫폼 바로가기/);
   assert.doesNotMatch(app, /태장 업무플랫폼/);
   assert.match(app, /가입 요청/);
   assert.match(app, /비밀번호 찾기/);
@@ -72,7 +72,7 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
   assert.match(app, /DateTimePicker/);
   assert.match(app, /AttendanceCard/);
   assert.match(app, /NoticeHomeAction/);
-  assert.match(app, /업무 플랫폼 열기/);
+  assert.match(app, /플랫폼 바로가기/);
   assert.doesNotMatch(app, /로그인 상태|SecureStore 기반 세션|중요공지 알림 준비|직원앱 준비 완료/);
   assert.doesNotMatch(app, /급여 계산|급여 확정|월잠금|은행/);
 });

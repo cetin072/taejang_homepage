@@ -39,9 +39,8 @@ test('active mobile home has attendance, notice, and one capability-gated work-p
   assert.equal((home.match(/<AttendanceCard/g) || []).length, 1);
   assert.doesNotMatch(home, /TodayWorkAction|ScheduleHomeAction|PromotionStaffShortcut/);
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
-  assert.match(home, /justifyContent:\s*'space-between'/);
   assert.match(home, /actionHeight/);
-  assert.match(home, /업무 플랫폼 열기/);
+  assert.match(home, /플랫폼 바로가기/);
   assert.equal((home.match(/<PrimaryButton/g) || []).length, 1);
   assert.doesNotMatch(home, /로그인 상태|중요공지 알림 준비|직원앱 준비 완료/);
 });

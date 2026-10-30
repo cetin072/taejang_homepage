@@ -643,8 +643,8 @@ export default function HomeScreen() {
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction /> : null}
             {showWorkPlatform ? (
               <PrimaryButton
-                title={platformOpening ? '업무 플랫폼 연결 중…' : '업무 플랫폼 열기'}
-                subtitle={canOpenWorkPlatform ? '내 업무와 관리 기능' : '현재 로그인 계정에는 접근 권한이 없습니다'}
+                title={platformOpening ? '연결 중…' : '플랫폼 바로가기'}
+                subtitle={canOpenWorkPlatform ? '내 업무와 관리 기능' : '이 계정은 이용할 수 없어요.'}
                 minHeight={actionHeight}
                 secondary
                 disabled={!canOpenWorkPlatform || platformOpening}
@@ -762,8 +762,7 @@ const styles = StyleSheet.create({
   smallButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
   homeScroll: {
     flexGrow: 1,
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 24,
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 12,
@@ -799,8 +798,8 @@ const styles = StyleSheet.create({
   platformAction: { backgroundColor: '#e7eee7', borderColor: '#9db2a2' },
   actionPressed: { opacity: 0.86, transform: [{ scale: 0.99 }] },
   actionDisabled: { opacity: 0.5 },
-  primaryActionTitle: { color: '#173f31', fontSize: 29, fontWeight: '900', letterSpacing: -0.6 },
+  primaryActionTitle: { color: '#173f31', fontSize: 25, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
   platformActionTitle: { color: '#234e3a' },
-  primaryActionSubtitle: { color: '#60746a', fontSize: 15, fontWeight: '700' },
+  primaryActionSubtitle: { color: '#60746a', fontSize: 15, fontWeight: '700', textAlign: 'center' },
   platformActionSubtitle: { color: '#5b7165' },
 });
