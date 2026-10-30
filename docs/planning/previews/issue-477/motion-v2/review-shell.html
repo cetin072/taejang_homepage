@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>태장 HERO 모션 V2 비교</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#F5F0E8;color:#1B4332;font:16px/1.7 'Nanum Gothic','Malgun Gothic',sans-serif}main{max-width:1520px;margin:auto;padding:32px 24px}h1{font-size:30px;line-height:1.5;margin:0 0 12px}p{margin:0 0 16px}nav,.playback{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}button,a{font:inherit;color:inherit}button{padding:10px 16px;min-height:44px;border:1px solid #2D6A4F;border-radius:6px;background:#fff}button[aria-pressed=true],[data-command=replay]{background:#2D6A4F;color:#fff}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}.pair.mobile{grid-template-columns:repeat(2,minmax(0,390px));justify-content:center}section{min-width:0}h2{font-size:20px}.preview-window{width:100%;height:calc(1100px * var(--scale,1));overflow:hidden;border:1px solid #DDD8CE;background:#fff}iframe{display:block;width:1440px;height:1100px;border:0;transform:scale(var(--scale,1));transform-origin:top left}.mobile .preview-window{height:calc(1550px * var(--scale,1))}.mobile iframe{width:390px;height:1550px}a{display:inline-flex;min-height:44px;align-items:center;text-underline-offset:4px}small{display:block;margin-top:20px}@media(max-width:850px){.pair,.pair.mobile{grid-template-columns:1fr}h1{font-size:25px}}:focus-visible{outline:3px solid #1B4332;outline-offset:3px}
+</style>
+</head>
+<body>
+<main>
+<h1>기록이 확인으로 이어지는 순간</h1>
+<p>HERO 모션그래픽 V2 · 6.8초 / 한 번 재생 · 기존 그림과 문구를 재사용한 독립 시안</p>
+<p>오른쪽 시안에서는 시계의 선이 확인 표시로 바뀌고, 같은 선이 출근 카드의 확인 표시로 이어집니다. 실제 앱 화면·이용 순서를 뜻하지 않습니다.</p>
+<nav aria-label="비교 화면 폭">
+<button type="button" data-width="pc" aria-pressed="false">PC 1440px 비교</button>
+<button type="button" data-width="mobile" aria-pressed="true">모바일 390px 비교</button>
+<a href="hero-motion.html" target="_blank">시안 넓게 열기 ↗</a>
+<a href="hero-before.html" target="_blank">기존 HERO 열기 ↗</a>
+</nav>
+<div class="playback" aria-label="두 시안 함께 제어">
+<button type="button" data-command="replay">두 화면 함께 다시 보기</button>
+<button type="button" data-command="pause">일시정지</button>
+<button type="button" data-command="0">0%</button>
+<button type="button" data-command="3400">50%</button>
+<button type="button" data-command="6800">100%</button>
+</div>
+<p role="status" aria-live="polite" data-comparison-status>재생을 누르면 비교를 시작합니다.</p>
+<div class="pair mobile">
+<section><h2>기존 · 요소별 등장</h2><div class="preview-window"><iframe title="기존 HERO 실제 재생 비교" src="hero-before.html?motion=manual"></iframe></div></section>
+<section><h2>V2 · 선이 결과로 이어짐</h2><div class="preview-window"><iframe title="HERO V2 실제 재생 시안" src="hero-motion.html?motion=manual"></iframe></div></section>
+</div>
+<small>화면은 실제 1440px / 390px iframe 뷰포트로 렌더한 뒤 비교 도구 안에서만 축소합니다. ‘넓게 열기’에서는 창 크기에 맞게 실제 페이지를 볼 수 있습니다. 이 도구의 iframe·제어 UI는 홈페이지 구현안에 포함되지 않습니다. 글꼴 로드 이외에 실제 홈페이지·직원앱·API에 접속하지 않습니다.</small>
+</main>
+<script>
+const pair=document.querySelector('.pair');
+const windows=[...document.querySelectorAll('.preview-window')];
+function size(){const width=pair.classList.contains('mobile')?390:1440;windows.forEach(w=>w.style.setProperty('--scale',Math.min(1,w.clientWidth/width)));}
+new ResizeObserver(size).observe(pair);
+document.querySelectorAll('[data-width]').forEach(b=>b.addEventListener('click',()=>{pair.classList.toggle('mobile',b.dataset.width==='mobile');document.querySelectorAll('[data-width]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));size();}));
+document.querySelectorAll('[data-command]').forEach(button=>button.addEventListener('click',()=>{
+ try{
+  const [before,after]=[...document.querySelectorAll('iframe')].map(f=>f.contentWindow);
+  const command=button.dataset.command;
+  if(command==='replay'){before.BeforeStudy.seek(0);before.BeforeStudy.play();after.TaejangHeroStudy.play(true);}
+  else if(command==='pause'){before.document.getAnimations().forEach(a=>a.pause());after.TaejangHeroStudy.pause();}
+  else{before.BeforeStudy.seek(Number(command));after.TaejangHeroStudy.seek(Number(command));}
+  document.querySelector('[data-comparison-status]').textContent=command==='replay'?'두 시안을 함께 재생합니다.':command==='pause'?'일시정지했습니다.':`비교용 ${Math.round(Number(command)/68)}% 프레임입니다.`;
+ }catch{document.querySelector('[data-comparison-status]').textContent='두 파일이 아직 준비되지 않았습니다. 잠시 후 다시 누르거나 시안을 넓게 열어주세요.';}
+}));
+size();
+if(location.protocol==='file:'){
+ document.querySelector('.playback').hidden=true;
+ document.querySelector('[data-comparison-status]').textContent='파일로 열었을 때는 각 화면 안의 다시 보기를 사용하세요. 동시 제어는 로컬 서버에서 지원합니다.';
+}
+</script>
+</body>
+</html>
