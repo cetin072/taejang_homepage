@@ -110,6 +110,9 @@ try {
         const dates = await page.locator('[data-hub-list] time').evaluateAll(nodes => nodes.map(n => n.dateTime));
         assert.deepEqual(dates, [...dates].sort().reverse());
       }
+      // With JS off, DOMContentLoaded does not wait for stylesheets. Inspect painted layout after load.
+      await page.waitForLoadState('load');
+      await page.evaluate(() => document.fonts.ready);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(errors, []);
       await page.screenshot({ path: path.join(output, `${mode}-${width}.png`), fullPage: false });
