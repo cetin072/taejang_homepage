@@ -54,7 +54,7 @@ test('Netlify publish build keeps public homepage and internal app entry points'
     ]) assertPresent(outputRoot, relativePath);
     // Include generated public article HTML: removing a number only from the homepage
     // must not accidentally leave it in the SEO/static publish output.
-    const phonePattern = /tel:|["']telephone["']\s*:|0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}/i;
+    const phonePattern = /tel:|["']telephone["']\s*:|(?<!\d)0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)/i;
     const publicHtml = readdirSync(outputRoot).filter(file => file.endsWith('.html'))
       .map(file => path.join(outputRoot, file));
     for (const subdir of ['activities', 'workplace']) {

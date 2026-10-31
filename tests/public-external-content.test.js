@@ -118,6 +118,8 @@ assert.equal(window.TAEJANG_CONTENT.hub.length, 7, '같은 외부 콘텐츠를 �
 const archiveWindow = { TAEJANG_CONTENT: { hub: [] } };
 const archiveDocument = {
   readyState: 'complete',
+  createElement() { return { dataset: {} }; },
+  head: { append() {} },
   querySelector(selector) {
     return selector === '[data-hub-list][data-static-fallback="archive"]' ? {} : null;
   }

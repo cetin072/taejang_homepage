@@ -104,6 +104,7 @@ export const testGroups = Object.freeze({
     'tests/official-archive-sync.test.mjs',
     'tests/localize-official-thumbnails.test.mjs',
     'tests/public-static-fallback.test.js',
+    'tests/archive-snapshot.test.mjs',
     'tests/public-article-seo.test.js',
     'tests/employee-app-landing.test.js',
     'tests/public-promotion-seo-edge.test.mjs',
