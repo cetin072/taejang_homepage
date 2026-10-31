@@ -59,6 +59,7 @@ try {
         metrics.push({ width, mode, firstCardTopShift: shift });
         assert.ok(shift <= 3, `first card moves ${shift}px at hydration`);
       }
+      await page.waitForLoadState('domcontentloaded');
       if (mode === 'no-js' || mode === 'script-error') {
         assert.equal(await page.locator('[data-static-fallback-card]').count(), 12);
         assert.match(await page.locator('[data-hub-list] article').first().locator('time').getAttribute('datetime'), /^2026-10/);
