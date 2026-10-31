@@ -179,7 +179,8 @@ try {
       const input = document.querySelector('.issue146-form input[type=file]');
       const data = new DataTransfer(); data.items.add(largePhoto); input.files = data.files; input.dispatchEvent(new Event('change'));
     });
-    await page.waitForFunction(() => document.querySelector('.issue146-form')?.textContent.includes('사진 업로드 완료'));
+    await page.waitForFunction(() => !document.querySelector('.issue146-form input[type=file]').disabled);
+    assert.match(await page.locator('.issue146-form').innerText(), /사진 업로드 완료/);
     assert.equal(await page.evaluate(async () => captured.at(-1).options.body === await photoModule.optimizeForUpload(largePhoto)), true);
     await page.evaluate(async () => {
       await TaejangOperationsHomepageDirect.openEditor('image');

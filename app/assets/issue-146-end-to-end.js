@@ -426,8 +426,15 @@
   // Canonical safe homepage slot workflow.
   // -------------------------------------------------------------------------
   function session() {
-    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}'); }
-    catch { return {}; }
+    const live = app()?.getSession?.();
+    if (live?.access_token) return live;
+    for (const storage of [localStorage, sessionStorage]) {
+      try {
+        const stored = JSON.parse(storage.getItem(SESSION_KEY) || '{}');
+        if (stored.access_token) return stored;
+      } catch {}
+    }
+    return {};
   }
 
   async function config() {
