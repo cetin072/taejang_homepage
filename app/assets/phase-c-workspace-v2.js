@@ -597,6 +597,9 @@
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(type) || typeof base64 !== 'string' || base64.length > 2000000) throw new Error('사진 형식·크기를 확인할 수 없습니다.');
         const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
         const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
+        // Preserve the post-decode stale-link guard. uploadImage shares this
+        // prepared File result, so this does not encode a second time.
+        await (await import('./photo-optimizer.mjs')).optimizeForUpload(file);
         if (!current()) return;
         const url = await uploadImage(file, { officialBlogPost: key });
         if (!current()) return;
