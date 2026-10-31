@@ -23,7 +23,14 @@
       detailUrl: `activities/${encodeURIComponent(activity.id)}.html`,
       series: activity.series || ''
     }));
+  let snapshot = [];
+  try { snapshot = JSON.parse(document.querySelector('#archive-snapshot')?.textContent || '[]'); } catch { /* Approved JS data remains available. */ }
   const baseItems = [...internalActivityItems, ...explicitHubItems];
+  for (const item of snapshot) {
+    const index = baseItems.findIndex(candidate => candidate.id === item.id);
+    if (index >= 0) baseItems[index] = item;
+    else baseItems.push(item);
+  }
   const sourceLabels = {
     homepage: '홈페이지',
     'naver-blog': 'NAVER BLOG',
@@ -57,12 +64,19 @@
   }
 
   function orderedItems(items = baseItems) {
+    const seen = new Set();
     return items
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => isUsableItem(item))
       .sort((left, right) => dateValue(right.item.publishedAt) - dateValue(left.item.publishedAt)
         || left.index - right.index)
-      .map(({ item }) => item);
+      .map(({ item }) => item)
+      .filter(item => {
+        const key = item.type === 'external' ? item.externalUrl : item.detailUrl;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
   }
 
   function appendText(parent, tagName, text, className) {
@@ -106,6 +120,7 @@
   function createCard(item, headingTag) {
     const article = document.createElement('article');
     article.className = 'card card--hub';
+    article.dataset.archiveId = item.id;
     article.dataset.source = item.source;
     article.dataset.category = item.category;
 
@@ -218,7 +233,9 @@
     resultCount.className = 'archive-result-count';
     resultCount.setAttribute('aria-live', 'polite');
     controls.append(yearWrap, monthWrap, resultCount);
-    list.before(controls);
+    const baseline = document.querySelector('[data-archive-date-controls]');
+    if (baseline) baseline.replaceWith(controls);
+    else list.before(controls);
 
     function emit() {
       onChange(yearSelect.value, monthSelect.value, resultCount);
@@ -279,6 +296,7 @@
     const clearSearch = document.querySelector('[data-archive-search-clear]');
     if (!list || !sourceContainer || !categoryContainer || !searchInput || !clearSearch) return;
 
+    searchInput.disabled = false;
     let allItems = orderedItems();
     let source = 'all';
     let category = 'all';
@@ -340,6 +358,8 @@
     }
 
     function resetConditions() {
+      year = 'all';
+      month = 'all';
       searchQuery = '';
       searchInput.value = '';
       clearSearch.hidden = true;
@@ -378,30 +398,55 @@
       searchInput.focus();
     });
     render();
-    document.addEventListener('taejang-live-promotion-ready', () => {
-      const known = new Set(baseItems.map(item => item.id));
-      for (const item of content.hub || []) {
-        if (!known.has(item.id)) { baseItems.push(item); known.add(item.id); }
+    const feedStatus = document.querySelector('[data-archive-feed-status]');
+    const applyUpdates = document.querySelector('[data-archive-apply-updates]');
+    function refreshFeed() {
+      const feed = window.TAEJANG_ARCHIVE_FEED;
+      if (!feedStatus || !feed) return;
+      if (feed.status === 'error') {
+        feedStatus.textContent = '최신 소식을 불러오지 못했습니다. 배포 시점의 기록을 표시합니다.';
+        return;
       }
-      allItems = orderedItems();
-      sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', value => { source = value; resetAndRender(); });
-      categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', value => { category = value; resetAndRender(); });
-      for (const [container, key, selected] of [[sourceContainer, 'source', source], [categoryContainer, 'category', category]]) {
-        container.querySelectorAll('button').forEach(button => {
-          const active = button.dataset[key] === selected;
-          button.classList.toggle('active', active);
-          button.setAttribute('aria-pressed', String(active));
-        });
-      }
-      for (const item of allItems) {
-        const itemYear = item.publishedAt.slice(0, 4);
-        if (/^\d{4}$/.test(itemYear) && ![...dateControls.yearSelect.options].some(option => option.value === itemYear)) {
+      if (feed.status === 'loading') { feedStatus.textContent = '최신 소식을 확인하고 있습니다.'; return; }
+      if (feed.status !== 'ready') return;
+      const known = new Map(baseItems.map(item => [item.id, item]));
+      const updates = feed.items.filter(item => isUsableItem(item) && JSON.stringify(known.get(item.id)) !== JSON.stringify(item));
+      feedStatus.textContent = updates.length ? '새로 확인된 소식이 있습니다.' : '최신 소식을 확인했습니다.';
+      applyUpdates.hidden = updates.length === 0;
+      applyUpdates.onclick = () => {
+        // Explicit refresh avoids late automatic reorder while reading/searching.
+        const anchor = [...list.children].find(card => card.getBoundingClientRect().bottom > 0);
+        const top = anchor?.getBoundingClientRect().top;
+        for (const item of updates) known.set(item.id, item);
+        baseItems.splice(0, baseItems.length, ...known.values());
+        allItems = orderedItems();
+        sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', value => { source = value; resetAndRender(); });
+        categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', value => { category = value; resetAndRender(); });
+        for (const [container, key, selected] of [[sourceContainer, 'source', source], [categoryContainer, 'category', category]]) {
+          container.querySelectorAll('button').forEach(button => {
+            const active = button.dataset[key] === selected;
+            button.classList.toggle('active', active);
+            button.setAttribute('aria-pressed', String(active));
+          });
+        }
+        for (const itemYear of [...new Set(allItems.map(item => item.publishedAt.slice(0, 4)))].sort().reverse()) {
+          if (!/^\d{4}$/.test(itemYear) || [...dateControls.yearSelect.options].some(option => option.value === itemYear)) continue;
           const option = document.createElement('option'); option.value = itemYear; option.textContent = itemYear + '년';
           dateControls.yearSelect.append(option);
         }
-      }
-      render();
-    });
+        const anchorIndex = filteredItems().findIndex(item => item.id === anchor?.dataset.archiveId);
+        visibleCount = Math.max(visibleCount, anchorIndex + 1);
+        render();
+        const restored = [...list.children].find(card => card.dataset.archiveId === anchor?.dataset.archiveId);
+        if (restored && top !== undefined) window.scrollBy(0, restored.getBoundingClientRect().top - top);
+        feedStatus.textContent = '최신 소식을 반영했습니다.';
+        applyUpdates.hidden = true;
+        searchInput.focus({ preventScroll: true });
+      };
+    }
+    document.addEventListener('taejang-live-promotion-ready', refreshFeed);
+    refreshFeed(); // Includes a response arriving before this script initializes.
+
   }
 
   setupArchive();

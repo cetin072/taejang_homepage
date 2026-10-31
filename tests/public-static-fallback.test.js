@@ -31,7 +31,11 @@ function assertFallbackCards(html, key, minimum) {
 }
 
 const homeFallback = assertFallbackCards(index, 'recent-activities', 3);
-const archiveFallback = assertFallbackCards(archive, 'archive', 3);
+const archiveFallback = archive.slice(archive.indexOf('data-static-fallback="archive"'), archive.indexOf('</section>', archive.indexOf('data-static-fallback="archive"')));
+assert.equal((archiveFallback.match(/data-static-fallback-card/g) || []).length, 12);
+assert.match(archiveFallback, /naver-blog-224449863266/);
+assert.match(archiveFallback, /2026-10-28/);
+assert.match(archiveFallback, /https:\/\/blog.naver.com\/taejang-official\//);
 const activityFallback = assertFallbackCards(activities, 'activities', 3);
 const workplaceFallback = assertFallbackCards(workplace, 'workplace', 3);
 
@@ -41,7 +45,7 @@ const communityEnd = community.indexOf('</section>', communityStart);
 const communityFallback = community.slice(communityStart, communityEnd >= 0 ? communityEnd : undefined);
 assert.ok((communityFallback.match(/data-static-fallback-card/g) || []).length >= 3, 'community-esg fallback은 활동 기록 3건 이상을 포함해야 합니다');
 assert.match(communityFallback, /activities\/environment-cleanup-third\.html/);
-assert.match(archiveFallback, /activities\/environment-cleanup-third\.html/);
+
 assert.match(activityFallback, /activities\/environment-cleanup-third\.html/);
 assert.match(communityFallback, /activities\/environment-cleanup-fourth\.html/);
 assert.match(communityFallback, /activities\/environment-cleanup-fifth\.html/);
@@ -56,7 +60,7 @@ const approvedActivityTitles = [
 for (const title of approvedActivityTitles) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
   assert.match(homeFallback, new RegExp(title), `${title}은 메인 fallback에 있어야 합니다`);
-  assert.match(archiveFallback, new RegExp(title), `${title}은 아카이브 fallback에 있어야 합니다`);
+
   assert.match(activityFallback, new RegExp(title), `${title}은 활동 목록 fallback에 있어야 합니다`);
 }
 

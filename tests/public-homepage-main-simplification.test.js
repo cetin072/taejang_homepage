@@ -321,7 +321,7 @@ assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
 assert.match(archive, /최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다/);
 assert.match(archive, /검색과 필터를 이용해 태장의 기록을 살펴보세요/);
 assert.match(archive, /<label for="archive-search-input">기록 검색<\/label>/);
-assert.match(archive, /<input id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>/);
+assert.match(archive, /<input disabled id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>/);
 assert.match(archive, /<button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>/);
 assert.match(contentHub, /function searchableText\(item\)[\s\S]*?item\.title[\s\S]*?item\.summary[\s\S]*?item\.category[\s\S]*?item\.publisher[\s\S]*?sourceLabel\(item\)/);
 assert.match(contentHub, /!searchQuery \|\| searchableText\(item\)\.includes\(searchQuery\)/);

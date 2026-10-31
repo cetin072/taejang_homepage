@@ -213,16 +213,17 @@
     if (!exists) content.hub.push(item);
   });
 
-  // archive.html and index.html load this file immediately before content-hub.js.
-  // Use a parser-blocking external script so the public-safe live feed is merged
-  // before the existing static hub renders. If the feed function is unavailable,
-  // its response is an empty JS comment and the static homepage remains intact.
-  if (isArchivePage) {
-    const script = document.createElement('script');
-    script.src = '/.netlify/functions/public-promotion-feed';
-    script.dataset.livePromotionFeed = '';
-    script.onload = () => document.dispatchEvent(new Event('taejang-live-promotion-ready'));
-    document.head.append(script);
+  // Archive enhancement never blocks the parser. Homepage retains its existing contract.
+  if (isArchivePage && typeof fetch === 'function') {
+    window.TAEJANG_ARCHIVE_FEED = { status: 'loading' };
+    fetch('/.netlify/functions/public-promotion-feed?format=json', { signal: AbortSignal.timeout(10000) })
+      .then(response => { if (!response.ok) throw new Error('feed unavailable'); return response.json(); })
+      .then(payload => {
+        if (!Array.isArray(payload.items)) throw new Error('invalid feed');
+        window.TAEJANG_ARCHIVE_FEED = { status: 'ready', items: payload.items };
+      })
+      .catch(() => { window.TAEJANG_ARCHIVE_FEED = { status: 'error' }; })
+      .finally(() => document.dispatchEvent(new Event('taejang-live-promotion-ready')));
   } else if (typeof document !== 'undefined' && document.readyState === 'loading') {
     document.write('<script data-live-promotion-feed src="/.netlify/functions/public-promotion-feed"><\/script>');
   }

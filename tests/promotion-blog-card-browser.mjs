@@ -15,18 +15,20 @@ const rows = [
 ].map(row => ({ ...row, content_type: 'homepage_article', summary: '공개 카드 이동 검수', public_media: [], published_date: '2099-01-01' }));
 const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
 let script;
+let json;
 try {
   globalThis.Netlify = { env: { get: name => name === 'SUPABASE_URL' ? 'https://public-example.supabase.co' : 'fixture-key' } };
   globalThis.fetch = async () => Response.json(rows);
+  json = await (await feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed?format=json'))).text();
   script = await (await feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed'))).text();
 } finally { Object.assign(globalThis, previous); }
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname === '/.netlify/functions/public-promotion-feed') {
-      res.setHeader('content-type', 'text/javascript');
+      res.setHeader('content-type', url.searchParams.has('format') ? 'application/json' : 'text/javascript');
       await new Promise(resolve => setTimeout(resolve, 1500));
-      res.end(script); return;
+      res.end(url.searchParams.has('format') ? json : script); return;
     }
     const file = path.resolve(root, '.' + decodeURIComponent(url.pathname));
     if (!file.startsWith(root + path.sep)) throw new Error('path');
@@ -52,6 +54,7 @@ try {
       'static archive renders without waiting for the delayed feed');
     const card = page.locator('[data-hub-list] article').filter({ hasText: '직원 블로그 소식' });
     const link = card.locator('a.card-link');
+    await page.locator('[data-archive-apply-updates]').click();
     await link.waitFor();
     await link.locator('img').scrollIntoViewIfNeeded();
     await link.locator('img').evaluate(image => image.decode());
