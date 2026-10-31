@@ -38,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
         'assets/staff-information-ui.js','assets/app.js'
       ].map(src=>`<script src="${src}"></script>`).join('')+'</body>');
     }
-    res.setHeader('Content-Type',file.endsWith('.css')?'text/css':file.endsWith('.js')?'application/javascript':'text/html; charset=utf-8');
+    res.setHeader('Content-Type',file.endsWith('.css')?'text/css':(/\.m?js$/).test(file)?'application/javascript':'text/html; charset=utf-8');
     res.end(body);
   }catch(error){res.statusCode=404;res.end(error.message);}
 });

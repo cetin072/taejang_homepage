@@ -1,8 +1,9 @@
 import {createRequire} from 'node:module';
-import {existsSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {existsSync,readFileSync} from 'node:fs';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import path from 'node:path';
-import os from 'node:os';
+import http from 'node:http';
+import assert from 'node:assert/strict';
 import {browserGateResult} from './browser-gate-result.mjs';
 import {recordBrowserDiagnostics} from './browser-network-diagnostics.mjs';
 const require=createRequire(import.meta.url);
@@ -23,7 +24,34 @@ const fixtures=[
 ];
 const preview=String(process.env.PREVIEW_URL||'').replace(/\/$/,'');
 if(preview&&new URL(preview).protocol!=='https:')throw Error('PROMOTION_BROWSER_GATE_PREVIEW_MUST_BE_HTTPS');
-let browser,activeFixture='browser launch',diagnostics=[];
+let browser,server,previewOrigin,activeFixture='browser launch',diagnostics=[];
+// Deployed app scripts/modules share an origin. Preserve that relationship in
+// fixtures using verified Preview bytes, rather than granting new public CORS.
+if(preview){
+ const assets=new Map();
+ server=http.createServer(async(req,res)=>{
+  try{
+   const pathname=new URL(req.url,'http://localhost').pathname;
+   const file=path.resolve(root,'.'+pathname);
+   assert.ok(file.startsWith(root+path.sep));
+   let body;
+   if(/^\/(app\/assets|staff\/assets|assets)\//.test(pathname)){
+    if(!assets.has(pathname))assets.set(pathname,(async()=>{
+     const response=await fetch(preview+pathname,{signal:AbortSignal.timeout(20000)});
+     assert.equal(response.status,200,'Preview asset '+pathname);
+     const bytes=Buffer.from(await response.arrayBuffer());
+     assert.deepEqual(bytes,readFileSync(file),'exact-head Preview bytes '+pathname);
+     return bytes;
+    })());
+    body=await assets.get(pathname);
+   }else body=readFileSync(file);
+   res.setHeader('Content-Type',/\.m?js$/.test(file)?'application/javascript':file.endsWith('.css')?'text/css':'text/html');
+   res.end(body);
+  }catch(error){res.writeHead(500);res.end(error.message);}
+ });
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+ previewOrigin='http://127.0.0.1:'+server.address().port;
+}
 try{
  browser=await chromium.launch({headless:true,args:['--allow-file-access-from-files'],
   ...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
@@ -32,29 +60,18 @@ try{
    activeFixture=label+':'+file;diagnostics=[];
    const fixture=path.join(root,'tests/browser',file);
    if(!existsSync(fixture))throw Error('PROMOTION_BROWSER_GATE_FIXTURE_MISSING:'+file);
-   let target=fixture,tempDir=null;
+   const target=preview?previewOrigin+'/tests/browser/'+file:pathToFileURL(fixture).href;
    const context=await browser.newContext({viewport:{width,height}}),page=await context.newPage();
    recordBrowserDiagnostics(page,diagnostics);
    try{
-    if(preview){
-     let html=readFileSync(fixture,'utf8');
-     for(const directory of ['app/assets','staff/assets','assets'])
-      html=html.replaceAll('../../'+directory+'/',preview+'/'+directory+'/');
-     tempDir=mkdtempSync(path.join(os.tmpdir(),'taejang-promotion-preview-'));
-     target=path.join(tempDir,file);writeFileSync(target,html,'utf8');
-    }
-    await page.goto(pathToFileURL(target).href);
+    await page.goto(target);
     await page.waitForFunction(()=>/GATE_(?:PASS|FAIL)/.test(document.getElementById('result')?.textContent||''),null,{timeout:30000});
     const gate=browserGateResult(await page.content(),marker);
     if(!gate.passed)throw Error('PROMOTION_BROWSER_GATE_FAILED:'+file+': '+(gate.result||marker+' missing'));
     console.log(marker+':'+(preview?'PREVIEW':'LOCAL')+':'+label);
    }finally{
     await context.close();
-    if(tempDir){
-     const checked=path.resolve(tempDir),prefix=path.join(os.tmpdir(),'taejang-promotion-preview-');
-     if(!checked.startsWith(prefix))throw Error('unsafe temporary cleanup');
-     rmSync(checked,{recursive:true,force:true});
-    }
+
    }
   }
  }
@@ -63,5 +80,5 @@ try{
   .replaceAll('%','%25').replaceAll('\r','%0D').replaceAll('\n','%0A');
  console.error('::error title=Promotion browser gate '+activeFixture+'::'+message);
  throw error;
-}finally{await browser?.close();}
+}finally{await browser?.close();if(server)await new Promise(resolve=>server.close(resolve));}
 console.log('PROMOTION_BROWSER_GATE_PASS');

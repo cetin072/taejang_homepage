@@ -134,6 +134,7 @@
   <script src="../../app/assets/phase-c-workspace-v2.js"></script>
   <script>
     const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async predicate => { const deadline = Date.now() + 5000; while (!predicate()) { if (Date.now() > deadline) throw Error('upload UI timeout'); await wait(20); } };
     const assert = (condition, message) => { if (!condition) throw new Error(message); };
     const controlByLabel = label => [...document.querySelectorAll('.phase-c-board-form label')]
       .find(node => node.querySelector('span')?.textContent.trim() === label)
@@ -176,13 +177,13 @@
 
         title.value = '1호 기업 3차 봉사활동';
         body.value = '2026년 10월 1호 기업의 3차 봉사활동 기록입니다.';
-        const png = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82]);
+        const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAE0lEQVR4nGNkaGDACpiwCw9WCQBqCACQJ5at+QAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
         const file = new File([png], 'post-image.png', { type: 'image/png' });
         const transfer = new DataTransfer();
         transfer.items.add(file);
         fileInput.files = transfer.files;
         fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-        await wait(100);
+        await waitUntil(() => document.querySelector('.phase-c-editor-toolbar .phase-c-upload-status').textContent.includes('1장 첨부됨'));
 
         assert(state.storageCalls.length === 1, '사진 Storage POST가 1회 실행되어야 함');
         const storage = state.storageCalls[0];
@@ -244,17 +245,47 @@
         const failInput = document.querySelector('.phase-c-editor-toolbar input[type="file"]');
         const goodTransfer = new DataTransfer(); goodTransfer.items.add(file);
         failInput.files = goodTransfer.files;
-        failInput.dispatchEvent(new Event('change', { bubbles: true })); await wait(100);
+        failInput.dispatchEvent(new Event('change', { bubbles: true })); await waitUntil(() => document.querySelector('.phase-c-editor-toolbar .phase-c-upload-status').textContent.includes('1장 첨부됨'));
         const alerts=[]; window.alert=message=>alerts.push(message);
         state.uploadFailureStatus=403;
         const failedTransfer = new DataTransfer(); failedTransfer.items.add(new File([png],'keep-me.png',{type:'image/png'}));
         failInput.files=failedTransfer.files;
-        failInput.dispatchEvent(new Event('change',{bubbles:true})); await wait(100);
+        failInput.dispatchEvent(new Event('change',{bubbles:true})); await waitUntil(() => alerts.length === 1);
         assert(alerts.length===1, '업로드 실패 알림 누락');
         assert(controlByLabel('제목').value==='업로드 실패 보존' && controlByLabel('본문').value==='기존 입력 본문','실패 후 작성 내용 손실');
         assert(document.querySelectorAll('.phase-c-photo-card img').length===1,'기존 첨부 사진 손실');
         assert(failInput.files[0]?.name==='keep-me.png','실패한 첨부 선택 손실');
         assert(document.querySelector('.phase-c-upload-status').textContent.includes('업로드 실패'),'실패를 성공으로 표시함');
+
+        // A middle failure resumes only unfinished photos, preserving order/cover.
+        state.uploadFailureStatus = null;
+        await window.TaejangPromotionWorkspaceV2Api.openPromotion('write');
+        controlByLabel('제목').value = '순차 업로드 재시도';
+        controlByLabel('본문').value = '작성 내용 유지';
+        const sequence = [], originalFetch = window.fetch;
+        window.fetch = async (url, options = {}) => {
+          if (String(url).includes('/storage/v1/object/promotion-media/')) {
+            sequence.push({ url: String(url), file: options.body });
+            if (sequence.length === 2) return Response.json({ error: 'Forbidden' }, { status: 403 });
+          }
+          return originalFetch(url, options);
+        };
+        const multiInput = document.querySelector('.phase-c-editor-toolbar input[type=file]');
+        const batch = new DataTransfer();
+        for (const name of ['first.png', 'second.png', 'third.png']) batch.items.add(new File([png], name, { type: 'image/png' }));
+        multiInput.files = batch.files; multiInput.dispatchEvent(new Event('change'));
+        const retryButton = buttonByText('실패한 사진 다시 시도');
+        await waitUntil(() => !retryButton.hidden);
+        assert(document.querySelectorAll('.phase-c-photo-card').length === 1, '성공한 첫 사진 보존');
+        retryButton.click();
+        await waitUntil(() => document.querySelectorAll('.phase-c-photo-card').length === 3);
+        assert(sequence.length === 4 && sequence[1].url === sequence[2].url, '재시도 시 성공 사진 중복 업로드/실패 키 변경');
+        assert(sequence.map(item => item.file.name).join(',') === 'first.png,second.png,second.png,third.png', '순차·남은 사진 재시도 순서');
+        assert([...document.querySelectorAll('.phase-c-photo-card img')].map(image => image.alt).join(',') === 'first,second,third', '사진 순서 유지');
+        window.fetch = originalFetch;
+        buttonByText('임시저장').click();
+        await waitUntil(() => state.saveCalls.at(-1)?.p_title === '순차 업로드 재시도');
+        assert(state.saveCalls.at(-1).p_hero_image_url === state.saveCalls.at(-1).p_public_media[0].url, '재시도 후 대표사진 유지');
 
         output.textContent = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';
         document.title = 'PROMOTION_AUTHORING_UPLOAD_GATE_PASS';

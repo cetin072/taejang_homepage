@@ -43,6 +43,19 @@ jobs:
           node tests/monthly-client-documents-browser.mjs
           node tests/platform-menu-addresses-browser.mjs
 
+      - name: Verify browser photo optimization and upload adapters
+        env:
+          PHOTO_QA_OUTPUT: photo-qa-artifacts
+        run: node tests/photo-optimizer-browser.mjs
+
+      - name: Keep photo size results and PC/mobile comparisons
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: photo-optimization-390-1440
+          path: photo-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Run promotion browser QA gate
         run: node scripts/run-promotion-browser-gate.mjs
 

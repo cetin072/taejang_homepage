@@ -155,7 +155,7 @@
           window.alert(error.message || '사진을 업로드하지 못했습니다.');
         } finally { file.disabled = false; file.value = ''; }
       });
-      mediaBox.append(field('대표사진', file, 'JPG, PNG, WEBP, GIF · 8MB 이하'), field('사진 설명', alt), status, preview);
+      mediaBox.append(field('대표사진', file, 'JPG, PNG, WEBP, GIF · 원본 15MB 이하 · 자동 압축 후 1MB 이하'), field('사진 설명', alt), status, preview);
 
       const updateType = () => { externalWrap.hidden = type.value !== 'external_content'; };
       type.addEventListener('change', updateType);
