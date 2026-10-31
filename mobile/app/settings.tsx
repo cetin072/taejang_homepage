@@ -97,6 +97,10 @@ export default function SettingsScreen() {
             <Text style={styles.utilityButtonHelp}>중요 공지를 알림으로 받습니다</Text>
           </Pressable>
         ) : null}
+        <Pressable accessibilityRole="button" accessibilityLabel="패치노트 열기" onPress={() => router.push('/patch-notes')} style={styles.utilityButton}>
+          <Text style={styles.utilityButtonTitle}>패치노트</Text>
+          <Text style={styles.utilityButtonHelp}>앱 업데이트와 함께 추가되는 변경 내역을 확인합니다</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="앱 정보와 연결 진단" onPress={() => router.push('/support')} style={styles.utilityButton}>
           <Text style={styles.utilityButtonTitle}>앱 정보와 연결 진단</Text>
           <Text style={styles.utilityButtonHelp}>문의할 때 필요한 안전한 정보만 확인합니다</Text>
