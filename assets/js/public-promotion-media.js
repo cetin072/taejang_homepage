@@ -40,6 +40,12 @@
       new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === 'https://media.taejang.co.kr' || new URL(url).origin === storageOrigin);
     for (let index = 0; index < urls.length; index++) {
       const url = urls[index];
+      // R2 performs the current-public check on the actual GET. A speculative
+      // HEAD would repeat that DB check for SSR/feed + browser, without making
+      // the later GET safer. Keep browser error fallback; never cache approval.
+      if (new URL(url).origin === 'https://media.taejang.co.kr') {
+        return { url, alt: alt(item, url), candidates: urls.slice(index) };
+      }
       if (url !== DEFAULT_IMAGE && !probes.has(url)) {
         probes.set(url, (async () => {
           try {

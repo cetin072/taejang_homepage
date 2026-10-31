@@ -11,11 +11,19 @@ const origin = 'https://fixture.supabase.co';
 const entry = {contentId: '11111111-1111-4111-8111-111111111111', sourceUrl: origin + '/storage/v1/object/public/promotion-media/test.png', size: png.length, contentType: 'image/png', sha256: createHash('sha256').update(png).digest('hex')};
 const row = {content_id:entry.contentId, title:'합성 공개 사진 검증', content_type:'homepage_article', public_body:'로컬 fixture', hero_image_url:entry.sourceUrl, public_media:[{url:entry.sourceUrl, alt:'합성 사진'}]};
 let published = true;
-const worker = createWorker([entry], async () => Response.json(published ? [row] : []));
-const env = {PUBLIC_MEDIA_ENABLED:'true', SUPABASE_URL:origin, SUPABASE_PUBLISHABLE_KEY:'fixture', PUBLIC_MEDIA_BUCKET:{async get(){return {body:png,size:png.length,customMetadata:{sha256:entry.sha256}};},async head(){return {size:png.length,customMetadata:{sha256:entry.sha256}};}}};
+let accessCalls = 0;
+let r2Reads = 0;
+const worker = createWorker([entry], async (url, options) => {
+  assert.equal(new URL(url).pathname, '/rest/v1/rpc/is_public_promotion_media');
+  assert.equal(options.method, 'GET');
+  accessCalls++;
+  return Response.json(published);
+});
+const env = {PUBLIC_MEDIA_ENABLED:'true', SUPABASE_URL:origin, SUPABASE_PUBLISHABLE_KEY:'fixture', PUBLIC_MEDIA_BUCKET:{async get(){r2Reads++; return {body:png,size:png.length,customMetadata:{sha256:entry.sha256}};},async head(){return {size:png.length,customMetadata:{sha256:entry.sha256}};}}};
 const browser = await chromium.launch({headless:true, executablePath:process.env.CHROMIUM_EXECUTABLE_PATH || undefined, args:['--no-sandbox']});
 try {
   for (const width of [390,1440]) {
+    accessCalls = 0; r2Reads = 0;
     const page = await browser.newPage({viewport:{width,height:900}});
     let imageRequests = 0;
     await page.route('**/*', async route => {
@@ -39,12 +47,15 @@ try {
     await image.waitFor();
     await image.evaluate(img=>img.decode());
     assert.equal(await image.getAttribute('src'), 'https://media.taejang.co.kr/' + mediaKey(entry));
-    assert.ok(imageRequests > 0);
+    assert.equal(imageRequests, 1);
+    assert.equal(accessCalls, 1);
+    assert.equal(r2Reads, 1);
     published = false;
     await page.reload(); await image.waitFor();
     await page.waitForFunction(()=>document.querySelector('.article-representative-media img')?.src.endsWith('/images/og-taejang.png'));
+    assert.equal(imageRequests, 2); assert.equal(accessCalls, 2); assert.equal(r2Reads, 1);
     published = true;
-    console.log(`PASS ${width}px: direct R2 fixture decode + revoked-photo fallback`);
+    console.log(`PASS ${width}px: 1 image GET / 1 boolean RPC / 1 R2 read; revoke rechecks and blocks before R2`);
     await page.close();
   }
 } finally { await browser.close(); }

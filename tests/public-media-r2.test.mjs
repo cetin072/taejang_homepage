@@ -19,10 +19,16 @@ function fixture() {
   const worker = createWorker([entry], async (url, options) => {
     assert.equal(options.redirect, 'error');
     if (url === entry.sourceUrl) { state.downloads++; if (state.revokeDuringCopy) state.rows = []; return new Response(state.badSource ? new Uint8Array([0, 0, 0, 0]) : bytes, { headers: { 'content-type': 'image/jpeg' } }); }
-    assert.equal(url, storageOrigin + '/rest/v1/rpc/get_public_promotion_content');
+    assert.equal(new URL(url).origin + new URL(url).pathname, storageOrigin + '/rest/v1/rpc/is_public_promotion_media');
+    assert.equal(new URL(url).searchParams.get('p_content_id'), entry.contentId);
+    assert.equal(new URL(url).searchParams.get('p_source_url'), entry.sourceUrl);
+    assert.equal(options.method, 'GET');
+    assert.equal(options.cache, 'no-store');
     state.calls++;
     if (state.unavailable) throw new Error('fixture offline');
-    return Response.json(state.rows);
+    if (state.missingMigration) return new Response(null, {status:404});
+    if (state.wrongContract) return Response.json(state.rows);
+    return Response.json(state.rows.some(item => item.content_id === entry.contentId && item.public_media.some(media => media.url === entry.sourceUrl)));
   });
   const run = (method = 'GET', token = 'fixture-copy', path = '/' + mediaKey(entry)) => worker.fetch(new Request('https://fixture.invalid' + path, { method, headers: { Authorization: 'Bearer ' + token } }), env);
   return { state, env, run };
@@ -75,4 +81,26 @@ test('upstream failure, hash mismatch, concurrent revocation and failed write ne
 test('metadata mismatch never serves an unverified object', async () => {
   const { run, state } = fixture(); state.objects.set(mediaKey(entry), {size: entry.size, customMetadata: {sha256: 'bad'}});
   assert.equal((await run()).status, 404);
+});
+test('SSR + feed resolution does not probe R2; each real GET checks one boolean, no TTL reuse', async () => {
+  const { run, state } = fixture(); await run('POST');
+  state.calls = 0;
+  const routed = routePublicMedia(row, {enabled:'true', storageOrigin, entries:[entry]});
+  const originalFetch = globalThis.fetch;
+  let probes = 0;
+  globalThis.fetch = async () => { probes++; throw new Error('unexpected speculative request'); };
+  try {
+    for (let i = 0; i < 3; i++) assert.equal((await globalThis.TAEJANG_PUBLIC_MEDIA.resolve(routed, storageOrigin)).url, deliveryUrl(entry));
+    assert.equal(probes, 0); assert.equal(state.calls, 0);
+    assert.equal((await run()).status, 200); assert.equal(state.calls, 1);
+    state.rows = [];
+    assert.equal((await run()).status, 404); assert.equal(state.calls, 2);
+  } finally { globalThis.fetch = originalFetch; }
+});
+test('missing read-only RPC or legacy response fails closed without calling old publication RPC', async () => {
+  for (const flag of ['missingMigration','wrongContract']) {
+    const { run, state } = fixture(); await run('POST'); state[flag] = true;
+    assert.equal((await run()).status, 503);
+    assert.equal((await run('POST')).status, 503);
+  }
 });

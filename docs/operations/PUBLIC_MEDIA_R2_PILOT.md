@@ -19,21 +19,21 @@ DNS, 실제 업로드와 운영 설정은 별도 승인 대상이다. main 병�
 
 ```text
 기존 작성/압축/승인 → Supabase 게시물/원본 (변경 없음)
-                        ↓ 기존 익명 공개 상세 RPC
+                        ↓ 현재 공개 상태 (신규 읽기 전용 RPC)
 운영자 pilot POST → Cloudflare Worker → 현재 공개 첨부 여부 확인
                         ↓ 한 파일 복사·크기/타입/SHA256 검증
                       비공개 R2
 
 Netlify 피드/SSR → 검수 manifest의 URL만 media.taejang.co.kr/v1/... 로 변환
-브라우저 → Cloudflare Worker → 기존 공개 상세 RPC로 현재 공개 여부 확인
+브라우저 → Cloudflare Worker → 읽기 전용 공개 첨부 RPC로 현재 공개 여부 확인
                              → 비공개 R2 사진 직접 응답
 ```
 
 `media.taejang.co.kr`은 제안 주소이며 소유권/설정 확인이나 DNS 변경을 하지 않았다.
-Supabase는 작은 공개 메타데이터만 응답하며 R2 사진 바이트를 중계하지 않는다.
+Worker 검사에 Supabase는 boolean(true/false)만 응답하며 R2 사진 바이트를 중계하지 않는다.
 첫 단계는 공개 버킷/CDN 캐시 대신 **비공개 R2 + Worker, no-store**를 선택했다.
 공개 철회 시 옛 주소의 신규 요청도 막기 위해서다. R2 인터넷 전송료와 별개로 Worker 호출,
-R2 저장/읽기/쓰기 비용 및 메타데이터 DB 요청은 남는다. 캐시 최적화는 철회 보장 검토 후 별도 작업.
+R2 저장/읽기/쓰기 비용 및 공개 여부 판정 DB 요청은 남는다. 캐시 최적화는 철회 보장 검토 후 별도 작업.
 
 ## 코드와 활성화 계약
 
@@ -102,7 +102,7 @@ Android 사용자는 지금 PC가 필요 없다. 외부 설정 승인 시 Cloudf
 로컬 fixture만 사용. 실제 사진 바이트/운영 DB 쓰기/Cloudflare API 호출 없음.
 공식 API: https://developers.cloudflare.com/r2/api/workers/workers-api-reference/
 Supabase changelog.md 조회는 도구 content-type 오류 및 셸 HTTP403으로 미확인.
-기존 공개 RPC 계약을 재사용하며 Supabase SDK/스키마/권한 변경 없음.
+기존 공개 피드 계약은 유지한다. Worker에는 아래의 새로운 읽기 전용 boolean RPC가 필요하며 운영 적용은 하지 않았다.
 Cloudflare 연결 도구와 환경변수 이름에서 자격증명 존재를 확인하지 못함. 계정 자체가 없다는 뜻 아님.
 
 ### 이번 로컬 검사 결과
@@ -118,3 +118,98 @@ Cloudflare 연결 도구와 환경변수 이름에서 자격증명 존재를 확
   운영 egress 측정/실사진 이전 검증을 수행한 것은 아니다.
 - Playwright bundled Chromium 다운로드는 HTTP403(Domain forbidden); 시스템 Chromium으로 검사 완료.
 - Cloudflare 실제 런타임, provider 연결, 실계정 승인/철회, hosted CI, 고정 QA는 미검증.
+
+
+## 2026-10-31 독립 검수 보완 (로컬만, 추가 push/PR 없음)
+
+### 읽기 요청과 부수 효과
+
+저장소의 `get_public_promotion_content` 최신 정의는
+`20260912112000_issue_181_promotion_source_and_schedule.sql:413`이다. 이 함수는
+`private_publish_due_promotions()`를 호출하며 예약 발행 시 contents/queue/audit를 쓴다.
+이전 Worker 설계는 그 함수를 사진 요청마다 호출했으므로 무변경 읽기라는 설명은 잘못이었다.
+Worker에서는 이 경로를 완전히 제거했다. 기존 홈페이지 피드/SSR의 원래 동작은 변경하지 않았다.
+
+- `mediaPolicy.resolve`는 R2 사진 URL을 선택할 때 HEAD를 보내지 않는다.
+  피드·SSR의 중복 확인은 0회이고 실제 브라우저 GET만 Worker에서 검사한다.
+- Worker는 GET `is_public_promotion_media(p_content_id,p_source_url)`를 호출한다.
+  SQL STABLE, boolean만 반환하며 PostgREST GET의 read-only transaction을 사용한다.
+  공개 content/current revision/정확한 첨부 URL만 SELECT한다. 제목/본문/첨부 목록 반환 없음.
+- 권한 TTL/응답 간 공유 캐시 없음. 매 GET마다 새 판정 1회. 정상 GET은 R2 get 1회;
+  철회·판정 실패는 R2 get 이전 차단. 직접 HEAD 요청도 지원하되 화면은 생성하지 않는다.
+- 복사는 처음 2회(다운로드 전/쓰기 전), 완료 키 재시도는 1회 판정한다. 승인 체크를 줄여
+  복사 중 철회 안전성을 약화하지 않는다.
+
+### SQL 적용 준비와 복구
+
+`supabase/proposals/public_media_readonly_access.sql`과 `.rollback.sql`을 준비했다.
+현재 **migration 디렉터리에 등록되지 않은 SQL 제안**이다. CLI가 시작 시 읽기 전용
+`/home/agent/.supabase` 생성에 실패하여 `migration new`를 실행할 수 없었다.
+도구 권한 추가 방식으로도 같은 EROFS였고 더 반복하지 않았다. CLI가 복구된 환경에서
+`supabase migration new public_media_readonly_access`로 버전 파일을 생성하고 제안 내용을
+넣어 전체 migration/RLS/advisor 검증을 거쳐야 한다. 파일명 임의 생성으로 우회하지 않았다.
+
+공개 wrapper는 SECURITY INVOKER이고, 별도 비노출 `public_media_private` schema의
+STABLE SECURITY DEFINER가 현재 공개 첨부 존재 여부만 판단한다. 익명 사진 요청이므로
+로그인 요구 대신 정확한 공개 조건을 적용한다. 기존 `private` schema 권한 및 원본 테이블
+SELECT/RLS 권한은 열지 않는다. 새 schema를 Data API exposed schemas에 추가하지 않는다.
+공개 함수는 PUBLIC 기본 실행권을 회수하고 anon/authenticated만 명시 허용한다.
+
+미적용 RPC(404), 접근 불가, 잘못된 응답, DB 장애는 Worker 503으로 차단한다.
+기존의 부수 효과 있는 상세 RPC로 fallback하지 않는다. Netlify 스위치 OFF/빈 manifest는
+이전 경로 유지. 적용 전 스위치를 켜면 기존 일반 이미지 fallback으로 끝나며
+R2 원본이나 미승인 사진을 공개하지 않는다. 적용 순서는 SQL 검증/승인 → RPC → Worker
+→ 합성 fixture → 실제 사진 pilot 별도 승인 → Netlify 스위치다.
+복구는 Netlify 이전 참조/정적 snapshot 복원 → Worker OFF → public wrapper/helper/schema
+순서로 drop. rollback은 CASCADE 없이 예상하지 못한 의존성이 있으면 중단한다.
+
+### 원본 URL 불변성 조건
+
+R2 키는 검수 시점의 바이트 해시다. 같은 Supabase URL의 원본을 덮어쓰면 공개 URL
+membership 검사만으로 바이트 변경을 알 수 없어 과거 R2 사본이 남을 수 있다.
+따라서 pilot 활성화 조건은 **선택한 원본 경로는 덮어쓰지 않는 것**이다.
+교체할 때는 새 고유 원본 URL로 업로드 → 기존 공개 승인 절차 → 새 크기/해시 manifest
+→ 검증 복사 → 참조 전환한다. 기존 키 재사용 금지. overwrite가 있었거나 의심되면
+해당 manifest 전환을 끄고 기존 경로로 복구한 뒤, 승인된 원본으로 manifest/hash/key를
+다시 만들고 복사·검수한다. 이 검증을 매 이미지 GET마다 원본 다운로드로 대체하지 않는다.
+Storage 전역 불변성 정책을 이번 변경으로 강제했다고 주장하지 않는다.
+
+공개 철회는 **새 R2 요청**에 적용된다. 이미 보존된 기존 Supabase 공개 URL의 접근 권한이나
+다운로드된 사본·외부 SNS 캐시까지 회수하는 것은 아니다. 이 한계는 그대로 유지된다.
+
+### 활성화 전 소규모 실측 계획 (이번에는 트래픽 생성 안 함)
+
+승인 후 합성 사진 1개 및 별도 검수된 실제 사진 1~3개만 사용한다.
+기존 경로와 R2 경로를 같은 페이지·사진·화면 폭·조건으로 각 1회 비교하고 HAR/서비스 계수를
+기록한다. 캐시 cold/warm과 목록/상세·SSR를 구분하며 새로고침 반복 부하를 만들지 않는다.
+
+| 측정 | 기록/판정 |
+| --- | --- |
+| 페이지당 네트워크 요청 | 피드/SSR 메타데이터와 이미지 GET/HEAD 별도; R2 사전 HEAD 0 |
+| API bytes | 기존 전체 공개 상세 응답과 새 boolean 응답의 body/HTTP total을 구분 |
+| Worker 호출 | 실제 R2 URL 요청 수와 일치하는지; 실패/철회도 별도 기록 |
+| R2 읽기 | 정상 GET 1당 get 1; 철회/판정 실패에는 0 |
+| 지연 | Worker의 boolean 조회 시간, R2 조회, 이미지 TTFB/decode, 페이지 체감 |
+| 비용 효과 | 절감한 Supabase 이미지 bytes 대 증가한 boolean RPC/Worker/R2 요청 비교 |
+
+fixture에서 예상하는 정상 대표 사진 1장의 추가 경로는
+`사전 HEAD 0 + Worker GET 1 + boolean RPC 1 + R2 get 1`이다.
+권한 캐시로 요청 수를 더 줄이거나, 응답 JSON의 4/5바이트를 전체 HTTP 전송량이라고
+보고하지 않는다. 실제 지연·페이지별 총요청·과금 효과는 아직 측정하지 않았다.
+
+### 보완 후 검증 결과
+
+- 관련 Node tests 15/15 PASS, 전체 오프라인 공개 웹 tests 166/166 PASS.
+- Chromium 390/1440px 각각 대표 이미지 GET 1 / boolean RPC 1 / R2 get 1을 명시 단언.
+  숨김 후 새 요청은 RPC를 다시 호출하고 R2 get 없이 기본 사진으로 전환.
+- PostgreSQL 17 (`postgres:17-alpine`, digest
+  `sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b`),
+  네트워크/공개 포트 없는 임시 Docker fixture에서 SQL 적용·READ ONLY 실행·rollback PASS.
+  `tests/fixtures/public-media-r2/`의 최소 테이블 fixture 사용. published/current attachment,
+  hidden/scheduled/null published_at/archived/draft/missing/old revision/정확하지 않은 URL/null,
+  익명 원본테이블 접근 불가, 기존 private schema 권한 보존, STABLE/invoker/definer,
+  scheduler 미호출, 숨김 직후 재검사와 rollback을 확인했다.
+- 위 PostgreSQL 검사는 **전체 저장소 migration/RLS 통합이나 PostgREST HTTP 실행 검사가 아니다.**
+  Supabase CLI 복구 후 전체 로컬 migration/advisor/RPC HTTP gate는 별도로 남는다.
+- 로컬 fixture DB만 생성/삭제. 운영 DB/계정/사진/캐시/도메인 설정 변경 없음.
+- 실제 Supabase/Cloudflare 성능·과금 효과 및 production 철회는 미측정/미검증.

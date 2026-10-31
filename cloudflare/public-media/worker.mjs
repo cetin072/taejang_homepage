@@ -1,4 +1,4 @@
-import { publicMediaManifest, validEntry, mediaKey, isCurrentPublicMedia } from '../../shared/public-media-manifest.mjs';
+import { publicMediaManifest, validEntry, mediaKey } from '../../shared/public-media-manifest.mjs';
 const headers = { 'Cache-Control': 'no-store, max-age=0', 'X-Content-Type-Options': 'nosniff' };
 const reply = (status) => new Response(null, { status, headers });
 const digest = async bytes => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), b => b.toString(16).padStart(2, '0')).join('');
@@ -33,14 +33,20 @@ export function createWorker(entries = publicMediaManifest, request = fetch) {
       const entry = entries.find(item => validEntry(item, env.SUPABASE_URL) && url.pathname === '/' + mediaKey(item));
       if (!entry) return reply(404);
       const approved = async () => {
-        const response = await request(`${env.SUPABASE_URL}/rest/v1/rpc/get_public_promotion_content`, {
-          method: 'POST', redirect: 'error', signal: AbortSignal.timeout(5000),
-          headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ p_content_id: entry.contentId })
+        const accessUrl = new URL(`${env.SUPABASE_URL}/rest/v1/rpc/is_public_promotion_media`);
+        accessUrl.searchParams.set('p_content_id', entry.contentId);
+        accessUrl.searchParams.set('p_source_url', entry.sourceUrl);
+        const response = await request(accessUrl.href, {
+          // GET on a STABLE RPC uses PostgREST's read-only transaction.
+          method: 'GET', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(5000),
+          headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, 'Cache-Control': 'no-store' }
         });
         if (!response.ok) throw new Error('APPROVAL_UNAVAILABLE');
-        const rows = await response.json();
-        return Array.isArray(rows) && rows.length === 1 && isCurrentPublicMedia(rows[0], entry);
+        // Missing migration / wrong contract must never fall back to the old
+        // detail RPC (which can publish scheduled content as a side effect).
+        const allowed = await response.json();
+        if (typeof allowed !== 'boolean') throw new Error('INVALID_ACCESS_RESPONSE');
+        return allowed;
       };
       if (!await approved()) return reply(404);
       const key = mediaKey(entry);
