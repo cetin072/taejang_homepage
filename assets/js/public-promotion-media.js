@@ -7,6 +7,7 @@
       const u = new URL(url);
       if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash || u.port) return false;
       return (u.origin === 'https://taejang.co.kr' && /^\/(?:images|assets\/images)\//.test(u.pathname))
+        || (u.origin === 'https://media.taejang.co.kr' && /^\/v1\/[0-9a-f-]{36}\/[a-f0-9]{64}$/.test(u.pathname))
         || (/^[a-z0-9-]+\.supabase\.co$/.test(u.hostname) && u.pathname.startsWith('/storage/v1/object/public/promotion-media/'));
     } catch { return false; }
   }
@@ -36,9 +37,15 @@
     // Probe only until the first usable approved photo. Remaining approved
     // attachments are browser error fallbacks, not eager network requests.
     const urls = candidates(item).filter(url => url === DEFAULT_IMAGE ||
-      new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === storageOrigin);
+      new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === 'https://media.taejang.co.kr' || new URL(url).origin === storageOrigin);
     for (let index = 0; index < urls.length; index++) {
       const url = urls[index];
+      // R2 performs the current-public check on the actual GET. A speculative
+      // HEAD would repeat that DB check for SSR/feed + browser, without making
+      // the later GET safer. Keep browser error fallback; never cache approval.
+      if (new URL(url).origin === 'https://media.taejang.co.kr') {
+        return { url, alt: alt(item, url), candidates: urls.slice(index) };
+      }
       if (url !== DEFAULT_IMAGE && !probes.has(url)) {
         probes.set(url, (async () => {
           try {

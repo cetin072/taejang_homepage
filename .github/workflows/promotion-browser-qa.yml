@@ -38,6 +38,9 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Verify R2 request counts and revocation with isolated fixtures
+        run: CHROMIUM_EXECUTABLE_PATH=$(command -v google-chrome) node tests/public-media-r2-browser.mjs
+
       - name: Verify monthly documents and menu addresses with isolated fixtures
         run: |
           node tests/monthly-client-documents-browser.mjs
