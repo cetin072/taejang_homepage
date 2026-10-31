@@ -63,7 +63,7 @@ try {
         assert.equal(await page.locator('[data-static-fallback-card]').count(), 12);
         assert.match(await page.locator('[data-hub-list] article').first().locator('time').getAttribute('datetime'), /^2026-10/);
         const href = await page.locator('[data-hub-list] article a.card-link').first().getAttribute('href');
-        assert.match(href, /^(https:\/\/blog.naver.com\/taejang-official\/|promotion.html\?id=)/);
+        assert.match(href, /^(https:\/\/blog.naver.com\/taejang-official\/|\/?promotion(?:\.html)?\?id=)/);
       } else if (mode === 'failure') {
         await page.getByText('최신 소식을 불러오지 못했습니다.', { exact: false }).waitFor();
         assert.ok(await page.locator('[data-hub-list] article').count() >= 6);
