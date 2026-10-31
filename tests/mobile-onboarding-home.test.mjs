@@ -54,8 +54,12 @@ test('web approval links existing employee first; new hire is a separate operati
   assert.match(approval, /approve_employee_signup_request/);
   assert.match(approval, /신규 직원 생성 후 가입 승인/);
   assert.match(approval, /route\(\) === 'operations_manager'/);
-  assert.match(approval, /confirmEmployeeId/);
-  assert.match(approval, /mismatchConfirmed/);
+  assert.match(approval, /candidate = controls\.employees\.find\(item => item\.employee_uuid === controls\.employee\.value\)/);
+  assert.match(approval, /if \(!candidate\)/);
+  assert.match(approval, /if \(!controls\.identityConfirmed\.checked\)/);
+  assert.match(approval, /p_employee_uuid: candidate\.employee_uuid/);
+  assert.match(approval, /p_confirm_employee_id: candidate\.employee_id/);
+  assert.match(approval, /p_identity_mismatch_confirmed: controls\.identityConfirmed\.checked/);
 });
 
 test('holiday work UI is explicit per employee and does not treat arbitrary work notes as authorization', async () => {
