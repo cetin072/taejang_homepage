@@ -51,7 +51,7 @@ try {
         await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); });
         const top = (await first.boundingBox()).y;
 
- 
+
         releaseHub();
         await page.waitForFunction(() => window.TAEJANG_CONTENT_HUB && !document.querySelector('[data-archive-search-input]').disabled);
         assert.equal(await page.locator('[data-hub-list] article').first().locator('h2').textContent(), title);
