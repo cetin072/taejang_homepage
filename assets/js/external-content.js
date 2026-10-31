@@ -217,7 +217,13 @@
   // Use a parser-blocking external script so the public-safe live feed is merged
   // before the existing static hub renders. If the feed function is unavailable,
   // its response is an empty JS comment and the static homepage remains intact.
-  if (typeof document !== 'undefined' && document.readyState === 'loading') {
+  if (isArchivePage) {
+    const script = document.createElement('script');
+    script.src = '/.netlify/functions/public-promotion-feed';
+    script.dataset.livePromotionFeed = '';
+    script.onload = () => document.dispatchEvent(new Event('taejang-live-promotion-ready'));
+    document.head.append(script);
+  } else if (typeof document !== 'undefined' && document.readyState === 'loading') {
     document.write('<script data-live-promotion-feed src="/.netlify/functions/public-promotion-feed"><\/script>');
   }
 }());

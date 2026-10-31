@@ -24,7 +24,9 @@ const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
     if (url.pathname === '/.netlify/functions/public-promotion-feed') {
-      res.setHeader('content-type', 'text/javascript'); res.end(script); return;
+      res.setHeader('content-type', 'text/javascript');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      res.end(script); return;
     }
     const file = path.resolve(root, '.' + decodeURIComponent(url.pathname));
     if (!file.startsWith(root + path.sep)) throw new Error('path');
@@ -45,7 +47,9 @@ try {
     await context.route('https://blog.naver.com/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>원문 목적지</h1>' }));
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(base + '/archive.html');
+    await page.goto(base + '/archive.html', { waitUntil: 'domcontentloaded' });
+    assert.equal(await page.locator('[data-hub-list] [data-static-fallback-card]').count(), 0,
+      'static archive renders without waiting for the delayed feed');
     const card = page.locator('[data-hub-list] article').filter({ hasText: '직원 블로그 소식' });
     const link = card.locator('a.card-link');
     await link.waitFor();

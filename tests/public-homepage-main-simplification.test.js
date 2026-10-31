@@ -325,7 +325,7 @@ assert.match(archive, /<input id="archive-search-input" type="search" placeholde
 assert.match(archive, /<button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>/);
 assert.match(contentHub, /function searchableText\(item\)[\s\S]*?item\.title[\s\S]*?item\.summary[\s\S]*?item\.category[\s\S]*?item\.publisher[\s\S]*?sourceLabel\(item\)/);
 assert.match(contentHub, /!searchQuery \|\| searchableText\(item\)\.includes\(searchQuery\)/);
-assert.match(contentHub, /const sourceFilters = createFilters[\s\S]*?const categoryFilters = createFilters/);
+assert.match(contentHub, /let sourceFilters = createFilters[\s\S]*?let categoryFilters = createFilters/);
 assert.match(contentHub, /function resetConditions\(\)[\s\S]*?sourceFilters\.reset\(\)[\s\S]*?categoryFilters\.reset\(\)[\s\S]*?dateControls\.yearSelect\.value = 'all'[\s\S]*?dateControls\.monthSelect\.value = 'all'/);
 assert.match(contentHub, /검색 결과 \$\{filtered\.length\}건/);
 assert.match(contentHub, /조건에 맞는 기록이 없습니다\./);

@@ -279,7 +279,7 @@
     const clearSearch = document.querySelector('[data-archive-search-clear]');
     if (!list || !sourceContainer || !categoryContainer || !searchInput || !clearSearch) return;
 
-    const allItems = orderedItems();
+    let allItems = orderedItems();
     let source = 'all';
     let category = 'all';
     let year = 'all';
@@ -357,11 +357,11 @@
       loadMore.focus();
     });
 
-    const sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', (value) => {
+    let sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', (value) => {
       source = value;
       resetAndRender();
     });
-    const categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', (value) => {
+    let categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', (value) => {
       category = value;
       resetAndRender();
     });
@@ -378,6 +378,30 @@
       searchInput.focus();
     });
     render();
+    document.addEventListener('taejang-live-promotion-ready', () => {
+      const known = new Set(baseItems.map(item => item.id));
+      for (const item of content.hub || []) {
+        if (!known.has(item.id)) { baseItems.push(item); known.add(item.id); }
+      }
+      allItems = orderedItems();
+      sourceFilters = createFilters(sourceContainer, filterValues(allItems, 'source'), '출처별 콘텐츠 필터', 'source', value => { source = value; resetAndRender(); });
+      categoryFilters = createFilters(categoryContainer, filterValues(allItems, 'category'), '주제별 콘텐츠 필터', 'category', value => { category = value; resetAndRender(); });
+      for (const [container, key, selected] of [[sourceContainer, 'source', source], [categoryContainer, 'category', category]]) {
+        container.querySelectorAll('button').forEach(button => {
+          const active = button.dataset[key] === selected;
+          button.classList.toggle('active', active);
+          button.setAttribute('aria-pressed', String(active));
+        });
+      }
+      for (const item of allItems) {
+        const itemYear = item.publishedAt.slice(0, 4);
+        if (/^\d{4}$/.test(itemYear) && ![...dateControls.yearSelect.options].some(option => option.value === itemYear)) {
+          const option = document.createElement('option'); option.value = itemYear; option.textContent = itemYear + '년';
+          dateControls.yearSelect.append(option);
+        }
+      }
+      render();
+    });
   }
 
   setupArchive();
