@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Retry the same selected file at the same non-upsert key, including lost responses.
+  const uploadPaths = new WeakMap();
+
   const SESSION_KEY = 'taejang-staff-session-v1';
   const app = () => window.TaejangApp;
   const route = () => app()?.getRoute?.();
@@ -477,21 +480,24 @@
   }
 
   async function uploadHomepageImage(file) {
-    if (!file) throw new Error('사진을 선택해 주세요.');
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
+    const optimizer = await import('./photo-optimizer.mjs');
+    const optimized = await optimizer.optimizeForUpload(file);
     const auth = session();
     const userId = jwtSubject(auth.access_token || '');
     if (!auth.access_token || !userId) throw new Error('로그인 정보를 다시 확인해 주세요.');
-    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
-    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}`;
+    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[optimized.type];
+    let savedPath = uploadPaths.get(file);
+    if (savedPath?.owner !== userId) {
+      savedPath = { owner: userId, path: `${userId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${extension}` };
+      uploadPaths.set(file, savedPath);
+    }
+    const path = savedPath.path;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const response = await fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
       method: 'POST',
-      headers: { apikey: cfg.publishableKey, Authorization: `Bearer ${auth.access_token}`, 'Content-Type': file.type, 'x-upsert': 'false' },
-      body: file
+      headers: { apikey: cfg.publishableKey, Authorization: `Bearer ${auth.access_token}`, 'Content-Type': optimized.type, 'x-upsert': 'false' },
+      body: optimized
     });
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
@@ -623,18 +629,22 @@
       slotSelect.addEventListener('change', refreshActiveSlot);
       textArea.addEventListener('input', () => { proposedBox.textContent = textArea.value || '(빈 문구)'; draftMode = true; applyDraftToFrame(); });
       imageAlt.addEventListener('input', () => { if (uploadedImageUrl) { proposedBox.textContent = `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}`; draftMode = true; applyDraftToFrame(); } });
-      file.addEventListener('change', async () => {
+      const retryUpload = button('사진 다시 시도', () => uploadSelected());
+      retryUpload.hidden = true;
+      async function uploadSelected() {
+        retryUpload.hidden = true;
         const selected = file.files?.[0]; if (!selected) return;
         imageStatus.textContent = '사진 업로드 중'; file.disabled = true;
         try {
           uploadedImageUrl = await uploadHomepageImage(selected);
           imageAlt.value = selected.name.replace(/\.[^.]+$/, '');
-          imageStatus.textContent = '사진 업로드 완료';
+          imageStatus.textContent = '사진 업로드 완료'; file.value = '';
           proposedBox.textContent = `${uploadedImageUrl}\n대체텍스트: ${imageAlt.value}`;
           draftMode = true; applyDraftToFrame();
-        } catch (error) { uploadedImageUrl = null; imageStatus.textContent = friendly(error, '사진 업로드 실패'); }
+        } catch (error) { uploadedImageUrl = null; imageStatus.textContent = friendly(error, '사진 업로드 실패'); retryUpload.hidden = false; }
         finally { file.disabled = false; }
-      });
+      }
+      file.addEventListener('change', uploadSelected);
       preview.addEventListener('load', () => setTimeout(() => { readCurrentFromFrame(); applyDraftToFrame(); }, 350));
       previewActions.append(
         button('PC Preview', () => preview.classList.remove('mobile'), true),
@@ -647,7 +657,7 @@
       const pageLabel = document.createElement('label'); pageLabel.append(el('span', '페이지'), pageSelect);
       const slotLabel = document.createElement('label'); slotLabel.append(el('span', '수정 항목'), slotSelect);
       row.append(pageLabel, slotLabel);
-      form.append(row, previewActions, preview, compare, textArea, file, imageAlt, imageStatus, reason);
+      form.append(row, previewActions, preview, compare, textArea, file, imageAlt, imageStatus, retryUpload, reason);
       const formActions = el('div', null, 'quick-links');
       formActions.append(button(currentRoute === 'operations_manager' ? '승인 요청으로 저장' : '운영총괄에게 상신', async () => {
         if (!activeSlot) return;

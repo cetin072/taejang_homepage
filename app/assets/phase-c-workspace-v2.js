@@ -1,6 +1,9 @@
 (() => {
   'use strict';
 
+  // Retry the same selected file at the same non-upsert key, including lost responses.
+  const uploadPaths = new WeakMap();
+
   window.TaejangPromotionWorkspaceV2 = true;
 
   const SESSION_KEY = 'taejang-staff-session-v1';
@@ -219,18 +222,21 @@
   }
 
   async function uploadImage(file, { officialBlogPost = '' } = {}) {
-    if (!file) throw new Error('사진을 선택해 주세요.');
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP, GIF 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진 1장은 8MB 이하로 올려주세요.');
+    const optimizer = await import('./photo-optimizer.mjs');
+    const optimized = await optimizer.optimizeForUpload(file);
     let auth = await authenticatedSession();
     let userId = uploadUserId(auth);
     if (!auth.access_token || !userId) throw new Error('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
-    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[file.type];
+    const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' })[optimized.type];
     // Keep origin identity in the Storage key, not in public_media JSON: the
     // existing SQL validator accepts only url/slot/kind/alt metadata fields.
     const originMarker = /^\d{10,14}$/.test(String(officialBlogPost)) ? `official-blog-${officialBlogPost}-` : '';
-    const path = `${userId}/${new Date().toISOString().slice(0, 10)}/${originMarker}${crypto.randomUUID()}.${extension}`;
+    let savedPath = uploadPaths.get(file);
+    if (savedPath?.owner !== userId) {
+      savedPath = { owner: userId, path: `${userId}/${new Date().toISOString().slice(0, 10)}/${originMarker}${crypto.randomUUID()}.${extension}` };
+      uploadPaths.set(file, savedPath);
+    }
+    const path = savedPath.path;
     const encodedPath = path.split('/').map(encodeURIComponent).join('/');
     const cfg = await config();
     const postUpload = currentAuth => fetch(`${cfg.url}/storage/v1/object/promotion-media/${encodedPath}`, {
@@ -238,10 +244,10 @@
       headers: {
         apikey: cfg.publishableKey,
         Authorization: `Bearer ${currentAuth.access_token}`,
-        'Content-Type': file.type,
+        'Content-Type': optimized.type,
         'x-upsert': 'false'
       },
-      body: file
+      body: optimized
     });
 
     let response;
@@ -526,7 +532,7 @@
     fileInput.multiple = true;
     fileInput.hidden = true;
     uploadLabel.append(fileInput);
-    const uploadStatus = el('span', '사진은 최대 12장 · 장당 8MB', 'phase-c-upload-status');
+    const uploadStatus = el('span', '사진은 최대 12장 · 원본 장당 15MB · 자동 압축 후 1MB 이하', 'phase-c-upload-status');
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
@@ -591,8 +597,6 @@
         if (!['image/jpeg', 'image/png', 'image/webp'].includes(type) || typeof base64 !== 'string' || base64.length > 2000000) throw new Error('사진 형식·크기를 확인할 수 없습니다.');
         const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
         const file = new File([bytes], 'official-blog-' + key + '.' + ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[type], { type });
-        const decoded = await createImageBitmap(file);
-        decoded.close();
         if (!current()) return;
         const url = await uploadImage(file, { officialBlogPost: key });
         if (!current()) return;
@@ -624,19 +628,28 @@
       autoTimer = setTimeout(importOfficialPhoto, 600);
     });
     renderMediaEditor(mediaGrid, media, mediaChanged);
-    fileInput.addEventListener('change', async () => {
-      const files = [...(fileInput.files || [])];
+    let pendingFiles = [];
+    let pendingIndex = 0;
+    const retryUpload = button('실패한 사진 다시 시도', () => uploadSelected());
+    retryUpload.hidden = true;
+    toolbar.append(retryUpload);
+    async function uploadSelected() {
+      if (state.uploading) return;
+      const files = pendingFiles.slice(pendingIndex);
       if (!files.length) return;
       if (media.length + files.length > 12) { window.alert('사진은 최대 12장까지 올릴 수 있습니다.'); fileInput.value = ''; return; }
       if (!media.length) state.coverFromMedia = true;
       state.uploading = true;
       state.saveButtons.forEach(node => { node.disabled = true; });
       uploadLabel.style.pointerEvents = 'none';
+      fileInput.disabled = true;
+      retryUpload.hidden = true;
       uploadStatus.textContent = '사진을 업로드하고 있습니다.';
       try {
         for (const file of files) {
           const url = await uploadImage(file);
           media.push({ url, alt: file.name.replace(/\.[^.]+$/, ''), kind: 'selected' });
+          pendingIndex += 1;
         }
         if ((state.coverFromMedia || !state.heroImage) && media[0]) { state.heroImage = media[0].url; state.coverFromMedia = true; }
         renderMediaEditor(mediaGrid, media, mediaChanged);
@@ -644,14 +657,21 @@
         fileInput.value = '';
       } catch (error) {
         window.alert(error.message || '사진 업로드에 실패했습니다.');
-        uploadStatus.textContent = '사진 업로드 실패 · 작성 내용과 첨부한 사진은 유지됩니다.';
+        uploadStatus.textContent = '사진 업로드 실패 · ' + error.message + ' 작성 내용과 첨부한 사진은 유지됩니다.';
+        retryUpload.hidden = false;
       } finally {
         renderMediaEditor(mediaGrid, media, mediaChanged);
         mediaChanged();
         state.uploading = false;
         state.saveButtons.forEach(node => { node.disabled = false; });
         uploadLabel.style.pointerEvents = '';
+        fileInput.disabled = false;
       }
+    }
+    fileInput.addEventListener('change', () => {
+      pendingFiles = [...(fileInput.files || [])];
+      pendingIndex = 0;
+      uploadSelected();
     });
     editor.append(toolbar, mediaGrid);
     // The operations-manager reference order is shared by all authoring roles.
