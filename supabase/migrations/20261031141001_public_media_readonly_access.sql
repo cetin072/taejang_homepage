@@ -1,5 +1,5 @@
--- PROPOSAL ONLY: not in migrations, not applied to any hosted database.
--- Generate the versioned migration with `supabase migration new` after CLI recovery.
+-- Local migration only: not applied to any hosted database.
+-- Generated with Supabase CLI using an empty temporary SUPABASE_HOME.
 -- Dedicated unexposed schema: do not grant anonymous access to the existing private schema.
 begin;
 create schema if not exists public_media_private authorization postgres;

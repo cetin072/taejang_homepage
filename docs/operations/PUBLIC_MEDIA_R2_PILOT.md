@@ -142,12 +142,18 @@ Worker에서는 이 경로를 완전히 제거했다. 기존 홈페이지 피드
 
 ### SQL 적용 준비와 복구
 
-`supabase/proposals/public_media_readonly_access.sql`과 `.rollback.sql`을 준비했다.
-현재 **migration 디렉터리에 등록되지 않은 SQL 제안**이다. CLI가 시작 시 읽기 전용
-`/home/agent/.supabase` 생성에 실패하여 `migration new`를 실행할 수 없었다.
-도구 권한 추가 방식으로도 같은 EROFS였고 더 반복하지 않았다. CLI가 복구된 환경에서
-`supabase migration new public_media_readonly_access`로 버전 파일을 생성하고 제안 내용을
-넣어 전체 migration/RLS/advisor 검증을 거쳐야 한다. 파일명 임의 생성으로 우회하지 않았다.
+`supabase/migrations/20261031141001_public_media_readonly_access.sql`을 CLI로 생성했고,
+`supabase/proposals/public_media_readonly_access.rollback.sql`을 복구 SQL로 유지한다.
+초기 CLI는 읽기 전용 `/home/agent/.supabase` 생성에 EROFS로 실패했으나,
+공식 `SUPABASE_HOME` 옵션으로 `/tmp/taejang-r2-cli`의 빈 디렉터리를 지정해 해결했다.
+기존 HOME/설정/자격증명을 변경·복사하지 않았다. 환경을 비운 상태에서 PATH 및 임시 설정,
+업데이트 알림·추적 OFF만 주입해 `migration new --help` → `migration new`를 실행했다.
+기존 제안 SQL은 중복 원본이 되지 않게 migration으로 옮겼다. 운영 적용은 하지 않았다.
+
+공식 근거: https://github.com/supabase/cli/blob/develop/apps/cli/docs/supabase-home.md
+생성 명령은 로컬 파일 생성만 수행하며 login/link/원격 SQL을 실행하지 않았다.
+전체 로컬 Supabase 스택은 실행 중이지 않아 전체 migration/RLS/advisor/PostgREST HTTP
+통합 검증은 여전히 미실행이다. 이를 CLI 파일 생성 성공으로 대체하지 않는다.
 
 공개 wrapper는 SECURITY INVOKER이고, 별도 비노출 `public_media_private` schema의
 STABLE SECURITY DEFINER가 현재 공개 첨부 존재 여부만 판단한다. 익명 사진 요청이므로
@@ -210,6 +216,14 @@ fixture에서 예상하는 정상 대표 사진 1장의 추가 경로는
   익명 원본테이블 접근 불가, 기존 private schema 권한 보존, STABLE/invoker/definer,
   scheduler 미호출, 숨김 직후 재검사와 rollback을 확인했다.
 - 위 PostgreSQL 검사는 **전체 저장소 migration/RLS 통합이나 PostgREST HTTP 실행 검사가 아니다.**
-  Supabase CLI 복구 후 전체 로컬 migration/advisor/RPC HTTP gate는 별도로 남는다.
+  전체 로컬 migration/advisor/RPC HTTP gate는 별도로 남는다.
 - 로컬 fixture DB만 생성/삭제. 운영 DB/계정/사진/캐시/도메인 설정 변경 없음.
 - 실제 Supabase/Cloudflare 성능·과금 효과 및 production 철회는 미측정/미검증.
+
+### 정식 migration 생성 후 재검증
+
+- CLI 생성 파일 `20261031141001_public_media_readonly_access.sql`로 새 격리 PostgreSQL 17
+  fixture에 적용 → 읽기 전용/권한/철회 assertions → rollback 모두 PASS.
+- 임시 fixture 컨테이너 제거. 기존 credential 복사, login/link, 운영 SQL 실행 없음.
+- 변경은 SQL 파일 이동·생성 및 기록 갱신이며 Worker/프런트 런타임은 직전 검증본과 동일하다.
+- `git diff --check` PASS. 전체 Supabase/PostgREST 스택은 존재하지 않아 통합검증 미실행 유지.
