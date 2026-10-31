@@ -80,6 +80,34 @@ test('runtime fallback handles already failed SSR images, tries attachments once
   assert.equal(image.src,policy.DEFAULT_IMAGE);
 });
 
+test('media resolution stops at a healthy hero, shares in-flight probes per response, and rechecks on the next response', async () => {
+  const previous = globalThis.fetch;
+  const calls = [];
+  let deleted = false;
+  globalThis.fetch = async (url, options) => {
+    calls.push(String(url));
+    assert.equal(options.method, 'HEAD');
+    assert.equal(options.headers, undefined);
+    return new Response(null, { status: deleted && url === photo('shared-hero') ? 404 : 200,
+      headers: { 'content-type': 'image/jpeg' } });
+  };
+  const item = { ...row, hero_image_url: photo('shared-hero'), public_media: [
+    { url: photo('shared-hero') }, { url: photo('backup') },
+    { url: 'https://foreign.supabase.co/storage/v1/object/public/promotion-media/foreign.jpg' }
+  ] };
+  try {
+    const probes = new Map();
+    const results = await Promise.all(Array.from({ length: 20 }, () => policy.resolve(item, origin, probes)));
+    assert.deepEqual(calls, [photo('shared-hero')], 'one HEAD, no eager download/probe of backup photos');
+    assert.ok(results.every(result => result.url === photo('shared-hero')));
+    assert.deepEqual(results[0].candidates, [photo('shared-hero'), photo('backup'), policy.DEFAULT_IMAGE]);
+    deleted = true;
+    const next = await policy.resolve(item, origin, new Map());
+    assert.equal(next.url, photo('backup'), 'no persistent stale success after a photo is deleted');
+    assert.deepEqual(calls, [photo('shared-hero'), photo('shared-hero'), photo('backup')]);
+  } finally { globalThis.fetch = previous; }
+});
+
 test('feed, SSR body and crawler metadata agree on broken/photo-free/external cases without changing approved data', async () => {
   const previous = { fetch:globalThis.fetch, Netlify:globalThis.Netlify };
   let current;

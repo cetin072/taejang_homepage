@@ -28,6 +28,12 @@ try {
       const context = await browser.newContext({ viewport: { width, height: 1000 }, javaScriptEnabled: mode !== 'no-js' });
       await context.route('https://fonts.**', route => route.abort());
       await context.route('https://taejang.co.kr/images/og-taejang.png', route => route.fulfill({ contentType: 'image/png', path: path.join(root, 'images/og-taejang.png') }));
+      // Snapshot records can contain real public photos. This is a UI/state
+      // matrix, not a repeated production Storage download test.
+      await context.route('https://*.supabase.co/storage/**', route => {
+        if (route.request().resourceType() !== 'image') return route.abort();
+        return route.fulfill({ contentType: 'image/png', path: path.join(root, 'images/og-taejang.png') });
+      });
       let releaseFeed; const feedReady = new Promise(resolve => { releaseFeed = resolve; });
       await context.route('**/.netlify/functions/public-promotion-feed*', async route => {
         if (mode === 'slow') await feedReady;

@@ -31,19 +31,26 @@
     image.addEventListener('error', next);
     if (image.complete && image.naturalWidth === 0) next();
   }
-  async function resolve(item, storageOrigin) {
-    const urls = candidates(item);
-    const usable = await Promise.all(urls.map(async url => {
-      if (url === DEFAULT_IMAGE) return true;
-      // Never probe arbitrary origins or send storage credentials.
-      if (new URL(url).origin !== 'https://taejang.co.kr' && new URL(url).origin !== storageOrigin) return false;
-      try {
-        const response = await fetch(url, { method: 'HEAD', redirect: 'error', signal: AbortSignal.timeout(2000) });
-        return response.ok && /^image\//i.test(response.headers.get('content-type') || '');
-      } catch { return false; }
-    }));
-    const valid = urls.filter((_, index) => usable[index]);
-    return { url: valid[0], alt: alt(item, valid[0]), candidates: valid };
+  async function resolve(item, storageOrigin, probes = new Map()) {
+    const signal = AbortSignal.timeout(2000);
+    // Probe only until the first usable approved photo. Remaining approved
+    // attachments are browser error fallbacks, not eager network requests.
+    const urls = candidates(item).filter(url => url === DEFAULT_IMAGE ||
+      new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === storageOrigin);
+    for (let index = 0; index < urls.length; index++) {
+      const url = urls[index];
+      if (url !== DEFAULT_IMAGE && !probes.has(url)) {
+        probes.set(url, (async () => {
+          try {
+            const response = await fetch(url, { method: 'HEAD', redirect: 'error', signal });
+            return response.ok && /^image\//i.test(response.headers.get('content-type') || '');
+          } catch { return false; }
+        })());
+      }
+      if (url === DEFAULT_IMAGE || await probes.get(url)) {
+        return { url, alt: alt(item, url), candidates: urls.slice(index) };
+      }
+    }
   }
   root.TAEJANG_PUBLIC_MEDIA = Object.freeze({ DEFAULT_IMAGE, persistent, candidates, alt, bind, resolve });
 }(globalThis));

@@ -105,8 +105,10 @@ export default async (request) => {
     }
 
     const rows = await rpc('list_public_promotion_feed', {});
+    // Share only within this response; never cache publication/auth state.
+    const probes = new Map();
     const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
-      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL')))));
+      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
     if (format === 'json') return json({ items });
 
     const script = `(() => {\n  const content = window.TAEJANG_CONTENT;\n  if (!content) return;\n  if (!Array.isArray(content.hub)) content.hub = [];\n  const items = ${safeScriptJson(items)};\n  const ids = new Set(content.hub.map(item => item && item.id));\n  items.forEach(item => { if (!ids.has(item.id)) { content.hub.push(item); ids.add(item.id); } });\n})();\n`;
