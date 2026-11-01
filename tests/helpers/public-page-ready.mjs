@@ -5,6 +5,23 @@ import path from 'node:path';
 // A Preview toolbar iframe is not part of the product. Never wait for its
 // analytics to become idle; still require product resources, fonts and layout.
 const trackers = new WeakMap();
+// Retry only a transport failure before a document response is committed.
+// HTTP errors and DOM/product-resource readiness failures remain release blockers.
+export async function gotoPublicDocument(page, url, timeout = 30000) {
+  let response;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      response = await page.goto(url, { waitUntil: 'commit', timeout });
+      break;
+    } catch (error) {
+      if (attempt || !(error.name === 'TimeoutError' ||
+        /ECONNRESET|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED|ERR_EMPTY_RESPONSE/.test(error.message))) throw error;
+    }
+  }
+  await page.waitForLoadState('domcontentloaded', { timeout });
+  return response;
+}
+
 export async function gotoPublicReady(page, url, output, timeout = 30000) {
   let tracker = trackers.get(page);
   if (!tracker) {
@@ -36,7 +53,7 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
   const relevant = item => item.main && !isFavicon(item) && !new URL(item.url).pathname.startsWith('/.netlify/scripts/') &&
     (new URL(item.url).origin === origin || ['font', 'stylesheet', 'image'].includes(item.type));
   try {
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+    const response = await gotoPublicDocument(page, url, timeout);
     assert.equal(response?.status(), 200, 'page document returns HTTP 200');
     const deadline = Date.now() + timeout;
     let quietSince = null;
@@ -56,7 +73,7 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
     assert.ok(await page.locator('main h1').isVisible(), 'actual page heading is visible');
     const icon = await page.locator('link[rel="icon"]').evaluateAll(links => links[0]?.getAttribute('href'));
     if (icon) {
-      const response = await page.request.get(new URL(icon, page.url()).href, { timeout });
+      const response = await page.request.get(new URL(icon, page.url()).href, { timeout, maxRetries: 1 });
       assert.equal(response.status(), 200, 'favicon asset is actually available');
       assert.ok((await response.body()).length > 0, 'favicon asset is not empty');
     }
