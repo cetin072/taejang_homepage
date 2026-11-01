@@ -55,6 +55,13 @@ function paragraphs(item) {
   }).join('\n');
 }
 
+function renderResources(item) {
+  const links = [];
+  if (/^\d{9,15}$/.test(item.resources?.blogPost || '')) links.push('<a class="article-resource-card" href="https://blog.naver.com/taejang-official/' + item.resources.blogPost + '" target="_blank" rel="noopener noreferrer" aria-label="사진과 이야기 보기 (네이버 블로그, 새 탭)"><span class="article-resource-source">NAVER BLOG</span><strong>사진과 이야기 보기</strong><span>태장 공식 블로그 <span aria-hidden="true">↗</span> · 새 탭</span></a>');
+  if (/^[A-Za-z0-9_-]{11}$/.test(item.resources?.youtubeId || '')) links.push('<a class="article-resource-card article-resource-card--video" href="https://www.youtube.com/watch?v=' + item.resources.youtubeId + '" target="_blank" rel="noopener noreferrer" aria-label="활동 영상 보기 (유튜브, 새 탭)"><span class="article-resource-source">YOUTUBE</span><strong>활동 영상 보기</strong><span>태장의 현장 영상 <span aria-hidden="true">↗</span> · 새 탭</span></a>');
+  return links.length ? '<aside class="article-resources" aria-label="활동 관련 자료"><h2>사진과 영상으로 더 보기</h2><div class="article-resource-links">' + links.join('') + '</div></aside>' : '';
+}
+
 function renderArticle(group, item, siblings) {
   const itemPath = articlePath(group, item);
   const listPage = item.series === 'community-esg' ? 'community-esg-records.html' : group.page;
@@ -86,7 +93,7 @@ function renderArticle(group, item, siblings) {
     '<h1>' + htmlText(item.title) + '</h1>',
     '<p class="lead">' + htmlText(item.summary) + '</p>',
     '</header>',
-    '<div class="article-body">' + photo + paragraphs(item) +
+    '<div class="article-body">' + photo + paragraphs(item) + renderResources(item) +
       (gallery ? '<div class="article-gallery">' + gallery + '</div>' : '') + '</div>',
     related ? '<section class="related-posts" aria-label="관련 이야기"><h2>다른 태장 이야기</h2><div class="related-posts-grid">' +
       related + '</div></section>' : '',
