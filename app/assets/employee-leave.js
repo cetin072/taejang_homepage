@@ -35,7 +35,7 @@
         if(!balance){
           const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));
           const accrued=field(f,'지금까지 발생한 연차','number');const remaining=field(f,'현재 남은 연차','number');
-          const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',false);monthly.required=false;
+          const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;monthly.required=true;
           const reason=field(f,'기준일·입력 근거','text');reason.minLength=2;
           f.append(el('p',`기준일 ${ctx.server_today}. 기존 사용분이 반영된 남은 개수를 입력합니다. 최초 입력은 덮어쓰지 않습니다.`));
           formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value}),reload);host.append(f);

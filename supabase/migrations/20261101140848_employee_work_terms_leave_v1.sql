@@ -173,7 +173,7 @@ create function public.initialize_employee_leave(p_employee_uuid uuid,p_baseline
 begin
  if auth.uid() is null or not public.private_actor_can('employee.work_terms_manage') then raise exception 'FORBIDDEN' using errcode='42501'; end if;
  if p_baseline_on is null or p_baseline_on<>(now() at time zone 'Asia/Seoul')::date then raise exception 'BASELINE_MUST_BE_TODAY'; end if;
- if p_accrued is null or p_remaining is null or p_monthly_enabled is null or length(btrim(coalesce(p_reason,''))) not between 2 and 300 then raise exception 'INVALID_BASELINE'; end if;
+ if p_accrued is null or p_remaining is null or p_monthly_enabled is distinct from true or length(btrim(coalesce(p_reason,''))) not between 2 and 300 then raise exception 'INVALID_BASELINE'; end if;
  perform 1 from public.employees where id=p_employee_uuid and archived_at is null and employment_status='active' for update;
  if not found then raise exception 'EMPLOYEE_NOT_ACTIVE'; end if;
  insert into public.employee_leave_accounts values(p_employee_uuid,p_baseline_on,p_accrued,p_remaining,p_monthly_enabled,auth.uid(),now());
