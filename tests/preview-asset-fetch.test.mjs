@@ -25,7 +25,11 @@ for(const status of [401,403,404])test(`HTTP ${status} fails immediately without
 });
 test('different HEAD bytes fail immediately and never get replaced by a retry',async()=>{
  const s=setup([()=>new Response('wrong build'),ok]);
- await assert.rejects(readExactPreviewAsset(url,bytes,s.options),/exact-head Preview bytes/);
+ await assert.rejects(readExactPreviewAsset(url,bytes,s.options),error=>{
+  assert.match(error.message,/exact-head Preview bytes mismatch/);
+  assert.doesNotMatch(error.message,/wrong build|expected HEAD bytes|private/);
+  return true;
+ });
  assert.equal(s.calls(),1);assert.deepEqual(s.delays,[]);
 });
 test('repeated 429 stops after exactly three attempts without accepting fallback',async()=>{

@@ -1,5 +1,3 @@
-import assert from 'node:assert/strict';
-
 // Only transport failures are retried. A different build must never be accepted.
 export async function readExactPreviewAsset(url, expected, {
   request = fetch,
@@ -30,7 +28,7 @@ export async function readExactPreviewAsset(url, expected, {
       continue;
     }
     // Keep this outside the transport catch: byte mismatch is never retried.
-    assert.deepEqual(bytes, expected, 'exact-head Preview bytes ' + address);
+    if (!bytes.equals(expected)) throw new Error('exact-head Preview bytes mismatch ' + address);
     return bytes;
   }
 }
