@@ -86,3 +86,35 @@ assert.match(partnership, /href="community-esg\.html">지역사회공헌 활동 
 assert.match(read('sitemap.xml'), /community-esg\.html/);
 
 console.log('community ESG tests: all cases passed');
+
+// Both static/JS detail paths must publish the same safe, readable resource cards.
+function resourceRenderer(source, indent) {
+  const start = source.indexOf('function renderResources(item) {');
+  assert.ok(start >= 0, 'resource renderer present');
+  const end = source.indexOf('\n' + indent + '}', start) + indent.length + 2;
+  return vm.runInNewContext('(' + source.slice(start, end) + ')');
+}
+const staticResources = resourceRenderer(read('scripts/generate-public-articles.mjs'), '');
+const browserResources = resourceRenderer(read('assets/js/listing.js'), '  ');
+const resourcePairs = [
+  ['second', '224388330726', 'mIb0wN_Wi8w'],
+  ['third', '224419679827', 'P5L1XvxFA_Q'],
+  ['fourth', '224446386346', 'AyF2Qjmir_c'],
+  ['fifth', '224451351676', '6igM9R9rE-I']
+];
+for (const [name, blog, video] of resourcePairs) {
+  const record = activities.find(item => item.id === 'environment-cleanup-' + name);
+  const html = staticResources(record);
+  assert.equal(html, browserResources(record), 'static/legacy resource parity: ' + name);
+  assert.ok(html.includes('https://blog.naver.com/taejang-official/' + blog));
+  assert.ok(html.includes('https://www.youtube.com/watch?v=' + video));
+  assert.equal((html.match(/target="_blank" rel="noopener noreferrer"/g) || []).length, 2);
+  assert.match(html, /사진과 이야기 보기/);
+  assert.match(html, /활동 영상 보기/);
+  assert.doesNotMatch(html, /<iframe|<img/, 'links add no media downloads');
+}
+assert.equal(staticResources(firstRecord), '', 'first activity is preserved');
+for (const render of [staticResources, browserResources]) {
+  assert.equal(render({resources: {blogPost: 'javascript:alert(1)', youtubeId: '"><img src=x>'}}), '');
+  assert.equal(render({resources: {blogPost: 'https://evil.example/', youtubeId: 'video?x=bad'}}), '');
+}
