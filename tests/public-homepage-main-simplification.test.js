@@ -172,8 +172,12 @@ assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\
 assert.match(location, /location-pin-icon/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
-assert.doesNotMatch(partnership, /contact-location-map|<svg/);
-assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
+assert.doesNotMatch(partnership, /contact-location-map/);
+assert.doesNotMatch(partnership.slice(partnership.indexOf('id="contact"')), /<svg/, '문의 영역에 지도 그림을 추가하지 않습니다');
+assert.doesNotMatch(partnership, /거래기업/, '기업의 화면 명칭은 참여기업으로 통일합니다');
+assert.match(partnership, /class="partnership-map" role="group"/);
+assert.match(partnership, /class="map-return"[\s\S]*태장 → 참여기업/);
+assert.match(partnership, /class="inquiry-scope"[\s\S]*이런 내용을 문의할 수 있습니다[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
 assert.doesNotMatch(partnership, /최소 출자금은|의무 구매량은|부담금 완전 해소|고용 실적 자동 인정/, '미확정 계약조건과 고용 보장을 게시하지 않습니다');
 assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효과|리스크를 태장이 모두 부담/, '제도 설명에 과장된 영업 문구를 사용하지 않습니다');
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
