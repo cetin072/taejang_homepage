@@ -6,6 +6,7 @@ import http from 'node:http';
 import assert from 'node:assert/strict';
 import {browserGateResult} from './browser-gate-result.mjs';
 import {recordBrowserDiagnostics} from './browser-network-diagnostics.mjs';
+import {readExactPreviewAsset} from './preview-asset-fetch.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -36,18 +37,17 @@ if(preview){
    assert.ok(file.startsWith(root+path.sep));
    let body;
    if(/^\/(app\/assets|staff\/assets|assets)\//.test(pathname)){
-    if(!assets.has(pathname))assets.set(pathname,(async()=>{
-     const response=await fetch(preview+pathname,{signal:AbortSignal.timeout(20000)});
-     assert.equal(response.status,200,'Preview asset '+pathname);
-     const bytes=Buffer.from(await response.arrayBuffer());
-     assert.deepEqual(bytes,readFileSync(file),'exact-head Preview bytes '+pathname);
-     return bytes;
-    })());
+    if(!assets.has(pathname))assets.set(pathname,readExactPreviewAsset(
+     preview+pathname,readFileSync(file),{onRetry:message=>console.warn(message)}
+    ));
     body=await assets.get(pathname);
    }else body=readFileSync(file);
    res.setHeader('Content-Type',/\.m?js$/.test(file)?'application/javascript':file.endsWith('.css')?'text/css':'text/html');
    res.end(body);
-  }catch(error){res.writeHead(500);res.end(error.message);}
+  }catch(error){
+   console.error('PREVIEW_ASSET_PROXY_FAILED:'+new URL(req.url,'http://localhost').pathname+':'+error.message);
+   res.writeHead(500);res.end('Preview asset verification failed');
+  }
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  previewOrigin='http://127.0.0.1:'+server.address().port;
