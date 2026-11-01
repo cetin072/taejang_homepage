@@ -71,6 +71,10 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: npm ci
 
+      - name: Test leave administration browser flow
+        if: steps.scope.outputs.run_full == 'true'
+        run: CHROME_PATH=$(command -v google-chrome) node tests/employee-leave-browser.mjs
+
       - name: Start isolated local Supabase
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
@@ -139,6 +143,7 @@ jobs:
           # Run after first-super-admin bootstrap and all historical ledgers exist.
           git fetch origin 90cf9d6af8490b005d1a8ae0865cdd85c133460c
           node tests/employee-password-reset-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-leave-auth-integration.mjs
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'

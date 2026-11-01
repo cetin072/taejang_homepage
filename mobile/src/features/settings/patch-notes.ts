@@ -12,6 +12,11 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-01-leave-request', date: '2026-11-01', title: '내 연차 확인·신청',
+    summary: '관리자가 등록한 남은 연차를 확인하고 연차를 신청합니다.',
+    items: ['종일·반차를 사용일 최소 3일 전에 신청합니다.', '승인 대기·승인·반려 상태를 확인하고 대기 중인 신청을 취소할 수 있습니다.'],
+  },
+  {
     id: '2026-11-01-notice-card-balance',
     date: '2026-11-01',
     title: '공지 카드 색상과 정렬 개선',

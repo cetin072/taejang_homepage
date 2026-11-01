@@ -235,6 +235,11 @@
         capabilities: ['employee.view_all', 'employee.view_scoped']
       },
       {
+        key: 'leave.manage', label: '연차·휴무 관리',
+        run: () => window.TaejangEmployeeLeave?.open(),
+        capabilities: ['leave.manage']
+      },
+      {
         key: 'employee.new', label: '신규 직원 등록',
         run: () => openEmployee('new'),
         dataKey: 'employee-new',

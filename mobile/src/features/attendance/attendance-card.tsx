@@ -556,6 +556,9 @@ export function AttendanceCard({
         </Pressable>
       </Animated.View>
 
+      {!previewMode && today?.work_schedule?.configured && today.work_schedule.is_workday && today.work_schedule.leave_portion ? (
+        <Text style={styles.todaySummaryTitle}>승인 반차 · 오늘 근무 {new Date(today.work_schedule.starts_at!).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})}~{new Date(today.work_schedule.ends_at!).toLocaleTimeString('ko-KR', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false})}</Text>
+      ) : null}
       {!qaMode && today && today.attendance_required !== false && (clockIn || clockOut) ? (
         <View accessibilityLabel={previewMode ? "가상 출퇴근 기록" : "오늘 출퇴근 기록"} style={styles.todaySummary}>
           {previewMode ? <Text style={styles.todaySummaryTitle}>가상 출퇴근 내역 · 실제 기록 아님</Text> : null}

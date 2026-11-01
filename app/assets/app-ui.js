@@ -156,6 +156,7 @@
     ['assets/issue-221-employee-screen-core.js', 'issue-221-employee-screen-core'],
     ['assets/issue-221-employee-screen-switcher.js', 'issue-221-employee-screen-switcher'],
     ['assets/employee-common-home-v1.js', 'employee-common-home-v1'],
+    ['assets/employee-leave.js', 'employee-leave'],
     ['assets/employee-management-views.js', 'employee-management-views'],
     ['assets/employee-management.js', 'employee-management'],
     ['assets/operations-delete-controls.js', 'operations-delete-controls'],
