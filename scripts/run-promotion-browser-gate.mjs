@@ -37,7 +37,14 @@ if(preview){
    let body;
    if(/^\/(app\/assets|staff\/assets|assets)\//.test(pathname)){
     if(!assets.has(pathname))assets.set(pathname,(async()=>{
-     const response=await fetch(preview+pathname,{signal:AbortSignal.timeout(20000)});
+     let response;
+     try { response=await fetch(preview+pathname,{signal:AbortSignal.timeout(20000)}); }
+     catch(error) {
+      // Recover one transport-only failure before a response exists. HTTP
+      // failures and exact-head byte mismatches below must still fail the gate.
+      if(!['TypeError','TimeoutError'].includes(error.name))throw error;
+      response=await fetch(preview+pathname,{signal:AbortSignal.timeout(20000)});
+     }
      assert.equal(response.status,200,'Preview asset '+pathname);
      const bytes=Buffer.from(await response.arrayBuffer());
      assert.deepEqual(bytes,readFileSync(file),'exact-head Preview bytes '+pathname);
