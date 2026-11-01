@@ -19,7 +19,7 @@ export async function checkReadinessBoundary(browser, output) {
       '<header>Header</header><main><h1>Ready fixture</h1></main><footer>Footer</footer>' +
       (url.pathname === '/toolbar-test' ? '<iframe src="/toolbar"></iframe>' : '') });
   });
-  const page = await context.newPage();
+  let page = await context.newPage();
   // CI browser startup may exceed 1 s before the mocked main document is ready.
   // Keep the blocked product-stylesheet case below at 1 s: it must still fail closed.
   await gotoPublicReady(page, 'https://readiness.invalid/toolbar-test', output, 5000);
@@ -29,6 +29,10 @@ export async function checkReadinessBoundary(browser, output) {
   assert.equal(documents.get('/reset-once'), 2, 'one transport reset recovers with one retry');
   await assert.rejects(gotoPublicReady(page, 'https://readiness.invalid/reset-always', output, 5000), /ERR_CONNECTION_RESET/, 'persistent transport failure still blocks');
   assert.equal(documents.get('/reset-always'), 2, 'transport retries are bounded');
+  // The final failed navigation can still commit Chromium's error document.
+  // Keep the independent HTTP-status case out of that failed page's lifecycle.
+  await page.close();
+  page = await context.newPage();
   await assert.rejects(gotoPublicReady(page, 'https://readiness.invalid/http-failure', output, 5000), /page document returns HTTP 200/, 'HTTP failure still blocks');
   assert.equal(documents.get('/http-failure'), 1, 'HTTP error is never retried');
   assert.equal(documents.get('/product-failure'), 1, 'product stylesheet failure is never retried');
