@@ -76,6 +76,18 @@ declare b jsonb; begin
  return b||jsonb_build_object('overrides',coalesce((select jsonb_agg(to_jsonb(o) order by o.effective_from desc)
  from public.employee_work_overrides o where (p_employee_uuid is null or o.employee_uuid=p_employee_uuid) and o.revoked_at is null),'[]'::jsonb));
 end $$;
+-- GPS-exception submission must obey the same new schedule exclusion as a normal clock.
+alter function public.request_attendance_exception(text,text,double precision,double precision,double precision) rename to private_request_attendance_exception_pre572;
+create function public.request_attendance_exception(p_event_type text,p_failure_code text,p_latitude double precision default null,p_longitude double precision default null,p_accuracy_m double precision default null) returns jsonb language plpgsql security definer set search_path='' as $$
+declare e uuid:=public.private_leave_employee(); s jsonb; begin
+ if e is not null then
+  s:=public.private_employee_schedule(e,(now() at time zone 'Asia/Seoul')::date);
+  if (s->>'configured')::boolean and not (s->>'is_workday')::boolean then return jsonb_build_object('ok',false,'code','NOT_WORKDAY'); end if;
+ end if;
+ return public.private_request_attendance_exception_pre572(p_event_type,p_failure_code,p_latitude,p_longitude,p_accuracy_m);
+end $$;
+revoke all on function public.private_request_attendance_exception_pre572(text,text,double precision,double precision,double precision),public.request_attendance_exception(text,text,double precision,double precision,double precision) from public,anon,authenticated;
+grant execute on function public.request_attendance_exception(text,text,double precision,double precision,double precision) to authenticated;
 -- Approved leave remains the source of the daily status until a permitted cancellation.
 alter function public.set_attendance_day_status(uuid,date,text,text,text) rename to private_set_attendance_day_status_pre572;
 create function public.set_attendance_day_status(p_employee_uuid uuid,p_work_date date,p_attendance_status text,p_reason text,p_note text default null) returns jsonb language plpgsql security definer set search_path='' as $$

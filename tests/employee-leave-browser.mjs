@@ -10,7 +10,7 @@ for(const width of [390,1440]){
  await page.evaluate(()=>{
   const e={id:'employee',name:'검수 직원',employee_id:'TEST-001',balance:null,terms:[]};const ctx={server_today:'2026-11-01',can_initialize:true,can_review:true,employees:[e],requests:[],ledger:[],days_off:[],locations:[{id:'office',name:'본사'}]};
   window.calls=[];window.failNext=false;
-  window.TaejangMenuAuthority={allowed:()=>true};window.TaejangApp={rpc:async(name,args)=>{
+  window.TaejangMenuAuthority={allowed:(_key,legacy)=>legacy};window.TaejangApp={can:()=>true,rpc:async(name,args)=>{
    window.calls.push({name,args});if(window.failNext){window.failNext=false;throw Error('NETWORK');}
    if(name==='get_employee_leave_admin_context')return structuredClone(ctx);
    if(name==='initialize_employee_leave'){ctx.employees[0].balance={accrued:10,remaining:7,reserved:0,available:7};return {ok:true};}

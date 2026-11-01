@@ -28,7 +28,7 @@ export default function LeaveScreen(){
   {!session?<Text>로그인 후 확인해주세요.</Text>:null}
   {loading?<ActivityIndicator/>:null}{error?<Text accessibilityRole="alert">{error}</Text>:null}{press('새로고침',()=>void reload(),busy)}
   {context?<><Text style={styles.balance}>{context.configured?`남은 연차 ${context.remaining}개`:'관리자 등록 대기'}</Text>
-   <Text>연차는 사용일 최소 3일 전에 신청해주세요.</Text><Text>반차는 하루 근무시간의 절반이며 연차 0.5개를 사용합니다.</Text>
+   <Text>승인 대기 중인 신청분은 남은 개수에서 제외됩니다.</Text><Text>연차는 사용일 최소 3일 전에 신청해주세요.</Text><Text>반차는 하루 근무시간의 절반이며 연차 0.5개를 사용합니다.</Text>
    {press(date||'사용 날짜 선택',()=>setPicker(true),busy||!context.configured)}
    {picker?<DateTimePicker value={date?new Date(`${date}T12:00:00`):min} mode="date" minimumDate={min} onChange={(_event,value)=>{setPicker(false);if(value)setDate(`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`);}}/>:null}
    <View style={styles.choices}>{(['full','first_half','second_half'] as LeavePortion[]).map(p=>press(`${portion===p?'✓ ':''}${labels[p]}`,()=>setPortion(p),busy))}</View>

@@ -63,7 +63,8 @@
     });if(!ctx.requests.length)section.append(el('p','신청 내역이 없습니다.'));host.append(section);
   }
   async function open(){
-    if(window.TaejangMenuAuthority?.allowed('leave.manage',false)===false)return;
+    const legacyAllowed=window.TaejangApp?.can?.('leave.manage')===true;
+    if((window.TaejangMenuAuthority?.allowed('leave.manage',legacyAllowed)??legacyAllowed)===false)return;
     const target=document.getElementById('dashboard-main');if(!target)return;
     const host=el('section',null,'employee-management');target.replaceChildren(host);host.append(el('p','연차·휴무를 확인하고 있습니다.'));
     const load=async()=>{try{const ctx=await rpc('get_employee_leave_admin_context');if(!host.isConnected)return;host.replaceChildren(el('h2','연차·휴무 관리'));

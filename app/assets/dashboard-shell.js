@@ -236,7 +236,7 @@
       },
       {
         key: 'leave.manage', label: '연차·휴무 관리',
-        run: () => window.TaejangEmployeeLeave?.open(),
+        run: () => { if (!featureUnavailable('employee-leave', '연차·휴무 관리 기능')) window.TaejangEmployeeLeave?.open(); },
         capabilities: ['leave.manage']
       },
       {

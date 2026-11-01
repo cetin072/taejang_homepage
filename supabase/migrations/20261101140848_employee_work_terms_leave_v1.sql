@@ -4,6 +4,8 @@ insert into public.platform_capabilities(code,capability_kind,operations_manager
 values ('employee.work_terms_manage','operational',true,'직원 근무조건과 최초 연차 입력'),
        ('leave.manage','operational',true,'연차·휴무 조회 및 신청 승인')
 on conflict(code) do nothing;
+insert into public.menu_authority_catalog(menu_key,label,scope_summary,sensitive_fields,capabilities,adapter_ready)
+values('leave.manage','연차·휴무 관리','직원 연차 조회·신청 승인·반려 및 휴무 관리. 최초 연차·근무조건 변경과 급여 권한 제외.',array['연차 잔여','연차 신청·휴무'],array['leave.manage'],false) on conflict(menu_key) do nothing;
 insert into public.role_capability_grants(role_id,capability_code)
 select id,'leave.manage' from public.roles where code='promotion_lead'
 on conflict do nothing;
@@ -25,8 +27,8 @@ create table public.employee_work_terms (
 );
 create table public.employee_leave_accounts (
  employee_uuid uuid primary key references public.employees(id),
- baseline_on date not null, initial_accrued numeric(8,2) not null check(initial_accrued>=0),
- initial_remaining numeric(8,2) not null check(initial_remaining>=0),
+ baseline_on date not null, initial_accrued numeric(8,2) not null check(initial_accrued>=0 and mod(initial_accrued*2,1)=0),
+ initial_remaining numeric(8,2) not null check(initial_remaining>=0 and mod(initial_remaining*2,1)=0),
  monthly_enabled boolean not null default false,
  -- Explicit enrollment. Employment lifecycle history is not inferred.
  enrolled_by uuid not null references public.profiles(id), created_at timestamptz not null default now()
@@ -72,7 +74,7 @@ create table public.employee_reminder_policy (
 insert into public.employee_reminder_policy(singleton) values(true);
 
 create function public.private_leave_manager() returns boolean language sql stable security definer set search_path='' as $$
- select public.current_profile_is_active() and public.private_actor_can('leave.manage')
+ select public.current_profile_is_active() and not public.private_menu_denied('leave.manage') and public.private_actor_can('leave.manage')
  and (public.current_user_has_role('operations_manager') or public.current_user_has_role('promotion_lead'))
 $$;
 create function public.private_leave_employee() returns uuid language sql stable security definer set search_path='' as $$
@@ -97,7 +99,7 @@ begin
  workday:=extract(isodow from p_day)::int=any(t.weekdays)
  and coalesce((select is_workday from public.attendance_calendar_overrides where work_date=p_day),extract(isodow from p_day)::int not in (6,7));
  if exists(select 1 from public.attendance_holiday_work_assignments where employee_uuid=p_employee and work_date=p_day and revoked_at is null) then workday:=true; end if;
- if not public.private_employee_is_attendance_subject_on(p_employee,p_day) then workday:=false; end if;
+ if not exists(select 1 from public.employees where id=p_employee and archived_at is null and employment_status='active' and hired_on<=p_day and (departed_on is null or departed_on>=p_day)) then workday:=false; end if;
  if exists(select 1 from public.employee_days_off where work_date=p_day and revoked_at is null and (employee_uuid is null or employee_uuid=p_employee)) then workday:=false; end if;
  start_min:=extract(epoch from t.starts_at)/60; end_min:=extract(epoch from t.ends_at)/60;
  bs:=extract(epoch from t.break_starts_at)/60; be:=extract(epoch from t.break_ends_at)/60;
@@ -203,7 +205,7 @@ begin
   return jsonb_build_object('ok',true,'already_submitted',true);
  end if;
  perform public.private_accrue_employee_leave(e);
- for item in select value from jsonb_array_elements(p_days) loop
+ for item in select value from jsonb_array_elements(p_days) order by value->>'date' loop
   d:=(item->>'date')::date; portion:=item->>'portion';
   perform pg_advisory_xact_lock(hashtextextended('attendance-confirm:'||d::text,0));
   if d is null or d<(now() at time zone 'Asia/Seoul')::date+3 then raise exception 'LEAVE_THREE_DAYS_REQUIRED'; end if;
@@ -211,12 +213,12 @@ begin
   s:=public.private_employee_schedule(e,d);
   if not coalesce((s->>'is_workday')::boolean,false) then raise exception 'NOT_SCHEDULED_WORKDAY'; end if;
   if public.private_attendance_day_is_confirmed(d) then raise exception 'DAY_CONFIRMED_REOPEN_REQUIRED'; end if;
-  if public.private_attendance_effective_status(e,d)->>'status'<>'work' then raise exception 'ATTENDANCE_CONFLICT'; end if;
+  if exists(select 1 from public.employees where id=e and attendance_required) and public.private_attendance_effective_status(e,d)->>'status'<>'work' then raise exception 'ATTENDANCE_CONFLICT'; end if;
   units:=case when portion='full' then 1 else .5 end; total:=total+units;
  end loop;
  b:=public.private_employee_leave_balance(e);
  if (b->>'available')::numeric<total then raise exception 'INSUFFICIENT_LEAVE'; end if;
- for item in select value from jsonb_array_elements(p_days) loop
+ for item in select value from jsonb_array_elements(p_days) order by value->>'date' loop
   d:=(item->>'date')::date; portion:=item->>'portion'; s:=public.private_employee_schedule(e,d); units:=case when portion='full' then 1 else .5 end;
   insert into public.employee_leave_requests(id,employee_uuid,work_date,portion,units,term_id,leave_minutes,submitted_by,request_payload)
   values(case when item=p_days->0 then p_id else md5(p_id::text||':'||d::text)::uuid end,e,d,portion,units,(s->>'term_id')::uuid,(s->>'scheduled_minutes')::numeric*units,auth.uid(),case when item=p_days->0 then p_days else null end);
@@ -225,7 +227,7 @@ begin
  return jsonb_build_object('ok',true,'id',p_id);
 end $$;
 create function public.review_employee_leave(p_request_id uuid,p_decision text,p_note text) returns jsonb language plpgsql security definer set search_path='' as $$
-declare r public.employee_leave_requests; b jsonb; change_id uuid; begin
+declare r public.employee_leave_requests; b jsonb; change_id uuid; attendance_duty boolean; begin
  if not public.private_leave_manager() then raise exception 'FORBIDDEN' using errcode='42501'; end if;
  select * into r from public.employee_leave_requests where id=p_request_id;
  if not found then raise exception 'REQUEST_NOT_FOUND'; end if;
@@ -237,14 +239,16 @@ declare r public.employee_leave_requests; b jsonb; change_id uuid; begin
  if r.submitted_by=auth.uid() or r.employee_uuid=public.private_leave_employee() then raise exception 'SELF_APPROVAL_FORBIDDEN'; end if;
  if p_decision is null or p_decision not in ('approved','rejected') or length(btrim(coalesce(p_note,''))) not between 2 and 300 then raise exception 'DECISION_REQUIRED'; end if;
  if public.current_user_has_role('promotion_lead') and not public.current_user_has_role('operations_manager') and public.private_employee_is_protected(r.employee_uuid) then raise exception 'PROTECTED_EMPLOYEE_REVIEW_REQUIRED'; end if;
+ select attendance_required into attendance_duty from public.employees where id=r.employee_uuid;
  if p_decision='approved' then
   if r.work_date<(now() at time zone 'Asia/Seoul')::date then raise exception 'PAST_LEAVE_REVIEW_REQUIRED'; end if;
   if public.private_attendance_day_is_confirmed(r.work_date) then raise exception 'DAY_CONFIRMED_REOPEN_REQUIRED'; end if;
-  if public.private_attendance_effective_status(r.employee_uuid,r.work_date)->>'status'<>'work'
-   or public.private_attendance_effective_event(r.employee_uuid,r.work_date,'clock_in')->>'event_at' is not null then raise exception 'ATTENDANCE_CONFLICT'; end if;
+  if (attendance_duty and (public.private_attendance_effective_status(r.employee_uuid,r.work_date)->>'status'<>'work'
+   or public.private_attendance_effective_event(r.employee_uuid,r.work_date,'clock_in')->>'status' is not null))
+   or not coalesce((public.private_employee_schedule(r.employee_uuid,r.work_date)->>'is_workday')::boolean,false) then raise exception 'ATTENDANCE_CONFLICT'; end if;
   b:=public.private_employee_leave_balance(r.employee_uuid);
   if (b->>'remaining')::numeric<r.units then raise exception 'INSUFFICIENT_LEAVE'; end if;
-  if r.portion='full' then
+  if r.portion='full' and attendance_duty then
    insert into public.attendance_day_status_changes(employee_uuid,work_date,attendance_status,note,reason,changed_by)
    values(r.employee_uuid,r.work_date,'paid_leave','승인 연차','연차 신청 승인',auth.uid()) returning id into change_id;
   end if;
@@ -271,7 +275,7 @@ end $$;
 create function public.adjust_employee_leave(p_employee_uuid uuid,p_id uuid,p_delta numeric,p_reason text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare b jsonb; begin
  if not public.private_actor_can('employee.work_terms_manage') then raise exception 'FORBIDDEN' using errcode='42501'; end if;
- if p_id is null or p_delta is null or p_delta=0 or abs(p_delta)>100 or length(btrim(coalesce(p_reason,''))) not between 2 and 300 then raise exception 'INVALID_ADJUSTMENT'; end if;
+ if p_id is null or p_delta is null or p_delta=0 or mod(p_delta*2,1)<>0 or abs(p_delta)>100 or length(btrim(coalesce(p_reason,''))) not between 2 and 300 then raise exception 'INVALID_ADJUSTMENT'; end if;
  perform 1 from public.employee_leave_accounts where employee_uuid=p_employee_uuid for update;
  if not found then raise exception 'LEAVE_NOT_CONFIGURED'; end if;
  if exists(select 1 from public.employee_leave_ledger where employee_uuid=p_employee_uuid and entry_key='adjust:'||p_id) then

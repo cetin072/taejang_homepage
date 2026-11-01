@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(13);
 
 select has_function(
   'public',
@@ -36,34 +36,34 @@ select is(
 );
 
 select ok(
-  pg_get_functiondef('public.get_my_attendance_today()'::regprocedure)
+  pg_get_functiondef('public.private_get_my_attendance_today_pre572()'::regprocedure)
     ilike '%server_time%'
-  and pg_get_functiondef('public.get_my_attendance_today()'::regprocedure)
+  and pg_get_functiondef('public.private_get_my_attendance_today_pre572()'::regprocedure)
     ilike '%clock_in_available%'
-  and pg_get_functiondef('public.get_my_attendance_today()'::regprocedure)
+  and pg_get_functiondef('public.private_get_my_attendance_today_pre572()'::regprocedure)
     ilike '%clock_in_available_at%',
   'today read model exposes server-authoritative clock-in state'
 );
 
 select ok(
   pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%CLOCK_IN_TOO_EARLY%'
   and pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%private_attendance_clock_in_available(server_now)%'
   and pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%p_event_type = ''clock_in''%',
   'real attendance writer blocks only new clock-in attempts before 06:00'
 );
 
 select ok(
   pg_get_functiondef(
-    'public.request_attendance_exception(text,text,double precision,double precision,double precision)'::regprocedure
+    'public.private_request_attendance_exception_pre572(text,text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%CLOCK_IN_TOO_EARLY%'
   and pg_get_functiondef(
-    'public.request_attendance_exception(text,text,double precision,double precision,double precision)'::regprocedure
+    'public.private_request_attendance_exception_pre572(text,text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%p_event_type = ''clock_in''%',
   'clock-in exception entry point shares the 06:00 server guard'
 );
@@ -77,13 +77,16 @@ select ok(
 
 select ok(
   pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%private_attendance_is_workday(work_day)%'
   and pg_get_functiondef(
-    'public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure
+    'public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)'::regprocedure
   ) ilike '%private_validate_attendance_attempt%',
   'existing holiday assignment and attendance validation boundaries remain in the real writer path'
 );
 
+select ok(pg_get_functiondef('public.get_my_attendance_today()'::regprocedure) ilike '%private_get_my_attendance_today_pre572()%','public today delegates to unchanged clock-state model');
+select ok(pg_get_functiondef('public.record_attendance_event(text,double precision,double precision,double precision)'::regprocedure) ilike '%private_record_attendance_event_pre572(%','public clock delegates to all original validation after schedule gate');
+select ok(pg_get_functiondef('public.request_attendance_exception(text,text,double precision,double precision,double precision)'::regprocedure) ilike '%private_request_attendance_exception_pre572(%','public exception delegates to all original validation after schedule gate');
 select * from finish();
 rollback;
