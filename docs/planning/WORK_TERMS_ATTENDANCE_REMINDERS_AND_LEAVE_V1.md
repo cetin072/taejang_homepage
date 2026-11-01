@@ -157,3 +157,58 @@
 - 2026-11-01: 사용자가 위치 미사용 1차 출근 알림과 제안한 연차 관리 범위를 승인함.
 - 기존 HR_MINIMUM_SCOPE_AND_EXPORTS_V1의 “연차 자동계산 초기 제외”는 유지한다. 관리자 수동 부여·신청·잔여 계산은 이번 승인으로 별도 추가한다.
 - 2026-11-01: 사용자가 “연차는 사용 3일전까지 신청해야하고 3일안에 연차사용시 신청안되게” 지시. 최소 3일 전 신청 및 기한 내 사용일 신규 신청 차단을 확정함. 예시는 KST 달력 날짜 기준으로 명시함.
+
+
+## 10. 백엔드·직원앱 연동 구조 검토 (2026-11-01)
+
+검토 기준 main: 63a00677b2814c30aaf741c5797289c196f56878.
+구조 검토이며 새 기능 실행·실기기 수신 검증 완료를 뜻하지 않는다.
+
+### 정본과 데이터 흐름
+
+- 웹 관리 화면과 직원앱은 동일한 서버의 guarded RPC를 사용한다. 웹→앱 직접 전송이나 별도 직원/연차 DB를 만들지 않는다.
+- employees.id(employee UUID)와 기존 Auth→account_person_links→Person→Employee 연결을 사용한다. 이름/이메일/클라이언트가 보낸 직원번호로 본인 권한을 결정하지 않는다.
+- 근무조건 정본 → 서버의 유효일별 근무 일정 → 앱 오늘 근무 표시 / 알림 대상 판정 / 휴가 신청의 근무일·시간 산정에 함께 사용한다.
+- 앱 신청 → 서버의 3일 기한·근무일·잔여·중복 검증 → 대기 예약 → 웹 관리자 처리 → 서버의 원자적 연차대장·근태 반영 → 앱 재조회.
+- 대기 신청은 잔여 예약만 수행한다. 승인 전부터 근무일·알림 제외 상태로 바꾸지 않는다.
+- 서버 알림 후보 생성·중복 claim → 기존 디바이스 등록/발송 계층 → Expo/FCM → 앱 출근 화면. 앱 실행·위치 제출은 후보 생성 전제조건이 아니다.
+- 저장/승인 후 웹·앱은 서버 결과를 재조회하며 화면 재진입·foreground 복귀·새로고침으로 갱신한다. 초기에 Realtime·별도 동기화 서비스는 필요 없다.
+- 연차·근무조건 화면만 만들고 공유 서버/근태/푸시 연결이 없으면 완료가 아니다.
+
+### 확인한 재사용 코드와 빈 연결
+
+- app/assets/employee-management.js 및 employee-management-views.js: 직원관리 기존 입력·목록.
+- app/assets/platform-navigation-registry.js: 기존 사이드바 단일 등록 구조. 새 관리 메뉴를 여기에 통합.
+- app/assets/attendance-admin.js: paid_leave 일별 상태와 휴일근무. 반차를 하루 전체 paid_leave로 강제하면 안 됨.
+- mobile/src/platform/supabase.ts 및 providers/platform-provider.tsx: 기존 인증된 서버 연결.
+- mobile/src/features/attendance/attendance-api.ts: get_my_attendance_today / get_attendance_workday_status / record_attendance_event / QA 경로.
+- mobile/src/features/common/employee-feature-registry.ts: 연차 진입점이 아직 없음. 활성 직원 연결/서버 접근계약을 반영해 추가 필요.
+- mobile/src/notifications/push-registration.ts: 기존 장치 등록 및 Expo 토큰.
+- mobile/src/notifications/push-notification-bridge.tsx: 현재 notice/schedule만 라우팅. attendance 목적지 처리가 추가로 필요. 로그인 전 눌림 보존·중복 처리 방지를 유지.
+- supabase/functions/notification-dispatch/index.ts 및 notification_push_foundation migration: 기존 인증·ticket/receipt·실패 재시도 재사용 후보. 현재 claim은 notices와 필수 JOIN하므로 공지 없는 출근 알림을 그대로 넣으면 전달되지 않는다.
+- 실제 새 알림 종류를 최소 확장하거나 기존 공지 발송 계약을 보존하는 작은 전용 adapter를 사용한다. 가짜 공지를 만들어 출근 알림을 발송하지 않는다.
+- 기존 dispatcher의 canary/enable/대상 제한을 무단 해제하지 않는다. 새 기능 활성화 전 일반직원 발송 범위·실제 예약·환경·인증 설정을 별도로 검증한다.
+- PR #571은 병합됨. 예정시각 원본·운영 알림·스케줄러·발송은 미구현이며 pg_temp 격리 prototype만 있음. 이 prototype의 위치 필수·예정+5분·하루1회는 이번 사용자의 시간 기준 1차 운영 규칙으로 자동 확정하지 않는다.
+- docs/planning/ATTENDANCE_MISSING_REMINDER_V1.md의 위치 기반 초안 중 이번 1차와 충돌하는 부분은 이 문서의 최신 승인 범위를 우선함을 표시한다. 과거 격리 증거는 보존한다.
+- 근무조건과 payroll_employment_terms.daily_scheduled_hours를 독립적으로 중복 편집하는 구조는 피한다. 임금정보·급여 권한을 연차/근무조건 UI에 노출하지 않는다.
+
+### 최종 완료 기준
+
+동일한 격리 TEST 직원·같은 서버 환경에서 아래가 이어져야 한다.
+1. 웹에서 근무조건·검증용 연차 부여 → 앱이 같은 값을 조회.
+2. 앱에서 3일 이후 연차 신청 → 웹에 동일 신청 ID/직원/일수/상태 표시.
+3. 웹 승인 → 앱의 예약·사용·잔여·처리 상태가 재조회 후 일치.
+4. 승인 종일 연차는 알림 제외 및 근태 반영. 반차는 나머지 근무시간을 보존.
+5. 취소 → 예약/사용과 연결된 근태 복구가 정확히 한 번 반영. 확정 근태는 재개방 Gate 준수.
+6. 서버 시간 기반 미출근 대상 → 예약 실행 → 알림 queue/발송 → 앱 출근 화면 → 기존 출근 저장 → 후속 알림 제외.
+7. 다른 직원 접근·자기승인 등 미승인 행위·동시 신청·중복 승인·직접 RPC로 기한 우회 차단.
+8. 3일 기한/잔여 산정/근무일 판단을 웹·앱에서 독립 계산해 서로 달라지지 않음.
+9. DB fixture/합성 웹/에뮬레이터/실기기 Push 수신을 구분해 보고. 코드/CI만으로 종료 앱 실제 수신 성공을 주장하지 않음.
+10. 웹 배포·DB migration/서버 함수 적용·앱 QA 빌드는 각각 필요. Netlify 배포만으로 설치 앱이 업데이트되지 않는다. 운영/Play 반영은 별도 Gate.
+
+### 구현 지시의 필수 운영 경계
+
+- 기존 PR #572와 codex/work-terms-leave-v1-plan 흐름을 이어간다. 착수 시 최신 상태와 중복 작업을 다시 확인한다.
+- 기능 구현으로 범위가 확장되면 PR 제목·본문을 최종 코드·검증 범위로 갱신한다.
+- 미정 업무규칙은 중요한 판단만 묶어 사용자에게 확인하고, 독립적인 화면/adapter/테스트 작업은 계속한다. 미정 상태를 관리자가 설정하기 전에는 운영 자동처리를 활성화하지 않는다.
+- 구현·격리 테스트·Draft PR까지 진행한다. Ready/main/운영 데이터·migration·발송·예약 활성화·배포·Play 제출은 현재 지시 범위로 간주하지 않는다.
