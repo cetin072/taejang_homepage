@@ -5,7 +5,8 @@ const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/u
 const code=fs.readFileSync(new URL('../app/assets/employee-leave.js',import.meta.url),'utf8');
 for(const width of [390,1440]){
  const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.setContent('<main id="dashboard-main"></main>');
+ await page.route('http://localhost/leave-qa',route=>route.fulfill({contentType:'text/html',body:'<main id="dashboard-main"></main>'}));
+ await page.goto('http://localhost/leave-qa');
  await page.evaluate(()=>{
   const e={id:'employee',name:'검수 직원',employee_id:'TEST-001',balance:null,terms:[]};const ctx={server_today:'2026-11-01',can_initialize:true,can_review:true,employees:[e],requests:[],ledger:[],days_off:[],locations:[{id:'office',name:'본사'}]};
   window.calls=[];window.failNext=false;

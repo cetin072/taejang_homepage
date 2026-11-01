@@ -28,6 +28,8 @@ create function public.private_claim_attendance_reminders(p_claim uuid,p_limit i
 declare emp_row record; target_event_id uuid; result jsonb; day date:=(now() at time zone 'Asia/Seoul')::date; begin
  if p_claim is null or p_limit is null or p_limit not between 1 and 100 then raise exception 'INVALID_CLAIM'; end if;
  if not exists(select 1 from public.employee_reminder_policy where singleton and enabled and delay_minutes is not null) then return '[]'::jsonb; end if;
+ update public.notification_deliveries d set status='failed',last_error_code='SEND_CLAIM_EXPIRED_UNKNOWN',updated_at=now()
+ from public.notification_events e where d.event_id=e.id and e.event_type='attendance.clock_in_missing' and d.status='sending' and d.claimed_at<now()-interval '5 minutes';
  for emp_row in select id from public.employees where archived_at is null and employment_status='active' and attendance_required order by id loop
   if public.private_attendance_reminder_due(emp_row.id,day) then
    insert into public.notification_events(event_key,event_type,employee_uuid,work_date,available_at,status,expanded_at)

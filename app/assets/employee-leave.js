@@ -23,6 +23,7 @@
       host.append(el('p',balance?`발생 ${balance.accrued}개 · 남은 ${balance.remaining}개 · 신청 대기 ${balance.reserved}개 · 신청 가능 ${balance.available}개`:'연차 관리자 등록 대기'));
       if(ctx.can_initialize){
         const details=el('details');details.append(el('summary','근무조건 추가'));const f=el('form',null,'employee-form app-authoring');
+        const scope=select(f,'적용 방식',[['base','이 날짜부터 기본 근무조건'],['date','이 날짜만 근무시간·장소 변경']]);
         const date=field(f,'적용 시작일','date',ctx.server_today);date.min=ctx.server_today;
         const start=field(f,'출근 시각','time');const end=field(f,'퇴근 시각','time');
         const bs=field(f,'휴게 시작 (없으면 비움)','time','',false),be=field(f,'휴게 종료 (없으면 비움)','time','',false);
@@ -30,7 +31,7 @@
         const weekdays=el('fieldset');weekdays.append(el('legend','근무요일'));const checks=[];
         ['월','화','수','목','금','토','일'].forEach((name,i)=>{const l=el('label',name),c=el('input');c.type='checkbox';c.value=String(i+1);l.prepend(c);weekdays.append(l);checks.push(c);});f.append(weekdays);
         const reason=field(f,'변경 사유','text');reason.minLength=2;
-        formAction(f,'근무조건 저장',()=>rpc('save_employee_work_terms',{p_employee_uuid:employeeId,p_values:{effective_from:date.value,starts_at:start.value,ends_at:end.value,break_starts_at:bs.value,break_ends_at:be.value,location_id:loc.value,weekdays:checks.filter(c=>c.checked).map(c=>Number(c.value)),reason:reason.value}}),reload);details.append(f);host.append(details);
+        formAction(f,'근무조건 저장',()=>rpc(scope.value==='date'?'save_employee_work_override':'save_employee_work_terms',{p_employee_uuid:employeeId,p_values:{effective_from:date.value,starts_at:start.value,ends_at:end.value,break_starts_at:bs.value,break_ends_at:be.value,location_id:loc.value,weekdays:checks.filter(c=>c.checked).map(c=>Number(c.value)),reason:reason.value}}),reload);details.append(f);host.append(details);
         if(!balance){
           const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));
           const accrued=field(f,'지금까지 발생한 연차','number');const remaining=field(f,'현재 남은 연차','number');
@@ -45,6 +46,7 @@
       }
       const history=el('details');history.append(el('summary','근무조건 이력'));
       employee.terms.forEach(t=>history.append(el('p',`${t.effective_from}부터 · 요일 ${t.weekdays.join(',')} · ${t.starts_at}~${t.ends_at} · 휴게 ${t.break_starts_at||'없음'}${t.break_ends_at?'~'+t.break_ends_at:''}`)));host.append(history);
+      (ctx.overrides||[]).forEach(o=>{const p=el('p',`${o.effective_from} 하루 예외 · ${o.starts_at}~${o.ends_at}`);if(ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');const why=field(f,'예외 철회 사유','text');why.minLength=2;formAction(f,'날짜 예외 철회',()=>rpc('revoke_employee_work_override',{p_id:o.id,p_reason:why.value}),reload);p.append(f);}host.append(p);});
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));
       ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);
       renderRequests(host,ctx,reload);
@@ -70,7 +72,7 @@
       const f=el('form',null,'employee-form app-authoring');f.append(el('h3','휴무 등록'));
       const person=select(f,'휴무 대상',[['','회사 전체'],...ctx.employees.map(e=>[e.id,e.name])]);const date=field(f,'휴무일','date');date.min=ctx.server_today;const reason=field(f,'휴무 사유','text');reason.minLength=2;
       formAction(f,'휴무 등록',()=>rpc('save_employee_day_off',{p_employee_uuid:person.value||null,p_work_date:date.value,p_reason:reason.value}),load);host.append(f);
-      ctx.days_off.forEach(o=>host.append(el('p',`${o.work_date} · ${ctx.employees.find(e=>e.id===o.employee_uuid)?.name||'회사 전체'} · ${o.reason}`)));
+      ctx.days_off.forEach(o=>{const row=el('section');row.append(el('p',`${o.work_date} · ${ctx.employees.find(e=>e.id===o.employee_uuid)?.name||'회사 전체'} · ${o.reason}`));const f=el('form',null,'employee-form app-authoring');const why=field(f,'휴무 철회 사유','text');why.minLength=2;formAction(f,'휴무 철회',()=>rpc('revoke_employee_day_off',{p_id:o.id,p_reason:why.value}),load);row.append(f);host.append(row);});
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}};await load();
   }
   function employeePanel(employee){const host=el('section',null,'employee-profile-section');host.append(button('근무조건·연차 확인',()=>populate(host,employee.id)));return host;}

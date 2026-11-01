@@ -156,6 +156,7 @@ declare t public.employee_work_terms; d date; begin
  d:=(p_values->>'effective_from')::date;
  if d is null or d<(now() at time zone 'Asia/Seoul')::date then raise exception 'FUTURE_OR_TODAY_REQUIRED'; end if;
  if exists(select 1 from public.employee_leave_requests where employee_uuid=p_employee_uuid and status in ('pending','approved') and work_date>=d) then raise exception 'LEAVE_SCHEDULE_CONFLICT'; end if;
+ if public.private_attendance_effective_event(p_employee_uuid,d,'clock_in')->>'event_at' is not null then raise exception 'ATTENDANCE_CONFLICT'; end if;
  if exists(select 1 from public.employee_work_terms where employee_uuid=p_employee_uuid and effective_from>=d) then raise exception 'APPEND_NEW_EFFECTIVE_DATE_REQUIRED'; end if;
  if not exists(select 1 from public.attendance_locations where id=(p_values->>'location_id')::uuid and active) then raise exception 'LOCATION_REQUIRED'; end if;
  insert into public.employee_work_terms(employee_uuid,effective_from,weekdays,starts_at,ends_at,break_starts_at,break_ends_at,location_id,reason,created_by)
@@ -273,7 +274,9 @@ declare b jsonb; begin
  if p_id is null or p_delta is null or p_delta=0 or abs(p_delta)>100 or length(btrim(coalesce(p_reason,''))) not between 2 and 300 then raise exception 'INVALID_ADJUSTMENT'; end if;
  perform 1 from public.employee_leave_accounts where employee_uuid=p_employee_uuid for update;
  if not found then raise exception 'LEAVE_NOT_CONFIGURED'; end if;
- if exists(select 1 from public.employee_leave_ledger where employee_uuid=p_employee_uuid and entry_key='adjust:'||p_id) then return jsonb_build_object('ok',true); end if;
+ if exists(select 1 from public.employee_leave_ledger where employee_uuid=p_employee_uuid and entry_key='adjust:'||p_id) then
+  if not exists(select 1 from public.employee_leave_ledger where employee_uuid=p_employee_uuid and entry_key='adjust:'||p_id and delta=p_delta and note=p_reason) then raise exception 'ADJUSTMENT_ID_CONFLICT'; end if;
+  return jsonb_build_object('ok',true); end if;
  perform public.private_accrue_employee_leave(p_employee_uuid); b:=public.private_employee_leave_balance(p_employee_uuid);
  if (b->>'available')::numeric+p_delta<0 then raise exception 'INSUFFICIENT_LEAVE'; end if;
  insert into public.employee_leave_ledger(employee_uuid,kind,entry_key,delta,note,actor_id)
@@ -282,9 +285,9 @@ declare b jsonb; begin
  return jsonb_build_object('ok',true);
 end $$;
 create function public.get_employee_leave_admin_context(p_employee_uuid uuid default null) returns jsonb language plpgsql security definer set search_path='' as $$
-declare r record; begin
+declare account_row record; begin
  if not public.private_leave_manager() and not public.private_actor_can('employee.work_terms_manage') then raise exception 'FORBIDDEN' using errcode='42501'; end if;
- for r in select employee_uuid from public.employee_leave_accounts where p_employee_uuid is null or employee_uuid=p_employee_uuid order by employee_uuid loop perform public.private_accrue_employee_leave(r.employee_uuid); end loop;
+ for account_row in select employee_uuid from public.employee_leave_accounts where p_employee_uuid is null or employee_uuid=p_employee_uuid order by employee_uuid loop perform public.private_accrue_employee_leave(account_row.employee_uuid); end loop;
  return jsonb_build_object('server_today',(now() at time zone 'Asia/Seoul')::date,
  'can_initialize',public.private_actor_can('employee.work_terms_manage'),'can_review',public.private_leave_manager(),
  'employees',coalesce((select jsonb_agg(jsonb_build_object('id',e.id,'employee_id',e.employee_id,'name',p.full_name,
@@ -339,8 +342,8 @@ alter function public.private_attendance_effective_status(uuid,date) rename to p
 create function public.private_attendance_effective_status(p_employee_uuid uuid,p_work_date date) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare b jsonb; r public.employee_leave_requests; begin
  b:=public.private_attendance_effective_status_pre572(p_employee_uuid,p_work_date);
- select * into r from public.employee_leave_requests where employee_uuid=p_employee_uuid and work_date=p_work_date and status='approved' and portion<>'full';
- if found then return b||jsonb_build_object('leave_portion',r.portion,'leave_minutes',r.leave_minutes,'note','승인 반차 · 근무시간 절반'); end if;
+ select * into r from public.employee_leave_requests where employee_uuid=p_employee_uuid and work_date=p_work_date and status='approved';
+ if found then return b||jsonb_build_object('leave_request_id',r.id,'leave_portion',r.portion,'leave_minutes',r.leave_minutes,'note',case when r.portion='full' then '승인 연차' else '승인 반차 · 근무시간 절반' end); end if;
  return b;
 end $$;
 -- Existing payroll has no mixed paid-leave/work input. Fail closed instead of silently underpaying.
