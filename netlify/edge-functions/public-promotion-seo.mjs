@@ -1,3 +1,4 @@
+import { routePublicMedia } from '../../shared/public-media-manifest.mjs';
 import '../../assets/js/public-promotion-media.js';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 // Search-readable responses for the EXISTING approved public promotion RPCs.
@@ -201,7 +202,7 @@ export default async function publicPromotionSeo(request, context) {
     if (!rows.length || rows[0]?.content_id !== id) return fail(404);
     const source = await context.next();
     if (!source.ok) return source;
-    const item = rows[0];
+    const item = routePublicMedia(rows[0], { enabled: globalThis.Netlify.env.get('PUBLIC_MEDIA_R2_ENABLED'), storageOrigin: globalThis.Netlify.env.get('SUPABASE_URL') });
     const public_image = await mediaPolicy.resolve(item, globalThis.Netlify.env.get('SUPABASE_URL'));
     const html = renderPage(await source.text(), { ...item, public_image });
     const headers = new Headers(source.headers);

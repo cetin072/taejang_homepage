@@ -1,0 +1,19 @@
+# TEMPLATE ONLY. Copy after account/bucket/domain and cost approval.
+name = "taejang-public-media"
+main = "worker.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[vars]
+PUBLIC_MEDIA_ENABLED = "false"
+# SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY: approved project only.
+# COPY_TOKEN: secret via provider UI/CLI, never in this file or chat.
+
+# [[r2_buckets]]
+# binding = "PUBLIC_MEDIA_BUCKET"
+# bucket_name = "<approved-private-pilot-bucket>"
+
+# [[routes]]
+# pattern = "media.taejang.co.kr"
+# custom_domain = true

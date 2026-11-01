@@ -1,6 +1,8 @@
+import { routePublicMedia } from '../../shared/public-media-manifest.mjs';
 import '../../assets/js/public-promotion-media.js';
 import { normalizeNaverBlogTarget } from './external-content-meta.mjs';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
+const routeMedia = row => routePublicMedia(row, { enabled: Netlify.env.get('PUBLIC_MEDIA_R2_ENABLED'), storageOrigin: Netlify.env.get('SUPABASE_URL') });
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
   'Cache-Control': 'no-store, max-age=0',
@@ -100,14 +102,14 @@ export default async (request) => {
         return json({ error: 'INVALID_CONTENT_ID' }, 400);
       }
       const rows = await rpc('get_public_promotion_content', { p_content_id: id });
-      const item = Array.isArray(rows) && rows.length ? rows[0] : null;
+      const item = Array.isArray(rows) && rows.length ? routeMedia(rows[0]) : null;
       return json({ item: item ? { ...item, public_image: await mediaPolicy.resolve(item, Netlify.env.get('SUPABASE_URL')) } : null });
     }
 
     const rows = await rpc('list_public_promotion_feed', {});
     // Share only within this response; never cache publication/auth state.
     const probes = new Map();
-    const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
+    const items = await Promise.all((Array.isArray(rows) ? rows : []).map(routeMedia).map(async row =>
       hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
     if (format === 'json') return json({ items });
 
