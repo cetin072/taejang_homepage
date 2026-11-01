@@ -2,7 +2,7 @@ import {recordBrowserDiagnostics} from '../../scripts/browser-network-diagnostic
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { gotoPublicReady } from './public-page-ready.mjs';
+import { gotoPublicDocument, gotoPublicReady } from './public-page-ready.mjs';
 
 const order = ['about.html','business.html','workplace.html','archive.html','partnership.html','staff/','employee-app.html'];
 const hrefs = nav => [...nav.querySelectorAll(':scope > a')].map(a => a.getAttribute('href'));
@@ -14,7 +14,7 @@ const canonicalHref = href => {
 async function headerReady(page,url,diagnostics) {
   diagnostics.length=0;
   try {
-  const response=await page.goto(url,{waitUntil:'domcontentloaded'});
+  const response=await gotoPublicDocument(page,url);
   assert.equal(response.status(),200,'header document');
   await page.waitForFunction(()=>document.documentElement.classList.contains('js-nav-ready') &&
     [...document.querySelectorAll('link[rel="stylesheet"]')].every(l=>l.sheet) &&
@@ -113,7 +113,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       const selector=width===390?'[data-mobile-nav]':'.desktop-nav';
       await page.locator(selector+' > a').nth(order.indexOf(target)).click();
       await page.waitForURL(url=>url.pathname===('/'+target)||url.pathname===('/'+target.replace(/\.html$/,''))||target==='staff/'&&/\/staff\/?$/.test(url.pathname));
-      assert.equal((await page.request.get(page.url())).status(),200,target+': destination HTTP200');
+      assert.equal((await page.request.get(page.url(),{maxRetries:1})).status(),200,target+': destination HTTP200');
     }
     // Actual menu under enlarged text, including utility subtitles and scroll reachability.
     await gotoPublicReady(page,base+'/index.html',output);

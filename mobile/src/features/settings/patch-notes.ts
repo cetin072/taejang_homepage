@@ -12,6 +12,13 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-01-notice-card-balance',
+    date: '2026-11-01',
+    title: '공지 카드 색상과 정렬 개선',
+    summary: '홈 공지사항을 다른 카드와 어울리도록 정리했습니다.',
+    items: ['공지 영역을 차분한 녹색 계열로 조정했습니다.', '공지 제목과 안내·전체보기 버튼을 가운데로 정렬했습니다.', '퇴근 완료 시에도 출근과 같은 카드 회전 효과를 표시합니다.'],
+  },
+  {
     id: '2026-10-31-settings-patch-notes',
     date: '2026-10-31',
     title: '설정에서 패치노트 확인',

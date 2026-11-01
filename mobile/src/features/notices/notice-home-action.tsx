@@ -22,7 +22,7 @@ export function NoticeHomeAction() {
         </Pressable>
       ) : null}
       {!loading && !error && !recent.length ? <Text style={styles.help}>새 공지가 없어요.</Text> : null}
-      {recent.map(item => <NoticeListCard key={item.id} item={item} unread={isNoticeUnread(item, versions)} />)}
+      {recent.map(item => <NoticeListCard key={item.id} item={item} unread={isNoticeUnread(item, versions)} centered />)}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="전체 공지 보기"
@@ -41,13 +41,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingVertical: 24,
     borderRadius: 28,
-    backgroundColor: '#4db5d3',
+    backgroundColor: '#dce9df',
+    borderWidth: 1,
+    borderColor: '#a9bdb0',
   },
-  title: { color: '#143d4b', fontSize: 21, fontWeight: '800' },
-  help: { color: '#143d4b', fontSize: 15, lineHeight: 22 },
+  title: { color: '#173f31', fontSize: 21, fontWeight: '800', textAlign: 'center' },
+  help: { color: '#173f31', fontSize: 15, lineHeight: 22, textAlign: 'center' },
   error: { color: '#672318', fontSize: 15, lineHeight: 22 },
   retry: { minHeight: 48, justifyContent: 'center' },
   pressed: { opacity: 0.86 },
-  history: { alignSelf: 'flex-end', minHeight: 48, paddingHorizontal: 4, justifyContent: 'center' },
-  historyText: { color: '#143d4b', fontSize: 15, fontWeight: '700' },
+  history: { alignSelf: 'center', minHeight: 48, paddingHorizontal: 4, justifyContent: 'center' },
+  historyText: { color: '#173f31', fontSize: 15, fontWeight: '700' },
 });
