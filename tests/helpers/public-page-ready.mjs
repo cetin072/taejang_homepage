@@ -7,7 +7,7 @@ import path from 'node:path';
 const trackers = new WeakMap();
 // Retry only a transport failure before a document response is committed.
 // HTTP errors and DOM/product-resource readiness failures remain release blockers.
-export async function gotoPublicDocument(page, url, timeout = 30000) {
+export async function gotoPublicDocument(page, url, timeout = 30000, onRetry = () => {}) {
   let response;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -16,6 +16,11 @@ export async function gotoPublicDocument(page, url, timeout = 30000) {
     } catch (error) {
       if (attempt || !(error.name === 'TimeoutError' ||
         /ECONNRESET|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED|ERR_EMPTY_RESPONSE/.test(error.message))) throw error;
+      // Chromium commits its error document after rejecting goto. Let that
+      // commit finish so it cannot interrupt the one permitted retry.
+      if (error.name !== 'TimeoutError') await page.waitForFunction(
+        () => document.documentURI.startsWith('chrome-error://'), undefined, { timeout });
+      onRetry();
     }
   }
   await page.waitForLoadState('domcontentloaded', { timeout });
@@ -45,6 +50,7 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
   }
   const origin = new URL(url).origin;
   tracker.events = [];
+  tracker.recovered = [];
   tracker.pending.clear();
   // Chrome can cancel a redundant favicon during a rapid same-tab navigation.
   // Verify that asset independently below instead of treating its cancellation
@@ -53,7 +59,11 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
   const relevant = item => item.main && !isFavicon(item) && !new URL(item.url).pathname.startsWith('/.netlify/scripts/') &&
     (new URL(item.url).origin === origin || ['font', 'stylesheet', 'image'].includes(item.type));
   try {
-    const response = await gotoPublicDocument(page, url, timeout);
+    const response = await gotoPublicDocument(page, url, timeout, () => {
+      tracker.recovered.push({ events: tracker.events, pending: [...tracker.pending.values()] });
+      tracker.events = [];
+      tracker.pending.clear();
+    });
     assert.equal(response?.status(), 200, 'page document returns HTTP 200');
     const deadline = Date.now() + timeout;
     let quietSince = null;
@@ -91,6 +101,6 @@ export async function gotoPublicReady(page, url, output, timeout = 30000) {
   } finally {
     await fs.mkdir(output, { recursive: true });
     await fs.writeFile(path.join(output, 'network-' + new URL(url).pathname.replace(/\W/g, '_') + '.json'),
-      JSON.stringify({ url, events: tracker.events, pending: [...tracker.pending.values()] }, null, 2));
+      JSON.stringify({ url, recovered: tracker.recovered, events: tracker.events, pending: [...tracker.pending.values()] }, null, 2));
   }
 }
