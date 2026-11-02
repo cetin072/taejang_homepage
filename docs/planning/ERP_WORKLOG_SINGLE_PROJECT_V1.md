@@ -49,3 +49,23 @@ Google는 기존 태장 Auth ID에 연결하는 경로를 우선한다. 기존 �
 ## 최초 실제 검수 범위
 
 다른 네 명의 매핑 확정 전에는 본인만 pilot로 검수한다. 본인 데이터의 일관된 복사본과 지정된 개발 Preview/모바일 개발 API 주소를 사용하며 기존 업무수첩 전체 사용자의 운영 서버 설정을 전환하지 않는다. 31건은 실사 당시 개수이고 실제 복사 직전 다시 대조한다. 복사 시점 이후 원본 모바일에 쓴 일정까지 자동 반영됐다고 주장하지 않는다. 지속적인 실제 반영은 승인된 쓰기 전환과 개발 기기 재로그인 후 검증해야 한다.
+
+## 실제 적용 체크포인트 — 2026-11-03 KST
+
+사용자는 이메일 점유 해소·기존 ERP ID에 Google 연결 설정·본인 자료 백업 후 복사를 승인했다. main 병합/정식 배포/다른 네 명 전환/프로젝트 삭제는 승인 범위 밖이다.
+
+- 최신 main e4cc8c53의 연차 재직자 개선을 기존 PR575 브랜치에 반영했다. main에는 커밋하지 않았다.
+- 태장에 `20261102152012_worklog_personal_readonly_pilot` 단일 migration을 실제 적용했다. 14개 테이블 RLS, 활성 ERP Profile을 검사하는 owner/member helper, authenticated SELECT는 dashboard의 네 테이블에만 부여. 쓰기 RPC/쓰기 ACL/작업 trigger/발송 cron은 적용하지 않았다. pg_trgm은 기존 extensions schema에 설치했다.
+- 2026-11-03 00:13 KST 시점 본인 workspace만 원자적으로 복사: 공간1, 멤버1, 업무262, 일정51(confirmed31/cancelled20), source_refs262, normalizations262, preferences1, push7, delivery history85. 나머지 다섯 테이블0. entity ID/원문/원래 시간값을 보존하고 승인된 Auth FK만 치환했다. push는 모두 disabled. 다른 네 명의 자료18건은 복사하지 않았다.
+- 별도 비공개 백업의 SHA256은 `51cd4849b5a37f122ba2ec5790e28a3395254560257e827074674dfe2d0693e0`. 공개 repo/CI에 원본 자료·사용자 식별자·push credential을 넣지 않았다. PGlite에서 실제 백업 복원 및 내용 해시 대조 통과 후 복사했다. 운영 복사 transaction에서도 각 테이블을 PostgreSQL typed JSON으로 다시 비교했다.
+- 운영 DB의 authenticated 역할로 본인 confirmed31건, 실제 다른 활성 Profile0건을 확인했다. 익명/쓰기/push credential 조회 ACL 차단. 기존 public notification row1 및 ERP 권한/직원 연결/과거 계정 이력은 유지한다. 이 SQL RLS 검사는 실제 사용자 로그인·HTTP·Google 검수의 대체가 아니다.
+- 로컬 Supabase config에만 worklog Data API 노출을 추가하고, disposable Auth/REST+실제 personal-worklog handler의 owner/운영총괄 타인/정지/쓰기/credential 차단 검사를 CI에 추가했다.
+
+### 남은 실제 차단점
+
+1. 현재 연결된 Supabase 도구는 SQL/DDL만 지원하고 Auth Admin/Google 설정/관리 API 쓰기를 지원하지 않는다. 태장 Netlify에는 공개 URL/key만 있으며 팀 변수에도 관리자 credential이 없다. 관리자 secret을 브라우저에 노출하거나 auth.users 직접 UPDATE로 우회하지 않았다. 과거 계정 이메일은 아직 변경하지 않았다.
+2. 태장 Google provider는 실제 `/auth/v1/settings`에서 false. Google OAuth client/secret 및 새 callback `https://jgsxpdflgkqroecfjzxq.supabase.co/auth/v1/callback`, Supabase manual identity linking 및 고정 검수 callback 허용 설정이 필요하다. 실제 Google 연결은 본인 인증이 필요하다.
+3. 실제 Data API는 `Accept-Profile: worklog`에 406/PGRST106을 반환한다. 관리 화면에서 worklog만 exposed schemas에 추가해야 한다. private schema는 노출하지 않는다. SQL role 설정으로 Dashboard 설정을 덮는 별도 우회 계층이나 public fallback RPC를 만들지 않았다.
+4. 이 환경의 ego-browser 명령은 없으며 cloud browser runtime도 시작 실패. 사용자 PC의 관리자 브라우저 세션에 접근하지 못했다.
+
+위 설정과 이메일 점유 해소 후 Preview에만 WORKLOG_UNIFIED_READ_ENABLED/GOOGLE_IDENTITY_ENABLED를 활성화·재배포하고 실제 로그인으로 검수한다. 현재 두 스위치는 비활성이고 ERP 첫 화면 실제 표시 성공은 여전히 미달성이다. 기존 모바일 앱 서버는 원본을 계속 사용하며 이후 쓰기 자동 동기화를 주장하지 않는다. 복사 이후 새 원본 기록은 다음 일관된 snapshot/대조 후 별도 반영한다.

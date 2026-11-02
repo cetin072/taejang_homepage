@@ -5,7 +5,7 @@ project_id = "taejang-homepage-phase1a"
 [api]
 enabled = true
 port = 54321
-schemas = ["public", "graphql_public"]
+schemas = ["public", "graphql_public", "worklog"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 

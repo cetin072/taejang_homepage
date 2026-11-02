@@ -1,0 +1,35 @@
+// Disposable local Supabase only; actual Auth/REST + production reader handler.
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+import {createHandler} from '../netlify/functions/personal-worklog.mjs';
+const base=process.env.SUPABASE_URL||process.env.API_URL,key=process.env.ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY;
+const project=process.env.SUPABASE_PROJECT_ID;
+assert.ok(base&&key);const origin=new URL(base);assert.equal(origin.protocol,'http:');assert.ok(['localhost','127.0.0.1'].includes(origin.hostname));assert.equal(origin.port,'54321');assert.equal(project,'taejang-homepage-phase1a');
+const container=execFileSync('docker',['ps','--filter','name=supabase_db_'+project,'--format','{{.ID}}'],{encoding:'utf8'}).trim();assert.match(container,/^[a-f0-9]+$/);
+const sql=q=>execFileSync('docker',['exec','-i',container,'psql','-q','-U','postgres','-d','postgres','-tA','-v','ON_ERROR_STOP=1','-c',q],{encoding:'utf8'}).trim();
+const api=(path,token,options={})=>fetch(origin.origin+path,{...options,redirect:'error',headers:{apikey:key,authorization:'Bearer '+token,'content-type':'application/json',...(options.headers||{})}});
+async function signup(){const r=await api('/auth/v1/signup',key,{method:'POST',body:JSON.stringify({email:'worklog-pilot-'+randomUUID()+'@example.test',password:'Synthetic-Only-Worklog-24!Aa'})});assert.ok(r.ok);const x=await r.json();assert.ok(x.user?.id&&x.access_token);assert.match(x.user.id,/^[a-f0-9-]{36}$/);return {id:x.user.id,token:x.access_token};}
+const owner=await signup(),other=await signup(),space=randomUUID(),record=randomUUID(),schedule=randomUUID();
+sql(`update public.profiles set account_status='active' where id in ('${owner.id}','${other.id}');
+insert into public.profile_roles(profile_id,role_id,scope_type,granted_by) select '${other.id}',id,'company','${other.id}' from public.roles where code='operations_manager';
+insert into worklog.workspaces(id,name,kind,owner_user_id,created_by_user_id) values('${space}','Synthetic imported owner','personal','${owner.id}','${owner.id}');
+insert into worklog.workspace_members(workspace_id,user_id,role) values('${space}','${owner.id}','owner');
+insert into worklog.work_records(id,workspace_id,created_by_user_id,title,status,action_kind,journal_date) values('${record}','${space}','${owner.id}','Synthetic unfinished','needs_review','task','2026-11-02');
+insert into worklog.schedules(id,workspace_id,created_by_user_id,title,starts_at,status) values('${schedule}','${space}','${owner.id}','Synthetic mobile schedule','2026-11-02T01:00:00Z','confirmed');`);
+const transport=(url,options)=>{const u=new URL(url);assert.equal(u.origin,'https://fixture.supabase.co');return fetch(origin.origin+u.pathname+u.search,{...options,redirect:'error'});};
+const handler=createHandler({env:{SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_PUBLISHABLE_KEY:key,WORKLOG_UNIFIED_READ_ENABLED:'true'},fetchImpl:transport,now:()=>new Date('2026-11-02T02:00:00Z')});
+const read=(u,extra='')=>handler(new Request('https://fixture.test/api/personal-worklog?month=2026-11'+extra,{headers:{authorization:'Bearer '+u.token}}));
+let r=await read(owner);assert.equal(r.status,200);const body=await r.json();assert.equal(body.schedules[0].id,schedule);assert.equal(body.todaySchedules[0].id,schedule);assert.equal(body.tasks[0].id,record);
+r=await read(other);assert.equal(r.status,403,'operations_manager has no personal workspace access');
+const headers={'Accept-Profile':'worklog'};
+r=await api('/rest/v1/schedules?workspace_id=eq.'+space,other.token,{headers});assert.equal(r.status,200);assert.deepEqual(await r.json(),[]);
+r=await api('/rest/v1/schedules',owner.token,{method:'POST',headers:{'Content-Profile':'worklog'},body:JSON.stringify({workspace_id:space,created_by_user_id:owner.id,title:'Denied',starts_at:'2026-11-02T01:00:00Z'})});assert.ok(!r.ok,'read-only pilot cannot create schedules');
+r=await api('/rest/v1/push_subscriptions',owner.token,{headers});assert.ok(!r.ok,'notification credentials are inaccessible');
+r=await read(owner,'&workspace_id='+space);assert.equal(r.status,400,'client cannot select another workspace');
+sql(`update public.profiles set account_status='suspended' where id='${owner.id}'`);
+r=await read(owner);assert.equal(r.status,403);
+r=await api('/rest/v1/schedules',owner.token,{headers});assert.deepEqual(await r.json(),[],'old valid JWT does not bypass suspended Profile');
+r=await read({token:'invalid-synthetic-token'});assert.equal(r.status,401);
+assert.equal(sql("select count(*) from pg_trigger where tgrelid in (select oid from pg_class where relnamespace='worklog'::regnamespace) and not tgisinternal"),'0','write cutover triggers are not installed yet');
+console.log('PASS: real isolated Auth/REST dashboard owner read; privileged other, suspended, anonymous, writes and credential access denied');

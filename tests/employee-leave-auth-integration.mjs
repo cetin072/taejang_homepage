@@ -1,6 +1,8 @@
 // Isolated local Supabase only. Never contacts taejang's shared production DB.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { createRequire } from 'node:module';
+const monthly=createRequire(import.meta.url)('../app/assets/attendance-monthly.js');
 import { execFileSync } from 'node:child_process';
 const url = process.env.SUPABASE_URL || process.env.API_URL;
 const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.ANON_KEY;
@@ -40,6 +42,11 @@ for(const [u,role] of [[ops,'operations_manager'],[lead,'promotion_lead'],[worke
 const person=crypto.randomUUID(),employee=crypto.randomUUID();
 db(`insert into public.people(id,full_name) values('${person}','Synthetic Leave572');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required,updated_at) values('${employee}','TJ-${crypto.randomInt(890001,990000)}','${person}','${dept}','${pos}','2020-01-01',true,'2020-01-01');insert into public.account_person_links(profile_id,person_id,linked_by,reason) values('${worker.id}','${person}','${ops.id}','Synthetic test link');`);
 const today=db("select (now() at time zone 'Asia/Seoul')::date"),add=n=>db(`select '${today}'::date+${n}`);
+const retiredPerson=crypto.randomUUID(),retiredEmployee=crypto.randomUUID();
+db(`insert into public.people(id,full_name) values('${retiredPerson}','Synthetic retired roster');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,employment_status,departed_on) values('${retiredEmployee}','TJ-${crypto.randomInt(790001,890000)}','${retiredPerson}','${dept}','${pos}','2020-01-01','departed','${today}');`);
+const metadata=await rpc('get_employee_leave_admin_context',lead);check(metadata.ok,'lead receives narrow leave roster metadata');equal(metadata.data.roster_version,1,'versioned employee roster contract');
+const activeMeta=metadata.data.employees.find(e=>e.id===employee);equal(activeMeta.employment_status,'active','existing active status reused');equal(activeMeta.position_id,pos,'immutable employee position shared with staff management');check(Boolean(activeMeta.position_name),'position group name supplied');
+equal(metadata.data.employees.find(e=>e.id===retiredEmployee).employment_status,'departed','retired history retained with explicit status');check(metadata.data.positions.some(p=>p.id===pos&&Number.isFinite(p.sort_order)),'existing position order supplied');check(!(await rpc('get_employee_leave_admin_context',worker)).ok,'worker cannot read roster metadata');
 const location=db('select id from public.attendance_locations where active limit 1');
 const terms={effective_from:today,weekdays:[1,2,3,4,5,6,7],starts_at:'09:00',ends_at:'13:00',break_starts_at:'10:30',break_ends_at:'11:00',location_id:location,reason:'Synthetic schedule'};
 check((await rpc('save_employee_work_terms',ops,{p_employee_uuid:employee,p_values:terms})).ok,'web administrator saves schedule via real RPC');
@@ -137,6 +144,7 @@ equal(db(`select modification_count from public.employee_leave_requests where id
 check((await rpc('review_employee_leave',lead,{p_request_id:pendingId,p_decision:'approved',p_note:'Future leave approved'})).ok,'future full leave approved');
 const roster=await rpc('get_attendance_admin_today',ops,{p_work_date:f1});equal(roster.data.rows.find(r=>r.employee_uuid===employee).attendance_status.leave_portion,'full','future attendance already shows approved leave');
 equal(roster.data.rows.find(r=>r.employee_uuid===employee).attendance_status.status,'paid_leave','future attendance uses paid leave before the date');
+const projected=monthly.buildMonth({month:f1.slice(0,7),daily:{[f1]:roster.data},ledger:{rows:[]},employees:roster.data.rows,queriedAt:today+'T00:00:00+09:00'});equal(projected.rows.find(r=>r.employee_uuid===employee).cells[Number(f1.slice(8))-1].label,'연차(승인)','actual monthly attendance renderer shows server approval before use date');
 const remainingBefore=(await rpc('get_my_leave_context',worker)).data.remaining;const change=crypto.randomUUID();const changeArgs={p_id:change,p_request_id:pendingId,p_action:'amend',p_new_work_date:f2,p_new_portion:'first_half',p_reason:'Change date once'};
 const changeTooSoon=await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_new_work_date:add(2)});check(!changeTooSoon.ok&&String(changeTooSoon.data.message).includes('LEAVE_THREE_DAYS_REQUIRED'),'approved amendment validates three-day cutoff on server');equal(db(`select modification_count from public.employee_leave_requests where id='${pendingId}'`),'0','invalid request does not consume modification quota');
 check(!(await rpc('request_my_leave_change',outsider,changeArgs)).ok,'other employee cannot change leave');
@@ -164,6 +172,7 @@ check((await rpc('review_employee_leave_change',ops,{p_change_id:cancelAgain,p_d
 check((await rpc('review_employee_leave_change',ops,{p_change_id:cancelAgain,p_decision:'approved',p_note:'Repeated cancellation'})).ok,'cancellation review retry idempotent');
 equal((await rpc('get_my_leave_context',worker)).data.remaining,remainingBefore+1,'approved cancellation restores final half exactly once');
 check(!JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f2}')`)).leave_request_id,'cancelled leave no longer appears on attendance');
+const cancelledRoster=await rpc('get_attendance_admin_today',ops,{p_work_date:f2});const cancelledMonth=monthly.buildMonth({month:f2.slice(0,7),daily:{[f2]:cancelledRoster.data},ledger:{rows:[]},employees:cancelledRoster.data.rows,queriedAt:today+'T00:00:00+09:00'});equal(cancelledMonth.rows.find(r=>r.employee_uuid===employee).cells[Number(f2.slice(8))-1].label,'근무 예정','manager approved cancellation removes leave in actual monthly renderer');
 // Rejection still consumes the one approved modification request.
 const rejectionBase=crypto.randomUUID();await rpc('submit_my_leave_request',worker,{p_id:rejectionBase,p_days:[{date:f3,portion:'full'}]});await rpc('review_employee_leave',ops,{p_request_id:rejectionBase,p_decision:'approved',p_note:'Quota fixture approved'});
 const rejectionChange=crypto.randomUUID();await rpc('request_my_leave_change',worker,{...changeArgs,p_id:rejectionChange,p_request_id:rejectionBase,p_new_work_date:f4});await rpc('review_employee_leave_change',lead,{p_change_id:rejectionChange,p_decision:'rejected',p_note:'Reject modification'});
