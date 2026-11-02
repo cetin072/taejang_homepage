@@ -58,13 +58,13 @@ export default function LeaveScreen(){
   {preview?<Text style={styles.hint}>화면 체험 · 예시 데이터 · 실제 저장 안 됨</Text>:null}
   {!session?<Text>로그인 후 확인해주세요.</Text>:null}
   {!preview&&loading?<ActivityIndicator/>:null}{!preview&&error?<Text accessibilityRole="alert">{error}</Text>:null}
-  {context?<><View style={styles.balanceCard}><Text style={styles.label}>남은 연차</Text><Text style={styles.balance}>{context.configured?`${context.remaining}개`:'관리자 등록 대기'}</Text></View>
+  {context?<><View style={styles.balanceCard}><Text style={styles.label}>남은 연차</Text><Text style={context.configured?styles.balance:styles.label}>{context.configured?`${context.remaining}개`:'관리자 등록 대기'}</Text></View>
    {!context.configured?<Text style={styles.hint}>관리자가 연차를 등록하면 신청할 수 있어요.</Text>:null}
    <View style={styles.formCard}>
    {editing?<View style={styles.record}><Text style={styles.title}>{editing.original.status==='pending'?'승인 전 신청 수정':editing.action==='cancel'?'승인 연차 취소 요청':'승인 연차 수정 요청'}</Text><Text>기존: {editing.original.work_date} {labels[editing.original.portion]}</Text>{editing.original.status==='approved'?<TextInput accessibilityLabel="취소·수정 사유" value={reason} onChangeText={setReason} editable={!busy&&!uncertain} placeholder="사유를 입력해주세요" maxLength={300} style={styles.input}/>:null}{press('변경 입력 닫기',()=>{setEditing(null);setDate('');setReason('');},busy||uncertain)}</View>:null}
    {editing?.action!=='cancel'?<Text style={styles.label}>언제 쉬실 건가요?</Text>:null}
    {editing?.action!=='cancel'?press(date||'달력에서 날짜 선택',()=>setPicker(true),busy||uncertain||!context.configured):null}
-   {picker?<DateTimePicker value={date?new Date(`${date}T12:00:00`):min} mode="date" display="calendar" minimumDate={min} onChange={(_event,value)=>{setPicker(false);if(value)setDate(`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`);}}/>:null}
+   {picker?<DateTimePicker value={date?new Date(`${date}T12:00:00`):min} mode="date" display="calendar" minimumDate={min} onChange={(_event,value)=>{setPicker(false);if(_event.type!=='dismissed'&&value)setDate(`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`);}}/>:null}
    {editing?.action!=='cancel'?<Text style={styles.hint}>사용일 3일 전까지 신청할 수 있어요.</Text>:null}
    {editing?.action!=='cancel'?<Text style={styles.label}>얼마나 쉬실 건가요?</Text>:null}
    {editing?.action!=='cancel'?<View style={styles.choices}>{(['full','first_half','second_half'] as LeavePortion[]).map(p=><Pressable key={p} accessibilityRole="button" accessibilityState={{selected:portion===p}} disabled={busy||uncertain} onPress={()=>setPortion(p)} style={[styles.portion,portion===p?styles.portionSelected:null]}><Text style={[styles.portionText,portion===p?styles.primaryText:null]}>{labels[p]}</Text><Text style={[styles.portionUnits,portion===p?styles.primaryText:null]}>{p==='full'?'1개':'0.5개'}</Text></Pressable>)}</View>:null}

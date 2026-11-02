@@ -6,7 +6,7 @@ export function useMyLeave(enabled=true) {
   const { client, session }=usePlatform(); const [context,setContext]=useState<LeaveContext|null>(null); const [owner,setOwner]=useState<string|null>(null);
   const [error,setError]=useState(''); const [loading,setLoading]=useState(false); const sequence=useRef(0);
   const reload=useCallback(async()=>{
-    const token=++sequence.current; if(!enabled||!client||!session){setContext(null);return;}
+    const token=++sequence.current; if(!enabled||!client||!session){setContext(null);setLoading(false);setError('');return;}
     setLoading(true);setError('');try{const value=await loadMyLeave(client);if(token===sequence.current){setContext(value);setOwner(session.user.id);}}
     catch(e){if(token===sequence.current){setContext(null);setError(leaveError(e));}}
     finally{if(token===sequence.current)setLoading(false);}
