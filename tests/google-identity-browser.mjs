@@ -15,7 +15,7 @@ try {
   await page.route('**/*',async route=>{
    const request=route.request(),url=new URL(request.url());
    if(url.origin==='https://fixture.supabase.co'){
-    apiCalls++;trace.push({path:url.pathname,method:request.method(),authorization:request.headers().authorization});
+    apiCalls++;trace.push({path:url.pathname,method:request.method(),authenticated:Boolean(request.headers().authorization)});
     const headers={'access-control-allow-origin':'https://fixture.test','access-control-allow-headers':'apikey,authorization,content-type','access-control-allow-methods':'GET,POST,OPTIONS'};
     if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
     if(url.pathname==='/auth/v1/user')return route.fulfill({headers,json:{id:'owner',identities:request.headers().authorization==='Bearer fresh-fixture'?[{provider:'google'}]:[]}});
@@ -26,7 +26,7 @@ try {
    }
    if(url.origin==='https://accounts.google.com')return route.fulfill({contentType:'text/html',body:'<h1>Synthetic Google redirect</h1>'});
    if(url.pathname==='/.netlify/functions/staff-config')return route.fulfill({json:{url:'https://fixture.supabase.co',publishableKey:'public-fixture',googleIdentityEnabled:enabled}});
-   if(url.pathname==='/app/')return route.fulfill({contentType:'text/html',body:'<h1>대시보드 복귀</h1>'});
+   if(url.pathname==='/app/')return route.fulfill({contentType:'text/html',body:'<!doctype html><meta charset="utf-8"><h1>대시보드 복귀</h1>'});
    const path=url.pathname==='/staff/google-link'?'/staff/google-link.html':url.pathname;
    if(path.startsWith('/staff/'))return route.fulfill({contentType:path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':'text/javascript',body:await fs.readFile(new URL('..'+path,import.meta.url),'utf8')});
    return route.fulfill({status:404,body:''});
