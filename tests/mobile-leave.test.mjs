@@ -80,7 +80,9 @@ test('real app handlers allow repeated pending edits, block second approved edit
  for(const date of ['2026-11-15','2026-11-16']){click('＋ 날짜 선택');datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'set'},new Date(date+'T12:00:00'));}
  assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 2일'));
  click('2일 신청 확인');assert.match(alerts.at(-1)[0],/총 2일/);assert.match(alerts.at(-1)[1],/2026-11-15/);assert.match(alerts.at(-1)[1],/2026-11-16/);assert.match(alerts.at(-1)[1],/사용 연차 2개/);
- alerts.at(-1)[2].find(a=>a.text==='2일 신청할게요').onPress();await new Promise(setImmediate);assert.equal(calls[3].name,'submit_my_leave_request');assert.equal(calls[3].args.p_days.length,2);
+ alerts.at(-1)[2].find(a=>a.text==='2일 신청할게요').onPress();await new Promise(setImmediate);assert.equal(calls[3].name,'submit_my_leave_request');assert.equal(calls[3].args.p_days.length,2);assert.ok(calls[3].args.p_days.every(d=>d.portion==='full'));
+ assert.equal(render().some(n=>n?.type==='Pressable'&&/앞 반차|뒤 반차/.test(text(n))),false,'no half-day choice is available');
+ context.requests=[{id:'legacy-half',work_date:'2026-11-20',portion:'first_half',units:.5,status:'approved',modification_count:0}];const before=calls.length;click('일정 수정 요청');assert.equal(alerts.at(-1)[0],'기존 반차 내역');assert.equal(calls.length,before,'legacy half-day is not silently converted to a full day');assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('앞 반차')),'legacy history remains visible');
 
 });
 test('home leave entry is prominent and QA preview does not mount the live leave reader',()=>{

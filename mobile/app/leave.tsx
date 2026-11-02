@@ -8,11 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { useMyLeave } from '@/src/features/leave/use-my-leave';
 import { cancelMyLeave, editMyPendingLeave, requestMyLeaveChange, leaveError, submitMyLeave, type LeavePortion, type LeaveRequest } from '@/src/features/leave/leave-api';
-const labels={full:'종일',first_half:'앞 반차',second_half:'뒤 반차',pending:'승인 대기',approved:'승인',rejected:'반려',cancelled:'취소'};
+const labels={full:'연차',first_half:'앞 반차',second_half:'뒤 반차',pending:'승인 대기',approved:'승인',rejected:'반려',cancelled:'취소'};
 export default function LeaveScreen(){
  const params=useLocalSearchParams<{preview?:string}>();const preview=isQaApp&&params.preview==='1';
  const {client,session}=usePlatform();const live=useMyLeave(!preview);const context=preview?{configured:true,remaining:7,server_today:'2026-11-02',earliest_date:'2026-11-05',requests:[],change_requests:[]}:live.context;const {error,loading,reload}=live;const router=useRouter();const insets=useSafeAreaInsets();
- const [date,setDate]=useState('');const [portion,setPortion]=useState<LeavePortion>('full');const [picker,setPicker]=useState(false);
+ const [date,setDate]=useState('');const portion:LeavePortion='full';const [picker,setPicker]=useState(false);
  const [days,setDays]=useState<{date:string;portion:LeavePortion}[]>([]);const [busy,setBusy]=useState(false);const locked=useRef(false);
  const request=useRef<{id:string;payload:string}|null>(null);
  const [editing,setEditing]=useState<{original:LeaveRequest;action:'amend'|'cancel'}|null>(null);const [reason,setReason]=useState('');
@@ -29,8 +29,9 @@ export default function LeaveScreen(){
  }
  async function cancel(id:string){if(preview)return;if(!client||locked.current)return;locked.current=true;setBusy(true);try{await cancelMyLeave(client,id);await reload();}catch(e){Alert.alert('신청 취소',leaveError(e));}finally{locked.current=false;setBusy(false);}}
  function beginChange(original:LeaveRequest,action:'amend'|'cancel'){
+  if(action==='amend'&&original.portion!=='full'){Alert.alert('기존 반차 내역','기존 반차 일정 변경은 관리자에게 문의해주세요.');return;}
   if(original.status==='approved'&&action==='amend'&&(original.modification_count||0)>=1){Alert.alert('수정 요청 제한','승인 후 수정 요청은 1회만 가능합니다. 관리자에게 문의해주세요.');return;}
-  setEditing({original,action});setPeriod('one');setPicker(false);setReason('');setDays([]);setDate(action==='amend'?original.work_date:'');setPortion(original.portion);
+  setEditing({original,action});setPeriod('one');setPicker(false);setReason('');setDays([]);setDate(action==='amend'?original.work_date:'');
  }
  async function sendChange(){
   if(preview)return;if(!client||locked.current||!editing||!context)return;
@@ -51,18 +52,18 @@ export default function LeaveScreen(){
  }
  function changePeriod(next:'one'|'many'){
   if(next===period)return;
-  const apply=()=>{if(next==='many'){setDays(date?[{date,portion}]:[]);setDate('');}else{setDate(days[0]?.date||'');setPortion(days[0]?.portion||portion);setDays([]);}setPeriod(next);};
+  const apply=()=>{if(next==='many'){setDays(date?[{date,portion}]:[]);setDate('');}else{setDate(days[0]?.date||'');setDays([]);}setPeriod(next);};
   if(next==='one'&&days.length>1)Alert.alert('하루 신청으로 바꿀까요?','첫 날짜만 남고 나머지는 선택 해제됩니다.',[{text:'그대로 두기',style:'cancel'},{text:'하루로 바꾸기',onPress:apply}]);else apply();
  }
  function confirmSubmission(){
   if(!context)return;const payload=period==='many'?days:[{date,portion}];
   if(!request.current&&(period==='many'&&payload.length<2||!payload.length||payload.some(d=>!d.date||d.date<context.earliest_date))){Alert.alert('날짜 선택','사용일 3일 전까지 신청할 수 있어요.');return;}
   if(request.current){void submit();return;}
-  const total=payload.reduce((sum,d)=>sum+(d.portion==='full'?1:.5),0);
+  const total=payload.length;
   Alert.alert(payload.length===1?'하루 신청을 확인해주세요':`총 ${payload.length}일 신청을 확인해주세요`,payload.map((d,i)=>`${i+1}. ${d.date} · ${labels[d.portion]}`).join('\n')+`\n\n사용 연차 ${total}개`,[{text:'돌아가기',style:'cancel'},{text:payload.length===1?'하루 신청할게요':`${payload.length}일 신청할게요`,onPress:()=>void submit()}]);
  }
  const chosenCount=period==='many'?days.length:(date?1:0);
- const chosenUnits=period==='many'?days.reduce((sum,d)=>sum+(d.portion==='full'?1:.5),0):(date?(portion==='full'?1:.5):0);
+ const chosenUnits=chosenCount;
  const uncertain=Boolean(request.current||changeRequest.current);
  const earliest=context?.earliest_date;const min=earliest?new Date(`${earliest}T12:00:00`):new Date();
  const selectedPickerDate=date||(period==='many'?days.at(-1)?.date:'');const cursor=selectedPickerDate?new Date(`${selectedPickerDate}T12:00:00`):min;
@@ -83,8 +84,6 @@ export default function LeaveScreen(){
    {editing?.action!=='cancel'?press(period==='many'&&!editing?'＋ 날짜 선택':date||'달력에서 날짜 선택',()=>setPicker(true),busy||uncertain||!context.configured||(period==='many'&&days.length>=31)):null}
    {picker?<DateTimePicker value={cursor>=min?cursor:min} mode="date" display="calendar" minimumDate={min} onChange={(_event,value)=>{setPicker(false);if(_event.type!=='dismissed'&&value){const picked=`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;if(period==='many'&&!editing){if(days.length>=31)Alert.alert('날짜 선택','한 번에 최대 31일을 선택할 수 있어요.');else if(!days.some(d=>d.date===picked))setDays([...days,{date:picked,portion}].sort((a,b)=>a.date.localeCompare(b.date)));else Alert.alert('이미 선택한 날짜','다른 날짜를 선택해주세요.');}else setDate(picked);}}}/>:null}
    {editing?.action!=='cancel'?<Text style={styles.hint}>사용일 3일 전까지 신청할 수 있어요.</Text>:null}
-   {editing?.action!=='cancel'?<Text style={styles.label}>얼마나 쉬실 건가요?</Text>:null}
-   {editing?.action!=='cancel'?<View style={styles.choices}>{(['full','first_half','second_half'] as LeavePortion[]).map(p=><Pressable key={p} accessibilityRole="button" accessibilityState={{selected:portion===p}} disabled={busy||uncertain} onPress={()=>{setPortion(p);if(period==='many')setDays(days.map(d=>({...d,portion:p})));}} style={[styles.portion,portion===p?styles.portionSelected:null]}><Text style={[styles.portionText,portion===p?styles.primaryText:null]}>{labels[p]}</Text><Text style={[styles.portionUnits,portion===p?styles.primaryText:null]}>{p==='full'?'1개':'0.5개'}</Text></Pressable>)}</View>:null}
    {!editing&&chosenCount>0?<View style={[styles.selectedDays,period==='many'?styles.manyDays:null]}>
     <Text style={[styles.selectedCount,period==='many'?styles.manyText:null]}>{period==='one'?'하루 신청 · 1일':`여러 날 신청 · 총 ${chosenCount}일`}</Text>
     <Text style={styles.hint}>사용 연차 {chosenUnits}개</Text>
@@ -94,7 +93,7 @@ export default function LeaveScreen(){
    {editing?press(busy?'처리 중…':uncertain?'같은 변경 다시 보내기':'변경 내용 확인',confirmChange,busy||loading,'primary'):press(busy?'처리 중…':uncertain?'같은 신청 다시 보내기':period==='one'?'하루 신청 확인':chosenCount<2?'날짜 2개 이상 선택':`${chosenCount}일 신청 확인`,confirmSubmission,busy||loading||!context.configured||(!chosenCount||period==='many'&&chosenCount<2),'primary')}
    </View>
    {press(helpOpen?'신청 안내 접기':'신청 안내',()=>setHelpOpen(!helpOpen),false,'quiet')}
-   {helpOpen?<View style={styles.help}><Text style={styles.hint}>반차는 하루 근무시간의 절반입니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정은 여러 번, 승인 후 일정 수정 요청은 사용일 전까지 1회 가능합니다.</Text></View>:null}
+   {helpOpen?<View style={styles.help}><Text style={styles.hint}>하루에 연차 1개를 사용합니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정은 여러 번, 승인 후 일정 수정 요청은 사용일 전까지 1회 가능합니다.</Text></View>:null}
    <Text style={styles.sectionTitle}>내 신청</Text>{context.requests.map(r=>{
     const pendingChange=context.change_requests?.find(c=>c.request_id===r.id&&c.status==='pending');const active=r.status==='pending'||r.status==='approved';const beforeUse=r.work_date>context.server_today;
     return <View key={r.id} style={styles.record}><Text>{r.work_date} · {labels[r.portion]} · {labels[r.status]}</Text>
@@ -109,4 +108,4 @@ export default function LeaveScreen(){
   </>:null}
  </ScrollView>;
 }
-const styles=StyleSheet.create({periodManySelected:{backgroundColor:'#24547c',borderColor:'#24547c'},manyDays:{backgroundColor:'#eef4fa',borderColor:'#24547c'},manyText:{color:'#24547c'},manyPrimary:{backgroundColor:'#24547c'},periodChoices:{flexDirection:'row',gap:10},periodOption:{flex:1,padding:12,minHeight:85,borderWidth:1.5,borderColor:'#a9beb0',borderRadius:14,justifyContent:'center',gap:7},periodSelected:{backgroundColor:'#173f31',borderColor:'#173f31'},periodTitle:{fontSize:18,fontWeight:'800',color:'#173f31'},selectedDays:{padding:16,borderRadius:14,borderWidth:2,borderColor:'#356c4b',backgroundColor:'#eef5ef',gap:9},selectedCount:{fontSize:22,fontWeight:'800',color:'#173f31'},dayRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,borderTopWidth:1,borderTopColor:'#cfdfd2',paddingTop:9},dayDescription:{flex:1,gap:4},dayNumber:{fontSize:13,color:'#476350'},header:{flexDirection:'row',justifyContent:'space-between'},label:{fontSize:17,fontWeight:'700',color:'#173f31'},hint:{fontSize:14,lineHeight:21,color:'#607367'},balanceCard:{padding:20,borderRadius:20,backgroundColor:'#e9f1eb',gap:6},formCard:{padding:18,borderRadius:20,backgroundColor:'#fff',gap:14,borderWidth:1,borderColor:'#dbe5de'},primary:{backgroundColor:'#173f31',borderWidth:0,minHeight:58,alignItems:'center'},primaryText:{color:'#fff'},quiet:{backgroundColor:'transparent',borderWidth:0,minHeight:40,padding:4},sectionTitle:{fontSize:20,fontWeight:'800',color:'#173f31'},help:{gap:8,paddingHorizontal:8},portion:{flex:1,minHeight:72,borderWidth:1,borderColor:'#cbd9cf',borderRadius:12,alignItems:'center',justifyContent:'center',gap:4},portionSelected:{backgroundColor:'#173f31',borderColor:'#173f31'},portionText:{fontSize:16,fontWeight:'700',color:'#173f31'},portionUnits:{fontSize:14,color:'#607367'},input:{minHeight:48,borderWidth:1,borderColor:'#a3b4a9',borderRadius:8,padding:12,fontSize:17},page:{flex:1,backgroundColor:'#f6f4ed'},title:{fontSize:23,fontWeight:'800',color:'#173f31'},balance:{fontSize:27,fontWeight:'800',color:'#173f31'},button:{minHeight:52,padding:14,borderRadius:12,backgroundColor:'#fff',borderWidth:1,borderColor:'#cbd9cf',justifyContent:'center'},buttonText:{color:'#173f31',fontSize:17,fontWeight:'600'},disabled:{opacity:.45},choices:{gap:8,flexDirection:'row'},record:{gap:8,padding:16,backgroundColor:'#fff',borderRadius:12}});
+const styles=StyleSheet.create({periodManySelected:{backgroundColor:'#24547c',borderColor:'#24547c'},manyDays:{backgroundColor:'#eef4fa',borderColor:'#24547c'},manyText:{color:'#24547c'},manyPrimary:{backgroundColor:'#24547c'},periodChoices:{flexDirection:'row',gap:10},periodOption:{flex:1,padding:12,minHeight:85,borderWidth:1.5,borderColor:'#a9beb0',borderRadius:14,justifyContent:'center',gap:7},periodSelected:{backgroundColor:'#173f31',borderColor:'#173f31'},periodTitle:{fontSize:18,fontWeight:'800',color:'#173f31'},selectedDays:{padding:16,borderRadius:14,borderWidth:2,borderColor:'#356c4b',backgroundColor:'#eef5ef',gap:9},selectedCount:{fontSize:22,fontWeight:'800',color:'#173f31'},dayRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,borderTopWidth:1,borderTopColor:'#cfdfd2',paddingTop:9},dayDescription:{flex:1,gap:4},dayNumber:{fontSize:13,color:'#476350'},header:{flexDirection:'row',justifyContent:'space-between'},label:{fontSize:17,fontWeight:'700',color:'#173f31'},hint:{fontSize:14,lineHeight:21,color:'#607367'},balanceCard:{padding:20,borderRadius:20,backgroundColor:'#e9f1eb',gap:6},formCard:{padding:18,borderRadius:20,backgroundColor:'#fff',gap:14,borderWidth:1,borderColor:'#dbe5de'},primary:{backgroundColor:'#173f31',borderWidth:0,minHeight:58,alignItems:'center'},primaryText:{color:'#fff'},quiet:{backgroundColor:'transparent',borderWidth:0,minHeight:40,padding:4},sectionTitle:{fontSize:20,fontWeight:'800',color:'#173f31'},help:{gap:8,paddingHorizontal:8},portionUnits:{fontSize:14,color:'#607367'},input:{minHeight:48,borderWidth:1,borderColor:'#a3b4a9',borderRadius:8,padding:12,fontSize:17},page:{flex:1,backgroundColor:'#f6f4ed'},title:{fontSize:23,fontWeight:'800',color:'#173f31'},balance:{fontSize:27,fontWeight:'800',color:'#173f31'},button:{minHeight:52,padding:14,borderRadius:12,backgroundColor:'#fff',borderWidth:1,borderColor:'#cbd9cf',justifyContent:'center'},buttonText:{color:'#173f31',fontSize:17,fontWeight:'600'},disabled:{opacity:.45},record:{gap:8,padding:16,backgroundColor:'#fff',borderRadius:12}});

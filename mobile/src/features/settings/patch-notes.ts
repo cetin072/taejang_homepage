@@ -11,6 +11,7 @@ export type PatchNoteEntry = {
 // Pattern reference: cetin072/worklog-voice-pwa at e3a8a50bd7d7e8f3fe47970268dd04ee84448f78:
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
+  {id:'2026-11-02-full-day-leave',date:'2026-11-02',title:'연차 신청 단순화',summary:'반차 선택을 빼고 날짜만 선택하도록 정리했습니다.',items:['하루는 연차 1개, 이틀은 2개를 사용합니다.','하루/여러 날 구분과 신청일 확인은 그대로 유지합니다.']},
   {id:'2026-11-02-leave-ui',date:'2026-11-02',title:'연차 신청 화면 간소화',summary:'홈에서 큰 연차 신청 버튼으로 바로 시작합니다.',items:['하루/여러 날을 구분하고 날짜 목록·총 일수를 확인합니다.','자세한 규칙은 신청 안내에서 펼쳐볼 수 있습니다.','QA 화면 체험에서도 실제 저장 없이 연차 화면을 확인할 수 있습니다.']},
   {
     id:'2026-11-02-leave-changes',date:'2026-11-02',title:'연차 수정·취소 요청',
