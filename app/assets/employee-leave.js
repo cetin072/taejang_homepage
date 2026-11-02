@@ -3,7 +3,7 @@
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
-  const messages = { TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  const messages = { WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
   function errorText(error) { const s = String(error?.message || error || ''); return Object.entries(messages).find(([k]) => s.includes(k))?.[1] || '저장하지 못했습니다. 입력값과 연결 상태를 확인하고 다시 시도해주세요.'; }
   function button(text, run) { const b = el('button',text,'button button-quiet'); b.type='button'; b.addEventListener('click',run); return b; }
   function dateField(form,label,value='',required=true){
@@ -38,24 +38,26 @@
     if(ctx.can_initialize){
       const f=el('form',null,'employee-form app-authoring leave-work-form');
       const scope=select(f,'적용 방식',[['base','기본 근무시간 등록·변경'],['date','하루만 근무시간 변경']]);
-      const next=latest&&latest.effective_from>=ctx.server_today?new Date(Date.parse(latest.effective_from+'T12:00:00Z')+86400000).toISOString().slice(0,10):ctx.server_today;
-      const date=field(f,'적용 시작일','date',next);date.min=next;
+      const tomorrow=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+86400000).toISOString().slice(0,10);
+      const minimum=latest&&latest.effective_from>=ctx.server_today?new Date(Date.parse(latest.effective_from+'T12:00:00Z')+86400000).toISOString().slice(0,10):ctx.server_today;
+      const next=minimum>tomorrow?minimum:tomorrow;
+      const date=field(f,'적용 시작일','date',next);date.min=minimum;
       const start=timeField(f,'출근 시각',latest?.starts_at||''),end=timeField(f,'퇴근 시각',latest?.ends_at||'');
       const rest=select(f,'휴게시간',[['none','휴게 없음'],['set','휴게 있음']],latest?.break_starts_at?'set':'none');
       const breaks=el('div',null,'leave-break-fields');const bs=timeField(breaks,'휴게 시작',latest?.break_starts_at||''),be=timeField(breaks,'휴게 종료',latest?.break_ends_at||'');f.append(breaks);
       const showBreak=()=>{breaks.hidden=rest.value==='none';bs.disabled=be.disabled=breaks.hidden;};rest.addEventListener('change',showBreak);showBreak();
       const loc=select(f,'근무장소',[['','장소 선택'],...ctx.locations.map(l=>[l.id,l.name])],latest?.location_id||'');loc.required=true;
       const weekdays=el('fieldset',null,'leave-weekdays');weekdays.append(el('legend','근무요일'));const checks=[];
-      ['월','화','수','목','금','토','일'].forEach((name,i)=>{const l=el('label',name),c=el('input');c.type='checkbox';c.value=String(i+1);c.checked=Boolean(latest?.weekdays.includes(i+1));l.prepend(c);weekdays.append(l);checks.push(c);});f.append(weekdays);
-      const reason=field(f,'변경 사유','text');reason.minLength=2;
-      const effectiveNote=el('p',latest?'기존 기록은 유지하고 새 적용일부터 변경합니다.':'처음 적용할 날짜를 선택해주세요.');f.append(effectiveNote);
-      scope.addEventListener('change',()=>{date.min=scope.value==='date'?ctx.server_today:next;date.value=date.min;weekdays.hidden=scope.value==='date';});
-      formAction(f,'근무시간 저장',()=>{
+      ['월','화','수','목','금','토','일'].forEach((name,i)=>{const l=el('label'),c=el('input');c.type='checkbox';c.value=String(i+1);c.checked=Boolean(latest?.weekdays.includes(i+1));l.append(c,el('span',name));weekdays.append(l);checks.push(c);});f.append(weekdays);
+      const reason=field(f,latest?'변경 사유':'등록 사유','text',latest?'':'최초 등록');reason.minLength=2;
+      const effectiveNote=el('p','기존 출근 기록은 유지하고 선택한 적용일부터 사용합니다.');f.append(effectiveNote);
+      scope.addEventListener('change',()=>{date.min=scope.value==='date'?ctx.server_today:minimum;date.value=scope.value==='date'?ctx.server_today:next;weekdays.hidden=scope.value==='date';});
+      formAction(f,'근무시간 저장',async()=>{
         if(!start.value||!end.value)throw Error('TIME_REQUIRED');
         if(end.value<=start.value)throw Error('INVALID_WORK_TIME');
         if(rest.value==='set'&&(!bs.value||!be.value||bs.value<start.value||be.value>end.value||be.value<=bs.value||(bs.value===start.value&&be.value===end.value)))throw Error('INVALID_BREAK_TIME');
         const days=checks.filter(c=>c.checked).map(c=>Number(c.value));if(scope.value==='base'&&!days.length)throw Error('WEEKDAYS_REQUIRED');
-        return rpc(scope.value==='date'?'save_employee_work_override':'save_employee_work_terms',{p_employee_uuid:employee.id,p_values:{effective_from:date.value,starts_at:start.value,ends_at:end.value,break_starts_at:rest.value==='set'?bs.value:'',break_ends_at:rest.value==='set'?be.value:'',location_id:loc.value,weekdays:days,reason:reason.value}});
+        try{return await rpc(scope.value==='date'?'save_employee_work_override':'save_employee_work_terms',{p_employee_uuid:employee.id,p_values:{effective_from:date.value,starts_at:start.value,ends_at:end.value,break_starts_at:rest.value==='set'?bs.value:'',break_ends_at:rest.value==='set'?be.value:'',location_id:loc.value,weekdays:days,reason:reason.value}});}catch(e){if(String(e?.message||e).includes('ATTENDANCE_CONFLICT'))throw Error('WORK_TERMS_ATTENDANCE_CONFLICT');throw e;}
       },reload);host.append(f);
     }
     const history=el('details');history.append(el('summary','근무시간 이력'));
