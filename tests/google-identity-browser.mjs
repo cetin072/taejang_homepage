@@ -10,11 +10,12 @@ try {
   const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(({key})=>{if(location.origin==='https://fixture.test'&&!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify({access_token:'old-fixture',user:{id:'owner'}}));},{key});
-  let redirect,enabled=true,apiCalls=0;
+  let redirect,enabled=true,apiCalls=0;const trace=[];
+  page.on('requestfailed',r=>trace.push({failed:r.url(),error:r.failure()?.errorText}));
   await page.route('**/*',async route=>{
    const request=route.request(),url=new URL(request.url());
    if(url.origin==='https://fixture.supabase.co'){
-    apiCalls++;
+    apiCalls++;trace.push({path:url.pathname,method:request.method(),authorization:request.headers().authorization});
     const headers={'access-control-allow-origin':'https://fixture.test','access-control-allow-headers':'apikey,authorization,content-type','access-control-allow-methods':'GET,POST,OPTIONS'};
     if(request.method()==='OPTIONS')return route.fulfill({status:204,headers});
     if(url.pathname==='/auth/v1/user')return route.fulfill({headers,json:{id:'owner',identities:request.headers().authorization==='Bearer fresh-fixture'?[{provider:'google'}]:[]}});
@@ -39,7 +40,8 @@ try {
   await page.waitForURL('https://accounts.google.com/fixture');
   assert.ok(redirect);
   await page.goto(redirect+'&code=fixture-code');
-  await page.getByRole('heading',{name:'대시보드 복귀'}).waitFor();
+  try{await page.getByRole('heading',{name:'대시보드 복귀'}).waitFor({timeout:10000});}
+  catch(error){throw Error(JSON.stringify({url:page.url(),body:await page.locator('body').innerText(),errors,trace,pending:await page.evaluate(()=>sessionStorage.getItem('taejang-google-link-v1'))}));}
   assert.equal(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).access_token,key),'fresh-fixture');
   assert.equal(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).user.id,key),'owner');
   enabled=false;const before=apiCalls;
