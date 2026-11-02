@@ -71,7 +71,7 @@ test('rendered employee home mounts attendance, notice, remaining leave and elig
   for (const capabilities of [[], ['unrelated.read'], ['promotion.write'], ['promotion.review_lead'], ['employee.view_all']]) {
     const nodes = renderHome({ account_status: 'active', capabilities });
     const cards = nodes.filter(node => ['AttendanceCard', 'NoticeHomeAction', 'LeaveHomeAction'].includes(node?.type));
-    assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'NoticeHomeAction', 'LeaveHomeAction']);
+    assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'LeaveHomeAction', 'NoticeHomeAction']);
     const platform = nodes.filter(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
     assert.equal(platform.length, capabilities.some(code => ['promotion.write', 'promotion.review_lead', 'employee.view_all'].includes(code)) ? 1 : 0);
     assert.equal(nodes.filter(node => node?.type === 'OfficialChannelsFooter').length, 1);
@@ -108,7 +108,7 @@ test('QA defaults to operations team lead and previews the actual employee atten
     const card = rendered.find(node => node?.type === 'AttendanceCard');
     const toolbar = rendered.find(node => node?.type === 'QaPreviewControls');
     const platform = rendered.find(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
-    assert.equal(rendered.some(node => node?.type === 'LeaveHomeAction'), false, 'preview must not fetch real leave');
+    assert.equal(rendered.find(node => node?.type === 'LeaveHomeAction')?.props.preview, true, 'QA preview shows a separate demo entry without fetching real leave');
     assert.equal(card.props.mode, 'preview');
     assert.equal(card.props.previewScenario, 'today');
     assert.equal(toolbar.props.persona, 'operations_lead');

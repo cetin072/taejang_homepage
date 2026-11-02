@@ -641,8 +641,8 @@ export default function HomeScreen() {
                 previewScenario={qaDayScenario}
               />
             ) : null}
+            {employeeFeatures.get('leave.self')?.state === 'enabled' ? <LeaveHomeAction preview={isQaApp && qaInspection === 'preview'} /> : null}
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction /> : null}
-            {employeeFeatures.get('leave.self')?.state === 'enabled' && (!isQaApp || qaInspection === 'server') ? <LeaveHomeAction /> : null}
             {showWorkPlatform ? (
               <PrimaryButton
                 title={platformOpening ? '연결 중…' : '플랫폼 바로가기'}

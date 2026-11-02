@@ -75,6 +75,15 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: CHROME_PATH=$(command -v google-chrome) node tests/employee-leave-browser.mjs
 
+      - name: Keep synthetic work time PC and mobile screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: leave-admin-390-1440
+          path: leave-admin-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Start isolated local Supabase
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
