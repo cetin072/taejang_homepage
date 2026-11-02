@@ -563,7 +563,7 @@
 .worklog-calendar table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .worklog-calendar th { font-size: 13px; padding: 8px 0; }
 .worklog-calendar td { vertical-align: top; border: 1px solid #dce3ea; padding: 0; }
-.worklog-date-button { display:block; width:100%; height:112px; min-width:0; margin:0; padding:6px; border:0; border-radius:0; background:transparent; color:inherit; font:inherit; line-height:1.25; text-align:left; overflow:hidden; cursor:pointer; }
+.worklog-date-button { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; width:100%; height:112px; min-width:0; margin:0; padding:6px; border:0; border-radius:0; background:transparent; color:inherit; font:inherit; line-height:1.25; text-align:left; overflow:hidden; cursor:pointer; }
 .worklog-date-button:focus-visible { outline:3px solid #2861a5; outline-offset:-3px; }
 .worklog-calendar [aria-current="date"] { background: #edf5ff; box-shadow: inset 0 0 0 2px #2861a5; }
 .worklog-day { display:block; font-weight:700; font-size:13px; line-height:20px; }

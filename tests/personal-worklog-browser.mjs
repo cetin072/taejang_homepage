@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||['/usr/bin/google-chrome','/usr/bin/chromium'].find(existsSync),args:['--no-sandbox']});
-const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
+const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
 window.actor='self';window.role='operations_manager';window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자'}),rpc:async()=>[]};
 </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
 try {
@@ -12,7 +12,7 @@ try {
   let mode='success',requests=0,delayResolve;
   await p.route('**/*',async route=>{
    const u=new URL(route.request().url());
-   if(u.pathname.startsWith('/app/assets/'))return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await fs.readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
+   if(u.pathname.startsWith('/app/assets/')||u.pathname==='/staff/assets/staff.css')return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await fs.readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
    if(u.pathname==='/api/personal-worklog'){
     requests++;
     assert.equal(route.request().headers().authorization,'Bearer erp-fixture');
@@ -43,6 +43,8 @@ try {
   const heights=await p.locator('.worklog-date-button').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect().height));
   assert.ok(Math.max(...heights)-Math.min(...heights)<2,'all day cells have equal height');
   assert.equal(await crowded.locator('.worklog-event').first().evaluate(e=>getComputedStyle(e).whiteSpace),'nowrap');
+  assert.ok(await crowded.evaluate(e=>e.querySelector('.worklog-day').getBoundingClientRect().top-e.getBoundingClientRect().top<10),'date stays at top even on an empty day');
+  assert.ok(await crowded.locator('.worklog-event').first().evaluate(e=>e.scrollWidth>e.clientWidth),'long title is clipped inside its cell');
   const requestCount=requests;await crowded.click();const dialog=p.getByRole('dialog');await dialog.waitFor();
   assert.equal(await dialog.locator('li').count(),20,'all overflow events remain available');
   assert.ok((await dialog.locator('li').last().innerText()).includes('합성 대량 일정 20'));

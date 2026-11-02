@@ -38,6 +38,14 @@ jobs:
       - name: Install existing browser dependency
         run: npm ci
 
+      - name: Ensure Korean calendar screenshot fonts
+        shell: bash
+        run: |
+          if [ -z "$(fc-list :lang=ko family)" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install --no-install-recommends -y fonts-noto-cjk
+          fi
+
       - name: Verify personal Worklog dashboard with synthetic fixtures
         run: node tests/personal-worklog-browser.mjs
 
