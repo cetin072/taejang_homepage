@@ -25,5 +25,10 @@ select ok(not has_function_privilege('authenticated','public.private_request_att
 select ok(not has_function_privilege('authenticated','public.private_set_attendance_day_status_pre572(uuid,date,text,text,text)','EXECUTE'),'old day status cannot bypass leave source protection');
 select ok(not has_table_privilege('authenticated','public.employee_work_overrides','UPDATE'),'date exceptions cannot be directly overwritten');
 select ok(not has_function_privilege('authenticated','public.private_attendance_reminder_due(uuid,date,text,timestamptz)','EXECUTE'),'clients cannot override reminder evaluation time');
+select ok((select relrowsecurity from pg_class where oid='public.employee_leave_change_requests'::regclass),'change requests RLS enabled');
+select ok(not has_table_privilege('authenticated','public.employee_leave_change_requests','INSERT'),'changes cannot bypass RPC');
+select ok(not has_function_privilege('authenticated','public.private_submit_employee_leave(uuid,uuid,uuid,jsonb,date)','EXECUTE'),'shared submit helper cannot impersonate another employee');
+select ok(not has_function_privilege('authenticated','public.private_get_my_leave_context_pre573()','EXECUTE'),'old mobile context private');
+select ok(not has_function_privilege('anon','public.review_employee_leave_change(uuid,text,text)','EXECUTE'),'anonymous cannot review changes');
 select * from finish();
 rollback;

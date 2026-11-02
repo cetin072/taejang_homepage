@@ -12,6 +12,11 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id:'2026-11-02-leave-changes',date:'2026-11-02',title:'연차 수정·취소 요청',
+    summary:'앱에서 연차를 수정하거나 승인된 연차의 취소를 요청할 수 있습니다.',
+    items:['승인 전 신청은 여러 번 수정할 수 있습니다.','승인된 일정은 사용일 전까지 1회 수정 요청할 수 있고, 이후에는 관리자에게 문의합니다.','승인 후 취소·수정은 관리자 확인 전까지 기존 일정이 유지되며 처리 결과를 앱에서 확인합니다.'],
+  },
+  {
     id: '2026-11-02-clock-out-reminder', date: '2026-11-02',
     title: '출퇴근 미기록 안내 준비',
     summary: '근무시간과 기록을 기준으로 출근·퇴근 미기록 안내를 준비했습니다.',
