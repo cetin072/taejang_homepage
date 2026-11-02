@@ -26,14 +26,14 @@ test('uncertain form submission replays the same ID/payload across a server-date
  vm.runInNewContext(code,{exports,Date,require:name=>{
   if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react')return react;if(name==='react-native')return native;
   if(name==='expo-crypto')return{randomUUID:()=> 'stable-request-id'};if(name==='expo-router')return{useRouter:()=>({replace:()=>{}}),useLocalSearchParams:()=>({})};
-  if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{default:'DateTimePicker'};
+  if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('app-variant'))return{isQaApp:false};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({client,session:{user:{id:'worker'}}})};if(name.endsWith('use-my-leave'))return{useMyLeave:()=>({context,error:'',loading:false,reload:async()=>{}})};
   if(name.endsWith('leave-api'))return api();throw Error(name);
  }});
  const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];
  const render=()=>{si=0;ri=0;return flatten(exports.default());};const text=n=>flatten(n).filter(x=>typeof x==='string').join('');
- states[0]='2026-11-04';let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='연차 신청').props.onPress();alerts.at(-1)[2].find(a=>a.text==='네, 신청할게요').onPress();await new Promise(setImmediate);
+ states[0]='2026-11-04';let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();alerts.at(-1)[2].find(a=>a.text==='하루 신청할게요').onPress();await new Promise(setImmediate);
  assert.equal(calls.length,1);nodes=render();assert.equal(nodes.find(n=>n?.type==='Pressable'&&text(n)==='2026-11-04').props.disabled,true,'unknown result freezes editing but preserves input');
  context.earliest_date='2026-11-05';fail=false;nodes.find(n=>n?.type==='Pressable'&&text(n)==='같은 신청 다시 보내기').props.onPress();await new Promise(setImmediate);
  assert.equal(calls.length,2,'same-ID replay reaches server despite changed local deadline');assert.equal(calls[0].args.p_id,calls[1].args.p_id);assert.equal(JSON.stringify(calls[0].args.p_days),JSON.stringify(calls[1].args.p_days));
@@ -59,7 +59,7 @@ test('real app handlers allow repeated pending edits, block second approved edit
  let nextId=0;vm.runInNewContext(code,{exports,Date,require:name=>{
   if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react')return react;if(name==='react-native')return native;
   if(name==='expo-crypto')return{randomUUID:()=> 'change-'+(++nextId)};if(name==='expo-router')return{useRouter:()=>({replace:()=>{}}),useLocalSearchParams:()=>({})};
-  if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{default:'DateTimePicker'};
+  if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('app-variant'))return{isQaApp:false};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({client,session:{user:{id:'worker'}}})};if(name.endsWith('use-my-leave'))return{useMyLeave:()=>({context,error:'',loading:false,reload:async()=>{}})};
   if(name.endsWith('leave-api'))return api();throw Error(name);
@@ -75,6 +75,13 @@ test('real app handlers allow repeated pending edits, block second approved edit
  click('일정 수정 요청');assert.match(alerts.at(-1)[1],/1회.*관리자/);assert.equal(calls.length,2,'second approved edit never reaches API');
  context.requests[0].modification_count=0;click('일정 수정 요청');states[0]='2026-11-13';render().find(n=>n?.type==='TextInput').props.onChangeText('일정 변경 사유');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
  assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');
+ click('여러 날 신청날짜 2개 이상');
+ click('＋ 날짜 선택');let datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'dismissed'},new Date('2026-11-15T12:00:00'));assert.ok(!render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 1일'),'dismissed picker does not choose a day');
+ for(const date of ['2026-11-15','2026-11-16']){click('＋ 날짜 선택');datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'set'},new Date(date+'T12:00:00'));}
+ assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 2일'));
+ click('2일 신청 확인');assert.match(alerts.at(-1)[0],/총 2일/);assert.match(alerts.at(-1)[1],/2026-11-15/);assert.match(alerts.at(-1)[1],/2026-11-16/);assert.match(alerts.at(-1)[1],/사용 연차 2개/);
+ alerts.at(-1)[2].find(a=>a.text==='2일 신청할게요').onPress();await new Promise(setImmediate);assert.equal(calls[3].name,'submit_my_leave_request');assert.equal(calls[3].args.p_days.length,2);
+
 });
 test('home leave entry is prominent and QA preview does not mount the live leave reader',()=>{
  const src=fs.readFileSync(new URL('../mobile/src/features/leave/leave-home-action.tsx',import.meta.url),'utf8');const exports={},routes=[];let reads=0;
@@ -100,11 +107,11 @@ test('QA leave screen preview confirms locally without submitting real leave',as
  const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../mobile/app/leave.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,Date,require:name=>{
   if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react')return{useState:v=>{const i=si++;if(!(i in states))states[i]=v;return[states[i],x=>{states[i]=x}]},useRef:v=>refs[ri++]??={current:v},useEffect:()=>{}};
   if(name==='react-native')return native;if(name==='expo-router')return{useRouter:()=>({replace:()=>{}}),useLocalSearchParams:()=>({preview:'1'})};if(name==='expo-crypto')return{randomUUID:()=> 'demo'};
-  if(name.endsWith('app-variant'))return{isQaApp:true};if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{default:'DateTimePicker'};
+  if(name.endsWith('app-variant'))return{isQaApp:true};if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({session:{user:{id:'real'}},client:{rpc:async(...args)=>{calls.push(args);throw Error('real server must not be called')}}})};
   if(name.endsWith('use-my-leave'))return{useMyLeave:enabled=>{hookFlags.push(enabled);return{context:null,error:'',loading:false,reload:async()=>{}}}};if(name.endsWith('leave-api'))return api();throw Error(name);
  }});
  const flat=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?[n,...flat(n.props?.children)]:[n];const text=n=>flat(n).filter(x=>typeof x==='string').join('');
- states[0]='2026-11-10';const nodes=flat(exports.default());nodes.find(n=>n?.type==='Pressable'&&text(n)==='연차 신청').props.onPress();alerts.at(-1)[2].find(a=>a.text==='네, 신청할게요').onPress();await new Promise(setImmediate);
+ states[0]='2026-11-10';const nodes=flat(exports.default());nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();alerts.at(-1)[2].find(a=>a.text==='하루 신청할게요').onPress();await new Promise(setImmediate);
  assert.deepEqual(calls,[]);assert.ok(hookFlags.every(x=>x===false));assert.equal(alerts.at(-1)[0],'화면 체험');
 });
