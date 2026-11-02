@@ -204,7 +204,7 @@
       });
       if (!result?.ok) {
         if (result?.code === 'LEAVE_SOURCE_MANAGED') {
-          window.alert('승인된 연차에 연결된 근태입니다. 연차·휴무 관리에서 확인해주세요.');
+          window.alert('승인된 연차에 연결된 근태입니다. 연차 관리에서 확인해주세요.');
         } else if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
           window.alert('확정된 날짜입니다. 먼저 “확정 재개방”을 한 뒤 다시 변경하세요.');
         } else {
@@ -251,7 +251,7 @@
     wrap.append(select);
     if (can('attendance.correct')) wrap.append(button);
 
-    const sourceNote = row?.attendance_status?.leave_request_id ? '연차·휴무 관리의 승인 내역에 연결됨' : row?.attendance_status?.note;
+    const sourceNote = row?.attendance_status?.leave_request_id ? '연차 관리의 승인 내역에 연결됨' : row?.attendance_status?.note;
     wrap.append(el(
       'span',
       confirmed
