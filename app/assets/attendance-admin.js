@@ -251,7 +251,10 @@
     wrap.append(select);
     if (can('attendance.correct')) wrap.append(button);
 
-    const sourceNote = row?.attendance_status?.leave_request_id ? '연차 관리의 승인 내역에 연결됨' : row?.attendance_status?.note;
+    const portion=row?.attendance_status?.leave_portion;
+    const leaveLabel=({full:'연차(승인)',first_half:'앞 반차(승인)',second_half:'뒤 반차(승인)'})[portion];
+    if(leaveLabel&&select.selectedOptions[0])select.selectedOptions[0].textContent=leaveLabel;
+    const sourceNote = leaveLabel ? `${leaveLabel} · 취소·수정은 연차 관리에서 처리` : row?.attendance_status?.note;
     wrap.append(el(
       'span',
       confirmed

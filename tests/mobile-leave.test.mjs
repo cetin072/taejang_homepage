@@ -38,3 +38,13 @@ test('uncertain form submission replays the same ID/payload across a server-date
  assert.equal(calls.length,2,'same-ID replay reaches server despite changed local deadline');assert.equal(calls[0].args.p_id,calls[1].args.p_id);assert.equal(JSON.stringify(calls[0].args.p_days),JSON.stringify(calls[1].args.p_days));
  assert.ok(alerts.some(a=>a[0]==='접수 완료'));assert.equal(states[0],'');
 });
+
+test('pending edits and approved change requests call distinct guarded RPCs',async()=>{
+ const a=api(),calls=[];const client={rpc:async(name,args)=>{calls.push({name,args});return{data:{ok:true}};}};
+ await a.editMyPendingLeave(client,'original','replacement','2026-11-10','full');
+ await a.requestMyLeaveChange(client,'change','approved','amend','2026-11-11','first_half','일정 변경');
+ await a.requestMyLeaveChange(client,'cancel','approved','cancel',null,null,'취소 사유');
+ assert.equal(calls[0].name,'edit_my_pending_leave');assert.equal(calls[1].name,'request_my_leave_change');assert.equal(calls[1].args.p_new_portion,'first_half');assert.equal(calls[2].args.p_new_work_date,null);
+ assert.match(a.leaveError(new Error('LEAVE_MODIFICATION_LIMIT')),/1회.*관리자/);
+ await assert.rejects(()=>a.requestMyLeaveChange({rpc:async()=>({error:new Error('LEAVE_MODIFICATION_LIMIT')})},'id','r','amend','2026-11-10','full','사유'),/MODIFICATION_LIMIT/);
+});

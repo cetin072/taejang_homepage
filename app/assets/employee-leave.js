@@ -3,7 +3,7 @@
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
-  const messages = { FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  const messages = { FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
   function errorText(error) { const s = String(error?.message || error || ''); return Object.entries(messages).find(([k]) => s.includes(k))?.[1] || '저장하지 못했습니다. 입력값과 연결 상태를 확인하고 다시 시도해주세요.'; }
   function button(text, run) { const b = el('button',text,'button button-quiet'); b.type='button'; b.addEventListener('click',run); return b; }
   function field(form, label, type, value='', required=true) { const l=el('label',label); const n=el('input'); n.type=type; n.value=value ?? ''; n.required=required; n.setAttribute('aria-label',label); if(type==='number'){n.step='0.5';n.min='0';} l.append(n);form.append(l);return n; }
@@ -55,6 +55,7 @@
   }
   function renderRequests(host,ctx,reload,state={status:'pending'}){
     const section=el('section',null,'employee-profile-section leave-requests');section.append(el('h3','연차 신청·승인'));
+    const changes=ctx.change_requests||[];
     const counts=status=>ctx.requests.filter(r=>r.status===status).length;
     const filter=select(section,'신청 상태',[['pending',`승인 대기 (${counts('pending')})`],['approved','승인 완료'],['rejected','반려'],['cancelled','취소'],['all','전체 내역']],state.status);
     const list=el('div');section.append(list);
@@ -63,7 +64,7 @@
       const requests=ctx.requests.filter(r=>filter.value==='all'||r.status===filter.value).sort((a,b)=>filter.value==='pending'?a.work_date.localeCompare(b.work_date):b.work_date.localeCompare(a.work_date));
       requests.forEach(r=>{const card=el('article',null,'employee-profile-section');card.append(el('h4',`${r.employee_name} · ${r.work_date}`),el('p',`${labels[r.portion]} · ${r.units}개 · ${labels[r.status]}`));
         if(r.decision_note)card.append(el('p',`처리 사유: ${r.decision_note}`));
-        if(ctx.can_review&&r.status==='pending'){
+        if(ctx.can_review&&r.status==='pending'&&!changes.some(c=>c.request_id===r.id&&c.status==='pending')){
           const f=el('form',null,'employee-form app-authoring');const note=field(f,'처리 사유','text');note.minLength=2;
           const decision=select(f,'처리 선택',[['approved','승인'],['rejected','반려']]);
           formAction(f,'처리 저장',()=>rpc('review_employee_leave',{p_request_id:r.id,p_decision:decision.value,p_note:note.value}),reload);card.append(f);
@@ -72,6 +73,13 @@
       if(!requests.length)list.append(el('p',filter.value==='pending'?'승인 대기 중인 연차 신청이 없습니다.':'해당 상태의 신청 내역이 없습니다.'));
     }
     filter.addEventListener('change',draw);draw();
+    const changeSection=el('section',null,'leave-change-requests');changeSection.append(el('h4','취소·수정 요청'));
+    const ordered=[...changes].sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1));
+    ordered.forEach(c=>{const card=el('article',null,'employee-profile-section');card.append(el('h4',`${c.employee_name} · ${c.action==='cancel'?'취소':'수정'} 요청`),el('p',`기존 ${c.original_work_date} ${labels[c.original_portion]}${c.action==='amend'?` → ${c.new_work_date} ${labels[c.new_portion]}`:''} · ${labels[c.status]}`),el('p',`직원 요청 사유: ${c.reason}`));
+      if(c.status==='pending')card.append(el('p','처리 전까지 기존 연차와 출근부가 유지됩니다.'));
+      if(c.decision_note)card.append(el('p',`처리 사유: ${c.decision_note}`));
+      if(ctx.can_review&&c.status==='pending'){const f=el('form',null,'employee-form app-authoring'),note=field(f,'변경 처리 사유','text');note.minLength=2;const decision=select(f,'변경 처리 선택',[['approved','승인'],['rejected','반려']]);formAction(f,'취소·수정 처리',()=>rpc('review_employee_leave_change',{p_change_id:c.id,p_decision:decision.value,p_note:note.value}),reload);card.append(f);}changeSection.append(card);
+    });if(!ordered.length)changeSection.append(el('p','취소·수정 요청이 없습니다.'));section.append(changeSection);
     section.append(el('p','서버에서 조회한 최근 신청 최대 300건입니다. 이전 내역은 직원별로 조회해주세요.'));host.append(section);
   }
   function renderDaysOff(host,ctx,reload){

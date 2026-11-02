@@ -125,6 +125,52 @@ select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','
 rollback;`);
 check(true,'real clock-in/out reminder boundary and exclusion checks pass');
 
+// Approved future leave appears immediately and changes remain manager-reviewed.
+const futureDays=[10,11,12,13].map(add);for(const date of futureDays)db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${date}',true,'Leave change fixture') on conflict(work_date) do update set is_workday=true;`);
+db(`update public.employee_leave_accounts set initial_remaining=20 where employee_uuid='${employee}';`);
+const [f1,f2,f3,f4]=futureDays;const baseId=crypto.randomUUID();
+check((await rpc('submit_my_leave_request',worker,{p_id:baseId,p_days:[{date:f1,portion:'full'}]})).ok,'app submits future full leave');
+let pendingId=baseId;
+const pendingTooSoon=await rpc('edit_my_pending_leave',worker,{p_request_id:pendingId,p_id:crypto.randomUUID(),p_work_date:add(2),p_portion:'full'});check(!pendingTooSoon.ok&&String(pendingTooSoon.data.message).includes('LEAVE_THREE_DAYS_REQUIRED'),'pending edit cannot bypass three-day rule');equal(db(`select status from public.employee_leave_requests where id='${pendingId}'`),'pending','failed pending edit preserves reservation');
+for(const date of [f2,f3,f1]){const next=crypto.randomUUID();check((await rpc('edit_my_pending_leave',worker,{p_request_id:pendingId,p_id:next,p_work_date:date,p_portion:'full'})).ok,'pending edits repeat without approved quota');pendingId=next;}
+equal(db(`select modification_count from public.employee_leave_requests where id='${pendingId}'`),'0','pending edits do not spend approved quota');
+check((await rpc('review_employee_leave',lead,{p_request_id:pendingId,p_decision:'approved',p_note:'Future leave approved'})).ok,'future full leave approved');
+const roster=await rpc('get_attendance_admin_today',ops,{p_work_date:f1});equal(roster.data.rows.find(r=>r.employee_uuid===employee).attendance_status.leave_portion,'full','future attendance already shows approved leave');
+equal(roster.data.rows.find(r=>r.employee_uuid===employee).attendance_status.status,'paid_leave','future attendance uses paid leave before the date');
+const remainingBefore=(await rpc('get_my_leave_context',worker)).data.remaining;const change=crypto.randomUUID();const changeArgs={p_id:change,p_request_id:pendingId,p_action:'amend',p_new_work_date:f2,p_new_portion:'first_half',p_reason:'Change date once'};
+const changeTooSoon=await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_new_work_date:add(2)});check(!changeTooSoon.ok&&String(changeTooSoon.data.message).includes('LEAVE_THREE_DAYS_REQUIRED'),'approved amendment validates three-day cutoff on server');equal(db(`select modification_count from public.employee_leave_requests where id='${pendingId}'`),'0','invalid request does not consume modification quota');
+check(!(await rpc('request_my_leave_change',outsider,changeArgs)).ok,'other employee cannot change leave');
+const changes=await Promise.all([rpc('request_my_leave_change',worker,changeArgs),rpc('request_my_leave_change',worker,changeArgs)]);check(changes.every(x=>x.ok),'same change retry succeeds without consuming extra count');
+equal((await rpc('get_my_leave_context',worker)).data.remaining,remainingBefore,'pending change preserves original balance');
+check(!(await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_new_work_date:f3})).ok,'another pending change blocked');
+equal((await rpc('get_employee_leave_admin_context',lead)).data.change_requests.find(c=>c.id===change).status,'pending','web receives app change queue');
+check(!(await rpc('review_employee_leave_change',worker,{p_change_id:change,p_decision:'approved',p_note:'Self approve'})).ok,'worker cannot approve change');
+// An occupied replacement date fails atomically, preserving the original full leave.
+const conflicting=crypto.randomUUID();await rpc('submit_my_leave_request',worker,{p_id:conflicting,p_days:[{date:f2,portion:'full'}]});
+check(!(await rpc('review_employee_leave_change',lead,{p_change_id:change,p_decision:'approved',p_note:'Try conflict'})).ok,'occupied destination prevents partial change');
+equal(JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f1}')`)).status,'paid_leave','failed change preserves original attendance');
+equal(db(`select count(*) from public.employee_leave_ledger where entry_key='restore:${pendingId}'`),'0','failed change rolls back refund');
+await rpc('cancel_my_leave_request',worker,{p_request_id:conflicting});
+const reviews=await Promise.all([rpc('review_employee_leave_change',lead,{p_change_id:change,p_decision:'approved',p_note:'Approve modification'}),rpc('review_employee_leave_change',lead,{p_change_id:change,p_decision:'approved',p_note:'Retry modification'})]);check(reviews.every(x=>x.ok),'duplicate change approval idempotent');
+equal(JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f1}')`)).status,'work','old date restored immediately');
+equal(JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f2}')`)).leave_portion,'first_half','new date carries half leave');
+equal((await rpc('get_my_leave_context',worker)).data.remaining,remainingBefore+.5,'full-to-half change refunds exactly half');
+equal(db(`select modification_count from public.employee_leave_requests where id='${change}'`),'1','replacement inherits used quota');
+const second=await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_request_id:change,p_new_work_date:f3});check(!second.ok&&String(second.data.message).includes('LEAVE_MODIFICATION_LIMIT'),'second approved modification blocked by direct RPC');
+const cancelId=crypto.randomUUID();check((await rpc('request_my_leave_change',worker,{p_id:cancelId,p_request_id:change,p_action:'cancel',p_new_work_date:null,p_new_portion:null,p_reason:'Cancel approved half'})).ok,'approved cancellation requested in app');
+const rejected=await rpc('review_employee_leave_change',lead,{p_change_id:cancelId,p_decision:'rejected',p_note:'Keep scheduled leave'});check(rejected.ok,'manager can reject change');equal(JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f2}')`)).leave_portion,'first_half','rejection retains original half leave');
+const cancelAgain=crypto.randomUUID();await rpc('request_my_leave_change',worker,{p_id:cancelAgain,p_request_id:change,p_action:'cancel',p_new_work_date:null,p_new_portion:null,p_reason:'Cancel confirmed half'});
+check((await rpc('review_employee_leave_change',ops,{p_change_id:cancelAgain,p_decision:'approved',p_note:'Approved cancellation'})).ok,'operations manager approves cancellation');
+check((await rpc('review_employee_leave_change',ops,{p_change_id:cancelAgain,p_decision:'approved',p_note:'Repeated cancellation'})).ok,'cancellation review retry idempotent');
+equal((await rpc('get_my_leave_context',worker)).data.remaining,remainingBefore+1,'approved cancellation restores final half exactly once');
+check(!JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${f2}')`)).leave_request_id,'cancelled leave no longer appears on attendance');
+// Rejection still consumes the one approved modification request.
+const rejectionBase=crypto.randomUUID();await rpc('submit_my_leave_request',worker,{p_id:rejectionBase,p_days:[{date:f3,portion:'full'}]});await rpc('review_employee_leave',ops,{p_request_id:rejectionBase,p_decision:'approved',p_note:'Quota fixture approved'});
+const rejectionChange=crypto.randomUUID();await rpc('request_my_leave_change',worker,{...changeArgs,p_id:rejectionChange,p_request_id:rejectionBase,p_new_work_date:f4});await rpc('review_employee_leave_change',lead,{p_change_id:rejectionChange,p_decision:'rejected',p_note:'Reject modification'});
+const limited=await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_request_id:rejectionBase,p_new_work_date:f4});check(!limited.ok&&String(limited.data.message).includes('LEAVE_MODIFICATION_LIMIT'),'rejected first modification still prevents second request');
+check(!(await rpc('edit_my_pending_leave',worker,{p_request_id:rejectionBase,p_id:crypto.randomUUID(),p_work_date:f4,p_portion:'full'})).ok,'pending-edit endpoint cannot bypass approved limit');
+check(!(await rpc('request_my_leave_change',worker,{...changeArgs,p_id:crypto.randomUUID(),p_request_id:pendingId,p_new_work_date:add(2)})).ok,'inactive original cannot bypass replacement validation');
+const rawChanges=await fetchApi('/rest/v1/employee_leave_change_requests?select=*',{token:worker.token});check(!rawChanges.ok||rawChanges.data.length===0,'raw changes not enumerable');
 // Restore shared calendar fixture dates so later suites remain independent.
 db(`delete from public.attendance_calendar_overrides where work_date in (${calendarDays});`);
 for(const row of JSON.parse(oldOverrides))db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason,updated_by,updated_at) values('${row.work_date}',${row.is_workday},'Restored fixture',${row.updated_by?"'"+row.updated_by+"'":'null'},'${row.updated_at}');`);

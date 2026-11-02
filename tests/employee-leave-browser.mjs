@@ -8,11 +8,12 @@ for(const width of [390,1440]){
  await page.route('http://localhost/leave-qa',route=>route.fulfill({contentType:'text/html',body:'<main id="dashboard-main"></main>'}));
  await page.goto('http://localhost/leave-qa');
  await page.evaluate(()=>{
-  const e={id:'employee',name:'검수 직원',employee_id:'TEST-001',balance:null,terms:[]};const ctx={server_today:'2026-11-01',can_initialize:true,can_review:true,employees:[e,{...e,id:'second',name:'둘째 직원',employee_id:'TEST-002'}],requests:[{id:'request',employee_uuid:'employee',employee_name:'검수 직원',work_date:'2026-11-10',portion:'full',units:1,status:'pending'},{id:'request2',employee_uuid:'second',employee_name:'둘째 직원',work_date:'2026-11-11',portion:'first_half',units:0.5,status:'pending'}],ledger:[],days_off:[],locations:[{id:'office',name:'본사'}]};
+  const e={id:'employee',name:'검수 직원',employee_id:'TEST-001',balance:null,terms:[]};const ctx={server_today:'2026-11-01',can_initialize:true,can_review:true,employees:[e,{...e,id:'second',name:'둘째 직원',employee_id:'TEST-002'}],requests:[{id:'request',employee_uuid:'employee',employee_name:'검수 직원',work_date:'2026-11-10',portion:'full',units:1,status:'pending'},{id:'request2',employee_uuid:'second',employee_name:'둘째 직원',work_date:'2026-11-11',portion:'first_half',units:0.5,status:'pending'}],change_requests:[{id:'change',employee_uuid:'employee',request_id:'approved-original',employee_name:'검수 직원',original_work_date:'2026-11-15',original_portion:'full',action:'amend',new_work_date:'2026-11-16',new_portion:'first_half',reason:'일정 변경',status:'pending'}],ledger:[],days_off:[],locations:[{id:'office',name:'본사'}]};
   window.calls=[];window.failNext=false;
   window.TaejangMenuAuthority={allowed:(_key,legacy)=>legacy};window.TaejangApp={can:()=>true,rpc:async(name,args)=>{
    window.calls.push({name,args});if(window.failNext){window.failNext=false;throw Error('NETWORK');}
-   if(name==='get_employee_leave_admin_context'){const result=structuredClone(ctx);if(args.p_employee_uuid){result.employees=result.employees.filter(e=>e.id===args.p_employee_uuid);result.requests=result.requests.filter(r=>r.employee_uuid===args.p_employee_uuid);}return result;}
+   if(name==='get_employee_leave_admin_context'){const result=structuredClone(ctx);if(args.p_employee_uuid){result.employees=result.employees.filter(e=>e.id===args.p_employee_uuid);result.requests=result.requests.filter(r=>r.employee_uuid===args.p_employee_uuid);result.change_requests=result.change_requests.filter(c=>c.employee_uuid===args.p_employee_uuid);}return result;}
+   if(name==='review_employee_leave_change'){const c=ctx.change_requests.find(c=>c.id===args.p_change_id);c.status=args.p_decision;c.decision_note=args.p_note;return {ok:true};}
    if(name==='review_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.status=args.p_decision;r.decision_note=args.p_note;return {ok:true};}
    if(name==='initialize_employee_leave'){ctx.employees[0].balance={accrued:10,remaining:7,reserved:0,available:7};return {ok:true};}
    return {ok:true};
@@ -28,6 +29,7 @@ for(const width of [390,1440]){
  await page.getByText('승인 대기 중인 연차 신청이 없습니다.',{exact:true}).waitFor();
  assert.equal(await page.getByLabel('신청 직원',{exact:true}).inputValue(),'employee');
  await page.getByLabel('신청 상태',{exact:true}).selectOption('approved');await page.getByText('처리 사유: 승인 확인',{exact:true}).waitFor();
+ await page.getByLabel('변경 처리 사유',{exact:true}).fill('변경 승인 확인');await page.getByRole('button',{name:'취소·수정 처리',exact:true}).click();await page.getByText('처리 사유: 변경 승인 확인',{exact:true}).waitFor();
  await page.getByLabel('신청 직원',{exact:true}).selectOption('second');await page.getByLabel('신청 상태',{exact:true}).selectOption('pending');
  await page.getByRole('heading',{name:'둘째 직원 · 2026-11-11',exact:true}).waitFor();
  await page.getByLabel('처리 선택',{exact:true}).selectOption('rejected');await page.getByLabel('처리 사유',{exact:true}).fill('일정 재확인');await page.getByRole('button',{name:'처리 저장',exact:true}).click();
