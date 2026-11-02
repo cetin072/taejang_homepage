@@ -43,3 +43,12 @@ PR #572. 확정 기획은 `docs/planning/WORK_TERMS_ATTENDANCE_REMINDERS_AND_LEA
 - 로컬 Chromium은 컨테이너 socket 제한으로 실행 불가. 브라우저 검사는 기존 GitHub Ubuntu CI에 연결했다.
 - 보조 로컬 PGlite에서 실제 신규 PL/pgSQL과 합성 기존 helper를 사용해 동작을 검사했다. 이는 전체 Supabase/Auth 검증과 구분한다.
 - CI/QA 결과는 PR의 정확한 HEAD를 기준으로 기록한다. Netlify 배포, DB/Edge 적용, 앱 빌드는 서로 다른 단계다.
+
+
+## 2026-11-02 알림 1단계 보강
+
+- 출근 예정+5분 및 유효 출근 있음/퇴근 없음/퇴근 예정+5분의 서버 판정을 같은 outbox에 연결.
+- 출근/퇴근 이벤트별 독립 중복 키, 기기별 claim, 발송 직전 재검사, ticket/receipt 경로 재사용.
+- 정책 delay=5는 사용자 지시에 따라 확정했으나 enabled=false 및 Edge OFF 유지. 운영 적용·예약·실제 발송은 실행하지 않음.
+- 종료 시각은 날짜 예외·반차를 반영한 private_employee_schedule을 사용. GPS 추가 수집 없음.
+- 격리 실제 Auth 통합 runner에 5분 직전/정각, 미출근, 출근/퇴근 완료, 퇴근 예외대기, 휴무·근태제외 조건을 추가. 신규 HEAD의 CI 결과를 별도 확인해야 함.

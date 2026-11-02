@@ -66,12 +66,12 @@ create table public.employee_days_off (
  revoked_at timestamptz, revoked_by uuid references public.profiles(id)
 );
 create unique index employee_days_off_active on public.employee_days_off(coalesce(employee_uuid,'00000000-0000-0000-0000-000000000000'::uuid),work_date) where revoked_at is null;
--- No implicit +5min/one-reminder policy. Both gates must be explicitly enabled later.
+-- Approved phase 1: five-minute delay, one event per employee/day/type. Sending stays OFF.
 create table public.employee_reminder_policy (
  singleton boolean primary key default true check(singleton), enabled boolean not null default false,
  delay_minutes integer check(delay_minutes between 0 and 120)
 );
-insert into public.employee_reminder_policy(singleton) values(true);
+insert into public.employee_reminder_policy(singleton,delay_minutes) values(true,5);
 
 create function public.private_leave_manager() returns boolean language sql stable security definer set search_path='' as $$
  select public.current_profile_is_active() and not public.private_menu_denied('leave.manage') and public.private_actor_can('leave.manage')

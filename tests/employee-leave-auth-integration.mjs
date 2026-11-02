@@ -96,6 +96,35 @@ for(const table of ['employee_leave_accounts','employee_work_terms','employee_le
  const r=await fetchApi('/rest/v1/'+table+'?select=*',{token:worker.token});check(!r.ok||r.data.length===0,'raw '+table+' inaccessible');
 }
 check(!(await rpc('private_reconcile_leave_monthly',worker)).ok,'worker cannot control monthly batch');
+// Real SQL evaluation of the approved first reminder, inside a rollback-only fixture.
+db(`begin;
+update public.employee_reminder_policy set enabled=true,delay_minutes=5 where singleton;
+insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${today}',true,'Synthetic reminder day') on conflict(work_date) do update set is_workday=true;
+create function pg_temp.expect_reminder(p_expected boolean,p_kind text,p_time text,p_message text) returns void language plpgsql as $
+begin
+ if public.private_attendance_reminder_due('${employee}','${today}',p_kind,('${today} '||p_time||'+09')::timestamptz) is distinct from p_expected then raise exception '%',p_message; end if;
+end $;
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:04:59','no early clock-in prompt');
+select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:05:00','clock-in due at five minutes');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','no clock-out prompt without clock-in');
+insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_in','recorded',('${today} 09:00+09')::timestamptz);
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:05:00','recorded clock-in suppresses prompt');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:04:59','clock-out not before five minutes');
+select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:05:00','clock-out due exactly five minutes');
+select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:10:00','late scheduler can still claim');
+insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_out','exception_pending',null);
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','pending exception suppresses prompt');
+update public.attendance_events set status='recorded',event_at=('${today} 13:00+09')::timestamptz where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_out';
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','recorded clock-out suppresses prompt');
+delete from public.attendance_events where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_out';
+update public.employees set attendance_required=false where id='${employee}';
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','exempt employee suppressed');
+update public.employees set attendance_required=true where id='${employee}';
+insert into public.employee_days_off(employee_uuid,work_date,reason,created_by) values('${employee}','${today}','Synthetic holiday','${ops.id}');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','holiday suppressed');
+rollback;`);
+check(true,'real clock-in/out reminder boundary and exclusion checks pass');
+
 // Restore shared calendar fixture dates so later suites remain independent.
 db(`delete from public.attendance_calendar_overrides where work_date in (${calendarDays});`);
 for(const row of JSON.parse(oldOverrides))db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason,updated_by,updated_at) values('${row.work_date}',${row.is_workday},'Restored fixture',${row.updated_by?"'"+row.updated_by+"'":'null'},'${row.updated_at}');`);
