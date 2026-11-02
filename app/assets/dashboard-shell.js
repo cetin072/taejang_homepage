@@ -561,6 +561,11 @@
     el('desktop-user-label').textContent = `${window.TaejangApp.getContext().display_name || '사용자'} · ${event.detail.label}`;
     menu(route);
     bindBrandToDashboard(); ensureHomepageAction(); ensureSettingsAction();
+    const userActions = document.querySelector('.app-user-actions');
+    if (window.TaejangApp?.getConfig?.()?.googleIdentityEnabled && userActions && !userActions.querySelector('[data-google-identity]')) {
+      const google = text('a', 'Google 로그인 연결', 'button button-quiet');
+      google.href = '../staff/google-link.html'; google.dataset.googleIdentity = '1'; userActions.append(google);
+    }
     const shell = el('desktop-app-shell');
     if (!shell.dataset.ready) {
       shell.dataset.ready = 'true';

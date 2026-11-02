@@ -22,8 +22,25 @@ Google는 기존 태장 Auth ID에 연결하는 경로를 우선한다. 기존 �
 
 ## 후속/승인 경계
 
-이 체크포인트에서 actual migration/Data API expose/Auth/provider config/사용자 계정 변경/운영 deploy/Play/프로젝트 삭제/main 병합 없음. Google linking은 충돌 해소와 설정/실제 사용자 OAuth 검증이 남아 있다. 전체 RPC/모바일의 custom schema 소비 및 session/key 전환, scheduler secret/알림 중복 방지는 후속 준비 대상이며 완료 주장하지 않음.
+이 체크포인트에서 actual migration/Data API expose/Auth/provider config/사용자 계정 변경/운영 deploy/Play/프로젝트 삭제/main 병합 없음. Google linking 화면/PKCE 복구 검사는 아래와 같이 준비했다. 실제 충돌 해소/설정/사용자 OAuth 검증은 남아 있다. 업무수첩 PR483에 전체 RPC·앱 schema 소비·프로젝트별 세션 분리를 준비했지만 실제 이전과 알림 재등록/중복 방지 검수는 미완료다.
 
 실제 적용 전: 원본 백업/내용해시·복구시험 → Auth 충돌 해결/Google 연결(ERP ID 유지) → 승인 범위의 사용자 mapping → 전체 RPC/모바일 포함 격리 전환검수 → 일관된 snapshot 복사/원본보존/쓰기단일화 → RLS/실제31건 대조 → schema expose/read스위치 → 사용자수용 → 별도 main·출시 승인. 전환 후 신규 기록을 회수하지 않은 단순 환경변수 rollback 금지.
 
 현재 실제 모바일 일정 표시: **미달성**. 개발 Preview는 통합 준비 상태이며 실제 개인 데이터는 읽지 않는다. 최초 동일 이메일 후보의 미인증 상태를 실제 사용자의 두 계정 인증 상태로 일반화하지 않는다. 실제 사용자가 알려준 두 계정은 각각 정상 인증되어 있고 이메일이 서로 다른 상태다.
+
+## 기본 비활성 Google 연결 화면
+
+- `staff/google-link.html`: 기존 로그인 후 본인이 Google identity를 연결하는 화면. `GOOGLE_IDENTITY_ENABLED=true`인 환경에서만 로그인 화면과 dashboard 사용자 동작 영역에 진입 링크가 표시된다. 새 sidebar 메뉴 없음. 실제 환경변수/provider/manual linking 설정은 변경하지 않았다.
+- 기존 SDK auth-js 2.116.0의 공식 Auth PKCE 흐름에 맞춰 기존 user bearer로 `/auth/v1/user/identities/authorize` 호출, 암호학적 verifier/challenge와 10분짜리 sessionStorage 요청을 생성한다. callback은 같은 origin의 고정 경로이며 nonce/PKCE를 검사한다. implicit fragment token을 거부하고 callback URL의 code는 즉시 제거한다.
+- 기존 user를 Auth 서버와 active `get_my_access_context`에서 검증하고, callback 후 같은 Auth UUID와 Google identity가 확인될 때만 ERP 세션을 교체한다. 계정이 바뀌거나 로그아웃됐으면 되살리지 않는다. role/email/name 비교로 연결하지 않는다.
+- 연결 취소·점유 충돌·네트워크 오류·다른 Auth 사용자 응답은 기존 로컬 로그인 세션을 유지한다. 외부에서 이미 identity가 연결된 뒤 callback 검증이 실패할 수 있으므로 자동 unlink나 계정 변경을 하지 않는다. 기존 이메일 로그인으로 확인 후 수동 복구한다.
+- `?mode=signin`은 이미 연결된 Google로 일반 로그인하는 별도 경로. active Profile 검증을 통과하지 못한 신규/pending 계정은 앱에 입장하지 못한다. provider의 새 사용자 생성 정책은 운영 활성화 전 별도 검수 대상이다.
+- 단위 검사와 PC1440/mobile390 브라우저 검사는 합성 fixture만 사용한다. 실제 Google/개인정보/운영 계정을 사용하지 않는다.
+
+## 이메일 점유 해소 검증안
+
+과거 Auth 행을 삭제하거나 되살리지 않는다. 공식 Admin API로 그 행의 이메일만 unique 예약 주소로 바꾸고 기존 UUID/deleted Profile/상태이력/감사참조를 보존하는 방안을 준비했다. 코드가 이 작업을 운영에서 실행하지 않는다.
+
+`tests/google-email-release-auth-integration.mjs`는 localhost:54321와 지정 disposable DB 외 실행을 거부한다. 합성 과거 계정의 이메일 변경 후 UUID·상태이력·감사로그와 기존 다른 사용자의 Profile/역할이 그대로인지를 실제 로컬 GoTrue API로 검증한다. 원래 주소 slot 재사용도 disposable DB에서만 확인한다. Google 연결 자체는 이 시험의 범위 밖이다.
+
+운영 실행 전 원본/대상 백업, exact UUID/provider/상태 재확인, 변경 후 실제 Auth ID·직원 연결·역할·이력 대조 및 복구 절차 승인이 필요하다. 개인 이메일/UUID/데이터 원문은 공개 테스트나 PR에 넣지 않는다.

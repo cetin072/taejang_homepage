@@ -144,6 +144,7 @@ jobs:
           git fetch origin 90cf9d6af8490b005d1a8ae0865cdd85c133460c
           node tests/employee-password-reset-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-leave-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/google-email-release-auth-integration.mjs
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'

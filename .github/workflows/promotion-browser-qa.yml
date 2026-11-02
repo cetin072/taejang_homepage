@@ -41,6 +41,9 @@ jobs:
       - name: Verify personal Worklog dashboard with synthetic fixtures
         run: node tests/personal-worklog-browser.mjs
 
+      - name: Verify Google identity PKCE connection with synthetic fixtures
+        run: node tests/google-identity-browser.mjs
+
       - name: Verify monthly documents and menu addresses with isolated fixtures
         run: |
           node tests/monthly-client-documents-browser.mjs
