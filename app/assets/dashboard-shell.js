@@ -456,6 +456,11 @@
     const intro = document.createElement('header'); intro.className = 'dashboard-intro';
     intro.append(text('p', new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date()), 'eyebrow'), text('h2', heading), text('p', copy));
     main.append(intro);
+    // Optional personal reader has its own failure boundary; operations remain usable.
+    const personal = document.createElement('section');
+    main.append(personal);
+    try { window.TaejangPersonalWorklog?.mount(personal); }
+    catch { personal.replaceChildren(text('p', '업무수첩 연결을 확인해 주세요.', 'message')); }
     const grid = document.createElement('section'); grid.className = 'dashboard-grid'; grid.setAttribute('aria-label', '현재 업무 요약');
 
     if (route === 'promotion_lead') {
