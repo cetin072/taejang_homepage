@@ -1,5 +1,4 @@
-import { WORKLOG } from '../shared/worklog-connection.mjs';
-const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', Vary: 'Authorization, X-Worklog-Authorization' };
+const HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff', Vary: 'Authorization' };
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: HEADERS });
 const fail = (status, code) => Object.assign(new Error(code), { status, code });
 const bearer = value => /^Bearer ([^\s]{1,16000})$/i.exec(value || '')?.[1];
@@ -17,10 +16,10 @@ export function createHandler({ env = process.env, fetchImpl = fetch, now = () =
     if (!token) return json(401, { code: 'ERP_AUTH_REQUIRED' });
     const url = env.SUPABASE_URL?.replace(/\/$/, '');
     const key = env.SUPABASE_PUBLISHABLE_KEY;
-    if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url || '') || !key || url === WORKLOG.url) return json(503, { code: 'ERP_CONNECTION_NOT_READY' });
-    // Only project-owned origins; tokens are never forwarded across projects.
+    if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url || '') || !key) return json(503, { code: 'ERP_CONNECTION_NOT_READY' });
+    // Auth/context remain public. Only personal data GETs use the isolated schema.
     async function read(base, apiKey, accessToken, path, code, options = {}) {
-      const response = await fetchImpl(base + path, { ...options, headers: { apikey: apiKey, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+      const response = await fetchImpl(base + path, { ...options, headers: { apikey: apiKey, Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...(options.headers || {}) }, cache: 'no-store', signal: AbortSignal.timeout(8000) });
       if (!response.ok) throw fail(response.status === 401 || response.status === 403 ? 401 : 502, code);
       return response.json();
     }
@@ -29,18 +28,13 @@ export function createHandler({ env = process.env, fetchImpl = fetch, now = () =
       if (!uuid(erpUser?.id) || erpUser.is_anonymous) throw fail(401, 'ERP_AUTH_REQUIRED');
       const context = await read(url, key, token, '/rest/v1/rpc/get_my_access_context', 'ERP_ACCESS_UNAVAILABLE', { method: 'POST', body: '{}' });
       if (context?.id !== erpUser.id || context.account_status !== 'active') throw fail(403, 'ERP_ACCOUNT_INACTIVE');
+      if (req.headers.has('x-worklog-authorization')) throw fail(400, 'SECONDARY_SESSION_NOT_SUPPORTED');
+      if (env.WORKLOG_UNIFIED_READ_ENABLED !== 'true') throw fail(503, 'WORKLOG_MIGRATION_PENDING');
       const params = new URL(req.url).searchParams;
-      if ([...params.keys()].some(k => !['mode', 'month'].includes(k))) throw fail(400, 'UNSUPPORTED_PARAMETER');
-      if (params.get('mode') === 'connection') return json(200, WORKLOG);
+      if ([...params.keys()].some(k => k !== 'month')) throw fail(400, 'UNSUPPORTED_PARAMETER');
       const range = monthRange(params.get('month'));
-      const worklogToken = bearer(req.headers.get('x-worklog-authorization'));
-      if (!worklogToken || worklogToken === token) throw fail(401, 'WORKLOG_AUTH_REQUIRED');
-      const worklogRead = (path, options) => read(WORKLOG.url, WORKLOG.publishableKey, worklogToken, path, 'WORKLOG_READ_FAILED', options);
-      const user = await read(WORKLOG.url, WORKLOG.publishableKey, worklogToken, '/auth/v1/user', 'WORKLOG_AUTH_REQUIRED');
-      if (!uuid(user?.id) || user.is_anonymous) throw fail(401, 'WORKLOG_AUTH_REQUIRED');
-      // No role, display name, work_email, or user_metadata can establish identity.
-      if (!erpUser.email_confirmed_at || !user.email_confirmed_at || !erpUser.email || !user.email) throw fail(403, 'IDENTITY_VERIFICATION_REQUIRED');
-      if (erpUser.email.toLowerCase() !== user.email.toLowerCase()) throw fail(403, 'IDENTITY_MISMATCH');
+      const user = erpUser;
+      const worklogRead = path => read(url, key, token, path, 'WORKLOG_READ_FAILED', { headers: { 'Accept-Profile': 'worklog' } });
       const query = (table, values) => worklogRead(`/rest/v1/${table}?${new URLSearchParams(values)}`);
       const spaces = await query('workspaces', { select: 'id,kind,owner_user_id', kind: 'eq.personal', owner_user_id: `eq.${user.id}`, limit: '2' });
       if (!Array.isArray(spaces) || spaces.length !== 1 || !uuid(spaces[0].id) || spaces[0].kind !== 'personal' || spaces[0].owner_user_id !== user.id) throw fail(403, 'PERSONAL_WORKSPACE_UNAVAILABLE');

@@ -16,15 +16,17 @@ try {
    if(u.pathname==='/api/personal-worklog'){
     requests++;
     assert.equal(route.request().headers().authorization,'Bearer erp-fixture');
+    assert.equal(route.request().headers()['x-worklog-authorization'],undefined);
     if(mode==='delayed')await new Promise(r=>delayResolve=r);
     if(mode==='failure')return route.fulfill({status:502,json:{code:'WORKLOG_UNAVAILABLE'}});
-    if(mode==='identity')return route.fulfill({status:403,json:{code:'IDENTITY_VERIFICATION_REQUIRED'}});
+    if(mode==='pending')return route.fulfill({status:503,json:{code:'WORKLOG_MIGRATION_PENDING'}});
     const month=u.searchParams.get('month');
     return route.fulfill({json:{connected:true,month,today:'2026-11-02',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:[{id:'s',title:'합성 모바일 일정 <script>alert(1)</script>',starts_at:month+'-02T01:00:00Z',ends_at:null,all_day:false}],todaySchedules:[{title:'합성 오늘 일정',starts_at:'2026-11-02T01:00:00Z',all_day:false}],tasks:[{title:'합성 미완료',status:'needs_review',due_at:null}]}});
    }
    return route.fulfill({contentType:'text/html',body:html});
   });
   await p.goto('https://fixture.test/');await p.getByRole('table',{name:/개인 일정/}).waitFor();
+  assert.equal(await p.locator('input[type=password]').count(),0,'no second sign-in form');
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),1);
   assert.equal(await p.getByText('합성 미완료',{exact:true}).count(),1);
@@ -33,20 +35,20 @@ try {
   await p.getByRole('button',{name:'다음 달',exact:true}).click();await p.getByRole('table').waitFor();
   assert.ok(requests>=2);
   assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  mode='identity';await p.getByRole('button',{name:'새로고침',exact:true}).click();await p.getByText(/두 계정의 이메일 인증/).waitFor();
+  mode='pending';await p.getByRole('button',{name:'새로고침',exact:true}).click();await p.getByText(/업무수첩 통합 준비 중/).waitFor();
   assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),0);
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   // Error on a new dashboard render must keep operation cards visible.
   mode='failure';await p.evaluate(()=>TaejangDashboard.render());await p.getByText(/태장 업무는 계속/).waitFor();
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   mode='success';await p.getByRole('button',{name:'다시 시도',exact:true}).click();await p.getByRole('table').waitFor();
-  mode='delayed';await p.getByRole('button',{name:'새로고침',exact:true}).click();await p.waitForFunction(()=>document.querySelector('.personal-worklog [role="status"]').textContent.includes('불러오고'));
+  mode='delayed';await p.getByRole('button',{name:'새로고침',exact:true}).click();
   while(!delayResolve)await new Promise(r=>setTimeout(r,10));
-  await p.getByRole('button',{name:'연결 해제',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
-  assert.equal(await p.getByRole('table').count(),0,'late response cannot restore disconnected contents');
+  await p.getByRole('button',{name:'로그아웃',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
+  assert.equal(await p.getByRole('table').count(),0,'late response cannot restore logged-out contents');
   mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
   await p.getByRole('button',{name:'로그아웃',exact:true}).click();assert.equal(await p.locator('.personal-worklog').innerText(),'');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({width,synthetic:true,readOnly:true,calendar:true,operationsPreserved:true,identityBlocked:true,lateDisconnect:true,logoutPurge:true}));await p.close();
+  console.log(JSON.stringify({width,synthetic:true,readOnly:true,calendar:true,operationsPreserved:true,migrationPending:true,lateLogout:true,logoutPurge:true}));await p.close();
  }
 } finally {await browser.close();}
