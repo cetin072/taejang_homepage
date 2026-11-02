@@ -3,7 +3,7 @@
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
-  const messages = { WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  const messages = { ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
   function errorText(error) { const s = String(error?.message || error || ''); return Object.entries(messages).find(([k]) => s.includes(k))?.[1] || '저장하지 못했습니다. 입력값과 연결 상태를 확인하고 다시 시도해주세요.'; }
   function button(text, run) { const b = el('button',text,'button button-quiet'); b.type='button'; b.addEventListener('click',run); return b; }
   function dateField(form,label,value='',required=true){
@@ -28,6 +28,15 @@
   }
   function field(form, label, type, value='', required=true) { if(type==='date')return dateField(form,label,value,required); const l=el('label',label); const n=el('input'); n.type=type; n.value=value ?? ''; n.required=required; n.setAttribute('aria-label',label); if(type==='number'){n.step='0.5';n.min='0';} l.append(n);form.append(l);return n; }
   function select(form,label,items,value) { const l=el('label',label),n=el('select');n.setAttribute('aria-label',label); items.forEach(([v,t])=>n.add(new Option(t,v,false,v===value)));l.append(n);form.append(l);return n; }
+  function rosterSelect(form,label,employees,positions,empty,value){
+    const s=select(form,label,[['',empty]],value),groups=new Map();
+    window.TaejangEmployeeViews.sortEmployees(employees,positions).forEach(e=>{
+      const key=e.position_id||'',name=e.position_name||'직급 미지정';
+      if(!groups.has(key)){const g=el('optgroup');g.label=name;groups.set(key,g);s.append(g);}
+      const option=new Option(`${e.employee_id} ${e.name}${e.employment_status==='leave'?' · 휴직 중':''}`,e.id,false,e.id===value);groups.get(key).append(option);
+    });return s;
+  }
+  function currentRoster(ctx){return ctx.employees.filter(e=>['active','leave'].includes(e.employment_status)&&(!e.hired_on||e.hired_on<=ctx.server_today)&&(!e.departed_on||e.departed_on>ctx.server_today));}
   function formAction(form,label,run,reload) { const b=el('button',label,'button');b.type='submit';const status=el('p','','message');status.setAttribute('role','status');status.hidden=true;form.append(b,status);let busy=false;
     form.addEventListener('submit',async event=>{event.preventDefault();if(busy)return;busy=true;b.disabled=true;status.hidden=false;status.textContent='저장 중…';try{if([...form.querySelectorAll('[data-date-required]')].some(n=>!n.value))throw Error('DATE_REQUIRED');await run();if(form.isConnected){status.textContent='저장했습니다.';await reload();}}catch(e){if(form.isConnected)status.textContent=errorText(e);}finally{busy=false;b.disabled=false;}});
   }
@@ -111,7 +120,7 @@
     const details=el('details',null,'employee-profile-section leave-exceptions');details.append(el('summary','기타 설정 · 예외 휴무'));
     details.append(el('p','회사에서 별도로 정한 임시 휴무만 등록합니다. 연차를 부여하거나 차감하지 않습니다. 법정공휴일을 설정하는 화면이 아닙니다.'));
     const f=el('form',null,'employee-form app-authoring');f.append(el('h3','예외 휴무 등록'));
-    const person=select(f,'휴무 대상',[['','회사 전체'],...ctx.employees.map(e=>[e.id,e.name])]);const date=field(f,'휴무일','date');date.min=ctx.server_today;const reason=field(f,'휴무 사유','text');reason.minLength=2;
+    const person=rosterSelect(f,'휴무 대상',currentRoster(ctx),ctx.positions,'회사 전체','');const date=field(f,'휴무일','date');date.min=ctx.server_today;const reason=field(f,'휴무 사유','text');reason.minLength=2;
     formAction(f,'예외 휴무 저장',()=>rpc('save_employee_day_off',{p_employee_uuid:person.value||null,p_work_date:date.value,p_reason:reason.value}),reload);details.append(f);
     ctx.days_off.forEach(o=>{const row=el('section');row.append(el('p',`${o.work_date} · ${ctx.employees.find(e=>e.id===o.employee_uuid)?.name||'회사 전체'} · ${o.reason}`));const f=el('form',null,'employee-form app-authoring');const why=field(f,'휴무 철회 사유','text');why.minLength=2;formAction(f,'휴무 철회',()=>rpc('revoke_employee_day_off',{p_id:o.id,p_reason:why.value}),reload);row.append(f);details.append(row);});host.append(details);
   }
@@ -120,23 +129,27 @@
     if((window.TaejangMenuAuthority?.allowed('leave.manage',legacyAllowed)??legacyAllowed)===false)return;
     const target=document.getElementById('dashboard-main');if(!target)return;
     const host=el('section',null,'employee-management leave-management');target.replaceChildren(host);
-    let view='requests',employeeId='',generation=0;const state={status:'pending'};
+    let view='requests',employeeId='',generation=0;const state={status:'pending',history:false};
     const load=async()=>{const version=++generation;host.replaceChildren(el('p','연차를 확인하고 있습니다.'));
       try{
         const ctx=await rpc('get_employee_leave_admin_context');if(!host.isConnected||version!==generation)return;
+        if(ctx.roster_version!==1)throw Error('ROSTER_METADATA_REQUIRED');
+        const current=currentRoster(ctx),currentIds=new Set(current.map(e=>e.id));
+        const retired=ctx.employees.filter(e=>e.employment_status==='departed'||e.departed_on&&e.departed_on<=ctx.server_today);
         host.replaceChildren(el('h2','연차 관리'),el('p','직원 연차 등록 → 앱에서 신청 → 관리자 승인·반려 → 잔여 갱신'));
         const nav=el('nav',null,'leave-view-nav');nav.setAttribute('aria-label','연차 관리 화면');
         [['requests','신청·승인'],['balances','직원별 연차 등록·현황']].forEach(([key,label])=>{const b=button(label,()=>{view=key;employeeId='';load();});b.setAttribute('aria-pressed',String(view===key));nav.append(b);});host.append(nav);
         const content=el('section',null,'leave-main-content');host.append(content);
         if(view==='balances'){
           content.append(el('h3','직원별 연차 등록·현황'),el('p',ctx.can_initialize?'직원을 선택해 지금까지 발생한 연차와 현재 남은 연차를 최초 등록합니다.':'직원을 선택해 연차 현황을 확인합니다. 최초 등록·조정은 운영총괄이 처리합니다.'));
-          const s=select(content,'직원 선택',[['','직원을 선택해주세요'],...ctx.employees.map(e=>[e.id,`${e.employee_id} ${e.name}${e.balance?'':' · 미등록'}`])],employeeId);
+          const s=rosterSelect(content,'직원 선택',current,ctx.positions,'재직 직원을 선택해주세요',employeeId);
           const box=el('section',null,'employee-profile-section');content.append(box);
           const show=()=>{employeeId=s.value;box.replaceChildren();if(employeeId){const panel=el('div');box.append(panel);populate(panel,employeeId,true);}else box.append(el('p','직원을 선택하면 연차 등록·현황을 확인할 수 있습니다.'));};s.addEventListener('change',show);show();
         }else{
-          const s=select(content,'신청 직원',[['','전체 직원'],...ctx.employees.map(e=>[e.id,`${e.employee_id} ${e.name}`])],employeeId);
+          const history=field(content,'퇴직자 과거 신청 보기','checkbox','',false);history.parentNode.classList.add('app-check-field');history.parentNode.replaceChildren(history,el('span','퇴직자 과거 신청 보기'));history.checked=state.history;history.addEventListener('change',()=>{state.history=history.checked;employeeId='';load();});
+          const s=rosterSelect(content,'신청 직원',state.history?retired:current,ctx.positions,state.history?'전체 퇴직자 과거 내역':'전체 재직 직원',employeeId);
           const box=el('section');content.append(box);let requestGeneration=0;
-          const show=async()=>{const current=++requestGeneration;employeeId=s.value;box.replaceChildren(el('p','신청 내역을 확인하고 있습니다.'));try{const scoped=employeeId?await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId}):ctx;if(!box.isConnected||current!==requestGeneration)return;box.replaceChildren();renderRequests(box,scoped,load,state);}catch(e){if(box.isConnected&&current===requestGeneration)box.replaceChildren(el('p',errorText(e)),button('다시 불러오기',show));}};s.addEventListener('change',show);await show();
+          const show=async()=>{const current=++requestGeneration;employeeId=s.value;box.replaceChildren(el('p','신청 내역을 확인하고 있습니다.'));try{const scoped=employeeId?await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId}):ctx;if(!box.isConnected||current!==requestGeneration)return;box.replaceChildren();const visible=r=>state.history?!currentIds.has(r.employee_uuid):currentIds.has(r.employee_uuid);renderRequests(box,{...scoped,requests:scoped.requests.filter(visible),change_requests:(scoped.change_requests||[]).filter(visible)},load,state);}catch(e){if(box.isConnected&&current===requestGeneration)box.replaceChildren(el('p',errorText(e)),button('다시 불러오기',show));}};s.addEventListener('change',show);await show();
         }
         if(host.isConnected&&version===generation)renderDaysOff(host,ctx,load);
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
