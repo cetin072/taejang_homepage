@@ -77,3 +77,9 @@ Google는 기존 태장 Auth ID에 연결하는 경로를 우선한다. 기존 �
 Netlify의 WORKLOG_UNIFIED_READ_ENABLED=true를 functions scope / deploy-preview context에만 등록하고 이 문서 체크포인트 commit으로 PR575 개발 Preview를 재배포한다. production/branch-deploy와 Google 연결 flag는 변경하지 않는다. 본인에게 허용된 데이터 경로는 기존 ERP Auth 서버와 활성 Profile 검증, 같은 ID의 개인 공간 owner/membership, worklog RLS 순서 그대로다. 인증 우회나 임시 JWT 발급 없이 본인 실제 세션 검수가 남는다.
 
 원본 업무수첩 모바일은 여전히 원본 프로젝트를 사용한다. 이번 화면은 검증된 pilot 복사본을 읽으며, 이후 새 모바일 기록의 자동 동기화 완료를 의미하지 않는다. 이메일 점유 해소/Google provider/manual linking/본인 OAuth와 쓰기 전환은 별도 남은 실행 단계다.
+
+## 모바일 월간 달력 늘어짐 수정 — 2026-11-03 KST
+
+실사용 검수에서 긴 일정 제목과 같은 날 여러 일정 때문에 한 주의 높이가 크게 늘어나는 문제를 확인했다. 월간 날짜 버튼은 고정 높이, 한 줄 제목 두 개와 +N개로 제한한다. 날짜를 누르면 native dialog에서 해당 날짜의 전체 일정 제목과 시작 시간/종일을 읽으며, Escape/닫기 후 원래 날짜로 초점을 되돌린다. 원본 일정/날짜/계정/DB/API 조회 계약은 변경하지 않는다. Google Calendar 참고 이미지의 밀도와 날짜별 열람 방식을 적용하며 기존 ERP 색상과 읽기 전용 연결을 유지한다.
+
+기존 브라우저 회귀에 같은 날 긴 제목20개, 동일한 달력/날짜 높이, 넘친18개 표시와 전체20개 열람, 빈 날짜, 키보드 초점 복구, 스크립트 문자열 무해화 및 열린 상세 로그아웃 제거를 추가한다. PC1440/mobile390/320 합성 화면을 CI artifact로 기록한다. 검증 후 동일 PR HEAD를 고정 ERP 웹 검수 주소에 fast-forward 반영한다. 휴대폰 앱 빌드/원본 데이터 수정/Google 설정/운영 배포는 이 UI 수정에 포함하지 않는다.

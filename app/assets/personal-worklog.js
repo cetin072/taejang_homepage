@@ -47,6 +47,24 @@
       const navigation=node('div',null,'worklog-controls');
       const change=delta=>{const [y,m]=month.split('-').map(Number);const next=new Date(Date.UTC(y,m-1+delta,1)).toISOString().slice(0,7);if(/^20\d{2}-/.test(next)){month=next;void load();}};
       navigation.append(action('이전 달',()=>change(-1)),node('h4',month.replace('-','년 ')+'월'),action('다음 달',()=>change(1)),action('이번 달',()=>{month=dateKey(new Date()).slice(0,7);void load();}));
+      const details=node('dialog',null,'worklog-day-dialog');
+      const detailsTitle=node('h4');detailsTitle.id=`worklog-day-title-${epoch}`;
+      details.setAttribute('aria-labelledby',detailsTitle.id);
+      const close=action('닫기',()=>details.close());
+      const detailHeader=node('header',null,'worklog-detail-header');detailHeader.append(detailsTitle,close);
+      const detailRows=node('div');details.append(detailHeader,detailRows);
+      const openDay=(date,entries)=>{
+        if(!alive())return;
+        detailsTitle.textContent=`${date} 일정 ${entries.length}개`;
+        detailRows.replaceChildren();
+        if(!entries.length)detailRows.append(node('p','등록된 일정이 없습니다.','help'));
+        else{
+          const list=node('ol',null,'worklog-day-events');
+          for(const s of entries){const li=node('li');li.append(node('small',s.all_day?'종일':time(s.starts_at)),node('p',s.title));list.append(li);}
+          detailRows.append(list);
+        }
+        details.showModal();
+      };
       const table=node('table');table.setAttribute('aria-label',`${month} 개인 일정`);
       const head=node('thead'),tr=node('tr');for(const day of ['일','월','화','수','목','금','토']){const th=node('th',day);th.scope='col';tr.append(th);}head.append(tr);table.append(head);
       const body=node('tbody'); const [y,m]=month.split('-').map(Number);const first=new Date(Date.UTC(y,m-1,1));const offset=first.getUTCDay();const days=new Date(Date.UTC(y,m,0)).getUTCDate();
@@ -55,12 +73,19 @@
         for(let day=0;day<7;day++){
           const d=week*7+day-offset+1,cell=node('td');
           if(d>0&&d<=days){const date=`${month}-${String(d).padStart(2,'0')}`;const dayStart=Date.parse(`${date}T00:00:00+09:00`),dayEnd=dayStart+86400000;
-            cell.append(node('span',String(d),'worklog-day'));if(date===data.today)cell.setAttribute('aria-current','date');
             const entries=data.schedules.filter(s=>Date.parse(s.starts_at)<dayEnd&&Math.max(Date.parse(s.ends_at)||0,Date.parse(s.starts_at)+1)>dayStart);
-            for(const s of entries){const p=node('p',`${s.all_day?'종일':time(s.starts_at)} ${s.title}`,'worklog-event');p.title=p.textContent;cell.append(p);}
+            entries.sort((a,b)=>Date.parse(a.starts_at)-Date.parse(b.starts_at));
+            const button=node('button',null,'worklog-date-button');button.type='button';
+            button.setAttribute('aria-label',`${date} 일정 ${entries.length}개 보기`);
+            button.setAttribute('aria-haspopup','dialog');
+            button.append(node('span',String(d),'worklog-day'));
+            if(date===data.today)button.setAttribute('aria-current','date');
+            for(const s of entries.slice(0,2)){const event=node('span',s.title,'worklog-event');event.title=`${s.all_day?'종일':time(s.starts_at)} ${s.title}`;button.append(event);}
+            if(entries.length>2)button.append(node('span',`+${entries.length-2}개`,'worklog-more'));
+            button.addEventListener('click',()=>openDay(date,entries));cell.append(button);
           }row.append(cell);
         }body.append(row);
-      }table.append(body);section.append(navigation,table);return section;
+      }table.append(body);section.append(navigation,table,details);return section;
     }
     async function load() {
       const request=++pending; content.replaceChildren();status.textContent='개인 일정을 불러오고 있습니다.';

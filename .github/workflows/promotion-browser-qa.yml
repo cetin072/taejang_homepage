@@ -41,6 +41,14 @@ jobs:
       - name: Verify personal Worklog dashboard with synthetic fixtures
         run: node tests/personal-worklog-browser.mjs
 
+      - name: Keep compact calendar PC and mobile screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: worklog-calendar-1440-390-320
+          path: worklog-calendar-qa-artifacts/
+          if-no-files-found: ignore
+
       - name: Verify Google identity PKCE connection with synthetic fixtures
         run: node tests/google-identity-browser.mjs
 

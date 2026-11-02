@@ -7,7 +7,7 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
 window.actor='self';window.role='operations_manager';window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자'}),rpc:async()=>[]};
 </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
 try {
- for(const width of [1440,390]){
+ for(const width of [1440,390,320]){
   const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));
   let mode='success',requests=0,delayResolve;
   await p.route('**/*',async route=>{
@@ -21,6 +21,7 @@ try {
     if(mode==='failure')return route.fulfill({status:502,json:{code:'WORKLOG_UNAVAILABLE'}});
     if(mode==='pending')return route.fulfill({status:503,json:{code:'WORKLOG_MIGRATION_PENDING'}});
     const month=u.searchParams.get('month');
+    if(mode==='dense')return route.fulfill({json:{connected:true,month,today:month+'-03',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:Array.from({length:20},(_,i)=>({id:'dense-'+i,title:`합성 대량 일정 ${i+1} `+'줄바꿈되면 안 되는 매우 긴 제목 '.repeat(8)+'<img src=x onerror=alert(1)>',starts_at:month+'-02T01:'+String(i).padStart(2,'0')+':00Z',ends_at:null,all_day:i===0})),todaySchedules:[],tasks:[]}});
     return route.fulfill({json:{connected:true,month,today:'2026-11-02',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:[{id:'s',title:'합성 모바일 일정 <script>alert(1)</script>',starts_at:month+'-02T01:00:00Z',ends_at:null,all_day:false}],todaySchedules:[{title:'합성 오늘 일정',starts_at:'2026-11-02T01:00:00Z',all_day:false}],tasks:[{title:'합성 미완료',status:'needs_review',due_at:null}]}});
    }
    return route.fulfill({contentType:'text/html',body:html});
@@ -32,6 +33,32 @@ try {
   assert.equal(await p.getByText('합성 미완료',{exact:true}).count(),1);
   assert.ok(await p.getByText(/<script>alert/).count()>0,'unsafe title remains inert text');
   assert.equal(await p.locator('nav').getByText('나의 통합 홈').count(),0);
+  const compactHeight=await p.locator('.worklog-calendar table').evaluate(e=>e.getBoundingClientRect().height);
+  mode='dense';await p.getByRole('button',{name:'새로고침',exact:true}).click();
+  const crowded=p.getByRole('button',{name:/-02 일정 20개 보기$/});await crowded.waitFor();
+  assert.equal(await crowded.locator('.worklog-event').count(),2,'only two single-line previews');
+  assert.equal(await crowded.getByText('+18개',{exact:true}).count(),1);
+  const denseHeight=await p.locator('.worklog-calendar table').evaluate(e=>e.getBoundingClientRect().height);
+  assert.ok(Math.abs(compactHeight-denseHeight)<2,'20 long events cannot grow the calendar');
+  const heights=await p.locator('.worklog-date-button').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect().height));
+  assert.ok(Math.max(...heights)-Math.min(...heights)<2,'all day cells have equal height');
+  assert.equal(await crowded.locator('.worklog-event').first().evaluate(e=>getComputedStyle(e).whiteSpace),'nowrap');
+  const requestCount=requests;await crowded.click();const dialog=p.getByRole('dialog');await dialog.waitFor();
+  assert.equal(await dialog.locator('li').count(),20,'all overflow events remain available');
+  assert.ok((await dialog.locator('li').last().innerText()).includes('합성 대량 일정 20'));
+  assert.equal(await dialog.locator('img').count(),0,'titles stay inert text');
+  assert.equal(await dialog.getByText('종일',{exact:true}).count(),1);
+  assert.equal(await dialog.evaluate(e=>e.getBoundingClientRect().width<=innerWidth-30),true);
+  await p.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
+  assert.equal(await crowded.evaluate(e=>document.activeElement===e),true,'Escape restores day focus');
+  await crowded.press('Enter');await dialog.waitFor();await dialog.getByRole('button',{name:'닫기',exact:true}).click();
+  assert.equal(await crowded.evaluate(e=>document.activeElement===e),true);
+  const empty=p.getByRole('button',{name:/-01 일정 0개 보기$/});await empty.click();await dialog.getByText('등록된 일정이 없습니다.',{exact:true}).waitFor();await p.keyboard.press('Escape');
+  assert.equal(requests,requestCount,'day details reuse loaded data');
+  await fs.mkdir('worklog-calendar-qa-artifacts',{recursive:true});
+  await p.locator('.worklog-calendar').screenshot({path:`worklog-calendar-qa-artifacts/calendar-${width}.png`});
+  await crowded.click();await dialog.screenshot({path:`worklog-calendar-qa-artifacts/details-${width}.png`});await p.keyboard.press('Escape');
+  mode='success';
   await p.getByRole('button',{name:'다음 달',exact:true}).click();await p.getByRole('table').waitFor();
   assert.ok(requests>=2);
   assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -47,8 +74,9 @@ try {
   await p.getByRole('button',{name:'로그아웃',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
   assert.equal(await p.getByRole('table').count(),0,'late response cannot restore logged-out contents');
   mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
-  await p.getByRole('button',{name:'로그아웃',exact:true}).click();assert.equal(await p.locator('.personal-worklog').innerText(),'');
+  await p.getByRole('button',{name:/-02 일정 1개 보기$/}).click();await p.getByRole('dialog').waitFor();
+  await p.evaluate(()=>document.getElementById('logout-button').click());assert.equal(await p.locator('.personal-worklog').innerText(),'');assert.equal(await p.getByRole('dialog').count(),0,'logout removes open personal details');
   assert.deepEqual(errors,[]);
-  console.log(JSON.stringify({width,synthetic:true,readOnly:true,calendar:true,operationsPreserved:true,migrationPending:true,lateLogout:true,logoutPurge:true}));await p.close();
+  console.log(JSON.stringify({width,synthetic:true,readOnly:true,calendar:true,denseCalendarStable:true,dayDetails:true,keyboardRecovery:true,operationsPreserved:true,migrationPending:true,lateLogout:true,logoutPurge:true}));await p.close();
  }
 } finally {await browser.close();}
