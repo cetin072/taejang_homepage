@@ -100,10 +100,10 @@ check(!(await rpc('private_reconcile_leave_monthly',worker)).ok,'worker cannot c
 db(`begin;
 update public.employee_reminder_policy set enabled=true,delay_minutes=5 where singleton;
 insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${today}',true,'Synthetic reminder day') on conflict(work_date) do update set is_workday=true;
-create function pg_temp.expect_reminder(p_expected boolean,p_kind text,p_time text,p_message text) returns void language plpgsql as $
+create function pg_temp.expect_reminder(p_expected boolean,p_kind text,p_time text,p_message text) returns void language plpgsql as $reminder$
 begin
  if public.private_attendance_reminder_due('${employee}','${today}',p_kind,('${today} '||p_time||'+09')::timestamptz) is distinct from p_expected then raise exception '%',p_message; end if;
-end $;
+end $reminder$;
 select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:04:59','no early clock-in prompt');
 select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:05:00','clock-in due at five minutes');
 select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','no clock-out prompt without clock-in');
