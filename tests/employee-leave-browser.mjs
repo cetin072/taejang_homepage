@@ -15,6 +15,7 @@ for(const width of [390,1440]){
    if(name==='get_employee_leave_admin_context'){const result=structuredClone(ctx);if(args.p_employee_uuid){result.employees=result.employees.filter(e=>e.id===args.p_employee_uuid);result.requests=result.requests.filter(r=>r.employee_uuid===args.p_employee_uuid);result.change_requests=result.change_requests.filter(c=>c.employee_uuid===args.p_employee_uuid);}return result;}
    if(name==='review_employee_leave_change'){const c=ctx.change_requests.find(c=>c.id===args.p_change_id);c.status=args.p_decision;c.decision_note=args.p_note;return {ok:true};}
    if(name==='review_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.status=args.p_decision;r.decision_note=args.p_note;return {ok:true};}
+   if(name==='save_employee_work_terms'){ctx.employees.find(e=>e.id===args.p_employee_uuid).terms.unshift({id:'saved-term',...args.p_values});return {ok:true};}
    if(name==='initialize_employee_leave'){ctx.employees[0].balance={accrued:10,remaining:7,reserved:0,available:7};return {ok:true};}
    return {ok:true};
   }};
@@ -54,7 +55,7 @@ for(const width of [390,1440]){
  await work.getByRole('button',{name:'적용 시작일',exact:true}).click();await work.getByRole('button',{name:'2026-11-03 선택',exact:true}).click();
  await work.getByLabel('출근 시각 시',{exact:true}).selectOption('21');await work.getByLabel('출근 시각 분',{exact:true}).selectOption('00');
  await work.getByLabel('퇴근 시각 시',{exact:true}).selectOption('18');await work.getByLabel('퇴근 시각 분',{exact:true}).selectOption('00');
- await work.getByLabel('근무장소',{exact:true}).selectOption('office');await work.getByLabel('변경 사유',{exact:true}).fill('실제 근로계약 확인');await work.locator('.leave-weekdays input').first().check();
+ await work.getByLabel('근무장소',{exact:true}).selectOption('office');await work.getByLabel('변경 사유',{exact:true}).fill('실제 근로계약 확인');for(let i=0;i<5;i++)await work.locator('.leave-weekdays input').nth(i).check();
  await work.getByRole('button',{name:'근무시간 저장',exact:true}).click();await work.getByText('퇴근 시각은 출근 시각보다 늦어야 합니다.',{exact:false}).waitFor();
  assert.equal((await page.evaluate(()=>window.calls)).some(c=>c.name==='save_employee_work_terms'),false,'invalid reverse times never sent');
  await work.getByLabel('출근 시각 시',{exact:true}).selectOption('09');await work.getByLabel('퇴근 시각 시',{exact:true}).selectOption('12');
@@ -64,7 +65,8 @@ for(const width of [390,1440]){
  await page.waitForFunction(()=>window.calls.filter(c=>c.name==='save_employee_work_terms').length===2);
  assert.ok((await page.evaluate(()=>window.calls)).some(c=>c.name==='save_employee_work_terms'&&c.args.p_values.starts_at==='09:00'&&c.args.p_values.effective_from==='2026-11-03'));
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'mobile work form does not overflow');
- fs.mkdirSync('leave-admin-qa-artifacts',{recursive:true});await page.screenshot({path:`leave-admin-qa-artifacts/work-time-${width}.png`,fullPage:true});
+ await page.waitForFunction(()=>document.querySelector('#work-qa [aria-label="적용 시작일"]')?.value==='2026-11-04');
+ fs.mkdirSync('leave-admin-qa-artifacts',{recursive:true});await work.screenshot({path:`leave-admin-qa-artifacts/work-time-${width}.png`});
  assert.deepEqual(errors,[]);await page.close();console.log(`LEAVE_WEB_BROWSER_PASS ${width}px scoped requests, approval/rejection, registration, input preservation, employee switching, secondary days off, schedule wiring`);
 }
 await browser.close();
