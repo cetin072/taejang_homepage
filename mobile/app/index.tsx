@@ -23,6 +23,7 @@ import { BrandLoadingView } from '@/src/features/common/brand-loading-view';
 import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
+import { LeaveHomeAction } from '@/src/features/leave/leave-home-action';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
 import { QaPreviewControls } from '@/src/features/qa/qa-preview-controls';
 import {
@@ -641,6 +642,7 @@ export default function HomeScreen() {
               />
             ) : null}
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction /> : null}
+            {employeeFeatures.get('leave.self')?.state === 'enabled' && (!isQaApp || qaInspection === 'server') ? <LeaveHomeAction /> : null}
             {showWorkPlatform ? (
               <PrimaryButton
                 title={platformOpening ? '연결 중…' : '플랫폼 바로가기'}

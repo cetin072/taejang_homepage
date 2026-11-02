@@ -12,6 +12,17 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-02-clock-out-reminder', date: '2026-11-02',
+    title: '출퇴근 미기록 안내 준비',
+    summary: '근무시간과 기록을 기준으로 출근·퇴근 미기록 안내를 준비했습니다.',
+    items: ['출근한 직원이 예정 퇴근 시각 5분 뒤에도 퇴근을 기록하지 않았을 때 안내하는 조건을 추가했습니다.', '알림은 검수 및 운영 활성화 후 제공되며 현재 실제 발송은 꺼져 있습니다.'],
+  },
+  {
+    id: '2026-11-01-leave-request', date: '2026-11-01', title: '내 연차 확인·신청',
+    summary: '관리자가 등록한 남은 연차를 확인하고 연차를 신청합니다.',
+    items: ['종일·반차를 사용일 최소 3일 전에 신청합니다.', '승인 대기·승인·반려 상태를 확인하고 대기 중인 신청을 취소할 수 있습니다.'],
+  },
+  {
     id: '2026-11-01-notice-card-balance',
     date: '2026-11-01',
     title: '공지 카드 색상과 정렬 개선',

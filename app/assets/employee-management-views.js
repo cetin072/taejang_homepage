@@ -198,6 +198,10 @@
         basicTitle.append(basic.querySelector('h3'), edit); basic.prepend(basicTitle);
       } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
+      if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
+        const leavePanel = window.TaejangEmployeeLeave?.employeePanel(employee);
+        if (leavePanel) card.append(leavePanel);
+      }
       const appSection = section('앱 계정', 'employee-section-account');
       const profile = employee.linked_profile;
       const profileStatus = ({ active:'활성', inactive:'비활성', suspended:'정지', deleted:'삭제', pending:'승인 대기' })[profile?.account_status] || '확인 필요';

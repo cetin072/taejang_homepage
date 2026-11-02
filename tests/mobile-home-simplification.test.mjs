@@ -48,6 +48,7 @@ function renderHome(access, phase = 'ready', qa = false, persona = 'operations_l
     if (name.endsWith('qa-preview-controls')) return { QaPreviewControls: 'QaPreviewControls' };
     if (name.endsWith('brand-loading-view')) return brand;
     if (name.endsWith('attendance-card')) return { AttendanceCard: 'AttendanceCard' };
+    if (name.endsWith('leave-home-action')) return { LeaveHomeAction: 'LeaveHomeAction' };
     if (name.endsWith('notice-home-action')) return { NoticeHomeAction: 'NoticeHomeAction' };
     if (name.endsWith('official-channels-footer')) return { OfficialChannelsFooter: 'OfficialChannelsFooter' };
     if (name.endsWith('policy-links')) return { PolicyLinks: 'PolicyLinks' };
@@ -66,11 +67,11 @@ function renderHome(access, phase = 'ready', qa = false, persona = 'operations_l
   return visit(home.default());
 }
 
-test('rendered employee home only mounts attendance, notice and eligible work-platform entry', () => {
+test('rendered employee home mounts attendance, notice, remaining leave and eligible work-platform entry', () => {
   for (const capabilities of [[], ['unrelated.read'], ['promotion.write'], ['promotion.review_lead'], ['employee.view_all']]) {
     const nodes = renderHome({ account_status: 'active', capabilities });
-    const cards = nodes.filter(node => ['AttendanceCard', 'NoticeHomeAction'].includes(node?.type));
-    assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'NoticeHomeAction']);
+    const cards = nodes.filter(node => ['AttendanceCard', 'NoticeHomeAction', 'LeaveHomeAction'].includes(node?.type));
+    assert.deepEqual(cards.map(node => node.type), ['AttendanceCard', 'NoticeHomeAction', 'LeaveHomeAction']);
     const platform = nodes.filter(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
     assert.equal(platform.length, capabilities.some(code => ['promotion.write', 'promotion.review_lead', 'employee.view_all'].includes(code)) ? 1 : 0);
     assert.equal(nodes.filter(node => node?.type === 'OfficialChannelsFooter').length, 1);
@@ -107,6 +108,7 @@ test('QA defaults to operations team lead and previews the actual employee atten
     const card = rendered.find(node => node?.type === 'AttendanceCard');
     const toolbar = rendered.find(node => node?.type === 'QaPreviewControls');
     const platform = rendered.find(node => node?.props?.accessibilityLabel === '플랫폼 바로가기');
+    assert.equal(rendered.some(node => node?.type === 'LeaveHomeAction'), false, 'preview must not fetch real leave');
     assert.equal(card.props.mode, 'preview');
     assert.equal(card.props.previewScenario, 'today');
     assert.equal(toolbar.props.persona, 'operations_lead');

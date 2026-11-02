@@ -25,6 +25,7 @@ export type AttendanceToday = {
   holiday_work_assigned?: boolean;
   day_reason?: string | null;
   server_time?: string;
+  work_schedule?: { configured: boolean; is_workday?: boolean; starts_at?: string; ends_at?: string; leave_portion?: string | null; working_minutes?: number };
   clock_in_available?: boolean;
   clock_in_available_at?: string;
   clock_in: AttendanceEvent | null;
