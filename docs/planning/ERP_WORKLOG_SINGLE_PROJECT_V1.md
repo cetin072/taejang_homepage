@@ -69,3 +69,11 @@ Google는 기존 태장 Auth ID에 연결하는 경로를 우선한다. 기존 �
 4. 이 환경의 ego-browser 명령은 없으며 cloud browser runtime도 시작 실패. 사용자 PC의 관리자 브라우저 세션에 접근하지 못했다.
 
 위 설정과 이메일 점유 해소 후 Preview에만 WORKLOG_UNIFIED_READ_ENABLED/GOOGLE_IDENTITY_ENABLED를 활성화·재배포하고 실제 로그인으로 검수한다. 현재 두 스위치는 비활성이고 ERP 첫 화면 실제 표시 성공은 여전히 미달성이다. 기존 모바일 앱 서버는 원본을 계속 사용하며 이후 쓰기 자동 동기화를 주장하지 않는다. 복사 이후 새 원본 기록은 다음 일관된 snapshot/대조 후 별도 반영한다.
+
+## Data API 연결 활성화 — 2026-11-03 KST
+
+사용자가 worklog exposed-schema 설정을 추가한 뒤 실제 REST 경로 네 개를 다시 확인했다. 기존 406/PGRST106은 해소됐고, 익명 요청은 401/42501로 차단된다. 이는 익명 접근 차단과 schema 설정 반영의 증거이며 본인 로그인 조회 성공으로 간주하지 않는다.
+
+Netlify의 WORKLOG_UNIFIED_READ_ENABLED=true를 functions scope / deploy-preview context에만 등록하고 이 문서 체크포인트 commit으로 PR575 개발 Preview를 재배포한다. production/branch-deploy와 Google 연결 flag는 변경하지 않는다. 본인에게 허용된 데이터 경로는 기존 ERP Auth 서버와 활성 Profile 검증, 같은 ID의 개인 공간 owner/membership, worklog RLS 순서 그대로다. 인증 우회나 임시 JWT 발급 없이 본인 실제 세션 검수가 남는다.
+
+원본 업무수첩 모바일은 여전히 원본 프로젝트를 사용한다. 이번 화면은 검증된 pilot 복사본을 읽으며, 이후 새 모바일 기록의 자동 동기화 완료를 의미하지 않는다. 이메일 점유 해소/Google provider/manual linking/본인 OAuth와 쓰기 전환은 별도 남은 실행 단계다.
