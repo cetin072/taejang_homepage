@@ -90,15 +90,15 @@ button{cursor:pointer}
 .desktop-nav .nav-cta:hover,.desktop-nav .nav-cta:focus-visible{background:var(--green-deep);color:#fff}
 .desktop-nav .nav-cta:active{background:#143b2d;color:#fff;transform:translateY(0)}
 
-/* HTML owns menu order. Contact is the only filled action; app guide is a quiet utility. */
-.desktop-nav .employee-app-nav{
+/* HTML owns menu order. Contact is the only filled action; resources is a quiet public link. */
+.desktop-nav .resources-nav{
   display:inline-flex;align-items:center;justify-content:center;
   min-height:44px;padding:9px 0;border:0;
   background:transparent;color:var(--green-deep);font-size:14px;font-weight:400;white-space:nowrap;
 }
-.desktop-nav .employee-app-nav:hover,
-.desktop-nav .employee-app-nav:focus-visible,
-.desktop-nav a.employee-app-nav[aria-current="page"]{
+.desktop-nav .resources-nav:hover,
+.desktop-nav .resources-nav:focus-visible,
+.desktop-nav a.resources-nav[aria-current="page"]{
   background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:5px;
 }
 @media (min-width:1001px) and (max-width:1160px){
@@ -111,7 +111,7 @@ button{cursor:pointer}
 .mobile-nav a{padding:13px 0;border-bottom:1px solid var(--line);font-weight:700;color:var(--green-deep)}
 .mobile-nav a[aria-current="page"]{color:var(--green)}
 
-/* Mobile utilities are independent, aligned links, never a nested app submenu. */
+/* Resources and staff are independent, aligned mobile links. */
 @media (max-width:1000px){
   .mobile-nav a[href*="partnership"]{
     min-height:54px;margin:8px 0 14px;padding:12px 16px;
@@ -123,22 +123,25 @@ button{cursor:pointer}
     background:var(--green-deep);color:#fff;
   }
   .mobile-nav .staff-nav,
-  .mobile-nav .employee-app-nav{
+  .mobile-nav .resources-nav{
     display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:64px;
     margin:0;padding:12px 0;
     border:0;border-radius:0;
     background:transparent;color:var(--green-deep);font-size:16px;font-weight:700;
   }
   .mobile-nav .nav-entry-description{font-size:14px;font-weight:400;line-height:1.6;color:var(--ink-soft)}
-  .mobile-nav .employee-app-nav:hover,
-  .mobile-nav .employee-app-nav:focus-visible{
+  .mobile-nav .resources-nav:hover,
+  .mobile-nav .resources-nav:focus-visible{
     background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:4px;
   }
-  .mobile-nav .employee-app-nav[aria-current="page"]{
+  .mobile-nav .resources-nav[aria-current="page"]{
     background:transparent;color:var(--green-deep);
     font-weight:800;text-decoration:underline;text-underline-offset:4px;
   }
 }
+
+.resources-breadcrumb{padding-top:24px;font-size:14px;color:var(--ink-soft)}
+.resources-breadcrumb a{text-decoration:underline;text-underline-offset:4px}
 
 /* Announcement */
 .announcement{background:var(--green);color:#fff;text-align:center;padding:10px 20px;font-size:13.5px}
