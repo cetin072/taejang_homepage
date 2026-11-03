@@ -3,7 +3,7 @@
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
-  const messages = { ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  const messages = { LEAVE_ALREADY_INITIALIZED:'이미 연차가 등록된 직원입니다. 새로고침 후 확인해주세요. 개수 변경은 운영총괄에게 요청해주세요.', ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
   function errorText(error) { const s = String(error?.message || error || ''); return Object.entries(messages).find(([k]) => s.includes(k))?.[1] || '저장하지 못했습니다. 입력값과 연결 상태를 확인하고 다시 시도해주세요.'; }
   function button(text, run) { const b = el('button',text,'button button-quiet'); b.type='button'; b.addEventListener('click',run); return b; }
   function dateField(form,label,value='',required=true){
@@ -44,7 +44,7 @@
     host.append(el('h3','근무시간'));
     const latest=[...employee.terms].sort((a,b)=>b.effective_from.localeCompare(a.effective_from))[0];
     host.append(el('p',latest?`${latest.effective_from}부터 · ${latest.starts_at.slice(0,5)}~${latest.ends_at.slice(0,5)}`:'등록된 근무시간이 없습니다.'));
-    if(ctx.can_initialize){
+    if(ctx.can_manage_work_terms ?? ctx.can_initialize){
       const f=el('form',null,'employee-form app-authoring leave-work-form');
       const scope=select(f,'적용 방식',[['base','기본 근무시간 등록·변경'],['date','하루만 근무시간 변경']]);
       const tomorrow=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+86400000).toISOString().slice(0,10);
@@ -71,19 +71,18 @@
     }
     const history=el('details');history.append(el('summary','근무시간 이력'));
     employee.terms.forEach(t=>history.append(el('p',`${t.effective_from}부터 · 요일 ${t.weekdays.join(',')} · ${t.starts_at}~${t.ends_at} · 휴게 ${t.break_starts_at||'없음'}${t.break_ends_at?'~'+t.break_ends_at:''}`)));host.append(history);
-    (ctx.overrides||[]).forEach(o=>{const row=el('section');row.append(el('p',`${o.effective_from} 하루 변경 · ${o.starts_at}~${o.ends_at}`));if(ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');const why=field(f,'예외 철회 사유','text');why.minLength=2;formAction(f,'날짜 예외 철회',()=>rpc('revoke_employee_work_override',{p_id:o.id,p_reason:why.value}),reload);row.append(f);}host.append(row);});
+    (ctx.overrides||[]).forEach(o=>{const row=el('section');row.append(el('p',`${o.effective_from} 하루 변경 · ${o.starts_at}~${o.ends_at}`));if(ctx.can_manage_work_terms ?? ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');const why=field(f,'예외 철회 사유','text');why.minLength=2;formAction(f,'날짜 예외 철회',()=>rpc('revoke_employee_work_override',{p_id:o.id,p_reason:why.value}),reload);row.append(f);}host.append(row);});
   }
   async function populate(host,employeeId,leaveOnly=false){
     host.replaceChildren(el('p',leaveOnly?'연차를 확인하고 있습니다.':'근무시간을 확인하고 있습니다.'));
     try{
       const ctx=await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId});if(!host.isConnected)return;
       host.replaceChildren();const employee=ctx.employees.find(e=>e.id===employeeId);if(!employee){host.append(el('p','직원을 찾을 수 없습니다.'));return;}
-      const reload=()=>populate(host,employeeId,leaveOnly);if(!leaveOnly){renderWorkTerms(host,ctx,employee,reload);return;}
+      const reload=()=>{if(!leaveOnly)host.dispatchEvent(new Event('employee-work-terms-saved',{bubbles:true}));return populate(host,employeeId,leaveOnly);};if(!leaveOnly){renderWorkTerms(host,ctx,employee,reload);return;}
       const balance=employee.balance;host.append(el('h3',`${employee.name} · 연차 등록·현황`));host.append(el('p',balance?`발생 ${balance.accrued}개 · 남은 ${balance.remaining}개 · 신청 대기 ${balance.reserved}개 · 신청 가능 ${balance.available}개`:'연차 관리자 등록 대기'));
-      if(ctx.can_initialize){
-        if(!balance){const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));const accrued=field(f,'지금까지 발생한 연차','number'),remaining=field(f,'현재 남은 연차','number');const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;const reason=field(f,'기준일·입력 근거','text');reason.minLength=2;f.append(el('p',`기준일 ${ctx.server_today} · 과거 사용분이 반영된 잔여를 등록합니다.`));formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value}),reload);host.append(f);
-        }else{const d=el('details');d.append(el('summary','잔여 연차 조정'));const f=el('form',null,'employee-form app-authoring');const amount=field(f,'조정 개수 (+ 또는 -)','number');amount.min='-100';amount.max='100';const reason=field(f,'조정 사유','text');reason.minLength=2;const id=crypto.randomUUID();formAction(f,'조정 저장',()=>rpc('adjust_employee_leave',{p_employee_uuid:employeeId,p_id:id,p_delta:Number(amount.value),p_reason:reason.value}),reload);d.append(f);host.append(d);}
-      }
+      if(!balance&&ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));const accrued=field(f,'지금까지 발생한 연차','number'),remaining=field(f,'현재 남은 연차','number');const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;const reason=field(f,'기준일·입력 근거','text');reason.minLength=2;f.append(el('p',`기준일 ${ctx.server_today} · 과거 사용분이 반영된 잔여를 등록합니다.`));formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value}),reload);host.append(f);
+      }else if(balance&&(ctx.can_adjust ?? ctx.can_initialize)){const d=el('details');d.append(el('summary','잔여 연차 조정'));const f=el('form',null,'employee-form app-authoring');const amount=field(f,'조정 개수 (+ 또는 -)','number');amount.min='-100';amount.max='100';const reason=field(f,'조정 사유','text');reason.minLength=2;const id=crypto.randomUUID();formAction(f,'조정 저장',()=>rpc('adjust_employee_leave',{p_employee_uuid:employeeId,p_id:id,p_delta:Number(amount.value),p_reason:reason.value}),reload);d.append(f);host.append(d);
+      }else if(balance&&ctx.can_initialize){host.append(el('p','등록된 연차 개수의 변경은 운영총괄에게 요청해주세요.'));}
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e),'message'),button('다시 불러오기',()=>populate(host,employeeId,leaveOnly)));}
   }
@@ -141,7 +140,7 @@
         [['requests','신청·승인'],['balances','직원별 연차 등록·현황']].forEach(([key,label])=>{const b=button(label,()=>{view=key;employeeId='';load();});b.setAttribute('aria-pressed',String(view===key));nav.append(b);});host.append(nav);
         const content=el('section',null,'leave-main-content');host.append(content);
         if(view==='balances'){
-          content.append(el('h3','직원별 연차 등록·현황'),el('p',ctx.can_initialize?'직원을 선택해 지금까지 발생한 연차와 현재 남은 연차를 최초 등록합니다.':'직원을 선택해 연차 현황을 확인합니다. 최초 등록·조정은 운영총괄이 처리합니다.'));
+          content.append(el('h3','직원별 연차 등록·현황'),el('p',ctx.can_initialize?'직원을 선택해 지금까지 발생한 연차와 현재 남은 연차를 최초 등록합니다.':'직원을 선택해 연차 현황을 확인합니다. 현재 권한으로 연차 개수를 입력할 수 없습니다.'));
           const s=rosterSelect(content,'직원 선택',current,ctx.positions,'재직 직원을 선택해주세요',employeeId);
           const box=el('section',null,'employee-profile-section');content.append(box);
           const show=()=>{employeeId=s.value;box.replaceChildren();if(employeeId){const panel=el('div');box.append(panel);populate(panel,employeeId,true);}else box.append(el('p','직원을 선택하면 연차 등록·현황을 확인할 수 있습니다.'));};s.addEventListener('change',show);show();
@@ -155,6 +154,17 @@
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
     };await load();
   }
+  function workSummary(employee){
+    const box=el('div','근무시간 확인 중…','employee-work-summary');let generation=0;
+    const load=async()=>{const version=++generation;if(!box.isConnected)return;try{
+      const ctx=await rpc('get_employee_leave_admin_context',{p_employee_uuid:employee.id});if(!box.isConnected||version!==generation)return;
+      const person=ctx.employees.find(e=>e.id===employee.id),terms=[...(person?.terms||[])].sort((a,b)=>a.effective_from.localeCompare(b.effective_from));
+      const current=terms.filter(t=>t.effective_from<=ctx.server_today).at(-1),next=terms.find(t=>t.effective_from>ctx.server_today);
+      box.replaceChildren(el('p',current?`현재 근무시간 · ${current.starts_at.slice(0,5)} ~ ${current.ends_at.slice(0,5)} (${current.effective_from}부터)`:'현재 근무시간 · 미등록'));
+      if(next)box.append(el('p',`변경 예정 · ${next.starts_at.slice(0,5)} ~ ${next.ends_at.slice(0,5)} (${next.effective_from}부터)`));
+    }catch(_error){if(box.isConnected&&version===generation)box.textContent='근무시간을 불러오지 못했습니다.';}};
+    queueMicrotask(()=>{if(!box.isConnected)return;box.closest('[data-employee-profile]')?.addEventListener('employee-work-terms-saved',load);void load();});return box;
+  }
   function employeePanel(employee){const host=el('section',null,'employee-profile-section');host.append(button('근무시간 확인·변경',()=>populate(host,employee.id)));return host;}
-  window.TaejangEmployeeLeave={open,employeePanel};
+  window.TaejangEmployeeLeave={open,employeePanel,workSummary};
 })();

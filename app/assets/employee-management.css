@@ -130,3 +130,7 @@
 #desktop-app-shell .leave-work-form .leave-weekdays label:has(:checked){border-color:var(--app-brand);background:#e9f2ec}
 #desktop-app-shell .leave-work-form .leave-weekdays input{flex:0 0 22px;width:22px;height:22px;min-height:22px;margin:0;padding:0}
 @media(min-width:600px){.leave-weekdays{grid-template-columns:repeat(7,minmax(0,1fr));max-width:560px}}@media(min-width:700px){.leave-work-form{grid-template-columns:repeat(2,minmax(0,1fr))}.leave-work-form>.leave-weekdays,.leave-work-form>p,.leave-work-form>button,.leave-work-form>.leave-break-fields{grid-column:1/-1}.leave-break-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.employee-profile-head > div:nth-child(2) { flex:1; }
+.employee-profile-photo-actions { margin-left:auto; }
+@media(max-width:760px){.employee-profile-head{flex-wrap:wrap}.employee-profile-photo-actions{flex-basis:100%;margin-left:0}}

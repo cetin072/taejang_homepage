@@ -59,15 +59,15 @@ try{
   await capture('employee-profile');
   if(!baseline){
    assert.equal(Math.round((await page.locator('.employee-profile-head .employee-avatar').boundingBox()).width),width===390?100:120);
-   assert.equal(await page.locator('.employee-photo-grid img[alt*="증명사진"]').count(),0,'missing ID photo never falls back to work photo');
+   assert.equal(await page.locator('.employee-profile-head img[alt*="증명사진"]').count(),0,'missing ID photo never falls back to work photo');
    await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
    assert.equal(await page.getByLabel('정렬',{exact:true}).inputValue(),'employee_desc');
    assert.equal(await page.getByLabel('직원 검색',{exact:true}).inputValue(),'TJ-000003');
    await page.evaluate(()=>{fixtureRoute='promotion_lead';fixtureContext.access_level='promotion_lead_global';fixtureContext.can_manage_sensitive_identity=false;TaejangEmployeeManagement.openEmployeeManagement();});
    await page.locator('[data-employee-id="fixture-2"]').click();
    assert.equal(await page.locator('.employee-sensitive-section').count(),0);
-   assert.match(await page.locator('.employee-section-photos').innerText(),/현재 권한으로 등록 상태·사진 조회 불가/);
-   assert.equal(await page.locator('.employee-photo-grid img[alt*="증명사진"]').count(),0);
+   assert.doesNotMatch(await page.locator('.employee-profile-head').innerText(),/증명사진/);
+   assert.equal(await page.locator('.employee-profile-head img[alt*="증명사진"]').count(),0);
   }
   await page.goto(base+'/tests/browser/notice-authoring-ux-gate.html?capture');
   await page.waitForFunction(()=>document.getElementById('result').textContent==='NOTICE_CAPTURE_READY');

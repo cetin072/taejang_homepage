@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { gotoPublicDocument, gotoPublicReady } from './public-page-ready.mjs';
 
-const order = ['about.html','business.html','workplace.html','archive.html','partnership.html','staff/','employee-app.html'];
+const order = ['about.html','business.html','workplace.html','archive.html','partnership.html','resources.html','staff/'];
 const hrefs = nav => [...nav.querySelectorAll(':scope > a')].map(a => a.getAttribute('href'));
 const canonicalHref = href => {
   const relative = href.replace(/^\//,'');
@@ -19,7 +19,7 @@ async function headerReady(page,url,diagnostics) {
   await page.waitForFunction(()=>document.documentElement.classList.contains('js-nav-ready') &&
     [...document.querySelectorAll('link[rel="stylesheet"]')].every(l=>l.sheet) &&
     [...document.querySelectorAll('.site-header img')].every(i=>i.complete&&i.naturalWidth>0));
-  await page.evaluate(async()=>{await document.fonts.load('700 16px "Nanum Gothic"','직원앱 안내');await document.fonts.ready;});
+  await page.evaluate(async()=>{await document.fonts.load('700 16px "Nanum Gothic"','자료실');await document.fonts.ready;});
   assert.ok(await page.locator('.site-header').isVisible());
   } catch(error) {
     console.error('HEADER_ASSET_DIAGNOSTICS:'+url+'\n'+diagnostics.join('\n'));
@@ -83,9 +83,9 @@ export async function exercisePublicHeaders(browser, base, root, output) {
         const metrics=await page.locator('[data-mobile-nav]').evaluate(nav=>({
           links:[...nav.children].map(a=>({h:a.getBoundingClientRect().height,left:a.getBoundingClientRect().left})),
           staff:nav.querySelector('.staff-nav').innerText,
-          app:nav.querySelector('.employee-app-nav').innerText,
-          border:getComputedStyle(nav.querySelector('.employee-app-nav')).borderLeftWidth,
-          indent:getComputedStyle(nav.querySelector('.employee-app-nav')).paddingLeft,
+          app:nav.querySelector('.resources-nav').innerText,
+          border:getComputedStyle(nav.querySelector('.resources-nav')).borderLeftWidth,
+          indent:getComputedStyle(nav.querySelector('.resources-nav')).paddingLeft,
           contact:getComputedStyle(nav.querySelector('a[href*="partnership"]')).backgroundColor,
           contactCurrent:nav.querySelector('a[href*="partnership"]').getAttribute('aria-current')==='page'
         }));
@@ -93,7 +93,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
         assert.equal(metrics.links.at(-1).left,metrics.links.at(-2).left);
         assert.equal(metrics.border,'0px');assert.equal(metrics.indent,'0px');
         assert.match(metrics.staff,/임직원\s+업무 플랫폼 로그인/);
-        assert.match(metrics.app,/직원앱 안내\s+앱 설치 및 사용 방법/);
+        assert.match(metrics.app,/자료실\s+앱 안내와 회사 자료/);
         assert.equal(metrics.contact,metrics.contactCurrent?'rgb(27, 67, 50)':'rgb(45, 106, 79)',file+': contact retains its existing normal/current CTA colors');
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,file+': Escape closes menu');
@@ -131,7 +131,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       await page.locator('[data-menu-button]').click();
       await page.screenshot({path:path.join(output,'header-mobile-390.png')});
       await page.addStyleTag({content:'.mobile-nav a,.mobile-nav .nav-entry-label{font-size:200%!important}.mobile-nav .nav-entry-description{font-size:28px!important}'});
-      const app=page.locator('.mobile-nav .employee-app-nav');
+      const app=page.locator('.mobile-nav .resources-nav');
       await app.scrollIntoViewIfNeeded();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
       assert.ok((await app.boundingBox()).height>=44);
@@ -146,6 +146,32 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,'no-JS authored order including pretty URLs');
     assert.ok(await page.locator(width===390?'[data-mobile-nav]':'.desktop-nav').isVisible(),'no-JS navigation remains visible');
     if(width===390)assert.equal(await page.locator('[data-menu-button]').isVisible(),false,'no-JS fallback has no inactive toggle');
+    await context.close();
+  }
+  // The resource hub is authored HTML: pending materials are not dead links,
+  // and the available card makes the round trip without a runtime data fetch.
+  for (const javaScriptEnabled of [true, false]) for (const width of [1440, 390, 320]) {
+    const context = await browser.newContext({viewport:{width,height:900},javaScriptEnabled,reducedMotion:'reduce'});
+    const page = await context.newPage();
+    await page.goto(base+'/resources.html');
+    await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
+    assert.equal(await page.locator('h1').innerText(),'자료실');
+    assert.equal(await page.locator('.resource-card').count(),2);
+    assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
+    assert.equal(await page.locator('.resource-card--pending').count(),1);
+    assert.equal(await page.locator('.resource-card--pending a, .resource-card--pending button, .resource-card--pending [tabindex]').count(),0,'unpublished cards are not interactive');
+    assert.equal(await page.locator('a[href="#"], a[download]').count(),0,'no fake downloads');
+    assert.equal(await page.locator('.desktop-nav .resources-nav').getAttribute('aria-current'),'page');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'resource cards fit viewport');
+    assert.equal(await page.locator('.resources-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),width>760?2:1);
+    const card=page.locator('.resource-card--link');
+    await card.focus();
+    assert.equal(await card.evaluate(el=>document.activeElement===el),true);
+    if(javaScriptEnabled) await page.screenshot({path:path.join(output,'resources-'+width+'.png'),fullPage:true});
+    await page.keyboard.press('Enter');
+    await page.waitForURL(url=>/\/employee-app(?:\.html)?$/.test(url.pathname));
+    await page.locator('.resources-breadcrumb a').click();
+    await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
     await context.close();
   }
   // Network failure boundaries: later enhancements cannot disable the menu;
