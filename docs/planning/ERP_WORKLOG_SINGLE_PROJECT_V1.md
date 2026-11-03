@@ -83,3 +83,14 @@ Netlify의 WORKLOG_UNIFIED_READ_ENABLED=true를 functions scope / deploy-preview
 실사용 검수에서 긴 일정 제목과 같은 날 여러 일정 때문에 한 주의 높이가 크게 늘어나는 문제를 확인했다. 월간 날짜 버튼은 고정 높이, 한 줄 제목 두 개와 +N개로 제한한다. 날짜를 누르면 native dialog에서 해당 날짜의 전체 일정 제목과 시작 시간/종일을 읽으며, Escape/닫기 후 원래 날짜로 초점을 되돌린다. 원본 일정/날짜/계정/DB/API 조회 계약은 변경하지 않는다. Google Calendar 참고 이미지의 밀도와 날짜별 열람 방식을 적용하며 기존 ERP 색상과 읽기 전용 연결을 유지한다.
 
 기존 브라우저 회귀에 같은 날 긴 제목20개, 동일한 달력/날짜 높이, 넘친18개 표시와 전체20개 열람, 빈 날짜, 키보드 초점 복구, 스크립트 문자열 무해화 및 열린 상세 로그아웃 제거를 추가한다. PC1440/mobile390/320 합성 화면을 CI artifact로 기록한다. 검증 후 동일 PR HEAD를 고정 ERP 웹 검수 주소에 fast-forward 반영한다. 휴대폰 앱 빌드/원본 데이터 수정/Google 설정/운영 배포는 이 UI 수정에 포함하지 않는다.
+
+
+## Google 연결 재개 체크포인트 — 2026-11-03 KST
+
+이 절은 위 과거 blocker 기록의 현재 상태를 갱신한다. 사용자 인계와 서버 read-only 재검증으로 기존 ERP Auth UUID 보존, 과거 미인증 Auth 행의 예약 이메일 변경 완료 및 email identity 보존, 현재 ERP 계정에 Google identity가 아직 없음을 확인했다. Auth Admin 변경은 사용자가 자기 PC에서 수행했으며 이 작업은 Auth SQL 수정/임시 토큰 발급을 하지 않는다. Google provider/manual linking/OAuth callback 설정은 사용자 완료 기록이 있고, Redirect allowlist 저장 여부는 아직 확인되지 않았다.
+
+`GOOGLE_IDENTITY_ENABLED=true`를 Netlify functions scope / branch-deploy context에만 등록했다. 기존 `WORKLOG_UNIFIED_READ_ENABLED=true`의 동일 scope/context는 보존했다. Production과 Play 전환은 포함하지 않는다. 본 체크포인트 commit 배포 후 고정 QA의 staff-config와 Google 연결 페이지를 실제 재검증한다. QA branch 갱신 시 현재 a8bd92679d33de47701ff9ab138be6ba23fbe645가 유지되는지 lease로 확인하고 다른 작업이 끼었으면 중단한다.
+
+기존 연결 코드 변경 없이 단위검사 12/12 PASS. 이 환경의 새 로컬 Chromium 합성 검사 재실행은 OS socket 제한으로 시작하지 못했으며 PASS로 보고하지 않는다. 원래 runtime 소스의 a8bd9267 원격 브라우저/인증 회귀 성공과 이번 docs-only CI 결과를 구분한다. Cloud browser는 Supabase sign-in 화면으로 이동했으며 사용자 PC Ego 세션이나 기존 ERP 세션에 접근할 수 없다.
+
+다음 실제 흐름: Redirect allowlist에 고정 QA `/staff/google-link**` 확인 → 기존 ERP 이메일로 먼저 로그인 → Google 계정 연결 → 서버에서 같은 Auth UUID·활성 Profile/권한·직원 연결·개인 자료를 다시 대조. 기존 모바일 프로젝트와 pilot 읽기 전용/쓰기 금지 경계는 유지한다. 이후 새 모바일 기록 자동 반영을 위해 전체 쓰기 계약·차이 검증·개발기기 대상 전환이 필요하며 본 체크포인트를 전체 통합 완료로 해석하지 않는다.
