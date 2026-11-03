@@ -33,6 +33,9 @@ export async function verifyIdentityUi(page, preview) {
  await page.addScriptTag({url:preview+'/app/assets/attendance-admin.js'});
  await page.evaluate(()=>window.TaejangAttendanceAdmin.openAttendance('2026-10-19'));
  await page.getByText('안전한 이름 일치 후보 21명',{exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'지문 Excel 가져오기',exact:true}).count(),0,'retired import is absent even with historical mapping permission');
+ assert.equal(await page.locator('.attendance-toolbar input[type=file]').count(),0);
+ assert.equal(await page.getByText('GPS·지문 비교 안내',{exact:true}).count(),0);
  assert.equal(await page.evaluate(()=>window.identityCalls.filter(c=>c.name.startsWith('save_')).length),0,'view must never save');
  await page.evaluate(()=>window.identityAccept=false);
  await page.getByRole('button',{name:'일치 직원 일괄 연결',exact:true}).click();
