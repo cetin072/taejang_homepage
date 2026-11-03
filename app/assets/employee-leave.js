@@ -155,6 +155,15 @@
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
     };await load();
   }
+  function workSummary(employee){
+    const box=el('p','근무시간 확인 중…','employee-work-summary');
+    queueMicrotask(async()=>{if(!box.isConnected)return;try{
+      const ctx=await rpc('get_employee_leave_admin_context',{p_employee_uuid:employee.id});if(!box.isConnected)return;
+      const person=ctx.employees.find(e=>e.id===employee.id);
+      const terms=(person?.terms||[]).filter(t=>t.effective_from<=ctx.server_today).sort((a,b)=>b.effective_from.localeCompare(a.effective_from));
+      const current=terms[0];box.textContent=current?`근무시간 · ${current.starts_at.slice(0,5)} ~ ${current.ends_at.slice(0,5)} (${current.effective_from}부터)`:(person?.terms?.length?'근무시간 · 적용 예정':'근무시간 · 미등록');
+    }catch(_error){if(box.isConnected)box.textContent='근무시간을 불러오지 못했습니다.';}});return box;
+  }
   function employeePanel(employee){const host=el('section',null,'employee-profile-section');host.append(button('근무시간 확인·변경',()=>populate(host,employee.id)));return host;}
-  window.TaejangEmployeeLeave={open,employeePanel};
+  window.TaejangEmployeeLeave={open,employeePanel,workSummary};
 })();

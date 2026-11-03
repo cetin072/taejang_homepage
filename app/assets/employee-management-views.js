@@ -173,7 +173,10 @@
       title.append(heading, el('p', employee.employee_id), el('p', `${employee.department_name || '미배정'} · ${employee.position_name || '미지정'}`));
       const badges = el('div', null, 'employee-badges'); badges.append(badge(statusLabel(employee.employment_status)), badge(account.label), badge(employee.attendance_required ? '근태 대상' : '근태 제외'));
       if (account.review) badges.append(badge('연결 확인 필요', true)); title.append(badges);
-      head.append(avatar(employee, employee.profile_photo_path), title); card.append(back, head);
+      const photoActions = el('div', null, 'employee-photo-actions'); photoActions.append(photoPicker(employee, 'profile', context));
+      const canChangeId = context.access_level === 'operations_manager' || (!employee.protected && (context.access_level !== 'promotion_lead_global' || employee.department_id === context.department_id));
+      if (canChangeId) photoActions.append(photoPicker(employee, 'id_photo', context));
+      title.append(photoActions); head.append(avatar(employee, employee.profile_photo_path), title); card.append(back, head);
       const section = (label, className = '') => {
         const node = el('section', null, `employee-profile-section ${className}`); node.append(el('h3', label)); card.append(node); return node;
       };
@@ -199,6 +202,7 @@
       } else basic.append(el('p', '관리자·보호 직원 또는 타 부서 직책 변경은 운영총괄에서 처리합니다.', 'employee-protected-note'));
 
       if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
+        const summary = window.TaejangEmployeeLeave?.workSummary(employee); if (summary) basic.append(summary);
         const leavePanel = window.TaejangEmployeeLeave?.employeePanel(employee);
         if (leavePanel) card.append(leavePanel);
       }
@@ -213,20 +217,6 @@
       if (!profile) appSection.append(el('p','계정 발급 필요','help'));
       else if (!account.review && profile.account_status==='active' && employee.employment_status==='active' && passwordResetPanel)
         appSection.append(passwordResetPanel(employee));
-      const photos = section('사진', 'employee-section-photos'); const photoGrid = el('div', null, 'employee-photo-grid');
-      [['profile', '업무용 사진', employee.profile_photo_path], ['id_photo', '증명사진', employee.id_photo_path]].forEach(([type, label, path]) => {
-        const box = el('div'); box.append(el('h4', label));
-        const privateHidden = type === 'id_photo' && context.access_level !== 'operations_manager';
-        if (!privateHidden) box.append(avatar(employee, path, label));
-        box.append(el('p', privateHidden ? '현재 권한으로 등록 상태·사진 조회 불가' : path ? '등록됨' : '미등록', 'employee-photo-status'));
-        if (type === 'profile' || context.access_level === 'operations_manager'
-          || (!employee.protected
-            && (context.access_level !== 'promotion_lead_global'
-              || employee.department_id === context.department_id)))
-          box.append(photoPicker(employee, type, context));
-        photoGrid.append(box);
-      }); photos.append(photoGrid);
-
       // Keep the staff audit inside the existing card instead of a second menu.
       if ((context.access_level === 'promotion_lead_global'
            || context.access_level === 'operations_manager') && saveEmployeeAppCheck) {
