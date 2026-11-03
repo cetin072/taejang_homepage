@@ -173,7 +173,8 @@
       title.append(heading, el('p', employee.employee_id), el('p', `${employee.department_name || '미배정'} · ${employee.position_name || '미지정'}`));
       const badges = el('div', null, 'employee-badges'); badges.append(badge(statusLabel(employee.employment_status)), badge(account.label), badge(employee.attendance_required ? '근태 대상' : '근태 제외'));
       if (account.review) badges.append(badge('연결 확인 필요', true)); title.append(badges);
-      const photoActions = el('div', null, 'employee-photo-actions'); photoActions.append(photoPicker(employee, 'profile', context));
+      const photoActions = el('div', null, 'employee-photo-actions'); photoActions.append(el('p',employee.profile_photo_path?'업무용 사진 · 등록됨':'업무용 사진 · 미등록','employee-photo-status'),photoPicker(employee, 'profile', context));
+      photoActions.append(el('p',context.access_level==='operations_manager'?(employee.id_photo_path?'증명사진 · 등록됨':'증명사진 · 미등록'):'증명사진 · 현재 권한으로 등록 상태·사진 조회 불가','employee-photo-status'));
       const canChangeId = context.access_level === 'operations_manager' || (!employee.protected && (context.access_level !== 'promotion_lead_global' || employee.department_id === context.department_id));
       if (canChangeId) photoActions.append(photoPicker(employee, 'id_photo', context));
       title.append(photoActions); head.append(avatar(employee, employee.profile_photo_path), title); card.append(back, head);
