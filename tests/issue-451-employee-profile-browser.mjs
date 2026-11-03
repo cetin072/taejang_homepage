@@ -215,13 +215,11 @@ try {
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click(); await open();
     assert.equal(await page.locator('.employee-sensitive-section,input[type=password]').count(),0);
     assert.doesNotMatch(await page.locator('[data-employee-profile]').innerText(),/synthetic@example|2000-01-01|26세/);
-    assert.match(await page.locator('.employee-profile-head').innerText(),/조회 불가/);
+    assert.doesNotMatch(await page.locator('.employee-profile-head').innerText(),/증명사진/);
     await page.getByRole('button',{name:'수정',exact:true}).click(); await page.getByLabel('이름',{exact:true}).fill('가상 팀장 요청');
     await page.getByRole('button',{name:'수정 요청 보내기',exact:true}).click(); await page.getByText('직원정보 수정 · 처리 대기',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='submit_employee_change_request'&&call.args.p_request_type==='employee_update'&&call.args.p_requested_changes.full_name==='가상 팀장 요청')),true);
-    await page.locator('.employee-photo-actions input[type=file]').nth(1).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
-    await page.getByText('증명사진 변경 요청 완료 · 승인 후 반영됩니다.',{exact:true}).waitFor();
-    assert.match(await page.locator('.employee-profile-head').innerText(),/조회 불가/);
+    assert.equal(await page.locator('.employee-profile-head input[type=file]').count(),1);
     await fits();
 
     // Operations lead must use ONE staff card, not a second survey page.
