@@ -1,6 +1,6 @@
 .resources-section { padding-top: 12px; }
 .resources-heading { font-size: 20px; margin: 0 0 24px; }
-.resources-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.resources-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .resource-card { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; padding: 30px; border: 1px solid var(--line); border-radius: 12px; background: #fff; color: var(--ink); overflow-wrap: anywhere; }
 .resource-icon { width: 48px; height: 48px; margin-bottom: 24px; color: var(--green); }
 .resource-status { font-size: 13px; color: var(--green-deep); background: var(--green-soft); border-radius: 4px; padding: 4px 8px; }

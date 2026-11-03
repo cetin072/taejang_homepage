@@ -156,13 +156,14 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.goto(base+'/resources.html');
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
     assert.equal(await page.locator('h1').innerText(),'자료실');
-    assert.equal(await page.locator('.resource-card').count(),3);
-    assert.equal(await page.locator('.resource-card--pending').count(),2);
+    assert.equal(await page.locator('.resource-card').count(),2);
+    assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
+    assert.equal(await page.locator('.resource-card--pending').count(),1);
     assert.equal(await page.locator('.resource-card--pending a, .resource-card--pending button, .resource-card--pending [tabindex]').count(),0,'unpublished cards are not interactive');
     assert.equal(await page.locator('a[href="#"], a[download]').count(),0,'no fake downloads');
     assert.equal(await page.locator('.desktop-nav .resources-nav').getAttribute('aria-current'),'page');
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'resource cards fit viewport');
-    assert.equal(await page.locator('.resources-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),width>760?3:1);
+    assert.equal(await page.locator('.resources-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),width>760?2:1);
     const card=page.locator('.resource-card--link');
     await card.focus();
     assert.equal(await card.evaluate(el=>document.activeElement===el),true);
