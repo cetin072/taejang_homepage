@@ -1,4 +1,4 @@
-// Disposable local Supabase only; actual Auth/REST + production reader handler.
+// Disposable local Supabase only; personal write pilot + production ERP reader.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
@@ -24,12 +24,19 @@ let r=await read(owner);assert.equal(r.status,200);const body=await r.json();ass
 r=await read(other);assert.equal(r.status,403,'operations_manager has no personal workspace access');
 const headers={'Accept-Profile':'worklog'};
 r=await api('/rest/v1/schedules?workspace_id=eq.'+space,other.token,{headers});assert.equal(r.status,200);assert.deepEqual(await r.json(),[]);
-r=await api('/rest/v1/schedules',owner.token,{method:'POST',headers:{'Content-Profile':'worklog'},body:JSON.stringify({workspace_id:space,created_by_user_id:owner.id,title:'Denied',starts_at:'2026-11-02T01:00:00Z'})});assert.ok(!r.ok,'read-only pilot cannot create schedules');
+const saveBody={p_client_request_id:'synthetic-unified-'+randomUUID(),p_title:'Synthetic unified task',p_content:'Synthetic text',p_original_text:'Synthetic original',p_record_type:'task',p_status:'in_progress',p_schedule_title:'Synthetic unified schedule',p_schedule_starts_at:'2026-11-02T01:30:00Z'};
+const save=token=>api('/rest/v1/rpc/save_my_worklog_with_schedule_v2',token,{method:'POST',headers:{'Content-Profile':'worklog'},body:JSON.stringify(saveBody)});
+r=await save(owner.token);assert.ok(r.ok,await r.clone().text());const saved=(await r.json())[0];assert.ok(saved.work_record_id&&saved.schedule_id);
+r=await save(owner.token);assert.ok(r.ok);assert.equal((await r.json())[0].work_record_id,saved.work_record_id,'retry is idempotent');
+r=await read(owner);const updated=await r.json();assert.ok(updated.tasks.some(x=>x.id===saved.work_record_id),'ERP reads new mobile-contract task');assert.ok(updated.schedules.some(x=>x.id===saved.schedule_id),'ERP reads new mobile-contract schedule');
+r=await save(other.token);assert.ok(!r.ok,'privileged non-provisioned actor cannot save');
+r=await api('/rest/v1/workspaces',other.token,{method:'POST',headers:{'Content-Profile':'worklog'},body:JSON.stringify({name:'Self provision denied',owner_user_id:other.id,created_by_user_id:other.id})});assert.ok(!r.ok,'caller cannot provision a workspace');
 r=await api('/rest/v1/push_subscriptions',owner.token,{headers});assert.ok(!r.ok,'notification credentials are inaccessible');
 r=await read(owner,'&workspace_id='+space);assert.equal(r.status,400,'client cannot select another workspace');
 sql(`update public.profiles set account_status='suspended' where id='${owner.id}'`);
 r=await read(owner);assert.equal(r.status,403);
 r=await api('/rest/v1/schedules',owner.token,{headers});assert.deepEqual(await r.json(),[],'old valid JWT does not bypass suspended Profile');
+r=await save(owner.token);assert.ok(!r.ok,'suspended actor cannot save with an old JWT');
 r=await read({token:'invalid-synthetic-token'});assert.equal(r.status,401);
-assert.equal(sql("select count(*) from pg_trigger where tgrelid in (select oid from pg_class where relnamespace='worklog'::regnamespace) and not tgisinternal"),'0','write cutover triggers are not installed yet');
-console.log('PASS: real isolated Auth/REST dashboard owner read; privileged other, suspended, anonymous, writes and credential access denied');
+assert.equal(sql("select count(*) from pg_trigger where tgrelid in (select oid from pg_class where relnamespace='worklog'::regnamespace) and not tgisinternal"),'8','core write triggers only');
+console.log('PASS: isolated Auth/REST save/retry to ERP reader; privileged other, suspended, anonymous, provisioning and credential access denied');

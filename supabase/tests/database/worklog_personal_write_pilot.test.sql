@@ -1,0 +1,16 @@
+begin;
+select plan(12);
+select has_function('worklog','bootstrap_personal_workspace',array[]::text[],'imported owner bootstrap exists');
+select ok(has_table_privilege('authenticated','worklog.work_records','insert'),'core write granted');
+select ok(has_table_privilege('authenticated','worklog.schedules','update'),'schedule edit granted');
+select ok(not has_table_privilege('authenticated','worklog.workspaces','insert'),'self provisioning forbidden');
+select ok(not has_table_privilege('authenticated','worklog.workspace_members','update'),'membership changes forbidden');
+select ok(not has_table_privilege('authenticated','worklog.push_subscriptions','select'),'push credentials stay closed');
+select ok(not has_table_privilege('authenticated','worklog.notification_deliveries','insert'),'notification sending stays closed');
+select ok(not has_table_privilege('anon','worklog.work_records','select'),'anonymous data access forbidden');
+select ok(not has_function_privilege('anon','worklog.bootstrap_personal_workspace()','execute'),'anonymous bootstrap forbidden');
+select is((select count(*)::int from pg_trigger where tgrelid in(select oid from pg_class where relnamespace='worklog'::regnamespace) and not tgisinternal),8,'eight core triggers only');
+select ok(not exists(select 1 from pg_proc where pronamespace='worklog'::regnamespace and prosecdef),'publicly exposed RPCs use invoker security');
+select ok(not exists(select 1 from pg_class where relnamespace='worklog'::regnamespace and relkind='r' and not relrowsecurity),'all personal tables keep RLS');
+select * from finish();
+rollback;

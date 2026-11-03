@@ -94,3 +94,16 @@ Netlify의 WORKLOG_UNIFIED_READ_ENABLED=true를 functions scope / deploy-preview
 기존 연결 코드 변경 없이 단위검사 12/12 PASS. 이 환경의 새 로컬 Chromium 합성 검사 재실행은 OS socket 제한으로 시작하지 못했으며 PASS로 보고하지 않는다. 원래 runtime 소스의 a8bd9267 원격 브라우저/인증 회귀 성공과 이번 docs-only CI 결과를 구분한다. Cloud browser는 Supabase sign-in 화면으로 이동했으며 사용자 PC Ego 세션이나 기존 ERP 세션에 접근할 수 없다.
 
 다음 실제 흐름: Redirect allowlist에 고정 QA `/staff/google-link**` 확인 → 기존 ERP 이메일로 먼저 로그인 → Google 계정 연결 → 서버에서 같은 Auth UUID·활성 Profile/권한·직원 연결·개인 자료를 다시 대조. 기존 모바일 프로젝트와 pilot 읽기 전용/쓰기 금지 경계는 유지한다. 이후 새 모바일 기록 자동 반영을 위해 전체 쓰기 계약·차이 검증·개발기기 대상 전환이 필요하며 본 체크포인트를 전체 통합 완료로 해석하지 않는다.
+
+
+## 본인 모바일 쓰기 전환 실행본 — 2026-11-03 KST
+
+사용자가 단일 태장 Supabase 로드맵을 확인하고 다음 단계 진행을 요청했다. 동일 프로젝트의 public(기존 직원/근태)와 worklog(개인 업무수첩)를 분리하고 Auth UUID/본인 RLS를 유지한다. 프로젝트 공유는 다른 직원에게 개인 기록 열람을 허용하는 것이 아니다.
+
+후보 migration `20261103080116_worklog_personal_write_pilot`은 PR483의 검증된 SQL을 대상 저장소로 복제·축소했다. 기존 14테이블/원본 행은 다시 만들거나 고치지 않는다. 기존 본인 공간과 owner membership, 활성 Profile이 있는 계정만 bootstrap할 수 있다. 기존 코어 RPC26개와 코어 trigger8개, 저장에 필요한 테이블 ACL만 설치한다. Auth 자동가입/새 workspace/membership 변경, push credential 열람·발송/cron, 비용 집계, service-role 포괄 권한은 제외한다. 개인 자료 접근 기준은 직책이 아니라 실제 인증된 UUID다.
+
+실제 read-only migration 다음에 후보를 실행하는 PostgreSQL WASM 검사에서 기존 공간 내용 불변, 새 업무·일정/중복 저장 방지/normalization/완료 시간, 타인·정지·자가 공간 생성·push 차단을 확인했다. 기존 disposable Auth/REST integration도 새 RPC 저장/재시도 → 기존 ERP reader에서 동일 업무·일정 ID 표시를 검증하도록 확장했다. pgTAP12개는 core grants/RLS/invoker/private credential/trigger 경계를 검사한다. 원격 CI와 실제 적용 상태는 PR 실행 기록을 따른다.
+
+전환 순서는 서버 후보 검증 → 대상에 이 migration 하나만 적용 → 개발 API를 대상 프로젝트/worklog로 설정 → 본인 개발기기 Google 재로그인 → 새 기록 저장/ERP 동일 ID 확인이다. 서버 준비와 실제 모바일 전환을 구분한다. 원본 앱/다른 사용자/Production Netlify/Play를 조용히 바꾸지 않는다. QA 설치본은 사용자가 QA 제작을 요청한 때 생성하며 패치마다 만들지 않는다.
+
+쓰기 전환 직전에 원본/대상 최종 차이 및 기기 미전송 원문을 확인하고 단일 쓰기 원본을 정한다. 기기 큐/첨부/구 프로젝트 세션은 삭제하지 않는다. 쓰기 후에는 신규 target 기록을 회수하지 않은 단순 환경변수 rollback을 금지한다. 긴급 중지는 새 저장 진입/쓰기 ACL을 막고 신규 행을 보존한 뒤 차이를 조정한다. RPC/trigger를 성급히 DROP하거나 source 복사본으로 덮어쓰지 않는다.
