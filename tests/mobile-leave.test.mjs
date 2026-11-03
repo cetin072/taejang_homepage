@@ -120,3 +120,66 @@ test('QA leave screen preview confirms locally without submitting real leave',as
  const render=()=>{si=0;ri=0;return flat(exports.default());};render().find(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기').props.onPress();states[0]='2026-11-10';render().find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();render().find(n=>n?.type==='Pressable'&&text(n)==='네, 신청할게요').props.onPress();await new Promise(setImmediate);
  assert.deepEqual(calls,[]);assert.ok(hookFlags.every(x=>x===false));assert.equal(alerts.at(-1)[0],'화면 체험');
 });
+
+// Render the real attendance card with controlled server responses; no device,
+// Auth credentials, GPS, or live attendance writes are used by these tests.
+function leaveAttendanceCard(day, latest = day) {
+ const exports = {}, calls = { reads: 0, gps: 0, writes: 0 };
+ let stateIndex = 0;
+ const jsx = (type, props) => ({ type, props });
+ const native = { View:'View', Text:'Text', Pressable:'Pressable', Animated:{View:'AnimatedView'},
+  StyleSheet:{create:value=>value}, Alert:{alert:()=>{}}, AppState:{addEventListener:()=>({remove:()=>{}})} };
+ const feedback = { locked:{current:false}, turning:false, face:null, angle:{interpolate:()=>0}, cancel:()=>{}, success:()=>{} };
+ const code = ts.transpileModule(fs.readFileSync(new URL('../mobile/src/features/attendance/attendance-card.tsx',import.meta.url),'utf8'),
+  {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(code,{exports,Date,require:name=>{
+  if(name==='react/jsx-runtime') return {jsx,jsxs:jsx};
+  if(name==='react') return {useState:value=>{const index=stateIndex++;return[index===0?day:index===3?false:value,()=>{}];},useRef:value=>({current:value}),useCallback:fn=>fn,useEffect:()=>{}};
+  if(name==='react-native') return native;
+  if(name.endsWith('platform-provider')) return {usePlatform:()=>({client:{},session:{user:{id:'fixture'}}})};
+  if(name.endsWith('attendance-api')) return {
+   loadMyAttendanceToday:async()=>{calls.reads++;return latest;},
+   recordAttendanceEvent:async()=>{calls.writes++;throw Error('unexpected write');}
+  };
+  if(name.endsWith('attendance-location')) return {AttendanceLocationError:class extends Error{},getBestAttendancePosition:async()=>{calls.gps++;throw Error('unexpected GPS');}};
+  if(name.endsWith('qa-preview-state')) return {buildQaPreviewDay:()=>{throw Error('unexpected preview');}};
+  if(name.endsWith('attendance-feedback')) return {useAttendanceFeedback:()=>feedback};
+  throw Error(name);
+ }});
+ const flatten=node=>node==null||node===false?[]:Array.isArray(node)?node.flatMap(flatten):typeof node==='object'?[node,...flatten(node.props?.children)]:[node];
+ const nodes=flatten(exports.AttendanceCard({}));
+ const button=nodes.find(node=>node?.type==='Pressable'&&node.props.accessibilityRole==='button');
+ return {button,text:flatten(button).filter(value=>typeof value==='string').join(''),calls};
+}
+
+test('only server-confirmed full-day leave shows one short disabled attendance label',()=>{
+ const day={work_date:'2026-11-03',attendance_required:true,is_workday:false,clock_in_available:false,clock_in:null,clock_out:null,
+  work_schedule:{configured:true,is_workday:false,leave_portion:'full'}};
+ const leave=leaveAttendanceCard(day);
+ assert.equal(leave.text,'오늘은 연차입니다','no extra explanation under the title');
+ assert.equal(leave.button.props.accessibilityLabel,'오늘은 연차입니다');
+ assert.equal(leave.button.props.disabled,true);
+ assert.equal(leave.button.props.accessibilityState.disabled,true);
+ leave.button.props.onPress();
+ assert.deepEqual(leave.calls,{reads:0,gps:0,writes:0},'even a direct handler call cannot start attendance');
+ for(const schedule of [undefined,{configured:false,leave_portion:'full'},{configured:true,is_workday:false,leave_portion:null}]) {
+  const holiday=leaveAttendanceCard({...day,work_schedule:schedule});
+  assert.equal(holiday.button.props.disabled,true);
+  assert.ok(!holiday.text.includes('오늘은 연차입니다'),'a holiday or incomplete response is not approved full leave');
+ }
+ for(const portion of [null,'first_half','second_half']) {
+  const work=leaveAttendanceCard({...day,is_workday:true,clock_in_available:true,
+   work_schedule:{configured:true,is_workday:true,leave_portion:portion,starts_at:'2026-11-03T00:00:00Z',ends_at:'2026-11-03T04:00:00Z'}});
+  assert.equal(work.button.props.disabled,false,'workdays and legacy half-days retain attendance');
+  assert.equal(work.text.includes('오늘은 연차입니다'),false);
+ }
+});
+
+test('leave approved after rendering still stops before GPS and attendance writes',async()=>{
+ const work={work_date:'2026-11-03',attendance_required:true,is_workday:true,clock_in_available:true,clock_in:null,clock_out:null};
+ const approved={...work,is_workday:false,clock_in_available:false,work_schedule:{configured:true,is_workday:false,leave_portion:'full'}};
+ const card=leaveAttendanceCard(work,approved);
+ assert.equal(card.button.props.disabled,false);
+ card.button.props.onPress();await new Promise(setImmediate);
+ assert.deepEqual(card.calls,{reads:1,gps:0,writes:0});
+});

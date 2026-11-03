@@ -475,8 +475,15 @@ export function AttendanceCard({
     subtitle = `✓ 출근 완료 ${formatTime(clockIn?.event_at)}`;
   } else if (today?.is_workday === false) {
     action = null;
-    title = '오늘은 출근일이 아닙니다';
-    subtitle = today?.day_reason || '휴일입니다';
+    if (today.work_schedule?.configured === true
+      && today.work_schedule.is_workday === false
+      && today.work_schedule.leave_portion === 'full') {
+      title = '오늘은 연차입니다';
+      subtitle = '';
+    } else {
+      title = '오늘은 출근일이 아닙니다';
+      subtitle = today.day_reason || '휴일입니다';
+    }
   } else if (today?.clock_in_available === false) {
     action = null;
     title = '출근 전입니다';
