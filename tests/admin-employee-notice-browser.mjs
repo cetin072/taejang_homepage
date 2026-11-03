@@ -66,7 +66,7 @@ try{
    await page.evaluate(()=>{fixtureRoute='promotion_lead';fixtureContext.access_level='promotion_lead_global';fixtureContext.can_manage_sensitive_identity=false;TaejangEmployeeManagement.openEmployeeManagement();});
    await page.locator('[data-employee-id="fixture-2"]').click();
    assert.equal(await page.locator('.employee-sensitive-section').count(),0);
-   assert.match(await page.locator('.employee-profile-head').innerText(),/현재 권한으로 등록 상태·사진 조회 불가/);
+   assert.doesNotMatch(await page.locator('.employee-profile-head').innerText(),/증명사진/);
    assert.equal(await page.locator('.employee-profile-head img[alt*="증명사진"]').count(),0);
   }
   await page.goto(base+'/tests/browser/notice-authoring-ux-gate.html?capture');

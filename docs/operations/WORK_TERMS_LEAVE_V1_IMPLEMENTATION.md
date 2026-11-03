@@ -52,3 +52,29 @@ PR #572. 확정 기획은 `docs/planning/WORK_TERMS_ATTENDANCE_REMINDERS_AND_LEA
 - 정책 delay=5는 사용자 지시에 따라 확정했으나 enabled=false 및 Edge OFF 유지. 운영 적용·예약·실제 발송은 실행하지 않음.
 - 종료 시각은 날짜 예외·반차를 반영한 private_employee_schedule을 사용. GPS 추가 수집 없음.
 - 격리 실제 Auth 통합 runner에 5분 직전/정각, 미출근, 출근/퇴근 완료, 퇴근 예외대기, 휴무·근태제외 조건을 추가. 신규 HEAD의 CI 결과를 별도 확인해야 함.
+
+
+## 2026-11-03 연결 재점검 (main b4277c2)
+
+기획 최신 절과 코드/현재 서버를 나눠 확인했다. 앞부분의 PR572 착수 기록은 현재 배포 완료를 뜻하지 않는다. 직원앱 신규 신청은 현재 종일만 제공하며 승인 일정 변경은 별도 관리자 승인 흐름으로 구현됐다.
+
+| 연결 | 코드/검증 | 현재 연결 서버 상태 |
+| --- | --- | --- |
+| 직원관리 근무조건 → 서버 → 근태/알림 일정 | 같은 employee UUID·private_employee_schedule 재사용 | 기본 RPC 적용됨 |
+| 연차 초기 등록 → 앱 잔여 조회 | initialize_employee_leave / get_my_leave_context | 기본 RPC 적용됨 |
+| 앱 신청 → ERP 승인 → 미래 출근부 연차 | submit_my_leave_request / review_employee_leave / get_attendance_admin_today → 월간 renderer | 기본 승인 함수 적용됨. ERP 진입은 아래 metadata 누락으로 차단됨 |
+| 승인 전 반복 수정 / 승인 후 1회 변경 요청 → 관리자 검토 → 출근부·잔여 복구 | edit_my_pending_leave / request_my_leave_change / review_employee_leave_change | 세 RPC 모두 없음. 20261102051510 migration 미적용 |
+| 현재 재직자·직급별 ERP 조회 | roster_version 계약 | metadata 없음. 20261102140441 migration 미적용 |
+| 앱 재진입/foreground → 서버 잔여 재조회 | useMyLeave 및 기존 화면 재조회 경로 | 설치 APK 버전·실단말 왕복은 별도 확인 필요 |
+| 매월 1일 +1 | 중복 방지 ledger·guarded 조회 보충·내부 batch | 조회 시 보충 RPC는 있음. cron.job의 leave/reminder 예약은 0건이며 정기 실행 미확인 |
+| 승인 휴가 → 출퇴근 알림 제외 | 공통 schedule/outbox·직전 재검사·앱 이동 adapter | enabled=false / delay=5. 운영 발송·실수신 미검증 |
+
+읽기 전용 staff-config 확인: taejang.co.kr, qa-preview, deploy-preview-578 모두 jgsxpdflgkqroecfjzxq를 반환하며 ‘태장 비운영 사전테스트’ 표시였다. 앱은 API base의 같은 staff-config로 Supabase client를 초기화한다. 설치 APK가 실제 선택한 base/버전은 단말에서 확인하지 않았으며 동일 환경이라고 추정하지 않는다.
+
+QA 화면 체험은 합성 데이터이며 실제 신청/조회가 차단된다. 이 모드로 서버 왕복 검증을 대신할 수 없다. 하단 탭 PR577은 open Draft로 main에 미포함이다.
+
+검증 근거: ec8a9e5의 기존 CI 5개 success, 격리 Supabase 실제 Auth/RPC LEAVE_AUTH_INTEGRATION_PASS 105 assertions 및 pgTAP 1041 통과 로그를 재확인했다. 실제 신청→운영팀장 승인→미래 월간 출근부 ‘연차(승인)’→관리자 취소 승인→‘근무 예정’ 복구가 포함된다. 이번 재점검의 앱/알림 계약 검사 14개 통과. 공유 서버에서 TEST 직원 생성이나 실제 신청/승인/알림은 실행하지 않았다.
+
+적용 순서: 누락 migration 두 개 검토·동일 검수 서버 적용 → ERP와 최신 QA APK를 같은 서버/employee UUID로 접속 → 초기 등록/신청/승인/미래 출근부/수정·취소/foreground 잔여 확인 → 월 정기 발생 예약 별도 적용·중복 실행 검증 → 알림은 별도 활성화와 실기기 수신 확인. 부분 화면이나 CI 성공만으로 전체 연동 완료라고 표시하지 않는다.
+
+지문 Excel 제거는 UI 업로드와 안내를 제거하고 역사 자료·비교 조회·월간 Excel 다운로드는 보존한다. 출근부 확정의 fingerprint_import_missing만 제거하는 별도 migration을 준비했다. GPS 누락·예외 미처리·과거 지문 불일치·확정 재개방·반차 급여 검토 등 다른 검증은 유지한다. 이 migration도 공유 DB에는 미적용이며 UI 배포만으로 서버 필수 조건이 사라지지 않는다.
