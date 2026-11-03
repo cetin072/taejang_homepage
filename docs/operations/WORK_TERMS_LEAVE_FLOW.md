@@ -25,8 +25,8 @@ flowchart TD
 | 책임 | 실제 연결 코드 | 확인 |
 | --- | --- | --- |
 | 근무시간 입력·적용일 이력 | employee-management-views.js → employee-leave.js renderWorkTerms → save_employee_work_terms / save_employee_work_override | 구현. 이번 변경에서 promotion_lead 입력 허용 |
-| 최초 연차·잔여·조정 | employee-leave.js populate(leaveOnly=true) → initialize_employee_leave / adjust_employee_leave | 별도 연차관리만 입력. 운영총괄 유지 |
-| 앱 신청·대기 예약 | mobile/app/leave.tsx → leave-api.ts → submit_my_leave_request | KST 3일 기한·근무일·잔여·행 잠금. 직원 수정 불가 |
+| 최초 연차·잔여·조정 | employee-leave.js populate(leaveOnly=true) → initialize_employee_leave / adjust_employee_leave | 별도 연차관리에서 최초 등록은 운영총괄·운영팀장, 등록 후 조정은 운영총괄만 가능 |
+| 앱 신청·대기 예약 | mobile/app/leave.tsx → leave-api.ts → submit_my_leave_request | KST 3일 기한·근무일·잔여·행 잠금. 잔여량 직접 수정 불가 |
 | 관리자 승인·반려 | renderRequests → review_employee_leave | 운영총괄/운영팀장. 승인 대장 차감과 출근부 상태를 같은 트랜잭션에서 기록 |
 | 미래 출근부 | private_attendance_effective_status → get_attendance_admin_today → attendance-monthly.js | 승인 즉시 미래 연차 표시. 기존 확정 근태는 재개방 규칙 유지 |
 | 수정·취소 | edit_my_pending_leave / request_my_leave_change / review_employee_leave_change | 승인 전 반복 수정, 승인 후 수정 요청 1회. 변경 승인 전 기존 일정 유지. 취소 복구 중복 방지 |
@@ -36,9 +36,9 @@ flowchart TD
 
 ## 발견한 권한 결합과 수정
 
-기존 renderWorkTerms는 can_initialize를 사용했고, 근무시간 저장과 연차 최초 개수/조정 RPC가 같은 employee.work_terms_manage capability를 검사했다. 따라서 역할 grant만 추가하면 연차 개수 수정 권한도 함께 넓어질 수 있었다.
+기존 renderWorkTerms는 can_initialize를 사용했고, 근무시간 저장과 연차 최초 개수/조정 RPC가 같은 employee.work_terms_manage capability를 검사했다. 따라서 역할 grant만 추가하면 등록된 연차 개수 수정 권한도 함께 넓어질 수 있었다.
 
-이번 변경은 기존 capability를 재사용해 근무시간 등록을 허용하고, 연차 최초/조정은 operations_manager AND capability로 제한한다. public 관리자 context의 can_manage_work_terms/can_initialize를 별도로 반환한다. 새 서비스나 별도 연차 잔여 저장소를 만들지 않는다. 직접 RPC 권한 검사와 두 메뉴 화면을 함께 검증한다.
+이번 변경은 기존 capability를 재사용해 근무시간 등록을 허용하고, 최초 등록은 운영총괄·운영팀장 AND 기존 capability로 허용하고, 조정은 operations_manager AND capability로 제한한다. public 관리자 context의 can_manage_work_terms/can_initialize/can_adjust를 별도로 반환한다. 새 서비스나 별도 연차 잔여 저장소를 만들지 않는다. 직접 RPC 권한 검사와 두 메뉴 화면을 함께 검증한다.
 
 ## 남은 운영 단계
 
