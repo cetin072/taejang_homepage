@@ -47,7 +47,7 @@ try{
   await page.locator('.employee-list-row').first().waitFor();
   await capture('employee-list');
   if(!baseline){
-   assert.equal(await page.getByLabel('정렬',{exact:true}).locator('option').count(),5);
+   assert.equal(await page.getByLabel('정렬',{exact:true}).locator('option').count(),6);
    assert.equal(await page.locator('.employee-list-row').first().getAttribute('data-employee-id'),'fixture-2');
    assert.match(await page.locator('[data-employee-id="fixture-3"]').innerText(),/직책 미지정/);
    await page.getByLabel('정렬',{exact:true}).selectOption('employee_desc');
