@@ -80,7 +80,17 @@
       host.replaceChildren();const employee=ctx.employees.find(e=>e.id===employeeId);if(!employee){host.append(el('p','직원을 찾을 수 없습니다.'));return;}
       const reload=()=>{if(!leaveOnly)host.dispatchEvent(new Event('employee-work-terms-saved',{bubbles:true}));return populate(host,employeeId,leaveOnly);};if(!leaveOnly){renderWorkTerms(host,ctx,employee,reload);return;}
       const balance=employee.balance;host.append(el('h3',`${employee.name} · 연차 등록·현황`));host.append(el('p',balance?`발생 ${balance.accrued}개 · 남은 ${balance.remaining}개 · 신청 대기 ${balance.reserved}개 · 신청 가능 ${balance.available}개`:'연차 관리자 등록 대기'));
-      if(!balance&&ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));const accrued=field(f,'지금까지 발생한 연차','number'),remaining=field(f,'현재 남은 연차','number');const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;const reason=field(f,'기준일·입력 근거','text');reason.minLength=2;f.append(el('p',`기준일 ${ctx.server_today} · 과거 사용분이 반영된 잔여를 등록합니다.`));formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value}),reload);host.append(f);
+      if(!balance&&ctx.can_initialize){
+        const f=el('form',null,'employee-form app-authoring');f.append(el('h4','최초 연차 등록'));
+        f.append(el('p',`기준일 ${ctx.server_today} (자동) · 과거 사용분을 뺀 남은 개수를 입력합니다.`,'help'));
+        const amounts=el('div',null,'app-form-grid');f.append(amounts);
+        const accrued=field(amounts,'지금까지 발생한 연차','number'),remaining=field(amounts,'현재 남은 연차','number');
+        const confirmation=el('div',null,'app-form-grid');f.append(confirmation);
+        const reason=select(confirmation,'입력 근거',[['','확인한 자료 선택'],['ledger','기존 연차대장 확인'],['records','인사자료·사용 내역 확인'],['other','기타']], '');reason.required=true;
+        const monthly=field(confirmation,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;
+        const other=el('div');f.append(other);const detail=field(other,'기타 입력 근거','text','',false);detail.minLength=2;detail.maxLength=300;
+        const showOther=()=>{const enabled=reason.value==='other';other.hidden=!enabled;detail.disabled=!enabled;detail.required=enabled;};reason.addEventListener('change',showOther);showOther();
+        formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value==='other'?detail.value:reason.selectedOptions[0].textContent}),reload);host.append(f);
       }else if(balance&&(ctx.can_adjust ?? ctx.can_initialize)){const d=el('details');d.append(el('summary','잔여 연차 조정'));const f=el('form',null,'employee-form app-authoring');const amount=field(f,'조정 개수 (+ 또는 -)','number');amount.min='-100';amount.max='100';const reason=field(f,'조정 사유','text');reason.minLength=2;const id=crypto.randomUUID();formAction(f,'조정 저장',()=>rpc('adjust_employee_leave',{p_employee_uuid:employeeId,p_id:id,p_delta:Number(amount.value),p_reason:reason.value}),reload);d.append(f);host.append(d);
       }else if(balance&&ctx.can_initialize){host.append(el('p','등록된 연차 개수의 변경은 운영총괄에게 요청해주세요.'));}
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);

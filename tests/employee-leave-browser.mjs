@@ -45,12 +45,17 @@ for(const width of [320,390,786,1440]){
  await page.getByRole('button',{name:'직원별 연차 등록·현황',exact:true}).click();
  assert.equal(await page.getByLabel('직원 선택').locator('option[value=retired]').count(),0,'retired not available for balance registration');
  await page.getByLabel('직원 선택').selectOption('employee');
- await page.getByLabel('지금까지 발생한 연차').fill('10');await page.getByLabel('현재 남은 연차').fill('7');await page.getByLabel('기준일·입력 근거').fill('기존 수기대장 확인');
+ const accruedBox=await page.getByLabel('지금까지 발생한 연차',{exact:true}).boundingBox(),remainingBox=await page.getByLabel('현재 남은 연차',{exact:true}).boundingBox();
+ if(width>760){assert.ok(Math.abs(accruedBox.y-remainingBox.y)<2,'desktop balances share one row');assert.ok(remainingBox.x>=accruedBox.x+accruedBox.width,'desktop balance fields never overlap');}
+ else assert.ok(remainingBox.y>=accruedBox.y+accruedBox.height,'mobile balances stack using shared responsive grid');
+ assert.equal(await page.getByLabel('기타 입력 근거',{exact:true}).isVisible(),false,'no free typing for a predefined reason');
+ fs.mkdirSync('leave-admin-qa-artifacts',{recursive:true});await page.getByRole('button',{name:'최초 연차 등록',exact:true}).locator('..').screenshot({path:`leave-admin-qa-artifacts/initial-leave-${width}.png`});
+ await page.getByLabel('지금까지 발생한 연차').fill('10');await page.getByLabel('현재 남은 연차').fill('7');await page.getByLabel('입력 근거',{exact:true}).selectOption('other');await page.getByLabel('기타 입력 근거',{exact:true}).fill('기존 수기대장 확인');
  await page.getByLabel('매월 1일 1개 발생 대상 확인').check();
  await page.evaluate(()=>{window.failNext=true;});await page.getByRole('button',{name:'최초 연차 등록',exact:true}).click();
- await page.getByText('저장하지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.getByLabel('현재 남은 연차').inputValue(),'7');
+ await page.getByText('저장하지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.getByLabel('현재 남은 연차').inputValue(),'7');assert.equal(await page.getByLabel('입력 근거',{exact:true}).inputValue(),'other');assert.equal(await page.getByLabel('기타 입력 근거',{exact:true}).inputValue(),'기존 수기대장 확인');
  await page.getByRole('button',{name:'최초 연차 등록',exact:true}).click();await page.getByText('발생 10개 · 남은 7개',{exact:false}).waitFor();
- const saved=await page.evaluate(()=>window.calls.find(c=>c.name==='initialize_employee_leave'));assert.equal(saved.args.p_accrued,10);assert.equal(saved.args.p_remaining,7);assert.equal(saved.args.p_monthly_enabled,true);
+ const saved=await page.evaluate(()=>window.calls.find(c=>c.name==='initialize_employee_leave'));assert.equal(saved.args.p_accrued,10);assert.equal(saved.args.p_remaining,7);assert.equal(saved.args.p_monthly_enabled,true);assert.equal(saved.args.p_reason,'기존 수기대장 확인');
  assert.equal(await page.getByText('근무조건 추가',{exact:true}).count(),0);
  await page.getByLabel('직원 선택').selectOption('second');await page.getByRole('heading',{name:'둘째 직원 · 연차 등록·현황',exact:true}).waitFor();
  assert.equal(await page.getByRole('heading',{name:'검수 직원 · 연차 등록·현황',exact:true}).count(),0);
@@ -86,9 +91,10 @@ for(const width of [320,390,786,1440]){
  await page.getByRole('button',{name:'직원별 연차 등록·현황',exact:true}).click();
  await page.getByLabel('직원 선택').selectOption('second');
  await page.getByRole('button',{name:'최초 연차 등록',exact:true}).waitFor();
- await page.getByLabel('지금까지 발생한 연차',{exact:true}).fill('0');await page.getByLabel('현재 남은 연차',{exact:true}).fill('0');await page.getByLabel('기준일·입력 근거',{exact:true}).fill('최초 등록 확인');
+ await page.getByLabel('지금까지 발생한 연차',{exact:true}).fill('0');await page.getByLabel('현재 남은 연차',{exact:true}).fill('0');await page.getByLabel('입력 근거',{exact:true}).selectOption('ledger');assert.equal(await page.getByLabel('기타 입력 근거',{exact:true}).isVisible(),false);
  await page.getByRole('button',{name:'최초 연차 등록',exact:true}).click();
  await page.getByText('등록된 연차 개수의 변경은 운영총괄에게 요청해주세요.',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.name==='initialize_employee_leave').at(-1).args.p_reason),'기존 연차대장 확인','selection becomes server audit reason without manual typing');
  assert.equal(await page.getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0,'registered zero balance is not unconfigured');
  assert.equal(await page.getByText('잔여 연차 조정',{exact:true}).count(),0,'lead cannot adjust registered balance');
  await page.evaluate(()=>{const h=document.createElement('div');h.id='lead-work-qa';document.querySelector('#dashboard-main').append(h);h.append(window.TaejangEmployeeLeave.employeePanel({id:'second'}));});
