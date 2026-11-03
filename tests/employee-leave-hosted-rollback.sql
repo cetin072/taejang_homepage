@@ -37,6 +37,8 @@ begin
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ops,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',ops::text,true);
  perform public.save_employee_work_terms(emp,jsonb_build_object('effective_from',today,'weekdays',jsonb_build_array(1,2,3,4,5),'starts_at','09:00','ends_at','12:00','location_id',location,'reason','TEST rollback schedule'));
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',lead::text,true);
  perform public.initialize_employee_leave(emp,today,10,7,true,'TEST rollback baseline');
  ctx:=public.get_employee_leave_admin_context(emp);
  perform pg_temp.leave_check(ctx->>'roster_version'='1','ERP receives versioned employee metadata');
@@ -100,6 +102,22 @@ begin
  perform pg_temp.leave_check((select count(*)=1 from public.employee_leave_ledger where employee_uuid=emp and kind='monthly'),'monthly retry does not duplicate occurrence');
  perform pg_temp.leave_check(not has_function_privilege('anon','public.request_my_leave_change(uuid,uuid,text,date,text,text)','execute'),'anonymous change request denied');
  perform pg_temp.leave_check(not has_function_privilege('authenticated','public.private_submit_employee_leave(uuid,uuid,uuid,jsonb,date)','execute'),'private submission helper not exposed');
+ -- Approved lead work-hour authoring remains separate from leave balance authoring.
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',lead::text,true);
+ perform public.save_employee_work_terms(emp,jsonb_build_object('effective_from',today+90,'weekdays',jsonb_build_array(1,2,3,4,5),'starts_at','09:00','ends_at','12:00','location_id',location,'reason','TEST lead future schedule'));
+ ctx:=public.get_employee_leave_admin_context(emp);
+ perform pg_temp.leave_check((ctx->>'can_manage_work_terms')::boolean,'lead can register work hours in employee management');
+ perform pg_temp.leave_check(not (ctx->>'can_initialize')::boolean,'lead cannot reinitialize an existing employee');
+ perform pg_temp.leave_check(not (ctx->>'can_adjust')::boolean,'lead cannot adjust an existing baseline');
+ denied:=false;
+ begin perform public.initialize_employee_leave(emp,today,10,7,true,'TEST forbidden baseline overwrite');
+ exception when others then if sqlerrm like '%LEAVE_ALREADY_INITIALIZED%' then denied:=true; else raise; end if; end;
+ perform pg_temp.leave_check(denied,'lead cannot overwrite an initialized baseline');
+ denied:=false;
+ begin perform public.adjust_employee_leave(emp,gen_random_uuid(),1,'TEST forbidden lead adjustment');
+ exception when others then if sqlerrm like '%FORBIDDEN%' then denied:=true; else raise; end if; end;
+ perform pg_temp.leave_check(denied,'lead cannot adjust leave through direct RPC');
 end $$;
 select jsonb_build_object('mode','hosted DB with synthetic claims; all fixture writes rolled back','passed',count(*),'checks',jsonb_agg(label)) from leave_smoke_results;
 rollback;
