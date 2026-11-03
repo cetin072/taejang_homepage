@@ -18,8 +18,8 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   const sitemap = read('sitemap.xml');
   const testManifest = read('scripts/test-manifest.mjs');
   assert.match(home, /<footer class="footer">[\s\S]*?<a href="employee-app\.html">직원앱 소개<\/a>/);
-  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 3, "home header desktop/mobile and footer should link the app");
-  assert.equal((home.match(/class="employee-app-nav"/g) || []).length, 2);
+  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 1, "home retains its existing footer app link");
+  assert.equal((home.match(/class="resources-nav"/g) || []).length, 2);
   assert.match(build, /'employee-app\.html'/);
   assert.match(sitemap, /<loc>https:\/\/taejang\.co\.kr\/employee-app\.html<\/loc>/);
   assert.match(testManifest, /'tests\/employee-app-landing\.test\.js'/);
@@ -30,7 +30,7 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   assert.match(page, /href="assets\/css\/employee-app\.css"/);
   assert.match(page, /src="assets\/js\/site\.js"/);
   const mobile = page.match(/<nav class="mobile-nav"[^>]*>[\s\S]*?<\/nav>/)?.[0] || '';
-  assert.ok(mobile.indexOf('href="staff/"') < mobile.indexOf('href="employee-app.html"'), 'employee app guide follows sign-in in mobile menu');
+  assert.ok(mobile.indexOf('href="resources.html"') < mobile.indexOf('href="staff/"'), 'resource library precedes sign-in in mobile menu');
   const login = read('staff/index.html');
   const loginPanel = login.match(/<section id="login-panel"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(loginPanel, /href="\.\.\/employee-app\.html">직원앱 소개·이용 안내 보기/);
