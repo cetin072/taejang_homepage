@@ -23,7 +23,7 @@ import { BrandLoadingView } from '@/src/features/common/brand-loading-view';
 import { OfficialChannelsFooter } from '@/src/features/common/official-channels-footer';
 import { PolicyLinks } from '@/src/features/common/policy-links';
 import { resolveEmployeeAppFeatures } from '@/src/features/common/employee-feature-registry';
-import { LeaveHomeAction } from '@/src/features/leave/leave-home-action';
+import { EmployeeBottomTabs } from '@/src/features/common/employee-bottom-tabs';
 import { NoticeHomeAction } from '@/src/features/notices/notice-home-action';
 import { QaPreviewControls } from '@/src/features/qa/qa-preview-controls';
 import {
@@ -641,7 +641,6 @@ export default function HomeScreen() {
                 previewScenario={qaDayScenario}
               />
             ) : null}
-            {employeeFeatures.get('leave.self')?.state === 'enabled' ? <LeaveHomeAction preview={isQaApp && qaInspection === 'preview'} /> : null}
             {noticeFeature?.state !== 'hidden' ? <NoticeHomeAction /> : null}
             {showWorkPlatform ? (
               <PrimaryButton
@@ -658,6 +657,7 @@ export default function HomeScreen() {
 
         <OfficialChannelsFooter />
       </ScrollView>
+      {employeeFeatures.get('leave.self')?.state === 'enabled' ? <EmployeeBottomTabs selected="attendance" preview={isQaApp && qaInspection === 'preview'} /> : null}
     </View>
   );
 }
