@@ -78,3 +78,28 @@ QA 화면 체험은 합성 데이터이며 실제 신청/조회가 차단된다.
 적용 순서: 누락 migration 두 개 검토·동일 검수 서버 적용 → ERP와 최신 QA APK를 같은 서버/employee UUID로 접속 → 초기 등록/신청/승인/미래 출근부/수정·취소/foreground 잔여 확인 → 월 정기 발생 예약 별도 적용·중복 실행 검증 → 알림은 별도 활성화와 실기기 수신 확인. 부분 화면이나 CI 성공만으로 전체 연동 완료라고 표시하지 않는다.
 
 지문 Excel 제거는 UI 업로드와 안내를 제거하고 역사 자료·비교 조회·월간 Excel 다운로드는 보존한다. 출근부 확정의 fingerprint_import_missing만 제거하는 별도 migration을 준비했다. GPS 누락·예외 미처리·과거 지문 불일치·확정 재개방·반차 급여 검토 등 다른 검증은 유지한다. 이 migration도 공유 DB에는 미적용이며 UI 배포만으로 서버 필수 조건이 사라지지 않는다.
+
+
+## 2026-11-03 13:43 KST 승인 후 서버 적용·재검증
+
+사용자가 ‘응 바로 여기서 가능하면 시작하자’로 앞선 서버 연결 보완 실행을 승인했다. 대상은 staff-config가 반환하는 비운영 사전테스트 서버 jgsxpdflgkqroecfjzxq로 한정했다. 일괄 db push 없이 아래 파일만 순서대로 적용했다. 위 재점검의 ‘미적용’은 적용 전 기록이며 현재 상태는 이 절을 우선한다.
+
+| 파일 | 원격 적용 이력 | 상태 |
+| --- | --- | --- |
+| 20261102051510_employee_leave_change_requests.sql | 20261103043836 / employee_leave_change_requests | 적용 |
+| 20261102140441_employee_leave_roster_metadata.sql | 20261103043845 / employee_leave_roster_metadata | 적용 |
+| 20261103050000_retire_fingerprint_import_requirement.sql | 20261103044259 / retire_fingerprint_import_requirement | 적용 |
+
+처음 두 파일의 SHA256은 각각 8f35f816df031afdbf511244cc4c9900488943081a204b5a004a4d302e633dbc / 8d538ba8529574493a39e1724b7b15e484691d74953a04ab278efb75e2f511cd이며 이미 병합된 원본과 일치했다. 적용 전 기존 관련 함수 정의·ACL을 확보했고, 신규 변경 테이블/컬럼 부재와 적용 의존성을 확인했다. 이번 연차 변경은 기존 신청 데이터를 삭제하지 않는 추가 구조와 함수 교체다. 사용 후 복구가 필요하면 신규 신청을 삭제하는 rollback 대신 검토된 forward fix를 적용한다.
+
+검증:
+
+- RPC 세 개와 roster_version 계약이 실제 서버에 존재한다.
+- `tests/employee-leave-hosted-rollback.sql`을 승인된 대상에서 수동 실행해 20개 검사 PASS. TEST Auth 행/프로필/employee UUID를 트랜잭션 안에서만 만들고 JWT claim을 모사한다. 앱/ERP가 쓰는 실제 서버 RPC를 호출하지만 물리 앱·HTTP 로그인 검증은 아니다.
+- 초기 등록→본인 잔여→3일 이내 직접 RPC 차단→신청 예약→승인 전 반복 수정→운영팀장 승인/중복 승인→미래 출근부 연차→알림 근무일 제외→1회 승인 일정 변경/2회 차단→운영총괄 취소/중복 처리→잔여 복구→월 발생량·잔여 +1 및 재실행 중복 방지를 확인했다.
+- 한 트랜잭션 전체 ROLLBACK. 전후 계정 1 / 신청 0 / 원장 0 건 동일, 변경 요청 0, TEST Auth 행 잔존 0. 실직원 연차·근태를 수정하지 않았다. 회사 공휴일/달력도 변경하지 않았다.
+- 지문 확정 gate는 실제 날짜의 기존 blocker 배열에서 fingerprint_import_missing 하나를 제거한 결과와 새 함수 결과가 동일했다. 나머지 GPS/예외 등 blocker와 순서를 유지했고 private helper 실행권한은 차단됐다.
+- 적용 전후 보안 advisor에서 anon 노출 증가는 없었다. 새 변경 요청 테이블은 RLS + 일반 역할 전체 권한 회수로 RPC 전용이며 정책 부재 INFO 1건은 이 의도된 구조다. authenticated 함수 경고 3개 증가는 의도된 세 guarded RPC이고 내부 helper는 공개하지 않았다.
+- 기능 HEAD d95e48f의 격리 CI: pgTAP 1046 / 실제 Auth 연동 105 assertions PASS, 직원 상세/사진·연차 관리자·출근부 PC/mobile 브라우저 PASS, 지문 제거/역사 매칭 Chrome PASS. 공개 archive URL의 일시 HTTP timeout으로 실패한 landing job만 재실행했다. 결과는 PR에 최신 상태를 남긴다.
+
+남은 범위: 설치된 QA APK의 실제 화면 왕복·Push 수신은 확인하지 않았다. 월 정기 실행 및 실직원 알림은 활성화하지 않았고 정책 enabled=false 유지다. PR577 하단 탭과 PR580 UI는 별도 Draft이며 이번 서버 적용이 main 병합/Production 웹 배포/Play 제출을 뜻하지 않는다. 앱 신규 빌드는 사용자 요청 때 누적 변경으로 준비한다.
