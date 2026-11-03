@@ -743,6 +743,17 @@
 
       shell.append(personal);
 
+      if(app()?.getConfig?.()?.googleIdentityEnabled) {
+        const account=document.createElement('section');
+        account.className='platform-settings-card app-authoring';
+        const google=text('a','Google 계정 연결','button button-quiet');
+        google.href='../staff/google-link.html';
+        google.dataset.googleIdentity='1';
+        account.append(text('h3','내 로그인 계정'),google);
+        shell.append(account);
+      }
+
+
       const roleCard=document.createElement('section'); roleCard.className='platform-settings-card app-authoring';
       roleCard.append(text('h3','직책·역할별 사이드바 메뉴'));
       const select=document.createElement('select'); select.className='platform-settings-role-select';
