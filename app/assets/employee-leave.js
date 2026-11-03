@@ -44,7 +44,7 @@
     host.append(el('h3','근무시간'));
     const latest=[...employee.terms].sort((a,b)=>b.effective_from.localeCompare(a.effective_from))[0];
     host.append(el('p',latest?`${latest.effective_from}부터 · ${latest.starts_at.slice(0,5)}~${latest.ends_at.slice(0,5)}`:'등록된 근무시간이 없습니다.'));
-    if(ctx.can_initialize){
+    if(ctx.can_manage_work_terms ?? ctx.can_initialize){
       const f=el('form',null,'employee-form app-authoring leave-work-form');
       const scope=select(f,'적용 방식',[['base','기본 근무시간 등록·변경'],['date','하루만 근무시간 변경']]);
       const tomorrow=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+86400000).toISOString().slice(0,10);
@@ -71,7 +71,7 @@
     }
     const history=el('details');history.append(el('summary','근무시간 이력'));
     employee.terms.forEach(t=>history.append(el('p',`${t.effective_from}부터 · 요일 ${t.weekdays.join(',')} · ${t.starts_at}~${t.ends_at} · 휴게 ${t.break_starts_at||'없음'}${t.break_ends_at?'~'+t.break_ends_at:''}`)));host.append(history);
-    (ctx.overrides||[]).forEach(o=>{const row=el('section');row.append(el('p',`${o.effective_from} 하루 변경 · ${o.starts_at}~${o.ends_at}`));if(ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');const why=field(f,'예외 철회 사유','text');why.minLength=2;formAction(f,'날짜 예외 철회',()=>rpc('revoke_employee_work_override',{p_id:o.id,p_reason:why.value}),reload);row.append(f);}host.append(row);});
+    (ctx.overrides||[]).forEach(o=>{const row=el('section');row.append(el('p',`${o.effective_from} 하루 변경 · ${o.starts_at}~${o.ends_at}`));if(ctx.can_manage_work_terms ?? ctx.can_initialize){const f=el('form',null,'employee-form app-authoring');const why=field(f,'예외 철회 사유','text');why.minLength=2;formAction(f,'날짜 예외 철회',()=>rpc('revoke_employee_work_override',{p_id:o.id,p_reason:why.value}),reload);row.append(f);}host.append(row);});
   }
   async function populate(host,employeeId,leaveOnly=false){
     host.replaceChildren(el('p',leaveOnly?'연차를 확인하고 있습니다.':'근무시간을 확인하고 있습니다.'));

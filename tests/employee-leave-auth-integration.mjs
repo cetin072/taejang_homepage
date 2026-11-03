@@ -183,4 +183,17 @@ const rawChanges=await fetchApi('/rest/v1/employee_leave_change_requests?select=
 // Restore shared calendar fixture dates so later suites remain independent.
 db(`delete from public.attendance_calendar_overrides where work_date in (${calendarDays});`);
 for(const row of JSON.parse(oldOverrides))db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason,updated_by,updated_at) values('${row.work_date}',${row.is_workday},'Restored fixture',${row.updated_by?"'"+row.updated_by+"'":'null'},'${row.updated_at}');`);
+// Approved work-hours capability must not expand leave baseline/adjustment permissions.
+const leadHours=await rpc('save_employee_work_terms',lead,{p_employee_uuid:employee,p_values:{...terms,effective_from:add(90),reason:'Synthetic lead work-hours registration'}});
+check(leadHours.ok,'promotion lead registers employee work hours');
+const leadContext=await rpc('get_employee_leave_admin_context',lead,{p_employee_uuid:employee});
+equal(leadContext.data.can_manage_work_terms,true,'lead receives work-hour authoring flag');
+equal(leadContext.data.can_initialize,false,'lead does not receive leave-balance authoring flag');
+const leadInitial=await rpc('initialize_employee_leave',lead,{p_employee_uuid:employee,p_baseline_on:today,p_accrued:10,p_remaining:7,p_monthly_enabled:true,p_reason:'Synthetic forbidden baseline'});
+check(!leadInitial.ok&&String(leadInitial.data.message).includes('FORBIDDEN'),'lead cannot directly initialize leave balance');
+const leadAdjust=await rpc('adjust_employee_leave',lead,{p_employee_uuid:employee,p_id:crypto.randomUUID(),p_delta:1,p_reason:'Synthetic forbidden adjustment'});
+check(!leadAdjust.ok&&String(leadAdjust.data.message).includes('FORBIDDEN'),'lead cannot directly adjust remaining leave');
+const opsContext=await rpc('get_employee_leave_admin_context',ops,{p_employee_uuid:employee});
+equal(opsContext.data.can_manage_work_terms,true,'operations manager keeps work-hour authoring');
+equal(opsContext.data.can_initialize,true,'operations manager keeps leave-balance authoring');
 console.log(`LEAVE_AUTH_INTEGRATION_PASS ${assertions} assertions`);

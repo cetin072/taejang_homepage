@@ -20,7 +20,7 @@ select ok((select relrowsecurity from pg_class where oid='public.employee_leave_
 select ok((select not enabled and delay_minutes=5 from public.employee_reminder_policy where singleton),'approved five-minute policy remains disabled');
 select is(public.private_claim_attendance_reminders(gen_random_uuid()),'[]'::jsonb,'disabled reminder cannot claim any delivery');
 select ok(exists(select 1 from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='promotion_lead' and g.capability_code='leave.manage'),'lead receives narrow leave management only');
-select ok(not exists(select 1 from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='promotion_lead' and g.capability_code='employee.work_terms_manage'),'leave approval does not confer personnel edit permission');
+select ok(exists(select 1 from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='promotion_lead' and g.capability_code='employee.work_terms_manage'),'approved lead can manage work hours');
 select ok(not has_function_privilege('authenticated','public.private_request_attendance_exception_pre572(text,text,double precision,double precision,double precision)','EXECUTE'),'old exception cannot bypass schedule gate');
 select ok(not has_function_privilege('authenticated','public.private_set_attendance_day_status_pre572(uuid,date,text,text,text)','EXECUTE'),'old day status cannot bypass leave source protection');
 select ok(not has_table_privilege('authenticated','public.employee_work_overrides','UPDATE'),'date exceptions cannot be directly overwritten');
