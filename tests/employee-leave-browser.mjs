@@ -54,7 +54,7 @@ for(const width of [320,390,786,1440]){
  assert.equal(await page.getByText('근무조건 추가',{exact:true}).count(),0);
  await page.getByLabel('직원 선택').selectOption('second');await page.getByRole('heading',{name:'둘째 직원 · 연차 등록·현황',exact:true}).waitFor();
  assert.equal(await page.getByRole('heading',{name:'검수 직원 · 연차 등록·현황',exact:true}).count(),0);
- await page.evaluate(()=>{const h=document.createElement('div');document.querySelector('#dashboard-main').append(h);h.id='work-qa';h.append(window.TaejangEmployeeLeave.employeePanel({id:'employee'}));});
+ await page.evaluate(()=>{const h=document.createElement('div');document.querySelector('#dashboard-main').append(h);h.id='work-qa';h.dataset.employeeProfile='employee';h.append(window.TaejangEmployeeLeave.workSummary({id:'employee'}));h.append(window.TaejangEmployeeLeave.employeePanel({id:'employee'}));});
  await page.getByRole('button',{name:'근무시간 확인·변경',exact:true}).click();
  const work=page.locator('#work-qa');await work.getByRole('heading',{name:'근무시간',exact:true}).waitFor();
  assert.equal(await work.getByText('연차 발생·사용·조정 이력',{exact:true}).count(),0);assert.equal(await work.getByRole('heading',{name:'연차 신청·승인',exact:true}).count(),0);
@@ -76,6 +76,7 @@ for(const width of [320,390,786,1440]){
  assert.ok((await page.evaluate(()=>window.calls)).some(c=>c.name==='save_employee_work_terms'&&c.args.p_values.starts_at==='09:00'&&c.args.p_values.effective_from==='2026-11-03'));
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'mobile work form does not overflow');
  await page.waitForFunction(()=>document.querySelector('#work-qa [aria-label="적용 시작일"]')?.value==='2026-11-04');
+ await work.locator('.employee-work-summary').getByText('변경 예정 · 09:00 ~ 12:00 (2026-11-03부터)',{exact:true}).waitFor();
  const boxes=await work.locator('.leave-weekdays label').evaluateAll(labels=>labels.map(l=>{const r=l.getBoundingClientRect(),c=l.querySelector('input').getBoundingClientRect(),t=l.querySelector('span').getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,cx:c.x,cr:c.right,cy:c.y,cb:c.bottom,tx:t.x,tr:t.right,ty:t.y,tb:t.bottom};}));
  for(let i=0;i<boxes.length;i++){const a=boxes[i];assert.ok(a.cx>=a.x&&a.cr<=a.right&&a.cy>=a.y&&a.cb<=a.bottom,'checkbox stays in its own day tile');assert.ok(a.tx>=a.x&&a.tr<=a.right&&a.ty>=a.y&&a.tb<=a.bottom&&a.cb<=a.ty,'day text stays below its checkbox without overlap');for(let j=i+1;j<boxes.length;j++){const b=boxes[j];assert.ok(a.right<=b.x||b.right<=a.x||a.bottom<=b.y||b.bottom<=a.y,'weekday touch areas never overlap');}}
  if(width<600)assert.ok(boxes[4].y>boxes[0].y,'mobile weekdays wrap into two rows');

@@ -35,19 +35,17 @@ test('identity resolution prefers reviewed mapping or exact employee id and neve
   assert.doesNotMatch(migration, /full_name\s*=\s*p_source/i);
 });
 
-test('platform shell reuses the existing XLSX parser and registers attendance administration once through the feature registry', () => {
+test('platform shell keeps payroll parser and attendance registry without fingerprint upload', () => {
   assert.match(index, /payroll-attendance-xlsx\.js/);
   assert.doesNotMatch(index, /<script[^>]*payroll-attendance-xls\.js/, 'legacy reader is loaded on demand');
   assert.match(read('app/assets/payroll-attendance-xlsx.js'), /script\.src = '\/app\/assets\/payroll-attendance-xls\.js'/);
-  assert.match(admin, /fileInput\.accept = '\.xls,\.xlsx'/);
+  assert.doesNotMatch(admin, /fileInput\.accept/);
   assert.match(read('app/assets/payroll-attendance-xlsx.js'), /TaejangPayrollAttendanceXls/);
   assert.doesNotMatch(index, /<script src="assets\/attendance-admin\.js"/);
   assert.doesNotMatch(index, /<script src="assets\/attendance-integrity-ui\.js"/);
   assert.match(appUi, /\['assets\/attendance-admin\.js', 'attendance-admin'\]/);
   assert.match(appUi, /\['assets\/attendance-integrity-ui\.js', 'attendance-integrity-ui'\]/);
-  assert.match(admin, /TaejangPayrollAttendanceXlsx/);
-  assert.match(admin, /parseXlsxFile/);
-  assert.match(admin, /import_attendance_external_evidence/);
+  assert.doesNotMatch(admin, /TaejangPayrollAttendanceXlsx|parseXlsxFile|import_attendance_external_evidence/);
   assert.match(admin, /save_attendance_source_identity_mapping/);
 });
 
@@ -60,8 +58,7 @@ test('attendance roster compares GPS and fingerprint evidence and prioritizes ex
   assert.match(admin, /직원 미매칭 지문자료/);
 });
 
-test('browser import rejects ambiguous rows instead of silently choosing a person or duplicate day', () => {
-  assert.match(admin, /확인이 필요한 Excel 행/);
-  assert.match(admin, /같은 직원·날짜가 두 줄 이상 있습니다/);
-  assert.match(admin, /source_employee_key: row\.employeeId \|\| null/);
+test('removed import has no button, hidden input, parser helper or upload guidance', () => {
+  assert.doesNotMatch(admin, /지문 Excel 가져오기|GPS·지문 비교 안내|importFingerprintFile|allExcelRows|sha256File/);
+  assert.match(admin, /앱 근태 기준/);
 });

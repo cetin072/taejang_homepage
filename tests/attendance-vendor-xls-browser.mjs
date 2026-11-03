@@ -69,7 +69,7 @@ try {
   const context=await browser.newContext();
   const res=await context.request.get(preview+'/app/assets/attendance-admin.js');
   assert.equal(res.status(),200,'Deployed attendance UI bundle exists');
-  assert.match(await res.text(),/fileInput\.accept = '\.xls,\.xlsx'/);
+  assert.doesNotMatch(await res.text(),/importFingerprintFile|지문 Excel 가져오기|fileInput\.accept/);
   await context.close();
 } finally {
   await browser.close();
