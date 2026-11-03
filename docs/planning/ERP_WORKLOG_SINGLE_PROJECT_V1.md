@@ -100,10 +100,19 @@ Netlify의 WORKLOG_UNIFIED_READ_ENABLED=true를 functions scope / deploy-preview
 
 사용자가 단일 태장 Supabase 로드맵을 확인하고 다음 단계 진행을 요청했다. 동일 프로젝트의 public(기존 직원/근태)와 worklog(개인 업무수첩)를 분리하고 Auth UUID/본인 RLS를 유지한다. 프로젝트 공유는 다른 직원에게 개인 기록 열람을 허용하는 것이 아니다.
 
-후보 migration `20261103080116_worklog_personal_write_pilot`은 PR483의 검증된 SQL을 대상 저장소로 복제·축소했다. 기존 14테이블/원본 행은 다시 만들거나 고치지 않는다. 기존 본인 공간과 owner membership, 활성 Profile이 있는 계정만 bootstrap할 수 있다. 기존 코어 RPC26개와 코어 trigger8개, 저장에 필요한 테이블 ACL만 설치한다. Auth 자동가입/새 workspace/membership 변경, push credential 열람·발송/cron, 비용 집계, service-role 포괄 권한은 제외한다. 개인 자료 접근 기준은 직책이 아니라 실제 인증된 UUID다.
+후보 migration `20261103081634_worklog_personal_write_pilot`은 PR483의 검증된 SQL을 대상 저장소로 복제·축소했다. 기존 14테이블/원본 행은 다시 만들거나 고치지 않는다. 기존 본인 공간과 owner membership, 활성 Profile이 있는 계정만 bootstrap할 수 있다. 기존 코어 RPC26개와 코어 trigger8개, 저장에 필요한 테이블 ACL만 설치한다. Auth 자동가입/새 workspace/membership 변경, push credential 열람·발송/cron, 비용 집계, service-role 포괄 권한은 제외한다. 개인 자료 접근 기준은 직책이 아니라 실제 인증된 UUID다.
 
 실제 read-only migration 다음에 후보를 실행하는 PostgreSQL WASM 검사에서 기존 공간 내용 불변, 새 업무·일정/중복 저장 방지/normalization/완료 시간, 타인·정지·자가 공간 생성·push 차단을 확인했다. 기존 disposable Auth/REST integration도 새 RPC 저장/재시도 → 기존 ERP reader에서 동일 업무·일정 ID 표시를 검증하도록 확장했다. pgTAP12개는 core grants/RLS/invoker/private credential/trigger 경계를 검사한다. 원격 CI와 실제 적용 상태는 PR 실행 기록을 따른다.
 
 전환 순서는 서버 후보 검증 → 대상에 이 migration 하나만 적용 → 개발 API를 대상 프로젝트/worklog로 설정 → 본인 개발기기 Google 재로그인 → 새 기록 저장/ERP 동일 ID 확인이다. 서버 준비와 실제 모바일 전환을 구분한다. 원본 앱/다른 사용자/Production Netlify/Play를 조용히 바꾸지 않는다. QA 설치본은 사용자가 QA 제작을 요청한 때 생성하며 패치마다 만들지 않는다.
 
 쓰기 전환 직전에 원본/대상 최종 차이 및 기기 미전송 원문을 확인하고 단일 쓰기 원본을 정한다. 기기 큐/첨부/구 프로젝트 세션은 삭제하지 않는다. 쓰기 후에는 신규 target 기록을 회수하지 않은 단순 환경변수 rollback을 금지한다. 긴급 중지는 새 저장 진입/쓰기 ACL을 막고 신규 행을 보존한 뒤 차이를 조정한다. RPC/trigger를 성급히 DROP하거나 source 복사본으로 덮어쓰지 않는다.
+
+
+### 대상 서버 적용 결과
+
+실제 적용된 원격 이력은 `20261103081634 / worklog_personal_write_pilot`이다. CLI로 생성했던 후보 파일의 시간은 080116이었으나 관리 API가 실제 적용 시 081634를 기록했으므로 동일 SQL 파일명을 원격 이력에 맞춰 정리했다. SQL SHA256은 `6c174412393267939385a2f42675b3ec6110cc425be9a71c0750f3bf4086e6c0`로 동일하며 재적용하지 않는다.
+
+적용 전후 공간1/업무262/일정51의 전체 typed JSON 집계 hash가 각각 동일. imported owner bootstrap1, core trigger8, 본인 record INSERT 허용 및 self workspace INSERT/push SELECT/anon record SELECT 금지 확인. 기존 Profile/역할/직원 연결·다른 project/source에는 쓰지 않았다. 이 DB 검사는 실제 휴대폰 입력 성공의 대체가 아니다.
+
+검수 API의 deploy-preview context만 대상 URL·공개 key·primary=true·worklog schema로 설정했다. 변경 전 production/기타 context 값을 저장해 변경 후 동일함을 대조했다. site/team에 기존 관리자 secret은 없고 이를 새로 넣지 않았다. 임시 dev/preview scope 확인용 비사용 key는 삭제했다. 설치된 모바일/정식 API는 원본 유지하며 본인 실제 기기 전환·신규 저장→ERP 확인은 아직 남아 있다. 고정 ERP QA 브랜치는 이번 서버 준비 때문에 교체하지 않는다.
