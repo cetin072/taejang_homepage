@@ -78,7 +78,7 @@
     try{
       const ctx=await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId});if(!host.isConnected)return;
       host.replaceChildren();const employee=ctx.employees.find(e=>e.id===employeeId);if(!employee){host.append(el('p','직원을 찾을 수 없습니다.'));return;}
-      const reload=()=>populate(host,employeeId,leaveOnly);if(!leaveOnly){renderWorkTerms(host,ctx,employee,reload);return;}
+      const reload=()=>{if(!leaveOnly)host.dispatchEvent(new Event('employee-work-terms-saved',{bubbles:true}));return populate(host,employeeId,leaveOnly);};if(!leaveOnly){renderWorkTerms(host,ctx,employee,reload);return;}
       const balance=employee.balance;host.append(el('h3',`${employee.name} · 연차 등록·현황`));host.append(el('p',balance?`발생 ${balance.accrued}개 · 남은 ${balance.remaining}개 · 신청 대기 ${balance.reserved}개 · 신청 가능 ${balance.available}개`:'연차 관리자 등록 대기'));
       if(ctx.can_initialize){
         if(!balance){const f=el('form',null,'employee-form app-authoring');f.append(el('h4','오늘 기준 최초 연차 입력'));const accrued=field(f,'지금까지 발생한 연차','number'),remaining=field(f,'현재 남은 연차','number');const monthly=field(f,'매월 1일 1개 발생 대상 확인','checkbox','',true);monthly.checked=true;const reason=field(f,'기준일·입력 근거','text');reason.minLength=2;f.append(el('p',`기준일 ${ctx.server_today} · 과거 사용분이 반영된 잔여를 등록합니다.`));formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value}),reload);host.append(f);
@@ -155,6 +155,17 @@
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
     };await load();
   }
+  function workSummary(employee){
+    const box=el('div','근무시간 확인 중…','employee-work-summary');let generation=0;
+    const load=async()=>{const version=++generation;if(!box.isConnected)return;try{
+      const ctx=await rpc('get_employee_leave_admin_context',{p_employee_uuid:employee.id});if(!box.isConnected||version!==generation)return;
+      const person=ctx.employees.find(e=>e.id===employee.id),terms=[...(person?.terms||[])].sort((a,b)=>a.effective_from.localeCompare(b.effective_from));
+      const current=terms.filter(t=>t.effective_from<=ctx.server_today).at(-1),next=terms.find(t=>t.effective_from>ctx.server_today);
+      box.replaceChildren(el('p',current?`현재 근무시간 · ${current.starts_at.slice(0,5)} ~ ${current.ends_at.slice(0,5)} (${current.effective_from}부터)`:'현재 근무시간 · 미등록'));
+      if(next)box.append(el('p',`변경 예정 · ${next.starts_at.slice(0,5)} ~ ${next.ends_at.slice(0,5)} (${next.effective_from}부터)`));
+    }catch(_error){if(box.isConnected&&version===generation)box.textContent='근무시간을 불러오지 못했습니다.';}};
+    queueMicrotask(()=>{if(!box.isConnected)return;box.closest('[data-employee-profile]')?.addEventListener('employee-work-terms-saved',load);void load();});return box;
+  }
   function employeePanel(employee){const host=el('section',null,'employee-profile-section');host.append(button('근무시간 확인·변경',()=>populate(host,employee.id)));return host;}
-  window.TaejangEmployeeLeave={open,employeePanel};
+  window.TaejangEmployeeLeave={open,employeePanel,workSummary};
 })();

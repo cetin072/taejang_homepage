@@ -101,12 +101,12 @@ try {
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.locator('.employee-profile-section').count(),6);
+    assert.equal(await page.locator('.employee-profile-section').count(),5);
     const sectionColors=await page.locator('.employee-profile-section').evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
     assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
     await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
-    await page.locator('.employee-photo-grid').scrollIntoViewIfNeeded();
+    await page.locator('.employee-profile-head').scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,device+'-photos-and-audit.png'),fullPage:true});
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('취소할 가상 이름');
@@ -156,7 +156,7 @@ try {
     assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired Storage session refreshed once');
     assert.equal(await page.evaluate(()=>objects.size>0),true);
     assert.ok(await page.evaluate(()=>calls.findIndex(call=>call.name==='storage'&&call.method==='POST') < calls.findIndex(call=>call.name==='set_employee_photo')));
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/등록됨/);
+    assert.match(await page.locator('.employee-profile-head').innerText(),/등록됨/);
     await fits();
     await page.locator('[data-ops-employee-tools]').waitFor({state:'attached'});
     await page.getByText('기존 변경 이력·직원 관리 도구',{exact:true}).click();
@@ -215,13 +215,13 @@ try {
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click(); await open();
     assert.equal(await page.locator('.employee-sensitive-section,input[type=password]').count(),0);
     assert.doesNotMatch(await page.locator('[data-employee-profile]').innerText(),/synthetic@example|2000-01-01|26세/);
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/조회 불가/);
+    assert.match(await page.locator('.employee-profile-head').innerText(),/조회 불가/);
     await page.getByRole('button',{name:'수정',exact:true}).click(); await page.getByLabel('이름',{exact:true}).fill('가상 팀장 요청');
     await page.getByRole('button',{name:'수정 요청 보내기',exact:true}).click(); await page.getByText('직원정보 수정 · 처리 대기',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='submit_employee_change_request'&&call.args.p_request_type==='employee_update'&&call.args.p_requested_changes.full_name==='가상 팀장 요청')),true);
     await page.locator('.employee-photo-actions input[type=file]').nth(1).setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
     await page.getByText('증명사진 변경 요청 완료 · 승인 후 반영됩니다.',{exact:true}).waitFor();
-    assert.match(await page.locator('.employee-photo-grid').innerText(),/조회 불가/);
+    assert.match(await page.locator('.employee-profile-head').innerText(),/조회 불가/);
     await fits();
 
     // Operations lead must use ONE staff card, not a second survey page.
