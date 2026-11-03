@@ -24,7 +24,7 @@ const publicPages = [
   'location.html'
 ];
 
-const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'staff/', 'employee-app.html'];
+const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'staff/'];
 const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'location.html'];
 const compactFooterPages = new Set(['resources.html']);
 
@@ -62,23 +62,23 @@ for (const filename of publicPages) {
   assertHrefOrder(desktopNav, headerHrefs, `${filename} 데스크톱 메뉴`);
   assertHrefOrder(mobileNav, headerHrefs, `${filename} 모바일 메뉴`);
   for (const [surface, fragment] of [['desktop', desktopNav], ['mobile', mobileNav]]) {
-    assert.equal((fragment.match(/class="employee-app-nav"/g) || []).length, 1,
-      `${filename} ${surface} must have exactly one visible employee-app menu entry`);
+    assert.equal((fragment.match(/class="resources-nav"/g) || []).length, 1,
+      `${filename} ${surface} must have exactly one visible resources menu entry`);
     assert.match(fragment, surface === 'desktop'
-      ? /<a class="employee-app-nav" href="employee-app\.html"(?: aria-current="page")?>직원앱<\/a>/
-      : /<a class="employee-app-nav" href="employee-app\.html"(?: aria-current="page")?><span class="nav-entry-label">직원앱 안내<\/span><span class="nav-entry-description">앱 설치 및 사용 방법 /,
+      ? /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?>자료실<\/a>/
+      : /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?><span class="nav-entry-label">자료실<\/span><span class="nav-entry-description">앱 안내와 회사 자료/,
       `${filename} ${surface} uses its authored accessible label`);
   }
-  if (filename === 'employee-app.html') {
-    assert.equal((html.match(/class="employee-app-nav" href="employee-app\.html" aria-current="page"/g) || []).length, 2,
-      'the employee-app page marks its desktop/mobile current link before JavaScript');
+  if (filename === 'resources.html') {
+    assert.equal((html.match(/class="resources-nav" href="resources\.html" aria-current="page"/g) || []).length, 2,
+      'the resources page marks its desktop/mobile current link before JavaScript');
   }
   {
     assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
     assert.match(mobileNav, /<a class="staff-nav" href="staff\/"><span class="nav-entry-label">임직원<\/span><span class="nav-entry-description">업무 플랫폼 로그인<\/span><\/a>/, `${filename} 모바일 임직원 설명은 첫 페인트부터 정적으로 있어야 합니다`);
-    assert.ok(desktopNav.indexOf('href="staff/"') < desktopNav.indexOf('href="employee-app.html"'), `${filename} 데스크톱 직원앱은 임직원 뒤 마지막 항목입니다`);
+    assert.ok(desktopNav.indexOf('href="resources.html"') < desktopNav.indexOf('href="staff/"'), `${filename} 데스크톱 자료실은 임직원 앞에 둡니다`);
     assert.ok(mobileNav.indexOf('href="staff/"') > mobileNav.indexOf('href="partnership.html"'), `${filename} 모바일 직원용 메뉴는 공개 메뉴 아래에 분리합니다`);
-    assert.ok(mobileNav.indexOf('href="staff/"') < mobileNav.indexOf('href="employee-app.html"'), `${filename} 모바일 직원앱 소개는 임직원 로그인 아래에 둡니다`);
+    assert.ok(mobileNav.indexOf('href="resources.html"') < mobileNav.indexOf('href="staff/"'), `${filename} 모바일 자료실은 임직원 로그인 위에 둡니다`);
   }
 
   assert.match(
@@ -111,7 +111,7 @@ for (const filename of publicPages) {
   assert.ok(footerStart >= 0, `${filename} 정적 푸터가 있어야 합니다`);
   const footer = html.slice(footerStart);
   if (compactFooterPages.has(filename)) {
-    assert.doesNotMatch(footer, /class="footer-top"/, `${filename}는 noindex 자료 안내용 최소 푸터를 유지합니다`);
+    assert.doesNotMatch(footer, /class="footer-top"/, `${filename}는 자료실 최소 푸터를 유지합니다`);
   } else {
     assert.match(footer, /class="footer-top"/, `${filename} 표준 푸터 상단 영역이 있어야 합니다`);
     assertHrefOrder(footer, footerHrefs, `${filename} 푸터 바로가기`);
@@ -125,8 +125,8 @@ for (const filename of publicPages) {
 const promotion = read('promotion.html');
 for (const selector of [/\<nav class="desktop-nav"[^>]*>[\s\S]*?<\/nav>/, /\<nav class="mobile-nav"[^>]*>[\s\S]*?<\/nav>/]) {
   const nav = promotion.match(selector)?.[0] || '';
-  assertHrefOrder(nav, headerHrefs, 'promotion detail employee app link');
-  assert.equal((nav.match(/class="employee-app-nav"/g) || []).length, 1);
+  assertHrefOrder(nav, headerHrefs, 'promotion detail resources link');
+  assert.equal((nav.match(/class="resources-nav"/g) || []).length, 1);
 }
 
 const index = read('index.html');
@@ -162,11 +162,11 @@ assert.match(activities, /href="archive\.html" aria-current="page">소식·기�
 assert.match(activities, /소식·기록 전체 보기/);
 
 const styles = read('assets/css/styles.css');
-assert.match(styles, /\.desktop-nav \.employee-app-nav\{[^}]*border:0;[^}]*background:transparent;color:var\(--green-deep\)/,
-  'desktop employee app navigation is a plain link, not a beige button');
+assert.match(styles, /\.desktop-nav \.resources-nav\{[^}]*border:0;[^}]*background:transparent;color:var\(--green-deep\)/,
+  'desktop resources navigation is a plain link, not a beige button');
 assert.match(styles, /\.mobile-nav a\[href\*="partnership"\][\s\S]*?background:var\(--green\);color:#fff/, 'contact retains primary mobile CTA on clean URLs');
-assert.match(styles, /\.mobile-nav \.employee-app-nav\{[\s\S]*?background:transparent/, 'app guide has no filled mobile button');
-assert.match(styles, /\.mobile-nav \.employee-app-nav\[aria-current="page"\]\{[\s\S]*?background:transparent/, 'current app menu stays understated');
+assert.match(styles, /\.mobile-nav \.resources-nav\{[\s\S]*?background:transparent/, 'resources has no filled mobile button');
+assert.match(styles, /\.mobile-nav \.resources-nav\[aria-current="page"\]\{[\s\S]*?background:transparent/, 'current resources menu stays understated');
 const mobileLayout = read('assets/css/mobile-layout-fixes.css');
 assert.match(
   styles,
@@ -184,7 +184,7 @@ assert.doesNotMatch(site, /PUBLIC_NAV_LINKS/, '핵심 공개 메뉴를 JS 배열
 assert.doesNotMatch(site, /FOOTER_LINKS/, '핵심 푸터 바로가기를 JS 배열로 다시 생성하지 않습니다');
 assert.doesNotMatch(site, /nav\.replaceChildren\(\)/, '공개 헤더를 JS에서 비우고 재생성하지 않습니다');
 assert.doesNotMatch(site, /shortcuts\.querySelectorAll\('a'\)\.forEach\(link => link\.remove\(\)\)/, '푸터 바로가기를 삭제 후 재생성하지 않습니다');
-assert.match(site, /\['employee-app\.html', '직원앱'\]/, 'the public static menu contract includes employee app');
+assert.match(site, /\['resources\.html', '자료실'\]/, 'the public static menu contract includes resources');
 assert.match(site, /function markCurrentNavigation\(\)/, 'JS는 기존 정적 메뉴에 현재 페이지 상태만 보강합니다');
 assert.match(site, /function enhanceFooter\(\)/, 'JS는 기존 정적 푸터를 비파괴적으로 보강합니다');
 assert.match(site, /page === 'activities\.html' && targetPage === 'archive\.html'/);

@@ -92,7 +92,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
   assert.match(html, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 원본에 임직원 진입을 정적으로 제공해 첫 페인트 레이아웃 이동을 막습니다`);
   assert.equal((html.match(/class="staff-nav"/g) || []).length, 2, `${filename} 임직원 진입은 데스크톱·모바일에 각각 한 번만 있어야 합니다`);
-  assert.doesNotMatch(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실 링크를 숨깁니다`);
+  assert.match(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실을 제공합니다`);
   assert.match(html, /태장 소개/, `${filename} 공개 메뉴는 태장 소개를 제공합니다`);
   assert.match(html, /하는 일/, `${filename} 공개 메뉴는 하는 일 명칭을 사용합니다`);
   assert.match(html, /소식·기록/, `${filename} 공개 메뉴는 소식·기록 명칭을 사용합니다`);
@@ -343,7 +343,7 @@ assert.match(archiveStyles, /\.archive-search input\s*\{[\s\S]*?font-size:\s*16p
 assert.match(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?flex-wrap:\s*wrap[\s\S]*?overflow:\s*visible/);
 assert.doesNotMatch(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?overflow-x:\s*auto/);
 
-assert.match(resources, /name="robots" content="noindex,nofollow"/);
+assert.match(resources, /name="robots" content="index,follow"/);
 assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업과 역량|기업 협력/);
 assert.equal((resources.match(/class="staff-nav"/g) || []).length, 2, 'resources shares the authored public header without runtime insertion');
 for (const page of [privacy, terms]) {
@@ -363,7 +363,7 @@ assert.match(thanks, /href="index\.html"/);
 assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html#contact"/);
 
-for (const excluded of ['resources.html', 'privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
+for (const excluded of ['privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(escapeRegExp(excluded)));
 }
 for (const filename of Object.keys(pages).slice(1)) assert.match(sitemap, new RegExp(escapeRegExp(filename)));
