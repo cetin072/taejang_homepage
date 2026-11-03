@@ -20,7 +20,7 @@ test('uncertain form submission replays the same ID/payload across a server-date
  const states=[],refs=[],alerts=[],calls=[];let si=0,ri=0,fail=true;
  const context={configured:true,remaining:3,server_today:'2026-11-01',earliest_date:'2026-11-04',requests:[]};
  const client={rpc:async(name,args)=>{calls.push({name,args});return fail?{error:{message:'network outcome unknown'}}:{data:{ok:true}};}};
- const jsx=(type,props)=>({type,props});const native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','View'].map(n=>[n,n]));native.Alert={alert:(...args)=>alerts.push(args)};native.StyleSheet={create:x=>x};
+ const jsx=(type,props)=>({type,props});const native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','View'].map(n=>[n,n]));native.Alert={alert:(...args)=>alerts.push(args)};native.StyleSheet={create:x=>x};native.BackHandler={addEventListener:()=>({remove:()=>{}})};
  const react={useState:initial=>{const i=si++;if(!(i in states))states[i]=initial;return[states[i],v=>{states[i]=v;}];},useRef:initial=>{const i=ri++;return refs[i]??=( {current:initial});},useEffect:()=>{}};
  const exports={};const code=ts.transpileModule(fs.readFileSync(new URL('../mobile/app/leave.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  vm.runInNewContext(code,{exports,Date,require:name=>{
@@ -29,11 +29,11 @@ test('uncertain form submission replays the same ID/payload across a server-date
   if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('app-variant'))return{isQaApp:false};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({client,session:{user:{id:'worker'}}})};if(name.endsWith('use-my-leave'))return{useMyLeave:()=>({context,error:'',loading:false,reload:async()=>{}})};
-  if(name.endsWith('leave-api'))return api();throw Error(name);
+  if(name.endsWith('employee-bottom-tabs'))return{EmployeeBottomTabs:'EmployeeBottomTabs'};if(name.endsWith('leave-api'))return api();throw Error(name);
  }});
  const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];
- const render=()=>{si=0;ri=0;return flatten(exports.default());};const text=n=>flatten(n).filter(x=>typeof x==='string').join('');
- states[0]='2026-11-04';let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();alerts.at(-1)[2].find(a=>a.text==='하루 신청할게요').onPress();await new Promise(setImmediate);
+ const render=()=>{si=0;ri=0;return flatten(exports.default());};const text=n=>flatten(n).filter(x=>typeof x==='string'||typeof x==='number').join('');
+ let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기').props.onPress();states[0]='2026-11-04';nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='네, 신청할게요').props.onPress();await new Promise(setImmediate);
  assert.equal(calls.length,1);nodes=render();assert.equal(nodes.find(n=>n?.type==='Pressable'&&text(n)==='2026-11-04').props.disabled,true,'unknown result freezes editing but preserves input');
  context.earliest_date='2026-11-05';fail=false;nodes.find(n=>n?.type==='Pressable'&&text(n)==='같은 신청 다시 보내기').props.onPress();await new Promise(setImmediate);
  assert.equal(calls.length,2,'same-ID replay reaches server despite changed local deadline');assert.equal(calls[0].args.p_id,calls[1].args.p_id);assert.equal(JSON.stringify(calls[0].args.p_days),JSON.stringify(calls[1].args.p_days));
@@ -53,8 +53,8 @@ test('real app handlers allow repeated pending edits, block second approved edit
  const states=[],refs=[],alerts=[],calls=[];let si=0,ri=0;
  const context={configured:true,remaining:5,server_today:'2026-11-02',earliest_date:'2026-11-05',requests:[{id:'pending',work_date:'2026-11-10',portion:'full',units:1,status:'pending',modification_count:0}],change_requests:[]};
  const client={rpc:async(name,args)=>{calls.push({name,args});return{data:{ok:true}};}};
- const jsx=(type,props)=>({type,props});const native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','TextInput','View'].map(n=>[n,n]));native.Alert={alert:(...args)=>alerts.push(args)};native.StyleSheet={create:x=>x};
- const react={useState:initial=>{const i=si++;if(!(i in states))states[i]=initial;return[states[i],v=>{states[i]=v;}];},useRef:initial=>{const i=ri++;return refs[i]??={current:initial};},useEffect:()=>{}};
+ const jsx=(type,props)=>({type,props});const native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','TextInput','View'].map(n=>[n,n]));native.Alert={alert:(...args)=>alerts.push(args)};native.StyleSheet={create:x=>x};let back=()=>false;native.BackHandler={addEventListener:(_event,handler)=>{back=handler;return{remove:()=>{}}}};
+ const react={useState:initial=>{const i=si++;if(!(i in states))states[i]=initial;return[states[i],v=>{states[i]=v;}];},useRef:initial=>{const i=ri++;return refs[i]??={current:initial};},useEffect:f=>{f();}};
  const exports={};const code=ts.transpileModule(fs.readFileSync(new URL('../mobile/app/leave.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
  let nextId=0;vm.runInNewContext(code,{exports,Date,require:name=>{
   if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react')return react;if(name==='react-native')return native;
@@ -62,11 +62,12 @@ test('real app handlers allow repeated pending edits, block second approved edit
   if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('app-variant'))return{isQaApp:false};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({client,session:{user:{id:'worker'}}})};if(name.endsWith('use-my-leave'))return{useMyLeave:()=>({context,error:'',loading:false,reload:async()=>{}})};
-  if(name.endsWith('leave-api'))return api();throw Error(name);
+  if(name.endsWith('employee-bottom-tabs'))return{EmployeeBottomTabs:'EmployeeBottomTabs'};if(name.endsWith('leave-api'))return api();throw Error(name);
  }});
- const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];const text=n=>flatten(n).filter(x=>typeof x==='string').join('');
+ const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];const text=n=>flatten(n).filter(x=>typeof x==='string'||typeof x==='number').join('');
  const render=()=>{si=0;ri=0;return flatten(exports.default());};const click=label=>{const b=render().find(n=>n?.type==='Pressable'&&text(n)===label);assert.ok(b,label);assert.equal(b.props.disabled,false);b.props.onPress();};
- assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),false,'long rules are collapsed initially');click('신청 안내');assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),true);click('신청 안내 접기');
+ assert.ok(render().findIndex(n=>n?.type==='Text'&&text(n)==='앞으로 쉴 날짜')<render().findIndex(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기'),'upcoming leave precedes application');click('연차 신청하기');
+ assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),false,'long rules are collapsed initially');click('신청 안내');assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),true);click('신청 안내 접기');click('← 내 연차');
  for(const day of ['2026-11-11','2026-11-12']){
   click('신청 수정');states[0]=day;click('변경 내용 확인');assert.equal(calls.length,day.endsWith('11')?0:1,'confirmation does not send yet');alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
  }
@@ -75,23 +76,25 @@ test('real app handlers allow repeated pending edits, block second approved edit
  click('일정 수정 요청');assert.match(alerts.at(-1)[1],/1회.*관리자/);assert.equal(calls.length,2,'second approved edit never reaches API');
  context.requests[0].modification_count=0;click('일정 수정 요청');states[0]='2026-11-13';render().find(n=>n?.type==='TextInput').props.onChangeText('일정 변경 사유');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
  assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');
- click('여러 날 신청날짜 2개 이상');
+ click('연차 신청하기');click('여러 날 신청날짜 2개 이상');
  click('＋ 날짜 선택');let datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'dismissed'},new Date('2026-11-15T12:00:00'));assert.ok(!render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 1일'),'dismissed picker does not choose a day');
  for(const date of ['2026-11-15','2026-11-16']){click('＋ 날짜 선택');datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'set'},new Date(date+'T12:00:00'));}
  assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 2일'));
- click('2일 신청 확인');assert.match(alerts.at(-1)[0],/총 2일/);assert.match(alerts.at(-1)[1],/2026-11-15/);assert.match(alerts.at(-1)[1],/2026-11-16/);assert.match(alerts.at(-1)[1],/사용 연차 2개/);
- alerts.at(-1)[2].find(a=>a.text==='2일 신청할게요').onPress();await new Promise(setImmediate);assert.equal(calls[3].name,'submit_my_leave_request');assert.equal(calls[3].args.p_days.length,2);assert.ok(calls[3].args.p_days.every(d=>d.portion==='full'));
+ click('2일 신청 확인');assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='총 2일 쉬실 건가요?'));assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('11월 15일')));assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('11월 16일')));assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='2일 · 연차 2개 사용'));assert.equal(calls.length,3,'confirmation screen has not submitted yet');
+ render().find(n=>n?.type==='EmployeeBottomTabs').props.onHomePress();assert.equal(alerts.at(-1)[0],'출퇴근 화면으로 갈까요?','unfinished entry is guarded');assert.equal(back(),true,'Android back returns to date selection');assert.ok(render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 2일'),'confirmation back preserves dates');click('2일 신청 확인');click('네, 신청할게요');await new Promise(setImmediate);assert.equal(calls[3].name,'submit_my_leave_request');assert.equal(calls[3].args.p_days.length,2);assert.ok(calls[3].args.p_days.every(d=>d.portion==='full'));
  assert.equal(render().some(n=>n?.type==='Pressable'&&/앞 반차|뒤 반차/.test(text(n))),false,'no half-day choice is available');
+ context.requests.push({id:'old-rejected',work_date:'2026-10-20',portion:'full',units:1,status:'rejected'});assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('10월 20일')),false,'history starts collapsed');click('지난 신청 내역 보기');assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('10월 20일')));click('지난 신청 내역 접기');
  context.requests=[{id:'legacy-half',work_date:'2026-11-20',portion:'first_half',units:.5,status:'approved',modification_count:0}];const before=calls.length;click('일정 수정 요청');assert.equal(alerts.at(-1)[0],'기존 반차 내역');assert.equal(calls.length,before,'legacy half-day is not silently converted to a full day');assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('앞 반차')),'legacy history remains visible');
 
 });
-test('home leave entry is prominent and QA preview does not mount the live leave reader',()=>{
- const src=fs.readFileSync(new URL('../mobile/src/features/leave/leave-home-action.tsx',import.meta.url),'utf8');const exports={},routes=[];let reads=0;
- const jsx=(type,props)=>({type,props}),native={View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x}};
- vm.runInNewContext(ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:name=>{if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react-native')return native;if(name==='expo-router')return{useRouter:()=>({push:p=>routes.push(p)})};if(name.endsWith('use-my-leave'))return{useMyLeave:()=>{reads++;return{context:{configured:false},loading:false};}};throw Error(name);}});
- const flat=n=>n==null?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?(typeof n.type==='function'?flat(n.type(n.props)):[n,...flat(n.props?.children)]):[n];
- const preview=flat(exports.LeaveHomeAction({preview:true}));assert.equal(reads,0);const cta=preview.find(n=>n?.props?.accessibilityLabel==='연차 신청');assert.ok(cta.props.style.minHeight>=56);cta.props.onPress();assert.equal(routes[0],'/leave?preview=1');
- const live=flat(exports.LeaveHomeAction({}));assert.equal(reads,1);assert.ok(live.includes('관리자 등록 대기'));live.find(n=>n?.props?.accessibilityLabel==='연차 신청').props.onPress();assert.equal(routes[1],'/leave');
+test('shared large bottom tabs have selected states and reuse existing routes without reading leave',()=>{
+ const src=fs.readFileSync(new URL('../mobile/src/features/common/employee-bottom-tabs.tsx',import.meta.url),'utf8'),exports={},routes=[];
+ const jsx=(type,props)=>({type,props});
+ vm.runInNewContext(ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:name=>{if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react-native')return{View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x}};if(name==='expo-router')return{useRouter:()=>({navigate:p=>routes.push(p)})};throw Error(name);}});
+ const flat=n=>n==null?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?[n,...flat(n.props?.children)]:[n];
+ const tabs=flat(exports.EmployeeBottomTabs({selected:'attendance',preview:true})).filter(n=>n?.props?.accessibilityRole==='tab');assert.equal(tabs.length,2);assert.deepEqual(tabs.map(t=>t.props.accessibilityLabel),['출퇴근','내 연차']);assert.equal(tabs[0].props.accessibilityState.selected,true);assert.ok(tabs.every(t=>t.props.style[0].minHeight>=88));tabs[0].props.onPress();assert.equal(routes.length,0);tabs[1].props.onPress();assert.equal(routes[0],'/leave?preview=1');
+ let guarded=0;flat(exports.EmployeeBottomTabs({selected:'leave',onHomePress:()=>guarded++})).find(n=>n?.props?.accessibilityLabel==='출퇴근').props.onPress();assert.equal(guarded,1,'leave screen can guard unfinished input');
+ const locked=flat(exports.EmployeeBottomTabs({selected:'leave',disabled:true})).filter(n=>n?.props?.accessibilityRole==='tab');assert.ok(locked.every(n=>n.props.disabled),'in-flight requests cannot navigate away');
 });
 test('disabled leave hook cannot read the real server on QA preview or foreground',async()=>{
  let queries=0;const events=[];const exports={};
@@ -105,15 +108,78 @@ test('disabled leave hook cannot read the real server on QA preview or foregroun
 });
 test('QA leave screen preview confirms locally without submitting real leave',async()=>{
  const states=[],refs=[],calls=[],alerts=[],hookFlags=[];let si=0,ri=0;
- const jsx=(type,props)=>({type,props}),native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','TextInput','View'].map(n=>[n,n]));native.Alert={alert:(...a)=>alerts.push(a)};native.StyleSheet={create:x=>x};
+ const jsx=(type,props)=>({type,props}),native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','TextInput','View'].map(n=>[n,n]));native.Alert={alert:(...a)=>alerts.push(a)};native.StyleSheet={create:x=>x};native.BackHandler={addEventListener:()=>({remove:()=>{}})};
  const exports={};vm.runInNewContext(ts.transpileModule(fs.readFileSync(new URL('../mobile/app/leave.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,Date,require:name=>{
   if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react')return{useState:v=>{const i=si++;if(!(i in states))states[i]=v;return[states[i],x=>{states[i]=x}]},useRef:v=>refs[ri++]??={current:v},useEffect:()=>{}};
   if(name==='react-native')return native;if(name==='expo-router')return{useRouter:()=>({replace:()=>{}}),useLocalSearchParams:()=>({preview:'1'})};if(name==='expo-crypto')return{randomUUID:()=> 'demo'};
   if(name.endsWith('app-variant'))return{isQaApp:true};if(name==='react-native-safe-area-context')return{useSafeAreaInsets:()=>({top:0,bottom:0})};if(name==='@react-native-community/datetimepicker')return{__esModule:true,default:'DateTimePicker'};
   if(name.endsWith('platform-provider'))return{usePlatform:()=>({session:{user:{id:'real'}},client:{rpc:async(...args)=>{calls.push(args);throw Error('real server must not be called')}}})};
-  if(name.endsWith('use-my-leave'))return{useMyLeave:enabled=>{hookFlags.push(enabled);return{context:null,error:'',loading:false,reload:async()=>{}}}};if(name.endsWith('leave-api'))return api();throw Error(name);
+  if(name.endsWith('use-my-leave'))return{useMyLeave:enabled=>{hookFlags.push(enabled);return{context:null,error:'',loading:false,reload:async()=>{}}}};if(name.endsWith('employee-bottom-tabs'))return{EmployeeBottomTabs:'EmployeeBottomTabs'};if(name.endsWith('leave-api'))return api();throw Error(name);
  }});
- const flat=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?[n,...flat(n.props?.children)]:[n];const text=n=>flat(n).filter(x=>typeof x==='string').join('');
- states[0]='2026-11-10';const nodes=flat(exports.default());nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();alerts.at(-1)[2].find(a=>a.text==='하루 신청할게요').onPress();await new Promise(setImmediate);
+ const flat=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?[n,...flat(n.props?.children)]:[n];const text=n=>flat(n).filter(x=>typeof x==='string'||typeof x==='number').join('');
+ const render=()=>{si=0;ri=0;return flat(exports.default());};render().find(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기').props.onPress();states[0]='2026-11-10';render().find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();render().find(n=>n?.type==='Pressable'&&text(n)==='네, 신청할게요').props.onPress();await new Promise(setImmediate);
  assert.deepEqual(calls,[]);assert.ok(hookFlags.every(x=>x===false));assert.equal(alerts.at(-1)[0],'화면 체험');
+});
+
+// Render the real attendance card with controlled server responses; no device,
+// Auth credentials, GPS, or live attendance writes are used by these tests.
+function leaveAttendanceCard(day, latest = day) {
+ const exports = {}, calls = { reads: 0, gps: 0, writes: 0 };
+ let stateIndex = 0;
+ const jsx = (type, props) => ({ type, props });
+ const native = { View:'View', Text:'Text', Pressable:'Pressable', Animated:{View:'AnimatedView'},
+  StyleSheet:{create:value=>value}, Alert:{alert:()=>{}}, AppState:{addEventListener:()=>({remove:()=>{}})} };
+ const feedback = { locked:{current:false}, turning:false, face:null, angle:{interpolate:()=>0}, cancel:()=>{}, success:()=>{} };
+ const code = ts.transpileModule(fs.readFileSync(new URL('../mobile/src/features/attendance/attendance-card.tsx',import.meta.url),'utf8'),
+  {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.ReactJSX}}).outputText;
+ vm.runInNewContext(code,{exports,Date,require:name=>{
+  if(name==='react/jsx-runtime') return {jsx,jsxs:jsx};
+  if(name==='react') return {useState:value=>{const index=stateIndex++;return[index===0?day:index===3?false:value,()=>{}];},useRef:value=>({current:value}),useCallback:fn=>fn,useEffect:()=>{}};
+  if(name==='react-native') return native;
+  if(name.endsWith('platform-provider')) return {usePlatform:()=>({client:{},session:{user:{id:'fixture'}}})};
+  if(name.endsWith('attendance-api')) return {
+   loadMyAttendanceToday:async()=>{calls.reads++;return latest;},
+   recordAttendanceEvent:async()=>{calls.writes++;throw Error('unexpected write');}
+  };
+  if(name.endsWith('attendance-location')) return {AttendanceLocationError:class extends Error{},getBestAttendancePosition:async()=>{calls.gps++;throw Error('unexpected GPS');}};
+  if(name.endsWith('qa-preview-state')) return {buildQaPreviewDay:()=>{throw Error('unexpected preview');}};
+  if(name.endsWith('attendance-feedback')) return {useAttendanceFeedback:()=>feedback};
+  throw Error(name);
+ }});
+ const flatten=node=>node==null||node===false?[]:Array.isArray(node)?node.flatMap(flatten):typeof node==='object'?[node,...flatten(node.props?.children)]:[node];
+ const nodes=flatten(exports.AttendanceCard({}));
+ const button=nodes.find(node=>node?.type==='Pressable'&&node.props.accessibilityRole==='button');
+ return {button,text:flatten(button).filter(value=>typeof value==='string').join(''),calls};
+}
+
+test('only server-confirmed full-day leave shows one short disabled attendance label',()=>{
+ const day={work_date:'2026-11-03',attendance_required:true,is_workday:false,clock_in_available:false,clock_in:null,clock_out:null,
+  work_schedule:{configured:true,is_workday:false,leave_portion:'full'}};
+ const leave=leaveAttendanceCard(day);
+ assert.equal(leave.text,'오늘은 연차입니다','no extra explanation under the title');
+ assert.equal(leave.button.props.accessibilityLabel,'오늘은 연차입니다');
+ assert.equal(leave.button.props.disabled,true);
+ assert.equal(leave.button.props.accessibilityState.disabled,true);
+ leave.button.props.onPress();
+ assert.deepEqual(leave.calls,{reads:0,gps:0,writes:0},'even a direct handler call cannot start attendance');
+ for(const schedule of [undefined,{configured:false,leave_portion:'full'},{configured:true,is_workday:false,leave_portion:null}]) {
+  const holiday=leaveAttendanceCard({...day,work_schedule:schedule});
+  assert.equal(holiday.button.props.disabled,true);
+  assert.ok(!holiday.text.includes('오늘은 연차입니다'),'a holiday or incomplete response is not approved full leave');
+ }
+ for(const portion of [null,'first_half','second_half']) {
+  const work=leaveAttendanceCard({...day,is_workday:true,clock_in_available:true,
+   work_schedule:{configured:true,is_workday:true,leave_portion:portion,starts_at:'2026-11-03T00:00:00Z',ends_at:'2026-11-03T04:00:00Z'}});
+  assert.equal(work.button.props.disabled,false,'workdays and legacy half-days retain attendance');
+  assert.equal(work.text.includes('오늘은 연차입니다'),false);
+ }
+});
+
+test('leave approved after rendering still stops before GPS and attendance writes',async()=>{
+ const work={work_date:'2026-11-03',attendance_required:true,is_workday:true,clock_in_available:true,clock_in:null,clock_out:null};
+ const approved={...work,is_workday:false,clock_in_available:false,work_schedule:{configured:true,is_workday:false,leave_portion:'full'}};
+ const card=leaveAttendanceCard(work,approved);
+ assert.equal(card.button.props.disabled,false);
+ card.button.props.onPress();await new Promise(setImmediate);
+ assert.deepEqual(card.calls,{reads:1,gps:0,writes:0});
 });
