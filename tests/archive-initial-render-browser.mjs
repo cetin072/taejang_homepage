@@ -1,6 +1,7 @@
+import { newPhotoSafeContext } from './helpers/photo-safe-browser.mjs';
 // Real Chromium regression using public fixtures only; no login or data writes.
 import assert from 'node:assert/strict';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -19,21 +20,15 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = process.env.ARCHIVE_QA_BASE || `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--no-sandbox'] });
+const browser = await chromium.launch({ ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' }), headless: true, args: ['--no-sandbox'] });
 const metrics = [];
 const fixture = { id: 'promotion-browser-fixture', type: 'external', source: 'naver-blog', category: '회사소식', title: '최신 브라우저 검수 기록', summary: '네트워크 fixture로만 표시', thumbnail: '/images/og-taejang.png', publishedAt: '2099-01-01', status: 'published', externalUrl: 'https://blog.naver.com/taejang-official/999999999999', externalLabel: '네이버 블로그에서 보기' };
 try {
   for (const width of [390, 1440]) {
     for (const mode of ['normal', 'slow', 'failure', 'no-js', 'script-error', 'early']) {
-      const context = await browser.newContext({ viewport: { width, height: 1000 }, javaScriptEnabled: mode !== 'no-js' });
-      await context.route('https://fonts.**', route => route.abort());
+      const context = await newPhotoSafeContext(browser, { viewport: { width, height: 1000 }, javaScriptEnabled: mode !== 'no-js' });
+      await context.route('https://fonts.*/**', route => route.abort());
       await context.route('https://taejang.co.kr/images/og-taejang.png', route => route.fulfill({ contentType: 'image/png', path: path.join(root, 'images/og-taejang.png') }));
-      // Snapshot records can contain real public photos. This is a UI/state
-      // matrix, not a repeated production Storage download test.
-      await context.route('https://*.supabase.co/storage/**', route => {
-        if (route.request().resourceType() !== 'image') return route.abort();
-        return route.fulfill({ contentType: 'image/png', path: path.join(root, 'images/og-taejang.png') });
-      });
       let releaseFeed; const feedReady = new Promise(resolve => { releaseFeed = resolve; });
       await context.route('**/.netlify/functions/public-promotion-feed*', async route => {
         if (mode === 'slow') await feedReady;
@@ -53,8 +48,14 @@ try {
         // Exact HTML and hydrated view must use the same first record and controls.
         const first = page.locator('[data-hub-list] article').first();
         const title = await first.locator('h2').textContent();
-        await page.screenshot({ path: path.join(output, `initial-${width}.png`), fullPage: false });
-        await page.evaluate(async () => { await document.fonts.ready; await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); });
+        // The parser is deliberately waiting for content-hub.js. FontFaceSet.ready
+        // can wait for parsing to finish, so capture the current paint directly.
+        await page.evaluate(() => new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const capture = await context.newCDPSession(page);
+        try {
+          const { data } = await capture.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+          await writeFile(path.join(output, `initial-${width}.png`), Buffer.from(data, 'base64'));
+        } finally { await capture.detach(); }
         const top = (await first.boundingBox()).y;
 
 

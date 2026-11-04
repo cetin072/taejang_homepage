@@ -1,3 +1,4 @@
+import { newPhotoSafeContext } from './helpers/photo-safe-browser.mjs';
 // Run after npm run build:netlify. Optional PREVIEW_URL repeats on actual PR Preview.
 // Native POST is intercepted; this never creates a real inquiry or email.
 import assert from 'node:assert/strict';
@@ -55,7 +56,7 @@ async function ready(page) {
 }
 try {
   for (const width of [320, 390, 768, 1440]) {
-    const context = await browser.newContext({ viewport: { width, height: width < 600 ? 844 : 1000 }, reducedMotion: 'reduce' });
+    const context = await newPhotoSafeContext(browser, { viewport: { width, height: width < 600 ? 844 : 1000 }, reducedMotion: 'reduce' });
     let post = null;
     let mockAction = null;
     const blockedWrites = [];
@@ -63,7 +64,7 @@ try {
     // No non-read request from this context is ever sent to the network.
     await context.route('**/*', async route => {
       const request = route.request();
-      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.continue();
+      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
       if (request.method() === 'POST' && mockAction && request.url() === mockAction) {
         post = request.postData();
         return route.fulfill({ status: 503, contentType: 'text/html; charset=utf-8', body: '<h1>개발 검수용 수신 실패</h1><p>요청은 외부로 전송되지 않았습니다. 뒤로가기로 입력을 확인합니다.</p>' });
@@ -142,7 +143,7 @@ try {
     results.push({ width, metric, blockedWrites, faq: true, nativeValidation: true, interceptedPost: true, failureBackPreservation: true });
     await context.close();
   }
-  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+  const context = await newPhotoSafeContext(browser, { javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage(); await page.goto(base + '/partnership.html');
   assert.ok(await page.locator('#partnership-faq-answer-1').isVisible(), 'JS off FAQ');
   assert.equal(await field(page, 'inquiry-type').locator('option').count(), 8);

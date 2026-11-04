@@ -1,3 +1,4 @@
+import { newPhotoSafeContext } from './helpers/photo-safe-browser.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -28,7 +29,7 @@ try {
   browser = await chromium.launch({ headless: true,
     ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' }) });
   for (const width of [320, 390, 1440]) {
-    const context = await browser.newContext({ viewport: { width, height: 1000 } });
+    const context = await newPhotoSafeContext(browser, { viewport: { width, height: 1000 } });
     // Test the actual click and iframe lifecycle without depending on third-party
     // article/YouTube transport. This does not claim live video/audio playback.
     await context.route('https://www.youtube-nocookie.com/**', route => route.fulfill({ body: '<title>Isolated video transport</title>', contentType: 'text/html' }));
@@ -115,7 +116,7 @@ try {
     console.log(`PASS ${width}px: uncropped photo, readable caption, both link clicks, stable height, keyboard, swipe, two video iframe lifecycles`);
     await context.close();
   }
-  const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+  const context = await newPhotoSafeContext(browser, { javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
   assert.equal(await page.locator('.hero-article-link').isVisible(), true, 'article remains usable without JavaScript');

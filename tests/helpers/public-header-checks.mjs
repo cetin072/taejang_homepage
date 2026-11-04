@@ -1,3 +1,4 @@
+import { newPhotoSafeContext } from './photo-safe-browser.mjs';
 import {recordBrowserDiagnostics} from '../../scripts/browser-network-diagnostics.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -41,7 +42,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
   const results = [];
   const externalBodyImageWarnings = [];
   for (const width of [1440,390]) {
-    const context = await browser.newContext({viewport:{width,height:1000},reducedMotion:'reduce'});
+    const context = await newPhotoSafeContext(browser, {viewport:{width,height:1000},reducedMotion:'reduce'});
     const page = await context.newPage();
     const diagnostics=recordBrowserDiagnostics(page);
     const errors = [];
@@ -141,7 +142,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await context.close();
   }
   for(const width of[1440,390]){
-    const context=await browser.newContext({viewport:{width,height:900},javaScriptEnabled:false});
+    const context=await newPhotoSafeContext(browser, {viewport:{width,height:900},javaScriptEnabled:false});
     const page=await context.newPage();await page.goto(base+'/index.html');
     for(const selector of['.desktop-nav','[data-mobile-nav]'])assert.deepEqual((await page.locator(selector).evaluate(hrefs)).map(canonicalHref),order,'no-JS authored order including pretty URLs');
     assert.ok(await page.locator(width===390?'[data-mobile-nav]':'.desktop-nav').isVisible(),'no-JS navigation remains visible');
@@ -151,7 +152,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
   // The resource hub is authored HTML: pending materials are not dead links,
   // and the available card makes the round trip without a runtime data fetch.
   for (const javaScriptEnabled of [true, false]) for (const width of [1440, 390, 320]) {
-    const context = await browser.newContext({viewport:{width,height:900},javaScriptEnabled,reducedMotion:'reduce'});
+    const context = await newPhotoSafeContext(browser, {viewport:{width,height:900},javaScriptEnabled,reducedMotion:'reduce'});
     const page = await context.newPage();
     await page.goto(base+'/resources.html');
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
@@ -178,7 +179,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
   // The head controller is inlined at build time and must not depend on a
   // network request. JavaScript-disabled fallback is checked above.
   for (const failed of ['site.js','public-navigation.js']) {
-    const context=await browser.newContext({viewport:{width:390,height:1000}});
+    const context=await newPhotoSafeContext(browser, {viewport:{width:390,height:1000}});
     let requests=0;
     await context.route('**/assets/js/'+failed,route=>{requests++;return route.abort();});
     const page=await context.newPage();
