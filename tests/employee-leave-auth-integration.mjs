@@ -69,7 +69,8 @@ for (const [actor,tag] of [[ops,'ops'],[lead,'lead']]) {
  check((await rpc('save_employee_work_terms',ops,{p_employee_uuid:ownEmployee,p_values:terms})).ok,tag+' own schedule configured');
  check((await rpc('initialize_employee_leave',ops,{p_employee_uuid:ownEmployee,p_baseline_on:today,p_accrued:10,p_remaining:7,p_monthly_enabled:true,p_reason:'Synthetic self baseline'})).ok,tag+' own balance initialized');
  const ownRequest=crypto.randomUUID();
- check((await rpc('submit_my_leave_request',actor,{p_id:ownRequest,p_days:[{date:d,portion:'full'}]})).ok,tag+' submits own leave');
+ const ownSubmitted=await rpc('submit_my_leave_request',actor,{p_id:ownRequest,p_days:[{date:d,portion:'full'}]});
+ check(ownSubmitted.ok,tag+' submits own leave: '+JSON.stringify(ownSubmitted.data));
  if(tag==='ops') {
   db(`update public.profiles set account_status='suspended' where id='${ops.id}'`);
   const inactive=await rpc('review_employee_leave',ops,{p_request_id:ownRequest,p_decision:'approved',p_note:'Inactive self review'});
