@@ -85,6 +85,7 @@ jobs:
         env:
           PROMOTION_QA_OUTPUT: admin-ui-qa-artifacts/promotion-blog-cards
         run: |
+          node tests/photo-safe-browser-regression.mjs
           node tests/promotion-blog-card-browser.mjs
           node tests/archive-initial-render-browser.mjs
 

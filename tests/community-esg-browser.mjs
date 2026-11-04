@@ -1,3 +1,4 @@
+import { newPhotoSafeContext, newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -20,12 +21,12 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ headless: true, ...(process.env.CI ? { channel: 'chrome' } : {}) });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : process.env.CI ? { channel: 'chrome' } : {}) });
 const order = ['fifth', 'fourth', 'third', 'second', 'first'];
 try {
   for (const width of [320, 390, 1440]) {
     for (const mode of ['runtime', 'no-js', 'missing-data']) {
-      const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled: mode !== 'no-js' });
+      const context = await newPhotoSafeContext(browser, { viewport: { width, height: 900 }, javaScriptEnabled: mode !== 'no-js' });
       await context.route('https://**/*', route => route.abort());
       if (mode === 'missing-data') await context.route('**/assets/js/content.js', route => route.fulfill({ body: 'window.TAEJANG_CONTENT = { activities: [] };', contentType: 'text/javascript' }));
       const page = await context.newPage();
@@ -62,7 +63,7 @@ try {
       await context.close();
     }
   }
-  const page = await browser.newPage();
+  const page = await newPhotoSafePage(browser, );
   await page.route('https://**/*', route => route.abort());
   await page.goto(`${origin}/community-esg.html`);
   await page.getByRole('link', { name: '환경정비 활동 더보기', exact: false }).first().click();

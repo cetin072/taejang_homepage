@@ -1,3 +1,4 @@
+import { newPhotoSafeContext, newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 import { exerciseMotion, exerciseScrollTriggeredCards } from './helpers/employee-app-motion-checks.mjs';
 import { checkReadinessBoundary } from './helpers/public-page-ready-checks.mjs';
 import { gotoPublicReady } from './helpers/public-page-ready.mjs';
@@ -79,7 +80,7 @@ try {
     // CSS viewport equivalent to desktop 1440 at 200%/400%; not a physical-device claim.
     ['reflow-200', 720, 450], ['reflow-400', 360, 225]
   ]) {
-    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
+    const context = await newPhotoSafeContext(browser, { viewport: { width, height }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -242,7 +243,7 @@ try {
   }
   // Exercise the actual sign-in panel with a local-only public config mock: no credentials or Auth requests.
   for (const [name, width, height] of [['pc', 1440, 900], ['mobile', 390, 844], ['narrow', 320, 720]]) {
-    const staffContext = await browser.newContext({ viewport: { width, height } });
+    const staffContext = await newPhotoSafeContext(browser, { viewport: { width, height } });
     await staffContext.addInitScript(() => {
       window.TAEJANG_STAFF_CONFIG = { url: 'https://unused.invalid', publishableKey: 'test-public-config-only' };
     });
@@ -267,7 +268,7 @@ try {
     await staffContext.close();
     console.log('PASS staff login app guide: ' + name);
   }
-    const noJS = await browser.newContext({ viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
+    const noJS = await newPhotoSafeContext(browser, { viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
   const staticPage = await noJS.newPage();
   await staticPage.goto(base + '/employee-app.html');
   assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);
@@ -281,7 +282,7 @@ try {
   await noJS.close();
   const motion = { hero: 'approved V2.1 5200ms', card: '2000ms reading + 1000ms single half-turn, card in-view trigger and viewport pause/resume' };
   for (const width of [1440, 390, 320]) {
-  const normal = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
+  const normal = await newPhotoSafeContext(browser, { viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
   const motionOutput = path.join(output, 'motion-' + width);
@@ -295,7 +296,7 @@ try {
   await normal.close();
   }
   if (process.env.EMPLOYEE_APP_QA_BASE) {
-    const cleanPage = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const cleanPage = await newPhotoSafePage(browser, { viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     await gotoPublicReady(cleanPage, base + '/employee-app', output);
     assert.ok(isLandingRoute(cleanPage.url()), 'hosted clean URL stays on landing');
     const cleanMenu = cleanPage.locator('.desktop-nav .resources-nav');
