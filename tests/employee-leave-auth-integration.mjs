@@ -64,8 +64,10 @@ const d=add(3),d2=add(4),d3=add(5),d4=add(6),d5=add(7);const calendarDays=[d,d2,
 db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values ${[d,d2,d3,d4,d5].map(x=>`('${x}',true,'Synthetic leave test')`).join(',')} on conflict(work_date) do update set is_workday=true;`);
 // Operations may review their own leave; a lead keeps the self-review guard.
 for (const [actor,tag] of [[ops,'ops'],[lead,'lead']]) {
+ // Operations are excluded from canonical attendance; keep the fixture consistent.
+ const attendanceRequired=tag!=='ops';
  const ownPerson=crypto.randomUUID(),ownEmployee=crypto.randomUUID();
- db(`insert into public.people(id,full_name) values('${ownPerson}','Synthetic self leave ${tag}');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required,updated_at) values('${ownEmployee}','TJ-${crypto.randomInt(690001,790000)}','${ownPerson}','${dept}','${pos}','2020-01-01',true,'2020-01-01');insert into public.account_person_links(profile_id,person_id,linked_by,reason) values('${actor.id}','${ownPerson}','${ops.id}','Synthetic self-review test');`);
+ db(`insert into public.people(id,full_name) values('${ownPerson}','Synthetic self leave ${tag}');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required,updated_at) values('${ownEmployee}','TJ-${crypto.randomInt(690001,790000)}','${ownPerson}','${dept}','${pos}','2020-01-01',${attendanceRequired},'2020-01-01');insert into public.account_person_links(profile_id,person_id,linked_by,reason) values('${actor.id}','${ownPerson}','${ops.id}','Synthetic self-review test');`);
  check((await rpc('save_employee_work_terms',ops,{p_employee_uuid:ownEmployee,p_values:terms})).ok,tag+' own schedule configured');
  check((await rpc('initialize_employee_leave',ops,{p_employee_uuid:ownEmployee,p_baseline_on:today,p_accrued:10,p_remaining:7,p_monthly_enabled:true,p_reason:'Synthetic self baseline'})).ok,tag+' own balance initialized');
  const ownRequest=crypto.randomUUID();
