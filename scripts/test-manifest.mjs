@@ -1,5 +1,6 @@
 export const testGroups = Object.freeze({
   platformStatic: Object.freeze([
+    'tests/employee-leave-errors.test.mjs',
     'tests/personal-worklog.test.mjs',
     'tests/google-identity-link.test.mjs',
     'tests/menu-authority.test.js',
