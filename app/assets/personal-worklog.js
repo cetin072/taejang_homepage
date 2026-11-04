@@ -99,6 +99,8 @@
         content.replaceChildren(lists,calendar(data));
       } catch(error){
         if(!alive()||request!==pending)return;
+        // Accounts without a migrated personal workspace keep their normal ERP dashboard.
+        if(error.code==='PERSONAL_WORKSPACE_UNAVAILABLE'){root.replaceChildren();root.hidden=true;return;}
         content.replaceChildren();status.textContent=copy[error.code]||'연결에 실패했습니다. 태장 업무는 계속 사용할 수 있습니다.';
         controls.replaceChildren(action('다시 시도',()=>void load()));
       }

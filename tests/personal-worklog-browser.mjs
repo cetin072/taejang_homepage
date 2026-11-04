@@ -20,6 +20,7 @@ try {
     if(mode==='delayed')await new Promise(r=>delayResolve=r);
     if(mode==='failure')return route.fulfill({status:502,json:{code:'WORKLOG_UNAVAILABLE'}});
     if(mode==='pending')return route.fulfill({status:503,json:{code:'WORKLOG_MIGRATION_PENDING'}});
+    if(mode==='no-space')return route.fulfill({status:403,json:{code:'PERSONAL_WORKSPACE_UNAVAILABLE'}});
     const month=u.searchParams.get('month');
     if(mode==='dense')return route.fulfill({json:{connected:true,month,today:month+'-03',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:Array.from({length:20},(_,i)=>({id:'dense-'+i,title:`합성 대량 일정 ${i+1} `+'줄바꿈되면 안 되는 매우 긴 제목 '.repeat(8)+'<img src=x onerror=alert(1)>',starts_at:month+'-02T01:'+String(i).padStart(2,'0')+':00Z',ends_at:null,all_day:i===0})),todaySchedules:[],tasks:[]}});
     return route.fulfill({json:{connected:true,month,today:'2026-11-02',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:[{id:'s',title:'합성 모바일 일정 <script>alert(1)</script>',starts_at:month+'-02T01:00:00Z',ends_at:null,all_day:false}],todaySchedules:[{title:'합성 오늘 일정',starts_at:'2026-11-02T01:00:00Z',all_day:false}],tasks:[{title:'합성 미완료',status:'needs_review',due_at:null}]}});
@@ -71,6 +72,9 @@ try {
   mode='failure';await p.evaluate(()=>TaejangDashboard.render());await p.getByText(/태장 업무는 계속/).waitFor();
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   mode='success';await p.getByRole('button',{name:'다시 시도',exact:true}).click();await p.getByRole('table').waitFor();
+  mode='no-space';await p.evaluate(()=>TaejangDashboard.render());await p.locator('.personal-worklog').waitFor({state:'hidden'});
+  assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1,'non-owner retains ERP operational dashboard');
+  mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
   mode='delayed';await p.getByRole('button',{name:'새로고침',exact:true}).click();
   while(!delayResolve)await new Promise(r=>setTimeout(r,10));
   await p.getByRole('button',{name:'로그아웃',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
