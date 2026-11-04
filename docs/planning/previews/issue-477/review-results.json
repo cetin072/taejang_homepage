@@ -1,0 +1,375 @@
+{
+  "scope": "local independent design mockups only; not hosted UAR",
+  "results": [
+    {
+      "name": "baseline",
+      "width": 1440,
+      "viewport": 1440,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 1001,
+      "viewport": 1001,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 768,
+      "viewport": 768,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 720,
+      "viewport": 720,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 390,
+      "viewport": 390,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 360,
+      "viewport": 360,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "width": 320,
+      "viewport": 320,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "baseline",
+      "text200": true,
+      "fonts": {
+        "body": "\"Nanum Gothic\", sans-serif",
+        "heading": "\"Nanum Myeongjo\", serif",
+        "loaded": [
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800"
+        ]
+      },
+      "requestHosts": [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ]
+    },
+    {
+      "name": "proposal-a",
+      "width": 1440,
+      "viewport": 1440,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 1001,
+      "viewport": 1001,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 768,
+      "viewport": 768,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 720,
+      "viewport": 720,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 390,
+      "viewport": 390,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 360,
+      "viewport": 360,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "width": 320,
+      "viewport": 320,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-a",
+      "text200": true,
+      "fonts": {
+        "body": "\"Nanum Gothic\", sans-serif",
+        "heading": "\"Nanum Myeongjo\", serif",
+        "loaded": [
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800"
+        ]
+      },
+      "requestHosts": [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ]
+    },
+    {
+      "name": "proposal-b",
+      "width": 1440,
+      "viewport": 1440,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 1001,
+      "viewport": 1001,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 768,
+      "viewport": 768,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 720,
+      "viewport": 720,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 390,
+      "viewport": 390,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 360,
+      "viewport": 360,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "width": 320,
+      "viewport": 320,
+      "clipped": [],
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "text200": true,
+      "fonts": {
+        "body": "\"Nanum Gothic\", sans-serif",
+        "heading": "\"Nanum Myeongjo\", serif",
+        "loaded": [
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 400",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 700",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Gothic 800",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 700",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800",
+          "Nanum Myeongjo 800"
+        ]
+      },
+      "requestHosts": [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com"
+      ]
+    },
+    {
+      "name": "proposal-a",
+      "noJS": true,
+      "pass": true
+    },
+    {
+      "name": "proposal-b",
+      "noJS": true,
+      "pass": true
+    }
+  ],
+  "ratios": [
+    {
+      "label": "body on white",
+      "ratio": 12.8
+    },
+    {
+      "label": "secondary on beige",
+      "ratio": 4.84
+    },
+    {
+      "label": "green label on green-soft",
+      "ratio": 9.79
+    },
+    {
+      "label": "action white on green",
+      "ratio": 6.39
+    },
+    {
+      "label": "connector on white",
+      "ratio": 6.39
+    }
+  ]
+}

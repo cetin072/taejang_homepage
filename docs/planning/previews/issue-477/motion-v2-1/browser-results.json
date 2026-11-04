@@ -1,0 +1,206 @@
+{
+  "scope": "Independent local HERO V2.1, not hosted UAR or real app",
+  "durationMs": 5200,
+  "results": [
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 1440,
+      "document": 1440,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 1440,
+      "document": 1440,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 1440,
+      "document": 1440,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 1001,
+      "document": 1001,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 1001,
+      "document": 1001,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 1001,
+      "document": 1001,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 768,
+      "document": 768,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 768,
+      "document": 768,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 768,
+      "document": 768,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 720,
+      "document": 720,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 720,
+      "document": 720,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 720,
+      "document": 720,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 390,
+      "document": 390,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 390,
+      "document": 390,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 390,
+      "document": 390,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 360,
+      "document": 360,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 360,
+      "document": 360,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 360,
+      "document": 360,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 0,
+      "width": 320,
+      "document": 320,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 50,
+      "width": 320,
+      "document": 320,
+      "clipped": []
+    },
+    {
+      "case": "layout",
+      "percent": 100,
+      "width": 320,
+      "document": 320,
+      "clipped": []
+    },
+    {
+      "case": "seek-determinism",
+      "mismatches": 0
+    },
+    {
+      "case": "real-time-play-pause-resume-end",
+      "pass": true
+    },
+    {
+      "case": "text-200",
+      "width": 320,
+      "document": 320,
+      "clipped": []
+    },
+    {
+      "case": "no-js",
+      "pass": true
+    },
+    {
+      "case": "reduced-motion",
+      "pass": true
+    },
+    {
+      "case": "static-pixel-repeat-and-print",
+      "identical": true
+    },
+    {
+      "case": "hero-height",
+      "width": 1440,
+      "before": 681.46875,
+      "after": 681.46875,
+      "delta": 0
+    },
+    {
+      "case": "hero-height",
+      "width": 390,
+      "before": 892.734375,
+      "after": 892.734375,
+      "delta": 0
+    },
+    {
+      "case": "desktop-headless-animation-frame-sample",
+      "frames": 855,
+      "medianMs": 6.099999999999454,
+      "p95Ms": 6.199999999999818,
+      "over50ms": 0,
+      "note": "headless desktop only; not physical mobile FPS"
+    }
+  ],
+  "remoteHosts": [
+    "fonts.googleapis.com",
+    "fonts.gstatic.com"
+  ],
+  "errors": []
+}

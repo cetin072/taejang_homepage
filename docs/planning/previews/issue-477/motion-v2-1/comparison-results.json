@@ -1,0 +1,32 @@
+{
+  "exactViewports": [
+    1440,
+    390
+  ],
+  "focusViewNativeArtSizePreserved": true,
+  "frames": [
+    0,
+    3400,
+    3900,
+    5200
+  ],
+  "coreTimingIdenticalAtMs": [
+    0,
+    600,
+    1400,
+    1900,
+    2300,
+    3000,
+    3200,
+    3400,
+    3900
+  ],
+  "replayStartDifferenceMs": 0.200000000745149,
+  "pause": true,
+  "endTimes": [
+    6800,
+    5200
+  ],
+  "outerMobileOverflow": false,
+  "errors": []
+}
