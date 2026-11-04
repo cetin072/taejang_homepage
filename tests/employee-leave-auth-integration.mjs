@@ -39,6 +39,8 @@ async function user(tag){
 const ops=await user('ops'),lead=await user('lead'),worker=await user('worker'),outsider=await user('outsider');
 const dept=db("select id from public.departments where code='production' limit 1"),pos=db("select id from public.positions where code='general_worker' limit 1");
 for(const [u,role] of [[ops,'operations_manager'],[lead,'promotion_lead'],[worker,'general_worker'],[outsider,'general_worker']])db(`update public.profiles set account_status='active',department_id='${dept}',position_id='${pos}',approved_at=now(),status_changed_at=now() where id='${u.id}';insert into public.profile_roles(profile_id,role_id,scope_type,granted_by) select '${u.id}',id,'company','${ops.id}' from public.roles where code='${role}';`);
+const leadPosition=db("select id from public.positions where code='department_lead' limit 1"),opsPosition=db("select id from public.positions where code='operations_manager' limit 1");
+db(`update public.profiles set position_id='${leadPosition}' where id='${lead.id}';update public.profiles set position_id='${opsPosition}' where id='${ops.id}';`);
 const person=crypto.randomUUID(),employee=crypto.randomUUID();
 db(`insert into public.people(id,full_name) values('${person}','Synthetic Leave572');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required,updated_at) values('${employee}','TJ-${crypto.randomInt(890001,990000)}','${person}','${dept}','${pos}','2020-01-01',true,'2020-01-01');insert into public.account_person_links(profile_id,person_id,linked_by,reason) values('${worker.id}','${person}','${ops.id}','Synthetic test link');`);
 const today=db("select (now() at time zone 'Asia/Seoul')::date"),add=n=>db(`select '${today}'::date+${n}`);
@@ -60,6 +62,49 @@ check(!(await rpc('get_my_leave_context',null)).ok,'anonymous blocked');
 const early=await rpc('submit_my_leave_request',worker,{p_id:crypto.randomUUID(),p_days:[{date:add(2),portion:'full'}]});check(!early.ok&&String(early.data.message).includes('LEAVE_THREE_DAYS_REQUIRED'),'server rejects +2 days');
 const d=add(3),d2=add(4),d3=add(5),d4=add(6),d5=add(7);const calendarDays=[d,d2,d3,d4,d5].map(x=>`'${x}'`).join(',');const oldOverrides=db(`select coalesce(json_agg(c),'[]') from public.attendance_calendar_overrides c where work_date in (${calendarDays})`);
 db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values ${[d,d2,d3,d4,d5].map(x=>`('${x}',true,'Synthetic leave test')`).join(',')} on conflict(work_date) do update set is_workday=true;`);
+// Operations may review their own leave; a lead keeps the self-review guard.
+for (const [actor,tag] of [[ops,'ops'],[lead,'lead']]) {
+ const ownPerson=crypto.randomUUID(),ownEmployee=crypto.randomUUID();
+ db(`insert into public.people(id,full_name) values('${ownPerson}','Synthetic self leave ${tag}');insert into public.employees(id,employee_id,person_id,department_id,position_id,hired_on,attendance_required,updated_at) values('${ownEmployee}','TJ-${crypto.randomInt(690001,790000)}','${ownPerson}','${dept}','${pos}','2020-01-01',true,'2020-01-01');insert into public.account_person_links(profile_id,person_id,linked_by,reason) values('${actor.id}','${ownPerson}','${ops.id}','Synthetic self-review test');`);
+ check((await rpc('save_employee_work_terms',ops,{p_employee_uuid:ownEmployee,p_values:terms})).ok,tag+' own schedule configured');
+ check((await rpc('initialize_employee_leave',ops,{p_employee_uuid:ownEmployee,p_baseline_on:today,p_accrued:10,p_remaining:7,p_monthly_enabled:true,p_reason:'Synthetic self baseline'})).ok,tag+' own balance initialized');
+ const ownRequest=crypto.randomUUID();
+ check((await rpc('submit_my_leave_request',actor,{p_id:ownRequest,p_days:[{date:d,portion:'full'}]})).ok,tag+' submits own leave');
+ if(tag==='ops') {
+  db(`update public.profiles set account_status='suspended' where id='${ops.id}'`);
+  const inactive=await rpc('review_employee_leave',ops,{p_request_id:ownRequest,p_decision:'approved',p_note:'Inactive self review'});
+  check(!inactive.ok&&inactive.data.message==='FORBIDDEN','inactive operations cannot self review');
+  db(`update public.profiles set account_status='active' where id='${ops.id}'`);
+  check((await rpc('review_employee_leave',ops,{p_request_id:ownRequest,p_decision:'approved',p_note:'Own approval'})).ok,'operations approves own leave');
+  check((await rpc('review_employee_leave',ops,{p_request_id:ownRequest,p_decision:'approved',p_note:'Own retry'})).ok,'operations own approval retry is idempotent');
+  equal(db(`select count(*) from public.employee_leave_ledger where request_id='${ownRequest}' and kind='use'`),'1','own retry only charges once');
+ } else {
+  const denied=await rpc('review_employee_leave',lead,{p_request_id:ownRequest,p_decision:'approved',p_note:'Lead own approval'});
+  check(!denied.ok&&denied.data.message==='SELF_APPROVAL_FORBIDDEN','lead cannot approve own leave even with capability');
+  check((await rpc('review_employee_leave',ops,{p_request_id:ownRequest,p_decision:'approved',p_note:'Operations review'})).ok,'operations can review lead leave');
+ }
+ const amendment=crypto.randomUUID();
+ check((await rpc('request_my_leave_change',actor,{p_id:amendment,p_request_id:ownRequest,p_action:'amend',p_new_work_date:d2,p_new_portion:'first_half',p_reason:'Synthetic own amendment'})).ok,tag+' submits own amendment');
+ const amended=await rpc('review_employee_leave_change',actor,{p_change_id:amendment,p_decision:'approved',p_note:'Own amendment approval'});
+ if(tag==='ops') {
+  check(amended.ok,'operations self amendment reuses nested approval');
+  equal(db(`select status from public.employee_leave_requests where id='${ownRequest}'`),'cancelled','old self leave replaced');
+  equal(db(`select status from public.employee_leave_requests where id='${amendment}'`),'approved','replacement self leave approved atomically');
+  const cancellation=crypto.randomUUID();
+  check((await rpc('request_my_leave_change',ops,{p_id:cancellation,p_request_id:amendment,p_action:'cancel',p_new_work_date:null,p_new_portion:null,p_reason:'Synthetic own cancellation'})).ok,'operations submits own cancellation');
+  check((await rpc('review_employee_leave_change',ops,{p_change_id:cancellation,p_decision:'approved',p_note:'Own cancellation approval'})).ok,'operations approves own cancellation');
+  equal((await rpc('get_my_leave_context',ops)).data.remaining,7,'own amend/cancel restores original balance');
+ } else check(!amended.ok&&amended.data.message==='SELF_APPROVAL_FORBIDDEN','lead cannot review own change');
+}
+const boundaryRequest=crypto.randomUUID();
+check((await rpc('submit_my_leave_request',worker,{p_id:boundaryRequest,p_days:[{date:d2,portion:'full'}]})).ok,'subordinate boundary fixture submits');
+for(const blockedPosition of [leadPosition,opsPosition]) {
+ db(`update public.employees set position_id='${blockedPosition}' where id='${employee}'`);
+ const denied=await rpc('review_employee_leave',lead,{p_request_id:boundaryRequest,p_decision:'approved',p_note:'Peer or senior review'});
+ check(!denied.ok&&denied.data.message==='PROTECTED_EMPLOYEE_REVIEW_REQUIRED','lead cannot review same or higher position');
+}
+db(`update public.employees set position_id='${pos}' where id='${employee}'`);
+check((await rpc('cancel_my_leave_request',worker,{p_request_id:boundaryRequest})).ok,'boundary fixture preserves pending request for cancellation');
 const id=crypto.randomUUID(),payload=[{date:d,portion:'first_half'}];
 check((await rpc('submit_my_leave_request',worker,{p_id:id,p_days:payload})).ok,'+3 calendar days accepted');
 equal((await rpc('get_my_leave_context',worker)).data.remaining,6.5,'pending request reserves 0.5');
