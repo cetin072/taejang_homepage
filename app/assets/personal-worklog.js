@@ -15,9 +15,12 @@
   function mount(root) {
     const app = window.TaejangApp;
     const actor = app?.getSession?.()?.user?.id;
-    if (!actor) { root.hidden = true; return; }
     const epoch = ++generation;
-    const alive = () => epoch === generation && root.isConnected && app.getSession?.()?.user?.id === actor;
+    const inRolePreview = () => app?.getContext?.()?.role_simulation?.active === true;
+    const hide = () => { root.replaceChildren(); root.hidden = true; };
+    if (!actor || inRolePreview()) { hide(); return; }
+    const alive = () => epoch === generation && root.isConnected && app.getSession?.()?.user?.id === actor && !inRolePreview();
+    root.hidden = false;
     let month = dateKey(new Date()).slice(0,7), pending = 0;
     root.className = 'personal-worklog';
     root.setAttribute('aria-label', '내 업무수첩');
@@ -88,6 +91,7 @@
       }table.append(body);section.append(navigation,table,details);return section;
     }
     async function load() {
+      if (!alive()) return;
       const request=++pending; content.replaceChildren();status.textContent='개인 일정을 불러오고 있습니다.';
       try {
         const data=await api();
@@ -99,8 +103,7 @@
         content.replaceChildren(lists,calendar(data));
       } catch(error){
         if(!alive()||request!==pending)return;
-        // Accounts without a migrated personal workspace keep their normal ERP dashboard.
-        if(error.code==='PERSONAL_WORKSPACE_UNAVAILABLE'){root.replaceChildren();root.hidden=true;return;}
+        if (error.code === 'PERSONAL_WORKSPACE_UNAVAILABLE' || error.code === 'WORKLOG_ROLE_PREVIEW') { hide(); return; }
         content.replaceChildren();status.textContent=copy[error.code]||'연결에 실패했습니다. 태장 업무는 계속 사용할 수 있습니다.';
         controls.replaceChildren(action('다시 시도',()=>void load()));
       }
