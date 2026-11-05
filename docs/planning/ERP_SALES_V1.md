@@ -399,10 +399,10 @@ QA 접속에 운영 환경 변경이 필요한 경우에는 필요한 작업만 
 - KRW 공급단가×수량의 공급가(원 단위 반올림)와 직접 입력한 실제 부가세를 기록한다. 세무 판정·영업비 지급·원천징수 계산은 하지 않는다. 면세/영세율의 부가세는 0이다.
 - 신규 read/write/confirm Capability를 구분하며 실제 운영총괄·역할 체험 아님을 서버에서 확인한다. 개인 위임은 비활성이다. 운영 권한은 적용하지 않는다.
 - 기존 isolated PostgreSQL 테스트 패턴과 실제 Auth/Data API CI를 사용한다.
-- 구현 대조: A~F 구현 완료(격리 DB·브라우저 검증 완료, 전체 Auth CI 확인 중). 수금·지급·자동발행·재고·조정 실행은 의도적 제외. Production migration/main/정식 배포 미승인.
+- 구현 대조: A~F 구현 완료(격리 DB·브라우저 검증 완료, 초기 HEAD 전체 Auth/Data API CI 통과; 최종 HEAD CI는 PR 기록 기준). 수금·지급·자동발행·재고·조정 실행은 의도적 제외. Production migration/main/정식 배포 미승인.
 
 ## 검증 및 후속 경계
 - 운영 스키마 읽기 전용 조사에서 기존 monthly_client_document_company_defaults/sets를 확인했고 중복 ERP 매출 테이블은 없었다.
-- 로컬 PostgreSQL 17 실제 권한 resolver 기반 53개 검증과 실제 shell의 1440/390px A/B 입력·저장·확정·재조회·오류 입력 보존·권한 회수 검증을 통과했다.
+- 로컬 PostgreSQL 17 실제 권한 resolver 기반 54개 검증과 실제 shell의 1440/390px A/B 입력·저장·확정·재조회·오류 입력 보존·권한 회수 검증을 통과했다.
 - 공유 Preview는 현재 운영 DB에 연결될 수 있으므로 그곳에 migration·합성 거래를 쓰지 않는다. 실제 저장 QA는 격리 PostgreSQL의 scripts/qa-erp-sales.mjs로 수행한다. 해당 서버는 테스트 전용이며 dist에 포함하지 않는다.
 - 운영 적용에는 migration 검토·별도 승인과 대상 환경 확인이 필요하다. 아직 운영 적용·main 병합·배포하지 않는다.

@@ -27,6 +27,7 @@ try {
  const stale=monthly.revision-1;
  reject(()=>db.rpc('erp_sales_save',{p_data:monthly,p_id:monthly.id,p_revision:stale}),/ERP_REVISION_CONFLICT/);
  monthly=db.rpc('erp_sales_confirm',{p_id:monthly.id,p_revision:monthly.revision});
+ check(monthly.history[0].after_data.confirmed_at!==null&&monthly.history[0].after_data.confirmed_by===OPS&&monthly.history[0].after_data.revision===monthly.revision,'confirmation history records the actual final revision, actor and time');
  const duplicate=db.rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:'2099-01-01'});
  check(duplicate.id===monthly.id&&duplicate.alreadyExists,'same contract/month returns original sale without duplication');
  assign(customer,agentB,'management','2099-02-01');

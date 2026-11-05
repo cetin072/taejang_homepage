@@ -248,7 +248,7 @@ declare v_sale public.erp_sales_transactions;begin
  if p_revision is null or v_sale.revision<>p_revision then raise exception using errcode='40001',message='ERP_REVISION_CONFLICT'; end if;
  if not exists(select 1 from public.erp_sales_lines where sale_id=p_id) then raise exception 'ERP_LINES_REQUIRED'; end if;
  update public.erp_sales_transactions set status='confirmed',revision=revision+1,confirmed_by=auth.uid(),confirmed_at=now(),updated_by=auth.uid(),updated_at=now() where id=p_id;
- perform private.erp_sales_history('sale',p_id,'confirm',to_jsonb(v_sale),to_jsonb(v_sale)||jsonb_build_object('status','confirmed'));return public.erp_sales_get(p_id);
+ perform private.erp_sales_history('sale',p_id,'confirm',to_jsonb(v_sale),(select to_jsonb(s) from public.erp_sales_transactions s where s.id=p_id));return public.erp_sales_get(p_id);
 end $$;
 create function public.erp_sales_shipping(p_id uuid,p_status text) returns jsonb language plpgsql security definer set search_path='' as $$
 declare v_sale public.erp_sales_transactions;v_before text;begin
