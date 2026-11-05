@@ -35,7 +35,7 @@ export default function LeaveScreen(){
  async function cancel(id:string){if(preview)return;if(!client||locked.current)return;locked.current=true;setBusy(true);try{await cancelMyLeave(client,id);await reload();}catch(e){Alert.alert('신청 취소',leaveError(e));}finally{locked.current=false;setBusy(false);}}
  function beginChange(original:LeaveRequest,action:'amend'|'cancel'){
   if(action==='amend'&&original.portion!=='full'){Alert.alert('기존 반차 내역','기존 반차 일정 변경은 관리자에게 문의해주세요.');return;}
-  if(original.status==='approved'&&action==='amend'&&(original.modification_count||0)>=1){Alert.alert('수정 요청 제한','승인 후 수정 요청은 1회만 가능합니다. 관리자에게 문의해주세요.');return;}
+  if(original.status==='approved'&&context?.self_service_limits?.[action==='amend'?'amend_remaining':'cancel_remaining']===0){Alert.alert('이번 달 요청 한도',`이번 달 ${action==='amend'?'수정':'취소'} 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.`);return;}
   setStage('form');setEditing({original,action});setPeriod('one');setPicker(false);setDays([]);setDate(action==='amend'?original.work_date:'');
  }
  async function sendChange(){
@@ -52,7 +52,7 @@ export default function LeaveScreen(){
  function confirmChange(){
   if(!editing)return;
   const summary=editing.action==='cancel'?`${editing.original.work_date} 연차 취소 요청`:`${editing.original.work_date} → ${date} ${labels[portion]}`;
-  Alert.alert('변경 내용 확인',summary+(editing.original.status==='approved'?'\n관리자 승인 전까지 기존 연차가 유지됩니다. 수정 요청은 승인 후 1회만 가능합니다.':''),[{text:'돌아가기',style:'cancel'},{text:'확인 후 보내기',onPress:()=>void sendChange()}]);
+  Alert.alert('변경 내용 확인',summary+(editing.original.status==='approved'?'\n관리자 승인 전까지 기존 연차가 유지됩니다. 승인 후에는 매월 수정 2회·취소 2회까지 요청할 수 있습니다.':''),[{text:'돌아가기',style:'cancel'},{text:'확인 후 보내기',onPress:()=>void sendChange()}]);
  }
  function changePeriod(next:'one'|'many'){
   if(next===period)return;
@@ -78,7 +78,6 @@ export default function LeaveScreen(){
     return <View key={r.id} style={styles.record}><Text style={styles.recordDate}>{dateLabel(r.work_date)}</Text><Text style={[styles.status,r.status==='approved'?styles.approved:null]}>{r.status==='approved'?'✓ ':r.status==='pending'?'◷ ':''}{labels[r.status]}{r.portion!=='full'?` · ${labels[r.portion]}`:''}</Text>
      {pendingChange?<Text>{pendingChange.action==='cancel'?'취소':'수정'} 요청 · 관리자 확인 대기 (기존 연차 유지)</Text>:null}
      {active&&beforeUse&&!pendingChange?<>{press(r.status==='pending'?'신청 수정':'일정 수정 요청',()=>beginChange(r,'amend'),busy||uncertain||Boolean(editing))}
-      {r.status==='approved'&&(r.modification_count||0)>=1?<Text>승인 후 수정 요청은 1회 사용했습니다. 추가 변경은 관리자에게 문의해주세요.</Text>:null}
       {r.status==='pending'?press('신청 취소',()=>Alert.alert('신청 취소',`${r.work_date} 신청을 취소할까요?`,[{text:'돌아가기',style:'cancel'},{text:'취소 확인',onPress:()=>void cancel(r.id)}]),busy||uncertain||Boolean(editing)):press('연차 취소 요청',()=>beginChange(r,'cancel'),busy||uncertain||Boolean(editing))}</>:null}
     </View>;
 
@@ -93,6 +92,7 @@ export default function LeaveScreen(){
   {context?<>{stage!=='confirm'?<View style={styles.balanceCard}><Text style={styles.label}>남은 연차</Text><Text style={context.configured?styles.balance:styles.label}>{context.configured?`${context.remaining}개`:'관리자 등록 대기'}</Text></View>:null}
    {!context.configured?<Text style={styles.hint}>관리자가 연차를 등록하면 신청할 수 있어요.</Text>:null}
    {stage==='overview'?<>
+    {context.self_service_limits?<Text style={styles.hint}>승인 후 이번 달 요청 · 수정 {context.self_service_limits.amend_used}/2회 · 취소 {context.self_service_limits.cancel_used}/2회</Text>:null}
     <Text style={styles.sectionTitle}>앞으로 쉴 날짜</Text>
     {upcoming.length?upcoming.map(record):<Text style={styles.hint}>신청한 연차가 없어요.</Text>}
     {press('연차 신청하기',()=>{setEditing(null);setStage('form');},busy||!context.configured,'primary')}
@@ -124,7 +124,7 @@ export default function LeaveScreen(){
    {editing?press(busy?'처리 중…':uncertain?'같은 변경 다시 보내기':'변경 내용 확인',confirmChange,busy||loading,'primary'):press(busy?'처리 중…':uncertain?'같은 신청 다시 보내기':period==='one'?'하루 신청 확인':chosenCount<2?'날짜 2개 이상 선택':`${chosenCount}일 신청 확인`,confirmSubmission,busy||loading||!context.configured||(!chosenCount||period==='many'&&chosenCount<2),'primary')}
    </View>}
    {stage==='form'?press(helpOpen?'신청 안내 접기':'신청 안내',()=>setHelpOpen(!helpOpen),false,'quiet'):null}
-   {stage==='form'&&helpOpen?<View style={styles.help}><Text style={styles.hint}>하루에 연차 1개를 사용합니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정은 여러 번, 승인 후 일정 수정 요청은 사용일 전까지 1회 가능합니다.</Text></View>:null}
+   {stage==='form'&&helpOpen?<View style={styles.help}><Text style={styles.hint}>하루에 연차 1개를 사용합니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정·취소는 횟수 제한이 없습니다. 승인 후에는 매월 수정 2회·취소 2회까지 요청할 수 있습니다.</Text></View>:null}
   </>:null}
  </ScrollView>{session?<EmployeeBottomTabs selected="leave" preview={preview} disabled={busy||uncertain} onHomePress={goHome}/>:null}</View>;
 }

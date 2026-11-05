@@ -11,6 +11,7 @@ export type PatchNoteEntry = {
 // Pattern reference: cetin072/worklog-voice-pwa at e3a8a50bd7d7e8f3fe47970268dd04ee84448f78:
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
+  {id:'2026-11-06-leave-monthly-limits',date:'2026-11-06',title:'승인 후 연차 변경 횟수 안내',summary:'승인된 연차는 매월 수정 2회·취소 2회까지 요청할 수 있습니다.',items:['승인 전 수정·취소는 횟수 제한이 없습니다.','한도를 넘으면 관리자에게 문의해주세요.','이번 달 사용 횟수를 내 연차에서 확인합니다.']},
   {id:'2026-11-05-leave-without-reason',date:'2026-11-05',title:'연차 변경·취소 간소화',summary:'연차 변경·취소 요청에서 사유 입력을 없앴습니다.',items:['날짜와 변경 내용을 확인한 뒤 요청할 수 있습니다.','승인된 연차는 관리자 확인 전까지 유지됩니다.']},
   {id:'2026-11-03-compact-tabs',date:'2026-11-03',title:'하단 메뉴 높이 조정',summary:'출퇴근·내 연차 메뉴의 높이를 약 65%로 줄였습니다.',items:['글자 크기는 그대로 유지하고 아이콘과 여백을 줄였습니다.']},
   {id:'2026-11-03-leave-today',date:'2026-11-03',title:'연차 당일 안내',summary:'승인된 연차일에는 ‘오늘은 연차입니다’만 표시합니다.',items:['연차 당일 출근 버튼은 비활성화됩니다.']},

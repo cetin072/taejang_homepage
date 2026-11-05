@@ -2,7 +2,8 @@ import type { PlatformSupabaseClient } from '@/src/platform/supabase';
 export type LeavePortion = 'full' | 'first_half' | 'second_half';
 export type LeaveRequest = { id: string; work_date: string; portion: LeavePortion; units: number; status: 'pending' | 'approved' | 'rejected' | 'cancelled'; modification_count?: number; replaces_request_id?: string | null };
 export type LeaveChange = { id:string; request_id:string; action:'cancel'|'amend'; new_work_date:string|null; new_portion:LeavePortion|null; reason:string; status:'pending'|'approved'|'rejected'; decision_note?:string|null };
-export type LeaveContext = { configured: boolean; remaining: number | null; server_today: string; earliest_date: string; requests: LeaveRequest[]; change_requests?: LeaveChange[] };
+export type LeaveChangeLimits = { month:string; monthly_limit:number; amend_used:number; cancel_used:number; amend_remaining:number; cancel_remaining:number };
+export type LeaveContext = { self_service_limits?:LeaveChangeLimits; configured: boolean; remaining: number | null; server_today: string; earliest_date: string; requests: LeaveRequest[]; change_requests?: LeaveChange[] };
 export async function loadMyLeave(client: PlatformSupabaseClient): Promise<LeaveContext> {
   const { data, error } = await client.rpc('get_my_leave_context');
   if (error) throw error;
@@ -32,7 +33,9 @@ export async function requestMyLeaveChange(client:PlatformSupabaseClient,id:stri
 export function leaveError(error: unknown) {
   const code=String((error as { message?: string })?.message || '');
   const messages: Record<string,string> = {
-    LEAVE_MODIFICATION_LIMIT:'수정 요청은 1회만 가능합니다. 관리자에게 문의해주세요.',
+    LEAVE_MODIFICATION_LIMIT:'추가 수정은 관리자에게 문의해주세요.',
+    LEAVE_MONTHLY_AMEND_LIMIT:'이번 달 수정 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.',
+    LEAVE_MONTHLY_CANCEL_LIMIT:'이번 달 취소 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.',
     LEAVE_THREE_DAYS_REQUIRED:'연차는 사용일 최소 3일 전에 신청할 수 있습니다.',
     INSUFFICIENT_LEAVE:'남은 연차가 부족합니다. 신청 대기 내역도 확인해주세요.',
     LEAVE_ALREADY_STARTED:'사용일이 된 연차는 변경할 수 없습니다. 관리자에게 문의해주세요.',

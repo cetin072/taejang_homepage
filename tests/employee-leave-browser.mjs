@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
 const code=fs.readFileSync(new URL('../app/assets/employee-leave.js',import.meta.url),'utf8');
 for(const width of [320,390,786,1440]){
- const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({viewport:{width,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
  await page.route('http://localhost/leave-qa',route=>route.fulfill({contentType:'text/html',body:'<div id="desktop-app-shell"><main id="dashboard-main" class="dashboard-main"></main></div>'}));
  await page.goto('http://localhost/leave-qa');
  await page.evaluate(()=>{
@@ -14,6 +14,7 @@ for(const width of [320,390,786,1440]){
    window.calls.push({name,args});if(window.failNext){window.failNext=false;throw Error('NETWORK');}
    if(name==='get_employee_leave_admin_context'){const result=structuredClone(ctx);if(window.rosterMissing)delete result.roster_version;if(args.p_employee_uuid){result.employees=result.employees.filter(e=>e.id===args.p_employee_uuid);result.requests=result.requests.filter(r=>r.employee_uuid===args.p_employee_uuid);result.change_requests=result.change_requests.filter(c=>c.employee_uuid===args.p_employee_uuid);}return result;}
    if(name==='review_employee_leave_change'){const c=ctx.change_requests.find(c=>c.id===args.p_change_id);c.status=args.p_decision;c.decision_note=args.p_note;return {ok:true};}
+   if(name==='admin_change_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.work_date=args.p_new_work_date||r.work_date;r.status=args.p_action==='cancel'?'cancelled':'approved';return {ok:true};}
    if(name==='review_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.status=args.p_decision;r.decision_note=args.p_note;return {ok:true};}
    if(name==='save_employee_work_terms'){if(window.conflictNext){window.conflictNext=false;throw Error('ATTENDANCE_CONFLICT');}ctx.employees.find(e=>e.id===args.p_employee_uuid).terms.unshift({id:'saved-term',...args.p_values});return {ok:true};}
    if(name==='initialize_employee_leave'){ctx.employees.find(e=>e.id===args.p_employee_uuid).balance={accrued:args.p_accrued,remaining:args.p_remaining,reserved:0,available:args.p_remaining};return {ok:true};}
@@ -38,6 +39,9 @@ for(const width of [320,390,786,1440]){
  assert.equal(await page.getByLabel('신청 직원',{exact:true}).inputValue(),'employee');
  await page.getByLabel('신청 상태',{exact:true}).selectOption('approved');await page.getByText('처리 사유: 승인 확인',{exact:true}).waitFor();
  await page.getByLabel('변경 처리 사유',{exact:true}).fill('변경 승인 확인');await page.getByRole('button',{name:'취소·수정 처리',exact:true}).click();await page.getByText('처리 사유: 변경 승인 확인',{exact:true}).waitFor();
+ await page.getByText('관리자 직접 변경',{exact:true}).click();await page.getByRole('button',{name:'새 연차 날짜',exact:true}).click();await page.getByRole('button',{name:'2026-11-20 선택',exact:true}).click();await page.getByLabel('관리자 변경 사유',{exact:true}).fill('확인한 일정 변경');
+ await page.getByRole('button',{name:'관리자 변경 적용',exact:true}).click();await page.getByRole('heading',{name:'검수 직원 · 2026-11-20',exact:true}).waitFor();
+ const direct=await page.evaluate(()=>window.calls.find(c=>c.name==='admin_change_employee_leave'));assert.equal(direct.args.p_new_work_date,'2026-11-20');assert.equal(direct.args.p_note,'확인한 일정 변경');
  await page.getByLabel('신청 직원',{exact:true}).selectOption('second');await page.getByLabel('신청 상태',{exact:true}).selectOption('pending');
  await page.getByRole('heading',{name:'둘째 직원 · 2026-11-11',exact:true}).waitFor();
  await page.getByLabel('처리 선택',{exact:true}).selectOption('rejected');await page.getByLabel('처리 사유',{exact:true}).fill('일정 재확인');await page.getByRole('button',{name:'처리 저장',exact:true}).click();
@@ -103,6 +107,23 @@ for(const width of [320,390,786,1440]){
  await page.locator('#lead-work-qa').getByRole('button',{name:'근무시간 저장',exact:true}).waitFor();
  assert.equal(await page.locator('#lead-work-qa').getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0);
  await page.evaluate(()=>{window.rosterMissing=true;return window.TaejangEmployeeLeave.open();});await page.getByText('직원 재직·직급 정보의 서버 업데이트가 필요합니다.',{exact:false}).waitFor();assert.equal(await page.getByLabel('직원 선택').count(),0,'old server never silently shows all employees');
+ // Actual dashboard card controller, shared styles and DOM; only RPC results are synthetic.
+ await page.evaluate(()=>{document.querySelector('#dashboard-main').innerHTML='<div class="dashboard-grid"></div>';window.attentionRole='operations_manager';window.attentionAllowed=true;window.attentionResult={server_now:'2026-11-06T09:05:00+09:00',missing_clock_ins:[],pending_leaves:[],attendance_allowed:true,leave_allowed:true};window.TaejangApp={getRoute:()=>window.attentionRole,getSession:()=>({user:{id:'actor'}}),can:()=>window.attentionAllowed,rpc:async()=>window.attentionResult};window.TaejangMenuAuthority={allowed:()=>window.attentionAllowed};window.attentionOpened=false;window.TaejangEmployeeLeave={open:()=>{window.attentionOpened=true;}};});
+ await page.addScriptTag({content:fs.readFileSync(new URL('../app/assets/management-attention-cards.js',import.meta.url),'utf8')});
+ for(const role of ['operations_manager','promotion_lead']){
+  await page.evaluate(role=>{window.attentionRole=role;window.TaejangManagementAttention.clear();window.TaejangManagementAttention.mount(document.querySelector('#dashboard-main'));},role);
+  await page.waitForFunction(()=>document.querySelector('[data-management-attention]')?.hidden===true);
+  await page.evaluate(()=>{window.attentionResult.missing_clock_ins=[{name:'검수 직원',starts_at:'2026-11-06T09:00:00+09:00'}];window.attentionResult.pending_leaves=[{name:'둘째 직원',work_date:'2026-11-20',kind:'application'}];return window.TaejangManagementAttention.refresh();});
+  await page.getByRole('heading',{name:'출근 확인 필요 1명',exact:true}).waitFor();await page.getByRole('heading',{name:'연차 확인 대기 1건',exact:true}).waitFor();
+  assert.equal(await page.getByText('검수 직원 · 예정 09:00',{exact:true}).count(),1);await page.locator('[data-management-attention] article').nth(1).getByRole('button',{name:'확인하기'}).click();assert.equal(await page.evaluate(()=>window.attentionOpened),true);
+  await page.locator('[data-management-attention]').screenshot({path:`leave-admin-qa-artifacts/management-attention-${role}-${width}.png`});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'management attention cards fit viewport');
+  await page.evaluate(()=>{window.attentionResult.missing_clock_ins=[];window.attentionResult.pending_leaves=[];return window.TaejangManagementAttention.refresh();});
+  assert.equal(await page.locator('[data-management-attention]').isVisible(),false,'no pending action produces no card');
+ }
+ await page.evaluate(()=>{window.TaejangApp.rpc=()=>new Promise(resolve=>{window.lateAttention=resolve;});void window.TaejangManagementAttention.refresh();});await page.waitForFunction(()=>typeof window.lateAttention==='function');
+ await page.evaluate(()=>{window.attentionAllowed=false;document.dispatchEvent(new CustomEvent('taejang-menu-authority-changed'));window.lateAttention({attendance_allowed:true,leave_allowed:true,missing_clock_ins:[{name:'늦은 응답 직원',starts_at:'2026-11-06T09:00:00+09:00'}],pending_leaves:[]});});
+ assert.equal(await page.locator('[data-management-attention]').count(),0,'revocation clears cards before a late response');
  assert.deepEqual(errors,[]);await page.close();console.log(`LEAVE_WEB_BROWSER_PASS ${width}px scoped requests, approval/rejection, registration, input preservation, employee switching, secondary days off, schedule wiring`);
 }
 await browser.close();

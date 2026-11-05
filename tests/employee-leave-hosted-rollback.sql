@@ -11,7 +11,7 @@ begin
 end $$;
 do $$
 declare
- ops uuid:=gen_random_uuid(); lead uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid();
+ second_change uuid:=gen_random_uuid(); ops uuid:=gen_random_uuid(); lead uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid();
  person uuid:=gen_random_uuid(); emp uuid:=gen_random_uuid(); req uuid:=gen_random_uuid();
  pending_edit uuid; change_id uuid:=gen_random_uuid(); cancel_id uuid:=gen_random_uuid();
  dept uuid; pos uuid; lead_pos uuid; ops_pos uuid; location uuid; today date:=(now() at time zone 'Asia/Seoul')::date;
@@ -82,10 +82,16 @@ begin
  perform pg_temp.leave_check(public.private_attendance_effective_status(emp,d2)->>'leave_portion'='full','new date marked leave after approved amendment');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',worker::text,true);
+ perform public.request_my_leave_change(second_change,change_id,'amend',d3,'full','');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',lead::text,true);
+ perform public.review_employee_leave_change(second_change,'rejected','TEST keep original date');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',worker::text,true);
  denied:=false;
- begin perform public.request_my_leave_change(gen_random_uuid(),change_id,'amend',d3,'full','TEST forbidden second change');
- exception when others then if sqlerrm like '%LEAVE_MODIFICATION_LIMIT%' then denied:=true; else raise; end if; end;
- perform pg_temp.leave_check(denied,'second confirmed schedule amendment is blocked');
+ begin perform public.request_my_leave_change(gen_random_uuid(),change_id,'amend',d3,'full','');
+ exception when others then if sqlerrm like '%LEAVE_MONTHLY_AMEND_LIMIT%' then denied:=true; else raise; end if; end;
+ perform pg_temp.leave_check(denied,'third monthly approved amendment is blocked');
  perform public.request_my_leave_change(cancel_id,change_id,'cancel',null,null,null);
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ops,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',ops::text,true);

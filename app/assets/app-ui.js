@@ -176,6 +176,7 @@
     ['assets/menu-status.js', 'menu-status'],
     ['assets/phase-c-account-topbar.js', 'phase-c-account-topbar'],
     ['assets/role-navigation-priority.js', 'role-navigation-priority'],
+    ['assets/management-attention-cards.js', 'management-attention-cards'],
     ['assets/dashboard-priority-cards.js', 'dashboard-priority-cards'],
     ['assets/issue-187-promotion-live-qa.js', 'issue-187-promotion-live-qa'],
     ['assets/ux-followup-polish.js', 'ux-followup-polish'],
