@@ -130,7 +130,7 @@
     const ordered=[...changes].sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1));
     ordered.forEach(c=>{const card=el('article',null,'employee-profile-section');card.append(el('h4',`${c.employee_name} · ${c.manager_direct?'관리자 직접 ':''}${c.action==='cancel'?'취소':'수정'}${c.manager_direct?'':' 요청'}`),el('p',`기존 ${c.original_work_date} ${labels[c.original_portion]}${c.action==='amend'?` → ${c.new_work_date} ${labels[c.new_portion]}`:''} · ${labels[c.status]}`));
       if(c.status==='pending')card.append(el('p','처리 전까지 기존 연차와 출근부가 유지됩니다.'));
-      if(c.reason?.trim())card.append(el('p',`직원 요청 사유: ${c.reason}`));
+      if(c.reason?.trim())card.append(el('p',`${c.manager_direct?'관리자 변경 사유':'직원 요청 사유'}: ${c.reason}`));
       if(c.decision_note)card.append(el('p',`처리 사유: ${c.decision_note}`));
       if(ctx.can_review&&c.status==='pending'){const f=el('form',null,'employee-form app-authoring'),note=field(f,'변경 처리 사유','text');note.minLength=2;const decision=select(f,'변경 처리 선택',[['approved','승인'],['rejected','반려']]);formAction(f,'취소·수정 처리',()=>rpc('review_employee_leave_change',{p_change_id:c.id,p_decision:decision.value,p_note:note.value}),reload);card.append(f);}changeSection.append(card);
     });if(!ordered.length)changeSection.append(el('p','취소·수정 요청이 없습니다.'));section.append(changeSection);
