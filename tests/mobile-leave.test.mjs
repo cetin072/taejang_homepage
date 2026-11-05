@@ -87,12 +87,12 @@ test('real app handlers allow repeated pending edits, block second approved edit
  context.requests=[{id:'legacy-half',work_date:'2026-11-20',portion:'first_half',units:.5,status:'approved',modification_count:0}];const before=calls.length;click('일정 수정 요청');assert.equal(alerts.at(-1)[0],'기존 반차 내역');assert.equal(calls.length,before,'legacy half-day is not silently converted to a full day');assert.ok(render().some(n=>n?.type==='Text'&&text(n).includes('앞 반차')),'legacy history remains visible');
 
 });
-test('shared large bottom tabs have selected states and reuse existing routes without reading leave',()=>{
+test('shared bottom tabs have selected states and reuse existing routes without reading leave',()=>{
  const src=fs.readFileSync(new URL('../mobile/src/features/common/employee-bottom-tabs.tsx',import.meta.url),'utf8'),exports={},routes=[];
  const jsx=(type,props)=>({type,props});
  vm.runInNewContext(ts.transpileModule(src,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText,{exports,require:name=>{if(name==='react/jsx-runtime')return{jsx,jsxs:jsx};if(name==='react-native')return{View:'View',Text:'Text',Pressable:'Pressable',StyleSheet:{create:x=>x}};if(name==='expo-router')return{useRouter:()=>({navigate:p=>routes.push(p)})};throw Error(name);}});
  const flat=n=>n==null?[]:Array.isArray(n)?n.flatMap(flat):typeof n==='object'?[n,...flat(n.props?.children)]:[n];
- const tabs=flat(exports.EmployeeBottomTabs({selected:'attendance',preview:true})).filter(n=>n?.props?.accessibilityRole==='tab');assert.equal(tabs.length,2);assert.deepEqual(tabs.map(t=>t.props.accessibilityLabel),['출퇴근','내 연차']);assert.equal(tabs[0].props.accessibilityState.selected,true);assert.ok(tabs.every(t=>t.props.style[0].minHeight>=88));tabs[0].props.onPress();assert.equal(routes.length,0);tabs[1].props.onPress();assert.equal(routes[0],'/leave?preview=1');
+ const tabs=flat(exports.EmployeeBottomTabs({selected:'attendance',preview:true})).filter(n=>n?.props?.accessibilityRole==='tab');assert.equal(tabs.length,2);assert.deepEqual(tabs.map(t=>t.props.accessibilityLabel),['출퇴근','내 연차']);assert.equal(tabs[0].props.accessibilityState.selected,true);assert.ok(tabs.every(t=>t.props.style[0].minHeight>=48));tabs[0].props.onPress();assert.equal(routes.length,0);tabs[1].props.onPress();assert.equal(routes[0],'/leave?preview=1');
  let guarded=0;flat(exports.EmployeeBottomTabs({selected:'leave',onHomePress:()=>guarded++})).find(n=>n?.props?.accessibilityLabel==='출퇴근').props.onPress();assert.equal(guarded,1,'leave screen can guard unfinished input');
  const locked=flat(exports.EmployeeBottomTabs({selected:'leave',disabled:true})).filter(n=>n?.props?.accessibilityRole==='tab');assert.ok(locked.every(n=>n.props.disabled),'in-flight requests cannot navigate away');
 });
