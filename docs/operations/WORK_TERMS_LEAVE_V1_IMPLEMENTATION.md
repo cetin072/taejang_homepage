@@ -103,3 +103,12 @@ QA 화면 체험은 합성 데이터이며 실제 신청/조회가 차단된다.
 - 기능 HEAD d95e48f의 격리 CI: pgTAP 1046 / 실제 Auth 연동 105 assertions PASS, 직원 상세/사진·연차 관리자·출근부 PC/mobile 브라우저 PASS, 지문 제거/역사 매칭 Chrome PASS. 공개 archive URL의 일시 HTTP timeout으로 실패한 landing job만 재실행했다. 결과는 PR에 최신 상태를 남긴다.
 
 남은 범위: 설치된 QA APK의 실제 화면 왕복·Push 수신은 확인하지 않았다. 월 정기 실행 및 실직원 알림은 활성화하지 않았고 정책 enabled=false 유지다. PR577 하단 탭과 PR580 UI는 별도 Draft이며 이번 서버 적용이 main 병합/Production 웹 배포/Play 제출을 뜻하지 않는다. 앱 신규 빌드는 사용자 요청 때 누적 변경으로 준비한다.
+
+## 2026-11-05 최종 QA 보완
+
+- PR583의 하단바 축소는 main f59873c에 병합됐다. 글자는23을 유지한다.
+- 승인된 operations_leave_self_review를 기존 서버에 적용(원격20261105135154). 두 승인 RPC의 운영총괄 예외/직급 검사와 ACL을 재조회했다. 기존 직원52/연차계정23/신청1/원장0건 유지.
+- 기존 hosted rollback fixture의 운영총괄/운영팀장 직급을 실제 승인 계약에 맞추고 공유 서버25개 검사 통과, 전체 rollback했다. 실제 직원 요청은 처리하지 않았다.
+- employee_leave_monthly_reconciliation_schedule migration으로 기존 monthly RPC 직접 Cron을 연결한다. 매일00:05 KST에 누락 월만 보충하며 Push OFF와 독립이다. 직원/월 중복 방지와 과거 재직상태 불명 hold를 보존한다.
+- Expo57 필수 패치6개만 맞추고 기존 버전 단언과 lockfile을 함께 갱신했다. 전체 모바일149/149와 타입검사 통과. 로컬 온라인 Expo 검사는 프록시 timeout, bundled offline 검사는 통과했으며 원격 온라인 CI를 최종 기준으로 한다.
+- 운영 월 발생 migration 적용, 최종 CI/APK·배포의 정확한 SHA/결과는 이번 QA PR 댓글에 기록한다. 이 절만으로 전체 배포 완료를 주장하지 않는다. 물리 단말 수용과 실제 Push는 미검증이다.

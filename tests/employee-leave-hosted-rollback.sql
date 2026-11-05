@@ -14,18 +14,20 @@ declare
  ops uuid:=gen_random_uuid(); lead uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid();
  person uuid:=gen_random_uuid(); emp uuid:=gen_random_uuid(); req uuid:=gen_random_uuid();
  pending_edit uuid; change_id uuid:=gen_random_uuid(); cancel_id uuid:=gen_random_uuid();
- dept uuid; pos uuid; location uuid; today date:=(now() at time zone 'Asia/Seoul')::date;
+ dept uuid; pos uuid; lead_pos uuid; ops_pos uuid; location uuid; today date:=(now() at time zone 'Asia/Seoul')::date;
  dates date[]; d1 date; d2 date; d3 date; ctx jsonb; row_data jsonb; b jsonb; uid uuid;
  denied boolean;
 begin
  select id into dept from public.departments where code='production' limit 1;
  select id into pos from public.positions where code='general_worker' limit 1;
+ select id into lead_pos from public.positions where code='department_lead' limit 1;
+ select id into ops_pos from public.positions where code='operations_manager' limit 1;
  select id into location from public.attendance_locations where active limit 1;
  perform pg_temp.leave_check(dept is not null and pos is not null and location is not null,'required existing reference configuration');
  foreach uid in array array[ops,lead,worker] loop
   insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data)
    values(uid,'leave-smoke-'||uid||'@example.invalid','{}',jsonb_build_object('display_name','TEST 연차 롤백 검증'));
-  update public.profiles set account_status='active',department_id=dept,position_id=pos,approved_at=now(),status_changed_at=now() where id=uid;
+  update public.profiles set account_status='active',department_id=dept,position_id=case when uid=ops then ops_pos when uid=lead then lead_pos else pos end,approved_at=now(),status_changed_at=now() where id=uid;
   insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
    select uid,id,'company',ops from public.roles where code=case when uid=ops then 'operations_manager' when uid=lead then 'promotion_lead' else 'general_worker' end;
  end loop;
