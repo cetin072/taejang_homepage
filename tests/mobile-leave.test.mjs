@@ -74,8 +74,10 @@ test('real app handlers allow repeated pending edits, block second approved edit
  assert.equal(calls.filter(c=>c.name==='edit_my_pending_leave').length,2);
  context.requests=[{id:'approved',work_date:'2026-11-10',portion:'full',units:1,status:'approved',modification_count:1}];
  click('일정 수정 요청');assert.match(alerts.at(-1)[1],/1회.*관리자/);assert.equal(calls.length,2,'second approved edit never reaches API');
- context.requests[0].modification_count=0;click('일정 수정 요청');states[0]='2026-11-13';render().find(n=>n?.type==='TextInput').props.onChangeText('일정 변경 사유');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
- assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');
+ context.requests[0].modification_count=0;click('일정 수정 요청');states[0]='2026-11-13';assert.equal(render().some(n=>n?.type==='TextInput'),false,'approved change requires no reason input');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
+ assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');assert.equal(calls[2].args.p_reason,'');
+ click('연차 취소 요청');assert.equal(render().some(n=>n?.type==='TextInput'),false);click('변경 그만하기');assert.equal(calls.length,3,'closing editor does not cancel leave');
+ click('연차 취소 요청');click('변경 내용 확인');alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);assert.equal(calls[3].args.p_action,'cancel');assert.equal(calls[3].args.p_reason,'');calls.pop();
  click('연차 신청하기');click('여러 날 신청날짜 2개 이상');
  click('＋ 날짜 선택');let datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'dismissed'},new Date('2026-11-15T12:00:00'));assert.ok(!render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 1일'),'dismissed picker does not choose a day');
  for(const date of ['2026-11-15','2026-11-16']){click('＋ 날짜 선택');datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'set'},new Date(date+'T12:00:00'));}

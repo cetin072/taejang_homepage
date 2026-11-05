@@ -74,7 +74,7 @@ begin
  perform pg_temp.leave_check(not (public.private_employee_schedule(emp,d1)->>'is_workday')::boolean,'approved leave excluded from reminder workday schedule');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',worker::text,true);
- perform public.request_my_leave_change(change_id,req,'amend',d2,'full','TEST change confirmed leave');
+ perform public.request_my_leave_change(change_id,req,'amend',d2,'full','');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',lead::text,true);
  perform public.review_employee_leave_change(change_id,'approved','TEST change approved');
@@ -86,7 +86,7 @@ begin
  begin perform public.request_my_leave_change(gen_random_uuid(),change_id,'amend',d3,'full','TEST forbidden second change');
  exception when others then if sqlerrm like '%LEAVE_MODIFICATION_LIMIT%' then denied:=true; else raise; end if; end;
  perform pg_temp.leave_check(denied,'second confirmed schedule amendment is blocked');
- perform public.request_my_leave_change(cancel_id,change_id,'cancel',null,null,'TEST cancellation');
+ perform public.request_my_leave_change(cancel_id,change_id,'cancel',null,null,null);
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ops,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',ops::text,true);
  perform public.review_employee_leave_change(cancel_id,'approved','TEST cancellation approved');

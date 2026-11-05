@@ -24,7 +24,7 @@ export async function editMyPendingLeave(client:PlatformSupabaseClient,requestId
   const {data,error}=await client.rpc('edit_my_pending_leave',{p_request_id:requestId,p_id:id,p_work_date:date,p_portion:portion});
   if(error)throw error;if(data?.ok!==true)throw new Error('LEAVE_EDIT_FAILED');
 }
-export async function requestMyLeaveChange(client:PlatformSupabaseClient,id:string,requestId:string,action:'cancel'|'amend',date:string|null,portion:LeavePortion|null,reason:string) {
+export async function requestMyLeaveChange(client:PlatformSupabaseClient,id:string,requestId:string,action:'cancel'|'amend',date:string|null,portion:LeavePortion|null,reason = '') {
   const {data,error}=await client.rpc('request_my_leave_change',{p_id:id,p_request_id:requestId,p_action:action,p_new_work_date:date,p_new_portion:portion,p_reason:reason});
   if(error)throw error;
   if(data?.ok!==true)throw new Error('LEAVE_CHANGE_FAILED');
