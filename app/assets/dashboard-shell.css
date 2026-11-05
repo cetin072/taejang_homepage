@@ -578,4 +578,4 @@
 .worklog-day-events small { color:#536579; }
 @media(max-width:600px) { .personal-worklog { padding:12px; margin:16px 0; } .worklog-summary { grid-template-columns:minmax(0,1fr); } .worklog-date-button { height:96px; padding:3px; } .worklog-event { font-size:11px; padding:1px 2px; line-height:16px; } .worklog-day-dialog { padding:16px; } }
 
-.management-attention-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin:16px 0}.management-attention-cards[hidden]{display:none}.management-attention-cards ul{padding-left:20px;line-height:1.8}.management-attention-cards .dashboard-card{border-left:4px solid #315d49}
+.management-attention-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin:16px 0}.management-attention-cards[hidden]{display:none}.management-attention-cards ul{padding-left:20px;line-height:1.8}.management-attention-cards .dashboard-card{grid-column:auto;min-width:0;box-sizing:border-box;border-left:4px solid #315d49;overflow-wrap:anywhere}
