@@ -14,12 +14,12 @@
   const current=root,version=epoch,actor=app().getSession().user.id,role=app().getRoute();const alive=()=>version===epoch&&current===root&&current.isConnected&&allowed()&&app().getSession().user.id===actor&&app().getRoute()===role;
   const job=Promise.resolve().then(async()=>{try{
    const data=await app().rpc('get_management_attention_cards');if(!alive())return;current.replaceChildren();
-   if(data.attendance_allowed&&can('attendance.view')&&data.missing_clock_ins?.length)current.append(card('출근 확인 필요',data.missing_clock_ins,r=>`${r.name} · 예정 ${time(r.starts_at)}`,()=>document.dispatchEvent(new CustomEvent('taejang-open-app-panel',{detail:{id:'attendance-admin-panel'}}))));
+   if(data.attendance_allowed&&can('attendance.view')&&data.missing_clock_ins?.length)current.append(card('출근 확인 필요',data.missing_clock_ins,r=>`${r.name} · 예정 ${time(r.starts_at)}`,()=>window.TaejangAttendanceAdmin?.openAttendance()));
    if(data.leave_allowed&&can('leave.manage')&&data.pending_leaves?.length)current.append(card('연차 확인 대기',data.pending_leaves,r=>`${r.name} · ${r.work_date}${r.new_work_date?' → '+r.new_work_date:''} · ${{application:'신청',amend:'수정 요청',cancel:'취소 요청'}[r.kind]||'신청'}`,()=>window.TaejangEmployeeLeave?.open(),'건'));
    current.hidden=!current.childElementCount;
    const due=Date.parse(data.next_due_at)-Date.parse(data.server_now);const delay=Number.isFinite(due)&&due>0?Math.min(60000,Math.max(1000,due+50)):60000;
    clearTimeout(timer);timer=setTimeout(()=>{if(document.visibilityState!=='hidden')void refresh();},delay);
-  }catch(error){if(!alive())return;current.replaceChildren();current.hidden=false;const note=el('p',error?.code==='42501'?'현재 권한으로 확인할 수 없습니다.':'출근·연차 확인 정보를 불러오지 못했습니다. 새로고침해주세요.','message');note.setAttribute('role','status');current.append(note);if(error?.code==='42501')clear();}
+  }catch(error){if(!alive())return;current.replaceChildren();clearTimeout(timer);if(error?.code==='42501'){current.hidden=true;return;}current.hidden=false;const note=el('p','출근·연차 확인 정보를 불러오지 못했습니다. 새로고침해주세요.','message');note.setAttribute('role','status');current.append(note);}
   finally{if(flight?.version===version)flight=null;}});flight={version,promise:job};return job;
  }
  function mount(target){
