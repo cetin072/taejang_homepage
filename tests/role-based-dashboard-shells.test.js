@@ -43,7 +43,8 @@ test('worker keeps the simple board unless the server grants an explicit menu wo
 test('dashboard uses safe workflow RPCs and no removed schedule or notice shortcuts', () => {
   for (const rpc of ['get_my_promotion_workspace', 'list_pending_profiles']) assert.match(shell, new RegExp(rpc));
   assert.match(shell, /현재 승인 대기 항목이 없습니다/);
-  assert.doesNotMatch(shell, /생산률|출고건수|상담건수|매출/);
+  // Approved ERP menu is functional; the dashboard summary must still avoid invented business metrics.
+  assert.doesNotMatch(shell.slice(shell.indexOf('async function render()')), /생산률|출고건수|상담건수|매출/);
   assert.match(shell, /현재 검토 대기 안건이 없습니다/);
   assert.doesNotMatch(shell, /get_my_schedule_list|get_my_notice_list/);
 });
