@@ -1,7 +1,9 @@
 import { newPhotoSafeContext } from './helpers/photo-safe-browser.mjs';
 // Real Chromium regression using public fixtures only; no login or data writes.
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, mkdtemp, cp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { generateArchiveSnapshot } from '../scripts/generate-archive-snapshot.mjs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -10,12 +12,18 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(process.env.ARCHIVE_QA_ROOT || '.');
 const output = path.resolve(process.env.ARCHIVE_QA_OUTPUT || 'admin-ui-qa-artifacts/archive-initial');
 await mkdir(output, { recursive: true });
+// Exercise the same generated HTML baseline as the publish build. Repository
+// archive.html is a fallback seed and can predate newly collected channel data.
+const snapshotRoot = await mkdtemp(path.join(tmpdir(), 'archive-initial-'));
+await cp(path.join(root, 'archive.html'), path.join(snapshotRoot, 'archive.html'));
+await cp(path.join(root, 'assets/js'), path.join(snapshotRoot, 'assets/js'), { recursive: true });
+const baseline = await generateArchiveSnapshot({ outputRoot: snapshotRoot, live: false });
 const server = createServer(async (req, res) => {
   try {
     const file = path.resolve(root, '.' + new URL(req.url, 'http://localhost').pathname);
     if (!file.startsWith(root + path.sep)) throw new Error('path');
     res.setHeader('content-type', ({ '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json' })[path.extname(file)] || 'text/html');
-    res.end(await readFile(file));
+    res.end(await readFile(file === path.join(root, 'archive.html') ? path.join(snapshotRoot, 'archive.html') : file));
   } catch { res.statusCode = 404; res.end(); }
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -69,7 +77,7 @@ try {
       await page.waitForLoadState('domcontentloaded');
       if (mode === 'no-js' || mode === 'script-error') {
         assert.equal(await page.locator('[data-static-fallback-card]').count(), 12);
-        assert.match(await page.locator('[data-hub-list] article').first().locator('time').getAttribute('datetime'), /^2026-10/);
+        assert.equal(await page.locator('[data-hub-list] article').first().locator('time').getAttribute('datetime'), baseline[0].publishedAt);
         const href = await page.locator('[data-hub-list] article a.card-link').first().getAttribute('href');
         assert.match(href, /^(https:\/\/blog.naver.com\/taejang-official\/|\/?promotion(?:\.html)?\?id=)/);
       } else if (mode === 'failure') {
@@ -135,4 +143,4 @@ try {
     }
   }
   console.log('Hydration measurements:', JSON.stringify(metrics));
-} finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
+} finally { await browser.close(); await rm(snapshotRoot, { recursive: true, force: true }); await new Promise(resolve => server.close(resolve)); }

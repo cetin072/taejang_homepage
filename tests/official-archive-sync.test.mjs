@@ -129,7 +129,7 @@ test('A failed or missing proposal cannot acknowledge a slot with unmerged addit
   assert.equal(canCompleteSlot({}, 0), false);
 });
 
-test('Proposal shell tolerates old branches, separates retries and blocks an open archive review', async () => {
+test('Proposal shell tolerates old branches and separates retries', async () => {
   const workflow = await readFile(new URL('../.github/workflows/official-archive-sync.yml', import.meta.url), 'utf8');
   const script = workflow.split('      - name: Propose archive additions for human review')[1]
     .split('      - name: Record collection and review status')[0].split('        run: |\n')[1]
@@ -137,11 +137,11 @@ test('Proposal shell tolerates old branches, separates retries and blocks an ope
   const dir = await mkdtemp(path.join(tmpdir(), 'archive-proposal-'));
   try {
     await writeFile(path.join(dir, 'git'), '#!/bin/bash\necho "git $*" >> "$CALLS"\nif [ "$1" = diff ]; then exit 1; fi\n', { mode: 0o755 });
-    await writeFile(path.join(dir, 'gh'), '#!/bin/bash\necho "gh $*" >> "$CALLS"\nif [ "$2" = list ]; then echo "$PENDING"; fi\n', { mode: 0o755 });
-    const run = async (attempt, pending) => {
+    await writeFile(path.join(dir, 'gh'), '#!/bin/bash\necho "gh $*" >> "$CALLS"\nif [ "$2" = list ]; then echo "$PENDING"; fi\nif [ "$2" = view ]; then echo "$CURRENT"; fi\n', { mode: 0o755 });
+    const run = async (attempt, pending, existing = false, current = "OPEN true abc") => {
       const calls = path.join(dir, 'calls-' + attempt + '-' + pending);
       execFileSync('bash', ['-c', script], { env: { ...process.env, PATH: dir + ':' + process.env.PATH,
-        CALLS: calls, PENDING: String(pending), GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: String(attempt),
+        EXISTING_BRANCH: existing ? 'automation/official-archive-existing' : '', EXISTING_PR: '549', EXISTING_HEAD: 'abc', CURRENT: current, CALLS: calls, PENDING: String(pending), GITHUB_RUN_ID: '12345', GITHUB_RUN_ATTEMPT: String(attempt),
         GITHUB_REPOSITORY: 'cetin072/taejang_homepage', GITHUB_STEP_SUMMARY: path.join(dir, 'summary') } });
       return readFile(calls, 'utf8');
     };
@@ -151,7 +151,12 @@ test('Proposal shell tolerates old branches, separates retries and blocks an ope
       assert.match(calls, /gh pr create --draft/);
       assert.doesNotMatch(calls, /ls-remote|--delete|--force/);
     }
-    assert.doesNotMatch(await run(3, 1), /git switch|git push|gh pr create/);
+    await assert.rejects(run(3, 1));
+    const updated = await run(4, 1, true);
+    assert.match(updated, /git push origin HEAD:refs\/heads\/automation\/official-archive-existing/);
+    assert.doesNotMatch(updated, /gh pr create|git switch|--force/);
+    await assert.rejects(run(5, 1, true, 'OPEN false abc'));
+    await assert.rejects(run(6, 1, true, 'OPEN true changed'));
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
 
