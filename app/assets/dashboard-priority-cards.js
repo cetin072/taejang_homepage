@@ -287,6 +287,7 @@
     const heading = target?.querySelector('.dashboard-intro h2')?.textContent || '';
     const specialDashboard = currentRoute === 'field_lead' || currentRoute === 'ceo';
     if (!currentRoute || !grid || (!heading.includes('대시보드') && !specialDashboard)) return;
+    window.TaejangManagementAttention?.mount(target);
     rendering = true;
     try {
       removeLowPriorityOperationsCards(currentRoute, grid);

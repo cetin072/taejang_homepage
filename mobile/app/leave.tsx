@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { isQaApp } from '@/src/platform/app-variant';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePlatform } from '@/src/providers/platform-provider';
 import { EmployeeBottomTabs } from '@/src/features/common/employee-bottom-tabs';
@@ -18,12 +18,12 @@ export default function LeaveScreen(){
  const [date,setDate]=useState('');const portion:LeavePortion='full';const [picker,setPicker]=useState(false);
  const [days,setDays]=useState<{date:string;portion:LeavePortion}[]>([]);const [busy,setBusy]=useState(false);const locked=useRef(false);
  const request=useRef<{id:string;payload:string}|null>(null);
- const [editing,setEditing]=useState<{original:LeaveRequest;action:'amend'|'cancel'}|null>(null);const [reason,setReason]=useState('');
+ const [editing,setEditing]=useState<{original:LeaveRequest;action:'amend'|'cancel'}|null>(null);
  const [helpOpen,setHelpOpen]=useState(false);const [period,setPeriod]=useState<'one'|'many'>('one');
  const [stage,setStage]=useState<'overview'|'form'|'confirm'>('overview');const [historyOpen,setHistoryOpen]=useState(false);
  useEffect(()=>{scroller.current?.scrollTo({y:0,animated:false});},[stage]);
  const changeRequest=useRef<{id:string;payload:string}|null>(null);
- useEffect(()=>{const id=changeRequest.current?.id;if(id&&(context?.change_requests?.some(c=>c.id===id)||context?.requests.some(r=>r.id===id))){changeRequest.current=null;setEditing(null);setStage('overview');setReason('');setDate('');}},[context]);
+ useEffect(()=>{const id=changeRequest.current?.id;if(id&&(context?.change_requests?.some(c=>c.id===id)||context?.requests.some(r=>r.id===id))){changeRequest.current=null;setEditing(null);setStage('overview');setDate('');}},[context]);
  useEffect(()=>{if(request.current&&context?.requests.some(r=>r.id===request.current?.id)){request.current=null;setDays([]);setDate('');setStage('overview');}},[context]);
  const press=(text:string,run:()=>void,disabled=false,kind:'primary'|'secondary'|'quiet'='secondary')=><Pressable key={text} accessibilityRole="button" disabled={disabled} onPress={run} style={[styles.button,kind==='primary'?styles.primary:kind==='quiet'?styles.quiet:null,kind==='primary'&&period==='many'&&!editing?styles.manyPrimary:null,disabled?styles.disabled:null]}><Text style={[styles.buttonText,kind==='primary'?styles.primaryText:null]}>{text}</Text></Pressable>;
  async function submit(){if(preview){Alert.alert('화면 체험','실제 신청은 GPS·서버 검수 모드에서 가능합니다.');return;}if(!client||locked.current||!context)return;const payload=request.current?JSON.parse(request.current.payload) as {date:string;portion:LeavePortion}[]:period==='many'?days:[{date,portion}];
@@ -35,25 +35,24 @@ export default function LeaveScreen(){
  async function cancel(id:string){if(preview)return;if(!client||locked.current)return;locked.current=true;setBusy(true);try{await cancelMyLeave(client,id);await reload();}catch(e){Alert.alert('신청 취소',leaveError(e));}finally{locked.current=false;setBusy(false);}}
  function beginChange(original:LeaveRequest,action:'amend'|'cancel'){
   if(action==='amend'&&original.portion!=='full'){Alert.alert('기존 반차 내역','기존 반차 일정 변경은 관리자에게 문의해주세요.');return;}
-  if(original.status==='approved'&&action==='amend'&&(original.modification_count||0)>=1){Alert.alert('수정 요청 제한','승인 후 수정 요청은 1회만 가능합니다. 관리자에게 문의해주세요.');return;}
-  setStage('form');setEditing({original,action});setPeriod('one');setPicker(false);setReason('');setDays([]);setDate(action==='amend'?original.work_date:'');
+  if(original.status==='approved'&&context?.self_service_limits?.[action==='amend'?'amend_remaining':'cancel_remaining']===0){Alert.alert('이번 달 요청 한도',`이번 달 ${action==='amend'?'수정':'취소'} 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.`);return;}
+  setStage('form');setEditing({original,action});setPeriod('one');setPicker(false);setDays([]);setDate(action==='amend'?original.work_date:'');
  }
  async function sendChange(){
   if(preview)return;if(!client||locked.current||!editing||!context)return;
   if(!changeRequest.current&&editing.action==='amend'&&(!date||date<context.earliest_date)){Alert.alert('신청 기한','연차는 사용일 최소 3일 전에 신청할 수 있습니다.');return;}
-  if(!changeRequest.current&&editing.original.status==='approved'&&reason.trim().length<2){Alert.alert('사유 확인','취소·수정 사유를 2자 이상 입력해주세요.');return;}
-  const payload=changeRequest.current?JSON.parse(changeRequest.current.payload):{requestId:editing.original.id,status:editing.original.status,action:editing.action,date:editing.action==='amend'?date:null,portion:editing.action==='amend'?portion:null,reason:reason.trim()};
+  const payload=changeRequest.current?JSON.parse(changeRequest.current.payload):{requestId:editing.original.id,status:editing.original.status,action:editing.action,date:editing.action==='amend'?date:null,portion:editing.action==='amend'?portion:null};
   changeRequest.current??={id:Crypto.randomUUID(),payload:JSON.stringify(payload)};locked.current=true;setBusy(true);
   try{
    if(payload.status==='pending')await editMyPendingLeave(client,payload.requestId,changeRequest.current.id,payload.date,payload.portion);
-   else await requestMyLeaveChange(client,changeRequest.current.id,payload.requestId,payload.action,payload.date,payload.portion,payload.reason);
-   changeRequest.current=null;setEditing(null);setDate('');setReason('');setStage('overview');Alert.alert('접수 완료',payload.status==='pending'?'승인 대기 신청을 수정했습니다.':'관리자가 승인하기 전까지 기존 연차가 유지됩니다.');await reload();
+   else await requestMyLeaveChange(client,changeRequest.current.id,payload.requestId,payload.action,payload.date,payload.portion);
+   changeRequest.current=null;setEditing(null);setDate('');setStage('overview');Alert.alert('접수 완료',payload.status==='pending'?'승인 대기 신청을 수정했습니다.':'관리자가 승인하기 전까지 기존 연차가 유지됩니다.');await reload();
   }catch(e){if(/^(P0|22|23)/.test(String((e as {code?:string})?.code||'')))changeRequest.current=null;Alert.alert('취소·수정 요청',leaveError(e));}finally{locked.current=false;setBusy(false);}
  }
  function confirmChange(){
   if(!editing)return;
   const summary=editing.action==='cancel'?`${editing.original.work_date} 연차 취소 요청`:`${editing.original.work_date} → ${date} ${labels[portion]}`;
-  Alert.alert('변경 내용 확인',summary+(editing.original.status==='approved'?'\n관리자 승인 전까지 기존 연차가 유지됩니다. 수정 요청은 승인 후 1회만 가능합니다.':''),[{text:'돌아가기',style:'cancel'},{text:'확인 후 보내기',onPress:()=>void sendChange()}]);
+  Alert.alert('변경 내용 확인',summary+(editing.original.status==='approved'?'\n관리자 승인 전까지 기존 연차가 유지됩니다. 승인 후에는 매월 수정 2회·취소 2회까지 요청할 수 있습니다.':''),[{text:'돌아가기',style:'cancel'},{text:'확인 후 보내기',onPress:()=>void sendChange()}]);
  }
  function changePeriod(next:'one'|'many'){
   if(next===period)return;
@@ -69,7 +68,7 @@ export default function LeaveScreen(){
  const chosenCount=period==='many'?days.length:(date?1:0);
  const chosenUnits=chosenCount;
  const uncertain=Boolean(request.current||changeRequest.current);
- useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>{if(busy||uncertain)return true;if(stage!=='overview'){setPicker(false);setStage(stage==='confirm'?'form':'overview');if(stage!=='confirm'){if(editing){setDate('');setReason('');}setEditing(null);}return true;}if(date||days.length){goHome();return true;}return false;});return()=>sub.remove();},[stage,busy,uncertain,editing,date,days.length]);
+ useEffect(()=>{const sub=BackHandler.addEventListener('hardwareBackPress',()=>{if(busy||uncertain)return true;if(stage!=='overview'){setPicker(false);setStage(stage==='confirm'?'form':'overview');if(stage!=='confirm'){if(editing){setDate('');}setEditing(null);}return true;}if(date||days.length){goHome();return true;}return false;});return()=>sub.remove();},[stage,busy,uncertain,editing,date,days.length]);
  const earliest=context?.earliest_date;const min=earliest?new Date(`${earliest}T12:00:00`):new Date();
  const selectedPickerDate=date||(period==='many'?days.at(-1)?.date:'');const cursor=selectedPickerDate?new Date(`${selectedPickerDate}T12:00:00`):min;
  const upcoming=context?.requests.filter(r=>(r.status==='pending'||r.status==='approved')&&r.work_date>=context.server_today).sort((a,b)=>a.work_date.localeCompare(b.work_date))||[];
@@ -79,14 +78,13 @@ export default function LeaveScreen(){
     return <View key={r.id} style={styles.record}><Text style={styles.recordDate}>{dateLabel(r.work_date)}</Text><Text style={[styles.status,r.status==='approved'?styles.approved:null]}>{r.status==='approved'?'✓ ':r.status==='pending'?'◷ ':''}{labels[r.status]}{r.portion!=='full'?` · ${labels[r.portion]}`:''}</Text>
      {pendingChange?<Text>{pendingChange.action==='cancel'?'취소':'수정'} 요청 · 관리자 확인 대기 (기존 연차 유지)</Text>:null}
      {active&&beforeUse&&!pendingChange?<>{press(r.status==='pending'?'신청 수정':'일정 수정 요청',()=>beginChange(r,'amend'),busy||uncertain||Boolean(editing))}
-      {r.status==='approved'&&(r.modification_count||0)>=1?<Text>승인 후 수정 요청은 1회 사용했습니다. 추가 변경은 관리자에게 문의해주세요.</Text>:null}
       {r.status==='pending'?press('신청 취소',()=>Alert.alert('신청 취소',`${r.work_date} 신청을 취소할까요?`,[{text:'돌아가기',style:'cancel'},{text:'취소 확인',onPress:()=>void cancel(r.id)}]),busy||uncertain||Boolean(editing)):press('연차 취소 요청',()=>beginChange(r,'cancel'),busy||uncertain||Boolean(editing))}</>:null}
     </View>;
 
  };
  function goHome(){if(busy||uncertain)return;if(date||days.length||editing)Alert.alert('출퇴근 화면으로 갈까요?','작성 중인 내용은 저장되지 않아요.',[{text:'계속 작성',style:'cancel'},{text:'출퇴근으로 이동',onPress:()=>router.navigate('/')}]);else router.navigate('/');}
  return <View style={[styles.page,{paddingTop:insets.top,paddingBottom:insets.bottom}]}><ScrollView ref={scroller} contentContainerStyle={{padding:20,paddingBottom:24,gap:16}} keyboardShouldPersistTaps="handled">
-  <View style={styles.header}>{stage==='overview'?<Text style={styles.title}>태장</Text>:press('← 내 연차',()=>{if(!busy&&!uncertain){setPicker(false);setStage('overview');if(editing){setDate('');setReason('');}setEditing(null);}},busy||uncertain,'quiet')}{press('새로고침',()=>void reload(),busy,'quiet')}</View>
+  <View style={styles.header}>{stage==='overview'?<Text style={styles.title}>태장</Text>:press('← 내 연차',()=>{if(!busy&&!uncertain){setPicker(false);setStage('overview');if(editing){setDate('');}setEditing(null);}},busy||uncertain,'quiet')}{press('새로고침',()=>void reload(),busy,'quiet')}</View>
   <Text style={styles.title}>{stage==='overview'?'내 연차':stage==='confirm'?'신청 확인':editing?'연차 변경':'연차 신청'}</Text>
   {preview?<Text style={styles.hint}>화면 체험 · 예시 데이터 · 실제 저장 안 됨</Text>:null}
   {!session?<Text>로그인 후 확인해주세요.</Text>:null}
@@ -94,6 +92,7 @@ export default function LeaveScreen(){
   {context?<>{stage!=='confirm'?<View style={styles.balanceCard}><Text style={styles.label}>남은 연차</Text><Text style={context.configured?styles.balance:styles.label}>{context.configured?`${context.remaining}개`:'관리자 등록 대기'}</Text></View>:null}
    {!context.configured?<Text style={styles.hint}>관리자가 연차를 등록하면 신청할 수 있어요.</Text>:null}
    {stage==='overview'?<>
+    {context.self_service_limits?<Text style={styles.hint}>승인 후 이번 달 요청 · 수정 {context.self_service_limits.amend_used}/2회 · 취소 {context.self_service_limits.cancel_used}/2회</Text>:null}
     <Text style={styles.sectionTitle}>앞으로 쉴 날짜</Text>
     {upcoming.length?upcoming.map(record):<Text style={styles.hint}>신청한 연차가 없어요.</Text>}
     {press('연차 신청하기',()=>{setEditing(null);setStage('form');},busy||!context.configured,'primary')}
@@ -108,7 +107,7 @@ export default function LeaveScreen(){
      {press(busy?'신청 중…':'네, 신청할게요',()=>void submit(),busy||loading,'primary')}
      {press('날짜 다시 고르기',()=>setStage('form'),busy)}
    </>:<View style={styles.formCard}>
-   {editing?<View style={styles.record}><Text style={styles.title}>{editing.original.status==='pending'?'승인 전 신청 수정':editing.action==='cancel'?'승인 연차 취소 요청':'승인 연차 수정 요청'}</Text><Text>기존: {editing.original.work_date} {labels[editing.original.portion]}</Text>{editing.original.status==='approved'?<TextInput accessibilityLabel="취소·수정 사유" value={reason} onChangeText={setReason} editable={!busy&&!uncertain} placeholder="사유를 입력해주세요" maxLength={300} style={styles.input}/>:null}{press('변경 입력 닫기',()=>{setEditing(null);setDate('');setReason('');setStage('overview');},busy||uncertain)}</View>:null}
+   {editing?<View style={styles.record}><Text style={styles.title}>{editing.original.status==='pending'?'승인 전 신청 수정':editing.action==='cancel'?'승인 연차 취소 요청':'승인 연차 수정 요청'}</Text><Text>기존: {editing.original.work_date} {labels[editing.original.portion]}</Text>{press('변경 그만하기',()=>{setEditing(null);setDate('');setStage('overview');},busy||uncertain)}</View>:null}
    {!editing?<><Text style={styles.label}>하루 쉬나요, 여러 날 쉬나요?</Text><View style={styles.periodChoices}>
     {(['one','many'] as const).map(p=><Pressable key={p} accessibilityRole="button" accessibilityState={{selected:period===p}} disabled={busy||uncertain} onPress={()=>changePeriod(p)} style={[styles.periodOption,period===p?(p==='many'?styles.periodManySelected:styles.periodSelected):null]}><Text style={[styles.periodTitle,p==='many'?styles.manyText:null,period===p?styles.primaryText:null]}>{period===p?'✓ ':''}{p==='one'?'하루 신청':'여러 날 신청'}</Text><Text style={[styles.portionUnits,period===p?styles.primaryText:null]}>{p==='one'?'날짜 1개':'날짜 2개 이상'}</Text></Pressable>)}
    </View></>:null}
@@ -125,7 +124,7 @@ export default function LeaveScreen(){
    {editing?press(busy?'처리 중…':uncertain?'같은 변경 다시 보내기':'변경 내용 확인',confirmChange,busy||loading,'primary'):press(busy?'처리 중…':uncertain?'같은 신청 다시 보내기':period==='one'?'하루 신청 확인':chosenCount<2?'날짜 2개 이상 선택':`${chosenCount}일 신청 확인`,confirmSubmission,busy||loading||!context.configured||(!chosenCount||period==='many'&&chosenCount<2),'primary')}
    </View>}
    {stage==='form'?press(helpOpen?'신청 안내 접기':'신청 안내',()=>setHelpOpen(!helpOpen),false,'quiet'):null}
-   {stage==='form'&&helpOpen?<View style={styles.help}><Text style={styles.hint}>하루에 연차 1개를 사용합니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정은 여러 번, 승인 후 일정 수정 요청은 사용일 전까지 1회 가능합니다.</Text></View>:null}
+   {stage==='form'&&helpOpen?<View style={styles.help}><Text style={styles.hint}>하루에 연차 1개를 사용합니다.</Text><Text style={styles.hint}>대기 신청분은 남은 개수에서 제외됩니다.</Text><Text style={styles.hint}>승인 전 수정·취소는 횟수 제한이 없습니다. 승인 후에는 매월 수정 2회·취소 2회까지 요청할 수 있습니다.</Text></View>:null}
   </>:null}
  </ScrollView>{session?<EmployeeBottomTabs selected="leave" preview={preview} disabled={busy||uncertain} onHomePress={goHome}/>:null}</View>;
 }

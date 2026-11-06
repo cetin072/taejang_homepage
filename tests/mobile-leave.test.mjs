@@ -46,10 +46,10 @@ test('pending edits and approved change requests call distinct guarded RPCs',asy
  await a.requestMyLeaveChange(client,'change','approved','amend','2026-11-11','first_half','일정 변경');
  await a.requestMyLeaveChange(client,'cancel','approved','cancel',null,null,'취소 사유');
  assert.equal(calls[0].name,'edit_my_pending_leave');assert.equal(calls[1].name,'request_my_leave_change');assert.equal(calls[1].args.p_new_portion,'first_half');assert.equal(calls[2].args.p_new_work_date,null);
- assert.match(a.leaveError(new Error('LEAVE_MODIFICATION_LIMIT')),/1회.*관리자/);
+ assert.match(a.leaveError(new Error('LEAVE_MODIFICATION_LIMIT')),/관리자/);
  await assert.rejects(()=>a.requestMyLeaveChange({rpc:async()=>({error:new Error('LEAVE_MODIFICATION_LIMIT')})},'id','r','amend','2026-11-10','full','사유'),/MODIFICATION_LIMIT/);
 });
-test('real app handlers allow repeated pending edits, block second approved edit and confirm before sending',async()=>{
+test('real app handlers keep pending edits unlimited and apply independent approved monthly quotas',async()=>{
  const states=[],refs=[],alerts=[],calls=[];let si=0,ri=0;
  const context={configured:true,remaining:5,server_today:'2026-11-02',earliest_date:'2026-11-05',requests:[{id:'pending',work_date:'2026-11-10',portion:'full',units:1,status:'pending',modification_count:0}],change_requests:[]};
  const client={rpc:async(name,args)=>{calls.push({name,args});return{data:{ok:true}};}};
@@ -67,15 +67,17 @@ test('real app handlers allow repeated pending edits, block second approved edit
  const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];const text=n=>flatten(n).filter(x=>typeof x==='string'||typeof x==='number').join('');
  const render=()=>{si=0;ri=0;return flatten(exports.default());};const click=label=>{const b=render().find(n=>n?.type==='Pressable'&&text(n)===label);assert.ok(b,label);assert.equal(b.props.disabled,false);b.props.onPress();};
  assert.ok(render().findIndex(n=>n?.type==='Text'&&text(n)==='앞으로 쉴 날짜')<render().findIndex(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기'),'upcoming leave precedes application');click('연차 신청하기');
- assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),false,'long rules are collapsed initially');click('신청 안내');assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정은')),true);click('신청 안내 접기');click('← 내 연차');
+ assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정·취소는')),false,'long rules are collapsed initially');click('신청 안내');assert.equal(render().some(n=>n?.type==='Text'&&text(n).includes('승인 전 수정·취소는')),true);click('신청 안내 접기');click('← 내 연차');
  for(const day of ['2026-11-11','2026-11-12']){
   click('신청 수정');states[0]=day;click('변경 내용 확인');assert.equal(calls.length,day.endsWith('11')?0:1,'confirmation does not send yet');alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
  }
  assert.equal(calls.filter(c=>c.name==='edit_my_pending_leave').length,2);
  context.requests=[{id:'approved',work_date:'2026-11-10',portion:'full',units:1,status:'approved',modification_count:1}];
- click('일정 수정 요청');assert.match(alerts.at(-1)[1],/1회.*관리자/);assert.equal(calls.length,2,'second approved edit never reaches API');
- context.requests[0].modification_count=0;click('일정 수정 요청');states[0]='2026-11-13';render().find(n=>n?.type==='TextInput').props.onChangeText('일정 변경 사유');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
- assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');
+ context.self_service_limits={month:'2026-11',monthly_limit:2,amend_used:2,cancel_used:0,amend_remaining:0,cancel_remaining:2};click('일정 수정 요청');assert.match(alerts.at(-1)[1],/2회.*관리자/);assert.equal(calls.length,2,'third monthly approved edit never reaches API');
+ context.self_service_limits.amend_remaining=1;context.self_service_limits.amend_used=1;click('일정 수정 요청');states[0]='2026-11-13';assert.equal(render().some(n=>n?.type==='TextInput'),false,'approved change requires no reason input');click('변경 내용 확인');assert.equal(calls.length,2);alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);
+ assert.equal(calls[2].name,'request_my_leave_change');assert.equal(calls[2].args.p_action,'amend');assert.equal(calls[2].args.p_new_work_date,'2026-11-13');assert.equal(calls[2].args.p_reason,'');
+ context.self_service_limits.cancel_remaining=0;click('연차 취소 요청');assert.match(alerts.at(-1)[1],/취소.*2회.*관리자/);assert.equal(calls.length,3);context.self_service_limits.cancel_remaining=1;click('연차 취소 요청');assert.equal(render().some(n=>n?.type==='TextInput'),false);click('변경 그만하기');assert.equal(calls.length,3,'closing editor does not cancel leave');
+ click('연차 취소 요청');click('변경 내용 확인');alerts.at(-1)[2].find(a=>a.text==='확인 후 보내기').onPress();await new Promise(setImmediate);assert.equal(calls[3].args.p_action,'cancel');assert.equal(calls[3].args.p_reason,'');calls.pop();
  click('연차 신청하기');click('여러 날 신청날짜 2개 이상');
  click('＋ 날짜 선택');let datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'dismissed'},new Date('2026-11-15T12:00:00'));assert.ok(!render().some(n=>n?.type==='Text'&&text(n)==='여러 날 신청 · 총 1일'),'dismissed picker does not choose a day');
  for(const date of ['2026-11-15','2026-11-16']){click('＋ 날짜 선택');datePicker=render().find(n=>n?.type==='DateTimePicker');datePicker.props.onChange({type:'set'},new Date(date+'T12:00:00'));}

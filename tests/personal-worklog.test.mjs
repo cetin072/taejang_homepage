@@ -14,7 +14,7 @@ function fixture(options={}){
    return options.expired?new Response('',{status:401}):Response.json({id:actor,is_anonymous:!!options.anonymous});
   }
   if(u.pathname==='/rest/v1/rpc/get_my_access_context'){
-   assert.equal(init.headers['Accept-Profile'],undefined);return Response.json({id:options.wrongContext?other:actor,account_status:options.inactive?'suspended':'active',roles:[{code:options.role||'operations_manager'}]});
+   assert.equal(init.headers['Accept-Profile'],undefined);return Response.json({id:options.wrongContext?other:actor,account_status:options.inactive?'suspended':'active',roles:[{code:options.role||'operations_manager'}],role_simulation:{active:!!options.simulation}});
   }
   assert.equal(init.method,undefined,'personal Data API is GET only');assert.equal(init.headers['Accept-Profile'],'worklog','no public schema data fallback');
   if(options.schemaMissing)return Response.json({message:'schema unavailable'},{status:406});
@@ -38,7 +38,8 @@ function fixture(options={}){
 }
 test('KST month boundaries include December rollover and reject injected dates',()=>{assert.deepEqual(monthRange('2026-12'),{start:'2026-12-01T00:00:00+09:00',end:'2027-01-01T00:00:00+09:00'});for(const bad of ['2026-13','2026-00','2026-1','2026-11&user=other','1999-01'])assert.throws(()=>monthRange(bad));});
 test('one server-verified session reads migrated owner data without email comparison or a second login',async()=>{const f=fixture();const r=await f.run();assert.equal(r.status,200);const b=await r.json();assert.equal(b.today,'2026-11-02');assert.equal(b.schedules[0].title,'합성 일정');assert.equal(b.tasks[0].status,'needs_review');assert.equal(f.calls.length,7);assert.match(r.headers.get('cache-control'),/no-store/);assert.ok(!JSON.stringify(b).includes('token'));});
-test('personal access is independent of operational role',async()=>{for(const role of ['operations_manager','promotion_staff','department_lead'])assert.equal((await fixture({role}).run()).status,200);});
+test('personal access is independent of operational role',async()=>{for(const role of ['operations_manager','promotion_staff','promotion_lead','department_lead'])assert.equal((await fixture({role}).run()).status,200);});
+test('role preview is denied before requesting any worklog data',async()=>{const f=fixture({role:'promotion_lead',simulation:true});const r=await f.run();assert.equal(r.status,403);assert.deepEqual(await r.json(),{code:'WORKLOG_ROLE_PREVIEW'});assert.equal(f.calls.length,2);});
 for(const [option,code] of [['inactive','ERP_ACCOUNT_INACTIVE'],['wrongContext','ERP_ACCOUNT_INACTIVE'],['anonymous','ERP_AUTH_REQUIRED'],['expired','ERP_AUTH_REQUIRED'],['noSpace','PERSONAL_WORKSPACE_UNAVAILABLE'],['shared','PERSONAL_WORKSPACE_UNAVAILABLE'],['foreignOwner','PERSONAL_WORKSPACE_UNAVAILABLE'],['member','PERSONAL_WORKSPACE_UNAVAILABLE']])test(`rejects ${option} before reading any personal schedule`,async()=>{const f=fixture({[option]:true});const r=await f.run();assert.ok(r.status>=400);assert.equal((await r.json()).code,code);assert.ok(!f.calls.some(c=>c.u.pathname.endsWith('/schedules')));});
 test('rejects client-provided actor/workspace IDs',async()=>{const f=fixture();assert.equal((await f.run('month=2026-11&workspace_id='+space)).status,400);assert.equal(f.calls.length,2);});
 test('requires authentication and read method',async()=>{const f=fixture();assert.equal((await f.run('month=2026-11',{})).status,401);assert.equal(f.calls.length,0);assert.equal((await f.run('month=2026-11',undefined,'POST')).status,405);});
