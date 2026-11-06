@@ -240,6 +240,14 @@ try {
  request(commissionChange);event(commissionChange,'approve');
  check(db.rpc('erp_sales_get_payouts',{p_sale_id:person.id}).commission.paid===250,'commission correction preserves existing actual payments');
  reject(()=>db.raw('delete from public.erp_sales_adjustment_events;'),/ERP_RECEIPT_IMMUTABLE/);
+ const oldMonth=db.raw("select (date_trunc('month', now() at time zone 'Asia/Seoul') - interval '1 month')::date;");
+ const oldDraft=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID(),sales_date:oldMonth,
+  order_date:oldMonth,agent_id:null,commission:fee('none',0)}});
+ const oldSale=db.rpc('erp_sales_confirm',{p_id:oldDraft.id,p_revision:oldDraft.revision});
+ db.rpc('erp_sales_set_month_close',{p_month:oldMonth,p_request_id:randomUUID(),p_closed:true,p_expected_closed:false,
+  p_reason:'Synthetic prior period close'});
+ reject(()=>db.rpc('erp_sales_record_receipt',{...collect(oldSale,1),p_recorded_on:oldMonth}),/ERP_PERIOD_CLOSED/);
+ check(db.rpc('erp_sales_record_receipt',collect(oldSale,1)).received===1,'a closed sale period permits a new collection in an open period');
  const month=on.slice(0,7)+'-01';
  const setMonth=(closed,expected,actor=OPS)=>db.rpc('erp_sales_set_month_close',{
   p_month:month,p_request_id:randomUUID(),p_closed:closed,p_expected_closed:expected,p_reason:'Synthetic month control'
