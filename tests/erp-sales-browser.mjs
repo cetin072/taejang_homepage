@@ -19,11 +19,16 @@ try {
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
  for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').fill(kind==='service'?'월':'포');await field('base_price').fill('1000');await saved('저장');}
  await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');await saved('저장');
+ await page.getByRole('button',{name:'수금 기준',exact:true}).click();
+ await field('receipt_month').selectOption('1');
+ await field('receipt_day').fill('10');
+ await saved('수금 기준 저장');
  await page.getByRole('button',{name:'월 매출 생성',exact:true}).click();await field('month').fill('2099-01');await saved('매출 생성·확인');
  await field('fee_kind').selectOption('rate');await field('fee_value').fill('2.5');await saved('매출 저장');await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();assert.equal(await field('party_id').isDisabled(),true);assert.match(await page.locator('.erp-total').textContent(),/55,000/);
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/service-1440.png',fullPage:true});
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
+ await page.getByText('수금 예정일 2099-02-10',{exact:true}).waitFor();
  await field('receipt_amount').fill('20000');
  await page.getByRole('button',{name:'입금 기록 저장',exact:true}).click();
  await page.getByText('누적 수금 20,000원 · 미수금 35,000원',{exact:true}).waitFor();

@@ -232,4 +232,117 @@ revoke all on function public.erp_sales_list_receivables(uuid, date, date) from 
 grant execute on function public.erp_sales_set_receipt_due_on(uuid, date, date) to authenticated;
 grant execute on function public.erp_sales_list_receivables(uuid, date, date) to authenticated;
 
+create table public.erp_sales_contract_receipt_rules (
+  contract_id uuid primary key references public.erp_sales_contracts(id),
+  month_offset integer not null check (month_offset in (0, 1)),
+  due_day integer not null check (due_day between 1 and 31)
+);
+alter table public.erp_sales_contract_receipt_rules enable row level security;
+revoke all on public.erp_sales_contract_receipt_rules from public, anon, authenticated;
+
+create function public.erp_sales_get_contract_receipt_rule(p_contract_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_rule public.erp_sales_contract_receipt_rules;
+begin
+  perform private.erp_sales_guard('read');
+  if not exists (
+    select 1 from public.erp_sales_contracts where id = p_contract_id and organization_key = 'taejang'
+  ) then
+    raise exception using errcode = '22023', message = 'ERP_CONTRACT_NOT_FOUND';
+  end if;
+  select * into v_rule from public.erp_sales_contract_receipt_rules where contract_id = p_contract_id;
+  return jsonb_build_object('month_offset', v_rule.month_offset, 'due_day', v_rule.due_day);
+end;
+$$;
+
+create function public.erp_sales_set_contract_receipt_rule(
+  p_contract_id uuid, p_month_offset integer, p_due_day integer, p_expected_rule jsonb
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_before jsonb;
+  v_after jsonb := jsonb_build_object('month_offset', p_month_offset, 'due_day', p_due_day);
+begin
+  perform private.erp_sales_guard('write');
+  perform private.erp_sales_guard('read');
+
+  -- Monthly sale generation already uses this contract lock.
+  perform 1 from public.erp_sales_contracts
+    where id = p_contract_id and organization_key = 'taejang' for update;
+  if not found then
+    raise exception using errcode = '22023', message = 'ERP_CONTRACT_NOT_FOUND';
+  end if;
+  if (p_month_offset is null) <> (p_due_day is null)
+     or p_month_offset not in (0, 1)
+     or p_due_day not between 1 and 31 then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_RULE';
+  end if;
+
+  v_before := public.erp_sales_get_contract_receipt_rule(p_contract_id);
+  if v_before = v_after then
+    return v_after;
+  end if;
+  if v_before is distinct from p_expected_rule then
+    raise exception using errcode = '40001', message = 'ERP_REVISION_CONFLICT';
+  end if;
+
+  if p_month_offset is null then
+    delete from public.erp_sales_contract_receipt_rules where contract_id = p_contract_id;
+  else
+    insert into public.erp_sales_contract_receipt_rules (contract_id, month_offset, due_day)
+      values (p_contract_id, p_month_offset, p_due_day)
+      on conflict (contract_id) do update
+        set month_offset = excluded.month_offset, due_day = excluded.due_day;
+  end if;
+  perform private.erp_sales_history('contract', p_contract_id, 'contract_receipt_rule', v_before, v_after);
+  return v_after;
+end;
+$$;
+
+create function private.erp_sales_seed_receipt_due_on()
+returns trigger language plpgsql set search_path = '' as $$
+declare
+  v_rule public.erp_sales_contract_receipt_rules;
+  v_month date;
+  v_last_day date;
+begin
+  if new.organization_key <> 'taejang' or new.status <> 'draft' then
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if (old.kind, old.contract_id, old.sales_month)
+       is not distinct from (new.kind, new.contract_id, new.sales_month) then
+      return new;
+    end if;
+  end if;
+
+  if new.kind = 'service' then
+    select * into v_rule from public.erp_sales_contract_receipt_rules where contract_id = new.contract_id;
+    if found then
+      v_month := (new.sales_month + make_interval(months => v_rule.month_offset))::date;
+      v_last_day := (v_month + interval '1 month - 1 day')::date;
+      insert into public.erp_sales_receipt_schedule(sale_id, due_on)
+        values (new.id, least(v_month + (v_rule.due_day - 1), v_last_day))
+        on conflict (sale_id) do update set due_on = excluded.due_on;
+      return new;
+    end if;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    delete from public.erp_sales_receipt_schedule where sale_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.erp_sales_seed_receipt_due_on() from public, anon, authenticated;
+create trigger erp_sales_seed_receipt_due_on
+  after insert or update of kind, contract_id, sales_month on public.erp_sales_transactions
+  for each row execute function private.erp_sales_seed_receipt_due_on();
+
+revoke all on function public.erp_sales_get_contract_receipt_rule(uuid) from public, anon, authenticated;
+revoke all on function public.erp_sales_set_contract_receipt_rule(uuid, integer, integer, jsonb) from public, anon, authenticated;
+grant execute on function public.erp_sales_get_contract_receipt_rule(uuid) to authenticated;
+grant execute on function public.erp_sales_set_contract_receipt_rule(uuid, integer, integer, jsonb) to authenticated;
+
 commit;

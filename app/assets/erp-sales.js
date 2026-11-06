@@ -13,7 +13,7 @@
  const report=(message,error=false)=>{if(!root?.isConnected)return;status.textContent=message;status.className=error?'message error':'message';status.hidden=!message;};
  function errorText(error){const m=String(error?.message||error);if(/PGRST202|does not exist|404/.test(m))return '이 환경은 매출 기능의 데이터 준비가 완료되지 않았습니다. 담당자에게 확인해 주세요.';
   if(/23505|duplicate|unique/.test(m))return '이미 등록된 정보입니다. 기존 거래처·품목 또는 계약 월 매출을 확인해 주세요.';
-  const codes={ERP_RECEIPT_INVALID_DUE_ON:'수금 예정일을 확인해 주세요.',ERP_RECEIPT_INVALID_DUE_RANGE:'예정일의 시작일과 종료일을 확인해 주세요.',ERP_RECEIPT_CONFIRMED_REQUIRED:'확정 매출에만 수금을 기록할 수 있습니다.',ERP_RECEIPT_INVALID_INPUT:'입금일·정정일, 원 단위 금액, 취소 사유를 확인해 주세요.',ERP_RECEIPT_INVALID_REVERSAL:'취소할 입금과 정정일을 확인해 주세요.',ERP_RECEIPT_ALREADY_REVERSED:'이미 취소된 입금입니다. 수금 내역을 다시 열어 주세요.',ERP_RECEIPT_OVER_BALANCE:'입금액이 미수 잔액을 초과합니다. 수금 내역을 다시 열어 잔액을 확인해 주세요.',ERP_FORBIDDEN:'이 기능을 사용할 권한이 없습니다.',ERP_REVISION_CONFLICT:'다른 화면에서 변경되었습니다. 입력을 보존했습니다. 새로 조회한 뒤 비교해 주세요.',ERP_SALE_CONFIRMED:'이미 확정된 거래는 원본을 수정할 수 없습니다.',ERP_AGENT_RELATION_REQUIRED:'매출일에 유효한 거래처·영업자 관계를 먼저 등록해 주세요.',ERP_INVALID_COMMISSION:'영업자와 거래별 영업비 조건을 확인해 주세요.',ERP_INVALID_CONTRACT_MONTH:'계약 기간과 매출 월을 확인해 주세요.',ERP_CONTRACT_NOT_ACTIVE:'진행 중인 계약과 해당 월을 확인해 주세요.',ERP_REQUEST_REUSE:'같은 저장 요청으로 이미 다른 내용이 저장되었습니다. 입력은 보존되니 매출 목록에서 기존 거래를 먼저 확인해 주세요.',ERP_INVALID_PERIOD:'조회 기간은 1년 이내로 지정해 주세요.'};
+  const codes={ERP_RECEIPT_INVALID_RULE:'당월 또는 익월과 수금일 1~31일을 선택해 주세요.',ERP_CONTRACT_NOT_FOUND:'용역 계약을 찾을 수 없습니다.',ERP_RECEIPT_INVALID_DUE_ON:'수금 예정일을 확인해 주세요.',ERP_RECEIPT_INVALID_DUE_RANGE:'예정일의 시작일과 종료일을 확인해 주세요.',ERP_RECEIPT_CONFIRMED_REQUIRED:'확정 매출에만 수금을 기록할 수 있습니다.',ERP_RECEIPT_INVALID_INPUT:'입금일·정정일, 원 단위 금액, 취소 사유를 확인해 주세요.',ERP_RECEIPT_INVALID_REVERSAL:'취소할 입금과 정정일을 확인해 주세요.',ERP_RECEIPT_ALREADY_REVERSED:'이미 취소된 입금입니다. 수금 내역을 다시 열어 주세요.',ERP_RECEIPT_OVER_BALANCE:'입금액이 미수 잔액을 초과합니다. 수금 내역을 다시 열어 잔액을 확인해 주세요.',ERP_FORBIDDEN:'이 기능을 사용할 권한이 없습니다.',ERP_REVISION_CONFLICT:'다른 화면에서 변경되었습니다. 입력을 보존했습니다. 새로 조회한 뒤 비교해 주세요.',ERP_SALE_CONFIRMED:'이미 확정된 거래는 원본을 수정할 수 없습니다.',ERP_AGENT_RELATION_REQUIRED:'매출일에 유효한 거래처·영업자 관계를 먼저 등록해 주세요.',ERP_INVALID_COMMISSION:'영업자와 거래별 영업비 조건을 확인해 주세요.',ERP_INVALID_CONTRACT_MONTH:'계약 기간과 매출 월을 확인해 주세요.',ERP_CONTRACT_NOT_ACTIVE:'진행 중인 계약과 해당 월을 확인해 주세요.',ERP_REQUEST_REUSE:'같은 저장 요청으로 이미 다른 내용이 저장되었습니다. 입력은 보존되니 매출 목록에서 기존 거래를 먼저 확인해 주세요.',ERP_INVALID_PERIOD:'조회 기간은 1년 이내로 지정해 주세요.'};
   return Object.entries(codes).find(([c])=>m.includes(c))?.[1]||'저장하지 못했습니다. 입력값과 연결 정보를 확인한 뒤 다시 시도해 주세요.';
  }
  async function rpc(name,data={}){const generation=epoch;if(!allowed())throw new Error('ERP_FORBIDDEN');const result=await window.TaejangApp.rpc(name,data);if(generation!==epoch||!allowed()||!root?.isConnected)throw new Error('ERP_FORBIDDEN');return result;}
@@ -75,7 +75,60 @@
   const history=el('details');history.append(el('summary',`영업 관계 이력 ${state.assignments.length}건`),table(['거래처','영업자','관계','시작일','종료일 (미포함)','사유'],state.assignments.map(r=>[labelFor('parties',r.party_id),labelFor('agents',r.agent_id),kinds[r.relationship],r.starts_on,r.ends_on||'현재',r.reason])));body.append(history);
  }
  function drawItems(){if(state.canWrite)body.append(btn('품목·서비스 등록',()=>masterEditor('item'),true));body.append(table(['코드','품목·서비스','유형','단위','기준 공급단가','재고 대상','상태',''],state.items.map(r=>[r.code,r.name,kinds[r.kind],r.unit,r.base_price===null?'—':money(r.base_price),r.inventory_managed?'표시됨':'아니오',r.active?'사용':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('item',r))])));}
- function drawContracts(){if(state.canWrite)body.append(btn('용역 계약 등록',()=>masterEditor('contract'),true));body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태',''],state.contracts.map(r=>{const a=el('div','','erp-actions');a.append(btn(state.canWrite?'수정':'보기',()=>masterEditor('contract',r)));if(state.canWrite&&r.status==='active')a.append(btn('월 매출 생성',()=>monthEditor(r)));return [r.title,labelFor('parties',r.party_id),r.starts_on+' ~ '+r.ends_on,money(r.monthly_supply)+' / '+money(r.monthly_tax),r.billing_basis,kinds[r.status],a];})));}
+ function drawContracts(){
+  if(state.canWrite)body.append(btn('용역 계약 등록',()=>masterEditor('contract'),true));
+  body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태',''],state.contracts.map(contract=>{
+   const actions=el('div','','erp-actions');
+   actions.append(btn(state.canWrite?'수정':'보기',()=>masterEditor('contract',contract)));
+   actions.append(btn('수금 기준',()=>void run(async()=>{
+    const rule=await rpc('erp_sales_get_contract_receipt_rule',{p_contract_id:contract.id});
+    contractReceiptRuleEditor(contract,rule);
+   })));
+   if(state.canWrite&&contract.status==='active')actions.append(btn('월 매출 생성',()=>monthEditor(contract)));
+   return [contract.title,labelFor('parties',contract.party_id),contract.starts_on+' ~ '+contract.ends_on,
+    money(contract.monthly_supply)+' / '+money(contract.monthly_tax),contract.billing_basis,kinds[contract.status],actions];
+  })));
+ }
+ function contractReceiptRuleEditor(contract,rule){
+  const parts=formStart('수금 기준: '+contract.title);
+  if(!parts)return;
+  const {f,grid}=parts;
+  const month=field(grid,'receipt_month','수금 기준 월','select',rule.month_offset??'',
+   [['','자동 지정 안 함'],['0','매출 당월'],['1','매출 익월']]);
+  const day=field(grid,'receipt_day','수금일 (1~31일)','number',rule.due_day??'');
+  day.min='1';
+  day.max='31';
+  day.step='1';
+  function syncDay(){
+   const enabled=month.value!=='';
+   day.closest('label').hidden=!enabled;
+   day.disabled=!enabled;
+   day.required=enabled;
+  }
+  month.addEventListener('change',syncDay);
+  syncDay();
+  f.append(el('p','31일은 말일로 처리합니다. 지정일이 없는 달은 그달 마지막 날을 사용합니다. 변경 후 새로 생성하는 월 매출에 적용됩니다.','help'));
+  if(state.canWrite){
+   const save=el('button','수금 기준 저장','button primary');
+   save.type='submit';
+   f.append(save);
+  }
+  f.append(btn('닫기',clearEditor));
+  f.addEventListener('submit',event=>{
+   event.preventDefault();
+   if(!state.canWrite||!f.reportValidity())return;
+   const offset=month.value===''?null:Number(month.value);
+   const dueDay=offset===null?null:Number(day.value);
+   void run(async()=>{
+    await rpc('erp_sales_set_contract_receipt_rule',{
+     p_contract_id:contract.id,p_month_offset:offset,p_due_day:dueDay,p_expected_rule:rule
+    });
+    f.dataset.dirty='false';
+    clearEditor();
+    report('용역 계약의 수금 기준을 저장했습니다.');
+   });
+  });
+ }
  function monthEditor(contract){const parts=formStart('월 매출 생성: '+contract.title);if(!parts)return;const {f,grid}=parts;field(grid,'month','매출 월','month',today().slice(0,7),[],true);f.append(el('p','기존 문서와 계산 결과는 변경하지 않습니다. 같은 계약·월 매출이 있으면 기존 거래를 엽니다.','help'));const save=el('button','매출 생성·확인','button primary');save.type='submit';f.append(save,btn('닫기',clearEditor));f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;void run(async()=>{const sale=await rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:f.elements.month.value+'-01'});f.dataset.dirty='false';saleEditor(sale);report(sale.alreadyExists?'이미 생성된 월 매출을 불러왔습니다.':'월 매출을 생성했습니다. 내용을 확인 후 확정하세요.');});});}
  function saleEditor(sale=null){const locked=sale?.status==='confirmed';const parts=formStart(sale?.id?(locked?'확정 매출 상세':'매출 수정'):'소금·상품 판매 등록');if(!parts)return;const {f,grid}=parts;f.dataset.confirmed=String(locked);const data=sale||{};const requestKey=data.request_key||crypto.randomUUID();
   const kind=data.kind||'product';f.append(el('p',data.id?'거래·주문 ID: '+data.id:'공급처 직배송 주문입니다. 태장 창고 재고를 차감하지 않습니다.','help'));

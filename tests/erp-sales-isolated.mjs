@@ -115,5 +115,32 @@ try {
  reject(()=>db.rpc('erp_sales_confirm',{p_id:person.id,p_revision:person.revision}),/ERP_FORBIDDEN/);
  db.raw("update public.platform_capabilities set active=true where code='erp_sales.confirm';");
  check(db.raw("select adapter_ready from public.menu_authority_catalog where menu_key='erp_sales.manage';")==='f','personal delegation is not enabled by this V1');
+ const ruleKey={p_contract_id:contract.id};
+ const unsetRule=db.rpc('erp_sales_get_contract_receipt_rule',ruleKey);
+ check(unsetRule.month_offset===null&&unsetRule.due_day===null,'existing contracts start without an automatic receipt rule');
+ const setRule=(offset,day,expected=unsetRule,actor=OPS)=>db.rpc('erp_sales_set_contract_receipt_rule',
+  {...ruleKey,p_month_offset:offset,p_due_day:day,p_expected_rule:expected},{actor});
+ reject(()=>setRule(0,0),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(2,10),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(null,10),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(0,31,unsetRule,WORKER),/ERP_FORBIDDEN/);
+ reject(()=>db.rpc('erp_sales_get_contract_receipt_rule',ruleKey,{actor:WORKER}),/ERP_FORBIDDEN/);
+ const monthEnd=setRule(0,31);
+ check(db.rpc('erp_sales_get_receipts',receiptRead).due_on===null,'saving a contract rule does not backfill existing sales');
+ const generate=p_month=>db.rpc('erp_sales_generate_month',{...ruleKey,p_month});
+ const dueOf=id=>db.raw(`select due_on from public.erp_sales_receipt_schedule where sale_id='${id}';`);
+ const feb=generate('2099-02-01');
+ check(dueOf(feb.id)==='2099-02-28','a 31st day rule uses February month end');
+ reject(()=>setRule(1,10),/ERP_REVISION_CONFLICT/);
+ const nextMonth=setRule(1,10,monthEnd);
+ const febRetry=generate('2099-02-01');
+ check(febRetry.id===feb.id&&dueOf(febRetry.id)==='2099-02-28','regenerating an existing month preserves its original due date');
+ const mar=generate('2099-03-01');
+ db.rpc('erp_sales_confirm',{p_id:mar.id,p_revision:mar.revision});
+ check(db.rpc('erp_sales_get_receipts',{p_sale_id:mar.id}).due_on==='2099-04-10','confirmed sales inherit the configured following-month day');
+ db.rpc('erp_sales_set_receipt_due_on',{p_sale_id:mar.id,p_due_on:'2099-04-15',p_expected_due_on:'2099-04-10'});
+ check(dueOf(generate('2099-03-01').id)==='2099-04-15','manual due date override survives a duplicate monthly generation request');
+ setRule(null,null,nextMonth);
+ check(dueOf(generate('2099-04-01').id)==='','disabling the rule leaves newly generated sales unscheduled');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}
