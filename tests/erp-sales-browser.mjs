@@ -85,6 +85,16 @@ try {
  assert.equal(await page.locator('.erp-body tbody tr').count(),2);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,000/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);
+ await page.route('**/fixture-rpc',route=>{
+  if(route.request().postDataJSON().name==='erp_sales_phase2_ready'){
+   return route.fulfill({status:404,json:{message:'PGRST202'}});
+  }
+  return route.continue();
+ });
+ await page.reload();
+ await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
+ await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();
+ assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
  assert.ok(dialogs.filter(t=>t.includes('확정 후')).length===2,'two explicit confirmations');assert.equal(dialogs.filter(t=>t.includes('저장하지 않은 입력이 있을 수')).length,0,'saved ERP data does not trigger shell dirty warnings');
  console.log('ERP_BROWSER_PASS: real PG17 scenario A/B, reload, filters, failure input preservation, confirm, delivery, 1440/390px, permission scrub');
 }finally{await browser.close();await app.close();}

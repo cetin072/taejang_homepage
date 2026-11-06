@@ -237,4 +237,12 @@ grant execute on function public.erp_sales_get_payouts(uuid) to authenticated;
 grant execute on function public.erp_sales_approve_payout(uuid, uuid, text, numeric, text, numeric, text, date) to authenticated;
 grant execute on function public.erp_sales_finish_payout(uuid, uuid, text, date, text) to authenticated;
 
+-- The web release can be published before this migration reaches the target.
+create function public.erp_sales_phase2_ready()
+returns boolean language sql stable set search_path = '' as $$
+  select public.erp_sales_can('read');
+$$;
+revoke all on function public.erp_sales_phase2_ready() from public, anon, authenticated;
+grant execute on function public.erp_sales_phase2_ready() to authenticated;
+
 commit;

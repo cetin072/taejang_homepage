@@ -7,7 +7,7 @@
  const taxChoices=[['taxable','과세 (세액 직접 입력)'],['exempt','면세'],['zero_rated','영세율']];
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
- let root,status,body,editor,state,tab='parties',busy=false,epoch=0;
+ let root,status,body,editor,state,phase2=false,tab='parties',busy=false,epoch=0;
  const receivableFilters={party:'',from:'',to:''};
  const filters={from:today().slice(0,7)+'-01',to:today(),party:'',kind:'',status:'',agent:''};
  const report=(message,error=false)=>{if(!root?.isConnected)return;status.textContent=message;status.className=error?'message error':'message';status.hidden=!message;};
@@ -80,7 +80,7 @@
   body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태',''],state.contracts.map(contract=>{
    const actions=el('div','','erp-actions');
    actions.append(btn(state.canWrite?'수정':'보기',()=>masterEditor('contract',contract)));
-   actions.append(btn('수금 기준',()=>void run(async()=>{
+   if(phase2)actions.append(btn('수금 기준',()=>void run(async()=>{
     const rule=await rpc('erp_sales_get_contract_receipt_rule',{p_contract_id:contract.id});
     contractReceiptRuleEditor(contract,rule);
    })));
@@ -170,8 +170,8 @@
     ...(kind==='product'?{supplier_id:d.supplier_id,order_channel:d.order_channel,shipping_status:d.shipping_status}:{contract_id:data.contract_id,sales_month:data.sales_month})};
    void run(async()=>{const result=await rpc('erp_sales_save',{p_data:payload,p_id:data.id||null,p_revision:data.revision||0});f.dataset.dirty='false';saleEditor(result);if(tab==='sales')await drawSales();report('매출을 저장했습니다. 입력한 실제 단가와 조건이 보존됩니다.');});
   });
-  if(locked) drawReceipts(data.id);
-  if(locked&&(data.supplier_id||(data.agent_id&&Number(data.commission?.value)>0))) drawPayouts(data.id);
+  if(locked&&phase2) drawReceipts(data.id);
+  if(locked&&phase2&&(data.supplier_id||(data.agent_id&&Number(data.commission?.value)>0))) drawPayouts(data.id);
   if(sale?.id&&kind==='product'){
    const delivery=el('section','','app-form-section');delivery.append(el('h4','공급처 직배송 상태'),el('p',kinds[data.shippingCurrent||data.shipping_status]||'—'));const next=field(delivery,'next_shipping','배송 상태 기록','select',data.shippingCurrent||data.shipping_status,[['preparing','배송 준비'],['shipped','발송'],['delivered','배송 완료']]);
    if(state.canWrite)delivery.append(btn('배송 상태 저장',()=>{const value=next.value;void run(async()=>{const result=await rpc('erp_sales_shipping',{p_id:data.id,p_status:value});f.dataset.dirty='false';saleEditor(result);report('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.');});}));else next.disabled=true;editor.append(delivery);
@@ -428,8 +428,16 @@
  }
  function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else void run(drawReceivables);}
  async function open(){if(!allowed())return;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2','기준정보·매출 관리'),status);main.replaceChildren(root);
-  try{state=await rpc('erp_sales_bootstrap');if(generation!==epoch)return;const tabs=el('div','','erp-tabs');tabs.setAttribute('role','tablist');body=el('div','','erp-body');body.setAttribute('role','tabpanel');body.id='erp-sales-panel';body.setAttribute('aria-labelledby','erp-tab-'+tab);editor=el('section','','erp-editor');
-   for(const [key,label] of [['parties','거래처·영업자'],['items','품목·서비스'],['contracts','용역 계약'],['sales','매출·판매'],['receivables','미수금']]){const button=btn(label,()=>{if(!clearEditor())return;tab=key;tabs.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-selected',String(b===button));b.tabIndex=b===button?0:-1;});body.setAttribute('aria-labelledby',button.id);draw();});button.id='erp-tab-'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls','erp-sales-panel');button.tabIndex=tab===key?0:-1;button.setAttribute('aria-selected',String(tab===key));tabs.append(button);}
+  try{
+   const [bootstrap,ready]=await Promise.all([
+    rpc('erp_sales_bootstrap'),
+    rpc('erp_sales_phase2_ready').catch(()=>false)
+   ]);
+   if(generation!==epoch)return;
+   state=bootstrap;
+   phase2=ready===true;
+   if(!phase2&&tab==='receivables')tab='sales';const tabs=el('div','','erp-tabs');tabs.setAttribute('role','tablist');body=el('div','','erp-body');body.setAttribute('role','tabpanel');body.id='erp-sales-panel';body.setAttribute('aria-labelledby','erp-tab-'+tab);editor=el('section','','erp-editor');
+   for(const [key,label] of [['parties','거래처·영업자'],['items','품목·서비스'],['contracts','용역 계약'],['sales','매출·판매'],...(phase2?[['receivables','미수금']]:[])]){const button=btn(label,()=>{if(!clearEditor())return;tab=key;tabs.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-selected',String(b===button));b.tabIndex=b===button?0:-1;});body.setAttribute('aria-labelledby',button.id);draw();});button.id='erp-tab-'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls','erp-sales-panel');button.tabIndex=tab===key?0:-1;button.setAttribute('aria-selected',String(tab===key));tabs.append(button);}
    tabs.addEventListener('keydown',event=>{const buttons=[...tabs.querySelectorAll('button')];const i=buttons.indexOf(document.activeElement);if(i<0)return;const index=event.key==='Home'?0:event.key==='End'?buttons.length-1:event.key==='ArrowRight'?(i+1)%buttons.length:event.key==='ArrowLeft'?(i+buttons.length-1)%buttons.length:null;if(index===null)return;event.preventDefault();buttons[index].focus();buttons[index].click();if(buttons[index].getAttribute('aria-selected')!=='true')buttons[i].focus();});
    root.append(tabs,body,editor);report('');draw();
   }catch(e){report(errorText(e),true);root.append(btn('다시 조회',()=>void open()));}
