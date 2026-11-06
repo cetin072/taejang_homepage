@@ -80,7 +80,7 @@ try {
  await field('evidence_reference').fill('SYNTHETIC-BROWSER-TAX');
  await field('amount').fill('4072');
  await page.getByRole('button',{name:'발행 증빙 저장',exact:true}).click();
- await page.getByText('SYNTHETIC-BROWSER-TAX',{exact:true}).waitFor();
+ await page.getByRole('cell',{name:'SYNTHETIC-BROWSER-TAX',exact:true}).waitFor();
 
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
