@@ -185,5 +185,30 @@ try {
  approve(replacement);
  payouts=payment(replacement);
  check(payouts.commission.paid===250&&payouts.commission.remaining===250&&payouts.supplier.paid===0,'commission and supplier balances remain separate on the same sale');
+ const support=(kind,p_data,p_request_id=randomUUID(),actor=OPS)=>
+  db.rpc('erp_sales_record_support',{p_kind:kind,p_request_id,p_data},{actor});
+ const purchase={date:on,purchase_kind:'expense',merchant:'Synthetic store',description:'Synthetic supplies',
+  method:'company_card',amount:3700,note:'Synthetic card reference'};
+ const purchaseId=randomUUID();
+ support('purchase',purchase,purchaseId);
+ check(support('purchase',purchase,purchaseId).id===purchaseId,'direct purchase save is idempotent without a supplier or purchase order');
+ reject(()=>support('purchase',{...purchase,amount:3800},purchaseId),/ERP_REQUEST_REUSE/);
+ const purchases=db.rpc('erp_sales_list_purchases',{p_from:on,p_to:on});
+ check(purchases.total===1&&purchases.total_amount==='3700'&&purchases.items[0].supplier==='Synthetic store','direct card expense is listed with source and total');
+ reject(()=>support('purchase',purchase,randomUUID(),WORKER),/ERP_FORBIDDEN/);
+ check(db.rpc('erp_sales_get_stock').balances.find(r=>r.id===salt.id).quantity===0,'previous direct-delivery sales never change stock');
+ support('stock',{date:'2025-01-02',item_id:salt.id,quantity:10.5,note:'Synthetic stock in'});
+ support('stock',{date:on,item_id:salt.id,quantity:-2.25,note:'Synthetic stock out'});
+ check(db.rpc('erp_sales_get_stock').balances.find(r=>r.id===salt.id).quantity===8.25,'stock balances use explicit incoming and outgoing movements');
+ reject(()=>support('stock',{date:'2025-01-01',item_id:salt.id,quantity:-1,note:'Backdated excess'}),/ERP_STOCK_INSUFFICIENT/);
+ reject(()=>support('stock',{date:on,item_id:service.id,quantity:1,note:'Service item'}),/ERP_STOCK_ITEM_REQUIRED/);
+ const invoice={date:on,sale_id:corporate.id,kind:'tax_invoice',reference:'SYN-INV-001',amount:10100};
+ const invoiceId=support('evidence',invoice).id;
+ reject(()=>support('evidence',{...invoice,sale_id:person.id}),/duplicate key/);
+ reject(()=>support('evidence',{...invoice,sale_id:person.id,kind:'corrected_tax_invoice',reference:'SYN-OTHER',original_id:invoiceId,amount:-100}),/ERP_EVIDENCE_ORIGINAL_REQUIRED/);
+ support('evidence',{...invoice,kind:'corrected_tax_invoice',reference:'SYN-INV-002',original_id:invoiceId,amount:-100});
+ const evidence=db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id});
+ check(evidence.length===2&&evidence[1].original_id===invoiceId&&evidence[1].amount===-100,'corrected evidence preserves the original linkage and signed amount');
+ reject(()=>db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}
