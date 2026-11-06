@@ -258,7 +258,7 @@
     if (!currentCapability() || !root?.isConnected || !state?.common) return;
     root.replaceChildren();
     root.append(el('header', undefined, 'mcd-header'));
-    root.querySelector('.mcd-header').append(el('p', '업무 운영 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
+    root.querySelector('.mcd-header').append(el('p', '영업·매출 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
       el('p', '월별 snapshot을 저장하고 확정한 뒤 회사별 또는 4사 DOCX를 생성합니다.'));
     const top = el('section', undefined, 'mcd-panel app-authoring'); top.append(el('h3', '기준 월'));
     top.append(el('p', `${state.common.year}년 ${state.common.month}월`, 'mcd-current-month'));

@@ -48,7 +48,7 @@
         'promotion.request_public_change', 'information.review',
         'attendance.admin_view', 'attendance.exception_review', 'attendance.correct', 'audit.target_history.read',
         'homepage.draft', 'homepage.review', 'homepage.approve_apply', 'homepage.direct_edit',
-        'notice.manage', 'monthly_client_documents.manage', 'payroll.manage', 'payroll.handoff.approve',
+        'notice.manage', 'monthly_client_documents.manage', 'erp_sales.read', 'payroll.manage', 'payroll.handoff.approve',
         'support_radar.management_view', 'support_radar.management_edit', 'support_radar.assigned_work',
         'platform.navigation.manage'
       ])
@@ -376,7 +376,10 @@
       assertNoDuplicateLeafLabels('operations_manager');
       assertOrdered(current, ['직원 관리', '신규 직원 등록', '가입 승인'], '운영총괄 직원·계정');
       assertOrdered(current, ['홍보 승인 검토', '발행 현황', '공개 홍보글 관리'], '운영총괄 홍보');
-      assertOrdered(current, ['공지 관리', '거래처 문서 관리'], '운영총괄 업무 운영');
+      assert(find('공지 관리')?.dataset.navSection === 'operations', '공지 관리가 업무 운영에 속해야 함');
+      assert(find('기준정보·매출 관리')?.dataset.navSection === 'sales', '기준정보·매출 관리가 영업·매출에 속해야 함');
+      assert(find('거래처 문서 관리')?.dataset.navSection === 'sales', '거래처 문서 관리가 영업·매출에 속해야 함');
+      assertOrdered(current, ['공지 관리', '기준정보·매출 관리', '거래처 문서 관리'], '운영총괄 업무 운영과 영업·매출');
       assertOrdered(current, ['출근부', '근태 보정', '근태·급여관리'], '운영총괄 근태·급여');
       assert(!document.getElementById('desktop-user-label').textContent.includes('undefined'), '운영총괄 상단 사용자 역할명이 undefined로 표시됨');
     }
@@ -475,10 +478,10 @@
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
       assertOrdered(labels(),['공지 관리','거래처 문서 관리'],'legacy task-first preference must not override notice priority');
-      savedSidebarOrder = { sections: [], menus: ['monthly_client_documents.manage','notice.manage'] };
+      savedSidebarOrder = { sections: [], menus: ['monthly_client_documents.manage','erp_sales.manage','notice.manage'] };
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
-      assertOrdered(labels(),['거래처 문서 관리','공지 관리'],'explicit modern custom order remains respected');
+      assertOrdered(labels(),['공지 관리','거래처 문서 관리','기준정보·매출 관리'],'explicit custom order is respected within the sales section');
       savedSidebarOrder = null;
       await window.TaejangPlatformUiSettings.refresh();
       await wait(40);
