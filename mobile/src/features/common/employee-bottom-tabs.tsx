@@ -16,4 +16,4 @@ export function EmployeeBottomTabs({ selected, preview=false, disabled=false, on
     })}
   </View>;
 }
-const styles=StyleSheet.create({bar:{flexDirection:'row',gap:8,padding:8,borderTopWidth:1,borderTopColor:'#a9beb0',backgroundColor:'#f6f4ed'},tab:{flex:1,minWidth:0,minHeight:88,padding:10,borderRadius:16,alignItems:'center',justifyContent:'center',gap:5},active:{backgroundColor:'#173f31'},icon:{fontSize:27,color:'#173f31'},label:{fontSize:23,fontWeight:'800',color:'#173f31',textAlign:'center'},activeText:{color:'#fff'}});
+const styles=StyleSheet.create({bar:{flexDirection:'row',gap:5,padding:5,borderTopWidth:1,borderTopColor:'#a9beb0',backgroundColor:'#f6f4ed'},tab:{flex:1,minWidth:0,minHeight:58,paddingHorizontal:7,paddingVertical:3,borderRadius:10,alignItems:'center',justifyContent:'center',gap:3},active:{backgroundColor:'#173f31'},icon:{fontSize:18,lineHeight:20,color:'#173f31'},label:{fontSize:23,lineHeight:28,fontWeight:'800',color:'#173f31',textAlign:'center'},activeText:{color:'#fff'}});

@@ -28,6 +28,7 @@ export function createHandler({ env = process.env, fetchImpl = fetch, now = () =
       if (!uuid(erpUser?.id) || erpUser.is_anonymous) throw fail(401, 'ERP_AUTH_REQUIRED');
       const context = await read(url, key, token, '/rest/v1/rpc/get_my_access_context', 'ERP_ACCESS_UNAVAILABLE', { method: 'POST', body: '{}' });
       if (context?.id !== erpUser.id || context.account_status !== 'active') throw fail(403, 'ERP_ACCOUNT_INACTIVE');
+      if (context.role_simulation?.active === true) throw fail(403, 'WORKLOG_ROLE_PREVIEW');
       if (req.headers.has('x-worklog-authorization')) throw fail(400, 'SECONDARY_SESSION_NOT_SUPPORTED');
       if (env.WORKLOG_UNIFIED_READ_ENABLED !== 'true') throw fail(503, 'WORKLOG_MIGRATION_PENDING');
       const params = new URL(req.url).searchParams;

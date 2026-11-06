@@ -11,21 +11,23 @@ begin
 end $$;
 do $$
 declare
- ops uuid:=gen_random_uuid(); lead uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid();
+ second_change uuid:=gen_random_uuid(); ops uuid:=gen_random_uuid(); lead uuid:=gen_random_uuid(); worker uuid:=gen_random_uuid();
  person uuid:=gen_random_uuid(); emp uuid:=gen_random_uuid(); req uuid:=gen_random_uuid();
  pending_edit uuid; change_id uuid:=gen_random_uuid(); cancel_id uuid:=gen_random_uuid();
- dept uuid; pos uuid; location uuid; today date:=(now() at time zone 'Asia/Seoul')::date;
+ dept uuid; pos uuid; lead_pos uuid; ops_pos uuid; location uuid; today date:=(now() at time zone 'Asia/Seoul')::date;
  dates date[]; d1 date; d2 date; d3 date; ctx jsonb; row_data jsonb; b jsonb; uid uuid;
  denied boolean;
 begin
  select id into dept from public.departments where code='production' limit 1;
  select id into pos from public.positions where code='general_worker' limit 1;
+ select id into lead_pos from public.positions where code='department_lead' limit 1;
+ select id into ops_pos from public.positions where code='operations_manager' limit 1;
  select id into location from public.attendance_locations where active limit 1;
  perform pg_temp.leave_check(dept is not null and pos is not null and location is not null,'required existing reference configuration');
  foreach uid in array array[ops,lead,worker] loop
   insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data)
    values(uid,'leave-smoke-'||uid||'@example.invalid','{}',jsonb_build_object('display_name','TEST 연차 롤백 검증'));
-  update public.profiles set account_status='active',department_id=dept,position_id=pos,approved_at=now(),status_changed_at=now() where id=uid;
+  update public.profiles set account_status='active',department_id=dept,position_id=case when uid=ops then ops_pos when uid=lead then lead_pos else pos end,approved_at=now(),status_changed_at=now() where id=uid;
   insert into public.profile_roles(profile_id,role_id,scope_type,granted_by)
    select uid,id,'company',ops from public.roles where code=case when uid=ops then 'operations_manager' when uid=lead then 'promotion_lead' else 'general_worker' end;
  end loop;
@@ -72,7 +74,7 @@ begin
  perform pg_temp.leave_check(not (public.private_employee_schedule(emp,d1)->>'is_workday')::boolean,'approved leave excluded from reminder workday schedule');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',worker::text,true);
- perform public.request_my_leave_change(change_id,req,'amend',d2,'full','TEST change confirmed leave');
+ perform public.request_my_leave_change(change_id,req,'amend',d2,'full','');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',lead::text,true);
  perform public.review_employee_leave_change(change_id,'approved','TEST change approved');
@@ -80,11 +82,17 @@ begin
  perform pg_temp.leave_check(public.private_attendance_effective_status(emp,d2)->>'leave_portion'='full','new date marked leave after approved amendment');
  perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',worker::text,true);
+ perform public.request_my_leave_change(second_change,change_id,'amend',d3,'full','');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',lead,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',lead::text,true);
+ perform public.review_employee_leave_change(second_change,'rejected','TEST keep original date');
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',worker,'role','authenticated')::text,true);
+ perform set_config('request.jwt.claim.sub',worker::text,true);
  denied:=false;
- begin perform public.request_my_leave_change(gen_random_uuid(),change_id,'amend',d3,'full','TEST forbidden second change');
- exception when others then if sqlerrm like '%LEAVE_MODIFICATION_LIMIT%' then denied:=true; else raise; end if; end;
- perform pg_temp.leave_check(denied,'second confirmed schedule amendment is blocked');
- perform public.request_my_leave_change(cancel_id,change_id,'cancel',null,null,'TEST cancellation');
+ begin perform public.request_my_leave_change(gen_random_uuid(),change_id,'amend',d3,'full','');
+ exception when others then if sqlerrm like '%LEAVE_MONTHLY_AMEND_LIMIT%' then denied:=true; else raise; end if; end;
+ perform pg_temp.leave_check(denied,'third monthly approved amendment is blocked');
+ perform public.request_my_leave_change(cancel_id,change_id,'cancel',null,null,null);
  perform set_config('request.jwt.claims',jsonb_build_object('sub',ops,'role','authenticated')::text,true);
  perform set_config('request.jwt.claim.sub',ops::text,true);
  perform public.review_employee_leave_change(cancel_id,'approved','TEST cancellation approved');

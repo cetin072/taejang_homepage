@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||['/usr/bin/google-chrome','/usr/bin/chromium'].find(existsSync),args:['--no-sandbox']});
 const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
-window.actor='self';window.role='operations_manager';window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자'}),rpc:async()=>[]};
+window.actor='self';window.role='operations_manager';window.simulation=false;window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자',role_simulation:{active:simulation}}),rpc:async()=>[]};
 </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
 try {
  for(const width of [1440,390,320]){
@@ -75,6 +75,14 @@ try {
   mode='no-space';await p.evaluate(()=>TaejangDashboard.render());await p.locator('.personal-worklog').waitFor({state:'hidden'});
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1,'non-owner retains ERP operational dashboard');
   mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
+  const beforePreview=requests;
+  await p.evaluate(async()=>{simulation=true;role='promotion_lead';await TaejangDashboard.render();});
+  assert.equal(await p.getByRole('heading',{name:'홍보 검토 대기',exact:true}).count(),1);
+  assert.equal(await p.getByRole('heading',{name:'내 업무수첩',exact:true}).count(),0);
+  assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),0);
+  assert.equal(requests,beforePreview,'role preview does not request private data');
+  await p.evaluate(async()=>{simulation=false;role='operations_manager';await TaejangDashboard.render();});
+  await p.getByRole('table',{name:/개인 일정/}).waitFor();
   mode='delayed';await p.getByRole('button',{name:'새로고침',exact:true}).click();
   while(!delayResolve)await new Promise(r=>setTimeout(r,10));
   await p.getByRole('button',{name:'로그아웃',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
