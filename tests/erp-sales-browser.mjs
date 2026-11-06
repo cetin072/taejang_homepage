@@ -103,6 +103,24 @@ try {
  await field('event_note').fill('합성 환불 확인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('환불 예정 100원 · 실제 환불 100원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'정산 잔액 미리보기',exact:true}).click();
+ const review=page.locator('form').filter({has:page.getByRole('heading',{name:'정산 잔액 검수',exact:true})});
+ await review.getByLabel('검수용 조정 후 매출 (원)',{exact:true}).fill('3972');
+ await review.getByText('예상 순수금 3,972원 · 예상 미수금 0원 · 예상 초과 수금 0원',{exact:true}).waitFor();
+ await review.getByLabel('검수용 조정 후 매출 (원)',{exact:true}).fill('3922');
+ await review.getByText('예상 순수금 3,972원 · 예상 미수금 0원 · 예상 초과 수금 50원',{exact:true}).waitFor();
+ await review.getByLabel('검수용 추가 환불 (원)',{exact:true}).fill('50');
+ await review.getByText('예상 순수금 3,922원 · 예상 미수금 0원 · 예상 초과 수금 0원',{exact:true}).waitFor();
+ await review.getByLabel('검수용 추가 환불 (원)',{exact:true}).fill('0');
+
+ await review.getByLabel('검수용 조정 후 매출 (원)',{exact:true}).fill('4072');
+ await review.getByText('예상 순수금 3,972원 · 예상 미수금 100원 · 예상 초과 수금 0원',{exact:true}).waitFor();
+ await review.getByLabel('검수용 다음 영업비 (원)',{exact:true}).fill('40000');
+ await review.getByLabel('검수용 영업비 상계액 (원)',{exact:true}).fill('10000');
+ await review.getByText('상계 후 예상 영업비 30,000원',{exact:true}).waitFor();
+ await review.getByRole('button',{name:'미리보기 닫기',exact:true}).click();
+ assert.equal(app.db.raw("select total_amount from public.erp_sales_transactions where kind='product';"),'4072');
+
 
 
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});

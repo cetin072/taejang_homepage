@@ -589,13 +589,24 @@
  function drawAdjustments(sale){
   const panel=el('section','','app-form-section');
   const content=el('div');
+  const preview=el('div');
+  const previewButton=btn('정산 잔액 미리보기',()=>void run(async()=>{
+   const [receipt,adjustments]=await Promise.all([
+    rpc('erp_sales_get_receipts',{p_sale_id:sale.id}),
+    rpc('erp_sales_list_adjustments',{p_sale_id:sale.id})
+   ]);
+   renderReconciliationPreview(preview,sale,receipt,adjustments);
+  }));
+  previewButton.hidden=true;
   const show=btn('취소·반품·조정 조회',()=>void run(async()=>{
    const rows=await rpc('erp_sales_list_adjustments',{p_sale_id:sale.id});
    show.hidden=true;render(rows);
   }));
-  panel.append(el('h4','취소·반품·조정'),show,content);
+  panel.append(el('h4','취소·반품·조정'),show,previewButton,content,preview);
   editor.append(panel);
   function render(rows){
+   previewButton.hidden=false;
+   preview.replaceChildren();
    content.replaceChildren();
    const switchForm=factory=>{
     if(content.querySelector('form[data-dirty="true"]')&&!window.confirm('저장하지 않은 조정 입력을 닫을까요?'))return;
@@ -690,6 +701,53 @@
    });
    f.append(btn('닫기',()=>{if(f.dataset.dirty!=='true'||window.confirm('입력을 닫을까요?'))render(rows);}));
    return f;
+  }
+ }
+ function renderReconciliationPreview(host,sale,receipt,adjustments){
+  const form=el('form','','app-authoring');
+  const grid=el('div','','erp-fields');
+  const refunded=adjustments.flatMap(row=>row.events)
+   .filter(event=>event.action==='refund').reduce((sum,event)=>sum+Number(event.amount),0);
+  const received=Number(receipt.received);
+  const net=received-refunded;
+  const revised=amountField(grid,'검수용 조정 후 매출 (원)','0');
+  revised.value=String(sale.total_amount);
+  const refund=amountField(grid,'검수용 추가 환불 (원)','0');
+  refund.value='0';
+  refund.max=String(Math.max(0,net));
+  let nextFee,offset;
+  if(sale.agent_id){
+   nextFee=amountField(grid,'검수용 다음 영업비 (원)','0');
+   offset=amountField(grid,'검수용 영업비 상계액 (원)','0');
+   nextFee.value='0';
+   offset.value='0';
+  }
+  const output=el('div','','erp-total');
+  output.setAttribute('aria-live','polite');
+  form.append(el('h5','정산 잔액 검수'),
+   el('p','입력한 금액은 미리보기에만 사용됩니다. 원장 반영 기준을 확인하는 화면입니다.','help'),
+   el('p','원매출 '+money(sale.total_amount)+' · 실제 수금 '+money(received)+' · 실제 환불 '+money(refunded),'help'),
+   grid,output,btn('미리보기 닫기',()=>host.replaceChildren()));
+  form.addEventListener('submit',event=>event.preventDefault());
+  form.addEventListener('input',calculate);
+  host.replaceChildren(form);
+  calculate();
+
+  function calculate(){
+   if(offset)offset.max=String(Number(nextFee.value)||0);
+   if(net<0){
+    output.textContent='실제 환불이 현재 수금 기록을 초과합니다. 입금 정정 내역을 확인해 주세요.';
+    return;
+   }
+   if(!form.checkValidity()){
+    output.textContent='원 단위 금액을 확인해 주세요. 추가 환불은 현재 순수금, 상계는 다음 영업비를 초과할 수 없습니다.';
+    return;
+   }
+   const projectedNet=net-Number(refund.value);
+   const difference=Number(revised.value)-projectedNet;
+   output.replaceChildren(el('p','예상 순수금 '+money(projectedNet)+' · 예상 미수금 '+money(Math.max(0,difference))+
+    ' · 예상 초과 수금 '+money(Math.max(0,-difference))));
+   if(offset)output.append(el('p','상계 후 예상 영업비 '+money(Number(nextFee.value)-Number(offset.value))));
   }
  }
  async function drawMonthClose(){
