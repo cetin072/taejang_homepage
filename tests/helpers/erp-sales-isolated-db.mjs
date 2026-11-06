@@ -36,7 +36,7 @@ export async function createERPDatabase() {
   const rpc=(fn,params={},{actor=OPS}={})=>{
    if(!/^erp_sales_[a-z0-9_]+$/.test(fn))throw new Error('fixture RPC outside ERP');
    const args=Object.entries(params).map(([k,v])=>{if(!/^p_[a-z_]+$/.test(k))throw new Error('invalid param');return k+' => '+(v===null?'null':typeof v==='object'?"'"+JSON.stringify(v).replaceAll("'","''")+"'::jsonb":typeof v==='number'?String(v):"'"+String(v).replaceAll("'","''")+"'")}).join(',');
-   return JSON.parse(sql(`select public.${fn}(${args});`,{actor}));
+   return JSON.parse(sql(`select to_jsonb(public.${fn}(${args}));`,{actor}));
   };
   return {name,raw,sql,rpc,stop:()=>docker(['stop',name])};
  }catch(error){docker(['stop',name]);throw error}
