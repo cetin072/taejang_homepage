@@ -78,7 +78,9 @@ test('published activity and workplace stories are crawlable without JS', () => 
     assert.doesNotMatch(map, /blog\.naver\.com|youtube\.com|\/staff\//, 'No external or private URLs');
 
     const archive = readFileSync(path.join(dist, 'archive.html'), 'utf8');
-    assert.match(archive, /href="activities\/environment-cleanup-third\.html"/);
+    const snapshot = JSON.parse(archive.match(/id="archive-snapshot">([\s\S]*?)<\/script>/)[1]);
+    assert.ok(snapshot.some(item => item.detailUrl === 'activities/environment-cleanup-third.html'), 'older approved stories remain available to archive search and pagination');
+    assert.equal((archive.match(/data-static-fallback-card/g) || []).length, 12);
     const community = readFileSync(path.join(dist, 'community-esg.html'), 'utf8');
     assert.match(community, /href="activities\/environment-cleanup-third\.html"/);
   } finally {

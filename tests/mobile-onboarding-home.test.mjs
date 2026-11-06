@@ -39,9 +39,8 @@ test('active mobile home has attendance, notice, and one capability-gated work-p
   assert.equal((home.match(/<AttendanceCard/g) || []).length, 1);
   assert.doesNotMatch(home, /TodayWorkAction|ScheduleHomeAction|PromotionStaffShortcut/);
   assert.equal((home.match(/<NoticeHomeAction/g) || []).length, 1);
-  assert.match(home, /justifyContent:\s*'space-between'/);
   assert.match(home, /actionHeight/);
-  assert.match(home, /업무 플랫폼 열기/);
+  assert.match(home, /플랫폼 바로가기/);
   assert.equal((home.match(/<PrimaryButton/g) || []).length, 1);
   assert.doesNotMatch(home, /로그인 상태|중요공지 알림 준비|직원앱 준비 완료/);
 });
@@ -55,8 +54,12 @@ test('web approval links existing employee first; new hire is a separate operati
   assert.match(approval, /approve_employee_signup_request/);
   assert.match(approval, /신규 직원 생성 후 가입 승인/);
   assert.match(approval, /route\(\) === 'operations_manager'/);
-  assert.match(approval, /confirmEmployeeId/);
-  assert.match(approval, /mismatchConfirmed/);
+  assert.match(approval, /candidate = controls\.employees\.find\(item => item\.employee_uuid === controls\.employee\.value\)/);
+  assert.match(approval, /if \(!candidate\)/);
+  assert.match(approval, /if \(!controls\.identityConfirmed\.checked\)/);
+  assert.match(approval, /p_employee_uuid: candidate\.employee_uuid/);
+  assert.match(approval, /p_confirm_employee_id: candidate\.employee_id/);
+  assert.match(approval, /p_identity_mismatch_confirmed: controls\.identityConfirmed\.checked/);
 });
 
 test('holiday work UI is explicit per employee and does not treat arbitrary work notes as authorization', async () => {

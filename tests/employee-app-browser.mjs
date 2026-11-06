@@ -1,3 +1,4 @@
+import { newPhotoSafeContext, newPhotoSafePage } from './helpers/photo-safe-browser.mjs';
 import { exerciseMotion, exerciseScrollTriggeredCards } from './helpers/employee-app-motion-checks.mjs';
 import { checkReadinessBoundary } from './helpers/public-page-ready-checks.mjs';
 import { gotoPublicReady } from './helpers/public-page-ready.mjs';
@@ -79,7 +80,7 @@ try {
     // CSS viewport equivalent to desktop 1440 at 200%/400%; not a physical-device claim.
     ['reflow-200', 720, 450], ['reflow-400', 360, 225]
   ]) {
-    const context = await browser.newContext({ viewport: { width, height }, reducedMotion: 'reduce' });
+    const context = await newPhotoSafeContext(browser, { viewport: { width, height }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -94,23 +95,23 @@ try {
     assert.equal(await page.locator('.employee-app-note-flow dt').count(), 6);
     assert.equal(await page.locator('a.employee-app-note-link').count(), 0);
     assert.equal(await page.locator('.employee-app-principle-list svg rect').count(), 1, 'use a phone-style icon instead of the old person glyph');
-    assert.equal(await page.locator('header .desktop-nav .employee-app-nav').count(), 1);
-    assert.equal(await page.locator('header .mobile-nav .employee-app-nav').count(), 1);
-    const currentLink = page.locator('header .desktop-nav .employee-app-nav');
+    assert.equal(await page.locator('header .desktop-nav .resources-nav').count(), 1);
+    assert.equal(await page.locator('header .mobile-nav .resources-nav').count(), 1);
+    const currentLink = page.locator('header .desktop-nav .resources-nav');
     const routeDebug = await page.evaluate(() => ({
       path: location.pathname,
-      menuLink: document.querySelector('header .desktop-nav .employee-app-nav')?.getAttribute('href')
+      menuLink: document.querySelector('header .desktop-nav .resources-nav')?.getAttribute('href')
     }));
-    assert.equal(await currentLink.getAttribute('aria-current'), 'page',
-      name + ': active employee-app menu on actual route ' + JSON.stringify(routeDebug));
-    await assertMenuStyle(currentLink, 'rgba(0, 0, 0, 0)', name + ': desktop current page', 'rgb(45, 106, 79)');
+    assert.equal(await currentLink.getAttribute('aria-current'), null,
+      name + ': no false current-page marker on resource link on actual route ' + JSON.stringify(routeDebug));
+    await assertMenuStyle(currentLink, 'rgba(0, 0, 0, 0)', name + ': desktop resource link', 'rgb(27, 67, 50)');
     const mobileOrder = await page.locator('header .mobile-nav > a').evaluateAll(els => els.map(el => ({
       label: el.textContent.trim(), href: el.getAttribute('href')
     })));
     const mobileStaffIndex = mobileOrder.findIndex(item => item.href === 'staff/');
-    const mobileGuideIndex = mobileOrder.findIndex(item => /employee-app(?:\.html)?$/.test(item.href || ''));
-    assert.equal(mobileGuideIndex, mobileStaffIndex + 1, name + ': mobile app guide follows staff login');
-    assert.equal(mobileGuideIndex, mobileOrder.length - 1, name + ': mobile app guide is the last menu item');
+    const mobileGuideIndex = mobileOrder.findIndex(item => /resources(?:\.html)?$/.test(item.href || ''));
+    assert.equal(mobileGuideIndex, mobileStaffIndex - 1, name + ': mobile resources precedes staff login');
+    assert.equal(mobileGuideIndex, mobileOrder.length - 2, name + ': mobile resources is before staff login');
     if (width > 1000) {
       const header = await page.locator('.desktop-nav').evaluate(el => {
         const links = [...el.querySelectorAll('a')].map(a => a.getBoundingClientRect());
@@ -183,10 +184,10 @@ try {
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
     await gotoPublicReady(page, base + '/index.html', output);
-    const desktopAppLink = page.locator('header .desktop-nav a.employee-app-nav');
-    const mobileAppLink = page.locator('header .mobile-nav a.employee-app-nav');
-    assert.equal(await desktopAppLink.count(), 1, name + ': desktop header includes employee app');
-    assert.equal(await mobileAppLink.count(), 1, name + ': mobile header includes employee app');
+    const desktopAppLink = page.locator('header .desktop-nav a.resources-nav');
+    const mobileAppLink = page.locator('header .mobile-nav a.resources-nav');
+    assert.equal(await desktopAppLink.count(), 1, name + ': desktop header includes resource hub');
+    assert.equal(await mobileAppLink.count(), 1, name + ': mobile header includes resource hub');
     assert.equal(await landingLink(page).count(), 1, name + ': legacy footer entry remains');
     if (name === 'pc') {
       await landingLink(page).click();
@@ -232,15 +233,17 @@ try {
       assert.equal(await desktopAppLink.evaluate(el => getComputedStyle(el).outlineStyle), 'solid');
       await desktopAppLink.click();
     }
+    await page.waitForURL(url => /\/resources(?:\.html)?$/.test(url.pathname));
+    await page.locator('.resource-card--link').click();
     await page.waitForURL(url => isLandingRoute(url.href));
-    assert.ok(isLandingRoute(page.url()), name + ': homepage header opens landing');
+    assert.ok(isLandingRoute(page.url()), name + ': resources card opens employee landing');
     results.push({ name, width, footerHref, ...metric, ...visual, pass: true });
     console.log('PASS employee landing + homepage: ' + name);
     await context.close();
   }
   // Exercise the actual sign-in panel with a local-only public config mock: no credentials or Auth requests.
   for (const [name, width, height] of [['pc', 1440, 900], ['mobile', 390, 844], ['narrow', 320, 720]]) {
-    const staffContext = await browser.newContext({ viewport: { width, height } });
+    const staffContext = await newPhotoSafeContext(browser, { viewport: { width, height } });
     await staffContext.addInitScript(() => {
       window.TAEJANG_STAFF_CONFIG = { url: 'https://unused.invalid', publishableKey: 'test-public-config-only' };
     });
@@ -265,7 +268,7 @@ try {
     await staffContext.close();
     console.log('PASS staff login app guide: ' + name);
   }
-    const noJS = await browser.newContext({ viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
+    const noJS = await newPhotoSafeContext(browser, { viewport: { width: 320, height: 720 }, javaScriptEnabled: false, reducedMotion: 'reduce' });
   const staticPage = await noJS.newPage();
   await staticPage.goto(base + '/employee-app.html');
   assert.equal(await staticPage.locator('#mobile-nav').isVisible(), true);
@@ -279,7 +282,7 @@ try {
   await noJS.close();
   const motion = { hero: 'approved V2.1 5200ms', card: '2000ms reading + 1000ms single half-turn, card in-view trigger and viewport pause/resume' };
   for (const width of [1440, 390, 320]) {
-  const normal = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
+  const normal = await newPhotoSafeContext(browser, { viewport: { width, height: 900 }, reducedMotion: 'no-preference' });
   const motionPage = await normal.newPage();
   await motionPage.goto(base + '/employee-app.html', { waitUntil: 'domcontentloaded' });
   const motionOutput = path.join(output, 'motion-' + width);
@@ -293,12 +296,12 @@ try {
   await normal.close();
   }
   if (process.env.EMPLOYEE_APP_QA_BASE) {
-    const cleanPage = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const cleanPage = await newPhotoSafePage(browser, { viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     await gotoPublicReady(cleanPage, base + '/employee-app', output);
     assert.ok(isLandingRoute(cleanPage.url()), 'hosted clean URL stays on landing');
-    const cleanMenu = cleanPage.locator('.desktop-nav .employee-app-nav');
-    assert.equal(await cleanMenu.getAttribute('aria-current'), 'page', 'hosted clean URL current menu');
-    await assertMenuStyle(cleanMenu, 'rgba(0, 0, 0, 0)', 'hosted clean URL', 'rgb(45, 106, 79)');
+    const cleanMenu = cleanPage.locator('.desktop-nav .resources-nav');
+    assert.equal(await cleanMenu.getAttribute('aria-current'), null, 'employee landing does not claim to be the resource hub');
+    await assertMenuStyle(cleanMenu, 'rgba(0, 0, 0, 0)', 'hosted clean URL', 'rgb(27, 67, 50)');
     await cleanPage.screenshot({ path: path.join(output, 'employee-app-clean-url.png') });
     await cleanPage.close();
   }

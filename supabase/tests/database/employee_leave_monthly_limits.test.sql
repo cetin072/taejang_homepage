@@ -1,0 +1,13 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select plan(8);
+select has_column('public','employee_leave_change_requests','manager_direct','manager action origin retained');
+select ok(not has_function_privilege('anon','public.admin_change_employee_leave(uuid,uuid,text,date,text)','execute'),'anonymous manager override denied');
+select ok(has_function_privilege('authenticated','public.admin_change_employee_leave(uuid,uuid,text,date,text)','execute'),'authenticated override uses guarded RPC');
+select ok(not has_function_privilege('authenticated','public.private_review_employee_leave_change(uuid,text,text,boolean)','execute'),'private direct flag cannot be called by employees');
+select ok(not has_function_privilege('authenticated','public.private_employee_leave_change_usage(uuid,timestamptz)','execute'),'employee cannot query other employee usage');
+select is((public.private_employee_leave_change_usage(gen_random_uuid())->>'amend_remaining')::int,2,'fresh employee has two approved amendment requests');
+select is((public.private_employee_leave_change_usage(gen_random_uuid())->>'cancel_remaining')::int,2,'fresh employee has two separate approved cancellation requests');
+select is(public.private_employee_leave_change_usage(gen_random_uuid(),'2026-11-30T15:00:00Z')->>'month','2026-12','month boundary uses KST');
+select * from finish();
+rollback;

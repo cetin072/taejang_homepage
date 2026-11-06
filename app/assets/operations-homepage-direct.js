@@ -208,7 +208,10 @@
         imageAlt = input(); imageAlt.maxLength = 300; imageAlt.placeholder = '사진에 무엇이 보이는지 짧게 설명';
         imageStatus = el('p', '', 'operations-homepage-meta');
         imagePreview = el('div', null, 'operations-homepage-preview');
-        file.addEventListener('change', async () => {
+        const retryUpload = button('사진 다시 시도', () => uploadSelected());
+        retryUpload.hidden = true;
+        async function uploadSelected() {
+          retryUpload.hidden = true;
           const selected = file.files?.[0];
           if (!selected) return;
           file.disabled = true;
@@ -220,14 +223,15 @@
             if (!imageAlt.value.trim()) imageAlt.value = selected.name.replace(/\.[^.]+$/, '');
             const image = document.createElement('img'); image.src = uploadedUrl; image.alt = imageAlt.value || '변경할 사진';
             imagePreview.replaceChildren(image);
-            imageStatus.textContent = '업로드 완료 · 저장하면 홈페이지에 바로 반영됩니다.';
+            imageStatus.textContent = '업로드 완료 · 저장하면 홈페이지에 바로 반영됩니다.'; file.value = '';
           } catch (error) {
             uploadedUrl = null;
-            imageStatus.textContent = '사진 업로드에 실패했습니다.';
+            imageStatus.textContent = '사진 업로드 실패 · ' + error.message; retryUpload.hidden = false;
             window.alert(error.message || '사진을 업로드하지 못했습니다.');
-          } finally { file.disabled = false; file.value = ''; }
-        });
-        form.append(field('새 사진', file, 'JPG, PNG, WEBP, GIF · 8MB 이하'), field('사진 설명', imageAlt, '접근성을 위해 사진 설명은 필수입니다.'), imageStatus, imagePreview);
+          } finally { file.disabled = false; }
+        }
+        file.addEventListener('change', uploadSelected);
+        form.append(field('새 사진', file, 'JPG, PNG, WEBP, GIF · 원본 15MB 이하 · 자동 압축 후 1MB 이하'), field('사진 설명', imageAlt, '접근성을 위해 사진 설명은 필수입니다.'), imageStatus, retryUpload, imagePreview);
       }
 
       const save = button('홈페이지에 바로 반영', async () => {

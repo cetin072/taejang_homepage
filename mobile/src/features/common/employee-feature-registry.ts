@@ -1,6 +1,7 @@
 export type EmployeeAppFeatureKey =
   | 'attendance.clock'
   | 'notice.read'
+  | 'leave.self'
   | 'promotion.author'
   | 'work-platform.open';
 
@@ -39,6 +40,7 @@ const WORK_PLATFORM_CAPABILITIES = new Set([
 export const EMPLOYEE_APP_FEATURE_ORDER: readonly EmployeeAppFeatureKey[] = [
   'attendance.clock',
   'notice.read',
+  'leave.self',
   'promotion.author',
   'work-platform.open',
 ];
@@ -69,6 +71,8 @@ export function resolveEmployeeAppFeatures(access: EmployeeAppAccess | null | un
     state: active ? 'enabled' : 'disabled',
     reason: active ? undefined : '활성 직원 계정에서 사용할 수 있습니다.',
   });
+
+  features.set('leave.self', { key: 'leave.self', state: active ? 'enabled' : 'disabled', reason: active ? undefined : '활성 직원 계정에서 사용할 수 있습니다.' });
 
   const promotionAuthoringEnabled = active && capabilities.has('promotion.write');
   features.set('promotion.author', {

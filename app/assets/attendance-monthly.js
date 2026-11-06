@@ -43,10 +43,12 @@
       return {label:outside?'재직기간 밖':(day.workday?.is_workday===false ? '휴일·비대상' : '비대상'),confirmed:false,review:false,clockIn:'',clockOut:''};
     }
     const code=live.attendance_status?.status || 'work';
+    const leave=live.attendance_status?.leave_portion;
+    const leaveLabel=leave==='full'?'연차(승인)':leave==='first_half'?'앞 반차(승인)':leave==='second_half'?'뒤 반차(승인)':null;
     const holiday=day.workday?.is_workday===false && !(day.assignments || []).some(r=>String(r.employee_uuid)===String(employee.employee_uuid));
     // A future workday without a recorded event is a plan, never a missed punch.
     if (date>asOfDay && !live.clock_in?.event_at && !live.clock_out?.event_at) {
-      const label=holiday && code==='work' ? '휴일 예정' : code==='work' ? '근무 예정' : (labels[code] || '확인 필요') + ' 예정';
+      const label=leaveLabel || (holiday && code==='work' ? '휴일 예정' : code==='work' ? '근무 예정' : (labels[code] || '확인 필요') + ' 예정');
       return {label,code,confirmed:false,review:code==='review_required' || !Object.hasOwn(labels,code),clockIn:'',clockOut:''};
     }
     if (holiday && code==='work' && !live.clock_in?.event_at && !live.clock_out?.event_at) return {label:'휴일',confirmed:false,review:false,clockIn:'',clockOut:''};
@@ -54,7 +56,7 @@
     const clockIn=valid(live.clock_in)?time(live.clock_in.event_at):'';
     const clockOut=valid(live.clock_out)?time(live.clock_out.event_at):'';
     const missing=code==='work' && (!clockIn || !clockOut);
-    return {label:(missing?'누락':labels[code] || '확인 필요')+' · 미확정',code,confirmed:false,review:true,clockIn,clockOut};
+    return {label:(leaveLabel?leaveLabel+(missing&&leave!=='full'?' · 근무 기록 확인':''):(missing?'누락':labels[code] || '확인 필요'))+' · 미확정',code,confirmed:false,review:true,clockIn,clockOut};
   }
 
   function buildMonth({month,ledger,daily,employees=[],queriedAt=new Date().toISOString()}) {

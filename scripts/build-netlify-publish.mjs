@@ -2,6 +2,7 @@ import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { generatePublicArticles } from './generate-public-articles.mjs';
 import { localizeOfficialThumbnails } from './localize-official-thumbnails.mjs';
+import { generateArchiveSnapshot } from './generate-archive-snapshot.mjs';
 import { inlinePublicNavigation } from './inline-public-navigation.mjs';
 
 const repoRoot = process.cwd();
@@ -18,7 +19,9 @@ const PUBLIC_ROOT_FILES = Object.freeze([
   'archive.html',
   'business.html',
   'community-esg.html',
+  'community-esg-records.html',
   'greeting.html',
+  'history.html',
   'index.html',
   'location.html',
   'partnership.html',
@@ -96,6 +99,8 @@ for (const file of REQUIRED_BINARY_FILES) await copyRequiredFile(file);
 const generated = await generatePublicArticles({ repoRoot, outputRoot });
 const navigationPages = await inlinePublicNavigation(outputRoot);
 await localizeOfficialThumbnails({ outputRoot });
+const archive = await generateArchiveSnapshot({ outputRoot });
+console.log(`Generated archive snapshot with ${archive.length} approved records`);
 console.log(`Inlined public navigation in ${navigationPages} public pages`);
 console.log(`Generated ${generated.pages} search-ready public article pages`);
 console.log(`Netlify publish bundle created at ${outputRoot}`);

@@ -45,6 +45,7 @@ Issue #227의 Android 직원앱 1차 통합 구현입니다.
 - 공개 `staff-config`의 비밀 없는 업데이트/점검 정책
 - 선택 업데이트(`나중에`/`업데이트`)와 최소 버전 기반 필수 업데이트
 - 설치 버전당 한 번만 보이는 변경사항
+- 설정 → 패치노트: 앱 업데이트와 함께 추가되는 변경 기록, 오프라인 재조회 (원본: `src/features/settings/patch-notes.ts`)
 - 승인된 태장 launcher 자산을 사용한 native splash
 - foreground session refresh, 알림 권한 설정, 안전한 지원 진단
 - 정책 변수와 운영 경계: [`docs/planning/GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md`](../docs/planning/GOAL_369_MOBILE_OPERATING_FOUNDATION_V1.md)

@@ -71,6 +71,13 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: npm ci
 
+      - name: Install Korean font for staff form QA
+        if: steps.scope.outputs.run_full == 'true'
+        timeout-minutes: 5
+        run: |
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y fonts-noto-cjk
+
       - name: Start isolated local Supabase
         if: steps.scope.outputs.run_full == 'true'
         run: supabase start
@@ -139,6 +146,22 @@ jobs:
           # Run after first-super-admin bootstrap and all historical ledgers exist.
           git fetch origin 90cf9d6af8490b005d1a8ae0865cdd85c133460c
           node tests/employee-password-reset-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-leave-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/google-email-release-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/worklog-readonly-auth-integration.mjs
+
+      - name: Test leave administration browser flow
+        if: steps.scope.outputs.run_full == 'true'
+        run: CHROME_PATH=$(command -v google-chrome) node tests/employee-leave-browser.mjs
+
+      - name: Keep synthetic work time PC and mobile screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: leave-admin-390-1440
+          path: leave-admin-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'

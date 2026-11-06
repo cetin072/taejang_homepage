@@ -52,7 +52,7 @@ test('production payroll UI does not fall back to a STAGING label', () => {
   assert.match(live, /급여 데이터를 불러오고 있습니다/);
 });
 
-test('external payroll handoff is named explicitly so it is not confused with the normal payroll path', () => {
-  assert.match(navigation, /외부 급여초안 상신/);
-  assert.match(navigation, /외부 급여초안 검토/);
+test('external payroll handoff is removed from the normal payroll path', () => {
+  assert.doesNotMatch(navigation, /외부 급여초안 상신/);
+  assert.doesNotMatch(navigation, /외부 급여초안 검토/);
 });

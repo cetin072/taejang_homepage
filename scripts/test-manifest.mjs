@@ -1,5 +1,8 @@
 export const testGroups = Object.freeze({
   platformStatic: Object.freeze([
+    'tests/employee-leave-errors.test.mjs',
+    'tests/personal-worklog.test.mjs',
+    'tests/google-identity-link.test.mjs',
     'tests/menu-authority.test.js',
     'tests/phase1a-security-foundation.test.js',
     'tests/staff-entry-routing.test.js',
@@ -93,6 +96,7 @@ export const testGroups = Object.freeze({
     'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
+    'tests/photo-safe-browser.test.mjs',
     'tests/scheduled-netlify-release.test.mjs',
     'tests/mobile-optional-release-config.test.mjs',
     'tests/public-homepage-main-simplification.test.js',
@@ -104,6 +108,7 @@ export const testGroups = Object.freeze({
     'tests/official-archive-sync.test.mjs',
     'tests/localize-official-thumbnails.test.mjs',
     'tests/public-static-fallback.test.js',
+    'tests/archive-snapshot.test.mjs',
     'tests/public-article-seo.test.js',
     'tests/employee-app-landing.test.js',
     'tests/public-promotion-seo-edge.test.mjs',

@@ -1,0 +1,96 @@
+import {existsSync} from 'node:fs';
+import fs from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||['/usr/bin/google-chrome','/usr/bin/chromium'].find(existsSync),args:['--no-sandbox']});
+const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
+window.actor='self';window.role='operations_manager';window.simulation=false;window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자',role_simulation:{active:simulation}}),rpc:async()=>[]};
+</script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
+try {
+ for(const width of [1440,390,320]){
+  const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));
+  let mode='success',requests=0,delayResolve;
+  await p.route('**/*',async route=>{
+   const u=new URL(route.request().url());
+   if(u.pathname.startsWith('/app/assets/')||u.pathname==='/staff/assets/staff.css')return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await fs.readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
+   if(u.pathname==='/api/personal-worklog'){
+    requests++;
+    assert.equal(route.request().headers().authorization,'Bearer erp-fixture');
+    assert.equal(route.request().headers()['x-worklog-authorization'],undefined);
+    if(mode==='delayed')await new Promise(r=>delayResolve=r);
+    if(mode==='failure')return route.fulfill({status:502,json:{code:'WORKLOG_UNAVAILABLE'}});
+    if(mode==='pending')return route.fulfill({status:503,json:{code:'WORKLOG_MIGRATION_PENDING'}});
+    if(mode==='no-space')return route.fulfill({status:403,json:{code:'PERSONAL_WORKSPACE_UNAVAILABLE'}});
+    const month=u.searchParams.get('month');
+    if(mode==='dense')return route.fulfill({json:{connected:true,month,today:month+'-03',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:Array.from({length:20},(_,i)=>({id:'dense-'+i,title:`합성 대량 일정 ${i+1} `+'줄바꿈되면 안 되는 매우 긴 제목 '.repeat(8)+'<img src=x onerror=alert(1)>',starts_at:month+'-02T01:'+String(i).padStart(2,'0')+':00Z',ends_at:null,all_day:i===0})),todaySchedules:[],tasks:[]}});
+    return route.fulfill({json:{connected:true,month,today:'2026-11-02',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:[{id:'s',title:'합성 모바일 일정 <script>alert(1)</script>',starts_at:month+'-02T01:00:00Z',ends_at:null,all_day:false}],todaySchedules:[{title:'합성 오늘 일정',starts_at:'2026-11-02T01:00:00Z',all_day:false}],tasks:[{title:'합성 미완료',status:'needs_review',due_at:null}]}});
+   }
+   return route.fulfill({contentType:'text/html',body:html});
+  });
+  await p.goto('https://fixture.test/');await p.getByRole('table',{name:/개인 일정/}).waitFor();
+  assert.equal(await p.locator('input[type=password]').count(),0,'no second sign-in form');
+  assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
+  assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),1);
+  assert.equal(await p.getByText('합성 미완료',{exact:true}).count(),1);
+  assert.ok(await p.getByText(/<script>alert/).count()>0,'unsafe title remains inert text');
+  assert.equal(await p.locator('nav').getByText('나의 통합 홈').count(),0);
+  const compactHeight=await p.locator('.worklog-calendar table').evaluate(e=>e.getBoundingClientRect().height);
+  mode='dense';await p.getByRole('button',{name:'새로고침',exact:true}).click();
+  const crowded=p.getByRole('button',{name:/-02 일정 20개 보기$/});await crowded.waitFor();
+  assert.equal(await crowded.locator('.worklog-event').count(),2,'only two single-line previews');
+  assert.equal(await crowded.getByText('+18개',{exact:true}).count(),1);
+  const denseHeight=await p.locator('.worklog-calendar table').evaluate(e=>e.getBoundingClientRect().height);
+  assert.ok(Math.abs(compactHeight-denseHeight)<2,'20 long events cannot grow the calendar');
+  const heights=await p.locator('.worklog-date-button').evaluateAll(xs=>xs.map(x=>x.getBoundingClientRect().height));
+  assert.ok(Math.max(...heights)-Math.min(...heights)<2,'all day cells have equal height');
+  assert.equal(await crowded.locator('.worklog-event').first().evaluate(e=>getComputedStyle(e).whiteSpace),'nowrap');
+  assert.ok(await crowded.evaluate(e=>e.querySelector('.worklog-day').getBoundingClientRect().top-e.getBoundingClientRect().top<10),'date stays at top even on an empty day');
+  assert.ok(await crowded.locator('.worklog-event').first().evaluate(e=>e.scrollWidth>e.clientWidth),'long title is clipped inside its cell');
+  const requestCount=requests;await crowded.click();const dialog=p.getByRole('dialog');await dialog.waitFor();
+  assert.equal(await dialog.locator('li').count(),20,'all overflow events remain available');
+  assert.ok((await dialog.locator('li').last().innerText()).includes('합성 대량 일정 20'));
+  assert.equal(await dialog.locator('img').count(),0,'titles stay inert text');
+  assert.equal(await dialog.getByText('종일',{exact:true}).count(),1);
+  assert.equal(await dialog.evaluate(e=>e.getBoundingClientRect().width<=innerWidth-30),true);
+  await p.keyboard.press('Escape');assert.equal(await dialog.isVisible(),false);
+  assert.equal(await crowded.evaluate(e=>document.activeElement===e),true,'Escape restores day focus');
+  await crowded.press('Enter');await dialog.waitFor();await dialog.getByRole('button',{name:'닫기',exact:true}).click();
+  assert.equal(await crowded.evaluate(e=>document.activeElement===e),true);
+  const empty=p.getByRole('button',{name:/-01 일정 0개 보기$/});await empty.click();await dialog.getByText('등록된 일정이 없습니다.',{exact:true}).waitFor();await p.keyboard.press('Escape');
+  assert.equal(requests,requestCount,'day details reuse loaded data');
+  await fs.mkdir('worklog-calendar-qa-artifacts',{recursive:true});
+  await p.locator('.worklog-calendar').screenshot({path:`worklog-calendar-qa-artifacts/calendar-${width}.png`});
+  await crowded.click();await dialog.screenshot({path:`worklog-calendar-qa-artifacts/details-${width}.png`});await p.keyboard.press('Escape');
+  mode='success';
+  await p.getByRole('button',{name:'다음 달',exact:true}).click();await p.getByRole('table').waitFor();
+  assert.ok(requests>=2);
+  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  mode='pending';await p.getByRole('button',{name:'새로고침',exact:true}).click();await p.getByText(/업무수첩 통합 준비 중/).waitFor();
+  assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),0);
+  assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
+  // Error on a new dashboard render must keep operation cards visible.
+  mode='failure';await p.evaluate(()=>TaejangDashboard.render());await p.getByText(/태장 업무는 계속/).waitFor();
+  assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
+  mode='success';await p.getByRole('button',{name:'다시 시도',exact:true}).click();await p.getByRole('table').waitFor();
+  mode='no-space';await p.evaluate(()=>TaejangDashboard.render());await p.locator('.personal-worklog').waitFor({state:'hidden'});
+  assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1,'non-owner retains ERP operational dashboard');
+  mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
+  const beforePreview=requests;
+  await p.evaluate(async()=>{simulation=true;role='promotion_lead';await TaejangDashboard.render();});
+  assert.equal(await p.getByRole('heading',{name:'홍보 검토 대기',exact:true}).count(),1);
+  assert.equal(await p.getByRole('heading',{name:'내 업무수첩',exact:true}).count(),0);
+  assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),0);
+  assert.equal(requests,beforePreview,'role preview does not request private data');
+  await p.evaluate(async()=>{simulation=false;role='operations_manager';await TaejangDashboard.render();});
+  await p.getByRole('table',{name:/개인 일정/}).waitFor();
+  mode='delayed';await p.getByRole('button',{name:'새로고침',exact:true}).click();
+  while(!delayResolve)await new Promise(r=>setTimeout(r,10));
+  await p.getByRole('button',{name:'로그아웃',exact:true}).click();await delayResolve();await p.waitForTimeout(100);
+  assert.equal(await p.getByRole('table').count(),0,'late response cannot restore logged-out contents');
+  mode='success';await p.evaluate(()=>TaejangDashboard.render());await p.getByRole('table').waitFor();
+  await p.getByRole('button',{name:/-02 일정 1개 보기$/}).click();await p.getByRole('dialog').waitFor();
+  await p.evaluate(()=>document.getElementById('logout-button').click());assert.equal(await p.locator('.personal-worklog').innerText(),'');assert.equal(await p.getByRole('dialog').count(),0,'logout removes open personal details');
+  assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({width,synthetic:true,readOnly:true,calendar:true,denseCalendarStable:true,dayDetails:true,keyboardRecovery:true,operationsPreserved:true,migrationPending:true,lateLogout:true,logoutPurge:true}));await p.close();
+ }
+} finally {await browser.close();}

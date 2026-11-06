@@ -48,7 +48,7 @@ try{
   const order=await page.evaluate(()=>{const f=document.querySelector('.phase-c-board-form'),a=[...f.children];return a.map(n=>n.textContent.slice(0,20));});
   assert.ok(order[0].startsWith('제목')&&order[1].startsWith('본문'),'title and body adjacent');
   const file=page.locator('.phase-c-editor-toolbar input[type=file]');
-  await file.setInputFiles([{name:'first.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])},{name:'second.png',mimeType:'image/png',buffer:Buffer.from([137,80,78,71])}]);
+  await file.setInputFiles([{name:'first.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAE0lEQVR4nGNkaGDACpiwCw9WCQBqCACQJ5at+QAAAABJRU5ErkJggg==', 'base64')},{name:'second.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAE0lEQVR4nGNkaGDACpiwCw9WCQBqCACQJ5at+QAAAABJRU5ErkJggg==', 'base64')}]);
   await page.waitForFunction(()=>document.querySelectorAll('.phase-c-photo-card').length===2);
   await page.locator('.phase-c-photo-card').first().getByRole('button',{name:'뒤로',exact:true}).click();
   assert.equal(await live.locator('.phase-c-photo-grid img').first().getAttribute('alt'),'second');

@@ -64,9 +64,11 @@ test('public feed exposes only public-safe RPCs to anonymous visitors', () => {
   assert.match(feedFunction, /list_public_promotion_feed/);
 });
 
-test('public hub loads live feed before the existing content hub renders', () => {
+test('archive loads live feed asynchronously while homepage retains its existing behavior', () => {
   assert.match(externalContent, /typeof document !== 'undefined'/);
   assert.match(externalContent, /document\.readyState === 'loading'/);
+  assert.match(externalContent, /taejang-live-promotion-ready/);
+  assert.match(externalContent, /if \(isArchivePage\)/);
   assert.match(externalContent, /document\.write\('<script data-live-promotion-feed src="\/\.netlify\/functions\/public-promotion-feed"/);
   assert.match(feedFunction, /window\.TAEJANG_CONTENT/);
   assert.match(feedFunction, /content\.hub\.push/);

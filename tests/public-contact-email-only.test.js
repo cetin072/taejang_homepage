@@ -11,7 +11,9 @@ const read = name => readFileSync(path.join(root, name), 'utf8');
 
 // Do not publish a telephone contact link or phone number in a public page.
 // This deliberately does not remove disclosure about employee phone data processed by the app.
-const publicTelephone = /tel:|["']telephone["']\s*:|0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}/i;
+const publicTelephone = /tel:|["']telephone["']\s*:|(?<!\d)0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)/i;
+for (const value of ['010-1234-5678', '0551234567', 'tel:01012345678', '"telephone":"hidden"']) assert.match(value, publicTelephone);
+assert.doesNotMatch('https://www.yna.co.kr/view/AKR20260812048100052', publicTelephone, 'an article identifier is not a telephone contact');
 const pages = readdirSync(root).filter(name => name.endsWith('.html'));
 
 test('all root public HTML pages are free of published phone numbers and telephone actions', () => {

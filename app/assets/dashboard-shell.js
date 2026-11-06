@@ -199,7 +199,6 @@
     if (item.dataKey === 'employee-new') node.dataset.employeeNewNav = '1';
     if (item.dataKey === 'account-approval') node.dataset.phaseCAccountApprovalNav = '1';
     if (item.dataKey === 'payroll-mvp') node.dataset.payrollMvpNav = '1';
-    if (item.dataKey === 'payroll-handoff-review' || item.dataKey === 'payroll-handoff-submit') node.dataset.payrollHandoffNav = '1';
     if (item.dataKey === 'promotion-write') {
       node.dataset.promotionWriteNav = '1';
       node.dataset.phaseCV2Nav = 'write';
@@ -234,6 +233,11 @@
         run: () => openEmployee('existing'),
         dataKey: 'employee-management',
         capabilities: ['employee.view_all', 'employee.view_scoped']
+      },
+      {
+        key: 'leave.manage', label: '연차 관리',
+        run: () => { if (!featureUnavailable('employee-leave', '연차 관리 기능')) window.TaejangEmployeeLeave?.open(); },
+        capabilities: ['leave.manage']
       },
       {
         key: 'employee.new', label: '신규 직원 등록',
@@ -325,22 +329,6 @@
         href: 'payroll/live.html',
         dataKey: 'payroll-mvp',
         capabilities: ['payroll.manage'],
-        newTab: true
-      },
-      {
-        key: 'payroll.handoff.review',
-        label: '외부 급여초안 상신',
-        href: 'payroll/handoff.html',
-        dataKey: 'payroll-handoff-submit',
-        capabilities: ['payroll.handoff.review'],
-        newTab: true
-      },
-      {
-        key: 'payroll.handoff.approve',
-        label: '외부 급여초안 검토',
-        href: 'payroll/handoff.html',
-        dataKey: 'payroll-handoff-review',
-        capabilities: ['payroll.handoff.approve'],
         newTab: true
       },
       {
@@ -468,6 +456,11 @@
     const intro = document.createElement('header'); intro.className = 'dashboard-intro';
     intro.append(text('p', new Intl.DateTimeFormat('ko-KR', { dateStyle: 'full', timeZone: 'Asia/Seoul' }).format(new Date()), 'eyebrow'), text('h2', heading), text('p', copy));
     main.append(intro);
+    // Optional personal reader has its own failure boundary; operations remain usable.
+    const personal = document.createElement('section');
+    main.append(personal);
+    try { window.TaejangPersonalWorklog?.mount(personal); }
+    catch { personal.replaceChildren(text('p', '업무수첩 연결을 확인해 주세요.', 'message')); }
     const grid = document.createElement('section'); grid.className = 'dashboard-grid'; grid.setAttribute('aria-label', '현재 업무 요약');
 
     if (route === 'promotion_lead') {

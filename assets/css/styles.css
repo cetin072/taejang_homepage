@@ -90,15 +90,15 @@ button{cursor:pointer}
 .desktop-nav .nav-cta:hover,.desktop-nav .nav-cta:focus-visible{background:var(--green-deep);color:#fff}
 .desktop-nav .nav-cta:active{background:#143b2d;color:#fff;transform:translateY(0)}
 
-/* HTML owns menu order. Contact is the only filled action; app guide is a quiet utility. */
-.desktop-nav .employee-app-nav{
+/* HTML owns menu order. Contact is the only filled action; resources is a quiet public link. */
+.desktop-nav .resources-nav{
   display:inline-flex;align-items:center;justify-content:center;
   min-height:44px;padding:9px 0;border:0;
   background:transparent;color:var(--green-deep);font-size:14px;font-weight:400;white-space:nowrap;
 }
-.desktop-nav .employee-app-nav:hover,
-.desktop-nav .employee-app-nav:focus-visible,
-.desktop-nav a.employee-app-nav[aria-current="page"]{
+.desktop-nav .resources-nav:hover,
+.desktop-nav .resources-nav:focus-visible,
+.desktop-nav a.resources-nav[aria-current="page"]{
   background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:5px;
 }
 @media (min-width:1001px) and (max-width:1160px){
@@ -111,7 +111,7 @@ button{cursor:pointer}
 .mobile-nav a{padding:13px 0;border-bottom:1px solid var(--line);font-weight:700;color:var(--green-deep)}
 .mobile-nav a[aria-current="page"]{color:var(--green)}
 
-/* Mobile utilities are independent, aligned links, never a nested app submenu. */
+/* Resources and staff are independent, aligned mobile links. */
 @media (max-width:1000px){
   .mobile-nav a[href*="partnership"]{
     min-height:54px;margin:8px 0 14px;padding:12px 16px;
@@ -123,22 +123,25 @@ button{cursor:pointer}
     background:var(--green-deep);color:#fff;
   }
   .mobile-nav .staff-nav,
-  .mobile-nav .employee-app-nav{
+  .mobile-nav .resources-nav{
     display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:64px;
     margin:0;padding:12px 0;
     border:0;border-radius:0;
     background:transparent;color:var(--green-deep);font-size:16px;font-weight:700;
   }
   .mobile-nav .nav-entry-description{font-size:14px;font-weight:400;line-height:1.6;color:var(--ink-soft)}
-  .mobile-nav .employee-app-nav:hover,
-  .mobile-nav .employee-app-nav:focus-visible{
+  .mobile-nav .resources-nav:hover,
+  .mobile-nav .resources-nav:focus-visible{
     background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:4px;
   }
-  .mobile-nav .employee-app-nav[aria-current="page"]{
+  .mobile-nav .resources-nav[aria-current="page"]{
     background:transparent;color:var(--green-deep);
     font-weight:800;text-decoration:underline;text-underline-offset:4px;
   }
 }
+
+.resources-breadcrumb{padding-top:24px;font-size:14px;color:var(--ink-soft)}
+.resources-breadcrumb a{text-decoration:underline;text-underline-offset:4px}
 
 /* Announcement */
 .announcement{background:var(--green);color:#fff;text-align:center;padding:10px 20px;font-size:13.5px}
@@ -215,6 +218,10 @@ button{cursor:pointer}
 .card-media img[src$="environment-cleanup-third.webp"],
 .community-esg-record-media img[src$="environment-cleanup-third.webp"]{object-fit:contain}
 .card:hover .card-media img[src$="environment-cleanup-third.webp"]{transform:none}
+.card-media img[src$="environment-cleanup-fourth.webp"],
+.card-media img[src$="environment-cleanup-fifth.webp"]{object-fit:contain}
+.card:hover .card-media img[src$="environment-cleanup-fourth.webp"],
+.card:hover .card-media img[src$="environment-cleanup-fifth.webp"]{transform:none}
 .card-media--notice{display:grid;place-items:center;align-content:center;gap:10px;padding:22px;background:var(--green-soft);color:var(--green-deep);text-align:center}
 .notice-media-label{font:700 22px var(--myeongjo)}
 .card-body{padding:22px}
@@ -382,11 +389,24 @@ button{cursor:pointer}
 .article-body p{font-size:16.5px;line-height:2;margin:0 0 22px}
 .article-body .article-inline-link{overflow-wrap:anywhere;word-break:break-word;text-decoration:underline;text-underline-offset:.14em}
 .article-body h2{font:700 24px var(--myeongjo);color:var(--green-deep);margin:40px 0 14px}
+.article-resources{margin:36px 0;padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--green-soft)}
+.article-body .article-resources h2{margin:0 0 18px;font-size:21px;line-height:1.5}
+.article-resource-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.article-resource-card{display:flex;flex-direction:column;gap:9px;padding:20px;background:#fff;border:1px solid #c7d8cb;border-radius:12px;color:var(--green-deep);min-width:0}
+.article-resource-card strong{font-size:18px;line-height:1.5}
+.article-resource-card>span:last-child{font-size:13px;color:var(--ink-soft)}
+.article-resource-card .article-resource-source{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--green)}
+.article-resource-card--video .article-resource-source{color:#9c3434}
+.article-resource-card:hover{border-color:var(--green);background:#fafcf9}
+@media(max-width:600px){.article-resources{padding:20px}.article-resource-links{grid-template-columns:1fr}.article-resource-card{padding:18px}}
+
 .article-body figure{margin:34px 0}
 .article-body .article-representative-media{overflow:hidden;max-height:480px;aspect-ratio:16/9}
 .article-body .article-representative-media img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;border:1px solid var(--line)}
 .article-body .article-representative-media--natural{max-height:none;aspect-ratio:auto}
 .article-body .article-representative-media--natural img{height:auto;object-fit:contain}
+/* First cleanup photo: display-only exposure adjustment; keep the original bytes. */
+.article-body .article-representative-media img[src$="environment-cleanup-first.webp"]{filter:brightness(1.16) contrast(.95)}
 .article-body figcaption{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:9px}
 .article-gallery{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .article-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}

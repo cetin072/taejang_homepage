@@ -92,7 +92,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
   assert.match(html, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 원본에 임직원 진입을 정적으로 제공해 첫 페인트 레이아웃 이동을 막습니다`);
   assert.equal((html.match(/class="staff-nav"/g) || []).length, 2, `${filename} 임직원 진입은 데스크톱·모바일에 각각 한 번만 있어야 합니다`);
-  assert.doesNotMatch(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실 링크를 숨깁니다`);
+  assert.match(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실을 제공합니다`);
   assert.match(html, /태장 소개/, `${filename} 공개 메뉴는 태장 소개를 제공합니다`);
   assert.match(html, /하는 일/, `${filename} 공개 메뉴는 하는 일 명칭을 사용합니다`);
   assert.match(html, /소식·기록/, `${filename} 공개 메뉴는 소식·기록 명칭을 사용합니다`);
@@ -172,8 +172,12 @@ assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\
 assert.match(location, /location-pin-icon/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
-assert.doesNotMatch(partnership, /contact-location-map|<svg/);
-assert.match(partnership, /class="inquiry-scope"[\s\S]*어떤 문의든 편하게 남겨주세요[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
+assert.doesNotMatch(partnership, /contact-location-map/);
+assert.doesNotMatch(partnership.slice(partnership.indexOf('id="contact"')), /<svg/, '문의 영역에 지도 그림을 추가하지 않습니다');
+assert.doesNotMatch(partnership, /거래기업/, '기업의 화면 명칭은 참여기업으로 통일합니다');
+assert.match(partnership, /class="partnership-map" role="group"/);
+assert.match(partnership, /class="map-return"[\s\S]*태장 → 참여기업/);
+assert.match(partnership, /class="inquiry-scope"[\s\S]*이런 내용을 문의할 수 있습니다[\s\S]*기업 업무 협력[\s\S]*지역사회공헌·ESG[\s\S]*민화·문화 활동[\s\S]*방문·기타 문의/);
 assert.doesNotMatch(partnership, /최소 출자금은|의무 구매량은|부담금 완전 해소|고용 실적 자동 인정/, '미확정 계약조건과 고용 보장을 게시하지 않습니다');
 assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효과|리스크를 태장이 모두 부담/, '제도 설명에 과장된 영업 문구를 사용하지 않습니다');
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
@@ -321,11 +325,11 @@ assert.match(archive, /<h1 class="title">태장의 소식과 기록<\/h1>/);
 assert.match(archive, /최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다/);
 assert.match(archive, /검색과 필터를 이용해 태장의 기록을 살펴보세요/);
 assert.match(archive, /<label for="archive-search-input">기록 검색<\/label>/);
-assert.match(archive, /<input id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>/);
+assert.match(archive, /<input disabled id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>/);
 assert.match(archive, /<button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>/);
 assert.match(contentHub, /function searchableText\(item\)[\s\S]*?item\.title[\s\S]*?item\.summary[\s\S]*?item\.category[\s\S]*?item\.publisher[\s\S]*?sourceLabel\(item\)/);
 assert.match(contentHub, /!searchQuery \|\| searchableText\(item\)\.includes\(searchQuery\)/);
-assert.match(contentHub, /const sourceFilters = createFilters[\s\S]*?const categoryFilters = createFilters/);
+assert.match(contentHub, /let sourceFilters = createFilters[\s\S]*?let categoryFilters = createFilters/);
 assert.match(contentHub, /function resetConditions\(\)[\s\S]*?sourceFilters\.reset\(\)[\s\S]*?categoryFilters\.reset\(\)[\s\S]*?dateControls\.yearSelect\.value = 'all'[\s\S]*?dateControls\.monthSelect\.value = 'all'/);
 assert.match(contentHub, /검색 결과 \$\{filtered\.length\}건/);
 assert.match(contentHub, /조건에 맞는 기록이 없습니다\./);
@@ -339,7 +343,7 @@ assert.match(archiveStyles, /\.archive-search input\s*\{[\s\S]*?font-size:\s*16p
 assert.match(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?flex-wrap:\s*wrap[\s\S]*?overflow:\s*visible/);
 assert.doesNotMatch(archiveStyles, /@media \(max-width: 620px\)[\s\S]*?\.content-filter-buttons\s*\{[\s\S]*?overflow-x:\s*auto/);
 
-assert.match(resources, /name="robots" content="noindex,nofollow"/);
+assert.match(resources, /name="robots" content="index,follow"/);
 assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업과 역량|기업 협력/);
 assert.equal((resources.match(/class="staff-nav"/g) || []).length, 2, 'resources shares the authored public header without runtime insertion');
 for (const page of [privacy, terms]) {
@@ -359,7 +363,7 @@ assert.match(thanks, /href="index\.html"/);
 assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html#contact"/);
 
-for (const excluded of ['resources.html', 'privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
+for (const excluded of ['privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(escapeRegExp(excluded)));
 }
 for (const filename of Object.keys(pages).slice(1)) assert.match(sitemap, new RegExp(escapeRegExp(filename)));
@@ -527,8 +531,10 @@ const actualWindow = {};
 vm.runInNewContext(contentData, { window: actualWindow });
 vm.runInNewContext(externalContent, { window: actualWindow });
 const actualHubItems = createHubApi(actualWindow.TAEJANG_CONTENT).orderedItems();
-assert.equal(actualHubItems.length, 14, '소식·기록은 세 환경정비 활동과 환경정비 브이로그를 포함한 공개 콘텐츠를 함께 표시합니다');
+assert.equal(actualHubItems.length, 16, '소식·기록은 다섯 환경정비 활동과 환경정비 브이로그를 포함한 공개 콘텐츠를 함께 표시합니다');
 assert.deepEqual(Array.from(actualHubItems, item => item.id), [
+  'activity-environment-cleanup-fifth',
+  'activity-environment-cleanup-fourth',
   'activity-environment-cleanup-third',
   'activity-environment-cleanup-second',
   'youtube-mIb0wN_Wi8w',
@@ -545,6 +551,8 @@ assert.deepEqual(Array.from(actualHubItems, item => item.id), [
   'activity-standard-workplace-certification'
 ]);
 assert.deepEqual(Array.from(actualHubItems, item => item.title), [
+  '다섯 번째 환경정비 활동을 진행했습니다',
+  '네 번째 환경정비 활동을 진행했습니다',
   '세 번째 환경정비 활동을 진행했습니다',
   '두 번째 환경정비 활동을 진행했습니다',
   '[태장 브이로그] 8월 24일, 더운 날씨 속에서도 정말 뿌듯했던 환경정비 활동',
@@ -568,17 +576,19 @@ assert.equal(contentData.includes('id: "internal-packing"'), false);
 
 const actualRecentItems = actualHubItems.slice(0, 8);
 assert.equal(actualRecentItems.length, 8, '메인 활동 기록은 최신 공개 콘텐츠 최대 8개를 표시합니다');
-assert.deepEqual(Array.from(actualRecentItems, item => item.title), ['세 번째 환경정비 활동을 진행했습니다', '두 번째 환경정비 활동을 진행했습니다', '[태장 브이로그] 8월 24일, 더운 날씨 속에서도 정말 뿌듯했던 환경정비 활동', '테라리움 제조사업을 시작합니다', '경남형 동행일자리사업 1호점 태장㈜ 개소식 축하영상 | 창원특례시장', '경남형 장애인 동행일자리 1호점 태장㈜ 개소식 축하영상 | 경상남도지사', '태장 소개영상', "[현장] '경남형 장애인 동행일자리' 1호점 가보니"]);
-assert.equal(actualRecentItems[6].thumbnail, 'https://i.ytimg.com/vi/FbEOcteBSJ4/hqdefault.jpg');
-assert.equal(actualRecentItems[6].thumbnailAlt, '태장 공식 소개영상 썸네일');
-assert.equal(actualRecentItems[6].externalUrl, 'https://www.youtube.com/watch?v=FbEOcteBSJ4');
-assert.equal(actualRecentItems[2].id, 'youtube-mIb0wN_Wi8w');
-assert.equal(actualRecentItems[2].thumbnail, 'https://i.ytimg.com/vi/mIb0wN_Wi8w/hqdefault.jpg');
-assert.equal(actualRecentItems[2].externalUrl, 'https://www.youtube.com/watch?v=mIb0wN_Wi8w');
+assert.deepEqual(Array.from(actualRecentItems, item => item.id), [
+  'activity-environment-cleanup-fifth', 'activity-environment-cleanup-fourth',
+  'activity-environment-cleanup-third', 'activity-environment-cleanup-second',
+  'youtube-mIb0wN_Wi8w', 'activity-terrarium-business-start-2026-08',
+  'youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g'
+]);
+for (const video of ['FbEOcteBSJ4','8x4Rf3knAb8']) {
+  assert.equal(actualHubItems.find(item => item.id === 'youtube-'+video).thumbnail, 'https://i.ytimg.com/vi/'+video+'/hqdefault.jpg');
+}
+for (const video of ['mIb0wN_Wi8w','qvqNyeyfQsA','8x7yg5YBK9g','8x4Rf3knAb8']) {
+  assert.equal(actualHubItems.find(item => item.id === 'youtube-'+video).externalUrl, 'https://www.youtube.com/watch?v='+video);
+}
 assert.deepEqual(Array.from(actualHubItems.filter(item => item.source === 'youtube' && item.publisher === '태장 공식 유튜브'), item => item.id), ['youtube-mIb0wN_Wi8w', 'youtube-qvqNyeyfQsA', 'youtube-8x7yg5YBK9g', 'youtube-FbEOcteBSJ4']);
-assert.equal(actualRecentItems[4].externalUrl, 'https://www.youtube.com/watch?v=qvqNyeyfQsA');
-assert.equal(actualRecentItems[5].externalUrl, 'https://www.youtube.com/watch?v=8x7yg5YBK9g');
-assert.equal(actualRecentItems[7].externalUrl, 'https://www.youtube.com/watch?v=8x4Rf3knAb8');
 assert.match(contentHub, /item\.publisher[\s\S]*?sourceLabel\(item\)/, '아카이브 검색은 매체명과 출처 라벨을 함께 대상으로 사용합니다');
 
 const birthdayHubItem = actualHubItems.find(item => item.id === 'activity-staff-birthday-2026-08');

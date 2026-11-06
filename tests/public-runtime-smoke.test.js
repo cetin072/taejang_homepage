@@ -229,7 +229,7 @@ function anchor(href, label, classes = []) {
   return new MockElement('a', { attrs: { href }, textContent: label, classes });
 }
 
-function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pilotEnabled = true) {
+function runSiteRuntime(pathname = '/index.html', cleanResourcesHref = false, pilotEnabled = true) {
   const document = new MockDocument();
   const desktop = new MockElement('nav', { classes: ['desktop-nav'] });
   const mobile = new MockElement('nav', { dataset: { mobileNav: '' } });
@@ -239,14 +239,14 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
-    ['staff/', '임직원'],
-    ['employee-app.html', '직원앱']
+    ['resources.html', '자료실'],
+    ['staff/', '임직원']
   ];
   navItems.forEach(([href, label], index) => {
-    const target = cleanEmployeeHref && href === 'employee-app.html' ? '/employee-app' : href;
+    const target = cleanResourcesHref && href === 'resources.html' ? '/resources' : href;
     const classes = href === 'staff/' ? ['staff-nav'] : index === 4 ? ['nav-cta'] : [];
     desktop.appendChild(anchor(target, label, classes));
-    mobile.appendChild(anchor(target, href === 'employee-app.html' ? '직원앱 안내' : label, classes));
+    mobile.appendChild(anchor(target, href === 'resources.html' ? '자료실' : label, classes));
   });
 
   const menuButton = new MockElement('button', {
@@ -288,10 +288,10 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
   });
 
   for (const nav of [desktop, mobile]) {
-    const link = nav.querySelectorAll(':scope > a').find(candidate => candidate.href === 'employee-app.html' || candidate.href === '/employee-app');
-    assert.ok(link, 'employee-app link is preserved from static HTML');
-    assert.equal(link.getAttribute('aria-current'), pathname === '/employee-app' ? 'page' : null,
-      'Netlify clean URL preserves the employee-app active navigation state');
+    const link = nav.querySelectorAll(':scope > a').find(candidate => candidate.href === 'resources.html' || candidate.href === '/resources');
+    assert.ok(link, 'resources link is preserved from static HTML');
+    assert.equal(link.getAttribute('aria-current'), pathname === '/resources' ? 'page' : null,
+      'Netlify clean URL preserves the resources active navigation state');
   }
   assert.equal(document.documentElement.classList.contains('js-nav-ready'), true, '메뉴 이벤트가 연결된 뒤에만 JS 메뉴 모드가 활성화됩니다');
   document.dispatch('click', { target: menuButton });
@@ -330,13 +330,13 @@ function runSiteRuntime(pathname = '/index.html', cleanEmployeeHref = false, pil
   assert.equal(mobileStaff.length, 1, '필드 파일럿 임직원 진입점을 모바일에 한 번만 추가합니다');
   const desktopOrder = desktop.querySelectorAll(':scope > a').map(link => link.href);
   const mobileOrder = mobile.querySelectorAll(':scope > a').map(link => link.href);
-  const mobileGuide = mobileOrder.findIndex(href => /employee-app(?:\.html)?$/.test(href));
-  assert.match(desktopOrder.at(-1), /employee-app(?:\.html)?$/, 'desktop app guide stays last');
-  assert.equal(desktopOrder.at(-2), 'staff/', 'desktop sign-in precedes app guide');
-  assert.equal(mobileOrder[mobileGuide - 1], 'staff/', 'mobile staff sign-in precedes the app guide');
-  assert.equal(mobileOrder.at(-1), mobileOrder[mobileGuide], 'mobile app guide is the final menu link');
+  const mobileGuide = mobileOrder.findIndex(href => /resources(?:\.html)?$/.test(href));
+  assert.match(desktopOrder.at(-2), /resources(?:\.html)?$/, 'resources precedes staff');
+  assert.equal(desktopOrder.at(-1), 'staff/', 'staff is last');
+  assert.equal(mobileOrder[mobileGuide + 1], 'staff/', 'mobile staff sign-in follows resources');
+  assert.equal(mobileOrder.at(-1), 'staff/', 'staff follows resources');
   assert.equal(mobileOrder.filter(href => href === 'staff/').length, 1);
-  assert.equal(mobileOrder.filter(href => /employee-app(?:\.html)?$/.test(href)).length, 1);
+  assert.equal(mobileOrder.filter(href => /resources(?:\.html)?$/.test(href)).length, 1);
   if (pathname === '/about') assert.equal(desktop.querySelectorAll(':scope > a')[0].getAttribute('aria-current'),'page','public pretty URL retains its current-page annotation');
 }
 
@@ -397,9 +397,10 @@ function runHeroRuntime() {
   assert.equal(slider.dataset.heroVideoActive, '1', '키보드 방향키로도 영상 슬라이드를 이동합니다');
 }
 
-function runCommunityRuntime(activities) {
+function runCommunityRuntime(activities, limit) {
   const document = new MockDocument();
   const list = new MockElement('div', { dataset: { communityEsgRecords: '', staticFallback: 'community-esg' } });
+  if (limit !== undefined) list.dataset.communityEsgLimit = String(limit);
   for (let index = 0; index < 2; index += 1) {
     list.appendChild(new MockElement('article', { dataset: { staticFallbackCard: '' } }));
   }
@@ -442,6 +443,17 @@ function runCommunityFallbackRuntime() {
   assert.equal(runtime.list.children.length, 1, '동적 활동 데이터가 있으면 fallback을 최신 승인 데이터로 교체합니다');
   assert.equal(runtime.count.textContent, '현재 공개된 활동 1건');
   assert.equal(runtime.list.children[0].className, 'community-esg-record');
+  const source = { window: {} };
+  vm.runInNewContext(read('assets/js/content.js'), source);
+  const all = source.window.TAEJANG_CONTENT.activities;
+  const recent = runCommunityRuntime(all, 3);
+  const full = runCommunityRuntime(all);
+  const titles = state => state.list.children.map(card => card.children[0].children[1].children[1].textContent);
+  assert.deepEqual(titles(recent), ['다섯 번째 환경정비 활동을 진행했습니다', '네 번째 환경정비 활동을 진행했습니다', '세 번째 환경정비 활동을 진행했습니다']);
+  assert.equal(full.list.children.length, 5);
+  assert.equal(titles(full).at(-1), '첫 환경정비 활동을 진행했습니다');
+  assert.equal(recent.count.textContent, '전체 5건 중 최근 3건');
+  assert.equal(full.count.textContent, '현재 공개된 활동 5건');
 }
 
 function assertInquiryFormContract() {
@@ -455,8 +467,8 @@ function assertInquiryFormContract() {
 }
 
 runSiteRuntime();
-runSiteRuntime('/employee-app');
-runSiteRuntime('/employee-app', true);
+runSiteRuntime('/resources');
+runSiteRuntime('/resources', true);
 runSiteRuntime('/index.html', false, false);
 runSiteRuntime('/about', true);
 runHeroRuntime();

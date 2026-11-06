@@ -1,4 +1,5 @@
 import '../../assets/js/public-promotion-media.js';
+import { normalizeNaverBlogTarget } from './external-content-meta.mjs';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 const JSON_HEADERS = {
   'Content-Type': 'application/json; charset=utf-8',
@@ -32,8 +33,19 @@ function linkPresentation(row) {
 }
 
 function hubItem(row, image) {
-  const external = row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || '');
-  const link = linkPresentation(row);
+  // Linked homepage articles keep their detail page, but their card opens the
+  // Naver blog directly, just like the existing collected archive cards.
+  let naverBlog = false;
+  try {
+    const url = new URL(row.external_url);
+    naverBlog = url.protocol === 'https:' && !url.username && !url.password && !url.port
+      && Boolean(normalizeNaverBlogTarget(url.href));
+  } catch { /* Missing/invalid links keep the homepage detail destination. */ }
+  const external = naverBlog
+    || (row.content_type === 'external_content' && /^https:\/\//.test(row.external_url || ''));
+  const link = naverBlog
+    ? { source: 'naver-blog', label: '네이버 블로그에서 보기' }
+    : linkPresentation(row);
   return {
     id: `promotion-${row.content_id}`,
     type: external ? 'external' : 'internal',
@@ -93,8 +105,10 @@ export default async (request) => {
     }
 
     const rows = await rpc('list_public_promotion_feed', {});
+    // Share only within this response; never cache publication/auth state.
+    const probes = new Map();
     const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
-      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL')))));
+      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
     if (format === 'json') return json({ items });
 
     const script = `(() => {\n  const content = window.TAEJANG_CONTENT;\n  if (!content) return;\n  if (!Array.isArray(content.hub)) content.hub = [];\n  const items = ${safeScriptJson(items)};\n  const ids = new Set(content.hub.map(item => item && item.id));\n  items.forEach(item => { if (!ids.has(item.id)) { content.hub.push(item); ids.add(item.id); } });\n})();\n`;

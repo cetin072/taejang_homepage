@@ -101,3 +101,12 @@ test('large monthly XLSX uses bounded ZIP writes',()=>{
  const rows=Array.from({length:150},(_,i)=>Array.from({length:34},()=>`가상 근태 ${i} 미확정 누락`));
  assert.ok(writer.buildTableWorkbookXlsx([{name:'월간',title:'가상 월간',note:'test',headers:Array(34).fill('날짜'),rows}]).length>500000);
 });
+
+
+test('future approved full and half leave labels precede generic work plans',()=>{
+ const day='2026-11-10';
+ for(const [portion,status,label] of [['full','paid_leave','연차(승인)'],['first_half','work','앞 반차(승인)'],['second_half','work','뒤 반차(승인)']]){
+  const model=monthly.buildMonth({month:'2026-11',ledger:{rows:[]},daily:{[day]:{rows:[{employee_uuid:'leave-worker',display_name:'직원',attendance_status:{status,leave_portion:portion,leave_request_id:'approved'}}],workday:{is_workday:true}}},queriedAt:'2026-11-02T00:00:00Z'});
+  const cell=model.rows[0].cells[9];assert.equal(cell.label,label);assert.equal(cell.review,false);
+ }
+});

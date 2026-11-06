@@ -203,7 +203,9 @@
         p_note: null,
       });
       if (!result?.ok) {
-        if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
+        if (result?.code === 'LEAVE_SOURCE_MANAGED') {
+          window.alert('승인된 연차에 연결된 근태입니다. 연차 관리에서 확인해주세요.');
+        } else if (result?.code === 'DAY_CONFIRMED_REOPEN_REQUIRED') {
           window.alert('확정된 날짜입니다. 먼저 “확정 재개방”을 한 뒤 다시 변경하세요.');
         } else {
           window.alert(`근태 상태를 저장하지 못했습니다. ${result?.code || ''}`);
@@ -239,7 +241,8 @@
 
     const button = el('button', '상태 저장', 'button button-quiet');
     button.type = 'button';
-    const editable = can('attendance.correct') && !confirmed;
+    const leaveManaged = Boolean(row?.attendance_status?.leave_request_id);
+    const editable = can('attendance.correct') && !confirmed && !leaveManaged;
     select.disabled = !editable;
     button.disabled = !editable;
     button.addEventListener('click', () => {
@@ -248,7 +251,10 @@
     wrap.append(select);
     if (can('attendance.correct')) wrap.append(button);
 
-    const sourceNote = row?.attendance_status?.note;
+    const portion=row?.attendance_status?.leave_portion;
+    const leaveLabel=({full:'연차(승인)',first_half:'앞 반차(승인)',second_half:'뒤 반차(승인)'})[portion];
+    if(leaveLabel&&select.selectedOptions[0])select.selectedOptions[0].textContent=leaveLabel;
+    const sourceNote = leaveLabel ? `${leaveLabel} · 취소·수정은 연차 관리에서 처리` : row?.attendance_status?.note;
     wrap.append(el(
       'span',
       confirmed
@@ -279,7 +285,7 @@
     const status = dayStatusCode(row);
     if (status !== 'work') return { label: dayStatusLabel(status), needsReview: status === 'review_required' };
     const evidence = Array.isArray(evidenceRows) ? evidenceRows : [];
-    if (!fingerprintImported) return { label: '지문자료 미가져옴', needsReview: false };
+    if (!fingerprintImported) return { label: '앱 근태 기준', needsReview: false };
     if (evidence.length > 1) return { label: `지문 중복 ${evidence.length}건 · 확인`, needsReview: true };
     const fingerprint = evidence[0] || null;
     const appIn = row.clock_in?.event_at || null;
@@ -305,102 +311,6 @@
     return { label: `GPS·지문 시간차 ${maxDelta}분 · 확인`, needsReview: true };
   }
 
-  function allExcelRows(best) {
-    const helper = window.TaejangPayrollAttendanceXlsx;
-    const matrix = best?.matrix;
-    const analysis = best?.analysis;
-    if (!helper || !Array.isArray(matrix) || !analysis?.ok) return [];
-    const mapping = analysis.mapping || {};
-    const rows = [];
-    for (let index = Number(analysis.headerRow || 1); index < matrix.length; index += 1) {
-      const source = Array.isArray(matrix[index]) ? matrix[index] : [];
-      if (source.every(value => value == null || String(value).trim() === '')) continue;
-      rows.push({
-        sourceRow: index + 1,
-        employeeId: mapping.employeeId == null ? '' : String(source[mapping.employeeId] ?? '').trim(),
-        name: mapping.name == null ? '' : String(source[mapping.name] ?? '').trim(),
-        date: helper.normalizeDateCell(source[mapping.date]),
-        clockIn: mapping.clockIn == null ? null : helper.normalizeTimeCell(source[mapping.clockIn]),
-        clockOut: mapping.clockOut == null ? null : helper.normalizeTimeCell(source[mapping.clockOut]),
-      });
-    }
-    return rows;
-  }
-
-  async function sha256File(file) {
-    if (!window.crypto?.subtle) throw new Error('FILE_HASH_UNAVAILABLE');
-    const digest = await window.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-    return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
-  }
-
-  function fingerprintExcelError(error) {
-    const code = String(error?.message || '');
-    if (code === 'attendance_excel_format_required') return '엑셀 파일(.xls 또는 .xlsx)을 선택해 주세요.';
-    if (code === 'attendance_xls_parser_unavailable') return '구형 Excel 읽기 도구를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.';
-    if (code === 'attendance_xls_size_unsupported') return '8MB 이하 지문인식기 Excel 파일을 선택해 주세요.';
-    if (/^(attendance_xls_|xlsx_zip_|xlsx_entry_|xlsx_xml_)/.test(code)) {
-      return 'Excel 파일이 손상되었거나 지원하지 않는 형식입니다. 지문인식기에서 원본을 다시 내려받아 주세요.';
-    }
-    return code || '파일을 확인해 주세요.';
-  }
-
-  async function importFingerprintFile(file, workDate) {
-    if (!can('attendance.evidence_import')) return;
-    const helper = window.TaejangPayrollAttendanceXlsx;
-    if (!helper?.parseXlsxFile) {
-      window.alert('Excel 가져오기 도구를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
-      return;
-    }
-    try {
-      const workbook = await helper.parseXlsxFile(file);
-      const best = workbook.best;
-      if (!best?.analysis?.ok) throw new Error('지문 출근부의 헤더를 찾지 못했습니다.');
-      const parsed = allExcelRows(best);
-      const invalid = parsed.filter(row => (
-        (!row.employeeId && !row.name)
-        || !row.date
-        || (!row.clockIn && !row.clockOut)
-      ));
-      const dayKeys = new Set();
-      let duplicateDay = false;
-      for (const row of parsed) {
-        if (!row.date || (!row.employeeId && !row.name)) continue;
-        const key = `${row.employeeId || row.name}|${row.date}`;
-        if (dayKeys.has(key)) duplicateDay = true;
-        dayKeys.add(key);
-      }
-      if (invalid.length) throw new Error(`확인이 필요한 Excel 행이 ${invalid.length}건 있습니다. 원본 파일을 확인해주세요.`);
-      if (duplicateDay) throw new Error('같은 직원·날짜가 두 줄 이상 있습니다. 원본 파일을 확인해주세요.');
-      if (!parsed.length) throw new Error('가져올 지문 출퇴근 기록이 없습니다.');
-
-      const fingerprint = await sha256File(file);
-      const result = await app().rpc('import_attendance_external_evidence', {
-        p_source_system: EVIDENCE_SOURCE,
-        p_source_file_name: file.name,
-        p_source_fingerprint: fingerprint,
-        p_source_sheet: best.sheetName || null,
-        p_rows: parsed.map(row => ({
-          source_employee_key: row.employeeId || null,
-          source_display_name: row.name || null,
-          work_date: row.date,
-          clock_in: row.clockIn || null,
-          clock_out: row.clockOut || null,
-          source_row_number: row.sourceRow,
-        })),
-      });
-      if (!result?.ok) throw new Error(result?.code || 'IMPORT_FAILED');
-
-      const duplicate = result.code === 'DUPLICATE_IMPORT';
-      const message = duplicate
-        ? '이미 가져온 동일한 지문 출근부입니다. 중복 저장하지 않았습니다.'
-        : `지문 출근부 ${result.row_count}건을 저장했습니다. 직원 미매칭 ${result.unmatched_count || 0}건입니다.`;
-      window.alert(message);
-      await openAttendance(workDate);
-    } catch (error) {
-      window.alert(`지문 출근부를 가져오지 못했습니다. ${fingerprintExcelError(error)}`);
-    }
-  }
-
   function makeToolbar(workDate) {
     const toolbar = el('section', null, 'attendance-toolbar');
     const dateLabel = el('label', '확인 날짜');
@@ -413,27 +323,6 @@
     dateLabel.append(dateInput);
     toolbar.append(dateLabel);
 
-    if (can('attendance.evidence_import')) {
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = '.xls,.xlsx';
-      fileInput.hidden = true;
-      const importButton = el('button', '지문 Excel 가져오기', 'button button-quiet');
-      importButton.type = 'button';
-      importButton.addEventListener('click', () => fileInput.click());
-      fileInput.addEventListener('change', () => {
-        const file = fileInput.files?.[0];
-        if (file) void importFingerprintFile(file, workDate);
-        fileInput.value = '';
-      });
-      toolbar.append(importButton, fileInput);
-    }
-
-    toolbar.append(folded('GPS·지문 비교 안내', el(
-      'p',
-      'GPS와 지문 Excel은 원본 근거로 따로 보존합니다. 5분 이내 차이는 정상 후보로 표시하고, 누락·큰 차이·미매칭만 우선 확인합니다.',
-      'attendance-evidence-help'
-    )));
     return toolbar;
   }
 
@@ -1184,5 +1073,5 @@
   document.addEventListener('taejang-app-ready', () => setTimeout(sync, 100));
   document.addEventListener('taejang-dashboard-refresh', () => setTimeout(sync, 120));
   document.addEventListener('taejang-capabilities-ready', () => setTimeout(sync, 0));
-  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, allExcelRows, addNavigation };
+  window.TaejangAttendanceAdmin = { openAttendance, compareEvidence, addNavigation };
 })();
