@@ -219,26 +219,55 @@ try {
   p_action:action,p_amount:amount,p_on:on,p_note:'Synthetic adjustment evidence'
  },{actor});
  reject(()=>request(requestAdjustment(corporate,'cancel_order',{})),/ERP_ADJUSTMENT_SHIPPING_STATE/);
- const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,refund_plan:600});
+ const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,credit_amount:3030,refund_plan:600});
  request(returned);
  check(request(returned).length===1,'adjustment request retries preserve a single original record');
  reject(()=>event(returned,'refund',300),/ERP_ADJUSTMENT_APPROVAL_REQUIRED/);
  reject(()=>event(returned,'approve',null,WORKER),/ERP_FORBIDDEN/);
+ const corporateReceipt=()=>db.rpc('erp_sales_get_receipts',{p_sale_id:corporate.id});
+ check(corporateReceipt().balance===5050,'requested return credit does not change the receivable before approval');
  event(returned,'approve');
+ check(corporateReceipt().balance===2020,'approved return credit reduces receivable even before refund');
+ reject(()=>request(requestAdjustment(corporate,'return_goods',{
+  line_id:corporate.lines[0].id,quantity:1,credit_amount:7071
+ })),/ERP_ADJUSTMENT_CREDIT_LIMIT/);
  reject(()=>request(requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:8})),/ERP_ADJUSTMENT_QUANTITY/);
  event(returned,'recall');
  const refund=event(returned,'refund',300);
  check(refund[0].detail.refund_plan===600&&refund[0].events.find(x=>x.action==='refund').amount===300,'refund plan and actual payment remain separate');
  reject(()=>event(returned,'refund',301),/ERP_ADJUSTMENT_REFUND_LIMIT/);
+ const adjusted=corporateReceipt();
+ check(adjusted.effective_total===7070&&adjusted.received===5050&&adjusted.net_received===4750&&adjusted.balance===2320,
+  'actual refund reduces net collections without reducing original receipts or deducting the return credit twice');
+ const receivable=db.rpc('erp_sales_list_receivables',{p_party_id:customer.id}).items.find(row=>row.id===corporate.id);
+ check(receivable.total_amount===7070&&receivable.received===4750&&receivable.balance===2320,
+  'receivables use the same adjusted total and net collections as the sale detail');
+ reject(()=>db.rpc('erp_sales_record_receipt',collect(corporate,2321)),/ERP_RECEIPT_OVER_BALANCE/);
  check(db.rpc('erp_sales_get',{p_id:corporate.id}).total_amount===10100,'return and refund preserve the confirmed sale');
  const newOrder=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID()}});
  db.rpc('erp_sales_confirm',{p_id:newOrder.id,p_revision:newOrder.revision});
  const cancellation=requestAdjustment(newOrder,'cancel_order',{refund_plan:0});
  request(cancellation);event(cancellation,'approve');
+ check(db.rpc('erp_sales_get_receipts',{p_sale_id:newOrder.id}).balance===0,'approved cancellation removes the receivable');
+ reject(()=>db.rpc('erp_sales_record_receipt',collect(newOrder,1)),/ERP_RECEIPT_OVER_BALANCE/);
  reject(()=>db.rpc('erp_sales_shipping',{p_id:newOrder.id,p_status:'shipped'}),/ERP_ADJUSTMENT_SHIPPING_STATE/);
  const commissionChange=requestAdjustment(person,'commission_change',{commission_action:'offset',amount:100});
  request(commissionChange);event(commissionChange,'approve');
  check(db.rpc('erp_sales_get_payouts',{p_sale_id:person.id}).commission.paid===250,'commission correction preserves existing actual payments');
+ const nextDraft=db.rpc('erp_sales_save',{p_data:product(individual,agentA,1000,1,fee('fixed',300))});
+ const nextSale=db.rpc('erp_sales_confirm',{p_id:nextDraft.id,p_revision:nextDraft.revision});
+ db.rpc('erp_sales_record_receipt',collect(nextSale,nextSale.total_amount));
+ const abandoned=payApproval(nextSale,'commission',50);
+ check(approve(abandoned).commission.entries[0].cash_amount===0,'commission offset can cover a payout without a cash transfer');
+ payment(abandoned,'cancelled');
+ const next=payApproval(nextSale,'commission',200);
+ let nextEntries=approve(next).commission.entries;
+ check(nextEntries.find(entry=>entry.id===next.p_request_id).cash_amount===100,'cancelled approval releases the offset to the next commission on a different sale');
+ nextEntries=approve(next).commission.entries;
+ check(nextEntries.find(entry=>entry.id===next.p_request_id).offset===100,'approval retry does not consume the offset again');
+ check(payment(next).commission.cash_paid===100,'recorded cash payout excludes the applied offset');
+ const later=payApproval(nextSale,'commission',100);
+ check(approve(later).commission.entries.find(entry=>entry.id===later.p_request_id).offset===0,'settled offset cannot be reused');
  reject(()=>db.raw('delete from public.erp_sales_adjustment_events;'),/ERP_RECEIPT_IMMUTABLE/);
  const oldMonth=db.raw("select (date_trunc('month', now() at time zone 'Asia/Seoul') - interval '1 month')::date;");
  const oldDraft=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID(),sales_date:oldMonth,

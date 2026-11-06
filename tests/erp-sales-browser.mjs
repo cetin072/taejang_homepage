@@ -92,6 +92,7 @@ try {
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  await field('adjustment_kind').selectOption('return_goods');
+ await field('credit_amount').fill('100');
  await field('refund_plan').fill('100');
  await field('adjustment_reason').fill('합성 반품 요청');
  await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
@@ -103,6 +104,9 @@ try {
  await field('event_note').fill('합성 환불 확인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('환불 예정 100원 · 실제 환불 100원',{exact:true}).waitFor();
+ await page.getByText('조정 후 매출 3,972원',{exact:true}).waitFor();
+ await page.getByText('실제 환불 100원 · 순수금 3,972원',{exact:true}).waitFor();
+ await page.getByText('누적 수금 4,072원 · 미수금 0원',{exact:true}).waitFor();
  await page.getByRole('button',{name:'정산 잔액 미리보기',exact:true}).click();
  const review=page.locator('form').filter({has:page.getByRole('heading',{name:'정산 잔액 검수',exact:true})});
  await review.getByLabel('검수용 조정 후 매출 (원)',{exact:true}).fill('3972');

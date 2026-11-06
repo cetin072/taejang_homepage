@@ -63,6 +63,83 @@ begin
 end;
 $$;
 
+create function private.erp_sales_customer_position(p_sale_id uuid)
+returns table(effective_total numeric, gross_received numeric, refunded numeric, net_received numeric, balance numeric)
+language sql stable set search_path = '' as $$
+  select adjusted.total, receipts.gross, changes.refunded, receipts.gross - changes.refunded,
+    greatest(adjusted.total - receipts.gross + changes.refunded, 0)
+  from public.erp_sales_transactions s
+  cross join lateral (
+    select coalesce(sum(case when r.reverses_id is null then r.amount else -r.amount end),0) as gross
+    from public.erp_sales_receipts r where r.sale_id=s.id
+  ) receipts
+  cross join lateral (
+    select coalesce(bool_or(a.kind='cancel_order' and e.action='approve'),false) as cancelled,
+      coalesce(sum((a.detail->>'credit_amount')::numeric) filter(where a.kind='return_goods' and e.action='approve'),0) as credits,
+      coalesce(sum(e.amount) filter(where e.action='refund'),0) as refunded
+    from public.erp_sales_adjustments a join public.erp_sales_adjustment_events e on e.adjustment_id=a.id
+    where a.sale_id=s.id
+  ) changes
+  cross join lateral (select case when changes.cancelled then 0 else s.total_amount-changes.credits end as total) adjusted
+  where s.id=p_sale_id;
+$$;
+revoke all on function private.erp_sales_customer_position(uuid) from public,anon,authenticated;
+
+create table public.erp_sales_commission_offsets (
+  payout_id uuid not null references public.erp_sales_payouts(id),
+  adjustment_id uuid not null references public.erp_sales_adjustments(id),
+  amount bigint not null check (amount between 1 and 2000000000000),
+  primary key (payout_id, adjustment_id)
+);
+create index erp_sales_commission_offsets_adjustment on public.erp_sales_commission_offsets(adjustment_id);
+alter table public.erp_sales_commission_offsets enable row level security;
+revoke all on public.erp_sales_commission_offsets from public,anon,authenticated;
+create trigger erp_sales_commission_offsets_immutable before update or delete on public.erp_sales_commission_offsets
+  for each row execute function private.erp_sales_receipts_immutable();
+
+create function private.erp_sales_lock_agent_offsets(p_agent_id uuid)
+returns void language sql set search_path = '' as $$
+  select pg_advisory_xact_lock(hashtextextended('erp_sales_commission_offsets:' || p_agent_id::text, 0));
+$$;
+revoke all on function private.erp_sales_lock_agent_offsets(uuid) from public,anon,authenticated;
+
+create function private.erp_sales_allocate_commission_offsets()
+returns trigger language plpgsql set search_path = '' as $$
+declare
+  v_agent_id uuid;
+begin
+  select agent_id into v_agent_id from public.erp_sales_transactions where id=new.sale_id;
+  perform private.erp_sales_lock_agent_offsets(v_agent_id);
+  if tg_op='UPDATE' then return new; end if;
+
+  with available as (
+    select a.id, e.created_at, (a.detail->>'amount')::bigint - coalesce((
+      select sum(o.amount) from public.erp_sales_commission_offsets o
+      join public.erp_sales_payouts p on p.id=o.payout_id
+      where o.adjustment_id=a.id and p.outcome is distinct from 'cancelled'
+    ),0) as amount
+    from public.erp_sales_adjustments a
+    join public.erp_sales_adjustment_events e on e.adjustment_id=a.id and e.action='approve'
+    join public.erp_sales_transactions s on s.id=a.sale_id
+    where s.agent_id=v_agent_id and a.kind='commission_change' and a.detail->>'commission_action'='offset'
+  ), allocation as (
+    select id, least(amount, new.amount - coalesce(sum(amount) over (
+      order by created_at,id rows between unbounded preceding and 1 preceding
+    ),0)) as amount
+    from available where amount>0
+  )
+  insert into public.erp_sales_commission_offsets(payout_id,adjustment_id,amount)
+    select new.id,id,amount from allocation where amount>0;
+  return new;
+end;
+$$;
+revoke all on function private.erp_sales_allocate_commission_offsets() from public,anon,authenticated;
+create trigger erp_sales_commission_allocate_offset after insert on public.erp_sales_payouts
+  for each row when (new.kind='commission') execute function private.erp_sales_allocate_commission_offsets();
+create trigger erp_sales_payout_release_commission_offset before update on public.erp_sales_payouts
+  for each row when (new.kind='commission' and new.outcome='cancelled')
+  execute function private.erp_sales_allocate_commission_offsets();
+
 create function private.erp_sales_check_adjustment(p_sale_id uuid,p_kind text,p_detail jsonb)
 returns jsonb language plpgsql stable set search_path = '' as $$
 declare
@@ -70,6 +147,8 @@ declare
   v_line public.erp_sales_lines;
   v_shipping text;
   v_line_id uuid := (p_detail->>'line_id')::uuid;
+  v_credit numeric := (p_detail->>'credit_amount')::numeric;
+  v_effective_total numeric;
   v_qty numeric := (p_detail->>'quantity')::numeric;
   v_amount numeric := (p_detail->>'amount')::numeric;
   v_refund numeric := coalesce((p_detail->>'refund_plan')::numeric,0);
@@ -112,7 +191,12 @@ begin
     elsif v_line_id is not null or v_qty is not null then
       raise exception using errcode='22023',message='ERP_ADJUSTMENT_INVALID_INPUT';
     end if;
-    select (public.erp_sales_get_receipts(p_sale_id)->>'received')::numeric into v_received;
+    select effective_total,gross_received into v_effective_total,v_received
+      from private.erp_sales_customer_position(p_sale_id);
+    if (p_kind='return_goods' and (v_credit is null or not (v_credit between 1 and v_effective_total)
+        or v_credit<>trunc(v_credit))) or (p_kind<>'return_goods' and v_credit is not null) then
+      raise exception using errcode='22023',message='ERP_ADJUSTMENT_CREDIT_LIMIT';
+    end if;
     select coalesce(sum((a.detail->>'refund_plan')::numeric),0) into v_reserved
       from public.erp_sales_adjustments a join public.erp_sales_adjustment_events e on e.adjustment_id=a.id and e.action='approve'
       where a.sale_id=p_sale_id;
@@ -120,14 +204,14 @@ begin
       raise exception using errcode='22023',message='ERP_ADJUSTMENT_REFUND_LIMIT';
     end if;
   else
-    if v_refund<>0 or v_line_id is not null or v_qty is not null
+    if v_credit is not null or v_refund<>0 or v_line_id is not null or v_qty is not null
        or v_amount is null or not (v_amount between 0 and 2000000000000) or v_amount<>trunc(v_amount)
        or (p_kind='service_change' and v_sale.kind<>'service')
        or (p_kind='sales_change' and v_sale.kind<>'product') then
       raise exception using errcode='22023',message='ERP_ADJUSTMENT_INVALID_INPUT';
     end if;
     if p_kind='commission_change' then
-      v_paid:=coalesce((public.erp_sales_get_payouts(p_sale_id)->'commission'->>'paid')::numeric,0);
+      v_paid:=coalesce((public.erp_sales_get_payouts(p_sale_id)->'commission'->>'cash_paid')::numeric,0);
       select coalesce(sum((a.detail->>'amount')::numeric),0) into v_prior_commission
         from public.erp_sales_adjustments a join public.erp_sales_adjustment_events e on e.adjustment_id=a.id and e.action='approve'
         where a.sale_id=p_sale_id and a.kind='commission_change';
@@ -176,6 +260,12 @@ begin
 end;
 $$;
 
+create function private.erp_sales_lock_period(p_day date)
+returns void language sql set search_path = '' as $$
+  select pg_advisory_xact_lock(5074, (date_trunc('month',p_day)::date-date '2000-01-01'));
+$$;
+revoke all on function private.erp_sales_lock_period(date) from public,anon,authenticated;
+
 create function public.erp_sales_record_adjustment_event(
   p_sale_id uuid,p_adjustment_id uuid,p_request_id uuid,p_action text,p_on date,p_note text,p_amount numeric default null
 )
@@ -217,6 +307,10 @@ begin
   if p_action in ('approve','reject') then
     if v_decision.id is not null then raise exception using errcode='22023',message='ERP_ADJUSTMENT_DUPLICATE'; end if;
     if p_action='approve' then
+      if v_adjustment.kind='commission_change' and v_adjustment.detail->>'commission_action'='offset' then
+        perform private.erp_sales_lock_period(p_on);
+        perform private.erp_sales_lock_agent_offsets(agent_id) from public.erp_sales_transactions where id=p_sale_id;
+      end if;
       perform private.erp_sales_check_adjustment(p_sale_id,v_adjustment.kind,v_adjustment.detail);
     end if;
   else
@@ -309,12 +403,6 @@ returns boolean language sql stable set search_path = '' as $$
     where month=date_trunc('month',p_day)::date order by revision desc limit 1),false);
 $$;
 revoke all on function private.erp_sales_month_is_closed(date) from public,anon,authenticated;
-
-create function private.erp_sales_lock_period(p_day date)
-returns void language sql set search_path = '' as $$
-  select pg_advisory_xact_lock(5074, (date_trunc('month',p_day)::date-date '2000-01-01'));
-$$;
-revoke all on function private.erp_sales_lock_period(date) from public,anon,authenticated;
 
 create function private.erp_sales_guard_period()
 returns trigger language plpgsql set search_path = '' as $$
@@ -422,5 +510,215 @@ revoke all on function public.erp_sales_get_month_close(date),
   public.erp_sales_set_month_close(date,uuid,boolean,boolean,text) from public,anon,authenticated;
 grant execute on function public.erp_sales_get_month_close(date),
   public.erp_sales_set_month_close(date,uuid,boolean,boolean,text) to authenticated;
+
+create or replace function public.erp_sales_get_receipts(p_sale_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_position record;
+  v_entries jsonb;
+begin
+  perform private.erp_sales_guard('read');
+  perform 1 from public.erp_sales_transactions
+    where id = p_sale_id and organization_key = 'taejang' and status = 'confirmed';
+  if not found then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_CONFIRMED_REQUIRED';
+  end if;
+
+  select * into strict v_position from private.erp_sales_customer_position(p_sale_id);
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id', r.id, 'amount', r.amount, 'recorded_on', r.recorded_on,
+      'note', r.note, 'reverses_id', r.reverses_id
+    ) order by r.created_at, r.id), '[]'::jsonb)
+    into v_entries
+    from public.erp_sales_receipts r where r.sale_id = p_sale_id;
+
+  return jsonb_build_object(
+    'received', v_position.gross_received, 'balance', v_position.balance, 'entries', v_entries,
+    'effective_total', v_position.effective_total, 'refunded', v_position.refunded,
+    'net_received', v_position.net_received,
+    'overpaid', greatest(v_position.net_received - v_position.effective_total, 0),
+    'due_on', (select due_on from public.erp_sales_receipt_schedule where sale_id = p_sale_id)
+  );
+end;
+$$;
+
+create or replace function public.erp_sales_record_receipt(
+  p_sale_id uuid, p_request_id uuid, p_recorded_on date,
+  p_amount numeric default null, p_note text default '', p_reverses_id uuid default null
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_existing public.erp_sales_receipts;
+  v_amount bigint;
+  v_position record;
+  v_note text := btrim(coalesce(p_note, ''));
+begin
+  perform private.erp_sales_guard('write');
+  perform private.erp_sales_guard('read');
+
+  -- Serialize receipts and reversals on the same confirmed sale.
+  perform 1 from public.erp_sales_transactions
+    where id = p_sale_id and organization_key = 'taejang' and status = 'confirmed' for update;
+  if not found then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_CONFIRMED_REQUIRED';
+  end if;
+
+  if p_request_id is null or p_recorded_on is null or not isfinite(p_recorded_on)
+     or p_recorded_on > (now() at time zone 'Asia/Seoul')::date
+     or length(v_note) > 500 then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_INPUT';
+  end if;
+
+  if p_reverses_id is null then
+    if p_amount is null or not (p_amount between 1 and 2000000000000)
+       or p_amount <> trunc(p_amount) then
+      raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_INPUT';
+    end if;
+    v_amount := p_amount;
+  else
+    if v_note = '' or p_amount is not null then
+      raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_INPUT';
+    end if;
+    select amount into v_amount from public.erp_sales_receipts
+      where id = p_reverses_id and sale_id = p_sale_id and reverses_id is null
+        and recorded_on <= p_recorded_on;
+    if not found then
+      raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_REVERSAL';
+    end if;
+  end if;
+
+  select * into v_existing from public.erp_sales_receipts where id = p_request_id;
+  if found then
+    if (v_existing.sale_id, v_existing.amount, v_existing.recorded_on, v_existing.note, v_existing.reverses_id)
+       is distinct from (p_sale_id, v_amount, p_recorded_on, v_note, p_reverses_id) then
+      raise exception using errcode = '22023', message = 'ERP_REQUEST_REUSE';
+    end if;
+    return public.erp_sales_get_receipts(p_sale_id);
+  end if;
+
+  select * into strict v_position from private.erp_sales_customer_position(p_sale_id);
+  if p_reverses_id is null then
+    if v_amount > v_position.balance then
+      raise exception using errcode = '22023', message = 'ERP_RECEIPT_OVER_BALANCE';
+    end if;
+  elsif exists (select 1 from public.erp_sales_receipts where reverses_id = p_reverses_id) then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_ALREADY_REVERSED';
+  elsif v_amount > v_position.net_received then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_REVERSAL_REFUNDED';
+  end if;
+
+  insert into public.erp_sales_receipts (id, sale_id, amount, recorded_on, note, reverses_id, created_by)
+    values (p_request_id, p_sale_id, v_amount, p_recorded_on, v_note, p_reverses_id, auth.uid());
+  perform private.erp_sales_history('receipt', p_request_id,
+    case when p_reverses_id is null then 'receipt_record' else 'receipt_reverse' end,
+    null, jsonb_build_object('sale_id', p_sale_id, 'amount', v_amount, 'reverses_id', p_reverses_id));
+  return public.erp_sales_get_receipts(p_sale_id);
+end;
+$$;
+
+create or replace function public.erp_sales_list_receivables(
+  p_party_id uuid default null, p_due_from date default null, p_due_to date default null
+)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_result jsonb;
+begin
+  perform private.erp_sales_guard('read');
+  if (p_due_from is not null and not isfinite(p_due_from))
+     or (p_due_to is not null and not isfinite(p_due_to))
+     or p_due_from > p_due_to then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_DUE_RANGE';
+  end if;
+
+  with outstanding as (
+    select s.id, s.party_snapshot->>'name' as party_name, s.kind, s.sales_date,
+      position.effective_total as total_amount, d.due_on, position.net_received as received, position.balance
+    from public.erp_sales_transactions s
+    left join public.erp_sales_receipt_schedule d on d.sale_id = s.id
+    cross join lateral private.erp_sales_customer_position(s.id) position
+    where s.organization_key = 'taejang' and s.status = 'confirmed'
+      and position.balance > 0
+      and (p_party_id is null or s.party_id = p_party_id)
+      and (p_due_from is null or d.due_on >= p_due_from)
+      and (p_due_to is null or d.due_on <= p_due_to)
+  )
+  select jsonb_build_object(
+    'total', count(*), 'total_balance', coalesce(sum(balance), 0)::text, 'limit', 200,
+    'items', (select coalesce(jsonb_agg(to_jsonb(o) order by o.due_on nulls last, o.sales_date desc, o.id), '[]'::jsonb)
+      from (select * from outstanding order by due_on nulls last, sales_date desc, id limit 200) o)
+  ) into v_result from outstanding;
+  return v_result;
+end;
+$$;
+
+create or replace function private.erp_sales_payout_summary(p_sale_id uuid, p_kind text, p_basis_amount numeric default null)
+returns jsonb language plpgsql stable set search_path = '' as $$
+declare
+  v_sale public.erp_sales_transactions;
+  v_received numeric;
+  v_basis numeric;
+  v_cycle text;
+  v_paid numeric;
+  v_pending numeric;
+  v_cash_paid numeric;
+  v_allowed numeric := 0;
+  v_entries jsonb;
+begin
+  select * into v_sale from public.erp_sales_transactions
+    where id = p_sale_id and organization_key = 'taejang' and status = 'confirmed';
+  if not found then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_CONFIRMED_REQUIRED';
+  end if;
+  if p_kind = 'commission' and (v_sale.agent_id is null or (v_sale.commission->>'value')::numeric <= 0) then
+    return null;
+  elsif p_kind = 'supplier' and v_sale.supplier_id is null then
+    return null;
+  elsif p_kind is null or p_kind not in ('commission', 'supplier') then
+    raise exception using errcode = '22023', message = 'ERP_PAYOUT_INVALID_INPUT';
+  end if;
+
+  select coalesce(sum(case when reverses_id is null then amount else -amount end), 0)
+    into v_received from public.erp_sales_receipts where sale_id = p_sale_id;
+  select basis_amount, cycle into v_basis, v_cycle from public.erp_sales_payouts
+    where sale_id = p_sale_id and kind = p_kind and outcome is distinct from 'cancelled'
+    order by approved_at, id limit 1;
+  if p_kind = 'commission' and v_sale.commission->>'kind' = 'fixed' then
+    v_basis := (v_sale.commission->>'value')::numeric;
+  end if;
+  if v_basis is not null and p_basis_amount is not null and v_basis <> p_basis_amount then
+    raise exception using errcode = '22023', message = 'ERP_PAYOUT_BASIS_CONFLICT';
+  end if;
+  v_basis := coalesce(v_basis, p_basis_amount);
+
+  select coalesce(sum(p.amount) filter (where outcome = 'paid'), 0),
+         coalesce(sum(p.amount) filter (where outcome is null), 0),
+         coalesce(sum(p.amount - offsets.amount) filter (where outcome = 'paid'), 0),
+         coalesce(jsonb_agg(jsonb_build_object(
+           'id', id, 'amount', p.amount, 'offset', offsets.amount, 'cash_amount', p.amount - offsets.amount, 'cycle', cycle, 'due_on', due_on,
+           'approval_evidence', approval_evidence, 'outcome', outcome,
+           'outcome_on', outcome_on, 'outcome_evidence', outcome_evidence
+         ) order by approved_at, id), '[]'::jsonb)
+    into v_paid, v_pending, v_cash_paid, v_entries from public.erp_sales_payouts p
+    cross join lateral (
+      select coalesce(sum(o.amount),0) as amount from public.erp_sales_commission_offsets o where o.payout_id=p.id
+    ) offsets
+    where sale_id = p_sale_id and kind = p_kind;
+
+  if v_received > 0 and v_basis is not null then
+    if p_kind = 'supplier' or v_received >= v_sale.total_amount then
+      v_allowed := v_basis;
+    elsif v_sale.commission->>'settlement_rule' = 'proportional' then
+      v_allowed := floor(v_basis * v_received / v_sale.total_amount);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'name', case when p_kind = 'commission' then v_sale.agent_snapshot->>'name' else v_sale.supplier_snapshot->>'name' end,
+    'commission', case when p_kind = 'commission' then v_sale.commission else null end,
+    'basis', v_basis, 'cycle', v_cycle, 'received', v_received, 'allowed', v_allowed,
+    'paid', v_paid, 'cash_paid', v_cash_paid, 'pending', v_pending, 'remaining', v_basis - v_paid, 'entries', v_entries
+  );
+end;
+$$;
 
 commit;
