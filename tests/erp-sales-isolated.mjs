@@ -210,5 +210,46 @@ try {
  const evidence=db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id});
  check(evidence.length===2&&evidence[1].original_id===invoiceId&&evidence[1].amount===-100,'corrected evidence preserves the original linkage and signed amount');
  reject(()=>db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
+ const requestAdjustment=(sale,kind,detail)=>({
+  p_sale_id:sale.id,p_request_id:randomUUID(),p_kind:kind,p_reason:'Synthetic adjustment',p_detail:detail
+ });
+ const request=p=>db.rpc('erp_sales_request_adjustment',p);
+ const event=(p,action,amount=null,actor=OPS)=>db.rpc('erp_sales_record_adjustment_event',{
+  p_sale_id:p.p_sale_id,p_adjustment_id:p.p_request_id,p_request_id:randomUUID(),
+  p_action:action,p_amount:amount,p_on:on,p_note:'Synthetic adjustment evidence'
+ },{actor});
+ reject(()=>request(requestAdjustment(corporate,'cancel_order',{})),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,refund_plan:600});
+ request(returned);
+ check(request(returned).length===1,'adjustment request retries preserve a single original record');
+ reject(()=>event(returned,'refund',300),/ERP_ADJUSTMENT_APPROVAL_REQUIRED/);
+ reject(()=>event(returned,'approve',null,WORKER),/ERP_FORBIDDEN/);
+ event(returned,'approve');
+ reject(()=>request(requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:8})),/ERP_ADJUSTMENT_QUANTITY/);
+ event(returned,'recall');
+ const refund=event(returned,'refund',300);
+ check(refund[0].detail.refund_plan===600&&refund[0].events.find(x=>x.action==='refund').amount===300,'refund plan and actual payment remain separate');
+ reject(()=>event(returned,'refund',301),/ERP_ADJUSTMENT_REFUND_LIMIT/);
+ check(db.rpc('erp_sales_get',{p_id:corporate.id}).total_amount===10100,'return and refund preserve the confirmed sale');
+ const newOrder=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID()}});
+ db.rpc('erp_sales_confirm',{p_id:newOrder.id,p_revision:newOrder.revision});
+ const cancellation=requestAdjustment(newOrder,'cancel_order',{refund_plan:0});
+ request(cancellation);event(cancellation,'approve');
+ reject(()=>db.rpc('erp_sales_shipping',{p_id:newOrder.id,p_status:'shipped'}),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const commissionChange=requestAdjustment(person,'commission_change',{commission_action:'offset',amount:100});
+ request(commissionChange);event(commissionChange,'approve');
+ check(db.rpc('erp_sales_get_payouts',{p_sale_id:person.id}).commission.paid===250,'commission correction preserves existing actual payments');
+ reject(()=>db.raw('delete from public.erp_sales_adjustment_events;'),/ERP_RECEIPT_IMMUTABLE/);
+ const month=on.slice(0,7)+'-01';
+ const setMonth=(closed,expected,actor=OPS)=>db.rpc('erp_sales_set_month_close',{
+  p_month:month,p_request_id:randomUUID(),p_closed:closed,p_expected_closed:expected,p_reason:'Synthetic month control'
+ },{actor});
+ reject(()=>setMonth(true,false,WORKER),/ERP_FORBIDDEN/);
+ check(setMonth(true,false).closed,'month close is persisted');
+ reject(()=>support('purchase',purchase),/ERP_PERIOD_CLOSED/);
+ reject(()=>db.rpc('erp_sales_record_receipt',collect(corporate,1)),/ERP_PERIOD_CLOSED/);
+ check(!setMonth(false,true).closed,'exceptional reopen restores writes for the period');
+ support('purchase',purchase);
+ check(setMonth(true,false).events.length===3,'reclosing keeps all close and reopen history');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}
