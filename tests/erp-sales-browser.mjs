@@ -22,6 +22,17 @@ try {
  await page.getByRole('button',{name:'월 매출 생성',exact:true}).click();await field('month').fill('2099-01');await saved('매출 생성·확인');
  await field('fee_kind').selectOption('rate');await field('fee_value').fill('2.5');await saved('매출 저장');await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();assert.equal(await field('party_id').isDisabled(),true);assert.match(await page.locator('.erp-total').textContent(),/55,000/);
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/service-1440.png',fullPage:true});
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
+ await field('receipt_amount').fill('20000');
+ await page.getByRole('button',{name:'입금 기록 저장',exact:true}).click();
+ await page.getByText('누적 수금 20,000원 · 미수금 35,000원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'오입금 취소',exact:true}).click();
+ await field('receipt_note').fill('합성 오입금 정정');
+ await page.getByRole('button',{name:'취소 기록 저장',exact:true}).click();
+ await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
+ await page.getByText('입금 (취소됨)',{exact:true}).waitFor();
+
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');await field('tax_amount_1').fill('370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
  await page.evaluate(()=>window.fixtureFailNext=true);await page.getByRole('button',{name:'매출 저장',exact:true}).click();await page.locator('.erp-sales > .message.error').waitFor();assert.equal(await field('unit_price_1').inputValue(),'1234');assert.equal(await field('quantity_1').inputValue(),'3');assert.equal(await field('fee_value').inputValue(),'500');
@@ -31,6 +42,9 @@ try {
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
  await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
+ await page.locator('.erp-body tbody tr').filter({hasText:'합성 기업 브라우저'}).getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByText('합성 오입금 정정',{exact:true}).waitFor();
  assert.equal(await page.locator('.erp-body tbody tr').count(),2);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,000/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);

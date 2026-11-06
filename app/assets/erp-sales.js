@@ -12,7 +12,7 @@
  const report=(message,error=false)=>{if(!root?.isConnected)return;status.textContent=message;status.className=error?'message error':'message';status.hidden=!message;};
  function errorText(error){const m=String(error?.message||error);if(/PGRST202|does not exist|404/.test(m))return '이 환경은 매출 기능의 데이터 준비가 완료되지 않았습니다. 담당자에게 확인해 주세요.';
   if(/23505|duplicate|unique/.test(m))return '이미 등록된 정보입니다. 기존 거래처·품목 또는 계약 월 매출을 확인해 주세요.';
-  const codes={ERP_FORBIDDEN:'이 기능을 사용할 권한이 없습니다.',ERP_REVISION_CONFLICT:'다른 화면에서 변경되었습니다. 입력을 보존했습니다. 새로 조회한 뒤 비교해 주세요.',ERP_SALE_CONFIRMED:'이미 확정된 거래는 원본을 수정할 수 없습니다.',ERP_AGENT_RELATION_REQUIRED:'매출일에 유효한 거래처·영업자 관계를 먼저 등록해 주세요.',ERP_INVALID_COMMISSION:'영업자와 거래별 영업비 조건을 확인해 주세요.',ERP_INVALID_CONTRACT_MONTH:'계약 기간과 매출 월을 확인해 주세요.',ERP_CONTRACT_NOT_ACTIVE:'진행 중인 계약과 해당 월을 확인해 주세요.',ERP_REQUEST_REUSE:'같은 저장 요청으로 이미 다른 내용이 저장되었습니다. 입력은 보존되니 매출 목록에서 기존 거래를 먼저 확인해 주세요.',ERP_INVALID_PERIOD:'조회 기간은 1년 이내로 지정해 주세요.'};
+  const codes={ERP_RECEIPT_CONFIRMED_REQUIRED:'확정 매출에만 수금을 기록할 수 있습니다.',ERP_RECEIPT_INVALID_INPUT:'입금일·정정일, 원 단위 금액, 취소 사유를 확인해 주세요.',ERP_RECEIPT_INVALID_REVERSAL:'취소할 입금과 정정일을 확인해 주세요.',ERP_RECEIPT_ALREADY_REVERSED:'이미 취소된 입금입니다. 수금 내역을 다시 열어 주세요.',ERP_RECEIPT_OVER_BALANCE:'입금액이 미수 잔액을 초과합니다. 수금 내역을 다시 열어 잔액을 확인해 주세요.',ERP_FORBIDDEN:'이 기능을 사용할 권한이 없습니다.',ERP_REVISION_CONFLICT:'다른 화면에서 변경되었습니다. 입력을 보존했습니다. 새로 조회한 뒤 비교해 주세요.',ERP_SALE_CONFIRMED:'이미 확정된 거래는 원본을 수정할 수 없습니다.',ERP_AGENT_RELATION_REQUIRED:'매출일에 유효한 거래처·영업자 관계를 먼저 등록해 주세요.',ERP_INVALID_COMMISSION:'영업자와 거래별 영업비 조건을 확인해 주세요.',ERP_INVALID_CONTRACT_MONTH:'계약 기간과 매출 월을 확인해 주세요.',ERP_CONTRACT_NOT_ACTIVE:'진행 중인 계약과 해당 월을 확인해 주세요.',ERP_REQUEST_REUSE:'같은 저장 요청으로 이미 다른 내용이 저장되었습니다. 입력은 보존되니 매출 목록에서 기존 거래를 먼저 확인해 주세요.',ERP_INVALID_PERIOD:'조회 기간은 1년 이내로 지정해 주세요.'};
   return Object.entries(codes).find(([c])=>m.includes(c))?.[1]||'저장하지 못했습니다. 입력값과 연결 정보를 확인한 뒤 다시 시도해 주세요.';
  }
  async function rpc(name,data={}){const generation=epoch;if(!allowed())throw new Error('ERP_FORBIDDEN');const result=await window.TaejangApp.rpc(name,data);if(generation!==epoch||!allowed()||!root?.isConnected)throw new Error('ERP_FORBIDDEN');return result;}
@@ -116,11 +116,80 @@
     ...(kind==='product'?{supplier_id:d.supplier_id,order_channel:d.order_channel,shipping_status:d.shipping_status}:{contract_id:data.contract_id,sales_month:data.sales_month})};
    void run(async()=>{const result=await rpc('erp_sales_save',{p_data:payload,p_id:data.id||null,p_revision:data.revision||0});f.dataset.dirty='false';saleEditor(result);if(tab==='sales')await drawSales();report('매출을 저장했습니다. 입력한 실제 단가와 조건이 보존됩니다.');});
   });
+  if(locked) drawReceipts(data.id);
   if(sale?.id&&kind==='product'){
    const delivery=el('section','','app-form-section');delivery.append(el('h4','공급처 직배송 상태'),el('p',kinds[data.shippingCurrent||data.shipping_status]||'—'));const next=field(delivery,'next_shipping','배송 상태 기록','select',data.shippingCurrent||data.shipping_status,[['preparing','배송 준비'],['shipped','발송'],['delivered','배송 완료']]);
    if(state.canWrite)delivery.append(btn('배송 상태 저장',()=>{const value=next.value;void run(async()=>{const result=await rpc('erp_sales_shipping',{p_id:data.id,p_status:value});f.dataset.dirty='false';saleEditor(result);report('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.');});}));else next.disabled=true;editor.append(delivery);
   }
   if(sale?.id){const history=el('details');history.append(el('summary',`변경 이력 ${(data.history||[]).length}건`),table(['작업','일시','작업자'],(data.history||[]).map(h=>[({create:'등록',update:'수정',confirm:'확정',shipping:'배송 상태'})[h.action]||h.action,new Intl.DateTimeFormat('ko-KR',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Seoul'}).format(new Date(h.created_at)),h.actor_id])));editor.append(history);}
+ }
+ function drawReceipts(saleId){
+  const panel=el('section','','app-form-section');
+  const content=el('div');
+  const load=btn('수금 내역 조회',()=>void run(async()=>{
+   render(await rpc('erp_sales_get_receipts',{p_sale_id:saleId}));
+  }));
+  panel.append(el('h4','수금·미수금'),content,load);
+  editor.append(panel);
+
+  function render(summary, reversal=null){
+   load.hidden=true;
+   const reversedIds=new Set(summary.entries.map(entry=>entry.reverses_id).filter(Boolean));
+   content.replaceChildren(el('p','누적 수금 '+money(summary.received)+' · 미수금 '+money(summary.balance),'erp-total'));
+   const form=el('form','','app-authoring');
+   if(summary.entries.length){
+    content.append(table(['기록일','구분','금액','메모',''],summary.entries.map(entry=>{
+     const type=entry.reverses_id?'오입금 취소':reversedIds.has(entry.id)?'입금 (취소됨)':'입금';
+     const reverse=state.canWrite&&!entry.reverses_id&&!reversedIds.has(entry.id)
+      ?btn('오입금 취소',()=>{
+       if(form.dataset.dirty==='true'&&!window.confirm('저장하지 않은 수금 입력을 닫을까요?'))return;
+       render(summary,entry);
+       content.querySelector('input[name="receipt_note"]')?.focus();
+      }):'';
+     return [entry.recorded_on,type,money(entry.reverses_id?-entry.amount:entry.amount),entry.note,reverse];
+    })));
+   }else{
+    content.append(el('p','등록된 입금이 없습니다.','message'));
+   }
+   if(!state.canWrite||(!reversal&&summary.balance===0))return;
+
+   const requestId=crypto.randomUUID();
+   const fields=el('div','','erp-fields');
+   const recordedOn=field(fields,'receipt_date',reversal?'정정일':'입금일','date',today(),[],true);
+   recordedOn.max=today();
+   let amount;
+   if(reversal){
+    recordedOn.min=reversal.recorded_on;
+    form.append(el('p',reversal.recorded_on+' 입금 '+money(reversal.amount)+'의 기록을 취소합니다.','help'));
+   }else{
+    amount=field(fields,'receipt_amount','입금액 (원)','number','',[],true);
+    amount.min='1';
+    amount.max=String(summary.balance);
+    amount.step='1';
+   }
+   const note=field(fields,'receipt_note',reversal?'취소 사유':'입금 메모','text','',[],Boolean(reversal));
+   note.maxLength=500;
+   const save=el('button',reversal?'취소 기록 저장':'입금 기록 저장','button primary');
+   save.type='submit';
+   form.append(fields,save);
+   if(reversal)form.append(btn('돌아가기',()=>{
+    if(form.dataset.dirty!=='true'||window.confirm('저장하지 않은 취소 사유를 닫을까요?'))render(summary);
+   }));
+   form.addEventListener('input',()=>{form.dataset.dirty='true';});
+   form.addEventListener('submit',event=>{
+    event.preventDefault();
+    if(!form.reportValidity())return;
+    void run(async()=>{
+     const next=await rpc('erp_sales_record_receipt',{
+      p_sale_id:saleId,p_request_id:requestId,p_recorded_on:recordedOn.value,
+      p_amount:amount?Number(amount.value):null,p_note:note.value,p_reverses_id:reversal?.id??null
+     });
+     render(next);
+     report(reversal?'오입금 취소를 기록했습니다.':'입금을 기록했습니다.');
+    });
+   });
+   content.append(form);
+  }
  }
  async function drawSales(){const list=await rpc('erp_sales_list',{p_from:filters.from,p_to:filters.to,p_party_id:filters.party||null,p_kind:filters.kind||null,p_status:filters.status||null,p_agent_id:filters.agent||null});if(tab!=='sales')return;body.replaceChildren();
   const f=el('form','','app-authoring');const grid=el('div','','erp-fields');const inputs=[field(grid,'from','시작일','date',filters.from,[],true),field(grid,'to','종료일','date',filters.to,[],true),field(grid,'party','거래처','select',filters.party,[['','전체 거래처'],...state.parties.map(p=>[p.id,p.name])]),field(grid,'kind','상품·용역','select',filters.kind,[['','전체 유형'],['service','용역'],['product','상품']]),field(grid,'status','거래 상태','select',filters.status,[['','전체 상태'],['draft','작성 중'],['confirmed','확정']]),field(grid,'agent','영업자','select',filters.agent,[['','전체 영업자'],...state.agents.map(a=>[a.id,a.name])])];
