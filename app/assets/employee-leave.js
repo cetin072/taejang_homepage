@@ -126,15 +126,37 @@
       if(!requests.length)list.append(el('p',filter.value==='pending'?'승인 대기 중인 연차 신청이 없습니다.':'해당 상태의 신청 내역이 없습니다.'));
     }
     filter.addEventListener('change',draw);draw();
-    const changeSection=el('section',null,'leave-change-requests');changeSection.append(el('h4','취소·수정 요청'));
-    const ordered=[...changes].sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1));
-    ordered.forEach(c=>{const card=el('article',null,'employee-profile-section');card.append(el('h4',`${c.employee_name} · ${c.manager_direct?'관리자 직접 ':''}${c.action==='cancel'?'취소':'수정'}${c.manager_direct?'':' 요청'}`),el('p',`기존 ${c.original_work_date} ${labels[c.original_portion]}${c.action==='amend'?` → ${c.new_work_date} ${labels[c.new_portion]}`:''} · ${labels[c.status]}`));
-      if(c.status==='pending')card.append(el('p','처리 전까지 기존 연차와 출근부가 유지됩니다.'));
-      if(c.reason?.trim())card.append(el('p',`${c.manager_direct?'관리자 변경 사유':'직원 요청 사유'}: ${c.reason}`));
-      if(c.decision_note)card.append(el('p',`처리 사유: ${c.decision_note}`));
-      if(ctx.can_review&&c.status==='pending'){const f=el('form',null,'employee-form app-authoring'),note=field(f,'변경 처리 사유','text');note.minLength=2;const decision=select(f,'변경 처리 선택',[['approved','승인'],['rejected','반려']]);formAction(f,'취소·수정 처리',()=>rpc('review_employee_leave_change',{p_change_id:c.id,p_decision:decision.value,p_note:note.value}),reload);card.append(f);}changeSection.append(card);
-    });if(!ordered.length)changeSection.append(el('p','취소·수정 요청이 없습니다.'));section.append(changeSection);
+    renderChangeRequests(section,ctx,reload);
     section.append(el('p','서버에서 조회한 최근 신청 최대 300건입니다. 이전 내역은 직원별로 조회해주세요.'));host.append(section);
+  }
+  function renderChangeRequests(host,ctx,reload,showHistory=false){
+    const section=el('section',null,'leave-change-requests');
+    section.append(el(showHistory?'h3':'h4',showHistory?'취소·수정 이력':'취소·수정 요청'));
+    const changes=(ctx.change_requests||[]).filter(change=>showHistory ? change.status!=='pending' : change.status==='pending');
+    for(const change of changes){
+      const action=change.action==='cancel'?'취소':'수정';
+      const title=change.employee_name+' · '+(change.manager_direct?'관리자 직접 '+action:action+' 요청');
+      const date='기존 '+change.original_work_date+' '+labels[change.original_portion]
+        +(change.action==='amend'?' → '+change.new_work_date+' '+labels[change.new_portion]:'');
+      const card=el(showHistory?'details':'article',null,'employee-profile-section');
+      if(showHistory)card.append(el('summary',title+' · '+date+' · '+labels[change.status]));
+      else card.append(el('h4',title),el('p',date+' · '+labels[change.status]),el('p','처리 전까지 기존 연차와 출근부가 유지됩니다.'));
+      if(change.reason?.trim())card.append(el('p',(change.manager_direct?'관리자 변경 사유':'직원 요청 사유')+': '+change.reason));
+      if(change.decision_note)card.append(el('p','처리 사유: '+change.decision_note));
+      if(!showHistory&&ctx.can_review){
+        const form=el('form',null,'employee-form app-authoring');
+        const note=field(form,'변경 처리 사유','text');note.minLength=2;
+        const decision=select(form,'변경 처리 선택',[['approved','승인'],['rejected','반려']]);
+        formAction(form,'취소·수정 처리',()=>rpc('review_employee_leave_change',{
+          p_change_id:change.id,p_decision:decision.value,p_note:note.value
+        }),reload);
+        card.append(form);
+      }
+      section.append(card);
+    }
+    if(!changes.length)section.append(el('p',showHistory?'처리된 취소·수정 이력이 없습니다.':'처리할 취소·수정 요청이 없습니다.'));
+    if(showHistory)section.append(el('p','서버에서 조회한 최근 취소·수정 내역 최대 300건입니다.'));
+    host.append(section);
   }
   function renderDaysOff(host,ctx,reload){
     const details=el('details',null,'employee-profile-section leave-exceptions');details.append(el('summary','기타 설정 · 예외 휴무'));
@@ -158,7 +180,17 @@
         const retired=ctx.employees.filter(e=>e.employment_status==='departed'||e.departed_on&&e.departed_on<=ctx.server_today);
         host.replaceChildren(el('h2','연차 관리'),el('p','직원 연차 등록 → 앱에서 신청 → 관리자 승인·반려 → 잔여 갱신'));
         const nav=el('nav',null,'leave-view-nav');nav.setAttribute('aria-label','연차 관리 화면');
-        [['requests','신청·승인'],['balances','직원별 연차 등록·현황']].forEach(([key,label])=>{const b=button(label,()=>{view=key;employeeId='';load();});b.setAttribute('aria-pressed',String(view===key));nav.append(b);});host.append(nav);
+        const views=[['requests','신청·승인'],['changes','취소·수정 이력'],['balances','직원별 연차 등록·현황']];
+        for(const [key,label] of views){
+          const tab=button(label,()=>{
+            if(view==='balances'||key==='balances')employeeId='';
+            view=key;
+            load();
+          });
+          tab.setAttribute('aria-pressed',String(view===key));
+          nav.append(tab);
+        }
+        host.append(nav);
         const content=el('section',null,'leave-main-content');host.append(content);
         if(view==='balances'){
           content.append(el('h3','직원별 연차 등록·현황'),el('p',ctx.can_initialize?'직원을 선택해 지금까지 발생한 연차와 현재 남은 연차를 최초 등록합니다.':'직원을 선택해 연차 현황을 확인합니다. 현재 권한으로 연차 개수를 입력할 수 없습니다.'));
@@ -166,12 +198,30 @@
           const box=el('section',null,'employee-profile-section');content.append(box);
           const show=()=>{employeeId=s.value;box.replaceChildren();if(employeeId){const panel=el('div');box.append(panel);populate(panel,employeeId,true);}else box.append(el('p','직원을 선택하면 연차 등록·현황을 확인할 수 있습니다.'));};s.addEventListener('change',show);show();
         }else{
-          const history=field(content,'퇴직자 과거 신청 보기','checkbox','',false);history.parentNode.classList.add('app-check-field');history.parentNode.replaceChildren(history,el('span','퇴직자 과거 신청 보기'));history.checked=state.history;history.addEventListener('change',()=>{state.history=history.checked;employeeId='';load();});
+          const historyLabel=view==='changes'?'퇴직자 취소·수정 이력 보기':'퇴직자 과거 신청 보기';
+          const history=field(content,historyLabel,'checkbox','',false);history.parentNode.classList.add('app-check-field');history.parentNode.replaceChildren(history,el('span',historyLabel));history.checked=state.history;history.addEventListener('change',()=>{state.history=history.checked;employeeId='';load();});
           const s=rosterSelect(content,'신청 직원',state.history?retired:current,ctx.positions,state.history?'전체 퇴직자 과거 내역':'전체 재직 직원',employeeId);
           const box=el('section');content.append(box);let requestGeneration=0;
-          const show=async()=>{const current=++requestGeneration;employeeId=s.value;box.replaceChildren(el('p','신청 내역을 확인하고 있습니다.'));try{const scoped=employeeId?await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId}):ctx;if(!box.isConnected||current!==requestGeneration)return;box.replaceChildren();const visible=r=>state.history?!currentIds.has(r.employee_uuid):currentIds.has(r.employee_uuid);renderRequests(box,{...scoped,requests:scoped.requests.filter(visible),change_requests:(scoped.change_requests||[]).filter(visible)},load,state);}catch(e){if(box.isConnected&&current===requestGeneration)box.replaceChildren(el('p',errorText(e)),button('다시 불러오기',show));}};s.addEventListener('change',show);await show();
+          const show=async()=>{
+            const requestVersion=++requestGeneration;
+            employeeId=s.value;
+            box.replaceChildren(el('p','신청 내역을 확인하고 있습니다.'));
+            try{
+              const scoped=employeeId?await rpc('get_employee_leave_admin_context',{p_employee_uuid:employeeId}):ctx;
+              if(!box.isConnected||requestVersion!==requestGeneration)return;
+              const visible=request=>state.history?!currentIds.has(request.employee_uuid):currentIds.has(request.employee_uuid);
+              const filtered={...scoped,requests:scoped.requests.filter(visible),change_requests:(scoped.change_requests||[]).filter(visible)};
+              box.replaceChildren();
+              if(view==='changes')renderChangeRequests(box,filtered,load,true);
+              else renderRequests(box,filtered,load,state);
+            }catch(error){
+              if(box.isConnected&&requestVersion===requestGeneration)box.replaceChildren(el('p',errorText(error)),button('다시 불러오기',show));
+            }
+          };
+          s.addEventListener('change',show);
+          await show();
         }
-        if(host.isConnected&&version===generation)renderDaysOff(host,ctx,load);
+        if(host.isConnected&&version===generation&&view!=='changes')renderDaysOff(host,ctx,load);
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
     };await load();
   }
