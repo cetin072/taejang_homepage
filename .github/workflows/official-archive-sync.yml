@@ -52,6 +52,14 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: node scripts/sync-official-archive.mjs --check
 
+      - name: Resume an untouched automation Draft before collection
+        id: proposal
+        if: steps.slot.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/prepare-official-archive.mjs
+
       - name: Find verified public content and update only archive data
         if: steps.slot.outputs.due == 'true'
         run: node scripts/sync-official-archive.mjs --apply
@@ -59,7 +67,7 @@ jobs:
       - name: Run deterministic public tests and build
         if: steps.slot.outputs.due == 'true'
         run: |
-          node --test tests/official-archive-sync.test.mjs
+          node --test tests/official-archive-sync.test.mjs tests/prepare-official-archive.test.mjs
           npm run test:public
           npm run build:netlify
           git diff --check
@@ -69,6 +77,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          EXISTING_BRANCH: ${{ steps.proposal.outputs.branch }}
+          EXISTING_PR: ${{ steps.proposal.outputs.number }}
+          EXISTING_HEAD: ${{ steps.proposal.outputs.head }}
         shell: bash
         run: |
           set -euo pipefail
@@ -76,12 +87,18 @@ jobs:
             echo "NO_CHANGES: skip commit, PR and deployment." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          pending=$(gh pr list --state open --limit 1000 --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/official-archive-"))] | length')
-          if [ "$pending" -gt 0 ]; then
-            echo "::warning::Existing archive PR awaits review; no second PR was created."
-            echo "PENDING_REVIEW: existing archive PR remains authoritative." >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$EXISTING_BRANCH" ]; then
+            # Recheck review/head immediately before a normal fast-forward push.
+            current=$(gh pr view "$EXISTING_PR" --json state,isDraft,headRefOid --jq '[.state, (.isDraft|tostring), .headRefOid] | join(" ")')
+            test "$current" = "OPEN true $EXISTING_HEAD"
+            git add -- assets/js/official-channel-updates.js
+            git commit -m "content(archive): append verified official posts to pending Draft"
+            git push origin "HEAD:refs/heads/$EXISTING_BRANCH"
+            echo "UPDATED_DRAFT_PR: collected additions await review; not published." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          pending=$(gh pr list --state open --limit 1000 --json headRefName --jq '[.[] | select(.headRefName | startswith("automation/official-archive-"))] | length')
+          test "$pending" -eq 0
           # Only an OPEN review blocks a proposal. Merged/closed/orphan branches
           # remain untouched and cannot occupy this slot forever.
           branch="automation/official-archive-${{ steps.slot.outputs.slot }}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
