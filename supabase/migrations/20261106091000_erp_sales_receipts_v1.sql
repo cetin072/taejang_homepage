@@ -36,6 +36,14 @@ create trigger erp_sales_receipts_immutable
   before update or delete on public.erp_sales_receipts
   for each row execute function private.erp_sales_receipts_immutable();
 
+-- A due date is collection metadata, separate from the locked sale.
+create table public.erp_sales_receipt_schedule (
+  sale_id uuid primary key references public.erp_sales_transactions(id),
+  due_on date not null check (isfinite(due_on))
+);
+alter table public.erp_sales_receipt_schedule enable row level security;
+revoke all on public.erp_sales_receipt_schedule from public, anon, authenticated;
+
 create function public.erp_sales_get_receipts(p_sale_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -58,7 +66,10 @@ begin
     into v_received, v_entries
     from public.erp_sales_receipts r where r.sale_id = p_sale_id;
 
-  return jsonb_build_object('received', v_received, 'balance', v_total - v_received, 'entries', v_entries);
+  return jsonb_build_object(
+    'received', v_received, 'balance', v_total - v_received, 'entries', v_entries,
+    'due_on', (select due_on from public.erp_sales_receipt_schedule where sale_id = p_sale_id)
+  );
 end;
 $$;
 
@@ -140,5 +151,85 @@ revoke all on function public.erp_sales_get_receipts(uuid) from public, anon, au
 revoke all on function public.erp_sales_record_receipt(uuid, uuid, date, numeric, text, uuid) from public, anon, authenticated;
 grant execute on function public.erp_sales_get_receipts(uuid) to authenticated;
 grant execute on function public.erp_sales_record_receipt(uuid, uuid, date, numeric, text, uuid) to authenticated;
+
+create function public.erp_sales_set_receipt_due_on(p_sale_id uuid, p_due_on date, p_expected_due_on date)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_due_on date;
+begin
+  perform private.erp_sales_guard('write');
+  perform private.erp_sales_guard('read');
+
+  perform 1 from public.erp_sales_transactions
+    where id = p_sale_id and organization_key = 'taejang' and status = 'confirmed' for update;
+  if not found then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_CONFIRMED_REQUIRED';
+  end if;
+  if p_due_on is not null and (not isfinite(p_due_on) or p_due_on not between date '1900-01-01' and date '9999-12-31') then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_DUE_ON';
+  end if;
+
+  select due_on into v_due_on from public.erp_sales_receipt_schedule where sale_id = p_sale_id;
+  if v_due_on is not distinct from p_due_on then
+    return public.erp_sales_get_receipts(p_sale_id);
+  end if;
+  if v_due_on is distinct from p_expected_due_on then
+    raise exception using errcode = '40001', message = 'ERP_REVISION_CONFLICT';
+  end if;
+
+  if p_due_on is null then
+    delete from public.erp_sales_receipt_schedule where sale_id = p_sale_id;
+  else
+    insert into public.erp_sales_receipt_schedule(sale_id, due_on) values (p_sale_id, p_due_on)
+    on conflict (sale_id) do update set due_on = excluded.due_on;
+  end if;
+  perform private.erp_sales_history('receipt_schedule', p_sale_id, 'receipt_due_on',
+    jsonb_build_object('due_on', v_due_on), jsonb_build_object('due_on', p_due_on));
+  return public.erp_sales_get_receipts(p_sale_id);
+end;
+$$;
+
+create function public.erp_sales_list_receivables(
+  p_party_id uuid default null, p_due_from date default null, p_due_to date default null
+)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_result jsonb;
+begin
+  perform private.erp_sales_guard('read');
+  if (p_due_from is not null and not isfinite(p_due_from))
+     or (p_due_to is not null and not isfinite(p_due_to))
+     or p_due_from > p_due_to then
+    raise exception using errcode = '22023', message = 'ERP_RECEIPT_INVALID_DUE_RANGE';
+  end if;
+
+  with outstanding as (
+    select s.id, s.party_snapshot->>'name' as party_name, s.kind, s.sales_date,
+      s.total_amount, d.due_on, payment.received, s.total_amount - payment.received as balance
+    from public.erp_sales_transactions s
+    left join public.erp_sales_receipt_schedule d on d.sale_id = s.id
+    cross join lateral (
+      select coalesce(sum(case when r.reverses_id is null then r.amount else -r.amount end), 0) as received
+      from public.erp_sales_receipts r where r.sale_id = s.id
+    ) payment
+    where s.organization_key = 'taejang' and s.status = 'confirmed'
+      and s.total_amount > payment.received
+      and (p_party_id is null or s.party_id = p_party_id)
+      and (p_due_from is null or d.due_on >= p_due_from)
+      and (p_due_to is null or d.due_on <= p_due_to)
+  )
+  select jsonb_build_object(
+    'total', count(*), 'total_balance', coalesce(sum(balance), 0)::text, 'limit', 200,
+    'items', (select coalesce(jsonb_agg(to_jsonb(o) order by o.due_on nulls last, o.sales_date desc, o.id), '[]'::jsonb)
+      from (select * from outstanding order by due_on nulls last, sales_date desc, id limit 200) o)
+  ) into v_result from outstanding;
+  return v_result;
+end;
+$$;
+
+revoke all on function public.erp_sales_set_receipt_due_on(uuid, date, date) from public, anon, authenticated;
+revoke all on function public.erp_sales_list_receivables(uuid, date, date) from public, anon, authenticated;
+grant execute on function public.erp_sales_set_receipt_due_on(uuid, date, date) to authenticated;
+grant execute on function public.erp_sales_list_receivables(uuid, date, date) to authenticated;
 
 commit;

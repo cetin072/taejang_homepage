@@ -8,7 +8,7 @@ const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await 
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
  await page.goto(app.url);await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();
- await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-sales');await page.keyboard.press('Home');
+ await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'미수금 조회',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-receivables');await page.keyboard.press('Home');
  const field=n=>page.locator('.erp-editor').locator(`[name="${n}"]`);
  const saved=async label=>{const form=page.locator('.erp-editor form');const original=await form.elementHandle();await form.getByRole('button',{name:label,exact:true}).click();await page.waitForFunction(n=>!n.isConnected,original);await page.locator('.erp-sales:not([aria-busy])').waitFor();};
  async function party(name,kind,number,supplier=false){await page.getByRole('button',{name:'거래처 등록',exact:true}).click();await field('name').fill(name);await field('kind').selectOption(kind);if(kind==='company')await field('business_number').fill(number);if(supplier)await page.locator('.erp-editor input[value="supplier"]').check();await saved('저장');}
@@ -32,6 +32,22 @@ try {
  await page.getByRole('button',{name:'취소 기록 저장',exact:true}).click();
  await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
  await page.getByText('입금 (취소됨)',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
+ await field('receipt_due_on').fill('2099-02-01');
+ await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
+ await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
+ await page.getByRole('tab',{name:'미수금',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
+ await page.locator('[name=receivable_from]').fill('2099-03-01');
+ await page.getByRole('button',{name:'미수금 조회',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 미수 거래가 없습니다.',{exact:true}).waitFor();
+ await page.locator('[name=receivable_from]').fill('2099-02-01');
+ await page.getByRole('button',{name:'미수금 조회',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
+
 
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');await field('tax_amount_1').fill('370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
