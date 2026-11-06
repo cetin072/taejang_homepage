@@ -86,6 +86,21 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: node tests/menu-authority-isolated.mjs
 
+      - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
+        if: steps.scope.outputs.run_full == 'true'
+        run: |
+          node tests/erp-sales-isolated.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-browser.mjs
+
+      - name: Keep synthetic ERP browser screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: erp-sales-1440-390
+          path: admin-ui-qa-artifacts/erp-sales/
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Test personal menu authority administration with synthetic browser data
         if: steps.scope.outputs.run_full == 'true'
         run: CHROME_PATH=$(command -v google-chrome) node tests/menu-authority-browser.mjs
@@ -121,6 +136,7 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/phase1a-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/monthly-client-documents-auth-integration.mjs
+          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/erp-sales-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/attendance-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-capability-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/issue-309-sensitive-identity-auth-integration.mjs

@@ -307,6 +307,12 @@
         capabilities: ['notice.manage']
       },
       {
+        key: 'erp_sales.manage',
+        label: '기준정보·매출 관리',
+        run: () => window.TaejangErpSalesLoader?.(),
+        capabilities: ['erp_sales.read']
+      },
+      {
         key: 'monthly_client_documents.manage',
         label: '거래처 문서 관리',
         run: () => window.TaejangMonthlyClientDocumentsLoader?.(),
@@ -354,8 +360,11 @@
 
   let activeView = null, openingView = false, viewDirty = false, dashboardRender = null;
   const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
+  function currentViewDirty() {
+    return activeView === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
+  }
   function mayLeaveView() {
-    return !viewDirty || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
+    return !currentViewDirty() || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
   }
   async function openView(key, historyMode = 'none') {
     if (openingView || !window.TaejangApp?.getRoute?.()) return;
@@ -391,7 +400,7 @@
   document.addEventListener('input', event => {
     if (activeView && (document.querySelector('.app-workspace') || el('dashboard-main'))?.contains(event.target)) viewDirty = true;
   });
-  window.addEventListener('beforeunload', event => { if (viewDirty) { event.preventDefault(); event.returnValue = ''; } });
+  window.addEventListener('beforeunload', event => { if (currentViewDirty()) { event.preventDefault(); event.returnValue = ''; } });
   window.addEventListener('popstate', () => openView(new URL(location.href).searchParams.get('view') || 'dashboard', 'pop'));
 
   function menu(_route) {

@@ -185,6 +185,22 @@
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
 
+  let erpSalesLoading = null;
+  window.TaejangErpSalesLoader = async () => {
+    const app = window.TaejangApp;
+    if (!app?.hasCapabilityContract?.() || !app.can?.('erp_sales.read')) return;
+    try {
+      if (!erpSalesLoading) erpSalesLoading = (async () => {
+        loadStyleOnce('assets/admin-authoring.css', 'admin-authoring');
+        loadStyleOnce('assets/erp-sales.css', 'erp-sales');
+        const result = await loadScriptOnce('assets/erp-sales.js', 'erp-sales');
+        if (!result.ok || !window.TaejangErpSales?.open) throw new Error('ERP_MODULE_UNAVAILABLE');
+      })().catch(error => { erpSalesLoading = null; throw error; });
+      await erpSalesLoading;
+      await window.TaejangErpSales.open();
+    } catch { showFeatureFailure('기준정보·매출 관리'); }
+  };
+
   const MONTHLY_DOCUMENT_MODULES = [
     ['assets/vendor/jszip-3.10.1.min.js', 'jszip-monthly-documents'],
     ['assets/monthly-client-document-core.js', 'monthly-client-document-core'],
