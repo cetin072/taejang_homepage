@@ -142,5 +142,48 @@ try {
  check(dueOf(generate('2099-03-01').id)==='2099-04-15','manual due date override survives a duplicate monthly generation request');
  setRule(null,null,nextMonth);
  check(dueOf(generate('2099-04-01').id)==='','disabling the rule leaves newly generated sales unscheduled');
+ const on=db.raw("select (now() at time zone 'Asia/Seoul')::date;");
+ const payApproval=(sale,kind,amount,basis=null,extras={})=>({
+  p_sale_id:sale.id,p_request_id:randomUUID(),p_kind:kind,p_amount:amount,p_basis_amount:basis,
+  p_evidence:'Synthetic invoice checked',...extras
+ });
+ const approve=(p,actor=OPS)=>db.rpc('erp_sales_approve_payout',p,{actor});
+ const payment=(p,p_outcome='paid')=>db.rpc('erp_sales_finish_payout',{
+  p_sale_id:p.p_sale_id,p_payout_id:p.p_request_id,p_outcome,p_on:on,p_evidence:'Synthetic payment or cancellation evidence'
+ });
+ const collect=(sale,amount)=>({p_sale_id:sale.id,p_request_id:randomUUID(),p_recorded_on:on,p_amount:amount});
+ reject(()=>approve(payApproval(corporate,'supplier',500,800)),/ERP_PAYOUT_OVER_LIMIT/);
+ db.rpc('erp_sales_record_receipt',collect(corporate,5050));
+ reject(()=>approve(payApproval(corporate,'commission',10,300)),/ERP_PAYOUT_OVER_LIMIT/);
+ reject(()=>approve(payApproval(corporate,'supplier',500,800,{p_evidence:' '})),/ERP_PAYOUT_INVALID_INPUT/);
+ reject(()=>approve(payApproval(corporate,'supplier',500,800,{p_cycle:'monthly'})),/ERP_PAYOUT_INVALID_INPUT/);
+ const supplierApproval=payApproval(corporate,'supplier',500,800,{p_cycle:'monthly',p_due_on:'2099-03-10'});
+ reject(()=>approve(supplierApproval,WORKER),/ERP_FORBIDDEN/);
+ check(approve(supplierApproval).supplier.pending===500,'supplier approval is distinct from actual payment');
+ check(approve(supplierApproval).supplier.entries.length===1,'retrying payout approval does not duplicate it');
+ reject(()=>approve(payApproval(corporate,'supplier',100,800)),/ERP_PAYOUT_BASIS_CONFLICT/);
+ let payouts=payment(supplierApproval);
+ check(payouts.supplier.paid===500&&payouts.supplier.remaining===300&&payouts.supplier.pending===0,'supplier payment preserves the balance and removes pending approval');
+ check(payment(supplierApproval).supplier.paid===500,'retrying payment completion does not double count');
+ reject(()=>payment(supplierApproval,'cancelled'),/ERP_PAYOUT_ALREADY_FINISHED/);
+ reject(()=>db.raw('delete from public.erp_sales_payouts;'),/ERP_PAYOUT_IMMUTABLE/);
+ reject(()=>db.rpc('erp_sales_get_payouts',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
+
+ person=db.rpc('erp_sales_save',{p_data:{...person,commission:{...person.commission,settlement_rule:'proportional'}},p_id:person.id,p_revision:person.revision});
+ person=db.rpc('erp_sales_confirm',{p_id:person.id,p_revision:person.revision});
+ const firstHalf=collect(person,1901);
+ db.rpc('erp_sales_record_receipt',firstHalf);
+ const commissionApproval=payApproval(person,'commission',250);
+ reject(()=>approve({...commissionApproval,p_amount:251}),/ERP_PAYOUT_OVER_LIMIT/);
+ check(approve(commissionApproval).commission.pending===250,'partial receipt permits only its share of fixed commission');
+ db.rpc('erp_sales_record_receipt',{p_sale_id:person.id,p_request_id:randomUUID(),p_recorded_on:on,
+  p_reverses_id:firstHalf.p_request_id,p_note:'Synthetic incorrect deposit'});
+ reject(()=>payment(commissionApproval),/ERP_PAYOUT_OVER_LIMIT/);
+ check(payment(commissionApproval,'cancelled').commission.pending===0,'cancelling an unpaid approval retains history and releases its reservation');
+ db.rpc('erp_sales_record_receipt',collect(person,1901));
+ const replacement=payApproval(person,'commission',250);
+ approve(replacement);
+ payouts=payment(replacement);
+ check(payouts.commission.paid===250&&payouts.commission.remaining===250&&payouts.supplier.paid===0,'commission and supplier balances remain separate on the same sale');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}

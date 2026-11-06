@@ -60,6 +60,22 @@ try {
  await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/4,072/);await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();
  await page.locator('[name=next_shipping]').selectOption('delivered');await page.getByRole('button',{name:'배송 상태 저장',exact:true}).click();await page.getByText('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.',{exact:true}).waitFor();
  assert.equal(app.db.raw("select total_amount from public.erp_sales_transactions where kind='product';"),'4072');assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'2');
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await field('receipt_amount').fill('4072');
+ await page.getByRole('button',{name:'입금 기록 저장',exact:true}).click();
+ await page.getByText('누적 수금 4,072원 · 미수금 0원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'공급처 지급 승인',exact:true}).click();
+ await field('payout_basis').fill('1000');
+ await field('payout_amount').fill('600');
+ await field('payout_cycle').selectOption('monthly');
+ await field('payout_due').fill('2099-03-10');
+ await field('payout_evidence').fill('합성 공급처 증빙 확인');
+ await page.getByRole('button',{name:'지급 승인 저장',exact:true}).click();
+ await page.getByRole('button',{name:'지급 완료 기록',exact:true}).click();
+ await field('payout_evidence').fill('합성 이체 확인');
+ await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
+ await page.getByText('전체 지급액 1,000원 · 지급 완료 600원 · 지급 대기 0원 · 남은 지급액 400원',{exact:true}).waitFor();
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
  await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
