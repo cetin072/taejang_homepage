@@ -28,6 +28,44 @@ try {
  reject(()=>db.rpc('erp_sales_save',{p_data:monthly,p_id:monthly.id,p_revision:stale}),/ERP_REVISION_CONFLICT/);
  monthly=db.rpc('erp_sales_confirm',{p_id:monthly.id,p_revision:monthly.revision});
  check(monthly.history[0].after_data.confirmed_at!==null&&monthly.history[0].after_data.confirmed_by===OPS&&monthly.history[0].after_data.revision===monthly.revision,'confirmation history records the actual final revision, actor and time');
+ const receiptRead={p_sale_id:monthly.id};
+ const receipt={...receiptRead,p_request_id:randomUUID(),p_recorded_on:'2026-01-10',p_amount:40000};
+ let balance=db.rpc('erp_sales_get_receipts',receiptRead);
+ check(balance.received===0&&balance.balance===110000,'confirmed sale starts with the full unpaid balance');
+ balance=db.rpc('erp_sales_record_receipt',receipt);
+ check(balance.received===40000&&balance.balance===70000,'partial payment reduces the confirmed sale balance');
+ check(db.rpc('erp_sales_record_receipt',receipt).entries.length===1,'retry records the same receipt exactly once');
+ reject(()=>db.rpc('erp_sales_record_receipt',{...receipt,p_amount:30000}),/ERP_REQUEST_REUSE/);
+ reject(()=>db.rpc('erp_sales_record_receipt',{...receipt,p_request_id:randomUUID(),p_amount:70001}),/ERP_RECEIPT_OVER_BALANCE/);
+ reject(()=>db.rpc('erp_sales_record_receipt',{...receipt,p_request_id:randomUUID(),p_amount:0.5}),/ERP_RECEIPT_INVALID_INPUT/);
+ const reversal={...receiptRead,p_request_id:randomUUID(),p_recorded_on:'2026-01-11',p_reverses_id:receipt.p_request_id,p_note:'Synthetic incorrect record'};
+ reject(()=>db.rpc('erp_sales_record_receipt',{...reversal,p_note:' '}),/ERP_RECEIPT_INVALID_INPUT/);
+ balance=db.rpc('erp_sales_record_receipt',reversal);
+ check(balance.received===0&&balance.balance===110000&&balance.entries.length===2,'record correction preserves original and restores balance');
+ check(db.rpc('erp_sales_record_receipt',reversal).entries.length===2,'retry records the same reversal exactly once');
+ reject(()=>db.rpc('erp_sales_record_receipt',{...reversal,p_request_id:randomUUID()}),/ERP_RECEIPT_ALREADY_REVERSED/);
+ check(db.rpc('erp_sales_get', {p_id:monthly.id}).total_amount===110000,'receipts never change the confirmed sale amount');
+ reject(()=>db.rpc('erp_sales_get_receipts',receiptRead,{actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.rpc('erp_sales_record_receipt',receipt,{actor:WORKER}),/ERP_FORBIDDEN/);
+ check(db.sql('select count(*) from public.erp_sales_receipts;',{actor:WORKER})==='0','receipt RLS hides transaction data from regular employees');
+ reject(()=>db.sql('delete from public.erp_sales_receipts;'),/permission denied/);
+ reject(()=>db.raw('delete from public.erp_sales_receipts;'),/ERP_RECEIPT_IMMUTABLE/);
+ const dueDate={...receiptRead,p_due_on:'2099-01-31',p_expected_due_on:null};
+ check(db.rpc('erp_sales_set_receipt_due_on',dueDate).due_on==='2099-01-31','the due date is persisted separately from the confirmed sale');
+ reject(()=>db.rpc('erp_sales_set_receipt_due_on',{...dueDate,p_due_on:'2099-02-10'}),/ERP_REVISION_CONFLICT/);
+ reject(()=>db.rpc('erp_sales_set_receipt_due_on',{...dueDate,p_due_on:'infinity',p_expected_due_on:'2099-01-31'}),/ERP_RECEIPT_INVALID_DUE_ON/);
+ reject(()=>db.rpc('erp_sales_set_receipt_due_on',dueDate,{actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.rpc('erp_sales_list_receivables',{},{actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.sql('delete from public.erp_sales_receipt_schedule;'),/permission denied/);
+ let receivables=db.rpc('erp_sales_list_receivables',{p_party_id:customer.id,p_due_from:'2099-01-01',p_due_to:'2099-01-31'});
+ check(receivables.total===1&&receivables.total_balance==='110000'&&receivables.items[0].due_on==='2099-01-31','receivables show due date and aggregate balance within the selected filters');
+ check(db.rpc('erp_sales_list_receivables',{p_party_id:individual.id}).total===0,'receivables respect the customer filter');
+ check(db.rpc('erp_sales_list_receivables',{p_due_from:'2099-02-01'}).total===0,'receivables exclude dates outside the selected range');
+ reject(()=>db.rpc('erp_sales_list_receivables',{p_due_from:'2099-02-01',p_due_to:'2099-01-01'}),/ERP_RECEIPT_INVALID_DUE_RANGE/);
+ check(db.rpc('erp_sales_set_receipt_due_on',{...dueDate,p_due_on:null,p_expected_due_on:'2099-01-31'}).due_on===null,'removing the date keeps the unpaid sale');
+ check(db.rpc('erp_sales_list_receivables').total===1&&db.rpc('erp_sales_list_receivables',{p_due_from:'2099-01-01'}).total===0,'undated unpaid sales appear without date filters');
+ db.rpc('erp_sales_record_receipt',{...receipt,p_request_id:randomUUID(),p_amount:110000});
+ check(db.rpc('erp_sales_list_receivables').total===0,'fully settled sales leave the receivables list');
  const duplicate=db.rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:'2099-01-01'});
  check(duplicate.id===monthly.id&&duplicate.alreadyExists,'same contract/month returns original sale without duplication');
  assign(customer,agentB,'management','2099-02-01');
@@ -38,6 +76,7 @@ try {
  check(db.rpc('erp_sales_save',{p_data:corporateInput}).id===corporate.id,'retry after a lost acknowledgement cannot create another order');
  reject(()=>db.rpc('erp_sales_save',{p_data:{...corporateInput,memo:'different request'}}),/ERP_REQUEST_REUSE/);
  let person=db.rpc('erp_sales_save',{p_data:product(individual,agentA,1234,3,fee('fixed',500))});
+ reject(()=>db.rpc('erp_sales_record_receipt',{...receipt,p_sale_id:person.id,p_request_id:randomUUID()}),/ERP_RECEIPT_CONFIRMED_REQUIRED/);
  check(corporate.total_amount===10100&&person.total_amount===3802,'scenario B: corporate and individual orders preserve different actual unit prices');
  check(corporate.commission.value===3&&person.commission.value===500&&monthly.commission.value===2.5,'salesperson conditions are per transaction, without payout or withholding calculations');
  const changedSalt=save('item',{...salt,name:'Synthetic Salt renamed',base_price:9999},salt);
@@ -76,5 +115,75 @@ try {
  reject(()=>db.rpc('erp_sales_confirm',{p_id:person.id,p_revision:person.revision}),/ERP_FORBIDDEN/);
  db.raw("update public.platform_capabilities set active=true where code='erp_sales.confirm';");
  check(db.raw("select adapter_ready from public.menu_authority_catalog where menu_key='erp_sales.manage';")==='f','personal delegation is not enabled by this V1');
+ const ruleKey={p_contract_id:contract.id};
+ const unsetRule=db.rpc('erp_sales_get_contract_receipt_rule',ruleKey);
+ check(unsetRule.month_offset===null&&unsetRule.due_day===null,'existing contracts start without an automatic receipt rule');
+ const setRule=(offset,day,expected=unsetRule,actor=OPS)=>db.rpc('erp_sales_set_contract_receipt_rule',
+  {...ruleKey,p_month_offset:offset,p_due_day:day,p_expected_rule:expected},{actor});
+ reject(()=>setRule(0,0),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(2,10),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(null,10),/ERP_RECEIPT_INVALID_RULE/);
+ reject(()=>setRule(0,31,unsetRule,WORKER),/ERP_FORBIDDEN/);
+ reject(()=>db.rpc('erp_sales_get_contract_receipt_rule',ruleKey,{actor:WORKER}),/ERP_FORBIDDEN/);
+ const monthEnd=setRule(0,31);
+ check(db.rpc('erp_sales_get_receipts',receiptRead).due_on===null,'saving a contract rule does not backfill existing sales');
+ const generate=p_month=>db.rpc('erp_sales_generate_month',{...ruleKey,p_month});
+ const dueOf=id=>db.raw(`select due_on from public.erp_sales_receipt_schedule where sale_id='${id}';`);
+ const feb=generate('2099-02-01');
+ check(dueOf(feb.id)==='2099-02-28','a 31st day rule uses February month end');
+ reject(()=>setRule(1,10),/ERP_REVISION_CONFLICT/);
+ const nextMonth=setRule(1,10,monthEnd);
+ const febRetry=generate('2099-02-01');
+ check(febRetry.id===feb.id&&dueOf(febRetry.id)==='2099-02-28','regenerating an existing month preserves its original due date');
+ const mar=generate('2099-03-01');
+ db.rpc('erp_sales_confirm',{p_id:mar.id,p_revision:mar.revision});
+ check(db.rpc('erp_sales_get_receipts',{p_sale_id:mar.id}).due_on==='2099-04-10','confirmed sales inherit the configured following-month day');
+ db.rpc('erp_sales_set_receipt_due_on',{p_sale_id:mar.id,p_due_on:'2099-04-15',p_expected_due_on:'2099-04-10'});
+ check(dueOf(generate('2099-03-01').id)==='2099-04-15','manual due date override survives a duplicate monthly generation request');
+ setRule(null,null,nextMonth);
+ check(dueOf(generate('2099-04-01').id)==='','disabling the rule leaves newly generated sales unscheduled');
+ const on=db.raw("select (now() at time zone 'Asia/Seoul')::date;");
+ const payApproval=(sale,kind,amount,basis=null,extras={})=>({
+  p_sale_id:sale.id,p_request_id:randomUUID(),p_kind:kind,p_amount:amount,p_basis_amount:basis,
+  p_evidence:'Synthetic invoice checked',...extras
+ });
+ const approve=(p,actor=OPS)=>db.rpc('erp_sales_approve_payout',p,{actor});
+ const payment=(p,p_outcome='paid')=>db.rpc('erp_sales_finish_payout',{
+  p_sale_id:p.p_sale_id,p_payout_id:p.p_request_id,p_outcome,p_on:on,p_evidence:'Synthetic payment or cancellation evidence'
+ });
+ const collect=(sale,amount)=>({p_sale_id:sale.id,p_request_id:randomUUID(),p_recorded_on:on,p_amount:amount});
+ reject(()=>approve(payApproval(corporate,'supplier',500,800)),/ERP_PAYOUT_OVER_LIMIT/);
+ db.rpc('erp_sales_record_receipt',collect(corporate,5050));
+ reject(()=>approve(payApproval(corporate,'commission',10,300)),/ERP_PAYOUT_OVER_LIMIT/);
+ reject(()=>approve(payApproval(corporate,'supplier',500,800,{p_evidence:' '})),/ERP_PAYOUT_INVALID_INPUT/);
+ reject(()=>approve(payApproval(corporate,'supplier',500,800,{p_cycle:'monthly'})),/ERP_PAYOUT_INVALID_INPUT/);
+ const supplierApproval=payApproval(corporate,'supplier',500,800,{p_cycle:'monthly',p_due_on:'2099-03-10'});
+ reject(()=>approve(supplierApproval,WORKER),/ERP_FORBIDDEN/);
+ check(approve(supplierApproval).supplier.pending===500,'supplier approval is distinct from actual payment');
+ check(approve(supplierApproval).supplier.entries.length===1,'retrying payout approval does not duplicate it');
+ reject(()=>approve(payApproval(corporate,'supplier',100,800)),/ERP_PAYOUT_BASIS_CONFLICT/);
+ let payouts=payment(supplierApproval);
+ check(payouts.supplier.paid===500&&payouts.supplier.remaining===300&&payouts.supplier.pending===0,'supplier payment preserves the balance and removes pending approval');
+ check(payment(supplierApproval).supplier.paid===500,'retrying payment completion does not double count');
+ reject(()=>payment(supplierApproval,'cancelled'),/ERP_PAYOUT_ALREADY_FINISHED/);
+ reject(()=>db.raw('delete from public.erp_sales_payouts;'),/ERP_PAYOUT_IMMUTABLE/);
+ reject(()=>db.rpc('erp_sales_get_payouts',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
+
+ person=db.rpc('erp_sales_save',{p_data:{...person,commission:{...person.commission,settlement_rule:'proportional'}},p_id:person.id,p_revision:person.revision});
+ person=db.rpc('erp_sales_confirm',{p_id:person.id,p_revision:person.revision});
+ const firstHalf=collect(person,1901);
+ db.rpc('erp_sales_record_receipt',firstHalf);
+ const commissionApproval=payApproval(person,'commission',250);
+ reject(()=>approve({...commissionApproval,p_amount:251}),/ERP_PAYOUT_OVER_LIMIT/);
+ check(approve(commissionApproval).commission.pending===250,'partial receipt permits only its share of fixed commission');
+ db.rpc('erp_sales_record_receipt',{p_sale_id:person.id,p_request_id:randomUUID(),p_recorded_on:on,
+  p_reverses_id:firstHalf.p_request_id,p_note:'Synthetic incorrect deposit'});
+ reject(()=>payment(commissionApproval),/ERP_PAYOUT_OVER_LIMIT/);
+ check(payment(commissionApproval,'cancelled').commission.pending===0,'cancelling an unpaid approval retains history and releases its reservation');
+ db.rpc('erp_sales_record_receipt',collect(person,1901));
+ const replacement=payApproval(person,'commission',250);
+ approve(replacement);
+ payouts=payment(replacement);
+ check(payouts.commission.paid===250&&payouts.commission.remaining===250&&payouts.supplier.paid===0,'commission and supplier balances remain separate on the same sale');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}

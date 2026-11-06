@@ -31,12 +31,12 @@ export async function createERPDatabase() {
    insert into public.profiles values('${OPS}','Synthetic Ops','active'),('${WORKER}','Synthetic Worker','active');
    insert into public.profile_roles select '${OPS}',id,null from public.roles where code='operations_manager';
    insert into public.profile_roles select '${WORKER}',id,null from public.roles where code='general_worker';`);
-  for(const file of ['20260909150000_issue_148_capability_foundation.sql','20261001100000_monthly_client_documents.sql','20261028033019_personal_menu_authority_contract.sql','20261105122517_erp_sales_v1.sql']) raw(readFileSync('supabase/migrations/'+file,'utf8'));
+  for(const file of ['20260909150000_issue_148_capability_foundation.sql','20261001100000_monthly_client_documents.sql','20261028033019_personal_menu_authority_contract.sql','20261105122517_erp_sales_v1.sql','20261106091000_erp_sales_receipts_v1.sql','20261106153000_erp_sales_payouts_v1.sql']) raw(readFileSync('supabase/migrations/'+file,'utf8'));
   const sql=(statement,{actor=OPS,role='authenticated'}={})=>raw(`set role ${role};select set_config('request.jwt.claim.sub','${actor||''}',false);${statement}`).split(/\r?\n/).filter(s=>s!==actor).join('\n');
   const rpc=(fn,params={},{actor=OPS}={})=>{
-   if(!/^erp_sales_[a-z_]+$/.test(fn))throw new Error('fixture RPC outside ERP');
+   if(!/^erp_sales_[a-z0-9_]+$/.test(fn))throw new Error('fixture RPC outside ERP');
    const args=Object.entries(params).map(([k,v])=>{if(!/^p_[a-z_]+$/.test(k))throw new Error('invalid param');return k+' => '+(v===null?'null':typeof v==='object'?"'"+JSON.stringify(v).replaceAll("'","''")+"'::jsonb":typeof v==='number'?String(v):"'"+String(v).replaceAll("'","''")+"'")}).join(',');
-   return JSON.parse(sql(`select public.${fn}(${args});`,{actor}));
+   return JSON.parse(sql(`select to_jsonb(public.${fn}(${args}));`,{actor}));
   };
   return {name,raw,sql,rpc,stop:()=>docker(['stop',name])};
  }catch(error){docker(['stop',name]);throw error}
