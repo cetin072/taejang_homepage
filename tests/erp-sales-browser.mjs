@@ -80,7 +80,7 @@ try {
  await field('evidence_reference').fill('SYNTHETIC-BROWSER-TAX');
  await field('amount').fill('4072');
  await page.getByRole('button',{name:'발행 증빙 저장',exact:true}).click();
- await page.getByText('SYNTHETIC-BROWSER-TAX',{exact:true}).waitFor();
+ await page.getByRole('cell',{name:'SYNTHETIC-BROWSER-TAX',exact:true}).waitFor();
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  await field('adjustment_kind').selectOption('return_goods');
