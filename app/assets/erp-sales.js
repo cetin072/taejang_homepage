@@ -99,6 +99,7 @@
   });
   body.append(controls,el('p','계약 '+contracts.length+'건 · 종료 임박 '+state.contracts.filter(nearEnd).length+
    '건 · 기간 지난 진행중 계약 '+state.contracts.filter(pastEnd).length+'건','help'));
+  body.append(el('p','종료 임박은 진행중 계약 중 '+asOf+'부터 '+through+'까지 종료되는 계약입니다.','help'));
   if(state.canWrite)body.append(btn('용역 계약 등록',()=>masterEditor('contract'),true));
   if(!contracts.length){body.append(el('p','조회 조건에 맞는 계약이 없습니다.','message'));return;}
   body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태','기한 확인',''],contracts.map(contract=>{
