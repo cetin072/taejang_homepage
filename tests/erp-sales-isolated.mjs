@@ -202,14 +202,10 @@ try {
  check(db.rpc('erp_sales_get_stock').balances.find(r=>r.id===salt.id).quantity===8.25,'stock balances use explicit incoming and outgoing movements');
  reject(()=>support('stock',{date:'2025-01-01',item_id:salt.id,quantity:-1,note:'Backdated excess'}),/ERP_STOCK_INSUFFICIENT/);
  reject(()=>support('stock',{date:on,item_id:service.id,quantity:1,note:'Service item'}),/ERP_STOCK_ITEM_REQUIRED/);
- const invoice={date:on,sale_id:corporate.id,kind:'tax_invoice',reference:'SYN-INV-001',amount:10100};
- const invoiceId=support('evidence',invoice).id;
- reject(()=>support('evidence',{...invoice,sale_id:person.id}),/duplicate key/);
- reject(()=>support('evidence',{...invoice,sale_id:person.id,kind:'corrected_tax_invoice',reference:'SYN-OTHER',original_id:invoiceId,amount:-100}),/ERP_EVIDENCE_ORIGINAL_REQUIRED/);
- support('evidence',{...invoice,kind:'corrected_tax_invoice',reference:'SYN-INV-002',original_id:invoiceId,amount:-100});
- const evidence=db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id});
- check(evidence.length===2&&evidence[1].original_id===invoiceId&&evidence[1].amount===-100,'corrected evidence preserves the original linkage and signed amount');
- reject(()=>db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>support('evidence',{date:on,sale_id:corporate.id,kind:'tax_invoice',
+  reference:'REMOVED',amount:10100}),/ERP_SUPPORT_INVALID_INPUT/);
+ check(db.raw("select to_regprocedure('public.erp_sales_get_evidence(uuid)') is null;")==='t',
+  'retired invoice endpoint is absent');
  const requestAdjustment=(sale,kind,detail)=>({
   p_sale_id:sale.id,p_request_id:randomUUID(),p_kind:kind,p_reason:'Synthetic adjustment',p_detail:detail
  });
