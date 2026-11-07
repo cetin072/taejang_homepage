@@ -411,7 +411,39 @@
  }
  async function drawSales(){const list=await rpc('erp_sales_list',{p_from:filters.from,p_to:filters.to,p_party_id:filters.party||null,p_kind:filters.kind||null,p_status:filters.status||null,p_agent_id:filters.agent||null});if(tab!=='sales')return;body.replaceChildren();
   const f=el('form','','app-authoring');const grid=el('div','','erp-fields');const inputs=[field(grid,'from','시작일','date',filters.from,[],true),field(grid,'to','종료일','date',filters.to,[],true),field(grid,'party','거래처','select',filters.party,[['','전체 거래처'],...state.parties.map(p=>[p.id,p.name])]),field(grid,'kind','상품·용역','select',filters.kind,[['','전체 유형'],['service','용역'],['product','상품']]),field(grid,'status','거래 상태','select',filters.status,[['','전체 상태'],['draft','작성 중'],['confirmed','확정']]),field(grid,'agent','영업자','select',filters.agent,[['','전체 영업자'],...state.agents.map(a=>[a.id,a.name])])];
-  inputs.forEach(input=>input.addEventListener('change',()=>filters[input.name]=input.value));const search=el('button','조회','button primary');search.type='submit';f.append(grid,search);f.addEventListener('submit',e=>{e.preventDefault();if(f.reportValidity())void run(drawSales);});body.append(f);
+  inputs.forEach(input=>input.addEventListener('change',()=>filters[input.name]=input.value));
+  const [from,to]=inputs;
+  const search=el('button','조회','button primary');
+  search.type='submit';
+  const actions=el('div','','erp-actions');
+  actions.append(search,btn('이번 달',()=>setMonthRange(false)),btn('지난달',()=>setMonthRange(true)));
+  f.append(grid,actions);
+  f.addEventListener('submit',event=>{
+   event.preventDefault();
+   if(!f.reportValidity())return;
+   if(from.value>to.value){
+    report('시작일은 종료일보다 늦을 수 없습니다.',true);
+    return;
+   }
+   inputs.forEach(input=>filters[input.name]=input.value);
+   void run(async()=>{await drawSales();report('');});
+  });
+  body.append(f);
+
+  function setMonthRange(previous){
+   const current=today();
+   const first=current.slice(0,7)+'-01';
+   if(previous){
+    const last=new Date(first+'T00:00:00Z');
+    last.setUTCDate(0);
+    to.value=last.toISOString().slice(0,10);
+    from.value=to.value.slice(0,7)+'-01';
+   }else{
+    from.value=first;
+    to.value=current;
+   }
+   f.requestSubmit();
+  }
   if(state.canWrite)body.append(btn('소금·상품 판매 등록',()=>saleEditor(),true));body.append(el('p',`총 ${list.total}건${list.total>list.limit?' 중 최신 '+list.limit+'건 표시 · 기간을 좁혀 조회하세요.':''}`));
   if(!list.items.length)body.append(el('p','해당 기간의 매출이 없습니다. 계약에서 월 매출을 생성하거나 상품 판매를 등록하세요.','message'));
   else body.append(table(['매출일','거래처','유형','영업자','상태','금액',''],list.items.map(s=>[s.sales_date,s.party_name,kinds[s.kind],s.agent_name||'—',kinds[s.status],money(s.total_amount),btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:s.id}))))])));

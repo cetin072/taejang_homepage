@@ -130,6 +130,26 @@ try {
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
  await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
+ const salesFilters=page.locator('.erp-body form');
+ const currentDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ const firstOfMonth=currentDate.slice(0,7)+'-01';
+ const endOfLastMonth=new Date(Date.parse(firstOfMonth+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+ await salesFilters.locator('[name=kind]').selectOption('product');
+ await salesFilters.getByRole('button',{name:'지난달',exact:true}).click();
+ await page.locator('.erp-sales:not([aria-busy])').waitFor();
+ assert.equal(await salesFilters.locator('[name=from]').inputValue(),endOfLastMonth.slice(0,7)+'-01');
+ assert.equal(await salesFilters.locator('[name=to]').inputValue(),endOfLastMonth);
+ assert.equal(await salesFilters.locator('[name=kind]').inputValue(),'product');
+ await salesFilters.getByRole('button',{name:'이번 달',exact:true}).click();
+ await page.locator('.erp-sales:not([aria-busy])').waitFor();
+ assert.equal(await salesFilters.locator('[name=from]').inputValue(),firstOfMonth);
+ assert.equal(await salesFilters.locator('[name=to]').inputValue(),currentDate);
+ assert.equal(await salesFilters.locator('[name=kind]').inputValue(),'product');
+ await salesFilters.locator('[name=kind]').selectOption('');
+ await salesFilters.locator('[name=from]').fill('2099-01-01');
+ await salesFilters.locator('[name=to]').fill('2099-12-31');
+ await salesFilters.getByRole('button',{name:'조회',exact:true}).click();
+ await page.getByText('총 2건',{exact:true}).waitFor();
  await page.locator('.erp-body tbody tr').filter({hasText:'합성 기업 브라우저'}).getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('합성 오입금 정정',{exact:true}).waitFor();
