@@ -93,9 +93,21 @@ try {
  await field('payout_due').fill('2099-03-10');
  await field('payout_evidence').fill('합성 공급처 증빙 확인');
  await page.getByRole('button',{name:'지급 승인 저장',exact:true}).click();
+ await page.getByRole('tab',{name:'지급 대기',exact:true}).click();
+ await page.getByText('지급 대기 1건 · 실제 지급 예정 합계 600원',{exact:true}).waitFor();
+ await page.locator('[name=payout_filter_kind]').selectOption('supplier');
+ await page.locator('[name=payout_filter_scope]').selectOption('overdue');
+ await page.getByRole('button',{name:'지급 대기 조회',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 지급 대기 건이 없습니다.',{exact:true}).waitFor();
+ await page.locator('[name=payout_filter_scope]').selectOption('all');
+ await page.getByRole('button',{name:'지급 대기 조회',exact:true}).click();
+ await page.getByText('지급 대기 1건 · 실제 지급 예정 합계 600원',{exact:true}).waitFor();
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'지급 완료 기록',exact:true}).click();
  await field('payout_evidence').fill('합성 이체 확인');
  await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
+ await page.getByText('지급 대기 0건 · 실제 지급 예정 합계 0원',{exact:true}).waitFor();
  await page.getByText('전체 지급액 1,000원 · 지급 완료 600원 · 지급 대기 0원 · 남은 지급액 400원',{exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'발행 증빙 조회',exact:true}).count(),0);
  assert.equal(await page.locator('[name=invoice_file]').count(),0);
@@ -217,6 +229,7 @@ try {
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
+ assert.equal(await page.getByRole('tab',{name:'지급 대기',exact:true}).count(),0);
  assert.ok(dialogs.filter(t=>t.includes('확정 후')).length===2,'two explicit confirmations');assert.equal(dialogs.filter(t=>t.includes('저장하지 않은 입력이 있을 수')).length,0,'saved ERP data does not trigger shell dirty warnings');
  console.log('ERP_BROWSER_PASS: real PG17 scenario A/B, reload, filters, failure input preservation, confirm, delivery, 1440/390px, permission scrub');
 }finally{await browser.close();await app.close();}
