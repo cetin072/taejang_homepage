@@ -89,6 +89,14 @@ try {
  const correction=page.getByRole('row').filter({hasText:'SYNTHETIC-BROWSER-CORRECTION'});
  await correction.getByRole('cell',{name:'SYNTHETIC-BROWSER-TAX',exact:true}).waitFor();
  await correction.getByRole('cell',{name:'-72원',exact:true}).waitFor();
+ const csvDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ await field('invoice_file').setInputFiles({name:'invoice.csv',mimeType:'text/csv',buffer:Buffer.from(
+  '\ufeff승인번호,발급일,합계금액\r\nSYNTHETIC-BROWSER-TAX,'+csvDate+',"4,072"\r\nSYNTHETIC-BROWSER-CORRECTION,'+csvDate+',-71'
+ )});
+ await page.getByRole('button',{name:'파일 대조',exact:true}).click();
+ await page.getByRole('cell',{name:'일치',exact:true}).waitFor();
+ await page.getByRole('cell',{name:'발급일 또는 금액 불일치',exact:true}).waitFor();
+ assert.equal(app.db.raw('select count(*) from public.erp_sales_evidence;'),'2');
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  await field('adjustment_kind').selectOption('return_goods');

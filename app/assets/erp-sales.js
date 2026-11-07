@@ -594,6 +594,56 @@
    quantity:Number(quantity.value)*(direction.value==='out'?-1:1),note:note.value},drawStock));
   f.append(btn('닫기',clearEditor));
  }
+ function compareInvoiceFile(invoices){
+  const section=el('section','','app-form-section');
+  const form=el('form','','app-authoring');
+  const file=field(form,'invoice_file','대조용 CSV 파일','file','',[],true);
+  file.accept='.csv,text/csv';
+  const output=el('div');
+  output.setAttribute('aria-live','polite');
+  section.append(el('h5','홈택스 발행내역 대조'),
+   el('p','UTF-8 CSV의 첫 줄을 승인번호,발급일,합계금액으로 맞춰 주세요. 날짜는 YYYY-MM-DD, 금액은 원 단위로 입력합니다. 이 거래의 기존 증빙과 비교한 결과만 표시합니다.','help'),
+   form,output);
+  file.addEventListener('change',()=>output.replaceChildren());
+  supportSubmit(form,'파일 대조',async()=>{
+   output.replaceChildren();
+   const selected=file.files[0];
+   if(!selected||selected.size>1048576){
+    report('1MB 이하의 CSV 파일을 선택해 주세요.',true);
+    return;
+   }
+   const lines=(await selected.text()).trim().split(/\r?\n/);
+   const header=lines.shift()?.split(',').map(value=>value.trim().replace(/^"(.*)"$/,'$1'));
+   if(header?.join(',')!=='승인번호,발급일,합계금액'||!lines.some(line=>line.trim())){
+    report('CSV 첫 줄과 발행내역을 확인해 주세요.',true);
+    return;
+   }
+   const imported=new Map();
+   for(const [index,line] of lines.entries()){
+    if(!line.trim())continue;
+    const parts=line.trim().match(/^("[^"]*"|[^",]+)\s*,\s*("[^"]*"|[^",]+)\s*,\s*("[^"]*"|[^",]+)$/);
+    const [reference,issued,rawAmount]=(parts?.slice(1)||[]).map(value=>value.trim().replace(/^"(.*)"$/,'$1'));
+    const date=new Date(issued+'T00:00:00Z');
+    const amount=Number(rawAmount?.replaceAll(',',''));
+    if(!/^[a-z0-9-]{1,120}$/i.test(reference||'')||!/^\d{4}-\d{2}-\d{2}$/.test(issued||'')
+       ||!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==issued
+       ||!(/^-?(?:\d+|\d{1,3}(?:,\d{3})+)$/.test(rawAmount||''))
+       ||!Number.isSafeInteger(amount)||imported.has(reference)){
+     report('CSV '+(index+2)+'행의 승인번호 중복, 날짜 또는 금액을 확인해 주세요.',true);
+     return;
+    }
+    imported.set(reference,{date:issued,amount});
+   }
+   output.append(table(['승인번호','ERP 발급일·금액','파일 발급일·금액','대조 결과'],invoices.map(invoice=>{
+    const row=imported.get(invoice.reference);
+    const matches=row?.date===invoice.issued_on&&row.amount===Number(invoice.amount);
+    return [invoice.reference,invoice.issued_on+' · '+money(invoice.amount),
+     row?row.date+' · '+money(row.amount):'—',row?(matches?'일치':'발급일 또는 금액 불일치'):'파일에 없음'];
+   })));
+   report('파일 대조를 마쳤습니다.');
+  });
+  return section;
+ }
  function drawEvidence(sale){
   const panel=el('section','','app-form-section');
   const content=el('div');
@@ -609,6 +659,8 @@
    if(rows.length)content.append(table(['종류','발급일','승인·확인번호','발급액','원본 번호','메모'],rows.map(r=>[
     labels[r.kind],r.issued_on,r.reference,money(r.amount),rows.find(o=>o.id===r.original_id)?.reference||'—',r.note
    ])));
+   const invoices=rows.filter(row=>['tax_invoice','corrected_tax_invoice'].includes(row.kind));
+   if(invoices.length)content.append(compareInvoiceFile(invoices));
    if(!state.canWrite)return;
    const f=el('form','','app-authoring');
    const grid=el('div','','erp-fields');
