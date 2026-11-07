@@ -52,7 +52,28 @@ try {
  await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
-
+ const receivableToday=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ const receivableYesterday=new Date(Date.parse(receivableToday+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+ await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
+ await field('receipt_due_on').fill(receivableToday);
+ await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
+ await page.getByText('수금 예정일 '+receivableToday,{exact:true}).waitFor();
+ await page.locator('[name=receivable_party]').selectOption({label:'합성 기업 브라우저'});
+ await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 미수 거래가 없습니다.',{exact:true}).waitFor();
+ assert.equal(await page.locator('[name=receivable_from]').inputValue(),'');
+ assert.equal(await page.locator('[name=receivable_to]').inputValue(),receivableYesterday);
+ assert.equal(await page.locator('[name=receivable_party] option:checked').textContent(),'합성 기업 브라우저');
+ await page.getByRole('button',{name:'전체 미수금',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
+ assert.equal(await page.locator('[name=receivable_to]').inputValue(),'');
+ assert.equal(await page.locator('[name=receivable_party] option:checked').textContent(),'합성 기업 브라우저');
+ await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
+ await field('receipt_due_on').fill(receivableYesterday);
+ await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
+ await page.getByText('수금 예정일 '+receivableYesterday,{exact:true}).waitFor();
+ await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
 
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');await field('tax_amount_1').fill('370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');

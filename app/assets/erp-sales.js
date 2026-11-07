@@ -469,7 +469,21 @@
   const to=field(grid,'receivable_to','예정일 종료','date',receivableFilters.to);
   const search=el('button','미수금 조회','button primary');
   search.type='submit';
-  form.append(grid,search);
+  const actions=el('div','','erp-actions');
+  actions.append(search,btn('기한 지난 미수금',()=>setDueRange(true)),
+   btn('전체 미수금',()=>setDueRange(false)));
+  form.append(grid,actions);
+  function setDueRange(overdue){
+   from.value='';
+   if(overdue){
+    const yesterday=new Date(today()+'T00:00:00Z');
+    yesterday.setUTCDate(yesterday.getUTCDate()-1);
+    to.value=yesterday.toISOString().slice(0,10);
+   }else{
+    to.value='';
+   }
+   form.requestSubmit();
+  }
   form.addEventListener('submit',event=>{
    event.preventDefault();
    if(from.value&&to.value&&from.value>to.value){
