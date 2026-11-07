@@ -55,7 +55,11 @@ test('content shows working features and feedback records without unreleased cla
   assert.match(page, /datetime="2026-09-22"[\s\S]*?공지사항을 더 단순하게/);
   assert.doesNotMatch(main, /업무 플랫폼|개선 검토 중|개발·검수 중|계속 개선할 방향|정식 공개 다운로드|준비 중/, 'app content stays distinct from the shared platform login navigation');
   assert.doesNotMatch(page, /중증장애인우선기업|WCAG (?:AA|AAA) 인증/);
-  assert.doesNotMatch(page, /href="[^"]*\.apk"|href="https:\/\/play\.google\.com/);
+  assert.doesNotMatch(page, /href="[^"]*\.apk"|https:\/\/play\.google\.com\/apps\/(?:internaltest|testing)/);
+  assert.match(page, /class="employee-app-store-badge" href="https:\/\/play\.google\.com\/store\/apps\/details\?id=com\.cetin072\.taejang\.staff&amp;hl=ko&amp;gl=KR"/);
+  assert.equal((page.match(/class="employee-app-store-badge"/g) || []).length, 1);
+  assert.match(page, /<img src="assets\/images\/google-play-badge-ko\.png" alt="Google Play에서 태장 앱 다운로드" width="646" height="250"/);
+  assert.ok(fs.statSync(path.join(root, 'assets/images/google-play-badge-ko.png')).size > 0);
   assert.doesNotMatch(page, /(?:주민등록번호|장애 유형|실명 공개):/);
 });
 
