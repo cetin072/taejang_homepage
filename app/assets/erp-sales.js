@@ -8,6 +8,7 @@
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
  let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,payoutQueue=false,tab='parties',busy=false,epoch=0;
+ let contractPeriod='all';
  const payoutFilters={kind:'',overdue:false};
  const receivableFilters={party:'',from:'',to:''};
  const purchaseRange={from:today().slice(0,7)+'-01',to:today()};
@@ -79,8 +80,29 @@
  }
  function drawItems(){if(state.canWrite)body.append(btn('품목·서비스 등록',()=>masterEditor('item'),true));body.append(table(['코드','품목·서비스','유형','단위','기준 공급단가','재고 대상','상태',''],state.items.map(r=>[r.code,r.name,kinds[r.kind],r.unit,r.base_price===null?'—':money(r.base_price),r.inventory_managed?'표시됨':'아니오',r.active?'사용':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('item',r))])));}
  function drawContracts(){
+  const asOf=today();
+  const cutoff=new Date(asOf+'T00:00:00Z');
+  cutoff.setUTCDate(cutoff.getUTCDate()+30);
+  const through=cutoff.toISOString().slice(0,10);
+  const nearEnd=contract=>contract.status==='active'&&contract.ends_on>=asOf&&contract.ends_on<=through;
+  const pastEnd=contract=>contract.status==='active'&&contract.ends_on<asOf;
+  const contracts=state.contracts.filter(contract=>contractPeriod==='all'||
+   (contractPeriod==='expiring'?nearEnd(contract):pastEnd(contract)));
+  const controls=el('div','','erp-fields');
+  const period=field(controls,'contract_period_filter','계약 종료일','select',contractPeriod,
+   [['all','전체 계약'],['expiring','30일 이내 종료'],['expired','기간이 지난 진행중 계약']]);
+  period.addEventListener('change',()=>{
+   if(!clearEditor()){period.value=contractPeriod;return;}
+   contractPeriod=period.value;
+   body.replaceChildren();
+   drawContracts();
+  });
+  body.append(controls,el('p','계약 '+contracts.length+'건 · 종료 임박 '+state.contracts.filter(nearEnd).length+
+   '건 · 기간 지난 진행중 계약 '+state.contracts.filter(pastEnd).length+'건','help'));
+  body.append(el('p','종료 임박은 진행중 계약 중 '+asOf+'부터 '+through+'까지 종료되는 계약입니다.','help'));
   if(state.canWrite)body.append(btn('용역 계약 등록',()=>masterEditor('contract'),true));
-  body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태',''],state.contracts.map(contract=>{
+  if(!contracts.length){body.append(el('p','조회 조건에 맞는 계약이 없습니다.','message'));return;}
+  body.append(table(['계약','거래처','기간','월 공급가 / 부가세','청구 기준','상태','기한 확인',''],contracts.map(contract=>{
    const actions=el('div','','erp-actions');
    actions.append(btn(state.canWrite?'수정':'보기',()=>masterEditor('contract',contract)));
    if(phase2)actions.append(btn('수금 기준',()=>void run(async()=>{
@@ -89,7 +111,8 @@
    })));
    if(state.canWrite&&contract.status==='active')actions.append(btn('월 매출 생성',()=>monthEditor(contract)));
    return [contract.title,labelFor('parties',contract.party_id),contract.starts_on+' ~ '+contract.ends_on,
-    money(contract.monthly_supply)+' / '+money(contract.monthly_tax),contract.billing_basis,kinds[contract.status],actions];
+    money(contract.monthly_supply)+' / '+money(contract.monthly_tax),contract.billing_basis,kinds[contract.status],
+    pastEnd(contract)?'기간 지남':nearEnd(contract)?'30일 이내 종료':'—',actions];
   })));
  }
  function contractReceiptRuleEditor(contract,rule){

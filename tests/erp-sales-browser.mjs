@@ -219,6 +219,32 @@ try {
  await saved('마감 상태 저장');
  await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();
 
+ const contractDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ const contractDay=offset=>new Date(Date.parse(contractDate+'T00:00:00Z')+offset*86400000).toISOString().slice(0,10);
+ const contractData=app.db.rpc('erp_sales_bootstrap');
+ for(const [title,offset,contractStatus] of [
+  ['합성 오늘 종료',0,'active'],['합성 30일 종료',30,'active'],
+  ['합성 31일 종료',31,'active'],['합성 어제 종료',-1,'active'],['합성 종료 처리',0,'ended']
+ ]){
+  app.db.rpc('erp_sales_save_master',{p_kind:'contract',p_data:{
+   title,party_id:contractData.parties.find(row=>row.name==='합성 기업 브라우저').id,
+   item_id:contractData.items.find(row=>row.kind==='service').id,
+   starts_on:'2020-01-01',ends_on:contractDay(offset),monthly_supply:100,monthly_tax:0,
+   tax_class:'taxable',billing_basis:'합성 계약 종료 조회',status:contractStatus
+  },p_id:null,p_revision:0});
+ }
+ await page.reload();
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.locator('[name=contract_period_filter]').selectOption('expiring');
+ await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
+ await page.getByRole('cell',{name:'합성 30일 종료',exact:true}).waitFor();
+ assert.equal(await page.locator('.erp-body tbody tr').count(),2);
+ await page.locator('[name=contract_period_filter]').selectOption('expired');
+ await page.getByRole('cell',{name:'합성 어제 종료',exact:true}).waitFor();
+ assert.equal(await page.locator('.erp-body tbody tr').count(),1);
+ await page.locator('[name=contract_period_filter]').selectOption('all');
+ assert.equal(await page.locator('.erp-body tbody tr').count(),6);
+
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);
  await page.route('**/fixture-rpc',route=>{
   if(route.request().postDataJSON().name==='erp_sales_phase2_ready'){
