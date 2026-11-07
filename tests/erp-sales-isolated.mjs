@@ -161,10 +161,20 @@ try {
  reject(()=>approve(supplierApproval,WORKER),/ERP_FORBIDDEN/);
  check(approve(supplierApproval).supplier.pending===500,'supplier approval is distinct from actual payment');
  check(approve(supplierApproval).supplier.entries.length===1,'retrying payout approval does not duplicate it');
+ const pendingQueue=(params={},actor=OPS)=>db.rpc('erp_sales_list_pending_payouts',params,{actor});
+ let queue=pendingQueue();
+ check(queue.total===1&&queue.total_cash==='500'&&queue.items[0].id===supplierApproval.p_request_id,
+  'pending payout queue includes approved supplier amounts exactly once');
+ check(pendingQueue({p_kind:'commission'}).total===0,'pending payout queue respects payment kind');
+ check(pendingQueue({p_due_to:on}).total===0,'future target date is excluded from overdue queue');
+ reject(()=>pendingQueue({},WORKER),/ERP_FORBIDDEN/);
+ reject(()=>pendingQueue({p_kind:'invalid'}),/ERP_PAYOUT_INVALID_INPUT/);
+ reject(()=>pendingQueue({p_due_to:'infinity'}),/ERP_PAYOUT_INVALID_INPUT/);
  reject(()=>approve(payApproval(corporate,'supplier',100,800)),/ERP_PAYOUT_BASIS_CONFLICT/);
  let payouts=payment(supplierApproval);
  check(payouts.supplier.paid===500&&payouts.supplier.remaining===300&&payouts.supplier.pending===0,'supplier payment preserves the balance and removes pending approval');
  check(payment(supplierApproval).supplier.paid===500,'retrying payment completion does not double count');
+ check(pendingQueue().total===0,'completed payment leaves the pending queue');
  reject(()=>payment(supplierApproval,'cancelled'),/ERP_PAYOUT_ALREADY_FINISHED/);
  reject(()=>db.raw('delete from public.erp_sales_payouts;'),/ERP_PAYOUT_IMMUTABLE/);
  reject(()=>db.rpc('erp_sales_get_payouts',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
@@ -176,10 +186,12 @@ try {
  const commissionApproval=payApproval(person,'commission',250);
  reject(()=>approve({...commissionApproval,p_amount:251}),/ERP_PAYOUT_OVER_LIMIT/);
  check(approve(commissionApproval).commission.pending===250,'partial receipt permits only its share of fixed commission');
+ check(pendingQueue({p_kind:'commission'}).items[0].id===commissionApproval.p_request_id,'commission approvals join the pending queue');
  db.rpc('erp_sales_record_receipt',{p_sale_id:person.id,p_request_id:randomUUID(),p_recorded_on:on,
   p_reverses_id:firstHalf.p_request_id,p_note:'Synthetic incorrect deposit'});
  reject(()=>payment(commissionApproval),/ERP_PAYOUT_OVER_LIMIT/);
  check(payment(commissionApproval,'cancelled').commission.pending===0,'cancelling an unpaid approval retains history and releases its reservation');
+ check(pendingQueue().total===0,'cancelled approval leaves the pending queue');
  db.rpc('erp_sales_record_receipt',collect(person,1901));
  const replacement=payApproval(person,'commission',250);
  approve(replacement);
@@ -259,6 +271,10 @@ try {
  const next=payApproval(nextSale,'commission',200);
  let nextEntries=approve(next).commission.entries;
  check(nextEntries.find(entry=>entry.id===next.p_request_id).cash_amount===100,'cancelled approval releases the offset to the next commission on a different sale');
+ queue=pendingQueue({p_kind:'commission'});
+ const queuedCommission=queue.items.find(entry=>entry.id===next.p_request_id);
+ check(queuedCommission.amount===200&&queuedCommission.offset_amount===100&&queuedCommission.cash_amount===100
+  &&queue.total_cash==='100','pending queue shows gross approval, offset and actual cash independently');
  nextEntries=approve(next).commission.entries;
  check(nextEntries.find(entry=>entry.id===next.p_request_id).offset===100,'approval retry does not consume the offset again');
  check(payment(next).commission.cash_paid===100,'recorded cash payout excludes the applied offset');

@@ -7,7 +7,8 @@
  const taxChoices=[['taxable','과세 (세액 직접 입력)'],['exempt','면세'],['zero_rated','영세율']];
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
- let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,tab='parties',busy=false,epoch=0;
+ let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,payoutQueue=false,tab='parties',busy=false,epoch=0;
+ const payoutFilters={kind:'',overdue:false};
  const receivableFilters={party:'',from:'',to:''};
  const purchaseRange={from:today().slice(0,7)+'-01',to:today()};
  let closeMonth=today().slice(0,7);
@@ -288,6 +289,9 @@
         p_cycle:cycle?.value||'transaction',p_due_on:date?.value||null});
       render(next);
       report(entry?(outcome==='paid'?'실제 지급을 기록했습니다.':'미지급 승인을 취소했습니다.'):'지급을 승인했습니다.');
+      if(tab==='payouts'){
+       await drawPayoutQueue().catch(()=>report('지급 처리를 저장했습니다. 지급 대기 조회를 다시 눌러 주세요.',true));
+      }
      });
     });
     return form;
@@ -455,6 +459,46 @@
   if(state.canWrite)body.append(btn('소금·상품 판매 등록',()=>saleEditor(),true));body.append(el('p',`총 ${list.total}건${list.total>list.limit?' 중 최신 '+list.limit+'건 표시 · 기간을 좁혀 조회하세요.':''}`));
   if(!list.items.length)body.append(el('p','해당 기간의 매출이 없습니다. 계약에서 월 매출을 생성하거나 상품 판매를 등록하세요.','message'));
   else body.append(table(['매출일','거래처','유형','영업자','상태','금액',''],list.items.map(s=>[s.sales_date,s.party_name,kinds[s.kind],s.agent_name||'—',kinds[s.status],money(s.total_amount),btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:s.id}))))])));
+ }
+ async function drawPayoutQueue(){
+  const yesterday=new Date(today()+'T00:00:00Z');
+  yesterday.setUTCDate(yesterday.getUTCDate()-1);
+  const list=await rpc('erp_sales_list_pending_payouts',{
+   p_kind:payoutFilters.kind||null,
+   p_due_to:payoutFilters.overdue?yesterday.toISOString().slice(0,10):null
+  });
+  if(tab!=='payouts')return;
+  const form=el('form','','app-authoring');
+  const grid=el('div','','erp-fields');
+  const kind=field(grid,'payout_filter_kind','지급 구분','select',payoutFilters.kind,
+   [['','전체'],['commission','영업비'],['supplier','공급처 지급']]);
+  const scope=field(grid,'payout_filter_scope','목표일','select',payoutFilters.overdue?'overdue':'all',
+   [['all','전체 지급 대기'],['overdue','목표일 지남']]);
+  const search=el('button','지급 대기 조회','button primary');
+  search.type='submit';
+  form.append(grid,search);
+  form.addEventListener('submit',event=>{
+   event.preventDefault();
+   Object.assign(payoutFilters,{kind:kind.value,overdue:scope.value==='overdue'});
+   void run(async()=>{await drawPayoutQueue();report('');});
+  });
+  body.replaceChildren(form);
+  const count=list.total>list.limit?' ('+list.limit+'건 표시)':'';
+  body.append(el('p','지급 대기 '+list.total+'건 · 실제 지급 예정 합계 '+
+   BigInt(list.total_cash).toLocaleString('ko-KR')+'원'+count,'erp-total'),
+   el('p','승인 후 지급 결과가 기록되지 않은 건입니다. 상세에서 지급 완료 또는 미지급 승인 취소를 기록합니다.','help'));
+  if(!list.items.length){
+   body.append(el('p','조회 조건에 맞는 지급 대기 건이 없습니다.','message'));
+   return;
+  }
+  const asOf=today();
+  body.append(table(['구분','지급 대상','거래처','목표일','승인액','상계액','실제 지급 예정액','상태',''],
+   list.items.map(row=>[
+    row.kind==='commission'?'영업비':'공급처 지급',row.payee_name,row.party_name,
+    row.due_on+(row.due_on<asOf?' · 기한 지남':''),money(row.amount),money(row.offset_amount),
+    money(row.cash_amount),row.cancelled_sale?'거래 취소 승인 · 확인 필요':'지급 대기',
+    btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:row.sale_id}))))
+   ])));
  }
  async function drawReceivables(){
   const list=await rpc('erp_sales_list_receivables',{
@@ -815,24 +859,27 @@
    row.closed?'마감':'예외 해제',new Intl.DateTimeFormat('ko-KR',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Seoul'}).format(new Date(row.created_at)),row.reason
   ])));
  }
- function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else void run(drawMonthClose);}
+ function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else void run(drawMonthClose);}
  async function open(){if(!allowed())return;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2','기준정보·매출 관리'),status);main.replaceChildren(root);
   try{
-   const [bootstrap,ready,purchasingReady,adjustmentsReady]=await Promise.all([
+   const [bootstrap,ready,purchasingReady,adjustmentsReady,queueReady]=await Promise.all([
     rpc('erp_sales_bootstrap'),
     rpc('erp_sales_phase2_ready').catch(()=>false),
     rpc('erp_sales_phase3_ready').catch(()=>false),
-    rpc('erp_sales_adjustments_ready').catch(()=>false)
+    rpc('erp_sales_adjustments_ready').catch(()=>false),
+    rpc('erp_sales_payout_queue_ready').catch(()=>false)
    ]);
    if(generation!==epoch)return;
    state=bootstrap;
    phase2=ready===true;
    phase3=purchasingReady===true;
    phase4=adjustmentsReady===true;
+   payoutQueue=ready===true&&queueReady===true;
+   if(!payoutQueue&&tab==='payouts')tab='sales';
    if(!phase4&&tab==='close')tab='sales';
    if(!phase3&&['purchases','stock'].includes(tab))tab='sales';
    if(!phase2&&tab==='receivables')tab='sales';const tabs=el('div','','erp-tabs');tabs.setAttribute('role','tablist');body=el('div','','erp-body');body.setAttribute('role','tabpanel');body.id='erp-sales-panel';body.setAttribute('aria-labelledby','erp-tab-'+tab);editor=el('section','','erp-editor');
-   for(const [key,label] of [['parties','거래처·영업자'],['items','품목·서비스'],['contracts','용역 계약'],['sales','매출·판매'],...(phase2?[['receivables','미수금']]:[]),...(phase3?[['purchases','구매·매입'],['stock','재고']]:[]),...(phase4?[['close','월 마감']]:[])]){const button=btn(label,()=>{if(!clearEditor())return;tab=key;tabs.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-selected',String(b===button));b.tabIndex=b===button?0:-1;});body.setAttribute('aria-labelledby',button.id);draw();});button.id='erp-tab-'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls','erp-sales-panel');button.tabIndex=tab===key?0:-1;button.setAttribute('aria-selected',String(tab===key));tabs.append(button);}
+   for(const [key,label] of [['parties','거래처·영업자'],['items','품목·서비스'],['contracts','용역 계약'],['sales','매출·판매'],...(phase2?[['receivables','미수금']]:[]),...(payoutQueue?[['payouts','지급 대기']]:[]),...(phase3?[['purchases','구매·매입'],['stock','재고']]:[]),...(phase4?[['close','월 마감']]:[])]){const button=btn(label,()=>{if(!clearEditor())return;tab=key;tabs.querySelectorAll('button').forEach(b=>{b.setAttribute('aria-selected',String(b===button));b.tabIndex=b===button?0:-1;});body.setAttribute('aria-labelledby',button.id);draw();});button.id='erp-tab-'+key;button.setAttribute('role','tab');button.setAttribute('aria-controls','erp-sales-panel');button.tabIndex=tab===key?0:-1;button.setAttribute('aria-selected',String(tab===key));tabs.append(button);}
    tabs.addEventListener('keydown',event=>{const buttons=[...tabs.querySelectorAll('button')];const i=buttons.indexOf(document.activeElement);if(i<0)return;const index=event.key==='Home'?0:event.key==='End'?buttons.length-1:event.key==='ArrowRight'?(i+1)%buttons.length:event.key==='ArrowLeft'?(i+buttons.length-1)%buttons.length:null;if(index===null)return;event.preventDefault();buttons[index].focus();buttons[index].click();if(buttons[index].getAttribute('aria-selected')!=='true')buttons[i].focus();});
    root.append(tabs,body,editor);report('');draw();
   }catch(e){report(errorText(e),true);root.append(btn('다시 조회',()=>void open()));}
