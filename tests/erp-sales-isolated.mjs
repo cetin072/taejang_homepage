@@ -21,8 +21,17 @@ try {
  const salt=save('item',{code:'SALT-TEST',name:'Synthetic Salt',kind:'product',unit:'포',base_price:1000,tax_class:'taxable',inventory_managed:true});
  const service=save('item',{code:'SERVICE-TEST',name:'Synthetic Cleanup',kind:'service',unit:'월',base_price:null,tax_class:'taxable'});
  const contract=save('contract',{title:'Synthetic yearly contract',party_id:customer.id,item_id:service.id,starts_on:'2099-01-01',ends_on:'2099-12-31',monthly_supply:100000,monthly_tax:10000,tax_class:'taxable',billing_basis:'매월 말일 청구',status:'active'});
+ const contractMonth=month=>db.rpc('erp_sales_get_contract_month',{p_contract_id:contract.id,p_month:month});
+ check(contractMonth('2099-01-01')===null&&db.raw('select count(*) from public.erp_sales_transactions;')==='0',
+  'looking up a missing contract month does not create a sale');
+ reject(()=>contractMonth('2099-01-02'),/ERP_INVALID_MONTH/);
+ reject(()=>contractMonth('infinity'),/ERP_INVALID_MONTH/);
+ reject(()=>db.rpc('erp_sales_get_contract_month',{p_contract_id:randomUUID(),p_month:'2099-01-01'}),/ERP_CONTRACT_NOT_FOUND/);
+ reject(()=>db.rpc('erp_sales_get_contract_month',{p_contract_id:contract.id,p_month:'2099-01-01'},{actor:WORKER}),/ERP_FORBIDDEN/);
  let monthly=db.rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:'2099-01-01'});
  check(monthly.total_amount===110000&&monthly.lines.length===1&&monthly.agent_id===agentA.id,'scenario A: contract month generates persisted sale and actual amount');
+ check(contractMonth('2099-01-01').id===monthly.id&&contractMonth('2099-01-01').status==='draft'
+  &&db.raw('select count(*) from public.erp_sales_transactions;')==='1','month lookup opens an existing draft without creating another sale');
  monthly=db.rpc('erp_sales_save',{p_data:{...monthly,commission:fee('rate',2.5)},p_id:monthly.id,p_revision:monthly.revision});
  const stale=monthly.revision-1;
  reject(()=>db.rpc('erp_sales_save',{p_data:monthly,p_id:monthly.id,p_revision:stale}),/ERP_REVISION_CONFLICT/);
@@ -300,5 +309,8 @@ try {
  check(!setMonth(false,true).closed,'exceptional reopen restores writes for the period');
  support('purchase',purchase);
  check(setMonth(true,false).events.length===3,'reclosing keeps all close and reopen history');
+ save('contract',{...contract,status:'ended'},contract);
+ check(contractMonth('2099-01-01').id===monthly.id&&contractMonth('2099-01-01').status==='confirmed',
+  'ended contracts retain read access to their existing confirmed monthly sales');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}
