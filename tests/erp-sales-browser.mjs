@@ -104,6 +104,7 @@ try {
  await page.getByText('지급 대기 1건 · 실제 지급 예정 합계 600원',{exact:true}).waitFor();
  await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'지급 완료 기록',exact:true}).click();
  await field('payout_evidence').fill('합성 이체 확인');
  await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
