@@ -605,7 +605,16 @@
    el('p','UTF-8 CSV의 첫 줄을 승인번호,발급일,합계금액으로 맞춰 주세요. 날짜는 YYYY-MM-DD, 금액은 원 단위로 입력합니다. 이 거래의 기존 증빙과 비교한 결과만 표시합니다.','help'),
    form,output);
   file.addEventListener('change',()=>output.replaceChildren());
-  supportSubmit(form,'파일 대조',async()=>{
+  const submit=el('button','파일 대조','button primary');
+  submit.type='submit';
+  form.append(submit);
+  form.addEventListener('submit',event=>{
+   event.preventDefault();
+   if(form.reportValidity())void run(compare);
+  });
+  return section;
+
+  async function compare(){
    output.replaceChildren();
    const selected=file.files[0];
    if(!selected||selected.size>1048576){
@@ -641,8 +650,7 @@
      row?row.date+' · '+money(row.amount):'—',row?(matches?'일치':'발급일 또는 금액 불일치'):'파일에 없음'];
    })));
    report('파일 대조를 마쳤습니다.');
-  });
-  return section;
+  }
  }
  function drawEvidence(sale){
   const panel=el('section','','app-form-section');
