@@ -764,6 +764,7 @@ const styles = StyleSheet.create({
   smallButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
   homeScroll: {
     flexGrow: 1,
+    justifyContent: 'space-between',
     gap: 24,
     paddingHorizontal: 20,
     paddingTop: 14,
