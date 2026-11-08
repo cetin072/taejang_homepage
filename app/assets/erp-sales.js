@@ -904,6 +904,28 @@
    if(offset)output.append(el('p','상계 후 예상 영업비 '+money(Number(nextFee.value)-Number(offset.value))));
   }
  }
+ async function drawCloseReview(host){
+  const groups=[
+   ...(adjustmentQueue?[{label:'승인 대기',rpc:'erp_sales_list_pending_adjustments',tab:'adjustments',stage:'approval'}]:[]),
+   ...(payoutQueue?[{label:'지급 대기',rpc:'erp_sales_list_pending_payouts',tab:'payouts'}]:[]),
+   ...(adjustmentFollowups?[{label:'회수·환불 대기',rpc:'erp_sales_list_pending_followups',tab:'adjustments',stage:'followups'}]:[])
+  ];
+  if(!groups.length)return;
+  host.replaceChildren(el('h4','현재 처리 대기'),el('p','전체 기간에 남아 있는 업무입니다. 각 목록에서 건별 내용을 확인하세요.','help'));
+  const results=await Promise.allSettled(groups.map(group=>rpc(group.rpc)));
+  if(!host.isConnected)return;
+  host.append(table(['업무','대기 건수',''],groups.map((group,index)=>[
+   group.label,results[index].status==='fulfilled'?results[index].value.total+'건':'조회 실패',
+   btn(group.label+' 목록',()=>{
+    if(!clearEditor())return;
+    if(group.tab==='payouts')Object.assign(payoutFilters,{kind:'',overdue:false});
+    else {adjustmentKind='';adjustmentStage=group.stage;}
+    root.querySelector('#erp-tab-'+group.tab)?.click();
+   })
+  ])));
+  if(results.some(result=>result.status==='rejected'))host.append(el('p','일부 대기 현황을 불러오지 못했습니다. 새로 조회하거나 각 목록에서 확인하세요.','message error'));
+  host.append(btn('대기 현황 새로 조회',()=>void run(()=>drawCloseReview(host))));
+ }
  async function drawMonthClose(){
   const result=await rpc('erp_sales_get_month_close',{p_month:closeMonth+'-01'});
   if(tab!=='close')return;
@@ -914,6 +936,8 @@
   supportSubmit(search,'마감 이력 조회',async()=>{if(clearEditor()){closeMonth=month.value;await drawMonthClose();report('');}});
   body.replaceChildren(search,el('p',closeMonth+' · '+(result.closed?'마감됨':'열림'),'erp-total'),
    el('p','매출은 매출일, 입금·지급·증빙·조정은 해당 기록일의 월에 잠깁니다. 후속 거래는 해당 월에 기록할 수 있습니다.','help'));
+  const review=adjustmentQueue||payoutQueue||adjustmentFollowups?el('section','','app-form-section erp-month-review'):null;
+  if(review)body.append(review);
   if(state.canWrite&&state.canConfirm)body.append(btn(result.closed?'예외 해제':'월 마감 처리',()=>{
    const parts=formStart(result.closed?'월 마감 예외 해제':'월 마감');
    if(!parts)return;
@@ -931,6 +955,7 @@
   if(result.events.length)body.append(table(['처리','일시','사유'],result.events.map(row=>[
    row.closed?'마감':'예외 해제',new Intl.DateTimeFormat('ko-KR',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Seoul'}).format(new Date(row.created_at)),row.reason
   ])));
+  if(review)await drawCloseReview(review);
  }
  function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='adjustments')void run(drawAdjustmentQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else void run(drawMonthClose);}
  async function open(){if(!allowed())return;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2','기준정보·매출 관리'),status);main.replaceChildren(root);
