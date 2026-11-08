@@ -236,14 +236,26 @@ try {
   p_action:action,p_amount:amount,p_on:on,p_note:'Synthetic adjustment evidence'
  },{actor});
  reject(()=>request(requestAdjustment(corporate,'cancel_order',{})),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const adjustmentQueue=(params={})=>db.rpc('erp_sales_list_pending_adjustments',params);
+ check(adjustmentQueue().total===0,'adjustment queue starts empty');
+ reject(()=>db.rpc('erp_sales_list_pending_adjustments',{}, {actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.sql('select public.erp_sales_list_pending_adjustments();',{role:'anon',actor:null}),/permission denied/);
+ reject(()=>adjustmentQueue({p_kind:'unknown'}),/ERP_ADJUSTMENT_INVALID_INPUT/);
  const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,credit_amount:3030,refund_plan:600});
  request(returned);
  check(request(returned).length===1,'adjustment request retries preserve a single original record');
+ const pendingReturn=adjustmentQueue();
+ check(pendingReturn.total===1&&pendingReturn.items[0].id===returned.p_request_id
+  &&pendingReturn.items[0].sale_id===corporate.id&&pendingReturn.items[0].reason==='Synthetic adjustment',
+  'pending adjustment queue returns the original request once with sale navigation');
+ check(adjustmentQueue({p_kind:'service_change'}).total===0&&adjustmentQueue({p_kind:'return_goods'}).total===1,
+  'adjustment queue filters request kind');
  reject(()=>event(returned,'refund',300),/ERP_ADJUSTMENT_APPROVAL_REQUIRED/);
  reject(()=>event(returned,'approve',null,WORKER),/ERP_FORBIDDEN/);
  const corporateReceipt=()=>db.rpc('erp_sales_get_receipts',{p_sale_id:corporate.id});
  check(corporateReceipt().balance===5050,'requested return credit does not change the receivable before approval');
  event(returned,'approve');
+ check(adjustmentQueue().total===0,'approved requests leave the pending queue before recall or refund');
  check(corporateReceipt().balance===2020,'approved return credit reduces receivable even before refund');
  reject(()=>request(requestAdjustment(corporate,'return_goods',{
   line_id:corporate.lines[0].id,quantity:1,credit_amount:7071
@@ -268,6 +280,11 @@ try {
  check(db.rpc('erp_sales_get_receipts',{p_sale_id:newOrder.id}).balance===0,'approved cancellation removes the receivable');
  reject(()=>db.rpc('erp_sales_record_receipt',collect(newOrder,1)),/ERP_RECEIPT_OVER_BALANCE/);
  reject(()=>db.rpc('erp_sales_shipping',{p_id:newOrder.id,p_status:'shipped'}),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const declined=requestAdjustment(newOrder,'sales_change',{amount:1});
+ request(declined);
+ check(adjustmentQueue().items[0].id===declined.p_request_id,'new requests reappear in pending queue');
+ event(declined,'reject');
+ check(adjustmentQueue().total===0,'rejected requests leave the pending queue');
  const commissionChange=requestAdjustment(person,'commission_change',{commission_action:'offset',amount:100});
  request(commissionChange);event(commissionChange,'approve');
  check(db.rpc('erp_sales_get_payouts',{p_sale_id:person.id}).commission.paid===250,'commission correction preserves existing actual payments');
