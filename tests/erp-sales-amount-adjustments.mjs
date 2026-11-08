@@ -45,7 +45,7 @@ try{
  check(position(sale).effective_total===55000,'pending amount changes never alter balances');
  collect(sale,20000);approve(first);
  check(position(sale).effective_total===45000&&position(sale).balance===25000,'approval changes a partially collected balance');
- const listed=call('erp_sales_list',{p_from:on.slice(0,7)+'-01',p_to:on,p_party_id:party.id}).items.find(x=>x.id===sale.id);
+ const listed=call('erp_sales_list',{p_from:on.slice(0,7)+'-01',p_to:sale.sales_date,p_party_id:party.id}).items.find(x=>x.id===sale.id);
  check(listed.total_amount===55000&&listed.effective_total===45000,'sales list exposes current and original amounts together');
  check(call('erp_sales_list_receivables',{p_party_id:party.id}).items[0].balance===25000,'receivable list shares the applied total');
  approve(first);

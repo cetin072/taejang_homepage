@@ -160,6 +160,11 @@ try{
    });
    await stage('재조회: 새로고침 후 저장값 보존',async()=>{
     await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await tab('매출·판매');
+    report.monthlyVisibleByDefault=await page.getByText('총 3건',{exact:true}).count()===1;
+    if(variant==='candidate')assert.equal(report.monthlyVisibleByDefault,true,'this month includes generated month-end sales');
+    else if(!report.monthlyVisibleByDefault){
+     await page.locator('.erp-body [name=to]').fill(new Date(Date.UTC(Number(today.slice(0,4)),Number(today.slice(5,7)),0)).toISOString().slice(0,10));await button('조회');
+    }
     await page.getByText('총 3건',{exact:true}).waitFor();
     const row=page.locator('.erp-body tbody tr').filter({has:page.getByRole('cell',{name:'가상 모회사',exact:true})});
     report.listedCurrentAmount=await row.getByText('50,000원',{exact:true}).count()===1;

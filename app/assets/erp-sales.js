@@ -3,6 +3,7 @@
  'use strict';
  const el=(tag,text='',cls='')=>{const n=document.createElement(tag);n.textContent=text;if(cls)n.className=cls;return n;};
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());
+ const monthEnd=date=>new Date(Date.UTC(Number(date.slice(0,4)),Number(date.slice(5,7)),0)).toISOString().slice(0,10);
  const money=v=>Number(v||0).toLocaleString('ko-KR')+'원';
  const taxChoices=[['taxable','과세 (세액 직접 입력)'],['exempt','면세'],['zero_rated','영세율']];
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
@@ -13,7 +14,7 @@
  const receivableFilters={party:'',from:'',to:''};
  const purchaseRange={from:today().slice(0,7)+'-01',to:today()};
  let closeMonth=today().slice(0,7);
- const filters={from:today().slice(0,7)+'-01',to:today(),party:'',kind:'',status:'',agent:''};
+ const filters={from:today().slice(0,7)+'-01',to:monthEnd(today()),party:'',kind:'',status:'',agent:''};
  const report=(message,error=false)=>{if(!root?.isConnected)return;status.textContent=message;status.className=error?'message error':'message';status.hidden=!message;};
  function errorText(error){const m=String(error?.message||error);if(/PGRST202|does not exist|404/.test(m))return '이 환경은 매출 기능의 데이터 준비가 완료되지 않았습니다. 담당자에게 확인해 주세요.';
   if(/23505|duplicate|unique/.test(m))return '이미 등록된 정보입니다. 기존 거래처·품목 또는 계약 월 매출을 확인해 주세요.';
@@ -514,7 +515,7 @@
     from.value=to.value.slice(0,7)+'-01';
    }else{
     from.value=first;
-    to.value=current;
+    to.value=monthEnd(current);
    }
    f.requestSubmit();
   }
