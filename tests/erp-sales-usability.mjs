@@ -26,7 +26,7 @@ try{
   if(variant==='baseline')await page.route('**/app/assets/erp-sales.js',r=>r.fulfill({contentType:'text/javascript',body:baseline}));
   const report={variant,steps:[]};
   const counts=async()=>({...await page.evaluate(()=>window.erpAudit),requests});
-  const stage=async(name,fn)=>{const before=await counts();await fn();const after=await counts();report.steps.push({name,clicks:after.clicks-before.clicks,editedFields:after.edits-before.edits,rpcRequests:after.requests-before.requests});};
+  const stage=async(name,fn)=>{report.activeStage=name;const before=await counts();await fn();const after=await counts();report.steps.push({name,clicks:after.clicks-before.clicks,editedFields:after.edits-before.edits,rpcRequests:after.requests-before.requests});};
   const idle=()=>page.locator('.erp-sales:not([aria-busy])').waitFor();
   const button=async(name,scope=page)=>{await scope.getByRole('button',{name,exact:true}).click();await idle();};
   const field=name=>page.locator('.erp-editor').locator(`[name="${name}"]`);
@@ -99,6 +99,14 @@ try{
     if(variant==='candidate')assert.equal(report.payoutRefresh.visibleCorrect,true,'receipt save must refresh the already open payout balance');
     else{assert.equal(report.payoutRefresh.visibleCorrect,false,'baseline reproduces stale payout information');await button('지급 내역 조회');}
    });
+   await stage('오입금 정정 중 작성하던 지급 입력 보존',async()=>{
+    await button('영업비 승인');await fill('payout_amount','4321');await fill('payout_evidence','아직 검토 중인 지급 입력');
+    await page.getByRole('button',{name:'오입금 취소',exact:true}).last().click();await idle();await fill('receipt_note','가상 중복 입금 기록 정정');await button('취소 기록 저장');
+    assert.equal(receipts(firstProduct).balance,55000);assert.equal(await field('payout_amount').inputValue(),'4321');
+    await fill('receipt_amount','55000');await button('입금 기록 저장');assert.equal(await field('payout_amount').inputValue(),'4321');
+    const draft=page.locator('form').filter({has:page.locator('[name=payout_amount]')});await button('닫기',draft);await button('지급 내역 조회');
+    assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:firstProduct}).commission.entries.length,1,'input preservation never creates an approval');
+   });
    const finish=async()=>{await button('지급 완료 기록');await fill('payout_evidence','가상 이체 완료 확인');await button('실제 지급 저장');};
    const approveSupplier=async()=>{await button('공급처 지급 승인');await fill('payout_basis','80000');await fill('payout_amount','80000');await fill('payout_evidence','가상 공급처 정산서 8만원 확인');await button('지급 승인 저장');await finish();};
    await stage('상품: 영업비 1만원·공급처 8만원 지급 완료',async()=>{
@@ -156,7 +164,7 @@ try{
    assert.deepEqual(errors,[]);
    report.final={sales:3,serviceEffective:receipts(serviceId).effective_total,productEffective:receipts(firstProduct).effective_total,productRefunded:receipts(firstProduct).refunded,repeatCommissionCash:app.db.rpc('erp_sales_get_payouts',{p_sale_id:secondProduct}).commission.cash_paid,unpaid:app.db.rpc('erp_sales_list_receivables').total,closed:true};
    report.total=await counts();results.push(report);console.log('ERP_USABILITY_VARIANT_PASS '+JSON.stringify(report));
-  }catch(e){await page.screenshot({path:`${output}/${variant}-failure.png`,fullPage:true}).catch(()=>{});console.error('ERP_USABILITY_FAILURE',variant,report.steps.at(-1)?.name,await page.locator('.erp-sales > .message').textContent().catch(()=>''));throw e;}
+  }catch(e){await writeFile(output+'/'+variant+'-partial.json',JSON.stringify(report,null,2));await page.screenshot({path:`${output}/${variant}-failure.png`,fullPage:true}).catch(()=>{});console.error('ERP_USABILITY_FAILURE',variant,report.activeStage,await page.locator('.erp-sales > .message').textContent().catch(()=>''));throw e;}
   finally{await context.close();await app.close();}
  }
  assert.ok(results[1].confirmedView.height<results[0].confirmedView.height/2,'confirmed transaction should use less than half the old form height');
