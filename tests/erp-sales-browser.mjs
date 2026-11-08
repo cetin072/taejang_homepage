@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -38,25 +39,46 @@ try {
  await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();
  assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'1');
  const recordOnlyEffect='금액과 승인 이력을 보관합니다. 수금·미수금·지급액은 자동 변경되지 않습니다.';
+ const automaticEffect='승인한 매출을 기준으로 미수금·초과 수금을 다시 계산합니다. 원거래와 입금 이력은 보존됩니다.';
  const returnEffect='취소·반품 승인액은 미수금에, 실제 환불은 순수금에 반영됩니다.';
  const offsetEffect='승인된 상계액은 같은 영업자의 다음 지급 승인에 적용됩니다.';
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  const adjustmentRequest=()=>page.locator('form').filter({has:page.locator('[name=adjustment_kind]')});
- await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await adjustmentRequest().getByText(automaticEffect,{exact:true}).waitFor();
  await adjustmentRequest().locator('[name=amount]').fill('50000');
  await field('adjustment_reason').fill('합성 용역 조정 이력');
  await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
  await page.getByText('원거래 매출 55,000원 · 요청한 매출 50,000원',{exact:true}).waitFor();
  await page.getByRole('button',{name:'승인',exact:true}).click();
- await page.locator('form').filter({has:page.locator('[name=event_note]')}).getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).getByText(automaticEffect,{exact:true}).waitFor();
  await field('event_note').fill('합성 기록형 용역 승인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByRole('heading',{name:'용역 매출 조정 · 승인',exact:true}).waitFor();
- await page.locator('.erp-editor').getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await page.getByText('누적 수금 0원 · 미수금 50,000원',{exact:true}).waitFor();
  const serviceId=app.db.raw("select id from public.erp_sales_transactions where kind='service';");
- assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,55000,
-  'record-only guidance matches approved service adjustment behavior');
+ assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,50000,
+  'approved service amount is reflected in the already open receipt panel');
+ await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ await adjustmentRequest().locator('[name=amount]').fill('55000');
+ await field('adjustment_reason').fill('합성 두 번째 금액 조정');
+ await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
+ await page.getByRole('button',{name:'승인',exact:true}).click();
+ await field('event_note').fill('합성 두 번째 금액 승인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
+ const legacyId=crypto.randomUUID();
+ app.db.rpc('erp_sales_request_adjustment',{p_sale_id:serviceId,p_request_id:legacyId,p_kind:'service_change',p_reason:'Synthetic old client',p_detail:{amount:45000}});
+ app.db.rpc('erp_sales_record_adjustment_event',{p_sale_id:serviceId,p_adjustment_id:legacyId,p_request_id:crypto.randomUUID(),p_action:'approve',p_on:app.db.raw("select (now() at time zone 'Asia/Seoul')::date;"),p_note:'Synthetic legacy record only',p_amount:null});
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
+ await field('lookup_month').fill('2099-01');
+ await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
+ await page.locator('.erp-editor').getByText(recordOnlyEffect,{exact:true}).waitFor();
+ assert.equal(await page.getByText('잔액 반영 완료',{exact:true}).count(),2);
+ assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,55000,'legacy approval remains record-only');
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/service-1440.png',fullPage:true});
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
@@ -147,7 +169,7 @@ try {
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  await field('adjustment_kind').selectOption('sales_change');
- await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await adjustmentRequest().getByText(automaticEffect,{exact:true}).waitFor();
  await field('adjustment_kind').selectOption('commission_change');
  await adjustmentRequest().getByText(offsetEffect,{exact:true}).waitFor();
  for(const action of ['return','waive','difference']){
@@ -371,7 +393,7 @@ try {
 
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);
  await page.route('**/fixture-rpc',route=>{
-  if(['erp_sales_phase2_ready','erp_sales_adjustment_followups_ready'].includes(route.request().postDataJSON().name)){
+  if(['erp_sales_phase2_ready','erp_sales_adjustment_followups_ready','erp_sales_amount_adjustments_ready'].includes(route.request().postDataJSON().name)){
    return route.fulfill({status:404,json:{message:'PGRST202'}});
   }
   return route.continue();

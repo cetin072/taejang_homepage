@@ -76,6 +76,7 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: |
           node tests/erp-sales-isolated.mjs
+          node tests/erp-sales-amount-adjustments.mjs
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-browser.mjs
 
       - name: Keep synthetic ERP browser screenshots
