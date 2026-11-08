@@ -168,7 +168,7 @@ try{
     }
     await page.getByText('총 3건',{exact:true}).waitFor();
     const row=page.locator('.erp-body tbody tr').filter({has:page.getByRole('cell',{name:'가상 모회사',exact:true})});
-    report.listedCurrentAmount=await row.getByText('50,000원',{exact:true}).count()===1;
+    report.listedCurrentAmount=await row.getByRole('cell',{name:/^50,000원/}).count()===1;
     if(variant==='candidate'){assert.equal(report.listedCurrentAmount,true);await row.getByText('원거래 55,000원',{exact:true}).waitFor();}
     else assert.equal(report.listedCurrentAmount,false,'baseline list shows only the original amount');
     await page.locator('.erp-body tbody tr').filter({has:page.getByRole('cell',{name:'가상 모회사',exact:true})}).getByRole('button',{name:'상세',exact:true}).click();await idle();await button('수금 내역 조회');
