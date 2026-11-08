@@ -914,15 +914,16 @@
   host.replaceChildren(el('h4','현재 처리 대기'),el('p','전체 기간에 남아 있는 업무입니다. 각 목록에서 건별 내용을 확인하세요.','help'));
   const results=await Promise.allSettled(groups.map(group=>rpc(group.rpc)));
   if(!host.isConnected)return;
-  host.append(table(['업무','대기 건수',''],groups.map((group,index)=>[
-   group.label,results[index].status==='fulfilled'?results[index].value.total+'건':'조회 실패',
-   btn(group.label+' 목록',()=>{
+  host.append(table(['업무','대기 건수',''],groups.map((group,index)=>{
+   const view=btn('목록',()=>{
     if(!clearEditor())return;
     if(group.tab==='payouts')Object.assign(payoutFilters,{kind:'',overdue:false});
     else {adjustmentKind='';adjustmentStage=group.stage;}
     root.querySelector('#erp-tab-'+group.tab)?.click();
-   })
-  ])));
+   });
+   view.setAttribute('aria-label',group.label+' 목록');
+   return [group.label,results[index].status==='fulfilled'?results[index].value.total+'건':'조회 실패',view];
+  })));
   if(results.some(result=>result.status==='rejected'))host.append(el('p','일부 대기 현황을 불러오지 못했습니다. 새로 조회하거나 각 목록에서 확인하세요.','message error'));
   host.append(btn('대기 현황 새로 조회',()=>void run(()=>drawCloseReview(host))));
  }

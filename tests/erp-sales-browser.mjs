@@ -285,6 +285,10 @@ try {
  await page.getByRole('button',{name:'마감 이력 조회',exact:true}).click();
  await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ for(const name of ['승인 대기 목록','지급 대기 목록','회수·환불 대기 목록']){
+  const box=await closeReview.getByRole('button',{name,exact:true}).boundingBox();
+  assert.ok(box&&box.x>=0&&box.x+box.width<=390,'month review navigation stays visible on mobile');
+ }
  await page.screenshot({path:output+'/month-close-review-390.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'월 마감 처리',exact:true}).click();
  await field('close_reason').fill('합성 월 마감');
