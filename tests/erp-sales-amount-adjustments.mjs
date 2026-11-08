@@ -33,7 +33,7 @@ try{
  const old=request(sale,'service_change',{amount:50000});decision(sale,old);
  const pending=request(sale,'service_change',{amount:45000});
  check(position(sale).effective_total===55000,'legacy approval was record-only before migration');
- db.raw(readFileSync('supabase/migrations/20261108105756_erp_sales_apply_amount_adjustments.sql','utf8'));
+ db.raw(readFileSync('supabase/migrations/20261108115308_erp_sales_apply_amount_adjustments.sql','utf8'));
  check(position(sale).effective_total===55000,'migration never reinterprets historical approvals');
  check(call('erp_sales_list_adjustments',{p_sale_id:sale.id}).find(x=>x.id===old).events[0].sales_delta===null,'legacy approvals carry an explicit null effect');
  check(call('erp_sales_amount_adjustments_ready')===true,'new backend readiness is available to ERP reader');
