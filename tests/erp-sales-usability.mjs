@@ -19,9 +19,10 @@ try{
   page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>void d.accept());
   page.on('request',r=>{if(r.url().endsWith('/fixture-rpc'))requests++;});
   await page.addInitScript(()=>{
-   window.erpAudit={clicks:0,edits:0};
-   document.addEventListener('click',e=>{if(e.target.closest('button,summary'))window.erpAudit.clicks++;},true);
-   document.addEventListener('input',()=>window.erpAudit.edits++,true);
+   window.erpAudit=JSON.parse(sessionStorage.getItem('erpAuditCounters')||'{"clicks":0,"edits":0}');
+   const record=key=>{window.erpAudit[key]++;sessionStorage.setItem('erpAuditCounters',JSON.stringify(window.erpAudit));};
+   document.addEventListener('click',e=>{if(e.target.closest('button,summary'))record('clicks');},true);
+   document.addEventListener('input',()=>record('edits'),true);
   });
   if(variant==='baseline')await page.route('**/app/assets/erp-sales.js',r=>r.fulfill({contentType:'text/javascript',body:baseline}));
   const report={variant,steps:[]};
@@ -94,7 +95,7 @@ try{
    });
    await stage('상품: 반액 입금·영업비 일부 승인·잔금 입금',async()=>{
     await button('수금 내역 조회');await fill('receipt_amount','55000');await button('입금 기록 저장');await button('지급 내역 조회');await button('영업비 승인');
-    await fill('payout_basis','10000');await fill('payout_amount','5000');await fill('payout_evidence','합의 영업비 1만원·절반 수금 확인');await button('지급 승인 저장');
+    if(await field('payout_basis').count())await fill('payout_basis','10000');await fill('payout_amount','5000');await fill('payout_evidence','합의 영업비 1만원·절반 수금 확인');await button('지급 승인 저장');
     await fill('receipt_amount','55000');await button('입금 기록 저장');
     const expected=app.db.rpc('erp_sales_get_payouts',{p_sale_id:firstProduct}).commission;
     assert.equal(expected.allowed-expected.paid-expected.pending,5000);
@@ -135,7 +136,7 @@ try{
     else if(!await field('agent_id').inputValue())await select('agent_id','가상 담당 영업자');
     await field('fee_kind').selectOption('fixed');await fill('fee_value','10000');await button('매출 저장');await button('매출 확정');secondProduct=saleId('product');assert.notEqual(firstProduct,secondProduct);
     await button('수금 내역 조회');await fill('receipt_amount','110000');await button('입금 기록 저장');await button('지급 내역 조회');await button('영업비 승인');
-    await fill('payout_basis','10000');await fill('payout_amount','10000');await fill('payout_evidence','재주문 수금·기존 상계 확인');await button('지급 승인 저장');
+    if(await field('payout_basis').count())await fill('payout_basis','10000');await fill('payout_amount','10000');await fill('payout_evidence','재주문 수금·기존 상계 확인');await button('지급 승인 저장');
     await page.getByText('10,000원 · 상계 1,000원 · 실제 지급액 9,000원',{exact:true}).waitFor();await finish();await approveSupplier();
     assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:secondProduct}).commission.cash_paid,9000);
     await field('next_shipping').selectOption('delivered');await button('배송 상태 저장');
