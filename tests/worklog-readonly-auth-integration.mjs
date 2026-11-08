@@ -31,7 +31,7 @@ const read=(u,extra='')=>handler(new Request('https://fixture.test/api/personal-
 let r=await read(owner);assert.equal(r.status,200);const body=await r.json();
 assert.equal(body.schedules[0].id,schedule);
 assert.equal(body.todaySchedules[0].id,schedule);
-assert.equal(body.tasks[0].id,record);
+assert.ok(body.tasks.some(x=>x.id===record),'original owner task remains visible regardless of timestamp tie order');
 assert.ok(body.schedules.some(x=>x.id===eventSchedule),'synthetic appointment is visible in Schedule');
 assert.ok(!body.tasks.some(x=>x.id===scheduleSource),'same appointment source is not another unfinished Task');
 assert.ok(body.tasks.some(x=>x.id===legacyTask),'legacy Task without actionEngine kind remains visible');
