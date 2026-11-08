@@ -265,9 +265,47 @@ try {
  await stockRow.getByRole('cell',{name:'5 포',exact:true}).waitFor();
  await recordStock('out','2');
  await stockRow.getByRole('cell',{name:'3 포',exact:true}).waitFor();
+ const reviewSaleId=app.db.raw("select id from public.erp_sales_transactions where kind='product' and status='confirmed' order by created_at,id limit 1;");
+ app.db.rpc('erp_sales_request_adjustment',{p_sale_id:reviewSaleId,p_request_id:crypto.randomUUID(),
+  p_kind:'sales_change',p_reason:'합성 마감 대기 확인',p_detail:{amount:4000}});
  await page.getByRole('tab',{name:'월 마감',exact:true}).click();
+ const closeReview=page.locator('.erp-month-review');
+ const approvalRow=()=>closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'승인 대기',exact:true})});
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ const closingMonth=await page.locator('[name=close_month]').inputValue();
+ await page.locator('[name=close_month]').fill('2098-12');
+ await page.getByRole('button',{name:'마감 이력 조회',exact:true}).click();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ await closeReview.getByRole('button',{name:'승인 대기 목록',exact:true}).click();
+ await page.getByRole('cell',{name:'합성 마감 대기 확인',exact:true}).waitFor();
+ assert.equal(await page.locator('[name=adjustment_filter_kind]').inputValue(),'');
+ assert.equal(await page.locator('[name=adjustment_filter_stage]').inputValue(),'approval');
+ await page.getByRole('tab',{name:'월 마감',exact:true}).click();
+ await page.locator('[name=close_month]').fill(closingMonth);
+ await page.getByRole('button',{name:'마감 이력 조회',exact:true}).click();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ for(const name of ['승인 대기 목록','지급 대기 목록','회수·환불 대기 목록']){
+  const box=await closeReview.getByRole('button',{name,exact:true}).boundingBox();
+  assert.ok(box&&box.x>=0&&box.x+box.width<=390,'month review navigation stays visible on mobile');
+ }
+ await page.screenshot({path:output+'/month-close-review-390.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'월 마감 처리',exact:true}).click();
  await field('close_reason').fill('합성 월 마감');
+ const failPayoutReview=route=>route.request().postDataJSON().name==='erp_sales_list_pending_payouts'
+  ?route.fulfill({status:503,json:{message:'synthetic queue failure'}}):route.continue();
+ await page.route('**/fixture-rpc',failPayoutReview);
+ await closeReview.getByRole('button',{name:'대기 현황 새로 조회',exact:true}).click();
+ await closeReview.getByText('일부 대기 현황을 불러오지 못했습니다. 새로 조회하거나 각 목록에서 확인하세요.',{exact:true}).waitFor();
+ await closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'지급 대기',exact:true})})
+  .getByRole('cell',{name:'조회 실패',exact:true}).waitFor();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ assert.equal(await field('close_reason').inputValue(),'합성 월 마감');
+ await page.unroute('**/fixture-rpc',failPayoutReview);
+ await closeReview.getByRole('button',{name:'대기 현황 새로 조회',exact:true}).click();
+ await closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'지급 대기',exact:true})})
+  .getByRole('cell',{name:'0건',exact:true}).waitFor();
+ assert.equal(await field('close_reason').inputValue(),'합성 월 마감');
  await saved('마감 상태 저장');
  await page.getByRole('button',{name:'예외 해제',exact:true}).click();
  await field('close_reason').fill('합성 예외 정정');
