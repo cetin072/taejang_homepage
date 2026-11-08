@@ -87,12 +87,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-      # ERP owns an independent PostgreSQL fixture and can run before CLI download.
-      - name: Set up Supabase CLI
+      # Reuse npm ci's locked CLI instead of downloading a second version.
+      - name: Use repository-locked Supabase CLI
         if: steps.scope.outputs.run_full == 'true'
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
+        run: |
+          cli_expected=$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")
+          cli_actual=$(./node_modules/.bin/supabase --version)
+          test "$cli_actual" = "$cli_expected"
+          printf '%s\n' "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+          echo "Supabase CLI $cli_actual (repository lockfile)"
 
       - name: Start isolated local Supabase
         if: steps.scope.outputs.run_full == 'true'
