@@ -241,9 +241,15 @@ try {
  reject(()=>db.rpc('erp_sales_list_pending_adjustments',{}, {actor:WORKER}),/ERP_FORBIDDEN/);
  reject(()=>db.sql('select public.erp_sales_list_pending_adjustments();',{role:'anon',actor:null}),/permission denied/);
  reject(()=>adjustmentQueue({p_kind:'unknown'}),/ERP_ADJUSTMENT_INVALID_INPUT/);
+ const followups=(params={})=>db.rpc('erp_sales_list_pending_followups',params);
+ check(followups().total===0,'followups start empty');
+ reject(()=>db.rpc('erp_sales_list_pending_followups',{}, {actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.sql('select public.erp_sales_list_pending_followups();',{role:'anon',actor:null}),/permission denied/);
+ reject(()=>followups({p_kind:'unknown'}),/ERP_ADJUSTMENT_INVALID_INPUT/);
  const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,credit_amount:3030,refund_plan:600});
  request(returned);
  check(request(returned).length===1,'adjustment request retries preserve a single original record');
+ check(followups().total===0,'unapproved requests do not appear as followups');
  const pendingReturn=adjustmentQueue();
  check(pendingReturn.total===1&&pendingReturn.items[0].id===returned.p_request_id
   &&pendingReturn.items[0].sale_id===corporate.id&&pendingReturn.items[0].reason==='Synthetic adjustment',
@@ -255,6 +261,11 @@ try {
  const corporateReceipt=()=>db.rpc('erp_sales_get_receipts',{p_sale_id:corporate.id});
  check(corporateReceipt().balance===5050,'requested return credit does not change the receivable before approval');
  event(returned,'approve');
+ const followup=followups();
+ check(followup.total===1&&followup.items[0].id===returned.p_request_id
+  &&followup.items[0].recall_pending&&followup.items[0].refund_remaining===600
+  &&followup.total_refund_remaining==='600','approved return tracks recall and refund separately');
+ check(followups({p_kind:'cancel_order'}).total===0&&followups({p_kind:'return_goods'}).total===1,'followups respect adjustment kind');
  check(adjustmentQueue().total===0,'approved requests leave the pending queue before recall or refund');
  check(corporateReceipt().balance===2020,'approved return credit reduces receivable even before refund');
  reject(()=>request(requestAdjustment(corporate,'return_goods',{
@@ -262,7 +273,9 @@ try {
  })),/ERP_ADJUSTMENT_CREDIT_LIMIT/);
  reject(()=>request(requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:8})),/ERP_ADJUSTMENT_QUANTITY/);
  event(returned,'recall');
+ check(!followups().items[0].recall_pending&&followups().total_refund_remaining==='600','recall does not clear remaining refund');
  const refund=event(returned,'refund',300);
+ check(followups().items[0].refund_remaining===300&&followups().total_refund_remaining==='300','partial refunds reduce remaining refund exactly once');
  check(refund[0].detail.refund_plan===600&&refund[0].events.find(x=>x.action==='refund').amount===300,'refund plan and actual payment remain separate');
  reject(()=>event(returned,'refund',301),/ERP_ADJUSTMENT_REFUND_LIMIT/);
  const adjusted=corporateReceipt();
@@ -273,10 +286,13 @@ try {
   'receivables use the same adjusted total and net collections as the sale detail');
  reject(()=>db.rpc('erp_sales_record_receipt',collect(corporate,2321)),/ERP_RECEIPT_OVER_BALANCE/);
  check(db.rpc('erp_sales_get',{p_id:corporate.id}).total_amount===10100,'return and refund preserve the confirmed sale');
+ event(returned,'refund',300);
+ check(followups().total===0,'completed recall and refund leave followups');
  const newOrder=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID()}});
  db.rpc('erp_sales_confirm',{p_id:newOrder.id,p_revision:newOrder.revision});
  const cancellation=requestAdjustment(newOrder,'cancel_order',{refund_plan:0});
  request(cancellation);event(cancellation,'approve');
+ check(followups().total===0,'cancellation without refund needs no followup or recall');
  check(db.rpc('erp_sales_get_receipts',{p_sale_id:newOrder.id}).balance===0,'approved cancellation removes the receivable');
  reject(()=>db.rpc('erp_sales_record_receipt',collect(newOrder,1)),/ERP_RECEIPT_OVER_BALANCE/);
  reject(()=>db.rpc('erp_sales_shipping',{p_id:newOrder.id,p_status:'shipped'}),/ERP_ADJUSTMENT_SHIPPING_STATE/);
@@ -284,6 +300,7 @@ try {
  request(declined);
  check(adjustmentQueue().items[0].id===declined.p_request_id,'new requests reappear in pending queue');
  event(declined,'reject');
+ check(followups().total===0,'rejected requests are excluded from followups');
  check(adjustmentQueue().total===0,'rejected requests leave the pending queue');
  const commissionChange=requestAdjustment(person,'commission_change',{commission_action:'offset',amount:100});
  request(commissionChange);event(commissionChange,'approve');
