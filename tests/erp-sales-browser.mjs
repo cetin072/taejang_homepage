@@ -151,8 +151,18 @@ try {
  await page.getByText('회수·환불 대기 1건 · 남은 환불 100원',{exact:true}).waitFor();
  await page.getByRole('cell',{name:'회수 대기',exact:true}).waitFor();
  await page.setViewportSize({width:390,height:844});
+ // Wait for the responsive shell to settle before checking document overflow.
+ try{
+  await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth,{},{timeout:3000});
+ }catch(error){
+  console.log('ERP_MOBILE_OVERFLOW',JSON.stringify(await page.evaluate(()=>({
+   width:innerWidth,scroll:document.documentElement.scrollWidth,
+   elements:[...document.querySelectorAll('body *')].filter(n=>n.getBoundingClientRect().right>innerWidth+1)
+    .map(n=>({tag:n.tagName,cls:n.className,width:n.getBoundingClientRect().width,right:n.getBoundingClientRect().right,overflow:getComputedStyle(n).overflowX})).slice(0,40)
+  }))));
+  throw error;
+ }finally{await page.screenshot({path:output+'/adjustment-followups-390.png',fullPage:true});}
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- await page.screenshot({path:output+'/adjustment-followups-390.png',fullPage:true});
  await page.setViewportSize({width:1440,height:1000});
  await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
