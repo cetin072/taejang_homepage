@@ -53,12 +53,6 @@ jobs:
         if: steps.scope.outputs.run_full != 'true'
         run: echo "Documentation-only change; required check is satisfied without starting Supabase."
 
-      - name: Set up Supabase CLI
-        if: steps.scope.outputs.run_full == 'true'
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
-
       - name: Run active static platform checks
         if: steps.scope.outputs.run_full == 'true'
         run: node scripts/run-test-group.mjs platformStatic
@@ -78,14 +72,6 @@ jobs:
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y fonts-noto-cjk
 
-      - name: Start isolated local Supabase
-        if: steps.scope.outputs.run_full == 'true'
-        run: supabase start
-
-      - name: Test candidate personal menu authority in isolated PostgreSQL
-        if: steps.scope.outputs.run_full == 'true'
-        run: node tests/menu-authority-isolated.mjs
-
       - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
         if: steps.scope.outputs.run_full == 'true'
         run: |
@@ -100,6 +86,21 @@ jobs:
           path: admin-ui-qa-artifacts/erp-sales/
           if-no-files-found: ignore
           retention-days: 7
+
+      # ERP owns an independent PostgreSQL fixture and can run before CLI download.
+      - name: Set up Supabase CLI
+        if: steps.scope.outputs.run_full == 'true'
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start isolated local Supabase
+        if: steps.scope.outputs.run_full == 'true'
+        run: supabase start
+
+      - name: Test candidate personal menu authority in isolated PostgreSQL
+        if: steps.scope.outputs.run_full == 'true'
+        run: node tests/menu-authority-isolated.mjs
 
       - name: Test personal menu authority administration with synthetic browser data
         if: steps.scope.outputs.run_full == 'true'
