@@ -226,14 +226,24 @@
     ...(kind==='product'?{supplier_id:d.supplier_id,order_channel:d.order_channel,shipping_status:d.shipping_status}:{contract_id:data.contract_id,sales_month:data.sales_month})};
    void run(async()=>{const result=await rpc('erp_sales_save',{p_data:payload,p_id:data.id||null,p_revision:data.revision||0});f.dataset.dirty='false';saleEditor(result);if(tab==='sales')await drawSales();report('매출을 저장했습니다. 입력한 실제 단가와 조건이 보존됩니다.');});
   });
-  let refreshReceipts;
-  if(locked&&phase4) drawAdjustments(data,()=>refreshReceipts?.());
-  if(locked&&phase2) refreshReceipts=drawReceipts(data.id,data.total_amount);
-  if(locked&&phase2&&(data.supplier_id||(data.agent_id&&Number(data.commission?.value)>0))) drawPayouts(data.id);
+  if(locked){
+   const original=el('details','','erp-original-details');
+   original.append(el('summary','원거래 정보·품목 보기'));
+   for(const child of [...f.children]){
+    if(child.tagName!=='H3'&&child!==actions&&!child.classList.contains('erp-total'))original.append(child);
+   }
+   const overview=el('p',data.party_snapshot.name+' · '+data.sales_date,'erp-confirmed-overview');
+   f.insertBefore(overview,f.querySelector('.erp-total'));
+   f.insertBefore(original,actions);
+  }
+  let refreshReceipts,refreshPayouts;
+  if(locked&&phase2) refreshReceipts=drawReceipts(data.id,data.total_amount,()=>refreshPayouts?.());
+  if(locked&&phase2&&(data.supplier_id||(data.agent_id&&Number(data.commission?.value)>0))) refreshPayouts=drawPayouts(data.id);
   if(sale?.id&&kind==='product'){
    const delivery=el('section','','app-form-section');delivery.append(el('h4','공급처 직배송 상태'),el('p',kinds[data.shippingCurrent||data.shipping_status]||'—'));const next=field(delivery,'next_shipping','배송 상태 기록','select',data.shippingCurrent||data.shipping_status,[['preparing','배송 준비'],['shipped','발송'],['delivered','배송 완료']]);
    if(state.canWrite)delivery.append(btn('배송 상태 저장',()=>{const value=next.value;void run(async()=>{const result=await rpc('erp_sales_shipping',{p_id:data.id,p_status:value});f.dataset.dirty='false';saleEditor(result);report('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.');});}));else next.disabled=true;editor.append(delivery);
   }
+  if(locked&&phase4) drawAdjustments(data,async()=>{await refreshReceipts?.();await refreshPayouts?.();});
   if(sale?.id){const history=el('details');history.append(el('summary',`변경 이력 ${(data.history||[]).length}건`),table(['작업','일시','작업자'],(data.history||[]).map(h=>[({create:'등록',update:'수정',confirm:'확정',shipping:'배송 상태'})[h.action]||h.action,new Intl.DateTimeFormat('ko-KR',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Seoul'}).format(new Date(h.created_at)),h.actor_id])));editor.append(history);}
  }
  function drawPayouts(saleId){
@@ -246,6 +256,12 @@
   panel.append(el('h4','영업비·공급처 지급'),refresh,content);
   editor.append(panel);
   const canAct=state.canWrite&&state.canConfirm;
+  return async()=>{
+   if(panel.isConnected&&content.hasChildNodes()&&!content.querySelector('form[data-dirty="true"]')){
+    const summary=await rpc('erp_sales_get_payouts',{p_sale_id:saleId});
+    if(panel.isConnected&&!content.querySelector('form[data-dirty="true"]'))render(summary);
+   }
+  };
 
   function canReplaceForm(){
    return !content.querySelector('form[data-dirty="true"]')||window.confirm('저장하지 않은 지급 입력을 닫을까요?');
@@ -342,7 +358,7 @@
    }
   }
  }
- function drawReceipts(saleId,originalTotal){
+ function drawReceipts(saleId,originalTotal,onSaved){
   const panel=el('section','','app-form-section');
   const content=el('div');
   const load=btn('수금 내역 조회',()=>{
@@ -360,6 +376,8 @@
   async function showSaved(summary,message){
    render(summary);
    report(message);
+   try{await onSaved?.();}
+   catch{report(message+' 지급 내역 조회를 다시 눌러 주세요.',true);}
    if(tab==='receivables'){
     await drawReceivables().catch(()=>report('저장했습니다. 미수금 목록 조회를 다시 시도해 주세요.',true));
    }
