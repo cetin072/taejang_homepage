@@ -37,6 +37,26 @@ try {
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
  await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();
  assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'1');
+ const recordOnlyEffect='금액과 승인 이력을 보관합니다. 수금·미수금·지급액은 자동 변경되지 않습니다.';
+ const returnEffect='취소·반품 승인액은 미수금에, 실제 환불은 순수금에 반영됩니다.';
+ const offsetEffect='승인된 상계액은 같은 영업자의 다음 지급 승인에 적용됩니다.';
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
+ await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ const adjustmentRequest=()=>page.locator('form').filter({has:page.locator('[name=adjustment_kind]')});
+ await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await adjustmentRequest().locator('[name=amount]').fill('50000');
+ await field('adjustment_reason').fill('합성 용역 조정 이력');
+ await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
+ await page.getByText('원거래 매출 55,000원 · 요청한 매출 50,000원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'승인',exact:true}).click();
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await field('event_note').fill('합성 기록형 용역 승인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByRole('heading',{name:'용역 매출 조정 · 승인',exact:true}).waitFor();
+ await page.locator('.erp-editor').getByText(recordOnlyEffect,{exact:true}).waitFor();
+ const serviceId=app.db.raw("select id from public.erp_sales_transactions where kind='service';");
+ assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,55000,
+  'record-only guidance matches approved service adjustment behavior');
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/service-1440.png',fullPage:true});
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
@@ -126,7 +146,18 @@ try {
  assert.equal(await page.locator('[name=invoice_file]').count(),0);
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ await field('adjustment_kind').selectOption('sales_change');
+ await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ await field('adjustment_kind').selectOption('commission_change');
+ await adjustmentRequest().getByText(offsetEffect,{exact:true}).waitFor();
+ for(const action of ['return','waive','difference']){
+  await field('commission_action').selectOption(action);
+  await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ }
+ await field('commission_action').selectOption('offset');
+ await adjustmentRequest().getByText(offsetEffect,{exact:true}).waitFor();
  await field('adjustment_kind').selectOption('return_goods');
+ await adjustmentRequest().getByText(returnEffect,{exact:true}).waitFor();
  await field('credit_amount').fill('100');
  await field('refund_plan').fill('100');
  await field('adjustment_reason').fill('합성 반품 요청');

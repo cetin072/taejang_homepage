@@ -732,6 +732,12 @@
  const adjustmentLabels={cancel_order:'배송 전 취소',return_goods:'반품',service_change:'용역 매출 조정',
   sales_change:'확정 매출 조정',commission_change:'지급 영업비 조정'};
  const adjustmentActions={approve:'승인',reject:'반려',recall:'공급처 회수 확인',refund:'실제 환불 기록'};
+ function adjustmentEffect(kind,commissionAction){
+  if(kind==='cancel_order'||kind==='return_goods')return '취소·반품 승인액은 미수금에, 실제 환불은 순수금에 반영됩니다.';
+  if(kind==='commission_change'&&commissionAction==='offset')return '승인된 상계액은 같은 영업자의 다음 지급 승인에 적용됩니다.';
+  return '금액과 승인 이력을 보관합니다. 수금·미수금·지급액은 자동 변경되지 않습니다.';
+ }
+
  const commissionActions=[['offset','다음 영업비에서 상계'],['return','별도 반환'],['difference','차액 조정'],['waive','면제']];
  function drawAdjustments(sale,refreshReceipts){
   const panel=el('section','','app-form-section');
@@ -774,8 +780,9 @@
     if(row.kind==='commission_change'){
      box.append(el('p',Object.fromEntries(commissionActions)[row.detail.commission_action]+' · '+money(row.detail.amount),'help'));
     }else if(row.detail.amount!=null){
-     box.append(el('p','기존 매출 '+money(row.before.total_amount)+' · 조정 후 '+money(row.detail.amount),'help'));
+     box.append(el('p','원거래 매출 '+money(row.before.total_amount)+' · 요청한 매출 '+money(row.detail.amount),'help'));
     }
+    box.append(el('p',adjustmentEffect(row.kind,row.detail.commission_action),'help'));
     if(planned)box.append(el('p','환불 예정 '+money(planned)+' · 실제 환불 '+money(refunded),'help'));
     if(row.events.length)box.append(table(['일자','처리','금액','근거'],row.events.map(event=>[
      event.recorded_on,adjustmentActions[event.action],event.amount===null?'—':money(event.amount),event.note
@@ -806,6 +813,7 @@
    const amount=amountField(grid,'조정 금액 또는 조정 후 매출 (원)','0');
    const commission=field(grid,'commission_action','지급 영업비 처리','select','offset',commissionActions);
    const reason=field(grid,'adjustment_reason','요청 사유','text','',[],true);reason.maxLength=500;
+   const effect=el('p','','help');
    const toggle=(input,visible,required=false)=>{
     input.closest('label').hidden=!visible;input.disabled=!visible;input.required=visible&&required;
    };
@@ -815,9 +823,10 @@
     toggle(line,returns);toggle(quantity,returns&&Boolean(line.value),true);
     toggle(credit,returns,true);toggle(refund,productAction,true);toggle(amount,!productAction,true);
     toggle(commission,kind.value==='commission_change',true);
+    effect.textContent=adjustmentEffect(kind.value,commission.value);
    }
-   kind.addEventListener('change',sync);line.addEventListener('change',sync);sync();
-   f.append(grid,el('p','승인된 취소·반품은 미수금에, 실제 환불은 순수금에 반영됩니다. 영업비 상계는 같은 영업자의 다음 지급 승인에 적용됩니다.','help'));
+   kind.addEventListener('change',sync);line.addEventListener('change',sync);commission.addEventListener('change',sync);sync();
+   f.append(grid,effect);
    const id=crypto.randomUUID();
    supportSubmit(f,'조정 요청 저장',async()=>{
     const returns=kind.value==='return_goods';
@@ -840,7 +849,7 @@
    const date=datedField(grid,'처리일');
    const note=field(grid,'event_note','처리 근거','text','',[],true);note.maxLength=500;
    const amount=action==='refund'?amountField(grid,'실제 환불액 (원)'):null;
-   f.append(el('h5',adjustmentActions[action]),grid);
+   f.append(el('h5',adjustmentActions[action]),grid,el('p',adjustmentEffect(row.kind,row.detail.commission_action),'help'));
    const id=crypto.randomUUID();
    supportSubmit(f,'처리 저장',async()=>{
     const updated=await rpc('erp_sales_record_adjustment_event',{p_sale_id:sale.id,p_adjustment_id:row.id,
