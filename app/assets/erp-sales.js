@@ -816,7 +816,7 @@
    const credit=field(grid,'credit_amount','반품 매출 차감액 (원)','number','');
    credit.min='1';credit.step='1';credit.max=String(sale.total_amount);
    const refund=field(grid,'refund_plan','환불 예정액 (원)','number','0');refund.step='1';
-   const amount=amountField(grid,'조정 금액 또는 조정 후 매출 (원)','0');
+   const amount=amountField(grid,'조정 후 매출 (원)','0');
    const commission=field(grid,'commission_action','지급 영업비 처리','select','offset',commissionActions);
    const reason=field(grid,'adjustment_reason','요청 사유','text','',[],true);reason.maxLength=500;
    const effect=el('p','','help');
@@ -829,6 +829,7 @@
     toggle(line,returns);toggle(quantity,returns&&Boolean(line.value),true);
     toggle(credit,returns,true);toggle(refund,productAction,true);toggle(amount,!productAction,true);
     toggle(commission,kind.value==='commission_change',true);
+    amount.closest('label').querySelector('span').textContent=kind.value==='commission_change'?'영업비 조정액 (원)':'조정 후 매출 (원)';
     effect.textContent=adjustmentEffect(kind.value,commission.value);
    }
    kind.addEventListener('change',sync);line.addEventListener('change',sync);commission.addEventListener('change',sync);sync();

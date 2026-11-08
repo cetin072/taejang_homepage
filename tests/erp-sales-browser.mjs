@@ -47,7 +47,7 @@ try {
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
  const adjustmentRequest=()=>page.locator('form').filter({has:page.locator('[name=adjustment_kind]')});
  await adjustmentRequest().getByText(automaticEffect,{exact:true}).waitFor();
- await adjustmentRequest().locator('[name=amount]').fill('50000');
+ await adjustmentRequest().getByLabel('조정 후 매출 (원)',{exact:true}).fill('50000');
  await field('adjustment_reason').fill('합성 용역 조정 이력');
  await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
  await page.getByText('원거래 매출 55,000원 · 요청한 매출 50,000원',{exact:true}).waitFor();
