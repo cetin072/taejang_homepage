@@ -7,8 +7,8 @@
  const taxChoices=[['taxable','과세 (세액 직접 입력)'],['exempt','면세'],['zero_rated','영세율']];
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
- let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,payoutQueue=false,adjustmentQueue=false,contractMonthLookup=false,tab='parties',busy=false,epoch=0;
- let contractPeriod='all',adjustmentKind='';
+ let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,payoutQueue=false,adjustmentQueue=false,adjustmentFollowups=false,contractMonthLookup=false,tab='parties',busy=false,epoch=0;
+ let contractPeriod='all',adjustmentKind='',adjustmentStage='approval';
  const payoutFilters={kind:'',overdue:false};
  const receivableFilters={party:'',from:'',to:''};
  const purchaseRange={from:today().slice(0,7)+'-01',to:today()};
@@ -545,24 +545,29 @@
    ])));
  }
  async function drawAdjustmentQueue(){
-  const list=await rpc('erp_sales_list_pending_adjustments',{p_kind:adjustmentKind||null});
+  const followups=adjustmentFollowups&&adjustmentStage==='followups';
+  const list=await rpc(followups?'erp_sales_list_pending_followups':'erp_sales_list_pending_adjustments',{p_kind:adjustmentKind||null});
   if(tab!=='adjustments')return;
   const form=el('form','','app-authoring');
   const grid=el('div','','erp-fields');
+  const stage=adjustmentFollowups?field(grid,'adjustment_filter_stage','대기 구분','select',adjustmentStage,
+   [['approval','승인 대기'],['followups','회수·환불 대기']]):null;
   const kind=field(grid,'adjustment_filter_kind','조정 구분','select',adjustmentKind,
    [['','전체'],...Object.entries(adjustmentLabels)]);
   const search=el('button','조정 대기 조회','button primary');search.type='submit';
   form.append(grid,search);
   form.addEventListener('submit',event=>{
-   event.preventDefault();adjustmentKind=kind.value;
+   event.preventDefault();adjustmentKind=kind.value;adjustmentStage=stage?.value||'approval';
    void run(async()=>{await drawAdjustmentQueue();report('');});
   });
   body.replaceChildren(form);
-  body.append(el('p','조정 대기 '+list.total+'건'+(list.total>list.limit?' ('+list.limit+'건 표시)':''),'erp-total'),
-   el('p','승인·반려 전 요청을 오래된 순서로 표시합니다. 상세에서 요청 내용과 원거래를 확인한 뒤 처리하세요.','help'));
+  const total=followups?'회수·환불 대기 '+list.total+'건 · 남은 환불 '+BigInt(list.total_refund_remaining).toLocaleString('ko-KR')+'원':'조정 대기 '+list.total+'건';
+  body.append(el('p',total+(list.total>list.limit?' ('+list.limit+'건 표시)':''),'erp-total'),
+   el('p',followups?'승인 후 회수나 환불 기록이 남은 건입니다. 상세에서 실제 처리 내역을 기록하세요.':'승인·반려 전 요청을 오래된 순서로 표시합니다. 상세에서 요청 내용과 원거래를 확인한 뒤 처리하세요.','help'));
   if(!list.items.length){body.append(el('p','조회 조건에 맞는 조정 대기 요청이 없습니다.','message'));return;}
-  body.append(table(['요청일','거래처','구분','요청 사유',''],list.items.map(row=>[
-   row.requested_on,row.party_name,adjustmentLabels[row.kind],row.reason,
+  body.append(table([followups?'승인일':'요청일','거래처','구분',...(followups?['회수','남은 환불']:[]),'요청 사유',''],list.items.map(row=>[
+   followups?row.approved_on:row.requested_on,row.party_name,adjustmentLabels[row.kind],
+   ...(followups?[row.recall_pending?'회수 대기':row.kind==='return_goods'?'회수 기록 완료':'해당 없음',money(row.refund_remaining)]:[]),row.reason,
    btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:row.sale_id}))))
   ])));
  }
@@ -930,14 +935,15 @@
  function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='adjustments')void run(drawAdjustmentQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else void run(drawMonthClose);}
  async function open(){if(!allowed())return;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2','기준정보·매출 관리'),status);main.replaceChildren(root);
   try{
-   const [bootstrap,ready,purchasingReady,adjustmentsReady,queueReady,monthLookupReady,adjustmentQueueReady]=await Promise.all([
+   const [bootstrap,ready,purchasingReady,adjustmentsReady,queueReady,monthLookupReady,adjustmentQueueReady,followupsReady]=await Promise.all([
     rpc('erp_sales_bootstrap'),
     rpc('erp_sales_phase2_ready').catch(()=>false),
     rpc('erp_sales_phase3_ready').catch(()=>false),
     rpc('erp_sales_adjustments_ready').catch(()=>false),
     rpc('erp_sales_payout_queue_ready').catch(()=>false),
     rpc('erp_sales_contract_month_ready').catch(()=>false),
-    rpc('erp_sales_adjustment_queue_ready').catch(()=>false)
+    rpc('erp_sales_adjustment_queue_ready').catch(()=>false),
+    rpc('erp_sales_adjustment_followups_ready').catch(()=>false)
    ]);
    if(generation!==epoch)return;
    state=bootstrap;
@@ -947,6 +953,8 @@
    payoutQueue=ready===true&&queueReady===true;
    contractMonthLookup=monthLookupReady===true;
    adjustmentQueue=phase4&&adjustmentQueueReady===true;
+   adjustmentFollowups=adjustmentQueue&&followupsReady===true;
+   if(!adjustmentFollowups)adjustmentStage='approval';
    if(!adjustmentQueue&&tab==='adjustments')tab='sales';
    if(!payoutQueue&&tab==='payouts')tab='sales';
    if(!phase4&&tab==='close')tab='sales';

@@ -146,11 +146,42 @@ try {
  await field('event_note').fill('합성 반품 승인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('조정 대기 0건',{exact:true}).waitFor();
+ await page.locator('[name=adjustment_filter_stage]').selectOption('followups');
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).click();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 100원',{exact:true}).waitFor();
+ await page.getByRole('cell',{name:'회수 대기',exact:true}).waitFor();
+ await page.setViewportSize({width:390,height:844});
+ // Wait for the responsive shell to settle before checking document overflow.
+ try{
+  await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth,{},{timeout:3000});
+ }catch(error){
+  console.log('ERP_MOBILE_OVERFLOW',JSON.stringify(await page.evaluate(()=>({
+   width:innerWidth,scroll:document.documentElement.scrollWidth,
+   elements:[...document.querySelectorAll('body *')].filter(n=>n.getBoundingClientRect().right>innerWidth+1)
+    .map(n=>({tag:n.tagName,cls:n.className,width:n.getBoundingClientRect().width,right:n.getBoundingClientRect().right,overflow:getComputedStyle(n).overflowX})).slice(0,40)
+  }))));
+  throw error;
+ }finally{await page.screenshot({path:output+'/adjustment-followups-390.png',fullPage:true});}
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.setViewportSize({width:1440,height:1000});
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'실제 환불 기록',exact:true}).click();
- await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('100');
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('50');
+ await field('event_note').fill('합성 부분 환불 확인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 50원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'실제 환불 기록',exact:true}).click();
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('50');
  await field('event_note').fill('합성 환불 확인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('환불 예정 100원 · 실제 환불 100원',{exact:true}).waitFor();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 0원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'공급처 회수 확인',exact:true}).click();
+ await field('event_note').fill('합성 공급처 회수 확인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('회수·환불 대기 0건 · 남은 환불 0원',{exact:true}).waitFor();
  await page.getByText('조정 후 매출 3,972원',{exact:true}).waitFor();
  await page.getByText('실제 환불 100원 · 순수금 3,972원',{exact:true}).waitFor();
  await page.getByText('누적 수금 4,072원 · 미수금 0원',{exact:true}).waitFor();
@@ -271,7 +302,7 @@ try {
 
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);
  await page.route('**/fixture-rpc',route=>{
-  if(route.request().postDataJSON().name==='erp_sales_phase2_ready'){
+  if(['erp_sales_phase2_ready','erp_sales_adjustment_followups_ready'].includes(route.request().postDataJSON().name)){
    return route.fulfill({status:404,json:{message:'PGRST202'}});
   }
   return route.continue();
@@ -281,6 +312,9 @@ try {
  await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
  assert.equal(await page.getByRole('tab',{name:'지급 대기',exact:true}).count(),0);
+ await page.getByRole('tab',{name:'조정 대기',exact:true}).click();
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).waitFor();
+ assert.equal(await page.locator('[name=adjustment_filter_stage]').count(),0);
  assert.ok(dialogs.filter(t=>t.includes('확정 후')).length===2,'two explicit confirmations');assert.equal(dialogs.filter(t=>t.includes('저장하지 않은 입력이 있을 수')).length,0,'saved ERP data does not trigger shell dirty warnings');
  console.log('ERP_BROWSER_PASS: real PG17 scenario A/B, reload, filters, failure input preservation, confirm, delivery, 1440/390px, permission scrub');
 }finally{await browser.close();await app.close();}

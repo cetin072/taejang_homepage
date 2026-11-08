@@ -145,7 +145,10 @@ test('staff code routes pending and blocked accounts away from internal app', ()
 test('local integration workflow uses no hosted project or repository secrets', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github/workflows/phase1a-supabase-integration.yml'), 'utf8');
   const config = fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8');
-  assert.match(workflow, /supabase\/setup-cli@v1/);
+  assert.match(workflow, /npm ci/);
+  assert.ok(workflow.includes("require('./package-lock.json').packages['node_modules/supabase'].version"));
+  assert.match(workflow, /node_modules\/\.bin\/supabase --version/);
+  assert.ok(workflow.includes('test "$cli_actual" = "$cli_expected"'));
   assert.match(workflow, /supabase start/);
   assert.match(workflow, /supabase db reset/);
   assert.match(workflow, /supabase test db/);
