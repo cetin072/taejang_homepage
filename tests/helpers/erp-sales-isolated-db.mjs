@@ -8,7 +8,7 @@ export function docker(args, options={}) {
  const wsl=process.env.ERP_DOCKER_WSL==='1';
  return execFileSync(wsl?'wsl.exe':'docker',wsl?['-e','docker','-H','unix:///var/run/erp-v1-docker.sock',...args]:args,{encoding:'utf8',stdio:['pipe','pipe','pipe'],...options}).trim();
 }
-export async function createERPDatabase() {
+export async function createERPDatabase({amountAdjustments=true}={}) {
  const name=`taejang-erp-sales-test-${process.pid}`;
  docker(['run','--detach','--rm','--network','none','--name',name,'-e','POSTGRES_HOST_AUTH_METHOD=trust','postgres:17-alpine']);
  const raw=statement=>docker(['exec','-i',name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'],{input:statement});
@@ -32,6 +32,7 @@ export async function createERPDatabase() {
    insert into public.profile_roles select '${OPS}',id,null from public.roles where code='operations_manager';
    insert into public.profile_roles select '${WORKER}',id,null from public.roles where code='general_worker';`);
   for(const file of ['20260909150000_issue_148_capability_foundation.sql','20261001100000_monthly_client_documents.sql','20261028033019_personal_menu_authority_contract.sql','20261105122517_erp_sales_v1.sql','20261106160001_erp_sales_receipts_v1.sql','20261106160015_erp_sales_payouts_v1.sql','20261106162542_erp_sales_purchasing_v1.sql','20261106165111_erp_sales_adjustments_v1.sql','20261107082659_erp_retire_tax_invoice_management.sql','20261107113146_erp_sales_payout_queue.sql','20261108032653_erp_sales_contract_month_lookup.sql','20261108083923_erp_sales_adjustment_queue.sql','20261108092226_erp_sales_adjustment_followups.sql']) raw(readFileSync('supabase/migrations/'+file,'utf8'));
+  if(amountAdjustments)raw(readFileSync('supabase/migrations/20261108115308_erp_sales_apply_amount_adjustments.sql','utf8'));
   const sql=(statement,{actor=OPS,role='authenticated'}={})=>raw(`set role ${role};select set_config('request.jwt.claim.sub','${actor||''}',false);${statement}`).split(/\r?\n/).filter(s=>s!==actor).join('\n');
   const rpc=(fn,params={},{actor=OPS}={})=>{
    if(!/^erp_sales_[a-z0-9_]+$/.test(fn))throw new Error('fixture RPC outside ERP');
