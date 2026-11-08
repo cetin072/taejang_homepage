@@ -274,7 +274,7 @@ try {
  await salesFilters.getByRole('button',{name:'이번 달',exact:true}).click();
  await page.locator('.erp-sales:not([aria-busy])').waitFor();
  assert.equal(await salesFilters.locator('[name=from]').inputValue(),firstOfMonth);
- assert.equal(await salesFilters.locator('[name=to]').inputValue(),currentDate);
+ assert.equal(await salesFilters.locator('[name=to]').inputValue(),new Date(Date.UTC(Number(currentDate.slice(0,4)),Number(currentDate.slice(5,7)),0)).toISOString().slice(0,10));
  assert.equal(await salesFilters.locator('[name=kind]').inputValue(),'product');
  await salesFilters.locator('[name=kind]').selectOption('');
  await salesFilters.locator('[name=from]').fill('2099-01-01');
