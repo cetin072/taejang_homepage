@@ -84,6 +84,9 @@ try{
    });
    await stage('상품: 10포 주문·영업비 조건·확정',async()=>{
     await tab('매출·판매');await button('소금·상품 판매 등록');await select('party_id','가상 상품 고객');await select('supplier_id','가상 직배송 공급처');
+    report.agentAutofill=Boolean(await field('agent_id').inputValue());
+    if(variant==='candidate')assert.equal(report.agentAutofill,true,'existing customer manager must be selected');
+    else if(!report.agentAutofill)await select('agent_id','가상 담당 영업자');
     await select('item_id_1','SIM-SALT · 가상 소금');await fill('quantity_1','10');await fill('unit_price_1','10000');await fill('tax_amount_1','10000');
     await field('fee_kind').selectOption('fixed');await fill('fee_value','10000');await field('settlement_rule').selectOption('proportional');
     await button('매출 저장');await button('매출 확정');firstProduct=saleId('product');
@@ -128,6 +131,8 @@ try{
    });
    await stage('재주문: 기존 주문 복사→수금→영업비 상계·지급',async()=>{
     await button('새 주문으로 복사');assert.equal(await field('quantity_1').inputValue(),'10');assert.equal(await field('unit_price_1').inputValue(),'10000');assert.equal(await field('fee_kind').inputValue(),'none');
+    if(variant==='candidate')assert.ok(await field('agent_id').inputValue(),'copy uses the current assigned manager');
+    else if(!await field('agent_id').inputValue())await select('agent_id','가상 담당 영업자');
     await field('fee_kind').selectOption('fixed');await fill('fee_value','10000');await button('매출 저장');await button('매출 확정');secondProduct=saleId('product');assert.notEqual(firstProduct,secondProduct);
     await button('수금 내역 조회');await fill('receipt_amount','110000');await button('입금 기록 저장');await button('지급 내역 조회');await button('영업비 승인');
     await fill('payout_basis','10000');await fill('payout_amount','10000');await fill('payout_evidence','재주문 수금·기존 상계 확인');await button('지급 승인 저장');
@@ -156,6 +161,10 @@ try{
    await stage('재조회: 새로고침 후 저장값 보존',async()=>{
     await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await tab('매출·판매');
     await page.getByText('총 3건',{exact:true}).waitFor();
+    const row=page.locator('.erp-body tbody tr').filter({has:page.getByRole('cell',{name:'가상 모회사',exact:true})});
+    report.listedCurrentAmount=await row.getByText('50,000원',{exact:true}).count()===1;
+    if(variant==='candidate'){assert.equal(report.listedCurrentAmount,true);await row.getByText('원거래 55,000원',{exact:true}).waitFor();}
+    else assert.equal(report.listedCurrentAmount,false,'baseline list shows only the original amount');
     await page.locator('.erp-body tbody tr').filter({has:page.getByRole('cell',{name:'가상 모회사',exact:true})}).getByRole('button',{name:'상세',exact:true}).click();await idle();await button('수금 내역 조회');
     await page.getByText('누적 수금 50,000원 · 미수금 0원',{exact:true}).waitFor();
     await page.setViewportSize({width:390,height:844});await capture('confirmed-390');

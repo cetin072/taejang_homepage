@@ -37,6 +37,8 @@ await must('erp_sales_approve_amount_adjustment',approval);
 const position=await must('erp_sales_get_receipts',{p_sale_id:month.id});
 check(position.effective_total===50000&&position.balance===50000,'HTTP approval applies target amount once');
 check((await must('erp_sales_get',{p_id:month.id})).total_amount===55000,'HTTP approval preserves the original confirmed amount');
+const adjustedList=await must('erp_sales_list',{p_from:'2097-01-01',p_to:'2097-12-31'});
+check(adjustedList.items.find(x=>x.id===month.id).effective_total===50000,'HTTP sales list agrees with adjusted receivables');
 const adjustments=await must('erp_sales_list_adjustments',{p_sale_id:month.id});
 check(adjustments.find(x=>x.id===adjustmentId).events[0].sales_delta===-5000,'HTTP approval exposes the exact financial effect');
 for(const [name,params] of [['erp_sales_bootstrap',{}],['erp_sales_list',{p_from:'2097-01-01',p_to:'2097-12-31'}],['erp_sales_get',{p_id:sale.id}],['erp_sales_save',{p_data:saleInput}],['erp_sales_save_master',{p_kind:'agent',p_data:{name:'Denied'}}],['erp_sales_confirm',{p_id:month.id,p_revision:month.revision}],['erp_sales_shipping',{p_id:sale.id,p_status:'delivered'}]]){const denied=await rpc(name,worker,params);check(denied.status===403,'worker denied '+name);}

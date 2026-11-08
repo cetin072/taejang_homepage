@@ -34,6 +34,7 @@ try{
  const pending=request(sale,'service_change',{amount:45000});
  check(position(sale).effective_total===55000,'legacy approval was record-only before migration');
  db.raw(readFileSync('supabase/migrations/20261108115308_erp_sales_apply_amount_adjustments.sql','utf8'));
+ db.raw(readFileSync('supabase/migrations/20261108123012_erp_sales_list_effective_amounts.sql','utf8'));
  check(position(sale).effective_total===55000,'migration never reinterprets historical approvals');
  check(call('erp_sales_list_adjustments',{p_sale_id:sale.id}).find(x=>x.id===old).events[0].sales_delta===null,'legacy approvals carry an explicit null effect');
  check(call('erp_sales_amount_adjustments_ready')===true,'new backend readiness is available to ERP reader');
@@ -44,6 +45,8 @@ try{
  check(position(sale).effective_total===55000,'pending amount changes never alter balances');
  collect(sale,20000);approve(first);
  check(position(sale).effective_total===45000&&position(sale).balance===25000,'approval changes a partially collected balance');
+ const listed=call('erp_sales_list',{p_from:on.slice(0,7)+'-01',p_to:on,p_party_id:party.id}).items.find(x=>x.id===sale.id);
+ check(listed.total_amount===55000&&listed.effective_total===45000,'sales list exposes current and original amounts together');
  check(call('erp_sales_list_receivables',{p_party_id:party.id}).items[0].balance===25000,'receivable list shares the applied total');
  approve(first);
  check(position(sale).balance===25000,'retry does not apply the amount delta twice');
