@@ -613,3 +613,16 @@
 @media(max-width:600px) { .personal-worklog { padding:12px; margin:16px 0; } .worklog-date-button { height:96px; padding:3px; } .worklog-event { font-size:11px; padding:1px 2px; line-height:16px; } .worklog-day-dialog { padding:16px; } }
 
 .management-attention-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px;margin:16px 0}.management-attention-cards[hidden]{display:none}.management-attention-cards ul{padding-left:20px;line-height:1.8}.management-attention-cards .dashboard-card{grid-column:auto;min-width:0;box-sizing:border-box;border-left:4px solid #315d49;overflow-wrap:anywhere}
+
+/* Same calendar grid for every employee; source text remains visible without color. */
+.employee-calendar header > h3 { flex:1 1 auto; }
+.calendar-source-company { background:#e4f1e7; }
+.employee-calendar-form { display:grid;gap:14px; }
+.employee-calendar-form label { display:grid;gap:6px;min-width:0; }
+.employee-calendar-form :is(input,textarea) { width:100%;box-sizing:border-box;min-height:44px;padding:10px;border:1px solid #b7c7bf;border-radius:8px;font:inherit; }
+.employee-calendar-form textarea { min-height:80px; }
+.employee-calendar-form details > label { margin-block:12px; }
+.employee-calendar .worklog-day-event { padding-block:12px;border-bottom:1px solid #dce3ea; }
+.employee-calendar .worklog-day-event button { margin:6px 6px 0 0; }
+.calendar-description { white-space:pre-wrap;overflow-wrap:anywhere; }
+.employee-calendar[aria-busy] .worklog-controls button { pointer-events:none;opacity:.6; }
