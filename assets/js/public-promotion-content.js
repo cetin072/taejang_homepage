@@ -41,7 +41,7 @@
     const summary = String(item.summary || '').trim();
     const same = normalized(body) === normalized(summary);
     // Remove repeated leads, not the approved body. A preview stays a preview.
-    const lead = body && (same || normalized(body).startsWith(normalized(summary).replace(/(?:\.{3}|…)$/, '').trim()))
+    const lead = !body || same || normalized(body).startsWith(normalized(summary).replace(/(?:\.{3}|…)$/, '').trim())
       ? '' : summary;
     const preview = Boolean(origin && (!body || same || excerpt(body)));
     // Legacy source imports were sometimes stored as homepage_article. A third-party

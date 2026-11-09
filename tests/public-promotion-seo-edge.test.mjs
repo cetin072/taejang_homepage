@@ -210,3 +210,14 @@ test('spoofed official sources never become official related records', () => {
     assert.notEqual(result.sourceLabel, '태장 공식 블로그');
   }
 });
+
+test('a source with summary only shows its preview once without inventing body text', async () => {
+  const item = { ...full, summary: '원문에서 제공한 미리보기입니다.', public_body: '', external_url: 'https://www.gnen.net/news/articleView.html?idxno=141330' };
+  const env = setup({ detail: [item] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.equal((html.match(/원문에서 제공한 미리보기입니다\.<\/p>/g) || []).length, 1);
+    assert.match(html, /원문 미리보기입니다/);
+    assert.doesNotMatch(html, /class="lead"/);
+  } finally { env.restore(); }
+});
