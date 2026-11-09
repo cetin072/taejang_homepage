@@ -1,27 +1,94 @@
-/* Salt inquiry landing: Dominion Salt authorized photos; no price, checkout or unverified claims. */
-.salt-page{--salt-ink:#173e40;--salt-muted:#526865;--salt-paper:#f6f5ef;color:var(--salt-ink);background:var(--salt-paper)}
-.salt-page h1,.salt-page h2,.salt-page h3,.salt-page p{margin-top:0}.salt-page h2{font-size:clamp(1.9rem,3.5vw,3rem);line-height:1.4;letter-spacing:-.055em}.salt-page p{line-height:1.85}.salt-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.15em}.salt-hero{padding:88px 0 64px;background:#e9efea}.salt-hero-grid{display:grid;grid-template-columns:1.05fr 1fr;align-items:center;gap:60px}.salt-status{display:inline-block;border:1px solid #a5b8ae;border-radius:30px;padding:3px 12px;font-size:.76rem}.salt-page h1{font-size:clamp(2.5rem,4.8vw,4.6rem);line-height:1.25;letter-spacing:-.07em;margin-bottom:28px}.salt-page h1 span{color:#59756e}.salt-lead{font-size:1.12rem}.salt-lead strong{font-weight:400}.salt-button{display:inline-flex;gap:48px;align-items:center;background:var(--salt-ink);color:#fff;padding:16px 24px;text-decoration:none;border-radius:3px;font-weight:700}.salt-button:hover{background:#285955}.salt-page a:focus-visible,.salt-page summary:focus-visible{outline:3px solid #bb733e;outline-offset:5px}.salt-art{position:relative;min-height:450px;background:#d8e3db;border-radius:48% 48% 3px 3px;overflow:hidden;display:flex;align-items:center;justify-content:center}.salt-orbit{position:absolute;width:310px;height:310px;border:1px solid #abc1b2;border-radius:50%;transform:rotate(-20deg)}.salt-crystal{position:absolute;background:linear-gradient(140deg,#fff,#e4e8df);box-shadow:18px 22px 28px #395e5520;transform:rotate(24deg);border:1px solid #ffffff}.salt-crystal-one{width:145px;height:145px;top:50px;right:35px;transform:rotate(24deg)}.salt-crystal-two{width:110px;height:110px;bottom:60px;left:30px;transform:rotate(-15deg)}.salt-crystal-three{width:45px;height:45px;bottom:80px;right:42px;transform:rotate(12deg)}.salt-art-label{position:relative;text-align:center;font-size:.8rem;letter-spacing:.18em}.salt-art-label strong{display:block;font:3rem Georgia,serif;letter-spacing:.02em;margin:12px 0}.salt-art-label span{display:block;font:italic 1.6rem Georgia,serif}.salt-art>p{position:absolute;bottom:8px;font-size:.65rem;letter-spacing:0;color:#526865}.salt-intro,.salt-details,.salt-consider,.salt-faq,.salt-contact{padding:84px 0}.salt-split{display:grid;grid-template-columns:1fr 1.55fr;gap:70px}.salt-note{font-size:.84rem;color:var(--salt-muted);max-width:700px}.salt-details{background:white}.salt-specs{display:grid;grid-template-columns:repeat(4,1fr);margin:40px 0 26px;border-top:1px solid #bccac2;border-bottom:1px solid #bccac2}.salt-specs>div{padding:30px 20px 30px 0}.salt-specs dt{font-size:.8rem;color:var(--salt-muted);margin-bottom:14px}.salt-specs dd{margin:0;font-size:1.6rem;font-weight:700}.salt-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;margin-top:34px}.salt-cards article{border-top:1px solid #a7bcb0;padding:26px 0}.salt-cards article span{font-size:.8rem;color:#5c7368}.salt-cards h3{font-size:1.2rem;margin:23px 0 12px}.salt-cards p{font-size:.95rem;color:var(--salt-muted)}.salt-faq{background:#e9efea}.salt-faq details{padding:22px 0;border-bottom:1px solid #b4c7bb}.salt-faq summary{cursor:pointer;font-weight:700;line-height:1.6}.salt-faq details p{margin:14px 0 0;font-size:.93rem;color:var(--salt-muted)}.salt-contact{text-align:center;background:#173e40;color:#f6f5ef}.salt-contact .salt-button{background:#f6f5ef;color:#173e40;margin-top:12px}.salt-back{display:block;margin-top:24px;color:#d5e2d8;font-size:.82rem;text-underline-offset:5px}@media(max-width:760px){.salt-hero{padding:48px 0}.salt-hero-grid,.salt-split{grid-template-columns:1fr;gap:30px}.salt-art{min-height:330px}.salt-art-label strong{font-size:2.5rem}.salt-intro,.salt-details,.salt-consider,.salt-faq,.salt-contact{padding:52px 0}.salt-specs{grid-template-columns:repeat(2,1fr)}.salt-specs dd{font-size:1.35rem}.salt-cards{grid-template-columns:1fr;gap:4px}.salt-cards article{padding:22px 0}.salt-crystal-one{width:100px;height:100px}.salt-page h1{font-size:2.7rem}.salt-orbit{width:240px;height:240px}}
-
-.salt-origin-visual{margin:0;position:relative}.salt-origin-visual img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:48% 48% 3px 3px}.salt-origin-visual figcaption{font-size:.68rem;color:#526865;text-align:center;padding:10px 0;line-height:1.6}.salt-story,.salt-origin-products{padding:80px 0}.salt-story{background:#173e40;color:#f5f4ed}.salt-story-lead{max-width:780px;font-size:1.06rem;color:#d9e6de}.salt-process{padding:0;margin:42px 0 24px;list-style:none;display:grid;grid-template-columns:repeat(3,1fr);gap:30px}.salt-process li{border-top:1px solid #68867b;padding-top:24px}.salt-process span{font:italic 1.8rem Georgia,serif;color:#b9cdbd}.salt-process h3{margin:20px 0 12px;font-size:1.2rem}.salt-process p{color:#d9e6de;font-size:.93rem}.salt-source{font-size:.75rem;color:#b9cdbd}.salt-source a{color:inherit;text-underline-offset:4px}.salt-origin-products{background:#fff}.salt-origin-products .salt-split{align-items:center}.salt-origin-products figure{margin:0}.salt-origin-products img{width:100%;height:auto;display:block;max-width:500px}.salt-origin-products figcaption{font-size:.72rem;line-height:1.7;color:#526865;text-align:center}.salt-origin-products p{color:#526865}@media(max-width:760px){.salt-story,.salt-origin-products{padding:52px 0}.salt-process{grid-template-columns:1fr;gap:22px}.salt-origin-visual img{max-height:360px}.salt-origin-products img{max-width:320px;margin:auto}}
-
-.salt-minerals{padding:80px 0;background:#f0eee5}.salt-minerals .salt-split{align-items:start}.salt-minerals p{color:#526865}@media(max-width:760px){.salt-minerals{padding:52px 0}}
-
-/* 2nd pass: data/certification proof, seller identity, direct inquiry paths */
-.salt-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px 28px}.salt-textlink{color:var(--salt-ink);font-weight:700;font-size:.92rem;text-underline-offset:5px}
-.salt-proof{padding:80px 0;background:#f0eee5}.salt-proof-lead{max-width:760px;color:var(--salt-muted)}.salt-proof-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:48px;margin-top:38px}.salt-proof article{border-top:1px solid #a7bcb0;padding-top:24px}.salt-proof h3{font-size:1.15rem;margin:0 0 18px}.salt-proof h3 small{display:block;margin-top:4px;font-size:.78rem;font-weight:400;color:var(--salt-muted)}
-.salt-data{width:100%;border-collapse:collapse;margin:0 0 16px}.salt-data th,.salt-data td{padding:13px 0;border-bottom:1px solid #cdd8d0;text-align:left;font-size:.98rem}.salt-data thead th{font-size:.76rem;color:var(--salt-muted);font-weight:400}.salt-data td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.salt-data tbody th{font-weight:400}
-.salt-checks{list-style:none;padding:0;margin:0 0 16px}.salt-checks li{padding:13px 0;border-bottom:1px solid #cdd8d0}.salt-checks strong{display:block}.salt-checks span{display:block;margin-top:4px;font-size:.88rem;color:var(--salt-muted);line-height:1.6}
-.salt-specs{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:28px 0 20px}.salt-specs dd{font-size:1.2rem}.salt-origin-products .salt-specs{border-color:#cfd9d2}
-.salt-seller{padding:72px 0;background:#e9efea}.salt-seller p{color:var(--salt-muted)}.salt-seller .salt-note{margin-bottom:0}
-.salt-mail{display:block;margin-top:22px;color:#d5e2d8;font-size:.9rem;text-underline-offset:5px;word-break:keep-all}
+/* New Zealand Grade 27 Fine Solar Salt: static-first B2B product page. */
+.salt-page{--salt-ink:#173e40;--salt-muted:#536861;--salt-paper:#f7f8f4;color:var(--salt-ink);background:var(--salt-paper)}
+.salt-page h1,.salt-page h2,.salt-page h3,.salt-page p{margin-top:0}
+.salt-page h2{font-size:clamp(1.7rem,3.3vw,2.7rem);line-height:1.36;letter-spacing:-.045em}
+.salt-page p{line-height:1.75}
+.salt-eyebrow{font-size:.72rem;font-weight:800;letter-spacing:.12em}
+.salt-hero{background:#e8efea;padding:62px 0}
+.salt-hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(26px,5vw,62px);align-items:center}
+.salt-page h1{font-size:clamp(2.45rem,4.4vw,4.2rem);letter-spacing:-.06em;line-height:1.21;margin:0 0 20px}
+.salt-page h1 span{color:#446f60}
+.salt-hero-grade{font-size:1.05rem;font-weight:700;margin-bottom:12px}
+.salt-hero-grade strong{display:inline-block;margin-left:8px;color:#28624d}
+.salt-lead{font-size:1.05rem;max-width:560px}
+.salt-hero-facts{list-style:none;padding:0;margin:20px 0 26px;display:grid;gap:8px}
+.salt-hero-facts li{padding-left:15px;position:relative;font-size:.91rem}
+.salt-hero-facts li:before{content:"";position:absolute;left:0;top:.64em;width:5px;height:5px;border-radius:50%;background:#527b64}
+.salt-hero-facts strong{margin-left:6px}
+.salt-actions,.salt-contact-actions{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
+.salt-button{display:inline-flex;align-items:center;justify-content:center;gap:22px;padding:13px 21px;background:var(--salt-ink);color:white;border-radius:4px;font-weight:700;text-decoration:none;line-height:1.5}
+.salt-button:hover{background:#285955}
+.salt-phone-link{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:4px;white-space:normal}
+.salt-hero-seller,.salt-photo-note{font-size:.76rem;color:var(--salt-muted)}
+.salt-hero-seller{margin:14px 0 0}
+.salt-hero-media{min-width:0}
+.salt-hero-packs{display:grid;grid-template-columns:1fr 1fr;align-items:end;gap:15px;background:#f7f9f5;border:1px solid #d2e0d6;border-radius:10px;padding:26px 18px 16px}
+.salt-hero-packs figure{margin:0;text-align:center;min-width:0}
+.salt-hero-packs img{height:330px;width:100%;object-fit:contain;filter:drop-shadow(0 14px 12px #1c3a3a24)}
+.salt-hero-packs figcaption{font-size:1rem;font-weight:800;margin-top:8px}
+.salt-photo-note{text-align:center;margin:10px 0 0;line-height:1.5}
+.salt-product{padding:60px 0;background:#fff}
+.salt-product h2{margin-bottom:8px}
+.salt-section-lead{color:var(--salt-muted);margin-bottom:22px}
+.salt-specs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:24px 0 16px;border-top:1px solid #c7d6cb;border-bottom:1px solid #c7d6cb}
+.salt-specs>div{padding:17px 14px 17px 0;min-width:0}
+.salt-specs dt{font-size:.78rem;color:var(--salt-muted);margin-bottom:7px}
+.salt-specs dd{font-size:.99rem;font-weight:700;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.salt-note{font-size:.81rem;color:var(--salt-muted);max-width:800px}
+.salt-story{padding:60px 0;background:#173e40;color:#f6f7f3}
+.salt-story-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:48px;align-items:center}
+.salt-story-grid p{color:#e0ece5}
+.salt-story-note{font-size:.88rem}
+.salt-story-source{color:#d8ede1;text-underline-offset:4px;font-weight:700}
+.salt-story-photo{margin:0;min-width:0}
+.salt-story-photo img{display:block;width:100%;height:auto;max-height:360px;object-fit:cover;border-radius:4px}
+.salt-story-photo figcaption{font-size:.74rem;color:#cee1d7;margin-top:10px;line-height:1.5}
+.salt-proof{padding:60px 0;background:#eff3ed}
+.salt-proof-lead{max-width:790px;color:var(--salt-muted)}
+.salt-proof-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px;margin-top:30px}
+.salt-proof article{border-top:1px solid #adc5b5;padding-top:18px}
+.salt-proof h3{font-size:1.13rem;margin:0 0 16px}
+.salt-proof h3 small{display:block;font-size:.75rem;color:var(--salt-muted);font-weight:400;margin-top:4px}
+.salt-data{width:100%;border-collapse:collapse;margin-bottom:15px}
+.salt-data th,.salt-data td{padding:10px 0;border-bottom:1px solid #cfdbd2;text-align:left;font-size:.9rem}
+.salt-data th{font-weight:400}
+.salt-data td{text-align:right;font-weight:700}
+.salt-data thead th{font-size:.76rem;color:var(--salt-muted)}
+.salt-checks{list-style:none;padding:0;margin:0 0 16px}
+.salt-checks li{padding:12px 0;border-bottom:1px solid #cfdbd2}
+.salt-checks strong,.salt-checks span{display:block}
+.salt-checks span{font-size:.84rem;line-height:1.55;margin-top:4px;color:var(--salt-muted)}
+.salt-seller{padding:54px 0;background:#e8efea}
+.salt-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.55fr);gap:50px}
+.salt-seller p{color:var(--salt-muted)}
+.salt-faq{padding:60px 0;background:#fff}
+.salt-faq-grid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:50px}
+.salt-faq details{padding:18px 0;border-bottom:1px solid #cbdbd1}
+.salt-faq summary{font-weight:700;line-height:1.6;cursor:pointer}
+.salt-faq details p{font-size:.9rem;color:var(--salt-muted);margin:12px 0 0}
+.salt-contact{padding:64px 0;text-align:center;background:#173e40;color:#fff}
+.salt-contact p{color:#e1eae4}
+.salt-contact-actions{justify-content:center;margin:22px 0 6px}
+.salt-contact .salt-button{background:#f6f7f3;color:#173e40}
+.salt-mail{display:block;margin-top:22px;color:#d8ede1;text-underline-offset:4px;overflow-wrap:anywhere}
+.salt-back{display:block;color:#d8ede1;margin-top:20px;text-underline-offset:4px;font-size:.8rem}
 .salt-sticky{display:none}
-@media(max-width:760px){.salt-proof,.salt-seller{padding:52px 0}.salt-proof-grid{grid-template-columns:1fr;gap:34px}.salt-sticky{display:block;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;background:#173e40;color:#fff;text-align:center;padding:14px 18px;border-radius:3px;font-weight:700;text-decoration:none;box-shadow:0 6px 18px #0003}.salt-page{padding-bottom:68px}.salt-actions{gap:12px 22px}}
-.salt-origin-products .salt-specs{grid-template-columns:repeat(3,1fr)}.salt-origin-products .salt-specs>div{padding:20px 12px 20px 0}@media(max-width:760px){.salt-origin-products .salt-specs{grid-template-columns:repeat(2,1fr)}.salt-origin-products .salt-specs>div{padding:16px 10px 16px 0}}
-.salt-data thead th:last-child{text-align:right}
-
-/* 3rd pass: real pack photos, Lake Grassmere figures, solar-salt grade 27 */
-.salt-product{padding:80px 0;background:#fff}.salt-product-grid{display:grid;grid-template-columns:1fr 1.1fr;gap:64px;align-items:center}.salt-packs{display:grid;grid-template-columns:.62fr 1fr;gap:20px;align-items:end;background:#f1f4ef;padding:44px 28px 22px;border-radius:48% 48% 3px 3px / 22% 22% 3px 3px}.salt-packs figure{margin:0;text-align:center}.salt-packs img{display:block;width:100%;height:auto;margin:0 auto;filter:drop-shadow(0 14px 14px #1c3a3a22)}.salt-packs figcaption{margin-top:14px;font:italic 1.5rem Georgia,serif;color:var(--salt-ink)}.salt-product .salt-specs{grid-template-columns:repeat(2,1fr)}.salt-product .salt-specs dd{font-size:1.1rem;line-height:1.5}
-.salt-band{margin:0;background:#fff;line-height:0}.salt-band img{width:100%;height:340px;object-fit:cover;object-position:56% 50%}
-.salt-story-figs{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:8px 0 26px}.salt-story-figs figure{margin:0}.salt-story-figs img{display:block;width:100%;height:300px;object-fit:cover;border-radius:3px;background:#fff}.salt-story-figs figcaption{margin-top:10px;font-size:.78rem;color:#b9cdbd;line-height:1.6}
-.salt-data td{font-size:.92rem}.salt-data tbody th{width:34%}
-@media(max-width:760px){.salt-product{padding:52px 0}.salt-product-grid{grid-template-columns:1fr;gap:34px}.salt-packs{padding:34px 18px 18px}.salt-band img{height:210px}.salt-story-figs{grid-template-columns:1fr;gap:18px}.salt-story-figs img{height:230px}}
+.salt-page a:focus-visible,.salt-page summary:focus-visible{outline:3px solid #dd9652;outline-offset:4px}
+@media(max-width:760px){
+  .salt-hero{padding:44px 0 38px}
+  .salt-hero-grid,.salt-story-grid,.salt-split,.salt-faq-grid{grid-template-columns:1fr;gap:26px}
+  .salt-page h1{font-size:clamp(2.1rem,8vw,3rem)}
+  .salt-hero-packs{padding:20px 12px 12px}
+  .salt-hero-packs img{height:220px}
+  .salt-actions{gap:12px}
+  .salt-product,.salt-story,.salt-proof,.salt-seller,.salt-faq,.salt-contact{padding:44px 0}
+  .salt-specs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .salt-proof-grid{grid-template-columns:1fr;gap:26px}
+  .salt-story-photo img{max-height:280px}
+  .salt-sticky{display:block;position:fixed;left:12px;right:12px;bottom:12px;z-index:30;text-align:center;padding:13px;background:#173e40;color:white;text-decoration:none;font-weight:700;border-radius:4px;box-shadow:0 6px 18px #0003}
+  .salt-page{padding-bottom:62px}
+}
+@media(max-width:360px){
+  .salt-hero-packs img{height:175px}
+  .salt-specs{grid-template-columns:1fr}
+}
