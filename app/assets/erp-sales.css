@@ -3,9 +3,12 @@
 .erp-tabs,.erp-actions { display:flex;flex-wrap:wrap;gap:10px;margin-block:12px; }
 .erp-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--authoring-gap,14px);border:0;padding:0;margin:0;min-width:0; }
 .erp-fields > label:has(textarea) { grid-column:1/-1; }
+/* Keep nested ledger tables inside their scroll area on narrow screens. */
+.erp-sales .app-form-section:not(.erp-fields) { grid-template-columns:minmax(0,1fr); }
 .erp-line { padding:14px;margin-block:12px;border:1px solid var(--authoring-stroke,#cfdcd4);border-radius:9px; }
 .erp-table-wrap { max-width:100%;overflow:auto;margin-block:12px; }
 .erp-sales table { width:100%;border-collapse:collapse;min-width:620px; }
+.erp-month-review table { min-width:0; }
 .erp-sales :is(th,td) { text-align:left;padding:10px;border-bottom:1px solid #dce5df;max-width:260px;overflow-wrap:anywhere; }
 .erp-sales th { font-size:.85rem;background:#f2f6f3; }
 .erp-sales details { margin-block:16px; }

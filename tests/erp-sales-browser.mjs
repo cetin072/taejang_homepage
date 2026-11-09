@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -19,12 +20,65 @@ try {
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
  for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').fill(kind==='service'?'월':'포');await field('base_price').fill('1000');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
  await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');await saved('저장');
+ await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
+ await field('lookup_month').fill('2099-01');
+ await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
+ await page.getByText('선택한 월에 생성된 매출이 없습니다.',{exact:true}).waitFor();
+ assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'0');
+ await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('button',{name:'수금 기준',exact:true}).click();
  await field('receipt_month').selectOption('1');
  await field('receipt_day').fill('10');
  await saved('수금 기준 저장');
  await page.getByRole('button',{name:'월 매출 생성',exact:true}).click();await field('month').fill('2099-01');await saved('매출 생성·확인');
  await field('fee_kind').selectOption('rate');await field('fee_value').fill('2.5');await saved('매출 저장');await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();assert.equal(await field('party_id').isDisabled(),true);assert.match(await page.locator('.erp-total').textContent(),/55,000/);
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
+ await field('lookup_month').fill('2099-01');
+ await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
+ await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();
+ assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'1');
+ const recordOnlyEffect='금액과 승인 이력을 보관합니다. 수금·미수금·지급액은 자동 변경되지 않습니다.';
+ const automaticEffect='승인한 매출을 기준으로 미수금·초과 수금을 다시 계산합니다. 원거래와 입금 이력은 보존됩니다.';
+ const returnEffect='취소·반품 승인액은 미수금에, 실제 환불은 순수금에 반영됩니다.';
+ const offsetEffect='승인된 상계액은 같은 영업자의 다음 지급 승인에 적용됩니다.';
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
+ await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ const adjustmentRequest=()=>page.locator('form').filter({has:page.locator('[name=adjustment_kind]')});
+ await adjustmentRequest().getByText(automaticEffect,{exact:true}).waitFor();
+ await adjustmentRequest().getByLabel('조정 후 매출 (원)',{exact:true}).fill('50000');
+ await field('adjustment_reason').fill('합성 용역 조정 이력');
+ await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
+ await page.getByText('원거래 매출 55,000원 · 요청한 매출 50,000원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'승인',exact:true}).click();
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).getByText(automaticEffect,{exact:true}).waitFor();
+ await field('event_note').fill('합성 기록형 용역 승인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByRole('heading',{name:'용역 매출 조정 · 승인',exact:true}).waitFor();
+ await page.getByText('누적 수금 0원 · 미수금 50,000원',{exact:true}).waitFor();
+ const serviceId=app.db.raw("select id from public.erp_sales_transactions where kind='service';");
+ assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,50000,
+  'approved service amount is reflected in the already open receipt panel');
+ await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ await adjustmentRequest().locator('[name=amount]').fill('55000');
+ await field('adjustment_reason').fill('합성 두 번째 금액 조정');
+ await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
+ await page.getByRole('button',{name:'승인',exact:true}).click();
+ await field('event_note').fill('합성 두 번째 금액 승인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
+ const legacyId=crypto.randomUUID();
+ app.db.rpc('erp_sales_request_adjustment',{p_sale_id:serviceId,p_request_id:legacyId,p_kind:'service_change',p_reason:'Synthetic old client',p_detail:{amount:45000}});
+ app.db.rpc('erp_sales_record_adjustment_event',{p_sale_id:serviceId,p_adjustment_id:legacyId,p_request_id:crypto.randomUUID(),p_action:'approve',p_on:app.db.raw("select (now() at time zone 'Asia/Seoul')::date;"),p_note:'Synthetic legacy record only',p_amount:null});
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
+ await field('lookup_month').fill('2099-01');
+ await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
+ await page.locator('.erp-editor').getByText(recordOnlyEffect,{exact:true}).waitFor();
+ assert.equal(await page.getByText('잔액 반영 완료',{exact:true}).count(),2);
+ assert.equal(app.db.rpc('erp_sales_get_receipts',{p_sale_id:serviceId}).effective_total,55000,'legacy approval remains record-only');
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/service-1440.png',fullPage:true});
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('누적 수금 0원 · 미수금 55,000원',{exact:true}).waitFor();
@@ -52,7 +106,28 @@ try {
  await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
-
+ const receivableToday=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ const receivableYesterday=new Date(Date.parse(receivableToday+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+ await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
+ await field('receipt_due_on').fill(receivableToday);
+ await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
+ await page.getByText('수금 예정일 '+receivableToday,{exact:true}).waitFor();
+ await page.locator('[name=receivable_party]').selectOption({label:'합성 기업 브라우저'});
+ await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 미수 거래가 없습니다.',{exact:true}).waitFor();
+ assert.equal(await page.locator('[name=receivable_from]').inputValue(),'');
+ assert.equal(await page.locator('[name=receivable_to]').inputValue(),receivableYesterday);
+ assert.equal(await page.locator('[name=receivable_party] option:checked').textContent(),'합성 기업 브라우저');
+ await page.getByRole('button',{name:'전체 미수금',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
+ assert.equal(await page.locator('[name=receivable_to]').inputValue(),'');
+ assert.equal(await page.locator('[name=receivable_party] option:checked').textContent(),'합성 기업 브라우저');
+ await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
+ await field('receipt_due_on').fill(receivableYesterday);
+ await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
+ await page.getByText('수금 예정일 '+receivableYesterday,{exact:true}).waitFor();
+ await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
+ await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
 
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');await field('tax_amount_1').fill('370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
@@ -72,38 +147,94 @@ try {
  await field('payout_due').fill('2099-03-10');
  await field('payout_evidence').fill('합성 공급처 증빙 확인');
  await page.getByRole('button',{name:'지급 승인 저장',exact:true}).click();
+ await page.getByRole('tab',{name:'지급 대기',exact:true}).click();
+ await page.getByText('지급 대기 1건 · 실제 지급 예정 합계 600원',{exact:true}).waitFor();
+ await page.locator('[name=payout_filter_kind]').selectOption('supplier');
+ await page.locator('[name=payout_filter_scope]').selectOption('overdue');
+ await page.getByRole('button',{name:'지급 대기 조회',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 지급 대기 건이 없습니다.',{exact:true}).waitFor();
+ await page.locator('[name=payout_filter_scope]').selectOption('all');
+ await page.getByRole('button',{name:'지급 대기 조회',exact:true}).click();
+ await page.getByText('지급 대기 1건 · 실제 지급 예정 합계 600원',{exact:true}).waitFor();
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'지급 완료 기록',exact:true}).click();
  await field('payout_evidence').fill('합성 이체 확인');
  await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
+ await page.getByText('지급 대기 0건 · 실제 지급 예정 합계 0원',{exact:true}).waitFor();
  await page.getByText('전체 지급액 1,000원 · 지급 완료 600원 · 지급 대기 0원 · 남은 지급액 400원',{exact:true}).waitFor();
- await page.getByRole('button',{name:'발행 증빙 조회',exact:true}).click();
- await field('evidence_reference').fill('SYNTHETIC-BROWSER-TAX');
- await field('amount').fill('4072');
- await page.getByRole('button',{name:'발행 증빙 저장',exact:true}).click();
- await page.getByRole('cell',{name:'SYNTHETIC-BROWSER-TAX',exact:true}).waitFor();
- await field('evidence_kind').selectOption('corrected_tax_invoice');
- await field('evidence_original').selectOption({label:'SYNTHETIC-BROWSER-TAX'});
- await field('evidence_reference').fill('SYNTHETIC-BROWSER-CORRECTION');
- await field('amount').fill('-72');
- await page.getByRole('button',{name:'발행 증빙 저장',exact:true}).click();
- const correction=page.getByRole('row').filter({hasText:'SYNTHETIC-BROWSER-CORRECTION'});
- await correction.getByRole('cell',{name:'SYNTHETIC-BROWSER-TAX',exact:true}).waitFor();
- await correction.getByRole('cell',{name:'-72원',exact:true}).waitFor();
+ assert.equal(await page.getByRole('button',{name:'발행 증빙 조회',exact:true}).count(),0);
+ assert.equal(await page.locator('[name=invoice_file]').count(),0);
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'조정 요청 작성',exact:true}).click();
+ await field('adjustment_kind').selectOption('sales_change');
+ await adjustmentRequest().getByText(automaticEffect,{exact:true}).waitFor();
+ await field('adjustment_kind').selectOption('commission_change');
+ await adjustmentRequest().getByText(offsetEffect,{exact:true}).waitFor();
+ for(const action of ['return','waive','difference']){
+  await field('commission_action').selectOption(action);
+  await adjustmentRequest().getByText(recordOnlyEffect,{exact:true}).waitFor();
+ }
+ await field('commission_action').selectOption('offset');
+ await adjustmentRequest().getByText(offsetEffect,{exact:true}).waitFor();
  await field('adjustment_kind').selectOption('return_goods');
+ await adjustmentRequest().getByText(returnEffect,{exact:true}).waitFor();
  await field('credit_amount').fill('100');
  await field('refund_plan').fill('100');
  await field('adjustment_reason').fill('합성 반품 요청');
  await page.getByRole('button',{name:'조정 요청 저장',exact:true}).click();
+ await page.getByRole('tab',{name:'조정 대기',exact:true}).click();
+ await page.getByText('조정 대기 1건',{exact:true}).waitFor();
+ await page.locator('[name=adjustment_filter_kind]').selectOption('service_change');
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).click();
+ await page.getByText('조회 조건에 맞는 조정 대기 요청이 없습니다.',{exact:true}).waitFor();
+ await page.locator('[name=adjustment_filter_kind]').selectOption('return_goods');
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).click();
+ await page.getByText('조정 대기 1건',{exact:true}).waitFor();
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'승인',exact:true}).click();
  await field('event_note').fill('합성 반품 승인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('조정 대기 0건',{exact:true}).waitFor();
+ await page.locator('[name=adjustment_filter_stage]').selectOption('followups');
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).click();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 100원',{exact:true}).waitFor();
+ await page.getByRole('cell',{name:'회수 대기',exact:true}).waitFor();
+ await page.setViewportSize({width:390,height:844});
+ // Wait for the responsive shell to settle before checking document overflow.
+ try{
+  await page.waitForFunction(()=>document.documentElement.scrollWidth<=innerWidth,{},{timeout:3000});
+ }catch(error){
+  console.log('ERP_MOBILE_OVERFLOW',JSON.stringify(await page.evaluate(()=>({
+   width:innerWidth,scroll:document.documentElement.scrollWidth,
+   elements:[...document.querySelectorAll('body *')].filter(n=>n.getBoundingClientRect().right>innerWidth+1)
+    .map(n=>({tag:n.tagName,cls:n.className,width:n.getBoundingClientRect().width,right:n.getBoundingClientRect().right,overflow:getComputedStyle(n).overflowX})).slice(0,40)
+  }))));
+  throw error;
+ }finally{await page.screenshot({path:output+'/adjustment-followups-390.png',fullPage:true});}
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.setViewportSize({width:1440,height:1000});
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
  await page.getByRole('button',{name:'실제 환불 기록',exact:true}).click();
- await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('100');
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('50');
+ await field('event_note').fill('합성 부분 환불 확인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 50원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'실제 환불 기록',exact:true}).click();
+ await page.locator('form').filter({has:page.locator('[name=event_note]')}).locator('[name=amount]').fill('50');
  await field('event_note').fill('합성 환불 확인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('환불 예정 100원 · 실제 환불 100원',{exact:true}).waitFor();
+ await page.getByText('회수·환불 대기 1건 · 남은 환불 0원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'공급처 회수 확인',exact:true}).click();
+ await field('event_note').fill('합성 공급처 회수 확인');
+ await page.getByRole('button',{name:'처리 저장',exact:true}).click();
+ await page.getByText('회수·환불 대기 0건 · 남은 환불 0원',{exact:true}).waitFor();
  await page.getByText('조정 후 매출 3,972원',{exact:true}).waitFor();
  await page.getByText('실제 환불 100원 · 순수금 3,972원',{exact:true}).waitFor();
  await page.getByText('누적 수금 4,072원 · 미수금 0원',{exact:true}).waitFor();
@@ -143,7 +274,7 @@ try {
  await salesFilters.getByRole('button',{name:'이번 달',exact:true}).click();
  await page.locator('.erp-sales:not([aria-busy])').waitFor();
  assert.equal(await salesFilters.locator('[name=from]').inputValue(),firstOfMonth);
- assert.equal(await salesFilters.locator('[name=to]').inputValue(),currentDate);
+ assert.equal(await salesFilters.locator('[name=to]').inputValue(),new Date(Date.UTC(Number(currentDate.slice(0,4)),Number(currentDate.slice(5,7)),0)).toISOString().slice(0,10));
  assert.equal(await salesFilters.locator('[name=kind]').inputValue(),'product');
  await salesFilters.locator('[name=kind]').selectOption('');
  await salesFilters.locator('[name=from]').fill('2099-01-01');
@@ -155,6 +286,16 @@ try {
  await page.getByText('합성 오입금 정정',{exact:true}).waitFor();
  assert.equal(await page.locator('.erp-body tbody tr').count(),2);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,000/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
+ const beforeCopy=Number(app.db.raw('select count(*) from public.erp_sales_transactions;'));
+ await page.getByRole('button',{name:'새 주문으로 복사',exact:true}).click();
+ assert.equal(await field('quantity_1').inputValue(),'2');
+ assert.equal(await field('unit_price_1').inputValue(),'2500');
+ assert.equal(await field('shipping_status').inputValue(),'preparing');
+ assert.equal(await field('fee_kind').inputValue(),'none');
+ assert.equal(Number(app.db.raw('select count(*) from public.erp_sales_transactions;')),beforeCopy);
+ await saved('매출 저장');
+ assert.equal(Number(app.db.raw('select count(*) from public.erp_sales_transactions;')),beforeCopy+1);
+ assert.equal(app.db.raw("select count(*) from public.erp_sales_transactions where status='confirmed';"),'2');
  await page.getByRole('tab',{name:'구매·매입',exact:true}).click();
  await page.getByRole('button',{name:'일반 구매 등록',exact:true}).click();
  await field('merchant').fill('합성 온라인 구매처');
@@ -177,18 +318,82 @@ try {
  await stockRow.getByRole('cell',{name:'5 포',exact:true}).waitFor();
  await recordStock('out','2');
  await stockRow.getByRole('cell',{name:'3 포',exact:true}).waitFor();
+ const reviewSaleId=app.db.raw("select id from public.erp_sales_transactions where kind='product' and status='confirmed' order by created_at,id limit 1;");
+ app.db.rpc('erp_sales_request_adjustment',{p_sale_id:reviewSaleId,p_request_id:crypto.randomUUID(),
+  p_kind:'sales_change',p_reason:'합성 마감 대기 확인',p_detail:{amount:4000}});
  await page.getByRole('tab',{name:'월 마감',exact:true}).click();
+ const closeReview=page.locator('.erp-month-review');
+ const approvalRow=()=>closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'승인 대기',exact:true})});
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ const closingMonth=await page.locator('[name=close_month]').inputValue();
+ await page.locator('[name=close_month]').fill('2098-12');
+ await page.getByRole('button',{name:'마감 이력 조회',exact:true}).click();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ await closeReview.getByRole('button',{name:'승인 대기 목록',exact:true}).click();
+ await page.getByRole('cell',{name:'합성 마감 대기 확인',exact:true}).waitFor();
+ assert.equal(await page.locator('[name=adjustment_filter_kind]').inputValue(),'');
+ assert.equal(await page.locator('[name=adjustment_filter_stage]').inputValue(),'approval');
+ await page.getByRole('tab',{name:'월 마감',exact:true}).click();
+ await page.locator('[name=close_month]').fill(closingMonth);
+ await page.getByRole('button',{name:'마감 이력 조회',exact:true}).click();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ for(const name of ['승인 대기 목록','지급 대기 목록','회수·환불 대기 목록']){
+  const box=await closeReview.getByRole('button',{name,exact:true}).boundingBox();
+  assert.ok(box&&box.x>=0&&box.x+box.width<=390,'month review navigation stays visible on mobile');
+ }
+ await page.screenshot({path:output+'/month-close-review-390.png',fullPage:true,animations:'disabled'});
  await page.getByRole('button',{name:'월 마감 처리',exact:true}).click();
  await field('close_reason').fill('합성 월 마감');
+ const failPayoutReview=route=>route.request().postDataJSON().name==='erp_sales_list_pending_payouts'
+  ?route.fulfill({status:503,json:{message:'synthetic queue failure'}}):route.continue();
+ await page.route('**/fixture-rpc',failPayoutReview);
+ await closeReview.getByRole('button',{name:'대기 현황 새로 조회',exact:true}).click();
+ await closeReview.getByText('일부 대기 현황을 불러오지 못했습니다. 새로 조회하거나 각 목록에서 확인하세요.',{exact:true}).waitFor();
+ await closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'지급 대기',exact:true})})
+  .getByRole('cell',{name:'조회 실패',exact:true}).waitFor();
+ await approvalRow().getByRole('cell',{name:'1건',exact:true}).waitFor();
+ assert.equal(await field('close_reason').inputValue(),'합성 월 마감');
+ await page.unroute('**/fixture-rpc',failPayoutReview);
+ await closeReview.getByRole('button',{name:'대기 현황 새로 조회',exact:true}).click();
+ await closeReview.getByRole('row').filter({has:page.getByRole('cell',{name:'지급 대기',exact:true})})
+  .getByRole('cell',{name:'0건',exact:true}).waitFor();
+ assert.equal(await field('close_reason').inputValue(),'합성 월 마감');
  await saved('마감 상태 저장');
  await page.getByRole('button',{name:'예외 해제',exact:true}).click();
  await field('close_reason').fill('합성 예외 정정');
  await saved('마감 상태 저장');
  await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();
 
+ const contractDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
+ const contractDay=offset=>new Date(Date.parse(contractDate+'T00:00:00Z')+offset*86400000).toISOString().slice(0,10);
+ const contractData=app.db.rpc('erp_sales_bootstrap');
+ for(const [title,offset,contractStatus] of [
+  ['합성 오늘 종료',0,'active'],['합성 30일 종료',30,'active'],
+  ['합성 31일 종료',31,'active'],['합성 어제 종료',-1,'active'],['합성 종료 처리',0,'ended']
+ ]){
+  app.db.rpc('erp_sales_save_master',{p_kind:'contract',p_data:{
+   title,party_id:contractData.parties.find(row=>row.name==='합성 기업 브라우저').id,
+   item_id:contractData.items.find(row=>row.kind==='service').id,
+   starts_on:'2020-01-01',ends_on:contractDay(offset),monthly_supply:100,monthly_tax:0,
+   tax_class:'taxable',billing_basis:'합성 계약 종료 조회',status:contractStatus
+  },p_id:null,p_revision:0});
+ }
+ await page.reload();
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.locator('[name=contract_period_filter]').selectOption('expiring');
+ await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
+ await page.getByRole('cell',{name:'합성 30일 종료',exact:true}).waitFor();
+ assert.equal(await page.locator('.erp-body tbody tr').count(),2);
+ await page.locator('[name=contract_period_filter]').selectOption('expired');
+ await page.getByRole('cell',{name:'합성 어제 종료',exact:true}).waitFor();
+ assert.equal(await page.locator('.erp-body tbody tr').count(),1);
+ await page.locator('[name=contract_period_filter]').selectOption('all');
+ assert.equal(await page.locator('.erp-body tbody tr').count(),6);
+
  await page.evaluate(()=>{window.fixtureActor='worker';document.dispatchEvent(new CustomEvent('taejang-capabilities-ready'));});await page.getByText('접근 권한을 다시 확인해 주세요.',{exact:true}).waitFor();assert.equal(await page.locator('.erp-editor input').count(),0);assert.deepEqual(errors,[]);
  await page.route('**/fixture-rpc',route=>{
-  if(route.request().postDataJSON().name==='erp_sales_phase2_ready'){
+  if(['erp_sales_phase2_ready','erp_sales_adjustment_followups_ready','erp_sales_amount_adjustments_ready'].includes(route.request().postDataJSON().name)){
    return route.fulfill({status:404,json:{message:'PGRST202'}});
   }
   return route.continue();
@@ -197,6 +402,10 @@ try {
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
+ assert.equal(await page.getByRole('tab',{name:'지급 대기',exact:true}).count(),0);
+ await page.getByRole('tab',{name:'조정 대기',exact:true}).click();
+ await page.getByRole('button',{name:'조정 대기 조회',exact:true}).waitFor();
+ assert.equal(await page.locator('[name=adjustment_filter_stage]').count(),0);
  assert.ok(dialogs.filter(t=>t.includes('확정 후')).length===2,'two explicit confirmations');assert.equal(dialogs.filter(t=>t.includes('저장하지 않은 입력이 있을 수')).length,0,'saved ERP data does not trigger shell dirty warnings');
  console.log('ERP_BROWSER_PASS: real PG17 scenario A/B, reload, filters, failure input preservation, confirm, delivery, 1440/390px, permission scrub');
 }finally{await browser.close();await app.close();}

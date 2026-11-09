@@ -21,8 +21,17 @@ try {
  const salt=save('item',{code:'SALT-TEST',name:'Synthetic Salt',kind:'product',unit:'포',base_price:1000,tax_class:'taxable',inventory_managed:true});
  const service=save('item',{code:'SERVICE-TEST',name:'Synthetic Cleanup',kind:'service',unit:'월',base_price:null,tax_class:'taxable'});
  const contract=save('contract',{title:'Synthetic yearly contract',party_id:customer.id,item_id:service.id,starts_on:'2099-01-01',ends_on:'2099-12-31',monthly_supply:100000,monthly_tax:10000,tax_class:'taxable',billing_basis:'매월 말일 청구',status:'active'});
+ const contractMonth=month=>db.rpc('erp_sales_get_contract_month',{p_contract_id:contract.id,p_month:month});
+ check(contractMonth('2099-01-01')===null&&db.raw('select count(*) from public.erp_sales_transactions;')==='0',
+  'looking up a missing contract month does not create a sale');
+ reject(()=>contractMonth('2099-01-02'),/ERP_INVALID_MONTH/);
+ reject(()=>contractMonth('infinity'),/ERP_INVALID_MONTH/);
+ reject(()=>db.rpc('erp_sales_get_contract_month',{p_contract_id:randomUUID(),p_month:'2099-01-01'}),/ERP_CONTRACT_NOT_FOUND/);
+ reject(()=>db.rpc('erp_sales_get_contract_month',{p_contract_id:contract.id,p_month:'2099-01-01'},{actor:WORKER}),/ERP_FORBIDDEN/);
  let monthly=db.rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:'2099-01-01'});
  check(monthly.total_amount===110000&&monthly.lines.length===1&&monthly.agent_id===agentA.id,'scenario A: contract month generates persisted sale and actual amount');
+ check(contractMonth('2099-01-01').id===monthly.id&&contractMonth('2099-01-01').status==='draft'
+  &&db.raw('select count(*) from public.erp_sales_transactions;')==='1','month lookup opens an existing draft without creating another sale');
  monthly=db.rpc('erp_sales_save',{p_data:{...monthly,commission:fee('rate',2.5)},p_id:monthly.id,p_revision:monthly.revision});
  const stale=monthly.revision-1;
  reject(()=>db.rpc('erp_sales_save',{p_data:monthly,p_id:monthly.id,p_revision:stale}),/ERP_REVISION_CONFLICT/);
@@ -161,10 +170,20 @@ try {
  reject(()=>approve(supplierApproval,WORKER),/ERP_FORBIDDEN/);
  check(approve(supplierApproval).supplier.pending===500,'supplier approval is distinct from actual payment');
  check(approve(supplierApproval).supplier.entries.length===1,'retrying payout approval does not duplicate it');
+ const pendingQueue=(params={},actor=OPS)=>db.rpc('erp_sales_list_pending_payouts',params,{actor});
+ let queue=pendingQueue();
+ check(queue.total===1&&queue.total_cash==='500'&&queue.items[0].id===supplierApproval.p_request_id,
+  'pending payout queue includes approved supplier amounts exactly once');
+ check(pendingQueue({p_kind:'commission'}).total===0,'pending payout queue respects payment kind');
+ check(pendingQueue({p_due_to:on}).total===0,'future target date is excluded from overdue queue');
+ reject(()=>pendingQueue({},WORKER),/ERP_FORBIDDEN/);
+ reject(()=>pendingQueue({p_kind:'invalid'}),/ERP_PAYOUT_INVALID_INPUT/);
+ reject(()=>pendingQueue({p_due_to:'infinity'}),/ERP_PAYOUT_INVALID_INPUT/);
  reject(()=>approve(payApproval(corporate,'supplier',100,800)),/ERP_PAYOUT_BASIS_CONFLICT/);
  let payouts=payment(supplierApproval);
  check(payouts.supplier.paid===500&&payouts.supplier.remaining===300&&payouts.supplier.pending===0,'supplier payment preserves the balance and removes pending approval');
  check(payment(supplierApproval).supplier.paid===500,'retrying payment completion does not double count');
+ check(pendingQueue().total===0,'completed payment leaves the pending queue');
  reject(()=>payment(supplierApproval,'cancelled'),/ERP_PAYOUT_ALREADY_FINISHED/);
  reject(()=>db.raw('delete from public.erp_sales_payouts;'),/ERP_PAYOUT_IMMUTABLE/);
  reject(()=>db.rpc('erp_sales_get_payouts',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
@@ -176,10 +195,12 @@ try {
  const commissionApproval=payApproval(person,'commission',250);
  reject(()=>approve({...commissionApproval,p_amount:251}),/ERP_PAYOUT_OVER_LIMIT/);
  check(approve(commissionApproval).commission.pending===250,'partial receipt permits only its share of fixed commission');
+ check(pendingQueue({p_kind:'commission'}).items[0].id===commissionApproval.p_request_id,'commission approvals join the pending queue');
  db.rpc('erp_sales_record_receipt',{p_sale_id:person.id,p_request_id:randomUUID(),p_recorded_on:on,
   p_reverses_id:firstHalf.p_request_id,p_note:'Synthetic incorrect deposit'});
  reject(()=>payment(commissionApproval),/ERP_PAYOUT_OVER_LIMIT/);
  check(payment(commissionApproval,'cancelled').commission.pending===0,'cancelling an unpaid approval retains history and releases its reservation');
+ check(pendingQueue().total===0,'cancelled approval leaves the pending queue');
  db.rpc('erp_sales_record_receipt',collect(person,1901));
  const replacement=payApproval(person,'commission',250);
  approve(replacement);
@@ -202,14 +223,10 @@ try {
  check(db.rpc('erp_sales_get_stock').balances.find(r=>r.id===salt.id).quantity===8.25,'stock balances use explicit incoming and outgoing movements');
  reject(()=>support('stock',{date:'2025-01-01',item_id:salt.id,quantity:-1,note:'Backdated excess'}),/ERP_STOCK_INSUFFICIENT/);
  reject(()=>support('stock',{date:on,item_id:service.id,quantity:1,note:'Service item'}),/ERP_STOCK_ITEM_REQUIRED/);
- const invoice={date:on,sale_id:corporate.id,kind:'tax_invoice',reference:'SYN-INV-001',amount:10100};
- const invoiceId=support('evidence',invoice).id;
- reject(()=>support('evidence',{...invoice,sale_id:person.id}),/duplicate key/);
- reject(()=>support('evidence',{...invoice,sale_id:person.id,kind:'corrected_tax_invoice',reference:'SYN-OTHER',original_id:invoiceId,amount:-100}),/ERP_EVIDENCE_ORIGINAL_REQUIRED/);
- support('evidence',{...invoice,kind:'corrected_tax_invoice',reference:'SYN-INV-002',original_id:invoiceId,amount:-100});
- const evidence=db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id});
- check(evidence.length===2&&evidence[1].original_id===invoiceId&&evidence[1].amount===-100,'corrected evidence preserves the original linkage and signed amount');
- reject(()=>db.rpc('erp_sales_get_evidence',{p_sale_id:corporate.id},{actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>support('evidence',{date:on,sale_id:corporate.id,kind:'tax_invoice',
+  reference:'REMOVED',amount:10100}),/ERP_SUPPORT_INVALID_INPUT/);
+ check(db.raw("select to_regprocedure('public.erp_sales_get_evidence(uuid)') is null;")==='t',
+  'retired invoice endpoint is absent');
  const requestAdjustment=(sale,kind,detail)=>({
   p_sale_id:sale.id,p_request_id:randomUUID(),p_kind:kind,p_reason:'Synthetic adjustment',p_detail:detail
  });
@@ -219,21 +236,46 @@ try {
   p_action:action,p_amount:amount,p_on:on,p_note:'Synthetic adjustment evidence'
  },{actor});
  reject(()=>request(requestAdjustment(corporate,'cancel_order',{})),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const adjustmentQueue=(params={})=>db.rpc('erp_sales_list_pending_adjustments',params);
+ check(adjustmentQueue().total===0,'adjustment queue starts empty');
+ reject(()=>db.rpc('erp_sales_list_pending_adjustments',{}, {actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.sql('select public.erp_sales_list_pending_adjustments();',{role:'anon',actor:null}),/permission denied/);
+ reject(()=>adjustmentQueue({p_kind:'unknown'}),/ERP_ADJUSTMENT_INVALID_INPUT/);
+ const followups=(params={})=>db.rpc('erp_sales_list_pending_followups',params);
+ check(followups().total===0,'followups start empty');
+ reject(()=>db.rpc('erp_sales_list_pending_followups',{}, {actor:WORKER}),/ERP_FORBIDDEN/);
+ reject(()=>db.sql('select public.erp_sales_list_pending_followups();',{role:'anon',actor:null}),/permission denied/);
+ reject(()=>followups({p_kind:'unknown'}),/ERP_ADJUSTMENT_INVALID_INPUT/);
  const returned=requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:3,credit_amount:3030,refund_plan:600});
  request(returned);
  check(request(returned).length===1,'adjustment request retries preserve a single original record');
+ check(followups().total===0,'unapproved requests do not appear as followups');
+ const pendingReturn=adjustmentQueue();
+ check(pendingReturn.total===1&&pendingReturn.items[0].id===returned.p_request_id
+  &&pendingReturn.items[0].sale_id===corporate.id&&pendingReturn.items[0].reason==='Synthetic adjustment',
+  'pending adjustment queue returns the original request once with sale navigation');
+ check(adjustmentQueue({p_kind:'service_change'}).total===0&&adjustmentQueue({p_kind:'return_goods'}).total===1,
+  'adjustment queue filters request kind');
  reject(()=>event(returned,'refund',300),/ERP_ADJUSTMENT_APPROVAL_REQUIRED/);
  reject(()=>event(returned,'approve',null,WORKER),/ERP_FORBIDDEN/);
  const corporateReceipt=()=>db.rpc('erp_sales_get_receipts',{p_sale_id:corporate.id});
  check(corporateReceipt().balance===5050,'requested return credit does not change the receivable before approval');
  event(returned,'approve');
+ const followup=followups();
+ check(followup.total===1&&followup.items[0].id===returned.p_request_id
+  &&followup.items[0].recall_pending&&followup.items[0].refund_remaining===600
+  &&followup.total_refund_remaining==='600','approved return tracks recall and refund separately');
+ check(followups({p_kind:'cancel_order'}).total===0&&followups({p_kind:'return_goods'}).total===1,'followups respect adjustment kind');
+ check(adjustmentQueue().total===0,'approved requests leave the pending queue before recall or refund');
  check(corporateReceipt().balance===2020,'approved return credit reduces receivable even before refund');
  reject(()=>request(requestAdjustment(corporate,'return_goods',{
   line_id:corporate.lines[0].id,quantity:1,credit_amount:7071
  })),/ERP_ADJUSTMENT_CREDIT_LIMIT/);
  reject(()=>request(requestAdjustment(corporate,'return_goods',{line_id:corporate.lines[0].id,quantity:8})),/ERP_ADJUSTMENT_QUANTITY/);
  event(returned,'recall');
+ check(!followups().items[0].recall_pending&&followups().total_refund_remaining==='600','recall does not clear remaining refund');
  const refund=event(returned,'refund',300);
+ check(followups().items[0].refund_remaining===300&&followups().total_refund_remaining==='300','partial refunds reduce remaining refund exactly once');
  check(refund[0].detail.refund_plan===600&&refund[0].events.find(x=>x.action==='refund').amount===300,'refund plan and actual payment remain separate');
  reject(()=>event(returned,'refund',301),/ERP_ADJUSTMENT_REFUND_LIMIT/);
  const adjusted=corporateReceipt();
@@ -244,13 +286,22 @@ try {
   'receivables use the same adjusted total and net collections as the sale detail');
  reject(()=>db.rpc('erp_sales_record_receipt',collect(corporate,2321)),/ERP_RECEIPT_OVER_BALANCE/);
  check(db.rpc('erp_sales_get',{p_id:corporate.id}).total_amount===10100,'return and refund preserve the confirmed sale');
+ event(returned,'refund',300);
+ check(followups().total===0,'completed recall and refund leave followups');
  const newOrder=db.rpc('erp_sales_save',{p_data:{...corporateInput,request_key:randomUUID()}});
  db.rpc('erp_sales_confirm',{p_id:newOrder.id,p_revision:newOrder.revision});
  const cancellation=requestAdjustment(newOrder,'cancel_order',{refund_plan:0});
  request(cancellation);event(cancellation,'approve');
+ check(followups().total===0,'cancellation without refund needs no followup or recall');
  check(db.rpc('erp_sales_get_receipts',{p_sale_id:newOrder.id}).balance===0,'approved cancellation removes the receivable');
  reject(()=>db.rpc('erp_sales_record_receipt',collect(newOrder,1)),/ERP_RECEIPT_OVER_BALANCE/);
  reject(()=>db.rpc('erp_sales_shipping',{p_id:newOrder.id,p_status:'shipped'}),/ERP_ADJUSTMENT_SHIPPING_STATE/);
+ const declined=requestAdjustment(newOrder,'sales_change',{amount:1});
+ request(declined);
+ check(adjustmentQueue().items[0].id===declined.p_request_id,'new requests reappear in pending queue');
+ event(declined,'reject');
+ check(followups().total===0,'rejected requests are excluded from followups');
+ check(adjustmentQueue().total===0,'rejected requests leave the pending queue');
  const commissionChange=requestAdjustment(person,'commission_change',{commission_action:'offset',amount:100});
  request(commissionChange);event(commissionChange,'approve');
  check(db.rpc('erp_sales_get_payouts',{p_sale_id:person.id}).commission.paid===250,'commission correction preserves existing actual payments');
@@ -263,6 +314,10 @@ try {
  const next=payApproval(nextSale,'commission',200);
  let nextEntries=approve(next).commission.entries;
  check(nextEntries.find(entry=>entry.id===next.p_request_id).cash_amount===100,'cancelled approval releases the offset to the next commission on a different sale');
+ queue=pendingQueue({p_kind:'commission'});
+ const queuedCommission=queue.items.find(entry=>entry.id===next.p_request_id);
+ check(queuedCommission.amount===200&&queuedCommission.offset_amount===100&&queuedCommission.cash_amount===100
+  &&queue.total_cash==='100','pending queue shows gross approval, offset and actual cash independently');
  nextEntries=approve(next).commission.entries;
  check(nextEntries.find(entry=>entry.id===next.p_request_id).offset===100,'approval retry does not consume the offset again');
  check(payment(next).commission.cash_paid===100,'recorded cash payout excludes the applied offset');
@@ -288,5 +343,8 @@ try {
  check(!setMonth(false,true).closed,'exceptional reopen restores writes for the period');
  support('purchase',purchase);
  check(setMonth(true,false).events.length===3,'reclosing keeps all close and reopen history');
+ save('contract',{...contract,status:'ended'},contract);
+ check(contractMonth('2099-01-01').id===monthly.id&&contractMonth('2099-01-01').status==='confirmed',
+  'ended contracts retain read access to their existing confirmed monthly sales');
  console.log(`ERP isolated PostgreSQL17: ${passed} assertions PASS`);
 }finally{db.stop();}
