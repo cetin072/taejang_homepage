@@ -195,7 +195,9 @@ try {
     if (name === 'pc') {
       await footerResourceLink(page).click();
       await page.waitForURL(url => /\/resources(?:\.html)?$/.test(url.pathname));
-      await page.locator('.resource-card--link[href="employee-app.html"]').click();
+      const appCard = page.locator('.resource-card--link');
+      assert.ok(isLandingRoute(new URL(await appCard.getAttribute('href'), page.url()).href), 'resource card points to employee app');
+      await appCard.click();
       await page.waitForURL(url => isLandingRoute(url.href));
       await gotoPublicReady(page, base + '/index.html', output);
       await page.screenshot({ path: path.join(output, 'homepage-app-menu-pc.png') });
