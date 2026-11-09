@@ -34,6 +34,7 @@
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
+    ['resources.html', '자료실'],
     ['location.html', '오시는 길']
   ];
 

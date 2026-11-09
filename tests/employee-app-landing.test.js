@@ -17,8 +17,8 @@ test('landing is static, reachable, and retains shared public navigation', () =>
   const build = read('scripts/build-netlify-publish.mjs');
   const sitemap = read('sitemap.xml');
   const testManifest = read('scripts/test-manifest.mjs');
-  assert.match(home, /<footer class="footer">[\s\S]*?<a href="employee-app\.html">직원앱 소개<\/a>/);
-  assert.equal((home.match(/href="employee-app\.html"/g) || []).length, 1, "home retains its existing footer app link");
+  assert.match(home, /<footer class="footer">[\s\S]*?<a href="resources\.html">자료실<\/a>/);
+  assert.match(read('resources.html'), /href="employee-app\.html"/, "resource hub retains the app entry");
   assert.equal((home.match(/class="resources-nav"/g) || []).length, 2);
   assert.match(build, /'employee-app\.html'/);
   assert.match(sitemap, /<loc>https:\/\/taejang\.co\.kr\/employee-app\.html<\/loc>/);

@@ -25,7 +25,7 @@ const publicPages = [
 ];
 
 const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'staff/'];
-const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'location.html'];
+const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'location.html'];
 const compactFooterPages = new Set(['resources.html']);
 
 function assertHrefOrder(fragment, hrefs, message) {
@@ -114,6 +114,8 @@ for (const filename of publicPages) {
     assert.doesNotMatch(footer, /class="footer-top"/, `${filename}는 자료실 최소 푸터를 유지합니다`);
   } else {
     assert.match(footer, /class="footer-top"/, `${filename} 표준 푸터 상단 영역이 있어야 합니다`);
+    assert.match(footer, /class="footer-shortcuts"/);
+    assert.doesNotMatch(footer, />직원앱 소개<\/a>/);
     assertHrefOrder(footer, footerHrefs, `${filename} 푸터 바로가기`);
     assert.doesNotMatch(footer, /href="tel:|055[\s.-]?293[\s.-]?8626/, `${filename} 푸터에는 공개 전화번호·전화 링크가 없어야 합니다`);
     assert.match(footer, /href="mailto:taejang2025@naver\.com">taejang2025@naver\.com<\/a>/, `${filename} 푸터 이메일을 동일하게 유지합니다`);
