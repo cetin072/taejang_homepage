@@ -73,14 +73,12 @@ test('Android Play identity advances the 0.1.8 closed-test candidate versionCode
   assert.deepEqual([...signature], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
 
-test('settings moves sensitive policy links below logout into a separated footer', async () => {
+test('settings separates policy links and keeps account actions at the bottom', async () => {
   const settings = await text('mobile/app/settings.tsx');
-  const account = settings.indexOf('<View style={styles.account}>');
+  const policy = settings.indexOf('<SettingsGroup title="개인정보 안내">');
+  const account = settings.indexOf('<SettingsGroup title="계정">');
   const logout = settings.indexOf('accessibilityLabel="로그아웃"');
-  const footer = settings.indexOf('<View style={styles.policySection}>');
-  assert.ok(account >= 0 && logout > account && footer > logout, 'policy footer should follow account and logout');
-  const footerMarkup = settings.slice(footer, settings.indexOf('</ScrollView>', footer));
-  assert.match(footerMarkup, /<PolicyLinks includeAccountDeletion\s*\/>/);
-  assert.match(settings, /policySection:\s*\{[^}]*marginTop:\s*28/);
-  assert.match(settings, /policySection:\s*\{[^}]*borderTopWidth:\s*1/);
+  assert.ok(policy >= 0 && account > policy && logout > account, 'account and logout should follow the policy group');
+  assert.match(settings.slice(policy, account), /<PolicyLinks includeAccountDeletion\s*\/>/);
+  assert.match(settings, /groupCard:\s*\{[^}]*borderWidth:\s*1/);
 });

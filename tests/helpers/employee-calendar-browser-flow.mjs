@@ -35,6 +35,8 @@ export async function employeeCalendarBrowserFlow({base,key,owner,other,api}) {
    await p.goto('http://127.0.0.1:'+server.address().port+'/');await p.evaluate(()=>document.dispatchEvent(new Event('taejang-app-ready')));
    await p.getByRole('table',{name:/내 캘린더/}).waitFor();
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow '+width);
+   await p.getByRole('button',{name:/2026-11-09 일정 2개/}).click();
+   const company=p.getByRole('dialog').locator('section').filter({has:p.getByText('Company activity',{exact:true})});assert.equal(await company.getByRole('button',{name:'수정',exact:true}).count(),0);assert.equal(await company.getByRole('button',{name:'삭제',exact:true}).count(),0);await p.getByRole('button',{name:'닫기',exact:true}).click();
    await p.getByRole('button',{name:'일정 등록',exact:true}).click();
    const title='Synthetic browser '+width+' <img src=x onerror=alert(1)>';
    await p.getByLabel('제목',{exact:true}).fill(title);await p.getByLabel('날짜',{exact:true}).fill('2026-11-15');

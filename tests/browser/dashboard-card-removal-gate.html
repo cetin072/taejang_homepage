@@ -1,0 +1,53 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../../app/assets/dashboard-shell.css"></head><body>
+<main id="dashboard-main"><header class="dashboard-intro"><h2>대시보드</h2></header><section class="dashboard-grid"></section></main><pre id="result">RUNNING</pre>
+<script>
+// Synthetic preferences and summaries only; no Auth, network, or real user data.
+let saved=[], failSave=false, delayedEmployee=null, summaries=0;
+const items=[['payroll.manage','근태·급여관리'],['notice.manage','공지 관리'],['erp_sales.manage','영업·매출']].map(([key,label])=>({key,label,section:'업무',capabilities:[]}));
+function render(){const grid=document.querySelector('.dashboard-grid');grid.replaceChildren();for(const item of items){const card=document.createElement('article');card.className='dashboard-card';card.dataset.dashboardCardKey=item.key;const title=document.createElement('h3');title.textContent=item.label;card.append(title);grid.append(card);}}
+render();
+window.TaejangPlatformNavigationRegistry={items:()=>items,sections:()=>[]};
+window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,friendlyError:e=>e.message,rpc:async(name,args)=>{
+ if(name==='get_my_ui_preferences')return {dashboard_order:saved};
+ if(name==='get_my_navigation_visibility')return {hidden_menu_keys:[]};
+ if(name==='save_my_ui_preferences'){if(failSave)throw Error('저장 실패');saved=args.p_dashboard_order.slice();return {dashboard_order:saved};}
+ if(name==='get_employee_management_context'){summaries++;if(delayedEmployee)return await delayedEmployee;return {change_requests:[]};}
+ return [];
+}};
+const alerts=[];window.alert=text=>alerts.push(text);
+document.addEventListener('taejang-dashboard-refresh',render);
+</script>
+<script src="../../app/assets/platform-ui-settings.js"></script>
+<script src="../../app/assets/dashboard-priority-cards.js"></script>
+<script>
+(async()=>{
+ const assert=(v,m)=>{if(!v)throw Error(m);};
+ const wait=()=>new Promise(r=>setTimeout(r,350));
+ const card=key=>[...document.querySelector('.dashboard-grid').children].find(n=>n.dataset.dashboardCardKey===key);
+ const click=label=>{const b=[...document.querySelectorAll('button')].find(n=>n.textContent===label);assert(b,'missing '+label);b.click();};
+ const remove=key=>{const b=[...card(key).querySelectorAll('button')].find(n=>n.textContent==='제거');assert(b,'missing removal '+key);b.click();};
+ const reload=async()=>{render();await window.TaejangPlatformUiSettings.refresh();await window.TaejangDashboardPriorityCards.sync();await wait();};
+ await reload();assert(document.querySelector('.dashboard-grid').children.length===3,'three starting cards');
+ // Test every card independently: removal, failed save/retry and reload.
+ for(const item of items){
+  saved=[];await reload();click('대시보드 편집');remove(item.key);await wait();
+  assert(!card(item.key),'removed card stays absent during observer sync: '+item.key);
+  if(item.key==='payroll.manage'){failSave=true;click('저장');await wait();assert(alerts.length===1&&!card(item.key)&&window.TaejangPlatformUiSettings.isDashboardEditing(),'failed save preserves draft');failSave=false;}
+  click('저장');await wait();assert(!card(item.key),'removed card stays absent after save: '+item.key);
+  await reload();assert(!card(item.key)&&document.querySelector('.dashboard-grid').children.length===2,'saved two-card selection survives reload: '+item.key);
+ }
+ // An explicitly empty selection is different from the default layout.
+ click('대시보드 편집');for(const key of [...document.querySelector('.dashboard-grid').children].map(n=>n.dataset.dashboardCardKey))remove(key);
+ click('저장');await wait();await reload();assert(document.querySelector('.dashboard-grid').children.length===0,'all removed stays empty');
+ const calls=summaries;await window.TaejangDashboardPriorityCards.sync();await wait();assert(summaries===calls,'hidden summaries are not fetched or recreated repeatedly');
+ click('대시보드 편집');click('+ 카드 추가');click('+ 근태·급여관리');click('저장');await wait();await reload();assert(card('payroll.manage')&&document.querySelector('.dashboard-grid').children.length===1,'add back and persist');
+ click('대시보드 편집');remove('payroll.manage');click('취소');await wait();assert(card('payroll.manage'),'cancel restores saved card');
+ click('대시보드 편집');click('기본값');await wait();assert(saved.length===0&&document.querySelector('.dashboard-grid').children.length===3,'reset restores defaults');
+ // A summary request started before editing cannot append a late card.
+ let resolve;delayedEmployee=new Promise(r=>resolve=r);const pending=window.TaejangDashboardPriorityCards.sync();
+ click('대시보드 편집');remove('payroll.manage');resolve({change_requests:[{}]});await pending;delayedEmployee=null;await wait();
+ assert(!card('employee.manage')&&!card('payroll.manage'),'late summary cannot replace the edit draft');
+ document.getElementById('result').textContent='DASHBOARD_CARD_REMOVAL_GATE_PASS';
+})().catch(e=>document.getElementById('result').textContent='FAIL: '+e.stack);
+</script></body></html>

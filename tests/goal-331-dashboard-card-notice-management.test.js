@@ -86,3 +86,28 @@ test('Goal 331 dashboard cards open the same authorized navigation targets inste
   assert.match(priority, /node\.click\(\)/);
   assert.doesNotMatch(priority, /service_role|SUPABASE_SERVICE/);
 });
+
+// Exercise the actual synchronizer: a DOM mutation after removing a card must
+// not trigger summary RPCs or recreate defaults while the user is editing.
+for (const editing of [true, false]) test(editing
+  ? 'dashboard refresh leaves the in-progress card selection untouched'
+  : 'saved empty dashboard does not recreate hidden defaults or refetch summaries', async () => {
+  const vm = require('node:vm');
+  let calls = 0;
+  const grid = { dataset: { layoutEditing: editing ? '1' : '0' }, isConnected: true, children: [], querySelector: () => null };
+  const target = { dataset: {}, querySelector: selector => selector === '.dashboard-grid' ? grid : { textContent: '대시보드' } };
+  const window = {
+    TaejangApp: { getRoute: () => 'operations_manager', rpc: async () => { calls++; return []; } },
+    TaejangPlatformUiSettings: { isDashboardEditing: () => editing, isDashboardCustomized: () => true, getDashboardOrder: () => [] },
+    TaejangPlatformNavigationRegistry: { items: () => [] }
+  };
+  vm.runInNewContext(priority, {
+    window,
+    document: { readyState: 'loading', getElementById: () => target, addEventListener() {},
+      createElement: () => { throw new Error('automatic card recreated during editing'); } },
+    setTimeout() {}, MutationObserver: class { observe() {} }
+  });
+  await window.TaejangDashboardPriorityCards.sync();
+  assert.equal(calls, 0, 'editing does not start summary fetches');
+  assert.equal(grid.children.length, 0, 'removed cards remain removed');
+});
