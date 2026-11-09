@@ -361,6 +361,7 @@
   let activeView = null, openingView = false, viewDirty = false, dashboardRender = null;
   const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
   function currentViewDirty() {
+    if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
     return activeView === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }
   function mayLeaveView() {
@@ -468,8 +469,8 @@
     // Optional personal reader has its own failure boundary; operations remain usable.
     const personal = document.createElement('section');
     main.append(personal);
-    try { window.TaejangPersonalWorklog?.mount(personal); }
-    catch { personal.replaceChildren(text('p', '업무수첩 연결을 확인해 주세요.', 'message')); }
+    try { (window.TaejangEmployeeCalendar || window.TaejangPersonalWorklog)?.mount(personal); }
+    catch { personal.replaceChildren(text('p', '개인 캘린더를 다시 확인해 주세요.', 'message')); }
     const grid = document.createElement('section'); grid.className = 'dashboard-grid'; grid.setAttribute('aria-label', '현재 업무 요약');
 
     if (route === 'promotion_lead') {

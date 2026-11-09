@@ -18,6 +18,7 @@ const IMPORTED_HELPERS = new Map([
   ['tests/helpers/menu-employee-adapter-test.mjs', 'tests/menu-authority-isolated.mjs'],
   ['tests/helpers/migration-function-catalog.mjs', 'tests/helpers/menu-employee-adapter-test.mjs'],
   ['tests/helpers/today-board-browser-flow.mjs', 'tests/today-board-auth-integration.mjs'],
+  ['tests/helpers/employee-calendar-browser-flow.mjs', 'tests/employee-calendar-auth-integration.mjs'],
   ['tests/helpers/notice-browser-flow.mjs', 'tests/notice-review-media-auth-integration.mjs'],
   ['tests/helpers/public-header-checks.mjs', 'tests/employee-app-browser.mjs'],
   ['tests/helpers/employee-app-motion-checks.mjs', 'tests/employee-app-browser.mjs'],

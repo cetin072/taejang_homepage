@@ -171,6 +171,16 @@ jobs:
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-leave-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/google-email-release-auth-integration.mjs
           SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/worklog-readonly-auth-integration.mjs
+          CHROME_PATH=$(command -v google-chrome) SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/employee-calendar-auth-integration.mjs
+
+      - name: Keep synthetic employee calendar screenshots
+        if: always() && steps.scope.outputs.run_full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-calendar-320-390-1440
+          path: employee-calendar-qa-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Test leave administration browser flow
         if: steps.scope.outputs.run_full == 'true'
