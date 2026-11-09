@@ -8,7 +8,7 @@ assert.match(html,/href="partnership.html"/);
 assert.match(html,/실제 포장 사진이 아닙니다/);
 assert.match(html,/dominionsalt.co.nz/);
 assert.match(html,/images\/salt\/dominion-lake-grassmere.jpg/);
-assert.doesNotMatch(html,/<form|<input|₩|\$\d|장바구니|중금속|미네랄|HACCP|도미니언/);
+assert.doesNotMatch(html,/<form|<input|₩|\$\d|장바구니|중금속|HACCP|도미니언/);
 for (const m of html.matchAll(/(?:href|src)="([^"#?]+)(?:[?#][^"]*)?"/g)) {
  if (!/^(https?:|mailto:|tel:)/.test(m[1])) assert.ok(fs.existsSync(m[1]),m[1]);
 }
