@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||['/usr/bin/google-chrome','/usr/bin/chromium'].find(existsSync),args:['--no-sandbox']});
-const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
+const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><link rel="stylesheet" href="/app/assets/dashboard-accent-theme.css"><div id="desktop-app-shell"><nav id="app-nav"></nav><button id="sidebar-toggle"></button><button id="logout-button">로그아웃</button><div class="app-user-actions"><button id="desktop-logout-button"></button></div><span id="desktop-user-label"></span><span id="desktop-role-label"></span><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main></div><script>
 window.actor='self';window.role='operations_manager';window.simulation=false;window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자',role_simulation:{active:simulation}}),rpc:async()=>[]};
 </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
 try {
@@ -28,6 +28,23 @@ try {
    return route.fulfill({contentType:'text/html',body:html});
   });
   await p.goto('https://fixture.test/');await p.getByRole('table',{name:/개인 일정/}).waitFor();
+  const intro=p.locator('#dashboard-main > .dashboard-intro');
+  const introHeight=await intro.evaluate(e=>e.getBoundingClientRect().height);
+  await intro.evaluate(e=>{
+   const actions=document.createElement('div');actions.className='dashboard-layout-actions';
+   const button=document.createElement('button');button.type='button';button.className='button button-quiet';
+   button.textContent='대시보드 편집';actions.append(button);e.append(actions);
+  });
+  const editBox=await intro.getByRole('button',{name:'대시보드 편집',exact:true}).boundingBox();
+  const headingBox=await intro.locator('h2').boundingBox();
+  if(width>=760){
+   assert.ok(editBox.x>=headingBox.x+headingBox.width,'header action uses right column');
+   assert.ok(editBox.y<headingBox.y+headingBox.height,'action does not add a bottom row');
+   if(width===1440)assert.ok((await intro.boundingBox()).height<=introHeight+2,'edit button does not increase card height');
+  }
+  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'header action fits narrow screens');
+  await fs.mkdir('worklog-calendar-qa-artifacts',{recursive:true});
+  await intro.screenshot({path:`worklog-calendar-qa-artifacts/dashboard-header-${width}.png`});
   assert.equal(await p.locator('input[type=password]').count(),0,'no second sign-in form');
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),1);

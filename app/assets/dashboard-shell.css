@@ -418,6 +418,24 @@
   gap:8px;
   margin-top:14px;
 }
+@media (min-width:760px) {
+  :is(.dashboard-intro,.employee-field-audit-head):has(> :is(.dashboard-layout-actions,.button,.quick-links)) {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) fit-content(42%);
+    column-gap:20px;
+    align-items:start;
+  }
+  :is(.dashboard-intro,.employee-field-audit-head) > :is(.eyebrow,h2,p) { grid-column:1; }
+  :is(.dashboard-intro,.employee-field-audit-head) > :is(.dashboard-layout-actions,.button,.quick-links) {
+    grid-column:2;
+    grid-row:1 / span 3;
+    justify-self:end;
+    align-self:center;
+    margin:0;
+    max-width:360px;
+  }
+  .dashboard-intro > .dashboard-card-picker { grid-column:1 / -1; }
+}
 .dashboard-card-picker {
   display:grid;
   gap:10px;
