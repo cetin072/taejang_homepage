@@ -12,6 +12,13 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-09-settings-privacy-disclosure',
+    date: '2026-11-09',
+    title: '개인정보 안내 위치 통일',
+    summary: '앱 정보 안의 개인정보·계정 관리에서 필요한 안내를 펼쳐봅니다.',
+    items: ['별도 개인정보 블록을 없앴습니다.', '개인정보처리방침과 계정 삭제 요청은 눌렀을 때만 표시합니다.'],
+  },
+  {
     id: '2026-11-09-settings-groups',
     date: '2026-11-09',
     title: '설정 메뉴 정리',

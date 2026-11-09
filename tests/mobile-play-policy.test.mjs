@@ -73,12 +73,14 @@ test('Android Play identity advances the 0.1.8 closed-test candidate versionCode
   assert.deepEqual([...signature], [137, 80, 78, 71, 13, 10, 26, 10]);
 });
 
-test('settings separates policy links and keeps account actions at the bottom', async () => {
+test('settings keeps policy links under app info and account actions at the bottom', async () => {
   const settings = await text('mobile/app/settings.tsx');
-  const policy = settings.indexOf('<SettingsGroup title="개인정보 안내">');
+  const appInfo = settings.indexOf('<SettingsGroup title="앱 정보">');
+  const policy = settings.indexOf('<SettingsRow title="개인정보·계정 관리"');
   const account = settings.indexOf('<SettingsGroup title="계정">');
   const logout = settings.indexOf('accessibilityLabel="로그아웃"');
-  assert.ok(policy >= 0 && account > policy && logout > account, 'account and logout should follow the policy group');
+  assert.ok(appInfo >= 0 && policy > appInfo && account > policy && logout > account, 'policy disclosure belongs in app info, before the last account group');
+  assert.doesNotMatch(settings, /<SettingsGroup title="개인정보 안내">/);
   assert.match(settings.slice(policy, account), /<PolicyLinks includeAccountDeletion\s*\/>/);
   assert.match(settings, /groupCard:\s*\{[^}]*borderWidth:\s*1/);
 });

@@ -22,10 +22,10 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
   </View>;
 }
 
-function SettingsRow({ title, label, onPress, disabled = false }: { title: string; label?: string; onPress(): void; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label || title} disabled={disabled} onPress={onPress} style={[styles.utilityButton, disabled ? styles.disabled : null]}>
+function SettingsRow({ title, label, onPress, disabled = false, expanded }: { title: string; label?: string; onPress(): void; disabled?: boolean; expanded?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label || title} accessibilityState={expanded === undefined ? undefined : { expanded }} disabled={disabled} onPress={onPress} style={[styles.utilityButton, disabled ? styles.disabled : null]}>
     <Text style={styles.utilityButtonTitle}>{title}</Text>
-    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>›</Text>
+    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>{expanded ? '⌄' : '›'}</Text>
   </Pressable>;
 }
 
@@ -34,6 +34,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { client, session, signOut } = usePlatform();
   const [busy, setBusy] = useState(false);
+  const [policyExpanded, setPolicyExpanded] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
   const [access, setAccess] = useState<AccessContext | null>(null);
   const fallbackDisplayName = session?.user.user_metadata?.display_name || session?.user.email || '태장 직원';
@@ -105,9 +106,8 @@ export default function SettingsScreen() {
             <Text style={styles.qaBannerTitle}>{appVariantLabel()}</Text>
             <Text style={styles.qaBannerHelp}>검수용 · 정식 앱과 별도 설치</Text>
           </View> : null}
-        </SettingsGroup>
-        <SettingsGroup title="개인정보 안내">
-          <View style={styles.links}><PolicyLinks includeAccountDeletion /></View>
+          <SettingsRow title="개인정보·계정 관리" expanded={policyExpanded} onPress={() => setPolicyExpanded(value => !value)} />
+          {policyExpanded ? <View style={styles.links}><PolicyLinks includeAccountDeletion /></View> : null}
         </SettingsGroup>
         <SettingsGroup title="계정">
           <View style={styles.account}>
