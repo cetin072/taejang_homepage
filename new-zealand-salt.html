@@ -41,7 +41,7 @@
         <li>제조원 <strong>Dominion Salt Limited</strong></li>
       </ul>
       <div class="salt-actions">
-        <a class="salt-button" href="partnership.html?source=new-zealand-salt#contact">납품·견적 문의 <span aria-hidden="true">↗</span></a>
+        <a class="salt-button" href="#salt-contact">납품·견적 문의 <span aria-hidden="true">↗</span></a>
         <a class="salt-textlink" href="#salt-proof">제품 자료 보기</a>
       </div>
       <p class="salt-hero-seller">판매원 농업회사법인 태장 주식회사 · 가격 및 공급조건은 상담 안내</p>
@@ -103,19 +103,35 @@
   </div>
 </section>
 <section class="salt-contact" id="salt-contact" aria-labelledby="salt-contact-title">
-  <div class="container">
-    <p class="salt-eyebrow">CONTACT · B2B INQUIRY</p>
-    <h2 id="salt-contact-title">뉴질랜드 천일염<br>납품·구매 문의</h2>
-    <p>희망 규격(10kg·25kg), 수량, 사용 용도와 수령 지역을 알려 주세요.<br>기존 태장 문의 양식에서 상품 정보가 자동으로 입력됩니다.</p>
-    <div class="salt-contact-actions">
-      <a class="salt-button" href="partnership.html?source=new-zealand-salt#contact">제품 문의 양식으로 이동 <span aria-hidden="true">↗</span></a>
-      
-    </div>
-    <a class="salt-mail" href="mailto:taejang2025@naver.com?subject=%EB%89%B4%EC%A7%88%EB%9E%9C%EB%93%9C%20%EC%B2%9C%EC%9D%BC%EC%97%BC%20%EB%82%A9%ED%92%88%20%EB%AC%B8%EC%9D%98&amp;body=%EB%89%B4%EC%A7%88%EB%9E%9C%EB%93%9C%20%EC%B2%9C%EC%9D%BC%EC%97%BC%20%EA%B5%AC%EB%A7%A4%20%EB%AC%B8%EC%9D%98%0A-%20%ED%9D%AC%EB%A7%9D%20%EA%B7%9C%EA%B2%A9(10kg%2F25kg)%3A%0A-%20%EC%88%98%EB%9F%89%3A%0A-%20%ED%9D%AC%EB%A7%9D%20%EC%9D%BC%EC%A0%95%2F%EC%88%98%EB%A0%B9%20%EC%A7%80%EC%97%AD%3A">이메일 문의 · taejang2025@naver.com</a>
-    <a class="salt-back" href="resources.html">서비스·상품 돌아가기</a>
+  <div class="container salt-contact-inner">
+    <p class="salt-eyebrow">CONTACT · NEW ZEALAND SOLAR SALT</p>
+    <h2 id="salt-contact-title">뉴질랜드 천일염<br>간편 문의하기</h2>
+    <p class="salt-contact-lead">10kg·25kg 상품의 구매·납품에 관해 궁금한 점을 남겨 주세요.<br>담당자가 확인 후 연락드리겠습니다.</p>
+    <form class="salt-inquiry-form" name="taejang-salt-inquiry" method="POST" action="/thanks" data-netlify="true" netlify-honeypot="bot-field" accept-charset="UTF-8">
+      <input type="hidden" name="form-name" value="taejang-salt-inquiry">
+      <input type="hidden" name="subject" data-remove-prefix value="뉴질랜드 천일염 상품 문의 (%{submissionId})">
+      <p class="salt-honeypot" aria-hidden="true"><label>이 항목은 비워 두세요 <input name="bot-field" type="text" tabindex="-1" autocomplete="off"></label></p>
+      <div class="salt-form-columns">
+        <label class="salt-field" for="salt-phone"><span>연락처 <b aria-hidden="true">*</b></span>
+          <input id="salt-phone" name="contact" type="tel" inputmode="tel" autocomplete="tel" maxlength="30" placeholder="연락 가능한 번호" required>
+        </label>
+        <label class="salt-field" for="salt-email"><span>이메일 <b aria-hidden="true">*</b></span>
+          <input id="salt-email" name="email" type="email" autocomplete="email" maxlength="120" placeholder="이메일 주소" required>
+        </label>
+      </div>
+      <label class="salt-field salt-field--message" for="salt-message"><span>문의 내용 <b aria-hidden="true">*</b></span>
+        <textarea id="salt-message" name="message" rows="4" maxlength="2000" placeholder="필요한 규격(10kg/25kg), 예상 수량, 수령 지역 등을 자유롭게 적어 주세요." required></textarea>
+      </label>
+      <label class="salt-consent">
+        <input type="checkbox" name="privacy-consent" value="동의함" required>
+        <span><a href="privacy.html" target="_blank" rel="noopener noreferrer">개인정보처리방침</a>을 확인했으며, 문의 회신을 위한 개인정보 수집·이용에 동의합니다. <b aria-hidden="true">*</b></span>
+      </label>
+      <p class="salt-privacy-summary">수집 항목: 연락처·이메일·문의 내용 · 이용 목적: 문의 확인·회신 · 보관: 처리 완료 후 6개월. 민감한 개인정보는 적지 마세요.</p>
+      <button class="salt-button salt-submit" type="submit">문의 보내기 <span aria-hidden="true">↗</span></button>
+    </form>
   </div>
 </section>
-<a class="salt-sticky" href="partnership.html?source=new-zealand-salt#contact">뉴질랜드 천일염 문의하기</a>
+<a class="salt-sticky" href="#salt-contact">뉴질랜드 천일염 문의하기</a>
 </main>
 
 <footer class="footer">
