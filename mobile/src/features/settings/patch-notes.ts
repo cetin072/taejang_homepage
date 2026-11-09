@@ -12,6 +12,13 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-09-settings-logout-spacing',
+    date: '2026-11-09',
+    title: '로그아웃 간격 복원',
+    summary: '로그아웃 위의 추가 공백을 없애고 계정 카드 안에 함께 배치했습니다.',
+    items: ['내 정보와 로그아웃 사이의 한 칸 공백을 제거했습니다.'],
+  },
+  {
     id: '2026-11-09-settings-privacy-disclosure',
     date: '2026-11-09',
     title: '개인정보 안내와 로그아웃 위치 정리',
