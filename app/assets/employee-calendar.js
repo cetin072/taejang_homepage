@@ -102,7 +102,7 @@
    }table.append(body);section.append(navigation,table);
    const sidebar=el('aside','','worklog-sidebar'),today=events.filter(row=>overlaps(row,data.today));const todaySection=el('section','','worklog-list');todaySection.append(el('h4','오늘 일정 '+today.length+'건'));
    if(!today.length)todaySection.append(el('p',data.limited?'일부 일정만 표시 중입니다.':'오늘 일정이 없습니다.','help'));
-   else {const ul=el('ul');for(const row of today){const li=el('li');li.append(button(row.title,()=>openDay(data.today,today)),el('small',source(row)+' · '+(row.all_day?'종일':time(row.starts_at))));ul.append(li);}todaySection.append(ul);}sidebar.append(todaySection);
+   else {const ul=el('ul');for(const row of today){const li=el('li');li.append(button((row.status==='cancelled'?'[취소] ':'')+row.title,()=>openDay(data.today,today)),el('small',source(row)+' · '+(row.all_day?'종일':time(row.starts_at))));ul.append(li);}todaySection.append(ul);}sidebar.append(todaySection);
    if(data.tasks?.length){const tasks=el('details','','worklog-tasks'),summary=el('summary');summary.append(el('span','업무수첩 미완료·재확인 업무'),el('strong',data.tasks.length+'건','worklog-count'));tasks.append(summary);const ul=el('ul');for(const task of data.tasks)ul.append(el('li',task.title));tasks.append(ul);sidebar.append(tasks);}
    const layout=el('div','','worklog-layout');layout.append(section,sidebar);content.replaceChildren(layout);
   }
