@@ -150,8 +150,8 @@ function renderDocument(template, group, item, siblings) {
         articleSection: item.category,
         ...( /^\d{4}-\d{2}-\d{2}$/.test(article.isoDate) ? { datePublished: article.isoDate } : {}),
         image: article.photo,
-        author: { '@type': 'Organization', name: '농업회사법인 태장 주식회사' },
-        publisher: { '@type': 'Organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
+        author: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사' },
+        publisher: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
       }
     ]
   };

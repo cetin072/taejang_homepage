@@ -1,4 +1,4 @@
-window.TAEJANG_CONTENT = {
+(typeof window !== 'undefined' ? window : globalThis).TAEJANG_CONTENT = {
   workplace: [
     {
       id: "minhwa-one-stroke",

@@ -182,7 +182,7 @@ test('both static story templates and promotion detail load shared module before
   }
   const promotion = fs.readFileSync('assets/js/promotion-detail.js', 'utf8');
   assert.match(promotion, /window\.TAEJANG_PUBLIC_SHARE\?\.mount\(article/);
-  assert.match(promotion, /item\.content_type !== 'external_content'/);
+  assert.match(promotion, /contentPresentation\.indexable/);
 });
 
 function makeExternalCard(url = 'https://blog.naver.com/taejang-official/224427291403') {

@@ -19,10 +19,25 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - name: Ensure Korean fonts for readable public screenshots
+        shell: bash
+        run: |
+          if [ -z "$(fc-list :lang=ko family)" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install --no-install-recommends -y fonts-noto-cjk
+          fi
       - run: npm run build:netlify
       - run: node tests/hero-article-browser.mjs
         env:
           HERO_QA_OUTPUT: hero-qa-artifacts
+      - name: Verify public SEO content and source presentation
+        run: node tests/public-seo-content-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-seo-320-390-1440
+          path: seo-qa-artifacts/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
         with:

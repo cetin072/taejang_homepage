@@ -111,6 +111,9 @@
   }
 
   function render(item) {
+    const contentPresentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
+    const robots = document.querySelector('meta[name="robots"]');
+    if (robots) robots.content = contentPresentation.indexable ? 'index, follow' : 'noindex, follow';
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
@@ -123,12 +126,13 @@
     header.append(el('p', eyebrow, 'eyebrow'));
     header.append(el('h1', item.title));
     const meta = el('div', null, 'article-meta');
+    meta.append(document.createTextNode(contentPresentation.dateLabel));
     const date = el('time', formatDate(item.published_date));
     date.dateTime = item.published_date || '';
     meta.append(date);
     if (item.byline) meta.append(el('span', item.byline));
     header.append(meta);
-    if (item.summary) header.append(el('p', item.summary, 'lead'));
+    if (contentPresentation.lead) header.append(el('p', contentPresentation.lead, 'lead'));
     article.append(header);
 
     const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => mediaPolicy.persistent(entry?.url)) : [];
@@ -157,6 +161,15 @@
       article.append(gallery);
     }
 
+    if (contentPresentation.notice) article.append(el('p', contentPresentation.notice, 'article-source-note'));
+    if (contentPresentation.sourceLabel) article.append(el('p', '출처: ' + contentPresentation.sourceLabel));
+    if (contentPresentation.related) {
+      const related = el('a', '공식 활동 기록: ' + contentPresentation.related.title + ' →', 'text-link');
+      related.href = contentPresentation.related.url;
+      article.append(related);
+      article.append(el('p', '활동일: ' + contentPresentation.related.date + ' · ' + contentPresentation.related.summary));
+    }
+
     if (/^https:\/\//.test(item.external_url || '')) {
       const external = el('a', sourceLinkLabel(item.link_source_type), 'btn line');
       external.href = item.external_url;
@@ -166,7 +179,7 @@
     }
 
     target.replaceChildren(article);
-    if (item.content_type !== 'external_content') {
+    if (contentPresentation.indexable) {
       window.TAEJANG_PUBLIC_SHARE?.mount(article, {
         url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
         title: item.title,
