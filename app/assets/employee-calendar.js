@@ -13,6 +13,7 @@
   return Object.entries(errors).find(([code])=>text.includes(code))?.[1]||(/PGRST202|does not exist/.test(text)?'캘린더 준비 중입니다. 기존 업무는 계속 사용할 수 있습니다.':'처리하지 못했습니다. 입력을 보존했으니 다시 시도해 주세요.');
  };
  let generation=0,currentRoot,currentActor,cleanup,dirty=false,busy=false;
+ const pending=()=>Boolean(currentRoot?.isConnected)&&(dirty||busy);
  function clear(){generation++;cleanup?.abort();if(currentRoot){currentRoot.replaceChildren();currentRoot.hidden=true;}dirty=false;busy=false;currentActor=null;}
  function mount(root){
   if(!root)return;clear();currentRoot=root;const app=window.TaejangApp,actor=app?.getSession?.()?.user?.id;
@@ -59,7 +60,7 @@
      await rpc('save_my_calendar_event',{p_id:id,p_request_id:requestId,p_expected_updated_at:row?.updated_at||null,p_title:title.value,p_starts_at:from,p_ends_at:until,p_all_day:allDay,p_location:location.value,p_description:description.value});
      dirty=false;detail.close();month=dateInput.value.slice(0,7);await load('일정을 저장했습니다.');
     }catch(error){if(alive())message.textContent=errorText(error);}
-    finally{busy=false;if(alive())save.disabled=false;}
+    finally{if(epoch===generation)busy=false;if(alive())save.disabled=false;}
    });rows.append(f);title.focus();
   }
   async function remove(row){
@@ -67,7 +68,7 @@
    busy=true;const requestId=crypto.randomUUID();
    try{await rpc('cancel_my_calendar_event',{p_id:row.id,p_request_id:requestId,p_expected_updated_at:row.updated_at});detail.close();await load('일정을 삭제했습니다.');}
    catch(e){if(alive())rows.append(el('p',errorText(e),'message error'));}
-   finally{busy=false;}
+   finally{if(epoch===generation)busy=false;}
   }
   function openDay(date,entries){
    if(!alive()||busy)return;show(date+' 일정 '+entries.length+'개');
@@ -120,6 +121,6 @@
  document.addEventListener('taejang-app-ready',()=>{clear();mountWorker();});
  document.addEventListener('taejang-menu-authority-changed',mountWorker);
  for(const event of ['taejang-capabilities-ready','taejang-menu-authority-changed'])document.addEventListener(event,()=>{if(currentRoot&&(window.TaejangApp?.getContext?.()?.role_simulation?.active||window.TaejangApp?.getSession?.()?.user?.id!==currentActor))clear();});
- window.addEventListener('beforeunload',e=>{if(dirty||busy){e.preventDefault();e.returnValue='';}});
- window.TaejangEmployeeCalendar={mount,hasUnsavedChanges:()=>dirty||busy};
+ window.addEventListener('beforeunload',e=>{if(pending()){e.preventDefault();e.returnValue='';}});
+ window.TaejangEmployeeCalendar={mount,hasUnsavedChanges:pending};
 })();
