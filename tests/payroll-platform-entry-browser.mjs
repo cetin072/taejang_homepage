@@ -181,7 +181,15 @@ const appAutomation = `<script>
       );
       saveSidebar.click();
       await waitFor(() => nav.dataset.layoutEditing !== '1', 'sidebar edit save');
-      document.querySelector('.staff-brand, .app-logo')?.click();
+      // Saving clears the edit flag before its async settings repaint finishes.
+      // Navigate only after the saved settings surface is ready, so its late
+      // repaint cannot overwrite the dashboard we just opened.
+      await waitFor(
+        () => [...document.querySelectorAll('#dashboard-main button')]
+          .find(button => button.textContent.trim() === '사이드바 메뉴 순서 편집'),
+        'saved sidebar settings ready'
+      );
+      document.querySelector('#desktop-app-shell .app-logo')?.click();
 
       const dashboardActions = await waitFor(
         () => document.querySelector('[data-dashboard-layout-actions]'),
