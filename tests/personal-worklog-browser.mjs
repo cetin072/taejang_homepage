@@ -7,7 +7,7 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
 window.actor='self';window.role='operations_manager';window.simulation=false;window.TaejangApp={getSession:()=>({user:{id:actor},access_token:'erp-fixture'}),getRoute:()=>role,getContext:()=>({display_name:'합성 사용자',role_simulation:{active:simulation}}),rpc:async()=>[]};
 </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/personal-worklog.js"></script><script src="/app/assets/dashboard-shell.js"></script><script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:role,label:'합성 역할'}}));</script></html>`;
 try {
- for(const width of [1440,390,320]){
+ for(const width of [1440,1024,786,390,320]){
   const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];p.on('pageerror',e=>errors.push(e.message));
   let mode='success',requests=0,delayResolve;
   await p.route('**/*',async route=>{
@@ -22,7 +22,7 @@ try {
     if(mode==='pending')return route.fulfill({status:503,json:{code:'WORKLOG_MIGRATION_PENDING'}});
     if(mode==='no-space')return route.fulfill({status:403,json:{code:'PERSONAL_WORKSPACE_UNAVAILABLE'}});
     const month=u.searchParams.get('month');
-    if(mode==='dense')return route.fulfill({json:{connected:true,month,today:month+'-03',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:Array.from({length:20},(_,i)=>({id:'dense-'+i,title:`합성 대량 일정 ${i+1} `+'줄바꿈되면 안 되는 매우 긴 제목 '.repeat(8)+'<img src=x onerror=alert(1)>',starts_at:month+'-02T01:'+String(i).padStart(2,'0')+':00Z',ends_at:null,all_day:i===0})),todaySchedules:[],tasks:[]}});
+    if(mode==='dense')return route.fulfill({json:{connected:true,month,today:month+'-03',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:Array.from({length:20},(_,i)=>({id:'dense-'+i,title:`합성 대량 일정 ${i+1} `+'줄바꿈되면 안 되는 매우 긴 제목 '.repeat(8)+'<img src=x onerror=alert(1)>',starts_at:month+'-02T01:'+String(i).padStart(2,'0')+':00Z',ends_at:null,all_day:i===0})),todaySchedules:[],tasks:Array.from({length:60},(_,i)=>({title:'합성 미완료 업무 '+(i+1)+' 긴 업무 제목 '.repeat(8),status:'needs_review',due_at:null}))}});
     return route.fulfill({json:{connected:true,month,today:'2026-11-02',fetchedAt:'2026-11-02T01:00:00Z',limited:false,schedules:[{id:'s',title:'합성 모바일 일정 <script>alert(1)</script>',starts_at:month+'-02T01:00:00Z',ends_at:null,all_day:false}],todaySchedules:[{title:'합성 오늘 일정',starts_at:'2026-11-02T01:00:00Z',all_day:false}],tasks:[{title:'합성 미완료',status:'needs_review',due_at:null}]}});
    }
    return route.fulfill({contentType:'text/html',body:html});
@@ -31,7 +31,23 @@ try {
   assert.equal(await p.locator('input[type=password]').count(),0,'no second sign-in form');
   assert.equal(await p.getByRole('heading',{name:'중요 홍보 승인',exact:true}).count(),1);
   assert.equal(await p.getByText('합성 오늘 일정',{exact:true}).count(),1);
-  assert.equal(await p.getByText('합성 미완료',{exact:true}).count(),1);
+  const tasks=p.locator('.worklog-tasks');
+  const taskSummary=tasks.locator('summary');
+  assert.equal(await taskSummary.innerText(),'미완료·재확인 업무1건');
+  assert.equal(await p.getByText('합성 미완료',{exact:true}).isVisible(),false,'task contents start collapsed');
+  const calendarBox=await p.locator('.worklog-calendar').boundingBox();
+  const sidebarBox=await p.locator('.worklog-sidebar').boundingBox();
+  const toolbarBox=await p.locator('.worklog-toolbar').boundingBox();
+  assert.ok(calendarBox.y-toolbarBox.y-toolbarBox.height<30,'calendar follows the compact toolbar immediately');
+  if(width===1440){
+   assert.ok(sidebarBox.x>=calendarBox.x+calendarBox.width+20,'sidebar has its own right column');
+   assert.ok(Math.abs(sidebarBox.y-calendarBox.y)<2,'calendar and sidebar begin together');
+   assert.ok(sidebarBox.width>=250&&sidebarBox.width<=305,'sidebar remains usable');
+  }else if(width<=786)assert.ok(sidebarBox.y>=calendarBox.y+calendarBox.height,'calendar stays first on narrow screens');
+  await taskSummary.focus();await p.keyboard.press('Enter');
+  assert.equal(await p.getByText('합성 미완료',{exact:true}).isVisible(),true,'keyboard expands tasks');
+  await p.keyboard.press('Space');
+  assert.equal(await p.getByText('합성 미완료',{exact:true}).isVisible(),false,'keyboard collapses tasks');
   assert.ok(await p.getByText(/<script>alert/).count()>0,'unsafe title remains inert text');
   assert.equal(await p.locator('nav').getByText('나의 통합 홈').count(),0);
   const compactHeight=await p.locator('.worklog-calendar table').evaluate(e=>e.getBoundingClientRect().height);
@@ -46,6 +62,22 @@ try {
   assert.equal(await crowded.locator('.worklog-event').first().evaluate(e=>getComputedStyle(e).whiteSpace),'nowrap');
   assert.ok(await crowded.evaluate(e=>e.querySelector('.worklog-day').getBoundingClientRect().top-e.getBoundingClientRect().top<10),'date stays at top even on an empty day');
   assert.ok(await crowded.locator('.worklog-event').first().evaluate(e=>e.scrollWidth>e.clientWidth),'long title is clipped inside its cell');
+  const denseTasks=p.locator('.worklog-tasks');
+  assert.equal(await denseTasks.locator('summary').innerText(),'미완료·재확인 업무60건');
+  assert.equal(await denseTasks.locator('li').first().isVisible(),false);
+  const calendarTop=await p.locator('.worklog-calendar').evaluate(e=>e.getBoundingClientRect().top+scrollY);
+  await fs.mkdir('worklog-calendar-qa-artifacts',{recursive:true});
+  await p.locator('.personal-worklog').screenshot({path:`worklog-calendar-qa-artifacts/dashboard-collapsed-${width}.png`});
+  await denseTasks.locator('summary').click();
+  assert.equal(await denseTasks.locator('li').count(),60,'all tasks remain available on demand');
+  const taskList=denseTasks.locator('ul');
+  assert.ok(await taskList.evaluate(e=>e.scrollHeight>e.clientHeight),'long task list scrolls within sidebar');
+  const expandedTop=await p.locator('.worklog-calendar').evaluate(e=>e.getBoundingClientRect().top+scrollY);
+  assert.ok(Math.abs(calendarTop-expandedTop)<2,'opening many tasks never pushes calendar down');
+  assert.equal(requests,2,'expanding tasks does not refetch personal data');
+  assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'long tasks do not overflow viewport');
+  await p.locator('.personal-worklog').screenshot({path:`worklog-calendar-qa-artifacts/dashboard-expanded-${width}.png`});
+  await denseTasks.locator('summary').click();
   const requestCount=requests;await crowded.click();const dialog=p.getByRole('dialog');await dialog.waitFor();
   assert.equal(await dialog.locator('li').count(),20,'all overflow events remain available');
   assert.ok((await dialog.locator('li').last().innerText()).includes('합성 대량 일정 20'));

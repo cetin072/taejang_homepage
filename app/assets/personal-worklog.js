@@ -29,7 +29,9 @@
     const status = node('p', '연결 확인 중', 'message'); status.setAttribute('role', 'status');
     const controls = node('div', null, 'worklog-controls');
     const content = node('div');
-    root.replaceChildren(header, status, controls, content);
+    const toolbar = node('div', null, 'worklog-toolbar');
+    toolbar.append(status, controls);
+    root.replaceChildren(header, toolbar, content);
     const clear = () => { pending++; content.replaceChildren(); };
     async function api() {
       const erp = app.getSession?.()?.access_token;
@@ -98,9 +100,19 @@
         if(!alive()||request!==pending)return;
         status.textContent=`연결됨 · ${time(data.fetchedAt)} 조회${data.limited?' · 일부 항목만 표시(최대 500건)':''}`;
         controls.replaceChildren(action('새로고침',()=>void load()));
-        const lists=node('div',null,'worklog-summary');
-        lists.append(items('오늘 일정',data.todaySchedules,s=>s.all_day?'종일':time(s.starts_at),'오늘 일정이 없습니다.'),items('미완료·재확인 업무',data.tasks,t=>({needs_review:'재확인',waiting:'대기',in_progress:'진행 중'}[t.status]||'')+(t.due_at?` · ${dateKey(t.due_at)}`:''),'미완료 업무가 없습니다.'));
-        content.replaceChildren(lists,calendar(data));
+        const sidebar = node('aside', null, 'worklog-sidebar');
+        sidebar.setAttribute('aria-label', '오늘 일정과 업무');
+        const tasks = node('details', null, 'worklog-tasks');
+        const summary = node('summary');
+        summary.append(node('span', '미완료·재확인 업무'), node('strong', `${data.tasks.length}건`, 'worklog-count'));
+        tasks.append(summary, items('업무 목록', data.tasks, t =>
+          ({ needs_review: '재확인', waiting: '대기', in_progress: '진행 중' }[t.status] || '') +
+          (t.due_at ? ` · ${dateKey(t.due_at)}` : ''), '미완료 업무가 없습니다.'));
+        sidebar.append(tasks, items(`오늘 일정 ${data.todaySchedules.length}건`, data.todaySchedules,
+          s => s.all_day ? '종일' : time(s.starts_at), '오늘 일정이 없습니다.'));
+        const layout = node('div', null, 'worklog-layout');
+        layout.append(calendar(data), sidebar);
+        content.replaceChildren(layout);
       } catch(error){
         if(!alive()||request!==pending)return;
         if (error.code === 'PERSONAL_WORKSPACE_UNAVAILABLE' || error.code === 'WORKLOG_ROLE_PREVIEW') { hide(); return; }
