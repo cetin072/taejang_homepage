@@ -9,13 +9,13 @@ assert.match(html,/판매원[\s\S]{0,40}태장/);
 assert.match(html,/href="partnership\.html\?source=new-zealand-salt#contact"/);
 assert.match(html,/mailto:taejang2025@naver.com/);
 assert.match(html,/dominionsalt.co.nz/);
-assert.match(html,/images\/salt\/dominion-lake-grassmere.jpg/);
+assert.match(html,/images\/salt\/lake-grassmere-aerial.jpg/);
 // 확정 규격: Grade 27 Fine Solar Salt, 10kg·25kg 동일 등급
 assert.match(html,/Grade 27/);
 assert.match(html,/Solar Salt/);
 assert.match(html,/images\/salt\/solar-salt-10kg.jpg/);
 assert.match(html,/images\/salt\/solar-salt-25kg.jpg/);
-assert.match(html,/tel:01040153567/);
+assert.doesNotMatch(html,/tel:|010-4015-3567/);
 assert.ok(html.indexOf('solar-salt-10kg.jpg') < html.indexOf('lake-grassmere-aerial.jpg'), 'product before origin');
 assert.equal((html.match(/class="salt-faq"/g)||[]).length,1);
 assert.equal((html.match(/class="salt-hero"/g)||[]).length,1);

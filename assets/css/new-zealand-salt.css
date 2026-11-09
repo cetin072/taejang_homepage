@@ -18,7 +18,7 @@
 .salt-actions,.salt-contact-actions{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center}
 .salt-button{display:inline-flex;align-items:center;justify-content:center;gap:22px;padding:13px 21px;background:var(--salt-ink);color:white;border-radius:4px;font-weight:700;text-decoration:none;line-height:1.5}
 .salt-button:hover{background:#285955}
-.salt-phone-link{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:4px;white-space:normal}
+.salt-textlink{color:var(--salt-ink);font-weight:700;text-decoration:underline;text-underline-offset:4px}
 .salt-hero-seller,.salt-photo-note{font-size:.76rem;color:var(--salt-muted)}
 .salt-hero-seller{margin:14px 0 0}
 .salt-hero-media{min-width:0}
