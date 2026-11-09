@@ -111,9 +111,9 @@
   }
 
   function render(item) {
-    const presentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
+    const contentPresentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
     const robots = document.querySelector('meta[name="robots"]');
-    if (robots) robots.content = presentation.indexable ? 'index, follow' : 'noindex, follow';
+    if (robots) robots.content = contentPresentation.indexable ? 'index, follow' : 'noindex, follow';
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
@@ -126,20 +126,20 @@
     header.append(el('p', eyebrow, 'eyebrow'));
     header.append(el('h1', item.title));
     const meta = el('div', null, 'article-meta');
-    meta.append(document.createTextNode(presentation.dateLabel));
+    meta.append(document.createTextNode(contentPresentation.dateLabel));
     const date = el('time', formatDate(item.published_date));
     date.dateTime = item.published_date || '';
     meta.append(date);
     if (item.byline) meta.append(el('span', item.byline));
     header.append(meta);
-    if (presentation.lead) header.append(el('p', presentation.lead, 'lead'));
+    if (contentPresentation.lead) header.append(el('p', contentPresentation.lead, 'lead'));
     article.append(header);
 
     const media = Array.isArray(item.public_media) ? item.public_media.filter(entry => mediaPolicy.persistent(entry?.url)) : [];
-    const imagePresentation = item.public_image;
-    const candidates = imagePresentation?.candidates || mediaPolicy.candidates(item);
-    const heroUrl = imagePresentation?.url || candidates[0];
-    article.append(imageNode(heroUrl, imagePresentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
+    const presentation = item.public_image;
+    const candidates = presentation?.candidates || mediaPolicy.candidates(item);
+    const heroUrl = presentation?.url || candidates[0];
+    article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
     const paragraphs = String(item.public_body || '')
@@ -161,13 +161,13 @@
       article.append(gallery);
     }
 
-    if (presentation.notice) article.append(el('p', presentation.notice, 'article-source-note'));
-    if (presentation.sourceLabel) article.append(el('p', '출처: ' + presentation.sourceLabel));
-    if (presentation.related) {
-      const related = el('a', '공식 활동 기록: ' + presentation.related.title + ' →', 'text-link');
-      related.href = presentation.related.url;
+    if (contentPresentation.notice) article.append(el('p', contentPresentation.notice, 'article-source-note'));
+    if (contentPresentation.sourceLabel) article.append(el('p', '출처: ' + contentPresentation.sourceLabel));
+    if (contentPresentation.related) {
+      const related = el('a', '공식 활동 기록: ' + contentPresentation.related.title + ' →', 'text-link');
+      related.href = contentPresentation.related.url;
       article.append(related);
-      article.append(el('p', '활동일: ' + presentation.related.date + ' · ' + presentation.related.summary));
+      article.append(el('p', '활동일: ' + contentPresentation.related.date + ' · ' + contentPresentation.related.summary));
     }
 
     if (/^https:\/\//.test(item.external_url || '')) {
@@ -179,7 +179,7 @@
     }
 
     target.replaceChildren(article);
-    if (presentation.indexable) {
+    if (contentPresentation.indexable) {
       window.TAEJANG_PUBLIC_SHARE?.mount(article, {
         url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
         title: item.title,
