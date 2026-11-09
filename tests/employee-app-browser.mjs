@@ -40,7 +40,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 // Optional hosted base runs the same checks on the real Deploy Preview; no writes/API mutations.
 const base = process.env.EMPLOYEE_APP_QA_BASE || 'http://127.0.0.1:' + server.address().port;
 const results = [];
-const landingLink = (page, region = 'footer') => page.locator(region).getByRole('link', { name: '직원앱 소개', exact: true });
+const footerResourceLink = (page, region = 'footer') => page.locator(region).getByRole('link', { name: '자료실', exact: true });
 const isLandingRoute = url => /\/employee-app(?:\.html)?\/?$/.test(new URL(url).pathname);
 async function assertLayout(page, name) {
   const metric = await page.evaluate(() => ({
@@ -177,10 +177,10 @@ try {
     assert.equal(await page.locator('.employee-app-note-link').count(), 0, name + ': no misleading self-links');
     assert.equal(await page.locator('#note-attendance h3').innerText(), '출퇴근 버튼을 더 쉽게');
     assert.equal(await page.locator('#note-notice h3').innerText(), '공지사항을 더 단순하게');
-    const footerHref = await landingLink(page).getAttribute('href');
-    assert.ok(isLandingRoute(new URL(footerHref, page.url()).href), name + ': footer resolves to the employee-app route');
-    await landingLink(page).focus();
-    assert.equal(await landingLink(page).evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
+    const footerHref = await footerResourceLink(page).getAttribute('href');
+    assert.match(new URL(footerHref, page.url()).pathname, /\/resources(?:\.html)?$/, name + ': footer resolves to resources');
+    await footerResourceLink(page).focus();
+    assert.equal(await footerResourceLink(page).evaluate(el => getComputedStyle(el).outlineColor), 'rgb(255, 255, 255)', name + ': visible focus on dark footer');
     assert.deepEqual(errors, [], name + ': uncaught browser errors');
     // Regression: shared homepage footer entry and header/menu still work.
     await gotoPublicReady(page, base + '/index.html', output);
@@ -188,9 +188,16 @@ try {
     const mobileAppLink = page.locator('header .mobile-nav a.resources-nav');
     assert.equal(await desktopAppLink.count(), 1, name + ': desktop header includes resource hub');
     assert.equal(await mobileAppLink.count(), 1, name + ': mobile header includes resource hub');
-    assert.equal(await landingLink(page).count(), 1, name + ': legacy footer entry remains');
+    assert.equal(await footerResourceLink(page).count(), 1, name + ': footer resources entry remains');
+    const footerRows = await page.locator('.footer-shortcuts a').evaluateAll(links => new Set(links.map(link => Math.round(link.getBoundingClientRect().top))).size);
+    assert.equal(footerRows, 3, name + ': seven shortcuts occupy three rows');
+    await page.locator('footer').screenshot({ path: path.join(output, 'footer-' + name + '.png') });
     if (name === 'pc') {
-      await landingLink(page).click();
+      await footerResourceLink(page).click();
+      await page.waitForURL(url => /\/resources(?:\.html)?$/.test(url.pathname));
+      const appCard = page.locator('.resource-card--link');
+      assert.ok(isLandingRoute(new URL(await appCard.getAttribute('href'), page.url()).href), 'resource card points to employee app');
+      await appCard.click();
       await page.waitForURL(url => isLandingRoute(url.href));
       await gotoPublicReady(page, base + '/index.html', output);
       await page.screenshot({ path: path.join(output, 'homepage-app-menu-pc.png') });
