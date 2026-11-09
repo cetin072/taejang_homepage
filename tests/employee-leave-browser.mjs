@@ -74,6 +74,37 @@ for(const width of [320,390,786,1440]){
  await page.getByText('저장하지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.getByLabel('현재 남은 연차').inputValue(),'7');assert.equal(await page.getByLabel('입력 근거',{exact:true}).inputValue(),'other');assert.equal(await page.getByLabel('기타 입력 근거',{exact:true}).inputValue(),'기존 수기대장 확인');
  await page.getByRole('button',{name:'최초 연차 등록',exact:true}).click();await page.getByText('발생 10개 · 남은 7개',{exact:false}).waitFor();
  const saved=await page.evaluate(()=>window.calls.find(c=>c.name==='initialize_employee_leave'));assert.equal(saved.args.p_accrued,10);assert.equal(saved.args.p_remaining,7);assert.equal(saved.args.p_monthly_enabled,true);assert.equal(saved.args.p_reason,'기존 수기대장 확인');
+ // These small forms share a row on desktop, without changing their free-text contracts.
+ await page.getByText('잔여 연차 조정',{exact:true}).click();
+ const adjustment=page.locator('.leave-adjustment-form');
+ await adjustment.getByLabel('조정 개수 (+ 또는 -)',{exact:true}).fill('-0.5');
+ await adjustment.getByLabel('조정 사유',{exact:true}).fill('가상 검수 조정');
+ const checkCompact=async form=>{
+  const controls=form.locator(':scope > label > input, :scope > label > select, :scope > .leave-date-field > .leave-date-button, :scope > button[type=submit]');
+  const boxes=await controls.evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,height:r.height,radius:getComputedStyle(n).borderRadius};}));
+  for(const b of boxes){assert.equal(b.radius,'0px','requested controls have square corners');assert.ok(b.height>=44,'touch targets retained');assert.ok(b.x>=0&&b.right<=width+1,'control fits viewport');}
+  if(width===1440)assert.ok(boxes.every(b=>Math.abs(b.bottom-boxes[0].bottom)<2),'desktop controls and save share a row');
+  if(width<=760)for(let i=1;i<boxes.length;i++)assert.ok(boxes[i].y>=boxes[i-1].bottom,'mobile controls stack');
+ };
+ await checkCompact(adjustment);
+ await adjustment.screenshot({path:`leave-admin-qa-artifacts/adjustment-${width}.png`});
+ await page.evaluate(()=>{window.failNext=true;});await adjustment.getByRole('button',{name:'조정 저장',exact:true}).click();
+ await adjustment.getByText('저장하지 못했습니다.',{exact:false}).waitFor();
+ assert.equal(await adjustment.getByLabel('조정 사유',{exact:true}).inputValue(),'가상 검수 조정','save failure preserves typed reason');
+ await adjustment.getByRole('button',{name:'조정 저장',exact:true}).click();
+ await page.getByText('잔여 연차 조정',{exact:true}).waitFor();
+ const adjustmentCall=await page.evaluate(()=>window.calls.filter(c=>c.name==='adjust_employee_leave').at(-1));
+ assert.equal(adjustmentCall.args.p_delta,-0.5);assert.equal(adjustmentCall.args.p_reason,'가상 검수 조정');
+ await page.locator('.leave-exceptions > summary').click();
+ const holiday=page.locator('.leave-day-off-form');await checkCompact(holiday);
+ await holiday.getByRole('button',{name:'휴무일',exact:true}).click();
+ await holiday.getByRole('button',{name:'2026-11-20 선택',exact:true}).click();
+ await holiday.getByLabel('휴무 사유',{exact:true}).fill('가상 검수 휴무');
+ await holiday.screenshot({path:`leave-admin-qa-artifacts/exception-${width}.png`});
+ await holiday.getByRole('button',{name:'예외 휴무 저장',exact:true}).click();
+ await page.waitForFunction(()=>window.calls.some(c=>c.name==='save_employee_day_off'));
+ const holidayCall=await page.evaluate(()=>window.calls.find(c=>c.name==='save_employee_day_off'));
+ assert.deepEqual(holidayCall.args,{p_employee_uuid:null,p_work_date:'2026-11-20',p_reason:'가상 검수 휴무'});
  assert.equal(await page.getByText('근무조건 추가',{exact:true}).count(),0);
  await page.getByLabel('직원 선택').selectOption('second');await page.getByRole('heading',{name:'둘째 직원 · 연차 등록·현황',exact:true}).waitFor();
  assert.equal(await page.getByRole('heading',{name:'검수 직원 · 연차 등록·현황',exact:true}).count(),0);

@@ -91,7 +91,7 @@
         const other=el('div');f.append(other);const detail=field(other,'기타 입력 근거','text','',false);detail.minLength=2;detail.maxLength=300;
         const showOther=()=>{const enabled=reason.value==='other';other.hidden=!enabled;detail.disabled=!enabled;detail.required=enabled;};reason.addEventListener('change',showOther);showOther();
         formAction(f,'최초 연차 등록',()=>rpc('initialize_employee_leave',{p_employee_uuid:employeeId,p_baseline_on:ctx.server_today,p_accrued:Number(accrued.value),p_remaining:Number(remaining.value),p_monthly_enabled:monthly.checked,p_reason:reason.value==='other'?detail.value:reason.selectedOptions[0].textContent}),reload);host.append(f);
-      }else if(balance&&(ctx.can_adjust ?? ctx.can_initialize)){const d=el('details');d.append(el('summary','잔여 연차 조정'));const f=el('form',null,'employee-form app-authoring');const amount=field(f,'조정 개수 (+ 또는 -)','number');amount.min='-100';amount.max='100';const reason=field(f,'조정 사유','text');reason.minLength=2;const id=crypto.randomUUID();formAction(f,'조정 저장',()=>rpc('adjust_employee_leave',{p_employee_uuid:employeeId,p_id:id,p_delta:Number(amount.value),p_reason:reason.value}),reload);d.append(f);host.append(d);
+      }else if(balance&&(ctx.can_adjust ?? ctx.can_initialize)){const d=el('details',null,'leave-adjustment');d.append(el('summary','잔여 연차 조정'));const f=el('form',null,'employee-form app-authoring leave-compact-form leave-adjustment-form');const amount=field(f,'조정 개수 (+ 또는 -)','number');amount.min='-100';amount.max='100';const reason=field(f,'조정 사유','text');reason.minLength=2;const id=crypto.randomUUID();formAction(f,'조정 저장',()=>rpc('adjust_employee_leave',{p_employee_uuid:employeeId,p_id:id,p_delta:Number(amount.value),p_reason:reason.value}),reload);d.append(f);host.append(d);
       }else if(balance&&ctx.can_initialize){host.append(el('p','등록된 연차 개수의 변경은 운영총괄에게 요청해주세요.'));}
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e),'message'),button('다시 불러오기',()=>populate(host,employeeId,leaveOnly)));}
@@ -161,7 +161,7 @@
   function renderDaysOff(host,ctx,reload){
     const details=el('details',null,'employee-profile-section leave-exceptions');details.append(el('summary','기타 설정 · 예외 휴무'));
     details.append(el('p','회사에서 별도로 정한 임시 휴무만 등록합니다. 연차를 부여하거나 차감하지 않습니다. 법정공휴일을 설정하는 화면이 아닙니다.'));
-    const f=el('form',null,'employee-form app-authoring');f.append(el('h3','예외 휴무 등록'));
+    const f=el('form',null,'employee-form app-authoring leave-compact-form leave-day-off-form');f.append(el('h3','예외 휴무 등록'));
     const person=rosterSelect(f,'휴무 대상',currentRoster(ctx),ctx.positions,'회사 전체','');const date=field(f,'휴무일','date');date.min=ctx.server_today;const reason=field(f,'휴무 사유','text');reason.minLength=2;
     formAction(f,'예외 휴무 저장',()=>rpc('save_employee_day_off',{p_employee_uuid:person.value||null,p_work_date:date.value,p_reason:reason.value}),reload);details.append(f);
     ctx.days_off.forEach(o=>{const row=el('section');row.append(el('p',`${o.work_date} · ${ctx.employees.find(e=>e.id===o.employee_uuid)?.name||'회사 전체'} · ${o.reason}`));const f=el('form',null,'employee-form app-authoring');const why=field(f,'휴무 철회 사유','text');why.minLength=2;formAction(f,'휴무 철회',()=>rpc('revoke_employee_day_off',{p_id:o.id,p_reason:why.value}),reload);row.append(f);details.append(row);});host.append(details);
