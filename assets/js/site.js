@@ -26,7 +26,7 @@
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
-    ['resources.html', '자료실']
+    ['resources.html', '서비스·상품']
   ];
   const STATIC_FOOTER_CONTRACT = [
     ['about.html', '태장 소개'],
@@ -34,7 +34,7 @@
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
-    ['resources.html', '자료실'],
+    ['resources.html', '서비스·상품'],
     ['location.html', '오시는 길']
   ];
 
