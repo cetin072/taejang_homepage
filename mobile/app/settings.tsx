@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Constants from 'expo-constants';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
@@ -12,6 +13,21 @@ import { usePlatform } from '@/src/providers/platform-provider';
 
 const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '버전 정보 없음';
 type AccessContext = { display_name?: string | null };
+
+// Same grouped-settings pattern as Worklog, adapted locally to the staff app palette.
+function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  return <View style={styles.group}>
+    <Text accessibilityRole="header" style={styles.groupTitle}>{title}</Text>
+    <View style={styles.groupCard}>{children}</View>
+  </View>;
+}
+
+function SettingsRow({ title, label, onPress, disabled = false }: { title: string; label?: string; onPress(): void; disabled?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label || title} disabled={disabled} onPress={onPress} style={[styles.utilityButton, disabled ? styles.disabled : null]}>
+    <Text style={styles.utilityButtonTitle}>{title}</Text>
+    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>›</Text>
+  </Pressable>;
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -75,55 +91,39 @@ export default function SettingsScreen() {
           <Text style={styles.backText}>← 홈</Text>
         </Pressable>
         <Text style={styles.title}>설정</Text>
-        {isQaApp ? (
-          <View style={styles.qaBanner} accessibilityLabel="태장 QA 검수용 앱">
+        {session ? <SettingsGroup title="알림">
+          <SettingsRow title={notificationBusy ? '알림 확인 중…' : '공지 알림 설정'} label="공지 알림 설정" disabled={notificationBusy} onPress={() => void handleNotifications()} />
+        </SettingsGroup> : null}
+        <SettingsGroup title="앱 정보">
+          <SettingsRow title="업데이트·패치노트" label="패치노트 열기" onPress={() => router.push('/patch-notes')} />
+          <SettingsRow title="앱 정보와 연결 진단" onPress={() => router.push('/support')} />
+          <View style={styles.versionRow}>
+            <Text style={styles.versionLabel}>앱 버전</Text>
+            <Text style={styles.version}>{appVersion}</Text>
+          </View>
+          {isQaApp ? <View style={styles.qaBanner} accessibilityLabel="태장 QA 검수용 앱">
             <Text style={styles.qaBannerTitle}>{appVariantLabel()}</Text>
-            <Text style={styles.qaBannerHelp}>검수용 앱 · Google Play의 태장 앱과 별도로 설치됩니다</Text>
+            <Text style={styles.qaBannerHelp}>검수용 · 정식 앱과 별도 설치</Text>
+          </View> : null}
+        </SettingsGroup>
+        <SettingsGroup title="개인정보 안내">
+          <View style={styles.links}><PolicyLinks includeAccountDeletion /></View>
+        </SettingsGroup>
+        <SettingsGroup title="계정">
+          <View style={styles.account}>
+            <Text style={styles.name}>{displayName}</Text>
           </View>
-        ) : null}
-        <View style={styles.account}>
-          <Text numberOfLines={2} style={styles.name}>{displayName}</Text>
-          <Text style={styles.help}>내 계정</Text>
-        </View>
-        {session ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="내 정보 열기" onPress={() => router.push('/profile')} style={styles.utilityButton}>
-            <Text style={styles.utilityButtonTitle}>내 정보</Text>
-            <Text style={styles.utilityButtonHelp}>기본 정보와 연락처 변경 요청을 확인합니다</Text>
+          {session ? <SettingsRow title="내 정보" label="내 정보 열기" onPress={() => router.push('/profile')} /> : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="로그아웃"
+            disabled={busy}
+            onPress={() => void handleSignOut()}
+            style={({ pressed }) => [styles.logout, busy ? styles.disabled : null, pressed && !busy ? styles.pressed : null]}
+          >
+            <Text style={styles.logoutText}>{busy ? '로그아웃 중…' : '로그아웃'}</Text>
           </Pressable>
-        ) : null}
-        {session ? (
-          <Pressable accessibilityRole="button" accessibilityLabel="공지 알림 설정" disabled={notificationBusy} onPress={() => void handleNotifications()} style={[styles.utilityButton, notificationBusy ? styles.disabled : null]}>
-            <Text style={styles.utilityButtonTitle}>{notificationBusy ? '알림을 확인하고 있습니다…' : '공지 알림 설정'}</Text>
-            <Text style={styles.utilityButtonHelp}>중요 공지를 알림으로 받습니다</Text>
-          </Pressable>
-        ) : null}
-        <Pressable accessibilityRole="button" accessibilityLabel="패치노트 열기" onPress={() => router.push('/patch-notes')} style={styles.utilityButton}>
-          <Text style={styles.utilityButtonTitle}>패치노트</Text>
-          <Text style={styles.utilityButtonHelp}>앱 업데이트와 함께 추가되는 변경 내역을 확인합니다</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="앱 정보와 연결 진단" onPress={() => router.push('/support')} style={styles.utilityButton}>
-          <Text style={styles.utilityButtonTitle}>앱 정보와 연결 진단</Text>
-          <Text style={styles.utilityButtonHelp}>문의할 때 필요한 안전한 정보만 확인합니다</Text>
-        </Pressable>
-        <View style={styles.versionRow}>
-          <Text style={styles.versionLabel}>앱 버전</Text>
-          <Text style={styles.version}>{appVersion}</Text>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="로그아웃"
-          disabled={busy}
-          onPress={() => void handleSignOut()}
-          style={({ pressed }) => [styles.logout, busy ? styles.disabled : null, pressed && !busy ? styles.pressed : null]}
-        >
-          <Text style={styles.logoutText}>{busy ? '로그아웃 중…' : '로그아웃'}</Text>
-        </Pressable>
-        <View style={styles.policySection}>
-          <Text style={styles.policySectionTitle}>개인정보 및 계정 안내</Text>
-          <View style={styles.links}>
-            <PolicyLinks includeAccountDeletion />
-          </View>
-        </View>
+        </SettingsGroup>
       </ScrollView>
     </View>
   );
@@ -138,19 +138,19 @@ const styles = StyleSheet.create({
   qaBanner: { gap: 4, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: '#d6bd65', backgroundColor: '#fff8d8' },
   qaBannerTitle: { color: '#6b5314', fontSize: 17, fontWeight: '900' },
   qaBannerHelp: { color: '#7d692d', fontSize: 13, fontWeight: '700', lineHeight: 19 },
-  account: { gap: 5, padding: 20, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d7ded8' },
-  name: { color: '#173f31', fontSize: 21, fontWeight: '900', lineHeight: 29 },
-  help: { color: '#60746a', fontSize: 14, fontWeight: '700' },
-  policySection: { marginTop: 28, paddingTop: 18, borderTopWidth: 1, borderColor: '#d7ded8', gap: 8 },
-  policySectionTitle: { color: '#60746a', fontSize: 14, fontWeight: '800' },
-  links: { alignItems: 'flex-start', paddingVertical: 2 },
-  versionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderColor: '#d7ded8' },
+  group: { gap: 8 },
+  groupTitle: { color: '#60746a', fontSize: 14, fontWeight: '800', paddingHorizontal: 4 },
+  groupCard: { borderWidth: 1, borderColor: '#d7ded8', borderRadius: 18, backgroundColor: '#ffffff', overflow: 'hidden' },
+  account: { padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#d7ded8' },
+  name: { color: '#173f31', fontSize: 17, fontWeight: '800', lineHeight: 25 },
+  links: { alignItems: 'flex-start', padding: 8 },
+  versionRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 16 },
   versionLabel: { color: '#344b40', fontSize: 16, fontWeight: '800' },
   version: { color: '#60746a', fontSize: 15 },
-  utilityButton: { gap: 4, minHeight: 66, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 14, borderWidth: 1, borderColor: '#d7ded8', backgroundColor: '#ffffff' },
-  utilityButtonTitle: { color: '#173f31', fontSize: 16, fontWeight: '900' },
-  utilityButtonHelp: { color: '#60746a', fontSize: 13, fontWeight: '600' },
-  logout: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1, borderColor: '#d7aaa4', backgroundColor: '#ffffff' },
+  utilityButton: { gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#d7ded8' },
+  utilityButtonTitle: { flex: 1, color: '#173f31', fontSize: 16, fontWeight: '800' },
+  chevron: { color: '#35624d', fontSize: 24 },
+  logout: { minHeight: 56, alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff7f5' },
   logoutText: { color: '#87362f', fontSize: 17, fontWeight: '900' },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.82 },

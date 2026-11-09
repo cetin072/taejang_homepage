@@ -22,6 +22,7 @@ function nodes(tree) {
   if (tree == null || tree === false) return [];
   if (Array.isArray(tree)) return tree.flatMap(nodes);
   if (typeof tree !== 'object') return [tree];
+  if (typeof tree.type === 'function') return nodes(tree.type(tree.props));
   return [tree, ...nodes(tree.props?.children)];
 }
 const native = {

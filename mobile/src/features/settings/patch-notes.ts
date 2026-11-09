@@ -12,6 +12,13 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-09-settings-groups',
+    date: '2026-11-09',
+    title: '설정 메뉴 정리',
+    summary: '알림·앱 정보·개인정보 안내·계정을 블록으로 구분했습니다.',
+    items: ['공지 알림 설정을 위쪽으로 옮겼습니다.', '반복 설명을 줄이고 계정 정보와 로그아웃을 맨 아래에 모았습니다.'],
+  },
+  {
     id: '2026-11-07-home-channels-bottom',
     date: '2026-11-07',
     title: '공식 사이트 바로가기 위치 조정',
