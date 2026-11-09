@@ -195,7 +195,7 @@ try {
     if (name === 'pc') {
       await footerResourceLink(page).click();
       await page.waitForURL(url => /\/resources(?:\.html)?$/.test(url.pathname));
-      const appCard = page.locator('.resource-card--link');
+      const appCard = page.locator('.resource-card--link[aria-labelledby="resource-staff-title"]');
       assert.ok(isLandingRoute(new URL(await appCard.getAttribute('href'), page.url()).href), 'resource card points to employee app');
       await appCard.click();
       await page.waitForURL(url => isLandingRoute(url.href));
@@ -241,7 +241,7 @@ try {
       await desktopAppLink.click();
     }
     await page.waitForURL(url => /\/resources(?:\.html)?$/.test(url.pathname));
-    await page.locator('.resource-card--link').click();
+    await page.locator('.resource-card--link[aria-labelledby="resource-staff-title"]').click();
     await page.waitForURL(url => isLandingRoute(url.href));
     assert.ok(isLandingRoute(page.url()), name + ': resources card opens employee landing');
     results.push({ name, width, footerHref, ...metric, ...visual, pass: true });
