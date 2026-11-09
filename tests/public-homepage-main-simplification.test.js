@@ -92,7 +92,7 @@ for (const [filename, html] of Object.entries(pages)) {
   assert.doesNotMatch(html, /콘텐츠 소식|사업과 역량/, `${filename} 원본에 이전 메뉴명을 남기지 않습니다`);
   assert.match(html, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 원본에 임직원 진입을 정적으로 제공해 첫 페인트 레이아웃 이동을 막습니다`);
   assert.equal((html.match(/class="staff-nav"/g) || []).length, 2, `${filename} 임직원 진입은 데스크톱·모바일에 각각 한 번만 있어야 합니다`);
-  assert.match(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 자료실을 제공합니다`);
+  assert.match(html, /href="resources\.html"/, `${filename} 공개 메뉴에서 서비스·상품을 제공합니다`);
   assert.match(html, /태장 소개/, `${filename} 공개 메뉴는 태장 소개를 제공합니다`);
   assert.match(html, /하는 일/, `${filename} 공개 메뉴는 하는 일 명칭을 사용합니다`);
   assert.match(html, /소식·기록/, `${filename} 공개 메뉴는 소식·기록 명칭을 사용합니다`);

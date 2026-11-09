@@ -20,7 +20,7 @@ async function headerReady(page,url,diagnostics) {
   await page.waitForFunction(()=>document.documentElement.classList.contains('js-nav-ready') &&
     [...document.querySelectorAll('link[rel="stylesheet"]')].every(l=>l.sheet) &&
     [...document.querySelectorAll('.site-header img')].every(i=>i.complete&&i.naturalWidth>0));
-  await page.evaluate(async()=>{await document.fonts.load('700 16px "Nanum Gothic"','자료실');await document.fonts.ready;});
+  await page.evaluate(async()=>{await document.fonts.load('700 16px "Nanum Gothic"','서비스·상품');await document.fonts.ready;});
   assert.ok(await page.locator('.site-header').isVisible());
   } catch(error) {
     console.error('HEADER_ASSET_DIAGNOSTICS:'+url+'\n'+diagnostics.join('\n'));
@@ -94,7 +94,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
         assert.equal(metrics.links.at(-1).left,metrics.links.at(-2).left);
         assert.equal(metrics.border,'0px');assert.equal(metrics.indent,'0px');
         assert.match(metrics.staff,/임직원\s+업무 플랫폼 로그인/);
-        assert.match(metrics.app,/자료실\s+앱 안내와 회사 자료/);
+        assert.match(metrics.app,/서비스·상품\s+출근앱과 상품 안내/);
         assert.equal(metrics.contact,metrics.contactCurrent?'rgb(27, 67, 50)':'rgb(45, 106, 79)',file+': contact retains its existing normal/current CTA colors');
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,file+': Escape closes menu');
@@ -156,10 +156,12 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     const page = await context.newPage();
     await page.goto(base+'/resources.html');
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
-    assert.equal(await page.locator('h1').innerText(),'자료실');
+    assert.equal(await page.locator('h1').innerText(),'서비스·상품');
     assert.equal(await page.locator('.resource-card').count(),2);
     assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
     assert.equal(await page.locator('.resource-card--pending').count(),1);
+    assert.equal(await page.locator('#resource-salt-title').innerText(),'뉴질랜드 천일염');
+    assert.equal(await page.getByText('태장 업무수첩', {exact:true}).count(),0);
     assert.equal(await page.locator('.resource-card--pending a, .resource-card--pending button, .resource-card--pending [tabindex]').count(),0,'unpublished cards are not interactive');
     assert.equal(await page.locator('a[href="#"], a[download]').count(),0,'no fake downloads');
     assert.equal(await page.locator('.desktop-nav .resources-nav').getAttribute('aria-current'),'page');

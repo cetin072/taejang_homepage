@@ -40,7 +40,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 // Optional hosted base runs the same checks on the real Deploy Preview; no writes/API mutations.
 const base = process.env.EMPLOYEE_APP_QA_BASE || 'http://127.0.0.1:' + server.address().port;
 const results = [];
-const footerResourceLink = (page, region = 'footer') => page.locator(region).getByRole('link', { name: '자료실', exact: true });
+const footerResourceLink = (page, region = 'footer') => page.locator(region).getByRole('link', { name: '서비스·상품', exact: true });
 const isLandingRoute = url => /\/employee-app(?:\.html)?\/?$/.test(new URL(url).pathname);
 async function assertLayout(page, name) {
   const metric = await page.evaluate(() => ({
