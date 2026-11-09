@@ -185,7 +185,11 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.waitForURL(url=>/\/new-zealand-salt(?:\.html)?$/.test(url.pathname));
     assert.equal((await page.request.get(page.url())).status(),200,'salt landing responds');
     const inquiry=page.locator('.salt-sticky');
-    await (await inquiry.isVisible() ? inquiry : page.locator('.salt-hero a[href="#salt-contact"]')).click();
+    const inquiryAction=await inquiry.isVisible() ? inquiry : page.locator('.salt-hero a[href="#salt-contact"]');
+    // Local pointer coverage is retained. Netlify's review-only drawer can
+    // overlap the mobile CTA, so hosted QA verifies native keyboard activation.
+    if(process.env.EMPLOYEE_APP_QA_REQUIRE_HOSTED==='1') await inquiryAction.press('Enter');
+    else await inquiryAction.click();
     await page.waitForURL(url=>url.hash==='#salt-contact');
     assert.ok(await page.locator('#salt-contact').isVisible(),'product inquiry is reachable without submitting personal data');
     await page.goBack();
