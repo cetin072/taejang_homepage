@@ -168,7 +168,7 @@ assert.match(business, /기업·기관이 함께 만들 수 있는 현재 사업
 assert.match(workplace, /직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
 assert.match(workplace, /직무를 이해하고<br>함께 익히는 방식/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
-assert.match(location, /class="location-visit-card"[\s\S]*태장 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
+assert.match(location, /class="location-visit-card"[\s\S]*팔용동 본점 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
 assert.match(location, /location-pin-icon/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
