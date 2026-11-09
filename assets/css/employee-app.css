@@ -58,11 +58,10 @@
 .employee-app-guide-inner { display: flex; align-items: center; justify-content: space-between; gap: 40px; }
 .employee-app-guide-inner > div { max-width: 680px; }
 .employee-app-guide-inner p { margin: 0; font-size: 16px; line-height: 1.9; }
-.employee-app-store-badge { display: inline-block; max-width: 100%; margin-top: 16px; border-radius: 8px; }
+.employee-app-store-badge { display: inline-block; max-width: 100%; margin-top: 0; border-radius: 8px; }
 .employee-app-store-badge img { display: block; width: 220px; max-width: 100%; height: auto; }
 .employee-app-store-badge:focus-visible { outline: 3px solid var(--green-deep); outline-offset: 3px; }
 .employee-app-guide-inner .employee-app-store-attribution { margin-top: 8px; font-size: 12px; }
-.employee-app-policy-link { display: inline-flex; align-items: center; min-height: 44px; color: var(--green-deep); font-size: 16px; font-weight: 800; text-decoration: underline; text-underline-offset: 4px; }
 .employee-app-page .footer a:focus-visible { outline-color: var(--white); }
 .employee-app-page .menu-btn { min-width: 44px; min-height: 44px; }
 @media (max-width: 900px) {
