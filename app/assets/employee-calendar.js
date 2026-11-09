@@ -87,7 +87,7 @@
   function render(){
    const events=data.events.slice(0,1000);controls.replaceChildren(button('새로고침',()=>void load()),button('일정 등록',()=>form(month===day(new Date()).slice(0,7)?day(new Date()):month+'-01')));
    const section=el('section','','worklog-calendar'),navigation=el('div','','worklog-controls');
-   const change=delta=>{month=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7))-1+delta,1)).toISOString().slice(0,7);void load();};
+   const change=delta=>{const next=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7))-1+delta,1)).toISOString().slice(0,7);if(next<'2000-01'||next>'2099-12')return;month=next;void load();};
    navigation.append(button('이전 달',()=>change(-1)),el('h4',month.replace('-','년 ')+'월'),button('다음 달',()=>change(1)),button('이번 달',()=>{month=day(new Date()).slice(0,7);void load();}));
    const table=el('table');table.setAttribute('aria-label',month+' 내 캘린더');const thead=el('thead'),tr=el('tr');for(const name of ['일','월','화','수','목','금','토']){const th=el('th',name);th.scope='col';tr.append(th);}thead.append(tr);table.append(thead);
    const body=el('tbody'),y=Number(month.slice(0,4)),m=Number(month.slice(5,7)),offset=new Date(Date.UTC(y,m-1,1)).getUTCDay(),days=new Date(Date.UTC(y,m,0)).getUTCDate();

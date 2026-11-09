@@ -604,6 +604,9 @@
     }
   });
   document.addEventListener('taejang-app-ready', setup);
-  document.addEventListener('taejang-dashboard-refresh', () => { dashboardRender = render(); });
+  document.addEventListener('taejang-dashboard-refresh', () => {
+    if (window.TaejangEmployeeCalendar?.hasUnsavedChanges?.()) return;
+    dashboardRender = render();
+  });
   window.TaejangDashboard = { render, dashboardData, classifyFailure };
 })();
