@@ -19,6 +19,13 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - name: Ensure Korean fonts for readable public screenshots
+        shell: bash
+        run: |
+          if [ -z "$(fc-list :lang=ko family)" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install --no-install-recommends -y fonts-noto-cjk
+          fi
       - run: npm run build:netlify
       - run: node tests/hero-article-browser.mjs
         env:
