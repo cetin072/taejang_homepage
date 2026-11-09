@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { chromium } from 'playwright';
 import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
@@ -92,7 +92,7 @@ const appAutomation = `<script>
         throw new Error('PAYROLL_NAV_NEW_TAB_SAFETY_MISSING');
       }
       await waitFor(
-        () => document.querySelector('[data-priority-dashboard-card="근태·급여관리"]'),
+        () => document.querySelector('[data-dashboard-card-key="payroll.manage"]'),
         'payroll dashboard card'
       );
 
@@ -114,7 +114,7 @@ const appAutomation = `<script>
           'dashboard layout after reload'
         );
         await waitFor(
-          () => document.querySelector('[data-priority-dashboard-card="근태·급여관리"]'),
+          () => document.querySelector('[data-dashboard-card-key="payroll.manage"]'),
           'payroll dashboard card after layout reload'
         );
         sessionStorage.removeItem(persistedLayoutKey);
@@ -475,37 +475,28 @@ await new Promise((resolve, reject) => {
 const port = server.address().port;
 const target = `http://127.0.0.1:${port}/app/`;
 const chrome = chromeBinary();
-const args = [
-  '--headless=new',
-  '--no-sandbox',
-  '--disable-gpu',
-  '--disable-dev-shm-usage',
-  '--no-first-run',
-  '--disable-background-networking',
-  '--window-size=1440,1000',
-  '--virtual-time-budget=18000',
-  `--user-data-dir=/tmp/taejang-payroll-platform-entry-${process.pid}`,
-  '--dump-dom',
-  target,
-];
-
-let stdout = '';
-let stderr = '';
-const child = spawn(chrome, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-child.stdout.setEncoding('utf8');
-child.stderr.setEncoding('utf8');
-child.stdout.on('data', chunk => { stdout += chunk; });
-child.stderr.on('data', chunk => { stderr += chunk; });
-
-const exitCode = await new Promise(resolve => child.once('close', resolve));
-server.close();
-
-if (exitCode !== 0) {
-  throw new Error(`PAYROLL_PLATFORM_ENTRY_CHROME_EXIT_${exitCode}\n${stderr.slice(-4000)}`);
+// Use the existing Playwright runtime and real time. Chrome --dump-dom virtual
+// time can expire the in-page wait while asynchronous feature scripts settle.
+const browser = await chromium.launch({executablePath:chrome,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+const page = await browser.newPage({viewport:{width:1440,height:1000}});
+const errors = [];
+page.on('pageerror', error => errors.push(error.message));
+try {
+  await page.goto(target);
+  await page.waitForFunction(() => document.querySelector('#payroll-platform-entry-result')?.dataset.status, null, {timeout:45000});
+  const result = await page.locator('#payroll-platform-entry-result').evaluate(node => ({status:node.dataset.status,message:node.dataset.message}));
+  if (result.status !== 'pass') {
+    const state = await page.evaluate(() => ({
+      route:window.TaejangApp?.getRoute?.(),
+      heading:document.querySelector('.dashboard-intro h2')?.textContent,
+      cards:[...document.querySelectorAll('[data-dashboard-card-key]')].map(node=>({key:node.dataset.dashboardCardKey,title:node.querySelector('h3')?.textContent})),
+      failedFeatures:window.TaejangFeatureHealth?.failedKeys?.()
+    }));
+    throw new Error(`PAYROLL_PLATFORM_ENTRY_FAILED:${result.status}:${result.message}\n${JSON.stringify(state)}\n${errors.join('\n')}`);
+  }
+  if (errors.length) throw new Error('PAYROLL_PLATFORM_ENTRY_PAGE_ERRORS:'+errors.join('\n'));
+} finally {
+  await browser.close();
+  await new Promise(resolve=>server.close(resolve));
 }
-if (!stdout.includes('id="payroll-platform-entry-result"') || !stdout.includes('data-status="pass"')) {
-  const result = stdout.match(/id="payroll-platform-entry-result"[^>]*data-status="([^"]+)"[^>]*data-message="([^"]*)"/i);
-  throw new Error(`PAYROLL_PLATFORM_ENTRY_FAILED:${result ? `${result[1]}:${result[2]}` : 'RESULT_MARKER_MISSING'}\n${stderr.slice(-2500)}`);
-}
-
 console.log('Payroll platform entry PASS: operations-manager desktop shell -> payroll sidebar/card -> live payroll page bootstrap.');

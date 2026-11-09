@@ -239,14 +239,14 @@ function runSiteRuntime(pathname = '/index.html', cleanResourcesHref = false, pi
     ['workplace.html', '우리의 일터'],
     ['archive.html', '소식·기록'],
     ['partnership.html', '협력·문의'],
-    ['resources.html', '자료실'],
+    ['resources.html', '서비스·상품'],
     ['staff/', '임직원']
   ];
   navItems.forEach(([href, label], index) => {
     const target = cleanResourcesHref && href === 'resources.html' ? '/resources' : href;
     const classes = href === 'staff/' ? ['staff-nav'] : index === 4 ? ['nav-cta'] : [];
     desktop.appendChild(anchor(target, label, classes));
-    mobile.appendChild(anchor(target, href === 'resources.html' ? '자료실' : label, classes));
+    mobile.appendChild(anchor(target, href === 'resources.html' ? '서비스·상품' : label, classes));
   });
 
   const menuButton = new MockElement('button', {
