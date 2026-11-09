@@ -184,7 +184,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.keyboard.press('Enter');
     await page.waitForURL(url=>/\/new-zealand-salt(?:\.html)?$/.test(url.pathname));
     assert.equal((await page.request.get(page.url())).status(),200,'salt landing responds');
-    await page.locator('.salt-hero a[href="#salt-contact"]').click();
+    const inquiry=page.locator('.salt-sticky');
+    await (await inquiry.isVisible() ? inquiry : page.locator('.salt-hero a[href="#salt-contact"]')).click();
     await page.waitForURL(url=>url.hash==='#salt-contact');
     assert.ok(await page.locator('#salt-contact').isVisible(),'product inquiry is reachable without submitting personal data');
     await page.goBack();
