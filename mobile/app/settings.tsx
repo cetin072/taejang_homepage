@@ -22,10 +22,10 @@ function SettingsGroup({ title, children }: { title: string; children: ReactNode
   </View>;
 }
 
-function SettingsRow({ title, label, onPress, disabled = false }: { title: string; label?: string; onPress(): void; disabled?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label || title} disabled={disabled} onPress={onPress} style={[styles.utilityButton, disabled ? styles.disabled : null]}>
+function SettingsRow({ title, label, onPress, disabled = false, expanded }: { title: string; label?: string; onPress(): void; disabled?: boolean; expanded?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label || title} accessibilityState={expanded === undefined ? undefined : { expanded }} disabled={disabled} onPress={onPress} style={[styles.utilityButton, disabled ? styles.disabled : null]}>
     <Text style={styles.utilityButtonTitle}>{title}</Text>
-    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>›</Text>
+    <Text accessibilityElementsHidden importantForAccessibility="no" style={styles.chevron}>{expanded ? '⌄' : '›'}</Text>
   </Pressable>;
 }
 
@@ -34,6 +34,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { client, session, signOut } = usePlatform();
   const [busy, setBusy] = useState(false);
+  const [policyExpanded, setPolicyExpanded] = useState(false);
   const [notificationBusy, setNotificationBusy] = useState(false);
   const [access, setAccess] = useState<AccessContext | null>(null);
   const fallbackDisplayName = session?.user.user_metadata?.display_name || session?.user.email || '태장 직원';
@@ -105,15 +106,16 @@ export default function SettingsScreen() {
             <Text style={styles.qaBannerTitle}>{appVariantLabel()}</Text>
             <Text style={styles.qaBannerHelp}>검수용 · 정식 앱과 별도 설치</Text>
           </View> : null}
+          <SettingsRow title="개인정보·계정 관리" expanded={policyExpanded} onPress={() => setPolicyExpanded(value => !value)} />
+          {policyExpanded ? <View style={styles.links}><PolicyLinks includeAccountDeletion /></View> : null}
         </SettingsGroup>
-        <SettingsGroup title="개인정보 안내">
-          <View style={styles.links}><PolicyLinks includeAccountDeletion /></View>
-        </SettingsGroup>
+        <View style={styles.accountSection}>
         <SettingsGroup title="계정">
           <View style={styles.account}>
             <Text style={styles.name}>{displayName}</Text>
           </View>
           {session ? <SettingsRow title="내 정보" label="내 정보 열기" onPress={() => router.push('/profile')} /> : null}
+        </SettingsGroup>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="로그아웃"
@@ -123,7 +125,7 @@ export default function SettingsScreen() {
           >
             <Text style={styles.logoutText}>{busy ? '로그아웃 중…' : '로그아웃'}</Text>
           </Pressable>
-        </SettingsGroup>
+        </View>
       </ScrollView>
     </View>
   );
@@ -141,6 +143,7 @@ const styles = StyleSheet.create({
   group: { gap: 8 },
   groupTitle: { color: '#60746a', fontSize: 14, fontWeight: '800', paddingHorizontal: 4 },
   groupCard: { borderWidth: 1, borderColor: '#d7ded8', borderRadius: 18, backgroundColor: '#ffffff', overflow: 'hidden' },
+  accountSection: { gap: 56 },
   account: { padding: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#d7ded8' },
   name: { color: '#173f31', fontSize: 17, fontWeight: '800', lineHeight: 25 },
   links: { alignItems: 'flex-start', padding: 8 },
@@ -150,7 +153,7 @@ const styles = StyleSheet.create({
   utilityButton: { gap: 12, flexDirection: 'row', alignItems: 'center', minHeight: 56, paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#d7ded8' },
   utilityButtonTitle: { flex: 1, color: '#173f31', fontSize: 16, fontWeight: '800' },
   chevron: { color: '#35624d', fontSize: 24 },
-  logout: { minHeight: 56, alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff7f5' },
+  logout: { borderRadius: 18, borderWidth: 1, borderColor: '#d7ded8', minHeight: 56, alignItems: 'flex-start', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#fff7f5' },
   logoutText: { color: '#87362f', fontSize: 17, fontWeight: '900' },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.82 },
