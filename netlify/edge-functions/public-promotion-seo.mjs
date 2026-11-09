@@ -1,3 +1,5 @@
+import '../../assets/js/content.js';
+import '../../assets/js/public-promotion-content.js';
 import '../../assets/js/public-promotion-media.js';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 // Search-readable responses for the EXISTING approved public promotion RPCs.
@@ -94,6 +96,7 @@ function articleHtml(item) {
   const canonical = ORIGIN + '/promotion.html?id=' + encodeURIComponent(id);
   const title = String(item.title || '태장 소식');
   const summary = String(item.summary || title);
+  const presentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(item.published_date || '') ? item.published_date : '';
   const image = item.public_image;
   const media = (item.public_media || []).filter(entry => mediaPolicy.persistent(entry?.url));
@@ -116,17 +119,20 @@ function articleHtml(item) {
     '<article class="article" data-seo-promotion-id="' + escapeHtml(id) + '">',
     '<a class="back-link" href="archive.html">← 소식·기록으로</a>',
     '<header class="article-header">',
-    '<div class="article-meta">' + (date ? '<time datetime="' + date + '">' + date.replaceAll('-', '.') + '</time>' : '') +
+    '<div class="article-meta">' + (date ? escapeHtml(presentation.dateLabel) + '<time datetime="' + date + '">' + date.replaceAll('-', '.') + '</time>' : '') +
       (item.byline ? '<span>' + escapeHtml(item.byline) + '</span>' : '') + '</div>',
     '<h1>' + escapeHtml(title) + '</h1>',
-    '<p class="lead">' + escapeHtml(summary) + '</p>',
+    presentation.lead ? '<p class="lead">' + escapeHtml(presentation.lead) + '</p>' : '',
     '</header>',
     '<div class="article-body">' + picture + (body || '<p>' + escapeHtml(summary) + '</p>') + '</div>',
     gallery ? '<section class="article-gallery" aria-label="첨부 사진">' + gallery + '</section>' : '',
+    presentation.notice ? '<p class="article-source-note">' + escapeHtml(presentation.notice) + '</p>' : '',
+    presentation.sourceLabel ? '<p>출처: ' + escapeHtml(presentation.sourceLabel) + '</p>' : '',
+    presentation.related ? '<p><a class="text-link" href="' + escapeHtml(presentation.related.url) + '">공식 활동 기록: ' + escapeHtml(presentation.related.title) + ' →</a></p><p>활동일: ' + escapeHtml(presentation.related.date) + ' · ' + escapeHtml(presentation.related.summary) + '</p>' : '',
     externalLink,
     '</article>'
   ].join('\n');
-  return { id, title, summary, date, image, article, canonical };
+  return { id, title, summary, date, image, article, canonical, presentation };
 }
 
 function renderPage(template, item) {
@@ -150,11 +156,11 @@ function renderPage(template, item) {
     description: data.summary,
     ...(data.date ? { datePublished: data.date } : {}),
     image: data.image.url,
-    author: { '@type': 'Organization', name: '농업회사법인 태장 주식회사' },
-    publisher: { '@type': 'Organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
+    author: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사' },
+    publisher: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
   };
   const json = JSON.stringify(entry).replaceAll('<', '\\u003c');
-  const externalSource = item.content_type === 'external_content';
+  const externalSource = !data.presentation.indexable;
   const extras = [
     '<link rel="canonical" href="' + escapeHtml(data.canonical) + '">',
     '<meta property="og:url" content="' + escapeHtml(data.canonical) + '">',
@@ -173,7 +179,7 @@ function renderPage(template, item) {
 
 function sitemapResponse(rows) {
   const links = rows
-    .filter(row => row && UUID.test(row.content_id || '') && row.content_type !== 'external_content')
+    .filter(row => row && UUID.test(row.content_id || '') && globalThis.TAEJANG_PUBLIC_CONTENT.present(row).indexable)
     .map(row => ORIGIN + '/promotion.html?id=' + encodeURIComponent(row.content_id));
   const unique = [...new Set(links)].sort();
   const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +

@@ -154,3 +154,59 @@ test('SSR keeps clickable safe in-body URLs and escapes markup', async () => {
   } finally { env.restore(); }
 });
 
+
+test('legacy press introductions lose Article attribution and sitemap inclusion without changing source data', async () => {
+  const item = { ...full, summary: '경남형 업무협약을 소개합니다.', public_body: '경남형 업무협약을 소개합니다.', external_url: 'https://www.gnen.net/news/articleView.html?idxno=141330', link_source_type: 'external' };
+  const saved = JSON.stringify(item);
+  const env = setup({ detail: [item], feed: [item] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /noindex, follow/);
+    assert.doesNotMatch(html, /"@type":"Article"/);
+    assert.equal((html.match(/경남형 업무협약을 소개합니다\.<\/p>/g) || []).length, 1);
+    assert.match(html, /홈페이지 등록일:/);
+    assert.match(html, /출처: www.gnen.net/);
+    assert.match(html, /원문 미리보기입니다/);
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.doesNotMatch(xml, new RegExp(id));
+    assert.equal(JSON.stringify(item), saved);
+  } finally { env.restore(); }
+});
+
+test('blog snippets link to the approved complete activity record and survive missing feed bodies', async () => {
+  const item = { ...full, summary: '안전교육과 ...', public_body: '안전교육과 ...', external_url: 'https://blog.naver.com/taejang-official/224451351676', link_source_type: 'none' };
+  const { public_body, ...listRow } = item;
+  const env = setup({ detail: [item], feed: [listRow] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /noindex, follow/);
+    assert.match(html, /https:\/\/taejang.co.kr\/activities\/environment-cleanup-fifth.html/);
+    assert.match(html, /활동일: 2026.10.23/);
+    assert.equal((html.match(/안전교육과 \.\.\.<\/p>/g) || []).length, 1);
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.doesNotMatch(xml, new RegExp(id));
+  } finally { env.restore(); }
+});
+
+test('distinct complete video descriptions stay indexable and link the activity without canonicalizing away the video', async () => {
+  const item = { ...full, external_url: 'https://www.youtube.com/watch?v=6igM9R9rE-I', link_source_type: 'taejang_youtube' };
+  const { public_body, ...listRow } = item;
+  const env = setup({ detail: [item], feed: [listRow] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /"@type":"Article"/);
+    assert.match(html, /공식 활동 기록:/);
+    assert.match(html, new RegExp('rel="canonical" href="https://taejang.co.kr/promotion.html\\?id=' + id));
+    const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
+    assert.match(xml, new RegExp(id));
+  } finally { env.restore(); }
+});
+
+test('spoofed official sources never become official related records', () => {
+  const policy = globalThis.TAEJANG_PUBLIC_CONTENT;
+  for (const external_url of ['https://blog.naver.com.evil.test/taejang-official/224451351676', 'https://user:pass@blog.naver.com/taejang-official/224451351676', 'javascript:alert(1)']) {
+    const result = policy.present({ ...full, external_url, link_source_type: 'taejang_blog' });
+    assert.equal(result.related, null);
+    assert.notEqual(result.sourceLabel, '태장 공식 블로그');
+  }
+});
