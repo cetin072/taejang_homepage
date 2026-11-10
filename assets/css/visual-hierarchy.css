@@ -229,3 +229,9 @@
   background: var(--beige);
   border-top: 1px solid var(--line);
 }
+
+/* Collaboration uses a white surface between the beige sections. */
+.partnership-overview { background: var(--white); color: var(--ink); }
+.partnership-overview :is(.title, .partnership-types li) { color: var(--green-deep); }
+.partnership-overview .lead { color: var(--ink); }
+.partnership-overview .eyebrow { color: var(--green); }
