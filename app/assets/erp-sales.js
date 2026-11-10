@@ -9,7 +9,7 @@
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
  let root,status,body,editor,state,phase2=false,phase3=false,phase4=false,payoutQueue=false,adjustmentQueue=false,adjustmentFollowups=false,amountAdjustments=false,contractMonthLookup=false,tab='parties',busy=false,epoch=0;
- let contractPeriod='all',adjustmentKind='',adjustmentStage='approval';
+ let contractPeriod='all',adjustmentKind='',adjustmentStage='approval',masterView='customer';
  const payoutFilters={kind:'',overdue:false};
  const receivableFilters={party:'',from:'',to:''};
  const purchaseRange={from:today().slice(0,7)+'-01',to:today()};
@@ -34,14 +34,14 @@
  function table(headers,rows){const wrap=el('div','','erp-table-wrap');const t=el('table');const head=el('thead'),tr=el('tr');headers.forEach(h=>tr.append(el('th',h)));head.append(tr);t.append(head);const tb=el('tbody');rows.forEach(values=>{const row=el('tr');values.forEach(v=>{const cell=el('td');cell.append(v instanceof Node?v:document.createTextNode(String(v??'—')));row.append(cell);});tb.append(row);});t.append(tb);wrap.append(t);return wrap;}
  function clearEditor(){if(editor.querySelector('form[data-dirty="true"]')&&!window.confirm('저장하지 않은 입력이 있습니다. 닫을까요?'))return false;editor.replaceChildren();return true;}
  function formStart(title){if(!clearEditor())return null;const f=el('form','','app-authoring');f.append(el('h3',title));const grid=el('fieldset','','erp-fields');grid.disabled=!state.canWrite;const legend=el('legend','입력 정보','sr-only');grid.append(legend);f.append(grid);f.addEventListener('input',()=>f.dataset.dirty='true');editor.append(f);return {f,grid};}
- function masterEditor(kind,row={}){
+ function masterEditor(kind,row={},initialRole='customer'){
   const names={party:'거래처',agent:'영업자',item:'품목·서비스',contract:'용역 계약'};const parts=formStart((row.id?'수정: ':'등록: ')+names[kind]);if(!parts)return;const {f,grid}=parts;
   const add=(n,l,t='text',v=row[n]??'',c=[],req=false)=>field(grid,n,l,t,v,c,req);
   if(kind==='party'){
    add('name','거래처명','text',row.name||'',[],true);const type=add('kind','개인·기업','select',row.kind||'company',[['company','기업'],['individual','개인']],true);
    const business=add('business_number','사업자등록번호 (기업 10자리)','text',row.business_number||'',[],true);const sync=()=>{business.closest('label').hidden=type.value==='individual';business.required=type.value==='company';};type.addEventListener('change',sync);sync();
    add('phone','연락처','tel');add('contact_name','거래 담당자');
-   for(const [code,label] of [['customer','고객'],['supplier','공급처'],['sales_contact','영업 관계']]){const n=add('relationships',label,'checkbox',row.relationships?.includes(code)??code==='customer');n.value=code;}
+   for(const [code,label] of [['customer','고객'],['supplier','공급처'],['sales_contact','영업 관계']]){const n=add('relationships',label,'checkbox',row.relationships?.includes(code)??code===initialRole);n.value=code;}
    if(state.documentCompanies.length)add('document_company_id','기존 거래처 문서 연결','select',row.document_company_id||'',[['','연결 안 함'],...state.documentCompanies.map(r=>[r.id,r.name])]);
    add('memo','거래 메모','textarea');
   }else if(kind==='agent'){add('name','영업자명','text',row.name||'',[],true);add('phone','연락처','tel');add('memo','메모','textarea');
@@ -81,10 +81,31 @@
   f.append(el('p','과거 거래의 영업자와 영업비 조건은 바뀌지 않습니다. 같은 거래처에 확보·담당·지원 관계를 함께 연결할 수 있습니다.','help'));
   const save=el('button','관계 저장','button primary');save.type='submit';f.append(save,btn('닫기',clearEditor));f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));void run(async()=>{await rpc('erp_sales_assign_agent',{p_party_id:d.party_id,p_agent_id:d.agent_id,p_relationship:d.relationship,p_starts_on:d.starts_on,p_reason:d.reason});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();draw();report('영업 관계를 저장했습니다.');});});
  }
- function drawMasters(){const actions=el('div','','erp-actions');if(state.canWrite){actions.append(btn('거래처 등록',()=>masterEditor('party')),btn('영업자 등록',()=>masterEditor('agent')),btn('영업 관계 연결',assignmentEditor));}body.append(actions);
-  body.append(el('h3','거래처'),table(['거래처','구분','거래 관계','상태','문서 연결',''],state.parties.map(r=>[r.name,kinds[r.kind],r.relationships.map(x=>({customer:'고객',supplier:'공급처',sales_contact:'영업 관계'})[x]).join(' · '),r.active?'활성':'중단',state.documentCompanies.find(x=>x.id===r.document_company_id)?.name||'—',btn(state.canWrite?'수정':'보기',()=>masterEditor('party',r))])));
-  body.append(el('h3','영업자'),table(['영업자','연락처','상태',''],state.agents.map(r=>[r.name,r.phone,r.active?'활성':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('agent',r))])));
-  const history=el('details');history.append(el('summary',`영업 관계 이력 ${state.assignments.length}건`),table(['거래처','영업자','관계','시작일','종료일 (미포함)','사유'],state.assignments.map(r=>[labelFor('parties',r.party_id),labelFor('agents',r.agent_id),kinds[r.relationship],r.starts_on,r.ends_on||'현재',r.reason])));body.append(history);
+ function drawMasters(){
+  const views=[['customer','고객·판매처'],['supplier','공급처·매입처'],['all','전체 거래처'],['agent','영업자·영업 관계']];
+  const picker=el('div','','erp-party-views');picker.setAttribute('role','group');picker.setAttribute('aria-label','거래처 보기');
+  for(const [key,label] of views){const b=btn(label,()=>{if(!clearEditor())return;masterView=key;draw();});b.setAttribute('aria-pressed',String(masterView===key));picker.append(b);}
+  body.append(picker);
+  const actions=el('div','','erp-actions');
+  if(state.canWrite){
+   if(masterView==='customer')actions.append(btn('고객 등록',()=>masterEditor('party',{},'customer'),true));
+   if(masterView==='supplier')actions.append(btn('공급처 등록',()=>masterEditor('party',{},'supplier'),true));
+   if(masterView==='all')actions.append(btn('거래처 등록',()=>masterEditor('party'),true));
+   if(masterView==='agent')actions.append(btn('영업자 등록',()=>masterEditor('agent'),true),btn('영업 관계 연결',assignmentEditor));
+  }
+  body.append(actions);
+  if(masterView!=='agent'){
+   const rows=state.parties.filter(r=>masterView==='all'||r.relationships.includes(masterView));
+   const title=masterView==='customer'?'고객·판매처':masterView==='supplier'?'공급처·매입처':'전체 거래처';
+   body.append(el('h3',title));
+   body.append(el('p','같은 업체가 고객과 공급처를 겸할 수 있습니다. 회사 정보는 한 번만 저장됩니다.','help'));
+   if(!rows.length)body.append(el('p',masterView==='customer'?'등록된 고객이 없습니다. 기존 거래처에 고객 역할을 추가하거나 고객을 등록하세요.':masterView==='supplier'?'등록된 공급처가 없습니다. 공급처를 등록하면 매입·직배송 거래에서 선택할 수 있습니다.':'등록된 거래처가 없습니다.','message'));
+   body.append(table(['거래처','구분','거래 관계','상태','문서 연결',''],rows.map(r=>[r.name,kinds[r.kind],r.relationships.map(x=>({customer:'고객',supplier:'공급처',sales_contact:'영업 관계'})[x]).join(' · '),r.active?'활성':'중단',state.documentCompanies.find(x=>x.id===r.document_company_id)?.name||'—',btn(state.canWrite?'수정':'보기',()=>masterEditor('party',r))])));
+  }else{
+   body.append(el('h3','영업자'));
+   body.append(table(['영업자','연락처','상태',''],state.agents.map(r=>[r.name,r.phone,r.active?'활성':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('agent',r))])));
+   const history=el('details');history.append(el('summary',`영업 관계 이력 ${state.assignments.length}건`),table(['거래처','영업자','관계','시작일','종료일 (미포함)','사유'],state.assignments.map(r=>[labelFor('parties',r.party_id),labelFor('agents',r.agent_id),kinds[r.relationship],r.starts_on,r.ends_on||'현재',r.reason])));body.append(history);
+  }
  }
  function drawItems(){if(state.canWrite)body.append(btn('품목·서비스 등록',()=>masterEditor('item'),true));body.append(table(['코드','품목·서비스','유형','단위','기준 공급단가','재고 대상','상태',''],state.items.map(r=>[r.code,r.name,kinds[r.kind],r.unit,r.base_price===null?'—':money(r.base_price),r.inventory_managed?'표시됨':'아니오',r.active?'사용':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('item',r))])));}
  function drawContracts(){
