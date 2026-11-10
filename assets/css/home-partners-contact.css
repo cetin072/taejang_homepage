@@ -1,4 +1,9 @@
 /* Homepage partners and progressive inquiry dialog. */
+.home-collaboration-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; list-style: none; padding: 0; margin: 0 0 28px; }
+.home-collaboration-grid li { min-width: 0; overflow: hidden; border: 1px solid #c5d8cc; border-radius: 5px; background: #fff; }
+.home-collaboration-grid img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.home-collaboration-grid span { display: block; padding: 16px; color: var(--green-deep); font-weight: 700; line-height: 1.5; }
+@media (max-width: 760px) { .home-collaboration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .home-collaboration-grid span { padding: 12px; font-size: 14px; } }
 .home-partners { background: var(--white); border-top: 1px solid var(--line); }
 .home-partners .section-head { margin-bottom: 32px; }
 .home-partner-group { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 10px 24px; margin: 0; padding: 22px 0; }
