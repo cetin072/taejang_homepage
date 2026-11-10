@@ -64,7 +64,7 @@ try {
         if (file === 'certifications.html') {
           assert.equal(await page.locator('main img').count(), 4);
           assert.match(await page.locator('main').textContent(), /제2026-049호/);
-          assert.match(await page.locator('main').textContent(), /사진 보정본/);
+          assert.match(await page.locator('main').textContent(), /현판 사진/);
           for (const img of await page.locator('main img').all()) {
             await img.scrollIntoViewIfNeeded();
             await img.evaluate(el => el.decode());
