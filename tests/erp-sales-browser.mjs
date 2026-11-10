@@ -9,6 +9,15 @@ const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await 
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
  await page.goto(app.url);await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();
+ await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
+ await page.getByText('고객으로 등록된 거래처가 없습니다. 거래처·영업자에서 기존 거래처의 ‘고객’을 체크하거나 신규 거래처를 등록하세요.',{exact:true}).waitFor();
+ await page.getByText('공급처가 아직 등록되지 않았습니다. 거래처·영업자에서 위탁 본사를 ‘공급처’로 등록하세요.',{exact:true}).waitFor();
+ assert.equal(await page.locator('.erp-editor select[name=party_id] option').count(),1);
+ assert.equal(await page.locator('.erp-editor select[name=supplier_id] option').count(),1);
+ assert.equal(await page.locator('.erp-sales-filters').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length),3);
+ await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
+ await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-close');await page.keyboard.press('Home');
  const field=n=>page.locator('.erp-editor').locator(`[name="${n}"]`);
  const saved=async label=>{const form=page.locator('.erp-editor form');const original=await form.elementHandle();await form.getByRole('button',{name:label,exact:true}).click();await page.waitForFunction(n=>!n.isConnected,original);await page.locator('.erp-sales:not([aria-busy])').waitFor();};
@@ -129,7 +138,7 @@ try {
  await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
  await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
 
- await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();
+ await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');await field('tax_amount_1').fill('370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
  await page.evaluate(()=>window.fixtureFailNext=true);await page.getByRole('button',{name:'매출 저장',exact:true}).click();await page.locator('.erp-sales > .message.error').waitFor();assert.equal(await field('unit_price_1').inputValue(),'1234');assert.equal(await field('quantity_1').inputValue(),'3');assert.equal(await field('fee_value').inputValue(),'500');
  await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/4,072/);await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();
@@ -285,7 +294,7 @@ try {
  await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByText('합성 오입금 정정',{exact:true}).waitFor();
  assert.equal(await page.locator('.erp-body tbody tr').count(),2);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,000/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,000/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
  const beforeCopy=Number(app.db.raw('select count(*) from public.erp_sales_transactions;'));
  await page.getByRole('button',{name:'새 주문으로 복사',exact:true}).click();
  assert.equal(await field('quantity_1').inputValue(),'2');
@@ -400,7 +409,7 @@ try {
  });
  await page.reload();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
- await page.getByRole('button',{name:'소금·상품 판매 등록',exact:true}).waitFor();
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
  assert.equal(await page.getByRole('tab',{name:'지급 대기',exact:true}).count(),0);
  await page.getByRole('tab',{name:'조정 대기',exact:true}).click();
