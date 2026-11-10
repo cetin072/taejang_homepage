@@ -28,7 +28,8 @@ try {
     assert.equal(await image.evaluate(e=>getComputedStyle(e).borderTopLeftRadius),'48%');
     assert.equal(await page.locator('.salt-product .salt-hero-packs img').count(),2);
     await page.screenshot({path:output+'/'+width+'-js-'+javaScriptEnabled+'.png',fullPage:true});
-    await page.locator('.salt-actions .salt-button').click();
+    // On mobile the persistent inquiry action stays reachable after reading product details.
+    await page.locator(width <= 760 ? '.salt-sticky' : '.salt-actions .salt-button').click();
     assert.equal(new URL(page.url()).hash,'#salt-contact');
     assert.equal(await page.locator('form[name="taejang-salt-inquiry"]').count(),1);
     await page.close();
