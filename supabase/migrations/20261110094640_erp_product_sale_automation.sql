@@ -152,6 +152,22 @@ declare s public.erp_sales_transactions;l record;begin
  values(p_id,s.sales_date,(s.automation_snapshot->>'purchase_supply')::numeric,(s.automation_snapshot->>'purchase_tax')::numeric,(s.automation_snapshot->>'commission_amount')::numeric,auth.uid());
  return private.erp_sales_confirm_legacy(p_id,p_revision);
 end $$;
+-- Prevent the legacy draft writer from leaving an automated snapshot stale.
+alter function public.erp_sales_save(jsonb,uuid,integer) rename to erp_sales_save_legacy;
+alter function public.erp_sales_save_legacy(jsonb,uuid,integer) set schema private;
+revoke all on function private.erp_sales_save_legacy(jsonb,uuid,integer) from public,anon,authenticated;
+create function public.erp_sales_save(p_data jsonb,p_id uuid default null,p_revision integer default 0) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ perform private.erp_sales_guard('write');
+ if p_id is not null then
+  perform 1 from public.erp_sales_transactions where id=p_id and automation_snapshot is not null for update;
+  if found then raise exception 'ERP_USE_PRODUCT_EDITOR';end if;
+ elsif p_data->>'kind'='product' and exists(select 1 from jsonb_array_elements(p_data->'lines') l join public.erp_sales_items i on i.id=(l->>'item_id')::uuid where i.automation is not null) then raise exception 'ERP_USE_PRODUCT_EDITOR';end if;
+ return private.erp_sales_save_legacy(p_data,p_id,p_revision);
+end $$;
+revoke all on function public.erp_sales_save(jsonb,uuid,integer) from public,anon;
+grant execute on function public.erp_sales_save(jsonb,uuid,integer) to authenticated;
+
 create function public.erp_sales_save_product(p_data jsonb,p_id uuid default null,p_revision integer default 0,p_confirm boolean default false) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare prep jsonb;r jsonb;old public.erp_sales_transactions;key uuid:=(p_data->>'request_key')::uuid;h text:=md5(p_data::text);iid uuid;begin
@@ -170,7 +186,7 @@ declare prep jsonb;r jsonb;old public.erp_sales_transactions;key uuid:=(p_data->
   perform 1 from public.erp_sales_items where id=iid for update;
  end loop;
  prep:=private.erp_sales_prepare_product(p_data);
- r:=public.erp_sales_save(prep->'data',p_id,p_revision);
+ r:=private.erp_sales_save_legacy(prep->'data',p_id,p_revision);
  update public.erp_sales_transactions set automation_snapshot=prep->'snapshot',automation_request_hash=h,shipping_method=prep->'snapshot'->>'fulfillment' where id=(r->>'id')::uuid;
  if p_confirm then return public.erp_sales_confirm((r->>'id')::uuid,(r->>'revision')::integer);end if;
  return public.erp_sales_get((r->>'id')::uuid);

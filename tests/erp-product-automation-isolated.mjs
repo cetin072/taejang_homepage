@@ -84,6 +84,11 @@ try{
  const parallelRpc=(name,args)=>exec('docker',['exec','-i',db.name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`set role authenticated;select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);select public.${name}(${args});`],{encoding:'utf8'});
  const codeJobs=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_master',`'item','${JSON.stringify(itemData).replaceAll("'","''")}'::jsonb`)));
  ok(new Set(codeJobs.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).code)).size===3,'concurrent automatic codes are unique');
+ const editableData={...data,request_key:randomUUID()};
+ let draft=db.rpc('erp_sales_save_product',{p_data:editableData});
+ assert.throws(()=>db.rpc('erp_sales_save',{p_data:{...prep.data,request_key:draft.request_key},p_id:draft.id,p_revision:draft.revision}),/ERP_USE_PRODUCT_EDITOR/);n++;
+ draft=db.rpc('erp_sales_save_product',{p_data:{...editableData,lines:[{item_id:item.id,quantity:2}]},p_id:draft.id,p_revision:draft.revision});
+ ok(draft.total_amount===50000&&draft.automation_snapshot.purchase_supply+draft.automation_snapshot.purchase_tax===30000,'draft edits recompute linked costs without stale snapshots');
  const concurrentData={...data,request_key:randomUUID()};
  const repeated=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify(concurrentData)}'::jsonb,null,0,true`)));
  ok(new Set(repeated.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).id)).size===1,'simultaneous confirmation retries create one sale');

@@ -47,4 +47,13 @@ const anonymous=await rpc('erp_sales_bootstrap',null);check(!anonymous.ok,'anony
 const direct=await api('/rest/v1/erp_sales_transactions?id=eq.'+sale.id,{method:'PATCH',token:ops.token,body:{total_amount:1}});check(!direct.ok,'direct table mutation cannot bypass RPC validation');
 const simulated=await rpc('set_role_simulation_mode',ops,{p_role_code:'promotion_staff'});check(simulated.ok,'existing lower-role simulation starts');check((await rpc('erp_sales_bootstrap',ops)).status===403,'simulation cannot retain ERP financial access');await rpc('set_role_simulation_mode',ops,{p_role_code:'actual'});
 check((await must('erp_sales_list',{p_from:'2097-01-01',p_to:'2097-12-31'})).total===2,'exact two persisted transactions through API');
+const automationItem=await master('item',{auto_code:true,code:'',name:'Synthetic Auth Automated Salt',kind:'product',unit:'포',base_price:25000,pricing_basis:'inclusive',tax_class:'taxable',automation:{supplier_id:company.id,purchase_price:15000,purchase_pricing_basis:'inclusive',purchase_tax_class:'taxable',supplier_cycle:'transaction',fulfillment:'supplier_direct',commission:{kind:'none',value:0,basis:'supply',settlement_rule:'after_full_payment'}}});
+const automationInput={request_key:crypto.randomUUID(),party_id:company.id,sales_date:new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()),lines:[{item_id:automationItem.id,quantity:1}]};
+const automationPreview=await must('erp_sales_preview_product',{p_data:automationInput});check(automationPreview.supply===22727&&automationPreview.tax===2273,'HTTP preview uses server VAT calculator');
+const automated=await must('erp_sales_save_product',{p_data:automationInput,p_confirm:true});check(automated.status==='confirmed'&&automated.total_amount===25000,'HTTP single-call product confirmation');
+check((await must('erp_sales_save_product',{p_data:automationInput,p_confirm:true})).id===automated.id,'HTTP retry preserves single sale');
+const automaticPayouts=await must('erp_sales_get_payouts',{p_sale_id:automated.id});check(automaticPayouts.supplier.basis===15000&&automaticPayouts.supplier.pending===0,'HTTP supplier forecast is not an approved payment');
+check((await must('erp_sales_get_receipts',{p_sale_id:automated.id})).balance===25000,'HTTP existing receivable is linked');
+check(sql(`select count(*) from public.erp_sales_accrual_events where sale_id='${automated.id}';`)==='1','HTTP confirmation creates one immutable accrual');
+check(sql(`select count(*) from public.erp_sales_stock_movements where item_id='${automationItem.id}';`)==='0','HTTP direct supplier leaves stock unchanged');
 console.log('ERP_REAL_AUTH_PASS '+count+' assertions');
