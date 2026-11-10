@@ -41,7 +41,14 @@
    add('name','거래처명','text',row.name||'',[],true);const type=add('kind','개인·기업','select',row.kind||'company',[['company','기업'],['individual','개인']],true);
    const business=add('business_number','사업자등록번호 (기업 10자리)','text',row.business_number||'',[],true);const sync=()=>{business.closest('label').hidden=type.value==='individual';business.required=type.value==='company';};type.addEventListener('change',sync);sync();
    add('phone','연락처','tel');add('contact_name','거래 담당자');
-   for(const [code,label] of [['customer','고객'],['supplier','공급처'],['sales_contact','영업 관계']]){const n=add('relationships',label,'checkbox',row.relationships?.includes(code)??code===initialRole);n.value=code;}
+   const relationships=el('fieldset','','erp-relationship-group');
+   relationships.append(el('legend','거래 관계'));
+   const relationshipOptions=el('div','','erp-relationship-options');
+   for(const [code,label] of [['customer','고객'],['supplier','공급처'],['sales_contact','영업 관계']]){
+    const n=field(relationshipOptions,'relationships',label,'checkbox',row.relationships?.includes(code)??code===initialRole);
+    n.value=code;
+   }
+   relationships.append(relationshipOptions);grid.append(relationships);
    if(state.documentCompanies.length)add('document_company_id','기존 거래처 문서 연결','select',row.document_company_id||'',[['','연결 안 함'],...state.documentCompanies.map(r=>[r.id,r.name])]);
    add('memo','거래 메모','textarea');
   }else if(kind==='agent'){add('name','영업자명','text',row.name||'',[],true);add('phone','연락처','tel');add('memo','메모','textarea');
@@ -227,8 +234,8 @@
   const addLine=(line={})=>{const box=el('fieldset','','erp-line erp-fields');box.disabled=locked||!state.canWrite;box.append(el('legend','품목 '+(++seq)));const add=(n,l,t,v,c=[],r=true)=>field(box,n+'_'+seq,l,t,v,c,r);
    const item=add('item_id','판매 품목','select',line.item_id||'',locked?[[line.item_id,line.item_snapshot.name]]:options('items',i=>i.active&&i.kind===kind));
    const quantity=add('quantity','수량','number',line.quantity??1);quantity.step='0.001';quantity.min='0.001';
-   const pricing=kind==='product'?add('pricing_basis','판매 단가의 부가세','select','exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]):null;
-   const price=add('unit_price','판매 단가 (원)','number',line.unit_price??'');price.step='0.01';
+   const price=add('unit_price','판매가격 (원)','number',line.unit_price??'');price.step='0.01';
+   const pricing=kind==='product'?add('pricing_basis','판매가격 부가세 구분','select','exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]):null;
    const taxClass=add('tax_class','세금 구분','select',line.tax_class||'taxable',taxChoices);
    const tax=add('tax_amount',kind==='product'?'자동 계산 부가세 (원)':'계약 부가세 (직접 입력, 원)','number',line.tax_amount??0);tax.step='1';tax.readOnly=kind==='product';
    const itemNotice=el('p','','erp-line-notice');box.append(itemNotice);
@@ -236,11 +243,11 @@
    let calculatedUnit=Number(line.unit_price??0),calculatedTax=Number(line.tax_amount??0);
    const refreshItemNotice=()=>{const chosen=state.items.find(i=>i.id===item.value);const unit=chosen?.unit||line.item_snapshot?.unit||'단위';
     quantity.closest('label').querySelector('span').textContent='수량 ('+unit+')';
-    price.closest('label').querySelector('span').textContent='판매 단가 (원/'+unit+')';
+    price.closest('label').querySelector('span').textContent='판매가격 (원/'+unit+')';
     itemNotice.textContent=chosen?'선택 단위: '+unit+' · 기준 공급단가: '+(chosen.base_price===null?'미등록':money(chosen.base_price))+' / '+unit:'상품을 선택하면 판매 단위가 표시됩니다.';
    };
    const recalculate=(preserveOriginal=false)=>{const q=Number(quantity.value),entered=Number(price.value),valid=quantity.value!==''&&price.value!==''&&q>0&&entered>=0&&Number.isFinite(q)&&Number.isFinite(entered);
-    if(!valid){amountNotice.textContent='수량과 판매 단가를 입력하면 공급가액·부가세·총액을 자동 계산합니다.';return;}
+    if(!valid){amountNotice.textContent='수량과 판매가격을 입력하면 공급가액·부가세·총액을 자동 계산합니다.';return;}
     calculatedUnit=pricing?.value==='inclusive'&&taxClass.value==='taxable'?Math.round((entered/1.1)*100)/100:entered;
     const supply=Math.round(q*calculatedUnit);
     const gross=Math.round(q*entered);
