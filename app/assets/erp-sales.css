@@ -1,5 +1,11 @@
 /* ERP-specific layout only; controls and form sections belong to admin-authoring.css. */
 .erp-sales { min-width:0; }
+.erp-sales .erp-tabs { padding:8px;gap:7px;background:#f2f6f3;border:1px solid #dce5df;border-radius:12px;margin-block:18px 14px; }
+.erp-sales .erp-body { min-width:0;padding:16px;background:#fff;border:1px solid #dce5df;border-radius:12px; }
+.erp-sales .erp-editor:not(:empty) { margin-top:18px;padding:16px;min-width:0;border:1px solid #b9cdc1;border-radius:12px;background:#f7faf8; }
+.erp-sales .erp-field-notice,.erp-sales .erp-line-notice { grid-column:1/-1;margin:0;padding:9px 12px;border-left:3px solid var(--app-brand,#176e60);border-radius:6px;background:#f2f6f3;color:#365147;font-size:.88rem;line-height:1.5; }
+.erp-sales .erp-line-notice { margin-top:8px; }
+@media(min-width:900px) { .erp-sales .erp-sales-filters { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 .erp-tabs,.erp-actions { display:flex;flex-wrap:wrap;gap:10px;margin-block:12px; }
 .erp-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--authoring-gap,14px);border:0;padding:0;margin:0;min-width:0; }
 .erp-fields > label:has(textarea) { grid-column:1/-1; }
