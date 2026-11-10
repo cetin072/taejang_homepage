@@ -17,9 +17,10 @@ jobs:
   browser-gate:
     name: Promotion representative browser flow
     runs-on: ubuntu-latest
-    # Keep every functional gate; the expanded PC/mobile/Preview suite reaches
-    # the former five-minute job limit before employee profile checks can run.
-    timeout-minutes: 10
+    # All preceding assertions passed before the expanded suite hit 10 minutes
+    # at notice baseline capture (run 42807382919). Keep every gate and allow
+    # the existing PC/mobile/Preview and artifact work to finish.
+    timeout-minutes: 20
 
     steps:
       - name: Check out repository
