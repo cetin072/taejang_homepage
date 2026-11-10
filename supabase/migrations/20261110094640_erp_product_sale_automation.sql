@@ -201,7 +201,7 @@ end $$;
 -- by effective accruals/collections. No approval or cash movement is created here.
 alter function private.erp_sales_payout_summary(uuid,text,numeric) rename to erp_sales_payout_summary_legacy;
 create function private.erp_sales_payout_summary(p_sale_id uuid,p_kind text,p_basis_amount numeric default null) returns jsonb language plpgsql security definer set search_path='' as $$
-declare s public.erp_sales_transactions;r jsonb;pos jsonb;basis numeric;planned numeric;allowed numeric:=0;begin
+declare s public.erp_sales_transactions;r jsonb;pos jsonb;basis numeric;planned numeric;allowed numeric:=0;settled_offset numeric:=0;begin
  select * into s from public.erp_sales_transactions where id=p_sale_id;
  if s.automation_snapshot is null then return private.erp_sales_payout_summary_legacy(p_sale_id,p_kind,p_basis_amount);end if;
  if p_kind not in ('supplier','commission') or p_kind is null then raise exception 'ERP_PAYOUT_INVALID_INPUT';end if;
@@ -214,7 +214,8 @@ declare s public.erp_sales_transactions;r jsonb;pos jsonb;basis numeric;planned 
   if p_kind='supplier' or (pos->>'net_received')::numeric>=(pos->>'effective_total')::numeric then allowed:=planned;
   elsif s.commission->>'settlement_rule'='proportional' then allowed:=floor(planned*(pos->>'net_received')::numeric/(pos->>'effective_total')::numeric);end if;
  end if;
- return r||jsonb_build_object('cycle',coalesce(r->>'cycle',case when p_kind='supplier' then s.automation_snapshot->>'supplier_cycle' else 'transaction' end),'planned',planned,'allowed',allowed,'remaining',greatest(planned-(r->>'paid')::numeric,0),'unapproved',greatest(allowed-(r->>'paid')::numeric-(r->>'pending')::numeric,0),'recovery_due',greatest((r->>'paid')::numeric+(r->>'pending')::numeric-planned,0));
+ if p_kind='commission' then select coalesce(sum(o.amount),0) into settled_offset from public.erp_sales_commission_offsets o join public.erp_sales_payouts p on p.id=o.payout_id and p.outcome='paid' join public.erp_sales_adjustments a on a.id=o.adjustment_id where a.sale_id=p_sale_id;end if;
+ return r||jsonb_build_object('settled_offset',settled_offset,'cycle',coalesce(r->>'cycle',case when p_kind='supplier' then s.automation_snapshot->>'supplier_cycle' else 'transaction' end),'planned',planned,'allowed',allowed,'remaining',greatest(planned-(r->>'paid')::numeric,0),'unapproved',greatest(allowed-(r->>'paid')::numeric-(r->>'pending')::numeric,0),'recovery_due',greatest((r->>'paid')::numeric+(r->>'pending')::numeric-planned-settled_offset,0));
 end $$;
 
 -- Original accrual + signed reversal, triggered inside the existing approved adjustment transaction.
@@ -222,6 +223,7 @@ create function private.erp_sales_reverse_product() returns trigger language plp
 declare a public.erp_sales_adjustments;s public.erp_sales_transactions;l public.erp_sales_lines;terms jsonb;ps numeric:=0;pt numeric:=0;fee numeric:=0;qty numeric;priorqty numeric;credit numeric;alreadyfee numeric;r record;begin
  select * into a from public.erp_sales_adjustments where id=new.adjustment_id;
  select * into s from public.erp_sales_transactions where id=a.sale_id;
+ if s.automation_snapshot is not null and a.kind='sales_change' and new.action='approve' and to_jsonb(new)->>'sales_delta' is not null then raise exception 'ERP_AUTOMATED_AMOUNT_CHANGE_UNSUPPORTED';end if;
  if s.automation_snapshot is null or a.kind not in ('cancel_order','return_goods') or new.action not in ('approve','recall') then return new;end if;
  perform private.erp_sales_lock_period(new.recorded_on);
  if private.erp_sales_month_is_closed(new.recorded_on) then raise exception 'ERP_MONTH_CLOSED';end if;

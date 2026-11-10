@@ -107,6 +107,10 @@ try{
  const offsetResult=db.rpc('erp_sales_approve_payout',offsetApproval);
  ok(offsetResult.commission.entries[0].offset===909&&offsetResult.commission.entries[0].cash_amount===1364,'existing approved commission offset applies to automated sale without double cash payment');
  db.rpc('erp_sales_finish_payout',{p_sale_id:settlementTarget.id,p_payout_id:offsetApproval.p_request_id,p_outcome:'paid',p_on:'2026-11-10',p_evidence:'Synthetic net cash transfer'});
+ ok(db.rpc('erp_sales_get_payouts',{p_sale_id:sale.id}).commission.recovery_due===0,'completed offset settles the source recovery indicator');
+ const amountChange=request(settlementTarget,'sales_change',{amount:24000});
+ assert.throws(()=>db.rpc('erp_sales_approve_amount_adjustment',{...amountChange,p_request_id:randomUUID(),p_on:'2026-11-10',p_note:'Synthetic adjustment'}),/ERP_AUTOMATED_AMOUNT_CHANGE_UNSUPPORTED/);n++;
+ ok(db.rpc('erp_sales_get_receipts',{p_sale_id:settlementTarget.id}).effective_total===25000,'unsupported post-confirmation repricing fails atomically instead of desynchronizing commission');
  const stockCompetition=await Promise.allSettled(Array.from({length:2},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify({...ownData,request_key:randomUUID(),lines:[{item_id:own.id,quantity:4}]})}'::jsonb,null,0,true`)));
  ok(stockCompetition.filter(r=>r.status==='fulfilled').length===1&&stockCompetition.filter(r=>r.status==='rejected').length===1,'concurrent separate orders cannot oversell stock');
  ok(stock()===1,'competing sale failure leaves only one deduction');
@@ -119,6 +123,7 @@ try{
  assert.throws(()=>db.rpc('erp_sales_save_product',{p_data:{...data,request_key:randomUUID()},p_confirm:true}),/ERP_ITEM_DEFAULTS_REQUIRED/);n++;
  ok(db.rpc('erp_sales_get',{p_id:sale.id}).automation_snapshot.lines[0].code===item.code,'disabled item preserves historic snapshots');
  assert.throws(()=>db.rpc('erp_sales_list_accruals',{p_from:'2026-11-01',p_to:'2026-11-30'},{actor:WORKER}),/ERP_FORBIDDEN/);n++;
+ assert.throws(()=>db.sql('select * from public.erp_sales_accrual_events;',{actor:WORKER}),/permission denied/);n++;
  assert.throws(()=>db.sql('insert into public.erp_sales_accrual_events default values;'),/permission denied/);n++;
  assert.throws(()=>db.raw('delete from public.erp_sales_accrual_events;'),/ERP_RECEIPT_IMMUTABLE/);n++;
  console.log('SCENARIO_RESULT',JSON.stringify({sale:sale.id,supply:22727,tax:2273,total:25000,cost:15000,commission:2273,collected:25000,supplierPaid:15000,commissionPaid:2273,directStockMovements:0}));
