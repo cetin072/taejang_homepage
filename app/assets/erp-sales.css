@@ -9,6 +9,15 @@
 .erp-tabs,.erp-actions { display:flex;flex-wrap:wrap;gap:10px;margin-block:12px; }
 .erp-fields { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--authoring-gap,14px);border:0;padding:0;margin:0;min-width:0; }
 .erp-fields > label:has(textarea) { grid-column:1/-1; }
+/* All ERP authoring forms use three columns when space permits, not only sales filters. */
+@media(min-width:1050px) { .erp-sales .erp-fields { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+/* Single toggles occupy their own row instead of appearing in an arbitrary grid column. */
+.erp-sales .erp-fields > label:has(> input[type=checkbox]) { grid-column:1/-1; }
+.erp-sales .erp-relationship-group { grid-column:1/-1;min-width:0;margin:0;padding:12px 14px;border:1px solid #d2e0d7;border-radius:9px; }
+.erp-sales .erp-relationship-group legend { padding:0 6px;color:#25493c;font-size:.93rem;font-weight:750; }
+.erp-sales .erp-relationship-options { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 14px;align-items:center; }
+.erp-sales .erp-relationship-options > label { min-width:0; }
+@media(max-width:700px) { .erp-sales .erp-relationship-options { grid-template-columns:minmax(0,1fr); } }
 /* Keep nested ledger tables inside their scroll area on narrow screens. */
 .erp-sales .app-form-section:not(.erp-fields) { grid-template-columns:minmax(0,1fr); }
 .erp-line { padding:14px;margin-block:12px;border:1px solid var(--authoring-stroke,#cfdcd4);border-radius:9px; }
