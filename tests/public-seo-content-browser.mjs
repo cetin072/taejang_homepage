@@ -42,10 +42,10 @@ await mkdir('seo-qa-artifacts', { recursive: true });
 try {
   for (const width of [320, 390, 1440]) {
     for (const javaScriptEnabled of [false, true]) {
-      const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled });
+      const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled, reducedMotion: 'reduce' });
       await context.route('**/*', route => route.request().url().startsWith(base + '/') && route.request().method() === 'GET' ? route.continue() : route.abort());
       const page = await context.newPage();
-      for (const file of ['about.html', 'business.html', 'location.html', 'partnership.html']) {
+      for (const file of ['about.html', 'business.html', 'location.html', 'partnership.html', 'farm.html']) {
         const result = await page.goto(base + '/' + file, { waitUntil: 'load' });
         assert.equal(result.status(), 200);
         assert.equal(await page.locator('main h1').count(), 1);
@@ -54,6 +54,24 @@ try {
           const question = page.getByRole('button', { name: '태장에 어떤 업무를 맡기거나 협력할 수 있나요?' });
           if (javaScriptEnabled) await question.click();
           assert.ok(await page.locator('#partnership-faq-answer-7').isVisible());
+        }
+        if (['about.html', 'business.html', 'location.html'].includes(file)) {
+          assert.ok(await page.locator('main a[href="farm.html"]').count() > 0, file + ' links to farm');
+        }
+        if (file === 'farm.html') {
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm overflow');
+          assert.equal(await page.locator('main img, main iframe, main form').count(), 0, 'text-first draft has no invented farm photos, maps or booking');
+          assert.match(await page.locator('main').textContent(), /2년 연속 호박 재배 완료/);
+          assert.match(await page.locator('main').textContent(), /야생다래 덕장 시설/);
+          await page.screenshot({ path: `seo-qa-artifacts/farm-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          await page.getByRole('link', { name: '농장 이야기 살펴보기', exact: true }).click();
+          assert.ok((await page.url()).endsWith('#farm-story'));
+          const current = await page.locator('#farm-story').boundingBox();
+          await page.waitForTimeout(400);
+          assert.deepEqual(await page.locator('#farm-story').boundingBox(), current, 'farm layout stable');
+          await page.getByRole('link', { name: '농장 관련 협력 문의', exact: true }).click();
+          assert.ok((await page.url()).endsWith('/partnership.html#contact'));
+          assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
         }
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), file + ' overflow');
         if (file === 'about.html') await page.screenshot({ path: `seo-qa-artifacts/about-${width}-${javaScriptEnabled}.png`, fullPage: true });
