@@ -45,7 +45,7 @@ try {
       const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled, reducedMotion: 'reduce' });
       await context.route('**/*', route => route.request().url().startsWith(base + '/') && route.request().method() === 'GET' ? route.continue() : route.abort());
       const page = await context.newPage();
-      for (const file of ['about.html', 'business.html', 'location.html', 'partnership.html', 'farm.html']) {
+      for (const file of ['about.html', 'business.html', 'location.html', 'partnership.html', 'farm.html', 'certifications.html']) {
         const result = await page.goto(base + '/' + file, { waitUntil: 'load' });
         assert.equal(result.status(), 200);
         assert.equal(await page.locator('main h1').count(), 1);
@@ -57,6 +57,36 @@ try {
         }
         if (['about.html', 'business.html', 'location.html'].includes(file)) {
           assert.ok(await page.locator('main a[href="farm.html"]').count() > 0, file + ' links to farm');
+        }
+        if (['about.html', 'partnership.html'].includes(file)) {
+          assert.ok(await page.locator('main a[href="certifications.html"]').count() > 0, file + ' links to credentials');
+        }
+        if (file === 'certifications.html') {
+          assert.equal(await page.locator('main img').count(), 4);
+          assert.match(await page.locator('main').textContent(), /제2026-049호/);
+          assert.match(await page.locator('main').textContent(), /현판 사진/);
+          for (const img of await page.locator('main img').all()) {
+            await img.scrollIntoViewIfNeeded();
+            await img.evaluate(el => el.decode());
+            const dimensions = await img.evaluate(el => ({ natural: el.naturalWidth / el.naturalHeight, shown: el.getBoundingClientRect().width / el.getBoundingClientRect().height, fit: getComputedStyle(el).objectFit }));
+            assert.ok(Math.abs(dimensions.natural - dimensions.shown) < 0.02, 'evidence image is uncropped');
+          }
+          await page.getByRole('link', { name: '표준사업장 인증', exact: true }).click();
+          assert.ok(page.url().endsWith('#standard-workplace'));
+          await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+          await page.waitForTimeout(200);
+          await page.screenshot({ path: `seo-qa-artifacts/certifications-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          await page.getByRole('link', { name: '인증 당시 회사 소식 보기 →', exact: true }).click();
+          assert.ok(page.url().endsWith('/activities/standard-workplace-certification.html'));
+          assert.equal(await page.locator('.article-gallery img').count(), 3);
+          for (const img of await page.locator('.article-body img').all()) {
+            await img.scrollIntoViewIfNeeded();
+            await img.evaluate(el => el.decode());
+            assert.ok(await img.evaluate(el => Math.abs(el.naturalWidth / el.naturalHeight - el.getBoundingClientRect().width / el.getBoundingClientRect().height) < 0.02), 'news evidence image is uncropped');
+          }
+          await page.goto(base + '/certifications.html');
+          await page.getByRole('link', { name: '장애인 표준사업장 인증서 원본 크게 보기', exact: true }).click();
+          assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
         }
         if (file === 'farm.html') {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm overflow');

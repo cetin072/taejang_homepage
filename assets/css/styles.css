@@ -415,6 +415,8 @@ button{cursor:pointer}
 .article-body figcaption{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:9px}
 .article-gallery{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .article-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}
+/* Certification evidence keeps the full certificate and plaque edges visible. */
+.article-gallery img:is([src$="partner-company-plaques-v3.webp"],[src$="companion-job-first-store-plaque.webp"],[src$="standard-workplace-certificate-2026-049.png"]){height:auto;aspect-ratio:auto;object-fit:contain}
 .back-link{display:inline-block;margin-bottom:26px;color:var(--green);font-weight:800}
 .back-link--bottom{margin:34px 0 0}
 .related-posts{margin-top:46px;padding-top:30px;border-top:1px solid var(--line)}
