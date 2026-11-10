@@ -440,6 +440,7 @@
       summary: "태장은 2026년 7월 9일 자회사형 장애인 표준사업장 인증 제2026-049호를 받았습니다. 경남형 장애인 동행일자리 제1호 사업장으로서 안정적인 일자리와 실제 업무를 만들어가고 있습니다.",
       thumb: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
       hero: "assets/images/archive/standard-workplace-certification-plaque-v3.webp",
+      thumbnailDetail: "natural",
       hub: { category: "장애인 일자리", featured: false },
       alt: {
         thumb: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",

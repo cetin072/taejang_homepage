@@ -73,10 +73,17 @@ try {
           }
           await page.getByRole('link', { name: '표준사업장 인증', exact: true }).click();
           assert.ok(page.url().endsWith('#standard-workplace'));
+          await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
+          await page.waitForTimeout(200);
           await page.screenshot({ path: `seo-qa-artifacts/certifications-${width}-${javaScriptEnabled}.png`, fullPage: true });
           await page.getByRole('link', { name: '인증 당시 회사 소식 보기 →', exact: true }).click();
           assert.ok(page.url().endsWith('/activities/standard-workplace-certification.html'));
           assert.equal(await page.locator('.article-gallery img').count(), 3);
+          for (const img of await page.locator('.article-body img').all()) {
+            await img.scrollIntoViewIfNeeded();
+            await img.evaluate(el => el.decode());
+            assert.ok(await img.evaluate(el => Math.abs(el.naturalWidth / el.naturalHeight - el.getBoundingClientRect().width / el.getBoundingClientRect().height) < 0.02), 'news evidence image is uncropped');
+          }
           await page.goto(base + '/certifications.html');
           await page.getByRole('link', { name: '장애인 표준사업장 인증서 원본 크게 보기', exact: true }).click();
           assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
