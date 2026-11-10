@@ -54,6 +54,7 @@ try{
     await tab('품목·서비스');
     for(const [code,name,kind,unit] of [['SIM-SVC','가상 환경정비','service','월'],['SIM-SALT','가상 소금','product','포'],['SIM-PACK','가상 포장봉투','packaging','장']]){
      await button('품목·서비스 등록');await fill('code',code);await fill('name',name);await field('kind').selectOption(kind);if(variant==='baseline')await fill('unit',unit);else if(unit==='장'){await field('unit').selectOption('other');await fill('unit_other',unit);}else await field('unit').selectOption(unit);
+     if(variant==='candidate')await field('tax_class').selectOption('taxable');
      if(kind==='packaging')await field('inventory_managed').check();await button('저장',page.locator('.erp-editor'));
     }
     await tab('용역 계약');await button('용역 계약 등록');await fill('title','가상 연간 환경정비 계약');await select('party_id','가상 모회사');await select('item_id','SIM-SVC · 가상 환경정비');
