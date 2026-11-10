@@ -48,8 +48,9 @@
   const supplierLink=btn('공급처 신규 등록',()=>{
    const retained=[...new FormData(f).entries()];const checks=[...f.querySelectorAll('input[type=checkbox]')].map(x=>[x.name,x.checked]);
    if(!window.confirm('입력 내용을 보관하고 공급처 등록으로 이동할까요?'))return;
-   f.dataset.dirty='false';masterEditor('party',{},'supplier');
-   editor.append(btn('상품 입력으로 돌아가기',()=>void run(async()=>{state=await rpc('erp_sales_bootstrap');const current=editor.querySelector('form');if(current)current.dataset.dirty='false';masterEditor('item',row);const restored=editor.querySelector('form');for(const [name,value] of retained){const input=restored.elements[name];if(input&&input.type!=='checkbox')input.value=value;}for(const [name,value] of checks)if(restored.elements[name])restored.elements[name].checked=value;restored.elements.defaults_enabled.dispatchEvent(new Event('change'));restored.elements.auto_code.dispatchEvent(new Event('change'));restored.dataset.dirty='true';})));
+   const restore=saved=>{const current=editor.querySelector('form');if(current)current.dataset.dirty='false';masterEditor('item',row);const restored=editor.querySelector('form');for(const [name,value] of retained){const input=restored.elements[name];if(input&&input.type!=='checkbox')input.value=value;}for(const [name,value] of checks)if(restored.elements[name])restored.elements[name].checked=value;if(saved)restored.elements.default_supplier_id.value=saved.id;for(const name of ['unit','defaults_enabled','auto_code','default_supplier_id'])restored.elements[name].dispatchEvent(new Event('change'));restored.dataset.dirty='true';};
+   f.dataset.dirty='false';masterEditor('party',{},'supplier',restore);
+   editor.append(btn('상품 입력으로 돌아가기',()=>void run(async()=>{state=await rpc('erp_sales_bootstrap');restore();})));
   });grid.append(supplierLink);
   field(grid,'purchase_price','1단위 매입가격 (원)','number',a.purchase_price??'');
   field(grid,'purchase_pricing_basis','매입가격 부가세','select',a.purchase_pricing_basis||'exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]);
@@ -66,7 +67,7 @@
    supplierLink.hidden=!active;
    if(active&&fulfillment.value==='taejang_stock')f.elements.inventory_managed.checked=true;
   };enabled.addEventListener('change',sync);fulfillment.addEventListener('change',sync);f.elements.kind.addEventListener('change',sync);sync();
-  const suggest=()=>{if(auto.checked&&!row.id)void rpc('erp_sales_suggest_item_code',{p_supplier_id:supplier.value||null}).then(code=>{if(f.isConnected&&auto.checked)f.elements.code.value=code;}).catch(()=>{});};
+  const suggest=()=>{const selected=supplier.value;if(auto.checked&&!row.id)void rpc('erp_sales_suggest_item_code',{p_supplier_id:selected||null}).then(code=>{if(f.isConnected&&auto.checked&&supplier.value===selected)f.elements.code.value=code;}).catch(()=>{});};
   supplier.addEventListener('change',suggest);auto.addEventListener('change',suggest);suggest();
   f.readAutomation=d=>{
    d.pricing_basis=basis.value;d.auto_code=auto.checked;
@@ -121,7 +122,7 @@
   const section=el('section','','app-form-section');section.append(el('h3','판매 연결 매입·지급 예정'),el('p','지급 승인 전 예정액입니다. 실제 지급은 기존 승인·완료 절차로 기록합니다.','help'),table(['매출일','공급처','매입 발생','공급처 미승인 / 승인 / 지급','영업비 예정','영업비 미승인 / 승인 / 지급',''],r.items.map(x=>[x.sales_date,x.supplier,money(Number(x.purchase_supply)+Number(x.purchase_tax)),money(Math.max(Number(x.purchase_supply)+Number(x.purchase_tax)-Number(x.supplier_paid)-Number(x.supplier_approved),0))+' / '+money(x.supplier_approved)+' / '+money(x.supplier_paid),money(x.commission_amount),money(Math.max(Number(x.commission_amount)-Number(x.commission_paid)-Number(x.commission_approved),0))+' / '+money(x.commission_approved)+' / '+money(x.commission_paid),btn('거래·지급 확인',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:x.id}))))])));body.append(section);
  }
 
- function masterEditor(kind,row={},initialRole='customer'){
+ function masterEditor(kind,row={},initialRole='customer',onSaved=null){
   const names={party:'거래처',agent:'영업자',item:'품목·서비스',contract:'용역 계약'};const parts=formStart((row.id?'수정: ':'등록: ')+names[kind]);if(!parts)return;const {f,grid}=parts;
   const add=(n,l,t='text',v=row[n]??'',c=[],req=false)=>field(grid,n,l,t,v,c,req);
   if(kind==='party'){
@@ -168,7 +169,7 @@
    if(kind==='party'){d.relationships=new FormData(f).getAll('relationships');if(!d.relationships.length){report('고객·공급처·영업 관계 중 하나 이상 선택해 주세요.',true);return;}if(d.kind==='individual')d.business_number=null;}
    if(kind!=='contract')d.active=f.elements.active.checked;if(kind==='item'){d.inventory_managed=f.elements.inventory_managed.checked;if(d.unit==='other')d.unit=String(d.unit_other||'').trim();delete d.unit_other;if(!d.unit){report('판매·계약 단위를 선택하거나 입력해 주세요.',true);return;}}
    f.readAutomation?.(d);
-   void run(async()=>{await rpc('erp_sales_save_master',{p_kind:kind,p_data:d,p_id:row.id||null,p_revision:row.revision||0});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();draw();report('저장했습니다.');});
+   void run(async()=>{const saved=await rpc('erp_sales_save_master',{p_kind:kind,p_data:d,p_id:row.id||null,p_revision:row.revision||0});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();if(onSaved)onSaved(saved);else draw();report('저장했습니다.');});
   });f.querySelector('input,select')?.focus();
  }
  function assignmentEditor(){const parts=formStart('영업 관계 연결·담당자 변경');if(!parts)return;const {f,grid}=parts;
