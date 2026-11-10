@@ -48,8 +48,15 @@
   }else if(kind==='item'){
    add('code','품목코드','text',row.code||'',[],true);add('name','품목·서비스명','text',row.name||'',[],true);
    add('kind','유형','select',row.kind||'product',Object.entries(kinds).filter(([k])=>['product','service','material','packaging'].includes(k)),true);
-   add('unit','단위','text',row.unit||'',[],true);add('base_price','기준 공급단가 (선택)','number');add('tax_class','세금 구분','select',row.tax_class||'taxable',taxChoices,true);add('inventory_managed','재고관리 대상 표시','checkbox',row.inventory_managed||false);
-   f.append(el('p','기준 단가 변경은 과거 거래에 적용되지 않습니다. 입출고·재고 계산은 후속 단계입니다.','help'));
+   const units=['포','kg','g','개','박스','병','세트','묶음','월','회','건','L'];
+   const chosenUnit=row.unit?(units.includes(row.unit)?row.unit:'other'):'';
+   const unit=add('unit','판매·계약 단위','select',chosenUnit,[['','단위 선택'],...units.map(x=>[x,x]),['other','기타 직접 입력']],true);
+   const customUnit=add('unit_other','기타 단위','text',chosenUnit==='other'?row.unit:'');
+   const toggleUnit=()=>{customUnit.closest('label').hidden=unit.value!=='other';customUnit.required=unit.value==='other';};
+   unit.addEventListener('change',toggleUnit);toggleUnit();
+   add('base_price','기준 공급단가 (부가세 별도, 원/선택 단위)','number');
+   add('tax_class','세금 구분','select',row.tax_class||'taxable',taxChoices,true);add('inventory_managed','재고관리 대상 표시','checkbox',row.inventory_managed||false);
+   f.append(el('p','예: 10kg 한 포를 판매하면 상품명에 10kg, 판매 단위에 ‘포’를 선택하세요. 기준 단가는 부가세 별도이며 판매 화면에서 부가세 포함/별도 가격을 선택할 수 있습니다. 세금 구분은 실제 품목 분류에 맞게 확인하세요.','help'));
   }else{
    add('title','계약명','text',row.title||'',[],true);add('party_id','계약 거래처','select',row.party_id||'',options('parties',p=>p.active&&p.relationships.includes('customer')),true);
    add('item_id','용역 품목','select',row.item_id||'',options('items',i=>i.active&&i.kind==='service'),true);
@@ -63,7 +70,7 @@
   const actions=el('div','','erp-actions');if(state.canWrite){const save=el('button','저장','button primary');save.type='submit';actions.append(save);}actions.append(btn('닫기',clearEditor));f.append(actions);
   f.addEventListener('submit',event=>{event.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));
    if(kind==='party'){d.relationships=new FormData(f).getAll('relationships');if(!d.relationships.length){report('고객·공급처·영업 관계 중 하나 이상 선택해 주세요.',true);return;}if(d.kind==='individual')d.business_number=null;}
-   if(kind!=='contract')d.active=f.elements.active.checked;if(kind==='item')d.inventory_managed=f.elements.inventory_managed.checked;
+   if(kind!=='contract')d.active=f.elements.active.checked;if(kind==='item'){d.inventory_managed=f.elements.inventory_managed.checked;if(d.unit==='other')d.unit=String(d.unit_other||'').trim();delete d.unit_other;if(!d.unit){report('판매·계약 단위를 선택하거나 입력해 주세요.',true);return;}}
    void run(async()=>{await rpc('erp_sales_save_master',{p_kind:kind,p_data:d,p_id:row.id||null,p_revision:row.revision||0});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();draw();report('저장했습니다.');});
   });f.querySelector('input,select')?.focus();
  }
@@ -199,14 +206,34 @@
   const addLine=(line={})=>{const box=el('fieldset','','erp-line erp-fields');box.disabled=locked||!state.canWrite;box.append(el('legend','품목 '+(++seq)));const add=(n,l,t,v,c=[],r=true)=>field(box,n+'_'+seq,l,t,v,c,r);
    const item=add('item_id','판매 품목','select',line.item_id||'',locked?[[line.item_id,line.item_snapshot.name]]:options('items',i=>i.active&&i.kind===kind));
    const quantity=add('quantity','수량','number',line.quantity??1);quantity.step='0.001';quantity.min='0.001';
-   const price=add('unit_price','실제 공급단가 (세금 별도, 원)','number',line.unit_price??'');
+   const pricing=add('pricing_basis','판매 단가의 부가세','select','exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]);
+   const price=add('unit_price','판매 단가 (원)','number',line.unit_price??'');price.step='0.01';
    const taxClass=add('tax_class','세금 구분','select',line.tax_class||'taxable',taxChoices);
-   const tax=add('tax_amount','부가세 (직접 입력, 원)','number',line.tax_amount??0);tax.step='1';
+   const tax=add('tax_amount','자동 계산 부가세 (원)','number',line.tax_amount??0);tax.step='1';tax.readOnly=true;
    const itemNotice=el('p','','erp-line-notice');box.append(itemNotice);
-   const refreshItemNotice=()=>{const chosen=state.items.find(i=>i.id===item.value);itemNotice.textContent=chosen?'등록 기준 단위: '+chosen.unit+' · 기준 단가: '+(chosen.base_price===null?'미등록':money(chosen.base_price))+' / '+chosen.unit+' · 수량과 단가가 같은 단위를 기준으로 하는지 확인하세요. 부가세는 원 단위로 직접 입력합니다.':'품목을 선택하면 등록 단위·기준 단가가 표시됩니다. 부가세는 원 단위로 직접 입력합니다.';};
-   item.addEventListener('change',()=>{const chosen=state.items.find(i=>i.id===item.value);if(chosen){price.value=chosen.base_price??'';taxClass.value=chosen.tax_class;tax.value=0;}refreshItemNotice();});refreshItemNotice();
+   const amountNotice=el('p','','erp-line-notice');box.append(amountNotice);
+   let calculatedUnit=Number(line.unit_price??0),calculatedTax=Number(line.tax_amount??0);
+   const refreshItemNotice=()=>{const chosen=state.items.find(i=>i.id===item.value);const unit=chosen?.unit||line.item_snapshot?.unit||'단위';
+    quantity.closest('label').querySelector('span').textContent='수량 ('+unit+')';
+    price.closest('label').querySelector('span').textContent='판매 단가 (원/'+unit+')';
+    itemNotice.textContent=chosen?'선택 단위: '+unit+' · 기준 공급단가: '+(chosen.base_price===null?'미등록':money(chosen.base_price))+' / '+unit:'상품을 선택하면 판매 단위가 표시됩니다.';
+   };
+   const recalculate=(preserveOriginal=false)=>{const q=Number(quantity.value),entered=Number(price.value),valid=quantity.value!==''&&price.value!==''&&q>0&&entered>=0&&Number.isFinite(q)&&Number.isFinite(entered);
+    if(!valid){amountNotice.textContent='수량과 판매 단가를 입력하면 공급가액·부가세·총액을 자동 계산합니다.';return;}
+    calculatedUnit=pricing.value==='inclusive'&&taxClass.value==='taxable'?Math.round((entered/1.1)*100)/100:entered;
+    const supply=Math.round(q*calculatedUnit);
+    const gross=Math.round(q*entered);
+    calculatedTax=taxClass.value==='taxable'?(pricing.value==='inclusive'?Math.max(0,gross-supply):Math.round(supply*0.1)):0;
+    if(preserveOriginal&&line.tax_amount!=null){calculatedUnit=Number(line.unit_price??0);calculatedTax=Number(line.tax_amount); }
+    else tax.value=String(calculatedTax);
+    const savedSupply=Math.round(q*calculatedUnit);
+    amountNotice.textContent='공급가액 '+money(savedSupply)+' + 부가세 '+money(calculatedTax)+' = 청구 합계 '+money(savedSupply+calculatedTax)+(preserveOriginal&&line.tax_amount!=null?' (기존 저장 금액, 재입력 시 자동 재계산)':'')+'. 세금 구분은 상품의 실제 법적 분류를 확인하세요.';
+   };
+   item.addEventListener('change',()=>{const chosen=state.items.find(i=>i.id===item.value);if(chosen){price.value=chosen.base_price??'';taxClass.value=chosen.tax_class;}refreshItemNotice();recalculate();});
+   for(const input of [quantity,price,pricing,taxClass])input.addEventListener('input',()=>recalculate());
+   refreshItemNotice();recalculate(line.tax_amount!=null);
    if(!locked&&state.canWrite)box.append(btn('품목 제거',()=>{box.remove();f.dataset.dirty='true';}));
-   box.readLine=()=>({item_id:item.value,quantity:Number(quantity.value),unit_price:Number(price.value),tax_class:taxClass.value,tax_amount:Number(tax.value)});lineRows.append(box);
+   box.readLine=()=>({item_id:item.value,quantity:Number(quantity.value),unit_price:calculatedUnit,tax_class:taxClass.value,tax_amount:Number(tax.value)});lineRows.append(box);
   };
   (data.lines?.length?data.lines:[{}]).forEach(addLine);if(!locked&&state.canWrite&&kind==='product')lineArea.append(btn('품목 추가',()=>{addLine();f.dataset.dirty='true';}));f.append(lineArea);
   const fee=el('fieldset','','erp-fields app-form-section');fee.disabled=locked||!state.canWrite;fee.append(el('legend','거래별 영업비 조건'));
