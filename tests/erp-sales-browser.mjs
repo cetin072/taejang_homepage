@@ -311,6 +311,34 @@ try {
  assert.equal(Number(app.db.raw('select count(*) from public.erp_sales_transactions;')),beforeCopy);
  await saved('매출 저장');
  assert.equal(Number(app.db.raw('select count(*) from public.erp_sales_transactions;')),beforeCopy+1);
+
+ // Product sale: 1 packaged unit, VAT included KRW 25,000. Verify persisted amounts and reopening.
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
+ await field('party_id').selectOption({label:'합성 기업 브라우저'});
+ await field('supplier_id').selectOption({label:'합성 직배송 공급처'});
+ await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});
+ assert.match(await page.locator('.erp-line-notice').first().textContent(),/선택 단위: 포/);
+ await field('quantity_1').fill('1');
+ await field('pricing_basis_1').selectOption('inclusive');
+ await field('unit_price_1').fill('25000');
+ assert.equal(await field('tax_amount_1').inputValue(),'2273');
+ assert.match(await page.locator('.erp-line-notice').last().textContent(),/청구 합계 25,000원/);
+ await saved('매출 저장');
+ assert.match(await page.locator('.erp-total').textContent(),/공급가 22,727원 · 부가세 2,273원 · 합계 25,000원/);
+ const inclusiveSaleId=app.db.raw("select id from public.erp_sales_transactions where kind='product' and total_amount=25000 order by created_at desc,id desc limit 1;");
+ assert.ok(inclusiveSaleId,'VAT-inclusive sale was persisted');
+ assert.equal(app.db.rpc('erp_sales_get',{p_id:inclusiveSaleId}).total_amount,25000);
+ await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
+ await page.reload();
+ await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
+ await page.locator('.erp-body [name=from]').fill('2020-01-01');
+ await page.locator('.erp-body [name=to]').fill('2020-12-31');
+ await page.getByRole('button',{name:'조회',exact:true}).click();
+ await page.getByRole('button',{name:'이번 달',exact:true}).click();
+ await page.getByText('25,000원',{exact:true}).first().waitFor();
+ await page.locator('.erp-body tbody tr').filter({hasText:'25,000원'}).getByRole('button',{name:'상세'}).click();
+ assert.match(await page.locator('.erp-total').textContent(),/합계 25,000원/);
+ await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  assert.equal(app.db.raw("select count(*) from public.erp_sales_transactions where status='confirmed';"),'2');
  await page.getByRole('tab',{name:'구매·매입',exact:true}).click();
  await page.getByRole('button',{name:'일반 구매 등록',exact:true}).click();
