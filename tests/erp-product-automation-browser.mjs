@@ -41,8 +41,11 @@ try{
  // Failed save must retain all user inputs and the previewed values.
  await page.evaluate(()=>window.fixtureFailNext=true);await click('판매 등록·확정');assert.equal(await field('auto_price_1').inputValue(),'25000');
  await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'판매 확정'}).waitFor();
+ assert.equal(await field('unit_price_1').inputValue(),'25000','confirmed sale keeps originally entered price');assert.equal(await field('pricing_basis_1').inputValue(),'inclusive','confirmed sale keeps originally selected VAT basis');
  const sale=JSON.parse(app.db.raw('select row_to_json(s) from public.erp_sales_transactions s;'));assert.equal(sale.status,'confirmed');assert.equal(Number(sale.total_amount),25000);
  assert.equal(app.db.raw('select count(*) from public.erp_sales_accrual_events;'),'1');assert.equal(app.db.raw('select count(*) from public.erp_sales_stock_movements;'),'0');
+ await click('새 주문으로 복사');assert.equal(await field('auto_price_1').inputValue(),'25000','copy opens automatic product writer with original entered price');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');await click('닫기',page.locator('.erp-editor'));
  await page.reload();await page.getByRole('tab',{name:'구매·매입',exact:true}).click();await idle();await page.getByRole('heading',{name:'판매 연결 매입·지급 예정'}).waitFor();await page.getByText('15,000원',{exact:true}).first().waitFor();
+ await click('거래·지급 확인');assert.equal(await field('unit_price_1').inputValue(),'25000');assert.equal(await field('pricing_basis_1').inputValue(),'inclusive','VAT basis survives page reload and reopening sale');
  assert.deepEqual(errors,[]);console.log('ERP_PRODUCT_AUTOMATION_BROWSER_PASS PC1440/mobile390; UI save + atomic confirm + reload; no console errors');
 }finally{await browser?.close();await app.close()}

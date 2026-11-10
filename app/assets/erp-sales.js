@@ -304,7 +304,7 @@
   });
  }
  function monthEditor(contract){const parts=formStart('월 매출 생성: '+contract.title);if(!parts)return;const {f,grid}=parts;field(grid,'month','매출 월','month',today().slice(0,7),[],true);f.append(el('p','기존 문서와 계산 결과는 변경하지 않습니다. 같은 계약·월 매출이 있으면 기존 거래를 엽니다.','help'));const save=el('button','매출 생성·확인','button primary');save.type='submit';f.append(save,btn('닫기',clearEditor));f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;void run(async()=>{const sale=await rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:f.elements.month.value+'-01'});f.dataset.dirty='false';saleEditor(sale);report(sale.alreadyExists?'이미 생성된 월 매출을 불러왔습니다.':'월 매출을 생성했습니다. 내용을 확인 후 확정하세요.');});});}
- function saleEditor(sale=null){if(productAutomation&&sale?.status!=='confirmed'&&(!sale||sale.automation_snapshot)&&(!sale||sale.kind==='product'))return automatedProductEditor(sale||{});const locked=sale?.status==='confirmed';const parts=formStart(sale?.id?(locked?'확정 매출 상세':'매출 수정'):'상품 판매 등록');if(!parts)return;const {f,grid}=parts;f.dataset.confirmed=String(locked);const data=sale||{};const requestKey=data.request_key||crypto.randomUUID();
+ function saleEditor(sale=null){const automatedNew=!sale?.id&&(!sale?.lines?.length||sale.lines.every(line=>state.items.some(item=>item.id===line.item_id&&item.automation)));if(productAutomation&&sale?.status!=='confirmed'&&(automatedNew||sale?.automation_snapshot)&&(!sale||sale.kind==='product'))return automatedProductEditor(sale||{});const locked=sale?.status==='confirmed';const parts=formStart(sale?.id?(locked?'확정 매출 상세':'매출 수정'):'상품 판매 등록');if(!parts)return;const {f,grid}=parts;f.dataset.confirmed=String(locked);const data=sale||{};const requestKey=data.request_key||crypto.randomUUID();
   const kind=data.kind||'product';f.append(el('p',data.id?'거래·주문 ID: '+data.id:'공급처 직배송 주문입니다. 태장 창고 재고를 차감하지 않습니다.','help'));
   const customerOptions=locked?[[data.party_id,data.party_snapshot.name]]:options('parties',p=>p.active&&p.relationships.includes('customer'));
   field(grid,'party_id','고객·거래처','select',data.party_id||'',customerOptions,true);
@@ -325,8 +325,9 @@
   const addLine=(line={})=>{const box=el('fieldset','','erp-line erp-fields');box.disabled=locked||!state.canWrite;box.append(el('legend','품목 '+(++seq)));const add=(n,l,t,v,c=[],r=true)=>field(box,n+'_'+seq,l,t,v,c,r);
    const item=add('item_id','판매 품목','select',line.item_id||'',locked?[[line.item_id,line.item_snapshot.name]]:options('items',i=>i.active&&i.kind===kind));
    const quantity=add('quantity','수량','number',line.quantity??1);quantity.step='0.001';quantity.min='0.001';
-   const price=add('unit_price','판매가격 (원)','number',line.unit_price??'');price.step='0.01';
-   const pricing=kind==='product'?add('pricing_basis','판매가격 부가세 구분','select','exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]):null;
+   const originalPrice=data.automation_snapshot?.lines?.[seq-1];
+   const price=add('unit_price','판매가격 (원)','number',originalPrice?.entered_price??line.unit_price??'');price.step='0.01';
+   const pricing=kind==='product'?add('pricing_basis','판매가격 부가세 구분','select',originalPrice?.pricing_basis||'exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]):null;
    const taxClass=add('tax_class','세금 구분','select',line.tax_class||'taxable',taxChoices);
    const tax=add('tax_amount',kind==='product'?'자동 계산 부가세 (원)':'계약 부가세 (직접 입력, 원)','number',line.tax_amount??0);tax.step='1';tax.readOnly=kind==='product';
    const itemNotice=el('p','','erp-line-notice');box.append(itemNotice);
@@ -369,7 +370,7 @@
   if(sale?.id&&!locked&&state.canConfirm)actions.append(btn('매출 확정',()=>{if(f.dataset.dirty==='true'){report('변경한 내용을 먼저 저장한 뒤 확정해 주세요.',true);return;}if(window.confirm('확정 후 금액과 핵심 정보는 잠깁니다. 확정할까요?'))void run(async()=>{const result=await rpc('erp_sales_confirm',{p_id:data.id,p_revision:data.revision});saleEditor(result);if(tab==='sales')await drawSales();report('매출을 확정했습니다. 원본 금액은 잠겨 있습니다.');});}));
   if(sale?.id&&kind==='product'&&state.canWrite)actions.append(btn('새 주문으로 복사',()=>{
    if(!clearEditor())return;
-   saleEditor({kind:'product',party_id:data.party_id,supplier_id:data.supplier_id,
+   saleEditor({kind:'product',party_id:data.party_id,supplier_id:data.supplier_id,automation_snapshot:data.automation_snapshot,
     order_channel:data.order_channel,shipping_status:'preparing',lines:data.lines.map(line=>({
      item_id:line.item_id,quantity:line.quantity,unit_price:line.unit_price,
      tax_class:line.tax_class,tax_amount:line.tax_amount

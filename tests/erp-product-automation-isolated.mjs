@@ -47,6 +47,8 @@ try{
  }
  const accruals=db.rpc('erp_sales_list_accruals',{p_from:'2026-11-01',p_to:'2026-11-30'});
  ok(accruals.purchase_supply===13636&&accruals.purchase_tax===1364&&accruals.commission_amount===2273,'month ledger original purchase and commission totals');
+ const settledReceipts=db.rpc('erp_sales_get_receipts',{p_sale_id:sale.id}),settledPayouts=db.rpc('erp_sales_get_payouts',{p_sale_id:sale.id});
+ const scenarioResult={stage:'settled sale before additional return tests',sale:sale.id,supply:sale.supply_amount,tax:sale.tax_amount,total:sale.total_amount,cost:accruals.purchase_supply+accruals.purchase_tax,commission:accruals.commission_amount,collected:settledReceipts.received,balance:settledReceipts.balance,supplierPaid:settledPayouts.supplier.paid,commissionPaid:settledPayouts.commission.paid,directStockMovements:Number(db.raw('select count(*) from public.erp_sales_stock_movements;'))};
  ok(db.rpc('erp_sales_get_month_close',{p_month:'2026-11-01'}).accruals.purchase_supply===13636,'existing month close includes accrual event totals');
  const own=save('item',{...itemData,code:'OWN-TEST',auto_code:false,inventory_managed:true,automation:{...defaults,fulfillment:'taejang_stock'}});
  const ownData={...data,request_key:randomUUID(),lines:[{item_id:own.id,quantity:2}]};
@@ -126,6 +128,6 @@ try{
  assert.throws(()=>db.sql('select * from public.erp_sales_accrual_events;',{actor:WORKER}),/permission denied/);n++;
  assert.throws(()=>db.sql('insert into public.erp_sales_accrual_events default values;'),/permission denied/);n++;
  assert.throws(()=>db.raw('delete from public.erp_sales_accrual_events;'),/ERP_RECEIPT_IMMUTABLE/);n++;
- console.log('SCENARIO_RESULT',JSON.stringify({sale:sale.id,supply:22727,tax:2273,total:25000,cost:15000,commission:2273,collected:25000,supplierPaid:15000,commissionPaid:2273,directStockMovements:0}));
+ console.log('SCENARIO_RESULT',JSON.stringify(scenarioResult));
  console.log(`ERP_PRODUCT_AUTOMATION_PASS ${n} assertions`);
 }finally{db.stop()}
