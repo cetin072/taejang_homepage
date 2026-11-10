@@ -78,7 +78,7 @@ try {
     assert.equal(await page.locator('main > section').count(), 6);
     assert.equal(await page.locator('.partner-company-list li').count(), 4);
     assert.equal(await page.locator('.partner-company-list a').count(), 0);
-    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '공동출자 기록 보기 →', exact: true }).count(), 1);
+    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '참여기업 현판 보기 →', exact: true }).count(), 1);
     assert.equal(await page.locator('#partnership-faq-title').textContent(), '참여 안내');
     const metric = await layout(page, String(width));
     const boxes = () => page.locator('header, main > section, footer').evaluateAll(els => els.map(el => {

@@ -69,8 +69,13 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         timeout-minutes: 5
         run: |
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update -qq
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y fonts-noto-cjk
+          if [ -z "$(fc-list :lang=ko family)" ]; then
+            # Official Google Fonts source, SIL OFL 1.1. Avoid unrelated APT index downloads.
+            mkdir -p "$HOME/.local/share/fonts"
+            curl --fail --location --retry 2 --max-time 90 'https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf' -o "$HOME/.local/share/fonts/NotoSansKR.ttf"
+            fc-cache -f
+          fi
+          test -n "$(fc-list :lang=ko family)"
 
       - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
         if: steps.scope.outputs.run_full == 'true'
@@ -197,4 +202,5 @@ jobs:
 
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'
-        run: supabase stop --no-backup
+        run: |
+          if command -v supabase >/dev/null; then supabase stop; fi --no-backup
