@@ -211,6 +211,15 @@ sql(`update public.profile_roles set revoked_at=now() where profile_id='${promot
 check(!(await readDisability(promotionLead)).ok,'role revocation blocks same JWT');
 grantRole(promotionLead.id,'promotion_lead');
 check((await readDisability(promotionLead)).ok,'restored explicit role restores read');
+// Explicit employee-menu denial wins even while the role remains granted.
+sql(`insert into public.profile_menu_authority(profile_id,menu_key,allowed,revision,changed_by,reason) values('${promotionLead.id}','employee.manage',false,1,'${operations.id}','synthetic deny')`);
+check(!(await readDisability(promotionLead)).ok,'menu revocation blocks same JWT with role retained');
+sql(`delete from public.profile_menu_authority where profile_id='${promotionLead.id}' and menu_key='employee.manage'`);
+check((await readDisability(promotionLead)).ok,'fixture cleanup restores legacy role access');
+// Disabled accounts cannot use their still-valid access token.
+sql(`update public.profiles set account_status='inactive' where id='${promotionLead.id}'`);
+check(!(await readDisability(promotionLead)).ok,'inactive actor cannot read health data');
+sql(`update public.profiles set account_status='active' where id='${promotionLead.id}'`);
 // New roles are enabled centrally, with no SQL function or frontend role-list edits.
 sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.disability_view' from public.roles where code='department_lead'");
 check((await readDisability(departmentLead)).ok,'central grant can extend read access');
