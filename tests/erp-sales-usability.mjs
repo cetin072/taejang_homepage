@@ -53,7 +53,7 @@ try{
     await fill('starts_on',today.slice(0,4)+'-01-01');await fill('reason','가상 상품 고객 담당');await button('관계 저장');
     await tab('품목·서비스');
     for(const [code,name,kind,unit] of [['SIM-SVC','가상 환경정비','service','월'],['SIM-SALT','가상 소금','product','포'],['SIM-PACK','가상 포장봉투','packaging','장']]){
-     await button('품목·서비스 등록');await fill('code',code);await fill('name',name);await field('kind').selectOption(kind);await fill('unit',unit);
+     await button('품목·서비스 등록');await fill('code',code);await fill('name',name);await field('kind').selectOption(kind);if(variant==='baseline')await fill('unit',unit);else if(unit==='장'){await field('unit').selectOption('other');await fill('unit_other',unit);}else await field('unit').selectOption(unit);
      if(kind==='packaging')await field('inventory_managed').check();await button('저장',page.locator('.erp-editor'));
     }
     await tab('용역 계약');await button('용역 계약 등록');await fill('title','가상 연간 환경정비 계약');await select('party_id','가상 모회사');await select('item_id','SIM-SVC · 가상 환경정비');
@@ -88,7 +88,7 @@ try{
     report.agentAutofill=Boolean(await field('agent_id').inputValue());
     if(variant==='candidate')assert.equal(report.agentAutofill,true,'existing customer manager must be selected');
     else if(!report.agentAutofill)await select('agent_id','가상 담당 영업자');
-    await select('item_id_1','SIM-SALT · 가상 소금');await fill('quantity_1','10');await fill('unit_price_1','10000');await fill('tax_amount_1','10000');
+    await select('item_id_1','SIM-SALT · 가상 소금');await fill('quantity_1','10');await fill('unit_price_1','10000');if(variant==='baseline')await fill('tax_amount_1','10000');else assert.equal(await field('tax_amount_1').inputValue(),'10000');
     await field('fee_kind').selectOption('fixed');await fill('fee_value','10000');await field('settlement_rule').selectOption('proportional');
     await button('매출 저장');await button('매출 확정');firstProduct=saleId('product');
     assert.equal(app.db.rpc('erp_sales_get',{p_id:firstProduct}).total_amount,110000);
