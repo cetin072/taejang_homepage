@@ -22,11 +22,18 @@
     if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     if (open(trigger)) event.preventDefault();
   }));
-  closeButton.addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => {
+  function restorePage() {
     document.body.style.overflow = previousOverflow;
     if (opener?.isConnected) opener.focus({ preventScroll: true });
-  });
+  }
+  function close() {
+    if (!dialog.open) return;
+    dialog.close();
+    restorePage();
+  }
+  closeButton.addEventListener('click', close);
+  dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+  dialog.addEventListener('close', () => { if (!dialog.open) restorePage(); });
   // Keep keyboard focus within the visible controls; native dialog handles Escape.
   // Closing never resets the form.
   dialog.addEventListener('keydown', event => {
@@ -49,7 +56,7 @@
   }
   dialog.addEventListener('pointerdown', event => { startedOnBackdrop = outside(event); });
   dialog.addEventListener('click', event => {
-    if (startedOnBackdrop && outside(event)) dialog.close();
+    if (startedOnBackdrop && outside(event)) close();
     startedOnBackdrop = false;
   });
   function openFromContactHash() {

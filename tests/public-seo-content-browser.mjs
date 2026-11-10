@@ -136,7 +136,7 @@ try {
         await dialog.locator('[data-home-inquiry-close]').click();
         await dialog.waitFor({ state: 'hidden' });
         assert.equal(await trigger.evaluate(el => el === document.activeElement), true, 'focus returns to the opener');
-        assert.equal(await page.locator('body').evaluate(el => el.style.overflow), '');
+        await page.waitForFunction(() => document.body.style.overflow === '');
         await trigger.click();
         assert.equal(await form.locator('[name="name"]').inputValue(), '합성 문의자');
         assert.equal(await form.locator('[name="message"]').inputValue(), '합성 검증: 협력 방식을 문의합니다.');
