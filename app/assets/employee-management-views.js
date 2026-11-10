@@ -164,6 +164,102 @@
       render(); section.append(count, filters, head, list); return section;
     }
 
+    // Keep health data out of the roster, search, localStorage and general exports.
+    // The server owns access. The capability only avoids unnecessary denied reads.
+    function disabilityProfile(employee, emailValue) {
+      const client = window.TaejangApp;
+      if (!client?.can?.('employee.disability_view')) return null;
+      const panel = el('div', null, 'employee-disability-profile');
+      const message = el('p', '장애정보를 불러오는 중입니다.', 'help');
+      message.setAttribute('role', 'status'); panel.append(message);
+      const types = [
+        ['physical','지체장애'], ['brain_lesion','뇌병변장애'], ['visual','시각장애'],
+        ['hearing','청각장애'], ['speech','언어장애'], ['intellectual','지적장애'],
+        ['autism','자폐성장애'], ['mental','정신장애'], ['kidney','신장장애'],
+        ['heart','심장장애'], ['respiratory','호흡기장애'], ['liver','간장애'],
+        ['facial','안면장애'], ['ostomy','장루·요루장애'], ['epilepsy','뇌전증장애'],
+        ['pancreatic','췌장장애']
+      ];
+      const labels = { unknown:'미입력 / 확인 전', yes:'장애인 직원', no:'비해당' };
+      const welfare = { severe:'장애의 정도가 심한', not_severe:'장애의 정도가 심하지 않은' };
+      const employment = { severe:'중증', not_severe:'경증 (중증 해당 없음)' };
+      const options = entries => [{ id:'', name:'미입력 / 확인 전' },
+        ...entries.map(([id,name]) => ({ id,name }))];
+      let snapshot;
+      let loading = false;
+      function render() {
+        panel.replaceChildren();
+        emailValue.textContent = snapshot.work_email || '미등록 / 연결 계정 없음';
+        const facts = meta([
+          ['장애 여부', labels[snapshot.disability_status]],
+          ['장애유형 (주장애)', new Map(types).get(snapshot.disability_type) || '미입력'],
+          ['장애정도 (복지 기준)', welfare[snapshot.welfare_severity] || '미입력'],
+          ['중증·경증 (고용 기준)', employment[snapshot.employment_severity] || '미입력']
+        ]);
+        panel.append(facts, el('p', '증빙에 기재된 내용을 선택하세요. 복지 기준 장애정도와 고용 기준 중증 여부는 서로 자동 환산하지 않습니다.', 'help'));
+        if (!snapshot.can_edit) return;
+        const edit = button('장애정보 수정', () => {
+          const form = el('form', null, 'employee-form app-authoring');
+          const status = select(Object.entries(labels).map(([id,name]) => ({id,name})), snapshot.disability_status);
+          const type = select(options(types), snapshot.disability_type || '');
+          const degree = select(options(Object.entries(welfare)), snapshot.welfare_severity || '');
+          const severity = select(options(Object.entries(employment)), snapshot.employment_severity || '');
+          const grid = el('div', null, 'employee-form-grid app-compact-fields');
+          grid.append(field('장애 여부',status),field('장애유형 (주장애)',type),
+            field('장애정도 (복지 기준)',degree),field('중증·경증 (고용 기준)',severity));
+          const sync = () => { [type,degree,severity].forEach(control => { control.disabled=status.value!=='yes'; }); };
+          status.addEventListener('change',sync); sync();
+          const feedback = el('p','', 'help'); feedback.setAttribute('role','status');
+          const save = button('장애정보 저장',()=>{}); save.type='submit';
+          const cancel = button('취소',()=>{panel.replaceChildren(el('p','최신 정보를 불러오는 중입니다.','help'));load();},true);
+          const actions = el('div',null,'quick-links'); actions.append(save,cancel);
+          form.append(grid,el('p','비해당 또는 확인 전으로 저장하면 기존 장애유형·정도 선택값을 비웁니다.','help'),actions,feedback);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const controls=[status,type,degree,severity,save,cancel];
+            controls.forEach(control=>{control.disabled=true;});
+            const payload={p_employee_uuid:employee.id,p_expected_revision:snapshot.revision,
+              p_disability_status:status.value,p_disability_type:status.value==='yes'?type.value||null:null,
+              p_welfare_severity:status.value==='yes'?degree.value||null:null,
+              p_employment_severity:status.value==='yes'?severity.value||null:null};
+            try {
+              const result=await client.rpc('set_employee_disability_profile',payload);
+              if (!result?.ok) throw Error('저장 결과를 확인하지 못했습니다.');
+              snapshot={...snapshot,disability_status:payload.p_disability_status,
+                disability_type:payload.p_disability_type,welfare_severity:payload.p_welfare_severity,
+                employment_severity:payload.p_employment_severity,revision:result.revision};
+              if(panel.isConnected) render();
+            } catch(error) {
+              if(!panel.isConnected)return;
+              feedback.textContent=String(error.message||'').includes('EMPLOYEE_DISABILITY_CONFLICT')
+                ? '다른 담당자가 수정했습니다. 입력은 보존했습니다. 취소 후 최신 정보를 다시 불러와 비교해 주세요.'
+                : '저장 결과를 확인하지 못했습니다. 입력은 보존했습니다. 최신 정보를 확인한 뒤 다시 시도해 주세요.';
+              controls.forEach(control=>{control.disabled=false;});sync();
+            }
+          });
+          facts.hidden=true;edit.hidden=true;panel.append(form);status.focus();
+        },true);
+        panel.append(edit);
+      }
+      async function load() {
+        if (loading) return;
+        loading = true;
+        panel.replaceChildren(el('p','장애정보를 불러오는 중입니다.','help'));
+        try {
+          const result=await client.rpc('get_employee_disability_profile',{p_employee_uuid:employee.id});
+          if(!panel.isConnected)return;
+          snapshot=result;render();
+        } catch(error) {
+          if(!panel.isConnected)return;
+          panel.replaceChildren(el('p','장애정보를 불러오지 못했습니다. 권한 또는 적용 상태를 확인해 주세요.','help'),
+            button('다시 불러오기',load,true));
+        } finally { loading = false; }
+      }
+      // Start after the containing card has been attached to the document.
+      queueMicrotask(load);
+      return panel;
+    }
+
     function employeeProfile(context, employee) {
       const card = el('article', null, 'employee-profile'); card.dataset.employeeProfile = employee.id;
       const account = accountState(employee, connectionReviewIds(context.employees));
@@ -183,8 +279,12 @@
       const basic = section('기본 인사정보', 'employee-section-basic');
       const values = meta([
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
+        ['이메일', employee.linked_profile?.work_email || '미등록 / 표시 권한 없음'],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
       ]); basic.append(values);
+      const emailValue = [...values.querySelectorAll('div')].find(row => row.querySelector('dt')?.textContent === '이메일')?.querySelector('dd');
+      const disability = disabilityProfile(employee, emailValue);
+      if (disability) basic.append(disability);
       const isGlobalLead = context.access_level === 'promotion_lead_global';
       const canEditInThisCard = context.access_level === 'operations_manager'
         || (!employee.protected
@@ -306,3 +406,4 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else window.TaejangEmployeeViews = api;
 })();
+

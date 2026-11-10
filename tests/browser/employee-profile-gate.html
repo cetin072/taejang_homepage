@@ -21,7 +21,7 @@ window.fixtureAccessToken='synthetic-only';window.fixtureRefreshCount=0;
 const employees=Array.from({length:50},(_,i)=>({id:'fixture-'+i,employee_id:'TJ-'+String(i+1).padStart(6,'0'),full_name:i===49?'가상 매우 긴 이름을 가진 직원 테스트':'가상직원 '+String(i+1).padStart(2,'0'),department_id:'dept',department_name:i===49?'가상 매우 긴 부서 이름과 조직명 표시 검수 부서':'포장팀',position_id:'position',position_name:'사원',hired_on:'2026-01-02',departed_on:i===48?'2026-09-01':null,employment_status:i===48?'departed':i===47?'leave':'active',attendance_required:i%3!==0,linked_profile:i%2?null:{id:'profile-'+i,display_name:'가상 앱직원',work_email:'synthetic@example.test',account_status:i===4?'suspended':i===6?'pending':'active'},profile_photo_path:i===2?'fixture-2/profile/existing.png':null,resident_number_registered:true,birth_date:'2000-01-01',age_years:26}));
 employees[1].full_name=employees[0].full_name;
 window.fixtureContext={access_level:'operations_manager',can_manage_sensitive_identity:true,employees,departments:[{id:'dept',name:'포장팀'}],positions:[{id:'position',name:'사원'}],new_employee_positions:[{id:'position',name:'사원'}],change_requests:[],self_service_contact_requests:[]};
-window.objects=new Map();
+window.objects=new Map(); window.disabilityProfiles=new Map();
 const realFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{
   if(url==='/.netlify/functions/staff-config')return new Response(JSON.stringify({url:'https://fixture.invalid',publishableKey:'synthetic-key'}));
@@ -35,11 +35,19 @@ window.fetch=async(url,options={})=>{
   }
   return realFetch(url,options);
 };
-window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtureAccessToken}),refreshSession:async()=>{fixtureRefreshCount++;fixtureAccessToken='synthetic-refreshed';return true;},hasCapabilityContract:()=>true,can:()=>fixtureRoute==='operations_manager',friendlyError:error=>error.message,rpc:async(name,args)=>{
+window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtureAccessToken}),refreshSession:async()=>{fixtureRefreshCount++;fixtureAccessToken='synthetic-refreshed';return true;},hasCapabilityContract:()=>true,can:code=>fixtureRoute==='operations_manager'||(code==='employee.disability_view'&&fixtureRoute==='promotion_lead'),friendlyError:error=>error.message,rpc:async(name,args)=>{
   calls.push({name,args});
   if(name==='get_employee_management_context'){
     if(fail==='context'||fail==='refresh'){if(fail==='refresh')window.fail='';throw Error('합성 context 실패');}
     return structuredClone(fixtureContext);
+  }
+  if(name==='get_employee_disability_profile')return {...(disabilityProfiles.get(args.p_employee_uuid)||{disability_status:'unknown',revision:0}),work_email:'synthetic@example.test',can_edit:fixtureRoute==='operations_manager'};
+  if(name==='set_employee_disability_profile'){
+    if(fail==='db')throw Error('합성 DB 실패');
+    const old=disabilityProfiles.get(args.p_employee_uuid);
+    if(args.p_expected_revision!==(old?.revision||0))throw Error('EMPLOYEE_DISABILITY_CONFLICT');
+    const next={disability_status:args.p_disability_status,disability_type:args.p_disability_type,welfare_severity:args.p_welfare_severity,employment_severity:args.p_employment_severity,revision:(old?.revision||0)+1};
+    disabilityProfiles.set(args.p_employee_uuid,next);return {ok:true,revision:next.revision};
   }
   if(name==='get_target_audit_trail')return {items:[]};
   if(fail==='db')throw Error('합성 DB 실패');
@@ -58,3 +66,4 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
 <script src="../../app/assets/employee-management.js"></script>
 <script src="../../app/assets/operations-delete-controls.js"></script>
 </body></html>
+

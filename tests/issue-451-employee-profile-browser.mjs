@@ -84,6 +84,29 @@ try {
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
 
     await open(); await fits();
+    // Disability data opens directly inside basic info; synthetic fixtures only.
+    const disability=page.locator('.employee-disability-profile');
+    await disability.getByRole('button',{name:'장애정보 수정',exact:true}).waitFor();
+    assert.match(await page.locator('.employee-section-basic').innerText(),/synthetic@example.test/);
+    await disability.getByRole('button',{name:'장애정보 수정',exact:true}).click();
+    await disability.getByLabel('장애 여부',{exact:true}).selectOption('yes');
+    assert.equal(await disability.getByLabel('장애유형 (주장애)',{exact:true}).locator('option').count(),17);
+    await disability.getByLabel('장애유형 (주장애)',{exact:true}).selectOption('pancreatic');
+    await disability.getByLabel('장애정도 (복지 기준)',{exact:true}).selectOption('severe');
+    assert.equal(await disability.getByLabel('중증·경증 (고용 기준)',{exact:true}).inputValue(),'','no legal inference');
+    await setFail('db');await disability.getByRole('button',{name:'장애정보 저장',exact:true}).click();
+    await disability.getByText(/입력은 보존했습니다/).waitFor();
+    assert.equal(await disability.getByLabel('장애유형 (주장애)',{exact:true}).inputValue(),'pancreatic');
+    await setFail('');await disability.getByRole('button',{name:'장애정보 저장',exact:true}).click();
+    await disability.getByRole('button',{name:'장애정보 수정',exact:true}).waitFor();
+    assert.match(await disability.innerText(),/장애인 직원/);assert.match(await disability.innerText(),/췌장장애/);
+    await fits();
+    await disability.getByRole('button',{name:'장애정보 수정',exact:true}).click();
+    await disability.getByLabel('장애 여부',{exact:true}).selectOption('no');
+    await disability.getByRole('button',{name:'취소',exact:true}).click();
+    await disability.getByRole('button',{name:'장애정보 수정',exact:true}).waitFor();
+    assert.match(await disability.innerText(),/장애인 직원/,'cancel does not save');
+
     const auditCheck=page.getByRole('checkbox',{name:'인적사항 대조 완료',exact:true});
     await auditCheck.focus();
     const wasChecked=await auditCheck.isChecked();
@@ -258,6 +281,8 @@ try {
     assert.equal(await page.getByText('직원 현장 전수조사',{exact:true}).count(),0);
     await open(0);
     await page.getByText('주민등록번호 등록·조회',{exact:true}).waitFor();
+    await page.locator('.employee-disability-profile').getByText('장애 여부',{exact:true}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'장애정보 수정',exact:true}).count(),0,'operations lead views without new edit authority');
     await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
     assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden by default');
     const confirmDialog=dialog=>dialog.accept();
@@ -335,3 +360,4 @@ try {
   }
   assert.deepEqual(errors, []);
 } finally { await browser.close(); await new Promise(resolve=>server.close(resolve)); }
+
