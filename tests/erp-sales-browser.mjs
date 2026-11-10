@@ -10,7 +10,7 @@ try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
  await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
  await page.getByRole('button',{name:'고객 등록',exact:true}).click();
- const gridColumns=loc=>loc.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
+ const gridColumns=loc=>loc.evaluate(node=>(getComputedStyle(node).gridTemplateColumns.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length);
  const masterGrid=page.locator('.erp-editor fieldset.erp-fields').first();
  assert.equal(await gridColumns(masterGrid),3,'desktop party editor uses three columns');
  const relationLabels=page.locator('.erp-relationship-options > label');
@@ -21,8 +21,6 @@ try {
  assert.ok(rolePositions[0].x<rolePositions[1].x&&rolePositions[1].x<rolePositions[2].x,'role choices are left to right');
  await page.screenshot({path:output+'/party-roles-1440.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});
- console.log('ERP_MOBILE_GRID',await masterGrid.evaluate(n=>({viewport:innerWidth,media:matchMedia('(max-width:700px)').matches,columns:getComputedStyle(n).gridTemplateColumns,children:[...n.children].map(c=>({tag:c.tagName,cls:c.className,col:getComputedStyle(c).gridColumn,width:c.getBoundingClientRect().width})),rules:[...document.styleSheets].flatMap(s=>{try{return [...s.cssRules].filter(r=>r.cssText.includes('erp-fields')).map(r=>r.cssText)}catch{return []}})})));
- await page.screenshot({path:output+'/party-debug-390.png',fullPage:true});
  assert.equal(await gridColumns(masterGrid),1,'mobile party editor uses one column');
  assert.equal(await gridColumns(page.locator('.erp-relationship-options')),1,'mobile roles stack without overflow');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
