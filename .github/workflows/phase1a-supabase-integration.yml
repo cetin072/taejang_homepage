@@ -203,4 +203,4 @@ jobs:
       - name: Stop local Supabase
         if: always() && steps.scope.outputs.run_full == 'true'
         run: |
-          if command -v supabase >/dev/null; then supabase stop; fi --no-backup
+          if command -v supabase >/dev/null; then supabase stop --no-backup; fi

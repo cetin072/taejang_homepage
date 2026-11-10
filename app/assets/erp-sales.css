@@ -29,7 +29,7 @@
 .erp-sales details { margin-block:16px; }
 .erp-sales summary { cursor:pointer;min-height:44px;padding:10px 0; }
 .erp-total { font-weight:750; }
-@media(max-width:700px) { .erp-fields { grid-template-columns:minmax(0,1fr); } .erp-tabs button { flex:1 1 40%; } }
+@media(max-width:700px) { .erp-sales .erp-fields { grid-template-columns:minmax(0,1fr); } .erp-tabs button { flex:1 1 40%; } }
 
 .erp-tabs button { background:#fff;color:var(--app-brand,#176e60);border:1px solid var(--authoring-stroke,#cfdcd4); }
 .erp-tabs button[aria-selected=true] { background:var(--app-brand,#176e60);color:#fff; }
