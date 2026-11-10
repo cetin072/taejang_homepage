@@ -55,7 +55,7 @@
    const toggleUnit=()=>{customUnit.closest('label').hidden=unit.value!=='other';customUnit.required=unit.value==='other';};
    unit.addEventListener('change',toggleUnit);toggleUnit();
    add('base_price','기준 공급단가 (부가세 별도, 원/선택 단위)','number');
-   add('tax_class','세금 구분','select',row.tax_class||'taxable',taxChoices,true);add('inventory_managed','재고관리 대상 표시','checkbox',row.inventory_managed||false);
+   add('tax_class','세금 구분 (제품 확인 후 선택)','select',row.tax_class||'',[['','세금 구분 선택'],...taxChoices],true);add('inventory_managed','재고관리 대상 표시','checkbox',row.inventory_managed||false);
    f.append(el('p','예: 10kg 한 포를 판매하면 상품명에 10kg, 판매 단위에 ‘포’를 선택하세요. 기준 단가는 부가세 별도이며 판매 화면에서 부가세 포함/별도 가격을 선택할 수 있습니다. 세금 구분은 실제 품목 분류에 맞게 확인하세요.','help'));
   }else{
    add('title','계약명','text',row.title||'',[],true);add('party_id','계약 거래처','select',row.party_id||'',options('parties',p=>p.active&&p.relationships.includes('customer')),true);
