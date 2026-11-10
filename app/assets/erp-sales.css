@@ -26,3 +26,9 @@
 .erp-tabs button[aria-selected=true] { background:var(--app-brand,#176e60);color:#fff; }
 .erp-tabs button:focus-visible { outline:3px solid var(--focus,#e2a700);outline-offset:3px; }
 .erp-editor [data-confirmed=true] :disabled { opacity:1;cursor:default; }
+
+/* Customer/supplier/agent choices are one visual level below the ERP module tabs. */
+.erp-sales .erp-party-views { display:flex;gap:7px;flex-wrap:wrap;padding:8px 0 12px;margin-block:4px 14px;border-bottom:1px solid #dce5df; }
+.erp-sales .erp-party-views .button { border-radius:9px;background:#f5f8f6;color:#25493c;border:1px solid #d2e0d7; }
+.erp-sales .erp-party-views .button[aria-pressed=true] { background:#dcece3;color:#184e36;border-color:#9bc6ae;font-weight:700; }
+.erp-sales .erp-party-views .button:focus-visible { outline:3px solid #b37e00;outline-offset:2px; }
