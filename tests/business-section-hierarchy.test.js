@@ -36,10 +36,12 @@ assert.match(businessPage, /협력은 이렇게 함께 정리합니다[\s\S]*필
 assert.match(workplace, /assets\/images\/workplace\/workplace-packing-watercolor\.webp/, '우리의 일터 포장·검수 타일은 현재 수채화 일러스트를 유지합니다');
 assert.doesNotMatch(workplace, /packing-tape\.webp|packing-inspection\.webp/, '우리의 일터 일러스트 타일에는 이전 포장 사진을 남기지 않습니다');
 assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOTO 02와 03만 유지하고 새 슬롯을 추가하지 않습니다');
-assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?제작 활동 진행 중[\s\S]*?테라리움 제조·주문제작/);
+assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?<span class="business-status">준비 중<\/span>[\s\S]*?테라리움 제조·주문제작/);
 assert.doesNotMatch(business, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
-assert.match(business, /href="terrarium-custom\.html"/);
-assert.match(businessPage, /href="terrarium-custom\.html"/);
+assert.doesNotMatch(business, /href="terrarium-custom\.html"/);
+assert.doesNotMatch(businessPage, /href="terrarium-custom\.html"/);
+assert.match(business, /주문제작 안내 준비 중/);
+assert.match(businessPage, /주문제작 안내 준비 중/);
 assert.match(styles, /\.business-cards\{display:grid;grid-template-columns:repeat\(3,minmax\(0,1fr\)\);gap:24px\}/, '현재 운영 카드는 데스크톱 3열 그리드입니다');
 assert.match(styles, /\.business-card-media--image\{position:relative;aspect-ratio:4\/3/, '재사용 업무 사진도 카드 이미지와 4:3 비율을 공유합니다');
 assert.match(styles, /@media \(max-width:1000px\)\{[\s\S]*?\.business-cards\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)\}/, '태블릿에서는 2열로 전환합니다');
