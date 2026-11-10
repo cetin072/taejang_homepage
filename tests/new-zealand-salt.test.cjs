@@ -60,3 +60,15 @@ assert.match(privacy,/연락처.*이메일.*문의 내용/);
 assert.match(thanks,/문의가 접수되었습니다/);
 assert.doesNotMatch(partnership,/new URLSearchParams\(window\.location\.search\)/,'unused cross-page prefill removed');
 console.log('PASS: standalone static Netlify salt form with 3 fields, consent, honeypot, privacy and thank-you');
+
+const hero = html.match(/<section class="salt-hero"[\s\S]*?<\/section>/)[0];
+const product = html.match(/<section class="salt-product"[\s\S]*?<\/section>/)[0];
+assert.match(hero, /class="salt-origin-visual"/);
+assert.match(hero, /images\/salt\/dominion-lake-grassmere.jpg/);
+assert.match(hero, /Dominion Salt \/ JTP©/);
+assert.doesNotMatch(hero, /solar-salt-(10|25)kg.jpg/);
+for (const size of ['10','25']) assert.ok(product.includes('solar-salt-'+size+'kg.jpg'), 'pack retained in product section');
+const css = fs.readFileSync('assets/css/new-zealand-salt.css','utf8');
+assert.match(css, /border-radius:48% 48% 3px 3px/);
+assert.match(css, /\.salt-product-grid\{grid-template-columns:1fr/);
+console.log('PASS: original attributed arch landscape in hero and both packs in product section');

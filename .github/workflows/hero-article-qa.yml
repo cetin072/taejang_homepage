@@ -30,6 +30,14 @@ jobs:
       - run: node tests/hero-article-browser.mjs
         env:
           HERO_QA_OUTPUT: hero-qa-artifacts
+      - name: Verify salt arch landscape and product packs
+        run: node tests/salt-origin-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: salt-origin-320-390-1440
+          path: salt-qa-artifacts/
+          if-no-files-found: ignore
       - name: Verify public SEO content and source presentation
         run: node tests/public-seo-content-browser.mjs
       - uses: actions/upload-artifact@v4

@@ -111,3 +111,15 @@
   .salt-hero-packs img{height:175px}
   .salt-specs{grid-template-columns:1fr}
 }
+/* Restore the authorized original landscape without losing product information. */
+.salt-origin-visual{margin:0;min-width:0}
+.salt-origin-visual img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:48% 48% 3px 3px}
+.salt-origin-visual figcaption{font-size:.68rem;color:var(--salt-muted);text-align:center;padding:10px 0;line-height:1.6}
+.salt-product-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:40px;align-items:center}
+.salt-product-grid>div{min-width:0}
+.salt-product-grid .salt-specs{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:0}
+@media(max-width:760px){
+  .salt-origin-visual{width:100%;max-width:360px;justify-self:center}
+  .salt-product-grid{grid-template-columns:1fr;gap:26px}
+}
+@media(max-width:360px){.salt-product-grid .salt-specs{grid-template-columns:1fr}}
