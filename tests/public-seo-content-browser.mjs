@@ -106,6 +106,76 @@ try {
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), file + ' overflow');
         if (file === 'about.html') await page.screenshot({ path: `seo-qa-artifacts/about-${width}-${javaScriptEnabled}.png`, fullPage: true });
       }
+      await page.goto(base + '/index.html', { waitUntil: 'load' });
+      const partners = page.locator('.home-partners');
+      const partnerNames = ['범한메카텍', '삼현', '청우비제이', '현대비앤지스틸', '경상남도', '미담농원', '아름다운학교', '미래진흥원', '학사모'];
+      assert.deepEqual(await partners.locator('li > span').allTextContents(), partnerNames);
+      assert.doesNotMatch(await partners.textContent(), /류진농원/);
+      assert.equal(await partners.locator('h3').count(), 2);
+      await partners.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `seo-qa-artifacts/home-partners-${width}-${javaScriptEnabled}.png`, fullPage: false });
+      const trigger = page.locator('[data-home-inquiry-open]');
+      assert.equal(await trigger.count(), 1);
+      assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
+      const dialog = page.locator('#home-inquiry-dialog');
+      assert.equal(await dialog.isVisible(), false);
+      await trigger.click();
+      if (javaScriptEnabled) {
+        await dialog.waitFor({ state: 'visible' });
+        assert.equal(await page.locator('body').evaluate(el => el.style.overflow), 'hidden');
+        assert.equal(await dialog.getAttribute('aria-modal'), null, 'native dialog supplies modal semantics');
+        await dialog.getByRole('link', { name: '오시는 길 보기 →', exact: true }).focus();
+        await page.keyboard.press('Tab');
+        assert.equal(await dialog.locator('[data-home-inquiry-close]').evaluate(el => el === document.activeElement), true, 'focus wraps within the native modal');
+        const form = dialog.locator('form[name="taejang-inquiry"]');
+        await form.locator('[name="name"]').fill('합성 문의자');
+        await form.locator('[name="message"]').fill('합성 검증: 협력 방식을 문의합니다.');
+        assert.equal(await form.evaluate(el => el.checkValidity()), false, 'required fields still enforced');
+        await dialog.locator('[data-home-inquiry-close]').click();
+        await dialog.waitFor({ state: 'hidden' });
+        assert.equal(await trigger.evaluate(el => el === document.activeElement), true, 'focus returns to the opener');
+        assert.equal(await page.locator('body').evaluate(el => el.style.overflow), '');
+        await trigger.click();
+        assert.equal(await form.locator('[name="name"]').inputValue(), '합성 문의자');
+        assert.equal(await form.locator('[name="message"]').inputValue(), '합성 검증: 협력 방식을 문의합니다.');
+        await page.keyboard.press('Escape');
+        await dialog.waitFor({ state: 'hidden' });
+        await trigger.click();
+        await page.mouse.click(1, 1);
+        await dialog.waitFor({ state: 'hidden' });
+        await page.goto(base + '/index.html#contact', { waitUntil: 'load' });
+        await dialog.waitFor({ state: 'visible' });
+        await form.locator('[name="inquiry-type"]').selectOption({ label: '일반 문의' });
+        await form.locator('[name="name"]').fill('합성 문의자');
+        await form.locator('[name="organization"]').fill('합성 검증 기관');
+        await form.locator('[name="email"]').fill('qa@example.test');
+        await form.locator('[name="message"]').fill('합성 브라우저 접수 검증');
+        await form.locator('[name="privacy-consent"]').check();
+        assert.equal(await form.evaluate(el => el.checkValidity()), true);
+        const bounds = await dialog.boundingBox();
+        assert.ok(bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= width + 1 && bounds.y + bounds.height <= 901, 'dialog fits the viewport');
+        assert.ok(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth + 1), 'dialog has no horizontal overflow');
+        await dialog.evaluate(el => { el.scrollTop = 0; document.activeElement?.blur(); });
+        await page.screenshot({ path: `seo-qa-artifacts/home-inquiry-${width}.png`, fullPage: false });
+        let captured;
+        await page.route(base + '/thanks.html', async route => {
+          captured = { method: route.request().method(), body: route.request().postData() };
+          await route.fulfill({ contentType: 'text/html', body: '<title>Synthetic inquiry accepted</title><p>합성 응답</p>' });
+        });
+        await form.getByRole('button', { name: '문의 보내기', exact: true }).click();
+        await page.waitForURL(base + '/thanks.html');
+        assert.equal(captured.method, 'POST');
+        const payload = new URLSearchParams(captured.body);
+        assert.equal(payload.get('form-name'), 'taejang-inquiry');
+        assert.equal(payload.get('name'), '합성 문의자');
+        assert.equal(payload.get('email'), 'qa@example.test');
+        assert.equal(payload.get('message'), '합성 브라우저 접수 검증');
+        assert.equal(payload.get('privacy-consent'), '동의함');
+        await page.unroute(base + '/thanks.html');
+      } else {
+        assert.ok(page.url().endsWith('/partnership.html#contact'));
+        assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1, 'no-JS inquiry remains reachable');
+      }
       for (const client of javaScriptEnabled ? [false, true] : [false]) {
         await page.goto(base + '/promotion.html?id=' + id + (client ? '&client=1' : ''), { waitUntil: 'load' });
         await page.locator('h1').filter({ hasText: row.title }).waitFor();
