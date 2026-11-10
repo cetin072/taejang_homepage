@@ -43,3 +43,7 @@
 .erp-sales .erp-party-views .button:focus-visible { outline:3px solid #b37e00;outline-offset:2px; }
 
 .erp-sales .erp-fields > fieldset.erp-fields { grid-column:1/-1;min-width:0; }
+
+.erp-sales .erp-toggle-row { grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 14px;align-items:center; }
+.erp-sales .erp-fields > .button { align-self:end; }
+@media(max-width:700px) { .erp-sales .erp-toggle-row { grid-template-columns:minmax(0,1fr); } }

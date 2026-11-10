@@ -79,6 +79,7 @@ declare r jsonb;a jsonb;d jsonb:=p_data;prefix text;before_row jsonb;begin
     or not ((a->'commission'->>'value')::numeric between 0 and case when a->'commission'->>'kind'='rate' then 100 else 2000000000000 end)
     or (a->'commission'->>'kind'='none' and (a->'commission'->>'value')::numeric<>0)
     or (a->'commission'->>'kind'='fixed' and (a->'commission'->>'value')::numeric<>trunc((a->'commission'->>'value')::numeric)) then raise exception 'ERP_INVALID_ITEM_DEFAULTS';end if;
+   perform private.erp_sales_price((d->>'base_price')::numeric,1,coalesce(d->>'pricing_basis',before_row->>'pricing_basis','exclusive'),d->>'tax_class');
    perform private.erp_sales_price((a->>'purchase_price')::numeric,1,a->>'purchase_pricing_basis',a->>'purchase_tax_class');
    if a->>'fulfillment'='taejang_stock' and not coalesce((d->>'inventory_managed')::boolean,false) then raise exception 'ERP_STOCK_ITEM_REQUIRED';end if;
   end if;

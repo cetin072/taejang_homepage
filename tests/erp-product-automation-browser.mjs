@@ -23,8 +23,8 @@ try{
  const groups=page.locator('.erp-editor > form > .erp-fields > fieldset');
  assert.equal(await groups.count(),5,'five existing-style product sections');
  assert.equal(await groups.first().evaluate(n=>(()=>{const c=getComputedStyle(n).gridTemplateColumns;const r=c.match(/^repeat\((\d+),/);return r?Number(r[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})()),3,'PC product fields use three columns');
- await page.screenshot({path:output+'/automation-item-1440.png',fullPage:true});
- await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/automation-item-390.png',fullPage:true});
+ await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-item-1440.png'});
+ await page.setViewportSize({width:390,height:844});await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-item-390.png'});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile form stays inside viewport');
  await page.setViewportSize({width:1440,height:1000});await click('저장',page.locator('.erp-editor'));
  const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');
@@ -33,8 +33,8 @@ try{
  assert.equal(await field('auto_price_1').inputValue(),'25000');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');
  await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'금액 확인 후'}).waitFor();
  await click('금액 확인');await page.getByText(/공급가액 22,727원.*2,273원.*25,000원/).waitFor();
- await page.screenshot({path:output+'/automation-sale-1440.png',fullPage:true});
- await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/automation-sale-390.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-sale-1440.png'});
+ await page.setViewportSize({width:390,height:844});await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-sale-390.png'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  // Failed save must retain all user inputs and the previewed values.
  await page.evaluate(()=>window.fixtureFailNext=true);await click('판매 등록·확정');assert.equal(await field('auto_price_1').inputValue(),'25000');
  await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'판매 확정'}).waitFor();

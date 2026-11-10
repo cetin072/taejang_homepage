@@ -57,7 +57,7 @@ try{
  const stock=()=>db.rpc('erp_sales_get_stock').balances.find(x=>x.id===own.id).quantity;
  ok(stock()===3,'owned stock decrements on atomic confirmation');
  const request=(s,kind,detail)=>{const id=randomUUID();db.rpc('erp_sales_request_adjustment',{p_sale_id:s.id,p_request_id:id,p_kind:kind,p_reason:'Synthetic reversal',p_detail:detail});return {p_sale_id:s.id,p_adjustment_id:id};};
- const event=(key,action)=>{const p={...key,p_request_id:randomUUID(),p_action:action,p_on:'2026-11-10',p_note:'Synthetic verification'};db.rpc('erp_sales_record_adjustment_event',p);db.rpc('erp_sales_record_adjustment_event',p);};
+ const event=(key,action,amount=null)=>{const p={...key,p_request_id:randomUUID(),p_action:action,p_amount:amount,p_on:'2026-11-10',p_note:'Synthetic verification'};db.rpc('erp_sales_record_adjustment_event',p);db.rpc('erp_sales_record_adjustment_event',p);};
  db.rpc('erp_sales_shipping',{p_id:owned.id,p_status:'delivered'});
  const returned=request(owned,'return_goods',{line_id:owned.lines[0].id,quantity:1,credit_amount:25000,refund_plan:0});
  event(returned,'approve');ok(stock()===3,'return approval does not invent physical receipt');
@@ -73,6 +73,12 @@ try{
  ok(ownedPay.supplier.planned===0&&ownedPay.commission.planned===0,'cancellation reverses remaining accruals');
  ok(db.rpc('erp_sales_get_receipts',{p_sale_id:cancelSale.id}).balance===0,'cancellation uses existing effective receivable calculation');
 
+ db.rpc('erp_sales_shipping',{p_id:sale.id,p_status:'delivered'});
+ const refunded=request(sale,'return_goods',{line_id:sale.lines[0].id,quantity:0.4,credit_amount:10000,refund_plan:10000});event(refunded,'approve');event(refunded,'recall');event(refunded,'refund',10000);
+ const recovered=db.rpc('erp_sales_get_payouts',{p_sale_id:sale.id});
+ ok(recovered.supplier.planned===9000&&recovered.supplier.recovery_due===6000&&recovered.commission.recovery_due===909,'paid return retains original payouts and flags supplier/commission recovery');
+ ok(db.rpc('erp_sales_get_receipts',{p_sale_id:sale.id}).balance===0,'partial refund and return keep effective receivable consistent');
+ const offset=request(sale,'commission_change',{amount:909,commission_action:'offset'});event(offset,'approve');
  const renamed=save('party',{...supplier,name:'Synthetic Renamed Supplier'},supplier);
  ok(renamed.item_prefix==='NZS','supplier name change preserves prefix');
  assert.throws(()=>save('party',{...renamed,item_prefix:'NEW'},renamed),/ERP_SUPPLIER_PREFIX_IMMUTABLE/);n++;
@@ -81,7 +87,7 @@ try{
  ok(exclusivePreview.total===11000&&db.rpc('erp_sales_bootstrap').items.find(x=>x.id===exclusive.id).pricing_basis==='exclusive','exclusive price round-trips and calculates 10000 + 1000');
  // Concurrent clients use the same database and real transaction/row/advisory locks.
  const exec=promisify(execFile);
- const parallelRpc=(name,args)=>exec('docker',['exec','-i',db.name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`set role authenticated;select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);select public.${name}(${args});`],{encoding:'utf8'});
+ const parallelRpc=(name,args)=>exec('docker',['exec',db.name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`set role authenticated;select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);select public.${name}(${args});`],{encoding:'utf8'});
  const codeJobs=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_master',`'item','${JSON.stringify(itemData).replaceAll("'","''")}'::jsonb`)));
  ok(new Set(codeJobs.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).code)).size===3,'concurrent automatic codes are unique');
  const editableData={...data,request_key:randomUUID()};
@@ -93,6 +99,12 @@ try{
  const repeated=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify(concurrentData)}'::jsonb,null,0,true`)));
  ok(new Set(repeated.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).id)).size===1,'simultaneous confirmation retries create one sale');
  ok(db.raw(`select count(*) from public.erp_sales_accrual_events where sale_id=(select id from public.erp_sales_transactions where request_key='${concurrentData.request_key}');`)==='1','simultaneous retries create one accrual');
+ const settlementTarget=JSON.parse(repeated[0].stdout.trim().split('\n').at(-1));
+ db.rpc('erp_sales_record_receipt',{p_sale_id:settlementTarget.id,p_request_id:randomUUID(),p_recorded_on:'2026-11-10',p_amount:25000});
+ const offsetApproval={p_sale_id:settlementTarget.id,p_request_id:randomUUID(),p_kind:'commission',p_amount:2273,p_evidence:'Synthetic offset settlement'};
+ const offsetResult=db.rpc('erp_sales_approve_payout',offsetApproval);
+ ok(offsetResult.commission.entries[0].offset===909&&offsetResult.commission.entries[0].cash_amount===1364,'existing approved commission offset applies to automated sale without double cash payment');
+ db.rpc('erp_sales_finish_payout',{p_sale_id:settlementTarget.id,p_payout_id:offsetApproval.p_request_id,p_outcome:'paid',p_on:'2026-11-10',p_evidence:'Synthetic net cash transfer'});
  const stockCompetition=await Promise.allSettled(Array.from({length:2},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify({...ownData,request_key:randomUUID(),lines:[{item_id:own.id,quantity:4}]})}'::jsonb,null,0,true`)));
  ok(stockCompetition.filter(r=>r.status==='fulfilled').length===1&&stockCompetition.filter(r=>r.status==='rejected').length===1,'concurrent separate orders cannot oversell stock');
  ok(stock()===1,'competing sale failure leaves only one deduction');

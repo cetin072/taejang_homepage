@@ -5,7 +5,7 @@
  const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date());
  const monthEnd=date=>new Date(Date.UTC(Number(date.slice(0,4)),Number(date.slice(5,7)),0)).toISOString().slice(0,10);
  const money=v=>Number(v||0).toLocaleString('ko-KR')+'원';
- const taxChoices=[['taxable','과세 (세액 직접 입력)'],['exempt','면세'],['zero_rated','영세율']];
+ const taxChoices=[['taxable','과세 (10%)'],['exempt','면세'],['zero_rated','영세율']];
  const kinds={product:'상품',service:'용역',material:'원재료',packaging:'포장재',company:'기업',individual:'개인',draft:'작성 중',confirmed:'확정',active:'진행 중',ended:'종료',preparing:'배송 준비',shipped:'발송',delivered:'배송 완료',acquisition:'확보',management:'담당',support:'지원'};
  const allowed=()=>{const a=window.TaejangApp;return a?.hasCapabilityContract?.()&&a.can?.('erp_sales.read')&&a.getActualRoles?.().includes('operations_manager')&&a.getEffectiveRoles?.().includes('operations_manager')&&!a.getAccessContext?.()?.role_simulation?.active;};
  let productAutomation=false;
@@ -61,7 +61,7 @@
   field(grid,'default_settlement_rule','영업비 지급 기준','select',c.settlement_rule,[['after_full_payment','전액 입금 후 지급'],['proportional','부분입금 비율 정산']]);
   const fulfillment=field(grid,'fulfillment','출고 방식','select',a.fulfillment||'supplier_direct',[['supplier_direct','공급처 직배송 · 재고 차감 없음'],['taejang_stock','태장 보유재고 · 확정 시 출고']]);
   const sync=()=>{
-   const active=enabled.checked&&f.elements.kind.value==='product';
+   const active=enabled.checked&&f.elements.kind.value==='product';price.required=active;
    for(const name of ['default_supplier_id','purchase_price','purchase_pricing_basis','purchase_tax_class','supplier_cycle','default_fee_kind','default_fee_value','default_fee_basis','default_settlement_rule','fulfillment']){const n=f.elements[name];n.disabled=!active;n.required=active;n.closest('label').hidden=!active;}
    supplierLink.hidden=!active;
    if(active&&fulfillment.value==='taejang_stock')f.elements.inventory_managed.checked=true;
@@ -75,7 +75,7 @@
   };
   // Same existing authoring grid, grouped by the user's registration sequence.
   const groups=[['기본정보',['code','auto_code','name','kind','unit','unit_other','active','defaults_enabled']],['판매가격',['base_price','pricing_basis','tax_class']],['공급처·매입원가',['default_supplier_id','purchase_price','purchase_pricing_basis','purchase_tax_class','supplier_cycle']],['영업비',['default_fee_kind','default_fee_value','default_fee_basis','default_settlement_rule']],['재고',['fulfillment','inventory_managed']]];
-  for(const [title,names] of groups){const section=el('fieldset','','erp-fields app-form-section');section.append(el('legend',title));for(const name of names){const input=f.elements[name];if(input)section.append(input.closest('label'));}if(title==='공급처·매입원가')section.append(supplierLink);grid.append(section);}
+  for(const [title,names] of groups){const section=el('fieldset','','erp-fields app-form-section');section.append(el('legend',title));const toggles=el('div','','erp-toggle-row');for(const name of names){const input=f.elements[name];if(input)(input.type==='checkbox'?toggles:section).append(input.closest('label'));}if(toggles.childElementCount)section.append(toggles);if(title==='판매가격')section.append(priceQuote);if(title==='공급처·매입원가')section.append(supplierLink);grid.append(section);}
  }
  function automatedProductEditor(data={}){
   const parts=formStart(data.id?'상품 판매 초안':'상품 판매 등록');if(!parts)return;const {f,grid}=parts;
