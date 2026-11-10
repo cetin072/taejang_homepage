@@ -230,8 +230,11 @@
   border-top: 1px solid var(--line);
 }
 
-/* Collaboration uses a white surface between the beige sections. */
-.partnership-overview { background: var(--white); color: var(--ink); }
+/* Beige records, soft green collaboration, white partners, beige contact. */
+.partnership-overview { background: var(--green-soft); color: var(--green-deep); }
 .partnership-overview :is(.title, .partnership-types li) { color: var(--green-deep); }
-.partnership-overview .lead { color: var(--ink); }
+.partnership-overview .lead { color: #40564a; }
 .partnership-overview .eyebrow { color: var(--green); }
+
+.partnership-overview .partnership-types,
+.partnership-overview .partnership-types li { border-color: #c5d8cc; }
