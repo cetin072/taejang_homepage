@@ -27,7 +27,22 @@
     document.body.style.overflow = previousOverflow;
     if (opener?.isConnected) opener.focus({ preventScroll: true });
   });
-  // Native dialog handles focus containment and Escape. Closing never resets the form.
+  // Keep keyboard focus within the visible controls; native dialog handles Escape.
+  // Closing never resets the form.
+  dialog.addEventListener('keydown', event => {
+    if (event.key !== 'Tab') return;
+    const controls = [...dialog.querySelectorAll('a[href], button, input, select, textarea, [tabindex]')]
+      .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length);
+    const first = controls[0];
+    const last = controls[controls.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
+    }
+  });
   function outside(event) {
     const rect = dialog.getBoundingClientRect();
     return event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);

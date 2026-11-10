@@ -126,7 +126,9 @@ try {
         assert.equal(await dialog.getAttribute('aria-modal'), null, 'native dialog supplies modal semantics');
         await dialog.getByRole('link', { name: '오시는 길 보기 →', exact: true }).focus();
         await page.keyboard.press('Tab');
-        assert.equal(await dialog.locator('[data-home-inquiry-close]').evaluate(el => el === document.activeElement), true, 'focus wraps within the native modal');
+        assert.equal(await dialog.locator('[data-home-inquiry-close]').evaluate(el => el === document.activeElement), true, 'focus wraps within the modal');
+        await page.keyboard.press('Shift+Tab');
+        assert.equal(await dialog.getByRole('link', { name: '오시는 길 보기 →', exact: true }).evaluate(el => el === document.activeElement), true, 'reverse focus wraps within the modal');
         const form = dialog.locator('form[name="taejang-inquiry"]');
         await form.locator('[name="name"]').fill('합성 문의자');
         await form.locator('[name="message"]').fill('합성 검증: 협력 방식을 문의합니다.');
