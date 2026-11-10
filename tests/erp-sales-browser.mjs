@@ -8,7 +8,7 @@ const app=await createERPBrowserServer();const browser=await chromium.launch({he
 const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await mkdir(output,{recursive:true});
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
- await page.goto(app.url);await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();
+ await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
  await page.getByText('고객으로 등록된 거래처가 없습니다. 거래처·영업자에서 기존 거래처의 ‘고객’을 체크하거나 신규 거래처를 등록하세요.',{exact:true}).waitFor();
@@ -18,13 +18,15 @@ try {
  assert.equal(await page.locator('.erp-sales-filters').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length),3);
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
+ await page.getByRole('button',{name:'고객·판매처',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'고객·판매처',exact:true}).getAttribute('aria-pressed'),'true');
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).focus();await page.keyboard.press('ArrowRight');assert.equal(await page.getByRole('tab',{name:'품목·서비스',exact:true}).getAttribute('aria-selected'),'true');await page.keyboard.press('End');await page.getByRole('button',{name:'월 마감 처리',exact:true}).waitFor();await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-tab-close');await page.keyboard.press('Home');
  const field=n=>page.locator('.erp-editor').locator(`[name="${n}"]`);
  const saved=async label=>{const form=page.locator('.erp-editor form');const original=await form.elementHandle();await form.getByRole('button',{name:label,exact:true}).click();await page.waitForFunction(n=>!n.isConnected,original);await page.locator('.erp-sales:not([aria-busy])').waitFor();};
- async function party(name,kind,number,supplier=false){await page.getByRole('button',{name:'거래처 등록',exact:true}).click();await field('name').fill(name);await field('kind').selectOption(kind);if(kind==='company')await field('business_number').fill(number);if(supplier)await page.locator('.erp-editor input[value="supplier"]').check();await saved('저장');}
+ async function party(name,kind,number,supplier=false){await page.getByRole('button',{name:supplier?'공급처·매입처':'고객·판매처',exact:true}).click();await page.getByRole('button',{name:supplier?'공급처 등록':'고객 등록',exact:true}).click();await field('name').fill(name);await field('kind').selectOption(kind);if(kind==='company')await field('business_number').fill(number);if(supplier)await page.locator('.erp-editor input[value="supplier"]').check();await saved('저장');}
  await party('합성 기업 브라우저','company','1111111111');await party('합성 개인 브라우저','individual');await party('합성 직배송 공급처','company','3333333333',true);
- await page.getByRole('button',{name:'거래처 등록',exact:true}).click();await field('name').fill('중복 오류 입력 보존');await field('business_number').fill('1111111111');await page.locator('.erp-editor').getByRole('button',{name:'저장',exact:true}).click();await page.locator('.erp-sales > .message.error').waitFor();assert.equal(await field('name').inputValue(),'중복 오류 입력 보존');await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
- await page.getByRole('button',{name:'영업자 등록',exact:true}).click();await field('name').fill('합성 브라우저 영업자');await saved('저장');
+ await page.getByRole('button',{name:'고객·판매처',exact:true}).click();await page.getByRole('button',{name:'고객 등록',exact:true}).click();await field('name').fill('중복 오류 입력 보존');await field('business_number').fill('1111111111');await page.locator('.erp-editor').getByRole('button',{name:'저장',exact:true}).click();await page.locator('.erp-sales > .message.error').waitFor();assert.equal(await field('name').inputValue(),'중복 오류 입력 보존');await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
+ await page.getByRole('button',{name:'영업자·영업 관계',exact:true}).click();await page.getByRole('button',{name:'영업자 등록',exact:true}).click();await field('name').fill('합성 브라우저 영업자');await saved('저장');
  for(const customer of ['합성 기업 브라우저','합성 개인 브라우저']){await page.getByRole('button',{name:'영업 관계 연결',exact:true}).click();await field('party_id').selectOption({label:customer});await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('starts_on').fill('2099-01-01');await field('reason').fill('격리 브라우저 관계 검수');await saved('관계 저장');}
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
  for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').selectOption(kind==='service'?'월':'포');await field('base_price').fill('1000');await field('tax_class').selectOption('taxable');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
@@ -276,7 +278,7 @@ try {
 
  await page.locator('.app-workspace').evaluate(n=>n.scrollTop=0);await page.screenshot({path:output+'/product-1440.png',fullPage:true});
  // Reload and search exercise real persisted records, not an in-memory browser fixture.
- await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
+ await page.reload();await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.locator('.erp-body [name=from]').fill('2099-01-01');await page.locator('.erp-body [name=to]').fill('2099-12-31');await page.getByRole('button',{name:'조회',exact:true}).click();await page.getByText('총 2건',{exact:true}).waitFor();
  const salesFilters=page.locator('.erp-body form');
  const currentDate=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
  const firstOfMonth=currentDate.slice(0,7)+'-01';
