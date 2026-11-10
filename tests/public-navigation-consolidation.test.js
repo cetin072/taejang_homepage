@@ -216,7 +216,7 @@ console.log('public-navigation-consolidation tests: all cases passed');
 
 const services = read('resources.html');
 assert.match(services, /<h3 id="resource-staff-title">태장 출근앱<\/h3>/);
-assert.equal((services.match(/class="resource-card /g) || []).length, 3);
+assert.equal((services.match(/class="resource-card /g) || []).length, 4, '출근앱·천일염 + 테라리움·업무수첩 준비 중 카드');
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(salt, /뉴질랜드 천일염/);
 assert.match(salt, /판매 중/);
