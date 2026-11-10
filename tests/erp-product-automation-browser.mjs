@@ -1,0 +1,45 @@
+// Real RPCs against an isolated PostgreSQL database; no hosted writes.
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+import {createERPBrowserServer} from './helpers/erp-sales-browser-server.mjs';
+import {chromium} from 'playwright';
+const app=await createERPBrowserServer({productAutomation:true});let browser;
+const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await mkdir(output,{recursive:true});
+try{
+ const master=(kind,data)=>app.db.rpc('erp_sales_save_master',{p_kind:kind,p_data:data});
+ const customer=master('party',{name:'Synthetic Customer',kind:'company',business_number:'1231231231',relationships:['customer']});
+ const supplier=master('party',{name:'Synthetic Supplier',kind:'company',business_number:'2342342342',relationships:['supplier'],item_prefix:'NZS'});
+ const agent=master('agent',{name:'Synthetic Agent'});
+ app.db.rpc('erp_sales_assign_agent',{p_party_id:customer.id,p_agent_id:agent.id,p_relationship:'management',p_starts_on:'2026-01-01',p_reason:'Synthetic'});
+ browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>void d.accept());
+ const idle=()=>page.locator('.erp-sales:not([aria-busy])').waitFor();
+ const click=async(name,scope=page)=>{await scope.getByRole('button',{name,exact:true}).click();await idle();};
+ const field=name=>page.locator('.erp-editor [name="'+name+'"]');
+ await page.goto(app.url);await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();await idle();
+ await click('품목·서비스 등록');
+ await field('name').fill('Synthetic 뉴질랜드 천일염 10kg');await field('unit').selectOption('포');await field('base_price').fill('25000');await field('pricing_basis').selectOption('inclusive');await field('tax_class').selectOption('taxable');
+ await field('default_supplier_id').selectOption(supplier.id);await field('purchase_price').fill('15000');await field('purchase_pricing_basis').selectOption('inclusive');await field('default_fee_kind').selectOption('rate');await field('default_fee_value').fill('10');
+ const groups=page.locator('.erp-editor > form > .erp-fields > fieldset');
+ assert.equal(await groups.count(),5,'five existing-style product sections');
+ assert.equal(await groups.first().evaluate(n=>(getComputedStyle(n).gridTemplateColumns.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length),3,'PC product fields use three columns');
+ await page.screenshot({path:output+'/automation-item-1440.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/automation-item-390.png',fullPage:true});
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile form stays inside viewport');
+ await page.setViewportSize({width:1440,height:1000});await click('저장',page.locator('.erp-editor'));
+ const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');
+ await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await idle();await click('상품 판매 등록');
+ await field('party_id').selectOption(customer.id);await field('auto_item_1').selectOption(item.id);
+ assert.equal(await field('auto_price_1').inputValue(),'25000');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');
+ await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'금액 확인 후'}).waitFor();
+ await click('금액 확인');await page.getByText(/공급가액 22,727원.*2,273원.*25,000원/).waitFor();
+ await page.screenshot({path:output+'/automation-sale-1440.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/automation-sale-390.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ // Failed save must retain all user inputs and the previewed values.
+ await page.evaluate(()=>window.fixtureFailNext=true);await click('판매 등록·확정');assert.equal(await field('auto_price_1').inputValue(),'25000');
+ await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'판매 확정'}).waitFor();
+ const sale=JSON.parse(app.db.raw('select row_to_json(s) from public.erp_sales_transactions s;'));assert.equal(sale.status,'confirmed');assert.equal(Number(sale.total_amount),25000);
+ assert.equal(app.db.raw('select count(*) from public.erp_sales_accrual_events;'),'1');assert.equal(app.db.raw('select count(*) from public.erp_sales_stock_movements;'),'0');
+ await page.reload();await page.getByRole('tab',{name:'구매·매입',exact:true}).click();await idle();await page.getByRole('heading',{name:'판매 연결 매입·지급 예정'}).waitFor();await page.getByText('15,000원',{exact:true}).first().waitFor();
+ assert.deepEqual(errors,[]);console.log('ERP_PRODUCT_AUTOMATION_BROWSER_PASS PC1440/mobile390; UI save + atomic confirm + reload; no console errors');
+}finally{await browser?.close();await app.close()}

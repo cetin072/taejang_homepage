@@ -80,8 +80,10 @@ jobs:
       - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
         if: steps.scope.outputs.run_full == 'true'
         run: |
-          node tests/erp-sales-isolated.mjs
-          node tests/erp-sales-amount-adjustments.mjs
+          ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-isolated.mjs
+          ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-amount-adjustments.mjs
+          node tests/erp-product-automation-isolated.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-product-automation-browser.mjs
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-browser.mjs
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-usability.mjs
 
