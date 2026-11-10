@@ -40,7 +40,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ headless: true, ...(process.env.CI ? { channel: 'chrome' } : {}) });
 await mkdir('seo-qa-artifacts', { recursive: true });
 try {
-  for (const width of [320, 390, 1440]) {
+  for (const width of [320, 390, 786, 1440]) {
     for (const javaScriptEnabled of [false, true]) {
       const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled, reducedMotion: 'reduce' });
       await context.route('**/*', route => route.request().url().startsWith(base + '/') && route.request().method() === 'GET' ? route.continue() : route.abort());
@@ -205,5 +205,5 @@ try {
       await context.close();
     }
   }
-  console.log('Public SEO: 320/390/1440px, JS on/off, SSR and browser fallback PASS');
+  console.log('Public SEO: 320/390/786/1440px, JS on/off, SSR and browser fallback PASS');
 } finally { await browser.close(); server.close(); }
