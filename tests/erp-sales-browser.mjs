@@ -9,6 +9,24 @@ const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await 
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
  await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ await page.getByRole('button',{name:'고객 등록',exact:true}).click();
+ const gridColumns=loc=>loc.evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
+ const masterGrid=page.locator('.erp-editor fieldset.erp-fields').first();
+ assert.equal(await gridColumns(masterGrid),3,'desktop party editor uses three columns');
+ const relationLabels=page.locator('.erp-relationship-options > label');
+ assert.equal(await relationLabels.count(),3,'three party roles share one group');
+ assert.equal(await page.locator('.erp-relationship-options input:checked').count(),1,'new customer role is preselected');
+ const rolePositions=await relationLabels.evaluateAll(nodes=>nodes.map(node=>({x:node.getBoundingClientRect().x,y:node.getBoundingClientRect().y})));
+ assert.ok(rolePositions.every(p=>Math.abs(p.y-rolePositions[0].y)<2),'role checkboxes align in one row');
+ assert.ok(rolePositions[0].x<rolePositions[1].x&&rolePositions[1].x<rolePositions[2].x,'role choices are left to right');
+ await page.screenshot({path:output+'/party-roles-1440.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ assert.equal(await gridColumns(masterGrid),1,'mobile party editor uses one column');
+ assert.equal(await gridColumns(page.locator('.erp-relationship-options')),1,'mobile roles stack without overflow');
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ await page.screenshot({path:output+'/party-roles-390.png',fullPage:true});
+ await page.setViewportSize({width:1440,height:1000});
+ await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
  await page.getByText('고객으로 등록된 거래처가 없습니다. 거래처·영업자에서 기존 거래처의 ‘고객’을 체크하거나 신규 거래처를 등록하세요.',{exact:true}).waitFor();
@@ -16,6 +34,10 @@ try {
  assert.equal(await page.locator('.erp-editor select[name=party_id] option').count(),1);
  assert.equal(await page.locator('.erp-editor select[name=supplier_id] option').count(),1);
  assert.equal(await page.locator('.erp-sales-filters').evaluate(node=>getComputedStyle(node).gridTemplateColumns.split(' ').length),3);
+ assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'product sale entry uses three columns');
+ const firstLinePositions=await page.locator('.erp-line > label').evaluateAll(nodes=>nodes.slice(0,3).map(n=>n.getBoundingClientRect().y));
+ assert.equal(firstLinePositions.length,3);
+ assert.ok(firstLinePositions.every(y=>Math.abs(y-firstLinePositions[0])<2),'item quantity and price share the first row');
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  await page.getByRole('button',{name:'고객·판매처',exact:true}).click();
@@ -29,8 +51,8 @@ try {
  await page.getByRole('button',{name:'영업자·영업 관계',exact:true}).click();await page.getByRole('button',{name:'영업자 등록',exact:true}).click();await field('name').fill('합성 브라우저 영업자');await saved('저장');
  for(const customer of ['합성 기업 브라우저','합성 개인 브라우저']){await page.getByRole('button',{name:'영업 관계 연결',exact:true}).click();await field('party_id').selectOption({label:customer});await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('starts_on').fill('2099-01-01');await field('reason').fill('격리 브라우저 관계 검수');await saved('관계 저장');}
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
- for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').selectOption(kind==='service'?'월':'포');await field('base_price').fill('1000');await field('tax_class').selectOption('taxable');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
- await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');await saved('저장');
+ for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').selectOption(kind==='service'?'월':'포');await field('base_price').fill('1000');await field('tax_class').selectOption('taxable');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'item master uses three columns');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
+ await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
