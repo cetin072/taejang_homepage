@@ -20,6 +20,7 @@ try{
  await click('품목·서비스 등록');
  await field('name').fill('Synthetic 뉴질랜드 천일염 10kg');await field('unit').selectOption('포');await field('base_price').fill('25000');await field('pricing_basis').selectOption('inclusive');await field('tax_class').selectOption('taxable');
  await field('default_supplier_id').selectOption(supplier.id);await field('purchase_price').fill('15000');await field('purchase_pricing_basis').selectOption('inclusive');await field('default_fee_kind').selectOption('rate');await field('default_fee_value').fill('10');
+ await click('공급처 신규 등록');await field('name').fill('Synthetic Cancelled Supplier');await click('상품 입력으로 돌아가기');assert.equal(await field('name').inputValue(),'Synthetic 뉴질랜드 천일염 10kg');assert.equal(await field('purchase_price').inputValue(),'15000','cancelling supplier registration also retains product inputs');
  await click('공급처 신규 등록');await field('name').fill('Synthetic New Supplier');await field('business_number').fill('3453453453');await field('item_prefix').fill('NZT');await click('저장',page.locator('.erp-editor'));
  assert.equal(await field('name').inputValue(),'Synthetic 뉴질랜드 천일염 10kg','supplier registration returns to retained product form');assert.equal(await field('base_price').inputValue(),'25000');assert.equal(await field('purchase_price').inputValue(),'15000');
  await field('default_supplier_id').selectOption(supplier.id);
