@@ -217,8 +217,8 @@ check(!(await readDisability(promotionLead)).ok,'menu revocation blocks same JWT
 sql(`delete from public.profile_menu_authority where profile_id='${promotionLead.id}' and menu_key='employee.manage'`);
 check((await readDisability(promotionLead)).ok,'fixture cleanup restores legacy role access');
 // Disabled accounts cannot use their still-valid access token.
-sql(`update public.profiles set account_status='inactive' where id='${promotionLead.id}'`);
-check(!(await readDisability(promotionLead)).ok,'inactive actor cannot read health data');
+sql(`update public.profiles set account_status='suspended' where id='${promotionLead.id}'`);
+check(!(await readDisability(promotionLead)).ok,'suspended actor cannot read health data');
 sql(`update public.profiles set account_status='active' where id='${promotionLead.id}'`);
 // New roles are enabled centrally, with no SQL function or frontend role-list edits.
 sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.disability_view' from public.roles where code='department_lead'");

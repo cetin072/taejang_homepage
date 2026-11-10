@@ -38,3 +38,6 @@
 - 이 cloud shell의 Chromium은 socket Operation not permitted로 실행 실패(승격 시도 후에도 동일). 실제 브라우저 PASS 아님.
 - GitHub CI·DB 실행·실제 인증 staging·고정 QA 배포는 별도 확인해야 한다. User Acceptance Ready 미확인 상태로 사용자 검수를 요청하지 않는다.
 - main 병합/Ready 전환/운영 배포/운영 migration/실제 직원 입력은 하지 않는다.
+
+## CI 검증 갱신
+2026-11-10 HEAD 352049ed에서 PC/390/320/768 합성 직원 프로필 브라우저, migration clean reset, schema lint, security advisors, pgTAP 61파일 1,109검사 PASS. 실제 Auth/API의 저장·팀장 read-only·타역할 차단·동시 쓰기·stale revision·메뉴/역할 회수까지 통과. 마지막 정지계정 fixture의 잘못된 enum inactive를 실제 suspended로 정정해 재실행한다. 운영 DB에는 여전히 적용하지 않았다.
