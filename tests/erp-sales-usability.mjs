@@ -84,7 +84,7 @@ try{
     assert.equal(app.db.raw("select count(*) from public.erp_sales_transactions where kind='service';"),'1');
    });
    await stage('상품: 10포 주문·영업비 조건·확정',async()=>{
-    await tab('매출·판매');await button('소금·상품 판매 등록');await select('party_id','가상 상품 고객');await select('supplier_id','가상 직배송 공급처');
+    await tab('매출·판매');await button(variant==='baseline'?'소금·상품 판매 등록':'상품 판매 등록');await select('party_id','가상 상품 고객');await select('supplier_id','가상 직배송 공급처');
     report.agentAutofill=Boolean(await field('agent_id').inputValue());
     if(variant==='candidate')assert.equal(report.agentAutofill,true,'existing customer manager must be selected');
     else if(!report.agentAutofill)await select('agent_id','가상 담당 영업자');
