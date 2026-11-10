@@ -10,7 +10,7 @@ try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));let dialogs=[];page.on('dialog',d=>{dialogs.push(d.message());void d.accept();});
  await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
  await page.getByRole('button',{name:'고객 등록',exact:true}).click();
- const gridColumns=loc=>loc.evaluate(node=>(getComputedStyle(node).gridTemplateColumns.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length);
+ const gridColumns=loc=>loc.evaluate(node=>(()=>{const c=getComputedStyle(node).gridTemplateColumns;const repeat=c.match(/^repeat\((\d+),/);return repeat?Number(repeat[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})());
  const masterGrid=page.locator('.erp-editor fieldset.erp-fields').first();
  assert.equal(await gridColumns(masterGrid),3,'desktop party editor uses three columns');
  const relationLabels=page.locator('.erp-relationship-options > label');
