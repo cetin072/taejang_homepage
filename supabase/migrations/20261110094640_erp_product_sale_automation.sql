@@ -61,8 +61,8 @@ language plpgsql security definer set search_path='' as $$
 declare r jsonb;a jsonb;d jsonb:=p_data;prefix text;before_row jsonb;begin
  perform private.erp_sales_guard('write');
  if p_id is not null and p_kind in ('party','item') then
-  if p_kind='party' then select to_jsonb(t) into before_row from public.erp_sales_parties t where id=p_id for update;
-  else select to_jsonb(t) into before_row from public.erp_sales_items t where id=p_id for update;end if;
+  if p_kind='party' then select to_jsonb(t) into before_row from public.erp_sales_parties t where id=p_id and organization_key='taejang' for update;
+  else select to_jsonb(t) into before_row from public.erp_sales_items t where id=p_id and organization_key='taejang' for update;end if;
  end if;
  if p_kind='item' then
   a:=coalesce(d->'automation',before_row->'automation');
@@ -202,7 +202,7 @@ end $$;
 alter function private.erp_sales_payout_summary(uuid,text,numeric) rename to erp_sales_payout_summary_legacy;
 create function private.erp_sales_payout_summary(p_sale_id uuid,p_kind text,p_basis_amount numeric default null) returns jsonb language plpgsql security definer set search_path='' as $$
 declare s public.erp_sales_transactions;r jsonb;pos jsonb;basis numeric;planned numeric;allowed numeric:=0;settled_offset numeric:=0;begin
- select * into s from public.erp_sales_transactions where id=p_sale_id;
+ select * into s from public.erp_sales_transactions where id=p_sale_id and organization_key='taejang';
  if s.automation_snapshot is null then return private.erp_sales_payout_summary_legacy(p_sale_id,p_kind,p_basis_amount);end if;
  if p_kind not in ('supplier','commission') or p_kind is null then raise exception 'ERP_PAYOUT_INVALID_INPUT';end if;
  basis:=case p_kind when 'supplier' then (s.automation_snapshot->>'purchase_supply')::numeric+(s.automation_snapshot->>'purchase_tax')::numeric else (s.automation_snapshot->>'commission_amount')::numeric end;
@@ -274,7 +274,7 @@ declare result jsonb;begin
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='supplier' and p.outcome is null) supplier_approved,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='commission' and p.outcome='paid') commission_paid,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='commission' and p.outcome is null) commission_approved
-  from public.erp_sales_transactions s join public.erp_sales_accrual_events e on e.sale_id=s.id where (p_from is null or s.sales_date between p_from and p_to) group by s.id
+  from public.erp_sales_transactions s join public.erp_sales_accrual_events e on e.sale_id=s.id where s.organization_key='taejang' and (p_from is null or s.sales_date between p_from and p_to) group by s.id
  ), records as(select * from positions where p_from is not null or purchase_supply+purchase_tax<>supplier_paid or commission_amount<>commission_paid or supplier_approved>0 or commission_approved>0) select jsonb_build_object('total',count(*),'purchase_supply',coalesce(sum(purchase_supply),0),'purchase_tax',coalesce(sum(purchase_tax),0),'commission_amount',coalesce(sum(commission_amount),0),'items',(select coalesce(jsonb_agg(to_jsonb(r)),'[]') from (select * from records order by sales_date desc,id limit 200) r)) into result from records;
  return result;
 end $$;
@@ -286,7 +286,7 @@ revoke all on function private.erp_sales_get_month_close_legacy(date) from publi
 create function public.erp_sales_get_month_close(p_month date) returns jsonb language plpgsql security definer set search_path='' as $$
 declare r jsonb;totals jsonb;begin
  r:=private.erp_sales_get_month_close_legacy(p_month);
- select jsonb_build_object('purchase_supply',coalesce(sum(purchase_supply),0),'purchase_tax',coalesce(sum(purchase_tax),0),'commission_amount',coalesce(sum(commission_amount),0)) into totals from public.erp_sales_accrual_events where recorded_on>=p_month and recorded_on<(p_month+interval '1 month')::date;
+ select jsonb_build_object('purchase_supply',coalesce(sum(purchase_supply),0),'purchase_tax',coalesce(sum(purchase_tax),0),'commission_amount',coalesce(sum(commission_amount),0)) into totals from public.erp_sales_accrual_events e join public.erp_sales_transactions s on s.id=e.sale_id and s.organization_key='taejang' where e.recorded_on>=p_month and e.recorded_on<(p_month+interval '1 month')::date;
 
  return r||jsonb_build_object('accruals',totals,'current_positions',(
   select jsonb_build_object('sales',coalesce(sum(s.total_amount),0),'effective_sales',coalesce(sum(p.effective_total),0),'receivables',coalesce(sum(greatest(p.balance,0)),0),
@@ -294,7 +294,7 @@ declare r jsonb;totals jsonb;begin
   from public.erp_sales_transactions s cross join lateral private.erp_sales_customer_position(s.id) p
   cross join lateral(select coalesce(sum(e.purchase_supply+e.purchase_tax),0) purchase,coalesce(sum(e.commission_amount),0) fee from public.erp_sales_accrual_events e where e.sale_id=s.id) a
   cross join lateral(select coalesce(sum(amount) filter(where kind='supplier' and outcome='paid'),0) supplier_paid,coalesce(sum(amount) filter(where kind='commission' and outcome='paid'),0) commission_paid from public.erp_sales_payouts where sale_id=s.id) pay
-  where s.status='confirmed' and s.sales_date>=p_month and s.sales_date<(p_month+interval '1 month')::date
+  where s.organization_key='taejang' and s.status='confirmed' and s.sales_date>=p_month and s.sales_date<(p_month+interval '1 month')::date
  ));
 end $$;
 revoke all on function public.erp_sales_list_accruals(date,date),public.erp_sales_get_month_close(date) from public,anon;

@@ -10,6 +10,8 @@ try{
  const customer=master('party',{name:'Synthetic Customer',kind:'company',business_number:'1231231231',relationships:['customer']});
  const supplier=master('party',{name:'Synthetic Supplier',kind:'company',business_number:'2342342342',relationships:['supplier'],item_prefix:'NZS'});
  const agent=master('agent',{name:'Synthetic Agent'});
+ const supportAgent=master('agent',{name:'Synthetic Support Agent'});
+ app.db.rpc('erp_sales_assign_agent',{p_party_id:customer.id,p_agent_id:supportAgent.id,p_relationship:'support',p_starts_on:'2026-01-01',p_reason:'Synthetic support'});
  app.db.rpc('erp_sales_assign_agent',{p_party_id:customer.id,p_agent_id:agent.id,p_relationship:'management',p_starts_on:'2026-01-01',p_reason:'Synthetic'});
  browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>void d.accept());
@@ -35,6 +37,9 @@ try{
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await idle();await click('상품 판매 등록');
  await field('party_id').selectOption(customer.id);await field('auto_item_1').selectOption(item.id);
  assert.equal(await field('auto_price_1').inputValue(),'25000');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');
+ await page.locator('.erp-editor details > summary').click();await field('override_fee').check();await field('fee_kind').selectOption('fixed');await field('fee_value').fill('777');await field('agent_id').selectOption(supportAgent.id);
+ await click('초안 저장');assert.equal(await field('agent_id').inputValue(),supportAgent.id,'saved draft retains the selected non-manager sales agent');assert.equal(await field('override_fee').isChecked(),true);assert.equal(await field('fee_kind').inputValue(),'fixed');assert.equal(await field('fee_value').inputValue(),'777','saved draft retains transaction-specific commission');
+ await page.locator('.erp-editor details > summary').click();await field('override_fee').uncheck();await field('agent_id').selectOption(agent.id);
  await click('판매 등록·확정');await page.getByRole('status').filter({hasText:'금액 확인 후'}).waitFor();
  await click('금액 확인');await page.getByText(/공급가액 22,727원.*2,273원.*25,000원/).waitFor();
  await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-sale-1440.png'});

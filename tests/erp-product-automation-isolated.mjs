@@ -117,6 +117,14 @@ try{
  const stockCompetition=await Promise.allSettled(Array.from({length:2},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify({...ownData,request_key:randomUUID(),lines:[{item_id:own.id,quantity:4}]})}'::jsonb,null,0,true`)));
  ok(stockCompetition.filter(r=>r.status==='fulfilled').length===1&&stockCompetition.filter(r=>r.status==='rejected').length===1,'concurrent separate orders cannot oversell stock');
  ok(stock()===1,'competing sale failure leaves only one deduction');
+ const scopedAccruals=db.rpc('erp_sales_list_accruals',{p_from:month,p_to:on});
+ const scopedMonth=db.rpc('erp_sales_get_month_close',{p_month:month});
+ const foreignId=randomUUID();
+ db.raw(`insert into public.erp_sales_transactions select (jsonb_populate_record(null::public.erp_sales_transactions,to_jsonb(s)||jsonb_build_object('id','${foreignId}','organization_key','synthetic-other-organization','request_key','${randomUUID()}'))).* from public.erp_sales_transactions s where id='${sale.id}';
+ insert into public.erp_sales_accrual_events(sale_id,recorded_on,purchase_supply,purchase_tax,commission_amount,created_by) values('${foreignId}','${on}',999999,0,99999,'10000000-0000-4000-8000-000000000001');`);
+ assert.deepEqual(db.rpc('erp_sales_list_accruals',{p_from:month,p_to:on}),scopedAccruals,'company accrual report excludes other organization records');n++;
+ assert.deepEqual(db.rpc('erp_sales_get_month_close',{p_month:month}),scopedMonth,'company month totals and positions exclude other organization records');n++;
+ assert.throws(()=>db.rpc('erp_sales_get',{p_id:foreignId}),/ERP_NOT_FOUND/);n++;
  const closed=db.rpc('erp_sales_set_month_close',{p_month:month,p_request_id:randomUUID(),p_closed:true,p_expected_closed:false,p_reason:'Synthetic close'});
  ok(closed.closed,'month closes through existing RPC');
  assert.throws(()=>db.rpc('erp_sales_save_product',{p_data:{...data,request_key:randomUUID()},p_confirm:true}),/ERP_PERIOD_CLOSED/);n++;

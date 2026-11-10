@@ -83,7 +83,7 @@
   const customer=field(grid,'party_id','고객','select',data.party_id||'',options('parties',p=>p.active&&p.relationships.includes('customer')),true);
   const date=field(grid,'sales_date','매출일','date',data.sales_date||today(),[],true);
   const agent=field(grid,'agent_id','담당 영업자','select',data.agent_id||'',[['','없음']],false);
-  const refreshAgent=()=>{const prior=agent.value;agent.replaceChildren();for(const [id,name] of [['','없음'],...state.agents.filter(a=>a.active&&state.assignments.some(r=>r.party_id===customer.value&&r.agent_id===a.id&&r.starts_on<=date.value&&(!r.ends_on||r.ends_on>date.value))).map(a=>[a.id,a.name])]){const o=el('option',name);o.value=id;agent.append(o);}const management=state.assignments.find(r=>r.party_id===customer.value&&r.relationship==='management'&&r.starts_on<=date.value&&(!r.ends_on||r.ends_on>date.value));agent.value=[...agent.options].some(o=>o.value===prior)&&prior?prior:management?.agent_id||'';};customer.addEventListener('change',refreshAgent);date.addEventListener('change',refreshAgent);refreshAgent();
+  const refreshAgent=()=>{const prior=agent.value;agent.replaceChildren();for(const [id,name] of [['','없음'],...state.agents.filter(a=>a.active&&state.assignments.some(r=>r.party_id===customer.value&&r.agent_id===a.id&&r.starts_on<=date.value&&(!r.ends_on||r.ends_on>date.value))).map(a=>[a.id,a.name])]){const o=el('option',name);o.value=id;agent.append(o);}const management=state.assignments.find(r=>r.party_id===customer.value&&r.relationship==='management'&&r.starts_on<=date.value&&(!r.ends_on||r.ends_on>date.value));agent.value=[...agent.options].some(o=>o.value===prior)&&prior?prior:management?.agent_id||'';};customer.addEventListener('change',refreshAgent);date.addEventListener('change',refreshAgent);refreshAgent();if(data.agent_id&&[...agent.options].some(option=>option.value===data.agent_id))agent.value=data.agent_id;
   const rows=el('div');f.append(rows);let seq=0;
   const addLine=(saved={},snapshot={})=>{
    const box=el('fieldset','','erp-fields erp-line');box.append(el('legend','상품 '+(++seq)));
@@ -103,12 +103,15 @@
   const memo=field(grid,'memo','거래 메모','textarea',data.memo||'');
   const overrides=el('details');overrides.append(el('summary','거래별 영업비 변경·메모'));
   const feeGrid=el('div','','erp-fields');overrides.append(feeGrid,memo.closest('label'));f.append(overrides);
-  const override=field(feeGrid,'override_fee','상품 기본 영업비 대신 직접 지정','checkbox',false);
-  field(feeGrid,'fee_kind','영업비','select','none',[['none','없음'],['fixed','정액'],['rate','비율 (%)']]);field(feeGrid,'fee_value','금액·비율','number',0);
-  field(feeGrid,'fee_basis','계산 기준','select','supply',[['supply','공급가액'],['total','청구금액']]);field(feeGrid,'settlement_rule','지급 기준','select','after_full_payment',[['after_full_payment','전액 입금 후'],['proportional','부분입금 비율 정산']]);
+  const savedCommission=data.id?data.commission:null;
+  const commission=savedCommission||{kind:'none',value:0,basis:'supply',settlement_rule:'after_full_payment'};
+  const override=field(feeGrid,'override_fee','상품 기본 영업비 대신 직접 지정','checkbox',!!savedCommission);
+  field(feeGrid,'fee_kind','영업비','select',commission.kind,[['none','없음'],['fixed','정액'],['rate','비율 (%)']]);field(feeGrid,'fee_value','금액·비율','number',commission.value);
+  field(feeGrid,'fee_basis','계산 기준','select',commission.basis,[['supply','공급가액'],['total','청구금액']]);field(feeGrid,'settlement_rule','지급 기준','select',commission.settlement_rule,[['after_full_payment','전액 입금 후'],['proportional','부분입금 비율 정산']]);
+  const syncOverride=()=>{for(const name of ['fee_kind','fee_value','fee_basis','settlement_rule']){f.elements[name].disabled=!override.checked;f.elements[name].required=override.checked;}};override.addEventListener('change',syncOverride);syncOverride();
   const preview=el('p','상품·수량을 선택하고 금액 확인을 눌러주세요.','erp-total');preview.setAttribute('aria-live','polite');f.append(preview);
   let checkedHash=null;
-  const payload=()=>({request_key:requestKey,party_id:customer.value,agent_id:agent.value||null,sales_date:date.value,order_channel:'other',memo:f.elements.memo.value,lines:[...rows.children].map(b=>b.readLine()),...(override.checked?{commission:{kind:f.elements.fee_kind.value,value:Number(f.elements.fee_value.value),basis:f.elements.fee_basis.value,settlement_rule:f.elements.settlement_rule.value}}:{})});
+  const payload=()=>({request_key:requestKey,party_id:customer.value,agent_id:agent.value||null,sales_date:date.value,order_channel:'other',memo:f.elements.memo.value,lines:[...rows.children].map(b=>b.readLine()),...(override.checked?{commission:{...savedCommission,kind:f.elements.fee_kind.value,value:Number(f.elements.fee_value.value),basis:f.elements.fee_basis.value,settlement_rule:f.elements.settlement_rule.value}}:{})});
   const clearPreview=()=>{checkedHash=null;preview.textContent='입력이 바뀌었습니다. 금액을 다시 확인해 주세요.';};f.addEventListener('input',clearPreview);f.addEventListener('change',clearPreview);
   const actions=el('div','','erp-actions');f.append(actions);
   actions.append(btn('금액 확인',()=>{if(!f.reportValidity())return;void run(async()=>{const p=payload();const r=await rpc('erp_sales_preview_product',{p_data:p});checkedHash=JSON.stringify(p);preview.textContent='공급가액 '+money(r.supply)+' + 부가세 '+money(r.tax)+' = 고객 청구 '+money(r.total)+' · 매입 '+money(Number(r.snapshot.purchase_supply)+Number(r.snapshot.purchase_tax))+' · 영업비 예정 '+money(r.snapshot.commission_amount)+' (지급 승인 전)';});}));
