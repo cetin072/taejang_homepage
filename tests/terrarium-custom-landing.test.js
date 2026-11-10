@@ -50,11 +50,18 @@ test('Terrarium content separates draft conditions from confirmed operations', (
 test('Home and business pages place terrarium in current operations without claiming active order production', () => {
   for (const [name, html] of [['index', index], ['business', business]]) {
     const current = html.slice(html.indexOf('CURRENT OPERATIONS'));
-    assert.match(current, /제작 활동 진행 중/, name);
+    assert.match(current, /<span class="business-status">준비 중<\/span>/, name);
     assert.match(current, /테라리움 제조·주문제작/, name);
-    assert.match(current, /맞춤 주문제작은 현재 상담 준비 단계입니다/, name);
-    assert.match(current, /href="terrarium-custom\.html"/, name);
+    assert.match(current, /맞춤 주문제작 상품을 준비하고 있습니다/, name);
+    assert.match(current, /주문제작 안내 준비 중/, name);
+    assert.doesNotMatch(current, /href="terrarium-custom\.html"/, name);
     assert.doesNotMatch(current, /BUSINESS IN DEVELOPMENT|개발 중인 사업/, name);
   }
+  const resources = read('resources.html');
+  const card = resources.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-terrarium-title">[\s\S]*?<\/article>/)?.[0] || '';
+  assert.match(card, /테라리움 주문제작/);
+  assert.match(card, /준비 중/);
+  assert.doesNotMatch(card, /<a\b|href=|onclick=|role="button"|tabindex="0"/);
+  assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
   assert.match(published, /'terrarium-custom\.html'/);
 });
