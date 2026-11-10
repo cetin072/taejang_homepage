@@ -123,7 +123,7 @@ try {
       const trigger = page.locator('[data-home-inquiry-open]');
       assert.equal(await trigger.count(), 1);
       assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
-      const leftBox = await contact.locator('.contact-direct').boundingBox();
+      const leftBox = await contact.locator('.contact-actions').boundingBox();
       const buttonBox = await trigger.boundingBox();
       if (width > 760) assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
       else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
