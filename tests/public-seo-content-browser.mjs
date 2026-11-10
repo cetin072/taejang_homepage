@@ -125,8 +125,14 @@ try {
       assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
       const leftBox = await contact.locator('.contact-actions').boundingBox();
       const buttonBox = await trigger.boundingBox();
-      if (width > 760) assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
-      else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
+      const illustrationBox = await contact.locator('.home-contact-illustration').boundingBox();
+      if (width > 760) {
+        assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
+        assert.ok(Math.abs((buttonBox.y + buttonBox.height / 2) - (leftBox.y + leftBox.height / 2)) < 2, 'inquiry button is vertically centered with the cards');
+      } else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
+      assert.ok(illustrationBox.y >= buttonBox.y + buttonBox.height, 'illustration is below the button without covering it');
+      const contactBox = await contact.boundingBox();
+      assert.ok(illustrationBox.y + illustrationBox.height <= contactBox.y + contactBox.height, 'illustration stays inside the contact section');
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'homepage contact and partners do not overflow');
       const dialog = page.locator('#home-inquiry-dialog');
       assert.equal(await dialog.isVisible(), false);
