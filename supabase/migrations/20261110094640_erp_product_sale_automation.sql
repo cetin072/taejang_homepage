@@ -182,6 +182,10 @@ declare prep jsonb;r jsonb;old public.erp_sales_transactions;key uuid:=(p_data->
   return public.erp_sales_get(old.id)||jsonb_build_object('alreadySaved',true);
  end if;
  if p_id is not null and (old.id is distinct from p_id) then raise exception 'ERP_REQUEST_REUSE';end if;
+ if old.id=p_id and old.automation_request_hash=h and p_revision<old.revision then
+  if p_confirm then return public.erp_sales_confirm(old.id,old.revision);end if;
+  return public.erp_sales_get(old.id)||jsonb_build_object('alreadySaved',true);
+ end if;
  -- Stable lock order also serializes master edits and stock checks against a sale.
  for iid in select distinct (value->>'item_id')::uuid from jsonb_array_elements(p_data->'lines') order by 1 loop
   perform 1 from public.erp_sales_items where id=iid for update;

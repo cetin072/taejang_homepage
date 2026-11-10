@@ -95,6 +95,8 @@ try{
  assert.throws(()=>db.rpc('erp_sales_save',{p_data:{...prep.data,request_key:draft.request_key},p_id:draft.id,p_revision:draft.revision}),/ERP_USE_PRODUCT_EDITOR/);n++;
  draft=db.rpc('erp_sales_save_product',{p_data:{...editableData,lines:[{item_id:item.id,quantity:2}]},p_id:draft.id,p_revision:draft.revision});
  ok(draft.total_amount===50000&&draft.automation_snapshot.purchase_supply+draft.automation_snapshot.purchase_tax===30000,'draft edits recompute linked costs without stale snapshots');
+ const retriedDraft=db.rpc('erp_sales_save_product',{p_data:{...editableData,lines:[{item_id:item.id,quantity:2}]},p_id:draft.id,p_revision:draft.revision-1});
+ ok(retriedDraft.revision===draft.revision&&retriedDraft.alreadySaved,'draft save retry after lost response returns the current result once');
  const concurrentData={...data,request_key:randomUUID()};
  const repeated=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify(concurrentData)}'::jsonb,null,0,true`)));
  ok(new Set(repeated.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).id)).size===1,'simultaneous confirmation retries create one sale');
