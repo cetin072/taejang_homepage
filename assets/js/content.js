@@ -446,12 +446,14 @@
         hero: "농업회사법인 태장 주식회사 장애인 표준사업장 인증 현판",
         gallery: [
           "태장 공동출자기업 범한메카텍, 삼현, 현대비앤지스틸, 청우비제이 현판",
-          "태장 사업장에 설치된 경남형 장애인 동행일자리 1호점 현판"
+          "태장 사업장에 설치된 경남형 장애인 동행일자리 1호점 현판 사진 보정본",
+          "농업회사법인 태장 주식회사 장애인 표준사업장 인증서 원본 제2026-049호"
         ]
       },
       gallery: [
         "assets/images/archive/partner-company-plaques-v3.webp",
-        "assets/images/archive/companion-job-first-store-plaque.webp"
+        "assets/images/archive/companion-job-first-store-plaque.webp",
+        "assets/images/archive/standard-workplace-certificate-2026-049.png"
       ],
       listingPhoto: {
         title: "장애인 표준사업장 인증 안내",
@@ -462,7 +464,7 @@
         title: "장애인 표준사업장 인증 안내",
         filename: "partner-1.jpg",
         orientation: "가로형",
-        note: "인증서 원본을 게시할 경우 공개 가능한 항목만 보이도록 확인"
+        note: "사용자가 공개 게시를 요청한 인증서 원본과 현판 사진 보정본"
       },
       sections: [
         {
@@ -485,7 +487,7 @@
         {
           heading: "사업장에 함께 걸린 현판",
           paragraphs: [
-            "태장 사업장에는 장애인 표준사업장 인증, 경남형 장애인 동행일자리 제1호점, 공동출자기업 현판이 함께 설치되어 있습니다. 아래 사진은 함께 출발한 기반을 현장에서 확인할 수 있는 기록입니다."
+            "태장 사업장에는 장애인 표준사업장 인증, 경남형 장애인 동행일자리 제1호점, 공동출자기업 현판이 함께 설치되어 있습니다. 함께 출발한 기반을 소개하기 위해 인증서 원본과 현판 사진 보정본을 함께 싣습니다. 현판 사진은 원근과 조명을 보정했으며, 공식 인증 내용은 인증서 원본에서 확인할 수 있습니다."
           ]
         }
       ]
