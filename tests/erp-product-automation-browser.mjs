@@ -22,7 +22,7 @@ try{
  await field('default_supplier_id').selectOption(supplier.id);await field('purchase_price').fill('15000');await field('purchase_pricing_basis').selectOption('inclusive');await field('default_fee_kind').selectOption('rate');await field('default_fee_value').fill('10');
  const groups=page.locator('.erp-editor > form > .erp-fields > fieldset');
  assert.equal(await groups.count(),5,'five existing-style product sections');
- assert.equal(await groups.first().evaluate(n=>(getComputedStyle(n).gridTemplateColumns.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length),3,'PC product fields use three columns');
+ assert.equal(await groups.first().evaluate(n=>(()=>{const c=getComputedStyle(n).gridTemplateColumns;const r=c.match(/^repeat\((\d+),/);return r?Number(r[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})()),3,'PC product fields use three columns');
  await page.screenshot({path:output+'/automation-item-1440.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:output+'/automation-item-390.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile form stays inside viewport');
