@@ -114,9 +114,20 @@ try {
       assert.equal(await partners.locator('h3').count(), 2);
       await partners.scrollIntoViewIfNeeded();
       await page.screenshot({ path: `seo-qa-artifacts/home-partners-${width}-${javaScriptEnabled}.png`, fullPage: false });
+
+      const contact = page.locator('#contact');
+      assert.equal(await contact.locator('.contact-direct .contact-action').count(), 2, 'original email and directions cards remain');
+      assert.equal(await contact.locator('form').count(), 0, 'the large form stays in the popup');
+      await contact.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `seo-qa-artifacts/home-contact-${width}-${javaScriptEnabled}.png`, fullPage: false });
       const trigger = page.locator('[data-home-inquiry-open]');
       assert.equal(await trigger.count(), 1);
       assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
+      const leftBox = await contact.locator('.contact-direct').boundingBox();
+      const buttonBox = await trigger.boundingBox();
+      if (width > 760) assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
+      else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'homepage contact and partners do not overflow');
       const dialog = page.locator('#home-inquiry-dialog');
       assert.equal(await dialog.isVisible(), false);
       await trigger.click();
