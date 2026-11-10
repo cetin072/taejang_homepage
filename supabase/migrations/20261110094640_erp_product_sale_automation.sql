@@ -243,16 +243,16 @@ create trigger erp_sales_reverse_product after insert on public.erp_sales_adjust
 create function public.erp_sales_list_accruals(p_from date,p_to date) returns jsonb language plpgsql security definer set search_path='' as $$
 declare result jsonb;begin
  perform private.erp_sales_guard('read');
- if p_from is null or p_to is null or not isfinite(p_from) or not isfinite(p_to) or p_to<p_from or p_to-p_from>366 then raise exception 'ERP_INVALID_PERIOD';end if;
- with records as (
+ if (p_from is null)<>(p_to is null) or (p_from is not null and (not isfinite(p_from) or not isfinite(p_to) or p_to<p_from or p_to-p_from>366)) then raise exception 'ERP_INVALID_PERIOD';end if;
+ with positions as (
   select s.id,s.sales_date,s.party_snapshot->>'name' customer,s.supplier_snapshot->>'name' supplier,s.agent_snapshot->>'name' agent,
    sum(e.purchase_supply) purchase_supply,sum(e.purchase_tax) purchase_tax,sum(e.commission_amount) commission_amount,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='supplier' and p.outcome='paid') supplier_paid,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='supplier' and p.outcome is null) supplier_approved,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='commission' and p.outcome='paid') commission_paid,
    (select coalesce(sum(p.amount),0) from public.erp_sales_payouts p where p.sale_id=s.id and p.kind='commission' and p.outcome is null) commission_approved
-  from public.erp_sales_transactions s join public.erp_sales_accrual_events e on e.sale_id=s.id where s.sales_date between p_from and p_to group by s.id
- ) select jsonb_build_object('total',count(*),'purchase_supply',coalesce(sum(purchase_supply),0),'purchase_tax',coalesce(sum(purchase_tax),0),'commission_amount',coalesce(sum(commission_amount),0),'items',(select coalesce(jsonb_agg(to_jsonb(r)),'[]') from (select * from records order by sales_date desc,id limit 200) r)) into result from records;
+  from public.erp_sales_transactions s join public.erp_sales_accrual_events e on e.sale_id=s.id where (p_from is null or s.sales_date between p_from and p_to) group by s.id
+ ), records as(select * from positions where p_from is not null or purchase_supply+purchase_tax<>supplier_paid or commission_amount<>commission_paid or supplier_approved>0 or commission_approved>0) select jsonb_build_object('total',count(*),'purchase_supply',coalesce(sum(purchase_supply),0),'purchase_tax',coalesce(sum(purchase_tax),0),'commission_amount',coalesce(sum(commission_amount),0),'items',(select coalesce(jsonb_agg(to_jsonb(r)),'[]') from (select * from records order by sales_date desc,id limit 200) r)) into result from records;
  return result;
 end $$;
 

@@ -116,9 +116,9 @@
   if(state.canWrite&&state.canConfirm)actions.append(btn('판매 등록·확정',()=>save(true),true));
   actions.append(btn('닫기',clearEditor));f.addEventListener('submit',e=>{e.preventDefault();save(false);});
  }
- async function drawAccruals(){
-  const r=await rpc('erp_sales_list_accruals',{p_from:purchaseRange.from,p_to:purchaseRange.to});
-  const section=el('section','','app-form-section');section.append(el('h3','판매 연결 매입·지급 예정'),el('p','지급 승인 전 예정액입니다. 실제 지급은 기존 승인·완료 절차로 기록합니다.','help'),table(['매출일','공급처','매입 발생','공급처 승인 / 지급','영업비 예정','영업비 승인 / 지급',''],r.items.map(x=>[x.sales_date,x.supplier,money(Number(x.purchase_supply)+Number(x.purchase_tax)),money(x.supplier_approved)+' / '+money(x.supplier_paid),money(x.commission_amount),money(x.commission_approved)+' / '+money(x.commission_paid),btn('거래·지급 확인',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:x.id}))))])));body.append(section);
+ async function drawAccruals(all=false){
+  const r=await rpc('erp_sales_list_accruals',{p_from:all?null:purchaseRange.from,p_to:all?null:purchaseRange.to});
+  const section=el('section','','app-form-section');section.append(el('h3','판매 연결 매입·지급 예정'),el('p','지급 승인 전 예정액입니다. 실제 지급은 기존 승인·완료 절차로 기록합니다.','help'),table(['매출일','공급처','매입 발생','공급처 미승인 / 승인 / 지급','영업비 예정','영업비 미승인 / 승인 / 지급',''],r.items.map(x=>[x.sales_date,x.supplier,money(Number(x.purchase_supply)+Number(x.purchase_tax)),money(Math.max(Number(x.purchase_supply)+Number(x.purchase_tax)-Number(x.supplier_paid)-Number(x.supplier_approved),0))+' / '+money(x.supplier_approved)+' / '+money(x.supplier_paid),money(x.commission_amount),money(Math.max(Number(x.commission_amount)-Number(x.commission_paid)-Number(x.commission_approved),0))+' / '+money(x.commission_approved)+' / '+money(x.commission_paid),btn('거래·지급 확인',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:x.id}))))])));body.append(section);
  }
 
  function masterEditor(kind,row={},initialRole='customer'){
@@ -432,6 +432,8 @@
      el('p','전체 지급액 '+(detail.basis===null?'미확정':money(detail.basis))+
       ' · 지급 완료 '+money(detail.paid)+' · 지급 대기 '+money(detail.pending)+
       ' · 남은 지급액 '+(detail.remaining===null?'미확정':money(detail.remaining)),'help'));
+    if(detail.planned!=null)block.append(el('p','조정 후 발생액 '+money(detail.planned)+' · 미승인 지급 가능 '+money(detail.unapproved),'help'));
+    if(Number(detail.recovery_due)>0)block.append(el('p','취소·반품 후 회수·정산 확인 필요 '+money(detail.recovery_due)+' · 기존 지급/상계 이력에서 확인해 주세요.','message error'));
     if(detail.cash_paid!=null&&detail.cash_paid!==detail.paid){
      block.append(el('p','실제 송금 합계 '+money(detail.cash_paid),'help'));
     }
@@ -711,6 +713,7 @@
   body.append(el('p','지급 대기 '+list.total+'건 · 실제 지급 예정 합계 '+
    BigInt(list.total_cash).toLocaleString('ko-KR')+'원'+count,'erp-total'),
    el('p','승인 후 지급 결과가 기록되지 않은 건입니다. 상세에서 지급 완료 또는 미지급 승인 취소를 기록합니다.','help'));
+  if(productAutomation)await drawAccruals(true);
   if(!list.items.length){
    body.append(el('p','조회 조건에 맞는 지급 대기 건이 없습니다.','message'));
    return;

@@ -88,6 +88,9 @@ try{
  const repeated=await Promise.all(Array.from({length:3},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify(concurrentData)}'::jsonb,null,0,true`)));
  ok(new Set(repeated.map(x=>JSON.parse(x.stdout.trim().split('\n').at(-1)).id)).size===1,'simultaneous confirmation retries create one sale');
  ok(db.raw(`select count(*) from public.erp_sales_accrual_events where sale_id=(select id from public.erp_sales_transactions where request_key='${concurrentData.request_key}');`)==='1','simultaneous retries create one accrual');
+ const stockCompetition=await Promise.allSettled(Array.from({length:2},()=>parallelRpc('erp_sales_save_product',`'${JSON.stringify({...ownData,request_key:randomUUID(),lines:[{item_id:own.id,quantity:4}]})}'::jsonb,null,0,true`)));
+ ok(stockCompetition.filter(r=>r.status==='fulfilled').length===1&&stockCompetition.filter(r=>r.status==='rejected').length===1,'concurrent separate orders cannot oversell stock');
+ ok(stock()===1,'competing sale failure leaves only one deduction');
  const closed=db.rpc('erp_sales_set_month_close',{p_month:'2026-11-01',p_request_id:randomUUID(),p_closed:true,p_expected_closed:false,p_reason:'Synthetic close'});
  ok(closed.closed,'month closes through existing RPC');
  assert.throws(()=>db.rpc('erp_sales_save_product',{p_data:{...data,request_key:randomUUID()},p_confirm:true}),/ERP_PERIOD_CLOSED/);n++;
