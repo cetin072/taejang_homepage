@@ -216,7 +216,7 @@ console.log('public-navigation-consolidation tests: all cases passed');
 
 const services = read('resources.html');
 assert.match(services, /<h3 id="resource-staff-title">태장 출근앱<\/h3>/);
-assert.equal((services.match(/class="resource-card /g) || []).length, 3);
+assert.equal((services.match(/class="resource-card /g) || []).length, 4);
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(salt, /뉴질랜드 천일염/);
 assert.match(salt, /판매 중/);
@@ -226,4 +226,9 @@ assert.ok(fs.existsSync(path.join(root, 'new-zealand-salt.html')), 'available sa
 const worklog = services.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-worklog-title"[\s\S]*?<\/article>/)?.[0] || '';
 assert.match(worklog, /태장 업무수첩/);
 assert.match(worklog, /준비 중/);
+const terrarium = services.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-terrarium-title"[\s\S]*?<\/article>/)?.[0] || '';
+assert.match(terrarium, /테라리움 주문제작/);
+assert.match(terrarium, /준비 중/);
+assert.doesNotMatch(terrarium, /<a\b|<button\b|tabindex=|onclick=/, 'unreleased terrarium page is not directly linked');
+assert.doesNotMatch(services, /href="terrarium-custom\.html"/);
 assert.doesNotMatch(worklog, /<a\b|<button\b|tabindex=|onclick=/, 'unreleased worklog is visible without an inactive or premature link');
