@@ -205,6 +205,12 @@ sql(`update public.employees set position_id='${departmentLeadPositionId}' where
 const restrictedRead = await rpc('get_employee_disability_info', promotionLead.token, disabilityTarget);
 const restrictedWrite = await rpc('save_employee_disability_info', promotionLead.token, {...disabilityDraft, p_expected_revision:3});
 check(restrictedRead.status === 403 && restrictedWrite.status === 403, 'operations lead cannot access a protected position');
+sql(`insert into public.profile_menu_authority(profile_id, menu_key, allowed, revision, changed_by, reason)
+  values('${promotionLead.id}', 'employee.manage', true, 1, '${operations.id}', 'Synthetic scope test')`);
+const delegatedRead = await rpc('get_employee_disability_info', promotionLead.token, disabilityTarget);
+const delegatedWrite = await rpc('save_employee_disability_info', promotionLead.token, {...disabilityDraft, p_expected_revision:3});
+check(delegatedRead.status === 403 && delegatedWrite.status === 403, 'delegated menu does not bypass the lead target restriction');
+sql(`delete from public.profile_menu_authority where profile_id='${promotionLead.id}' and menu_key='employee.manage'`);
 sql(`update public.employees set position_id='${generalWorkerPositionId}' where id='${createdEmployeeId}'`);
 for (const actor of [operations, promotionLead]) {
   const roster = await rpc('get_employee_management_context', actor.token);
