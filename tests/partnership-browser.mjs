@@ -78,7 +78,7 @@ try {
     assert.equal(await page.locator('main > section').count(), 6);
     assert.equal(await page.locator('.partner-company-list li').count(), 4);
     assert.equal(await page.locator('.partner-company-list a').count(), 0);
-    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '공동출자 기록 보기 →', exact: true }).count(), 1);
+    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '참여기업 현판 보기 →', exact: true }).count(), 1);
     assert.equal(await page.locator('#partnership-faq-title').textContent(), '참여 안내');
     const metric = await layout(page, String(width));
     const boxes = () => page.locator('header, main > section, footer').evaluateAll(els => els.map(el => {
@@ -97,10 +97,12 @@ try {
     assert.equal(await field(page, 'email').evaluate(el => el.validity.typeMismatch), true);
     await field(page, 'email').fill('qa@example.invalid');
     await field(page, 'message').fill('개발 검수용 합성 문의입니다. 실제 전송하지 않습니다.');
+    await page.getByRole('button', { name: '문의창 닫기' }).click();
     await page.getByRole('link', { name: '사업·농장 협력 문의', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '기업 업무·건별 프로젝트');
     assert.equal(await field(page, 'name').inputValue(), '개발 검수용');
     await field(page, 'inquiry-type').selectOption({ label: '지역사회공헌·ESG 협력' });
+    await page.getByRole('button', { name: '문의창 닫기' }).click();
     await page.locator('.faq-q[aria-controls="partnership-faq-answer-1"]').focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('.faq-q[aria-controls="partnership-faq-answer-1"]').getAttribute('aria-expanded'), 'true');
@@ -110,6 +112,7 @@ try {
     assert.ok(await page.locator('#partnership-faq-answer-2').isVisible());
     const outline = await page.locator('.faq-q[aria-controls="partnership-faq-answer-2"]').evaluate(el => getComputedStyle(el).outlineWidth);
     assert.notEqual(outline, '0px', 'keyboard focus visible');
+    await page.getByRole('button', { name: '문의하기', exact: true }).click();
     assert.equal(await form.evaluate(el => el.checkValidity()), false, 'consent required');
     await field(page, 'privacy-consent').check();
     assert.equal(await form.evaluate(el => el.checkValidity()), true);

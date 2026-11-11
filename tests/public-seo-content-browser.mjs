@@ -54,6 +54,25 @@ try {
           const question = page.getByRole('button', { name: '태장에 어떤 업무를 맡기거나 협력할 수 있나요?' });
           if (javaScriptEnabled) await question.click();
           assert.ok(await page.locator('#partnership-faq-answer-7').isVisible());
+          const form = page.locator('form[name="taejang-inquiry"]');
+          assert.equal(await form.count(), 1);
+          if (javaScriptEnabled) {
+            assert.equal(await form.isVisible(), false, 'the form starts in a closed dialog');
+            await page.getByRole('link', { name: '공동출자·참여기업 상담' }).click();
+            assert.equal(await form.isVisible(), true);
+            assert.equal(await form.locator('[name="inquiry-type"]').inputValue(), '모회사·고용 연계');
+            await form.locator('[name="name"]').fill('검증용');
+            await page.getByRole('button', { name: '문의창 닫기' }).click();
+            await page.getByRole('button', { name: '문의하기', exact: true }).click();
+            assert.equal(await form.locator('[name="name"]').inputValue(), '검증용');
+            await page.keyboard.press('Escape');
+            assert.equal(await form.isVisible(), false);
+            await page.goto(base + '/partnership.html#contact');
+            assert.equal(await form.isVisible(), true, 'contact deep link opens the dialog');
+            await page.getByRole('button', { name: '문의창 닫기' }).click();
+          } else {
+            assert.equal(await form.isVisible(), true, 'without JS the original form stays visible');
+          }
         }
         if (['about.html', 'business.html', 'location.html'].includes(file)) {
           assert.ok(await page.locator('main a[href="farm.html"]').count() > 0, file + ' links to farm');
