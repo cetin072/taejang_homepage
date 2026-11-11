@@ -18,6 +18,7 @@ const PUBLIC_ROOT_FILES = Object.freeze([
   'activities.html',
   'archive.html',
   'business.html',
+  'terrarium.html',
   'community-esg.html',
   'community-esg-records.html',
   'greeting.html',
