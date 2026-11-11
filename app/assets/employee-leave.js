@@ -4,6 +4,13 @@
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
   const messages = { LEAVE_THREE_DAYS_REQUIRED:'사용일 최소 3일 전 날짜를 선택해주세요.', REQUEST_ID_CONFLICT:'이전 요청 결과를 먼저 새로고침해 확인해주세요.', LEAVE_ALREADY_INITIALIZED:'이미 연차가 등록된 직원입니다. 새로고침 후 확인해주세요. 개수 변경은 운영총괄에게 요청해주세요.', ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', PROTECTED_EMPLOYEE_REVIEW_REQUIRED:'본인보다 하위 직급의 연차만 처리할 수 있습니다. 운영총괄에게 요청해주세요.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  Object.assign(messages,{
+    URGENT_LEAVE_DATE_REQUIRED:'오늘부터 이틀 뒤까지의 날짜만 대리 등록할 수 있습니다.',
+    LEAVE_NOT_CONFIGURED:'직원별 연차 등록·현황에서 해당 직원의 최초 연차를 등록해주세요.',
+    NOT_SCHEDULED_WORKDAY:'해당 직원의 근무일을 선택해주세요.',
+    EMPLOYEE_NOT_ACTIVE:'근무 중인 직원을 선택해주세요.',
+    INVALID_REQUEST:'직원·사용일을 선택하고 등록 사유를 2~300자로 입력해주세요.'
+  });
   function errorText(error) { const s = String(error?.message || error || ''); const codes = new Set(s.match(/\b[A-Z][A-Z0-9_]*\b/g) || []); return Object.entries(messages).find(([k]) => codes.has(k))?.[1] || '저장하지 못했습니다. 입력값과 연결 상태를 확인하고 다시 시도해주세요.'; }
   function button(text, run) { const b = el('button',text,'button button-quiet'); b.type='button'; b.addEventListener('click',run); return b; }
   function dateField(form,label,value='',required=true){
@@ -96,6 +103,42 @@
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e),'message'),button('다시 불러오기',()=>populate(host,employeeId,leaveOnly)));}
   }
+  function renderUrgentLeave(host,ctx,employees,onSaved){
+    const details=el('details',null,'employee-profile-section');
+    details.append(el('summary','연차 대리 등록'),
+      el('p','오늘부터 이틀 뒤까지의 종일 연차를 승인합니다. 잔여 연차 1개가 차감됩니다.'));
+    const form=el('form',null,'employee-form app-authoring');
+    const employee=rosterSelect(form,'대리 등록 직원',employees.filter(e=>e.employment_status==='active'),ctx.positions,'직원을 선택해주세요','');
+    const dates=['오늘','내일','모레'].map((label,offset)=>{
+      const day=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10);
+      return [day,`${day} (${label})`];
+    });
+    const date=select(form,'연차 사용일',[['','사용일을 선택해주세요'],...dates],'');
+    employee.required=date.required=true;
+    const note=field(form,'대리 등록 사유','text');
+    note.minLength=2;
+    note.maxLength=300;
+    const fields=[employee,date,note];
+    let payload;
+    formAction(form,'연차 등록 및 승인',async()=>{
+      if(!payload){
+        if(note.value.trim().length<2)throw Error('INVALID_REQUEST');
+        payload={p_id:crypto.randomUUID(),p_employee_uuid:employee.value,p_work_date:date.value,p_note:note.value.trim()};
+        fields.forEach(field=>{field.disabled=true;});
+      }
+      try {
+        return await rpc('admin_register_urgent_employee_leave',payload);
+      } catch(error) {
+        if(/^(P0|22|23|42501|PGRST20)/.test(error?.code||'')){
+          payload=undefined;
+          fields.forEach(field=>{field.disabled=false;});
+        }
+        throw error;
+      }
+    },()=>onSaved(payload.p_employee_uuid));
+    details.append(form);
+    host.append(details);
+  }
   function renderRequests(host,ctx,reload,state={status:'pending'}){
     const section=el('section',null,'employee-profile-section leave-requests');section.append(el('h3','연차 신청·승인'));
     const changes=ctx.change_requests||[];
@@ -106,7 +149,8 @@
       state.status=filter.value;list.replaceChildren();
       const requests=ctx.requests.filter(r=>filter.value==='all'||r.status===filter.value).sort((a,b)=>filter.value==='pending'?a.work_date.localeCompare(b.work_date):b.work_date.localeCompare(a.work_date));
       requests.forEach(r=>{const card=el('article',null,'employee-profile-section');card.append(el('h4',`${r.employee_name} · ${r.work_date}`),el('p',`${labels[r.portion]} · ${r.units}개 · ${labels[r.status]}`));
-        if(r.decision_note)card.append(el('p',`처리 사유: ${r.decision_note}`));
+        if(r.admin_registration_note)card.append(el('p',`대리 등록 사유: ${r.admin_registration_note}`));
+        if(r.decision_note&&r.decision_note!==r.admin_registration_note)card.append(el('p',`처리 사유: ${r.decision_note}`));
         if(ctx.can_review&&r.status==='pending'&&!changes.some(c=>c.request_id===r.id&&c.status==='pending')){
           const f=el('form',null,'employee-form app-authoring');const note=field(f,'처리 사유','text');note.minLength=2;
           const decision=select(f,'처리 선택',[['approved','승인'],['rejected','반려']]);
@@ -171,14 +215,20 @@
     if((window.TaejangMenuAuthority?.allowed('leave.manage',legacyAllowed)??legacyAllowed)===false)return;
     const target=document.getElementById('dashboard-main');if(!target)return;
     const host=el('section',null,'employee-management leave-management');target.replaceChildren(host);
-    let view='requests',employeeId='',generation=0;const state={status:'pending',history:false};
+    let view='requests',employeeId='',generation=0;const state={status:'pending',history:false,registered:false};
     const load=async()=>{const version=++generation;host.replaceChildren(el('p','연차를 확인하고 있습니다.'));
       try{
         const ctx=await rpc('get_employee_leave_admin_context');if(!host.isConnected||version!==generation)return;
         if(ctx.roster_version!==1)throw Error('ROSTER_METADATA_REQUIRED');
         const current=currentRoster(ctx),currentIds=new Set(current.map(e=>e.id));
         const retired=ctx.employees.filter(e=>e.employment_status==='departed'||e.departed_on&&e.departed_on<=ctx.server_today);
-        host.replaceChildren(el('h2','연차 관리'),el('p','직원 연차 등록 → 앱에서 신청 → 관리자 승인·반려 → 잔여 갱신'));
+        host.replaceChildren(el('h2','연차 관리'));
+        if(state.registered){
+          const status=el('p','연차 대리 등록을 저장했습니다.','message');
+          status.setAttribute('role','status');
+          host.append(status);
+          state.registered=false;
+        }
         const nav=el('nav',null,'leave-view-nav');nav.setAttribute('aria-label','연차 관리 화면');
         const views=[['requests','신청·승인'],['changes','취소·수정 이력'],['balances','직원별 연차 등록·현황']];
         for(const [key,label] of views){
@@ -198,6 +248,15 @@
           const box=el('section',null,'employee-profile-section');content.append(box);
           const show=()=>{employeeId=s.value;box.replaceChildren();if(employeeId){const panel=el('div');box.append(panel);populate(panel,employeeId,true);}else box.append(el('p','직원을 선택하면 연차 등록·현황을 확인할 수 있습니다.'));};s.addEventListener('change',show);show();
         }else{
+          if(view==='requests'&&ctx.can_review){
+            renderUrgentLeave(content,ctx,current,registeredEmployee=>{
+              employeeId=registeredEmployee;
+              state.history=false;
+              state.status='approved';
+              state.registered=true;
+              return load();
+            });
+          }
           const historyLabel=view==='changes'?'퇴직자 취소·수정 이력 보기':'퇴직자 과거 신청 보기';
           const history=field(content,historyLabel,'checkbox','',false);history.parentNode.classList.add('app-check-field');history.parentNode.replaceChildren(history,el('span',historyLabel));history.checked=state.history;history.addEventListener('change',()=>{state.history=history.checked;employeeId='';load();});
           const s=rosterSelect(content,'신청 직원',state.history?retired:current,ctx.positions,state.history?'전체 퇴직자 과거 내역':'전체 재직 직원',employeeId);

@@ -14,6 +14,11 @@ for(const width of [320,390,786,1440]){
    window.calls.push({name,args});if(window.failNext){window.failNext=false;throw Error('NETWORK');}
    if(name==='get_employee_leave_admin_context'){const result=structuredClone(ctx);if(window.rosterMissing)delete result.roster_version;if(args.p_employee_uuid){result.employees=result.employees.filter(e=>e.id===args.p_employee_uuid);result.requests=result.requests.filter(r=>r.employee_uuid===args.p_employee_uuid);result.change_requests=result.change_requests.filter(c=>c.employee_uuid===args.p_employee_uuid);}return result;}
    if(name==='review_employee_leave_change'){const c=ctx.change_requests.find(c=>c.id===args.p_change_id);c.status=args.p_decision;c.decision_note=args.p_note;return {ok:true};}
+   if(name==='admin_register_urgent_employee_leave'){
+    const e=ctx.employees.find(employee=>employee.id===args.p_employee_uuid);
+    ctx.requests.unshift({id:args.p_id,employee_uuid:e.id,employee_name:e.name,work_date:args.p_work_date,portion:'full',units:1,status:'approved',admin_registration_note:args.p_note});
+    return {ok:true,status:'approved'};
+   }
    if(name==='admin_change_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.work_date=args.p_new_work_date||r.work_date;r.status=args.p_action==='cancel'?'cancelled':'approved';return {ok:true};}
    if(name==='review_employee_leave'){const r=ctx.requests.find(r=>r.id===args.p_request_id);r.status=args.p_decision;r.decision_note=args.p_note;return {ok:true};}
    if(name==='save_employee_work_terms'){if(window.conflictNext){window.conflictNext=false;throw Error('ATTENDANCE_CONFLICT');}ctx.employees.find(e=>e.id===args.p_employee_uuid).terms.unshift({id:'saved-term',...args.p_values});return {ok:true};}
@@ -150,6 +155,28 @@ for(const width of [320,390,786,1440]){
  await page.locator('#lead-work-qa').getByRole('button',{name:'근무시간 확인·변경',exact:true}).click();
  await page.locator('#lead-work-qa').getByRole('button',{name:'근무시간 저장',exact:true}).waitFor();
  assert.equal(await page.locator('#lead-work-qa').getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0);
+ await page.evaluate(()=>{window.fixtureLeaveContext.can_review=false;return window.TaejangEmployeeLeave.open();});
+ assert.equal(await page.getByText('연차 대리 등록',{exact:true}).count(),0,'registration follows review capability');
+ await page.evaluate(()=>{window.fixtureLeaveContext.can_review=true;return window.TaejangEmployeeLeave.open();});
+ await page.getByText('연차 대리 등록',{exact:true}).click();
+ const proxyEmployee=page.getByLabel('대리 등록 직원',{exact:true});
+ assert.equal(await proxyEmployee.locator('option[value=retired]').count(),0);
+ const proxyDate=page.getByLabel('연차 사용일',{exact:true});
+ assert.deepEqual(await proxyDate.locator('option').evaluateAll(options=>options.map(option=>option.value)),['','2026-11-01','2026-11-02','2026-11-03']);
+ await proxyEmployee.selectOption('employee');
+ await proxyDate.selectOption('2026-11-03');
+ await page.getByLabel('대리 등록 사유',{exact:true}).fill('직원 요청 확인');
+ await page.evaluate(()=>{window.failNext=true;});
+ const proxySubmit=page.getByRole('button',{name:'연차 등록 및 승인',exact:true});
+ await proxySubmit.click();
+ await page.getByText('저장하지 못했습니다.',{exact:false}).waitFor();
+ assert.equal(await proxyDate.inputValue(),'2026-11-03');
+ await proxySubmit.click();
+ await page.getByText('연차 대리 등록을 저장했습니다.',{exact:true}).waitFor();
+ await page.getByText('대리 등록 사유: 직원 요청 확인',{exact:true}).waitFor();
+ const registrationCalls=await page.evaluate(()=>window.calls.filter(c=>c.name==='admin_register_urgent_employee_leave').map(c=>c.args));
+ assert.equal(registrationCalls.length,2);
+ assert.deepEqual(registrationCalls[0],registrationCalls[1],'uncertain result retries the same request ID and fields');
  await page.evaluate(()=>{window.rosterMissing=true;return window.TaejangEmployeeLeave.open();});await page.getByText('직원 재직·직급 정보의 서버 업데이트가 필요합니다.',{exact:false}).waitFor();assert.equal(await page.getByLabel('직원 선택').count(),0,'old server never silently shows all employees');
  // Actual dashboard card controller, shared styles and DOM; only RPC results are synthetic.
  await page.evaluate(()=>{document.querySelector('#dashboard-main').innerHTML='<div class="dashboard-grid"></div>';window.attentionRole='operations_manager';window.attentionAllowed=true;window.attentionResult={server_now:'2026-11-06T09:05:00+09:00',missing_clock_ins:[],pending_leaves:[],attendance_allowed:true,leave_allowed:true};window.TaejangApp={getRoute:()=>window.attentionRole,getSession:()=>({user:{id:'actor'}}),can:()=>window.attentionAllowed,rpc:async()=>window.attentionResult};window.TaejangMenuAuthority={allowed:()=>window.attentionAllowed};window.attendanceOpened=false;window.TaejangAttendanceAdmin={openAttendance:()=>{window.attendanceOpened=true;}};window.attentionOpened=false;window.TaejangEmployeeLeave={open:()=>{window.attentionOpened=true;}};});
