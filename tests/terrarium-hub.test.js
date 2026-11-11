@@ -55,7 +55,7 @@ test('illustrations and approved samples have replacement slots without invented
     assert.ok(fs.existsSync(path.join(root, relative)), relative);
   }
   assert.match(landing, /콘셉트 일러스트/);
-  assert.match(landing, /태장 현장 사진으로 교체 예정/);
+  assert.doesNotMatch(landing, /교체 예정|교체합니다|현장 사진으로 교체/);
   assert.match(landing, /기존 참고 샘플/);
   assert.match(landing, /주문제작 완성품이나 납품 실적을 의미하지 않습니다/);
   assert.equal((landing.match(/data-terrarium-media=/g) || []).length, 10);
