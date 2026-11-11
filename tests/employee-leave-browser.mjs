@@ -158,7 +158,15 @@ for(const width of [320,390,786,1440]){
  await page.evaluate(()=>{window.fixtureLeaveContext.can_review=false;return window.TaejangEmployeeLeave.open();});
  assert.equal(await page.getByText('연차 대리 등록',{exact:true}).count(),0,'registration follows review capability');
  await page.evaluate(()=>{window.fixtureLeaveContext.can_review=true;return window.TaejangEmployeeLeave.open();});
- await page.getByText('연차 대리 등록',{exact:true}).click();
+ const leaveNav=page.getByRole('navigation',{name:'연차 관리 화면'});
+ assert.deepEqual(await leaveNav.getByRole('button').allTextContents(),['신청·승인','취소·수정 이력','직원별 연차 등록·현황','연차 대리 등록']);
+ assert.equal(await page.getByLabel('대리 등록 직원',{exact:true}).count(),0,'registration form has its own tab');
+ const registrationTab=leaveNav.getByRole('button',{name:'연차 대리 등록',exact:true});
+ await registrationTab.click();
+ await page.getByRole('heading',{name:'연차 대리 등록',exact:true}).waitFor();
+ assert.equal(await registrationTab.getAttribute('aria-pressed'),'true');
+ assert.equal(await page.getByLabel('신청 직원',{exact:true}).count(),0);
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'four tabs and registration form fit viewport');
  const proxyEmployee=page.getByLabel('대리 등록 직원',{exact:true});
  assert.equal(await proxyEmployee.locator('option[value=retired]').count(),0);
  const proxyDate=page.getByLabel('연차 사용일',{exact:true});
@@ -174,6 +182,7 @@ for(const width of [320,390,786,1440]){
  await proxySubmit.click();
  await page.getByText('연차 대리 등록을 저장했습니다.',{exact:true}).waitFor();
  await page.getByText('대리 등록 사유: 직원 요청 확인',{exact:true}).waitFor();
+ assert.equal(await leaveNav.getByRole('button',{name:'신청·승인',exact:true}).getAttribute('aria-pressed'),'true');
  const registrationCalls=await page.evaluate(()=>window.calls.filter(c=>c.name==='admin_register_urgent_employee_leave').map(c=>c.args));
  assert.equal(registrationCalls.length,2);
  assert.deepEqual(registrationCalls[0],registrationCalls[1],'uncertain result retries the same request ID and fields');

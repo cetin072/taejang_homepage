@@ -104,8 +104,8 @@
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e),'message'),button('다시 불러오기',()=>populate(host,employeeId,leaveOnly)));}
   }
   function renderUrgentLeave(host,ctx,employees,onSaved){
-    const details=el('details',null,'employee-profile-section');
-    details.append(el('summary','연차 대리 등록'),
+    const section=el('section',null,'employee-profile-section');
+    section.append(el('h3','연차 대리 등록'),
       el('p','오늘부터 이틀 뒤까지의 종일 연차를 승인합니다. 잔여 연차 1개가 차감됩니다.'));
     const form=el('form',null,'employee-form app-authoring');
     const employee=rosterSelect(form,'대리 등록 직원',employees.filter(e=>e.employment_status==='active'),ctx.positions,'직원을 선택해주세요','');
@@ -136,8 +136,8 @@
         throw error;
       }
     },()=>onSaved(payload.p_employee_uuid));
-    details.append(form);
-    host.append(details);
+    section.append(form);
+    host.append(section);
   }
   function renderRequests(host,ctx,reload,state={status:'pending'}){
     const section=el('section',null,'employee-profile-section leave-requests');section.append(el('h3','연차 신청·승인'));
@@ -220,6 +220,7 @@
       try{
         const ctx=await rpc('get_employee_leave_admin_context');if(!host.isConnected||version!==generation)return;
         if(ctx.roster_version!==1)throw Error('ROSTER_METADATA_REQUIRED');
+        if(view==='registration'&&!ctx.can_review)view='requests';
         const current=currentRoster(ctx),currentIds=new Set(current.map(e=>e.id));
         const retired=ctx.employees.filter(e=>e.employment_status==='departed'||e.departed_on&&e.departed_on<=ctx.server_today);
         host.replaceChildren(el('h2','연차 관리'));
@@ -231,6 +232,7 @@
         }
         const nav=el('nav',null,'leave-view-nav');nav.setAttribute('aria-label','연차 관리 화면');
         const views=[['requests','신청·승인'],['changes','취소·수정 이력'],['balances','직원별 연차 등록·현황']];
+        if(ctx.can_review)views.push(['registration','연차 대리 등록']);
         for(const [key,label] of views){
           const tab=button(label,()=>{
             if(view==='balances'||key==='balances')employeeId='';
@@ -242,21 +244,21 @@
         }
         host.append(nav);
         const content=el('section',null,'leave-main-content');host.append(content);
-        if(view==='balances'){
+        if(view==='registration'){
+          renderUrgentLeave(content,ctx,current,registeredEmployee=>{
+            view='requests';
+            employeeId=registeredEmployee;
+            state.history=false;
+            state.status='approved';
+            state.registered=true;
+            return load();
+          });
+        }else if(view==='balances'){
           content.append(el('h3','직원별 연차 등록·현황'),el('p',ctx.can_initialize?'직원을 선택해 지금까지 발생한 연차와 현재 남은 연차를 최초 등록합니다.':'직원을 선택해 연차 현황을 확인합니다. 현재 권한으로 연차 개수를 입력할 수 없습니다.'));
           const s=rosterSelect(content,'직원 선택',current,ctx.positions,'재직 직원을 선택해주세요',employeeId);
           const box=el('section',null,'employee-profile-section');content.append(box);
           const show=()=>{employeeId=s.value;box.replaceChildren();if(employeeId){const panel=el('div');box.append(panel);populate(panel,employeeId,true);}else box.append(el('p','직원을 선택하면 연차 등록·현황을 확인할 수 있습니다.'));};s.addEventListener('change',show);show();
         }else{
-          if(view==='requests'&&ctx.can_review){
-            renderUrgentLeave(content,ctx,current,registeredEmployee=>{
-              employeeId=registeredEmployee;
-              state.history=false;
-              state.status='approved';
-              state.registered=true;
-              return load();
-            });
-          }
           const historyLabel=view==='changes'?'퇴직자 취소·수정 이력 보기':'퇴직자 과거 신청 보기';
           const history=field(content,historyLabel,'checkbox','',false);history.parentNode.classList.add('app-check-field');history.parentNode.replaceChildren(history,el('span',historyLabel));history.checked=state.history;history.addEventListener('change',()=>{state.history=history.checked;employeeId='';load();});
           const s=rosterSelect(content,'신청 직원',state.history?retired:current,ctx.positions,state.history?'전체 퇴직자 과거 내역':'전체 재직 직원',employeeId);
@@ -280,7 +282,7 @@
           s.addEventListener('change',show);
           await show();
         }
-        if(host.isConnected&&version===generation&&view!=='changes')renderDaysOff(host,ctx,load);
+        if(host.isConnected&&version===generation&&(view==='requests'||view==='balances'))renderDaysOff(host,ctx,load);
       }catch(e){if(host.isConnected&&version===generation)host.replaceChildren(el('p',errorText(e)),button('다시 불러오기',load));}
     };await load();
   }
