@@ -84,6 +84,26 @@ try {
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
 
     await open(); await fits();
+    const disability=page.locator('.employee-section-basic + .employee-disability-section');
+    await disability.waitFor();
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_employee_disability_info')),false);
+    await disability.getByText('장애정보 보기',{exact:true}).click();
+    await disability.getByLabel('장애 정도',{exact:true}).selectOption('severe');
+    await disability.getByLabel('장애 유형',{exact:true}).selectOption('뇌병변');
+    await setFail('db');
+    await disability.getByRole('button',{name:'장애정보 저장'}).click();
+    await disability.getByText('장애정보를 저장하지 못했습니다.',{exact:false}).waitFor();
+    assert.equal(await disability.getByLabel('장애 유형',{exact:true}).inputValue(),'뇌병변');
+    await setFail('');
+    await disability.getByRole('button',{name:'장애정보 저장'}).click();
+    await disability.getByText('장애정보를 저장했습니다.',{exact:true}).waitFor();
+    await disability.getByText('장애정보 보기',{exact:true}).click();
+    await disability.getByLabel('장애 유형',{exact:true}).waitFor({state:'detached'});
+    await disability.getByText('장애정보 보기',{exact:true}).click();
+    await disability.getByText('등록된 장애정보입니다.',{exact:true}).waitFor();
+    assert.equal(await disability.getByLabel('장애 유형',{exact:true}).inputValue(),'뇌병변');
+    await fits();
+    await disability.getByText('장애정보 보기',{exact:true}).click();
     const auditCheck=page.getByRole('checkbox',{name:'인적사항 대조 완료',exact:true});
     await auditCheck.focus();
     const wasChecked=await auditCheck.isChecked();
@@ -101,8 +121,9 @@ try {
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.locator('.employee-profile-section').count(),5);
-    const sectionColors=await page.locator('.employee-profile-section').evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
+    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section)');
+    assert.equal(await standardSections.count(),5);
+    const sectionColors=await standardSections.evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
     assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
     await page.evaluate(()=>{document.querySelector('.app-workspace').scrollTop=0;window.scrollTo(0,0);});
     await page.screenshot({path:path.join(output,device+'-profile.png'),fullPage:true});
@@ -183,6 +204,7 @@ try {
     for (const delegatedRole of ['general_worker','promotion_staff','promotion_lead']) {
       await page.evaluate(async role=>{fixtureRoute=role;personalAllowed=true;await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement();},delegatedRole);
       await open();
+      assert.equal(await page.locator('.employee-disability-section').count(),0,'delegated employee management does not reveal disability section');
       assert.match(await page.locator('.employee-section-account').innerText(),/synthetic@example.test/);
       assert.equal(await page.getByRole('button',{name:'수정',exact:true}).count(),1);
       await page.getByRole('button',{name:'수정',exact:true}).click();

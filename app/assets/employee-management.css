@@ -60,7 +60,8 @@
 .employee-profile-section .employee-form { max-width:none; padding:0; border:0; border-radius:0; }
 .employee-profile-section summary { display:flex; align-items:center; padding:10px 0; cursor:pointer; }
 .employee-profile-section summary::before { content:"＋"; margin-right:8px; color:var(--app-brand); }
-.employee-profile-section details[open] > summary::before { content:"−"; }
+.employee-profile-section details[open] > summary::before,
+.employee-disability-section[open] > summary::before { content:"−"; }
 .employee-profile-section details + details { border-top:1px solid var(--app-border); }
 .employee-profile-section .employee-form { margin-top:16px; }
 .employee-photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }

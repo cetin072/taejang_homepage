@@ -22,6 +22,7 @@ const employees=Array.from({length:50},(_,i)=>({id:'fixture-'+i,employee_id:'TJ-
 employees[1].full_name=employees[0].full_name;
 window.fixtureContext={access_level:'operations_manager',can_manage_sensitive_identity:true,employees,departments:[{id:'dept',name:'포장팀'}],positions:[{id:'position',name:'사원'}],new_employee_positions:[{id:'position',name:'사원'}],change_requests:[],self_service_contact_requests:[]};
 window.objects=new Map();
+const disabilityInfo=new Map();
 const realFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{
   if(url==='/.netlify/functions/staff-config')return new Response(JSON.stringify({url:'https://fixture.invalid',publishableKey:'synthetic-key'}));
@@ -42,7 +43,15 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
     return structuredClone(fixtureContext);
   }
   if(name==='get_target_audit_trail')return {items:[]};
+  if(name==='get_employee_disability_info')return {
+    types:['지체','뇌병변','지적'],revision:0,...disabilityInfo.get(args.p_employee_uuid)
+  };
   if(fail==='db')throw Error('합성 DB 실패');
+  if(name==='save_employee_disability_info'){
+    const saved={degree:args.p_degree,disability_type:args.p_disability_type,revision:args.p_expected_revision+1};
+    disabilityInfo.set(args.p_employee_uuid,saved);
+    return saved;
+  }
   if(name==='update_employee_core'){
     const e=employees.find(e=>e.id===args.p_employee_uuid);e.full_name=args.p_full_name;e.attendance_required=args.p_attendance_required;
   }else if(name==='set_employee_photo'){
