@@ -266,7 +266,14 @@
           return;
         }
         if (!employee) { activeEmployeeView = 'existing'; selectedEmployeeId = null; }
-        await refreshEmployeeManagement();
+        const refreshed = await refreshEmployeeManagement();
+        if (refreshed && employee && teamRequest && !leadDirectEdit && selectedEmployeeId === employee.id) {
+          const records = main()?.querySelector('[data-employee-section="records"]');
+          if (records) {
+            records.open = true;
+            records.querySelector('summary')?.focus();
+          }
+        }
       } catch (error) {
         window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
         controls.forEach((control, index) => { control.disabled = saved ? true : disabled[index]; });
