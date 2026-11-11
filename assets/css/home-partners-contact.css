@@ -7,17 +7,12 @@
 .home-partners { background: var(--white); border-top: 1px solid var(--line); }
 .home-partners .section-head { margin-bottom: 32px; }
 .home-partner-group { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 10px 24px; margin: 0; padding: 22px 0; }
-.home-partner-group + .home-partner-group { border-top: 1px solid var(--line); }
 .home-partner-group h3 { margin: 0; color: var(--ink-soft); font-size: 13px; font-weight: 700; line-height: 1.8; }
 .home-partner-grid { display: grid; gap: 0; padding: 0; margin: 0; list-style: none; }
 .home-partner-grid--companies { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.home-partner-grid--cooperation { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .home-partner-grid li { min-width: 0; min-height: 82px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; padding: 12px; text-align: center; }
 .home-partner-grid li + li { border-left: 1px solid var(--line); }
 .home-partner-grid li > span { color: var(--green-deep); font-family: var(--gothic); font-size: clamp(18px, 1.8vw, 23px); font-weight: 800; line-height: 1.5; overflow-wrap: anywhere; }
-.home-partner-grid--cooperation li > span { color: var(--ink); font-size: clamp(17px, 1.6vw, 20px); font-weight: 700; }
-.home-partner-grid small { color: var(--ink-soft); font-size: 12px; line-height: 1.5; }
-.home-partner-note { grid-column: 2; margin: 5px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
 .home-partners > .container > .text-link { display: inline-block; margin-top: 22px; }
 .home-contact { background: var(--beige); }
 .home-contact .contact-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; padding-bottom: 110px; }
@@ -41,12 +36,10 @@
 .home-inquiry-direct a { display: block; width: fit-content; color: var(--green-deep); overflow-wrap: anywhere; }
 @media (max-width: 760px) {
  .home-partner-group { grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 22px 0; }
- .home-partner-note { grid-column: 1; }
- .home-partner-grid--companies, .home-partner-grid--cooperation { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .home-partner-grid--companies { grid-template-columns: repeat(2, minmax(0, 1fr)); }
  .home-partner-grid li { min-height: 82px; }
  .home-partner-grid li + li { border-left: 0; }
  .home-partner-grid li:nth-child(2n) { border-left: 1px solid var(--line); }
- .home-partner-grid li:last-child:nth-child(odd) { grid-column: 1 / -1; }
  .home-contact .contact-layout { grid-template-columns: minmax(0, 1fr); padding-bottom: 0; }
  .home-contact-cta { min-height: 0; flex-direction: column; gap: 10px; }
  .home-contact-illustration { position: static; order: 1; transform: none; }
