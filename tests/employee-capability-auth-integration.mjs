@@ -9,6 +9,7 @@ const projectId = process.env.SUPABASE_PROJECT_ID || 'taejang-homepage-phase1a';
 
 assert.ok(apiUrl, 'SUPABASE_URL or API_URL is required');
 assert.ok(publishableKey, 'SUPABASE_PUBLISHABLE_KEY or ANON_KEY is required');
+assert.ok(['localhost', '127.0.0.1', '[::1]'].includes(new URL(apiUrl).hostname), 'Use isolated local Supabase');
 
 let assertions = 0;
 const check = (value, message) => { assert.ok(value, message); assertions += 1; };
@@ -178,4 +179,30 @@ const superCreate = await rpc('create_employee', superAdmin.token, {
 });
 check(!superCreate.ok && superCreate.status === 403, 'technical super-admin alone cannot create Employee records');
 
+const disabilityTarget = {p_employee_uuid: createdEmployeeId};
+const disabilityDraft = {...disabilityTarget, p_degree:'severe', p_disability_type:'뇌병변', p_expected_revision:0};
+for (const token of [undefined, promotionLead.token, departmentLead.token, superAdmin.token]) {
+  check(!(await rpc('get_employee_disability_info', token, disabilityTarget)).ok, 'non-operations disability read denied');
+  check(!(await rpc('save_employee_disability_info', token, disabilityDraft)).ok, 'non-operations disability write denied');
+}
+const firstDisability = await rpc('get_employee_disability_info', operations.token, disabilityTarget);
+check(firstDisability.ok && firstDisability.data.revision === 0 && firstDisability.data.degree === null
+  && firstDisability.data.types.length === 15, 'unregistered state and 15 type choices');
+check(!(await rpc('save_employee_disability_info', operations.token, {...disabilityDraft, p_disability_type:'검증되지 않은 값'})).ok, 'unknown disability type rejected');
+const savedDisability = await rpc('save_employee_disability_info', operations.token, disabilityDraft);
+check(savedDisability.ok && savedDisability.data.revision === 1, 'operations can register disability info');
+const rereadDisability = await rpc('get_employee_disability_info', operations.token, disabilityTarget);
+check(rereadDisability.ok && rereadDisability.data.degree === 'severe'
+  && rereadDisability.data.disability_type === '뇌병변', 'disability values persist');
+check(!(await rpc('save_employee_disability_info', operations.token, {...disabilityDraft, p_degree:'mild'})).ok, 'stale write cannot overwrite current info');
+const updateDisability = await rpc('save_employee_disability_info', operations.token, {...disabilityDraft, p_degree:'mild', p_disability_type:'지체', p_expected_revision:1});
+check(updateDisability.ok && updateDisability.data.revision === 2, 'current revision allows correction');
+for (const actor of [operations, promotionLead]) {
+  const roster = await rpc('get_employee_management_context', actor.token);
+  check(roster.ok && !JSON.stringify(roster.data).includes('disability_type'), 'employee roster omits disability details');
+}
+check(sql(`select count(*) from public.audit_logs
+  where target_type='employee_sensitive_info' and target_id='${createdEmployeeId}'
+  and action in ('employee_disability_viewed','employee_disability_saved')
+  and metadata='{}'::jsonb and reason_summary is null`) === '4', 'successful reads/writes audited without field values');
 console.log(`Employee capability Auth/Data API integration: ${assertions} assertions passed.`);
