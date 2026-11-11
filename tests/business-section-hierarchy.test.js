@@ -47,3 +47,10 @@ assert.match(styles, /@media \(max-width:1000px\)\{[\s\S]*?\.business-cards\{gri
 assert.match(styles, /@media \(max-width:760px\)\{[\s\S]*?\.business-cards[\s\S]*?grid-template-columns:1fr/, '모바일에서는 1열로 전환합니다');
 assert.match(styles, /\.desktop-nav a\[aria-current="page"\]:not\(\.nav-cta\)\{color:var\(--green\);font-weight:800\}/, '현재 페이지 표시가 CTA 색상을 덮어쓰지 않습니다');
 assert.match(styles, /\.desktop-nav \.nav-cta:visited,\.desktop-nav \.nav-cta\[aria-current="page"\]\{color:#fff\}/, '협력·문의 CTA는 방문 및 현재 페이지 상태에서도 흰색 글자를 유지합니다');
+
+const resources = read('resources.html');
+const pendingTerrarium = resources.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-terrarium-title"[\s\S]*?<\/article>/)?.[0] || '';
+assert.match(pendingTerrarium, /테라리움 주문제작/);
+assert.match(pendingTerrarium, /준비 중/);
+assert.doesNotMatch(pendingTerrarium, /<a\b|<button\b|href=|onclick=|tabindex=/);
+assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
