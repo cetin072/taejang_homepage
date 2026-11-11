@@ -80,7 +80,8 @@ for (const title of approvedWorkplaceTitles) {
 }
 
 // Runtime success replaces the baseline rather than appending duplicate cards.
-assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(createActivityCard\)\)/);
+assert.match(homePreviews, /container\.replaceChildren\(\.\.\.visibleItems\.map\(/);
+assert.match(homePreviews, /createActivityCard\(item, index === 0/);
 assert.match(contentHub, /list\.replaceChildren\(\.\.\.visible\.map\(\(item\) => createCard\(item, 'h2'\)\)\)/);
 assert.match(listing, /list\.innerHTML = items\.length[\s\S]*?items\.map\(card\)\.join\(''\)/);
 assert.match(communityScript, /list\.replaceChildren\(\.\.\.visibleRecords\.map/);
