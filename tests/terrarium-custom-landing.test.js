@@ -65,3 +65,31 @@ test('Home and business pages place terrarium in current operations without clai
   assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
   assert.match(published, /'terrarium-custom\.html'/);
 });
+
+
+test('Portfolio has six replaceable slots and sample images are not misrepresented as delivered orders', () => {
+  assert.equal((landing.match(/class="terrarium-portfolio-card"/g) || []).length, 6);
+  assert.equal((landing.match(/class="terrarium-portfolio-placeholder"/g) || []).length, 3);
+  assert.equal((landing.match(/기존 샘플 사진 · [ABC]/g) || []).length, 3);
+  assert.match(landing, /납품·주문제작 완료 실적이 아니며/);
+  assert.match(landing, /사진 준비 중/);
+  assert.equal((landing.match(/data-terrarium-style=/g) || []).length, 6);
+  assert.doesNotMatch(landing, /<img[^>]*src="https?:/, 'third-party images must not be passed off as company work');
+});
+
+test('Guided consultation can be submitted without a long free-text description', () => {
+  const styleSelect = landing.match(/<select name="message" id="terrarium-style-select" required>[\s\S]*?<\/select>/)?.[0] || '';
+  assert.match(styleSelect, /추천받고 싶어요 \/ 아직 미정/);
+  const selectedValues = [...landing.matchAll(/data-terrarium-style="([^"]+)"/g)].map(match => match[1]);
+  for (const value of selectedValues) {
+    assert.ok(styleSelect.includes('value="' + value + '"'), 'portfolio selection maps to native form value: ' + value);
+  }
+  for (const key of ['use-case', 'size-preference', 'quantity-preference', 'budget-preference']) {
+    assert.match(landing, new RegExp('<select name="' + key + '">'), 'selective options include ' + key);
+  }
+  assert.match(landing, /<textarea name="request-notes"[^>]*placeholder="[^"]*비워 두셔도 됩니다\./);
+  assert.doesNotMatch(landing, /<textarea name="message"[^>]*required/, 'typed explanation is not mandatory');
+  assert.match(read('assets/js/terrarium-custom.js'), /style\.value = requested/);
+  assert.match(landing, /src="assets\/js\/terrarium-custom\.js"/);
+  assert.match(read('privacy.html'), /테라리움 주문제작 상담 초안은 기존 홈페이지 문의폼을 재사용/);
+});
