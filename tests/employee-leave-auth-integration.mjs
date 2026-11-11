@@ -298,4 +298,53 @@ const raceEmployee=makeBaselineEmployee();const raceArgs={...zeroArgs,p_employee
 const races=await Promise.all([rpc('initialize_employee_leave',lead,raceArgs),rpc('initialize_employee_leave',ops,{...raceArgs,p_accrued:9,p_remaining:6})]);
 equal(races.filter(r=>r.ok).length,1,'concurrent first registrations have one winner');
 const saved=JSON.parse(db(`select public.private_employee_leave_balance('${raceEmployee}')`));equal(saved.remaining,races[0].ok?5:6,'losing registration never overwrites winning baseline');
+// Admin-only short-notice registration uses the same approval and attendance rules.
+const urgentDay=add(2), urgentAmendDay=add(91);
+const urgentDays=[today,urgentDay,urgentAmendDay].map(day=>`'${day}'`).join(',');
+const priorUrgentOverrides=JSON.parse(db(`select coalesce(json_agg(c),'[]') from public.attendance_calendar_overrides c where work_date in (${urgentDays})`));
+db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason)
+ select d,true,'Synthetic urgent leave' from unnest(array[${urgentDays}]::date[]) d
+ on conflict(work_date) do update set is_workday=true`);
+const urgentId=crypto.randomUUID();
+const urgentArgs={p_id:urgentId,p_employee_uuid:employee,p_work_date:urgentDay,p_note:'Synthetic short notice'};
+const register=(actor,args=urgentArgs)=>rpc('admin_register_urgent_employee_leave',actor,args);
+for(const actor of [worker,null])check(!(await register(actor)).ok,'only leave managers may register on behalf');
+for(const day of [add(-1),add(3)]){
+ const denied=await register(ops,{...urgentArgs,p_work_date:day});
+ check(!denied.ok&&denied.data.message==='URGENT_LEAVE_DATE_REQUIRED','admin cannot register outside today through +2');
+}
+const retiredUrgent=await register(ops,{...urgentArgs,p_employee_uuid:retiredEmployee});
+check(!retiredUrgent.ok&&retiredUrgent.data.message==='EMPLOYEE_NOT_ACTIVE','departed employee denied');
+const zeroUrgent=await register(ops,{...urgentArgs,p_employee_uuid:zeroEmployee});
+check(!zeroUrgent.ok&&zeroUrgent.data.message==='NOT_SCHEDULED_WORKDAY','unscheduled employee denied');
+check((await rpc('save_employee_work_terms',ops,{p_employee_uuid:zeroEmployee,p_values:terms})).ok,'zero balance employee schedule configured');
+const noBalance=await register(ops,{...urgentArgs,p_employee_uuid:zeroEmployee});
+check(!noBalance.ok&&noBalance.data.message==='INSUFFICIENT_LEAVE','zero balance prevents urgent leave');
+db(`update public.employees set position_id='${leadPosition}' where id='${employee}'`);
+const peer=await register(lead);
+check(!peer.ok&&peer.data.message==='PROTECTED_EMPLOYEE_REVIEW_REQUIRED','lead cannot register leave for a peer');
+db(`update public.employees set position_id='${pos}' where id='${employee}'`);
+const beforeUrgent=(await rpc('get_my_leave_context',worker)).data.remaining;
+check(beforeUrgent>=1,'urgent fixture has enough leave');
+db(`insert into public.attendance_events(profile_id,work_date,event_type,status,event_at)
+ values('${worker.id}','${today}','clock_in','recorded',('${today} 09:00+09')::timestamptz)`);
+const clockConflict=await register(ops,{...urgentArgs,p_work_date:today});
+check(!clockConflict.ok&&clockConflict.data.message==='ATTENDANCE_CONFLICT','same-day registration cannot replace an existing punch');
+db(`delete from public.attendance_events where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_in'`);
+equal(db(`select count(*) from public.employee_leave_requests where id='${urgentId}'`),'0','failed approval leaves no partial request');
+const urgentRetries=await Promise.all([register(lead),register(lead)]);
+check(urgentRetries.every(r=>r.ok&&r.data.status==='approved'),'lead registers subordinate and identical concurrent retry succeeds');
+equal((await rpc('get_my_leave_context',worker)).data.remaining,beforeUrgent-1,'urgent registration charges exactly once');
+equal(JSON.parse(db(`select public.private_attendance_effective_status('${employee}','${urgentDay}')`)).status,'paid_leave','urgent registration updates paid attendance');
+const duplicate=await register(ops,{...urgentArgs,p_id:crypto.randomUUID()});
+check(!duplicate.ok&&duplicate.data.message==='LEAVE_SCHEDULE_CONFLICT','another ID cannot duplicate approved leave');
+check(!(await register(lead,{...urgentArgs,p_note:'Changed request'})).ok,'same ID cannot change registration details');
+const urgentMove=crypto.randomUUID();
+check((await rpc('admin_change_employee_leave',lead,{p_id:urgentMove,p_request_id:urgentId,p_action:'amend',p_new_work_date:urgentAmendDay,p_note:'Move registered leave'})).ok,'registering lead can later amend subordinate leave');
+equal(db(`select admin_registration_note from public.employee_leave_requests where id='${urgentMove}'`),urgentArgs.p_note,'replacement preserves original registration reason');
+equal((await rpc('get_my_leave_context',worker)).data.remaining,beforeUrgent-1,'amendment retains one day charged');
+const sameDay=await register(ops,{...urgentArgs,p_id:crypto.randomUUID(),p_work_date:today});
+check(sameDay.ok,'operations manager can register today after punch conflict is resolved');
+db(`delete from public.attendance_calendar_overrides where work_date in (${urgentDays})`);
+for(const row of priorUrgentOverrides)db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason,updated_by,updated_at) values('${row.work_date}',${row.is_workday},'Restored fixture',${row.updated_by?"'"+row.updated_by+"'":'null'},'${row.updated_at}')`);
 console.log(`LEAVE_AUTH_INTEGRATION_PASS ${assertions} assertions`);
