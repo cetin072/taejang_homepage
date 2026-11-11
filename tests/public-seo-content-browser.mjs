@@ -127,10 +127,11 @@ try {
       }
       await page.goto(base + '/index.html', { waitUntil: 'load' });
       const partners = page.locator('.home-partners');
-      const partnerNames = ['범한메카텍', '삼현', '청우비제이', '현대비앤지스틸', '경상남도', '미담농원', '아름다운학교', '미래진흥원', '학사모'];
+      const partnerNames = ['범한메카텍', '삼현', '청우비제이', '현대비앤지스틸'];
       assert.deepEqual(await partners.locator('li > span').allTextContents(), partnerNames);
-      assert.doesNotMatch(await partners.textContent(), /류진농원/);
-      assert.equal(await partners.locator('h3').count(), 2);
+      assert.doesNotMatch(await partners.textContent(), /사업·농업·지역 협력|경상남도|미담농원|류진농원|아름다운학교|미래진흥원|학사모/);
+      assert.deepEqual(await partners.locator('h3').allTextContents(), ['공동출자 참여기업']);
+      assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기 →' }).getAttribute('href'), 'certifications.html');
       await partners.scrollIntoViewIfNeeded();
       await page.screenshot({ path: `seo-qa-artifacts/home-partners-${width}-${javaScriptEnabled}.png`, fullPage: false });
 
