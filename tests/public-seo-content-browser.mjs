@@ -133,6 +133,12 @@ try {
       assert.deepEqual(await partners.locator('h3').allTextContents(), ['공동출자 참여기업']);
       assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기 →' }).getAttribute('href'), 'certifications.html');
       await partners.scrollIntoViewIfNeeded();
+      const partnerLogos = partners.locator('.home-partner-logo img');
+      assert.equal(await partnerLogos.count(), 4, 'each jointly investing company has a logo');
+      for (const logo of await partnerLogos.all()) {
+        await logo.evaluate(image => image.decode());
+        assert.ok(await logo.evaluate(image => image.naturalWidth > 0 && image.naturalHeight > 0), 'partner logo loads');
+      }
       await page.screenshot({ path: `seo-qa-artifacts/home-partners-${width}-${javaScriptEnabled}.png`, fullPage: false });
 
       const contact = page.locator('#contact');

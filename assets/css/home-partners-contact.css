@@ -12,7 +12,11 @@
 .home-partner-grid--companies { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .home-partner-grid li { min-width: 0; min-height: 82px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; padding: 12px; text-align: center; }
 .home-partner-grid li + li { border-left: 1px solid var(--line); }
-.home-partner-grid li > span { color: var(--green-deep); font-family: var(--gothic); font-size: clamp(18px, 1.8vw, 23px); font-weight: 800; line-height: 1.5; overflow-wrap: anywhere; }
+/* Logos share the same deep green as the section headings. */
+.home-partner-logo { display: flex; align-items: center; justify-content: center; width: 100%; height: 66px; }
+.home-partner-logo img { width: 100%; max-width: 165px; max-height: 48px; object-fit: contain; }
+.home-partner-logo--cheungwoo img { max-height: 62px; }
+.home-partner-name { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .home-partners > .container > .text-link { display: inline-block; margin-top: 22px; }
 .home-contact { background: var(--beige); }
 .home-contact .contact-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; padding-bottom: 110px; }
