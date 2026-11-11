@@ -49,8 +49,9 @@ assert.match(styles, /\.desktop-nav a\[aria-current="page"\]:not\(\.nav-cta\)\{c
 assert.match(styles, /\.desktop-nav \.nav-cta:visited,\.desktop-nav \.nav-cta\[aria-current="page"\]\{color:#fff\}/, '협력·문의 CTA는 방문 및 현재 페이지 상태에서도 흰색 글자를 유지합니다');
 
 const resources = read('resources.html');
-const pendingTerrarium = resources.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-terrarium-title"[\s\S]*?<\/article>/)?.[0] || '';
-assert.match(pendingTerrarium, /테라리움 주문제작/);
-assert.match(pendingTerrarium, /준비 중/);
-assert.doesNotMatch(pendingTerrarium, /<a\b|<button\b|href=|onclick=|tabindex=/);
+const terrariumResource = resources.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';
+assert.match(terrariumResource, /태장 테라리움/);
+assert.match(terrariumResource, /활동 소개/);
+assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);
+assert.match(businessPage, /href="terrarium\.html">태장 테라리움 알아보기/);
 assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
