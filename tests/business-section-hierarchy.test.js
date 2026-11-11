@@ -39,7 +39,7 @@ assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOT
 assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?테라리움 제조사업/);
 assert.doesNotMatch(business, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.doesNotMatch(businessPage, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
-assert.match(business, /주문제작 서비스 준비 중/);
+assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);
 assert.doesNotMatch(business, /href="terrarium-custom\.html"/);
 assert.match(styles, /\.business-cards\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:24px\}/, '현재 운영 카드는 데스크톱 2열 그리드입니다');
 assert.match(styles, /\.business-card-media--image\{position:relative;aspect-ratio:4\/3/, '재사용 업무 사진도 카드 이미지와 4:3 비율을 공유합니다');
@@ -49,8 +49,9 @@ assert.match(styles, /\.desktop-nav a\[aria-current="page"\]:not\(\.nav-cta\)\{c
 assert.match(styles, /\.desktop-nav \.nav-cta:visited,\.desktop-nav \.nav-cta\[aria-current="page"\]\{color:#fff\}/, '협력·문의 CTA는 방문 및 현재 페이지 상태에서도 흰색 글자를 유지합니다');
 
 const resources = read('resources.html');
-const pendingTerrarium = resources.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-terrarium-title"[\s\S]*?<\/article>/)?.[0] || '';
-assert.match(pendingTerrarium, /테라리움 주문제작/);
-assert.match(pendingTerrarium, /준비 중/);
-assert.doesNotMatch(pendingTerrarium, /<a\b|<button\b|href=|onclick=|tabindex=/);
+const terrariumResource = resources.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';
+assert.match(terrariumResource, /태장 테라리움/);
+assert.match(terrariumResource, /활동 소개/);
+assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);
+assert.match(businessPage, /href="terrarium\.html">태장 테라리움 알아보기/);
 assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);

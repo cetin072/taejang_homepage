@@ -35,6 +35,7 @@ test('Netlify publish build keeps public homepage and internal app entry points'
       '404.html',
       'about.html',
       'business.html',
+      'terrarium.html',
       'promotion.html',
       'workplace.html',
       'employee-app-privacy.html',

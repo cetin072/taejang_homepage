@@ -1,0 +1,86 @@
+/* Taejang terrarium hub. All sections remain readable without JavaScript. */
+.terrarium-hub{--th-green:#193d2e;--th-leaf:#5c775b;--th-muted:#586a60;--th-paper:#f5f4eb;color:var(--th-green);background:white}
+.terrarium-hub *{box-sizing:border-box}
+.terrarium-hub h1,.terrarium-hub h2,.terrarium-hub h3,.terrarium-hub p{margin-top:0}
+.terrarium-hub p{line-height:1.85}
+.terrarium-hub a:focus-visible{outline:3px solid #d4a258;outline-offset:4px}
+.terrarium-hub .th-eyebrow{font-size:11px;font-weight:800;letter-spacing:.17em;color:#678463;line-height:1.5}
+.th-hero{background:linear-gradient(125deg,#f4f3eb,#e9ede3);overflow:hidden}
+.th-hero-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);align-items:center;gap:clamp(32px,5vw,80px);padding-top:70px;padding-bottom:70px}
+.th-hero-copy{min-width:0}
+.th-pretitle{font:700 clamp(15px,1.5vw,20px)/1.55 var(--myeongjo);color:#64805e;margin:30px 0 10px}
+.th-hero h1{font:700 clamp(44px,5.5vw,76px)/1.25 var(--myeongjo);letter-spacing:-.06em;word-break:keep-all;margin:0 0 24px}
+.th-hero h1 em{font-style:normal;color:#66845d}
+.th-intro{font-size:16px;max-width:535px;color:#50635a;margin-bottom:28px}
+.th-hero-actions{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.th-button{display:inline-flex;align-items:center;justify-content:space-between;gap:28px;background:var(--th-green);color:white!important;text-decoration:none;font-weight:700;font-size:14px;padding:14px 21px;min-height:49px;border-radius:3px}
+.th-button:hover{background:#34654a}
+.th-quiet-link{font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:5px;color:var(--th-green)}
+.th-operating{font-size:12px;color:#54705c;margin:28px 0 0!important}
+.th-operating-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#5f9366;vertical-align:2px;margin-right:5px}
+.th-hero-photo{position:relative;margin:0;min-width:0}
+.th-hero-photo:before{content:"";position:absolute;inset:21px -17px -17px 21px;border:1px solid #a9b9a0;pointer-events:none}
+.th-hero-photo img{position:relative;display:block;width:100%;aspect-ratio:1.03;object-fit:cover;object-position:center;background:#d5ddd1;box-shadow:0 20px 44px #183f2b1d}
+.th-hero-photo figcaption{position:relative;font-size:11px;line-height:1.6;color:#607263;padding-top:15px}
+.th-current,.th-gallery-section,.th-next{padding:84px 0}
+.th-section-heading{display:flex;justify-content:space-between;align-items:end;gap:38px;margin-bottom:33px}
+.th-section-heading h2,.th-contact h2{font:700 clamp(26px,3.6vw,44px)/1.4 var(--myeongjo);letter-spacing:-.04em;margin:8px 0 0}
+.th-section-heading>p{max-width:340px;font-size:14px;color:var(--th-muted);margin-bottom:0}
+.th-current-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px}
+.th-current-item{padding-top:22px;border-top:1px solid #aabcae}
+.th-index{font-size:11px;font-weight:800;letter-spacing:.13em;color:#719072}
+.th-current-item h3{font:700 21px/1.55 var(--myeongjo);margin:20px 0 9px}
+.th-current-item p{font-size:14px;color:var(--th-muted);margin:0}
+.th-activity-link{display:inline-flex;gap:12px;margin-top:34px;text-decoration:underline;text-underline-offset:5px;color:var(--th-green);font-size:14px;font-weight:700}
+.th-gallery-section{background:var(--th-paper)}
+.th-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.th-gallery-item{margin:0;min-width:0}
+.th-gallery-item img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e2e8dd}
+.th-gallery-item figcaption{font:700 16px/1.55 var(--myeongjo);padding:14px 0 0}
+.th-gallery-note{font-size:12px;margin:23px 0 0;color:#66786b}
+.th-next-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+.th-next-card{border:1px solid #cdd9cb;background:#f9fbf7;padding:28px;min-height:305px;display:flex;flex-direction:column;align-items:flex-start}
+.th-next-symbol{display:grid;place-items:center;width:74px;height:74px;background:#e7eee4;color:#52785b;border-radius:50%;margin-bottom:18px}
+.th-next-symbol svg{width:62px;height:62px}
+.th-pending{display:inline-flex;border:1px solid #b8cabc;color:#315a3f;padding:4px 10px;font-size:11px;font-weight:800;letter-spacing:.04em}
+.th-next-card h3{font:700 clamp(20px,2vw,25px)/1.45 var(--myeongjo);margin:14px 0 10px}
+.th-next-card p{color:var(--th-muted);font-size:14px;margin:0 0 20px}
+.th-next-footer{font-size:12px;font-weight:700;color:#628169;margin-top:auto;padding-top:12px;border-top:1px solid #d9e4d6;width:100%}
+.th-next-footnote{margin:23px 0 0;font-size:12px;color:#627665}
+.th-contact{background:var(--th-green);color:white;padding:66px 0}
+.th-contact .th-eyebrow{color:#b2cbb5}
+.th-contact h2{color:#fff;margin:8px 0 14px}
+.th-contact-inner{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(260px,.6fr);gap:50px;align-items:center}
+.th-contact-inner p:not(.th-eyebrow){max-width:700px;font-size:14px;color:#dae7dc;margin:0}
+.th-contact-actions{display:flex;flex-direction:column;align-items:flex-start;gap:16px}
+.th-button-light{background:#f3f5ef;color:var(--th-green)!important}
+.th-button-light:hover{background:#e0e7db}
+.th-contact-mail{color:#f5f9f2;text-underline-offset:5px;font-size:13px}
+@media(max-width:1000px){
+ .th-hero-grid{gap:30px}
+ .th-hero h1{font-size:clamp(41px,5vw,65px)}
+ .th-current-grid{gap:20px}
+}
+@media(max-width:760px){
+ .th-hero-grid{grid-template-columns:1fr;gap:32px;padding-top:44px;padding-bottom:50px}
+ .th-hero h1{font-size:clamp(43px,10vw,62px)}
+ .th-pretitle{margin-top:17px}
+ .th-hero-photo:before{inset:12px -8px -8px 12px}
+ .th-hero-photo img{aspect-ratio:5/4}
+ .th-current,.th-gallery-section,.th-next{padding:55px 0}
+ .th-section-heading{display:block;margin-bottom:24px}
+ .th-section-heading>p{margin:14px 0 0;max-width:none}
+ .th-current-grid{grid-template-columns:1fr;gap:22px}
+ .th-current-item{padding-top:18px}
+ .th-current-item h3{margin-top:10px}
+ .th-gallery{grid-template-columns:1fr 1fr;gap:15px}
+ .th-next-grid{grid-template-columns:1fr}
+ .th-next-card{min-height:0;padding:24px}
+ .th-contact{padding:54px 0}
+ .th-contact-inner{grid-template-columns:1fr;gap:30px}
+}
+@media(max-width:440px){
+ .th-gallery{grid-template-columns:1fr}
+ .th-hero-actions{gap:16px}
+}
+@media(prefers-reduced-motion:reduce){.terrarium-hub *{scroll-behavior:auto!important}}

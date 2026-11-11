@@ -122,6 +122,7 @@ export const testGroups = Object.freeze({
     'tests/about-ceo-portrait.test.mjs',
     'tests/public-runtime-smoke.test.js',
     'tests/business-section-hierarchy.test.js',
+    'tests/terrarium-hub.test.js',
     'tests/community-esg.test.js',
     'tests/content-detail-thumbnail.test.js',
     'tests/hero-video-slider.test.js',
