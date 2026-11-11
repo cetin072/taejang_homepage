@@ -28,7 +28,7 @@ test('homepage and partnership direct contact choices are email-only', () => {
   const home = read('index.html');
   const partner = read('partnership.html');
   for (const [name, html] of [['index.html', home], ['partnership.html', partner]]) {
-    assert.match(html, /<a class="contact-action" href="mailto:taejang2025@naver\.com\?subject=/,
+    assert.match(html, /<a[^>]* href="mailto:taejang2025@naver\.com\?subject=/,
       name + ': official email action stays clickable');
     assert.doesNotMatch(html, /type="tel"|name="phone"|전화 문의/,
       name + ': inquiry form and action cards should not collect or promote phone numbers');

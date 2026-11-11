@@ -223,3 +223,18 @@
 
   .article-list[data-hub-list] .card-body :is(p, .text-link) { display: none; }
 }
+
+/* Separate the workplace story from the following activity records. */
+.workplace-bridge + .recent-activities {
+  background: var(--beige);
+  border-top: 1px solid var(--line);
+}
+
+/* Beige records, soft green collaboration, white partners, beige contact. */
+.partnership-overview { background: var(--green-soft); color: var(--green-deep); }
+.partnership-overview :is(.title, .partnership-types li) { color: var(--green-deep); }
+.partnership-overview .lead { color: #40564a; }
+.partnership-overview .eyebrow { color: var(--green); }
+
+.partnership-overview .partnership-types,
+.partnership-overview .partnership-types li { border-color: #c5d8cc; }

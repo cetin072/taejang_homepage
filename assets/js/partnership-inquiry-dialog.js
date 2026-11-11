@@ -20,17 +20,21 @@
   cta.hidden = false;
   let opener;
   let previousOverflow = '';
+  let pageRestored = true;
   let startedOnBackdrop = false;
   function open(source) {
     if (dialog.open) return true;
     try { dialog.showModal(); } catch { cta.after(card); cta.hidden = true; dialog.remove(); return false; }
     opener = source;
+    pageRestored = false;
     previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     closeButton.focus({ preventScroll: true });
     return true;
   }
   function restorePage() {
+    if (pageRestored) return;
+    pageRestored = true;
     document.body.style.overflow = previousOverflow;
     if (opener?.isConnected) opener.focus({ preventScroll: true });
   }

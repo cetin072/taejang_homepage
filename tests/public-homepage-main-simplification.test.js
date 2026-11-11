@@ -151,7 +151,7 @@ const partnership = pages['partnership.html'];
 const business = issue46Pages['business.html'];
 const location = issue46Pages['location.html'];
 
-assert.equal((index.match(/<section\b/g) || []).length, 7, '메인은 기존 7개 흐름을 유지합니다');
+assert.equal((index.match(/<section\b/g) || []).length, 8, '메인에 승인된 기업·기관 소개 흐름을 추가합니다');
 assert.doesNotMatch(index, /태장 공식 채널|channel-strip|channel-links/, '메인 본문에는 공식 채널 별도 블록을 두지 않습니다');
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /함께 일하며,<br>지속 가능한 가치를 만듭니다/);
@@ -187,7 +187,7 @@ assert.match(index, /href="activities\/terrarium-business-start-2026-08\.html">�
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
-assert.match(index, /<h2 class="title" id="contact-title">태장에 문의하기<\/h2>[\s\S]*?이메일이나 홈페이지 문의폼으로 연락해 주세요\./, '문의 영역은 이메일과 문의폼으로 안내합니다');
+assert.match(index, /data-home-inquiry-open[\s\S]*?<dialog[^>]*id="home-inquiry-dialog"[\s\S]*?name="taejang-inquiry"/, '문의 버튼은 기존 정적 폼을 담은 팝업으로 연결합니다');
 assert.equal((index.match(/지속 가능한/g) || []).length, 2, 'Hero 제목과 회사 정의 보조문구에서만 사용합니다');
 assert.match(index, /2026\.08[\s\S]*신규 사업장 개소[\s\S]*2026\.07[\s\S]*자회사형 장애인 표준사업장 인증[\s\S]*2025\.06[\s\S]*법인 설립/);
 assert.match(index, /id="inquiry-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '홈 문의 폼은 필수 입력 안내를 제공합니다');
