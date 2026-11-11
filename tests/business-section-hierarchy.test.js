@@ -39,7 +39,7 @@ assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOT
 assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?테라리움 제조사업/);
 assert.doesNotMatch(business, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.doesNotMatch(businessPage, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
-assert.match(business, /주문제작 서비스 준비 중/);
+assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);
 assert.doesNotMatch(business, /href="terrarium-custom\.html"/);
 assert.match(styles, /\.business-cards\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:24px\}/, '현재 운영 카드는 데스크톱 2열 그리드입니다');
 assert.match(styles, /\.business-card-media--image\{position:relative;aspect-ratio:4\/3/, '재사용 업무 사진도 카드 이미지와 4:3 비율을 공유합니다');
