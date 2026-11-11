@@ -651,7 +651,7 @@ button{cursor:pointer}
 .business-section-lead{margin:13px 0 0;color:var(--ink-soft)}
 .business-group-head{margin-bottom:16px}
 .business-group-head h3,.business-preparing h3{margin:5px 0 0;color:var(--green-deep);font:700 22px/1.45 var(--myeongjo)}
-.business-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.business-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .business-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid var(--line);background:#fff}
 .neutral-image{position:relative;overflow:hidden;background:linear-gradient(145deg,#d8e4dc 0%,#edf1ea 49%,#c5d7cb 50%,#dce8e0 100%)}
 .neutral-image::after{content:"";position:absolute;inset:12%;border:1px solid rgba(27,67,50,.18);background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0))}
@@ -664,6 +664,7 @@ button{cursor:pointer}
 .business-card h3{margin:13px 0 9px;color:var(--green-deep);font:700 23px/1.5 var(--myeongjo)}
 .business-card p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.8}
 .business-card .text-link{display:inline-flex;margin-top:auto;padding-top:22px}
+.business-card .business-card-note{display:block;margin-top:auto;padding-top:22px;color:var(--green);font-size:13px;font-weight:700}
 .business-preparing{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:24px;align-items:center;margin-top:42px;padding:28px 0 0;border-top:1px solid var(--line)}
 .business-preparing h4{margin:0 0 6px;color:var(--green-deep);font:700 18px/1.5 var(--myeongjo)}
 .business-preparing p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.75}
