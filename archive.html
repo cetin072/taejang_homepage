@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="assets/css/mobile-layout-fixes.css">
 <link rel="stylesheet" href="assets/css/listing-polish.css">
 <link rel="stylesheet" href="assets/css/photo-mode.css">
+<link rel="stylesheet" href="assets/css/featured-stories.css">
 <meta name="description" content="태장의 최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다.">
 <title>태장의 소식과 기록 | 농업회사법인 태장 주식회사</title>
 <link rel="canonical" href="https://taejang.co.kr/archive.html">
@@ -60,6 +61,13 @@
   </section>
   <section class="section">
     <div class="container">
+      <section class="featured-stories-section" data-featured-stories aria-labelledby="archive-featured-title" hidden>
+        <div class="featured-stories-heading">
+          <div><div class="eyebrow">FEATURED STORIES</div><h2 id="archive-featured-title">태장 기획·특집</h2></div>
+          <p>태장의 일과 사람, 기업 협력에 관한 주요 이야기를 모았습니다.</p>
+        </div>
+        <div class="featured-stories-grid" data-featured-stories-list></div>
+      </section>
       <p class="archive-note">검색과 필터를 이용해 태장의 기록을 살펴보세요.</p>
       <div class="archive-search" data-archive-search>
         <label for="archive-search-input">기록 검색</label>
@@ -112,6 +120,7 @@
 <script src="assets/js/public-share.js"></script>
 <script src="assets/js/public-promotion-media.js"></script>
   <script src="assets/js/content-hub.js"></script>
+<script src="assets/js/featured-stories.js"></script>
 <script src="assets/js/site.js"></script>
 </body>
 </html>

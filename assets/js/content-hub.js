@@ -109,7 +109,8 @@
     orderedItems,
     createMedia,
     sourceLabel,
-    formatPublishedDate
+    formatPublishedDate,
+    createCard
   };
 
   function linkText(item) {
