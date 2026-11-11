@@ -232,5 +232,4 @@ assert.match(worklog, /태장 업무수첩/);
 assert.match(worklog, /준비 중/);
 assert.doesNotMatch(terrariumLink, /주문제작 서비스 공개|판매 중/);
 assert.doesNotMatch(services, /href="terrarium-custom\.html"/);
-assert.doesNotMatch(services, /href="terrarium-custom\.html"/);
 assert.doesNotMatch(worklog, /<a\b|<button\b|tabindex=|onclick=/, 'unreleased worklog is visible without an inactive or premature link');
