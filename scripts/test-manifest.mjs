@@ -1,5 +1,6 @@
 export const testGroups = Object.freeze({
   platformStatic: Object.freeze([
+    'tests/employee-disability-profile.test.js',
     'tests/employee-leave-errors.test.mjs',
     'tests/personal-worklog.test.mjs',
     'tests/google-identity-link.test.mjs',
@@ -228,3 +229,4 @@ export function getTestGroup(name) {
   }
   return [...group];
 }
+

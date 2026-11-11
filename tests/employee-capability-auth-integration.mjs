@@ -178,4 +178,53 @@ const superCreate = await rpc('create_employee', superAdmin.token, {
 });
 check(!superCreate.ok && superCreate.status === 403, 'technical super-admin alone cannot create Employee records');
 
+// All mutation fixtures below are disposable local Auth users, never hosted data.
+assert.match(apiUrl, /^http:\/\/(127\.0\.0\.1|localhost):\d+$/, 'local Supabase only');
+const readDisability=actor=>rpc('get_employee_disability_profile',actor.token,{p_employee_uuid:createdEmployeeId});
+const disabilityInput={p_employee_uuid:createdEmployeeId,p_expected_revision:0,p_disability_status:'yes',
+ p_disability_type:'pancreatic',p_welfare_severity:'severe',p_employment_severity:null};
+check((await readDisability(operations)).data?.disability_status==='unknown','existing staff starts unknown, not inferred');
+check((await readDisability(promotionLead)).data?.can_edit===false,'lead sees all staff without edit expansion');
+for(const actor of [departmentLead,superAdmin]) {
+ const denied=await readDisability(actor);check(!denied.ok&&denied.status===403,'other roles cannot read health data');
+}
+check(!(await rpc('set_employee_disability_profile',promotionLead.token,disabilityInput)).ok,'lead cannot write disability data');
+check(!(await api('/rest/v1/employee_disability_profiles',{token:operations.token})).ok,'private disability table not exposed');
+const savedDisability=await rpc('set_employee_disability_profile',operations.token,disabilityInput);
+check(savedDisability.ok&&savedDisability.data.revision===1,'manager saves explicit classification');
+const readBack=await readDisability(promotionLead);
+check(readBack.ok&&readBack.data.disability_type==='pancreatic'&&readBack.data.employment_severity===null,'independent legal classification survives real API');
+check(!(await rpc('set_employee_disability_profile',operations.token,disabilityInput)).ok,'stale revision blocked');
+const concurrent=await Promise.all([0,1].map(()=>rpc('set_employee_disability_profile',operations.token,{...disabilityInput,p_expected_revision:1})));
+check(concurrent.filter(r=>r.ok).length===1,'concurrent edits have exactly one winner');
+check((await readDisability(operations)).data.revision===2,'revision increments once');
+for(const changed of [{p_disability_type:'invented'}, {p_welfare_severity:'old_grade_1'}, {p_employment_severity:'guess'}, {p_disability_status:'no'}]) {
+ check(!(await rpc('set_employee_disability_profile',operations.token,{...disabilityInput,p_expected_revision:2,...changed})).ok,'invalid or inconsistent classification rejected');
+}
+check((await readDisability(operations)).data.revision===2,'failed validation does not mutate');
+check((await rpc('set_employee_disability_profile',operations.token,{...disabilityInput,p_expected_revision:2,p_disability_status:'no',p_disability_type:null,p_welfare_severity:null})).ok,'explicit non-disabled clears classifications');
+const rosterHealth=await rpc('get_employee_management_context',operations.token);
+check(!JSON.stringify(rosterHealth.data).includes('disability_type'),'ordinary roster excludes health classification');
+check(sql(`select count(*) from public.audit_logs where target_id='${createdEmployeeId}' and action in ('employee_disability_viewed','employee_disability_updated') and metadata::text like '%pancreatic%'`)==='0','audit metadata does not copy health values');
+// Existing JWT must lose access immediately after role grant revocation.
+sql(`update public.profile_roles set revoked_at=now() where profile_id='${promotionLead.id}' and role_id=(select id from public.roles where code='promotion_lead') and revoked_at is null`);
+check(!(await readDisability(promotionLead)).ok,'role revocation blocks same JWT');
+grantRole(promotionLead.id,'promotion_lead');
+check((await readDisability(promotionLead)).ok,'restored explicit role restores read');
+// Explicit employee-menu denial wins even while the role remains granted.
+sql(`insert into public.profile_menu_authority(profile_id,menu_key,allowed,revision,changed_by,reason) values('${promotionLead.id}','employee.manage',false,1,'${operations.id}','synthetic deny')`);
+check(!(await readDisability(promotionLead)).ok,'menu revocation blocks same JWT with role retained');
+sql(`delete from public.profile_menu_authority where profile_id='${promotionLead.id}' and menu_key='employee.manage'`);
+check((await readDisability(promotionLead)).ok,'fixture cleanup restores legacy role access');
+// Disabled accounts cannot use their still-valid access token.
+sql(`update public.profiles set account_status='suspended' where id='${promotionLead.id}'`);
+check(!(await readDisability(promotionLead)).ok,'suspended actor cannot read health data');
+sql(`update public.profiles set account_status='active' where id='${promotionLead.id}'`);
+// New roles are enabled centrally, with no SQL function or frontend role-list edits.
+sql("insert into public.role_capability_grants(role_id,capability_code) select id,'employee.disability_view' from public.roles where code='department_lead'");
+check((await readDisability(departmentLead)).ok,'central grant can extend read access');
+sql("delete from public.role_capability_grants where capability_code='employee.disability_view' and role_id=(select id from public.roles where code='department_lead')");
+check(!(await readDisability(departmentLead)).ok,'central grant removal takes immediate effect');
+
 console.log(`Employee capability Auth/Data API integration: ${assertions} assertions passed.`);
+
