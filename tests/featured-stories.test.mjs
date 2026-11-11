@@ -10,7 +10,8 @@ const { isPinned, selectPinned, selectHome } = context.window.TAEJANG_FEATURED_S
 const id = 'e584c9eb-21bb-4777-8752-f0d36d79cd8d';
 const valid = { id: 'promotion-' + id, status: 'published', type: 'internal', source: 'homepage',
   detailUrl: 'promotion.html?id=' + id, title: '기획기사 1편' };
-const mirror = { id: 'naver-blog-224472724117', type: 'external', status: 'published' };
+const mirror = { id: 'promotion-7e5baa51-7748-4857-baa8-5d546abddda0', type: 'external', status: 'published',
+  externalUrl: 'https://blog.naver.com/taejang-official/224472724117' };
 const news = { id: 'other-latest', type: 'internal', status: 'published' };
 
 test('only a currently approved first-party original is pinned', () => {
