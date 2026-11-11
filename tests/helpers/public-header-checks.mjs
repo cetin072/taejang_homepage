@@ -157,9 +157,9 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.goto(base+'/resources.html');
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
     assert.equal(await page.locator('h1').innerText(),'서비스·상품');
-    assert.equal(await page.locator('.resource-card').count(),3);
+    assert.equal(await page.locator('.resource-card').count(),4);
     assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
-    assert.equal(await page.locator('.resource-card--pending').count(),1);
+    assert.equal(await page.locator('.resource-card--pending').count(),2);
     assert.equal(await page.locator('#resource-salt-title').innerText(),'뉴질랜드 천일염');
     assert.equal(await page.getByText('태장 업무수첩', {exact:true}).count(),1);
     assert.equal(await page.locator('.resource-card--pending a, .resource-card--pending button, .resource-card--pending [tabindex]').count(),0,'unpublished cards are not interactive');
@@ -177,8 +177,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
     const saltCard=page.locator('.resource-card--link[aria-labelledby="resource-salt-title"]');
     assert.equal(await saltCard.locator('.resource-status').innerText(),'판매 중');
-    assert.equal(await page.locator('.resource-card--pending .resource-status').innerText(),'준비 중');
-    assert.equal(await page.locator('.resource-card--pending h3').innerText(),'태장 업무수첩');
+    assert.deepEqual(await page.locator('.resource-card--pending .resource-status').allInnerTexts(),['준비 중','준비 중']);
+    assert.deepEqual(await page.locator('.resource-card--pending h3').allInnerTexts(),['테라리움 주문제작','태장 업무수첩']);
     await saltCard.focus();
     assert.equal(await saltCard.evaluate(el=>document.activeElement===el),true);
     await page.keyboard.press('Enter');
@@ -195,7 +195,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.goBack();
     await page.goBack();
     await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
-    assert.equal(await page.locator('.resource-card').count(),3,'Back preserves hub cards');
+    assert.equal(await page.locator('.resource-card').count(),4,'Back preserves hub cards');
     await context.close();
   }
   // Network failure boundaries: later enhancements cannot disable the menu;
