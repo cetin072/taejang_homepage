@@ -279,6 +279,13 @@ try {
     await count(49);
     assert.equal(await page.getByText('직원 현장 전수조사',{exact:true}).count(),0);
     await open(0);
+    const leadDisability=page.locator('.employee-section-basic + .employee-disability-section');
+    await leadDisability.getByText('장애정보 보기',{exact:true}).click();
+    await leadDisability.getByLabel('장애 정도',{exact:true}).selectOption('mild');
+    await leadDisability.getByLabel('장애 유형',{exact:true}).selectOption('지체');
+    await leadDisability.getByRole('button',{name:'장애정보 저장',exact:true}).click();
+    await leadDisability.getByText('장애정보를 저장했습니다.',{exact:true}).waitFor();
+    await leadDisability.getByText('장애정보 보기',{exact:true}).click();
     await page.getByText('주민등록번호 등록·조회',{exact:true}).waitFor();
     await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
     assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden by default');

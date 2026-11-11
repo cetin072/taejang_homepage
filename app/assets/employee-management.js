@@ -971,7 +971,11 @@
   }
 
   function disabilityPanel(context, employee) {
-    if (context.access_level !== 'operations_manager' || route() !== 'operations_manager') return null;
+    const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
+      || (route() === 'promotion_lead' && context.access_level === 'promotion_lead_global'
+        && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
+        && !employee.protected);
+    if (!canView()) return null;
     const details = el('details', null, 'employee-profile-section employee-disability-section');
     const body = el('div');
     details.append(el('summary', '장애정보 보기'), body);
@@ -981,7 +985,7 @@
       body.replaceChildren();
       if (!details.open) return;
       const visible = () => details.open && details.isConnected && request === generation
-        && route() === 'operations_manager' && allowedRoute('employee.manage');
+        && canView() && allowedRoute('employee.manage');
       const feedback = el('p', '장애정보를 불러오는 중입니다.', 'help');
       feedback.setAttribute('role', 'status');
       body.append(feedback);
