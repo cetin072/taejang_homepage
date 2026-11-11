@@ -487,27 +487,39 @@
     const reveal = button('주민번호 조회', async () => {
       if (!window.confirm('업무상 필요한 직원 한 명의 주민번호만 일시적으로 표시합니다. 조회 이력이 기록됩니다. 계속하시겠습니까?')) return;
       reveal.disabled = true;
+      const fold = wrap.closest('.employee-profile-fold');
+      let cancelled = false, shown, hideButton, timer;
+      const hide = () => {
+        if (cancelled) return;
+        cancelled = true;
+        clearTimeout(timer);
+        fold?.removeEventListener('toggle', onFold);
+        if (shown) { shown.textContent = ''; shown.remove(); }
+        hideButton?.remove();
+        message.textContent = '';
+        reveal.disabled = false;
+      };
+      const onFold = () => { if (!fold.open) hide(); };
+      fold?.addEventListener('toggle', onFold);
       try {
         const result = await app().rpc('get_employee_resident_registration_number', {
           p_employee_uuid:employee.id, p_purpose:purpose.value
         });
+        if (cancelled || !wrap.isConnected || (fold && !fold.open)) { hide(); return; }
         if (!result?.ok) throw new Error(result?.code || '저장된 주민번호를 찾지 못했습니다.');
         const digits = String(result.resident_number || '');
         if (!/^[0-9]{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
-        const shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
+        shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
         shown.setAttribute('aria-label','열람한 직원 주민등록번호');
-        const hide = () => {shown.textContent = '';shown.remove();hideButton.remove();reveal.disabled=false;};
-        const hideButton = button('번호 숨기기',hide,true);
-        wrap.querySelector('.employee-resident-reveal')?.remove();
-        wrap.querySelector('[data-resident-hide]')?.remove();
-        hideButton.dataset.residentHide='1';
+        hideButton = button('번호 숨기기',hide,true);
         wrap.append(shown,hideButton);
-        window.setTimeout(hide,30000);
+        timer = window.setTimeout(hide,30000);
         message.textContent='30초 후 자동으로 숨겨집니다.';
       } catch(error) {
+        if (cancelled) return;
+        hide();
         message.textContent=app().friendlyError?.(error) || error.message || '주민번호를 확인하지 못했습니다.';
         message.classList.add('error');
-        reveal.disabled=false;
       }
     }, true);
     const row = el('div',null,'quick-links app-authoring-inline');
@@ -976,8 +988,8 @@
         && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
         && !employee.protected);
     if (!canView()) return null;
-    const details = el('details', null, 'employee-profile-section employee-disability-section');
-    const body = el('div');
+    const details = el('details', null, 'employee-profile-section employee-profile-fold employee-disability-section');
+    const body = el('div', null, 'employee-profile-fold-body');
     details.append(el('summary', '장애정보 보기'), body);
     let generation = 0;
     details.addEventListener('toggle', async () => {
@@ -998,15 +1010,17 @@
       }
       if (!visible()) return;
       feedback.textContent = info.revision ? '등록된 장애정보입니다.' : '등록된 장애정보가 없습니다.';
-      const form = el('form', null, 'employee-form app-authoring');
+      const form = el('form', null, 'employee-form employee-disability-form app-authoring');
       const degree = select([{id:'',name:'장애 정도 선택'}, {id:'severe',name:'중증'}, {id:'mild',name:'경증'}], info.degree);
       const type = select([{id:'',name:'장애 유형 선택'}, ...info.types.map(name => ({id:name,name}))], info.disability_type);
       degree.required = type.required = true;
       const save = button('장애정보 저장', () => {});
       save.type = 'submit';
+      const fields = el('div', null, 'employee-form-grid');
+      fields.append(field('장애 정도', degree), field('장애 유형', type));
       const actions = el('div', null, 'quick-links');
-      actions.append(save);
-      form.append(field('장애 정도', degree), field('장애 유형', type), actions, feedback);
+      actions.append(feedback, save);
+      form.append(fields, actions);
       body.append(form);
       form.addEventListener('submit', async event => {
         event.preventDefault();
@@ -1065,7 +1079,11 @@
     if (selectedEmployeeId && activeEmployeeView === 'existing') {
       const employee = arr(context.employees).find(item => item.id === selectedEmployeeId);
       if (employee) {
-        shell.append(views.employeeProfile(context, employee)); target.replaceChildren(shell);
+        const previous = target.querySelector('[data-employee-profile]');
+        const expanded = previous?.dataset.employeeProfile === employee.id
+          ? [...previous.querySelectorAll('[data-employee-section][open]')].map(node => node.dataset.employeeSection)
+          : [];
+        shell.append(views.employeeProfile(context, employee, new Set(expanded))); target.replaceChildren(shell);
         shell.querySelector('[data-employee-heading]')?.focus(); return;
       }
       selectedEmployeeId = null;

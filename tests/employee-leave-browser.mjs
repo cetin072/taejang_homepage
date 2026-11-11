@@ -114,8 +114,9 @@ for(const width of [320,390,786,1440]){
  await page.getByLabel('직원 선택').selectOption('second');await page.getByRole('heading',{name:'둘째 직원 · 연차 등록·현황',exact:true}).waitFor();
  assert.equal(await page.getByRole('heading',{name:'검수 직원 · 연차 등록·현황',exact:true}).count(),0);
  await page.evaluate(()=>{const h=document.createElement('div');document.querySelector('#dashboard-main').append(h);h.id='work-qa';h.dataset.employeeProfile='employee';h.append(window.TaejangEmployeeLeave.workSummary({id:'employee'}));h.append(window.TaejangEmployeeLeave.employeePanel({id:'employee'}));});
- await page.getByRole('button',{name:'근무시간 확인·변경',exact:true}).click();
- const work=page.locator('#work-qa');await work.getByRole('heading',{name:'근무시간',exact:true}).waitFor();
+ const work=page.locator('#work-qa'), workToggle=work.locator('.employee-section-work > summary');
+ await workToggle.click();
+ await work.getByRole('heading',{name:'근무시간',exact:true}).waitFor();
  assert.equal(await work.getByText('연차 발생·사용·조정 이력',{exact:true}).count(),0);assert.equal(await work.getByRole('heading',{name:'연차 신청·승인',exact:true}).count(),0);
  assert.equal(await work.locator('input[type=date],input[type=time]').count(),0,'dates and times cannot be typed');
  assert.equal(await work.getByRole('button',{name:'적용 시작일',exact:true}).evaluate(n=>n.value),'2026-11-02','initial registration defaults to tomorrow, preserving today punches');
@@ -123,6 +124,10 @@ for(const width of [320,390,786,1440]){
  await work.getByLabel('출근 시각 시',{exact:true}).selectOption('21');await work.getByLabel('출근 시각 분',{exact:true}).selectOption('00');
  await work.getByLabel('퇴근 시각 시',{exact:true}).selectOption('18');await work.getByLabel('퇴근 시각 분',{exact:true}).selectOption('00');
  await work.getByLabel('근무장소',{exact:true}).selectOption('office');await work.getByLabel('등록 사유',{exact:true}).fill('실제 근로계약 확인');for(let i=0;i<5;i++)await work.locator('.leave-weekdays input').nth(i).check();
+ await workToggle.click();
+ assert.equal(await work.getByLabel('등록 사유',{exact:true}).isVisible(),false);
+ await workToggle.click();
+ assert.equal(await work.getByLabel('등록 사유',{exact:true}).inputValue(),'실제 근로계약 확인');
  await work.getByRole('button',{name:'근무시간 저장',exact:true}).click();await work.getByText('퇴근 시각은 출근 시각보다 늦어야 합니다.',{exact:false}).waitFor();
  assert.equal((await page.evaluate(()=>window.calls)).some(c=>c.name==='save_employee_work_terms'),false,'invalid reverse times never sent');
  await work.getByLabel('출근 시각 시',{exact:true}).selectOption('09');await work.getByLabel('퇴근 시각 시',{exact:true}).selectOption('12');
@@ -152,7 +157,7 @@ for(const width of [320,390,786,1440]){
  assert.equal(await page.getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0,'registered zero balance is not unconfigured');
  assert.equal(await page.getByText('잔여 연차 조정',{exact:true}).count(),0,'lead cannot adjust registered balance');
  await page.evaluate(()=>{const h=document.createElement('div');h.id='lead-work-qa';document.querySelector('#dashboard-main').append(h);h.append(window.TaejangEmployeeLeave.employeePanel({id:'second'}));});
- await page.locator('#lead-work-qa').getByRole('button',{name:'근무시간 확인·변경',exact:true}).click();
+ await page.locator('#lead-work-qa .employee-section-work > summary').click();
  await page.locator('#lead-work-qa').getByRole('button',{name:'근무시간 저장',exact:true}).waitFor();
  assert.equal(await page.locator('#lead-work-qa').getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0);
  await page.evaluate(()=>{window.fixtureLeaveContext.can_review=false;return window.TaejangEmployeeLeave.open();});

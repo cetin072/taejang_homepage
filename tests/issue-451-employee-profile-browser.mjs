@@ -84,6 +84,7 @@ try {
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
 
     await open(); await fits();
+    assert.equal(await page.locator('[data-employee-profile] > details[open]').count(),0);
     const disability=page.locator('.employee-section-basic + .employee-disability-section');
     await disability.waitFor();
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_employee_disability_info')),false);
@@ -103,7 +104,10 @@ try {
     await disability.getByText('등록된 장애정보입니다.',{exact:true}).waitFor();
     assert.equal(await disability.getByLabel('장애 유형',{exact:true}).inputValue(),'뇌병변');
     await fits();
+    await disability.screenshot({path:path.join(output,device+'-disability.png')});
     await disability.getByText('장애정보 보기',{exact:true}).click();
+    const auditFold=page.locator('.employee-section-audit > summary');
+    await auditFold.click();
     const auditCheck=page.getByRole('checkbox',{name:'인적사항 대조 완료',exact:true});
     await auditCheck.focus();
     const wasChecked=await auditCheck.isChecked();
@@ -117,6 +121,8 @@ try {
     await page.keyboard.press('Tab');
     assert.equal(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>n===document.activeElement),true,'predictable audit keyboard order');
     assert.ok(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>parseFloat(getComputedStyle(n).outlineWidth)>=2),'visible keyboard focus');
+    await auditFold.click();
+    assert.equal(await auditCheck.isVisible(),false,'field audit can close after opening');
 
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
@@ -180,6 +186,7 @@ try {
     assert.match(await page.locator('.employee-profile-head').innerText(),/등록됨/);
     await fits();
     await page.locator('[data-ops-employee-tools]').waitFor({state:'attached'});
+    await page.locator('.employee-section-record > summary').click();
     await page.getByText('기존 변경 이력·직원 관리 도구',{exact:true}).click();
     assert.equal(await page.getByRole('button',{name:'변경 이력',exact:true}).count(),1);
     assert.equal(await page.getByRole('button',{name:'직원 삭제',exact:true}).count(),1);
@@ -205,7 +212,10 @@ try {
       await page.evaluate(async role=>{fixtureRoute=role;personalAllowed=true;await TaejangMenuAuthority.refresh();await TaejangEmployeeManagement.openEmployeeManagement();},delegatedRole);
       await open();
       assert.equal(await page.locator('.employee-disability-section').count(),0,'delegated employee management does not reveal disability section');
+      await page.locator('.employee-section-account > summary').click();
       assert.match(await page.locator('.employee-section-account').innerText(),/synthetic@example.test/);
+      await page.locator('.employee-section-account > summary').click();
+      assert.equal(await page.getByText('synthetic@example.test',{exact:true}).isVisible(),false);
       assert.equal(await page.getByRole('button',{name:'수정',exact:true}).count(),1);
       await page.getByRole('button',{name:'수정',exact:true}).click();
       await page.getByLabel('이름',{exact:true}).fill('합성 위임 수정 '+delegatedRole);
@@ -288,18 +298,25 @@ try {
     await leadDisability.getByText('장애정보 보기',{exact:true}).click();
     await page.getByText('주민등록번호 등록·조회',{exact:true}).waitFor();
     await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    const residentFold=page.locator('[data-employee-section="resident"] > summary');
+    await residentFold.click();
     assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden by default');
     const confirmDialog=dialog=>dialog.accept();
     page.on('dialog',confirmDialog);
     await page.getByRole('button',{name:'주민번호 조회',exact:true}).click();
     await page.locator('.employee-resident-reveal').waitFor();
     assert.match(await page.locator('.employee-resident-reveal').innerText(),/^[0-9]{6}-[0-9]{7}$/);
-    await page.getByRole('button',{name:'번호 숨기기',exact:true}).click();
-    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'RRN hidden again');
+    await residentFold.click();
+    await page.locator('.employee-resident-reveal').waitFor({state:'detached'});
+    await residentFold.click();
+    assert.equal(await page.locator('.employee-resident-reveal').count(),0,'closing the section clears the revealed number');
+    await residentFold.click();
+    await page.locator('.employee-section-audit > summary').click();
     const checkForm=page.locator('.employee-app-audit-form');
     await checkForm.getByLabel('앱 설치 상태',{exact:true}).selectOption('not_installed');
     await checkForm.getByRole('button',{name:'현장 확인 저장',exact:true}).click();
-    await page.getByText('앱 설치 및 현장 확인',{exact:true}).waitFor();
+    await page.waitForFunction(()=>document.querySelector('details.employee-section-audit[open] select')?.value==='not_installed'
+      && calls.some(call=>call.name==='update_employee_field_audit'));
     assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_field_audit'
         &&call.args.p_app_install_status==='not_installed')),true);
     await page.getByRole('button',{name:'수정',exact:true}).click();
