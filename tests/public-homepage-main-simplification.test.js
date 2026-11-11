@@ -161,7 +161,8 @@ assert.match(index, /class="about-principle-strip"[\s\S]*사람에게 맞는 직
 assert.match(index, /<a class="btn hero-primary" href="about\.html"/, 'Hero의 회사 소개 CTA는 상세 소개 페이지로 연결합니다');
 assert.match(index, /<a class="btn hero-secondary" href="partnership\.html"/, 'Hero의 협력 CTA는 협력 상세 페이지로 연결합니다');
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
-assert.match(index, /BUSINESS IN DEVELOPMENT[\s\S]*개발 중인 사업[\s\S]*제품 개발 진행 중[\s\S]*테라리움 제조사업[\s\S]*표준 DIY 키트를 개발/);
+assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*<span class="business-status">준비 중<\/span>[\s\S]*테라리움 제조·주문제작/);
+assert.doesNotMatch(index, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(business, /class="business-workflow"[\s\S]*협력은 이렇게 함께 정리합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*방식 설계[\s\S]*운영 확인/);
 assert.match(business, /기업·기관이 함께 만들 수 있는 현재 사업과 협력 가능 업무를 소개합니다\./);
@@ -183,7 +184,8 @@ assert.doesNotMatch(partnership, /무조건 절감|막대한 절감|즉시 효�
 assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 정적 하는 일 링크는 business.html로 통일합니다');
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
 assert.match(partnership, /id="partnership-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '협력 문의 폼은 필수 입력 안내를 제공합니다');
-assert.match(index, /href="activities\/terrarium-business-start-2026-08\.html">테라리움 사업 이야기/);
+assert.doesNotMatch(index, /href="terrarium-custom\.html"/);
+assert.match(index, /주문제작 안내 준비 중/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
@@ -240,7 +242,7 @@ assert.match(about, /인증 제2026-049호 · 2026년 7월 9일/);
 assert.equal((about.match(/class="glance-grid"[\s\S]*?<\/div>\s*<\/div>/g) || []).length, 1);
 assert.doesNotMatch(about, /사업 확장/);
 assert.match(about, /공동출자기업 4개사[\s\S]*범한메카텍·삼현·청우비제이·현대비앤지스틸/);
-assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제조상품은 개발 중입니다\./);
+assert.match(about, /현재 사업과 준비 중인 상품[\s\S]*주문제작 상담을 준비하고 있습니다\./);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
 assert.match(about, /images\/homepage\/lee-younghee-portrait-2026\.webp/);

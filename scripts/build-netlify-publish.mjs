@@ -34,6 +34,7 @@ const PUBLIC_ROOT_FILES = Object.freeze([
   'promotion.html',
   'resources.html',
   'new-zealand-salt.html',
+  'terrarium-custom.html',
   'robots.txt',
   'sitemap.xml',
   'sw.js',

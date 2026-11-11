@@ -672,6 +672,11 @@ button{cursor:pointer}
 .business-development-card .business-status{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #bfd0c4;color:var(--green);font:800 11px/1.25 var(--gothic);letter-spacing:.04em}
 .business-development-card h4{margin-top:11px}
 .business-development-card .text-link{display:inline-flex;margin-top:12px}
+.business-terrarium-feature{margin-top:24px;grid-template-columns:minmax(220px,.62fr) minmax(0,1fr)}
+.business-terrarium-feature h4{margin:11px 0 6px;color:var(--green-deep);font:700 22px/1.4 var(--myeongjo)}
+.business-terrarium-feature p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.75}
+.business-terrarium-feature .business-pending-note{display:inline-block;margin-top:12px;color:var(--green-deep);font-size:13px;font-weight:700;cursor:default}
+@media(max-width:760px){.business-terrarium-feature{grid-template-columns:1fr}}
 .workplace-layout{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:68px;align-items:center}
 .workplace-link{margin-top:28px}
 .workplace-gallery{display:grid;grid-template-columns:1.45fr 1fr;gap:12px}
