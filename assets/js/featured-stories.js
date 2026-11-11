@@ -3,7 +3,7 @@
 (function (root) {
   'use strict';
   const editorial = Object.freeze([
-    { id: 'e584c9eb-21bb-4777-8752-f0d36d79cd8d', mirror: 'naver-blog-224472724117' }
+    { id: 'e584c9eb-21bb-4777-8752-f0d36d79cd8d', mirror: 'https://blog.naver.com/taejang-official/224472724117' }
   ]);
 
   function isPinned(item) {
@@ -29,7 +29,7 @@
       .map(entry => entry.mirror)
       .filter(Boolean));
     return chosen.concat(items.filter(item => item && item.status === 'published'
-      && !chosenIds.has(item.id) && !mirrors.has(item.id)).slice(0, limit - chosen.length));
+      && !chosenIds.has(item.id) && !mirrors.has(item.externalUrl)).slice(0, limit - chosen.length));
   }
 
   root.TAEJANG_FEATURED_STORIES = Object.freeze({ isPinned, selectPinned, selectHome });
