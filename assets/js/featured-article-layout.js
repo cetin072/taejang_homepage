@@ -16,7 +16,9 @@
   function escape(value) {
     return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-  function render(item) {
+  // One presentation tree drives both server HTML and safe browser DOM creation.
+  function node(tag, attrs = {}, children = []) { return { tag, attrs, children }; }
+  function layout(item) {
     if (item?.content_id !== articleId || item.content_type !== 'homepage_article') return null;
     const media = item.public_media || [];
     const photos = imageIds.map(id => media.find(entry => entry.alt === id && root.TAEJANG_PUBLIC_MEDIA.persistent(entry.url)));
@@ -27,19 +29,24 @@
     if (tocIndex < 0 || !lines[tocIndex + 4]?.startsWith('4 ')) return null;
     const headings = lines.slice(tocIndex + 1, tocIndex + 5).map(text => text.replace(/^[1-4]\s+/, ''));
     let section = 0, photoCount = 0, output = [], paragraph = [];
-    const flush = () => { if (paragraph.length) { output.push('<p>' + paragraph.map(escape).join(' ') + '</p>'); paragraph = []; } };
+    const flush = () => { if (paragraph.length) { output.push(node('p', {}, [paragraph.join(' ')])); paragraph = []; } };
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (!line) { flush(); continue; }
       if (i === tocIndex) {
         flush();
-        output.push('<nav class="feature-article-toc" aria-label="글의 순서"><strong>글의 순서</strong><ol>' + headings.map((title, n) => '<li><a href="#feature-section-' + (n + 1) + '">' + escape(title) + '</a></li>').join('') + '</ol></nav>');
+        output.push(node('nav', { class: 'feature-article-toc', 'aria-label': '글의 순서' }, [
+          node('strong', {}, ['글의 순서']),
+          node('ol', {}, headings.map((title, n) => node('li', {}, [
+            node('a', { href: '#feature-section-' + (n + 1) }, [title])
+          ])))
+        ]));
         i += 4; continue;
       }
       if (/^[1-4][. ]/.test(line)) {
         flush(); section++;
         if (Number(line[0]) !== section) return null;
-        output.push('<h2 id="feature-section-' + section + '">' + escape(line) + '</h2>');
+        output.push(node('h2', { id: 'feature-section-' + section }, [line]));
         continue;
       }
       if (/^사진[1-6]$/.test(line)) {
@@ -47,25 +54,51 @@
         if (n !== photoCount || !lines[i + 1]) return null;
         photoCount++;
         const caption = lines[++i];
-        output.push('<figure class="feature-article-photo"><img src="' + escape(photos[n].url) + '" width="' + imageSizes[n][0] + '" height="' + imageSizes[n][1] + '" alt="' + escape(caption) + '" loading="lazy" decoding="async"><figcaption>' + escape(caption) + '</figcaption></figure>');
+        output.push(node('figure', { class: 'feature-article-photo' }, [
+          node('img', { src: photos[n].url, width: imageSizes[n][0], height: imageSizes[n][1],
+            alt: caption, loading: 'lazy', decoding: 'async' }),
+          node('figcaption', {}, [caption])
+        ]));
         continue;
       }
       if (line.startsWith('Q. ')) {
-        flush(); output.push('<h3 class="feature-article-question">' + escape(line) + '</h3>'); continue;
+        flush(); output.push(node('h3', { class: 'feature-article-question' }, [line])); continue;
       }
       if (line.startsWith('"') || line.startsWith('“') || line === '직원들이 편안하게 일하고,') {
         flush(); const quote = [line];
         while (lines[i + 1]) quote.push(lines[++i]);
-        output.push('<blockquote><p>' + quote.map(escape).join(' ') + '</p></blockquote>'); continue;
+        output.push(node('blockquote', {}, [node('p', {}, [quote.join(' ')])])); continue;
       }
       if (line === '연재 기획기사 1편') {
-        flush(); output.push('<p class="eyebrow feature-article-label">' + escape(line) + '</p>'); continue;
+        flush(); output.push(node('p', { class: 'eyebrow feature-article-label' }, [line])); continue;
       }
       paragraph.push(line);
     }
     flush();
     if (section !== 4 || photoCount !== 6) return null;
-    return '<div class="feature-article-layout">' + output.join('\n') + '</div>';
+    return node('div', { class: 'feature-article-layout' }, output);
   }
-  root.TAEJANG_FEATURED_ARTICLE = Object.freeze({ render });
+  function serialize(spec) {
+    const attrs = Object.entries(spec.attrs).map(([key, value]) => ' ' + key + '="' + escape(value) + '"').join('');
+    const opening = '<' + spec.tag + attrs + '>';
+    if (spec.tag === 'img') return opening;
+    return opening + spec.children.map(child => typeof child === 'string' ? escape(child) : serialize(child)).join('') + '</' + spec.tag + '>';
+  }
+  function createDOM(spec, document) {
+    const element = document.createElement(spec.tag);
+    Object.entries(spec.attrs).forEach(([key, value]) => element.setAttribute(key, String(value)));
+    // Current content nodes contain either text or child elements, never parsed HTML.
+    if (spec.children.every(child => typeof child === 'string')) element.textContent = spec.children.join('');
+    else spec.children.forEach(child => element.append(createDOM(child, document)));
+    return element;
+  }
+  function render(item) {
+    const spec = layout(item);
+    return spec ? serialize(spec) : null;
+  }
+  function renderDOM(item, document) {
+    const spec = layout(item);
+    return spec ? createDOM(spec, document) : null;
+  }
+  root.TAEJANG_FEATURED_ARTICLE = Object.freeze({ render, renderDOM });
 }(typeof window !== 'undefined' ? window : globalThis));

@@ -139,7 +139,7 @@
     const presentation = item.public_image;
     const candidates = presentation?.candidates || mediaPolicy.candidates(item);
     const heroUrl = presentation?.url || candidates[0];
-    const editorial = globalThis.TAEJANG_FEATURED_ARTICLE?.render(item);
+    const editorial = globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
     if (!editorial) article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
@@ -147,7 +147,7 @@
       .split(/\n\s*\n/)
       .map(value => value.trim())
       .filter(Boolean);
-    if (editorial) body.innerHTML = editorial; // Escaped by the shared presentation renderer.
+    if (editorial) body.append(editorial);
     else if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
     else body.append(el('p', item.summary || '공개된 본문이 없습니다.'));
     article.append(body);

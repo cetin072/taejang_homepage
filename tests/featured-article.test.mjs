@@ -40,3 +40,48 @@ test('escaping is shared by server and browser and media order does not affect m
   const escaped=render({...item,public_body:item.public_body+'\n\n<script>alert("x")</script>'});
   assert.match(escaped,/&lt;script&gt;/); assert.doesNotMatch(escaped,/<script>/);
 });
+
+function textOnlyDocument() {
+  const escape = value => String(value).replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+  return { createElement(tag) {
+    const attrs = {}, children = [];
+    let text = '';
+    return {
+      tag, attrs, children,
+      setAttribute(key, value) { attrs[key] = value; },
+      append(child) { children.push(child); },
+      set textContent(value) { text = String(value); },
+      get textContent() { return text + children.map(child => child.textContent).join(''); },
+      set innerHTML(_) { throw new Error('HTML injection is forbidden'); },
+      get outerHTML() {
+        const start = '<' + tag + Object.entries(attrs).map(([key, value]) => ` ${key}="${escape(value)}"`).join('') + '>';
+        return tag === 'img' ? start : start + escape(text) + children.map(child => child.outerHTML).join('') + '</' + tag + '>';
+      }
+    };
+  } };
+}
+
+test('browser DOM and SSR share the same content, attributes and image order', () => {
+  const document = textOnlyDocument();
+  const renderDOM = globalThis.TAEJANG_FEATURED_ARTICLE.renderDOM;
+  for (const record of [item, { ...item, public_media: [...item.public_media].reverse() }, {
+    ...item, public_body: item.public_body + '\n\n<script>alert("x")</script> & plain text'
+  }]) {
+    const dom = renderDOM(record, document);
+    assert.equal(dom.outerHTML, render(record));
+    assert.equal(dom.tag, 'div');
+    assert.equal(dom.attrs.class, 'feature-article-layout');
+  }
+  assert.equal(renderDOM({ ...item, content_id: 'another' }, document), null);
+  assert.equal(renderDOM({ ...item, public_media: [] }, document), null);
+});
+
+test('client article rendering appends DOM without HTML parsing APIs', () => {
+  const client = readFileSync(new URL('../assets/js/promotion-detail.js', import.meta.url), 'utf8');
+  const layout = readFileSync(new URL('../assets/js/featured-article-layout.js', import.meta.url), 'utf8');
+  assert.match(client, /TAEJANG_FEATURED_ARTICLE\?\.renderDOM\(item, document\)/);
+  assert.match(client, /if \(editorial\) body\.append\(editorial\)/);
+  assert.doesNotMatch(client + layout, /innerHTML|outerHTML|DOMParser|insertAdjacentHTML/);
+});
