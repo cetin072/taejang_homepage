@@ -12,6 +12,7 @@
     'SE-634544f1-4f9c-4fff-9cd0-991afc54ef6d',
     'SE-388b548c-54cd-4fd6-bca5-681ee6d772ca'
   ];
+  const imageSizes = [[1600, 1045], [910, 1055], [971, 1600], [1600, 875], [1262, 1080], [1448, 1086]];
   function escape(value) {
     return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -46,7 +47,7 @@
         if (n !== photoCount || !lines[i + 1]) return null;
         photoCount++;
         const caption = lines[++i];
-        output.push('<figure class="feature-article-photo"><img src="' + escape(photos[n].url) + '" alt="' + escape(caption) + '" loading="lazy" decoding="async"><figcaption>' + escape(caption) + '</figcaption></figure>');
+        output.push('<figure class="feature-article-photo"><img src="' + escape(photos[n].url) + '" width="' + imageSizes[n][0] + '" height="' + imageSizes[n][1] + '" alt="' + escape(caption) + '" loading="lazy" decoding="async"><figcaption>' + escape(caption) + '</figcaption></figure>');
         continue;
       }
       if (line.startsWith('Q. ')) {

@@ -19,6 +19,7 @@ test('article has linked ordered contents, four sections, three questions and si
   assert.equal((html.match(/<h2 /g)||[]).length,4);
   assert.equal((html.match(/<h3 /g)||[]).length,3);
   assert.equal((html.match(/<figure /g)||[]).length,6);
+  assert.equal((html.match(/width="\d+" height="\d+"/g)||[]).length,6, 'reserve verified image dimensions before lazy loading');
   for(let n=1;n<=4;n++) { assert.ok(html.includes(`href="#feature-section-${n}"`)); assert.ok(html.includes(`id="feature-section-${n}"`)); }
   const images = [...html.matchAll(/<img src="([^"]+)"/g)].map(m=>m[1]);
   assert.deepEqual(images,item.public_media.map(m=>m.url));
