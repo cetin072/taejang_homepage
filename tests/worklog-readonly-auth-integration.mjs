@@ -10,17 +10,31 @@ const container=execFileSync('docker',['ps','--filter','name=supabase_db_'+proje
 const sql=q=>execFileSync('docker',['exec','-i',container,'psql','-q','-U','postgres','-d','postgres','-tA','-v','ON_ERROR_STOP=1','-c',q],{encoding:'utf8'}).trim();
 const api=(path,token,options={})=>fetch(origin.origin+path,{...options,redirect:'error',headers:{apikey:key,authorization:'Bearer '+token,'content-type':'application/json',...(options.headers||{})}});
 async function signup(){const r=await api('/auth/v1/signup',key,{method:'POST',body:JSON.stringify({email:'worklog-pilot-'+randomUUID()+'@example.test',password:'Synthetic-Only-Worklog-24!Aa'})});assert.ok(r.ok);const x=await r.json();assert.ok(x.user?.id&&x.access_token);assert.match(x.user.id,/^[a-f0-9-]{36}$/);return {id:x.user.id,token:x.access_token};}
-const owner=await signup(),other=await signup(),space=randomUUID(),record=randomUUID(),schedule=randomUUID();
+const owner=await signup(),other=await signup(),space=randomUUID(),record=randomUUID(),schedule=randomUUID(),scheduleSource=randomUUID(),legacyTask=randomUUID(),eventSchedule=randomUUID();
 sql(`update public.profiles set account_status='active' where id in ('${owner.id}','${other.id}');
 insert into public.profile_roles(profile_id,role_id,scope_type,granted_by) select '${other.id}',id,'company','${other.id}' from public.roles where code='operations_manager';
 insert into worklog.workspaces(id,name,kind,owner_user_id,created_by_user_id) values('${space}','Synthetic imported owner','personal','${owner.id}','${owner.id}');
 insert into worklog.workspace_members(workspace_id,user_id,role) values('${space}','${owner.id}','owner');
 insert into worklog.work_records(id,workspace_id,created_by_user_id,title,status,action_kind,journal_date) values('${record}','${space}','${owner.id}','Synthetic unfinished','needs_review','task','2026-11-02');
-insert into worklog.schedules(id,workspace_id,created_by_user_id,title,starts_at,status) values('${schedule}','${space}','${owner.id}','Synthetic mobile schedule','2026-11-02T01:00:00Z','confirmed');`);
+insert into worklog.schedules(id,workspace_id,created_by_user_id,title,starts_at,status) values('${schedule}','${space}','${owner.id}','Synthetic mobile schedule','2026-11-02T01:00:00Z','confirmed');
+-- A canonical Schedule has an associated WorkRecord with action_kind NULL.
+insert into worklog.work_records(id,workspace_id,created_by_user_id,title,status,action_kind,journal_date,metadata)
+values('${scheduleSource}','${space}','${owner.id}','Synthetic appointment source','in_progress',null,'2026-11-02','{"actionEngine":{"kind":"schedule"}}'::jsonb);
+insert into worklog.schedules(id,workspace_id,created_by_user_id,title,starts_at,status,metadata)
+values('${eventSchedule}','${space}','${owner.id}','Synthetic appointment','2026-11-02T01:45:00Z','confirmed',jsonb_build_object('workRecordId','${scheduleSource}'));
+-- Legacy unsorted WorkRecords must stay visible instead of being dropped by JSON NULL.
+insert into worklog.work_records(id,workspace_id,created_by_user_id,title,status,action_kind,journal_date,metadata)
+values('${legacyTask}','${space}','${owner.id}','Synthetic legacy task','waiting',null,'2026-11-02','{}'::jsonb);`);
 const transport=(url,options)=>{const u=new URL(url);assert.equal(u.origin,'https://fixture.supabase.co');return fetch(origin.origin+u.pathname+u.search,{...options,redirect:'error'});};
 const handler=createHandler({env:{SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_PUBLISHABLE_KEY:key,WORKLOG_UNIFIED_READ_ENABLED:'true'},fetchImpl:transport,now:()=>new Date('2026-11-02T02:00:00Z')});
 const read=(u,extra='')=>handler(new Request('https://fixture.test/api/personal-worklog?month=2026-11'+extra,{headers:{authorization:'Bearer '+u.token}}));
-let r=await read(owner);assert.equal(r.status,200);const body=await r.json();assert.equal(body.schedules[0].id,schedule);assert.equal(body.todaySchedules[0].id,schedule);assert.equal(body.tasks[0].id,record);
+let r=await read(owner);assert.equal(r.status,200);const body=await r.json();
+assert.equal(body.schedules[0].id,schedule);
+assert.equal(body.todaySchedules[0].id,schedule);
+assert.ok(body.tasks.some(x=>x.id===record),'original owner task remains visible regardless of timestamp tie order');
+assert.ok(body.schedules.some(x=>x.id===eventSchedule),'synthetic appointment is visible in Schedule');
+assert.ok(!body.tasks.some(x=>x.id===scheduleSource),'same appointment source is not another unfinished Task');
+assert.ok(body.tasks.some(x=>x.id===legacyTask),'legacy Task without actionEngine kind remains visible');
 r=await read(other);assert.equal(r.status,403,'operations_manager has no personal workspace access');
 const headers={'Accept-Profile':'worklog'};
 r=await api('/rest/v1/schedules?workspace_id=eq.'+space,other.token,{headers});assert.equal(r.status,200);assert.deepEqual(await r.json(),[]);

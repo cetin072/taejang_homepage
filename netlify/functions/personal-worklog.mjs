@@ -51,7 +51,11 @@ export function createHandler({ env = process.env, fetchImpl = fetch, now = () =
       });
       const [schedules, todaySchedules, tasks] = await Promise.all([
         schedulesFor(range.start, range.end), schedulesFor(`${today}T00:00:00+09:00`, tomorrow),
-        query('work_records', { select: 'id,title,status,due_at,next_attention_at', workspace_id: `eq.${workspaceId}`, created_by_user_id: `eq.${user.id}`, status: 'in.(in_progress,waiting,needs_review)', or: '(action_kind.is.null,action_kind.eq.task)', order: 'updated_at.desc,id.asc', limit: '501' })
+        query('work_records', { select: 'id,title,status,due_at,next_attention_at', workspace_id: `eq.${workspaceId}`, created_by_user_id: `eq.${user.id}`, status: 'in.(in_progress,waiting,needs_review)',
+          // Match Worklog's journal projection: a Schedule's source WorkRecord
+          // is not another unfinished task. Keep legacy rows with no kind.
+          and: '(or(action_kind.is.null,action_kind.eq.task),or(metadata->actionEngine->>kind.is.null,metadata->actionEngine->>kind.neq.schedule))',
+          order: 'updated_at.desc,id.asc', limit: '501' })
       ]);
       if (![schedules, todaySchedules, tasks].every(Array.isArray)) throw fail(502, 'WORKLOG_READ_FAILED');
       return json(200, { connected: true, month: params.get('month'), today, schedules: schedules.slice(0,500), todaySchedules: todaySchedules.slice(0,500), tasks: tasks.slice(0,500), limited: [schedules,todaySchedules,tasks].some(rows => rows.length > 500), fetchedAt: now().toISOString() });
