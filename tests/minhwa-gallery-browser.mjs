@@ -86,12 +86,20 @@ try {
         assert.ok(await page.locator('[data-mobile-nav]').isVisible(), 'Static mobile links survive no JS');
       }
     }
-    await page.locator('#mh-story a[href="why-minhwa.html"]').click();
+    // Netlify may rewrite authored .html hrefs to pretty paths. Check the exact
+    // destination and use the accessible link instead of a raw-href selector.
+    const storyLink = page.locator('#mh-story').getByRole('link', { name: '태장 민화의 시작 이야기', exact: true });
+    assert.match(new URL(await storyLink.getAttribute('href'), page.url()).pathname, /^\/why-minhwa(?:\.html)?$/);
+    await storyLink.focus(); await storyLink.press('Enter');
     await page.waitForURL(url => /\/why-minhwa(?:\.html)?$/.test(url.pathname));
+    assert.equal((await page.request.get(page.url())).status(), 200);
     await page.goBack();
     assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
-    await page.locator('#mh-contact a[href="partnership.html"]').click();
+    const contactLink = page.locator('#mh-contact').getByRole('link', { name: '태장에 문의하기', exact: true });
+    assert.match(new URL(await contactLink.getAttribute('href'), page.url()).pathname, /^\/partnership(?:\.html)?$/);
+    await contactLink.focus(); await contactLink.press('Enter');
     await page.waitForURL(url => /\/partnership(?:\.html)?$/.test(url.pathname));
+    assert.equal((await page.request.get(page.url())).status(), 200);
     await page.goBack();
     assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
 
