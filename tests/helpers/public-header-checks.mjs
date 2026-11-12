@@ -157,7 +157,12 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.goto(base+'/resources.html');
     await page.waitForFunction(()=>[...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
     assert.equal(await page.locator('h1').innerText(),'서비스·상품');
-    assert.equal(await page.locator('.resource-card').count(),4);
+    assert.equal(await page.locator('.resource-card').count(),5);
+    const minhwaCard = page.locator('.resource-card--link[aria-labelledby="resource-minhwa-title"]');
+    assert.equal(await minhwaCard.count(),1,'the fifth card introduces the Minhwa hub');
+    assert.equal(await minhwaCard.locator('.resource-status').innerText(),'준비 중');
+    assert.equal(await minhwaCard.locator('h3').innerText(),'태장 민화');
+    assert.equal(canonicalHref(await minhwaCard.getAttribute('href')),'minhwa-gallery.html');
     assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
     assert.equal(await page.locator('.resource-card--pending').count(),1);
     assert.equal(await page.locator('#resource-salt-title').innerText(),'뉴질랜드 천일염');
@@ -196,7 +201,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.goBack();
     await page.goBack();
     await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
-    assert.equal(await page.locator('.resource-card').count(),4,'Back preserves hub cards');
+    assert.equal(await page.locator('.resource-card').count(),5,'Back preserves hub cards');
     await context.close();
   }
   // Network failure boundaries: later enhancements cannot disable the menu;
