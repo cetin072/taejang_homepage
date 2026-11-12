@@ -13,6 +13,7 @@ const publicPages = [
   'about.html',
   'greeting.html',
   'why-minhwa.html',
+  'minhwa-gallery.html',
   'workplace.html',
   'activities.html',
   'community-esg.html',
@@ -26,7 +27,7 @@ const publicPages = [
 
 const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'staff/'];
 const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'location.html'];
-const compactFooterPages = new Set(['resources.html']);
+const compactFooterPages = new Set(['resources.html', 'minhwa-gallery.html']);
 
 function assertHrefOrder(fragment, hrefs, message) {
   let previous = -1;
@@ -216,7 +217,12 @@ console.log('public-navigation-consolidation tests: all cases passed');
 
 const services = read('resources.html');
 assert.match(services, /<h3 id="resource-staff-title">태장 출근앱<\/h3>/);
-assert.equal((services.match(/class="resource-card /g) || []).length, 4);
+assert.equal((services.match(/class="resource-card /g) || []).length, 5);
+const minhwa = services.match(/<a class="resource-card resource-card--link" href="minhwa-gallery.html"[\s\S]*?<\/a>/)?.[0] || '';
+assert.match(minhwa, /태장 민화 갤러리/);
+assert.match(minhwa, /갤러리 소개/);
+assert.ok(fs.existsSync(path.join(root, 'minhwa-gallery.html')), 'minhwa card links to its published hub');
+assert.match(read('minhwa-gallery.html'), /민화 프로그램|민화 활동|작가|온라인 갤러리/, 'the gallery has its essential authored content');
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(salt, /뉴질랜드 천일염/);
 assert.match(salt, /판매 중/);
