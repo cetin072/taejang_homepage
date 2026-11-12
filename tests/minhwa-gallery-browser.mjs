@@ -26,12 +26,22 @@ try {
   browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' }) });
   for (const [width, javaScriptEnabled] of [[1440,true],[1001,true],[768,true],[390,true],[320,true],[1440,false],[390,false]]) {
     const context = await newPhotoSafeContext(browser, { viewport: { width, height: 960 }, javaScriptEnabled, reducedMotion: 'reduce' });
+    // Explicit fallback scenario, not a claim that blocked Google Fonts loaded.
+    // Normal JS-on viewports below continue to fetch and render the real fonts.
+    if (!javaScriptEnabled) await context.route(/^https:\/\/fonts\.(googleapis|gstatic)\.com\//, route => route.abort('blockedbyclient'));
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
-    const response = await page.goto(base + '/minhwa-gallery.html', { waitUntil: 'domcontentloaded', timeout: 90000 });
+    const response = await page.goto(base + '/minhwa-gallery.html', { waitUntil: 'load', timeout: 90000 });
     assert.equal(response.status(), 200);
-    await page.waitForFunction(() => [...document.querySelectorAll('link[rel="stylesheet"]')].every(link => link.sheet));
+    try {
+      await page.waitForFunction(allowFontFallback => [...document.querySelectorAll('link[rel="stylesheet"]')]
+        .filter(link => !allowFontFallback || new URL(link.href).origin === location.origin)
+        .every(link => link.sheet), !javaScriptEnabled, { polling: 100, timeout: 30000 });
+    } catch (error) {
+      await fs.writeFile(path.join(output, `css-failure-${width}-${javaScriptEnabled}.json`), JSON.stringify(await page.locator('link[rel="stylesheet"]').evaluateAll(links => links.map(link => ({ href: link.href, loaded: !!link.sheet }))), null, 2));
+      throw error;
+    }
     await page.evaluate(() => document.fonts.ready);
     for (const image of await page.locator('main img').all()) {
       await image.scrollIntoViewIfNeeded();
@@ -76,14 +86,14 @@ try {
         assert.ok(await page.locator('[data-mobile-nav]').isVisible(), 'Static mobile links survive no JS');
       }
     }
-    await page.goto(base + '/resources.html', { waitUntil: 'domcontentloaded' });
+    await page.goto(base + '/resources.html', { waitUntil: 'load' });
     const card = page.locator('[aria-labelledby="resource-minhwa-title"]');
     assert.equal(await card.locator('.resource-status').innerText(), '준비 중');
     await card.focus(); await card.press('Enter');
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
     assert.equal((await page.request.get(page.url())).status(), 200);
     assert.deepEqual(errors, [], 'Uncaught page errors');
-    results.push({ width, javaScriptEnabled, overflow: false, clipped: false, images: metrics.images.length, navigation: 'pass', formsSubmitted: false });
+    results.push({ width, javaScriptEnabled, externalFontFallback: !javaScriptEnabled, overflow: false, clipped: false, images: metrics.images.length, navigation: 'pass', formsSubmitted: false });
     await context.close();
   }
   await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ base, results, writes: false }, null, 2));
