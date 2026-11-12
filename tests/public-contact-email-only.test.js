@@ -5,27 +5,26 @@ const assert = require('node:assert/strict');
 const { readFileSync, readdirSync } = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { assertNoPublicTelephone } = require('./helpers/public-phone-check.cjs');
 
 const root = path.resolve(__dirname, '..');
 const read = name => readFileSync(path.join(root, name), 'utf8');
 
-// Do not publish a telephone contact link or phone number in a public page.
-// This deliberately does not remove disclosure about employee phone data processed by the app.
-const publicTelephone = /tel:|["']telephone["']\s*:|(?<!\d)0(?:1[016789]|2|[3-6]\d|70)[\s.-]?\d{3,4}[\s.-]?\d{4}(?!\d)/i;
-for (const value of ['010-1234-5678', '0551234567', 'tel:01012345678', '"telephone":"hidden"']) assert.match(value, publicTelephone);
-assert.doesNotMatch('https://www.yna.co.kr/view/AKR20260812048100052', publicTelephone, 'an article identifier is not a telephone contact');
+// Employee phone data disclosures are permitted. Public contact information is email-only.
+const catalog = 'https://www.museum.go.kr/MUSEUM/contents/M0502000000.do?relicId=2469';
+for (const value of ['010-1234-5678', '0551234567', 'tel:01012345678', '"telephone":"hidden"']) {
+  assert.throws(() => assertNoPublicTelephone(value));
+}
+assertNoPublicTelephone('<a href="' + catalog + '">국립중앙박물관</a>');
+assert.throws(() => assertNoPublicTelephone('<a href="' + catalog + '">055-123-4567</a>'));
+assertNoPublicTelephone('https://www.yna.co.kr/view/AKR20260812048100052', 'an article identifier is not a telephone contact');
 const pages = readdirSync(root).filter(name => name.endsWith('.html'));
 
 test('all root public HTML pages are free of published phone numbers and telephone actions', () => {
   assert.ok(pages.length >= 20, 'every public root HTML file should be checked');
   for (const name of pages) {
     const html = read(name);
-    // The museum's fixed catalog route contains a digit sequence that resembles a phone number.
-    const checkedHtml = html.replace(
-      /(<a\b[^>]*\bhref="https:\/\/www\.museum\.go\.kr\/MUSEUM\/contents\/)M0502000000(?=\.do\?)/g,
-      '$1catalog'
-    );
-    assert.doesNotMatch(checkedHtml, publicTelephone, name + ': no published phone number, tel: link or telephone schema');
+    assertNoPublicTelephone(html, name + ': no published phone number, tel: link or telephone schema');
   }
 });
 
