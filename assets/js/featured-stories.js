@@ -56,7 +56,7 @@
       const ribbon = document.createElement('span');
       ribbon.className = 'featured-story-ribbon';
       ribbon.textContent = '기획·특집';
-      card.querySelector('.card-media')?.append(ribbon);
+      card.querySelector('.card-body')?.prepend(ribbon);
       return card;
     });
     slot.replaceChildren(...cards);

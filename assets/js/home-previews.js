@@ -27,16 +27,11 @@
     }
 
     const media = contentHub.createMedia(item, 'card-media recent-activity-media');
-    if (highlighted) {
-      const ribbon = document.createElement('span');
-      ribbon.className = 'featured-story-ribbon';
-      ribbon.textContent = '기획·특집';
-      media.append(ribbon);
-    }
     link.append(media);
 
     const body = document.createElement('div');
     body.className = 'card-body recent-activity-body';
+    if (highlighted) appendText(body, 'span', '기획·특집', 'featured-story-ribbon');
     const meta = document.createElement('div');
     meta.className = 'content-card-meta';
     appendText(meta, 'span', contentHub.sourceLabel(item), `source-badge source-badge--${item.source || 'homepage'}`);

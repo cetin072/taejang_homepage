@@ -20,7 +20,7 @@
 .employee-badge { display:inline-block; padding:3px 7px; border-radius:5px; background:#eef3ef; color:#315443; font-size:.8rem; line-height:1.5; }
 .employee-badge-warning { background:#fff4df; color:#6a4d13; }
 .employee-badges { display:flex; flex-wrap:wrap; gap:6px; }
-.employee-profile { display:grid; gap:16px; }
+.employee-profile { display:grid; gap:12px; }
 .employee-profile > .button { justify-self:start; width:auto; }
 .employee-basic-title { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:16px; }
 .employee-basic-title h3 { margin:0; }
@@ -45,6 +45,8 @@
 .employee-section-photos { --employee-section-accent:var(--authoring-media-accent); --employee-section-stroke:var(--authoring-media-stroke); --employee-section-bg:var(--authoring-media-surface); }
 .employee-section-audit { --employee-section-accent:#624a97; --employee-section-stroke:#d8ccef; --employee-section-bg:#f7f3ff; }
 .employee-section-record { --employee-section-accent:#4e6372; --employee-section-stroke:#d5e0e6; --employee-section-bg:#f5f8fa; }
+.employee-disability-section { --employee-section-accent:#455a71; --employee-section-stroke:#d7e0e9; --employee-section-bg:#f5f8fb; }
+.employee-section-work { --employee-section-accent:#557049; --employee-section-stroke:#d7e2d2; --employee-section-bg:#f6faf4; }
 .employee-profile-section.employee-sensitive-section { --employee-section-accent:#88512a; --employee-section-stroke:#e9d2b7; --employee-section-bg:#fcf6ed; }
 .employee-profile-section > h3, .employee-basic-title {
   padding-bottom:11px;
@@ -60,10 +62,38 @@
 .employee-profile-section .employee-form { max-width:none; padding:0; border:0; border-radius:0; }
 .employee-profile-section summary { display:flex; align-items:center; padding:10px 0; cursor:pointer; }
 .employee-profile-section summary::before { content:"＋"; margin-right:8px; color:var(--app-brand); }
-.employee-profile-section details[open] > summary::before,
-.employee-disability-section[open] > summary::before { content:"−"; }
+.employee-profile-section details[open] > summary::before { content:"−"; }
 .employee-profile-section details + details { border-top:1px solid var(--app-border); }
 .employee-profile-section .employee-form { margin-top:16px; }
+.employee-profile details.employee-profile-fold { padding:0; }
+.employee-profile-fold > summary {
+  gap:10px;
+  padding:12px 16px;
+  font-weight:700;
+  color:var(--employee-section-accent);
+}
+.employee-profile-fold > summary::before { content:none; }
+.employee-profile-fold > summary::after {
+  content:"";
+  margin-inline-start:auto;
+  width:8px;
+  height:8px;
+  flex:none;
+  border:solid currentColor;
+  border-width:0 2px 2px 0;
+  transform:rotate(45deg);
+}
+.employee-profile-fold[open] > summary::after { transform:rotate(225deg); }
+.employee-profile-fold > summary small { color:var(--app-muted); font-size:.82rem; font-weight:500; }
+.employee-profile-fold-body { padding:0 16px 16px; }
+.employee-profile-fold-body > .employee-disability-form {
+  margin-top:0;
+  padding:12px;
+  border:1px solid var(--employee-section-stroke);
+  border-radius:var(--app-radius);
+}
+.employee-disability-form .quick-links { justify-content:space-between; align-items:center; }
+.employee-disability-form .quick-links .help { margin:0; }
 .employee-photo-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
 .employee-photo-grid > div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:8px 16px; align-content:start; }
 .employee-photo-grid h4 { grid-column:2; margin:0; }
@@ -79,6 +109,11 @@
 .employee-avatar-placeholder { display:grid; place-items:center; font-weight:900; color:var(--app-muted); }
 .employee-profile-head .employee-avatar { width:120px; height:120px; object-position:center 30%; }
 @media(max-width:760px){.employee-profile-head .employee-avatar{width:100px;height:100px}.employee-profile-head{gap:12px}}
+@media(max-width:560px){
+  .employee-profile-head { display:grid; grid-template-columns:auto minmax(0,1fr); }
+  .employee-profile-photo-actions { grid-column:1/-1; }
+  .employee-disability-form .quick-links > .button { width:100%; }
+}
 .employee-form { display:grid; gap:12px; max-width:900px; padding:18px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
 .employee-sensitive-bulk { display:grid; gap:12px; padding:16px; border:1px solid var(--app-border); border-radius:14px; background:#fbfcfb; }
 .employee-sensitive-bulk textarea { width:100%; min-height:150px; resize:vertical; padding:11px 12px; border:1px solid var(--app-border); border-radius:9px; font:inherit; line-height:1.5; }

@@ -139,19 +139,21 @@
     const presentation = item.public_image;
     const candidates = presentation?.candidates || mediaPolicy.candidates(item);
     const heroUrl = presentation?.url || candidates[0];
-    article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
+    const editorial = globalThis.TAEJANG_FEATURED_ARTICLE?.render(item);
+    if (!editorial) article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
     const paragraphs = String(item.public_body || '')
       .split(/\n\s*\n/)
       .map(value => value.trim())
       .filter(Boolean);
-    if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
+    if (editorial) body.innerHTML = editorial; // Escaped by the shared presentation renderer.
+    else if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
     else body.append(el('p', item.summary || '공개된 본문이 없습니다.'));
     article.append(body);
 
     const galleryItems = media.filter(entry => entry.url !== heroUrl);
-    if (galleryItems.length) {
+    if (!editorial && galleryItems.length) {
       const gallery = el('section', null, 'article-gallery');
       gallery.setAttribute('aria-label', '첨부 사진');
       galleryItems.forEach((entry, index) => {

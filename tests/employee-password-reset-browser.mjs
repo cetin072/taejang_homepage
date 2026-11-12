@@ -53,6 +53,7 @@ try{
    await page.goto('http://127.0.0.1:'+server.address().port);
    await page.evaluate(production=>{window.productionConfig=production;return TaejangEmployeeManagement.openEmployeeManagement();},production);
    await page.locator('[data-employee-id="fixture-2"]').click();
+   await page.locator('.employee-section-account > summary').click();
    await page.getByRole('button',{name:'비밀번호 초기화',exact:true}).click();
   };
   await load();

@@ -1,6 +1,7 @@
 import '../../assets/js/content.js';
 import '../../assets/js/public-promotion-content.js';
 import '../../assets/js/public-promotion-media.js';
+import '../../assets/js/featured-article-layout.js';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 // Search-readable responses for the EXISTING approved public promotion RPCs.
 // No service-role credentials, private tables, or independent publication states.
@@ -104,6 +105,7 @@ function articleHtml(item) {
   const picture = leadImage
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
       '" data-public-image-candidates="' + escapeHtml(JSON.stringify(image.candidates)) + '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
+  const editorial = globalThis.TAEJANG_FEATURED_ARTICLE.render(item);
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
     .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)
@@ -124,8 +126,8 @@ function articleHtml(item) {
     '<h1>' + escapeHtml(title) + '</h1>',
     presentation.lead ? '<p class="lead">' + escapeHtml(presentation.lead) + '</p>' : '',
     '</header>',
-    '<div class="article-body">' + picture + (body || '<p>' + escapeHtml(summary) + '</p>') + '</div>',
-    gallery ? '<section class="article-gallery" aria-label="첨부 사진">' + gallery + '</section>' : '',
+    '<div class="article-body">' + (editorial || picture + (body || '<p>' + escapeHtml(summary) + '</p>')) + '</div>',
+    !editorial && gallery ? '<section class="article-gallery" aria-label="첨부 사진">' + gallery + '</section>' : '',
     presentation.notice ? '<p class="article-source-note">' + escapeHtml(presentation.notice) + '</p>' : '',
     presentation.sourceLabel ? '<p>출처: ' + escapeHtml(presentation.sourceLabel) + '</p>' : '',
     presentation.related ? '<p><a class="text-link" href="' + escapeHtml(presentation.related.url) + '">공식 활동 기록: ' + escapeHtml(presentation.related.title) + ' →</a></p><p>활동일: ' + escapeHtml(presentation.related.date) + ' · ' + escapeHtml(presentation.related.summary) + '</p>' : '',

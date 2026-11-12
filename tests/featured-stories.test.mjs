@@ -34,3 +34,86 @@ test('hidden or missing editorial originals do not bypass publication approval',
     [news.id, mirror.id]);
   assert.deepEqual(Array.from(selectHome([news], 3), item => item.id), [news.id]);
 });
+
+// Minimal DOM fixture exercises actual card builders, including image failure/no-image cases.
+class Element {
+  constructor(tagName = 'div') {
+    this.tagName = tagName;
+    this.children = [];
+    this.dataset = {};
+    this.className = '';
+    this.classList = { add: name => { this.className += ' ' + name; } };
+  }
+  append(...children) { this.children.push(...children); }
+  prepend(...children) { this.children.unshift(...children); }
+  replaceChildren(...children) { this.children = children; }
+  setAttribute(name, value) { this[name] = value; }
+  querySelector(selector) {
+    const className = selector.slice(1);
+    for (const child of this.children) {
+      if (child.className.split(' ').includes(className)) return child;
+      const nested = child.querySelector(selector);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  closest() { return { hidden: false }; }
+}
+
+function emptyMedia() {
+  const media = new Element();
+  media.className = 'card-media';
+  return media;
+}
+
+test('home editorial label is in the body, not dependent on an image overlay', () => {
+  const container = new Element();
+  container.dataset.homePreviewCount = '3';
+  const window = {
+    TAEJANG_CONTENT: { hub: [valid] },
+    TAEJANG_FEATURED_STORIES: { isPinned, selectHome },
+    TAEJANG_CONTENT_HUB: {
+      orderedItems: () => [valid, news], createMedia: emptyMedia,
+      sourceLabel: () => '홈페이지', formatPublishedDate: () => '2026.11.11'
+    }
+  };
+  runInNewContext(readFileSync(new URL('../assets/js/home-previews.js', import.meta.url), 'utf8'), {
+    window, document: { createElement: tag => new Element(tag), querySelectorAll: () => [container] }
+  });
+  const [featuredCard, ordinaryCard] = container.children;
+  const body = featuredCard.querySelector('.card-body');
+  assert.equal(body.children[0].className, 'featured-story-ribbon');
+  assert.equal(body.children[0].textContent, '기획·특집');
+  assert.equal(featuredCard.querySelector('.card-media').children.length, 0);
+  assert.equal(ordinaryCard.querySelector('.featured-story-ribbon'), null);
+});
+
+test('archive editorial label precedes metadata even without an image', () => {
+  const slot = new Element();
+  const panel = { querySelector: () => slot, hidden: true };
+  const window = {
+    TAEJANG_ARCHIVE_FEED: { status: 'ready', items: [valid] },
+    TAEJANG_CONTENT_HUB: { createCard: () => {
+      const card = new Element('article');
+      const body = new Element();
+      body.className = 'card-body';
+      body.append(new Element('time'));
+      card.append(emptyMedia(), body);
+      return card;
+    } }
+  };
+  runInNewContext(source, { window, document: {
+    createElement: tag => new Element(tag), querySelector: () => panel, addEventListener: () => {}
+  } });
+  assert.equal(panel.hidden, false);
+  assert.equal(slot.children[0].querySelector('.card-body').children[0].textContent, '기획·특집');
+  assert.equal(slot.children[0].querySelector('.card-media').children.length, 0);
+});
+
+test('editorial badge and frame styling is available outside mobile media queries', () => {
+  const css = readFileSync(new URL('../assets/css/featured-stories.css', import.meta.url), 'utf8');
+  const base = css.slice(0, css.indexOf('@media'));
+  assert.match(base, /\.featured-story-card \.featured-story-ribbon\s*\{[^}]*position:\s*static;[^}]*display:\s*inline-flex;/);
+  assert.match(base, /\.featured-story-card \.card-media\s*\{[^}]*flex-shrink:\s*0;/);
+  assert.match(css, /@media \(max-width: 760px\)\s*\{\s*\.recent-activities-grid\[data-home-preview="hub"\]\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
