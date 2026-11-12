@@ -86,6 +86,22 @@ try {
         assert.ok(await page.locator('[data-mobile-nav]').isVisible(), 'Static mobile links survive no JS');
       }
     }
+    await page.locator('#mh-story a[href="why-minhwa.html"]').click();
+    await page.waitForURL(url => /\/why-minhwa(?:\.html)?$/.test(url.pathname));
+    await page.goBack();
+    assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
+    await page.locator('#mh-contact a[href="partnership.html"]').click();
+    await page.waitForURL(url => /\/partnership(?:\.html)?$/.test(url.pathname));
+    await page.goBack();
+    assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
+
+    await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+    await page.getByRole('link', { name: '태장 민화 보기', exact: true }).click();
+    await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
+    await page.goBack();
+    await page.getByRole('link', { name: '태장 민화 알아보기', exact: true }).click();
+    await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
+
     await page.goto(base + '/resources.html', { waitUntil: 'load' });
     const card = page.locator('[aria-labelledby="resource-minhwa-title"]');
     assert.equal(await card.locator('.resource-status').innerText(), '준비 중');

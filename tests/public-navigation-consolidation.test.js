@@ -241,7 +241,7 @@ for (const match of minhwaHub.matchAll(/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/g)) {
   assert.ok(fs.existsSync(path.join(root, match[1])), `minhwa image ${match[1]} exists`);
   assert.match(match[0], /\balt="[^"]+"/, 'minhwa images have meaningful alt text');
 }
-assert.match(minhwaHub, /콘셉트 일러스트/, 'concept visuals are not misrepresented as artist originals');
+assert.match(minhwaHub, /AI 콘셉트 이미지/, 'concept visuals are not misrepresented as artist originals');
 assert.doesNotMatch(minhwaHub, /<form\b|type="submit"|구매하기|결제하기|신청 완료/, 'hub does not invent an active checkout or enrollment');
 assert.match(read('scripts/build-netlify-publish.mjs'), /'minhwa-gallery\.html'/, 'hub stays in the publish allowlist');
 

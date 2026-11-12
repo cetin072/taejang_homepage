@@ -160,7 +160,7 @@ assert.match(index, /태장은 사람에게 맞는 직무를 만들고, 민화·
 assert.match(index, /class="about-principle-strip"[\s\S]*사람에게 맞는 직무[\s\S]*오래 이어지는 일[\s\S]*기업·지역사회와 협력/);
 assert.match(index, /<a class="btn hero-primary" href="about\.html"/, 'Hero의 회사 소개 CTA는 상세 소개 페이지로 연결합니다');
 assert.match(index, /<a class="btn hero-secondary" href="partnership\.html"/, 'Hero의 협력 CTA는 협력 상세 페이지로 연결합니다');
-assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*민화·문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
+assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*태장 민화[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*테라리움 제조사업[\s\S]*href="terrarium\.html"/);
 assert.doesNotMatch(index, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);

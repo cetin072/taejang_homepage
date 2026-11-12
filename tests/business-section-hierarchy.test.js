@@ -16,7 +16,7 @@ const business = index.match(/<section class="section beige" id="business"[\s\S]
 
 assert.match(business, /현재 운영하는 네 가지 사업과 활동을 소개합니다\./);
 assert.equal((business.match(/<article class="business-card">/g) || []).length, 4, '현재 운영은 동일한 카드 네 개로 구성합니다');
-assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\s\S]*?<h3>([^<]+)<\/h3>/g), match => match[1]), ['민화·문화 굿즈', '지역사회공헌·ESG 협력', '기업 업무 협력', '테라리움 제조사업']);
+assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\s\S]*?<h3>([^<]+)<\/h3>/g), match => match[1]), ['태장 민화', '지역사회공헌·ESG 협력', '기업 업무 협력', '테라리움 제조사업']);
 assert.equal((business.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 4, '현재 운영 카드의 상태를 운영 중으로 통일합니다');
 assert.doesNotMatch(business, /기업·기관 협력 가능/, '협력 가능 여부를 상태 배지로 사용하지 않습니다');
 assert.match(business, /assets\/images\/workplace\/packing-tape-work\.webp/, '기업 업무 협력 카드에 새 포장 테이프 작업 사진을 사용합니다');
