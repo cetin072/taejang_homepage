@@ -24,7 +24,7 @@ for (const concept of ['minhwa-gallery-hero', 'minhwa-goods-concept']) {
   }
 }
 assert.match(html, /미담 서정희/);
-assert.equal((html.match(/AI 콘셉트 이미지/g) || []).length, 3);
+assert.equal((html.match(/>콘셉트 이미지<\/figcaption>/g) || []).length, 3);
 assert.match(html, /상품 개발 중/);
 assert.match(html, /전시 준비 중/);
 assert.doesNotMatch(html, /자료 확보 후|공개 동의에 따라|확보 후 교체|치료 효과|ADHD|수상 경력|태장\(泰長\) 작가/);
