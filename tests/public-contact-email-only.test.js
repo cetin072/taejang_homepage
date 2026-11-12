@@ -20,7 +20,12 @@ test('all root public HTML pages are free of published phone numbers and telepho
   assert.ok(pages.length >= 20, 'every public root HTML file should be checked');
   for (const name of pages) {
     const html = read(name);
-    assert.doesNotMatch(html, publicTelephone, name + ': no published phone number, tel: link or telephone schema');
+    // The museum's fixed catalog route contains a digit sequence that resembles a phone number.
+    const checkedHtml = html.replace(
+      /(<a\b[^>]*\bhref="https:\/\/www\.museum\.go\.kr\/MUSEUM\/contents\/)M0502000000(?=\.do\?)/g,
+      '$1catalog'
+    );
+    assert.doesNotMatch(checkedHtml, publicTelephone, name + ': no published phone number, tel: link or telephone schema');
   }
 });
 
