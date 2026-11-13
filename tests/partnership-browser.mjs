@@ -98,7 +98,7 @@ try {
     await field(page, 'email').fill('qa@example.invalid');
     await field(page, 'message').fill('개발 검수용 합성 문의입니다. 실제 전송하지 않습니다.');
     await page.getByRole('button', { name: '문의창 닫기' }).click();
-    await page.getByRole('link', { name: '사업·농장 협력 문의', exact: true }).click();
+    await page.getByRole('link', { name: '상품·용역 협력 문의', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '기업 업무·건별 프로젝트');
     assert.equal(await field(page, 'name').inputValue(), '개발 검수용');
     await field(page, 'inquiry-type').selectOption({ label: '지역사회공헌·ESG 협력' });
