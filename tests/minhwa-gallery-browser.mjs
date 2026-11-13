@@ -95,13 +95,12 @@ try {
     assert.equal((await page.request.get(page.url())).status(), 200);
     await page.goBack();
     assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
-    const contactLink = page.locator('#mh-contact').getByRole('link', { name: '태장에 문의하기', exact: true });
-    assert.match(new URL(await contactLink.getAttribute('href'), page.url()).pathname, /^\/partnership(?:\.html)?$/);
+    const contactLink = page.getByRole('link', { name: '작가 협업 문의', exact: true });
     await contactLink.focus(); await contactLink.press('Enter');
-    await page.waitForURL(url => /\/partnership(?:\.html)?$/.test(url.pathname));
-    assert.equal((await page.request.get(page.url())).status(), 200);
-    await page.goBack();
-    assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
+    await page.waitForURL(url => url.hash === '#mh-contact' && /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
+    const form = page.locator('form[name="taejang-minhwa-inquiry"]');
+    assert.ok(await form.isVisible());
+    assert.equal(await form.evaluate(element => element.checkValidity()), false);
 
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
     await page.getByRole('link', { name: '태장 민화 보기', exact: true }).click();
