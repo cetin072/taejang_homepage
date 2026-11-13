@@ -245,7 +245,7 @@ assert.doesNotMatch(about, /사업 확장/);
 assert.match(about, /공동출자기업 4개사[\s\S]*범한메카텍·삼현·청우비제이·현대비앤지스틸/);
 assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제조상품은 개발 중입니다\./);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
-assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
+assert.match(about, /class="value-grid"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
 assert.match(about, /images\/homepage\/lee-younghee-portrait-2026\.webp/);
 assert.match(greeting, /class="story-side story-side--static"[\s\S]*images\/homepage\/photo-08\.webp/);
 assert.match(read('assets/css/story-pages.css'), /\.story-side--static \{ position: static; \}/);

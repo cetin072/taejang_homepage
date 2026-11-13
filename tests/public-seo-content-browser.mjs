@@ -123,7 +123,19 @@ try {
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
         }
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), file + ' overflow');
-        if (file === 'about.html') await page.screenshot({ path: `seo-qa-artifacts/about-${width}-${javaScriptEnabled}.png`, fullPage: true });
+        if (file === 'about.html') {
+          const intro = page.locator('.about-page-hero');
+          const photo = intro.locator('img');
+          await photo.evaluate(img => img.decode());
+          assert.ok(await photo.evaluate(img => Math.abs(img.clientWidth / img.clientHeight - img.naturalWidth / img.naturalHeight) < .02), 'About team photo keeps its full aspect ratio');
+          const action = intro.getByRole('link', { name: '태장이 하는 일' });
+          assert.equal(await action.getAttribute('href'), 'business.html');
+          assert.ok(await action.evaluate(link => link.offsetHeight >= 44 && getComputedStyle(link).borderRadius === '8px'), 'About primary link has a consistent touch target');
+          const links = page.locator('.about-detail-links a');
+          assert.equal(await links.count(), 6);
+          assert.ok(await links.evaluateAll(items => items.every(link => link.offsetHeight >= 44 && getComputedStyle(link).textDecorationLine.includes('underline'))), 'About detail links are distinct and easy to tap');
+          await page.screenshot({ path: `seo-qa-artifacts/about-${width}-${javaScriptEnabled}.png`, fullPage: true });
+        }
       }
       await page.goto(base + '/index.html', { waitUntil: 'load' });
       const partners = page.locator('.home-partners');
