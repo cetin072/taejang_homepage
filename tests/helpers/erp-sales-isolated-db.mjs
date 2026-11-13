@@ -8,7 +8,7 @@ export function docker(args, options={}) {
  const wsl=process.env.ERP_DOCKER_WSL==='1';
  return execFileSync(wsl?'wsl.exe':'docker',wsl?['-e','docker','-H','unix:///var/run/erp-v1-docker.sock',...args]:args,{encoding:'utf8',stdio:['pipe','pipe','pipe'],...options}).trim();
 }
-export async function createERPDatabase({amountAdjustments=true}={}) {
+export async function createERPDatabase({amountAdjustments=true,productAutomation=process.env.ERP_TEST_PRODUCT_AUTOMATION==='1'}={}) {
  const name=`taejang-erp-sales-test-${process.pid}`;
  docker(['run','--detach','--rm','--network','none','--name',name,'-e','POSTGRES_HOST_AUTH_METHOD=trust','postgres:17-alpine']);
  const raw=statement=>docker(['exec','-i',name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'],{input:statement});
@@ -36,6 +36,7 @@ export async function createERPDatabase({amountAdjustments=true}={}) {
    raw(readFileSync('supabase/migrations/20261108115308_erp_sales_apply_amount_adjustments.sql','utf8'));
    raw(readFileSync('supabase/migrations/20261108225909_erp_sales_list_effective_amounts.sql','utf8'));
   }
+  if(productAutomation) raw(readFileSync('supabase/migrations/20261110094640_erp_product_sale_automation.sql','utf8'));
   const sql=(statement,{actor=OPS,role='authenticated'}={})=>raw(`set role ${role};select set_config('request.jwt.claim.sub','${actor||''}',false);${statement}`).split(/\r?\n/).filter(s=>s!==actor).join('\n');
   const rpc=(fn,params={},{actor=OPS}={})=>{
    if(!/^erp_sales_[a-z0-9_]+$/.test(fn))throw new Error('fixture RPC outside ERP');
