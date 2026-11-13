@@ -68,3 +68,23 @@ test('public privacy, account deletion, and visitor guidance remain reachable by
   assert.match(appPrivacy, /전화번호, 입사일/, 'description of actual employee data processing must not be erased');
   assert.match(read('thanks.html'), /입력하신 이메일로 회신드리겠습니다/);
 });
+
+test('terrarium and minhwa have independent inline inquiry forms', () => {
+  for (const [page, anchor, name] of [
+    ['terrarium.html', 'th-contact', 'taejang-terrarium-inquiry'],
+    ['minhwa-gallery.html', 'mh-contact', 'taejang-minhwa-inquiry']
+  ]) {
+    const html = read(page);
+    assert.match(html, new RegExp('href="#' + anchor + '"'));
+    const section = html.match(new RegExp('<section[^>]+id="' + anchor + '"[\\s\\S]*?</section>'))?.[0];
+    assert.ok(section, page + ': inquiry section is present');
+    assert.doesNotMatch(section, /partnership\.html/);
+    assert.match(section, new RegExp('<form[^>]*name="' + name + '"[^>]*method="POST" action="/thanks" data-netlify="true" netlify-honeypot="bot-field"'));
+    assert.match(section, new RegExp('name="form-name" value="' + name + '"'));
+    for (const field of ['contact', 'email', 'message', 'privacy-consent']) {
+      assert.match(section, new RegExp('name="' + field + '"[^>]*required'));
+    }
+    assert.match(section, /href="privacy\.html"/);
+  }
+  assert.doesNotMatch(read('minhwa-gallery.html'), /class="mh-text-link" href="partnership\.html"/);
+});

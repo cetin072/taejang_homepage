@@ -26,7 +26,7 @@ test('terrarium public hub retains static navigation and existing published entr
   assert.match(landing, /테라리움 제작 교육/);
   assert.match(landing, /식물 관리 활동/);
   assert.match(landing, /href="activities\/terrarium-business-start-2026-08.html"/);
-  assert.match(landing, /href="partnership.html#contact"/);
+  assert.match(landing, /href="#th-contact"/);
   assert.match(landing, /mailto:taejang2025@naver\.com/);
   assert.match(sitemap, /https:\/\/taejang\.co\.kr\/terrarium\.html/);
   assert.match(build, /'terrarium\.html'/);
@@ -131,9 +131,9 @@ test('four future products and programs stay noninteractive until separately app
     assert.ok(next.includes(title), title);
   }
   assert.equal((next.match(/<span class="th-pending">준비 중<\/span>/g) || []).length, 4);
-  assert.doesNotMatch(next, /<a\b|<button\b|onclick=|tabindex=/);
+  assert.doesNotMatch(next, /<a\b|<button\b|<form\b|onclick=|tabindex=/);
   assert.doesNotMatch(landing, /href="terrarium-custom\.html"|href="terrarium-diy\.html"/);
-  assert.doesNotMatch(landing, /<form\b|name="taejang-inquiry"/);
+  assert.doesNotMatch(landing, /name="taejang-inquiry"/);
   assert.match(next, /가격·일정·정원·제작기간은 확정 전/);
 });
 

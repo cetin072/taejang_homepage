@@ -1,0 +1,73 @@
+.product-inquiry {
+  background: #173e35;
+  color: #fff;
+  padding: clamp(44px, 6vw, 72px) 0;
+  scroll-margin-top: 100px;
+}
+.product-inquiry .product-inquiry-inner { max-width: 760px; }
+.product-inquiry h2 {
+  color: #fff;
+  font: 800 clamp(26px, 4vw, 38px)/1.35 var(--gothic, "Nanum Gothic", sans-serif);
+  margin: 0 0 16px;
+  text-align: center;
+}
+.product-inquiry .product-inquiry-lead,
+.product-inquiry .product-inquiry-note {
+  color: #e1eae4;
+  line-height: 1.7;
+  margin: 0;
+  text-align: center;
+}
+.product-inquiry .product-inquiry-note { font-size: .875rem; margin-top: 8px; }
+.product-inquiry-form {
+  background: #fff;
+  border-radius: 10px;
+  color: #173e35;
+  margin-top: 24px;
+  padding: 28px;
+  box-shadow: 0 9px 28px #091c1629;
+}
+.product-inquiry-honeypot { display: none; }
+.product-inquiry-form-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.product-inquiry-field { display: block; min-width: 0; margin-bottom: 16px; }
+.product-inquiry-field > span { display: block; font-weight: 700; margin-bottom: 8px; }
+.product-inquiry-field b, .product-inquiry-consent b { color: #a44835; }
+.product-inquiry-field input, .product-inquiry-field textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  border: 1px solid #98aa9f;
+  background: #fff;
+  color: inherit;
+  border-radius: 4px;
+  padding: 12px 14px;
+  min-height: 46px;
+}
+.product-inquiry-field textarea { min-height: 130px; resize: vertical; }
+.product-inquiry-field input::placeholder, .product-inquiry-field textarea::placeholder { color: #5d6e64; }
+.product-inquiry-form :is(input, textarea, a, button):focus-visible { outline: 3px solid #ad682c; outline-offset: 2px; }
+.product-inquiry-consent { display: flex; align-items: flex-start; gap: 10px; font-size: .875rem; line-height: 1.65; cursor: pointer; }
+.product-inquiry-consent input { flex: none; width: 18px; height: 18px; margin: 3px 0 0; accent-color: #173e35; }
+.product-inquiry-consent a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.product-inquiry-form .product-inquiry-privacy-summary { font-size: .8rem; line-height: 1.6; color: #52665c; margin: 12px 0 20px; }
+.product-inquiry-submit {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 16px;
+  border: 1px solid #173e35;
+  border-radius: 4px;
+  background: #f6f7f3;
+  color: #173e35;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.product-inquiry-submit:hover { background: #dce8df; }
+.product-inquiry-submit span { margin-left: 8px; }
+@media (max-width: 600px) {
+  .product-inquiry-form { padding: 20px 16px; }
+  .product-inquiry-form-columns { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
