@@ -160,8 +160,8 @@ try {
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
 
     await page.goto(base + '/resources.html', { waitUntil: 'load' });
-    const card = page.locator('[aria-labelledby="resource-minhwa-title"]');
-    assert.equal(await card.locator('.resource-status').innerText(), '준비 중');
+    const card = page.locator('[aria-labelledby~="resource-minhwa-title"]');
+    assert.equal(await card.locator('.resource-status').innerText(), '전시 준비 중');
     await card.focus(); await card.press('Enter');
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
     assert.equal((await page.request.get(page.url())).status(), 200);
