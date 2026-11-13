@@ -82,8 +82,8 @@
 .th-story-copy .th-text-link{color:#f4f8ec;margin-top:15px}
 .th-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 20px}
 .th-gallery-item{min-width:0}
-.th-gallery-item a{display:block;border-radius:5px;background:#ecf0e5;overflow:hidden;cursor:zoom-in}
-.th-gallery-item img{width:100%;height:auto}
+.th-gallery-item a{display:grid;grid-template: minmax(0,1fr) / minmax(0,1fr);place-items:center;aspect-ratio:1;padding:6%;border-radius:5px;background:#eeede6;overflow:hidden;cursor:zoom-in}
+.th-gallery-item img{width:100%;height:100%;min-height:0;object-fit:contain;object-position:center}
 .th-gallery-item figcaption{font:700 16px/1.65 var(--myeongjo);padding-top:13px}
 .th-next{background:#eff3e9;padding:80px 0}
 .th-next-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}
@@ -130,3 +130,17 @@
 @media(max-width:760px){.th-section,.th-next{padding:55px 0}.th-hero-grid{grid-template-columns:minmax(0,1fr);min-height:0;padding:30px 0;gap:24px}.th-hero h1{font-size:clamp(31px,7.5vw,45px)}.terrarium-hub .th-intro{font-size:14px;margin-top:18px}.th-hero-actions{gap:8px 18px;margin-top:22px}.th-hero-actions .th-button{font-size:13px;padding:12px 16px;gap:16px}.th-hero-actions .th-text-link{font-size:13px}.th-hero-keywords{margin-top:22px;padding-top:16px;gap:8px 15px}.th-hero-keywords span{font-size:11px}.th-jumpnav>.container{justify-content:flex-start;gap:18px}.th-jumpnav a{font-size:12px}.th-section-heading{margin-bottom:27px}.th-section-heading h2{font-size:28px}.th-section-heading>p:last-child{font-size:14px}.th-heading-inline{display:block}.th-heading-inline>p:last-child{margin:15px 0 0;max-width:none}.th-discover-grid{grid-template-columns:1fr;gap:25px}.th-types{grid-template-columns:1fr 1fr;gap:14px}.th-types article{display:block;border:1px solid var(--th-line);border-radius:5px;padding:18px 13px!important}.th-types article>.th-icon{width:48px;height:48px;margin-bottom:12px}.th-types h3{font-size:15px}.th-types article p{font-size:13px}.th-types .th-small-note{grid-column:1/-1;margin:0}.th-water-story{display:block;padding:19px}.th-water-story>div{font-size:13px}.th-water-story>p{margin-top:12px;gap:8px;font-size:12px}.th-process{grid-template-columns:repeat(2,minmax(0,1fr));gap:25px 16px}.th-step-art{height:130px}.th-step h3{font-size:21px;margin-top:12px}.th-step p{font-size:13px}.th-story-grid{grid-template-columns:1fr;gap:34px}.th-story-visual{max-width:360px;margin:0 auto;width:100%}.th-story-window{max-height:320px}.th-story-window img{max-height:320px}.th-story-copy h2{font-size:28px}.th-story-copy>p:not(.th-eyebrow){margin-top:18px}.th-story-points{margin-top:22px}.th-desktop-break{display:none}.th-gallery{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}.th-gallery-item figcaption{font-size:14px;padding-top:10px}.th-next-grid{gap:15px}.th-service-art{height:130px}.th-service-art .th-icon{width:57px;height:57px}.th-service-art>span{font-size:8px}.th-service-copy{padding:18px 13px}.th-next-card h3{font-size:19px;margin:12px 0 10px}.th-next-card p{font-size:13px}.th-service-tags{font-size:10px}.th-next-footer{font-size:10px;padding-top:16px}.th-care-grid{grid-template-columns:1fr;gap:0}.th-care-grid article{padding:19px 0}.th-care-grid h3{margin-bottom:5px}.th-care .th-small-note{margin-top:6px}.th-faq{margin-top:23px}.th-contact{padding:45px 0}.th-contact-inner{grid-template-columns:1fr;gap:27px}.th-contact h2{font-size:28px}.th-contact .th-eyebrow{font-size:9px}.th-contact-actions{gap:12px}}
 @media(max-width:359px){.th-next-grid{grid-template-columns:1fr}.th-next-card{display:grid;grid-template-columns:96px 1fr}.th-service-art{height:100%}.th-service-art>span{display:none}.th-service-copy{padding:17px 13px}.th-materials{grid-template-columns:1fr;gap:9px}.th-materials p{display:flex;align-items:baseline;gap:8px}.th-materials strong{font-size:13px;margin:0}.th-hero-keywords{gap:9px}.th-hero-keywords span{font-size:10px}.th-hero-keywords .th-icon{width:18px}.th-types{grid-template-columns:1fr}.th-types article{display:flex;gap:15px;align-items:center}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.terrarium-hub *{scroll-behavior:auto!important}}
+
+.th-gallery-jump{display:inline-block;text-decoration:underline;text-underline-offset:4px;color:var(--th-forest)}
+.th-hero h1,.th-anatomy-photos figure,.th-gallery-item{scroll-margin-top:100px}
+.th-styling{background:var(--th-paper)}
+.th-styling-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.th-styling-card{min-width:0;overflow:hidden;background:#fff;border:1px solid #e3e3d7;border-radius:6px}
+.th-styling-card img{display:block;width:100%;height:auto;aspect-ratio:3/2}
+.th-styling-card figcaption{padding:17px 20px 12px}
+.th-styling-card figcaption>span{display:block;margin-bottom:6px;font-size:11px;font-weight:700;color:var(--th-muted)}
+.th-styling-card h3{font:700 21px/1.5 var(--myeongjo);word-break:keep-all}
+.th-styling-card .th-text-link{font-size:12px}
+@media(max-width:760px){
+  .th-styling-grid{grid-template-columns:minmax(0,1fr);gap:18px}
+}

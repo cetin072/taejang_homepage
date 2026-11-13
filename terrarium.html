@@ -57,7 +57,7 @@
       </figure>
     </div>
   </section>
-  <nav class="th-jumpnav" aria-label="테라리움 소개 바로가기"><div class="container"><a href="#th-discover">테라리움이란</a><a href="#th-make">만드는 경험</a><a href="#th-current">태장 이야기</a><a href="#th-gallery">갤러리</a><a href="#th-next">상품·클래스</a><a href="#th-care">관리와 궁금증</a></div></nav>
+  <nav class="th-jumpnav" aria-label="테라리움 소개 바로가기"><div class="container"><a href="#th-discover">테라리움이란</a><a href="#th-make">만드는 경험</a><a href="#th-current">태장 이야기</a><a href="#th-gallery">작품 갤러리</a><a href="#th-next">상품·클래스</a><a href="#th-care">관리와 궁금증</a></div></nav>
   <section class="th-discover th-section" id="th-discover" aria-labelledby="th-discover-title">
     <div class="container">
       <div class="th-section-heading"><h2 id="th-discover-title">테라리움은<br><em>투명한 용기 속 작은 정원</em>입니다.</h2><p>살아 있는 식물과 이끼, 흙과 돌을 어우러지게 담아요.<br>풍경을 꾸미고, 식물이 자라는 모습을 가까이에서 관찰하는 즐거움입니다.</p></div>
@@ -68,7 +68,7 @@
               <img src="assets/images/terrarium/product-03-glass.webp" width="700" height="600" alt="다각형 유리 용기에 높낮이가 다른 돌과 식물을 배치한 테라리움" loading="lazy" decoding="async">
               <figcaption>다각형 유리와 돌의 지형</figcaption>
             </figure>
-            <figure data-terrarium-media="anatomy-moss">
+            <figure id="th-moss-photo" data-terrarium-media="anatomy-moss">
               <img src="assets/images/terrarium/product-05-moss.webp" width="700" height="600" alt="원통형 유리 용기 옆면으로 흙과 이끼 층이 보이는 테라리움" loading="lazy" decoding="async">
               <figcaption>원통형 유리 속 이끼와 흙</figcaption>
             </figure>
@@ -106,31 +106,53 @@
   </section>
   <section class="th-gallery-section th-section" id="th-gallery" aria-labelledby="th-gallery-title">
     <div class="container">
-      <div class="th-section-heading th-heading-inline"><div><h2 id="th-gallery-title">같은 초록도,<br>서로 다른 풍경이 됩니다.</h2></div><p>태장이 촬영한 테라리움 작품입니다.<br>사진을 선택하면 크게 볼 수 있습니다.</p></div>
+      <div class="th-section-heading th-heading-inline"><div><h2 id="th-gallery-title">테라리움 작품 갤러리</h2></div><p>태장에서 촬영한 작품을 한눈에 둘러보세요.<br>사진을 선택하면 크게 볼 수 있습니다. <a class="th-gallery-jump" href="#th-styling">공간 연출 보기 <span aria-hidden="true">↓</span></a></p></div>
       <div class="th-gallery">
-        <figure class="th-gallery-item" data-terrarium-media="gallery-01">
-          <a href="assets/images/terrarium/product-01-wood.webp" aria-label="목재 프레임의 작은 숲 사진 크게 보기"><img src="assets/images/terrarium/product-01-wood.webp" width="800" height="960" alt="목재 뚜껑과 받침이 있는 사각 유리 용기 속 식물과 돌" loading="lazy" decoding="async"></a>
+        <figure class="th-gallery-item" id="th-wood-photo" data-terrarium-media="gallery-01">
+          <a href="assets/images/terrarium/product-01-wood.webp" aria-label="목재 프레임의 작은 숲 사진 크게 보기"><img src="assets/images/terrarium/product-01-wood.webp" width="900" height="885" alt="목재 뚜껑과 받침이 있는 사각 유리 용기 속 식물과 돌" loading="lazy" decoding="async"></a>
           <figcaption>목재 프레임의 작은 숲</figcaption>
         </figure>
         <figure class="th-gallery-item" data-terrarium-media="gallery-04">
-          <a href="assets/images/terrarium/product-04-dome.webp" aria-label="유리 돔 속 정원 사진 크게 보기"><img src="assets/images/terrarium/product-04-dome.webp" width="800" height="960" alt="손잡이 달린 유리 돔 안에 이끼와 잎이 섬세한 식물" loading="lazy" decoding="async"></a>
+          <a href="assets/images/terrarium/product-04-dome.webp" aria-label="유리 돔 속 정원 사진 크게 보기"><img src="assets/images/terrarium/product-04-dome.webp" width="754" height="900" alt="손잡이 달린 유리 돔 안에 이끼와 잎이 섬세한 식물" loading="lazy" decoding="async"></a>
           <figcaption>유리 돔 속 정원</figcaption>
         </figure>
         <figure class="th-gallery-item" data-terrarium-media="gallery-02">
-          <a href="assets/images/terrarium/product-02-round.webp" aria-label="둥근 유리 속 이끼 정원 사진 크게 보기"><img src="assets/images/terrarium/product-02-round.webp" width="800" height="960" alt="둥근 유리 용기에 담긴 푸른 이끼와 자연 소재" loading="lazy" decoding="async"></a>
+          <a href="assets/images/terrarium/product-02-round.webp" aria-label="둥근 유리 속 이끼 정원 사진 크게 보기"><img src="assets/images/terrarium/product-02-round.webp" width="900" height="900" alt="둥근 유리 용기에 담긴 푸른 이끼와 자연 소재" loading="lazy" decoding="async"></a>
           <figcaption>둥근 유리 속 이끼 정원</figcaption>
         </figure>
         <figure class="th-gallery-item" data-terrarium-media="gallery-10">
-          <a href="assets/images/terrarium/product-10-sand.webp" aria-label="층층이 쌓은 모래 사진 크게 보기"><img src="assets/images/terrarium/product-10-sand.webp" width="1000" height="800" alt="둥근 유리볼에 줄무늬처럼 쌓은 모래와 선인장" loading="lazy" decoding="async"></a>
+          <a href="assets/images/terrarium/product-10-sand.webp" aria-label="층층이 쌓은 모래 사진 크게 보기"><img src="assets/images/terrarium/product-10-sand.webp" width="900" height="871" alt="둥근 유리볼에 줄무늬처럼 쌓은 모래와 선인장" loading="lazy" decoding="async"></a>
           <figcaption>층층이 쌓은 모래</figcaption>
         </figure>
         <figure class="th-gallery-item" data-terrarium-media="gallery-13">
-          <a href="assets/images/terrarium/product-13-stone.webp" aria-label="흰 돌로 만든 지형 사진 크게 보기"><img src="assets/images/terrarium/product-13-stone.webp" width="1000" height="800" alt="둥근 유리 용기에 흰 돌과 짙은 초록 식물로 만든 풍경" loading="lazy" decoding="async"></a>
+          <a href="assets/images/terrarium/product-13-stone.webp" aria-label="흰 돌로 만든 지형 사진 크게 보기"><img src="assets/images/terrarium/product-13-stone.webp" width="900" height="771" alt="둥근 유리 용기에 흰 돌과 짙은 초록 식물로 만든 풍경" loading="lazy" decoding="async"></a>
           <figcaption>흰 돌로 만든 지형</figcaption>
         </figure>
         <figure class="th-gallery-item" data-terrarium-media="gallery-15">
-          <a href="assets/images/terrarium/product-15-landscape.webp" aria-label="푸른 층을 담은 유리 상자 사진 크게 보기"><img src="assets/images/terrarium/product-15-landscape.webp" width="1000" height="800" alt="직사각 유리 용기에 푸른색 층과 돌, 작은 식물을 배치한 풍경" loading="lazy" decoding="async"></a>
+          <a href="assets/images/terrarium/product-15-landscape.webp" aria-label="푸른 층을 담은 유리 상자 사진 크게 보기"><img src="assets/images/terrarium/product-15-landscape.webp" width="900" height="788" alt="직사각 유리 용기에 푸른색 층과 돌, 작은 식물을 배치한 풍경" loading="lazy" decoding="async"></a>
           <figcaption>푸른 층을 담은 유리 상자</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+  <section class="th-styling th-section" id="th-styling" aria-labelledby="th-styling-title">
+    <div class="container">
+      <div class="th-section-heading th-heading-inline">
+        <div><h2 id="th-styling-title">공간에 놓인 작은 숲</h2></div>
+        <p>태장 작품을 책상, 창가, 거실에 두었을 때의 모습을 그려봤습니다. 배경과 소품은 연출용입니다.</p>
+      </div>
+      <div class="th-styling-grid">
+        <figure class="th-styling-card">
+          <img src="assets/images/terrarium/styling-reading-desk.webp" width="1080" height="720" alt="밝은 목재 책상에 테라리움과 책을 곁들인 연출 예시" loading="lazy" decoding="async">
+          <figcaption><span>콘셉트 이미지</span><h3>책상 위 작은 정원</h3><a class="th-text-link" href="#th-wood-photo" aria-label="목재 프레임의 작은 숲 실제 사진 보기">작품 사진 보기 <span aria-hidden="true">↗</span></a></figcaption>
+        </figure>
+        <figure class="th-styling-card">
+          <img src="assets/images/terrarium/styling-window.webp" width="1080" height="720" alt="은은한 빛이 들어오는 창가에 원통형 테라리움과 찻잔을 놓은 연출 예시" loading="lazy" decoding="async">
+          <figcaption><span>콘셉트 이미지</span><h3>부드러운 빛이 드는 창가</h3><a class="th-text-link" href="#th-moss-photo" aria-label="원통형 유리 속 이끼와 흙 실제 사진 보기">작품 사진 보기 <span aria-hidden="true">↗</span></a></figcaption>
+        </figure>
+        <figure class="th-styling-card">
+          <img src="assets/images/terrarium/styling-console.webp" width="1080" height="720" alt="거실 콘솔에 가로형 유목 테라리움과 작은 도자기를 놓은 연출 예시" loading="lazy" decoding="async">
+          <figcaption><span>콘셉트 이미지</span><h3>거실을 채우는 유목 풍경</h3><a class="th-text-link" href="#th-heading" aria-label="유목과 이끼가 담긴 대표 작품 실제 사진 보기">작품 사진 보기 <span aria-hidden="true">↗</span></a></figcaption>
         </figure>
       </div>
     </div>

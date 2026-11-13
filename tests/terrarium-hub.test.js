@@ -79,12 +79,32 @@ test('gallery links open the same local images and the activity image remains an
   const gallery = landing.match(/<section class="th-gallery-section th-section"[\s\S]*?<\/section>/)?.[0] || '';
   const links = [...gallery.matchAll(/<a href="([^"]+)" aria-label="[^"]+ 사진 크게 보기"><img src="\1"/g)];
   assert.equal(links.length, 6);
+  assert.match(styles, /\.th-gallery-item a\{[^}]*aspect-ratio:1/);
+  assert.match(styles, /\.th-gallery-item img\{[^}]*object-fit:contain/);
   assert.match(landing, /data-terrarium-media="activity"[\s\S]*?terrarium-workbench\.svg[\s\S]*?<figcaption>제작 활동을 표현한 일러스트<\/figcaption>/);
   const svg = read('assets/images/terrarium/terrarium-workbench.svg');
   assert.match(svg, /<title>/);
   assert.doesNotMatch(svg, /<script\b|<foreignObject\b|\bonload=|href="https?:/i);
   assert.ok(Buffer.byteLength(svg) < 20_000);
   assert.doesNotMatch(landing, /300,000원|판매 중|무료 배송|당일 제작|실제 주문제작 후기/);
+});
+
+test('styled concepts are labeled, lazy-loaded and linked to the corresponding real works', () => {
+  const section = landing.match(/<section class="th-styling th-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(section, /배경과 소품은 연출용입니다/);
+  assert.equal((section.match(/<span>콘셉트 이미지<\/span>/g) || []).length, 3);
+  const photos = [...section.matchAll(/<img src="(assets\/images\/terrarium\/styling-[^"]+\.webp)" width="1080" height="720" alt="[^"]+" loading="lazy" decoding="async">/g)];
+  assert.equal(photos.length, 3);
+  for (const [, asset] of photos) {
+    const file = fs.readFileSync(path.join(root, asset));
+    assert.equal(file.toString('ascii', 8, 12), 'WEBP', asset);
+    assert.ok(file.length < 100_000, asset);
+  }
+  for (const id of ['th-wood-photo', 'th-moss-photo', 'th-heading']) {
+    assert.ok(section.includes('href="#' + id + '"'), id);
+    assert.ok(landing.includes('id="' + id + '"'), id);
+  }
+  assert.match(landing, /href="#th-styling">공간 연출 보기/);
 });
 
 test('four future products and programs stay noninteractive until separately approved', () => {
