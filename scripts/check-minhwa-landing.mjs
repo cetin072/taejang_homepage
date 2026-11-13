@@ -20,9 +20,7 @@ for (const concept of ['minhwa-gallery-hero', 'minhwa-goods-concept']) {
     const image = readFileSync(path.join(root, 'assets/images/minhwa', filename));
     assert.equal(image.subarray(8, 12).toString(), 'WEBP', filename);
     assert.ok(image.length < (width === 800 ? 80000 : 200 * 1024), filename);
-    if (concept !== 'minhwa-gallery-hero' || width === 1600) {
-      assert.ok(html.includes(filename), 'Approved image must be available: ' + filename);
-    }
+    assert.ok(html.includes(filename), 'Approved image must be available: ' + filename);
   }
 }
 assert.match(html, /미담 서정희/);
@@ -32,19 +30,24 @@ assert.match(hero, /<img src="assets\/images\/workplace\/minhwa-fish-scale-paint
 assert.doesNotMatch(hero, /minhwa-gallery-hero-/);
 const gallery = html.match(/<section class="mh-section mh-exhibition"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
 const concepts = [...gallery.matchAll(/<figure class="mh-artwork">([\s\S]*?)<\/figure>/g)];
-assert.equal(concepts.length, 5);
+assert.equal(concepts.length, 4);
 const conceptAssets = new Set();
 for (const [, figure] of concepts) {
-  const image = figure.match(/<a href="(assets\/images\/minhwa\/minhwa-concept-[a-z]+\.webp)"[^>]*>\s*<img src="\1" width="[1-9]\d*" height="[1-9]\d*"[^>]*loading="lazy"/);
+  const image = figure.match(/<a class="mh-image-link" href="(assets\/images\/minhwa\/minhwa-concept-[a-z]+-full\.webp)"[^>]*>\s*<img src="\1" width="1200" height="800"[^>]*loading="lazy"/);
   assert.ok(image, 'Each concept links to its own image');
   assert.match(figure, /class="mh-artwork-label">콘셉트 이미지</);
   const bytes = readFileSync(path.join(root, image[1]));
   assert.equal(bytes.subarray(8, 12).toString(), 'WEBP', image[1]);
-  assert.ok(bytes.length < 180_000, image[1]);
+  assert.ok(bytes.length < 260_000, image[1]);
   conceptAssets.add(image[1]);
 }
 assert.equal(conceptAssets.size, concepts.length);
-assert.match(gallery, /href="assets\/images\/minhwa\/minhwa-gallery-hero-1600\.webp">전시 공간 콘셉트 이미지 보기/);
+assert.match(gallery, /<figure class="mh-exhibition-view">[\s\S]*?<img src="assets\/images\/minhwa\/minhwa-gallery-hero-800\.webp"[\s\S]*?전시 공간 · 콘셉트 이미지/);
+assert.doesNotMatch(gallery, /minhwa-concept-industrial/);
+const goods = html.match(/<section class="mh-section mh-goods"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+assert.match(goods, /class="mh-custom-concept"[\s\S]*?minhwa-concept-industrial\.webp/);
+const sections = [...html.matchAll(/<section\b[^>]* id="(mh-[^"]+)"/g)].map(([, id]) => id);
+assert.deepEqual(sections, ['mh-gallery', 'mh-artist', 'mh-story', 'mh-goods', 'mh-programs', 'mh-contact']);
 assert.match(html, /<ul class="mh-goods-types"[^>]*>\s*<li>아트프린트<\/li>\s*<li>엽서<\/li>\s*<li>마그넷<\/li>\s*<li>보석함<\/li>/);
 assert.match(html, /상품 개발 중/);
 assert.match(html, /전시 준비 중/);

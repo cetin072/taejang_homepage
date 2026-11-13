@@ -78,10 +78,23 @@ try {
     await hero.getByRole('link', { name: '작품 둘러보기', exact: true }).click();
     await page.waitForURL(url => url.hash === '#mh-gallery');
     const gallery = page.locator('#mh-gallery');
-    assert.equal(await gallery.locator('.mh-artwork img').count(), 5);
+    assert.ok(await gallery.locator('.mh-exhibition-view img').isVisible());
+    const artworkImages = gallery.locator('.mh-artwork-grid img');
+    assert.equal(await artworkImages.count(), 4);
+    for (const image of await artworkImages.all()) {
+      const artwork = await image.evaluate(element => ({
+        width: element.naturalWidth,
+        height: element.naturalHeight,
+        fit: getComputedStyle(element).objectFit
+      }));
+      assert.deepEqual(artwork, { width: 1200, height: 800, fit: 'contain' });
+    }
+    assert.equal(await gallery.locator('.mh-artwork-grid').evaluate(grid =>
+      getComputedStyle(grid).gridTemplateColumns.split(' ').length
+    ), width <= 640 ? 1 : 2);
     const artworkLink = gallery.getByRole('link', { name: '소나무 아래 호랑이 이미지 크게 보기', exact: true });
     await artworkLink.press('Enter');
-    await page.waitForURL(url => url.pathname.endsWith('/minhwa-concept-tiger.webp'));
+    await page.waitForURL(url => url.pathname.endsWith('/minhwa-concept-tiger-full.webp'));
     await page.goBack();
     for (const id of ['mh-artist','mh-gallery','mh-programs','mh-goods']) {
       const link = page.locator(`.mh-paths a[href="#${id}"]`);
