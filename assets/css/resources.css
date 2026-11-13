@@ -72,8 +72,21 @@
   object-fit: cover;
 }
 
-.resource-media--terrarium img {
-  object-fit: contain;
+.resource-media--terrarium {
+  position: relative;
+  margin: 0 0 8px;
+}
+
+.resource-media--terrarium figcaption {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .resource-media--salt {
