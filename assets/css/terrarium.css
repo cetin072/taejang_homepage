@@ -1,7 +1,7 @@
 /* Terrarium landing page */
 .terrarium-hub{--th-forest:#183f32;--th-leaf:#607c4c;--th-mist:#edf2e8;--th-paper:#f7f4ec;--th-muted:#56675b;--th-line:#d7dfd0;color:var(--th-forest);background:#fff;overflow-x:clip}
 .terrarium-hub *{box-sizing:border-box}
-.terrarium-hub h1,.terrarium-hub h2,.terrarium-hub h3,.terrarium-hub p,.terrarium-hub figure{margin:0}
+.terrarium-hub h1,.terrarium-hub h2,.terrarium-hub h3,.terrarium-hub h4,.terrarium-hub p,.terrarium-hub figure{margin:0}
 .terrarium-hub a:focus-visible,.terrarium-hub summary:focus-visible{outline:3px solid #aa7132;outline-offset:5px}
 .terrarium-hub section[id]{scroll-margin-top:100px}
 .terrarium-hub .th-eyebrow{font:800 11px/1.5 var(--gothic);letter-spacing:.17em;color:var(--th-leaf);margin-bottom:18px}
@@ -136,11 +136,19 @@
 .th-styling{background:var(--th-paper)}
 .th-styling-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .th-styling-card{min-width:0;overflow:hidden;background:#fff;border:1px solid #e3e3d7;border-radius:6px}
+.th-styling-image{display:block;cursor:zoom-in}
+.terrarium-hub .th-styling-image:focus-visible{outline-offset:-4px}
 .th-styling-card img{display:block;width:100%;height:auto;aspect-ratio:3/2}
 .th-styling-card figcaption{padding:17px 20px 12px}
 .th-styling-card figcaption>span{display:block;margin-bottom:6px;font-size:11px;font-weight:700;color:var(--th-muted)}
-.th-styling-card h3{font:700 21px/1.5 var(--myeongjo);word-break:keep-all}
+.th-styling-subtitle{font:700 23px/1.5 var(--myeongjo);scroll-margin-top:100px}
+.terrarium-hub .th-styling-subtitle{margin-bottom:18px}
+.terrarium-hub .th-styling-grid+.th-styling-subtitle{margin-top:48px}
+.th-styling-card h4{font:700 21px/1.5 var(--myeongjo);word-break:keep-all}
 .th-styling-card .th-text-link{font-size:12px}
+@media(min-width:761px) and (max-width:1000px){
+  .th-styling-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 @media(max-width:760px){
   .th-styling-grid{grid-template-columns:minmax(0,1fr);gap:18px}
 }

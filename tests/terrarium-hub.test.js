@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const { gzipSync } = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const read = filename => fs.readFileSync(path.join(root, filename), 'utf8');
 const landing = read('terrarium.html');
@@ -92,18 +93,34 @@ test('gallery links open the same local images and the activity image remains an
 test('styled concepts are labeled, lazy-loaded and linked to the corresponding real works', () => {
   const section = landing.match(/<section class="th-styling th-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
   assert.match(section, /배경과 소품은 연출용입니다/);
-  assert.equal((section.match(/<span>콘셉트 이미지<\/span>/g) || []).length, 3);
-  const photos = [...section.matchAll(/<img src="(assets\/images\/terrarium\/styling-[^"]+\.webp)" width="1080" height="720" alt="[^"]+" loading="lazy" decoding="async">/g)];
-  assert.equal(photos.length, 3);
-  for (const [, asset] of photos) {
+  const cards = [...section.matchAll(/<figure class="th-styling-card">([\s\S]*?)<\/figure>/g)];
+  assert.ok(cards.length >= 15, 'the full collection is represented');
+  const assets = new Set();
+  let totalBytes = 0;
+  for (const [, card] of cards) {
+    assert.match(card, /<span>콘셉트 이미지<\/span>/);
+    const photo = card.match(/<a class="th-styling-image" href="(assets\/images\/terrarium\/styling-[^"]+\.webp)" aria-label="[^"]+"><img src="\1" width="(?:1080" height="720|960" height="640)" alt="[^"]+" loading="lazy" decoding="async">/);
+    assert.ok(photo, card);
+    const asset = photo[1];
+    assert.ok(!assets.has(asset), asset);
+    assets.add(asset);
     const file = fs.readFileSync(path.join(root, asset));
     assert.equal(file.toString('ascii', 8, 12), 'WEBP', asset);
     assert.ok(file.length < 100_000, asset);
+    totalBytes += file.length;
+
+    const source = card.match(/<a class="th-text-link" href="([^"]+)" aria-label="[^"]+">작품 사진 보기/);
+    assert.ok(source, asset);
+    const href = source[1];
+    if (href.startsWith('#')) {
+      assert.ok(landing.includes('id="' + href.slice(1) + '"'), href);
+    } else {
+      assert.match(href, /^assets\/images\/terrarium\/source-[a-z0-9-]+\.webp$/);
+      assert.ok(fs.existsSync(path.join(root, href)), href);
+    }
   }
-  for (const id of ['th-wood-photo', 'th-moss-photo', 'th-heading']) {
-    assert.ok(section.includes('href="#' + id + '"'), id);
-    assert.ok(landing.includes('id="' + id + '"'), id);
-  }
+  assert.ok(totalBytes < 2_700_000, 'styling photos stay within the gallery budget');
+  assert.match(section, /id="th-styling-details"/);
   assert.match(landing, /href="#th-styling">공간 연출 보기/);
 });
 
@@ -128,7 +145,7 @@ test('same-page links and native FAQ work without new JavaScript or duplicate ID
   assert.equal((faq.match(/<details>/g) || []).length, 3);
   assert.equal((faq.match(/<summary>/g) || []).length, 3);
   assert.doesNotMatch(landing, /onclick=|<script[^>]+src="https?:\/\//);
-  assert.ok(Buffer.byteLength(landing) < 55000, 'page remains light despite new visual sections');
+  assert.ok(gzipSync(landing).length < 15_000, 'compressed landing markup stays lightweight');
 });
 
 test('home business and services keep the already approved hub navigation', () => {
