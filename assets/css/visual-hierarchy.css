@@ -135,7 +135,13 @@
 
 .about-page .photo-slot {
   margin: 0;
+  padding: 0;
   border-radius: 8px;
+  background: #eae8df;
+}
+
+.about-page .photo-slot > img {
+  max-width: none;
 }
 
 .about-page .about-page-hero .photo-slot {
