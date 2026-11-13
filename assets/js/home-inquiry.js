@@ -3,6 +3,8 @@
   const dialog = document.querySelector('#home-inquiry-dialog');
   const triggers = [...document.querySelectorAll('[data-home-inquiry-open]')];
   if (!dialog || typeof dialog.showModal !== 'function') return;
+  const contactHash = dialog.dataset.inquiryHash || '#contact';
+  if (dialog.dataset.inquiryHash) dialog.removeAttribute('open');
   const closeButton = dialog.querySelector('[data-home-inquiry-close]');
   let opener;
   let previousOverflow = '';
@@ -60,7 +62,9 @@
     startedOnBackdrop = false;
   });
   function openFromContactHash() {
-    if (window.location.hash === '#contact' && triggers[0]) open(triggers[0]);
+    if (window.location.hash === contactHash && triggers[0]) {
+      open(document.querySelector(contactHash + ' .home-inquiry-trigger') || triggers[0]);
+    }
   }
   window.addEventListener('hashchange', openFromContactHash);
   openFromContactHash();

@@ -96,11 +96,26 @@ try {
     await page.goBack();
     assert.match(new URL(page.url()).pathname, /\/minhwa-gallery(?:\.html)?$/);
     const contactLink = page.getByRole('link', { name: '작가 협업 문의', exact: true });
-    await contactLink.focus(); await contactLink.press('Enter');
-    await page.waitForURL(url => url.hash === '#mh-contact' && /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
-    const form = page.locator('form[name="taejang-minhwa-inquiry"]');
+    const dialog = page.locator('#home-inquiry-dialog');
+    const form = dialog.locator('form[name="taejang-minhwa-inquiry"]');
+    assert.equal(await dialog.isVisible(), !javaScriptEnabled);
+    await contactLink.press('Enter');
     assert.ok(await form.isVisible());
     assert.equal(await form.evaluate(element => element.checkValidity()), false);
+    if (javaScriptEnabled) {
+      assert.equal(await dialog.evaluate(element => element.matches(':modal')), true);
+      assert.notEqual(new URL(page.url()).hash, '#mh-contact');
+      const message = form.locator('textarea');
+      await message.fill('민화 문의 팝업 검수');
+      await message.press('Escape');
+      assert.equal(await dialog.isVisible(), false);
+      assert.equal(await contactLink.evaluate(element => document.activeElement === element), true);
+      await page.getByRole('link', { name: '민화 문의하기', exact: true }).click();
+      assert.equal(await message.inputValue(), '민화 문의 팝업 검수');
+      await dialog.getByRole('button', { name: '문의창 닫기' }).click();
+    } else {
+      await page.waitForURL(url => url.hash === '#mh-contact');
+    }
 
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
     await page.getByRole('link', { name: '태장 민화 보기', exact: true }).click();

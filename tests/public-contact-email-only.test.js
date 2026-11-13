@@ -69,7 +69,7 @@ test('public privacy, account deletion, and visitor guidance remain reachable by
   assert.match(read('thanks.html'), /입력하신 이메일로 회신드리겠습니다/);
 });
 
-test('terrarium and minhwa have independent inline inquiry forms', () => {
+test('terrarium and minhwa have independent inquiry dialogs', () => {
   for (const [page, anchor, name] of [
     ['terrarium.html', 'th-contact', 'taejang-terrarium-inquiry'],
     ['minhwa-gallery.html', 'mh-contact', 'taejang-minhwa-inquiry']
@@ -79,6 +79,9 @@ test('terrarium and minhwa have independent inline inquiry forms', () => {
     const section = html.match(new RegExp('<section[^>]+id="' + anchor + '"[\\s\\S]*?</section>'))?.[0];
     assert.ok(section, page + ': inquiry section is present');
     assert.doesNotMatch(section, /partnership\.html/);
+    assert.match(section, /class="btn home-inquiry-trigger"[^>]*data-home-inquiry-open[^>]*aria-controls="home-inquiry-dialog"/);
+    assert.match(section, /<dialog[^>]*id="home-inquiry-dialog"[^>]* open>/);
+    assert.match(html, /src="assets\/js\/home-inquiry.js"/);
     assert.match(section, new RegExp('<form[^>]*name="' + name + '"[^>]*method="POST" action="/thanks" data-netlify="true" netlify-honeypot="bot-field"'));
     assert.match(section, new RegExp('name="form-name" value="' + name + '"'));
     for (const field of ['contact', 'email', 'message', 'privacy-consent']) {
