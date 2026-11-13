@@ -218,7 +218,7 @@ assert.match(services, /<h3 id="resource-staff-title">태장 출근앱<\/h3>/);
 assert.equal((services.match(/class="resource-card /g) || []).length, 5);
 const minhwa = services.match(/<a class="resource-card resource-card--link" href="minhwa-gallery.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(minhwa, /<h3 id="resource-minhwa-title">태장 민화<\/h3>/);
-assert.match(minhwa, /<span class="resource-status">준비 중<\/span>/);
+assert.match(minhwa, /<p class="resource-status" id="resource-minhwa-status">전시 준비 중<\/p>/);
 assert.match(minhwa, /미담 서정희/);
 assert.ok(fs.existsSync(path.join(root, 'minhwa-gallery.html')), 'minhwa card links to its authored hub');
 const minhwaHub = read('minhwa-gallery.html');
