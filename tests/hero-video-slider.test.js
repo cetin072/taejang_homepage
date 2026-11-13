@@ -39,6 +39,6 @@ assert.match(script, /if \(!isActive\) restorePoster\(slide\)/, '슬라이드 �
 assert.match(script, /touchstart[\s\S]*?touchend/, '모바일 스와이프를 처리합니다');
 assert.match(script, /ArrowLeft[\s\S]*?ArrowRight/, '키보드 방향키 조작을 지원합니다');
 assert.doesNotMatch(script, /setInterval|setTimeout/, '자동 전환 타이머를 사용하지 않습니다');
-assert.match(styles, /\.hero-video-slider\s*\{[\s\S]*?aspect-ratio:\s*16\s*\/\s*9/, '영상 컨테이너는 16:9 비율을 유지합니다');
+assert.match(styles, /\.hero-video-slider:not\(\[data-hero-video-active\]\) \.hero-video-toolbar \{[\s\S]*?display: none/, '자바스크립트가 없으면 작동하지 않는 슬라이드 조작부를 숨깁니다');
 assert.match(styles, /\.hero-video-slider\s*\{[\s\S]*?touch-action:\s*pan-y/, '세로 스크롤과 가로 스와이프를 구분합니다');
 assert.match(styles, /prefers-reduced-motion/, '감소된 모션 환경을 고려합니다');

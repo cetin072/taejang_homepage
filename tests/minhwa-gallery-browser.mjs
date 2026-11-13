@@ -153,9 +153,6 @@ try {
     }
 
     await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
-    await page.getByRole('link', { name: '태장 민화 보기', exact: true }).click();
-    await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
-    await page.goBack();
     await page.getByRole('link', { name: '태장 민화 알아보기', exact: true }).click();
     await page.waitForURL(url => /\/minhwa-gallery(?:\.html)?$/.test(url.pathname));
 
