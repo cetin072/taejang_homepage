@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const html = fs.readFileSync('new-zealand-salt.html','utf8');
 assert.match(html,/noindex,nofollow/);
-assert.match(html, /<span class="nav-entry-description">출근앱과 상품 안내<\/span>/, "salt header uses the common public navigation subtitle");
+assert.match(html, /<a class="resources-nav" href="resources\.html" aria-current="page">서비스·상품<\/a>/, "salt header uses the single-line public navigation label");
 assert.match(html,/10kg · 25kg/);
 assert.match(html,/10kg·25kg/);
 assert.match(html,/제조원[\s\S]{0,40}Dominion Salt/);

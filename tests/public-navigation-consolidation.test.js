@@ -65,9 +65,7 @@ for (const filename of publicPages) {
   for (const [surface, fragment] of [['desktop', desktopNav], ['mobile', mobileNav]]) {
     assert.equal((fragment.match(/class="resources-nav"/g) || []).length, 1,
       `${filename} ${surface} must have exactly one visible resources menu entry`);
-    assert.match(fragment, surface === 'desktop'
-      ? /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?>서비스·상품<\/a>/
-      : /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?><span class="nav-entry-label">서비스·상품<\/span><span class="nav-entry-description">출근앱과 상품 안내/,
+    assert.match(fragment, /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?>서비스·상품<\/a>/,
       `${filename} ${surface} uses its authored accessible label`);
   }
   if (filename === 'resources.html') {
@@ -75,8 +73,8 @@ for (const filename of publicPages) {
       'the resources page marks its desktop/mobile current link before JavaScript');
   }
   {
-    assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
-    assert.match(mobileNav, /<a class="staff-nav" href="staff\/"><span class="nav-entry-label">임직원<\/span><span class="nav-entry-description">업무 플랫폼 로그인<\/span><\/a>/, `${filename} 모바일 임직원 설명은 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.match(desktopNav, /<a class="staff-nav" href="staff\/">임직원 로그인<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.match(mobileNav, /<a class="staff-nav" href="staff\/">임직원 로그인<\/a>/, `${filename} 모바일 임직원 로그인 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
     assert.ok(desktopNav.indexOf('href="resources.html"') < desktopNav.indexOf('href="staff/"'), `${filename} 데스크톱 서비스·상품은 임직원 앞에 둡니다`);
     assert.ok(mobileNav.indexOf('href="staff/"') > mobileNav.indexOf('href="partnership.html"'), `${filename} 모바일 직원용 메뉴는 공개 메뉴 아래에 분리합니다`);
     assert.ok(mobileNav.indexOf('href="resources.html"') < mobileNav.indexOf('href="staff/"'), `${filename} 모바일 서비스·상품은 임직원 로그인 위에 둡니다`);
