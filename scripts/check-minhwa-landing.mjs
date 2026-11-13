@@ -24,7 +24,12 @@ for (const concept of ['minhwa-gallery-hero', 'minhwa-goods-concept']) {
   }
 }
 assert.match(html, /미담 서정희/);
-assert.equal((html.match(/>콘셉트 이미지<\/figcaption>/g) || []).length, 3);
+assert.equal((html.match(/>콘셉트 이미지<\/figcaption>/g) || []).length, 2);
+const hero = html.match(/<section class="mh-hero"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+assert.match(hero, /<img src="assets\/images\/workplace\/minhwa-fish-scale-painting\.webp"[^>]*fetchpriority="high"/);
+assert.doesNotMatch(hero, /minhwa-gallery-hero-/);
+assert.equal((html.match(/<img src="assets\/images\/minhwa\/minhwa-gallery-hero-800\.webp"/g) || []).length, 1);
+assert.match(html, /<ul class="mh-goods-types"[^>]*>\s*<li>아트프린트<\/li>\s*<li>엽서<\/li>\s*<li>마그넷<\/li>\s*<li>보석함<\/li>/);
 assert.match(html, /상품 개발 중/);
 assert.match(html, /전시 준비 중/);
 assert.doesNotMatch(html, /자료 확보 후|공개 동의에 따라|확보 후 교체|치료 효과|ADHD|수상 경력|태장\(泰長\) 작가/);

@@ -69,6 +69,14 @@ try {
     assert.ok(metrics.images.every(img => img.loaded));
     assert.equal(new Set(metrics.ids).size, metrics.ids.length);
     assert.equal(await page.locator('h1').innerText(), '태장 민화');
+    const hero = page.locator('.mh-hero');
+    if (width <= 860) {
+      const copyBounds = await hero.locator('.mh-hero-copy').boundingBox();
+      const photoBounds = await hero.locator('.mh-hero-image').boundingBox();
+      assert.ok(copyBounds.y + copyBounds.height <= photoBounds.y + 1, 'Hero title and actions appear above the photo on mobile');
+    }
+    await hero.getByRole('link', { name: '작품 둘러보기', exact: true }).click();
+    await page.waitForURL(url => url.hash === '#mh-gallery');
     for (const id of ['mh-artist','mh-gallery','mh-programs','mh-goods']) {
       const link = page.locator(`.mh-paths a[href="#${id}"]`);
       await link.focus(); await link.press('Enter');
@@ -113,6 +121,14 @@ try {
       await page.getByRole('link', { name: '민화 문의하기', exact: true }).click();
       assert.equal(await message.inputValue(), '민화 문의 팝업 검수');
       await dialog.getByRole('button', { name: '문의창 닫기' }).click();
+      for (const name of ['민화 문의', '기관·단체 출강 문의', '굿즈·주문제작 문의']) {
+        const trigger = page.getByRole('link', { name, exact: true });
+        await trigger.click();
+        assert.equal(await dialog.evaluate(element => element.matches(':modal')), true);
+        await page.keyboard.press('Escape');
+        assert.equal(await dialog.isVisible(), false);
+        assert.equal(await trigger.evaluate(element => document.activeElement === element), true);
+      }
     } else {
       await page.waitForURL(url => url.hash === '#mh-contact');
     }
