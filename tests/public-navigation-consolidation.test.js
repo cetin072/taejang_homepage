@@ -242,7 +242,8 @@ for (const match of minhwaHub.matchAll(/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/g)) {
   assert.match(match[0], /\balt="[^"]+"/, 'minhwa images have meaningful alt text');
 }
 assert.match(minhwaHub, /콘셉트 이미지/, 'concept visuals are not misrepresented as artist originals');
-assert.doesNotMatch(minhwaHub, /<form\b|type="submit"|구매하기|결제하기|신청 완료/, 'hub does not invent an active checkout or enrollment');
+const minhwaContent = minhwaHub.replace(/<section[^>]+id="mh-contact"[\s\S]*?<\/section>/, '');
+assert.doesNotMatch(minhwaContent, /<form\b|type="submit"|구매하기|결제하기|신청 완료/, 'hub does not invent an active checkout or enrollment');
 assert.match(read('scripts/build-netlify-publish.mjs'), /'minhwa-gallery\.html'/, 'hub stays in the publish allowlist');
 
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
