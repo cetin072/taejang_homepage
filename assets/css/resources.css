@@ -1,6 +1,7 @@
 .resources-page {
   --resource-line: rgb(48 51 47 / 12%);
   --resource-radius: 12px;
+  --resource-control-border: #858b81;
   padding: clamp(32px, 5vw, 64px) 0 48px;
   background: #f7f6f1;
 }
@@ -48,6 +49,7 @@
   border-radius: var(--resource-radius);
   background: #fff;
   color: var(--ink);
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
@@ -57,7 +59,7 @@
   justify-content: center;
   gap: 16px;
   width: 100%;
-  height: clamp(148px, 17vw, 208px);
+  aspect-ratio: 16 / 10;
   margin-bottom: 8px;
   overflow: hidden;
   border-radius: 4px;
@@ -68,6 +70,10 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.resource-media--terrarium img {
+  object-fit: contain;
 }
 
 .resource-media--salt {
@@ -93,8 +99,14 @@
 }
 
 .resources-page .resource-card .resource-status {
+  display: block;
+  padding: 0;
+  border: 0;
   color: var(--green-deep);
   font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 1.5;
 }
 
 .resource-action {
@@ -106,7 +118,7 @@
   max-width: 100%;
   margin-top: auto;
   padding: 8px 12px;
-  border: 1px solid var(--resource-line);
+  border: 1px solid var(--resource-control-border);
   border-radius: 8px;
   color: var(--green-deep);
   font-size: 14px;
