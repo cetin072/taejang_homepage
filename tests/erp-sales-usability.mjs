@@ -40,14 +40,16 @@ try{
   let serviceId,firstProduct,secondProduct;
   const capture=async(name)=>{await page.locator('.erp-editor').evaluate(n=>n.scrollIntoView({block:'start'}));await page.screenshot({path:`${output}/${variant}-${name}.png`,animations:'disabled'});};
   try{
-   await page.goto(app.url);await button('거래처 등록');await button('닫기',page.locator('.erp-editor'));
+   await page.goto(app.url);await button(variant==='baseline'?'거래처 등록':'고객 등록');await button('닫기',page.locator('.erp-editor'));
    const today=await page.evaluate(()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul'}).format(new Date()));
    const month=today.slice(0,7);
    await stage('최초 설정: 거래처·공급처·영업자·품목·계약',async()=>{
     for(const [name,number,supplier] of [['가상 모회사','1111111111',false],['가상 상품 고객','2222222222',false],['가상 직배송 공급처','3333333333',true]]){
-     await button('거래처 등록');await fill('name',name);await fill('business_number',number);
+     if(variant==='candidate')await button(supplier?'공급처·매입처':'고객·판매처');
+     await button(variant==='baseline'?'거래처 등록':supplier?'공급처 등록':'고객 등록');await fill('name',name);await fill('business_number',number);
      if(supplier)await page.locator('.erp-editor input[value="supplier"]').check();await button('저장',page.locator('.erp-editor'));
     }
+    if(variant==='candidate')await button('영업자·영업 관계');
     await button('영업자 등록');await fill('name','가상 담당 영업자');await button('저장',page.locator('.erp-editor'));
     await button('영업 관계 연결');await select('party_id','가상 상품 고객');await select('agent_id','가상 담당 영업자');
     await fill('starts_on',today.slice(0,4)+'-01-01');await fill('reason','가상 상품 고객 담당');await button('관계 저장');
@@ -161,7 +163,7 @@ try{
     assert.equal(app.db.rpc('erp_sales_get_month_close',{p_month:month+'-01'}).closed,true);
    });
    await stage('재조회: 새로고침 후 저장값 보존',async()=>{
-    await page.reload();await page.getByRole('button',{name:'거래처 등록',exact:true}).waitFor();await tab('매출·판매');
+    await page.reload();await page.getByRole('button',{name:variant==='baseline'?'거래처 등록':'고객 등록',exact:true}).waitFor();await tab('매출·판매');
     report.monthlyVisibleByDefault=await page.getByText('총 3건',{exact:true}).count()===1;
     if(variant==='candidate')assert.equal(report.monthlyVisibleByDefault,true,'this month includes generated month-end sales');
     else if(!report.monthlyVisibleByDefault){
