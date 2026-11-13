@@ -138,7 +138,7 @@ assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp
 assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
-assert.match(pages['partnership.html'], /기업의 참여로 함께 만드는<br>지속 가능한 일자리/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
+assert.match(pages['partnership.html'], /id="partnership-title">태장과 협력하는 방법<\/h1>[\s\S]*?기업의 공동출자로 장애인 일자리를 운영하는 자회사형 장애인 표준사업장/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
 assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
@@ -295,7 +295,7 @@ assert.doesNotMatch(partnership, /기업 담당자가 검토할 정보/);
 // Issue #544 supersedes the old four-illustration/ESG-detail layout.
 assert.equal((partnership.match(/<section\b/g) || []).length, 6);
 assert.equal((partnership.match(/class="relationship-card"/g) || []).length, 3);
-assert.match(partnership, /A · 출자 관계[\s\S]*B · 상품·용역 거래 관계[\s\S]*C · 운영·보고 관계/);
+assert.match(partnership, /<h3>공동출자<\/h3>[\s\S]*<h3>상품·용역 거래<\/h3>[\s\S]*<h3>운영·수행 결과 공유<\/h3>/);
 assert.match(partnership, /출자금과 거래대금은 구분합니다/);
 assert.match(partnership, /id="environment-service"/);
 assert.match(partnership, /2026.07.24[\s\S]*준비·안전 안내[\s\S]*현장 수행[\s\S]*활동 기록/);
