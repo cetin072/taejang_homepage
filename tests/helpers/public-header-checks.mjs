@@ -93,8 +93,8 @@ export async function exercisePublicHeaders(browser, base, root, output) {
         assert.ok(metrics.links.every(l=>l.h>=44),file+': mobile touch areas');
         assert.equal(metrics.links.at(-1).left,metrics.links.at(-2).left);
         assert.equal(metrics.border,'0px');assert.equal(metrics.indent,'0px');
-        assert.match(metrics.staff,/임직원\s+업무 플랫폼 로그인/);
-        assert.match(metrics.app,/서비스·상품\s+출근앱과 상품 안내/);
+        assert.equal(metrics.staff,'임직원 로그인');
+        assert.equal(metrics.app,'서비스·상품');
         assert.equal(metrics.contact,metrics.contactCurrent?'rgb(27, 67, 50)':'rgb(45, 106, 79)',file+': contact retains its existing normal/current CTA colors');
         await page.keyboard.press('Escape');
         assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,file+': Escape closes menu');
@@ -131,7 +131,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
       assert.equal(await page.locator('[data-mobile-nav]').isVisible(),false,'resize resets open state and scroll lock');
       await page.locator('[data-menu-button]').click();
       await page.screenshot({path:path.join(output,'header-mobile-390.png')});
-      await page.addStyleTag({content:'.mobile-nav a,.mobile-nav .nav-entry-label{font-size:200%!important}.mobile-nav .nav-entry-description{font-size:28px!important}'});
+      await page.addStyleTag({content:'.mobile-nav a{font-size:200%!important}'});
       const app=page.locator('.mobile-nav .resources-nav');
       await app.scrollIntoViewIfNeeded();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));

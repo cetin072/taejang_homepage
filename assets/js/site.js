@@ -79,7 +79,7 @@
     if (!nav) return;
     contract.forEach(([href, label]) => {
       const found = [...nav.querySelectorAll(':scope > a')].some(link => {
-        const title = (link.querySelector('.nav-entry-label') || link).textContent.trim();
+        const title = link.textContent.trim();
         const expected = label;
         return normalizedHref(link) === href && title === expected;
       });
