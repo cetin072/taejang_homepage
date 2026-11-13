@@ -63,12 +63,14 @@ console.log('PASS: standalone static Netlify salt form with 3 fields, consent, h
 
 const hero = html.match(/<section class="salt-hero"[\s\S]*?<\/section>/)[0];
 const product = html.match(/<section class="salt-product"[\s\S]*?<\/section>/)[0];
-assert.match(hero, /class="salt-origin-visual"/);
-assert.match(hero, /images\/salt\/dominion-lake-grassmere.jpg/);
-assert.match(hero, /Dominion Salt \/ JTP©/);
-assert.doesNotMatch(hero, /solar-salt-(10|25)kg.jpg/);
-for (const size of ['10','25']) assert.ok(product.includes('solar-salt-'+size+'kg.jpg'), 'pack retained in product section');
-const css = fs.readFileSync('assets/css/new-zealand-salt.css','utf8');
-assert.match(css, /border-radius:48% 48% 3px 3px/);
-assert.match(css, /\.salt-product-grid\{grid-template-columns:1fr/);
-console.log('PASS: original attributed arch landscape in hero and both packs in product section');
+assert.match(hero, /class="salt-product-preview"/);
+for (const size of ['10','25']) {
+ assert.ok(hero.includes('solar-salt-'+size+'kg.jpg'),'real product visible in hero');
+ assert.ok(product.includes('solar-salt-'+size+'kg.jpg'),'detailed comparison retained');
+}
+const story = html.match(/<section class="salt-story"[\s\S]*?<\/section>/)[0];
+assert.match(story, /images\/salt\/dominion-lake-grassmere.jpg/);
+assert.match(story, /Dominion Salt \/ JTP©/);
+assert.match(story, /lake-grassmere-aerial.jpg/);
+assert.match(hero, /写真|사진 크기는 실물 크기 비율이 아닙니다/);
+console.log('PASS: real packs in hero, detailed pack comparison and attributed origin photos retained');

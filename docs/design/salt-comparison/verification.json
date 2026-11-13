@@ -1,0 +1,62 @@
+{
+  "formUnchanged": true,
+  "noRealSubmission": true,
+  "results": [
+    {
+      "width": 320,
+      "javaScript": true,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 320,
+      "javaScript": false,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 390,
+      "javaScript": true,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 390,
+      "javaScript": false,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 768,
+      "javaScript": true,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 768,
+      "javaScript": false,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 1440,
+      "javaScript": true,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    },
+    {
+      "width": 1440,
+      "javaScript": false,
+      "overflow": false,
+      "inquiryAnchor": true,
+      "validForm": true
+    }
+  ]
+}
