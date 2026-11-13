@@ -77,6 +77,12 @@ try {
     }
     await hero.getByRole('link', { name: '작품 둘러보기', exact: true }).click();
     await page.waitForURL(url => url.hash === '#mh-gallery');
+    const gallery = page.locator('#mh-gallery');
+    assert.equal(await gallery.locator('.mh-artwork img').count(), 5);
+    const artworkLink = gallery.getByRole('link', { name: '소나무 아래 호랑이 이미지 크게 보기', exact: true });
+    await artworkLink.press('Enter');
+    await page.waitForURL(url => url.pathname.endsWith('/minhwa-concept-tiger.webp'));
+    await page.goBack();
     for (const id of ['mh-artist','mh-gallery','mh-programs','mh-goods']) {
       const link = page.locator(`.mh-paths a[href="#${id}"]`);
       await link.focus(); await link.press('Enter');
@@ -121,7 +127,7 @@ try {
       await page.getByRole('link', { name: '민화 문의하기', exact: true }).click();
       assert.equal(await message.inputValue(), '민화 문의 팝업 검수');
       await dialog.getByRole('button', { name: '문의창 닫기' }).click();
-      for (const name of ['민화 문의', '기관·단체 출강 문의', '굿즈·주문제작 문의']) {
+      for (const name of ['민화 문의', '기업 맞춤 민화 문의', '기관·단체 출강 문의', '굿즈·주문제작 문의']) {
         const trigger = page.getByRole('link', { name, exact: true });
         await trigger.click();
         assert.equal(await dialog.evaluate(element => element.matches(':modal')), true);

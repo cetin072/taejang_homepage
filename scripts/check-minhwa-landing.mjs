@@ -20,7 +20,9 @@ for (const concept of ['minhwa-gallery-hero', 'minhwa-goods-concept']) {
     const image = readFileSync(path.join(root, 'assets/images/minhwa', filename));
     assert.equal(image.subarray(8, 12).toString(), 'WEBP', filename);
     assert.ok(image.length < (width === 800 ? 80000 : 200 * 1024), filename);
-    assert.ok(html.includes(filename), 'Approved image must be rendered: ' + filename);
+    if (concept !== 'minhwa-gallery-hero' || width === 1600) {
+      assert.ok(html.includes(filename), 'Approved image must be available: ' + filename);
+    }
   }
 }
 assert.match(html, /미담 서정희/);
@@ -28,7 +30,21 @@ assert.equal((html.match(/>콘셉트 이미지<\/figcaption>/g) || []).length, 2
 const hero = html.match(/<section class="mh-hero"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
 assert.match(hero, /<img src="assets\/images\/workplace\/minhwa-fish-scale-painting\.webp"[^>]*fetchpriority="high"/);
 assert.doesNotMatch(hero, /minhwa-gallery-hero-/);
-assert.equal((html.match(/<img src="assets\/images\/minhwa\/minhwa-gallery-hero-800\.webp"/g) || []).length, 1);
+const gallery = html.match(/<section class="mh-section mh-exhibition"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+const concepts = [...gallery.matchAll(/<figure class="mh-artwork">([\s\S]*?)<\/figure>/g)];
+assert.equal(concepts.length, 5);
+const conceptAssets = new Set();
+for (const [, figure] of concepts) {
+  const image = figure.match(/<a href="(assets\/images\/minhwa\/minhwa-concept-[a-z]+\.webp)"[^>]*>\s*<img src="\1" width="[1-9]\d*" height="[1-9]\d*"[^>]*loading="lazy"/);
+  assert.ok(image, 'Each concept links to its own image');
+  assert.match(figure, /class="mh-artwork-label">콘셉트 이미지</);
+  const bytes = readFileSync(path.join(root, image[1]));
+  assert.equal(bytes.subarray(8, 12).toString(), 'WEBP', image[1]);
+  assert.ok(bytes.length < 180_000, image[1]);
+  conceptAssets.add(image[1]);
+}
+assert.equal(conceptAssets.size, concepts.length);
+assert.match(gallery, /href="assets\/images\/minhwa\/minhwa-gallery-hero-1600\.webp">전시 공간 콘셉트 이미지 보기/);
 assert.match(html, /<ul class="mh-goods-types"[^>]*>\s*<li>아트프린트<\/li>\s*<li>엽서<\/li>\s*<li>마그넷<\/li>\s*<li>보석함<\/li>/);
 assert.match(html, /상품 개발 중/);
 assert.match(html, /전시 준비 중/);
