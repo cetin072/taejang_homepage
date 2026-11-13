@@ -56,7 +56,7 @@ const services = read('resources.html');
 const card = services.match(/<a class="resource-card resource-card--link" href="minhwa-gallery.html"[\s\S]*?<\/a>/)?.[0];
 assert.ok(card, 'Existing resources entry is retained');
 assert.match(card, /준비 중/);
-assert.match(card, /태장 민화 알아보기/);
+assert.match(card, /갤러리·활동 보기/);
 const home = read('index.html');
 assert.match(home, /class="btn hero-secondary" href="minhwa-gallery.html">태장 민화 보기/);
 assert.match(home, /class="text-link" href="minhwa-gallery.html">태장 민화 알아보기/);
