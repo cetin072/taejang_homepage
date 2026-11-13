@@ -1,31 +1,22 @@
 .product-inquiry {
-  background: #173e35;
-  color: #fff;
-  padding: clamp(44px, 6vw, 72px) 0;
+  background: var(--beige);
+  padding: clamp(36px, 5vw, 56px) 0;
   scroll-margin-top: 100px;
 }
-.product-inquiry .product-inquiry-inner { max-width: 760px; }
-.product-inquiry h2 {
-  color: #fff;
-  font: 800 clamp(26px, 4vw, 38px)/1.35 var(--gothic, "Nanum Gothic", sans-serif);
+.product-inquiry-inner { text-align: center; }
+.product-inquiry .product-inquiry-title {
+  color: var(--green-deep);
+  font-size: clamp(24px, 4vw, 32px);
   margin: 0 0 16px;
-  text-align: center;
 }
-.product-inquiry .product-inquiry-lead,
-.product-inquiry .product-inquiry-note {
-  color: #e1eae4;
-  line-height: 1.7;
-  margin: 0;
-  text-align: center;
-}
-.product-inquiry .product-inquiry-note { font-size: .875rem; margin-top: 8px; }
+.product-inquiry .home-inquiry-trigger { min-width: min(240px, 100%); }
+.product-inquiry .product-inquiry-note { color: var(--ink-soft); font-size: .875rem; margin: 12px 0 0; }
+.product-inquiry dialog[open]:not(:modal) { position: static; margin: 24px auto 0; }
+.product-inquiry dialog[open]:not(:modal) .home-inquiry-close { display: none; }
 .product-inquiry-form {
-  background: #fff;
-  border-radius: 10px;
   color: #173e35;
-  margin-top: 24px;
-  padding: 28px;
-  box-shadow: 0 9px 28px #091c1629;
+  padding: 24px 28px 28px;
+  text-align: left;
 }
 .product-inquiry-honeypot { display: none; }
 .product-inquiry-form-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
