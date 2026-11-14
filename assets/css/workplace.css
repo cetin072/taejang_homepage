@@ -1,0 +1,59 @@
+.workplace-page .section,
+.workplace-page .page-hero { padding: clamp(40px, 5vw, 72px) 0; }
+.workplace-page .title { font-weight: 700; }
+.workplace-page .lead { font-size: 17px; line-height: 1.85; }
+.workplace-intro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; }
+.workplace-photo,
+.workplace-illustration { margin: 0; min-width: 0; }
+.workplace-photo img,
+.workplace-illustration img { width: 100%; height: auto; border-radius: 12px; }
+.workplace-page figcaption { margin-top: 12px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+.workplace-intro .btn { margin-top: 24px; min-height: 48px; border-radius: 8px; padding: 12px 20px; transition-property: color, background-color, border-color; }
+.workplace-intro .btn:hover { transform: none; background: var(--green-soft); color: var(--green-deep); }
+.workplace-method { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+.workplace-steps { margin: 24px 0 0; padding: 0; list-style: none; }
+.workplace-steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 16px; border-top: 1px solid var(--line); padding: 20px 0; }
+.workplace-steps li:last-child { padding-bottom: 0; }
+.workplace-steps > li > span { color: var(--green); font-size: 14px; font-variant-numeric: tabular-nums; padding-top: 4px; }
+.workplace-steps h3 { margin: 0 0 8px; color: var(--green-deep); font-size: 18px; }
+.workplace-steps p { margin: 0; color: var(--ink-soft); font-size: 16px; }
+@media (max-width: 900px) {
+  .workplace-intro,
+  .workplace-method { grid-template-columns: 1fr; gap: 32px; }
+  .workplace-illustration { max-width: 440px; }
+}
+
+/* The overview gives every job equal space; process detail belongs to packing-care. */
+.workplace-index-intro { display: grid; grid-template-columns: 1fr 1.2fr; gap: 64px; align-items: center; }
+.workplace-index-intro .title { margin: 0; }
+.workplace-page .btn { min-height: 48px; border-radius: 8px; gap: 8px; padding: 12px 20px; transition-property: color, background-color, border-color; }
+.workplace-page .btn:hover { transform: none; background: var(--green-soft); color: var(--green-deep); }
+.workplace-index-intro .btn { margin-top: 24px; }
+.workplace-job-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px 48px; margin-top: 32px; }
+.workplace-job { display: flex; flex-direction: column; min-width: 0; }
+.workplace-job figure { margin: 0; }
+.workplace-job img { display: block; width: 100%; height: auto; border-radius: 12px; }
+.workplace-job-body { display: flex; flex: 1; flex-direction: column; padding-top: 24px; }
+.workplace-job h3 { margin: 0 0 12px; font-size: 24px; font-family: 'Nanum Myeongjo', serif; color: var(--green-deep); }
+.workplace-job p { margin: 0 0 16px; color: var(--ink-soft); font-size: 17px; line-height: 1.85; }
+.workplace-job .text-link { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; align-self: flex-start; margin-top: auto; text-underline-offset: 4px; }
+.workplace-job .text-link:hover { text-decoration: underline; }
+.workplace-support { display: flex; gap: 48px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); margin-top: 64px; padding-top: 40px; }
+.workplace-support h2 { margin: 0 0 12px; font-size: 24px; color: var(--green-deep); }
+.workplace-support p { margin: 0; max-width: 640px; color: var(--ink-soft); font-size: 17px; line-height: 1.85; }
+.workplace-support .btn { flex-shrink: 0; }
+.workplace-support--plain { margin-top: 0; padding-top: 0; border-top: 0; }
+.packing-page .back-link { margin-bottom: 24px; }
+@media (max-width: 900px) {
+  .workplace-index-intro { grid-template-columns: 1fr; gap: 24px; }
+  .workplace-job-grid { gap: 48px 32px; }
+  .workplace-support { align-items: flex-start; flex-direction: column; gap: 24px; }
+}
+@media (max-width: 600px) {
+  .workplace-job-grid { grid-template-columns: 1fr; }
+  .workplace-job-body { padding-top: 20px; }
+  .workplace-page .btn { max-width: 100%; }
+}
+
+.packing-article { max-width: none; margin: 0; }
+.packing-article > .public-share { width: calc(100% - 48px); max-width: 1120px; margin: 0 auto 48px; box-sizing: border-box; }

@@ -104,6 +104,49 @@ function renderArticle(group, item, siblings) {
   return { path: itemPath, body, photo: imageUrl(source), isoDate };
 }
 
+// Keep the existing packing URL and content record; give this one job its own landing layout.
+function renderPackingLanding(item) {
+  const [intro, ...steps] = sectionsFor(item);
+  const flow = steps.map((step, index) => `<li><span aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><h3>${htmlText(step.heading)}</h3>${step.paragraphs.map(text => `<p>${htmlText(text)}</p>`).join('')}</div></li>`).join('\n');
+  return `<main id="main-content">
+<div class="workplace-page packing-page">
+<article class="article packing-article">
+  <section class="page-hero">
+    <div class="container"><a class="back-link" href="workplace.html">← 우리의 일터</a></div>
+    <div class="container workplace-intro">
+      <div><h1 class="title">${htmlText(item.title)}</h1>
+        <p class="lead">${htmlText(intro.paragraphs.join(' '))}</p>
+        <a class="btn line" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
+      </div>
+      <figure class="workplace-photo">
+        <img src="assets/images/workplace/packing-tape-work.webp" width="1200" height="900" alt="상자 위에 테이프를 붙이는 태장 근로자의 손과 포장 도구" fetchpriority="high" decoding="async">
+        <figcaption>상자 포장 작업 중인 태장 근로자</figcaption>
+      </figure>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="packing-process">
+    <div class="container workplace-method">
+      <div><h2 class="title" id="packing-process">포장 작업은 이렇게 이어집니다</h2>
+        <p class="lead">포장 작업은 자재를 준비하는 일에서 시작해, 완성된 포장 상태를 확인하는 일로 이어집니다.</p>
+        <ol class="workplace-steps" role="list">${flow}</ol>
+      </div>
+      <figure class="workplace-illustration">
+        <img src="assets/images/workplace/workplace-packing-watercolor.webp" alt="상자를 테이프로 포장하는 작업 수채화 일러스트" width="1200" height="900" loading="lazy" decoding="async">
+        <figcaption>포장 작업을 표현한 일러스트</figcaption>
+      </figure>
+    </div>
+  </section>
+</article>
+  <section class="section beige" aria-labelledby="packing-next-title">
+    <div class="container workplace-support workplace-support--plain">
+      <div><h2 id="packing-next-title">다른 일터도 만나보세요</h2><p>민화와 테라리움, 지역 환경정비까지. 태장에서는 다양한 작업을 함께 이어갑니다.</p></div>
+      <a class="btn line" href="workplace.html#workplace-jobs">우리의 일터로 돌아가기 <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+</div>
+</main>`;
+}
+
 function renderDocument(template, group, item, siblings) {
   const article = renderArticle(group, item, siblings);
   const canonical = ORIGIN + '/' + article.path;
@@ -159,7 +202,9 @@ function renderDocument(template, group, item, siblings) {
   output = replaceRequired(output, /<script type="application\/ld\+json">[\s\S]*?<\/script>/,
     '<script type="application/ld+json">' + json + '</script>', 'structured data');
   output = replaceRequired(output, /<main id="main-content">[\s\S]*?<\/main>/,
-    article.body, 'main');
+    group.key === 'workplace' && item.id === 'packing-care' ? renderPackingLanding(item) : article.body, 'main');
+  // A fragment alone resolves against <base href="/">, so include this article's path.
+  output = output.replace('href="#main-content"', 'href="' + article.path + '#main-content"');
   output = output.replace(/<script src="assets\/js\/listing.js"><\/script>\s*/g, '');
   if (group.key === 'workplace') output = output.replace('<body data-content-type="workplace">',
     '<body data-content-type="workplace" class="workplace-detail-mode">');

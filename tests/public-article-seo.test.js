@@ -38,13 +38,23 @@ test('published activity and workplace stories are crawlable without JS', () => 
       assert.ok(existsSync(path.join(dist, route)), 'Missing article: ' + route);
       const html = readFileSync(path.join(dist, route), 'utf8');
       assert.match(html, /<base href="\/">/, 'Nested article assets remain site-relative');
+      assert.ok(html.includes('href="' + route + '#main-content"'), 'skip link stays on its article');
       assert.match(html, new RegExp('<link rel="canonical" href="https://taejang.co.kr/' + route + '">'));
       assert.match(html, new RegExp('<meta property="og:url" content="https://taejang.co.kr/' + route + '">'));
       assert.match(html, /<meta property="og:type" content="article">/);
       assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
       assert.match(html, /"@type":"Article"/);
-      assert.match(html, /<h1>[^<]+<\/h1>/);
-      assert.match(html, /class="article-body"/);
+      assert.match(html, /<h1(?: [^>]*)?>[^<]+<\/h1>/);
+      if (route === 'workplace/packing-care.html') {
+        assert.match(html, /class="article packing-article"/);
+        assert.equal((html.match(/<li><span aria-hidden="true">0[1-4]<\/span>/g) || []).length, 4);
+        assert.match(html, /포장 작업을 표현한 일러스트/);
+        assert.match(html, /href="workplace\/packing-care.html#packing-process"/);
+        assert.match(html, /href="workplace.html#workplace-jobs"/);
+        for (const section of source.window.TAEJANG_CONTENT.workplace.find(item => item.id === 'packing-care').sections) {
+          for (const paragraph of section.paragraphs) assert.ok(html.includes(paragraph), 'packing landing preserves approved content');
+        }
+      } else assert.match(html, /class="article-body"/);
       assert.doesNotMatch(html, /<script src="assets\/js\/listing.js"/);
       assert.match(html, /<script src="assets\/js\/public-share.js"><\/script>/);
       assert.match(html, /assets\/css\/public-share\.css/);

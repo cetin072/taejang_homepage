@@ -167,8 +167,8 @@ assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(business, /class="business-workflow"[\s\S]*기업 협력은 이렇게 진행합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*작업 방식 결정[\s\S]*운영 확인/);
 assert.match(business, /<h2 class="title" id="business-operations-title">태장의 사업과 활동<\/h2>/);
 assert.doesNotMatch(business, /맡길 수 있는 일과 협력|WHAT WE DO|CURRENT OPERATIONS|PARTNERSHIP FLOW|AGRICULTURAL ROOTS/);
-assert.match(workplace, /직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
-assert.match(workplace, /직무를 이해하고<br>함께 익히는 방식/);
+assert.match(workplace, /작업을 작은 단계로 나누고/);
+assert.match(workplace, /태장의 일터를 만나보세요/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
 assert.match(location, /class="location-visit-card"[\s\S]*팔용동 본점 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
 assert.match(location, /location-pin-icon/);
@@ -266,25 +266,11 @@ assert.match(minhwa, /class="minhwa-flow minhwa-flow--work"[\s\S]*재료 준비[
 assert.match(minhwa, /class="minhwa-result-graphic"[\s\S]*민화 도안[\s\S]*제품 제작[\s\S]*검수·포장[\s\S]*전달/);
 assert.doesNotMatch(minhwa, /서정희|무상|유상|원가|매출 예상|전문 작업자 3~4명/);
 
-assert.match(workplace, /태장은 근로자의 강점과 작업 특성에 맞춰 직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
-assert.match(workplace, /class="workplace-work-gallery"[\s\S]*민화·문화 굿즈[\s\S]*포장·검수[\s\S]*작업 공간과 현장 업무/);
-for (const [imagePath, alt] of [
-  ['assets/images/workplace/workplace-minhwa-watercolor.webp', '꽃무늬 나무 상자를 채색하는 민화 작업 수채화 일러스트'],
-  ['assets/images/workplace/workplace-packing-watercolor.webp', '상자를 테이프로 포장하는 작업 수채화 일러스트'],
-  ['assets/images/workplace/workplace-workspace-watercolor.webp', '작업 테이블과 의자가 있는 차분한 작업실 수채화 일러스트']
-]) {
-  const imageFile = path.join(root, imagePath);
-  const imageBytes = fs.readFileSync(imageFile);
-  assert.equal(imageBytes.subarray(0, 4).toString('ascii'), 'RIFF');
-  assert.equal(imageBytes.subarray(8, 12).toString('ascii'), 'WEBP');
-  assert.match(workplace, new RegExp(`src="${imagePath}" alt="${alt}"`));
-}
-assert.match(engagement, /@media \(max-width:720px\)\{[\s\S]*?\.workplace-work-visual figcaption\{\s*padding:12px 10px 10px;[\s\S]*?\.workplace-work-visual figcaption strong\{\s*font-size:15px;[\s\S]*?\.workplace-work-visual figcaption span\{\s*margin-top:1px;\s*font-size:10px;/, '모바일 작업 타일의 캡션이 작은 화면에서 과밀하지 않도록 조정합니다');
-assert.equal((workplace.match(/class="workplace-principle-list"/g) || []).length, 1);
-assert.equal((workplace.match(/<li><span>0[1-3]<\/span>/g) || []).length, 3);
-assert.doesNotMatch(workplace, /data-workplace-roles|data-workplace-process|class="workplace-role-card"|class="workplace-process-step"/);
-assert.ok(workplace.indexOf('data-workplace-overview') < workplace.indexOf('data-listing'), '작업사진과 원칙 다음에 일터 이야기를 배치합니다');
-assert.match(workplace, /일터 이야기/);
+assert.match(workplace, /assets\/images\/workplace\/packing-tape-work\.webp/);
+assert.doesNotMatch(workplace, /data-filters|workplace-steps|포장 작업을 표현한 일러스트/);
+for (const job of ['민화 작업', '테라리움 작업', '지역 환경정비', '포장·검수와 수작업']) assert.ok(workplace.includes('<h3>' + job + '</h3>'));
+assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
+assert.match(workplace, /workplace\/work-together\.html/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
 // User review: shared company evidence is linked once; names stay compact.

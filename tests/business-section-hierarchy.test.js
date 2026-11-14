@@ -34,7 +34,7 @@ assert.equal((businessPage.match(/<article class="business-card">/g) || []).leng
 assert.doesNotMatch(businessPage, /class="business-status"/, '하는 일에서는 카드마다 같은 운영 배지를 반복하지 않습니다');
 assert.match(businessPage, /기업·기관용 문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 물품 포장·검수/, '하는 일은 기업·발주 관점의 사업과 협력 업무를 보여 줍니다');
 assert.match(businessPage, /<h3>테라리움 제작<\/h3>[\s\S]*익히고 있습니다\.[\s\S]*맞춤 주문제작 상품과 DIY 키트를 준비하고 있습니다\./, '현재 교육과 준비 중인 상품을 구분합니다');
-assert.match(workplace, /assets\/images\/workplace\/workplace-packing-watercolor\.webp/, '우리의 일터 포장·검수 타일은 현재 수채화 일러스트를 유지합니다');
+assert.doesNotMatch(workplace, /workplace-packing-watercolor\.webp/, '포장 수채화는 상세에만 배치합니다');
 assert.doesNotMatch(workplace, /packing-tape\.webp|packing-inspection\.webp/, '우리의 일터 일러스트 타일에는 이전 포장 사진을 남기지 않습니다');
 assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOTO 02와 03만 유지하고 새 슬롯을 추가하지 않습니다');
 assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?테라리움 제조사업/);
