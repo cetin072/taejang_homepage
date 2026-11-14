@@ -96,6 +96,7 @@ export const testGroups = Object.freeze({
     'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
+    'tests/promotion-document.test.mjs',
     'tests/photo-safe-browser.test.mjs',
     'tests/scheduled-netlify-release.test.mjs',
     'tests/mobile-optional-release-config.test.mjs',

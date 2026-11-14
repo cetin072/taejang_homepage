@@ -230,6 +230,7 @@ jobs:
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
         run: |
+          node tests/promotion-visual-editor-browser.mjs
           node tests/promotion-composer-browser.mjs
           node tests/official-blog-photo-browser.mjs
 

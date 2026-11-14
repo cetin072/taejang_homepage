@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import '../assets/js/public-promotion-media.js';
+import '../assets/js/promotion-document.js';
+const f=globalThis.TAEJANG_ARTICLE_DOCUMENT;
+const url='https://fixture.supabase.co/storage/v1/object/public/promotion-media/a.jpg';
+const doc={type:'doc',content:[{type:'heading',attrs:{level:2},content:[{type:'text',text:'함께하는 일터'}]},{type:'paragraph',content:[{type:'text',text:'첫 문단',marks:[{type:'bold'}]}]},{type:'image',attrs:{src:url,alt:'작업을 준비하는 모습'}},{type:'paragraph',content:[{type:'text',text:'둘째 문단'}]}]};
+const item={public_body:f.PREFIX+JSON.stringify(doc),public_media:[{url}]};
+test('ordered article document round trip, captions and plaintext summary',()=>{assert.deepEqual(f.parse(item.public_body),doc);const html=f.render(item);assert.match(html,/<h2>함께하는 일터<\/h2>/);assert.match(html,/<strong>첫 문단<\/strong>/);assert.match(html,/<figcaption>작업을 준비하는 모습<\/figcaption>/);assert.ok(html.indexOf('첫 문단')<html.indexOf('<figure>')&&html.indexOf('<figure>')<html.indexOf('둘째 문단'));assert.equal(f.plain(item.public_body),'함께하는 일터\n첫 문단\n작업을 준비하는 모습\n둘째 문단');});
+test('legacy text stays legacy and literal HTML is never executable',()=>{assert.equal(f.render({public_body:'원래 글\n\n둘째 문단'}),null);assert.equal(f.plain('원래 글'),'원래 글');const d=f.fromPlain('<img src=x onerror=alert(1)>');assert.match(f.render({public_body:f.PREFIX+JSON.stringify(d)}),/&lt;img/);});
+test('images require exact approved attachment and permanent URL; links escaped and allowlisted',()=>{const evil=structuredClone(doc);evil.content.push({type:'image',attrs:{src:'https://attacker.test/track.jpg',alt:'private'}});evil.content.push({type:'paragraph',content:[{type:'text',text:'<script>attack</script>',marks:[{type:'link',attrs:{href:'javascript:alert(1)'}}]},{type:'text',text:'safe',marks:[{type:'link',attrs:{href:'https://example.com/?a="b"'}}]}]});const html=f.render({public_body:f.PREFIX+JSON.stringify(evil),public_media:[]});assert.doesNotMatch(html,/<img|javascript:|<script>|attacker.test/);assert.match(html,/rel="noopener noreferrer"/);assert.match(html,/&lt;script&gt;/);});
+test('removed body image does not reappear as gallery, invalid or oversize docs never expose raw source',()=>{const d=structuredClone(doc);d.content.splice(2,1);assert.doesNotMatch(f.render({...item,public_body:f.PREFIX+JSON.stringify(d)}),/<img/);assert.equal(f.parse(f.PREFIX+'{bad'),null);assert.equal(f.plain(f.PREFIX+'{bad'),'');assert.equal(f.parse(f.PREFIX+' '.repeat(30001)),null);});
