@@ -58,6 +58,16 @@ jobs:
           name: certifications-320-390-768-1440
           path: certifications-qa-artifacts/
           if-no-files-found: ignore
+      - name: Verify location address copy and responsive layout
+        run: node tests/location-browser.mjs
+        env:
+          LOCATION_QA_OUTPUT: location-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: location-320-390-768-1440
+          path: location-qa-artifacts/
+          if-no-files-found: ignore
       - name: Verify public SEO content and source presentation
         run: node tests/public-seo-content-browser.mjs
       - uses: actions/upload-artifact@v4
