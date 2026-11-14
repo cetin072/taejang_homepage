@@ -91,7 +91,8 @@ try {
           }
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
           await page.getByRole('link', { name: '포장·검수 과정 보기', exact: true }).click();
-          assert.ok(page.url().endsWith('#packing-process'));
+          assert.ok(page.url().endsWith('/workplace/packing-care.html#packing-process'));
+          assert.ok(await page.locator('#packing-process').isVisible());
           await page.screenshot({ path: `seo-qa-artifacts/packing-${width}-${javaScriptEnabled}.png`, fullPage: true });
           await page.getByRole('link', { name: '우리의 일터로 돌아가기', exact: true }).click();
           assert.ok(page.url().endsWith('/workplace.html#workplace-jobs'));

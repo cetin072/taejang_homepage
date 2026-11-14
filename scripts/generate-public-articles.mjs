@@ -116,7 +116,7 @@ function renderPackingLanding(item) {
     <div class="container workplace-intro">
       <div><h1 class="title">${htmlText(item.title)}</h1>
         <p class="lead">${htmlText(intro.paragraphs.join(' '))}</p>
-        <a class="btn line" href="#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
+        <a class="btn line" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
       </div>
       <figure class="workplace-photo">
         <img src="assets/images/workplace/packing-tape-work.webp" width="1200" height="900" alt="상자 위에 테이프를 붙이는 태장 근로자의 손과 포장 도구" fetchpriority="high" decoding="async">
@@ -203,6 +203,8 @@ function renderDocument(template, group, item, siblings) {
     '<script type="application/ld+json">' + json + '</script>', 'structured data');
   output = replaceRequired(output, /<main id="main-content">[\s\S]*?<\/main>/,
     group.key === 'workplace' && item.id === 'packing-care' ? renderPackingLanding(item) : article.body, 'main');
+  // A fragment alone resolves against <base href="/">, so include this article's path.
+  output = output.replace('href="#main-content"', 'href="' + article.path + '#main-content"');
   output = output.replace(/<script src="assets\/js\/listing.js"><\/script>\s*/g, '');
   if (group.key === 'workplace') output = output.replace('<body data-content-type="workplace">',
     '<body data-content-type="workplace" class="workplace-detail-mode">');
