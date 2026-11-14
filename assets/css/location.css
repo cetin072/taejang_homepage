@@ -10,7 +10,7 @@
 .location-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
 .location-page .location-copy { min-height: 48px; padding: 12px 16px; gap: 8px; border: 1px solid var(--green); border-radius: 8px; background: #fff; color: var(--green); font: 700 15px/1.5 var(--gothic); transform: none; cursor: pointer; }
 .location-page .location-copy[hidden] { display: none; }
-.location-page .location-copy:hover { background: #f0f5f1; }
+.location-page .location-copy:hover { background: #f0f5f1; color: var(--green); }
 .location-copy:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
 .location-copy-status { min-height: 24px; margin: 8px 0 0; color: var(--green-deep); font-size: 13px; line-height: 1.6; }
 .location-office-note { margin: 8px 0 12px; color: var(--ink-soft); font-size: 14px; }

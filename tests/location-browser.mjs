@@ -38,6 +38,7 @@ try {
   await copy.click();await page.getByRole('status').filter({hasText:'복사하지 못했습니다.'}).waitFor();assert.ok(await copy.isEnabled());
   await page.evaluate(()=>navigator.clipboard.writeText=async value=>{window.copiedAddress=value;});
   await copy.click();await page.getByRole('status').filter({hasText:'주소를 복사했습니다.'}).waitFor();
+  assert.equal(await copy.evaluate(e=>getComputedStyle(e).color),'rgb(45, 106, 79)','copy text stays readable on hover');
   for(const img of await page.locator('main img').all()){await img.scrollIntoViewIfNeeded();await img.evaluate(e=>e.decode());assert.ok(await img.evaluate(e=>Math.abs(e.clientWidth/e.clientHeight-e.naturalWidth/e.naturalHeight)<.03));}
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');
   assert.ok(await page.locator('.location-farm-scale').innerText().then(s=>s.includes('1만 평')));
