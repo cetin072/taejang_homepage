@@ -1,0 +1,29 @@
+name: Logistics workspace checks
+on:
+  pull_request:
+    paths:
+      - 'app/assets/logistics*'
+      - 'app/assets/dashboard-shell.js'
+      - 'app/assets/platform-navigation-registry.js'
+      - 'supabase/migrations/*logistics_workspace.sql'
+      - 'tests/logistics*'
+      - '.github/workflows/logistics-workspace-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  logistics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/logistics-core.test.cjs
+      - run: node tests/logistics-isolated.mjs
+      - run: npm run test:platform-static
+      - run: npm run test:staging-safety
+      - run: npm run build:netlify

@@ -1,0 +1,73 @@
+name: Logistics feature-branch source integration
+on:
+  push:
+    branches: ['codex/issue-681-logistics-v1']
+    paths: ['.workroom/logistics-source-*.bin', '.github/workflows/logistics-source-bootstrap.yml']
+permissions:
+  contents: write
+concurrency:
+  group: logistics-source-integration
+  cancel-in-progress: false
+jobs:
+  integrate:
+    if: github.ref == 'refs/heads/codex/issue-681-logistics-v1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/issue-681-logistics-v1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify and unpack authored source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = 'codex/issue-681-logistics-v1'
+          cat .workroom/logistics-source-part{1,2,3,4}.bin > /tmp/logistics-source.txz
+          echo '7fd45871fdbd975463690a12871dd0e2dd9f4707833a6aab10921bd0432bd5c6  /tmp/logistics-source.txz' | sha256sum -c -
+          python3 - <<'PY'
+          import tarfile, pathlib
+          allowed = {'app/assets/logistics-core.js','app/assets/logistics.js','app/assets/logistics.css','supabase/sql/logistics_workspace.sql','tests/logistics-core.test.cjs','tests/logistics-isolated.mjs','scripts/integrate-logistics.cjs','docs/planning/LOGISTICS_WORKSPACE_V1.md','.github/workflows/logistics-workspace-checks.yml'}
+          with tarfile.open('/tmp/logistics-source.txz','r:xz') as archive:
+              members = archive.getmembers()
+              assert {m.name for m in members} == allowed
+              assert len(members) == len(allowed)
+              for member in members:
+                  assert member.isfile() and member.size < 100000
+                  path = pathlib.Path(member.name)
+                  path.parent.mkdir(parents=True, exist_ok=True)
+                  path.write_bytes(archive.extractfile(member).read())
+          PY
+      - run: npm ci
+      - name: Integrate native menu and generate migration via existing CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/integrate-logistics.cjs
+          npx --no-install supabase migration new logistics_workspace
+          target=$(find supabase/migrations -maxdepth 1 -name '*_logistics_workspace.sql' | sort | tail -1)
+          test -n "$target"
+          cp supabase/sql/logistics_workspace.sql "$target"
+          rm supabase/sql/logistics_workspace.sql
+          node --check app/assets/logistics.js
+          node --check app/assets/dashboard-shell.js
+          git diff --check
+      - run: node --test tests/logistics-core.test.cjs
+      - run: node tests/logistics-isolated.mjs
+      - run: npm run test:platform-static
+      - run: npm run test:staging-safety
+      - run: npm run build:netlify
+      - name: Commit tested implementation to this feature branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = 'codex/issue-681-logistics-v1'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/assets/logistics-core.js app/assets/logistics.js app/assets/logistics.css app/assets/dashboard-shell.js app/assets/platform-navigation-registry.js tests/logistics-core.test.cjs tests/logistics-isolated.mjs docs/planning/LOGISTICS_WORKSPACE_V1.md
+          git add supabase/migrations/*_logistics_workspace.sql
+          git commit -m 'feat: port logistics quote workspace with protected shared ledger (#681)'
+          git push origin HEAD:refs/heads/codex/issue-681-logistics-v1
