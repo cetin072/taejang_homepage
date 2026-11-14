@@ -176,7 +176,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     assert.equal(await actions.count(), 5);
     assert.ok(await actions.evaluateAll(items => items.every(item => {
       const style = getComputedStyle(item);
-      return item.getBoundingClientRect().height >= 44 && style.borderRadius === '8px';
+      return item.getBoundingClientRect().height >= 48 && style.borderRadius === '8px';
     })), 'consistent rounded actions and sufficient touch height');
     const images = page.locator('.resource-media img');
     assert.equal(await images.count(), 4);
