@@ -305,7 +305,7 @@
   }
 
   function summaryFromBody(body) {
-    return (body || '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
+    return (globalThis.TAEJANG_ARTICLE_DOCUMENT?.plain(body) ?? body ?? '').replace(/\s+/g, ' ').trim().slice(0, 220) || null;
   }
 
   function officialBlogPostFromStoredImage(rawUrl) {
@@ -367,6 +367,7 @@
     if (action === 'schedule' && (!formState.scheduleDate.value || new Date(publicationSchedule(formState.scheduleDate.value)).getTime() <= Date.now())) {
       window.alert('실제 예약일은 미래 날짜로 선택해 주세요.'); return;
     }
+    if (!globalThis.TaejangArticleEditor?.valid(formState.body) && globalThis.TaejangArticleEditor) return;
     const body = formState.body.value;
     const title = formState.title.value.trim();
     if (!title) { window.alert('제목을 입력해 주세요.'); return; }
@@ -536,10 +537,22 @@
     toolbar.append(uploadLabel, uploadStatus);
     const media = mediaFromExisting(existingItem);
     const mediaGrid = el('div', null, 'phase-c-photo-grid');
-    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: true, heroImage: media.find(entry => entry.url === existingItem?.hero_image_url)?.url || media[0]?.url || null, saveButtons: [] };
+    const state = { type, title, date, numberOrAmount, bylineKind: operationsAuthor ? bylineKind : null, scheduleDate, uploading: false, external, body, media, coverFromMedia: false, heroImage: media.find(entry => entry.url === existingItem?.hero_image_url)?.url || media[0]?.url || null, saveButtons: [] };
+    let articleEditor;
+    const cover = document.createElement('select');
+    cover.className = 'article-cover-select';
+    cover.setAttribute('aria-label', '목록 대표사진');
+    cover.addEventListener('change', () => { state.coverFromMedia = false; state.heroImage = cover.value || null; renderLivePreview(); });
+    function refreshCover() {
+      if (!media.some(entry => entry.url === state.heroImage)) state.heroImage = media[0]?.url || null;
+      cover.replaceChildren(...media.map((entry, index) => new Option(`${index + 1}. ${entry.alt || '사진'}`, entry.url)));
+      cover.value = state.heroImage || '';
+    }
     const livePreview = el('section', null, 'phase-c-composer-preview app-form-section');
     livePreview.dataset.composerPreview = '1';
     function renderLivePreview() {
+      articleEditor?.refresh();
+      refreshCover();
       livePreview.replaceChildren(el('h3', '게시글 미리보기'), previewCard({
         content_type: type.value, title: title.value, public_body: body.value,
         hero_image_url: state.heroImage, public_media: media,
@@ -676,9 +689,11 @@
       pendingIndex = 0;
       uploadSelected();
     });
-    editor.append(toolbar, mediaGrid);
+    editor.append(toolbar, field('목록 대표사진', cover, '대표사진은 소식 목록에 표시됩니다. 본문 사진 위치와 별도로 선택하세요.'), mediaGrid);
     // The operations-manager reference order is shared by all authoring roles.
     form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
+    articleEditor = globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => media, getTitle: () => title.value, item: existingItem });
+    if (articleEditor) livePreview.hidden = true;
     if (scheduleField) form.append(scheduleField);
     form.append(externalWrap);
 
@@ -720,6 +735,12 @@
     if (live) panel.classList.add('promotion-preview-live');
     panel.append(el('p', TYPE_LABELS[item.content_type] || '홍보자료', 'eyebrow'), el('h2', item.title || '제목 없음'));
     if (item.requested_publish_date) panel.append(el('p', `게시 희망일 ${item.requested_publish_date}`));
+    const rich = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(item, document);
+    if (rich) {
+      panel.append(rich);
+      if (!live) panel.append(button('미리보기 닫기', () => panel.remove(), true));
+      return panel;
+    }
     if (item.hero_image_url) {
       const image = document.createElement('img');
       image.src = item.hero_image_url;
@@ -1005,10 +1026,12 @@
     const form = el('form', null, 'phase-c-board-form app-authoring');
     form.addEventListener('submit', event => event.preventDefault());
     form.append(field('제목', title), field('본문', body));
+    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => arr(detail.public_media), getTitle: () => title.value, item: detail });
     form.append(field('연결 링크 (선택)', external, '네이버 블로그·유튜브·인터넷 기사 등 관련 주소를 연결할 수 있습니다.'));
     form.append(field('게시 희망일 (선택)', date));
     const actions = el('div', null, 'quick-links');
     actions.append(button('수정본 저장', async () => {
+      if (globalThis.TaejangArticleEditor && !globalThis.TaejangArticleEditor.valid(body)) return;
       if (!title.value.trim()) { window.alert('제목을 입력해 주세요.'); return; }
       try {
         await app().rpc('lead_replace_promotion_revision', {

@@ -130,6 +130,7 @@
 
   loadStyleOnce('assets/dashboard-accent-theme.css', 'dashboard-accent-theme');
   loadStyleOnce('assets/support-radar.css', 'support-radar');
+  loadStyleOnce('../assets/css/promotion-document.css', 'promotion-document');
   // Start independent feature requests together, but do not release app-ready until
   // every module has registered or failed. `async = false` keeps dynamically
   // inserted classic scripts executing in insertion order.
@@ -146,6 +147,10 @@
     ['assets/attendance-monthly.js', 'attendance-monthly'],
     ['assets/attendance-admin.js', 'attendance-admin'],
     ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
+    ['../assets/js/public-promotion-media.js', 'public-promotion-media'],
+    ['../assets/js/promotion-document.js', 'promotion-document'],
+    ['../assets/js/featured-article-layout.js', 'featured-article-layout'],
+    ['assets/promotion-visual-editor.js', 'promotion-visual-editor'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/issue-181-promotion-live-ux.js', 'issue-181-promotion-live-ux'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
