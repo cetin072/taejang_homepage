@@ -164,8 +164,9 @@ assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*태장 민화[
 assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*테라리움 제조사업[\s\S]*href="terrarium\.html"/);
 assert.doesNotMatch(index, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
-assert.match(business, /class="business-workflow"[\s\S]*협력은 이렇게 함께 정리합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*방식 설계[\s\S]*운영 확인/);
-assert.match(business, /기업·기관이 함께 만들 수 있는 현재 사업과 협력 가능 업무를 소개합니다\./);
+assert.match(business, /class="business-workflow"[\s\S]*기업 협력은 이렇게 진행합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*작업 방식 결정[\s\S]*운영 확인/);
+assert.match(business, /<h2 class="title" id="business-operations-title">태장의 사업과 활동<\/h2>/);
+assert.doesNotMatch(business, /맡길 수 있는 일과 협력|WHAT WE DO|CURRENT OPERATIONS|PARTNERSHIP FLOW|AGRICULTURAL ROOTS/);
 assert.match(workplace, /직무를 나누고, 순서와 작업환경을 이해하기 쉽게 운영합니다\./);
 assert.match(workplace, /직무를 이해하고<br>함께 익히는 방식/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
