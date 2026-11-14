@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { buildPublicSitemap } from '../scripts/public-seo-sitemap.mjs';
+import { buildPublicSitemap } from '../scripts/generate-public-articles.mjs';
 
 const page = (name, robots = 'index, follow') => `<!doctype html><html><head><meta name="robots" content="${robots}"><meta name="description" content="태장의 공개 안내"><title>태장 안내 ${name}</title><link rel="canonical" href="https://taejang.co.kr/${name === 'index.html' ? '' : name}"></head></html>`;
 async function fixture() {
@@ -28,6 +28,8 @@ test('accidental noindex or an unclassified new root page blocks publishing', as
   const { root, out, files } = await fixture();
   try {
     await writeFile(path.join(out, 'new-page.html'), page('new-page.html', 'noindex, nofollow'));
+    await assert.rejects(buildPublicSitemap({ repoRoot: root, outputRoot: out, publicFiles: files }), /Public SEO metadata needs review: new-page.html/);
+    await writeFile(path.join(out, 'new-page.html'), page('new-page.html', 'index, nofollow'));
     await assert.rejects(buildPublicSitemap({ repoRoot: root, outputRoot: out, publicFiles: files }), /Public SEO metadata needs review: new-page.html/);
     await writeFile(path.join(out, 'new-page.html'), page('new-page.html'));
     await writeFile(path.join(root, 'forgotten.html'), page('forgotten.html'));

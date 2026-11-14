@@ -1,10 +1,9 @@
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { generatePublicArticles } from './generate-public-articles.mjs';
+import { generatePublicArticles, buildPublicSitemap } from './generate-public-articles.mjs';
 import { localizeOfficialThumbnails } from './localize-official-thumbnails.mjs';
 import { generateArchiveSnapshot } from './generate-archive-snapshot.mjs';
 import { inlinePublicNavigation } from './inline-public-navigation.mjs';
-import { buildPublicSitemap } from './public-seo-sitemap.mjs';
 
 const repoRoot = process.cwd();
 const outputRoot = path.resolve(process.env.TAEJANG_PUBLISH_DIR || path.join(repoRoot, 'dist'));
