@@ -31,12 +31,16 @@
     image.addEventListener('error', next);
     if (image.complete && image.naturalWidth === 0) next();
   }
+  function presentation(item, storageOrigin) {
+    const urls = candidates(item).filter(url => url === DEFAULT_IMAGE ||
+      new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === storageOrigin);
+    return { url: urls[0], alt: alt(item, urls[0]), candidates: urls };
+  }
   async function resolve(item, storageOrigin, probes = new Map()) {
     const signal = AbortSignal.timeout(2000);
     // Probe only until the first usable approved photo. Remaining approved
     // attachments are browser error fallbacks, not eager network requests.
-    const urls = candidates(item).filter(url => url === DEFAULT_IMAGE ||
-      new URL(url).origin === 'https://taejang.co.kr' || new URL(url).origin === storageOrigin);
+    const urls = presentation(item, storageOrigin).candidates;
     for (let index = 0; index < urls.length; index++) {
       const url = urls[index];
       if (url !== DEFAULT_IMAGE && !probes.has(url)) {
@@ -52,5 +56,5 @@
       }
     }
   }
-  root.TAEJANG_PUBLIC_MEDIA = Object.freeze({ DEFAULT_IMAGE, persistent, candidates, alt, bind, resolve });
+  root.TAEJANG_PUBLIC_MEDIA = Object.freeze({ DEFAULT_IMAGE, persistent, candidates, alt, bind, presentation, resolve });
 }(globalThis));

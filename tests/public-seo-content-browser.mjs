@@ -209,6 +209,9 @@ try {
           assert.ok((await page.url()).endsWith('/partnership.html#contact'));
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
         }
+        // Link checks above may navigate to a different page. Measure its
+        // layout after its styles/images load, not at navigation commit.
+        await page.waitForLoadState('load');
         const overflow = await page.evaluate(() => ({
           width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
           elements: [...document.querySelectorAll('body *')].filter(element => {

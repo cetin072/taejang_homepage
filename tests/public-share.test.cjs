@@ -209,7 +209,14 @@ test('archive shares the original external URL, not Taejang article/archive URLs
   assert.equal(originalLink.href, original);
   assert.equal(panel.tag, 'details');
   const summary = find(panel, e => e.tag === 'summary');
-  assert.equal(summary.textContent, '원문 공유');
+  assert.equal(summary.textContent, '');
+  assert.equal(summary.title, '원문 공유');
+  assert.match(summary.innerHTML, /<svg.*aria-hidden="true"/);
+  assert.equal(summary.attributes['aria-label'], '태장 블로그 환경정비 이야기 원문 공유 옵션');
+  panel.open = true;
+  panel.listeners.keydown({ key: 'Escape' });
+  assert.equal(panel.open, false);
+  assert.equal(summary.focuses, 1);
   const copied = find(panel, e => e.tag === 'button' && e.textContent === '원문 URL 복사');
   const input = find(panel, e => e.tag === 'input');
   assert.equal(input.value, original);
