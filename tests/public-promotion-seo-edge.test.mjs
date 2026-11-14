@@ -93,7 +93,7 @@ test('unparameterized template preserves original static behavior', async () => 
   } finally { env.restore(); }
 });
 
-test('dynamic sitemap lists only internally published public promotion URLs', async () => {
+test('dynamic sitemap lists approved public promotion URLs, including source introductions', async () => {
   const env = setup({ feed: [
     full,
     { content_id: other, content_type: 'press_release', title: '보도자료' },
@@ -107,23 +107,24 @@ test('dynamic sitemap lists only internally published public promotion URLs', as
     const xml = await response.text();
     assert.match(xml, /<loc>https:\/\/taejang.co.kr\/promotion.html\?id=11111111/);
     assert.match(xml, /<loc>https:\/\/taejang.co.kr\/promotion.html\?id=22222222/);
-    assert.equal((xml.match(/<url>/g) || []).length, 2);
-    assert.doesNotMatch(xml, /33333333|bad-id|example.org/);
+    assert.equal((xml.match(/<url>/g) || []).length, 3);
+    assert.match(xml, /33333333/);
+    assert.doesNotMatch(xml, /bad-id|example.org/);
     assert.deepEqual(env.rpcNames, ['list_public_promotion_feed']);
     assert.deepEqual(config.path, ['/promotion.html', '/sitemap-promotions.xml']);
     assert.match(readFileSync('robots.txt', 'utf8'), /sitemap-promotions\.xml/);
   } finally { env.restore(); }
 });
 
-test('external-only linked content is not indexed as a duplicate Taejang article', async () => {
+test('approved external introductions are indexable without Taejang Article attribution', async () => {
   const external = { ...full, content_type: 'external_content', external_url: 'https://example.org/source' };
   const env = setup({ detail: [external] });
   try {
     const response = await handler(new Request('https://preview.example/promotion.html?id=' + id), context);
     assert.equal(response.status, 200);
     const html = await response.text();
-    assert.match(html, /<meta name="robots" content="noindex, follow">/);
-    assert.doesNotMatch(html, /<meta name="robots" content="index, follow">/);
+    assert.match(html, /<meta name="robots" content="index, follow">/);
+    assert.doesNotMatch(html, /noindex/);
     assert.doesNotMatch(html, /"@type":"Article"/);
     assert.match(html, /href="https:\/\/example\.org\/source"/);
   } finally { env.restore(); }
@@ -155,20 +156,20 @@ test('SSR keeps clickable safe in-body URLs and escapes markup', async () => {
 });
 
 
-test('legacy press introductions lose Article attribution and sitemap inclusion without changing source data', async () => {
+test('legacy press introductions retain correct source attribution and are discoverable', async () => {
   const item = { ...full, summary: '경남형 업무협약을 소개합니다.', public_body: '경남형 업무협약을 소개합니다.', external_url: 'https://www.gnen.net/news/articleView.html?idxno=141330', link_source_type: 'external' };
   const saved = JSON.stringify(item);
   const env = setup({ detail: [item], feed: [item] });
   try {
     const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
-    assert.match(html, /noindex, follow/);
+    assert.match(html, /index, follow/);
     assert.doesNotMatch(html, /"@type":"Article"/);
     assert.equal((html.match(/경남형 업무협약을 소개합니다\.<\/p>/g) || []).length, 1);
     assert.match(html, /홈페이지 등록일:/);
     assert.match(html, /출처: www.gnen.net/);
     assert.match(html, /원문 미리보기입니다/);
     const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
-    assert.doesNotMatch(xml, new RegExp(id));
+    assert.match(xml, new RegExp(id));
     assert.equal(JSON.stringify(item), saved);
   } finally { env.restore(); }
 });
@@ -179,12 +180,12 @@ test('blog snippets link to the approved complete activity record and survive mi
   const env = setup({ detail: [item], feed: [listRow] });
   try {
     const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
-    assert.match(html, /noindex, follow/);
+    assert.match(html, /index, follow/);
     assert.match(html, /https:\/\/taejang.co.kr\/activities\/environment-cleanup-fifth.html/);
     assert.match(html, /활동일: 2026.10.23/);
     assert.equal((html.match(/안전교육과 \.\.\.<\/p>/g) || []).length, 1);
     const xml = await (await handler(new Request('https://preview.example/sitemap-promotions.xml'), context)).text();
-    assert.doesNotMatch(xml, new RegExp(id));
+    assert.match(xml, new RegExp(id));
   } finally { env.restore(); }
 });
 
@@ -219,6 +220,16 @@ test('a source with summary only shows its preview once without inventing body t
     assert.equal((html.match(/원문에서 제공한 미리보기입니다\.<\/p>/g) || []).length, 1);
     assert.match(html, /원문 미리보기입니다/);
     assert.doesNotMatch(html, /class="lead"/);
+  } finally { env.restore(); }
+});
+
+test('featured article search description starts with the actual article introduction', async () => {
+  const item = JSON.parse(readFileSync('tests/fixtures/featured-article.json', 'utf8'));
+  const env = setup({ detail: [{ ...full, ...item, content_id: id, summary: '연재 기획기사 1편 글의 순서 1 네 기업...' }] });
+  try {
+    const html = await (await handler(new Request('https://preview.example/promotion.html?id=' + id), context)).text();
+    assert.match(html, /<meta name="description" content="경남 창원시 팔용동에 있는 농업회사법인 태장/);
+    assert.doesNotMatch(html, /<meta name="description" content="연재 기획기사/);
   } finally { env.restore(); }
 });
 

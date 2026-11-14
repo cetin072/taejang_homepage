@@ -2,7 +2,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { existsSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
+const { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -14,7 +14,6 @@ const source = { window: {} };
 vm.runInNewContext(readFileSync(path.join(repo, 'assets/js/content.js'), 'utf8'), source);
 const approved = ['activities', 'workplace'].flatMap(type => source.window.TAEJANG_CONTENT[type]
   .filter(item => item.status === 'published').map(item => ({ type, item })));
-const baseSitemapCount = (readFileSync(path.join(repo, 'sitemap.xml'), 'utf8').match(/<url>/g) || []).length;
 
 test('published activity and workplace stories are crawlable without JS', () => {
   const folder = mkdtempSync(path.join(os.tmpdir(), 'taejang-articles-'));
@@ -74,7 +73,13 @@ test('published activity and workplace stories are crawlable without JS', () => 
     for (const route of pages) {
       assert.ok(map.includes('<loc>https://taejang.co.kr/' + route + '</loc>'));
     }
-    assert.equal((map.match(/<url>/g) || []).length, baseSitemapCount + approved.length,
+    const publicPages = readdirSync(dist).filter(file => file.endsWith('.html')
+      && !['404.html', 'thanks.html', 'promotion.html'].includes(file));
+    for (const page of publicPages) {
+      const url = 'https://taejang.co.kr/' + (page === 'index.html' ? '' : page);
+      assert.ok(map.includes('<loc>' + url + '</loc>'), 'published page belongs in sitemap: ' + page);
+    }
+    assert.equal((map.match(/<url>/g) || []).length, publicPages.length + approved.length,
       'Sitemap includes one generated URL for each approved article');
     const redirects = readFileSync(path.join(dist, '_redirects'), 'utf8').trim().split(/\r?\n/);
     assert.equal(redirects.length, approved.length, 'Only published article URLs have old-link redirects');

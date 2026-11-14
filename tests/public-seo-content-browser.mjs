@@ -207,7 +207,10 @@ try {
           assert.deepEqual(await page.locator('#farm-story').boundingBox(), current, 'farm layout stable');
           await page.getByRole('link', { name: '농장 관련 협력 문의', exact: true }).click();
           assert.ok((await page.url()).endsWith('/partnership.html#contact'));
+          await page.waitForLoadState('load');
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm inquiry destination overflow');
+          await page.goto(base + '/farm.html', { waitUntil: 'load' });
         }
         const overflow = await page.evaluate(() => ({
           width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
@@ -319,7 +322,7 @@ try {
         await page.locator('h1').filter({ hasText: row.title }).waitFor();
         assert.equal(await page.locator('.article-body').textContent(), row.public_body);
         assert.equal(await page.locator('.article-header .lead').count(), 0);
-        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
+        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /^index/);
         assert.equal(await page.getByRole('link', { name: /공식 활동 기록:/ }).count(), 1);
         assert.match(await page.locator('.article-meta').textContent(), /홈페이지 등록일:/);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
