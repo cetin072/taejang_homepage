@@ -176,7 +176,7 @@ test('home business and services keep the already approved hub navigation', () =
   assert.match(tile, /태장 테라리움/);
   assert.match(tile, /활동 소개/);
   assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
-  assert.match(resources, /<a class="resource-card resource-card--link" href="worklog.html" aria-labelledby="resource-worklog-title"/);
+  assert.match(resources, /<a class="resource-card resource-card--link" href="worklog.html" aria-labelledby="resource-worklog-title resource-worklog-action"/);
 });
 
 test('public contact and privacy boundary is unchanged', () => {
