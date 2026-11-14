@@ -10,6 +10,21 @@ const photo = name => origin + '/storage/v1/object/public/promotion-media/' + na
 const id = '11111111-1111-4111-8111-111111111111';
 const row = { content_id: id, title: '공개 소식', content_type: 'homepage_article', public_body: '보존할 본문', public_media: [] };
 
+test('public adapter carries editorial order and explicit unpin without promoting external links', async () => {
+  const previous={fetch:globalThis.fetch,Netlify:globalThis.Netlify};let current;
+  globalThis.Netlify={env:{get:name=>name==='SUPABASE_URL'?origin:'public-anon-key'}};
+  globalThis.fetch=async()=>Response.json([current]);
+  const read=async()=>(await(await feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed?format=json'))).json()).items[0];
+  try {
+    current={...row,editorial_slot:3};assert.equal((await read()).editorialSlot,3);
+    current={...row,editorial_slot:null};assert.equal((await read()).editorialSlot,null);
+    current={...row,editorial_slot:5};assert.equal((await read()).editorialSlot,null);
+    current={...row,editorial_slot:1,external_url:'https://blog.naver.com/taejang-official/123456789'};
+    assert.equal((await read()).editorialSlot,null);
+    current={...row};assert.equal(Object.hasOwn(await read(),'editorialSlot'),false,'old database remains compatible until migration');
+  } finally {Object.assign(globalThis,previous);}
+});
+
 test('staff-written Naver blog cards open the source independently of article type or legacy source label', async () => {
   const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
   let current;

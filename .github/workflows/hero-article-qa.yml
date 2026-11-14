@@ -40,6 +40,8 @@ jobs:
           if-no-files-found: ignore
       - name: Verify archive editorial cards and search
         run: node tests/archive-editorial-browser.mjs
+      - name: Verify ERP editorial selection and order controls
+        run: node tests/promotion-editorial-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -28,6 +28,15 @@ test('home puts the pinned original first and removes its syndicated duplicate',
   assert.deepEqual(Array.from(cards, item => item.id), [valid.id, news.id]);
 });
 
+test('ERP slots override legacy selection, preserve order, and uncheck removes only placement', () => {
+  const records = [4,1,3,2].map(slot=>({...valid,id:'promotion-slot-'+slot,detailUrl:'promotion.html?id=slot-'+slot,editorialSlot:slot}));
+  assert.deepEqual(Array.from(selectPinned(records,4),item=>item.editorialSlot),[1,2,3,4]);
+  assert.equal(isPinned({...valid,editorialSlot:null}),false,'explicit unpin never falls back to legacy config');
+  assert.equal(isPinned({...valid,editorialSlot:5}),false);
+  assert.equal(isPinned({...valid,editorialSlot:1,status:'hidden'}),false);
+  assert.equal(selectHome([{...valid,editorialSlot:null}],3).length,1,'ordinary list retains unpinned article');
+});
+
 test('hidden or missing editorial originals do not bypass publication approval', () => {
   assert.deepEqual(Array.from(selectPinned([{ ...valid, status: 'hidden' }], 3)), []);
   assert.deepEqual(Array.from(selectHome([news, mirror, { ...valid, status: 'hidden' }], 2), item => item.id),

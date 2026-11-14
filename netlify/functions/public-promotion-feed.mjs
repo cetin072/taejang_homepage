@@ -58,6 +58,9 @@ function hubItem(row, image) {
     thumbnailAlt: image.alt,
     publishedAt: row.published_date || '',
     featured: false,
+    ...(Object.prototype.hasOwnProperty.call(row, 'editorial_slot')
+      ? { editorialSlot: !external && Number.isInteger(row.editorial_slot) && row.editorial_slot >= 1 && row.editorial_slot <= 4 ? row.editorial_slot : null }
+      : {}),
     status: 'published',
     ...(external
       ? { externalUrl: row.external_url, externalLabel: link.label }

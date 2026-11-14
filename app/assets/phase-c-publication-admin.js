@@ -341,7 +341,57 @@
     return card;
   }
 
-  function itemCard(item, role) {
+  function editorialControls(item, items) {
+    const form = el('form', null, 'app-authoring promotion-editorial-controls');
+    const original = item.editorial_slot ?? null;
+    const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = original !== null;
+    const toggle = el('label', null, 'promotion-editorial-toggle');
+    toggle.append(checkbox, el('span', '기획기사로 상단에 고정'));
+    const order = document.createElement('select');
+    for (let slot = 1; slot <= 4; slot++) {
+      const occupant = items.find(other => other.editorial_slot === slot && other.content_id !== item.content_id);
+      const option = document.createElement('option'); option.value = String(slot);
+      option.textContent = `${slot}번${occupant ? original === null ? ' · 사용 중' : ' · 기존 기사와 자리 바꿈' : ''}`;
+      option.disabled = original === null && Boolean(occupant); order.append(option);
+    }
+    const freeSlot = [1,2,3,4].find(slot => !items.some(other => other.editorial_slot === slot));
+    order.value = String(original || freeSlot || '');
+    const orderField = field('노출 순서', order, 'PC는 왼쪽부터, 모바일은 넘기는 순서입니다.');
+    const status = el('p', original ? `${original}번 자리에 고정되어 있습니다.` : '최대 4개를 고정할 수 있습니다.', 'field-help');
+    status.setAttribute('role', 'status');
+    const save = button('기획기사 설정 저장', () => {}); save.type = 'submit';
+    const reload = button('최신 상태 다시 불러오기', () => openPublicationAdmin(), true); reload.hidden = true;
+    const actions = el('div', null, 'form-actions'); actions.append(save, reload);
+    const desired = () => checkbox.checked ? Number(order.value) || null : null;
+    const update = () => {
+      orderField.hidden = !checkbox.checked;
+      save.disabled = desired() === original || (checkbox.checked && !order.value);
+      if (checkbox.checked && !order.value) status.textContent = '네 자리가 모두 사용 중입니다. 기존 기사 하나의 고정을 먼저 해제해 주세요.';
+    };
+    checkbox.addEventListener('change', update); order.addEventListener('change', update);
+    form.addEventListener('submit', async event => {
+      event.preventDefault(); if (save.disabled) return;
+      const next = desired(); checkbox.disabled = true; order.disabled = true; save.disabled = true;
+      status.textContent = '저장하고 있습니다.'; status.classList.remove('error'); reload.hidden = true;
+      try {
+        const result = await app().rpc('set_promotion_editorial_slot', { p_content_id: item.content_id, p_slot: next, p_expected_slot: original });
+        if (result?.ok !== true) throw new Error('기획기사 설정 저장 결과를 확인하지 못했습니다.');
+        await openPublicationAdmin();
+      } catch (error) {
+        const code = error?.message || '';
+        const conflict = /PROMOTION_EDITORIAL_(CONFLICT|SLOT_OCCUPIED)/.test(code);
+        status.textContent = conflict ? '다른 화면에서 고정 순서가 변경되었습니다. 최신 상태를 불러온 뒤 다시 선택해 주세요.'
+          : /PROMOTION_EDITORIAL_NOT_PUBLIC_ARTICLE/.test(code) ? '현재 공개된 태장 소식만 기획기사로 고정할 수 있습니다.'
+          : /PROMOTION_EDITORIAL_FORBIDDEN/.test(code) ? '기획기사 설정 권한이 없습니다.'
+          : '저장 결과를 확인하지 못했습니다. 선택한 설정은 유지했습니다. 최신 상태를 확인한 뒤 다시 시도해 주세요.';
+        status.classList.add('error'); reload.hidden = false;
+        checkbox.disabled = false; order.disabled = false; update();
+      }
+    });
+    form.append(toggle, orderField, status, actions); update(); return form;
+  }
+
+  function itemCard(item, role, items = []) {
     const card = document.createElement('article');
     card.className = 'dashboard-card phase-c-v2-card';
     const recent = within24Hours(item.published_at);
@@ -382,6 +432,7 @@
     }
 
     card.append(actions);
+    if (role === 'operations_manager' && item.can_manage_editorial === true) card.append(editorialControls(item, items));
     return card;
   }
 
@@ -402,6 +453,7 @@
         app().rpc('list_public_content_change_requests')
       ]);
       const publication = results[0].status === 'fulfilled' ? results[0].value : {};
+      if (results[0].status === 'rejected') throw results[0].reason;
       const requests = results[1].status === 'fulfilled' ? arr(results[1].value) : [];
       const items = arr(publication?.items);
       loading.remove();
@@ -417,7 +469,7 @@
         contentSection.append(el('h2', `플랫폼 홍보글 ${items.length}건`));
         const contentGrid = document.createElement('div'); contentGrid.className = 'phase-c-v2-grid';
         if (!items.length) contentGrid.append(el('p', '현재 관리할 홍보글이 없습니다.', 'empty'));
-        items.forEach(item => contentGrid.append(itemCard(item, currentRoute)));
+        items.forEach(item => contentGrid.append(itemCard(item, currentRoute, items)));
         contentSection.append(contentGrid);
         target.append(contentSection);
 

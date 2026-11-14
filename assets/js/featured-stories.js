@@ -8,6 +8,10 @@
 
   function isPinned(item) {
     if (!item || item.status !== 'published' || item.type !== 'internal' || item.source !== 'homepage') return false;
+    if (Object.prototype.hasOwnProperty.call(item, 'editorialSlot')) {
+      return Number.isInteger(item.editorialSlot) && item.editorialSlot >= 1 && item.editorialSlot <= 4
+        && typeof item.id === 'string' && item.id.startsWith('promotion-') && item.detailUrl === 'promotion.html?id=' + item.id.slice(10);
+    }
     return editorial.some(entry => item.id === 'promotion-' + entry.id
       && item.detailUrl === 'promotion.html?id=' + entry.id);
   }
@@ -15,8 +19,9 @@
   function selectPinned(items, maxCount) {
     const limit = Math.min(4, Math.max(0, Number(maxCount) || 0));
     if (!limit || !Array.isArray(items)) return [];
-    const eligible = new Map(items.filter(isPinned).map(item => [item.id, item]));
-    return editorial.map(entry => eligible.get('promotion-' + entry.id)).filter(Boolean).slice(0, limit);
+    const eligible = [...new Map(items.filter(isPinned).map(item => [item.id, item])).values()];
+    return eligible.sort((a, b) => (a.editorialSlot || editorial.findIndex(entry => a.id === 'promotion-' + entry.id) + 1)
+      - (b.editorialSlot || editorial.findIndex(entry => b.id === 'promotion-' + entry.id) + 1)).slice(0, limit);
   }
 
   function selectHome(items, maxCount) {
@@ -60,7 +65,7 @@
     }
     const cards = selected.map(item => {
       const entry = editorial.find(entry => item.id === 'promotion-' + entry.id);
-      const card = hub.createCard({ ...item, summary: entry.summary || item.summary }, 'h3');
+      const card = hub.createCard({ ...item, summary: entry?.summary || item.summary }, 'h3');
       card.classList.add('featured-story-card');
       const ribbon = document.createElement('span');
       ribbon.className = 'featured-story-ribbon';

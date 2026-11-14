@@ -26,7 +26,7 @@ try {
     for (const count of width === 1440 ? [1,2,3,4] : [1,4]) {
       const ids = Array.from({length:count}, (_, i) => i ? 'editorial-fixture-' + i : originalId);
       const config = ids.map((id,i) => ({id,summary: '태장에서 함께 일하는 사람들과 기업 협력, 지역사회 활동을 소개합니다.'}));
-      const items = ids.map((id,i) => ({ id: 'promotion-' + id, type: 'internal', source: 'homepage', status: 'published', category:'회사소식', detailUrl:'promotion.html?id='+id,
+      const items = ids.map((id,i) => ({ id: 'promotion-' + id, editorialSlot: i+1, type: 'internal', source: 'homepage', status: 'published', category:'회사소식', detailUrl:'promotion.html?id='+id,
         title: '네 기업이 함께 만든 일터 태장, 지속 가능한 일자리를 만드는 사람들의 이야기 ' + (i+1), summary: '글의 순서 1 목차', publishedAt:'2026-11-11', thumbnail:'assets/images/archive/partner-company-plaques-v3.webp',thumbnailAlt:'태장 공동출자 기업 현판' }));
       const context = await browser.newContext({viewport:{width,height:900},reducedMotion:'reduce'});
       let release; const ready = new Promise(resolve => {release=resolve;});
@@ -62,6 +62,7 @@ try {
       await search.fill('없는검색어123');await page.getByRole('button',{name:'조건 초기화',exact:true}).click();
       assert.equal(await page.locator('[data-hub-list] article').count(),width<=620?6:12);
       const cards=page.locator('[data-featured-stories-list] article');
+      await page.keyboard.press('Tab');
       for (const card of await cards.all()) {
         const title=card.locator('h3');const link=card.locator('a');await link.focus();
         assert.notEqual(await link.evaluate(el=>getComputedStyle(el).outlineStyle),'none');
