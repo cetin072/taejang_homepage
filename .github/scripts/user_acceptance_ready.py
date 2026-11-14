@@ -120,9 +120,9 @@ def run_command(label: str, command: str, env: dict) -> None:
     print(f"UAR PASS: {label}")
 
 
-def wait_for_public_checks(env: dict, timeout_seconds: int = 900) -> None:
-    """Reuse dedicated public jobs only after their exact-head results succeed."""
-    required = {
+def wait_for_checks(env: dict, required=None, timeout_seconds: int = 900) -> None:
+    """Reuse dedicated jobs only after their exact-head results succeed."""
+    required = set(required) if required is not None else {
         "Public source and launch regression",
         "Article photo and existing video slides",
         "Employee app landing local and exact-head Preview",
@@ -131,7 +131,7 @@ def wait_for_public_checks(env: dict, timeout_seconds: int = 900) -> None:
     sha = env.get("UAR_HEAD_SHA", "").strip()
     token = env.get("GITHUB_TOKEN", "").strip()
     if not repo or not sha or not token:
-        fail("Exact-head public checks require repository, HEAD and token")
+        fail("Exact-head checks require repository, HEAD and token")
     url = f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?filter=latest&per_page=100"
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
@@ -150,22 +150,35 @@ def wait_for_public_checks(env: dict, timeout_seconds: int = 900) -> None:
             page += 1
         for name, check in latest.items():
             if check.get("status") == "completed" and check.get("conclusion") != "success":
-                fail(f"Public QA failed: {name} ({check.get('conclusion')})")
+                fail(f"Required QA failed: {name} ({check.get('conclusion')})")
         pending = sorted(name for name in required if latest.get(name, {}).get("conclusion") != "success"
                          or latest.get(name, {}).get("status") != "completed")
         if not pending:
-            print(f"UAR public QA: all {len(required)} exact-head checks passed")
+            print(f"UAR: all {len(required)} delegated exact-head checks passed")
             return
-        print("Waiting for public QA: " + ", ".join(pending), flush=True)
+        print("Waiting for QA: " + ", ".join(pending), flush=True)
         time.sleep(10)
-    fail("Timed out waiting for exact-head public QA")
+    fail("Timed out waiting for exact-head QA")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--contract", default=os.environ.get("UAR_CONTRACT_PATH", ".github/user-acceptance-ready.json"))
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument("--wait-static-checks", action="store_true")
     args = parser.parse_args()
+
+    if args.wait_static_checks:
+        env = os.environ.copy()
+        if env.get("GITHUB_EVENT_NAME") == "pull_request":
+            wait_for_checks(env, {
+                "Public source and launch regression",
+                "Migration, pgTAP, Auth and RLS",
+            }, timeout_seconds=1200)
+        else:
+            # Manual/local runs have no guaranteed sibling PR jobs.
+            run_command("static_regression", "npm run test:platform-static && npm run test:public", env)
+        return
 
     contract = load_contract(pathlib.Path(args.contract))
     print("UAR contract validation: PASS")
@@ -179,7 +192,7 @@ def main() -> None:
         return
     if scope == "public":
         wait_for_preview(contract, env)
-        wait_for_public_checks(env)
+        wait_for_checks(env)
         print("USER_ACCEPTANCE_READY=PASS (public regression and hosted PC/mobile QA verified)")
         return
     bootstrap = str(contract.get("bootstrap", "")).strip()

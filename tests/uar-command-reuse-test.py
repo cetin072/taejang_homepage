@@ -21,7 +21,7 @@ class CommandReuseTests(QuietTests):
         for scope in ('docs', 'public', 'full', 'unknown'):
             with self.subTest(scope=scope):
                 calls = []
-                with patch.dict(os.environ, {'VALIDATION_SCOPE': scope, 'PREVIEW_URL': ''}), patch('sys.argv', ['uar']), patch.object(uar, 'wait_for_preview', return_value='https://preview.example') as preview, patch.object(uar, 'wait_for_public_checks') as public_checks, patch.object(uar, 'run_command', side_effect=lambda label, command, env: calls.append((command, env.get('PREVIEW_URL', '')))):
+                with patch.dict(os.environ, {'VALIDATION_SCOPE': scope, 'PREVIEW_URL': ''}), patch('sys.argv', ['uar']), patch.object(uar, 'wait_for_preview', return_value='https://preview.example') as preview, patch.object(uar, 'wait_for_checks') as public_checks, patch.object(uar, 'run_command', side_effect=lambda label, command, env: calls.append((command, env.get('PREVIEW_URL', '')))):
                     uar.main()
                 if scope == 'docs':
                     self.assertFalse(calls or preview.called or public_checks.called)
@@ -42,7 +42,7 @@ class CommandReuseTests(QuietTests):
             self.assertFalse(preview.called)
 
     def test_public_qa_failure_prevents_ready(self):
-        with patch.dict(os.environ, {'VALIDATION_SCOPE': 'public'}), patch('sys.argv', ['uar']), patch.object(uar, 'wait_for_preview'), patch.object(uar, 'wait_for_public_checks', side_effect=SystemExit(1)):
+        with patch.dict(os.environ, {'VALIDATION_SCOPE': 'public'}), patch('sys.argv', ['uar']), patch.object(uar, 'wait_for_preview'), patch.object(uar, 'wait_for_checks', side_effect=SystemExit(1)):
             with self.assertRaises(SystemExit):
                 uar.main()
 
@@ -54,9 +54,20 @@ class PublicCheckTests(QuietTests):
     def checks(self):
         return [{'id': i + 1, 'name': name, 'head_sha': 'abc', 'app': {'slug': 'github-actions'}, 'status': 'completed', 'conclusion': 'success'} for i, name in enumerate(self.names)]
 
+    def test_static_mode_delegates_to_existing_jobs(self):
+        with patch.dict(os.environ, {'GITHUB_EVENT_NAME': 'pull_request'}), patch('sys.argv', ['uar', '--wait-static-checks']), patch.object(uar, 'wait_for_checks') as wait:
+            uar.main()
+        self.assertEqual(wait.call_args[0][1], {'Public source and launch regression', 'Migration, pgTAP, Auth and RLS'})
+
+    def test_manual_mode_runs_static_checks_without_waiting_for_absent_jobs(self):
+        with patch.dict(os.environ, {'GITHUB_EVENT_NAME': 'workflow_dispatch'}), patch('sys.argv', ['uar', '--wait-static-checks']), patch.object(uar, 'wait_for_checks') as wait, patch.object(uar, 'run_command') as run:
+            uar.main()
+        self.assertFalse(wait.called)
+        self.assertEqual(run.call_args[0][1], 'npm run test:platform-static && npm run test:public')
+
     def test_exact_head_success(self):
         with patch.object(uar, 'github_json', return_value={'check_runs': self.checks()}):
-            uar.wait_for_public_checks(self.env)
+            uar.wait_for_checks(self.env)
 
     def test_failure_cancel_or_skip_blocks_ready(self):
         for outcome in ['failure', 'cancelled', 'skipped', 'neutral', 'timed_out']:
@@ -64,7 +75,7 @@ class PublicCheckTests(QuietTests):
             checks[0]['conclusion'] = outcome
             with self.subTest(outcome=outcome), patch.object(uar, 'github_json', return_value={'check_runs': checks}):
                 with self.assertRaises(SystemExit):
-                    uar.wait_for_public_checks(self.env)
+                    uar.wait_for_checks(self.env)
 
     def test_missing_wrong_head_or_wrong_provider_times_out(self):
         for kind in ('missing', 'head', 'provider', 'in_progress'):
@@ -80,19 +91,19 @@ class PublicCheckTests(QuietTests):
                 checks[0]['conclusion'] = None
             with self.subTest(kind=kind), patch.object(uar, 'github_json', return_value={'check_runs': checks}), patch.object(uar.time, 'monotonic', side_effect=[0, 0, 1000]), patch.object(uar.time, 'sleep'):
                 with self.assertRaises(SystemExit):
-                    uar.wait_for_public_checks(self.env)
+                    uar.wait_for_checks(self.env)
 
     def test_latest_attempt_wins(self):
         checks = self.checks()
         checks.append({**checks[0], 'id': 100, 'conclusion': 'failure'})
         with patch.object(uar, 'github_json', return_value={'check_runs': checks}):
             with self.assertRaises(SystemExit):
-                uar.wait_for_public_checks(self.env)
+                uar.wait_for_checks(self.env)
 
     def test_pagination(self):
         first = [{'name': 'unrelated'}] * 100
         with patch.object(uar, 'github_json', side_effect=[{'check_runs': first}, {'check_runs': self.checks()}]) as request:
-            uar.wait_for_public_checks(self.env)
+            uar.wait_for_checks(self.env)
             self.assertIn('page=2', request.call_args[0][0])
 
 
