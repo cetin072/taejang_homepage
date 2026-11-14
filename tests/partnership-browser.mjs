@@ -49,8 +49,13 @@ async function ready(page) {
   for (const img of await page.locator('main img').all()) {
     await img.scrollIntoViewIfNeeded();
     await img.evaluate(el => el.decode());
-    const dims = await img.evaluate(el => ({ actual: el.width / el.height, source: el.naturalWidth / el.naturalHeight }));
-    assert.ok(Math.abs(dims.actual - dims.source) < 0.01, 'photo aspect ratio');
+    // HTMLImageElement.width/height round to integers, which skews short, wide logos.
+    // Check the rendered subpixel box against the natural ratio instead.
+    const dims = await img.evaluate(el => {
+      const box = el.getBoundingClientRect();
+      return { width: box.width, height: box.height, source: el.naturalWidth / el.naturalHeight, src: el.getAttribute('src') };
+    });
+    assert.ok(Math.abs(dims.height - dims.width / dims.source) < 0.1, 'image aspect ratio: ' + JSON.stringify(dims));
   }
   await page.evaluate(() => scrollTo(0, 0));
 }
