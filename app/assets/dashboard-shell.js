@@ -359,6 +359,10 @@
   }
 
   let activeView = null, openingView = false, viewDirty = false, dashboardRender = null;
+  function syncSettingsActionAvailability() {
+    const action = document.querySelector('[data-platform-settings-action]');
+    if (action) action.disabled = openingView;
+  }
   const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
   function currentViewDirty() {
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
@@ -377,6 +381,7 @@
     const legacyAllowed = item && window.TaejangPlatformNavigationRegistry?.visibleForRole(registryItem || item, role) !== false
       && (!item.capabilities?.length || (window.TaejangApp.hasCapabilityContract?.() && item.capabilities.some(code => window.TaejangApp.can?.(code) === true)));
     openingView = true;
+    syncSettingsActionAvailability();
     try {
       const allowed = item && (window.TaejangMenuAuthority
         ? await window.TaejangMenuAuthority.beforeOpen(key, legacyAllowed) : legacyAllowed);
@@ -396,7 +401,7 @@
     } catch (error) {
       activeView = null;
       el('dashboard-main').replaceChildren(text('p', '권한을 확인하지 못했습니다. 다시 열어 주세요.', 'message error'));
-    } finally { openingView = false; }
+    } finally { openingView = false; syncSettingsActionAvailability(); }
   }
   document.addEventListener('input', event => {
     if (activeView && (document.querySelector('.app-workspace') || el('dashboard-main'))?.contains(event.target)) viewDirty = true;
@@ -537,6 +542,7 @@
     if (current) return;
     const node = document.createElement('button');
     node.type = 'button';
+    node.disabled = openingView;
     node.className = 'button button-quiet';
     node.textContent = '설정';
     node.dataset.platformSettingsAction = '1';

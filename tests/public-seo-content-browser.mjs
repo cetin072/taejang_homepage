@@ -207,7 +207,10 @@ try {
           assert.deepEqual(await page.locator('#farm-story').boundingBox(), current, 'farm layout stable');
           await page.getByRole('link', { name: '농장 관련 협력 문의', exact: true }).click();
           assert.ok((await page.url()).endsWith('/partnership.html#contact'));
+          await page.waitForLoadState('load');
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm inquiry destination overflow');
+          await page.goto(base + '/farm.html', { waitUntil: 'load' });
         }
         const overflow = await page.evaluate(() => ({
           width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
