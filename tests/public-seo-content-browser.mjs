@@ -45,11 +45,24 @@ try {
       const context = await browser.newContext({ viewport: { width, height: 900 }, javaScriptEnabled, reducedMotion: 'reduce' });
       await context.route('**/*', route => route.request().url().startsWith(base + '/') && route.request().method() === 'GET' ? route.continue() : route.abort());
       const page = await context.newPage();
-      for (const file of ['about.html', 'business.html', 'location.html', 'partnership.html', 'farm.html', 'certifications.html']) {
+      for (const file of ['about.html', 'business.html', 'workplace.html', 'location.html', 'partnership.html', 'farm.html', 'certifications.html']) {
         const result = await page.goto(base + '/' + file, { waitUntil: 'load' });
         assert.equal(result.status(), 200);
         assert.equal(await page.locator('main h1').count(), 1);
         assert.ok(await page.title());
+        if (file === 'workplace.html') {
+          assert.equal(await page.locator('main [data-filters]').count(), 0);
+          assert.equal(await page.locator('[data-list] .card').count(), 3);
+          const photo = page.locator('.workplace-photo img');
+          await photo.evaluate(image => image.decode());
+          assert.ok(await photo.evaluate(image => Math.abs(image.naturalWidth / image.naturalHeight - image.width / image.height) < .02));
+          await page.getByRole('link', { name: '일터 이야기 보기', exact: true }).click();
+          assert.ok(page.url().endsWith('#workplace-stories-title'));
+          await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          await page.getByRole('link', { name: '정확한 순서로 진행하는 포장과 검수 자세히 보기' }).click();
+          assert.ok(await page.getByRole('heading', { level: 1, name: '정확한 순서로 진행하는 포장과 검수' }).isVisible());
+          await page.goto(base + '/workplace.html');
+        }
         if (file === 'business.html') {
           assert.equal(await page.locator('#business-operations-title').textContent(), '태장의 사업과 활동');
           const cards = page.locator('.business-card');

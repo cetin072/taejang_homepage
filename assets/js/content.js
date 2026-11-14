@@ -2,6 +2,7 @@
   workplace: [
     {
       id: "minhwa-one-stroke",
+      linkLabel: "민화 작업 보기",
       status: "published",
       category: "민화·문화 굿즈",
       date: "2026.07.09",
@@ -49,6 +50,7 @@
     },
     {
       id: "packing-care",
+      linkLabel: "포장·검수 과정 보기",
       status: "published",
       category: "포장·검수",
       date: "2026.07.02",
@@ -96,6 +98,7 @@
     },
     {
       id: "work-together",
+      linkLabel: "작업환경 살펴보기",
       status: "published",
       category: "일터 운영",
       date: "2026.07.09",

@@ -45,8 +45,8 @@ assert.match(styles, /\.article-body \.article-representative-media img\s*\{[\s\
 assert.match(workplace, /data-workplace-overview/);
 assert.doesNotMatch(workplace, /data-workplace-roles/);
 assert.doesNotMatch(workplace, /data-workplace-process/);
-assert.match(workplace, /class="workplace-work-gallery"/);
-assert.match(workplace, /class="workplace-principle-list"/);
+assert.match(workplace, /class="workplace-photo"/);
+assert.match(workplace, /class="workplace-steps"/);
 assert.match(listing, /if \(type === 'workplace'\)/);
 assert.match(listing, /workplaceOverview, workplaceRoles, workplaceProcess/);
 assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)/);

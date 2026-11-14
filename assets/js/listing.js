@@ -100,7 +100,7 @@
           <time class="card-date" datetime="${dateTimeValue(item.date)}">${item.date}</time>
           <h2>${item.title}</h2>
           <p>${item.summary}</p>
-          <span class="text-link">자세히 보기 →</span>
+          <span class="text-link">${item.linkLabel || '자세히 보기'} <span aria-hidden="true">→</span></span>
         </div>
       </a>
     </article>`;

@@ -1,0 +1,36 @@
+.workplace-page .section,
+.workplace-page .page-hero { padding: clamp(40px, 5vw, 72px) 0; }
+.workplace-page .title { font-weight: 700; }
+.workplace-page .lead { font-size: 17px; line-height: 1.85; }
+.workplace-intro { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; }
+.workplace-photo,
+.workplace-illustration { margin: 0; min-width: 0; }
+.workplace-photo img,
+.workplace-illustration img { width: 100%; height: auto; border-radius: 12px; }
+.workplace-page figcaption { margin-top: 12px; color: var(--ink-soft); font-size: 14px; line-height: 1.6; }
+.workplace-intro .btn { margin-top: 24px; min-height: 48px; border-radius: 8px; padding: 12px 20px; transition-property: color, background-color, border-color; }
+.workplace-intro .btn:hover { transform: none; background: var(--green-soft); color: var(--green-deep); }
+.workplace-method { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 64px; align-items: center; }
+.workplace-steps { margin: 24px 0 0; padding: 0; list-style: none; }
+.workplace-steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 16px; border-top: 1px solid var(--line); padding: 20px 0; }
+.workplace-steps li:last-child { padding-bottom: 0; }
+.workplace-steps > li > span { color: var(--green); font-size: 14px; font-variant-numeric: tabular-nums; padding-top: 4px; }
+.workplace-steps h3 { margin: 0 0 8px; color: var(--green-deep); font-size: 18px; }
+.workplace-steps p { margin: 0; color: var(--ink-soft); font-size: 16px; }
+.workplace-page .card { border-radius: 12px; }
+.workplace-page .card-link { display: flex; height: 100%; flex-direction: column; }
+.workplace-page .card-body { display: flex; flex: 1; flex-direction: column; padding: 24px; }
+.workplace-page .card .text-link { margin-top: auto; padding-top: 16px; min-height: 44px; display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.workplace-page .card-link:hover { background: var(--green-soft); }
+.workplace-page .card-link:focus-visible { outline-offset: -4px; }
+.workplace-page .card-media { aspect-ratio: 4 / 3; height: auto; }
+.workplace-page .card-media img { height: 100%; }
+@media (max-width: 900px) {
+  .workplace-intro,
+  .workplace-method { grid-template-columns: 1fr; gap: 32px; }
+  .workplace-illustration { max-width: 440px; }
+}
+@media (max-width: 600px) {
+  .workplace-page .card-body { padding: 20px; }
+  .workplace-intro .btn { width: auto; }
+}
