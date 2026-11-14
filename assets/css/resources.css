@@ -73,21 +73,10 @@
 }
 
 .resource-media--terrarium {
-  position: relative;
   margin: 0 0 8px;
 }
 
-.resource-media--terrarium figcaption {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 12px;
-  line-height: 1.5;
-}
+
 
 .resource-media--salt {
   padding: 12px;
@@ -127,7 +116,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 44px;
+  min-height: 48px;
   max-width: 100%;
   margin-top: auto;
   padding: 8px 12px;
@@ -181,7 +170,7 @@
 .resources-contact a {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 48px;
   color: var(--green-deep);
   text-decoration: underline;
   text-underline-offset: 4px;
