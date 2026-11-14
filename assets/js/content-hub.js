@@ -88,7 +88,7 @@
   }
 
   function sourceLabel(item) {
-    return sourceLabels[item?.source] || item?.source || '홈페이지';
+    return window.TAEJANG_ARCHIVE_PRESENTATION?.labels[item?.source] || sourceLabels[item?.source] || item?.source || '홈페이지';
   }
 
   function createMedia(item, mediaClassName = 'card-media card-media--hub') {
@@ -119,6 +119,7 @@
   }
 
   function createCard(item, headingTag) {
+    item = window.TAEJANG_ARCHIVE_PRESENTATION?.present(item) || item;
     const article = document.createElement('article');
     article.className = 'card card--hub';
     article.dataset.archiveId = item.id;
@@ -230,10 +231,11 @@
       .map((month) => `<option value="${String(month).padStart(2, '0')}">${month}월</option>`).join('');
     monthWrap.append(monthLabel, monthSelect);
 
-    const resultCount = document.createElement('div');
+    const resultCount = document.querySelector('[data-archive-count]') || document.createElement('div');
     resultCount.className = 'archive-result-count';
     resultCount.setAttribute('aria-live', 'polite');
-    controls.append(yearWrap, monthWrap, resultCount);
+    controls.append(yearWrap, monthWrap);
+    if (!resultCount.parentNode) controls.append(resultCount);
     const baseline = document.querySelector('[data-archive-date-controls]');
     if (baseline) baseline.replaceWith(controls);
     else list.before(controls);
@@ -285,6 +287,7 @@
       item.externalLabel
     ]
       .filter((value) => typeof value === 'string')
+      .map(value => window.TAEJANG_ARCHIVE_PRESENTATION?.text(value) || value)
       .join(' ')
       .toLocaleLowerCase('ko-KR');
   }
@@ -295,6 +298,9 @@
     const categoryContainer = document.querySelector('[data-hub-category-filters]');
     const searchInput = document.querySelector('[data-archive-search-input]');
     const clearSearch = document.querySelector('[data-archive-search-clear]');
+    const resetButton = document.querySelector('[data-archive-reset]');
+    const conditions = document.querySelector('[data-archive-active-conditions]');
+    const filterCount = document.querySelector('[data-archive-filter-count]');
     if (!list || !sourceContainer || !categoryContainer || !searchInput || !clearSearch) return;
 
     searchInput.disabled = false;
@@ -351,6 +357,11 @@
         ? `${countLabel} 중 ${visible.length}건 표시`
         : countLabel;
       loadMoreWrap.hidden = visible.length >= filtered.length || filtered.length === 0;
+      const filters = [source !== 'all' && sourceLabel({ source }), category !== 'all' && category,
+        year !== 'all' && year + '년', month !== 'all' && Number(month) + '월'].filter(Boolean);
+      if (filterCount) filterCount.textContent = filters.length ? filters.length + '개 선택' : '';
+      if (conditions) conditions.textContent = [searchQuery && '“' + searchInput.value.trim() + '”', ...filters].filter(Boolean).join(' · ');
+      if (resetButton) resetButton.hidden = !searchQuery && !filters.length;
     }
 
     function resetAndRender() {
@@ -371,6 +382,8 @@
       resetAndRender();
       searchInput.focus();
     }
+
+    resetButton?.addEventListener('click', resetConditions);
 
     loadMore.addEventListener('click', () => {
       visibleCount += window.matchMedia('(max-width: 620px)').matches ? mobileBatchSize : desktopBatchSize;

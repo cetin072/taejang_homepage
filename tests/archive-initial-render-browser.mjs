@@ -86,6 +86,7 @@ try {
       } else {
         const search = page.locator('[data-archive-search-input]');
         await search.fill('민화');
+        await page.locator('.archive-filter-panel > summary').click();
         await page.locator('[data-source="naver-blog"].filter-btn').click();
         await page.locator('[data-category="회사소식"].filter-btn').click();
         await page.locator('#archive-year').selectOption('2026');

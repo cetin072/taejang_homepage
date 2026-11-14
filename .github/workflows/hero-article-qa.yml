@@ -38,6 +38,14 @@ jobs:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
           if-no-files-found: ignore
+      - name: Verify archive editorial cards and search
+        run: node tests/archive-editorial-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: archive-editorial-320-390-786-1440
+          path: archive-editorial-qa/
+          if-no-files-found: ignore
       - name: Verify public SEO content and source presentation
         run: node tests/public-seo-content-browser.mjs
       - uses: actions/upload-artifact@v4

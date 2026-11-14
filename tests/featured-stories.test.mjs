@@ -90,7 +90,7 @@ test('home editorial label is in the body, not dependent on an image overlay', (
 
 test('archive editorial label precedes metadata even without an image', () => {
   const slot = new Element();
-  const panel = { querySelector: () => slot, hidden: true };
+  const panel = { querySelector: () => slot, hidden: true, dataset: {} };
   const window = {
     TAEJANG_ARCHIVE_FEED: { status: 'ready', items: [valid] },
     TAEJANG_CONTENT_HUB: { createCard: () => {
@@ -103,10 +103,10 @@ test('archive editorial label precedes metadata even without an image', () => {
     } }
   };
   runInNewContext(source, { window, document: {
-    createElement: tag => new Element(tag), querySelector: () => panel, addEventListener: () => {}
+    createElement: tag => new Element(tag), querySelector: selector => selector === '[data-featured-stories]' ? panel : null, addEventListener: () => {}
   } });
   assert.equal(panel.hidden, false);
-  assert.equal(slot.children[0].querySelector('.card-body').children[0].textContent, '기획·특집');
+  assert.equal(slot.children[0].querySelector('.card-body').children[0].textContent, '기획기사');
   assert.equal(slot.children[0].querySelector('.card-media').children.length, 0);
 });
 
@@ -116,4 +116,28 @@ test('editorial badge and frame styling is available outside mobile media querie
   assert.match(base, /\.featured-story-card \.featured-story-ribbon\s*\{[^}]*position:\s*static;[^}]*display:\s*inline-flex;/);
   assert.match(base, /\.featured-story-card \.card-media\s*\{[^}]*flex-shrink:\s*0;/);
   assert.match(css, /@media \(max-width: 760px\)\s*\{\s*\.recent-activities-grid\[data-home-preview="hub"\]\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\)/);
+});
+
+test('archive display formatting keeps source records intact and returns inert text', () => {
+  const scope = { window: {} };
+  runInNewContext(readFileSync(new URL('../assets/js/archive-presentation.js', import.meta.url), 'utf8'), scope);
+  const { present } = scope.window.TAEJANG_ARCHIVE_PRESENTATION;
+  const item = { title: '그림 &mdash; 함께한 하루 - 장애인 표준사업장 태장', summary: '안녕하세요. 함께 만드는 지속 가능한 일터, 태장입니다. 🌿 민화를 그렸습니다.', thumbnailAlt: 'SE-1234-abcd' };
+  const shown = present(item);
+  assert.equal(shown.title, '그림 — 함께한 하루');
+  assert.equal(shown.summary, '민화를 그렸습니다.');
+  assert.equal(shown.thumbnailAlt, '그림 — 함께한 하루 관련 사진');
+  assert.match(item.title, /&mdash;/);
+  assert.match(item.summary, /^안녕하세요/);
+  assert.equal(present({title:'&lt;img onerror=alert(1)&gt;'}).title,'<img onerror=alert(1)>');
+  assert.equal(present({title:'x',summary:'태장 공식 블로그의 「x」 기록입니다.'}).summary,'');
+});
+
+test('archive accepts at most four selected originals in configured order', () => {
+  const config = Array.from({length:5},(_,i)=>({id:'fixture-'+i}));
+  const modified = source.replace(/const editorial = Object.freeze\(\[[\s\S]*?\]\);/, 'const editorial = Object.freeze('+JSON.stringify(config)+');');
+  const scope = {window:{},document:{querySelector:()=>null}};runInNewContext(modified,scope);
+  const items = config.map(({id})=>({...valid,id:'promotion-'+id,detailUrl:'promotion.html?id='+id}));
+  const chosen=scope.window.TAEJANG_FEATURED_STORIES.selectPinned([...items].reverse(),10);
+  assert.deepEqual(Array.from(chosen,item=>item.id),items.slice(0,4).map(item=>item.id));
 });

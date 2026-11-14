@@ -20,6 +20,8 @@
 <link rel="stylesheet" href="assets/css/listing-polish.css">
 <link rel="stylesheet" href="assets/css/photo-mode.css">
 <link rel="stylesheet" href="assets/css/featured-stories.css">
+<link rel="stylesheet" href="assets/css/archive-editorial.css">
+<noscript><style>[data-featured-stories]{display:none!important}</style></noscript>
 <meta name="description" content="태장의 최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다.">
 <title>태장의 소식과 기록 | 농업회사법인 태장 주식회사</title>
 <link rel="canonical" href="https://taejang.co.kr/archive.html">
@@ -41,7 +43,7 @@
 <meta name="twitter:image:alt" content="농업회사법인 태장 주식회사 로고">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://taejang.co.kr/"},{"@type":"ListItem","position":2,"name":"소식·기록","item":"https://taejang.co.kr/archive.html"}]}</script>
 </head>
-<body>
+<body class="archive-page">
 <a class="skip-link" href="#main-content">본문 바로가기</a>
 <header class="site-header">
   <div class="container header-inner">
@@ -54,7 +56,6 @@
 <main id="main-content">
   <section class="page-hero">
     <div class="container">
-      <div class="eyebrow">TAEJANG ARCHIVE</div>
       <h1 class="title">태장의 소식과 기록</h1>
       <p class="lead">태장의 최근 소식과 일터, 지역 활동의 기록을 날짜순으로 모았습니다.</p>
     </div>
@@ -63,28 +64,31 @@
     <div class="container">
       <section class="featured-stories-section" data-featured-stories aria-labelledby="archive-featured-title" hidden>
         <div class="featured-stories-heading">
-          <div><div class="eyebrow">FEATURED STORIES</div><h2 id="archive-featured-title">태장 기획·특집</h2></div>
-          <p>태장의 일과 사람, 기업 협력에 관한 주요 이야기를 모았습니다.</p>
+          <div><h2 id="archive-featured-title">태장 기획기사</h2></div>
+          <p>태장의 일과 사람을 깊이 들여다보는 이야기</p>
         </div>
-        <div class="featured-stories-grid" data-featured-stories-list></div>
+        <div class="featured-stories-grid" data-featured-stories-list><p class="editorial-loading" role="status">기획기사를 확인하고 있습니다.</p></div>
+        <p class="editorial-swipe-hint">옆으로 넘겨 기획기사를 더 읽어보세요 <span aria-hidden="true">→</span></p>
       </section>
-      <p class="archive-note">검색과 필터를 이용해 태장의 기록을 살펴보세요.</p>
+      <h2 class="archive-records-title">전체 소식</h2>
       <div class="archive-search" data-archive-search>
         <label for="archive-search-input">기록 검색</label>
         <div class="archive-search-field">
-          <span class="archive-search-icon" aria-hidden="true">⌕</span>
-          <input disabled id="archive-search-input" type="search" placeholder="제목이나 내용, 출처를 검색해 보세요" autocomplete="off" data-archive-search-input>
+          <svg class="archive-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+          <input disabled id="archive-search-input" type="search" placeholder="검색어 입력" autocomplete="off" data-archive-search-input>
           <button class="archive-search-clear" type="button" aria-label="검색어 지우기" data-archive-search-clear hidden>×</button>
         </div>
       </div>
+      <details class="archive-filter-panel">
+        <summary>출처·주제·기간 <span class="archive-filter-count" data-archive-filter-count></span></summary>
       <div class="content-hub-filters">
         <div class="content-filter-group"><span class="content-filter-label">출처</span><div class="content-filter-buttons" data-hub-source-filters><button type="button" class="filter-btn active" data-source="all" aria-pressed="true" disabled>전체</button><button type="button" class="filter-btn " data-source="naver-blog" aria-pressed="false" disabled>NAVER BLOG</button><button type="button" class="filter-btn " data-source="homepage" aria-pressed="false" disabled>홈페이지</button><button type="button" class="filter-btn " data-source="youtube" aria-pressed="false" disabled>YOUTUBE</button><button type="button" class="filter-btn " data-source="press" aria-pressed="false" disabled>언론보도</button></div></div>
         <div class="content-filter-group"><span class="content-filter-label">주제</span><div class="content-filter-buttons" data-hub-category-filters><button type="button" class="filter-btn active" data-category="all" aria-pressed="true" disabled>전체</button><button type="button" class="filter-btn " data-category="회사소식" aria-pressed="false" disabled>회사소식</button><button type="button" class="filter-btn " data-category="ESG·사회공헌" aria-pressed="false" disabled>ESG·사회공헌</button><button type="button" class="filter-btn " data-category="장애인 일자리" aria-pressed="false" disabled>장애인 일자리</button></div></div>
       </div>
+<div class="archive-controls" data-archive-date-controls><div class="archive-control"><label for="archive-year">연도</label><select id="archive-year" disabled><option value="all">전체 연도</option><option value="2026">2026년</option></select></div><div class="archive-control"><label for="archive-month">월</label><select id="archive-month" disabled><option value="all">전체 월</option><option value="01">1월</option><option value="02">2월</option><option value="03">3월</option><option value="04">4월</option><option value="05">5월</option><option value="06">6월</option><option value="07">7월</option><option value="08">8월</option><option value="09">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select></div></div>
+      </details>
       <div class="archive-feed-notice"><span data-archive-feed-status role="status">배포 시점의 승인된 기록입니다.</span> <button type="button" class="btn line" data-archive-apply-updates hidden>최신 소식 반영</button></div>
-
-
-<div class="archive-controls" data-archive-date-controls><div class="archive-control"><label for="archive-year">연도</label><select id="archive-year" disabled><option value="all">전체 연도</option><option value="2026">2026년</option></select></div><div class="archive-control"><label for="archive-month">월</label><select id="archive-month" disabled><option value="all">전체 월</option><option value="01">1월</option><option value="02">2월</option><option value="03">3월</option><option value="04">4월</option><option value="05">5월</option><option value="06">6월</option><option value="07">7월</option><option value="08">8월</option><option value="09">9월</option><option value="10">10월</option><option value="11">11월</option><option value="12">12월</option></select></div><div class="archive-result-count" aria-live="polite">총 100건 중 12건 표시</div></div>
+      <div class="archive-results"><span class="archive-result-count" data-archive-count aria-live="polite">총 100건 중 12건 표시</span><span class="archive-active-conditions" data-archive-active-conditions></span><button type="button" class="archive-reset" data-archive-reset hidden>전체 초기화</button></div>
       <div class="article-list" data-hub-list data-static-fallback="archive" aria-live="polite">
 <article class="card card--hub" data-source="naver-blog" data-category="회사소식" data-static-fallback-card data-archive-id="naver-blog-224449863266"><a class="card-link" href="https://blog.naver.com/taejang-official/224449863266" target="_blank" rel="noopener noreferrer" aria-label="정성을 담아 그리는 민화, 함께 힘을 모으는 배송작업 - 장애인 표준사업장 태장 (새 탭에서 열림)"><div class="card-media card-media--hub"><img src="https://blogthumb.pstatic.net/MjAyNjEwMjJfNTkg/MDAxNzkyNjMyMDI4MzIy.HPINlLWokkKFyuEqlIPpEBr_Ep-X9LOuK47EbFMwyBcg.cJ_Il8Ob5HAGRIiI6SO-eg7nIIGwS35DtNOz74A0IJog.JPEG/KakaoTalk_20261021_102922063_10.jpg?type=w2" alt="정성을 담아 그리는 민화, 함께 힘을 모으는 배송작업 - 장애인 표준사업장 태장 관련 태장 공식 블로그 대표사진" loading="lazy" decoding="async"></div><div class="card-body"><div class="content-card-meta"><span class="source-badge source-badge--naver-blog">NAVER BLOG</span><span class="tag tag--subtle">회사소식</span></div><time class="card-date" datetime="2026-10-28">2026.10.28</time><h2>정성을 담아 그리는 민화, 함께 힘을 모으는 배송작업 - 장애인 표준사업장 태장</h2><p>태장 공식 블로그의 「정성을 담아 그리는 민화, 함께 힘을 모으는 배송작업 - 장애인 표준사업장 태장」 기록입니다.</p><span class="text-link">네이버 블로그에서 보기 ↗</span></div></a></article>
 <article class="card card--hub" data-source="naver-blog" data-category="회사소식" data-static-fallback-card data-archive-id="naver-blog-224447923311"><a class="card-link" href="https://blog.naver.com/taejang-official/224447923311" target="_blank" rel="noopener noreferrer" aria-label="비 오는 날에도 활기찬 태장의 미술 활동 시간 - 장애인 표준사업장 태장 (새 탭에서 열림)"><div class="card-media card-media--hub"><img src="https://blogthumb.pstatic.net/MjAyNjEwMjBfMjk5/MDAxNzkyNDU5MTc4MjU5.yQu1507sR1ZS3DwN-xb4BUgjF4R7O5F50eLnKfzcovkg._YBmcDVSc4VDzZ9Jqt0HCdL2JF06mgUx-bw4HZU_vY8g.JPEG/KakaoTalk_20261020_101319057.jpg?type=w2" alt="비 오는 날에도 활기찬 태장의 미술 활동 시간 - 장애인 표준사업장 태장 관련 태장 공식 블로그 대표사진" loading="lazy" decoding="async"></div><div class="card-body"><div class="content-card-meta"><span class="source-badge source-badge--naver-blog">NAVER BLOG</span><span class="tag tag--subtle">회사소식</span></div><time class="card-date" datetime="2026-10-27">2026.10.27</time><h2>비 오는 날에도 활기찬 태장의 미술 활동 시간 - 장애인 표준사업장 태장</h2><p>태장 공식 블로그의 「비 오는 날에도 활기찬 태장의 미술 활동 시간 - 장애인 표준사업장 태장」 기록입니다.</p><span class="text-link">네이버 블로그에서 보기 ↗</span></div></a></article>
@@ -119,7 +123,8 @@
 <script src="assets/js/official-channel-updates.js"></script>
 <script src="assets/js/public-share.js"></script>
 <script src="assets/js/public-promotion-media.js"></script>
-  <script src="assets/js/content-hub.js"></script>
+  <script src="assets/js/archive-presentation.js"></script>
+<script src="assets/js/content-hub.js"></script>
 <script src="assets/js/featured-stories.js"></script>
 <script src="assets/js/site.js"></script>
 </body>
