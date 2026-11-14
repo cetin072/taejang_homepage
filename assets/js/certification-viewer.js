@@ -16,7 +16,13 @@
   let trigger;
   let oldOverflow;
   let backdropStart = false;
-  const close = () => dialog.close();
+  const restorePage = () => {
+    if (dialog.open || !trigger) return;
+    document.documentElement.style.overflow = oldOverflow;
+    trigger.focus({ preventScroll: true });
+    trigger = null;
+  };
+  const close = () => { dialog.close(); restorePage(); };
   image.addEventListener('error', () => { error.hidden = false; });
   image.addEventListener('load', () => { error.hidden = true; });
   links.forEach(link => link.addEventListener('click', event => {
@@ -34,11 +40,9 @@
     document.documentElement.style.overflow = 'hidden';
   }));
   dialog.querySelector('button').addEventListener('click', close);
-  dialog.addEventListener('close', () => {
-    document.documentElement.style.overflow = oldOverflow;
-    trigger?.focus({ preventScroll: true });
-  });
-  // Native dialog supplies Escape and keeps the rest of the page inert.
+  dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+  dialog.addEventListener('close', restorePage);
+  // Native dialog keeps the rest of the page inert; restore scroll synchronously on close.
   dialog.addEventListener('keydown', event => {
     if (event.key !== 'Tab') return;
     const first = dialog.querySelector('button');
