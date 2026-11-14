@@ -49,9 +49,7 @@ try {
         assert.ok(link.href && !link.href.startsWith('javascript:'), `${name}: actual href`);
       }
       assert.equal(await page.locator('header .page-link, footer .page-link, a.card-link .page-link, a.resource-card .page-link').count(), 0, `${name}: no boxed menus or nested actions`);
-      if ([390, 1440].includes(width) && ['index.html', 'workplace.html', 'certifications.html', 'business.html', 'terrarium.html', 'minhwa-gallery.html', 'partnership.html'].includes(name)) {
-        await page.screenshot({ path: path.join(output, `${name.replace('.html', '')}-${width}.png`), fullPage: true });
-      }
+
     }
     await page.goto(`${base}/workplace.html`);
     const link = page.getByRole('link', { name: '포장·검수 과정 보기' });
@@ -60,6 +58,22 @@ try {
     await page.keyboard.press('Enter');
     await page.waitForURL('**/workplace/packing-care.html');
     console.log(`PASS ${width}px: ${pages.length} pages, compact targets, contrast, no clipping, focus and JS-off navigation`);
+    await context.close();
+  }
+  // Capture the normal JS-enabled page, including lazy photos and the collapsed mobile menu.
+  for (const width of [390, 1440]) {
+    const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width, height: 900 } });
+    await context.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
+    const page = await context.newPage();
+    for (const name of ['index', 'workplace', 'certifications', 'business', 'terrarium', 'minhwa-gallery', 'partnership']) {
+      await page.goto(`${base}/${name}.html`, { waitUntil: 'load' });
+      await page.evaluate(async () => {
+        const images = [...document.images];
+        images.forEach(img => { img.loading = 'eager'; });
+        await Promise.all(images.map(img => img.decode().catch(() => {})));
+      });
+      await page.screenshot({ path: path.join(output, `${name}-${width}.png`), fullPage: true });
+    }
     await context.close();
   }
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

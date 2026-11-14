@@ -815,7 +815,10 @@ button{cursor:pointer}
 }
 :root main a.page-link::after { content: none; }
 :root main :is(.business-card-body, .workplace-job-body) > a.page-link {
-  margin-top: 16px;
+  margin-top: auto;
+}
+:root main .business-card-body > p:has(+ a.page-link) {
+  margin-bottom: 16px;
 }
 @media (prefers-reduced-motion: reduce) {
   :root main a.page-link { transition: none; }
