@@ -764,3 +764,62 @@ button{cursor:pointer}
   .about-cta-inner{align-items:stretch;flex-direction:column}
   .about-cta .btn{width:100%}
 }
+
+/* Public action family: explicit navigation only; cards, inline sources and menus stay links. */
+:root main :is(.btn, .mh-button, .th-button, .salt-button) {
+  min-height: 48px;
+  border-radius: 8px;
+  transition-property: background-color, color, border-color;
+}
+:root main :is(.btn, .mh-button, .th-button, .salt-button):hover { transform: none; }
+:root main a.page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  flex: 0 1 auto;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--green);
+  font: 800 15px/1.5 var(--gothic);
+  text-align: start;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+:root main a.page-link:hover {
+  background: var(--green-soft);
+  color: var(--green-deep);
+  border-color: var(--green-deep);
+  transform: none;
+}
+:root main a.page-link:focus-visible {
+  outline: 3px solid var(--green-deep);
+  outline-offset: 3px;
+}
+:root main a.page-link .page-link-arrow {
+  flex: 0 0 18px;
+  width: 18px;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+:root main a.page-link::after { content: none; }
+:root main :is(.business-card-body, .workplace-job-body) > a.page-link {
+  margin-top: auto;
+}
+:root main .business-card-body > p:has(+ a.page-link) {
+  margin-bottom: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root main a.page-link { transition: none; }
+}

@@ -203,7 +203,7 @@ assert.match(index, /지역사회공헌·ESG 협력/);
 assert.match(index, /기업·기관과 함께 지역사회에 필요한 활동을 기획하고 운영합니다\. 현재는 지역 환경정비 활동을 중심으로 시작하고 있습니다\./);
 assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.match(index, /data-home-preview="hub"[^>]*data-home-preview-count="3"/);
-assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"[\s\S]*?<div class="recent-activities-archive-cta"><a class="btn line" href="archive\.html">태장 아카이브 전체 보기<\/a><\/div>/, '상단 링크를 유지하고 카드 목록 뒤에 아카이브 CTA를 둡니다');
+assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"[\s\S]*?<div class="recent-activities-archive-cta"><a class="btn line page-link" href="archive\.html">태장 아카이브 전체 보기[\s\S]*?<\/a><\/div>/, '상단 링크를 유지하고 카드 목록 뒤에 아카이브 CTA를 둡니다');
 assert.match(polish, /\.recent-activities-archive-cta\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?margin-top:\s*36px/);
 assert.match(index, /<strong>taejang2025@naver\.com<\/strong>/);
 assert.doesNotMatch(index, /info@taejang\.co\.kr/);
