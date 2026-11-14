@@ -4,6 +4,7 @@ import {pathToFileURL} from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 import {chromium} from 'playwright';
+const PHOTO_FIXTURE = await readFile('images/og-taejang.png');
 const root=process.cwd(), dir=await mkdtemp(path.join(os.tmpdir(),'visual-editor-'));
 const output=process.env.PROMOTION_QA_OUTPUT || path.join(os.tmpdir(),'visual-editor-qa');await mkdir(output,{recursive:true});
 const base=pathToFileURL(root+'/').href;
@@ -19,7 +20,7 @@ let activePage;
 try {
 for(const width of [320,390,768,1440]){
  const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];activePage=page;page.on('pageerror',e=>errors.push(e.message));
- await page.route('https://**',r=>r.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420"><rect width="800" height="420" fill="#8ba08b"/></svg>'}));
+ await page.route('**/*',route=>route.request().resourceType()==='image' ? route.fulfill({contentType:'image/png',body:PHOTO_FIXTURE}) : route.continue());
  await page.goto(pathToFileURL(path.join(dir,'index.html')).href);
  for(const role of ['operations_manager','promotion_lead','promotion_staff']){
   await page.evaluate(async({role,photo,photo2})=>{testRole=role;testItems=[{content_id:'11111111-1111-4111-8111-111111111111',title:'함께 만드는 태장의 일터',public_body:'원래 본문',content_type:'homepage_article',lifecycle:'draft',public_media:[{url:photo,alt:'함께하는 작업'},{url:photo2,alt:'완성한 작품'}],hero_image_url:photo2}];await TaejangPromotionWorkspaceV2Api.openPromotion('write');},{role,photo,photo2});
@@ -66,4 +67,4 @@ for(const width of [320,390,768,1440]){
  assert.deepEqual(errors,[]);await page.close();
 }
 console.log('Visual editor: 3 roles × 4 viewports; format/photos/caption/cover/move/undo/save failure/reopen PASS');
-} catch(error) {if(activePage&&!activePage.isClosed())await activePage.screenshot({path:path.join(output,'failure.png'),fullPage:true});throw error;} finally {await browser.close();}
+} catch(error) {if(activePage&&!activePage.isClosed())console.log('Image diagnostics',await activePage.locator('img').evaluateAll(images=>images.map(img=>({src:img.src,complete:img.complete,width:img.naturalWidth}))));if(activePage&&!activePage.isClosed())await activePage.screenshot({path:path.join(output,'failure.png'),fullPage:true});throw error;} finally {await browser.close();}

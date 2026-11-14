@@ -144,3 +144,1051 @@ ${t}
 `):"",markdownTokenizer:{name:"orderedList",level:"block",start:()=>-1,tokenize:(n,e,t)=>{var r,i;let[s,o,l]=K0(n);if(s.length===0)return;let a=Id(s,s[0].indent,t);if(a.length!==0)return{type:"list",ordered:!0,start:((r=s[0])===null||r===void 0?void 0:r.number)||1,typeMarker:(i=s[0])===null||i===void 0?void 0:i.type,items:a,raw:l.slice(0,o).join(`
 `)}}},markdownOptions:{indentsContent:!0},addCommands(){return{toggleOrderedList:()=>({commands:n,chain:e})=>this.options.keepAttributes?e().toggleList(this.name,this.options.itemTypeName,this.options.keepMarks).updateAttributes(U0,this.editor.getAttributes(Cd)).run():n.toggleList(this.name,this.options.itemTypeName,this.options.keepMarks)}},addKeyboardShortcuts(){return{"Mod-Shift-7":()=>this.editor.commands.toggleOrderedList()}},addProseMirrorPlugins(){return[new $({props:{handlePaste:(n,e)=>{var t,r;let i=(t=e.clipboardData)===null||t===void 0?void 0:t.getData("text/html");if(i?.trim())return!1;let s=(r=e.clipboardData)===null||r===void 0?void 0:r.getData("text/plain");if(!s)return!1;let o=j0(s);if(!o)return!1;try{let l=n.state.schema.nodeFromJSON(o),a=n.state.tr.replaceSelectionWith(l);return n.dispatch(a),!0}catch{return!1}}}})]},addInputRules(){let n=(t,r)=>(!r.attrs.type||r.attrs.type==="1")&&r.childCount+r.attrs.start===+t[1],e=ht({find:Ed,type:this.type,getAttributes:t=>({start:+t[1]}),joinPredicate:n});return(this.options.keepMarks||this.options.keepAttributes)&&(e=ht({find:Ed,type:this.type,keepMarks:this.options.keepMarks,keepAttributes:this.options.keepAttributes,getAttributes:t=>({start:+t[1],...this.editor.getAttributes(Cd)}),joinPredicate:n,editor:this.editor})),[e]}}),J0=/^\s*(\[([( |x])?\])\s$/,q0="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0",G0=(n,e,t)=>{var r;return(t==null||(r=t.checkboxLabel)===null||r===void 0?void 0:r.call(t,n,e))||`Task item checkbox for ${n.textContent||"empty task item"}`},X0=q.create({name:"taskItem",addOptions(){return{nested:!1,HTMLAttributes:{},taskListTypeName:"taskList",a11y:void 0}},content(){return this.options.nested?"paragraph block*":"paragraph+"},defining:!0,addAttributes(){return{checked:{default:!1,keepOnSplit:!1,parseHTML:n=>{let e=n.getAttribute("data-checked");return e===""||e==="true"},renderHTML:n=>({"data-checked":n.checked})}}},parseHTML(){return[{tag:`li[data-type="${this.name}"]`,priority:51,contentElement:n=>{var e;return(e=n.querySelector("div"))!==null&&e!==void 0?e:n}}]},renderHTML({node:n,HTMLAttributes:e}){return["li",F(this.options.HTMLAttributes,e,{"data-type":this.name}),["label",["input",{type:"checkbox",checked:n.attrs.checked?"checked":null}],["span"]],["div",0]]},parseMarkdown:(n,e)=>{let t=[];if(n.tokens&&n.tokens.length>0?t.push(e.createNode("paragraph",{},e.parseInline(n.tokens))):n.text?t.push(e.createNode("paragraph",{},[e.createNode("text",{text:n.text})])):t.push(e.createNode("paragraph",{},[])),n.nestedTokens&&n.nestedTokens.length>0){let r=e.parseChildren(n.nestedTokens);t.push(...r)}return e.createNode("taskItem",{checked:n.checked||!1},t)},renderMarkdown:(n,e)=>{var t;let r=`- [${!((t=n.attrs)===null||t===void 0)&&t.checked?"x":" "}] `;return ko(n,e,r,void 0,{indentMainContent:!0})},addExtensions(){return this.options.nested?[Ad(this.name,[this.options.taskListTypeName])]:[]},addKeyboardShortcuts(){let n={Enter:()=>this.editor.commands.splitListItem(this.name),"Shift-Tab":()=>this.editor.commands.liftListItem(this.name)};return this.options.nested?{...n,Tab:()=>this.editor.commands.sinkListItem(this.name)}:n},addNodeView(){return({node:n,HTMLAttributes:e,getPos:t,editor:r})=>{let i=document.createElement("li"),s=document.createElement("label"),o=document.createElement("span"),l=document.createElement("input"),a=document.createElement("div");o.style.cssText=q0;let c=d=>{let f=G0(d,d.attrs.checked,this.options.a11y);l.setAttribute("aria-label",f),o.textContent=f};c(n),s.contentEditable="false",l.type="checkbox",l.addEventListener("mousedown",d=>d.preventDefault()),l.addEventListener("change",d=>{if(!r.isEditable&&!this.options.onReadOnlyChecked){l.checked=!l.checked;return}let{checked:f}=d.target;r.isEditable&&typeof t=="function"&&r.chain().focus(void 0,{scrollIntoView:!1}).command(({tr:h})=>{let p=t();if(typeof p!="number")return!1;let m=h.doc.nodeAt(p);return h.setNodeMarkup(p,void 0,{...m?.attrs,checked:f}),!0}).run(),!r.isEditable&&this.options.onReadOnlyChecked&&(this.options.onReadOnlyChecked(n,f)||(l.checked=!l.checked))}),Object.entries(this.options.HTMLAttributes).forEach(([d,f])=>{i.setAttribute(d,f)}),i.dataset.checked=n.attrs.checked,l.checked=n.attrs.checked,s.append(l,o),i.append(s,a),Object.entries(e).forEach(([d,f])=>{i.setAttribute(d,f)});let u=new Set(Object.keys(e));return{dom:i,contentDOM:a,update:d=>{if(d.type!==this.type)return!1;i.dataset.checked=d.attrs.checked,l.checked=d.attrs.checked,c(d);let f=r.extensionManager.attributes,h=ft(d,f),p=new Set(Object.keys(h)),m=this.options.HTMLAttributes;return u.forEach(g=>{p.has(g)||(g in m?i.setAttribute(g,m[g]):i.removeAttribute(g))}),Object.entries(h).forEach(([g,y])=>{y==null?g in m?i.setAttribute(g,m[g]):i.removeAttribute(g):i.setAttribute(g,y)}),u=p,!0}}}},addInputRules(){return[ht({find:J0,type:this.type,getAttributes:n=>({checked:n[n.length-1]==="x"})})]}}),Y0=q.create({name:"taskList",addOptions(){return{itemTypeName:"taskItem",HTMLAttributes:{}}},group:"block list",content(){return`${this.options.itemTypeName}+`},parseHTML(){return[{tag:`ul[data-type="${this.name}"]`,priority:51}]},renderHTML({HTMLAttributes:n}){return["ul",F(this.options.HTMLAttributes,n,{"data-type":this.name}),0]},parseMarkdown:(n,e)=>e.createNode("taskList",{},e.parseChildren(n.items||[])),renderMarkdown:(n,e)=>n.content?e.renderChildren(n.content,`
 `):"",markdownTokenizer:{name:"taskList",level:"block",start(n){var e;let t=(e=n.match(/^\s*[-+*]\s+\[([ xX])\]\s+/))===null||e===void 0?void 0:e.index;return t!==void 0?t:-1},tokenize(n,e,t){let r=s=>{let o=bo(s,{itemPattern:/^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,extractItemData:l=>({indentLevel:l[1].length,mainContent:l[4],checked:l[3].toLowerCase()==="x"}),createToken:(l,a)=>({type:"taskItem",raw:"",mainContent:l.mainContent,indentLevel:l.indentLevel,checked:l.checked,text:l.mainContent,tokens:t.inlineTokens(l.mainContent),nestedTokens:a}),customNestedParser:r},t);if(o){let l={type:"taskList",raw:o.raw,items:o.items},a=s.slice(o.raw.length);return a.trim()?[l,...t.blockTokens(a)]:[l]}return t.blockTokens(s)},i=bo(n,{itemPattern:/^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,extractItemData:s=>({indentLevel:s[1].length,mainContent:s[4],checked:s[3].toLowerCase()==="x"}),createToken:(s,o)=>({type:"taskItem",raw:"",mainContent:s.mainContent,indentLevel:s.indentLevel,checked:s.checked,text:s.mainContent,tokens:t.inlineTokens(s.mainContent),nestedTokens:o}),customNestedParser:r},t);if(i)return{type:"taskList",raw:i.raw,items:i.items}}},markdownOptions:{indentsContent:!0},addCommands(){return{toggleTaskList:()=>({commands:n})=>n.toggleList(this.name,this.options.itemTypeName)}},addKeyboardShortcuts(){return{"Mod-Shift-9":()=>this.editor.commands.toggleTaskList()}}}),xS=U.create({name:"listKit",addExtensions(){let n=[];return this.options.bulletList!==!1&&n.push(Uo.configure(this.options.bulletList)),this.options.listItem!==!1&&n.push(Go.configure(this.options.listItem)),this.options.listKeymap!==!1&&n.push(Yo.configure(this.options.listKeymap)),this.options.orderedList!==!1&&n.push(Qo.configure(this.options.orderedList)),this.options.taskItem!==!1&&n.push(X0.configure(this.options.taskItem)),this.options.taskList!==!1&&n.push(Y0.configure(this.options.taskList)),n}});var zi="&nbsp;",Zo="\xA0",Ld=q.create({name:"paragraph",priority:1e3,addOptions(){return{HTMLAttributes:{}}},group:"block",content:"inline*",parseHTML(){return[{tag:"p"}]},renderHTML({HTMLAttributes:n}){return["p",F(this.options.HTMLAttributes,n),0]},parseMarkdown:(n,e)=>{let t=n.tokens||[];if(t.length===1&&t[0].type==="image")return e.parseChildren([t[0]]);let r=e.parseInline(t);return t.length===1&&t[0].type==="text"&&(t[0].raw===zi||t[0].text===zi||t[0].raw===Zo||t[0].text===Zo)&&r.length===1&&r[0].type==="text"&&(r[0].text===zi||r[0].text===Zo)?e.createNode("paragraph",void 0,[]):e.createNode("paragraph",void 0,r)},renderMarkdown:(n,e,t)=>{if(!n)return"";let r=Array.isArray(n.content)?n.content:[];if(r.length===0){var i,s;let o=Array.isArray(t==null||(i=t.previousNode)===null||i===void 0?void 0:i.content)?t.previousNode.content:[];return(t==null||(s=t.previousNode)===null||s===void 0?void 0:s.type)==="paragraph"&&o.length===0?zi:""}return e.renderChildren(r)},addCommands(){return{setParagraph:()=>({commands:n})=>n.setNode(this.name)}},addKeyboardShortcuts(){return{"Mod-Alt-0":()=>this.editor.commands.setParagraph()}}});var Q0=/(?:^|\s)(~~(?!\s+~~)((?:[^~]+))~~(?!\s+~~))$/,Z0=/(?:^|\s)(~~(?!\s+~~)((?:[^~]+))~~(?!\s+~~))/g,Pd=xe.create({name:"strike",addOptions(){return{HTMLAttributes:{}}},parseHTML(){return[{tag:"s"},{tag:"del"},{tag:"strike"},{style:"text-decoration",consuming:!1,getAttrs:n=>n.includes("line-through")?{}:!1}]},renderHTML({HTMLAttributes:n}){return["s",F(this.options.HTMLAttributes,n),0]},markdownTokenName:"del",parseMarkdown:(n,e)=>e.applyMark("strike",e.parseInline(n.tokens||[])),renderMarkdown:(n,e)=>`~~${e.renderChildren(n)}~~`,addCommands(){return{setStrike:()=>({commands:n})=>n.setMark(this.name),toggleStrike:()=>({commands:n})=>n.toggleMark(this.name),unsetStrike:()=>({commands:n})=>n.unsetMark(this.name)}},addKeyboardShortcuts(){return{"Mod-Shift-s":()=>this.editor.commands.toggleStrike()}},addInputRules(){return[Ee({find:Q0,type:this.type})]},addPasteRules(){return[we({find:Z0,type:this.type})]}});var Bd=q.create({name:"text",group:"inline",parseMarkdown:n=>({type:"text",text:n.text||""}),renderMarkdown:n=>n.text||""});var zd=xe.create({name:"underline",addOptions(){return{HTMLAttributes:{}}},parseHTML(){return[{tag:"u"},{style:"text-decoration",consuming:!1,getAttrs:n=>n.includes("underline")?{}:!1}]},renderHTML({HTMLAttributes:n}){return["u",F(this.options.HTMLAttributes,n),0]},parseMarkdown(n,e){return e.applyMark(this.name||"underline",e.parseInline(n.tokens||[]))},renderMarkdown(n,e){return`<u>${e.renderChildren(n)}</u>`},markdownTokenizer:{name:"underline",level:"inline",start(n){return n.toLowerCase().indexOf("<u>")},tokenize(n,e,t){if(!/^<u>/i.test(n))return;let r=/\\[\s\S]|`+|<\/u>/gi;r.lastIndex=3;let i=r.exec(n);for(;i;){if(i[0].startsWith("`")){let s=/^(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)/.exec(n.slice(i.index));s&&(r.lastIndex=i.index+s[0].length)}else if(!i[0].startsWith("\\")){let s=n.slice(3,i.index);return s?{type:"underline",raw:n.slice(0,r.lastIndex),text:s,tokens:t.inlineTokens(s)}:void 0}i=r.exec(n)}}},addCommands(){return{setUnderline:()=>({commands:n})=>n.setMark(this.name),toggleUnderline:()=>({commands:n})=>n.toggleMark(this.name),unsetUnderline:()=>({commands:n})=>n.unsetMark(this.name)}},addKeyboardShortcuts(){return{"Mod-u":()=>this.editor.commands.toggleUnderline(),"Mod-U":()=>this.editor.commands.toggleUnderline()}}});function $d(n={}){return new $({view(e){return new el(e,n)}})}var el=class{constructor(e,t){var r;this.editorView=e,this.cursorPos=null,this.element=null,this.timeout=-1,this.lastDragEvent=null,this.width=(r=t.width)!==null&&r!==void 0?r:1,this.color=t.color===!1?void 0:t.color||"black",this.class=t.class,this.handlers=["dragover","dragend","drop","dragleave"].map(i=>{let s=o=>{this[i](o)};return e.dom.addEventListener(i,s),{name:i,handler:s}})}destroy(){this.setCursor(null),this.handlers.forEach(({name:e,handler:t})=>this.editorView.dom.removeEventListener(e,t))}update(e,t){if(this.cursorPos!=null&&t.doc!=e.state.doc)if(this.lastDragEvent){let r=this.computeTarget(this.lastDragEvent);r==this.cursorPos?this.updateOverlay():this.setCursor(r)}else this.updateOverlay()}setCursor(e){e!=this.cursorPos&&(this.cursorPos=e,e==null?(this.element.parentNode.removeChild(this.element),this.element=null):this.updateOverlay())}updateOverlay(){let e=this.editorView.state.doc.resolve(this.cursorPos),t=!e.parent.inlineContent,r,i=this.editorView.dom,s=i.getBoundingClientRect(),o=s.width/i.offsetWidth,l=s.height/i.offsetHeight;if(t){let d=e.nodeBefore,f=e.nodeAfter;if(d||f){let h=this.editorView.nodeDOM(this.cursorPos-(d?d.nodeSize:0));if(h){let p=h.getBoundingClientRect(),m=d?p.bottom:p.top;d&&f&&(m=(m+this.editorView.nodeDOM(this.cursorPos).getBoundingClientRect().top)/2);let g=this.width/2*l;r={left:p.left,right:p.right,top:m-g,bottom:m+g}}}}if(!r){let d=this.editorView.coordsAtPos(this.cursorPos),f=this.width/2*o;r={left:d.left-f,right:d.left+f,top:d.top,bottom:d.bottom}}let a=this.editorView.dom.offsetParent;this.element||(this.element=a.appendChild(document.createElement("div")),this.class&&(this.element.className=this.class),this.element.style.cssText="position: absolute; z-index: 50; pointer-events: none;",this.color&&(this.element.style.backgroundColor=this.color)),this.element.classList.toggle("prosemirror-dropcursor-block",t),this.element.classList.toggle("prosemirror-dropcursor-inline",!t);let c,u;if(!a||a==document.body&&getComputedStyle(a).position=="static")c=-pageXOffset,u=-pageYOffset;else{let d=a.getBoundingClientRect(),f=d.width/a.offsetWidth,h=d.height/a.offsetHeight;c=d.left-a.scrollLeft*f,u=d.top-a.scrollTop*h}this.element.style.left=(r.left-c)/o+"px",this.element.style.top=(r.top-u)/l+"px",this.element.style.width=(r.right-r.left)/o+"px",this.element.style.height=(r.bottom-r.top)/l+"px"}scheduleRemoval(e){clearTimeout(this.timeout),this.timeout=setTimeout(()=>this.setCursor(null),e)}computeTarget(e){let t=this.editorView.posAtCoords({left:e.clientX,top:e.clientY}),r=t&&t.inside>=0&&this.editorView.state.doc.nodeAt(t.inside),i=r&&r.type.spec.disableDropCursor,s=typeof i=="function"?i(this.editorView,t,e):i;if(!t||s)return null;let o=t.pos;if(this.editorView.dragging&&this.editorView.dragging.slice){let l=hr(this.editorView.state.doc,o,this.editorView.dragging.slice);l!=null&&(o=l)}return o}dragover(e){if(!this.editorView.editable)return;this.lastDragEvent=e;let t=this.computeTarget(e);t!=null&&(this.setCursor(t),this.scheduleRemoval(5e3))}dragend(){this.scheduleRemoval(20)}drop(){this.scheduleRemoval(20)}dragleave(e){this.editorView.dom.contains(e.relatedTarget)||this.setCursor(null)}};var de=class n extends R{constructor(e){super(e,e)}map(e,t){let r=e.resolve(t.map(this.head));return n.valid(r)?new n(r):R.near(r)}content(){return M.empty}eq(e){return e instanceof n&&e.head==this.head}toJSON(){return{type:"gapcursor",pos:this.head}}static fromJSON(e,t){if(typeof t.pos!="number")throw new RangeError("Invalid input for GapCursor.fromJSON");return new n(e.resolve(t.pos))}getBookmark(){return new tl(this.anchor)}static valid(e){let t=e.parent;if(t.inlineContent||!eb(e)||!tb(e))return!1;let r=t.type.spec.allowGapCursor;if(r!=null)return r;let i=t.contentMatchAt(e.index()).defaultType;return i&&i.isTextblock}static findGapCursorFrom(e,t,r=!1){e:for(;;){if(!r&&n.valid(e))return e;let i=e.pos,s=null;for(let o=e.depth;;o--){let l=e.node(o);if(t>0?e.indexAfter(o)<l.childCount:e.index(o)>0){s=l.child(t>0?e.indexAfter(o):e.index(o)-1);break}else if(o==0)return null;i+=t;let a=e.doc.resolve(i);if(n.valid(a))return a}for(;;){let o=t>0?s.firstChild:s.lastChild;if(!o){if(s.isAtom&&!s.isText&&!T.isSelectable(s)){e=e.doc.resolve(i+s.nodeSize*t),r=!1;continue e}break}s=o,i+=t;let l=e.doc.resolve(i);if(n.valid(l))return l}return null}}};de.prototype.visible=!1;de.findFrom=de.findGapCursorFrom;R.jsonID("gapcursor",de);var tl=class n{constructor(e){this.pos=e}map(e){return new n(e.map(this.pos))}resolve(e){let t=e.resolve(this.pos);return de.valid(t)?new de(t):R.near(t)}};function Fd(n){return n.isAtom||n.spec.isolating||n.spec.createGapCursor}function eb(n){for(let e=n.depth;e>=0;e--){let t=n.index(e),r=n.node(e);if(t==0){if(r.type.spec.isolating)return!0;continue}for(let i=r.child(t-1);;i=i.lastChild){if(i.childCount==0&&!i.inlineContent||Fd(i.type))return!0;if(i.inlineContent)return!1}}return!0}function tb(n){for(let e=n.depth;e>=0;e--){let t=n.indexAfter(e),r=n.node(e);if(t==r.childCount){if(r.type.spec.isolating)return!0;continue}for(let i=r.child(t);;i=i.firstChild){if(i.childCount==0&&!i.inlineContent||Fd(i.type))return!0;if(i.inlineContent)return!1}}return!0}function Hd(){return new $({props:{decorations:sb,createSelectionBetween(n,e,t){return e.pos==t.pos&&de.valid(t)?new de(t):null},handleClick:rb,handleKeyDown:nb,handleDOMEvents:{beforeinput:ib}}})}var nb=Zs({ArrowLeft:$i("horiz",-1),ArrowRight:$i("horiz",1),ArrowUp:$i("vert",-1),ArrowDown:$i("vert",1)});function $i(n,e){let t=n=="vert"?e>0?"down":"up":e>0?"right":"left";return function(r,i,s){let o=r.selection,l=e>0?o.$to:o.$from,a=o.empty;if(o instanceof v){if(!s.endOfTextblock(t)||l.depth==0)return!1;a=!1,l=r.doc.resolve(e>0?l.after():l.before())}let c=de.findGapCursorFrom(l,e,a);return c?(i&&i(r.tr.setSelection(new de(c))),!0):!1}}function rb(n,e,t){if(!n||!n.editable)return!1;let r=n.state.doc.resolve(e);if(!de.valid(r))return!1;let i=n.posAtCoords({left:t.clientX,top:t.clientY});return i&&i.inside>-1&&T.isSelectable(n.state.doc.nodeAt(i.inside))?!1:(n.dispatch(n.state.tr.setSelection(new de(r))),!0)}function ib(n,e){if(e.inputType!="insertCompositionText"||!(n.state.selection instanceof de))return!1;let{$from:t}=n.state.selection,r=t.parent.contentMatchAt(t.index()).findWrapping(n.state.schema.nodes.text);if(!r)return!1;let i=b.empty;for(let o=r.length-1;o>=0;o--)i=b.from(r[o].createAndFill(null,i));let s=n.state.tr.replace(t.pos,t.pos,new M(i,0,0));return s.setSelection(v.near(s.doc.resolve(t.pos+1))),n.dispatch(s),!1}function sb(n){if(!(n.selection instanceof de))return null;let e=document.createElement("div");return e.className="ProseMirror-gapcursor",_.create(n.doc,[ge.widget(n.selection.head,e,{key:"gapcursor"})])}var GS=U.create({name:"characterCount",addOptions(){return{limit:null,autoTrim:!0,mode:"textSize",textCounter:n=>n.length,wordCounter:n=>n.split(" ").filter(e=>e!=="").length}},addStorage(){return{characters:()=>0,words:()=>0}},onBeforeCreate(){this.storage.characters=n=>{let e=n?.node||this.editor.state.doc;if((n?.mode||this.options.mode)==="textSize"){let t=e.textBetween(0,e.content.size,void 0," ");return this.options.textCounter(t)}return e.nodeSize},this.storage.words=n=>{let e=n?.node||this.editor.state.doc,t=e.textBetween(0,e.content.size," "," ");return this.options.wordCounter(t)}},addProseMirrorPlugins(){let n=!1;return[new $({key:new K("characterCount"),appendTransaction:(e,t,r)=>{if(n)return;let i=this.options.limit,s=this.options.autoTrim;if(i==null||i===0||s===!1){n=!0;return}let o=this.storage.characters({node:r.doc});if(o>i){let l=o-i,a=0,c=l;console.warn(`[CharacterCount] Initial content exceeded limit of ${i} characters. Content was automatically trimmed.`);let u=r.tr.deleteRange(a,c);return n=!0,u}n=!0},filterTransaction:(e,t)=>{let r=this.options.limit;if(!e.docChanged||r===0||r===null||r===void 0)return!0;let i=this.storage.characters({node:t.doc}),s=this.storage.characters({node:e.doc});if(s<=r||i>r&&s>r&&s<=i)return!0;if(i>r&&s>r&&s>i||!e.getMeta("paste"))return!1;let o=e.selection.$head.pos,l=o-(s-r),a=o;return e.deleteRange(l,a),!(this.storage.characters({node:e.doc})>r)}})]}}),Wd=U.create({name:"dropCursor",addOptions(){return{color:"currentColor",width:1,class:void 0}},addProseMirrorPlugins(){return[$d(this.options)]}}),XS=U.create({name:"focus",addOptions(){return{className:"has-focus",mode:"all"}},addProseMirrorPlugins(){return[new $({key:new K("focus"),props:{decorations:({doc:n,selection:e})=>{let{isEditable:t,isFocused:r}=this.editor,{anchor:i}=e,s=[];if(!t||!r)return _.create(n,[]);let o=0;this.options.mode==="deepest"&&n.descendants((a,c)=>{if(!a.isText){if(!(i>=c&&i<=c+a.nodeSize-1))return!1;o+=1}});let l=0;return n.descendants((a,c)=>{if(a.isText||!(i>=c&&i<=c+a.nodeSize-1))return!1;if(l+=1,this.options.mode==="deepest"&&o-l>0||this.options.mode==="shallowest"&&l>1)return this.options.mode==="deepest";s.push(ge.node(c,c+a.nodeSize,{class:this.options.className}))}),_.create(n,s)}}})]}}),_d=U.create({name:"gapCursor",addProseMirrorPlugins(){return[Hd()]},extendNodeSchema(n){var e;let t={name:n.name,options:n.options,storage:n.storage};return{allowGapCursor:(e=V(E(n,"allowGapCursor",t)))!==null&&e!==void 0?e:null}}}),Kd="placeholder",Vd=new K("tiptap__placeholder");function Ud(n){let{editor:e,placeholder:t,dataAttribute:r,pos:i,node:s,isEmptyDoc:o,hasAnchor:l,classes:{emptyNode:a,emptyEditor:c}}=n,u=[a];return o&&u.push(c),ge.node(i,i+s.nodeSize,{class:u.join(" "),[r]:typeof t=="function"?t({editor:e,node:s,pos:i,hasAnchor:l}):t})}function Jd(n,e){return typeof n=="function"?n(e):n}function qd({editor:n,options:e,dataAttribute:t,doc:r,selection:i,from:s,to:o}){let{anchor:l}=i,a=[],c=n.isEmpty;return r.nodesBetween(s,o,(u,d)=>{let f=l>=d&&l<=d+u.nodeSize,h=!u.isLeaf&&an(u);return u.type.isTextblock&&(f||!e.showOnlyCurrent)&&h&&a.push(Ud({editor:n,isEmptyDoc:c,dataAttribute:t,hasAnchor:f,placeholder:e.placeholder,classes:{emptyEditor:e.emptyEditorClass,emptyNode:Jd(e.emptyNodeClass,{editor:n,node:u,pos:d,hasAnchor:f})},node:u,pos:d})),e.includeChildren}),a}function Gd({editor:n,options:e,dataAttribute:t,doc:r,selection:i}){if(!(n.isEditable||!e.showOnlyWhenEditable))return null;let{anchor:s}=i,o=[],l=n.isEmpty;if(e.showOnlyCurrent&&!e.includeChildren){let a=r.resolve(s),c=a.depth>0?a.node(1):a.nodeAfter,u=a.depth>0?a.before(1):s;if(c&&c.type.isTextblock&&an(c)){let d=s>=u&&s<=u+c.nodeSize;o.push(Ud({editor:n,isEmptyDoc:l,dataAttribute:t,hasAnchor:d,placeholder:e.placeholder,classes:{emptyEditor:e.emptyEditorClass,emptyNode:Jd(e.emptyNodeClass,{editor:n,node:c,pos:u,hasAnchor:d})},node:c,pos:u}))}}else o.push(...qd({editor:n,options:e,dataAttribute:t,doc:r,selection:i,from:0,to:r.content.size}));return _.create(r,o)}function Zn(n,e){let t=n.resolve(e);if(t.depth===0){var r;let s=(r=t.nodeAfter)!==null&&r!==void 0?r:t.nodeBefore;if(!s)return{from:e,to:e};let o=t.nodeAfter?e:e-s.nodeSize;return{from:o,to:o+s.nodeSize}}let i=t.before(1);return{from:i,to:i+t.node(1).nodeSize}}function er(n,e){return{from:Math.max(0,e.from),to:Math.min(n.content.size,e.to)}}function ob(n,e,t){let r=[];return n.forEach((i,s)=>{let o=s,l=o+i.nodeSize,a=o+1,c=l+1;a<t&&c>e&&r.push({from:o,to:l})}),r}function lb(n){if(n.length===0)return[];let e=[...n].sort((r,i)=>r.from-i.from),t=[{...e[0]}];for(let r=1;r<e.length;r+=1){let i=t[t.length-1],s=e[r];s.from<=i.to?i.to=Math.max(i.to,s.to):t.push({...s})}return t}function ab(n,e){let t=ob(n,e.from,e.to);return t.push(er(n,Zn(n,e.from))),e.to>e.from?t.push(er(n,Zn(n,Math.min(e.to,n.content.size+1)-1))):e.from<n.content.size+1&&t.push(er(n,Zn(n,Math.min(e.from+1,n.content.size)))),t}function cb(n,e,t){let r=[];if(n.docChanged){let i=ln(n);for(let s of i)r.push(...ab(t.doc,s.newRange))}return n.selectionSet&&(r.push(er(t.doc,Zn(t.doc,n.mapping.map(e.selection.anchor)))),r.push(er(t.doc,Zn(t.doc,t.selection.anchor)))),lb(r)}function ub(n,e,t){let r=Math.max(0,Math.min(n,t.content.size));return{from:r,to:Math.max(r,Math.min(e,t.content.size))}}function db({decorations:n,ranges:e,editor:t,options:r,dataAttribute:i,doc:s,selection:o}){let l=n;for(let a of e){let{from:c,to:u}=ub(a.from,a.to,s),d=l.find(c,u).filter(h=>h.from>=c&&h.to<=u);d.length&&(l=l.remove(d));let f=qd({editor:t,options:r,dataAttribute:i,doc:s,selection:o,from:c,to:u});f.length&&(l=l.add(s,f))}return l}function fb({editor:n,options:e,dataAttribute:t}){return{init(r,i){let s=Gd({editor:n,options:e,dataAttribute:t,doc:i.doc,selection:i.selection});return s??_.empty},apply(r,i,s,o){return!r.docChanged&&!r.selectionSet?i:db({decorations:i.map(r.mapping,r.doc),ranges:cb(r,s,o),editor:n,options:e,dataAttribute:t,doc:o.doc,selection:o.selection})}}}function hb(n){return n.replace(/\s+/g,"-").replace(/[^a-zA-Z0-9-]/g,"").replace(/^[0-9-]+/,"").replace(/^-+/,"").toLowerCase()}function pb({editor:n,options:e}){let t=e.dataAttribute?`data-${hb(e.dataAttribute)}`:`data-${Kd}`,r=e.showOnlyCurrent&&!e.includeChildren;return new $({key:Vd,...r?{}:{state:fb({editor:n,options:e,dataAttribute:t})},props:{decorations:r?({doc:i,selection:s})=>Gd({editor:n,options:e,dataAttribute:t,doc:i,selection:s}):i=>{var s;return e.showOnlyWhenEditable&&!n.isEditable?_.empty:(s=Vd.getState(i))!==null&&s!==void 0?s:_.empty}}})}var YS=U.create({name:"placeholder",addOptions(){return{emptyEditorClass:"is-editor-empty",emptyNodeClass:"is-empty",dataAttribute:Kd,placeholder:"Write something \u2026",showOnlyWhenEditable:!0,showOnlyCurrent:!0,includeChildren:!1}},addProseMirrorPlugins(){return[pb({editor:this.editor,options:this.options})]}});function nl(n,e){return!n.selection.empty&&!Gr(n.selection)&&e.isEditable}function mb(n,e){return nl(n,e)&&!e.isFocused&&!e.view.dragging}function gb(){var n;(n=window.getSelection())===null||n===void 0||n.removeAllRanges()}function yb(n){n.focus()}var QS=U.create({name:"selection",addOptions(){return{className:"selection"}},addProseMirrorPlugins(){let{editor:n,options:e}=this;return[new $({key:new K("selection"),props:{decorations(t){return mb(t,n)?_.create(t.doc,[ge.inline(t.selection.from,t.selection.to,{class:e.className})]):null},handleDOMEvents:{blur(t){return nl(t.state,n)&&gb(),!1},focus(t){return nl(t.state,n)&&requestAnimationFrame(()=>{!n.isDestroyed&&t.hasFocus()&&yb(t)}),!1}}}})]}});function jd({types:n,node:e}){return e&&Array.isArray(n)&&n.includes(e.type)||e?.type===n}var Xd=U.create({name:"trailingNode",addOptions(){return{node:void 0,notAfter:[]}},addProseMirrorPlugins(){var n;let e=new K(this.name),t=this.options.node||((n=this.editor.schema.topNodeType.contentMatch.defaultType)===null||n===void 0?void 0:n.name)||"paragraph",r=Object.entries(this.editor.schema.nodes).map(([,i])=>i).filter(i=>(this.options.notAfter||[]).concat(t).includes(i.name));return[new $({key:e,appendTransaction:(i,s,o)=>{let{doc:l,tr:a,schema:c}=o,u=e.getState(o),d=l.content.size,f=c.nodes[t];if(!i.some(h=>h.getMeta("skipTrailingNode"))&&u)return a.insert(d,f.create())},state:{init:(i,s)=>{let o=s.tr.doc.lastChild;return!jd({node:o,types:r})},apply:(i,s)=>{if(!i.docChanged||i.getMeta("__uniqueIDTransaction"))return s;let o=i.doc.lastChild;return!jd({node:o,types:r})}}})]}}),Yd=U.create({name:"undoRedo",addOptions(){return{depth:100,newGroupDelay:500}},addCommands(){return{undo:()=>({state:n,dispatch:e})=>ro(n,e),redo:()=>({state:n,dispatch:e})=>io(n,e)}},addProseMirrorPlugins(){return[Lc(this.options)]},addKeyboardShortcuts(){return{"Mod-z":()=>this.editor.commands.undo(),"Shift-Mod-z":()=>this.editor.commands.redo(),"Mod-y":()=>this.editor.commands.redo(),"Mod-\u044F":()=>this.editor.commands.undo(),"Shift-Mod-\u044F":()=>this.editor.commands.redo()}}});var bb=U.create({name:"starterKit",addExtensions(){let n=[];if(this.options.bold!==!1&&n.push(Ku.configure(this.options.bold)),this.options.blockquote!==!1&&n.push(_u.configure(this.options.blockquote)),this.options.bulletList!==!1&&n.push(Uo.configure(this.options.bulletList)),this.options.code!==!1&&n.push(Uu.configure(this.options.code)),this.options.codeBlock!==!1&&n.push(Ju.configure(this.options.codeBlock)),this.options.document!==!1&&n.push(qu.configure(this.options.document)),this.options.dropcursor!==!1&&n.push(Wd.configure(this.options.dropcursor)),this.options.gapcursor!==!1&&n.push(_d.configure(this.options.gapcursor)),this.options.hardBreak!==!1&&n.push(Gu.configure(this.options.hardBreak)),this.options.heading!==!1&&n.push(Xu.configure(this.options.heading)),this.options.undoRedo!==!1&&n.push(Yd.configure(this.options.undoRedo)),this.options.horizontalRule!==!1&&n.push(Yu.configure(this.options.horizontalRule)),this.options.italic!==!1&&n.push(Qu.configure(this.options.italic)),this.options.listItem!==!1&&n.push(Go.configure(this.options.listItem)),this.options.listKeymap!==!1){var e;n.push(Yo.configure((e=this.options)===null||e===void 0?void 0:e.listKeymap))}if(this.options.link!==!1){var t;n.push(yd.configure((t=this.options)===null||t===void 0?void 0:t.link))}if(this.options.orderedList!==!1&&n.push(Qo.configure(this.options.orderedList)),this.options.paragraph!==!1&&n.push(Ld.configure(this.options.paragraph)),this.options.strike!==!1&&n.push(Pd.configure(this.options.strike)),this.options.text!==!1&&n.push(Bd.configure(this.options.text)),this.options.underline!==!1){var r;n.push(zd.configure((r=this.options)===null||r===void 0?void 0:r.underline))}if(this.options.trailingNode!==!1){var i;n.push(Xd.configure((i=this.options)===null||i===void 0?void 0:i.trailingNode))}return n}}),Qd=bb;var kb=/(?:^|\s)(!\[(.+|:?)]\((\S+)(?:(?:\s+)["'](\S+)["'])?\))$/,Sb=q.create({name:"image",addOptions(){return{inline:!1,allowBase64:!1,HTMLAttributes:{},resize:!1}},inline(){return this.options.inline},group(){return this.options.inline?"inline":"block"},draggable:!0,addAttributes(){return{src:{default:null},alt:{default:null},title:{default:null},width:{default:null},height:{default:null}}},parseHTML(){return[{tag:this.options.allowBase64?"img[src]":'img[src]:not([src^="data:"])'}]},renderHTML({HTMLAttributes:n}){return["img",F(this.options.HTMLAttributes,n)]},parseMarkdown:(n,e)=>e.createNode("image",{src:n.href,title:n.title,alt:n.text}),renderMarkdown:n=>{var e,t,r,i,s,o;let l=(e=(t=n.attrs)===null||t===void 0?void 0:t.src)!==null&&e!==void 0?e:"",a=(r=(i=n.attrs)===null||i===void 0?void 0:i.alt)!==null&&r!==void 0?r:"",c=(s=(o=n.attrs)===null||o===void 0?void 0:o.title)!==null&&s!==void 0?s:"";return c?`![${a}](${l} "${c}")`:`![${a}](${l})`},addNodeView(){if(!this.options.resize||!this.options.resize.enabled||typeof document>"u")return null;let{directions:n,minWidth:e,minHeight:t,alwaysPreserveAspectRatio:r}=this.options.resize,i=new Set(["src","width","height"]);return({node:s,getPos:o,HTMLAttributes:l,editor:a})=>{let c=document.createElement("img");c.draggable=!1;let u=F(this.options.HTMLAttributes,l);Object.entries(u).forEach(([y,x])=>{if(x!=null)switch(y){case"src":case"width":case"height":break;default:c.setAttribute(y,x)}}),u.src!==null&&(c.src=u.src);let d={...l},f=y=>{if(typeof y=="string"&&y!==""){c.getAttribute("src")!==y&&(c.src=y);return}c.hasAttribute("src")&&c.removeAttribute("src"),c.src!==""&&(c.src="")};f(l.src);let h=y=>{if(y.type!==s.type)return!1;let x=a.extensionManager.attributes.filter(w=>w.type===y.type.name),k=ft(y,x);return Object.keys(d).forEach(w=>{!i.has(w)&&!(w in k)&&c.removeAttribute(w)}),Object.entries(k).forEach(([w,N])=>{i.has(w)||(N!=null?c.setAttribute(w,N):c.removeAttribute(w))}),f(k.src),d=k,!0},p=new Fu({element:c,editor:a,node:s,getPos:o,onResize:(y,x)=>{c.style.width=`${y}px`,c.style.height=`${x}px`},onCommit:(y,x)=>{let k=o();k!==void 0&&this.editor.chain().setNodeSelection(k).updateAttributes(this.name,{width:y,height:x}).run()},onUpdate:h,options:{directions:n,min:{width:e,height:t},preserveAspectRatio:r===!0}}),m=p.dom,g=()=>{m.style.visibility="",m.style.pointerEvents=""};return m.style.visibility="hidden",m.style.pointerEvents="none",c.complete&&c.naturalWidth>0?g():(c.onload=g,c.onerror=g),p}},addCommands(){return{setImage:n=>({commands:e})=>e.insertContent({type:this.name,attrs:n})}},addInputRules(){return[Yr({find:kb,type:this.type,getAttributes:n=>{let[,,e,t,r]=n;return{src:t,alt:e,title:r}}})]}}),Zd=Sb;var xb=()=>globalThis.TAEJANG_ARTICLE_DOCUMENT;function wb(n,{getMedia:e=()=>[],getTitle:t=()=>"",item:r=null,preview:i=!0}={}){if(!n||n._articleEditor)return n?._articleEditor;let s=xb();if(!s||!n.parentNode)return null;let o=document.createElement("div");o.className="article-editor",n.parentNode.after(o);let l=document.createElement("div");l.className="article-editor-toolbar",l.setAttribute("role","toolbar"),l.setAttribute("aria-label","\uBCF8\uBB38 \uD3B8\uC9D1 \uB3C4\uAD6C");let a=document.createElement("div");a.className="taejang-article article-editor-surface";let c=document.createElement("p");c.className="article-editor-status",c.setAttribute("role","status");let u=document.createElement("div");u.className="article-editor-images";let d=document.createElement("select");d.setAttribute("aria-label","\uBCF8\uBB38\uC5D0 \uB123\uC744 \uC0AC\uC9C4");let f=document.createElement("input");f.type="text",f.maxLength=300,f.placeholder="\uC0AC\uC9C4 \uC124\uBA85 (\uC120\uD0DD)",f.setAttribute("aria-label","\uC120\uD0DD\uD55C \uC0AC\uC9C4 \uC124\uBA85");let h=document.createElement("div");h.className="article-editor-toolbar";let p=document.createElement("div");p.className="article-editor-preview",p.hidden=!0,o.append(l,a,u,c,h,p);let m=n.value;if(s.isRich(m)&&!s.parse(m))return o.textContent="\uBCF8\uBB38 \uD615\uC2DD\uC744 \uC77D\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6D0\uBB38\uC744 \uBCF4\uC874\uD558\uAE30 \uC704\uD574 \uD3B8\uC9D1\uC744 \uC911\uB2E8\uD588\uC2B5\uB2C8\uB2E4.",n.hidden=!0,n._articleEditor={refresh(){},validate(){return window.alert("\uBCF8\uBB38 \uD615\uC2DD\uC744 \uD655\uC778\uD560 \uC218 \uC5C6\uC5B4 \uC800\uC7A5\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4."),!1}},n._articleEditor;let y,x=[],k=document.createElement("select");k.setAttribute("aria-label","\uBB38\uB2E8 \uC2A4\uD0C0\uC77C");function w(){if(!y)return;let C=y.isActive("image");f.disabled=!C,document.activeElement!==f&&(f.value=C&&y.getAttributes("image").alt||""),k.value=y.isActive("heading")?String(y.getAttributes("heading").level):"p";for(let[O,z]of x)O.setAttribute("aria-pressed",String(y.isActive(z)))}let N=(C,O,z)=>{let I=document.createElement("button");return I.type="button",I.textContent=O,I.addEventListener("mousedown",X=>X.preventDefault()),I.addEventListener("click",z),C.append(I),I};function W(){p.innerHTML=s.render({public_body:s.PREFIX+JSON.stringify(y.getJSON()),public_media:e()})||"";let C=document.createElement("h1");C.textContent=t(),C.textContent&&p.prepend(C)}function D(){let C=y.getJSON(),O=y.isEmpty?"":s.PREFIX+JSON.stringify(C);n.value=O,m=O,n.setCustomValidity(O.length>3e4?"\uBCF8\uBB38\uC774 \uC800\uC7A5 \uAC00\uB2A5\uD55C \uBD84\uB7C9\uC744 \uB118\uC5C8\uC2B5\uB2C8\uB2E4. \uAE00\uC744 \uB098\uB204\uAC70\uB098 \uC904\uC5EC \uC8FC\uC138\uC694.":""),c.textContent=O.length>3e4?"\uC800\uC7A5 \uAC00\uB2A5\uD55C \uBD84\uB7C9\uC744 \uB118\uC5C8\uC2B5\uB2C8\uB2E4. \uAE00\uC744 \uC904\uC5EC \uC8FC\uC138\uC694.":"\uC18C\uC81C\uBAA9\uACFC \uC0AC\uC9C4 \uBC30\uCE58\uB294 \uC800\uC7A5 \uD6C4\uC5D0\uB3C4 \uC720\uC9C0\uB429\uB2C8\uB2E4.",n.dispatchEvent(new Event("input",{bubbles:!0})),p.hidden||W()}let P=s.parse(m)||s.fromPlain(m),B=!s.isRich(m)&&globalThis.TAEJANG_FEATURED_ARTICLE?.render(r);if(B){let C=document.createElement("div");C.innerHTML=B,C.querySelectorAll("figcaption").forEach(O=>O.remove()),C.querySelectorAll("a").forEach(O=>O.replaceWith(...O.childNodes)),P=C.innerHTML}!B&&!s.isRich(m)&&m.trim()&&e().forEach(C=>{globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(C.url)&&P.content.push({type:"image",attrs:{src:C.url,alt:C.alt||""}})});function j(C){if(typeof C=="string")return C;let O=new Set(e().filter(I=>globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(I.url)).map(I=>I.url)),z=I=>({...I,...I.content?{content:I.content.filter(X=>X.type!=="image"||O.has(X.attrs.src)).map(z)}:{}});return z(C)}y=new $u({element:a,extensions:[Qd.configure({heading:{levels:[2,3]},codeBlock:!1,code:!1,link:{openOnClick:!1,autolink:!1,protocols:["https","http"]}}),Zd.configure({allowBase64:!1})],content:j(P),editorProps:{attributes:{role:"textbox","aria-label":"\uAE30\uC0AC \uBCF8\uBB38","aria-multiline":"true"},handlePaste(C,O){let z=O.clipboardData?.getData("text/html");return z&&/<img\b/i.test(z)?(O.preventDefault(),C.dispatch(C.state.tr.insertText(O.clipboardData.getData("text/plain"))),!0):!1},handleDrop(C,O){return O.dataTransfer?.files.length||/<img\b/i.test(O.dataTransfer?.getData("text/html")||"")?(O.preventDefault(),c.textContent="\uC0AC\uC9C4\uC740 \uC544\uB798 \uC0AC\uC9C4 \uCD94\uAC00 \uBC84\uD2BC\uC73C\uB85C \uCCA8\uBD80\uD55C \uB4A4 \uBCF8\uBB38\uC5D0 \uB123\uC5B4 \uC8FC\uC138\uC694.",!0):!1}},onUpdate:D,onSelectionUpdate:w,onTransaction:w});for(let[C,O]of[["p","\uBCF8\uBB38"],["2","\uC18C\uC81C\uBAA9"],["3","\uC791\uC740 \uC18C\uC81C\uBAA9"]]){let z=new Option(O,C);k.add(z)}k.addEventListener("change",()=>k.value==="p"?y.chain().focus().setParagraph().run():y.chain().focus().setHeading({level:Number(k.value)}).run()),l.append(k);for(let[C,O,z]of[["\uAD75\uAC8C","toggleBold","bold"],["\uC778\uC6A9","toggleBlockquote","blockquote"],["\uBAA9\uB85D","toggleBulletList","bulletList"],["\uBC88\uD638 \uBAA9\uB85D","toggleOrderedList","orderedList"]]){let I=N(l,C,()=>y.chain().focus()[O]().run());I.setAttribute("aria-pressed","false"),x.push([I,z])}N(l,"\uB9C1\uD06C",()=>{let C=window.prompt("\uC5F0\uACB0\uD560 \uC6F9 \uC8FC\uC18C (\uBE44\uC6B0\uBA74 \uB9C1\uD06C \uD574\uC81C)",y.getAttributes("link").href||"");if(C===null)return;if(!C.trim()){y.chain().focus().unsetLink().run();return}let O=s.safeLink(C.trim());if(!O){window.alert("http \uB610\uB294 https \uC6F9 \uC8FC\uC18C\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694.");return}y.chain().focus().setLink({href:O}).run()}),N(l,"\uC2E4\uD589 \uCDE8\uC18C",()=>y.chain().focus().undo().run()),N(l,"\uB2E4\uC2DC \uC2E4\uD589",()=>y.chain().focus().redo().run()),u.append(d),N(u,"\uBCF8\uBB38\uC5D0 \uC0AC\uC9C4 \uB123\uAE30",()=>{let C=e().find(O=>O.url===d.value);C?y.chain().focus().setImage({src:C.url,alt:C.alt||""}).run():c.textContent="\uBA3C\uC800 \uC544\uB798 \uC0AC\uC9C4 \uCD94\uAC00 \uBC84\uD2BC\uC73C\uB85C \uC0AC\uC9C4\uC744 \uCCA8\uBD80\uD574 \uC8FC\uC138\uC694."}),u.append(f),f.disabled=!0,f.addEventListener("input",()=>{y.isActive("image")&&y.commands.updateAttributes("image",{alt:f.value})});function fe(C){let z=y.state.selection.$from.index(0),I=y.getJSON(),X=z+C;if(X<0||X>=I.content.length)return;[I.content[z],I.content[X]]=[I.content[X],I.content[z]];let tt=y.schema.nodeFromJSON(I),Ft=0;for(let ke=0;ke<X;ke++)Ft+=tt.child(ke).nodeSize;y.chain().focus().command(({tr:ke})=>(Br(ke),ke.replaceWith(0,ke.doc.content.size,tt.content),ke.setSelection(tt.child(X).type.name==="image"?T.create(ke.doc,Ft):v.near(ke.doc.resolve(Math.min(Ft+1,ke.doc.content.size)))),!0)).run()}N(u,"\uBB38\uB2E8\xB7\uC0AC\uC9C4 \uC704\uB85C",()=>fe(-1)),N(u,"\uBB38\uB2E8\xB7\uC0AC\uC9C4 \uC544\uB798\uB85C",()=>fe(1)),N(u,"\uBCF8\uBB38 \uC0AC\uC9C4 \uBE7C\uAE30",()=>{y.isActive("image")&&y.chain().focus().deleteSelection().run()}),i&&(N(h,"PC \uBBF8\uB9AC\uBCF4\uAE30",()=>{p.hidden=!1,p.classList.remove("is-mobile"),W()}),N(h,"\uBAA8\uBC14\uC77C \uBBF8\uB9AC\uBCF4\uAE30",()=>{p.hidden=!1,p.classList.add("is-mobile"),W()}),N(h,"\uBBF8\uB9AC\uBCF4\uAE30 \uB2EB\uAE30",()=>{p.hidden=!0}));function Re(){if(n.value!==m){m=n.value;let I=s.parse(m);if(s.isRich(m)&&!I)return;y.commands.setContent(j(I||s.fromPlain(m)),{emitUpdate:!1})}let C=d.value;d.replaceChildren(new Option("\uCCA8\uBD80\uD55C \uC0AC\uC9C4 \uC120\uD0DD","")),e().filter(I=>globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(I.url)).forEach((I,X)=>d.add(new Option(`${X+1}. ${I.alt||"\uC0AC\uC9C4"}`,I.url))),e().some(I=>I.url===C)&&(d.value=C);let O=new Set(e().map(I=>I.url)),z=[];y.state.doc.descendants((I,X)=>{I.type.name==="image"&&!O.has(I.attrs.src)&&z.push({pos:X,size:I.nodeSize})}),z.length&&y.chain().command(({tr:I})=>(z.reverse().forEach(({pos:X,size:tt})=>I.delete(X,X+tt)),!0)).run(),p.hidden||W()}n.hidden=!0;let Ie={editor:y,refresh:Re,validate(){return n.value.length>3e4?(window.alert("\uBCF8\uBB38\uC774 \uC800\uC7A5 \uAC00\uB2A5\uD55C \uBD84\uB7C9\uC744 \uB118\uC5C8\uC2B5\uB2C8\uB2E4. \uAE00\uC744 \uC904\uC5EC \uC8FC\uC138\uC694."),!1):!s.isRich(n.value)||!!s.parse(n.value)},destroy(){y.destroy(),o.remove(),n.hidden=!1,delete n._articleEditor}};return n._articleEditor=Ie,Re(),Ie}globalThis.TaejangArticleEditor=Object.freeze({mount:wb,valid:n=>n?._articleEditor?.validate()??!0});})();
+/*!
+# Article editor third-party notices
+
+Versions are locked in package-lock.json. No paid Tiptap service, runtime CDN, or upstream fork is used.
+
+## @tiptap/core 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-blockquote 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-bold 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-bullet-list 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-code 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-code-block 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-document 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-dropcursor 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-gapcursor 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-hard-break 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-heading 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-horizontal-rule 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-image 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-italic 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-link 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-list 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-list-item 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-list-keymap 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-ordered-list 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-paragraph 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-strike 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-text 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extension-underline 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/extensions 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/pm 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## @tiptap/starter-kit 3.34.0 (MIT)
+
+MIT License
+
+Copyright (c) 2025, Tiptap GmbH
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## linkifyjs 4.4.0 (MIT)
+
+Copyright (c) 2024 Nick Frasser
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## orderedmap 2.1.1 (MIT)
+
+Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-changeset 2.4.6 (MIT)
+
+Copyright (C) 2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-commands 1.7.2 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-dropcursor 1.8.4 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-gapcursor 1.4.1 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-history 1.5.1 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-inputrules 1.6.0 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-keymap 1.2.3 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-model 1.25.13 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-schema-list 1.6.0 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-state 1.4.4 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-tables 1.8.5 (MIT)
+
+Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-transform 1.12.5 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## prosemirror-view 1.42.9 (MIT)
+
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## rope-sequence 1.3.4 (MIT)
+
+Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+## w3c-keyname 2.2.8 (MIT)
+
+Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+
+*/
