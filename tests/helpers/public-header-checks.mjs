@@ -187,7 +187,11 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     assert.ok(await card.evaluate(el => el.matches(':focus-visible') && getComputedStyle(el).outlineStyle === 'solid'), 'keyboard focus visibly outlines the full card');
     if(javaScriptEnabled) await page.screenshot({path:path.join(output,'resources-'+width+'.png'),fullPage:true});
     await page.keyboard.press('Enter');
-    await page.waitForURL(url=>/\/employee-app(?:\.html)?$/.test(url.pathname));
+    await page.waitForURL(url=>/\/employee-app(?:\.html)?$/.test(url.pathname), {waitUntil:'domcontentloaded'});
+    // The next pointer interaction must use the destination's final layout,
+    // not the breadcrumb position while shared CSS or Korean fonts are loading.
+    await page.waitForFunction(()=>document.fonts.status==='loaded' &&
+      [...document.querySelectorAll('link[rel="stylesheet"]')].every(link=>link.sheet));
     await page.locator('.resources-breadcrumb a').click();
     await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
     const saltCard=page.locator('.resource-card--link[aria-labelledby~="resource-salt-title"]');
