@@ -186,7 +186,7 @@
       button.className = `filter-btn ${index === 0 ? 'active' : ''}`;
       button.dataset[stateKey] = value;
       button.setAttribute('aria-pressed', String(index === 0));
-      button.textContent = value === 'all' ? '전체' : (stateKey === 'source' ? sourceLabels[value] || value : value);
+      button.textContent = value === 'all' ? '전체' : (stateKey === 'source' ? sourceLabel({ source: value }) : value);
       button.addEventListener('click', () => {
         container.querySelectorAll('button').forEach((item) => {
           const selected = item === button;

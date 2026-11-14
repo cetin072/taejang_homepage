@@ -63,7 +63,7 @@ try {
     assert.equal(await link.getAttribute('target'), '_blank');
     assert.match(await link.getAttribute('rel'), /noopener noreferrer/);
     assert.match(await link.getAttribute('aria-label'), /새 탭에서 열림/);
-    assert.match(await card.innerText(), /NAVER BLOG/);
+    assert.match(await card.innerText(), /네이버 블로그/);
     // Compact mobile cards hide the existing CTA, while retaining the source
     // badge and the accessible label on the same full-card link.
     assert.match(await card.locator('.text-link').textContent(), /네이버 블로그에서 보기/);
