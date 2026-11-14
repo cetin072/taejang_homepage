@@ -38,6 +38,36 @@ jobs:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
           if-no-files-found: ignore
+      - name: Verify public navigation buttons on mobile and desktop
+        run: node tests/public-buttons-browser.mjs
+        env:
+          BUTTONS_QA_OUTPUT: public-buttons-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-buttons-390-1440
+          path: public-buttons-qa-artifacts/
+          if-no-files-found: ignore
+      - name: Verify credentials layout and image viewer
+        run: node tests/certifications-browser.mjs
+        env:
+          CERTIFICATIONS_QA_OUTPUT: certifications-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: certifications-320-390-768-1440
+          path: certifications-qa-artifacts/
+          if-no-files-found: ignore
+      - name: Verify location address copy and responsive layout
+        run: node tests/location-browser.mjs
+        env:
+          LOCATION_QA_OUTPUT: location-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: location-320-390-768-1440
+          path: location-qa-artifacts/
+          if-no-files-found: ignore
       - name: Verify public SEO content and source presentation
         run: node tests/public-seo-content-browser.mjs
       - uses: actions/upload-artifact@v4

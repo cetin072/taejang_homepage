@@ -117,7 +117,7 @@
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
-    const back = el('a', '← 소식·기록으로', 'text-link');
+    const back = el('a', '← 소식·기록으로', 'text-link page-link');
     back.href = 'archive.html';
     article.append(back);
 

@@ -97,7 +97,7 @@ function renderArticle(group, item, siblings) {
       (gallery ? '<div class="article-gallery">' + gallery + '</div>' : '') + '</div>',
     related ? '<section class="related-posts" aria-label="관련 이야기"><h2>다른 태장 이야기</h2><div class="related-posts-grid">' +
       related + '</div></section>' : '',
-    '<a class="back-link back-link--bottom" href="' + listPage + '">← 목록으로</a>',
+    '<a class="back-link back-link--bottom page-link" href="' + listPage + '">← 목록으로</a>',
     '</article></div></section>',
     '</main>'
   ].join('\n');
@@ -116,7 +116,7 @@ function renderPackingLanding(item) {
     <div class="container workplace-intro">
       <div><h1 class="title">${htmlText(item.title)}</h1>
         <p class="lead">${htmlText(intro.paragraphs.join(' '))}</p>
-        <a class="btn line" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
+        <a class="btn line page-link" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
       </div>
       <figure class="workplace-photo">
         <img src="assets/images/workplace/packing-tape-work.webp" width="1200" height="900" alt="상자 위에 테이프를 붙이는 태장 근로자의 손과 포장 도구" fetchpriority="high" decoding="async">
@@ -140,7 +140,7 @@ function renderPackingLanding(item) {
   <section class="section beige" aria-labelledby="packing-next-title">
     <div class="container workplace-support workplace-support--plain">
       <div><h2 id="packing-next-title">다른 일터도 만나보세요</h2><p>민화와 테라리움, 지역 환경정비까지. 태장에서는 다양한 작업을 함께 이어갑니다.</p></div>
-      <a class="btn line" href="workplace.html#workplace-jobs">우리의 일터로 돌아가기 <span aria-hidden="true">→</span></a>
+      <a class="btn line page-link" href="workplace.html#workplace-jobs">우리의 일터로 돌아가기 <span aria-hidden="true">→</span></a>
     </div>
   </section>
 </div>
