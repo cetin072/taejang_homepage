@@ -28,8 +28,10 @@ try {
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   assert.equal((await page.goto(base+'/location.html')).status(),200);
   await page.evaluate(()=>document.fonts.ready);
+  assert.equal(await page.locator('.location-farm img').count(),0,'location farm summary has no landscape illustration');
   const map=page.getByRole('link',{name:'네이버지도에서 위치 보기'});
   const mapBox=await map.boundingBox();assert.ok(mapBox.y+mapBox.height<800,`map promptly visible at ${width}: ${JSON.stringify(mapBox)}`);
+  if (width <= 760) assert.equal(await page.locator('.location-office-layout').evaluate(e => getComputedStyle(e).gridTemplateColumns.split(' ').length), 1, 'mobile office remains a single column');
   const copy=page.getByRole('button',{name:'주소 복사'});
   await copy.focus();assert.equal(await copy.evaluate(e=>getComputedStyle(e).outlineStyle),'solid');
   await page.keyboard.press('Enter');await page.getByRole('status').filter({hasText:'주소를 복사했습니다.'}).waitFor();
