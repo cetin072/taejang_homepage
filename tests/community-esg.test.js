@@ -24,7 +24,7 @@ assert.deepEqual(Array.from(activities.filter((item) => item.series === 'communi
 assert.equal(firstRecord.date, '2026.07.24');
 assert.equal(firstRecord.series, 'community-esg');
 assert.equal(firstRecord.hub.category, 'ESG·사회공헌');
-assert.match(firstRecord.thumbnail, /archive\/environment-cleanup-first\.webp$/);
+assert.match(firstRecord.thumbnail, /archive\/environment-cleanup-first-bright-v2\.webp$/);
 assert.equal(secondRecord.date, '2026.08.24');
 assert.equal(secondRecord.series, 'community-esg');
 assert.equal(secondRecord.hub.category, 'ESG·사회공헌');
