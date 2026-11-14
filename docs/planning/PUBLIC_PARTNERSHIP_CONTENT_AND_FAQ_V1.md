@@ -140,3 +140,12 @@
 - 채용 안내는 해당 유형 선택 시 표시하고 자동 선택 및 뒤로가기 복원에도 맞춘다.
 - 검증: 기존 partnership-browser에 hover, 표시 명칭, 조건부 안내 검사를 추가한다. 실제 문의 전송은 차단한다.
 - 디자인 검토 참고: Unslop by Damir Sokolovsky, https://github.com/heydamir/unslop, CC BY 4.0. 기존 브랜드와 페이지 구조를 유지하는 소폭 개선이다.
+
+
+### 같은 날 사용자 추가 요청: 참여 목적과 메인 로고 재사용
+
+- 사용자가 첨부한 메인 단색 로고 4개를 협력 문의 페이지에도 그대로 쓰도록 승인. 기존 본문의 로고 배치 유보는 이 4개 자산/위치에 한해 본 승인으로 갱신한다.
+- `assets/images/partners/monochrome/`의 동일 PNG와 `home-partners-contact.css`의 로고 표시를 재사용. 새로운 로고·이미지 생성 없음. 기존 현판 사진 유지.
+- 첫 화면에서 “장애인 고용의무, 태장과 함께 이행하는 방법”을 명시하고, 요건 충족 시 출자비율 등에 따른 고용률 반영을 설명한다. 출자만으로 전체 의무 자동 충족, 부담금 전액 면제 등을 약속하지 않는다.
+- 구조도 반환 방향에도 고용률 반영을 표시한다. 기존 섹션 순서·문의 흐름·공동출자와 거래의 구분 유지.
+- 공식 근거 재확인(2026-11-14): 한국장애인고용공단 https://www.kead.or.kr/spdstndsyst/cntntsPage.do?menuId=MENU0698 및 고용노동부 https://www.moel.go.kr/news/enews/report/enewsView.do?news_seq=15017 . 공개 페이지 제도 링크의 잘린 menuId도 정정.
