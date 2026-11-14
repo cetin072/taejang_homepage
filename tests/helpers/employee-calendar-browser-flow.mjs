@@ -37,20 +37,28 @@ export async function employeeCalendarBrowserFlow({base,key,owner,other,api}) {
    assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow '+width);
    await p.getByRole('button',{name:/2026-11-09 일정 \d+개/}).click();
    const company=p.getByRole('dialog').locator('section').filter({has:p.getByText('Company activity',{exact:true})});assert.equal(await company.getByRole('button',{name:'수정',exact:true}).count(),0);assert.equal(await company.getByRole('button',{name:'삭제',exact:true}).count(),0);await p.getByRole('button',{name:'닫기',exact:true}).click();
+   // Month cells intentionally show only two events. Assert persisted edits in
+   // the full day dialog, which remains correct when other suites add company events.
+   const openSavedEvent=async title=>{
+    await p.locator('#worker-calendar[aria-busy]').waitFor({state:'hidden'});
+    await p.getByRole('button',{name:/2026-11-15 일정 \d+개/}).click();
+    const event=p.getByRole('dialog').locator('section').filter({has:p.getByText(title,{exact:true})});
+    await event.waitFor();return event;
+   };
    await p.getByRole('button',{name:'일정 등록',exact:true}).click();
    const title='Synthetic browser '+width+' <img src=x onerror=alert(1)>';
    await p.getByLabel('제목',{exact:true}).fill(title);await p.getByLabel('날짜',{exact:true}).fill('2026-11-15');
-   await p.getByRole('button',{name:'일정 저장',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});await p.getByText('내 '+title,{exact:true}).waitFor();
-   await p.getByRole('button',{name:/2026-11-15 일정 \d+개/}).click();
+   await p.getByRole('button',{name:'일정 저장',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});const createdEvent=await openSavedEvent(title);
    assert.equal(await p.getByRole('dialog').locator('img').count(),0,'unsafe title is inert');
-   await p.getByRole('button',{name:'수정',exact:true}).click();await p.getByLabel('제목',{exact:true}).fill('Revised '+width);
+   await createdEvent.getByRole('button',{name:'수정',exact:true}).click();await p.getByLabel('제목',{exact:true}).fill('Revised '+width);
    // Conflict through the real Worklog REST path; retain unsaved ERP input.
    const response=await api('/rest/v1/schedules?title=eq.'+encodeURIComponent(title),owner.token,'PATCH',{title:'Other screen '+width},{'Content-Profile':'worklog','Accept-Profile':'worklog',Prefer:'return=representation'});assert.ok(response.ok,await response.text());
    await p.getByRole('button',{name:'일정 저장',exact:true}).click();await p.getByText(/다른 화면에서 바뀐 일정/).waitFor();assert.equal(await p.getByLabel('제목',{exact:true}).inputValue(),'Revised '+width);
-   p.once('dialog',d=>d.accept());await p.getByRole('button',{name:'닫기',exact:true}).click();await p.getByRole('button',{name:'새로고침',exact:true}).click();await p.getByText('내 Other screen '+width,{exact:true}).waitFor();
-   await p.getByRole('button',{name:/2026-11-15 일정 \d+개/}).click();await p.getByRole('button',{name:'수정',exact:true}).click();await p.getByLabel('제목',{exact:true}).fill('Revised '+width);await p.getByRole('button',{name:'일정 저장',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});await p.getByText('내 Revised '+width,{exact:true}).waitFor();
+   p.once('dialog',d=>d.accept());await p.getByRole('button',{name:'닫기',exact:true}).click();await p.getByRole('button',{name:'새로고침',exact:true}).click();const changedEvent=await openSavedEvent('Other screen '+width);
+   await changedEvent.getByRole('button',{name:'수정',exact:true}).click();await p.getByLabel('제목',{exact:true}).fill('Revised '+width);await p.getByRole('button',{name:'일정 저장',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});await openSavedEvent('Revised '+width);await p.getByRole('button',{name:'닫기',exact:true}).click();
    await fs.mkdir('employee-calendar-qa-artifacts',{recursive:true});await p.screenshot({path:'employee-calendar-qa-artifacts/calendar-'+width+'.png',fullPage:true});
-   await p.getByRole('button',{name:/2026-11-15 일정 \d+개/}).click();p.once('dialog',d=>d.accept());await p.getByRole('button',{name:'삭제',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});await p.getByText('내 Revised '+width,{exact:true}).waitFor({state:'detached'});
+   const revisedEvent=await openSavedEvent('Revised '+width);p.once('dialog',d=>d.accept());await revisedEvent.getByRole('button',{name:'삭제',exact:true}).click();await p.getByRole('dialog').waitFor({state:'hidden'});await p.locator('#worker-calendar[aria-busy]').waitFor({state:'hidden'});
+   await p.getByRole('button',{name:/2026-11-15 일정 \d+개/}).click();assert.equal(await p.getByRole('dialog').getByText('Revised '+width,{exact:true}).count(),0,'cancelled event disappears from full day list');await p.getByRole('button',{name:'닫기',exact:true}).click();
    await p.getByRole('button',{name:'일정 등록',exact:true}).click();await p.getByLabel('제목',{exact:true}).fill('Unsaved navigation check');assert.equal(await p.evaluate(()=>window.TaejangEmployeeCalendar.hasUnsavedChanges()),true);
    assert.equal(await p.evaluate(()=>{window.detachedCalendar=document.getElementById('worker-calendar');window.detachedCalendar.remove();return window.TaejangEmployeeCalendar.hasUnsavedChanges();}),false,'accepted navigation must not leave a permanent dirty guard');
    await p.evaluate(()=>document.querySelector('main').append(window.detachedCalendar));
