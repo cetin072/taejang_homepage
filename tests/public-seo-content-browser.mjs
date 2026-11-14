@@ -66,7 +66,7 @@ try {
           await page.evaluate(() => window.scrollTo(0, 0));
           await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
           for (const [name, destination] of [
-            ['민화 자세히 보기', '/why-minhwa.html'],
+            ['민화 자세히 보기', '/minhwa-gallery.html'],
             ['테라리움 자세히 보기', '/terrarium.html'],
             ['환경정비 활동 기록 보기', '/community-esg-records.html'],
             ['작업환경 살펴보기', '/workplace/work-together.html'],
@@ -110,7 +110,7 @@ try {
           const cards = page.locator('.business-card');
           assert.equal(await cards.count(), 4);
           assert.deepEqual(await cards.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
-            'why-minhwa.html', 'community-esg.html', 'workplace/packing-care.html', 'terrarium.html'
+            'minhwa-gallery.html', 'community-esg.html', 'workplace/packing-care.html', 'terrarium.html'
           ]);
           for (const image of await cards.locator('img').all()) {
             await image.scrollIntoViewIfNeeded();
