@@ -22,7 +22,7 @@ const originalId = 'e584c9eb-21bb-4777-8752-f0d36d79cd8d';
 const featureSource = await readFile(path.join(root,'assets/js/featured-stories.js'), 'utf8');
 const html = await readFile(path.join(root,'archive.html'), 'utf8');
 try {
-  for (const width of [320, 390, 786, 1440]) {
+  for (const width of [320, 390, 760, 786, 1440]) {
     for (const count of width === 1440 ? [1,2,3,4] : [1,4]) {
       const ids = Array.from({length:count}, (_, i) => i ? 'editorial-fixture-' + i : originalId);
       const config = ids.map((id,i) => ({id,summary: '태장에서 함께 일하는 사람들과 기업 협력, 지역사회 활동을 소개합니다.'}));
@@ -52,7 +52,10 @@ try {
       assert.equal(await page.locator('[data-featured-stories-list] article p').first().textContent(),config[0].summary);
       assert.equal(await page.locator('[data-featured-stories-list] article a').first().getAttribute('href'),'promotion.html?id='+originalId);
       await page.getByRole('button',{name:'검색어 지우기',exact:true}).click();
-      const summary=page.locator('.archive-filter-panel > summary');await summary.click();
+      const summary=page.locator('.archive-filter-panel > summary');
+      assert.match(await summary.innerText(),/검색 필터.*펼치기/s);
+      await summary.click();
+      assert.match(await summary.innerText(),/검색 필터.*접기/s);
       await page.getByRole('button',{name:'네이버 블로그',exact:true}).click();
       await page.locator('#archive-month').selectOption('10');await summary.click();
       assert.match(await page.locator('[data-archive-active-conditions]').textContent(),/네이버 블로그.*10월/);
@@ -61,6 +64,25 @@ try {
       assert.equal(await page.locator('[data-archive-reset]').isVisible(),false);
       await search.fill('없는검색어123');await page.getByRole('button',{name:'조건 초기화',exact:true}).click();
       assert.equal(await page.locator('[data-hub-list] article').count(),width<=620?6:12);
+      if(width<=760) {
+        const rows=page.locator('[data-hub-list] article');
+        for(const row of await rows.all()) {
+          const metrics=await row.evaluate(el=>{
+            const link=el.querySelector('.card-link'),body=el.querySelector('.card-body'),title=el.querySelector('h2');
+            return {height:link.getBoundingClientRect().height,padding:getComputedStyle(body).padding,
+              titleHeight:title.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(title).lineHeight),
+              cta:getComputedStyle(el.querySelector('.text-link')).display};
+          });
+          assert.ok(metrics.height<=150,`compact mobile row ${width}px: ${JSON.stringify(metrics)}`);
+          assert.equal(metrics.padding,'0px');
+          assert.ok(metrics.titleHeight<=metrics.lineHeight*2+1,'mobile headline stays within two lines');
+          assert.equal(metrics.cta,'none','no separate CTA takes up mobile list space');
+        }
+        if(count===1) {
+          await page.locator('.archive-records-title').scrollIntoViewIfNeeded();
+          await page.screenshot({path:`${out}/archive-records-${width}.png`,fullPage:false});
+        }
+      }
       const cards=page.locator('[data-featured-stories-list] article');
       await page.keyboard.press('Tab');
       for (const card of await cards.all()) {
