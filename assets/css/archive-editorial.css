@@ -109,6 +109,7 @@
    not add padding, a third title line or a separate CTA to these rows. */
 @media (max-width: 760px) {
   .archive-page .article-list[data-hub-list] { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .archive-page .article-list[data-hub-list] .card-link { height: auto; }
   .archive-page .article-list[data-hub-list] .card-body { padding: 0; }
   .archive-page .article-list[data-hub-list] .card h2 { font-size: 15px; line-height: 1.5; -webkit-line-clamp: 2; margin: 0; }
   .archive-page .article-list[data-hub-list] .card-date { font-size: 11px; margin: 0 0 4px; }
