@@ -74,3 +74,5 @@ assert.match(styles, /\.article-body \.article-representative-media--natural\s*\
 assert.match(styles, /\.article-body \.article-representative-media--natural img\s*\{[\s\S]*height:auto/);
 
 console.log('content-detail-thumbnail tests: all cases passed');
+
+for (const style of ['site-polish', 'mobile-layout-fixes', 'listing-polish', 'photo-mode']) assert.ok(workplace.includes('assets/css/' + style + '.css'), 'workplace styles must be available before JS enhancement');

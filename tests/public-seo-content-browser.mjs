@@ -63,6 +63,7 @@ try {
           }
           await page.getByRole('link', { name: '일하는 모습 보기', exact: true }).click();
           assert.ok(page.url().endsWith('#workplace-jobs'));
+          await page.evaluate(() => window.scrollTo(0, 0));
           await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
           for (const [name, destination] of [
             ['민화 작업 과정 보기', '/workplace/minhwa-one-stroke.html'],
@@ -93,10 +94,15 @@ try {
           await page.getByRole('link', { name: '포장·검수 과정 보기', exact: true }).click();
           assert.ok(page.url().endsWith('/workplace/packing-care.html#packing-process'));
           assert.ok(await page.locator('#packing-process').isVisible());
+          await page.evaluate(() => window.scrollTo(0, 0));
           await page.screenshot({ path: `seo-qa-artifacts/packing-${width}-${javaScriptEnabled}.png`, fullPage: true });
           await page.getByRole('link', { name: '우리의 일터로 돌아가기', exact: true }).click();
           assert.ok(page.url().endsWith('/workplace.html#workplace-jobs'));
+          await page.waitForLoadState('load');
           assert.equal(await page.locator('.workplace-job').count(), 4);
+          const layout = await page.locator('.workplace-job-grid').boundingBox();
+          await page.waitForTimeout(350);
+          assert.deepEqual(await page.locator('.workplace-job-grid').boundingBox(), layout, 'workplace index stays stable after returning');
         }
         if (file === 'business.html') {
           assert.equal(await page.locator('#business-operations-title').textContent(), '태장의 사업과 활동');
@@ -202,7 +208,13 @@ try {
           assert.ok((await page.url()).endsWith('/partnership.html#contact'));
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
         }
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), file + ' overflow');
+        const overflow = await page.evaluate(() => ({
+          width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
+          elements: [...document.querySelectorAll('body *')].filter(element => {
+            const rect = element.getBoundingClientRect(); return rect.right > innerWidth + 1;
+          }).slice(0, 8).map(element => ({ tag: element.tagName, class: element.className, right: element.getBoundingClientRect().right }))
+        }));
+        assert.ok(overflow.scrollWidth <= overflow.width + 1, `${file} overflow at ${width}px JS=${javaScriptEnabled}: ${JSON.stringify(overflow)}`);
         if (file === 'about.html') await page.screenshot({ path: `seo-qa-artifacts/about-${width}-${javaScriptEnabled}.png`, fullPage: true });
       }
       await page.goto(base + '/index.html', { waitUntil: 'load' });
