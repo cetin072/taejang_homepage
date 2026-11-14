@@ -1,4 +1,5 @@
 import '../../assets/js/content.js';
+import '../../assets/js/promotion-document.js';
 import '../../assets/js/public-promotion-content.js';
 import '../../assets/js/public-promotion-media.js';
 import '../../assets/js/featured-article-layout.js';
@@ -117,7 +118,7 @@ function articleHtml(item) {
   const picture = leadImage
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
       '" data-public-image-candidates="' + escapeHtml(JSON.stringify(image.candidates)) + '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
-  const editorial = globalThis.TAEJANG_FEATURED_ARTICLE.render(item);
+  const editorial = globalThis.TAEJANG_ARTICLE_DOCUMENT.render(item) || globalThis.TAEJANG_FEATURED_ARTICLE.render(item);
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
     .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)

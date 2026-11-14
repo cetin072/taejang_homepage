@@ -37,7 +37,7 @@
 
   function present(item, content = root.TAEJANG_CONTENT) {
     const origin = source(item);
-    const body = String(item.public_body || '').trim();
+    const body = String(root.TAEJANG_ARTICLE_DOCUMENT?.plain(item.public_body) ?? item.public_body ?? '').trim();
     const summary = String(item.summary || '').trim();
     const same = normalized(body) === normalized(summary);
     // Remove repeated leads, not the approved body. A preview stays a preview.

@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-14-erp-article-editor', date: '2026-11-14',
+    title: 'ERP 홍보 글 편집 도구',
+    summary: 'ERP에서 소제목과 사진을 배치하며 홍보 글을 작성할 수 있습니다.',
+    items: ['문단 사이에 사진과 설명을 넣고 모바일 본문을 미리 볼 수 있습니다.', '목록 대표사진을 본문 배치와 별도로 선택할 수 있습니다.'],
+  },
+  {
     id: '2026-11-09-settings-privacy-disclosure',
     date: '2026-11-09',
     title: '개인정보 안내와 로그아웃 위치 정리',

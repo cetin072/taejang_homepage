@@ -139,7 +139,7 @@
     const presentation = item.public_image;
     const candidates = presentation?.candidates || mediaPolicy.candidates(item);
     const heroUrl = presentation?.url || candidates[0];
-    const editorial = globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
+    const editorial = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(item, document) || globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
     if (!editorial) article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');

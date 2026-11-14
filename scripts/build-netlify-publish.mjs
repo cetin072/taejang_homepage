@@ -1,3 +1,4 @@
+import './build-promotion-editor.mjs';
 import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { generatePublicArticles, buildPublicSitemap } from './generate-public-articles.mjs';
