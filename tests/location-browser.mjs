@@ -28,6 +28,7 @@ try {
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   assert.equal((await page.goto(base+'/location.html')).status(),200);
   await page.evaluate(()=>document.fonts.ready);
+  assert.equal(await page.locator('.location-farm img').count(),0,'location farm summary has no landscape illustration');
   const map=page.getByRole('link',{name:'네이버지도에서 위치 보기'});
   const mapBox=await map.boundingBox();assert.ok(mapBox.y+mapBox.height<800,`map promptly visible at ${width}: ${JSON.stringify(mapBox)}`);
   const copy=page.getByRole('button',{name:'주소 복사'});
