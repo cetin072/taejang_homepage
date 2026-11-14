@@ -692,7 +692,8 @@
     editor.append(toolbar, field('목록 대표사진', cover, '대표사진은 소식 목록에 표시됩니다. 본문 사진 위치와 별도로 선택하세요.'), mediaGrid);
     // The operations-manager reference order is shared by all authoring roles.
     form.append(field('본문', body), el('h3', '사진 자료'), editor, livePreview, topRow);
-    articleEditor = globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => media });
+    articleEditor = globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => media, getTitle: () => title.value, item: existingItem });
+    if (articleEditor) livePreview.hidden = true;
     if (scheduleField) form.append(scheduleField);
     form.append(externalWrap);
 
@@ -1025,7 +1026,7 @@
     const form = el('form', null, 'phase-c-board-form app-authoring');
     form.addEventListener('submit', event => event.preventDefault());
     form.append(field('제목', title), field('본문', body));
-    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => arr(detail.public_media) });
+    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => arr(detail.public_media), getTitle: () => title.value, item: detail });
     form.append(field('연결 링크 (선택)', external, '네이버 블로그·유튜브·인터넷 기사 등 관련 주소를 연결할 수 있습니다.'));
     form.append(field('게시 희망일 (선택)', date));
     const actions = el('div', null, 'quick-links');

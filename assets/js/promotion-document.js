@@ -6,7 +6,18 @@
   const isRich = value => String(value || '').startsWith(PREFIX);
   function parse(value) {
     if (!isRich(value) || value.length > 30000) return null;
-    try { const doc = JSON.parse(value.slice(PREFIX.length)); return doc?.type === 'doc' && Array.isArray(doc.content) ? doc : null; } catch { return null; }
+    try {
+      const doc = JSON.parse(value.slice(PREFIX.length));
+      const types = new Set(['doc','paragraph','heading','text','image','hardBreak','horizontalRule','blockquote','bulletList','orderedList','listItem']);
+      function valid(node,depth=0) {
+        return node && depth <= 30 && types.has(node.type)
+          && (node.type !== 'text' || typeof node.text === 'string')
+          && (node.content === undefined || Array.isArray(node.content) && node.content.every(child=>valid(child,depth+1)))
+          && (node.marks === undefined || Array.isArray(node.marks))
+          && (node.type !== 'image' || typeof node.attrs?.src === 'string');
+      }
+      return doc?.type === 'doc' && Array.isArray(doc.content) && valid(doc) ? doc : null;
+    } catch { return null; }
   }
   function plain(value) {
     if (!isRich(value)) return String(value || '');
@@ -31,7 +42,6 @@
     const doc = parse(item.public_body);
     if (!doc) return '<div class="taejang-article"><p>본문 형식을 확인할 수 없습니다.</p></div>';
     const allowed = new Set((Array.isArray(item.public_media) ? item.public_media : []).filter(entry => root.TAEJANG_PUBLIC_MEDIA?.persistent(entry?.url)).map(entry => entry.url));
-    const used = new Set();
     function node(n, depth = 0) {
       if (!n || depth > 30) return '';
       if (n.type === 'text') {
@@ -48,7 +58,6 @@
       if (n.type === 'image') {
         const url = n.attrs?.src;
         if (!allowed.has(url)) return '';
-        used.add(url);
         const caption = String(n.attrs?.alt || '');
         return '<figure><img src="' + escape(url) + '" alt="' + escape(caption) + '" loading="lazy" decoding="async">' + (caption ? '<figcaption>' + escape(caption) + '</figcaption>' : '') + '</figure>';
       }

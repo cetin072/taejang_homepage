@@ -221,3 +221,18 @@ test('a source with summary only shows its preview once without inventing body t
     assert.doesNotMatch(html, /class="lead"/);
   } finally { env.restore(); }
 });
+
+test('visual article body and positioned captions are readable without JavaScript', async () => {
+  const f = globalThis.TAEJANG_ARTICLE_DOCUMENT;
+  const doc = {type:'doc',content:[{type:'heading',attrs:{level:2},content:[{type:'text',text:'새 소제목'}]},{type:'paragraph',content:[{type:'text',text:'사진 앞 문단'}]},{type:'image',attrs:{src:full.public_media[0].url,alt:'직접 작성한 사진 설명'}},{type:'paragraph',content:[{type:'text',text:'사진 뒤 문단'}]}]};
+  const item = {...full,public_body:f.PREFIX+JSON.stringify(doc)};
+  const env = setup({detail:[item]});
+  try {
+    const response=await handler(new Request('https://preview.example/promotion.html?id='+id),context);
+    const html=await response.text();
+    assert.match(html,/<h2>새 소제목<\/h2>/);
+    assert.match(html,/<figcaption>직접 작성한 사진 설명<\/figcaption>/);
+    assert.ok(html.indexOf('사진 앞 문단')<html.indexOf('<figcaption>')&&html.indexOf('<figcaption>')<html.indexOf('사진 뒤 문단'));
+    assert.doesNotMatch(html,/TAEJANG_ARTICLE_V1|article-gallery-item/);
+  } finally {env.restore();}
+});

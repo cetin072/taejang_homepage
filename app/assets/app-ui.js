@@ -149,6 +149,7 @@
     ['assets/attendance-integrity-ui.js', 'attendance-integrity-ui'],
     ['../assets/js/public-promotion-media.js', 'public-promotion-media'],
     ['../assets/js/promotion-document.js', 'promotion-document'],
+    ['../assets/js/featured-article-layout.js', 'featured-article-layout'],
     ['assets/promotion-visual-editor.js', 'promotion-visual-editor'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/issue-181-promotion-live-ux.js', 'issue-181-promotion-live-ux'],

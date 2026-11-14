@@ -2,9 +2,10 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import { NodeSelection, TextSelection } from '@tiptap/pm/state';
+import { closeHistory } from '@tiptap/pm/history';
 
 const format = () => globalThis.TAEJANG_ARTICLE_DOCUMENT;
-function mount(textarea, {getMedia = () => [], preview = true} = {}) {
+function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null, preview = true} = {}) {
   if (!textarea || textarea._articleEditor) return textarea?._articleEditor;
   const f = format();
   if (!f || !textarea.parentNode) return null;
@@ -22,13 +23,13 @@ function mount(textarea, {getMedia = () => [], preview = true} = {}) {
   shell.append(toolbar, surface, imageTools, status, previewTools, output);
   let synchronized = textarea.value;
   const damaged = f.isRich(synchronized) && !f.parse(synchronized);
-  if (damaged) { shell.textContent = '본문 형식을 읽을 수 없습니다. 원문을 보존하기 위해 편집을 중단했습니다.'; textarea.readOnly = true; return null; }
+  if (damaged) { shell.textContent = '본문 형식을 읽을 수 없습니다. 원문을 보존하기 위해 편집을 중단했습니다.'; textarea.hidden = true; textarea._articleEditor = {refresh(){},validate(){window.alert('본문 형식을 확인할 수 없어 저장하지 않았습니다.');return false;}}; return textarea._articleEditor; }
   let editor;
   const toggleButtons = [];
   const button = (parent, label, action) => {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', action); parent.append(b); return b;
   };
-  function drawPreview() { output.innerHTML = f.render({public_body: f.PREFIX + JSON.stringify(editor.getJSON()), public_media:getMedia()}) || ''; }
+  function drawPreview() { output.innerHTML = f.render({public_body: f.PREFIX + JSON.stringify(editor.getJSON()), public_media:getMedia()}) || ''; const title=document.createElement('h1');title.textContent=getTitle();if(title.textContent)output.prepend(title); }
   function updated() {
     const doc = editor.getJSON();
     const value = editor.isEmpty ? '' : f.PREFIX + JSON.stringify(doc);
@@ -38,8 +39,15 @@ function mount(textarea, {getMedia = () => [], preview = true} = {}) {
     textarea.dispatchEvent(new Event('input',{bubbles:true}));
     if (!output.hidden) drawPreview();
   }
-  const originalDoc = f.parse(synchronized) || f.fromPlain(synchronized);
-  if (!f.isRich(synchronized) && synchronized.trim()) {
+  let originalDoc = f.parse(synchronized) || f.fromPlain(synchronized);
+  const legacyHTML = !f.isRich(synchronized) && globalThis.TAEJANG_FEATURED_ARTICLE?.render(item);
+  if (legacyHTML) {
+    const legacy=document.createElement('div'); legacy.innerHTML=legacyHTML;
+    legacy.querySelectorAll('figcaption').forEach(node=>node.remove());
+    legacy.querySelectorAll('a').forEach(node=>node.replaceWith(...node.childNodes));
+    originalDoc=legacy.innerHTML;
+  }
+  if (!legacyHTML && !f.isRich(synchronized) && synchronized.trim()) {
     getMedia().forEach(entry => { if (globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)) originalDoc.content.push({type:'image',attrs:{src:entry.url,alt:entry.alt || ''}}); });
   }
   editor = new Editor({element:surface, extensions:[StarterKit.configure({heading:{levels:[2,3]},codeBlock:false,code:false,link:{openOnClick:false,autolink:false,protocols:['https','http']}}),Image.configure({allowBase64:false})],
@@ -49,7 +57,7 @@ function mount(textarea, {getMedia = () => [], preview = true} = {}) {
       const html = event.clipboardData?.getData('text/html');
       if (html && /<img\b/i.test(html)) { event.preventDefault(); view.dispatch(view.state.tr.insertText(event.clipboardData.getData('text/plain'))); return true; }
       return false;
-    }, handleDrop(_view,event) { if (event.dataTransfer?.files.length) {event.preventDefault(); status.textContent='사진은 아래 사진 추가 버튼으로 첨부한 뒤 본문에 넣어 주세요.'; return true;} return false; }},
+    }, handleDrop(_view,event) { if (event.dataTransfer?.files.length || /<img\b/i.test(event.dataTransfer?.getData('text/html') || '')) {event.preventDefault(); status.textContent='사진은 아래 사진 추가 버튼으로 첨부한 뒤 본문에 넣어 주세요.'; return true;} return false; }},
     onUpdate:updated, onSelectionUpdate(){
       const active = editor.isActive('image'); caption.disabled = !active;
       caption.value = active ? editor.getAttributes('image').alt || '' : '';
@@ -75,7 +83,7 @@ function mount(textarea, {getMedia = () => [], preview = true} = {}) {
     // One transaction preserves undo history and moves the selected top-level block.
     const replacement=editor.schema.nodeFromJSON(doc);
     let pos=0;for(let i=0;i<target;i++)pos+=replacement.child(i).nodeSize;
-    editor.chain().focus().command(({tr})=>{tr.replaceWith(0,tr.doc.content.size,replacement.content);tr.setSelection(replacement.child(target).type.name === 'image' ? NodeSelection.create(tr.doc,pos) : TextSelection.near(tr.doc.resolve(Math.min(pos+1,tr.doc.content.size))));return true;}).run();
+    editor.chain().focus().command(({tr})=>{closeHistory(tr);tr.replaceWith(0,tr.doc.content.size,replacement.content);tr.setSelection(replacement.child(target).type.name === 'image' ? NodeSelection.create(tr.doc,pos) : TextSelection.near(tr.doc.resolve(Math.min(pos+1,tr.doc.content.size))));return true;}).run();
   }
   button(imageTools,'문단·사진 위로',()=>move(-1)); button(imageTools,'문단·사진 아래로',()=>move(1));
   button(imageTools,'본문 사진 빼기',()=>{if(editor.isActive('image'))editor.chain().focus().deleteSelection().run();});
@@ -87,7 +95,7 @@ function mount(textarea, {getMedia = () => [], preview = true} = {}) {
   function refresh() {
     if (textarea.value !== synchronized) { synchronized=textarea.value; const doc=f.parse(synchronized); if(f.isRich(synchronized)&&!doc)return; editor.commands.setContent(doc || f.fromPlain(synchronized),{emitUpdate:false}); }
     const selected=picker.value;picker.replaceChildren(new Option('첨부한 사진 선택',''));
-    getMedia().forEach((entry,i)=>picker.add(new Option(`${i+1}. ${entry.alt || '사진'}`,entry.url)));
+    getMedia().filter(entry => globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)).forEach((entry,i)=>picker.add(new Option(`${i+1}. ${entry.alt || '사진'}`,entry.url)));
     if(getMedia().some(m=>m.url===selected))picker.value=selected;
     if(!output.hidden)drawPreview();
   }

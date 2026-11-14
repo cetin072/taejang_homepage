@@ -230,7 +230,6 @@ jobs:
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
         run: |
-          node tests/promotion-visual-editor-browser.mjs
           node tests/promotion-composer-browser.mjs
           node tests/official-blog-photo-browser.mjs
 
@@ -374,4 +373,29 @@ jobs:
         with:
           name: employee-app-landing-1440-390-320
           path: employee-app-qa-artifacts/
+          if-no-files-found: ignore
+
+  visual-editor-gate:
+    name: Article visual editor roles and round trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci
+      - name: Verify editor bundle, safe document and browser workflow
+        env:
+          PROMOTION_QA_OUTPUT: promotion-visual-editor-artifacts
+        run: |
+          node scripts/build-promotion-editor.mjs
+          git diff --exit-code -- app/assets/promotion-visual-editor.js
+          node --test tests/promotion-document.test.mjs
+          node tests/promotion-visual-editor-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: promotion-visual-editor-320-390-768-1440
+          path: promotion-visual-editor-artifacts/
           if-no-files-found: ignore

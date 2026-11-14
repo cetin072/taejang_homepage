@@ -180,7 +180,7 @@
     let saving = false;
 
     form.append(field('제목', title), field('요약', summary), field('본문', body), field('수정 사유', reason));
-    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => Array.isArray(detail?.public_media) ? detail.public_media : [] });
+    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => Array.isArray(detail?.public_media) ? detail.public_media : [], getTitle: () => title.value, item: detail });
     form.append(button(direct ? '수정 반영' : '운영총괄에게 수정 요청', async () => {
       if (saving) return;
       if (globalThis.TaejangArticleEditor && !globalThis.TaejangArticleEditor.valid(body)) return;
