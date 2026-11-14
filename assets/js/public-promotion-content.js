@@ -48,13 +48,12 @@
     // link with no separate original text is not a Taejang-authored Article.
     const external = item.content_type === 'external_content'
       || Boolean(origin && !origin.official && item.content_type !== 'press_release');
-    // Blog syndication and source-only introductions keep their working URLs, but
-    // their originals (and complete static activity records) are the search targets.
-    // Use fields available in BOTH approved feed and detail RPCs for sitemap parity.
+    // Source-only introductions remain searchable with the original source clearly
+    // identified, but must not be presented as Taejang-authored Articles.
     const sourceOnly = Boolean(origin && (origin.label !== '태장 공식 유튜브' || excerpt(summary)));
-    const indexable = !external && !sourceOnly;
+    const allowArticleAttribution = !external && !sourceOnly;
     return {
-      lead, body: body || summary, preview, external, indexable,
+      lead, body: body || summary, preview, external, allowArticleAttribution,
       sourceLabel: origin?.label || '', sourceUrl: origin?.url.href || '',
       related: relatedRecord(origin, content),
       notice: preview ? '원문 미리보기입니다. 전체 내용은 아래 원문 링크에서 확인해 주세요.' : '',

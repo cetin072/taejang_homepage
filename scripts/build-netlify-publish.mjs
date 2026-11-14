@@ -4,6 +4,7 @@ import { generatePublicArticles } from './generate-public-articles.mjs';
 import { localizeOfficialThumbnails } from './localize-official-thumbnails.mjs';
 import { generateArchiveSnapshot } from './generate-archive-snapshot.mjs';
 import { inlinePublicNavigation } from './inline-public-navigation.mjs';
+import { buildPublicSitemap } from './public-seo-sitemap.mjs';
 
 const repoRoot = process.cwd();
 const outputRoot = path.resolve(process.env.TAEJANG_PUBLISH_DIR || path.join(repoRoot, 'dist'));
@@ -101,6 +102,7 @@ for (const file of PUBLIC_ROOT_FILES) await copyRequiredFile(file);
 for (const directory of PUBLIC_DIRECTORIES) await copyRequiredDirectory(directory);
 for (const file of REQUIRED_BINARY_FILES) await copyRequiredFile(file);
 
+await buildPublicSitemap({ repoRoot, outputRoot, publicFiles: PUBLIC_ROOT_FILES });
 const generated = await generatePublicArticles({ repoRoot, outputRoot });
 const navigationPages = await inlinePublicNavigation(outputRoot);
 await localizeOfficialThumbnails({ outputRoot });

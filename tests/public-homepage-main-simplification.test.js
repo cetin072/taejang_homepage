@@ -244,7 +244,7 @@ assert.match(about, /인증 제2026-049호 · 2026년 7월 9일/);
 assert.equal((about.match(/class="glance-grid"[\s\S]*?<\/div>\s*<\/div>/g) || []).length, 1);
 assert.doesNotMatch(about, /사업 확장/);
 assert.match(about, /공동출자기업 4개사[\s\S]*범한메카텍·삼현·청우비제이·현대비앤지스틸/);
-assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제조상품은 개발 중입니다\./);
+assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제작 교육[\s\S]*테라리움 상품과 민화 전시는 준비 중/);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
 assert.match(about, /images\/homepage\/lee-younghee-portrait-2026\.webp/);
@@ -338,7 +338,7 @@ assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업�
 assert.equal((resources.match(/class="staff-nav"/g) || []).length, 2, 'resources shares the authored public header without runtime insertion');
 for (const page of [privacy, terms]) {
   assert.equal((page.match(/<meta name="robots"/g) || []).length, 1);
-  assert.match(page, /name="robots" content="noindex,follow"/);
+  assert.match(page, /name="robots" content="index, follow"/);
   assert.match(page, /taejang2025@naver\.com/);
   assert.doesNotMatch(page, /info@taejang\.co\.kr/);
 }
@@ -353,7 +353,7 @@ assert.match(thanks, /href="index\.html"/);
 assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html#contact"/);
 
-for (const excluded of ['privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
+for (const excluded of ['thanks.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(escapeRegExp(excluded)));
 }
 for (const filename of Object.keys(pages).slice(1)) assert.match(sitemap, new RegExp(escapeRegExp(filename)));

@@ -67,6 +67,18 @@ function publicLink(value) {
   }
 }
 
+// If an imported featured article's generated summary starts with a table of
+// contents, use its first actual paragraph for search and sharing metadata.
+function searchDescription(item, fallback) {
+  if (!/글의 순서/.test(fallback)) return fallback;
+  const sections = String(item.public_body || '').split(/\n\s*\n/);
+  const contents = sections.findIndex(part => /글의 순서/.test(part));
+  if (contents < 0) return fallback;
+  const intro = sections.slice(contents + 1).map(part => part.replace(/\s+/g, ' ').trim())
+    .find(part => part.length >= 30);
+  return intro ? intro.slice(0, 200).trim() : fallback;
+}
+
 async function approvedRows(name, parameters) {
   const base = globalThis.Netlify?.env?.get('SUPABASE_URL');
   const key = globalThis.Netlify?.env?.get('SUPABASE_PUBLISHABLE_KEY');
@@ -141,10 +153,11 @@ function renderPage(template, item) {
   const data = articleHtml(item);
   let html = template;
   const titleText = data.title + ' | 농업회사법인 태장 주식회사';
+  const description = searchDescription(item, data.summary);
   html = html.replace(/<title>[^<]*<\/title>/, '<title>' + escapeHtml(titleText) + '</title>');
-  html = metadata(html, 'name', 'description', data.summary);
+  html = metadata(html, 'name', 'description', description);
   html = metadata(html, 'property', 'og:title', titleText);
-  html = metadata(html, 'property', 'og:description', data.summary);
+  html = metadata(html, 'property', 'og:description', description);
   html = metadata(html, 'property', 'og:image', data.image.url);
   if (!/<article class="article article-empty">[\s\S]*?<\/article>/.test(html)) {
     throw new Error('Missing promotion detail fallback marker');
@@ -155,33 +168,31 @@ function renderPage(template, item) {
     '@type': 'Article',
     mainEntityOfPage: data.canonical,
     headline: data.title,
-    description: data.summary,
+    description,
     ...(data.date ? { datePublished: data.date } : {}),
     image: data.image.url,
     author: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사' },
     publisher: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
   };
   const json = JSON.stringify(entry).replaceAll('<', '\\u003c');
-  const externalSource = !data.presentation.indexable;
+  const externalSource = !data.presentation.allowArticleAttribution;
   const extras = [
     '<link rel="canonical" href="' + escapeHtml(data.canonical) + '">',
     '<meta property="og:url" content="' + escapeHtml(data.canonical) + '">',
     '<meta property="og:image:alt" content="' + escapeHtml(data.image.alt) + '">',
     '<meta name="twitter:card" content="summary_large_image">',
     '<meta name="twitter:title" content="' + escapeHtml(titleText) + '">',
-    '<meta name="twitter:description" content="' + escapeHtml(data.summary) + '">',
+    '<meta name="twitter:description" content="' + escapeHtml(description) + '">',
     '<meta name="twitter:image" content="' + escapeHtml(data.image.url) + '">',
-    externalSource ? '<meta name="robots" content="noindex, follow">' : '',
     externalSource ? '' : '<script type="application/ld+json">' + json + '</script>'
   ].filter(Boolean).join('\n');
   html = html.replace('</head>', extras + '\n</head>');
-  if (externalSource) html = html.replace('<meta name="robots" content="index, follow">', '');
   return html;
 }
 
 function sitemapResponse(rows) {
   const links = rows
-    .filter(row => row && UUID.test(row.content_id || '') && globalThis.TAEJANG_PUBLIC_CONTENT.present(row).indexable)
+    .filter(row => row && UUID.test(row.content_id || ''))
     .map(row => ORIGIN + '/promotion.html?id=' + encodeURIComponent(row.content_id));
   const unique = [...new Set(links)].sort();
   const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +

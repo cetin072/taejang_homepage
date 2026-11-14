@@ -113,7 +113,7 @@
   function render(item) {
     const contentPresentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
     const robots = document.querySelector('meta[name="robots"]');
-    if (robots) robots.content = contentPresentation.indexable ? 'index, follow' : 'noindex, follow';
+    if (robots) robots.content = 'index, follow';
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
@@ -181,7 +181,7 @@
     }
 
     target.replaceChildren(article);
-    if (contentPresentation.indexable) {
+    if (contentPresentation.allowArticleAttribution) {
       window.TAEJANG_PUBLIC_SHARE?.mount(article, {
         url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
         title: item.title,

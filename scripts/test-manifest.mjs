@@ -113,6 +113,8 @@ export const testGroups = Object.freeze({
     'tests/featured-article.test.mjs',
     'tests/archive-snapshot.test.mjs',
     'tests/public-article-seo.test.js',
+    'tests/public-seo-sitemap.test.mjs',
+    'tests/new-zealand-salt.test.cjs',
     'tests/employee-app-landing.test.js',
     'tests/public-promotion-seo-edge.test.mjs',
     'tests/public-promotion-media.test.mjs',

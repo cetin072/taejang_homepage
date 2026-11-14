@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const html = fs.readFileSync('new-zealand-salt.html','utf8');
-assert.match(html,/noindex,nofollow/);
+assert.match(html,/name="robots" content="index, follow"/);
 assert.match(html, /<a class="resources-nav" href="resources\.html" aria-current="page">서비스·상품<\/a>/, "salt header uses the single-line public navigation label");
 assert.match(html,/10kg · 25kg/);
 assert.match(html,/10kg·25kg/);
