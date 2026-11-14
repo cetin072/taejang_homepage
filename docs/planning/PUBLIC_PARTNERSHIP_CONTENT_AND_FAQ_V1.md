@@ -154,3 +154,7 @@
 ### 2026-11-14 사진 파일 보정 재작업
 
 사용자가 CSS 밝기 효과가 아닌 실제 사진 파일 보정을 요청했다. 원본 720×405 이미지의 Lab 명도 채널에 gamma 1.45만 적용하여 얼굴·현수막·구도를 재생성하지 않고 그늘을 밝힌다. ImageMagick 명령은 `magick environment-cleanup-first.webp -colorspace Lab -channel R -gamma 1.45 +channel -colorspace sRGB -quality 96 -define webp:method=6 environment-cleanup-first-bright-v2.webp`이다. 원본은 보존하고 새 파일을 협력 페이지·활동 원문·소식 목록에서 공통 사용한다. 기존 CSS 밝기 필터는 제거해 이중 보정을 막는다. 생성형 시안은 사용하지 않는다. 검증 후 병합·운영 적용은 이 대화의 승인 범위다.
+
+### 2026-11-14 첫 보정 시안 채택 및 배포 범위 정정
+
+사용자가 처음 제시한 AI 보정 시안을 지정했다. 해당 시안을 1280×720 WebP(177490 bytes)로 변환해 기존 공통 이미지 경로에 연결한다. 시안은 인물과 현수막의 세부가 달라질 수 있으며 원본은 별도로 보존한다. 이번 승인은 검증과 main 병합까지다. 운영 배포는 별도 지시가 필요하다.
