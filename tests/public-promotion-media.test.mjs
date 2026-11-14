@@ -10,6 +10,39 @@ const photo = name => origin + '/storage/v1/object/public/promotion-media/' + na
 const id = '11111111-1111-4111-8111-111111111111';
 const row = { content_id: id, title: '공개 소식', content_type: 'homepage_article', public_body: '보존할 본문', public_media: [] };
 
+test('archive browser media returns fresh approved records without any blocking image probes', async () => {
+  const previous = { fetch: globalThis.fetch, Netlify: globalThis.Netlify };
+  const calls = [];
+  let published = true;
+  globalThis.Netlify = { env: { get: name => name === 'SUPABASE_URL' ? origin : 'public-anon-key' } };
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), method: options.method });
+    assert.equal(options.method, 'POST', 'archive data must never wait on image HEAD requests');
+    return Response.json(published ? [{ ...row, editorial_slot: 1, public_media: [
+      { url: photo('broken'), alt: '승인된 대표 사진' }, { url: photo('backup') },
+      { url: 'https://foreign.supabase.co/storage/v1/object/public/promotion-media/a.jpg' },
+      { url: photo('private') + '?token=secret' }
+    ] }] : []);
+  };
+  try {
+    const request = () => feed(new Request('https://preview.example/.netlify/functions/public-promotion-feed?format=json&media=browser'));
+    const response = await request();
+    assert.match(response.headers.get('cache-control'), /no-store/);
+    const { items } = await response.json();
+    assert.equal(items[0].editorialSlot, 1);
+    assert.equal(items[0].thumbnail, photo('broken'));
+    assert.deepEqual(items[0].thumbnailCandidates, [photo('broken'), photo('backup'), policy.DEFAULT_IMAGE]);
+    let onError;
+    const image = { src: items[0].thumbnail, getAttribute() { return this.src; }, addEventListener(name, fn) { onError = fn; } };
+    policy.bind(image, items[0].thumbnailCandidates);
+    onError(); assert.equal(image.src, photo('backup'));
+    onError(); assert.equal(image.src, policy.DEFAULT_IMAGE);
+    published = false;
+    assert.deepEqual((await (await request()).json()).items, [], 'a subsequent hidden record must not reappear from cached publication state');
+    assert.equal(calls.length, 2, 'one current approval query per visit, no photo probes');
+  } finally { Object.assign(globalThis, previous); }
+});
+
 test('public adapter carries editorial order and explicit unpin without promoting external links', async () => {
   const previous={fetch:globalThis.fetch,Netlify:globalThis.Netlify};let current;
   globalThis.Netlify={env:{get:name=>name==='SUPABASE_URL'?origin:'public-anon-key'}};

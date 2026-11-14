@@ -63,10 +63,15 @@
       restorePosition();
       return;
     }
-    const cards = selected.map(item => {
+    const cards = selected.map((item, index) => {
       const entry = editorial.find(entry => item.id === 'promotion-' + entry.id);
       const card = hub.createCard({ ...item, summary: entry?.summary || item.summary }, 'h3');
       card.classList.add('featured-story-card');
+      const image = card.querySelector('img');
+      if (image && index === 0) {
+        image.setAttribute('loading', 'eager');
+        image.setAttribute('fetchpriority', 'high');
+      }
       const ribbon = document.createElement('span');
       ribbon.className = 'featured-story-ribbon';
       ribbon.textContent = '기획기사';

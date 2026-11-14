@@ -52,6 +52,21 @@ try {
       assert.equal(await page.locator('[data-featured-stories-list] article p').first().textContent(),config[0].summary);
       assert.equal(await page.locator('[data-featured-stories-list] article a').first().getAttribute('href'),'promotion.html?id='+originalId);
       await page.getByRole('button',{name:'검색어 지우기',exact:true}).click();
+      const share=page.locator('[data-hub-list] .public-external-share').first();
+      const shareToggle=share.locator('summary');
+      const sharedCard=page.locator('[data-hub-list] article:has(.public-external-share)').first();
+      const closedHeight=(await sharedCard.boundingBox()).height;
+      assert.equal((await shareToggle.innerText()).trim(),'','share control is an icon, not an extra text row');
+      await shareToggle.click();
+      await share.locator('.public-external-share-body').waitFor({state:'visible'});
+      assert.equal((await sharedCard.boundingBox()).height,closedHeight,'share menu does not enlarge the article card');
+      const menu=await share.locator('.public-external-share-body').boundingBox();
+      assert.ok(menu.x>=0 && menu.x+menu.width<=width,'share menu fits the viewport');
+      await shareToggle.press('Escape');
+      assert.equal(await share.getAttribute('open'),null);
+      await shareToggle.click();
+      await search.click();
+      assert.equal(await share.getAttribute('open'),null,'outside click closes sharing');
       const summary=page.locator('.archive-filter-panel > summary');
       assert.match(await summary.innerText(),/검색 필터.*펼치기/s);
       await summary.click();
@@ -69,11 +84,12 @@ try {
         for(const row of await rows.all()) {
           const metrics=await row.evaluate(el=>{
             const link=el.querySelector('.card-link'),body=el.querySelector('.card-body'),title=el.querySelector('h2');
-            return {height:link.getBoundingClientRect().height,padding:getComputedStyle(body).padding,
+            return {height:link.getBoundingClientRect().height,cardHeight:el.getBoundingClientRect().height,padding:getComputedStyle(body).padding,
               titleHeight:title.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(title).lineHeight),
               cta:getComputedStyle(el.querySelector('.text-link')).display};
           });
           assert.ok(metrics.height<=150,`compact mobile row ${width}px: ${JSON.stringify(metrics)}`);
+          assert.ok(metrics.cardHeight<=metrics.height+2,'collapsed sharing adds no row height');
           assert.equal(metrics.padding,'0px');
           assert.ok(metrics.titleHeight<=metrics.lineHeight*2+1,'mobile headline stays within two lines');
           assert.equal(metrics.cta,'none','no separate CTA takes up mobile list space');

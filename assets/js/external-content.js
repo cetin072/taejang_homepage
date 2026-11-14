@@ -216,7 +216,7 @@
   // Archive enhancement never blocks the parser. Homepage retains its existing contract.
   if (isArchivePage && typeof fetch === 'function') {
     window.TAEJANG_ARCHIVE_FEED = { status: 'loading' };
-    fetch('/.netlify/functions/public-promotion-feed?format=json', { signal: AbortSignal.timeout(10000) })
+    fetch('/.netlify/functions/public-promotion-feed?format=json&media=browser', { cache: 'no-store', signal: AbortSignal.timeout(10000) })
       .then(response => { if (!response.ok) throw new Error('feed unavailable'); return response.json(); })
       .then(payload => {
         if (!Array.isArray(payload.items)) throw new Error('invalid feed');
