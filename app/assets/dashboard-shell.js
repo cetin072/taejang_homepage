@@ -227,6 +227,10 @@
 
   function masterMenuItems() {
     return [
+      { key:'logistics.manage', label:'물류 관리', run:async () => {
+        await import('/app/assets/logistics.js');
+        return window.TaejangLogistics.open();
+      } },
       { key: 'dashboard', label: '대시보드', run: goDashboard, current: true },
       {
         key: 'employee.manage', label: '직원 관리',
@@ -366,6 +370,7 @@
   const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
   function currentViewDirty() {
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
+    if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
     return activeView === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }
   function mayLeaveView() {
