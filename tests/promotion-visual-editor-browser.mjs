@@ -48,7 +48,20 @@ for(const width of [320,390,768,1440]){
   assert.equal(await page.locator('textarea.app-form-body').inputValue(),before,'reopen is lossless');
   assert.equal(await field.locator('h2').innerText(),'직원이 직접 쓴 제목');assert.equal(await field.locator('img').getAttribute('alt'),'문단 사이 사진 설명');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
-  if(role==='operations_manager')await page.screenshot({path:path.join(output,`visual-editor-${width}.png`),fullPage:true});
+  await page.waitForFunction(()=>[...document.querySelectorAll('.article-editor-surface img,.phase-c-photo-grid img')].every(img=>img.complete&&img.naturalWidth>0));
+  if(role==='operations_manager'){await page.getByRole('button',{name:'모바일 미리보기',exact:true}).click();await page.screenshot({path:path.join(output,`visual-editor-${width}.png`),fullPage:true});}
+  const submitName=role==='operations_manager'?'운영팀장 검토 요청':role==='promotion_lead'?'저장 후 운영총괄 재승인 요청':'저장 후 다시 승인 요청';
+  await page.getByRole('button',{name:submitName,exact:true}).click();
+  const submitted=await page.evaluate(()=>calls.filter(c=>c.name.startsWith('submit_')).at(-1));
+  assert.equal(submitted.name,role==='operations_manager'?'submit_operations_promotion_revision':'submit_promotion_revision');
+ }
+ if(width===390){
+   const original=JSON.parse(await readFile('tests/fixtures/featured-article.json','utf8'));
+   await page.evaluate(async item=>{testRole='operations_manager';testItems=[{...item,lifecycle:'draft'}];await TaejangPromotionWorkspaceV2Api.openPromotion('write');},original);
+   await page.getByRole('button',{name:'열어 수정',exact:true}).click();
+   assert.equal(await page.locator('textarea.app-form-body').inputValue(),original.public_body);
+   assert.equal(await page.locator('.article-editor-surface h2').count(),4);
+   assert.equal(await page.locator('.article-editor-surface img').count(),6);
  }
  assert.deepEqual(errors,[]);await page.close();
 }

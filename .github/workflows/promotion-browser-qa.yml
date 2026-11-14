@@ -385,6 +385,8 @@ jobs:
         with:
           node-version: 24
       - run: npm ci
+      - name: Install Korean screenshot fonts
+        run: sudo apt-get update -qq && sudo apt-get install --no-install-recommends -y fonts-noto-cjk
       - name: Verify editor bundle, safe document and browser workflow
         env:
           PROMOTION_QA_OUTPUT: promotion-visual-editor-artifacts

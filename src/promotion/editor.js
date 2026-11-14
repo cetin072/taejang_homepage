@@ -26,6 +26,14 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
   if (damaged) { shell.textContent = '본문 형식을 읽을 수 없습니다. 원문을 보존하기 위해 편집을 중단했습니다.'; textarea.hidden = true; textarea._articleEditor = {refresh(){},validate(){window.alert('본문 형식을 확인할 수 없어 저장하지 않았습니다.');return false;}}; return textarea._articleEditor; }
   let editor;
   const toggleButtons = [];
+  const style = document.createElement('select'); style.setAttribute('aria-label','문단 스타일');
+  function syncControls() {
+    if (!editor) return;
+    const active=editor.isActive('image');caption.disabled=!active;
+    if(document.activeElement!==caption)caption.value=active ? editor.getAttributes('image').alt || '' : '';
+    style.value=editor.isActive('heading') ? String(editor.getAttributes('heading').level) : 'p';
+    for(const [b,type] of toggleButtons)b.setAttribute('aria-pressed',String(editor.isActive(type)));
+  }
   const button = (parent, label, action) => {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', action); parent.append(b); return b;
   };
@@ -64,12 +72,7 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
       if (html && /<img\b/i.test(html)) { event.preventDefault(); view.dispatch(view.state.tr.insertText(event.clipboardData.getData('text/plain'))); return true; }
       return false;
     }, handleDrop(_view,event) { if (event.dataTransfer?.files.length || /<img\b/i.test(event.dataTransfer?.getData('text/html') || '')) {event.preventDefault(); status.textContent='사진은 아래 사진 추가 버튼으로 첨부한 뒤 본문에 넣어 주세요.'; return true;} return false; }},
-    onUpdate:updated, onSelectionUpdate(){
-      const active = editor.isActive('image'); caption.disabled = !active;
-      caption.value = active ? editor.getAttributes('image').alt || '' : '';
-      for (const [b,type] of toggleButtons) b.setAttribute('aria-pressed',String(editor.isActive(type)));
-    }});
-  const style = document.createElement('select'); style.setAttribute('aria-label','문단 스타일');
+    onUpdate:updated, onSelectionUpdate:syncControls, onTransaction:syncControls});
   for (const [value,label] of [['p','본문'],['2','소제목'],['3','작은 소제목']]) { const o = new Option(label,value); style.add(o); }
   style.addEventListener('change',()=> style.value === 'p' ? editor.chain().focus().setParagraph().run() : editor.chain().focus().setHeading({level:Number(style.value)}).run()); toolbar.append(style);
   for (const [label,command,type] of [['굵게','toggleBold','bold'],['인용','toggleBlockquote','blockquote'],['목록','toggleBulletList','bulletList'],['번호 목록','toggleOrderedList','orderedList']]) {
