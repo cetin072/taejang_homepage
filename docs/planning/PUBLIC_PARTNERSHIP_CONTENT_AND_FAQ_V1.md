@@ -149,3 +149,8 @@
 - 첫 화면에서 “장애인 고용의무, 태장과 함께 이행하는 방법”을 명시하고, 요건 충족 시 출자비율 등에 따른 고용률 반영을 설명한다. 출자만으로 전체 의무 자동 충족, 부담금 전액 면제 등을 약속하지 않는다.
 - 구조도 반환 방향에도 고용률 반영을 표시한다. 기존 섹션 순서·문의 흐름·공동출자와 거래의 구분 유지.
 - 공식 근거 재확인(2026-11-14): 한국장애인고용공단 https://www.kead.or.kr/spdstndsyst/cntntsPage.do?menuId=MENU0698 및 고용노동부 https://www.moel.go.kr/news/enews/report/enewsView.do?news_seq=15017 . 공개 페이지 제도 링크의 잘린 menuId도 정정.
+
+
+### 2026-11-14 사진 파일 보정 재작업
+
+사용자가 CSS 밝기 효과가 아닌 실제 사진 파일 보정을 요청했다. 원본 720×405 이미지의 Lab 명도 채널에 gamma 1.45만 적용하여 얼굴·현수막·구도를 재생성하지 않고 그늘을 밝힌다. ImageMagick 명령은 `magick environment-cleanup-first.webp -colorspace Lab -channel R -gamma 1.45 +channel -colorspace sRGB -quality 96 -define webp:method=6 environment-cleanup-first-bright-v2.webp`이다. 원본은 보존하고 새 파일을 협력 페이지·활동 원문·소식 목록에서 공통 사용한다. 기존 CSS 밝기 필터는 제거해 이중 보정을 막는다. 생성형 시안은 사용하지 않는다. 검증 후 병합·운영 적용은 이 대화의 승인 범위다.

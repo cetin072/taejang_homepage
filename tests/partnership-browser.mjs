@@ -193,13 +193,13 @@ try {
     const res = await context.request.get(new URL(href, base).href);
     assert.equal(res.status(), 200, 'internal link ' + href);
   }
-  // The same original photo must receive one shared correction, even without JS.
+  // Both pages must load the corrected image file, without another display filter.
   for (const route of ['/partnership.html', '/activities/environment-cleanup-first.html']) {
     await page.goto(base + route, { waitUntil: 'load' });
-    const photo = page.locator('main img[src$="/environment-cleanup-first.webp"]').first();
+    const photo = page.locator('main img[src$="/environment-cleanup-first-bright-v2.webp"]').first();
     await photo.scrollIntoViewIfNeeded();
     await photo.evaluate(el => el.decode());
-    assert.equal(await photo.evaluate(el => getComputedStyle(el).filter), 'brightness(1.2) contrast(0.85)', route + ' shared photo exposure');
+    assert.equal(await photo.evaluate(el => getComputedStyle(el).filter), 'none', route + ' corrected file without double exposure');
     await photo.screenshot({ path: path.join(output, route.includes('/activities/') ? 'cleanup-article-photo.png' : 'cleanup-partnership-photo.png') });
   }
   results.push({ noJavaScript: true, internalLinks: internal, realSubmit: false, actualReceipt: 'UNVERIFIED', notification: 'UNVERIFIED' });
