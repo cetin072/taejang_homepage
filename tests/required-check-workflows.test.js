@@ -40,3 +40,15 @@ test('required workflows consume the centralized active test manifest', () => {
   assert.match(manifest, /first-super-admin-bootstrap\.test\.js/);
   assert.match(manifest, /staging-safety-runtime\.test\.mjs/);
 });
+
+// The notification job must not start a second identical database; its full
+// auth and SQL coverage stays in the required Phase 1A integration job.
+test('notification DB integration has one required workflow owner', () => {
+  const notification = read('.github/workflows/notification-push.yml');
+  assert.match(notification, /branches: \[main\]/);
+  assert.doesNotMatch(notification, /supabase start|supabase db reset|setup-cli/);
+  assert.match(notification, /notification-push-dispatch\.test\.mjs/);
+  assert.match(notification, /notification-push-canary-draft\.test\.mjs/);
+  assert.match(phaseWorkflow, /notification-push-auth-integration\.mjs/);
+  assert.match(phaseWorkflow, /supabase test db supabase\/tests\/database\/\*\.test\.sql/);
+});
