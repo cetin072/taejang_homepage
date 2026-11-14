@@ -109,3 +109,18 @@
 @media (prefers-reduced-motion: reduce) {
   .partnership-page { scroll-behavior: auto; }
 }
+
+/* Keep the inquiry controls consistent with the homepage without changing other pages. */
+.partnership-page .btn {
+  border-radius: 8px;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.partnership-page .btn:hover { transform: none; }
+.partnership-page .btn.line:hover,
+.partnership-page .btn.line:focus-visible { background: var(--green-deep); color: #fff; border-color: var(--green-deep); }
+.partnership-page .inquiry-scope { padding: 0; border: 0; background: transparent; }
+.partnership-page .inquiry-scope ul { margin: 12px 0; gap: 4px 16px; }
+.partnership-page .inquiry-scope li { padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 400; line-height: 1.7; }
+@media (prefers-reduced-motion: reduce) {
+  .partnership-page .btn { transition: none; }
+}

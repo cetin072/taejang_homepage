@@ -87,10 +87,26 @@ try {
     const before = await boxes(); await page.waitForTimeout(600); assert.deepEqual(await boxes(), before, 'stable layout');
     await page.screenshot({ path: path.join(output, `partnership-${width}.png`), fullPage: true });
     await page.screenshot({ path: path.join(output, `partnership-${width}-hero.png`) });
+    const secondary = page.getByRole('link', { name: '공동출자·참여기업 상담', exact: true });
+    await secondary.hover();
+    const buttonStyle = await secondary.evaluate(el => {
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, color: style.color, radius: style.borderRadius, height: el.getBoundingClientRect().height };
+    });
+    assert.notEqual(buttonStyle.background, 'rgba(0, 0, 0, 0)', 'outline hover needs an opaque background');
+    assert.equal(buttonStyle.color, 'rgb(255, 255, 255)');
+    assert.equal(buttonStyle.radius, '8px');
+    assert.ok(buttonStyle.height >= 48);
+    const guide = page.locator('#partnership-inquiry-type-guide');
+    assert.equal(await guide.isVisible(), false);
     const form = page.locator('form[name="taejang-inquiry"]');
     assert.equal(await form.evaluate(el => el.checkValidity()), false, 'native required');
     await page.getByRole('link', { name: '공동출자·참여기업 상담', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '모회사·고용 연계');
+    assert.equal(await field(page, 'inquiry-type').locator('option:checked').textContent(), '공동출자·참여기업 상담');
+    await field(page, 'inquiry-type').selectOption({ label: '채용·근무 문의' });
+    assert.equal(await guide.isVisible(), true);
+    assert.match(await field(page, 'inquiry-type').getAttribute('aria-describedby'), /partnership-inquiry-type-guide/);
     await field(page, 'name').fill('개발 검수용');
     await field(page, 'organization').fill('합성 QA 기관');
     await field(page, 'email').fill('invalid-email');
@@ -100,7 +116,10 @@ try {
     await page.getByRole('button', { name: '문의창 닫기' }).click();
     await page.getByRole('link', { name: '상품·용역 협력 문의', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '기업 업무·건별 프로젝트');
+    assert.equal(await guide.isVisible(), false);
     assert.equal(await field(page, 'name').inputValue(), '개발 검수용');
+    assert.equal(await field(page, 'inquiry-type').locator('option:checked').textContent(), '상품·용역 협력 문의');
+    await page.screenshot({ path: path.join(output, `partnership-${width}-dialog.png`), fullPage: true });
     await field(page, 'inquiry-type').selectOption({ label: '지역사회공헌·ESG 협력' });
     await page.getByRole('button', { name: '문의창 닫기' }).click();
     await page.locator('.faq-q[aria-controls="partnership-faq-answer-1"]').focus();
