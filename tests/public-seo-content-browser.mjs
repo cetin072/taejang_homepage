@@ -183,7 +183,7 @@ try {
           await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
           await page.waitForTimeout(200);
           await page.screenshot({ path: `seo-qa-artifacts/certifications-${width}-${javaScriptEnabled}.png`, fullPage: true });
-          await page.getByRole('link', { name: '인증 당시 회사 소식 보기 →', exact: true }).click();
+          await page.getByRole('link', { name: '인증 당시 회사 소식 보기', exact: true }).click();
           assert.ok(page.url().endsWith('/activities/standard-workplace-certification.html'));
           assert.equal(await page.locator('.article-gallery img').count(), 3);
           for (const img of await page.locator('.article-body img').all()) {
@@ -232,7 +232,7 @@ try {
       assert.deepEqual(await partners.locator('li > span').allTextContents(), partnerNames);
       assert.doesNotMatch(await partners.textContent(), /사업·농업·지역 협력|경상남도|미담농원|류진농원|아름다운학교|미래진흥원|학사모/);
       assert.deepEqual(await partners.locator('h3').allTextContents(), ['공동출자 참여기업']);
-      assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기 →' }).getAttribute('href'), 'certifications.html');
+      assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기' }).getAttribute('href'), 'certifications.html');
       await partners.scrollIntoViewIfNeeded();
       const partnerLogos = partners.locator('.home-partner-logo img');
       assert.equal(await partnerLogos.count(), 4, 'each jointly investing company has a logo');
