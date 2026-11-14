@@ -110,7 +110,7 @@ try {
           const cards = page.locator('.business-card');
           assert.equal(await cards.count(), 4);
           assert.deepEqual(await cards.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
-            'minhwa-gallery.html', 'community-esg.html', 'workplace/packing-care.html', 'terrarium.html'
+            'why-minhwa.html', 'community-esg.html', 'workplace/packing-care.html', 'terrarium.html'
           ]);
           for (const image of await cards.locator('img').all()) {
             await image.scrollIntoViewIfNeeded();
