@@ -201,7 +201,18 @@ try {
         }
         if (file === 'farm.html') {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm overflow');
-          assert.equal(await page.locator('main img, main iframe, main form').count(), 0, 'text-first draft has no invented farm photos, maps or booking');
+          assert.equal(await page.locator('main iframe, main form').count(), 0, 'no invented maps or booking');
+          const landscape = page.locator('.farm-landscape img');
+          assert.equal(await page.locator('main img').count(), 1, 'one approved concept landscape');
+          assert.equal(await landscape.getAttribute('src'), 'assets/images/location/farm-landscape-concept.webp');
+          await landscape.evaluate(e => e.decode());
+          assert.ok(await landscape.evaluate(e => Math.abs(e.clientWidth / e.clientHeight - e.naturalWidth / e.naturalHeight) < .03), 'landscape is not cropped');
+          assert.match(await page.locator('.farm-landscape figcaption').textContent(), /컨셉 이미지/);
+          assert.match(await page.locator('.farm-area').textContent(), /1만 평/);
+          for (const action of await page.locator('main a.btn').all()) {
+            assert.ok((await action.boundingBox()).height >= 48, 'farm actions retain touch targets');
+            assert.equal(await action.evaluate(e => getComputedStyle(e).borderRadius), '8px');
+          }
           assert.match(await page.locator('main').textContent(), /2년 연속 호박 재배 완료/);
           assert.match(await page.locator('main').textContent(), /야생다래 덕장 시설/);
           await page.screenshot({ path: `seo-qa-artifacts/farm-${width}-${javaScriptEnabled}.png`, fullPage: true });
