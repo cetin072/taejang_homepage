@@ -126,6 +126,8 @@
   }
 
   function render(filter = '전체') {
+    // The workplace index links to several kinds of existing records, not just this collection.
+    if (list.hasAttribute('data-workplace-index')) return;
     if (!orderedData.length) {
       if (filters) filters.hidden = true;
       // The HTML list contains the last approved fallback. Runtime data absence is

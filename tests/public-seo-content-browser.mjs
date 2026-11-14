@@ -52,16 +52,50 @@ try {
         assert.ok(await page.title());
         if (file === 'workplace.html') {
           assert.equal(await page.locator('main [data-filters]').count(), 0);
-          assert.equal(await page.locator('[data-list] .card').count(), 3);
+          const jobs = page.locator('.workplace-job');
+          assert.equal(await jobs.count(), 4, 'all four jobs survive JS initialization');
+          assert.deepEqual(await jobs.locator('h3').allTextContents(), ['민화 작업', '테라리움 작업', '지역 환경정비', '포장·검수와 수작업']);
+          assert.equal(await page.locator('.workplace-steps').count(), 0, 'packing process belongs only to detail');
+          for (const image of await jobs.locator('img').all()) {
+            await image.scrollIntoViewIfNeeded();
+            await image.evaluate(element => element.decode());
+            assert.ok(await image.evaluate(element => Math.abs(element.naturalWidth / element.naturalHeight - element.width / element.height) < .02));
+          }
+          await page.getByRole('link', { name: '일하는 모습 보기', exact: true }).click();
+          assert.ok(page.url().endsWith('#workplace-jobs'));
+          await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          for (const [name, destination] of [
+            ['민화 작업 과정 보기', '/workplace/minhwa-one-stroke.html'],
+            ['테라리움 제작 준비 보기', '/activities/terrarium-business-start-2026-08.html'],
+            ['환경정비 활동 기록 보기', '/community-esg-records.html'],
+            ['작업환경 살펴보기', '/workplace/work-together.html']
+          ]) {
+            await page.getByRole('link', { name, exact: true }).click();
+            assert.ok(page.url().endsWith(destination));
+            assert.equal(await page.locator('main h1').count(), 1);
+            await page.goto(base + '/workplace.html');
+          }
+          const packingLink = page.getByRole('link', { name: '포장·검수 과정 보기', exact: true });
+          await packingLink.focus();
+          assert.ok(await packingLink.evaluate(element => getComputedStyle(element).outlineStyle !== 'none'));
+          await packingLink.click();
+          assert.ok(page.url().endsWith('/workplace/packing-care.html'));
+          assert.ok(await page.getByRole('heading', { level: 1, name: '정확한 순서로 진행하는 포장과 검수' }).isVisible());
+          assert.equal(await page.locator('.workplace-steps li').count(), 4);
           const photo = page.locator('.workplace-photo img');
           await photo.evaluate(image => image.decode());
           assert.ok(await photo.evaluate(image => Math.abs(image.naturalWidth / image.naturalHeight - image.width / image.height) < .02));
-          await page.getByRole('link', { name: '일터 이야기 보기', exact: true }).click();
-          assert.ok(page.url().endsWith('#workplace-stories-title'));
-          await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
-          await page.getByRole('link', { name: '정확한 순서로 진행하는 포장과 검수 자세히 보기' }).click();
-          assert.ok(await page.getByRole('heading', { level: 1, name: '정확한 순서로 진행하는 포장과 검수' }).isVisible());
-          await page.goto(base + '/workplace.html');
+          for (const button of await page.locator('.packing-page .btn').all()) {
+            const box = await button.boundingBox();
+            assert.ok(box.height >= 44 && box.x >= 0 && box.x + box.width <= width);
+          }
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+          await page.getByRole('link', { name: '포장·검수 과정 보기', exact: true }).click();
+          assert.ok(page.url().endsWith('#packing-process'));
+          await page.screenshot({ path: `seo-qa-artifacts/packing-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          await page.getByRole('link', { name: '우리의 일터로 돌아가기', exact: true }).click();
+          assert.ok(page.url().endsWith('/workplace.html#workplace-jobs'));
+          assert.equal(await page.locator('.workplace-job').count(), 4);
         }
         if (file === 'business.html') {
           assert.equal(await page.locator('#business-operations-title').textContent(), '태장의 사업과 활동');
