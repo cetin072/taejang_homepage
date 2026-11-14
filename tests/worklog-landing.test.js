@@ -22,3 +22,5 @@ test('three ordered steps separate email request, Google opt in and install',()=
  assert.doesNotMatch(dialog,/등록이 완료|신청 완료|type="password"/);
  for(const link of dialog.matchAll(/<a[^>]+target="_blank"[^>]*>/g))assert.match(link[0],/rel="noopener noreferrer"/);
 });
+
+test('static calendar illustration has no iframe execution context',()=>{assert.doesNotMatch(html,/<iframe\b/);assert.match(html,/calendar.svg/);});
