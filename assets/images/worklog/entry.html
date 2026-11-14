@@ -1,0 +1,77 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="robots" content="noindex, nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><title>업무수첩 입력 UI 예시</title><style id="react-native-stylesheet">[stylesheet-group="0"]{}
+body{margin:0;}
+button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0;}
+html{-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:rgba(0,0,0,0);}
+input::-webkit-search-cancel-button,input::-webkit-search-decoration,input::-webkit-search-results-button,input::-webkit-search-results-decoration{display:none;}
+[stylesheet-group="1"]{}
+.css-11aywtz{-moz-appearance:textfield;-webkit-appearance:none;background-color:rgba(0,0,0,0.00);border-bottom-left-radius:0px;border-bottom-right-radius:0px;border-top-left-radius:0px;border-top-right-radius:0px;border:0 solid black;box-sizing:border-box;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0px;padding:0px;resize:none;}
+.css-146c3p1{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:rgba(0,0,0,1.00);display:inline;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;list-style:none;margin:0px;padding:0px;position:relative;text-align:start;text-decoration:none;white-space:pre-wrap;word-wrap:break-word;}
+.css-1jxf684{background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;color:inherit;display:inline;font:inherit;list-style:none;margin:0px;padding:0px;position:relative;text-align:inherit;text-decoration:none;white-space:inherit;word-wrap:break-word;}
+.css-g5y9jx{align-content:flex-start;align-items:stretch;background-color:rgba(0,0,0,0.00);border:0 solid black;box-sizing:border-box;display:flex;flex-basis:auto;flex-direction:column;flex-shrink:0;list-style:none;margin:0px;min-height:0px;min-width:0px;padding:0px;position:relative;text-decoration:none;z-index:0;}
+[stylesheet-group="2"]{}
+.r-13awgt0{flex:1;}
+.r-1q9bdsx{border-bottom-left-radius:12px;border-bottom-right-radius:12px;border-top-left-radius:12px;border-top-right-radius:12px;}
+.r-1qsk4np{overflow-x:clip;overflow-y:clip;}
+.r-1udh08x{overflow-x:hidden;overflow-y:hidden;}
+.r-krxsd3{display:-webkit-box;}
+.r-rs99b7{border-bottom-width:1px;border-left-width:1px;border-right-width:1px;border-top-width:1px;}
+.r-t23y2h{border-bottom-left-radius:14px;border-bottom-right-radius:14px;border-top-left-radius:14px;border-top-right-radius:14px;}
+.r-voibxv{border-bottom-color:rgba(215,218,224,1.00);border-left-color:rgba(215,218,224,1.00);border-right-color:rgba(215,218,224,1.00);border-top-color:rgba(215,218,224,1.00);}
+.r-xoduu5{display:inline-flex;}
+[stylesheet-group="2.1"]{}
+.r-1mmae3n{padding-bottom:12px;padding-top:12px;}
+.r-gu64tb{padding-left:14px;padding-right:14px;}
+.r-is05cd{padding-left:8px;padding-right:8px;}
+[stylesheet-group="3"]{}
+.r-105ug2t{pointer-events:auto!important;}
+.r-11oscg{background-color:rgba(17,24,39,1.00);}
+.r-12vffkv>* {pointer-events:auto;}
+.r-12vffkv{pointer-events:none!important;}
+.r-14lw9ot{background-color:rgba(255,255,255,1.00);}
+.r-1777fci{justify-content:center;}
+.r-185u6z5{color:rgba(115,121,133,1.00);}
+.r-18u37iz{flex-direction:row;}
+.r-1awozwy{align-items:center;}
+.r-1cmwbt1{gap:8px;}
+.r-1d2f490{left:0px;}
+.r-1enofrn{font-size:12px;}
+.r-1ey881g{gap:7px;}
+.r-1iln25a{word-wrap:normal;}
+.r-1loqt21{cursor:pointer;}
+.r-1otgn73{touch-action:manipulation;}
+.r-1p0dtai{bottom:0px;}
+.r-1pb4ir6{color:rgba(23,25,29,1.00);}
+.r-1pl7oy7{min-height:48px;}
+.r-1udbk01{text-overflow:ellipsis;}
+.r-1vr29t4{font-weight:800;}
+.r-1xnzce8{-moz-user-select:text;-webkit-user-select:text;user-select:text;}
+.r-3s2u2q{white-space:nowrap;}
+.r-5kkj8d{border-top-width:1px;}
+.r-5prp13{min-height:42px;}
+.r-633pao>* {pointer-events:none;}
+.r-633pao{pointer-events:none!important;}
+.r-6taxm2:-ms-input-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::-moz-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::-webkit-input-placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-6taxm2::placeholder{color:var(--placeholderTextColor);opacity:1;}
+.r-8akbws{-webkit-box-orient:vertical;}
+.r-ah5dr5>* {pointer-events:none;}
+.r-ah5dr5{pointer-events:auto!important;}
+.r-dnmrzs{max-width:100%;}
+.r-f4gmv6{gap:16px;}
+.r-icoktb{opacity:0.5;}
+.r-ipm5af{top:0px;}
+.r-jwli3a{color:rgba(255,255,255,1.00);}
+.r-lrvibr{-moz-user-select:none;-webkit-user-select:none;user-select:none;}
+.r-n6v787{font-size:13px;}
+.r-nl3zbb{border-top-color:rgba(215,218,224,1.00);}
+.r-ovu0ai{font-weight:900;}
+.r-peo1c{min-height:44px;}
+.r-qnikp8{min-height:104px;}
+.r-u8s1d{position:absolute;}
+.r-ubezar{font-size:16px;}
+.r-van48c{caret-color:transparent;}
+.r-vdqesa{min-height:54px;}
+.r-w1rdgx{color:rgba(39,93,175,1.00);}
+.r-z25kjp{color:rgba(75,81,92,1.00);}
+.r-zchlnj{right:0px;}</style><style>body{margin:0;padding:24px;background:#f4f5f7}*{pointer-events:none}input,textarea{resize:none}</style><body inert><div class="css-g5y9jx r-13awgt0 r-12vffkv"><div class="css-g5y9jx r-13awgt0 r-12vffkv"><div class="css-g5y9jx r-f4gmv6"><div class="css-g5y9jx r-1ey881g"><div dir="auto" class="css-146c3p1 r-z25kjp r-n6v787 r-1vr29t4">입력</div><textarea placeholder="업무 내용을 입력하세요" autoCapitalize="sentences" autoComplete="on" autoCorrect="on" dir="auto" spellCheck="true" virtualkeyboardpolicy="auto" aria-label="업무 내용" class="css-11aywtz r-6taxm2 r-14lw9ot r-voibxv r-1q9bdsx r-rs99b7 r-1pb4ir6 r-ubezar r-1mmae3n r-gu64tb r-qnikp8">거래처 미팅 자료 준비하기</textarea></div><div class="css-g5y9jx r-1ey881g"><div dir="auto" class="css-146c3p1 r-z25kjp r-n6v787 r-1vr29t4">날짜</div><div class="css-g5y9jx r-1awozwy r-18u37iz r-1cmwbt1"><button aria-label="날짜 선택" role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-14lw9ot r-voibxv r-1q9bdsx r-rs99b7 r-13awgt0 r-1777fci r-1pl7oy7 r-gu64tb" type="button"><div dir="auto" class="css-146c3p1 r-1pb4ir6 r-ubezar">2026. 11. 16.</div></button><button role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-1777fci r-peo1c r-is05cd" type="button"><div dir="auto" class="css-146c3p1 r-w1rdgx r-1enofrn r-1vr29t4">지우기</div></button></div></div><div class="css-g5y9jx r-1ey881g"><div dir="auto" class="css-146c3p1 r-z25kjp r-n6v787 r-1vr29t4">시간</div><div class="css-g5y9jx r-1awozwy r-18u37iz r-1cmwbt1"><button aria-label="시간 선택" role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-14lw9ot r-voibxv r-1q9bdsx r-rs99b7 r-13awgt0 r-1777fci r-1pl7oy7 r-gu64tb" type="button"><div dir="auto" class="css-146c3p1 r-1pb4ir6 r-ubezar">오후 2:00</div></button><button role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-1777fci r-peo1c r-is05cd" type="button"><div dir="auto" class="css-146c3p1 r-w1rdgx r-1enofrn r-1vr29t4">지우기</div></button></div></div><button role="button" tabindex="0" class="css-g5y9jx r-1loqt21 r-1otgn73 r-1awozwy r-11oscg r-t23y2h r-1777fci r-vdqesa" type="button"><div dir="auto" class="css-146c3p1 r-jwli3a r-ubezar r-ovu0ai">저장</div></button></div></div></div></body></html>
