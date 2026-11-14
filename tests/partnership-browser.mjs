@@ -193,6 +193,15 @@ try {
     const res = await context.request.get(new URL(href, base).href);
     assert.equal(res.status(), 200, 'internal link ' + href);
   }
+  // The same original photo must receive one shared correction, even without JS.
+  for (const route of ['/partnership.html', '/activities/environment-cleanup-first.html']) {
+    await page.goto(base + route, { waitUntil: 'load' });
+    const photo = page.locator('main img[src$="/environment-cleanup-first.webp"]').first();
+    await photo.scrollIntoViewIfNeeded();
+    await photo.evaluate(el => el.decode());
+    assert.equal(await photo.evaluate(el => getComputedStyle(el).filter), 'brightness(1.2) contrast(0.85)', route + ' shared photo exposure');
+    await photo.screenshot({ path: path.join(output, route.includes('/activities/') ? 'cleanup-article-photo.png' : 'cleanup-partnership-photo.png') });
+  }
   results.push({ noJavaScript: true, internalLinks: internal, realSubmit: false, actualReceipt: 'UNVERIFIED', notification: 'UNVERIFIED' });
   await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ base, results }, null, 2));
   console.log(JSON.stringify({ base, output, widths: [320, 390, 768, 1440], status: 'PASS', realSubmit: false }));
