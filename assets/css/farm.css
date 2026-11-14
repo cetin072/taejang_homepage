@@ -1,27 +1,44 @@
-/* Farm-only editorial layout; uses the existing Taejang colors and type. */
-.farm-page .farm-hero { background: var(--green-soft); }
-.farm-hero-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: clamp(30px, 6vw, 88px); align-items: center; }
-.farm-intro { max-width: 660px; line-height: 1.9; }
-.farm-area { padding: clamp(28px, 4vw, 48px); border: 1px solid var(--line); background: var(--green-deep); color: #fff; }
-.farm-area > p { margin: 24px 0; font-size: 22px; }
-.farm-area strong { font-family: var(--myeongjo); font-size: clamp(38px, 5vw, 62px); line-height: 1.3; }
-.farm-area > span { display: block; line-height: 1.8; }
-.farm-section-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: clamp(24px, 5vw, 72px); }
-.farm-copy p { margin-top: 0; line-height: 1.95; }
-.farm-facts { margin: 30px 0 0; }
-.farm-facts > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 16px; padding: 18px 0; border-top: 1px solid var(--line); }
-.farm-facts dt { font-weight: 700; color: var(--green-deep); }
-.farm-facts dd { margin: 0; line-height: 1.8; }
-.farm-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 32px; }
-.farm-card { padding: clamp(24px, 4vw, 40px); background: #fff; border: 1px solid var(--line); }
-.farm-card h3 { margin-top: 0; color: var(--green-deep); font-family: var(--myeongjo); font-size: 24px; line-height: 1.6; }
-.farm-card p { line-height: 1.9; }
-.farm-category { color: var(--green); font-weight: 700; }
-.farm-contact { background: var(--green-deep); color: #fff; }
-.farm-contact .eyebrow, .farm-contact .title { color: #fff; }
-.farm-contact p:not(.eyebrow) { max-width: 720px; line-height: 1.9; }
-.farm-contact .btn { margin-top: 18px; background: #fff; color: var(--green-deep); border-color: #fff; }
+/* Farm-only layout: approved landscape, scale, story and current use. */
+.farm-page .section { padding: 64px 0; }
+.farm-page .farm-hero { padding: 48px 0; background: #f6f3eb; }
+.farm-hero-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 48px; align-items: center; }
+.farm-location { margin: 0 0 12px; color: var(--green); font-size: 14px; font-weight: 700; }
+.farm-page .farm-hero .title { margin: 0 0 24px; font-size: clamp(28px, 3.2vw, 40px); }
+.farm-area { margin: 0 0 24px; color: var(--green-deep); font-size: 20px; line-height: 1.3; }
+.farm-area strong { font: 700 clamp(52px, 6vw, 76px)/1.15 var(--myeongjo); }
+.farm-area span { display: block; margin-top: 12px; font-size: 18px; }
+.farm-intro { margin: 0 0 24px; color: var(--ink-soft); line-height: 1.85; word-break: keep-all; }
+.farm-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.farm-landscape { min-width: 0; margin: 0; }
+.farm-landscape img { display: block; width: 100%; height: auto; border-radius: 8px; }
+.farm-landscape figcaption { margin-top: 8px; color: var(--ink-soft); font-size: 12px; text-align: right; }
+.farm-page h2 { font-size: clamp(24px, 2.6vw, 32px); word-break: keep-all; }
+.farm-page h3 { margin: 0 0 12px; color: var(--green-deep); font: 700 clamp(20px, 2vw, 24px)/1.5 var(--myeongjo); word-break: keep-all; }
+.farm-section-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 48px; }
+#farm-story { scroll-margin-top: 100px; }
+.farm-copy p { margin: 0; line-height: 1.85; word-break: keep-all; }
+.farm-section-intro { margin: 0; color: var(--ink-soft); line-height: 1.85; }
+.farm-page .farm-experience { border-top: 1px solid var(--line); }
+.farm-experience-list article { padding: 0 0 24px; }
+.farm-experience-list article + article { padding-top: 24px; border-top: 1px solid var(--line); }
+.farm-experience p { margin: 0; color: var(--ink-soft); line-height: 1.85; word-break: keep-all; }
+.farm-experience p + p { margin-top: 8px; }
+.farm-development { padding: 24px; border-left: 2px solid var(--green); background: #f6f3eb; }
+.farm-development h3 { font-family: var(--gothic); font-size: 18px; }
+.farm-contact { background: var(--green-soft); }
+.farm-contact-layout { display: flex; align-items: center; justify-content: space-between; gap: 32px; }
+.farm-contact-layout p { margin: 0; line-height: 1.85; }
+.farm-contact-layout > .btn { flex: 0 0 auto; width: auto; border-radius: 8px; min-height: 48px; gap: 8px; transform: none; }
+.farm-contact-layout > .btn:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
+.farm-office-note { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #c5d3ca; }
+.farm-office-note p { margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.8; }
 @media (max-width: 760px) {
-  .farm-hero-layout, .farm-section-layout, .farm-card-grid { grid-template-columns: minmax(0, 1fr); }
-  .farm-facts > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .farm-page .section, .farm-page .farm-hero { padding: 36px 0; }
+  .farm-hero-layout, .farm-section-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .farm-page .farm-hero .title { margin-bottom: 20px; }
+  .farm-page h2 { margin-bottom: 0; }
+  .farm-section-intro { margin-top: 12px; }
+  .farm-development { padding: 20px; }
+  .farm-contact-layout, .farm-office-note { flex-direction: column; align-items: flex-start; gap: 20px; }
+  .farm-contact-layout p { margin-top: 16px; }
 }
