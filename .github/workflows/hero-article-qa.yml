@@ -38,6 +38,16 @@ jobs:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
           if-no-files-found: ignore
+      - name: Verify credentials layout and image viewer
+        run: node tests/certifications-browser.mjs
+        env:
+          CERTIFICATIONS_QA_OUTPUT: certifications-qa-artifacts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: certifications-320-390-768-1440
+          path: certifications-qa-artifacts/
+          if-no-files-found: ignore
       - name: Verify public SEO content and source presentation
         run: node tests/public-seo-content-browser.mjs
       - uses: actions/upload-artifact@v4

@@ -37,7 +37,7 @@ const server = http.createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ headless: true, ...(process.env.CI ? { channel: 'chrome' } : {}) });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : process.env.CI ? { channel: 'chrome' } : {}) });
 await mkdir('seo-qa-artifacts', { recursive: true });
 try {
   for (const width of [320, 390, 786, 1440]) {
@@ -168,10 +168,11 @@ try {
           assert.ok(await page.locator('main a[href="certifications.html"]').count() > 0, file + ' links to credentials');
         }
         if (file === 'certifications.html') {
-          assert.equal(await page.locator('main img').count(), 4);
+          assert.equal(await page.locator('main figure img').count(), 4);
+          assert.equal(await page.locator('.certification-companies img').count(), 4);
           assert.match(await page.locator('main').textContent(), /제2026-049호/);
           assert.match(await page.locator('main').textContent(), /현판 사진/);
-          for (const img of await page.locator('main img').all()) {
+          for (const img of await page.locator('main figure img').all()) {
             await img.scrollIntoViewIfNeeded();
             await img.evaluate(el => el.decode());
             const dimensions = await img.evaluate(el => ({ natural: el.naturalWidth / el.naturalHeight, shown: el.getBoundingClientRect().width / el.getBoundingClientRect().height, fit: getComputedStyle(el).objectFit }));
@@ -192,7 +193,11 @@ try {
           }
           await page.goto(base + '/certifications.html');
           await page.getByRole('link', { name: '장애인 표준사업장 인증서 원본 크게 보기', exact: true }).click();
-          assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
+          if (javaScriptEnabled) {
+            assert.equal(await page.locator('.certification-viewer').isVisible(), true);
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('.certification-viewer').isVisible(), false);
+          } else assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
         }
         if (file === 'farm.html') {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm overflow');
