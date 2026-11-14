@@ -39,7 +39,7 @@ assert.match(archiveFallback, /https:\/\/blog.naver.com\/taejang-official\//);
 const activityFallback = assertFallbackCards(activities, 'activities', 3);
 // The curated index remains complete without JS and links across existing collections.
 assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
-for (const href of ['workplace/minhwa-one-stroke.html', 'activities/terrarium-business-start-2026-08.html', 'community-esg-records.html', 'workplace/packing-care.html', 'workplace/work-together.html']) {
+for (const href of ['why-minhwa.html', 'terrarium.html', 'community-esg-records.html', 'workplace/packing-care.html', 'workplace/work-together.html', 'farm.html']) {
   assert.ok(workplace.includes('href="' + href + '"'), 'workplace index keeps its static destination: ' + href);
 }
 

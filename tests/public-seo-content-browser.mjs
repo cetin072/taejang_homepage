@@ -66,10 +66,11 @@ try {
           await page.evaluate(() => window.scrollTo(0, 0));
           await page.screenshot({ path: `seo-qa-artifacts/workplace-${width}-${javaScriptEnabled}.png`, fullPage: true });
           for (const [name, destination] of [
-            ['민화 작업 과정 보기', '/workplace/minhwa-one-stroke.html'],
-            ['테라리움 제작 준비 보기', '/activities/terrarium-business-start-2026-08.html'],
+            ['민화 자세히 보기', '/why-minhwa.html'],
+            ['테라리움 자세히 보기', '/terrarium.html'],
             ['환경정비 활동 기록 보기', '/community-esg-records.html'],
-            ['작업환경 살펴보기', '/workplace/work-together.html']
+            ['작업환경 살펴보기', '/workplace/work-together.html'],
+            ['진전면 농장 이야기 보기', '/farm.html']
           ]) {
             await page.getByRole('link', { name, exact: true }).click();
             assert.ok(page.url().endsWith(destination));
