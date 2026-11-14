@@ -138,7 +138,7 @@ assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp
 assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
-assert.match(pages['partnership.html'], /id="partnership-title">태장과 협력하는 방법<\/h1>[\s\S]*?기업의 공동출자로 장애인 일자리를 운영하는 자회사형 장애인 표준사업장/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
+assert.match(pages['partnership.html'], /id="partnership-title">장애인 고용의무,<br>태장과 함께 이행하는 방법<\/h1>[\s\S]*?기업의 공동출자로 장애인 일자리를 운영하는 자회사형 장애인 표준사업장/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
 assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
@@ -273,10 +273,16 @@ assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
 assert.match(workplace, /workplace\/work-together\.html/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
-// User review: shared company evidence is linked once; names stay compact.
+// User review: reuse the four approved homepage logos; link evidence once.
 const companySection = partnership.slice(partnership.indexOf('class="section beige partner-company-section"'), partnership.indexOf('class="section partnership-evidence"'));
 assert.equal((companySection.match(/참여기업 현판 보기/g) || []).length, 1);
 assert.equal((companySection.match(/<li>/g) || []).length, 4);
+for (const logo of ['bumhan', 'samhyun', 'cheungwoo', 'hyundai-bng']) {
+  assert.ok(companySection.includes(`assets/images/partners/monochrome/${logo}.png`));
+}
+assert.match(partnership, /공동출자 요건을 갖추면[\s\S]*출자비율 등에 따라 참여기업의 고용률에 반영/);
+assert.match(partnership, /실제 인정 인원과 의무 이행 범위는 기업별/);
+
 assert.doesNotMatch(companySection, /주주로 참여해 태장의 사업 기반을 함께 만듭니다/);
 assert.match(partnership, /id="partnership-faq-title">참여 안내<\/h2>/);
 assert.doesNotMatch(partnership, /기업 담당자가 검토할 정보/);
