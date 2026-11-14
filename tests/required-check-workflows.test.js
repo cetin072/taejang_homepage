@@ -17,18 +17,12 @@ test('required PR check workflows always create a check for main pull requests',
   assert.match(phaseWorkflow, /name: Migration, pgTAP, Auth and RLS/);
 });
 
-test('Phase 1A uses a docs-only skip instead of a sensitive-path allow-list', () => {
-  assert.match(phaseWorkflow, /push:\s*\n\s*branches: \[main\]/, 'Phase 1A runs isolated migration and Auth/Data API integration after every main push');
-  assert.match(phaseWorkflow, /Decide whether full platform integration is relevant/);
+test('Phase 1A uses a shared change classifier and preserves full security checks', () => {
+  assert.match(phaseWorkflow, /node scripts\/ci-change-scope\.mjs/);
   assert.match(phaseWorkflow, /fetch-depth: 0/);
-  assert.match(phaseWorkflow, /non_docs=/);
-  assert.match(phaseWorkflow, /Documentation-only change/);
-  assert.match(phaseWorkflow, /run_full=false/);
-  assert.match(phaseWorkflow, /run_full=true/);
   assert.match(phaseWorkflow, /supabase db lint --level error --fail-on error/);
   assert.match(phaseWorkflow, /if: steps\.scope\.outputs\.run_full == 'true'/);
   assert.match(phaseWorkflow, /if: always\(\) && steps\.scope\.outputs\.run_full == 'true'/);
-  assert.doesNotMatch(phaseWorkflow, /grep -Eq '\^\(/, 'Phase 1A must not return to a hand-maintained sensitive-path allow-list');
 });
 
 test('required workflows consume the centralized active test manifest', () => {

@@ -16,8 +16,8 @@ GitHub Ruleset/Branch protection에서 추측하지 말고 아래 실제 job che
 두 workflow는 모든 `main` 대상 PR에서 check 결과를 만들도록 구성한다.
 
 - 공개 홈페이지 검사는 가벼워서 모든 PR에서 실행한다.
-- Phase 1A 검사는 모든 PR에서 check 자체는 생성하되, 플랫폼 민감 파일이 바뀐 경우에만 Supabase clean reset / DB lint / pgTAP / 실제 Auth·Data API 통합검사를 실행한다.
-- docs-only 등 무관 변경에서는 Phase 1A가 lightweight pass로 종료되어 required check가 영원히 pending 되는 문제를 막는다.
+- Phase 1A 검사는 모든 PR에서 check 자체는 생성하되, 공유 `scripts/ci-change-scope.mjs`가 full로 판정한 경우에만 Supabase clean reset / DB lint / pgTAP / 실제 Auth·Data API 통합검사를 실행한다.
+- 문서 또는 검토된 공개 HTML·CSS·전용 테스트만 바뀐 경우에는 Phase 1A가 lightweight pass로 종료되어 required check가 영원히 pending 되는 문제를 막는다.
 
 ## GitHub Ruleset 권장값
 
