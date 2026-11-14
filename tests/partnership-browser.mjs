@@ -53,7 +53,14 @@ async function ready(page) {
     // Check the rendered subpixel box against the natural ratio instead.
     const dims = await img.evaluate(el => {
       const box = el.getBoundingClientRect();
-      return { width: box.width, height: box.height, source: el.naturalWidth / el.naturalHeight, src: el.getAttribute('src') };
+      const style = getComputedStyle(el);
+      const inset = (...names) => names.reduce((sum, name) => sum + (parseFloat(style[name]) || 0), 0);
+      return {
+        width: box.width - inset('borderLeftWidth', 'borderRightWidth', 'paddingLeft', 'paddingRight'),
+        height: box.height - inset('borderTopWidth', 'borderBottomWidth', 'paddingTop', 'paddingBottom'),
+        source: el.naturalWidth / el.naturalHeight,
+        src: el.getAttribute('src')
+      };
     });
     assert.ok(Math.abs(dims.height - dims.width / dims.source) < 0.1, 'image aspect ratio: ' + JSON.stringify(dims));
   }
