@@ -50,8 +50,14 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
   if (!legacyHTML && !f.isRich(synchronized) && synchronized.trim()) {
     getMedia().forEach(entry => { if (globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)) originalDoc.content.push({type:'image',attrs:{src:entry.url,alt:entry.alt || ''}}); });
   }
+  function approvedDocument(doc) {
+    if (typeof doc === 'string') return doc;
+    const allowed=new Set(getMedia().filter(entry=>globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)).map(entry=>entry.url));
+    const clean=node=>({...node,...(node.content ? {content:node.content.filter(child=>child.type!=='image'||allowed.has(child.attrs.src)).map(clean)} : {})});
+    return clean(doc);
+  }
   editor = new Editor({element:surface, extensions:[StarterKit.configure({heading:{levels:[2,3]},codeBlock:false,code:false,link:{openOnClick:false,autolink:false,protocols:['https','http']}}),Image.configure({allowBase64:false})],
-    content:originalDoc,
+    content:approvedDocument(originalDoc),
     editorProps:{attributes:{role:'textbox','aria-label':'기사 본문','aria-multiline':'true'},handlePaste(view,event){
       // Pasted remote images never bypass the approved attachment/upload path.
       const html = event.clipboardData?.getData('text/html');
@@ -93,10 +99,13 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
     button(previewTools,'미리보기 닫기',()=>{output.hidden=true;});
   }
   function refresh() {
-    if (textarea.value !== synchronized) { synchronized=textarea.value; const doc=f.parse(synchronized); if(f.isRich(synchronized)&&!doc)return; editor.commands.setContent(doc || f.fromPlain(synchronized),{emitUpdate:false}); }
+    if (textarea.value !== synchronized) { synchronized=textarea.value; const doc=f.parse(synchronized); if(f.isRich(synchronized)&&!doc)return; editor.commands.setContent(approvedDocument(doc || f.fromPlain(synchronized)),{emitUpdate:false}); }
     const selected=picker.value;picker.replaceChildren(new Option('첨부한 사진 선택',''));
     getMedia().filter(entry => globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)).forEach((entry,i)=>picker.add(new Option(`${i+1}. ${entry.alt || '사진'}`,entry.url)));
     if(getMedia().some(m=>m.url===selected))picker.value=selected;
+    const allowed=new Set(getMedia().map(entry=>entry.url));
+    const removals=[];editor.state.doc.descendants((node,pos)=>{if(node.type.name==='image'&&!allowed.has(node.attrs.src))removals.push({pos,size:node.nodeSize});});
+    if(removals.length){editor.chain().command(({tr})=>{removals.reverse().forEach(({pos,size})=>tr.delete(pos,pos+size));return true;}).run();}
     if(!output.hidden)drawPreview();
   }
   textarea.hidden=true;

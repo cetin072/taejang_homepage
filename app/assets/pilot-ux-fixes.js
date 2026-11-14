@@ -363,10 +363,12 @@
     article.append(el('p', detail.content_type === 'press_release' ? 'PRESS RELEASE' : 'TAEJANG NEWS', 'eyebrow'));
     article.append(el('h1', detail.title || '제목 없음'));
     article.append(el('p', detail.requested_publish_date ? `게시 예정일 ${detail.requested_publish_date}` : '게시일 미정', 'pilot-public-date'));
-    if (detail.hero_image_url) {
+    const formatted = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(detail, document);
+    if (!formatted && detail.hero_image_url) {
       const image = document.createElement('img'); image.src = detail.hero_image_url; image.alt = `${detail.title || '콘텐츠'} 대표 이미지`; article.append(image);
     }
-    if (detail.public_body) article.append(el('div', detail.public_body, 'pilot-public-body'));
+    if (formatted) article.append(formatted);
+    else if (detail.public_body) article.append(el('div', detail.public_body, 'pilot-public-body'));
     if (detail.external_url) {
       const link = document.createElement('a'); link.href = detail.external_url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.className = 'button button-quiet'; link.textContent = '원문 보기'; article.append(link);
     }

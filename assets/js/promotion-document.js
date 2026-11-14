@@ -13,7 +13,7 @@
         return node && depth <= 30 && types.has(node.type)
           && (node.type !== 'text' || typeof node.text === 'string')
           && (node.content === undefined || Array.isArray(node.content) && node.content.every(child=>valid(child,depth+1)))
-          && (node.marks === undefined || Array.isArray(node.marks))
+          && (node.marks === undefined || Array.isArray(node.marks) && node.marks.every(mark=>mark && ['bold','italic','strike','underline','link'].includes(mark.type)))
           && (node.type !== 'image' || typeof node.attrs?.src === 'string');
       }
       return doc?.type === 'doc' && Array.isArray(doc.content) && valid(doc) ? doc : null;

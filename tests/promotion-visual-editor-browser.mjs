@@ -15,9 +15,10 @@ window.TaejangApp={getRoute:()=>testRole,hasCapabilityContract:()=>false,friendl
 </script><script src="assets/js/public-promotion-media.js"></script><script src="assets/js/promotion-document.js"></script><script src="assets/js/featured-article-layout.js"></script><script src="app/assets/promotion-visual-editor.js"></script><script src="app/assets/phase-c-workspace-v2.js"></script></body></html>`;
 await writeFile(path.join(dir,'index.html'),html);
 const browser=await chromium.launch({headless:true,args:['--allow-file-access-from-files'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
+let activePage;
 try {
 for(const width of [320,390,768,1440]){
- const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({viewport:{width,height:1000}}),errors=[];activePage=page;page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://**',r=>r.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420"><rect width="800" height="420" fill="#8ba08b"/></svg>'}));
  await page.goto(pathToFileURL(path.join(dir,'index.html')).href);
  for(const role of ['operations_manager','promotion_lead','promotion_staff']){
@@ -26,7 +27,7 @@ for(const width of [320,390,768,1440]){
   const field=page.getByRole('textbox',{name:'기사 본문',exact:true});await field.waitFor();
   assert.equal(await page.locator('textarea.app-form-body').inputValue(),'원래 본문','opening legacy preserves original');
   assert.equal(await page.getByRole('combobox',{name:'목록 대표사진',exact:true}).inputValue(),photo2,'existing cover survives');
-  await field.fill('직원이 직접 쓴 제목');await page.getByRole('combobox',{name:'문단 스타일'}).selectOption('2');
+  await field.click();await field.press('ControlOrMeta+a');await field.press('Backspace');await field.pressSequentially('직원이 직접 쓴 제목');await page.getByRole('combobox',{name:'문단 스타일'}).selectOption('2');
   await field.press('End');await field.press('Enter');await page.getByRole('combobox',{name:'문단 스타일'}).selectOption('p');await field.pressSequentially('첫 문단입니다.');
   await field.press('Enter');await page.getByRole('combobox',{name:'본문에 넣을 사진'}).selectOption(photo);
   await page.getByRole('button',{name:'본문에 사진 넣기',exact:true}).click();
@@ -52,4 +53,4 @@ for(const width of [320,390,768,1440]){
  assert.deepEqual(errors,[]);await page.close();
 }
 console.log('Visual editor: 3 roles × 4 viewports; format/photos/caption/cover/move/undo/save failure/reopen PASS');
-} finally {await browser.close();}
+} catch(error) {if(activePage&&!activePage.isClosed())await activePage.screenshot({path:path.join(output,'failure.png'),fullPage:true});throw error;} finally {await browser.close();}
