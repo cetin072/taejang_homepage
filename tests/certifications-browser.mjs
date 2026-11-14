@@ -54,7 +54,7 @@ try {
   await page.screenshot({path:path.join(output,`page-${width}.png`),fullPage:true});
   assert.deepEqual(errors,[]);await context.close();console.log(`PASS ${width}px: layout, originals, 4 dialogs, Escape/backdrop/close, focus and keyboard`);
  }
- const off=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});const p=await off.newPage();await p.goto(base+'/certifications.html');await p.locator('[data-certification-image]').first().click();assert.ok(p.url().endsWith('standard-workplace-certificate-2026-049.png'));await off.close();
- const failure=await browser.newContext();const p2=await failure.newPage();await p2.route('**/standard-workplace-certificate-2026-049.png',r=>r.abort());await p2.goto(base+'/certifications.html');await p2.locator('[data-certification-image]').first().click();await p2.locator('.certification-viewer-error').waitFor({state:'visible'});assert.ok(await p2.locator('.certification-viewer-original').isVisible());await failure.close();
+ const off=await browser.newContext({javaScriptEnabled:false,reducedMotion:'reduce',viewport:{width:390,height:844}});const p=await off.newPage();await p.goto(base+'/certifications.html');await p.locator('[data-certification-image]').first().click();assert.ok(p.url().endsWith('standard-workplace-certificate-2026-049.png'));await off.close();
+ const failure=await browser.newContext({reducedMotion:'reduce'});const p2=await failure.newPage();await p2.route('**/standard-workplace-certificate-2026-049.png',r=>r.abort());await p2.goto(base+'/certifications.html');await p2.locator('[data-certification-image]').first().click();await p2.locator('.certification-viewer-error').waitFor({state:'visible'});assert.ok(await p2.locator('.certification-viewer-original').isVisible());await failure.close();
  console.log('PASS JS-off original navigation and failed-image recovery');
 } finally {await browser.close();await new Promise(r=>server.close(r));}
