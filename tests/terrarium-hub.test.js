@@ -166,9 +166,10 @@ test('same-page links and native FAQ work without new JavaScript or duplicate ID
 });
 
 test('home business and services keep the already approved hub navigation', () => {
+  assert.match(homepage, /<h3>테라리움 제조사업<\/h3>[\s\S]*?href="terrarium\.html"/);
+  assert.match(homepage, /테라리움 제작 교육과 식물 관리 활동을 운영/);
+  assert.match(business, /<h3>테라리움 제작<\/h3>[\s\S]*?href="terrarium\.html"/);
   for (const html of [homepage, business]) {
-    assert.match(html, /<h3>테라리움 제조사업<\/h3>[\s\S]*?href="terrarium\.html"/);
-    assert.match(html, /테라리움 제작 교육과 식물 관리 활동을 운영/);
     assert.doesNotMatch(html, /href="terrarium-custom\.html"/);
   }
   const tile = resources.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';

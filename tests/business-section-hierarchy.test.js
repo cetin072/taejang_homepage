@@ -30,9 +30,10 @@ assert.match(businessPage, /images\/homepage\/photo-02\.webp/, '하는 일의 �
 assert.match(businessPage, /images\/homepage\/photo-05\.webp/, '하는 일의 기업 업무 협력 카드는 넓은 작업환경이 보이는 다른 포장 사진을 사용합니다');
 assert.doesNotMatch(businessPage, /assets\/images\/workplace\/(?:minhwa-fish-scale-painting|packing-tape-work)\.webp/, '하는 일 카드는 메인과 일터 이야기의 대표 사진을 반복하지 않습니다');
 assert.doesNotMatch(businessPage, /business-card-media--summary|BUSINESS<br>PARTNERSHIP/, '하는 일은 텍스트 그래픽 카드 미디어를 사용하지 않습니다');
-assert.equal((businessPage.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 4, '하는 일의 현재 운영 카드 상태를 운영 중으로 유지합니다');
-assert.match(businessPage, /기업·기관용 문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 물품·반복 업무 협력/, '하는 일은 기업·발주 관점의 사업과 협력 업무를 보여 줍니다');
-assert.match(businessPage, /협력은 이렇게 함께 정리합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*방식 설계[\s\S]*운영 확인/, '하는 일의 흐름은 기업 협력 검토를 설명합니다');
+assert.equal((businessPage.match(/<article class="business-card">/g) || []).length, 4, '하는 일의 네 가지 사업과 활동을 유지합니다');
+assert.doesNotMatch(businessPage, /class="business-status"/, '하는 일에서는 카드마다 같은 운영 배지를 반복하지 않습니다');
+assert.match(businessPage, /기업·기관용 문화 굿즈[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 물품 포장·검수/, '하는 일은 기업·발주 관점의 사업과 협력 업무를 보여 줍니다');
+assert.match(businessPage, /<h3>테라리움 제작<\/h3>[\s\S]*익히고 있습니다\.[\s\S]*맞춤 주문제작 상품과 DIY 키트를 준비하고 있습니다\./, '현재 교육과 준비 중인 상품을 구분합니다');
 assert.match(workplace, /assets\/images\/workplace\/workplace-packing-watercolor\.webp/, '우리의 일터 포장·검수 타일은 현재 수채화 일러스트를 유지합니다');
 assert.doesNotMatch(workplace, /packing-tape\.webp|packing-inspection\.webp/, '우리의 일터 일러스트 타일에는 이전 포장 사진을 남기지 않습니다');
 assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOTO 02와 03만 유지하고 새 슬롯을 추가하지 않습니다');
@@ -53,5 +54,5 @@ const terrariumResource = resources.match(/<a class="resource-card resource-card
 assert.match(terrariumResource, /태장 테라리움/);
 assert.match(terrariumResource, /활동 소개/);
 assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);
-assert.match(businessPage, /href="terrarium\.html">태장 테라리움 알아보기/);
+assert.match(businessPage, /href="terrarium\.html">테라리움 작품과 제작 과정 보기/);
 assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);

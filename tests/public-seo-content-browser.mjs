@@ -50,6 +50,38 @@ try {
         assert.equal(result.status(), 200);
         assert.equal(await page.locator('main h1').count(), 1);
         assert.ok(await page.title());
+        if (file === 'business.html') {
+          assert.equal(await page.locator('#business-operations-title').textContent(), '태장의 사업과 활동');
+          const cards = page.locator('.business-card');
+          assert.equal(await cards.count(), 4);
+          assert.deepEqual(await cards.getByRole('link').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
+            'why-minhwa.html', 'community-esg.html', 'workplace/packing-care.html', 'terrarium.html'
+          ]);
+          for (const image of await cards.locator('img').all()) {
+            await image.scrollIntoViewIfNeeded();
+            await image.evaluate(element => element.decode());
+            assert.ok(await image.evaluate(element => {
+              const box = element.getBoundingClientRect();
+              return element.naturalWidth > 0 && Math.abs(element.naturalWidth / element.naturalHeight - box.width / box.height) < .02;
+            }), 'business photos keep their original proportions');
+          }
+          for (const link of await page.locator('.business-page .btn').all()) {
+            const box = await link.boundingBox();
+            assert.ok(box.height >= 44 && box.x >= 0 && box.x + box.width <= width, 'business action fits the viewport');
+          }
+          const contact = page.getByRole('link', { name: '협력 문의하기', exact: true });
+          await contact.focus();
+          assert.ok(await contact.evaluate(element => getComputedStyle(element).outlineStyle !== 'none'), 'business link has a keyboard focus outline');
+          await page.screenshot({ path: `seo-qa-artifacts/business-${width}-${javaScriptEnabled}.png`, fullPage: true });
+          await contact.click();
+          assert.ok(page.url().endsWith('/partnership.html#contact'));
+          assert.ok(await page.locator('form[name="taejang-inquiry"]').isVisible());
+          await page.goto(base + '/business.html');
+          await page.getByRole('link', { name: '포장·검수 현장 보기' }).click();
+          assert.ok(page.url().endsWith('/workplace/packing-care.html'));
+          assert.ok(await page.getByRole('heading', { level: 1 }).isVisible());
+          await page.goto(base + '/business.html');
+        }
         if (file === 'partnership.html') {
           const question = page.getByRole('button', { name: '태장에 어떤 업무를 맡기거나 협력할 수 있나요?' });
           if (javaScriptEnabled) await question.click();
