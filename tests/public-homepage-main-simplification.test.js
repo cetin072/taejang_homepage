@@ -170,8 +170,10 @@ assert.doesNotMatch(business, /맡길 수 있는 일과 협력|WHAT WE DO|CURREN
 assert.match(workplace, /작업을 작은 단계로 나누고/);
 assert.match(workplace, /태장의 일터를 만나보세요/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
-assert.match(location, /class="location-visit-card"[\s\S]*팔용동 본점 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
-assert.match(location, /location-pin-icon/);
+assert.match(location, /class="location-office-info"[\s\S]*본점 · 팔용동[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*네이버지도에서 위치 보기[\s\S]*taejang2025@naver\.com/);
+assert.doesNotMatch(location, /location-pin-icon/);
+assert.match(location, /data-copy-address hidden/);
+assert.match(location, /약 <strong>1만 평<\/strong>/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
 assert.doesNotMatch(partnership, /contact-location-map/);
