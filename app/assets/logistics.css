@@ -15,7 +15,7 @@
  #logistics-print h3{font-size:10pt;margin-bottom:5px;break-after:avoid}
  #logistics-print .lg-header{padding-bottom:8px;margin-bottom:8px}
  #logistics-print .lg-fields{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 10px}
- #logistics-print label{font-size:9pt;gap:2px;overflow-wrap:anywhere}
+ #logistics-print label{margin:0;font-size:9pt;gap:2px;overflow-wrap:anywhere}
  #logistics-print .lg-print-value{font-size:10pt;font-weight:500}
  #logistics-print .lg-section{margin-top:9px}
  #logistics-print .lg-route{gap:8px}
