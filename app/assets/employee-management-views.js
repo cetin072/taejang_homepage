@@ -216,6 +216,10 @@
 
       const disability = disabilityPanel?.(context, employee);
       if (disability) card.append(disability);
+      if (context.access_level === 'operations_manager') {
+        const remoteWork = window.TaejangEmployeeRemoteWork?.adminPanel(employee);
+        if (remoteWork) card.append(remoteWork);
+      }
 
       if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
         const summary = window.TaejangEmployeeLeave?.workSummary(employee); if (summary) basic.append(summary);

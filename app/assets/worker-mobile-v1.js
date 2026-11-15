@@ -177,7 +177,7 @@
       if (result?.code === 'NON_WORKDAY') {
         setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
       } else if (result?.code === 'OUTSIDE_GEOFENCE') {
-        setMessage(card, '회사 출근 장소 안에서만 출퇴근할 수 있습니다.', 'error');
+        setMessage(card, '등록된 근무지에서만 출퇴근할 수 있습니다.', 'error');
       } else if (result?.code === 'LOCATION_UNCERTAIN') {
         lastFailure[eventType] = 'LOCATION_UNCERTAIN';
         setMessage(card, attempts[eventType] < 2 ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.' : '위치를 두 번 확인했지만 정확하지 않습니다.', 'error');

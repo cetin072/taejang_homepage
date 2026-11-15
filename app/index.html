@@ -26,7 +26,7 @@
         <header class="app-topbar">
           <button id="sidebar-toggle" class="icon-button" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button>
           <div><p id="desktop-role-label" class="eyebrow"></p><h1 id="desktop-page-title">업무 대시보드</h1></div>
-          <div class="app-user-actions"><span id="desktop-user-label" class="app-user-label"></span><button id="desktop-logout-button" class="button button-quiet" type="button">로그아웃</button></div>
+          <div class="app-user-actions"><span id="desktop-user-label" class="app-user-label"></span><span id="desktop-remote-work"></span><button id="desktop-logout-button" class="button button-quiet" type="button">로그아웃</button></div>
         </header>
         <p id="app-status-message" class="message" role="status" aria-live="polite" hidden></p>
         <main id="dashboard-main" class="dashboard-main" tabindex="-1" aria-live="polite"></main>
@@ -72,6 +72,7 @@
       <section class="today-section" aria-labelledby="worker-name-title">
         <h2 id="worker-name-title">내 정보</h2>
         <p id="today-worker-name" class="worker-name"></p>
+        <div id="worker-remote-work"></div>
       </section>
 
       <section class="today-section" aria-labelledby="work-hours-title">
@@ -421,6 +422,7 @@
   <script src="assets/staff-information-ui.js"></script>
   <script src="assets/staff-information-today.js"></script>
   <script src="assets/payroll-attendance-xlsx.js" defer></script>
+  <script src="assets/employee-remote-work.js" defer></script>
   <script src="assets/app.js" defer></script>
   <script src="assets/personal-worklog.js" defer></script>
   <script src="assets/employee-calendar.js" defer></script>
