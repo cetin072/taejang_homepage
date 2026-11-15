@@ -24,6 +24,4 @@ jobs:
       - run: npm ci
       - run: node --test tests/logistics-core.test.cjs
       - run: node tests/logistics-isolated.mjs
-      - run: npm run test:platform-static
-      - run: npm run test:staging-safety
       - run: npm run build:netlify

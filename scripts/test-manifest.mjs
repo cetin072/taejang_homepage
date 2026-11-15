@@ -72,6 +72,7 @@ export const testGroups = Object.freeze({
     'tests/issue-218-field-operations-foundation.test.js',
     'tests/app-failure-states.test.js',
     'tests/required-check-workflows.test.js',
+    'tests/ci-change-scope.test.mjs',
     'tests/qa-account-preview.test.js',
     'tests/qa-account-preview-boundary.test.mjs',
     'tests/qa-account-preview-return.test.js',

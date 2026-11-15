@@ -38,19 +38,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: mobile/package-lock.json
-      - name: Refresh lockfile for pinned Expo patch versions
-        working-directory: mobile
-        run: |
-          rm -f package-lock.json
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Upload generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: taejang-mobile-generated-lock
-          path: mobile/package-lock.json
-          if-no-files-found: error
-          retention-days: 7
-      - name: Install generated locked dependencies
+      - name: Install repository-locked dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
       - name: Check Expo dependency compatibility
@@ -84,12 +72,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Refresh lockfile for pinned Expo patch versions
-        working-directory: mobile
-        run: |
-          rm -f package-lock.json
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Install generated locked dependencies
+      - name: Install repository-locked dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
       - name: Validate and prepare public Android push configuration
@@ -187,12 +170,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Refresh lockfile for pinned Expo patch versions
-        working-directory: mobile
-        run: |
-          rm -f package-lock.json
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Install generated locked dependencies
+      - name: Install repository-locked dependencies
         working-directory: mobile
         run: npm ci --no-audit --no-fund
       - name: Generate Android project
