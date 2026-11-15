@@ -39,6 +39,16 @@ try {
     const slider = page.locator('[data-hero-video-slider]');
     const article = slider.locator('.hero-article-link');
     const photo = article.locator('img');
+    const actions = page.locator('.hero-actions .btn');
+    assert.deepEqual(await actions.allTextContents(), ['태장 소개', '협력·문의']);
+    assert.ok(await actions.evaluateAll(items => items.every(item => item.offsetHeight >= 44 && getComputedStyle(item).borderRadius === '8px')));
+    if (width <= 760) {
+      const actionBox = await page.locator('.hero-actions').boundingBox();
+      assert.ok(actionBox.y + actionBox.height <= (await slider.boundingBox()).y, 'mobile introduction and actions come before the slider');
+    }
+    const toolbar = slider.locator('.hero-video-toolbar');
+    assert.ok(await toolbar.locator('button').evaluateAll(items => items.every(item => item.offsetHeight >= 44 && item.offsetWidth >= 44)));
+    assert.ok((await toolbar.boundingBox()).y >= (await photo.boundingBox()).y + (await photo.boundingBox()).height, 'slider controls stay below the photo');
     await photo.evaluate(img => img.decode());
     assert.equal(await slider.getAttribute('data-hero-video-active'), '0');
     assert.equal(await article.isVisible(), true);
@@ -48,12 +58,27 @@ try {
     const geometry = await photo.evaluate(img => ({ width: img.width, height: img.height, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight }));
     assert.ok(Math.abs(geometry.width / geometry.height - geometry.naturalWidth / geometry.naturalHeight) < .02, 'photo retains full uncropped aspect ratio');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'no horizontal overflow');
+    assert.deepEqual(await slider.locator('[data-hero-video-indicator]').allTextContents(), ['경남공감', '소개영상', '축하영상']);
+    assert.ok(await slider.locator('[data-hero-video-indicator]').evaluateAll(items => items.every(el => el.scrollWidth <= el.clientWidth + 1)), 'slide labels fit at narrow widths');
+    assert.ok(await page.locator('.business-card-media > img').evaluateAll(images => images.every(img =>
+      Math.abs(img.getBoundingClientRect().width - img.parentElement.clientWidth) <= 1
+    )), 'business images fill their cards without a blank side strip');
+    const collaborationLinks = page.locator('.home-collaboration-grid a');
+    assert.equal(await collaborationLinks.count(), 4);
+    for (const href of await collaborationLinks.evaluateAll(links => links.map(link => link.getAttribute('href')))) {
+      const destination = await context.newPage();
+      const response = await destination.goto(new URL(href, base).href, { waitUntil: 'domcontentloaded' });
+      assert.equal(response.status(), 200, 'collaboration destination exists');
+      if (new URL(destination.url()).hash) assert.equal(await destination.locator(new URL(destination.url()).hash).count(), 1);
+      await destination.close();
+    }
+
     if (width > 760) {
       const heroBox = await page.locator('.hero--neutral').boundingBox();
       const factsBox = await page.locator('.hero-facts').boundingBox();
       const sliderBox = await slider.boundingBox();
       assert.ok(Math.abs(heroBox.y + heroBox.height - factsBox.y - factsBox.height - 32) < 1,
-        'desktop facts retain 32px of green space before the next section');
+        'desktop facts retain 32px of breathing room before the next section');
       assert.ok(factsBox.y >= sliderBox.y + sliderBox.height,
         'desktop facts do not overlap the article or video slider');
     }
@@ -119,6 +144,7 @@ try {
   const context = await newPhotoSafeContext(browser, { javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+  assert.equal(await page.locator('.hero-video-toolbar').isVisible(), false, 'inactive controls are hidden without JavaScript');
   assert.equal(await page.locator('.hero-article-link').isVisible(), true, 'article remains usable without JavaScript');
   assert.equal(await page.locator('.hero-article-link').getAttribute('href'), articleUrl);
   await context.close();

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const { gzipSync } = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const read = filename => fs.readFileSync(path.join(root, filename), 'utf8');
 const landing = read('terrarium.html');
@@ -25,7 +26,7 @@ test('terrarium public hub retains static navigation and existing published entr
   assert.match(landing, /테라리움 제작 교육/);
   assert.match(landing, /식물 관리 활동/);
   assert.match(landing, /href="activities\/terrarium-business-start-2026-08.html"/);
-  assert.match(landing, /href="partnership.html#contact"/);
+  assert.match(landing, /href="#th-contact"/);
   assert.match(landing, /mailto:taejang2025@naver\.com/);
   assert.match(sitemap, /https:\/\/taejang\.co\.kr\/terrarium\.html/);
   assert.match(build, /'terrarium\.html'/);
@@ -48,25 +49,96 @@ test('beginners get a visual introduction, four making steps and sourced care wi
   assert.doesNotMatch(landing, /공기 정화 효과|치료 효과|완전 무관리|영구 보장|물을 주지 않아도 됩니다/);
 });
 
-test('illustrations and approved samples have replacement slots without invented delivery proof', () => {
-  for (const item of ['terrarium-plant-composition.webp', 'terrarium-display.webp', 'terrarium-glass-jars.webp', 'terrarium-geometric.webp', 'terrarium-botanical.svg', 'terrarium-workbench.svg']) {
-    const relative = 'assets/images/terrarium/' + item;
-    assert.ok(landing.includes(relative), relative);
-    assert.ok(fs.existsSync(path.join(root, relative)), relative);
+test('real terrarium photos are accessible, dimensioned WebP assets with a mobile hero crop', () => {
+  const prefix = 'assets/images/terrarium/';
+  const photos = [...landing.matchAll(/<img src="(assets\/images\/terrarium\/product-[^"]+\.webp)"[^>]*>/g)];
+  assert.equal(new Set(photos.map(([, asset]) => asset)).size, 10);
+  for (const [tag, asset] of photos) {
+    assert.match(tag, /width="[1-9]\d*" height="[1-9]\d*" alt="[^"]+"/);
+    assert.match(tag, /decoding="async"/);
+    if (tag.includes('fetchpriority=')) {
+      assert.ok(asset.endsWith('/product-08-hero.webp'));
+      assert.match(tag, /fetchpriority="high"/);
+      assert.doesNotMatch(tag, /loading="lazy"/);
+    } else {
+      assert.match(tag, /loading="lazy"/);
+    }
   }
-  assert.match(landing, /콘셉트 일러스트/);
-  assert.doesNotMatch(landing, /교체 예정|교체합니다|현장 사진으로 교체/);
-  assert.match(landing, /기존 참고 샘플/);
-  assert.match(landing, /주문제작 완성품이나 납품 실적을 의미하지 않습니다/);
-  assert.equal((landing.match(/data-terrarium-media=/g) || []).length, 10);
-  for (const asset of ['terrarium-botanical.svg', 'terrarium-workbench.svg']) {
-    const svg = read('assets/images/terrarium/' + asset);
-    assert.match(svg, /<svg\b/);
-    assert.match(svg, /<title>/);
-    assert.doesNotMatch(svg, /<script\b|<foreignObject\b|\bonload=|href="https?:/i);
-    assert.ok(Buffer.byteLength(svg) < 20000, 'lightweight standalone vector: ' + asset);
-  }
+  const mobile = prefix + 'product-08-hero-mobile.webp';
+  assert.ok(landing.includes(`<source media="(max-width: 760px)" srcset="${mobile}" width="960" height="576">`));
+  const bytes = [...new Set(photos.map(([, asset]) => asset).concat(mobile))].reduce((total, asset) => {
+    const file = fs.readFileSync(path.join(root, asset));
+    assert.equal(file.toString('ascii', 0, 4), 'RIFF', asset);
+    assert.equal(file.toString('ascii', 8, 12), 'WEBP', asset);
+    assert.ok(file.length < 120_000, asset);
+    return total + file.length;
+  }, 0);
+  assert.ok(bytes < 700_000, 'combined WebP assets stay within the photo budget');
+});
+
+test('the activity image remains an illustration', () => {
+  assert.match(landing, /data-terrarium-media="activity"[\s\S]*?terrarium-workbench\.svg[\s\S]*?<figcaption>제작 활동을 표현한 일러스트<\/figcaption>/);
+  const svg = read('assets/images/terrarium/terrarium-workbench.svg');
+  assert.match(svg, /<title>/);
+  assert.doesNotMatch(svg, /<script\b|<foreignObject\b|\bonload=|href="https?:/i);
+  assert.ok(Buffer.byteLength(svg) < 20_000);
   assert.doesNotMatch(landing, /300,000원|판매 중|무료 배송|당일 제작|실제 주문제작 후기/);
+});
+
+test('gallery displays one labeled concept per work with its real photos and optional angles', () => {
+  const gallery = landing.match(/<section class="th-gallery-section th-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(gallery, /배경과 소품은 연출용입니다/);
+  const works = [...gallery.matchAll(/<details class="th-work"[^>]*>([\s\S]*?)<\/details>/g)];
+  assert.equal(works.length, 15);
+  const coverAssets = new Set();
+  const realAssets = new Set();
+  const concepts = new Set();
+  let totalBytes = 0;
+
+  for (const [, work] of works) {
+    const summary = work.match(/<summary>([\s\S]*?)<\/summary>/)?.[1] || '';
+    const covers = [...summary.matchAll(/<img src="(assets\/images\/terrarium\/styling-[^"]+\.webp)"/g)];
+    assert.equal(covers.length, 1);
+    assert.match(summary, /콘셉트 이미지/);
+    coverAssets.add(covers[0][1]);
+
+    const original = work.match(/<figure class="th-work-original">\s*<a href="(assets\/images\/terrarium\/(?:product|source)-[^"]+\.webp)"[^>]*><img src="\1"/);
+    assert.ok(original, covers[0][1]);
+    realAssets.add(original[1]);
+    assert.match(work, /<figcaption>실제 촬영 사진<\/figcaption>/);
+
+    for (const [tag, asset] of work.matchAll(/<img src="(assets\/images\/terrarium\/[^"]+\.webp)"[^>]*>/g)) {
+      assert.match(tag, /width="[1-9]\d*" height="[1-9]\d*" alt="[^"]*" loading="lazy" decoding="async"/);
+      const file = fs.readFileSync(path.join(root, asset));
+      assert.equal(file.toString('ascii', 8, 12), 'WEBP', asset);
+      if (asset.includes('/styling-')) {
+        assert.ok(!concepts.has(asset), asset);
+        assert.ok(file.length < 100_000, asset);
+        concepts.add(asset);
+        totalBytes += file.length;
+      }
+    }
+    for (const [, href] of work.matchAll(/href="(assets\/images\/terrarium\/[^"]+\.webp)"/g)) {
+      assert.ok(fs.existsSync(path.join(root, href)), href);
+    }
+  }
+  assert.equal(coverAssets.size, works.length);
+  assert.equal(realAssets.size, works.length);
+  assert.equal(concepts.size, 40, 'existing concept photos are retained');
+  assert.ok(totalBytes < 2_700_000, 'styling photos stay within the gallery budget');
+  assert.match(styles, /\.th-work-photos img\{[^}]*object-fit:contain/);
+});
+
+test('hero and gallery offer the existing terrarium inquiry dialog', () => {
+  const hero = landing.match(/<section class="th-hero"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(hero, /<h1 id="th-heading">태장 테라리움<\/h1>/);
+  assert.match(hero, /href="#th-gallery">작품 둘러보기/);
+  const trigger = /href="#th-contact" data-home-inquiry-open aria-haspopup="dialog" aria-controls="home-inquiry-dialog"/;
+  assert.match(hero, trigger);
+  const gallery = landing.match(/<section class="th-gallery-section th-section"[^>]*>[\s\S]*?<\/section>/)?.[0] || '';
+  assert.match(gallery, trigger);
+  assert.match(landing, /<dialog[^>]+id="home-inquiry-dialog"/);
+  assert.match(landing, /<form[^>]+name="taejang-terrarium-inquiry"/);
 });
 
 test('four future products and programs stay noninteractive until separately approved', () => {
@@ -76,9 +148,9 @@ test('four future products and programs stay noninteractive until separately app
     assert.ok(next.includes(title), title);
   }
   assert.equal((next.match(/<span class="th-pending">준비 중<\/span>/g) || []).length, 4);
-  assert.doesNotMatch(next, /<a\b|<button\b|onclick=|tabindex=/);
+  assert.doesNotMatch(next, /<a\b|<button\b|<form\b|onclick=|tabindex=/);
   assert.doesNotMatch(landing, /href="terrarium-custom\.html"|href="terrarium-diy\.html"/);
-  assert.doesNotMatch(landing, /<form\b|name="taejang-inquiry"/);
+  assert.doesNotMatch(landing, /name="taejang-inquiry"/);
   assert.match(next, /가격·일정·정원·제작기간은 확정 전/);
 });
 
@@ -90,20 +162,21 @@ test('same-page links and native FAQ work without new JavaScript or duplicate ID
   assert.equal((faq.match(/<details>/g) || []).length, 3);
   assert.equal((faq.match(/<summary>/g) || []).length, 3);
   assert.doesNotMatch(landing, /onclick=|<script[^>]+src="https?:\/\//);
-  assert.ok(Buffer.byteLength(landing) < 55000, 'page remains light despite new visual sections');
+  assert.ok(gzipSync(landing).length < 15_000, 'compressed landing markup stays lightweight');
 });
 
 test('home business and services keep the already approved hub navigation', () => {
+  assert.match(homepage, /<h3>태장 테라리움<\/h3>[\s\S]*?href="terrarium\.html"/);
+  assert.match(homepage, /테라리움 제작 교육과 식물 관리 활동을 운영/);
+  assert.match(business, /<h3>테라리움 제작<\/h3>[\s\S]*?href="terrarium\.html"/);
   for (const html of [homepage, business]) {
-    assert.match(html, /<h3>테라리움 제조사업<\/h3>[\s\S]*?href="terrarium\.html"/);
-    assert.match(html, /테라리움 제작 교육과 식물 관리 활동을 운영/);
     assert.doesNotMatch(html, /href="terrarium-custom\.html"/);
   }
   const tile = resources.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';
   assert.match(tile, /태장 테라리움/);
   assert.match(tile, /활동 소개/);
   assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
-  assert.match(resources, /<article class="resource-card resource-card--pending" aria-labelledby="resource-worklog-title"/);
+  assert.match(resources, /<a class="resource-card resource-card--link" href="worklog.html" aria-labelledby="resource-worklog-title"/);
 });
 
 test('public contact and privacy boundary is unchanged', () => {

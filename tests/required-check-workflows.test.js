@@ -17,18 +17,12 @@ test('required PR check workflows always create a check for main pull requests',
   assert.match(phaseWorkflow, /name: Migration, pgTAP, Auth and RLS/);
 });
 
-test('Phase 1A uses a docs-only skip instead of a sensitive-path allow-list', () => {
-  assert.match(phaseWorkflow, /push:\s*\n\s*branches: \[main\]/, 'Phase 1A runs isolated migration and Auth/Data API integration after every main push');
-  assert.match(phaseWorkflow, /Decide whether full platform integration is relevant/);
+test('Phase 1A uses a shared change classifier and preserves full security checks', () => {
+  assert.match(phaseWorkflow, /node scripts\/ci-change-scope\.mjs/);
   assert.match(phaseWorkflow, /fetch-depth: 0/);
-  assert.match(phaseWorkflow, /non_docs=/);
-  assert.match(phaseWorkflow, /Documentation-only change/);
-  assert.match(phaseWorkflow, /run_full=false/);
-  assert.match(phaseWorkflow, /run_full=true/);
   assert.match(phaseWorkflow, /supabase db lint --level error --fail-on error/);
   assert.match(phaseWorkflow, /if: steps\.scope\.outputs\.run_full == 'true'/);
   assert.match(phaseWorkflow, /if: always\(\) && steps\.scope\.outputs\.run_full == 'true'/);
-  assert.doesNotMatch(phaseWorkflow, /grep -Eq '\^\(/, 'Phase 1A must not return to a hand-maintained sensitive-path allow-list');
 });
 
 test('required workflows consume the centralized active test manifest', () => {
@@ -45,4 +39,16 @@ test('required workflows consume the centralized active test manifest', () => {
   assert.match(manifest, /hero-video-slider\.test\.js/);
   assert.match(manifest, /first-super-admin-bootstrap\.test\.js/);
   assert.match(manifest, /staging-safety-runtime\.test\.mjs/);
+});
+
+// The notification job must not start a second identical database; its full
+// auth and SQL coverage stays in the required Phase 1A integration job.
+test('notification DB integration has one required workflow owner', () => {
+  const notification = read('.github/workflows/notification-push.yml');
+  assert.match(notification, /branches: \[main\]/);
+  assert.doesNotMatch(notification, /supabase start|supabase db reset|setup-cli/);
+  assert.match(notification, /notification-push-dispatch\.test\.mjs/);
+  assert.match(notification, /notification-push-canary-draft\.test\.mjs/);
+  assert.match(phaseWorkflow, /notification-push-auth-integration\.mjs/);
+  assert.match(phaseWorkflow, /supabase test db supabase\/tests\/database\/\*\.test\.sql/);
 });

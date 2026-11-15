@@ -61,11 +61,6 @@ textarea:focus-visible {
   gap: 24px;
 }
 
-.recent-activities-archive-cta {
-  display: flex;
-  justify-content: center;
-  margin-top: 36px;
-}
 
 .recent-activity-media {
   aspect-ratio: 4 / 3;
@@ -337,9 +332,6 @@ textarea:focus-visible {
     gap: 18px;
   }
 
-  .recent-activities-archive-cta {
-    margin-top: 28px;
-  }
 
   .content-photo-slot--detail {
     min-height: 220px;

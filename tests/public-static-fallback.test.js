@@ -37,7 +37,11 @@ assert.match(archiveFallback, /naver-blog-224449863266/);
 assert.match(archiveFallback, /2026-10-28/);
 assert.match(archiveFallback, /https:\/\/blog.naver.com\/taejang-official\//);
 const activityFallback = assertFallbackCards(activities, 'activities', 3);
-const workplaceFallback = assertFallbackCards(workplace, 'workplace', 3);
+// The curated index remains complete without JS and links across existing collections.
+assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
+for (const href of ['minhwa-gallery.html', 'terrarium.html', 'community-esg-records.html', 'workplace/packing-care.html', 'workplace/work-together.html', 'farm.html']) {
+  assert.ok(workplace.includes('href="' + href + '"'), 'workplace index keeps its static destination: ' + href);
+}
 
 const communityStart = community.indexOf('data-static-fallback="community-esg"');
 assert.ok(communityStart >= 0, 'community-esg fallback 표시가 있어야 합니다');
@@ -76,7 +80,7 @@ const approvedWorkplaceTitles = [
 ];
 for (const title of approvedWorkplaceTitles) {
   assert.match(content, new RegExp(`title: "${title}"`), `${title}은 승인된 content.js 원본에 존재해야 합니다`);
-  assert.match(workplaceFallback, new RegExp(title), `${title}은 일터 fallback에 있어야 합니다`);
+
 }
 
 // Runtime success replaces the baseline rather than appending duplicate cards.

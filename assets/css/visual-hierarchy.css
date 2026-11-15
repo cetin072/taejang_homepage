@@ -113,21 +113,54 @@
 .about-page-hero .photo-slot { box-shadow: var(--shadow); }
 .greeting--about .photo-slot--4-5 { width: min(100%, 340px); justify-self: start; }
 
-.business-workflow {
-  margin-top: 30px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  background: var(--green-soft);
-}
+.business-page .page-hero { padding: clamp(36px, 5vw, 64px) 0; }
+.business-page .title { margin-bottom: 16px; font-weight: 700; }
+.business-page .lead { line-height: 1.8; }
+.business-page .section { padding: clamp(40px, 5.5vw, 72px) 0; }
+.business-operations > .container > .title { margin-bottom: 24px; }
+.business-page .business-card { border-radius: 12px; }
+.business-page .business-card-body { min-height: 0; padding: 24px; }
+.business-page .business-card h3 { margin: 0 0 8px; }
+.business-card-actions { margin-top: auto; padding-top: 24px; }
 
-.business-workflow-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
-.business-workflow-head h3 { margin: 5px 0 0; color: var(--green-deep); font: 700 22px/1.45 var(--myeongjo); }
-.business-workflow-head p { max-width: 390px; margin: 0; color: var(--ink-soft); font-size: 14px; line-height: 1.7; }
-.business-workflow-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 22px 0 0; padding: 1px; list-style: none; background: #c7d8cc; }
-.business-workflow-steps li { position: relative; min-height: 110px; padding: 18px 16px; background: #fff; }
-.business-workflow-steps li:not(:last-child)::after { content: '→'; position: absolute; z-index: 1; top: 50%; right: -10px; display: grid; width: 20px; height: 20px; place-items: center; transform: translateY(-50%); border-radius: 50%; background: var(--green); color: #fff; font-size: 12px; }
-.business-workflow-steps span { display: block; margin-bottom: 8px; color: var(--green); font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-.business-workflow-steps strong { color: var(--green-deep); font: 700 18px/1.45 var(--myeongjo); }
+.business-page .btn {
+  width: fit-content;
+  max-width: 100%;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  line-height: 1.5;
+  transition-property: background-color, color, border-color;
+}
+.business-page .btn.line:hover { background: var(--green-soft); color: var(--green-deep); }
+.business-page .btn:hover { transform: none; }
+.business-link-arrow { flex: 0 0 16px; text-align: center; }
+
+.business-workflow { margin-top: clamp(40px, 5vw, 64px); padding-top: 32px; border-top: 1px solid var(--line); }
+.business-workflow-head { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; }
+.business-workflow-head h2 { margin: 0; color: var(--green-deep); font: 700 clamp(24px, 3vw, 32px)/1.45 var(--myeongjo); }
+.business-workflow-head .btn { flex-shrink: 0; }
+.business-workflow-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.business-workflow-steps li { padding-top: 12px; border-top: 1px solid var(--line); }
+.business-step-number { color: var(--green); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.business-workflow-steps h3 { margin: 4px 0 8px; color: var(--green-deep); font-size: 18px; line-height: 1.5; }
+.business-workflow-steps p { margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.75; }
+
+.business-farm-layout { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: center; gap: clamp(24px, 6vw, 80px); }
+.business-farm .btn { margin-top: 24px; }
+.business-farm-details { margin: 0; }
+.business-farm-details > div { padding: 16px 0; border-top: 1px solid var(--line); }
+.business-farm-details > div:last-child { border-bottom: 1px solid var(--line); }
+.business-farm-details dt { color: var(--ink-soft); font-size: 14px; }
+.business-farm-details dd { margin: 4px 0 0; color: var(--green-deep); font-size: 17px; font-weight: 700; }
 
 .value-grid--visual article { position: relative; min-height: 232px; overflow: hidden; padding: 36px 32px; }
 .value-grid--visual article::after { position: absolute; right: 24px; bottom: -34px; width: 118px; height: 118px; border: 1px solid #c7d8cc; border-radius: 50%; content: ''; }
@@ -151,15 +184,17 @@
   .minhwa-result { grid-template-columns: 1fr; }
   .minhwa-flow { grid-template-columns: 1fr 1fr; }
   .minhwa-result-graphic span { min-height: 82px; }
-  .business-workflow-head { display: block; }
-  .business-workflow-head p { margin-top: 10px; }
+  .business-page .business-card-body { padding: 20px; }
+  .business-workflow-head { align-items: flex-start; flex-direction: column; }
   .business-workflow-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .business-workflow-steps li:nth-child(2)::after { top: auto; right: auto; bottom: -10px; left: 50%; transform: translateX(-50%) rotate(90deg); }
-  .business-workflow-steps li:nth-child(1)::after, .business-workflow-steps li:nth-child(3)::after { display: none; }
+  .business-farm-layout { grid-template-columns: 1fr; }
   .value-grid--visual article { min-height: 196px; }
   .greeting--about .photo-slot--4-5 { aspect-ratio: 4 / 5; }
   .greeting--about .photo-slot--4-5 { width: min(100%, 300px); justify-self: center; }
   .location-visit-details, .inquiry-scope ul { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .business-workflow-steps { grid-template-columns: 1fr; gap: 16px; }
 }
 /* Compact reading lists share the same mobile layout, including static fallbacks. */
 @media (max-width: 760px) {
