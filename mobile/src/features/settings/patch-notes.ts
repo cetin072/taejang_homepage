@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-15-remote-work-location', date: '2026-11-15',
+    title: '재택근무 주소 등록',
+    summary: '설정의 내 정보에서 재택근무 주소를 등록할 수 있습니다.',
+    items: ['운영총괄이 승인하면 본사와 등록한 재택근무지에서 출퇴근할 수 있습니다.', '주소를 변경하면 새 주소의 승인이 필요합니다.'],
+  },
+  {
     id: '2026-11-14-partnership-inquiry', date: '2026-11-14',
     title: '홈페이지 협력 문의 안내 개선',
     summary: '협력 문의의 항목 이름과 버튼을 알기 쉽게 정리했습니다.',
