@@ -33,6 +33,8 @@ async function openQuote(p){
 async function startPrint(p){
  await p.getByRole('button',{name:'견적서 인쇄 / PDF 저장',exact:true}).click();
  assert.equal(await p.locator('#logistics-print').count(),1);
+ assert.ok(!(await p.locator('#logistics-print').textContent()).includes('청우유통'));
+ assert.equal(await p.locator('[data-quote-sheet] .lg-brand').count(),0);
  assert.equal(await p.locator('#logistics-print input, #logistics-print select, #logistics-print button').count(),0);
  assert.ok(!(await p.locator('#logistics-print').textContent()).includes('충전금'));
 }

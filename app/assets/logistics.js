@@ -64,7 +64,7 @@ function renderQuote(){
  const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 견적 · 원본 보존':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
  content.append(actions);
  const sheet=el('article','','lg-panel lg-sheet');sheet.dataset.quoteSheet='1';
- const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title,el('div',quote.issuer,'lg-brand'));sheet.append(header);
+ const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title);sheet.append(header);
  const fields=el('div','','lg-fields');
  const choices=[['','고객 선택'],...state.customers.map(c=>[c.id,c.name])];
  if(confirmed){const label=el('label','고객명');label.append(el('span',quote.customerName));fields.append(label);}else field(fields,'고객명',quote.customerId,v=>{quote.customerId=v;customer=v;quoteChange();},{options:choices});
@@ -141,7 +141,7 @@ function renderHistory(){
 }
 function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()=>{page--;void reload();}),next=button('다음',()=>{page++;void reload();});back.disabled=page===0;next.disabled=(page+1)*50>=Math.max(state.quoteCount,state.entryCount);bar.append(back,el('span',(page+1)+'페이지'),next);parent.append(bar);}
 function renderSettings(){
- const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');field(fields,'견적서 발행업체',data.issuer,v=>{data.issuer=v;settingsDirty=true;});
+ const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');
  for(const [key,label] of [['shelf','선반 1칸 · 월'],['repack','재포장'],['individualLabel','개별 운송장'],['bundle','합포장'],['photo','사진·실측']])field(fields,label,data[key],v=>{data[key]=Number(v);settingsDirty=true;},{type:'number'});
  for(const [key,label] of Object.entries(C.BOXES))field(fields,label,data.boxes[key],v=>{data.boxes[key]=Number(v);settingsDirty=true;},{type:'number'});
  data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{await mutate('settings.save',{data,revision:state.settings.revision});},true));content.append(panel);
