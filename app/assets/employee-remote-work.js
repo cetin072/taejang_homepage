@@ -41,6 +41,7 @@
     form.append(node('h2', '내 직원카드'), field('재택근무 주소', address), feedback, actions);
     dialog.append(form);
     document.body.append(dialog);
+    let generation = 0;
     const display = (result, saved) => {
       address.value = result.address || '';
       feedback.textContent = result.approved ? '본사와 이 주소에서 출퇴근할 수 있습니다.'
@@ -48,25 +49,35 @@
           : '주소를 등록하면 운영총괄이 위치를 확인합니다.';
     };
     trigger.addEventListener('click', async () => {
+      const attempt = ++generation;
       address.value = '';
       feedback.textContent = '주소를 불러오고 있습니다.';
       address.disabled = save.disabled = true;
       dialog.showModal();
       try {
-        display(await rpc('get_my_employee_remote_work_location'), false);
+        const result = await rpc('get_my_employee_remote_work_location');
+        if (attempt !== generation || !dialog.open) return;
+        display(result, false);
         address.disabled = save.disabled = false;
       } catch {
-        feedback.textContent = '연결된 직원카드의 주소를 불러오지 못했습니다.';
+        if (attempt === generation && dialog.open) feedback.textContent = '연결된 직원카드의 주소를 불러오지 못했습니다.';
       }
     });
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      const attempt = generation;
       address.disabled = save.disabled = close.disabled = true;
-      try { display(await rpc('save_my_employee_remote_work_address', { p_address: address.value }), true); }
-      catch { feedback.textContent = '주소를 저장하지 못했습니다. 다시 시도해 주세요.'; }
-      finally { address.disabled = save.disabled = close.disabled = false; }
+      try {
+        const result = await rpc('save_my_employee_remote_work_address', { p_address: address.value });
+        if (attempt === generation && dialog.open) display(result, true);
+      } catch {
+        if (attempt === generation && dialog.open) feedback.textContent = '주소를 저장하지 못했습니다. 다시 시도해 주세요.';
+      } finally {
+        if (attempt === generation && dialog.open) address.disabled = save.disabled = close.disabled = false;
+      }
     });
-    dialog.addEventListener('close', () => { address.value = ''; feedback.textContent = ''; });
+    dialog.addEventListener('cancel', event => { if (close.disabled) event.preventDefault(); });
+    dialog.addEventListener('close', () => { generation++; address.value = ''; feedback.textContent = ''; });
     mount.append(trigger);
   }
 

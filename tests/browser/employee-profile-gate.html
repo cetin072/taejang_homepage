@@ -43,6 +43,8 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
     return structuredClone(fixtureContext);
   }
   if(name==='get_target_audit_trail')return {items:[]};
+  if(name==='get_employee_remote_work_location') return {address:'가상시 테스트로 10',approved:false,revision:'fixture-address-revision'};
+  if(name==='set_employee_remote_work_location') return {address:'가상시 테스트로 10',approved:args.p_enabled,revision:'fixture-updated-revision'};
   if(name==='get_employee_disability_info')return {
     types:['지체','뇌병변','지적'],revision:0,...disabilityInfo.get(args.p_employee_uuid)
   };
@@ -63,6 +65,7 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
   return {ok:true};
 }};
 </script>
+<script src="../../app/assets/employee-remote-work.js"></script>
 <script src="../../app/assets/employee-management-views.js"></script>
 <script src="../../app/assets/employee-management.js"></script>
 <script src="../../app/assets/operations-delete-controls.js"></script>

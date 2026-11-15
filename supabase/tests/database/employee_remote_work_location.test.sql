@@ -24,9 +24,9 @@ from (values
  ('98120000-0000-0000-0000-000000000003'::uuid,'98110000-0000-0000-0000-000000000003'::uuid,'TJ-981003')
 ) fixture(id,person_id,employee_id)
 cross join public.positions position where position.code='general_worker';
-insert into public.account_person_links(profile_id,person_id) values
- ('98100000-0000-0000-0000-000000000002','98110000-0000-0000-0000-000000000002'),
- ('98100000-0000-0000-0000-000000000003','98110000-0000-0000-0000-000000000003');
+insert into public.account_person_links(profile_id,person_id,linked_by) values
+ ('98100000-0000-0000-0000-000000000002','98110000-0000-0000-0000-000000000002','98100000-0000-0000-0000-000000000001'),
+ ('98100000-0000-0000-0000-000000000003','98110000-0000-0000-0000-000000000003','98100000-0000-0000-0000-000000000001');
 insert into public.attendance_locations(code,name,latitude,longitude,radius_m)
 values ('taejang_main','가상 본사',35,128,60)
 on conflict (code) do update set latitude=35,longitude=128,radius_m=60,active=true;
