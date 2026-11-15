@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { classifyChanges, changedFiles } from '../scripts/ci-change-scope.mjs';
+import { classifyChanges, changedFiles, selectBrowserChecks } from '../scripts/ci-change-scope.mjs';
 
 test('public presentation changes avoid unrelated platform integration', () => {
   assert.equal(classifyChanges(['resources.html', 'assets/css/resources.css', 'docs/planning/PUBLIC_RESOURCES_V1.md', 'tests/terrarium-hub.test.js', 'tests/helpers/public-header-checks.mjs']), 'public');
@@ -35,4 +35,19 @@ test('git diff preserves deletions and both sides of renames for PR and push', (
       assert.equal(classifyChanges(files),'full');
     }
   } finally {process.chdir(previous);rmSync(directory,{recursive:true,force:true});}
+});
+
+
+test('isolated pages select their browsers; mixed changes take the union', () => {
+  assert.deepEqual(selectBrowserChecks(['index.html']), ['hero', 'navigation', 'seo']);
+  assert.deepEqual(selectBrowserChecks(['assets/css/location.css']), ['location']);
+  assert.deepEqual(selectBrowserChecks(['archive.html', 'certifications.html']), ['archive', 'navigation', 'certifications', 'seo']);
+  assert.deepEqual(selectBrowserChecks(['AGENTS.md']), []);
+});
+test('shared, unknown, renamed and workflow changes cannot narrow browser checks', () => {
+  const all = selectBrowserChecks([]);
+  assert.equal(all.length, 7);
+  for (const files of [ ['assets/css/styles.css'], ['index.html', 'assets/js/content.js'], ['old-unknown.html', 'location.html'], ['.github/workflows/hero-article-qa.yml'], ['supabase/migrations/new.sql'] ]) {
+    assert.deepEqual(selectBrowserChecks(files), all);
+  }
 });
