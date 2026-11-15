@@ -65,7 +65,11 @@ async function boot(width, role, task, simulation = false) {
   }, { role, task, simulation });
   await page.route('**/*', async route => {
     const req = route.request(), url = new URL(req.url());
-    assert.equal(url.origin, origin, 'hosted API requests are forbidden');
+    if(url.origin!==origin){
+      await route.abort();
+      if(!['font','stylesheet','image'].includes(req.resourceType()))errors.push('Unexpected external request: '+url.origin);
+      return;
+    }
     const send = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
     if (url.pathname === '/.netlify/functions/staff-config') return send({ url: origin, publishableKey: 'synthetic' });
     if (url.pathname === '/staff/change-password.html') return route.fulfill({ status: 404, body: '' });
