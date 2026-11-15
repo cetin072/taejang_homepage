@@ -72,7 +72,10 @@ try{
   if(width===1440){
    await p.evaluate(()=>{fixture.feeEnabled=true;fixture.vatMode='inclusive';fixture.discount=500;fixture.storage={shelves:3,startMonth:4,months:2,rate:15000};
     fixture.lines.push({key:'extra-1',stage:5,label:'추가 포장 작업',kind:'extra',quantity:2,unitPrice:2000});});
-   await openQuote(p);await startPrint(p);assert.equal(await pdf(p,'with-extra-and-vat'),1);await finishPrint(p);
+   await openQuote(p);await startPrint(p);
+   assert.ok((await p.locator('#logistics-print').textContent()).includes('부가세 포함'),'printed VAT label preserves the selected mode');
+   assert.ok(!(await p.locator('#logistics-print').textContent()).includes('부가세 별도'));
+   assert.equal(await pdf(p,'with-extra-and-vat'),1);await finishPrint(p);
    await p.evaluate(()=>{fixture.lines=fixture.lines.filter(l=>!l.key.startsWith('extra-'));for(let i=1;i<=40;i++)fixture.lines.push({key:'extra-'+i,stage:5,label:'추가 작업 '+i+' · 포장 및 검수 상세 내역',kind:'extra',quantity:1,unitPrice:1000});});
    await openQuote(p);await startPrint(p);
    assert.ok((await p.locator('#logistics-print').textContent()).includes('추가 작업 40'));

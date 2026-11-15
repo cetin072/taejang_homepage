@@ -147,7 +147,9 @@ function renderSettings(){
  data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{await mutate('settings.save',{data,revision:state.settings.revision});},true));content.append(panel);
 }
 function printQuote(){
- if(!confirmed||!permitted())return;document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const sheet=root.querySelector('[data-quote-sheet]').cloneNode(true);
+ if(!confirmed||!permitted())return;document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
+ // cloneNode does not preserve the live selection of a select element.
+ const selections=source.querySelectorAll('select');sheet.querySelectorAll('select').forEach((n,i)=>{n.value=selections[i].value;});
  sheet.querySelectorAll('.lg-no-print,button').forEach(n=>n.remove());sheet.querySelectorAll('input[type=checkbox]').forEach(n=>n.closest('label')?.remove());sheet.querySelector('[aria-label="수수료율 (%)"]')?.closest('label')?.remove();if(!quote.feeEnabled)sheet.querySelector('[data-amount=platform]')?.closest('.lg-billrow')?.remove();sheet.querySelectorAll('input,select,textarea').forEach(n=>{const value=n.tagName==='SELECT'?n.selectedOptions[0]?.textContent:n.type==='checkbox'?(n.checked?'적용':'미적용'):n.value;const text=el('span',value||'—','lg-print-value');n.replaceWith(text);});
  printed.append(sheet);document.body.append(printed);document.body.classList.add('lg-printing');
  try{window.print();}catch{clearPrint();report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
