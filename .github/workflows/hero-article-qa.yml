@@ -56,11 +56,26 @@ jobs:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
           if-no-files-found: ignore
+
+      - name: Verify archive editorial cards and search
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/archive-editorial-browser.mjs
+      - name: Verify ERP editorial selection and order controls
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/promotion-editorial-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: (always()) && steps.scope.outputs.scope != 'docs'
+        with:
+          name: archive-editorial-320-390-786-1440
+          path: archive-editorial-qa/
+          if-no-files-found: ignore
+
       - name: Verify public navigation buttons on mobile and desktop
         if: steps.scope.outputs.scope != 'docs'
         run: node tests/public-buttons-browser.mjs
         env:
           BUTTONS_QA_OUTPUT: public-buttons-qa-artifacts
+
 
       - uses: actions/upload-artifact@v4
         if: (always()) && steps.scope.outputs.scope != 'docs'

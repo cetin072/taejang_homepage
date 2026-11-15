@@ -143,7 +143,7 @@ try {
   }
   const context = await newPhotoSafeContext(browser, { javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
-  await page.goto(base + '/', { waitUntil: 'domcontentloaded' });
+  await page.goto(base + '/', { waitUntil: 'load' });
   assert.equal(await page.locator('.hero-video-toolbar').isVisible(), false, 'inactive controls are hidden without JavaScript');
   assert.equal(await page.locator('.hero-article-link').isVisible(), true, 'article remains usable without JavaScript');
   assert.equal(await page.locator('.hero-article-link').getAttribute('href'), articleUrl);

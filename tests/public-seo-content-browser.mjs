@@ -228,6 +228,9 @@ try {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm inquiry destination overflow');
           await page.goto(base + '/farm.html', { waitUntil: 'load' });
         }
+        // Link checks above may navigate to a different page. Measure its
+        // layout after its styles/images load, not at navigation commit.
+        await page.waitForLoadState('load');
         const overflow = await page.evaluate(() => ({
           width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
           elements: [...document.querySelectorAll('body *')].filter(element => {
