@@ -1,9 +1,12 @@
 /* Homepage partners and progressive inquiry dialog. */
 .home-collaboration-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; list-style: none; padding: 0; margin: 0 0 28px; }
 .home-collaboration-grid li { min-width: 0; overflow: hidden; border: 1px solid #c5d8cc; border-radius: 5px; background: #fff; }
+.home-collaboration-grid a { display: block; height: 100%; color: inherit; text-decoration: none; }
+.home-collaboration-grid a:hover { background: var(--green-soft); }
+.home-collaboration-grid a:focus-visible { outline: 3px solid var(--green); outline-offset: -3px; }
 .home-collaboration-grid img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
-.home-collaboration-grid span { display: block; padding: 16px; color: var(--green-deep); font-weight: 700; line-height: 1.5; }
-@media (max-width: 760px) { .home-collaboration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .home-collaboration-grid span { padding: 12px; font-size: 14px; } }
+.home-collaboration-grid a > span { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 16px; color: var(--green-deep); font-weight: 700; line-height: 1.5; }
+@media (max-width: 760px) { .home-collaboration-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .home-collaboration-grid a > span { padding: 12px; font-size: 14px; } }
 .home-partners { background: var(--white); border-top: 1px solid var(--line); }
 .home-partners .section-head { margin-bottom: 32px; }
 .home-partner-group { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 10px 24px; margin: 0; padding: 22px 0; }
@@ -20,10 +23,10 @@
 .home-partner-name { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .home-partners > .container > .text-link { display: inline-block; margin-top: 22px; }
 .home-contact { background: var(--beige); }
-.home-contact .contact-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; padding-bottom: 110px; }
+.home-contact .contact-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; }
 .home-about-illustration { display: block; width: min(100%, 380px); max-height: 195px; object-fit: contain; margin: 0 auto 14px; }
-.home-contact-cta { position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center; }
-.home-contact-illustration { position: absolute; top: calc(50% + 42px); left: 50%; transform: translateX(-50%); display: block; width: min(260px, 100%); height: auto; pointer-events: none; }
+.home-contact-cta { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.home-contact-illustration { display: block; order: 1; width: min(180px, 100%); height: auto; pointer-events: none; }
 .home-inquiry-trigger { min-width: 240px; min-height: 64px; gap: 12px; }
 .home-inquiry-trigger svg { flex: 0 0 auto; }
 .home-inquiry-dialog { width: min(720px, calc(100% - 32px)); max-width: none; max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 0; border-radius: 12px; background: var(--white); color: var(--ink); box-shadow: 0 20px 70px rgba(0,0,0,.2); overflow: auto; overscroll-behavior: contain; }
@@ -46,8 +49,6 @@
  .home-partner-grid li + li { border-left: 0; }
  .home-partner-grid li:nth-child(2n) { border-left: 1px solid var(--line); }
  .home-contact .contact-layout { grid-template-columns: minmax(0, 1fr); padding-bottom: 0; }
- .home-contact-cta { min-height: 0; flex-direction: column; gap: 10px; }
- .home-contact-illustration { position: static; order: 1; transform: none; }
  .home-about-illustration { max-height: 180px; }
  .home-contact-cta .home-inquiry-trigger { width: 100%; }
  .home-inquiry-dialog { width: calc(100% - 20px); max-height: calc(100vh - 20px); max-height: calc(100dvh - 20px); }
