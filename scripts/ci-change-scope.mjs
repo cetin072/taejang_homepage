@@ -33,6 +33,26 @@ export function classifyChanges(files) {
   return 'full';
 }
 
+// A small, explicit map for isolated pages. Shared/unmapped files retain all
+// public checks. Keep dependency decisions here, not in workflow expressions.
+const pageChecks = {
+  'index.html': ['hero', 'navigation', 'seo'],
+  'certifications.html': ['certifications', 'navigation', 'seo'],
+  'assets/css/certifications.css': ['certifications'],
+  'location.html': ['location', 'navigation', 'seo'],
+  'assets/css/location.css': ['location'],
+  'archive.html': ['archive', 'navigation', 'seo'],
+  'new-zealand-salt.html': ['salt', 'navigation', 'seo'],
+};
+const browserChecks = ['hero', 'salt', 'archive', 'navigation', 'certifications', 'location', 'seo'];
+export function selectBrowserChecks(files) {
+  const scope = classifyChanges(files);
+  if (scope === 'docs') return [];
+  const relevant = files.filter(file => !isDocument(file));
+  if (scope === 'full' || relevant.some(file => !pageChecks[file])) return browserChecks;
+  return browserChecks.filter(check => relevant.some(file => pageChecks[file].includes(check)));
+}
+
 export function changedFiles(eventName, event) {
   let range;
   if (eventName === 'pull_request') {
@@ -46,13 +66,19 @@ export function changedFiles(eventName, event) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let scope = 'full';
+  let files = [];
   try {
     const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
-    scope = classifyChanges(changedFiles(process.env.GITHUB_EVENT_NAME, event));
+    files = changedFiles(process.env.GITHUB_EVENT_NAME, event);
+    scope = classifyChanges(files);
   } catch (error) {
     console.warn(`Cannot establish change scope; running full checks: ${error.message}`);
   }
-  console.log(`Validation scope: ${scope}`);
+  const checks = selectBrowserChecks(files);
+  const reason = scope === 'full' ? 'Shared, unknown or validation configuration change' : scope === 'docs' ? 'Documentation only' : 'Public changes; isolate mapped pages, otherwise cover shared public dependencies';
+  console.log(`Validation scope: ${scope}; ${reason}; browser: ${checks.join(', ') || 'none'}`);
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Validation: ${scope}\n\n${reason}\n\nBrowser: ${checks.join(', ') || 'none'}\n`);
+  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, browserChecks.map(check => `browser_${check}=${checks.includes(check)}`).join('\n') + '\n');
   if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `scope=${scope}\nrun_full=${scope === 'full'}\n`);
   if (process.env.GITHUB_ENV) appendFileSync(process.env.GITHUB_ENV, `VALIDATION_SCOPE=${scope}\n`);
 }
