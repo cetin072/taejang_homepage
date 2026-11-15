@@ -9,6 +9,7 @@ import { classifyChanges, changedFiles } from '../scripts/ci-change-scope.mjs';
 test('public presentation changes avoid unrelated platform integration', () => {
   assert.equal(classifyChanges(['resources.html', 'assets/css/resources.css', 'docs/planning/PUBLIC_RESOURCES_V1.md', 'tests/terrarium-hub.test.js', 'tests/helpers/public-header-checks.mjs']), 'public');
   assert.equal(classifyChanges(['assets/images/archive/photo.webp']), 'public');
+  assert.equal(classifyChanges(['index.html', 'tests/business-section-hierarchy.test.js', 'tests/public-homepage-main-simplification.test.js', 'tests/hero-article-browser.mjs', 'tests/public-seo-content-browser.mjs']), 'public');
   assert.equal(classifyChanges(['AGENTS.md', 'docs/operations/notes.md']), 'docs');
 });
 test('shared, unknown, executable docs and mixed changes retain full validation', () => {

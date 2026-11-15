@@ -7,6 +7,10 @@ import { pathToFileURL } from 'node:url';
 const publicPages = new Set(`404 about account-deletion activities archive business certifications community-esg-records community-esg employee-app-privacy employee-app farm greeting history index location minhwa-gallery new-zealand-salt partnership privacy promotion resources terms terrarium thanks why-minhwa worklog workplace`.split(' ').map(name => `${name}.html`));
 const publicStyles = new Set(`certifications community-esg content-hub-polish employee-app engagement-polish farm featured-article featured-stories home-partners-contact listing-polish location minhwa-gallery mobile-layout-fixes new-zealand-salt partnership-compact partnership-dialog photo-mode product-inquiry public-share resources site-polish story-pages styles terrarium visual-hierarchy worklog workplace`.split(' ').map(name => `assets/css/${name}.css`));
 const publicTests = new Set([
+  'tests/business-section-hierarchy.test.js',
+  'tests/public-homepage-main-simplification.test.js',
+  'tests/hero-article-browser.mjs',
+  'tests/public-seo-content-browser.mjs',
   'tests/terrarium-hub.test.js',
   'tests/helpers/public-header-checks.mjs',
   'tests/helpers/public-page-ready-checks.mjs',
