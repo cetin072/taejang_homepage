@@ -215,9 +215,6 @@
 .mh-figure-note { margin-top: 10px; color: var(--mh-muted); font-size: 12px; }
 
 .mh-story { background: #eaf0e7; }
-.mh-making { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0; list-style: none; }
-.mh-making { font-size: 13px; font-weight: 700; margin: 20px 0 8px; }
-.mh-making li + li::before { content: "→" / ""; color: inherit; margin-right: 8px; }
 
 .mh-program-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .mh-program-card { padding: clamp(18px, 2.4vw, 32px); background: var(--mh-cream); border-top: 2px solid #a6b89c; }
@@ -245,6 +242,25 @@
   word-break: keep-all;
 }
 
+
+/* Supplemental reading follows the artwork; the exhibition keeps its full images. */
+.mh-reading, .mh-workshop { margin-top: clamp(32px, 4vw, 52px); }
+.mh-reading h3, .mh-workshop h3 { font-size: clamp(22px, 2.4vw, 30px); line-height: 1.4; letter-spacing: -.04em; }
+.mh-reading-grid, .mh-goods-guide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 40px; margin-top: 20px; }
+.mh-reading-grid article { padding-top: 18px; border-top: 1px solid var(--mh-line); }
+.mh-reading-grid h4, .mh-goods-guide h3 { font-size: 17px; line-height: 1.5; margin: 0; word-break: keep-all; }
+.minhwa-gallery .mh-reading p, .minhwa-gallery .mh-workshop p,
+.minhwa-gallery .mh-goods-story, .minhwa-gallery .mh-goods-guide p { margin-top: 10px; color: var(--mh-muted); font-size: 15px; line-height: 1.8; word-break: keep-all; }
+.minhwa-gallery .mh-goods-story { margin-top: 24px; max-width: 74ch; }
+.mh-reading a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin-top: 6px; color: var(--mh-green); font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.mh-reading a:hover { text-decoration-thickness: 2px; }
+.mh-workshop ol { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; padding: 0; margin: 22px 0 0; list-style: none; counter-reset: making; }
+.mh-workshop li { border-top: 1px solid #becdbb; padding-top: 18px; counter-increment: making; }
+.mh-workshop li::before { content: '0' counter(making); display: block; margin-bottom: 10px; color: var(--mh-leaf); font-size: 14px; font-weight: 700; }
+.mh-goods-guide { margin-block: 24px; }
+@media (max-width: 640px) {
+  .mh-reading-grid, .mh-goods-guide, .mh-workshop ol { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 860px) {
   .mh-hero { grid-template-columns: minmax(0, 1fr); min-height: 0; }
