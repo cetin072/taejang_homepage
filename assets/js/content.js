@@ -200,7 +200,7 @@
       title: "첫 환경정비 활동을 진행했습니다",
       summary: "태장의 첫 지역사회공헌 활동으로 임직원이 함께 주변 환경을 정비했습니다.",
       series: "community-esg",
-      thumbnail: "assets/images/archive/environment-cleanup-first.webp",
+      thumbnail: "assets/images/archive/environment-cleanup-first-bright-v2.webp",
       thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들",
       hub: { category: "ESG·사회공헌", featured: true },
       thumb: null,

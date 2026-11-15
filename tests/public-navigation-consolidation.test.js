@@ -254,11 +254,11 @@ const terrariumLink = services.match(/<a class="resource-card resource-card--lin
 assert.match(terrariumLink, /태장 테라리움/);
 assert.match(terrariumLink, /활동 소개/);
 assert.ok(fs.existsSync(path.join(root, 'terrarium.html')), 'terrarium resource card leads to published hub');
-const worklog = services.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-worklog-title"[\s\S]*?<\/article>/)?.[0] || '';
+const worklog = services.match(/<a class="resource-card resource-card--link" href="worklog.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(worklog, /태장 업무수첩/);
-assert.match(worklog, /준비 중/);
+assert.match(worklog, /비공개 테스트 중/);
 assert.doesNotMatch(terrariumLink, /주문제작 서비스 공개|판매 중/);
 assert.doesNotMatch(services, /href="terrarium-custom\.html"/);
-assert.doesNotMatch(worklog, /<a\b|<button\b|tabindex=|onclick=/, 'unreleased worklog is visible without an inactive or premature link');
+assert.ok(fs.existsSync(path.join(root, 'worklog.html')), 'worklog introduction exists');
 
 console.log('public-navigation-consolidation tests: all cases passed');

@@ -138,7 +138,7 @@ assert.match(pages['greeting.html'], /<img src="images\/homepage\/photo-08\.webp
 assert.doesNotMatch(pages['greeting.html'], /대표이사 공식 사진이 들어갈 자리|대표 사진은 공식 상반신 또는 업무 공간 사진으로 교체합니다\./, '대표 인사말의 제작용 사진 안내를 공개하지 않습니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?title: "태장의 새로운 사업장이 문을 열었습니다"[\s\S]*?신규 사업장을 열었습니다\./, '개소식 게시물은 완료된 사실을 과거형으로 안내합니다');
 assert.match(contentData, /id: "new-workplace-opening"[\s\S]*?heading: "새로운 일터를 마련했습니다"/, '개소 준비 완료 시제를 일관되게 안내합니다');
-assert.match(pages['partnership.html'], /id="partnership-title">태장과 협력하는 방법<\/h1>[\s\S]*?기업의 공동출자로 장애인 일자리를 운영하는 자회사형 장애인 표준사업장/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
+assert.match(pages['partnership.html'], /id="partnership-title">장애인 고용의무,<br>태장과 함께 이행하는 방법<\/h1>[\s\S]*?기업의 공동출자로 장애인 일자리를 운영하는 자회사형 장애인 표준사업장/, '승인된 가치와 공동출자 정체성을 첫 화면에서 안내합니다');
 assert.doesNotMatch(pages['partnership.html'], /<h2>모회사·예비 모회사<\/h2>/, '협력 카드에서 신규 모회사 모집 표현을 사용하지 않습니다');
 
 const index = pages['index.html'];
@@ -156,12 +156,12 @@ assert.doesNotMatch(index, /태장 공식 채널|channel-strip|channel-links/, '
 for (const id of ['about', 'business', 'contact']) assert.match(index, new RegExp(`<section[^>]*id="${id}"`));
 assert.match(index, /<h1 id="hero-title">태장, 장애인과 함께 만드는 일터<\/h1>/);
 assert.match(index, /태장은 자회사형 장애인 표준사업장입니다\. 민화·테라리움 제작과 포장 등 기업 업무를 통해 장애인 일자리를 만들어갑니다\./);
-assert.match(index, /태장은 사람에게 맞는 직무를 만들고, 민화·문화 굿즈와 기업 업무, 지역사회 활동으로 이어지는 사업을 운영합니다\./);
+assert.match(index, /각자의 강점과 작업 특성에 맞는 직무를 만듭니다\./);
 assert.match(index, /class="about-principle-strip"[\s\S]*사람에게 맞는 직무[\s\S]*오래 이어지는 일[\s\S]*기업·지역사회와 협력/);
 assert.match(index, /<a class="btn hero-primary" href="about\.html"/, 'Hero의 회사 소개 CTA는 상세 소개 페이지로 연결합니다');
 assert.match(index, /<a class="btn hero-secondary" href="partnership\.html"/, 'Hero의 협력 CTA는 협력 상세 페이지로 연결합니다');
-assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*태장 민화[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
-assert.match(index, /CURRENT OPERATIONS[\s\S]*현재 운영[\s\S]*테라리움 제조사업[\s\S]*href="terrarium\.html"/);
+assert.match(index, /지금 태장이 하는 일[\s\S]*태장 민화[\s\S]*지역사회공헌·ESG 협력[\s\S]*기업 업무 협력/);
+assert.match(index, /지금 태장이 하는 일[\s\S]*태장 테라리움[\s\S]*href="terrarium\.html"/);
 assert.doesNotMatch(index, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.match(index, /assets\/images\/terrarium\/terrarium-display\.webp/);
 assert.match(business, /class="business-workflow"[\s\S]*기업 협력은 이렇게 진행합니다[\s\S]*필요 확인[\s\S]*범위 협의[\s\S]*작업 방식 결정[\s\S]*운영 확인/);
@@ -170,8 +170,10 @@ assert.doesNotMatch(business, /맡길 수 있는 일과 협력|WHAT WE DO|CURREN
 assert.match(workplace, /작업을 작은 단계로 나누고/);
 assert.match(workplace, /태장의 일터를 만나보세요/);
 assert.match(business, /assets\/css\/visual-hierarchy\.css/);
-assert.match(location, /class="location-visit-card"[\s\S]*팔용동 본점 방문 안내[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*taejang2025@naver\.com[\s\S]*네이버지도에서 위치 보기/);
-assert.match(location, /location-pin-icon/);
+assert.match(location, /class="location-office-info"[\s\S]*본점 · 팔용동[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*네이버지도에서 위치 보기[\s\S]*taejang2025@naver\.com/);
+assert.doesNotMatch(location, /location-pin-icon/);
+assert.match(location, /data-copy-address hidden/);
+assert.match(location, /약 <strong>1만 평<\/strong>/);
 assert.doesNotMatch(location, /<iframe|map\.kakao\.com|map\.naver\.com\/v5\/api/);
 assert.match(partnership, /contact-action--location[\s\S]*경남 창원시 의창구 평산로 33[\s\S]*신화 더 플렉스시티 422·423호[\s\S]*오시는 길 보기 →/);
 assert.doesNotMatch(partnership, /contact-location-map/);
@@ -186,7 +188,7 @@ assert.doesNotMatch(partnership, /index\.html#business/, '협력 페이지의 �
 assert.match(partnership, /aria-controls="partnership-faq-answer-1"/, 'FAQ 버튼은 답변 영역을 명시적으로 연결합니다');
 assert.match(partnership, /id="partnership-required-guide"[^>]*>[^<]*<span[^>]*>\*<\/span> 표시는 필수 입력 항목입니다\./, '협력 문의 폼은 필수 입력 안내를 제공합니다');
 assert.doesNotMatch(index, /href="terrarium-custom\.html">테라리움 주문제작 알아보기/);
-assert.match(index, /테라리움 제조사업[\s\S]*?태장 테라리움 알아보기/);
+assert.match(index, /태장 테라리움[\s\S]*?태장 테라리움 알아보기/);
 assert.doesNotMatch(index, /모회사 참여부터 기업 업무/);
 assert.match(index, /태장과 협력할 수 있는 분야[\s\S]*?모회사·고용 연계[\s\S]*?기업 업무·건별 프로젝트[\s\S]*?지역사회공헌·ESG 협력[\s\S]*?지역·문화 활동[\s\S]*?협력 방식 자세히 보기/, '협력 영역은 compact 정보형으로 안내합니다');
 assert.doesNotMatch(index, /partnership-overview[\s\S]*?href="#contact">협력·문의/, '협력 영역은 문의 CTA를 반복하지 않습니다');
@@ -203,8 +205,8 @@ assert.match(index, /지역사회공헌·ESG 협력/);
 assert.match(index, /기업·기관과 함께 지역사회에 필요한 활동을 기획하고 운영합니다\. 현재는 지역 환경정비 활동을 중심으로 시작하고 있습니다\./);
 assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
 assert.match(index, /data-home-preview="hub"[^>]*data-home-preview-count="3"/);
-assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"[\s\S]*?<div class="recent-activities-archive-cta"><a class="btn line" href="archive\.html">태장 아카이브 전체 보기<\/a><\/div>/, '상단 링크를 유지하고 카드 목록 뒤에 아카이브 CTA를 둡니다');
-assert.match(polish, /\.recent-activities-archive-cta\s*\{[\s\S]*?justify-content:\s*center[\s\S]*?margin-top:\s*36px/);
+assert.match(index, /소식·기록 전체 보기[\s\S]*?data-home-preview="hub"/, '활동 기록의 전체 보기 링크를 유지합니다');
+assert.doesNotMatch(index, /recent-activities-archive-cta|business-status|CURRENT OPERATIONS/, '메인의 중복 안내를 표시하지 않습니다');
 assert.match(index, /<strong>taejang2025@naver\.com<\/strong>/);
 assert.doesNotMatch(index, /info@taejang\.co\.kr/);
 assert.match(site, /\['location\.html', '오시는 길'\]/, '공통 footer 바로가기에 오시는 길을 유지합니다');
@@ -244,7 +246,7 @@ assert.match(about, /인증 제2026-049호 · 2026년 7월 9일/);
 assert.equal((about.match(/class="glance-grid"[\s\S]*?<\/div>\s*<\/div>/g) || []).length, 1);
 assert.doesNotMatch(about, /사업 확장/);
 assert.match(about, /공동출자기업 4개사[\s\S]*범한메카텍·삼현·청우비제이·현대비앤지스틸/);
-assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제조상품은 개발 중입니다\./);
+assert.match(about, /현재 사업과 개발 중인 상품[\s\S]*테라리움 제작 교육[\s\S]*테라리움 상품과 민화 전시는 준비 중/);
 assert.match(about, /대표이사 <strong>이영희<\/strong>/);
 assert.match(about, /class="value-grid value-grid--visual"[\s\S]*사람을 먼저 봅니다[\s\S]*일을 오래 이어갑니다[\s\S]*함께 방법을 찾습니다/);
 assert.match(about, /images\/homepage\/lee-younghee-portrait-2026\.webp/);
@@ -273,10 +275,16 @@ assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
 assert.match(workplace, /workplace\/work-together\.html/);
 
 assert.match(partnership, /범한메카텍[\s\S]*삼현[\s\S]*청우비제이[\s\S]*현대비앤지스틸/);
-// User review: shared company evidence is linked once; names stay compact.
+// User review: reuse the four approved homepage logos; link evidence once.
 const companySection = partnership.slice(partnership.indexOf('class="section beige partner-company-section"'), partnership.indexOf('class="section partnership-evidence"'));
 assert.equal((companySection.match(/참여기업 현판 보기/g) || []).length, 1);
 assert.equal((companySection.match(/<li>/g) || []).length, 4);
+for (const logo of ['bumhan', 'samhyun', 'cheungwoo', 'hyundai-bng']) {
+  assert.ok(companySection.includes(`assets/images/partners/monochrome/${logo}.png`));
+}
+assert.match(partnership, /공동출자 요건을 갖추면[\s\S]*출자비율 등에 따라 참여기업의 고용률에 반영/);
+assert.match(partnership, /실제 인정 인원과 의무 이행 범위는 기업별/);
+
 assert.doesNotMatch(companySection, /주주로 참여해 태장의 사업 기반을 함께 만듭니다/);
 assert.match(partnership, /id="partnership-faq-title">참여 안내<\/h2>/);
 assert.doesNotMatch(partnership, /기업 담당자가 검토할 정보/);
@@ -339,7 +347,7 @@ assert.doesNotMatch(resources, /taejang2025@naver\.com|콘텐츠 소식|사업�
 assert.equal((resources.match(/class="staff-nav"/g) || []).length, 2, 'resources shares the authored public header without runtime insertion');
 for (const page of [privacy, terms]) {
   assert.equal((page.match(/<meta name="robots"/g) || []).length, 1);
-  assert.match(page, /name="robots" content="noindex,follow"/);
+  assert.match(page, /name="robots" content="index, follow"/);
   assert.match(page, /taejang2025@naver\.com/);
   assert.doesNotMatch(page, /info@taejang\.co\.kr/);
 }
@@ -354,7 +362,7 @@ assert.match(thanks, /href="index\.html"/);
 assert.match(notFound, /name="robots" content="noindex,nofollow"/);
 assert.match(notFound, /href="index\.html#contact"/);
 
-for (const excluded of ['privacy.html', 'terms.html', 'thanks.html', '404.html', 'staff/']) {
+for (const excluded of ['thanks.html', '404.html', 'staff/']) {
   assert.doesNotMatch(sitemap, new RegExp(escapeRegExp(excluded)));
 }
 for (const filename of Object.keys(pages).slice(1)) assert.match(sitemap, new RegExp(escapeRegExp(filename)));

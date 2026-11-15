@@ -13,7 +13,7 @@
 .th-section-heading>p:last-child{margin-top:18px;font-size:15px;color:var(--th-muted);line-height:1.9;word-break:keep-all}
 .th-heading-inline{max-width:none;display:flex;justify-content:space-between;align-items:end;gap:32px;text-align:left}
 .th-heading-inline>p:last-child{max-width:360px;margin:0 0 5px}
-.th-button{display:inline-flex;justify-content:center;align-items:center;gap:24px;min-height:50px;border:1px solid var(--th-forest);border-radius:3px;padding:13px 21px;font-size:14px;font-weight:800;color:white!important;background:var(--th-forest);text-decoration:none}
+.th-button{display:inline-flex;justify-content:center;align-items:center;gap:24px;min-height:50px;border:1px solid var(--th-forest);border-radius:3px;padding:13px 21px;font-size:14px;font-weight:800;color:white;background:var(--th-forest);text-decoration:none}
 .th-button:hover{background:#315b42}
 .th-text-link{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:5px;color:var(--th-forest)}
 .terrarium-hub .th-small-note{font-size:12px;line-height:1.8;color:#677567;margin-top:22px}

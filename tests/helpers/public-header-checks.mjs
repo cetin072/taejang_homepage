@@ -164,7 +164,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     assert.equal(await minhwaCard.locator('h3').innerText(),'태장 민화');
     assert.equal(canonicalHref(await minhwaCard.getAttribute('href')),'minhwa-gallery.html');
     assert.equal(await page.locator('#resource-company-title').count(),0,'brochure card waits until its approved public release');
-    assert.equal(await page.locator('.resource-card--pending').count(),1);
+    assert.equal(await page.locator('.resource-card--pending').count(),0);
     assert.equal(await page.locator('#resource-salt-title').innerText(),'뉴질랜드 천일염');
     assert.equal(await page.getByText('태장 업무수첩', {exact:true}).count(),1);
     assert.equal(await page.locator('.resource-card--pending a, .resource-card--pending button, .resource-card--pending [tabindex]').count(),0,'unpublished cards are not interactive');
@@ -173,7 +173,7 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'resource cards fit viewport');
     assert.equal(await page.locator('.resources-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),width >= 1040 ? 3 : width >= 700 ? 2 : 1);
     const actions = page.locator('.resource-action');
-    assert.equal(await actions.count(), 4);
+    assert.equal(await actions.count(), 5);
     assert.ok(await actions.evaluateAll(items => items.every(item => {
       const style = getComputedStyle(item);
       return item.getBoundingClientRect().height >= 44 && style.borderRadius === '8px';
@@ -192,8 +192,27 @@ export async function exercisePublicHeaders(browser, base, root, output) {
     await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
     const saltCard=page.locator('.resource-card--link[aria-labelledby~="resource-salt-title"]');
     assert.equal(await saltCard.locator('.resource-status').innerText(),'판매 중');
-    assert.equal(await page.locator('.resource-card--pending .resource-status').innerText(),'준비 중');
-    assert.equal(await page.locator('.resource-card--pending h3').innerText(),'태장 업무수첩');
+    const worklogCard=page.locator('.resource-card--link[aria-labelledby~="resource-worklog-title"]');
+    assert.equal(await worklogCard.locator('.resource-status').innerText(),'비공개 테스트 중');
+    assert.equal(canonicalHref(await worklogCard.getAttribute('href')),'worklog.html');
+    await worklogCard.press('Enter');
+    await page.waitForURL(url=>/\/worklog(?:\.html)?$/.test(url.pathname));
+    assert.equal(await page.locator('h1').innerText(),'해야 할 일,\n말로 남기세요.');
+    assert.ok(await page.locator('.wl-voice-art').evaluate(img=>img.complete && img.naturalWidth>0));
+    if(javaScriptEnabled){
+      await page.locator('[data-home-inquiry-open]').press('Enter');
+      assert.ok(await page.locator('#home-inquiry-dialog').evaluate(el=>el.matches(':modal')));
+      assert.equal(await page.locator('.wl-test-steps section').count(),3);
+      await page.locator('#worklog-google-email').fill('example@gmail.com');
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#home-inquiry-dialog').isVisible(),false);
+      assert.ok(await page.locator('[data-home-inquiry-open]').evaluate(el=>el===document.activeElement));
+      await page.locator('[data-home-inquiry-open]').press('Enter');
+      assert.equal(await page.locator('#worklog-google-email').inputValue(),'example@gmail.com');
+      await page.locator('[data-home-inquiry-close]').click();
+    }else{assert.ok(await page.locator('#home-inquiry-dialog').isVisible());}
+    await page.goBack();
+    await page.waitForURL(url=>/\/resources(?:\.html)?$/.test(url.pathname));
     assert.equal(await page.locator('.resource-card--link[aria-labelledby~="resource-terrarium-title"]').count(),1);
     await saltCard.focus();
     assert.equal(await saltCard.evaluate(el=>document.activeElement===el),true);

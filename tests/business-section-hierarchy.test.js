@@ -14,10 +14,10 @@ const businessPage = read('business.html');
 
 const business = index.match(/<section class="section beige" id="business"[\s\S]*?<\/section>/)?.[0] || '';
 
-assert.match(business, /현재 운영하는 네 가지 사업과 활동을 소개합니다\./);
+assert.match(business, /지금 태장이 하는 일/);
 assert.equal((business.match(/<article class="business-card">/g) || []).length, 4, '현재 운영은 동일한 카드 네 개로 구성합니다');
-assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\s\S]*?<h3>([^<]+)<\/h3>/g), match => match[1]), ['태장 민화', '지역사회공헌·ESG 협력', '기업 업무 협력', '테라리움 제조사업']);
-assert.equal((business.match(/<span class="business-status">운영 중<\/span>/g) || []).length, 4, '현재 운영 카드의 상태를 운영 중으로 통일합니다');
+assert.deepEqual(Array.from(business.matchAll(/<article class="business-card">[\s\S]*?<h3>([^<]+)<\/h3>/g), match => match[1]), ['태장 민화', '지역사회공헌·ESG 협력', '기업 업무 협력', '태장 테라리움']);
+assert.doesNotMatch(business, /class="business-status"/, '동일한 운영 상태를 카드마다 반복하지 않습니다');
 assert.doesNotMatch(business, /기업·기관 협력 가능/, '협력 가능 여부를 상태 배지로 사용하지 않습니다');
 assert.match(business, /assets\/images\/workplace\/packing-tape-work\.webp/, '기업 업무 협력 카드에 새 포장 테이프 작업 사진을 사용합니다');
 assert.match(businessPage, /assets\/images\/business\/environment-cleanup-group\.webp/, '하는 일의 ESG 카드는 새 환경정비 단체사진을 사용합니다');
@@ -37,7 +37,7 @@ assert.match(businessPage, /<h3>테라리움 제작<\/h3>[\s\S]*익히고 있습
 assert.doesNotMatch(workplace, /workplace-packing-watercolor\.webp/, '포장 수채화는 상세에만 배치합니다');
 assert.doesNotMatch(workplace, /packing-tape\.webp|packing-inspection\.webp/, '우리의 일터 일러스트 타일에는 이전 포장 사진을 남기지 않습니다');
 assert.equal((business.match(/data-photo-slot=/g) || []).length, 2, '기존 PHOTO 02와 03만 유지하고 새 슬롯을 추가하지 않습니다');
-assert.match(business, /CURRENT OPERATIONS[\s\S]*?현재 운영[\s\S]*?테라리움 제조사업/);
+assert.match(business, /지금 태장이 하는 일[\s\S]*?태장 테라리움/);
 assert.doesNotMatch(business, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.doesNotMatch(businessPage, /BUSINESS IN DEVELOPMENT|개발 중인 사업/);
 assert.match(business, /href="terrarium\.html">태장 테라리움 알아보기/);

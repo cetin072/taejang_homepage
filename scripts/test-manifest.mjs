@@ -72,6 +72,7 @@ export const testGroups = Object.freeze({
     'tests/issue-218-field-operations-foundation.test.js',
     'tests/app-failure-states.test.js',
     'tests/required-check-workflows.test.js',
+    'tests/ci-change-scope.test.mjs',
     'tests/qa-account-preview.test.js',
     'tests/qa-account-preview-boundary.test.mjs',
     'tests/qa-account-preview-return.test.js',
@@ -96,6 +97,7 @@ export const testGroups = Object.freeze({
     'tests/support-radar-lint-fix.test.js'
   ]),
   publicHomepage: Object.freeze([
+    'tests/promotion-document.test.mjs',
     'tests/photo-safe-browser.test.mjs',
     'tests/scheduled-netlify-release.test.mjs',
     'tests/mobile-optional-release-config.test.mjs',
@@ -113,6 +115,8 @@ export const testGroups = Object.freeze({
     'tests/featured-article.test.mjs',
     'tests/archive-snapshot.test.mjs',
     'tests/public-article-seo.test.js',
+    'tests/public-seo-sitemap.test.mjs',
+    'tests/new-zealand-salt.test.cjs',
     'tests/employee-app-landing.test.js',
     'tests/public-promotion-seo-edge.test.mjs',
     'tests/public-promotion-media.test.mjs',
@@ -125,6 +129,7 @@ export const testGroups = Object.freeze({
     'tests/public-runtime-smoke.test.js',
     'tests/business-section-hierarchy.test.js',
     'tests/terrarium-hub.test.js',
+    'tests/worklog-landing.test.js',
     'tests/community-esg.test.js',
     'tests/content-detail-thumbnail.test.js',
     'tests/hero-video-slider.test.js',

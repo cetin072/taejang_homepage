@@ -1,6 +1,6 @@
 // Produce crawlable, JS-independent article pages from the existing approved content.
 // The single source of truth remains assets/js/content.js; no extra CMS is introduced.
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
 
@@ -97,7 +97,7 @@ function renderArticle(group, item, siblings) {
       (gallery ? '<div class="article-gallery">' + gallery + '</div>' : '') + '</div>',
     related ? '<section class="related-posts" aria-label="관련 이야기"><h2>다른 태장 이야기</h2><div class="related-posts-grid">' +
       related + '</div></section>' : '',
-    '<a class="back-link back-link--bottom" href="' + listPage + '">← 목록으로</a>',
+    '<a class="back-link back-link--bottom page-link" href="' + listPage + '">← 목록으로</a>',
     '</article></div></section>',
     '</main>'
   ].join('\n');
@@ -116,7 +116,7 @@ function renderPackingLanding(item) {
     <div class="container workplace-intro">
       <div><h1 class="title">${htmlText(item.title)}</h1>
         <p class="lead">${htmlText(intro.paragraphs.join(' '))}</p>
-        <a class="btn line" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
+        <a class="btn line page-link" href="workplace/packing-care.html#packing-process">포장·검수 과정 보기 <span aria-hidden="true">↓</span></a>
       </div>
       <figure class="workplace-photo">
         <img src="assets/images/workplace/packing-tape-work.webp" width="1200" height="900" alt="상자 위에 테이프를 붙이는 태장 근로자의 손과 포장 도구" fetchpriority="high" decoding="async">
@@ -140,7 +140,7 @@ function renderPackingLanding(item) {
   <section class="section beige" aria-labelledby="packing-next-title">
     <div class="container workplace-support workplace-support--plain">
       <div><h2 id="packing-next-title">다른 일터도 만나보세요</h2><p>민화와 테라리움, 지역 환경정비까지. 태장에서는 다양한 작업을 함께 이어갑니다.</p></div>
-      <a class="btn line" href="workplace.html#workplace-jobs">우리의 일터로 돌아가기 <span aria-hidden="true">→</span></a>
+      <a class="btn line page-link" href="workplace.html#workplace-jobs">우리의 일터로 돌아가기 <span aria-hidden="true">→</span></a>
     </div>
   </section>
 </div>
@@ -244,4 +244,44 @@ export async function generatePublicArticles({ repoRoot, outputRoot }) {
   sitemap = replaceRequired(sitemap, /<\/urlset>/, (additions ? additions + '\n' : '') + '</urlset>', 'sitemap urlset');
   await writeFile(sitemapPath, sitemap, 'utf8');
   return { pages: urls.length, urls };
+}
+
+const NON_CONTENT = new Set(['404.html', 'thanks.html', 'promotion.html']);
+
+function attr(tag, name) {
+  return tag.match(new RegExp('\\b' + name + '\\s*=\\s*(["\'])(.*?)\\1', 'i'))?.[2] || '';
+}
+
+export async function buildPublicSitemap({ repoRoot, outputRoot, publicFiles }) {
+  const publishedHtml = publicFiles.filter(file => /^[^/]+\.html$/.test(file));
+  const rootHtml = (await readdir(repoRoot)).filter(file => file.endsWith('.html'));
+  const unclassified = rootHtml.filter(file => !publishedHtml.includes(file));
+  if (unclassified.length) {
+    throw new Error('Classify root HTML before publishing: ' + unclassified.join(', '));
+  }
+  const urls = [];
+  const titles = new Set();
+  for (const file of publishedHtml) {
+    if (NON_CONTENT.has(file)) continue;
+    const html = await readFile(path.join(outputRoot, file), 'utf8');
+    const metas = [...html.matchAll(/<meta\b[^>]*>/gi)].map(match => match[0]);
+    const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(match => match[0]);
+    const robots = attr(metas.find(tag => attr(tag, 'name').toLowerCase() === 'robots') || '', 'content');
+    const title = html.match(/<title>\s*([^<]+?)\s*<\/title>/i)?.[1];
+    const description = attr(metas.find(tag => attr(tag, 'name').toLowerCase() === 'description') || '', 'content');
+    const canonical = attr(links.find(tag => attr(tag, 'rel').toLowerCase() === 'canonical') || '', 'href');
+    const expected = ORIGIN + (file === 'index.html' ? '/' : '/' + file);
+    if (!/\bindex\b/i.test(robots) || /\bnoindex\b/i.test(robots) || !/\bfollow\b/i.test(robots) || /\bnofollow\b/i.test(robots) || !title || !description || canonical !== expected) {
+      throw new Error('Public SEO metadata needs review: ' + file + ' (index, title, description, canonical)');
+    }
+    if (titles.has(title.trim().toLowerCase())) throw new Error('Duplicate public page title: ' + file);
+    titles.add(title.trim().toLowerCase());
+    urls.push(canonical);
+  }
+  if (new Set(urls).size !== urls.length) throw new Error('Duplicate public sitemap canonical URL');
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    urls.map(url => '  <url><loc>' + url.replaceAll('&', '&amp;') + '</loc></url>').join('\n') + '\n</urlset>\n';
+  await writeFile(path.join(outputRoot, 'sitemap.xml'), xml, 'utf8');
+  return urls;
 }

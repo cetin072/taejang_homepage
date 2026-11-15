@@ -166,7 +166,7 @@ test('same-page links and native FAQ work without new JavaScript or duplicate ID
 });
 
 test('home business and services keep the already approved hub navigation', () => {
-  assert.match(homepage, /<h3>테라리움 제조사업<\/h3>[\s\S]*?href="terrarium\.html"/);
+  assert.match(homepage, /<h3>태장 테라리움<\/h3>[\s\S]*?href="terrarium\.html"/);
   assert.match(homepage, /테라리움 제작 교육과 식물 관리 활동을 운영/);
   assert.match(business, /<h3>테라리움 제작<\/h3>[\s\S]*?href="terrarium\.html"/);
   for (const html of [homepage, business]) {
@@ -176,7 +176,7 @@ test('home business and services keep the already approved hub navigation', () =
   assert.match(tile, /태장 테라리움/);
   assert.match(tile, /활동 소개/);
   assert.doesNotMatch(resources, /href="terrarium-custom\.html"/);
-  assert.match(resources, /<article class="resource-card resource-card--pending" aria-labelledby="resource-worklog-title"/);
+  assert.match(resources, /<a class="resource-card resource-card--link" href="worklog.html" aria-labelledby="resource-worklog-title"/);
 });
 
 test('public contact and privacy boundary is unchanged', () => {

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="540" viewBox="0 0 390 540" role="img" aria-labelledby="title desc">
+<title id="title">목소리로 남기는 업무수첩</title><desc id="desc">음성 기록 버튼으로 할 일을 말하고 인식한 내용을 확인하는 안내 그림. 실제 화면 캡처가 아닙니다.</desc>
+<rect x="24" y="8" width="342" height="520" rx="36" fill="#fff" stroke="#ced9ce" stroke-width="2"/>
+<rect x="158" y="22" width="74" height="5" rx="3" fill="#d2d9d0"/>
+<text x="48" y="74" fill="#17191d" font-family="sans-serif" font-size="24" font-weight="700">업무수첩</text>
+<text x="48" y="102" fill="#737985" font-family="sans-serif" font-size="13">생각난 일을 목소리로 남겨요</text>
+<rect x="46" y="130" width="298" height="100" rx="18" fill="#edf3e9"/>
+<text x="66" y="163" fill="#205440" font-family="sans-serif" font-size="12" font-weight="700">이렇게 말해보세요</text>
+<text x="66" y="194" fill="#17362c" font-family="sans-serif" font-size="18" font-weight="700">“내일 오후 2시 거래처 미팅”</text>
+<path d="M185 242v18m-6-6 6 6 6-6" fill="none" stroke="#81a08d" stroke-width="2"/>
+<rect x="46" y="273" width="298" height="77" rx="14" fill="#f4f5f7"/>
+<text x="64" y="302" fill="#17191d" font-family="sans-serif" font-size="17" font-weight="700">거래처 미팅</text>
+<text x="64" y="328" fill="#275daf" font-family="sans-serif" font-size="14">인식된 내용과 날짜를 확인하세요</text>
+<circle cx="195" cy="432" r="63" fill="#111827" stroke="#eef0f2" stroke-width="6"/>
+<g stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"><rect x="188" y="395" width="14" height="26" rx="7"/><path d="M182 411v3a13 13 0 0 0 26 0v-3m-13 16v8m-7 0h14"/></g>
+<text x="195" y="461" fill="#fff" font-family="sans-serif" font-size="15" font-weight="700" text-anchor="middle">음성 기록</text>
+</svg>

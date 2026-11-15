@@ -58,7 +58,7 @@ assert.ok(card, 'Existing resources entry is retained');
 assert.match(card, /준비 중/);
 assert.match(card, /갤러리·활동 보기/);
 const home = read('index.html');
-assert.match(home, /class="text-link" href="minhwa-gallery.html">태장 민화 알아보기/);
+assert.match(home, /class="text-link page-link" href="minhwa-gallery.html">태장 민화 알아보기/);
 assert.match(html, /href="why-minhwa.html"/);
 assert.match(read('scripts/build-netlify-publish.mjs'), /'minhwa-gallery\.html'/);
 console.log('PASS minhwa landing: local references, anchors, compressed images, identity, safe concept labels and pending status');

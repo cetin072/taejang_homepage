@@ -37,7 +37,7 @@ const server = http.createServer(async (request, response) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch({ headless: true, ...(process.env.CI ? { channel: 'chrome' } : {}) });
+const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : process.env.CI ? { channel: 'chrome' } : {}) });
 await mkdir('seo-qa-artifacts', { recursive: true });
 try {
   for (const width of [320, 390, 786, 1440]) {
@@ -168,10 +168,11 @@ try {
           assert.ok(await page.locator('main a[href="certifications.html"]').count() > 0, file + ' links to credentials');
         }
         if (file === 'certifications.html') {
-          assert.equal(await page.locator('main img').count(), 4);
+          assert.equal(await page.locator('main figure img').count(), 4);
+          assert.equal(await page.locator('.certification-companies img').count(), 4);
           assert.match(await page.locator('main').textContent(), /제2026-049호/);
           assert.match(await page.locator('main').textContent(), /현판 사진/);
-          for (const img of await page.locator('main img').all()) {
+          for (const img of await page.locator('main figure img').all()) {
             await img.scrollIntoViewIfNeeded();
             await img.evaluate(el => el.decode());
             const dimensions = await img.evaluate(el => ({ natural: el.naturalWidth / el.naturalHeight, shown: el.getBoundingClientRect().width / el.getBoundingClientRect().height, fit: getComputedStyle(el).objectFit }));
@@ -182,7 +183,7 @@ try {
           await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
           await page.waitForTimeout(200);
           await page.screenshot({ path: `seo-qa-artifacts/certifications-${width}-${javaScriptEnabled}.png`, fullPage: true });
-          await page.getByRole('link', { name: '인증 당시 회사 소식 보기 →', exact: true }).click();
+          await page.getByRole('link', { name: '인증 당시 회사 소식 보기', exact: true }).click();
           assert.ok(page.url().endsWith('/activities/standard-workplace-certification.html'));
           assert.equal(await page.locator('.article-gallery img').count(), 3);
           for (const img of await page.locator('.article-body img').all()) {
@@ -192,11 +193,26 @@ try {
           }
           await page.goto(base + '/certifications.html');
           await page.getByRole('link', { name: '장애인 표준사업장 인증서 원본 크게 보기', exact: true }).click();
-          assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
+          if (javaScriptEnabled) {
+            assert.equal(await page.locator('.certification-viewer').isVisible(), true);
+            await page.keyboard.press('Escape');
+            assert.equal(await page.locator('.certification-viewer').isVisible(), false);
+          } else assert.ok(page.url().endsWith('/standard-workplace-certificate-2026-049.png'));
         }
         if (file === 'farm.html') {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm overflow');
-          assert.equal(await page.locator('main img, main iframe, main form').count(), 0, 'text-first draft has no invented farm photos, maps or booking');
+          assert.equal(await page.locator('main iframe, main form').count(), 0, 'no invented maps or booking');
+          const landscape = page.locator('.farm-landscape img');
+          assert.equal(await page.locator('main img').count(), 1, 'one approved concept landscape');
+          assert.equal(await landscape.getAttribute('src'), 'assets/images/location/farm-landscape-concept.webp');
+          await landscape.evaluate(e => e.decode());
+          assert.ok(await landscape.evaluate(e => Math.abs(e.clientWidth / e.clientHeight - e.naturalWidth / e.naturalHeight) < .03), 'landscape is not cropped');
+          assert.match(await page.locator('.farm-landscape figcaption').textContent(), /컨셉 이미지/);
+          assert.match(await page.locator('.farm-area').textContent(), /1만 평/);
+          for (const action of await page.locator('main a.btn').all()) {
+            assert.ok((await action.boundingBox()).height >= 48, 'farm actions retain touch targets');
+            assert.equal(await action.evaluate(e => getComputedStyle(e).borderRadius), '8px');
+          }
           assert.match(await page.locator('main').textContent(), /2년 연속 호박 재배 완료/);
           assert.match(await page.locator('main').textContent(), /야생다래 덕장 시설/);
           await page.screenshot({ path: `seo-qa-artifacts/farm-${width}-${javaScriptEnabled}.png`, fullPage: true });
@@ -207,7 +223,10 @@ try {
           assert.deepEqual(await page.locator('#farm-story').boundingBox(), current, 'farm layout stable');
           await page.getByRole('link', { name: '농장 관련 협력 문의', exact: true }).click();
           assert.ok((await page.url()).endsWith('/partnership.html#contact'));
+          await page.waitForLoadState('load');
           assert.equal(await page.locator('form[name="taejang-inquiry"]').count(), 1);
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm inquiry destination overflow');
+          await page.goto(base + '/farm.html', { waitUntil: 'load' });
         }
         // Link checks above may navigate to a different page. Measure its
         // layout after its styles/images load, not at navigation commit.
@@ -227,7 +246,7 @@ try {
       assert.deepEqual(await partners.locator('li > span').allTextContents(), partnerNames);
       assert.doesNotMatch(await partners.textContent(), /사업·농업·지역 협력|경상남도|미담농원|류진농원|아름다운학교|미래진흥원|학사모/);
       assert.deepEqual(await partners.locator('h3').allTextContents(), ['공동출자 참여기업']);
-      assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기 →' }).getAttribute('href'), 'certifications.html');
+      assert.equal(await partners.getByRole('link', { name: '인증과 참여기업 소개 보기' }).getAttribute('href'), 'certifications.html');
       await partners.scrollIntoViewIfNeeded();
       const partnerLogos = partners.locator('.home-partner-logo img');
       assert.equal(await partnerLogos.count(), 4, 'each jointly investing company has a logo');
@@ -247,10 +266,11 @@ try {
       assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
       const leftBox = await contact.locator('.contact-actions').boundingBox();
       const buttonBox = await trigger.boundingBox();
+      const ctaBox = await contact.locator('.home-contact-cta').boundingBox();
       const illustrationBox = await contact.locator('.home-contact-illustration').boundingBox();
       if (width > 760) {
         assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
-        assert.ok(Math.abs((buttonBox.y + buttonBox.height / 2) - (leftBox.y + leftBox.height / 2)) < 2, 'inquiry button is vertically centered with the cards');
+        assert.ok(Math.abs((ctaBox.y + ctaBox.height / 2) - (leftBox.y + leftBox.height / 2)) < 2, 'inquiry button and illustration form a centered group beside the cards');
       } else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
       assert.ok(illustrationBox.y >= buttonBox.y + buttonBox.height, 'illustration is below the button without covering it');
       const contactBox = await contact.boundingBox();
@@ -322,7 +342,7 @@ try {
         await page.locator('h1').filter({ hasText: row.title }).waitFor();
         assert.equal(await page.locator('.article-body').textContent(), row.public_body);
         assert.equal(await page.locator('.article-header .lead').count(), 0);
-        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
+        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /^index/);
         assert.equal(await page.getByRole('link', { name: /공식 활동 기록:/ }).count(), 1);
         assert.match(await page.locator('.article-meta').textContent(), /홈페이지 등록일:/);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));

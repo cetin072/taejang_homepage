@@ -113,11 +113,11 @@
   function render(item) {
     const contentPresentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
     const robots = document.querySelector('meta[name="robots"]');
-    if (robots) robots.content = contentPresentation.indexable ? 'index, follow' : 'noindex, follow';
+    if (robots) robots.content = 'index, follow';
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
-    const back = el('a', '← 소식·기록으로', 'text-link');
+    const back = el('a', '← 소식·기록으로', 'text-link page-link');
     back.href = 'archive.html';
     article.append(back);
 
@@ -139,7 +139,7 @@
     const presentation = item.public_image;
     const candidates = presentation?.candidates || mediaPolicy.candidates(item);
     const heroUrl = presentation?.url || candidates[0];
-    const editorial = globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
+    const editorial = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(item, document) || globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
     if (!editorial) article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
@@ -181,7 +181,7 @@
     }
 
     target.replaceChildren(article);
-    if (contentPresentation.indexable) {
+    if (contentPresentation.allowArticleAttribution) {
       window.TAEJANG_PUBLIC_SHARE?.mount(article, {
         url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
         title: item.title,

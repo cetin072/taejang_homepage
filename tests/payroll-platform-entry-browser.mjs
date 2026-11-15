@@ -123,7 +123,12 @@ const appAutomation = `<script>
         return;
       }
 
-      document.querySelector('[data-platform-settings-action]')?.click();
+      // The payroll card can render before app-ready creates the top-bar action.
+      const settings = await waitFor(() => {
+        const button = document.querySelector('#desktop-app-shell [data-platform-settings-action]');
+        return button && !button.disabled && button.getClientRects().length ? button : null;
+      }, 'visible platform settings action');
+      settings.click();
       const settingsActions = await waitFor(
         () => [...document.querySelectorAll('#dashboard-main button')]
           .find(button => button.textContent.trim() === '사이드바 메뉴 순서 편집'),
@@ -192,8 +197,12 @@ const appAutomation = `<script>
       document.querySelector('#desktop-app-shell .app-logo')?.click();
 
       const dashboardActions = await waitFor(
-        () => document.querySelector('[data-dashboard-layout-actions]'),
-        'dashboard layout editor'
+        () => {
+          const main = document.getElementById('dashboard-main');
+          return main?.querySelector('[data-dashboard-card-key="payroll.manage"]')
+            && main.querySelector('[data-dashboard-layout-actions]');
+        },
+        'dashboard layout editor and payroll card after returning'
       );
       action(dashboardActions, '대시보드 편집')?.click();
       const dashboardGrid = await waitFor(

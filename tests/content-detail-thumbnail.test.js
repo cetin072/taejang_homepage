@@ -29,7 +29,7 @@ const environmentEnd = content.indexOf('\n    },', environmentStart);
 const environment = content.slice(environmentStart, environmentEnd);
 assert.match(environment, /thumb: null/);
 assert.match(environment, /series: "community-esg"/);
-assert.match(environment, /thumbnail: "assets\/images\/archive\/environment-cleanup-first\.webp"/);
+assert.match(environment, /thumbnail: "assets\/images\/archive\/environment-cleanup-first-bright-v2\.webp"/);
 assert.match(environment, /thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들"/);
 assert.match(content, /id: "environment-cleanup-second"[\s\S]*date: "2026\.08\.24"[\s\S]*thumbnail: "assets\/images\/business\/environment-cleanup-group\.webp"/);
 assert.match(content, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification-plaque-v3\.webp"[\s\S]*gallery: \[[\s\S]*partner-company-plaques-v3\.webp[\s\S]*companion-job-first-store-plaque\.webp/);

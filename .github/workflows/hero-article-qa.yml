@@ -15,49 +15,110 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select relevant validation
+        id: scope
+        run: node scripts/ci-change-scope.mjs
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.scope != 'docs'
         with:
           node-version: 24
+
       - run: npm ci
+        if: steps.scope.outputs.scope != 'docs'
+
       - name: Ensure Korean fonts for readable public screenshots
+        if: steps.scope.outputs.scope != 'docs'
         shell: bash
         run: |
           if [ -z "$(fc-list :lang=ko family)" ]; then
             sudo apt-get update -qq
             sudo apt-get install --no-install-recommends -y fonts-noto-cjk
           fi
+
       - run: npm run build:netlify
+        if: steps.scope.outputs.scope != 'docs'
+
       - run: node tests/hero-article-browser.mjs
+        if: steps.scope.outputs.scope != 'docs'
         env:
           HERO_QA_OUTPUT: hero-qa-artifacts
+
       - name: Verify salt arch landscape and product packs
+        if: steps.scope.outputs.scope != 'docs'
         run: node tests/salt-origin-browser.mjs
+
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: (always()) && steps.scope.outputs.scope != 'docs'
         with:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
           if-no-files-found: ignore
+
       - name: Verify archive editorial cards and search
+        if: steps.scope.outputs.scope != 'docs'
         run: node tests/archive-editorial-browser.mjs
       - name: Verify ERP editorial selection and order controls
+        if: steps.scope.outputs.scope != 'docs'
         run: node tests/promotion-editorial-browser.mjs
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: (always()) && steps.scope.outputs.scope != 'docs'
         with:
           name: archive-editorial-320-390-786-1440
           path: archive-editorial-qa/
           if-no-files-found: ignore
-      - name: Verify public SEO content and source presentation
-        run: node tests/public-seo-content-browser.mjs
+
+      - name: Verify public navigation buttons on mobile and desktop
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/public-buttons-browser.mjs
+        env:
+          BUTTONS_QA_OUTPUT: public-buttons-qa-artifacts
+
+
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: (always()) && steps.scope.outputs.scope != 'docs'
+        with:
+          name: public-buttons-390-1440
+          path: public-buttons-qa-artifacts/
+          if-no-files-found: ignore
+      - name: Verify credentials layout and image viewer
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/certifications-browser.mjs
+        env:
+          CERTIFICATIONS_QA_OUTPUT: certifications-qa-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: (always()) && steps.scope.outputs.scope != 'docs'
+        with:
+          name: certifications-320-390-768-1440
+          path: certifications-qa-artifacts/
+          if-no-files-found: ignore
+      - name: Verify location address copy and responsive layout
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/location-browser.mjs
+        env:
+          LOCATION_QA_OUTPUT: location-qa-artifacts
+
+      - uses: actions/upload-artifact@v4
+        if: (always()) && steps.scope.outputs.scope != 'docs'
+        with:
+          name: location-320-390-768-1440
+          path: location-qa-artifacts/
+          if-no-files-found: ignore
+      - name: Verify public SEO content and source presentation
+        if: steps.scope.outputs.scope != 'docs'
+        run: node tests/public-seo-content-browser.mjs
+
+      - uses: actions/upload-artifact@v4
+        if: (always()) && steps.scope.outputs.scope != 'docs'
         with:
           name: public-seo-320-390-1440
           path: seo-qa-artifacts/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: (always()) && steps.scope.outputs.scope != 'docs'
         with:
           name: hero-article-320-390-1440
           path: hero-qa-artifacts/
