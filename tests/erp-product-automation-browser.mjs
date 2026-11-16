@@ -1,5 +1,6 @@
 // Real RPCs against an isolated PostgreSQL database; no hosted writes.
 import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
 import {mkdir} from 'node:fs/promises';
 import {createERPBrowserServer} from './helpers/erp-sales-browser-server.mjs';
 import {chromium} from 'playwright';
@@ -26,6 +27,9 @@ try{
  await click('공급처 신규 등록');await field('name').fill('Synthetic New Supplier');await field('business_number').fill('3453453453');await field('item_prefix').fill('NZT');await click('저장',page.locator('.erp-editor'));
  assert.equal(await field('name').inputValue(),'Synthetic 뉴질랜드 천일염 10kg','supplier registration returns to retained product form');assert.equal(await field('base_price').inputValue(),'25000');assert.equal(await field('purchase_price').inputValue(),'15000');
  await field('default_supplier_id').selectOption(supplier.id);
+ await field('supplier_cycle').selectOption('monthly');
+ assert.equal(await field('supplier_due_day').evaluate(input=>input.required),true);
+ await field('supplier_due_day').fill('31');
  const groups=page.locator('.erp-editor > form > .erp-fields > fieldset');
  assert.equal(await groups.count(),5,'five existing-style product sections');
  assert.equal(await groups.first().evaluate(n=>(()=>{const c=getComputedStyle(n).gridTemplateColumns;const r=c.match(/^repeat\((\d+),/);return r?Number(r[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})()),3,'PC product fields use three columns');
@@ -33,7 +37,7 @@ try{
  await page.setViewportSize({width:390,height:844});await page.locator('.erp-editor').screenshot({animations:'disabled',path:output+'/automation-item-390.png'});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile form stays inside viewport');
  await page.setViewportSize({width:1440,height:1000});await click('저장',page.locator('.erp-editor'));
- const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');
+ const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');assert.equal(item.automation.supplier_due_day,31);
  const legacy=master('item',{code:'LEGACY-SALT',name:'Synthetic Legacy Salt',kind:'product',unit:'포',base_price:25000,tax_class:'taxable'});
  await page.reload();await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();await idle();
  const legacyRow=page.getByRole('row').filter({hasText:'Synthetic Legacy Salt'});
@@ -87,7 +91,7 @@ try{
  const legacyDraft=app.db.rpc('erp_sales_save',{p_data:{
   kind:'product',party_id:customer.id,supplier_id:supplier.id,agent_id:agent.id,order_channel:'phone',
   order_date:sale.sales_date,sales_date:sale.sales_date,
-  commission:{kind:'none',value:0,settlement_rule:'after_full_payment'},
+  commission:{kind:'rate',value:5,settlement_rule:'after_full_payment'},
   lines:[{item_id:legacyProduct.id,quantity:1,unit_price:22727.27,tax_class:'taxable',tax_amount:2273}]
  }});
  async function reopenLegacyDraft(){
@@ -104,5 +108,23 @@ try{
  await reopenLegacyDraft();
  assert.equal(await field('pricing_basis_1').inputValue(),'inclusive');
  assert.equal(await field('unit_price_1').inputValue(),'24000','custom inclusive amount survives legacy draft reload');
+ await click('매출 확정');
+ await click('지급 내역 조회');
+ await page.getByText('전체 지급액 1,091원',{exact:false}).waitFor();
+ const recordedOn=app.db.raw("select (now() at time zone 'Asia/Seoul')::date;");
+ app.db.rpc('erp_sales_record_receipt',{p_sale_id:legacyDraft.id,p_request_id:randomUUID(),p_recorded_on:recordedOn,p_amount:24000});
+ await click('지급 내역 조회');
+ await click('영업비 승인');
+ assert.equal(await field('payout_basis').count(),0,'the original percentage commission requires no manual basis');
+ assert.equal(await field('payout_amount').inputValue(),'1091','approval displays the automatically calculated available commission');
+ await field('payout_evidence').fill('Synthetic confirmed commission');
+ await click('지급 승인 저장');
+ await page.getByRole('status').filter({hasText:'지급을 승인했습니다.'}).waitFor();
+ assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:legacyDraft.id}).commission.pending,1091);
+ await page.getByRole('tab',{name:'지급 대기',exact:true}).click();await idle();
+ await page.getByRole('heading',{name:'공급처 월 지급',exact:true}).waitFor();
+ const batchRow=page.getByRole('row').filter({hasText:'15,000원'}).filter({hasText:'지급 예정'}).first();
+ assert.match(await batchRow.innerText(),/Synthetic Supplier/);
+ assert.match(await batchRow.innerText(),/\d{4}-\d{2}-\d{2}/);
  assert.deepEqual(errors,[]);console.log('ERP_PRODUCT_AUTOMATION_BROWSER_PASS PC1440/mobile390; UI save + atomic confirm + reload; no console errors');
 }finally{await browser?.close();await app.close()}
