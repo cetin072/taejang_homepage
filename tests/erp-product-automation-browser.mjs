@@ -36,7 +36,23 @@ try{
  const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');
  const legacy=master('item',{code:'LEGACY-SALT',name:'Synthetic Legacy Salt',kind:'product',unit:'포',base_price:25000,tax_class:'taxable'});
  await page.reload();await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();await idle();
- await click('수정',page.getByRole('row').filter({hasText:'Synthetic Legacy Salt'}));
+ const legacyRow=page.getByRole('row').filter({hasText:'Synthetic Legacy Salt'});
+ const itemDialog=page.getByRole('dialog',{name:'수정: 품목·서비스',exact:true});
+ await click('수정',legacyRow);
+ await itemDialog.waitFor();
+ assert.equal(await page.locator('.erp-sales > .erp-editor form').count(),0,'existing item edits are not rendered underneath the list');
+ await page.setViewportSize({width:390,height:844});
+ const dialogBounds=await itemDialog.boundingBox();
+ assert.ok(dialogBounds.x>=0&&dialogBounds.x+dialogBounds.width<=390&&dialogBounds.height<844,'mobile item dialog stays inside the viewport');
+ await field('name').fill('Synthetic Unsaved Salt');
+ await page.evaluate(()=>window.fixtureFailNext=true);
+ await click('저장',itemDialog);
+ await itemDialog.getByRole('status').filter({hasText:'저장하지 못했습니다.'}).waitFor();
+ assert.equal(await field('name').inputValue(),'Synthetic Unsaved Salt','failed save retains modal inputs');
+ await page.keyboard.press('Escape');await itemDialog.waitFor({state:'hidden'});
+ assert.equal(app.db.rpc('erp_sales_bootstrap').items.find(row=>row.id===legacy.id).name,'Synthetic Legacy Salt');
+ await page.setViewportSize({width:1440,height:1000});
+ await click('수정',legacyRow);
  assert.equal(await field('auto_code').isChecked(),false);
  assert.equal(await field('code').inputValue(),'LEGACY-SALT');
  await field('defaults_enabled').check();await field('default_supplier_id').selectOption(supplier.id);
@@ -44,6 +60,7 @@ try{
  await field('auto_code').check();await page.getByText('예상 코드 NZS-0002', {exact:false}).waitFor();
  assert.equal(await field('code').inputValue(),'NZS-0002');
  await click('저장',page.locator('.erp-editor'));
+ await itemDialog.waitFor({state:'hidden'});
  const edited=app.db.rpc('erp_sales_bootstrap').items.find(row=>row.id===legacy.id);
  assert.equal(edited.code,'NZS-0002');assert.equal(edited.automation.purchase_price,15000);assert.equal(edited.pricing_basis,'inclusive');
 
