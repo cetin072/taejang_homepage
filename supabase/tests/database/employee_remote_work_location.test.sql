@@ -70,5 +70,24 @@ select is((
 ),'재택근무','clock-in records the selected remote location');
 select is(public.save_my_employee_remote_work_address('가상시 다른 가상로 20')->>'approved','false','editing address invalidates old approval');
 select is(public.private_validate_attendance_attempt('clock_in',36,129,10)->>'code','OUTSIDE_GEOFENCE','old GPS cannot be used after address change');
+-- Basic HR uses the same address and existing attendance validation.
+select set_config('request.jwt.claim.sub','98100000-0000-0000-0000-000000000001',true);
+select is(public.save_employee_basic_remote_address(
+ '98120000-0000-0000-0000-000000000002',
+ (public.get_employee_remote_work_location('98120000-0000-0000-0000-000000000002')->>'revision')::uuid,
+ '가상시 기본정보로 30',true,36,129)->>'approved','true','HR saves address and remote permission atomically');
+select set_config('request.jwt.claim.sub','98100000-0000-0000-0000-000000000002',true);
+select is(public.get_my_employee_remote_work_location()->>'address','가상시 기본정보로 30','app reads the same HR address');
+select is(public.private_validate_attendance_attempt('clock_in',36,129,10)->>'code','ATTENDANCE_VALIDATED','HR approval enables remote attendance');
+select throws_ok($$select public.save_employee_basic_remote_address('98120000-0000-0000-0000-000000000002',null,'가상시 위조로 40',true,36,129)$$,
+ '42501','FORBIDDEN','worker cannot enable remote work');
+select set_config('request.jwt.claim.sub','98100000-0000-0000-0000-000000000001',true);
+select is(public.save_employee_basic_remote_address(
+ '98120000-0000-0000-0000-000000000002',
+ (public.get_employee_remote_work_location('98120000-0000-0000-0000-000000000002')->>'revision')::uuid,
+ '가상시 기본정보로 30',false)->>'approved','false','HR checkbox disables remote location');
+select set_config('request.jwt.claim.sub','98100000-0000-0000-0000-000000000002',true);
+select is(public.private_validate_attendance_attempt('clock_in',36,129,10)->>'code','OUTSIDE_GEOFENCE','disabled home location is refused');
+select is(public.private_validate_attendance_attempt('clock_in',35,128,10)->>'code','ATTENDANCE_VALIDATED','headquarters remains available');
 select * from finish();
 rollback;
