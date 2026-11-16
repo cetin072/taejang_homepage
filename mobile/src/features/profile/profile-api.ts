@@ -35,7 +35,7 @@ export async function submitMyContactChangeRequest(client: PlatformSupabaseClien
   return data as { ok?: boolean; code?: string } | null;
 }
 
-export type RemoteWorkLocation = { address: string; approved: boolean };
+export type RemoteWorkLocation = { address: string; approved: boolean; remote_work?: boolean };
 
 export async function loadMyRemoteWorkLocation(client: PlatformSupabaseClient) {
   const { data, error } = await client.rpc('get_my_employee_remote_work_location');

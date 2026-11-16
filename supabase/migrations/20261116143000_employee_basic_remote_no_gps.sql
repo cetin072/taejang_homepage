@@ -21,7 +21,7 @@ declare employee uuid := public.private_leave_employee();
 begin
   if employee is null then raise exception 'FORBIDDEN' using errcode = '42501'; end if;
   return coalesce((
-    select jsonb_build_object('address', remote.address, 'approved', (remote.remote_enabled or location.active is true))
+    select jsonb_build_object('address', remote.address, 'remote_work', remote.remote_enabled, 'approved', (remote.remote_enabled or location.active is true))
     from public.employee_remote_work_locations remote
     left join public.attendance_locations location on location.id = remote.location_id
     where remote.employee_uuid = employee
@@ -37,7 +37,7 @@ begin
   end if;
   return coalesce((
     select jsonb_build_object('address', remote.address, 'revision', remote.revision,
-      'approved', (remote.remote_enabled or location.active is true))
+      'remote_work', remote.remote_enabled, 'approved', (remote.remote_enabled or location.active is true))
     from public.employee_remote_work_locations remote
     left join public.attendance_locations location on location.id = remote.location_id
     join public.employees employee on employee.id = remote.employee_uuid and employee.archived_at is null
