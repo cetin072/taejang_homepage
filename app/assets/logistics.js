@@ -9,9 +9,9 @@ const permitted=()=>C.allowed(app());
 const actor=()=>app()?.getAccessContext?.()?.id||'';
 const pendingKey=()=>`taejang-logistics-pending-v1:${actor()}`;
 const clone=C.copy;
-function report(text,error=false){
+function report(text,error=false,nearWallet=false){
  if(!root?.isConnected)return;
- const feedback=root.querySelector('[data-wallet-feedback]')||status;
+ const feedback=(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
  if(feedback!==status){status.textContent='';status.hidden=true;}
  feedback.textContent=text;feedback.className='lg-status'+(error?' error':'');feedback.hidden=!text;
 }
@@ -37,23 +37,23 @@ function applyResult(action,result){
 }
 async function mutate(action,payload){
  if(busy||!permitted())return;
- if(pending&&(pending.action!==action||JSON.stringify(pending.payload)!==JSON.stringify(payload))){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true);return;}
+ if(pending&&(pending.action!==action||JSON.stringify(pending.payload)!==JSON.stringify(payload))){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true,action.startsWith('wallet.'));return;}
  pending=pending||{id:crypto.randomUUID(),action,payload:clone(payload)};
- try{persistPending();}catch{pending=null;report('임시 저장 공간을 사용할 수 없어 거래를 시작하지 않았습니다.',true);return;}
+ try{persistPending();}catch{pending=null;report('임시 저장 공간을 사용할 수 없어 거래를 시작하지 않았습니다.',true,action.startsWith('wallet.'));return;}
  busy=true;const generation=epoch,owner=actor();root.setAttribute('aria-busy','true');content.inert=true;
  try{
   const result=await app().rpc('mutate_logistics_workspace',{p_request_id:pending.id,p_action:pending.action,p_payload:pending.payload});
   if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)return;
   const done=pending.action;pending=null;persistPending();applyResult(done,result);
-  try{await read();render();report('저장했습니다.');}catch(e){render();report('저장은 완료됐습니다. 목록은 새로고침으로 다시 확인하세요.',true);}
+  try{await read();render();report('저장했습니다.',false,action.startsWith('wallet.'));}catch(e){render();report('저장은 완료됐습니다. 목록은 새로고침으로 다시 확인하세요.',true,action.startsWith('wallet.'));}
  }catch(e){
   if(generation!==epoch||owner!==actor())return;
   // Only a definite server rejection clears the idempotency key. Network/5xx keeps it.
   if(e?.status&&e.status<500){pending=null;persistPending();}
-  report(message(e),true);showRetry();
+  report(message(e),true,action.startsWith('wallet.'));showRetry();
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
-function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';(root.querySelector('[data-wallet-feedback]')||status).after(retry);}
+function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
 function newQuote(){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
 async function changeTab(next){if(busy)return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
 function render(){if(!permitted()||!root?.isConnected)return;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
@@ -167,7 +167,7 @@ function walletEditor(c){
   event.preventDefault();
   if(busy||!form.reportValidity())return;
   const note=memo.trim()||(type==='deposit'?'입금 확인 · 충전':'');
-  if(!note){memoInput.focus();report('작업 내용을 입력하세요.',true);return;}
+  if(!note){memoInput.focus();report('작업 내용을 입력하세요.',true,true);return;}
   if(confirm(`${c.name}\n${type==='deposit'?'입금 확인 · 충전':'작업비 차감'} ${money(amount)}\n저장할까요?`))
    void mutate(type==='deposit'?'wallet.deposit':'wallet.manual',{customerId:c.id,amount:Number(amount),memo:note});
  });
