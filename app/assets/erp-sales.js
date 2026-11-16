@@ -18,6 +18,9 @@
  const filters={from:today().slice(0,7)+'-01',to:monthEnd(today()),party:'',kind:'',status:'',agent:''};
  const report=(message,error=false)=>{if(!root?.isConnected)return;status.textContent=message;status.className=error?'message error':'message';status.hidden=!message;};
  function errorText(error){const m=String(error?.message||error);if(/PGRST202|does not exist|404/.test(m))return '이 환경은 매출 기능의 데이터 준비가 완료되지 않았습니다. 담당자에게 확인해 주세요.';
+  if(m.includes('ERP_ASSIGNMENT_DATE_ORDER'))return '새 담당 관계의 시작일은 기존 담당 관계의 시작일과 같거나 이후여야 합니다. 기존 시작일과 입력한 날짜를 확인해 주세요.';
+  if(m.includes('ERP_INVALID_ASSIGNMENT'))return '활성 거래처와 활성 영업자를 선택하고 관계 시작일을 확인해 주세요.';
+  if(m.includes('erp_sales_one_relation'))return '이 거래처에 해당 영업자의 같은 관계가 이미 등록돼 있습니다.';
   if(/23505|duplicate|unique/.test(m))return '이미 등록된 정보입니다. 기존 거래처·품목 또는 계약 월 매출을 확인해 주세요.';
   const codes={ERP_AUTOMATED_AMOUNT_CHANGE_UNSUPPORTED:'자동 연결 매출의 확정 후 금액 변경은 아직 지원하지 않습니다. 초안에서 가격을 확인한 뒤 확정해 주세요.',ERP_USE_PRODUCT_EDITOR:'자동 연결 상품 판매 화면에서 수정해 주세요.',ERP_ITEM_DEFAULTS_REQUIRED:'품목의 공급처·매입원가를 먼저 등록해 주세요.',ERP_SPLIT_SUPPLIER_OR_TERMS_REQUIRED:'공급처·영업비·출고 방식이 같은 상품끼리 판매를 등록해 주세요.',ERP_SUPPLIER_PREFIX_IMMUTABLE:'공급처 접두어는 최초 등록 후 변경할 수 없습니다.',ERP_INVALID_ITEM_DEFAULTS:'공급처·원가·영업비 조건을 확인해 주세요.',ERP_INVALID_PRICE:'가격·수량과 부가세 구분을 확인해 주세요.',ERP_ADJUSTMENT_CANCELLED_SALE:'취소 승인된 거래는 매출 금액을 다시 조정할 수 없습니다.',ERP_INVALID_MONTH:'조회할 매출 월을 확인해 주세요.',ERP_ADJUSTMENT_CANCELLED_PAYOUT:'취소가 승인된 거래에서는 새 지급을 승인하거나 완료할 수 없습니다.',ERP_PERIOD_CLOSED:'마감된 월입니다. 다른 기록일을 선택하거나 마감 상태를 확인해 주세요.',ERP_ADJUSTMENT_INVALID_INPUT:'조정 사유와 입력값을 확인해 주세요.',ERP_ADJUSTMENT_SHIPPING_STATE:'현재 배송 상태에서는 이 취소·반품을 처리할 수 없습니다.',ERP_ADJUSTMENT_DUPLICATE:'같은 거래에서 이미 처리한 취소·반품 또는 결정이 있습니다.',ERP_ADJUSTMENT_CREDIT_LIMIT:'반품 승인액은 남은 매출액 이내의 원 단위 금액으로 입력해 주세요.',ERP_RECEIPT_REVERSAL_REFUNDED:'환불 처리 후 남은 순수금보다 큰 입금은 취소할 수 없습니다.',ERP_ADJUSTMENT_QUANTITY:'반품 수량이 남은 주문 수량을 초과합니다.',ERP_ADJUSTMENT_REFUND_LIMIT:'환불 금액이 승인액이나 실제 입금액을 초과합니다.',ERP_ADJUSTMENT_APPROVAL_REQUIRED:'운영총괄 승인 후 실제 처리 내역을 기록해 주세요.',ERP_SUPPORT_INVALID_INPUT:'거래 날짜, 금액과 입력값을 확인해 주세요.',ERP_STOCK_ITEM_REQUIRED:'사용 중인 재고관리 품목을 선택해 주세요.',ERP_STOCK_INSUFFICIENT:'입력한 날짜부터 재고가 부족해지는 날이 있습니다. 수량과 날짜를 확인해 주세요.',ERP_PAYOUT_INVALID_INPUT:'지급 금액, 날짜와 증빙 확인 내용을 검토해 주세요.',ERP_PAYOUT_BASIS_REQUIRED:'거래의 전체 지급액을 먼저 입력해 주세요.',ERP_PAYOUT_BASIS_CONFLICT:'이미 승인한 전체 지급액 또는 지급 주기와 일치해야 합니다.',ERP_PAYOUT_OVER_LIMIT:'고객 수금액과 기존 지급·승인을 확인해 주세요. 현재 지급 가능액을 초과합니다.',ERP_PAYOUT_ALREADY_FINISHED:'이미 처리한 지급 건입니다.',ERP_RECEIPT_INVALID_RULE:'당월 또는 익월과 수금일 1~31일을 선택해 주세요.',ERP_CONTRACT_NOT_FOUND:'용역 계약을 찾을 수 없습니다.',ERP_RECEIPT_INVALID_DUE_ON:'수금 예정일을 확인해 주세요.',ERP_RECEIPT_INVALID_DUE_RANGE:'예정일의 시작일과 종료일을 확인해 주세요.',ERP_RECEIPT_CONFIRMED_REQUIRED:'확정 매출에만 수금을 기록할 수 있습니다.',ERP_RECEIPT_INVALID_INPUT:'입금일·정정일, 원 단위 금액, 취소 사유를 확인해 주세요.',ERP_RECEIPT_INVALID_REVERSAL:'취소할 입금과 정정일을 확인해 주세요.',ERP_RECEIPT_ALREADY_REVERSED:'이미 취소된 입금입니다. 수금 내역을 다시 열어 주세요.',ERP_RECEIPT_OVER_BALANCE:'입금액이 미수 잔액을 초과합니다. 수금 내역을 다시 열어 잔액을 확인해 주세요.',ERP_FORBIDDEN:'이 기능을 사용할 권한이 없습니다.',ERP_REVISION_CONFLICT:'다른 화면에서 변경되었습니다. 입력을 보존했습니다. 새로 조회한 뒤 비교해 주세요.',ERP_SALE_CONFIRMED:'이미 확정된 거래는 원본을 수정할 수 없습니다.',ERP_CUSTOMER_REQUIRED:'고객 거래처가 아닙니다. 거래처·영업자에서 고객 관계를 추가해 주세요.',ERP_SUPPLIER_REQUIRED:'직배송 공급처가 아닙니다. 공급처 역할을 등록해 주세요.',ERP_AGENT_RELATION_REQUIRED:'매출일에 유효한 거래처·영업자 관계를 먼저 등록해 주세요.',ERP_INVALID_COMMISSION:'영업자와 거래별 영업비 조건을 확인해 주세요.',ERP_INVALID_CONTRACT_MONTH:'계약 기간과 매출 월을 확인해 주세요.',ERP_CONTRACT_NOT_ACTIVE:'진행 중인 계약과 해당 월을 확인해 주세요.',ERP_REQUEST_REUSE:'같은 저장 요청으로 이미 다른 내용이 저장되었습니다. 입력은 보존되니 매출 목록에서 기존 거래를 먼저 확인해 주세요.',ERP_INVALID_PERIOD:'조회 기간은 1년 이내로 지정해 주세요.'};
   return Object.entries(codes).find(([c])=>m.includes(c))?.[1]||'저장하지 못했습니다. 입력값과 연결 정보를 확인한 뒤 다시 시도해 주세요.';
@@ -176,10 +179,25 @@
   });f.querySelector('input,select')?.focus();
  }
  function assignmentEditor(){const parts=formStart('영업 관계 연결·담당자 변경');if(!parts)return;const {f,grid}=parts;
-  field(grid,'party_id','거래처','select','',options('parties',r=>r.active),true);field(grid,'agent_id','영업자','select','',options('agents',r=>r.active),true);
-  field(grid,'relationship','관계','select','management',[['management','담당 (기존 담당 관계 종료 후 변경)'],['acquisition','확보'],['support','지원']],true);
-  field(grid,'starts_on','관계 시작일','date',today(),[],true);field(grid,'reason','연결·변경 사유','text','',[],true);
+  const party=field(grid,'party_id','거래처','select','',options('parties',r=>r.active),true);field(grid,'agent_id','영업자','select','',options('agents',r=>r.active),true);
+  const relationship=field(grid,'relationship','관계','select','management',[['management','담당 (기존 담당 관계 종료 후 변경)'],['acquisition','확보'],['support','지원']],true);
+  const starts=field(grid,'starts_on','관계 시작일','date',today(),[],true);
+  const reason=field(grid,'reason','연결·변경 사유','text','',[],true);reason.maxLength=300;
+  const dateHelp=el('p','','erp-field-notice');dateHelp.id='erp-assignment-date-help';dateHelp.hidden=true;dateHelp.setAttribute('aria-live','polite');
+  starts.setAttribute('aria-describedby',dateHelp.id);grid.append(dateHelp);
+  const syncStartDate=()=>{
+   const existing=relationship.value==='management'
+    ?state.assignments.find(row=>row.party_id===party.value&&row.relationship==='management'&&!row.ends_on)
+    :null;
+   starts.min=existing?.starts_on||'';
+   starts.setCustomValidity(starts.validity.rangeUnderflow?'관계 시작일은 '+starts.min+'부터 선택할 수 있습니다.':'');
+   dateHelp.hidden=!existing;
+   dateHelp.textContent=existing?'기존 담당 시작일 '+existing.starts_on+' · 같은 날짜부터 변경할 수 있습니다.':'';
+  };
+  party.addEventListener('change',syncStartDate);relationship.addEventListener('change',syncStartDate);
+  starts.addEventListener('input',syncStartDate);starts.addEventListener('change',syncStartDate);syncStartDate();
   f.append(el('p','과거 거래의 영업자와 영업비 조건은 바뀌지 않습니다. 같은 거래처에 확보·담당·지원 관계를 함께 연결할 수 있습니다.','help'));
+  f.append(el('p',productAutomation?'영업비율·정액은 품목·서비스의 기본 영업비 또는 매출·판매의 거래별 영업비 변경에서 설정합니다.':'영업비율·정액은 매출·판매의 거래별 영업비 조건에서 설정합니다.','help'));
   const save=el('button','관계 저장','button primary');save.type='submit';f.append(save,btn('닫기',clearEditor));f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));void run(async()=>{await rpc('erp_sales_assign_agent',{p_party_id:d.party_id,p_agent_id:d.agent_id,p_relationship:d.relationship,p_starts_on:d.starts_on,p_reason:d.reason});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();draw();report('영업 관계를 저장했습니다.');});});
  }
  function drawMasters(){
