@@ -88,6 +88,11 @@ try{
  const exclusive=save('item',{...itemData,code:'EXCL',auto_code:false,base_price:10000,pricing_basis:'exclusive'});
  const exclusivePreview=db.rpc('erp_sales_preview_product',{p_data:{...data,request_key:randomUUID(),lines:[{item_id:exclusive.id,quantity:1}]}});
  ok(exclusivePreview.total===11000&&db.rpc('erp_sales_bootstrap').items.find(x=>x.id===exclusive.id).pricing_basis==='exclusive','exclusive price round-trips and calculates 10000 + 1000');
+ const legacy=save('item',{...itemData,code:'LEGACY-SALT',auto_code:false,automation:null});
+ const converted=save('item',itemData,legacy);
+ ok(converted.id===legacy.id&&converted.code.startsWith('NZS-')&&converted.automation.purchase_price===defaults.purchase_price,'existing item with an empty code is assigned a supplier code and saves its cost');
+ const ordinaryEdit=save('item',{...itemData,code:converted.code,auto_code:false},converted);
+ ok(ordinaryEdit.code===converted.code,'editing without explicit automatic generation keeps the code');
  // Concurrent clients use the same database and real transaction/row/advisory locks.
  const exec=promisify(execFile);
  const parallelRpc=(name,args)=>exec('docker',['exec',db.name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`set role authenticated;select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);select public.${name}(${args});`],{encoding:'utf8'});

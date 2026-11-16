@@ -34,6 +34,19 @@ try{
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile form stays inside viewport');
  await page.setViewportSize({width:1440,height:1000});await click('저장',page.locator('.erp-editor'));
  const item=app.db.rpc('erp_sales_bootstrap').items[0];assert.equal(item.code,'NZS-0001');assert.equal(item.pricing_basis,'inclusive');
+ const legacy=master('item',{code:'LEGACY-SALT',name:'Synthetic Legacy Salt',kind:'product',unit:'포',base_price:25000,tax_class:'taxable'});
+ await page.reload();await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();await idle();
+ await click('수정',page.getByRole('row').filter({hasText:'Synthetic Legacy Salt'}));
+ assert.equal(await field('auto_code').isChecked(),false);
+ assert.equal(await field('code').inputValue(),'LEGACY-SALT');
+ await field('defaults_enabled').check();await field('default_supplier_id').selectOption(supplier.id);
+ await field('purchase_price').fill('15000');await field('pricing_basis').selectOption('inclusive');
+ await field('auto_code').check();await page.getByText('예상 코드 NZS-0002', {exact:false}).waitFor();
+ assert.equal(await field('code').inputValue(),'NZS-0002');
+ await click('저장',page.locator('.erp-editor'));
+ const edited=app.db.rpc('erp_sales_bootstrap').items.find(row=>row.id===legacy.id);
+ assert.equal(edited.code,'NZS-0002');assert.equal(edited.automation.purchase_price,15000);assert.equal(edited.pricing_basis,'inclusive');
+
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await idle();await click('상품 판매 등록');
  await field('party_id').selectOption(customer.id);await field('auto_item_1').selectOption(item.id);
  assert.equal(await field('auto_price_1').inputValue(),'25000');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');
