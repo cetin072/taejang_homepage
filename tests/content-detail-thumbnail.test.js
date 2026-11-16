@@ -29,7 +29,7 @@ const environmentEnd = content.indexOf('\n    },', environmentStart);
 const environment = content.slice(environmentStart, environmentEnd);
 assert.match(environment, /thumb: null/);
 assert.match(environment, /series: "community-esg"/);
-assert.match(environment, /thumbnail: "assets\/images\/archive\/environment-cleanup-first\.webp"/);
+assert.match(environment, /thumbnail: "assets\/images\/archive\/environment-cleanup-first-bright-v2\.webp"/);
 assert.match(environment, /thumbnailAlt: "지역사회 환경정비 활동 현수막 앞에 모인 태장 구성원들"/);
 assert.match(content, /id: "environment-cleanup-second"[\s\S]*date: "2026\.08\.24"[\s\S]*thumbnail: "assets\/images\/business\/environment-cleanup-group\.webp"/);
 assert.match(content, /id: "standard-workplace-certification"[\s\S]*thumb: "assets\/images\/archive\/standard-workplace-certification-plaque-v3\.webp"[\s\S]*gallery: \[[\s\S]*partner-company-plaques-v3\.webp[\s\S]*companion-job-first-store-plaque\.webp/);
@@ -42,11 +42,12 @@ assert.match(promotionDetail, /body\.append\(paragraphNode\(paragraph\)\)/);
 assert.match(promotionDetail, /if \(\/\^https:\\\/\\\/\/.test\(item\.external_url \|\| ''\)\)/);
 assert.match(styles, /\.article-body \.article-representative-media\s*\{[\s\S]*aspect-ratio:16\/9/);
 assert.match(styles, /\.article-body \.article-representative-media img\s*\{[\s\S]*object-fit:cover[\s\S]*object-position:center/);
-assert.match(workplace, /data-workplace-overview/);
+assert.match(workplace, /data-workplace-index/);
 assert.doesNotMatch(workplace, /data-workplace-roles/);
 assert.doesNotMatch(workplace, /data-workplace-process/);
-assert.match(workplace, /class="workplace-work-gallery"/);
-assert.match(workplace, /class="workplace-principle-list"/);
+assert.equal((workplace.match(/class="workplace-job"/g) || []).length, 4);
+assert.doesNotMatch(workplace, /class="workplace-steps"/);
+assert.match(listing, /list\.hasAttribute\('data-workplace-index'\)/);
 assert.match(listing, /if \(type === 'workplace'\)/);
 assert.match(listing, /workplaceOverview, workplaceRoles, workplaceProcess/);
 assert.match(listing, /document\.body\.classList\.add\('workplace-detail-mode'\)/);
@@ -73,3 +74,5 @@ assert.match(styles, /\.article-body \.article-representative-media--natural\s*\
 assert.match(styles, /\.article-body \.article-representative-media--natural img\s*\{[\s\S]*height:auto/);
 
 console.log('content-detail-thumbnail tests: all cases passed');
+
+for (const style of ['site-polish', 'mobile-layout-fixes', 'listing-polish', 'photo-mode']) assert.ok(workplace.includes('assets/css/' + style + '.css'), 'workplace styles must be available before JS enhancement');

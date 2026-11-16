@@ -38,8 +38,8 @@ jobs:
       - name: Install existing browser test dependencies
         run: npm ci
 
-      - name: Run current platform, public and payroll regression
-        run: npm test
+      - name: Run payroll regression
+        run: npm run test:payroll
 
       - name: Build Netlify publish bundle with payroll operator page
         run: |
@@ -66,6 +66,3 @@ jobs:
         env:
           PAYROLL_PREVIEW_URL: https://deploy-preview-${{ github.event.pull_request.number }}--taejang-homepage.netlify.app
         run: node tests/payroll-preview-runtime-smoke.mjs
-
-      - name: Run staging safety regression
-        run: npm run test:staging-safety

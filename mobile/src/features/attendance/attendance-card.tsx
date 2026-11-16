@@ -328,7 +328,7 @@ export function AttendanceCard({
         allowException(eventType, 'LOCATION_UNCERTAIN', position);
       } else if (result.code === 'OUTSIDE_GEOFENCE') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('회사 출근 장소 안에서만 출퇴근할 수 있습니다.', true);
+        show('등록된 근무지에서만 출퇴근할 수 있습니다.', true);
       } else if (result.code === 'CLOCK_IN_REQUIRED') {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
         show(qaAttempt ? '먼저 검수 출근을 완료해주세요.' : '먼저 출근 처리가 완료되어야 합니다.', true);

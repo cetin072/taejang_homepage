@@ -8,7 +8,7 @@
   },
   "checks": {
     "static_regression": {
-      "command": "npm run test:platform-static && npm run test:public"
+      "command": "python3 .github/scripts/user_acceptance_ready.py --wait-static-checks"
     },
     "environment_parity": {
       "command": "node scripts/uar-staging-parity.mjs"

@@ -1,0 +1,66 @@
+name: Minhwa Landing Browser QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'minhwa-gallery.html'
+      - 'assets/css/minhwa-gallery.css'
+      - 'assets/images/minhwa/**'
+      - 'scripts/check-minhwa-landing.mjs'
+      - 'tests/minhwa-gallery-browser.mjs'
+      - '.github/workflows/minhwa-landing-qa.yml'
+
+permissions:
+  contents: read
+  statuses: read
+
+concurrency:
+  group: minhwa-landing-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  minhwa-browser:
+    name: Minhwa static, visual and exact-head Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install existing test dependencies
+        run: npm ci
+      - name: Check source and build existing publish bundle
+        run: |
+          node scripts/check-minhwa-landing.mjs
+          npm run build:netlify
+      - name: Verify built static page at actual PC and mobile sizes
+        env:
+          MINHWA_QA_OUTPUT: minhwa-qa/local
+        run: node tests/minhwa-gallery-browser.mjs
+      - name: Verify exact-head Netlify Preview with the existing gate
+        env:
+          UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          MINHWA_QA_OUTPUT: minhwa-qa/preview
+        run: |
+          python3 - <<'PYTHON'
+          import importlib.util, os, pathlib, subprocess
+          spec = importlib.util.spec_from_file_location('uar', '.github/scripts/user_acceptance_ready.py')
+          uar = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(uar)
+          contract = uar.load_contract(pathlib.Path('.github/user-acceptance-ready.json'))
+          preview = uar.wait_for_preview(contract, os.environ.copy())
+          subprocess.run(['node', 'tests/minhwa-gallery-browser.mjs'],
+                         env={**os.environ, 'MINHWA_QA_BASE': preview}, check=True)
+          PYTHON
+      - name: Preserve measured results and page screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minhwa-landing-visual-qa
+          path: minhwa-qa/
+          if-no-files-found: error

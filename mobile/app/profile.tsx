@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { loadMyContactChangeRequests, loadMyEmployeeProfile, submitMyContactChangeRequest, type ContactChangeRequest, type EmployeeProfile } from '@/src/features/profile/profile-api';
+import { loadMyContactChangeRequests, loadMyEmployeeProfile, loadMyRemoteWorkLocation, saveMyRemoteWorkAddress, submitMyContactChangeRequest, type ContactChangeRequest, type EmployeeProfile, type RemoteWorkLocation } from '@/src/features/profile/profile-api';
 import { usePlatform } from '@/src/providers/platform-provider';
 
 function requestLabel(status: ContactChangeRequest['status']) {
@@ -17,6 +17,9 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [requests, setRequests] = useState<ContactChangeRequest[]>([]);
   const [phone, setPhone] = useState('');
+  const [remote, setRemote] = useState<RemoteWorkLocation | null>(null);
+  const [address, setAddress] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +44,34 @@ export default function ProfileScreen() {
   }, [client, session]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    setRemote(null);
+    setAddress('');
+    if (!client || !session) return;
+    let current = true;
+    void loadMyRemoteWorkLocation(client).then(location => {
+      if (current && location) {
+        setRemote(location);
+        setAddress(location.address);
+      }
+    }).catch(() => {});
+    return () => { current = false; };
+  }, [client, session]);
+
+  async function saveAddress() {
+    if (!client || !remote || savingAddress || address.trim().length < 5) return;
+    setSavingAddress(true);
+    try {
+      const location = await saveMyRemoteWorkAddress(client, address);
+      setRemote(location);
+      setAddress(location.address);
+      Alert.alert('재택근무 주소', location.approved ? '승인된 주소입니다.' : '주소를 저장했습니다. 운영총괄 승인을 기다려 주세요.');
+    } catch {
+      Alert.alert('재택근무 주소', '주소를 저장하지 못했습니다. 다시 시도해 주세요.');
+    } finally {
+      setSavingAddress(false);
+    }
+  }
 
   async function submit() {
     if (!client || submitting) return;
@@ -84,6 +115,16 @@ export default function ProfileScreen() {
             <TextInput accessibilityLabel="변경할 연락처" keyboardType="phone-pad" value={phone} onChangeText={setPhone} style={styles.input} maxLength={30} placeholder="010-1234-5678" />
             <Pressable accessibilityRole="button" accessibilityLabel="연락처 변경 요청 제출" disabled={submitting} onPress={() => void submit()} style={[styles.primary, submitting ? styles.disabled : null]}><Text style={styles.primaryText}>{submitting ? '요청을 보내고 있습니다…' : '연락처 변경 요청'}</Text></Pressable>
           </View>
+          {remote ? <View style={styles.card}>
+            <Text style={styles.sectionTitle}>재택근무 주소</Text>
+            <Text style={styles.help}>{remote.approved ? '본사와 승인된 주소에서 출퇴근할 수 있습니다. 주소를 바꾸면 다시 승인이 필요합니다.' : '주소를 등록하면 운영총괄이 출퇴근 위치를 확인합니다.'}</Text>
+            <TextInput accessibilityLabel="재택근무 주소" autoComplete="street-address" value={address} onChangeText={setAddress}
+              style={styles.input} maxLength={200} editable={!savingAddress} placeholder="재택근무 도로명주소" />
+            <Pressable accessibilityRole="button" disabled={savingAddress || address.trim().length < 5}
+              onPress={() => void saveAddress()} style={[styles.primary, (savingAddress || address.trim().length < 5) && styles.disabled]}>
+              <Text style={styles.primaryText}>{savingAddress ? '저장 중…' : '재택근무 주소 저장'}</Text>
+            </Pressable>
+          </View> : null}
           {requests.length ? <View style={styles.card}><Text style={styles.sectionTitle}>변경 요청 상태</Text>{requests.map(request => <View key={request.id} style={styles.request}><Text style={styles.requestTitle}>{requestLabel(request.status)} · {request.proposed_phone}</Text><Text style={styles.help}>{new Date(request.requested_at).toLocaleDateString('ko-KR')}</Text>{request.decision_comment ? <Text style={styles.help}>관리자 의견: {request.decision_comment}</Text> : null}</View>)}</View> : null}
         </> : null}
       </ScrollView>

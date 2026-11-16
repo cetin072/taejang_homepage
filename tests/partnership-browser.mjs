@@ -49,8 +49,20 @@ async function ready(page) {
   for (const img of await page.locator('main img').all()) {
     await img.scrollIntoViewIfNeeded();
     await img.evaluate(el => el.decode());
-    const dims = await img.evaluate(el => ({ actual: el.width / el.height, source: el.naturalWidth / el.naturalHeight }));
-    assert.ok(Math.abs(dims.actual - dims.source) < 0.01, 'photo aspect ratio');
+    // HTMLImageElement.width/height round to integers, which skews short, wide logos.
+    // Check the rendered subpixel box against the natural ratio instead.
+    const dims = await img.evaluate(el => {
+      const box = el.getBoundingClientRect();
+      const style = getComputedStyle(el);
+      const inset = (...names) => names.reduce((sum, name) => sum + (parseFloat(style[name]) || 0), 0);
+      return {
+        width: box.width - inset('borderLeftWidth', 'borderRightWidth', 'paddingLeft', 'paddingRight'),
+        height: box.height - inset('borderTopWidth', 'borderBottomWidth', 'paddingTop', 'paddingBottom'),
+        source: el.naturalWidth / el.naturalHeight,
+        src: el.getAttribute('src')
+      };
+    });
+    assert.ok(Math.abs(dims.height - dims.width / dims.source) < 0.1, 'image aspect ratio: ' + JSON.stringify(dims));
   }
   await page.evaluate(() => scrollTo(0, 0));
 }
@@ -78,7 +90,9 @@ try {
     assert.equal(await page.locator('main > section').count(), 6);
     assert.equal(await page.locator('.partner-company-list li').count(), 4);
     assert.equal(await page.locator('.partner-company-list a').count(), 0);
-    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '참여기업 현판 보기 →', exact: true }).count(), 1);
+    assert.equal(await page.locator('.partner-company-list img').count(), 4);
+    assert.match(await page.locator('#partnership-title').innerText(), /장애인 고용의무/);
+    assert.equal(await page.locator('.partner-company-section').getByRole('link', { name: '참여기업 현판 보기', exact: true }).count(), 1);
     assert.equal(await page.locator('#partnership-faq-title').textContent(), '참여 안내');
     const metric = await layout(page, String(width));
     const boxes = () => page.locator('header, main > section, footer').evaluateAll(els => els.map(el => {
@@ -87,20 +101,41 @@ try {
     const before = await boxes(); await page.waitForTimeout(600); assert.deepEqual(await boxes(), before, 'stable layout');
     await page.screenshot({ path: path.join(output, `partnership-${width}.png`), fullPage: true });
     await page.screenshot({ path: path.join(output, `partnership-${width}-hero.png`) });
+    const secondary = page.getByRole('link', { name: '공동출자·참여기업 상담', exact: true });
+    await secondary.hover();
+    const buttonStyle = await secondary.evaluate(el => {
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, color: style.color, radius: style.borderRadius, height: el.getBoundingClientRect().height };
+    });
+    assert.notEqual(buttonStyle.background, 'rgba(0, 0, 0, 0)', 'outline hover needs an opaque background');
+    assert.equal(buttonStyle.color, 'rgb(255, 255, 255)');
+    assert.equal(buttonStyle.radius, '8px');
+    assert.ok(buttonStyle.height >= 48);
+    const guide = page.locator('#partnership-inquiry-type-guide');
+    assert.equal(await guide.isVisible(), false);
     const form = page.locator('form[name="taejang-inquiry"]');
     assert.equal(await form.evaluate(el => el.checkValidity()), false, 'native required');
     await page.getByRole('link', { name: '공동출자·참여기업 상담', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '모회사·고용 연계');
+    assert.equal(await field(page, 'inquiry-type').locator('option:checked').textContent(), '공동출자·참여기업 상담');
+    await field(page, 'inquiry-type').selectOption({ label: '채용·근무 문의' });
+    assert.equal(await guide.isVisible(), true);
+    assert.match(await field(page, 'inquiry-type').getAttribute('aria-describedby'), /partnership-inquiry-type-guide/);
     await field(page, 'name').fill('개발 검수용');
     await field(page, 'organization').fill('합성 QA 기관');
     await field(page, 'email').fill('invalid-email');
     assert.equal(await field(page, 'email').evaluate(el => el.validity.typeMismatch), true);
     await field(page, 'email').fill('qa@example.invalid');
     await field(page, 'message').fill('개발 검수용 합성 문의입니다. 실제 전송하지 않습니다.');
-    await page.getByRole('link', { name: '사업·농장 협력 문의', exact: true }).click();
+    await page.getByRole('button', { name: '문의창 닫기' }).click();
+    await page.getByRole('link', { name: '상품·용역 협력 문의', exact: true }).click();
     assert.equal(await field(page, 'inquiry-type').inputValue(), '기업 업무·건별 프로젝트');
+    assert.equal(await guide.isVisible(), false);
     assert.equal(await field(page, 'name').inputValue(), '개발 검수용');
+    assert.equal(await field(page, 'inquiry-type').locator('option:checked').textContent(), '상품·용역 협력 문의');
+    await page.screenshot({ path: path.join(output, `partnership-${width}-dialog.png`), fullPage: true });
     await field(page, 'inquiry-type').selectOption({ label: '지역사회공헌·ESG 협력' });
+    await page.getByRole('button', { name: '문의창 닫기' }).click();
     await page.locator('.faq-q[aria-controls="partnership-faq-answer-1"]').focus();
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('.faq-q[aria-controls="partnership-faq-answer-1"]').getAttribute('aria-expanded'), 'true');
@@ -110,6 +145,7 @@ try {
     assert.ok(await page.locator('#partnership-faq-answer-2').isVisible());
     const outline = await page.locator('.faq-q[aria-controls="partnership-faq-answer-2"]').evaluate(el => getComputedStyle(el).outlineWidth);
     assert.notEqual(outline, '0px', 'keyboard focus visible');
+    await page.getByRole('button', { name: '문의하기', exact: true }).click();
     assert.equal(await form.evaluate(el => el.checkValidity()), false, 'consent required');
     await field(page, 'privacy-consent').check();
     assert.equal(await form.evaluate(el => el.checkValidity()), true);
@@ -156,6 +192,15 @@ try {
   for (const href of internal) {
     const res = await context.request.get(new URL(href, base).href);
     assert.equal(res.status(), 200, 'internal link ' + href);
+  }
+  // Both pages must load the corrected image file, without another display filter.
+  for (const route of ['/partnership.html', '/activities/environment-cleanup-first.html']) {
+    await page.goto(base + route, { waitUntil: 'load' });
+    const photo = page.locator('main img[src$="/environment-cleanup-first-bright-v2.webp"]').first();
+    await photo.scrollIntoViewIfNeeded();
+    await photo.evaluate(el => el.decode());
+    assert.equal(await photo.evaluate(el => getComputedStyle(el).filter), 'none', route + ' corrected file without double exposure');
+    await photo.screenshot({ path: path.join(output, route.includes('/activities/') ? 'cleanup-article-photo.png' : 'cleanup-partnership-photo.png') });
   }
   results.push({ noJavaScript: true, internalLinks: internal, realSubmit: false, actualReceipt: 'UNVERIFIED', notification: 'UNVERIFIED' });
   await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ base, results }, null, 2));

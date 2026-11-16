@@ -12,9 +12,9 @@
     return element;
   }
 
-  function createActivityCard(item) {
+  function createActivityCard(item, highlighted = false) {
     const article = document.createElement('article');
-    article.className = 'card recent-activity-card';
+    article.className = 'card recent-activity-card' + (highlighted ? ' featured-story-card' : '');
     const link = document.createElement('a');
     link.className = 'card-link';
     const external = item.type === 'external';
@@ -26,10 +26,12 @@
       link.setAttribute('aria-label', `${item.externalLabel || '원문 보기'}: ${item.title} (새 탭에서 열림)`);
     }
 
-    link.append(contentHub.createMedia(item, 'card-media recent-activity-media'));
+    const media = contentHub.createMedia(item, 'card-media recent-activity-media');
+    link.append(media);
 
     const body = document.createElement('div');
     body.className = 'card-body recent-activity-body';
+    if (highlighted) appendText(body, 'span', '기획·특집', 'featured-story-ribbon');
     const meta = document.createElement('div');
     meta.className = 'content-card-meta';
     appendText(meta, 'span', contentHub.sourceLabel(item), `source-badge source-badge--${item.source || 'homepage'}`);
@@ -74,12 +76,14 @@
       const items = contentHub.orderedItems();
       containers.forEach((container) => {
         const requestedCount = Number.parseInt(container.dataset.homePreviewCount, 10) || 8;
-        const visibleItems = items.slice(0, Math.min(Math.max(requestedCount, 1), 8));
+        const count = Math.min(Math.max(requestedCount, 1), 8);
+        const featured = window.TAEJANG_FEATURED_STORIES;
+        const visibleItems = featured ? featured.selectHome(items, count) : items.slice(0, count);
         if (!visibleItems.length) {
           preserveFallbackOrHideLegacyShell(container);
           return;
         }
-        container.replaceChildren(...visibleItems.map(createActivityCard));
+        container.replaceChildren(...visibleItems.map((item, index) => createActivityCard(item, index === 0 && Boolean(featured?.isPinned(item)))));
         const section = container.closest('[data-recent-activities]');
         if (section) section.hidden = false;
       });

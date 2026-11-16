@@ -12,6 +12,24 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-15-remote-work-location', date: '2026-11-15',
+    title: '재택근무 주소 등록',
+    summary: '설정의 내 정보에서 재택근무 주소를 등록할 수 있습니다.',
+    items: ['운영총괄이 승인하면 본사와 등록한 재택근무지에서 출퇴근할 수 있습니다.', '주소를 변경하면 새 주소의 승인이 필요합니다.'],
+  },
+  {
+    id: '2026-11-14-partnership-inquiry', date: '2026-11-14',
+    title: '홈페이지 협력 문의 안내 개선',
+    summary: '협력 문의의 항목 이름과 버튼을 알기 쉽게 정리했습니다.',
+    items: ['문의 버튼과 입력창의 유형 이름을 맞췄습니다.', '천일염·테라리움 안내를 연결하고, 채용 안내는 해당 문의를 선택할 때만 표시합니다.', '참여기업을 메인과 같은 단색 로고로 표시하고 공동출자를 통한 고용의무 이행 방법을 설명합니다.', '환경정비 단체사진 파일을 밝게 보정해 협력 안내와 활동 원문에 동일하게 적용했습니다.'],
+  },
+  {
+    id: '2026-11-14-erp-article-editor', date: '2026-11-14',
+    title: 'ERP 홍보 글 편집 도구',
+    summary: 'ERP에서 소제목과 사진을 배치하며 홍보 글을 작성할 수 있습니다.',
+    items: ['문단 사이에 사진과 설명을 넣고 모바일 본문을 미리 볼 수 있습니다.', '목록 대표사진을 본문 배치와 별도로 선택할 수 있습니다.'],
+  },
+  {
     id: '2026-11-09-settings-privacy-disclosure',
     date: '2026-11-09',
     title: '개인정보 안내와 로그아웃 위치 정리',

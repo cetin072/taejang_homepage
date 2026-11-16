@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import vm from 'node:vm';
+import presentation from '../assets/js/archive-presentation.js';
 
 // Reuse the browser's approved data selection/order, without executing a DOM or DB query.
 export async function archiveItems(root, extra = []) {
@@ -15,7 +16,7 @@ export async function archiveItems(root, extra = []) {
   return JSON.parse(JSON.stringify(context.window.TAEJANG_CONTENT_HUB.orderedItems()));
 }
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
-const labels = { homepage: '홈페이지', 'naver-blog': 'NAVER BLOG', youtube: 'YOUTUBE', press: '언론보도', instagram: 'INSTAGRAM', x: 'X' };
+const labels = presentation.labels;
 export async function generateArchiveSnapshot({ outputRoot, request = fetch, live = true }) {
   let extra = [];
   if (live) {
@@ -33,7 +34,8 @@ export async function generateArchiveSnapshot({ outputRoot, request = fetch, liv
   const items = await archiveItems(outputRoot, extra);
   const file = path.join(outputRoot, 'archive.html');
   let html = await readFile(file, 'utf8');
-  const cards = items.slice(0, 12).map(item => {
+  const cards = items.slice(0, 12).map(original => {
+    const item = presentation.present(original);
     const external = item.type === 'external';
     const href = external ? item.externalUrl : item.detailUrl;
     const cta = external ? (item.externalLabel || '원문 보기') + ' ↗' : '자세히 보기';
@@ -47,8 +49,14 @@ export async function generateArchiveSnapshot({ outputRoot, request = fetch, liv
   }
   const years = [...new Set(items.map(item => item.publishedAt.slice(0, 4)))].sort().reverse();
   const controls = '<div class="archive-controls" data-archive-date-controls><div class="archive-control"><label for="archive-year">연도</label><select id="archive-year" disabled><option value="all">전체 연도</option>' + years.map(year => '<option value="' + esc(year) + '">' + esc(year) + '년</option>').join('') + '</select></div><div class="archive-control"><label for="archive-month">월</label><select id="archive-month" disabled><option value="all">전체 월</option>' + Array.from({length:12}, (_, i) => '<option value="' + String(i+1).padStart(2,'0') + '">' + (i+1) + '월</option>').join('') + '</select></div><div class="archive-result-count" aria-live="polite">총 ' + items.length + '건 중 12건 표시</div></div>';
-  html = html.replace(/<div class="archive-controls" data-archive-date-controls>[\s\S]*?<\/div><\/div>/, '');
-  html = html.replace('      <div class="article-list"', controls + '\n      <div class="article-list"');
+  const compactControls = controls.replace(/<div class="archive-result-count"[^>]*>.*?<\/div>/, '');
+  html = html.replace(/<div class="archive-controls" data-archive-date-controls>[\s\S]*?<\/div><\/div>/, () => compactControls);
+  html = html.replace(/(<span[^>]*data-archive-count[^>]*>).*?(<\/span>)/, (_, start, end) => start + '총 ' + items.length + '건 중 ' + Math.min(12, items.length) + '건 표시' + end);
+  // Reserve only space for approved pinned records known at build time. No stale article is exposed.
+  const editorialContext = { window: {}, document: { querySelector: () => null } };
+  vm.runInNewContext(await readFile(path.join(outputRoot, 'assets/js/featured-stories.js'), 'utf8'), editorialContext);
+  const pinnedCount = editorialContext.window.TAEJANG_FEATURED_STORIES.selectPinned(items, 4).length;
+  html = html.replace(/<section class="featured-stories-section"[^>]*>/, '<section class="featured-stories-section" data-featured-stories data-featured-count="' + pinnedCount + '" aria-labelledby="archive-featured-title"' + (pinnedCount ? '' : ' hidden') + '>');
   // JSON is data, not executable script; the exact same approved baseline hydrates JS.
   html = html.replace(/<script type="application\/json" id="archive-snapshot">[\s\S]*?<\/script>\n?/, '');
   html = html.replace('<script src="assets/js/content.js">', () => '<script type="application/json" id="archive-snapshot">' + JSON.stringify(items).replaceAll('<', '\\u003c') + '</script>\n<script src="assets/js/content.js">');

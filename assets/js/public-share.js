@@ -141,10 +141,14 @@
     // inside the existing <a> or change its destination.
     const panel = node('details', undefined, 'public-external-share');
     panel.setAttribute('data-public-external-share', '');
-    const summary = node('summary', '원문 공유');
+    panel.setAttribute('name', 'archive-original-share');
+    const summary = node('summary');
+    summary.title = '원문 공유';
+    summary.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>';
     summary.setAttribute('aria-label', title + ' 원문 공유 옵션');
     panel.append(summary);
     const body = node('div', undefined, 'public-external-share-body');
+    body.append(node('strong', '원문 공유', 'public-external-share-title'));
     const actions = node('div', undefined, 'public-share-actions');
     const copyButton = node('button', '원문 URL 복사', 'public-share-button public-share-button--primary');
     copyButton.type = 'button';
@@ -182,6 +186,12 @@
     status.setAttribute('aria-live', 'polite');
     body.append(status);
     panel.append(body);
+    panel.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        panel.open = false;
+        summary.focus();
+      }
+    });
 
     copyButton.addEventListener('click', async () => {
       try {
@@ -200,5 +210,10 @@
   }
 
   window.TAEJANG_PUBLIC_SHARE = { mount, mountExternalCard };
+  document.addEventListener?.('click', event => {
+    document.querySelectorAll('.public-external-share[open]').forEach(panel => {
+      if (!panel.contains(event.target)) panel.open = false;
+    });
+  });
   document.querySelectorAll('article.article').forEach((article) => mount(article));
 }());

@@ -266,7 +266,14 @@
           return;
         }
         if (!employee) { activeEmployeeView = 'existing'; selectedEmployeeId = null; }
-        await refreshEmployeeManagement();
+        const refreshed = await refreshEmployeeManagement();
+        if (refreshed && employee && teamRequest && !leadDirectEdit && selectedEmployeeId === employee.id) {
+          const records = main()?.querySelector('[data-employee-section="records"]');
+          if (records) {
+            records.open = true;
+            records.querySelector('summary')?.focus();
+          }
+        }
       } catch (error) {
         window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
         controls.forEach((control, index) => { control.disabled = saved ? true : disabled[index]; });
@@ -487,27 +494,39 @@
     const reveal = button('주민번호 조회', async () => {
       if (!window.confirm('업무상 필요한 직원 한 명의 주민번호만 일시적으로 표시합니다. 조회 이력이 기록됩니다. 계속하시겠습니까?')) return;
       reveal.disabled = true;
+      const fold = wrap.closest('.employee-profile-fold');
+      let cancelled = false, shown, hideButton, timer;
+      const hide = () => {
+        if (cancelled) return;
+        cancelled = true;
+        clearTimeout(timer);
+        fold?.removeEventListener('toggle', onFold);
+        if (shown) { shown.textContent = ''; shown.remove(); }
+        hideButton?.remove();
+        message.textContent = '';
+        reveal.disabled = false;
+      };
+      const onFold = () => { if (!fold.open) hide(); };
+      fold?.addEventListener('toggle', onFold);
       try {
         const result = await app().rpc('get_employee_resident_registration_number', {
           p_employee_uuid:employee.id, p_purpose:purpose.value
         });
+        if (cancelled || !wrap.isConnected || (fold && !fold.open)) { hide(); return; }
         if (!result?.ok) throw new Error(result?.code || '저장된 주민번호를 찾지 못했습니다.');
         const digits = String(result.resident_number || '');
         if (!/^[0-9]{13}$/.test(digits)) throw new Error('주민번호 형식이 올바르지 않습니다.');
-        const shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
+        shown = el('output', digits.slice(0,6)+'-'+digits.slice(6), 'employee-resident-reveal');
         shown.setAttribute('aria-label','열람한 직원 주민등록번호');
-        const hide = () => {shown.textContent = '';shown.remove();hideButton.remove();reveal.disabled=false;};
-        const hideButton = button('번호 숨기기',hide,true);
-        wrap.querySelector('.employee-resident-reveal')?.remove();
-        wrap.querySelector('[data-resident-hide]')?.remove();
-        hideButton.dataset.residentHide='1';
+        hideButton = button('번호 숨기기',hide,true);
         wrap.append(shown,hideButton);
-        window.setTimeout(hide,30000);
+        timer = window.setTimeout(hide,30000);
         message.textContent='30초 후 자동으로 숨겨집니다.';
       } catch(error) {
+        if (cancelled) return;
+        hide();
         message.textContent=app().friendlyError?.(error) || error.message || '주민번호를 확인하지 못했습니다.';
         message.classList.add('error');
-        reveal.disabled=false;
       }
     }, true);
     const row = el('div',null,'quick-links app-authoring-inline');
@@ -970,6 +989,71 @@
     return wrap;
   }
 
+  function disabilityPanel(context, employee) {
+    const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
+      || (route() === 'promotion_lead' && context.access_level === 'promotion_lead_global'
+        && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
+        && !employee.protected);
+    if (!canView()) return null;
+    const details = el('details', null, 'employee-profile-section employee-profile-fold employee-disability-section');
+    const body = el('div', null, 'employee-profile-fold-body');
+    details.append(el('summary', '장애정보 보기'), body);
+    let generation = 0;
+    details.addEventListener('toggle', async () => {
+      const request = ++generation;
+      body.replaceChildren();
+      if (!details.open) return;
+      const visible = () => details.open && details.isConnected && request === generation
+        && canView() && allowedRoute('employee.manage');
+      const feedback = el('p', '장애정보를 불러오는 중입니다.', 'help');
+      feedback.setAttribute('role', 'status');
+      body.append(feedback);
+      let info;
+      try {
+        info = await app().rpc('get_employee_disability_info', {p_employee_uuid: employee.id});
+      } catch {
+        if (visible()) feedback.textContent = '장애정보를 조회할 수 없습니다. 권한을 확인하고 다시 열어 주세요.';
+        return;
+      }
+      if (!visible()) return;
+      feedback.textContent = info.revision ? '등록된 장애정보입니다.' : '등록된 장애정보가 없습니다.';
+      const form = el('form', null, 'employee-form employee-disability-form app-authoring');
+      const degree = select([{id:'',name:'장애 정도 선택'}, {id:'severe',name:'중증'}, {id:'mild',name:'경증'}], info.degree);
+      const type = select([{id:'',name:'장애 유형 선택'}, ...info.types.map(name => ({id:name,name}))], info.disability_type);
+      degree.required = type.required = true;
+      const save = button('장애정보 저장', () => {});
+      save.type = 'submit';
+      const fields = el('div', null, 'employee-form-grid');
+      fields.append(field('장애 정도', degree), field('장애 유형', type));
+      const actions = el('div', null, 'quick-links');
+      actions.append(feedback, save);
+      form.append(fields, actions);
+      body.append(form);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (save.disabled || !visible()) return;
+        save.disabled = degree.disabled = type.disabled = true;
+        feedback.textContent = '저장 중입니다.';
+        try {
+          const saved = await app().rpc('save_employee_disability_info', {
+            p_employee_uuid: employee.id, p_degree: degree.value,
+            p_disability_type: type.value, p_expected_revision: info.revision
+          });
+          if (!visible()) return;
+          info.revision = saved.revision;
+          feedback.textContent = '장애정보를 저장했습니다.';
+        } catch (error) {
+          if (visible()) feedback.textContent = error?.code === '40001'
+            ? '최신 정보가 바뀌었습니다. 이 항목을 닫았다 다시 열어 확인해 주세요.'
+            : '장애정보를 저장하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.';
+        } finally {
+          save.disabled = degree.disabled = type.disabled = false;
+        }
+      });
+    });
+    return details;
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
@@ -979,7 +1063,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
+      makeEmployeeForm, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {
@@ -1002,7 +1086,11 @@
     if (selectedEmployeeId && activeEmployeeView === 'existing') {
       const employee = arr(context.employees).find(item => item.id === selectedEmployeeId);
       if (employee) {
-        shell.append(views.employeeProfile(context, employee)); target.replaceChildren(shell);
+        const previous = target.querySelector('[data-employee-profile]');
+        const expanded = previous?.dataset.employeeProfile === employee.id
+          ? [...previous.querySelectorAll('[data-employee-section][open]')].map(node => node.dataset.employeeSection)
+          : [];
+        shell.append(views.employeeProfile(context, employee, new Set(expanded))); target.replaceChildren(shell);
         shell.querySelector('[data-employee-heading]')?.focus(); return;
       }
       selectedEmployeeId = null;
