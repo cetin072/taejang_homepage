@@ -61,10 +61,10 @@ function out(key,initial='—'){const n=el('output',initial);n.dataset.amount=ke
 function quoteChange(){dirty=true;totals();}
 function renderQuote(){
  if(!quote)quote=C.draft(state.settings.data);
- const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 견적 · 원본 보존':'고객 선택 → 견적 확정 → PDF → 별도 차감','lg-muted'));
+ const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 견적 · 원본 보존':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
  content.append(actions);
  const sheet=el('article','','lg-panel lg-sheet');sheet.dataset.quoteSheet='1';
- const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title,el('div',quote.issuer,'lg-brand'));sheet.append(header);
+ const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title);sheet.append(header);
  const fields=el('div','','lg-fields');
  const choices=[['','고객 선택'],...state.customers.map(c=>[c.id,c.name])];
  if(confirmed){const label=el('label','고객명');label.append(el('span',quote.customerName));fields.append(label);}else field(fields,'고객명',quote.customerId,v=>{quote.customerId=v;customer=v;quoteChange();},{options:choices});
@@ -110,8 +110,10 @@ function renderQuote(){
  const total=el('div','','lg-total'),strong=el('strong');strong.append(out('total'));total.append(el('span','최종 견적금액'),strong);right.append(total);grid.append(left,right);summary.append(grid);
  const controls=el('div','','lg-actions lg-section lg-no-print');
  if(!confirmed){const confirmButton=button('금액 확정하기',()=>{const calc=totals();if(!calc||!quote.customerId)return;void mutate('quote.confirm',{quote:clone(quote)});},true);confirmButton.dataset.confirm='1';controls.append(confirmButton);}
- else{controls.append(button('고객용 PDF',printQuote,true),button('복사해 새 견적',()=>{confirmed=null;quote=clone(quote);delete quote.number;dirty=true;render();}));}
- sheet.append(controls);content.append(sheet);
+ else{controls.append(button('견적서 인쇄 / PDF 저장',printQuote,true),button('복사해 새 견적',()=>{confirmed=null;quote=clone(quote);delete quote.number;dirty=true;render();}));}
+ sheet.append(controls);
+ if(confirmed)sheet.append(el('p','인쇄창에서 프린터 또는 PDF로 저장을 선택하세요. A4 · 배율 100% · 머리글/바닥글 해제 권장.','lg-help lg-no-print'));
+ content.append(sheet);
  const wallet=el('section','','lg-panel lg-no-print');wallet.append(el('h3','고객 충전금'));
  for(const [key,label] of [['balance','현재 잔액'],['remaining','이번 견적 차감 후 잔액']]){const row=el('div','','lg-billrow');row.append(el('span',label),out(key));wallet.append(row);}
  if(confirmed){const charged=state.quotes.find(q=>q.id===confirmed.id)?.charged||confirmed.charged;const b=button(charged?'차감 기록 있음':'충전금에서 차감',()=>{if(confirm('이 견적 금액을 충전금에서 차감할까요?'))void mutate('wallet.charge',{quoteId:confirmed.id});},true);b.disabled=!!charged||Number(confirmed.total)===0;wallet.append(b);}
@@ -135,23 +137,26 @@ function walletEditor(c){
 }
 function renderEntries(parent){const rows=state.entries.map(t=>{const reverse=button(t.reversed||t.reversal_of?'정정 완료':'정정',()=>{const reason=prompt('정정 사유 (원 거래는 보존됩니다)');if(reason?.trim())void mutate('wallet.reverse',{entryId:t.id,reason:reason.trim()});});reverse.disabled=!!t.reversed||!!t.reversal_of;return [new Date(t.created_at).toLocaleString('ko-KR'),t.customer_name,t.reversal_of?'정정':t.type==='deposit'?'충전':'사용',(t.type==='deposit'?'+':'−')+money(t.amount),t.memo,t.actor,reverse];});parent.append(table(['일시','고객','구분','금액','메모','담당자','정정'],rows));}
 function renderHistory(){
- const panel=el('section','','lg-panel');panel.append(el('h3','거래 내역'));const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>[q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',button('견적 보기 / PDF',()=>{quote=clone(q.snapshot);confirmed=q;customer=q.customer_id;dirty=false;tab='quote';render();})])));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
+ const panel=el('section','','lg-panel');panel.append(el('h3','거래 내역'));const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>[q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',button('견적 보기 / 인쇄',()=>{quote=clone(q.snapshot);confirmed=q;customer=q.customer_id;dirty=false;tab='quote';render();})])));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
 }
 function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()=>{page--;void reload();}),next=button('다음',()=>{page++;void reload();});back.disabled=page===0;next.disabled=(page+1)*50>=Math.max(state.quoteCount,state.entryCount);bar.append(back,el('span',(page+1)+'페이지'),next);parent.append(bar);}
 function renderSettings(){
- const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');field(fields,'견적서 발행업체',data.issuer,v=>{data.issuer=v;settingsDirty=true;});
+ const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');
  for(const [key,label] of [['shelf','선반 1칸 · 월'],['repack','재포장'],['individualLabel','개별 운송장'],['bundle','합포장'],['photo','사진·실측']])field(fields,label,data[key],v=>{data[key]=Number(v);settingsDirty=true;},{type:'number'});
  for(const [key,label] of Object.entries(C.BOXES))field(fields,label,data.boxes[key],v=>{data.boxes[key]=Number(v);settingsDirty=true;},{type:'number'});
  data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{await mutate('settings.save',{data,revision:state.settings.revision});},true));content.append(panel);
 }
 function printQuote(){
- if(!confirmed||!permitted())return;document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const sheet=root.querySelector('[data-quote-sheet]').cloneNode(true);
+ if(!confirmed||!permitted())return;document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
+ // cloneNode does not preserve the live selection of a select element.
+ const selections=source.querySelectorAll('select');sheet.querySelectorAll('select').forEach((n,i)=>{n.value=selections[i].value;});
  sheet.querySelectorAll('.lg-no-print,button').forEach(n=>n.remove());sheet.querySelectorAll('input[type=checkbox]').forEach(n=>n.closest('label')?.remove());sheet.querySelector('[aria-label="수수료율 (%)"]')?.closest('label')?.remove();if(!quote.feeEnabled)sheet.querySelector('[data-amount=platform]')?.closest('.lg-billrow')?.remove();sheet.querySelectorAll('input,select,textarea').forEach(n=>{const value=n.tagName==='SELECT'?n.selectedOptions[0]?.textContent:n.type==='checkbox'?(n.checked?'적용':'미적용'):n.value;const text=el('span',value||'—','lg-print-value');n.replaceWith(text);});
  printed.append(sheet);document.body.append(printed);document.body.classList.add('lg-printing');
- window.print();
+ try{window.print();}catch{clearPrint();report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
 }
-window.addEventListener('afterprint',()=>{document.body.classList.remove('lg-printing');document.getElementById('logistics-print')?.remove();});
-function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));document.getElementById('logistics-print')?.remove();document.body.classList.remove('lg-printing');}
+function clearPrint(){document.body.classList.remove('lg-printing');document.getElementById('logistics-print')?.remove();}
+window.addEventListener('afterprint',clearPrint);
+function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));clearPrint();}
 for(const event of ['taejang-app-ready','taejang-capabilities-changed','taejang-menu-authority-changed'])document.addEventListener(event,revoke);
 window.addEventListener('storage',event=>{if(event.key==='taejang-staff-session-v1')revoke();});
 async function open(){

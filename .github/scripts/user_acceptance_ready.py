@@ -120,11 +120,65 @@ def run_command(label: str, command: str, env: dict) -> None:
     print(f"UAR PASS: {label}")
 
 
+def wait_for_checks(env: dict, required=None, timeout_seconds: int = 900) -> None:
+    """Reuse dedicated jobs only after their exact-head results succeed."""
+    required = set(required) if required is not None else {
+        "Public source and launch regression",
+        "Article photo and existing video slides",
+        "Employee app landing local and exact-head Preview",
+    }
+    repo = env.get("GITHUB_REPOSITORY", "").strip()
+    sha = env.get("UAR_HEAD_SHA", "").strip()
+    token = env.get("GITHUB_TOKEN", "").strip()
+    if not repo or not sha or not token:
+        fail("Exact-head checks require repository, HEAD and token")
+    url = f"https://api.github.com/repos/{repo}/commits/{sha}/check-runs?filter=latest&per_page=100"
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        latest = {}
+        page = 1
+        while True:
+            checks = github_json(f"{url}&page={page}", token).get("check_runs", [])
+            for check in checks:
+                if check.get("head_sha") != sha or check.get("app", {}).get("slug") != "github-actions":
+                    continue
+                name = check.get("name")
+                if name in required and check.get("id", 0) > latest.get(name, {}).get("id", -1):
+                    latest[name] = check
+            if len(checks) < 100:
+                break
+            page += 1
+        for name, check in latest.items():
+            if check.get("status") == "completed" and check.get("conclusion") != "success":
+                fail(f"Required QA failed: {name} ({check.get('conclusion')})")
+        pending = sorted(name for name in required if latest.get(name, {}).get("conclusion") != "success"
+                         or latest.get(name, {}).get("status") != "completed")
+        if not pending:
+            print(f"UAR: all {len(required)} delegated exact-head checks passed")
+            return
+        print("Waiting for QA: " + ", ".join(pending), flush=True)
+        time.sleep(10)
+    fail("Timed out waiting for exact-head QA")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--contract", default=os.environ.get("UAR_CONTRACT_PATH", ".github/user-acceptance-ready.json"))
     parser.add_argument("--validate-only", action="store_true")
+    parser.add_argument("--wait-static-checks", action="store_true")
     args = parser.parse_args()
+
+    if args.wait_static_checks:
+        env = os.environ.copy()
+        if env.get("GITHUB_EVENT_NAME") == "pull_request":
+            wait_for_checks(env, {
+                "Public source and launch regression",
+                "Migration, pgTAP, Auth and RLS",
+            }, timeout_seconds=1200)
+        else:
+            # Manual/local runs have no guaranteed sibling PR jobs.
+            run_command("static_regression", "npm run test:platform-static && npm run test:public", env)
+        return
 
     contract = load_contract(pathlib.Path(args.contract))
     print("UAR contract validation: PASS")
@@ -132,6 +186,15 @@ def main() -> None:
         return
 
     env = os.environ.copy()
+    scope = env.get("VALIDATION_SCOPE", "full")
+    if scope == "docs":
+        print("UAR not applicable: documentation-only change")
+        return
+    if scope == "public":
+        wait_for_preview(contract, env)
+        wait_for_checks(env)
+        print("USER_ACCEPTANCE_READY=PASS (public regression and hosted PC/mobile QA verified)")
+        return
     bootstrap = str(contract.get("bootstrap", "")).strip()
     if bootstrap:
         run_command("bootstrap", bootstrap, env)
@@ -143,8 +206,16 @@ def main() -> None:
     env["PREVIEW_URL"] = preview_url
     env["EXPECTED_HEAD_SHA"] = env.get("UAR_HEAD_SHA", "")
 
+    # Reuse a successful command only within this same Preview/environment.
+    # The earlier local role check remains separate from hosted validation.
+    completed_commands = set()
     for name in ("environment_parity", "preview_runtime", "representative_smoke", "visual_stability"):
-        run_command(name, contract["checks"][name]["command"], env)
+        command = contract["checks"][name]["command"]
+        if command in completed_commands:
+            print(f"UAR PASS: {name} (same command already passed on this Preview)")
+            continue
+        run_command(name, command, env)
+        completed_commands.add(command)
 
     print("\nUSER_ACCEPTANCE_READY=PASS")
     print("User Preview may be requested only after this gate is GREEN.")

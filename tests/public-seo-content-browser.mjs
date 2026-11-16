@@ -228,6 +228,9 @@ try {
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'farm inquiry destination overflow');
           await page.goto(base + '/farm.html', { waitUntil: 'load' });
         }
+        // Link checks above may navigate to a different page. Measure its
+        // layout after its styles/images load, not at navigation commit.
+        await page.waitForLoadState('load');
         const overflow = await page.evaluate(() => ({
           width: innerWidth, scrollWidth: document.documentElement.scrollWidth,
           elements: [...document.querySelectorAll('body *')].filter(element => {
@@ -263,10 +266,11 @@ try {
       assert.equal(await trigger.getAttribute('href'), 'partnership.html#contact');
       const leftBox = await contact.locator('.contact-actions').boundingBox();
       const buttonBox = await trigger.boundingBox();
+      const ctaBox = await contact.locator('.home-contact-cta').boundingBox();
       const illustrationBox = await contact.locator('.home-contact-illustration').boundingBox();
       if (width > 760) {
         assert.ok(buttonBox.x >= leftBox.x + leftBox.width, 'inquiry button is to the right of the original contact block');
-        assert.ok(Math.abs((buttonBox.y + buttonBox.height / 2) - (leftBox.y + leftBox.height / 2)) < 2, 'inquiry button is vertically centered with the cards');
+        assert.ok(Math.abs((ctaBox.y + ctaBox.height / 2) - (leftBox.y + leftBox.height / 2)) < 2, 'inquiry button and illustration form a centered group beside the cards');
       } else assert.ok(buttonBox.y >= leftBox.y + leftBox.height, 'mobile inquiry button follows the original contact block');
       assert.ok(illustrationBox.y >= buttonBox.y + buttonBox.height, 'illustration is below the button without covering it');
       const contactBox = await contact.boundingBox();

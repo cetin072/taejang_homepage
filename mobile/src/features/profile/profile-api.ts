@@ -34,3 +34,17 @@ export async function submitMyContactChangeRequest(client: PlatformSupabaseClien
   if (error) throw error;
   return data as { ok?: boolean; code?: string } | null;
 }
+
+export type RemoteWorkLocation = { address: string; approved: boolean };
+
+export async function loadMyRemoteWorkLocation(client: PlatformSupabaseClient) {
+  const { data, error } = await client.rpc('get_my_employee_remote_work_location');
+  if (error) throw error;
+  return data as RemoteWorkLocation;
+}
+
+export async function saveMyRemoteWorkAddress(client: PlatformSupabaseClient, address: string) {
+  const { data, error } = await client.rpc('save_my_employee_remote_work_address', { p_address: address.trim() });
+  if (error) throw error;
+  return data as RemoteWorkLocation;
+}

@@ -123,11 +123,26 @@ try {
     assert.ok(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>parseFloat(getComputedStyle(n).outlineWidth)>=2),'visible keyboard focus');
     await auditFold.click();
     assert.equal(await auditCheck.isVisible(),false,'field audit can close after opening');
+    const remoteWork = page.locator('details').filter({ has: page.getByText('재택근무', { exact:true }) }).last();
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_employee_remote_work_location')),false);
+    await remoteWork.locator('summary').click();
+    await remoteWork.getByText('가상시 테스트로 10', { exact:true }).waitFor();
+    await remoteWork.getByLabel('위도', { exact:true }).fill('36');
+    await remoteWork.getByLabel('경도', { exact:true }).fill('129');
+    await remoteWork.getByRole('button', { name:'재택근무 승인', exact:true }).click();
+    await remoteWork.getByText('재택 GPS 승인됨', { exact:true }).waitFor();
+    assert.ok(await page.evaluate(()=>calls.some(call=>call.name==='set_employee_remote_work_location'
+      && call.args.p_employee_uuid==='fixture-0' && call.args.p_revision==='fixture-address-revision'
+      && call.args.p_latitude===36 && call.args.p_longitude===129)));
+    await fits();
+    await remoteWork.locator('summary').click();
+    await remoteWork.getByText('가상시 테스트로 10', { exact:true }).waitFor({ state:'detached' });
+
 
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section)');
+    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section):not(.employee-section-work)');
     assert.equal(await standardSections.count(),5);
     const sectionColors=await standardSections.evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
     assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');

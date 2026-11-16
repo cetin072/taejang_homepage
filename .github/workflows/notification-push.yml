@@ -2,6 +2,7 @@ name: Notification Push
 
 on:
   pull_request:
+    branches: [main]
     paths:
       - 'supabase/migrations/*notification_push*'
       - 'supabase/functions/notification-dispatch/**'
@@ -31,27 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
-      - name: Run notification push static contract
-        run: node --test tests/notification-push-foundation.test.js tests/notification-push-dispatch.test.mjs tests/notification-push-canary-draft.test.mjs
-      - name: Start isolated Supabase
-        run: supabase start
-      - name: Reapply migrations from clean database
-        run: supabase db reset
-      - name: Lint database schema
-        run: supabase db lint --level error --fail-on error
-      - name: Run notification pgTAP
-        run: supabase test db supabase/tests/database/notification_push_foundation.test.sql
-      - name: Run notification Auth/Data API integration
-        shell: bash
-        run: |
-          supabase status -o env > /tmp/taejang-notification.env
-          set -a
-          source /tmp/taejang-notification.env
-          set +a
-          SUPABASE_PROJECT_ID=taejang-homepage-phase1a node tests/notification-push-auth-integration.mjs
-      - name: Stop local Supabase
-        if: always()
-        run: supabase stop --no-backup
+      # Phase 1A owns migration/lint/pgTAP and notification Auth/Data API QA.
+      # Notification source and package changes select its full integration path.
+      - name: Run notification dispatch and canary contracts
+        run: node --test tests/notification-push-dispatch.test.mjs tests/notification-push-canary-draft.test.mjs

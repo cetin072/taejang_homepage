@@ -58,6 +58,9 @@ function hubItem(row, image) {
     thumbnailAlt: image.alt,
     publishedAt: row.published_date || '',
     featured: false,
+    ...(Object.prototype.hasOwnProperty.call(row, 'editorial_slot')
+      ? { editorialSlot: !external && Number.isInteger(row.editorial_slot) && row.editorial_slot >= 1 && row.editorial_slot <= 4 ? row.editorial_slot : null }
+      : {}),
     status: 'published',
     ...(external
       ? { externalUrl: row.external_url, externalLabel: link.label }
@@ -107,8 +110,14 @@ export default async (request) => {
     const rows = await rpc('list_public_promotion_feed', {});
     // Share only within this response; never cache publication/auth state.
     const probes = new Map();
+    // Archive cards already retry approved image candidates in the browser.
+    // Return fresh publication state without waiting for unrelated photo HEADs.
+    // Detail pages, crawlers and existing feed consumers retain server resolution.
+    const browserMedia = format === 'json' && requestUrl.searchParams.get('media') === 'browser';
     const items = await Promise.all((Array.isArray(rows) ? rows : []).map(async row =>
-      hubItem(row, await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
+      hubItem(row, browserMedia
+        ? mediaPolicy.presentation(row, Netlify.env.get('SUPABASE_URL'))
+        : await mediaPolicy.resolve(row, Netlify.env.get('SUPABASE_URL'), probes))));
     if (format === 'json') return json({ items });
 
     const script = `(() => {\n  const content = window.TAEJANG_CONTENT;\n  if (!content) return;\n  if (!Array.isArray(content.hub)) content.hub = [];\n  const items = ${safeScriptJson(items)};\n  const ids = new Set(content.hub.map(item => item && item.id));\n  items.forEach(item => { if (!ids.has(item.id)) { content.hub.push(item); ids.add(item.id); } });\n})();\n`;

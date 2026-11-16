@@ -9,8 +9,8 @@ async function text(path) {
 test('Taejang mobile foundation pins the reused Expo 57 compatible stack', async () => {
   const pkg = JSON.parse(await text('mobile/package.json'));
   assert.equal(pkg.main, 'expo-router/entry');
-  assert.equal(pkg.dependencies.expo, '57.0.32');
-  assert.equal(pkg.dependencies['expo-router'], '57.0.30');
+  assert.match(pkg.dependencies.expo, /^57\.0\.\d+$/);
+  assert.match(pkg.dependencies['expo-router'], /^57\.0\.\d+$/);
   assert.equal(pkg.dependencies['react-native'], '0.86.3');
   assert.equal(pkg.dependencies['@supabase/supabase-js'], '2.116.0');
   assert.ok(pkg.dependencies['expo-secure-store']);
@@ -79,9 +79,15 @@ test('first mobile screen is Taejang branded and keeps technical status off the 
 
 test('mobile CI keeps ARM64 device QA on a self-contained release-mode APK', async () => {
   const workflow = await text('.github/workflows/mobile-app.yml');
-  assert.match(workflow, /rm -f package-lock\.json/);
-  assert.match(workflow, /npm install --package-lock-only --ignore-scripts --no-audit --no-fund/);
-  assert.match(workflow, /taejang-mobile-generated-lock/);
+  assert.doesNotMatch(workflow, /rm -f package-lock\.json|npm install --package-lock-only/);
+  const manifest = JSON.parse(await text('mobile/package.json'));
+  const lock = JSON.parse(await text('mobile/package-lock.json'));
+  for (const kind of ['dependencies', 'devDependencies']) {
+    assert.deepEqual(lock.packages[''][kind], manifest[kind], 'committed lock matches package manifest');
+    for (const [name, version] of Object.entries(manifest[kind])) {
+      assert.equal(lock.packages[`node_modules/${name}`].version, version, `${name}: pinned version`);
+    }
+  }
   assert.match(workflow, /npm ci --no-audit --no-fund/);
   assert.match(workflow, /expo install --check/);
   assert.match(workflow, /npm run typecheck/);

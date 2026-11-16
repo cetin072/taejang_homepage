@@ -1,4 +1,5 @@
 # tests/operations-public-text-edit-auth.mjs runs through phase1a-auth-integration.mjs.
+# tests/promotion-editorial-auth.mjs runs through phase1a-auth-integration.mjs.
 name: Phase 1A Supabase Integration
 
 on:
@@ -29,29 +30,11 @@ jobs:
 
       - name: Decide whether full platform integration is relevant
         id: scope
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "run_full=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}")"
-          printf '%s\n' "$changed_files"
-
-          # Fail safe: run the full integration suite for every change except
-          # documentation-only pull requests. New code/config paths therefore
-          # cannot silently fall outside a hand-maintained allow-list.
-          non_docs="$(printf '%s\n' "$changed_files" | grep -Ev '^(docs/|[^/]+\.md$)' || true)"
-          if [[ -n "$changed_files" && -z "$non_docs" ]]; then
-            echo "run_full=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "run_full=true" >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/ci-change-scope.mjs
 
       - name: Report lightweight pass for unrelated changes
         if: steps.scope.outputs.run_full != 'true'
-        run: echo "Documentation-only change; required check is satisfied without starting Supabase."
+        run: echo "No platform changes; isolated platform integration is not applicable."
 
       - name: Run active static platform checks
         if: steps.scope.outputs.run_full == 'true'

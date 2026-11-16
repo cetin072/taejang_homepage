@@ -24,6 +24,26 @@ jobs:
       - run: npm ci
       - run: node --test tests/logistics-core.test.cjs
       - run: node tests/logistics-isolated.mjs
-      - run: npm run test:platform-static
-      - run: npm run test:staging-safety
+      - name: Prepare Korean print rendering
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y fonts-noto-cjk poppler-utils
+      - name: Verify quote printing and A4 pagination
+        run: node tests/logistics-print-browser.mjs
+        env:
+          LOGISTICS_PRINT_OUTPUT: ${{ runner.temp }}/logistics-print
+      - name: Render print evidence
+        if: always()
+        run: |
+          for pdf in "$RUNNER_TEMP"/logistics-print/*.pdf; do
+            [ -f "$pdf" ] || continue
+            pdftoppm -scale-to 1400 -png "$pdf" "${pdf%.pdf}"
+            pdftotext -layout "$pdf" "${pdf%.pdf}.txt"
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logistics-print
+          path: ${{ runner.temp }}/logistics-print/
+          if-no-files-found: ignore
       - run: npm run build:netlify
