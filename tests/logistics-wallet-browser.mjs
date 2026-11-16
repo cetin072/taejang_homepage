@@ -65,7 +65,8 @@ try{
   assert.equal(Number(rpc('get_logistics_workspace',{}).customers.find(c=>c.id===id).balance),75000,'quote confirmation does not charge');
   await p.getByRole('button',{name:'충전금에서 차감',exact:true}).click();await expect(p.getByRole('button',{name:'차감 기록 있음',exact:true})).toBeDisabled();
   await p.reload();await p.getByRole('tab',{name:'거래 내역',exact:true}).click();await p.getByLabel('고객',{exact:true}).selectOption(id);
-  await expect(p.getByRole('cell',{name:'차감 기록 있음',exact:true})).toBeVisible();
+  await expect(p.getByRole('cell',{name:'차감 기록 있음',exact:true})).toHaveCount(1);
+  await expect(p.getByRole('row').filter({hasText:name}).getByRole('cell',{name:'차감 기록 있음',exact:true})).toBeVisible();
   assert.equal(Number(rpc('get_logistics_workspace',{}).customers.find(c=>c.id===id).balance),68136);assert.equal(entries().length,6);
   assert.deepEqual(errors,[]);console.log(`PASS ${width}px: register → 100,000 deposit → reload → debit → insufficient → reverse → response-loss retry → quote → charge → history (PG17)`);await p.close();
  }
