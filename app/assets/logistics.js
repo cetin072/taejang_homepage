@@ -9,7 +9,12 @@ const permitted=()=>C.allowed(app());
 const actor=()=>app()?.getAccessContext?.()?.id||'';
 const pendingKey=()=>`taejang-logistics-pending-v1:${actor()}`;
 const clone=C.copy;
-function report(text,error=false){if(!root?.isConnected)return;status.textContent=text;status.className='lg-status'+(error?' error':'');status.hidden=!text;}
+function report(text,error=false,nearWallet=false){
+ if(!root?.isConnected)return;
+ const feedback=(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
+ if(feedback!==status){status.textContent='';status.hidden=true;}
+ feedback.textContent=text;feedback.className='lg-status'+(error?' error':'');feedback.hidden=!text;
+}
 function message(error){const m=String(error?.message||error);const codes={LOGISTICS_FORBIDDEN:'이 메뉴는 부서팀장급 이상만 사용할 수 있습니다.',LOGISTICS_CONFLICT:'다른 직원이 변경했습니다. 입력은 보존했습니다. 새로고침 후 확인하세요.',LOGISTICS_FUNDS:'충전금이 부족합니다. 입금 확인 후 충전하세요.',LOGISTICS_DUPLICATE_CHARGE:'이미 차감한 견적입니다.',LOGISTICS_REVERSED:'이미 정정된 거래입니다.',LOGISTICS_REQUEST_REUSE:'저장 요청이 기존 기록과 다릅니다. 담당자에게 확인하세요.',LOGISTICS_CUSTOMER:'고객을 선택하거나 등록하세요.',LOGISTICS_INVALID:'입력값을 확인하세요.',LOGISTICS_DUPLICATE_CUSTOMER:'같은 이름의 고객이 이미 등록되어 있습니다.'};
  if(error?.code==='PGRST202'||/does not exist|Could not find the function/.test(m))return '물류 데이터 준비 전입니다. 운영 적용 후 사용할 수 있습니다.';
  return Object.entries(codes).find(([key])=>m.includes(key))?.[1]||'처리 결과를 확인하지 못했습니다. 입력은 보존했습니다.';
@@ -32,26 +37,26 @@ function applyResult(action,result){
 }
 async function mutate(action,payload){
  if(busy||!permitted())return;
- if(pending&&(pending.action!==action||JSON.stringify(pending.payload)!==JSON.stringify(payload))){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true);return;}
+ if(pending&&(pending.action!==action||JSON.stringify(pending.payload)!==JSON.stringify(payload))){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true,action.startsWith('wallet.'));return;}
  pending=pending||{id:crypto.randomUUID(),action,payload:clone(payload)};
- try{persistPending();}catch{pending=null;report('임시 저장 공간을 사용할 수 없어 거래를 시작하지 않았습니다.',true);return;}
+ try{persistPending();}catch{pending=null;report('임시 저장 공간을 사용할 수 없어 거래를 시작하지 않았습니다.',true,action.startsWith('wallet.'));return;}
  busy=true;const generation=epoch,owner=actor();root.setAttribute('aria-busy','true');content.inert=true;
  try{
   const result=await app().rpc('mutate_logistics_workspace',{p_request_id:pending.id,p_action:pending.action,p_payload:pending.payload});
   if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)return;
   const done=pending.action;pending=null;persistPending();applyResult(done,result);
-  try{await read();render();report('저장했습니다.');}catch(e){render();report('저장은 완료됐습니다. 목록은 새로고침으로 다시 확인하세요.',true);}
+  try{await read();render();report('저장했습니다.',false,action.startsWith('wallet.'));}catch(e){render();report('저장은 완료됐습니다. 목록은 새로고침으로 다시 확인하세요.',true,action.startsWith('wallet.'));}
  }catch(e){
   if(generation!==epoch||owner!==actor())return;
   // Only a definite server rejection clears the idempotency key. Network/5xx keeps it.
   if(e?.status&&e.status<500){pending=null;persistPending();}
-  report(message(e),true);showRetry();
+  report(message(e),true,action.startsWith('wallet.'));showRetry();
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
-function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';status.after(retry);}
+function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
 function newQuote(){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
 async function changeTab(next){if(busy)return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
-function render(){if(!permitted()||!root?.isConnected)return;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();showRetry();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();}
+function render(){if(!permitted()||!root?.isConnected)return;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
 function totals(){try{const t=C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
  const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(selected.balance-t.total):'—');
@@ -126,15 +131,49 @@ async function reload(){if(busy)return;try{await read();render();report('');}cat
 function renderCustomers(){
  const panel=el('section','','lg-panel'),head=el('div','','lg-toolbar');head.append(el('h3','고객 관리'),button('+ 고객 등록',()=>customerEditor()));panel.append(head);
  const stats=el('div','','lg-fields');for(const [label,value] of [['등록 고객',state.customers.length+'명'],['충전금 잔액 합계',money(state.customers.reduce((s,c)=>s+Number(c.balance),0))]]){const box=el('div','','lg-card');box.append(el('span',label,'lg-muted'),el('div',value,'lg-stat'));stats.append(box);}panel.append(stats);
- const search=el('input');search.type='search';search.placeholder='고객명 검색';search.setAttribute('aria-label','고객명 검색');search.className='lg-search';panel.append(search);const list=el('div');panel.append(list);const draw=()=>{list.replaceChildren(table(['고객명','연락처','충전 잔액','관리'],state.customers.filter(c=>c.name.includes(search.value)).map(c=>{const actions=el('div','','lg-actions');actions.append(button('선택',()=>{customer=c.id;page=0;void reload();}),button('수정',()=>customerEditor(c)),button('새 견적',()=>{customer=c.id;newQuote();}));return [c.name,c.phone||'—',money(c.balance),actions];})));};search.addEventListener('input',draw);draw();content.append(panel);
+ const search=el('input');search.type='search';search.placeholder='고객명 검색';search.setAttribute('aria-label','고객명 검색');search.className='lg-search';panel.append(search);const list=el('div');panel.append(list);const draw=()=>{list.replaceChildren(table(['고객명','연락처','충전 잔액','관리'],state.customers.filter(c=>c.name.includes(search.value)).map(c=>{const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>{customer=c.id;page=0;void reload();}),button('수정',()=>customerEditor(c)),button('새 견적',()=>{customer=c.id;newQuote();}));return [c.name,c.phone||'—',money(c.balance),actions];})));};search.addEventListener('input',draw);draw();content.append(panel);
  if(customer){const c=state.customers.find(x=>x.id===customer);if(c)walletEditor(c);}
 }
 function customerEditor(c={}){
  const panel=el('form','','lg-panel');panel.append(el('h3',c.id?'고객 정보 수정':'고객 등록'));const data={id:c.id||null,name:c.name||'',phone:c.phone||'',memo:c.memo||'',revision:c.revision||0};const grid=el('div','','lg-fields');for(const [key,label] of [['name','고객명'],['phone','연락처'],['memo','메모']])field(grid,label,data[key],v=>data[key]=v);panel.append(grid);const actions=el('div','','lg-actions');actions.append(button('저장',()=>mutate('customer.save',data),true),button('닫기',()=>panel.remove()));panel.append(actions);panel.addEventListener('submit',e=>e.preventDefault());content.prepend(panel);panel.querySelector('input').focus();
 }
 function walletEditor(c){
- const panel=el('section','','lg-panel');panel.append(el('h3',c.name+' · 충전금'),el('p',money(c.balance),'lg-stat'));let type='deposit',amount='',memo='';const fields=el('div','','lg-fields');field(fields,'거래 종류',type,v=>type=v,{options:[['deposit','입금 확인 · 충전'],['manual','건별 작업비 차감']]});field(fields,'금액',amount,v=>amount=v,{type:'number',min:1});field(fields,'메모 / 작업 내용',memo,v=>memo=v);panel.append(fields,button('거래 기록',()=>{if(!memo.trim())return report('거래 메모를 입력하세요.',true);if(confirm(`${c.name}\n${type==='deposit'?'실제 입금 확인':'작업비 차감'}: ${money(amount)}\n기록할까요?`))void mutate(type==='deposit'?'wallet.deposit':'wallet.manual',{customerId:c.id,amount:Number(amount),memo});},true));content.append(panel);renderEntries(panel);
+ const panel=el('section','','lg-panel');
+ panel.append(el('h3',c.name+' · 충전금'),el('p',money(c.balance),'lg-stat'));
+ const form=el('form'),fields=el('div','','lg-fields');
+ let type='deposit',amount='',memo='';
+ field(fields,'거래 종류',type,value=>{type=value;update();},{options:[['deposit','입금 확인 · 충전'],['manual','건별 작업비 차감']]});
+ const amountInput=field(fields,'금액 (원)',amount,value=>{amount=value;update();},{type:'number',min:1,max:1000000000000});
+ amountInput.required=true;
+ const memoInput=field(fields,'메모 (선택)',memo,value=>memo=value);
+ memoInput.maxLength=500;
+ const preview=el('p','','lg-help');
+ const save=button('충전금 저장',()=>{},true);
+ save.type='submit';
+ const actions=el('div','','lg-actions');actions.append(save);
+ const feedback=el('p','','lg-status');feedback.dataset.walletFeedback='1';feedback.setAttribute('role','status');feedback.hidden=true;
+ function update(){
+  const deposit=type==='deposit';
+  save.textContent=deposit?'충전금 저장':'작업비 차감 저장';
+  const memoLabel=deposit?'메모 (선택)':'작업 내용 (필수)';
+  memoInput.previousElementSibling.textContent=memoLabel;
+  memoInput.setAttribute('aria-label',memoLabel);memoInput.required=!deposit;
+  const value=Number(amount);
+  preview.textContent=Number.isSafeInteger(value)&&value>0
+   ? `${deposit?'입금':'차감'} ${money(value)} · 저장 후 잔액 ${money(Number(c.balance)+(deposit?value:-value))}`
+   : '실제 입금된 금액을 입력한 뒤 저장해 주세요.';
+ }
+ form.addEventListener('submit',event=>{
+  event.preventDefault();
+  if(busy||!form.reportValidity())return;
+  const note=memo.trim()||(type==='deposit'?'입금 확인 · 충전':'');
+  if(!note){memoInput.focus();report('작업 내용을 입력하세요.',true,true);return;}
+  if(confirm(`${c.name}\n${type==='deposit'?'입금 확인 · 충전':'작업비 차감'} ${money(amount)}\n저장할까요?`))
+   void mutate(type==='deposit'?'wallet.deposit':'wallet.manual',{customerId:c.id,amount:Number(amount),memo:note});
+ });
+ update();form.append(fields,preview,actions,feedback);panel.append(form);content.append(panel);renderEntries(panel);
 }
+
 function renderEntries(parent){const rows=state.entries.map(t=>{const reverse=button(t.reversed||t.reversal_of?'정정 완료':'정정',()=>{const reason=prompt('정정 사유 (원 거래는 보존됩니다)');if(reason?.trim())void mutate('wallet.reverse',{entryId:t.id,reason:reason.trim()});});reverse.disabled=!!t.reversed||!!t.reversal_of;return [new Date(t.created_at).toLocaleString('ko-KR'),t.customer_name,t.reversal_of?'정정':t.type==='deposit'?'충전':'사용',(t.type==='deposit'?'+':'−')+money(t.amount),t.memo,t.actor,reverse];});parent.append(table(['일시','고객','구분','금액','메모','담당자','정정'],rows));}
 function renderHistory(){
  const panel=el('section','','lg-panel');panel.append(el('h3','거래 내역'));const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>[q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',button('견적 보기 / 인쇄',()=>{quote=clone(q.snapshot);confirmed=q;customer=q.customer_id;dirty=false;tab='quote';render();})])));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
