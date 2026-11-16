@@ -44,7 +44,7 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
   }
   if(name==='get_target_audit_trail')return {items:[]};
   if(name==='get_employee_remote_work_location') return {address:'가상시 테스트로 10',approved:false,revision:'fixture-address-revision'};
-  if(name==='set_employee_remote_work_location') return {address:'가상시 테스트로 10',approved:args.p_enabled,revision:'fixture-updated-revision'};
+  if(name==='save_employee_basic_remote_address') return {address:args.p_address,approved:args.p_enabled,revision:'fixture-updated-revision'};
   if(name==='get_employee_disability_info')return {
     types:['지체','뇌병변','지적'],revision:0,...disabilityInfo.get(args.p_employee_uuid)
   };

@@ -17,93 +17,40 @@
     return wrapper;
   };
 
-  function mountSelf() {
-    const mount = document.getElementById(window.TaejangApp.getRoute() === 'general_worker'
-      ? 'worker-remote-work' : 'desktop-remote-work');
-    if (!mount || mount.hasChildNodes()) return;
-    const trigger = button('내 재택근무 주소', true);
-    const dialog = node('dialog', null, 'employee-form');
-    dialog.setAttribute('aria-label', '내 직원카드 재택근무 주소');
-    const form = node('form', null, 'employee-form app-authoring');
-    const address = node('input');
-    address.required = true;
-    address.minLength = 5;
-    address.maxLength = 200;
-    address.autocomplete = 'street-address';
-    const feedback = node('p', null, 'help');
-    feedback.setAttribute('role', 'status');
-    const save = button('주소 저장');
-    save.type = 'submit';
-    const close = button('닫기', true);
-    close.addEventListener('click', () => dialog.close());
-    const actions = node('div', null, 'quick-links');
-    actions.append(save, close);
-    form.append(node('h2', '내 직원카드'), field('재택근무 주소', address), feedback, actions);
-    dialog.append(form);
-    document.body.append(dialog);
-    let generation = 0;
-    const display = (result, saved) => {
-      address.value = result.address || '';
-      feedback.textContent = result.approved ? '본사와 이 주소에서 출퇴근할 수 있습니다.'
-        : saved ? '주소를 저장했습니다. 운영총괄이 위치를 승인하면 사용할 수 있습니다.'
-          : '주소를 등록하면 운영총괄이 위치를 확인합니다.';
-    };
-    trigger.addEventListener('click', async () => {
-      const attempt = ++generation;
-      address.value = '';
-      feedback.textContent = '주소를 불러오고 있습니다.';
-      address.disabled = save.disabled = true;
-      dialog.showModal();
-      try {
-        const result = await rpc('get_my_employee_remote_work_location');
-        if (attempt !== generation || !dialog.open) return;
-        display(result, false);
-        address.disabled = save.disabled = false;
-      } catch {
-        if (attempt === generation && dialog.open) feedback.textContent = '연결된 직원카드의 주소를 불러오지 못했습니다.';
-      }
-    });
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const attempt = generation;
-      address.disabled = save.disabled = close.disabled = true;
-      try {
-        const result = await rpc('save_my_employee_remote_work_address', { p_address: address.value });
-        if (attempt === generation && dialog.open) display(result, true);
-      } catch {
-        if (attempt === generation && dialog.open) feedback.textContent = '주소를 저장하지 못했습니다. 다시 시도해 주세요.';
-      } finally {
-        if (attempt === generation && dialog.open) address.disabled = save.disabled = close.disabled = false;
-      }
-    });
-    dialog.addEventListener('cancel', event => { if (close.disabled) event.preventDefault(); });
-    dialog.addEventListener('close', () => { generation++; address.value = ''; feedback.textContent = ''; });
-    mount.append(trigger);
-  }
-
   function adminPanel(employee) {
-    const details = node('details', null, 'employee-profile-section employee-profile-fold employee-section-work');
+    const details = node('div', null, 'employee-basic-remote-work');
     const body = node('div', null, 'employee-profile-fold-body');
-    details.append(node('summary', '재택근무'), body);
+    details.append(body);
     let generation = 0;
     async function load() {
       const attempt = ++generation;
       body.replaceChildren(node('p', '재택근무 설정을 불러오고 있습니다.', 'help'));
       try {
         const result = await rpc('get_employee_remote_work_location', { p_employee_uuid: employee.id });
-        if (attempt === generation && details.open && details.isConnected) render(result);
+        if (attempt === generation && details.isConnected) render(result);
       } catch {
         if (attempt === generation) body.replaceChildren(node('p', '재택근무 설정을 불러오지 못했습니다.', 'message error'));
       }
     }
     function render(result) {
       body.replaceChildren();
-      if (!result.address) {
-        body.append(node('p', '직원이 본인 직원카드에 주소를 등록하면 위치를 승인할 수 있습니다.', 'help'));
-        return;
-      }
-      body.append(node('p', result.address), node('p', result.approved ? '재택 GPS 승인됨' : '재택 GPS 승인 대기', 'help'));
+      body.append(node('p', '주소 · ' + (result.address || '미등록')),
+        node('p', result.approved ? '재택근무 · 사용' : '재택근무 · 사용 안 함', 'help'));
+      const edit = button('주소·재택근무 수정', true);
+      body.append(edit);
       const form = node('form', null, 'employee-form app-authoring');
+      form.hidden = true;
+      edit.addEventListener('click', () => { form.hidden = false; edit.hidden = true; address.focus(); });
+      const address = node('input');
+      address.value = result.address || '';
+      address.required = true;
+      address.minLength = 5;
+      address.maxLength = 200;
+      address.autocomplete = 'street-address';
+      const enabled = node('input');
+      enabled.type = 'checkbox';
+      enabled.checked = !!result.approved;
+      form.append(field('주소', address), field('재택근무자', enabled));
       const map = node('a', '지도에서 주소 확인');
       map.href = 'https://map.naver.com/p/search/' + encodeURIComponent(result.address);
       map.target = '_blank';
@@ -119,41 +66,46 @@
       }
       const fields = node('div', null, 'employee-form-grid');
       fields.append(field('위도', latitude), field('경도', longitude));
-      const save = button(result.approved ? '위치 다시 승인' : '재택근무 승인');
+      const locationRequired = () => enabled.checked && (!result.approved || address.value.trim() !== result.address);
+      const sync = () => {
+        fields.hidden = !locationRequired();
+        latitude.required = longitude.required = locationRequired();
+        map.href = 'https://map.naver.com/p/search/' + encodeURIComponent(address.value);
+      };
+      address.addEventListener('input', sync);
+      enabled.addEventListener('change', sync);
+      sync();
+      const save = button('주소·재택근무 저장');
       save.type = 'submit';
-      const revoke = button('재택근무 사용 중지', true);
-      revoke.hidden = !result.approved;
+      const cancel = button('취소', true);
+      cancel.addEventListener('click', () => render(result));
       const feedback = node('p', null, 'help');
       feedback.setAttribute('role', 'status');
       const actions = node('div', null, 'quick-links');
-      actions.append(save, revoke);
-      const update = async enabled => {
+      actions.append(save, cancel);
+      const update = async () => {
         const attempt = generation;
-        for (const control of [latitude, longitude, save, revoke]) control.disabled = true;
+        for (const control of [address, enabled, latitude, longitude, save, cancel]) control.disabled = true;
         try {
-          const updated = await rpc('set_employee_remote_work_location', {
-            p_employee_uuid: employee.id, p_revision: result.revision, p_enabled: enabled,
-            p_latitude: enabled ? latitude.valueAsNumber : null,
-            p_longitude: enabled ? longitude.valueAsNumber : null
+          const updated = await rpc('save_employee_basic_remote_address', {
+            p_employee_uuid: employee.id, p_revision: result.revision || null, p_address: address.value.trim(), p_enabled: enabled.checked,
+            p_latitude: locationRequired() ? latitude.valueAsNumber : null,
+            p_longitude: locationRequired() ? longitude.valueAsNumber : null
           });
-          if (attempt === generation && details.open && details.isConnected) render(updated);
+          if (attempt === generation && details.isConnected) render(updated);
         } catch {
           feedback.textContent = '저장하지 못했습니다. 주소를 다시 확인한 뒤 시도해 주세요.';
-          for (const control of [latitude, longitude, save, revoke]) control.disabled = false;
+          for (const control of [address, enabled, latitude, longitude, save, cancel]) control.disabled = false;
         }
       };
-      form.addEventListener('submit', event => { event.preventDefault(); void update(true); });
-      revoke.addEventListener('click', () => { void update(false); });
+      form.addEventListener('submit', event => { event.preventDefault(); void update(); });
       form.append(map, fields, actions, feedback);
+      fields.prepend(node('p', '처음 설정하거나 주소를 바꾸면 지도에서 위치를 확인해 주세요.', 'help'));
       body.append(form);
     }
-    details.addEventListener('toggle', () => {
-      if (details.open) void load();
-      else { generation++; body.replaceChildren(); }
-    });
+    queueMicrotask(load);
     return details;
   }
 
-  document.addEventListener('taejang-app-ready', mountSelf);
   window.TaejangEmployeeRemoteWork = { adminPanel };
 })();

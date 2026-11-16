@@ -218,7 +218,7 @@
       if (disability) card.append(disability);
       if (context.access_level === 'operations_manager') {
         const remoteWork = window.TaejangEmployeeRemoteWork?.adminPanel(employee);
-        if (remoteWork) card.append(remoteWork);
+        if (remoteWork) basic.append(remoteWork);
       }
 
       if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
