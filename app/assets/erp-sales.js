@@ -873,7 +873,8 @@
   const count=list.total>list.limit?` (${list.limit}건 표시)`:'';
   body.append(el('p',`미수 거래 ${list.total}건 · 미수 합계 ${BigInt(list.total_balance).toLocaleString('ko-KR')}원${count}`,'erp-total'));
   if(!list.items.length){
-   body.append(el('p','조회 조건에 맞는 미수 거래가 없습니다. 매출을 확정한 뒤 남은 미수 잔액이 표시됩니다.','message'),
+   body.append(el('p','조회 조건에 맞는 미수 거래가 없습니다.','message'),
+    el('p','매출을 확정한 뒤 남은 미수 잔액이 표시됩니다.','help'),
     btn('매출·판매로 이동',()=>root.querySelector('#erp-tab-sales')?.click()));
    return;
   }

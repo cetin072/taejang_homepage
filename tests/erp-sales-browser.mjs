@@ -40,7 +40,7 @@ try {
  assert.ok(firstLinePositions.every(y=>Math.abs(y-firstLinePositions[0])<2),'item quantity and price share the first row');
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.getByRole('tab',{name:'미수금',exact:true}).click();
- await page.getByText('조회 조건에 맞는 미수 거래가 없습니다. 매출을 확정한 뒤 남은 미수 잔액이 표시됩니다.',{exact:true}).waitFor();
+ await page.getByText('매출을 확정한 뒤 남은 미수 잔액이 표시됩니다.',{exact:true}).waitFor();
  await page.locator('.erp-sales:not([aria-busy])').waitFor();
  await page.getByRole('button',{name:'매출·판매로 이동',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
