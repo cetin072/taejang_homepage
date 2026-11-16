@@ -169,12 +169,14 @@
     date.value = detail.requested_publish_date || '';
 
     form.append(field('제목', title), field('본문', body));
+    globalThis.TaejangArticleEditor?.mount(body, { getMedia: () => Array.isArray(detail.public_media) ? detail.public_media : [], getTitle: () => title.value, item: detail });
     if (detail.content_type === 'external_content') form.append(field('외부 링크', external));
     form.append(field('게시 희망일', date));
     const actions = document.createElement('div');
     actions.className = 'quick-links';
     actions.append(
       button('수정본 저장', async () => {
+        if (globalThis.TaejangArticleEditor && !globalThis.TaejangArticleEditor.valid(body)) return;
         if (!form.reportValidity()) return;
         try {
           await app().rpc('lead_replace_promotion_revision', {

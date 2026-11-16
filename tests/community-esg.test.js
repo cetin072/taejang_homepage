@@ -24,7 +24,7 @@ assert.deepEqual(Array.from(activities.filter((item) => item.series === 'communi
 assert.equal(firstRecord.date, '2026.07.24');
 assert.equal(firstRecord.series, 'community-esg');
 assert.equal(firstRecord.hub.category, 'ESG·사회공헌');
-assert.match(firstRecord.thumbnail, /archive\/environment-cleanup-first\.webp$/);
+assert.match(firstRecord.thumbnail, /archive\/environment-cleanup-first-bright-v2\.webp$/);
 assert.equal(secondRecord.date, '2026.08.24');
 assert.equal(secondRecord.series, 'community-esg');
 assert.equal(secondRecord.hub.category, 'ESG·사회공헌');
@@ -81,7 +81,7 @@ assert.match(communityScript, /community-esg-record-placeholder/);
 assert.doesNotMatch(communityScript, /image\.src = activity\.thumbnail \|\| activity\.hero \|\| activity\.thumb \|\| ''/);
 assert.match(read('assets/css/community-esg.css'), /\.community-esg-record-placeholder/);
 assert.match(index, /href="community-esg\.html">활동과 협력 이야기/);
-assert.match(business, /href="community-esg\.html">활동과 협력 이야기/);
+assert.match(business, /href="community-esg\.html">환경정비 활동 보기/);
 assert.match(partnership, /href="community-esg\.html">지역사회공헌 활동 자세히 보기/);
 assert.match(read('sitemap.xml'), /community-esg\.html/);
 

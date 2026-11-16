@@ -87,7 +87,7 @@ async function boot(width, role, task, simulation = false) {
     }
     errors.push('Unexpected RPC ' + name); return send({ message: 'Unexpected RPC ' + name }, 500);
   });
-  await page.goto(origin + '/app/index.html');
+  await page.goto(origin + '/app/index.html', { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.TaejangNoticeAdmin && window.TaejangApp?.hasCapabilityContract?.());
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('taejang-open-app-panel', { detail: { id: 'notice-admin-panel' } })));
   return { context, page, calls, errors, control };

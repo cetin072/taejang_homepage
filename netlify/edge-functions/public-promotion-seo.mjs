@@ -1,6 +1,8 @@
 import '../../assets/js/content.js';
+import '../../assets/js/promotion-document.js';
 import '../../assets/js/public-promotion-content.js';
 import '../../assets/js/public-promotion-media.js';
+import '../../assets/js/featured-article-layout.js';
 const mediaPolicy = globalThis.TAEJANG_PUBLIC_MEDIA;
 // Search-readable responses for the EXISTING approved public promotion RPCs.
 // No service-role credentials, private tables, or independent publication states.
@@ -66,6 +68,18 @@ function publicLink(value) {
   }
 }
 
+// If an imported featured article's generated summary starts with a table of
+// contents, use its first actual paragraph for search and sharing metadata.
+function searchDescription(item, fallback) {
+  if (!/글의 순서/.test(fallback)) return fallback;
+  const sections = String(item.public_body || '').split(/\n\s*\n/);
+  const contents = sections.findIndex(part => /글의 순서/.test(part));
+  if (contents < 0) return fallback;
+  const intro = sections.slice(contents + 1).map(part => part.replace(/\s+/g, ' ').trim())
+    .find(part => part.length >= 30);
+  return intro ? intro.slice(0, 200).trim() : fallback;
+}
+
 async function approvedRows(name, parameters) {
   const base = globalThis.Netlify?.env?.get('SUPABASE_URL');
   const key = globalThis.Netlify?.env?.get('SUPABASE_PUBLISHABLE_KEY');
@@ -104,6 +118,7 @@ function articleHtml(item) {
   const picture = leadImage
     ? '<figure class="article-representative-media"><img src="' + escapeHtml(leadImage) +
       '" data-public-image-candidates="' + escapeHtml(JSON.stringify(image.candidates)) + '" alt="' + escapeHtml(image.alt) + '" loading="eager" decoding="async"></figure>' : '';
+  const editorial = globalThis.TAEJANG_ARTICLE_DOCUMENT.render(item) || globalThis.TAEJANG_FEATURED_ARTICLE.render(item);
   const body = String(item.public_body || '').split(/\n\s*\n/).map(text => text.trim()).filter(Boolean)
     .map(text => '<p>' + linkifyParagraph(text) + '</p>').join('\n');
   const gallery = media.filter(entry => entry.url !== leadImage)
@@ -124,8 +139,8 @@ function articleHtml(item) {
     '<h1>' + escapeHtml(title) + '</h1>',
     presentation.lead ? '<p class="lead">' + escapeHtml(presentation.lead) + '</p>' : '',
     '</header>',
-    '<div class="article-body">' + picture + (body || '<p>' + escapeHtml(summary) + '</p>') + '</div>',
-    gallery ? '<section class="article-gallery" aria-label="첨부 사진">' + gallery + '</section>' : '',
+    '<div class="article-body">' + (editorial || picture + (body || '<p>' + escapeHtml(summary) + '</p>')) + '</div>',
+    !editorial && gallery ? '<section class="article-gallery" aria-label="첨부 사진">' + gallery + '</section>' : '',
     presentation.notice ? '<p class="article-source-note">' + escapeHtml(presentation.notice) + '</p>' : '',
     presentation.sourceLabel ? '<p>출처: ' + escapeHtml(presentation.sourceLabel) + '</p>' : '',
     presentation.related ? '<p><a class="text-link" href="' + escapeHtml(presentation.related.url) + '">공식 활동 기록: ' + escapeHtml(presentation.related.title) + ' →</a></p><p>활동일: ' + escapeHtml(presentation.related.date) + ' · ' + escapeHtml(presentation.related.summary) + '</p>' : '',
@@ -139,10 +154,11 @@ function renderPage(template, item) {
   const data = articleHtml(item);
   let html = template;
   const titleText = data.title + ' | 농업회사법인 태장 주식회사';
+  const description = searchDescription(item, data.summary);
   html = html.replace(/<title>[^<]*<\/title>/, '<title>' + escapeHtml(titleText) + '</title>');
-  html = metadata(html, 'name', 'description', data.summary);
+  html = metadata(html, 'name', 'description', description);
   html = metadata(html, 'property', 'og:title', titleText);
-  html = metadata(html, 'property', 'og:description', data.summary);
+  html = metadata(html, 'property', 'og:description', description);
   html = metadata(html, 'property', 'og:image', data.image.url);
   if (!/<article class="article article-empty">[\s\S]*?<\/article>/.test(html)) {
     throw new Error('Missing promotion detail fallback marker');
@@ -153,33 +169,31 @@ function renderPage(template, item) {
     '@type': 'Article',
     mainEntityOfPage: data.canonical,
     headline: data.title,
-    description: data.summary,
+    description,
     ...(data.date ? { datePublished: data.date } : {}),
     image: data.image.url,
     author: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사' },
     publisher: { '@type': 'Organization', '@id': ORIGIN + '/#organization', name: '농업회사법인 태장 주식회사', url: ORIGIN + '/' }
   };
   const json = JSON.stringify(entry).replaceAll('<', '\\u003c');
-  const externalSource = !data.presentation.indexable;
+  const externalSource = !data.presentation.allowArticleAttribution;
   const extras = [
     '<link rel="canonical" href="' + escapeHtml(data.canonical) + '">',
     '<meta property="og:url" content="' + escapeHtml(data.canonical) + '">',
     '<meta property="og:image:alt" content="' + escapeHtml(data.image.alt) + '">',
     '<meta name="twitter:card" content="summary_large_image">',
     '<meta name="twitter:title" content="' + escapeHtml(titleText) + '">',
-    '<meta name="twitter:description" content="' + escapeHtml(data.summary) + '">',
+    '<meta name="twitter:description" content="' + escapeHtml(description) + '">',
     '<meta name="twitter:image" content="' + escapeHtml(data.image.url) + '">',
-    externalSource ? '<meta name="robots" content="noindex, follow">' : '',
     externalSource ? '' : '<script type="application/ld+json">' + json + '</script>'
   ].filter(Boolean).join('\n');
   html = html.replace('</head>', extras + '\n</head>');
-  if (externalSource) html = html.replace('<meta name="robots" content="index, follow">', '');
   return html;
 }
 
 function sitemapResponse(rows) {
   const links = rows
-    .filter(row => row && UUID.test(row.content_id || '') && globalThis.TAEJANG_PUBLIC_CONTENT.present(row).indexable)
+    .filter(row => row && UUID.test(row.content_id || ''))
     .map(row => ORIGIN + '/promotion.html?id=' + encodeURIComponent(row.content_id));
   const unique = [...new Set(links)].sort();
   const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +

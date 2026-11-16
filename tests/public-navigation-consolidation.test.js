@@ -13,6 +13,7 @@ const publicPages = [
   'about.html',
   'greeting.html',
   'why-minhwa.html',
+  'minhwa-gallery.html',
   'workplace.html',
   'activities.html',
   'community-esg.html',
@@ -26,7 +27,7 @@ const publicPages = [
 
 const headerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'staff/'];
 const footerHrefs = ['about.html', 'business.html', 'workplace.html', 'archive.html', 'partnership.html', 'resources.html', 'location.html'];
-const compactFooterPages = new Set(['resources.html']);
+const compactFooterPages = new Set(['resources.html', 'minhwa-gallery.html']);
 
 function assertHrefOrder(fragment, hrefs, message) {
   let previous = -1;
@@ -64,9 +65,7 @@ for (const filename of publicPages) {
   for (const [surface, fragment] of [['desktop', desktopNav], ['mobile', mobileNav]]) {
     assert.equal((fragment.match(/class="resources-nav"/g) || []).length, 1,
       `${filename} ${surface} must have exactly one visible resources menu entry`);
-    assert.match(fragment, surface === 'desktop'
-      ? /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?>서비스·상품<\/a>/
-      : /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?><span class="nav-entry-label">서비스·상품<\/span><span class="nav-entry-description">출근앱과 상품 안내/,
+    assert.match(fragment, /<a class="resources-nav" href="resources\.html"(?: aria-current="page")?>서비스·상품<\/a>/,
       `${filename} ${surface} uses its authored accessible label`);
   }
   if (filename === 'resources.html') {
@@ -74,8 +73,8 @@ for (const filename of publicPages) {
       'the resources page marks its desktop/mobile current link before JavaScript');
   }
   {
-    assert.match(desktopNav, /<a class="staff-nav" href="staff\/" aria-label="임직원 페이지">임직원<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
-    assert.match(mobileNav, /<a class="staff-nav" href="staff\/"><span class="nav-entry-label">임직원<\/span><span class="nav-entry-description">업무 플랫폼 로그인<\/span><\/a>/, `${filename} 모바일 임직원 설명은 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.match(desktopNav, /<a class="staff-nav" href="staff\/">임직원 로그인<\/a>/, `${filename} 데스크톱 임직원 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
+    assert.match(mobileNav, /<a class="staff-nav" href="staff\/">임직원 로그인<\/a>/, `${filename} 모바일 임직원 로그인 메뉴는 첫 페인트부터 정적으로 있어야 합니다`);
     assert.ok(desktopNav.indexOf('href="resources.html"') < desktopNav.indexOf('href="staff/"'), `${filename} 데스크톱 서비스·상품은 임직원 앞에 둡니다`);
     assert.ok(mobileNav.indexOf('href="staff/"') > mobileNav.indexOf('href="partnership.html"'), `${filename} 모바일 직원용 메뉴는 공개 메뉴 아래에 분리합니다`);
     assert.ok(mobileNav.indexOf('href="resources.html"') < mobileNav.indexOf('href="staff/"'), `${filename} 모바일 서비스·상품은 임직원 로그인 위에 둡니다`);
@@ -212,18 +211,54 @@ assert.match(read('assets/js/content-hub.js'), /detailUrl: `activities\/\$\{enco
 assert.equal(fs.existsSync(path.join(root, 'activities.html')), true);
 assert.equal(fs.existsSync(path.join(root, 'thanks.html')), true);
 
-console.log('public-navigation-consolidation tests: all cases passed');
-
 const services = read('resources.html');
 assert.match(services, /<h3 id="resource-staff-title">태장 출근앱<\/h3>/);
-assert.equal((services.match(/class="resource-card /g) || []).length, 3);
+assert.equal((services.match(/class="resource-card /g) || []).length, 5);
+const minhwa = services.match(/<a class="resource-card resource-card--link" href="minhwa-gallery.html"[\s\S]*?<\/a>/)?.[0] || '';
+assert.match(minhwa, /<h3 id="resource-minhwa-title">태장 민화<\/h3>/);
+assert.match(minhwa, /<p class="resource-status" id="resource-minhwa-status">전시 준비 중<\/p>/);
+assert.match(minhwa, /미담 서정희/);
+assert.ok(fs.existsSync(path.join(root, 'minhwa-gallery.html')), 'minhwa card links to its authored hub');
+const minhwaHub = read('minhwa-gallery.html');
+assert.match(minhwaHub, /<h1 id="mh-title">태장 민화<\/h1>/);
+assert.match(minhwaHub, /미담 서정희/);
+assert.doesNotMatch(minhwaHub, /작가 실명·사진·수상|공개 동의에 따라 순차 반영|확보 후 교체|작가 전용 페이지 구성 예시|등록 원화 목록이나 판매 작품이 아닙니다/,
+  'internal editorial instructions do not appear in public copy');
+assert.doesNotMatch(minhwaHub, /ADHD|손 떨림|치료 효과|전국 공모전|대상 수상/,
+  'no unverified medical, award or credential claims');
+for (const id of ['mh-artist', 'mh-gallery', 'mh-story', 'mh-programs', 'mh-goods', 'mh-contact']) {
+  assert.match(minhwaHub, new RegExp(`id="${id}"`), `${id} is a section of the single hub`);
+  assert.match(minhwaHub, new RegExp(`href="#${id}"`), `${id} has a working same-page entry`);
+}
+const minhwaIds = [...minhwaHub.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+assert.equal(new Set(minhwaIds).size, minhwaIds.length, 'minhwa hub has no duplicate ids');
+for (const match of minhwaHub.matchAll(/href="#([^"]+)"/g)) {
+  assert.ok(minhwaIds.includes(match[1]), `anchor ${match[1]} resolves`);
+}
+for (const match of minhwaHub.matchAll(/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/g)) {
+  assert.ok(fs.existsSync(path.join(root, match[1])), `minhwa image ${match[1]} exists`);
+  assert.match(match[0], /\balt="[^"]+"/, 'minhwa images have meaningful alt text');
+}
+assert.match(minhwaHub, /콘셉트 이미지/, 'concept visuals are not misrepresented as artist originals');
+const minhwaContent = minhwaHub.replace(/<section[^>]+id="mh-contact"[\s\S]*?<\/section>/, '');
+assert.doesNotMatch(minhwaContent, /<form\b|type="submit"|구매하기|결제하기|신청 완료/, 'hub does not invent an active checkout or enrollment');
+assert.match(read('scripts/build-netlify-publish.mjs'), /'minhwa-gallery\.html'/, 'hub stays in the publish allowlist');
+
 const salt = services.match(/<a class="resource-card resource-card--link" href="new-zealand-salt.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(salt, /뉴질랜드 천일염/);
 assert.match(salt, /판매 중/);
 assert.match(salt, /10kg·25kg/);
 assert.doesNotMatch(salt, /준비 중|준비하고/);
 assert.ok(fs.existsSync(path.join(root, 'new-zealand-salt.html')), 'available salt card points to an existing landing');
-const worklog = services.match(/<article class="resource-card resource-card--pending" aria-labelledby="resource-worklog-title"[\s\S]*?<\/article>/)?.[0] || '';
+const terrariumLink = services.match(/<a class="resource-card resource-card--link" href="terrarium.html"[\s\S]*?<\/a>/)?.[0] || '';
+assert.match(terrariumLink, /태장 테라리움/);
+assert.match(terrariumLink, /활동 소개/);
+assert.ok(fs.existsSync(path.join(root, 'terrarium.html')), 'terrarium resource card leads to published hub');
+const worklog = services.match(/<a class="resource-card resource-card--link" href="worklog.html"[\s\S]*?<\/a>/)?.[0] || '';
 assert.match(worklog, /태장 업무수첩/);
-assert.match(worklog, /준비 중/);
-assert.doesNotMatch(worklog, /<a\b|<button\b|tabindex=|onclick=/, 'unreleased worklog is visible without an inactive or premature link');
+assert.match(worklog, /비공개 테스트 중/);
+assert.doesNotMatch(terrariumLink, /주문제작 서비스 공개|판매 중/);
+assert.doesNotMatch(services, /href="terrarium-custom\.html"/);
+assert.ok(fs.existsSync(path.join(root, 'worklog.html')), 'worklog introduction exists');
+
+console.log('public-navigation-consolidation tests: all cases passed');

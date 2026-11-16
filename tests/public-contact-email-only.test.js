@@ -28,7 +28,7 @@ test('homepage and partnership direct contact choices are email-only', () => {
   const home = read('index.html');
   const partner = read('partnership.html');
   for (const [name, html] of [['index.html', home], ['partnership.html', partner]]) {
-    assert.match(html, /<a class="contact-action" href="mailto:taejang2025@naver\.com\?subject=/,
+    assert.match(html, /<a[^>]* href="mailto:taejang2025@naver\.com\?subject=/,
       name + ': official email action stays clickable');
     assert.doesNotMatch(html, /type="tel"|name="phone"|전화 문의/,
       name + ': inquiry form and action cards should not collect or promote phone numbers');
@@ -67,4 +67,27 @@ test('public privacy, account deletion, and visitor guidance remain reachable by
   const appPrivacy = read('employee-app-privacy.html');
   assert.match(appPrivacy, /전화번호, 입사일/, 'description of actual employee data processing must not be erased');
   assert.match(read('thanks.html'), /입력하신 이메일로 회신드리겠습니다/);
+});
+
+test('terrarium and minhwa have independent inquiry dialogs', () => {
+  for (const [page, anchor, name] of [
+    ['terrarium.html', 'th-contact', 'taejang-terrarium-inquiry'],
+    ['minhwa-gallery.html', 'mh-contact', 'taejang-minhwa-inquiry']
+  ]) {
+    const html = read(page);
+    assert.match(html, new RegExp('href="#' + anchor + '"'));
+    const section = html.match(new RegExp('<section[^>]+id="' + anchor + '"[\\s\\S]*?</section>'))?.[0];
+    assert.ok(section, page + ': inquiry section is present');
+    assert.doesNotMatch(section, /partnership\.html/);
+    assert.match(section, /class="btn home-inquiry-trigger"[^>]*data-home-inquiry-open[^>]*aria-controls="home-inquiry-dialog"/);
+    assert.match(section, /<dialog[^>]*id="home-inquiry-dialog"[^>]* open>/);
+    assert.match(html, /src="assets\/js\/home-inquiry.js"/);
+    assert.match(section, new RegExp('<form[^>]*name="' + name + '"[^>]*method="POST" action="/thanks" data-netlify="true" netlify-honeypot="bot-field"'));
+    assert.match(section, new RegExp('name="form-name" value="' + name + '"'));
+    for (const field of ['contact', 'email', 'message', 'privacy-consent']) {
+      assert.match(section, new RegExp('name="' + field + '"[^>]*required'));
+    }
+    assert.match(section, /href="privacy\.html"/);
+  }
+  assert.doesNotMatch(read('minhwa-gallery.html'), /class="mh-text-link" href="partnership\.html"/);
 });

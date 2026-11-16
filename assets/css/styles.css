@@ -124,12 +124,11 @@ button{cursor:pointer}
   }
   .mobile-nav .staff-nav,
   .mobile-nav .resources-nav{
-    display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:64px;
+    display:flex;align-items:center;min-height:48px;
     margin:0;padding:12px 0;
     border:0;border-radius:0;
     background:transparent;color:var(--green-deep);font-size:16px;font-weight:700;
   }
-  .mobile-nav .nav-entry-description{font-size:14px;font-weight:400;line-height:1.6;color:var(--ink-soft)}
   .mobile-nav .resources-nav:hover,
   .mobile-nav .resources-nav:focus-visible{
     background:transparent;color:var(--green);text-decoration:underline;text-underline-offset:4px;
@@ -410,8 +409,6 @@ button{cursor:pointer}
 .article-body .article-representative-media img{display:block;width:100%;height:100%;object-fit:cover;object-position:center;border:1px solid var(--line)}
 .article-body .article-representative-media--natural{max-height:none;aspect-ratio:auto}
 .article-body .article-representative-media--natural img{height:auto;object-fit:contain}
-/* First cleanup photo: display-only exposure adjustment; keep the original bytes. */
-.article-body .article-representative-media img[src$="environment-cleanup-first.webp"]{filter:brightness(1.16) contrast(.95)}
 .article-body figcaption{text-align:center;color:var(--ink-soft);font-size:12px;margin-top:9px}
 .article-gallery{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .article-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border:1px solid var(--line)}
@@ -651,7 +648,7 @@ button{cursor:pointer}
 .business-section-lead{margin:13px 0 0;color:var(--ink-soft)}
 .business-group-head{margin-bottom:16px}
 .business-group-head h3,.business-preparing h3{margin:5px 0 0;color:var(--green-deep);font:700 22px/1.45 var(--myeongjo)}
-.business-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px}
+.business-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .business-card{display:flex;min-width:0;flex-direction:column;overflow:hidden;border:1px solid var(--line);background:#fff}
 .neutral-image{position:relative;overflow:hidden;background:linear-gradient(145deg,#d8e4dc 0%,#edf1ea 49%,#c5d7cb 50%,#dce8e0 100%)}
 .neutral-image::after{content:"";position:absolute;inset:12%;border:1px solid rgba(27,67,50,.18);background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,0))}
@@ -664,6 +661,7 @@ button{cursor:pointer}
 .business-card h3{margin:13px 0 9px;color:var(--green-deep);font:700 23px/1.5 var(--myeongjo)}
 .business-card p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.8}
 .business-card .text-link{display:inline-flex;margin-top:auto;padding-top:22px}
+.business-card .business-card-note{display:block;margin-top:auto;padding-top:22px;color:var(--green);font-size:13px;font-weight:700}
 .business-preparing{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:24px;align-items:center;margin-top:42px;padding:28px 0 0;border-top:1px solid var(--line)}
 .business-preparing h4{margin:0 0 6px;color:var(--green-deep);font:700 18px/1.5 var(--myeongjo)}
 .business-preparing p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.75}
@@ -765,4 +763,63 @@ button{cursor:pointer}
   .history-layout .timeline{margin-top:8px}
   .about-cta-inner{align-items:stretch;flex-direction:column}
   .about-cta .btn{width:100%}
+}
+
+/* Public action family: explicit navigation only; cards, inline sources and menus stay links. */
+:root main :is(.btn, .mh-button, .th-button, .salt-button) {
+  min-height: 48px;
+  border-radius: 8px;
+  transition-property: background-color, color, border-color;
+}
+:root main :is(.btn, .mh-button, .th-button, .salt-button):hover { transform: none; }
+:root main a.page-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  flex: 0 1 auto;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--green);
+  font: 800 15px/1.5 var(--gothic);
+  text-align: start;
+  text-decoration: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: none;
+  transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+}
+:root main a.page-link:hover {
+  background: var(--green-soft);
+  color: var(--green-deep);
+  border-color: var(--green-deep);
+  transform: none;
+}
+:root main a.page-link:focus-visible {
+  outline: 3px solid var(--green-deep);
+  outline-offset: 3px;
+}
+:root main a.page-link .page-link-arrow {
+  flex: 0 0 18px;
+  width: 18px;
+  font-size: 18px;
+  line-height: 1;
+  text-align: center;
+}
+:root main a.page-link::after { content: none; }
+:root main :is(.business-card-body, .workplace-job-body) > a.page-link {
+  margin-top: auto;
+}
+:root main .business-card-body > p:has(+ a.page-link) {
+  margin-bottom: 16px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root main a.page-link { transition: none; }
 }

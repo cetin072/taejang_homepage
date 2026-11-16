@@ -7,6 +7,7 @@
     { key:'homepage', label:'홈페이지' },
     { key:'operations', label:'업무 운영' },
     { key:'sales', label:'영업·매출' },
+    { key:'logistics', label:'물류' },
     { key:'payroll', label:'근태·급여' },
     { key:'support', label:'지원사업' },
     { key:'official_channels', label:'공식 채널' }
@@ -28,6 +29,7 @@
     { key:'homepage.direct', label:'홈페이지 직접 수정', section:'홈페이지', capabilities:['homepage.direct_edit'] },
 
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
+    { key:'logistics.manage', label:'물류 관리', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
     { key:'erp_sales.manage', label:'기준정보·매출 관리', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
     { key:'monthly_client_documents.manage', label:'거래처 문서 관리', section:'영업·매출', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
     { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },

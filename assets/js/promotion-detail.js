@@ -113,11 +113,11 @@
   function render(item) {
     const contentPresentation = globalThis.TAEJANG_PUBLIC_CONTENT.present(item);
     const robots = document.querySelector('meta[name="robots"]');
-    if (robots) robots.content = contentPresentation.indexable ? 'index, follow' : 'noindex, follow';
+    if (robots) robots.content = 'index, follow';
     document.title = `${item.title} | 태장`;
     const article = el('article', null, 'article');
 
-    const back = el('a', '← 소식·기록으로', 'text-link');
+    const back = el('a', '← 소식·기록으로', 'text-link page-link');
     back.href = 'archive.html';
     article.append(back);
 
@@ -139,19 +139,21 @@
     const presentation = item.public_image;
     const candidates = presentation?.candidates || mediaPolicy.candidates(item);
     const heroUrl = presentation?.url || candidates[0];
-    article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
+    const editorial = globalThis.TAEJANG_ARTICLE_DOCUMENT?.renderDOM(item, document) || globalThis.TAEJANG_FEATURED_ARTICLE?.renderDOM(item, document);
+    if (!editorial) article.append(imageNode(heroUrl, presentation?.alt || mediaPolicy.alt(item, heroUrl), 'article-representative-media', candidates));
 
     const body = el('div', null, 'article-body');
     const paragraphs = String(item.public_body || '')
       .split(/\n\s*\n/)
       .map(value => value.trim())
       .filter(Boolean);
-    if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
+    if (editorial) body.append(editorial);
+    else if (paragraphs.length) paragraphs.forEach(paragraph => body.append(paragraphNode(paragraph)));
     else body.append(el('p', item.summary || '공개된 본문이 없습니다.'));
     article.append(body);
 
     const galleryItems = media.filter(entry => entry.url !== heroUrl);
-    if (galleryItems.length) {
+    if (!editorial && galleryItems.length) {
       const gallery = el('section', null, 'article-gallery');
       gallery.setAttribute('aria-label', '첨부 사진');
       galleryItems.forEach((entry, index) => {
@@ -179,7 +181,7 @@
     }
 
     target.replaceChildren(article);
-    if (contentPresentation.indexable) {
+    if (contentPresentation.allowArticleAttribution) {
       window.TAEJANG_PUBLIC_SHARE?.mount(article, {
         url: 'https://taejang.co.kr/promotion.html?id=' + encodeURIComponent(id),
         title: item.title,
