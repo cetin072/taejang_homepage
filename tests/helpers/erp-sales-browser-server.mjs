@@ -3,8 +3,8 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createERPDatabase,OPS,WORKER } from './erp-sales-isolated-db.mjs';
-export async function createERPBrowserServer({port=0}={}) {
- const db=await createERPDatabase();const root=process.cwd();
+export async function createERPBrowserServer({port=0,productAutomation=false}={}) {
+ const db=await createERPDatabase({productAutomation});const root=process.cwd();
  const index=await readFile('app/index.html','utf8');const shell=index.match(/<section id="desktop-app-shell"[\s\S]*?<\/section>/)[0].replace(' hidden ',' ');
  const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ERP 합성 데이터 격리 검수</title>
  <link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><link rel="stylesheet" href="/app/assets/admin-authoring.css"><link rel="stylesheet" href="/app/assets/erp-sales.css"></head>
