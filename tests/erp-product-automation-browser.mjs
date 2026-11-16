@@ -83,5 +83,26 @@ try{
  await click('새 주문으로 복사');assert.equal(await field('auto_price_1').inputValue(),'25000','copy opens automatic product writer with original entered price');assert.equal(await field('auto_basis_1').inputValue(),'inclusive');await click('닫기',page.locator('.erp-editor'));
  await page.reload();await page.getByRole('tab',{name:'구매·매입',exact:true}).click();await idle();await page.getByRole('heading',{name:'판매 연결 매입·지급 예정'}).waitFor();await page.getByText('15,000원',{exact:true}).first().waitFor();
  await click('거래·지급 확인');assert.equal(await field('unit_price_1').inputValue(),'25000');assert.equal(await field('pricing_basis_1').inputValue(),'inclusive','VAT basis survives page reload and reopening sale');
+ const legacyProduct=master('item',{code:'VAT-LEGACY',name:'Synthetic Legacy VAT',kind:'product',unit:'포',base_price:25000,pricing_basis:'inclusive',tax_class:'taxable'});
+ const legacyDraft=app.db.rpc('erp_sales_save',{p_data:{
+  kind:'product',party_id:customer.id,supplier_id:supplier.id,agent_id:agent.id,order_channel:'phone',
+  order_date:sale.sales_date,sales_date:sale.sales_date,
+  commission:{kind:'none',value:0,settlement_rule:'after_full_payment'},
+  lines:[{item_id:legacyProduct.id,quantity:1,unit_price:22727.27,tax_class:'taxable',tax_amount:2273}]
+ }});
+ async function reopenLegacyDraft(){
+  await page.reload();await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await idle();
+  await click('상세',page.getByRole('row').filter({hasText:'작성 중'}));
+ }
+ await reopenLegacyDraft();
+ assert.equal(await field('pricing_basis_1').inputValue(),'inclusive','legacy amounts matching the saved inclusive catalog snapshot are restored');
+ assert.equal(await field('unit_price_1').inputValue(),'25000');
+ await field('unit_price_1').fill('24000');await click('매출 저장');
+ const persisted=app.db.rpc('erp_sales_get',{p_id:legacyDraft.id});
+ assert.deepEqual(persisted.lines[0].item_snapshot.price_input,{entered_price:24000,pricing_basis:'inclusive'});
+ assert.equal(persisted.total_amount,24000);
+ await reopenLegacyDraft();
+ assert.equal(await field('pricing_basis_1').inputValue(),'inclusive');
+ assert.equal(await field('unit_price_1').inputValue(),'24000','custom inclusive amount survives legacy draft reload');
  assert.deepEqual(errors,[]);console.log('ERP_PRODUCT_AUTOMATION_BROWSER_PASS PC1440/mobile390; UI save + atomic confirm + reload; no console errors');
 }finally{await browser?.close();await app.close()}

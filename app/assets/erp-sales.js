@@ -144,7 +144,7 @@
    box.append(btn('상품 제거',()=>{box.remove();f.dataset.dirty='true';clearPreview();}));rows.append(box);
    if(snapshot.entered_price!=null)describe(state.items.find(i=>i.id===item.value));else if(saved.item_id)fill();
   };
-  (data.lines?.length?data.lines:[{}]).forEach((line,index)=>addLine(line,data.automation_snapshot?.lines[index]||{}));
+  (data.lines?.length?data.lines:[{}]).forEach((line,index)=>addLine(line,data.automation_snapshot?.lines[index]||line.item_snapshot?.price_input||{}));
   f.append(btn('상품 추가',()=>{addLine();f.dataset.dirty='true';clearPreview();}));
   const memo=field(grid,'memo','거래 메모','textarea',data.memo||'');
   const overrides=el('details');overrides.append(el('summary','거래별 영업비 변경·메모'));
@@ -392,7 +392,15 @@
   const addLine=(line={})=>{const box=el('fieldset','','erp-line erp-fields');box.disabled=locked||!state.canWrite;box.append(el('legend','품목 '+(++seq)));const add=(n,l,t,v,c=[],r=true)=>field(box,n+'_'+seq,l,t,v,c,r);
    const item=add('item_id','판매 품목','select',line.item_id||'',locked?[[line.item_id,line.item_snapshot.name]]:options('items',i=>i.active&&i.kind===kind));
    const quantity=add('quantity','수량','number',line.quantity??1);quantity.step='0.001';quantity.min='0.001';
-   const originalPrice=data.automation_snapshot?.lines?.[seq-1];
+   const snapshot=line.item_snapshot;
+   // Older sales recorded net amounts only. Restore a matching inclusive catalog price from the saved snapshot.
+   const catalogPrice=Number(snapshot?.base_price),savedQuantity=Number(line.quantity);
+   const matchesInclusiveSnapshot=snapshot?.pricing_basis==='inclusive'&&snapshot.base_price!=null&&line.tax_class==='taxable'
+    &&Math.round(catalogPrice/1.1*100)/100===Number(line.unit_price)
+    &&Math.round(catalogPrice*savedQuantity)===Number(line.total_amount);
+   const originalPrice=data.automation_snapshot?.lines?.[seq-1]||snapshot?.price_input
+    ||(matchesInclusiveSnapshot?{entered_price:catalogPrice,pricing_basis:'inclusive'}:null);
+   let preservePriceInput=Boolean(originalPrice);
    const price=add('unit_price','판매가격 (원)','number',originalPrice?.entered_price??line.unit_price??'');price.step='0.01';
    const pricing=kind==='product'?add('pricing_basis','판매가격 부가세 구분','select',originalPrice?.pricing_basis||'exclusive',[['exclusive','부가세 별도'],['inclusive','부가세 포함']]):null;
    const taxClass=add('tax_class','세금 구분','select',line.tax_class||'taxable',taxChoices);
@@ -416,11 +424,12 @@
     const savedSupply=Math.round(q*calculatedUnit);
     amountNotice.textContent='공급가액 '+money(savedSupply)+' + 부가세 '+money(calculatedTax)+' = 청구 합계 '+money(savedSupply+calculatedTax)+(preserveOriginal&&line.tax_amount!=null?' (기존 저장 금액, 재입력 시 자동 재계산)':'')+'. 세금 구분은 상품의 실제 법적 분류를 확인하세요.';
    };
-   item.addEventListener('change',()=>{const chosen=state.items.find(i=>i.id===item.value);if(chosen){price.value=chosen.base_price??'';taxClass.value=chosen.tax_class;}refreshItemNotice();recalculate();});
-   for(const input of [quantity,price,pricing,taxClass,tax].filter(Boolean))input.addEventListener('input',()=>recalculate());
+   item.addEventListener('change',()=>{const chosen=state.items.find(i=>i.id===item.value);if(chosen){price.value=chosen.base_price??'';taxClass.value=chosen.tax_class;if(pricing){pricing.value=chosen.pricing_basis||'exclusive';preservePriceInput=true;}}refreshItemNotice();recalculate();});
+   for(const input of [quantity,price,pricing,taxClass,tax].filter(Boolean))input.addEventListener('input',()=>{if(pricing)preservePriceInput=true;recalculate();});
    refreshItemNotice();recalculate(line.tax_amount!=null);
    if(!locked&&state.canWrite)box.append(btn('품목 제거',()=>{box.remove();f.dataset.dirty='true';}));
-   box.readLine=()=>({item_id:item.value,quantity:Number(quantity.value),unit_price:calculatedUnit,tax_class:taxClass.value,tax_amount:Number(tax.value)});lineRows.append(box);
+   box.readLine=()=>({item_id:item.value,quantity:Number(quantity.value),unit_price:calculatedUnit,tax_class:taxClass.value,tax_amount:Number(tax.value),
+    ...(pricing&&preservePriceInput?{price_input:{entered_price:Number(price.value),pricing_basis:pricing.value}}:{})});lineRows.append(box);
   };
   (data.lines?.length?data.lines:[{}]).forEach(addLine);if(!locked&&state.canWrite&&kind==='product')lineArea.append(btn('품목 추가',()=>{addLine();f.dataset.dirty='true';}));f.append(lineArea);
   const fee=el('fieldset','','erp-fields app-form-section');fee.disabled=locked||!state.canWrite;fee.append(el('legend','거래별 영업비 조건'));
@@ -440,7 +449,7 @@
    saleEditor({kind:'product',party_id:data.party_id,supplier_id:data.supplier_id,automation_snapshot:data.automation_snapshot,
     order_channel:data.order_channel,shipping_status:'preparing',lines:data.lines.map(line=>({
      item_id:line.item_id,quantity:line.quantity,unit_price:line.unit_price,
-     tax_class:line.tax_class,tax_amount:line.tax_amount
+     tax_class:line.tax_class,tax_amount:line.tax_amount,item_snapshot:line.item_snapshot,total_amount:line.total_amount
     }))});
    report('새 주문을 작성합니다. 단가·수량과 이번 거래의 영업비 조건을 확인한 뒤 저장해 주세요.');
   }));
@@ -1208,7 +1217,7 @@
   search.append(grid);
   supportSubmit(search,'마감 이력 조회',async()=>{if(clearEditor()){closeMonth=month.value;await drawMonthClose();report('');}});
   body.replaceChildren(search,el('p',closeMonth+' · '+(result.closed?'마감됨':'열림'),'erp-total'),
-   el('p','매출은 매출일, 입금·지급·증빙·조정은 해당 기록일의 월에 잠깁니다. 후속 거래는 해당 월에 기록할 수 있습니다.','help'));
+   el('p','월 매출 합계는 확정 매출 기준입니다. 매출은 매출일, 입금·지급·증빙·조정은 해당 기록일의 월에 잠깁니다. 후속 거래는 해당 월에 기록할 수 있습니다.','help'));
   if(result.current_positions){const p=result.current_positions;body.append(el('p','선택 월 매출의 현재 현황 · 원매출 '+money(p.sales)+' · 조정 후 '+money(p.effective_sales)+' · 미수금 '+money(p.receivables)+' · 자동 연결 공급처 미지급 '+money(p.supplier_unpaid)+' · 자동 연결 영업비 미지급 '+money(p.commission_unpaid),'erp-total'));}
   if(result.accruals)body.append(el('p','연결 매입 공급가액 '+money(result.accruals.purchase_supply)+' · 매입 부가세 '+money(result.accruals.purchase_tax)+' · 영업비 예정 '+money(result.accruals.commission_amount),'erp-total'));
   const review=adjustmentQueue||payoutQueue||adjustmentFollowups?el('section','','app-form-section erp-month-review'):null;
