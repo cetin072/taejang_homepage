@@ -228,3 +228,8 @@
     box-shadow:none;
   }
 }
+
+.employee-basic-remote-work { margin-top:16px; padding-top:12px; border-top:1px solid var(--app-border); }
+.employee-basic-remote-work .employee-profile-fold-body { padding:0; }
+.employee-basic-remote-work [hidden] { display:none; }
+.employee-basic-remote-work .employee-form-grid > .help { grid-column:1/-1; }
