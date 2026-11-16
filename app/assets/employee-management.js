@@ -213,6 +213,22 @@
       form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
     }
 
+    let remote = null;
+    let address, remoteEnabled;
+    if (employee && context.access_level === 'operations_manager') {
+      address = input('text'); address.maxLength = 200; address.autocomplete = 'street-address';
+      remoteEnabled = input('checkbox');
+      grid.append(field('주소', address, '비우고 저장하면 주소가 삭제됩니다.'),
+        field('재택근무자', remoteEnabled, '체크한 직원은 위치 확인 없이 출퇴근합니다.'));
+      const loading = el('p', '주소 정보를 불러오는 중입니다.', 'help'); form.append(loading);
+      submit.disabled = true;
+      window.TaejangEmployeeRemoteWork.load(employee).then(value => {
+        remote = value; address.value = value.address || ''; remoteEnabled.checked = !!value.approved;
+        submit.disabled = !positionItems.length; loading.remove();
+      }).catch(() => { loading.textContent = '주소 정보를 불러오지 못했습니다. 취소 후 다시 열어주세요.'; });
+      address.addEventListener('input', () => { if (!address.value.trim()) remoteEnabled.checked = false; });
+    }
+
     let saved = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -241,11 +257,14 @@
             p_attendance_required: attendance.checked
           });
         } else if (!saved && employee && !teamRequest) {
-          await app().rpc('update_employee_core', {
-            p_employee_uuid: employee.id, p_full_name: name.value.trim(), p_hired_on: hired.value,
-            p_department_id: department.value, p_position_id: position.value, p_employment_status: status.value,
-            p_departed_on: status.value === 'departed' ? departed.value || null : null,
-            p_attendance_required: attendance.checked, p_reason: '직원 관리 화면에서 수정'
+          if (!remote) throw Error('주소 정보를 먼저 불러와야 합니다.');
+          await app().rpc('update_employee_basic_with_remote', {
+            p_employee_uuid: employee.id,
+            p_values: { full_name: name.value.trim(), hired_on: hired.value,
+              department_id: department.value, position_id: position.value, employment_status: status.value,
+              departed_on: status.value === 'departed' ? departed.value || null : null,
+              attendance_required: attendance.checked },
+            p_revision: remote.revision || null, p_address: address.value.trim(), p_enabled: remoteEnabled.checked
           });
         } else if (!saved) {
           await app().rpc('submit_employee_change_request', {

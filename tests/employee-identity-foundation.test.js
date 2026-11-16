@@ -76,7 +76,7 @@ test('employee management UI supports direct ops management and team requests wi
   assert.match(appUi, /assets\/employee-management\.js/);
   assert.match(employeeUi, /new Set\(\['operations_manager', 'promotion_lead', 'department_lead'\]\)/);
   assert.match(employeeUi, /create_employee/);
-  assert.match(employeeUi, /update_employee_core/);
+  assert.match(employeeUi, /update_employee_basic_with_remote/);
   assert.match(employeeUi, /submit_employee_change_request/);
   assert.match(employeeUi, /review_employee_change_request/);
   assert.match(employeeUi, /직원 관리/);

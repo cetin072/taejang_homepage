@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-16-remote-no-gps', date: '2026-11-16',
+    title: '재택근무 출퇴근 간소화',
+    summary: '관리자가 재택근무자로 설정하면 위치 확인 없이 출퇴근할 수 있습니다.',
+    items: ['일반 근무자의 기존 위치 확인은 유지됩니다.', '재택근무 여부는 직원 기본 인사정보에서 관리합니다.'],
+  },
+  {
     id: '2026-11-15-remote-work-location', date: '2026-11-15',
     title: '재택근무 주소 등록',
     summary: '설정의 내 정보에서 재택근무 주소를 등록할 수 있습니다.',

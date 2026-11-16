@@ -217,8 +217,14 @@
       const disability = disabilityPanel?.(context, employee);
       if (disability) card.append(disability);
       if (context.access_level === 'operations_manager') {
-        const remoteWork = window.TaejangEmployeeRemoteWork?.adminPanel(employee);
-        if (remoteWork) basic.append(remoteWork);
+        const addressValue = el('dd', '불러오는 중'), remoteValue = el('dd', '불러오는 중');
+        const addressRow = el('div'), remoteRow = el('div');
+        addressRow.append(el('dt', '주소'), addressValue); remoteRow.append(el('dt', '재택근무자'), remoteValue);
+        values.append(addressRow, remoteRow);
+        window.TaejangEmployeeRemoteWork.load(employee).then(result => {
+          addressValue.textContent = result.address || '미등록';
+          remoteValue.textContent = result.approved ? '대상' : '아님';
+        }).catch(() => { addressValue.textContent = '불러오기 실패'; remoteValue.textContent = '확인 필요'; });
       }
 
       if (context.access_level === 'operations_manager' || context.access_level === 'promotion_lead_global') {
