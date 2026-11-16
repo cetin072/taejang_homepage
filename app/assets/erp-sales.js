@@ -129,7 +129,7 @@
    if(d.automation&&dueDay&&!dueDay.disabled)d.automation.supplier_due_day=Number(dueDay.value);
   };
   // Same existing authoring grid, grouped by the user's registration sequence.
-  const groups=[['기본정보',['code','auto_code','name','kind','unit','unit_other','active','defaults_enabled']],['판매가격',['base_price','pricing_basis','tax_class']],['공급처·매입원가',['default_supplier_id','purchase_price','purchase_pricing_basis','purchase_tax_class','supplier_cycle']],['영업비',['default_fee_kind','default_fee_value','default_fee_basis','default_settlement_rule']],['재고',['fulfillment','inventory_managed']]];
+  const groups=[['기본정보',['code','auto_code','name','kind','unit','unit_other','active','defaults_enabled']],['판매가격',['base_price','pricing_basis','tax_class']],['공급처·매입원가',['default_supplier_id','purchase_price','purchase_pricing_basis','purchase_tax_class','supplier_cycle','supplier_due_day']],['영업비',['default_fee_kind','default_fee_value','default_fee_basis','default_settlement_rule']],['재고',['fulfillment','inventory_managed']]];
   for(const [title,names] of groups){const section=el('fieldset','','erp-fields app-form-section');section.append(el('legend',title));const toggles=el('div','','erp-toggle-row');for(const name of names){const input=f.elements[name];if(input)(input.type==='checkbox'?toggles:section).append(input.closest('label'));}if(toggles.childElementCount)section.append(toggles);if(title==='기본정보')section.append(codeHelp);if(title==='판매가격')section.append(priceQuote);if(title==='공급처·매입원가')section.append(supplierLink);grid.append(section);}
  }
  function automatedProductEditor(data={}){
