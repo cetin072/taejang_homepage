@@ -16,6 +16,7 @@ const rejects=(fn,re,label)=>{assert.throws(fn,re);passed++;console.log('PASS',l
 try{
  const files=readdirSync('supabase/migrations').filter(f=>f.endsWith('_logistics_workspace.sql'));
  db.raw(readFileSync(files.length?'supabase/migrations/'+files[files.length-1]:'supabase/sql/logistics_workspace.sql','utf8'));
+ db.raw(readFileSync('supabase/migrations/20261117152728_logistics_wallet_summary.sql','utf8'));
  // Existing isolated fixture supplies real role/capability foundation, not hosted accounts.
  const roles=['department_lead','promotion_lead','ceo','field_lead','super_admin'];const actors={};
  for(const role of roles){const id=randomUUID();actors[role]=id;db.raw(`insert into public.roles(code,name) select '${role}','Synthetic ${role}' where not exists(select 1 from public.roles where code='${role}');insert into public.profiles values('${id}','Synthetic ${role}','active');insert into public.profile_roles select '${id}',id,null from public.roles where code='${role}';`);}
@@ -24,18 +25,28 @@ try{
  rejects(()=>rpc('get_logistics_workspace','',{role:'anon',actor:null}),/permission denied/,'anonymous RPC blocked');
  rejects(()=>db.sql('select * from logistics_private.entries;'),/permission denied/,'direct ledger access blocked');
  const customer=mutate('customer.save',{name:'Synthetic Logistics',phone:'',memo:'test only'}).customer;
+ const latest=()=>read().customers.find(c=>c.id===customer.id).latest_debit;
+ ok(latest()===null,'no debit is distinguished from missing summary');
  const getBalance=()=>read().customers.find(c=>c.id===customer.id).balance;
  const depositId=randomUUID(),deposit={customerId:customer.id,amount:50000,memo:'Synthetic received payment'};
  mutate('wallet.deposit',deposit,depositId);mutate('wallet.deposit',deposit,depositId);ok(Number(getBalance())===50000,'deposit retry exactly once');
  rejects(()=>mutate('wallet.deposit',{...deposit,amount:40000},depositId),/LOGISTICS_REQUEST_REUSE/,'idempotency key cannot be reused for different input');
  const q=C.draft();q.customerId=customer.id;const confirmed=mutate('quote.confirm',{quote:q}).quote;ok(confirmed.total===6864,'server recalculates v8 quote');ok(Number(getBalance())===50000,'confirmation does not charge');
  const chargeId=randomUUID();mutate('wallet.charge',{quoteId:confirmed.id},chargeId);mutate('wallet.charge',{quoteId:confirmed.id},chargeId);ok(Number(getBalance())===43136,'quote charged once on retry');
+ ok(latest().amount===6864,'latest debit includes confirmed quote debit');
  rejects(()=>mutate('wallet.charge',{quoteId:confirmed.id}),/LOGISTICS_DUPLICATE_CHARGE/,'fresh request cannot double charge same quote');
  rejects(()=>mutate('wallet.manual',{customerId:customer.id,amount:100000,memo:'Synthetic too high'}),/LOGISTICS_FUNDS/,'insufficient balance blocks debit');
  rejects(()=>mutate('wallet.reverse',{entryId:depositId,reason:'Synthetic deposit error'}),/LOGISTICS_FUNDS/,'cannot reverse spent deposit into negative balance');
  mutate('wallet.reverse',{entryId:chargeId,reason:'Synthetic correction'});ok(Number(getBalance())===50000,'reversal restores balance without erasing original');
+ ok(latest()===null,'reversed debit excluded from latest summary');
  rejects(()=>mutate('wallet.reverse',{entryId:chargeId,reason:'Synthetic duplicate'}),/LOGISTICS_REVERSED/,'double reversal blocked');
  rejects(()=>mutate('wallet.charge',{quoteId:confirmed.id}),/LOGISTICS_DUPLICATE_CHARGE/,'reversed quote cannot be silently recharged');
+ const manual=randomUUID();mutate('wallet.manual',{customerId:customer.id,amount:1200,memo:'latest debit'},manual);
+ mutate('wallet.deposit',{customerId:customer.id,amount:1200,memo:'later top up'});
+ ok(latest().amount===1200,'later top up does not replace latest debit');
+ const hidden=rpc('get_logistics_workspace',"'"+customer.id+"'::uuid,'no matching transaction',99");
+ ok(hidden.entries.length===0&&hidden.customers.find(c=>c.id===customer.id).latest_debit.amount===1200,'summary independent of history search and page');
+ mutate('wallet.reverse',{entryId:manual,reason:'restore fixture'});
  mutate('customer.save',{id:customer.id,name:'Synthetic renamed',phone:'',memo:'',revision:1});
  ok(read().quotes.find(r=>r.id===confirmed.id).snapshot.customerName==='Synthetic Logistics','customer rename preserves historical document');
  rejects(()=>mutate('customer.save',{id:customer.id,name:'Stale',revision:1}),/LOGISTICS_CONFLICT/,'stale customer edit rejected');

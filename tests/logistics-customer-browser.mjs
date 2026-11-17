@@ -16,8 +16,8 @@ window.TaejangApp={getAccessContext:()=>({id:'fixture',account_status:'active'})
  reads.push(args);if(slow)await new Promise(r=>setTimeout(r,150));if(fail)throw Error('Synthetic read failure');
  const id=args.p_customer_id;
  const entry=c=>({id:'entry-'+c,customer_id:c,customer_name:c==='a'?'변경된 고객 A':'고객 B',type:'debit',source:'quote',amount:savedTotal,memo:'사용 '+c,quote_id:'quote-'+c,created_at:'2026-11-16',actor:'검수',reversed:false});
- return {settings:{data:{...C.copy(C.DEFAULTS),repack:999999},revision:2},customers:[{id:'a',name:'변경된 고객 A',balance:100000},{id:'b',name:'고객 B',balance:200000}],entries:id?[entry(id),{...entry(id),id:'manual',quote_id:null,source:'manual',memo:'수기 사용'}]:[],quoteCount:id==='a'?51:0,entryCount:id?2:0,
- quotes:id==='a'&&args.p_page===1&&!missing?[{id:'quote-a',number:'LQ-HISTORIC',customer_id:'a',snapshot:C.copy(snapshot),total:savedTotal,charged:true}]:[]};
+ return {settings:{data:{...C.copy(C.DEFAULTS),repack:999999},revision:2},customers:[{id:'a',name:'변경된 고객 A',balance:29999,latest_debit:null},{id:'b',name:'고객 B',balance:30000,latest_debit:null}],entries:id?[entry(id),{...entry(id),id:'manual',quote_id:null,source:'manual',memo:'수기 사용'}]:[],quoteCount:id==='a'?51:0,entryCount:id?2:0,
+ quotes:id==='a'&&(args.p_page===1||args.p_query==='LQ-HISTORIC')&&!missing?[{id:'quote-a',number:'LQ-HISTORIC',customer_id:'a',snapshot:C.copy(snapshot),total:savedTotal,charged:true}]:[]};
 }};await import('/app/assets/logistics.js');await TaejangLogistics.open();</script>`;
 try{for(const width of [1440,390]){
  const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];let accept=false;
@@ -25,6 +25,9 @@ try{for(const width of [1440,390]){
  await p.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://fixture.test')return route.abort();if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});if(!['/staff/assets/staff.css','/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/logistics.css'].includes(u.pathname))return route.abort();return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});});
  await p.goto('https://fixture.test/');await p.getByRole('tab',{name:'고객 관리',exact:true}).click();
  const rowA=()=>p.locator('.lg-customer-row').filter({hasText:'변경된 고객 A'}),rowB=()=>p.locator('.lg-customer-row').filter({hasText:'고객 B'});
+ await expect(rowA().locator('.lg-low-balance')).toHaveText('충전 안내 필요');
+ await expect(rowB().locator('.lg-low-balance')).toHaveCount(0);
+ await expect(p.getByText('충전 안내 필요 1명 · 잔액 30,000원 미만',{exact:true})).toBeVisible();
  const heading=()=>p.locator('[data-wallet-heading]');
  await rowA().getByRole('cell').nth(2).click();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await expect(heading()).toBeFocused();await expect(rowA()).toHaveClass(/is-selected/);await expect(p.getByRole('cell',{name:'사용 a',exact:true})).toBeVisible();
  // Selecting the already selected customer keeps typed input.

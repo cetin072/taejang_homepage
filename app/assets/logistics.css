@@ -76,3 +76,11 @@
 .lg .lg-customer-name{border-color:transparent;background:transparent;white-space:normal;text-align:left}
 .lg .lg-selected-label{display:inline-block;color:var(--lg-teal);font-size:.8rem;font-weight:700;margin-left:6px}
 .lg [data-wallet-heading]:focus,.lg [data-quote-sheet] h2:focus{outline:2px solid var(--lg-teal);outline-offset:4px}
+
+/* Text accompanies the color so low balances remain identifiable. */
+.lg .lg-low-balance{display:inline-block;margin:4px 8px;padding:4px 8px;border:1px solid #c23737;border-radius:6px;background:#fff1f1;color:#a82020;font-size:.85rem;font-weight:700}
+.lg .lg-wallet-summary{margin-top:12px;border-top:1px solid #ccdede;padding-top:8px}
+@media print{
+ #logistics-print .lg-wallet-summary{break-inside:avoid;margin-top:8px;padding-top:5px;font-size:8.5pt}
+ #logistics-print .lg-wallet-summary .lg-help{font-size:7pt;margin:3px 0}
+}
