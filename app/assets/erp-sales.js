@@ -48,8 +48,8 @@
    root?.removeAttribute('aria-busy');
    controls.forEach(([n,disabled])=>{if(n.isConnected)n.disabled=disabled;});
    if(allowed()&&root?.isConnected){
-    const fallback=editorDialog?.open?editor.querySelector('h3'):status;
-    const visibleFocus=focused?.isConnected&&(!editorDialog?.open||editorDialog.contains(focused));
+    const fallback=editorDialog?.open?editor.querySelector(payoutBack?'#erp-payout-title':'h3'):status;
+    const visibleFocus=focused?.isConnected&&focused.getClientRects().length>0&&(!editorDialog?.open||editorDialog.contains(focused));
     (visibleFocus?focused:fallback)?.focus({preventScroll:true});
    }
   }
