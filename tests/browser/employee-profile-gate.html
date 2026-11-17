@@ -23,7 +23,7 @@ employees[1].full_name=employees[0].full_name;
 window.fixtureContext={access_level:'operations_manager',can_manage_sensitive_identity:true,employees,departments:[{id:'dept',name:'포장팀'}],positions:[{id:'position',name:'사원'}],new_employee_positions:[{id:'position',name:'사원'}],change_requests:[],self_service_contact_requests:[]};
 window.objects=new Map();
 const existingPhoto='fixture-2/profile/existing.png';
-objects.set(existingPhoto,new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfIoAAAAASUVORK5CYII='),char=>char.charCodeAt(0))],{type:'image/png'}));
+objects.set(existingPhoto,new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12MQtzECAADzAIbQcqsEAAAAAElFTkSuQmCC'),char=>char.charCodeAt(0))],{type:'image/png'}));
 const disabilityInfo=new Map();
 const realFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{

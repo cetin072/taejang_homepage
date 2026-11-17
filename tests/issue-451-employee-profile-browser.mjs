@@ -25,7 +25,7 @@ const server = http.createServer(async(req,res) => {
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser = await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
 const errors = [];
-const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfIoAAAAASUVORK5CYII=','base64');
+const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12MQtzECAADzAIbQcqsEAAAAAElFTkSuQmCC','base64');
 try {
   for (const [device,width,height] of [['pc',1440,1000],['mobile',390,844],['narrow',320,844],['tablet',768,1024]]) {
     const context = await browser.newContext({viewport:{width,height}}), page = await context.newPage();
