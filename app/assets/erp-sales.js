@@ -280,7 +280,7 @@
   starts.addEventListener('input',syncStartDate);starts.addEventListener('change',syncStartDate);syncStartDate();
   f.append(el('p','과거 거래의 영업자와 영업비 조건은 바뀌지 않습니다. 같은 거래처에 확보·담당·지원 관계를 함께 연결할 수 있습니다.','help'));
   f.append(el('p',productAutomation?'영업비율·정액은 품목·서비스의 기본 영업비 또는 매출·판매의 거래별 영업비 변경에서 설정합니다.':'영업비율·정액은 매출·판매의 거래별 영업비 조건에서 설정합니다.','help'));
-  const save=el('button','관계 저장','button primary');save.type='submit';const actions=el('div','','erp-actions');actions.append(save,btn('닫기',clearEditor));f.append(actions);f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));void run(async()=>{await rpc('erp_sales_assign_agent',{p_party_id:d.party_id,p_agent_id:d.agent_id,p_relationship:d.relationship,p_starts_on:d.starts_on,p_reason:d.reason});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';editor.replaceChildren();draw();report('영업 관계를 저장했습니다.');});});
+  const save=el('button','관계 저장','button primary');save.type='submit';const actions=el('div','','erp-actions');actions.append(save,btn('닫기',clearEditor));f.append(actions);f.addEventListener('submit',e=>{e.preventDefault();if(!f.reportValidity())return;const d=Object.fromEntries(new FormData(f));void run(async()=>{await rpc('erp_sales_assign_agent',{p_party_id:d.party_id,p_agent_id:d.agent_id,p_relationship:d.relationship,p_starts_on:d.starts_on,p_reason:d.reason});state=await rpc('erp_sales_bootstrap');f.dataset.dirty='false';clearEditor();draw();report('영업 관계를 저장했습니다.');});});
  }
  function drawMasters(){
   const views=[['customer','고객·판매처'],['supplier','공급처·매입처'],['all','전체 거래처'],['agent','영업자·영업 관계']];

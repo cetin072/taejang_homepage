@@ -314,6 +314,7 @@ try {
  await field('event_note').fill('합성 반품 승인');
  await page.getByRole('button',{name:'처리 저장',exact:true}).click();
  await page.getByText('조정 대기 0건',{exact:true}).waitFor();
+ await closePopup();
  await page.locator('[name=adjustment_filter_stage]').selectOption('followups');
  await page.getByRole('button',{name:'조정 대기 조회',exact:true}).click();
  await page.getByText('회수·환불 대기 1건 · 남은 환불 100원',{exact:true}).waitFor();
