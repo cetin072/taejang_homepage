@@ -35,7 +35,7 @@ try{
   const select=(name,label)=>field(name).selectOption({label});
   const tab=async(name)=>{
    const popup=page.locator('dialog.erp-editor-dialog[open]');
-   if(await popup.count()){await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});}
+   if(await popup.count()){if(await page.getByRole('button',{name:'상세로 돌아가기',exact:true}).isVisible())await button('상세로 돌아가기');await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});}
    await page.getByRole('tab',{name,exact:true}).click();await idle();};
   const saleId=kind=>app.db.raw(`select id from public.erp_sales_transactions where kind='${kind}' order by created_at desc,id desc limit 1;`);
   const receipts=id=>app.db.rpc('erp_sales_get_receipts',{p_sale_id:id});
@@ -102,19 +102,23 @@ try{
    await stage('상품: 반액 입금·영업비 일부 승인·잔금 입금',async()=>{
     await button('수금 내역 조회');await fill('receipt_amount','55000');await button('입금 기록 저장');await button('지급 내역 조회');await button('영업비 승인');
     if(await field('payout_basis').count())await fill('payout_basis','10000');await fill('payout_amount','5000');await fill('payout_evidence','합의 영업비 1만원·절반 수금 확인');await button('지급 승인 저장');
+    if(variant==='candidate')await button('상세로 돌아가기');
     await fill('receipt_amount','55000');await button('입금 기록 저장');
+    if(variant==='candidate')await button('지급 내역 조회');
     const expected=app.db.rpc('erp_sales_get_payouts',{p_sale_id:firstProduct}).commission;
     assert.equal(expected.allowed-expected.paid-expected.pending,5000);
     report.payoutRefresh={expected:5000,visibleCorrect:await payoutBlock('영업비').getByText('추가 승인 가능액 5,000원',{exact:true}).count()===1};
-    if(variant==='candidate')assert.equal(report.payoutRefresh.visibleCorrect,true,'receipt save must refresh the already open payout balance');
+    if(variant==='candidate')assert.equal(report.payoutRefresh.visibleCorrect,true,'returning to payouts must load the latest receipt balance');
     else{assert.equal(report.payoutRefresh.visibleCorrect,false,'baseline reproduces stale payout information');await button('지급 내역 조회');}
    });
-   await stage('오입금 정정 중 작성하던 지급 입력 보존',async()=>{
+   await stage('지급 입력 취소·오입금 정정 후 지급액 재조회',async()=>{
     await button('영업비 승인');await fill('payout_amount','4321');await fill('payout_evidence','아직 검토 중인 지급 입력');
+    if(variant==='candidate'){await button('닫기',page.locator('form').filter({has:field('payout_amount')}));await button('상세로 돌아가기');}
     await page.getByRole('button',{name:'오입금 취소',exact:true}).last().click();await idle();await fill('receipt_note','가상 중복 입금 기록 정정');await button('취소 기록 저장');
-    assert.equal(receipts(firstProduct).balance,55000);assert.equal(await field('payout_amount').inputValue(),'4321');
-    await fill('receipt_amount','55000');await button('입금 기록 저장');assert.equal(await field('payout_amount').inputValue(),'4321');
-    const draft=page.locator('form').filter({has:page.locator('[name=payout_amount]')});await button('닫기',draft);await button('지급 내역 조회');
+    assert.equal(receipts(firstProduct).balance,55000);if(variant==='baseline')assert.equal(await field('payout_amount').inputValue(),'4321');
+    await fill('receipt_amount','55000');await button('입금 기록 저장');if(variant==='baseline')assert.equal(await field('payout_amount').inputValue(),'4321');
+    if(variant==='baseline'){const draft=page.locator('form').filter({has:page.locator('[name=payout_amount]')});await button('닫기',draft);}
+    await button('지급 내역 조회');
     assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:firstProduct}).commission.entries.length,1,'input preservation never creates an approval');
    });
    const finish=async()=>{await button('지급 완료 기록');await fill('payout_evidence','가상 이체 완료 확인');await button('실제 지급 저장');};
@@ -122,6 +126,7 @@ try{
    await stage('상품: 영업비 1만원·공급처 8만원 지급 완료',async()=>{
     await finish();await button('영업비 승인');await fill('payout_amount','5000');await fill('payout_evidence','잔금 수금 확인');await button('지급 승인 저장');await finish();await approveSupplier();
     assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:firstProduct}).commission.cash_paid,10000);
+    if(variant==='candidate')await button('상세로 돌아가기');
     await field('next_shipping').selectOption('delivered');await button('배송 상태 저장');
    });
    await stage('상품: 1포 반품→승인→1만1천원 환불·회수 기록',async()=>{
@@ -145,6 +150,7 @@ try{
     if(await field('payout_basis').count())await fill('payout_basis','10000');await fill('payout_amount','10000');await fill('payout_evidence','재주문 수금·기존 상계 확인');await button('지급 승인 저장');
     await page.getByText('10,000원 · 상계 1,000원 · 실제 지급액 9,000원',{exact:true}).waitFor();await finish();await approveSupplier();
     assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:secondProduct}).commission.cash_paid,9000);
+    if(variant==='candidate')await button('상세로 돌아가기');
     await field('next_shipping').selectOption('delivered');await button('배송 상태 저장');
    });
    await stage('일반 구매: 공급처·품목 새 등록 없이 비용 기록',async()=>{

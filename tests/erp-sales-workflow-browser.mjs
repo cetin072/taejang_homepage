@@ -18,6 +18,7 @@ try {
    if(name.endsWith('_ready'))return false;
    if(name==='erp_sales_list')return {items:[{...sale,party_name:'검수용 고객'}],total:1,limit:100};
    if(name==='erp_sales_get')return sale;
+   if(name==='erp_sales_get_payouts')return {supplier:{name:'검수용 공급처',basis:10000,paid:0,pending:0,remaining:10000,allowed:10000,entries:[]}};
    throw new Error('Unexpected RPC: '+name);
   }};
  });
@@ -32,7 +33,8 @@ try {
  assert.deepEqual(await page.locator('.erp-editor > section[id]').evaluateAll(ns=>ns.map(n=>n.id)),['erp-sale-shipping','erp-sale-receipts','erp-sale-payouts']);
  for(const [label,id] of [['배송 처리','erp-sale-shipping'],['수금·미수금 확인','erp-sale-receipts'],['공급처 지급·영업비','erp-sale-payouts']]){
   await flow.getByRole('button',{name:label,exact:true}).click();
-  assert.equal(await page.evaluate(()=>document.activeElement.id),id);
+  if(id==='erp-sale-payouts'){await page.locator('.erp-sales:not([aria-busy])').waitFor();assert.equal(await page.evaluate(()=>document.activeElement.id),'erp-payout-title');assert.equal(await flow.isVisible(),false);}
+  else assert.equal(await page.evaluate(()=>document.activeElement.id),id);
  }
  await mkdir('admin-ui-qa-artifacts/erp-workflow',{recursive:true});
  for(const width of [1440,390]){
@@ -40,6 +42,8 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.screenshot({path:`admin-ui-qa-artifacts/erp-workflow/${width}.png`,fullPage:true});
  }
+ await page.keyboard.press('Escape');
+ await flow.waitFor();
  await page.keyboard.press('Escape');
  await popup.waitFor({state:'hidden'});
  assert.equal(await page.getByRole('button',{name:'상세',exact:true}).evaluate(opener=>opener===document.activeElement),true);
