@@ -61,6 +61,12 @@ try{
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
   });
   await p.goto('https://fixture.test/');await openQuote(p);
+  const metrics=await p.locator('.lg label').first().evaluate(el=>({font:getComputedStyle(el).fontSize,margin:getComputedStyle(el).marginTop}));
+  assert.equal(metrics.margin,'0px','screen labels must not inherit the staff 16px margins');
+  assert.ok(parseFloat(metrics.font)>=14,'screen labels use ERP reading scale');
+  assert.ok(await p.locator('.lg input:not([type=checkbox])').first().evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16),'screen inputs remain readable');
+  assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'table overflow remains inside its wrapper');
+  await p.screenshot({path:`${output}/screen-${width}.png`,fullPage:true});
   const original=await p.evaluate(()=>JSON.stringify(fixture));
   const reads=await p.evaluate(()=>readCalls);
   await startPrint(p);
