@@ -179,3 +179,25 @@ test('expired opening invitation announcement is removed from homepage', () => {
   assert.doesNotMatch(home, /taejang-news01\.netlify\.app/);
   assert.doesNotMatch(home, /초대장 보기/);
 });
+
+
+test('PC work roles enter ERP directly while mobile and general workers retain employee home', () => {
+  const vm = require('node:vm');
+  // Exercise the production decision without importing the renderer's DOM effects.
+  const source = read('app/assets/employee-common-home-v1.js');
+  const fn = source.match(/function prefersWorkDashboard\(currentRoute\) \{([\s\S]*?)\n  \}/);
+  assert.ok(fn);
+  const decide = (role, desktop, search = '') => vm.runInNewContext(
+    `(${fn[0]})(${JSON.stringify(role)})`,
+    { URLSearchParams, window: { location: { search }, matchMedia: () => ({ matches: desktop }) } }
+  );
+  for (const role of ['promotion_staff', 'promotion_lead']) {
+    assert.equal(decide(role, true), true);
+    assert.equal(decide(role, false), false);
+    assert.equal(decide(role, false, '?view=dashboard'), true);
+  }
+  for (const role of ['general_worker', 'unknown', '', 'department_lead']) {
+    assert.equal(decide(role, true, '?view=dashboard'), false);
+  }
+  assert.match(source, /if \(prefersWorkDashboard\(currentRoute\)\) \{[\s\S]*?installDashboardReturn\(\);/);
+});

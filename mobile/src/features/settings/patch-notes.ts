@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-17-web-work-entry', date: '2026-11-17',
+    title: '웹 업무 화면 바로가기',
+    summary: '업무 메뉴로 연결되는 웹 링크는 직원 홈을 거치지 않고 열립니다.',
+    items: ['PC에서 운영팀장·홍보직원은 로그인 후 업무 화면으로 바로 이동합니다.', '일반 모바일 접속의 출퇴근 홈과 업무 화면의 직원 홈 버튼은 유지됩니다.'],
+  },
+  {
     id: '2026-11-15-remote-work-location', date: '2026-11-15',
     title: '재택근무 주소 등록',
     summary: '설정의 내 정보에서 재택근무 주소를 등록할 수 있습니다.',
