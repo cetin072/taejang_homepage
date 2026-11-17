@@ -113,7 +113,7 @@ try{
    });
    await stage('지급 입력 취소·오입금 정정 후 지급액 재조회',async()=>{
     await button('영업비 승인');await fill('payout_amount','4321');await fill('payout_evidence','아직 검토 중인 지급 입력');
-    if(variant==='candidate'){await button('닫기',page.locator('form').filter({has:field('payout_amount')}));await button('상세로 돌아가기');}
+    if(variant==='candidate'){await button('닫기',page.locator('form').filter({has:page.locator('[name=payout_amount]')}));await button('상세로 돌아가기');}
     await page.getByRole('button',{name:'오입금 취소',exact:true}).last().click();await idle();await fill('receipt_note','가상 중복 입금 기록 정정');await button('취소 기록 저장');
     assert.equal(receipts(firstProduct).balance,55000);if(variant==='baseline')assert.equal(await field('payout_amount').inputValue(),'4321');
     await fill('receipt_amount','55000');await button('입금 기록 저장');if(variant==='baseline')assert.equal(await field('payout_amount').inputValue(),'4321');
