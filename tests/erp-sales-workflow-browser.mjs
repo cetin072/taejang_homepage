@@ -25,7 +25,9 @@ try {
  await page.evaluate(()=>window.TaejangErpSales.open());
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상세',exact:true}).click();
- const flow=page.getByRole('navigation',{name:'이 거래 처리 바로가기'});await flow.waitFor().catch(async error=>{throw new Error(error.message+'; UI status: '+await page.getByRole('status').innerText());});
+ const popup=page.getByRole('dialog',{name:'확정 매출 상세',exact:true});
+ await popup.waitFor();
+ const flow=popup.getByRole('navigation',{name:'이 거래 처리 바로가기'});await flow.waitFor().catch(async error=>{throw new Error(error.message+'; UI status: '+await page.getByRole('status').innerText());});
  assert.equal(await flow.getByRole('button').count(),3);
  assert.deepEqual(await page.locator('.erp-editor > section[id]').evaluateAll(ns=>ns.map(n=>n.id)),['erp-sale-shipping','erp-sale-receipts','erp-sale-payouts']);
  for(const [label,id] of [['배송 처리','erp-sale-shipping'],['수금·미수금 확인','erp-sale-receipts'],['공급처 지급·영업비','erp-sale-payouts']]){
@@ -38,5 +40,8 @@ try {
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.screenshot({path:`admin-ui-qa-artifacts/erp-workflow/${width}.png`,fullPage:true});
  }
+ await page.keyboard.press('Escape');
+ await popup.waitFor({state:'hidden'});
+ assert.equal(await page.getByRole('button',{name:'상세',exact:true}).evaluate(opener=>opener===document.activeElement),true);
  assert.deepEqual(errors,[]);console.log('PASS: synthetic confirmed sale workflow order, keyboard focus, desktop/mobile bounds; no database writes');
 } finally {await browser.close();}

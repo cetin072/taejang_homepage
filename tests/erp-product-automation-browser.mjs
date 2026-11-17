@@ -121,6 +121,8 @@ try{
  await click('지급 승인 저장');
  await page.getByRole('status').filter({hasText:'지급을 승인했습니다.'}).waitFor();
  assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:legacyDraft.id}).commission.pending,1091);
+ await page.keyboard.press('Escape');
+ await page.locator('dialog.erp-editor-dialog').waitFor({state:'hidden'});
  await page.getByRole('tab',{name:'지급 대기',exact:true}).click();await idle();
  await page.getByRole('heading',{name:'공급처 월 지급',exact:true}).waitFor();
  const batchRow=page.getByRole('row').filter({hasText:'15,000원'}).filter({hasText:'지급 예정'}).first();

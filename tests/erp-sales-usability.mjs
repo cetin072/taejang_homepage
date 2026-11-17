@@ -33,7 +33,10 @@ try{
   const field=name=>page.locator('.erp-editor').locator(`[name="${name}"]`);
   const fill=(name,value)=>field(name).fill(String(value));
   const select=(name,label)=>field(name).selectOption({label});
-  const tab=async(name)=>{await page.getByRole('tab',{name,exact:true}).click();await idle();};
+  const tab=async(name)=>{
+   const popup=page.locator('dialog.erp-editor-dialog[open]');
+   if(await popup.count()){await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});}
+   await page.getByRole('tab',{name,exact:true}).click();await idle();};
   const saleId=kind=>app.db.raw(`select id from public.erp_sales_transactions where kind='${kind}' order by created_at desc,id desc limit 1;`);
   const receipts=id=>app.db.rpc('erp_sales_get_receipts',{p_sale_id:id});
   const payoutBlock=kind=>page.locator('.erp-editor section').filter({has:page.getByRole('heading',{name:kind+' · 가상 담당 영업자',exact:true})}).last();
