@@ -16,6 +16,8 @@
   const listState = { search: '', employment: 'active', account: '', photo: '', sort: 'position' };
   let loadSequence = 0;
   const photoUrls = new Set();
+  const displayPhotoRequests = new Map();
+  let employeePhotoConversions = Promise.resolve();
 
   function clearEmployeeContext() {
     ++loadSequence;
@@ -23,6 +25,7 @@
     selectedEmployeeId = null;
     for (const url of photoUrls) URL.revokeObjectURL(url);
     photoUrls.clear();
+    displayPhotoRequests.clear();
   }
 
   const el = (tag, value, className) => {
@@ -101,65 +104,104 @@
     return response;
   }
 
-  async function config() {
-    if (cachedConfig) return cachedConfig;
-    const response = await fetch('/.netlify/functions/staff-config', { cache: 'no-store' });
-    if (!response.ok) throw new Error('사진 저장 설정을 불러오지 못했습니다.');
-    cachedConfig = await response.json();
+  function config() {
+    cachedConfig ??= fetch('/.netlify/functions/staff-config', { cache: 'no-store' })
+      .then(response => {
+        if (!response.ok) throw new Error('사진 저장 설정을 불러오지 못했습니다.');
+        return response.json();
+      })
+      .catch(error => { cachedConfig = null; throw error; });
     return cachedConfig;
+  }
+
+  const encodedPhotoPath = path => path.split('/').map(encodeURIComponent).join('/');
+  const displayPhotoPath = path => path + '.display-v1.jpg';
+  const optimizeEmployeePhoto = async file => (await import('./photo-optimizer.mjs')).optimizeEmployeeDisplay(file);
+
+  function storePhoto(cfg, path, file) {
+    return employeeStorageRequest(`${cfg.url}/storage/v1/object/employee-private-media/${encodedPhotoPath(path)}`, {
+      method: 'POST',
+      headers: { apikey: cfg.publishableKey, 'Content-Type': file.type, 'x-upsert': 'false' },
+      body: file
+    });
   }
 
   async function uploadEmployeePhoto(employee, photoType, file) {
     if (!file) return null;
-    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
-    if (!allowed.has(file.type)) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
-    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
     const ext = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type];
+    if (!ext) throw new Error('JPG, PNG, WEBP 사진만 올릴 수 있습니다.');
+    if (file.size > 8 * 1024 * 1024) throw new Error('사진은 8MB 이하로 올려주세요.');
     const path = `${employee.id}/${photoType}/${crypto.randomUUID()}.${ext}`;
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
+    const display = photoType === 'profile' ? await optimizeEmployeePhoto(file) : null;
     const cfg = await config();
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/employee-private-media/${encoded}`, {
-      method: 'POST',
-      headers: {
-        apikey: cfg.publishableKey,
-        'Content-Type': file.type,
-        'x-upsert': 'false'
-      },
-      body: file
-    });
-    if (!response.ok) {
-      if (response.status === 401) throw new Error('로그인이 만료됐습니다. 다시 로그인한 후 사진을 저장해 주세요.');
-      if (response.status === 403) throw new Error('이 사진을 저장할 권한이 없습니다.');
-      const payload = await response.json().catch(() => null);
-      if (/Invalid Compact JWS|JWT/i.test(payload?.message || '')) {
-        throw new Error('사진 인증을 확인하지 못했습니다. 다시 로그인한 후 시도해 주세요.');
-      }
-      throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
-    }
+    if (display) await requirePhotoStored(await storePhoto(cfg, displayPhotoPath(path), display));
+    await requirePhotoStored(await storePhoto(cfg, path, file));
     return path;
   }
 
-  async function authenticatedPhotoUrl(path) {
-    if (!path) return null;
-    const cfg = await config();
-    const encoded = path.split('/').map(encodeURIComponent).join('/');
-    // Authenticated reads re-run Storage RLS for every download. Do not create
-    // bearer signed URLs that remain downloadable after a menu grant is revoked.
-    const sequence = loadSequence;
-    const response = await employeeStorageRequest(`${cfg.url}/storage/v1/object/authenticated/employee-private-media/${encoded}`, {
+  async function requirePhotoStored(response) {
+    if (response.ok) return;
+    if (response.status === 401) throw new Error('로그인이 만료됐습니다. 다시 로그인한 후 사진을 저장해 주세요.');
+    if (response.status === 403) throw new Error('이 사진을 저장할 권한이 없습니다.');
+    const payload = await response.json().catch(() => null);
+    if (/Invalid Compact JWS|JWT/i.test(payload?.message || '')) {
+      throw new Error('사진 인증을 확인하지 못했습니다. 다시 로그인한 후 시도해 주세요.');
+    }
+    throw new Error(payload?.message || '사진을 저장하지 못했습니다.');
+  }
+
+  function readPhoto(cfg, path) {
+    // Apply the same Storage access policy to originals and display copies.
+    return employeeStorageRequest(`${cfg.url}/storage/v1/object/authenticated/employee-private-media/${encodedPhotoPath(path)}`, {
       method: 'GET', cache: 'no-store',
       headers: { apikey: cfg.publishableKey }
     });
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    if (sequence !== loadSequence || !allowedRoute()) return null;
-    const url = URL.createObjectURL(blob); photoUrls.add(url); return url;
+  }
+
+  async function loadDisplayPhoto(path, isCurrent) {
+    const cfg = await config();
+    if (!isCurrent()) return null;
+    const displayPath = displayPhotoPath(path);
+    const response = await readPhoto(cfg, displayPath);
+    if (response.ok) return response.blob();
+    const missing = response.status === 404 || response.status === 400 &&
+      await response.json().then(data => data.error === 'not_found' || /^object not found$/i.test(data.message)).catch(() => false);
+    if (!missing || !isCurrent()) return null;
+
+    // Convert pre-existing photos once, serially. Only the resulting JPEG is rendered.
+    const conversion = employeePhotoConversions.then(async () => {
+      if (!isCurrent()) return null;
+      const original = await readPhoto(cfg, path);
+      if (!original.ok || !isCurrent()) return null;
+      const display = await optimizeEmployeePhoto(await original.blob());
+      if (!isCurrent()) return null;
+      await storePhoto(cfg, displayPath, display).catch(() => null);
+      return display;
+    });
+    employeePhotoConversions = conversion.catch(() => {});
+    return conversion;
   }
 
   async function setAvatar(image, path, wrap) {
-    const url = await authenticatedPhotoUrl(path).catch(() => null);
-    if (!url || !(wrap || image).isConnected) return;
-    if (wrap) wrap.replaceChildren(image);
+    const sequence = loadSequence;
+    const isCurrent = () => sequence === loadSequence && allowedRoute() && main()?.querySelector('.employee-management');
+    let request = displayPhotoRequests.get(path);
+    if (!request || request.sequence !== sequence) {
+      const task = loadDisplayPhoto(path, isCurrent).catch(() => null);
+      request = { sequence, task };
+      displayPhotoRequests.set(path, request);
+      void task.then(() => {
+        if (displayPhotoRequests.get(path)?.task === task) displayPhotoRequests.delete(path);
+      });
+    }
+    const file = await request.task;
+    if (!file || !isCurrent() || !wrap.isConnected) return;
+    const url = URL.createObjectURL(file);
+    photoUrls.add(url);
+    const release = () => { URL.revokeObjectURL(url); photoUrls.delete(url); };
+    image.addEventListener('load', release, { once: true });
+    image.addEventListener('error', release, { once: true });
+    wrap.replaceChildren(image);
     image.src = url;
   }
 

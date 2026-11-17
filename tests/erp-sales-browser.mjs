@@ -39,6 +39,12 @@ try {
  assert.equal(firstLinePositions.length,3);
  assert.ok(firstLinePositions.every(y=>Math.abs(y-firstLinePositions[0])<2),'item quantity and price share the first row');
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
+ await page.getByRole('tab',{name:'미수금',exact:true}).click();
+ await page.getByText('매출을 확정한 뒤 남은 미수 잔액이 표시됩니다.',{exact:true}).waitFor();
+ await page.locator('.erp-sales:not([aria-busy])').waitFor();
+ await page.getByRole('button',{name:'매출·판매로 이동',exact:true}).click();
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
+ await page.locator('.erp-sales:not([aria-busy])').waitFor();
  await page.getByRole('tab',{name:'거래처·영업자',exact:true}).click();
  await page.getByRole('button',{name:'고객·판매처',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'고객·판매처',exact:true}).getAttribute('aria-pressed'),'true');
@@ -52,16 +58,16 @@ try {
  for(const customer of ['합성 기업 브라우저','합성 개인 브라우저']){await page.getByRole('button',{name:'영업 관계 연결',exact:true}).click();await field('party_id').selectOption({label:customer});await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('starts_on').fill('2099-01-01');await field('reason').fill('격리 브라우저 관계 검수');await saved('관계 저장');}
  await page.getByRole('button',{name:'영업 관계 연결',exact:true}).click();
  await field('party_id').selectOption({label:'합성 기업 브라우저'});
- await page.getByText('기존 담당 시작일 2099-01-01 · 같은 날짜부터 변경할 수 있습니다.',{exact:true}).waitFor();
+ await page.getByText('기존 담당 시작일 2099-01-01 · 기존 담당자를 선택하면 이전 날짜로 정정할 수 있습니다.',{exact:true}).waitFor();
+ const assignmentsBeforeCorrection=app.db.rpc('erp_sales_bootstrap').assignments;
+ const assignmentPartyId=await field('party_id').inputValue();
+ const previousAssignmentId=assignmentsBeforeCorrection.find(row=>row.party_id===assignmentPartyId).id;
+ await field('agent_id').selectOption({label:'합성 브라우저 영업자'});
  await field('starts_on').fill('2098-12-31');
- assert.equal(await field('starts_on').evaluate(input=>input.checkValidity()),false);
- await field('relationship').selectOption('support');
  assert.equal(await field('starts_on').evaluate(input=>input.checkValidity()),true);
- await field('relationship').selectOption('management');
- assert.equal(await field('starts_on').evaluate(input=>input.checkValidity()),false);
- await field('starts_on').fill('2099-01-01');
- assert.equal(await field('starts_on').evaluate(input=>input.checkValidity()),true);
- await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
+ await field('reason').fill('실제 담당 시작일 정정');
+ await saved('관계 저장');
+ assert.equal(app.db.rpc('erp_sales_bootstrap').assignments.find(row=>row.id===previousAssignmentId).starts_on,'2098-12-31');
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
  for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').selectOption(kind==='service'?'월':'포');await field('base_price').fill('1000');await field('tax_class').selectOption('taxable');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'item master uses three columns');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
  await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');

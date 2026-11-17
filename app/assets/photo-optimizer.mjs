@@ -128,3 +128,33 @@ export function optimizeForUpload(file) {
   }
   return prepared.get(file);
 }
+
+// The same small JPEG is suitable for the 40px list and up to 120px employee card.
+export async function optimizeEmployeeDisplay(file) {
+  validateFile(file);
+  const [width, height] = dimensions(new Uint8Array(await file.arrayBuffer()), file.type);
+  if (!width || !height || Math.max(width, height) > 12000 || width * height > 60_000_000) {
+    throw new Error('업무용 사진의 해상도가 너무 큽니다. 긴 변 12000px·6천만 화소 이하 사진을 선택해 주세요.');
+  }
+  const image = await loadImage(file);
+  const scale = Math.min(1, 320 / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  try {
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('브라우저에서 사진 압축을 지원하지 않습니다.');
+    context.fillStyle = '#edf2ee';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const limit = 48 * 1024;
+    for (const quality of [0.82, 0.68, 0.52]) {
+      const blob = await canvasBlob(canvas, 'image/jpeg', quality);
+      if (blob.type === 'image/jpeg' && blob.size <= limit) return blob;
+    }
+    throw new Error('업무용 사진을 48KB 이하로 압축하지 못했습니다. 다른 사진을 선택해 주세요.');
+  } finally {
+    canvas.width = canvas.height = 0;
+    image.src = '';
+  }
+}
