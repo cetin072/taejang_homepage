@@ -69,13 +69,16 @@ jobs:
           CHROME_PATH=$(command -v google-chrome) node tests/erp-product-automation-browser.mjs
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-browser.mjs
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-usability.mjs
+          CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-workflow-browser.mjs
 
       - name: Keep synthetic ERP browser screenshots
         if: always() && steps.scope.outputs.run_full == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: erp-sales-1440-390
-          path: admin-ui-qa-artifacts/erp-sales/
+          path: |
+            admin-ui-qa-artifacts/erp-sales/
+            admin-ui-qa-artifacts/erp-workflow/
           if-no-files-found: ignore
           retention-days: 7
 

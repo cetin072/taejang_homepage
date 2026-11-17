@@ -100,18 +100,39 @@ begin
  return public.get_employee_remote_work_location(p_employee_uuid);
 end $$;
 
-create function public.update_employee_basic_with_remote(p_employee_uuid uuid,p_values jsonb,p_revision uuid,p_address text,p_enabled boolean)
-returns jsonb language plpgsql security definer set search_path='' as $$
+create function public.update_employee_basic_with_remote(
+ p_employee_uuid uuid,p_values jsonb,p_revision uuid,p_address text,p_enabled boolean,
+ p_update_remote boolean default true,p_role_context jsonb default null
+) returns jsonb language plpgsql security definer set search_path='' as $$
+declare result jsonb; remote_result jsonb;
 begin
- if not (public.current_user_has_role('operations_manager') and public.private_actor_can('employee.work_terms_manage')) then
+ if not (public.current_user_has_role('operations_manager') and public.private_actor_can('employee.update'))
+    or (p_update_remote and not public.private_actor_can('employee.work_terms_manage')) then
   raise exception 'FORBIDDEN' using errcode='42501'; end if;
- perform public.update_employee_core(p_employee_uuid,p_values->>'full_name',(p_values->>'hired_on')::date,
-  (p_values->>'department_id')::uuid,(p_values->>'position_id')::uuid,p_values->>'employment_status',
-  nullif(p_values->>'departed_on','')::date,(p_values->>'attendance_required')::boolean,'직원 기본 인사정보 수정');
- return public.save_employee_basic_remote_address(p_employee_uuid,p_revision,p_address,p_enabled);
+ if p_role_context is null then
+  result:=public.update_employee_core(p_employee_uuid,p_values->>'full_name',(p_values->>'hired_on')::date,
+   (p_values->>'department_id')::uuid,(p_values->>'position_id')::uuid,p_values->>'employment_status',
+   nullif(p_values->>'departed_on','')::date,(p_values->>'attendance_required')::boolean,'직원 기본 인사정보 수정');
+ else
+  result:=public.update_employee_core_with_role(
+   p_employee_uuid,(p_role_context->>'expected_updated_at')::timestamptz,
+   (p_role_context->>'expected_profile_id')::uuid,(p_role_context->>'expected_profile_updated_at')::timestamptz,
+   array(select jsonb_array_elements_text(p_role_context->'expected_role_codes')),
+   p_values->>'full_name',(p_values->>'hired_on')::date,(p_values->>'department_id')::uuid,
+   (p_values->>'position_id')::uuid,p_values->>'employment_status',nullif(p_values->>'departed_on','')::date,
+   (p_values->>'attendance_required')::boolean,'직원 기본정보에서 직책·추천 역할 확인 후 저장',true);
+ end if;
+ if result->>'ok' is distinct from 'true' then
+  raise exception using errcode='P0001',message=coalesce(result->>'code','EMPLOYEE_UPDATE_FAILED');
+ end if;
+ if p_update_remote then
+  remote_result:=public.save_employee_basic_remote_address(p_employee_uuid,p_revision,p_address,p_enabled);
+  return result||remote_result;
+ end if;
+ return result;
 end $$;
-revoke all on function public.update_employee_basic_with_remote(uuid,jsonb,uuid,text,boolean) from public,anon,authenticated;
-grant execute on function public.update_employee_basic_with_remote(uuid,jsonb,uuid,text,boolean) to authenticated;
+revoke all on function public.update_employee_basic_with_remote(uuid,jsonb,uuid,text,boolean,boolean,jsonb) from public,anon,authenticated;
+grant execute on function public.update_employee_basic_with_remote(uuid,jsonb,uuid,text,boolean,boolean,jsonb) to authenticated;
 CREATE OR REPLACE FUNCTION public.private_record_attendance_event_pre149(p_event_type text, p_latitude double precision, p_longitude double precision, p_accuracy_m double precision)
  RETURNS jsonb
  LANGUAGE plpgsql

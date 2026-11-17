@@ -88,6 +88,11 @@ try{
  const exclusive=save('item',{...itemData,code:'EXCL',auto_code:false,base_price:10000,pricing_basis:'exclusive'});
  const exclusivePreview=db.rpc('erp_sales_preview_product',{p_data:{...data,request_key:randomUUID(),lines:[{item_id:exclusive.id,quantity:1}]}});
  ok(exclusivePreview.total===11000&&db.rpc('erp_sales_bootstrap').items.find(x=>x.id===exclusive.id).pricing_basis==='exclusive','exclusive price round-trips and calculates 10000 + 1000');
+ const legacy=save('item',{...itemData,code:'LEGACY-SALT',auto_code:false,automation:null});
+ const converted=save('item',itemData,legacy);
+ ok(converted.id===legacy.id&&converted.code.startsWith('NZS-')&&converted.automation.purchase_price===defaults.purchase_price,'existing item with an empty code is assigned a supplier code and saves its cost');
+ const ordinaryEdit=save('item',{...itemData,code:converted.code,auto_code:false},converted);
+ ok(ordinaryEdit.code===converted.code,'editing without explicit automatic generation keeps the code');
  // Concurrent clients use the same database and real transaction/row/advisory locks.
  const exec=promisify(execFile);
  const parallelRpc=(name,args)=>exec('docker',['exec',db.name,'psql','-XqAt','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-c',`set role authenticated;select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',false);select public.${name}(${args});`],{encoding:'utf8'});
@@ -137,6 +142,58 @@ try{
  assert.throws(()=>db.sql('select * from public.erp_sales_accrual_events;',{actor:WORKER}),/permission denied/);n++;
  assert.throws(()=>db.sql('insert into public.erp_sales_accrual_events default values;'),/permission denied/);n++;
  assert.throws(()=>db.raw('delete from public.erp_sales_accrual_events;'),/ERP_RECEIPT_IMMUTABLE/);n++;
+ const historicalItem=save('item',{...itemData,code:'LEGACY-FEE-TEST',auto_code:false,automation:null});
+ const legacyFeeSale=(basis)=>{
+  const draft=db.rpc('erp_sales_save',{p_data:{
+   ...prep.data,request_key:randomUUID(),
+   lines:prep.data.lines.map(line=>({...line,item_id:historicalItem.id})),
+   commission:{kind:'rate',value:5,settlement_rule:'after_full_payment',...(basis?{basis}:{})}
+  }});
+  return db.rpc('erp_sales_confirm',{p_id:draft.id,p_revision:draft.revision});
+ };
+ const legacySupplyFee=legacyFeeSale();
+ const commissionFor=s=>db.rpc('erp_sales_get_payouts',{p_sale_id:s.id}).commission;
+ ok(commissionFor(legacySupplyFee).basis===1136&&commissionFor(legacySupplyFee).allowed===0,'old 5% rows calculate from supply before eligibility');
+ const legacyGrossFee=legacyFeeSale('total');
+ ok(commissionFor(legacyGrossFee).basis===1250,'percentage fee respects an explicitly stored tax-inclusive basis');
+ db.rpc('erp_sales_record_receipt',{p_sale_id:legacySupplyFee.id,p_request_id:randomUUID(),p_recorded_on:on,p_amount:25000});
+ const legacyFeeApproval=db.rpc('erp_sales_approve_payout',{
+  p_sale_id:legacySupplyFee.id,p_request_id:randomUUID(),p_kind:'commission',p_amount:1136,p_evidence:'Synthetic percentage approval'
+ });
+ ok(legacyFeeApproval.commission.pending===1136,'legacy commission approval requires no manually entered total fee');
+ const monthlyDefaults={...defaults,supplier_cycle:'monthly',supplier_due_day:31};
+ assert.throws(()=>save('item',{...itemData,automation:{...monthlyDefaults,supplier_due_day:32}}),/erp_sales_supplier_due_day_valid/);n++;
+ const monthlyItem=save('item',{...itemData,automation:monthlyDefaults});
+ const expectedDue=db.raw(`select (date_trunc('month', date '${on}'::timestamp) + interval '2 months')::date - 1;`);
+ const alternateDay=save('item',{...itemData,automation:{...monthlyDefaults,supplier_due_day:1}});
+ assert.throws(()=>db.rpc('erp_sales_preview_product',{p_data:{...data,lines:[{item_id:monthlyItem.id,quantity:1},{item_id:alternateDay.id,quantity:1}]}}),/ERP_SPLIT_SUPPLIER_OR_TERMS_REQUIRED/);n++;
+ const monthlySale=(quantity)=>db.rpc('erp_sales_save_product',{p_data:{...data,request_key:randomUUID(),lines:[{item_id:monthlyItem.id,quantity}]},p_confirm:true});
+ const firstMonthly=monthlySale(1), secondMonthly=monthlySale(2);
+ const monthlySchedule=()=>db.rpc('erp_sales_list_monthly_supplier_payments');
+ const batch=()=>monthlySchedule().items.find(row=>row.supplier_id===supplier.id&&row.due_on===expectedDue);
+ ok(batch().accrued===45000&&batch().unpaid===45000&&batch().sale_ids.length===2,'monthly unpaid accruals aggregate by supplier and snapshotted date before approval');
+ ok(db.rpc('erp_sales_get_payouts',{p_sale_id:firstMonthly.id}).supplier.due_on===expectedDue,'a day of 31 falls on the last day of shorter months');
+ db.rpc('erp_sales_record_receipt',{p_sale_id:firstMonthly.id,p_request_id:randomUUID(),p_recorded_on:on,p_amount:25000});
+ const monthlyApproval={p_sale_id:firstMonthly.id,p_request_id:randomUUID(),p_kind:'supplier',p_amount:15000,p_evidence:'Synthetic monthly approval',p_cycle:'monthly',p_due_on:expectedDue};
+ assert.throws(()=>db.rpc('erp_sales_approve_payout',{...monthlyApproval,p_due_on:on}),/ERP_SUPPLIER_DUE_DATE_MISMATCH/);n++;
+ db.rpc('erp_sales_approve_payout',monthlyApproval);
+ ok(batch().pending===15000&&batch().unpaid===45000,'approved amount is still unpaid and counted once');
+ db.rpc('erp_sales_finish_payout',{p_sale_id:firstMonthly.id,p_payout_id:monthlyApproval.p_request_id,p_outcome:'paid',p_on:on,p_evidence:'Synthetic monthly payment'});
+ ok(batch().paid===15000&&batch().unpaid===30000&&batch().sale_ids[0]===secondMonthly.id,'payment reduces open balance without removing the cycle’s accumulated cost');
+ const cancelledMonthly=request(secondMonthly,'cancel_order',{refund_plan:0});event(cancelledMonthly,'approve');
+ ok(!batch(),'fully paid or reversed monthly balances no longer appear');
+ const todayItem=save('item',{...itemData,automation:{...monthlyDefaults,supplier_due_day:Number(on.slice(8))}});
+ const priorMonth=(months)=>db.raw(`select (date_trunc('month', date '${on}'::timestamp) - make_interval(months=>${months}))::date;`);
+ const earlierMonthly=(item,months)=>db.rpc('erp_sales_save_product',{p_data:{
+  ...data,request_key:randomUUID(),agent_id:null,sales_date:priorMonth(months),
+  commission:{kind:'none',value:0,basis:'supply',settlement_rule:'after_full_payment'},
+  lines:[{item_id:item.id,quantity:1}]
+ },p_confirm:true});
+ earlierMonthly(todayItem,1);
+ earlierMonthly(monthlyItem,2);
+ ok(monthlySchedule().due_today===15000&&monthlySchedule().overdue===15000,
+  'Korea business date distinguishes amounts due today and overdue, without requiring approval');
+ assert.throws(()=>db.rpc('erp_sales_list_monthly_supplier_payments',{},{actor:WORKER}),/ERP_FORBIDDEN/);n++;
  console.log('SCENARIO_RESULT',JSON.stringify(scenarioResult));
  console.log(`ERP_PRODUCT_AUTOMATION_PASS ${n} assertions`);
 }finally{db.stop()}

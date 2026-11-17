@@ -567,13 +567,26 @@
     await Promise.all([loadAttendance(), loadNotices()]);
   }
 
+  function prefersWorkDashboard(currentRoute) {
+    // Only roles that already have a work dashboard may skip the employee home.
+    // This is presentation routing, never an authorization grant.
+    if (!['promotion_staff', 'promotion_lead'].includes(currentRoute)) return false;
+    const requestedView = new URLSearchParams(window.location.search).get('view');
+    if (requestedView) return true;
+    return Boolean(window.matchMedia?.('(min-width: 761px) and (hover: hover) and (pointer: fine)').matches);
+  }
+
   function setup() {
     const currentRoute = route();
     if (!ALL_EMPLOYEE_HOME_ROLES.has(currentRoute)) {
       setTimeout(injectGeneralWorkerDesktopSimulationButton, 120);
       return;
     }
-    if (['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) {
+    if (prefersWorkDashboard(currentRoute)) {
+      // renderEntry already opened the authorized shell. Do not refresh or reset
+      // its selected view, and keep employee home available as an explicit action.
+      installDashboardReturn();
+    } else if (['general_worker', 'promotion_staff', 'promotion_lead'].includes(currentRoute)) {
       void startEmployeeHome();
     } else if (currentRoute === 'operations_manager') {
       installDashboardReturn();
