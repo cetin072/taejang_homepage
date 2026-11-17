@@ -268,7 +268,9 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         env:
           EMPLOYEE_QA_OUTPUT: employee-qa-artifacts
-        run: node tests/issue-451-employee-profile-browser.mjs
+        run: |
+          node tests/issue-451-employee-profile-browser.mjs
+          node tests/employee-role-review-browser.mjs
 
       - name: Run staff field audit PC and mobile fixture QA
         if: steps.scope.outputs.run_full == 'true'

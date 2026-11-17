@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-17-employee-role-review', date: '2026-11-17',
+    title: '직원 직책과 접속 역할 확인',
+    summary: '업무 플랫폼 직원 기본정보에서 실제 시스템 역할을 함께 확인합니다.',
+    items: ['직책과 계정 정보가 다르면 안내를 표시합니다.', '권한 있는 운영총괄은 추천 역할과 소속·직책을 확인 후 함께 저장할 수 있으며 기존 겸직 역할은 유지됩니다.'],
+  },
+  {
     id: '2026-11-17-web-work-entry', date: '2026-11-17',
     title: '웹 업무 화면 바로가기',
     summary: '업무 메뉴로 연결되는 웹 링크는 직원 홈을 거치지 않고 열립니다.',
