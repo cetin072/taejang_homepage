@@ -30,7 +30,7 @@
  body.lg-printing{page:logistics-quote;margin:0!important;padding:0!important;background:#fff!important}
  body.lg-printing>*{display:none!important}
  body.lg-printing>#logistics-print{display:block!important}
- #logistics-print.lg{width:100%;max-width:none;margin:0;font-size:10pt;line-height:1.3}
+ #logistics-print.lg{width:100%;max-width:none;margin:0;font-size:10pt;line-height:1.2}
  #logistics-print .lg-no-print{display:none!important}
  #logistics-print .lg-panel{border:0;border-radius:0;padding:0;margin:0}
  #logistics-print h2{font-size:20pt}
@@ -38,8 +38,8 @@
  #logistics-print .lg-header{padding-bottom:8px;margin-bottom:8px}
  #logistics-print .lg-fields{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 10px}
  #logistics-print label{margin:0;font-size:9pt;gap:2px;overflow-wrap:anywhere}
- #logistics-print .lg-print-value{font-size:10pt;font-weight:500}
- #logistics-print .lg-section{margin-top:9px}
+ #logistics-print .lg-print-value{font-size:9pt;font-weight:500}
+ #logistics-print .lg-section{margin-top:6px}
  #logistics-print .lg-route{gap:8px}
  #logistics-print .lg-table-wrap{overflow:visible;border-radius:0}
  #logistics-print table{min-width:0;font-size:9pt;width:100%;table-layout:fixed}
@@ -55,7 +55,7 @@
  #logistics-print td:last-child{white-space:normal}
  #logistics-print .lg-line-label{min-width:0;width:auto}
  #logistics-print .lg-qty,#logistics-print .lg-price{width:auto}
- #logistics-print .lg-stage td{padding:4px;background:#eaf3f4!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #logistics-print .lg-stage td{padding:2px 4px;background:#eaf3f4!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
  #logistics-print .lg-shelf{padding:6px;gap:6px;grid-template-columns:repeat(4,minmax(0,1fr)) auto}
  #logistics-print .lg-shelf output{font-size:11pt}
  #logistics-print .lg-summary{grid-template-columns:1fr 1fr;gap:10px}
@@ -83,6 +83,5 @@
 @media print{
  #logistics-print .lg-wallet-summary{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;break-inside:avoid;margin-top:6px;padding-top:4px;font-size:8.5pt}
  #logistics-print .lg-wallet-summary h3{grid-column:1/-1;margin:0 0 3px;font-size:10pt}
- #logistics-print .lg-wallet-summary .lg-help{grid-column:1/-1}
- #logistics-print .lg-wallet-summary .lg-help{font-size:7pt;margin:3px 0}
+ #logistics-print .lg-wallet-summary .lg-help{grid-column:1/-1;font-size:7pt;margin:3px 0}
 }
