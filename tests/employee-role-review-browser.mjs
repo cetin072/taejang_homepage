@@ -16,7 +16,7 @@ fixtureContext.positions.push({id:'lead',name:'부서 팀장'},{id:'ops',name:'�
 const oldRpc=TaejangApp.rpc;
 TaejangApp.rpc=async(name,args)=>{
  if(name==='get_employee_role_context')return {ok:true,profile_id:'profile-0',profile_updated_at:'2026-11-17T00:00:00Z',employee_updated_at:'2026-11-17T00:00:00Z',employee_basic:{...employees[0],full_name:staleEmployee?'다른 관리자 수정':employees[0].full_name},active_role_codes:['general_worker','promotion_staff'],role_codes:['general_worker','promotion_staff'],role_names:['일반 근로자','홍보 직원'],profile_position_id:'position',profile_department_id:'dept',can_manage:allowRole,recommendations:[{position_id:'position',role_code:'general_worker',role_name:'일반 근로자'},{position_id:'lead',role_code:'department_lead',role_name:'부서 팀장'}]};
- if(name==='update_employee_core_with_role'){saveCount++;window.lastRoleSave=args;await new Promise(r=>setTimeout(r,70));if(roleFail)throw Error('합성 저장 실패');return {ok:true};}
+ if(name==='update_employee_core_with_role'||name==='update_employee_basic_with_remote'&&args.p_role_context){saveCount++;window.lastRoleSave=args;await new Promise(r=>setTimeout(r,70));if(roleFail)throw Error('합성 저장 실패');return {ok:true};}
  return oldRpc(name,args);
 };
 </script></body>`);
@@ -48,9 +48,15 @@ try{
   await form.getByLabel('직책',{exact:true}).selectOption('ops');assert.equal(await apply.isVisible(),false,'delegation roles not recommended');
   await form.getByLabel('직책',{exact:true}).selectOption('lead');assert.equal(await apply.isChecked(),false,'changed selection invalidates approval');
   await page.evaluate(()=>{roleFail=false;});await apply.check();
+  await form.getByLabel('주소',{exact:true}).fill('가상시 역할주소로 21');
+  await form.getByLabel('재택근무자',{exact:true}).check();
   await form.getByRole('button',{name:'직원정보 저장',exact:true}).dblclick();
   await page.waitForFunction(()=>!document.querySelector('[data-employee-edit-form]'));
   assert.equal(await page.evaluate(()=>saveCount),2,'double click submits once');
+  assert.deepEqual(await page.evaluate(()=>[lastRoleSave.p_address,lastRoleSave.p_enabled,lastRoleSave.p_update_remote,
+    lastRoleSave.p_values.position_id,lastRoleSave.p_role_context.expected_role_codes]),
+    ['가상시 역할주소로 21',true,true,'lead',['general_worker','promotion_staff']],
+    'address, remote permission, position and approved role are sent in one write');
   await open();await page.evaluate(()=>{allowRole=false;});await page.getByRole('button',{name:'수정',exact:true}).click();
   await page.getByText(/요청이 자동 전송되지는 않습니다/).waitFor();assert.equal(await apply.isVisible(),false,'ordinary editor cannot delegate roles');
   await open();await page.evaluate(()=>{staleEmployee=true;});await page.getByRole('button',{name:'수정',exact:true}).click();

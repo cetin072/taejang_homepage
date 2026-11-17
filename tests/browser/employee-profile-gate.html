@@ -44,6 +44,7 @@ window.fetch=async(url,options={})=>{
   }
   return realFetch(url,options);
 };
+const remoteInfo = new Map();
 window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtureAccessToken}),refreshSession:async()=>{fixtureRefreshCount++;fixtureAccessToken='synthetic-refreshed';return true;},hasCapabilityContract:()=>true,can:()=>fixtureRoute==='operations_manager',friendlyError:error=>error.message,rpc:async(name,args)=>{
   calls.push({name,args});
   if(name==='get_employee_management_context'){
@@ -51,7 +52,7 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
     return structuredClone(fixtureContext);
   }
   if(name==='get_target_audit_trail')return {items:[]};
-  if(name==='get_employee_remote_work_location') return {address:'가상시 테스트로 10',approved:false,revision:'fixture-address-revision'};
+  if(name==='get_employee_remote_work_location') return remoteInfo.get(args.p_employee_uuid)||{address:'가상시 테스트로 10',approved:false,revision:'fixture-address-revision'};
   if(name==='save_employee_basic_remote_address') return {address:args.p_address,approved:args.p_enabled,revision:'fixture-updated-revision'};
   if(name==='get_employee_disability_info')return {
     types:['지체','뇌병변','지적'],revision:0,...disabilityInfo.get(args.p_employee_uuid)
@@ -62,7 +63,10 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
     disabilityInfo.set(args.p_employee_uuid,saved);
     return saved;
   }
-  if(name==='update_employee_core'){
+  if(name==='update_employee_basic_with_remote'){
+    const e=employees.find(e=>e.id===args.p_employee_uuid); e.full_name=args.p_values.full_name; e.attendance_required=args.p_values.attendance_required;
+    if(args.p_update_remote) remoteInfo.set(e.id,{address:args.p_address,approved:args.p_enabled,remote_work:args.p_enabled,revision:'fixture-updated-revision'});
+  }else if(name==='update_employee_core'){
     const e=employees.find(e=>e.id===args.p_employee_uuid);e.full_name=args.p_full_name;e.attendance_required=args.p_attendance_required;
   }else if(name==='set_employee_photo'){
     if(fail!=='mismatch')employees.find(e=>e.id===args.p_employee_uuid)[args.p_photo_type==='profile'?'profile_photo_path':'id_photo_path']=args.p_storage_path;

@@ -31,11 +31,12 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
   }
   return {ok:true};
  }
+ if(name==='get_employee_remote_work_location')return {address:'',approved:false,remote_work:false};
  if(name==='get_target_audit_trail')return {items:[]};
  throw Error('이 항목은 직책·역할 디자인 미리보기 범위에 포함되지 않습니다. 실제 데이터는 변경되지 않았습니다.');
 }};
 </script>
-<script src="assets/employee-management-views.js"></script><script src="assets/employee-management.js"></script>
+<script src="assets/employee-remote-work.js"></script><script src="assets/employee-management-views.js"></script><script src="assets/employee-management.js"></script>
 <script>
 (async()=>{
  if(!/^(deploy-preview-\d+--taejang-homepage\.netlify\.app|localhost|127\.0\.0\.1)$/.test(location.hostname)){

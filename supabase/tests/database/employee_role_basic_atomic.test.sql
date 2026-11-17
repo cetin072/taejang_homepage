@@ -20,7 +20,7 @@ from public.positions where code='general_worker';
 insert into public.account_person_links(profile_id,person_id,linked_by) values
  ('97400000-0000-0000-0000-000000000002','97410000-0000-0000-0000-000000000002','97400000-0000-0000-0000-000000000001');
 
-create function pg_temp.save_role_fixture(position_code text, apply_role boolean, expected_roles text[] default null)
+create function pg_temp.save_role_fixture(position_code text, apply_role boolean, expected_roles text[] default null, address text default null)
 returns jsonb language plpgsql as $$
 declare e public.employees%rowtype; position_uuid uuid; roles text[];
 begin
@@ -28,6 +28,15 @@ begin
  select id into position_uuid from public.positions where code=position_code;
  select array_agg(distinct r.code order by r.code) into roles from public.profile_roles pr join public.roles r on r.id=pr.role_id
  where pr.profile_id='97400000-0000-0000-0000-000000000002' and pr.revoked_at is null;
+ if address is not null then
+  return public.update_employee_basic_with_remote(e.id,jsonb_build_object(
+   'full_name','가상 역할 직원','hired_on',e.hired_on,'department_id',e.department_id,
+   'position_id',position_uuid,'employment_status',e.employment_status,'departed_on',e.departed_on,
+   'attendance_required',e.attendance_required),null,address,false,true,jsonb_build_object(
+   'expected_updated_at',e.updated_at,'expected_profile_id','97400000-0000-0000-0000-000000000002',
+   'expected_profile_updated_at',(select updated_at from public.profiles where id='97400000-0000-0000-0000-000000000002'),
+   'expected_role_codes',coalesce(expected_roles,roles)));
+ end if;
  return public.update_employee_core_with_role(e.id,e.updated_at,'97400000-0000-0000-0000-000000000002',(select updated_at from public.profiles where id='97400000-0000-0000-0000-000000000002'),coalesce(expected_roles,roles),
  '가상 역할 직원',e.hired_on,e.department_id,position_uuid,e.employment_status,e.departed_on,e.attendance_required,'격리 검증',apply_role);
 end;
@@ -62,7 +71,9 @@ select throws_ok($$select pg_temp.save_role_fixture('operations_manager',true)$$
 select is((select p.code from public.employees e join public.positions p on p.id=e.position_id where e.id='97420000-0000-0000-0000-000000000002'),'general_worker','rejected save leaves title unchanged');
 select is(pg_temp.save_role_fixture('department_lead',false)->>'role_applied','false','title-only save is explicit');
 select ok(not exists(select 1 from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='97400000-0000-0000-0000-000000000002' and pr.revoked_at is null and r.code='department_lead'),'title-only does not grant role');
-select is(pg_temp.save_role_fixture('department_lead',true)->>'ok','true','explicit combined save succeeds');
+select throws_ok($$select pg_temp.save_role_fixture('department_lead',true,null,'x')$$,'22023','INVALID_ADDRESS','invalid address rolls back the role write');
+select ok(not exists(select 1 from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='97400000-0000-0000-0000-000000000002' and pr.revoked_at is null and r.code='department_lead'),'failed address save never grants a role');
+select is(pg_temp.save_role_fixture('department_lead',true,null,'가상시 통합 인사로 21')->>'address','가상시 통합 인사로 21','address and explicit role grant succeed together');
 select is((select array_agg(r.code order by r.code) from public.profile_roles pr join public.roles r on r.id=pr.role_id where pr.profile_id='97400000-0000-0000-0000-000000000002' and pr.revoked_at is null),array['department_lead','general_worker','promotion_staff'],'concurrent roles preserved and recommended role added');
 select is((select pos.code from public.profiles p join public.positions pos on pos.id=p.position_id where p.id='97400000-0000-0000-0000-000000000002'),'department_lead','profile title synchronized');
 select is(pg_temp.save_role_fixture('department_lead',true)->>'ok','true','repeat save remains safe');
