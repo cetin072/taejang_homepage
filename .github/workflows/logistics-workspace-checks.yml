@@ -28,6 +28,8 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install --no-install-recommends -y fonts-noto-cjk poppler-utils
+      - name: Verify customer selection and historical quote navigation
+        run: node tests/logistics-customer-browser.mjs
       - name: Verify wallet UI against isolated PostgreSQL
         run: node tests/logistics-wallet-browser.mjs
         env:

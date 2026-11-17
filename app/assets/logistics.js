@@ -3,7 +3,7 @@ import './logistics-core.js';
 const C=window.TaejangLogisticsCore;
 const money=n=>Number(n||0).toLocaleString('ko-KR')+'원';
 const el=(tag,value='',cls='')=>{const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;return n;};
-let root,status,content,tabs,state,quote,confirmed=null,tab='quote',customer='',query='',page=0,busy=false,epoch=0,dirty=false,settingsDirty=false,pending=null,sessionOwner='';
+let root,status,content,tabs,state,quote,confirmed=null,tab='quote',customer='',query='',page=0,busy=false,epoch=0,dirty=false,settingsDirty=false,pending=null,sessionOwner='',customerSearch='',walletDirty=false,quoteReturn=null;
 const app=()=>window.TaejangApp;
 const permitted=()=>C.allowed(app());
 const actor=()=>app()?.getAccessContext?.()?.id||'';
@@ -54,11 +54,11 @@ async function mutate(action,payload){
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
 function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
-function newQuote(){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
-async function changeTab(next){if(busy)return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
-function render(){if(!permitted()||!root?.isConnected)return;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
+function newQuote(nextCustomer=customer){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;customer=nextCustomer;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
+async function changeTab(next){if(busy||next===tab)return;if(next!==tab&&tab==='customers'&&!leaveCustomerInputs())return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;quoteReturn=null;if(next==='customers'){query='';page=0;}if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
+function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
-function totals(){try{const t=C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
+function totals(){try{const t=confirmed&&quote.calculation?quote.calculation:C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
  const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(selected.balance-t.total):'—');
  const b=root.querySelector('[data-confirm]');if(b)b.disabled=!quote.customerId||!!pending;return t;
  }catch(e){rowCost('total','입력 확인');const b=root.querySelector('[data-confirm]');if(b)b.disabled=true;return null;}}
@@ -66,7 +66,8 @@ function out(key,initial='—'){const n=el('output',initial);n.dataset.amount=ke
 function quoteChange(){dirty=true;totals();}
 function renderQuote(){
  if(!quote)quote=C.draft(state.settings.data);
- const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 견적 · 원본 보존':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
+ const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 당시 저장 내용 · PDF 재생성':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
+ if(quoteReturn)actions.append(button('거래 목록으로 돌아가기',()=>{if(dirty&&!confirm('작성 중인 견적을 버리고 거래 목록으로 돌아갈까요?'))return;tab=quoteReturn;quoteReturn=null;render();root.querySelector('[data-wallet-heading]')?.focus();}));
  content.append(actions);
  const sheet=el('article','','lg-panel lg-sheet');sheet.dataset.quoteSheet='1';
  const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title);sheet.append(header);
@@ -117,7 +118,7 @@ function renderQuote(){
  if(!confirmed){const confirmButton=button('금액 확정하기',()=>{const calc=totals();if(!calc||!quote.customerId)return;void mutate('quote.confirm',{quote:clone(quote)});},true);confirmButton.dataset.confirm='1';controls.append(confirmButton);}
  else{controls.append(button('견적서 인쇄 / PDF 저장',printQuote,true),button('복사해 새 견적',()=>{confirmed=null;quote=clone(quote);delete quote.number;dirty=true;render();}));}
  sheet.append(controls);
- if(confirmed)sheet.append(el('p','인쇄창에서 프린터 또는 PDF로 저장을 선택하세요. A4 · 배율 100% · 머리글/바닥글 해제 권장.','lg-help lg-no-print'));
+ if(confirmed)sheet.append(el('p','보관된 원본 PDF 파일이 아닌 확정 당시 저장 내용으로 다시 생성합니다. 인쇄창에서 PDF로 저장을 선택하세요. A4 · 배율 100% · 머리글/바닥글 해제 권장.','lg-help lg-no-print'));
  content.append(sheet);
  const wallet=el('section','','lg-panel lg-no-print');wallet.append(el('h3','고객 충전금'));
  for(const [key,label] of [['balance','현재 잔액'],['remaining','이번 견적 차감 후 잔액']]){const row=el('div','','lg-billrow');row.append(el('span',label),out(key));wallet.append(row);}
@@ -128,19 +129,50 @@ function renderQuote(){
 }
 function customerChoices(parent,onchange){field(parent,'고객',customer,v=>{customer=v;page=0;void reload();},{options:[['','전체 고객'],...state.customers.map(c=>[c.id,c.name])]});}
 async function reload(){if(busy)return;try{await read();render();report('');}catch(e){report(message(e),true);}}
+function leaveCustomerInputs(){
+ if(pending){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true,true);return false;}
+ return !(walletDirty||content.querySelector('[data-customer-editor]'))||confirm('저장하지 않은 입력을 버리고 이동할까요?');
+}
+async function selectCustomer(id){
+ if(busy)return;
+ if(id===customer){root.querySelector('[data-wallet-heading]')?.focus();return;}
+ if(!leaveCustomerInputs())return;
+ const previous=customer,previousPage=page,generation=epoch;busy=true;customer=id;page=0;
+ root.setAttribute('aria-busy','true');content.inert=true;
+ try{await read();render();report('');content.inert=false;const heading=root.querySelector('[data-wallet-heading]');heading?.focus();heading?.scrollIntoView({block:'nearest'});}
+ catch(e){if(generation===epoch){customer=previous;page=previousPage;report(message(e),true);}}
+ finally{busy=false;root?.removeAttribute('aria-busy');content.inert=false;}
+}
 function renderCustomers(){
  const panel=el('section','','lg-panel'),head=el('div','','lg-toolbar');head.append(el('h3','고객 관리'),button('+ 고객 등록',()=>customerEditor()));panel.append(head);
  const stats=el('div','','lg-fields');for(const [label,value] of [['등록 고객',state.customers.length+'명'],['충전금 잔액 합계',money(state.customers.reduce((s,c)=>s+Number(c.balance),0))]]){const box=el('div','','lg-card');box.append(el('span',label,'lg-muted'),el('div',value,'lg-stat'));stats.append(box);}panel.append(stats);
- const search=el('input');search.type='search';search.placeholder='고객명 검색';search.setAttribute('aria-label','고객명 검색');search.className='lg-search';panel.append(search);const list=el('div');panel.append(list);const draw=()=>{list.replaceChildren(table(['고객명','연락처','충전 잔액','관리'],state.customers.filter(c=>c.name.includes(search.value)).map(c=>{const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>{customer=c.id;page=0;void reload();}),button('수정',()=>customerEditor(c)),button('새 견적',()=>{customer=c.id;newQuote();}));return [c.name,c.phone||'—',money(c.balance),actions];})));};search.addEventListener('input',draw);draw();content.append(panel);
+ panel.append(el('p','고객 행을 누르면 충전·사용 내역을 볼 수 있습니다.','lg-help'));
+ const search=el('input');search.type='search';search.placeholder='고객명 검색';search.setAttribute('aria-label','고객명 검색');search.className='lg-search';search.value=customerSearch;panel.append(search);
+ const list=el('div');panel.append(list);
+ const draw=()=>{
+  const customers=state.customers.filter(c=>c.name.includes(search.value));
+  const grid=table(['고객명','연락처','충전 잔액','관리'],customers.map(c=>{
+   const name=button(c.name,()=>selectCustomer(c.id));name.classList.add('lg-customer-name');name.setAttribute('aria-label',c.name+' 충전·사용 내역 보기');name.setAttribute('aria-pressed',String(c.id===customer));
+   const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>selectCustomer(c.id)),button('수정',()=>customerEditor(c)),button('새 견적',()=>{if(!leaveCustomerInputs())return;newQuote(c.id);}));
+   return [name,c.phone||'—',money(c.balance),actions];
+  }));
+  grid.querySelectorAll('tbody tr').forEach((row,i)=>{
+   const c=customers[i];row.classList.add('lg-customer-row');row.classList.toggle('is-selected',c.id===customer);
+   if(c.id===customer)row.cells[0].append(el('span','선택됨','lg-selected-label'));
+   row.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea,label,[role="button"]'))return;void selectCustomer(c.id);});
+  });list.replaceChildren(grid);
+ };
+ search.addEventListener('input',()=>{customerSearch=search.value;draw();});draw();content.append(panel);
  if(customer){const c=state.customers.find(x=>x.id===customer);if(c)walletEditor(c);}
 }
 function customerEditor(c={}){
- const panel=el('form','','lg-panel');panel.append(el('h3',c.id?'고객 정보 수정':'고객 등록'));const data={id:c.id||null,name:c.name||'',phone:c.phone||'',memo:c.memo||'',revision:c.revision||0};const grid=el('div','','lg-fields');for(const [key,label] of [['name','고객명'],['phone','연락처'],['memo','메모']])field(grid,label,data[key],v=>data[key]=v);panel.append(grid);const actions=el('div','','lg-actions');actions.append(button('저장',()=>mutate('customer.save',data),true),button('닫기',()=>panel.remove()));panel.append(actions);panel.addEventListener('submit',e=>e.preventDefault());content.prepend(panel);panel.querySelector('input').focus();
+ const trigger=document.activeElement;
+ const panel=el('form','','lg-panel');panel.dataset.customerEditor='1';panel.append(el('h3',c.id?'고객 정보 수정':'고객 등록'));const data={id:c.id||null,name:c.name||'',phone:c.phone||'',memo:c.memo||'',revision:c.revision||0};const grid=el('div','','lg-fields');for(const [key,label] of [['name','고객명'],['phone','연락처'],['memo','메모']])field(grid,label,data[key],v=>data[key]=v);panel.append(grid);const actions=el('div','','lg-actions');actions.append(button('저장',()=>mutate('customer.save',data),true),button('닫기',()=>{panel.remove();if(trigger?.isConnected)trigger.focus();}));panel.append(actions);panel.addEventListener('submit',e=>e.preventDefault());content.prepend(panel);panel.querySelector('input').focus();
 }
 function walletEditor(c){
  const panel=el('section','','lg-panel');
- panel.append(el('h3',c.name+' · 충전금'),el('p',money(c.balance),'lg-stat'));
- const form=el('form'),fields=el('div','','lg-fields');
+ const heading=el('h3',c.name+' · 충전금');heading.tabIndex=-1;heading.dataset.walletHeading='1';panel.append(heading,el('p',money(c.balance),'lg-stat'));
+ const form=el('form'),fields=el('div','','lg-fields');form.addEventListener('input',()=>walletDirty=true);form.addEventListener('change',()=>walletDirty=true);
  let type='deposit',amount='',memo='';
  field(fields,'거래 종류',type,value=>{type=value;update();},{options:[['deposit','입금 확인 · 충전'],['manual','건별 작업비 차감']]});
  const amountInput=field(fields,'금액 (원)',amount,value=>{amount=value;update();},{type:'number',min:1,max:1000000000000});
@@ -171,14 +203,39 @@ function walletEditor(c){
   if(confirm(`${c.name}\n${type==='deposit'?'입금 확인 · 충전':'작업비 차감'} ${money(amount)}\n저장할까요?`))
    void mutate(type==='deposit'?'wallet.deposit':'wallet.manual',{customerId:c.id,amount:Number(amount),memo:note});
  });
- update();form.append(fields,preview,actions,feedback);panel.append(form);content.append(panel);renderEntries(panel);
+ update();form.append(fields,preview,actions,feedback);panel.append(form);content.append(panel);renderEntries(panel);pager(panel);
 }
 
-function renderEntries(parent){const rows=state.entries.map(t=>{const reverse=button(t.reversed||t.reversal_of?'정정 완료':'정정',()=>{const reason=prompt('정정 사유 (원 거래는 보존됩니다)');if(reason?.trim())void mutate('wallet.reverse',{entryId:t.id,reason:reason.trim()});});reverse.disabled=!!t.reversed||!!t.reversal_of;return [new Date(t.created_at).toLocaleString('ko-KR'),t.customer_name,t.reversal_of?'정정':t.type==='deposit'?'충전':'사용',(t.type==='deposit'?'+':'−')+money(t.amount),t.memo,t.actor,reverse];});parent.append(table(['일시','고객','구분','금액','메모','담당자','정정'],rows));}
+async function openEntryQuote(entry){
+ if(busy||!entry.quote_id||!leaveCustomerInputs())return;
+ const generation=epoch,owner=actor();busy=true;root.setAttribute('aria-busy','true');content.inert=true;
+ try{
+  let found=state.quotes.find(q=>q.id===entry.quote_id&&q.customer_id===entry.customer_id);
+  for(let index=0;!found;index++){
+   const data=await app().rpc('get_logistics_workspace',{p_customer_id:entry.customer_id,p_query:'',p_page:index});
+   if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)return;
+   found=data.quotes.find(q=>q.id===entry.quote_id&&q.customer_id===entry.customer_id);
+   if((index+1)*50>=data.quoteCount)break;
+  }
+  if(!found?.snapshot?.calculation){report('이 거래의 확정 당시 저장 내용을 찾을 수 없습니다. 원본 PDF는 보관되지 않아 복원할 수 없습니다.',true,true);return;}
+  if(dirty&&!confirm('작성 중인 견적을 버리고 확정 견적을 볼까요?'))return;
+  quoteReturn=tab;quote=clone(found.snapshot);confirmed=found;dirty=false;tab='quote';render();content.inert=false;
+  const heading=root.querySelector('[data-quote-sheet] h2');heading.tabIndex=-1;heading.focus();
+ }catch(e){report(message(e),true,true);}
+ finally{busy=false;root?.removeAttribute('aria-busy');content.inert=false;}
+}
+function renderEntries(parent){
+ const rows=state.entries.map(t=>{
+  const reverse=button(t.reversed||t.reversal_of?'정정 완료':'정정',()=>{const reason=prompt('정정 사유 (원 거래는 보존됩니다)');if(reason?.trim())void mutate('wallet.reverse',{entryId:t.id,reason:reason.trim()});});reverse.disabled=!!t.reversed||!!t.reversal_of;
+  const view=t.quote_id?button('확정 견적 / PDF',()=>openEntryQuote(t)):el('span',t.source==='manual'?'수기 사용 · 연결 견적 없음':'연결 견적 없음','lg-muted');
+  return [new Date(t.created_at).toLocaleString('ko-KR'),t.customer_name,t.reversal_of?'정정':t.type==='deposit'?'충전':'사용',(t.type==='deposit'?'+':'−')+money(t.amount),t.memo,t.actor,view,reverse];
+ });const grid=table(['일시','고객','구분','금액','메모','담당자','확정 견적','정정'],rows);
+ grid.querySelectorAll('tbody tr').forEach((row,i)=>{const entry=state.entries[i];if(!entry.quote_id)return;row.classList.add('lg-entry-row');row.addEventListener('click',event=>{if(event.target.closest('button,a,input,select,textarea,[role="button"]'))return;void openEntryQuote(entry);});});parent.append(grid);
+}
 function renderHistory(){
  const panel=el('section','','lg-panel');panel.append(el('h3','거래 내역'));const filters=el('div','','lg-fields');customerChoices(filters);const search=field(filters,'견적번호 / 고객 / 메모',query,v=>query=v);search.addEventListener('keydown',e=>{if(e.key==='Enter'){page=0;void reload();}});filters.append(button('조회',()=>{page=0;void reload();}));panel.append(filters,el('h3','확정 견적'));panel.append(table(['견적번호','고객','금액','담당자','충전금','보기'],state.quotes.map(q=>[q.number,q.snapshot.customerName,money(q.total),q.actor,q.charged?'차감 기록 있음':'미차감',button('견적 보기 / 인쇄',()=>{quote=clone(q.snapshot);confirmed=q;customer=q.customer_id;dirty=false;tab='quote';render();})])));panel.append(el('h3','충전 · 사용 · 정정'));renderEntries(panel);content.append(panel);pager(panel);
 }
-function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()=>{page--;void reload();}),next=button('다음',()=>{page++;void reload();});back.disabled=page===0;next.disabled=(page+1)*50>=Math.max(state.quoteCount,state.entryCount);bar.append(back,el('span',(page+1)+'페이지'),next);parent.append(bar);}
+function pager(parent){const bar=el('div','','lg-pager'),back=button('이전',()=>{if(tab==='customers'&&!leaveCustomerInputs())return;page--;void reload();}),next=button('다음',()=>{if(tab==='customers'&&!leaveCustomerInputs())return;page++;void reload();});back.disabled=page===0;next.disabled=(page+1)*50>=(tab==='customers'?state.entryCount:Math.max(state.quoteCount,state.entryCount));bar.append(back,el('span',(page+1)+'페이지'),next);parent.append(bar);}
 function renderSettings(){
  const panel=el('section','','lg-panel');panel.append(el('h3','기본 단가 설정'),el('p','새 견적부터 적용','lg-muted'));const data=clone(state.settings.data),fields=el('div','','lg-fields');
  for(const [key,label] of [['shelf','선반 1칸 · 월'],['repack','재포장'],['individualLabel','개별 운송장'],['bundle','합포장'],['photo','사진·실측']])field(fields,label,data[key],v=>{data[key]=Number(v);settingsDirty=true;},{type:'number'});
@@ -199,7 +256,7 @@ function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=
 for(const event of ['taejang-app-ready','taejang-capabilities-changed','taejang-menu-authority-changed'])document.addEventListener(event,revoke);
 window.addEventListener('storage',event=>{if(event.key==='taejang-staff-session-v1')revoke();});
 async function open(){
- if(!permitted())throw Error('LOGISTICS_FORBIDDEN');if(sessionOwner!==actor()){state=null;quote=null;confirmed=null;dirty=false;pending=null;tab='quote';customer='';query='';page=0;}sessionOwner=actor();epoch++;root=el('section','','lg');const host=document.getElementById('dashboard-main');host.replaceChildren(root);
+ if(!permitted())throw Error('LOGISTICS_FORBIDDEN');if(sessionOwner!==actor()){state=null;quote=null;confirmed=null;dirty=false;pending=null;tab='quote';customer='';query='';page=0;customerSearch='';quoteReturn=null;}sessionOwner=actor();epoch++;root=el('section','','lg');const host=document.getElementById('dashboard-main');host.replaceChildren(root);
  const head=el('header','','lg-toolbar');head.append(el('h2','물류 관리'),button('새로고침',reload));tabs=el('nav','','lg-tabs');tabs.setAttribute('aria-label','물류 업무');tabs.setAttribute('role','tablist');for(const [key,label] of [['quote','견적 작성'],['customers','고객 관리'],['history','거래 내역'],['settings','단가 설정']]){const b=button(label,()=>changeTab(key));b.dataset.tab=key;b.setAttribute('role','tab');tabs.append(b);}status=el('p','','lg-status');status.setAttribute('role','status');content=el('div');root.append(head,tabs,status,content);
  if(!document.querySelector('[data-logistics-style]')){const link=document.createElement('link');link.rel='stylesheet';link.href=new URL('./logistics.css',import.meta.url).href;link.dataset.logisticsStyle='1';document.head.append(link);}
  try{const saved=sessionStorage.getItem(pendingKey());pending=saved?JSON.parse(saved):null;}catch{pending=null;}
