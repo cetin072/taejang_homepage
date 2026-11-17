@@ -21,6 +21,7 @@ window.TaejangApp={getAccessContext:()=>({id:'${OPS}',account_status:'active'}),
 await import('/app/assets/logistics.js');await TaejangLogistics.open();</script></html>`;
 try{
  db.raw(readFileSync('supabase/migrations/20261114120219_logistics_workspace.sql','utf8'));
+ db.raw(readFileSync('supabase/migrations/20261117152728_logistics_wallet_summary.sql','utf8'));
  browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:existsSync('/usr/bin/chromium')?{executablePath:'/usr/bin/chromium'}:{channel:'chrome'})});
  for(const width of [1440,390]){
   const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];let loseResponse=false;

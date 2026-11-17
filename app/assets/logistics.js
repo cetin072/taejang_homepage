@@ -59,9 +59,26 @@ async function changeTab(next){if(busy||next===tab)return;if(next!==tab&&tab==='
 function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
 function totals(){try{const t=confirmed&&quote.calculation?quote.calculation:C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
- const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(selected.balance-t.total):'—');
+ const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(Number(selected.balance)-(isCharged()?0:t.total)):'—');
+ const summary=root.querySelector('[data-wallet-summary]');if(summary)summary.replaceChildren(walletSummary(selected,t.total));
  const b=root.querySelector('[data-confirm]');if(b)b.disabled=!quote.customerId||!!pending;return t;
  }catch(e){rowCost('total','입력 확인');const b=root.querySelector('[data-confirm]');if(b)b.disabled=true;return null;}}
+function isCharged(){return !!(state.quotes.find(q=>q.id===confirmed?.id)?.charged||confirmed?.charged);}
+function lowBalance(c){return Number(c.balance)<30000;}
+function balanceDisplay(c){const box=el('span',money(c.balance));if(lowBalance(c))box.append(el('span','충전 안내 필요','lg-low-balance'));return box;}
+function walletSummary(c,total){
+ const box=el('div','','lg-wallet-summary');box.append(el('h3','고객 충전금'));
+ if(!c){box.append(el('p','고객을 선택하세요.'));return box;}
+ const row=(label,value)=>{const n=el('div','','lg-billrow');n.append(el('span',label),el('strong',value));box.append(n);};
+ row('현재 충전 잔액',money(c.balance));
+ if(lowBalance(c))box.append(el('p','충전 안내 필요 · 잔액 30,000원 미만','lg-low-balance lg-no-print'));
+ const latest=c.latest_debit;
+ row('최근 차감',latest?money(latest.amount)+' · '+new Date(latest.created_at).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}):c.latest_debit===null?'차감 내역 없음':'조회 정보 없음');
+ row('이번 견적',money(total)+(isCharged()?' · 차감 기록 있음':' · 미차감'));
+ if(!isCharged())row('이번 견적 차감 후 예상 잔액',money(Number(c.balance)-total));
+ box.append(el('p','충전금은 조회 시점 기준이며, 견적 확정 당시 금액과 다를 수 있습니다. 정정된 차감은 최근 차감에서 제외합니다.','lg-help'));
+ return box;
+}
 function out(key,initial='—'){const n=el('output',initial);n.dataset.amount=key;return n;}
 function quoteChange(){dirty=true;totals();}
 function renderQuote(){
@@ -121,7 +138,7 @@ function renderQuote(){
  if(confirmed)sheet.append(el('p','보관된 원본 PDF 파일이 아닌 확정 당시 저장 내용으로 다시 생성합니다. 인쇄창에서 PDF로 저장을 선택하세요. A4 · 배율 100% · 머리글/바닥글 해제 권장.','lg-help lg-no-print'));
  content.append(sheet);
  const wallet=el('section','','lg-panel lg-no-print');wallet.append(el('h3','고객 충전금'));
- for(const [key,label] of [['balance','현재 잔액'],['remaining','이번 견적 차감 후 잔액']]){const row=el('div','','lg-billrow');row.append(el('span',label),out(key));wallet.append(row);}
+ const walletBody=el('div');walletBody.dataset.walletSummary='1';wallet.replaceChildren(walletBody);
  if(confirmed){const charged=state.quotes.find(q=>q.id===confirmed.id)?.charged||confirmed.charged;const b=button(charged?'차감 기록 있음':'충전금에서 차감',()=>{if(confirm('이 견적 금액을 충전금에서 차감할까요?'))void mutate('wallet.charge',{quoteId:confirmed.id});},true);b.disabled=!!charged||Number(confirmed.total)===0;wallet.append(b);}
  content.append(wallet);
  if(confirmed)sheet.querySelectorAll('input,select').forEach(n=>n.disabled=true);
@@ -146,6 +163,7 @@ async function selectCustomer(id){
 function renderCustomers(){
  const panel=el('section','','lg-panel'),head=el('div','','lg-toolbar');head.append(el('h3','고객 관리'),button('+ 고객 등록',()=>customerEditor()));panel.append(head);
  const stats=el('div','','lg-fields');for(const [label,value] of [['등록 고객',state.customers.length+'명'],['충전금 잔액 합계',money(state.customers.reduce((s,c)=>s+Number(c.balance),0))]]){const box=el('div','','lg-card');box.append(el('span',label,'lg-muted'),el('div',value,'lg-stat'));stats.append(box);}panel.append(stats);
+ const low=state.customers.filter(lowBalance).length;if(low)panel.append(el('p','충전 안내 필요 '+low+'명 · 잔액 30,000원 미만','lg-low-balance'));
  panel.append(el('p','고객 행을 누르면 충전·사용 내역을 볼 수 있습니다.','lg-help'));
  const search=el('input');search.type='search';search.placeholder='고객명 검색';search.setAttribute('aria-label','고객명 검색');search.className='lg-search';search.value=customerSearch;panel.append(search);
  const list=el('div');panel.append(list);
@@ -154,7 +172,7 @@ function renderCustomers(){
   const grid=table(['고객명','연락처','충전 잔액','관리'],customers.map(c=>{
    const name=button(c.name,()=>selectCustomer(c.id));name.classList.add('lg-customer-name');name.setAttribute('aria-label',c.name+' 충전·사용 내역 보기');name.setAttribute('aria-pressed',String(c.id===customer));
    const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>selectCustomer(c.id)),button('수정',()=>customerEditor(c)),button('새 견적',()=>{if(!leaveCustomerInputs())return;newQuote(c.id);}));
-   return [name,c.phone||'—',money(c.balance),actions];
+   return [name,c.phone||'—',balanceDisplay(c),actions];
   }));
   grid.querySelectorAll('tbody tr').forEach((row,i)=>{
    const c=customers[i];row.classList.add('lg-customer-row');row.classList.toggle('is-selected',c.id===customer);
@@ -171,7 +189,7 @@ function customerEditor(c={}){
 }
 function walletEditor(c){
  const panel=el('section','','lg-panel');
- const heading=el('h3',c.name+' · 충전금');heading.tabIndex=-1;heading.dataset.walletHeading='1';panel.append(heading,el('p',money(c.balance),'lg-stat'));
+ const heading=el('h3',c.name+' · 충전금');heading.tabIndex=-1;heading.dataset.walletHeading='1';const amountDisplay=balanceDisplay(c);amountDisplay.classList.add('lg-stat');panel.append(heading,amountDisplay);
  const form=el('form'),fields=el('div','','lg-fields');form.addEventListener('input',()=>walletDirty=true);form.addEventListener('change',()=>walletDirty=true);
  let type='deposit',amount='',memo='';
  field(fields,'거래 종류',type,value=>{type=value;update();},{options:[['deposit','입금 확인 · 충전'],['manual','건별 작업비 차감']]});
@@ -242,11 +260,25 @@ function renderSettings(){
  for(const [key,label] of Object.entries(C.BOXES))field(fields,label,data.boxes[key],v=>{data.boxes[key]=Number(v);settingsDirty=true;},{type:'number'});
  data.shipping.forEach((v,i)=>field(fields,'택배 '+(i+1)+'구간',v,n=>{data.shipping[i]=Number(n);settingsDirty=true;},{type:'number'}));panel.append(fields,button('기본 단가 저장',async()=>{await mutate('settings.save',{data,revision:state.settings.revision});},true));content.append(panel);
 }
-function printQuote(){
- if(!confirmed||!permitted())return;document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
+async function printQuote(){
+ if(!confirmed||!permitted()||pending)return;
+ const generation=epoch,owner=actor(),id=confirmed.id;
+ busy=true;content.inert=true;
+ try{
+  const fresh=await app().rpc('get_logistics_workspace',{p_customer_id:confirmed.customer_id,p_query:confirmed.number,p_page:0});
+  if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected||confirmed?.id!==id)return;
+  const current=fresh.quotes.find(q=>q.id===id),c=fresh.customers.find(c=>c.id===confirmed.customer_id);
+  if(!current||!c||!Object.hasOwn(c,'latest_debit'))throw Error('WALLET_SUMMARY_UNAVAILABLE');
+  state.customers=fresh.customers;confirmed={...confirmed,charged:current.charged};
+  state.quotes=state.quotes.map(q=>q.id===id?{...q,charged:current.charged}:q);totals();
+ }catch{report('충전금 최신 정보를 확인하지 못해 인쇄를 중단했습니다. 다시 시도해 주세요.',true);return;}
+ finally{busy=false;if(content)content.inert=false;}
+ document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
  // cloneNode does not preserve the live selection of a select element.
  const selections=source.querySelectorAll('select');sheet.querySelectorAll('select').forEach((n,i)=>{n.value=selections[i].value;});
  sheet.querySelectorAll('.lg-no-print,button').forEach(n=>n.remove());sheet.querySelectorAll('input[type=checkbox]').forEach(n=>n.closest('label')?.remove());sheet.querySelector('[aria-label="수수료율 (%)"]')?.closest('label')?.remove();if(!quote.feeEnabled)sheet.querySelector('[data-amount=platform]')?.closest('.lg-billrow')?.remove();sheet.querySelectorAll('input,select,textarea').forEach(n=>{const value=n.tagName==='SELECT'?n.selectedOptions[0]?.textContent:n.type==='checkbox'?(n.checked?'적용':'미적용'):n.value;const text=el('span',value||'—','lg-print-value');n.replaceWith(text);});
+ const summary=root.querySelector('[data-wallet-summary]').firstElementChild.cloneNode(true);
+ summary.querySelectorAll('.lg-no-print').forEach(n=>n.remove());summary.append(el('p','조회: '+new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' (한국시간)','lg-help'));sheet.append(summary);
  printed.append(sheet);document.body.append(printed);document.body.classList.add('lg-printing');
  try{window.print();}catch{clearPrint();report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
 }

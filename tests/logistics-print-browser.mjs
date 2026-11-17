@@ -16,12 +16,12 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
 import '/app/assets/logistics-core.js';
 const C=window.TaejangLogisticsCore;
 window.fixture=C.draft();Object.assign(fixture,{customerId:'synthetic-customer',customerName:'검수용 고객',issueDate:'2026-11-15',pickup:'태장 물류센터',dropoff:'인천 입고센터'});
-window.printCalls=0;window.print=()=>{printCalls++;};window.readCalls=0;window.mutations=0;window.role='operations_manager';
+window.charged=false;window.balance=500000;window.readFailure=false;window.printCalls=0;window.print=()=>{printCalls++;};window.readCalls=0;window.mutations=0;window.role='operations_manager';
 window.TaejangApp={getAccessContext:()=>({id:'synthetic-actor',account_status:'active'}),getActualRoles:()=>[role],getEffectiveRoles:()=>[role],rpc:async(name)=>{
  if(name!=='get_logistics_workspace'){mutations++;throw Error('Printing must never write');}
- readCalls++;
- return {settings:{data:C.copy(C.DEFAULTS),revision:1},customers:[{id:'synthetic-customer',name:'검수용 고객',balance:500000}],entries:[],quoteCount:1,entryCount:0,
- quotes:[{id:'synthetic-quote',number:'L-20261115-0001',customer_id:'synthetic-customer',snapshot:C.copy(fixture),total:C.calculate(fixture).total,actor:'검수 담당자',charged:false}]};
+ readCalls++;if(readFailure)throw Error('Synthetic read failure');
+ return {settings:{data:C.copy(C.DEFAULTS),revision:1},customers:[{id:'synthetic-customer',name:'검수용 고객',balance:window.balance,latest_debit:{amount:12900,created_at:'2026-11-16T03:00:00Z'}}],entries:[],quoteCount:1,entryCount:0,
+ quotes:[{id:'synthetic-quote',number:'L-20261115-0001',customer_id:'synthetic-customer',snapshot:C.copy(fixture),total:C.calculate(fixture).total,actor:'검수 담당자',charged:window.charged}]};
 }};
 await import('/app/assets/logistics.js');await window.TaejangLogistics.open();
 </script></html>`;
@@ -32,11 +32,13 @@ async function openQuote(p){
 }
 async function startPrint(p){
  await p.getByRole('button',{name:'견적서 인쇄 / PDF 저장',exact:true}).click();
+ await p.locator('#logistics-print').waitFor({state:'attached'});
  assert.equal(await p.locator('#logistics-print').count(),1);
  assert.ok(!(await p.locator('#logistics-print').textContent()).includes('청우유통'));
  assert.equal(await p.locator('[data-quote-sheet] .lg-brand').count(),0);
  assert.equal(await p.locator('#logistics-print input, #logistics-print select, #logistics-print button').count(),0);
- assert.ok(!(await p.locator('#logistics-print').textContent()).includes('충전금'));
+ assert.ok((await p.locator('#logistics-print').textContent()).includes('현재 충전 잔액'));
+ assert.ok((await p.locator('#logistics-print').textContent()).includes('12,900원'));
 }
 async function finishPrint(p){
  await p.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
@@ -72,11 +74,22 @@ try{
   await startPrint(p);
   assert.equal(await pdf(p,`basic-${width}`),1,'standard quote fits A4 without scaling');
   assert.equal(await p.evaluate(()=>printCalls),1,'button invokes native printing once');
-  assert.equal(await p.evaluate(()=>readCalls),reads,'printing does not reload customer data');
+  assert.equal(await p.evaluate(()=>readCalls),reads+1,'printing refreshes current balance without changing the quote');
   await finishPrint(p);
   assert.equal(await p.evaluate(()=>JSON.stringify(fixture)),original,'printing/cancel leaves the snapshot intact');
   await startPrint(p);await finishPrint(p);
   assert.equal(await p.evaluate(()=>printCalls),2,'printing can be repeated after cancel');
+  await p.evaluate(()=>{charged=true;balance=87100;});
+  await startPrint(p);
+  const walletText=await p.locator('#logistics-print .lg-wallet-summary').textContent();
+  assert.ok(walletText.includes('87,100원')&&walletText.includes('차감 기록 있음'));
+  assert.ok(!walletText.includes('차감 후 예상'),'already charged quote is not subtracted again');
+  await finishPrint(p);
+  await p.evaluate(()=>readFailure=true);
+  await p.getByRole('button',{name:'견적서 인쇄 / PDF 저장',exact:true}).click();
+  await p.getByText('충전금 최신 정보를 확인하지 못해 인쇄를 중단했습니다. 다시 시도해 주세요.',{exact:true}).waitFor();
+  assert.equal(await p.locator('#logistics-print').count(),0);
+  await p.evaluate(()=>{readFailure=false;charged=false;balance=500000;});
   if(width===1440){
    await p.evaluate(()=>{fixture.feeEnabled=true;fixture.vatMode='inclusive';fixture.discount=500;fixture.storage={shelves:3,startMonth:4,months:2,rate:15000};
     fixture.lines.push({key:'extra-1',stage:5,label:'추가 포장 작업',kind:'extra',quantity:2,unitPrice:2000});});
