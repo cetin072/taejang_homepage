@@ -68,3 +68,11 @@
  #logistics-print .lg-stage{break-after:avoid}
  #logistics-print .lg-summary,#logistics-print .lg-header,#logistics-print .lg-shelf,#logistics-print .lg-route{break-inside:avoid}
 }
+
+/* Customer selection keeps the table semantics and native keyboard buttons. */
+.lg .lg-customer-row,.lg .lg-entry-row{cursor:pointer}
+.lg .lg-entry-row:hover,.lg .lg-entry-row:focus-within,.lg .lg-customer-row:hover,.lg .lg-customer-row:focus-within{background:#f0f7f7}
+.lg .lg-customer-row.is-selected{background:#e4f2f0;box-shadow:inset 4px 0 var(--lg-teal)}
+.lg .lg-customer-name{border-color:transparent;background:transparent;white-space:normal;text-align:left}
+.lg .lg-selected-label{display:inline-block;color:var(--lg-teal);font-size:.8rem;font-weight:700;margin-left:6px}
+.lg [data-wallet-heading]:focus,.lg [data-quote-sheet] h2:focus{outline:2px solid var(--lg-teal);outline-offset:4px}
