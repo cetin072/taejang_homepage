@@ -54,7 +54,7 @@ async function mutate(action,payload){
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
 function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
-function newQuote(){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
+function newQuote(nextCustomer=customer){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;customer=nextCustomer;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
 async function changeTab(next){if(busy||next===tab)return;if(next!==tab&&tab==='customers'&&!leaveCustomerInputs())return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;quoteReturn=null;if(next==='customers'){query='';page=0;}if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
 function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
@@ -67,7 +67,7 @@ function quoteChange(){dirty=true;totals();}
 function renderQuote(){
  if(!quote)quote=C.draft(state.settings.data);
  const actions=el('div','','lg-toolbar lg-no-print');actions.append(button('+ 새 견적',newQuote),el('span',confirmed?'확정 당시 저장 내용 · PDF 재생성':'고객 선택 → 견적 확정 → 인쇄·PDF 저장 → 별도 차감','lg-muted'));
- if(quoteReturn)actions.append(button('거래 목록으로 돌아가기',()=>{tab=quoteReturn;quoteReturn=null;render();root.querySelector('[data-wallet-heading]')?.focus();}));
+ if(quoteReturn)actions.append(button('거래 목록으로 돌아가기',()=>{if(dirty&&!confirm('작성 중인 견적을 버리고 거래 목록으로 돌아갈까요?'))return;tab=quoteReturn;quoteReturn=null;render();root.querySelector('[data-wallet-heading]')?.focus();}));
  content.append(actions);
  const sheet=el('article','','lg-panel lg-sheet');sheet.dataset.quoteSheet='1';
  const header=el('header','','lg-header'),title=el('div');title.append(el('h2','물류 견적서'),el('p',confirmed?.number||'견적번호 자동 발급','lg-muted'));header.append(title);sheet.append(header);
@@ -153,7 +153,7 @@ function renderCustomers(){
   const customers=state.customers.filter(c=>c.name.includes(search.value));
   const grid=table(['고객명','연락처','충전 잔액','관리'],customers.map(c=>{
    const name=button(c.name,()=>selectCustomer(c.id));name.classList.add('lg-customer-name');name.setAttribute('aria-label',c.name+' 충전·사용 내역 보기');name.setAttribute('aria-pressed',String(c.id===customer));
-   const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>selectCustomer(c.id)),button('수정',()=>customerEditor(c)),button('새 견적',()=>{if(!leaveCustomerInputs())return;customer=c.id;newQuote();}));
+   const actions=el('div','','lg-actions');actions.append(button('충전·사용',()=>selectCustomer(c.id)),button('수정',()=>customerEditor(c)),button('새 견적',()=>{if(!leaveCustomerInputs())return;newQuote(c.id);}));
    return [name,c.phone||'—',money(c.balance),actions];
   }));
   grid.querySelectorAll('tbody tr').forEach((row,i)=>{
