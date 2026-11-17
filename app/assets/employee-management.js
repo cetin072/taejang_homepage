@@ -230,7 +230,7 @@
       status.textContent = info.profile_id
         ? `실제 시스템 역할: ${arr(info.role_names).join(' · ') || '없음'}`
         : '연결된 로그인 계정이 없습니다. 직책을 바꿔도 ERP 권한은 생기지 않습니다.';
-      if (info.profile_id && recommended && !arr(info.role_codes).includes(recommended.role_code)) {
+      if (info.profile_id && recommended && !arr(info.active_role_codes).includes(recommended.role_code)) {
         panel.append(el('p', `직책에 해당하는 ${recommended.role_name} 역할이 없습니다. 직책과 접속 권한을 함께 확인해 주세요.`, 'employee-role-warning'));
       }
       if (info.profile_id && (info.profile_position_id !== employee.position_id || info.profile_department_id !== employee.department_id)) {
@@ -248,6 +248,8 @@
     const choice = field('추천 역할을 확인하고 소속·직책과 함께 적용', apply); choice.hidden = true;
     const summary = el('p', '', 'help'); panel.append(status, choice, summary);
     let info = null;
+    let loading = true;
+    let stale = false;
     function update() {
       apply.checked = false;
       if (!info) return;
@@ -262,10 +264,15 @@
     }
     const ready = app().rpc('get_employee_role_context', { p_employee_uuid: employee.id }).then(result => {
       if (!result?.ok) throw new Error('ROLE_CONTEXT_UNAVAILABLE');
-      info = result; update();
-    }).catch(() => { status.textContent = '역할 조회 실패: 이번 저장은 직원정보만 변경합니다. 시스템 역할은 변경하지 않습니다.'; });
+      info = result;
+      const keys = ['full_name', 'hired_on', 'department_id', 'position_id', 'employment_status', 'departed_on', 'attendance_required'];
+      stale = !info.employee_basic || keys.some(key => (employee[key] ?? null) !== (info.employee_basic[key] ?? null))
+        || Boolean(employee.updated_at && employee.updated_at !== info.employee_updated_at);
+      update();
+      if (stale) { apply.disabled = true; choice.hidden = true; summary.textContent = '직원정보가 변경되었습니다. 취소한 뒤 직원 목록을 다시 불러와 최신 정보로 수정해 주세요.'; }
+    }).catch(() => { status.textContent = '역할 조회 실패: 이번 저장은 직원정보만 변경합니다. 시스템 역할은 변경하지 않습니다.'; }).finally(() => { loading = false; });
     position.addEventListener('change', update); department.addEventListener('change', update);
-    return { panel, ready, get info() { return info; }, get apply() { return apply.checked; } };
+    return { panel, ready, get loading() { return loading; }, get stale() { return stale; }, get info() { return info; }, get apply() { return apply.checked; } };
   }
 
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
@@ -304,6 +311,7 @@
     actions.append(submit);
     const roleEdit = employee && !teamRequest ? roleEditControls(employee, position, department) : null;
     form.append(grid); if (roleEdit) form.append(roleEdit.panel); form.append(actions);
+    if (roleEdit) { submit.disabled = true; roleEdit.ready.then(() => { submit.disabled = !positionItems.length || roleEdit.stale; }); }
     if (!employee && teamRequest && !positionItems.length) {
       form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
     }
@@ -312,7 +320,7 @@
     let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (submitting) return;
+      if (submitting || roleEdit?.loading || roleEdit?.stale) return;
       submitting = true;
       const controls = [...form.querySelectorAll('input,select,button')];
       const disabled = controls.map(control => control.disabled);
@@ -388,7 +396,11 @@
           }
         }
       } catch (error) {
-        window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
+        const roleError = /EMPLOYEE_(?:ROLE_CONTEXT|ACCOUNT_CONTEXT|ACCOUNT_LINK)_CHANGED/.test(error?.message || '')
+          ? '다른 곳에서 직원 또는 계정 정보가 바뀌었습니다. 입력은 유지했습니다. 변경 내용을 따로 보관한 뒤 취소하고 다시 열어 최신 정보를 확인해 주세요.'
+          : /EMPLOYEE_ROLE_UPDATE_FORBIDDEN|POSITION_ROLE_REQUIRES_SEPARATE_REVIEW/.test(error?.message || '')
+            ? '이 역할은 여기서 함께 저장할 수 없습니다. 권한 있는 운영총괄이 기존 운영 역할 관리에서 확인해야 합니다.' : null;
+        window.alert(saved ? '저장은 처리됐으나 최신 정보를 불러오지 못했습니다. 다시 불러오기를 눌러 확인해 주세요.' : roleError || app().friendlyError?.(error) || error.message || '직원정보를 저장하지 못했습니다.');
         controls.forEach((control, index) => { control.disabled = saved ? true : disabled[index]; });
         submit.disabled = false;
         if (saved) submit.textContent = '최신 정보 다시 불러오기';

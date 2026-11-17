@@ -10,12 +10,12 @@ await fs.mkdir(output,{recursive:true});
 let html=await fs.readFile('tests/browser/employee-profile-gate.html','utf8');
 html=html.replaceAll('../../app/assets/','/app/assets/').replaceAll('../../staff/assets/','/staff/assets/');
 html=html.replace('</body>',`<script>
-window.allowRole=true;window.roleFail=false;window.saveCount=0;window.confirmed=false;
+window.allowRole=true;window.roleFail=false;window.staleEmployee=false;window.saveCount=0;window.confirmed=false;
 window.confirm=()=>confirmed;
 fixtureContext.positions.push({id:'lead',name:'부서 팀장'},{id:'ops',name:'운영총괄'});
 const oldRpc=TaejangApp.rpc;
 TaejangApp.rpc=async(name,args)=>{
- if(name==='get_employee_role_context')return {ok:true,profile_id:'profile-0',profile_updated_at:'2026-11-17T00:00:00Z',employee_updated_at:'2026-11-17T00:00:00Z',role_codes:['general_worker','promotion_staff'],role_names:['일반 근로자','홍보 직원'],profile_position_id:'position',profile_department_id:'dept',can_manage:allowRole,recommendations:[{position_id:'position',role_code:'general_worker',role_name:'일반 근로자'},{position_id:'lead',role_code:'department_lead',role_name:'부서 팀장'}]};
+ if(name==='get_employee_role_context')return {ok:true,profile_id:'profile-0',profile_updated_at:'2026-11-17T00:00:00Z',employee_updated_at:'2026-11-17T00:00:00Z',employee_basic:{...employees[0],full_name:staleEmployee?'다른 관리자 수정':employees[0].full_name},active_role_codes:['general_worker','promotion_staff'],role_codes:['general_worker','promotion_staff'],role_names:['일반 근로자','홍보 직원'],profile_position_id:'position',profile_department_id:'dept',can_manage:allowRole,recommendations:[{position_id:'position',role_code:'general_worker',role_name:'일반 근로자'},{position_id:'lead',role_code:'department_lead',role_name:'부서 팀장'}]};
  if(name==='update_employee_core_with_role'){saveCount++;window.lastRoleSave=args;await new Promise(r=>setTimeout(r,70));if(roleFail)throw Error('합성 저장 실패');return {ok:true};}
  return oldRpc(name,args);
 };
@@ -53,6 +53,9 @@ try{
   assert.equal(await page.evaluate(()=>saveCount),2,'double click submits once');
   await open();await page.evaluate(()=>{allowRole=false;});await page.getByRole('button',{name:'수정',exact:true}).click();
   await page.getByText(/요청이 자동 전송되지는 않습니다/).waitFor();assert.equal(await apply.isVisible(),false,'ordinary editor cannot delegate roles');
+  await open();await page.evaluate(()=>{staleEmployee=true;});await page.getByRole('button',{name:'수정',exact:true}).click();
+  await page.getByText('직원정보가 변경되었습니다. 취소한 뒤 직원 목록을 다시 불러와 최신 정보로 수정해 주세요.',{exact:true}).waitFor();
+  assert.equal(await form.getByRole('button',{name:'직원정보 저장',exact:true}).isDisabled(),true,'stale form snapshot cannot overwrite newer employee');
   assert.deepEqual(errors,[]);await page.close();
  }
  console.log('employee-role-review: three widths, cancel/failure/repeated submit/role guard PASS');

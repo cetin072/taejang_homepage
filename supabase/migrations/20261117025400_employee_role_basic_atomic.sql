@@ -19,7 +19,7 @@ create function public.get_employee_role_context(p_employee_uuid uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare
   ctx jsonb; e public.employees%rowtype; p public.profiles%rowtype;
-  role_codes text[]; role_names text[]; recommendations jsonb;
+  role_codes text[]; role_names text[]; active_role_codes text[]; recommendations jsonb; employee_basic jsonb;
 begin
   if auth.uid() is null or not public.current_profile_is_active() then
     raise exception using errcode='42501',message='EMPLOYEE_ROLE_VIEW_FORBIDDEN';
@@ -37,12 +37,20 @@ begin
   end if;
   select profile.* into p from public.account_person_links l join public.profiles profile on profile.id=l.profile_id
   where l.person_id=e.person_id and l.revoked_at is null;
-  select coalesce(array_agg(r.code order by r.code),'{}'::text[]),coalesce(array_agg(r.name order by r.code),'{}'::text[])
-  into role_codes,role_names from public.profile_roles a join public.roles r on r.id=a.role_id
+  select coalesce(array_agg(r.code order by r.code),'{}'::text[]),
+    coalesce(array_agg(r.name || case when r.active then '' else ' (비활성 배정)' end order by r.code),'{}'::text[]),
+    coalesce(array_agg(r.code order by r.code) filter (where r.active),'{}'::text[])
+  into role_codes,role_names,active_role_codes from public.profile_roles a join public.roles r on r.id=a.role_id
   where a.profile_id=p.id and a.revoked_at is null;
   select coalesce(jsonb_agg(jsonb_build_object('position_id',pos.id,'role_code',r.code,'role_name',r.name) order by pos.sort_order),'[]'::jsonb)
   into recommendations from public.positions pos join public.roles r on r.code=public.private_employee_position_role(pos.id);
+  -- Pair the revision with the exact editable values from this stable snapshot.
+  select jsonb_build_object('full_name',person.full_name,'hired_on',e.hired_on,
+    'department_id',e.department_id,'position_id',e.position_id,'employment_status',e.employment_status,
+    'departed_on',e.departed_on,'attendance_required',e.attendance_required)
+  into employee_basic from public.people person where person.id=e.person_id;
   return jsonb_build_object('ok',true,'profile_id',p.id,'role_codes',role_codes,'role_names',role_names,
+    'active_role_codes',active_role_codes,'employee_basic',employee_basic,
     'profile_position_id',p.position_id,'profile_department_id',p.department_id,'profile_updated_at',p.updated_at,
     'employee_updated_at',e.updated_at,'recommendations',recommendations,
     'can_manage',coalesce(p.id is not null and public.current_user_has_role('operations_manager')

@@ -47,6 +47,16 @@ select throws_ok($$select pg_temp.save_role_fixture('department_lead',true)$$,'4
 select set_config('request.jwt.claim.sub','97400000-0000-0000-0000-000000000001',true);
 select is(public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->>'can_manage','true','authorized operations manager can confirm');
 select is(jsonb_array_length(public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->'role_codes'),2,'context includes existing concurrent roles');
+select is(public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->'employee_basic',
+ (select jsonb_build_object('full_name',p.full_name,'hired_on',e.hired_on,'department_id',e.department_id,
+ 'position_id',e.position_id,'employment_status',e.employment_status,'departed_on',e.departed_on,
+ 'attendance_required',e.attendance_required) from public.employees e join public.people p on p.id=e.person_id
+ where e.id='97420000-0000-0000-0000-000000000002'),'editable employee snapshot matches returned revision');
+update public.roles set active=false where code='promotion_staff';
+select is(jsonb_array_length(public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->'role_codes'),2,'inactive assignment remains in preservation snapshot');
+select is(public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->'active_role_codes','["general_worker"]'::jsonb,'only active roles are presented as effective roles');
+select ok((public.get_employee_role_context('97420000-0000-0000-0000-000000000002')->'role_names'->>1) like '%(비활성 배정)','inactive assignment is visibly labeled');
+update public.roles set active=true where code='promotion_staff';
 select throws_ok($$select pg_temp.save_role_fixture('department_lead',true,array['general_worker'])$$,'40001','EMPLOYEE_ROLE_CONTEXT_CHANGED','stale roles rejected');
 select throws_ok($$select pg_temp.save_role_fixture('operations_manager',true)$$,'22023','POSITION_ROLE_REQUIRES_SEPARATE_REVIEW','authority delegation is never implicit');
 select is((select p.code from public.employees e join public.positions p on p.id=e.position_id where e.id='97420000-0000-0000-0000-000000000002'),'general_worker','rejected save leaves title unchanged');
