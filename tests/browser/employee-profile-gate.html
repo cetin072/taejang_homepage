@@ -22,6 +22,8 @@ const employees=Array.from({length:50},(_,i)=>({id:'fixture-'+i,employee_id:'TJ-
 employees[1].full_name=employees[0].full_name;
 window.fixtureContext={access_level:'operations_manager',can_manage_sensitive_identity:true,employees,departments:[{id:'dept',name:'포장팀'}],positions:[{id:'position',name:'사원'}],new_employee_positions:[{id:'position',name:'사원'}],change_requests:[],self_service_contact_requests:[]};
 window.objects=new Map();
+const existingPhoto='fixture-2/profile/existing.png';
+objects.set(existingPhoto,new Blob([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12MQtzECAADzAIbQcqsEAAAAAElFTkSuQmCC'),char=>char.charCodeAt(0))],{type:'image/png'}));
 const disabilityInfo=new Map();
 const realFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{
@@ -30,8 +32,14 @@ window.fetch=async(url,options={})=>{
     calls.push({name:'storage',url,method:options.method});
     if(!['Bearer synthetic-only','Bearer synthetic-refreshed'].includes(options.headers?.Authorization))return new Response(JSON.stringify({message:'Invalid Compact JWS'}),{status:401});
     if(fail==='storage')return new Response(JSON.stringify({message:'합성 Storage 실패'}),{status:500});
-    if(String(url).includes('/object/authenticated/'))return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>',{headers:{'Content-Type':'image/svg+xml'}});
-    objects.set(String(url).split('/employee-private-media/')[1],options.body);
+    const path=String(url).split('/employee-private-media/')[1];
+    if(String(url).includes('/object/authenticated/')){
+      if(fail==='photo-denied')return new Response('{}',{status:403});
+      const file=objects.get(path);
+      if(file)return new Response(file);
+      return new Response(JSON.stringify({error:'not_found',message:'Object not found'}),{status:404});
+    }
+    objects.set(path,options.body);
     return new Response('{}');
   }
   return realFetch(url,options);

@@ -25,7 +25,7 @@ const server = http.createServer(async(req,res) => {
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser = await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
 const errors = [];
-const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jfIoAAAAASUVORK5CYII=','base64');
+const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVQI12MQtzECAADzAIbQcqsEAAAAAElFTkSuQmCC','base64');
 try {
   for (const [device,width,height] of [['pc',1440,1000],['mobile',390,844],['narrow',320,844],['tablet',768,1024]]) {
     const context = await browser.newContext({viewport:{width,height}}), page = await context.newPage();
@@ -45,6 +45,14 @@ try {
     const setFail = value=>page.evaluate(value=>{window.fail=value;},value);
     const file = ()=>page.locator('.employee-photo-actions input[type=file]').first().setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:image});
     await load(); await count(49); await fits();
+    const initialPhoto=page.locator('[data-employee-id="fixture-2"]');
+    await initialPhoto.scrollIntoViewIfNeeded();
+    await initialPhoto.locator('img').waitFor();
+    await page.waitForFunction(()=>document.querySelector('[data-employee-id="fixture-2"] img')?.naturalWidth>0);
+    assert.deepEqual(await page.evaluate(()=>[...objects].filter(([path])=>path.endsWith('.display-v1.jpg')).map(([path,blob])=>[path,blob.type,blob.size<=48*1024])),[
+      ['fixture-2/profile/existing.png.display-v1.jpg','image/jpeg',true]
+    ],'registered photo gets a small derivative inside the private bucket');
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1);
     assert.equal(await page.getByLabel('재직 상태',{exact:true}).inputValue(),'active');
     assert.equal(await page.locator('[data-employee-id="fixture-48"]').count(),0);
     await page.getByLabel('재직 상태',{exact:true}).selectOption(''); await count(50);
@@ -79,7 +87,32 @@ try {
     await page.locator('[data-employee-profile="fixture-2"]').waitFor();
     await page.locator('.employee-profile-head img').waitFor();
     assert.match(await page.locator('.employee-profile-head img').getAttribute('src'), /^blob:/);
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1,
+      'filter changes and opening the card only download the same compressed copy');
+    if(device==='pc'){
+      const generated=await page.evaluate(async()=>{
+        const canvas=document.createElement('canvas');canvas.width=1600;canvas.height=1200;
+        const context=canvas.getContext('2d');context.fillStyle='#1c5544';context.fillRect(0,0,1600,1200);
+        const source=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+        const {optimizeEmployeeDisplay}=await import('/app/assets/photo-optimizer.mjs');
+        const display=await optimizeEmployeeDisplay(source);
+        const bitmap=await createImageBitmap(display);
+        const shape=[bitmap.width,bitmap.height,display.type,display.size<=48*1024];
+        bitmap.close();return shape;
+      });
+      assert.deepEqual(generated,[320,240,'image/jpeg',true]);
+    }
     await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
+    if(device==='pc'){
+      await setFail('photo-denied');
+      const readCount=await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('.display-v1.jpg')).length);
+      await page.evaluate(()=>TaejangEmployeeManagement.openEmployeeManagement());
+      await page.waitForFunction(count=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('.display-v1.jpg')).length>count,readCount);
+      await page.locator('[data-employee-id="fixture-2"] .employee-avatar-placeholder').waitFor();
+      assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1,
+        'a denied derivative request cannot trigger an original download');
+      await setFail('');
+    }
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
 
@@ -203,6 +236,11 @@ try {
     await file(); await page.getByText('사진 등록 완료 · 저장 결과를 다시 확인했습니다.',{exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>fixtureRefreshCount),1,'expired Storage session refreshed once');
     assert.equal(await page.evaluate(()=>objects.size>0),true);
+    assert.deepEqual(await page.evaluate(()=>{
+      const source=fixtureContext.employees[0].profile_photo_path;
+      return [objects.get(source)?.type,objects.get(source+'.display-v1.jpg')?.type,
+        calls.some(call=>call.method==='GET'&&call.url.endsWith('/'+source))];
+    }),['image/png','image/jpeg',false],'new upload keeps the original and displays only its private JPEG');
     assert.ok(await page.evaluate(()=>calls.findIndex(call=>call.name==='storage'&&call.method==='POST') < calls.findIndex(call=>call.name==='set_employee_photo')));
     assert.match(await page.locator('.employee-profile-head').innerText(),/등록됨/);
     await fits();
