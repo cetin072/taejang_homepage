@@ -121,6 +121,7 @@ try{
  await click('지급 승인 저장');
  await page.getByRole('status').filter({hasText:'지급을 승인했습니다.'}).waitFor();
  assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:legacyDraft.id}).commission.pending,1091);
+ await click('상세로 돌아가기');
  await page.keyboard.press('Escape');
  await page.locator('dialog.erp-editor-dialog').waitFor({state:'hidden'});
  await page.getByRole('tab',{name:'지급 대기',exact:true}).click();await idle();

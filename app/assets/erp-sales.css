@@ -60,3 +60,5 @@
 .erp-sale-workflow .erp-actions { flex-wrap:wrap; }
 .erp-editor, #erp-sale-shipping, #erp-sale-receipts, #erp-sale-payouts { scroll-margin-top:100px; }
 .erp-editor section:focus-visible { outline:3px solid var(--focus,#e2a700);outline-offset:4px; }
+
+.erp-sales .erp-editor > [hidden], .erp-sales #erp-sale-payouts [hidden] { display:none !important; }

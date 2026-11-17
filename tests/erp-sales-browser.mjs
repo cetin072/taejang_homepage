@@ -15,6 +15,7 @@ try {
  const closePopup=async()=>{
   if(await editorDialog.count()){
    await page.locator('.erp-sales:not([aria-busy])').waitFor();
+   if(await page.getByRole('button',{name:'상세로 돌아가기',exact:true}).isVisible())await page.getByRole('button',{name:'상세로 돌아가기',exact:true}).click();
    await page.keyboard.press('Escape');
    await editorDialog.waitFor({state:'hidden'});
   }
@@ -254,6 +255,8 @@ try {
  await page.getByText('누적 수금 4,072원 · 미수금 0원',{exact:true}).waitFor();
  await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'공급처 지급 승인',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'지급 내역 조회',exact:true}).isVisible(),false);
+ assert.equal(await page.getByRole('button',{name:'배송 상태 저장',exact:true}).isVisible(),false);
  await field('payout_basis').fill('1000');
  await field('payout_amount').fill('600');
  await field('payout_cycle').selectOption('monthly');
@@ -273,12 +276,28 @@ try {
  await closePopup();
  await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
  await page.getByRole('button',{name:'지급 내역 조회',exact:true}).click();
- await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});
+ await page.getByRole('button',{name:'미지급 승인 취소',exact:true}).click();
+ await field('payout_evidence').fill('취소하지 않을 합성 입력');
+ keepDraft=true;await page.keyboard.press('Escape');
+ assert.equal(await field('payout_evidence').inputValue(),'취소하지 않을 합성 입력');
+ keepDraft=false;await page.keyboard.press('Escape');
+ assert.equal(await field('payout_evidence').count(),0);
  await page.getByRole('button',{name:'지급 완료 기록',exact:true}).click();
+ assert.equal(await page.getByRole('button',{name:'공급처 지급 승인',exact:true}).isVisible(),false);
+ await field('payout_evidence').fill('실패 보존 확인');
+ await page.evaluate(()=>window.fixtureFailNext=true);
+ await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
+ await editorDialog.locator('.message.error').waitFor();
+ assert.equal(await field('payout_evidence').inputValue(),'실패 보존 확인');
+ assert.equal(await editorDialog.evaluate(n=>n.scrollWidth<=n.clientWidth+1),true);
+ await page.setViewportSize({width:1440,height:1000});
  await field('payout_evidence').fill('합성 이체 확인');
  await page.getByRole('button',{name:'실제 지급 저장',exact:true}).click();
  await page.getByText('지급 대기 0건 · 실제 지급 예정 합계 0원',{exact:true}).waitFor();
  await page.getByText('전체 지급액 1,000원 · 지급 완료 600원 · 지급 대기 0원 · 남은 지급액 400원',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'상세로 돌아가기',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'발행 증빙 조회',exact:true}).count(),0);
  assert.equal(await page.locator('[name=invoice_file]').count(),0);
  await page.getByRole('button',{name:'취소·반품·조정 조회',exact:true}).click();
