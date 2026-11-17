@@ -45,7 +45,7 @@
  #logistics-print table{min-width:0;font-size:9pt;width:100%;table-layout:fixed}
  #logistics-print thead{display:table-header-group}
  #logistics-print th{font-size:8.5pt;padding:4px;background:#183a4c!important;color:#fff!important;print-color-adjust:exact;-webkit-print-color-adjust:exact}
- #logistics-print td{padding:3px 4px;overflow-wrap:anywhere}
+ #logistics-print td{padding:2px 4px;overflow-wrap:anywhere}
  #logistics-print th:nth-child(1){width:6%}
  #logistics-print th:nth-child(2){width:32%}
  #logistics-print th:nth-child(3){width:16%}
@@ -81,6 +81,8 @@
 .lg .lg-low-balance{display:inline-block;margin:4px 8px;padding:4px 8px;border:1px solid #c23737;border-radius:6px;background:#fff1f1;color:#a82020;font-size:.85rem;font-weight:700}
 .lg .lg-wallet-summary{margin-top:12px;border-top:1px solid #ccdede;padding-top:8px}
 @media print{
- #logistics-print .lg-wallet-summary{break-inside:avoid;margin-top:8px;padding-top:5px;font-size:8.5pt}
+ #logistics-print .lg-wallet-summary{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;break-inside:avoid;margin-top:6px;padding-top:4px;font-size:8.5pt}
+ #logistics-print .lg-wallet-summary h3{grid-column:1/-1;margin:0 0 3px;font-size:10pt}
+ #logistics-print .lg-wallet-summary .lg-help{grid-column:1/-1}
  #logistics-print .lg-wallet-summary .lg-help{font-size:7pt;margin:3px 0}
 }
