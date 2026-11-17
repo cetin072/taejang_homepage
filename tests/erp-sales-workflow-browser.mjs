@@ -7,8 +7,8 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch({executablePath:process.env.CHROME_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
 try {
  const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.route('**/*',r=>r.abort());
- await page.setContent('<main id="dashboard-main"></main>');
+ await page.route('**/*',r=>r.request().url()==='https://erp-fixture.invalid/'?r.fulfill({contentType:'text/html',body:'<main id="dashboard-main"></main>'}):r.abort());
+ await page.goto('https://erp-fixture.invalid/');
  await page.addStyleTag({content:await readFile('app/assets/erp-sales.css','utf8')});
  await page.evaluate(()=>{
   const sale={id:'synthetic-salt-sale',kind:'product',status:'confirmed',party_id:'customer',party_snapshot:{name:'검수용 고객'},supplier_id:'supplier',supplier_snapshot:{name:'검수용 공급처'},sales_date:'2026-11-17',order_date:'2026-11-17',shipping_status:'preparing',order_channel:'phone',supply_amount:22727,tax_amount:2273,total_amount:25000,commission:{kind:'none',value:0},lines:[{item_id:'salt',item_snapshot:{name:'검수용 천일염',unit:'포'},quantity:1,unit_price:22727,tax_class:'taxable',tax_amount:2273,total_amount:25000}],history:[]};
@@ -25,7 +25,7 @@ try {
  await page.evaluate(()=>window.TaejangErpSales.open());
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상세',exact:true}).click();
- const flow=page.getByRole('navigation',{name:'이 거래 처리 바로가기'});await flow.waitFor();
+ const flow=page.getByRole('navigation',{name:'이 거래 처리 바로가기'});await flow.waitFor().catch(async error=>{throw new Error(error.message+'; UI status: '+await page.getByRole('status').innerText());});
  assert.equal(await flow.getByRole('button').count(),3);
  assert.deepEqual(await page.locator('.erp-editor > section[id]').evaluateAll(ns=>ns.map(n=>n.id)),['erp-sale-shipping','erp-sale-receipts','erp-sale-payouts']);
  for(const [label,id] of [['배송 처리','erp-sale-shipping'],['수금·미수금 확인','erp-sale-receipts'],['공급처 지급·영업비','erp-sale-payouts']]){
