@@ -212,8 +212,8 @@ try {
  await field('receipt_due_on').fill(receivableToday);
  await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
  await page.getByText('수금 예정일 '+receivableToday,{exact:true}).waitFor();
- await page.locator('[name=receivable_party]').selectOption({label:'합성 기업 브라우저'});
  await closePopup();
+ await page.locator('[name=receivable_party]').selectOption({label:'합성 기업 브라우저'});
  await page.getByRole('button',{name:'기한 지난 미수금',exact:true}).click();
  await page.getByText('조회 조건에 맞는 미수 거래가 없습니다.',{exact:true}).waitFor();
  assert.equal(await page.locator('[name=receivable_from]').inputValue(),'');
@@ -223,6 +223,8 @@ try {
  await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
  assert.equal(await page.locator('[name=receivable_to]').inputValue(),'');
  assert.equal(await page.locator('[name=receivable_party] option:checked').textContent(),'합성 기업 브라우저');
+ await page.locator('.erp-body').getByRole('button',{name:'상세',exact:true}).click();
+ await page.getByRole('button',{name:'수금 내역 조회',exact:true}).click();
  await page.getByRole('button',{name:'예정일 설정',exact:true}).click();
  await field('receipt_due_on').fill(receivableYesterday);
  await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
