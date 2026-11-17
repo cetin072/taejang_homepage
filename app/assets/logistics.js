@@ -60,7 +60,7 @@ function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;t
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
 function totals(){try{const t=confirmed&&quote.calculation?quote.calculation:C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));
  const selected=state.customers.find(c=>c.id===quote.customerId);rowCost('balance',selected?money(selected.balance):'고객 미선택');rowCost('remaining',selected?money(Number(selected.balance)-(isCharged()?0:t.total)):'—');
- const summary=root.querySelector('[data-wallet-summary]');if(summary)summary.replaceChildren(...walletSummary(selected,t.total).childNodes);
+ const summary=root.querySelector('[data-wallet-summary]');if(summary)summary.replaceChildren(walletSummary(selected,t.total));
  const b=root.querySelector('[data-confirm]');if(b)b.disabled=!quote.customerId||!!pending;return t;
  }catch(e){rowCost('total','입력 확인');const b=root.querySelector('[data-confirm]');if(b)b.disabled=true;return null;}}
 function isCharged(){return !!(state.quotes.find(q=>q.id===confirmed?.id)?.charged||confirmed?.charged);}
