@@ -125,7 +125,7 @@ test('QA leave screen preview confirms locally without submitting real leave',as
 
 // Render the real attendance card with controlled server responses; no device,
 // Auth credentials, GPS, or live attendance writes are used by these tests.
-function leaveAttendanceCard(day, latest = day) {
+function leaveAttendanceCard(day, latest = day, record = () => { throw Error('unexpected write'); }) {
  const exports = {}, calls = { reads: 0, gps: 0, writes: 0 };
  let stateIndex = 0;
  const jsx = (type, props) => ({ type, props });
@@ -141,7 +141,7 @@ function leaveAttendanceCard(day, latest = day) {
   if(name.endsWith('platform-provider')) return {usePlatform:()=>({client:{},session:{user:{id:'fixture'}}})};
   if(name.endsWith('attendance-api')) return {
    loadMyAttendanceToday:async()=>{calls.reads++;return latest;},
-   recordAttendanceEvent:async()=>{calls.writes++;throw Error('unexpected write');}
+   recordAttendanceEvent:async(...args)=>{calls.writes++;return record(...args);}
   };
   if(name.endsWith('attendance-location')) return {AttendanceLocationError:class extends Error{},getBestAttendancePosition:async()=>{calls.gps++;throw Error('unexpected GPS');}};
   if(name.endsWith('qa-preview-state')) return {buildQaPreviewDay:()=>{throw Error('unexpected preview');}};
@@ -184,4 +184,16 @@ test('leave approved after rendering still stops before GPS and attendance write
  assert.equal(card.button.props.disabled,false);
  card.button.props.onPress();await new Promise(setImmediate);
  assert.deepEqual(card.calls,{reads:1,gps:0,writes:0});
+});
+
+
+test('remote staff skip GPS only after fresh server confirmation, and revocation restores GPS',async()=>{
+ const work={work_date:'2026-11-16',attendance_required:true,is_workday:true,clock_in_available:true,clock_in:null,clock_out:null};
+ const received=[];
+ const remote=leaveAttendanceCard(work,{...work,remote_work:true},(...args)=>{received.push(args);return{ok:true};});
+ remote.button.props.onPress();await new Promise(setImmediate);
+ assert.equal(remote.calls.gps,0);assert.equal(remote.calls.writes,1);assert.equal(received[0][2],null);
+ const revoked=leaveAttendanceCard({...work,remote_work:true},{...work,remote_work:false});
+ revoked.button.props.onPress();await new Promise(setImmediate);
+ assert.equal(revoked.calls.gps,1);assert.equal(revoked.calls.writes,0);
 });

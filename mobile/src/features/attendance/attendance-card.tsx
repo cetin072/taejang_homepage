@@ -276,7 +276,7 @@ export function AttendanceCard({
         return;
       }
 
-      position = await getBestAttendancePosition({
+      position = !qaAttempt && latest.remote_work === true ? null : await getBestAttendancePosition({
         onStage: stage => {
           show(stage === 'improving'
             ? '위치 정확도를 확인하고 있습니다.'
@@ -289,7 +289,7 @@ export function AttendanceCard({
         : '출퇴근 기록을 확인하고 있습니다.');
 
       const result = qaAttempt
-        ? await validateAttendanceQa(client, eventType, position, Boolean(qaClockInAt))
+        ? await validateAttendanceQa(client, eventType, position!, Boolean(qaClockInAt))
         : await recordAttendanceEvent(client, eventType, position);
 
       if (result.ok || (!qaAttempt && ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result.code || ''))) {

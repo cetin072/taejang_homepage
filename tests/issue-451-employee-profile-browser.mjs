@@ -156,25 +156,23 @@ try {
     assert.ok(await page.getByLabel('앱 설치 상태',{exact:true}).evaluate(n=>parseFloat(getComputedStyle(n).outlineWidth)>=2),'visible keyboard focus');
     await auditFold.click();
     assert.equal(await auditCheck.isVisible(),false,'field audit can close after opening');
-    const remoteWork = page.locator('.employee-section-basic .employee-basic-remote-work');
-    await remoteWork.getByText('주소 · 가상시 테스트로 10', { exact:true }).waitFor();
-    await remoteWork.getByRole('button', { name:'주소·재택근무 수정', exact:true }).click();
-    await remoteWork.getByLabel('주소', { exact:true }).fill('가상시 변경로 20');
-    await remoteWork.getByLabel('재택근무자', { exact:true }).check();
-    await remoteWork.getByLabel('위도', { exact:true }).fill('36');
-    await remoteWork.getByLabel('경도', { exact:true }).fill('129');
-    await remoteWork.getByRole('button', { name:'주소·재택근무 저장', exact:true }).click();
-    await remoteWork.getByText('재택근무 · 사용', { exact:true }).waitFor();
-    assert.ok(await page.evaluate(()=>calls.some(call=>call.name==='save_employee_basic_remote_address'
-      && call.args.p_employee_uuid==='fixture-0' && call.args.p_revision==='fixture-address-revision'
-      && call.args.p_address==='가상시 변경로 20' && call.args.p_enabled
-      && call.args.p_latitude===36 && call.args.p_longitude===129)));
-    await remoteWork.getByRole('button', { name:'주소·재택근무 수정', exact:true }).click();
-    await remoteWork.getByLabel('재택근무자', { exact:true }).uncheck();
-    assert.equal(await remoteWork.getByLabel('위도', { exact:true }).isVisible(),false);
-    await remoteWork.getByRole('button', { name:'주소·재택근무 저장', exact:true }).click();
-    await remoteWork.getByText('재택근무 · 사용 안 함', { exact:true }).waitFor();
-    assert.equal(await page.getByText('내 직원카드', {exact:true}).count(),0);
+    const basic = page.locator('.employee-section-basic');
+    await basic.getByText('가상시 테스트로 10', { exact:true }).waitFor();
+    await basic.getByRole('button', {name:'수정',exact:true}).click();
+    await basic.getByLabel('주소', {exact:true}).fill('가상시 변경로 20');
+    await basic.getByLabel('재택근무자', {exact:true}).check();
+    assert.equal(await page.getByLabel('위도',{exact:true}).count(),0);
+    assert.equal(await page.getByLabel('경도',{exact:true}).count(),0);
+    await basic.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+    await basic.getByText('가상시 변경로 20',{exact:true}).waitFor();
+    assert.ok(await page.evaluate(()=>calls.some(c=>c.name==='update_employee_basic_with_remote'&&c.args.p_address==='가상시 변경로 20'&&c.args.p_enabled)));
+    await basic.getByRole('button',{name:'수정',exact:true}).click();
+    await basic.getByLabel('주소',{exact:true}).fill('');
+    assert.equal(await basic.getByLabel('재택근무자',{exact:true}).isChecked(),false);
+    await basic.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+    await basic.getByText('미등록',{exact:true}).waitFor();
+    assert.equal(await page.getByText('내 직원카드',{exact:true}).count(),0);
+    await page.evaluate(()=>{calls.length=0;});
     await fits();
 
 
@@ -195,7 +193,7 @@ try {
     assert.equal(await page.getByRole('button',{name:'취소',exact:true}).evaluate(node=>node.getBoundingClientRect().height>=44),true);
     await page.getByRole('button',{name:'취소',exact:true}).click();
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_core')),false);
+    assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='update_employee_basic_with_remote')),false);
     await page.getByRole('button',{name:'수정',exact:true}).click();
     await page.getByLabel('이름',{exact:true}).fill('수정한 가상 직원');
     await setFail('db'); await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
@@ -203,10 +201,10 @@ try {
     assert.equal(await page.getByLabel('이름',{exact:true}).inputValue(),'수정한 가상 직원');
     await setFail('afterwrite'); await page.getByRole('button',{name:'직원정보 저장',exact:true}).click();
     await page.getByRole('button',{name:'최신 정보 다시 불러오기',exact:true}).waitFor();
-    const writes=await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_core').length);
+    const writes=await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_basic_with_remote').length);
     await page.getByRole('button',{name:'최신 정보 다시 불러오기',exact:true}).click();
     await page.locator('[data-employee-heading]').filter({hasText:'수정한 가상 직원'}).waitFor();
-    assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_core').length),writes);
+    assert.equal(await page.evaluate(()=>calls.filter(call=>call.name==='update_employee_basic_with_remote').length),writes);
 
     for (const failure of ['storage','db','mismatch','afterwrite']) {
       await setFail(failure); await file();

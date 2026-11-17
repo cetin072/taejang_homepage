@@ -117,7 +117,7 @@ export default function ProfileScreen() {
           </View>
           {remote ? <View style={styles.card}>
             <Text style={styles.sectionTitle}>재택근무 주소</Text>
-            <Text style={styles.help}>{remote.approved ? '본사와 승인된 주소에서 출퇴근할 수 있습니다. 주소를 바꾸면 다시 승인이 필요합니다.' : '주소를 등록하면 운영총괄이 출퇴근 위치를 확인합니다.'}</Text>
+            <Text style={styles.help}>{remote.remote_work ? '위치 확인 없이 출퇴근할 수 있습니다. 주소를 바꾸면 관리자 확인이 필요합니다.' : remote.approved ? '본사와 승인된 주소에서 출퇴근할 수 있습니다. 주소를 바꾸면 다시 승인이 필요합니다.' : '재택근무 여부는 관리자가 설정합니다.'}</Text>
             <TextInput accessibilityLabel="재택근무 주소" autoComplete="street-address" value={address} onChangeText={setAddress}
               style={styles.input} maxLength={200} editable={!savingAddress} placeholder="재택근무 도로명주소" />
             <Pressable accessibilityRole="button" disabled={savingAddress || address.trim().length < 5}

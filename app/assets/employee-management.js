@@ -311,16 +311,39 @@
     actions.append(submit);
     const roleEdit = employee && !teamRequest ? roleEditControls(employee, position, department) : null;
     form.append(grid); if (roleEdit) form.append(roleEdit.panel); form.append(actions);
-    if (roleEdit) { submit.disabled = true; roleEdit.ready.then(() => { submit.disabled = !positionItems.length || roleEdit.stale; }); }
     if (!employee && teamRequest && !positionItems.length) {
       form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
     }
+
+    let remote = null;
+    let address, remoteEnabled;
+    let remoteLoading = false, remoteToggled = false;
+    const updateSubmitAvailability = () => {
+      submit.disabled = !positionItems.length || Boolean(roleEdit?.loading || roleEdit?.stale || remoteLoading);
+    };
+    if (employee && context.access_level === 'operations_manager') {
+      address = input('text'); address.maxLength = 200; address.autocomplete = 'street-address'; address.disabled = true;
+      remoteEnabled = input('checkbox'); remoteEnabled.disabled = true;
+      grid.append(field('주소', address, '비우고 저장하면 주소가 삭제됩니다.'),
+        field('재택근무자', remoteEnabled, '재택근무 설정을 변경해 저장하면 위치 확인 없이 출퇴근합니다.'));
+      const loading = el('p', '주소 정보를 불러오는 중입니다.', 'help'); form.append(loading);
+      remoteLoading = true;
+      window.TaejangEmployeeRemoteWork.load(employee).then(value => {
+        remote = value; address.value = value.address || ''; remoteEnabled.checked = !!value.approved;
+        address.disabled = remoteEnabled.disabled = false; loading.remove();
+      }).catch(() => { loading.textContent = '주소 정보를 불러오지 못했습니다. 주소를 수정하려면 다시 열어주세요.'; })
+        .finally(() => { remoteLoading = false; updateSubmitAvailability(); });
+      address.addEventListener('input', () => { if (!address.value.trim()) remoteEnabled.checked = false; });
+      remoteEnabled.addEventListener('change', () => { remoteToggled = true; });
+    }
+    if (roleEdit) roleEdit.ready.then(updateSubmitAvailability);
+    updateSubmitAvailability();
 
     let saved = false;
     let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      if (submitting || roleEdit?.loading || roleEdit?.stale) return;
+      if (submitting || remoteLoading || roleEdit?.loading || roleEdit?.stale) return;
       submitting = true;
       const controls = [...form.querySelectorAll('input,select,button')];
       const disabled = controls.map(control => control.disabled);
@@ -328,18 +351,32 @@
       try {
         if (roleEdit) await roleEdit.ready;
         if (!form.isConnected || !allowedRoute()) return;
+        const core = {
+          full_name: name.value.trim(), hired_on: hired.value, department_id: department.value,
+          position_id: position.value, employment_status: status.value,
+          departed_on: status.value === 'departed' ? departed.value || null : null,
+          attendance_required: attendance.checked
+        };
+        const remoteChanged = remote && (address.value.trim() !== (remote.address || '')
+          || remoteEnabled.checked !== Boolean(remote.approved) || (remote.approved && !remote.remote_work && remoteToggled));
+        const remoteArgs = remote && {
+          p_employee_uuid: employee.id, p_values: core, p_revision: remote.revision || null,
+          p_address: address.value.trim(), p_enabled: remoteEnabled.checked, p_update_remote: Boolean(remoteChanged)
+        };
         if (!saved && roleEdit?.apply) {
           const recommended = arr(roleEdit.info.recommendations).find(item => item.position_id === position.value);
           if (!window.confirm(`직책: ${optionName(context.positions, position.value)}\n부서: ${optionName(context.departments, department.value)}\n추천 역할: ${recommended.role_name}\n기존 겸직 역할은 모두 유지합니다. 함께 저장하시겠습니까?`)) return;
-          const result = await app().rpc('update_employee_core_with_role', {
-            p_employee_uuid: employee.id, p_expected_updated_at: roleEdit.info.employee_updated_at,
-            p_expected_profile_id: roleEdit.info.profile_id, p_expected_profile_updated_at: roleEdit.info.profile_updated_at, p_expected_role_codes: roleEdit.info.role_codes,
-            p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
-            p_position_id: position.value, p_employment_status: status.value,
-            p_departed_on: status.value === 'departed' ? departed.value || null : null,
-            p_attendance_required: attendance.checked, p_reason: '직원 기본정보에서 직책·추천 역할 확인 후 저장',
-            p_apply_recommended_role: true
-          });
+          const roleContext = {
+            expected_updated_at: roleEdit.info.employee_updated_at, expected_profile_id: roleEdit.info.profile_id,
+            expected_profile_updated_at: roleEdit.info.profile_updated_at, expected_role_codes: roleEdit.info.role_codes
+          };
+          const result = remoteChanged
+            ? await app().rpc('update_employee_basic_with_remote', { ...remoteArgs, p_role_context: roleContext })
+            : await app().rpc('update_employee_core_with_role', {
+              p_employee_uuid: employee.id,
+              ...Object.fromEntries(Object.entries({ ...roleContext, ...core }).map(([key, value]) => ['p_' + key, value])),
+              p_reason: '직원 기본정보에서 직책·추천 역할 확인 후 저장', p_apply_recommended_role: true
+            });
           if (!result?.ok) throw new Error(result?.code || '직책·역할을 저장하지 못했습니다.');
         } else if (!saved && !employee && !teamRequest) {
           await app().rpc(context.registration_only ? 'create_employee_from_registration' : 'create_employee', {
@@ -362,12 +399,14 @@
             p_attendance_required: attendance.checked
           });
         } else if (!saved && employee && !teamRequest) {
-          await app().rpc('update_employee_core', {
-            p_employee_uuid: employee.id, p_full_name: name.value.trim(), p_hired_on: hired.value,
-            p_department_id: department.value, p_position_id: position.value, p_employment_status: status.value,
-            p_departed_on: status.value === 'departed' ? departed.value || null : null,
-            p_attendance_required: attendance.checked, p_reason: '직원 관리 화면에서 수정'
-          });
+          const result = remoteArgs
+            ? await app().rpc('update_employee_basic_with_remote', remoteArgs)
+            : await app().rpc('update_employee_core', {
+              p_employee_uuid: employee.id,
+              ...Object.fromEntries(Object.entries(core).map(([key, value]) => ['p_' + key, value])),
+              p_reason: '직원 기본 인사정보 수정'
+            });
+          if (!result?.ok) throw new Error(result?.code || '직원정보를 저장하지 못했습니다.');
         } else if (!saved) {
           await app().rpc('submit_employee_change_request', {
             p_request_type: 'employee_update', p_employee_uuid: employee.id,

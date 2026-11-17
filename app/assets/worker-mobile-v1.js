@@ -154,7 +154,8 @@
     setMessage(card, '위치 확인을 시작합니다.');
     let stage = 'location';
     try {
-      const position = await window.TaejangAttendanceLocation.getBestPosition({
+      const latest = await app().rpc('get_my_attendance_today');
+      const position = latest.remote_work === true ? null : await window.TaejangAttendanceLocation.getBestPosition({
         onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
       });
       lastPosition[eventType] = position;
@@ -162,9 +163,9 @@
       setMessage(card, '서버에 출근·퇴근 기록을 확인하고 있습니다.');
       const result = await app().rpc('record_attendance_event', {
         p_event_type: eventType,
-        p_latitude: position.coords.latitude,
-        p_longitude: position.coords.longitude,
-        p_accuracy_m: position.coords.accuracy
+        p_latitude: position?.coords?.latitude ?? null,
+        p_longitude: position?.coords?.longitude ?? null,
+        p_accuracy_m: position?.coords?.accuracy ?? null
       });
       if (result?.ok || ['ALREADY_RECORDED', 'EXCEPTION_APPROVED'].includes(result?.code)) {
         attempts[eventType] = 0;
