@@ -5,7 +5,7 @@ import {mkdir} from 'node:fs/promises';
 import {chromium,expect} from 'playwright/test';
 const output=process.env.LOGISTICS_CUSTOMER_OUTPUT||'/tmp/logistics-customer';
 await mkdir(output,{recursive:true});
-const browser=await chromium.launch({headless:true,args:['--no-sandbox'],executablePath:process.env.CHROME_PATH||(existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined)});
+const browser=await chromium.launch({headless:true,args:['--no-sandbox'],...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:existsSync('/usr/bin/chromium')?{executablePath:'/usr/bin/chromium'}:{channel:'chrome'})});
 const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><main id="dashboard-main"></main><script type="module">
 import '/app/assets/logistics-core.js';
 const C=TaejangLogisticsCore;
