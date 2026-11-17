@@ -77,7 +77,14 @@ try {
  check(db.rpc('erp_sales_list_receivables').total===0,'fully settled sales leave the receivables list');
  const duplicate=db.rpc('erp_sales_generate_month',{p_contract_id:contract.id,p_month:'2099-01-01'});
  check(duplicate.id===monthly.id&&duplicate.alreadyExists,'same contract/month returns original sale without duplication');
- assign(customer,agentB,'management','2099-02-01');
+ const nextManager=assign(customer,agentB,'management','2099-02-01');
+ reject(()=>assign(customer,agentA,'management','2099-01-15'),/ERP_ASSIGNMENT_DATE_ORDER/);
+ reject(()=>assign(customer,agentB,'management','2098-12-31'),/ERP_ASSIGNMENT_HISTORY_OVERLAP/);
+ const corrected=assign(customer,agentB,'management','2099-01-15');
+ check(corrected.id===nextManager.id&&corrected.starts_on==='2099-01-15','earlier correction updates the current assignment without adding a second record');
+ const previousManager=db.rpc('erp_sales_bootstrap').assignments.find(row=>row.party_id===customer.id&&row.relationship==='management'&&row.agent_id===agentA.id);
+ check(previousManager.ends_on==='2099-01-15','previous assignment closes on the corrected date without overlap');
+ check(db.raw("select count(*) from public.erp_sales_history where entity_kind='assignment' and action in ('correct_start','correct_end');")==='2','both date corrections are audited');
  check(db.rpc('erp_sales_get',{p_id:monthly.id}).agent_snapshot.name==='Synthetic Agent A','changing party manager preserves historical salesperson');
  const product=(party,agent,price,quantity,commission)=>({kind:'product',party_id:party.id,supplier_id:supplier.id,agent_id:agent.id,order_channel:party.kind==='company'?'purchase_order':'kakao',shipping_status:'preparing',order_date:'2099-02-05',sales_date:'2099-02-05',commission,lines:[{item_id:salt.id,quantity,unit_price:price,tax_class:'taxable',tax_amount:100}]});
  const corporateInput={...product(customer,agentB,1000,10,fee('rate',3)),request_key:randomUUID()};
