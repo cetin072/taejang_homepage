@@ -52,3 +52,10 @@
 .erp-sales .erp-toggle-row { grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 14px;align-items:center; }
 .erp-sales .erp-fields > .button { align-self:end; }
 @media(max-width:700px) { .erp-sales .erp-toggle-row { grid-template-columns:minmax(0,1fr); } }
+
+/* Keep one sale's operations visible before the long payment forms. */
+.erp-sale-workflow { padding:16px;border:1px solid #b9d5c8;border-radius:12px;background:#f3f8f5; }
+.erp-sale-workflow h4 { margin-top:0; }
+.erp-sale-workflow .erp-actions { flex-wrap:wrap; }
+.erp-editor, #erp-sale-shipping, #erp-sale-receipts, #erp-sale-payouts { scroll-margin-top:100px; }
+.erp-editor section:focus-visible { outline:3px solid var(--focus,#e2a700);outline-offset:4px; }

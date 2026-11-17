@@ -480,17 +480,28 @@
    f.insertBefore(original,actions);
   }
   let refreshReceipts,refreshPayouts;
+  if(sale?.id&&kind==='product'){
+   const delivery=el('section','','app-form-section');delivery.id='erp-sale-shipping';delivery.append(el('h4',data.shipping_method==='taejang_stock'?'태장 재고 출고 상태':'공급처 직배송 상태'),el('p',kinds[data.shippingCurrent||data.shipping_status]||'—'));const next=field(delivery,'next_shipping','배송 상태 기록','select',data.shippingCurrent||data.shipping_status,[['preparing','배송 준비'],['shipped','발송'],['delivered','배송 완료']]);
+   if(state.canWrite)delivery.append(btn('배송 상태 저장',()=>{const value=next.value;void run(async()=>{const result=await rpc('erp_sales_shipping',{p_id:data.id,p_status:value});f.dataset.dirty='false';saleEditor(result);report('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.');});}));else next.disabled=true;editor.append(delivery);
+  }
   if(locked&&phase2) refreshReceipts=drawReceipts(data.id,data.total_amount,()=>refreshPayouts?.());
   if(locked&&phase2&&(data.supplier_id||(data.agent_id&&Number(data.commission?.value)>0))) refreshPayouts=drawPayouts(data.id);
-  if(sale?.id&&kind==='product'){
-   const delivery=el('section','','app-form-section');delivery.append(el('h4',data.shipping_method==='taejang_stock'?'태장 재고 출고 상태':'공급처 직배송 상태'),el('p',kinds[data.shippingCurrent||data.shipping_status]||'—'));const next=field(delivery,'next_shipping','배송 상태 기록','select',data.shippingCurrent||data.shipping_status,[['preparing','배송 준비'],['shipped','발송'],['delivered','배송 완료']]);
-   if(state.canWrite)delivery.append(btn('배송 상태 저장',()=>{const value=next.value;void run(async()=>{const result=await rpc('erp_sales_shipping',{p_id:data.id,p_status:value});f.dataset.dirty='false';saleEditor(result);report('배송 상태를 이력으로 기록했습니다. 매출 원본은 유지됩니다.');});}));else next.disabled=true;editor.append(delivery);
+  if(locked) {
+   const workflow=el('nav','','erp-sale-workflow');workflow.setAttribute('aria-label','이 거래 처리 바로가기');
+   workflow.append(el('h4','이 거래에서 다음 업무 처리'),el('p','매출은 확정되었습니다. 배송·수금·공급처 지급·영업비는 각각 실제 처리한 내역을 기록하세요. 순서대로 반드시 완료해야 하는 단계는 아닙니다.','help'));
+   const links=el('div','','erp-actions');
+   for(const [id,label] of [['erp-sale-shipping','배송 처리'],['erp-sale-receipts','수금·미수금 확인'],['erp-sale-payouts','공급처 지급·영업비']]) {
+    if(!editor.querySelector('#'+id))continue;
+    links.append(btn(label,()=>{const target=editor.querySelector('#'+id);target.tabIndex=-1;target.focus({preventScroll:true});target.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}));
+   }
+   workflow.append(links,el('p','여러 거래의 미수금·지급 대기와 월 마감은 상단 메뉴에서 모아 확인합니다. 자동 연결 상품 매출의 매입은 구매·매입에서 확인하며, 같은 매입을 중복 등록하지 마세요.','help'));
+   f.after(workflow);
   }
   if(locked&&phase4) drawAdjustments(data,async()=>{await refreshReceipts?.();await refreshPayouts?.();});
   if(sale?.id){const history=el('details');history.append(el('summary',`변경 이력 ${(data.history||[]).length}건`),table(['작업','일시','작업자'],(data.history||[]).map(h=>[({create:'등록',update:'수정',confirm:'확정',shipping:'배송 상태'})[h.action]||h.action,new Intl.DateTimeFormat('ko-KR',{dateStyle:'short',timeStyle:'short',timeZone:'Asia/Seoul'}).format(new Date(h.created_at)),h.actor_id])));editor.append(history);}
  }
  function drawPayouts(saleId){
-  const panel=el('section','','app-form-section');
+  const panel=el('section','','app-form-section');panel.id='erp-sale-payouts';
   const content=el('div');
   const refresh=btn('지급 내역 조회',()=>{
    if(!canReplaceForm())return;
@@ -609,7 +620,7 @@
   }
  }
  function drawReceipts(saleId,originalTotal,onSaved){
-  const panel=el('section','','app-form-section');
+  const panel=el('section','','app-form-section');panel.id='erp-sale-receipts';
   const content=el('div');
   const load=btn('수금 내역 조회',()=>{
    if(content.querySelector('form[data-dirty="true"]')&&!window.confirm('저장하지 않은 수금 입력을 닫을까요?'))return;
@@ -775,7 +786,7 @@
    if(s.effective_total==null)amount.append(el('p','원거래 기준','help'));
    else if(Number(s.effective_total)!==Number(s.total_amount))amount.append(el('p','원거래 '+money(s.total_amount),'help'));
    return [s.sales_date,s.party_name,kinds[s.kind],s.agent_name||'—',kinds[s.status],amount,
-    btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:s.id}))))];
+    btn('상세',()=>void run(async()=>{saleEditor(await rpc('erp_sales_get',{p_id:s.id}));editor.tabIndex=-1;editor.focus({preventScroll:true});editor.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}))];
   })));
  }
  async function drawPayoutQueue(){
