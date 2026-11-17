@@ -81,7 +81,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
     function avatar(employee, path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -199,6 +199,7 @@
         ['이름', employee.full_name], ['직원번호', employee.employee_id], ['부서', employee.department_name || '미배정'], ['직책', employee.position_name],
         ['입사일', employee.hired_on], ['퇴사일', employee.departed_on || '—'], ['재직상태', statusLabel(employee.employment_status)], ['근태대상', employee.attendance_required ? '대상' : '제외']
       ]); basic.append(values);
+      if (roleSummaryPanel) basic.append(roleSummaryPanel(context, employee));
       const isGlobalLead = context.access_level === 'promotion_lead_global';
       const canEditInThisCard = context.access_level === 'operations_manager'
         || (!employee.protected

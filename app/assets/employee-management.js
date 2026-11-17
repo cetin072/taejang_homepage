@@ -217,6 +217,57 @@
     return arr(items).find(item => item.id === id)?.name || '';
   }
 
+  // Roles are read for this employee only, through the server's employee scope.
+  function roleSummaryPanel(context, employee) {
+    const panel = el('div', null, 'employee-role-summary');
+    panel.dataset.employeeRoleSummary = '1';
+    const status = el('p', '시스템 역할 확인 중…', 'help');
+    status.setAttribute('role', 'status'); panel.append(status);
+    app().rpc('get_employee_role_context', { p_employee_uuid: employee.id }).then(info => {
+      if (!panel.isConnected || !allowedRoute()) return;
+      if (!info?.ok) throw new Error('ROLE_CONTEXT_UNAVAILABLE');
+      const recommended = arr(info.recommendations).find(item => item.position_id === employee.position_id);
+      status.textContent = info.profile_id
+        ? `실제 시스템 역할: ${arr(info.role_names).join(' · ') || '없음'}`
+        : '연결된 로그인 계정이 없습니다. 직책을 바꿔도 ERP 권한은 생기지 않습니다.';
+      if (info.profile_id && recommended && !arr(info.role_codes).includes(recommended.role_code)) {
+        panel.append(el('p', `직책에 해당하는 ${recommended.role_name} 역할이 없습니다. 직책과 접속 권한을 함께 확인해 주세요.`, 'employee-role-warning'));
+      }
+      if (info.profile_id && (info.profile_position_id !== employee.position_id || info.profile_department_id !== employee.department_id)) {
+        panel.append(el('p', '직원정보와 로그인 계정의 소속·직책이 다릅니다.', 'employee-role-warning'));
+      }
+      panel.append(el('p', '직책은 인사정보이고, 실제 시스템 역할이 업무 접근 범위를 결정합니다. 겸직 역할은 자동 삭제하지 않습니다.', 'help'));
+    }).catch(() => { if (panel.isConnected) status.textContent = '시스템 역할을 확인하지 못했습니다. 기존 직책만으로 접속 권한을 판단하지 마세요.'; });
+    return panel;
+  }
+
+  function roleEditControls(employee, position, department) {
+    const panel = el('div', null, 'employee-role-summary');
+    const status = el('p', '실제 시스템 역할을 불러오는 중입니다.', 'help'); status.setAttribute('role', 'status');
+    const apply = input('checkbox'); apply.disabled = true;
+    const choice = field('추천 역할을 확인하고 소속·직책과 함께 적용', apply); choice.hidden = true;
+    const summary = el('p', '', 'help'); panel.append(status, choice, summary);
+    let info = null;
+    function update() {
+      apply.checked = false;
+      if (!info) return;
+      const recommended = arr(info.recommendations).find(item => item.position_id === position.value);
+      status.textContent = `현재 역할: ${arr(info.role_names).join(' · ') || '없음'}`;
+      const eligible = Boolean(info.profile_id && info.can_manage && recommended);
+      apply.disabled = !eligible; choice.hidden = !eligible;
+      summary.textContent = !info.profile_id ? '연결 계정이 없어 직원정보만 저장합니다.'
+        : !info.can_manage ? '직원정보만 저장합니다. 권한 변경은 운영총괄에게 확인을 요청해 주세요. 요청이 자동 전송되지는 않습니다.'
+        : !recommended ? '이 직책은 자동 역할 추천 대상이 아닙니다. 권한 재위임이 필요한 역할은 기존 운영 역할 관리에서 별도로 확인합니다.'
+        : `추천: ${recommended.role_name}. 선택하면 로그인 계정의 소속·직책도 함께 맞춥니다. 기존 겸직 역할은 모두 유지하며, 선택하지 않으면 직원정보만 저장합니다.`;
+    }
+    const ready = app().rpc('get_employee_role_context', { p_employee_uuid: employee.id }).then(result => {
+      if (!result?.ok) throw new Error('ROLE_CONTEXT_UNAVAILABLE');
+      info = result; update();
+    }).catch(() => { status.textContent = '역할 조회 실패: 이번 저장은 직원정보만 변경합니다. 시스템 역할은 변경하지 않습니다.'; });
+    position.addEventListener('change', update); department.addEventListener('change', update);
+    return { panel, ready, get info() { return info; }, get apply() { return apply.checked; } };
+  }
+
   function makeEmployeeForm(context, employee = null, teamRequest = false) {
     const form = el('form', null, 'employee-form app-compact-container app-authoring');
     const leadDirectEdit = Boolean(employee && context.access_level === 'promotion_lead_global'
@@ -250,19 +301,39 @@
     const submit = button(employee ? (leadDirectEdit || !teamRequest ? '직원정보 저장' : '수정 요청 보내기') : (teamRequest ? '등록 요청 보내기' : '직원 등록'), () => {});
     submit.type = 'submit';
     if (!positionItems.length) submit.disabled = true;
-    actions.append(submit); form.append(grid, actions);
+    actions.append(submit);
+    const roleEdit = employee && !teamRequest ? roleEditControls(employee, position, department) : null;
+    form.append(grid); if (roleEdit) form.append(roleEdit.panel); form.append(actions);
     if (!employee && teamRequest && !positionItems.length) {
       form.prepend(el('p', '현재 권한으로 등록 요청할 수 있는 하위 직책이 없습니다.', 'message'));
     }
 
     let saved = false;
+    let submitting = false;
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (submitting) return;
+      submitting = true;
       const controls = [...form.querySelectorAll('input,select,button')];
       const disabled = controls.map(control => control.disabled);
       controls.forEach(control => { control.disabled = true; });
       try {
-        if (!saved && !employee && !teamRequest) {
+        if (roleEdit) await roleEdit.ready;
+        if (!form.isConnected || !allowedRoute()) return;
+        if (!saved && roleEdit?.apply) {
+          const recommended = arr(roleEdit.info.recommendations).find(item => item.position_id === position.value);
+          if (!window.confirm(`직책: ${optionName(context.positions, position.value)}\n부서: ${optionName(context.departments, department.value)}\n추천 역할: ${recommended.role_name}\n기존 겸직 역할은 모두 유지합니다. 함께 저장하시겠습니까?`)) return;
+          const result = await app().rpc('update_employee_core_with_role', {
+            p_employee_uuid: employee.id, p_expected_updated_at: roleEdit.info.employee_updated_at,
+            p_expected_profile_id: roleEdit.info.profile_id, p_expected_profile_updated_at: roleEdit.info.profile_updated_at, p_expected_role_codes: roleEdit.info.role_codes,
+            p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
+            p_position_id: position.value, p_employment_status: status.value,
+            p_departed_on: status.value === 'departed' ? departed.value || null : null,
+            p_attendance_required: attendance.checked, p_reason: '직원 기본정보에서 직책·추천 역할 확인 후 저장',
+            p_apply_recommended_role: true
+          });
+          if (!result?.ok) throw new Error(result?.code || '직책·역할을 저장하지 못했습니다.');
+        } else if (!saved && !employee && !teamRequest) {
           await app().rpc(context.registration_only ? 'create_employee_from_registration' : 'create_employee', {
             p_full_name: name.value.trim(), p_hired_on: hired.value, p_department_id: department.value,
             p_position_id: position.value, p_attendance_required: attendance.checked
@@ -321,6 +392,9 @@
         controls.forEach((control, index) => { control.disabled = saved ? true : disabled[index]; });
         submit.disabled = false;
         if (saved) submit.textContent = '최신 정보 다시 불러오기';
+      } finally {
+        submitting = false;
+        if (!saved) controls.forEach((control, index) => { control.disabled = disabled[index]; });
       }
     });
     return form;
@@ -1105,7 +1179,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
+      makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {

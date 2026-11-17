@@ -233,3 +233,11 @@
 .employee-basic-remote-work .employee-profile-fold-body { padding:0; }
 .employee-basic-remote-work [hidden] { display:none; }
 .employee-basic-remote-work .employee-form-grid > .help { grid-column:1/-1; }
+
+/* Keep role review within the existing compact basic-information section. */
+.employee-role-summary { margin-block:12px; padding-block:12px; border-block:1px solid var(--app-border); }
+.employee-role-summary p { margin:0 0 8px; overflow-wrap:anywhere; }
+.employee-role-summary p:last-child { margin-bottom:0; }
+.employee-role-summary [hidden] { display:none; }
+.employee-role-warning { color:var(--app-text); font-weight:600; }
+.employee-role-summary .app-check-field { margin-block:8px; }
