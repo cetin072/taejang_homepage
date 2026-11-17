@@ -20,7 +20,7 @@ TaejangApp.rpc=async(name,args)=>{
  return oldRpc(name,args);
 };
 </script></body>`);
-const server=http.createServer(async(req,res)=>{try{if(req.url==='/'){res.setHeader('content-type','text/html;charset=utf-8');res.end(html);return;}const file=path.resolve(root,'.'+req.url);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('content-type',file.endsWith('.css')?'text/css':'application/javascript');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
+const server=http.createServer(async(req,res)=>{try{if(req.url==='/'){res.setHeader('content-type','text/html;charset=utf-8');res.end(html);return;}const file=path.resolve(root,'.'+req.url);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('content-type',file.endsWith('.html')?'text/html;charset=utf-8':file.endsWith('.css')?'text/css':'application/javascript');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 let browser;
 try{
@@ -58,5 +58,18 @@ try{
   assert.equal(await form.getByRole('button',{name:'직원정보 저장',exact:true}).isDisabled(),true,'stale form snapshot cannot overwrite newer employee');
   assert.deepEqual(errors,[]);await page.close();
  }
+ const demo=await browser.newPage({viewport:{width:1440,height:1000}});
+ const dataRequests=[];demo.on('request',r=>{if(['xhr','fetch'].includes(r.resourceType()))dataRequests.push(r.url());});
+ await demo.goto('http://127.0.0.1:'+server.address().port+'/app/employee-role-demo.html');
+ await demo.getByText('가상 직원으로 보는 화면 구성 미리보기',{exact:true}).waitFor();
+ await demo.getByText('실제 시스템 역할: 일반 근로자',{exact:true}).waitFor();
+ await demo.getByRole('button',{name:'수정',exact:true}).click();
+ await demo.getByLabel('추천 역할을 확인하고 소속·직책과 함께 적용',{exact:true}).check();
+ demo.once('dialog',d=>d.accept());await demo.getByRole('button',{name:'직원정보 저장',exact:true}).click();
+ await demo.getByText('실제 시스템 역할: 일반 근로자 · 부서 팀장',{exact:true}).waitFor();
+ assert.deepEqual(dataRequests,[],'standalone visual preview never contacts data API');
+ assert.equal(await demo.evaluate(()=>localStorage.length+sessionStorage.length),0,'demo does not touch login storage');
+ await demo.screenshot({path:path.join(output,'role-demo-1440.png'),fullPage:true});
+ await demo.close();
  console.log('employee-role-review: three widths, cancel/failure/repeated submit/role guard PASS');
 }finally{await browser?.close();await new Promise(r=>server.close(r));}

@@ -20,3 +20,6 @@
 - 로컬 브라우저는 Chromium socket 권한 제한으로 실행되지 않아 CI 브라우저 결과 필요. 정적 테스트는 실제 브라우저/DB 성공을 뜻하지 않는다.
 - 새 migration은 아직 어떤 hosted DB에도 적용하지 않았다. Staging 계약 확인과 fixed qa-preview 점유 조정/HEAD/배포 환경 검증 완료 전 사용자 수용 검수를 요청하지 않는다.
 - 현재 fixed QA는 main과 별도 홈페이지 변경을 가지고 있어 임의 덮어쓰지 않는다.
+
+## 안전한 디자인 미리보기 대안
+`app/employee-role-demo.html`은 동일 JS/CSS를 사용하는 가상 직원 전용 화면이다. connect-src none CSP 및 fetch 거부, 로그인 저장소 미사용, allowlist mock RPC로 데이터 API/실제 계정과 분리한다. 변경은 메모리에만 반영되고 새로고침 시 초기화된다. 개발 Deploy Preview에서만 자동 실행하며 운영 hostname에서는 열지 않는다. 이 페이지는 레이아웃/상호작용 설명용이며 고정 QA의 실제 로그인·저장 수용검수를 대신하지 않는다.
