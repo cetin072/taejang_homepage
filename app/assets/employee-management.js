@@ -1158,13 +1158,13 @@
 
   function disabilityPanel(context, employee) {
     const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
-      || (route() === 'promotion_lead' && context.access_level === 'promotion_lead_global'
+      || (route() === 'promotion_lead' && ['promotion_lead_global', 'operations_manager'].includes(context.access_level)
         && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
         && !employee.protected);
     if (!canView()) return null;
     const details = el('details', null, 'employee-profile-section employee-profile-fold employee-disability-section');
     const body = el('div', null, 'employee-profile-fold-body');
-    details.append(el('summary', '장애정보 보기'), body);
+    details.append(el('summary', '장애정보 등록·수정'), body);
     let generation = 0;
     details.addEventListener('toggle', async () => {
       const request = ++generation;
@@ -1223,7 +1223,7 @@
 
   function welfarePanel(context, employee) {
     const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
-      || (route() === 'promotion_lead' && context.access_level === 'promotion_lead_global'
+      || (route() === 'promotion_lead' && ['promotion_lead_global', 'operations_manager'].includes(context.access_level)
         && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
         && !employee.protected);
     if (!canView()) return null;
