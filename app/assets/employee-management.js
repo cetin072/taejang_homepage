@@ -1221,6 +1221,72 @@
     return details;
   }
 
+  function welfarePanel(context, employee) {
+    const canView = () => (route() === 'operations_manager' && context.access_level === 'operations_manager')
+      || (route() === 'promotion_lead' && context.access_level === 'promotion_lead_global'
+        && context.can_manage_resident_number && employee.can_manage_resident_number_for_employee === true
+        && !employee.protected);
+    if (!canView()) return null;
+    const details = el('details', null, 'employee-profile-section employee-profile-fold employee-welfare-section');
+    const body = el('div', null, 'employee-profile-fold-body');
+    details.append(el('summary', '복지 자격 보기'), body);
+    let generation = 0;
+    details.addEventListener('toggle', async () => {
+      const request = ++generation;
+      body.replaceChildren();
+      if (!details.open) return;
+      const visible = () => details.open && details.isConnected && request === generation
+        && canView() && allowedRoute('employee.manage');
+      const feedback = el('p', '복지 자격을 불러오는 중입니다.', 'help');
+      feedback.setAttribute('role', 'status');
+      body.append(feedback);
+      let info;
+      try {
+        info = await app().rpc('get_employee_welfare_info', {p_employee_uuid: employee.id});
+      } catch {
+        if (visible()) feedback.textContent = '복지 자격을 조회할 수 없습니다. 권한을 확인하고 다시 열어 주세요.';
+        return;
+      }
+      if (!visible()) return;
+      feedback.textContent = info.revision ? '등록된 복지 자격입니다.' : '등록된 복지 자격이 없습니다.';
+      const form = el('form', null, 'employee-form employee-disability-form app-authoring');
+      const options = [{id:'',name:'미확인'}, {id:'yes',name:'해당'}, {id:'no',name:'비해당'}];
+      const value = status => status === true ? 'yes' : status === false ? 'no' : '';
+      const basicRecipient = select(options, value(info.basic_recipient));
+      const nearPoverty = select(options, value(info.near_poverty));
+      const save = button('복지 자격 저장', () => {});
+      save.type = 'submit';
+      const fields = el('div', null, 'employee-form-grid');
+      fields.append(field('기초생활수급자', basicRecipient), field('차상위계층', nearPoverty));
+      const actions = el('div', null, 'quick-links');
+      actions.append(feedback, save);
+      form.append(fields, actions);
+      body.append(form);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (save.disabled || !visible()) return;
+        save.disabled = basicRecipient.disabled = nearPoverty.disabled = true;
+        feedback.textContent = '저장 중입니다.';
+        try {
+          const saved = await app().rpc('save_employee_welfare_info', {
+            p_employee_uuid: employee.id, p_basic_recipient: basicRecipient.value === '' ? null : basicRecipient.value === 'yes',
+            p_near_poverty: nearPoverty.value === '' ? null : nearPoverty.value === 'yes', p_expected_revision: info.revision
+          });
+          if (!visible()) return;
+          info.revision = saved.revision;
+          feedback.textContent = '복지 자격을 저장했습니다.';
+        } catch (error) {
+          if (visible()) feedback.textContent = error?.code === '40001'
+            ? '최신 정보가 바뀌었습니다. 이 항목을 닫았다 다시 열어 확인해 주세요.'
+            : '복지 자격을 저장하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.';
+        } finally {
+          save.disabled = basicRecipient.disabled = nearPoverty.disabled = false;
+        }
+      });
+    });
+    return details;
+  }
+
   function getViews() {
     if (!window.TaejangEmployeeViews) throw new Error('직원관리 화면 파일을 불러오지 못했습니다. 새로고침해 주세요.');
     return window.TaejangEmployeeViews.create({
@@ -1230,7 +1296,7 @@
         const previous = selectedEmployeeId; selectedEmployeeId = null; renderEmployeeManagement(currentContext);
         [...main().querySelectorAll('[data-employee-id]')].find(node => node.dataset.employeeId === previous)?.focus();
       },
-      makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
+      makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, welfarePanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, passwordResetPanel,
       nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary,
       saveEmployeeAppCheck: async (employee, values) => {
         const result = await app().rpc('update_employee_field_audit', {

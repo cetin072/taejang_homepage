@@ -1,0 +1,18 @@
+begin;
+create extension if not exists pgtap with schema extensions;
+select no_plan();
+select has_table('private','employee_welfare_info','welfare status kept out of employee roster');
+select col_is_null('private','employee_welfare_info','basic_recipient','unconfirmed distinguished from false');
+select col_is_null('private','employee_welfare_info','near_poverty','near poverty independently unconfirmed');
+select ok((select relrowsecurity from pg_class where oid='private.employee_welfare_info'::regclass),'RLS enabled');
+select ok(not has_table_privilege('authenticated','private.employee_welfare_info','SELECT,INSERT,UPDATE,DELETE'),'raw welfare access denied');
+select ok(not has_function_privilege('anon','public.get_employee_welfare_info(uuid)','EXECUTE'),'anonymous read denied');
+select ok(not has_function_privilege('anon','public.save_employee_welfare_info(uuid,boolean,boolean,integer)','EXECUTE'),'anonymous save denied');
+select ok(has_function_privilege('authenticated','public.get_employee_welfare_info(uuid)','EXECUTE'),'guarded read available');
+select ok(position('private.require_employee_disability_access' in pg_get_functiondef('public.get_employee_welfare_info(uuid)'::regprocedure))>0,'read reuses sensitive employee scope');
+select ok(position('private.require_employee_disability_access' in pg_get_functiondef('public.save_employee_welfare_info(uuid,boolean,boolean,integer)'::regprocedure))>0,'save reuses sensitive employee scope');
+select throws_ok($$select public.get_employee_welfare_info(gen_random_uuid())$$,'42501','EMPLOYEE_DISABILITY_FORBIDDEN','unauthenticated caller rejected by shared guard');
+select throws_ok($$select public.save_employee_welfare_info(gen_random_uuid(),true,false,0)$$,'42501','EMPLOYEE_DISABILITY_FORBIDDEN','unauthenticated write rejected');
+select ok(position('40001' in pg_get_functiondef('public.save_employee_welfare_info(uuid,boolean,boolean,integer)'::regprocedure))>0,'stale revision cannot overwrite');
+select * from finish();
+rollback;

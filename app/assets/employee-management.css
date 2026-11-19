@@ -45,7 +45,7 @@
 .employee-section-photos { --employee-section-accent:var(--authoring-media-accent); --employee-section-stroke:var(--authoring-media-stroke); --employee-section-bg:var(--authoring-media-surface); }
 .employee-section-audit { --employee-section-accent:#624a97; --employee-section-stroke:#d8ccef; --employee-section-bg:#f7f3ff; }
 .employee-section-record { --employee-section-accent:#4e6372; --employee-section-stroke:#d5e0e6; --employee-section-bg:#f5f8fa; }
-.employee-disability-section { --employee-section-accent:#455a71; --employee-section-stroke:#d7e0e9; --employee-section-bg:#f5f8fb; }
+.employee-disability-section, .employee-welfare-section { --employee-section-accent:#455a71; --employee-section-stroke:#d7e0e9; --employee-section-bg:#f5f8fb; }
 .employee-section-work { --employee-section-accent:#557049; --employee-section-stroke:#d7e2d2; --employee-section-bg:#f6faf4; }
 .employee-profile-section.employee-sensitive-section { --employee-section-accent:#88512a; --employee-section-stroke:#e9d2b7; --employee-section-bg:#fcf6ed; }
 .employee-profile-section > h3, .employee-basic-title {

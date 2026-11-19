@@ -45,6 +45,7 @@ window.fetch=async(url,options={})=>{
   return realFetch(url,options);
 };
 const remoteInfo = new Map();
+const welfareInfo = new Map();
 window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtureAccessToken}),refreshSession:async()=>{fixtureRefreshCount++;fixtureAccessToken='synthetic-refreshed';return true;},hasCapabilityContract:()=>true,can:()=>fixtureRoute==='operations_manager',friendlyError:error=>error.message,rpc:async(name,args)=>{
   calls.push({name,args});
   if(name==='get_employee_management_context'){
@@ -54,10 +55,15 @@ window.TaejangApp={getRoute:()=>fixtureRoute,getSession:()=>({access_token:fixtu
   if(name==='get_target_audit_trail')return {items:[]};
   if(name==='get_employee_remote_work_location') return remoteInfo.get(args.p_employee_uuid)||{address:'가상시 테스트로 10',approved:false,revision:'fixture-address-revision'};
   if(name==='save_employee_basic_remote_address') return {address:args.p_address,approved:args.p_enabled,revision:'fixture-updated-revision'};
+  if(name==='get_employee_welfare_info')return welfareInfo.get(args.p_employee_uuid)||{revision:0,basic_recipient:null,near_poverty:null};
   if(name==='get_employee_disability_info')return {
     types:['지체','뇌병변','지적'],revision:0,...disabilityInfo.get(args.p_employee_uuid)
   };
   if(fail==='db')throw Error('합성 DB 실패');
+  if(name==='save_employee_welfare_info'){
+    const saved={basic_recipient:args.p_basic_recipient,near_poverty:args.p_near_poverty,revision:args.p_expected_revision+1};
+    welfareInfo.set(args.p_employee_uuid,saved);return saved;
+  }
   if(name==='save_employee_disability_info'){
     const saved={degree:args.p_degree,disability_type:args.p_disability_type,revision:args.p_expected_revision+1};
     disabilityInfo.set(args.p_employee_uuid,saved);
