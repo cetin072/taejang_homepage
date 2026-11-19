@@ -199,7 +199,7 @@ try {
     assert.equal(await page.getByText('일괄 작업',{exact:true}).count(),0);
     assert.equal(await page.locator('.employee-sensitive-bulk').count(),0);
     assert.equal(await page.locator('[data-employee-edit-form]').count(),0);
-    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section):not(.employee-section-work)');
+    const standardSections=page.locator('.employee-profile-section:not(.employee-disability-section):not(.employee-welfare-section):not(.employee-section-work)');
     assert.equal(await standardSections.count(),5);
     const sectionColors=await standardSections.evaluateAll(nodes=>nodes.slice(0,4).map(n=>getComputedStyle(n).backgroundColor));
     assert.equal(new Set(sectionColors).size,4,'employee sections must remain visually distinct');
