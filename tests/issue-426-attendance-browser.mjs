@@ -46,6 +46,7 @@ try{
   await page.goto('http://127.0.0.1:'+server.address().port);await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));
   await page.getByRole('button',{name:'월별',exact:true}).waitFor();
   assert.match(await page.locator('.attendance-compact').first().innerText(),/가상 누락/);
+  assert.doesNotMatch(await page.locator('#dashboard-main').innerText(), /보안업체|지문/);
   assert.equal(await page.locator('.attendance-compact[open]').count(),0);
   assert.equal(await page.locator('.attendance-compact').count(),2);
   await page.locator('select[data-filter-key=accounts]:visible').selectOption('all');assert.equal(await page.locator('.attendance-compact').count(),3);
@@ -86,14 +87,18 @@ try{
   await field.getByRole('button',{name:'현장근무 지정',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'현장근무 지정'});
   await dialog.getByLabel('현장명').fill('가상 환경미화');
-  await dialog.getByLabel('시작 시각').fill('09:00');
+  assert.equal(await dialog.getByLabel('시작 시각').inputValue(),'09:00');
+  assert.equal(await dialog.getByLabel('종료 시각').inputValue(),'12:00');
   await dialog.getByLabel('종료 시각').fill('13:00');
   await dialog.getByLabel('기록 방식').selectOption('out');
   await dialog.getByText('참여 직원 선택',{exact:true}).click();
   await dialog.getByRole('checkbox',{name:'가상 정상 직원'}).check();
   await dialog.getByRole('button',{name:'현장근무 저장'}).click();
   await field.getByText(/가상 환경미화.*현장 퇴근.*기록 대기/).waitFor();
-  assert.equal(await page.evaluate(()=>calls.findLast(c=>c.name==='manage_attendance_field_work').p.p_field_clock_in),false);
+  const saved=await page.evaluate(()=>calls.findLast(c=>c.name==='manage_attendance_field_work').p);
+  assert.equal(saved.p_field_clock_in,false);
+  assert.equal(saved.p_starts_at,'09:00');
+  assert.equal(saved.p_ends_at,'13:00');
   await page.evaluate(()=>{TaejangApp.can=()=>false;window.calls=[];});
   await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));assert.equal(await page.evaluate(()=>calls.length),0,'unauthorized UI performs no attendance reads');
   await context.close();

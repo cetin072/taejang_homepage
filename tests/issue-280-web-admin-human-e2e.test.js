@@ -104,7 +104,7 @@ test('attendance correction uses an accessible time dialog and explains server c
 test('attendance roster remains visible when secondary RPCs are unavailable', () => {
   assert.match(attendance, /await Promise\.allSettled\(\[/);
   assert.match(attendance, /rosterResult\.status !== 'fulfilled'/);
-  assert.match(attendance, /지문 근거자료 서버 동기화 필요/);
+  assert.match(attendance, /과거 외부 기록 서버 동기화 필요/);
   assert.match(attendance, /syncRequiredPanel\('일일 근태 확정'\)/);
   assert.match(attendance, /직원 출근부는 계속 표시합니다/);
 });
