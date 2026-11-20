@@ -60,7 +60,7 @@ try{
    const u=new URL(route.request().url());
    if(u.origin!=='https://fixture.test')return route.abort();
    if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
-   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
+   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
   });
   await p.goto('https://fixture.test/');await openQuote(p);
