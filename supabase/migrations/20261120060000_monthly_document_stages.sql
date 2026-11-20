@@ -160,7 +160,7 @@ begin
   if new.stage='closed' and new.status<>'confirmed' then raise exception 'MONTH_CLOSED'; end if;
   if old.status='draft' and new.status='confirmed' then
     if new.payload->'common' ? 'noticeDate' then
-      if new.stage='notice' and nullif(new.payload#>>'{common,noticeDate}','') is null then raise exception 'NOTICE_DATE_REQUIRED'; end if;
+      if (new.stage='notice' or new.stage_plan='single_bundle') and nullif(new.payload#>>'{common,noticeDate}','') is null then raise exception 'NOTICE_DATE_REQUIRED'; end if;
       if new.stage in ('performed','result') and jsonb_array_length(coalesce(new.payload#>'{common,actualPerfDates}','[]'))=0 then
         raise exception 'ACTUAL_DATES_REQUIRED';
       end if;
@@ -211,7 +211,7 @@ begin
     if coalesce(c->>'serviceType','') not in ('env','farm','custom')
       or coalesce(c#>>'{promotion,status}','') not in ('posted','planned','none')
       or jsonb_typeof(c->'photoSets') is distinct from 'array' then raise exception 'INVALID_RESULT_INPUT'; end if;
-    if exists(select from jsonb_array_elements_text(c->'photoSets') f where f is null or f not in ('safety','site','group') group by f)
+    if exists(select from jsonb_array_elements_text(c->'photoSets') f where f is null or f not in ('safety','site','group'))
        or exists(select from jsonb_array_elements_text(c->'photoSets') f group by f having count(*)>1) then raise exception 'INVALID_PHOTO_SETS'; end if;
     mode:=c#>>'{safety,mode}';
     if mode is null or mode not in ('outdoor','indoor_hq','indoor_video','custom')
@@ -225,7 +225,7 @@ begin
     end loop;
     if jsonb_array_length(c->'actualPerfDates')>4 or exists(select from jsonb_array_elements_text(c->'actualPerfDates') d group by d having count(*)>1) or exists(select from jsonb_array_elements(c->'actualPerfDates') d where jsonb_typeof(d)<>'string') then raise exception 'INVALID_ACTUAL_DATES'; end if;
     c:=c||jsonb_build_object('safety',case when mode='outdoor' then 'outdoor' else 'indoor' end,
-      'docDate',coalesce(nullif(c->>'noticeDate',''),c->>'quoteDate',''),'perfDate',c#>>'{perfDates,0}');
+      'docDate',coalesce(nullif(c->>'noticeDate',''),nullif(c->>'quoteDate',''),c#>>'{perfDates,0}',''),'perfDate',c#>>'{perfDates,0}');
     p_payload:=jsonb_set(p_payload,'{common}',c);
   end if;
   return private.monthly_client_documents_calculate_v2(p_year,p_month,p_payload,p_require_ready);

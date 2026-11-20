@@ -31,5 +31,32 @@ select lives_ok($$select public.monthly_client_documents_record_dispatch(id,revi
 select lives_ok($$select public.monthly_client_documents_advance_stage(id,revision) from public.monthly_client_document_sets where year=2098 and month=11$$,'advance with outstanding companies');
 select lives_ok($$select public.monthly_client_documents_record_dispatch(id,revision,'beomhan',now(),'','notice') from public.monthly_client_document_sets where year=2098 and month=11$$,'record another notice after advancing');
 select is(jsonb_array_length(public.monthly_client_documents_workflow(2098,11)->'dispatches'),2,'both dispatches retained');
+select lives_ok($test$
+do $body$
+declare p jsonb; plan_name text; m integer; rec public.monthly_client_document_sets; company text; prior_dispatch_count integer;
+begin
+  foreach plan_name in array array['single_bundle','notice_skipped'] loop
+    m:=case plan_name when 'single_bundle' then 9 else 10 end;
+    select jsonb_set(payload,'{common,month}',to_jsonb(m)) into p from monthly_stage_fixture;
+    perform public.monthly_client_documents_save(2098,m,p,0);
+    select * into strict rec from public.monthly_client_document_sets where year=2098 and month=m;
+    perform public.monthly_client_documents_merge_stages(rec.id,rec.revision,plan_name);
+    if plan_name='notice_skipped' then
+      perform public.monthly_client_documents_confirm(2098,m,2);
+      perform public.monthly_client_documents_advance_stage(rec.id,3);
+    end if;
+    select * into strict rec from public.monthly_client_document_sets where id=rec.id;
+    perform public.monthly_client_documents_confirm(2098,m,rec.revision);
+    foreach company in array array['beomhan','samhyeon','cheongwoo-bj','hyundai-bng-steel'] loop
+      perform public.monthly_client_documents_record_dispatch(rec.id,rec.revision+1,company,now());
+    end loop;
+    select * into strict rec from public.monthly_client_document_sets where id=rec.id;
+    if rec.stage<>'closed' then raise exception 'expected closed'; end if;
+    perform public.monthly_client_documents_rewind_stage(rec.id,rec.revision,'합성 테스트 재확인');
+    select count(*) into prior_dispatch_count from public.monthly_client_document_dispatches where set_id=rec.id;
+    if prior_dispatch_count<>4 then raise exception 'lost prior dispatches'; end if;
+  end loop;
+end $body$;
+$test$,'both combined plans close only after the final dispatch and retain history on rewind');
 select * from finish();
 rollback;
