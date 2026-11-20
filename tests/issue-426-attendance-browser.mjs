@@ -80,14 +80,14 @@ try{
   await page.evaluate(()=>window.fail=false);
   await page.getByRole('button',{name:'상세·보정 이력',exact:true}).click();await page.getByRole('button',{name:'근태 시간 보정·보정 이력'}).waitFor();
   await page.getByRole('button',{name:'일별',exact:true}).click();
-  await page.evaluate(()=>{window.failField=true;return TaejangAttendanceAdmin.openAttendance('2026-09-01');});
+  await page.evaluate(()=>{window.failField=true;return TaejangAttendanceAdmin.openAttendance();});
   const field=page.locator('[data-field-work-panel]');
   await field.getByText('현장근무를 불러오지 못했습니다.',{exact:false}).waitFor();
   assert.equal(await page.locator('.attendance-compact').count(),2);
   await page.evaluate(()=>{window.failField=false;});
   await field.getByRole('button',{name:'현장근무 다시 조회',exact:true}).click();
   await field.getByRole('button',{name:'현장근무 지정',exact:true}).waitFor();
-  await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));
+  await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance());
   await page.getByRole('button',{name:'현장근무 지정·확인',exact:true}).click();
   assert.equal(await field.evaluate(panel=>panel.open),true);
   await field.getByRole('button',{name:'현장근무 지정',exact:true}).click();
