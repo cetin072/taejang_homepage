@@ -16,7 +16,7 @@ const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uui
 const deleted={...good,employee_uuid:'fixture-deleted',employee_id:'V003',display_name:'가상 삭제 계정',account_active:false};
 const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:16px;font-family:Arial,sans-serif;--app-border:#ddd}.button{padding:8px;border:1px solid #aac;background:#fff;border-radius:8px;cursor:pointer}button:focus-visible,summary:focus-visible{outline:3px solid blue}[hidden]{display:none!important}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
 const rows=${JSON.stringify([good,missing,deleted])};const ledger=${JSON.stringify(ledger)};
-window.fail=false;window.calls=[];
+window.fail=false;window.calls=[];let fieldWork=[];
 window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
  calls.push({name,p});if(window.fail)throw Error('fixture network failure');
  if(name==='get_attendance_admin_today')return {work_date:p.p_work_date,rows};
@@ -24,6 +24,11 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_attendance_confirmation_status')return {is_confirmed:false,blockers:[]};
  if(name==='get_attendance_workday_status')return {is_workday:true};
  if(name==='get_attendance_holiday_work_assignments')return {rows:[]};
+ if(name==='get_attendance_field_work')return fieldWork;
+ if(name==='manage_attendance_field_work'){
+  fieldWork=p.p_employee_uuids.map(employee_uuid=>({employee_uuid,site:p.p_site,starts_at:p.p_starts_at,ends_at:p.p_ends_at,field_clock_in:p.p_field_clock_in}));
+  return null;
+ }
  if(name==='get_confirmed_attendance_period')return ledger;
  if(name==='get_today_board_admin_options')return {work_groups:[{id:'fixture-group',name:'가상 작업반'}]};
  if(name==='list_field_work_group_members')return [{employee_uuid:rows[0].employee_uuid,name:rows[0].display_name,member_type:'worker'},{employee_uuid:'fixture-leader',name:'가상 배정 팀장',member_type:'lead'}];
@@ -74,6 +79,21 @@ try{
   await page.evaluate(()=>window.fail=true);await page.getByRole('button',{name:'월간 조회',exact:true}).click();await page.getByText('월간 출근부를 불러오지 못했습니다.',{exact:false}).waitFor();assert.equal(await page.locator('input[type=month]').inputValue(),'2026-10');assert.equal(await page.locator('.attendance-matrix').count(),1);
   await page.evaluate(()=>window.fail=false);
   await page.getByRole('button',{name:'상세·보정 이력',exact:true}).click();await page.getByRole('button',{name:'근태 시간 보정·보정 이력'}).waitFor();
+  await page.getByRole('button',{name:'일별',exact:true}).click();
+  await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance());
+  const field=page.locator('[data-field-work-panel]');
+  await field.getByText('현장근무 지정·확인',{exact:true}).click();
+  await field.getByRole('button',{name:'현장근무 지정',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'현장근무 지정'});
+  await dialog.getByLabel('현장명').fill('가상 환경미화');
+  await dialog.getByLabel('시작 시각').fill('09:00');
+  await dialog.getByLabel('종료 시각').fill('13:00');
+  await dialog.getByLabel('기록 방식').selectOption('out');
+  await dialog.getByText('참여 직원 선택',{exact:true}).click();
+  await dialog.getByRole('checkbox',{name:'가상 정상 직원'}).check();
+  await dialog.getByRole('button',{name:'현장근무 저장'}).click();
+  await field.getByText(/가상 환경미화.*현장 퇴근.*기록 대기/).waitFor();
+  assert.equal(await page.evaluate(()=>calls.findLast(c=>c.name==='manage_attendance_field_work').p.p_field_clock_in),false);
   await page.evaluate(()=>{TaejangApp.can=()=>false;window.calls=[];});
   await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));assert.equal(await page.evaluate(()=>calls.length),0,'unauthorized UI performs no attendance reads');
   await context.close();
