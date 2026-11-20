@@ -28,7 +28,7 @@ function field(parent,label,value,onchange,{type='text',options=null,min=0,max=n
 }
 function section(parent,no,title){const n=el('section','','lg-section');const h=el('h3');h.append(el('span',no,'lg-no'),document.createTextNode(title));n.append(h);parent.append(n);return n;}
 function table(headers,rows){const wrap=el('div','','lg-table-wrap'),t=el('table'),thead=el('thead'),h=el('tr'),body=el('tbody');headers.forEach(x=>h.append(el('th',x)));thead.append(h);rows.forEach(row=>{const tr=el('tr');row.forEach(x=>{const td=el('td');td.append(x instanceof Node?x:document.createTextNode(String(x??'—')));tr.append(td);});body.append(tr);});t.append(thead,body);wrap.append(t);return wrap;}
-async function read(){const generation=epoch,owner=actor();if(!permitted())throw Error('LOGISTICS_FORBIDDEN');const data=await app().rpc('get_logistics_workspace',{p_customer_id:customer||null,p_query:query,p_page:page});if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)throw Error('LOGISTICS_FORBIDDEN');state=data;return data;}
+async function read({selectedCustomer=customer,search=query,pageIndex=page}={}){const generation=epoch,owner=actor();if(!permitted())throw Error('LOGISTICS_FORBIDDEN');const data=await app().rpc('get_logistics_workspace',{p_customer_id:selectedCustomer||null,p_query:search,p_page:pageIndex});if(generation!==epoch||owner!==actor()||!permitted()||!root?.isConnected)throw Error('LOGISTICS_FORBIDDEN');state=data;return data;}
 function persistPending(){if(pending)sessionStorage.setItem(pendingKey(),JSON.stringify(pending));else sessionStorage.removeItem(pendingKey());}
 function applyResult(action,result){
  if(action==='quote.confirm'){confirmed=result.quote;quote=clone(result.quote.snapshot);dirty=false;tab='quote';customer=result.quote.customer_id;}
@@ -55,7 +55,20 @@ async function mutate(action,payload){
 }
 function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
 function newQuote(nextCustomer=customer){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;customer=nextCustomer;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
-async function changeTab(next){if(busy||next===tab)return;if(next!==tab&&tab==='customers'&&!leaveCustomerInputs())return;if(next!==tab&&tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;settingsDirty=false;tab=next;quoteReturn=null;if(next==='customers'){query='';page=0;}if(next==='customers'||next==='history'){try{await read();}catch(e){report(message(e),true);return;}}render();}
+async function changeTab(next){
+ if(busy||next===tab)return;
+ if(tab==='customers'&&!leaveCustomerInputs())return;
+ if(tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;
+ if(next==='customers'||next==='history'){
+  busy=true;
+  try{await read(next==='customers'?{search:'',pageIndex:0}:undefined);}
+  catch(error){report(message(error),true);return;}
+  finally{busy=false;}
+ }
+ if(next==='customers'){query='';page=0;}
+ settingsDirty=false;tab=next;quoteReturn=null;
+ render();report('');
+}
 function render(){if(!permitted()||!root?.isConnected)return;walletDirty=false;tabs.querySelectorAll('button').forEach(b=>{const selected=b.dataset.tab===tab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected));});content.replaceChildren();if(tab==='quote')renderQuote();else if(tab==='customers')renderCustomers();else if(tab==='history')renderHistory();else renderSettings();showRetry();}
 function rowCost(id,value){root.querySelectorAll(`[data-amount="${id}"]`).forEach(node=>node.textContent=value);}
 function totals(){try{const t=confirmed&&quote.calculation?quote.calculation:C.calculate(quote);for(const line of t.lines)rowCost(line.key,money(line.amount));for(const key of ['workSubtotal','storageAmount','subtotal','supply','vat','platform','total'])rowCost(key,money(t[key]));

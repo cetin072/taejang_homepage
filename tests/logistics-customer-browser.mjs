@@ -23,7 +23,16 @@ try{for(const width of [1440,390]){
  const p=await browser.newPage({viewport:{width,height:1000}}),errors=[];let accept=false;
  p.on('pageerror',e=>errors.push(e.message));p.on('dialog',d=>accept?d.accept():d.dismiss());
  await p.route('**/*',route=>{const u=new URL(route.request().url());if(u.origin!=='https://fixture.test')return route.abort();if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});if(!['/staff/assets/staff.css','/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/logistics.css'].includes(u.pathname))return route.abort();return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});});
- await p.goto('https://fixture.test/');await p.getByRole('tab',{name:'고객 관리',exact:true}).click();
+ await p.goto('https://fixture.test/');
+ const customerTab=p.getByRole('tab',{name:'고객 관리',exact:true});
+ await expect(p.getByRole('tab',{name:'견적 작성',exact:true})).toHaveAttribute('aria-selected','true');
+ await p.evaluate(()=>fail=true);
+ await customerTab.click();
+ await expect(p.locator('.lg-status.error')).toBeVisible();
+ await expect(customerTab).toHaveAttribute('aria-selected','false');
+ await p.evaluate(()=>fail=false);
+ await customerTab.click();
+ await expect(customerTab).toHaveAttribute('aria-selected','true');
  const rowA=()=>p.locator('.lg-customer-row').filter({hasText:'변경된 고객 A'}),rowB=()=>p.locator('.lg-customer-row').filter({hasText:'고객 B'});
  await expect(rowA().locator('.lg-low-balance')).toHaveText('충전 안내 필요');
  await expect(rowB().locator('.lg-low-balance')).toHaveCount(0);

@@ -121,7 +121,19 @@ try{
  await click('지급 승인 저장');
  await page.getByRole('status').filter({hasText:'지급을 승인했습니다.'}).waitFor();
  assert.equal(app.db.rpc('erp_sales_get_payouts',{p_sale_id:legacyDraft.id}).commission.pending,1091);
+ await click('상세로 돌아가기');
+ await page.keyboard.press('Escape');
+ await page.locator('dialog.erp-editor-dialog').waitFor({state:'hidden'});
  await page.getByRole('tab',{name:'지급 대기',exact:true}).click();await idle();
+ await page.getByRole('heading',{name:'공급처 월 지급',exact:true}).waitFor();
+ const failMonthly=route=>route.request().postDataJSON().name==='erp_sales_list_monthly_supplier_payments'
+  ?route.fulfill({status:503,json:{message:'Synthetic monthly summary failure'}}):route.fallback();
+ await page.route('**/fixture-rpc',failMonthly);
+ await click('지급 대기 조회');
+ await page.getByText('공급처 월 지급 요약을 불러오지 못했습니다.',{exact:false}).waitFor();
+ await page.getByRole('row').filter({hasText:'지급 대기'}).getByRole('button',{name:'상세',exact:true}).waitFor();
+ await page.unroute('**/fixture-rpc',failMonthly);
+ await click('지급 대기 조회');
  await page.getByRole('heading',{name:'공급처 월 지급',exact:true}).waitFor();
  const batchRow=page.getByRole('row').filter({hasText:'15,000원'}).filter({hasText:'지급 예정'}).first();
  assert.match(await batchRow.innerText(),/Synthetic Supplier/);
