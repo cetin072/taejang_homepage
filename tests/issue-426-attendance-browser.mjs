@@ -82,7 +82,7 @@ try{
   await page.getByRole('button',{name:'일별',exact:true}).click();
   await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance());
   const field=page.locator('[data-field-work-panel]');
-  await field.locator('summary').click();
+  await field.getByText('현장근무 지정·확인',{exact:true}).click();
   await field.getByRole('button',{name:'현장근무 지정',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'현장근무 지정'});
   await dialog.getByLabel('현장명').fill('가상 환경미화');

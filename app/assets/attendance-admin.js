@@ -119,12 +119,14 @@
       .attendance-holiday-work h3 { margin:0; }
       .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
       .attendance-holiday-work-list { display:grid; gap:8px; }
-      .attendance-field-dialog { width:min(580px,calc(100vw - 28px)); max-height:90dvh; padding:20px; border:0; border-radius:16px; }
+      .attendance-field-dialog { box-sizing:border-box; width:min(580px,calc(100vw - 28px)); max-height:90dvh; padding:20px; border:0; border-radius:16px; }
       .attendance-field-dialog::backdrop { background:rgba(15,23,42,.48); }
       .attendance-field-dialog h2 { margin:0 0 12px; }
       .attendance-field-dialog label { display:flex; flex-direction:column; gap:5px; }
       .attendance-field-dialog label:has(input[type="checkbox"]) { flex-direction:row; align-items:center; gap:8px; }
-      .attendance-field-dialog .attendance-ledger-controls select { max-width:100%; }
+      .attendance-field-dialog .attendance-ledger-controls :is(input,select) { width:100%; min-width:0; }
+      .attendance-field-dialog .attendance-ledger-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .attendance-field-dialog .attendance-ledger-controls label:last-of-type { grid-column:1/-1; align-items:stretch; }
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
