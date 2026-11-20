@@ -36,7 +36,7 @@ export function leaveError(error: unknown) {
     LEAVE_MODIFICATION_LIMIT:'추가 수정은 관리자에게 문의해주세요.',
     LEAVE_MONTHLY_AMEND_LIMIT:'이번 달 수정 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.',
     LEAVE_MONTHLY_CANCEL_LIMIT:'이번 달 취소 요청 2회를 모두 사용했습니다. 관리자에게 문의해주세요.',
-    LEAVE_THREE_DAYS_REQUIRED:'연차는 사용일 최소 3일 전에 신청할 수 있습니다.',
+    LEAVE_THREE_DAYS_REQUIRED:'연차는 사용일 3영업일 전까지 신청할 수 있습니다.',
     INSUFFICIENT_LEAVE:'남은 연차가 부족합니다. 신청 대기 내역도 확인해주세요.',
     LEAVE_ALREADY_STARTED:'사용일이 된 연차는 변경할 수 없습니다. 관리자에게 문의해주세요.',
     LEAVE_CHANGE_PENDING:'이미 취소·수정 요청을 보냈습니다. 관리자 처리를 기다려주세요.',

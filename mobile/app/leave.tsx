@@ -27,7 +27,7 @@ export default function LeaveScreen(){
  useEffect(()=>{if(request.current&&context?.requests.some(r=>r.id===request.current?.id)){request.current=null;setDays([]);setDate('');setStage('overview');}},[context]);
  const press=(text:string,run:()=>void,disabled=false,kind:'primary'|'secondary'|'quiet'='secondary')=><Pressable key={text} accessibilityRole="button" disabled={disabled} onPress={run} style={[styles.button,kind==='primary'?styles.primary:kind==='quiet'?styles.quiet:null,kind==='primary'&&period==='many'&&!editing?styles.manyPrimary:null,disabled?styles.disabled:null]}><Text style={[styles.buttonText,kind==='primary'?styles.primaryText:null]}>{text}</Text></Pressable>;
  async function submit(){if(preview){Alert.alert('화면 체험','실제 신청은 GPS·서버 검수 모드에서 가능합니다.');return;}if(!client||locked.current||!context)return;const payload=request.current?JSON.parse(request.current.payload) as {date:string;portion:LeavePortion}[]:period==='many'?days:[{date,portion}];
-  if(!request.current&&(period==='many'&&payload.length<2||!payload.length||payload.some(d=>!d.date||d.date<context.earliest_date))){Alert.alert('신청 기한','연차는 사용일 최소 3일 전에 신청할 수 있습니다.');return;}
+  if(!request.current&&(period==='many'&&payload.length<2||!payload.length||payload.some(d=>!d.date||d.date<context.earliest_date))){Alert.alert('신청 기한','연차는 사용일 3영업일 전까지 신청할 수 있습니다.');return;}
   const json=JSON.stringify(payload);if(request.current&&request.current.payload!==json){Alert.alert('신청 확인','이전 전송 결과를 새로고침해 확인한 후 다시 신청해주세요.');return;}
   request.current??={id:Crypto.randomUUID(),payload:json};locked.current=true;setBusy(true);
   try{await submitMyLeave(client,request.current.id,payload);request.current=null;setDays([]);setDate('');setStage('overview');Alert.alert('접수 완료','관리자 승인 후 연차가 반영됩니다.');await reload();}catch(e){if(/^(P0|22|23)/.test(String((e as {code?:string})?.code||'')))request.current=null;setStage('form');Alert.alert('연차 신청',leaveError(e));}finally{locked.current=false;setBusy(false);}
@@ -40,7 +40,7 @@ export default function LeaveScreen(){
  }
  async function sendChange(){
   if(preview)return;if(!client||locked.current||!editing||!context)return;
-  if(!changeRequest.current&&editing.action==='amend'&&(!date||date<context.earliest_date)){Alert.alert('신청 기한','연차는 사용일 최소 3일 전에 신청할 수 있습니다.');return;}
+  if(!changeRequest.current&&editing.action==='amend'&&(!date||date<context.earliest_date)){Alert.alert('신청 기한','연차는 사용일 3영업일 전까지 신청할 수 있습니다.');return;}
   const payload=changeRequest.current?JSON.parse(changeRequest.current.payload):{requestId:editing.original.id,status:editing.original.status,action:editing.action,date:editing.action==='amend'?date:null,portion:editing.action==='amend'?portion:null};
   changeRequest.current??={id:Crypto.randomUUID(),payload:JSON.stringify(payload)};locked.current=true;setBusy(true);
   try{
@@ -61,7 +61,7 @@ export default function LeaveScreen(){
  }
  function confirmSubmission(){
   if(!context)return;const payload=period==='many'?days:[{date,portion}];
-  if(!request.current&&(period==='many'&&payload.length<2||!payload.length||payload.some(d=>!d.date||d.date<context.earliest_date))){Alert.alert('날짜 선택','사용일 3일 전까지 신청할 수 있어요.');return;}
+  if(!request.current&&(period==='many'&&payload.length<2||!payload.length||payload.some(d=>!d.date||d.date<context.earliest_date))){Alert.alert('날짜 선택','사용일 3영업일 전까지 신청할 수 있어요.');return;}
   if(request.current){void submit();return;}
   setStage('confirm');
  }
@@ -114,7 +114,7 @@ export default function LeaveScreen(){
    {editing?.action!=='cancel'?<Text style={styles.label}>{period==='many'?'쉬는 날짜를 하나씩 선택해주세요':'언제 쉬실 건가요?'}</Text>:null}
    {editing?.action!=='cancel'?press(period==='many'&&!editing?'＋ 날짜 선택':date||'달력에서 날짜 선택',()=>setPicker(true),busy||uncertain||!context.configured||(period==='many'&&days.length>=31)):null}
    {picker?<DateTimePicker value={cursor>=min?cursor:min} mode="date" display="calendar" minimumDate={min} onChange={(_event,value)=>{setPicker(false);if(_event.type!=='dismissed'&&value){const picked=`${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;if(period==='many'&&!editing){if(days.length>=31)Alert.alert('날짜 선택','한 번에 최대 31일을 선택할 수 있어요.');else if(!days.some(d=>d.date===picked))setDays([...days,{date:picked,portion}].sort((a,b)=>a.date.localeCompare(b.date)));else Alert.alert('이미 선택한 날짜','다른 날짜를 선택해주세요.');}else setDate(picked);}}}/>:null}
-   {editing?.action!=='cancel'?<Text style={styles.hint}>사용일 3일 전까지 신청할 수 있어요.</Text>:null}
+   {editing?.action!=='cancel'?<Text style={styles.hint}>사용일 3영업일 전까지 신청할 수 있어요.</Text>:null}
    {!editing&&chosenCount>0?<View style={[styles.selectedDays,period==='many'?styles.manyDays:null]}>
     <Text style={[styles.selectedCount,period==='many'?styles.manyText:null]}>{period==='one'?'하루 신청 · 1일':`여러 날 신청 · 총 ${chosenCount}일`}</Text>
     <Text style={styles.hint}>사용 연차 {chosenUnits}개</Text>

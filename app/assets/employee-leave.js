@@ -3,9 +3,9 @@
   const el = (tag, text, cls) => { const n = document.createElement(tag); if (text != null) n.textContent = text; if (cls) n.className = cls; return n; };
   const rpc = (name, args = {}) => window.TaejangApp.rpc(name, args);
   const labels = { pending:'승인 대기', approved:'승인', rejected:'반려', cancelled:'취소', full:'종일', first_half:'앞 반차', second_half:'뒤 반차' };
-  const messages = { LEAVE_THREE_DAYS_REQUIRED:'사용일 최소 3일 전 날짜를 선택해주세요.', REQUEST_ID_CONFLICT:'이전 요청 결과를 먼저 새로고침해 확인해주세요.', LEAVE_ALREADY_INITIALIZED:'이미 연차가 등록된 직원입니다. 새로고침 후 확인해주세요. 개수 변경은 운영총괄에게 요청해주세요.', ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', PROTECTED_EMPLOYEE_REVIEW_REQUIRED:'본인보다 하위 직급의 연차만 처리할 수 있습니다. 운영총괄에게 요청해주세요.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
+  const messages = { LEAVE_THREE_DAYS_REQUIRED:'오늘로부터 3영업일 뒤부터 선택할 수 있습니다.', REQUEST_ID_CONFLICT:'이전 요청 결과를 먼저 새로고침해 확인해주세요.', LEAVE_ALREADY_INITIALIZED:'이미 연차가 등록된 직원입니다. 새로고침 후 확인해주세요. 개수 변경은 운영총괄에게 요청해주세요.', ROSTER_METADATA_REQUIRED:'직원 재직·직급 정보의 서버 업데이트가 필요합니다. 직원 목록을 불러올 수 없습니다.', WORK_TERMS_ATTENDANCE_CONFLICT:'선택한 적용일에는 이미 출근 기록이 있습니다. 기존 기록은 유지됩니다. 출근 기록이 없는 다음 날짜를 달력에서 선택해주세요.', FUTURE_OR_TODAY_REQUIRED:'지난 날짜에는 적용할 수 없습니다. 오늘 이후 날짜를 달력에서 선택해주세요.', TIME_REQUIRED:'출근·퇴근 시각을 선택해주세요.', INVALID_WORK_TIME:'퇴근 시각은 출근 시각보다 늦어야 합니다. 24시간 기준으로 확인해주세요.', INVALID_BREAK_TIME:'휴게 시작·종료를 근무시간 안에서 순서대로 선택해주세요.', WEEKDAYS_REQUIRED:'근무요일을 선택해주세요.', DATE_REQUIRED:'날짜를 달력에서 선택해주세요.', LOCATION_REQUIRED:'사용할 근무장소를 선택해주세요.', FORBIDDEN:'현재 권한으로 처리할 수 없습니다.', LEAVE_ALREADY_STARTED:'사용일이 된 연차는 이 화면에서 변경할 수 없습니다. 관리자에게 문의해주세요.', LEAVE_CHANGE_PENDING:'취소·수정 요청을 먼저 처리해주세요.', LEAVE_NOT_ACTIVE:'이미 취소되거나 처리된 연차입니다.', SELF_APPROVAL_FORBIDDEN:'본인의 연차는 직접 승인할 수 없습니다.', PROTECTED_EMPLOYEE_REVIEW_REQUIRED:'본인보다 하위 직급의 연차만 처리할 수 있습니다. 운영총괄에게 요청해주세요.', DAY_CONFIRMED_REOPEN_REQUIRED:'확정된 근태입니다. 먼저 확정 재개방이 필요합니다.', LEAVE_SCHEDULE_CONFLICT:'신청된 연차와 겹칩니다. 신청 처리 후 다시 설정해주세요.', APPEND_NEW_EFFECTIVE_DATE_REQUIRED:'기존 적용일보다 뒤의 새 적용일을 입력해주세요.', ATTENDANCE_CONFLICT:'기존 근태와 충돌합니다. 원본을 확인해주세요.', BASELINE_MUST_BE_TODAY:'최초 잔여는 오늘 기준으로 확인해 입력해주세요.', INSUFFICIENT_LEAVE:'신청 예약분을 제외한 잔여가 부족합니다.' };
   Object.assign(messages,{
-    URGENT_LEAVE_DATE_REQUIRED:'오늘부터 이틀 뒤까지의 날짜만 대리 등록할 수 있습니다.',
+    URGENT_LEAVE_DATE_REQUIRED:'직원 앱에서 신청할 수 있는 가장 빠른 날짜 전까지만 대리 등록할 수 있습니다.',
     LEAVE_NOT_CONFIGURED:'직원별 연차 등록·현황에서 해당 직원의 최초 연차를 등록해주세요.',
     NOT_SCHEDULED_WORKDAY:'해당 직원의 근무일을 선택해주세요.',
     EMPLOYEE_NOT_ACTIVE:'근무 중인 직원을 선택해주세요.',
@@ -103,16 +103,19 @@
       const ledger=el('details');ledger.append(el('summary','연차 발생·사용·조정 이력'));ctx.ledger.forEach(l=>ledger.append(el('p',`${l.created_at.slice(0,10)} · ${l.note} · ${l.delta>0?'+':''}${l.delta}개`)));host.append(ledger);
     }catch(e){if(host.isConnected)host.replaceChildren(el('p',errorText(e),'message'),button('다시 불러오기',()=>populate(host,employeeId,leaveOnly)));}
   }
+  const dateAtOffset=(date,offset)=>new Date(Date.parse(date+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10);
+  const leaveEarliestDate=ctx=>ctx.earliest_date??dateAtOffset(ctx.server_today,3);
   function renderUrgentLeave(host,ctx,employees,onSaved){
     const section=el('section',null,'employee-profile-section');
     section.append(el('h3','연차 대리 등록'),
-      el('p','오늘부터 이틀 뒤까지의 종일 연차를 승인합니다. 잔여 연차 1개가 차감됩니다.'));
+      el('p','직원 앱의 신청 기한이 지난 종일 연차를 등록하고 승인합니다. 잔여 연차 1개가 차감됩니다.'));
     const form=el('form',null,'employee-form app-authoring');
     const employee=rosterSelect(form,'대리 등록 직원',employees.filter(e=>e.employment_status==='active'),ctx.positions,'직원을 선택해주세요','');
-    const dates=['오늘','내일','모레'].map((label,offset)=>{
-      const day=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+offset*86400000).toISOString().slice(0,10);
-      return [day,`${day} (${label})`];
-    });
+    const dates=[], earliest=leaveEarliestDate(ctx);
+    for(let offset=0,day=ctx.server_today;day<earliest;day=dateAtOffset(ctx.server_today,++offset)){
+      const label=['오늘','내일','모레'][offset];
+      dates.push([day,label?`${day} (${label})`:day]);
+    }
     const date=select(form,'연차 사용일',[['','사용일을 선택해주세요'],...dates],'');
     employee.required=date.required=true;
     const note=field(form,'대리 등록 사유','text');
@@ -159,7 +162,7 @@
         if(ctx.can_review&&r.status==='approved'&&r.work_date>ctx.server_today&&!changes.some(c=>c.request_id===r.id&&c.status==='pending')){
           const details=el('details');details.append(el('summary','관리자 직접 변경'));
           const f=el('form',null,'employee-form app-authoring'),action=select(f,'관리자 처리',[['amend','날짜 변경'],['cancel','연차 취소']]);
-          const date=dateField(f,'새 연차 날짜','',false);date.min=new Date(Date.parse(ctx.server_today+'T12:00:00Z')+3*86400000).toISOString().slice(0,10);
+          const date=dateField(f,'새 연차 날짜','',false);date.min=leaveEarliestDate(ctx);
           const note=field(f,'관리자 변경 사유','text');note.minLength=2;
           const sync=()=>{date.parentNode.hidden=action.value==='cancel';};action.addEventListener('change',sync);sync();
           const id=crypto.randomUUID();let payload=null;

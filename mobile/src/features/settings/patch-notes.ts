@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-20-leave-business-days', date: '2026-11-20',
+    title: '연차 신청 기한을 영업일로 계산',
+    summary: '토요일·일요일과 근태 달력에 등록된 공휴일·전사 휴무일을 빼고 계산합니다.',
+    items: ['연차 신청과 날짜 변경은 사용일 3영업일 전까지 할 수 있습니다.', '기한이 지난 경우 관리자에게 연차 대리 등록을 요청할 수 있습니다.'],
+  },
+  {
     id: '2026-11-20-field-attendance', date: '2026-11-20',
     title: '현장에서 출퇴근 기록',
     summary: '현장근무로 지정된 날에는 기존 출근·퇴근 버튼으로 현장 기록을 남길 수 있습니다.',

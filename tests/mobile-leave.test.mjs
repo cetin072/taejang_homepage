@@ -15,10 +15,10 @@ test('submit and cancellation require server acknowledgement, never optimistic b
  assert.equal(calls[0][0],'submit_my_leave_request');assert.equal(calls[0][1].p_days[0].portion,'first_half');assert.equal(calls[1][0],'cancel_my_leave_request');
  await assert.rejects(()=>a.submitMyLeave({rpc:async()=>({error:new Error('LEAVE_THREE_DAYS_REQUIRED')})},'id',[]),/THREE_DAYS/);
 });
-test('safe errors explain deadlines and insufficient balances',()=>{const a=api();assert.match(a.leaveError(new Error('LEAVE_THREE_DAYS_REQUIRED')),/3일/);assert.match(a.leaveError(new Error('INSUFFICIENT_LEAVE')),/부족/);});
+test('safe errors explain deadlines and insufficient balances',()=>{const a=api();assert.match(a.leaveError(new Error('LEAVE_THREE_DAYS_REQUIRED')),/3영업일/);assert.match(a.leaveError(new Error('INSUFFICIENT_LEAVE')),/부족/);});
 test('uncertain form submission replays the same ID/payload across a server-date change',async()=>{
  const states=[],refs=[],alerts=[],calls=[];let si=0,ri=0,fail=true;
- const context={configured:true,remaining:3,server_today:'2026-11-01',earliest_date:'2026-11-04',requests:[]};
+ const context={configured:true,remaining:3,server_today:'2026-11-20',earliest_date:'2026-11-25',requests:[]};
  const client={rpc:async(name,args)=>{calls.push({name,args});return fail?{error:{message:'network outcome unknown'}}:{data:{ok:true}};}};
  const jsx=(type,props)=>({type,props});const native=Object.fromEntries(['ActivityIndicator','Pressable','ScrollView','Text','View'].map(n=>[n,n]));native.Alert={alert:(...args)=>alerts.push(args)};native.StyleSheet={create:x=>x};native.BackHandler={addEventListener:()=>({remove:()=>{}})};
  const react={useState:initial=>{const i=si++;if(!(i in states))states[i]=initial;return[states[i],v=>{states[i]=v;}];},useRef:initial=>{const i=ri++;return refs[i]??=( {current:initial});},useEffect:()=>{}};
@@ -33,9 +33,13 @@ test('uncertain form submission replays the same ID/payload across a server-date
  }});
  const flatten=n=>n==null||n===false?[]:Array.isArray(n)?n.flatMap(flatten):typeof n==='object'?[n,...flatten(n.props?.children)]:[n];
  const render=()=>{si=0;ri=0;return flatten(exports.default());};const text=n=>flatten(n).filter(x=>typeof x==='string'||typeof x==='number').join('');
- let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기').props.onPress();states[0]='2026-11-04';nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='네, 신청할게요').props.onPress();await new Promise(setImmediate);
- assert.equal(calls.length,1);nodes=render();assert.equal(nodes.find(n=>n?.type==='Pressable'&&text(n)==='2026-11-04').props.disabled,true,'unknown result freezes editing but preserves input');
- context.earliest_date='2026-11-05';fail=false;nodes.find(n=>n?.type==='Pressable'&&text(n)==='같은 신청 다시 보내기').props.onPress();await new Promise(setImmediate);
+ let nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='연차 신청하기').props.onPress();for(const tooSoon of ['2026-11-23','2026-11-24']){
+  states[0]=tooSoon;nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();
+  assert.match(alerts.at(-1)[1],/3영업일/);assert.equal(calls.length,0);
+ }
+ states[0]='2026-11-25';nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='하루 신청 확인').props.onPress();nodes=render();nodes.find(n=>n?.type==='Pressable'&&text(n)==='네, 신청할게요').props.onPress();await new Promise(setImmediate);
+ assert.equal(calls.length,1);nodes=render();assert.equal(nodes.find(n=>n?.type==='Pressable'&&text(n)==='2026-11-25').props.disabled,true,'unknown result freezes editing but preserves input');
+ context.earliest_date='2026-11-26';fail=false;nodes.find(n=>n?.type==='Pressable'&&text(n)==='같은 신청 다시 보내기').props.onPress();await new Promise(setImmediate);
  assert.equal(calls.length,2,'same-ID replay reaches server despite changed local deadline');assert.equal(calls[0].args.p_id,calls[1].args.p_id);assert.equal(JSON.stringify(calls[0].args.p_days),JSON.stringify(calls[1].args.p_days));
  assert.ok(alerts.some(a=>a[0]==='접수 완료'));assert.equal(states[0],'');
 });

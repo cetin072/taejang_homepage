@@ -59,8 +59,10 @@ let mine=await rpc('get_my_leave_context',worker);check(mine.ok,'app reads share
 check(!(await rpc('get_my_leave_context',outsider)).ok,'unlinked account cannot impersonate employee');
 check(!(await rpc('get_employee_leave_admin_context',worker)).ok,'worker cannot read all staff leave');
 check(!(await rpc('get_my_leave_context',null)).ok,'anonymous blocked');
+const firstEligible=(await rpc('get_my_leave_context',worker)).data.earliest_date;
+const firstEligibleOffset=Math.round((Date.parse(firstEligible)-Date.parse(today))/86400000);
 const early=await rpc('submit_my_leave_request',worker,{p_id:crypto.randomUUID(),p_days:[{date:add(2),portion:'full'}]});check(!early.ok&&String(early.data.message).includes('LEAVE_THREE_DAYS_REQUIRED'),'server rejects +2 days');
-const d=add(3),d2=add(4),d3=add(5),d4=add(6),d5=add(7);const calendarDays=[d,d2,d3,d4,d5].map(x=>`'${x}'`).join(',');const oldOverrides=db(`select coalesce(json_agg(c),'[]') from public.attendance_calendar_overrides c where work_date in (${calendarDays})`);
+const [d,d2,d3,d4,d5]=Array.from({length:5},(_,i)=>add(firstEligibleOffset+i));const calendarDays=[d,d2,d3,d4,d5].map(x=>`'${x}'`).join(',');const oldOverrides=db(`select coalesce(json_agg(c),'[]') from public.attendance_calendar_overrides c where work_date in (${calendarDays})`);
 db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values ${[d,d2,d3,d4,d5].map(x=>`('${x}',true,'Synthetic leave test')`).join(',')} on conflict(work_date) do update set is_workday=true;`);
 // Operations may review their own leave; a lead keeps the self-review guard.
 for (const [actor,tag] of [[ops,'ops'],[lead,'lead']]) {
@@ -110,11 +112,11 @@ for(const blockedPosition of [leadPosition,opsPosition]) {
 db(`update public.employees set position_id='${pos}' where id='${employee}'`);
 check((await rpc('cancel_my_leave_request',worker,{p_request_id:boundaryRequest})).ok,'boundary fixture preserves pending request for cancellation');
 const id=crypto.randomUUID(),payload=[{date:d,portion:'first_half'}];
-check((await rpc('submit_my_leave_request',worker,{p_id:id,p_days:payload})).ok,'+3 calendar days accepted');
+check((await rpc('submit_my_leave_request',worker,{p_id:id,p_days:payload})).ok,'first eligible business date accepted');
 equal((await rpc('get_my_leave_context',worker)).data.remaining,6.5,'pending request reserves 0.5');
 check((await rpc('submit_my_leave_request',worker,{p_id:id,p_days:payload})).ok,'identical retry idempotent');
 check(!(await rpc('submit_my_leave_request',worker,{p_id:id,p_days:[{date:d2,portion:'full'}]})).ok,'same ID cannot submit changed payload');
-let admin=await rpc('get_employee_leave_admin_context',lead,{p_employee_uuid:employee});check(admin.ok,'operations lead sees same request queue');equal(admin.data.requests.find(r=>r.id===id).units,.5,'same request and units on web');
+let admin=await rpc('get_employee_leave_admin_context',lead,{p_employee_uuid:employee});check(admin.ok,'operations lead sees same request queue');equal(admin.data.earliest_date,firstEligible,'admin and employee share the same cutoff');equal(admin.data.requests.find(r=>r.id===id).units,.5,'same request and units on web');
 check(!(await rpc('review_employee_leave',worker,{p_request_id:id,p_decision:'approved',p_note:'Unauthorized'})).ok,'worker cannot approve');
 check((await rpc('review_employee_leave',lead,{p_request_id:id,p_decision:'approved',p_note:'Synthetic approved'})).ok,'operations lead approves through narrow server permission');
 check((await rpc('review_employee_leave',lead,{p_request_id:id,p_decision:'approved',p_note:'Repeated approval'})).ok,'repeated approval does not double charge');
@@ -145,7 +147,7 @@ const repeatedId=crypto.randomUUID(),repeatPayload={p_id:repeatedId,p_days:[{dat
 const repeated=await Promise.all([rpc('submit_my_leave_request',worker,repeatPayload),rpc('submit_my_leave_request',worker,repeatPayload)]);
 check(repeated.every(r=>r.ok),'simultaneous identical retry returns one accepted request');
 equal((await rpc('get_my_leave_context',worker)).data.remaining,0,'identical retry does not reserve twice');await rpc('cancel_my_leave_request',worker,{p_request_id:repeatedId});
-const overrideDay=add(8);const override=await rpc('save_employee_work_override',ops,{p_employee_uuid:employee,p_values:{effective_from:overrideDay,starts_at:'10:00',ends_at:'13:00',location_id:location,reason:'Synthetic date override'}});check(override.ok,'date-specific work time RPC saves');
+const overrideDay=add(firstEligibleOffset+5);const override=await rpc('save_employee_work_override',ops,{p_employee_uuid:employee,p_values:{effective_from:overrideDay,starts_at:'10:00',ends_at:'13:00',location_id:location,reason:'Synthetic date override'}});check(override.ok,'date-specific work time RPC saves');
 equal(JSON.parse(db(`select public.private_employee_schedule('${employee}','${overrideDay}')`)).scheduled_minutes,180,'date exception shared projection uses 3 hours');
 check((await rpc('revoke_employee_work_override',ops,{p_id:override.data.id,p_reason:'Synthetic override revoke'})).ok,'date exception revoke keeps history');
 for(const table of ['employee_leave_accounts','employee_work_terms','employee_leave_requests','employee_leave_ledger']){
@@ -183,7 +185,7 @@ check(true,'real clock-in/out reminder boundary and exclusion checks pass');
 
 // Approved future leave appears immediately and changes remain manager-reviewed.
 check(!(await rpc('get_management_attention_cards',worker)).ok,'worker cannot read manager attention list');
-const futureDays=[10,11,12,13].map(add);for(const date of futureDays)db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${date}',true,'Leave change fixture') on conflict(work_date) do update set is_workday=true;`);
+const futureDays=[7,8,9,10].map(offset=>add(firstEligibleOffset+offset));for(const date of futureDays)db(`insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${date}',true,'Leave change fixture') on conflict(work_date) do update set is_workday=true;`);
 db(`update public.employee_leave_accounts set initial_remaining=20 where employee_uuid='${employee}';`);
 const [f1,f2,f3,f4]=futureDays;const baseId=crypto.randomUUID();
 check((await rpc('submit_my_leave_request',worker,{p_id:baseId,p_days:[{date:f1,portion:'full'}]})).ok,'app submits future full leave');
@@ -309,9 +311,10 @@ const urgentId=crypto.randomUUID();
 const urgentArgs={p_id:urgentId,p_employee_uuid:employee,p_work_date:urgentDay,p_note:'Synthetic short notice'};
 const register=(actor,args=urgentArgs)=>rpc('admin_register_urgent_employee_leave',actor,args);
 for(const actor of [worker,null])check(!(await register(actor)).ok,'only leave managers may register on behalf');
-for(const day of [add(-1),add(3)]){
+const firstSelfServiceDay=(await rpc('get_my_leave_context',worker)).data.earliest_date;
+for(const day of [add(-1),firstSelfServiceDay]){
  const denied=await register(ops,{...urgentArgs,p_work_date:day});
- check(!denied.ok&&denied.data.message==='URGENT_LEAVE_DATE_REQUIRED','admin cannot register outside today through +2');
+ check(!denied.ok&&denied.data.message==='URGENT_LEAVE_DATE_REQUIRED','admin cannot register a past day or a day open to employee self-service');
 }
 const retiredUrgent=await register(ops,{...urgentArgs,p_employee_uuid:retiredEmployee});
 check(!retiredUrgent.ok&&retiredUrgent.data.message==='EMPLOYEE_NOT_ACTIVE','departed employee denied');

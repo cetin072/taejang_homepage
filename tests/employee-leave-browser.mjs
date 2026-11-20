@@ -162,7 +162,12 @@ for(const width of [320,390,786,1440]){
  assert.equal(await page.locator('#lead-work-qa').getByRole('button',{name:'최초 연차 등록',exact:true}).count(),0);
  await page.evaluate(()=>{window.fixtureLeaveContext.can_review=false;return window.TaejangEmployeeLeave.open();});
  assert.equal(await page.getByText('연차 대리 등록',{exact:true}).count(),0,'registration follows review capability');
- await page.evaluate(()=>{window.fixtureLeaveContext.can_review=true;return window.TaejangEmployeeLeave.open();});
+ await page.evaluate(()=>{
+  window.fixtureLeaveContext.can_review=true;
+  window.fixtureLeaveContext.server_today='2026-11-20';
+  window.fixtureLeaveContext.earliest_date='2026-11-25';
+  return window.TaejangEmployeeLeave.open();
+ });
  const leaveNav=page.getByRole('navigation',{name:'연차 관리 화면'});
  assert.deepEqual(await leaveNav.getByRole('button').allTextContents(),['신청·승인','취소·수정 이력','직원별 연차 등록·현황','연차 대리 등록']);
  assert.equal(await page.getByLabel('대리 등록 직원',{exact:true}).count(),0,'registration form has its own tab');
@@ -175,15 +180,15 @@ for(const width of [320,390,786,1440]){
  const proxyEmployee=page.getByLabel('대리 등록 직원',{exact:true});
  assert.equal(await proxyEmployee.locator('option[value=retired]').count(),0);
  const proxyDate=page.getByLabel('연차 사용일',{exact:true});
- assert.deepEqual(await proxyDate.locator('option').evaluateAll(options=>options.map(option=>option.value)),['','2026-11-01','2026-11-02','2026-11-03']);
+ assert.deepEqual(await proxyDate.locator('option').evaluateAll(options=>options.map(option=>option.value)),['','2026-11-20','2026-11-21','2026-11-22','2026-11-23','2026-11-24']);
  await proxyEmployee.selectOption('employee');
- await proxyDate.selectOption('2026-11-03');
+ await proxyDate.selectOption('2026-11-23');
  await page.getByLabel('대리 등록 사유',{exact:true}).fill('직원 요청 확인');
  await page.evaluate(()=>{window.failNext=true;});
  const proxySubmit=page.getByRole('button',{name:'연차 등록 및 승인',exact:true});
  await proxySubmit.click();
  await page.getByText('저장하지 못했습니다.',{exact:false}).waitFor();
- assert.equal(await proxyDate.inputValue(),'2026-11-03');
+ assert.equal(await proxyDate.inputValue(),'2026-11-23');
  await proxySubmit.click();
  await page.getByText('연차 대리 등록을 저장했습니다.',{exact:true}).waitFor();
  await page.getByText('대리 등록 사유: 직원 요청 확인',{exact:true}).waitFor();
