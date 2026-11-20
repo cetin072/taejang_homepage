@@ -862,13 +862,10 @@
  async function drawPayoutQueue(){
   const yesterday=new Date(today()+'T00:00:00Z');
   yesterday.setUTCDate(yesterday.getUTCDate()-1);
-  const [list,monthly]=await Promise.all([
-   rpc('erp_sales_list_pending_payouts',{
-    p_kind:payoutFilters.kind||null,
-    p_due_to:payoutFilters.overdue?yesterday.toISOString().slice(0,10):null
-   }),
-   settlementAutomation&&payoutFilters.kind!=='commission'?rpc('erp_sales_list_monthly_supplier_payments'):null
-  ]);
+  const list=await rpc('erp_sales_list_pending_payouts',{
+   p_kind:payoutFilters.kind||null,
+   p_due_to:payoutFilters.overdue?yesterday.toISOString().slice(0,10):null
+  });
   if(tab!=='payouts')return;
   const form=el('form','','app-authoring');
   const grid=el('div','','erp-fields');
@@ -885,24 +882,33 @@
    void run(async()=>{await drawPayoutQueue();report('');});
   });
   body.replaceChildren(form);
-  if(monthly)body.append(monthlySupplierPayments(monthly));
   const count=list.total>list.limit?' ('+list.limit+'건 표시)':'';
   body.append(el('p','지급 대기 '+list.total+'건 · 실제 지급 예정 합계 '+
    BigInt(list.total_cash).toLocaleString('ko-KR')+'원'+count,'erp-total'),
    el('p','승인 후 지급 결과가 기록되지 않은 건입니다. 상세에서 지급 완료 또는 미지급 승인 취소를 기록합니다.','help'));
-  if(productAutomation)await drawAccruals(true);
   if(!list.items.length){
    body.append(el('p','조회 조건에 맞는 지급 대기 건이 없습니다.','message'));
-   return;
-  }
-  const asOf=today();
-  body.append(table(['구분','지급 대상','거래처','목표일','승인액','상계액','실제 지급 예정액','상태',''],
+  }else{
+   const asOf=today();
+   body.append(table(['구분','지급 대상','거래처','목표일','승인액','상계액','실제 지급 예정액','상태',''],
    list.items.map(row=>[
     row.kind==='commission'?'영업비':'공급처 지급',row.payee_name,row.party_name,
     row.due_on+(row.due_on<asOf?' · 기한 지남':row.due_on===asOf?' · 오늘 지급':''),money(row.amount),money(row.offset_amount),
     money(row.cash_amount),row.cancelled_sale?'거래 취소 승인 · 확인 필요':'지급 대기',
     btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:row.sale_id}))))
    ])));
+  }
+  async function optionalSection(label,load){
+   try{await load();}
+   catch{body.append(el('p',label+'을 불러오지 못했습니다. 지급 대기 조회로 다시 시도할 수 있습니다.','message error'));}
+  }
+  await Promise.all([
+   settlementAutomation&&payoutFilters.kind!=='commission'&&optionalSection('공급처 월 지급 요약',async()=>{
+    const monthly=await rpc('erp_sales_list_monthly_supplier_payments');
+    body.append(monthlySupplierPayments(monthly));
+   }),
+   productAutomation&&optionalSection('판매 연결 매입·지급 예정 내역',()=>drawAccruals(true))
+  ]);
  }
  function monthlySupplierPayments(summary){
   const section=el('section','','app-form-section');
@@ -1365,18 +1371,23 @@
  function draw(){if(!body)return;body.replaceChildren();if(tab==='parties')drawMasters();else if(tab==='items')drawItems();else if(tab==='contracts')drawContracts();else if(tab==='sales')void run(drawSales);else if(tab==='receivables')void run(drawReceivables);else if(tab==='payouts')void run(drawPayoutQueue);else if(tab==='adjustments')void run(drawAdjustmentQueue);else if(tab==='purchases')void run(drawPurchases);else if(tab==='stock')void run(drawStock);else void run(drawMonthClose);}
  async function open(){if(!allowed())return;payoutBack=null;const generation=++epoch;const main=document.getElementById('dashboard-main');if(!main)return;root=el('section','','erp-sales');status=el('p','불러오는 중입니다.','message');status.setAttribute('role','status');status.tabIndex=-1;root.append(el('h2','기준정보·매출 관리'),status);main.replaceChildren(root);
   try{
+   const failedChecks=[];
+   const readyCheck=(rpcName,label)=>rpc(rpcName).catch(error=>{
+    if(!/PGRST202|does not exist|Could not find the function/.test(String(error?.code)+' '+String(error?.message)))failedChecks.push(label);
+    return false;
+   });
    const [bootstrap,ready,purchasingReady,adjustmentsReady,queueReady,monthLookupReady,adjustmentQueueReady,followupsReady,amountReady,productReady,settlementReady]=await Promise.all([
     rpc('erp_sales_bootstrap'),
-    rpc('erp_sales_phase2_ready').catch(()=>false),
-    rpc('erp_sales_phase3_ready').catch(()=>false),
-    rpc('erp_sales_adjustments_ready').catch(()=>false),
-    rpc('erp_sales_payout_queue_ready').catch(()=>false),
-    rpc('erp_sales_contract_month_ready').catch(()=>false),
-    rpc('erp_sales_adjustment_queue_ready').catch(()=>false),
-    rpc('erp_sales_adjustment_followups_ready').catch(()=>false),
-    rpc('erp_sales_amount_adjustments_ready').catch(()=>false),
-    rpc('erp_sales_product_automation_ready').catch(()=>false),
-    rpc('erp_sales_settlement_automation_ready').catch(()=>false)
+    readyCheck('erp_sales_phase2_ready','미수금·지급'),
+    readyCheck('erp_sales_phase3_ready','구매·매입·재고'),
+    readyCheck('erp_sales_adjustments_ready','거래 조정·월 마감'),
+    readyCheck('erp_sales_payout_queue_ready','지급 대기'),
+    readyCheck('erp_sales_contract_month_ready','용역 계약 월 매출'),
+    readyCheck('erp_sales_adjustment_queue_ready','조정 대기'),
+    readyCheck('erp_sales_adjustment_followups_ready','조정 후속 처리'),
+    readyCheck('erp_sales_amount_adjustments_ready','금액 조정'),
+    readyCheck('erp_sales_product_automation_ready','상품 판매 자동 연결'),
+    readyCheck('erp_sales_settlement_automation_ready','정산 자동 연결')
    ]);
    if(generation!==epoch)return;
    state=bootstrap;
@@ -1409,6 +1420,13 @@
     const close=editor.querySelector('[data-erp-editor-close]');
     if(close)close.click();else clearEditor();
    });
+   if(failedChecks.length){
+    const recovery=el('div');
+    const warning=el('p','일부 기능의 상태를 확인하지 못했습니다: '+failedChecks.join(', ')+'.','message error');
+    warning.setAttribute('role','status');
+    recovery.append(warning,btn('기능 상태 다시 확인',()=>{if(!busy&&clearEditor())void open();}));
+    root.append(recovery);
+   }
    root.append(tabs,body,editor,editorDialog);report('');draw();
   }catch(e){report(errorText(e),true);root.append(btn('다시 조회',()=>void open()));}
  }

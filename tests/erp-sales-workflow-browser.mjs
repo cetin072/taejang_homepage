@@ -14,7 +14,7 @@ try {
   const sale={id:'synthetic-salt-sale',kind:'product',status:'confirmed',party_id:'customer',party_snapshot:{name:'검수용 고객'},supplier_id:'supplier',supplier_snapshot:{name:'검수용 공급처'},sales_date:'2026-11-17',order_date:'2026-11-17',shipping_status:'preparing',order_channel:'phone',supply_amount:22727,tax_amount:2273,total_amount:25000,commission:{kind:'none',value:0},lines:[{item_id:'salt',item_snapshot:{name:'검수용 천일염',unit:'포'},quantity:1,unit_price:22727,tax_class:'taxable',tax_amount:2273,total_amount:25000}],history:[]};
   window.TaejangApp={hasCapabilityContract:()=>true,can:()=>true,getActualRoles:()=>['operations_manager'],getEffectiveRoles:()=>['operations_manager'],getAccessContext:()=>({}),rpc:async name=>{
    if(name==='erp_sales_bootstrap')return {canWrite:true,canConfirm:true,parties:[],agents:[],assignments:[],items:[],contracts:[]};
-   if(name==='erp_sales_phase2_ready')return true;
+   if(name==='erp_sales_phase2_ready'){if(window.failReadiness)throw new Error('Synthetic readiness timeout');return true;}
    if(name.endsWith('_ready'))return false;
    if(name==='erp_sales_list')return {items:[{...sale,party_name:'검수용 고객'}],total:1,limit:100};
    if(name==='erp_sales_get')return sale;
@@ -23,7 +23,12 @@ try {
   }};
  });
  await page.addScriptTag({content:await readFile('app/assets/erp-sales.js','utf8')});
- await page.evaluate(()=>window.TaejangErpSales.open());
+ await page.evaluate(()=>{window.failReadiness=true;return window.TaejangErpSales.open();});
+ await page.getByText('일부 기능의 상태를 확인하지 못했습니다:',{exact:false}).waitFor();
+ assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
+ await page.evaluate(()=>{window.failReadiness=false;});
+ await page.getByRole('button',{name:'기능 상태 다시 확인',exact:true}).click();
+ await page.getByRole('tab',{name:'미수금',exact:true}).waitFor();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상세',exact:true}).click();
  const popup=page.getByRole('dialog',{name:'확정 매출 상세',exact:true});

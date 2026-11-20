@@ -81,7 +81,7 @@
   }
 
   // The controller owns state and all RPCs. Views only build DOM and call its actions.
-  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
+  function create({ el, button, input, select, field, setAvatar, statusLabel, listState, selectEmployee, backToList, makeEmployeeForm, roleSummaryPanel, photoPicker, disabilityPanel, welfarePanel, sensitiveIdentityPanel, residentNumberPanel, insuranceDeductionPanel, nationalPensionAgeLabel, employmentInsuranceAgeLabel, requestLabel, requestSummary, saveEmployeeAppCheck, passwordResetPanel }) {
     function avatar(employee, path, label = '업무용 사진') {
       const placeholder = el('span', employee.full_name?.slice(0, 1) || '직', 'employee-avatar employee-avatar-placeholder');
       if (!path) return placeholder;
@@ -217,6 +217,8 @@
 
       const disability = disabilityPanel?.(context, employee);
       if (disability) card.append(disability);
+      const welfare = welfarePanel?.(context, employee);
+      if (welfare) card.append(welfare);
       if (context.access_level === 'operations_manager') {
         const addressValue = el('dd', '불러오는 중'), remoteValue = el('dd', '불러오는 중');
         const addressRow = el('div'), remoteRow = el('div');
