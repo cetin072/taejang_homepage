@@ -282,7 +282,7 @@
     let stage = 'location';
     try {
       const latest = await app().rpc('get_my_attendance_today');
-      const position = !qaMode && latest.remote_work === true ? null : await window.TaejangAttendanceLocation.getBestPosition({
+      const position = !qaMode && (latest.remote_work === true || latest.field_work?.[eventType] === true) ? null : await window.TaejangAttendanceLocation.getBestPosition({
         onStage: stage => setMessage(card, stage === 'improving' ? '위치 정확도를 확인하고 있습니다.' : '현재 위치를 확인하고 있습니다.')
       });
       lastPosition[eventType] = position;
@@ -351,6 +351,7 @@
       }
       if (result?.code !== 'LOCATION_UNCERTAIN') attempts[eventType] = Math.max(0, attempts[eventType] - 1);
       if (result?.code === 'NON_WORKDAY') setMessage(card, '오늘은 휴일이라 출퇴근을 등록할 수 없습니다.', 'error');
+      else if (result?.code === 'FIELD_WORK_OUTSIDE_WINDOW') setMessage(card, '현장 기록 가능 시간이 아닙니다. 담당자에게 확인해주세요.', 'error');
       else if (result?.code === 'OUTSIDE_GEOFENCE') setMessage(card, '등록된 근무지에서만 출퇴근할 수 있습니다.', 'error');
       else if (result?.code === 'LOCATION_UNCERTAIN') {
         lastFailure[eventType] = 'LOCATION_UNCERTAIN';

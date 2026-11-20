@@ -272,11 +272,11 @@ export function AttendanceCard({
 
       if (!qaAttempt && eventType === 'clock_in' && latest.clock_in_available === false) {
         attempts.current[eventType] = Math.max(0, attempts.current[eventType] - 1);
-        show('오전 6시부터 출근할 수 있습니다.', true);
+        show(latest.field_work?.clock_in ? formatTime(latest.clock_in_available_at) + '부터 현장 출근할 수 있습니다.' : '오전 6시부터 출근할 수 있습니다.', true);
         return;
       }
 
-      position = !qaAttempt && latest.remote_work === true ? null : await getBestAttendancePosition({
+      position = !qaAttempt && (latest.remote_work === true || latest.field_work?.[eventType] === true) ? null : await getBestAttendancePosition({
         onStage: stage => {
           show(stage === 'improving'
             ? '위치 정확도를 확인하고 있습니다.'
@@ -318,7 +318,9 @@ export function AttendanceCard({
         return;
       }
 
-      if (result.code === 'LOCATION_UNCERTAIN') {
+      if (result.code === 'FIELD_WORK_OUTSIDE_WINDOW') {
+        show('현장 기록 가능 시간이 아닙니다. 담당자에게 확인해주세요.', true);
+      } else if (result.code === 'LOCATION_UNCERTAIN') {
         show(
           attempts.current[eventType] < 2
             ? '위치가 정확하지 않습니다. 잠시 후 다시 눌러주세요.'
@@ -487,9 +489,13 @@ export function AttendanceCard({
   } else if (today?.clock_in_available === false) {
     action = null;
     title = '출근 전입니다';
-    subtitle = '오전 6시부터 출근할 수 있습니다';
+    subtitle = today.field_work?.clock_in ? formatTime(today.clock_in_available_at) + '부터 현장 출근할 수 있습니다' : '오전 6시부터 출근할 수 있습니다';
   } else if (today?.holiday_work_assigned) {
     subtitle = '휴일근무일입니다 · 회사에서 눌러주세요';
+  }
+
+  if (!qaMode && action && today?.field_work?.[action]) {
+    subtitle = `현장근무 · ${today.field_work.site}`;
   }
 
   function handleAction() {

@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-20-field-attendance', date: '2026-11-20',
+    title: '현장에서 출퇴근 기록',
+    summary: '현장근무로 지정된 날에는 기존 출근·퇴근 버튼으로 현장 기록을 남길 수 있습니다.',
+    items: ['지정된 출퇴근 항목과 시간에 현장 기록을 남깁니다.', '담당자가 ERP 출근부에서 기록을 확인합니다.'],
+  },
+  {
     id: '2026-11-17-employee-role-review', date: '2026-11-17',
     title: '직원 직책과 접속 역할 확인',
     summary: '업무 플랫폼 직원 기본정보에서 실제 시스템 역할을 함께 확인합니다.',

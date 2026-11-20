@@ -22,6 +22,7 @@ export type AttendanceToday = {
   employee_uuid?: string;
   attendance_required?: boolean;
   remote_work?: boolean;
+  field_work?: { site: string; clock_in: boolean; clock_out: boolean; clock_out_opens_at: string };
   is_workday?: boolean;
   holiday_work_assigned?: boolean;
   day_reason?: string | null;
