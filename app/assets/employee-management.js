@@ -168,13 +168,16 @@
       await response.json().then(data => data.error === 'not_found' || /^object not found$/i.test(data.message)).catch(() => false);
     if (!missing || !isCurrent()) return null;
 
-    // Convert pre-existing photos once, serially. Only the resulting JPEG is rendered.
+    // Prepare display copies for older photos serially.
     const conversion = employeePhotoConversions.then(async () => {
       if (!isCurrent()) return null;
       const original = await readPhoto(cfg, path);
       if (!original.ok || !isCurrent()) return null;
-      const display = await optimizeEmployeePhoto(await original.blob());
+      const source = await original.blob();
+      // Keep a legacy portrait visible even if it cannot be compressed.
+      const display = await optimizeEmployeePhoto(source).catch(() => null);
       if (!isCurrent()) return null;
+      if (!display) return source;
       await storePhoto(cfg, displayPath, display).catch(() => null);
       return display;
     });

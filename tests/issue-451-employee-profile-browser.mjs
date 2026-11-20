@@ -112,6 +112,17 @@ try {
       assert.equal(await page.evaluate(()=>calls.filter(call=>call.method==='GET'&&call.url.endsWith('/existing.png')).length),1,
         'a denied derivative request cannot trigger an original download');
       await setFail('');
+      await page.evaluate(() => {
+        const original = 'fixture-2/profile/existing.png';
+        objects.delete(original + '.display-v1.jpg');
+        objects.set(original, new Blob([objects.get(original)], { type: 'image/jpeg' }));
+      });
+      await page.evaluate(() => TaejangEmployeeManagement.openEmployeeManagement());
+      await open(2);
+      await page.waitForFunction(() => document.querySelector('.employee-profile-head img')?.naturalWidth > 0);
+      assert.equal(await page.evaluate(() => objects.has('fixture-2/profile/existing.png.display-v1.jpg')), false,
+        'a browser-readable legacy portrait remains visible when compression rejects its format metadata');
+      await page.getByRole('button',{name:'← 직원 목록',exact:true}).click();
     }
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('no'); await count(49);
     await page.getByLabel('업무용 사진',{exact:true}).selectOption('');
