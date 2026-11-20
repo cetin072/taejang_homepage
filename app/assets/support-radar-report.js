@@ -16,14 +16,17 @@
     const title=el('desktop-page-title');if(title)title.textContent='지원사업 주간 보고';
     const main=el('dashboard-main');main.replaceChildren(text('p','주간 보고를 만들고 있습니다.','message'));
     try{
-      const [data,kpi]=await Promise.all([
+      const [data,kpi,{printErpPdf}]=await Promise.all([
         window.TaejangApp.rpc('support_get_weekly_report',{}),
-        window.TaejangApp.rpc('support_get_kpis',{})
+        window.TaejangApp.rpc('support_get_kpis',{}),
+        import('./erp-pdf.mjs')
       ]);
       const root=document.createElement('div');root.className='support-radar-shell';
       const head=document.createElement('header');head.className='support-radar-header';
       const left=document.createElement('div');left.append(text('p','지원사업 레이더','eyebrow'),text('h2','주간 종합보고'),text('p',`${formatDate(data.period_start)} ~ ${formatDate(data.period_end)}`));
-      const actions=document.createElement('div');actions.className='support-radar-actions';actions.append(button('레이더 홈',goHome,true),button('인쇄',()=>window.print(),true));head.append(left,actions);root.append(head);
+      const actions=document.createElement('div');actions.className='support-radar-actions';actions.append(button('레이더 홈',goHome,true),button('인쇄',()=>{
+        if(canUse())printErpPdf('지원사업 주간 보고',data.period_end);
+      },true));head.append(left,actions);root.append(head);
       const weekly=document.createElement('div');weekly.className='support-radar-summary';weekly.append(
         stat('새 공고',`${data.new_notices||0}건`),stat('평가 완료',`${data.evaluated||0}건`),stat('신청 결정',`${data.apply_decisions||0}건`),stat('제출',`${data.submitted||0}건`),stat('선정',`${data.selected||0}건`),stat('확보 지원금',money(data.selected_cash)),stat('확보 현물',money(data.selected_in_kind_value))
       );root.append(weekly);
