@@ -147,7 +147,8 @@ const repeatedId=crypto.randomUUID(),repeatPayload={p_id:repeatedId,p_days:[{dat
 const repeated=await Promise.all([rpc('submit_my_leave_request',worker,repeatPayload),rpc('submit_my_leave_request',worker,repeatPayload)]);
 check(repeated.every(r=>r.ok),'simultaneous identical retry returns one accepted request');
 equal((await rpc('get_my_leave_context',worker)).data.remaining,0,'identical retry does not reserve twice');await rpc('cancel_my_leave_request',worker,{p_request_id:repeatedId});
-const overrideDay=add(firstEligibleOffset+5);const override=await rpc('save_employee_work_override',ops,{p_employee_uuid:employee,p_values:{effective_from:overrideDay,starts_at:'10:00',ends_at:'13:00',location_id:location,reason:'Synthetic date override'}});check(override.ok,'date-specific work time RPC saves');
+const overrideDay=d4; // Its calendar override is active and all fixture requests above were cancelled.
+const override=await rpc('save_employee_work_override',ops,{p_employee_uuid:employee,p_values:{effective_from:overrideDay,starts_at:'10:00',ends_at:'13:00',location_id:location,reason:'Synthetic date override'}});check(override.ok,'date-specific work time RPC saves');
 equal(JSON.parse(db(`select public.private_employee_schedule('${employee}','${overrideDay}')`)).scheduled_minutes,180,'date exception shared projection uses 3 hours');
 check((await rpc('revoke_employee_work_override',ops,{p_id:override.data.id,p_reason:'Synthetic override revoke'})).ok,'date exception revoke keeps history');
 for(const table of ['employee_leave_accounts','employee_work_terms','employee_leave_requests','employee_leave_ledger']){
