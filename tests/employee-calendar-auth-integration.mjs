@@ -43,6 +43,24 @@ const linkedRow=(await read(owner)).events.find(x=>x.id===linked);assert.equal(l
 await denied(rpc('cancel_my_calendar_event',owner,{p_id:linked,p_request_id:randomUUID(),p_expected_updated_at:linkedRow.updated_at}),'CALENDAR_WORKLOG_RECORD');
 const notice=randomUUID(),official=randomUUID();sql(`insert into public.schedule_items(id,schedule_type,title,starts_at,ends_at,easy_text,target_scope,status,change_reason,created_by,updated_by) values('${official}','special_event','Company activity','2026-11-09T10:00+09:00','2026-11-09T12:00+09:00','Synthetic company event','company','published','Synthetic QA','${other.id}','${other.id}');insert into public.notices(id,notice_kind,title,body_easy,publish_start_at,effective_start_date,effective_end_date,related_schedule_id,target_scope,status,published_at,change_reason,created_by,updated_by) values('${notice}','company_life','Synthetic company notice','Synthetic activity body',now()-interval '1 day','2026-11-09','2026-11-10','${official}','company','published',now()-interval '1 day','Synthetic QA','${other.id}','${other.id}');`);
 let data=await read(owner);assert.equal(data.events.filter(x=>x.id===notice||x.id===official).length,1,'notice and linked company event deduplicate');assert.equal(data.events.find(x=>x.id===notice).editable,false);
+// Approved standalone users use their existing personal workspace, without ERP access.
+const standalone=await signup(),standaloneSpace=randomUUID(),standaloneId=randomUUID(),unapprovedSpace=randomUUID();
+sql(`insert into worklog.workspaces(id,name,kind,owner_user_id,created_by_user_id,metadata)
+ values('${standaloneSpace}','Synthetic standalone owner','personal','${standalone.id}','${standalone.id}','{"worklog_standalone_access":true}'),
+ ('${unapprovedSpace}','Synthetic pending owner','personal','${pending.id}','${pending.id}','{}');
+ insert into worklog.workspace_members(workspace_id,user_id,role) values('${standaloneSpace}','${standalone.id}','owner'),('${unapprovedSpace}','${pending.id}','owner');`);
+await denied(rpc('get_my_calendar_month',pending,{p_month:month+'-01'}),'CALENDAR_FORBIDDEN');
+assert.deepEqual((await read(standalone)).events,[],'standalone account cannot see company notices or other personal schedules');
+const standaloneEvent=await ok(rpc('save_my_calendar_event',standalone,{...body,p_id:standaloneId,p_request_id:randomUUID()}));
+assert.equal(standaloneEvent.workspace_id,standaloneSpace);
+assert.deepEqual((await read(standalone)).events.map(event=>event.id),[standaloneId]);
+assert.ok(!(await read(owner)).events.some(event=>event.id===standaloneId));
+await denied(rpc('save_my_calendar_event',standalone,{...body,p_request_id:randomUUID(),p_expected_updated_at:saved.updated_at}),'CALENDAR_FORBIDDEN');
+await ok(rpc('cancel_my_calendar_event',standalone,{p_id:standaloneId,p_request_id:randomUUID(),p_expected_updated_at:standaloneEvent.updated_at}));
+assert.deepEqual((await read(standalone)).events,[]);
+sql(`update public.profiles set account_status='suspended' where id='${standalone.id}';`);
+await denied(rpc('get_my_calendar_month',standalone,{p_month:month+'-01'}),'CALENDAR_FORBIDDEN');
+
 await denied(rpc('cancel_my_calendar_event',owner,{p_id:notice,p_request_id:randomUUID(),p_expected_updated_at:data.events.find(x=>x.id===notice).updated_at}));
 sql(`update public.notices set related_schedule_id=null,effective_start_date='2026-11-12',effective_end_date='2026-11-13' where id='${notice}';`);
 data=await read(owner);let n=data.events.find(x=>x.id===notice);assert.equal(n.starts_at,'2026-11-11T15:00:00+00:00');assert.equal(n.ends_at,'2026-11-13T15:00:00+00:00','inclusive last day maps to exclusive end');
