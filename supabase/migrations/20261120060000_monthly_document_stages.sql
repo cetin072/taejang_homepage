@@ -53,7 +53,7 @@ declare r public.monthly_client_document_sets;
 begin
   if public.private_actor_can('monthly_client_documents.manage') is not true then raise exception 'FORBIDDEN' using errcode='42501'; end if;
   select * into strict r from public.monthly_client_document_sets where id=p_id for update;
-  if r.stage is null then raise exception 'LEGACY_MONTH'; end if;
+  if r.stage is null or r.calculation_version<>'monthly-stages-1' then raise exception 'LEGACY_MONTH'; end if;
   if p_revision is distinct from r.revision then raise exception 'REVISION_CONFLICT' using errcode='40001'; end if;
   return r;
 end $$;
@@ -130,12 +130,10 @@ begin
   if tg_op='INSERT' then
     if new.payload->'common' ? 'noticeDate' then
       new.calculation_version:='monthly-stages-1';
-    else
-      new.stage:=null;
     end if;
     return new;
   end if;
-  if old.stage is null then
+  if old.calculation_version<>'monthly-stages-1' then
     if old.status='draft' and new.status='draft' and new.payload->'common' ? 'noticeDate' then
       new.stage:='notice';
       new.calculation_version:='monthly-stages-1';
