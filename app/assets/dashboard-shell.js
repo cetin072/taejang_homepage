@@ -362,7 +362,7 @@
     ];
   }
 
-  let activeView = null, openingView = false, viewDirty = false, dashboardRender = null;
+  let activeView = null, openingView = false, pendingHistoryView = null, viewDirty = false, dashboardRender = null;
   function syncSettingsActionAvailability() {
     const action = document.querySelector('[data-platform-settings-action]');
     if (action) action.disabled = openingView;
@@ -377,7 +377,11 @@
     return !currentViewDirty() || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
   }
   async function openView(key, historyMode = 'none') {
-    if (openingView || !window.TaejangApp?.getRoute?.()) return;
+    if (!window.TaejangApp?.getRoute?.()) return;
+    if (openingView) {
+      if (historyMode === 'pop') pendingHistoryView = key;
+      return;
+    }
     if (key === activeView) return;
     if (!mayLeaveView()) { if (historyMode === 'pop') history.pushState({taejangMenuView:true}, '', viewUrl(activeView || 'dashboard')); return; }
     const item = masterMenuItems().find(candidate => candidate.key === key && candidate.run);
@@ -390,6 +394,7 @@
     try {
       const allowed = item && (window.TaejangMenuAuthority
         ? await window.TaejangMenuAuthority.beforeOpen(key, legacyAllowed) : legacyAllowed);
+      if (pendingHistoryView) return;
       closeSidebar();
       if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key));
       viewDirty = false; activeView = key;
@@ -406,7 +411,13 @@
     } catch (error) {
       activeView = null;
       el('dashboard-main').replaceChildren(text('p', '권한을 확인하지 못했습니다. 다시 열어 주세요.', 'message error'));
-    } finally { openingView = false; syncSettingsActionAvailability(); }
+    } finally {
+      openingView = false;
+      syncSettingsActionAvailability();
+      const next = pendingHistoryView;
+      pendingHistoryView = null;
+      if (next) void openView(next, 'pop');
+    }
   }
   document.addEventListener('input', event => {
     if (activeView && (document.querySelector('.app-workspace') || el('dashboard-main'))?.contains(event.target)) viewDirty = true;

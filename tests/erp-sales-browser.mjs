@@ -426,7 +426,13 @@ try {
  await page.getByText('합성 오입금 정정',{exact:true}).waitFor();
  assert.equal(await page.locator('.erp-body tbody tr').count(),2);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  await closePopup();
- await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');assert.equal(await field('tax_amount_1').inputValue(),'500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,500/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});
+ const compactSales=page.locator('.erp-sales-results');
+ const firstSale=compactSales.locator('tbody tr').first();
+ const action=await firstSale.getByRole('button',{name:'상세',exact:true}).boundingBox();
+ assert.ok(action&&action.x>=0&&action.x+action.width<=390,'mobile sale details is visible without horizontal scrolling');
+ assert.equal(await compactSales.evaluate(table=>table.scrollWidth<=table.clientWidth+1),true);
+ await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('2');await field('unit_price_1').fill('2500');assert.equal(await field('tax_amount_1').inputValue(),'500');await saved('매출 저장');assert.match(await page.locator('.erp-total').textContent(),/5,500/);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.screenshot({path:output+'/product-390.png',fullPage:true});
  const beforeCopy=Number(app.db.raw('select count(*) from public.erp_sales_transactions;'));
  await page.getByRole('button',{name:'새 주문으로 복사',exact:true}).click();
  assert.equal(await field('quantity_1').inputValue(),'2');

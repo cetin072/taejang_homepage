@@ -41,11 +41,24 @@ try{for(const width of [1440,390]){
  await rowA().getByRole('cell').nth(2).click();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await expect(heading()).toBeFocused();await expect(rowA()).toHaveClass(/is-selected/);await expect(p.getByRole('cell',{name:'사용 a',exact:true})).toBeVisible();
  // Selecting the already selected customer keeps typed input.
  await p.getByLabel('금액 (원)',{exact:true}).fill('123');await rowA().getByRole('button',{name:'충전·사용',exact:true}).click();await expect(p.getByLabel('금액 (원)',{exact:true})).toHaveValue('123');
+ await p.getByRole('button',{name:'새로고침',exact:true}).click();
+ await expect(p.getByLabel('금액 (원)',{exact:true})).toHaveValue('123');
+ assert.equal(await p.evaluate(()=>TaejangLogistics.hasUnsavedChanges()),true);
  await rowB().getByRole('cell').nth(2).click();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await expect(p.getByLabel('금액 (원)',{exact:true})).toHaveValue('123');
  await p.getByRole('tab',{name:'거래 내역',exact:true}).click();await expect(heading()).toBeVisible();
  accept=true;await rowB().getByRole('button',{name:'고객 B 충전·사용 내역 보기',exact:true}).press('Enter');await expect(heading()).toHaveText('고객 B · 충전금');
  await rowA().getByRole('button',{name:'변경된 고객 A 충전·사용 내역 보기',exact:true}).press('Space');await expect(heading()).toHaveText('변경된 고객 A · 충전금');
- await rowB().getByRole('button',{name:'수정',exact:true}).press('Enter');await expect(p.getByRole('heading',{name:'고객 정보 수정',exact:true})).toBeVisible();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await p.getByRole('button',{name:'닫기',exact:true}).click();
+ await rowB().getByRole('button',{name:'수정',exact:true}).press('Enter');
+ const edit=p.getByRole('dialog',{name:'고객 정보 수정',exact:true});
+ await expect(edit).toBeVisible();
+ await edit.getByLabel('고객명',{exact:true}).fill('저장 전 고객명');
+ assert.equal(await p.evaluate(()=>TaejangLogistics.hasUnsavedChanges()),true);
+ accept=false;await p.keyboard.press('Escape');await expect(edit).toBeVisible();
+ await expect(edit.getByLabel('고객명',{exact:true})).toHaveValue('저장 전 고객명');
+ await p.locator('.lg-customer-row').first().locator('button').filter({hasText:/^수정$/}).dispatchEvent('click');
+ await expect(p.locator('dialog[data-customer-editor][open]')).toHaveCount(1);
+ accept=true;await edit.getByRole('button',{name:'닫기',exact:true}).click();
+ await expect(edit).toHaveCount(0);await expect(heading()).toHaveText('변경된 고객 A · 충전금');
  // Search survives selection; failed reads preserve the selected customer's inputs.
  await p.getByLabel('고객명 검색').fill('고객');await p.evaluate(()=>fail=true);await rowB().getByRole('button',{name:'충전·사용',exact:true}).click();await expect(p.locator('.lg-status.error')).toBeVisible();await expect(heading()).toHaveText('변경된 고객 A · 충전금');await p.evaluate(()=>{fail=false;slow=true;});
  await rowB().getByRole('cell').nth(2).click();await rowA().getByRole('cell').nth(2).dispatchEvent('click');await expect(heading()).toHaveText('고객 B · 충전금');await expect(p.getByRole('cell',{name:'사용 b',exact:true})).toBeVisible();

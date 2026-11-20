@@ -319,7 +319,7 @@
     return { label: `앱·과거 외부 기록 시간차 ${maxDelta}분 · 확인`, needsReview: true };
   }
 
-  function makeToolbar(workDate) {
+  function makeToolbar(workDate, fieldPanel) {
     const toolbar = el('section', null, 'attendance-toolbar');
     const dateLabel = el('label', '확인 날짜');
     const dateInput = document.createElement('input');
@@ -330,6 +330,12 @@
     });
     dateLabel.append(dateInput);
     toolbar.append(dateLabel);
+    if (fieldPanel) {
+      const shortcut = el('button', '현장근무 지정·확인', 'button button-quiet');
+      shortcut.type = 'button';
+      shortcut.addEventListener('click', () => revealFieldWork(fieldPanel));
+      toolbar.append(shortcut);
+    }
 
     return toolbar;
   }
@@ -847,6 +853,31 @@
     return wrapper;
   }
 
+  function revealFieldWork(panel) {
+    panel.open = true;
+    panel.querySelector('summary')?.focus({preventScroll:true});
+    panel.scrollIntoView({block:'nearest'});
+  }
+
+  function fieldWorkUnavailable(workDate) {
+    const notice = el('div', null, 'message error');
+    const retry = el('button', '현장근무 다시 조회', 'button button-quiet');
+    retry.type = 'button';
+    retry.addEventListener('click', async () => {
+      retry.disabled = true;
+      await openAttendance(workDate);
+      if (retry.isConnected) retry.disabled = false;
+      else if (currentWorkDate === workDate) {
+        const panel = main()?.querySelector('[data-field-work-panel]');
+        if (panel) revealFieldWork(panel);
+      }
+    });
+    notice.append(el('p', '현장근무를 불러오지 못했습니다. 직원 출근부는 계속 볼 수 있습니다.'), retry);
+    const panel = folded('현장근무 지정·확인', notice, true);
+    panel.dataset.fieldWorkPanel = '1';
+    return panel;
+  }
+
   function syncRequiredPanel(feature) {
     const panel = el('section', null, 'attendance-sync-required');
     panel.dataset.serverSyncRequired = '1';
@@ -1170,13 +1201,16 @@
       const dailyPanel=el('section'),detailPanel=el('section'),monthly=monthlyPanel(currentWorkDate);
       const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel});
       const pieces=[intro,tabs];
-      dailyPanel.append(makeToolbar(currentWorkDate),summary,searchToolbar(renderDaily,()=>rows));
+      const fieldPanel = can('attendance.correct')
+        ? (Array.isArray(fieldWorkResult.value)
+          ? fieldWorkPanel(fieldWork, rows, currentWorkDate, dayConfirmed)
+          : fieldWorkUnavailable(currentWorkDate))
+        : null;
+      dailyPanel.append(makeToolbar(currentWorkDate, fieldPanel),summary,searchToolbar(renderDaily,()=>rows));
       if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('과거 외부 기록'));
       if(!workdayAvailable||!holidayAssignmentsAvailable)detailPanel.append(syncRequiredPanel('휴일근무 지정'));
       else { const holidayPanel=holidayWorkPanel(dayStatus,holidayAssignments,rows,currentWorkDate);if(holidayPanel)detailPanel.append(folded('휴일근무 지정',holidayPanel)); }
-      if (can('attendance.correct') && fieldWorkResult.status === 'fulfilled' && Array.isArray(fieldWorkResult.value)) {
-        dailyPanel.append(fieldWorkPanel(fieldWork, rows, currentWorkDate, dayConfirmed));
-      }
+      if (fieldPanel) dailyPanel.append(fieldPanel);
       dailyPanel.append(confirmationAvailable?confirmationPanel(confirmation,currentWorkDate):syncRequiredPanel('일일 근태 확정'));
       detailPanel.append(folded('확정 원장·이전 revision 조회',confirmedLedgerPanel(currentWorkDate)));
       const correction=el('button','근태 시간 보정·보정 이력','button');correction.type='button';

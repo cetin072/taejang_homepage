@@ -13,7 +13,7 @@ const clone=C.copy;
 let cancelPrint;
 function report(text,error=false,nearWallet=false){
  if(!root?.isConnected)return;
- const feedback=(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
+ const feedback=root.querySelector('dialog[open] [data-customer-feedback]')||(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
  if(feedback!==status){status.textContent='';status.hidden=true;}
  feedback.textContent=text;feedback.className='lg-status'+(error?' error':'');feedback.hidden=!text;
 }
@@ -55,17 +55,17 @@ async function mutate(action,payload){
   report(message(e),true,action.startsWith('wallet.'));showRetry();
  }finally{busy=false;if(root){root.removeAttribute('aria-busy');content.inert=false;}}
 }
-function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';((pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
+function showRetry(){root?.querySelector('[data-logistics-retry]')?.remove();if(!pending)return;const retry=button('저장 결과 확인 / 같은 요청 재시도',()=>mutate(pending.action,pending.payload));retry.dataset.logisticsRetry='1';(root.querySelector('dialog[open] [data-customer-feedback]')||(pending.action.startsWith('wallet.')&&root.querySelector('[data-wallet-feedback]'))||status).after(retry);}
 function newQuote(nextCustomer=customer){if(dirty&&!confirm('작성 중인 입력을 버리고 새 견적을 만들까요?'))return;customer=nextCustomer;quoteReturn=null;quote=C.draft(state.settings.data);quote.customerId=customer;confirmed=null;dirty=false;tab='quote';render();}
 async function changeTab(next){
  if(busy||next===tab)return;
  if(tab==='customers'&&!leaveCustomerInputs())return;
  if(tab==='settings'&&settingsDirty&&!confirm('저장하지 않은 단가 변경을 버릴까요?'))return;
  if(next==='customers'||next==='history'){
-  busy=true;
+  busy=true;content.inert=true;
   try{await read(next==='customers'?{search:'',pageIndex:0}:undefined);}
   catch(error){report(message(error),true);return;}
-  finally{busy=false;}
+  finally{busy=false;content.inert=false;}
  }
  if(next==='customers'){query='';page=0;}
  settingsDirty=false;tab=next;quoteReturn=null;
@@ -160,10 +160,20 @@ function renderQuote(){
  totals();
 }
 function customerChoices(parent,onchange){field(parent,'고객',customer,v=>{customer=v;page=0;void reload();},{options:[['','전체 고객'],...state.customers.map(c=>[c.id,c.name])]});}
-async function reload(){if(busy)return;try{await read();render();report('');}catch(e){report(message(e),true);}}
+async function reload(){
+ if(busy||!mayDiscardInputs())return;
+ busy=true;content.inert=true;
+ try{await read();settingsDirty=false;render();report('');}
+ catch(e){report(message(e),true);}
+ finally{busy=false;content.inert=false;}
+}
+const customerInputsDirty=()=>walletDirty||Boolean(root?.querySelector('[data-customer-editor][data-dirty="true"]'));
+function mayDiscardInputs(){
+ return !(customerInputsDirty()||settingsDirty)||confirm('저장하지 않은 입력을 버리고 다시 조회할까요?');
+}
 function leaveCustomerInputs(){
  if(pending){report('미확인 저장 요청이 있습니다. 먼저 처리 결과를 확인하세요.',true,true);return false;}
- return !(walletDirty||content.querySelector('[data-customer-editor]'))||confirm('저장하지 않은 입력을 버리고 이동할까요?');
+ return !customerInputsDirty()||confirm('저장하지 않은 입력을 버리고 이동할까요?');
 }
 async function selectCustomer(id){
  if(busy)return;
@@ -199,8 +209,30 @@ function renderCustomers(){
  if(customer){const c=state.customers.find(x=>x.id===customer);if(c)walletEditor(c);}
 }
 function customerEditor(c={}){
+ if(content.querySelector('dialog[data-customer-editor][open]')||!leaveCustomerInputs())return;
  const trigger=document.activeElement;
- const panel=el('form','','lg-panel');panel.dataset.customerEditor='1';panel.append(el('h3',c.id?'고객 정보 수정':'고객 등록'));const data={id:c.id||null,name:c.name||'',phone:c.phone||'',memo:c.memo||'',revision:c.revision||0};const grid=el('div','','lg-fields');for(const [key,label] of [['name','고객명'],['phone','연락처'],['memo','메모']])field(grid,label,data[key],v=>data[key]=v);panel.append(grid);const actions=el('div','','lg-actions');actions.append(button('저장',()=>mutate('customer.save',data),true),button('닫기',()=>{panel.remove();if(trigger?.isConnected)trigger.focus();}));panel.append(actions);panel.addEventListener('submit',e=>e.preventDefault());content.prepend(panel);panel.querySelector('input').focus();
+ const dialog=el('dialog','','lg-customer-dialog');
+ dialog.dataset.customerEditor='1';
+ const title=el('h3',c.id?'고객 정보 수정':'고객 등록');
+ title.id='lg-customer-dialog-title';
+ dialog.setAttribute('aria-labelledby',title.id);
+ const panel=el('form','','lg-panel');
+ const data={id:c.id||null,name:c.name||'',phone:c.phone||'',memo:c.memo||'',revision:c.revision||0};
+ const grid=el('div','','lg-fields');
+ for(const [key,label] of [['name','고객명'],['phone','연락처'],['memo','메모']])field(grid,label,data[key],v=>data[key]=v);
+ panel.addEventListener('input',()=>{dialog.dataset.dirty='true';});
+ const feedback=el('p','','lg-status');feedback.dataset.customerFeedback='1';feedback.setAttribute('role','status');feedback.hidden=true;
+ const close=()=>{
+  if(busy)return;
+  if(dialog.dataset.dirty==='true'&&!confirm('저장하지 않은 고객 정보를 버릴까요?'))return;
+  dialog.close();dialog.remove();showRetry();if(trigger?.isConnected)trigger.focus();
+ };
+ const actions=el('div','','lg-actions');
+ const save=button('저장',()=>{},true);save.type='submit';
+ actions.append(save,button('닫기',close));
+ panel.addEventListener('submit',e=>{e.preventDefault();void mutate('customer.save',data);});
+ dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
+ panel.append(title,grid,feedback,actions);dialog.append(panel);content.append(dialog);dialog.showModal();
 }
 function walletEditor(c){
  const panel=el('section','','lg-panel');
@@ -309,4 +341,4 @@ async function open(){
  try{const saved=sessionStorage.getItem(pendingKey());pending=saved?JSON.parse(saved):null;}catch{pending=null;}
  report('불러오는 중');try{await read();if(!quote)quote=C.draft(state.settings.data);render();report(pending?'미확인 저장 요청이 있습니다. 처리 결과를 확인하세요.':'');showRetry();}catch(e){report(message(e),true);}
 }
-window.TaejangLogistics={open,hasUnsavedChanges:()=>dirty||settingsDirty||!!pending};
+window.TaejangLogistics={open,hasUnsavedChanges:()=>Boolean(root?.isConnected&&(dirty||settingsDirty||customerInputsDirty()||pending))};

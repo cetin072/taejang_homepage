@@ -849,13 +849,22 @@
   }
   if(state.canWrite)body.append(btn('상품 판매 등록',()=>saleEditor(),true));body.append(el('p',`총 ${list.total}건${list.total>list.limit?' 중 최신 '+list.limit+'건 표시 · 기간을 좁혀 조회하세요.':''}`));
   if(!list.items.length)body.append(el('p','해당 기간의 매출이 없습니다. 계약에서 월 매출을 생성하거나 상품 판매를 등록하세요.','message'));
-  else body.append(table(['매출일','거래처','유형','영업자','상태','매출액',''],list.items.map(s=>{
-   const amount=el('div',money(s.effective_total??s.total_amount));
-   if(s.effective_total==null)amount.append(el('p','원거래 기준','help'));
-   else if(Number(s.effective_total)!==Number(s.total_amount))amount.append(el('p','원거래 '+money(s.total_amount),'help'));
-   return [s.sales_date,s.party_name,kinds[s.kind],s.agent_name||'—',kinds[s.status],amount,
-    btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:s.id}))))];
-  })));
+  else {
+   const results=table(['거래처','매출액','상태','상세','매출일','유형','영업자'],list.items.map(s=>{
+    const amount=el('div',money(s.effective_total??s.total_amount));
+    if(s.effective_total==null)amount.append(el('p','원거래 기준','help'));
+    else if(Number(s.effective_total)!==Number(s.total_amount))amount.append(el('p','원거래 '+money(s.total_amount),'help'));
+    return [s.party_name,amount,kinds[s.status],
+     btn('상세',()=>void run(async()=>saleEditor(await rpc('erp_sales_get',{p_id:s.id})))),
+     s.sales_date,kinds[s.kind],s.agent_name||'—'];
+   }));
+   results.classList.add('erp-sales-results');
+   // Keep table semantics when the mobile stylesheet lays rows out as cards.
+   for(const [selector,role] of [['table','table'],['thead,tbody','rowgroup'],['tr','row'],['th','columnheader'],['td','cell']]){
+    results.querySelectorAll(selector).forEach(node=>node.setAttribute('role',role));
+   }
+   body.append(results);
+  }
  }
  async function drawPayoutQueue(){
   const yesterday=new Date(today()+'T00:00:00Z');
