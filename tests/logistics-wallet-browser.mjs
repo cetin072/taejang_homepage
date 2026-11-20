@@ -34,7 +34,7 @@ try{
     try{const result=rpc(name,args);if(loseResponse&&args.p_action==='wallet.deposit'){loseResponse=false;return route.fulfill({status:503,json:{message:'Synthetic response lost after commit'}});}return route.fulfill({json:result});}
     catch(e){return route.fulfill({status:400,json:{message:String(e.stderr||e.message)}});}
    }
-   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/logistics.css','/staff/assets/staff.css'].includes(u.pathname))return route.abort();
+   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css'].includes(u.pathname))return route.abort();
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:readFileSync('.'+u.pathname,'utf8')});
   });
   await p.goto('https://fixture.test/');await p.getByRole('tab',{name:'고객 관리',exact:true}).click();

@@ -16,7 +16,7 @@ const html=`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="vie
 import '/app/assets/logistics-core.js';
 const C=window.TaejangLogisticsCore;
 window.fixture=C.draft();Object.assign(fixture,{customerId:'synthetic-customer',customerName:'검수용 고객',issueDate:'2026-11-15',pickup:'태장 물류센터',dropoff:'인천 입고센터'});
-window.charged=false;window.balance=500000;window.readFailure=false;window.printCalls=0;window.print=()=>{printCalls++;};window.readCalls=0;window.mutations=0;window.role='operations_manager';
+window.charged=false;window.balance=500000;window.readFailure=false;window.printCalls=0;window.print=()=>{printCalls++;window.printTitle=document.title;};window.readCalls=0;window.mutations=0;window.role='operations_manager';
 window.TaejangApp={getAccessContext:()=>({id:'synthetic-actor',account_status:'active'}),getActualRoles:()=>[role],getEffectiveRoles:()=>[role],rpc:async(name)=>{
  if(name!=='get_logistics_workspace'){mutations++;throw Error('Printing must never write');}
  readCalls++;if(readFailure)throw Error('Synthetic read failure');
@@ -42,6 +42,7 @@ async function startPrint(p){
 }
 async function finishPrint(p){
  await p.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
+ assert.equal(await p.title(),'ERP 검수');
  assert.equal(await p.locator('#logistics-print').count(),0);
  assert.equal(await p.evaluate(()=>document.body.classList.contains('lg-printing')),false);
 }
@@ -59,7 +60,7 @@ try{
    const u=new URL(route.request().url());
    if(u.origin!=='https://fixture.test')return route.abort();
    if(u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
-   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
+   if(!['/app/assets/logistics.js','/app/assets/logistics-core.js','/app/assets/erp-pdf.mjs','/app/assets/logistics.css','/staff/assets/staff.css','/app/assets/dashboard-shell.css','/app/assets/dashboard-accent-theme.css'].includes(u.pathname))return route.abort();
    return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'text/javascript',body:await readFile(new URL('..'+u.pathname,import.meta.url),'utf8')});
   });
   await p.goto('https://fixture.test/');await openQuote(p);
@@ -74,6 +75,7 @@ try{
   await startPrint(p);
   assert.equal(await pdf(p,`basic-${width}`),1,'standard quote fits A4 without scaling');
   assert.equal(await p.evaluate(()=>printCalls),1,'button invokes native printing once');
+  assert.equal(await p.evaluate(()=>printTitle),'검수용 고객_2026-11-15');
   assert.equal(await p.evaluate(()=>readCalls),reads+1,'printing refreshes current balance without changing the quote');
   await finishPrint(p);
   assert.equal(await p.evaluate(()=>JSON.stringify(fixture)),original,'printing/cancel leaves the snapshot intact');
@@ -91,9 +93,10 @@ try{
   assert.equal(await p.locator('#logistics-print').count(),0);
   await p.evaluate(()=>{readFailure=false;charged=false;balance=500000;});
   if(width===1440){
-   await p.evaluate(()=>{fixture.feeEnabled=true;fixture.vatMode='inclusive';fixture.discount=500;fixture.storage={shelves:3,startMonth:4,months:2,rate:15000};
+   await p.evaluate(()=>{fixture.customerName='검수/고객';fixture.feeEnabled=true;fixture.vatMode='inclusive';fixture.discount=500;fixture.storage={shelves:3,startMonth:4,months:2,rate:15000};
     fixture.lines.push({key:'extra-1',stage:5,label:'추가 포장 작업',kind:'extra',quantity:2,unitPrice:2000});});
    await openQuote(p);await startPrint(p);
+   assert.equal(await p.evaluate(()=>printTitle),'검수-고객_2026-11-15');
    assert.ok((await p.locator('#logistics-print').textContent()).includes('부가세 포함'),'printed VAT label preserves the selected mode');
    assert.ok(!(await p.locator('#logistics-print').textContent()).includes('부가세 별도'));
    assert.equal(await pdf(p,'with-extra-and-vat'),1);await finishPrint(p);
@@ -105,6 +108,7 @@ try{
    await p.evaluate(()=>{window.print=()=>{throw Error('Synthetic print failure');};});
    await p.getByRole('button',{name:'견적서 인쇄 / PDF 저장',exact:true}).click();
    assert.equal(await p.locator('#logistics-print').count(),0,'failed print cleans up its copy');
+   assert.equal(await p.title(),'ERP 검수');
    assert.ok(await p.getByText('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',{exact:true}).isVisible());
    await p.evaluate(()=>{window.print=()=>{printCalls++;};});
    await startPrint(p);

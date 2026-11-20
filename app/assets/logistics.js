@@ -1,5 +1,6 @@
 /* The ERP owns auth/navigation. Logistics owns only its workspace and document. */
 import './logistics-core.js';
+import { printErpPdf } from './erp-pdf.mjs';
 const C=window.TaejangLogisticsCore;
 const money=n=>Number(n||0).toLocaleString('ko-KR')+'원';
 const el=(tag,value='',cls='')=>{const n=document.createElement(tag);n.textContent=value;if(cls)n.className=cls;return n;};
@@ -9,6 +10,7 @@ const permitted=()=>C.allowed(app());
 const actor=()=>app()?.getAccessContext?.()?.id||'';
 const pendingKey=()=>`taejang-logistics-pending-v1:${actor()}`;
 const clone=C.copy;
+let cancelPrint;
 function report(text,error=false,nearWallet=false){
  if(!root?.isConnected)return;
  const feedback=(nearWallet&&root.querySelector('[data-wallet-feedback]'))||status;
@@ -286,18 +288,18 @@ async function printQuote(){
   state.quotes=state.quotes.map(q=>q.id===id?{...q,charged:current.charged}:q);totals();
  }catch{report('충전금 최신 정보를 확인하지 못해 인쇄를 중단했습니다. 다시 시도해 주세요.',true);return;}
  finally{busy=false;if(content)content.inert=false;}
- document.getElementById('logistics-print')?.remove();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
+ cancelPrint?.();const printed=el('div','','lg');printed.id='logistics-print';const source=root.querySelector('[data-quote-sheet]'),sheet=source.cloneNode(true);
  // cloneNode does not preserve the live selection of a select element.
  const selections=source.querySelectorAll('select');sheet.querySelectorAll('select').forEach((n,i)=>{n.value=selections[i].value;});
  sheet.querySelectorAll('.lg-no-print,button').forEach(n=>n.remove());sheet.querySelectorAll('input[type=checkbox]').forEach(n=>n.closest('label')?.remove());sheet.querySelector('[aria-label="수수료율 (%)"]')?.closest('label')?.remove();if(!quote.feeEnabled)sheet.querySelector('[data-amount=platform]')?.closest('.lg-billrow')?.remove();sheet.querySelectorAll('input,select,textarea').forEach(n=>{const value=n.tagName==='SELECT'?n.selectedOptions[0]?.textContent:n.type==='checkbox'?(n.checked?'적용':'미적용'):n.value;const text=el('span',value||'—','lg-print-value');n.replaceWith(text);});
  const summary=root.querySelector('[data-wallet-summary]').firstElementChild.cloneNode(true);
  summary.querySelectorAll('.lg-no-print').forEach(n=>n.remove());summary.append(el('p','조회: '+new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' (한국시간)','lg-help'));sheet.append(summary);
  printed.append(sheet);document.body.append(printed);document.body.classList.add('lg-printing');
- try{window.print();}catch{clearPrint();report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
+ const {customerName,issueDate}=confirmed.snapshot;
+ try{cancelPrint=printErpPdf(customerName||'물류 견적서',issueDate,clearPrint);}catch{report('인쇄창을 열지 못했습니다. 다시 눌러 주세요.',true);}
 }
-function clearPrint(){document.body.classList.remove('lg-printing');document.getElementById('logistics-print')?.remove();}
-window.addEventListener('afterprint',clearPrint);
-function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));clearPrint();}
+function clearPrint(){cancelPrint=null;document.body.classList.remove('lg-printing');document.getElementById('logistics-print')?.remove();}
+function revoke(){if(permitted()&&sessionOwner===actor())return;epoch++;pending=null;state=null;quote=null;confirmed=null;dirty=false;root?.replaceChildren(el('p','이 메뉴를 사용할 권한이 없습니다.'));cancelPrint?.();}
 for(const event of ['taejang-app-ready','taejang-capabilities-changed','taejang-menu-authority-changed'])document.addEventListener(event,revoke);
 window.addEventListener('storage',event=>{if(event.key==='taejang-staff-session-v1')revoke();});
 async function open(){
