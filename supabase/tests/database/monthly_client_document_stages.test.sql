@@ -5,7 +5,7 @@ select ok(not has_table_privilege('authenticated',t,'select') and not has_table_
   and not has_table_privilege('anon',t,'insert'),'RPC-only access for '||t)
 from unnest(array['public.monthly_client_document_dispatches','public.monthly_client_document_files','public.monthly_client_document_settings']) t;
 select is((select public from storage.buckets where id='monthly-client-documents'),false,'archive bucket is private');
-select throws_ok($$select public.monthly_client_documents_worker_counts(2026,11)$$,'42501','FORBIDDEN','anonymous headcount denied');
+select ok(to_regprocedure('public.monthly_client_documents_worker_counts(integer,integer)') is null,'monthly documents do not collect employee headcounts');
 insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data) values
  ('98540000-0000-0000-0000-000000000011','monthly-stage@example.test','{}','{}');
 update public.profiles set account_status='active',approved_at=now() where id='98540000-0000-0000-0000-000000000011';

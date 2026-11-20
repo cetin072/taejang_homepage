@@ -293,24 +293,4 @@ end $$;
 revoke all on function public.monthly_client_documents_update_settings(jsonb,jsonb) from public,anon;
 grant execute on function public.monthly_client_documents_update_settings(jsonb,jsonb) to authenticated;
 
--- The employee master currently has no standalone verified sex field.
--- Never infer it from names, positions or decrypted identity numbers.
-create function public.monthly_client_documents_worker_counts(p_year integer,p_month integer)
-returns jsonb language plpgsql stable security definer set search_path='' as $$
-declare boundary date; severe_count integer; mild_count integer; unknown_count integer;
-begin
-  if public.private_actor_can('monthly_client_documents.manage') is not true then raise exception 'FORBIDDEN' using errcode='42501'; end if;
-  if p_year is null or p_year not between 2000 and 9999 or p_month is null or p_month not between 1 and 12 then raise exception 'INVALID_MONTH'; end if;
-  boundary:=make_date(p_year,p_month,1);
-  select count(*) filter(where info.degree='severe'),count(*) filter(where info.degree='mild'),
-    count(*) filter(where info.degree is null) into severe_count,mild_count,unknown_count
-    from public.employees employee left join private.employee_disability_info info on info.employee_uuid=employee.id
-    where employee.hired_on<=boundary and (employee.departed_on is null or employee.departed_on>=boundary)
-      and (employee.archived_at is null or employee.archived_at::date>=boundary);
-  if unknown_count>0 then raise exception 'WORKER_CLASSIFICATION_INCOMPLETE'; end if;
-  if mild_count>0 then raise exception 'VERIFIED_SEX_COUNTS_UNAVAILABLE'; end if;
-  return jsonb_build_object('severe',severe_count,'mildF',0,'mildM',0);
-end $$;
-revoke all on function public.monthly_client_documents_worker_counts(integer,integer) from public,anon;
-grant execute on function public.monthly_client_documents_worker_counts(integer,integer) to authenticated;
 commit;
