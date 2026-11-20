@@ -174,7 +174,7 @@
       el('span', label, 'eyebrow'),
       el('strong', `${time(record?.event_at || record?.requested_at)} · ${statusText(record)}`)
     );
-    box.append(el('span', `지문 ${time(fingerprintValue)}`, 'attendance-evidence-line'));
+    if (fingerprintValue) box.append(el('span', `과거 외부 기록 ${time(fingerprintValue)}`, 'attendance-evidence-line'));
     const actions = reviewButtons(record);
     if (actions) box.append(actions);
     return box;
@@ -294,7 +294,7 @@
     if (status !== 'work') return { label: dayStatusLabel(status), needsReview: status === 'review_required' };
     const evidence = Array.isArray(evidenceRows) ? evidenceRows : [];
     if (!fingerprintImported) return { label: '앱 근태 기준', needsReview: false };
-    if (evidence.length > 1) return { label: `지문 중복 ${evidence.length}건 · 확인`, needsReview: true };
+    if (evidence.length > 1) return { label: `과거 외부 기록 중복 ${evidence.length}건 · 확인`, needsReview: true };
     const fingerprint = evidence[0] || null;
     const appIn = row.clock_in?.event_at || null;
     const appOut = row.clock_out?.event_at || null;
@@ -304,7 +304,7 @@
     const fpAny = Boolean(fpIn || fpOut);
 
     if (!appAny && !fpAny) return { label: '양쪽 기록 없음 · 확인', needsReview: true };
-    if (!appAny && fpAny) return { label: '지문만 있음 · 확인', needsReview: true };
+    if (!appAny && fpAny) return { label: '과거 외부 기록만 있음 · 확인', needsReview: true };
     if (appAny && !fpAny) return { label: '앱만 있음 · 확인', needsReview: true };
 
     const deltas = [minuteDelta(appIn, fpIn), minuteDelta(appOut, fpOut)]
@@ -314,9 +314,9 @@
 
     const maxDelta = Math.max(...deltas);
     if (maxDelta <= ALIGNMENT_TOLERANCE_MINUTES) {
-      return { label: `GPS·지문 대체로 일치 (최대 ${maxDelta}분)`, needsReview: false };
+      return { label: `앱·과거 외부 기록 대체로 일치 (최대 ${maxDelta}분)`, needsReview: false };
     }
-    return { label: `GPS·지문 시간차 ${maxDelta}분 · 확인`, needsReview: true };
+    return { label: `앱·과거 외부 기록 시간차 ${maxDelta}분 · 확인`, needsReview: true };
   }
 
   function makeToolbar(workDate) {
@@ -351,7 +351,7 @@
       p_source_system: item.source_system || EVIDENCE_SOURCE,
       p_source_employee_key: item.source_employee_key,
       p_employee_uuid: employeeUuid,
-      p_reason: automatic ? '운영팀장 이름 정확 일치 후보 확인 후 일괄 연결' : '운영팀장 지문 출근부 직원 연결 확인',
+      p_reason: automatic ? '운영팀장 이름 정확 일치 후보 확인 후 일괄 연결' : '운영팀장 과거 외부 근태 직원 연결 확인',
       p_work_date: workDate,
       p_expected_employee_uuid: item.identity?.mapping_employee_uuid || null,
       p_confirm_replace: replace,
@@ -382,8 +382,8 @@
     const evidenceRows = evidenceData.rows || unmatched;
     if (!evidenceRows.length) return null;
     const panel = el('section', null, 'attendance-unmatched');
-    panel.append(el('strong', '직원 미매칭 지문자료 ' + unmatched.length + '건 (현재 상태)'),
-      el('p', '사번/사용자번호를 태장 직원과 한 번 연결하면 다음 파일부터 같은 직원으로 인식합니다. 조회만으로 연결을 저장하지 않습니다.'));
+    panel.append(el('strong', '미연결 과거 외부 기록 ' + unmatched.length + '건 (현재 상태)'),
+      el('p', '저장된 과거 기록의 사번이나 사용자번호를 태장 직원과 연결할 수 있습니다.'));
     const batches = evidenceData.batches || [];
     panel.append(el('p', '원본 ' + (evidenceData.raw_row_count ?? evidenceRows.length) + '행 · 비교 근거 ' + evidenceRows.length + '건 · 원본 배치 ' + batches.length + '개. 동일 직원·날짜·시각의 원본은 함께 보존합니다.'));
     const provenance = el('details'); provenance.append(el('summary', '원본 배치와 수집 당시 수치'));
@@ -416,7 +416,7 @@
       line.append(el('span', (item.source_display_name || '이름 없음') + ' · ' + (item.source_employee_key || '외부번호 없음') + ' · 출근 ' + time(item.clock_in_at) + ' / 퇴근 ' + time(item.clock_out_at)));
       if (!context) { line.append(el('span', '안전한 직원 연결 서버 동기화 필요')); list.append(line); return; }
       if (context.name_reused || context.time_conflict) {
-        line.append(el('strong', context.name_reused ? '연결 중지: 같은 지문기 번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
+        line.append(el('strong', context.name_reused ? '연결 중지: 같은 외부 사용자번호의 과거 이름이 다릅니다.' : '연결 중지: 같은 날짜의 출퇴근 시각이 충돌합니다. 자동 확정 불가.'));
         list.append(line); return;
       }
       const currentEmployee = context.employees.find(employee => employee.employee_uuid === item.employee_uuid);
@@ -448,14 +448,14 @@
       missing_clock_in: '출근 시간이 없습니다',
       missing_clock_out: '퇴근 시간이 없습니다',
       pending_gps_exception: 'GPS 예외가 아직 처리되지 않았습니다',
-      fingerprint_import_missing: '이 날짜의 지문 Excel 자료를 아직 가져오지 않았습니다',
-      fingerprint_missing: '지문 근거가 없습니다',
-      fingerprint_ambiguous: '같은 직원의 지문 근거가 여러 건입니다',
-      fingerprint_clock_in_missing: '지문 출근 시간이 없습니다',
-      fingerprint_clock_out_missing: '지문 퇴근 시간이 없습니다',
-      clock_in_mismatch: 'GPS와 지문 출근 시간 차이가 5분을 넘습니다',
-      clock_out_mismatch: 'GPS와 지문 퇴근 시간 차이가 5분을 넘습니다',
-      external_identity_unmatched: '직원 미매칭 지문자료가 있습니다',
+      fingerprint_import_missing: '이 날짜의 과거 외부 기록을 확인해주세요',
+      fingerprint_missing: '과거 외부 기록이 없습니다',
+      fingerprint_ambiguous: '같은 직원의 과거 외부 기록이 여러 건입니다',
+      fingerprint_clock_in_missing: '과거 외부 기록의 출근 시간이 없습니다',
+      fingerprint_clock_out_missing: '과거 외부 기록의 퇴근 시간이 없습니다',
+      clock_in_mismatch: '앱 기록과 과거 외부 기록의 출근 시간 차이가 5분을 넘습니다',
+      clock_out_mismatch: '앱 기록과 과거 외부 기록의 퇴근 시간 차이가 5분을 넘습니다',
+      external_identity_unmatched: '직원과 연결되지 않은 과거 외부 기록이 있습니다',
       attendance_status_review_required: '근태 상태를 확인해야 합니다',
     };
     const owner = blocker?.display_name ? `${blocker.display_name} · ` : '';
@@ -652,7 +652,7 @@
     controls.append(startLabel, endLabel, historyLabel, query);
     panel.append(
       el('h3', '확정 근태 대장'),
-      el('p', '주·월·연 데이터를 별도로 복제하지 않습니다. 일일 확정 revision과 GPS·지문·수기 보정 provenance를 기간별로 다시 읽습니다.'),
+      el('p', '선택한 기간의 일일 확정본과 출퇴근 기록, 수기 보정 근거를 조회합니다.'),
       controls,
       results
     );
@@ -739,8 +739,8 @@
       return wrapper;
     };
     const site = document.createElement('input'); site.required = true; site.maxLength = 100;
-    const start = document.createElement('input'); start.type = 'time'; start.required = true;
-    const end = document.createElement('input'); end.type = 'time'; end.required = true;
+    const start = document.createElement('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
+    const end = document.createElement('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
     const mode = document.createElement('select');
     mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('본사 출근 → 현장 퇴근', 'out'));
     settings.append(field('현장명', site), field('시작 시각', start), field('종료 시각', end), field('기록 방식', mode));
@@ -1121,7 +1121,7 @@
           const missing = dayStatusCode(row) === 'work' && (!good(row.clock_in) || !good(row.clock_out));
           return missing ? { label: '출퇴근 누락 · 확인', needsReview: true } : comparison;
         })
-        : rows.map(() => ({ label: '지문 근거자료 서버 동기화 필요', needsReview: true }));
+        : rows.map(() => ({ label: '과거 외부 기록 서버 동기화 필요', needsReview: true }));
       const reviewCount = rows.filter((row,index)=>comparisons[index].needsReview || row.clock_in?.status==='exception_pending' || row.clock_out?.status==='exception_pending').length;
 
       const intro = el('header', null, 'dashboard-intro');
@@ -1130,7 +1130,7 @@
       intro.append(
         el('p', '근태 관리', 'eyebrow'),
         el('h2', `${currentWorkDate || '오늘'} 출근부`),
-        el('p', '앱 GPS와 보안업체 지문 Excel을 근거자료로 비교하고, 차이·누락만 우선 확인합니다. 원본 근거는 서로 덮어쓰지 않습니다.'),
+        el('p', '앱 출퇴근 기록과 현장근무를 조회하고 누락이나 확인이 필요한 기록을 처리합니다.'),
         back
       );
 
@@ -1171,7 +1171,7 @@
       const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel});
       const pieces=[intro,tabs];
       dailyPanel.append(makeToolbar(currentWorkDate),summary,searchToolbar(renderDaily,()=>rows));
-      if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('지문 근거자료'));
+      if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('과거 외부 기록'));
       if(!workdayAvailable||!holidayAssignmentsAvailable)detailPanel.append(syncRequiredPanel('휴일근무 지정'));
       else { const holidayPanel=holidayWorkPanel(dayStatus,holidayAssignments,rows,currentWorkDate);if(holidayPanel)detailPanel.append(folded('휴일근무 지정',holidayPanel)); }
       if (can('attendance.correct') && fieldWorkResult.status === 'fulfilled' && Array.isArray(fieldWorkResult.value)) {
@@ -1183,7 +1183,7 @@
       correction.addEventListener('click',()=>window.TaejangAttendanceIntegrity?.openCorrectionScreen());
       if(can('attendance.correct'))detailPanel.append(correction);
       const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate,evidenceData);
-      if(unmatchedNode)dailyPanel.append(folded('미매칭 지문자료 '+unmatched.length+'건',unmatchedNode,true));
+      if(unmatchedNode)dailyPanel.append(folded('과거 외부 기록 · 미연결 '+unmatched.length+'건',unmatchedNode,true));
       dailyPanel.append(list);pieces.push(dailyPanel,monthly,detailPanel);
       target.replaceChildren(...pieces);
     } catch {
@@ -1204,7 +1204,7 @@
     card.append(
       el('span', '현재 담당 업무', 'status-label'),
       el('h3', '오늘 출근부'),
-      el('p', '앱 GPS와 지문 출근부의 차이·누락을 우선 확인합니다.')
+      el('p', '오늘 출퇴근과 현장근무 기록을 확인합니다.')
     );
     const button = el('button', '출근부 열기', 'button button-quiet');
     button.type = 'button';

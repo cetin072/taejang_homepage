@@ -42,7 +42,7 @@ export async function verifyIdentityUi(page, preview) {
  assert.equal(await page.evaluate(()=>window.identityCalls.filter(c=>c.name.startsWith('save_')).length),0,'cancel must never save');
  await page.evaluate(()=>window.identityAccept=true);
  await page.getByRole('button',{name:'일치 직원 일괄 연결',exact:true}).click();
- await page.getByText('직원 미매칭 지문자료 0건 (현재 상태)',{exact:true}).waitFor();
+ await page.getByText('미연결 과거 외부 기록 0건 (현재 상태)',{exact:true}).waitFor();
  assert.equal(await page.evaluate(()=>window.identityCalls.filter(c=>c.name.startsWith('save_')).length),21);
  assert.match(await page.evaluate(()=>window.identityAlerts.at(-1)),/21명 완료/);
  // Replacement is a second, separately cancellable dialog.
@@ -74,7 +74,7 @@ export async function verifyIdentityUi(page, preview) {
  await page.evaluate(()=>window.TaejangAttendanceAdmin.openAttendance('2026-10-19'));
  await page.getByText('안전한 이름 일치 후보 17명',{exact:true}).waitFor();
  await page.getByText('미매칭 수동 연결·기존 연결 확인/변경',{exact:true}).click();
- await page.getByText('연결 중지: 같은 지문기 번호의 과거 이름이 다릅니다.',{exact:true}).waitFor();
+ await page.getByText('연결 중지: 같은 외부 사용자번호의 과거 이름이 다릅니다.',{exact:true}).waitFor();
  await page.getByText('동명이인: 사번·부서·팀·직책을 비교하여 직접 선택해 주세요.',{exact:true}).waitFor();
  await page.getByRole('button',{name:'일치 직원 일괄 연결',exact:true}).click();
  await page.waitForFunction(()=>window.identityAlerts.at(-1)?.includes('중지/미처리 17명'));
