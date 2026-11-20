@@ -51,14 +51,14 @@ test('platform shell keeps payroll parser and attendance registry without finger
 
 test('attendance roster compares GPS and fingerprint evidence and prioritizes exceptions', () => {
   assert.match(admin, /ALIGNMENT_TOLERANCE_MINUTES = 5/);
-  assert.match(admin, /GPS·지문 대체로 일치/);
-  assert.match(admin, /GPS·지문 시간차/);
-  assert.match(admin, /지문만 있음 · 확인/);
+  assert.match(admin, /앱·과거 외부 기록 대체로 일치/);
+  assert.match(admin, /앱·과거 외부 기록 시간차/);
+  assert.match(admin, /과거 외부 기록만 있음 · 확인/);
   assert.match(admin, /앱만 있음 · 확인/);
-  assert.match(admin, /직원 미매칭 지문자료/);
+  assert.match(admin, /미연결 과거 외부 기록/);
 });
 
 test('removed import has no button, hidden input, parser helper or upload guidance', () => {
-  assert.doesNotMatch(admin, /지문 Excel 가져오기|GPS·지문 비교 안내|importFingerprintFile|allExcelRows|sha256File/);
+  assert.doesNotMatch(admin, /보안업체|지문|importFingerprintFile|allExcelRows|sha256File/);
   assert.match(admin, /앱 근태 기준/);
 });

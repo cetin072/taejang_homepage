@@ -190,7 +190,7 @@
       || [...grid.children].some(node => cardKey(node) === 'payroll.manage')) return;
     grid.append(card(
       '근태·급여관리',
-      '오늘 근태를 직접 입력하거나 보안업체 Excel로 채운 뒤 수정·저장하고, 급여 가안과 급여대장 Excel까지 한 화면에서 확인합니다.',
+      '확정 근태로 급여 가안을 계산하고 급여대장 Excel을 확인합니다.',
       '운영총괄 1차 사용',
       {
         label: '근태·급여관리 열기',

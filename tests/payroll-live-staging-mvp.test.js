@@ -124,7 +124,7 @@ test('live MVP renders the practical payroll ledger without statutory setting in
   assert.match(html, /type="month"/i);
   assert.match(html, /type="date"/i);
   assert.match(html, /type="file"[^>]+accept="\.xlsx"/i);
-  assert.match(html, /구형 XLS는 실제 보안업체 원본을 확인한 뒤 전용 지원 여부를 결정합니다/);
+  assert.doesNotMatch(html, /보안업체|지문/);
   assert.doesNotMatch(html, /국민연금.*<input|건강보험.*<input|고용보험.*<input/i);
 });
 
