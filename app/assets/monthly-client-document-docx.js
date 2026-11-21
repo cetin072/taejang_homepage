@@ -63,7 +63,7 @@
     const content = core.buildContent(normalized,company,calculation);
     const s = content.simple;
     const basis = settings.contract_basis_text;
-    const programs = [safe,...work,...[common.workDescription].filter(x => x && !work.includes(x)),...common.extras.filter(e=>e.name).map(e=>[e.name,e.description].filter(Boolean).join(' — '))];
+    const programs = [safe,...work,...[common.workDescription].filter(x => x && !x.split(/\r?\n/).every(line=>work.includes(line.trim()))),...common.extras.filter(e=>e.name).map(e=>[e.name,e.description].filter(Boolean).join(' — '))];
     content.listC = programs.map((line,i)=>('가나다라마바사아자차카타파하'[i] || String(i+1))+'. '+line);
     content.listR = programs.map(line=>'· '+line);
     Object.assign(s,{BASIS:basis, ITEM:preset.item, SERVICE:serviceTitle, RELATED:plan === 'notice_skipped' ? 'T'+s.SEQ+'호' : '태장 제'+s.SEQ+'호',

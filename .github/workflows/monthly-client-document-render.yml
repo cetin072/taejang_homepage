@@ -31,10 +31,15 @@ jobs:
         env:
           MONTHLY_RENDER_OUTPUT: monthly-document-render-artifacts
         run: node tests/monthly-client-document-stages-render.mjs
+      - name: Check ERP preview and Word downloads in Chromium
+        run: |
+          npm ci
+          node tests/monthly-client-documents-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: monthly-document-synthetic-render
           path: monthly-document-render-artifacts/
           if-no-files-found: ignore
+
 
