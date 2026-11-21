@@ -318,7 +318,7 @@
       },
       {
         key: 'monthly_client_documents.manage',
-        label: '거래처 문서 관리',
+        label: '참여기업 월간 서류',
         run: () => window.TaejangMonthlyClientDocumentsLoader?.(),
         capabilities: ['monthly_client_documents.manage']
       },
@@ -370,6 +370,7 @@
   const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
   function currentViewDirty() {
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
+    if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
     return activeView === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }

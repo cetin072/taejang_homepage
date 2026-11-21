@@ -234,7 +234,7 @@
       await ensureMonthlyDocumentModulesLoaded();
       await window.MonthlyClientDocuments.open();
     } catch {
-      showFeatureFailure('거래처 문서 관리');
+      showFeatureFailure('참여기업 월간 서류');
     }
   };
 
