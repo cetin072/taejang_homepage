@@ -7,6 +7,24 @@
   const items = /* OFFICIAL_ITEMS_START */
 [
   {
+    "id": "naver-blog-224462403631",
+    "type": "external",
+    "source": "naver-blog",
+    "publisher": "태장 공식 블로그",
+    "category": "회사소식",
+    "title": "각자의 개성으로 채운 그림, 꼼꼼하게 이어간 물류 업무 - 장애인 표준사업장 태장",
+    "summary": "태장 공식 블로그의 「각자의 개성으로 채운 그림, 꼼꼼하게 이어간 물류 업무 - 장애인 표준사업장 태장」 기록입니다.",
+    "thumbnail": "https://blogthumb.pstatic.net/MjAyNjExMDJfOTUg/MDAxNzkzNTgyNzQwOTk2.cTE1D1rlwYxFtJFbR6XCalaiDUwW27Dau4RaehfxbhUg.zAr8w7qsauu8HvAIBXap8rQtCmM1hZPGBdTd-2Lu73Eg.JPEG/KakaoTalk_20261102_102326452.jpg?type=w2",
+    "thumbnailAlt": "각자의 개성으로 채운 그림, 꼼꼼하게 이어간 물류 업무 - 장애인 표준사업장 태장 관련 태장 공식 블로그 대표사진",
+    "publishedAt": "2026-11-09",
+    "sourcePublishedAt": "2026-11-09",
+    "archiveDateBasis": "source-publication-date",
+    "featured": false,
+    "status": "published",
+    "externalUrl": "https://blog.naver.com/taejang-official/224462403631",
+    "externalLabel": "네이버 블로그에서 보기"
+  },
+  {
     "id": "naver-blog-224462019863",
     "type": "external",
     "source": "naver-blog",
