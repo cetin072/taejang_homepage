@@ -98,7 +98,8 @@
       if (pages.length===1) {
         // The final section is written on the document body for a standalone page.
         xml=xml.replace(/<w:sectPr\b[^>]*>[\s\S]*?<\/w:sectPr>/g,'');
-        const spacing=page==='Q'?1.17:1.07;
+        const extraCount=common.extras.filter(extra=>extra.name.trim()).length;
+        const spacing=page==='Q'?1.17:Math.max(0.90,1.07-0.09*extraCount);
         xml=xml.replace(/<w:spacing\b[^>]*\/>/g,tag=>tag.replace(/w:(before|after|line)="(\d+)"/g,
           (_,key,value)=>'w:'+key+'="'+Math.round(Number(value)*spacing)+'"'));
       }

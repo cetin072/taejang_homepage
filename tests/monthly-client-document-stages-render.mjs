@@ -18,13 +18,16 @@ const common = {year:2026,month:11,noticeDate:'2026-11-13',quoteDate:'2026-11-21
 const settings = {contract_basis_text:'계약 별첨2(용역 제공 기준)',service_types:{env:{item:'지역사회 환경정화 용역',report:'{N}월 지역사회 환경정화 용역',work:['{장소} 청소']}}};
 for (const [stage,plan,count] of [['notice','three_step',1],['quote','three_step',1],['report','three_step',1],['result','three_step',2],['result','notice_skipped',2],['result','single_bundle',3]]) {
   for (const company of companies) {
-    const pair = await renderCompanyDocuments({common,company,stage,plan,settings});
+    const withEvent={...common,extras:[{name:'추가 행사',description:'참여기업과 함께한 환경 캠페인'}]};
+    const includeEvent=company.id==='samhyeon' && ['notice','report'].includes(stage);
+    const pair = await renderCompanyDocuments({common:includeEvent?withEvent:common,company,stage,plan,settings});
     const stem = path.join(output,company.id+'-'+stage+'-'+plan);
     assert.ok(pair.filename.endsWith('_'+company.key));
     await writeFile(stem+'.docx',pair.word);
     await writeFile(stem+'.pdf',pair.pdf);
     assert.equal(Number(execFileSync('pdfinfo',[stem+'.pdf'],{encoding:'utf8'}).match(/^Pages:\s+(\d+)/m)[1]),count);
     const text = execFileSync('pdftotext',[stem+'.pdf','-'],{encoding:'utf8'}).replace(/\s/g,'');
+    if(includeEvent)assert.match(text,/추가행사—참여기업과함께한환경캠페인/);
     assert.doesNotMatch(text,/환경정비|별첨1|직인생략|{{/);
     if(stage!=='report')assert.ok(text.includes(company.supply));
     assert.ok(text.includes(company.name.replace(/\s/g,'')));
