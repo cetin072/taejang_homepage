@@ -160,9 +160,11 @@
     dialog.style.cssText='width:min(96vw,1020px);max-height:92vh;overflow:auto';
     const model=structuredClone(state.common), sourceMonth=activeMonthKey, sourceRevision=revision, owner=authoritySequence;
     const available=()=>dialog.isConnected && owner===authoritySequence && currentCapability() && activeMonthKey===sourceMonth && revision===sourceRevision;
+    const saved=model.documentOutput?.month===sourceMonth ? model.documentOutput.companies?.[company.id] : null;
     const options={stage:'notice',mode:model.safety?.mode || (model.safety==='outdoor'?'outdoor':'indoor_video'),
       noticeDate:model.noticeDate || model.docDate,quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
-      promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:'{N}월 지역사회 환경정화(청소) 용역'};
+      promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:model.month+'월 지역사회 환경정화(청소) 용역',
+      actual:(model.actualPerfDates?.length ? model.actualPerfDates : model.perfDates || [model.perfDate]).join(', '),work:model.workDescription || '',...saved};
     const controls=el('div',undefined,'mcd-grid'),feedback=el('p'),actions=el('div',undefined,'mcd-actions');
     const frame=el('iframe');frame.title='발송 문서 미리보기';frame.style.cssText='width:100%;height:58vh;border:1px solid #ddd';frame.hidden=true;
     let pair=null,sequence=0;
@@ -176,12 +178,10 @@
     invalidate();
     add('발행 문서','stage','select',[['notice','공문'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
     for(const [key,label] of [['noticeDate','공문일'],['quoteDate','견적일'],['reportDate','결과보고일']])add(label,key,'date');
-    options.work=model.workDescription || '';
     add('수행 내용 (줄마다 한 항목)','work','textarea');
     add('견적 품목','item','text');add('결과보고서 용역명','name','text');
     add('안전교육','mode','select',[['outdoor','현장 안전교육'],['indoor_hq','본사 실내 안전교육'],['indoor_video','영상 안전교육']]);
     add('홍보 게시','promotion','select',[['none','기재 생략'],['planned','게시 예정'],['posted','게시 완료']]);
-    options.actual=(model.actualPerfDates?.length ? model.actualPerfDates : model.perfDates || [model.perfDate]).join(', ');
     add('실제 수행일 (여러 날은 쉼표로 구분)','actual','text');
     for(const [key,label] of [['safety','안전교육 사진'],['site','현장 사진'],['group','단체사진']]){
       const wrap=el('label'),cb=el('input');cb.type='checkbox';cb.checked=options.photos.includes(key);
@@ -206,6 +206,13 @@
         feedback.textContent=word.disabled?'저장한 월을 확정하면 Word와 인쇄를 사용할 수 있습니다.':'';
       }catch(error){if(available()&&request===sequence)feedback.textContent=friendlyError(error);}
     },true);
+    if (record?.status!=='confirmed') actions.append(button('이 회사 출력 설정 저장',async()=>{
+      if (!available() || busy) return;
+      const companies=state.common.documentOutput?.month===sourceMonth ? state.common.documentOutput.companies : {};
+      state.common.documentOutput={month:sourceMonth,companies:{...companies,[company.id]:structuredClone(options)}};
+      dialog.close();
+      await saveMonth();
+    }));
     actions.append(preview,word,print,button('닫기',()=>dialog.close()));
     form.append(el('h3',company.name+' 발송 서류'),controls,actions,feedback,frame);
     dialog.append(form);root.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();

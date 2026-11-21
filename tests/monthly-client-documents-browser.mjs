@@ -79,6 +79,15 @@ try {
  assert.equal(await page.evaluate(()=>defaults[0].override),6,'monthly override cannot rewrite default six');
  await page.evaluate(()=>MonthlyClientDocuments.open());await page.waitForSelector('.mcd-service-dates');
  assert.equal(await field('수행일 2').inputValue(),'2026-10-23');assert.equal(await field('환경정비·작업 상세').inputValue(),'농원 작업 구역 정돈');
+ await page.getByRole('button',{name:'발송 서류 미리보기'}).first().click();
+ await dialog.getByLabel('안전교육',{exact:true}).selectOption('indoor_hq');
+ await dialog.getByLabel('홍보 게시').selectOption('planned');
+ await dialog.getByRole('button',{name:'이 회사 출력 설정 저장'}).click();
+ await page.waitForFunction(()=>calls.filter(c=>c.name==='monthly_client_documents_save').at(-1)?.args.p_payload.common.documentOutput?.companies.beomhan.mode==='indoor_hq');
+ await page.evaluate(()=>MonthlyClientDocuments.open());
+ await page.getByRole('button',{name:'발송 서류 미리보기'}).first().click();
+ assert.equal(await dialog.getByLabel('홍보 게시').inputValue(),'planned');
+ await dialog.getByRole('button',{name:'닫기'}).click();
  const long='긴한글내용'.repeat(100);await field('환경정비·작업 상세').fill(long);await page.getByRole('button',{name:'저장',exact:true}).click();await page.waitForFunction(()=>document.body.textContent.includes('월별 snapshot을 저장했습니다.'));assert.equal(await field('환경정비·작업 상세').inputValue(),long);assert.equal(await page.getByRole('button',{name:'확정',exact:true}).isDisabled(),true);
  console.log(JSON.stringify({width,multipleDatesSavedAndReloaded:true,companyOverrideSevenDefaultsSix:true}));
  // Preserve a late RPC response while personal permission is revoked. Neither

@@ -11,10 +11,10 @@ export async function previewWord(frame, bytes, filename) {
   const body = xml.getElementsByTagNameNS(ns,'body')[0];
   if (!body) throw new Error('문서 미리보기를 만들 수 없습니다.');
   const doc = frame.contentDocument;
-  doc.title=filename;
   const style=doc.createElement('style');
   style.textContent='@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#eee;font:10.5pt "Malgun Gothic","Noto Sans CJK KR",sans-serif;color:#191919}.sheet{width:210mm;min-height:297mm;padding:23mm 25mm;background:white;margin:0 auto 8px;break-after:page}.sheet:last-child{break-after:auto}table{width:100%;table-layout:fixed;border-collapse:collapse}td{padding:2pt 4pt;vertical-align:middle}p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}@media print{body{background:white}.sheet{margin:0}}';
   doc.head.replaceChildren(style);
+  doc.title=filename;
   doc.body.replaceChildren();
   function paragraph(node) {
     const p=doc.createElement('p'),pr=child(node,'pPr'),sp=child(pr,'spacing');
