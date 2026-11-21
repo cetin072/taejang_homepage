@@ -64,7 +64,7 @@
   }
   function friendlyError(error) {
     const message = error?.message || String(error);
-    const guidance = {REVISION_CONFLICT:'다른 곳에서 수정했습니다. 월을 다시 열어 주세요.',REQUIRED_WORK_DESCRIPTION:'수행 내용를 입력해 주세요.',INVALID_SERVICE_DATE:'모든 수행일을 올바른 날짜로 입력해 주세요.',INVALID_SERVICE_DATES:'수행일의 중복과 순서를 확인해 주세요.',REQUIRED_SERVICE_DATES:'추가한 수행일을 입력하거나 빈 칸을 삭제해 주세요.',INVALID_DOCUMENT_DATE:'문서 작성일을 입력해 주세요.',DOCUMENT_LAYOUT_LIMIT:'3쪽 양식 범위를 넘었습니다. 초안은 보존되며 내용 검토 후 확정·출력할 수 있습니다.'};
+    const guidance = {REVISION_CONFLICT:'다른 곳에서 수정했습니다. 월을 다시 열어 주세요.',REQUIRED_WORK_DESCRIPTION:'수행 내용를 입력해 주세요.',INVALID_SERVICE_DATE:'모든 수행일을 올바른 날짜로 입력해 주세요.',INVALID_SERVICE_DATES:'수행일의 중복과 순서를 확인해 주세요.',REQUIRED_SERVICE_DATES:'추가한 수행일을 입력하거나 빈 칸을 삭제해 주세요.',INVALID_DOCUMENT_DATE:'문서 작성일을 입력해 주세요.',REQUIRED_ACTUAL_PERFORMANCE_DATES:'결과 서류를 만들려면 실제 수행일을 입력해 주세요.',UNCONFIRMED_ACTUAL_PERFORMANCE_DATES:'불러온 날짜가 실제 수행일인지 확인해 주세요.',INVALID_BUNDLE_ISSUE_DATE:'합본 공문 발행일을 직접 선택해 주세요.',BUNDLE_ISSUE_BEFORE_PERFORMANCE:'합본 공문 발행일은 마지막 실제 수행일과 같거나 그 이후여야 합니다.',DOCUMENT_LAYOUT_LIMIT:'3쪽 양식 범위를 넘었습니다. 초안은 보존되며 내용 검토 후 확정·출력할 수 있습니다.'};
     if (guidance[message]) return guidance[message];
     return message.includes('MONTH_ALREADY_EXISTS') ? '이미 저장된 월입니다. 저장된 월 불러오기를 사용하세요.' : (/[A-Z]{2,}_/.test(message)?'입력 내용과 저장 상태를 확인해 주세요.':message);
   }
@@ -168,34 +168,68 @@
     const shared=output.shared || {};
     const saved=company ? output.companies?.[company.id] : null;
     const options={stage:'notice',mode:model.safety?.mode || (model.safety==='outdoor'?'outdoor':'indoor_video'),
-      noticeDate:model.noticeDate || model.docDate,quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
+      noticeDate:model.noticeDate || model.docDate,bundleIssueDate:'',quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
       promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:model.month+'월 지역사회 환경정화(청소) 용역',
-      actual:(model.actualPerfDates?.length ? model.actualPerfDates : model.perfDates || [model.perfDate]).join(', '),work:model.workDescription || '',...shared,...saved};
+      actual:(model.actualPerfDates || []).join(', '),confirmedActual:'',work:model.workDescription || '',...shared,...saved};
     if(selectedDocument)options.stage=selectedDocument;
     const original=structuredClone(options);
     const controls=el('div',undefined,'mcd-grid'),feedback=el('p'),actions=el('div',undefined,'mcd-actions');
     const frame=el('iframe');frame.title='발송 문서 미리보기';frame.style.cssText='width:100%;height:58vh;border:1px solid #ddd';frame.hidden=true;
+    feedback.setAttribute('role','status');
     let pair=null,sequence=0;
-    function invalidate(){sequence++;pair=null;frame.hidden=true;word.disabled=print.disabled=true;}
+    function invalidate(){sequence++;pair=null;frame.hidden=true;word.disabled=print.disabled=true;feedback.textContent='';}
     let group=controls;
     function section(name){const details=el('details');details.append(el('summary',name));group=el('div',undefined,'mcd-grid');details.append(group);controls.append(details);}
-    const add=(label,key,type,choices)=>group.append(field(label,options[key],type,val=>{options[key]=val;invalidate();},{choices}));
+    const add=(label,key,type,choices,afterChange)=>{
+      const control=field(label,options[key],type,val=>{options[key]=val;invalidate();afterChange?.();},{choices});
+      group.append(control);return control;
+    };
     const word=button('Word 받기',()=>{
       if(!pair || !available())return;
       const url=URL.createObjectURL(pair.blob),a=el('a');a.download=pair.name+'.docx';a.href=url;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
     });
     const print=button('인쇄 · PDF로 저장',()=>{if(pair && available())frame.contentWindow.print();});
     invalidate();
-    add('발행 문서','stage','select',[['notice','공문'],['quote','견적서'],['report','용역 수행 결과보고서'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
+    const stageField=add('발행 문서','stage','select',[['notice','공문'],['quote','견적서'],['report','용역 수행 결과보고서'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
     section('문서 날짜');
-    for(const [key,label] of [['noticeDate','공문일'],['quoteDate','견적일'],['reportDate','결과보고일']])add(label,key,'date');
+    const noticeField=add('공문일','noticeDate','date');
+    const bundleIssueField=add('합본 공문 발행일','bundleIssueDate','date');
+    add('견적일','quoteDate','date');
+    add('결과보고일','reportDate','date');
+    const dateSection=bundleIssueField.closest('details'), bundleDateInput=bundleIssueField.querySelector('input');
+    const syncNoticeDateFields=()=>{
+      const isBundle=options.stage==='bundle';
+      noticeField.style.display=isBundle?'none':'';
+      bundleIssueField.style.display=isBundle?'':'none';
+      bundleDateInput.required=isBundle;
+    };
+    stageField.querySelector('select').addEventListener('change',syncNoticeDateFields);
+    syncNoticeDateFields();
     section('수행 내용과 품목');
     add('수행 내용 (줄마다 한 항목)','work','textarea');
     add('견적 품목','item','text');add('결과보고서 용역명','name','text');
     section('교육·홍보·사진');
     add('안전교육','mode','select',[['outdoor','현장 안전교육'],['indoor_hq','본사 실내 안전교육'],['indoor_video','영상 안전교육']]);
     add('홍보 게시','promotion','select',[['none','기재 생략'],['planned','게시 예정'],['posted','게시 완료']]);
-    add('실제 수행일 (여러 날은 쉼표로 구분)','actual','text');
+    const actualLabel='실제 수행일 (여러 날은 쉼표로 구분)';
+    const actualField=add(actualLabel,'actual','text',undefined,()=>{
+      options.confirmedActual=options.actual.trim()?options.actual:'';
+      syncActualConfirmation();
+    });
+    const actualInput=actualField.querySelector('input'), actualSection=actualField.closest('details');
+    const confirmation=el('label',undefined,'mcd-check'), actualConfirm=el('input');
+    actualConfirm.type='checkbox';
+    confirmation.append(actualConfirm,'입력한 날짜가 실제 수행일임을 확인');
+    group.append(confirmation);
+    // Older values may include dates copied from an earlier month. Keep them visible,
+    // but never treat them as confirmed unless the user verifies or edits them.
+    const actualIsConfirmed=()=>Boolean(options.actual.trim())&&options.confirmedActual===options.actual;
+    const syncActualConfirmation=()=>{
+      actualConfirm.checked=actualIsConfirmed();
+      actualConfirm.disabled=!options.actual.trim();
+    };
+    actualConfirm.onchange=()=>{options.confirmedActual=actualConfirm.checked?options.actual:'';invalidate();};
+    syncActualConfirmation();
     for(const [key,label] of [['safety','안전교육 사진'],['site','현장 사진'],['group','단체사진']]){
       const wrap=el('label',undefined,'mcd-check'),cb=el('input');cb.type='checkbox';cb.checked=options.photos.includes(key);
       cb.onchange=()=>{options.photos=options.photos.filter(x=>x!==key);if(cb.checked)options.photos.push(key);invalidate();};wrap.append(cb,label);group.append(wrap);
@@ -205,8 +239,13 @@
       invalidate();const request=sequence;
       try{
         const stage=['notice','quote','report'].includes(options.stage)?options.stage:'result',plan=options.stage==='bundle'?'single_bundle':options.stage==='skipped'?'notice_skipped':'three_step';
-        const common={...model,noticeDate:options.noticeDate,quoteDate:options.quoteDate,reportDate:options.reportDate,
-          perfDates:model.perfDates || [model.perfDate],actualPerfDates:options.actual.split(',').map(x=>x.trim()).filter(Boolean),
+        const actualDates=options.actual.split(',').map(x=>x.trim()).filter(Boolean);
+        if(stage==='result'||stage==='report'){
+          if(!actualDates.length)throw new Error('REQUIRED_ACTUAL_PERFORMANCE_DATES');
+          if(!actualIsConfirmed())throw new Error('UNCONFIRMED_ACTUAL_PERFORMANCE_DATES');
+        }
+        const common={...model,noticeDate:options.noticeDate,bundleIssueDate:options.bundleIssueDate,quoteDate:options.quoteDate,reportDate:options.reportDate,
+          perfDates:model.perfDates || [model.perfDate],actualPerfDates:actualIsConfirmed()?actualDates:[],
           serviceType:'custom',customService:{item:options.item,report:options.name,work:options.work.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},workDescription:options.work.trim(),safety:{mode:options.mode},promotion:{status:options.promotion},photoSets:options.photos};
         const renderer=window.MonthlyClientDocumentDocx,assets=await renderer.loadAssets('monthly-stages-1');
         const blob=await renderer.createDocx({...assets,common,companies:[company],stage,plan,settings:{contract_basis_text:'계약 별첨2(용역 제공 기준)'}});
@@ -218,7 +257,16 @@
         if(!available()||request!==sequence)return;
         pair={blob,name};frame.hidden=false;word.disabled=print.disabled=record?.status!=='confirmed';
         feedback.textContent=word.disabled?'저장한 월을 확정하면 Word와 인쇄를 사용할 수 있습니다.':'';
-      }catch(error){if(available()&&request===sequence)feedback.textContent=friendlyError(error);}
+      }catch(error){
+        if(!available()||request!==sequence)return;
+        feedback.textContent=friendlyError(error);
+        if(['INVALID_BUNDLE_ISSUE_DATE','BUNDLE_ISSUE_BEFORE_PERFORMANCE'].includes(error.message)){
+          dateSection.open=true;bundleDateInput.focus();
+        }else if(['REQUIRED_ACTUAL_PERFORMANCE_DATES','UNCONFIRMED_ACTUAL_PERFORMANCE_DATES'].includes(error.message)){
+          actualSection.open=true;
+          (error.message==='UNCONFIRMED_ACTUAL_PERFORMANCE_DATES'?actualConfirm:actualInput).focus();
+        }
+      }
     },true);
     if (record?.status!=='confirmed') actions.append(button(company?'이 회사 출력 설정 저장':'전체 회사에 적용',async()=>{
       if (!available() || busy) return;
@@ -404,7 +452,6 @@
         for(const settings of [output.shared,...Object.values(output.companies||{})].filter(Boolean)) {
           if(draft.workDescription!==state.common.workDescription)delete settings.work;
           if(draft.safety!==state.common.safety)delete settings.mode;
-          if(JSON.stringify(dates)!==JSON.stringify(state.common.perfDates||[state.common.perfDate]))delete settings.actual;
           if(draft.docDate!==state.common.docDate)for(const k of ['noticeDate','quoteDate','reportDate'])delete settings[k];
         }
       }
@@ -531,12 +578,14 @@
           const prior=structuredClone(previous.payload.common),key=monthKey(year,month);
           const shift=date=>/^\d{4}-\d{2}-\d{2}$/.test(date||'') ? key+'-'+String(Math.min(Number(date.slice(-2)),new Date(year,month,0).getDate())).padStart(2,'0') : '';
           for(const k of ['docDate','perfDate','noticeDate','quoteDate','reportDate'])if(prior[k])prior[k]=shift(prior[k]);
-          for(const k of ['perfDates','actualPerfDates'])if(Array.isArray(prior[k]))prior[k]=[...new Set(prior[k].map(shift))];
+          if(Array.isArray(prior.perfDates))prior.perfDates=[...new Set(prior.perfDates.map(shift))];
+          if(Array.isArray(prior.actualPerfDates))prior.actualPerfDates=[];
           if(prior.documentOutput){
             prior.documentOutput.month=key;
             for(const settings of [prior.documentOutput.shared,...Object.values(prior.documentOutput.companies||{})].filter(Boolean)){
               for(const k of ['noticeDate','quoteDate','reportDate'])if(settings[k])settings[k]=shift(settings[k]);
-              if(settings.actual)settings.actual=[...new Set(settings.actual.split(',').map(d=>shift(d.trim())).filter(Boolean))].join(', ');
+              delete settings.bundleIssueDate;
+              delete settings.actual;delete settings.confirmedActual;
               if(settings.name===prevMonth+'월 지역사회 환경정화(청소) 용역')delete settings.name;
             }
           }
