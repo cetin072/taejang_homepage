@@ -66,7 +66,7 @@
     const message = error?.message || String(error);
     const guidance = {REVISION_CONFLICT:'다른 곳에서 수정했습니다. 월을 다시 열어 주세요.',REQUIRED_WORK_DESCRIPTION:'수행 내용를 입력해 주세요.',INVALID_SERVICE_DATE:'모든 수행일을 올바른 날짜로 입력해 주세요.',INVALID_SERVICE_DATES:'수행일의 중복과 순서를 확인해 주세요.',REQUIRED_SERVICE_DATES:'추가한 수행일을 입력하거나 빈 칸을 삭제해 주세요.',INVALID_DOCUMENT_DATE:'문서 작성일을 입력해 주세요.',DOCUMENT_LAYOUT_LIMIT:'3쪽 양식 범위를 넘었습니다. 초안은 보존되며 내용 검토 후 확정·출력할 수 있습니다.'};
     if (guidance[message]) return guidance[message];
-    return message.includes('MONTH_ALREADY_EXISTS') ? '이미 저장된 월입니다. 저장된 월 불러오기를 사용하세요.' : (/^[A-Z_]+$/.test(message)?'입력 내용과 저장 상태를 확인해 주세요.':message);
+    return message.includes('MONTH_ALREADY_EXISTS') ? '이미 저장된 월입니다. 저장된 월 불러오기를 사용하세요.' : (/[A-Z]{2,}_/.test(message)?'입력 내용과 저장 상태를 확인해 주세요.':message);
   }
   function latestCalculations() {
     const active = state.companies.filter(company => company.enabled);
@@ -91,7 +91,6 @@
       if (stale) stale.hidden = false;
     }
   }
-  function changed() { updateEmailStaleness(); drawSummary(); }
   function editableInput() { return record?.status !== 'confirmed'; }
 
   function drawSummary() {
@@ -103,22 +102,26 @@
       && window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion));
     if (!versionsMatch) {
       ready = false;
-      warningsTarget.append(el('p', '이 월은 현재 계산/문서 원본 버전과 달라 출력할 수 없습니다. 저장 당시 양식 확인이 필요합니다.', 'mcd-warning'));
+      warningsTarget.append(el('p', '이 달의 서류는 저장 당시 양식을 확인한 뒤 출력할 수 있습니다.', 'mcd-warning'));
     }
     try {
       const { results, warnings } = latestCalculations();
       const tableWrap = el('div', undefined, 'mcd-table-wrap'); const table = el('table', undefined, 'mcd-table');
-      const header = el('tr'); ['회사', '계산 최대', '적용', '공급가액', '부가세', '합계', '공문 번호'].forEach(text => header.append(el('th', text))); table.append(header);
+      const labels=['회사', '계산 최대', '적용', '공급가액', '부가세', '합계', '공문 번호'];
+      const header = el('tr'); labels.forEach(text => header.append(el('th', text))); table.append(header);
       results.filter(({company})=>selectedTab==='common'||company.id===selectedTab).forEach(({ company, calculation }) => {
         const row = el('tr');
         [company.key, `${calculation.calculatedHeadcount}명`, `${calculation.appliedHeadcount}명`,
           `${window.MonthlyClientDocumentCore.formatAmount(calculation.supplyAmount)}원`,
           `${window.MonthlyClientDocumentCore.formatAmount(calculation.vatAmount)}원`,
           `${window.MonthlyClientDocumentCore.formatAmount(calculation.totalAmount)}원`,
-          `태장 제${state.common.year}-${String(state.common.month).padStart(2,'0')}-${String(company.seq).padStart(2,'0')}호`].forEach(text => row.append(el('td', text)));
+          `태장 제${state.common.year}-${String(state.common.month).padStart(2,'0')}-${String(company.seq).padStart(2,'0')}호`].forEach((text,index) => { const cell=el('td',text);cell.dataset.label=labels[index];row.append(cell); });
         table.append(row);
       });
-      tableWrap.append(table); target.append(tableWrap);
+      tableWrap.append(table);
+      if(selectedTab==='common'){
+        const details=el('details');details.append(el('summary','회사별 금액 보기'),tableWrap);target.append(details);
+      } else target.append(tableWrap);
       if (warnings.length) { ready = false; warnings.forEach(message => warningsTarget.append(el('p', `⚠ ${message.replaceAll('환경정비·작업 상세','수행 내용')}`, 'mcd-warning'))); }
     } catch (error) { ready = false; warningsTarget.append(el('p', `⚠ ${friendlyError(error) || '계산 입력을 확인하세요.'}`, 'mcd-warning')); }
     const confirmed = record?.status === 'confirmed';
@@ -139,9 +142,9 @@
 
   async function downloadCompanies(companies) {
     if (!currentCapability()) throw new Error('이 문서를 만들 권한이 없습니다.');
-    if (!record || record.status !== 'confirmed' || fingerprint() !== savedFingerprint) throw new Error('저장된 확정 월만 DOCX를 받을 수 있습니다. 먼저 저장하고 확정하세요.');
+    if (!record || record.status !== 'confirmed' || fingerprint() !== savedFingerprint) throw new Error('월별 서류를 저장하고 확정하면 내려받을 수 있습니다.');
     if (record.calculationVersion !== window.MonthlyClientDocumentCore.VERSION
-      || !window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion)) throw new Error('이 월은 저장 당시 문서 원본 버전과 달라 DOCX를 재현할 수 없습니다.');
+      || !window.MonthlyClientDocumentDocx?.supportsTemplate?.(record.templateVersion)) throw new Error('이 달의 서류는 저장 당시 양식을 확인한 뒤 출력할 수 있습니다.');
     const { warnings } = latestCalculations();
     if (warnings.length) throw new Error(warnings.join(' '));
     const request = authoritySequence;
@@ -153,7 +156,7 @@
     const filename = window.MonthlyClientDocumentDocx.filename(state.common, companies);
     const url = URL.createObjectURL(blob); const anchor = el('a'); anchor.href = url; anchor.download = filename;
     document.body.append(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
-    report(`DOCX를 만들었습니다: ${filename}`);
+    report(`워드 파일을 만들었습니다. ${filename}`);
   }
 
   function openCompanyOutput(company) {
@@ -256,7 +259,7 @@
     }
     let calculation;
     try { calculation = window.MonthlyClientDocumentCore.calculate(state.common, company); }
-    catch (error) { report(error.message, true); return; }
+    catch (error) { report(friendlyError(error), true); return; }
     if (calculation.warnings.length) { report(calculation.warnings.join(' '), true); return; }
     const generated = emailFor(company, calculation);
     const draftKey = `${company.id}:${calculation.yearMonth}`;
@@ -420,6 +423,7 @@
   }
   function render() {
     if (!currentCapability() || !root?.isConnected || !state?.common) return;
+    updateEmailStaleness();
     root.replaceChildren();
     const common=state.common,locked=!editableInput();
     const top=el('section',undefined,'mcd-panel');
@@ -476,7 +480,7 @@
     const docxAll = button('선택 회사 서류 모음', async () => { try {
       const selected = state.companies.filter(company => company.enabled && outputSelection.has(company.id));
       await downloadCompanies(selected);
-    } catch(error){ report(error.message,true); } }); docxAll.dataset.mcdDocxAll='1';
+    } catch(error){ report(friendlyError(error),true); } }); docxAll.dataset.mcdDocxAll='1';
     outputActions.append(...(locked?[unconfirm]:[save,confirm]),docxAll); if(locked){confirm.hidden=true;save.hidden=true;outputActions.append(confirm,save);} resultPanel.append(outputActions); root.append(resultPanel);
     const notice = el('p', undefined, 'mcd-inline-status'); notice.dataset.mcdStatus='1'; notice.hidden=true; root.append(notice); statusNode = notice;
     drawSummary();
@@ -550,7 +554,7 @@
     let message = '', isError = false;
     try {
       assertActiveMonth();
-      if (state.common.perfDates !== undefined && !performanceReady) throw new Error('복수 수행일 DB 업데이트 적용을 확인해 주세요.');
+      if (state.common.perfDates !== undefined && !performanceReady) throw new Error('여러 수행일을 저장할 수 없습니다. 월을 다시 열어 주세요.');
       state.common = window.MonthlyClientDocumentCore.normalizeCommon(state.common, {requireReady:false});
       busy=true; drawSummary();
       const response = await rpc('monthly_client_documents_save', { p_year: state.common.year, p_month: state.common.month,
@@ -591,7 +595,7 @@
     main.replaceChildren(); root=el('div',undefined,'monthly-client-documents'); main.append(root);
     statusNode=el('p','정보를 불러오는 중입니다.','mcd-inline-status'); root.append(statusNode);
     try { await loadData(); if (request === authoritySequence) render(); }
-    catch(error){ if (request === authoritySequence) report(`화면을 불러오지 못했습니다: ${error.message || error}`,true); }
+    catch(error){ if (request === authoritySequence) report(`화면을 불러오지 못했습니다. ${friendlyError(error)}`,true); }
   }
   document.addEventListener('taejang-menu-authority-changed', () => {
     if (window.TaejangMenuAuthority?.allowed(CAPABILITY, true) !== false) return;
