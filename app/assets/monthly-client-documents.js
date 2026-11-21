@@ -159,7 +159,7 @@
     report(`워드 파일을 만들었습니다. ${filename}`);
   }
 
-  function openCompanyOutput(company) {
+  function openCompanyOutput(company, selectedDocument) {
     const dialog=el('dialog'), form=el('div',undefined,'mcd-panel');
     dialog.className='mcd-email-dialog app-authoring-dialog';dialog.style.cssText='width:min(96vw,1020px);max-height:92vh;overflow:auto';
     const model=structuredClone(state.common), sourceMonth=activeMonthKey, sourceRevision=revision, owner=authoritySequence;
@@ -171,6 +171,7 @@
       noticeDate:model.noticeDate || model.docDate,quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
       promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:model.month+'월 지역사회 환경정화(청소) 용역',
       actual:(model.actualPerfDates?.length ? model.actualPerfDates : model.perfDates || [model.perfDate]).join(', '),work:model.workDescription || '',...shared,...saved};
+    if(selectedDocument)options.stage=selectedDocument;
     const original=structuredClone(options);
     const controls=el('div',undefined,'mcd-grid'),feedback=el('p'),actions=el('div',undefined,'mcd-actions');
     const frame=el('iframe');frame.title='발송 문서 미리보기';frame.style.cssText='width:100%;height:58vh;border:1px solid #ddd';frame.hidden=true;
@@ -185,7 +186,7 @@
     });
     const print=button('인쇄 · PDF로 저장',()=>{if(pair && available())frame.contentWindow.print();});
     invalidate();
-    add('발행 문서','stage','select',[['notice','공문'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
+    add('발행 문서','stage','select',[['notice','공문'],['quote','견적서'],['report','용역 수행 결과보고서'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
     section('문서 날짜');
     for(const [key,label] of [['noticeDate','공문일'],['quoteDate','견적일'],['reportDate','결과보고일']])add(label,key,'date');
     section('수행 내용과 품목');
@@ -203,13 +204,13 @@
     const preview=button('미리보기',async()=>{
       invalidate();const request=sequence;
       try{
-        const stage=options.stage==='notice'?'notice':'result',plan=options.stage==='bundle'?'single_bundle':options.stage==='skipped'?'notice_skipped':'three_step';
+        const stage=['notice','quote','report'].includes(options.stage)?options.stage:'result',plan=options.stage==='bundle'?'single_bundle':options.stage==='skipped'?'notice_skipped':'three_step';
         const common={...model,noticeDate:options.noticeDate,quoteDate:options.quoteDate,reportDate:options.reportDate,
           perfDates:model.perfDates || [model.perfDate],actualPerfDates:options.actual.split(',').map(x=>x.trim()).filter(Boolean),
           serviceType:'custom',customService:{item:options.item,report:options.name,work:options.work.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},workDescription:options.work.trim(),safety:{mode:options.mode},promotion:{status:options.promotion},photoSets:options.photos};
         const renderer=window.MonthlyClientDocumentDocx,assets=await renderer.loadAssets('monthly-stages-1');
         const blob=await renderer.createDocx({...assets,common,companies:[company],stage,plan,settings:{contract_basis_text:'계약 별첨2(용역 제공 기준)'}});
-        const name=String(model.year).slice(2)+'년 '+model.month+'월 '+({notice:'공문',result:'견적서·용역 수행 결과보고서',skipped:'견적서·용역 수행 결과보고서',bundle:'공문·견적서·용역 수행 결과보고서'}[options.stage])+'_'+company.key;
+        const name=String(model.year).slice(2)+'년 '+model.month+'월 '+({notice:'공문',quote:'견적서',report:'용역 수행 결과보고서',result:'견적서·용역 수행 결과보고서',skipped:'견적서·용역 수행 결과보고서',bundle:'공문·견적서·용역 수행 결과보고서'}[options.stage])+'_'+company.key;
         const {previewWord}=await import('./monthly-client-document-preview.mjs');
         const bytes=await blob.arrayBuffer();
         if(!available()||request!==sequence)return;
@@ -239,6 +240,7 @@
     actions.append(button('닫기',()=>dialog.close()));
     form.append(el('h3',company?company.name+' 발송 서류':'서류 공통 설정'),controls,actions,feedback,frame);
     dialog.append(form);root.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+    if(selectedDocument)preview.click();
   }
 
   function emailFor(company, calculation, includePhotos = true) {
@@ -467,7 +469,11 @@
       check.querySelector('input').disabled=!company.enabled;
       const word=button('회사 서류 모음 받기',()=>downloadCompanies([company]).catch(e=>report(friendlyError(e),true)));
       word.dataset.mcdDocxOne='1';word.dataset.companyId=company.id;
-      panel.append(check);actions.append(output,email,word);
+      const singles=el('div',undefined,'mcd-actions');
+      for(const [kind,title] of [['notice','공문'],['quote','견적서'],['report','용역 수행 결과보고서']]){
+        const one=button(title,()=>openCompanyOutput(company,kind));one.disabled=!company.enabled;singles.append(one);
+      }
+      panel.append(el('h4','한 장씩 열기'),singles,check);actions.append(output,email,word);
     }
     panel.append(actions);
     const resultPanel = el('section', undefined, 'mcd-panel app-authoring'); resultPanel.append(el('h3', '계산 요약'));
