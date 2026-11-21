@@ -39,7 +39,7 @@ try {
  const dialog=page.locator('dialog[open]');
  await dialog.getByText('수행 내용과 품목',{exact:true}).click();
  await dialog.getByLabel('수행 내용 (줄마다 한 항목)').fill('합성 작업 내용');
- for(const [stage,count] of [['notice',1],['result',2],['bundle',3]]){
+ for(const [stage,count] of [['notice',1],['quote',1],['report',1],['result',2],['bundle',3]]){
    await dialog.getByLabel('발행 문서').selectOption(stage);
    await dialog.getByRole('button',{name:'미리보기',exact:true}).click();
    await dialog.locator('iframe:visible').waitFor();

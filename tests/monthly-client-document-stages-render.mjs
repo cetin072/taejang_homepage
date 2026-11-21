@@ -16,7 +16,7 @@ const common = {year:2026,month:11,noticeDate:'2026-11-13',quoteDate:'2026-11-21
   note:'',severe:20,mildF:0,mildM:2,base:1295000,rate:70,extras:[],serviceType:'env',
   safety:{mode:'indoor_hq'},promotion:{status:'planned'},photoSets:['safety','site','group']};
 const settings = {contract_basis_text:'계약 별첨2(용역 제공 기준)',service_types:{env:{item:'지역사회 환경정화 용역',report:'{N}월 지역사회 환경정화 용역',work:['{장소} 청소']}}};
-for (const [stage,plan,count] of [['notice','three_step',1],['result','three_step',2],['result','notice_skipped',2],['result','single_bundle',3]]) {
+for (const [stage,plan,count] of [['notice','three_step',1],['quote','three_step',1],['report','three_step',1],['result','three_step',2],['result','notice_skipped',2],['result','single_bundle',3]]) {
   for (const company of companies) {
     const pair = await renderCompanyDocuments({common,company,stage,plan,settings});
     const stem = path.join(output,company.id+'-'+stage+'-'+plan);
@@ -26,13 +26,17 @@ for (const [stage,plan,count] of [['notice','three_step',1],['result','three_ste
     assert.equal(Number(execFileSync('pdfinfo',[stem+'.pdf'],{encoding:'utf8'}).match(/^Pages:\s+(\d+)/m)[1]),count);
     const text = execFileSync('pdftotext',[stem+'.pdf','-'],{encoding:'utf8'}).replace(/\s/g,'');
     assert.doesNotMatch(text,/환경정비|별첨1|직인생략|{{/);
-    assert.ok(text.includes(company.supply));
+    if(stage!=='report')assert.ok(text.includes(company.supply));
     assert.ok(text.includes(company.name.replace(/\s/g,'')));
     if (stage==='notice') {
       assert.match(text,/수행할예정이며/);
       assert.doesNotMatch(text,/붙임/);
-      assert.match(text,/가\.작업전/);
+      assert.match(text,/가\.실내안전교육—작업전태장본사/);
       if (company.id==='beomhan') assert.match(text,/22명\(중증20명,경증2명\)/);
+    } else if(stage==='quote'){
+      assert.match(text,/견적내역/);
+      assert.doesNotMatch(text,/용역수행결과보고서/);
+      assert.match(text,/2026\.11\.21\./);
     } else {
       const report = execFileSync('pdftotext',['-f',String(count),'-l',String(count),stem+'.pdf','-'],{encoding:'utf8'}).replace(/\s/g,'');
       assert.match(report,/2026년11월지역사회환경정화/);
@@ -41,7 +45,7 @@ for (const [stage,plan,count] of [['notice','three_step',1],['result','three_ste
       assert.match(report,/공식유튜브채널/);
       assert.match(text,/게시할예정입니다/);
       assert.match(text,/2026년11월20일\(금\)/);
-      assert.match(text,/2026\.11\.21\./);
+      if(stage!=='report')assert.match(text,/2026\.11\.21\./);
       assert.match(text,/2026\.11\.22\./);
       if (plan==='notice_skipped') assert.ok(text.includes('관련:T2026-11-0'+company.seq+'호'));
     }

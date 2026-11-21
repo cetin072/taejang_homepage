@@ -27,9 +27,10 @@ export async function renderCompanyDocuments({common,company,stage,plan,settings
       '--headless','--convert-to','pdf','--outdir',directory,input],{timeout:120000});
     const output = path.join(directory,'document.pdf');
     const {stdout} = await run('pdfinfo',[output],{env:{...process.env,LC_ALL:'C'}});
-    const expected = stage==='notice' ? 1 : plan==='single_bundle' ? 3 : 2;
+    const labelSingle={notice:'공문',quote:'견적서',report:'용역 수행 결과보고서'}[stage];
+    const expected = labelSingle ? 1 : plan==='single_bundle' ? 3 : 2;
     if (Number(stdout.match(/^Pages:\s+(\d+)/m)?.[1])!==expected) throw new Error('문서 페이지 수를 확인하세요.');
-    const label = stage==='notice' ? '공문' : plan==='single_bundle' ? '공문·견적서·용역 수행 결과보고서' : '견적서·용역 수행 결과보고서';
+    const label = labelSingle || (plan==='single_bundle' ? '공문·견적서·용역 수행 결과보고서' : '견적서·용역 수행 결과보고서');
     const filename = String(common.year).slice(2)+'년 '+common.month+'월 '+label+'_'+company.key;
     return {filename,word,pdf:await readFile(output)};
   } finally {
