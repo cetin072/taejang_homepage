@@ -49,8 +49,10 @@
     const preset = common.serviceType === 'custom' ? common.customService : settings.service_types[common.serviceType];
     if (!preset?.item || !preset.report || !Array.isArray(preset.work) || !settings.contract_basis_text) throw new Error('용역 문구 설정을 확인하세요.');
     const report = preset.report.replaceAll('{N}', String(common.month));
+    const serviceTitle = /^\d+월/.test(report) ? common.year+'년 '+report : report;
     const work = preset.work.map(line => line.replaceAll('{장소}', () => common.place));
     const safe = { outdoor:'작업 전 현장 안전교육 및 보호장구 점검', indoor_hq:'작업 전 태장 본사 실내 안전교육 및 보호장구 점검', indoor_video:'작업 전 실내 안전교육(영상 교육)', custom:common.safety.text }[common.safety.mode];
+    const education = {outdoor:'현장 안전교육',indoor_hq:'실내 안전교육(태장 본사)',indoor_video:'실내 안전교육(영상 교육)',custom:safe}[common.safety.mode];
     const dates = pages.includes('Rlast') ? common.actualPerfDates : common.perfDates;
     if (!safe || !dates?.length) throw new Error('수행일과 안전교육 내용을 확인하세요.');
     const normalized = {...common, docDate:pages[0] === 'C' ? common.noticeDate : common.quoteDate, perfDate:dates[0], perfDates:dates, safety:common.safety.mode === 'outdoor' ? 'outdoor' : 'indoor'};
@@ -62,22 +64,25 @@
     const s = content.simple;
     const basis = settings.contract_basis_text;
     const programs = [safe,...work,...[common.workDescription].filter(x => x && !work.includes(x)),...common.extras.filter(e=>e.name).map(e=>[e.name,e.description].filter(Boolean).join(' — '))];
-    content.listC = programs.map((line,i)=>String.fromCharCode(0x2460+i)+' '+line);
+    content.listC = programs.map((line,i)=>('가나다라마바사아자차카타파하'[i] || String(i+1))+'. '+line);
     content.listR = programs.map(line=>'· '+line);
-    Object.assign(s,{BASIS:basis, ITEM:preset.item, SERVICE:report, RELATED:plan === 'notice_skipped' ? 'T'+s.SEQ+'호' : '태장 제'+s.SEQ+'호',
-      C2:'2. '+((company.note || common.note).replace(/^2\.\s*/, '') || report+' 용역비를 안내드립니다.'),
+    Object.assign(s,{BASIS:basis, ITEM:preset.item, SERVICE:serviceTitle, RELATED:plan === 'notice_skipped' ? 'T'+s.SEQ+'호' : '태장 제'+s.SEQ+'호',
+      C2:'2. '+((company.note || common.note).replace(/^2\.\s*/, '') || s.YM+' 회차는 '+common.place+'에서 '+preset.item+'을 진행합니다.'),
       C4:'4. 관련 용역은 '+s.PERF+' '+common.place+'에서 '+(bundle?'수행하였으며':'수행할 예정이며')+', 세부 내용은 다음과 같습니다.',
       ENDING:bundle?'제출합니다.':'제출하겠습니다. 끝.', ATTACH1:'붙임  1. 용역 견적서 1부.', ATTACH2:'2. 용역 수행 결과보고서 1부.  끝.',
-      Q1:'· 본 견적의 근거는 '+basis+'입니다.', Q3:'· 용역 내역: '+s.PERF+' '+common.place+' 수행.',
-      R_SAFE:'· '+safe, PROMOTION:'당사 홍보 채널에 수행 내용을 '+(common.promotion.status==='posted'?'게시하였습니다.':'게시할 예정입니다.')
+      Q1:'· 본 견적은 자회사형 장애인 표준사업장 '+basis+'에 의거하며, 실제 산입 인원을 기준으로 정산합니다.',
+      Q3:'· 용역 내역: '+education+', '+preset.item+' — '+dates.map(d=>core.dateLabel(d).dotw).join(' / ')+' '+common.place+' 수행.',
+      R_SAFE:'· '+safe+', 참석 확인 서명 징구', PROMOTION:'당사 홈페이지(taejang.co.kr) 및 공식 유튜브 채널(@taejangofficial)에 수행 내용을 '+(common.promotion.status==='posted'?'게시하였습니다.':'게시할 예정입니다.')
     });
     if (calculation.reduced) {
-      s.C3='3. 귀사 지분율 '+company.share.toFixed(1)+'%를 적용한 산입 인원은 '+calculation.calculatedHeadcount+'명이나, 귀사와 별도 합의한 산입한도에 따라 귀사의 고용산입 인원은 '+s.N+'명입니다.';
+      const mild = common.mildF + common.mildM;
+      s.C3='3. '+s.YM+' 현재 당사가 고용한 장애인 근로자는 '+(common.severe+mild)+'명(중증 '+common.severe+'명, 경증 '+mild+'명)이며, 귀사 지분율 '+company.share.toFixed(1)+'%를 적용한 산입 인원은 '+calculation.calculatedHeadcount+'명이나, 귀사와 별도 합의한 산입한도에 따라 귀사의 고용산입 인원은 '+s.N+'명입니다.';
+      s.C3N=s.C3N.replace('→ 최대 ', '→ ');
       s.C3N+=' 귀사와 별도 합의한 산입한도 '+s.N+'명 적용.';
       s.Q2=s.Q2.replace('× 산입 '+s.N+'명','× 산입 '+s.N+'명(별도 합의 산입한도 적용)');
     }
     const photos = {safety:common.safety.mode==='outdoor'?'현장 안전교육':'실내 안전교육',site:common.place.replace(/\s*일원$/,''),group:'단체사진'};
-    s.R_PHOTO='· 현장 사진자료 별도 첨부 ('+common.photoSets.map(key=>photos[key]).join(' / ')+')';
+    s.R_PHOTO='· 현장 사진자료 별도 첨부: 압축파일 1건 ('+common.photoSets.map(key=>photos[key]).join(' / ')+')';
     return pages.map(page=>{
       s.DATE=core.dateLabel({C:common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate}[page]).dot;
       let xml=template[page].replace(/<w:p\b(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, paragraph=>{

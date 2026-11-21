@@ -31,7 +31,14 @@ for (const [stage,plan,count] of [['notice','three_step',1],['result','three_ste
     if (stage==='notice') {
       assert.match(text,/수행할예정이며/);
       assert.doesNotMatch(text,/붙임/);
+      assert.match(text,/가\.작업전/);
+      if (company.id==='beomhan') assert.match(text,/22명\(중증20명,경증2명\)/);
     } else {
+      const report = execFileSync('pdftotext',['-f',String(count),'-l',String(count),stem+'.pdf','-'],{encoding:'utf8'}).replace(/\s/g,'');
+      assert.match(report,/2026년11월지역사회환경정화/);
+      assert.doesNotMatch(report,/근로자수|중증20명|산입인원/);
+      assert.match(report,/압축파일1건/);
+      assert.match(report,/공식유튜브채널/);
       assert.match(text,/게시할예정입니다/);
       assert.match(text,/2026년11월20일\(금\)/);
       assert.match(text,/2026\.11\.21\./);
