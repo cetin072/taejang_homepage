@@ -42,13 +42,13 @@
       return program.enabled;
     });
     const names = enabled.map(program => requiredText(program.name, 'PROGRAM_NAME'));
-    if (!names.length) return `지역사회 환경정비 용역과 ${education}을 수행했습니다.`;
+    if (!names.length) return `지역사회 환경정화 용역과 ${education}을 수행했습니다.`;
     const activities = names.join(', ');
     const finalCode = names[names.length - 1].charCodeAt(names[names.length - 1].length - 1);
     const particle = finalCode >= 0xAC00 && finalCode <= 0xD7A3 && (finalCode - 0xAC00) % 28 === 0 ? '를' : '을';
     const outcome = names.includes('환경보호 캠페인 버스킹')
-      ? '지역사회 환경정비와 시민 대상 인식 개선 활동을 같이 수행했습니다.'
-      : '지역사회 환경정비와 추가 프로그램을 함께 수행했습니다.';
+      ? '지역사회 환경정화와 시민 대상 인식 개선 활동을 같이 수행했습니다.'
+      : '지역사회 환경정화와 추가 프로그램을 함께 수행했습니다.';
     return `이번 회차에는 ${education}과\n${activities}${particle} 함께 진행하여,\n${outcome}`;
   }
 

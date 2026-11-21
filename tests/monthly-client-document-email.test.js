@@ -37,7 +37,7 @@ test('removing or disabling a program removes every busking mention', () => {
   for (const programs of [[], [{ name: '환경보호 캠페인 버스킹', enabled: false }]]) {
     const input = fixture(); input.monthly.programs = programs;
     const body = email.generate(input).body;
-    assert.match(body, /지역사회 환경정비 용역과 야외 현장 안전교육을 수행했습니다\./);
+    assert.match(body, /지역사회 환경정화 용역과 야외 현장 안전교육을 수행했습니다\./);
     assert.doesNotMatch(body, /버스킹|시민 대상 인식 개선/);
   }
 });

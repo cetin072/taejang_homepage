@@ -503,7 +503,7 @@
     const now = new Date(); const month = now.getMonth() + 1;
     await loadMonth(now.getFullYear(), month, false);
   }
-  async function loadMonth(year, month, redraw = true, requireNew = false) {
+  async function loadMonth(year, month, redraw = true) {
     if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12 || year < 2000 || year > 9999) return report('연도와 월을 확인하세요.', true);
     const request = ++loadSequence;
     const updateScreen = redraw && root && state?.common;
@@ -511,7 +511,6 @@
     try {
       const result = await rpc('monthly_client_documents_get_month', { p_year: year, p_month: month });
       if (request !== loadSequence) return;
-      if (requireNew && result) throw new Error('MONTH_ALREADY_EXISTS');
       let values=result?.payload || defaultsToMonth(state.defaults,year,month);
       monthSource='새 월 · 회사별 기본값 적용';
       if(!result){
@@ -536,7 +535,7 @@
           monthSource='새 월 · 전월 공통 기록과 회사별 기본값 적용';
         }
       }
-      record=result || null;revision=Number(record?.revision || 0);
+      record = result || null; revision = Number(record?.revision || 0);
       state.common = { ...commonFromDefaults(year,month), ...values.common, year, month, extras: Array.isArray(values.common.extras) ? values.common.extras : [] };
       if (performanceReady && (!record || record.status !== 'confirmed' || record.templateVersion === 'client-template-2')) enablePerformanceInputs();
       state.companies = ids.map(id => ({ ...state.defaults.find(item=>item.id===id), ...(values.companies || []).find(item=>item.id===id), enabled: (values.companies || []).find(item=>item.id===id)?.enabled ?? true }));
@@ -604,10 +603,10 @@
     emailDrafts.clear(); emailState = null; state = null; record = null;
     revision = 0; savedFingerprint = ''; activeMonthKey = ''; selectedTab='common';
     outputSelection.clear(); busy = false; performanceReady = false;
-    if (root?.isConnected) root.replaceChildren(el('p', '거래처 문서 관리 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    if (root?.isConnected) root.replaceChildren(el('p', '참여기업 월간 서류 권한이 회수되었거나 확인되지 않습니다.', 'message'));
     root = null; statusNode = null;
   });
   document.addEventListener('taejang-monthly-client-documents-open', open);
-  window.MonthlyClientDocuments = Object.freeze({ open });
+  window.MonthlyClientDocuments = Object.freeze({ open, hasUnsavedChanges:()=>Boolean(state?.common && root?.isConnected && fingerprint()!==savedFingerprint) });
 })();
 

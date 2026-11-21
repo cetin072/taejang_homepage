@@ -31,7 +31,7 @@
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
     { key:'logistics.manage', label:'물류 관리', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
     { key:'erp_sales.manage', label:'기준정보·매출 관리', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
-    { key:'monthly_client_documents.manage', label:'거래처 문서 관리', section:'영업·매출', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
+    { key:'monthly_client_documents.manage', label:'참여기업 월간 서류', section:'영업·매출', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
     { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },
     { key:'attendance.view', label:'출근부', section:'근태·급여', capabilities:['attendance.admin_view'] },
     { key:'attendance.correct', label:'근태 보정', section:'근태·급여', capabilities:['attendance.correct'] },
