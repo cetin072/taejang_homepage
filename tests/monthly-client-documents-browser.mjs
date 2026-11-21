@@ -41,11 +41,37 @@ try {
  await dialog.getByLabel('수행 내용 (줄마다 한 항목)').fill('합성 작업 내용');
  for(const [stage,count] of [['notice',1],['quote',1],['report',1],['result',2],['bundle',3]]){
    await dialog.getByLabel('발행 문서').selectOption(stage);
-   await dialog.getByRole('button',{name:'미리보기',exact:true}).click();
+   const preview=dialog.getByRole('button',{name:'미리보기',exact:true});
+   if(stage==='bundle'){
+     const issue=dialog.getByLabel('합본 공문 발행일');
+     const word=dialog.getByRole('button',{name:'Word 받기'});
+     const pdf=dialog.getByRole('button',{name:'인쇄 · PDF로 저장'});
+     await preview.click();
+     await dialog.getByText('합본 공문 발행일을 직접 선택해 주세요.',{exact:true}).waitFor();
+     assert.equal(await issue.inputValue(),'');
+     assert.equal(await issue.evaluate(input=>document.activeElement===input),true);
+     await issue.fill('2026-10-13');
+     await preview.click();
+     await dialog.getByText('합본 공문 발행일은 마지막 실제 수행일과 같거나 그 이후여야 합니다.',{exact:true}).waitFor();
+     assert.equal(await issue.inputValue(),'2026-10-13');
+     assert.equal(await dialog.locator('iframe:visible').count(),0);
+     assert.equal(await word.isDisabled(),true);
+     assert.equal(await pdf.isDisabled(),true);
+     await issue.fill('2026-10-21');
+   }
+   await preview.click();
    await dialog.locator('iframe:visible').waitFor();
    const sheets=dialog.frameLocator('iframe').locator('.sheet');
    assert.equal(await sheets.count(),count);
    assert.ok((await sheets.first().textContent()).includes('beomhan'));
+   if(stage==='bundle'){
+     const cover=await sheets.first().textContent();
+     assert.match(cover,/2026\. 10\. 21\./);
+     assert.match(cover,/2026년 10월 14일\(수\).*수행하였으며/s);
+     assert.doesNotMatch(cover,/2026\. 10\. 30\./);
+     assert.match(await sheets.nth(1).textContent(),/2026\. 10\. 30\./);
+     assert.match(await sheets.nth(2).textContent(),/2026\. 10\. 30\./);
+   }
    const printPage=await browser.newPage();
    try {
      const html=await dialog.locator('iframe').evaluate(frame=>frame.contentDocument.documentElement.outerHTML);
@@ -57,6 +83,14 @@ try {
    await dialog.getByRole('button',{name:'Word 받기'}).click();
    assert.match((await downloaded).suggestedFilename(),/beomhan\.docx$/);
  }
+ await dialog.getByLabel('발행 문서').selectOption('notice');
+ assert.equal(await dialog.getByLabel('공문일',{exact:true}).inputValue(),'2026-10-30');
+ await dialog.getByRole('button',{name:'미리보기',exact:true}).click();
+ await dialog.locator('iframe:visible').waitFor();
+ const originalNotice=await dialog.frameLocator('iframe').locator('.sheet').first().textContent();
+ assert.match(originalNotice,/2026\. 10\. 30\./);
+ assert.match(originalNotice,/수행할 예정이며/);
+ assert.doesNotMatch(originalNotice,/2026\. 10\. 21\./);
  await dialog.getByRole('button',{name:'닫기'}).click();
  await btn('확정 해제').click();
  await tab('공통 입력').click();

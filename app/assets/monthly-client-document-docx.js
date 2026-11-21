@@ -47,7 +47,7 @@
 
   function stageBody(template, common, company, stage, plan, settings) {
     const pages = stagePages(stage, plan);
-    const bundle = plan === 'single_bundle';
+    const bundle = plan === 'single_bundle' && pages.includes('C');
     const preset = common.serviceType === 'custom' ? common.customService : settings.service_types[common.serviceType];
     if (!preset?.item || !preset.report || !Array.isArray(preset.work) || !settings.contract_basis_text) throw new Error('용역 문구 설정을 확인하세요.');
     const report = preset.report.replaceAll('{N}', String(common.month));
@@ -57,7 +57,13 @@
     const education = {outdoor:'현장 안전교육',indoor_hq:'실내 안전교육(태장 본사)',indoor_video:'실내 안전교육(영상 교육)',custom:safe}[common.safety.mode];
     const dates = pages.includes('Rlast') ? common.actualPerfDates : stage==='quote' && common.actualPerfDates?.length ? common.actualPerfDates : common.perfDates;
     if (!safe || !dates?.length) throw new Error('수행일과 안전교육 내용을 확인하세요.');
-    const normalized = {...common, docDate:{C:common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate}[pages[0]], perfDate:dates[0], perfDates:dates, safety:common.safety.mode === 'outdoor' ? 'outdoor' : 'indoor'};
+    // A new cover is not a reissue of the original advance notice.
+    const issueDates = {C:bundle ? common.bundleIssueDate : common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate};
+    if (bundle) {
+      const issue = core.validateDate(issueDates.C, 'BUNDLE_ISSUE_DATE');
+      if (dates.some(date => core.validateDate(date, 'SERVICE_DATE') > issue)) throw new Error('BUNDLE_ISSUE_BEFORE_PERFORMANCE');
+    }
+    const normalized = {...common, docDate:issueDates[pages[0]], perfDate:dates[0], perfDates:dates, safety:common.safety.mode === 'outdoor' ? 'outdoor' : 'indoor'};
     const warnings = core.layoutWarnings(normalized,[company]);
     if (warnings.length) throw new Error(warnings.join(' '));
     const calculation = core.calculate(normalized,company);
@@ -88,7 +94,7 @@
     const photos = {safety:common.safety.mode==='outdoor'?'현장 안전교육':'실내 안전교육',site:common.place.replace(/\s*일원$/,''),group:'단체사진'};
     s.R_PHOTO='· 현장 사진자료 별도 첨부: 압축파일 1건 ('+common.photoSets.map(key=>photos[key]).join(' / ')+')';
     return pages.map(page=>{
-      s.DATE=core.dateLabel({C:common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate}[page]).dot;
+      s.DATE=core.dateLabel(issueDates[page]).dot;
       let xml=template[page].replace(/<w:p\b(?:(?!<\/w:p>)[\s\S])*?<\/w:p>/g, paragraph=>{
         if (!bundle && /{{ATTACH[12]}}/.test(paragraph)) return '';
         if (!common.photoSets.length && paragraph.includes('{{R_PHOTO}}')) return '';
