@@ -17,6 +17,7 @@
       input = el('select'); options.choices.forEach(([choice, text]) => { const option = el('option', text); option.value = choice; input.append(option); });
       input.value = value ?? '';
     } else { input = el('input'); input.type = type || 'text'; input.value = value ?? ''; }
+    input.setAttribute('aria-label', labelText);
     input.required = Boolean(options.required);
     if (options.min !== undefined) input.min = options.min;
     if (options.max !== undefined) input.max = options.max;
@@ -155,6 +156,69 @@
     report(`DOCX를 만들었습니다: ${filename}`);
   }
 
+  function openCompanyOutput(company) {
+    const dialog=el('dialog'), form=el('div',undefined,'mcd-panel');
+    dialog.style.cssText='width:min(96vw,1020px);max-height:92vh;overflow:auto';
+    const model=structuredClone(state.common), sourceMonth=activeMonthKey, sourceRevision=revision, owner=authoritySequence;
+    const available=()=>dialog.isConnected && owner===authoritySequence && currentCapability() && activeMonthKey===sourceMonth && revision===sourceRevision;
+    const saved=model.documentOutput?.month===sourceMonth ? model.documentOutput.companies?.[company.id] : null;
+    const options={stage:'notice',mode:model.safety?.mode || (model.safety==='outdoor'?'outdoor':'indoor_video'),
+      noticeDate:model.noticeDate || model.docDate,quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
+      promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:model.month+'월 지역사회 환경정화(청소) 용역',
+      actual:(model.actualPerfDates?.length ? model.actualPerfDates : model.perfDates || [model.perfDate]).join(', '),work:model.workDescription || '',...saved};
+    const controls=el('div',undefined,'mcd-grid'),feedback=el('p'),actions=el('div',undefined,'mcd-actions');
+    const frame=el('iframe');frame.title='발송 문서 미리보기';frame.style.cssText='width:100%;height:58vh;border:1px solid #ddd';frame.hidden=true;
+    let pair=null,sequence=0;
+    function invalidate(){sequence++;pair=null;frame.hidden=true;word.disabled=print.disabled=true;}
+    const add=(label,key,type,choices)=>controls.append(field(label,options[key],type,val=>{options[key]=val;invalidate();},{choices}));
+    const word=button('Word 받기',()=>{
+      if(!pair || !available())return;
+      const url=URL.createObjectURL(pair.blob),a=el('a');a.download=pair.name+'.docx';a.href=url;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    });
+    const print=button('인쇄 · PDF로 저장',()=>{if(pair && available())frame.contentWindow.print();});
+    invalidate();
+    add('발행 문서','stage','select',[['notice','공문'],['result','견적서·결과보고서'],['skipped','견적서·결과보고서 (공문 생략)'],['bundle','공문·견적서·결과보고서 합본']]);
+    for(const [key,label] of [['noticeDate','공문일'],['quoteDate','견적일'],['reportDate','결과보고일']])add(label,key,'date');
+    add('수행 내용 (줄마다 한 항목)','work','textarea');
+    add('견적 품목','item','text');add('결과보고서 용역명','name','text');
+    add('안전교육','mode','select',[['outdoor','현장 안전교육'],['indoor_hq','본사 실내 안전교육'],['indoor_video','영상 안전교육']]);
+    add('홍보 게시','promotion','select',[['none','기재 생략'],['planned','게시 예정'],['posted','게시 완료']]);
+    add('실제 수행일 (여러 날은 쉼표로 구분)','actual','text');
+    for(const [key,label] of [['safety','안전교육 사진'],['site','현장 사진'],['group','단체사진']]){
+      const wrap=el('label'),cb=el('input');cb.type='checkbox';cb.checked=options.photos.includes(key);
+      cb.onchange=()=>{options.photos=options.photos.filter(x=>x!==key);if(cb.checked)options.photos.push(key);invalidate();};wrap.append(cb,label);controls.append(wrap);
+    }
+    const preview=button('미리보기',async()=>{
+      invalidate();const request=sequence;
+      try{
+        const stage=options.stage==='notice'?'notice':'result',plan=options.stage==='bundle'?'single_bundle':options.stage==='skipped'?'notice_skipped':'three_step';
+        const common={...model,noticeDate:options.noticeDate,quoteDate:options.quoteDate,reportDate:options.reportDate,
+          perfDates:model.perfDates || [model.perfDate],actualPerfDates:options.actual.split(',').map(x=>x.trim()).filter(Boolean),
+          serviceType:'custom',customService:{item:options.item,report:options.name,work:options.work.split(/\r?\n/).map(x=>x.trim()).filter(Boolean)},workDescription:options.work.trim(),safety:{mode:options.mode},promotion:{status:options.promotion},photoSets:options.photos};
+        const renderer=window.MonthlyClientDocumentDocx,assets=await renderer.loadAssets('monthly-stages-1');
+        const blob=await renderer.createDocx({...assets,common,companies:[company],stage,plan,settings:{contract_basis_text:'계약 별첨2(용역 제공 기준)'}});
+        const name=String(model.year).slice(2)+'년 '+model.month+'월 '+({notice:'공문',result:'견적서·용역 수행 결과보고서',skipped:'견적서·용역 수행 결과보고서',bundle:'공문·견적서·용역 수행 결과보고서'}[options.stage])+'_'+company.key;
+        const {previewWord}=await import('./monthly-client-document-preview.mjs');
+        const bytes=await blob.arrayBuffer();
+        if(!available()||request!==sequence)return;
+        await previewWord(frame,bytes,name);
+        if(!available()||request!==sequence)return;
+        pair={blob,name};frame.hidden=false;word.disabled=print.disabled=record?.status!=='confirmed';
+        feedback.textContent=word.disabled?'저장한 월을 확정하면 Word와 인쇄를 사용할 수 있습니다.':'';
+      }catch(error){if(available()&&request===sequence)feedback.textContent=friendlyError(error);}
+    },true);
+    if (record?.status!=='confirmed') actions.append(button('이 회사 출력 설정 저장',async()=>{
+      if (!available() || busy) return;
+      const companies=state.common.documentOutput?.month===sourceMonth ? state.common.documentOutput.companies : {};
+      state.common.documentOutput={month:sourceMonth,companies:{...companies,[company.id]:structuredClone(options)}};
+      dialog.close();
+      await saveMonth();
+    }));
+    actions.append(preview,word,print,button('닫기',()=>dialog.close()));
+    form.append(el('h3',company.name+' 발송 서류'),controls,actions,feedback,frame);
+    dialog.append(form);root.append(dialog);dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+  }
+
   function emailFor(company, calculation, includePhotos = true) {
     return window.MonthlyClientDocumentEmail.generate({
       monthly: { yearMonth: calculation.yearMonth, serviceDate: state.common.perfDate, serviceDates: state.common.perfDates, serviceLocation: state.common.place,
@@ -259,7 +323,7 @@
     root.replaceChildren();
     root.append(el('header', undefined, 'mcd-header'));
     root.querySelector('.mcd-header').append(el('p', '영업·매출 · 월별 문서', 'eyebrow'), el('h2', '거래처 문서 관리'),
-      el('p', '월별 snapshot을 저장하고 확정한 뒤 회사별 또는 4사 DOCX를 생성합니다.'));
+      el('p', '회사별 발송 서류를 미리 보고, 확정한 월의 공문·견적서·결과보고서를 출력합니다.'));
     const top = el('section', undefined, 'mcd-panel app-authoring'); top.append(el('h3', '기준 월'));
     top.append(el('p', `${state.common.year}년 ${state.common.month}월`, 'mcd-current-month'));
     const select = el('select'); select.dataset.mcdHistory = '1';
@@ -360,7 +424,8 @@
         drawSummary();
       });
       const outputLabel = el('label', undefined, 'mcd-check'); outputLabel.append(outputCheck, el('span', '합본에 포함'));
-      companyActions.append(outputLabel, companyDocx, emailButton); card.append(companyActions); companyPanel.append(card);
+      const output = button('발송 서류 미리보기',()=>openCompanyOutput(company)); output.disabled=!company.enabled;
+      companyActions.append(outputLabel, companyDocx, output, emailButton); card.append(companyActions); companyPanel.append(card);
     }); root.append(companyPanel);
     const defaultsPanel = el('details', undefined, 'mcd-panel app-authoring'); defaultsPanel.open = defaultsOpen;
     defaultsPanel.addEventListener('toggle', () => { defaultsOpen = defaultsPanel.open; }); defaultsPanel.dataset.mcdCompanyDefaults='1';
@@ -513,3 +578,4 @@
   document.addEventListener('taejang-monthly-client-documents-open', open);
   window.MonthlyClientDocuments = Object.freeze({ open });
 })();
+
