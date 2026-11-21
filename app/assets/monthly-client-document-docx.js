@@ -56,6 +56,7 @@
     const safe = { outdoor:'작업 전 현장 안전교육 및 보호장구 점검', indoor_hq:'작업 전 태장 본사 실내 안전교육 및 보호장구 점검', indoor_video:'작업 전 실내 안전교육(영상 교육)', custom:common.safety.text }[common.safety.mode];
     const education = {outdoor:'현장 안전교육',indoor_hq:'실내 안전교육(태장 본사)',indoor_video:'실내 안전교육(영상 교육)',custom:safe}[common.safety.mode];
     const dates = pages.includes('Rlast') ? common.actualPerfDates : stage==='quote' && common.actualPerfDates?.length ? common.actualPerfDates : common.perfDates;
+    if (pages.includes('Rlast') && !dates?.length) throw new Error('REQUIRED_ACTUAL_PERFORMANCE_DATES');
     if (!safe || !dates?.length) throw new Error('수행일과 안전교육 내용을 확인하세요.');
     // A new cover is not a reissue of the original advance notice.
     const issueDates = {C:bundle ? common.bundleIssueDate : common.noticeDate,Q:common.quoteDate,Rlast:common.reportDate};

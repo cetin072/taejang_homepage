@@ -18,6 +18,9 @@ const common = {year:2026,month:11,noticeDate:'2026-11-13',quoteDate:'2026-11-21
 const settings = {contract_basis_text:'계약 별첨2(용역 제공 기준)',service_types:{env:{item:'지역사회 환경정화 용역',report:'{N}월 지역사회 환경정화 용역',work:['{장소} 청소']}}};
 const afterWork = {common,company:companies[0],stage:'result',plan:'single_bundle',settings};
 await assert.rejects(renderCompanyDocuments(afterWork),/INVALID_BUNDLE_ISSUE_DATE/);
+for(const [stage,plan] of [['report','three_step'],['result','three_step'],['result','notice_skipped'],['result','single_bundle']]){
+  await assert.rejects(renderCompanyDocuments({...afterWork,stage,plan,common:{...common,actualPerfDates:[],bundleIssueDate:'2026-11-23'}}),/REQUIRED_ACTUAL_PERFORMANCE_DATES/);
+}
 await assert.rejects(renderCompanyDocuments({...afterWork,common:{...common,bundleIssueDate:common.noticeDate}}),/BUNDLE_ISSUE_BEFORE_PERFORMANCE/);
 await assert.rejects(renderCompanyDocuments({...afterWork,common:{...common,bundleIssueDate:'2026-11-21',actualPerfDates:['2026-11-23','2026-11-20']}}),/BUNDLE_ISSUE_BEFORE_PERFORMANCE/);
 for (const [stage,plan,count] of [['notice','three_step',1],['quote','three_step',1],['report','three_step',1],['result','three_step',2],['result','notice_skipped',2],['result','single_bundle',3]]) {
