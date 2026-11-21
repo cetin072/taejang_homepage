@@ -1,0 +1,15 @@
+{
+  "scope": "Review GIF decoded from real Chrome frame captures; not upstream look.py certification",
+  "frames": 66,
+  "durationMs": 6800,
+  "loopExtension": null,
+  "pictureVarianceMin": 2289.252114688186,
+  "changedTransitions": 62,
+  "meanPixelDifference": 0.04396017871017871,
+  "bytes": {
+    "hero-motion-once.gif": 1226450,
+    "before-after-once.gif": 2900285
+  },
+  "audio": "none planned",
+  "professionalDesignAcceptance": "pending user evaluation"
+}
