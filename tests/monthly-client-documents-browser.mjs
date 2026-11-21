@@ -54,6 +54,13 @@ try {
    const sheets=dialog.frameLocator('iframe').locator('.sheet');
    assert.equal(await sheets.count(),count);
    assert.ok((await sheets.first().textContent()).includes('beomhan'));
+   const printPage=await browser.newPage();
+   try {
+     const html=await dialog.locator('iframe').evaluate(frame=>frame.contentDocument.documentElement.outerHTML);
+     await printPage.setContent(html);
+     const bytes=await printPage.pdf({preferCSSPageSize:true});
+     assert.equal((bytes.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,count,'print page count '+stage);
+   } finally { await printPage.close(); }
    const downloaded=page.waitForEvent('download');
    await dialog.getByRole('button',{name:'Word 받기'}).click();
    assert.match((await downloaded).suggestedFilename(),/beomhan\.docx$/);
