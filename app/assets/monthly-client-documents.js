@@ -17,6 +17,7 @@
       input = el('select'); options.choices.forEach(([choice, text]) => { const option = el('option', text); option.value = choice; input.append(option); });
       input.value = value ?? '';
     } else { input = el('input'); input.type = type || 'text'; input.value = value ?? ''; }
+    input.setAttribute('aria-label', labelText);
     input.required = Boolean(options.required);
     if (options.min !== undefined) input.min = options.min;
     if (options.max !== undefined) input.max = options.max;
