@@ -73,13 +73,16 @@
     const s = content.simple;
     const basis = settings.contract_basis_text;
     const environmental = preset.item==='지역사회 환경정화 용역';
+    const activity=common.noticeActivity || (environmental?'지역사회 환경정화':'');
+    const exactCredit=Number((calculation.totalCredit*company.share/100).toFixed(8));
+    s.C3N=s.C3N.replace('= '+calculation.decimalCredit+' →','= '+exactCredit+' →');
     const programs = [safe,...work,...[common.workDescription].filter(x => x && !x.split(/\r?\n/).every(line=>work.includes(line.trim()))),...common.extras.filter(e=>e.name).map(e=>[e.name,e.description].filter(Boolean).join(' — '))];
     content.listC = programs.map((line,i)=>('가나다라마바사아자차카타파하'[i] || String(i+1))+'. '+line);
     if(common.safety.mode==='indoor_hq')content.listC[0]='가. 실내 안전교육 — 작업 전 태장 본사에서 실시하는 안전수칙 교육 및 보호장구 점검';
     content.listR = programs.map(line=>'· '+line);
     Object.assign(s,{BASIS:basis, ITEM:preset.item, SERVICE:serviceTitle, RELATED:plan === 'notice_skipped' ? 'T'+s.SEQ+'호' : '태장 제'+s.SEQ+'호',
-      C2:'2. '+((company.note || common.note).replace(/^2\.\s*/, '') || s.YM+' 회차는 '+common.place+(environmental?'의 지역사회 환경정화로 진행합니다.':'에서 '+preset.item+'을 진행합니다.')),
-      C4:'4. 관련 용역은 '+s.PERF+' '+common.place+'에서 '+(environmental?'지역사회 환경정화로 ':'')+(bundle?'수행하였으며':'수행할 예정이며')+', 세부 프로그램은 다음과 같습니다.',
+      C2:'2. '+((company.note || common.note).replace(/^2\.\s*/, '') || s.YM+' 회차는 '+common.place+(activity?'의 '+activity+'로 진행합니다.':'에서 '+preset.item+'을 진행합니다.')),
+      C4:'4. 관련 용역은 '+s.PERF+' '+common.place+'에서 '+(activity?activity+'로 ':'')+(bundle?'수행하였으며':'수행할 예정이며')+', 세부 프로그램은 다음과 같습니다.',
       ENDING:bundle?'제출합니다.':'제출하겠습니다. 끝.', ATTACH1:'붙임  1. 용역 견적서 1부.', ATTACH2:'2. 용역 수행 결과보고서 1부.  끝.',
       Q1:'· 본 견적은 자회사형 장애인 표준사업장 '+(basis==='계약 별첨2(용역 제공 기준)'?'용역계약(별첨2, 용역 제공 기준)':basis)+'에 의거하며, 실제 산입 인원을 기준으로 정산합니다.',
       Q3:'· 용역 내역: '+education+', '+(environmental?'지역사회 환경정화(폐기물 수거)':preset.item)+' — '+dates.map(d=>core.dateLabel(d).dotw).join(' / ')+' '+common.place+' 수행.',

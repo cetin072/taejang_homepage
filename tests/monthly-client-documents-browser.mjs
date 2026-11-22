@@ -8,7 +8,7 @@ const ids=['beomhan','samhyeon','cheongwoo-bj','hyundai-bng-steel'];
 const now=new Date(); const year=now.getFullYear(),month=now.getMonth()+1;
 window.calls=[]; window.failUnlock=false; const enhanced=new URL(location.href).searchParams.has('v2');
 const defaults=ids.map((id,i)=>({id,key:id,name:id,share:19,cap:7,override:i===0?6:'',pay:7,seq:i+1}));
-let record={year,month,status:'confirmed',revision:4,calculationVersion:'claude-core-1',templateVersion:'claude-template-1',payload:{common:{year,month,docDate:enhanced?'2026-10-30':'',perfDate:enhanced?'2026-10-14':'',place:'합성 장소',safety:'outdoor',severe:20,mildF:0,mildM:3,base:1295000,rate:70,note:'',extras:[]},companies:defaults.map(c=>({...c,enabled:true,note:''}))}};
+let record={year,month,status:'confirmed',revision:4,calculationVersion:'claude-core-1',templateVersion:'claude-template-1',payload:{common:{year,month,noticeActivity:'지역사회 환경정비',docDate:enhanced?'2026-10-30':'',perfDate:enhanced?'2026-10-14':'',place:'합성 장소',safety:'outdoor',severe:20,mildF:0,mildM:3,base:1295000,rate:70,note:'',extras:[]},companies:defaults.map(c=>({...c,enabled:true,note:''}))}};
 if(enhanced)record.payload.common.documentOutput={month:year+'-'+String(month).padStart(2,'0'),shared:{},companies:{
   samhyeon:{actual:'2026-10-18'},'cheongwoo-bj':{actual:'2026-10-17',confirmedActual:'2026-10-17'}
 }};
@@ -186,6 +186,13 @@ try {
    assert.equal(await dialog.getByRole('checkbox',{name:'입력한 날짜가 실제 수행일임을 확인'}).isDisabled(),true);
    await btn('닫기').click();
  }
+ await page.getByLabel('기준 월').fill('2099-12');
+ await page.getByText('새 월 · 11월 발송 공문 기준').waitFor();
+ await tab('공통 입력').click();await btn('수행 내용 수정').click();
+ assert.equal(await dialog.getByLabel('수행 장소').inputValue(),'창원 팔용어울림운동장 일원');
+ assert.equal(await dialog.getByLabel('안전교육 방식').inputValue(),'indoor_hq');
+ assert.match(await dialog.getByLabel('수행 내용',{exact:true}).inputValue(),/보행로 일원 폐기물 수거/);
+ await btn('취소').click();
  // Preserve a late RPC response while personal permission is revoked. Neither
  // its company data nor the previous form may reappear under the cached capability.
  await page.evaluate(()=>{
