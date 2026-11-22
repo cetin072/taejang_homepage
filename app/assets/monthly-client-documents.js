@@ -51,9 +51,30 @@
   function novemberForm(year, month) {
     const key=monthKey(year,month);
     return {docDate:key+'-19',perfDate:key+'-20',place:'창원 팔용어울림운동장 일원',
-      safety:'indoor',educationMode:'indoor_hq',noticeActivity:'지역사회 환경정비',
+      safety:'indoor',educationMode:'indoor_hq',noticeTextRevision:1,noticeActivity:'지역사회 환경정비',
       workDescription:'지역사회 환경정비 — 팔용어울림운동장 및 주변 보행로 일원 폐기물 수거 및 환경 정비',
       severe:20,mildF:0,mildM:2,base:1295000,rate:70,note:''};
+  }
+  function restoreDecemberNotice(common) {
+    if(common.noticeTextRevision===1)return;
+    const baseline=novemberForm(2026,12);
+    const shortWork=value=>!value?.trim() || value.trim()==='환경정화';
+    const oldPlace=common.place?.trim()==='창원 팔용근린공원 일원';
+    const legacy=!common.noticeActivity && (oldPlace || shortWork(common.workDescription));
+    if(!legacy && common.noticeActivity!==baseline.noticeActivity)return;
+    if(legacy && (oldPlace || !common.place?.trim()))common.place=baseline.place;
+    if(shortWork(common.workDescription)){
+      const site=common.place.replace(/^창원\s+|\s*일원$/g,'');
+      common.workDescription=baseline.workDescription.replace('팔용어울림운동장',()=>site);
+    }
+    common.noticeActivity=baseline.noticeActivity;
+    if(!common.educationMode && common.safety==='indoor')common.educationMode=baseline.educationMode;
+    const output=common.documentOutput;
+    for(const settings of [output?.shared,...Object.values(output?.companies||{})].filter(Boolean)){
+      if(shortWork(settings.work))delete settings.work;
+      if(settings.mode==='indoor_video' && common.educationMode==='indoor_hq')delete settings.mode;
+    }
+    common.noticeTextRevision=1;
   }
   function defaultsToMonth(defaults, year, month) {
     return { common: commonFromDefaults(year, month), companies: defaults.map(company => ({ ...company, enabled: true, override: company.override ?? '', note: '' })) };
@@ -631,6 +652,9 @@
       outputSelection = new Set(state.companies.filter(company => company.enabled).map(company => company.id));
       activeMonthKey = monthKey(year, month);
       savedFingerprint = fingerprint();
+      if(performanceReady && year===2026 && month===12 && record?.status!=='confirmed'){
+        restoreDecemberNotice(state.common);
+      }
     } finally {
       if (updateScreen && request === loadSequence) { busy=false; render(); }
     }

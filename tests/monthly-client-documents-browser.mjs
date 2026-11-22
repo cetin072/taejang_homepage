@@ -193,6 +193,26 @@ try {
  assert.equal(await dialog.getByLabel('안전교육 방식').inputValue(),'indoor_hq');
  assert.match(await dialog.getByLabel('수행 내용',{exact:true}).inputValue(),/보행로 일원 폐기물 수거/);
  await btn('취소').click();
+ // Open an already saved December draft, including the old company output settings.
+ await page.evaluate(()=>{
+   const rpc=TaejangApp.rpc;
+   const draft=structuredClone(record);
+   Object.assign(draft,{year:2026,month:12,status:'draft'});
+   Object.assign(draft.payload.common,{year:2026,month:12,noticeActivity:'',educationMode:'',safety:'indoor',
+     perfDate:'2026-12-18',perfDates:['2026-12-18'],docDate:'2026-12-17',place:'창원 팔용근린공원 일원',workDescription:'환경정화',
+     documentOutput:{month:'2026-12',shared:{work:'환경정화'},companies:{'hyundai-bng-steel':{work:'환경정화',mode:'indoor_video'}}}});
+   TaejangApp.rpc=(name,args)=>name==='monthly_client_documents_get_month' && args.p_year===2026 && args.p_month===12 ? draft : rpc(name,args);
+ });
+ await page.getByLabel('기준 월').fill('2026-12');
+ await page.getByText('작성 중',{exact:true}).waitFor();
+ await tab('hyundai-bng-steel').click();await btn('공문').click();
+ const sheet=dialog.frameLocator('iframe').locator('.sheet').first();
+ await sheet.waitFor();
+ const body=await sheet.textContent();
+ assert.match(body,/4\. 관련 용역은 2026년 12월 18일\(금\) 창원 팔용어울림운동장 일원에서 지역사회 환경정비로 수행할 예정이며/);
+ assert.ok(body.includes('가. 실내 안전교육 — 작업 전 태장 본사에서 실시하는 안전수칙 교육 및 보호장구 점검'));
+ assert.ok(body.includes('나. 지역사회 환경정비 — 팔용어울림운동장 및 주변 보행로 일원 폐기물 수거 및 환경 정비'));
+ await btn('닫기').click();
  // Preserve a late RPC response while personal permission is revoked. Neither
  // its company data nor the previous form may reappear under the cached capability.
  await page.evaluate(()=>{
