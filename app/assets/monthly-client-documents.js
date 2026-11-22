@@ -48,6 +48,13 @@
     return { year, month, docDate: '', perfDate: '', place: '', safety: 'outdoor', severe: 20, mildF: 0, mildM: 3,
       base: 1295000, rate: 70, note: '', extras: [] };
   }
+  function novemberForm(year, month) {
+    const key=monthKey(year,month);
+    return {docDate:key+'-19',perfDate:key+'-20',place:'창원 팔용어울림운동장 일원',
+      safety:'indoor',educationMode:'indoor_hq',noticeActivity:'지역사회 환경정비',
+      workDescription:'지역사회 환경정비 — 팔용어울림운동장 및 주변 보행로 일원 폐기물 수거 및 환경 정비',
+      severe:20,mildF:0,mildM:2,base:1295000,rate:70,note:''};
+  }
   function defaultsToMonth(defaults, year, month) {
     return { common: commonFromDefaults(year, month), companies: defaults.map(company => ({ ...company, enabled: true, override: company.override ?? '', note: '' })) };
   }
@@ -167,7 +174,7 @@
     const output=model.documentOutput?.month===sourceMonth ? model.documentOutput : {};
     const shared=output.shared || {};
     const saved=company ? output.companies?.[company.id] : null;
-    const options={stage:'notice',mode:model.safety?.mode || (model.safety==='outdoor'?'outdoor':'indoor_video'),
+    const options={stage:'notice',mode:model.educationMode || model.safety?.mode || (model.safety==='outdoor'?'outdoor':'indoor_video'),
       noticeDate:model.noticeDate || model.docDate,bundleIssueDate:'',quoteDate:model.quoteDate || model.docDate,reportDate:model.reportDate || model.docDate,
       promotion:model.promotion?.status || 'none',photos:(model.photoSets || []).slice(),item:'지역사회 환경정화 용역',name:model.month+'월 지역사회 환경정화(청소) 용역',
       actual:(model.actualPerfDates || []).join(', '),confirmedActual:'',work:model.workDescription || '',...shared,...saved};
@@ -443,7 +450,7 @@
       }
       drawDates();
       if(performanceReady)grid.append(field('수행 내용',draft.workDescription,'textarea',v=>draft.workDescription=v));
-      grid.append(field('안전교육 방식',draft.safety,'select',v=>draft.safety=v,{choices:[['outdoor','현장 안전교육'],['indoor','영상 안전교육']]}),
+      grid.append(field('안전교육 방식',draft.educationMode || (draft.safety==='outdoor'?'outdoor':'indoor_video'),'select',v=>{draft.educationMode=v;draft.safety=v==='outdoor'?'outdoor':'indoor';},{choices:[['outdoor','현장 안전교육'],['indoor_hq','본사 실내 안전교육'],['indoor_video','영상 안전교육']]}),
         field('공문 공통 문구',draft.note,'textarea',v=>draft.note=v));
     },()=>{
       draft.perfDate=dates[0]; if(performanceReady)draft.perfDates=dates;
@@ -451,7 +458,7 @@
       if(output) {
         for(const settings of [output.shared,...Object.values(output.companies||{})].filter(Boolean)) {
           if(draft.workDescription!==state.common.workDescription)delete settings.work;
-          if(draft.safety!==state.common.safety)delete settings.mode;
+          if(draft.educationMode!==state.common.educationMode || draft.safety!==state.common.safety)delete settings.mode;
           if(draft.docDate!==state.common.docDate)for(const k of ['noticeDate','quoteDate','reportDate'])delete settings[k];
         }
       }
@@ -497,6 +504,18 @@
     if(selectedTab==='common'){
       panel.append(el('h3','전체 회사 공통 입력'),el('p',[common.place||'장소 미입력',...(common.perfDates||[common.perfDate]).filter(Boolean)].join(' · ')));
       edit('수행 내용 수정',editWork);
+      if(performanceReady)edit('11월 발송 공문 기준 적용',()=>editor('11월 발송 공문 기준 적용',grid=>{
+        grid.append(el('p','현재 월의 장소·교육·수행 내용·고용 산정값을 11월 발송본으로 채웁니다. 공문일은 19일, 예정 수행일은 20일로 설정합니다. 저장 전에 수정할 수 있습니다.'));
+      },()=>{
+        Object.assign(common,novemberForm(common.year,common.month),{extras:[]});
+        common.perfDates=[common.perfDate];common.noticeDate=common.docDate;
+        for(const company of state.companies)company.note='';
+        const output=common.documentOutput;
+        for(const entry of [output?.shared,...Object.values(output?.companies||{})].filter(Boolean)){
+          for(const key of ['work','mode','noticeDate'])delete entry[key];
+        }
+        render();
+      }));
       edit('서류 공통 설정',()=>openCompanyOutput(null));
       edit('계산 기준 수정',()=>editFields('계산 기준 수정',common,[
         ['중증 근로자(명)','severe'],['경증 여성(명)','mildF'],['경증 남성(명)','mildM'],['부담기초액(원)','base'],['지원비율(%)','rate']
@@ -574,7 +593,14 @@
         const prevMonth=month===1?12:month-1,prevYear=month===1?year-1:year;
         const previous=await rpc('monthly_client_documents_get_month',{p_year:prevYear,p_month:prevMonth});
         if(request!==loadSequence)return;
-        if(previous?.payload?.common){
+        // The first December draft uses the actual November dispatch as its source.
+        const useNovemberForm=performanceReady && (!previous?.payload?.common ||
+          (year===2026 && month===12 && !previous.payload.common.noticeActivity));
+        if(useNovemberForm){
+          Object.assign(values.common,novemberForm(year,month));
+          monthSource='새 월 · 11월 발송 공문 기준';
+        }
+        else if(previous?.payload?.common){
           const prior=structuredClone(previous.payload.common),key=monthKey(year,month);
           const shift=date=>/^\d{4}-\d{2}-\d{2}$/.test(date||'') ? key+'-'+String(Math.min(Number(date.slice(-2)),new Date(year,month,0).getDate())).padStart(2,'0') : '';
           for(const k of ['docDate','perfDate','noticeDate','quoteDate','reportDate'])if(prior[k])prior[k]=shift(prior[k]);
@@ -588,6 +614,10 @@
               delete settings.actual;delete settings.confirmedActual;
               if(settings.name===prevMonth+'월 지역사회 환경정화(청소) 용역')delete settings.name;
             }
+          }
+          if(performanceReady && !prior.workDescription?.trim() && !prior.place?.trim()){
+            const baseline=novemberForm(year,month);
+            Object.assign(prior,baseline,{perfDates:[baseline.perfDate]});
           }
           values.common=prior;
           for(const company of values.companies)company.note=previous.payload.companies?.find(c=>c.id===company.id)?.note || '';
