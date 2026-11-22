@@ -60,7 +60,7 @@
     const baseline=novemberForm(2026,12);
     const shortWork=value=>!value?.trim() || value.trim()==='환경정화';
     const oldPlace=common.place?.trim()==='창원 팔용근린공원 일원';
-    const legacy=!common.noticeActivity && (oldPlace || shortWork(common.workDescription));
+    const legacy=(!common.noticeActivity || common.noticeActivity==='지역사회 환경정화') && (oldPlace || shortWork(common.workDescription));
     if(!legacy && common.noticeActivity!==baseline.noticeActivity)return;
     if(legacy && (oldPlace || !common.place?.trim()))common.place=baseline.place;
     if(shortWork(common.workDescription)){
@@ -652,7 +652,7 @@
       outputSelection = new Set(state.companies.filter(company => company.enabled).map(company => company.id));
       activeMonthKey = monthKey(year, month);
       savedFingerprint = fingerprint();
-      if(performanceReady && year===2026 && month===12 && record?.status!=='confirmed'){
+      if(performanceReady && year===2026 && month===12 && record && record.status!=='confirmed'){
         restoreDecemberNotice(state.common);
       }
     } finally {
