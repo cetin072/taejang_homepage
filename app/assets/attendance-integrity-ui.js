@@ -484,8 +484,17 @@
       feedback.textContent = '';
       list.replaceChildren(node('p', '출근부를 불러오고 있습니다.', 'message'));
       try {
-        const data = await app().rpc('get_attendance_admin_today', { p_work_date: workDate });
-        const rows = Array.isArray(data?.rows) ? data.rows : [];
+        const contextPromise = (app().can?.('employee.view_all') || app().can?.('employee.view_scoped'))
+          ? app().rpc('get_employee_management_context').catch(() => null)
+          : Promise.resolve(null);
+        const [data, context] = await Promise.all([
+          app().rpc('get_attendance_admin_today', { p_work_date: workDate }),
+          contextPromise
+        ]);
+        const rows = window.TaejangAttendanceRosterSort.sortRows(
+          Array.isArray(data?.rows) ? data.rows : [],
+          window.TaejangAttendanceRosterSort.positionOrders(context)
+        );
         const fragment = document.createDocumentFragment();
         for (const row of rows) {
           if (!list.isConnected || selectedVersion !== version) return;
