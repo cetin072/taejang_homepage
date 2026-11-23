@@ -268,7 +268,9 @@ test('invalid RPC payload is an error rather than no notices', async () => {
 async function detailHarness(required = false) {
   const h = hooks(), r = readModule(memory()), client = {};
   let actor = 'alice', current = notice('a', { requires_acknowledgement: required }), ackCalls = 0, fail = false;
+  const { NoticeBody } = load('mobile/src/features/notices/notice-body.tsx', {react: {Fragment:'Fragment'}, 'react-native': native});
   const component = load('mobile/app/notices/[id].tsx', {
+    '@/src/features/notices/notice-body': {NoticeBody},
     react: h.react, 'expo-router': { useFocusEffect: fn => h.useFocusEffect(fn), useRouter: () => ({ back() {}, replace() {} }), useLocalSearchParams: () => ({ id: 'a' }) },
     'expo-status-bar': { StatusBar: 'StatusBar' }, 'react-native': native,
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
@@ -280,7 +282,7 @@ async function detailHarness(required = false) {
       acknowledgeMyNotice: async (_client, _id, version) => { assert.equal(version, 1); ackCalls++; current = { ...current, acknowledged: true }; },
     },
   });
-  return { h, r, render() { h.begin(); return nodes(component.default()); }, actor(v) { actor = v; }, fail(v) { fail = v; }, ackCalls: () => ackCalls };
+  return { h, r, render() { h.begin(); return nodes(component.default()).flatMap(node => node?.type === NoticeBody ? nodes(NoticeBody(node.props)) : [node]); }, actor(v) { actor = v; }, fail(v) { fail = v; }, ackCalls: () => ackCalls };
 }
 
 test('actual detail commits general read only after successful text render; failed detail stays unread', async () => {
