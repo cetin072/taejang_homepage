@@ -316,6 +316,7 @@
 
   function syncBodyEditor() {
     const field = ui.element('notice-body');
+    if (!mediaApi()) return;
     const current = window.TaejangArticleEditor?.mount(field, {
       notice: true, preview: false,
       getMedia: () => mediaItems.map(item => ({
@@ -394,7 +395,9 @@
     );
     await ensureMediaUrls();
     if (generation !== previewGeneration) return;
-    window.TaejangNoticeMedia.renderBody(preview, ui.element('notice-body').value || '공지 내용을 적어주세요.', mediaItems);
+    const value = ui.element('notice-body').value || '공지 내용을 적어주세요.';
+    if (mediaApi()) mediaApi().renderBody(preview, value, mediaItems);
+    else preview.append(ui.text('p', window.TAEJANG_ARTICLE_DOCUMENT?.plain(value) ?? value, 'notice-body'));
 
     if (ui.element('notice-requires-ack').checked) {
       preview.append(ui.text('p', '내용 확인이 필요한 공지입니다.', 'status-text'));
