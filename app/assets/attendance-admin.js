@@ -950,10 +950,11 @@
     if (can('employee.view_all') || can('employee.view_scoped')) {
       try {
         const context=await app().rpc('get_employee_management_context');
+        const positionOrders=window.TaejangAttendanceRosterSort.positionOrders(context);
         for(const employee of context?.employees || []) {
           // Select ordinary organization fields; never retain protected HR values.
           const {id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on}=employee;
-          metadata.set(String(id),{id,department_name,position_name,employment_status,attendance_required,hired_on,departed_on,linked_profile:employee.linked_profile?{account_status:employee.linked_profile.account_status}:null});
+          metadata.set(String(id),{id,department_name,position_name,position_order:positionOrders.get(String(id)) ?? null,employment_status,attendance_required,hired_on,departed_on,linked_profile:employee.linked_profile?{account_status:employee.linked_profile.account_status}:null});
         }
       } catch { /* Unavailable scoped metadata stays explicitly unconfirmed. */ }
     }
@@ -1076,7 +1077,7 @@
         if (!panel.isConnected) return;
         detail.replaceChildren();
         model = helper.buildMonth({month:selectedMonth,ledger,daily,employees:[...metadata.values()]});
-        model.rows=model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid))));loaded = true;
+        model.rows=window.TaejangAttendanceRosterSort.sortRows(model.rows.map(row=>helper.classify(row,metadata.get(String(row.employee_uuid)))));loaded = true;
         render(); excel.disabled = model.failedDays.length > 0;
       } catch {
         results.prepend(el('p', '월간 출근부를 불러오지 못했습니다. 선택 월과 이전 조회 내용은 유지됩니다.', 'message error'));
@@ -1126,7 +1127,7 @@
       currentWorkDate = data?.work_date || requestedWorkDate;
       const metadata=await classificationMetadata(currentWorkDate);
       if(version!==requestVersion)return;
-      const rows=data.rows.map(row=>window.TaejangAttendanceMonthly.classify(row,metadata.get(String(row.employee_uuid))));
+      const rows=window.TaejangAttendanceRosterSort.sortRows(data.rows.map(row=>window.TaejangAttendanceMonthly.classify(row,metadata.get(String(row.employee_uuid)))));
       const fieldWork = Array.isArray(fieldWorkResult.value) ? fieldWorkResult.value : [];
       const fieldByEmployee = new Map(fieldWork.map(item => [String(item.employee_uuid), item]));
       const evidenceRows = Array.isArray(evidenceData?.rows) ? evidenceData.rows : [];
@@ -1193,7 +1194,6 @@
       });
       function renderDaily(){
         const entries=dailyEntries.filter(({row,comparison})=>matchesSearch(row)&&(!filters.reviewOnly||comparison.needsReview));
-        entries.sort((a,b)=>Number(b.comparison.needsReview)-Number(a.comparison.needsReview));
         list.replaceChildren(...entries.map(item=>item.compact));
         if(!entries.length)list.append(el('p','조건에 맞는 직원이 없습니다.','empty'));
       }
