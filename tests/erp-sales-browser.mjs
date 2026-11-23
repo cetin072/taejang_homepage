@@ -9,6 +9,7 @@ const output=process.env.ERP_QA_OUTPUT||'admin-ui-qa-artifacts/erp-sales';await 
 try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));const dialogs=[];let keepDraft=false;page.on('dialog',d=>{dialogs.push(d.message());void (keepDraft?d.dismiss():d.accept());});
  await page.goto(app.url);await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ assert.equal(await page.getByRole('columnheader',{name:'문서 연결',exact:true}).count(),0);
  await page.getByRole('button',{name:'고객 등록',exact:true}).click();
  const gridColumns=loc=>loc.evaluate(node=>(()=>{const c=getComputedStyle(node).gridTemplateColumns;const repeat=c.match(/^repeat\((\d+),/);return repeat?Number(repeat[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})());
  const editorDialog=page.locator('dialog.erp-editor-dialog[open]');
@@ -21,6 +22,7 @@ try {
   }
  };
  await editorDialog.getByRole('heading',{name:'등록: 거래처',exact:true}).waitFor();
+ assert.equal(await editorDialog.locator('[name="document_company_id"]').count(),0);
  const masterGrid=page.locator('.erp-editor fieldset.erp-fields').first();
  assert.equal(await gridColumns(masterGrid),3,'desktop party editor uses three columns');
  const relationLabels=page.locator('.erp-relationship-options > label');
@@ -71,6 +73,7 @@ try {
  await customerEdit.click();
  const customerDialog=page.getByRole('dialog',{name:'수정: 거래처',exact:true});
  await customerDialog.waitFor();
+ assert.equal(await customerDialog.locator('[name="document_company_id"]').count(),0);
  assert.equal(await page.locator('.erp-sales > .erp-editor form').count(),0,'edit form does not extend the page below the list');
  await field('contact_name').fill('팝업 저장 검수');
  await page.evaluate(()=>window.fixtureFailNext=true);

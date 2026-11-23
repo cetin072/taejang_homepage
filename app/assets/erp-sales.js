@@ -222,7 +222,6 @@
     n.value=code;
    }
    relationships.append(relationshipOptions);grid.append(relationships);
-   if(state.documentCompanies.length)add('document_company_id','기존 거래처 문서 연결','select',row.document_company_id||'',[['','연결 안 함'],...state.documentCompanies.map(r=>[r.id,r.name])]);
    if(productAutomation){const prefix=add('item_prefix','공급처 품목 접두어 (최초 등록 후 유지)','text',row.item_prefix||'');prefix.readOnly=!!row.item_prefix;}
    add('memo','거래 메모','textarea');
   }else if(kind==='agent'){add('name','영업자명','text',row.name||'',[],true);add('phone','연락처','tel');add('memo','메모','textarea');
@@ -301,7 +300,7 @@
    body.append(el('h3',title));
    body.append(el('p','같은 업체가 고객과 공급처를 겸할 수 있습니다. 회사 정보는 한 번만 저장됩니다.','help'));
    if(!rows.length)body.append(el('p',masterView==='customer'?'등록된 고객이 없습니다. 기존 거래처에 고객 역할을 추가하거나 고객을 등록하세요.':masterView==='supplier'?'등록된 공급처가 없습니다. 공급처를 등록하면 매입·직배송 거래에서 선택할 수 있습니다.':'등록된 거래처가 없습니다.','message'));
-   body.append(table(['거래처','구분','거래 관계','상태','문서 연결',''],rows.map(r=>[r.name,kinds[r.kind],r.relationships.map(x=>({customer:'고객',supplier:'공급처',sales_contact:'영업 관계'})[x]).join(' · '),r.active?'활성':'중단',state.documentCompanies.find(x=>x.id===r.document_company_id)?.name||'—',btn(state.canWrite?'수정':'보기',()=>masterEditor('party',r))])));
+   body.append(table(['거래처','구분','거래 관계','상태',''],rows.map(r=>[r.name,kinds[r.kind],r.relationships.map(x=>({customer:'고객',supplier:'공급처',sales_contact:'영업 관계'})[x]).join(' · '),r.active?'활성':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('party',r))])));
   }else{
    body.append(el('h3','영업자'));
    body.append(table(['영업자','연락처','상태',''],state.agents.map(r=>[r.name,r.phone,r.active?'활성':'중단',btn(state.canWrite?'수정':'보기',()=>masterEditor('agent',r))])));
