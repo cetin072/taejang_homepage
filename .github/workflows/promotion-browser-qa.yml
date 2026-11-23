@@ -33,23 +33,23 @@ jobs:
         run: node scripts/ci-change-scope.mjs
 
       - name: Set up Node.js
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.promotion_setup == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Verify Chrome runtime
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.promotion_setup == 'true'
         shell: bash
         run: |
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
       - name: Install existing browser dependency
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.promotion_setup == 'true'
         run: npm ci
 
       - name: Ensure Korean calendar screenshot fonts
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.promotion_setup == 'true'
         shell: bash
         run: |
           if [ -z "$(fc-list :lang=ko family)" ]; then
@@ -80,13 +80,13 @@ jobs:
           node tests/platform-menu-addresses-browser.mjs
 
       - name: Verify browser photo optimization and upload adapters
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.notice == 'true'
         env:
           PHOTO_QA_OUTPUT: photo-qa-artifacts
         run: node tests/photo-optimizer-browser.mjs
 
       - name: Keep photo size results and PC/mobile comparisons
-        if: (always()) && steps.scope.outputs.run_full == 'true'
+        if: (always()) && steps.scope.outputs.notice == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: photo-optimization-390-1440
@@ -129,7 +129,7 @@ jobs:
         run: node tests/backend-stability-browser.mjs
 
       - name: Verify shared authoring controls and original functional gates
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
         env:
           AUTHORING_QA_OUTPUT: authoring-ui-qa-artifacts
         run: node tests/admin-authoring-browser.mjs
@@ -171,7 +171,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Run employee sorting and notice saved-result role QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.notice == 'true'
         env:
           ADMIN_UI_QA_OUTPUT: admin-ui-qa-artifacts
         run: node tests/admin-employee-notice-browser.mjs
@@ -191,13 +191,13 @@ jobs:
         run: node tests/issue-466-sidebar-real-drag.mjs
 
       - name: Run notice authoring exact viewport QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.notice == 'true'
         env:
           NOTICE_QA_OUTPUT: notice-qa-artifacts
         run: node tests/notice-authoring-browser.mjs
 
       - name: Capture notice management before change
-        if: (github.event_name == 'pull_request') && steps.scope.outputs.run_full == 'true'
+        if: (github.event_name == 'pull_request') && steps.scope.outputs.notice == 'true'
         env:
           NOTICE_BASELINE_REF: ${{ github.event.pull_request.base.sha }}
           NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
@@ -206,13 +206,13 @@ jobs:
           node tests/notice-management-browser.mjs
 
       - name: Run notice history, same-ID correction and archive role QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.notice == 'true'
         env:
           NOTICE_HISTORY_QA_OUTPUT: notice-history-qa-artifacts
         run: node tests/notice-management-browser.mjs
 
       - name: Verify independent notice bootstrap on local and exact-head Preview
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.notice == 'true'
         env:
           UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -232,7 +232,7 @@ jobs:
           fi
 
       - name: Keep notice history PC and mobile screenshots
-        if: (always()) && steps.scope.outputs.run_full == 'true'
+        if: (always()) && steps.scope.outputs.notice == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: notice-history-390-1440
@@ -240,7 +240,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Run promotion composer exact viewport QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
         env:
           PROMOTION_QA_OUTPUT: promotion-composer-qa-artifacts
         run: |
@@ -248,7 +248,7 @@ jobs:
           node tests/official-blog-photo-browser.mjs
 
       - name: Keep promotion composer screenshots
-        if: (always()) && steps.scope.outputs.run_full == 'true'
+        if: (always()) && steps.scope.outputs.editor == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: promotion-composer-320-390-768-1440
@@ -303,7 +303,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Keep synthetic notice authoring screenshots
-        if: (always()) && steps.scope.outputs.run_full == 'true'
+        if: (always()) && steps.scope.outputs.notice == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: notice-authoring-320-390-1280
@@ -325,21 +325,21 @@ jobs:
         run: node scripts/ci-change-scope.mjs
 
       - name: Verify exact-head Preview origin normalization
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.landing == 'true'
         run: python3 tests/preview-status-origin-test.py
 
       - name: Set up Node.js
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.landing == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 24
 
       - name: Install existing browser dependency
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.landing == 'true'
         run: npm ci
 
       - name: Run employee-app landing browser QA at PC and mobile sizes
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.landing == 'true'
         env:
           EMPLOYEE_APP_QA_OUTPUT: employee-app-qa-artifacts
         run: |
@@ -349,7 +349,7 @@ jobs:
           node tests/partnership-browser.mjs
 
       - name: Verify existing and new blog card direct navigation
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.landing == 'true'
         env:
           PROMOTION_QA_OUTPUT: admin-ui-qa-artifacts/promotion-blog-cards
         run: |
@@ -358,7 +358,7 @@ jobs:
           node tests/archive-initial-render-browser.mjs
 
       - name: Verify employee-app landing on exact-head Deploy Preview
-        if: (github.event_name == 'pull_request') && steps.scope.outputs.scope != 'docs'
+        if: (github.event_name == 'pull_request') && steps.scope.outputs.landing == 'true'
         env:
           UAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -397,7 +397,7 @@ jobs:
           PYTHON
 
       - name: Keep exact-head Preview screenshots and browser results
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.landing == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: employee-app-preview-qa
@@ -407,7 +407,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Keep employee app landing screenshots
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.landing == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: employee-app-landing-1440-390-320
@@ -427,19 +427,19 @@ jobs:
         id: scope
         run: node scripts/ci-change-scope.mjs
       - uses: actions/setup-node@v4
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
         with:
           node-version: 24
 
       - run: npm ci
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
 
       - name: Install Korean screenshot fonts
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
         run: sudo apt-get update -qq && sudo apt-get install --no-install-recommends -y fonts-noto-cjk
 
       - name: Verify editor bundle, safe document and browser workflow
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.editor == 'true'
         env:
           PROMOTION_QA_OUTPUT: promotion-visual-editor-artifacts
         run: |
@@ -449,7 +449,7 @@ jobs:
           node tests/promotion-visual-editor-browser.mjs
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.run_full == 'true'
+        if: (always()) && steps.scope.outputs.editor == 'true'
         with:
           name: promotion-visual-editor-320-390-768-1440
           path: promotion-visual-editor-artifacts/

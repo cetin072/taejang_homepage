@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { classifyChanges, changedFiles, selectBrowserChecks } from '../scripts/ci-change-scope.mjs';
+import { validationPlan, classifyChanges, changedFiles, selectBrowserChecks } from '../scripts/ci-change-scope.mjs';
 
 test('public presentation changes avoid unrelated platform integration', () => {
   assert.equal(classifyChanges(['resources.html', 'assets/css/resources.css', 'docs/planning/PUBLIC_RESOURCES_V1.md', 'tests/terrarium-hub.test.js', 'tests/helpers/public-header-checks.mjs']), 'public');
@@ -13,7 +13,7 @@ test('public presentation changes avoid unrelated platform integration', () => {
   assert.equal(classifyChanges(['AGENTS.md', 'docs/operations/notes.md']), 'docs');
 });
 test('shared, unknown, executable docs and mixed changes retain full validation', () => {
-  for (const file of ['app/assets/employee-calendar.js', 'staff/assets/staff.css', 'supabase/migrations/new.sql', 'mobile/src/app.tsx', 'assets/js/content.js', 'assets/css/promotion-document.css', 'assets/css/new.css', 'assets/images/code.js', 'package-lock.json', 'netlify.toml', '.github/workflows/phase1a-supabase-integration.yml', 'scripts/ci-change-scope.mjs', 'docs/operations/task.gs', 'tests/new.test.js']) {
+  for (const file of ['app/assets/app.js', 'staff/assets/staff.css', 'supabase/migrations/new.sql', 'mobile/src/app.tsx', 'assets/js/content.js', 'assets/css/promotion-document.css', 'assets/css/new.css', 'assets/images/code.js', 'package-lock.json', 'netlify.toml', '.github/workflows/phase1a-supabase-integration.yml', 'scripts/ci-change-scope.mjs', 'docs/operations/task.gs', 'tests/new.test.js']) {
     assert.equal(classifyChanges(['resources.html', file]), 'full', file);
   }
   assert.equal(classifyChanges([]), 'full');
@@ -49,5 +49,72 @@ test('shared, unknown, renamed and workflow changes cannot narrow browser checks
   assert.equal(all.length, 7);
   for (const files of [ ['assets/css/styles.css'], ['index.html', 'assets/js/content.js'], ['old-unknown.html', 'location.html'], ['.github/workflows/hero-article-qa.yml'], ['supabase/migrations/new.sql'] ]) {
     assert.deepEqual(selectBrowserChecks(files), all);
+  }
+});
+
+test('notice editor PR 724 selects both writers, native reader, calendar and DB without unrelated browsers', () => {
+  const files = `
+    app/assets/employee-calendar.js app/assets/issue-207-promotion-information-ux.js
+    app/assets/notice-admin.js app/assets/notice-media.js app/assets/notice-worker.js
+    app/assets/promotion-visual-editor.js assets/js/promotion-document.js
+    mobile/app/notices/[id].tsx mobile/src/features/notices/notice-api.ts
+    mobile/src/features/notices/notice-body.tsx mobile/src/features/settings/patch-notes.ts
+    src/promotion/editor.js supabase/migrations/20261123150000_notice_visual_body.sql
+    tests/browser/notice-authoring-ux-gate.html tests/browser/promotion-browser-gate.html
+    tests/goal-331-dashboard-card-notice-management.test.js tests/mobile-notice-read-state.test.mjs
+    tests/mobile-notices.test.mjs tests/notice-authoring-browser.mjs
+  `.trim().split(/\s+/);
+  const {scope,flags} = validationPlan(files);
+  assert.equal(scope,'targeted');
+  for (const key of ['platform','notice','editor','mobile','db','calendar','public_static']) assert.equal(flags[key],true,key);
+  for (const key of ['monthly','sales','landing','reader_contract']) assert.equal(flags[key],false,key);
+  assert.deepEqual(selectBrowserChecks(files),[]);
+});
+
+test('an isolated change uses its consumers and a mixed change takes their union', () => {
+  const monthly = 'app/assets/monthly-client-documents.js';
+  const native = 'mobile/src/features/notices/notice-api.ts';
+  assert.equal(validationPlan([monthly]).flags.monthly,true);
+  assert.equal(validationPlan([monthly]).flags.notice,false);
+  const sales = validationPlan(['app/assets/erp-sales.js']);
+  assert.equal(sales.flags.sales && sales.flags.db,true);
+  assert.equal(sales.flags.notice || sales.flags.monthly,false);
+  assert.equal(validationPlan([native]).flags.db,false);
+  assert.equal(validationPlan([native]).flags.mobile,true);
+  assert.equal(validationPlan(['assets/css/location.css']).flags.landing,false);
+  const mixed = [monthly, native, 'location.html'];
+  assert.equal(validationPlan(mixed).scope,'targeted');
+  assert.deepEqual(selectBrowserChecks(mixed), ['navigation','location','seo']);
+  assert.equal(validationPlan([...mixed,'supabase/migrations/unreviewed.sql']).scope,'full');
+  assert.deepEqual(validationPlan(['app/assets/unknown.js']).unknown,['app/assets/unknown.js']);
+});
+
+test('workflow steps consume the intended selectors for isolated and full changes', () => {
+  const expected = {
+    'promotion-browser-qa': {
+      'Run notice authoring exact viewport QA': 'notice',
+      'Run promotion composer exact viewport QA': 'editor',
+      'Verify editor bundle, safe document and browser workflow': 'editor',
+      'Verify Google identity PKCE connection with synthetic fixtures': 'run_full',
+      'Verify monthly documents and menu addresses with isolated fixtures': 'run_full',
+      'Verify employee-app landing on exact-head Deploy Preview': 'landing',
+    },
+    'phase1a-supabase-integration': {
+      'Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL': 'sales',
+      'Reapply migrations from a clean database': 'db',
+      'Run pgTAP security tests': 'db',
+      'Run real Auth and Data API integration': 'run_full',
+    },
+    'public-homepage-checks': {'Run public homepage checks':'public_static'},
+    'hero-article-qa': {'Verify public navigation buttons on mobile and desktop':'browser_navigation'},
+  };
+  for (const [workflow, entries] of Object.entries(expected)) {
+    const yaml = readFileSync(new URL('../.github/workflows/' + workflow + '.yml', import.meta.url), 'utf8');
+    const steps = yaml.split(/^      - /m);
+    for (const [name, flag] of Object.entries(entries)) {
+      const step = steps.find(block => block.startsWith('name: ' + name + '\n'));
+      assert.ok(step?.split('\n').some(line => line.trimStart().startsWith('if:') &&
+        line.includes("steps.scope.outputs." + flag + " == 'true'")), workflow + ': ' + name);
+    }
   }
 });

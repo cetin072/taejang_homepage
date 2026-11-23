@@ -195,6 +195,25 @@ def main() -> None:
         wait_for_checks(env)
         print("USER_ACCEPTANCE_READY=PASS (public regression and hosted PC/mobile QA verified)")
         return
+    if scope == "targeted":
+        groups = set(env["VALIDATION_GROUPS"].split(","))
+        required = {"Migration, pgTAP, Auth and RLS", "Promotion representative browser flow",
+                    "Article visual editor roles and round trip", "Public source and launch regression"}
+        if "public" in groups:
+            required.update({"Article photo and existing video slides", "Employee app landing local and exact-head Preview"})
+        if "monthly" in groups:
+            required.add("render")
+        if "mobile" in groups:
+            required.add("typecheck")
+        wait_for_checks(env, required, timeout_seconds=1200)
+        env["PREVIEW_URL"] = wait_for_preview(contract, env)
+        env["EXPECTED_HEAD_SHA"] = env["UAR_HEAD_SHA"]
+        if groups & {"notice", "editor", "database", "calendar", "monthly", "sales", "mobileReader"}:
+            run_command("preview_runtime", contract["checks"]["preview_runtime"]["command"], env)
+        if "database" in groups:
+            run_command("environment_parity", contract["checks"]["environment_parity"]["command"], env)
+        print("USER_ACCEPTANCE_READY=PASS (affected jobs and exact-head Preview verified)")
+        return
     bootstrap = str(contract.get("bootstrap", "")).strip()
     if bootstrap:
         run_command("bootstrap", bootstrap, env)

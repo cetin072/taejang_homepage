@@ -46,7 +46,9 @@ jobs:
           command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser
 
       - name: Verify command reuse and validation scope
-        run: python3 tests/uar-command-reuse-test.py
+        run: |
+          node --test tests/ci-change-scope.test.mjs
+          python3 tests/uar-command-reuse-test.py
 
       - name: Run enforced UAR gate
         run: python3 .github/scripts/user_acceptance_ready.py
