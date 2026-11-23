@@ -76,7 +76,8 @@ test('Goal 331 notice preview preserves formatting and uploaded photos flow to t
   assert.match(index, /직원앱 미리보기/);
   assert.doesNotMatch(index, /<option value="notice">중요공지<\/option>/);
   assert.match(mobileApi, /storage\.from\('notice-media'\)\.createSignedUrl/);
-  assert.match(mobileDetail, /notice\.media\.map/);
+  assert.match(mobileDetail, /<NoticeBody notice=/);
+  assert.match(read('mobile/src/features/notices/notice-body.tsx'), /notice\.media\.filter/);
 });
 
 test('Goal 331 dashboard cards open the same authorized navigation targets instead of bypassing server auth', () => {

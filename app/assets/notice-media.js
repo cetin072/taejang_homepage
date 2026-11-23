@@ -64,13 +64,13 @@
     return payload;
   }
 
-  async function upload(noticeId, file) {
+  async function upload(noticeId, file, photoKey = crypto.randomUUID()) {
     const optimized = await optimizeForUpload(file);
     if (!/^[0-9a-f-]{36}$/i.test(String(noticeId || ''))) throw new Error('NOTICE_MEDIA_NOTICE_REQUIRED');
     const extension = MIME_EXTENSIONS[optimized.type];
     let savedPath = uploadPaths.get(file);
     if (savedPath?.owner !== noticeId) {
-      savedPath = { owner: noticeId, path: `${noticeId}/${Date.now()}-${crypto.randomUUID()}.${extension}` };
+      savedPath = { owner: noticeId, path: `${noticeId}/${Date.now()}-${photoKey}.${extension}` };
       uploadPaths.set(file, savedPath);
     }
     const name = savedPath.path;
@@ -161,7 +161,79 @@
     container.hidden = container.childElementCount === 0;
   }
 
+  function linkify(container) {
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) if (!walker.currentNode.parentElement.closest('a')) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const fragment = document.createDocumentFragment();
+      let end = 0;
+      for (const match of node.data.matchAll(/https?:\/\/[^\s<>"']+/gi)) {
+        const label = match[0].replace(/[.,!?;:]+$/, '').replace(/\)$/, tail =>
+          match[0].split(')').length > match[0].split('(').length ? '' : tail);
+        let url;
+        try { url = new URL(label); } catch { continue; }
+        if (url.username || url.password) continue;
+        const link = document.createElement('a');
+        link.href = url.href;
+        link.textContent = label;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        fragment.append(node.data.slice(end, match.index), link);
+        end = match.index + label.length;
+      }
+      if (end) { fragment.append(node.data.slice(end)); node.replaceWith(fragment); }
+    }
+  }
+
+  function renderBody(container, value, media) {
+    const placed = new Set();
+    const body = document.createElement('div');
+    body.className = 'notice-body';
+    const html = window.TAEJANG_ARTICLE_DOCUMENT?.render({public_body:value}, ref => {
+      const photo = media.find(item => window.TaejangNoticeMedia.photoKey(item) === ref);
+      if (photo) placed.add(photo);
+      return photo?.signed_url;
+    });
+    if (html) body.innerHTML = html;
+    else body.textContent = value;
+    linkify(body);
+    body.addEventListener('click', event => {
+      if (event.target.tagName === 'IMG') openLightbox(event.target.src, event.target.alt);
+    });
+    container.append(body);
+    const gallery = document.createElement('div');
+    gallery.className = 'notice-photo-gallery';
+    for (const item of media.filter(item => item.signed_url && !placed.has(item))) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'notice-photo-thumb';
+      const image = new Image();
+      image.src = item.signed_url;
+      image.alt = item.alt_text || '공지 사진';
+      button.append(image);
+      button.onclick = () => openLightbox(item.signed_url, image.alt);
+      gallery.append(button);
+    }
+    if (gallery.childElementCount) container.append(gallery);
+  }
+
   window.TaejangNoticeMedia = {
+    photoKey(item) {
+      return item.key || item.storage_path?.match(/([0-9a-f-]{36})\.[a-z]+$/i)?.[1] || item.id;
+    },
+    detailBody(notice) {
+      const body = document.createElement('div');
+      const value = window.TAEJANG_ARTICLE_DOCUMENT?.parse(notice.body_document) ? notice.body_document : notice.body_easy;
+      const show = items => renderBody(body, value, items);
+      show([]);
+      if (notice.media?.length) void window.TaejangNoticeMedia.resolve(notice.media).then(items => {
+        body.replaceChildren();
+        show(items);
+      });
+      return body;
+    },
+    renderBody,
     BUCKET,
     MAX_SOURCE_FILE_BYTES,
     MAX_UPLOAD_FILE_BYTES,

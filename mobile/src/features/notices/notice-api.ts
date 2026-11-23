@@ -30,6 +30,7 @@ export type NoticeSummary = {
 
 export type NoticeDetail = NoticeSummary & {
   body_easy: string;
+  body_document?: string | null;
   effective_start_date: string | null;
   effective_end_date: string | null;
   location: string | null;

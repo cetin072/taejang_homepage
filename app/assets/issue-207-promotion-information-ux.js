@@ -136,7 +136,25 @@
       if (!items.length) grid.append(text('p', '현재 확인할 공지가 없습니다.', 'empty'));
       items.forEach(item => {
         const card = document.createElement('article'); card.className = 'dashboard-card';
-        card.append(text('h3', item.title || '공지'), text('p', item.body_easy || ''));
+        card.append(text('h3', item.title || '공지'));
+        const body = document.createElement('div');
+        window.TaejangNoticeMedia.renderBody(body, item.summary || item.body_easy || '', []);
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'button button-quiet';
+        open.textContent = '공지 자세히 보기';
+        open.onclick = async () => {
+          open.disabled = true;
+          try {
+            const notice = await app().rpc('get_my_notice_detail', {p_notice_id:item.id});
+            body.replaceChildren(window.TaejangNoticeMedia.detailBody(notice));
+            open.remove();
+          } catch {
+            open.disabled = false;
+            open.textContent = '다시 열기';
+          }
+        };
+        card.append(body, open);
         grid.append(card);
       });
       section.append(grid);

@@ -37,7 +37,7 @@
   function safeLink(value) {
     try { const u = new URL(value); return ['https:','http:'].includes(u.protocol) && !u.username && !u.password ? u.href : ''; } catch { return ''; }
   }
-  function render(item) {
+  function render(item, resolvePhoto) {
     if (!isRich(item?.public_body)) return null;
     const doc = parse(item.public_body);
     if (!doc) return '<div class="taejang-article"><p>본문 형식을 확인할 수 없습니다.</p></div>';
@@ -56,8 +56,9 @@
         return out;
       }
       if (n.type === 'image') {
-        const url = n.attrs?.src;
-        if (!allowed.has(url)) return '';
+        const ref = n.attrs?.src;
+        const url = resolvePhoto ? resolvePhoto(ref) : allowed.has(ref) && ref;
+        if (!url) return '';
         const caption = String(n.attrs?.alt || '');
         return '<figure><img src="' + escape(url) + '" alt="' + escape(caption) + '" loading="lazy" decoding="async">' + (caption ? '<figcaption>' + escape(caption) + '</figcaption>' : '') + '</figure>';
       }
