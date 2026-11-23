@@ -22,15 +22,15 @@ jobs:
         id: scope
         run: node scripts/ci-change-scope.mjs
       - uses: actions/setup-node@v4
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.public_browser == 'true'
         with:
           node-version: 24
 
       - run: npm ci
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.public_browser == 'true'
 
       - name: Ensure Korean fonts for readable public screenshots
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.public_browser == 'true'
         shell: bash
         run: |
           if [ -z "$(fc-list :lang=ko family)" ]; then
@@ -39,7 +39,7 @@ jobs:
           fi
 
       - run: npm run build:netlify
-        if: steps.scope.outputs.scope != 'docs'
+        if: steps.scope.outputs.public_browser == 'true'
 
       - run: node tests/hero-article-browser.mjs
         if: steps.scope.outputs.browser_hero == 'true'
@@ -51,7 +51,7 @@ jobs:
         run: node tests/salt-origin-browser.mjs
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: salt-origin-320-390-1440
           path: salt-qa-artifacts/
@@ -64,7 +64,7 @@ jobs:
         if: steps.scope.outputs.run_full == 'true'
         run: node tests/promotion-editorial-browser.mjs
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: archive-editorial-320-390-786-1440
           path: archive-editorial-qa/
@@ -78,7 +78,7 @@ jobs:
 
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: public-buttons-390-1440
           path: public-buttons-qa-artifacts/
@@ -90,7 +90,7 @@ jobs:
           CERTIFICATIONS_QA_OUTPUT: certifications-qa-artifacts
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: certifications-320-390-768-1440
           path: certifications-qa-artifacts/
@@ -102,7 +102,7 @@ jobs:
           LOCATION_QA_OUTPUT: location-qa-artifacts
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: location-320-390-768-1440
           path: location-qa-artifacts/
@@ -112,13 +112,13 @@ jobs:
         run: node tests/public-seo-content-browser.mjs
 
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: public-seo-320-390-1440
           path: seo-qa-artifacts/
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
-        if: (always()) && steps.scope.outputs.scope != 'docs'
+        if: (always()) && steps.scope.outputs.public_browser == 'true'
         with:
           name: hero-article-320-390-1440
           path: hero-qa-artifacts/

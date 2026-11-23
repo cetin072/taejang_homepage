@@ -34,6 +34,16 @@ class CommandReuseTests(QuietTests):
                     self.assertEqual(browser, ['', 'https://preview.example'])
                     self.assertFalse(public_checks.called)
 
+    def test_targeted_waits_for_affected_jobs_and_checks_hosted_runtime_once(self):
+        groups = "notice,editor,database,calendar,mobile"
+        with patch.dict(os.environ, {"VALIDATION_SCOPE":"targeted", "VALIDATION_GROUPS":groups, "UAR_HEAD_SHA":"abc"}), patch("sys.argv", ["uar"]), patch.object(uar,"wait_for_preview",return_value="https://preview.example"), patch.object(uar,"wait_for_checks") as wait, patch.object(uar,"run_command") as run:
+            uar.main()
+        names = wait.call_args.args[1]
+        self.assertIn("Migration, pgTAP, Auth and RLS", names)
+        self.assertIn("typecheck", names)
+        self.assertNotIn("Employee app landing local and exact-head Preview", names)
+        self.assertEqual([call.args[0] for call in run.call_args_list], ["preview_runtime","environment_parity"])
+
     def test_failed_command_is_never_reused(self):
         with patch.dict(os.environ, {'VALIDATION_SCOPE': 'full'}), patch('sys.argv', ['uar']), patch.object(uar, 'run_command', side_effect=SystemExit(1)) as run, patch.object(uar, 'wait_for_preview') as preview:
             with self.assertRaises(SystemExit):

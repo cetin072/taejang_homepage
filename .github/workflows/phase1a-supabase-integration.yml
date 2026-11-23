@@ -33,23 +33,29 @@ jobs:
         run: node scripts/ci-change-scope.mjs
 
       - name: Report lightweight pass for unrelated changes
-        if: steps.scope.outputs.run_full != 'true'
+        if: steps.scope.outputs.platform != 'true'
         run: echo "No platform changes; isolated platform integration is not applicable."
 
       - name: Run active static platform checks
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.platform == 'true'
         run: node scripts/run-test-group.mjs platformStatic
 
+      - name: Check native notice reader against the changed notice contract
+        if: steps.scope.outputs.reader_contract == 'true'
+        run: |
+          npm ci --prefix mobile --no-audit --no-fund
+          node --test tests/mobile-notice*.test.mjs
+
       - name: Run active staging safety checks
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: node scripts/run-test-group.mjs stagingSafety
 
       - name: Install existing browser dependency for real isolated workflow QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: npm ci
 
       - name: Install Korean font for staff form QA
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         timeout-minutes: 5
         run: |
           if [ -z "$(fc-list :lang=ko family)" ]; then
@@ -61,7 +67,7 @@ jobs:
           test -n "$(fc-list :lang=ko family)"
 
       - name: Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.sales == 'true'
         run: |
           ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-isolated.mjs
           ERP_TEST_PRODUCT_AUTOMATION=1 node tests/erp-sales-amount-adjustments.mjs
@@ -72,7 +78,7 @@ jobs:
           CHROME_PATH=$(command -v google-chrome) node tests/erp-sales-workflow-browser.mjs
 
       - name: Keep synthetic ERP browser screenshots
-        if: always() && steps.scope.outputs.run_full == 'true'
+        if: always() && steps.scope.outputs.sales == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: erp-sales-1440-390
@@ -84,7 +90,7 @@ jobs:
 
       # Reuse npm ci's locked CLI instead of downloading a second version.
       - name: Use repository-locked Supabase CLI
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: |
           cli_expected=$(node -p "require('./package-lock.json').packages['node_modules/supabase'].version")
           cli_actual=$(./node_modules/.bin/supabase --version)
@@ -93,7 +99,7 @@ jobs:
           echo "Supabase CLI $cli_actual (repository lockfile)"
 
       - name: Start isolated local Supabase
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase start
 
       - name: Test candidate personal menu authority in isolated PostgreSQL
@@ -105,20 +111,42 @@ jobs:
         run: CHROME_PATH=$(command -v google-chrome) node tests/menu-authority-browser.mjs
 
       - name: Reapply migrations from a clean database
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase db reset
 
       - name: Lint database schema
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase db lint --level error --fail-on error
 
       - name: Inspect isolated security advisors
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase db advisors --local --type security --level warn --fail-on error
 
       - name: Run pgTAP security tests
-        if: steps.scope.outputs.run_full == 'true'
+        if: steps.scope.outputs.db == 'true'
         run: supabase test db supabase/tests/database/*.test.sql
+
+      - name: Verify affected workflows against isolated Auth and PostgREST
+        if: steps.scope.outputs.scope == 'targeted' && steps.scope.outputs.db == 'true'
+        env:
+          CHECK_NOTICE: ${{ steps.scope.outputs.notice }}
+          CHECK_MONTHLY: ${{ steps.scope.outputs.monthly }}
+          CHECK_SALES: ${{ steps.scope.outputs.sales }}
+          CHECK_CALENDAR: ${{ steps.scope.outputs.calendar }}
+          SUPABASE_PROJECT_ID: taejang-homepage-phase1a
+        run: |
+          supabase status -o env > "$RUNNER_TEMP/taejang-supabase.env"
+          set -a
+          source "$RUNNER_TEMP/taejang-supabase.env"
+          set +a
+          if [[ "$CHECK_NOTICE" == true ]]; then
+            node tests/phase1a-auth-integration.mjs
+            node tests/staff-schedules-notices-auth-integration.mjs
+            node tests/notice-review-media-auth-integration.mjs
+          fi
+          if [[ "$CHECK_MONTHLY" == true ]]; then node tests/monthly-client-documents-auth-integration.mjs; fi
+          if [[ "$CHECK_SALES" == true ]]; then node tests/erp-sales-auth-integration.mjs; fi
+          if [[ "$CHECK_CALENDAR" == true ]]; then CHROME_PATH=$(command -v google-chrome) node tests/employee-calendar-auth-integration.mjs; fi
 
       - name: Run real Auth and Data API integration
         if: steps.scope.outputs.run_full == 'true'
@@ -189,6 +217,6 @@ jobs:
           retention-days: 7
 
       - name: Stop local Supabase
-        if: always() && steps.scope.outputs.run_full == 'true'
+        if: always() && steps.scope.outputs.db == 'true'
         run: |
           if command -v supabase >/dev/null; then supabase stop --no-backup; fi
