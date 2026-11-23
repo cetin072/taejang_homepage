@@ -98,6 +98,7 @@
       ...row,
       department: metadata.department_name || (Object.hasOwn(metadata,'department_name') ? '미배정' : '미확인'),
       job: metadata.position_name || '미확인',
+      position_order: Number.isFinite(metadata.position_order) ? metadata.position_order : (Number.isFinite(row.position_order) ? row.position_order : null),
       groups: metadata.groups || [],
       leaders: metadata.leaders || [],
       groupState: metadata.groupsKnown ? ((metadata.groups || []).length ? '배정' : '미배정') : '미확인',
