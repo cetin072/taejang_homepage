@@ -32,10 +32,10 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_confirmed_attendance_period')return ledger;
  if(name==='get_today_board_admin_options')return {work_groups:[{id:'fixture-group',name:'가상 작업반'}]};
  if(name==='list_field_work_group_members')return [{employee_uuid:rows[0].employee_uuid,name:rows[0].display_name,member_type:'worker'},{employee_uuid:'fixture-leader',name:'가상 배정 팀장',member_type:'lead'}];
- if(name==='get_employee_management_context')return {employees:[{id:rows[0].employee_uuid,department_name:'가상 부서',position_name:'일반 근로자',employment_status:'active',attendance_required:true,linked_profile:{account_status:'active'}},{id:rows[1].employee_uuid,department_name:null,position_name:'직원',employment_status:'active',attendance_required:true}]};
+ if(name==='get_employee_management_context')return {positions:[{id:'worker',code:'general_worker'},{id:'lead',code:'department_lead'}],employees:[{id:rows[0].employee_uuid,position_id:'worker',department_name:'가상 부서',position_name:'일반 근로자',employment_status:'active',attendance_required:true,linked_profile:{account_status:'active'}},{id:rows[1].employee_uuid,position_id:'lead',department_name:null,position_name:'부서 팀장',employment_status:'active',attendance_required:true}]};
  throw Error('Unhandled fixture RPC '+name);
 }};
-</script><script src="/app/assets/attendance-monthly-xlsx.js"></script><script src="/app/assets/attendance-monthly.js"></script><script src="/app/assets/attendance-admin.js"></script></body></html>`;
+</script><script src="/app/assets/attendance-monthly-xlsx.js"></script><script src="/app/assets/attendance-monthly.js"></script><script src="/app/assets/attendance-roster-sort.js"></script><script src="/app/assets/attendance-admin.js"></script></body></html>`;
 const server=http.createServer(async(req,res)=>{try{if(req.url==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);return;}const file=path.resolve(root,'.'+req.url);if(!file.startsWith(root+path.sep))throw Error('path');res.setHeader('Content-Type','application/javascript; charset=utf-8');res.end(await fs.readFile(file));}catch{res.statusCode=404;res.end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
@@ -60,6 +60,7 @@ try{
   await page.getByRole('button',{name:'월별',exact:true}).click();
   await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('[data-attendance-monthly] .attendance-toolbar button:last-child').disabled);
   assert.equal(await page.locator('.attendance-matrix thead th').count(),31);
+  assert.deepEqual((await page.locator('.attendance-matrix tbody th button').allTextContents()).slice(0,2), ['가상 누락 직원', '가상 정상 직원'], 'monthly view follows position hierarchy, not review count');
   const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).click();const download=await downloadPromise;assert.match(download.suggestedFilename(),/2026-09.*\.xlsx$/);await download.saveAs(path.join(output,device+'-monthly.xlsx'));
   await page.locator('select[data-filter-key=department]:visible').selectOption('가상 부서');
   const filteredPromise=page.waitForEvent('download');await page.getByRole('button',{name:'월간 출근부 Excel',exact:true}).click();const filtered=await filteredPromise;
