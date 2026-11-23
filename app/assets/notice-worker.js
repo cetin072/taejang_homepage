@@ -117,13 +117,7 @@
     if (notice.importance !== 'normal') {
       content.append(ui.text('p', `${ui.IMPORTANCE[notice.importance]} 공지입니다.`, 'status-banner'));
     }
-    content.append(ui.text('p', notice.body_easy, 'notice-body'));
-    if (ui.array(notice.media).length) {
-      const gallery = document.createElement('div');
-      gallery.className = 'notice-photo-gallery';
-      content.append(gallery);
-      void window.TaejangNoticeMedia?.renderGallery(gallery, notice.media);
-    }
+    content.append(window.TaejangNoticeMedia.detailBody(notice));
     const details = document.createElement('dl');
     details.className = 'detail-list';
     ui.appendDetail(details, '공지 종류', ui.NOTICE_KINDS[notice.notice_kind] || '일반공지');

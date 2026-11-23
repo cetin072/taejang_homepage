@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-23-notice-links', date: '2026-11-23',
+    title: '공지 본문 링크와 사진',
+    summary: '공지에서 웹 주소를 눌러 열 수 있습니다.',
+    items: ['서식이 있는 공지는 글 사이에 배치한 사진과 링크를 함께 표시합니다.'],
+  },
+  {
     id: '2026-11-20-leave-business-days', date: '2026-11-20',
     title: '연차 신청 기한을 영업일로 계산',
     summary: '토요일·일요일과 근태 달력에 등록된 공휴일·전사 휴무일을 빼고 계산합니다.',

@@ -5,7 +5,7 @@ import { NodeSelection, TextSelection } from '@tiptap/pm/state';
 import { closeHistory } from '@tiptap/pm/history';
 
 const format = () => globalThis.TAEJANG_ARTICLE_DOCUMENT;
-function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null, preview = true} = {}) {
+function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null, preview = true, notice = false} = {}) {
   if (!textarea || textarea._articleEditor) return textarea?._articleEditor;
   const f = format();
   if (!f || !textarea.parentNode) return null;
@@ -22,8 +22,9 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
   const output = document.createElement('div'); output.className = 'article-editor-preview'; output.hidden = true;
   shell.append(toolbar, surface, imageTools, status, previewTools, output);
   let synchronized = textarea.value;
+  const usable = entry => notice ? !!entry.url : globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url);
   const damaged = f.isRich(synchronized) && !f.parse(synchronized);
-  if (damaged) { shell.textContent = '본문 형식을 읽을 수 없습니다. 원문을 보존하기 위해 편집을 중단했습니다.'; textarea.hidden = true; textarea._articleEditor = {refresh(){},validate(){window.alert('본문 형식을 확인할 수 없어 저장하지 않았습니다.');return false;}}; return textarea._articleEditor; }
+  if (damaged) { shell.textContent = '본문 형식을 읽을 수 없습니다. 원문을 보존하기 위해 편집을 중단했습니다.'; textarea.hidden = true; textarea._articleEditor = {destroy(){shell.remove();textarea.hidden=false;delete textarea._articleEditor;},refresh(){},validate(){window.alert('본문 형식을 확인할 수 없어 저장하지 않았습니다.');return false;}}; return textarea._articleEditor; }
   let editor;
   const toggleButtons = [];
   const style = document.createElement('select'); style.setAttribute('aria-label','문단 스타일');
@@ -48,7 +49,7 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
     if (!output.hidden) drawPreview();
   }
   let originalDoc = f.parse(synchronized) || f.fromPlain(synchronized);
-  const legacyHTML = !f.isRich(synchronized) && globalThis.TAEJANG_FEATURED_ARTICLE?.render(item);
+  const legacyHTML = !notice && !f.isRich(synchronized) && globalThis.TAEJANG_FEATURED_ARTICLE?.render(item);
   if (legacyHTML) {
     const legacy=document.createElement('div'); legacy.innerHTML=legacyHTML;
     legacy.querySelectorAll('figcaption').forEach(node=>node.remove());
@@ -56,17 +57,29 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
     originalDoc=legacy.innerHTML;
   }
   if (!legacyHTML && !f.isRich(synchronized) && synchronized.trim()) {
-    getMedia().forEach(entry => { if (globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)) originalDoc.content.push({type:'image',attrs:{src:entry.url,alt:entry.alt || ''}}); });
+    getMedia().forEach(entry => { if (!notice && usable(entry)) originalDoc.content.push({type:'image',attrs:{src:entry.url,alt:entry.alt || ''}}); });
   }
   function approvedDocument(doc) {
     if (typeof doc === 'string') return doc;
-    const allowed=new Set(getMedia().filter(entry=>globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)).map(entry=>entry.url));
+    const allowed=new Set(getMedia().filter(usable).map(entry=>entry.url));
     const clean=node=>({...node,...(node.content ? {content:node.content.filter(child=>child.type!=='image'||allowed.has(child.attrs.src)).map(clean)} : {})});
     return clean(doc);
   }
-  editor = new Editor({element:surface, extensions:[StarterKit.configure({heading:{levels:[2,3]},codeBlock:false,code:false,link:{openOnClick:false,autolink:false,protocols:['https','http']}}),Image.configure({allowBase64:false})],
+  const imageExtension = notice ? Image.extend({
+    addNodeView() {
+      return ({node}) => {
+        const dom = document.createElement('img');
+        dom.dataset.noticePhoto = node.attrs.src;
+        dom.alt = node.attrs.alt || '공지 사진';
+        const url = getMedia().find(entry => entry.url === node.attrs.src)?.previewUrl;
+        if (url) dom.src = url;
+        return {dom};
+      };
+    }
+  }) : Image;
+  editor = new Editor({element:surface, extensions:[StarterKit.configure({heading:{levels:[2,3]},codeBlock:false,code:false,link:{openOnClick:false,autolink:notice,protocols:['https','http']}}),imageExtension.configure({allowBase64:false})],
     content:approvedDocument(originalDoc),
-    editorProps:{attributes:{role:'textbox','aria-label':'기사 본문','aria-multiline':'true'},handlePaste(view,event){
+    editorProps:{attributes:{role:'textbox','aria-label':notice ? '공지 내용' : '기사 본문','aria-multiline':'true'},handlePaste(view,event){
       // Pasted remote images never bypass the approved attachment/upload path.
       const html = event.clipboardData?.getData('text/html');
       if (html && /<img\b/i.test(html)) { event.preventDefault(); view.dispatch(view.state.tr.insertText(event.clipboardData.getData('text/plain'))); return true; }
@@ -78,7 +91,9 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
   for (const [label,command,type] of [['굵게','toggleBold','bold'],['인용','toggleBlockquote','blockquote'],['목록','toggleBulletList','bulletList'],['번호 목록','toggleOrderedList','orderedList']]) {
     const b = button(toolbar,label,()=>editor.chain().focus()[command]().run()); b.setAttribute('aria-pressed','false'); toggleButtons.push([b,type]);
   }
-  button(toolbar,'링크',()=>{ const raw = window.prompt('연결할 웹 주소 (비우면 링크 해제)',editor.getAttributes('link').href || ''); if(raw === null)return; if(!raw.trim()){editor.chain().focus().unsetLink().run();return;} const href=f.safeLink(raw.trim()); if(!href){window.alert('http 또는 https 웹 주소를 입력해 주세요.');return;} editor.chain().focus().setLink({href}).run(); });
+  button(toolbar,'링크',()=>{ const raw = window.prompt('연결할 웹 주소 (비우면 링크 해제)',editor.getAttributes('link').href || ''); if(raw === null)return; if(!raw.trim()){editor.chain().focus().unsetLink().run();return;} const href=f.safeLink(raw.trim()); if(!href){window.alert('http 또는 https 웹 주소를 입력해 주세요.');return;} if (notice && editor.state.selection.empty) {
+    editor.chain().focus().insertContent({type:'text',text:href,marks:[{type:'link',attrs:{href}}]}).run();
+  } else editor.chain().focus().setLink({href}).run(); });
   button(toolbar,'실행 취소',()=>editor.chain().focus().undo().run()); button(toolbar,'다시 실행',()=>editor.chain().focus().redo().run());
   imageTools.append(picker);
   button(imageTools,'본문에 사진 넣기',()=>{ const entry=getMedia().find(m=>m.url===picker.value); if(entry){editor.chain().focus().setImage({src:entry.url,alt:entry.alt || ''}).run();} else status.textContent='먼저 아래 사진 추가 버튼으로 사진을 첨부해 주세요.'; });
@@ -103,8 +118,12 @@ function mount(textarea, {getMedia = () => [], getTitle = () => '', item = null,
   }
   function refresh() {
     if (textarea.value !== synchronized) { synchronized=textarea.value; const doc=f.parse(synchronized); if(f.isRich(synchronized)&&!doc)return; editor.commands.setContent(approvedDocument(doc || f.fromPlain(synchronized)),{emitUpdate:false}); }
+    if (notice) for (const image of surface.querySelectorAll('img[data-notice-photo]')) {
+      const url = getMedia().find(entry => entry.url === image.dataset.noticePhoto)?.previewUrl;
+      if (url && image.getAttribute('src') !== url) image.src = url;
+    }
     const selected=picker.value;picker.replaceChildren(new Option('첨부한 사진 선택',''));
-    getMedia().filter(entry => globalThis.TAEJANG_PUBLIC_MEDIA?.persistent(entry.url)).forEach((entry,i)=>picker.add(new Option(`${i+1}. ${entry.alt || '사진'}`,entry.url)));
+    getMedia().filter(usable).forEach((entry,i)=>picker.add(new Option(`${i+1}. ${entry.alt || '사진'}`,entry.url)));
     if(getMedia().some(m=>m.url===selected))picker.value=selected;
     const allowed=new Set(getMedia().map(entry=>entry.url));
     const removals=[];editor.state.doc.descendants((node,pos)=>{if(node.type.name==='image'&&!allowed.has(node.attrs.src))removals.push({pos,size:node.nodeSize});});

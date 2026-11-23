@@ -79,7 +79,7 @@
     if(row.source==='personal'&&row.editable){item.append(button('수정',()=>form(date,row)),button('삭제',()=>void remove(row)));}
     else if(row.source==='personal')item.append(el('p','연결된 업무수첩 업무에서 수정할 수 있습니다.','help'));
     if(row.notice_id&&row.status!=='cancelled')item.append(button('공지 자세히 보기',async()=>{
-     try{const n=await rpc('get_my_notice_detail',{p_notice_id:row.notice_id});if(!alive())return;show(n.title);rows.append(el('p',n.body_easy,'calendar-description'),button('일정으로 돌아가기',()=>openDay(date,entries)));}
+     try{const n=await rpc('get_my_notice_detail',{p_notice_id:row.notice_id});if(!alive())return;show(n.title);rows.append(window.TaejangNoticeMedia.detailBody(n),button('일정으로 돌아가기',()=>openDay(date,entries)));}
      catch(e){if(alive())item.append(el('p','공지를 지금 열 수 없습니다. 새로 조회해 주세요.','message error'));}
     }));rows.append(item);
    }

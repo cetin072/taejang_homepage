@@ -1,3 +1,4 @@
+import { NoticeBody } from '@/src/features/notices/notice-body';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -177,15 +178,8 @@ export default function NoticeDetailScreen() {
           <View style={styles.card}>
             <Text style={styles.eyebrow}>{importanceLabel(notice.importance)}</Text>
             <Text style={styles.title}>{notice.title}</Text>
-            <Text style={styles.body}>{notice.body_easy}</Text>
-
-            {notice.media?.length && client ? (
-              <View style={styles.gallery}>
-                {notice.media.map(item => (
-                  <NoticePhoto key={item.id} client={client} userId={session.user.id} item={item} />
-                ))}
-              </View>
-            ) : null}
+            <NoticeBody notice={notice} onLinkError={() => setMessage('링크를 열 수 없습니다.')}
+              photo={item => client ? <NoticePhoto client={client} userId={session.user.id} item={item} /> : null} />
 
             {notice.location ? <Text style={styles.meta}>장소 · {notice.location}</Text> : null}
             {notice.materials ? <Text style={styles.meta}>준비물 · {notice.materials}</Text> : null}
