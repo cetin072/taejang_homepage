@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { validationPlan, classifyChanges, changedFiles, selectBrowserChecks } from '../scripts/ci-change-scope.mjs';
@@ -87,4 +87,34 @@ test('an isolated change uses its consumers and a mixed change takes their union
   assert.deepEqual(selectBrowserChecks(mixed), ['navigation','location','seo']);
   assert.equal(validationPlan([...mixed,'supabase/migrations/unreviewed.sql']).scope,'full');
   assert.deepEqual(validationPlan(['app/assets/unknown.js']).unknown,['app/assets/unknown.js']);
+});
+
+test('workflow steps consume the intended selectors for isolated and full changes', () => {
+  const expected = {
+    'promotion-browser-qa': {
+      'Run notice authoring exact viewport QA': 'notice',
+      'Run promotion composer exact viewport QA': 'editor',
+      'Verify editor bundle, safe document and browser workflow': 'editor',
+      'Verify Google identity PKCE connection with synthetic fixtures': 'run_full',
+      'Verify monthly documents and menu addresses with isolated fixtures': 'run_full',
+      'Verify employee-app landing on exact-head Deploy Preview': 'landing',
+    },
+    'phase1a-supabase-integration': {
+      'Test ERP persisted workflows and PC mobile UI in isolated PostgreSQL': 'sales',
+      'Reapply migrations from a clean database': 'db',
+      'Run pgTAP security tests': 'db',
+      'Run real Auth and Data API integration': 'run_full',
+    },
+    'public-homepage-checks': {'Run public homepage checks':'public_static'},
+    'hero-article-qa': {'Verify public navigation buttons on mobile and desktop':'browser_navigation'},
+  };
+  for (const [workflow, entries] of Object.entries(expected)) {
+    const yaml = readFileSync(new URL('../.github/workflows/' + workflow + '.yml', import.meta.url), 'utf8');
+    const steps = yaml.split(/^      - /m);
+    for (const [name, flag] of Object.entries(entries)) {
+      const step = steps.find(block => block.startsWith('name: ' + name + '\n'));
+      assert.ok(step?.split('\n').some(line => line.trimStart().startsWith('if:') &&
+        line.includes("steps.scope.outputs." + flag + " == 'true'")), workflow + ': ' + name);
+    }
+  }
 });

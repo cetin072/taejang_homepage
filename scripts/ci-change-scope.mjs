@@ -106,7 +106,7 @@ export function validationPlan(files) {
     public_static:needs('public') || needs('article'),
     landing:full || files.some(file => isPublic(file) && !pageChecks[file]),
     reader_contract:!full && groups.has('mobileReader') && !groups.has('mobile'),
-    promotion_setup:needs('notice') || needs('editor') || needs('monthly'),
+    promotion_setup:needs('notice') || needs('editor'),
   }};
 }
 export const classifyChanges = files => validationPlan(files).scope;

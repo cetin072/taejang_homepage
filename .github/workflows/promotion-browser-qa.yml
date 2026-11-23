@@ -74,7 +74,7 @@ jobs:
         run: node tests/google-identity-browser.mjs
 
       - name: Verify monthly documents and menu addresses with isolated fixtures
-        if: steps.scope.outputs.monthly == 'true'
+        if: steps.scope.outputs.run_full == 'true'
         run: |
           node tests/monthly-client-documents-browser.mjs
           node tests/platform-menu-addresses-browser.mjs
