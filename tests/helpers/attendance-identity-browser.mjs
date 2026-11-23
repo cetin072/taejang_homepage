@@ -30,6 +30,7 @@ export async function verifyIdentityUi(page, preview) {
     }};
  });
  await page.addScriptTag({url:preview+'/app/assets/attendance-monthly.js'});
+ await page.addScriptTag({url:preview+'/app/assets/attendance-roster-sort.js'});
  await page.addScriptTag({url:preview+'/app/assets/attendance-admin.js'});
  await page.evaluate(()=>window.TaejangAttendanceAdmin.openAttendance('2026-10-19'));
  await page.getByText('안전한 이름 일치 후보 21명',{exact:true}).waitFor();
