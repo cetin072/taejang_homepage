@@ -42,7 +42,7 @@
     busy = false, emailState = null, performanceReady = false;
   let outputSelection = new Set(ids);
   const emailDrafts = new Map();
-  let authoritySequence = 0;
+  let authoritySequence = 0, singleDocuments = null;
 
   function commonFromDefaults(year, month) {
     return { year, month, docDate: '', perfDate: '', place: '', safety: 'outdoor', severe: 20, mildF: 0, mildM: 3,
@@ -594,14 +594,17 @@
     if (request !== authoritySequence || !currentCapability()) throw new Error('MENU_AUTHORITY_CHANGED');
     return result;
   }
-  async function loadData() {
+  async function loadData(selection = {}) {
     if (!currentCapability()) throw new Error('FORBIDDEN');
     const data = await rpc('monthly_client_documents_get');
     performanceReady = data.performanceVersion === 2;
     state = { defaults: data.defaults || [], defaultsDraft: (data.defaults || []).map(item => ({ ...item })), history: data.months || [], common: null, companies: null };
     if (!ids.every(id => state.defaults.some(item => item.id === id))) throw new Error('회사 기본값을 불러오지 못했습니다.');
-    const now = new Date(); const month = now.getMonth() + 1;
-    await loadMonth(now.getFullYear(), month, false);
+    const today = new Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Seoul',year:'numeric',month:'2-digit'}).format(new Date());
+    const requestedMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(selection.month || '') && Number(selection.month.slice(0,4)) >= 2000;
+    const [year, month] = (requestedMonth ? selection.month : today).split('-').map(Number);
+    await loadMonth(year, month, false);
+    selectedTab = state.companies.some(company => company.id === selection.companyId) ? selection.companyId : 'common';
   }
   async function loadMonth(year, month, redraw = true) {
     if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12 || year < 2000 || year > 9999) return report('연도와 월을 확인하세요.', true);
@@ -700,13 +703,45 @@
     catch(error){message=`기본값 저장 실패: ${friendlyError(error)}`;isError=true;}
     render(); report(message,isError);
   }
-  async function open() {
+  async function open(selection = {}) {
     if (!currentCapability()) return;
     const request = ++authoritySequence;
     const main=document.getElementById('dashboard-main'); if(!main) return;
-    main.replaceChildren(); root=el('div',undefined,'monthly-client-documents'); main.append(root);
+    singleDocuments = null;
+    const workspace=el('section',undefined,'service-document-workspace');
+    const navigation=el('nav',undefined,'mcd-actions');
+    navigation.setAttribute('aria-label','용역 서류 유형');
+    const regular=el('div',undefined,'monthly-client-documents');
+    const single=el('div',undefined,'monthly-client-documents');
+    single.hidden=true;
+    root=regular;
+    let singleLoading=false;
+    function showSingle(enabled){
+      regular.hidden=enabled;
+      single.hidden=!enabled;
+      regularTab.setAttribute('aria-pressed',String(!enabled));
+      singleTab.setAttribute('aria-pressed',String(enabled));
+    }
+    const regularTab=button('정기 용역',()=>showSingle(false));
+    const singleTab=button('단건 의뢰',async()=>{
+      showSingle(true);
+      if(singleDocuments||singleLoading)return;
+      singleLoading=true;
+      single.replaceChildren(el('p','단건 의뢰를 불러오는 중입니다.','message'));
+      try{
+        const {mountSingleServiceDocuments}=await import('./erp-single-service-documents.mjs');
+        if(request!==authoritySequence||!workspace.isConnected||!currentCapability())return;
+        singleDocuments=mountSingleServiceDocuments(single,rpc);
+      }catch{
+        single.replaceChildren(el('p','단건 의뢰를 열지 못했습니다. 다시 눌러 주세요.','message error'));
+      }finally{singleLoading=false;}
+    });
+    navigation.append(regularTab,singleTab);
+    showSingle(false);
+    workspace.append(navigation,regular,single);
+    main.replaceChildren(workspace);
     statusNode=el('p','정보를 불러오는 중입니다.','mcd-inline-status'); root.append(statusNode);
-    try { await loadData(); if (request === authoritySequence) render(); }
+    try { await loadData(selection); if (request === authoritySequence) render(); }
     catch(error){ if (request === authoritySequence) report(`화면을 불러오지 못했습니다. ${friendlyError(error)}`,true); }
   }
   document.addEventListener('taejang-menu-authority-changed', () => {
@@ -719,10 +754,11 @@
     emailDrafts.clear(); emailState = null; state = null; record = null;
     revision = 0; savedFingerprint = ''; activeMonthKey = ''; selectedTab='common';
     outputSelection.clear(); busy = false; performanceReady = false;
-    if (root?.isConnected) root.replaceChildren(el('p', '참여기업 월간 서류 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    if (root?.isConnected) root.parentElement.replaceChildren(el('p', '용역 서류 권한이 회수되었거나 확인되지 않습니다.', 'message'));
+    singleDocuments = null;
     root = null; statusNode = null;
   });
   document.addEventListener('taejang-monthly-client-documents-open', open);
-  window.MonthlyClientDocuments = Object.freeze({ open, hasUnsavedChanges:()=>Boolean(state?.common && root?.isConnected && fingerprint()!==savedFingerprint) });
+  window.MonthlyClientDocuments = Object.freeze({ open, hasUnsavedChanges:()=>Boolean(singleDocuments?.hasUnsavedChanges() || (state?.common && root?.isConnected && fingerprint()!==savedFingerprint)) });
 })();
 

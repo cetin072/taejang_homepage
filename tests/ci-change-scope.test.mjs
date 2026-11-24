@@ -76,6 +76,9 @@ test('an isolated change uses its consumers and a mixed change takes their union
   const native = 'mobile/src/features/notices/notice-api.ts';
   assert.equal(validationPlan([monthly]).flags.monthly,true);
   assert.equal(validationPlan([monthly]).flags.notice,false);
+  const single = validationPlan(['app/assets/erp-single-service-documents.mjs']);
+  assert.equal(single.flags.monthly,true);
+  assert.equal(single.flags.notice || single.flags.sales,false);
   const sales = validationPlan(['app/assets/erp-sales.js']);
   assert.equal(sales.flags.sales && sales.flags.db,true);
   assert.equal(sales.flags.notice || sales.flags.monthly,false);

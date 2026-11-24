@@ -11,12 +11,13 @@ export async function createERPBrowserServer({port=0,productAutomation=false}={}
  <body class="desktop-app-mode"><button id="logout-button" hidden></button><section id="general-worker-board" hidden></section>${shell}
  <script>
  window.fixtureActor='ops';window.fixtureErrors=[];window.addEventListener('error',e=>fixtureErrors.push(e.message));
- const ops=()=>window.fixtureActor==='ops';const caps=['erp_sales.read','erp_sales.write','erp_sales.confirm'];
+ const ops=()=>window.fixtureActor==='ops';const caps=['erp_sales.read','erp_sales.write','erp_sales.confirm','monthly_client_documents.manage'];
  window.TaejangApp={hasCapabilityContract:()=>true,can:c=>ops()&&caps.includes(c),getRoute:()=>ops()?'operations_manager':'general_worker',getActualRoute:()=>ops()?'operations_manager':'general_worker',getActualRoles:()=>[ops()?'operations_manager':'general_worker'],getEffectiveRoles:()=>[ops()?'operations_manager':'general_worker'],getAccessContext:()=>({role_simulation:null}),getContext:()=>({display_name:'격리 검수 · 합성 사용자'}),
  rpc:async(name,params={})=>{if(!name.startsWith('erp_sales_'))return {};const fail=window.fixtureFailNext;window.fixtureFailNext=false;const r=await fetch('/fixture-rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,params,actor:window.fixtureActor,fail})});const d=await r.json();if(!r.ok)throw new Error(d.message);return d;}};
  window.TaejangMenuAuthority={allowed:(key,fallback)=>fallback,beforeOpen:async(key,fallback)=>fallback,delegated:()=>false,hasDelegatedMenus:()=>false};
  </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/erp-sales.js"></script>
- <script>window.TaejangErpSalesLoader=()=>window.TaejangErpSales.open();</script><script src="/app/assets/dashboard-shell.js"></script>
+ <script>window.TaejangErpSalesLoader=view=>window.TaejangErpSales.open(view);
+ window.TaejangMonthlyClientDocumentsLoader=selection=>{window.fixtureServiceDocument=selection;};</script><script src="/app/assets/dashboard-shell.js"></script>
  <script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'operations_manager',label:'격리 검수'}}));</script></body></html>`;
  const server=createServer(async(req,res)=>{
   try {

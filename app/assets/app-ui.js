@@ -198,7 +198,7 @@
   };
 
   let erpSalesLoading = null;
-  window.TaejangErpSalesLoader = async () => {
+  window.TaejangErpSalesLoader = async (view) => {
     const app = window.TaejangApp;
     if (!app?.hasCapabilityContract?.() || !app.can?.('erp_sales.read')) return;
     try {
@@ -209,7 +209,7 @@
         if (!result.ok || !window.TaejangErpSales?.open) throw new Error('ERP_MODULE_UNAVAILABLE');
       })().catch(error => { erpSalesLoading = null; throw error; });
       await erpSalesLoading;
-      await window.TaejangErpSales.open();
+      await window.TaejangErpSales.open(view);
     } catch { showFeatureFailure('기준정보·매출 관리'); }
   };
 
@@ -235,13 +235,13 @@
     });
     return monthlyDocumentsLoading;
   }
-  window.TaejangMonthlyClientDocumentsLoader = async () => {
+  window.TaejangMonthlyClientDocumentsLoader = async (selection) => {
     if (window.TaejangApp?.can?.('monthly_client_documents.manage') !== true) return;
     try {
       await ensureMonthlyDocumentModulesLoaded();
-      await window.MonthlyClientDocuments.open();
+      await window.MonthlyClientDocuments.open(selection);
     } catch {
-      showFeatureFailure('참여기업 월간 서류');
+      showFeatureFailure('용역 서류');
     }
   };
 

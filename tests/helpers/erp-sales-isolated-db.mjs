@@ -44,6 +44,7 @@ export async function createERPDatabase({amountAdjustments=true,productAutomatio
    raw(readFileSync('supabase/migrations/20261116152000_erp_commission_and_supplier_due_dates.sql','utf8'));
    raw(readFileSync('supabase/migrations/20261123150001_erp_preserve_existing_document_link.sql','utf8'));
   }
+  raw(readFileSync('supabase/migrations/20261124024026_erp_service_workspace.sql','utf8'));
   const sql=(statement,{actor=OPS,role='authenticated'}={})=>raw(`set role ${role};select set_config('request.jwt.claim.sub','${actor||''}',false);${statement}`).split(/\r?\n/).filter(s=>s!==actor).join('\n');
   const rpc=(fn,params={},{actor=OPS}={})=>{
    if(!/^erp_sales_[a-z0-9_]+$/.test(fn))throw new Error('fixture RPC outside ERP');

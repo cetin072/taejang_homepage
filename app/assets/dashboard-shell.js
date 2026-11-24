@@ -317,9 +317,20 @@
         capabilities: ['erp_sales.read']
       },
       {
+        key: 'erp_sales.contracts',
+        label: '계약·월 매출',
+        run: () => window.TaejangErpSalesLoader?.('contracts'),
+        capabilities: ['erp_sales.read']
+      },
+      {
         key: 'monthly_client_documents.manage',
-        label: '참여기업 월간 서류',
-        run: () => window.TaejangMonthlyClientDocumentsLoader?.(),
+        label: '용역 서류',
+        run: () => {
+          const params = new URLSearchParams(location.search);
+          return window.TaejangMonthlyClientDocumentsLoader?.({
+            companyId: params.get('serviceCompany'), month: params.get('serviceMonth')
+          });
+        },
         capabilities: ['monthly_client_documents.manage']
       },
       {
@@ -367,17 +378,28 @@
     const action = document.querySelector('[data-platform-settings-action]');
     if (action) action.disabled = openingView;
   }
-  const viewUrl = key => { const url = new URL(location.href); url.searchParams.set('view', key); return url.pathname + url.search + url.hash; };
+  const viewMenuKey = key => key === 'erp_sales.contracts' ? 'erp_sales.manage' : key;
+  function viewUrl(key, serviceDocument) {
+    const url = new URL(location.href);
+    url.searchParams.set('view', key);
+    url.searchParams.delete('serviceCompany');
+    url.searchParams.delete('serviceMonth');
+    if (serviceDocument && key === 'monthly_client_documents.manage') {
+      url.searchParams.set('serviceCompany', serviceDocument.companyId);
+      url.searchParams.set('serviceMonth', serviceDocument.month);
+    }
+    return url.pathname + url.search + url.hash;
+  }
   function currentViewDirty() {
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
     if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
-    return activeView === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
+    return viewMenuKey(activeView) === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }
   function mayLeaveView() {
     return !currentViewDirty() || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
   }
-  async function openView(key, historyMode = 'none') {
+  async function openView(key, historyMode = 'none', serviceDocument) {
     if (!window.TaejangApp?.getRoute?.()) return;
     if (openingView) {
       if (historyMode === 'pop') pendingHistoryView = key;
@@ -394,10 +416,10 @@
     syncSettingsActionAvailability();
     try {
       const allowed = item && (window.TaejangMenuAuthority
-        ? await window.TaejangMenuAuthority.beforeOpen(key, legacyAllowed) : legacyAllowed);
+        ? await window.TaejangMenuAuthority.beforeOpen(viewMenuKey(key), legacyAllowed) : legacyAllowed);
       if (pendingHistoryView) return;
       closeSidebar();
-      if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key));
+      if (historyMode === 'push') history.pushState({taejangMenuView:true}, '', viewUrl(key, serviceDocument));
       viewDirty = false; activeView = key;
       window.TaejangAppWorkspaceSurface?.showDashboard?.();
       if (!allowed) {
@@ -424,6 +446,12 @@
     if (activeView && (document.querySelector('.app-workspace') || el('dashboard-main'))?.contains(event.target)) viewDirty = true;
   });
   window.addEventListener('beforeunload', event => { if (currentViewDirty()) { event.preventDefault(); event.returnValue = ''; } });
+  document.addEventListener('taejang-open-service-documents', event => {
+    const { companyId, month } = event.detail || {};
+    if (typeof companyId !== 'string' || !/^[a-z0-9-]{1,80}$/.test(companyId)
+        || typeof month !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return;
+    void openView('monthly_client_documents.manage', 'push', { companyId, month });
+  });
   window.addEventListener('popstate', () => openView(new URL(location.href).searchParams.get('view') || 'dashboard', 'pop'));
 
   function menu(_route) {
@@ -432,8 +460,8 @@
 
     masterMenuItems().forEach(item => {
       const authority = window.TaejangMenuAuthority;
-      if (authority?.allowed(item.key, true) === false) return;
-      const delegated = authority?.delegated(item.key);
+      if (authority?.allowed(viewMenuKey(item.key), true) === false) return;
+      const delegated = authority?.delegated(viewMenuKey(item.key));
       // Deny stale capability contexts and role previews before rendering payroll links.
       if (!delegated && item.capabilities?.some(code => code.startsWith('payroll.')) && _route !== 'operations_manager') return;
       const registry = window.TaejangPlatformNavigationRegistry;
@@ -609,7 +637,7 @@
     const authority = window.TaejangMenuAuthority;
     const route = window.TaejangApp?.getRoute?.();
     if (!route) return;
-    if (activeView && authority?.allowed(activeView, true) === false) {
+    if (activeView && authority?.allowed(viewMenuKey(activeView), true) === false) {
       viewDirty = false;
       activeView = null;
       el('dashboard-main')?.replaceChildren(text('p', '메뉴 권한이 회수되었거나 확인되지 않습니다.', 'message'));

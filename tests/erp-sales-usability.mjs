@@ -21,7 +21,7 @@ try{
   await page.addInitScript(()=>{
    window.erpAudit=JSON.parse(sessionStorage.getItem('erpAuditCounters')||'{"clicks":0,"edits":0}');
    const record=key=>{window.erpAudit[key]++;sessionStorage.setItem('erpAuditCounters',JSON.stringify(window.erpAudit));};
-   document.addEventListener('click',e=>{if(e.target.closest('button,summary'))record('clicks');},true);
+   document.addEventListener('click',e=>{if(e.target.closest('button,summary,#app-nav a'))record('clicks');},true);
    document.addEventListener('input',()=>record('edits'),true);
   });
   if(variant==='baseline')await page.route('**/app/assets/erp-sales.js',r=>r.fulfill({contentType:'text/javascript',body:baseline}));
@@ -33,10 +33,19 @@ try{
   const field=name=>page.locator('.erp-editor').locator(`[name="${name}"]`);
   const fill=(name,value)=>field(name).fill(String(value));
   const select=(name,label)=>field(name).selectOption({label});
-  const tab=async(name)=>{
+  const dismissEditor=async()=>{
    const popup=page.locator('dialog.erp-editor-dialog[open]');
    if(await popup.count()){if(await page.getByRole('button',{name:'상세로 돌아가기',exact:true}).isVisible())await button('상세로 돌아가기');await page.keyboard.press('Escape');await popup.waitFor({state:'hidden'});}
+  };
+  const tab=async(name)=>{
+   await dismissEditor();
    await page.getByRole('tab',{name,exact:true}).click();await idle();};
+  const openContracts=async()=>{
+   if(variant==='baseline'){await tab('용역 계약');return;}
+   await dismissEditor();
+   await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+   await page.getByRole('button',{name:'용역 계약 등록',exact:true}).waitFor();
+  };
   const saleId=kind=>app.db.raw(`select id from public.erp_sales_transactions where kind='${kind}' order by created_at desc,id desc limit 1;`);
   const receipts=id=>app.db.rpc('erp_sales_get_receipts',{p_sale_id:id});
   const payoutBlock=kind=>page.locator('.erp-editor section').filter({has:page.getByRole('heading',{name:kind+' · 가상 담당 영업자',exact:true})}).last();
@@ -62,7 +71,7 @@ try{
      if(variant==='candidate')await field('tax_class').selectOption('taxable');
      if(kind==='packaging')await field('inventory_managed').check();await button('저장',page.locator('.erp-editor'));
     }
-    await tab('용역 계약');await button('용역 계약 등록');await fill('title','가상 연간 환경정비 계약');await select('party_id','가상 모회사');await select('item_id','SIM-SVC · 가상 환경정비');
+    await openContracts();await button('용역 계약 등록');await fill('title','가상 연간 환경정비 계약');await select('party_id','가상 모회사');await select('item_id','SIM-SVC · 가상 환경정비');
     await fill('starts_on',today.slice(0,4)+'-01-01');await fill('ends_on',today.slice(0,4)+'-12-31');await fill('monthly_supply','50000');await fill('monthly_tax','5000');
     await fill('billing_basis','매월 말일 청구');await field('status').selectOption('active');await button('저장',page.locator('.erp-editor'));
     await button('수금 기준');await field('receipt_month').selectOption('0');await fill('receipt_day','31');await button('수금 기준 저장');
@@ -86,10 +95,14 @@ try{
     await fill('receipt_amount','30000');await button('입금 기록 저장');assert.equal(receipts(serviceId).balance,0);
    });
    await stage('용역: 같은 월 재조회·중복 생성 방지',async()=>{
-    await tab('용역 계약');await button('월 매출 생성');await button('매출 생성·확인');assert.equal(saleId('service'),serviceId);
+    await openContracts();await button('월 매출 생성');await button('매출 생성·확인');assert.equal(saleId('service'),serviceId);
     assert.equal(app.db.raw("select count(*) from public.erp_sales_transactions where kind='service';"),'1');
    });
    await stage('상품: 10포 주문·영업비 조건·확정',async()=>{
+    if(variant==='candidate'){
+     await dismissEditor();
+     await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
+    }
     await tab('매출·판매');await button(variant==='baseline'?'소금·상품 판매 등록':'상품 판매 등록');await select('party_id','가상 상품 고객');await select('supplier_id','가상 직배송 공급처');
     report.agentAutofill=Boolean(await field('agent_id').inputValue());
     if(variant==='candidate')assert.equal(report.agentAutofill,true,'existing customer manager must be selected');
