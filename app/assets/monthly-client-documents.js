@@ -525,18 +525,21 @@
     if(selectedTab==='common'){
       panel.append(el('h3','전체 회사 공통 입력'),el('p',[common.place||'장소 미입력',...(common.perfDates||[common.perfDate]).filter(Boolean)].join(' · ')));
       edit('수행 내용 수정',editWork);
-      if(performanceReady)edit('11월 발송 공문 기준 적용',()=>editor('11월 발송 공문 기준 적용',grid=>{
-        grid.append(el('p','현재 월의 장소·교육·수행 내용·고용 산정값을 11월 발송본으로 채웁니다. 공문일은 19일, 예정 수행일은 20일로 설정합니다. 저장 전에 수정할 수 있습니다.'));
-      },()=>{
-        Object.assign(common,novemberForm(common.year,common.month),{extras:[]});
-        common.perfDates=[common.perfDate];common.noticeDate=common.docDate;
-        for(const company of state.companies)company.note='';
-        const output=common.documentOutput;
-        for(const entry of [output?.shared,...Object.values(output?.companies||{})].filter(Boolean)){
-          for(const key of ['work','mode','noticeDate'])delete entry[key];
-        }
-        render();
-      }));
+      if(performanceReady)edit('11월 발송 공문 기준 적용',()=>{
+        const baseline=novemberForm(common.year,common.month);
+        const site=common.place?.trim().replace(/\s+일원$/u,'');
+        const work=site ? baseline.workDescription.replace('팔용어울림운동장',()=>site)
+          : '지역사회 환경정비 — 폐기물 수거 및 환경 정비';
+        editor('11월 발송 공문 기준 적용',grid=>{
+          grid.append(el('p','공통 수행 문구만 변경합니다. 날짜·장소·안전교육·계산 기준·추가 프로그램·회사별 문구와 출력 설정은 유지됩니다. 별도 출력 문구가 입력된 서류는 해당 문구가 우선합니다.'),
+            el('p','현재: '+([common.noticeActivity,common.workDescription].filter(Boolean).join(' / ') || '미입력')),
+            el('p','적용 후: '+baseline.noticeActivity+' / '+work));
+        },()=>{
+          if(!editableInput())return;
+          Object.assign(common,{noticeActivity:baseline.noticeActivity,workDescription:work,noticeTextRevision:baseline.noticeTextRevision});
+          render();
+        });
+      });
       edit('서류 공통 설정',()=>openCompanyOutput(null));
       edit('계산 기준 수정',()=>editFields('계산 기준 수정',common,[
         ['중증 근로자(명)','severe'],['경증 여성(명)','mildF'],['경증 남성(명)','mildM'],['부담기초액(원)','base'],['지원비율(%)','rate']
