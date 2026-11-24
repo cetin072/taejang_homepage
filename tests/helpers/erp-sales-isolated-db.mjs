@@ -42,6 +42,7 @@ export async function createERPDatabase({amountAdjustments=true,productAutomatio
    raw(readFileSync('supabase/migrations/20261116143337_erp_item_auto_code_on_edit.sql','utf8'));
    raw(readFileSync('supabase/migrations/20261116145500_erp_preserve_legacy_sale_price_basis.sql','utf8'));
    raw(readFileSync('supabase/migrations/20261116152000_erp_commission_and_supplier_due_dates.sql','utf8'));
+   raw(readFileSync('supabase/migrations/20261123150001_erp_preserve_existing_document_link.sql','utf8'));
   }
   const sql=(statement,{actor=OPS,role='authenticated'}={})=>raw(`set role ${role};select set_config('request.jwt.claim.sub','${actor||''}',false);${statement}`).split(/\r?\n/).filter(s=>s!==actor).join('\n');
   const rpc=(fn,params={},{actor=OPS}={})=>{

@@ -12,6 +12,15 @@ try {
  const customer=save('party',{name:'Synthetic Corporate',kind:'company',business_number:'1234567890',relationships:['customer','supplier'],document_company_id:'beomhan'});
  reject(()=>save('party',{name:'Duplicate',kind:'company',business_number:'123-45-67890',relationships:['customer']}),/duplicate key/);
  check(customer.relationships.length===2,'one corporate party can be both customer and supplier');
+ if(process.env.ERP_TEST_PRODUCT_AUTOMATION==='1'){
+  const partyFields={name:customer.name,kind:'company',business_number:customer.business_number,relationships:customer.relationships};
+  const edited=save('party',{...partyFields,contact_name:'Synthetic contact'},customer);
+  check(edited.contact_name==='Synthetic contact'&&edited.document_company_id==='beomhan','ordinary corporate edit preserves the legacy document link');
+  reject(()=>save('party',partyFields,customer),/ERP_REVISION_CONFLICT/);
+  const individualEdit=save('party',{...partyFields,kind:'individual',business_number:null},edited);
+  check(individualEdit.document_company_id===null,'changing a company to an individual clears the company-only link');
+  save('party',{...partyFields,document_company_id:'beomhan'},individualEdit);
+ }
  const individual=save('party',{name:'Synthetic Individual',kind:'individual',phone:'0000000000',relationships:['customer']});
  reject(()=>save('party',{name:'Synthetic Individual',kind:'individual',phone:'000-0000-000',relationships:['customer']}),/duplicate key/);
  const supplier=save('party',{name:'Synthetic Direct Supplier',kind:'company',business_number:'2222222222',relationships:['supplier']});
