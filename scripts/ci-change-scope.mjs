@@ -62,6 +62,7 @@ register('sales', `
 `);
 register('monthly', `
   app/assets/monthly-client-documents.js app/assets/monthly-client-documents.css
+  app/assets/erp-single-service-documents.mjs
   app/assets/monthly-client-document-core.js app/assets/monthly-client-document-docx.js
   app/assets/monthly-client-document-email.js app/assets/monthly-client-document-preview.mjs
   app/assets/monthly-client-document-template.json app/assets/monthly-client-document-template-v1.json

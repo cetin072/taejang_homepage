@@ -111,7 +111,16 @@ try {
  await page.getByRole('tab',{name:'품목·서비스',exact:true}).click();
  for(const [code,name,kind] of [['B-SVC','브라우저 용역','service'],['B-SALT','브라우저 소금','product']]){await page.getByRole('button',{name:'품목·서비스 등록',exact:true}).click();await editorDialog.getByRole('heading',{name:'등록: 품목·서비스',exact:true}).waitFor();await field('code').fill(code);await field('name').fill(name);await field('kind').selectOption(kind);await field('unit').selectOption(kind==='service'?'월':'포');await field('base_price').fill('1000');await field('tax_class').selectOption('taxable');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'item master uses three columns');if(kind==='product')await field('inventory_managed').check();await saved('저장');}
  await closePopup();
- await page.getByRole('tab',{name:'용역 계약',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await editorDialog.getByRole('heading',{name:'등록: 용역 계약',exact:true}).waitFor();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');
+ await page.getByRole('tab',{name:'선물 발송',exact:true}).click();
+ await page.getByRole('button',{name:'+ 발송 기록',exact:true}).click();
+ await field('gift_recipient').fill('선물 검수 거래처');
+ await field('gift_item').selectOption({label:'B-SALT · 브라우저 소금'});
+ await field('gift_quantity').fill('2');
+ await saved('발송 기록 저장');
+ await page.getByRole('row').filter({hasText:'선물 검수 거래처'}).getByText('브라우저 소금 2 포').waitFor();
+ assert.equal(app.db.raw('select count(*) from public.erp_sales_transactions;'),'0','gift is not recorded as a sale');
+ await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();await page.getByRole('button',{name:'용역 계약 등록',exact:true}).click();await editorDialog.getByRole('heading',{name:'등록: 용역 계약',exact:true}).waitFor();await field('title').fill('합성 1년 환경정비 계약');await field('party_id').selectOption({label:'합성 기업 브라우저'});await field('item_id').selectOption({label:'B-SVC · 브라우저 용역'});await field('starts_on').fill('2099-01-01');await field('ends_on').fill('2099-12-31');await field('monthly_supply').fill('50000');await field('monthly_tax').fill('5000');await field('billing_basis').fill('매월 말일 청구');await field('status').selectOption('active');assert.equal(await gridColumns(page.locator('.erp-editor fieldset.erp-fields').first()),3,'service contract uses three columns');await saved('저장');
+ assert.equal(await page.getByRole('tab',{name:'용역 계약',exact:true}).count(),0);
  await page.setViewportSize({width:390,height:844});
  await page.getByRole('button',{name:'수정',exact:true}).click();
  const contractDialog=page.getByRole('dialog',{name:'수정: 용역 계약',exact:true});
@@ -121,6 +130,8 @@ try {
  await page.screenshot({path:output+'/contract-edit-dialog-390.png',fullPage:true});
  await closePopup();
  await page.setViewportSize({width:1440,height:1000});
+ await page.locator('[name=contract_month]').fill('2099-01');
+ await page.getByRole('cell',{name:'미생성',exact:true}).waitFor();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -134,7 +145,7 @@ try {
  await page.getByRole('button',{name:'월 매출 생성',exact:true}).click();await editorDialog.getByRole('heading',{name:'월 매출 생성: 합성 1년 환경정비 계약',exact:true}).waitFor();await field('month').fill('2099-01');await saved('매출 생성·확인');
  await field('fee_kind').selectOption('rate');await field('fee_value').fill('2.5');await saved('매출 저장');await page.getByRole('button',{name:'매출 확정',exact:true}).click();await page.getByRole('heading',{name:'확정 매출 상세',exact:true}).waitFor();assert.equal(await field('party_id').isDisabled(),true);assert.match(await page.locator('.erp-total').textContent(),/55,000/);
  await closePopup();
- await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -174,7 +185,7 @@ try {
  app.db.rpc('erp_sales_request_adjustment',{p_sale_id:serviceId,p_request_id:legacyId,p_kind:'service_change',p_reason:'Synthetic old client',p_detail:{amount:45000}});
  app.db.rpc('erp_sales_record_adjustment_event',{p_sale_id:serviceId,p_adjustment_id:legacyId,p_request_id:crypto.randomUUID(),p_action:'approve',p_on:app.db.raw("select (now() at time zone 'Asia/Seoul')::date;"),p_note:'Synthetic legacy record only',p_amount:null});
  await closePopup();
- await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -240,6 +251,7 @@ try {
 
  await closePopup();
 
+ await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');assert.equal(await field('tax_amount_1').inputValue(),'370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
  await field('pricing_basis_1').selectOption('inclusive');await field('quantity_1').fill('1');await field('unit_price_1').fill('25000');
@@ -466,6 +478,7 @@ try {
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.reload();
  await closePopup();
+ await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.locator('.erp-body [name=from]').fill('2020-01-01');
  await page.locator('.erp-body [name=to]').fill('2020-12-31');
@@ -565,7 +578,7 @@ try {
  }
  await page.reload();
  await closePopup();
- await page.getByRole('tab',{name:'용역 계약',exact:true}).click();
+ await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
  await page.locator('[name=contract_period_filter]').selectOption('expiring');
  await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
  await page.getByRole('cell',{name:'합성 30일 종료',exact:true}).waitFor();
@@ -585,6 +598,7 @@ try {
  });
  await page.reload();
  await closePopup();
+ await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);

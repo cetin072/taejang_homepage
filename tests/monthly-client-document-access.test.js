@@ -11,10 +11,10 @@ test('monthly document route belongs to the operations manager and existing side
   const shell = read('app/assets/dashboard-shell.js');
   const registry = read('app/assets/platform-navigation-registry.js');
   const priority = read('app/assets/role-navigation-priority.js');
-  assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '참여기업 월간 서류',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
-  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'영업·매출',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
-  assert.match(priority, /label: '영업·매출', items: \[[^\]]*'참여기업 월간 서류'/);
-  assert.match(priority, /'기준정보·매출 관리', '참여기업 월간 서류'/);
+  assert.match(shell, /key: 'monthly_client_documents\.manage',[\s\S]*?label: '용역 서류',[\s\S]*?capabilities: \['monthly_client_documents\.manage'\]/);
+  assert.match(registry, /key:'monthly_client_documents\.manage',[^\n]*section:'용역 관리',[^\n]*capabilities:\['monthly_client_documents\.manage'\],[^\n]*visibleRoles:\['operations_manager'\]/);
+  assert.match(priority, /label: '용역 관리', items: \[[^\]]*'용역 서류'/);
+  assert.match(priority, /'계약·월 매출', '용역 서류'/);
 });
 
 test('monthly document assets load locally before the feature and no CDN runtime dependency remains', () => {
@@ -25,8 +25,8 @@ test('monthly document assets load locally before the feature and no CDN runtime
   const eagerModules = appUi.slice(appUi.indexOf('const FEATURE_MODULES'), appUi.indexOf('const MONTHLY_DOCUMENT_MODULES'));
   assert.doesNotMatch(eagerModules, /jszip-3\.10\.1|monthly-client-document-(?:core|docx|email|s)/);
   const loader = appUi.slice(appUi.indexOf('function ensureMonthlyDocumentModulesLoaded'), appUi.indexOf('let modulesReady = false;'));
-  assert.match(loader, /TaejangMonthlyClientDocumentsLoader = async \(\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)/);
-  assert.match(loader, /ensureMonthlyDocumentModulesLoaded\(\)[\s\S]*?MonthlyClientDocuments\.open\(\)/);
+  assert.match(loader, /TaejangMonthlyClientDocumentsLoader = async \(selection\) => \{[\s\S]*?TaejangApp\?\.can\?\.\('monthly_client_documents\.manage'\)/);
+  assert.match(loader, /ensureMonthlyDocumentModulesLoaded\(\)[\s\S]*?MonthlyClientDocuments\.open\(selection\)/);
   assert.match(loader, /MONTHLY_DOCUMENT_MODULES/);
   assert.doesNotMatch(email, /pdfFilename|INVALID_PDF_FILENAME|\.pdf/);
   assert.match(email, /indoor: '실내 안전교육\(영상 교육\)'/);

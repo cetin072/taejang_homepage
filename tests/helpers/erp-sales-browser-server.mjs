@@ -16,7 +16,7 @@ export async function createERPBrowserServer({port=0,productAutomation=false}={}
  rpc:async(name,params={})=>{if(!name.startsWith('erp_sales_'))return {};const fail=window.fixtureFailNext;window.fixtureFailNext=false;const r=await fetch('/fixture-rpc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,params,actor:window.fixtureActor,fail})});const d=await r.json();if(!r.ok)throw new Error(d.message);return d;}};
  window.TaejangMenuAuthority={allowed:(key,fallback)=>fallback,beforeOpen:async(key,fallback)=>fallback,delegated:()=>false,hasDelegatedMenus:()=>false};
  </script><script src="/app/assets/platform-navigation-registry.js"></script><script src="/app/assets/erp-sales.js"></script>
- <script>window.TaejangErpSalesLoader=()=>window.TaejangErpSales.open();</script><script src="/app/assets/dashboard-shell.js"></script>
+ <script>window.TaejangErpSalesLoader=view=>window.TaejangErpSales.open(view);</script><script src="/app/assets/dashboard-shell.js"></script>
  <script>document.dispatchEvent(new CustomEvent('taejang-app-ready',{detail:{route:'operations_manager',label:'격리 검수'}}));</script></body></html>`;
  const server=createServer(async(req,res)=>{
   try {

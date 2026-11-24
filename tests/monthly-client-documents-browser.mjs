@@ -18,7 +18,7 @@ try {
  for(const width of [1440,390]){
  const page=await browser.newPage({viewport:{width,height:900}});
  await page.route('**/*',async route=>{const p=new URL(route.request().url()).pathname;if(p==='/')return route.fulfill({contentType:'text/html',body:fixture});if(p.startsWith('/app/assets/') || p==='/staff/assets/staff.css')return route.fulfill({contentType:p.endsWith('.css')?'text/css':'text/javascript',body:await fs.readFile(new URL('..'+p,import.meta.url))});return route.abort();});
- await page.goto('http://fixture.test/');
+ await page.goto('http://localhost/');
  const btn=name=>page.getByRole('button',{name,exact:true});
  const tab=name=>page.getByRole('navigation').getByRole('button',{name,exact:true});
  await tab('공통 입력').waitFor();
@@ -36,7 +36,7 @@ try {
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'monthly document viewport overflow');
  await fs.mkdir('/tmp/monthly-documents-qa',{recursive:true});
  await page.screenshot({path:'/tmp/monthly-documents-qa/monthly-'+width+'.png'});
- await page.goto('http://fixture.test/?v2=1');
+ await page.goto('http://localhost/?v2=1');
  await tab('beomhan').click();
  await btn('발송 서류 미리보기').click();
  const dialog=page.locator('dialog[open]');
@@ -213,6 +213,49 @@ try {
  assert.ok(body.includes('가. 실내 안전교육 — 작업 전 태장 본사에서 실시하는 안전수칙 교육 및 보호장구 점검'));
  assert.ok(body.includes('나. 지역사회 환경정비 — 팔용어울림운동장 및 주변 보행로 일원 폐기물 수거 및 환경 정비'));
  await btn('닫기').click();
+ // Exercise the exact company/month entry and the one-off flow using synthetic document records.
+ await page.evaluate(async()=>{
+   const previous=TaejangApp.rpc;
+   const cases=[];
+   TaejangApp.rpc=async(name,args)=>{
+     if(name==='erp_list_single_service_cases')return {cases,customers:['검수 거래처']};
+     if(name==='erp_save_single_service_case'){
+       const record=Object.fromEntries(Object.entries(args).map(([key,value])=>[key.slice(2),value]));
+       record.revision++;
+       const existing=cases.findIndex(row=>row.id===record.id);
+       if(existing<0)cases.push(record);else cases[existing]=record;
+       return record;
+     }
+     return previous(name,args);
+   };
+   await MonthlyClientDocuments.open({companyId:'samhyeon',month:'2099-11'});
+ });
+ assert.equal(await page.getByLabel('기준 월').inputValue(),'2099-11');
+ assert.equal(await tab('samhyeon').getAttribute('aria-pressed'),'true');
+ await tab('단건 의뢰').click();
+ await btn('+ 단건 의뢰').click();
+ const single=page.getByRole('dialog',{name:'단건 의뢰 등록'});
+ await single.getByLabel('거래처',{exact:true}).fill('외부 고객');
+ await single.getByLabel('의뢰명').fill('단건 환경정비');
+ await single.getByLabel('견적 금액 (원)').fill('12000');
+ await single.getByLabel('견적 범위').fill('보행로 정비');
+ await single.getByRole('button',{name:'저장',exact:true}).click();
+ await single.getByRole('button',{name:'견적서 미리보기'}).click();
+ await single.frameLocator('iframe').getByText('보행로 정비',{exact:true}).waitFor();
+ await single.getByText('수행 결과보고서',{exact:true}).click();
+ await single.getByLabel('수행일').fill('2026-11-24');
+ await single.getByLabel('수행 내용').fill('정비 완료');
+ await single.getByRole('button',{name:'저장',exact:true}).click();
+ await single.getByRole('button',{name:'결과보고서 미리보기'}).click();
+ await single.frameLocator('iframe').getByText('정비 완료',{exact:true}).waitFor();
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'one-off document viewport overflow');
+ await single.getByRole('button',{name:'닫기',exact:true}).click();
+ await page.getByRole('row').filter({hasText:'단건 환경정비'}).getByRole('button',{name:'열기'}).click();
+ assert.equal(await page.getByRole('dialog').getByLabel('수행 내용').inputValue(),'정비 완료');
+ await btn('닫기').click();
+ await tab('정기 용역').click();
+ assert.equal(await tab('samhyeon').getAttribute('aria-pressed'),'true');
+
  // Preserve a late RPC response while personal permission is revoked. Neither
  // its company data nor the previous form may reappear under the cached capability.
  await page.evaluate(()=>{

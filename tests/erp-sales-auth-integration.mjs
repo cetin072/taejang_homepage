@@ -57,4 +57,28 @@ const automaticPayouts=await must('erp_sales_get_payouts',{p_sale_id:automated.i
 check((await must('erp_sales_get_receipts',{p_sale_id:automated.id})).balance===25000,'HTTP existing receivable is linked');
 check(sql(`select count(*) from public.erp_sales_accrual_events where sale_id='${automated.id}';`)==='1','HTTP confirmation creates one immutable accrual');
 check(sql(`select count(*) from public.erp_sales_stock_movements where item_id='${automationItem.id}';`)==='0','HTTP direct supplier leaves stock unchanged');
+const giftsBefore=sql('select count(*) from public.erp_sales_transactions');
+const stockBefore=sql('select count(*) from public.erp_sales_stock_movements');
+const gift={p_id:crypto.randomUUID(),p_revision:0,p_sent_on:'2026-11-24',p_recipient:'Synthetic gift recipient',p_lines:[{item_id:automationItem.id,quantity:2}]};
+const sent=await must('erp_sales_save_gift_dispatch',gift);
+check(sent.lines[0].quantity===2&&sent.lines[0].name===automationItem.name,'gift stores item snapshot and quantity');
+check((await must('erp_sales_save_gift_dispatch',gift)).revision===1,'gift retry is idempotent');
+check((await must('erp_sales_list_gift_dispatches',{p_query:'gift recipient'})).some(row=>row.id===gift.p_id),'gift is searchable');
+check(!(await rpc('erp_sales_save_gift_dispatch',ops,{...gift,p_recipient:'Conflicting recipient'})).ok,'gift does not overwrite a conflicting revision');
+check((await rpc('erp_sales_list_gift_dispatches',worker,{})).status===403,'worker cannot read dispatches');
+check((await rpc('erp_sales_save_gift_dispatch',worker,gift)).status===403,'worker cannot write dispatches');
+check(sql('select count(*) from public.erp_sales_transactions')===giftsBefore&&sql('select count(*) from public.erp_sales_stock_movements')===stockBefore,'gift leaves sale and stock ledgers unchanged');
+check((await must('erp_sales_service_month',{p_month:'2097-01-01'}))[contract.id].id===month.id,'contract month points to original sale');
+
+const request={p_id:crypto.randomUUID(),p_revision:0,p_customer:'Synthetic outside customer',p_title:'Synthetic one-off request',
+ p_quote_on:'2026-11-24',p_quote_scope:'Synthetic quote',p_quote_amount:12000,p_performed_on:null,p_report_body:''};
+const single=await must('erp_save_single_service_case',request);
+check(single.quote_amount===12000&&single.report_body==='','quote saves before a contract or report exists');
+check((await must('erp_save_single_service_case',request)).revision===1,'one-off document retry is idempotent');
+const completed=await must('erp_save_single_service_case',{...request,p_revision:1,p_performed_on:'2026-11-25',p_report_body:'Synthetic work completed'});
+check(completed.id===single.id&&completed.revision===2,'report attaches to original request');
+check((await must('erp_list_single_service_cases',{p_query:'one-off request'})).cases.some(row=>row.id===single.id&&row.report_body==='Synthetic work completed'),'both documents are searchable together');
+check((await rpc('erp_list_single_service_cases',worker,{})).status===403,'worker cannot read one-off documents');
+check((await rpc('erp_save_single_service_case',worker,request)).status===403,'worker cannot save one-off documents');
+
 console.log('ERP_REAL_AUTH_PASS '+count+' assertions');
