@@ -108,6 +108,21 @@ try{
    const printedBox=await p.locator('#logistics-print [data-row="innerBox-2"]').textContent();
    assert.ok(printedBox.includes('우체국 3호형')&&printedBox.includes('1,760원'),'print keeps the box size and amount');
    await finishPrint(p);
+   await p.evaluate(()=>{
+    const C=window.TaejangLogisticsCore;
+    for(const [key,stage,label] of C.ITEM_CHECKS){
+     const index=fixture.lines.findIndex(line=>line.stage>stage);
+     fixture.lines.splice(index,0,{key,stage,label,kind:'normal',quantity:3,unitPrice:100});
+    }
+    fixture.photoMonth=2;
+   });
+   await openQuote(p);await startPrint(p);
+   const printSheet=p.locator('#logistics-print');
+   assert.equal(await printSheet.locator('[data-row="photo"]').count(),0);
+   for(const key of ['arrivalPhoto','packedDimensions','packedWeight']){
+    assert.equal(await printSheet.locator(`[data-row="${key}"] output`).textContent(),'300원');
+   }
+   await finishPrint(p);
    await p.evaluate(()=>{fixture.lines=fixture.lines.filter(l=>!l.key.startsWith('extra-'));for(let i=1;i<=40;i++)fixture.lines.push({key:'extra-'+i,stage:5,label:'추가 작업 '+i+' · 포장 및 검수 상세 내역',kind:'extra',quantity:1,unitPrice:1000});});
    await openQuote(p);await startPrint(p);
    assert.ok((await p.locator('#logistics-print').textContent()).includes('추가 작업 40'));
@@ -140,6 +155,20 @@ try{
    assert.equal(await boxes.nth(1).locator('output').textContent(),'1,760원');
    await boxes.nth(2).getByRole('button',{name:'규격 행 삭제'}).click();
    assert.equal(await repack.inputValue(),'4');
+   await p.getByRole('button',{name:'+ 개별 촬영·계측 추가',exact:true}).click();
+   assert.equal(await p.locator('[data-row="photo"]').count(),0);
+   for(const key of ['arrivalPhoto','packedDimensions','packedWeight']){
+    const row=p.locator(`[data-row="${key}"]`);
+    assert.equal(await row.getByRole('spinbutton',{name:'수량',exact:true}).inputValue(),'4');
+    assert.equal(await row.getByRole('spinbutton',{name:'단가',exact:true}).inputValue(),'');
+    await row.getByRole('spinbutton',{name:'단가',exact:true}).fill('100');
+    assert.equal(await row.locator('output').textContent(),'400원');
+   }
+   await p.locator('[data-row="arrivalPhoto"]').getByRole('spinbutton',{name:'수량',exact:true}).fill('3');
+   await p.locator('[data-row="innerBox"]').getByRole('spinbutton',{name:'수량',exact:true}).fill('1');
+   assert.equal(await p.locator('[data-row="packedWeight"] .lg-qty input').inputValue(),'3');
+   await p.getByRole('button',{name:'개별 촬영·계측 빼기',exact:true}).click();
+   assert.equal(await p.locator('[data-row="photo"]').count(),1);
   }
   assert.deepEqual(errors,[]);await p.close();
  }

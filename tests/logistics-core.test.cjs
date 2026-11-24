@@ -14,6 +14,17 @@ test('재포장 박스 5개를 규격별로 합산하고 모두 2차 작업에 �
  assert.throws(()=>C.calculate(q));
 });
 test('부가세 포함은 추가 과금 없음',()=>{const q=C.draft();q.vatMode='inclusive';const t=C.calculate(q);assert.equal(t.total,6240);assert.equal(t.supply+t.vat,6240);});
+test('개별 촬영·계측을 선택하면 합배송 사진은 유료 월에도 청구하지 않는다',()=>{
+ const q=C.draft();q.photoMonth=2;
+ q.lines.push(...C.ITEM_CHECKS.map(([key,stage,label],i)=>({key,stage,label,quantity:i===0?4:5,unitPrice:[100,200,300][i]})));
+ const result=C.calculate(q);
+ assert.deepEqual(result.lines.slice(-3).map(l=>[l.stage,l.amount]),[[1,400],[2,1000],[2,1500]]);
+ assert.equal(result.lines.find(l=>l.key==='photo').amount,0);
+ q.lines.at(-1).unitPrice='';
+ assert.throws(()=>C.calculate(q));
+ q.lines.pop();
+ assert.throws(()=>C.calculate(q));
+});
 test('기본 1칸 3개월 무료 / 추가 칸은 첫 달부터',()=>{const q=C.draft();q.storage.months=3;assert.equal(C.calculate(q).storageAmount,0);q.storage.shelves=2;assert.equal(C.calculate(q).storageAmount,45000);q.storage.shelves=1;q.storage.months=4;assert.equal(C.calculate(q).storageAmount,15000);});
 test('4개월째 1개월 청구와 3~4개월 청구',()=>{const q=C.draft();q.storage.startMonth=4;assert.equal(C.calculate(q).storageAmount,15000);q.storage.startMonth=3;q.storage.months=2;assert.equal(C.calculate(q).storageAmount,15000);});
 test('기본 단가를 바꾸어도 기존 견적 객체 불변',()=>{const rates=C.copy(C.DEFAULTS);const old=C.draft(rates);rates.repack=999;assert.equal(old.lines.find(l=>l.key==='repack').unitPrice,500);assert.equal(C.draft(rates).lines.find(l=>l.key==='repack').unitPrice,999);});

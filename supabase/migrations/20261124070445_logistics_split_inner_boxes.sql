@@ -1,28 +1,32 @@
--- Store additional repacking box groups as stage-two lines in the existing quote snapshot.
+-- Store mixed repacking boxes and optional individual checks in the existing quote snapshot.
 create or replace function logistics_private.calculate(q jsonb) returns jsonb language plpgsql immutable set search_path='' as $$
 declare
  keys text[]:=array['receive','damage','unbox','innerBox','repack','individualLabel','bundle','outerBox','photo','finalLabel','ship','trackingReply'];
- box_group boolean; extra_count integer:=0;
+ check_keys text[]:=array['arrivalPhoto','packedDimensions','packedWeight'];
+ box_group boolean; item_check boolean; check_count integer; extra_count integer:=0;
  seen text[]:=array[]::text[]; line jsonb; lines jsonb:='[]'; k text; kind text; stage integer; qty bigint; price bigint; amount bigint;
  photo_month bigint; work_sum bigint:=0; shelves bigint; first_month bigint; months bigint; rate bigint; basic_months bigint; extra_months bigint;
  storage_sum bigint; subtotal bigint; discount bigint; after_discount bigint; supply bigint; vat bigint; fee bigint:=0; fee_rate numeric; total bigint;
 begin
- if jsonb_typeof(q)<>'object' or jsonb_typeof(q->'lines')<>'array' or jsonb_array_length(q->'lines') not between 12 and 59 then raise exception 'LOGISTICS_INVALID'; end if;
+ if jsonb_typeof(q)<>'object' or jsonb_typeof(q->'lines')<>'array' or jsonb_array_length(q->'lines') not between 12 and 62 then raise exception 'LOGISTICS_INVALID'; end if;
+ select count(*) into check_count from jsonb_array_elements(q->'lines') as item(value) where (value->>'key')=any(check_keys);
+ if check_count not in (0,3) then raise exception 'LOGISTICS_INVALID'; end if;
  photo_month:=logistics_private.whole(q->'photoMonth',1,1200);
  for line in select value from jsonb_array_elements(q->'lines') loop
   k:=line->>'key';
   box_group:=coalesce(k ~ '^innerBox-[2-8]$',false);
-  if k is null or k=any(seen) or length(k)>80 or (not(k=any(keys)) and not box_group and k!~'^extra-[0-9a-f-]{36}$')
+  item_check:=coalesce(k=any(check_keys),false);
+  if k is null or k=any(seen) or length(k)>80 or (not(k=any(keys)) and not box_group and not item_check and k!~'^extra-[0-9a-f-]{36}$')
     or coalesce(length(btrim(line->>'label')),0) not between 1 and 120 then raise exception 'LOGISTICS_INVALID'; end if;
-  if not(k=any(keys)) and not box_group then
+  if not(k=any(keys)) and not box_group and not item_check then
    extra_count:=extra_count+1;
    if extra_count>40 then raise exception 'LOGISTICS_INVALID'; end if;
   end if;
   seen:=array_append(seen,k);qty:=logistics_private.whole(line->'quantity',0,1000000);price:=logistics_private.whole(line->'unitPrice',0,100000000);
-  kind:=case when k=any(array['receive','damage','unbox','finalLabel','trackingReply']) then 'free' when k='photo' then 'photo' when box_group or k in ('innerBox','outerBox') then 'box' when k='ship' then 'shipping' when k=any(keys) then 'normal' else 'extra' end;
-  stage:=case when k in ('receive','damage','unbox') then 1 when box_group or k in ('innerBox','repack','individualLabel') then 2 when k in ('bundle','outerBox','photo','finalLabel') then 3 when k in ('ship','trackingReply') then 4 else 5 end;
+  kind:=case when k=any(array['receive','damage','unbox','finalLabel','trackingReply']) then 'free' when k='photo' then 'photo' when box_group or k in ('innerBox','outerBox') then 'box' when k='ship' then 'shipping' when item_check or k=any(keys) then 'normal' else 'extra' end;
+  stage:=case when k in ('receive','damage','unbox','arrivalPhoto') then 1 when box_group or k in ('innerBox','repack','individualLabel','packedDimensions','packedWeight') then 2 when k in ('bundle','outerBox','photo','finalLabel') then 3 when k in ('ship','trackingReply') then 4 else 5 end;
   if kind='free' and (qty<>0 or price<>0) then raise exception 'LOGISTICS_INVALID'; end if;
-  amount:=case when kind='free' or (kind='photo' and photo_month=1) then 0 else qty*price end;
+  amount:=case when kind='free' or (kind='photo' and (photo_month=1 or check_count=3)) then 0 else qty*price end;
   if amount>1000000000000 then raise exception 'LOGISTICS_INVALID'; end if;
   work_sum:=work_sum+amount;
   lines:=lines||jsonb_build_array(jsonb_build_object('key',k,'stage',stage,'label',line->>'label','kind',kind,'quantity',qty,'unitPrice',price,'option',left(coalesce(line->>'option',''),30),'amount',amount));

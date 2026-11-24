@@ -41,6 +41,14 @@ try{
  ok(savedMixed.total===C.calculate(mixed).total,'server recalculates mixed box sizes at their own rates');
  const restored=read().quotes.find(item=>item.id===savedMixed.id).snapshot.lines.filter(line=>C.isInnerBox(line.key));
  assert.deepEqual(restored.map(line=>[line.stage,line.kind,line.option,line.quantity,line.amount]),[[2,'box','u1',2,1120],[2,'box','u3',2,1760],[2,'box','u5',1,1840]]);
+ mixed.photoMonth=2;
+ const checks=C.ITEM_CHECKS.map(([key,stage,label],i)=>({key,stage,label,quantity:i===0?4:5,unitPrice:[100,200,300][i]}));
+ mixed.lines.push(...checks);
+ const savedChecks=mutate('quote.confirm',{quote:mixed}).quote;
+ ok(savedChecks.total===C.calculate(mixed).total,'server prices three individual checks and excludes consolidated-box measurement');
+ assert.deepEqual(savedChecks.snapshot.lines.filter(line=>['photo',...checks.map(item=>item.key)].includes(line.key)).map(line=>[line.stage,line.amount]),[[3,0],[1,400],[2,1000],[2,1500]]);
+ checks[0].unitPrice='';
+ rejects(()=>mutate('quote.confirm',{quote:mixed}),/LOGISTICS_INVALID/,'individual check price must be entered explicitly');
  const chargeId=randomUUID();mutate('wallet.charge',{quoteId:confirmed.id},chargeId);mutate('wallet.charge',{quoteId:confirmed.id},chargeId);ok(Number(getBalance())===43136,'quote charged once on retry');
  ok(latest().amount===6864,'latest debit includes confirmed quote debit');
  rejects(()=>mutate('wallet.charge',{quoteId:confirmed.id}),/LOGISTICS_DUPLICATE_CHARGE/,'fresh request cannot double charge same quote');
