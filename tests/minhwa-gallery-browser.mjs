@@ -87,7 +87,15 @@ try {
         height: element.naturalHeight,
         fit: getComputedStyle(element).objectFit
       }));
-      assert.deepEqual(artwork, { width: 1200, height: 800, fit: 'contain' });
+      assert.equal(artwork.fit, 'contain');
+      assert.ok(Math.abs(artwork.width - artwork.height * 1.5) <= 2, 'responsive preview preserves the complete 3:2 painting');
+      const original = await image.evaluate(async element => {
+        const full = new Image();
+        full.src = element.closest('a').href;
+        await full.decode();
+        return [full.naturalWidth, full.naturalHeight];
+      });
+      assert.deepEqual(original, [1200, 800]);
     }
     assert.equal(await gallery.locator('.mh-artwork-grid').evaluate(grid =>
       getComputedStyle(grid).gridTemplateColumns.split(' ').length

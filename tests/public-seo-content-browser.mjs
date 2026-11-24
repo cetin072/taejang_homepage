@@ -251,6 +251,7 @@ try {
       const partnerLogos = partners.locator('.home-partner-logo img');
       assert.equal(await partnerLogos.count(), 4, 'each jointly investing company has a logo');
       for (const logo of await partnerLogos.all()) {
+        await page.waitForFunction(image => image.currentSrc && image.complete, await logo.elementHandle(), {timeout: 8000});
         await logo.evaluate(image => image.decode());
         assert.ok(await logo.evaluate(image => image.naturalWidth > 0 && image.naturalHeight > 0), 'partner logo loads');
       }

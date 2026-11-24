@@ -254,7 +254,7 @@
   async function decorateIndexedList(config) {
     if (!isOperations() || busy.has(config.key)) return;
     const list = document.getElementById(config.listId);
-    if (!list) return;
+    if (!list || list.closest('[hidden]')) return;
     const cards = [...list.querySelectorAll(':scope > .admin-record-card')];
     const archivedSection = list.querySelector(`:scope > [data-${config.archiveSectionAttribute}]`);
     if (archivedSection && cards.every(card => card.querySelector(`[data-${config.dataAttribute}]`))) return;

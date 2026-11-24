@@ -416,10 +416,10 @@
       refreshToday: loadTodayBoard,
       friendlyError
     };
-    await resolveCapabilityContext();
+    const capabilitiesResolved = await resolveCapabilityContext();
     await loadManagerModules();
     showManagerModuleStatus();
-    document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label } }));
+    document.dispatchEvent(new CustomEvent('taejang-app-ready', { detail: { route: route.code, label: route.label, capabilitiesResolved } }));
     // #501 is released separately. Show this only after its route is available.
     fetch('/staff/change-password.html', { cache: 'no-store', credentials: 'omit', redirect: 'error' })
       .then(response => response.ok ? response.text() : '')

@@ -30,7 +30,7 @@
   const anchor=target.querySelector('.dashboard-grid');if(!anchor)return;const intro=target.querySelector('.dashboard-intro');if(intro)intro.after(root);else anchor.before(root);void refresh();
  }
  document.addEventListener('taejang-app-ready',clear);
- document.addEventListener('taejang-menu-authority-changed',()=>{clear();document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));});
+ document.addEventListener('taejang-menu-authority-changed',()=>{clear();if(document.getElementById('desktop-app-shell')?.dataset.ready)document.dispatchEvent(new CustomEvent('taejang-dashboard-refresh'));});
  document.addEventListener('taejang-dashboard-refresh',()=>{if(root?.isConnected)void refresh();});
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&root?.isConnected)void refresh();});
  window.addEventListener('focus',()=>{if(root?.isConnected)void refresh();});

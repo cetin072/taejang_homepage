@@ -273,6 +273,52 @@ try {
  const callsBefore=await page.evaluate(()=>calls.length);
  await page.evaluate(()=>MonthlyClientDocuments.open());
  assert.equal(await page.evaluate(()=>calls.length),callsBefore,'direct open cannot use stale capability after personal revoke');
+ // The manual November action changes wording, not authored monthly data.
+ await page.goto('http://fixture.test/?v2=1');
+ const useNovember=btn('11월 발송 공문 기준 적용');
+ await useNovember.waitFor();
+ assert.equal(await useNovember.isDisabled(),true,'confirmed month cannot apply the template');
+ await btn('확정 해제').click();
+ await page.evaluate(async()=>{
+   const key=year+'-'+String(month).padStart(2,'0');
+   Object.assign(record.payload.common,{perfDates:['2026-10-14','2026-10-23'],place:'사용자 지정 작업장',
+     note:'공통 메모 유지',noticeActivity:'지역사회 환경정화',workDescription:'변경 전 공통 작업',severe:23,mildM:5,base:1370000,rate:68,
+     noticeTextRevision:1,extras:[{name:'추가 활동',description:'유지할 설명'}],
+     documentOutput:{month:key,shared:{work:'별도 공통 출력 내용',mode:'indoor_hq',noticeDate:'2026-10-29'},
+       companies:{beomhan:{work:'회사별 출력 내용',mode:'indoor_video',noticeDate:'2026-10-27',actual:'2026-10-24'}}}});
+   record.payload.companies[0].note='회사 메모 유지';
+   window.beforeNovember=structuredClone(record.payload);
+   await MonthlyClientDocuments.open();
+ });
+ await useNovember.waitFor();
+ await useNovember.click();
+ await dialog.getByRole('button',{name:'취소',exact:true}).click();
+ await btn('저장').click();
+ await page.getByText('월별 서류를 저장했습니다.').waitFor();
+ assert.deepEqual(await page.evaluate(()=>record.payload),await page.evaluate(()=>beforeNovember),'cancel preserves the current draft');
+ await useNovember.click();
+ await dialog.getByRole('button',{name:'적용',exact:true}).click();
+ assert.equal(await page.evaluate(()=>calls.filter(c=>c.name==='monthly_client_documents_save').length),1,'applying does not auto-save');
+ await btn('저장').click();
+ await page.getByText('월별 서류를 저장했습니다.').waitFor();
+ const [before,after]=await page.evaluate(()=>[beforeNovember,record.payload]);
+ assert.deepEqual(after,{...before,common:{...before.common,noticeActivity:'지역사회 환경정비',
+   workDescription:'지역사회 환경정비 — 사용자 지정 작업장 및 주변 보행로 일원 폐기물 수거 및 환경 정비'}});
+ await page.evaluate(()=>MonthlyClientDocuments.open());
+ await useNovember.waitFor();
+ await tab('beomhan').click();
+ await btn('공문').click();
+ const safeSheet=dialog.frameLocator('iframe').locator('.sheet').first();
+ await safeSheet.waitFor();
+ assert.match(await safeSheet.textContent(),/회사별 출력 내용/);
+ assert.match(await safeSheet.textContent(),/2026\. 10\. 27\./);
+ const printAfterApply=await browser.newPage();
+ try {
+   await printAfterApply.setContent(await dialog.locator('iframe').evaluate(frame=>frame.contentDocument.documentElement.outerHTML));
+   const bytes=await printAfterApply.pdf({preferCSSPageSize:true});
+   assert.equal((bytes.toString('latin1').match(/\/Type\s*\/Page\b/g)||[]).length,1);
+ } finally {await printAfterApply.close();}
+ await btn('닫기').click();
  console.log('PERSONAL_MENU_MONTHLY_DOCUMENT_BROWSER_PASS width='+width);
  await page.close();
  }

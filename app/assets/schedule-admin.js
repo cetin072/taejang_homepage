@@ -118,10 +118,14 @@
   }
 
   async function load() {
-    if (!options) return;
+    if (!canManageSchedules()) return;
     ui.element('refresh-schedule-admin').disabled = true;
     showMessage('일정 목록을 불러오고 있습니다.');
     try {
+      if (!options) {
+        options = await window.TaejangApp.rpc('get_today_board_admin_options');
+        renderOptions();
+      }
       schedules = ui.array(await window.TaejangApp.rpc('list_manageable_schedules', {
         p_include_past: true,
         p_limit: 200
@@ -202,10 +206,7 @@
     if (!canManageSchedules()) return;
     bind();
     resetForm();
-    try {
-      options = await window.TaejangApp.rpc('get_today_board_admin_options');
-      renderOptions();
-      await load();
-    } catch { showMessage('일정 관리 도구를 불러오지 못했습니다. 권한과 연결 상태를 확인한 뒤 새로고침해주세요.', true); }
+    document.addEventListener('taejang-open-schedule-admin', load);
+    if (!ui.element('schedule-admin-panel').hidden) await load();
   }, { once: true });
 })();

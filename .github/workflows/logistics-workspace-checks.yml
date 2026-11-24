@@ -7,6 +7,7 @@ on:
       - 'app/assets/platform-navigation-registry.js'
       - 'supabase/migrations/*logistics_workspace.sql'
       - 'supabase/migrations/*logistics_wallet_summary.sql'
+      - 'supabase/migrations/*logistics_split_inner_boxes.sql'
       - 'tests/logistics*'
       - '.github/workflows/logistics-workspace-checks.yml'
   workflow_dispatch:

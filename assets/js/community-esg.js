@@ -36,6 +36,10 @@
     const imageSource = activity.thumbnail || activity.hero || activity.thumb || '';
     if (imageSource) {
       const image = document.createElement('img');
+      if (activity.thumbnailSrcset) {
+        image.sizes = '(max-width: 760px) 94vw, (max-width: 1000px) 48vw, 400px';
+        image.srcset = activity.thumbnailSrcset;
+      }
       image.src = imageSource;
       image.alt = activity.thumbnailAlt || activity.alt?.hero || `${activity.title} 대표사진`;
       image.loading = 'lazy';
