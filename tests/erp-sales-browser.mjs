@@ -132,6 +132,15 @@ try {
  await page.setViewportSize({width:1440,height:1000});
  await page.locator('[name=contract_month]').fill('2099-01');
  await page.getByRole('cell',{name:'미생성',exact:true}).waitFor();
+ await page.getByRole('button',{name:'이번 달 서류 열기',exact:true}).click();
+ await field('company').selectOption('beomhan');
+ await page.getByRole('button',{name:'선택한 기업의 서류 열기',exact:true}).click();
+ await page.waitForFunction(()=>window.fixtureServiceDocument?.companyId==='beomhan'&&window.fixtureServiceDocument?.month==='2099-01');
+ const serviceDocUrl=new URL(page.url());
+ assert.equal(serviceDocUrl.searchParams.get('view'),'monthly_client_documents.manage');
+ assert.equal(serviceDocUrl.searchParams.get('serviceCompany'),'beomhan');
+ assert.equal(serviceDocUrl.searchParams.get('serviceMonth'),'2099-01');
+ await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
  await page.getByRole('button',{name:'월 매출 조회',exact:true}).click();
  await field('lookup_month').fill('2099-01');
  await page.getByRole('button',{name:'선택 월 조회',exact:true}).click();
@@ -210,6 +219,7 @@ try {
  await page.getByRole('button',{name:'예정일 저장',exact:true}).click();
  await page.getByText('수금 예정일 2099-02-01',{exact:true}).waitFor();
  await closePopup();
+ await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'미수금',exact:true}).click();
  await page.getByText('미수 거래 1건 · 미수 합계 55,000원',{exact:true}).waitFor();
  await page.locator('[name=receivable_from]').fill('2099-03-01');
