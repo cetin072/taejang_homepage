@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-24-attendance-reminder', date: '2026-11-24',
+    title: '출퇴근 미기록 안내',
+    summary: '출퇴근 알림이 켜져 있으면 개인 근무시각이 2분 지난 뒤 아직 기록하지 않은 항목을 알려드립니다.',
+    items: ['내 근무일에만 출근 또는 퇴근을 눌러달라는 알림이 옵니다.', '알림은 출퇴근을 대신 기록하지 않습니다.'],
+  },
+  {
     id: '2026-11-23-notice-links', date: '2026-11-23',
     title: '공지 본문 링크와 사진',
     summary: '공지에서 웹 주소를 눌러 열 수 있습니다.',
