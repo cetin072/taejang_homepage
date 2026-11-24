@@ -5,14 +5,17 @@ select no_plan();
 insert into auth.users(id,email,raw_app_meta_data,raw_user_meta_data) values
  ('98500000-0000-0000-0000-000000000001','field-manager@example.test','{}','{}'),
  ('98500000-0000-0000-0000-000000000002','field-worker@example.test','{}','{}'),
- ('98500000-0000-0000-0000-000000000003','field-office@example.test','{}','{}');
+ ('98500000-0000-0000-0000-000000000003','field-office@example.test','{}','{}'),
+ ('98500000-0000-0000-0000-000000000004','field-lead@example.test','{}','{}');
 update public.profiles set account_status='active',approved_at=now()
-where id in ('98500000-0000-0000-0000-000000000001','98500000-0000-0000-0000-000000000002','98500000-0000-0000-0000-000000000003');
+where id in ('98500000-0000-0000-0000-000000000001','98500000-0000-0000-0000-000000000002',
+             '98500000-0000-0000-0000-000000000003','98500000-0000-0000-0000-000000000004');
 insert into public.profile_roles(profile_id,role_id,granted_by)
 select actor.id,role.id,'98500000-0000-0000-0000-000000000001'
 from (values ('98500000-0000-0000-0000-000000000001'::uuid,'operations_manager'),
              ('98500000-0000-0000-0000-000000000002'::uuid,'general_worker'),
-             ('98500000-0000-0000-0000-000000000003'::uuid,'general_worker')) actor(id,role_code)
+             ('98500000-0000-0000-0000-000000000003'::uuid,'general_worker'),
+             ('98500000-0000-0000-0000-000000000004'::uuid,'promotion_lead')) actor(id,role_code)
 join public.roles role on role.code=actor.role_code;
 insert into public.people(id,full_name) values
  ('98510000-0000-0000-0000-000000000002','가상 재택 직원'),
@@ -49,12 +52,23 @@ select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000002'
 select is(public.get_my_attendance_today()->>'remote_work','true','ordinary remote clock-in stays available');
 select is(public.get_my_attendance_today()->'field_work'->>'clock_in','false','remote clock-in does not take the field route');
 select is(public.get_my_attendance_today()->'field_work'->>'clock_out','true','remote employee is enabled for field clock-out');
-select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000001',true);
+select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000004',true);
+select ok(public.current_user_has_role('promotion_lead') and not public.current_user_has_role('operations_manager'),
+  'field management is exercised with the operations lead role alone');
 select lives_ok($$
   select public.manage_attendance_field_work((now() at time zone 'Asia/Seoul')::date,
-    array['98520000-0000-0000-0000-000000000002'::uuid], 'save','가상 환경미화',time '00:00',time '24:00',true)
-$$,'manager can assign both field punches to a remote employee before any punch is recorded');
-select is(jsonb_array_length(public.get_attendance_field_work((now() at time zone 'Asia/Seoul')::date)),1,'assignment is listed');
+    array['98520000-0000-0000-0000-000000000002'::uuid], 'remove')
+$$,'operations lead can remove an unrecorded assignment');
+select is(jsonb_array_length(public.get_attendance_field_work((now() at time zone 'Asia/Seoul')::date)),0,
+  'operations lead sees that the unrecorded assignment was removed');
+select lives_ok($$
+  -- Pin the synthetic shift end to the current time so both punches fit on any test run.
+  select public.manage_attendance_field_work((now() at time zone 'Asia/Seoul')::date,
+    array['98520000-0000-0000-0000-000000000002'::uuid], 'save','가상 환경미화',time '00:00',
+    greatest(time '00:01',(now() at time zone 'Asia/Seoul')::time),true)
+$$,'operations lead can assign both field punches to a remote employee');
+select is(jsonb_array_length(public.get_attendance_field_work((now() at time zone 'Asia/Seoul')::date)),1,
+  'operations lead can read the field assignment');
 select ok(private.field_attendance_window(row(id,employee_uuid,date '2026-11-23',site,time '09:00',time '13:00',
   true,null,null)::private.attendance_field_assignments,'clock_in',timestamptz '2026-11-23 09:35+09'),'late arrival is recordable')
   from private.attendance_field_assignments;
@@ -68,6 +82,10 @@ select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000003'
 select ok(public.get_my_attendance_today()->'field_work' is null,'other employee has no field option');
 select is(public.record_attendance_event('clock_in',null,null,null)->>'ok','false','other employee cannot record without GPS');
 select throws_ok($$select public.get_attendance_field_work(current_date)$$,'42501','FORBIDDEN','employee cannot read participant list');
+select throws_ok($$
+  select public.manage_attendance_field_work((now() at time zone 'Asia/Seoul')::date,
+    array['98520000-0000-0000-0000-000000000003'::uuid], 'save','가상 환경미화',time '09:00',time '12:00',true)
+$$,'42501','FORBIDDEN','employee cannot create a field assignment');
 select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000002',true);
 select is(public.get_my_attendance_today()->'field_work'->>'site','가상 환경미화','employee sees own field work');
 select is(public.record_attendance_event('clock_in',null,null,null)->>'code','ATTENDANCE_RECORDED','field clock-in needs no coordinates');
@@ -76,10 +94,17 @@ select ok(exists(select 1 from public.attendance_events where profile_id=auth.ui
   and event_at=now() and latitude is null and not remote_work),'records server time and assignment reference');
 select ok(exists(select 1 from jsonb_array_elements(public.private_attendance_confirmation_blockers((now() at time zone 'Asia/Seoul')::date)) blocker
   where blocker->>'type'='field_work_review'),'unreviewed field record blocks confirmation');
-select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000001',true);
+select is(public.record_attendance_event('clock_out',null,null,null)->>'code','ATTENDANCE_RECORDED','field clock-out needs no coordinates');
+select set_config('request.jwt.claim.sub','98500000-0000-0000-0000-000000000004',true);
 select throws_ok($$
   select public.manage_attendance_field_work((now() at time zone 'Asia/Seoul')::date,
     array['98520000-0000-0000-0000-000000000002'::uuid], 'remove')
 $$,'P0001','FIELD_WORK_ALREADY_RECORDED','recorded assignment is preserved');
+select lives_ok($$
+  select public.manage_attendance_field_work((now() at time zone 'Asia/Seoul')::date,
+    array['98520000-0000-0000-0000-000000000002'::uuid], 'review')
+$$,'operations lead can review the completed field record');
+select is((public.get_attendance_field_work((now() at time zone 'Asia/Seoul')::date)->0)->>'reviewed_by',auth.uid()::text,
+  'the field record identifies the operations lead who reviewed it');
 select * from finish();
 rollback;

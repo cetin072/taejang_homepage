@@ -88,7 +88,12 @@ try{
   await page.evaluate(()=>window.fail=false);
   await page.getByRole('button',{name:'상세·보정 이력',exact:true}).click();await page.getByRole('button',{name:'근태 시간 보정·보정 이력'}).waitFor();
   await page.getByRole('button',{name:'일별',exact:true}).click();
-  await page.evaluate(()=>{window.failField=true;return TaejangAttendanceAdmin.openAttendance();});
+  await page.evaluate(()=>{
+    TaejangApp.getRoute=()=> 'promotion_lead';
+    TaejangApp.can=capability=>['attendance.admin_view','attendance.correct'].includes(capability);
+    window.failField=true;
+    return TaejangAttendanceAdmin.openAttendance();
+  });
   const field=page.locator('[data-field-work-panel]');
   await field.getByText('현장근무를 불러오지 못했습니다.',{exact:false}).waitFor();
   assert.equal(await page.locator('.attendance-compact').count(),2);
@@ -115,6 +120,13 @@ try{
   assert.equal(saved.p_field_clock_in,false);
   assert.equal(saved.p_starts_at,'09:00');
   assert.equal(saved.p_ends_at,'13:00');
+  await page.evaluate(()=>{
+    TaejangApp.can=capability=>capability==='attendance.admin_view';
+    window.calls=[];
+    return TaejangAttendanceAdmin.openAttendance();
+  });
+  assert.equal(await shortcut.count(),0,'view-only accounts do not see the field-work management button');
+  assert.equal(await page.evaluate(()=>calls.some(call=>call.name==='get_attendance_field_work')),false);
   await page.evaluate(()=>{TaejangApp.can=()=>false;window.calls=[];});
   await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));assert.equal(await page.evaluate(()=>calls.length),0,'unauthorized UI performs no attendance reads');
   await context.close();
