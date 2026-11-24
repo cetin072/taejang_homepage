@@ -16,6 +16,7 @@ begin
  select p.delay_minutes into delay_minutes from public.employee_reminder_policy p where p.singleton and p.enabled;
  if delay_minutes is null then return false; end if;
  if not exists(select 1 from public.employees where id=p_employee and archived_at is null and employment_status='active' and attendance_required)
+  or not coalesce(public.private_employee_is_attendance_subject_on(p_employee,p_day),false)
   or public.private_attendance_day_is_confirmed(p_day) then return false; end if;
  s:=public.private_employee_schedule(p_employee,p_day);
  if not coalesce((s->>'configured')::boolean,false) or not coalesce((s->>'is_workday')::boolean,false) then return false; end if;
