@@ -17,7 +17,7 @@ select ok(not has_function_privilege('authenticated','public.private_validate_at
 select ok(not has_function_privilege('authenticated','public.private_record_attendance_event_pre572(text,double precision,double precision,double precision)','EXECUTE'),'renamed attendance cannot bypass schedule gate');
 select ok((select relrowsecurity from pg_class where oid='public.employee_work_terms'::regclass),'work terms RLS enabled');
 select ok((select relrowsecurity from pg_class where oid='public.employee_leave_accounts'::regclass),'leave RLS enabled');
-select ok((select not enabled and delay_minutes=5 from public.employee_reminder_policy where singleton),'approved five-minute policy remains disabled');
+select ok((select not enabled and delay_minutes=2 from public.employee_reminder_policy where singleton),'two-minute employee reminder policy remains disabled by default');
 select is(public.private_claim_attendance_reminders(gen_random_uuid()),'[]'::jsonb,'disabled reminder cannot claim any delivery');
 select ok(exists(select 1 from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='promotion_lead' and g.capability_code='leave.manage'),'lead receives narrow leave management only');
 select ok(exists(select 1 from public.role_capability_grants g join public.roles r on r.id=g.role_id where r.code='promotion_lead' and g.capability_code='employee.work_terms_manage'),'approved lead can manage work hours');
