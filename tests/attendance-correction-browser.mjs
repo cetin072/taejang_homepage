@@ -25,6 +25,13 @@ try{for(const width of [1440,768,390,320]){
  await page.goto('http://127.0.0.1:'+server.address().port);await page.locator('.attendance-row').last().waitFor();
  const date=page.getByLabel('확인 날짜');await date.fill('2026-10-01');await date.dispatchEvent('change');
  await page.waitForFunction(()=>document.querySelectorAll('.attendance-row').length===24);
+ if(!baseline){
+   const dateBounds=await date.boundingBox();
+   const loadBounds=await page.getByRole('button',{name:'출근부 조회',exact:true}).boundingBox();
+   assert.ok(Math.abs(dateBounds.height-loadBounds.height)<=1,'date and lookup controls share the same height');
+   if(width>720) assert.ok(Math.abs(dateBounds.y-loadBounds.y)<=1,'date and lookup controls align in one row');
+   else assert.ok(loadBounds.y>=dateBounds.y+dateBounds.height,'the lookup button follows the date on narrow screens');
+ }
  if(!baseline) assert.equal(await page.locator('.attendance-row').first().getAttribute('data-employee-uuid'),'synthetic-21','lead appears ahead of general worker and other employees');
  await page.locator('.attendance-row').first().evaluate(el=>el.scrollIntoView({block:'start',behavior:'instant'}));
  await page.evaluate(()=>{const first=document.querySelector('.attendance-row'),header=document.querySelector('.app-topbar'),w=document.querySelector('.app-workspace');const scroller=getComputedStyle(w).overflowY==='auto'?w:document.scrollingElement;const overlap=header.getBoundingClientRect().bottom-first.getBoundingClientRect().top;if(overlap>=0)scroller.scrollBy({top:-overlap-8,behavior:'instant'});});
