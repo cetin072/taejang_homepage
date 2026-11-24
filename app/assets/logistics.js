@@ -112,21 +112,75 @@ function renderQuote(){
  field(routeFields,'입고지',quote.pickup,v=>{quote.pickup=v;quoteChange();});routeFields.append(el('span','→'));field(routeFields,'발송지',quote.dropoff,v=>{quote.dropoff=v;quoteChange();});route.append(routeFields);
  const work=section(sheet,'02','작업 내역');
  const quick=el('div','','lg-fields lg-no-print');
- const setQuantity=(keys,value)=>{quote.lines.filter(l=>keys.includes(l.key)).forEach(l=>{l.quantity=value;const input=root.querySelector(`[data-row="${l.key}"] .lg-qty input`);if(input)input.value=value;});dirty=true;totals();};
- field(quick,'개별 재포장 수량',quote.lines.find(l=>l.key==='repack').quantity,v=>setQuantity(['innerBox','repack','individualLabel'],v),{type:'number'}).addEventListener('focus',e=>e.target.select());
- field(quick,'최종 출고 박스 수',quote.lines.find(l=>l.key==='ship').quantity,v=>setQuantity(['bundle','outerBox','photo','ship'],v),{type:'number'});
- field(quick,'사진·실측 서비스',quote.photoMonth,v=>{quote.photoMonth=Number(v);dirty=true;render();},{options:[['1','첫 달 무료'],['2','이후 유료']]});
+ const setQuantity=(keys,value)=>{quote.lines.filter(l=>keys.includes(l.key)).forEach(l=>{l.quantity=value;const input=root.querySelector(`[data-row="${l.key}"] .lg-qty input`);if(input)input.value=value;});};
+ const innerBoxes=quote.lines.filter(l=>C.isInnerBox(l.key));
+ const boxCount=()=>innerBoxes.reduce((sum,line)=>sum+Number(line.quantity),0);
+ const split=innerBoxes.length>1;
+ const individualChecks=quote.lines.some(l=>l.key==='arrivalPhoto');
+ const measurementKeys=['packedDimensions','packedWeight'];
+ const repackCount=field(quick,'개별 재포장 수량',split?boxCount():quote.lines.find(l=>l.key==='repack').quantity,v=>{setQuantity(['innerBox','repack','individualLabel',...measurementKeys],v);quoteChange();},{type:'number'});
+ repackCount.readOnly=split;
+ repackCount.addEventListener('focus',e=>e.target.select());
+ const syncBoxCount=()=>{
+  const count=boxCount();
+  repackCount.value=count;
+  setQuantity(['repack','individualLabel',...measurementKeys],count);
+ };
+ let addBox;
+ if(!confirmed){
+  const available=C.INNER_BOX_GROUPS.find(key=>!innerBoxes.some(line=>line.key===key));
+  addBox=button('+ 재포장 박스 규격 추가',()=>{
+   const donor=innerBoxes.find(line=>Number(line.quantity)>1);
+   if(donor)donor.quantity=Number(donor.quantity)-1;
+   const used=new Set(innerBoxes.map(line=>line.option));
+   const option=Object.keys(C.BOXES).find(key=>!used.has(key))||'basic';
+   const line={...innerBoxes[0],key:available,quantity:1,option,unitPrice:state.settings.data.boxes[option]};
+   quote.lines.splice(quote.lines.indexOf(innerBoxes.at(-1))+1,0,line);
+   innerBoxes.push(line);
+   syncBoxCount();dirty=true;render();
+   root.querySelector(`[data-row="${available}"] select`)?.focus();
+  });
+  addBox.disabled=!available;
+ }
+ field(quick,'최종 출고 박스 수',quote.lines.find(l=>l.key==='ship').quantity,v=>{setQuantity(['bundle','outerBox','photo','ship'],v);quoteChange();},{type:'number'});
+ if(!individualChecks)field(quick,'사진·실측 서비스',quote.photoMonth,v=>{quote.photoMonth=Number(v);dirty=true;render();},{options:[['1','첫 달 무료'],['2','이후 유료']]});
  work.append(quick);quick.style.marginBottom='10px';
+ if(!confirmed){
+  const service=button(individualChecks?'개별 촬영·계측 빼기':'+ 개별 촬영·계측 추가',()=>{
+   if(individualChecks)quote.lines=quote.lines.filter(line=>!C.ITEM_CHECKS.some(([key])=>key===line.key));
+   else for(const [key,stage,label] of C.ITEM_CHECKS){
+    const nextStage=quote.lines.findIndex(line=>line.stage>stage);
+    const quantity=key==='arrivalPhoto'?(boxCount()||1):boxCount();
+    quote.lines.splice(nextStage<0?quote.lines.length:nextStage,0,{key,stage,label,kind:'normal',quantity,unitPrice:''});
+   }
+   dirty=true;render();root.querySelector('[data-individual-checks]')?.focus();
+  });
+  service.dataset.individualChecks='1';service.classList.add('lg-no-print');work.append(service);
+ }
+ if(individualChecks)work.append(el('p','입고 상태를 받은 그대로 개별 촬영합니다. 제품 보호에 필요한 범위에서 포장 크기를 줄이고, 재포장한 박스마다 치수와 실중량을 기록합니다. 합배송 박스는 촬영·계측 대상에서 제외합니다.','lg-help'));
+ if(individualChecks&&!confirmed)work.append(el('p','개별 작업 단가를 입력하세요. 무료로 제공하는 작업은 0원을 입력하세요.','lg-help lg-no-print'));
  const tw=el('div','','lg-table-wrap'),t=el('table'),th=el('thead'),hr=el('tr');['No.','작업 항목','구분','수량','단가(원)','금액(원)'].forEach(x=>hr.append(el('th',x)));th.append(hr);t.append(th);const tbody=el('tbody');let stage=0;
- quote.lines.forEach((line,i)=>{
+ quote.lines.filter(line=>!individualChecks||line.key!=='photo').forEach((line,i)=>{
   if(stage!==line.stage){stage=line.stage;const sr=el('tr','','lg-stage'),td=el('td',C.STAGES[stage-1]);td.colSpan=6;sr.append(td);tbody.append(sr);}
   const tr=el('tr'),no=el('td',String(i+1).padStart(2,'0')),name=el('td','','lg-line-label'),kind=el('td'),qty=el('td','','lg-num lg-qty'),price=el('td','','lg-num lg-price'),amount=el('td','','lg-num');
   if(line.kind==='extra'&&!confirmed){field(name,'항목명',line.label,v=>{line.label=v;quoteChange();});name.append(button('삭제',()=>{quote.lines=quote.lines.filter(l=>l!==line);dirty=true;render();}));}else name.textContent=line.label;
+  if(line.key==='innerBox'&&addBox)name.append(el('br'),addBox);
+  if(!confirmed&&C.INNER_BOX_GROUPS.includes(line.key)){
+   const remove=button('규격 행 삭제',()=>{
+    quote.lines=quote.lines.filter(l=>l!==line);
+    innerBoxes.splice(innerBoxes.indexOf(line),1);
+    syncBoxCount();dirty=true;render();
+    root.querySelector('[data-row="innerBox"] select')?.focus();
+   });
+   name.append(remove);
+  }
   tr.dataset.row=line.key;const free=line.kind==='free'||line.kind==='photo'&&Number(quote.photoMonth)===1;kind.textContent=line.kind==='free'?'무료 서비스':free?'첫 달 무료':line.kind==='extra'?'추가 비용':'작업비 / 자재';if(free)kind.className='lg-free';
   if(line.kind==='free'){qty.textContent='—';price.textContent='무료';price.className+=' lg-free';}
-  else if(confirmed){qty.textContent=line.quantity;price.textContent=money(line.unitPrice);}
+  else if(confirmed){qty.textContent=line.quantity;price.textContent=money(line.unitPrice);
+   if(C.isInnerBox(line.key))kind.textContent=C.BOXES[line.option]||(line.option==='manual'?'직접 입력':kind.textContent);
+  }
   else{
-   field(qty,'수량',line.quantity,v=>{line.quantity=v;quoteChange();},{type:'number'});
+   field(qty,'수량',line.quantity,v=>{line.quantity=v;if(split&&C.isInnerBox(line.key))syncBoxCount();quoteChange();},{type:'number'});
    if(['box','shipping'].includes(line.kind)){
     const options=line.kind==='box'?Object.entries(C.BOXES).map(([k,label])=>[k,label+' · '+money(state.settings.data.boxes[k])]):state.settings.data.shipping.map((p,i)=>['ship-'+i,(i+1)+'구간 · '+money(p)]);
     options.push(['manual','직접 입력']);const chosen=line.option||(line.kind==='shipping'?('ship-'+state.settings.data.shipping.indexOf(Number(line.unitPrice))):'manual');
@@ -136,7 +190,7 @@ function renderQuote(){
   }
   qty.querySelectorAll('label>span').forEach(n=>n.hidden=true);price.querySelectorAll('label>span').forEach(n=>n.hidden=true);amount.append(out(line.key));tr.append(no,name,kind,qty,price,amount);tbody.append(tr);
  });t.append(tbody);tw.append(t);work.append(tw);
- if(!confirmed){const extra=button('+ 기타 항목 추가',()=>{if(quote.lines.length>=52)return report('기타 항목은 최대 40개입니다.',true);quote.lines.push({key:'extra-'+crypto.randomUUID(),stage:5,label:'기타 비용',kind:'extra',quantity:1,unitPrice:0});dirty=true;render();});extra.classList.add('lg-no-print');work.append(extra);}
+ if(!confirmed){const extra=button('+ 기타 항목 추가',()=>{if(quote.lines.filter(l=>l.kind==='extra').length>=40)return report('기타 항목은 최대 40개입니다.',true);quote.lines.push({key:'extra-'+crypto.randomUUID(),stage:5,label:'기타 비용',kind:'extra',quantity:1,unitPrice:0});dirty=true;render();});extra.classList.add('lg-no-print');work.append(extra);}
  const storage=section(sheet,'03','선반 보관료'),shelf=el('div','','lg-shelf');
  for(const [key,label,min] of [['shelves','사용 칸 수',0],['startMonth','시작 월차',1],['months','청구 개월',1],['rate','칸당 월 단가',0]])field(shelf,label,quote.storage[key],v=>{quote.storage[key]=v;quoteChange();},{type:'number',min});shelf.append(out('storageAmount'));storage.append(shelf,el('p','기본 1칸 최초 3개월 무료 · 추가 칸은 첫 달부터 과금','lg-help'));
  const tax=section(sheet,'04','부가세 적용');field(tax,'금액 기준',quote.vatMode,v=>{quote.vatMode=v;quoteChange();},{options:[['exclusive','부가세 별도 (+10%)'],['inclusive','부가세 포함']]});
