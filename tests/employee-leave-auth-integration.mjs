@@ -155,34 +155,83 @@ for(const table of ['employee_leave_accounts','employee_work_terms','employee_le
  const r=await fetchApi('/rest/v1/'+table+'?select=*',{token:worker.token});check(!r.ok||r.data.length===0,'raw '+table+' inaccessible');
 }
 check(!(await rpc('private_reconcile_leave_monthly',worker)).ok,'worker cannot control monthly batch');
-// Real SQL evaluation of the approved first reminder, inside a rollback-only fixture.
+// Real SQL evaluation of the employee reminders, inside a rollback-only fixture.
 db(`begin;
-update public.employee_reminder_policy set enabled=true,delay_minutes=5 where singleton;
+update public.employee_reminder_policy set enabled=true where singleton;
 insert into public.attendance_calendar_overrides(work_date,is_workday,reason) values('${today}',true,'Synthetic reminder day') on conflict(work_date) do update set is_workday=true;
 create function pg_temp.expect_reminder(p_expected boolean,p_kind text,p_time text,p_message text) returns void language plpgsql as $reminder$
 begin
  if public.private_attendance_reminder_due('${employee}','${today}',p_kind,('${today} '||p_time||'+09')::timestamptz) is distinct from p_expected then raise exception '%',p_message; end if;
 end $reminder$;
-select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:04:59','no early clock-in prompt');
-select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:05:00','clock-in due at five minutes');
-select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','no clock-out prompt without clock-in');
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:01:59','no early clock-in prompt');
+select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:02:00','clock-in due at two minutes');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:02:00','no clock-out prompt without clock-in');
 insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_in','recorded',('${today} 09:00+09')::timestamptz);
-select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:05:00','recorded clock-in suppresses prompt');
-select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:04:59','clock-out not before five minutes');
-select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:05:00','clock-out due exactly five minutes');
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:02:00','recorded clock-in suppresses prompt at the exact boundary');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:01:59','no early clock-out prompt');
+select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:02:00','clock-out due at two minutes');
 select pg_temp.expect_reminder(true,'attendance.clock_out_missing','13:10:00','late scheduler can still claim');
 insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_out','exception_pending',null);
 select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','pending exception suppresses prompt');
 update public.attendance_events set status='recorded',event_at=('${today} 13:00+09')::timestamptz where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_out';
-select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','recorded clock-out suppresses prompt');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:02:00','recorded clock-out suppresses prompt at the exact boundary');
 delete from public.attendance_events where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_out';
 update public.employees set attendance_required=false where id='${employee}';
 select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','exempt employee suppressed');
 update public.employees set attendance_required=true where id='${employee}';
 insert into public.employee_days_off(employee_uuid,work_date,reason,created_by) values('${employee}','${today}','Synthetic holiday','${ops.id}');
 select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','holiday suppressed');
+delete from public.employee_days_off where employee_uuid='${employee}' and work_date='${today}' and reason='Synthetic holiday';
+insert into private.attendance_field_assignments(employee_uuid,work_date,site,starts_at,ends_at,field_clock_in)
+values('${employee}','${today}','Synthetic remote field office','10:00','16:00',true);
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','13:05:00','base end does not trigger when field end is later');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','16:01:59','field ends at its scheduled time plus grace');
+select pg_temp.expect_reminder(true,'attendance.clock_out_missing','16:02:00','field clock-out uses assignment end');
+select pg_temp.expect_reminder(false,'attendance.clock_out_missing','17:01:00','no prompt after field clock-out window');
+delete from public.attendance_events where profile_id='${worker.id}' and work_date='${today}' and event_type='clock_in';
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:02:00','base start does not trigger field clock-in');
+select pg_temp.expect_reminder(true,'attendance.clock_in_missing','10:02:00','field clock-in uses assignment start');
+update private.attendance_field_assignments set field_clock_in=false where employee_uuid='${employee}' and work_date='${today}';
+select pg_temp.expect_reminder(true,'attendance.clock_in_missing','09:02:00','checkout-only field assignment preserves base clock-in');
+update public.employee_reminder_policy set enabled=false where singleton;
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:02:00','disabled policy never sends');
+update public.employee_reminder_policy set enabled=true where singleton;
+delete from private.attendance_field_assignments where employee_uuid='${employee}' and work_date='${today}';
+insert into public.employee_leave_requests(id,employee_uuid,work_date,portion,units,term_id,leave_minutes,status,submitted_by)
+select gen_random_uuid(),'${employee}','${today}','full',1,id,180,'approved','${worker.id}' from public.employee_work_terms
+where employee_uuid='${employee}' and effective_from='${today}';
+select pg_temp.expect_reminder(false,'attendance.clock_in_missing','09:02:00','approved full leave suppresses reminders');
+delete from public.employee_leave_requests where employee_uuid='${employee}' and work_date='${today}' and status='approved';
+do $claim$
+declare picked jsonb; claimed_id uuid; claim uuid:=gen_random_uuid(); take_two uuid:=gen_random_uuid();
+begin
+ -- Actual scheduler claims use the DB wall clock. Only the two-minute midnight guard cannot be widened.
+ if (now() at time zone 'Asia/Seoul')::time not between '00:02:00' and '23:58:59' then return; end if;
+ update public.employee_work_terms set starts_at='00:00',ends_at='23:59:59'
+ where employee_uuid='${employee}' and effective_from='${today}';
+ perform public.private_claim_attendance_reminders(claim,100);
+ if exists(select 1 from public.notification_deliveries where profile_id='${worker.id}') then raise exception 'no registered device must mean no delivery'; end if;
+ insert into public.notification_devices(profile_id,installation_id,provider,platform,push_token,last_seen_at)
+ values ('${worker.id}',gen_random_uuid(),'expo','android','ExpoPushToken[synthetic_old_worker_0001]',now()-interval '1 minute'),
+ ('${worker.id}',gen_random_uuid(),'expo','android','ExpoPushToken[synthetic_new_worker_0001]',now()),
+ ('${outsider.id}',gen_random_uuid(),'expo','android','ExpoPushToken[synthetic_other_0001]',now());
+ picked:=public.private_claim_attendance_reminders(claim,100);
+ if jsonb_array_length(picked)<>1 or picked->0->>'expo_push_token'<>'ExpoPushToken[synthetic_new_worker_0001]'
+  or picked->0->>'body'<>'출근을 눌러주세요.' then raise exception 'one own most recent device and short message required'; end if;
+ claimed_id:=(picked->0->>'delivery_id')::uuid;
+ update public.notification_devices set last_seen_at=now()+interval '1 minute'
+ where push_token='ExpoPushToken[synthetic_old_worker_0001]';
+ picked:=public.private_claim_attendance_reminders(take_two,100);
+ if jsonb_array_length(picked)<>0 then raise exception 'a retry must not send to a second device'; end if;
+ if exists(select 1 from public.attendance_events where profile_id='${worker.id}' and work_date='${today}') then
+  raise exception 'reminders must not record attendance';
+ end if;
+ insert into public.attendance_events(profile_id,work_date,event_type,status,event_at) values('${worker.id}','${today}','clock_in','recorded',now());
+ if public.private_validate_attendance_reminder(claimed_id,claim) then raise exception 'clock after claim must cancel push'; end if;
+end $claim$;
 rollback;`);
-check(true,'real clock-in/out reminder boundary and exclusion checks pass');
+check(true,'real reminder boundary, exclusion, device and outbox checks pass');
+check(!(await rpc('private_claim_attendance_reminders',worker,{p_claim:crypto.randomUUID(),p_limit:1})).ok,'employee cannot invoke reminder dispatcher');
 
 // Approved future leave appears immediately and changes remain manager-reviewed.
 check(!(await rpc('get_management_attention_cards',worker)).ok,'worker cannot read manager attention list');
