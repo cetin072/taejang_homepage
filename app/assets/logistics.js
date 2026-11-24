@@ -128,11 +128,11 @@ function renderQuote(){
  if(!confirmed){
   const available=C.INNER_BOX_GROUPS.find(key=>!innerBoxes.some(line=>line.key===key));
   addBox=button('+ 재포장 박스 규격 추가',()=>{
-   const first=innerBoxes[0];
-   if(Number(first.quantity)>1)first.quantity=Number(first.quantity)-1;
+   const donor=innerBoxes.find(line=>Number(line.quantity)>1);
+   if(donor)donor.quantity=Number(donor.quantity)-1;
    const used=new Set(innerBoxes.map(line=>line.option));
    const option=Object.keys(C.BOXES).find(key=>!used.has(key))||'basic';
-   const line={...first,key:available,quantity:1,option,unitPrice:state.settings.data.boxes[option]};
+   const line={...innerBoxes[0],key:available,quantity:1,option,unitPrice:state.settings.data.boxes[option]};
    quote.lines.splice(quote.lines.indexOf(innerBoxes.at(-1))+1,0,line);
    innerBoxes.push(line);
    syncBoxCount();dirty=true;render();
