@@ -501,6 +501,7 @@ function createPreviewFixture(content, count = '8') {
   const container = new Element();
   container.dataset.homePreviewCount = count;
   const document = {
+    addEventListener() {},
     createElement: () => new Element(),
     querySelectorAll: selector => selector === '[data-home-preview="hub"]' ? [container] : selector === '[data-recent-activities]' ? [section] : []
   };

@@ -87,7 +87,7 @@ test('home editorial label is in the body, not dependent on an image overlay', (
     }
   };
   runInNewContext(readFileSync(new URL('../assets/js/home-previews.js', import.meta.url), 'utf8'), {
-    window, document: { createElement: tag => new Element(tag), querySelectorAll: () => [container] }
+    window, document: { addEventListener() {}, createElement: tag => new Element(tag), querySelectorAll: () => [container] }
   });
   const [featuredCard, ordinaryCard] = container.children;
   const body = featuredCard.querySelector('.card-body');

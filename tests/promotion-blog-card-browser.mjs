@@ -50,6 +50,20 @@ try {
     await context.route('https://blog.naver.com/**', route => route.fulfill({ contentType: 'text/html', body: '<h1>원문 목적지</h1>' }));
     const page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
+    let deliver;
+    const waitForFeed = new Promise(resolve => { deliver = resolve; });
+    await page.route('**/.netlify/functions/public-promotion-feed*', async route => {
+      await waitForFeed;
+      await route.fulfill({contentType: 'application/json', body: json});
+    });
+    await page.goto(base + '/index.html', {waitUntil: 'domcontentloaded', timeout: 10000});
+    await page.locator('[data-hero-video-next]').click();
+    assert.equal(await page.locator('[data-hero-video-indicator][aria-current="true"]').getAttribute('data-hero-video-indicator'), '1');
+    deliver();
+    const homeLink = page.locator('[data-home-preview="hub"] a').filter({hasText: '직원 블로그 소식'});
+    await homeLink.waitFor();
+    assert.equal(await homeLink.getAttribute('href'), source);
+    await page.unroute('**/.netlify/functions/public-promotion-feed*');
     await page.goto(base + '/archive.html', { waitUntil: 'domcontentloaded' });
     assert.equal(await page.locator('[data-hub-list] [data-static-fallback-card]').count(), 0,
       'static archive renders without waiting for the delayed feed');

@@ -150,7 +150,6 @@
     ['../assets/js/public-promotion-media.js', 'public-promotion-media'],
     ['../assets/js/promotion-document.js', 'promotion-document'],
     ['../assets/js/featured-article-layout.js', 'featured-article-layout'],
-    ['assets/promotion-visual-editor.js', 'promotion-visual-editor'],
     ['assets/phase-c-workspace-v2.js', 'phase-c-workspace-v2'],
     ['assets/issue-181-promotion-live-ux.js', 'issue-181-promotion-live-ux'],
     ['assets/operations-homepage-direct.js', 'operations-homepage-direct'],
@@ -189,6 +188,14 @@
     ['assets/role-screen-polish.js', 'role-screen-polish'],
     ['assets/navigation-visual-stability.js', 'navigation-visual-stability']
   ];
+
+  window.TaejangLoadArticleEditor = async () => {
+    if (window.TaejangArticleEditor?.mount) return true;
+    const result = await loadScriptOnce('assets/promotion-visual-editor.js', 'promotion-visual-editor');
+    if (result.ok && window.TaejangArticleEditor?.mount) return true;
+    showFeatureFailure('본문 편집기');
+    return false;
+  };
 
   let erpSalesLoading = null;
   window.TaejangErpSalesLoader = async () => {

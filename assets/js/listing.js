@@ -86,7 +86,9 @@
   function cardMedia(item) {
     const media = representativeMedia(item);
     if (media.source) {
-      return `<div class="card-media"><img src="${media.source}" alt="${media.alt}" style="object-position:${media.objectPosition}" loading="lazy" decoding="async"></div>`;
+      const responsive = item.thumbnailSrcset && media.source === item.thumbnail
+        ? ` srcset="${item.thumbnailSrcset}" sizes="(max-width: 760px) 94vw, (max-width: 1000px) 48vw, 400px"` : '';
+      return `<div class="card-media"><img src="${media.source}"${responsive} alt="${media.alt}" style="object-position:${media.objectPosition}" loading="lazy" decoding="async"></div>`;
     }
     return `<div class="card-media">${contentPhoto(item, 'card')}</div>`;
   }

@@ -13,6 +13,7 @@
   let removedMedia = [];
   let previewGeneration = 0;
   let activeView = 'manage';
+  let viewRequest = 0;
   let editorReturnView = 'manage';
   let editorBaseline = null;
   let savedNoticeId = null;
@@ -316,7 +317,7 @@
 
   function syncBodyEditor() {
     const field = ui.element('notice-body');
-    if (!mediaApi()) return;
+    if (!mediaApi() || !isEditorView()) return;
     const current = window.TaejangArticleEditor?.mount(field, {
       notice: true, preview: false,
       getMedia: () => mediaItems.map(item => ({
@@ -539,8 +540,8 @@
         || (editorBaseline !== null && editorBaseline !== editorSnapshot()));
   }
 
-  function returnToNoticeList() {
-    if (!isEditorView() || !setView(editorReturnView)) return;
+  async function returnToNoticeList() {
+    if (!isEditorView() || !await setView(editorReturnView)) return;
     const title = ui.element('notice-manage-title');
     title.tabIndex = -1;
     title.scrollIntoView({ behavior: 'instant', block: 'start' });
@@ -571,9 +572,14 @@
     resultMessage.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function setView(view) {
+  async function setView(view) {
     if (!canManageNotices()) { clearAccessState(); return false; }
     if (saving || (hasUnsavedEditor() && !confirmLeaveEditor())) return false;
+    const request = ++viewRequest;
+    if (view === 'create' && window.TaejangLoadArticleEditor && !window.TaejangArticleEditor) {
+      if (!await window.TaejangLoadArticleEditor() || request !== viewRequest || !canManageNotices()
+        || ui.element('notice-admin-panel').hidden) return false;
+    }
     const previousView = activeView;
     const nextView = ['create','archive'].includes(view) ? view : 'manage';
     if (nextView === 'create' && !isEditorView()) editorReturnView = previousView === 'archive' ? 'archive' : 'manage';
@@ -618,9 +624,10 @@
   async function openItem(item, settings = {}) {
     if (saving) return;
     const actor = currentAccessKey();
+    const request = ++viewRequest;
     try {
-      const current = await readNotice(item.id);
-      if (actor !== currentAccessKey() || !canManageNotices()) return;
+      const [current, editorReady] = await Promise.all([readNotice(item.id), window.TaejangLoadArticleEditor?.()]);
+      if (editorReady === false || request !== viewRequest || actor !== currentAccessKey() || !canManageNotices()) return;
       fillForm(current, settings);
     } catch { showMessage('공지 최신 내용을 확인하지 못했습니다. 기존 입력을 보존합니다. 새로고침 후 다시 확인해주세요.', true); }
   }
@@ -1266,8 +1273,8 @@
       if (event.target.id === 'notice-routine-confirm') updateActions();
       else if (event.target.id !== 'notice-photo-input') markReviewEdited();
     });
-    ui.element('reset-notice-form').addEventListener('click', () => {
-      if (!setView('create')) return;
+    ui.element('reset-notice-form').addEventListener('click', async () => {
+      if (!await setView('create')) return;
       showMessage('새 공지를 작성합니다. 이전 저장 결과는 공지 관리 목록에서 확인할 수 있습니다.');
     });
     ui.element('new-notice-admin').addEventListener('click', () => setView('create'));
@@ -1299,6 +1306,7 @@
   }
 
   function clearAccessState() {
+    ++viewRequest;
     ++listGeneration;
     pendingLoad = null;
     options = { work_guides: [] };

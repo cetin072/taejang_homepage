@@ -1015,6 +1015,8 @@
 
   async function renderLeadEdit(detail) {
     const target = main();
+    const review = target.firstElementChild;
+    if (await window.TaejangLoadArticleEditor?.() === false || target.firstElementChild !== review) return;
     document.getElementById('desktop-page-title').textContent = '홍보자료 직접 수정';
     const intro = renderIntro('홍보 검토', '홍보자료 직접 수정', '선택한 검토 건만 별도 화면에서 수정합니다. 카드가 길어지는 방식은 사용하지 않습니다.');
     const section = el('section', null, 'dashboard-section phase-c-edit-page');
@@ -1164,18 +1166,23 @@
     if (!target || !canAny(['promotion.write', 'promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], PROMOTION_ROLES.has(route()))) return;
     target.hidden = false;
     target.classList.add('phase-c-v2');
-    target.replaceChildren(el('p', '홍보 업무를 불러오고 있습니다.', 'message'));
+    const loading = el('p', '홍보 업무를 불러오고 있습니다.', 'message');
+    target.replaceChildren(loading);
     try {
       const workspace = await app().rpc('get_my_promotion_workspace');
       const canWrite = can('promotion.write', WRITE_ROLES.has(workspace.role));
       const canEditOwn = can('promotion.edit_own', WRITE_ROLES.has(workspace.role));
       const canReview = canAny(['promotion.review_lead', 'promotion.review_operations', 'promotion.review_ceo'], REVIEW_ROLES.has(workspace.role));
+      if (!loading.isConnected) return;
       if (mode === 'publication') return renderPublication(workspace);
       if (mode === 'revision' && canEditOwn) return renderRevision(workspace);
-      if (mode === 'edit' && canEditOwn) return renderEdit(workspace);
-      if (mode === 'write' && canWrite) return renderWrite(workspace);
-      if (canReview) return renderReview(workspace);
-      return renderWrite(workspace);
+      const editing = mode === 'edit' && canEditOwn;
+      if (!editing && !(mode === 'write' && canWrite) && canReview) return renderReview(workspace);
+      if (await window.TaejangLoadArticleEditor?.() === false || !loading.isConnected) {
+        loading.remove();
+        return;
+      }
+      return editing ? renderEdit(workspace) : renderWrite(workspace);
     } catch (error) {
       target.replaceChildren(el('p', app().friendlyError?.(error) || '홍보 업무를 불러오지 못했습니다.', 'message error'));
     }

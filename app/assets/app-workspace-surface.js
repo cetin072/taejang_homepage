@@ -90,6 +90,8 @@
     if (id === 'notice-admin-panel') {
       const noticeView = view === 'create' ? 'create' : 'manage';
       document.dispatchEvent(new CustomEvent('taejang-open-notice-admin', { detail: { view: noticeView } }));
+    } else {
+      document.dispatchEvent(new CustomEvent(id === 'schedule-admin-panel' ? 'taejang-open-schedule-admin' : 'taejang-open-guidance-admin'));
     }
     const topbar = byId('desktop-page-title');
     if (topbar) {

@@ -141,6 +141,8 @@
       : '공개 후 24시간이 지난 글은 삭제하지 않고 운영총괄에게 수정 요청만 상신합니다.');
     if (!target) return;
 
+    const intro = target.firstElementChild;
+    if (await window.TaejangLoadArticleEditor?.() === false || target.firstElementChild !== intro) return;
     let detail;
     if (operations) {
       try {

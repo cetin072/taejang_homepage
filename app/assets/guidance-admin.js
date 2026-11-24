@@ -9,14 +9,36 @@
   function renderList(){const list=ui.element('guidance-admin-list');list.replaceChildren(...(guidance.length?guidance.map(item=>{const card=document.createElement('article');card.className='admin-record-card';card.append(ui.text('p',`${ui.GUIDANCE_CATEGORIES[item.category]} · ${ui.STATUS[item.status]}${item.is_featured?' · 상단 고정':''}`,'card-kicker'),ui.text('h3',item.title),ui.text('p',`수정일: ${ui.formatDateTime(item.updated_at)}`,'help'),action('안내 수정',()=>fill(item)));return card;}):[ui.text('p','등록된 안내가 없습니다.','empty')]));}
   function reset(){ui.element('guidance-form').reset();ui.element('guidance-id').value='';ui.element('guidance-display-order').value='0';ui.element('guidance-status').value='draft';renderOptions();preview();}
   function fill(item){ui.element('guidance-id').value=item.id;ui.element('guidance-category').value=item.category;ui.element('guidance-title-input').value=item.title||'';ui.element('guidance-summary').value=item.summary_easy||'';ui.element('guidance-body').value=item.body_easy||'';ui.element('guidance-location').value=item.location_text||'';ui.element('guidance-help-contact').value=item.help_contact_label||'';ui.element('guidance-help-method').value=item.help_method_text||'';ui.element('guidance-related-guide').value=item.related_work_guide_id||'';ui.element('guidance-related-schedule').value=item.related_schedule_id||'';ui.element('guidance-link-url').value=item.related_link_url||'';ui.element('guidance-link-label').value=item.related_link_label||'';ui.element('guidance-scope').value=item.target_scope;updateTargets(ui.targetId(item));ui.element('guidance-display-order').value=item.display_order;ui.element('guidance-featured').checked=Boolean(item.is_featured);ui.element('guidance-status').value=item.status;ui.element('guidance-effective-from').value=item.effective_from||'';ui.element('guidance-effective-until').value=item.effective_until||'';ui.element('guidance-reason').value='';preview();ui.element('guidance-form').scrollIntoView({behavior:'smooth',block:'start'});}
-  async function load(){if(!options)return;ui.element('refresh-guidance-admin').disabled=true;message('안내 목록을 불러오고 있습니다.');try{const [rows,scheduleRows]=await Promise.all([window.TaejangApp.rpc('list_manageable_staff_guidance',{p_limit:200}),window.TaejangApp.rpc('list_manageable_schedules',{p_include_past:true,p_limit:200})]);guidance=ui.array(rows);schedules=ui.array(scheduleRows).map(item=>({id:item.id,title:item.title}));renderOptions();renderList();message('');}catch{message('안내 목록을 불러오지 못했습니다. 잠시 후 다시 시도하세요.',true);}finally{ui.element('refresh-guidance-admin').disabled=false;}}
+  function canManageGuidance() {
+    const app = window.TaejangApp;
+    return app.hasCapabilityContract?.() ? app.can?.('guidance.manage') : app.isTodayManager();
+  }
+  async function load() {
+    if (!canManageGuidance()) return;
+    const refresh = ui.element('refresh-guidance-admin');
+    refresh.disabled = true;
+    message('안내 목록을 불러오고 있습니다.');
+    try {
+      if (!options) options = await window.TaejangApp.rpc('get_today_board_admin_options');
+      const [rows, scheduleRows] = await Promise.all([
+        window.TaejangApp.rpc('list_manageable_staff_guidance', {p_limit: 200}),
+        window.TaejangApp.rpc('list_manageable_schedules', {p_include_past: true, p_limit: 200})
+      ]);
+      guidance = ui.array(rows);
+      schedules = ui.array(scheduleRows).map(item => ({id: item.id, title: item.title}));
+      renderOptions();
+      renderList();
+      message('');
+    } catch { message('안내 목록을 불러오지 못했습니다. 잠시 후 다시 시도하세요.', true); }
+    finally { refresh.disabled = false; }
+  }
   async function submit(event){event.preventDefault();const submitButton=event.currentTarget.querySelector('button[type="submit"]');submitButton.disabled=true;message('');try{const linkUrl=ui.element('guidance-link-url').value.trim();const linkLabel=ui.element('guidance-link-label').value.trim();if(Boolean(linkUrl)!==Boolean(linkLabel))throw new Error('LINK_PAIR_REQUIRED');if(linkUrl&&!ui.safeHttpsUrl(linkUrl))throw new Error('INVALID_HTTPS_LINK');const result=await window.TaejangApp.rpc('save_staff_guidance',{p_guidance_id:ui.element('guidance-id').value||null,p_category:ui.element('guidance-category').value,p_title:ui.element('guidance-title-input').value,p_summary_easy:ui.element('guidance-summary').value,p_body_easy:ui.element('guidance-body').value,p_location_text:ui.element('guidance-location').value,p_help_contact_label:ui.element('guidance-help-contact').value,p_help_method_text:ui.element('guidance-help-method').value,p_related_work_guide_id:ui.element('guidance-related-guide').value||null,p_related_schedule_id:ui.element('guidance-related-schedule').value||null,p_related_link_url:linkUrl||null,p_related_link_label:linkLabel||null,...ui.targetPayload(ui.element('guidance-scope'),ui.element('guidance-target')),p_display_order:Number(ui.element('guidance-display-order').value),p_is_featured:ui.element('guidance-featured').checked,p_status:ui.element('guidance-status').value,p_effective_from:ui.element('guidance-effective-from').value||null,p_effective_until:ui.element('guidance-effective-until').value||null,p_change_reason:ui.element('guidance-reason').value});if(!result?.ok)throw new Error(result?.code||'SAVE_FAILED');message('안내를 저장했습니다. 일반 근로자 화면 미리보기로 확인하세요.');reset();await load();}catch(error){const label=error.message==='TARGET_REQUIRED'?'대상을 선택해주세요.':error.message==='LINK_PAIR_REQUIRED'?'링크 표시명과 HTTPS 주소를 함께 입력해주세요.':error.message==='INVALID_HTTPS_LINK'?'관련 링크는 올바른 HTTPS 주소만 사용할 수 있습니다.':error.message.startsWith('FORBIDDEN')?'이 범위 또는 관련 자료를 수정할 권한이 없습니다.':'안내를 저장하지 못했습니다. 필수항목과 대상·적용기간을 확인해주세요.';message(label,true);}finally{submitButton.disabled=false;}}
   function bind(){ui.element('guidance-form').addEventListener('submit',submit);ui.element('reset-guidance-form').addEventListener('click',reset);ui.element('refresh-guidance-admin').addEventListener('click',load);ui.element('guidance-scope').addEventListener('change',()=>updateTargets());ui.element('guidance-form').addEventListener('input',preview);}
   document.addEventListener('taejang-app-ready',async()=>{
-    const app=window.TaejangApp;
-    if(app.hasCapabilityContract?.()?!app.can?.('guidance.manage'):!app.isTodayManager())return;
-    bind();reset();
-    try{options=await app.rpc('get_today_board_admin_options');renderOptions();await load();}
-    catch{message('안내 관리 도구를 불러오지 못했습니다. 권한과 연결 상태를 확인한 뒤 새로고침해주세요.',true);}
+    if (!canManageGuidance()) return;
+    bind();
+    reset();
+    document.addEventListener('taejang-open-guidance-admin', load);
+    if (!ui.element('guidance-admin-panel').hidden) await load();
   },{once:true});
 })();

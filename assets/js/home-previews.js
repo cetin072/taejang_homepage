@@ -73,7 +73,10 @@
     }
 
     try {
-      const items = contentHub.orderedItems();
+      const base = contentHub.orderedItems();
+      const feed = window.TAEJANG_ARCHIVE_FEED;
+      const items = feed?.status === 'ready' && feed.items.length
+        ? contentHub.orderedItems([...base, ...feed.items]) : base;
       containers.forEach((container) => {
         const requestedCount = Number.parseInt(container.dataset.homePreviewCount, 10) || 8;
         const count = Math.min(Math.max(requestedCount, 1), 8);
@@ -93,5 +96,8 @@
     }
   }
 
+  document.addEventListener('taejang-live-promotion-ready', () => {
+    if (window.TAEJANG_ARCHIVE_FEED?.items?.length) renderRecentActivities();
+  });
   renderRecentActivities();
 }());
