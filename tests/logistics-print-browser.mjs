@@ -162,8 +162,8 @@ try{
     assert.equal(await row.getByRole('spinbutton',{name:'수량',exact:true}).inputValue(),'4');
     assert.equal(await row.getByRole('spinbutton',{name:'단가',exact:true}).inputValue(),'');
     await row.getByRole('spinbutton',{name:'단가',exact:true}).fill('100');
-    assert.equal(await row.locator('output').textContent(),'400원');
    }
+   assert.deepEqual(await p.locator('[data-row="arrivalPhoto"] output,[data-row="packedDimensions"] output,[data-row="packedWeight"] output').allTextContents(),['400원','400원','400원']);
    await p.locator('[data-row="arrivalPhoto"]').getByRole('spinbutton',{name:'수량',exact:true}).fill('3');
    await p.locator('[data-row="innerBox"]').getByRole('spinbutton',{name:'수량',exact:true}).fill('1');
    assert.equal(await p.locator('[data-row="packedWeight"] .lg-qty input').inputValue(),'3');
