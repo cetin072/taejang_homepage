@@ -76,7 +76,8 @@
       .attendance-summary strong { display:block; margin-top:6px; font-size:28px; }
       .attendance-toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:16px 0; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-toolbar label { display:grid; gap:6px; font-weight:800; }
-      .attendance-toolbar input[type="date"] { min-height:42px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
+      .attendance-toolbar > label:has(> input[type="date"]) { margin:0; }
+      .attendance-toolbar input[type="date"] { min-height:48px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
       .attendance-evidence-help { flex:1 1 260px; margin:0; color:#60746a; font-size:13px; line-height:1.5; }
       .attendance-list { display:grid; gap:10px; }
       .attendance-row { display:grid; grid-template-columns:minmax(120px,1.15fr) 1fr 1fr minmax(150px,.9fr); gap:12px; align-items:center; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
@@ -748,11 +749,12 @@
     const start = document.createElement('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
     const end = document.createElement('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
     const mode = document.createElement('select');
-    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('본사 출근 → 현장 퇴근', 'out'));
+    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지에서 출근 → 현장 퇴근', 'out'));
     settings.append(field('현장명', site), field('시작 시각', start), field('종료 시각', end), field('기록 방식', mode));
     const selection = el('details', null, 'attendance-detail-tools');
     const participants = el('div', null, 'attendance-holiday-work-list');
-    selection.append(el('summary', '참여 직원 선택'), participants);
+    selection.append(el('summary', '참여 직원 선택'),
+      el('p', '재택근무자도 참여 직원으로 지정할 수 있습니다.'), participants);
     const options = rows.filter(row => row.employee_uuid).map(row => {
       const control = document.createElement('input'); control.type = 'checkbox'; control.value = row.employee_uuid;
       participants.append(field(row.display_name || '직원', control));

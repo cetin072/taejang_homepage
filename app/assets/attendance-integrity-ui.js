@@ -44,8 +44,8 @@
     style.dataset.attendanceIntegrityUi = '1';
     style.textContent = `
       .attendance-correction-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:16px 0;padding:14px;border:1px solid var(--app-border,#ddd);border-radius:14px;background:#fff}
-      .attendance-correction-toolbar label{display:grid;gap:6px;font-weight:800}
-      .attendance-correction-toolbar input{min-height:44px;padding:8px 10px;border:1px solid #ccc;border-radius:10px;font:inherit}
+      .attendance-correction-toolbar label{display:grid;gap:6px;margin:0;font-weight:800}
+      .attendance-correction-toolbar input{min-height:48px;padding:8px 10px;border:1px solid #ccc;border-radius:10px;font:inherit}
       .attendance-correction-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
       .attendance-correction-note{margin-top:6px;font-size:14px;line-height:1.45;color:#555}
       .attendance-correction-history{margin-top:6px;padding:8px 10px;border-radius:10px;background:#f5f5f1;font-size:14px;line-height:1.5}
