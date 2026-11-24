@@ -213,10 +213,11 @@
     if (!exists) content.hub.push(item);
   });
 
-  // Archive enhancement never blocks the parser. Homepage retains its existing contract.
-  if (isArchivePage && typeof fetch === 'function') {
+  if (typeof document !== 'undefined' && typeof fetch === 'function') {
     window.TAEJANG_ARCHIVE_FEED = { status: 'loading' };
-    fetch('/.netlify/functions/public-promotion-feed?format=json&media=browser', { cache: 'no-store', signal: AbortSignal.timeout(10000) })
+    fetch('/.netlify/functions/public-promotion-feed?format=json&media=browser', {
+      cache: 'no-store', signal: globalThis.AbortSignal?.timeout?.(10000)
+    })
       .then(response => { if (!response.ok) throw new Error('feed unavailable'); return response.json(); })
       .then(payload => {
         if (!Array.isArray(payload.items)) throw new Error('invalid feed');
@@ -224,7 +225,5 @@
       })
       .catch(() => { window.TAEJANG_ARCHIVE_FEED = { status: 'error' }; })
       .finally(() => document.dispatchEvent(new Event('taejang-live-promotion-ready')));
-  } else if (typeof document !== 'undefined' && document.readyState === 'loading') {
-    document.write('<script data-live-promotion-feed src="/.netlify/functions/public-promotion-feed"><\/script>');
   }
 }());

@@ -49,7 +49,7 @@ test('common employee home owns live attendance, no-write QA, and preview-safe b
   assert.match(source, /attendance\.qa_validate/);
   assert.match(source, /기능 검수 모드 · 실제 근태에 반영되지 않음/);
   assert.match(source, /화면 미리보기 · 실제 근태 기록 없음/);
-  assert.match(source, /근태 기록 대상이 아닙니다/);
+  assert.match(read('app/assets/worker-mobile-v1.js'), /attendance_required === false[\s\S]*?근태 기록 대상이 아닙니다/);
   assert.match(source, /if \(isPreviewMode\(\)\)/);
   assert.match(source, /writes_attendance !== false/);
   assert.match(source, /if \(!qaMode\) allowException/);
@@ -60,7 +60,7 @@ test('common employee home owns live attendance, no-write QA, and preview-safe b
 
 test('attendance integrity UI hides personal attendance for excluded employees and gates correction by capability', () => {
   const source = read('app/assets/attendance-integrity-ui.js');
-  assert.match(source, /근태 기록 대상이 아닙니다/);
+  assert.match(read('app/assets/worker-mobile-v1.js'), /attendance_required === false[\s\S]*?근태 기록 대상이 아닙니다/);
   assert.match(source, /attendance\.correct/);
   assert.match(source, /hasCapabilityContract/);
   assert.match(source, /create_attendance_correction/);
@@ -131,7 +131,8 @@ test('employee attendance eligibility is data-driven while operations manager ke
   assert.match(bridge, /ALL_EMPLOYEE_HOME_ROLES = new Set\(\['general_worker', 'promotion_staff', 'promotion_lead', 'operations_manager'\]\)/);
   assert.match(bridge, /currentRoute === 'operations_manager'/);
   assert.match(bridge, /attendance\.qa_validate/);
-  assert.match(integrity, /attendance_required !== false/);
+  assert.match(bridge, /attendance_required === false/);
+  assert.doesNotMatch(integrity, /rpc\('get_my_attendance_today'/);
   assert.match(migration, /e\.attendance_required/);
   const subject = migration.match(/create or replace function public\.private_employee_is_attendance_subject[\s\S]*?create or replace function public\.private_validate_attendance_attempt/)?.[0] || '';
   assert.doesNotMatch(subject, /ceo|operations_manager|profile_roles|positions/i);

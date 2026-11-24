@@ -199,14 +199,17 @@
     ));
   }
 
+  const checkedEmployeeCards = new WeakSet();
+  const checkedHomepageCards = new WeakSet();
+
   async function addEmployeeCard(currentRoute, grid) {
     if (!['operations_manager', 'promotion_lead', 'department_lead'].includes(currentRoute)
       || !canAddSummaryCard(currentRoute, grid, 'employee.manage')) return;
-    if ([...grid.children].some(node => cardKey(node) === 'employee.manage')) return;
+    if (checkedEmployeeCards.has(grid) || [...grid.children].some(node => cardKey(node) === 'employee.manage')) return;
     try {
       const context = await app().rpc('get_employee_management_context');
       const requests = Array.isArray(context?.change_requests) ? context.change_requests : [];
-      if (currentRoute === 'operations_manager' && !requests.length) return;
+      if (currentRoute === 'operations_manager' && !requests.length) { checkedEmployeeCards.add(grid); return; }
       const title = currentRoute === 'operations_manager' ? '직원관리 요청' : '팀 직원 관리';
       const body = currentRoute === 'operations_manager'
         ? '팀장이 보낸 직원 등록·수정 요청을 확인하세요.'
@@ -221,12 +224,13 @@
   }
 
   async function addHomepageApprovalCard(currentRoute, grid) {
-    if (currentRoute !== 'operations_manager' || !canAddSummaryCard(currentRoute, grid, 'homepage.content')
+    if (checkedHomepageCards.has(grid) || currentRoute !== 'operations_manager' || !canAddSummaryCard(currentRoute, grid, 'homepage.content')
       || [...grid.children].some(node => cardKey(node) === 'homepage.content')) return;
     try {
       const requests = await app().rpc('get_homepage_change_requests');
       const pending = (Array.isArray(requests) ? requests : []).filter(item => item.status === 'pending');
-      if (!pending.length || !canAddSummaryCard(currentRoute, grid, 'homepage.content')) return;
+      if (!pending.length) { checkedHomepageCards.add(grid); return; }
+      if (!canAddSummaryCard(currentRoute, grid, 'homepage.content')) return;
       grid.append(card('홈페이지 수정 승인', '운영팀장이 요청한 홈페이지 글·사진 변경을 확인하세요.', `${pending.length}건`, {
         label: '홈페이지 요청 검토',
         run: () => {

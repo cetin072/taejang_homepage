@@ -220,6 +220,10 @@
     const card = document.getElementById('worker-attendance-card');
     if (!card) return;
     card.replaceChildren(node('h2', '오늘 출퇴근'));
+    if (data?.attendance_required === false) {
+      card.append(node('p', '근태 기록 대상이 아닙니다.', 'worker-attendance-state'));
+      return;
+    }
 
     if (!data?.is_workday) {
       card.append(node('p', `오늘은 휴일입니다. (${data?.day_reason || '휴일'})`, 'worker-attendance-state'));

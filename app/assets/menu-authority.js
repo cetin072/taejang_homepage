@@ -107,7 +107,8 @@
     delegated: key => !snapshot?.unavailable && decision(key) === true,
     hasDelegatedMenus: () => !snapshot?.unavailable && (snapshot?.decisions || []).some(row => row.allowed),
     getSnapshot: () => snapshot };
-  document.addEventListener('taejang-app-ready', () => {
+  document.addEventListener('taejang-app-ready', event => {
+    if (event.detail?.capabilitiesResolved && appOwner === window.TaejangApp && snapshot && !snapshot.unavailable) return;
     void refresh().catch(() => {});
   });
   window.addEventListener('focus', () => { void refresh().catch(() => {}); });

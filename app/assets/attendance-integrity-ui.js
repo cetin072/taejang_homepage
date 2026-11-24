@@ -89,29 +89,6 @@
     document.head.append(style);
   }
 
-  async function enforceAttendanceSubjectUi() {
-    const currentRoute = route();
-    if (!currentRoute) return;
-    try {
-      const data = await app().rpc('get_my_attendance_today');
-      if (data?.attendance_required !== false) return;
-      const cards = [
-        document.getElementById('worker-attendance-card'),
-        document.getElementById('employee-attendance-card')
-      ].filter(Boolean);
-      cards.forEach(card => {
-        const titleClass = card.id === 'worker-attendance-card' ? 'worker-attendance-state' : 'employee-attendance-state';
-        card.replaceChildren(
-          node('h2', '오늘 출퇴근'),
-          node('p', '근태 기록 대상이 아닙니다.', titleClass)
-        );
-      });
-      document.querySelectorAll('[data-attendance-action],[data-employee-attendance-action],[data-exception-request],[data-employee-exception-request]').forEach(el => el.remove());
-    } catch {
-      // Existing attendance UI owns its normal error state.
-    }
-  }
-
   async function correctionHistory(employeeUuid, workDate) {
     try {
       const history = await app().rpc('get_attendance_correction_history', {
@@ -496,10 +473,11 @@
           window.TaejangAttendanceRosterSort.positionOrders(context)
         );
         const fragment = document.createDocumentFragment();
-        for (const row of rows) {
+        for (let start = 0; start < rows.length; start += 4) {
           if (!list.isConnected || selectedVersion !== version) return;
-          const history = await correctionHistory(row.employee_uuid, workDate);
-          fragment.append(makeRow(row, workDate, history));
+          const group = rows.slice(start, start + 4);
+          const histories = await Promise.all(group.map(row => correctionHistory(row.employee_uuid, workDate)));
+          group.forEach((row, index) => fragment.append(makeRow(row, workDate, histories[index])));
         }
         if (!list.isConnected || selectedVersion !== version) return;
         list.replaceChildren(fragment);
@@ -518,15 +496,7 @@
     // Compatibility no-op. Sidebar ownership belongs to dashboard-shell.
   }
 
-  function sync() {
-    injectStyles();
-    setTimeout(enforceAttendanceSubjectUi, 0);
-    setTimeout(enforceAttendanceSubjectUi, 250);
-  }
-
-  document.addEventListener('taejang-app-ready', sync);
-  document.addEventListener('taejang-dashboard-refresh', () => setTimeout(enforceAttendanceSubjectUi, 100));
-  document.addEventListener('taejang-capabilities-ready', () => setTimeout(enforceAttendanceSubjectUi, 0));
+  document.addEventListener('taejang-app-ready', injectStyles);
   async function addMissingTime({ employeeUuid, workDate, eventType }) {
     return createCorrection({
       employeeUuid,
@@ -537,5 +507,5 @@
     });
   }
 
-  window.TaejangAttendanceIntegrity = { openCorrectionScreen, enforceAttendanceSubjectUi, addMissingTime, addCorrectionNavigation };
+  window.TaejangAttendanceIntegrity = { openCorrectionScreen, addMissingTime, addCorrectionNavigation };
 })();

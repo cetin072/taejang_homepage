@@ -126,7 +126,7 @@
   // This capture listener performs one additional replay after capability context is
   // resolved, so normal feature listeners start with TaejangApp.can() available.
   document.addEventListener('taejang-app-ready', event => {
-    if (replayingReady || !window.TaejangApp?.rpc) return;
+    if (replayingReady || !window.TaejangApp?.rpc || event.detail?.capabilitiesResolved) return;
     queuedReadyDetail = event.detail || {};
     event.stopImmediatePropagation();
     void refresh().finally(() => {

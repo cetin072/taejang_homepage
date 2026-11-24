@@ -889,8 +889,9 @@
   }
 
   document.addEventListener('taejang-open-platform-settings',renderSettings);
-  document.addEventListener('taejang-app-ready',()=>queueMicrotask(refresh));
-  document.addEventListener('taejang-capabilities-ready',()=>queueMicrotask(refresh));
+  let shellReady = false;
+  document.addEventListener('taejang-app-ready', () => { shellReady = true; queueMicrotask(refresh); });
+  document.addEventListener('taejang-capabilities-ready', () => { if (shellReady) queueMicrotask(refresh); });
   document.addEventListener('taejang-dashboard-refresh',()=>setTimeout(()=>{applyDashboardOrder();injectDashboardEditor();},80));
 
   window.TaejangPlatformUiSettings={

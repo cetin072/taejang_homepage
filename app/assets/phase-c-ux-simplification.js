@@ -118,6 +118,7 @@
       const workspace = await app().rpc('get_my_promotion_workspace');
       const item = Array.isArray(workspace?.review_items) ? workspace.review_items[index] : null;
       if (!item?.content_id) throw new Error('검토할 홍보자료를 찾지 못했습니다.');
+      if (await window.TaejangLoadArticleEditor?.() === false || !card.isConnected) return;
       pendingLeadEdit = await app().rpc('get_promotion_review_detail', { p_content_id: item.content_id });
       desiredMode = 'lead-edit';
       document.dispatchEvent(new CustomEvent('taejang-open-promotion-workspace', { detail: { mode: 'lead-edit' } }));

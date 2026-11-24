@@ -48,6 +48,7 @@ async function ready(page) {
   await page.evaluate(() => document.fonts.ready);
   for (const img of await page.locator('main img').all()) {
     await img.scrollIntoViewIfNeeded();
+    await page.waitForFunction(image => image.currentSrc && image.complete, await img.elementHandle(), {timeout: 8000});
     await img.evaluate(el => el.decode());
     // HTMLImageElement.width/height round to integers, which skews short, wide logos.
     // Check the rendered subpixel box against the natural ratio instead.
