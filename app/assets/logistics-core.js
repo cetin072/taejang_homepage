@@ -7,6 +7,8 @@
     boxes: { basic: 500, u1: 560, u2: 640, u21: 720, u3: 880, u4: 1360, u5: 1840, provided: 0 },
     shipping: [2600, 3500, 4500, 6000, 8000, 12000] };
   const BOXES = { basic:'기본 박스',u1:'우체국 1호형',u2:'우체국 2호형',u21:'우체국 2-1호형',u3:'우체국 3호형',u4:'우체국 4호형',u5:'우체국 5호형',provided:'고객 제공 박스' };
+  const INNER_BOX_GROUPS = Array.from({length:Object.keys(BOXES).length-1},(_,i)=>'innerBox-'+(i+2));
+  const isInnerBox = key => key==='innerBox'||INNER_BOX_GROUPS.includes(key);
   const STAGES = ['1차 작업 · 입고 확인과 분류','2차 작업 · 재포장과 개별 송장','3차 작업 · 합포장 및 출고 준비','4차 작업 · 국내 발송','기타 비용'];
   const ROWS = [
     ['receive',1,'상품 입고 확인','free'], ['damage',1,'개봉 후 파손 상품 확인','free'], ['unbox',1,'기존 박스 포장 해체','free'],
@@ -28,14 +30,15 @@
       storage:{shelves:1,startMonth:1,months:1,rate:rates.shelf},discount:0,vatMode:'exclusive',feeEnabled:false,feeRate:20 };
   }
   function calculate(input) {
-    if(!input || !Array.isArray(input.lines) || input.lines.length<ROWS.length || input.lines.length>52) throw Error('작업 항목을 확인하세요.');
+    if(!input || !Array.isArray(input.lines) || input.lines.length<ROWS.length || input.lines.length>52+INNER_BOX_GROUPS.length) throw Error('작업 항목을 확인하세요.');
     const seen=new Set(); let workSubtotal=0;
+    let extraCount=0;
     const photoMonth=integer(input.photoMonth,'사진 서비스 적용 월',1,1200);
     const lines=input.lines.map(line=>{
       if(!line || typeof line.key!=='string' || seen.has(line.key) || typeof line.label!=='string' || !line.label.trim() || line.label.length>120) throw Error('작업 항목을 확인하세요.');
       seen.add(line.key);
-      const standard=ROWS.find(row=>row[0]===line.key);
-      if(!standard && !line.key.startsWith('extra-')) throw Error('작업 항목을 확인하세요.');
+      const standard=ROWS.find(row=>row[0]===(isInnerBox(line.key)?'innerBox':line.key));
+      if(!standard && (!line.key.startsWith('extra-')||++extraCount>40)) throw Error('작업 항목을 확인하세요.');
       const kind=standard?standard[3]:'extra';
       const quantity=integer(line.quantity,line.label+' 수량',0,1000000);
       const unitPrice=integer(line.unitPrice,line.label+' 단가',0,100000000);
@@ -70,7 +73,7 @@
     return !!app && app.getAccessContext?.()?.account_status==='active' && !app.getAccessContext?.()?.role_simulation?.active
       && ROLES.some(role=>app.getActualRoles?.().includes(role)) && ROLES.some(role=>app.getEffectiveRoles?.().includes(role));
   }
-  const api={ROLES,DEFAULTS,BOXES,STAGES,ROWS,MAX,copy,draft,calculate,allowed,integer};
+  const api={ROLES,DEFAULTS,BOXES,STAGES,ROWS,MAX,copy,draft,calculate,allowed,integer,INNER_BOX_GROUPS,isInnerBox};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   if(host)host.TaejangLogisticsCore=api;
 })(typeof window!=='undefined'?window:null);

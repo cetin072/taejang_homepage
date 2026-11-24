@@ -1,6 +1,18 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const C=require('../app/assets/logistics-core.js');
 test('v8 기본: 소계 6240 / 부가세 624 / 총액 6864',()=>{const t=C.calculate(C.draft());assert.equal(t.subtotal,6240);assert.equal(t.vat,624);assert.equal(t.total,6864);});
 test('v8 승인된 10박스 예시: 23474',()=>{const q=C.draft();q.lines.filter(l=>['innerBox','repack','individualLabel'].includes(l.key)).forEach(l=>l.quantity=10);q.lines.find(l=>l.key==='ship').unitPrice=6000;assert.equal(C.calculate(q).total,23474);});
+test('재포장 박스 5개를 규격별로 합산하고 모두 2차 작업에 둔다',()=>{
+ const q=C.draft();
+ const box=q.lines.find(l=>l.key==='innerBox');
+ Object.assign(box,{option:'u1',quantity:2,unitPrice:560});
+ q.lines.splice(q.lines.indexOf(box)+1,0,
+  {...box,key:'innerBox-2',option:'u3',quantity:2,unitPrice:880},
+  {...box,key:'innerBox-3',option:'u5',quantity:1,unitPrice:1840});
+ const rows=C.calculate(q).lines.filter(l=>C.isInnerBox(l.key));
+ assert.deepEqual(rows.map(l=>[l.stage,l.kind,l.quantity,l.amount]),[[2,'box',2,1120],[2,'box',2,1760],[2,'box',1,1840]]);
+ q.lines.find(l=>l.key==='innerBox-3').key='innerBox-9';
+ assert.throws(()=>C.calculate(q));
+});
 test('부가세 포함은 추가 과금 없음',()=>{const q=C.draft();q.vatMode='inclusive';const t=C.calculate(q);assert.equal(t.total,6240);assert.equal(t.supply+t.vat,6240);});
 test('기본 1칸 3개월 무료 / 추가 칸은 첫 달부터',()=>{const q=C.draft();q.storage.months=3;assert.equal(C.calculate(q).storageAmount,0);q.storage.shelves=2;assert.equal(C.calculate(q).storageAmount,45000);q.storage.shelves=1;q.storage.months=4;assert.equal(C.calculate(q).storageAmount,15000);});
 test('4개월째 1개월 청구와 3~4개월 청구',()=>{const q=C.draft();q.storage.startMonth=4;assert.equal(C.calculate(q).storageAmount,15000);q.storage.startMonth=3;q.storage.months=2;assert.equal(C.calculate(q).storageAmount,15000);});

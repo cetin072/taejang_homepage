@@ -100,6 +100,14 @@ try{
    assert.ok((await p.locator('#logistics-print').textContent()).includes('부가세 포함'),'printed VAT label preserves the selected mode');
    assert.ok(!(await p.locator('#logistics-print').textContent()).includes('부가세 별도'));
    assert.equal(await pdf(p,'with-extra-and-vat'),1);await finishPrint(p);
+   await p.evaluate(()=>{
+    const box=fixture.lines.find(line=>line.key==='innerBox');
+    fixture.lines.splice(fixture.lines.indexOf(box)+1,0,{...box,key:'innerBox-2',option:'u3',quantity:2,unitPrice:880});
+   });
+   await openQuote(p);await startPrint(p);
+   const printedBox=await p.locator('#logistics-print [data-row="innerBox-2"]').textContent();
+   assert.ok(printedBox.includes('우체국 3호형')&&printedBox.includes('1,760원'),'print keeps the box size and amount');
+   await finishPrint(p);
    await p.evaluate(()=>{fixture.lines=fixture.lines.filter(l=>!l.key.startsWith('extra-'));for(let i=1;i<=40;i++)fixture.lines.push({key:'extra-'+i,stage:5,label:'추가 작업 '+i+' · 포장 및 검수 상세 내역',kind:'extra',quantity:1,unitPrice:1000});});
    await openQuote(p);await startPrint(p);
    assert.ok((await p.locator('#logistics-print').textContent()).includes('추가 작업 40'));
@@ -116,6 +124,23 @@ try{
    assert.equal(await p.locator('#logistics-print').count(),0,'permission revocation removes printable copy');
   }
   assert.equal(await p.evaluate(()=>mutations),0,'print never changes business records');
+  if(width===390){
+   await p.getByRole('button',{name:'복사해 새 견적',exact:true}).click();
+   const repack=p.getByRole('spinbutton',{name:'개별 재포장 수량',exact:true});
+   await repack.fill('5');
+   const add=p.getByRole('button',{name:'+ 재포장 박스 규격 추가',exact:true});
+   await add.click();await add.click();
+   const boxes=p.locator('[data-row^="innerBox"]');
+   assert.deepEqual(await boxes.locator('input[type=number]').evaluateAll(inputs=>inputs.map(input=>input.value)),['3','1','1']);
+   await boxes.nth(0).getByRole('spinbutton').fill('2');
+   await boxes.nth(1).getByRole('spinbutton').fill('2');
+   await boxes.nth(1).getByRole('combobox').selectOption('u3');
+   assert.equal(await repack.inputValue(),'5');
+   assert.equal(await p.locator('[data-row="repack"] .lg-qty input').inputValue(),'5');
+   assert.equal(await boxes.nth(1).locator('output').textContent(),'1,760원');
+   await boxes.nth(2).getByRole('button',{name:'규격 행 삭제'}).click();
+   assert.equal(await repack.inputValue(),'4');
+  }
   assert.deepEqual(errors,[]);await p.close();
  }
  console.log('Logistics print flow passed (synthetic RPC; physical printer not tested).');

@@ -17,6 +17,7 @@ try{
  const files=readdirSync('supabase/migrations').filter(f=>f.endsWith('_logistics_workspace.sql'));
  db.raw(readFileSync(files.length?'supabase/migrations/'+files[files.length-1]:'supabase/sql/logistics_workspace.sql','utf8'));
  db.raw(readFileSync('supabase/migrations/20261117152728_logistics_wallet_summary.sql','utf8'));
+ db.raw(readFileSync('supabase/migrations/20261124070445_logistics_split_inner_boxes.sql','utf8'));
  // Existing isolated fixture supplies real role/capability foundation, not hosted accounts.
  const roles=['department_lead','promotion_lead','ceo','field_lead','super_admin'];const actors={};
  for(const role of roles){const id=randomUUID();actors[role]=id;db.raw(`insert into public.roles(code,name) select '${role}','Synthetic ${role}' where not exists(select 1 from public.roles where code='${role}');insert into public.profiles values('${id}','Synthetic ${role}','active');insert into public.profile_roles select '${id}',id,null from public.roles where code='${role}';`);}
@@ -32,6 +33,14 @@ try{
  mutate('wallet.deposit',deposit,depositId);mutate('wallet.deposit',deposit,depositId);ok(Number(getBalance())===50000,'deposit retry exactly once');
  rejects(()=>mutate('wallet.deposit',{...deposit,amount:40000},depositId),/LOGISTICS_REQUEST_REUSE/,'idempotency key cannot be reused for different input');
  const q=C.draft();q.customerId=customer.id;const confirmed=mutate('quote.confirm',{quote:q}).quote;ok(confirmed.total===6864,'server recalculates v8 quote');ok(Number(getBalance())===50000,'confirmation does not charge');
+ const mixed=C.copy(q),inner=mixed.lines[3];
+ Object.assign(inner,{quantity:2,option:'u1',unitPrice:560});
+ mixed.lines.splice(4,0,{...inner,key:'innerBox-2',quantity:2,option:'u3',unitPrice:880},{...inner,key:'innerBox-3',quantity:1,option:'u5',unitPrice:1840});
+ for(const line of mixed.lines.filter(l=>['repack','individualLabel'].includes(l.key)))line.quantity=5;
+ const savedMixed=mutate('quote.confirm',{quote:mixed}).quote;
+ ok(savedMixed.total===C.calculate(mixed).total,'server recalculates mixed box sizes at their own rates');
+ const restored=read().quotes.find(item=>item.id===savedMixed.id).snapshot.lines.filter(line=>C.isInnerBox(line.key));
+ assert.deepEqual(restored.map(line=>[line.stage,line.kind,line.option,line.quantity,line.amount]),[[2,'box','u1',2,1120],[2,'box','u3',2,1760],[2,'box','u5',1,1840]]);
  const chargeId=randomUUID();mutate('wallet.charge',{quoteId:confirmed.id},chargeId);mutate('wallet.charge',{quoteId:confirmed.id},chargeId);ok(Number(getBalance())===43136,'quote charged once on retry');
  ok(latest().amount===6864,'latest debit includes confirmed quote debit');
  rejects(()=>mutate('wallet.charge',{quoteId:confirmed.id}),/LOGISTICS_DUPLICATE_CHARGE/,'fresh request cannot double charge same quote');
