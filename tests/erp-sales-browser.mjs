@@ -13,6 +13,11 @@ try {
  await page.getByRole('button',{name:'고객 등록',exact:true}).click();
  const gridColumns=loc=>loc.evaluate(node=>(()=>{const c=getComputedStyle(node).gridTemplateColumns;const repeat=c.match(/^repeat\((\d+),/);return repeat?Number(repeat[1]):(c.match(/[^\s(]+\([^)]*\)|[^\s]+/g)||[]).length;})());
  const editorDialog=page.locator('dialog.erp-editor-dialog[open]');
+ const openSidebarView=async name=>{
+  const toggle=page.locator('#sidebar-toggle');
+  if(await toggle.isVisible()&&await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
+  await page.locator('#app-nav').getByRole('link',{name,exact:true}).click();
+ };
  const closePopup=async()=>{
   if(await editorDialog.count()){
    await page.locator('.erp-sales:not([aria-busy])').waitFor();
@@ -261,7 +266,6 @@ try {
 
  await closePopup();
 
- await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();await page.getByRole('button',{name:'상품 판매 등록',exact:true}).click();
  await field('party_id').selectOption({label:'합성 개인 브라우저'});await field('sales_date').fill('2099-02-05');await field('order_date').fill('2099-02-05');await field('agent_id').selectOption({label:'합성 브라우저 영업자'});await field('supplier_id').selectOption({label:'합성 직배송 공급처'});await field('order_channel').selectOption('kakao');await field('item_id_1').selectOption({label:'B-SALT · 브라우저 소금'});await field('quantity_1').fill('3');await field('unit_price_1').fill('1234');assert.equal(await field('tax_amount_1').inputValue(),'370');await field('fee_kind').selectOption('fixed');await field('fee_value').fill('500');
  await field('pricing_basis_1').selectOption('inclusive');await field('quantity_1').fill('1');await field('unit_price_1').fill('25000');
@@ -487,8 +491,6 @@ try {
  assert.equal(app.db.rpc('erp_sales_get',{p_id:inclusiveSaleId}).total_amount,25000);
  await page.locator('.erp-editor').getByRole('button',{name:'닫기',exact:true}).click();
  await page.reload();
- await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.locator('.erp-body [name=from]').fill('2020-01-01');
  await page.locator('.erp-body [name=to]').fill('2020-12-31');
@@ -587,8 +589,8 @@ try {
   },p_id:null,p_revision:0});
  }
  await page.reload();
- await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'계약·월 매출',exact:true}).click();
+ await page.getByRole('button',{name:'고객 등록',exact:true}).waitFor();
+ await openSidebarView('계약·월 매출');
  await page.locator('[name=contract_period_filter]').selectOption('expiring');
  await page.getByRole('cell',{name:'합성 오늘 종료',exact:true}).waitFor();
  await page.getByRole('cell',{name:'합성 30일 종료',exact:true}).waitFor();
@@ -607,8 +609,8 @@ try {
   return route.continue();
  });
  await page.reload();
- await closePopup();
- await page.locator('#app-nav').getByRole('link',{name:'기준정보·매출 관리',exact:true}).click();
+ await page.getByRole('button',{name:'용역 계약 등록',exact:true}).waitFor();
+ await openSidebarView('기준정보·매출 관리');
  await page.getByRole('tab',{name:'매출·판매',exact:true}).click();
  await page.getByRole('button',{name:'상품 판매 등록',exact:true}).waitFor();
  assert.equal(await page.getByRole('tab',{name:'미수금',exact:true}).count(),0);
