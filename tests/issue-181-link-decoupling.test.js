@@ -70,8 +70,8 @@ test('metadata import remains single-fetch, preserves manual text, and keeps man
   assert.match(live, /finalSourceType === 'external' && !previousBody\.trim\(\)/);
   assert.match(live, /body\.value = ''/);
   assert.match(live, /외부 기사·자료는 원문 전체를 복사하지 않습니다/);
-  assert.match(live, /const fetchFailed = \/가져오지 못\|실패\|확인할 수 없\//);
-  assert.match(live, /자동 가져오기가 안 되면 직접 제목·본문을 입력해 저장할 수 있습니다/);
+  assert.ok(live.includes("status.dataset.metadataResult !== 'success'"));
+  assert.match(workspace, /제목과 본문을 직접 입력해 저장할 수 있습니다/);
   assert.match(config, /const payload = await response\.clone\(\)\.json\(\)/);
   assert.match(config, /rememberMetadata\(requestedUrl, payload\)/);
 });

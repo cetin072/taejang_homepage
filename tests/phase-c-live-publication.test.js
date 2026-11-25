@@ -117,7 +117,7 @@ test('publication admin follows the Issue 207 recent-delete window and modificat
 
 test('missing-photo correction is add-only, authorized, and preserves original publication', () => {
   for (const required of [
-    'create function public.private_can_operations_add_missing_promotion_photo',
+    'create or replace function public.private_can_operations_add_missing_promotion_photo',
     "current_user_has_role('operations_manager')",
     "private_actor_can('promotion.review_public_change')",
     'jsonb_array_length(r.public_media)=0',

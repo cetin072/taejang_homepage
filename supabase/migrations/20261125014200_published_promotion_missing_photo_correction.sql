@@ -2,7 +2,7 @@
 -- whose approved media list is empty. No update to previous revisions or review rows.
 begin;
 
-create function public.private_can_operations_add_missing_promotion_photo(p_content_id uuid)
+create or replace function public.private_can_operations_add_missing_promotion_photo(p_content_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
   select auth.uid() is not null
     and public.current_profile_is_active()
@@ -29,7 +29,7 @@ returns boolean language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function public.private_can_operations_add_missing_promotion_photo(uuid) from public,anon,authenticated;
 
-create function public.get_operations_missing_promotion_photo(p_content_id uuid)
+create or replace function public.get_operations_missing_promotion_photo(p_content_id uuid)
 returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare details jsonb;
 begin
@@ -47,7 +47,7 @@ begin
   return details;
 end; $$;
 
-create function public.operations_add_missing_promotion_photo(
+create or replace function public.operations_add_missing_promotion_photo(
   p_content_id uuid, p_expected_revision_id uuid,
   p_photo_url text, p_photo_alt text, p_reason text, p_confirm_source boolean default false
 ) returns jsonb language plpgsql security definer set search_path='' as $$

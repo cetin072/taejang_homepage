@@ -173,7 +173,7 @@
     const accepted = document.createElement('input');
     accepted.type = 'checkbox';
     const acknowledgment = field('사진이 이 게시물의 내용과 일치하고, 공개 사용권 및 인물 사진 동의를 확인했습니다.', accepted);
-    const status = el('p', '사진을 선택하거나 공식 블로그에서 가져오세요.', 'phase-c-upload-status');
+    const status = el('p', '대표사진 파일을 선택해 주세요.', 'phase-c-upload-status');
     status.setAttribute('role', 'status');
     const preview = document.createElement('img');
     preview.alt = '등록 예정 대표사진 미리보기';
