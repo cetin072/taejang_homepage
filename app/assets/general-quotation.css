@@ -1,0 +1,31 @@
+.general-quotation { max-width: 1120px; display: grid; gap: 14px; }
+.general-quotation .gq-card { margin: 0; min-width: 0; padding: 16px; }
+.general-quotation h3 { margin: 0 0 12px; }
+.general-quotation summary { font-weight: 700; cursor: pointer; }
+.general-quotation details[open] > summary { margin-bottom: 12px; }
+.general-quotation .gq-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.general-quotation .gq-full { grid-column: 1/-1; }
+.general-quotation .gq-field { display: grid; gap: 5px; align-content: start; min-width: 0; margin: 0; font-size: 14px; font-weight: 650; }
+.general-quotation :is(input,select,textarea) { width: 100%; min-width: 0; margin: 0; font-size: 16px; }
+.general-quotation .gq-items { display: grid; gap: 10px; margin-bottom: 12px; }
+.general-quotation .gq-add-item { width: auto; }
+.general-quotation .gq-item { display: grid; align-items: end; gap: 8px; grid-template-columns: 1.5fr 1.5fr .65fr .75fr 1fr 1.15fr auto; }
+.general-quotation .gq-totals { grid-column: 1/-1; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; margin: 0; }
+.general-quotation .gq-totals > div { padding: 10px; background: #f1f4f2; border-radius: 8px; }
+.general-quotation .gq-totals > div:last-child { background: #e3efe8; }
+.general-quotation .gq-totals dd { margin: 0; font-weight: 750; overflow-wrap: anywhere; color: #21483a; }
+.gq-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.general-quotation .button.secondary { color: #21483a; background: #fff; border: 1px solid #b9c9bf; }
+.general-quotation .button.secondary:hover { background: #f1f4f2; }
+.gq-preview { width: min(860px,94vw); max-height: 94dvh; border: 1px solid #bacac1; border-radius: 12px; padding: 16px; }
+.gq-preview::backdrop { background: #101c19a8; }
+.gq-preview iframe { display:block; margin-top: 12px; width: 100%; height: 66dvh; border: 1px solid #d6ded9; background: white; }
+.gq-preview-scroll { display: none; }
+@media(max-width: 860px) {
+  .gq-preview-scroll { display: block; margin: 8px 0 0; color: #415d51; font-size: 13px; }
+}
+@media(max-width: 760px) {
+  .general-quotation .gq-fields,.general-quotation .gq-totals { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .general-quotation .gq-item { grid-template-columns: repeat(2,minmax(0,1fr)); padding: 10px; border: 1px solid #d5ded9; border-radius: 8px; }
+  .general-quotation .gq-item > button { justify-self: start; }
+}

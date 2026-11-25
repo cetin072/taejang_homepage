@@ -620,5 +620,9 @@ try {
  await page.getByRole('button',{name:'조정 대기 조회',exact:true}).waitFor();
  assert.equal(await page.locator('[name=adjustment_filter_stage]').count(),0);
  assert.ok(dialogs.filter(t=>t.includes('확정 후')).length===2,'two explicit confirmations');assert.equal(dialogs.filter(t=>t.includes('저장하지 않은 입력이 있을 수')).length,0,'saved ERP data does not trigger shell dirty warnings');
+ await openSidebarView('공용 견적서');
+ await page.getByLabel('거래처',{exact:true}).waitFor();
+ assert.equal(new URL(page.url()).searchParams.get('view'),'erp_sales.quotation');
+ assert.equal(await page.getByText('물류 견적서',{exact:true}).count(),0);
  console.log('ERP_BROWSER_PASS: real PG17 scenario A/B, reload, filters, failure input preservation, confirm, delivery, 1440/390px, permission scrub');
 }finally{await browser.close();await app.close();}

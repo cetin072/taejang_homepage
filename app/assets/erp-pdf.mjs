@@ -1,6 +1,10 @@
-// ERP-generated PDFs use the document's customer or subject and its own date.
-export function printErpPdf(subject, documentDate, onClose = () => {}, target = window) {
+// ERP document filenames use the customer or subject and the document's own date.
+export function erpDocumentName(subject, documentDate) {
   const name = String(subject ?? '').replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim();
+  return [name || '문서', documentDate].filter(Boolean).join('_');
+}
+
+export function printErpPdf(subject, documentDate, onClose = () => {}, target = window) {
   const document = target.document;
   const previousTitle = document.title;
   let closed = false;
@@ -12,7 +16,7 @@ export function printErpPdf(subject, documentDate, onClose = () => {}, target = 
     onClose();
   }
 
-  document.title = [name || '문서', documentDate].filter(Boolean).join('_');
+  document.title = erpDocumentName(subject, documentDate);
   target.addEventListener('afterprint', close);
   try {
     target.print();

@@ -12,6 +12,12 @@ export type PatchNoteEntry = {
 // mobile/src/features/settings/patch-notes.ts. No runtime dependency on that app.
 export const MOBILE_PATCH_NOTES: readonly PatchNoteEntry[] = [
   {
+    id: '2026-11-25-erp-general-quotation', date: '2026-11-25',
+    title: 'ERP 공용 견적서',
+    summary: '웹 ERP의 영업·매출에서 거래처와 품목을 입력해 견적서를 만들 수 있습니다.',
+    items: ['엑셀 파일을 내려받거나 인쇄창에서 PDF로 저장할 수 있습니다.', '휴대폰에서 미리보기 표를 좌우로 밀어 품목과 금액을 확인할 수 있습니다.'],
+  },
+  {
     id: '2026-11-24-attendance-reminder', date: '2026-11-24',
     title: '출퇴근 미기록 안내',
     summary: '출퇴근 알림이 켜져 있으면 개인 근무시각이 2분 지난 뒤 아직 기록하지 않은 항목을 알려드립니다.',

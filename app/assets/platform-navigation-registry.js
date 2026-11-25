@@ -32,6 +32,7 @@
     { key:'notice.manage', label:'공지 관리', section:'업무 운영', capabilities:['notice.manage'] },
     { key:'logistics.manage', label:'물류 관리', section:'물류', capabilities:[], visibleRoles:['department_lead','promotion_lead','operations_manager','ceo'] },
     { key:'erp_sales.manage', label:'기준정보·매출 관리', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
+    { key:'erp_sales.quotation', label:'공용 견적서', section:'영업·매출', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
     { key:'erp_sales.contracts', label:'계약·월 매출', section:'용역 관리', capabilities:['erp_sales.read'], visibleRoles:['operations_manager'] },
     { key:'monthly_client_documents.manage', label:'용역 서류', section:'용역 관리', capabilities:['monthly_client_documents.manage'], visibleRoles:['operations_manager'] },
     { key:'leave.manage', label:'연차 관리', section:'근태·급여', capabilities:['leave.manage'], visibleRoles:['operations_manager','promotion_lead'] },
