@@ -31,7 +31,7 @@ export async function createERPBrowserServer({port=0,productAutomation=false}={}
    if(req.method!=='GET'){res.writeHead(405);res.end();return;}
    if(url.pathname==='/app/'||url.pathname==='/'){res.setHeader('content-type','text/html');res.end(html);return;}
    const file=path.resolve(root,'.'+decodeURIComponent(url.pathname));if(!['app/assets','staff/assets'].some(base=>file.startsWith(path.join(root,base)+path.sep)))throw new Error('not found');
-   res.setHeader('content-type',({'.js':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml'})[path.extname(file)]||'application/octet-stream');res.end(await readFile(file));
+   res.setHeader('content-type',({'.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.png':'image/png','.svg':'image/svg+xml'})[path.extname(file)]||'application/octet-stream');res.end(await readFile(file));
   }catch(error){res.writeHead(400,{'content-type':'application/json'});const text=String(error.stderr||error.message);res.end(JSON.stringify({message:text.includes('ERP_')?text.match(/ERP_[A-Z_]+/)[0]:text.includes('duplicate key')?'23505 duplicate':text.includes('check constraint')?'23514 invalid input':'fixture request failed'}));}
  });
  await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
