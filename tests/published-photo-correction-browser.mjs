@@ -21,7 +21,7 @@ const server = createServer(async (req,res) => {
     }
     const file = path.resolve(root,'.' + decodeURIComponent(url.pathname));
     if (!file.startsWith(root + path.sep)) throw Error('path denied');
-    res.setHeader('content-type',file.endsWith('.js')?'application/javascript':'text/css');
+    res.setHeader('content-type',/\.m?js$/.test(file)?'application/javascript':'text/css');
     res.end(await readFile(file));
   } catch {
     res.statusCode = 404;
