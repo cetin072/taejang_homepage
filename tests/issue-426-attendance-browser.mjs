@@ -16,13 +16,20 @@ const missing={...good,employee_uuid:'fixture-missing',employee_id:'V002',displa
 const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uuid:good.employee_uuid,employee_id_at_confirmation:good.employee_id,display_name_at_confirmation:good.display_name,work_date:d,clock_in_at:d+'T09:00:00+09:00',clock_out_at:d+'T18:00:00+09:00',record_snapshot:{attendance_status:'work'},revision_no:1,record_fingerprint:'fixture-'+d}))};
 const deleted={...good,employee_uuid:'fixture-deleted',employee_id:'V003',display_name:'가상 삭제 계정',account_active:false};
 const scheduledEmployee={...good,employee_uuid:'fixture-scheduled',employee_id:'V004',display_name:'가상 예정일 직원'};
+const largeRosterDate='2026-12-01';
+const largeRoster=Array.from({length:28},(_,index)=>{
+ const number=String(index+1).padStart(2,'0');
+ return {employee_uuid:'fixture-roster-'+number,employee_id:'R'+number,display_name:'직원 '+number};
+});
 const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><link rel="stylesheet" href="/app/assets/admin-authoring.css"><style>body{margin:16px}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
 const rows=${JSON.stringify([good,missing,deleted])};const ledger=${JSON.stringify(ledger)};
 const scheduledEmployee=${JSON.stringify(scheduledEmployee)}, scheduledDate=${JSON.stringify(scheduledDate)};
+const largeRoster=${JSON.stringify(largeRoster)}, largeRosterDate=${JSON.stringify(largeRosterDate)};
 window.fail=false;window.calls=[];const fieldWorkByDate=new Map();
 window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
  calls.push({name,p});if(window.fail)throw Error('fixture network failure');
  if(name==='get_attendance_admin_today'){
+  if(p.p_work_date===largeRosterDate)return {work_date:p.p_work_date,rows:largeRoster};
   if(p.p_work_date===scheduledDate){
    if(window.failRoster)throw Error('fixture roster read failure');
    return {work_date:p.p_work_date,rows:[...rows,scheduledEmployee]};
@@ -51,7 +58,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const browser=await playwright.chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'})});
 const errors=[];
 try{
- for(const [device,width,height] of [['pc',1440,1000],['mobile',390,844],['narrow-mobile',320,720]]){
+ for(const [device,width,height,minimumVisible] of [['pc',1440,1000,28],['compact-pc',1024,768,20],['mobile',390,844,12],['narrow-mobile',320,720,6]]){
   const context=await browser.newContext({viewport:{width,height},locale:'ko-KR',acceptDownloads:true});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
   await page.clock.setFixedTime(new Date('2026-11-25T16:00:00Z'));
   await page.goto('http://127.0.0.1:'+server.address().port);await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));
@@ -65,6 +72,23 @@ try{
   await dialog.waitFor();
   assert.equal(await workDate.inputValue(),today,'opening from a past day defaults registration to today');
   assert.equal(await workDate.getAttribute('min'),today);
+  await workDate.fill(largeRosterDate);
+  const lastEmployee=dialog.getByRole('checkbox',{name:/직원 28.*R28/});
+  await lastEmployee.waitFor();
+  const visibleEmployees=await dialog.locator('.attendance-field-participants').evaluate(list=>{
+   const bounds=list.getBoundingClientRect();
+   return Array.from(list.children).filter(label=>{
+    const row=label.getBoundingClientRect();
+    return row.top>=bounds.top && row.bottom<=bounds.bottom;
+   }).length;
+  });
+  assert.ok(visibleEmployees>=minimumVisible,device+' shows '+visibleEmployees+' employees before scrolling');
+  const saveBounds=await dialog.getByRole('button',{name:'현장근무 저장',exact:true}).boundingBox();
+  const modalBounds=await dialog.boundingBox();
+  assert.ok(saveBounds.y+saveBounds.height<=modalBounds.y+modalBounds.height,device+' keeps the save button in view');
+  await page.screenshot({path:path.join(output,device+'-field-roster.png')});
+  await lastEmployee.check();
+  assert.ok(await lastEmployee.isChecked(),'staff outside the initial view can be selected');
   await dialog.getByRole('button',{name:'취소',exact:true}).click();
   await field.getByText('현장근무 내역·확인',{exact:true}).click();
   await field.getByText('등록된 현장근무가 없습니다.',{exact:true}).waitFor();
