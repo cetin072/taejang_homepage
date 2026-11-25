@@ -131,7 +131,7 @@ try{
   assert.equal(await dialog.getByLabel('종료 시각').inputValue(),'12:00');
   await dialog.getByLabel('종료 시각').fill('13:00');
   await dialog.getByLabel('기록 방식').selectOption('out');
-  assert.equal(await dialog.getByLabel('기록 방식').locator('option:checked').textContent(),'평소 근무지에서 출근 → 현장 퇴근');
+  assert.equal(await dialog.getByLabel('기록 방식').locator('option:checked').textContent(),'평소 근무지 출근 → 현장 퇴근');
   await save.click();
   await dialog.getByText('직원을 한 명 이상 선택해주세요.',{exact:true}).waitFor();
   await dialog.getByRole('checkbox',{name:'가상 정상 직원'}).check();

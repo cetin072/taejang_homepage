@@ -144,6 +144,9 @@
       .attendance-field-dialog .form-actions { justify-content:flex-end; }
       .attendance-field-dialog .form-actions .button { width:auto; }
       @media(max-width:480px){.attendance-field-settings .attendance-field-day,.attendance-field-settings .attendance-field-site{grid-column:1/-1}}
+      @media(max-width:360px){
+        :is(#desktop-app-shell,.app-authoring-dialog) .app-authoring-inline .attendance-field-settings input[type="time"]:required { padding-inline:7px; font-size:.875rem; }
+      }
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
@@ -756,7 +759,7 @@
     const start = el('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
     const end = el('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
     const mode = el('select');
-    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지에서 출근 → 현장 퇴근', 'out'));
+    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지 출근 → 현장 퇴근', 'out'));
     settings.append(
       field('근무일', date, 'attendance-field-day'),
       field('현장명', site, 'attendance-field-site'),
