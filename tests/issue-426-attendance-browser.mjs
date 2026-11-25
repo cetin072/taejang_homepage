@@ -10,13 +10,14 @@ const monthly=require('../app/assets/attendance-monthly.js');
 const root=path.resolve('.');
 const output=process.env.ATTENDANCE_QA_OUTPUT || path.join(os.tmpdir(),'taejang-issue-426');await fs.mkdir(output,{recursive:true});
 const month='2026-09',dates=monthly.monthDates(month);
+const today='2026-11-26', scheduledDate='2026-11-30';
 const good={employee_uuid:'fixture-normal',employee_id:'V001',display_name:'가상 정상 직원',account_active:true,account_linked:true,attendance_status:{status:'work'},clock_in:{event_at:'2026-09-01T09:00:00+09:00',status:'recorded'},clock_out:{event_at:'2026-09-01T18:00:00+09:00',status:'recorded'}};
 const missing={...good,employee_uuid:'fixture-missing',employee_id:'V002',display_name:'가상 누락 직원',clock_out:null};
 const ledger={period_fingerprint:'fixture-only',rows:dates.map(d=>({employee_uuid:good.employee_uuid,employee_id_at_confirmation:good.employee_id,display_name_at_confirmation:good.display_name,work_date:d,clock_in_at:d+'T09:00:00+09:00',clock_out_at:d+'T18:00:00+09:00',record_snapshot:{attendance_status:'work'},revision_no:1,record_fingerprint:'fixture-'+d}))};
 const deleted={...good,employee_uuid:'fixture-deleted',employee_id:'V003',display_name:'가상 삭제 계정',account_active:false};
-const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><style>body{margin:16px;font-family:Arial,sans-serif;--app-border:#ddd}.button{padding:8px;border:1px solid #aac;background:#fff;border-radius:8px;cursor:pointer}button:focus-visible,summary:focus-visible{outline:3px solid blue}[hidden]{display:none!important}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
+const html=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/staff/assets/staff.css"><link rel="stylesheet" href="/app/assets/dashboard-shell.css"><link rel="stylesheet" href="/app/assets/admin-authoring.css"><style>body{margin:16px}</style></head><body><h1 id="desktop-page-title"></h1><main id="dashboard-main"></main><script>
 const rows=${JSON.stringify([good,missing,deleted])};const ledger=${JSON.stringify(ledger)};
-window.fail=false;window.calls=[];let fieldWork=[];
+window.fail=false;window.calls=[];const fieldWorkByDate=new Map();
 window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>true,can:()=>true,rpc:async(name,p)=>{
  calls.push({name,p});if(window.fail)throw Error('fixture network failure');
  if(name==='get_attendance_admin_today')return {work_date:p.p_work_date,rows};
@@ -24,9 +25,9 @@ window.TaejangApp={getRoute:()=> 'operations_manager',hasCapabilityContract:()=>
  if(name==='get_attendance_confirmation_status')return {is_confirmed:false,blockers:[]};
  if(name==='get_attendance_workday_status')return {is_workday:true};
  if(name==='get_attendance_holiday_work_assignments')return {rows:[]};
- if(name==='get_attendance_field_work'){if(window.failField)throw Error('fixture field read failure');return fieldWork;}
+ if(name==='get_attendance_field_work'){if(window.failField)throw Error('fixture field read failure');return fieldWorkByDate.get(p.p_work_date) || [];}
  if(name==='manage_attendance_field_work'){
-  fieldWork=p.p_employee_uuids.map(employee_uuid=>({employee_uuid,site:p.p_site,starts_at:p.p_starts_at,ends_at:p.p_ends_at,field_clock_in:p.p_field_clock_in}));
+  fieldWorkByDate.set(p.p_work_date,p.p_employee_uuids.map(employee_uuid=>({employee_uuid,site:p.p_site,starts_at:p.p_starts_at,ends_at:p.p_ends_at,field_clock_in:p.p_field_clock_in})));
   return null;
  }
  if(name==='get_confirmed_attendance_period')return ledger;
@@ -42,15 +43,22 @@ const browser=await playwright.chromium.launch({headless:true,...(process.env.CH
 const errors=[];
 try{
  for(const [device,width,height] of [['pc',1440,1000],['mobile',390,844]]){
-  const context=await browser.newContext({viewport:{width,height},acceptDownloads:true});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+  const context=await browser.newContext({viewport:{width,height},locale:'ko-KR',acceptDownloads:true});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));
+  await page.clock.setFixedTime(new Date('2026-11-25T16:00:00Z'));
   await page.goto('http://127.0.0.1:'+server.address().port);await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance('2026-09-01'));
   await page.getByRole('button',{name:'월별',exact:true}).waitFor();
-  const shortcut=page.getByRole('button',{name:'현장근무 지정·확인',exact:true});
-  const dateBounds=await page.getByLabel('확인 날짜',{exact:true}).boundingBox();
+  const shortcut=page.getByRole('button',{name:'현장근무 등록·확인',exact:true});
+  const date=page.getByLabel('확인 날짜',{exact:true});
+  const dateBounds=await date.boundingBox();
   const shortcutBounds=await shortcut.boundingBox();
   assert.ok(Math.abs(dateBounds.height-shortcutBounds.height)<=1,'date and field-work controls share the same height');
   if(device==='pc') assert.ok(Math.abs(dateBounds.y-shortcutBounds.y)<=1,'date and field-work controls align in one row');
   else assert.ok(shortcutBounds.y>=dateBounds.y+dateBounds.height,'the shortcut follows the date on narrow screens');
+  await page.getByText('미리 등록하려면 확인 날짜에서 근무 예정일을 선택하세요.',{exact:true}).waitFor();
+  const field=page.locator('[data-field-work-panel]');
+  await shortcut.click();
+  await field.getByText('새 현장근무를 등록하려면 오늘 또는 미래 날짜를 선택하세요.',{exact:true}).waitFor();
+  assert.equal(await field.getByRole('button',{name:'현장근무 등록',exact:true}).count(),0);
   assert.match(await page.locator('.attendance-compact').first().innerText(),/가상 누락/);
   assert.doesNotMatch(await page.locator('#dashboard-main').innerText(), /보안업체|지문/);
   assert.equal(await page.locator('.attendance-compact[open]').count(),0);
@@ -94,17 +102,21 @@ try{
     window.failField=true;
     return TaejangAttendanceAdmin.openAttendance();
   });
-  const field=page.locator('[data-field-work-panel]');
   await field.getByText('현장근무를 불러오지 못했습니다.',{exact:false}).waitFor();
   assert.equal(await page.locator('.attendance-compact').count(),2);
   await page.evaluate(()=>{window.failField=false;});
   await field.getByRole('button',{name:'현장근무 다시 조회',exact:true}).click();
-  await field.getByRole('button',{name:'현장근무 지정',exact:true}).waitFor();
-  await page.evaluate(()=>TaejangAttendanceAdmin.openAttendance());
-  await page.getByRole('button',{name:'현장근무 지정·확인',exact:true}).click();
+  await field.getByRole('button',{name:'현장근무 등록',exact:true}).waitFor();
+  assert.equal(await date.inputValue(),today);
+  await date.fill(scheduledDate);
+  await page.getByRole('heading',{name:scheduledDate+' 출근부',exact:true}).waitFor();
+  await shortcut.click();
   assert.equal(await field.evaluate(panel=>panel.open),true);
-  await field.getByRole('button',{name:'현장근무 지정',exact:true}).click();
-  const dialog=page.getByRole('dialog',{name:'현장근무 지정'});
+  await field.getByRole('button',{name:'현장근무 사전 등록',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'현장근무 사전 등록'});
+  await dialog.getByText('근무일 2026년 11월 30일 월요일',{exact:true}).waitFor();
+  await dialog.getByText('등록한 기록 방식은 이 근무일에 직원 앱에 적용됩니다.',{exact:true}).waitFor();
+  await page.screenshot({path:path.join(output,device+'-field-scheduling.png')});
   await dialog.getByLabel('현장명').fill('가상 환경미화');
   assert.equal(await dialog.getByLabel('시작 시각').inputValue(),'09:00');
   assert.equal(await dialog.getByLabel('종료 시각').inputValue(),'12:00');
@@ -115,11 +127,16 @@ try{
   await dialog.getByText('재택근무자도 참여 직원으로 지정할 수 있습니다.',{exact:true}).waitFor();
   await dialog.getByRole('checkbox',{name:'가상 정상 직원'}).check();
   await dialog.getByRole('button',{name:'현장근무 저장'}).click();
-  await field.getByText(/가상 환경미화.*현장 퇴근.*기록 대기/).waitFor();
+  await field.getByText(/가상 환경미화.*현장 퇴근.*근무 예정/).waitFor();
   const saved=await page.evaluate(()=>calls.findLast(c=>c.name==='manage_attendance_field_work').p);
+  assert.equal(saved.p_work_date,scheduledDate);
   assert.equal(saved.p_field_clock_in,false);
   assert.equal(saved.p_starts_at,'09:00');
   assert.equal(saved.p_ends_at,'13:00');
+  await date.fill(today);
+  await page.getByRole('heading',{name:today+' 출근부',exact:true}).waitFor();
+  await shortcut.click();
+  await field.getByText('등록된 현장근무가 없습니다.',{exact:true}).waitFor();
   await page.evaluate(()=>{
     TaejangApp.can=capability=>capability==='attendance.admin_view';
     window.calls=[];
