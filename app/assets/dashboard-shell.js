@@ -317,6 +317,15 @@
         capabilities: ['erp_sales.read']
       },
       {
+        key: 'erp_sales.quotation',
+        label: '공용 견적서',
+        run: async () => {
+          const {mountGeneralQuotation} = await import('/app/assets/general-quotation.mjs');
+          mountGeneralQuotation(el('dashboard-main'));
+        },
+        capabilities: ['erp_sales.read']
+      },
+      {
         key: 'erp_sales.contracts',
         label: '계약·월 매출',
         run: () => window.TaejangErpSalesLoader?.('contracts'),
@@ -378,7 +387,7 @@
     const action = document.querySelector('[data-platform-settings-action]');
     if (action) action.disabled = openingView;
   }
-  const viewMenuKey = key => key === 'erp_sales.contracts' ? 'erp_sales.manage' : key;
+  const viewMenuKey = key => ['erp_sales.contracts','erp_sales.quotation'].includes(key) ? 'erp_sales.manage' : key;
   function viewUrl(key, serviceDocument) {
     const url = new URL(location.href);
     url.searchParams.set('view', key);
@@ -394,7 +403,8 @@
     if(window.TaejangEmployeeCalendar?.hasUnsavedChanges?.())return true;
     if(activeView === 'monthly_client_documents.manage')return window.MonthlyClientDocuments?.hasUnsavedChanges?.() ?? viewDirty;
     if(activeView === 'logistics.manage')return window.TaejangLogistics?.hasUnsavedChanges?.() ?? viewDirty;
-    return viewMenuKey(activeView) === 'erp_sales.manage' ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
+    return activeView === 'erp_sales.manage' || activeView === 'erp_sales.contracts'
+      ? (window.TaejangErpSales?.hasUnsavedChanges?.() ?? viewDirty) : viewDirty;
   }
   function mayLeaveView() {
     return !currentViewDirty() || window.confirm('저장하지 않은 입력이 있을 수 있습니다. 현재 화면을 떠날까요?');
