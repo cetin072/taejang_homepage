@@ -4,7 +4,15 @@
   const legacyAllowed = new Set(['promotion_lead', 'operations_manager']);
   const EVIDENCE_SOURCE = 'fingerprint_excel';
   const ALIGNMENT_TOLERANCE_MINUTES = 5;
-  const FIELD_WORK_LABEL = '현장근무 등록·확인';
+  const FIELD_WORK_LABEL = '현장근무 내역·확인';
+  const FIELD_WORK_ERRORS = {
+    FIELD_WORK_ALREADY_RECORDED: '이미 현장 기록이 있습니다. 근태 보정에서 확인해주세요.',
+    FIELD_WORK_INELIGIBLE: '휴가·휴무 또는 근태 제외 직원이 포함돼 있습니다.',
+    FIELD_WORK_INVALID: '날짜와 시작·종료 시간을 확인해주세요.',
+    FIELD_WORK_INCOMPLETE: '현장 퇴근 기록 또는 보정 여부를 확인해주세요.',
+    DAY_ALREADY_CONFIRMED: '이미 확정된 출근부입니다.',
+    SELF_APPROVAL_FORBIDDEN: '본인 기록은 다른 관리자가 확인해야 합니다.'
+  };
   let currentWorkDate = null;
   let requestVersion = 0;
   let activeTab = 'daily';
@@ -80,7 +88,6 @@
       .attendance-toolbar > label:has(> input[type="date"]) { margin:0; }
       .attendance-toolbar input[type="date"] { min-height:48px; padding:7px 10px; border:1px solid #ccc; border-radius:10px; font:inherit; }
       .attendance-evidence-help { flex:1 1 260px; margin:0; color:#60746a; font-size:13px; line-height:1.5; }
-      .attendance-field-date-help { flex-basis:100%; }
       .attendance-list { display:grid; gap:10px; }
       .attendance-row { display:grid; grid-template-columns:minmax(120px,1.15fr) 1fr 1fr minmax(150px,.9fr); gap:12px; align-items:center; padding:14px; border:1px solid var(--app-border); border-radius:14px; background:#fff; }
       .attendance-person { font-size:18px; font-weight:900; }
@@ -122,15 +129,24 @@
       .attendance-holiday-work h3 { margin:0; }
       .attendance-holiday-work p { margin:8px 0 12px; line-height:1.5; }
       .attendance-holiday-work-list { display:grid; gap:8px; }
-      .attendance-field-dialog { box-sizing:border-box; width:min(580px,calc(100vw - 28px)); max-height:90dvh; padding:20px; border:0; border-radius:16px; }
+      .attendance-field-dialog { box-sizing:border-box; width:min(560px,calc(100vw - 24px)); max-height:calc(100dvh - 24px); padding:clamp(16px,4vw,24px); border:1px solid var(--app-border,#cfdcd4); border-radius:16px; color:var(--app-text,#1b3026); }
       .attendance-field-dialog::backdrop { background:rgba(15,23,42,.48); }
-      .attendance-field-dialog h2 { margin:0 0 12px; }
-      .attendance-field-dialog .error:empty { position:absolute; clip-path:inset(50%); }
-      .attendance-field-dialog label { display:flex; flex-direction:column; gap:5px; }
-      .attendance-field-dialog label:has(input[type="checkbox"]) { flex-direction:row; align-items:center; gap:8px; }
-      .attendance-field-dialog .attendance-ledger-controls :is(input,select) { width:100%; min-width:0; }
-      .attendance-field-dialog .attendance-ledger-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
-      .attendance-field-dialog .attendance-ledger-controls label:is(:first-child,:last-child) { grid-column:1/-1; align-items:stretch; }
+      .attendance-field-dialog h2 { margin:0 0 16px; }
+      .attendance-field-dialog form,.attendance-field-settings { display:grid; gap:12px; }
+      .attendance-field-settings { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .attendance-field-mode { grid-column:1/-1; }
+      .attendance-field-dialog fieldset { min-width:0; margin:0; padding:4px 10px 8px; border:1px solid var(--app-border,#cfdcd4); border-radius:10px; }
+      .attendance-field-dialog legend { padding:0 4px; font-size:.92rem; font-weight:750; }
+      .attendance-field-participants { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:8px; max-height:144px; overflow:auto; padding:4px; }
+      .attendance-field-participants small { display:block; }
+      .attendance-field-dialog .error { margin:0; color:#862f29; }
+      .attendance-field-dialog .error:empty,.attendance-field-dialog .field-help:empty { position:absolute; clip-path:inset(50%); }
+      .attendance-field-dialog .form-actions { justify-content:flex-end; }
+      .attendance-field-dialog .form-actions .button { width:auto; }
+      @media(max-width:480px){.attendance-field-settings .attendance-field-day,.attendance-field-settings .attendance-field-site{grid-column:1/-1}}
+      @media(max-width:360px){
+        :is(#desktop-app-shell,.app-authoring-dialog) .app-authoring-inline .attendance-field-settings input[type="time"]:required { padding-inline:7px; font-size:.875rem; }
+      }
       .attendance-holiday-work-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background:#fff; }
       .attendance-holiday-work-row strong { display:block; }
       .attendance-holiday-work-row span { color:#60746a; font-size:13px; }
@@ -323,7 +339,7 @@
     return { label: `앱·과거 외부 기록 시간차 ${maxDelta}분 · 확인`, needsReview: true };
   }
 
-  function makeToolbar(workDate, fieldPanel) {
+  function makeToolbar(workDate) {
     const toolbar = el('section', null, 'attendance-toolbar');
     const dateLabel = el('label', '확인 날짜');
     const dateInput = document.createElement('input');
@@ -334,17 +350,6 @@
     });
     dateLabel.append(dateInput);
     toolbar.append(dateLabel);
-    if (fieldPanel) {
-      const shortcut = el('button', FIELD_WORK_LABEL, 'button button-quiet');
-      shortcut.type = 'button';
-      shortcut.addEventListener('click', () => revealFieldWork(fieldPanel));
-      const help = el('p', '미리 등록하려면 확인 날짜에서 근무 예정일을 선택하세요.',
-        'attendance-evidence-help attendance-field-date-help');
-      help.id = 'attendance-field-date-help';
-      dateInput.setAttribute('aria-describedby', help.id);
-      shortcut.setAttribute('aria-describedby', help.id);
-      toolbar.append(shortcut, help);
-    }
 
     return toolbar;
   }
@@ -735,105 +740,185 @@
     return panel;
   }
 
+  function fieldWorkRegistration(workDate, today, rows) {
+    const dialog = el('dialog', null, 'attendance-field-dialog app-authoring-dialog');
+    const title = el('h2', '현장근무 등록');
+    title.id = 'attendance-field-dialog-title';
+    dialog.setAttribute('aria-labelledby', title.id);
+    const form = el('form', null, 'app-authoring-inline');
+    const settings = el('div', null, 'attendance-field-settings');
+    const field = (label, control, className) => {
+      const wrapper = el('label', label, className);
+      wrapper.append(control);
+      return wrapper;
+    };
+    const date = el('input');
+    date.type = 'date'; date.required = true; date.min = today; date.autofocus = true;
+    date.defaultValue = workDate >= today ? workDate : today;
+    const site = el('input'); site.required = true; site.maxLength = 100;
+    const start = el('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
+    const end = el('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
+    const mode = el('select');
+    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지 출근 → 현장 퇴근', 'out'));
+    settings.append(
+      field('근무일', date, 'attendance-field-day'),
+      field('현장명', site, 'attendance-field-site'),
+      field('시작 시각', start),
+      field('종료 시각', end),
+      field('기록 방식', mode, 'attendance-field-mode')
+    );
+
+    const selection = el('fieldset');
+    const participants = el('div', null, 'attendance-field-participants');
+    const rosterMessage = el('p', '', 'field-help');
+    rosterMessage.setAttribute('role', 'status');
+    const retry = el('button', '직원 다시 조회', 'button button-quiet');
+    retry.type = 'button';
+    selection.append(el('legend', '참여 직원'), rosterMessage, participants, retry);
+    const formMessage = el('p', '', 'error');
+    formMessage.setAttribute('role', 'status');
+    const save = el('button', '현장근무 저장', 'button'); save.type = 'submit';
+    const cancel = el('button', '취소', 'button button-quiet'); cancel.type = 'button';
+    const actions = el('div', null, 'form-actions');
+    actions.append(cancel, save);
+    form.append(settings, selection, formMessage, actions);
+    dialog.append(title, form);
+
+    let rosterRequest = 0;
+    let rosterDate = null;
+    let saving = false;
+    const selectedEmployees = () => Array.from(
+      participants.querySelectorAll('input:checked'), input => input.value
+    );
+
+    function showEmployees(employeeRows, requestedDate) {
+      const selected = new Set(selectedEmployees());
+      const options = employeeRows.filter(row => row.employee_uuid).map(row => {
+        const checkbox = el('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = row.employee_uuid;
+        checkbox.checked = selected.has(checkbox.value);
+        const label = el('label');
+        const name = el('span', row.display_name || '직원');
+        if (row.employee_id) name.append(el('small', row.employee_id));
+        label.append(checkbox, name);
+        return label;
+      });
+      participants.replaceChildren(...options);
+      rosterDate = requestedDate;
+      participants.hidden = !options.length;
+      save.disabled = !options.length;
+      rosterMessage.textContent = options.length ? '' : '이 근무일에 선택할 수 있는 직원이 없습니다.';
+    }
+
+    async function loadEmployees() {
+      const version = ++rosterRequest;
+      const requestedDate = date.value;
+      rosterDate = null;
+      participants.hidden = true;
+      retry.hidden = true;
+      save.disabled = true;
+      formMessage.textContent = '';
+      rosterMessage.textContent = '';
+      if (!date.validity.valid) return;
+      if (requestedDate === workDate) {
+        showEmployees(rows, requestedDate);
+        return;
+      }
+      rosterMessage.textContent = '참여 직원 명단을 불러오는 중입니다.';
+      try {
+        const result = await app().rpc('get_attendance_admin_today', { p_work_date: requestedDate });
+        if (!dialog.open || version !== rosterRequest) return;
+        if (!Array.isArray(result?.rows)) throw new Error('ROSTER_UNAVAILABLE');
+        showEmployees(result.rows, requestedDate);
+      } catch {
+        if (!dialog.open || version !== rosterRequest) return;
+        rosterMessage.textContent = '직원 명단을 불러오지 못했습니다.';
+        retry.hidden = false;
+      }
+    }
+
+    date.addEventListener('change', loadEmployees);
+    retry.addEventListener('click', loadEmployees);
+    cancel.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('cancel', event => { if (saving) event.preventDefault(); });
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (saving || date.value !== rosterDate) return;
+      const employeeIds = selectedEmployees();
+      if (!site.value.trim()) { formMessage.textContent = '현장명을 입력해주세요.'; site.focus(); return; }
+      if (start.value >= end.value) { formMessage.textContent = '종료 시각은 시작 시각보다 늦어야 합니다.'; end.focus(); return; }
+      if (!employeeIds.length) { formMessage.textContent = '직원을 한 명 이상 선택해주세요.'; return; }
+      const selectedDate = date.value;
+      const data = {
+        p_work_date: selectedDate, p_employee_uuids: employeeIds, p_action: 'save',
+        p_site: site.value.trim(), p_starts_at: start.value, p_ends_at: end.value,
+        p_field_clock_in: mode.value === 'both'
+      };
+      const controls = [date, site, start, end, mode, selection, cancel, save];
+      saving = true;
+      controls.forEach(control => { control.disabled = true; });
+      save.textContent = '저장 중…';
+      formMessage.textContent = '';
+      try {
+        await app().rpc('manage_attendance_field_work', data);
+      } catch (error) {
+        formMessage.textContent = FIELD_WORK_ERRORS[error?.message] || '저장하지 못했습니다. 입력과 권한을 확인해주세요.';
+        return;
+      } finally {
+        saving = false;
+        controls.forEach(control => { control.disabled = false; });
+        save.textContent = '현장근무 저장';
+      }
+      dialog.close();
+      activeTab = 'daily';
+      await openAttendance(selectedDate, { fieldWorkSaved: true });
+    });
+
+    const button = el('button', title.textContent, 'button');
+    button.type = 'button';
+    button.setAttribute('aria-haspopup', 'dialog');
+    button.addEventListener('click', () => {
+      form.reset();
+      participants.replaceChildren();
+      dialog.showModal();
+      void loadEmployees();
+    });
+    return { button, dialog };
+  }
+
   function fieldWorkPanel(assignments, rows, workDate, today, confirmed) {
     const panel = el('section', null, 'attendance-holiday-work');
     const scheduled = workDate > today;
-    const writable = !confirmed && workDate >= today;
-    const registrationLabel = scheduled ? '현장근무 사전 등록' : '현장근무 등록';
     const dateLabel = '근무일 ' + new Intl.DateTimeFormat('ko-KR', {
       dateStyle: 'full', timeZone: 'Asia/Seoul'
     }).format(new Date(workDate));
     panel.append(el('h3', dateLabel));
-    const form = el('form', null, 'attendance-holiday-work-list app-authoring');
-    const dialog = el('dialog', null, 'attendance-field-dialog app-authoring-dialog');
-    const title = el('h2', registrationLabel);
-    title.id = 'attendance-field-dialog-title';
-    dialog.setAttribute('aria-labelledby', title.id);
-    const formMessage = el('p', '', 'error');
-    formMessage.setAttribute('role', 'status');
     const message = el('p', '', 'attendance-evidence-help');
     message.setAttribute('role', 'status');
     const names = new Map(rows.map(row => [String(row.employee_uuid), row.display_name]));
-    const settings = el('div', null, 'attendance-ledger-controls');
-    const field = (label, control) => {
-      const wrapper = el('label', label);
-      wrapper.append(control);
-      return wrapper;
-    };
-    const site = document.createElement('input'); site.required = true; site.maxLength = 100;
-    const start = document.createElement('input'); start.type = 'time'; start.required = true; start.defaultValue = '09:00';
-    const end = document.createElement('input'); end.type = 'time'; end.required = true; end.defaultValue = '12:00';
-    const mode = document.createElement('select');
-    mode.append(new Option('현장 출근 → 현장 퇴근', 'both'), new Option('평소 근무지에서 출근 → 현장 퇴근', 'out'));
-    settings.append(field('현장명', site), field('시작 시각', start), field('종료 시각', end), field('기록 방식', mode));
-    const selection = el('details', null, 'attendance-detail-tools');
-    const participants = el('div', null, 'attendance-holiday-work-list');
-    selection.append(el('summary', '참여 직원 선택'),
-      el('p', '재택근무자도 참여 직원으로 지정할 수 있습니다.'), participants);
-    const options = rows.filter(row => row.employee_uuid).map(row => {
-      const control = document.createElement('input'); control.type = 'checkbox'; control.value = row.employee_uuid;
-      participants.append(field(row.display_name || '직원', control));
-      return control;
-    });
-    const save = el('button', '현장근무 저장', 'button'); save.type = 'submit';
-    const cancel = el('button', '취소', 'button button-quiet'); cancel.type = 'button';
     const controls = [];
     let busy = false;
-    async function change(action, employeeIds, extra = {}) {
+    async function change(action, employeeIds) {
       if (busy) return;
-      const feedback = action === 'save' ? formMessage : message;
-      if (!employeeIds.length) { feedback.textContent = '직원을 한 명 이상 선택해주세요.'; return; }
+      if (!employeeIds.length) { message.textContent = '직원을 한 명 이상 선택해주세요.'; return; }
       busy = true;
       controls.forEach(button => { button.disabled = true; });
-      feedback.textContent = '처리 중입니다.';
+      message.textContent = '처리 중입니다.';
       try {
         await app().rpc('manage_attendance_field_work', {
-          p_work_date: workDate, p_employee_uuids: employeeIds, p_action: action, ...extra
+          p_work_date: workDate, p_employee_uuids: employeeIds, p_action: action
         });
       } catch (error) {
-        const errors = {
-          FIELD_WORK_ALREADY_RECORDED: '이미 현장 기록이 있습니다. 근태 보정에서 확인해주세요.',
-          FIELD_WORK_INELIGIBLE: '휴가·휴무 또는 근태 제외 직원이 포함돼 있습니다.',
-          FIELD_WORK_INVALID: '날짜와 시작·종료 시간을 확인해주세요.',
-          FIELD_WORK_INCOMPLETE: '현장 퇴근 기록 또는 보정 여부를 확인해주세요.',
-          DAY_ALREADY_CONFIRMED: '이미 확정된 출근부입니다.',
-          SELF_APPROVAL_FORBIDDEN: '본인 기록은 다른 관리자가 확인해야 합니다.'
-        };
-        feedback.textContent = errors[error?.message] || '처리하지 못했습니다. 입력과 권한을 확인해주세요.';
+        message.textContent = FIELD_WORK_ERRORS[error?.message] || '처리하지 못했습니다. 입력과 권한을 확인해주세요.';
+        return;
+      } finally {
         busy = false;
         controls.forEach(button => { button.disabled = false; });
-        return;
       }
-      feedback.textContent = '처리했습니다.';
-      if (dialog.open) dialog.close();
+      message.textContent = '처리했습니다.';
       await openAttendance(workDate);
       main()?.querySelector('[data-field-work-panel]')?.setAttribute('open', '');
-    }
-    if (writable) {
-      const open = el('button', registrationLabel, 'button'); open.type = 'button';
-      const actions = el('div', null, 'form-actions');
-      actions.append(cancel, save);
-      controls.push(save, cancel);
-      form.append(settings, selection, formMessage, actions);
-      const schedule = el('p');
-      schedule.append(el('strong', dateLabel));
-      dialog.append(title, schedule,
-        el('p', '등록한 기록 방식은 이 근무일에 직원 앱에 적용됩니다.', 'attendance-evidence-help'), form);
-      cancel.addEventListener('click', () => dialog.close());
-      dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); });
-      open.addEventListener('click', () => dialog.showModal());
-      form.addEventListener('submit', event => {
-        event.preventDefault();
-        if (start.value >= end.value) { formMessage.textContent = '종료 시각은 시작 시각보다 늦어야 합니다.'; return; }
-        void change('save', options.filter(control => control.checked).map(control => control.value), {
-          p_site: site.value.trim(), p_starts_at: start.value, p_ends_at: end.value,
-          p_field_clock_in: mode.value === 'both'
-        });
-      });
-      panel.append(open, dialog);
-    } else {
-      panel.append(el('p', confirmed ? '확정된 출근부입니다.'
-        : '새 현장근무를 등록하려면 오늘 또는 미래 날짜를 선택하세요.', 'attendance-evidence-help'));
     }
     panel.append(message);
     const list = el('div', null, 'attendance-holiday-work-list');
@@ -852,7 +937,9 @@
       line.append(copy);
       if (!confirmed && recorded && !assignment.reviewed_at) {
         const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = assignment.employee_uuid;
-        reviewSelection.push(checkbox); line.append(field('대조 확인 대상', checkbox));
+        const label = el('label', '대조 확인 대상');
+        label.append(checkbox);
+        reviewSelection.push(checkbox); line.append(label);
       } else if (!confirmed && !recorded) {
         const remove = el('button', '지정 해제', 'button button-quiet'); remove.type = 'button';
         controls.push(remove);
@@ -917,7 +1004,7 @@
     return detail;
   }
 
-  function tabBar(panels) {
+  function tabBar(panels, registrationButton) {
     const bar = el('nav', null, 'attendance-tabs');
     bar.setAttribute('aria-label', '출근부 보기');
     const buttons = [];
@@ -926,6 +1013,7 @@
       button.addEventListener('click', () => { activeTab = key; update(); if (key === 'monthly') panels.monthly.load(); });
       buttons.push([key, button]); bar.append(button);
     });
+    if (registrationButton) bar.append(registrationButton);
     function update() {
       buttons.forEach(([key, button]) => { button.setAttribute('aria-pressed', String(activeTab === key)); panels[key].hidden = activeTab !== key; if(activeTab===key)panels[key].querySelectorAll('.attendance-toolbar').forEach(bar=>bar.refresh?.()); });
     }
@@ -1113,7 +1201,7 @@
     return panel;
   }
 
-  async function openAttendance(workDate = null) {
+  async function openAttendance(workDate = null, { fieldWorkSaved = false } = {}) {
     if (!can('attendance.admin_view')) return;
     closeSidebar();
     const target = main();
@@ -1221,14 +1309,21 @@
       }
       renderDaily();
       const dailyPanel=el('section'),detailPanel=el('section'),monthly=monthlyPanel(currentWorkDate);
-      const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel});
+      const canManageFieldWork = can('attendance.correct');
+      const registration = canManageFieldWork ? fieldWorkRegistration(currentWorkDate, today, rows) : null;
+      const tabs=tabBar({daily:dailyPanel,monthly,detail:detailPanel}, registration?.button);
       const pieces=[intro,tabs];
-      const fieldPanel = can('attendance.correct')
+      const fieldPanel = canManageFieldWork
         ? (Array.isArray(fieldWorkResult.value)
           ? fieldWorkPanel(fieldWork, rows, currentWorkDate, today, dayConfirmed)
           : fieldWorkUnavailable(currentWorkDate))
         : null;
-      dailyPanel.append(makeToolbar(currentWorkDate, fieldPanel));
+      if (fieldWorkSaved) {
+        const notice = el('p', '현장근무를 등록했습니다.', 'message');
+        notice.setAttribute('role', 'status');
+        dailyPanel.append(notice);
+      }
+      dailyPanel.append(makeToolbar(currentWorkDate));
       if (fieldPanel) dailyPanel.append(fieldPanel);
       dailyPanel.append(summary,searchToolbar(renderDaily,()=>rows));
       if(!evidenceAvailable)dailyPanel.append(syncRequiredPanel('과거 외부 기록'));
@@ -1242,10 +1337,14 @@
       const unmatchedNode=unmatchedPanel(unmatched,rows,currentWorkDate,evidenceData);
       if(unmatchedNode)dailyPanel.append(folded('과거 외부 기록 · 미연결 '+unmatched.length+'건',unmatchedNode,true));
       dailyPanel.append(list);pieces.push(dailyPanel,monthly,detailPanel);
+      if (registration) pieces.push(registration.dialog);
       target.replaceChildren(...pieces);
+      if (fieldWorkSaved && fieldPanel) revealFieldWork(fieldPanel);
     } catch {
       if (version !== requestVersion) return;
-      target.prepend(el('p', '출근부를 불러오지 못했습니다. 이전 조회와 입력 상태는 유지됩니다.', 'message error'));
+      const message = fieldWorkSaved ? '현장근무를 등록했습니다. 내역을 보려면 해당 근무일을 다시 조회해주세요.'
+        : '출근부를 불러오지 못했습니다. 이전 조회와 입력 상태는 유지됩니다.';
+      target.prepend(el('p', message, 'message error'));
     }
   }
 
