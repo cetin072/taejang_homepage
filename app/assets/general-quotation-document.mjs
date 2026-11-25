@@ -88,6 +88,7 @@ td,th{border:1px solid #65766f;padding:7px 8px;text-align:left;overflow-wrap:any
 tr,.summary{break-inside:avoid}
 th.key,th.column,.total{background:#edf3f0;font-weight:700}
 .column,.title,.center{text-align:center}
+.column:first-child{white-space:nowrap;padding-inline:3px}
 .title{font-size:26px;padding:19px 8px;letter-spacing:.08em}
 .money,.quantity,.grand{text-align:right;font-variant-numeric:tabular-nums}
 .grand{font-weight:750;background:#e3efe8;font-size:17px}

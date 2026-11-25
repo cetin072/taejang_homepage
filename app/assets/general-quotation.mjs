@@ -20,7 +20,7 @@ function el(tag,text='',className=''){
   return node;
 }
 function button(label,action,primary=false){
-  const node=el('button',label,'button'+(primary?' primary':''));
+  const node=el('button',label,primary?'button primary':'button secondary');
   node.type='button';
   node.addEventListener('click',action);
   return node;
@@ -89,6 +89,7 @@ export function mountGeneralQuotation(host){
   const itemCard=el('section','','platform-settings-card gq-card');
   const items=el('div','','gq-items');
   const add=button('+ 품목 추가',()=>addItem(true));
+  add.classList.add('gq-add-item');
   itemCard.append(el('h3','품목'),items,add);
   form.append(itemCard);
   const details=el('details','','platform-settings-card gq-card');
